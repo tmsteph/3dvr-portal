@@ -8,6 +8,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Life Space · 3DVR</title>
   <link rel="manifest" href="/app-manifests/life-space.webmanifest">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="/auth-identity.js"></script>
   <script src="/pwa-install.js" defer></script>
   <script defer src="/_vercel/insights/script.js"></script>
   <link rel="stylesheet" href="styles.css">
@@ -29,7 +33,7 @@
         <button class="sidebar-action" id="export-data">Export backup</button>
         <button class="sidebar-action" id="import-data">Import backup</button>
         <input id="import-file" type="file" accept="application/json" hidden>
-        <p><span class="status-dot"></span><span id="save-status">Saved on this device</span></p>
+        <p><span class="status-dot"></span><span id="save-status">Checking account sync…</span></p>
       </div>
     </aside>
 
@@ -92,7 +96,7 @@
     <div class="help-grid">
       <article><b>Move freely</b><p>Drag cards by their top edge. Drag empty space to pan. Pinch or use the zoom controls.</p></article>
       <article><b>Edit naturally</b><p>Click text and type. Changes save automatically. Resize a card from its lower corner.</p></article>
-      <article><b>Keep it yours</b><p>Your workspace and files stay in this browser. Export a backup whenever you want to move devices.</p></article>
+      <article><b>Keep it yours</b><p>Your workspace stays available offline. Sign in to sync an encrypted copy across devices, and export a backup whenever you want.</p></article>
       <article><b>Draw over it</b><p>Turn on Draw, sketch with a mouse, pen, or finger, then turn it off to move things again.</p></article>
     </div>
     <button class="primary-button wide" data-close-dialog>Start making space</button>

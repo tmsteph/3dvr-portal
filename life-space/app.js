@@ -1,4 +1,5 @@
 import { openDatabase, loadState, saveState, saveFile, getFile, exportWorkspace, importWorkspace } from './storage.js';
+import { createLifeSpaceSync } from './sync.js';
 
 const $ = selector => document.querySelector(selector);
 const uid = prefix => `${prefix}-${crypto.randomUUID()}`;
@@ -24,9 +25,11 @@ let drawMode = false;
 let currentStroke = null;
 let interaction = null;
 let saveTimer;
+let syncTimer;
 let history = [];
 let future = [];
 let objectUrls = new Map();
+let sync;
 
 const activeSpace = () => state.spaces.find(space => space.id === state.activeSpaceId) || state.spaces[0];
 const itemById = id => activeSpace().items.find(item => item.id === id);
@@ -49,15 +52,24 @@ function scheduleSave() {
   clearTimeout(saveTimer);
   els.saveStatus.textContent = 'Saving…';
   state.updatedAt = Date.now();
+  activeSpace().updatedAt = state.updatedAt;
   saveTimer = setTimeout(async () => {
     try {
       await saveState(db, state);
       els.saveStatus.textContent = 'Saved on this device';
+      scheduleAccountSync();
     } catch (error) {
       els.saveStatus.textContent = 'Could not save';
       toast(error.message, true);
     }
   }, 220);
+}
+
+function scheduleAccountSync() {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(async () => {
+    try { await sync?.save(await exportWorkspace(db, state)); } catch { els.saveStatus.textContent = 'Saved here · Sync will retry'; }
+  }, 1200);
 }
 
 function toast(message, danger = false) {
@@ -84,7 +96,7 @@ function createItem(type, values = {}) {
     id: uid(type), type, x: point.x, y: point.y, w: type === 'image' ? 340 : 300,
     h: type === 'note' ? 220 : type === 'checklist' ? 250 : 190,
     title: type === 'note' ? 'New thought' : type === 'checklist' ? 'Things to do' : '', z: Date.now(),
-    text: '', color: ['#fff3c9','#dff4ea','#e8e1ff','#dcecff'][activeSpace().items.length % 4], createdAt: Date.now()
+    text: '', color: ['#fff3c9','#dff4ea','#e8e1ff','#dcecff'][activeSpace().items.length % 4], createdAt: Date.now(), updatedAt: Date.now()
   };
   const before = snapshot();
   const item = { ...defaults, ...values };
@@ -192,7 +204,7 @@ function pointerDown(event) {
     event.preventDefault();
     const before = snapshot();
     const point = boardPoint(event);
-    currentStroke = { id:uid('stroke'), color:'#ff7a59', width:4 / activeSpace().view.zoom, points:[point] };
+    currentStroke = { id:uid('stroke'), color:'#ff7a59', width:4 / activeSpace().view.zoom, points:[point], createdAt:Date.now(), updatedAt:Date.now() };
     activeSpace().strokes.push(currentStroke);
     interaction = { type:'draw', before };
     els.wrap.setPointerCapture(event.pointerId); renderStrokes(); return;
@@ -245,6 +257,8 @@ function pointerMove(event) {
 
 function pointerUp() {
   if (!interaction) return;
+  if (interaction.item) interaction.item.updatedAt = Date.now();
+  if (interaction.type === 'draw' && currentStroke) currentStroke.updatedAt = Date.now();
   if (interaction.before) commitHistory(interaction.before);
   if (interaction.type !== 'pan') renderBoard(); else scheduleSave();
   document.querySelector('.moving')?.classList.remove('moving');
@@ -261,23 +275,24 @@ function bindEvents() {
     const card = event.target.closest('.life-card');
     if (card && event.target.closest('[data-delete]')) {
       const before = snapshot();
+      activeSpace().deletedItemIds = [...new Set([...(activeSpace().deletedItemIds || []), card.dataset.id])];
       activeSpace().items = activeSpace().items.filter(item => item.id !== card.dataset.id);
       commitHistory(before); scheduleSave(); renderBoard();
     }
     if (card && event.target.closest('[data-color]')) {
       const palette = ['#fff3c9','#dff4ea','#e8e1ff','#dcecff','#ffe1dc','#f4eee4'];
       const item = itemById(card.dataset.id); const before = snapshot();
-      item.color = palette[(palette.indexOf(item.color) + 1) % palette.length];
+      item.color = palette[(palette.indexOf(item.color) + 1) % palette.length]; item.updatedAt = Date.now();
       commitHistory(before); scheduleSave(); renderBoard();
     }
     if (card && event.target.closest('.add-row')) {
       const item = itemById(card.dataset.id); const before = snapshot();
-      item.rows.push({ id:uid('row'), text:'', done:false }); commitHistory(before); scheduleSave(); renderBoard();
+      item.rows.push({ id:uid('row'), text:'', done:false }); item.updatedAt = Date.now(); commitHistory(before); scheduleSave(); renderBoard();
       requestAnimationFrame(() => card.querySelector('[data-row]:last-of-type [data-row-text]')?.focus());
     }
     if (card && event.target.closest('[data-delete-row]')) {
       const item = itemById(card.dataset.id); const row = event.target.closest('[data-row]'); const before = snapshot();
-      item.rows = item.rows.filter(entry => entry.id !== row.dataset.row); commitHistory(before); scheduleSave(); renderBoard();
+      item.rows = item.rows.filter(entry => entry.id !== row.dataset.row); item.updatedAt = Date.now(); commitHistory(before); scheduleSave(); renderBoard();
     }
     if (card && event.target.closest('.download-file')) {
       const item = itemById(card.dataset.id); const stored = await getFile(db, item.fileId);
@@ -288,6 +303,7 @@ function bindEvents() {
     if (spaceButton && !event.target.closest('[data-delete-space]')) { state.activeSpaceId = spaceButton.dataset.space; history=[]; future=[]; updateHistoryButtons(); renderBoard(); scheduleSave(); els.sidebar.classList.remove('open'); }
     if (spaceButton && event.target.closest('[data-delete-space]')) {
       if (!confirm('Delete this space and everything in it?')) return;
+      state.deletedSpaceIds = [...new Set([...(state.deletedSpaceIds || []), spaceButton.dataset.space])];
       state.spaces = state.spaces.filter(space => space.id !== spaceButton.dataset.space); state.activeSpaceId = state.spaces[0].id; renderBoard(); scheduleSave();
     }
   });
@@ -297,12 +313,13 @@ function bindEvents() {
     const item = itemById(card.dataset.id);
     if (event.target.dataset.field) item[event.target.dataset.field] = event.target.innerText;
     if (event.target.hasAttribute('data-row-text')) item.rows.find(row => row.id === event.target.closest('[data-row]').dataset.row).text = event.target.innerText;
+    item.updatedAt = Date.now();
     scheduleSave();
   });
   els.cardLayer.addEventListener('change', event => {
     if (event.target.type !== 'checkbox') return;
     const item = itemById(event.target.closest('.life-card').dataset.id);
-    item.rows.find(row => row.id === event.target.closest('[data-row]').dataset.row).done = event.target.checked; scheduleSave();
+    item.rows.find(row => row.id === event.target.closest('[data-row]').dataset.row).done = event.target.checked; item.updatedAt = Date.now(); scheduleSave();
   });
   els.wrap.addEventListener('pointerdown', pointerDown);
   els.wrap.addEventListener('pointermove', pointerMove);
@@ -312,7 +329,7 @@ function bindEvents() {
 
   $('#draw-tool').onclick = () => { drawMode = !drawMode; $('#draw-tool').classList.toggle('active', drawMode); els.wrap.classList.toggle('drawing', drawMode); toast(drawMode ? 'Draw mode on' : 'Draw mode off'); };
   $('#add-space').onclick = () => { const name = prompt('Name this space', 'New space'); if (!name?.trim()) return; const before=snapshot(); const space={id:uid('space'),name:name.trim(),color:['#ffb66e','#7fd4ad','#a89cf5','#79b9ef'][state.spaces.length%4],view:{x:0,y:0,zoom:1},items:[],strokes:[]}; state.spaces.push(space); state.activeSpaceId=space.id; commitHistory(before); renderBoard(); scheduleSave(); };
-  els.name.addEventListener('input', () => { activeSpace().name = els.name.value; renderSpaces(); scheduleSave(); });
+  els.name.addEventListener('input', () => { activeSpace().name = els.name.value; activeSpace().updatedAt = Date.now(); renderSpaces(); scheduleSave(); });
   els.search.addEventListener('input', renderSpaces);
   $('#zoom-in').onclick = () => setZoom(activeSpace().view.zoom * 1.15);
   $('#zoom-out').onclick = () => setZoom(activeSpace().view.zoom / 1.15);
@@ -359,7 +376,15 @@ async function restore(event) {
 async function init() {
   db=await openDatabase(); state=await loadState(db) || defaultState();
   if (!state.spaces?.length) state=defaultState();
+  sync=createLifeSpaceSync({onStatus:value=>{els.saveStatus.textContent=value;}});
   bindEvents(); renderBoard(); updateHistoryButtons();
+  const localPayload=await exportWorkspace(db,state);
+  const syncedPayload=await sync.load(localPayload);
+  if (syncedPayload) {
+    state=await importWorkspace(db,syncedPayload);
+    renderBoard();
+    await sync.save(await exportWorkspace(db,state));
+  }
 }
 
 init().catch(error => { console.error(error); toast('Life Space could not start. Refresh and try again.', true); });

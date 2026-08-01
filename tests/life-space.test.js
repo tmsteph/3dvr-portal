@@ -6,6 +6,7 @@ const html = fs.readFileSync(new URL('../life-space/index.html', import.meta.url
 const js = fs.readFileSync(new URL('../life-space/app.js', import.meta.url), 'utf8');
 const storage = fs.readFileSync(new URL('../life-space/storage.js', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../life-space/styles.css', import.meta.url), 'utf8');
+const sync = fs.readFileSync(new URL('../life-space/sync.js', import.meta.url), 'utf8');
 
 test('Life Space exposes every core capture type', () => {
   for (const type of ['note','checklist','link','image','file']) assert.match(html, new RegExp(`data-add="${type}"`));
@@ -17,6 +18,15 @@ test('Life Space is local-first and supports portable backups', () => {
   assert.match(storage, /exportWorkspace/);
   assert.match(storage, /importWorkspace/);
   assert.match(storage, /3dvr-life-space/);
+});
+
+test('Life Space loads encrypted portal-account sync without giving up offline storage', () => {
+  assert.match(html, /gun\/sea\.js/);
+  assert.match(html, /auth-identity\.js/);
+  assert.match(js, /createLifeSpaceSync/);
+  assert.match(sync, /SEA\.encrypt/);
+  assert.match(sync, /CHUNK_SIZE/);
+  assert.match(sync, /Synced to your account/);
 });
 
 test('Life Space implements spatial interaction and history', () => {
