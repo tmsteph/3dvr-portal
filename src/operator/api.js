@@ -5,9 +5,13 @@ const RESPONSE_SCHEMA = {
   name: 'portal_operator_response', strict: true,
   schema: {
     type: 'object', additionalProperties: false,
-    required: ['reply', 'action'],
+    required: ['reply', 'suggestions', 'action'],
     properties: {
       reply: { type: 'string' },
+      suggestions: {
+        type: 'array', maxItems: 3,
+        items: { type: 'string' }
+      },
       action: {
         type: 'object', additionalProperties: false,
         required: ['type', 'title', 'text', 'business', 'location', 'url'],
@@ -52,6 +56,7 @@ export function buildOperatorRequest({ prompt, history = [], model = DEFAULT_OPE
       'For create_note fill title and text. For create_checklist fill title and put one checklist item per line in text. For save_link fill title, optional text, and an absolute http or https URL. For add_lead fill business and location. For open_app use only these relative URLs: /life-space/, /lead-finder/, /crm/, /growth-operator/, /web-builder-app/, /calendar/, /finance/.',
       'Use none when the user is asking a question or when the requested action is external, destructive, costly, sensitive, or unsupported. Never claim an unsupported action happened.',
       'When a safe action is clear, choose it without asking the user to navigate an interface.',
+      'Include two or three short suggestions for useful next messages the user could send. Phrase each as a direct request in the user’s voice, make them specific to the conversation, and avoid repeating work that is already complete.',
       'Return only the requested JSON.'
     ].join(' '),
     input: messages,
@@ -68,6 +73,7 @@ export function normalizeOperatorResult(value = {}) {
     : type === 'save_link' && /^https?:\/\/[^\s]+$/i.test(rawUrl) ? rawUrl : '';
   return {
     reply: clean(value?.reply, 1600) || 'Tell me what you want to do.',
+    suggestions: (Array.isArray(value?.suggestions) ? value.suggestions : []).map(item => clean(item, 100)).filter(Boolean).slice(0, 3),
     action: {
       type, title: clean(value?.action?.title, 120), text: clean(value?.action?.text, 4000),
       business: clean(value?.action?.business, 160), location: clean(value?.action?.location, 160),
