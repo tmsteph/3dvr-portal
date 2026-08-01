@@ -7,7 +7,9 @@
   <meta name="theme-color" content="#07101c">
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="/gun-init.js"></script>
+  <script src="/auth-identity.js"></script>
   <script type="module" src="app.js"></script>
 </head>
 <body>
@@ -29,8 +31,8 @@
     <section class="welcome"><p>YOUR OPERATOR</p><h1>What do you want me to do?</h1><span>Talk normally. I can guide you and make safe changes inside the portal.</span></section>
     <form id="operator-form">
       <label for="operator-input">Message your operator</label>
-      <textarea id="operator-input" rows="3" placeholder="Save this idea… Find me customers… Help me plan today…" aria-describedby="operator-status operator-hint" required></textarea>
-      <div><span><small id="operator-status" role="status">Ready</small><small id="operator-hint">Ctrl + Enter to send</small></span><button type="submit">Do it →</button></div>
+      <textarea id="operator-input" rows="3" placeholder="Save this idea… Find me customers… Help me plan today…" aria-describedby="operator-status operator-sync operator-hint" required></textarea>
+      <div><span><small id="operator-status" role="status">Ready</small><small id="operator-sync" role="status">Saved on this device</small><small id="operator-hint">Ctrl + Enter to send</small></span><button type="submit">Do it →</button></div>
     </form>
   </main>
 </body>
