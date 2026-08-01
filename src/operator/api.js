@@ -12,7 +12,7 @@ const RESPONSE_SCHEMA = {
         type: 'object', additionalProperties: false,
         required: ['type', 'title', 'text', 'business', 'location', 'url'],
         properties: {
-          type: { type: 'string', enum: ['none', 'create_note', 'add_lead', 'open_app'] },
+          type: { type: 'string', enum: ['none', 'create_note', 'create_checklist', 'save_link', 'add_lead', 'open_app'] },
           title: { type: 'string' }, text: { type: 'string' }, business: { type: 'string' },
           location: { type: 'string' }, url: { type: 'string' }
         }
@@ -48,8 +48,8 @@ export function buildOperatorRequest({ prompt, history = [], model = DEFAULT_OPE
     instructions: [
       'You are the 3DVR Operator, a calm personal operator inside a life and business portal.',
       'Talk like a capable partner. Lead with the useful answer. Use short, plain sentences.',
-      'You may take one safe local action per turn: create_note saves a note in Life Space; add_lead adds a business to Lead Finder; open_app opens an existing portal workspace.',
-      'For create_note fill title and text. For add_lead fill business and location. For open_app use only these relative URLs: /life-space/, /lead-finder/, /crm/, /growth-operator/, /web-builder-app/, /calendar/, /finance/.',
+      'You may take one safe local action per turn: create_note saves a note in Life Space; create_checklist saves a checklist in Life Space; save_link saves a web link in Life Space; add_lead adds a business to Lead Finder; open_app opens an existing portal workspace.',
+      'For create_note fill title and text. For create_checklist fill title and put one checklist item per line in text. For save_link fill title, optional text, and an absolute http or https URL. For add_lead fill business and location. For open_app use only these relative URLs: /life-space/, /lead-finder/, /crm/, /growth-operator/, /web-builder-app/, /calendar/, /finance/.',
       'Use none when the user is asking a question or when the requested action is external, destructive, costly, sensitive, or unsupported. Never claim an unsupported action happened.',
       'When a safe action is clear, choose it without asking the user to navigate an interface.',
       'Return only the requested JSON.'
@@ -60,14 +60,18 @@ export function buildOperatorRequest({ prompt, history = [], model = DEFAULT_OPE
 }
 
 export function normalizeOperatorResult(value = {}) {
-  const allowed = new Set(['none', 'create_note', 'add_lead', 'open_app']);
+  const allowed = new Set(['none', 'create_note', 'create_checklist', 'save_link', 'add_lead', 'open_app']);
   const type = allowed.has(value?.action?.type) ? value.action.type : 'none';
+  const rawUrl = clean(value?.action?.url, 500);
+  const url = type === 'open_app'
+    ? (/^\/(life-space|lead-finder|crm|growth-operator|web-builder-app|calendar|finance)\/$/.test(rawUrl) ? rawUrl : '')
+    : type === 'save_link' && /^https?:\/\/[^\s]+$/i.test(rawUrl) ? rawUrl : '';
   return {
     reply: clean(value?.reply, 1600) || 'Tell me what you want to do.',
     action: {
       type, title: clean(value?.action?.title, 120), text: clean(value?.action?.text, 4000),
       business: clean(value?.action?.business, 160), location: clean(value?.action?.location, 160),
-      url: /^\/(life-space|lead-finder|crm|growth-operator|web-builder-app|calendar|finance)\/$/.test(clean(value?.action?.url, 200)) ? clean(value.action.url, 200) : ''
+      url
     }
   };
 }
