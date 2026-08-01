@@ -37,11 +37,12 @@ test('Life Space implements spatial interaction and history', () => {
   assert.match(js, /function travel/);
 });
 
-test('Life Space raises touched cards and lets people drag from the card body', () => {
+test('Life Space raises touched cards and pans the world from the card body', () => {
   assert.match(js, /function bringItemToFront/);
   assert.match(js, /item\.z >= 1000000/);
   assert.match(js, /card\.style\.zIndex = bringItemToFront\(selected\)/);
-  assert.match(js, /type:'card-touch'/);
+  assert.match(js, /type:'card-pan'/);
+  assert.match(js, /interaction\.type = 'pan'/);
   assert.match(js, /Math\.hypot\(event\.clientX - interaction\.startX, event\.clientY - interaction\.startY\)/);
   assert.match(js, /if \(moved < 8\) return/);
 });

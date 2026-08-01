@@ -234,9 +234,11 @@ function pointerDown(event) {
     interaction = { type:'resize', item, startX:event.clientX, startY:event.clientY, w:item.w, h:item.h, before:snapshot() };
     els.wrap.setPointerCapture(event.pointerId); return;
   }
-  if (card && event.pointerType !== 'mouse' && !event.target.closest('button, a, input')) {
-    const item = itemById(card.dataset.id);
-    interaction = { type:'card-touch', item, card, startX:event.clientX, startY:event.clientY, x:item.x, y:item.y };
+  if (card && !event.target.closest('button, a, input')) {
+    interaction = {
+      type:'card-pan', startX:event.clientX, startY:event.clientY,
+      x:activeSpace().view.x, y:activeSpace().view.y
+    };
     els.wrap.setPointerCapture(event.pointerId); return;
   }
   if (!card && event.button === 0) {
@@ -248,13 +250,12 @@ function pointerDown(event) {
 function pointerMove(event) {
   if (!interaction) return;
   const view = activeSpace().view;
-  if (interaction.type === 'card-touch') {
+  if (interaction.type === 'card-pan') {
     const moved = Math.hypot(event.clientX - interaction.startX, event.clientY - interaction.startY);
     if (moved < 8) return;
     event.preventDefault();
-    interaction.before = snapshot();
-    interaction.type = 'drag';
-    interaction.card.classList.add('moving');
+    interaction.type = 'pan';
+    els.wrap.classList.add('panning');
   }
   if (interaction.type === 'draw') {
     const point = boardPoint(event);
@@ -283,7 +284,7 @@ function pointerMove(event) {
 
 function pointerUp() {
   if (!interaction) return;
-  if (interaction.type === 'card-touch') { interaction = null; return; }
+  if (interaction.type === 'card-pan') { interaction = null; return; }
   if (interaction.item) interaction.item.updatedAt = Date.now();
   if (interaction.type === 'draw' && currentStroke) currentStroke.updatedAt = Date.now();
   if (interaction.before) commitHistory(interaction.before);
