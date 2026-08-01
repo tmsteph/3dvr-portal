@@ -64,6 +64,23 @@ test('homepage app search can find CRM by CRM keywords', async () => {
   assert.match(html, /keywordIncludesQuery/);
 });
 
+test('homepage app search exposes Operator and Life Space in the default app lane', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert.match(
+    html,
+    /href="operator\/" class="app-card" data-app-keywords="[^"]*\bopenclaw\b[^"]*\btelegram\b[^"]*"/
+  );
+  assert.match(
+    html,
+    /href="life-space\/" class="app-card" data-app-keywords="[^"]*\bvisual canvas\b[^"]*\bprivate notes\b[^"]*"/
+  );
+  assert.match(html, /const simpleDockTitles = new Set\(\[[\s\S]*?'Operator',[\s\S]*?'Life Space',/);
+  assert.match(html, /life: \[[\s\S]*?'Life Space',/);
+  assert.match(html, /ideas: \[[\s\S]*?'Life Space',/);
+  assert.match(html, /work: \[[\s\S]*?'Operator',/);
+});
+
 test('homepage app dock has lane filters and generated search context', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
