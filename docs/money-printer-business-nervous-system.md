@@ -79,6 +79,59 @@ Fulfillment closes the loop rather than declaring victory at lead generation:
 
 The primary business metrics are paid conversions, delivery success, contribution margin, time to value, repeat business, referrals, and customer satisfaction—not leads generated or messages sent.
 
+## Product surface: 3DVR Opportunity Engine
+
+The first user-facing product inside Money Printer is **3DVR Opportunity Engine**. Its first release should be one excellent screen—the **Opportunity Inbox**—rather than another autonomous background agent or summary report.
+
+Each opportunity card answers the questions required to act:
+
+> **Need:** 200 business cards tomorrow morning
+>
+> **Location:** San Diego
+>
+> **Urgency:** Very high
+>
+> **Estimated value:** $180–$250
+>
+> **Estimated fulfillment cost:** $110–$140
+>
+> **Evidence:** Buyer request and permitted source
+>
+> **Suggested response:** Ready for Thomas's approval
+>
+> **Next action:** Confirm artwork and collect deposit
+
+The inbox accepts opportunities from approved APIs, ads, first-party email and forms, manually forwarded posts, and public sources whose rules permit the intended indexing and commercial use. It deduplicates and scores them, drafts a response, and waits for approval before first contact.
+
+Minimum card fields:
+
+- need, buyer wording, source, and acquisition mode
+- location, deadline, urgency, and confidence
+- estimated price, cost, margin, and required skills
+- contact permission and channel-policy state
+- suggested response and explicit next action
+- owner, status, expiration, and last material change
+
+The default sort is actionability: expiring qualified demand first, then expected contribution margin adjusted by confidence and fulfillment fit. Activity without a next action does not belong in the inbox.
+
+## Trust ladder
+
+Autonomy is granted per capability and channel, not to the entire agent at once:
+
+1. **Observe only** — ingest permitted signals and show evidence.
+2. **Draft actions** — propose an offer, response, or work plan without external action.
+3. **Act with approval** — execute one reviewed action and record the outcome.
+4. **Act within limits** — execute inside an explicitly approved channel, budget, audience, time window, and stop condition.
+5. **Escalate exceptions** — pause on unusual, sensitive, ambiguous, or out-of-bounds decisions.
+
+Promotion up the ladder requires successful outcomes and clean policy history. A policy violation, unexpected spend, suppression failure, or material complaint automatically suspends the affected capability.
+
+The intended user promise is concrete:
+
+> “I know audio, websites, and event production. Find people I can genuinely help this week.”
+
+Opportunity Engine should translate a person's real abilities, time, location, and constraints into qualified demand and an organized path to fulfillment—not manufacture generic business ideas.
+
 ## Channel policy
 
 | Source | Allowed initial mode | Prohibited default | Unlock condition |
@@ -90,6 +143,8 @@ The primary business metrics are paid conversions, delivery success, contributio
 | Public web | Policy-aware discovery of business pages | Harvesting personal data or indiscriminate messaging | Source terms allow it and contact provenance is retained |
 
 These rules are hard constraints, not suggestions. When a source cannot be used automatically, Money Printer should create a short human research task rather than work around the restriction.
+
+Commercial email has an additional send-time gate. Before every send, the system must verify truthful routing and sender identity, a non-deceptive subject, any required advertising disclosure, a valid physical postal address, a functioning opt-out method, and suppression status. Opt-out requests must be honored across campaigns within the legally required window; 3DVR's system should suppress them immediately.
 
 ## Human approval gates
 
@@ -130,6 +185,8 @@ The critical gaps are equally clear:
 
 - Add a versioned `DemandSignal` and `OpportunityCluster` schema.
 - Store source URL, excerpt, acquisition mode, policy state, contact provenance, urgency, budget, and confidence.
+- Build the Opportunity Inbox card, filters, evidence view, approval action, and expiration behavior.
+- Ingest first-party forms, email replies, manual forwards, and existing approved data before adding new external sources.
 - Require evidence thresholds before creating an offer.
 - Make every cycle return either one material state transition or a silent no-op.
 
@@ -172,3 +229,4 @@ Everything else is internal telemetry and stays out of Thomas's inbox and Telegr
 - Meta Automated Data Collection Terms: https://www.facebook.com/legal/automated_data_collection_terms
 - Meta lead ads: https://www.facebook.com/business/ads/ad-objectives/lead-generation/lead-ads-with-messaging
 - Meta Conversions API: https://www.facebook.com/business/help/AboutConversionsAPI
+- FTC CAN-SPAM compliance guide: https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business
