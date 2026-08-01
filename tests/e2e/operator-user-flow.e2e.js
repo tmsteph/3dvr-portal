@@ -154,6 +154,53 @@ test('operator makes the latest message obvious after back navigation', async ()
   await browser.close();
 });
 
+test('operator follows new messages only while the reader is at the bottom', async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  let finishReply;
+  await page.route('**/api/openai-site?provider=operator', async route => {
+    await new Promise(resolve => { finishReply = resolve; });
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ reply: 'A newly arrived answer with enough detail to extend the conversation.', suggestions: [], action: { type: 'none' } })
+    });
+  });
+  await page.addInitScript(() => {
+    const messages = Array.from({ length: 18 }, (_, index) => ({
+      role: index % 2 ? 'assistant' : 'user',
+      content: `Earlier message ${index + 1} with enough detail to make the conversation scroll.`
+    }));
+    localStorage.setItem('3dvr.operator.history.v1', JSON.stringify(messages));
+  });
+
+  await page.goto(`${PORTAL_ORIGIN}/operator/`);
+  const log = page.locator('#operator-log');
+  await page.waitForFunction(() => {
+    const element = document.querySelector('#operator-log');
+    return element && element.scrollHeight - element.scrollTop - element.clientHeight < 48;
+  });
+  await page.getByLabel('Message your operator').fill('Give me the newest answer.');
+  await page.getByRole('button', { name: /Do it/ }).click();
+  await page.waitForFunction(() => {
+    const element = document.querySelector('#operator-log');
+    return element && element.scrollHeight - element.scrollTop - element.clientHeight < 48;
+  });
+
+  await log.evaluate(element => { element.scrollTop = 0; });
+  await page.getByRole('button', { name: 'Jump to the latest message' }).waitFor();
+  finishReply();
+  await page.getByText('A newly arrived answer with enough detail').waitFor();
+  assert.equal(await log.evaluate(element => element.scrollTop), 0);
+  assert.equal(await page.getByRole('button', { name: 'Jump to the latest message' }).isVisible(), true);
+
+  await page.getByRole('button', { name: 'Jump to the latest message' }).click();
+  await page.waitForFunction(() => {
+    const element = document.querySelector('#operator-log');
+    return element && element.scrollHeight - element.scrollTop - element.clientHeight < 48;
+  });
+  await browser.close();
+});
+
 test('operator saves and reopens past conversations on mobile', async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
