@@ -24,6 +24,20 @@ const RESPONSE_SCHEMA = {
 const clean = (value, max = 3000) => String(value || '').trim().slice(0, max);
 const outputText = data => (data?.output || []).flatMap(item => item?.content || []).find(item => item?.type === 'output_text')?.text || '';
 
+async function readUpstreamError(response) {
+  const fallback = response.status === 429
+    ? 'The operator is busy right now. Please try again in a moment.'
+    : 'The operator could not respond. Please try again.';
+  try {
+    const payload = await response.json();
+    const code = clean(payload?.error?.code || payload?.code, 80);
+    if (code === 'insufficient_quota') return 'The configured AI account has no available credits.';
+    return clean(payload?.error?.message || payload?.message, 300) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function buildOperatorRequest({ prompt, history = [], model = DEFAULT_OPERATOR_MODEL }) {
   const messages = (Array.isArray(history) ? history : []).slice(-10).map(item => ({
     role: item?.role === 'assistant' ? 'assistant' : 'user', content: clean(item?.content, 1200)
@@ -61,9 +75,7 @@ export function normalizeOperatorResult(value = {}) {
 export function createOperatorHandler(options = {}) {
   const apiKey = options.apiKey ?? process.env.OPENAI_API_KEY;
   const gatewayToken = options.gatewayToken ?? process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN;
-  const useGateway = !apiKey && Boolean(gatewayToken);
-  const endpoint = options.endpoint || (useGateway ? 'https://ai-gateway.vercel.sh/v1/responses' : 'https://api.openai.com/v1/responses');
-  const model = options.model || process.env.OPENAI_OPERATOR_MODEL || (useGateway ? DEFAULT_OPERATOR_GATEWAY_MODEL : DEFAULT_OPERATOR_MODEL);
+  const endpoint = options.endpoint || (gatewayToken ? 'https://ai-gateway.vercel.sh/v1/responses' : 'https://api.openai.com/v1/responses');
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   return async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -72,18 +84,19 @@ export function createOperatorHandler(options = {}) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
     const requestApiKey = clean(req.body?.apiKey, 300);
-    const effectiveApiKey = requestApiKey || apiKey;
-    const authorizationToken = effectiveApiKey || gatewayToken;
+    const authorizationToken = apiKey || gatewayToken || requestApiKey;
     if (!authorizationToken) return res.status(503).json({ error: 'The operator is temporarily unavailable.' });
     const prompt = clean(req.body?.prompt, 2000);
     if (!prompt) return res.status(400).json({ error: 'Tell the operator what you need.' });
     try {
-      const requestEndpoint = effectiveApiKey ? 'https://api.openai.com/v1/responses' : endpoint;
+      const useGateway = !apiKey && Boolean(gatewayToken);
+      const requestEndpoint = useGateway ? endpoint : 'https://api.openai.com/v1/responses';
+      const model = options.model || process.env.OPENAI_OPERATOR_MODEL || (useGateway ? DEFAULT_OPERATOR_GATEWAY_MODEL : DEFAULT_OPERATOR_MODEL);
       const response = await fetchImpl(requestEndpoint, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authorizationToken}` },
         body: JSON.stringify(buildOperatorRequest({ prompt, history: req.body?.history, model }))
       });
-      if (!response.ok) return res.status(response.status).json({ error: await response.text() || 'OpenAI error' });
+      if (!response.ok) return res.status(response.status).json({ error: await readUpstreamError(response) });
       const raw = outputText(await response.json());
       return res.status(200).json(normalizeOperatorResult(JSON.parse(raw)));
     } catch (error) { return res.status(500).json({ error: error.message || 'The operator could not respond.' }); }
