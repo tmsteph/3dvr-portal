@@ -6,6 +6,8 @@ import {
   createDemandSignal,
   createOpportunityCluster,
   createOpportunityEngineState,
+  ingestOpportunity,
+  opportunitySignalFingerprint,
   readOpportunityEngineState,
   sortOpportunityClusters,
   updateOpportunity,
@@ -93,5 +95,38 @@ describe('Money Printer Opportunity Engine', () => {
     assert.equal(restored.opportunities.length, 1);
     assert.equal(restored.signals.length, 1);
     assert.equal(restored.opportunities[0].title, 'Landing page by Friday');
+  });
+
+  it('deduplicates repeated first-party submissions by source id', () => {
+    const intake = {
+      externalId: 'form-4821',
+      acquisitionMode: 'first-party-form',
+      policyStatus: 'first-party',
+      need: 'Website help',
+      buyerWords: 'Please help us repair our company website.'
+    };
+    const first = ingestOpportunity({}, intake, NOW);
+    const repeated = ingestOpportunity(first.state, { ...intake, buyerWords: 'Changed webhook copy' }, NOW);
+
+    assert.equal(first.created, true);
+    assert.equal(repeated.created, false);
+    assert.equal(repeated.state.opportunities.length, 1);
+    assert.equal(opportunitySignalFingerprint(intake), 'first-party-form:form-4821');
+  });
+
+  it('deduplicates manual forwards using normalized evidence when no source id exists', () => {
+    const first = ingestOpportunity({}, {
+      sourceLabel: 'Forwarded email',
+      need: 'AV support',
+      buyerWords: 'We need an A1 this Friday.'
+    }, NOW);
+    const repeated = ingestOpportunity(first.state, {
+      sourceLabel: 'forwarded EMAIL',
+      need: 'av support',
+      buyerWords: '  We need an A1 this Friday.  '
+    }, NOW);
+
+    assert.equal(repeated.created, false);
+    assert.equal(repeated.state.signals.length, 1);
   });
 });

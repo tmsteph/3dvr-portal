@@ -40,6 +40,9 @@ describe('money-printer MVP', () => {
     assert.match(html, /Opportunity Engine/);
     assert.match(html, /Opportunity Inbox/);
     assert.match(html, /id="opportunityCaptureForm"/);
+    assert.match(html, /name="acquisitionMode"/);
+    assert.match(html, /name="externalId"/);
+    assert.match(html, /Email reply/);
     assert.match(html, /id="opportunityInbox"/);
     assert.match(html, /Nothing here contacts anyone automatically/);
     assert.match(html, /Founder Command Brief/);
