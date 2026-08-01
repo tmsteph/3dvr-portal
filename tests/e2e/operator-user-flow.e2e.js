@@ -63,6 +63,15 @@ test('operator completes core user journeys on mobile', async () => {
 
   const dimensions = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: innerWidth }));
   assert.ok(dimensions.width <= dimensions.viewport, `horizontal overflow: ${dimensions.width} > ${dimensions.viewport}`);
+  const appShell = await page.evaluate(() => ({
+    documentHeight: document.documentElement.scrollHeight,
+    viewportHeight: innerHeight,
+    mainHeight: document.querySelector('main').getBoundingClientRect().height,
+    logScrollable: document.querySelector('#operator-log').scrollHeight > document.querySelector('#operator-log').clientHeight
+  }));
+  assert.ok(appShell.documentHeight <= appShell.viewportHeight, `document scrolls: ${appShell.documentHeight} > ${appShell.viewportHeight}`);
+  assert.equal(Math.round(appShell.mainHeight), appShell.viewportHeight);
+  assert.equal(appShell.logScrollable, true);
 
   await page.reload();
   await page.getByText('Added Acme Electric to Lead Finder.').waitFor();
@@ -89,6 +98,7 @@ test('operator makes the latest message obvious after back navigation', async ()
     const element = document.querySelector('#operator-log');
     return element && element.scrollHeight - element.scrollTop - element.clientHeight < 48;
   });
+  await page.waitForTimeout(150);
 
   await log.evaluate(element => { element.scrollTop = 0; });
   await page.getByRole('button', { name: 'Jump to the latest message' }).waitFor();
