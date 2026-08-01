@@ -35,6 +35,20 @@ const activeSpace = () => state.spaces.find(space => space.id === state.activeSp
 const itemById = id => activeSpace().items.find(item => item.id === id);
 const snapshot = () => JSON.stringify(state);
 
+function bringItemToFront(selected) {
+  const items = activeSpace().items;
+  const needsSafeLayers = items.some(item => !Number.isSafeInteger(item.z) || item.z < 1 || item.z >= 1000000);
+  if (needsSafeLayers) {
+    const order = new Map(items.map((item, index) => [item.id, index]));
+    [...items]
+      .sort((a, b) => (a.z || 0) - (b.z || 0) || order.get(a.id) - order.get(b.id))
+      .forEach((item, index) => { item.z = index + 1; item.updatedAt = Date.now(); });
+  }
+  selected.z = Math.max(0, ...items.map(item => item.z || 0)) + 1;
+  selected.updatedAt = Date.now();
+  return selected.z;
+}
+
 function commitHistory(before) {
   if (!before || before === snapshot()) return;
   history.push(before);
@@ -95,7 +109,7 @@ function createItem(type, values = {}) {
   const defaults = {
     id: uid(type), type, x: point.x, y: point.y, w: type === 'image' ? 340 : 300,
     h: type === 'note' ? 220 : type === 'checklist' ? 250 : 190,
-    title: type === 'note' ? 'New thought' : type === 'checklist' ? 'Things to do' : '', z: Date.now(),
+    title: type === 'note' ? 'New thought' : type === 'checklist' ? 'Things to do' : '', z: activeSpace().items.length + 1,
     text: '', color: ['#fff3c9','#dff4ea','#e8e1ff','#dcecff'][activeSpace().items.length % 4], createdAt: Date.now(), updatedAt: Date.now()
   };
   const before = snapshot();
@@ -196,8 +210,7 @@ function pointerDown(event) {
   const card = event.target.closest('.life-card');
   if (card) {
     const selected = itemById(card.dataset.id);
-    selected.z = Math.max(0, ...activeSpace().items.map(item => item.z || 0)) + 1;
-    card.style.zIndex = selected.z;
+    card.style.zIndex = bringItemToFront(selected);
     scheduleSave();
   }
   if (drawMode && !event.target.closest('.tool-dock')) {
@@ -221,6 +234,11 @@ function pointerDown(event) {
     interaction = { type:'resize', item, startX:event.clientX, startY:event.clientY, w:item.w, h:item.h, before:snapshot() };
     els.wrap.setPointerCapture(event.pointerId); return;
   }
+  if (card && event.pointerType !== 'mouse' && !event.target.closest('button, a, input')) {
+    const item = itemById(card.dataset.id);
+    interaction = { type:'card-touch', item, card, startX:event.clientX, startY:event.clientY, x:item.x, y:item.y };
+    els.wrap.setPointerCapture(event.pointerId); return;
+  }
   if (!card && event.button === 0) {
     interaction = { type:'pan', startX:event.clientX, startY:event.clientY, x:activeSpace().view.x, y:activeSpace().view.y };
     els.wrap.classList.add('panning'); els.wrap.setPointerCapture(event.pointerId);
@@ -230,6 +248,14 @@ function pointerDown(event) {
 function pointerMove(event) {
   if (!interaction) return;
   const view = activeSpace().view;
+  if (interaction.type === 'card-touch') {
+    const moved = Math.hypot(event.clientX - interaction.startX, event.clientY - interaction.startY);
+    if (moved < 8) return;
+    event.preventDefault();
+    interaction.before = snapshot();
+    interaction.type = 'drag';
+    interaction.card.classList.add('moving');
+  }
   if (interaction.type === 'draw') {
     const point = boardPoint(event);
     const last = currentStroke.points.at(-1);
@@ -257,6 +283,7 @@ function pointerMove(event) {
 
 function pointerUp() {
   if (!interaction) return;
+  if (interaction.type === 'card-touch') { interaction = null; return; }
   if (interaction.item) interaction.item.updatedAt = Date.now();
   if (interaction.type === 'draw' && currentStroke) currentStroke.updatedAt = Date.now();
   if (interaction.before) commitHistory(interaction.before);

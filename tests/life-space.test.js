@@ -37,6 +37,15 @@ test('Life Space implements spatial interaction and history', () => {
   assert.match(js, /function travel/);
 });
 
+test('Life Space raises touched cards and lets people drag from the card body', () => {
+  assert.match(js, /function bringItemToFront/);
+  assert.match(js, /item\.z >= 1000000/);
+  assert.match(js, /card\.style\.zIndex = bringItemToFront\(selected\)/);
+  assert.match(js, /type:'card-touch'/);
+  assert.match(js, /Math\.hypot\(event\.clientX - interaction\.startX, event\.clientY - interaction\.startY\)/);
+  assert.match(js, /if \(moved < 8\) return/);
+});
+
 test('Life Space provides responsive mobile controls', () => {
   assert.match(html, /viewport-fit=cover/);
   assert.match(css, /@media\(max-width:760px\)/);
