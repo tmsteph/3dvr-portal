@@ -4,6 +4,35 @@ import { chromium } from 'playwright';
 
 const PORTAL_ORIGIN = process.env.PORTAL_ORIGIN || 'http://127.0.0.1:3011';
 
+test('operator starts a useful conversation from a quick prompt on mobile', async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  let submittedPrompt = '';
+  await page.route('**/api/openai-site?provider=operator', async route => {
+    submittedPrompt = route.request().postDataJSON().prompt;
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ reply: 'Let’s choose your most important next step.', action: { type: 'none' } })
+    });
+  });
+
+  await page.goto(`${PORTAL_ORIGIN}/operator/`);
+  assert.equal(await page.getByRole('button', { name: 'Plan my day' }).isVisible(), true);
+  await page.getByRole('button', { name: 'Plan my day' }).click();
+  await page.getByText('Let’s choose your most important next step.').waitFor();
+  assert.equal(submittedPrompt, 'Help me plan my day and choose the most important next step.');
+  assert.equal(await page.getByLabel('Things to try').isVisible(), false);
+  const dimensions = await page.evaluate(() => ({
+    width: document.documentElement.scrollWidth,
+    viewportWidth: innerWidth,
+    height: document.documentElement.scrollHeight,
+    viewportHeight: innerHeight
+  }));
+  assert.ok(dimensions.width <= dimensions.viewportWidth, `horizontal overflow: ${dimensions.width} > ${dimensions.viewportWidth}`);
+  assert.ok(dimensions.height <= dimensions.viewportHeight, `document scrolls: ${dimensions.height} > ${dimensions.viewportHeight}`);
+  await browser.close();
+});
+
 test('operator completes core user journeys on mobile', async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });

@@ -28,7 +28,17 @@
     </aside>
     <section id="operator-log" aria-live="polite" aria-relevant="additions"></section>
     <button id="operator-latest" type="button" hidden aria-label="Jump to the latest message">↓ Latest message</button>
-    <section class="welcome"><p>YOUR OPERATOR</p><h1>What do you want me to do?</h1><span>Talk normally. I can guide you and make safe changes inside the portal.</span></section>
+    <section class="welcome">
+      <p>YOUR OPERATOR</p>
+      <h1>What do you want me to do?</h1>
+      <span>Talk normally. I can guide you and make safe changes inside the portal.</span>
+      <div class="quick-prompts" aria-label="Things to try">
+        <button type="button" data-prompt="Help me plan my day and choose the most important next step.">Plan my day</button>
+        <button type="button" data-prompt="Help me capture and organize an idea I have.">Organize an idea</button>
+        <button type="button" data-prompt="Help me find the best next opportunity to make money.">Find opportunities</button>
+        <button type="button" data-prompt="Turn what I need to do into a clear checklist.">Make a checklist</button>
+      </div>
+    </section>
     <form id="operator-form">
       <label for="operator-input">Message your operator</label>
       <textarea id="operator-input" rows="3" placeholder="Save this idea… Find me customers… Help me plan today…" aria-describedby="operator-status operator-sync operator-hint" required></textarea>
