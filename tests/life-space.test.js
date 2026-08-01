@@ -57,5 +57,6 @@ test('Life Space provides responsive mobile controls', () => {
   assert.match(css, /safe-area-inset-bottom/);
   assert.match(css, /\.app-shell,\.workspace\{height:100vh;height:100lvh\}/);
   assert.match(css, /touch-action:none/);
+  assert.match(css, /\.card-body\{touch-action:none\}/);
   assert.match(html, /life-space\.webmanifest/);
 });
