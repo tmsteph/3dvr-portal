@@ -208,11 +208,6 @@ function boardPoint(event) {
 
 function pointerDown(event) {
   const card = event.target.closest('.life-card');
-  if (card) {
-    const selected = itemById(card.dataset.id);
-    card.style.zIndex = bringItemToFront(selected);
-    scheduleSave();
-  }
   if (drawMode && !event.target.closest('.tool-dock')) {
     event.preventDefault();
     const before = snapshot();
@@ -225,6 +220,8 @@ function pointerDown(event) {
   if (card && event.target.closest('.drag-handle') && !event.target.closest('button')) {
     event.preventDefault();
     const item = itemById(card.dataset.id);
+    card.style.zIndex = bringItemToFront(item);
+    scheduleSave();
     interaction = { type:'drag', item, startX:event.clientX, startY:event.clientY, x:item.x, y:item.y, before:snapshot() };
     card.classList.add('moving'); els.wrap.setPointerCapture(event.pointerId); return;
   }
@@ -237,7 +234,8 @@ function pointerDown(event) {
   if (card && !event.target.closest('button, a, input')) {
     interaction = {
       type:'card-pan', startX:event.clientX, startY:event.clientY,
-      x:activeSpace().view.x, y:activeSpace().view.y
+      x:activeSpace().view.x, y:activeSpace().view.y,
+      card, item:itemById(card.dataset.id), moved:false
     };
     els.wrap.setPointerCapture(event.pointerId); return;
   }
@@ -251,11 +249,16 @@ function pointerMove(event) {
   if (!interaction) return;
   const view = activeSpace().view;
   if (interaction.type === 'card-pan') {
-    const moved = Math.hypot(event.clientX - interaction.startX, event.clientY - interaction.startY);
-    if (moved < 8) return;
+    const dx = event.clientX - interaction.startX;
+    const dy = event.clientY - interaction.startY;
+    if (!interaction.moved && Math.hypot(dx, dy) < 8) return;
     event.preventDefault();
-    interaction.type = 'pan';
+    interaction.moved = true;
     els.wrap.classList.add('panning');
+    view.x = interaction.x + dx;
+    view.y = interaction.y + dy;
+    applyView();
+    return;
   }
   if (interaction.type === 'draw') {
     const point = boardPoint(event);
@@ -282,9 +285,18 @@ function pointerMove(event) {
   }
 }
 
-function pointerUp() {
+function pointerUp(event) {
   if (!interaction) return;
-  if (interaction.type === 'card-pan') { interaction = null; return; }
+  if (interaction.type === 'card-pan') {
+    if (interaction.moved) scheduleSave();
+    else if (event.type !== 'pointercancel') {
+      interaction.card.style.zIndex = bringItemToFront(interaction.item);
+      scheduleSave();
+    }
+    els.wrap.classList.remove('panning');
+    interaction = null;
+    return;
+  }
   if (interaction.item) interaction.item.updatedAt = Date.now();
   if (interaction.type === 'draw' && currentStroke) currentStroke.updatedAt = Date.now();
   if (interaction.before) commitHistory(interaction.before);
