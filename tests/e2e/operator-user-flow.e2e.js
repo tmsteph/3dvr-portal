@@ -4,15 +4,18 @@ import { chromium } from 'playwright';
 
 const PORTAL_ORIGIN = process.env.PORTAL_ORIGIN || 'http://127.0.0.1:3011';
 
-test('operator starts a useful conversation from a quick prompt on mobile', async () => {
+test('operator guides a mobile conversation from quick prompt to contextual next step', async () => {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-  let submittedPrompt = '';
+  const submittedPrompts = [];
   await page.route('**/api/openai-site?provider=operator', async route => {
-    submittedPrompt = route.request().postDataJSON().prompt;
+    submittedPrompts.push(route.request().postDataJSON().prompt);
+    const isFollowUp = submittedPrompts.length > 1;
     await route.fulfill({
       contentType: 'application/json',
-      body: JSON.stringify({ reply: 'Let’s choose your most important next step.', action: { type: 'none' } })
+      body: JSON.stringify(isFollowUp
+        ? { reply: 'Your priorities are clear.', suggestions: [], action: { type: 'none' } }
+        : { reply: 'Let’s choose your most important next step.', suggestions: ['Help me choose my top three priorities.'], action: { type: 'none' } })
     });
   });
 
@@ -20,8 +23,12 @@ test('operator starts a useful conversation from a quick prompt on mobile', asyn
   assert.equal(await page.getByRole('button', { name: 'Plan my day' }).isVisible(), true);
   await page.getByRole('button', { name: 'Plan my day' }).click();
   await page.getByText('Let’s choose your most important next step.').waitFor();
-  assert.equal(submittedPrompt, 'Help me plan my day and choose the most important next step.');
+  assert.equal(submittedPrompts[0], 'Help me plan my day and choose the most important next step.');
   assert.equal(await page.getByLabel('Things to try').isVisible(), false);
+  await page.getByRole('button', { name: 'Help me choose my top three priorities.' }).click();
+  await page.getByText('Your priorities are clear.').waitFor();
+  assert.equal(submittedPrompts[1], 'Help me choose my top three priorities.');
+  assert.equal(await page.getByLabel('Suggested next steps').count(), 0);
   const dimensions = await page.evaluate(() => ({
     width: document.documentElement.scrollWidth,
     viewportWidth: innerWidth,
