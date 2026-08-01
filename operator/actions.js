@@ -3,14 +3,32 @@ import { normalizeProspect } from '../lead-finder/core.js';
 
 const LEADS_KEY = '3dvr.leadFinder.prospects.v1';
 
+async function saveLifeSpaceItem(item) {
+  const db = await openDatabase();
+  const state = await loadState(db) || { version:1, activeSpaceId:'space-home', spaces:[{ id:'space-home', name:'My Life', color:'#ffb66e', view:{x:0,y:0,zoom:1}, items:[], strokes:[] }], updatedAt:Date.now() };
+  const space = state.spaces.find(entry => entry.id === state.activeSpaceId) || state.spaces[0];
+  const offset = (space.items.length % 8) * 24;
+  space.items.push({ x:40+offset, y:40+offset, w:300, h:220, color:'#fff3c9', z:Date.now(), createdAt:Date.now(), ...item });
+  state.updatedAt = Date.now();
+  await saveState(db, state);
+}
+
 export async function runOperatorAction(action = {}) {
   if (action.type === 'create_note') {
-    const db = await openDatabase();
-    const state = await loadState(db) || { version:1, activeSpaceId:'space-home', spaces:[{ id:'space-home', name:'My Life', color:'#ffb66e', view:{x:0,y:0,zoom:1}, items:[], strokes:[] }], updatedAt:Date.now() };
-    const space = state.spaces.find(item => item.id === state.activeSpaceId) || state.spaces[0];
-    space.items.push({ id:`note-${crypto.randomUUID()}`, type:'note', x:40, y:40, w:300, h:220, title:action.title || 'New thought', text:action.text || '', color:'#fff3c9', z:Date.now(), createdAt:Date.now() });
-    state.updatedAt = Date.now(); await saveState(db, state);
+    await saveLifeSpaceItem({ id:`note-${crypto.randomUUID()}`, type:'note', title:action.title || 'New thought', text:action.text || '' });
     return { message:'Saved in Life Space.', url:'/life-space/' };
+  }
+  if (action.type === 'create_checklist') {
+    const rows=String(action.text||'').split(/\r?\n/).map(text=>text.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').trim()).filter(Boolean).slice(0,30).map(text=>({id:`row-${crypto.randomUUID()}`,text,done:false}));
+    if (!rows.length) throw new Error('At least one checklist item is required.');
+    await saveLifeSpaceItem({ id:`checklist-${crypto.randomUUID()}`, type:'checklist', title:action.title || 'Things to do', text:'', rows, h:Math.min(520,170+rows.length*38), color:'#dff4ea' });
+    return { message:'Saved as a checklist in Life Space.', url:'/life-space/' };
+  }
+  if (action.type === 'save_link') {
+    let url; try { url=new URL(action.url); } catch { throw new Error('A valid link is required.'); }
+    if (!['http:','https:'].includes(url.protocol)) throw new Error('Only web links can be saved.');
+    await saveLifeSpaceItem({ id:`link-${crypto.randomUUID()}`, type:'link', title:action.title || url.hostname.replace(/^www\./,''), text:action.text || '', url:url.href, h:190, color:'#e8e1ff' });
+    return { message:'Saved the link in Life Space.', url:'/life-space/' };
   }
   if (action.type === 'add_lead') {
     const prospect = normalizeProspect({ business:action.business, location:action.location || 'San Diego, CA', notes:action.text });

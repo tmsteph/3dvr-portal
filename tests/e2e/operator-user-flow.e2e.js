@@ -10,15 +10,24 @@ test('operator completes core user journeys on mobile', async () => {
   await page.route('**/api/openai-site?provider=operator', async route => {
     const request = route.request().postDataJSON();
     const isLead = /Acme Electric/i.test(request.prompt);
+    const isChecklist = /checklist/i.test(request.prompt);
+    const isLink = /example guide/i.test(request.prompt);
+    const response = isLead ? {
+      reply: 'I added the business to your pipeline.',
+      action: { type: 'add_lead', title: '', text: 'Needs a better website.', business: 'Acme Electric', location: 'San Diego, CA', url: '' }
+    } : isChecklist ? {
+      reply: 'I made the list.',
+      action: { type: 'create_checklist', title: 'Today', text: 'Call Sam\nSend quote', business: '', location: '', url: '' }
+    } : isLink ? {
+      reply: 'I saved the guide.',
+      action: { type: 'save_link', title: 'Example guide', text: 'Read later', business: '', location: '', url: 'https://example.com/guide' }
+    } : {
+      reply: 'I saved that so you do not have to organize it now.',
+      action: { type: 'create_note', title: 'Family camping trip', text: 'Plan a family camping trip in October.', business: '', location: '', url: '' }
+    };
     await route.fulfill({
       contentType: 'application/json',
-      body: JSON.stringify(isLead ? {
-        reply: 'I added the business to your pipeline.',
-        action: { type: 'add_lead', title: '', text: 'Needs a better website.', business: 'Acme Electric', location: 'San Diego, CA', url: '' }
-      } : {
-        reply: 'I saved that so you do not have to organize it now.',
-        action: { type: 'create_note', title: 'Family camping trip', text: 'Plan a family camping trip in October.', business: '', location: '', url: '' }
-      })
+      body: JSON.stringify(response)
     });
   });
 
@@ -33,6 +42,24 @@ test('operator completes core user journeys on mobile', async () => {
   await page.getByText('Added Acme Electric to Lead Finder.').waitFor();
   const leads = await page.evaluate(() => JSON.parse(localStorage.getItem('3dvr.leadFinder.prospects.v1') || '[]'));
   assert.equal(leads[0].business, 'Acme Electric');
+
+  await page.getByLabel('Message your operator').fill('Make a checklist for today.');
+  await page.getByRole('button', { name: /Do it/ }).click();
+  await page.getByText('Saved as a checklist in Life Space.').waitFor();
+  await page.getByLabel('Message your operator').fill('Save the example guide.');
+  await page.getByRole('button', { name: /Do it/ }).click();
+  await page.getByText('Saved the link in Life Space.').waitFor();
+  const lifeSpaceItems = await page.evaluate(() => new Promise((resolve, reject) => {
+    const request = indexedDB.open('3dvr-life-space');
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const stateRequest = request.result.transaction('state').objectStore('state').get('workspace');
+      stateRequest.onerror = () => reject(stateRequest.error);
+      stateRequest.onsuccess = () => resolve(stateRequest.result.spaces[0].items);
+    };
+  }));
+  assert.deepEqual(lifeSpaceItems.find(item => item.type === 'checklist').rows.map(row => row.text), ['Call Sam', 'Send quote']);
+  assert.equal(lifeSpaceItems.find(item => item.type === 'link').url, 'https://example.com/guide');
 
   const dimensions = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: innerWidth }));
   assert.ok(dimensions.width <= dimensions.viewport, `horizontal overflow: ${dimensions.width} > ${dimensions.viewport}`);
