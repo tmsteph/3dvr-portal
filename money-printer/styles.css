@@ -167,6 +167,12 @@ body.money-printer-page {
   flex-wrap: wrap;
 }
 
+.opportunity-sync-status {
+  color: var(--muted-text, #b9c2d0);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
 .opportunity-toolbar label {
   display: grid;
   gap: 0.3rem;
