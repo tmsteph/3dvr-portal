@@ -43,3 +43,40 @@ test('operator completes core user journeys on mobile', async () => {
   assert.equal(await page.locator('.message').count(), 0);
   await browser.close();
 });
+
+test('operator makes the latest message obvious after back navigation', async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await page.addInitScript(() => {
+    const history = Array.from({ length: 18 }, (_, index) => ({
+      role: index % 2 ? 'assistant' : 'user',
+      content: `Conversation message ${index + 1} with enough detail to make the history scroll.`
+    }));
+    history.push({ role: 'assistant', content: 'Your note is ready.', actionUrl: '/life-space/', actionLabel: 'Life Space' });
+    localStorage.setItem('3dvr.operator.history.v1', JSON.stringify(history));
+  });
+
+  await page.goto(`${PORTAL_ORIGIN}/operator/`);
+  const log = page.locator('#operator-log');
+  await page.waitForFunction(() => {
+    const element = document.querySelector('#operator-log');
+    return element && element.scrollHeight - element.scrollTop - element.clientHeight < 48;
+  });
+
+  await log.evaluate(element => { element.scrollTop = 0; });
+  await page.getByRole('button', { name: 'Jump to the latest message' }).waitFor();
+  await page.getByRole('button', { name: 'Jump to the latest message' }).click();
+  await page.waitForFunction(() => {
+    const element = document.querySelector('#operator-log');
+    return element && element.scrollHeight - element.scrollTop - element.clientHeight < 48;
+  });
+
+  await page.getByRole('link', { name: /Open Life Space/ }).click();
+  await page.goBack();
+  await page.waitForFunction(() => {
+    const element = document.querySelector('#operator-log');
+    return element && element.scrollHeight - element.scrollTop - element.clientHeight < 48;
+  });
+  assert.equal(await page.getByRole('button', { name: 'Jump to the latest message' }).isHidden(), true);
+  await browser.close();
+});
