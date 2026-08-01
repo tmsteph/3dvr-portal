@@ -126,6 +126,7 @@
               <option value="passed">Passed</option>
             </select>
           </label>
+          <span id="opportunitySyncStatus" class="opportunity-sync-status">Saved on this device</span>
         </div>
         <div id="opportunityInbox" class="opportunity-grid" aria-live="polite"></div>
       </section>
@@ -329,6 +330,9 @@
     </footer>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="/gun-init.js"></script>
   <script type="module" src="./app.js"></script>
 </body>
 </html>

@@ -26,6 +26,10 @@ import {
   seedTrustReviewQueue
 } from '../src/money-printer/messageReview.js';
 import {
+  createOpportunityEngineSync,
+  mergeOpportunityEngineStates
+} from '../src/money-printer/opportunityEngineSync.js';
+import {
   addOpportunity,
   readOpportunityEngineState,
   sortOpportunityClusters,
@@ -42,6 +46,7 @@ const elements = {
   opportunityCaptureStatus: document.getElementById('opportunityCaptureStatus'),
   opportunityFilter: document.getElementById('opportunityFilter'),
   opportunityInbox: document.getElementById('opportunityInbox'),
+  opportunitySyncStatus: document.getElementById('opportunitySyncStatus'),
   opportunitySummary: document.getElementById('opportunitySummary'),
   metricsGrid: document.getElementById('metricsGrid'),
   messageReviewQueue: document.getElementById('messageReviewQueue'),
@@ -66,6 +71,8 @@ let connectorStatuses = [];
 let state = moneyPrinterStorage.hydrate();
 let messageReviewQueue = loadMessageReviewQueue();
 let opportunityEngineState = readOpportunityEngineState();
+let opportunityEngineSync = null;
+let opportunitySyncWrites = Promise.resolve();
 
 function saveState() {
   if (!moneyPrinterStorage.write(state)) {
@@ -183,6 +190,65 @@ function moneyRange(minimum, maximum) {
 function saveOpportunityEngineState() {
   if (!writeOpportunityEngineState(opportunityEngineState)) {
     elements.opportunityCaptureStatus.textContent = 'Browser storage is unavailable; this opportunity will not survive a refresh.';
+  }
+  if (opportunityEngineSync?.available) {
+    elements.opportunitySyncStatus.textContent = 'Syncing securely…';
+    const snapshot = opportunityEngineState;
+    opportunitySyncWrites = opportunitySyncWrites
+      .catch(() => undefined)
+      .then(() => opportunityEngineSync.write(snapshot))
+      .then(() => {
+        elements.opportunitySyncStatus.textContent = 'Synced securely';
+      })
+      .catch(() => {
+        elements.opportunitySyncStatus.textContent = 'Saved locally · sync retry needed';
+      });
+  }
+}
+
+function waitForGunAuthentication(user, timeoutMs = 2200) {
+  if (user?.is?.pub) return Promise.resolve(true);
+  try {
+    user?.recall?.({ sessionStorage: true, localStorage: true });
+  } catch (_error) {
+    return Promise.resolve(false);
+  }
+  return new Promise(resolve => {
+    const startedAt = Date.now();
+    const check = () => {
+      if (user?.is?.pub) return resolve(true);
+      if (Date.now() - startedAt >= timeoutMs) return resolve(false);
+      setTimeout(check, 80);
+    };
+    check();
+  });
+}
+
+async function initializeOpportunitySync() {
+  if (typeof window.Gun !== 'function') {
+    elements.opportunitySyncStatus.textContent = 'Saved on this device';
+    return;
+  }
+  const gun = window.Gun(window.__GUN_PEERS__ || ['wss://gun-relay-3dvr.fly.dev/gun']);
+  const user = gun.user();
+  const authenticated = await waitForGunAuthentication(user);
+  opportunityEngineSync = createOpportunityEngineSync({ user, SEA: window.SEA || window.Gun.SEA });
+  if (!authenticated || !opportunityEngineSync.available) {
+    elements.opportunitySyncStatus.textContent = 'Saved on this device · sign in to sync';
+    return;
+  }
+  elements.opportunitySyncStatus.textContent = 'Checking secure sync…';
+  try {
+    const remoteState = await opportunityEngineSync.read();
+    if (remoteState) {
+      opportunityEngineState = mergeOpportunityEngineStates(opportunityEngineState, remoteState);
+      writeOpportunityEngineState(opportunityEngineState);
+      renderOpportunityInbox();
+    }
+    await opportunityEngineSync.write(opportunityEngineState);
+    elements.opportunitySyncStatus.textContent = 'Synced securely';
+  } catch (_error) {
+    elements.opportunitySyncStatus.textContent = 'Saved locally · sync retry needed';
   }
 }
 
@@ -1077,6 +1143,7 @@ async function boot() {
     elements.opportunityCapturePanel.open = opportunityEngineState.opportunities.length === 0;
   }
   render();
+  initializeOpportunitySync();
   try {
     connectorStatuses = await readConnectorStatuses();
     renderTools();
