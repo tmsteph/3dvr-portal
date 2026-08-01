@@ -37,14 +37,17 @@ test('Life Space implements spatial interaction and history', () => {
   assert.match(js, /function travel/);
 });
 
-test('Life Space raises touched cards and pans the world from the card body', () => {
+test('Life Space raises tapped or header-dragged cards and continuously pans from the card body', () => {
   assert.match(js, /function bringItemToFront/);
   assert.match(js, /item\.z >= 1000000/);
-  assert.match(js, /card\.style\.zIndex = bringItemToFront\(selected\)/);
+  assert.match(js, /card\.style\.zIndex = bringItemToFront\(item\)/);
+  assert.match(js, /interaction\.card\.style\.zIndex = bringItemToFront\(interaction\.item\)/);
   assert.match(js, /type:'card-pan'/);
-  assert.match(js, /interaction\.type = 'pan'/);
-  assert.match(js, /Math\.hypot\(event\.clientX - interaction\.startX, event\.clientY - interaction\.startY\)/);
-  assert.match(js, /if \(moved < 8\) return/);
+  assert.match(js, /moved:false/);
+  assert.match(js, /if \(!interaction\.moved && Math\.hypot\(dx, dy\) < 8\) return/);
+  assert.match(js, /view\.x = interaction\.x \+ dx/);
+  assert.match(js, /view\.y = interaction\.y \+ dy/);
+  assert.doesNotMatch(js, /if \(card\) \{\s*const selected = itemById/);
 });
 
 test('Life Space provides responsive mobile controls', () => {
