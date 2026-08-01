@@ -143,3 +143,31 @@ test('operator saves and reopens past conversations on mobile', async () => {
   assert.ok(dimensions.width <= dimensions.viewport, `horizontal overflow: ${dimensions.width} > ${dimensions.viewport}`);
   await browser.close();
 });
+
+test('operator moves an existing device conversation into the signed-in account cache', async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await page.addInitScript(() => {
+    localStorage.setItem('signedIn', 'true');
+    localStorage.setItem('alias', 'thomas@example.com');
+    localStorage.setItem('3dvr.operator.conversations.v2', JSON.stringify({
+      activeId: 'device-chat',
+      conversations: [{
+        id: 'device-chat',
+        createdAt: '2026-08-01T01:00:00.000Z',
+        updatedAt: '2026-08-01T01:00:00.000Z',
+        messages: [{ role: 'user', content: 'Move this chat into my account' }]
+      }]
+    }));
+  });
+  await page.goto(`${PORTAL_ORIGIN}/operator/`);
+  await page.locator('#operator-log').getByText('Move this chat into my account').waitFor();
+  await page.getByRole('button', { name: 'New conversation' }).click();
+  const cache = await page.evaluate(() => ({
+    old: localStorage.getItem('3dvr.operator.conversations.v2'),
+    scoped: localStorage.getItem('3dvr.operator.conversations.v2.account.thomas%40example.com')
+  }));
+  assert.equal(cache.old, null);
+  assert.match(cache.scoped, /Move this chat into my account/);
+  await browser.close();
+});
