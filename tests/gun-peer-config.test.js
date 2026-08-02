@@ -46,4 +46,15 @@ describe('Gun peer configuration', () => {
     assert.doesNotMatch(source, /wss:\/\/relay\.3dvr\.tech\/gun/);
     assert.match(source, /wss:\/\/gun-relay-3dvr\.fly\.dev\/gun/);
   });
+
+  it('quarantines the dead relay from the server-side Chat push watcher', async () => {
+    const source = await read('services/newsletter-store/server.mjs');
+    const flyIndex = source.indexOf("process.env.CHAT_PUSH_GUN_PEERS || 'https://gun-relay-3dvr.fly.dev/gun'");
+    const filterIndex = source.indexOf('.filter(peer => peer && !disabledGunPeers.has(peer))');
+
+    assert.notEqual(flyIndex, -1, 'the push watcher should default to the working Fly relay');
+    assert.notEqual(filterIndex, -1, 'configured peers should filter the dead relay');
+    assert.match(source, /'https:\/\/relay\.3dvr\.tech\/gun'/);
+    assert.match(source, /'wss:\/\/relay\.3dvr\.tech\/gun'/);
+  });
 });
