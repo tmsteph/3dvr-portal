@@ -137,22 +137,28 @@ function startChatPushWatcher() {
 
   const startedAt = Date.now();
   const gun = Gun({ peers: gunPeers, localStorage: false, radisk: false });
-  for (const room of chatRooms) {
-    gun.get('3dvr-chat').get(room).map().on((message, messageId) => {
-      const createdAt = Number(message?.createdAt || 0);
-      if (!message || !messageId || !createdAt || !message.sender || typeof message.text !== 'string' ||
-          createdAt < startedAt - 30_000) return;
+  const processMessage = (room, message, messageId) => {
+    const createdAt = Number(message?.createdAt || 0);
+    if (!message || !messageId || !createdAt || !message.sender || typeof message.text !== 'string' ||
+        createdAt < startedAt - 30_000) return;
 
-      claimChatMessage(room, cleanText(messageId, 220))
-        .then(claimed => claimed ? sendChatNotifications({
-          room,
-          messageId,
-          senderId: message.sender,
-          username: message.username,
-          text: message.text
-        }) : null)
-        .catch(error => console.error('Chat push watcher failed', error));
-    });
+    claimChatMessage(room, cleanText(messageId, 220))
+      .then(claimed => claimed ? sendChatNotifications({
+        room,
+        messageId,
+        senderId: message.sender,
+        username: message.username,
+        text: message.text
+      }) : null)
+      .catch(error => console.error('Chat push watcher failed', error));
+  };
+
+  for (const room of chatRooms) {
+    const roomNode = gun.get('3dvr-chat').get(room);
+    roomNode.map().on((message, messageId) => processMessage(room, message, messageId));
+    setInterval(() => {
+      roomNode.map().once((message, messageId) => processMessage(room, message, messageId));
+    }, 5_000).unref();
   }
   console.log(`chat push watcher listening on ${gunPeers.length} GUN peer(s)`);
 }
