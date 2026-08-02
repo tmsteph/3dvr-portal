@@ -79,9 +79,12 @@ describe('chat notification routing', () => {
     assert.match(chatHtml, /navigator\.serviceWorker\.getRegistration\('\/'\)/);
     assert.match(chatHtml, /existing \|\| await navigator\.serviceWorker\.register/);
     assert.doesNotMatch(chatHtml, /navigator\.serviceWorker\.ready\s*\.then/);
-    assert.match(chatHtml, /On while Chat is open or running in the background\./);
+    assert.match(chatHtml, /On, including when Chat is closed\./);
+    assert.match(chatHtml, /registration\.pushManager\.subscribe/);
+    assert.match(chatHtml, /action, \.\.\.payload/);
 
     assert.match(serviceWorker, /importScripts\('\/chat\/notification-routing\.js'\);/);
+    assert.match(serviceWorker, /self\.addEventListener\('push'/);
     assert.match(serviceWorker, /client\.postMessage\(\{\s*type: 'notification-clicked'/);
     assert.match(serviceWorker, /await client\.navigate\(targetUrl\)/);
   });

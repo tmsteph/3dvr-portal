@@ -3,7 +3,7 @@
 importScripts('/chat/notification-routing.js');
 
 // Increment this to bust old caches when you deploy
-const CACHE_VERSION = 'v19';
+const CACHE_VERSION = 'v20';
 const STATIC_CACHE = `3dvr-static-${CACHE_VERSION}`;
 const HTML_CACHE = `3dvr-html-${CACHE_VERSION}`;
 const chatNotificationRouting = self.ChatNotificationRouting || null;
@@ -328,6 +328,31 @@ self.addEventListener('message', (event) => {
   self.registration.showNotification(title, options).catch((error) => {
     console.error('Service worker failed to display notification', error);
   });
+});
+
+self.addEventListener('push', event => {
+  let payload = {};
+  try {
+    payload = event.data?.json() || {};
+  } catch (error) {
+    payload = { body: event.data?.text() || 'New message' };
+  }
+
+  const room = payload.room || 'general';
+  const messageId = payload.messageId || '';
+  const options = {
+    body: payload.body || 'New message',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: payload.tag || `${room}-${messageId}`,
+    renotify: false,
+    data: {
+      room,
+      messageId,
+      url: chatNotificationRouting?.buildChatNotificationUrl({ room, messageId }) || '/chat/'
+    }
+  };
+  event.waitUntil(self.registration.showNotification(payload.title || '3DVR Chat', options));
 });
 
 self.addEventListener('notificationclick', (event) => {

@@ -80,7 +80,7 @@
         <div id="notification-settings" class="chat-card chat-card--accent">
           <div class="chat-card__header">
             <span class="chat-card__eyebrow">Notifications</span>
-            <h2 class="chat-card__title">While Chat is running</h2>
+            <h2 class="chat-card__title">New message alerts</h2>
           </div>
           <p id="notification-status" class="chat-card__muted">Checking permissions…</p>
           <button
@@ -319,8 +319,10 @@ const notificationsSupported = 'Notification' in window;
 const notificationsPreferenceKey = 'chatNotificationsEnabled';
 const notificationIconPath = '/icons/icon-192.png';
 const notificationStateStorageKey = 'chatNotificationState';
+const chatPushApiPath = '/api/trial';
 const INITIAL_SYNC_GRACE_MS = 1500;
 let notificationsEnabled = false;
+let closedAppNotificationsEnabled = false;
 let serviceWorkerRegistration = null;
 let currentRoomStream = null;
 const roomInitialSyncTimers = {};
@@ -791,12 +793,17 @@ function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  chat.set({
+  const messageId = typeof crypto?.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  const message = {
     text,
     sender: userId,
     username: cachedUsername,
     createdAt: Date.now()
-  });
+  };
+
+  chat.get(messageId).put(message);
 
   input.value = '';
 
@@ -1019,7 +1026,65 @@ async function ensureChatServiceWorkerRegistration() {
   }
 }
 
-function initNotifications() {
+function decodeVapidPublicKey(value) {
+  const padding = '='.repeat((4 - value.length % 4) % 4);
+  const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from(raw, character => character.charCodeAt(0));
+}
+
+async function callChatPushApi(action, payload = {}) {
+  const response = await fetch(chatPushApiPath, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ kind: 'chat-push', action, ...payload })
+  });
+  if (!response.ok) throw new Error(`Chat push API returned ${response.status}`);
+  return response.json();
+}
+
+async function getChatPushPublicKey() {
+  const response = await fetch(chatPushApiPath, { headers: { accept: 'application/json' } });
+  if (!response.ok) throw new Error(`Chat push configuration returned ${response.status}`);
+  const config = await response.json();
+  return String(config.chatPushPublicKey || '');
+}
+
+async function ensurePushSubscription() {
+  const registration = serviceWorkerRegistration || await ensureChatServiceWorkerRegistration();
+  if (!registration?.pushManager) return false;
+
+  let subscription = await registration.pushManager.getSubscription();
+  if (!subscription) {
+    const publicKey = await getChatPushPublicKey();
+    if (!publicKey) return false;
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: decodeVapidPublicKey(publicKey)
+    });
+  }
+
+  await callChatPushApi('subscribe', {
+    userId,
+    rooms: getAvailableChatRooms(),
+    subscription: subscription.toJSON(),
+    userAgent: navigator.userAgent
+  });
+  return true;
+}
+
+async function removePushSubscription() {
+  const registration = serviceWorkerRegistration || await ensureChatServiceWorkerRegistration();
+  const subscription = await registration?.pushManager?.getSubscription();
+  if (!subscription) return;
+  try {
+    await callChatPushApi('unsubscribe', { endpoint: subscription.endpoint });
+  } finally {
+    await subscription.unsubscribe();
+  }
+}
+
+async function initNotifications() {
   if (!notificationToggleButton || !notificationStatusText) return;
 
   if (!notificationsSupported) {
@@ -1028,11 +1093,16 @@ function initNotifications() {
     return;
   }
 
-  ensureChatServiceWorkerRegistration();
+  await ensureChatServiceWorkerRegistration();
 
   const savedPreference = safeGetStorage(notificationsPreferenceKey) === 'true';
   if (savedPreference && Notification.permission === 'granted') {
     notificationsEnabled = true;
+    try {
+      closedAppNotificationsEnabled = await ensurePushSubscription();
+    } catch (error) {
+      console.warn('Closed-app notifications could not be restored', error);
+    }
   }
 
   updateNotificationUI();
@@ -1057,18 +1127,26 @@ function updateNotificationUI() {
   notificationToggleButton.textContent = notificationsEnabled ? 'Disable Notifications' : 'Enable Notifications';
 
   if (notificationsEnabled && Notification.permission === 'granted') {
-    notificationStatusText.textContent = 'On while Chat is open or running in the background.';
+    notificationStatusText.textContent = closedAppNotificationsEnabled
+      ? 'On, including when Chat is closed.'
+      : 'On while Chat is running. Closed-app alerts are temporarily unavailable.';
   } else {
     notificationStatusText.textContent = 'Off. Enable alerts while Chat is running.';
   }
 }
 
-function toggleNotifications() {
+async function toggleNotifications() {
   if (!notificationsSupported) return;
 
   if (notificationsEnabled) {
     notificationsEnabled = false;
+    closedAppNotificationsEnabled = false;
     safeSetStorage(notificationsPreferenceKey, 'false');
+    try {
+      await removePushSubscription();
+    } catch (error) {
+      console.warn('Unable to remove the server push subscription', error);
+    }
     updateNotificationUI();
     return;
   }
@@ -1076,25 +1154,37 @@ function toggleNotifications() {
   if (Notification.permission === 'granted') {
     notificationsEnabled = true;
     safeSetStorage(notificationsPreferenceKey, 'true');
+    try {
+      closedAppNotificationsEnabled = await ensurePushSubscription();
+    } catch (error) {
+      console.warn('Closed-app notifications could not be enabled', error);
+    }
     updateNotificationUI();
     sendNotificationPreview();
     return;
   }
 
-  Notification.requestPermission().then(permission => {
-    notificationsEnabled = permission === 'granted';
-    safeSetStorage(notificationsPreferenceKey, notificationsEnabled ? 'true' : 'false');
+  const permission = await Notification.requestPermission();
+  notificationsEnabled = permission === 'granted';
+  safeSetStorage(notificationsPreferenceKey, notificationsEnabled ? 'true' : 'false');
 
-    if (permission === 'denied') {
-      notificationStatusText.textContent = 'Notifications are blocked in your browser settings.';
+  if (permission === 'denied') {
+    notificationStatusText.textContent = 'Notifications are blocked in your browser settings.';
+  }
+
+  if (notificationsEnabled) {
+    try {
+      closedAppNotificationsEnabled = await ensurePushSubscription();
+    } catch (error) {
+      console.warn('Closed-app notifications could not be enabled', error);
     }
+  }
 
-    updateNotificationUI();
+  updateNotificationUI();
 
-    if (permission === 'granted') {
-      sendNotificationPreview();
-    }
-  });
+  if (permission === 'granted') {
+    sendNotificationPreview();
+  }
 }
 
 async function attemptServiceWorkerNotification(registration, title, options) {
@@ -1178,7 +1268,7 @@ function sendNotificationPreview() {
   showChatNotification(
     'Chat notifications enabled',
     {
-      body: 'Alerts are ready while Chat is open or running in the background.',
+      body: 'Alerts are ready, including when Chat is closed.',
       tag: 'chat-notification-preview',
       data: { room: currentRoom }
     },

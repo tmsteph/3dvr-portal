@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import nodemailer from 'nodemailer';
 import { saveNewsletterSubscriber } from './_lib/newsletter-store.js';
+import { callChatPushStore } from './_lib/chat-push-store.js';
 
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -29,6 +30,7 @@ export function createTrialHandler(options = {}) {
     stripeClient,
     mailTransport,
     config = process.env,
+    chatPushStore = callChatPushStore,
   } = options;
 
   const stripe = stripeClient || (config.STRIPE_SECRET_KEY ? createStripeClient(config.STRIPE_SECRET_KEY) : null);
@@ -99,6 +101,7 @@ export function createTrialHandler(options = {}) {
         stripeConfigured: Boolean(config.STRIPE_SECRET_KEY),
         priceConfigured: Boolean(config.STRIPE_PRICE_ID),
         mailConfigured: Boolean(config.GMAIL_USER && config.GMAIL_APP_PASSWORD),
+        chatPushPublicKey: String(config.CHAT_PUSH_VAPID_PUBLIC_KEY || ''),
       });
     }
 
@@ -107,6 +110,21 @@ export function createTrialHandler(options = {}) {
     }
 
     const { email, kind, consent, source } = req.body || {};
+
+    if (kind === 'chat-push') {
+      const action = String(req.body?.action || '');
+      if (!['subscribe', 'unsubscribe'].includes(action)) {
+        return res.status(400).json({ error: 'Invalid chat push action.' });
+      }
+
+      try {
+        const result = await chatPushStore(action, req.body || {}, config);
+        return res.status(200).json(result);
+      } catch (error) {
+        console.error('Chat push request failed:', error);
+        return res.status(503).json({ error: 'Chat notifications are temporarily unavailable.' });
+      }
+    }
 
     // Keep the blog form on an existing serverless route. The Hobby plan has a
     // function limit, and this route already has the configured mail transport.
