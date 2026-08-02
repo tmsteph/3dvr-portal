@@ -57,4 +57,65 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 CREATE INDEX IF NOT EXISTS chat_messages_room_created_idx
   ON chat_messages (room, created_at DESC);
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON newsletter_subscribers, newsletter_sends, chat_push_subscriptions, chat_push_deliveries, chat_messages TO newsletter_store;
+CREATE TABLE IF NOT EXISTS crm_import_runs (
+  run_id TEXT PRIMARY KEY,
+  source_name TEXT NOT NULL,
+  source_hash TEXT NOT NULL,
+  dry_run BOOLEAN NOT NULL DEFAULT FALSE,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  report JSONB NOT NULL DEFAULT '{}'::JSONB
+);
+
+CREATE TABLE IF NOT EXISTS crm_contacts (
+  contact_id TEXT PRIMARY KEY,
+  record_type TEXT NOT NULL DEFAULT 'person' CHECK (record_type IN ('person', 'company')),
+  name TEXT,
+  company TEXT,
+  email TEXT,
+  phone TEXT,
+  website TEXT,
+  status TEXT,
+  source TEXT NOT NULL,
+  consent_status TEXT NOT NULL DEFAULT 'unknown' CHECK (consent_status IN ('unknown', 'consented', 'legitimate-interest', 'declined')),
+  suppressed BOOLEAN NOT NULL DEFAULT FALSE,
+  suppression_reason TEXT,
+  raw_data JSONB NOT NULL DEFAULT '{}'::JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS crm_contacts_email_unique_idx
+  ON crm_contacts (LOWER(email)) WHERE email IS NOT NULL AND email <> '';
+CREATE INDEX IF NOT EXISTS crm_contacts_status_idx ON crm_contacts (status);
+CREATE INDEX IF NOT EXISTS crm_contacts_suppressed_idx ON crm_contacts (suppressed) WHERE suppressed = TRUE;
+
+CREATE TABLE IF NOT EXISTS crm_activities (
+  activity_id TEXT PRIMARY KEY,
+  contact_id TEXT REFERENCES crm_contacts(contact_id) ON DELETE SET NULL,
+  activity_type TEXT NOT NULL,
+  channel TEXT,
+  status TEXT,
+  occurred_at TIMESTAMPTZ NOT NULL,
+  subject TEXT,
+  body TEXT,
+  source TEXT NOT NULL,
+  raw_data JSONB NOT NULL DEFAULT '{}'::JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS crm_activities_contact_time_idx
+  ON crm_activities (contact_id, occurred_at DESC);
+
+CREATE TABLE IF NOT EXISTS crm_raw_records (
+  source_name TEXT NOT NULL,
+  source_record_id TEXT NOT NULL,
+  record_kind TEXT NOT NULL,
+  content_hash TEXT NOT NULL,
+  raw_data JSONB NOT NULL,
+  first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (source_name, source_record_id)
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON newsletter_subscribers, newsletter_sends, chat_push_subscriptions, chat_push_deliveries, chat_messages, crm_import_runs, crm_contacts, crm_activities, crm_raw_records TO newsletter_store;

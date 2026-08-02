@@ -5,6 +5,9 @@
   "engines": {
     "node": ">=20"
   },
+  "scripts": {
+    "crm:migrate": "node crm-migration.mjs"
+  },
   "dependencies": {
     "gun": "^0.2020.1241",
     "pg": "^8.16.3",
