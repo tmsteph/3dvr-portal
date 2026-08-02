@@ -2,6 +2,7 @@ import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { chromium, firefox } from 'playwright';
+import { readFile } from 'node:fs/promises';
 
 let chromiumBrowser;
 let firefoxBrowser;
@@ -88,6 +89,13 @@ after(async () => {
 });
 
 describe('Chat cross-browser delivery', () => {
+  it('polls the durable ledger often enough for the open-client latency target', async () => {
+    const source = await readFile(new URL('../chat/index.html', import.meta.url), 'utf8');
+    const interval = Number(source.match(/const ROOM_RECONCILE_MS = (\d+);/)?.[1] || 0);
+
+    assert.ok(interval > 0 && interval <= 1000, `durable reconciliation interval was ${interval}ms`);
+  });
+
   it('delivers a Firefox message to an already-open Chromium chat', async () => {
     const durableMessages = [];
     const [{ context: chromeContext, page: chromePage }, { context: firefoxContext, page: firefoxPage }] =
