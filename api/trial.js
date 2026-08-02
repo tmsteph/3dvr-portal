@@ -126,6 +126,21 @@ export function createTrialHandler(options = {}) {
       }
     }
 
+    if (kind === 'chat-message') {
+      const action = String(req.body?.action || '');
+      if (!['publish', 'sync'].includes(action)) {
+        return res.status(400).json({ error: 'Invalid chat message action.' });
+      }
+
+      try {
+        const result = await chatPushStore(action, req.body || {}, config);
+        return res.status(200).json(result);
+      } catch (error) {
+        console.error('Chat message request failed:', error);
+        return res.status(503).json({ error: 'Chat sync is temporarily unavailable.' });
+      }
+    }
+
     // Keep the blog form on an existing serverless route. The Hobby plan has a
     // function limit, and this route already has the configured mail transport.
     if (kind === 'blog-signup') {

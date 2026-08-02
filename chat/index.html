@@ -5,8 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>3DVR - Group Chat</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script>
+    if (!window.Gun) {
+      document.write('<script src="https://unpkg.com/gun/gun.js"><\\/script>');
+    }
+  </script>
   <script src="/gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script>
+    if (!window.SEA) {
+      document.write('<script src="https://unpkg.com/gun/sea.js"><\\/script>');
+    }
+  </script>
   <script src="/score.js"></script>
   <script src="/pwa-install.js" defer></script>
   <link rel="stylesheet" href="/styles/global.css">
@@ -165,7 +175,6 @@
 <script src="/chat/notification-routing.js"></script>
 <script>
 const gun = Gun(window.__GUN_PEERS__ || [
-  'wss://relay.3dvr.tech/gun',
   'wss://gun-relay-3dvr.fly.dev/gun'
 ]);
 const portalRoot = gun.get('3dvr-portal');
@@ -322,14 +331,23 @@ const notificationStateStorageKey = 'chatNotificationState';
 const pushDeliveryVerifiedStorageKey = 'chatPushDeliveryVerified';
 const chatPushApiPath = '/api/trial';
 const INITIAL_SYNC_GRACE_MS = 1500;
+const ROOM_RECONCILE_MS = 3000;
 let notificationsEnabled = false;
 let closedAppNotificationsEnabled = false;
 let pushDeliveryVerified = false;
 let serviceWorkerRegistration = null;
 let currentRoomStream = null;
+let currentLatestMessageStream = null;
+let roomReconcileTimer = 0;
+let currentRoomReconcile = null;
+let chatPublishQueue = Promise.resolve();
 const roomInitialSyncTimers = {};
 const notifiedMessageIdsByRoom = {};
 const notifiedMessageQueueByRoom = {};
+const latestMessageIdsByRoom = {};
+const latestMessageTimesByRoom = {};
+const recentSentMessagesByRoom = {};
+const pendingMessagesByRoom = {};
 
 const CHAT_USER_ROOT = '3dvr-users';
 const CHAT_GUEST_ROOT = '3dvr-guests';
@@ -802,16 +820,74 @@ function sendMessage() {
     text,
     sender: userId,
     username: cachedUsername,
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    previousMessageId: latestMessageIdsByRoom[currentRoom] || ''
   };
 
-  chat.get(messageId).put(message);
+  const roomName = currentRoom;
+  const roomNode = chat;
+  latestMessageIdsByRoom[roomName] = messageId;
+  latestMessageTimesByRoom[roomName] = message.createdAt;
+  if (!recentSentMessagesByRoom[roomName]) {
+    recentSentMessagesByRoom[roomName] = [];
+  }
+  recentSentMessagesByRoom[roomName].push({ id: messageId, message });
+  recentSentMessagesByRoom[roomName] = recentSentMessagesByRoom[roomName].slice(-20);
+  if (!pendingMessagesByRoom[roomName]) {
+    pendingMessagesByRoom[roomName] = {};
+  }
+  pendingMessagesByRoom[roomName][messageId] = message;
+  messages[messageId] = message;
+  displayMessages();
+  writeChatMessage(messageId, message, roomNode, roomName);
+  roomNode.get('_latest').put(buildLatestMessagePointer(roomName, messageId, message.createdAt));
+  chatPublishQueue = chatPublishQueue
+    .then(() => publishChatMessageToServer(roomName, messageId, message))
+    .catch(error => {
+      console.warn('Durable chat delivery will retry during GUN sync', error);
+    });
 
   input.value = '';
 
   if (scoreManager) {
     scoreManager.increment(1);
   }
+}
+
+function buildLatestMessagePointer(roomName, messageId, createdAt) {
+  return {
+    id: messageId,
+    createdAt,
+    recent: JSON.stringify(recentSentMessagesByRoom[roomName] || [])
+  };
+}
+
+function writeChatMessage(messageId, message, roomNode, roomName, attempt = 0) {
+  let acknowledged = false;
+  const retryTimer = window.setTimeout(() => {
+    if (!acknowledged && attempt < 2) {
+      writeChatMessage(messageId, message, roomNode, roomName, attempt + 1);
+    }
+  }, 4000);
+
+  roomNode.get(messageId).put(message, ack => {
+    if (ack?.err) {
+      console.warn('Chat message write failed', ack.err);
+      if (attempt < 2) {
+        window.clearTimeout(retryTimer);
+        window.setTimeout(() => writeChatMessage(messageId, message, roomNode, roomName, attempt + 1), 500);
+      }
+      return;
+    }
+
+    if (ack?.ok) {
+      acknowledged = true;
+      window.clearTimeout(retryTimer);
+      if (latestMessageIdsByRoom[roomName] === messageId) {
+        roomNode.get('_latest').put(buildLatestMessagePointer(roomName, messageId, message.createdAt));
+      }
+    }
+  });
 }
 
 const messages = {};
@@ -844,7 +920,8 @@ function displayMessages() {
   const messagesDiv = document.getElementById('messages');
   messagesDiv.innerHTML = '';
 
-  const sorted = Object.entries(messages).sort(([, a], [, b]) => (b.createdAt || 0) - (a.createdAt || 0));
+  const visibleMessages = { ...messages, ...(pendingMessagesByRoom[currentRoom] || {}) };
+  const sorted = Object.entries(visibleMessages).sort(([, a], [, b]) => (b.createdAt || 0) - (a.createdAt || 0));
   for (const [id, message] of sorted) {
     const msgDiv = document.createElement('div');
     msgDiv.className = 'message';
@@ -947,40 +1024,108 @@ function loadRoom(roomName) {
   if (currentRoomStream && typeof currentRoomStream.off === 'function') {
     currentRoomStream.off();
   }
+  if (currentLatestMessageStream && typeof currentLatestMessageStream.off === 'function') {
+    currentLatestMessageStream.off();
+  }
+  if (roomReconcileTimer) {
+    window.clearInterval(roomReconcileTimer);
+    roomReconcileTimer = 0;
+  }
 
   chat = gun.get('3dvr-chat').get(roomName);
   const roomStream = chat.map();
   currentRoomStream = roomStream;
 
-  roomStream.on((message, id) => {
-    if (!message || messages[id]) return;
+  const ingestMessage = (message, id) => {
+    if (!message || !id || roomName !== currentRoom) return;
+    const mergedMessage = { ...(messages[id] || {}), ...message };
+    if (typeof mergedMessage.text !== 'string' || !mergedMessage.text.trim()) return;
+    const createdAt = Number(mergedMessage.createdAt) || 0;
+    if (createdAt >= (latestMessageTimesByRoom[roomName] || 0)) {
+      latestMessageTimesByRoom[roomName] = createdAt;
+      latestMessageIdsByRoom[roomName] = id;
+    }
 
-    if (message.sender) {
-      const existingUsername = typeof message.username === 'string'
-        ? message.username.trim()
+    if (mergedMessage.sender) {
+      const existingUsername = typeof mergedMessage.username === 'string'
+        ? mergedMessage.username.trim()
         : '';
       if (existingUsername) {
-        message.username = existingUsername;
-        messages[id] = message;
+        mergedMessage.username = existingUsername;
+        messages[id] = mergedMessage;
         displayMessages();
-        maybeNotifyNewMessage(message, id);
+        maybeNotifyNewMessage(mergedMessage, id);
         return;
       }
 
-      fetchSenderUsername(message.sender, resolvedName => {
-        const finalName = resolvedName || message.sender;
-        message.username = finalName;
-        messages[id] = message;
+      fetchSenderUsername(mergedMessage.sender, resolvedName => {
+        if (roomName !== currentRoom) return;
+        const finalName = resolvedName || mergedMessage.sender;
+        mergedMessage.username = finalName;
+        messages[id] = mergedMessage;
         displayMessages();
-        maybeNotifyNewMessage(message, id);
+        maybeNotifyNewMessage(mergedMessage, id);
       });
     } else {
-      messages[id] = message;
+      messages[id] = mergedMessage;
       displayMessages();
-      maybeNotifyNewMessage(message, id);
+      maybeNotifyNewMessage(mergedMessage, id);
     }
-  });
+  };
+
+  roomStream.on(ingestMessage);
+
+  const followedMessageIds = new Set();
+  const followMessageChain = (messageId, remaining = 50) => {
+    if (!messageId || remaining <= 0 || followedMessageIds.has(messageId)) return;
+    followedMessageIds.add(messageId);
+    const messageNode = chat.get(messageId);
+    messageNode.on(message => {
+      if (!message || typeof message.text !== 'string' || !message.text.trim()) return;
+      ingestMessage(message, messageId);
+      if (typeof messageNode.off === 'function') {
+        messageNode.off();
+      }
+      followMessageChain(message.previousMessageId, remaining - 1);
+    });
+  };
+
+  currentLatestMessageStream = chat.get('_latest');
+  const ingestLatestPointer = pointer => {
+    if (roomName !== currentRoom || !pointer) return;
+    if (typeof pointer.recent === 'string') {
+      try {
+        const recentMessages = JSON.parse(pointer.recent);
+        if (Array.isArray(recentMessages)) {
+          recentMessages.forEach(entry => ingestMessage(entry?.message, entry?.id));
+        }
+      } catch (error) {
+        console.warn('Unable to reconcile recent chat messages', error);
+      }
+    }
+    followMessageChain(pointer.id);
+  };
+  currentLatestMessageStream.on(ingestLatestPointer);
+
+  const reconcileRoom = () => {
+    if (roomName !== currentRoom) return;
+    chat.map().once(ingestMessage);
+    chat.get('_latest').once(ingestLatestPointer);
+    syncChatMessagesFromServer(roomName)
+      .then(entries => entries.forEach(entry => ingestMessage(entry?.message, entry?.id)))
+      .catch(error => console.warn('Durable chat sync unavailable; using GUN fallback', error));
+  };
+  currentRoomReconcile = reconcileRoom;
+  reconcileRoom();
+  roomReconcileTimer = window.setInterval(reconcileRoom, ROOM_RECONCILE_MS);
 }
+
+window.addEventListener('online', () => currentRoomReconcile?.());
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    currentRoomReconcile?.();
+  }
+});
 
 function changeRoom() {
   const select = roomSelectEl || document.getElementById('room');
@@ -1043,6 +1188,32 @@ async function callChatPushApi(action, payload = {}) {
   });
   if (!response.ok) throw new Error(`Chat push API returned ${response.status}`);
   return response.json();
+}
+
+async function callChatMessageApi(action, payload = {}) {
+  const response = await fetch(chatPushApiPath, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ kind: 'chat-message', action, ...payload })
+  });
+  if (!response.ok) throw new Error(`Chat message API returned ${response.status}`);
+  return response.json();
+}
+
+async function publishChatMessageToServer(room, messageId, message) {
+  return callChatMessageApi('publish', {
+    room,
+    messageId,
+    senderId: message.sender,
+    username: message.username,
+    text: message.text,
+    createdAt: message.createdAt
+  });
+}
+
+async function syncChatMessagesFromServer(room) {
+  const result = await callChatMessageApi('sync', { room });
+  return Array.isArray(result?.messages) ? result.messages : [];
 }
 
 async function getChatPushPublicKey() {

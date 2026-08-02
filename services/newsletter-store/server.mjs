@@ -141,6 +141,51 @@ async function claimChatMessage(room, messageId) {
   return rowCount === 1;
 }
 
+async function listChatMessages(input) {
+  const room = cleanText(input.room, 32);
+  if (!chatRooms.has(room)) throw new Error('Invalid chat room.');
+  const { rows } = await pool.query(`
+    SELECT message_id, sender_id, username, body, created_at
+    FROM chat_messages
+    WHERE room = $1
+    ORDER BY created_at DESC
+    LIMIT 100
+  `, [room]);
+  return rows.map(row => ({
+    id: row.message_id,
+    message: {
+      sender: row.sender_id,
+      username: row.username || '',
+      text: row.body,
+      createdAt: new Date(row.created_at).getTime()
+    }
+  }));
+}
+
+async function publishChatMessage(input) {
+  const room = cleanText(input.room, 32);
+  const messageId = cleanText(input.messageId, 220);
+  const senderId = cleanText(input.senderId, 160);
+  const username = cleanText(input.username, 80);
+  const text = cleanText(input.text, 4000);
+  const createdAt = new Date(Number(input.createdAt) || Date.now());
+  if (!chatRooms.has(room) || !messageId || !senderId || !text || Number.isNaN(createdAt.getTime())) {
+    throw new Error('Invalid chat message.');
+  }
+
+  const { rowCount } = await pool.query(`
+    INSERT INTO chat_messages (room, message_id, sender_id, username, body, created_at)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    ON CONFLICT (room, message_id) DO NOTHING
+  `, [room, messageId, senderId, username || null, text, createdAt.toISOString()]);
+
+  if (rowCount === 1 && await claimChatMessage(room, messageId)) {
+    await sendChatNotifications({ room, messageId, senderId, username, text });
+  }
+
+  return listChatMessages({ room });
+}
+
 function startChatPushWatcher() {
   if (!vapidPublicKey || !vapidPrivateKey || gunPeers.length === 0) {
     console.warn('chat push watcher disabled: VAPID or GUN peers are not configured');
@@ -211,6 +256,16 @@ const server = http.createServer(async (req, res) => {
       if (!authorized(req)) return json(res, 401, { error: 'Unauthorized.' });
       await removeChatSubscription(await readBody(req));
       return json(res, 200, { ok: true });
+    }
+    if (req.url === '/v1/chat/publish' && req.method === 'POST') {
+      if (!authorized(req)) return json(res, 401, { error: 'Unauthorized.' });
+      const messages = await publishChatMessage(await readBody(req));
+      return json(res, 201, { ok: true, messages });
+    }
+    if (req.url === '/v1/chat/sync' && req.method === 'POST') {
+      if (!authorized(req)) return json(res, 401, { error: 'Unauthorized.' });
+      const messages = await listChatMessages(await readBody(req));
+      return json(res, 200, { ok: true, messages });
     }
     if (req.url === '/v1/subscribers' && req.method === 'GET') {
       if (!authorized(req)) return json(res, 401, { error: 'Unauthorized.' });

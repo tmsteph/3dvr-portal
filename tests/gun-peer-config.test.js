@@ -39,4 +39,11 @@ describe('Gun peer configuration', () => {
       assert.match(source, /wss:\/\/gun-relay-3dvr\.fly\.dev\/gun/, `${path} should include the Fly relay fallback`);
     }
   });
+
+  it('does not let Chat try the dead relay before the working Fly relay', async () => {
+    const source = await read('chat/index.html');
+
+    assert.doesNotMatch(source, /wss:\/\/relay\.3dvr\.tech\/gun/);
+    assert.match(source, /wss:\/\/gun-relay-3dvr\.fly\.dev\/gun/);
+  });
 });
