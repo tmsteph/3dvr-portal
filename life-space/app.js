@@ -30,6 +30,8 @@ let history = [];
 let future = [];
 let objectUrls = new Map();
 let sync;
+const activePointers = new Map();
+let pinch = null;
 
 const activeSpace = () => state.spaces.find(space => space.id === state.activeSpaceId) || state.spaces[0];
 const itemById = id => activeSpace().items.find(item => item.id === id);
@@ -213,22 +215,70 @@ function boardPoint(event) {
   return { x:(event.clientX - rect.left - view.x) / view.zoom, y:(event.clientY - rect.top - view.y) / view.zoom };
 }
 
-function drawingPoint(event, stroke) {
-  const point = boardPoint(event);
-  const item = stroke.itemId ? itemById(stroke.itemId) : null;
+function drawingPointForItem(point, itemId) {
+  const item = itemId ? itemById(itemId) : null;
   return item ? { x:point.x - item.x, y:point.y - item.y } : point;
 }
 
+function drawingItemAt(event) {
+  return document.elementFromPoint(event.clientX, event.clientY)?.closest('.life-card')?.dataset.id;
+}
+
+function beginPinch() {
+  const points = [...activePointers.values()];
+  if (points.length < 2) return;
+  if (interaction?.before) {
+    state = JSON.parse(interaction.before);
+    renderBoard();
+  }
+  currentStroke = null;
+  interaction = null;
+  els.wrap.classList.remove('panning');
+  const [a, b] = points;
+  const rect = els.wrap.getBoundingClientRect();
+  const center = { x:(a.x + b.x) / 2 - rect.left, y:(a.y + b.y) / 2 - rect.top };
+  const view = activeSpace().view;
+  pinch = {
+    distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+    zoom: view.zoom,
+    worldX: (center.x - view.x) / view.zoom,
+    worldY: (center.y - view.y) / view.zoom
+  };
+}
+
+function updatePinch() {
+  const points = [...activePointers.values()];
+  if (!pinch || points.length < 2) return;
+  const [a, b] = points;
+  const rect = els.wrap.getBoundingClientRect();
+  const center = { x:(a.x + b.x) / 2 - rect.left, y:(a.y + b.y) / 2 - rect.top };
+  const distance = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+  const view = activeSpace().view;
+  view.zoom = clamp(pinch.zoom * distance / pinch.distance, .35, 2);
+  view.x = center.x - pinch.worldX * view.zoom;
+  view.y = center.y - pinch.worldY * view.zoom;
+  applyView();
+}
+
 function pointerDown(event) {
+  activePointers.set(event.pointerId, { x:event.clientX, y:event.clientY });
+  if (activePointers.size === 2) {
+    event.preventDefault();
+    els.wrap.setPointerCapture(event.pointerId);
+    beginPinch();
+    return;
+  }
+  if (pinch) return;
   const card = event.target.closest('.life-card');
   if (drawMode && !event.target.closest('.tool-dock')) {
     event.preventDefault();
     const before = snapshot();
-    currentStroke = { id:uid('stroke'), color:'#ff7a59', width:4 / activeSpace().view.zoom, points:[], createdAt:Date.now(), updatedAt:Date.now() };
+    currentStroke = { id:uid('stroke'), gestureId:uid('gesture'), color:'#ff7a59', width:4 / activeSpace().view.zoom, points:[], createdAt:Date.now(), updatedAt:Date.now() };
     if (card) currentStroke.itemId = card.dataset.id;
-    currentStroke.points.push(drawingPoint(event, currentStroke));
+    const point = boardPoint(event);
+    currentStroke.points.push(drawingPointForItem(point, currentStroke.itemId));
     activeSpace().strokes.push(currentStroke);
-    interaction = { type:'draw', before };
+    interaction = { type:'draw', before, lastBoardPoint:point };
     els.wrap.setPointerCapture(event.pointerId); renderStrokes(); return;
   }
   if (card && event.target.closest('.drag-handle') && !event.target.closest('button')) {
@@ -260,6 +310,12 @@ function pointerDown(event) {
 }
 
 function pointerMove(event) {
+  if (activePointers.has(event.pointerId)) activePointers.set(event.pointerId, { x:event.clientX, y:event.clientY });
+  if (pinch) {
+    event.preventDefault();
+    updatePinch();
+    return;
+  }
   if (!interaction) return;
   const view = activeSpace().view;
   if (interaction.type === 'card-pan') {
@@ -275,9 +331,25 @@ function pointerMove(event) {
     return;
   }
   if (interaction.type === 'draw') {
-    const point = drawingPoint(event, currentStroke);
+    const board = boardPoint(event);
+    const itemId = drawingItemAt(event);
+    if (itemId !== currentStroke.itemId) {
+      currentStroke.updatedAt = Date.now();
+      currentStroke = {
+        id:uid('stroke'), gestureId:currentStroke.gestureId, itemId,
+        color:currentStroke.color, width:currentStroke.width,
+        points:[drawingPointForItem(interaction.lastBoardPoint, itemId)],
+        createdAt:Date.now(), updatedAt:Date.now()
+      };
+      if (!itemId) delete currentStroke.itemId;
+      activeSpace().strokes.push(currentStroke);
+    }
+    const point = drawingPointForItem(board, currentStroke.itemId);
     const last = currentStroke.points.at(-1);
-    if (Math.hypot(point.x-last.x, point.y-last.y) > 2) currentStroke.points.push(point);
+    if (Math.hypot(point.x-last.x, point.y-last.y) > 2) {
+      currentStroke.points.push(point);
+      interaction.lastBoardPoint = board;
+    }
     renderStrokes();
   }
   if (interaction.type === 'drag') {
@@ -300,6 +372,14 @@ function pointerMove(event) {
 }
 
 function pointerUp(event) {
+  activePointers.delete(event.pointerId);
+  if (pinch) {
+    if (activePointers.size === 0) {
+      pinch = null;
+      scheduleSave();
+    }
+    return;
+  }
   if (!interaction) return;
   if (interaction.type === 'card-pan') {
     if (interaction.moved) scheduleSave();

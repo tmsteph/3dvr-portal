@@ -39,12 +39,28 @@ test('Life Space implements spatial interaction and history', () => {
 
 test('Life Space attaches drawings started on cards and renders them above card content', () => {
   assert.match(js, /if \(card\) currentStroke\.itemId = card\.dataset\.id/);
-  assert.match(js, /function drawingPoint/);
+  assert.match(js, /function drawingPointForItem/);
   assert.match(js, /point\.x - item\.x/);
   assert.match(js, /stroke\.itemId === layer\.dataset\.cardDrawings/);
   assert.match(js, /activeSpace\(\)\.strokes = activeSpace\(\)\.strokes\.filter\(stroke => stroke\.itemId !== card\.dataset\.id\)/);
   assert.match(css, /\.card-drawing-layer\{[^}]*z-index:4/);
   assert.match(html, /Draw on a card and the sketch moves with it/);
+});
+
+test('Life Space keeps drawing gestures visually continuous across cards and the background', () => {
+  assert.match(js, /function drawingItemAt/);
+  assert.match(js, /itemId !== currentStroke\.itemId/);
+  assert.match(js, /gestureId:currentStroke\.gestureId/);
+  assert.match(js, /points:\[drawingPointForItem\(interaction\.lastBoardPoint, itemId\)\]/);
+});
+
+test('Life Space supports two-pointer pinch zoom anchored between the fingers', () => {
+  assert.match(js, /const activePointers = new Map\(\)/);
+  assert.match(js, /function beginPinch/);
+  assert.match(js, /function updatePinch/);
+  assert.match(js, /pinch\.zoom \* distance \/ pinch\.distance/);
+  assert.match(js, /view\.x = center\.x - pinch\.worldX \* view\.zoom/);
+  assert.match(js, /view\.y = center\.y - pinch\.worldY \* view\.zoom/);
 });
 
 test('Life Space raises tapped or header-dragged cards and continuously pans from the card body', () => {
