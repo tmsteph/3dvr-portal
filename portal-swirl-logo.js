@@ -9,8 +9,9 @@
   const SPIN_DECAY = 0.995;
   const FLIP_DECAY = 0.965;
   const MIN_FLIP_VELOCITY = 0.005;
-  const TILT_X_LIMIT = 0.18;
-  const TILT_Y_LIMIT = 0.24;
+  const TILT_X_LIMIT = 0.52;
+  const TILT_Y_LIMIT = 0.68;
+  const PULL_TILT_GAIN = 0.0042;
   const TWIST_LIMIT = 0.045;
   const TWIST_FACTOR = 0.0012;
   const FLIP_DISTANCE_THRESHOLD = 42;
@@ -505,8 +506,12 @@
       const centerX = point.rect.width / 2;
       const centerY = point.rect.height / 2;
       const tiltBoost = getSwipeBoost();
-      state.targetY = clamp((point.x - centerX) / centerX, -1, 1) * TILT_Y_LIMIT * tiltBoost;
-      state.targetX = clamp((point.y - centerY) / centerY, -1, 1) * TILT_X_LIMIT * tiltBoost;
+      const pointerTiltY = clamp((point.x - centerX) / centerX, -1, 1) * TILT_Y_LIMIT;
+      const pointerTiltX = clamp((point.y - centerY) / centerY, -1, 1) * TILT_X_LIMIT;
+      const pullTiltY = state.gestureDX * PULL_TILT_GAIN;
+      const pullTiltX = state.gestureDY * PULL_TILT_GAIN;
+      state.targetY = clamp((pointerTiltY + pullTiltY) * tiltBoost, -TILT_Y_LIMIT, TILT_Y_LIMIT);
+      state.targetX = clamp((pointerTiltX + pullTiltX) * tiltBoost, -TILT_X_LIMIT, TILT_X_LIMIT);
       state.targetZ = clamp((dx - dy) * TWIST_FACTOR, -TWIST_LIMIT, TWIST_LIMIT);
     };
 
