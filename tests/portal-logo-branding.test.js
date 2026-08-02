@@ -67,8 +67,9 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /flipVelocityX/);
     assert.match(swirlScript, /flipVelocityY/);
     assert.match(swirlScript, /MIN_FLIP_VELOCITY = 0\.005/);
-    assert.match(swirlScript, /TILT_Y_LIMIT = 0\.24/);
-    assert.match(swirlScript, /TILT_X_LIMIT = 0\.18/);
+    assert.match(swirlScript, /TILT_Y_LIMIT = 0\.68/);
+    assert.match(swirlScript, /TILT_X_LIMIT = 0\.52/);
+    assert.match(swirlScript, /PULL_TILT_GAIN = 0\.0042/);
     assert.match(swirlScript, /FLIP_STREAK_REQUIRED = 4/);
     assert.match(swirlScript, /FLIP_STREAK_WINDOW = 3200/);
     assert.match(swirlScript, /SWIPE_STREAK_MAX = 5/);
@@ -103,8 +104,10 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /nearestGoodFaceAngle/);
     assert.match(swirlScript, /UPRIGHT_TEXT_STEP = TAU/);
     assert.match(swirlScript, /nearestUprightTextAngle/);
-    assert.match(swirlScript, /state\.targetY = clamp\(\(point\.x - centerX\) \/ centerX, -1, 1\) \* TILT_Y_LIMIT \* tiltBoost/);
-    assert.match(swirlScript, /state\.targetX = clamp\(\(point\.y - centerY\) \/ centerY, -1, 1\) \* TILT_X_LIMIT \* tiltBoost/);
+    assert.match(swirlScript, /const pullTiltY = state\.gestureDX \* PULL_TILT_GAIN/);
+    assert.match(swirlScript, /const pullTiltX = state\.gestureDY \* PULL_TILT_GAIN/);
+    assert.match(swirlScript, /state\.targetY = clamp\(\(pointerTiltY \+ pullTiltY\) \* tiltBoost, -TILT_Y_LIMIT, TILT_Y_LIMIT\)/);
+    assert.match(swirlScript, /state\.targetX = clamp\(\(pointerTiltX \+ pullTiltX\) \* tiltBoost, -TILT_X_LIMIT, TILT_X_LIMIT\)/);
     assert.match(swirlScript, /getTouchSpinScale/);
     assert.match(swirlScript, /getTouchWobbleScale/);
     assert.match(swirlScript, /getTouchFlipScale/);
