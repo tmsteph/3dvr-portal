@@ -319,10 +319,12 @@ const notificationsSupported = 'Notification' in window;
 const notificationsPreferenceKey = 'chatNotificationsEnabled';
 const notificationIconPath = '/icons/icon-192.png';
 const notificationStateStorageKey = 'chatNotificationState';
+const pushDeliveryVerifiedStorageKey = 'chatPushDeliveryVerified';
 const chatPushApiPath = '/api/trial';
 const INITIAL_SYNC_GRACE_MS = 1500;
 let notificationsEnabled = false;
 let closedAppNotificationsEnabled = false;
+let pushDeliveryVerified = false;
 let serviceWorkerRegistration = null;
 let currentRoomStream = null;
 const roomInitialSyncTimers = {};
@@ -1050,11 +1052,12 @@ async function getChatPushPublicKey() {
   return String(config.chatPushPublicKey || '');
 }
 
-async function ensurePushSubscription() {
+async function ensurePushSubscription({ verifyDelivery = false } = {}) {
   const registration = serviceWorkerRegistration || await ensureChatServiceWorkerRegistration();
   if (!registration?.pushManager) return false;
 
   let subscription = await registration.pushManager.getSubscription();
+  let createdSubscription = false;
   if (!subscription) {
     const publicKey = await getChatPushPublicKey();
     if (!publicKey) return false;
@@ -1062,15 +1065,20 @@ async function ensurePushSubscription() {
       userVisibleOnly: true,
       applicationServerKey: decodeVapidPublicKey(publicKey)
     });
+    createdSubscription = true;
   }
 
-  await callChatPushApi('subscribe', {
+  const result = await callChatPushApi('subscribe', {
     userId,
     rooms: getAvailableChatRooms(),
     subscription: subscription.toJSON(),
-    userAgent: navigator.userAgent
+    userAgent: navigator.userAgent,
+    verifyDelivery: verifyDelivery || createdSubscription
   });
-  return true;
+  return {
+    subscribed: true,
+    deliveryAccepted: result.deliveryAccepted === true
+  };
 }
 
 async function removePushSubscription() {
@@ -1099,7 +1107,13 @@ async function initNotifications() {
   if (savedPreference && Notification.permission === 'granted') {
     notificationsEnabled = true;
     try {
-      closedAppNotificationsEnabled = await ensurePushSubscription();
+      pushDeliveryVerified = safeGetStorage(pushDeliveryVerifiedStorageKey) === 'true';
+      const pushState = await ensurePushSubscription({ verifyDelivery: !pushDeliveryVerified });
+      closedAppNotificationsEnabled = pushState.subscribed;
+      if (pushState.deliveryAccepted) {
+        pushDeliveryVerified = true;
+        safeSetStorage(pushDeliveryVerifiedStorageKey, 'true');
+      }
     } catch (error) {
       console.warn('Closed-app notifications could not be restored', error);
     }
@@ -1127,9 +1141,9 @@ function updateNotificationUI() {
   notificationToggleButton.textContent = notificationsEnabled ? 'Disable Notifications' : 'Enable Notifications';
 
   if (notificationsEnabled && Notification.permission === 'granted') {
-    notificationStatusText.textContent = closedAppNotificationsEnabled
-      ? 'On, including when Chat is closed.'
-      : 'On while Chat is running. Closed-app alerts are temporarily unavailable.';
+    notificationStatusText.textContent = closedAppNotificationsEnabled && pushDeliveryVerified
+      ? 'On. A test notification was sent through the live server.'
+      : 'On while Chat is running. Server push has not been verified.';
   } else {
     notificationStatusText.textContent = 'Off. Enable alerts while Chat is running.';
   }
@@ -1141,7 +1155,9 @@ async function toggleNotifications() {
   if (notificationsEnabled) {
     notificationsEnabled = false;
     closedAppNotificationsEnabled = false;
+    pushDeliveryVerified = false;
     safeSetStorage(notificationsPreferenceKey, 'false');
+    safeRemoveStorage(pushDeliveryVerifiedStorageKey);
     try {
       await removePushSubscription();
     } catch (error) {
@@ -1155,12 +1171,14 @@ async function toggleNotifications() {
     notificationsEnabled = true;
     safeSetStorage(notificationsPreferenceKey, 'true');
     try {
-      closedAppNotificationsEnabled = await ensurePushSubscription();
+      const pushState = await ensurePushSubscription({ verifyDelivery: true });
+      closedAppNotificationsEnabled = pushState.subscribed;
+      pushDeliveryVerified = pushState.deliveryAccepted;
+      safeSetStorage(pushDeliveryVerifiedStorageKey, pushDeliveryVerified ? 'true' : 'false');
     } catch (error) {
       console.warn('Closed-app notifications could not be enabled', error);
     }
     updateNotificationUI();
-    sendNotificationPreview();
     return;
   }
 
@@ -1174,7 +1192,10 @@ async function toggleNotifications() {
 
   if (notificationsEnabled) {
     try {
-      closedAppNotificationsEnabled = await ensurePushSubscription();
+      const pushState = await ensurePushSubscription({ verifyDelivery: true });
+      closedAppNotificationsEnabled = pushState.subscribed;
+      pushDeliveryVerified = pushState.deliveryAccepted;
+      safeSetStorage(pushDeliveryVerifiedStorageKey, pushDeliveryVerified ? 'true' : 'false');
     } catch (error) {
       console.warn('Closed-app notifications could not be enabled', error);
     }
@@ -1182,9 +1203,6 @@ async function toggleNotifications() {
 
   updateNotificationUI();
 
-  if (permission === 'granted') {
-    sendNotificationPreview();
-  }
 }
 
 async function attemptServiceWorkerNotification(registration, title, options) {
@@ -1262,18 +1280,6 @@ async function showChatNotification(title, options = {}, config = {}) {
     console.error('Service worker readiness error', error);
     fallbackToPageNotification();
   }
-}
-
-function sendNotificationPreview() {
-  showChatNotification(
-    'Chat notifications enabled',
-    {
-      body: 'Alerts are ready, including when Chat is closed.',
-      tag: 'chat-notification-preview',
-      data: { room: currentRoom }
-    },
-    { requireHidden: false }
-  );
 }
 
 function maybeNotifyNewMessage(message, id) {
