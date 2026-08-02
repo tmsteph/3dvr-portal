@@ -3,3 +3,4 @@
 .card-body{touch-action:none}
 .app-shell,.workspace{height:100vh;height:100lvh}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+.card-drawing-layer{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;pointer-events:none;z-index:4}

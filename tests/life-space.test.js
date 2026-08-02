@@ -37,6 +37,16 @@ test('Life Space implements spatial interaction and history', () => {
   assert.match(js, /function travel/);
 });
 
+test('Life Space attaches drawings started on cards and renders them above card content', () => {
+  assert.match(js, /if \(card\) currentStroke\.itemId = card\.dataset\.id/);
+  assert.match(js, /function drawingPoint/);
+  assert.match(js, /point\.x - item\.x/);
+  assert.match(js, /stroke\.itemId === layer\.dataset\.cardDrawings/);
+  assert.match(js, /activeSpace\(\)\.strokes = activeSpace\(\)\.strokes\.filter\(stroke => stroke\.itemId !== card\.dataset\.id\)/);
+  assert.match(css, /\.card-drawing-layer\{[^}]*z-index:4/);
+  assert.match(html, /Draw on a card and the sketch moves with it/);
+});
+
 test('Life Space raises tapped or header-dragged cards and continuously pans from the card body', () => {
   assert.match(js, /function bringItemToFront/);
   assert.match(js, /item\.z >= 1000000/);

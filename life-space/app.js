@@ -136,7 +136,9 @@ function cardTemplate(item) {
   if (item.type === 'file') body = `<p class="type-label">File</p><div class="file-mark">${escapeHtml(fileExtension(item.fileName))}</div>${title}<p class="file-meta">${escapeHtml(formatBytes(item.fileSize))}</p><button class="download-file">Open file</button>`;
   return `<article class="life-card type-${item.type}" data-id="${item.id}" style="--card:${item.color};left:${item.x}px;top:${item.y}px;width:${item.w}px;height:${item.h}px;z-index:${item.z || 1}">
     <div class="drag-handle"><span class="card-kind">${({note:'Thought',checklist:'List',link:'Link',image:'Photo',file:'File'})[item.type]}</span><div class="card-actions"><button data-color title="Change color">●</button><button data-delete title="Delete">×</button></div></div>
-    <div class="card-body">${body}</div><div class="resize-handle" title="Resize"></div></article>`;
+    <div class="card-body">${body}</div>
+    <svg class="card-drawing-layer" data-card-drawings="${item.id}" aria-hidden="true"></svg>
+    <div class="resize-handle" title="Resize"></div></article>`;
 }
 
 function safeHost(url) { try { return new URL(url).hostname.replace(/^www\./,''); } catch { return url; } }
@@ -176,7 +178,12 @@ function renderSpaces() {
 }
 
 function renderStrokes() {
-  els.drawingLayer.innerHTML = activeSpace().strokes.map(stroke => `<polyline data-stroke="${stroke.id}" points="${stroke.points.map(p => `${p.x},${p.y}`).join(' ')}" fill="none" stroke="${stroke.color}" stroke-width="${stroke.width}" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+  const strokes = activeSpace().strokes;
+  const strokeMarkup = stroke => `<polyline data-stroke="${stroke.id}" points="${stroke.points.map(p => `${p.x},${p.y}`).join(' ')}" fill="none" stroke="${stroke.color}" stroke-width="${stroke.width}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  els.drawingLayer.innerHTML = strokes.filter(stroke => !stroke.itemId).map(strokeMarkup).join('');
+  els.cardLayer.querySelectorAll('[data-card-drawings]').forEach(layer => {
+    layer.innerHTML = strokes.filter(stroke => stroke.itemId === layer.dataset.cardDrawings).map(strokeMarkup).join('');
+  });
 }
 
 function applyView() {
@@ -206,13 +213,20 @@ function boardPoint(event) {
   return { x:(event.clientX - rect.left - view.x) / view.zoom, y:(event.clientY - rect.top - view.y) / view.zoom };
 }
 
+function drawingPoint(event, stroke) {
+  const point = boardPoint(event);
+  const item = stroke.itemId ? itemById(stroke.itemId) : null;
+  return item ? { x:point.x - item.x, y:point.y - item.y } : point;
+}
+
 function pointerDown(event) {
   const card = event.target.closest('.life-card');
   if (drawMode && !event.target.closest('.tool-dock')) {
     event.preventDefault();
     const before = snapshot();
-    const point = boardPoint(event);
-    currentStroke = { id:uid('stroke'), color:'#ff7a59', width:4 / activeSpace().view.zoom, points:[point], createdAt:Date.now(), updatedAt:Date.now() };
+    currentStroke = { id:uid('stroke'), color:'#ff7a59', width:4 / activeSpace().view.zoom, points:[], createdAt:Date.now(), updatedAt:Date.now() };
+    if (card) currentStroke.itemId = card.dataset.id;
+    currentStroke.points.push(drawingPoint(event, currentStroke));
     activeSpace().strokes.push(currentStroke);
     interaction = { type:'draw', before };
     els.wrap.setPointerCapture(event.pointerId); renderStrokes(); return;
@@ -261,7 +275,7 @@ function pointerMove(event) {
     return;
   }
   if (interaction.type === 'draw') {
-    const point = boardPoint(event);
+    const point = drawingPoint(event, currentStroke);
     const last = currentStroke.points.at(-1);
     if (Math.hypot(point.x-last.x, point.y-last.y) > 2) currentStroke.points.push(point);
     renderStrokes();
@@ -315,8 +329,10 @@ function bindEvents() {
     const card = event.target.closest('.life-card');
     if (card && event.target.closest('[data-delete]')) {
       const before = snapshot();
-      activeSpace().deletedItemIds = [...new Set([...(activeSpace().deletedItemIds || []), card.dataset.id])];
+      const attachedStrokeIds = activeSpace().strokes.filter(stroke => stroke.itemId === card.dataset.id).map(stroke => stroke.id);
+      activeSpace().deletedItemIds = [...new Set([...(activeSpace().deletedItemIds || []), card.dataset.id, ...attachedStrokeIds])];
       activeSpace().items = activeSpace().items.filter(item => item.id !== card.dataset.id);
+      activeSpace().strokes = activeSpace().strokes.filter(stroke => stroke.itemId !== card.dataset.id);
       commitHistory(before); scheduleSave(); renderBoard();
     }
     if (card && event.target.closest('[data-color]')) {
