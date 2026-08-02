@@ -3,6 +3,7 @@ import http from 'node:http';
 import Gun from 'gun';
 import { Pool } from 'pg';
 import webpush from 'web-push';
+import { sendChatPushProof } from './chat-push-proof.mjs';
 
 const port = Number.parseInt(process.env.PORT || '8787', 10);
 const token = String(process.env.NEWSLETTER_STORE_TOKEN || '');
@@ -72,6 +73,17 @@ async function saveChatSubscription(input) {
       user_agent = EXCLUDED.user_agent,
       updated_at = NOW()
   `, [subscription.endpoint, userId, JSON.stringify(subscription), rooms, cleanText(input.userAgent, 500) || null]);
+
+  if (input.verifyDelivery !== true) return { deliveryAccepted: false };
+
+  try {
+    return await sendChatPushProof(subscription, webpush);
+  } catch (error) {
+    if (error?.statusCode === 404 || error?.statusCode === 410) {
+      await pool.query('DELETE FROM chat_push_subscriptions WHERE endpoint = $1', [subscription.endpoint]);
+    }
+    throw error;
+  }
 }
 
 async function removeChatSubscription(input) {
@@ -192,8 +204,8 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.url === '/v1/chat/subscribe' && req.method === 'POST') {
       if (!authorized(req)) return json(res, 401, { error: 'Unauthorized.' });
-      await saveChatSubscription(await readBody(req));
-      return json(res, 201, { ok: true });
+      const result = await saveChatSubscription(await readBody(req));
+      return json(res, 201, { ok: true, ...result });
     }
     if (req.url === '/v1/chat/unsubscribe' && req.method === 'POST') {
       if (!authorized(req)) return json(res, 401, { error: 'Unauthorized.' });

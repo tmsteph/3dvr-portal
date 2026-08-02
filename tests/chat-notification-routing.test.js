@@ -79,8 +79,10 @@ describe('chat notification routing', () => {
     assert.match(chatHtml, /navigator\.serviceWorker\.getRegistration\('\/'\)/);
     assert.match(chatHtml, /existing \|\| await navigator\.serviceWorker\.register/);
     assert.doesNotMatch(chatHtml, /navigator\.serviceWorker\.ready\s*\.then/);
-    assert.match(chatHtml, /On, including when Chat is closed\./);
+    assert.match(chatHtml, /A test notification was sent through the live server\./);
     assert.match(chatHtml, /registration\.pushManager\.subscribe/);
+    assert.match(chatHtml, /verifyDelivery: true/);
+    assert.doesNotMatch(chatHtml, /sendNotificationPreview/);
     assert.match(chatHtml, /action, \.\.\.payload/);
 
     assert.match(serviceWorker, /importScripts\('\/chat\/notification-routing\.js'\);/);
