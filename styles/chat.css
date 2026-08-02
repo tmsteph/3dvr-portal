@@ -245,6 +245,7 @@ body.chat-page {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  min-width: 0;
 }
 
 .chat-card {
@@ -405,13 +406,17 @@ body.chat-page {
 
 .chat-main__body {
   gap: 1.25rem;
+  min-width: 0;
 }
 
 .chat-messages {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-width: 0;
+  max-width: 100%;
   max-height: clamp(360px, 60vh, 520px);
+  overflow-x: hidden;
   overflow-y: auto;
   padding-right: 0.25rem;
 }
@@ -433,6 +438,8 @@ body.chat-page {
 .message {
   display: grid;
   gap: 0.5rem;
+  min-width: 0;
+  max-width: 100%;
   padding: 1.1rem 1.25rem;
   border-radius: var(--radius-md);
   background: var(--surface-alt);
@@ -441,6 +448,12 @@ body.chat-page {
   transition: transform var(--transition-base),
     border-color var(--transition-base),
     box-shadow var(--transition-base);
+}
+
+.message > div:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .message--focused {

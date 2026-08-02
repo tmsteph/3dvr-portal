@@ -74,4 +74,39 @@ describe('Chat guest mode', () => {
     assert.equal(pageErrors.length, 0, pageErrors.join('\n'));
     await context.close();
   });
+
+  it('keeps long YouTube links inside the mobile chat viewport', async () => {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
+    const page = await context.newPage();
+
+    await page.goto(`${TEST_ORIGIN}/chat/`, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => {
+      const message = document.createElement('div');
+      message.className = 'message';
+      const content = document.createElement('div');
+      content.textContent = `Guest: https://www.youtube.com/watch?v=dQw4w9WgXcQ&feature=share&list=${'long-unbroken-value'.repeat(20)}`;
+      const metadata = document.createElement('div');
+      metadata.className = 'meta';
+      metadata.textContent = 'now';
+      message.append(content, metadata);
+      document.querySelector('#messages').replaceChildren(message);
+    });
+
+    const dimensions = await page.evaluate(() => {
+      const message = document.querySelector('.message');
+      const messages = document.querySelector('#messages');
+      return {
+        viewport: document.documentElement.clientWidth,
+        page: document.documentElement.scrollWidth,
+        messagesClient: messages.clientWidth,
+        messagesScroll: messages.scrollWidth,
+        messageRight: Math.ceil(message.getBoundingClientRect().right)
+      };
+    });
+
+    assert.equal(dimensions.page, dimensions.viewport);
+    assert.equal(dimensions.messagesScroll, dimensions.messagesClient);
+    assert.ok(dimensions.messageRight <= dimensions.viewport, JSON.stringify(dimensions));
+    await context.close();
+  });
 });
