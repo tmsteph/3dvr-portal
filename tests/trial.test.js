@@ -7,6 +7,7 @@ const baseConfig = {
   STRIPE_PRICE_ID: 'price_123',
   GMAIL_USER: 'bot@example.com',
   GMAIL_APP_PASSWORD: 'app_password',
+  CHAT_PUSH_VAPID_PUBLIC_KEY: 'public-vapid-key',
 };
 
 function createMockStripe(overrides = {}) {
@@ -94,9 +95,48 @@ describe('trial handler', () => {
       stripeConfigured: true,
       priceConfigured: true,
       mailConfigured: true,
+      chatPushPublicKey: 'public-vapid-key',
     });
     assert.equal(stripe.customers.list.mock.calls.length, 0);
     assert.equal(stripe.subscriptions.create.mock.calls.length, 0);
+  });
+
+  it('proxies supported chat push subscription actions without requiring an email', async () => {
+    const chatPushStore = mock.fn(async action => ({ ok: true, action }));
+    const handler = createTrialHandler({
+      stripeClient: createMockStripe(),
+      mailTransport: createMailTransport(),
+      config: baseConfig,
+      chatPushStore,
+    });
+    const req = {
+      method: 'POST',
+      body: { kind: 'chat-push', action: 'subscribe', userId: 'guest_123' },
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body, { ok: true, action: 'subscribe' });
+    assert.equal(chatPushStore.mock.calls.length, 1);
+  });
+
+  it('rejects attempts to manufacture chat notifications through the public API', async () => {
+    const chatPushStore = mock.fn();
+    const handler = createTrialHandler({
+      stripeClient: createMockStripe(),
+      mailTransport: createMailTransport(),
+      config: baseConfig,
+      chatPushStore,
+    });
+    const req = { method: 'POST', body: { kind: 'chat-push', action: 'notify' } };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(chatPushStore.mock.calls.length, 0);
   });
 
   it('rejects invalid email payloads', async () => {

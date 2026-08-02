@@ -23,4 +23,24 @@ CREATE INDEX IF NOT EXISTS newsletter_subscribers_active_idx
   ON newsletter_subscribers (email)
   WHERE unsubscribed_at IS NULL;
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON newsletter_subscribers, newsletter_sends TO newsletter_store;
+CREATE TABLE IF NOT EXISTS chat_push_subscriptions (
+  endpoint TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  subscription JSONB NOT NULL,
+  rooms TEXT[] NOT NULL DEFAULT ARRAY['general']::TEXT[],
+  user_agent TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS chat_push_subscriptions_rooms_idx
+  ON chat_push_subscriptions USING GIN (rooms);
+
+CREATE TABLE IF NOT EXISTS chat_push_deliveries (
+  room TEXT NOT NULL,
+  message_id TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (room, message_id)
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON newsletter_subscribers, newsletter_sends, chat_push_subscriptions, chat_push_deliveries TO newsletter_store;
