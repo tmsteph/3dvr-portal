@@ -43,4 +43,18 @@ CREATE TABLE IF NOT EXISTS chat_push_deliveries (
   PRIMARY KEY (room, message_id)
 );
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON newsletter_subscribers, newsletter_sends, chat_push_subscriptions, chat_push_deliveries TO newsletter_store;
+CREATE TABLE IF NOT EXISTS chat_messages (
+  room TEXT NOT NULL,
+  message_id TEXT NOT NULL,
+  sender_id TEXT NOT NULL,
+  username TEXT,
+  body TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (room, message_id)
+);
+
+CREATE INDEX IF NOT EXISTS chat_messages_room_created_idx
+  ON chat_messages (room, created_at DESC);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON newsletter_subscribers, newsletter_sends, chat_push_subscriptions, chat_push_deliveries, chat_messages TO newsletter_store;
