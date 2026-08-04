@@ -30,72 +30,68 @@
   <div class="tag">Week of August 3, 2026</div>
   <div class="release-summary">
     <p>
-      This release strengthens the portal’s shared nervous system. <a href="../money-printer/">Money Printer</a>
-      now has an evidence-backed Opportunity Inbox with encrypted account sync and guarded first-party intake;
-      <a href="../chat/">Chat</a> gains durable cross-browser delivery and real server-backed notifications;
-      and <a href="../life-space/">Life Space</a> feels more like a touch-native visual canvas. The CRM migration
-      path also preserves the portal’s existing history before it moves into canonical Postgres records.
+      This week, the portal got easier and safer to use. <a href="../money-printer/">Money Printer</a> can help
+      people find new work. <a href="../chat/">Chat</a> works better on phones and web browsers.
+      <a href="../life-space/">Life Space</a> is easier to draw in and move around. We also made a safe way to move
+      old CRM data into a new database.
     </p>
     <ul class="release-summary-list">
       <li>
-        <strong>Opportunity Engine:</strong>
-        the new <a href="../money-printer/">Opportunity Inbox</a> ranks demand with visible evidence, economics,
-        confidence, permission, and a human-reviewed next action. Records remain useful locally, sync encrypted for
-        signed-in users, and deduplicate email replies, portal forms, and manual forwards through
+        <strong>Find new work:</strong>
+        the new <a href="../money-printer/">Opportunity Inbox</a> shows where a lead came from and why it may matter.
+        It also shows a good next step. Private details are locked for signed-in users. A person must check each reply
+        before it can be sent. This work came from
         <a href="https://github.com/tmsteph/3dvr-portal/pull/1266">PR #1266</a> through
         <a href="https://github.com/tmsteph/3dvr-portal/pull/1270">PR #1270</a>.
       </li>
       <li>
-        <strong>Reliable Chat and notifications:</strong>
-        <a href="../chat/">Chat</a> hardened guest rendering, added standards-based closed-app Web Push, verifies
-        notification delivery through the live server, keeps long links inside mobile screens, and reconciles
-        messages durably between browsers. Dead relay paths are quarantined in
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/1274">PR #1274</a>,
+        <strong>Better Chat:</strong>
+        <a href="../chat/">Chat</a> is safer for guests. It can send phone alerts when the page is closed. Messages
+        move better between web browsers. Long links now stay inside the phone screen. Broken message paths were
+        turned off in <a href="https://github.com/tmsteph/3dvr-portal/pull/1274">PR #1274</a>,
         <a href="https://github.com/tmsteph/3dvr-portal/pull/1275">PR #1275</a>,
         <a href="https://github.com/tmsteph/3dvr-portal/pull/1277">PR #1277</a> through
         <a href="https://github.com/tmsteph/3dvr-portal/pull/1282">PR #1282</a>, and
         <a href="https://github.com/tmsteph/3dvr-portal/pull/1288">PR #1288</a>.
       </li>
       <li>
-        <strong>Touch-native Life Space:</strong>
-        <a href="../life-space/">Life Space</a> keeps body panning continuous on real touchscreens, attaches drawings
-        to cards, preserves world ink separately, and adds two-finger pinch zoom and pan. Operator and Life Space are
-        also easier to find from portal search through
+        <strong>Easier Life Space:</strong>
+        <a href="../life-space/">Life Space</a> is easier to use with your fingers. You can draw on a card and move
+        the card without losing the drawing. You can also use two fingers to zoom and move the whole space. Operator
+        and Life Space are easier to find in portal search. This work came from
         <a href="https://github.com/tmsteph/3dvr-portal/pull/1256">PR #1256</a> through
         <a href="https://github.com/tmsteph/3dvr-portal/pull/1259">PR #1259</a>,
         <a href="https://github.com/tmsteph/3dvr-portal/pull/1280">PR #1280</a>, and
         <a href="https://github.com/tmsteph/3dvr-portal/pull/1287">PR #1287</a>.
       </li>
       <li>
-        <strong>Lossless CRM foundation:</strong>
-        the Postgres migration now defaults to a safe dry run, creates canonical contacts and activities, retains raw
-        source records, and avoids triggering outreach. The historical verification preserved 42 lead rows, linked
-        all 17 activities, and retained all 59 raw rows in
+        <strong>Safe CRM move:</strong>
+        the CRM tool can test the move before it changes anything. It keeps the old data and does not send messages.
+        The test kept 42 leads, linked all 17 work notes, and kept all 59 old rows in
         <a href="https://github.com/tmsteph/3dvr-portal/pull/1283">PR #1283</a>.
       </li>
       <li>
-        <strong>Portal feel:</strong>
-        the home spinner reacts more playfully to pull distance and swipe momentum while remaining bounded in
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/1289">PR #1289</a>.
+        <strong>More fun portal:</strong>
+        the home spinner now leans and moves more when you pull or swipe it. It still stays under control. This came
+        from <a href="https://github.com/tmsteph/3dvr-portal/pull/1289">PR #1289</a>.
       </li>
     </ul>
   </div>
 
   <div class="section">
-    <h2>Trust boundaries</h2>
+    <h2>Safety notes</h2>
     <p>
-      Opportunity responses still require human review, the CRM migration performs no outreach, and Chat keeps
-      server acceptance separate from physical-device notification proof. The latest live bidirectional Chat check
-      delivered every test message without refresh, while its measured p95 was 2.13 seconds, so this release does not
-      claim a universal sub-two-second result.
+      A person still checks each work reply before it is sent. The CRM tool does not contact anyone. Phone alerts
+      still need a test on a real phone. In the live Chat test, every message arrived. The slow end of the test was
+      about 2.13 seconds. We do not promise that speed every time.
     </p>
   </div>
 
   <div class="section">
-    <h2>Release cadence</h2>
+    <h2>What this release covers</h2>
     <p>
-      v0.0.57 covers the merged portal work completed after the v0.0.56 cutoff at PR #1254 and brings the public
-      release history through <a href="https://github.com/tmsteph/3dvr-portal/pull/1289">PR #1289</a>.
+      v0.0.57 covers work made after PR #1254. It brings the public release list through
+      <a href="https://github.com/tmsteph/3dvr-portal/pull/1289">PR #1289</a>.
     </p>
   </div>
 
