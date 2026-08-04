@@ -6,6 +6,23 @@ const state = (updatedAt, spaces) => ({ version: 1, updatedAt, activeSpaceId: sp
 const space = (id, updatedAt, items = []) => ({ id, name: id, updatedAt, view: { x: 0, y: 0, zoom: 1 }, items, strokes: [] });
 const payload = value => ({ format: '3dvr-life-space', version: 1, state: value, files: [] });
 
+function makeSyncHarness() {
+  const values = new Map();
+  const makeNode = path => ({
+    get(key) { return makeNode(`${path}/${key}`); },
+    once(callback) { callback(values.get(path) || null); },
+    put(value, callback) { values.set(path, value); callback({ ok: 1 }); }
+  });
+  const root = makeNode('root');
+  const user = { is: { pub: 'account' }, _: { sea: { priv: 'secret' } }, recall() {}, get() { return root; } };
+  const windowObj = {
+    Gun() { return { user() { return user; } }; },
+    SEA: { async encrypt(value) { return `encrypted:${value}`; }, async decrypt(value) { return value.replace('encrypted:', ''); } },
+    AuthIdentity: { syncStorageFromSharedIdentity() {} }, localStorage: {}, __GUN_PEERS__: [], setTimeout
+  };
+  return { values, windowObj };
+}
+
 test('Life Space account sync merges independent spaces and newer card edits', () => {
   const local = payload(state(30, [space('home', 30, [{ id: 'note', text: 'new', updatedAt: 30 }])]));
   const remote = payload(state(20, [space('home', 20, [{ id: 'note', text: 'old', updatedAt: 20 }]), space('work', 20)]));
@@ -22,22 +39,34 @@ test('Life Space account sync respects deletion tombstones', () => {
 });
 
 test('Life Space encrypts and chunks account backups before writing them', async () => {
-  const values = new Map();
-  const makeNode = path => ({
-    get(key) { return makeNode(`${path}/${key}`); },
-    once(callback) { callback(values.get(path) || null); },
-    put(value, callback) { values.set(path, value); callback({ ok: 1 }); }
-  });
-  const root = makeNode('root');
-  const user = { is: { pub: 'account' }, _: { sea: { priv: 'secret' } }, recall() {}, get() { return root; } };
-  const windowObj = {
-    Gun() { return { user() { return user; } }; },
-    SEA: { async encrypt(value) { return `encrypted:${value}`; }, async decrypt(value) { return value.replace('encrypted:', ''); } },
-    AuthIdentity: { syncStorageFromSharedIdentity() {} }, localStorage: {}, __GUN_PEERS__: [], setTimeout
-  };
+  const { values, windowObj } = makeSyncHarness();
   const sync = createLifeSpaceSync({ windowObj });
   const large = payload(state(1, [space('home', 1, [{ id: 'note', text: 'x'.repeat(30000), updatedAt: 1 }])]));
   assert.equal(await sync.save(large), true);
   assert.ok(values.get('root/workspace/manifest').chunks > 1);
   assert.match(values.get('root/workspace/chunks/0').value, /^encrypted:/);
+});
+
+test('Life Space seeds an empty signed-in account from the first device with content', async () => {
+  const { values, windowObj } = makeSyncHarness();
+  const messages = [];
+  const sync = createLifeSpaceSync({ windowObj, onStatus: message => messages.push(message), readTimeoutMs: 0 });
+  const local = payload(state(10, [space('home', 10, [{ id: 'phone-note', text: 'from phone', updatedAt: 10 }])]));
+
+  assert.deepEqual(await sync.load(local), local);
+  assert.match(messages.at(-1), /Uploading this device/);
+  assert.equal(await sync.save(local), true);
+  assert.equal(values.get('root/workspace/manifest').chunks, 1);
+});
+
+test('Life Space does not seed a truly empty device when the account read is empty', async () => {
+  const { values, windowObj } = makeSyncHarness();
+  const messages = [];
+  const sync = createLifeSpaceSync({ windowObj, onStatus: message => messages.push(message), readTimeoutMs: 0 });
+  const emptyHome = { ...space('space-home', 0), name: 'My Life', updatedAt: undefined };
+  const local = payload(state(Date.now(), [emptyHome]));
+
+  assert.equal(await sync.load(local), null);
+  assert.equal(messages.at(-1), 'Account sync ready');
+  assert.equal(values.has('root/workspace/manifest'), false);
 });

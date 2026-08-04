@@ -7,6 +7,7 @@ const js = fs.readFileSync(new URL('../life-space/app.js', import.meta.url), 'ut
 const storage = fs.readFileSync(new URL('../life-space/storage.js', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../life-space/styles.css', import.meta.url), 'utf8');
 const sync = fs.readFileSync(new URL('../life-space/sync.js', import.meta.url), 'utf8');
+const identity = fs.readFileSync(new URL('../life-space/identity.js', import.meta.url), 'utf8');
 
 test('Life Space exposes every core capture type', () => {
   for (const type of ['note','checklist','link','image','file']) assert.match(html, new RegExp(`data-add="${type}"`));
@@ -27,6 +28,18 @@ test('Life Space loads encrypted portal-account sync without giving up offline s
   assert.match(sync, /SEA\.encrypt/);
   assert.match(sync, /CHUNK_SIZE/);
   assert.match(sync, /Synced to your account/);
+});
+
+test('Life Space shows the signed-in username or Guest', () => {
+  assert.match(html, /id="identity-chip"/);
+  assert.match(html, />Guest<\/a>/);
+  assert.match(html, /identity\.js/);
+  assert.match(html, /identity\.css/);
+  assert.match(identity, /readSharedIdentity/);
+  assert.match(identity, /localStorage.*username/);
+  assert.match(identity, /'Guest'/);
+  assert.match(identity, /\/profile\.html/);
+  assert.match(identity, /\/sign-in\.html\?redirect=/);
 });
 
 test('Life Space implements spatial interaction and history', () => {
