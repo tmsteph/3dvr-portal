@@ -94,6 +94,13 @@ function makeSyncHarness({ replicate = true, signedIn = true } = {}) {
     user,
     windowObj,
     setReplicate(value) { shouldReplicate = value; },
+    activateSession() {
+      user.is = { pub: 'account' };
+      user._ = { sea: { priv: 'secret' } };
+      storage.setItem('signedIn', 'true');
+      storage.setItem('alias', 'thomas@3dvr');
+      storage.setItem('password', 'secret');
+    },
     emit(name) { listeners[name]?.(); }
   };
 }
@@ -172,6 +179,28 @@ test('Life Space keeps a pending marker until another Gun instance can reconstru
   assert.equal(await sync.retry(), true);
   assert.equal(sync.hasPending(), false);
   assert.equal(messages.at(-1), 'Synced and verified on your account');
+});
+
+test('Life Space resumes an existing local workspace after the Gun session becomes available', async () => {
+  const harness = makeSyncHarness({ signedIn: false });
+  const messages = [];
+  const sync = createLifeSpaceSync({
+    windowObj: harness.windowObj,
+    onStatus: message => messages.push(message),
+    readTimeoutMs: 0,
+    sessionTimeoutMs: 0,
+    verifyTimeoutMs: 5
+  });
+  const local = payload(state(30, [space('home', 30, [{ id: 'offline-note', text: 'saved before sign-in', updatedAt: 30 }])]));
+
+  assert.equal(await sync.load(local), null);
+  assert.equal(sync.hasPending(), true);
+  assert.match(messages.at(-1), /resume account sync/i);
+
+  harness.activateSession();
+  assert.equal(await sync.retry(), true);
+  assert.equal(sync.hasPending(), false);
+  assert.equal(harness.remoteValues.get('user/life-space-v01/workspace/manifest').schemaVersion, 2);
 });
 
 test('Life Space reads legacy untagged chunk manifests', async () => {
