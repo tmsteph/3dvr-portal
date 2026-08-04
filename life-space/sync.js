@@ -1,11 +1,19 @@
 const SYNC_NODE = 'life-space-v01';
 const CHUNK_SIZE = 24 * 1024;
+const READ_TIMEOUT_MS = 6000;
 
 const delay = (windowObj, ms) => new Promise(resolve => windowObj.setTimeout(resolve, ms));
-const once = (node, windowObj) => new Promise(resolve => {
+const once = (node, windowObj, timeoutMs = READ_TIMEOUT_MS) => new Promise(resolve => {
   let settled = false;
   const finish = value => { if (!settled) { settled = true; resolve(value); } };
-  try { node.once(finish); windowObj.setTimeout(() => finish(null), 2500); } catch { finish(null); }
+  try {
+    node.once(value => {
+      // GUN may report an empty local cache before the relay answers. Keep
+      // listening until useful data arrives or the read window expires.
+      if (value !== null && value !== undefined) finish(value);
+    });
+    windowObj.setTimeout(() => finish(null), timeoutMs);
+  } catch { finish(null); }
 });
 const put = (node, value) => new Promise(resolve => {
   try { node.put(value, ack => resolve(!ack?.err)); } catch { resolve(false); }
@@ -58,7 +66,7 @@ export function mergeLifeSpacePayloads(localPayload, remotePayload) {
   };
 }
 
-export function createLifeSpaceSync({ windowObj = window, onStatus = () => {} } = {}) {
+export function createLifeSpaceSync({ windowObj = window, onStatus = () => {}, readTimeoutMs = READ_TIMEOUT_MS } = {}) {
   let node = null;
   let secret = null;
   let ready = false;
@@ -88,15 +96,20 @@ export function createLifeSpaceSync({ windowObj = window, onStatus = () => {} } 
   const readyPromise = init();
 
   async function readPayload() {
-    const manifest = await once(node.get('manifest'), windowObj);
+    const manifest = await once(node.get('manifest'), windowObj, readTimeoutMs);
+    if (!manifest) return { kind: 'missing', payload: null };
     const count = Number(manifest?.chunks || 0);
-    if (!count || count > 5000) return null;
-    const parts = await Promise.all(Array.from({ length: count }, (_, index) => once(node.get('chunks').get(String(index)), windowObj)));
-    if (parts.some(part => typeof part?.value !== 'string')) return null;
+    if (!count || count > 5000) throw new Error('Invalid Life Space sync manifest');
+    const parts = await Promise.all(Array.from(
+      { length: count },
+      (_, index) => once(node.get('chunks').get(String(index)), windowObj, readTimeoutMs)
+    ));
+    if (parts.some(part => typeof part?.value !== 'string')) throw new Error('Incomplete Life Space sync payload');
     const ciphertext = parts.map(part => part.value).join('');
     const decoded = await windowObj.SEA.decrypt(ciphertext, secret);
     const payload = typeof decoded === 'string' ? JSON.parse(decoded) : decoded;
-    return payload?.format === '3dvr-life-space' ? payload : null;
+    if (payload?.format !== '3dvr-life-space') throw new Error('Unsupported Life Space sync payload');
+    return { kind: 'ready', payload };
   }
 
   return {
@@ -104,10 +117,16 @@ export function createLifeSpaceSync({ windowObj = window, onStatus = () => {} } 
     async load(localPayload) {
       if (!(await readyPromise) || !node) return null;
       try {
-        const remotePayload = await readPayload();
-        if (!remotePayload) return null;
+        const remote = await readPayload();
+        if (remote.kind === 'missing') {
+          // Returning the local payload lets app startup write the first
+          // encrypted account copy. This is how existing phone-only notes
+          // become available on a second device without requiring a new edit.
+          onStatus('No account copy yet · Uploading this device…');
+          return localPayload;
+        }
         onStatus('Synced to your account');
-        return mergeLifeSpacePayloads(localPayload, remotePayload);
+        return mergeLifeSpacePayloads(localPayload, remote.payload);
       } catch {
         onStatus('Account workspace could not be opened');
         return null;
