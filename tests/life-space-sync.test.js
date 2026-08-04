@@ -41,3 +41,27 @@ test('Life Space encrypts and chunks account backups before writing them', async
   assert.ok(values.get('root/workspace/manifest').chunks > 1);
   assert.match(values.get('root/workspace/chunks/0').value, /^encrypted:/);
 });
+
+test('Life Space seeds an empty signed-in account from the first device', async () => {
+  const values = new Map();
+  const makeNode = path => ({
+    get(key) { return makeNode(`${path}/${key}`); },
+    once(callback) { callback(values.get(path) || null); },
+    put(value, callback) { values.set(path, value); callback({ ok: 1 }); }
+  });
+  const root = makeNode('root');
+  const user = { is: { pub: 'account' }, _: { sea: { priv: 'secret' } }, recall() {}, get() { return root; } };
+  const messages = [];
+  const windowObj = {
+    Gun() { return { user() { return user; } }; },
+    SEA: { async encrypt(value) { return `encrypted:${value}`; }, async decrypt(value) { return value.replace('encrypted:', ''); } },
+    AuthIdentity: { syncStorageFromSharedIdentity() {} }, localStorage: {}, __GUN_PEERS__: [], setTimeout
+  };
+  const sync = createLifeSpaceSync({ windowObj, onStatus: message => messages.push(message), readTimeoutMs: 0 });
+  const local = payload(state(10, [space('home', 10, [{ id: 'phone-note', text: 'from phone', updatedAt: 10 }])]));
+
+  assert.deepEqual(await sync.load(local), local);
+  assert.match(messages.at(-1), /Uploading this device/);
+  assert.equal(await sync.save(local), true);
+  assert.equal(values.get('root/workspace/manifest').chunks, 1);
+});
