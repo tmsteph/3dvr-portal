@@ -20,6 +20,20 @@ const put = (node, value) => new Promise(resolve => {
 });
 const modified = value => Number(value?.updatedAt || value?.createdAt || 0);
 
+function hasWorkspaceContent(payload) {
+  const state = payload?.state;
+  const spaces = Array.isArray(state?.spaces) ? state.spaces : [];
+  if ((payload?.files || []).length || (state?.deletedSpaceIds || []).length || spaces.length > 1) return true;
+  return spaces.some(space => (
+    (space?.items || []).length
+    || (space?.strokes || []).length
+    || (space?.deletedItemIds || []).length
+    || modified(space) > 0
+    || (space?.id && space.id !== 'space-home')
+    || (space?.name && space.name !== 'My Life')
+  ));
+}
+
 function mergeById(local = [], remote = []) {
   const values = new Map();
   for (const value of [...remote, ...local]) {
@@ -119,6 +133,10 @@ export function createLifeSpaceSync({ windowObj = window, onStatus = () => {}, r
       try {
         const remote = await readPayload();
         if (remote.kind === 'missing') {
+          if (!hasWorkspaceContent(localPayload)) {
+            onStatus('Account sync ready');
+            return null;
+          }
           // Returning the local payload lets app startup write the first
           // encrypted account copy. This is how existing phone-only notes
           // become available on a second device without requiring a new edit.
