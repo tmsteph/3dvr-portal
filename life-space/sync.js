@@ -139,6 +139,8 @@ export function createLifeSpaceSync({
   let ready = false;
   let setupPromise = null;
   let pendingPayload = null;
+  let pendingNeedsMerge = false;
+  let initialLoadComplete = false;
   let pendingToken = 0;
   let confirmedToken = 0;
   let drainPromise = null;
@@ -152,21 +154,32 @@ export function createLifeSpaceSync({
     return safeStorageGet(storage, PENDING_KEY);
   }
 
-  function markPending(payload) {
-    pendingPayload = payload;
-    pendingToken += 1;
+  function readPendingMarker() {
+    try { return JSON.parse(pendingMarker()) || null; } catch { return null; }
+  }
+
+  function persistPendingMarker() {
     const marker = {
       queuedAt: Date.now(),
-      stateUpdatedAt: modified(payload?.state),
-      token: pendingToken
+      stateUpdatedAt: modified(pendingPayload?.state),
+      token: pendingToken,
+      needsMerge: pendingNeedsMerge
     };
     safeStorageSet(storage, PENDING_KEY, JSON.stringify(marker));
+  }
+
+  function markPending(payload, { needsMerge = !initialLoadComplete } = {}) {
+    pendingPayload = payload;
+    pendingNeedsMerge = Boolean(needsMerge);
+    pendingToken += 1;
+    persistPendingMarker();
     return pendingToken;
   }
 
   function clearPending(token) {
     if (token !== pendingToken) return;
     pendingPayload = null;
+    pendingNeedsMerge = false;
     confirmedToken = token;
     safeStorageRemove(storage, PENDING_KEY);
     retryDelay = 2000;
@@ -352,6 +365,25 @@ export function createLifeSpaceSync({
     if (!pendingPayload) return false;
     drainPromise = (async () => {
       while (pendingPayload) {
+        if (pendingNeedsMerge) {
+          if (!(await ensureReady()) || !node) {
+            onStatus('Saved here · Account sync pending');
+            scheduleRetry();
+            return false;
+          }
+          try {
+            const remote = await readPayload(node);
+            if (remote.kind === 'ready') pendingPayload = mergeLifeSpacePayloads(pendingPayload, remote.payload);
+            pendingNeedsMerge = false;
+            initialLoadComplete = true;
+            persistPendingMarker();
+          } catch {
+            onStatus('Saved here · Waiting to reconcile account copy');
+            scheduleRetry();
+            return false;
+          }
+        }
+
         const payload = pendingPayload;
         const token = pendingToken;
         const saved = await writeAndVerify(payload);
@@ -394,32 +426,51 @@ export function createLifeSpaceSync({
   return {
     ready: readyPromise,
     async load(localPayload) {
-      if (pendingMarker()) {
+      const storedMarker = readPendingMarker();
+      if (storedMarker) {
         pendingPayload = localPayload;
+        pendingNeedsMerge = storedMarker.needsMerge !== false;
         pendingToken += 1;
       }
-      if (!(await ensureReady()) || !node) return null;
+      if (!(await ensureReady()) || !node) {
+        if (hasWorkspaceContent(localPayload) && !pendingPayload) {
+          markPending(localPayload, { needsMerge: true });
+          onStatus('Saved here · Sign in will resume account sync');
+        }
+        return null;
+      }
       try {
         const remote = await readPayload(node);
+        initialLoadComplete = true;
         if (remote.kind === 'missing') {
           if (!hasWorkspaceContent(localPayload)) {
             onStatus('Account sync ready');
             return null;
           }
+          if (storedMarker) {
+            pendingPayload = localPayload;
+            pendingNeedsMerge = false;
+            persistPendingMarker();
+          }
           onStatus('No account copy yet · Uploading this device…');
           return localPayload;
         }
         const merged = mergeLifeSpacePayloads(localPayload, remote.payload);
-        if (pendingMarker()) pendingPayload = merged;
-        onStatus(pendingMarker() ? 'Account copy loaded · Pending changes will retry' : 'Account copy loaded');
+        if (storedMarker) {
+          pendingPayload = merged;
+          pendingNeedsMerge = false;
+          persistPendingMarker();
+        }
+        onStatus(storedMarker ? 'Account copy loaded · Pending changes will retry' : 'Account copy loaded');
         return merged;
       } catch {
+        if (hasWorkspaceContent(localPayload) && !pendingPayload) markPending(localPayload, { needsMerge: true });
         onStatus('Account workspace could not be opened');
         return null;
       }
     },
     async save(payload) {
-      const token = markPending(payload);
+      const token = markPending(payload, { needsMerge: !initialLoadComplete });
       const saved = await drainPending();
       return saved && confirmedToken >= token;
     },
