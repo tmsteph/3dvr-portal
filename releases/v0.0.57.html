@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Release v0.0.57 (Week of August 3, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2, h3 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-summary { margin: 0 0 24px; font-size: 16px; color: #9ba3b4; }
+    .release-summary-list, .link-list { margin: 0; padding-left: 20px; color: #c9d1d9; }
+    .release-summary-list li + li, .link-list li + li { margin-top: 8px; }
+    .back-link, .release-nav-link { color: #58a6ff; text-decoration: none; font-weight: 600; }
+    .back-link:hover, .release-nav-link:hover { text-decoration: underline; }
+    .release-nav { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: 20px 0 40px; }
+    .release-nav-link.is-disabled { opacity: 0.4; pointer-events: none; cursor: default; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.56.html">Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release</span>
+  </nav>
+  <h1>Release v0.0.57</h1>
+  <div class="tag">Week of August 3, 2026</div>
+  <div class="release-summary">
+    <p>
+      This release strengthens the portal’s shared nervous system. <a href="../money-printer/">Money Printer</a>
+      now has an evidence-backed Opportunity Inbox with encrypted account sync and guarded first-party intake;
+      <a href="../chat/">Chat</a> gains durable cross-browser delivery and real server-backed notifications;
+      and <a href="../life-space/">Life Space</a> feels more like a touch-native visual canvas. The CRM migration
+      path also preserves the portal’s existing history before it moves into canonical Postgres records.
+    </p>
+    <ul class="release-summary-list">
+      <li>
+        <strong>Opportunity Engine:</strong>
+        the new <a href="../money-printer/">Opportunity Inbox</a> ranks demand with visible evidence, economics,
+        confidence, permission, and a human-reviewed next action. Records remain useful locally, sync encrypted for
+        signed-in users, and deduplicate email replies, portal forms, and manual forwards through
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1266">PR #1266</a> through
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1270">PR #1270</a>.
+      </li>
+      <li>
+        <strong>Reliable Chat and notifications:</strong>
+        <a href="../chat/">Chat</a> hardened guest rendering, added standards-based closed-app Web Push, verifies
+        notification delivery through the live server, keeps long links inside mobile screens, and reconciles
+        messages durably between browsers. Dead relay paths are quarantined in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1274">PR #1274</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1275">PR #1275</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1277">PR #1277</a> through
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1282">PR #1282</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1288">PR #1288</a>.
+      </li>
+      <li>
+        <strong>Touch-native Life Space:</strong>
+        <a href="../life-space/">Life Space</a> keeps body panning continuous on real touchscreens, attaches drawings
+        to cards, preserves world ink separately, and adds two-finger pinch zoom and pan. Operator and Life Space are
+        also easier to find from portal search through
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1256">PR #1256</a> through
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1259">PR #1259</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1280">PR #1280</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1287">PR #1287</a>.
+      </li>
+      <li>
+        <strong>Lossless CRM foundation:</strong>
+        the Postgres migration now defaults to a safe dry run, creates canonical contacts and activities, retains raw
+        source records, and avoids triggering outreach. The historical verification preserved 42 lead rows, linked
+        all 17 activities, and retained all 59 raw rows in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1283">PR #1283</a>.
+      </li>
+      <li>
+        <strong>Portal feel:</strong>
+        the home spinner reacts more playfully to pull distance and swipe momentum while remaining bounded in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1289">PR #1289</a>.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Trust boundaries</h2>
+    <p>
+      Opportunity responses still require human review, the CRM migration performs no outreach, and Chat keeps
+      server acceptance separate from physical-device notification proof. The latest live bidirectional Chat check
+      delivered every test message without refresh, while its measured p95 was 2.13 seconds, so this release does not
+      claim a universal sub-two-second result.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>Release cadence</h2>
+    <p>
+      v0.0.57 covers the merged portal work completed after the v0.0.56 cutoff at PR #1254 and brings the public
+      release history through <a href="https://github.com/tmsteph/3dvr-portal/pull/1289">PR #1289</a>.
+    </p>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">&copy; 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
