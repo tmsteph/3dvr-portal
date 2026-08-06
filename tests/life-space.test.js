@@ -27,7 +27,7 @@ test('Life Space loads encrypted portal-account sync without giving up offline s
   assert.match(js, /createLifeSpaceSync/);
   assert.match(sync, /SEA\.encrypt/);
   assert.match(sync, /CHUNK_SIZE/);
-  assert.match(sync, /Synced to your account/);
+  assert.match(sync, /Synced and verified on your account/);
 });
 
 test('Life Space shows the signed-in username or Guest', () => {
