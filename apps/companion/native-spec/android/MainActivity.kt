@@ -1,10 +1,9 @@
-package tech.`3dvr`.companion
+package tech.threedvr.companion
 
 import android.content.Intent
 import android.net.Uri
 import android.os.BatteryManager
 import android.provider.Settings
-import android.service.notification.NotificationListenerService
 import android.text.TextUtils
 import android.view.accessibility.AccessibilityManager
 import androidx.core.content.getSystemService
