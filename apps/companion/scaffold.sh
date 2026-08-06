@@ -16,6 +16,7 @@ cp -R lib "$BACKUP/lib"
 cp -R test "$BACKUP/test"
 cp pubspec.yaml "$BACKUP/pubspec.yaml"
 cp README.md "$BACKUP/README.md"
+cp analysis_options.yaml "$BACKUP/analysis_options.yaml"
 
 flutter create \
   --org tech.threedvr \
@@ -28,6 +29,7 @@ cp -R "$BACKUP/lib" lib
 cp -R "$BACKUP/test" test
 cp "$BACKUP/pubspec.yaml" pubspec.yaml
 cp "$BACKUP/README.md" README.md
+cp "$BACKUP/analysis_options.yaml" analysis_options.yaml
 
 KOTLIN_DIR="android/app/src/main/kotlin/tech/threedvr/companion"
 mkdir -p "$KOTLIN_DIR" android/app/src/main/res/xml
