@@ -1,12 +1,11 @@
 package tech.threedvr.companion
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.BatteryManager
 import android.provider.Settings
-import android.text.TextUtils
 import android.view.accessibility.AccessibilityManager
-import androidx.core.content.getSystemService
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -39,7 +38,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun deviceStatus(): Map<String, Any?> {
-        val battery = getSystemService<BatteryManager>()
+        val battery = getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
         return mapOf(
             "sdk" to android.os.Build.VERSION.SDK_INT,
             "manufacturer" to android.os.Build.MANUFACTURER,
@@ -63,7 +62,8 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun isAccessibilityEnabled(): Boolean {
-        val manager = getSystemService<AccessibilityManager>() ?: return false
+        val manager = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
+            ?: return false
         return manager.getEnabledAccessibilityServiceList(
             android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK,
         ).any { info ->
@@ -77,9 +77,6 @@ class MainActivity : FlutterActivity() {
             contentResolver,
             "enabled_notification_listeners",
         ) ?: return false
-        return TextUtils.SimpleStringSplitter(':').let { splitter ->
-            splitter.setString(enabled)
-            splitter.any { component -> component.startsWith("$packageName/") }
-        }
+        return enabled.split(':').any { component -> component.startsWith("$packageName/") }
     }
 }
