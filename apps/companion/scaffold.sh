@@ -13,7 +13,9 @@ BACKUP="$(mktemp -d)"
 trap 'rm -rf "$BACKUP"' EXIT
 
 cp -R lib "$BACKUP/lib"
+cp -R test "$BACKUP/test"
 cp pubspec.yaml "$BACKUP/pubspec.yaml"
+cp README.md "$BACKUP/README.md"
 
 flutter create \
   --org tech.threedvr \
@@ -21,9 +23,11 @@ flutter create \
   --platforms=android,ios \
   .
 
-rm -rf lib
+rm -rf lib test
 cp -R "$BACKUP/lib" lib
+cp -R "$BACKUP/test" test
 cp "$BACKUP/pubspec.yaml" pubspec.yaml
+cp "$BACKUP/README.md" README.md
 
 KOTLIN_DIR="android/app/src/main/kotlin/tech/threedvr/companion"
 mkdir -p "$KOTLIN_DIR" android/app/src/main/res/xml
@@ -108,8 +112,9 @@ cp native-spec/ios/OpenCompanionDashboardIntent.swift \
   ios/CompanionNativeSpec/OpenCompanionDashboardIntent.swift
 
 flutter pub get
-dart format lib
+dart format lib test
 flutter analyze
+flutter test
 
 echo
 echo "3DVR Companion scaffolded."
