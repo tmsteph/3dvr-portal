@@ -1,0 +1,9 @@
+analyzer:
+  exclude:
+    - ios/CompanionNativeSpec/**
+
+linter:
+  rules:
+    avoid_print: true
+    prefer_const_constructors: true
+    prefer_const_declarations: true
