@@ -19,8 +19,10 @@ describe('release v0.0.57', () => {
     assert.match(release, /Find new work/);
     assert.match(release, /Better Chat/);
     assert.match(release, /Easier Life Space/);
+    assert.match(release, /Safer account sync/);
     assert.match(release, /Safe CRM move/);
     assert.match(release, /Safety notes/);
-    assert.match(release, /pull\/1289/);
+    assert.match(release, /pull\/1322/);
+    assert.match(release, /pull\/1323/);
   });
 });
