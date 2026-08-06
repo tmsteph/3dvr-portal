@@ -112,7 +112,7 @@ This seed intentionally keeps generated Flutter platform boilerplate out of the 
 
 ```bash
 cd apps/companion
-flutter create --org tech.3dvr --platforms=android,ios .
+flutter create --org tech.threedvr --platforms=android,ios .
 ```
 
 Then retain the files in `lib/`, `native-spec/`, and `docs/` from this branch while wiring the generated Android/iOS projects to the adapters described here.
