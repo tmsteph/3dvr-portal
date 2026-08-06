@@ -1,5 +1,6 @@
 import AppIntents
 
+@available(iOS 16.0, *)
 struct OpenCompanionDashboardIntent: AppIntent {
     static var title: LocalizedStringResource = "Open 3DVR Companion"
     static var description = IntentDescription("Open the 3DVR Companion dashboard and approval queue.")
@@ -10,6 +11,7 @@ struct OpenCompanionDashboardIntent: AppIntent {
     }
 }
 
+@available(iOS 16.0, *)
 struct CompanionShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
