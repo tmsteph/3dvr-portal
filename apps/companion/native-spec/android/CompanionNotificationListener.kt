@@ -3,23 +3,46 @@ package tech.threedvr.companion
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 
-/**
- * Notification listener seed.
- *
- * v0.1 intentionally normalizes only low-sensitivity metadata and does not
- * persist notification body text, message content, or tokens.
- */
-class CompanionNotificationListener : NotificationListenerService() {
-    override fun onNotificationPosted(sbn: StatusBarNotification?) {
-        val notification = sbn ?: return
+object NotificationMetadataStore {
+    private const val maxEntries = 50
+    private val lock = Any()
+    private val entries = LinkedHashMap<String, Map<String, Any?>>()
+
+    fun upsert(notification: StatusBarNotification) {
         val metadata = mapOf(
             "packageName" to notification.packageName,
             "postedAt" to notification.postTime,
             "isOngoing" to notification.isOngoing,
             "category" to notification.notification.category,
         )
-        // TODO: hand this local metadata to Companion's encrypted local store.
-        @Suppress("UNUSED_VARIABLE")
-        val normalized = metadata
+        synchronized(lock) {
+            entries[notification.key] = metadata
+            while (entries.size > maxEntries) {
+                val firstKey = entries.keys.firstOrNull() ?: break
+                entries.remove(firstKey)
+            }
+        }
+    }
+
+    fun remove(notification: StatusBarNotification) {
+        synchronized(lock) { entries.remove(notification.key) }
+    }
+
+    fun snapshot(): List<Map<String, Any?>> = synchronized(lock) {
+        entries.values.toList().asReversed()
+    }
+}
+
+/**
+ * Keeps only low-sensitivity notification metadata in memory.
+ * Message bodies, titles, text, tokens, and notification extras are never stored.
+ */
+class CompanionNotificationListener : NotificationListenerService() {
+    override fun onNotificationPosted(sbn: StatusBarNotification?) {
+        sbn?.let(NotificationMetadataStore::upsert)
+    }
+
+    override fun onNotificationRemoved(sbn: StatusBarNotification?) {
+        sbn?.let(NotificationMetadataStore::remove)
     }
 }

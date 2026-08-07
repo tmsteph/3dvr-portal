@@ -113,6 +113,12 @@ const companionCapabilities = <CompanionCapability>[
     description: 'Open an http/https URL using the operating system.',
   ),
   CompanionCapability(
+    name: 'app.open_known',
+    risk: CompanionRisk.green,
+    platforms: {CompanionPlatform.android},
+    description: 'Open one locally allowlisted Android app by friendly alias.',
+  ),
+  CompanionCapability(
     name: 'notification.metadata.read',
     risk: CompanionRisk.yellow,
     platforms: {CompanionPlatform.android},

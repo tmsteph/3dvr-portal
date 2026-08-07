@@ -50,7 +50,12 @@ class LocalCompanionServer {
         _json(request, {
           'ok': true,
           'transport': 'loopback',
-          'capabilities': ['device.status', 'url.open'],
+          'capabilities': [
+            'device.status',
+            'url.open',
+            'app.open_known',
+            'notification.metadata.read',
+          ],
         });
         return;
       }
@@ -61,16 +66,35 @@ class LocalCompanionServer {
         return;
       }
 
+      if (request.method == 'GET' && request.uri.path == '/v1/notification-metadata') {
+        final notifications = await bridge.getNotificationMetadata();
+        _json(request, {'ok': true, 'notifications': notifications});
+        return;
+      }
+
       if (request.method == 'POST' && request.uri.path == '/v1/open-url') {
-        final body = await utf8.decoder.bind(request).join();
-        final decoded = jsonDecode(body);
-        if (decoded is! Map || decoded['url'] is! String) {
+        final decoded = await _readObject(request);
+        final url = decoded?['url'];
+        if (url is! String) {
           request.response.statusCode = HttpStatus.badRequest;
           _json(request, {'ok': false, 'error': 'url is required'});
           return;
         }
-        final opened = await bridge.openUrl(decoded['url'] as String);
+        final opened = await bridge.openUrl(url);
         _json(request, {'ok': opened});
+        return;
+      }
+
+      if (request.method == 'POST' && request.uri.path == '/v1/open-app') {
+        final decoded = await _readObject(request);
+        final alias = decoded?['alias'];
+        if (alias is! String) {
+          request.response.statusCode = HttpStatus.badRequest;
+          _json(request, {'ok': false, 'error': 'alias is required'});
+          return;
+        }
+        final opened = await bridge.openKnownApp(alias);
+        _json(request, {'ok': opened, 'alias': alias});
         return;
       }
 
@@ -80,6 +104,13 @@ class LocalCompanionServer {
       request.response.statusCode = HttpStatus.internalServerError;
       _json(request, {'ok': false, 'error': 'request failed'});
     }
+  }
+
+  Future<Map<String, Object?>?> _readObject(HttpRequest request) async {
+    final body = await utf8.decoder.bind(request).join();
+    final decoded = jsonDecode(body);
+    if (decoded is! Map) return null;
+    return decoded.map((key, value) => MapEntry(key.toString(), value));
   }
 
   void _json(HttpRequest request, Map<String, Object?> value) {

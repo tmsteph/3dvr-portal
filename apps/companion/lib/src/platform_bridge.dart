@@ -15,6 +15,20 @@ class CompanionPlatformBridge {
     return result ?? false;
   }
 
+  Future<bool> openKnownApp(String alias) async {
+    final result = await _channel.invokeMethod<bool>('openKnownApp', {'alias': alias});
+    return result ?? false;
+  }
+
+  Future<List<Map<String, Object?>>> getNotificationMetadata() async {
+    final result = await _channel.invokeListMethod<Map>('notificationMetadata');
+    if (result == null) return const [];
+    return result
+        .map((item) => item.map((key, value) => MapEntry(key.toString(), value)))
+        .cast<Map<String, Object?>>()
+        .toList(growable: false);
+  }
+
   Future<Map<String, Object?>> getCapabilityStatus() async {
     final result = await _channel.invokeMapMethod<String, Object?>('capabilityStatus');
     return result ?? const {};
