@@ -42,6 +42,7 @@ cp native-spec/android/companion_accessibility_service.xml \
 
 python3 <<'PY'
 from pathlib import Path
+import plistlib
 import xml.etree.ElementTree as ET
 
 ANDROID = 'http://schemas.android.com/apk/res/android'
@@ -68,6 +69,7 @@ for permission in reversed(permissions):
 app = root.find('application')
 if app is None:
     raise SystemExit('AndroidManifest.xml has no <application>')
+app.set(a('label'), '3DVR Companion')
 
 for service in list(app.findall('service')):
     if service.get(a('name')) in {
@@ -133,6 +135,14 @@ entry = ET.SubElement(strings_root, 'string', {'name': 'companion_accessibility_
 entry.text = 'Lets 3DVR Companion inspect limited screen structure for user-approved assistive actions.'
 ET.indent(strings_tree, space='    ')
 strings_tree.write(strings_path, encoding='utf-8', xml_declaration=True)
+
+plist_path = Path('ios/Runner/Info.plist')
+with plist_path.open('rb') as handle:
+    plist = plistlib.load(handle)
+plist['CFBundleDisplayName'] = '3DVR Companion'
+plist['CFBundleName'] = '3DVR Companion'
+with plist_path.open('wb') as handle:
+    plistlib.dump(plist, handle)
 PY
 
 # Keep the iOS App Intent as a reference until we add it to the Xcode project on macOS.
@@ -147,6 +157,7 @@ flutter test
 
 echo
 echo "3DVR Companion scaffolded."
+echo "App display name: 3DVR Companion"
 echo "Android native adapter: wired"
 echo "Android background bridge keep-alive: wired"
 echo "iOS App Intent: staged in ios/CompanionNativeSpec (Xcode target wiring still required)"
