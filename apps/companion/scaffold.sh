@@ -36,6 +36,7 @@ mkdir -p "$KOTLIN_DIR" android/app/src/main/res/xml
 cp native-spec/android/MainActivity.kt "$KOTLIN_DIR/MainActivity.kt"
 cp native-spec/android/CompanionAccessibilityService.kt "$KOTLIN_DIR/CompanionAccessibilityService.kt"
 cp native-spec/android/CompanionNotificationListener.kt "$KOTLIN_DIR/CompanionNotificationListener.kt"
+cp native-spec/android/CompanionKeepAliveService.kt "$KOTLIN_DIR/CompanionKeepAliveService.kt"
 cp native-spec/android/companion_accessibility_service.xml \
   android/app/src/main/res/xml/companion_accessibility_service.xml
 
@@ -51,13 +52,18 @@ manifest_path = Path('android/app/src/main/AndroidManifest.xml')
 tree = ET.parse(manifest_path)
 root = tree.getroot()
 
-if not any(
-    node.get(a('name')) == 'android.permission.INTERNET'
-    for node in root.findall('uses-permission')
-):
-    root.insert(0, ET.Element('uses-permission', {
-        a('name'): 'android.permission.INTERNET',
-    }))
+permissions = [
+    'android.permission.INTERNET',
+    'android.permission.FOREGROUND_SERVICE',
+    'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',
+    'android.permission.POST_NOTIFICATIONS',
+]
+existing_permissions = {
+    node.get(a('name')) for node in root.findall('uses-permission')
+}
+for permission in reversed(permissions):
+    if permission not in existing_permissions:
+        root.insert(0, ET.Element('uses-permission', {a('name'): permission}))
 
 app = root.find('application')
 if app is None:
@@ -67,6 +73,7 @@ for service in list(app.findall('service')):
     if service.get(a('name')) in {
         '.CompanionAccessibilityService',
         '.CompanionNotificationListener',
+        '.CompanionKeepAliveService',
     }:
         app.remove(service)
 
@@ -94,6 +101,17 @@ notification = ET.SubElement(app, 'service', {
 notification_filter = ET.SubElement(notification, 'intent-filter')
 ET.SubElement(notification_filter, 'action', {
     a('name'): 'android.service.notification.NotificationListenerService',
+})
+
+keepalive = ET.SubElement(app, 'service', {
+    a('name'): '.CompanionKeepAliveService',
+    a('exported'): 'false',
+    a('foregroundServiceType'): 'specialUse',
+    a('stopWithTask'): 'false',
+})
+ET.SubElement(keepalive, 'property', {
+    a('name'): 'android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE',
+    a('value'): 'Keeps the user-enabled local 3DVR Companion bridge reachable while the app is backgrounded.',
 })
 
 ET.indent(tree, space='    ')
@@ -130,4 +148,5 @@ flutter test
 echo
 echo "3DVR Companion scaffolded."
 echo "Android native adapter: wired"
+echo "Android background bridge keep-alive: wired"
 echo "iOS App Intent: staged in ios/CompanionNativeSpec (Xcode target wiring still required)"
