@@ -50,6 +50,15 @@ a = lambda name: f'{{{ANDROID}}}{name}'
 manifest_path = Path('android/app/src/main/AndroidManifest.xml')
 tree = ET.parse(manifest_path)
 root = tree.getroot()
+
+if not any(
+    node.get(a('name')) == 'android.permission.INTERNET'
+    for node in root.findall('uses-permission')
+):
+    root.insert(0, ET.Element('uses-permission', {
+        a('name'): 'android.permission.INTERNET',
+    }))
+
 app = root.find('application')
 if app is None:
     raise SystemExit('AndroidManifest.xml has no <application>')
