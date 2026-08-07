@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.BatteryManager
+import android.os.Build
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
 import io.flutter.embedding.android.FlutterActivity
@@ -15,6 +16,7 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        startKeepAliveService()
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -37,6 +39,15 @@ class MainActivity : FlutterActivity() {
             }
     }
 
+    private fun startKeepAliveService() {
+        val intent = Intent(this, CompanionKeepAliveService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+    }
+
     private fun deviceStatus(): Map<String, Any?> {
         val battery = getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
         return mapOf(
@@ -50,6 +61,7 @@ class MainActivity : FlutterActivity() {
     private fun capabilityStatus(): Map<String, Any> = mapOf(
         "accessibilityEnabled" to isAccessibilityEnabled(),
         "notificationAccessEnabled" to isNotificationAccessEnabled(),
+        "backgroundBridgeEnabled" to true,
         // Remote gesture execution intentionally remains false in v0.1.
         "remoteKnownActionsEnabled" to false,
     )
