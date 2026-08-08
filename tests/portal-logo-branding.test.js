@@ -34,6 +34,11 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /three\.js\/r128\/three\.min\.js/);
     assert.match(swirlScript, /CylinderGeometry/);
     assert.match(swirlScript, /TorusGeometry/);
+    assert.match(swirlScript, /portalLayers/);
+    assert.match(swirlScript, /CircleGeometry\(0\.7, 96\)/);
+    assert.match(swirlScript, /MeshBasicMaterial/);
+    assert.match(swirlScript, /portalPulse/);
+    assert.match(swirlScript, /76f7ff/);
     assert.match(swirlScript, /CanvasTexture/);
     assert.match(swirlScript, /const BASE_FACE_SPIN = TAU \/ 5200/);
     assert.match(swirlScript, /extraFaceSpin/);

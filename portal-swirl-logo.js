@@ -255,7 +255,38 @@
     backText.rotation.y = Math.PI;
     group.add(backText);
 
+    const portalLayers = new THREE.Group();
+    const portalCore = new THREE.Mesh(
+      new THREE.CircleGeometry(0.7, 96),
+      new THREE.MeshBasicMaterial({
+        color: 0x020814,
+        transparent: true,
+        opacity: 0.9,
+        depthWrite: false,
+      }),
+    );
+    portalCore.position.z = 0.205;
+    portalLayers.add(portalCore);
+
+    [0.32, 0.5, 0.66].forEach((radius, index) => {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(radius, 0.014, 10, 96),
+        new THREE.MeshBasicMaterial({
+          color: [0x76f7ff, 0x36b8ff, 0x9e7bff][index],
+          transparent: true,
+          opacity: 0.72 - index * 0.12,
+          depthWrite: false,
+        }),
+      );
+      ring.position.z = 0.218;
+      ring.userData.portalRadius = radius;
+      ring.userData.portalPhase = index * 1.7;
+      portalLayers.add(ring);
+    });
+    group.add(portalLayers);
+
     group.userData.faceTextures = [frontFaceTexture, backFaceTexture];
+    group.userData.portalLayers = portalLayers;
 
     return group;
   }
@@ -319,6 +350,7 @@
       token: null,
       fallbackContext: null,
       sparkLayer: null,
+      portalPulse: 0,
       frame: 0,
     };
 
@@ -813,6 +845,19 @@
       context.fillStyle = 'rgba(2, 6, 23, 0.72)';
       context.fill();
 
+      context.save();
+      context.globalAlpha = 0.82;
+      context.lineWidth = Math.max(2, size * 0.008);
+      for (let portalRing = 1; portalRing <= 3; portalRing += 1) {
+        const ringRadius = radius * (0.22 + portalRing * 0.17 + Math.sin(state.portalPulse * 2 + portalRing) * 0.012);
+        const ringStart = state.portalPulse * (portalRing % 2 ? 0.42 : -0.32);
+        context.beginPath();
+        context.arc(0, 0, ringRadius, ringStart, TAU + ringStart);
+        context.strokeStyle = ['#76f7ff', '#36b8ff', '#9e7bff'][portalRing - 1];
+        context.stroke();
+      }
+      context.restore();
+
       context.textAlign = 'center';
       context.textBaseline = 'middle';
       context.shadowColor = 'rgba(0, 0, 0, 0.45)';
@@ -833,6 +878,16 @@
 
       if (state.renderer && state.scene && state.camera && state.token) {
         state.token.rotation.set(rotationX, rotationY, rotationZ);
+        const portalLayers = state.token.userData.portalLayers;
+        if (portalLayers) {
+          portalLayers.rotation.z = state.portalPulse * 0.24;
+          portalLayers.children.forEach((layer, index) => {
+            if (!layer.userData.portalRadius) return;
+            const pulse = 1 + Math.sin(state.portalPulse * 2 + layer.userData.portalPhase) * 0.04;
+            layer.scale.setScalar(pulse);
+            layer.rotation.z = state.portalPulse * (index % 2 ? -0.7 : 0.45);
+          });
+        }
         for (const texture of state.token.userData.faceTextures || []) {
           texture.rotation = state.faceSpin;
         }
@@ -848,6 +903,7 @@
       const rawElapsed = state.lastTimestamp ? Math.min(timestamp - state.lastTimestamp, 250) : 16.67;
       const spinElapsed = Math.min(rawElapsed, 64);
       state.lastTimestamp = timestamp;
+      state.portalPulse = (state.portalPulse + spinElapsed * 0.0028) % TAU;
       const frames = rawElapsed / 16.67;
       const targetSettle = 1 - Math.pow(TARGET_SETTLE_BASE, frames);
       const currentSettle = 1 - Math.pow(CURRENT_SETTLE_BASE, frames);
