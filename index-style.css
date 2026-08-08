@@ -642,12 +642,12 @@ body.landing {
   touch-action: none;
   cursor: grab;
   background:
-    radial-gradient(circle at 32% 25%, rgba(248, 250, 252, 0.2), transparent 22%),
-    radial-gradient(circle at 62% 68%, rgba(251, 191, 36, 0.18), transparent 26%),
-    #06111f;
+    radial-gradient(circle at 30% 24%, rgba(255, 241, 168, 0.28), transparent 22%),
+    radial-gradient(circle at 68% 74%, rgba(111, 63, 11, 0.2), transparent 34%),
+    #4a290b;
   box-shadow:
     0 24px 55px rgba(8, 13, 29, 0.42),
-    inset 0 0 0 1px rgba(186, 230, 253, 0.16);
+    inset 0 0 0 1px rgba(255, 233, 163, 0.28);
 }
 
 .portal-swirl-logo::after {
@@ -656,7 +656,7 @@ body.landing {
   inset: 0.4rem;
   z-index: -1;
   border-radius: inherit;
-  background: radial-gradient(circle, rgba(34, 211, 238, 0.3), transparent 70%);
+  background: radial-gradient(circle, rgba(245, 181, 52, 0.34), transparent 70%);
   filter: blur(18px);
   opacity: 0.72;
 }
@@ -698,7 +698,7 @@ body.landing {
   place-items: center;
   gap: 0;
   align-content: center;
-  color: rgba(248, 250, 252, 0.92);
+  color: rgba(255, 241, 168, 0.96);
   font-size: 0.85rem;
   font-weight: 800;
   line-height: 1.1;
@@ -706,7 +706,7 @@ body.landing {
 }
 
 .portal-swirl-logo__fallback span:last-child {
-  color: rgba(186, 230, 253, 0.72);
+  color: rgba(255, 215, 106, 0.8);
   font-size: 0.58rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;

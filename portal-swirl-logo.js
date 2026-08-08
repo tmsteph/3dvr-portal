@@ -97,59 +97,46 @@
     const center = size / 2;
     const radius = size * 0.45;
 
-    const shell = context.createRadialGradient(center, center, radius * 0.08, center, center, size * 0.66);
-    shell.addColorStop(0, '#9de7f8');
-    shell.addColorStop(0.28, '#2aa7bf');
-    shell.addColorStop(0.62, '#0f766e');
-    shell.addColorStop(1, '#07111f');
+    const shell = context.createRadialGradient(center - radius * 0.28, center - radius * 0.34, radius * 0.04, center, center, radius * 1.15);
+    shell.addColorStop(0, '#fff1a8');
+    shell.addColorStop(0.22, '#f9d976');
+    shell.addColorStop(0.58, '#d99a2b');
+    shell.addColorStop(0.86, '#a96816');
+    shell.addColorStop(1, '#6f3f0b');
     context.fillStyle = shell;
     context.fillRect(0, 0, size, size);
 
     context.save();
     context.translate(center, center);
     if (mirrored) context.scale(-1, 1);
-    for (let arm = 0; arm < 7; arm += 1) {
-      context.save();
-      context.rotate((arm / 7) * TAU);
-      const gradient = context.createLinearGradient(0, 0, radius, radius * 0.32);
-      gradient.addColorStop(0, 'rgba(226, 246, 252, 0.58)');
-      gradient.addColorStop(0.5, 'rgba(125, 211, 252, 0.42)');
-      gradient.addColorStop(1, 'rgba(251, 191, 36, 0.24)');
-      context.strokeStyle = gradient;
-      context.lineWidth = 38;
-      context.lineCap = 'round';
+    context.globalAlpha = 0.2;
+    for (let ring = 1; ring <= 5; ring += 1) {
       context.beginPath();
-      for (let index = 0; index <= 88; index += 1) {
-        const progress = index / 88;
-        const angle = progress * TAU * 1.04;
-        const r = radius * (0.13 + progress * 0.72);
-        const x = Math.cos(angle) * r;
-        const y = Math.sin(angle) * r * 0.72;
-        if (index === 0) context.moveTo(x, y);
-        else context.lineTo(x, y);
-      }
+      context.arc(0, 0, radius * (0.28 + ring * 0.11), 0, TAU);
+      context.strokeStyle = ring % 2 ? '#fff1a8' : '#7c470d';
+      context.lineWidth = 5;
       context.stroke();
-      context.restore();
     }
+    context.globalAlpha = 1;
     context.restore();
 
     context.beginPath();
     context.arc(center, center, radius * 0.97, 0, TAU);
-    context.strokeStyle = '#d8fff7';
-    context.lineWidth = 30;
+    context.strokeStyle = '#ffe9a3';
+    context.lineWidth = 28;
     context.stroke();
 
     context.beginPath();
     context.arc(center, center, radius * 0.74, 0, TAU);
-    context.strokeStyle = 'rgba(254, 215, 170, 0.74)';
+    context.strokeStyle = 'rgba(111, 63, 11, 0.62)';
     context.lineWidth = 12;
     context.stroke();
 
     context.beginPath();
     context.arc(center, center, radius * 0.36, 0, TAU);
-    context.fillStyle = 'rgba(2, 6, 23, 0.72)';
+    context.fillStyle = 'rgba(111, 63, 11, 0.18)';
     context.fill();
-    context.strokeStyle = 'rgba(186, 230, 253, 0.38)';
+    context.strokeStyle = 'rgba(255, 241, 168, 0.52)';
     context.lineWidth = 8;
     context.stroke();
 
@@ -174,12 +161,12 @@
     if (mirrored) context.scale(-1, 1);
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.shadowColor = 'rgba(0, 0, 0, 0.55)';
+    context.shadowColor = 'rgba(111, 63, 11, 0.52)';
     context.shadowBlur = 28;
-    context.fillStyle = '#ffffff';
+    context.fillStyle = '#6f3f0b';
     context.font = '900 142px Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
     context.fillText('3dvr', 0, -22);
-    context.fillStyle = '#ccfbf1';
+    context.fillStyle = '#8a5515';
     context.font = '850 82px Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
     context.fillText('portal', 0, 104);
     context.restore();
@@ -195,18 +182,18 @@
     const frontFaceTexture = makeFaceTexture(THREE, false);
     const backFaceTexture = makeFaceTexture(THREE, true);
     const sideMaterial = new THREE.MeshStandardMaterial({
-      color: 0x0f8f8f,
-      metalness: 0.68,
-      roughness: 0.26,
+      color: 0xb8791f,
+      metalness: 0.92,
+      roughness: 0.2,
     });
     const frontMaterial = new THREE.MeshStandardMaterial({
       map: frontFaceTexture,
-      metalness: 0.4,
-      roughness: 0.22,
+      metalness: 0.76,
+      roughness: 0.24,
     });
     const backMaterial = new THREE.MeshStandardMaterial({
       map: backFaceTexture,
-      metalness: 0.42,
+      metalness: 0.78,
       roughness: 0.26,
     });
 
@@ -218,7 +205,7 @@
     group.add(body);
 
     const rimMaterial = new THREE.MeshStandardMaterial({
-      color: 0xfed7aa,
+      color: 0xffd76a,
       metalness: 0.82,
       roughness: 0.18,
     });
@@ -761,61 +748,53 @@
       context.rotate(state.currentZ + state.wobbleZ);
       context.scale(tiltScaleX, tiltScaleY);
 
-      const faceGradient = context.createRadialGradient(0, 0, radius * 0.08, 0, 0, radius);
-      faceGradient.addColorStop(0, '#9de7f8');
-      faceGradient.addColorStop(0.28, '#2aa7bf');
-      faceGradient.addColorStop(0.62, '#0f766e');
-      faceGradient.addColorStop(1, '#07111f');
+      const faceGradient = context.createRadialGradient(-radius * 0.28, -radius * 0.34, radius * 0.04, 0, 0, radius * 1.15);
+      faceGradient.addColorStop(0, '#fff1a8');
+      faceGradient.addColorStop(0.22, '#f9d976');
+      faceGradient.addColorStop(0.58, '#d99a2b');
+      faceGradient.addColorStop(0.86, '#a96816');
+      faceGradient.addColorStop(1, '#6f3f0b');
       context.beginPath();
       context.arc(0, 0, radius, 0, TAU);
       context.fillStyle = faceGradient;
       context.fill();
 
-      for (let arm = 0; arm < 7; arm += 1) {
-        context.save();
-        context.rotate((arm / 7) * TAU + state.faceSpin * 0.7);
+      context.save();
+      context.globalAlpha = 0.2;
+      for (let ring = 1; ring <= 5; ring += 1) {
         context.beginPath();
-        for (let index = 0; index <= 58; index += 1) {
-          const progress = index / 58;
-          const angle = progress * TAU * 1.05;
-          const r = radius * (0.12 + progress * 0.72);
-          const x = Math.cos(angle) * r;
-          const y = Math.sin(angle) * r * 0.72;
-          if (index === 0) context.moveTo(x, y);
-          else context.lineTo(x, y);
-        }
-        context.strokeStyle = 'rgba(186, 230, 253, 0.38)';
-        context.lineWidth = Math.max(4, radius * 0.066);
-        context.lineCap = 'round';
+        context.arc(0, 0, radius * (0.28 + ring * 0.11), 0, TAU);
+        context.strokeStyle = ring % 2 ? '#fff1a8' : '#7c470d';
+        context.lineWidth = Math.max(1, radius * 0.012);
         context.stroke();
-        context.restore();
       }
+      context.restore();
 
       context.lineWidth = Math.max(7, size * 0.04);
-      context.strokeStyle = '#d8fff7';
+      context.strokeStyle = '#ffe9a3';
       context.beginPath();
       context.arc(0, 0, radius, 0, TAU);
       context.stroke();
 
       context.lineWidth = Math.max(3, size * 0.012);
-      context.strokeStyle = 'rgba(254, 215, 170, 0.74)';
+      context.strokeStyle = 'rgba(111, 63, 11, 0.62)';
       context.beginPath();
       context.arc(0, 0, radius * 0.74, 0, TAU);
       context.stroke();
 
       context.beginPath();
       context.arc(0, 0, radius * 0.36, 0, TAU);
-      context.fillStyle = 'rgba(2, 6, 23, 0.72)';
+      context.fillStyle = 'rgba(111, 63, 11, 0.18)';
       context.fill();
 
       context.textAlign = 'center';
       context.textBaseline = 'middle';
-      context.shadowColor = 'rgba(0, 0, 0, 0.45)';
+      context.shadowColor = 'rgba(111, 63, 11, 0.52)';
       context.shadowBlur = size * 0.03;
-      context.fillStyle = '#ffffff';
+      context.fillStyle = '#6f3f0b';
       context.font = `900 ${Math.max(18, size * 0.15)}px Inter, system-ui, sans-serif`;
       context.fillText('3dvr', 0, -size * 0.02);
-      context.fillStyle = '#ccfbf1';
+      context.fillStyle = '#8a5515';
       context.font = `800 ${Math.max(11, size * 0.085)}px Inter, system-ui, sans-serif`;
       context.fillText('portal', 0, size * 0.12);
       context.restore();
@@ -955,13 +934,13 @@
 
         const token = createPortalToken(THREE);
         scene.add(token);
-        scene.add(new THREE.AmbientLight(0xe2fff8, 0.72));
+      scene.add(new THREE.AmbientLight(0xffedb0, 0.78));
 
         const key = new THREE.DirectionalLight(0xffffff, 1.35);
         key.position.set(2.5, 2.8, 4.5);
         scene.add(key);
 
-        const fill = new THREE.DirectionalLight(0x99f6e4, 0.62);
+      const fill = new THREE.DirectionalLight(0xffc857, 0.58);
         fill.position.set(-3, -1.5, 2);
         scene.add(fill);
 

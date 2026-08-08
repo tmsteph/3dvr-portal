@@ -37,10 +37,11 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /CanvasTexture/);
     assert.match(swirlScript, /const BASE_FACE_SPIN = TAU \/ 5200/);
     assert.match(swirlScript, /extraFaceSpin/);
-    assert.match(swirlScript, /createRadialGradient\(center, center, radius \* 0\.08, center, center, size \* 0\.66\)/);
-    assert.match(swirlScript, /createRadialGradient\(0, 0, radius \* 0\.08, 0, 0, radius\)/);
-    assert.doesNotMatch(swirlScript, /createRadialGradient\(size \* 0\.34, size \* 0\.24/);
-    assert.doesNotMatch(swirlScript, /createRadialGradient\(-radius \* 0\.35, -radius \* 0\.42/);
+    assert.match(swirlScript, /createRadialGradient\(center - radius \* 0\.28, center - radius \* 0\.34/);
+    assert.match(swirlScript, /createRadialGradient\(-radius \* 0\.28, -radius \* 0\.34/);
+    assert.match(swirlScript, /#fff1a8/);
+    assert.match(swirlScript, /metalness: 0\.92/);
+    assert.doesNotMatch(swirlScript, /for \(let arm = 0; arm < 7/);
     assert.match(swirlScript, /paused: false/);
     assert.match(swirlScript, /const setPaused = \(paused\) =>/);
     assert.match(swirlScript, /root\.dataset\.logoPaused = String\(state\.paused\)/);
@@ -61,7 +62,7 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /const rotationX = state\.currentX \+ state\.flipX \+ state\.wobbleX/);
     assert.match(swirlScript, /const rotationY = state\.currentY \+ state\.flipY \+ state\.wobbleY/);
     assert.match(swirlScript, /const rotationZ = state\.currentZ \+ state\.wobbleZ/);
-    assert.match(swirlScript, /context\.rotate\(\(arm \/ 7\) \* TAU \+ state\.faceSpin \* 0\.7\)/);
+    assert.match(swirlScript, /for \(let ring = 1; ring <= 5; ring \+= 1\)/);
     assert.doesNotMatch(swirlScript, /const rotationZ = state\.faceSpin/);
     assert.doesNotMatch(swirlScript, /state\.token\.rotation\.set\(rotationX, rotationY, state\.faceSpin/);
     assert.match(swirlScript, /flipVelocityX/);
