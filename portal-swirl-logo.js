@@ -148,7 +148,7 @@
 
     context.beginPath();
     context.arc(center, center, radius * 0.36, 0, TAU);
-    context.fillStyle = 'rgba(25, 79, 112, 0.24)';
+    context.fillStyle = 'rgba(2, 6, 23, 0.72)';
     context.fill();
     context.strokeStyle = 'rgba(186, 230, 253, 0.38)';
     context.lineWidth = 8;
@@ -156,43 +156,6 @@
 
     const texture = new THREE.CanvasTexture(textureCanvas);
     texture.center.set(0.5, 0.5);
-    texture.anisotropy = 8;
-    texture.needsUpdate = true;
-    return texture;
-  }
-
-  function makePortalTunnelTexture(THREE) {
-    const textureCanvas = document.createElement('canvas');
-    const size = 768;
-    textureCanvas.width = size;
-    textureCanvas.height = size;
-    const context = textureCanvas.getContext('2d');
-    const center = size / 2;
-    const radius = size * 0.47;
-
-    const tunnel = context.createRadialGradient(center, center, 0, center, center, radius);
-    tunnel.addColorStop(0, 'rgba(188, 255, 255, 0.98)');
-    tunnel.addColorStop(0.16, 'rgba(71, 225, 255, 0.92)');
-    tunnel.addColorStop(0.42, 'rgba(62, 139, 255, 0.78)');
-    tunnel.addColorStop(0.7, 'rgba(139, 92, 246, 0.58)');
-    tunnel.addColorStop(0.9, 'rgba(22, 42, 100, 0.36)');
-    tunnel.addColorStop(1, 'rgba(7, 16, 42, 0)');
-    context.fillStyle = tunnel;
-    context.fillRect(0, 0, size, size);
-
-    context.save();
-    context.translate(center, center);
-    context.globalCompositeOperation = 'lighter';
-    for (let arc = 0; arc < 5; arc += 1) {
-      context.beginPath();
-      context.arc(0, 0, radius * (0.2 + arc * 0.16), arc * 0.9, arc * 0.9 + Math.PI * 1.42);
-      context.strokeStyle = arc % 2 ? 'rgba(116, 247, 255, 0.34)' : 'rgba(184, 143, 255, 0.3)';
-      context.lineWidth = Math.max(5, size * 0.012);
-      context.stroke();
-    }
-    context.restore();
-
-    const texture = new THREE.CanvasTexture(textureCanvas);
     texture.anisotropy = 8;
     texture.needsUpdate = true;
     return texture;
@@ -292,63 +255,7 @@
     backText.rotation.y = Math.PI;
     group.add(backText);
 
-    const portalLayers = new THREE.Group();
-    const portalAperture = new THREE.Mesh(
-      new THREE.CircleGeometry(0.78, 96),
-      new THREE.MeshBasicMaterial({
-        map: makePortalTunnelTexture(THREE),
-        transparent: true,
-        opacity: 0.92,
-        depthWrite: false,
-      }),
-    );
-    portalAperture.position.z = 0.12;
-    portalAperture.userData.portalDepth = 0;
-    portalAperture.userData.baseZ = portalAperture.position.z;
-    portalLayers.add(portalAperture);
-
-    const funnelWall = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.46, 0.74, 0.3, 96, 1, true),
-      new THREE.MeshBasicMaterial({
-        color: 0x4e72ff,
-        transparent: true,
-        opacity: 0.2,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-      }),
-    );
-    funnelWall.rotation.x = Math.PI / 2;
-    funnelWall.position.z = 0.01;
-    funnelWall.userData.portalDepth = 1;
-    funnelWall.userData.baseZ = funnelWall.position.z;
-    portalLayers.add(funnelWall);
-
-    [
-      { radius: 0.72, tube: 0.045, z: 0.2, color: 0x7cfbff, opacity: 0.88, phase: 0 },
-      { radius: 0.58, tube: 0.035, z: 0.08, color: 0x3e8dff, opacity: 0.76, phase: 1.7 },
-      { radius: 0.42, tube: 0.026, z: -0.06, color: 0xb58cff, opacity: 0.72, phase: 3.1 },
-    ].forEach(({ radius, tube, z, color, opacity, phase }, index) => {
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(radius, tube, 16, 128),
-        new THREE.MeshBasicMaterial({
-          color,
-          transparent: true,
-          opacity,
-          depthWrite: false,
-        }),
-      );
-      ring.position.z = z;
-      ring.userData.portalRadius = radius;
-      ring.userData.portalDepth = index + 2;
-      ring.userData.portalPhase = phase;
-      ring.userData.baseZ = ring.position.z;
-      portalLayers.add(ring);
-    });
-    group.add(portalLayers);
-
     group.userData.faceTextures = [frontFaceTexture, backFaceTexture];
-    group.userData.portalTunnelTexture = portalAperture.material.map;
-    group.userData.portalLayers = portalLayers;
 
     return group;
   }
@@ -412,7 +319,6 @@
       token: null,
       fallbackContext: null,
       sparkLayer: null,
-      portalPulse: 0,
       frame: 0,
     };
 
@@ -902,32 +808,10 @@
       context.arc(0, 0, radius * 0.74, 0, TAU);
       context.stroke();
 
-      const tunnelGradient = context.createRadialGradient(0, 0, 0, 0, 0, radius * 0.82);
-      tunnelGradient.addColorStop(0, 'rgba(188, 255, 255, 0.98)');
-      tunnelGradient.addColorStop(0.18, 'rgba(71, 225, 255, 0.88)');
-      tunnelGradient.addColorStop(0.44, 'rgba(62, 139, 255, 0.72)');
-      tunnelGradient.addColorStop(0.7, 'rgba(139, 92, 246, 0.5)');
-      tunnelGradient.addColorStop(1, 'rgba(7, 16, 42, 0)');
       context.beginPath();
-      context.arc(0, 0, radius * 0.82, 0, TAU);
-      context.fillStyle = tunnelGradient;
+      context.arc(0, 0, radius * 0.36, 0, TAU);
+      context.fillStyle = 'rgba(2, 6, 23, 0.72)';
       context.fill();
-
-      context.save();
-      context.globalCompositeOperation = 'lighter';
-      context.lineCap = 'round';
-      for (let portalRing = 0; portalRing < 4; portalRing += 1) {
-        const ringRadius = radius * (0.22 + portalRing * 0.17 + Math.sin(state.portalPulse * 1.6 + portalRing) * 0.018);
-        const ringStart = state.portalPulse * (portalRing % 2 ? -0.42 : 0.55) + portalRing * 0.6;
-        context.beginPath();
-        context.arc(0, 0, ringRadius, ringStart, ringStart + Math.PI * (1.2 + portalRing * 0.12));
-        context.strokeStyle = ['#c2ffff', '#76f7ff', '#3e8dff', '#b58cff'][portalRing];
-        context.lineWidth = Math.max(2, size * (0.012 - portalRing * 0.001));
-        context.shadowColor = context.strokeStyle;
-        context.shadowBlur = size * 0.025;
-        context.stroke();
-      }
-      context.restore();
 
       context.textAlign = 'center';
       context.textBaseline = 'middle';
@@ -949,19 +833,6 @@
 
       if (state.renderer && state.scene && state.camera && state.token) {
         state.token.rotation.set(rotationX, rotationY, rotationZ);
-        const portalLayers = state.token.userData.portalLayers;
-        if (portalLayers) {
-          portalLayers.rotation.z = state.portalPulse * 0.24;
-          portalLayers.children.forEach((layer, index) => {
-            const depth = layer.userData.portalDepth;
-            if (!depth) return;
-            const phase = layer.userData.portalPhase || depth * 0.9;
-            const pulse = 1 + Math.sin(state.portalPulse * (depth === 1 ? 1.2 : 1.8) + phase) * (depth === 1 ? 0.035 : 0.06);
-            layer.scale.setScalar(pulse);
-            layer.rotation.z = state.portalPulse * (index % 2 ? -0.7 : 0.45);
-            layer.position.z = (layer.userData.baseZ ?? layer.position.z) + Math.sin(state.portalPulse * 1.4 + phase) * 0.018;
-          });
-        }
         for (const texture of state.token.userData.faceTextures || []) {
           texture.rotation = state.faceSpin;
         }
@@ -977,10 +848,6 @@
       const rawElapsed = state.lastTimestamp ? Math.min(timestamp - state.lastTimestamp, 250) : 16.67;
       const spinElapsed = Math.min(rawElapsed, 64);
       state.lastTimestamp = timestamp;
-      // Keep the animation phase continuous. Wrapping this value to TAU makes
-      // the portal layers' direct rotation values jump back to zero every few
-      // seconds, which reads as a glitch in some browsers/GPU paths.
-      state.portalPulse += spinElapsed * 0.0028;
       const frames = rawElapsed / 16.67;
       const targetSettle = 1 - Math.pow(TARGET_SETTLE_BASE, frames);
       const currentSettle = 1 - Math.pow(CURRENT_SETTLE_BASE, frames);
@@ -1084,14 +951,9 @@
         const renderer = new THREE.WebGLRenderer({
           canvas,
           antialias: true,
-          // Keep the token opaque. Alpha compositing is handled differently by
-          // Chromium variants with forced-dark mode and can produce a dark flash
-          // or halo around the canvas even when the scene itself is unchanged.
-          alpha: false,
-          premultipliedAlpha: false,
+          alpha: true,
           powerPreference: 'high-performance',
         });
-        renderer.setClearColor(0x06111f, 1);
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
         camera.position.set(0, 0, 5);
