@@ -1084,9 +1084,14 @@
         const renderer = new THREE.WebGLRenderer({
           canvas,
           antialias: true,
-          alpha: true,
+          // Keep the token opaque. Alpha compositing is handled differently by
+          // Chromium variants with forced-dark mode and can produce a dark flash
+          // or halo around the canvas even when the scene itself is unchanged.
+          alpha: false,
+          premultipliedAlpha: false,
           powerPreference: 'high-performance',
         });
+        renderer.setClearColor(0x06111f, 1);
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
         camera.position.set(0, 0, 5);

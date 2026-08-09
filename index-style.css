@@ -641,6 +641,10 @@ body.landing {
   isolation: isolate;
   touch-action: none;
   cursor: grab;
+  /* Brave/Chrome forced-dark mode must not reinterpret the portal artwork. */
+  color-scheme: dark;
+  forced-color-adjust: none;
+  -webkit-color-adjust: exact;
   background:
     radial-gradient(circle at 32% 25%, rgba(248, 250, 252, 0.2), transparent 22%),
     radial-gradient(circle at 62% 68%, rgba(251, 191, 36, 0.18), transparent 26%),
@@ -683,6 +687,8 @@ body.landing {
   width: 100%;
   height: 100%;
   border-radius: inherit;
+  forced-color-adjust: none;
+  -webkit-color-adjust: exact;
   opacity: 0;
   transition: opacity 220ms ease;
 }

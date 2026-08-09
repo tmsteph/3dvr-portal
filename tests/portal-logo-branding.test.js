@@ -15,6 +15,7 @@ describe('portal logo branding', () => {
     assert.match(logo, />3dvr</);
     assert.match(logo, />portal</);
     assert.match(html, /window\.__APP_NAME__ = window\.__APP_NAME__ \|\| '3dvr-portal'/);
+    assert.match(html, /<meta name="color-scheme" content="dark">/);
     assert.match(html, /<strong>3dvr portal<\/strong>/);
     assert.match(html, /app-boot-enabled/);
     assert.match(html, /display-mode: standalone/);
@@ -31,6 +32,9 @@ describe('portal logo branding', () => {
     assert.match(css, /\.portal-swirl-logo/);
     assert.match(css, /\.portal-swirl-logo\[data-logo-paused="true"\]/);
     assert.match(swirlScript, /THREE_CDN_URL/);
+    assert.match(swirlScript, /alpha: false/);
+    assert.match(swirlScript, /premultipliedAlpha: false/);
+    assert.match(swirlScript, /renderer\.setClearColor\(0x06111f, 1\)/);
     assert.match(swirlScript, /three\.js\/r128\/three\.min\.js/);
     assert.match(swirlScript, /CylinderGeometry/);
     assert.match(swirlScript, /TorusGeometry/);
