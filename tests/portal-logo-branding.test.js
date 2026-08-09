@@ -42,6 +42,8 @@ describe('portal logo branding', () => {
     assert.match(swirlScript, /baseZ/);
     assert.match(swirlScript, /MeshBasicMaterial/);
     assert.match(swirlScript, /portalPulse/);
+    assert.match(swirlScript, /state\.portalPulse \+= spinElapsed \* 0\.0028/);
+    assert.doesNotMatch(swirlScript, /state\.portalPulse = \(state\.portalPulse \+ spinElapsed \* 0\.0028\) % TAU/);
     assert.match(swirlScript, /76f7ff/);
     assert.match(swirlScript, /CanvasTexture/);
     assert.match(swirlScript, /const BASE_FACE_SPIN = TAU \/ 5200/);

@@ -977,7 +977,10 @@
       const rawElapsed = state.lastTimestamp ? Math.min(timestamp - state.lastTimestamp, 250) : 16.67;
       const spinElapsed = Math.min(rawElapsed, 64);
       state.lastTimestamp = timestamp;
-      state.portalPulse = (state.portalPulse + spinElapsed * 0.0028) % TAU;
+      // Keep the animation phase continuous. Wrapping this value to TAU makes
+      // the portal layers' direct rotation values jump back to zero every few
+      // seconds, which reads as a glitch in some browsers/GPU paths.
+      state.portalPulse += spinElapsed * 0.0028;
       const frames = rawElapsed / 16.67;
       const targetSettle = 1 - Math.pow(TARGET_SETTLE_BASE, frames);
       const currentSettle = 1 - Math.pow(CURRENT_SETTLE_BASE, frames);
