@@ -9,15 +9,13 @@ const previewScript = await readFile(new URL('../free-page/preview/app.js', impo
 const styles = await readFile(new URL('../free-page/styles.css', import.meta.url), 'utf8');
 const previewStyles = await readFile(new URL('../free-page/preview/styles.css', import.meta.url), 'utf8');
 
-test('free page offer presents the tiny website starter offer', () => {
-  assert.match(html, /I.ll make you a clean one-page website for free/);
-  assert.match(html, /free draft, optional \$5\/month upkeep/i);
-  assert.match(html, /Keep it live for \$5\/month/);
+test('free page offer presents the personalized homepage concept', () => {
+  assert.match(html, /Get a clearer homepage concept for free/);
+  assert.match(html, /Finish and publish the page for \$300/);
+  assert.match(html, /Request the free concept/);
   assert.match(html, /3dvr\.tech@gmail\.com/);
   assert.match(html, /name="email" type="email"[^>]*required/);
-  assert.match(html, /https:\/\/3dvr\.tech\/dave\//);
-  assert.match(html, /https:\/\/donovan\.3dvr\.tech\//);
-  assert.match(html, /\.\.\/billing\/\?plan=starter/);
+  assert.match(html, /A homepage should help the right customer act/);
   assert.match(html, /\.\.\/launch-site\//);
   assert.match(html, /<script defer src="\/_vercel\/insights\/script\.js"><\/script>/);
   assert.match(html, /googletagmanager\.com\/gtag\/js\?id=G-96XRKQ5L65/);
@@ -28,7 +26,8 @@ test('free page offer presents the tiny website starter offer', () => {
 
 test('personalized preview is noindex, safely client-rendered, and tracks explicit funnel events', () => {
   assert.match(previewHtml, /noindex,nofollow/);
-  assert.match(previewHtml, /Claim my free draft/);
+  assert.match(previewHtml, /finish and publish this direction for \$300/i);
+  assert.match(previewHtml, /Reply about my page/);
   assert.match(previewHtml, /class="brand" href="\.\.\/"[^>]*><span>3dvr<\/span><\/a>/);
   assert.match(previewHtml, /id="contactButton"/);
   assert.match(previewHtml, /data-business/);
@@ -54,9 +53,9 @@ test('free page layouts contain folded-phone overflow guards', () => {
 
 test('free page brief builds an email handoff without backend dependencies', () => {
   assert.match(script, /mailto:/);
-  assert.match(script, /Free 3DVR one-page website/);
+  assert.match(script, /Free homepage concept/);
   assert.match(script, /3dvr\.tech@gmail\.com/);
-  assert.match(script, /\$5\/month/);
+  assert.match(script, /finishing and publishing the page/);
   assert.match(script, /gtag\('event', 'generate_lead'/);
   assert.match(script, /method: 'mailto_brief'/);
   assert.match(script, /trackFirstPartyEvent\('page_view'\)/);
@@ -64,5 +63,5 @@ test('free page brief builds an email handoff without backend dependencies', () 
   assert.match(script, /saveBriefToCrm/);
   assert.match(script, /3dvr-crm/);
   assert.match(script, /crm-touch-log/);
-  assert.match(script, /Lead captured; draft requested/);
+  assert.match(script, /Lead captured; concept requested/);
 });

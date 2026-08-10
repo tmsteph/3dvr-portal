@@ -30,7 +30,7 @@ test('commercial outreach is blocked when a physical postal address is missing',
   assert.match(result.errors.join(' '), /postal/i);
 });
 
-test('free-page campaign copy offers a no-cost draft without invented site claims', () => {
+test('free-page campaign copy offers a no-cost homepage concept without invented site claims', () => {
   const previousProfile = process.env.THREEDVR_OUTREACH_OFFER_PROFILE;
   const previousAddress = process.env.THREEDVR_OUTREACH_POSTAL_ADDRESS;
   process.env.THREEDVR_OUTREACH_OFFER_PROFILE = 'free-page';
@@ -38,7 +38,7 @@ test('free-page campaign copy offers a no-cost draft without invented site claim
   try {
     const draft = buildTemplateOutreachDraft({ name: 'Acme Studio' });
     assert.equal(draft.source, 'template-free-page');
-    assert.match(draft.text, /one-page website for free/i);
+    assert.match(draft.text, /free homepage concept/i);
     assert.doesNotMatch(draft.text, /noticed|looked at|problem with your site/i);
     assert.equal(validateCommercialOutreach(draft.text, process.env).ok, true);
   } finally {
@@ -55,7 +55,7 @@ test('free-page experiment variant b changes the call to action and stays compli
   try {
     const draft = buildTemplateOutreachDraft({ name: 'Acme', experimentVariant: 'b' });
     assert.equal(draft.source, 'template-free-page-b');
-    assert.match(draft.text, /Would you like me to make one for Acme/i);
+    assert.match(draft.text, /Would you like to take a look/i);
     assert.equal(validateCommercialOutreach(draft.text).ok, true);
   } finally {
     delete process.env.THREEDVR_OUTREACH_OFFER_PROFILE;

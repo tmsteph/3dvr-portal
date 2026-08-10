@@ -97,12 +97,12 @@ async function saveBriefToCrm(formData) {
     email: leadEmail,
     company: name,
     role: 'Founder / operator',
-    tags: ['free-page', 'new-business', 'inbound'],
+    tags: ['free-page', 'homepage-concept', 'inbound'],
     status: 'new',
     warmth: 'warm',
     source: 'free-page',
-    offerAmount: '$5/month starter; $20/month launch lane',
-    nextBestAction: 'Review the brief and prepare the first-page draft.',
+    offerAmount: '$300 Starter Microsite; ongoing support available',
+    nextBestAction: 'Review the brief and prepare the personalized homepage concept.',
     nextFollowUp: now.slice(0, 10),
     activityCount: 1,
     created: now,
@@ -117,8 +117,8 @@ async function saveBriefToCrm(formData) {
     type: 'inbound',
     channel: 'free-page',
     source: 'free-page',
-    summary: 'Inbound request for a free first website draft.',
-    outcome: 'Lead captured; draft requested.',
+    summary: 'Inbound request for a free personalized homepage concept.',
+    outcome: 'Lead captured; concept requested.',
     message: JSON.stringify({ name, email: leadEmail, offer, audience, action, contact }),
     created: now,
     updated: now
@@ -132,15 +132,15 @@ async function saveBriefToCrm(formData) {
 
 function buildMailto(formData) {
   const name = valueFor(formData, 'name', 'A new 3DVR page');
-  const offer = valueFor(formData, 'offer', 'I want help turning this into a simple one-page website.');
+  const offer = valueFor(formData, 'offer', 'I want a clearer homepage concept for my business.');
   const audience = valueFor(formData, 'audience', 'People who might hire, book, buy, or understand this.');
   const action = valueFor(formData, 'action', 'Contact me');
   const contact = valueFor(formData, 'contact', 'I will send the best contact link next.');
   const leadEmail = valueFor(formData, 'email', '');
 
-  const subject = `Free 3DVR one-page website for ${name}`;
+  const subject = `Free homepage concept for ${name}`;
   const body = [
-    'I want a free one-page 3DVR website draft.',
+    'I want a free personalized homepage concept.',
     '',
     `Name/business: ${name}`,
     `Offer/project: ${offer}`,
@@ -149,7 +149,7 @@ function buildMailto(formData) {
     `Best contact link: ${contact}`,
     `Best email for reply: ${leadEmail}`,
     '',
-    'If I like it, I am open to keeping it live for $5/month.'
+    'If the direction works, I am open to finishing and publishing the page.'
   ].join('\n');
 
   return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -168,8 +168,8 @@ trackFirstPartyEvent('page_view');
 
 shareButton?.addEventListener('click', async () => {
   const shareData = {
-    title: 'A free first website from 3DVR',
-    text: 'Starting a business or side hustle? Get a clean first website for free.',
+    title: 'A free homepage concept from 3DVR',
+    text: 'Make your local business easier to understand and contact with a free homepage concept.',
     url: shareUrl
   };
   try {
@@ -200,7 +200,7 @@ if (form && mailtoLink && handoffCopy) {
     const formData = new FormData(form);
     const href = buildMailto(formData);
     mailtoLink.href = href;
-    handoffCopy.textContent = 'Your brief is saved to our follow-up desk. Review the email, add links or photos, and send.';
+    handoffCopy.textContent = 'Your brief is saved to our follow-up desk. Review the email and send it to request your private preview.';
     await Promise.race([
       saveBriefToCrm(formData),
       trackLeadIntent(),
