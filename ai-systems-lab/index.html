@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0d1117">
+  <title>AI Systems Lab | 3DVR Portal</title>
+  <meta name="description" content="3DVR field guide to AI systems: scaling, Gemini, inference-time reasoning, agents, verification, OpenClaw, Codex, RUNE, and an open computing roadmap.">
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/index-style.css">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-logo.svg">
+  <script defer src="/_vercel/insights/script.js"></script>
+  <style>
+    :root {
+      --lab-bg: #071018;
+      --lab-panel: rgba(13, 24, 35, 0.88);
+      --lab-border: rgba(111, 190, 255, 0.18);
+      --lab-blue: #74c7ff;
+      --lab-cyan: #61f4d2;
+      --lab-violet: #b9a8ff;
+      --lab-gold: #ffd48a;
+      --lab-text: #e9f2fa;
+      --lab-muted: #9fb4c5;
+      --lab-max: 1120px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--lab-bg); }
+    body.lab-page {
+      margin: 0; min-height: 100vh; color: var(--lab-text);
+      background: radial-gradient(circle at 18% -4%, rgba(48,128,214,.22), transparent 35rem), radial-gradient(circle at 88% 9%, rgba(97,244,210,.09), transparent 30rem), linear-gradient(180deg,#071018 0%,#09131d 44%,#070d13 100%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.65;
+    }
+    .lab-progress { position: fixed; z-index: 50; top: 0; left: 0; width: 0; height: 3px; background: linear-gradient(90deg,var(--lab-blue),var(--lab-cyan)); box-shadow: 0 0 18px rgba(97,244,210,.55); }
+    .lab-shell { width: min(100% - 28px, var(--lab-max)); margin: 0 auto; }
+    .lab-topbar { position: sticky; top: 0; z-index: 40; backdrop-filter: blur(18px); background: rgba(7,16,24,.82); border-bottom: 1px solid var(--lab-border); }
+    .lab-topbar__inner { min-height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+    .lab-brand { display: flex; align-items: center; gap: 10px; color: var(--lab-text); text-decoration: none; font-weight: 800; }
+    .lab-brand img { width: 30px; height: 30px; }
+    .lab-back { color: var(--lab-muted); text-decoration: none; font-size: .92rem; border: 1px solid var(--lab-border); border-radius: 999px; padding: 8px 12px; background: rgba(255,255,255,.025); }
+    .lab-hero { padding: clamp(64px,10vw,116px) 0 54px; }
+    .lab-kicker { color: var(--lab-cyan); letter-spacing: .14em; text-transform: uppercase; font-size: .76rem; font-weight: 900; }
+    .lab-hero h1 { margin: 14px 0 18px; max-width: 900px; font-size: clamp(2.45rem,7vw,5.9rem); line-height: .98; letter-spacing: -.055em; }
+    .lab-gradient { background: linear-gradient(100deg,#f8fbff 10%,var(--lab-blue) 48%,var(--lab-cyan)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .lab-lede { max-width: 790px; color: #bed0de; font-size: clamp(1.05rem,2.2vw,1.32rem); }
+    .lab-hero__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+    .lab-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 15px; border-radius: 999px; border: 1px solid rgba(116,199,255,.36); color: #eefdff; text-decoration: none; background: rgba(21,61,91,.62); font-weight: 800; }
+    .lab-button--ghost { background: rgba(255,255,255,.025); color: var(--lab-muted); border-color: var(--lab-border); }
+    .lab-source-note { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 24px; color: #89a4b8; font-size: .9rem; }
+    .lab-nav-wrap { padding-bottom: 34px; }
+    .lab-nav { display: flex; gap: 8px; overflow-x: auto; padding: 8px 2px 14px; scrollbar-width: thin; }
+    .lab-nav a { white-space: nowrap; color: #a8bccb; text-decoration: none; font-size: .86rem; font-weight: 800; border: 1px solid var(--lab-border); padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,.025); }
+    .lab-section { scroll-margin-top: 86px; padding: 48px 0; border-top: 1px solid rgba(111,190,255,.09); }
+    .lab-section__head { max-width: 800px; margin-bottom: 25px; }
+    .lab-section__number { color: var(--lab-blue); font-weight: 900; font-size: .78rem; letter-spacing: .12em; text-transform: uppercase; }
+    .lab-section h2 { margin: 8px 0 10px; font-size: clamp(1.75rem,4.8vw,3rem); line-height: 1.1; letter-spacing: -.035em; }
+    .lab-section__head p, .lab-copy { color: #aec2d1; }
+    .lab-principle { margin: 26px 0; padding: clamp(20px,4vw,34px); border-radius: 22px; border: 1px solid rgba(97,244,210,.2); background: linear-gradient(135deg,rgba(15,42,57,.92),rgba(18,29,49,.84)); font-size: clamp(1.18rem,3vw,1.65rem); font-weight: 850; letter-spacing: -.025em; }
+    .lab-principle strong { color: var(--lab-cyan); }
+    .lab-grid { display: grid; grid-template-columns: repeat(12,1fr); gap: 14px; }
+    .lab-card { grid-column: span 4; border: 1px solid var(--lab-border); border-radius: 18px; padding: 19px; background: var(--lab-panel); min-width: 0; }
+    .lab-card--wide { grid-column: span 6; }
+    .lab-card__icon { font-size: 1.45rem; }
+    .lab-card h3 { margin: 9px 0 7px; font-size: 1.04rem; }
+    .lab-card p { margin: 0; color: var(--lab-muted); font-size: .94rem; }
+    .lab-flow { overflow-x: auto; margin: 24px 0; padding: 22px; border-radius: 20px; border: 1px solid var(--lab-border); background: rgba(3,10,16,.7); }
+    .lab-flow pre { margin: 0; min-width: 600px; color: #d7e9f5; font: 600 .9rem/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; white-space: pre; }
+    .lab-code { margin: 20px 0; overflow-x: auto; border-radius: 18px; border: 1px solid rgba(185,168,255,.18); background: #070b11; }
+    .lab-code__label { padding: 10px 14px; border-bottom: 1px solid rgba(185,168,255,.12); color: var(--lab-violet); font-size: .78rem; font-weight: 900; text-transform: uppercase; letter-spacing: .1em; }
+    .lab-code pre { margin: 0; padding: 18px; min-width: 620px; color: #d8e4ef; font: .88rem/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+    .lab-timeline { position: relative; display: grid; gap: 12px; }
+    .lab-timeline::before { content: ""; position: absolute; top: 10px; bottom: 10px; left: 19px; width: 1px; background: linear-gradient(var(--lab-blue),var(--lab-violet)); opacity: .35; }
+    .lab-era { position: relative; padding: 15px 16px 15px 52px; border: 1px solid var(--lab-border); border-radius: 16px; background: rgba(13,24,35,.66); }
+    .lab-era::before { content: ""; position: absolute; top: 21px; left: 14px; width: 11px; height: 11px; border-radius: 50%; background: var(--lab-blue); box-shadow: 0 0 0 5px rgba(116,199,255,.08); }
+    .lab-era strong { display: block; color: #f1f8fd; }
+    .lab-era span { color: var(--lab-muted); font-size: .92rem; }
+    .lab-callout { margin: 24px 0; padding: 20px 22px; border-left: 3px solid var(--lab-gold); border-radius: 0 14px 14px 0; background: rgba(255,212,138,.06); color: #d7c7a7; }
+    .lab-callout strong { color: #ffe0aa; }
+    .lab-roadmap { display: grid; gap: 12px; }
+    .lab-roadmap__item { display: grid; grid-template-columns: minmax(110px,.25fr) 1fr; gap: 16px; padding: 20px; border-radius: 17px; border: 1px solid var(--lab-border); background: var(--lab-panel); }
+    .lab-roadmap__time { color: var(--lab-cyan); font-weight: 900; }
+    .lab-roadmap__body strong { display: block; margin-bottom: 5px; }
+    .lab-roadmap__body p { margin: 0; color: var(--lab-muted); }
+    .lab-north-star { position: relative; overflow: hidden; margin: 20px 0 10px; padding: clamp(25px,6vw,55px); border-radius: 28px; background: linear-gradient(135deg,rgba(29,72,105,.82),rgba(20,38,58,.92) 45%,rgba(15,63,62,.82)); border: 1px solid rgba(116,199,255,.25); }
+    .lab-north-star::after { content: "✦"; position: absolute; right: 4%; top: -15%; font-size: clamp(8rem,24vw,18rem); color: rgba(255,255,255,.035); line-height: 1; }
+    .lab-north-star h2 { position: relative; z-index: 1; max-width: 850px; font-size: clamp(2rem,5vw,4.1rem); margin: 6px 0 18px; }
+    .lab-north-star p { position: relative; z-index: 1; max-width: 760px; color: #c6d9e5; }
+    .lab-sources { display: grid; gap: 10px; margin: 18px 0 0; }
+    .lab-source { padding: 14px 16px; border: 1px solid var(--lab-border); border-radius: 14px; background: rgba(255,255,255,.02); }
+    .lab-source a { color: #b9ddff; font-weight: 800; }
+    .lab-source span { display: block; color: var(--lab-muted); font-size: .87rem; margin-top: 3px; }
+    .lab-footer { padding: 46px 0 80px; color: #7891a4; font-size: .9rem; }
+    @media (max-width:820px) { .lab-card,.lab-card--wide { grid-column: span 6; } .lab-roadmap__item { grid-template-columns: 1fr; gap: 5px; } }
+    @media (max-width:580px) { .lab-shell { width: min(100% - 20px,var(--lab-max)); } .lab-topbar__inner { min-height: 55px; } .lab-brand span { font-size: .88rem; } .lab-back { padding: 7px 10px; font-size: .82rem; } .lab-hero { padding-top: 54px; } .lab-card,.lab-card--wide { grid-column: 1 / -1; } .lab-flow,.lab-code { margin-left: -3px; margin-right: -3px; } }
+    @media (prefers-reduced-motion:reduce) { html { scroll-behavior: auto; } }
+  </style>
+</head>
+<body class="lab-page">
+  <div class="lab-progress" aria-hidden="true" data-progress></div>
+  <header class="lab-topbar"><div class="lab-shell lab-topbar__inner"><a class="lab-brand" href="/"><img src="/brand/portal-logo.svg" alt=""><span>3DVR · AI Systems Lab</span></a><a class="lab-back" href="/">← Portal</a></div></header>
+  <main>
+    <section class="lab-hero lab-shell">
+      <div class="lab-kicker">Field Guide 001 · August 2026</div>
+      <h1><span class="lab-gradient">From scaling to agents.</span><br>Building the open computing layer around intelligence.</h1>
+      <p class="lab-lede">A working field guide inspired by Jeff Dean’s February 10, 2026 Princeton Distinguished Colloquium and a February 12 companion interview. It connects the history of modern AI to a practical 3DVR roadmap: inference-time reasoning, model routing, agent orchestration, verification, OpenClaw, Codex, RUNE, local AI, and eventually open hardware.</p>
+      <div class="lab-hero__actions"><a class="lab-button" href="#thesis">Start the guide ↓</a><a class="lab-button lab-button--ghost" href="#roadmap">Jump to the build roadmap</a></div>
+      <div class="lab-source-note"><span>Distinction matters: Dean’s statements are summarized as research context; the 3DVR architecture and roadmap are our interpretation.</span></div>
+    </section>
+
+    <div class="lab-shell lab-nav-wrap" aria-label="Guide sections"><nav class="lab-nav"><a href="#thesis">Core thesis</a><a href="#history">How we got here</a><a href="#inference">Inference-time compute</a><a href="#gemini">Gemini + routing</a><a href="#agents">Agents</a><a href="#verification">Verification</a><a href="#runtime">OpenClaw + Codex</a><a href="#rune">RUNE</a><a href="#hardware">Hardware</a><a href="#roadmap">Roadmap</a></nav></div>
+
+    <section class="lab-section" id="thesis"><div class="lab-shell">
+      <div class="lab-section__head"><div class="lab-section__number">01 · Core thesis</div><h2>AI progress is a systems story.</h2><p>The useful unit is not “the model.” It is the whole stack: algorithms, architectures, data, training, inference, hardware, distributed systems, tools, evaluators, and human control.</p></div>
+      <div class="lab-principle">Better algorithms <strong>×</strong> more scale <strong>×</strong> better systems <strong>= nonlinear capability.</strong></div>
+      <div class="lab-grid">
+        <article class="lab-card"><div class="lab-card__icon">🧠</div><h3>Architectures</h3><p>Representation learning, sequence models, attention, Transformers, multimodality.</p></article>
+        <article class="lab-card"><div class="lab-card__icon">⚙️</div><h3>Systems</h3><p>Distributed training, serving, memory movement, batching, latency, reliability.</p></article>
+        <article class="lab-card"><div class="lab-card__icon">🧱</div><h3>Hardware</h3><p>Specialized accelerators appear when important workloads expose expensive bottlenecks.</p></article>
+        <article class="lab-card"><div class="lab-card__icon">🧭</div><h3>Inference</h3><p>Hard tasks can receive more computation, tools, attempts, retrieval, and critique than easy ones.</p></article>
+        <article class="lab-card"><div class="lab-card__icon">🤖</div><h3>Agents</h3><p>Models become workers when they can plan, act through tools, coordinate, and persist over time.</p></article>
+        <article class="lab-card"><div class="lab-card__icon">✅</div><h3>Verification</h3><p>“I did it” is not evidence. Reliable systems check outputs against tests, artifacts, constraints, and human approval.</p></article>
+      </div>
+    </div></section>
+
+    <section class="lab-section" id="history"><div class="lab-shell">
+      <div class="lab-section__head"><div class="lab-section__number">02 · How we got here</div><h2>The ideas were early. The world had to catch up.</h2><p>Neural networks were not suddenly invented in the 2010s. What changed was our ability to train large systems, learn useful internal representations, and build hardware that made the workloads economically possible.</p></div>
+      <div class="lab-timeline">
+        <div class="lab-era"><strong>Neural networks + parallelism</strong><span>Early ideas about learned representations and spreading training across processors existed long before today’s scale.</span></div>
+        <div class="lab-era"><strong>Unsupervised representation learning</strong><span>Large systems began learning useful internal concepts directly from raw data instead of relying only on hand-coded rules.</span></div>
+        <div class="lab-era"><strong>Word vectors + sequence-to-sequence</strong><span>Meaning and transformations could be represented geometrically and learned from examples.</span></div>
+        <div class="lab-era"><strong>Specialized accelerators</strong><span>Neural workloads pushed Google toward TPUs: build hardware around the expensive computation rather than forcing every workload onto a generic machine.</span></div>
+        <div class="lab-era"><strong>Transformers + self-supervision</strong><span>Attention architectures and vast self-supervised datasets turned scaling into a remarkably general capability engine.</span></div>
+        <div class="lab-era"><strong>Multimodal foundation models</strong><span>Text, image, audio, video, code, and other modalities increasingly live inside unified systems.</span></div>
+        <div class="lab-era"><strong>Inference-time reasoning + agents</strong><span>The system now spends computation after the prompt: plan, search, use tools, compare candidates, critique, retry, and coordinate workers.</span></div>
+      </div>
+      <div class="lab-callout"><strong>The TPU lesson for 3DVR:</strong> do not start by designing a RISC-V computer because custom silicon sounds exciting. First discover the computation the future system performs constantly. Measure the bottleneck. Then design the machine that makes that workload cheap.</div>
+    </div></section>
+
+    <section class="lab-section" id="inference"><div class="lab-shell">
+      <div class="lab-section__head"><div class="lab-section__number">03 · Inference-time compute</div><h2>Training builds capability. Inference decides how much of it to spend.</h2><p>The old mental model was prompt → model → answer. The emerging model gives difficult problems more time, attempts, tools, context, retrieval, and evaluation.</p></div>
+      <div class="lab-flow" role="img" aria-label="Inference-time reasoning loop diagram"><pre>                         QUESTION
+                            │
+                            ▼
+                          MODEL
+                            │
+             ┌──────────────┼──────────────┐
+             ▼              ▼              ▼
+          attempt         retrieve        tool
+             │              │              │
+             └──────────┬───┴───────┬──────┘
+                        ▼           ▼
+                    evaluate / compare
+                            │
+                       good enough?
+                        ↙       ↘
+                      no         yes
+                      │           │
+                    retry       ANSWER</pre></div>
+      <div class="lab-grid"><article class="lab-card lab-card--wide"><h3>Why this matters</h3><p>A trivial question and a hard proof no longer need the same computational treatment. The system can adapt effort to difficulty.</p></article><article class="lab-card lab-card--wide"><h3>Economic implication</h3><p>Smaller fast models can handle routine work while expensive frontier models are reserved for the moments that justify them.</p></article></div>
+    </div></section>
+
+    <section class="lab-section" id="gemini"><div class="lab-shell">
+      <div class="lab-section__head"><div class="lab-section__number">04 · Gemini + model routing</div><h2>Stop building intelligence as disconnected islands.</h2><p>Dean described Gemini as a push toward a unified multimodal effort instead of fragmenting researchers and compute across separate language and modality programs. The systems lesson is broader than any one model family.</p></div>
+      <div class="lab-flow" role="img" aria-label="Model routing diagram"><pre>                              TASK
+                               │
+                               ▼
+                            ROUTER
+             ┌─────────────────┼─────────────────┐
+             ▼                 ▼                 ▼
+        local / private     fast / cheap     frontier reasoner
+             │                 │                 │
+        quick memory        routine work       hard problems
+             └─────────────────┼─────────────────┘
+                               ▼
+                         shared result</pre></div>
+      <div class="lab-grid"><article class="lab-card"><h3>Fast model</h3><p>Low latency, high-volume actions, lightweight coding assistance, classification, routing.</p></article><article class="lab-card"><h3>Frontier model</h3><p>Deep reasoning, difficult planning, ambiguous evaluation, complex synthesis.</p></article><article class="lab-card"><h3>Local model</h3><p>Privacy, offline continuity, cheap repeated tasks, user-owned memory and control.</p></article></div>
+    </div></section>
+
+    <section class="lab-section" id="agents"><div class="lab-shell">
+      <div class="lab-section__head"><div class="lab-section__number">05 · Models → agents</div><h2>The interface shifts from operating tools to managing capabilities.</h2><p>An agent is not merely a chatbot with a longer prompt. It can decompose goals, call tools and other models, maintain state, inspect results, and continue until the mission is complete or blocked.</p></div>
+      <div class="lab-flow" role="img" aria-label="Agent orchestration diagram"><pre>                         HUMAN INTENT
+                              │
+                              ▼
+                         ORCHESTRATOR
+                              │
+                         decomposes goal
+                              │
+             ┌────────────────┼────────────────┐
+             ▼                ▼                ▼
+           coder           research          browser
+             │                │                │
+           tools            tools            tools
+             └────────────────┼────────────────┘
+                              ▼
+                            RESULT</pre></div>
+      <div class="lab-principle">The future UI may look less like “open the right app” and more like <strong>“tell the system what outcome you want.”</strong></div>
+      <p class="lab-copy">Dean has discussed a future in which one person might coordinate many virtual workers, organized into manageable teams rather than directly micromanaging every agent. The practical lesson for us is not “spawn 50 agents tomorrow.” It is to design clean delegation boundaries now.</p>
+    </div></section>
+
+    <section class="lab-section" id="verification"><div class="lab-shell">
+      <div class="lab-section__head"><div class="lab-section__number">06 · Verification</div><h2>“Done” is a claim. Evidence makes it real.</h2><p>Agent reliability is increasingly a verification problem. Coding is especially powerful because many outputs can be compiled, tested, benchmarked, rendered, and inspected.</p></div>
+      <div class="lab-flow" role="img" aria-label="Verification loop diagram"><pre>                         AGENT ACTION
+                              │
+                              ▼
+                            EVIDENCE
+                 ┌────────────┼────────────┐
+                 ▼            ▼            ▼
+               tests        browser        git
+                 │            │            │
+                 └────────────┼────────────┘
+                              ▼
+                         EVALUATOR
+                        ↙         ↘
+                     FAIL         PASS
+                      │             │
+                    retry        approval?
+                                    │
+                                    ▼
+                                   DONE</pre></div>
+      <div class="lab-grid"><article class="lab-card"><h3>Machine-verifiable</h3><p>Tests, types, HTTP responses, benchmarks, screenshots, file diffs, deterministic constraints.</p></article><article class="lab-card"><h3>Model-verifiable</h3><p>Critics can compare candidates, check rubrics, identify omissions, and challenge assumptions.</p></article><article class="lab-card"><h3>Human-verifiable</h3><p>Approvals remain essential for consequential, subjective, irreversible, or trust-sensitive actions.</p></article></div>
+      <div class="lab-callout"><strong>Gauntlet principle:</strong> change made ≠ task completed. A blocked evidence path should produce BLOCKED, not a confident success message. That is a feature of a trustworthy agent system.</div>
+    </div></section>
+
+    <section class="lab-section" id="runtime"><div class="lab-shell">
+      <div class="lab-section__head"><div class="lab-section__number">07 · Practical runtime</div><h2>OpenClaw should coordinate. Codex should specialize.</h2><p>Do not rebuild a coding agent inside the orchestrator. Let the control plane understand missions, delegate bounded jobs, collect evidence, enforce approvals, and swap workers as the ecosystem changes.</p></div>
+      <div class="lab-flow" role="img" aria-label="OpenClaw and Codex architecture"><pre>                              HUMAN
+                                │
+                         "Fix homepage"
+                                │
+                                ▼
+                         ┌─────────────┐
+                         │  OPENCLAW   │
+                         │ control plane│
+                         └──────┬──────┘
+                                │
+                              PLAN
+                                │
+              ┌─────────────────┼─────────────────┐
+              ▼                 ▼                 ▼
+            CODE              BROWSER          RESEARCH
+              │                 │                 │
+            Codex          browser runtime       web/data
+              │                 │                 │
+              └─────────────────┼─────────────────┘
+                                ▼
+                             EVIDENCE
+                                │
+                         ┌──────▼──────┐
+                         │ EVALUATOR  │
+                         └──────┬──────┘
+                                │
+                          pass / blocked
+                                │
+                                ▼
+                              HUMAN</pre></div>
+      <div class="lab-grid"><article class="lab-card"><h3>Mission</h3><p>What outcome are we trying to create?</p></article><article class="lab-card"><h3>Worker</h3><p>Which model, agent, person, or tool should own this bounded job?</p></article><article class="lab-card"><h3>Constraints</h3><p>What must not change? What requires permission?</p></article><article class="lab-card"><h3>Evidence</h3><p>What artifacts prove the work actually happened?</p></article><article class="lab-card"><h3>Evaluator</h3><p>How do we decide pass, fail, retry, or blocked?</p></article><article class="lab-card"><h3>Approval</h3><p>Where must a human explicitly take responsibility?</p></article></div>
+    </div></section>
+
+    <section class="lab-section" id="rune"><div class="lab-shell">
+      <div class="lab-section__head"><div class="lab-section__number">08 · Specification + RUNE</div><h2>The new programming skill is describing intent precisely.</h2><p>Agentic systems make specifications operational. A good mission says what success means, what evidence is required, and where the system must stop for a person.</p></div>
+      <div class="lab-code"><div class="lab-code__label">RUNE · mission sketch</div><pre>mission homepage_repair {
+    goal:
+        homepage renders correctly
+
+    worker:
+        codex
+
+    constraints:
+        preserve existing design
+        no production deployment
+        do not modify unrelated files
+
+    verify:
+        build passes
+        tests pass
+        homepage returns 200
+        browser console has no errors
+        screenshot exists
+
+    on_failure:
+        retry 2
+
+    approval:
+        human before merge
+}</pre></div>
+      <p class="lab-copy">RUNE does not need to begin as another giant general-purpose language. Its first useful form could be a human-readable mission specification language for intelligent systems. That is a smaller, testable path toward “computers directed by intention.”</p>
+    </div></section>
+
+    <section class="lab-section" id="hardware"><div class="lab-shell">
+      <div class="lab-section__head"><div class="lab-section__number">09 · Hardware after workload</div><h2>Eventually, the workload tells us what machine to build.</h2><p>Dean emphasizes how expensive data movement can be relative to arithmetic. That makes memory hierarchy, model placement, batching, and accelerator design central to efficient AI systems.</p></div>
+      <div class="lab-principle">Software → measurement → architecture → <strong>silicon.</strong> Not silicon first.</div>
+      <div class="lab-grid"><article class="lab-card lab-card--wide"><h3>Possible future local stack</h3><p>RISC-V host CPU + open inference accelerator + large shared memory + small persistent local model + user-owned memory.</p></article><article class="lab-card lab-card--wide"><h3>Cloud escalation</h3><p>Local systems handle private and routine work; frontier services are called only for problems that justify the cost or capability.</p></article></div>
+    </div></section>
+
+    <section class="lab-section" id="roadmap"><div class="lab-shell">
+      <div class="lab-section__head"><div class="lab-section__number">10 · 3DVR build roadmap</div><h2>Build the layer above the models first.</h2><p>We do not need to compete with frontier labs at foundation-model training. We can build the open layer that gives intelligence memory, tools, verification, routing, permissions, and a human-centered interface.</p></div>
+      <div class="lab-roadmap">
+        <div class="lab-roadmap__item"><div class="lab-roadmap__time">Now · 30 days</div><div class="lab-roadmap__body"><strong>Tiny agent runtime</strong><p>Goal → plan → worker → evidence → evaluator → approval. Treat receipts and BLOCKED states as first-class product features.</p></div></div>
+        <div class="lab-roadmap__item"><div class="lab-roadmap__time">1–3 months</div><div class="lab-roadmap__body"><strong>Bounded specialist workers</strong><p>Coder, researcher, browser/operator, designer, sysadmin, and sales research—delegated by one orchestrator, not six giant personalities.</p></div></div>
+        <div class="lab-roadmap__item"><div class="lab-roadmap__time">3–6 months</div><div class="lab-roadmap__body"><strong>Interchangeable model router</strong><p>Choose local, cheap, coding, vision, or frontier reasoning models by task, privacy, latency, and cost.</p></div></div>
+        <div class="lab-roadmap__item"><div class="lab-roadmap__time">6–12 months</div><div class="lab-roadmap__body"><strong>RUNE mission language</strong><p>Turn constraints, success criteria, retries, evidence, permissions, and approvals into a portable open specification.</p></div></div>
+        <div class="lab-roadmap__item"><div class="lab-roadmap__time">1–2 years</div><div class="lab-roadmap__body"><strong>Hardware exploration from real telemetry</strong><p>Only after workloads become obvious: evaluate open accelerators, RISC-V hosts, shared memory, local model persistence, and low-power agent runtimes.</p></div></div>
+      </div>
+    </div></section>
+
+    <section class="lab-section"><div class="lab-shell"><div class="lab-north-star"><div class="lab-kicker">North star</div><h2>Give ordinary people computers they can direct by intention.</h2><p>The old computer waits for commands. The new computer understands a goal, makes a plan, recruits resources, acts, checks itself, asks permission when necessary, learns from the result, and reports back.</p><p>Underneath that human interface can remain everything 3DVR cares about: open source, Linux, RISC-V, local AI, distributed systems, custom languages, user-owned data, and community infrastructure.</p></div></div></section>
+
+    <section class="lab-section" id="sources"><div class="lab-shell">
+      <div class="lab-section__head"><div class="lab-section__number">Sources + context</div><h2>Primary anchors for this field guide.</h2><p>This is a synthesis and product roadmap, not a transcript. Where the guide moves into 3DVR design, it is explicitly our interpretation.</p></div>
+      <div class="lab-sources"><div class="lab-source"><a href="https://www.cs.princeton.edu/events/important-trends-ai-how-did-we-get-here-what-can-we-do-now-and-where-are-we-headed" target="_blank" rel="noopener noreferrer">Princeton CS · Important Trends in AI</a><span>Official event description for Jeff Dean’s February 10, 2026 Distinguished Colloquium.</span></div><div class="lab-source"><a href="https://www.latent.space/p/jeffdean" target="_blank" rel="noopener noreferrer">Latent Space · Jeff Dean interview</a><span>February 12, 2026 companion discussion covering Gemini, agents, verification, latency, model orchestration, and hardware themes.</span></div><div class="lab-source"><a href="https://openai.com/codex/" target="_blank" rel="noopener noreferrer">OpenAI Codex</a><span>Current example of a coding specialist that can inspect repositories, edit code, run commands, and validate work.</span></div></div>
+    </div></section>
+  </main>
+  <footer class="lab-footer"><div class="lab-shell">3DVR AI Systems Lab · Field Guide 001 · Build the open system around intelligence.</div></footer>
+  <script>(() => { const bar=document.querySelector('[data-progress]'); if(!bar)return; const update=()=>{ const doc=document.documentElement; const max=doc.scrollHeight-window.innerHeight; const progress=max>0?(window.scrollY/max)*100:0; bar.style.width=`${Math.min(100,Math.max(0,progress))}%`; }; update(); window.addEventListener('scroll',update,{passive:true}); window.addEventListener('resize',update); })();</script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
