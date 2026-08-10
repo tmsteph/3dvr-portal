@@ -3,6 +3,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { validateMission } = require('./mission-schema');
+const { compileRune } = require('./mission-rune');
 const { DEFAULT_STATE_ROOT, appendEvent, initialState, loadState, readEvents, saveState, transition } = require('./mission-store');
 const { approve: approveRecord, createApproval } = require('./mission-approvals');
 const { nextTask, plan, retryAllowed } = require('./mission-planner');
@@ -39,7 +40,20 @@ function parseArgs(argv = process.argv.slice(2)) {
 }
 
 async function loadMission(missionId, missionsDir = MISSIONS) {
-  const mission = JSON.parse(await fs.readFile(path.join(missionsDir, `${missionId}.json`), 'utf8'));
+  const jsonPath = path.join(missionsDir, `${missionId}.json`);
+  const runePath = path.join(missionsDir, `${missionId}.rune`);
+  let mission;
+  try {
+    mission = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    try {
+      mission = compileRune(await fs.readFile(runePath, 'utf8'), { sourceName: runePath });
+    } catch (runeError) {
+      if (runeError.code === 'ENOENT') throw new Error(`Mission ${missionId} was not found as JSON or RUNE.`);
+      throw runeError;
+    }
+  }
   const errors = validateMission(mission); if (errors.length) throw new Error(errors.join('; '));
   return mission;
 }
