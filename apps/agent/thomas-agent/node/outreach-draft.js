@@ -100,8 +100,8 @@ function buildTemplateOutreachDraft(lead = {}) {
   if (offerProfile === 'free-page') {
     const variant = normalizeText(lead.experimentVariant || lead.variant).toLowerCase();
     const body = variant === 'b'
-      ? `Hi ${name} team,\n\nI'm Thomas in San Diego. I make simple web pages for local businesses. The first draft is free. You do not have to use it.${previewLine}\n\nWould you like me to make one for ${name}?\n\nThomas`
-      : `Hi ${name} team,\n\nI'm Thomas in San Diego. I can make you a simple one-page website for free. It will show what you do and how to reach you.${previewLine}\n\nWould this help your business?\n\nThomas`;
+      ? `Hi ${name} team,\n\nI'm Thomas in San Diego. I made a free homepage concept for ${name}. It shows what you do, why customers should trust you, and the easiest next step.${previewLine}\n\nWould you like to take a look?\n\nThomas`
+      : `Hi ${name} team,\n\nI'm Thomas in San Diego. I made a free homepage concept for ${name}. It shows what you do and how customers can reach you.${previewLine}\n\nWould you like to take a look?\n\nThomas`;
     return {
       source: variant === 'b' ? 'template-free-page-b' : 'template-free-page',
       text: finalizeCommercialOutreach(body),
@@ -120,7 +120,7 @@ function buildTemplateOutreachDraft(lead = {}) {
   const hint = defaultHint(lead.site, lead.contact);
   return {
     source: 'template',
-    text: finalizeCommercialOutreach(`Hi ${name} team,\n\nI'm Thomas with 3dvr.tech. We help small businesses clean up websites, follow-up systems, and simple online workflows so customers have an easier next step.\n\nAre you running into any ${hint} problems right now?\n\nIf not, no problem. I just wanted to introduce myself.\n\nThomas\n3dvr.tech`),
+    text: finalizeCommercialOutreach(`Hi ${name} team,\n\nI'm Thomas with 3dvr.tech. We help small businesses improve their websites, customer outreach, and simple online workflows so more people know what to do next.\n\nAre you running into any ${hint} problems right now?\n\nIf not, no problem. I just wanted to introduce myself.\n\nThomas\n3dvr.tech`),
   };
 }
 
@@ -136,8 +136,8 @@ function buildPrompt(lead = {}) {
   const contact = normalizeText(lead.contact);
   const offerLines = currentOfferProfile() === 'free-page'
     ? [
-      '- Offer a clean one-page website draft at no cost, with no obligation to keep it.',
-      '- Ask whether a simpler page would be useful for the business.',
+      '- Offer a personalized homepage concept at no cost, with no obligation to continue.',
+      '- Ask whether they would like to take a look at it.',
       '- Say Thomas is with 3dvr.tech in San Diego.',
     ]
     : currentOfferProfile() === 'av-operator'
@@ -148,7 +148,7 @@ function buildPrompt(lead = {}) {
         '- Ask whether they need reliable AV crew coverage for an upcoming event.',
       ]
       : [
-      '- Mention websites, follow-up systems, or online workflows in a natural way.',
+      '- Mention websites, customer outreach, or online workflows in a natural way.',
       '- Ask one concise question about whether something in their website or customer flow is harder than it should be.',
     ];
   return [
@@ -179,8 +179,8 @@ function buildLocalPrompt(lead = {}) {
   const contact = normalizeText(lead.contact);
   const offerLines = currentOfferProfile() === 'free-page'
     ? [
-      'Offer: a clean one-page website draft at no cost, with no obligation to keep it.',
-      'Ask whether a simpler page would be useful for the business.',
+      'Offer: a personalized homepage concept at no cost, with no obligation to continue.',
+      'Ask whether they would like to take a look at it.',
     ]
     : currentOfferProfile() === 'av-operator'
       ? [
@@ -195,7 +195,7 @@ function buildLocalPrompt(lead = {}) {
     'Write a very short first email from Thomas.',
     'Return only JSON: {"text":"..."}',
     'Voice: direct, warm, and human. Use words a third grader can read.',
-    'Facts: 3dvr.tech helps with website work, follow-up systems, clearer offers, and small workflow fixes.',
+    'Facts: 3dvr.tech helps with website work, customer outreach, clearer offers, and small workflow fixes.',
     'Do not invent prices, guarantees, integrations, or meetings.',
     'Do not include a signature beyond Thomas.',
     'If a contact phone number is configured, include the same footer block used by the inbox replies.',

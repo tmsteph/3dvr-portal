@@ -9,6 +9,8 @@ const business = clean(params.get('name'), 80) || 'your business';
 const focus = clean(params.get('focus'), 180)
   || 'A focused page can make your main service and best contact path obvious.';
 const action = clean(params.get('action'), 40) || 'Get in touch';
+const observation = clean(params.get('observation'), 180)
+  || 'Visitors should understand your main service without hunting through the page.';
 const fragment = new URLSearchParams(window.location.hash.slice(1));
 const contactEmail = validEmail(fragment.get('email'));
 const analyticsClient = createFreePageAnalyticsClient();
@@ -52,7 +54,9 @@ document.querySelector('[data-host]').textContent = `${slug(business) || 'your-b
 document.querySelector('[data-headline]').textContent = `${business}, made easier to understand and contact.`;
 document.querySelector('[data-focus]').textContent = focus;
 document.querySelector('[data-action]').textContent = action;
-document.title = `${business} website preview | 3DVR`;
+document.querySelector('[data-observation]').textContent = observation;
+document.querySelector('[data-next-step]').textContent = `The page points the right customer to one simple ${action.toLowerCase()} step.`;
+document.title = `${business} homepage concept | 3DVR`;
 
 const contactButton = document.querySelector('#contactButton');
 if (contactEmail) {
@@ -68,8 +72,8 @@ if (contactEmail) {
 }
 
 const claimButton = document.querySelector('#claimButton');
-const subject = `Claiming the free one-page draft for ${business}`;
-const body = `Hi Thomas,\n\nI'd like to claim the free one-page draft for ${business}.\n\nPreview reference: ${recipientId || 'not provided'}`;
+const subject = `Finish the homepage concept for ${business}`;
+const body = `Hi Thomas,\n\nI'd like to talk about finishing the homepage concept for ${business}.\n\nPreview reference: ${recipientId || 'not provided'}`;
 claimButton.href = `mailto:3dvr.tech@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 claimButton.addEventListener('click', () => track('claim_intent'));
 

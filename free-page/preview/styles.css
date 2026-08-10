@@ -46,6 +46,10 @@ h1 { margin: 12px 0 20px; font-size: clamp(2.25rem, 6vw, 5rem); line-height: 1.0
 .mock-proof { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .mock-proof article { display: grid; gap: 6px; padding-top: 18px; border-top: 1px solid #cbd5d1; }
 .mock-proof span { color: #68747d; }
+.notice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0 0 52px; }
+.notice-grid article { padding: 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); }
+.notice-grid h2 { margin: 4px 0 8px; font-size: clamp(1.45rem, 3vw, 2rem); }
+.notice-grid article p:last-child { margin: 0; color: var(--muted); }
 .claim-card { display: flex; justify-content: space-between; align-items: center; gap: 32px; padding: clamp(28px, 5vw, 52px); border: 1px solid var(--line); border-radius: 24px; background: var(--panel); }
 .claim-card h2 { margin: 8px 0; font-size: clamp(1.6rem, 4vw, 2.6rem); line-height: 1.15; }
 .claim-card p:last-child { color: var(--muted); }
@@ -54,6 +58,7 @@ footer { padding: 28px 0 48px; color: var(--muted); font-size: .85rem; }
 @media (max-width: 700px) {
   .site-header p, .mock-site nav span { display: none; }
   .mock-proof { grid-template-columns: 1fr; }
+  .notice-grid { grid-template-columns: 1fr; }
   .claim-card { align-items: stretch; flex-direction: column; }
   .claim-button { text-align: center; }
 }

@@ -94,6 +94,7 @@ test('ask-send consumes a ready queued draft in dry-run mode without sending', (
       encoding: 'utf8',
       env: {
         ...process.env,
+        THREEDVR_CONFIG_FILE: path.join(tmp, 'missing-env'),
         THREEDVR_LEADS_FILE: leadsFile,
         THREEDVR_OUTREACH_DRAFT_QUEUE_DIR: queueDir,
         THREEDVR_OUTREACH_MESSAGE_MODE: 'queue',
