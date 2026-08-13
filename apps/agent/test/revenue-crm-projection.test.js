@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createProspect, openLedger, pendingProjections, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
-const { projectPendingCrm } = require('../thomas-agent/node/revenue-crm-projection');
+const { projectPendingCrm, recordFor } = require('../thomas-agent/node/revenue-crm-projection');
 
 test('CRM projection retries a timeout and completes idempotently', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-projection-'));
@@ -19,4 +19,11 @@ test('CRM projection retries a timeout and completes idempotently', async () => 
     assert.equal(succeeded.succeeded, 1);
     assert.equal(pendingProjections(db).length, 0);
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('CRM projection preserves the legacy stable record identity', () => {
+  const record = recordFor({ id: 'uuid', name: 'Acme', contact: 'mailto:info@acme.test', source_url: 'https://acme.test', state: 'sent', campaign_id: '', created_at: '2026-01-01T00:00:00Z' }, { id: 'event' }, '2026-01-02T00:00:00Z');
+  assert.equal(record.id, 'agent-lead-info-acme-test');
+  assert.equal(record.status, 'Warm - Follow-up');
+  assert.equal(record.canonicalState, 'sent');
 });

@@ -1,14 +1,20 @@
 const { finishProjection, getProspect, pendingProjections } = require('./revenue-ledger');
-const { writeCrmSync } = require('./crm-sync');
+const { buildLeadId, writeCrmSync } = require('./crm-sync');
 
 function recordFor(prospect, event, now) {
+  const crmStatus = {
+    prospect: 'Lead', verified: 'Lead', drafted: 'Lead', eligible: 'Lead',
+    sent: 'Warm - Follow-up', replied: 'Warm - Discovery', bounced: 'Lost',
+    failed: 'Lost', suppressed: 'Closed',
+  }[prospect.state] || 'Lead';
   return {
-    id: `revenue-${prospect.id}`,
+    id: buildLeadId({ name: prospect.name, contact: prospect.contact, link: prospect.source_url }),
     recordType: 'person',
     name: prospect.name,
     company: prospect.name,
     email: /@/.test(prospect.contact) ? prospect.contact.replace(/^mailto:/i, '') : '',
-    status: prospect.state,
+    status: crmStatus,
+    canonicalState: prospect.state,
     source: '3dvr-revenue-ledger',
     campaignId: prospect.campaign_id,
     lastSignal: `Canonical revenue state: ${prospect.state}`,
@@ -20,10 +26,11 @@ function recordFor(prospect, event, now) {
 }
 
 function touchFor(prospect, event, now) {
+  const recordId = buildLeadId({ name: prospect.name, contact: prospect.contact, link: prospect.source_url });
   return {
     id: `revenue-event-${event.id}`,
-    recordId: `revenue-${prospect.id}`,
-    crmRecordId: `revenue-${prospect.id}`,
+    recordId,
+    crmRecordId: recordId,
     contactName: prospect.name,
     type: 'note',
     touchType: event.type,
