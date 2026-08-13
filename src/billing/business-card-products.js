@@ -2,13 +2,43 @@ export const MAX_ARTWORK_BYTES = 2_500_000;
 export const BUSINESS_TIME_ZONE = 'America/Los_Angeles';
 
 export const BUSINESS_CARD_PRODUCTS = Object.freeze({
-  'standard-250': Object.freeze({
-    id: 'standard-250',
-    name: '250 Business Cards',
-    quantity: 250,
+  'standard-50': Object.freeze({
+    id: 'standard-50',
+    name: '50 Business Cards',
+    quantity: 50,
     quality: 'Standard 16pt',
     sides: 'Two-sided',
-    priceCents: 7800,
+    priceCents: 2000,
+    currency: 'usd',
+    businessDays: 2,
+  }),
+  'standard-100': Object.freeze({
+    id: 'standard-100',
+    name: '100 Business Cards',
+    quantity: 100,
+    quality: 'Standard 16pt',
+    sides: 'Two-sided',
+    priceCents: 2900,
+    currency: 'usd',
+    businessDays: 2,
+  }),
+  'standard-200': Object.freeze({
+    id: 'standard-200',
+    name: '200 Business Cards',
+    quantity: 200,
+    quality: 'Standard 16pt',
+    sides: 'Two-sided',
+    priceCents: 3900,
+    currency: 'usd',
+    businessDays: 2,
+  }),
+  'standard-500': Object.freeze({
+    id: 'standard-500',
+    name: '500 Business Cards',
+    quantity: 500,
+    quality: 'Standard 16pt',
+    sides: 'Two-sided',
+    priceCents: 5900,
     currency: 'usd',
     businessDays: 2,
   }),
