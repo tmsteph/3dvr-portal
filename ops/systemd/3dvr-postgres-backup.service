@@ -1,0 +1,15 @@
+[Unit]
+Description=3DVR PostgreSQL backup
+Wants=network-online.target
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/3dvr-portal
+EnvironmentFile=/etc/3dvr/newsletter-store.env
+Environment=PG_BACKUP_DIR=/var/backups/3dvr/postgres
+ExecStart=/bin/sh /opt/3dvr-portal/ops/postgres/backup.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true

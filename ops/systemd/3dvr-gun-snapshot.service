@@ -1,0 +1,17 @@
+[Unit]
+Description=3DVR Gun known-root snapshot
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/3dvr-portal
+Environment=GUN_BACKUP_OUT_DIR=/var/backups/3dvr/gun-snapshots
+Environment=GUN_BACKUP_PEERS=wss://gun-relay-3dvr.fly.dev/gun,https://gun-relay-3dvr.fly.dev/gun
+Environment=GUN_BACKUP_MAX_NODES=500
+Environment=GUN_BACKUP_MAX_MEMORY_MB=256
+ExecStart=/usr/bin/node /opt/3dvr-portal/scripts/gun/backup-known-roots.mjs
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
