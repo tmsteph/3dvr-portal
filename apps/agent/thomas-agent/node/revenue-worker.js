@@ -30,7 +30,9 @@ async function run(triggerId = process.env.THREEDVR_TRIGGER_ID || `manual:${Date
 }
 
 if (require.main === module) {
-  run(process.argv[2]).then(result => console.log(JSON.stringify(result, null, 2))).catch(error => { console.error(error); process.exit(1); });
+  run(process.argv[2])
+    .then(result => { console.log(JSON.stringify(result, null, 2)); process.exit(result.status === 'succeeded' ? 0 : 1); })
+    .catch(error => { console.error(error); process.exit(1); });
 }
 
 module.exports = { run };
