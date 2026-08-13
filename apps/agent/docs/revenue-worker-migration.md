@@ -35,3 +35,15 @@ Do not enable the timer or stop the legacy inbox monitor until all gates pass:
    bounce/reply events, projection status, cost, and exception.
 
 Until then, no feature work or new lifecycle automation should be added.
+
+## Legacy-history reconciliation
+
+First produce a report; it is read-only and does not initialize the ledger:
+
+```bash
+node thomas-agent/node/revenue-history-import.js /root/.3dvr/state/autonomous-outreach/leads.csv /root/.3dvr/state/autonomous-outreach/outreach-log.ndjson
+```
+
+Resolve every conflict and invalid NDJSON line before `--apply`. The importer records
+only current historical state plus source-row provenance as `legacy_import` events;
+it never fabricates lifecycle steps, sends, or projects to CRM.

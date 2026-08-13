@@ -129,4 +129,29 @@ function finishRun(db, { runId, status, summary } = {}) {
   return db.prepare('SELECT * FROM revenue_runs WHERE id = ?').get(normalize(runId));
 }
 
-module.exports = { STATES, TRANSITIONS, contactKey, createProspect, finishRun, getProspect, openLedger, resolveLedgerPath, startRun, transitionProspect };
+// Imports are an auditable backfill, not normal lifecycle transitions. A legacy
+// CSV only tells us its current outcome; it must not invent historical events.
+function importProspectState(db, input = {}) {
+  const id = normalize(input.prospectId);
+  const toState = normalize(input.toState);
+  const idempotencyKey = normalize(input.idempotencyKey);
+  if (!id || !STATES.has(toState) || !idempotencyKey) throw new Error('prospectId, valid toState, and idempotencyKey are required');
+  const replay = db.prepare('SELECT * FROM revenue_events WHERE idempotency_key = ?').get(idempotencyKey);
+  if (replay) return { event: replay, replayed: true, prospect: getProspect(db, id) };
+  const prospect = getProspect(db, id);
+  if (!prospect) throw new Error(`Unknown prospect: ${id}`);
+  if (prospect.state !== 'prospect' && prospect.state !== toState) throw new Error(`Cannot import ${toState} over existing ${prospect.state} state`);
+  if (prospect.state === toState) return { event: null, replayed: true, prospect };
+  const now = new Date().toISOString();
+  const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type: 'legacy_import', from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(input.payload || {}), created_at: now };
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.prepare('UPDATE prospects SET state = ?, updated_at = ? WHERE id = ?').run(toState, now, id);
+    db.prepare(`INSERT INTO revenue_events (id, idempotency_key, prospect_id, type, from_state, to_state, payload_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(...Object.values(event));
+    db.exec('COMMIT');
+  } catch (error) { db.exec('ROLLBACK'); throw error; }
+  return { event, replayed: false, prospect: getProspect(db, id) };
+}
+
+module.exports = { STATES, TRANSITIONS, contactKey, createProspect, finishRun, getProspect, importProspectState, openLedger, resolveLedgerPath, startRun, transitionProspect };
