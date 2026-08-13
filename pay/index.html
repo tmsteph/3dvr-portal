@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07101d">
+  <title>Pay | 3DVR</title>
+  <meta name="description" content="Choose a 3DVR support plan and pay securely with Stripe. No portal account is required before checkout.">
+  <style>
+    :root{color-scheme:dark;--bg:#07101d;--panel:#122036;--text:#f7fbff;--muted:#a8b5c8;--accent:#65c8ff;--line:#ffffff20}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 15% 0%,#3399ff33,transparent 32rem),linear-gradient(#07101d,#091522);color:var(--text);font-family:Inter,system-ui,sans-serif}.shell{width:min(900px,calc(100% - 28px));margin:auto;padding:24px 0 56px}.brand{font-weight:900}.brand b{color:var(--accent)}.hero{padding:54px 0 26px;max-width:700px}.hero small{color:#9de7ff;font-weight:900;letter-spacing:.14em}.hero h1{font-size:clamp(2.5rem,8vw,5rem);line-height:.95;letter-spacing:-.055em;margin:10px 0 16px}.hero p{color:var(--muted);font-size:1.08rem;line-height:1.55;margin:0}.notice{margin-top:18px;padding:14px 16px;border:1px solid #9df3bd55;border-radius:14px;background:#195b363f;color:#c9fbd8}.plans{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.plan{display:grid;gap:12px;padding:22px;border:1px solid var(--line);border-radius:22px;background:#122036e8}.plan[data-selected="true"]{border-color:#65c8ff99;box-shadow:0 0 0 1px #65c8ff33}.plan small{color:#9de7ff;font-weight:800}.plan h2{margin:0;font-size:1.5rem}.price{font-size:2rem;font-weight:900}.plan p{margin:0;color:var(--muted);line-height:1.45}.pay{display:block;margin-top:auto;padding:14px 16px;border-radius:14px;text-align:center;text-decoration:none;background:linear-gradient(135deg,#9de7ff,var(--accent));color:#04111e;font-weight:900}.footer{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px;color:var(--muted);font-size:.9rem}.footer a{color:#c8ecff}@media(max-width:650px){.plans{grid-template-columns:1fr}.hero{padding-top:38px}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="brand"><b>3DVR</b> Pay</header>
+    <section class="hero">
+      <small>SIMPLE CHECKOUT</small>
+      <h1>Pick a plan. Pay. Done.</h1>
+      <p>No portal account first. Stripe handles payment securely. Use the portal later when you want projects, support history, or billing management.</p>
+      <div class="notice">Already subscribed? Use the Billing Center to manage your existing subscription instead of starting another one.</div>
+    </section>
+
+    <section class="plans" aria-label="3DVR monthly plans">
+      <article class="plan" data-plan="starter">
+        <small>FAMILY &amp; FRIENDS</small>
+        <h2>Light support</h2>
+        <div class="price">$5 <small>/ month</small></div>
+        <p>A simple paid lane for light support, accountability, and staying connected.</p>
+        <a class="pay" href="https://buy.stripe.com/5kQ9AT5XEg4z38HcMAc7u0c">Continue to Stripe — $5</a>
+      </article>
+
+      <article class="plan" data-plan="pro">
+        <small>FOUNDER</small>
+        <h2>Direct help</h2>
+        <div class="price">$20 <small>/ month</small></div>
+        <p>Direct support for a launch, offer, project, or business that needs momentum.</p>
+        <a class="pay" href="https://buy.stripe.com/aFafZhadUg4zbFdh2Qc7u0d">Continue to Stripe — $20</a>
+      </article>
+
+      <article class="plan" data-plan="builder">
+        <small>BUILDER</small>
+        <h2>Deeper execution</h2>
+        <div class="price">$50 <small>/ month</small></div>
+        <p>A tighter operating loop for hands-on building, troubleshooting, and delivery.</p>
+        <a class="pay" href="https://buy.stripe.com/4gM14n4TAdWr8t17sgc7u0e">Continue to Stripe — $50</a>
+      </article>
+
+      <article class="plan" data-plan="embedded">
+        <small>EMBEDDED</small>
+        <h2>Reserved capacity</h2>
+        <div class="price">$200 <small>/ month</small></div>
+        <p>Reserved monthly execution capacity for teams that want a much tighter working relationship.</p>
+        <a class="pay" href="https://buy.stripe.com/dRm28radUg4zaB9fYMc7u0f">Continue to Stripe — $200</a>
+      </article>
+    </section>
+
+    <nav class="footer" aria-label="Checkout help">
+      <a href="/start/">Not sure? Start here</a>
+      <a href="/billing/">Manage existing billing</a>
+      <span>Payments are processed by Stripe.</span>
+    </nav>
+  </main>
+  <script>
+    const selected=new URLSearchParams(location.search).get('plan');
+    if(selected){const card=document.querySelector(`[data-plan="${CSS.escape(selected)}"]`);if(card){card.dataset.selected='true';card.scrollIntoView({block:'center'})}}
+  </script>
+</body>
+</html>
