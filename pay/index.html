@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pay 3DVR | Simple Stripe Checkout</title>
+  <meta name="description" content="Choose a 3DVR monthly support plan and pay securely with Stripe. No 3DVR account required.">
+  <link rel="canonical" href="https://portal.3dvr.tech/pay/">
+  <link rel="stylesheet" href="../free-page/styles.css">
+  <style>
+    .pay-shell{width:min(960px,calc(100% - 2rem));margin:0 auto;padding:4.5rem 0 3rem}
+    .pay-hero{max-width:720px;margin-bottom:2rem}.pay-hero h1{max-width:680px}
+    .pay-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+    .pay-card{display:flex;flex-direction:column;gap:.8rem;padding:1.35rem;border:1px solid rgba(255,255,255,.12);border-radius:1rem;background:rgba(8,17,31,.76)}
+    .pay-card.primary{border-color:rgba(103,232,249,.72);box-shadow:0 0 0 1px rgba(103,232,249,.16)}
+    .pay-card h2,.pay-card p{margin:0}.pay-card p{color:#b8c6d9}.pay-price{font-size:2rem;font-weight:800}.pay-price span{font-size:.9rem;color:#b8c6d9;font-weight:600}
+    .pay-card .button{margin-top:auto;justify-content:center;text-align:center}
+    .pay-meta{margin-top:1.5rem;padding:1rem 1.1rem;border:1px solid rgba(255,255,255,.1);border-radius:1rem;background:rgba(8,17,31,.52);color:#b8c6d9}
+    .pay-meta a{color:#67e8f9}.pay-status{margin-top:1rem;min-height:1.5rem;color:#b8c6d9}.pay-status.success{color:#86efac}.pay-status.error{color:#fca5a5}
+    @media(max-width:680px){.pay-shell{padding-top:3rem}.pay-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <main class="pay-shell">
+    <section class="pay-hero">
+      <p class="eyebrow">Simple Stripe checkout</p>
+      <h1>Choose a plan. Pay. Keep moving.</h1>
+      <p class="lead">No 3DVR account is required. Stripe handles the payment and receipt. Create a portal account later only if you want saved tools, projects, or account-linked support.</p>
+    </section>
+
+    <section class="pay-grid" aria-label="3DVR monthly plans">
+      <article class="pay-card primary">
+        <p class="eyebrow">Recommended</p>
+        <h2>Build with us</h2>
+        <p class="pay-price">$20 <span>/ month</span></p>
+        <p>Active launch help, updates, product thinking, and practical execution support.</p>
+        <button class="button primary" type="button" data-plan="pro">Pay $20/month with Stripe</button>
+      </article>
+
+      <article class="pay-card">
+        <p class="eyebrow">Friends &amp; family</p>
+        <h2>Support 3DVR</h2>
+        <p class="pay-price">$5 <span>/ month</span></p>
+        <p>A small supporter lane for people who want to help keep 3DVR moving.</p>
+        <button class="button secondary" type="button" data-plan="starter">Pay $5/month with Stripe</button>
+      </article>
+
+      <article class="pay-card">
+        <p class="eyebrow">Builder</p>
+        <h2>Build momentum</h2>
+        <p class="pay-price">$50 <span>/ month</span></p>
+        <p>More hands-on help for an active project or small business that is already moving.</p>
+        <button class="button secondary" type="button" data-plan="builder">Pay $50/month with Stripe</button>
+      </article>
+
+      <article class="pay-card">
+        <p class="eyebrow">Embedded</p>
+        <h2>Dedicated support</h2>
+        <p class="pay-price">$200 <span>/ month</span></p>
+        <p>A deeper monthly execution lane for a team or project that needs recurring attention.</p>
+        <button class="button secondary" type="button" data-plan="embedded">Pay $200/month with Stripe</button>
+      </article>
+    </section>
+
+    <p id="pay-status" class="pay-status" role="status" aria-live="polite"></p>
+
+    <section class="pay-meta">
+      <strong>Already paying?</strong> Use the <a href="../billing/">Billing Center</a> to manage an existing subscription. Need a one-time project price? Email <a href="mailto:3dvr.tech@gmail.com">3dvr.tech@gmail.com</a>.
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
