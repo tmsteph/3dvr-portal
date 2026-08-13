@@ -1,8 +1,8 @@
 function buildBillingStartHref(plan = '') {
-  const target = plan
-    ? `../billing/?plan=${encodeURIComponent(plan)}`
-    : '../billing/';
-  return `../sign-in.html?redirect=${encodeURIComponent(target)}`;
+  const normalizedPlan = String(plan || '').trim();
+  return normalizedPlan
+    ? `../pay/?plan=${encodeURIComponent(normalizedPlan)}`
+    : '../pay/';
 }
 
 const ROUTES = {
@@ -24,9 +24,9 @@ const ROUTES = {
   cell: {
     title: 'Continue with Family & Friends',
     copy:
-      'You want people around you and light paid support. Sign in once, then continue to the $5 lane tied to your portal account.',
+      'You want people around you and light paid support. Pay securely with Stripe now; create or use a portal account later only when it helps.',
     points: [
-      'Portal account first, then Stripe',
+      'No portal account required before payment',
       'Light support and a cleaner upgrade path',
       'Good fit when community matters more than heavy execution',
     ],
@@ -39,11 +39,11 @@ const ROUTES = {
   founder: {
     title: 'Continue with Founder',
     copy:
-      'You are ready to launch something real and want direct help. Sign in once, then continue into the $20 Founder lane.',
+      'You are ready to launch something real and want direct help. Pay securely with Stripe now; use the portal later for projects and billing management.',
     points: [
-      'Portal account first, then Stripe',
+      'No portal account required before payment',
       'Good fit when you want speed without the heaviest lane',
-      'Keeps upgrades, invoices, and support on one identity',
+      'Stripe handles the payment step directly',
     ],
     plan: 'Best lane now: Founder $20',
     primaryLabel: 'Continue with $20 plan',
@@ -54,9 +54,9 @@ const ROUTES = {
   builder: {
     title: 'Continue with Builder',
     copy:
-      'You are focused on shipping and want deeper collaboration. Sign in once, then continue into the $50 Builder lane.',
+      'You are focused on shipping and want deeper collaboration. Pay securely with Stripe now and use Projects after checkout to keep the work moving.',
     points: [
-      'Portal account first, then Stripe',
+      'No portal account required before payment',
       'Best fit when the goal is execution, not just clarity',
       'Use Projects to keep the work moving after checkout',
     ],
@@ -134,7 +134,32 @@ function readAnswers(form) {
   };
 }
 
+function initPaidLanes(root = document) {
+  const heading = root.querySelector('#paid-lanes-title');
+  const section = root.querySelector('#paid-lanes');
+  if (!section) {
+    return;
+  }
+
+  if (heading) {
+    heading.textContent = 'Choose a paid lane and pay securely';
+    const intro = heading.nextElementSibling;
+    if (intro) {
+      intro.textContent = 'No portal account is required before payment. Choose a lane, continue to Stripe, and use the portal later when it becomes useful.';
+    }
+  }
+
+  const plans = ['starter', 'pro', 'builder', 'embedded'];
+  section.querySelectorAll('.lane-card').forEach((card, index) => {
+    const link = card.querySelector('a.button.primary');
+    if (link && plans[index]) {
+      link.href = buildBillingStartHref(plans[index]);
+    }
+  });
+}
+
 function initStartRouter(root = document) {
+  initPaidLanes(root);
   const form = root.querySelector('#startRouter');
   if (!form) {
     return;
@@ -154,4 +179,4 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   });
 }
 
-export { ROUTES, buildBillingStartHref, getRecommendation, getRouteKey, initStartRouter };
+export { ROUTES, buildBillingStartHref, getRecommendation, getRouteKey, initPaidLanes, initStartRouter };
