@@ -138,7 +138,7 @@ test('ask-send --template forces the deterministic template copy', async () => {
   }
 });
 
-test('ask-send --template includes the configured contact line', async () => {
+test('ask-send --template includes the configured public contact details', async () => {
   const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-leads-'));
   const leads = path.join(tmp, 'leads.csv');
   await writeFile(
@@ -152,13 +152,8 @@ test('ask-send --template includes the configured contact line', async () => {
       THREEDVR_OUTREACH_PHONE: '+18643602659',
     });
 
-    const footer = buildContactFooter({
-      website: 'https://3dvr.tech',
-      email: '3dvr.tech@gmail.com',
-      phone: '+18643602659',
-    });
-
-    assert.match(stdout, new RegExp(footer.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.match(stdout, /Website: https:\/\/3dvr\.tech/);
+    assert.match(stdout, /Phone: \+18643602659/);
     assert.match(stdout, /Hi Acme Studio team/);
   } finally {
     await rm(tmp, { recursive: true, force: true });
@@ -201,7 +196,7 @@ test('ask-send applies a bounded free-page experiment variant without changing l
       THREEDVR_OUTREACH_POSTAL_ADDRESS: '123 Main St, San Diego, CA 92101',
     });
 
-    assert.match(stdout, /Would you like me to put together a first draft for Variant Studio/i);
+    assert.match(stdout, /Would you like to take a look\?/i);
     assert.match(stdout, /Route: email/);
     assert.match(stdout, /Postal address: 123 Main St/);
   } finally {
