@@ -26,3 +26,16 @@ test('inbox message-id projection is replay-safe for replies and bounces', () =>
     assert.equal(bounce.prospect.state, 'bounced');
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
+
+test('inbox projection bridges legacy mailto contact identities', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-mailto-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const prospect = createProspect(db, { name: 'Legacy', contact: 'mailto:legacy@test.example' }).prospect;
+    transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'lv' });
+    transitionProspect(db, { prospectId: prospect.id, toState: 'eligible', idempotencyKey: 'le' });
+    transitionProspect(db, { prospectId: prospect.id, toState: 'sent', idempotencyKey: 'ls' });
+    const result = projectInboxMessage(db, { prospectEmail: 'legacy@test.example', messageId: 'legacy-bounce', subject: 'Delivery failure' });
+    assert.equal(result.prospect.state, 'bounced');
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
