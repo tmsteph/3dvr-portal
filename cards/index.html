@@ -3,80 +3,62 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b1220">
+  <meta name="theme-color" content="#07101d">
   <title>Business Card Checkout | 3DVR</title>
   <meta name="description" content="Upload your business card artwork, see the exact price and ready date, and check out securely.">
-  <link rel="stylesheet" href="./styles.css">
+  <style>
+    :root{color-scheme:dark;--panel:#122036e8;--muted:#a8b5c8;--accent:#65c8ff;--text:#f7fbff;--line:#ffffff1f;--danger:#ffb4b4}*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Inter,system-ui,sans-serif;color:var(--text);background:radial-gradient(circle at 15% 0%,#3399ff33,transparent 32rem),linear-gradient(#07101d,#091522)}button,input{font:inherit}.shell{width:min(720px,calc(100% - 24px));margin:auto;padding:22px 0 50px}.brand{font-weight:800}.brand b{color:var(--accent)}.hero{padding:44px 2px 26px}.hero small{color:#9de7ff;font-weight:800;letter-spacing:.15em}.hero h1{margin:10px 0 0;font-size:clamp(2.6rem,11vw,4.7rem);line-height:.95;letter-spacing:-.055em}.hero p{max-width:520px;color:var(--muted);font-size:1.03rem;line-height:1.5}.flow{display:grid;gap:14px}.card{display:grid;grid-template-columns:40px 1fr;gap:4px 14px;padding:19px;border:1px solid var(--line);border-radius:22px;background:var(--panel);box-shadow:0 18px 50px #0003}.num{display:grid;width:35px;height:35px;place-items:center;border-radius:50%;background:var(--accent);color:#07101d;font-weight:900}.copy h2{margin:2px 0 4px;font-size:1.18rem}.copy p{margin:0;color:var(--muted)}.wide{grid-column:1/-1}.uploads{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.upload{position:relative;min-height:164px;padding:14px;border:1px dashed #65c8ff70;border-radius:15px;background:#192a43d1;cursor:pointer;overflow:hidden}.upload input{position:absolute;width:1px;height:1px;opacity:0}.upload strong{display:block}.upload .name{display:block;margin-top:7px;color:#9de7ff;font-size:.88rem;overflow-wrap:anywhere}.preview{display:grid;place-items:center;height:92px;margin-top:10px;border-radius:10px;background:#0003;color:var(--muted);font-size:.8rem;overflow:hidden}.preview img{width:100%;height:100%;object-fit:contain;background:#fff}.note{margin:9px 0 0;color:var(--muted);font-size:.8rem}.product{display:flex;align-items:center;gap:12px;margin-top:16px;padding:16px;border:1px solid #65c8ff70;border-radius:15px;background:#163049db}.product input{accent-color:var(--accent)}.details{display:grid;flex:1;gap:3px}.details span{color:var(--muted);font-size:.9rem}.price{font-size:1.35rem}.pay{width:100%;margin-top:16px;padding:16px;border:0;border-radius:14px;background:linear-gradient(135deg,#9de7ff,var(--accent));color:#04111e;font-weight:900;cursor:pointer}.pay:disabled{opacity:.5;cursor:not-allowed}.status{min-height:1.2em;margin:10px 0 0;color:var(--danger);font-size:.88rem}.fine{margin:2px 0 0;color:var(--muted);font-size:.78rem;text-align:center}.banner{margin:20px 0 0;padding:13px 15px;border:1px solid #9df3bd55;border-radius:14px;background:#195b363f;color:#b9f8ce}.banner.cancel{border-color:#ffb4b455;background:#5a23233f;color:#ffd0d0}.banner a{color:inherit;font-weight:800}@media(max-width:520px){.hero{padding-top:34px}.card{padding:16px}.uploads{grid-template-columns:1fr}.upload{min-height:145px}.preview{height:78px}}
+  </style>
 </head>
 <body>
   <main class="shell">
-    <header class="brand"><span class="brand-mark">3DVR</span><span>Print</span></header>
-
-    <section id="result-banner" class="result-banner" hidden></section>
-
+    <header class="brand"><b>3DVR</b> Print</header>
+    <section id="banner" class="banner" hidden></section>
     <section class="hero">
-      <p class="eyebrow">BUSINESS CARDS</p>
+      <small>BUSINESS CARDS</small>
       <h1>Upload. Pay. Done.</h1>
-      <p>No quote call. No sales pitch. Upload your card and check out.</p>
+      <p>No quote call. No sales pitch. Upload your card, see the price and ready date, then check out.</p>
     </section>
 
-    <form id="checkout-form" class="flow" novalidate>
-      <section class="card step-card">
-        <div class="step-number">1</div>
-        <div class="step-copy">
-          <h2>Upload your card</h2>
-          <p>Front is required. Back is optional.</p>
+    <form id="form" class="flow" novalidate>
+      <section class="card">
+        <div class="num">1</div>
+        <div class="copy"><h2>Upload your card</h2><p>Front required. Back optional.</p></div>
+        <div class="uploads wide">
+          <label class="upload"><input id="front" type="file" accept="image/jpeg,image/png,application/pdf" required><strong>Front</strong><span id="front-name" class="name">Choose image or PDF</span><span id="front-preview" class="preview"></span></label>
+          <label class="upload"><input id="back" type="file" accept="image/jpeg,image/png,application/pdf"><strong>Back <small>optional</small></strong><span id="back-name" class="name">Choose image or PDF</span><span id="back-preview" class="preview"></span></label>
         </div>
-
-        <div class="upload-grid">
-          <label class="upload-box" for="front-file">
-            <input id="front-file" type="file" accept="image/jpeg,image/png,application/pdf" required>
-            <span class="upload-label">Front</span>
-            <span id="front-name" class="upload-action">Choose image or PDF</span>
-            <span class="preview" id="front-preview"></span>
-          </label>
-
-          <label class="upload-box" for="back-file">
-            <input id="back-file" type="file" accept="image/jpeg,image/png,application/pdf">
-            <span class="upload-label">Back <small>optional</small></span>
-            <span id="back-name" class="upload-action">Choose image or PDF</span>
-            <span class="preview" id="back-preview"></span>
-          </label>
-        </div>
-        <p class="file-note">JPG, PNG, or PDF. Front + back must stay under 2.5 MB total.</p>
+        <p class="note wide">JPG, PNG, or PDF. Front + back must stay under 2.5 MB total.</p>
       </section>
 
-      <section class="card step-card">
-        <div class="step-number">2</div>
-        <div class="step-copy">
-          <h2>Your order</h2>
-          <p>One simple option to start.</p>
-        </div>
-
-        <label class="product-option selected" id="product-option">
-          <input type="radio" name="product" value="standard-250" checked>
-          <span class="product-main">
-            <strong id="product-name">250 Business Cards</strong>
-            <span id="product-details">Two-sided • Standard 16pt</span>
-            <span id="ready-date">Checking ready date…</span>
-          </span>
-          <strong class="price" id="product-price">$78</strong>
-        </label>
+      <section class="card">
+        <div class="num">2</div>
+        <div class="copy"><h2>Your order</h2><p>One simple option to start.</p></div>
+        <label class="product wide"><input type="radio" name="product" value="standard-250" checked><span class="details"><strong id="product-name">250 Business Cards</strong><span id="product-details">Two-sided • Standard 16pt</span><span id="ready">Checking ready date…</span></span><strong id="price" class="price">$78</strong></label>
       </section>
 
-      <section class="card step-card checkout-card">
-        <div class="step-number">3</div>
-        <div class="step-copy">
-          <h2>Pay securely</h2>
-          <p>Stripe collects your email, payment, and U.S. shipping address.</p>
-        </div>
-        <button id="checkout-button" class="checkout-button" type="submit" disabled>Loading checkout…</button>
-        <p id="status" class="status" role="status" aria-live="polite"></p>
-        <p class="fine-print">Production starts after payment and a quick artwork check.</p>
+      <section class="card">
+        <div class="num">3</div>
+        <div class="copy"><h2>Pay securely</h2><p>Stripe collects your email, payment, and U.S. shipping address.</p></div>
+        <button id="pay" class="pay wide" type="submit" disabled>Loading checkout…</button>
+        <p id="status" class="status wide" role="status" aria-live="polite"></p>
+        <p class="fine wide">Production starts after payment and a quick artwork check.</p>
       </section>
     </form>
   </main>
 
-  <script type="module" src="./app.js"></script>
+  <script>
+    const form=document.getElementById('form'),front=document.getElementById('front'),back=document.getElementById('back'),pay=document.getElementById('pay'),status=document.getElementById('status'),banner=document.getElementById('banner');let catalog,maxBytes=2500000;
+    const money=c=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(c/100);
+    const pretty=d=>new Intl.DateTimeFormat('en-US',{weekday:'short',month:'short',day:'numeric'}).format(new Date(d+'T12:00:00'));
+    const product=()=>catalog?.products?.find(p=>p.id===form.elements.product.value);
+    function showFile(input,nameId,previewId){const file=input.files?.[0],name=document.getElementById(nameId),preview=document.getElementById(previewId);name.textContent=file?.name||'Choose image or PDF';preview.replaceChildren();if(!file)return;if(file.type.startsWith('image/')){const img=document.createElement('img');img.src=URL.createObjectURL(file);img.alt='Artwork preview';preview.append(img)}else preview.textContent='PDF selected'}
+    front.addEventListener('change',()=>showFile(front,'front-name','front-preview'));back.addEventListener('change',()=>showFile(back,'back-name','back-preview'));
+    const readFile=(file,side)=>new Promise((resolve,reject)=>{const r=new FileReader();r.onerror=()=>reject(new Error('Could not read '+side+' artwork.'));r.onload=()=>resolve({side,name:file.name,type:file.type,data:String(r.result||'').split(',')[1]||''});r.readAsDataURL(file)});
+    function returnState(){const q=new URLSearchParams(location.search),state=q.get('checkout'),order=q.get('order')||sessionStorage.getItem('lastCardOrderId')||'';if(state==='success'){banner.hidden=false;banner.textContent='Payment received'+(order?' for '+order:'')+'. We have your artwork. Production starts after a quick file check.';sessionStorage.removeItem('lastCardCheckoutUrl');sessionStorage.removeItem('lastCardOrderId')}if(state==='cancel'){const url=sessionStorage.getItem('lastCardCheckoutUrl');banner.hidden=false;banner.className='banner cancel';banner.innerHTML=url?'Payment was not completed. Your artwork is already saved with '+(order||'this order')+'. <a href="'+url+'">Return to secure checkout</a>.':'Payment was not completed. No charge was made.'}}
+    async function load(){try{const r=await fetch('/api/business-cards'),b=await r.json();if(!r.ok)throw new Error(b.error||'Checkout could not load.');catalog=b;maxBytes=b.maxArtworkBytes||maxBytes;const p=product();document.getElementById('product-name').textContent=p.name;document.getElementById('product-details').textContent=p.sides+' • '+p.quality;document.getElementById('ready').textContent='Estimated ready by '+pretty(p.estimatedReadyDate);document.getElementById('price').textContent=money(p.priceCents);pay.textContent='Pay '+money(p.priceCents);if(!b.stripeConfigured||!b.artworkUploadConfigured)throw new Error('Checkout is being connected right now.');pay.disabled=false}catch(e){pay.textContent='Checkout unavailable';status.textContent=e.message}}
+    form.addEventListener('submit',async e=>{e.preventDefault();status.textContent='';const p=product(),f=front.files?.[0],b=back.files?.[0];if(!f){status.textContent='Upload the front of your card.';return}if((f.size+(b?.size||0))>maxBytes){status.textContent='Front + back must stay under 2.5 MB total.';return}pay.disabled=true;pay.textContent='Saving artwork…';try{const artwork=[await readFile(f,'front')];if(b)artwork.push(await readFile(b,'back'));const orderId='CARD-'+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).slice(2,8).toUpperCase();const r=await fetch('/api/business-cards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({productId:p.id,orderId,artwork})}),body=await r.json();if(!r.ok)throw new Error(body.error||'Could not start checkout.');sessionStorage.setItem('lastCardCheckoutUrl',body.url);sessionStorage.setItem('lastCardOrderId',body.orderId);pay.textContent='Opening secure checkout…';location.assign(body.url)}catch(err){pay.disabled=false;pay.textContent='Pay '+money(p.priceCents);status.textContent=err.message}});
+    returnState();load();
+  </script>
 </body>
 </html>
