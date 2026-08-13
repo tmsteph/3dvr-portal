@@ -146,7 +146,11 @@ function finishRun(db, { runId, status, summary } = {}) {
 }
 
 function findProspectByContact(db, contact) {
-  return db.prepare('SELECT * FROM prospects WHERE contact_key = ?').get(contactKey({ contact })) || null;
+  const value = normalize(contact);
+  const keys = [contactKey({ contact: value })];
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) keys.push(contactKey({ contact: `mailto:${value}` }));
+  if (/^mailto:/i.test(value)) keys.push(contactKey({ contact: value.replace(/^mailto:/i, '') }));
+  return db.prepare(`SELECT * FROM prospects WHERE contact_key IN (${keys.map(() => '?').join(',')}) LIMIT 1`).get(...new Set(keys)) || null;
 }
 
 function pendingProjections(db, limit = 100) {
