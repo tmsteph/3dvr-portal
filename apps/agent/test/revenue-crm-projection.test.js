@@ -29,6 +29,8 @@ test('CRM projection preserves the legacy stable record identity', () => {
 
 test('remote projection roots do not initialize a local radata store', () => {
   const source = fs.readFileSync(require.resolve('../thomas-agent/node/revenue-crm-projection'), 'utf8');
+  assert.match(source, /axe:\s*false/);
   assert.match(source, /rad:\s*false/);
   assert.match(source, /radisk:\s*false/);
+  assert.match(source, /stats:\s*false/);
 });
