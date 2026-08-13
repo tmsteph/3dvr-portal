@@ -26,11 +26,11 @@ function mockResponse() {
   };
 }
 
-test('public card product uses the confirmed 250-card standard price', () => {
-  const product = BUSINESS_CARD_PRODUCTS['standard-250'];
-  assert.equal(product.quantity, 250);
+test('public card product uses the confirmed 200-card standard price', () => {
+  const product = BUSINESS_CARD_PRODUCTS['standard-200'];
+  assert.equal(product.quantity, 200);
   assert.equal(product.quality, 'Standard 16pt');
-  assert.equal(product.priceCents, 7800);
+  assert.equal(product.priceCents, 3900);
   assert.equal(product.businessDays, 2);
 });
 
@@ -73,7 +73,7 @@ test('public catalog reports checkout readiness without exposing private costs',
     artworkUploadConfigured: true,
     now: new Date('2026-08-13T12:00:00-07:00'),
   });
-  assert.equal(catalog.products[0].priceCents, 7800);
+  assert.equal(catalog.products[0].priceCents, 2000);
   assert.equal('unitCost' in catalog.products[0], false);
   assert.equal(catalog.stripeConfigured, true);
 });
@@ -110,7 +110,7 @@ test('checkout ignores client amount and uses the server price', async () => {
   await handler({
     headers: {},
     body: {
-      productId: 'standard-250',
+      productId: 'standard-200',
       orderId: 'CARD-TEST-1',
       amount: 1,
       artwork: [{
@@ -124,7 +124,7 @@ test('checkout ignores client amount and uses the server price', async () => {
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.estimatedReadyDate, '2026-08-17');
-  assert.equal(stripePayload.line_items[0].price_data.unit_amount, 7800);
+  assert.equal(stripePayload.line_items[0].price_data.unit_amount, 3900);
   assert.deepEqual(stripePayload.shipping_address_collection.allowed_countries, ['US']);
   assert.equal(stripePayload.metadata.order_id, 'CARD-TEST-1');
   assert.equal(mailPayload.attachments.length, 1);
