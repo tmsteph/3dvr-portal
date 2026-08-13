@@ -2,6 +2,10 @@ import Stripe from 'stripe';
 import nodemailer from 'nodemailer';
 import { saveNewsletterSubscriber } from './_lib/newsletter-store.js';
 import { callChatPushStore } from './_lib/chat-push-store.js';
+import {
+  createBusinessCardOrderHandler,
+  getBusinessCardCheckoutConfig,
+} from '../src/billing/api-business-card-order.js';
 
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -35,6 +39,11 @@ export function createTrialHandler(options = {}) {
 
   const stripe = stripeClient || (config.STRIPE_SECRET_KEY ? createStripeClient(config.STRIPE_SECRET_KEY) : null);
   const transporter = mailTransport || createMailTransport(config);
+  const businessCardOrderHandler = createBusinessCardOrderHandler({
+    stripeClient: stripe,
+    mailTransport: transporter,
+    config,
+  });
 
   async function sendWelcomeEmail(to) {
     await transporter.sendMail({
@@ -102,6 +111,10 @@ export function createTrialHandler(options = {}) {
         priceConfigured: Boolean(config.STRIPE_PRICE_ID),
         mailConfigured: Boolean(config.GMAIL_USER && config.GMAIL_APP_PASSWORD),
         chatPushPublicKey: String(config.CHAT_PUSH_VAPID_PUBLIC_KEY || ''),
+        businessCardCheckout: getBusinessCardCheckoutConfig({
+          stripeConfigured: Boolean(stripe),
+          artworkUploadConfigured: Boolean(config.GMAIL_USER && config.GMAIL_APP_PASSWORD),
+        }),
       });
     }
 
@@ -110,6 +123,10 @@ export function createTrialHandler(options = {}) {
     }
 
     const { email, kind, consent, source } = req.body || {};
+
+    if (kind === 'business-card-order') {
+      return businessCardOrderHandler(req, res);
+    }
 
     if (kind === 'chat-push') {
       const action = String(req.body?.action || '');
@@ -154,8 +171,6 @@ export function createTrialHandler(options = {}) {
       }
       const signedUpAt = new Date().toISOString();
       try {
-        // Postgres is the canonical subscriber ledger. The mailbox copy below
-        // remains a recovery trail while the rest of the CRM moves off Gun.
         await saveNewsletterSubscriber({
           email: normalizedEmail,
           source: normalizedSource,
@@ -170,8 +185,6 @@ export function createTrialHandler(options = {}) {
           text: `Hi,\n\nYou are on the list. You will get one short note each week.\n\nTo stop these emails, reply with unsubscribe.\n\n— Thomas / 3DVR`,
           headers: { 'List-Unsubscribe': `<mailto:${config.GMAIL_USER}?subject=unsubscribe>`, 'Precedence': 'bulk', 'X-3DVR-Blog-Signup': 'confirmed' }
         });
-        // A structured mailbox copy is the durable source while the optional
-        // Gun CRM mirror is offline. The inbox worker can import it later.
         await transporter.sendMail({
           from: `"3DVR Blog Signup" <${config.GMAIL_USER}>`,
           to: config.GMAIL_USER,
