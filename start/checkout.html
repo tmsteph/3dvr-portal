@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Secure checkout | 3dvr.tech</title>
+    <link rel="stylesheet" href="/start/style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script defer src="/_vercel/insights/script.js"></script>
+  </head>
+  <body>
+    <main class="hero">
+      <div class="hero-grid">
+        <section class="hero-content" aria-live="polite">
+          <span class="tag">Secure checkout</span>
+          <h1 id="checkoutTitle">Opening Stripe…</h1>
+          <p id="checkoutStatus">
+            No portal account is required. Stripe will collect the information needed for payment.
+          </p>
+          <div class="hero-actions">
+            <button class="button primary" id="checkoutRetry" type="button" hidden>
+              Try again
+            </button>
+            <a class="button tertiary" href="/start/#paid-lanes">Back to plans</a>
+            <a class="button tertiary" href="/billing/">Already subscribed? Manage billing</a>
+          </div>
+        </section>
+
+        <aside class="hero-panel">
+          <span class="panel-label">What happens next</span>
+          <h2>Pay first. Set up the portal when it helps.</h2>
+          <div class="step-list">
+            <div class="step-item">
+              <strong>1. Pay securely in Stripe</strong>
+              <span>Your payment details stay with Stripe.</span>
+            </div>
+            <div class="step-item">
+              <strong>2. Get your receipt</strong>
+              <span>Your email becomes the simplest way to match the purchase later.</span>
+            </div>
+            <div class="step-item">
+              <strong>3. Use the portal after purchase</strong>
+              <span>Sign in later when you want projects, support history, or billing management.</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <script type="module" src="/start/checkout.js"></script>
+  </body>
+</html>
