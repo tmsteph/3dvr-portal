@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly 3DVR Gun known-root snapshot
+
+[Timer]
+OnCalendar=*-*-* 07:35:00 UTC
+Persistent=true
+RandomizedDelaySec=10m
+Unit=3dvr-gun-snapshot.service
+
+[Install]
+WantedBy=timers.target
