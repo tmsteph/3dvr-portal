@@ -1,9 +1,8 @@
 # Revenue worker migration
 
-This branch establishes the only allowed target control plane. It is intentionally
-**foundation-only**: the service creates a durable SQLite ledger and records a
-structured no-send run. It does not send email, crawl, submit forms, or project to
-CRM yet.
+This service is the only allowed target control plane. It remains **no-send** during
+cutover: it consumes replay-safe inbox/bounce evidence and drains an idempotent CRM
+projection outbox, but it cannot send email, crawl, or submit forms.
 
 ## Authorities
 
@@ -28,8 +27,10 @@ Do not enable the timer or stop the legacy inbox monitor until all gates pass:
 
 1. Import CSV/NDJSON legacy history once, emit duplicate/conflict report, and sign off the totals.
 2. Prove duplicate-trigger, sender-timeout, CRM-timeout, repeated-bounce, stale-lock,
-   quota-exhaustion, and restart-mid-send tests.
-3. Add the outbox projection to CRM and a Gmail UID/message-id consumer.
+   quota-exhaustion, and restart-mid-send tests. Sender and CRM timeout coverage is
+   now deterministic; sending remains unavailable until the remaining cases pass.
+3. Add the outbox projection to CRM and a Gmail UID/message-id consumer. The CRM
+   outbox and replay-safe inbox state consumer are now implemented.
 4. Run one canary campaign with delivery disabled, then one single-contact canary.
 5. Confirm one authoritative receipt with release SHA, trigger, transitions, sends,
    bounce/reply events, projection status, cost, and exception.
