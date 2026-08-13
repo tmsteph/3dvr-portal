@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly 3DVR PostgreSQL backup
+
+[Timer]
+OnCalendar=*-*-* 07:15:00 UTC
+Persistent=true
+RandomizedDelaySec=10m
+Unit=3dvr-postgres-backup.service
+
+[Install]
+WantedBy=timers.target
