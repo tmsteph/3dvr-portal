@@ -12,7 +12,7 @@
     "thomas-agent"
   ],
   "engines": {
-    "node": ">=22.5"
+    "node": ">=22.13"
   },
   "scripts": {
     "mission": "node thomas-agent/node/mission-runner.js",
