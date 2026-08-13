@@ -44,6 +44,10 @@ First produce a report; it is read-only and does not initialize the ledger:
 node thomas-agent/node/revenue-history-import.js /root/.3dvr/state/autonomous-outreach/leads.csv /root/.3dvr/state/autonomous-outreach/outreach-log.ndjson
 ```
 
-Resolve every conflict and invalid NDJSON line before `--apply`. The importer records
+The timestamped outreach event log is authoritative over the leads CSV projection.
+Failed attempts before an acknowledged send resolve to `sent`; a later delivery
+failure notice resolves to `bounced`. Every discrepancy and its source rows remain
+in the reconciliation report. Resolve every remaining conflict and invalid NDJSON
+line before `--apply`. The importer records
 only current historical state plus source-row provenance as `legacy_import` events;
 it never fabricates lifecycle steps, sends, or projects to CRM.

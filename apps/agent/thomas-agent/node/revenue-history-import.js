@@ -29,7 +29,7 @@ function readLeadsCsv(filePath) {
   const [header = [], ...rows] = csvRows(fs.readFileSync(filePath, 'utf8'));
   const columns = header.map(lower);
   const field = (row, name) => row[columns.indexOf(name)] || '';
-  return rows.map((row, index) => ({ kind: 'lead', row: index + 2, name: text(field(row, 'name')), sourceUrl: text(field(row, 'link')), contact: text(field(row, 'contact')), status: lower(field(row, 'status')) || 'prospect', campaignId: text(field(row, 'variant')) }))
+  return rows.map((row, index) => ({ kind: 'lead', row: index + 2, name: text(field(row, 'name')), sourceUrl: text(field(row, 'link')), contact: text(field(row, 'contact')), status: lower(field(row, 'status')) || 'prospect', occurredAt: text(field(row, 'date')), campaignId: text(field(row, 'variant')) }))
     .filter(item => item.name);
 }
 
@@ -38,13 +38,15 @@ function readOutreachNdjson(filePath) {
   fs.readFileSync(filePath, 'utf8').split(/\r?\n/).filter(Boolean).forEach((line, index) => {
     try {
       const item = JSON.parse(line);
-      entries.push({ kind: 'outreach', row: index + 1, name: text(item.name), sourceUrl: text(item.site), contact: text(item.contact), status: lower(item.status), campaignId: text(item.campaignId || item.experiment) });
+      entries.push({ kind: 'outreach', row: index + 1, name: text(item.name), sourceUrl: text(item.site), contact: text(item.contact), status: lower(item.status), deliveryStatus: lower(item.deliveryStatus), occurredAt: text(item.timestamp), campaignId: text(item.campaignId || item.experiment) });
     } catch { invalid.push(index + 1); }
   });
   return { entries: entries.filter(item => item.name || item.contact || item.sourceUrl), invalid };
 }
 
-function stateForStatus(status) {
+function stateForStatus(status, deliveryStatus = '') {
+  const delivery = lower(deliveryStatus);
+  if (['bounced', 'bounce'].includes(delivery)) return 'bounced';
   const value = lower(status);
   if (['sent', 'submitted', 'contacted'].includes(value)) return 'sent';
   if (value === 'replied') return 'replied';
@@ -56,21 +58,37 @@ function stateForStatus(status) {
 
 function stateRank(state) { return ['prospect', 'failed', 'sent', 'bounced', 'replied', 'suppressed'].indexOf(state); }
 
+function resolveState(items) {
+  const outreach = items.filter(item => item.kind === 'outreach' && item.state !== 'prospect');
+  const evidence = outreach.length ? outreach : items;
+  const states = [...new Set(evidence.map(item => item.state))];
+  const incompatibleTerminal = states.filter(state => ['bounced', 'replied', 'suppressed'].includes(state));
+  if (incompatibleTerminal.length > 1) return { conflict: true, states };
+  if (states.includes('suppressed')) return { state: 'suppressed', states };
+  if (states.includes('replied')) return { state: 'replied', states };
+  if (states.includes('bounced')) return { state: 'bounced', states };
+  // A failed attempt does not undo an acknowledged successful delivery attempt.
+  if (states.includes('sent')) return { state: 'sent', states };
+  return { state: evidence.slice().sort((a, b) => stateRank(a.state) - stateRank(b.state)).at(-1).state, states };
+}
+
 function reconcile({ leads = [], outreach = [], invalidLogLines = [] } = {}) {
   const grouped = new Map();
   for (const item of [...leads, ...outreach]) {
-    const key = contactKey(item); const next = { ...item, key, state: stateForStatus(item.status) };
+    const key = contactKey(item); const next = { ...item, key, state: stateForStatus(item.status, item.deliveryStatus) };
     if (!grouped.has(key)) grouped.set(key, []); grouped.get(key).push(next);
   }
-  const conflicts = []; const prospects = [];
+  const conflicts = []; const resolutions = []; const prospects = [];
   for (const [key, items] of grouped) {
-    const states = [...new Set(items.map(item => item.state))];
-    const terminal = states.filter(state => ['failed', 'bounced', 'replied', 'suppressed'].includes(state));
-    if (terminal.length > 1 || (states.includes('sent') && states.includes('failed'))) conflicts.push({ key, states, rows: items.map(item => `${item.kind}:${item.row}`) });
-    const chosen = items.slice().sort((a, b) => stateRank(a.state) - stateRank(b.state)).at(-1);
-    prospects.push({ key, name: chosen.name || items[0].name || 'Unknown', sourceUrl: chosen.sourceUrl || items[0].sourceUrl, contact: chosen.contact || items[0].contact, campaignId: chosen.campaignId || items[0].campaignId, state: chosen.state, sources: items });
+    const allStates = [...new Set(items.map(item => item.state))];
+    const resolved = resolveState(items);
+    if (resolved.conflict) conflicts.push({ key, states: resolved.states, rows: items.map(item => `${item.kind}:${item.row}`) });
+    else if (allStates.length > 1) resolutions.push({ key, states: allStates, resolvedState: resolved.state, authority: items.some(item => item.kind === 'outreach' && item.state !== 'prospect') ? 'outreach-event-log' : 'legacy-leads-csv', rows: items.map(item => `${item.kind}:${item.row}`) });
+    const candidates = items.filter(item => item.state === resolved.state);
+    const chosen = (candidates.length ? candidates : items).slice().sort((a, b) => text(a.occurredAt).localeCompare(text(b.occurredAt)) || a.row - b.row).at(-1);
+    prospects.push({ key, name: chosen.name || items[0].name || 'Unknown', sourceUrl: chosen.sourceUrl || items[0].sourceUrl, contact: chosen.contact || items[0].contact, campaignId: chosen.campaignId || items[0].campaignId, state: resolved.state, sources: items });
   }
-  return { prospects, conflicts, invalidLogLines };
+  return { prospects, conflicts, resolutions, invalidLogLines };
 }
 
 function importHistory(options = {}) {
@@ -78,7 +96,7 @@ function importHistory(options = {}) {
   const leadsContent = fs.readFileSync(leadsFile, 'utf8'); const logContent = fs.readFileSync(outreachLogFile, 'utf8');
   const leadRows = readLeadsCsv(leadsFile); const log = readOutreachNdjson(outreachLogFile);
   const result = reconcile({ leads: leadRows, outreach: log.entries, invalidLogLines: log.invalid });
-  const report = { mode: options.apply ? 'apply' : 'dry-run', sources: { leadsFile, outreachLogFile, leadsDigest: digest(leadsContent), outreachDigest: digest(logContent) }, totals: { leadRows: leadRows.length, outreachRows: log.entries.length, uniqueProspects: result.prospects.length, conflicts: result.conflicts.length, invalidLogLines: result.invalidLogLines.length }, conflicts: result.conflicts, invalidLogLines: result.invalidLogLines };
+  const report = { mode: options.apply ? 'apply' : 'dry-run', sources: { leadsFile, outreachLogFile, leadsDigest: digest(leadsContent), outreachDigest: digest(logContent) }, totals: { leadRows: leadRows.length, outreachRows: log.entries.length, uniqueProspects: result.prospects.length, conflicts: result.conflicts.length, resolvedDiscrepancies: result.resolutions.length, invalidLogLines: result.invalidLogLines.length }, conflicts: result.conflicts, resolutions: result.resolutions, invalidLogLines: result.invalidLogLines };
   if (!options.apply) return report;
   if (!text(options.ledgerFile)) throw new Error('A ledgerFile is required when applying legacy history');
   if (result.conflicts.length || result.invalidLogLines.length) throw new Error(`Legacy import blocked: ${result.conflicts.length} conflicts and ${result.invalidLogLines.length} invalid NDJSON lines`);
@@ -105,4 +123,4 @@ function cli(argv = process.argv.slice(2)) {
 }
 
 if (require.main === module) cli();
-module.exports = { csvRows, importHistory, readLeadsCsv, readOutreachNdjson, reconcile, stateForStatus };
+module.exports = { csvRows, importHistory, readLeadsCsv, readOutreachNdjson, reconcile, resolveState, stateForStatus };
