@@ -12,7 +12,21 @@ import {
 const PUBLIC_SUBSCRIPTION_PLANS = new Set(['starter', 'pro', 'builder', 'embedded']);
 
 function readBody(req) {
-  return req?.body && typeof req.body === 'object' ? req.body : {};
+  if (req?.body && typeof req.body === 'object') {
+    return req.body;
+  }
+
+  if (typeof req?.body === 'string') {
+    return Object.fromEntries(new URLSearchParams(req.body));
+  }
+
+  return {};
+}
+
+function requestWantsJson(req) {
+  const contentType = String(req?.headers?.['content-type'] || '').toLowerCase();
+  const accept = String(req?.headers?.accept || '').toLowerCase();
+  return contentType.includes('application/json') || accept.includes('application/json');
 }
 
 export function createPublicStripeCheckoutHandler(options = {}) {
@@ -46,10 +60,9 @@ export function createPublicStripeCheckoutHandler(options = {}) {
     }
 
     const origin = getRequestOrigin(req, config);
-    const checkoutSource = 'public_pay_v1';
     const metadata = {
       plan,
-      checkout_source: checkoutSource
+      checkout_source: 'public_pay_v1'
     };
 
     try {
@@ -74,11 +87,17 @@ export function createPublicStripeCheckoutHandler(options = {}) {
         return res.status(502).json({ error: 'Stripe did not return a checkout URL.' });
       }
 
-      return res.status(200).json({
-        flow: 'public_checkout',
-        plan,
-        url: session.url
-      });
+      if (requestWantsJson(req)) {
+        return res.status(200).json({
+          flow: 'public_checkout',
+          plan,
+          url: session.url
+        });
+      }
+
+      res.statusCode = 303;
+      res.setHeader('Location', session.url);
+      return res.end();
     } catch (error) {
       console.error('Unable to create public Stripe checkout session', error);
       return res.status(500).json({ error: 'Unable to open Stripe checkout right now.' });
