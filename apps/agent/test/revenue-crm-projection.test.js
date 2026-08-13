@@ -5,7 +5,6 @@ const os = require('node:os');
 const path = require('node:path');
 const { createProspect, openLedger, pendingProjections, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
 const { projectPendingCrm, recordFor } = require('../thomas-agent/node/revenue-crm-projection');
-
 test('CRM projection retries a timeout and completes idempotently', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-projection-'));
   const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
@@ -26,4 +25,10 @@ test('CRM projection preserves the legacy stable record identity', () => {
   assert.equal(record.id, 'agent-lead-info-acme-test');
   assert.equal(record.status, 'Warm - Follow-up');
   assert.equal(record.canonicalState, 'sent');
+});
+
+test('remote projection roots do not initialize a local radata store', () => {
+  const source = fs.readFileSync(require.resolve('../thomas-agent/node/revenue-crm-projection'), 'utf8');
+  assert.match(source, /rad:\s*false/);
+  assert.match(source, /radisk:\s*false/);
 });
