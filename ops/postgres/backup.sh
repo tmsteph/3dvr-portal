@@ -27,9 +27,16 @@ cleanup() {
 }
 trap cleanup INT TERM EXIT
 
-# pg_dump will use the standard libpq environment (PGHOST, PGDATABASE, PGUSER,
-# PGPASSWORD) or PGSERVICE supplied by the host. Do not put credentials in git.
-pg_dump --format=custom --no-owner --no-privileges --file="$tmp"
+# Prefer the existing DATABASE_URL used by the 3DVR store service. If it is not
+# set, pg_dump will use the standard libpq environment (PGHOST, PGDATABASE,
+# PGUSER, PGPASSWORD) or PGSERVICE. Do not put credentials in git.
+if [ -n "${DATABASE_URL:-}" ]; then
+  pg_dump --dbname="$DATABASE_URL" --format=custom --no-owner --no-privileges --file="$tmp"
+else
+  pg_dump --format=custom --no-owner --no-privileges --file="$tmp"
+fi
+
+# Validate the archive before publishing it as a completed backup.
 pg_restore --list "$tmp" >/dev/null
 mv "$tmp" "$archive"
 chmod 600 "$archive"
