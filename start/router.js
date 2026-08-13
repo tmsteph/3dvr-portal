@@ -158,8 +158,45 @@ function initPaidLanes(root = document) {
   });
 }
 
+function initCheckoutReturn(root = document) {
+  const view = root.defaultView || (typeof window !== 'undefined' ? window : null);
+  if (!view) {
+    return;
+  }
+
+  const params = new URLSearchParams(view.location.search);
+  if (params.get('checkout') !== 'success') {
+    return;
+  }
+
+  const names = {
+    starter: 'Family & Friends',
+    pro: 'Founder',
+    builder: 'Builder',
+    embedded: 'Embedded',
+  };
+  const planName = names[params.get('plan')] || '3DVR';
+  const host = root.querySelector('.hero-content') || root.body;
+  if (!host || root.querySelector('#checkout-success')) {
+    return;
+  }
+
+  const banner = root.createElement('div');
+  banner.id = 'checkout-success';
+  banner.setAttribute('role', 'status');
+  banner.style.cssText = 'margin:18px 0 0;padding:15px 17px;border:1px solid #55d68b66;border-radius:14px;background:#195b363f;color:#d5ffe2;line-height:1.45';
+
+  const strong = root.createElement('strong');
+  strong.textContent = `Payment complete — ${planName} is active.`;
+  const detail = root.createElement('div');
+  detail.textContent = 'You do not need to create a portal account right now. We have your Stripe payment; open Projects or Billing later when those tools are useful.';
+  banner.append(strong, detail);
+  host.appendChild(banner);
+}
+
 function initStartRouter(root = document) {
   initPaidLanes(root);
+  initCheckoutReturn(root);
   const form = root.querySelector('#startRouter');
   if (!form) {
     return;
@@ -179,4 +216,4 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   });
 }
 
-export { ROUTES, buildBillingStartHref, getRecommendation, getRouteKey, initPaidLanes, initStartRouter };
+export { ROUTES, buildBillingStartHref, getRecommendation, getRouteKey, initCheckoutReturn, initPaidLanes, initStartRouter };
