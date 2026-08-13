@@ -1,6 +1,19 @@
 const { finishProjection, getProspect, pendingProjections } = require('./revenue-ledger');
 const { buildLeadId, writeCrmSync } = require('./crm-sync');
 
+function remoteProjectionRoots() {
+  const Gun = require('gun');
+  const gun = Gun({
+    peers: [process.env.THREEDVR_GUN_RELAY || 'wss://gun-relay-3dvr.fly.dev/gun'],
+    radisk: false,
+    localStorage: false,
+  });
+  return {
+    crmRoot: gun.get('3dvr-crm'),
+    touchRoot: gun.get(process.env.THREEDVR_GUN_PORTAL_ROOT || '3dvr-portal').get('crm-touch-log'),
+  };
+}
+
 function recordFor(prospect, event, now) {
   const crmStatus = {
     prospect: 'Lead', verified: 'Lead', drafted: 'Lead', eligible: 'Lead',
@@ -43,6 +56,7 @@ function touchFor(prospect, event, now) {
 
 async function projectPendingCrm(db, options = {}) {
   const write = options.write || writeCrmSync;
+  const writeOptions = options.writeOptions || (options.write ? {} : remoteProjectionRoots());
   const rows = pendingProjections(db, options.limit || 100);
   const result = { attempted: rows.length, succeeded: 0, failed: 0, errors: [] };
   for (const row of rows) {
@@ -51,7 +65,7 @@ async function projectPendingCrm(db, options = {}) {
     try {
       if (!(prospect && event)) throw new Error('Projection references missing canonical data');
       const now = new Date().toISOString();
-      const response = await write({ records: [recordFor(prospect, event, now)], touches: [touchFor(prospect, event, now)] }, options.writeOptions || {});
+      const response = await write({ records: [recordFor(prospect, event, now)], touches: [touchFor(prospect, event, now)] }, writeOptions);
       if (response?.errors?.length) throw new Error(response.errors.join('; '));
       finishProjection(db, { id: row.id, status: 'succeeded' });
       result.succeeded += 1;
@@ -65,4 +79,4 @@ async function projectPendingCrm(db, options = {}) {
   return result;
 }
 
-module.exports = { projectPendingCrm, recordFor, touchFor };
+module.exports = { projectPendingCrm, recordFor, remoteProjectionRoots, touchFor };
