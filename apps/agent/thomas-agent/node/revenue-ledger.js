@@ -60,6 +60,17 @@ function openLedger(options = {}) {
       finished_at TEXT NOT NULL DEFAULT '',
       summary_json TEXT NOT NULL DEFAULT '{}'
     );
+    CREATE TABLE IF NOT EXISTS delivery_attempts (
+      id TEXT PRIMARY KEY,
+      attempt_key TEXT NOT NULL UNIQUE,
+      prospect_id TEXT NOT NULL REFERENCES prospects(id),
+      status TEXT NOT NULL CHECK (status IN ('in_flight','acknowledged','failed')),
+      message_id TEXT NOT NULL DEFAULT '',
+      transport TEXT NOT NULL DEFAULT '',
+      error TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS projection_outbox (
       id TEXT PRIMARY KEY,
       idempotency_key TEXT NOT NULL UNIQUE,
@@ -75,6 +86,45 @@ function openLedger(options = {}) {
     );
   `);
   return db;
+}
+
+function reserveDeliveryAttempt(db, { attemptId, prospectId } = {}) {
+  const key = normalize(attemptId);
+  const prospect = normalize(prospectId);
+  if (!key || !prospect) throw new Error('attemptId and prospectId are required');
+  const existing = db.prepare('SELECT * FROM delivery_attempts WHERE attempt_key = ?').get(key);
+  if (existing) return { attempt: existing, replayed: true };
+  const now = new Date().toISOString();
+  const attempt = {
+    id: randomUUID(), attempt_key: key, prospect_id: prospect, status: 'in_flight',
+    message_id: '', transport: '', error: '', created_at: now, updated_at: now,
+  };
+  db.prepare(`INSERT INTO delivery_attempts
+    (id, attempt_key, prospect_id, status, message_id, transport, error, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(...Object.values(attempt));
+  return { attempt, replayed: false };
+}
+
+function finishDeliveryAttempt(db, { attemptId, status, messageId = '', transport = '', error = '' } = {}) {
+  if (!['acknowledged', 'failed'].includes(status)) throw new Error('delivery status must be acknowledged or failed');
+  const result = db.prepare(`UPDATE delivery_attempts
+    SET status = ?, message_id = ?, transport = ?, error = ?, updated_at = ?
+    WHERE attempt_key = ? AND status = 'in_flight'`)
+    .run(status, normalize(messageId), normalize(transport), normalize(error), new Date().toISOString(), normalize(attemptId));
+  if (!result.changes) throw new Error('Delivery attempt was not in flight');
+  return db.prepare('SELECT * FROM delivery_attempts WHERE attempt_key = ?').get(normalize(attemptId));
+}
+
+function acknowledgedDeliveryCount(db, { since = '', campaignId = '' } = {}) {
+  const values = [normalize(since)];
+  let campaign = '';
+  if (normalize(campaignId)) {
+    campaign = ' AND p.campaign_id = ?';
+    values.push(normalize(campaignId));
+  }
+  return db.prepare(`SELECT COUNT(*) AS total FROM delivery_attempts d
+    JOIN prospects p ON p.id = d.prospect_id
+    WHERE d.status = 'acknowledged' AND d.updated_at >= ?${campaign}`).get(...values).total;
 }
 
 function contactKey({ contact, sourceUrl, name } = {}) {
@@ -195,4 +245,4 @@ function importProspectState(db, input = {}) {
   return { event, replayed: false, prospect: getProspect(db, id) };
 }
 
-module.exports = { STATES, TRANSITIONS, contactKey, createProspect, findProspectByContact, finishProjection, finishRun, getProspect, importProspectState, openLedger, pendingProjections, resolveLedgerPath, startRun, transitionProspect };
+module.exports = { STATES, TRANSITIONS, acknowledgedDeliveryCount, contactKey, createProspect, findProspectByContact, finishDeliveryAttempt, finishProjection, finishRun, getProspect, importProspectState, openLedger, pendingProjections, reserveDeliveryAttempt, resolveLedgerPath, startRun, transitionProspect };

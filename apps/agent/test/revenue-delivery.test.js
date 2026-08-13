@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createProspect, openLedger, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
+const { createProspect, openLedger, reserveDeliveryAttempt, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
 const { deliverProspect } = require('../thomas-agent/node/revenue-delivery');
 
 function fixture() {
@@ -29,5 +29,20 @@ test('sender timeout deterministically records failed without claiming sent', as
     const result = await deliverProspect(value.db, { prospectId: value.prospect.id, attemptId: 'a2' }, async () => { throw new Error('sender timeout'); });
     assert.equal(result.prospect.state, 'failed');
     assert.match(result.error, /timeout/);
+  } finally { value.close(); }
+});
+
+test('restart with an in-flight attempt quarantines ambiguity without resending', async () => {
+  const value = fixture();
+  try {
+    reserveDeliveryAttempt(value.db, { prospectId: value.prospect.id, attemptId: 'a3' });
+    let calls = 0;
+    const result = await deliverProspect(value.db, { prospectId: value.prospect.id, attemptId: 'a3' }, async () => {
+      calls += 1;
+      return { acknowledged: true };
+    });
+    assert.equal(calls, 0);
+    assert.equal(result.prospect.state, 'eligible');
+    assert.match(result.error, /ambiguous/);
   } finally { value.close(); }
 });
