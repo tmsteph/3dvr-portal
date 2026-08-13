@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createProspect, openLedger, startRun, finishRun, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
+const { createProspect, finishProjection, openLedger, pendingProjections, startRun, finishRun, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
 
 function withLedger(fn) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-ledger-'));
@@ -20,6 +20,17 @@ test('ledger deduplicates prospects and idempotent transitions', () => withLedge
   const replay = transitionProspect(db, { prospectId: first.prospect.id, toState: 'verified', idempotencyKey: 'verify:acme' });
   assert.equal(verified.prospect.state, 'verified');
   assert.equal(replay.replayed, true);
+}));
+
+test('state transitions atomically queue idempotent CRM projections', () => withLedger((db) => {
+  const prospect = createProspect(db, { name: 'Acme', contact: 'info@acme.test' }).prospect;
+  transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'verify:projection' });
+  const queued = pendingProjections(db);
+  assert.equal(queued.length, 1);
+  assert.equal(JSON.parse(queued[0].payload_json).state, 'verified');
+  assert.equal(finishProjection(db, { id: queued[0].id, status: 'failed', error: 'timeout' }).attempts, 1);
+  assert.equal(finishProjection(db, { id: queued[0].id, status: 'succeeded' }).attempts, 2);
+  assert.equal(pendingProjections(db).length, 0);
 }));
 
 test('ledger prevents invalid send transitions and records one run per trigger', () => withLedger((db) => {

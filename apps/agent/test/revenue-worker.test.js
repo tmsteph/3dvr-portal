@@ -5,13 +5,13 @@ const os = require('node:os');
 const path = require('node:path');
 const { run } = require('../thomas-agent/node/revenue-worker');
 
-test('foundation worker records one no-send run per trigger', () => {
+test('foundation worker records one no-send run per trigger', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-'));
   const previous = process.env.THREEDVR_REVENUE_LEDGER_FILE;
   process.env.THREEDVR_REVENUE_LEDGER_FILE = path.join(tmp, 'ledger.sqlite');
   try {
-    const first = run('test-trigger');
-    const second = run('test-trigger');
+    const first = await run('test-trigger');
+    const second = await run('test-trigger');
     assert.equal(first.status, 'succeeded');
     assert.equal(first.summary_json.includes('sends'), true);
     assert.equal(second.replayed, true);

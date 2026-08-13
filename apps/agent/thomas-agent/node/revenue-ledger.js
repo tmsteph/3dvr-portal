@@ -60,6 +60,19 @@ function openLedger(options = {}) {
       finished_at TEXT NOT NULL DEFAULT '',
       summary_json TEXT NOT NULL DEFAULT '{}'
     );
+    CREATE TABLE IF NOT EXISTS projection_outbox (
+      id TEXT PRIMARY KEY,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      prospect_id TEXT NOT NULL REFERENCES prospects(id),
+      event_id TEXT NOT NULL REFERENCES revenue_events(id),
+      destination TEXT NOT NULL CHECK (destination IN ('crm')),
+      payload_json TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','succeeded','failed')),
+      attempts INTEGER NOT NULL DEFAULT 0,
+      last_error TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
   `);
   return db;
 }
@@ -106,6 +119,9 @@ function transitionProspect(db, input = {}) {
     db.prepare('UPDATE prospects SET state = ?, updated_at = ? WHERE id = ?').run(toState, now, id);
     db.prepare(`INSERT INTO revenue_events (id, idempotency_key, prospect_id, type, from_state, to_state, payload_json, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(...Object.values(event));
+    db.prepare(`INSERT INTO projection_outbox (id, idempotency_key, prospect_id, event_id, destination, payload_json, status, attempts, last_error, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'crm', ?, 'pending', 0, '', ?, ?)`)
+      .run(randomUUID(), `crm:${idempotencyKey}`, id, event.id, JSON.stringify({ prospectId: id, state: toState, eventId: event.id }), now, now);
     db.exec('COMMIT');
   } catch (error) { db.exec('ROLLBACK'); throw error; }
   return { event, replayed: false, prospect: getProspect(db, id) };
@@ -129,6 +145,24 @@ function finishRun(db, { runId, status, summary } = {}) {
   return db.prepare('SELECT * FROM revenue_runs WHERE id = ?').get(normalize(runId));
 }
 
+function findProspectByContact(db, contact) {
+  return db.prepare('SELECT * FROM prospects WHERE contact_key = ?').get(contactKey({ contact })) || null;
+}
+
+function pendingProjections(db, limit = 100) {
+  return db.prepare("SELECT * FROM projection_outbox WHERE status IN ('pending','failed') ORDER BY created_at, id LIMIT ?")
+    .all(Math.max(1, Number(limit) || 100));
+}
+
+function finishProjection(db, { id, status, error = '' } = {}) {
+  if (!['succeeded', 'failed'].includes(status)) throw new Error('projection status must be succeeded or failed');
+  const result = db.prepare(`UPDATE projection_outbox
+    SET status = ?, attempts = attempts + 1, last_error = ?, updated_at = ? WHERE id = ?`)
+    .run(status, normalize(error), new Date().toISOString(), normalize(id));
+  if (!result.changes) throw new Error('Projection does not exist');
+  return db.prepare('SELECT * FROM projection_outbox WHERE id = ?').get(normalize(id));
+}
+
 // Imports are an auditable backfill, not normal lifecycle transitions. A legacy
 // CSV only tells us its current outcome; it must not invent historical events.
 function importProspectState(db, input = {}) {
@@ -149,9 +183,12 @@ function importProspectState(db, input = {}) {
     db.prepare('UPDATE prospects SET state = ?, updated_at = ? WHERE id = ?').run(toState, now, id);
     db.prepare(`INSERT INTO revenue_events (id, idempotency_key, prospect_id, type, from_state, to_state, payload_json, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(...Object.values(event));
+    db.prepare(`INSERT INTO projection_outbox (id, idempotency_key, prospect_id, event_id, destination, payload_json, status, attempts, last_error, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'crm', ?, 'pending', 0, '', ?, ?)`)
+      .run(randomUUID(), `crm:${idempotencyKey}`, id, event.id, JSON.stringify({ prospectId: id, state: toState, eventId: event.id, source: 'legacy_import' }), now, now);
     db.exec('COMMIT');
   } catch (error) { db.exec('ROLLBACK'); throw error; }
   return { event, replayed: false, prospect: getProspect(db, id) };
 }
 
-module.exports = { STATES, TRANSITIONS, contactKey, createProspect, finishRun, getProspect, importProspectState, openLedger, resolveLedgerPath, startRun, transitionProspect };
+module.exports = { STATES, TRANSITIONS, contactKey, createProspect, findProspectByContact, finishProjection, finishRun, getProspect, importProspectState, openLedger, pendingProjections, resolveLedgerPath, startRun, transitionProspect };
