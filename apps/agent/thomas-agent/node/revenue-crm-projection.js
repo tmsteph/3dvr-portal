@@ -5,6 +5,7 @@ function remoteProjectionRoots() {
   const Gun = require('gun');
   const gun = Gun({
     peers: [process.env.THREEDVR_GUN_RELAY || 'wss://gun-relay-3dvr.fly.dev/gun'],
+    rad: false,
     radisk: false,
     localStorage: false,
   });
