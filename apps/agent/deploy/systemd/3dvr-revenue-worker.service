@@ -1,0 +1,18 @@
+[Unit]
+Description=3DVR revenue worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/3dvr/revenue-worker/apps/agent
+EnvironmentFile=/etc/3dvr/revenue-worker.env
+Environment=THREEDVR_REVENUE_LEDGER_FILE=/var/lib/3dvr-revenue/revenue-ledger.sqlite
+ExecStart=/usr/bin/node /opt/3dvr/revenue-worker/apps/agent/thomas-agent/node/revenue-worker.js systemd:$INVOCATION_ID
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/3dvr-revenue
+TimeoutStartSec=120
+

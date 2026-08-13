@@ -8,7 +8,7 @@ load_3dvr_env() {
   THREEDVR_HOME="${THREEDVR_HOME:-$HOME/.3dvr}"
   THREEDVR_CONFIG_FILE="${THREEDVR_CONFIG_FILE:-$THREEDVR_HOME/config/env}"
 
-  if [ -f "$THREEDVR_CONFIG_FILE" ]; then
+  if [ "${THREEDVR_SKIP_CONFIG:-0}" != "1" ] && [ -f "$THREEDVR_CONFIG_FILE" ]; then
     set -a
     # shellcheck disable=SC1090
     . "$THREEDVR_CONFIG_FILE"
