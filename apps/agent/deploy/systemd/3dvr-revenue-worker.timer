@@ -1,0 +1,12 @@
+[Unit]
+Description=Run the bounded 3DVR revenue worker
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 09:00:00 America/Los_Angeles
+Persistent=true
+RandomizedDelaySec=90
+Unit=3dvr-revenue-worker.service
+
+[Install]
+WantedBy=timers.target
+
