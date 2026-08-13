@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1220">
+  <title>Business Card Checkout | 3DVR</title>
+  <meta name="description" content="Upload your business card artwork, see the exact price and ready date, and check out securely.">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="brand"><span class="brand-mark">3DVR</span><span>Print</span></header>
+
+    <section id="result-banner" class="result-banner" hidden></section>
+
+    <section class="hero">
+      <p class="eyebrow">BUSINESS CARDS</p>
+      <h1>Upload. Pay. Done.</h1>
+      <p>No quote call. No sales pitch. Upload your card and check out.</p>
+    </section>
+
+    <form id="checkout-form" class="flow" novalidate>
+      <section class="card step-card">
+        <div class="step-number">1</div>
+        <div class="step-copy">
+          <h2>Upload your card</h2>
+          <p>Front is required. Back is optional.</p>
+        </div>
+
+        <div class="upload-grid">
+          <label class="upload-box" for="front-file">
+            <input id="front-file" type="file" accept="image/jpeg,image/png,application/pdf" required>
+            <span class="upload-label">Front</span>
+            <span id="front-name" class="upload-action">Choose image or PDF</span>
+            <span class="preview" id="front-preview"></span>
+          </label>
+
+          <label class="upload-box" for="back-file">
+            <input id="back-file" type="file" accept="image/jpeg,image/png,application/pdf">
+            <span class="upload-label">Back <small>optional</small></span>
+            <span id="back-name" class="upload-action">Choose image or PDF</span>
+            <span class="preview" id="back-preview"></span>
+          </label>
+        </div>
+        <p class="file-note">JPG, PNG, or PDF. Front + back must stay under 2.5 MB total.</p>
+      </section>
+
+      <section class="card step-card">
+        <div class="step-number">2</div>
+        <div class="step-copy">
+          <h2>Your order</h2>
+          <p>One simple option to start.</p>
+        </div>
+
+        <label class="product-option selected" id="product-option">
+          <input type="radio" name="product" value="standard-250" checked>
+          <span class="product-main">
+            <strong id="product-name">250 Business Cards</strong>
+            <span id="product-details">Two-sided • Standard 16pt</span>
+            <span id="ready-date">Checking ready date…</span>
+          </span>
+          <strong class="price" id="product-price">$78</strong>
+        </label>
+      </section>
+
+      <section class="card step-card checkout-card">
+        <div class="step-number">3</div>
+        <div class="step-copy">
+          <h2>Pay securely</h2>
+          <p>Stripe collects your email, payment, and U.S. shipping address.</p>
+        </div>
+        <button id="checkout-button" class="checkout-button" type="submit" disabled>Loading checkout…</button>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+        <p class="fine-print">Production starts after payment and a quick artwork check.</p>
+      </section>
+    </form>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
