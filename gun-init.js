@@ -1,4 +1,25 @@
 (function initGunPeers(global) {
+  function redirectLegacyPaidBillingLink() {
+    if (!global.location || !/^\/billing\/?$/.test(global.location.pathname || '')) {
+      return false;
+    }
+
+    const params = new URLSearchParams(global.location.search || '');
+    const plan = String(params.get('plan') || '').trim().toLowerCase();
+    const paidPlans = new Set(['starter', 'pro', 'builder', 'embedded']);
+
+    if (!paidPlans.has(plan)) {
+      return false;
+    }
+
+    global.location.replace(`/pay/?plan=${encodeURIComponent(plan)}`);
+    return true;
+  }
+
+  if (redirectLegacyPaidBillingLink()) {
+    return;
+  }
+
   const defaultPeers = [
     'wss://gun-relay-3dvr.fly.dev/gun',
     'https://gun-relay-3dvr.fly.dev/gun'
