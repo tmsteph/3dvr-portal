@@ -18,18 +18,48 @@ function remoteProjectionRoots() {
   };
 }
 
+function paymentReceiptFor(event = {}) {
+  let payload = {};
+  try { payload = JSON.parse(event.payload_json || '{}'); } catch {}
+  const payment = payload.payment && typeof payload.payment === 'object' ? payload.payment : payload;
+  const amountCents = Number(payment.amount_cents ?? payment.amountCents ?? payment.amount_paid ?? payment.amount_total);
+  const currency = String(payment.currency || 'usd').trim().toUpperCase();
+  const paidAt = String(payment.paid_at || payment.paidAt || payment.created_at || event.created_at || '').trim();
+  const recurringCents = Number(payment.recurring_cents ?? payment.recurringCents ?? payment.plan_amount_cents);
+  const hasAmount = Number.isFinite(amountCents) && amountCents >= 0;
+  const hasRecurring = Number.isFinite(recurringCents) && recurringCents >= 0;
+  if (!hasAmount && !payment.payment_intent_id && !payment.subscription_id && !payment.plan) return null;
+  return {
+    amountCents: hasAmount ? amountCents : null,
+    amount: hasAmount ? `${currency} ${(amountCents / 100).toFixed(2)}` : '',
+    currency,
+    paidAt,
+    recurringCents: hasRecurring ? recurringCents : null,
+    recurringValue: hasRecurring ? `${currency} ${(recurringCents / 100).toFixed(2)}` : '',
+    plan: String(payment.plan || payment.plan_name || '').trim(),
+    paymentIntentId: String(payment.payment_intent_id || payment.paymentIntentId || '').trim(),
+    subscriptionId: String(payment.subscription_id || payment.subscriptionId || '').trim(),
+  };
+}
+
 function recordFor(prospect, event, now) {
-  const crmStatus = {
+  const paymentReceipt = paymentReceiptFor(event);
+  const crmStatus = paymentReceipt ? 'Paid Customer' : ({
     prospect: 'Lead', verified: 'Lead', drafted: 'Lead', eligible: 'Lead',
     sent: 'Warm - Waiting', replied: 'Warm - Discovery', bounced: 'Lost',
     failed: 'Lost', suppressed: 'Closed',
-  }[prospect.state] || 'Lead';
-  const nextBestAction = {
-    sent: 'Wait for reply or a genuinely new material reason to contact. Do not schedule an automatic sales follow-up.',
-    replied: 'Continue discovery from the customer reply.',
-    bounced: 'Do not contact.',
-    suppressed: 'Do not contact.',
-  }[prospect.state] || 'Follow the canonical revenue state machine.';
+  }[prospect.state] || 'Lead');
+  const nextBestAction = paymentReceipt
+    ? 'Activate the customer, deliver value, and capture proof/outcome. Do not schedule a sales follow-up because payment occurred.'
+    : ({
+      sent: 'Wait for reply or a genuinely new material reason to contact. Do not schedule an automatic sales follow-up.',
+      replied: 'Continue discovery from the customer reply.',
+      bounced: 'Do not contact.',
+      suppressed: 'Do not contact.',
+    }[prospect.state] || 'Follow the canonical revenue state machine.');
+  const paymentSignal = paymentReceipt
+    ? `Successful payment${paymentReceipt.amount ? `: ${paymentReceipt.amount}` : ''}${paymentReceipt.plan ? ` (${paymentReceipt.plan})` : ''}`
+    : '';
   return {
     id: buildLeadId({ name: prospect.name, contact: prospect.contact, link: prospect.source_url }),
     recordType: 'person',
@@ -40,11 +70,22 @@ function recordFor(prospect, event, now) {
     canonicalState: prospect.state,
     source: '3dvr-revenue-ledger',
     campaignId: prospect.campaign_id,
-    lastSignal: `Canonical revenue state: ${prospect.state}`,
+    lastSignal: paymentSignal || `Canonical revenue state: ${prospect.state}`,
     nextBestAction,
     created: prospect.created_at,
     updated: now,
     canonicalEventId: event.id,
+    ...(paymentReceipt ? {
+      lastPaymentAmountCents: paymentReceipt.amountCents,
+      lastPaymentAmount: paymentReceipt.amount,
+      lastPaymentCurrency: paymentReceipt.currency,
+      lastPaymentAt: paymentReceipt.paidAt,
+      recurringPlanValueCents: paymentReceipt.recurringCents,
+      recurringPlanValue: paymentReceipt.recurringValue,
+      billingPlan: paymentReceipt.plan,
+      stripePaymentIntentId: paymentReceipt.paymentIntentId,
+      stripeSubscriptionId: paymentReceipt.subscriptionId,
+    } : {}),
   };
 }
 
@@ -89,4 +130,4 @@ async function projectPendingCrm(db, options = {}) {
   return result;
 }
 
-module.exports = { projectPendingCrm, recordFor, remoteProjectionRoots, touchFor };
+module.exports = { paymentReceiptFor, projectPendingCrm, recordFor, remoteProjectionRoots, touchFor };
