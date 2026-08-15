@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>$1 Open-Source Business Challenge | 3DVR</title>
+  <meta name="description" content="Send 3DVR one annoying business problem. We’ll try to solve it free with open-source tools. If it helps, you can send $1.">
+  <link rel="canonical" href="https://portal.3dvr.tech/challenge/">
+  <link rel="stylesheet" href="../free-page/styles.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+  <style>
+    .challenge-steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+      margin: 1.25rem 0 0;
+    }
+    .challenge-step {
+      padding: 1.2rem;
+      border: 1px solid var(--free-line);
+      border-radius: 24px;
+      background: rgba(255, 252, 242, 0.72);
+      font-family: ui-sans-serif, system-ui, sans-serif;
+    }
+    .challenge-step strong {
+      display: block;
+      margin-bottom: .35rem;
+      color: var(--free-forest);
+    }
+    .challenge-step p,
+    .fine-print,
+    .status {
+      margin: 0;
+      color: var(--free-muted);
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      line-height: 1.6;
+    }
+    .status {
+      min-height: 1.6em;
+      margin-top: .9rem;
+      font-weight: 700;
+    }
+    .pay-card {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1rem;
+      align-items: center;
+      margin: 2rem 0;
+      padding: 1.5rem;
+      border: 1px solid var(--free-line);
+      border-radius: 28px;
+      background: var(--free-card);
+      box-shadow: var(--free-shadow);
+    }
+    .pay-card h2 {
+      font-size: clamp(2rem, 5vw, 4rem);
+    }
+    .pay-card p {
+      margin: .65rem 0 0;
+    }
+    @media (max-width: 760px) {
+      .challenge-steps { grid-template-columns: 1fr; }
+      .pay-card { grid-template-columns: 1fr; }
+      .site-header nav a:not(.nav-pill) { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <header class="site-header">
+    <a class="brand" href="../">
+      <span class="brand-mark">3D</span>
+      <span>3DVR</span>
+    </a>
+    <nav aria-label="Challenge navigation">
+      <a href="#how">How it works</a>
+      <a href="#problem">Send a problem</a>
+      <a class="nav-pill" href="https://buy.stripe.com/5kQaEXeua5pVeRpfYMc7u0g">Send $1</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">The $1 open-source business challenge</p>
+        <h1>Give me one annoying problem.</h1>
+        <p class="lead">I’ll try to fix it for free with open-source tools. No sales call. No subscription required. If it genuinely helps, you can send 3DVR one dollar.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#problem">Give me a problem</a>
+          <a class="button secondary" href="#how">How this works</a>
+        </div>
+      </div>
+
+      <aside class="proof-card" aria-label="Good challenge examples">
+        <p class="card-kicker">Good problems</p>
+        <ul>
+          <li>“I keep losing track of customer follow-ups.”</li>
+          <li>“My booking process takes too many messages.”</li>
+          <li>“I repeat this spreadsheet task every week.”</li>
+          <li>“Customers don’t understand what I sell.”</li>
+          <li>“I need a simpler way to organize this.”</li>
+        </ul>
+      </aside>
+    </section>
+
+    <section id="how" class="examples" aria-labelledby="how-heading">
+      <div class="section-heading">
+        <p class="eyebrow">Tiny experiment, real value</p>
+        <h2 id="how-heading">Give → solve → prove → share → earn → repeat.</h2>
+      </div>
+      <div class="challenge-steps">
+        <article class="challenge-step">
+          <strong>1 · You send the pain</strong>
+          <p>Describe one specific task, bottleneck, confusion, or repetitive headache.</p>
+        </article>
+        <article class="challenge-step">
+          <strong>2 · 3DVR tries a fix</strong>
+          <p>We look for the smallest useful solution, favoring open-source and reusable tools.</p>
+        </article>
+        <article class="challenge-step">
+          <strong>3 · You decide the value</strong>
+          <p>If it helped, send $1. If it didn’t, keep the attempt and owe us nothing.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="problem" class="brief-section" aria-labelledby="problem-heading">
+      <div>
+        <p class="eyebrow">One-minute challenge</p>
+        <h2 id="problem-heading">What’s wasting your time?</h2>
+        <p class="section-copy">Keep it concrete. The smaller and more annoying, the better.</p>
+      </div>
+
+      <form class="brief-card" id="challengeForm">
+        <label>
+          Your name or business
+          <input name="name" type="text" placeholder="Example: Rosa’s Garden Care" autocomplete="organization" required>
+        </label>
+        <label>
+          Best email for the solution
+          <input name="email" type="email" placeholder="you@example.com" autocomplete="email" required>
+        </label>
+        <label>
+          The annoying problem
+          <textarea name="problem" rows="6" placeholder="Every Friday I manually copy bookings from email into a spreadsheet and I keep missing people." required></textarea>
+        </label>
+        <button class="button primary wide" type="submit">Send my problem</button>
+        <p id="challengeStatus" class="status" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="pay-card" aria-labelledby="pay-heading">
+      <div>
+        <p class="eyebrow">Only after we help</p>
+        <h2 id="pay-heading">Was it useful? Send $1.</h2>
+        <p class="fine-print">The challenge is free. The dollar is a tiny proof that we created something worth paying for.</p>
+      </div>
+      <a class="button primary" href="https://buy.stripe.com/5kQaEXeua5pVeRpfYMc7u0g">3DVR helped me — $1</a>
+    </section>
+
+    <section class="operator-note">
+      <p>3DVR is building open, understandable tools for everyday businesses. Useful fixes may become open-source building blocks so the next person starts further ahead.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>3DVR · Build the future, one useful fix at a time.</p>
+  </footer>
+
+  <script>
+    (() => {
+      const form = document.querySelector('#challengeForm');
+      const status = document.querySelector('#challengeStatus');
+      const emailAddress = '3dvr.tech@gmail.com';
+      const crmGun = typeof Gun === 'function'
+        ? Gun(window.__GUN_PEERS__ || ['wss://gun-relay-3dvr.fly.dev/gun'])
+        : null;
+      const crmRoot = crmGun?.get('3dvr-crm') || null;
+      const touchLogRoot = crmGun?.get('3dvr-portal')?.get('crm-touch-log') || null;
+
+      const clean = value => String(value || '').trim();
+      const slug = value => clean(value)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 48) || 'lead';
+
+      function putGun(node, payload) {
+        return new Promise(resolve => {
+          if (!node || typeof node.put !== 'function') return resolve(false);
+          let settled = false;
+          const done = value => {
+            if (settled) return;
+            settled = true;
+            resolve(value);
+          };
+          const timer = window.setTimeout(() => done(false), 2200);
+          node.put(payload, ack => {
+            window.clearTimeout(timer);
+            done(!ack?.err);
+          });
+        });
+      }
+
+      function mailtoFor(name, email, problem) {
+        const subject = `3DVR challenge: ${name}`;
+        const body = [
+          'I want to try the $1 Open-Source Business Challenge.',
+          '',
+          `Name/business: ${name}`,
+          `Email: ${email}`,
+          '',
+          'Problem:',
+          problem
+        ].join('\n');
+        return `mailto:${emailAddress}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      }
+
+      async function saveLead(name, email, problem) {
+        const now = new Date().toISOString();
+        const id = `lead-business-challenge-${Date.now()}-${slug(email || name)}`;
+        const record = {
+          id,
+          recordType: 'person',
+          name,
+          email,
+          company: name,
+          role: 'Founder / operator',
+          tags: ['one-dollar-challenge', 'open-source', 'inbound'],
+          status: 'new',
+          warmth: 'warm',
+          source: 'one-dollar-business-challenge',
+          offerAmount: 'Free problem-solving; optional $1 thank-you',
+          nextBestAction: 'Review the submitted problem and attempt the smallest useful open-source solution.',
+          nextFollowUp: now.slice(0, 10),
+          activityCount: 1,
+          created: now,
+          updated: now,
+          notes: `Inbound $1 Open-Source Business Challenge\nProblem: ${problem}`
+        };
+        const touch = {
+          id: `touch-business-challenge-${Date.now()}-${slug(email || name)}`,
+          recordId: id,
+          contactName: name,
+          contactEmail: email,
+          type: 'inbound',
+          channel: 'challenge-page',
+          source: 'one-dollar-business-challenge',
+          summary: 'Inbound $1 Open-Source Business Challenge submission.',
+          outcome: 'Problem captured for review.',
+          message: JSON.stringify({ name, email, problem }),
+          created: now,
+          updated: now
+        };
+        const [recordSaved, touchSaved] = await Promise.all([
+          putGun(crmRoot?.get(id), record),
+          putGun(touchLogRoot?.get(touch.id), touch)
+        ]);
+        return recordSaved && touchSaved;
+      }
+
+      form?.addEventListener('submit', async event => {
+        event.preventDefault();
+        const data = new FormData(form);
+        const name = clean(data.get('name'));
+        const email = clean(data.get('email'));
+        const problem = clean(data.get('problem'));
+        status.textContent = 'Sending your challenge…';
+
+        const saved = await saveLead(name, email, problem);
+        if (saved) {
+          status.textContent = 'Got it. Your problem is in the 3DVR challenge queue.';
+          form.reset();
+          return;
+        }
+
+        status.textContent = 'Opening email as a backup so your problem still reaches us.';
+        window.location.href = mailtoFor(name, email, problem);
+      });
+    })();
+  </script>
+</body>
+</html>
