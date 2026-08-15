@@ -35,6 +35,10 @@ jobs:
           chmod +x apps/companion/scaffold.sh
           apps/companion/scaffold.sh
 
+      - name: Test Companion
+        working-directory: apps/companion
+        run: flutter test
+
       - name: Build debug APK
         working-directory: apps/companion
         run: flutter build apk --debug
