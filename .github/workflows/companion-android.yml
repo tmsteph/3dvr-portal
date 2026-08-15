@@ -43,6 +43,33 @@ jobs:
         working-directory: apps/companion
         run: flutter build apk --debug
 
+      - name: Sign APK with persistent Companion key
+        env:
+          COMPANION_KEYSTORE_BASE64: ${{ secrets.COMPANION_KEYSTORE_BASE64 }}
+          COMPANION_KEYSTORE_PASSWORD: ${{ secrets.COMPANION_KEYSTORE_PASSWORD }}
+          COMPANION_KEY_PASSWORD: ${{ secrets.COMPANION_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$COMPANION_KEYSTORE_BASE64"
+          test -n "$COMPANION_KEYSTORE_PASSWORD"
+          test -n "$COMPANION_KEY_PASSWORD"
+          KEYSTORE="$RUNNER_TEMP/3dvr-companion-dev.p12"
+          printf '%s' "$COMPANION_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          APKSIGNER="$(find "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          APK="apps/companion/build/app/outputs/flutter-apk/app-debug.apk"
+          SIGNED="$RUNNER_TEMP/3dvr-companion-signed.apk"
+          "$APKSIGNER" sign \
+            --ks "$KEYSTORE" \
+            --ks-type PKCS12 \
+            --ks-key-alias 3dvr-companion \
+            --ks-pass env:COMPANION_KEYSTORE_PASSWORD \
+            --key-pass env:COMPANION_KEY_PASSWORD \
+            --out "$SIGNED" \
+            "$APK"
+          mv "$SIGNED" "$APK"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
