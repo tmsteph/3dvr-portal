@@ -1,6 +1,6 @@
 # Portal + Agent Monorepo Design
 
-Status: implemented July 16, 2026.
+Status: implemented July 16, 2026; Portal surface promoted August 15, 2026.
 
 ## Decision
 
@@ -26,6 +26,17 @@ Status: implemented July 16, 2026.
 
 The asymmetric shape is intentional. A monorepo does not require moving every application at once, and keeping the portal at the root avoids changing its current Vercel project root, imports, scripts, and deployment assumptions.
 
+## Product surface
+
+Agent is part of Portal OS, not a separate customer-facing product. Portal Home exposes Agent as a first-class entry point and routes operators to the existing Agent Operations workbench in `/admin/#agent-ops-card`.
+
+This keeps the product model simple:
+
+- Portal is the user-facing operating system.
+- Agent is the execution layer inside Portal.
+- `apps/agent` remains independently deployable because the worker has different runtime and secret requirements.
+- Shared packages should be extracted only when Portal and Agent genuinely share stable code contracts.
+
 ## Runtime boundaries
 
 - The portal remains a Vercel deployment built from the repository root.
@@ -42,6 +53,7 @@ The asymmetric shape is intentional. A monorepo does not require moving every ap
 4. Vercel excludes `apps/agent` from the public deployment; the worker remains a separate runtime.
 5. The combined portal and agent suites must pass before the production worker checkout changes.
 6. The standalone `3dvr-agent` repository remains read-only during the transition and is not deleted.
+7. Portal Home now exposes Agent directly while reusing the existing authenticated Agent Operations workbench.
 
 ## Deferred work
 
