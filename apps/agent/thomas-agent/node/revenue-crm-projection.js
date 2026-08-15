@@ -21,9 +21,15 @@ function remoteProjectionRoots() {
 function recordFor(prospect, event, now) {
   const crmStatus = {
     prospect: 'Lead', verified: 'Lead', drafted: 'Lead', eligible: 'Lead',
-    sent: 'Warm - Follow-up', replied: 'Warm - Discovery', bounced: 'Lost',
+    sent: 'Warm - Waiting', replied: 'Warm - Discovery', bounced: 'Lost',
     failed: 'Lost', suppressed: 'Closed',
   }[prospect.state] || 'Lead';
+  const nextBestAction = {
+    sent: 'Wait for reply or a genuinely new material reason to contact. Do not schedule an automatic sales follow-up.',
+    replied: 'Continue discovery from the customer reply.',
+    bounced: 'Do not contact.',
+    suppressed: 'Do not contact.',
+  }[prospect.state] || 'Follow the canonical revenue state machine.';
   return {
     id: buildLeadId({ name: prospect.name, contact: prospect.contact, link: prospect.source_url }),
     recordType: 'person',
@@ -35,7 +41,7 @@ function recordFor(prospect, event, now) {
     source: '3dvr-revenue-ledger',
     campaignId: prospect.campaign_id,
     lastSignal: `Canonical revenue state: ${prospect.state}`,
-    nextBestAction: ['bounced', 'suppressed'].includes(prospect.state) ? 'Do not contact.' : 'Follow the canonical revenue state machine.',
+    nextBestAction,
     created: prospect.created_at,
     updated: now,
     canonicalEventId: event.id,
