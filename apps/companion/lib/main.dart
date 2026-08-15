@@ -60,6 +60,12 @@ class _CompanionHomeState extends State<CompanionHome> {
 
   Future<void> _startLocalBridge() async {
     try {
+      if (Platform.isAndroid) {
+        final persistentToken = await bridge.getBridgeToken();
+        if (persistentToken != null) {
+          localServer.useToken(persistentToken);
+        }
+      }
       await localServer.start();
       if (mounted) setState(() => bridgeError = null);
     } catch (error) {
