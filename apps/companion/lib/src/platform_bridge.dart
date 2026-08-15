@@ -10,6 +10,10 @@ class CompanionPlatformBridge {
     return result ?? const {};
   }
 
+  Future<String?> getBridgeToken() async {
+    return _channel.invokeMethod<String>('bridgeToken');
+  }
+
   Future<bool> openUrl(String url) async {
     final result = await _channel.invokeMethod<bool>('openUrl', {'url': url});
     return result ?? false;
