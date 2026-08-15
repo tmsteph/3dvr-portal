@@ -28,6 +28,22 @@ test('CRM projection preserves the legacy stable record identity while waiting q
   assert.equal(record.canonicalState, 'sent');
 });
 
+test('CRM projection turns a successful payment receipt into a paid-customer activation record', () => {
+  const record = recordFor(
+    { id: 'esai', name: 'Esai', contact: 'mailto:gamboaesai@gmail.com', source_url: '', state: 'replied', campaign_id: '', created_at: '2026-08-01T00:00:00Z' },
+    { id: 'payment-event', type: 'payment_succeeded', created_at: '2026-08-13T20:00:00Z', payload_json: JSON.stringify({ payment: { amount_cents: 2000, currency: 'usd', paid_at: '2026-08-13T20:00:00Z', recurring_cents: 2000, plan: 'starter', payment_intent_id: 'pi_example', subscription_id: 'sub_example' } }) },
+    '2026-08-15T00:00:00Z'
+  );
+  assert.equal(record.status, 'Paid Customer');
+  assert.equal(record.lastPaymentAmountCents, 2000);
+  assert.equal(record.lastPaymentAmount, 'USD 20.00');
+  assert.equal(record.recurringPlanValueCents, 2000);
+  assert.equal(record.billingPlan, 'starter');
+  assert.equal(record.stripePaymentIntentId, 'pi_example');
+  assert.match(record.nextBestAction, /Activate the customer/);
+  assert.doesNotMatch(record.nextBestAction, /sales follow-up because payment occurred\.$/i);
+});
+
 test('remote projection roots do not initialize a local radata store', () => {
   const source = fs.readFileSync(require.resolve('../thomas-agent/node/revenue-crm-projection'), 'utf8');
   assert.match(source, /axe:\s*false/);
