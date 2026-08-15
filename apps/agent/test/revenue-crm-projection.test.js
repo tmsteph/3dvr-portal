@@ -41,7 +41,18 @@ test('CRM projection turns a successful payment receipt into a paid-customer act
   assert.equal(record.billingPlan, 'starter');
   assert.equal(record.stripePaymentIntentId, 'pi_example');
   assert.match(record.nextBestAction, /Activate the customer/);
-  assert.doesNotMatch(record.nextBestAction, /sales follow-up because payment occurred\.$/i);
+  assert.match(record.nextBestAction, /Do not schedule a sales follow-up because payment occurred\.$/i);
+});
+
+test('CRM projection does not infer payment from metadata on a non-payment event', () => {
+  const record = recordFor(
+    { id: 'esai', name: 'Esai', contact: 'mailto:gamboaesai@gmail.com', source_url: '', state: 'replied', campaign_id: '', created_at: '2026-08-01T00:00:00Z' },
+    { id: 'reply-event', type: 'replied', created_at: '2026-08-13T20:00:00Z', payload_json: JSON.stringify({ plan: 'starter', subscription_id: 'sub_example' }) },
+    '2026-08-15T00:00:00Z'
+  );
+  assert.equal(record.status, 'Warm - Discovery');
+  assert.equal(record.billingPlan, undefined);
+  assert.equal(record.stripeSubscriptionId, undefined);
 });
 
 test('remote projection roots do not initialize a local radata store', () => {
