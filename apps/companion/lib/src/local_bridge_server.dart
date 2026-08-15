@@ -11,12 +11,25 @@ class LocalCompanionServer {
   final CompanionPlatformBridge bridge;
 
   HttpServer? _server;
-  final String token = _newToken();
+  String token = _newToken();
 
   bool get isRunning => _server != null;
   Uri? get endpoint => _server == null
       ? null
       : Uri.parse('http://127.0.0.1:${_server!.port}');
+
+  void useToken(String value) {
+    if (_server != null) {
+      throw StateError('Cannot change Companion token while server is running');
+    }
+    final candidate = value.trim();
+    if (candidate.length < 32 ||
+        candidate.length > 128 ||
+        !RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(candidate)) {
+      throw ArgumentError('Invalid Companion bridge token');
+    }
+    token = candidate;
+  }
 
   Future<void> start({int port = defaultPort}) async {
     if (_server != null) return;
