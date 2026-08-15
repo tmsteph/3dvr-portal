@@ -106,7 +106,7 @@ const companionCapabilities = <CompanionCapability>[
     platforms: {
       CompanionPlatform.android,
       CompanionPlatform.ios,
-      CompanionPlatform.mos,
+      CompanionPlatform.macos,
       CompanionPlatform.windows,
       CompanionPlatform.linux,
     },
