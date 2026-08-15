@@ -40,12 +40,6 @@ function stableHash(value) {
   return crypto.createHash('sha1').update(String(value || '')).digest('hex').slice(0, 12);
 }
 
-function addDays(date, days) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
 function isoDate(value, fallback = new Date()) {
   const date = value ? new Date(value) : fallback;
   if (Number.isNaN(date.getTime())) return fallback.toISOString().slice(0, 10);
@@ -145,7 +139,7 @@ function marketSegmentForLead(lead) {
 
 function statusForLead(lead) {
   const status = normalizeLower(lead.status);
-  if (status === 'contacted') return 'Warm - Follow-up';
+  if (status === 'contacted') return 'Warm - Waiting';
   if (status === 'replied') return 'Warm - Discovery';
   if (status === 'nurture') return 'Warm - Awareness';
   if (status === 'closed') return 'Won';
@@ -164,8 +158,8 @@ function nextActionForLead(lead) {
   const status = normalizeLower(lead.status);
   const action = leadAction(lead);
   if (status === 'failed') return 'Repair the contact route before any future outreach.';
-  if (status === 'nurture') return 'Revisit later with a more specific reason to reach out.';
-  if (status === 'contacted') return 'Watch for a reply; follow up later with one concrete question.';
+  if (status === 'nurture') return 'Revisit only when there is a genuinely new material reason to reach out.';
+  if (status === 'contacted') return 'Wait for a reply or a genuinely new material reason; do not send another follow-up.';
   if (status === 'replied') return 'Reply with one clear next step and log the outcome.';
   if (action === 'email') return 'Review and send one short opener if this lead is still a fit.';
   if (action === 'form') return 'Review the contact form manually before submitting one concise opener.';
@@ -192,13 +186,12 @@ function buildCrmRecord(lead, options = {}) {
   const lastContacted = ['contacted', 'replied', 'failed', 'closed'].includes(status)
     ? isoDate(lead.date, new Date(now))
     : '';
-  const nextFollowUp = status === 'contacted'
-    ? isoDate(addDays(new Date(lastContacted || now), 21))
-    : '';
+  const nextFollowUp = '';
   const tags = [
     'source/3dvr-agent',
     `status/${status}`,
     ...routeTags(lead),
+    status === 'contacted' ? 'revenue/quiet-until-reply' : '',
     normalizeText(lead.variant) ? `variant/${normalizeText(lead.variant)}` : '',
   ].filter(Boolean);
 
@@ -308,7 +301,7 @@ function buildOutreachTouch(entry, record, options = {}) {
     threadId: normalizeText(entry.threadId),
     deliveryStatus: normalizeText(entry.deliveryStatus || entry.status),
     replyStatus: normalizeText(entry.replyStatus || (status === 'replied' ? 'replied' : 'pending')),
-    nextFollowUp: normalizeText(entry.nextFollowUp),
+    nextFollowUp: status === 'replied' ? normalizeText(entry.nextFollowUp) : '',
     targetUrl: normalizeText(entry.targetUrl),
     previewUrl: normalizeText(entry.previewUrl),
     recipientId: normalizeText(entry.recipientId),
@@ -366,7 +359,7 @@ function buildCrmSyncPayload({
     record.lastMessageSubject = normalizeText(latest.subject);
     record.lastMessage = String(latest.body || '');
     record.lastDeliveryStatus = normalizeText(latest.deliveryStatus || latest.status);
-    record.nextFollowUp = normalizeText(latest.nextFollowUp) || record.nextFollowUp;
+    record.nextFollowUp = replies.length ? normalizeText(latest.nextFollowUp) : '';
     record.updated = now;
   }
 
@@ -428,105 +421,54 @@ function parseArgs(argv = []) {
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === '--dry-run') {
-      options.dryRun = true;
-    } else if (arg === '--limit') {
-      options.limit = Number.parseInt(argv[++index] || '0', 10) || 0;
-    } else if (arg === '--leads-file') {
-      options.leadsFile = argv[++index] || DEFAULT_LEADS_FILE;
-    } else if (arg === '--outreach-log') {
-      options.outreachLogFile = argv[++index] || DEFAULT_OUTREACH_LOG_FILE;
-    } else if (arg === '--no-outreach-log') {
-      options.noOutreachLog = true;
-    } else if (arg === '--include-all') {
-      options.includeAll = true;
-    } else if (arg === '-h' || arg === '--help' || arg === 'help') {
-      options.help = true;
-    } else {
-      throw new Error(`Unknown option: ${arg}`);
-    }
+    if (arg === '--dry-run') options.dryRun = true;
+    else if (arg === '--include-all') options.includeAll = true;
+    else if (arg === '--no-outreach-log') options.noOutreachLog = true;
+    else if (arg === '--help' || arg === '-h') options.help = true;
+    else if (arg === '--limit') options.limit = Number.parseInt(argv[++index] || '0', 10) || 0;
+    else if (arg === '--leads-file') options.leadsFile = argv[++index] || options.leadsFile;
+    else if (arg === '--outreach-log-file') options.outreachLogFile = argv[++index] || options.outreachLogFile;
   }
-
   return options;
 }
 
-function printPreview(payload, options = {}) {
-  const records = payload.records || [];
-  const touches = payload.touches || [];
-  console.log(`CRM sync preview: records=${records.length} touches=${touches.length}`);
-  for (const record of records.slice(0, options.previewLimit || 8)) {
-    console.log(`- ${record.name} | ${record.status} | ${record.marketSegment} | ${record.nextBestAction}`);
-  }
-  if (records.length > (options.previewLimit || 8)) {
-    console.log(`... ${records.length - (options.previewLimit || 8)} more record(s)`);
-  }
-}
-
-async function cli(argv = process.argv.slice(2)) {
+async function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
   if (options.help) {
-    console.log(`Usage:
-  ask-crm-sync [--dry-run] [--limit 20] [--no-outreach-log] [--include-all]
-
-Writes local 3dvr-agent leads into:
-  - 3dvr-crm/<recordId>
-  - 3dvr-portal/crm-touch-log/<touchId>
-
-By default, noisy/test/failed rows and weak scraped leads are skipped so the
-portal CRM stays useful. Use --include-all for a full import.`);
+    console.log('Usage: node crm-sync.js [--dry-run] [--limit N] [--include-all] [--no-outreach-log] [--leads-file PATH] [--outreach-log-file PATH]');
     return;
   }
-
   const leads = readLeads(options.leadsFile);
-  const outreach = options.noOutreachLog
-    ? []
-    : readOutreachLog({ filePath: options.outreachLogFile });
-  const payload = buildCrmSyncPayload({
-    leads,
-    outreach,
-    limit: options.limit,
-    includeAll: options.includeAll,
-  });
-  printPreview(payload);
-
+  const outreach = options.noOutreachLog ? [] : readOutreachLog(options.outreachLogFile);
+  const payload = buildCrmSyncPayload({ leads, outreach, limit: options.limit, includeAll: options.includeAll });
   if (options.dryRun) {
-    console.log('CRM sync dry-run only.');
+    console.log(JSON.stringify(payload, null, 2));
     return;
   }
-
   const result = await writeCrmSync(payload);
-  if (result.errors.length) {
-    console.warn(`CRM sync completed with ${result.errors.length} warning(s).`);
-    result.errors.slice(0, 5).forEach((error) => console.warn(`- ${error}`));
-  }
-  console.log(`CRM sync wrote ${result.records} record(s) and ${result.touches} touch log item(s).`);
+  console.log(JSON.stringify(result, null, 2));
+  if (result.errors.length) process.exitCode = 1;
+}
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
 }
 
 module.exports = {
   buildCrmRecord,
-  contactIdentity,
   buildCrmSyncPayload,
-  buildLeadId,
   buildLeadTouch,
   buildOutreachTouch,
+  contactsMatch,
+  contactIdentity,
+  isLikelyNoiseLead,
   leadFromOutreachEntry,
+  main,
   mergeOutreachIntoLead,
-  marketSegmentForLead,
-  nextActionForLead,
-  normalizeEmail,
-  parseArgs,
   readLeads,
   shouldSyncLeadToCrm,
-  statusForLead,
-  warmthForLead,
   writeCrmSync,
 };
-
-if (require.main === module) {
-  cli()
-    .then(() => process.exit(0))
-    .catch((error) => {
-      console.error(error.message || error);
-      process.exit(1);
-    });
-}
