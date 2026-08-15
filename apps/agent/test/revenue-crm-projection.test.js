@@ -20,10 +20,11 @@ test('CRM projection retries a timeout and completes idempotently', async () => 
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
-test('CRM projection preserves the legacy stable record identity', () => {
+test('CRM projection preserves the legacy stable record identity while waiting quietly after contact', () => {
   const record = recordFor({ id: 'uuid', name: 'Acme', contact: 'mailto:info@acme.test', source_url: 'https://acme.test', state: 'sent', campaign_id: '', created_at: '2026-01-01T00:00:00Z' }, { id: 'event' }, '2026-01-02T00:00:00Z');
   assert.equal(record.id, 'agent-lead-info-acme-test');
-  assert.equal(record.status, 'Warm - Follow-up');
+  assert.equal(record.status, 'Warm - Waiting');
+  assert.equal(record.nextBestAction, 'Wait for reply or a genuinely new material reason to contact. Do not schedule an automatic sales follow-up.');
   assert.equal(record.canonicalState, 'sent');
 });
 
