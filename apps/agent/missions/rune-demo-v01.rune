@@ -1,0 +1,32 @@
+# RUNE v0.1 mission example
+mission rune-demo-v01 {
+  repository: "tmsteph/3dvr-portal"
+  branch: "main"
+  objective: "Prove that a human-readable RUNE mission can drive the existing 3DVR mission runtime."
+  approval_policy: "Pause before consequential external writes, money, credentials, destructive actions, or production deployment."
+
+  task inspect-repository {
+    objective: "Inspect the repository without changing it."
+    backend: deterministic
+    risk: read_only
+    model: review
+    worktree: false
+    command: ["git", "status", "-sb"]
+    command: ["git", "rev-parse", "--show-toplevel"]
+    accept: "Repository state can be inspected without writes."
+    evidence: "git status"
+    evidence: "repository root"
+    retries: 2
+  }
+
+  task describe-next-step {
+    objective: "Record the next bounded step after repository inspection."
+    backend: deterministic
+    risk: read_only
+    model: review
+    worktree: false
+    depends: [inspect-repository]
+    accept: "The first task completed before this task becomes ready."
+    evidence: "dependency-aware mission state"
+  }
+}
