@@ -31,12 +31,7 @@ object CompanionShizuku {
             "binderAlive" to binderAlive,
             "permissionGranted" to permission,
             "uid" to uid,
-            "identity" to when (uid) {
-                0 -> "root"
-                2000 -> "shell"
-                null -> "unavailable"
-                else -> "uid:$uid"
-            },
+            "identity" to identityForUid(uid),
             "serverVersion" to version,
         )
     }
@@ -59,35 +54,26 @@ object CompanionShizuku {
         }
     }
 
-    @Suppress("DEPRECATION")
     fun identityProbe(): Map<String, Any?> {
-        val status = statusHolder()
-        if (status["binderAlive"] != true) {
+        val binderAlive = runCatching { Shizuku.pingBinder() }.getOrDefault(false)
+        if (!binderAlive) {
             return mapOf("ok" to false, "error" to "shizuku_not_running")
         }
-        if (status["permissionGranted"] != true) {
+        val permissionGranted = runCatching {
+            Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+        }.getOrDefault(false)
+        if (!permissionGranted) {
             return mapOf("ok" to false, "error" to "shizuku_permission_required")
         }
-        return runCatching {
-            val process = Shizuku.newProcess(arrayOf("id"), null, null)
-            val stdout = process.inputStream.bufferedReader().use { it.readText().trim() }
-            val stderr = process.errorStream.bufferedReader().use { it.readText().trim() }
-            val exit = process.waitFor()
-            process.destroy()
-            mapOf(
-                "ok" to (exit == 0),
-                "exit" to exit,
-                "shellIdentityConfirmed" to stdout.contains("uid=2000") || stdout.contains("uid=0"),
-                "identity" to when {
-                    stdout.contains("uid=0") -> "root"
-                    stdout.contains("uid=2000") -> "shell"
-                    else -> "other"
-                },
-                "stderrPresent" to stderr.isNotEmpty(),
-            )
-        }.getOrElse {
-            mapOf("ok" to false, "error" to "shizuku_probe_failed")
-        }
+        val uid = runCatching { Shizuku.getUid() }.getOrNull()
+            ?: return mapOf("ok" to false, "error" to "shizuku_uid_unavailable")
+        val identity = identityForUid(uid)
+        return mapOf(
+            "ok" to true,
+            "uid" to uid,
+            "shellIdentityConfirmed" to (uid == 2000 || uid == 0),
+            "identity" to identity,
+        )
     }
 
     fun openManagerOrDownload(context: Context): Boolean {
@@ -103,14 +89,10 @@ object CompanionShizuku {
         return true
     }
 
-    private fun statusHolder(): Map<String, Any?> {
-        val binderAlive = runCatching { Shizuku.pingBinder() }.getOrDefault(false)
-        val permission = if (binderAlive) {
-            runCatching { Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED }
-                .getOrDefault(false)
-        } else {
-            false
-        }
-        return mapOf("binderAlive" to binderAlive, "permissionGranted" to permission)
+    private fun identityForUid(uid: Int?): String = when (uid) {
+        0 -> "root"
+        2000 -> "shell"
+        null -> "unavailable"
+        else -> "uid:$uid"
     }
 }
