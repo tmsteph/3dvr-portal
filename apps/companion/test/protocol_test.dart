@@ -20,6 +20,21 @@ void main() {
     expect(capability.platforms, isNot(contains(CompanionPlatform.ios)));
   });
 
+  test('message notification reads are bounded and sends are red', () {
+    final read = companionCapabilities.singleWhere(
+      (value) => value.name == 'messages.notification.read',
+    );
+    final reply = companionCapabilities.singleWhere(
+      (value) => value.name == 'messages.notification.reply',
+    );
+
+    expect(read.risk, CompanionRisk.yellow);
+    expect(read.requiresConfirmation, isTrue);
+    expect(reply.risk, CompanionRisk.red);
+    expect(reply.requiresConfirmation, isTrue);
+    expect(reply.platforms, contains(CompanionPlatform.android));
+  });
+
   test('expired action requests reject themselves locally', () {
     final now = DateTime.now().toUtc();
     final request = CompanionActionRequest(
