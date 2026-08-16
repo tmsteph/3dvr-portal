@@ -37,6 +37,8 @@ cp native-spec/android/MainActivity.kt "$KOTLIN_DIR/MainActivity.kt"
 cp native-spec/android/CompanionAccessibilityService.kt "$KOTLIN_DIR/CompanionAccessibilityService.kt"
 cp native-spec/android/CompanionNotificationListener.kt "$KOTLIN_DIR/CompanionNotificationListener.kt"
 cp native-spec/android/CompanionKeepAliveService.kt "$KOTLIN_DIR/CompanionKeepAliveService.kt"
+cp native-spec/android/CompanionNativeBridgeServer.kt "$KOTLIN_DIR/CompanionNativeBridgeServer.kt"
+cp native-spec/android/CompanionStartupReceiver.kt "$KOTLIN_DIR/CompanionStartupReceiver.kt"
 cp native-spec/android/companion_accessibility_service.xml \
   android/app/src/main/res/xml/companion_accessibility_service.xml
 
@@ -58,6 +60,9 @@ permissions = [
     'android.permission.FOREGROUND_SERVICE',
     'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',
     'android.permission.POST_NOTIFICATIONS',
+    'android.permission.RECEIVE_BOOT_COMPLETED',
+    'android.permission.REQUEST_INSTALL_PACKAGES',
+    'android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION',
 ]
 existing_permissions = {
     node.get(a('name')) for node in root.findall('uses-permission')
@@ -65,6 +70,33 @@ existing_permissions = {
 for permission in reversed(permissions):
     if permission not in existing_permissions:
         root.insert(0, ET.Element('uses-permission', {a('name'): permission}))
+
+queries = root.find('queries')
+if queries is None:
+    queries = ET.Element('queries')
+    insert_at = 0
+    for index, child in enumerate(list(root)):
+        if child.tag == 'uses-permission':
+            insert_at = index + 1
+    root.insert(insert_at, queries)
+known_packages = {
+    'com.openai.chatgpt',
+    'com.google.android.apps.maps',
+    'com.google.android.gm',
+    'com.android.chrome',
+    'com.termux',
+    'com.google.android.calendar',
+    'com.samsung.android.calendar',
+    'com.sec.android.app.camera',
+    'com.google.android.GoogleCamera',
+    'com.google.android.apps.messaging',
+    'com.samsung.android.messaging',
+    'com.android.mms',
+}
+existing_queries = {node.get(a('name')) for node in queries.findall('package')}
+for package in sorted(known_packages):
+    if package not in existing_queries:
+        ET.SubElement(queries, 'package', {a('name'): package})
 
 app = root.find('application')
 if app is None:
@@ -78,6 +110,9 @@ for service in list(app.findall('service')):
         '.CompanionKeepAliveService',
     }:
         app.remove(service)
+for receiver in list(app.findall('receiver')):
+    if receiver.get(a('name')) == '.CompanionStartupReceiver':
+        app.remove(receiver)
 
 accessibility = ET.SubElement(app, 'service', {
     a('name'): '.CompanionAccessibilityService',
@@ -116,6 +151,18 @@ ET.SubElement(keepalive, 'property', {
     a('value'): 'Keeps the user-enabled local 3DVR Companion bridge reachable while the app is backgrounded.',
 })
 
+startup = ET.SubElement(app, 'receiver', {
+    a('name'): '.CompanionStartupReceiver',
+    a('enabled'): 'true',
+    a('exported'): 'false',
+})
+startup_filter = ET.SubElement(startup, 'intent-filter')
+for action in (
+    'android.intent.action.BOOT_COMPLETED',
+    'android.intent.action.MY_PACKAGE_REPLACED',
+):
+    ET.SubElement(startup_filter, 'action', {a('name'): action})
+
 ET.indent(tree, space='    ')
 tree.write(manifest_path, encoding='utf-8', xml_declaration=True)
 
@@ -132,7 +179,7 @@ for node in list(strings_root.findall('string')):
     if node.get('name') == 'companion_accessibility_description':
         strings_root.remove(node)
 entry = ET.SubElement(strings_root, 'string', {'name': 'companion_accessibility_description'})
-entry.text = 'Lets 3DVR Companion inspect limited screen structure for user-approved assistive actions.'
+entry.text = 'Lets 3DVR Companion inspect and control the screen when you enable full phone control.'
 ET.indent(strings_tree, space='    ')
 strings_tree.write(strings_path, encoding='utf-8', xml_declaration=True)
 
@@ -145,7 +192,6 @@ with plist_path.open('wb') as handle:
     plistlib.dump(plist, handle)
 PY
 
-# Keep the iOS App Intent as a reference until we add it to the Xcode project on macOS.
 mkdir -p ios/CompanionNativeSpec
 cp native-spec/ios/OpenCompanionDashboardIntent.swift \
   ios/CompanionNativeSpec/OpenCompanionDashboardIntent.swift
@@ -159,5 +205,6 @@ echo
 echo "3DVR Companion scaffolded."
 echo "App display name: 3DVR Companion"
 echo "Android native adapter: wired"
-echo "Android background bridge keep-alive: wired"
+echo "Android always-on native bridge: wired"
+echo "Android boot/package-replace recovery: wired"
 echo "iOS App Intent: staged in ios/CompanionNativeSpec (Xcode target wiring still required)"
