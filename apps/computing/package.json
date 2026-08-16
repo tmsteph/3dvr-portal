@@ -1,0 +1,11 @@
+{
+  "name": "@3dvr/computing",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared capability and permission contract for the 3DVR computing family.",
+  "scripts": {
+    "demo": "node bin/3dvr-computing.mjs demo",
+    "test": "node --test test/*.test.mjs"
+  }
+}
