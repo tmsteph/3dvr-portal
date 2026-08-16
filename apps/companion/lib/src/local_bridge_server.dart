@@ -91,7 +91,8 @@ class LocalCompanionServer {
         final messages = await bridge.getMessageNotifications();
         _json(request, {
           'ok': true,
-          'storage': 'memory-only',
+          'storage': 'encrypted-on-device-history',
+          'retention': {'maxEntries': 50, 'maxAgeDays': 7},
           'messages': messages,
         });
         return;
