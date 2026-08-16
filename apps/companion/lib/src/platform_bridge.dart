@@ -10,6 +10,10 @@ class CompanionPlatformBridge {
     return result ?? const {};
   }
 
+  Future<String?> getBridgeToken() async {
+    return _channel.invokeMethod<String>('bridgeToken');
+  }
+
   Future<bool> openUrl(String url) async {
     final result = await _channel.invokeMethod<bool>('openUrl', {'url': url});
     return result ?? false;
@@ -27,6 +31,26 @@ class CompanionPlatformBridge {
         .map((item) => item.map((key, value) => MapEntry(key.toString(), value)))
         .cast<Map<String, Object?>>()
         .toList(growable: false);
+  }
+
+  Future<List<Map<String, Object?>>> getMessageNotifications() async {
+    final result = await _channel.invokeListMethod<Map>('messageNotifications');
+    if (result == null) return const [];
+    return result
+        .map((item) => item.map((key, value) => MapEntry(key.toString(), value)))
+        .cast<Map<String, Object?>>()
+        .toList(growable: false);
+  }
+
+  Future<bool> replyMessageNotification({
+    required String key,
+    required String text,
+  }) async {
+    final result = await _channel.invokeMethod<bool>(
+      'replyMessageNotification',
+      {'key': key, 'text': text},
+    );
+    return result ?? false;
   }
 
   Future<Map<String, Object?>> getCapabilityStatus() async {

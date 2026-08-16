@@ -19,10 +19,17 @@ class CompanionKeepAliveService : Service() {
         super.onCreate()
         createChannel()
         startForeground(notificationId, buildNotification())
+        CompanionNativeBridgeServer.ensureStarted(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        CompanionNativeBridgeServer.ensureStarted(this)
         return START_STICKY
+    }
+
+    override fun onDestroy() {
+        CompanionNativeBridgeServer.stop()
+        super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -34,7 +41,7 @@ class CompanionKeepAliveService : Service() {
             "3DVR Companion bridge",
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = "Keeps the local Companion bridge available while the app is in the background."
+            description = "Keeps the local Companion control bridge available while the app is in the background."
             setShowBadge(false)
         }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
@@ -56,7 +63,7 @@ class CompanionKeepAliveService : Service() {
         }
         return builder
             .setContentTitle("3DVR Companion active")
-            .setContentText("Local assistant bridge is available")
+            .setContentText("Always-on local assistant bridge")
             .setSmallIcon(android.R.drawable.stat_notify_sync_noanim)
             .setOngoing(true)
             .setContentIntent(pendingIntent)

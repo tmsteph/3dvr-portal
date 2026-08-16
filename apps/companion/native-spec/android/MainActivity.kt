@@ -6,13 +6,17 @@ import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
 import android.provider.Settings
+import android.util.Base64
 import android.view.accessibility.AccessibilityManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.security.SecureRandom
 
 class MainActivity : FlutterActivity() {
     private val channelName = "tech.3dvr.companion/platform"
+    private val bridgePrefs = "companion_local_bridge"
+    private val bridgeTokenKey = "bearer_token_v1"
 
     private val knownApps = mapOf(
         "chatgpt" to listOf("com.openai.chatgpt"),
@@ -27,12 +31,24 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         startKeepAliveService()
+        MessageNotificationStore.initialize(this)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "deviceStatus" -> result.success(deviceStatus())
                     "capabilityStatus" -> result.success(capabilityStatus())
+                    "bridgeToken" -> result.success(getOrCreateBridgeToken())
                     "notificationMetadata" -> result.success(NotificationMetadataStore.snapshot())
+                    "messageNotifications" -> {
+                        MessageNotificationStore.initialize(this)
+                        result.success(MessageNotificationStore.snapshot())
+                    }
+                    "replyMessageNotification" -> {
+                        val key = call.argument<String>("key") ?: ""
+                        val text = call.argument<String>("text") ?: ""
+                        MessageNotificationStore.initialize(this)
+                        result.success(MessageNotificationStore.reply(this, key, text))
+                    }
                     "openUrl" -> {
                         val raw = call.argument<String>("url") ?: ""
                         result.success(openHttpUrl(raw))
@@ -63,6 +79,21 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun getOrCreateBridgeToken(): String {
+        val prefs = getSharedPreferences(bridgePrefs, Context.MODE_PRIVATE)
+        val existing = prefs.getString(bridgeTokenKey, null)
+        if (!existing.isNullOrBlank()) return existing
+
+        val bytes = ByteArray(32)
+        SecureRandom().nextBytes(bytes)
+        val created = Base64.encodeToString(
+            bytes,
+            Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
+        )
+        prefs.edit().putString(bridgeTokenKey, created).apply()
+        return created
+    }
+
     private fun deviceStatus(): Map<String, Any?> {
         val battery = getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
         return mapOf(
@@ -76,9 +107,13 @@ class MainActivity : FlutterActivity() {
     private fun capabilityStatus(): Map<String, Any> = mapOf(
         "accessibilityEnabled" to isAccessibilityEnabled(),
         "notificationAccessEnabled" to isNotificationAccessEnabled(),
+        "messageNotificationReadEnabled" to isNotificationAccessEnabled(),
+        "messageNotificationReplyEnabled" to isNotificationAccessEnabled(),
+        "messageHistoryEncryptedAtRest" to true,
         "backgroundBridgeEnabled" to true,
         "knownAppLaunchEnabled" to true,
         "remoteKnownActionsEnabled" to false,
+        "persistentPairingEnabled" to true,
     )
 
     private fun openHttpUrl(raw: String): Boolean {

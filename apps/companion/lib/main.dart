@@ -32,10 +32,14 @@ class CompanionHome extends StatefulWidget {
 class _CompanionHomeState extends State<CompanionHome> {
   final CompanionPlatformBridge bridge = const CompanionPlatformBridge();
   late final LocalCompanionServer localServer = LocalCompanionServer(bridge: bridge);
+  static final Uri androidNativeEndpoint = Uri.parse('http://127.0.0.1:38473');
+
   Map<String, Object?> status = const {};
   Map<String, Object?> permissionState = const {};
   bool loading = true;
   String? bridgeError;
+  String? persistentToken;
+  Uri? desktopEndpoint;
 
   CompanionPlatform get currentPlatform {
     if (Platform.isAndroid) return CompanionPlatform.android;
@@ -44,6 +48,9 @@ class _CompanionHomeState extends State<CompanionHome> {
     if (Platform.isWindows) return CompanionPlatform.windows;
     return CompanionPlatform.linux;
   }
+
+  Uri? get activeEndpoint => Platform.isAndroid ? androidNativeEndpoint : desktopEndpoint;
+  String get activeToken => persistentToken ?? localServer.token;
 
   @override
   void initState() {
@@ -54,13 +61,26 @@ class _CompanionHomeState extends State<CompanionHome> {
 
   @override
   void dispose() {
-    localServer.stop();
+    if (!Platform.isAndroid) localServer.stop();
     super.dispose();
   }
 
   Future<void> _startLocalBridge() async {
     try {
+      if (Platform.isAndroid) {
+        persistentToken = await bridge.getBridgeToken();
+        if (persistentToken == null) {
+          throw StateError('Persistent Android bridge token unavailable');
+        }
+        if (mounted) {
+          setState(() {
+            bridgeError = null;
+          });
+        }
+        return;
+      }
       await localServer.start();
+      desktopEndpoint = localServer.endpoint;
       if (mounted) setState(() => bridgeError = null);
     } catch (error) {
       if (mounted) setState(() => bridgeError = error.toString());
@@ -90,9 +110,9 @@ class _CompanionHomeState extends State<CompanionHome> {
   }
 
   Future<void> _copyPairingCommand() async {
-    final endpoint = localServer.endpoint;
+    final endpoint = activeEndpoint;
     if (endpoint == null) return;
-    final command = "pair-companion '${localServer.token}' '${endpoint.toString()}'";
+    final command = "pair-companion '$activeToken' '${endpoint.toString()}'";
     await Clipboard.setData(ClipboardData(text: command));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -105,7 +125,7 @@ class _CompanionHomeState extends State<CompanionHome> {
     final capabilities = companionCapabilities
         .where((capability) => capability.platforms.contains(currentPlatform))
         .toList(growable: false);
-    final endpoint = localServer.endpoint;
+    final endpoint = activeEndpoint;
 
     return Scaffold(
       appBar: AppBar(
@@ -122,8 +142,10 @@ class _CompanionHomeState extends State<CompanionHome> {
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Companion exposes explicit capabilities to Life Ops. Dangerous actions stay disabled until you approve them locally.',
+          Text(
+            Platform.isAndroid
+                ? 'Android control runs in an always-on native foreground service. This screen is only a dashboard.'
+                : 'Companion exposes explicit device capabilities to 3DVR Life Ops.',
           ),
           const SizedBox(height: 20),
           Card(
@@ -157,7 +179,7 @@ class _CompanionHomeState extends State<CompanionHome> {
                     const Text('Starting…')
                   else ...[
                     Text('Endpoint: $endpoint'),
-                    const Text('Session: paired green actions only'),
+                    Text(Platform.isAndroid ? 'Mode: always-on native service' : 'Mode: app-local'),
                     const SizedBox(height: 8),
                     FilledButton.tonalIcon(
                       onPressed: _copyPairingCommand,

@@ -11,12 +11,25 @@ class LocalCompanionServer {
   final CompanionPlatformBridge bridge;
 
   HttpServer? _server;
-  final String token = _newToken();
+  String token = _newToken();
 
   bool get isRunning => _server != null;
   Uri? get endpoint => _server == null
       ? null
       : Uri.parse('http://127.0.0.1:${_server!.port}');
+
+  void useToken(String value) {
+    if (_server != null) {
+      throw StateError('Cannot change Companion token while server is running');
+    }
+    final candidate = value.trim();
+    if (candidate.length < 32 ||
+        candidate.length > 128 ||
+        !RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(candidate)) {
+      throw ArgumentError('Invalid Companion bridge token');
+    }
+    token = candidate;
+  }
 
   Future<void> start({int port = defaultPort}) async {
     if (_server != null) return;
@@ -55,6 +68,8 @@ class LocalCompanionServer {
             'url.open',
             'app.open_known',
             'notification.metadata.read',
+            'messages.notification.read',
+            'messages.notification.reply',
           ],
         });
         return;
@@ -69,6 +84,36 @@ class LocalCompanionServer {
       if (request.method == 'GET' && request.uri.path == '/v1/notification-metadata') {
         final notifications = await bridge.getNotificationMetadata();
         _json(request, {'ok': true, 'notifications': notifications});
+        return;
+      }
+
+      if (request.method == 'GET' && request.uri.path == '/v1/messages/recent') {
+        final messages = await bridge.getMessageNotifications();
+        _json(request, {
+          'ok': true,
+          'storage': 'encrypted-on-device-history',
+          'retention': {'maxEntries': 50, 'maxAgeDays': 7},
+          'messages': messages,
+        });
+        return;
+      }
+
+      if (request.method == 'POST' && request.uri.path == '/v1/messages/reply') {
+        final decoded = await _readObject(request);
+        final key = decoded?['key'];
+        final text = decoded?['text'];
+        if (key is! String || key.isEmpty || text is! String || text.trim().isEmpty) {
+          request.response.statusCode = HttpStatus.badRequest;
+          _json(request, {'ok': false, 'error': 'key and text are required'});
+          return;
+        }
+        if (text.length > 4000) {
+          request.response.statusCode = HttpStatus.badRequest;
+          _json(request, {'ok': false, 'error': 'text is too long'});
+          return;
+        }
+        final sent = await bridge.replyMessageNotification(key: key, text: text);
+        _json(request, {'ok': sent, 'key': key});
         return;
       }
 
