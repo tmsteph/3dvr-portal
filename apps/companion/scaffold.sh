@@ -39,6 +39,7 @@ cp native-spec/android/CompanionNotificationListener.kt "$KOTLIN_DIR/CompanionNo
 cp native-spec/android/CompanionKeepAliveService.kt "$KOTLIN_DIR/CompanionKeepAliveService.kt"
 cp native-spec/android/CompanionNativeBridgeServer.kt "$KOTLIN_DIR/CompanionNativeBridgeServer.kt"
 cp native-spec/android/CompanionStartupReceiver.kt "$KOTLIN_DIR/CompanionStartupReceiver.kt"
+cp native-spec/android/CompanionSelfUpdater.kt "$KOTLIN_DIR/CompanionSelfUpdater.kt"
 cp native-spec/android/companion_accessibility_service.xml \
   android/app/src/main/res/xml/companion_accessibility_service.xml
 
@@ -111,7 +112,10 @@ for service in list(app.findall('service')):
     }:
         app.remove(service)
 for receiver in list(app.findall('receiver')):
-    if receiver.get(a('name')) == '.CompanionStartupReceiver':
+    if receiver.get(a('name')) in {
+        '.CompanionStartupReceiver',
+        '.CompanionInstallResultReceiver',
+    }:
         app.remove(receiver)
 
 accessibility = ET.SubElement(app, 'service', {
@@ -163,6 +167,12 @@ for action in (
 ):
     ET.SubElement(startup_filter, 'action', {a('name'): action})
 
+ET.SubElement(app, 'receiver', {
+    a('name'): '.CompanionInstallResultReceiver',
+    a('enabled'): 'true',
+    a('exported'): 'false',
+})
+
 ET.indent(tree, space='    ')
 tree.write(manifest_path, encoding='utf-8', xml_declaration=True)
 
@@ -207,4 +217,5 @@ echo "App display name: 3DVR Companion"
 echo "Android native adapter: wired"
 echo "Android always-on native bridge: wired"
 echo "Android boot/package-replace recovery: wired"
+echo "Android self-update foundation: wired"
 echo "iOS App Intent: staged in ios/CompanionNativeSpec (Xcode target wiring still required)"
