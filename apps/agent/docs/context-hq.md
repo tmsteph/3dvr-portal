@@ -28,7 +28,7 @@ Example:
 npm --prefix apps/agent run context -- session \
   --project portal \
   --decisions "Reuse the existing task queue." \
-  --open-loops "Connect the sweep to a scheduler after manual use proves valuable." \
+  --open-loops "Surface the latest sweep in the portal after the operating ritual proves useful." \
   "Added Context HQ session handoffs and agent messaging."
 ```
 
@@ -68,7 +68,22 @@ Run it manually:
 npm --prefix apps/agent run morning:sweep
 ```
 
-The first version is intentionally manual. Scheduling should be added only after the brief proves useful enough to justify another always-on process.
+### Daily operating ritual
+
+Context HQ is now exercised by `.github/workflows/context-hq.yml` every morning at about 8 AM America/Los_Angeles. The workflow uses two UTC schedule slots and a Pacific-time guard so daylight-saving changes do not move the ritual by an hour.
+
+On the workflow's first merge to `main`, it also seeds a fixed, idempotent founder handoff and three short agent-bus messages. Re-running the push path updates those same IDs instead of creating duplicates.
+
+The daily ritual is:
+
+1. Read recent handoffs before meaningful work.
+2. Use short agent-bus messages for coordination that another worker needs to see.
+3. Keep execution in the canonical task queue.
+4. Generate and persist the Morning Sweep.
+5. Turn the most important sweep item into a task, CRM action, or explicit handoff.
+6. Leave a concise handoff after meaningful work.
+
+The workflow also writes the generated sweep into the GitHub Actions job summary for human inspection while the canonical persisted copy remains in Context HQ.
 
 ## Mission Control -> keep the existing task queue
 
