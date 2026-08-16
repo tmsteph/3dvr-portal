@@ -111,6 +111,9 @@ object CompanionNativeBridgeServer {
                     "ui.perform",
                     "update.status",
                     "update.install",
+                    "shizuku.status",
+                    "shizuku.permission",
+                    "shizuku.probe",
                 ),
             ))
         }
@@ -160,6 +163,20 @@ object CompanionNativeBridgeServer {
             val action = jsonObjectToMap(body)
             return HttpResponse(200, mapOf("ok" to CompanionAccessibilityService.perform(action)))
         }
+        if (request.method == "GET" && request.path == "/v1/shizuku/status") {
+            return HttpResponse(200, mapOf(
+                "ok" to true,
+                "shizuku" to CompanionShizuku.status(context),
+            ))
+        }
+        if (request.method == "POST" && request.path == "/v1/shizuku/request-permission") {
+            val result = CompanionShizuku.requestPermission()
+            return HttpResponse(if (result["ok"] == true) 200 else 400, result)
+        }
+        if (request.method == "POST" && request.path == "/v1/shizuku/probe") {
+            val result = CompanionShizuku.identityProbe()
+            return HttpResponse(if (result["ok"] == true) 200 else 400, result)
+        }
         if (request.method == "POST" && request.path == "/v1/open-url") {
             val raw = request.jsonBody()?.optString("url")?.trim().orEmpty()
             val uri = runCatching { Uri.parse(raw) }.getOrNull()
@@ -193,6 +210,9 @@ object CompanionNativeBridgeServer {
         if (alias == "settings") {
             context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             return true
+        }
+        if (alias == "shizuku") {
+            return CompanionShizuku.openManagerOrDownload(context)
         }
         val candidates = mapOf(
             "chatgpt" to listOf("com.openai.chatgpt"),
