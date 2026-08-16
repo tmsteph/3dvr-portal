@@ -24,6 +24,7 @@
         </div>
         <div class="status-right">
           <div class="status-quick-links" aria-label="Quick links">
+            <a href="/admin/#agent-ops-card" class="status-link">Agent</a>
             <a href="/calendar" class="status-link">Calendar</a>
             <a href="/tasks/" class="status-link">Tasks</a>
             <a href="/chat/" class="status-link">Chat</a>
@@ -36,6 +37,12 @@
       </header>
       <main class="workspace" id="workspace" tabindex="0">
         <ul class="desktop-shortcuts" aria-label="Desktop shortcuts">
+          <li>
+            <a class="shortcut" style="text-decoration: none;" href="/admin/#agent-ops-card" aria-label="Open 3DVR Agent Operations">
+              <span class="shortcut-icon">✨</span>
+              <span class="shortcut-label">Agent</span>
+            </a>
+          </li>
           <li>
             <button class="shortcut" type="button" data-app="navigator" aria-label="Open Navigator">
               <span class="shortcut-icon">🧭</span>
@@ -86,6 +93,7 @@
       </nav>
       <div class="launcher-panel" id="launcher-panel" role="menu" aria-label="Launcher">
         <div class="launcher-header">Pinned</div>
+        <a class="launcher-item" href="/admin/#agent-ops-card">Agent Operations</a>
         <button class="launcher-item" type="button" data-app="navigator">Navigator</button>
         <button class="launcher-item" type="button" data-app="notes">Notes</button>
         <button class="launcher-item" type="button" data-app="mindfulness">Mindfulness</button>
