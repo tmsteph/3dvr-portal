@@ -123,6 +123,14 @@ object MessageNotificationStore {
  * may redact sensitive notification content before it reaches this listener.
  */
 class CompanionNotificationListener : NotificationListenerService() {
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        activeNotifications?.forEach { notification ->
+            NotificationMetadataStore.upsert(notification)
+            MessageNotificationStore.upsert(this, notification)
+        }
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         sbn ?: return
         NotificationMetadataStore.upsert(sbn)
