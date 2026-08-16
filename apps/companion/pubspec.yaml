@@ -1,5 +1,5 @@
 name: companion
-version: 0.2.0+2
+version: 0.2.1+3
 publish_to: none
 description: Permissioned device-side companion for 3DVR Life Ops.
 
