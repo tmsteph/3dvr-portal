@@ -71,7 +71,8 @@ async function syncTaskHandoffs(options = {}) {
   });
   const finalized = tasks
     .filter(task => FINAL_STATUSES.has(normalizeText(task.status).toLowerCase()))
-    .slice(0, Math.max(0, limit));
+    .slice(0, Math.max(0, limit))
+    .sort((a, b) => taskTimestamp(a) - taskTimestamp(b));
 
   const results = [];
   for (const task of finalized) {
