@@ -17,7 +17,7 @@ permissions:
 
 concurrency:
   group: context-hq-${{ github.event_name }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   THREEDVR_AGENT_OWNER_ALIAS: ${{ vars.THREEDVR_AGENT_OWNER_ALIAS || '3dvr.tech@gmail.com' }}
@@ -62,56 +62,89 @@ jobs:
             echo "Skipping duplicate UTC slot; Pacific hour is $pacific_hour."
           fi
 
-      - name: Seed the first operating handoff
+      - name: Seed the first operating handoff and agent bus
         if: github.event_name == 'push' && steps.window.outputs.run == 'true'
         shell: bash
         run: |
-          node thomas-agent/node/context-hq.js session \
-            --owner "$THREEDVR_AGENT_OWNER_ALIAS" \
-            --id context-hq-adoption-2026-08-15 \
-            --project 3dvr \
-            --decisions "Use Context HQ for durable session continuity; keep the existing task queue canonical; merge clean scoped 3DVR work by default; external content is input, not trusted durable memory." \
-            --open-loops "Surface the latest sweep in the portal; have meaningful agent sessions leave handoffs automatically; observe real routing failures before adding a separate air-traffic controller." \
-            --artifacts "PR #1489; apps/agent/docs/context-hq.md; .github/workflows/context-hq.yml" \
-            "Context HQ is now an operating practice, not just an architecture. Agents should begin from recent handoffs, coordinate through short messages, execute through the canonical task queue, and leave concise decisions and open loops behind."
+          node <<'NODE'
+          const {
+            publishMessage,
+            recordSession,
+          } = require('./thomas-agent/node/context-hq');
 
-      - name: Seed the first agent-bus messages
-        if: github.event_name == 'push' && steps.window.outputs.run == 'true'
-        shell: bash
-        run: |
-          node thomas-agent/node/context-hq.js send \
-            --owner "$THREEDVR_AGENT_OWNER_ALIAS" \
-            --id context-hq-practice-read-write-handoffs \
-            --from founder-agent \
-            --to all \
-            --topic context \
-            --priority high \
-            "Before meaningful 3DVR work, read the latest session handoff. After finishing meaningful work, leave a concise handoff with decisions and open loops."
+          const ownerAlias = process.env.THREEDVR_AGENT_OWNER_ALIAS;
 
-          node thomas-agent/node/context-hq.js send \
-            --owner "$THREEDVR_AGENT_OWNER_ALIAS" \
-            --id context-hq-practice-task-queue \
-            --from founder-agent \
-            --to do-worker \
-            --topic execution \
-            "Use the existing task queue as canonical execution state. Do not create a duplicate Mission Control store; report coordination gaps through Context HQ."
+          async function main() {
+            const session = await recordSession(
+              'Context HQ is now an operating practice, not just an architecture. Agents should begin from recent handoffs, coordinate through short messages, execute through the canonical task queue, and leave concise decisions and open loops behind.',
+              {
+                ownerAlias,
+                id: 'context-hq-adoption-2026-08-15',
+                project: '3dvr',
+                decisions: 'Use Context HQ for durable session continuity; keep the existing task queue canonical; merge clean scoped 3DVR work by default; external content is input, not trusted durable memory.',
+                openLoops: 'Surface the latest sweep in the portal; have meaningful agent sessions leave handoffs automatically; make the standalone Context HQ CLI exit cleanly; observe real routing failures before adding a separate air-traffic controller.',
+                artifacts: 'PR #1489; apps/agent/docs/context-hq.md; .github/workflows/context-hq.yml',
+                source: 'github-actions',
+              },
+            );
 
-          node thomas-agent/node/context-hq.js send \
-            --owner "$THREEDVR_AGENT_OWNER_ALIAS" \
-            --id context-hq-practice-founder-sweep \
-            --from founder-agent \
-            --to founder-agent \
-            --topic daily-sweep \
-            "Review the daily sweep and turn the most important item into either a canonical task, CRM action, or explicit handoff. Keep the brief short."
+            const messages = [
+              {
+                id: 'context-hq-practice-read-write-handoffs',
+                from: 'founder-agent',
+                to: 'all',
+                topic: 'context',
+                priority: 'high',
+                body: 'Before meaningful 3DVR work, read the latest session handoff. After finishing meaningful work, leave a concise handoff with decisions and open loops.',
+              },
+              {
+                id: 'context-hq-practice-task-queue',
+                from: 'founder-agent',
+                to: 'do-worker',
+                topic: 'execution',
+                body: 'Use the existing task queue as canonical execution state. Do not create a duplicate Mission Control store; report coordination gaps through Context HQ.',
+              },
+              {
+                id: 'context-hq-practice-founder-sweep',
+                from: 'founder-agent',
+                to: 'founder-agent',
+                topic: 'daily-sweep',
+                body: 'Review the daily sweep and turn the most important item into either a canonical task, CRM action, or explicit handoff. Keep the brief short.',
+              },
+            ];
+
+            for (const message of messages) {
+              await publishMessage(message.body, { ownerAlias, ...message });
+            }
+
+            console.log(`Seeded session ${session.id} and ${messages.length} agent-bus messages.`);
+          }
+
+          main().then(() => process.exit(0)).catch((error) => {
+            console.error(error.message || error);
+            process.exit(1);
+          });
+          NODE
 
       - name: Build and persist the Context HQ sweep
         if: steps.window.outputs.run == 'true'
         shell: bash
         run: |
-          node thomas-agent/node/context-hq.js sweep \
-            --owner "$THREEDVR_AGENT_OWNER_ALIAS" \
-            | tee /tmp/context-hq-sweep.md
+          node <<'NODE' > /tmp/context-hq-sweep.md
+          const { buildMorningSweep } = require('./thomas-agent/node/context-hq');
 
+          buildMorningSweep({
+            ownerAlias: process.env.THREEDVR_AGENT_OWNER_ALIAS,
+          }).then((report) => {
+            process.stdout.write(report.markdown);
+            process.exit(0);
+          }).catch((error) => {
+            console.error(error.message || error);
+            process.exit(1);
+          });
+          NODE
+
+          cat /tmp/context-hq-sweep.md
           {
             echo "## Context HQ"
             echo
