@@ -44,6 +44,17 @@ cp native-spec/android/CompanionShizuku.kt "$KOTLIN_DIR/CompanionShizuku.kt"
 cp native-spec/android/companion_accessibility_service.xml \
   android/app/src/main/res/xml/companion_accessibility_service.xml
 
+cat > android/app/src/main/res/xml/companion_network_security_config.xml <<'XML'
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>
+XML
+
 python3 <<'PY'
 from pathlib import Path
 import plistlib
@@ -105,6 +116,7 @@ app = root.find('application')
 if app is None:
     raise SystemExit('AndroidManifest.xml has no <application>')
 app.set(a('label'), '3DVR Companion')
+app.set(a('networkSecurityConfig'), '@xml/companion_network_security_config')
 
 for service in list(app.findall('service')):
     if service.get(a('name')) in {
@@ -244,6 +256,6 @@ echo "App display name: 3DVR Companion"
 echo "Android native adapter: wired"
 echo "Android always-on native bridge: wired"
 echo "Android boot/package-replace recovery: wired"
-echo "Android self-update foundation: wired"
+echo "Android self-update loopback: wired"
 echo "Android Shizuku/Sui privilege provider: wired"
 echo "iOS App Intent: staged in ios/CompanionNativeSpec (Xcode target wiring still required)"
