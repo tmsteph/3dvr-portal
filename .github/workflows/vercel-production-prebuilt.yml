@@ -27,13 +27,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Check Vercel production configuration
-        id: config
         shell: bash
         run: |
-          if [ -n "$VERCEL_TOKEN" ] && [ -n "$VERCEL_ORG_ID" ] && [ -n "$VERCEL_PROJECT_ID" ]; then
-            echo "can_deploy=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "can_deploy=false" >> "$GITHUB_OUTPUT"
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
             echo "::error::Missing Vercel production deployment secrets."
             exit 1
           fi
@@ -50,8 +46,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install pinned Vercel CLI
-        run: npm install --global vercel@50.15.1
+      - name: Install Vercel CLI
+        run: npm install --global vercel
 
       - name: Pull production environment
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
