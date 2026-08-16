@@ -1,0 +1,85 @@
+name: Vercel Production Prebuilt
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/vercel-production-prebuilt.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vercel-production-prebuilt
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+jobs:
+  deploy:
+    name: Build production artifact and deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check Vercel production configuration
+        id: config
+        shell: bash
+        run: |
+          if [ -n "$VERCEL_TOKEN" ] && [ -n "$VERCEL_ORG_ID" ] && [ -n "$VERCEL_PROJECT_ID" ]; then
+            echo "can_deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "can_deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::error::Missing Vercel production deployment secrets."
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install pinned Vercel CLI
+        run: npm install --global vercel@50.15.1
+
+      - name: Pull production environment
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Build production artifact locally
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy prebuilt artifact to production
+        id: deploy
+        shell: bash
+        run: |
+          DEPLOY_URL="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" --yes)"
+          echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+          echo "Production URL: $DEPLOY_URL"
+          {
+            echo "## Vercel Production Prebuilt"
+            echo
+            echo "Deployment: $DEPLOY_URL"
+            echo "Commit: $GITHUB_SHA"
+            echo "Environment: production"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify Context HQ route
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --location \
+            --retry 3 --retry-delay 2 \
+            "${{ steps.deploy.outputs.url }}/context-hq/" \
+            --output /tmp/context-hq.html
+          grep -q '<title>Context HQ | 3DVR Portal</title>' /tmp/context-hq.html
+          echo "Context HQ production route verified."
