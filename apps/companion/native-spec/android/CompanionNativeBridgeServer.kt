@@ -110,6 +110,7 @@ object CompanionNativeBridgeServer {
                     "ui.snapshot",
                     "ui.perform",
                     "update.status",
+                    "update.install",
                 ),
             ))
         }
@@ -173,15 +174,17 @@ object CompanionNativeBridgeServer {
             return HttpResponse(200, mapOf("ok" to openKnownApp(context, alias), "alias" to alias))
         }
         if (request.method == "GET" && request.path == "/v1/update/status") {
-            val manager = context.packageManager
-            val canRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                manager.canRequestPackageInstalls()
-            } else true
-            return HttpResponse(200, mapOf(
-                "ok" to true,
-                "canRequestPackageInstalls" to canRequest,
-                "selfUpdateSupported" to (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S),
-            ))
+            return HttpResponse(200, mapOf("ok" to true, "update" to CompanionSelfUpdater.status(context)))
+        }
+        if (request.method == "POST" && request.path == "/v1/update/install") {
+            val body = request.jsonBody()
+            val url = body?.optString("url")?.trim().orEmpty()
+            val sha256 = body?.optString("sha256")?.trim().orEmpty()
+            if (url.isEmpty() || sha256.isEmpty()) {
+                return HttpResponse(400, mapOf("ok" to false, "error" to "url and sha256 are required"))
+            }
+            val result = CompanionSelfUpdater.installFromLoopback(context, url, sha256)
+            return HttpResponse(if (result["ok"] == true) 200 else 400, result)
         }
         return HttpResponse(404, mapOf("ok" to false, "error" to "not found"))
     }
