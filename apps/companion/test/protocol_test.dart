@@ -20,19 +20,47 @@ void main() {
     expect(capability.platforms, isNot(contains(CompanionPlatform.ios)));
   });
 
-  test('message notification reads are bounded and sends are red', () {
-    final read = companionCapabilities.singleWhere(
+  test('message reads are bounded and sends are red', () {
+    final notificationRead = companionCapabilities.singleWhere(
       (value) => value.name == 'messages.notification.read',
     );
-    final reply = companionCapabilities.singleWhere(
+    final notificationReply = companionCapabilities.singleWhere(
       (value) => value.name == 'messages.notification.reply',
     );
+    final smsRead = companionCapabilities.singleWhere(
+      (value) => value.name == 'messages.sms.read',
+    );
+    final smsSend = companionCapabilities.singleWhere(
+      (value) => value.name == 'messages.sms.send',
+    );
 
-    expect(read.risk, CompanionRisk.yellow);
-    expect(read.requiresConfirmation, isTrue);
-    expect(reply.risk, CompanionRisk.red);
-    expect(reply.requiresConfirmation, isTrue);
-    expect(reply.platforms, contains(CompanionPlatform.android));
+    expect(notificationRead.risk, CompanionRisk.yellow);
+    expect(notificationRead.requiresConfirmation, isTrue);
+    expect(notificationReply.risk, CompanionRisk.red);
+    expect(notificationReply.requiresConfirmation, isTrue);
+    expect(smsRead.risk, CompanionRisk.yellow);
+    expect(smsRead.requiresConfirmation, isTrue);
+    expect(smsSend.risk, CompanionRisk.red);
+    expect(smsSend.requiresConfirmation, isTrue);
+  });
+
+  test('Shizuku status is green but privilege use stays confirmed', () {
+    final status = companionCapabilities.singleWhere(
+      (value) => value.name == 'shizuku.status',
+    );
+    final permission = companionCapabilities.singleWhere(
+      (value) => value.name == 'shizuku.permission',
+    );
+    final probe = companionCapabilities.singleWhere(
+      (value) => value.name == 'shizuku.probe',
+    );
+
+    expect(status.risk, CompanionRisk.green);
+    expect(status.requiresConfirmation, isFalse);
+    expect(permission.risk, CompanionRisk.yellow);
+    expect(permission.requiresConfirmation, isTrue);
+    expect(probe.risk, CompanionRisk.yellow);
+    expect(probe.requiresConfirmation, isTrue);
   });
 
   test('expired action requests reject themselves locally', () {
