@@ -1,396 +1,61 @@
 {
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':(exclude)apps/agent/**' ':(exclude)apps/companion/**'",
   "redirects": [
     {
       "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "wenzo.3dvr.tech"
-        }
-      ],
+      "has": [{ "type": "host", "value": "wenzo.3dvr.tech" }],
       "destination": "/wenzo/",
       "permanent": false
     }
   ],
   "crons": [
-    {
-      "path": "/api/growth/homepage-hero-cron",
-      "schedule": "43 2 * * *"
-    },
-    {
-      "path": "/api/money/autopilot-cron",
-      "schedule": "17 16 * * 1-5"
-    }
+    { "path": "/api/growth/homepage-hero-cron", "schedule": "43 2 * * *" },
+    { "path": "/api/money/autopilot-cron", "schedule": "17 16 * * 1-5" }
   ],
   "headers": [
-    {
-      "source": "/",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/index.html",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/cache-reset.html",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-store"
-        },
-        {
-          "key": "Clear-Site-Data",
-          "value": "\"cache\""
-        }
-      ]
-    },
-    {
-      "source": "/api/cache-reset",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-store"
-        },
-        {
-          "key": "Clear-Site-Data",
-          "value": "\"cache\""
-        }
-      ]
-    },
-    {
-      "source": "/(.*)\\.(css|js)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/(.*)\\.(png|jpg|jpeg|gif|svg|webp|woff2?)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/manifest.webmanifest",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/app-manifests/(.*)\\.webmanifest",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/calendar/calendar.webmanifest",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/calendar/pwa-install.js",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache"
-        }
-      ]
-    },
-    {
-      "source": "/contacts/contacts.webmanifest",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/crm/crm.webmanifest",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/crm/root.webmanifest",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/crm.webmanifest",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/pwa-install.js",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache"
-        }
-      ]
-    },
-    {
-      "source": "/contacts/pwa-install.js",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache"
-        }
-      ]
-    },
-    {
-      "source": "/crm/pwa-install.js",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache"
-        }
-      ]
-    },
-    {
-      "source": "/service-worker.js",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache"
-        },
-        {
-          "key": "Service-Worker-Allowed",
-          "value": "/"
-        }
-      ]
-    },
-    {
-      "source": "/contacts/service-worker.js",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache"
-        },
-        {
-          "key": "Service-Worker-Allowed",
-          "value": "/contacts/"
-        }
-      ]
-    },
-    {
-      "source": "/calendar/service-worker.js",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache"
-        },
-        {
-          "key": "Service-Worker-Allowed",
-          "value": "/calendar/"
-        }
-      ]
-    },
-    {
-      "source": "/crm/service-worker.js",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache"
-        },
-        {
-          "key": "Service-Worker-Allowed",
-          "value": "/"
-        }
-      ]
-    }
-  ],
-  "redirects": [
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "crm.3dvr.tech"
-        }
-      ],
-      "destination": "/crm/",
-      "permanent": false
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "danny.3dvr.tech"
-        }
-      ],
-      "destination": "/danny/",
-      "permanent": false
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "thomas-av.3dvr.tech"
-        }
-      ],
-      "destination": "/thomas-av/",
-      "permanent": false
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "thomas-cs.3dvr.tech"
-        }
-      ],
-      "destination": "/thomas-cs/",
-      "permanent": false
-    }
+    { "source": "/", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] },
+    { "source": "/index.html", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] },
+    { "source": "/cache-reset.html", "headers": [{ "key": "Cache-Control", "value": "no-store" }, { "key": "Clear-Site-Data", "value": "\"cache\"" }] },
+    { "source": "/api/cache-reset", "headers": [{ "key": "Cache-Control", "value": "no-store" }, { "key": "Clear-Site-Data", "value": "\"cache\"" }] },
+    { "source": "/(.*)\\.(css|js)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] },
+    { "source": "/(.*)\\.(png|jpg|jpeg|gif|svg|webp|woff2?)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
+    { "source": "/manifest.webmanifest", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] },
+    { "source": "/app-manifests/(.*)\\.webmanifest", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] },
+    { "source": "/calendar/calendar.webmanifest", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] },
+    { "source": "/calendar/pwa-install.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+    { "source": "/contacts/contacts.webmanifest", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] },
+    { "source": "/crm/crm.webmanifest", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] },
+    { "source": "/crm/root.webmanifest", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] },
+    { "source": "/crm.webmanifest", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] },
+    { "source": "/pwa-install.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+    { "source": "/contacts/pwa-install.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+    { "source": "/crm/pwa-install.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+    { "source": "/service-worker.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }, { "key": "Service-Worker-Allowed", "value": "/" }] },
+    { "source": "/contacts/service-worker.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }, { "key": "Service-Worker-Allowed", "value": "/contacts/" }] },
+    { "source": "/calendar/service-worker.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }, { "key": "Service-Worker-Allowed", "value": "/calendar/" }] },
+    { "source": "/crm/service-worker.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }, { "key": "Service-Worker-Allowed", "value": "/" }] }
   ],
   "rewrites": [
-    {
-      "source": "/api/cache-reset",
-      "destination": "/cache-reset.html"
-    },
-    {
-      "source": "/crm.webmanifest",
-      "has": [
-        {
-          "type": "host",
-          "value": "crm.3dvr.tech"
-        }
-      ],
-      "destination": "/crm/root.webmanifest"
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "crm.3dvr.tech"
-        }
-      ],
-      "destination": "/crm/index.html"
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "purpose.3dvr.tech"
-        }
-      ],
-      "destination": "/purpose/index.html"
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "growth.3dvr.tech"
-        }
-      ],
-      "destination": "/growth-desk/index.html"
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "danny.3dvr.tech"
-        }
-      ],
-      "destination": "/danny/index.html"
-    },
-    {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "thomas-av.3dvr.tech"
-        }
-      ],
-      "destination": "/thomas-av/:path*"
-    },
-    {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "thomas-cs.3dvr.tech"
-        }
-      ],
-      "destination": "/thomas-cs/:path*"
-    },
-    {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "wenzo.3dvr.tech"
-        }
-      ],
-      "destination": "/wenzo/:path*"
-    },
-    {
-      "source": "/webhooks/stripe",
-      "destination": "/api/webhooks/stripe"
-    },
-    {
-      "source": "/api/account-recovery-email",
-      "destination": "/api/calendar/reminder-email"
-    },
-    {
-      "source": "/api/vercel-deploy",
-      "destination": "/api/github-publish?provider=vercel"
-    },
-    {
-      "source": "/video",
-      "destination": "/portal.3dvr.tech/video/index.html"
-    },
-    {
-      "source": "/video/",
-      "destination": "/portal.3dvr.tech/video/index.html"
-    },
-    {
-      "source": "/video/index.html",
-      "destination": "/portal.3dvr.tech/video/index.html"
-    }
+    { "source": "/api/cache-reset", "destination": "/cache-reset.html" },
+    { "source": "/crm.webmanifest", "has": [{ "type": "host", "value": "crm.3dvr.tech" }], "destination": "/crm/root.webmanifest" },
+    { "source": "/", "has": [{ "type": "host", "value": "crm.3dvr.tech" }], "destination": "/crm/index.html" },
+    { "source": "/", "has": [{ "type": "host", "value": "purpose.3dvr.tech" }], "destination": "/purpose/index.html" },
+    { "source": "/", "has": [{ "type": "host", "value": "growth.3dvr.tech" }], "destination": "/growth-desk/index.html" },
+    { "source": "/", "has": [{ "type": "host", "value": "danny.3dvr.tech" }], "destination": "/danny/index.html" },
+    { "source": "/:path*", "has": [{ "type": "host", "value": "thomas-av.3dvr.tech" }], "destination": "/thomas-av/:path*" },
+    { "source": "/:path*", "has": [{ "type": "host", "value": "thomas-cs.3dvr.tech" }], "destination": "/thomas-cs/:path*" },
+    { "source": "/:path*", "has": [{ "type": "host", "value": "wenzo.3dvr.tech" }], "destination": "/wenzo/:path*" },
+    { "source": "/webhooks/stripe", "destination": "/api/webhooks/stripe" },
+    { "source": "/api/account-recovery-email", "destination": "/api/calendar/reminder-email" },
+    { "source": "/api/vercel-deploy", "destination": "/api/github-publish?provider=vercel" },
+    { "source": "/video", "destination": "/portal.3dvr.tech/video/index.html" },
+    { "source": "/video/", "destination": "/portal.3dvr.tech/video/index.html" },
+    { "source": "/video/index.html", "destination": "/portal.3dvr.tech/video/index.html" }
+  ],
+  "redirects": [
+    { "source": "/", "has": [{ "type": "host", "value": "crm.3dvr.tech" }], "destination": "/crm/", "permanent": false },
+    { "source": "/", "has": [{ "type": "host", "value": "danny.3dvr.tech" }], "destination": "/danny/", "permanent": false },
+    { "source": "/", "has": [{ "type": "host", "value": "thomas-av.3dvr.tech" }], "destination": "/thomas-av/", "permanent": false },
+    { "source": "/", "has": [{ "type": "host", "value": "thomas-cs.3dvr.tech" }], "destination": "/thomas-cs/", "permanent": false }
   ]
 }
