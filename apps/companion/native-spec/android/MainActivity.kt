@@ -31,6 +31,7 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         startKeepAliveService()
+        MessageNotificationStore.initialize(this)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -38,10 +39,14 @@ class MainActivity : FlutterActivity() {
                     "capabilityStatus" -> result.success(capabilityStatus())
                     "bridgeToken" -> result.success(getOrCreateBridgeToken())
                     "notificationMetadata" -> result.success(NotificationMetadataStore.snapshot())
-                    "messageNotifications" -> result.success(MessageNotificationStore.snapshot())
+                    "messageNotifications" -> {
+                        MessageNotificationStore.initialize(this)
+                        result.success(MessageNotificationStore.snapshot())
+                    }
                     "replyMessageNotification" -> {
                         val key = call.argument<String>("key") ?: ""
                         val text = call.argument<String>("text") ?: ""
+                        MessageNotificationStore.initialize(this)
                         result.success(MessageNotificationStore.reply(this, key, text))
                     }
                     "openUrl" -> {
@@ -104,6 +109,7 @@ class MainActivity : FlutterActivity() {
         "notificationAccessEnabled" to isNotificationAccessEnabled(),
         "messageNotificationReadEnabled" to isNotificationAccessEnabled(),
         "messageNotificationReplyEnabled" to isNotificationAccessEnabled(),
+        "messageHistoryEncryptedAtRest" to true,
         "backgroundBridgeEnabled" to true,
         "knownAppLaunchEnabled" to true,
         "remoteKnownActionsEnabled" to false,
