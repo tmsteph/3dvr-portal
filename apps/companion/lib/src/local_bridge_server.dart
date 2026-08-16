@@ -68,6 +68,8 @@ class LocalCompanionServer {
             'url.open',
             'app.open_known',
             'notification.metadata.read',
+            'messages.notification.read',
+            'messages.notification.reply',
           ],
         });
         return;
@@ -82,6 +84,35 @@ class LocalCompanionServer {
       if (request.method == 'GET' && request.uri.path == '/v1/notification-metadata') {
         final notifications = await bridge.getNotificationMetadata();
         _json(request, {'ok': true, 'notifications': notifications});
+        return;
+      }
+
+      if (request.method == 'GET' && request.uri.path == '/v1/messages/recent') {
+        final messages = await bridge.getMessageNotifications();
+        _json(request, {
+          'ok': true,
+          'storage': 'memory-only',
+          'messages': messages,
+        });
+        return;
+      }
+
+      if (request.method == 'POST' && request.uri.path == '/v1/messages/reply') {
+        final decoded = await _readObject(request);
+        final key = decoded?['key'];
+        final text = decoded?['text'];
+        if (key is! String || key.isEmpty || text is! String || text.trim().isEmpty) {
+          request.response.statusCode = HttpStatus.badRequest;
+          _json(request, {'ok': false, 'error': 'key and text are required'});
+          return;
+        }
+        if (text.length > 4000) {
+          request.response.statusCode = HttpStatus.badRequest;
+          _json(request, {'ok': false, 'error': 'text is too long'});
+          return;
+        }
+        final sent = await bridge.replyMessageNotification(key: key, text: text);
+        _json(request, {'ok': sent, 'key': key});
         return;
       }
 
