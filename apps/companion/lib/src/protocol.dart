@@ -126,6 +126,20 @@ const companionCapabilities = <CompanionCapability>[
     description: 'Read normalized Android notification metadata after local permission is granted.',
   ),
   CompanionCapability(
+    name: 'messages.notification.read',
+    risk: CompanionRisk.yellow,
+    platforms: {CompanionPlatform.android},
+    requiresConfirmation: true,
+    description: 'Read memory-only title/text snapshots from the current SMS app notifications. No raw SMS permission or disk persistence.',
+  ),
+  CompanionCapability(
+    name: 'messages.notification.reply',
+    risk: CompanionRisk.red,
+    platforms: {CompanionPlatform.android},
+    requiresConfirmation: true,
+    description: 'Reply through an existing SMS-app notification RemoteInput action. Does not grant raw SEND_SMS authority.',
+  ),
+  CompanionCapability(
     name: 'ui.snapshot',
     risk: CompanionRisk.yellow,
     platforms: {CompanionPlatform.android},
