@@ -165,7 +165,7 @@ function nextActionForLead(lead) {
   const action = leadAction(lead);
   if (status === 'failed') return 'Repair the contact route before any future outreach.';
   if (status === 'nurture') return 'Revisit later with a more specific reason to reach out.';
-  if (status === 'contacted') return 'Watch for a reply; follow up later with one concrete question.';
+  if (status === 'contacted') return 'Wait for a reply; stay quiet unless there is a new material reason to reach out.';
   if (status === 'replied') return 'Reply with one clear next step and log the outcome.';
   if (action === 'email') return 'Review and send one short opener if this lead is still a fit.';
   if (action === 'form') return 'Review the contact form manually before submitting one concise opener.';
@@ -192,9 +192,7 @@ function buildCrmRecord(lead, options = {}) {
   const lastContacted = ['contacted', 'replied', 'failed', 'closed'].includes(status)
     ? isoDate(lead.date, new Date(now))
     : '';
-  const nextFollowUp = status === 'contacted'
-    ? isoDate(addDays(new Date(lastContacted || now), 21))
-    : '';
+  const nextFollowUp = '';
   const tags = [
     'source/3dvr-agent',
     `status/${status}`,

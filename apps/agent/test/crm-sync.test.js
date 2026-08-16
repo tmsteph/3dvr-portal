@@ -47,10 +47,10 @@ test('buildCrmRecord maps an agent lead into the portal CRM shape', () => {
   assert.equal(record.warmth, 'warm');
   assert.equal(record.marketSegment, 'Professional services');
   assert.equal(record.lastContacted, '2026-05-27');
-  assert.equal(record.nextFollowUp, '2026-06-17');
+  assert.equal(record.nextFollowUp, '');
   assert.match(record.tags, /source\/3dvr-agent/);
   assert.match(record.tags, /route\/email/);
-  assert.match(record.nextBestAction, /Watch for a reply/);
+  assert.match(record.nextBestAction, /Wait for a reply; stay quiet/);
   assert.match(record.notes, /Synced from 3dvr-agent leads\.csv/);
 });
 
