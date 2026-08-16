@@ -6,10 +6,12 @@ on:
       - main
     paths:
       - ".github/workflows/context-hq.yml"
+      - "apps/agent/thomas-agent/node/context-hq.js"
+      - "apps/agent/thomas-agent/node/task-handoff-sync.js"
   schedule:
-    # GitHub cron is UTC. Run at both possible 8 AM Pacific UTC hours and
-    # let the timezone guard below choose the correct one across DST.
-    - cron: "7 15,16 * * *"
+    # Keep durable task handoffs close to the work without another always-on daemon.
+    # The full founder sweep renders only during the 8 AM Pacific slot.
+    - cron: "7 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -20,11 +22,13 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  THREEDVR_AGENT_OWNER_ALIAS: ${{ vars.THREEDVR_AGENT_OWNER_ALIAS || '3dvr.tech@gmail.com' }}
+  THREEDVR_CONTEXT_HQ_OWNER_ALIAS: ${{ vars.THREEDVR_CONTEXT_HQ_OWNER_ALIAS || vars.THREEDVR_AGENT_OWNER_ALIAS || '3dvr.tech@gmail.com' }}
+  THREEDVR_AGENT_OWNER_ALIAS: ${{ vars.THREEDVR_CONTEXT_HQ_OWNER_ALIAS || vars.THREEDVR_AGENT_OWNER_ALIAS || '3dvr.tech@gmail.com' }}
+  THREEDVR_AGENT_TASK_OWNER_ALIAS: ${{ vars.THREEDVR_AGENT_TASK_OWNER_ALIAS || '3dvr-managed' }}
 
 jobs:
   sweep:
-    name: Seed context and run the morning sweep
+    name: Sync handoffs and run the founder sweep
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -50,20 +54,20 @@ jobs:
         shell: bash
         run: |
           if [ "${{ github.event_name }}" != "schedule" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "run_sweep=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           pacific_hour="$(TZ=America/Los_Angeles date +%H)"
           if [ "$pacific_hour" = "08" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "run_sweep=true" >> "$GITHUB_OUTPUT"
           else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping duplicate UTC slot; Pacific hour is $pacific_hour."
+            echo "run_sweep=false" >> "$GITHUB_OUTPUT"
+            echo "Task handoffs will sync; full sweep waits for 8 AM Pacific. Current hour: $pacific_hour."
           fi
 
       - name: Seed the first operating handoff and agent bus
-        if: github.event_name == 'push' && steps.window.outputs.run == 'true'
+        if: github.event_name == 'push'
         shell: bash
         run: |
           node <<'NODE'
@@ -72,18 +76,18 @@ jobs:
             recordSession,
           } = require('./thomas-agent/node/context-hq');
 
-          const ownerAlias = process.env.THREEDVR_AGENT_OWNER_ALIAS;
+          const ownerAlias = process.env.THREEDVR_CONTEXT_HQ_OWNER_ALIAS;
 
           async function main() {
             const session = await recordSession(
-              'Context HQ is now an operating practice, not just an architecture. Agents should begin from recent handoffs, coordinate through short messages, execute through the canonical task queue, and leave concise decisions and open loops behind.',
+              'Context HQ is an active operating practice. Agents begin from recent handoffs, coordinate through short messages, execute through the canonical managed task queue, and leave durable state behind without promoting raw external output into trusted memory.',
               {
                 ownerAlias,
                 id: 'context-hq-adoption-2026-08-15',
                 project: '3dvr',
-                decisions: 'Use Context HQ for durable session continuity; keep the existing task queue canonical; merge clean scoped 3DVR work by default; external content is input, not trusted durable memory.',
-                openLoops: 'Surface the latest sweep in the portal; have meaningful agent sessions leave handoffs automatically; make the standalone Context HQ CLI exit cleanly; observe real routing failures before adding a separate air-traffic controller.',
-                artifacts: 'PR #1489; apps/agent/docs/context-hq.md; .github/workflows/context-hq.yml',
+                decisions: 'Keep founder Context HQ separate from the managed task-queue owner; sync finalized managed tasks into safe idempotent handoffs; merge clean scoped 3DVR work by default; external content remains input rather than trusted durable memory.',
+                openLoops: 'Watch handoff quality and noise; make the standalone Context HQ CLI exit cleanly; observe real routing failures before adding a separate air-traffic controller.',
+                artifacts: 'PR #1488+; /context-hq/; apps/agent/thomas-agent/node/task-handoff-sync.js; .github/workflows/context-hq.yml',
                 source: 'github-actions',
               },
             );
@@ -95,14 +99,14 @@ jobs:
                 to: 'all',
                 topic: 'context',
                 priority: 'high',
-                body: 'Before meaningful 3DVR work, read the latest session handoff. After finishing meaningful work, leave a concise handoff with decisions and open loops.',
+                body: 'Before meaningful 3DVR work, read recent Context HQ handoffs. Completed managed tasks are synchronized into safe durable handoffs automatically; add explicit decisions and open loops when human judgment matters.',
               },
               {
                 id: 'context-hq-practice-task-queue',
                 from: 'founder-agent',
                 to: 'do-worker',
                 topic: 'execution',
-                body: 'Use the existing task queue as canonical execution state. Do not create a duplicate Mission Control store; report coordination gaps through Context HQ.',
+                body: 'Use the 3dvr-managed task queue as canonical execution state. Context HQ mirrors safe completion metadata for continuity; never create a duplicate Mission Control store.',
               },
               {
                 id: 'context-hq-practice-founder-sweep',
@@ -126,15 +130,29 @@ jobs:
           });
           NODE
 
+      - name: Sync finalized managed tasks into Context HQ
+        shell: bash
+        run: |
+          node thomas-agent/node/task-handoff-sync.js \
+            --context-owner "$THREEDVR_CONTEXT_HQ_OWNER_ALIAS" \
+            --task-owner "$THREEDVR_AGENT_TASK_OWNER_ALIAS" \
+            --limit 20
+
       - name: Build and persist the Context HQ sweep
-        if: steps.window.outputs.run == 'true'
+        if: steps.window.outputs.run_sweep == 'true'
         shell: bash
         run: |
           node <<'NODE' > /tmp/context-hq-sweep.md
           const { buildMorningSweep } = require('./thomas-agent/node/context-hq');
+          const { listTasks } = require('./thomas-agent/node/agent-task-queue');
+
+          const contextOwnerAlias = process.env.THREEDVR_CONTEXT_HQ_OWNER_ALIAS;
+          const taskOwnerAlias = process.env.THREEDVR_AGENT_TASK_OWNER_ALIAS;
 
           buildMorningSweep({
-            ownerAlias: process.env.THREEDVR_AGENT_OWNER_ALIAS,
+            ownerAlias: contextOwnerAlias,
+            to: 'founder-agent',
+            listTasksImpl: () => listTasks({ ownerAlias: taskOwnerAlias }),
           }).then((report) => {
             process.stdout.write(report.markdown);
             process.exit(0);
@@ -147,6 +165,9 @@ jobs:
           cat /tmp/context-hq-sweep.md
           {
             echo "## Context HQ"
+            echo
+            echo "Founder context: $THREEDVR_CONTEXT_HQ_OWNER_ALIAS"
+            echo "Managed queue: $THREEDVR_AGENT_TASK_OWNER_ALIAS"
             echo
             cat /tmp/context-hq-sweep.md
           } >> "$GITHUB_STEP_SUMMARY"
