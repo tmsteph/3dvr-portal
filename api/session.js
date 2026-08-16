@@ -269,6 +269,26 @@ export function createSessionHandler(options = {}) {
 
     const body = req.body || {};
     const mode = normalizeText(body.kind || body.mode || body.action || '');
+
+    if (mode === 'companion-relay-v1') {
+      const relayId = normalizeText(body.relayId);
+      const envelope = typeof body.envelope === 'string' ? body.envelope.replace(/\s+/g, '') : '';
+      if (!/^[A-Za-z0-9_-]{8,80}$/.test(relayId)) {
+        return res.status(400).json({ ok: false, error: 'invalid_relay_id' });
+      }
+      if (!/^[A-Za-z0-9+/=]+$/.test(envelope) || envelope.length < 32 || envelope.length > 60000) {
+        return res.status(400).json({ ok: false, error: 'invalid_envelope' });
+      }
+      res.setHeader('Cache-Control', 'no-store, max-age=0');
+      console.log(`3DVR_COMPANION_RELAY_V1 ${relayId} ${envelope}`);
+      return res.status(202).json({
+        ok: true,
+        relayId,
+        accepted: true,
+        storage: 'runtime-ciphertext-log-only'
+      });
+    }
+
     const isDeviceRequest = mode === 'device' || (mode !== 'session' && Boolean(body.device && typeof body.device === 'object'));
     const auth = isDeviceRequest
       ? await resolveDeviceAuth(req, body, config)
