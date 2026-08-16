@@ -38,6 +38,12 @@ class MainActivity : FlutterActivity() {
                     "capabilityStatus" -> result.success(capabilityStatus())
                     "bridgeToken" -> result.success(getOrCreateBridgeToken())
                     "notificationMetadata" -> result.success(NotificationMetadataStore.snapshot())
+                    "messageNotifications" -> result.success(MessageNotificationStore.snapshot())
+                    "replyMessageNotification" -> {
+                        val key = call.argument<String>("key") ?: ""
+                        val text = call.argument<String>("text") ?: ""
+                        result.success(MessageNotificationStore.reply(this, key, text))
+                    }
                     "openUrl" -> {
                         val raw = call.argument<String>("url") ?: ""
                         result.success(openHttpUrl(raw))
@@ -96,6 +102,8 @@ class MainActivity : FlutterActivity() {
     private fun capabilityStatus(): Map<String, Any> = mapOf(
         "accessibilityEnabled" to isAccessibilityEnabled(),
         "notificationAccessEnabled" to isNotificationAccessEnabled(),
+        "messageNotificationReadEnabled" to isNotificationAccessEnabled(),
+        "messageNotificationReplyEnabled" to isNotificationAccessEnabled(),
         "backgroundBridgeEnabled" to true,
         "knownAppLaunchEnabled" to true,
         "remoteKnownActionsEnabled" to false,
