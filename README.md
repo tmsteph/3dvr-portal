@@ -1,595 +1,83 @@
 # 3DVR Portal
 
-**The Open Community Portal for Dreamers, Builders, and Innovators**  
-*Part startup incubator, part coworking space, part collective playground — all open source.*
+**The Open Community Portal for Dreamers, Builders, and Innovators**
 
----
+3DVR Portal is the open-source front door to the 3DVR ecosystem: community, practical business tools, and experiments in open computing.
+
+## Live portal
+
+**https://portal.3dvr.tech**
 
 ## Repository layout
 
-The customer-facing portal remains at the repository root so its Vercel deployment is unchanged. The separately deployed 3dvr operator and CLI live in [`apps/agent`](apps/agent/README.md).
+The customer-facing portal remains at the repository root. Separately deployed/runtime apps live under `apps/`.
 
 ```text
 3dvr-portal/
-├── apps/agent/   # 3dvr CLI and Hetzner workers
-├── api/          # portal serverless APIs
-├── tests/        # portal tests
-└── ...           # portal pages and assets
+├── apps/agent/       # 3dvr CLI and worker runtime
+├── apps/companion/   # Android Companion control plane
+├── api/              # portal serverless APIs
+├── tests/            # portal tests
+└── ...               # portal pages and assets
 ```
 
-Run `npm test` for the portal, `npm run test:agent` for the agent, or `npm run test:all` for both. The two applications share Git history but keep separate dependencies, environment files, processes, and deployments.
+Run `npm test` for the portal, `npm run test:agent` for the agent, or `npm run test:all` for both.
 
-## What is 3DVR Portal?
+## What is here now?
 
-The **3DVR Portal** is the entry point and central hub for the 3DVR community: a decentralized, open-source platform where people come together to:
+- Portal Home and installable web apps
+- CRM, Contacts, Calendar, Tasks, Notes, and community tools
+- Agent operations and the RUNE v0.1 mission language
+- Android Companion for opt-in phone control
+- Money Printer experiments for turning demand into offers and delivery
+- Open-source computing, hardware, VR, and education experiments
 
-- **Collaborate on open-source projects** in web, VR, gaming, hardware, and education.
-- **Propose and launch new ideas and startups** in a supportive community.
-- **Learn and grow skills** with access to mentors, tutorials, and collaborative coding.
-- **Earn rewards and funding** for contributing meaningfully to projects.
-- **Build the future** of open and ergonomic computing, decentralized communication, and community-driven hardware and software.
+## Data architecture
 
-We are making tools and products **by the community, for the community** — and ensuring that anyone who participates can also benefit financially, socially, and professionally.
+3DVR is moving away from treating any single browser-side database as the universal source of truth.
 
-If you believe in empowering people to create together and own what they build — **welcome home.**
+- **Postgres / server-backed APIs:** durable structured business and account data when a server authority is appropriate.
+- **Gun:** realtime/local-first collaboration and experiments where peer sync is useful.
+- **Object storage:** files and larger immutable assets.
+- **Device-local storage:** drafts, caches, UI state, and intentionally local experiences.
 
----
+Existing Gun-backed apps remain supported; new features should choose storage based on the data's durability, authority, privacy, and sync requirements rather than defaulting everything to Gun.
 
-## Current Features
+## Getting started
 
-- **Decentralized Account System (GUN.js SEA):** Create accounts with zero back-end servers. Your data is your own.
-- **Realtime Group Chat:** Connect with the community and collaborate live.
-- **Task & Notes Apps:** Plan, discuss, and organize project work together.
-- **Mini Games & Demos:** Explore multiplayer-first coding through fun experiments.
-- **Calendar Hub (beta):** Connect Google and Outlook calendars using OAuth tokens and sync events in one place.
-- **Membership Support (coming soon):** Fund the platform and unlock rewards with our $20/month supporter plan.
-
-Everything is **100% open-source using HTML, CSS, and JS** — forkable, hackable, remixable.
-
----
-
-## Roadmap
-
-3DVR Portal is evolving fast. Here’s what’s coming next:
-
-- **Project Boards + Kanban:** Track and manage projects with shared task boards.
-- **Community Dashboard:** See what’s happening across the ecosystem.
-- **3D/VR Collaborative Spaces:** Join virtual meetups and galleries using Three.js.
-- **Decentralized Contributor Rewards:** Get paid fairly for your work in open-source.
-- **Open Hardware Prototyping:** Design and discuss open-source laptops, SBCs, and more.
-
-We are laying the groundwork for **the most open, fun, and people-driven dev platform on Earth.**
-
----
-
-## Getting Started
-
-### Use the Portal
-
-The portal is live and hosted at:
-
-[**→ Visit the 3DVR Portal**](https://3dvr-portal.vercel.app)
-
-You can sign up, join the chat, and start contributing right now — no downloads or installs required.
-
-Planning docs:
-
-- [Guest account migration plan](docs/guest-account-migration-plan.md)
-- [Focus Flow OS plan](docs/focus-flow-os-plan.md)
-
-### Install individual apps
-
-Most of the portal experiences now ship with their own installable manifests, so you can add just the tools you need as standalones on your device:
-
-- [Tasks](https://3dvr-portal.vercel.app/tasks.html)
-- [Notes](https://3dvr-portal.vercel.app/notes/)
-- [Pocket Workstation](https://3dvr-portal.vercel.app/pocket-workstation/)
-- [Phone Holder System](https://3dvr-portal.vercel.app/phone-holder-system/)
-- [Nomad Clip Field Test](https://3dvr-portal.vercel.app/nomad-clip-field-test/)
-- [Open Source](https://3dvr-portal.vercel.app/open-source/)
-- [WebRTC Lab](https://3dvr-portal.vercel.app/webrtc-lab/)
-- [Gun Video Lab](https://3dvr-portal.vercel.app/gun-video-lab/)
-- [Gun Clip Lab](https://3dvr-portal.vercel.app/gun-clip-lab/)
-- [Gun Live Room](https://3dvr-portal.vercel.app/gun-live-room/)
-- [Gun Chunk Stream](https://3dvr-portal.vercel.app/gun-chunk-stream/)
-- [Chat](https://3dvr-portal.vercel.app/chat/)
-- [Calendar Hub](https://3dvr-portal.vercel.app/calendar/)
-- [Contacts](https://3dvr-portal.vercel.app/contacts/)
-- [Life](https://3dvr-portal.vercel.app/life/)
-- [Alive System](https://3dvr-portal.vercel.app/alive-system/)
-- [Body Mode](https://3dvr-portal.vercel.app/body-mode/)
-- [Inner Alignment](https://3dvr-portal.vercel.app/inner-alignment/)
-- [Education Suite](https://3dvr-portal.vercel.app/education-suite/)
-- [Attention Visualized](https://3dvr-portal.vercel.app/attention-visualized/)
-- [Logic Lab](https://3dvr-portal.vercel.app/logic-lab/)
-- [Master Key Room](https://3dvr-portal.vercel.app/master-key-room/)
-- [Intention Lab](https://3dvr-portal.vercel.app/intention-lab/)
-- [Portal Lab](https://3dvr-portal.vercel.app/portal-lab/)
-- [3DVR Connect](https://3dvr-portal.vercel.app/3dvr-connect/)
-- [Fascia Release](https://3dvr-portal.vercel.app/fascia-release/)
-- [Seated Spine Reset](https://3dvr-portal.vercel.app/seated-spine-reset/)
-
-Open the page you want and use your browser’s **Install** or **Add to Home Screen** option to pin it like a native app.
-
-### Brave browser setup
-
-Brave shields can block realtime sync. Click the 🛡️ icon and either turn Shields off for `portal.3dvr.tech` and `relay.3dvr.tech`, or set **Cross-site cookies** to *Allow* and **Fingerprinting** to *Standard*. Use a regular window (not Tor or private mode) for the most reliable GunJS connection.
-
-## Portal data standard
-
-- Prefer `window.ScoreSystem.ensureGun` to initialize Gun so every app shares the same peer list, SEA configuration, and offline stub behavior.
-- Store collaborative data under `3dvr-portal/<app>` nodes first, with legacy nodes read and written second so older clients continue to sync.
-- Keep the portal node as the source of truth, and avoid device-local only storage for anything that should follow a user between browsers.
-- Ensure guest or SEA identities are initialized (via `ScoreSystem.ensureGuestIdentity`) before writing so contributions are properly attributed across apps.
-- Alive System state syncs through `gun.get('3dvr-portal').get('alive-system')`, with per-author dashboard state and append-only activity entries for redirects, check-ins, morning rituals, and social logs.
-- Seated Spine Reset is local-first in v1 and exposes `window.SeatedSpineReset.setPortalBridge(...)` so portal or Gun-backed completion sync can be added later without coupling the wellness app to login.
-
-### Run Locally
+Use the live Portal at **https://portal.3dvr.tech** or run it locally:
 
 ```bash
 git clone https://github.com/tmsteph/3dvr-portal.git
 cd 3dvr-portal
-open index.html
-```
-
-### Run the local dev server
-
-The portal is mostly static HTML/CSS/JS, so the default dev server is a simple static
-server. This keeps local setup lightweight and avoids a global Vercel dependency.
-
-```bash
 npm install
 npm run dev
 ```
 
-### Money Printer
+## Agent + RUNE
 
-The canonical product architecture is [Money Printer: Business Nervous System](docs/money-printer-business-nervous-system.md). It defines the full demand → offer → customer → workforce → delivery → reputation loop, its human approval gates, channel-policy constraints, the current implementation gaps, and the phased build order. Operator activity that does not materially advance that loop should remain silent.
+The Agent execution layer lives in [`apps/agent`](apps/agent/README.md). RUNE is the small human-readable mission format that compiles into the existing bounded mission runtime, preserving evidence, retries, dependency handling, and approval gates.
 
-The `money-printer` app is available at `/money-printer/`. It is the cockpit for a local-first venture operator that
-generates ideas, scores opportunities, creates validation tests, promotes experiments, drafts founder briefs, plans
-connector operations, and recommends the next best money action.
+See [`apps/agent/docs/rune-missions.md`](apps/agent/docs/rune-missions.md).
 
-The web dashboard stays secret-free and stores cockpit state in browser `localStorage`. Real runtime work happens through
-the CLI/server engine in `src/money-printer/`, which stores operator state in `.money-printer/`, writes reports and logs,
-and can use OpenAI, GitHub, Vercel, email, and Codex only when explicitly configured.
+## Android Companion
 
-Runtime modes:
+The opt-in Android control plane lives in [`apps/companion`](apps/companion/README.md). It provides an always-on local bridge for bounded device interaction while keeping destructive, financial, account-security, and other high-impact actions behind policy/approval boundaries.
 
-- `mock`: deterministic local bot output with no external calls.
-- `openai`: model-powered ideas, bot runs, founder briefs, connector plans, and Codex prompts.
-- `connector dry-run`: generate GitHub/Vercel operations without executing provider writes.
-- `connector execute`: execute approved yellow-zone operations when env flags and `--execute` are present.
-- `codex prompt`: save implementation prompts to `.money-printer/codex-prompts/`.
-- `codex execute`: run Codex CLI only when `MONEY_PRINTER_ALLOW_CODEX_EXEC=true` and `--execute` are both set.
+## Money Printer
 
-Command protocol:
+The canonical architecture is [`docs/money-printer-business-nervous-system.md`](docs/money-printer-business-nervous-system.md). The goal is a measurable loop:
 
-- Green operations may be auto-approved only when config allows it.
-- Yellow operations require local approval in `.money-printer/operations.json`.
-- Red operations stay blocked. Money movement, DNS, production merge, and data deletion are not executed by this runtime.
-- The auto-business runner is built for aggressive market and offer testing: research, publish, critique, and send eligible outbound from an explicit contact file. Sends require mail credentials, sender identity, opt-out details, suppression checks, and `AUTO_BUSINESS_OUTREACH_ENABLED=true`. Default mode is warm/opt-in; `AUTO_BUSINESS_OUTREACH_MODE=compliant-b2b` enables higher-risk US B2B outbound with required contact provenance.
+**demand → offer → customer → delivery → reputation → learning**
 
-Core pieces:
+The web cockpit lives at `/money-printer/`; runtime automation remains bounded by explicit connector permissions and approval gates.
 
-- `money-printer-core`: shared engine for bots, scoring, prompts, experiments, briefs, and connector interfaces.
-- `money-printer-web`: portal dashboard/control room at `/money-printer/`.
-- `money-printer-cli`: terminal runner that reads and writes `.money-printer/` files.
-- `money-printer-daemon`: one-cycle or scheduled operator loop for a DigitalOcean server.
-- `money-printer-supervisor`: DigitalOcean-safe scheduled wrapper that runs a cycle, writes health reports, dedupes plans, and executes only locally approved operations.
-- `money-printer-auto-business`: broader DigitalOcean loop for research, offer generation, self-critique, owner email reports, and capped compliant outreach.
-- `money-printer-model-provider`: OpenAI Responses API wrapper with structured JSON parsing and mock fallback.
-- `money-printer-operations`: local approval ledger plus guarded connector execution.
-- `money-printer-codex-runner`: prompt generation and opt-in Codex CLI execution.
+## Contributing
 
-### Money Printer CLI
+3DVR is intentionally open source. Useful contributions include bug fixes, accessibility improvements, documentation, experiments, new open tools, and simplifying existing systems.
 
-```bash
-npm run money-printer -- init
-npm run money-printer -- mission "Launch an AI web agency for local service businesses"
-npm run money-printer -- ideas --count 5 --save
-npm run money-printer -- ideas --ai --count 5 --save
-npm run money-printer -- brief
-npm run money-printer -- run executive
-npm run money-printer -- run executive --ai
-npm run money-printer -- run market-research --ai
-npm run money-printer -- run validation --ai
-npm run money-printer -- ai-status
-npm run money-printer -- daemon --once
-npm run money-printer -- daemon --once --ai
-npm run money-printer:supervisor -- --ai
-npm run money-printer:supervisor -- --health-only
-npm run money-printer:auto-business -- --setup-check
-npm run money-printer:auto-business
-npm run money-printer -- operations
-npm run money-printer -- operations approve <operation-id>
-npm run money-printer -- operations execute <operation-id> --execute
-npm run money-printer -- operations execute-approved --execute
-npm run money-printer -- codex status
-npm run money-printer -- codex prompt --bot website-builder
-npm run money-printer -- codex run --bot website-builder --execute
-```
+If you believe people should be able to understand, modify, and own the computing systems they depend on, welcome home.
 
-Useful direct scripts:
+## License
 
-```bash
-npm run money-printer:init
-npm run money-printer:ideas -- --count 5 --save
-npm run money-printer:brief
-npm run money-printer:daemon
-npm run money-printer:ai-status
-npm run money-printer:codex -- prompt --bot website-builder
-npm run money-printer:supervisor -- --ai
-npm run money-printer:auto-business -- --setup-check
-npm run money-printer:auto-business
-```
-
-AI/provider setup example:
-
-```bash
-# Reused from existing portal AI flows.
-OPENAI_API_KEY=
-MONEY_PRINTER_AI_MODE=openai
-MONEY_PRINTER_MODEL=gpt-4.1-mini
-MONEY_PRINTER_REASONING_MODEL=gpt-5.4-mini
-MONEY_PRINTER_FAST_MODEL=gpt-4.1-mini
-MONEY_PRINTER_TEMPERATURE=0.25
-MONEY_PRINTER_MAX_OUTPUT_TOKENS=2500
-
-GITHUB_TOKEN=
-GITHUB_OWNER=tmsteph
-GITHUB_REPO=3dvr-portal
-
-VERCEL_TOKEN=
-VERCEL_PROJECT_ID=
-VERCEL_TEAM_ID=
-
-MONEY_PRINTER_LIVE_CONNECTORS=false
-MONEY_PRINTER_ALLOW_GITHUB_WRITE=false
-MONEY_PRINTER_ALLOW_VERCEL_WRITE=false
-MONEY_PRINTER_ALLOW_CODEX_EXEC=false
-MONEY_PRINTER_AUTO_APPROVE_GREEN=false
-MONEY_PRINTER_AUTO_APPROVE_MAX=3
-
-# Reused from Stripe/mail apps when present: STRIPE_LOG_EMAIL, GMAIL_USER, GMAIL_APP_PASSWORD.
-AUTO_BUSINESS_OWNER_EMAIL=
-AUTO_BUSINESS_EMAIL_REPORTS=true
-GMAIL_USER=
-GMAIL_APP_PASSWORD=
-
-# Offer CTA. MONEY_AUTOPILOT_CHECKOUT_URL can be omitted when STRIPE_CHECKOUT_URL is set.
-MONEY_AUTOPILOT_CHECKOUT_URL=
-STRIPE_CHECKOUT_URL=
-
-AUTO_BUSINESS_OUTREACH_ENABLED=true
-AUTO_BUSINESS_OUTREACH_MODE=compliant-b2b
-AUTO_BUSINESS_CONTACTS_FILE=~/.config/3dvr/outreach-contacts.csv
-AUTO_BUSINESS_SUPPRESSION_FILE=~/.config/3dvr/outreach-suppression.csv
-AUTO_BUSINESS_OUTREACH_DAILY_LIMIT=15
-AUTO_BUSINESS_OUTREACH_MAX_CAP=50
-AUTO_BUSINESS_PHYSICAL_ADDRESS=
-AUTO_BUSINESS_UNSUBSCRIBE_EMAIL=
-AUTO_BUSINESS_UNSUBSCRIBE_URL=
-
-META_PAGE_ID=
-META_PAGE_ACCESS_TOKEN=
-META_GRAPH_API_VERSION=v24.0
-AUTO_BUSINESS_FACEBOOK_QUEUE_ENABLED=true
-AUTO_BUSINESS_FACEBOOK_AUTO_APPROVE=true
-AUTO_BUSINESS_FACEBOOK_RUN_WORKER=true
-AUTO_BUSINESS_FACEBOOK_DRY_RUN=false
-AUTO_BUSINESS_FACEBOOK_LIMIT=1
-```
-
-The CLI and supervisor automatically load `.env`, `.env.local`, and `~/.config/3dvr/money-printer.env` when present.
-Set `MONEY_PRINTER_ENV_FILE=/path/to/money-printer.env` to point a server run at a custom private env file.
-
-OpenAI mode uses `OPENAI_API_KEY` plus `MONEY_PRINTER_AI_MODE=openai`. If the key is missing, if mode is not `openai`,
-or if a model response cannot be parsed as valid JSON, Money Printer logs the raw output and falls back to mock output.
-
-GitHub issue creation is the first real write path. It requires `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`,
-`MONEY_PRINTER_ALLOW_GITHUB_WRITE=true`, a locally approved operation, and the CLI `--execute` flag. Vercel support is
-read/inspect first: set `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and optionally `VERCEL_TEAM_ID` to inspect project and
-deployment status. Preview deployment creation remains plan-only until a safe project-specific deploy path is approved.
-
-Set `MONEY_PRINTER_AUTO_APPROVE_GREEN=true` with `MONEY_PRINTER_AUTO_APPROVE_MAX=3` to let the scheduled supervisor
-approve a bounded number of green GitHub/Vercel task operations each cycle before it runs `--execute-approved`.
-
-Codex integration starts by saving prompts. Execution requires the Codex CLI to be installed, a generated prompt,
-`MONEY_PRINTER_ALLOW_CODEX_EXEC=true`, and `--execute`.
-
-Mock-mode smoke tests:
-
-```bash
-npm run money-printer -- ai-status
-npm run money-printer -- ideas --ai --count 5 --save
-npm run money-printer -- daemon --once --ai
-```
-
-OpenAI-mode smoke tests:
-
-```bash
-MONEY_PRINTER_AI_MODE=openai OPENAI_API_KEY=sk-... npm run money-printer -- ideas --ai --count 5 --save
-MONEY_PRINTER_AI_MODE=openai OPENAI_API_KEY=sk-... npm run money-printer -- run market-research --ai --save
-MONEY_PRINTER_AI_MODE=openai OPENAI_API_KEY=sk-... npm run money-printer -- daemon --once --ai
-```
-
-GitHub issue execution test:
-
-```bash
-npm run money-printer -- operations
-npm run money-printer -- operations approve <operation-id>
-MONEY_PRINTER_ALLOW_GITHUB_WRITE=true npm run money-printer -- operations execute <operation-id> --execute
-```
-
-DigitalOcean deployment target:
-
-```text
-~/projects/3dvr-portal/
-~/projects/3dvr-portal/.money-printer/
-~/.config/3dvr/money-printer.env
-```
-
-Run one dry cycle first, inspect the report, then schedule the supervised wrapper with cron or systemd once model output
-and connector plans look sane:
-
-```bash
-npm run money-printer:supervisor -- --health-only
-npm run money-printer:supervisor -- --ai
-```
-
-Install the included systemd timers from `ops/systemd/` when the one-cycle reports look sane. Full runbooks:
-`docs/digitalocean-money-printer-supervisor.md` and `docs/digitalocean-auto-business.md`.
-
-### Run the money automation loop
-
-Use the new loop runner to research demand, rank opportunities, and draft ad copy from one command:
-
-```bash
-npm run money:loop -- \
-  --market "freelancers managing outreach and follow-up" \
-  --keywords "lead follow-up,proposal workflow,client onboarding" \
-  --channels "reddit,x,linkedin,email" \
-  --budget 150
-```
-
-Optional output file:
-
-```bash
-npm run money:loop -- --market "local service businesses" --out artifacts/money-loop/latest.json
-```
-
-Automation data sync is available in the UI at `/money-ai/`, which writes each run to:
-
-- `gun.get('3dvr-portal').get('money-ai').get('runs')`
-- `gun.get('3dvr-portal').get('money-ai').get('opportunities')`
-- `gun.get('3dvr-portal').get('money-ai').get('ads')`
-- Daily Direction check-ins remain in browser storage under `portal-life-checkins` until encrypted, owner-scoped sync is implemented.
-
-Legacy mirror writes also continue to `gun.get('money-ai')` for older clients.
-
-#### Money loop manual walkthrough
-
-Use this checklist after UX or sync changes:
-
-1. Open `/money-ai/` in one browser tab, run the loop once, and verify opportunities/ads render in the results panel.
-2. Hard refresh and clear site data for the local host, then rerun and confirm the app still initializes and submits.
-3. Open a second browser (or profile) and check the same run in Gun Explorer at `3dvr-portal/money-ai/runs/<runId>`.
-4. Toggle network off/on to confirm the UI reports offline sync state, then reconnect and run again.
-5. Validate one mobile browser and one desktop browser to confirm controls, focus states, and status text are readable.
-
-### Run the money autopilot cycle
-
-Autopilot can discover markets on its own, run demand research, build an offer page, publish, and dispatch promotion tasks.
-
-```bash
-npm run money:autopilot -- --out artifacts/money-autopilot/latest.json
-```
-
-Optional dry-run (skip publish even when enabled):
-
-```bash
-npm run money:autopilot -- --dryRun true --out artifacts/money-autopilot/latest.json
-```
-
-Environment controls:
-
-- `MONEY_AUTOPILOT_MARKET`
-- `MONEY_AUTOPILOT_KEYWORDS` (comma separated)
-- `MONEY_AUTOPILOT_CHANNELS` (comma separated)
-- `MONEY_AUTOPILOT_WEEKLY_BUDGET`
-- `MONEY_AUTOPILOT_MAX_BUDGET`
-- `MONEY_AUTOPILOT_SIGNAL_LIMIT`
-- `MONEY_AUTOPILOT_AUTO_DISCOVERY` (`true`/`false`)
-- `MONEY_AUTOPILOT_DISCOVERY_SEEDS` (comma separated)
-- `MONEY_AUTOPILOT_PUBLISH` (`true`/`false`)
-- `MONEY_AUTOPILOT_DRY_RUN` (`true`/`false`)
-- `MONEY_AUTOPILOT_GH_TOKEN` (or `GH_PAT`)
-- `MONEY_AUTOPILOT_GH_REPO` (for example `tmsteph/3dvr-portal`)
-- `MONEY_AUTOPILOT_GH_BRANCH`
-- `MONEY_AUTOPILOT_PUBLISH_PATH_PREFIX`
-- `MONEY_AUTOPILOT_COMMIT_PREFIX`
-- `MONEY_AUTOPILOT_VERCEL_DEPLOY` (`true`/`false`)
-- `MONEY_AUTOPILOT_VERCEL_TOKEN`
-- `MONEY_AUTOPILOT_VERCEL_PROJECT_NAME`
-- `MONEY_AUTOPILOT_VERCEL_TARGET` (`production` or `preview`)
-- `MONEY_AUTOPILOT_PROMOTION` (`true`/`false`)
-- `MONEY_AUTOPILOT_PROMO_WEBHOOK_URL` (n8n/Zapier/custom worker endpoint)
-- `MONEY_AUTOPILOT_DEFAULT_DESTINATION_URL`
-- `MONEY_AUTOPILOT_CHECKOUT_URL` (Stripe Checkout link used as CTA/destination fallback)
-- `MONEY_AUTOPILOT_CHECKOUT_CTA_LABEL` (default: `Start Paid Plan`)
-- `MONEY_AUTOPILOT_ANALYTICS_SOURCE` (`gun`, `ga4`, or `auto`; the scheduled workflow uses `gun`)
-- `MONEY_AUTOPILOT_GUN_PEERS` (optional comma-separated relay override for first-party analytics reads)
-- `MONEY_AUTOPILOT_GA_PROPERTY_ID` (optional GA4 fallback when the analytics source is `ga4` or `auto`)
-- `MONEY_AUTOPILOT_GA_ACCESS_TOKEN` (optional GA4 fallback; not required for Gun analytics)
-- `MONEY_AUTOPILOT_CRON_ENABLED` (`true`/`false`, required for `/api/money/autopilot-cron`)
-- `CRON_SECRET` (recommended for Vercel Cron auth header)
-- `MONEY_AUTOPILOT_CRON_SECRET` (optional override for manual/non-Vercel cron calls)
-- `MONEY_AUTOPILOT_CRON_DRY_RUN` (`true`/`false`)
-- `GROWTH_HOMEPAGE_CRON_ENABLED` (`true`/`false`, required for `/api/growth/homepage-hero-cron`)
-- `GROWTH_HOMEPAGE_CRON_SECRET` (optional override for manual/non-Vercel cron calls)
-- `GROWTH_HOMEPAGE_CRON_DRY_RUN` (`true`/`false`)
-- `GROWTH_GUN_PEERS` (optional comma-separated relay override for growth cron reads)
-
-The Free Page writes privacy-safe `page_view` and `generate_lead` records to
-`3dvr-portal/analytics/free-page/v1/events/<UTC day>/<event ID>`. Records contain only the event type,
-page path, timestamp, and a random per-tab session ID. Form fields, email addresses, IP addresses, and user identities
-are never written. The scheduled Money Autopilot reads the last 30 days from this Gun graph and includes unique
-sessions, page views, and lead intents in its analytics evidence.
-
-Portal billing center:
-
-- Keep local secrets in `.env.local` and use `.env.example` as the template.
-- Run `npm run env:check` to confirm the minimum Stripe and Gmail variables are present
-  before testing billing or webhook flows locally. It reads `.env.local` by default when
-  that file exists.
-- `STRIPE_PRICE_STARTER_ID` (or `STRIPE_PRICE_SUPPORTER_ID`) for the $5 monthly tier
-- `STRIPE_PRICE_PRO_ID` (or `STRIPE_PRICE_FOUNDER_ID`) for the $20 monthly tier
-- `STRIPE_PRICE_BUILDER_ID` (or `STRIPE_PRICE_STUDIO_ID`) for the $50 monthly tier
-- `STRIPE_PRICE_EMBEDDED_ID` (or `STRIPE_PRICE_EXECUTION_ID`) for the $200 monthly tier
-- `PORTAL_ORIGIN` (recommended, for example `https://portal.3dvr.tech`)
-- `STRIPE_CUSTOMER_PORTAL_LOGIN_URL` (optional fallback if you enable Stripe's hosted customer portal login page)
-
-Routes:
-
-- `GET /api/stripe/checkout` returns billing diagnostics
-- `POST /api/stripe/checkout` creates a new checkout session, opens billing management, or routes an existing
-  subscriber into a Stripe plan-switch confirmation flow
-- `GET|POST /api/stripe/status` returns the current Stripe-backed plan plus duplicate-subscription warnings
-- `/billing/` is the account-linked billing center UI used by the public `3dvr.tech` site
-
-Billing deployment topology:
-
-| Branch | Web domain | Portal domain | Stripe mode |
-| --- | --- | --- | --- |
-| `main` | `https://3dvr.tech` | `https://portal.3dvr.tech` | Live Stripe |
-| `staging` | `https://staging.3dvr.tech` | `https://portal-staging.3dvr.tech` | Live Stripe behind Vercel auth |
-| `feature/*` | Vercel preview URL | Vercel preview URL | Stripe test mode |
-
-- Keep `3dvr-web` and `3dvr-portal` on the same branch matrix so the public site and billing center stay in sync.
-- `feature/*` previews are the test environment. Use Stripe test keys plus matching Stripe test `price_...` ids there.
-- Never mix a Stripe test secret key with live `price_...` ids, or a live Stripe key with test `price_...` ids.
-- Existing live-subscriber verification belongs on `staging` or `main`, because Stripe test mode cannot see live customers.
-- After each new `staging` deploy, run `npm run vercel:alias-staging` from `3dvr-portal` so `https://staging.3dvr.tech` and `https://portal-staging.3dvr.tech` stay attached to the current staging previews.
-- A healthy protected staging domain returns `401` from Vercel auth. `404 DEPLOYMENT_NOT_FOUND` means the staging alias is broken.
-- When a web preview needs to talk to a portal preview, pass an explicit `portalOrigin` or keep the preview host map updated so plan links do not fall back to production by mistake.
-
-Security for UI-triggered autopilot:
-
-- `MONEY_AUTOPILOT_TOKEN` is required by `GET /api/money/loop?mode=autopilot`.
-- Provide it in the `X-Autopilot-Token` header (the Money AI page has a token field).
-- `MONEY_AUTOPILOT_USER_TOKEN_SECRET` signs per-user bearer tokens.
-  If omitted, the API derives a stable fallback secret from `MONEY_AUTOPILOT_TOKEN`,
-  `STRIPE_SECRET_KEY`, or `OPENAI_API_KEY` (first available).
-- `MONEY_AUTOPILOT_REQUIRE_USER_TOKEN=true` enforces bearer tokens for regular loop runs.
-- `MONEY_AUTOPILOT_ALLOW_FREE_PLAN=true` allows token issuance without an active Stripe subscription.
-- `MONEY_AUTOPILOT_ALLOWED_SUB_STATUSES` overrides accepted Stripe statuses (default: `active,trialing`).
-- `MONEY_AUTOPILOT_PRICE_PLAN_MAP` maps Stripe price IDs to plans, example:
-  `{"price_starter":"starter","price_pro":"pro","price_builder":"builder"}`.
-- `MONEY_AUTOPILOT_RATE_LIMITS` sets per-plan quotas, example:
-  `{"free":{"minute":1,"day":1},"starter":{"minute":2,"day":10},"pro":{"minute":6,"day":80},"builder":{"minute":12,"day":180}}`.
-
-Issue or refresh a user token from the page:
-
-1. Enter billing email in **Billing email (used for subscription lookup)** for first-time linking.
-2. Click **Get User Token**.
-3. The token is verified against Stripe entitlement and then used as `Authorization: Bearer <token>`.
-4. Later refreshes can reuse the existing bearer token without typing email again.
-5. Run buttons include plan-based rate-limit status in the results pane.
-
-Scheduled background execution options:
-
-1. GitHub Actions: `.github/workflows/money-autopilot.yml` runs every 6 hours plus manual dispatch.
-2. Vercel Cron: `vercel.json` schedules `/api/money/autopilot-cron` once daily
-   (`17 1 * * *`) for Hobby-plan compatibility.
-   The route requires `Authorization: Bearer <CRON_SECRET>`
-   and only runs when `MONEY_AUTOPILOT_CRON_ENABLED=true`.
-   On Pro/Enterprise you can increase frequency (for example every 6 hours).
-3. Optional query overrides on manual trigger:
-   `/api/money/autopilot-cron?dryRun=true&autoDiscover=false&publish=true&vercelDeploy=true&promotion=true`
-4. Homepage growth cron: `vercel.json` also schedules `/api/growth/homepage-hero-cron` once daily
-   (`43 2 * * *`) for Hobby-plan compatibility. The route uses the same
-   `Authorization: Bearer <CRON_SECRET>` pattern and only runs when
-   `GROWTH_HOMEPAGE_CRON_ENABLED=true`.
-5. Optional manual dry-run:
-   `/api/growth/homepage-hero-cron?dryRun=true`
-
-Important: promotion dispatch only sends campaign tasks to your webhook. Paid ad spend happens only if your webhook
-worker actually creates campaigns in Google Ads/social APIs.
-
-### Run the Playwright smoke check
-
-Use one command to verify browser automation end-to-end:
-
-```bash
-npm run playwright:smoke
-```
-
-What this does:
-
-1. Installs Playwright browser runtimes (`chromium` and `firefox`) if needed.
-2. Starts a local static server for the portal.
-3. Opens the portal in headless Playwright and validates the landing page title and heading.
-
-On Android/Termux, the command automatically runs inside a local Debian `proot-distro` if available.
-
-For explicit Chrome and Safari-style coverage:
-
-```bash
-npm run playwright:verify:chrome-safari
-```
-
-This installs the best available Blink target plus `webkit`, then runs the smoke check once in Chrome-style Blink and
-once in WebKit. On Linux Arm64, Playwright falls back from branded Chrome to Chromium because Google Chrome is not
-available there. On Linux, `safari` means Playwright WebKit parity rather than desktop Safari itself.
-
-### Run the Playwright contacts E2E suite
-
-Use this to run the Chromium-based contacts identity + score browser tests:
-
-```bash
-npm run playwright:e2e
-```
-
-To run both the contacts E2E suite and smoke check in one command:
-
-```bash
-npm run playwright:verify
-```
-
-### When do you need Vercel locally?
-
-Only if you need to emulate Vercel serverless functions under `/api` during development.
-For most UI work, the static dev server above is enough.
-
-### Calendar Hub developer preview
-
-The new calendar prototype lives at `calendar/index.html`. To experiment with Google or Outlook:
-
-1. Generate OAuth tokens using your own developer accounts (Google Cloud or Azure).
-2. Open the Calendar Hub page locally and paste the access tokens into the connection cards.
-3. Use the **Fetch events** button to call the lightweight proxy in `/api/calendar` and list your upcoming events.
-4. Use the **Create quick events** form to push meetings back to the connected provider.
-
-Tokens are stored in `localStorage` only, making it easy to iterate while you wire up a production-ready OAuth flow.
-
-### Automated dev deployments (GitHub + Vercel)
-
-Use the included GitHub Actions workflow to build and deploy a stable dev site on Vercel whenever you push to `main` or `dev`.
-This keeps preview testing on a predictable URL instead of a new random link every run, which helps debug features that are
-origin or cookie sensitive.
-
-#### Retrieving the required API tokens
-
-Open the in-app **Deployment Guides** at [`/deployment-guides/`](https://3dvr-portal.vercel.app/deployment-guides/) for
-step-by-step pages covering the GitHub token, Vercel token and IDs, optional stable alias, and wiring the workflow
-secrets. Quick checklist:
-
-1. Add repository secrets for `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`. Optional: include `VERCEL_DEV_ALIAS`
-   (stable preview) and `GH_PAT` (extra GitHub API scope).
-2. Enable the "Vercel Dev Preview" workflow in GitHub Actions. It runs on pushes to `main`/`dev`, pull requests into those
-   branches, and manual dispatch.
-3. Pull request runs always publish a preview URL; manual runs can also alias to your stable dev domain when
-   `set_alias=true`. Pushes to `main`/`dev` alias automatically when `VERCEL_DEV_ALIAS` is set.
-4. Each run pulls preview env settings, builds the site, deploys, and—when aliasing is enabled—points the stable dev URL at
-   the new preview.
+See [`LICENSE`](LICENSE).
