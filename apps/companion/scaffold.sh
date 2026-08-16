@@ -40,6 +40,7 @@ cp native-spec/android/CompanionKeepAliveService.kt "$KOTLIN_DIR/CompanionKeepAl
 cp native-spec/android/CompanionNativeBridgeServer.kt "$KOTLIN_DIR/CompanionNativeBridgeServer.kt"
 cp native-spec/android/CompanionStartupReceiver.kt "$KOTLIN_DIR/CompanionStartupReceiver.kt"
 cp native-spec/android/CompanionSelfUpdater.kt "$KOTLIN_DIR/CompanionSelfUpdater.kt"
+cp native-spec/android/CompanionShizuku.kt "$KOTLIN_DIR/CompanionShizuku.kt"
 cp native-spec/android/companion_accessibility_service.xml \
   android/app/src/main/res/xml/companion_accessibility_service.xml
 
@@ -93,6 +94,7 @@ known_packages = {
     'com.google.android.apps.messaging',
     'com.samsung.android.messaging',
     'com.android.mms',
+    'moe.shizuku.privileged.api',
 }
 existing_queries = {node.get(a('name')) for node in queries.findall('package')}
 for package in sorted(known_packages):
@@ -117,6 +119,18 @@ for receiver in list(app.findall('receiver')):
         '.CompanionInstallResultReceiver',
     }:
         app.remove(receiver)
+for provider in list(app.findall('provider')):
+    if provider.get(a('name')) == 'rikka.shizuku.ShizukuProvider':
+        app.remove(provider)
+
+ET.SubElement(app, 'provider', {
+    a('name'): 'rikka.shizuku.ShizukuProvider',
+    a('authorities'): '${applicationId}.shizuku',
+    a('multiprocess'): 'false',
+    a('enabled'): 'true',
+    a('exported'): 'true',
+    a('permission'): 'android.permission.INTERACT_ACROSS_USERS_FULL',
+})
 
 accessibility = ET.SubElement(app, 'service', {
     a('name'): '.CompanionAccessibilityService',
@@ -193,6 +207,19 @@ entry.text = 'Lets 3DVR Companion inspect and control the screen when you enable
 ET.indent(strings_tree, space='    ')
 strings_tree.write(strings_path, encoding='utf-8', xml_declaration=True)
 
+# Shizuku 13.1.x requires core library desugaring when minSdk is 23.
+gradle_path = Path('android/app/build.gradle.kts')
+gradle = gradle_path.read_text(encoding='utf-8')
+if 'isCoreLibraryDesugaringEnabled = true' not in gradle:
+    gradle = gradle.replace(
+        'compileOptions {',
+        'compileOptions {\n        isCoreLibraryDesugaringEnabled = true',
+        1,
+    )
+if 'dev.rikka.shizuku:api:13.1.5' not in gradle:
+    gradle += '''\n\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")\n    implementation("dev.rikka.shizuku:api:13.1.5")\n    implementation("dev.rikka.shizuku:provider:13.1.5")\n}\n'''
+gradle_path.write_text(gradle, encoding='utf-8')
+
 plist_path = Path('ios/Runner/Info.plist')
 with plist_path.open('rb') as handle:
     plist = plistlib.load(handle)
@@ -218,4 +245,5 @@ echo "Android native adapter: wired"
 echo "Android always-on native bridge: wired"
 echo "Android boot/package-replace recovery: wired"
 echo "Android self-update foundation: wired"
+echo "Android Shizuku/Sui privilege provider: wired"
 echo "iOS App Intent: staged in ios/CompanionNativeSpec (Xcode target wiring still required)"
