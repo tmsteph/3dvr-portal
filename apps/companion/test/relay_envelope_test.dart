@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:three_dvr_companion/src/relay_envelope.dart';
+import 'package:companion/src/relay_envelope.dart';
 
 void main() {
   final now = DateTime.utc(2026, 8, 17, 3);
@@ -17,10 +17,7 @@ void main() {
   test('accepts only the initial read-only capabilities', () {
     expect(envelope().capabilityId, 'health');
     expect(envelope(capabilityId: 'device.status').capabilityId, 'device.status');
-    expect(
-      () => envelope(capabilityId: 'url.open'),
-      throwsFormatException,
-    );
+    expect(() => envelope(capabilityId: 'url.open'), throwsFormatException);
   });
 
   test('rejects expired requests', () {
