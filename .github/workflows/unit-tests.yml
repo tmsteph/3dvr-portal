@@ -4,14 +4,16 @@ on:
   push:
     branches: [main, dev]
     paths:
-      - 'api/companion-command.js'
+      - 'api/session.js'
+      - 'src/device/companion-command-proxy.js'
       - 'tests/companion-command-api.test.js'
       - 'src/auth/sea.js'
       - '.github/workflows/unit-tests.yml'
   pull_request:
     branches: [main, dev]
     paths:
-      - 'api/companion-command.js'
+      - 'api/session.js'
+      - 'src/device/companion-command-proxy.js'
       - 'tests/companion-command-api.test.js'
       - 'src/auth/sea.js'
       - '.github/workflows/unit-tests.yml'
