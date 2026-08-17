@@ -1,0 +1,36 @@
+name: Companion Command Unit Tests
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'api/session.js'
+      - 'src/device/companion-command-proxy.js'
+      - 'tests/companion-command-api.test.js'
+      - 'src/auth/sea.js'
+      - '.github/workflows/unit-tests.yml'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'api/session.js'
+      - 'src/device/companion-command-proxy.js'
+      - 'tests/companion-command-api.test.js'
+      - 'src/auth/sea.js'
+      - '.github/workflows/unit-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/companion-command-api.test.js

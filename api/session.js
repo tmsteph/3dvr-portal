@@ -1,5 +1,6 @@
 import { verifySignedSeaPayload, resolveSeaAuthMaxAgeMs } from '../src/auth/sea.js';
 import { chooseDeviceProfile, normalizeDeviceHints } from '../src/device/profile.js';
+import { createCompanionCommandHandler } from '../src/device/companion-command-proxy.js';
 import { buildTurnCredentialPayload } from '../src/webrtc/turn-credentials.js';
 
 function setCorsHeaders(res) {
@@ -15,37 +16,25 @@ function normalizeText(value) {
 function resolveSharedCookieDomain(hostname = '') {
   const normalized = normalizeText(hostname).toLowerCase();
   if (!normalized) return '';
-  if (normalized === '3dvr.tech' || normalized.endsWith('.3dvr.tech')) {
-    return '.3dvr.tech';
-  }
+  if (normalized === '3dvr.tech' || normalized.endsWith('.3dvr.tech')) return '.3dvr.tech';
   return '';
 }
 
 function parseCookieHeader(headerValue = '') {
-  return String(headerValue || '')
-    .split(';')
-    .reduce((acc, entry) => {
-      const separator = entry.indexOf('=');
-      if (separator === -1) {
-        return acc;
-      }
-
-      const key = entry.slice(0, separator).trim();
-      const value = entry.slice(separator + 1).trim();
-      if (key) {
-        acc[key] = value;
-      }
-      return acc;
-    }, {});
+  return String(headerValue || '').split(';').reduce((acc, entry) => {
+    const separator = entry.indexOf('=');
+    if (separator === -1) return acc;
+    const key = entry.slice(0, separator).trim();
+    const value = entry.slice(separator + 1).trim();
+    if (key) acc[key] = value;
+    return acc;
+  }, {});
 }
 
 function readCookieObject(req, key) {
   const cookies = parseCookieHeader(req?.headers?.cookie || req?.headers?.Cookie || '');
   const raw = cookies[key];
-  if (!raw) {
-    return null;
-  }
-
+  if (!raw) return null;
   try {
     const parsed = JSON.parse(decodeURIComponent(raw));
     return parsed && typeof parsed === 'object' ? parsed : null;
@@ -56,10 +45,7 @@ function readCookieObject(req, key) {
 
 function readSessionIdentity(req) {
   const identity = readCookieObject(req, 'portalIdentity');
-  if (!identity || identity.signedIn === false) {
-    return null;
-  }
-
+  if (!identity || identity.signedIn === false) return null;
   return {
     alias: normalizeText(identity.alias),
     username: normalizeText(identity.username),
@@ -73,21 +59,14 @@ function readSessionIdentity(req) {
 
 function readStoredDevice(req) {
   const device = readCookieObject(req, 'portalDevice');
-  if (!device) {
-    return null;
-  }
-
+  if (!device) return null;
   return {
     updatedAt: Number.isFinite(Number(device.updatedAt)) ? Math.round(Number(device.updatedAt)) : null,
     profile: normalizeText(device.profile),
     recommendation: device.recommendation && typeof device.recommendation === 'object' ? device.recommendation : null,
     hints: device.hints && typeof device.hints === 'object' ? normalizeDeviceHints(device.hints) : null,
     identity: device.identity && typeof device.identity === 'object'
-      ? {
-          alias: normalizeText(device.identity.alias),
-          authMethod: normalizeText(device.identity.authMethod),
-          authProvider: normalizeText(device.identity.authProvider)
-        }
+      ? { alias: normalizeText(device.identity.alias), authMethod: normalizeText(device.identity.authMethod), authProvider: normalizeText(device.identity.authProvider) }
       : null
   };
 }
@@ -102,21 +81,16 @@ function buildSharedIdentityCookie(identity, hostname = '') {
     authProvider: 'gun',
     verifiedEmail: ''
   };
-
   let cookie = `portalIdentity=${encodeURIComponent(JSON.stringify(payload))}; Path=/; Max-Age=2592000; SameSite=Lax; Secure`;
   const domain = resolveSharedCookieDomain(hostname);
-  if (domain) {
-    cookie += `; Domain=${domain}`;
-  }
+  if (domain) cookie += `; Domain=${domain}`;
   return cookie;
 }
 
 function buildDeviceCookie(payload, hostname = '') {
   let cookie = `portalDevice=${encodeURIComponent(JSON.stringify(payload))}; Path=/; Max-Age=2592000; SameSite=Lax; Secure`;
   const domain = resolveSharedCookieDomain(hostname);
-  if (domain) {
-    cookie += `; Domain=${domain}`;
-  }
+  if (domain) cookie += `; Domain=${domain}`;
   return cookie;
 }
 
@@ -129,20 +103,13 @@ function getRequestOrigin(req) {
 }
 
 function getRequestUrl(req) {
-  try {
-    return new URL(req?.url || '/api/session', getRequestOrigin(req) || 'http://localhost');
-  } catch (_error) {
-    return new URL('/api/session', 'http://localhost');
-  }
+  try { return new URL(req?.url || '/api/session', getRequestOrigin(req) || 'http://localhost'); }
+  catch (_error) { return new URL('/api/session', 'http://localhost'); }
 }
 
 function isTurnCredentialRequest(req) {
   const requestUrl = getRequestUrl(req);
-  const route = normalizeText(
-    requestUrl.searchParams.get('route') ||
-    requestUrl.searchParams.get('mode') ||
-    requestUrl.searchParams.get('kind')
-  );
+  const route = normalizeText(requestUrl.searchParams.get('route') || requestUrl.searchParams.get('mode') || requestUrl.searchParams.get('kind'));
   return route === 'turn-credentials';
 }
 
@@ -150,17 +117,10 @@ function resolveDeviceHints(req, body = {}) {
   const source = body?.device && typeof body.device === 'object' ? body.device : {};
   return normalizeDeviceHints({
     userAgent: source.userAgent || req?.headers?.['user-agent'] || req?.headers?.['User-Agent'],
-    platform: source.platform || '',
-    network: source.network || source.effectiveType || '',
-    effectiveType: source.effectiveType || source.network || '',
-    downlink: source.downlink,
-    rtt: source.rtt,
-    cores: source.cores,
-    memory: source.memory,
-    touch: source.touch,
-    saveData: source.saveData,
-    screenWidth: source.screenWidth,
-    screenHeight: source.screenHeight
+    platform: source.platform || '', network: source.network || source.effectiveType || '',
+    effectiveType: source.effectiveType || source.network || '', downlink: source.downlink, rtt: source.rtt,
+    cores: source.cores, memory: source.memory, touch: source.touch, saveData: source.saveData,
+    screenWidth: source.screenWidth, screenHeight: source.screenHeight
   });
 }
 
@@ -171,14 +131,10 @@ function resolveSessionAuth(req, body, config) {
     config,
     maxAgeMs: resolveSeaAuthMaxAgeMs(config),
     messages: {
-      missing: 'Sign in again to open a portal session.',
-      verifyError: 'Refresh your portal sign-in to open a session.',
-      invalid: 'Refresh your portal sign-in to open a session.',
-      wrongScope: 'Session proof had the wrong scope.',
-      wrongPub: 'Session proof did not match this portal account.',
-      missingTimestamp: 'Session proof was missing a timestamp.',
-      expired: 'Session proof expired. Refresh your sign-in and try again.',
-      wrongOrigin: 'Session proof was issued for a different portal origin.'
+      missing: 'Sign in again to open a portal session.', verifyError: 'Refresh your portal sign-in to open a session.',
+      invalid: 'Refresh your portal sign-in to open a session.', wrongScope: 'Session proof had the wrong scope.',
+      wrongPub: 'Session proof did not match this portal account.', missingTimestamp: 'Session proof was missing a timestamp.',
+      expired: 'Session proof expired. Refresh your sign-in and try again.', wrongOrigin: 'Session proof was issued for a different portal origin.'
     }
   });
 }
@@ -186,7 +142,6 @@ function resolveSessionAuth(req, body, config) {
 function resolveDeviceAuth(req, body, config) {
   const hasProof = Boolean(body?.authProof && body?.authPub);
   const session = readSessionIdentity(req);
-
   if (hasProof) {
     const proofResult = verifySignedSeaPayload(body, {
       scope: 'portal-device',
@@ -194,173 +149,81 @@ function resolveDeviceAuth(req, body, config) {
       config,
       maxAgeMs: resolveSeaAuthMaxAgeMs(config),
       messages: {
-        missing: 'Sign in again to save device hints.',
-        verifyError: 'Refresh your portal sign-in to save device hints.',
-        invalid: 'Refresh your portal sign-in to save device hints.',
-        wrongScope: 'Device proof had the wrong scope.',
-        wrongPub: 'Device proof did not match this portal account.',
-        missingTimestamp: 'Device proof was missing a timestamp.',
-        expired: 'Device proof expired. Refresh your sign-in and try again.',
-        wrongOrigin: 'Device proof was issued for a different portal origin.'
+        missing: 'Sign in again to save device hints.', verifyError: 'Refresh your portal sign-in to save device hints.',
+        invalid: 'Refresh your portal sign-in to save device hints.', wrongScope: 'Device proof had the wrong scope.',
+        wrongPub: 'Device proof did not match this portal account.', missingTimestamp: 'Device proof was missing a timestamp.',
+        expired: 'Device proof expired. Refresh your sign-in and try again.', wrongOrigin: 'Device proof was issued for a different portal origin.'
       }
     });
-    if (proofResult.ok || !session?.signedIn) {
-      return proofResult;
-    }
+    if (proofResult.ok || !session?.signedIn) return proofResult;
   }
-
   if (session?.signedIn) {
-    return {
-      ok: true,
-      identity: {
-        pub: normalizeText(body?.portalPub || ''),
-        alias: session.alias,
-        origin: normalizeText(body?.origin || getRequestOrigin(req) || config.PORTAL_ORIGIN),
-        action: 'device',
-        issuedAt: session.updatedAt,
-        scope: 'portal-session'
-      }
-    };
+    return { ok: true, identity: { pub: normalizeText(body?.portalPub || ''), alias: session.alias, origin: normalizeText(body?.origin || getRequestOrigin(req) || config.PORTAL_ORIGIN), action: 'device', issuedAt: session.updatedAt, scope: 'portal-session' } };
   }
-
-  return {
-    ok: false,
-    reason: 'Sign in again to save device hints.'
-  };
+  return { ok: false, reason: 'Sign in again to save device hints.' };
 }
 
 export function createSessionHandler(options = {}) {
-  const { config = process.env } = options;
+  const { config = process.env, fetchImpl = globalThis.fetch, verifyCompanionAuth } = options;
+  const companionCommand = createCompanionCommandHandler({ config, fetchImpl, verifyAuth: verifyCompanionAuth });
 
   return async function handler(req, res) {
     setCorsHeaders(res);
-
-    if (req.method === 'OPTIONS') {
-      return res.status(200).end();
-    }
-
+    if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method === 'GET' && isTurnCredentialRequest(req)) {
       res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json(buildTurnCredentialPayload({ config }));
     }
-
     if (req.method === 'GET') {
       const identity = readSessionIdentity(req);
       const stored = readStoredDevice(req);
       const device = stored?.hints || resolveDeviceHints(req);
       const recommendation = chooseDeviceProfile(device || {});
-
-      return res.status(200).json({
-        ok: true,
-        health: true,
-        authenticated: Boolean(identity?.signedIn),
-        identity: identity || stored?.identity || null,
-        origin: getRequestOrigin(req) || null,
-        device,
-        storedDevice: stored || null,
-        recommendation,
-        service: '3dvr-portal'
-      });
+      return res.status(200).json({ ok: true, health: true, authenticated: Boolean(identity?.signedIn), identity: identity || stored?.identity || null, origin: getRequestOrigin(req) || null, device, storedDevice: stored || null, recommendation, service: '3dvr-portal' });
     }
-
-    if (req.method !== 'POST') {
-      return res.status(405).json({ error: 'Method Not Allowed' });
-    }
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
     const body = req.body || {};
     const mode = normalizeText(body.kind || body.mode || body.action || '');
 
+    // Reuse this existing function so Companion control does not consume a 13th
+    // Hobby-plan serverless-function slot. The nested command mode lives in
+    // companionMode/commandMode and still receives its own exact SEA proof.
+    if (mode === 'companion-command') return companionCommand(req, res);
+
     if (mode === 'companion-relay-v1') {
       const relayId = normalizeText(body.relayId);
       const envelope = typeof body.envelope === 'string' ? body.envelope.replace(/\s+/g, '') : '';
-      if (!/^[A-Za-z0-9_-]{8,80}$/.test(relayId)) {
-        return res.status(400).json({ ok: false, error: 'invalid_relay_id' });
-      }
-      if (!/^[A-Za-z0-9+/=]+$/.test(envelope) || envelope.length < 32 || envelope.length > 60000) {
-        return res.status(400).json({ ok: false, error: 'invalid_envelope' });
-      }
+      if (!/^[A-Za-z0-9_-]{8,80}$/.test(relayId)) return res.status(400).json({ ok: false, error: 'invalid_relay_id' });
+      if (!/^[A-Za-z0-9+/=]+$/.test(envelope) || envelope.length < 32 || envelope.length > 60000) return res.status(400).json({ ok: false, error: 'invalid_envelope' });
       res.setHeader('Cache-Control', 'no-store, max-age=0');
       console.log(`3DVR_COMPANION_RELAY_V1 ${relayId} ${envelope}`);
-      return res.status(202).json({
-        ok: true,
-        relayId,
-        accepted: true,
-        storage: 'runtime-ciphertext-log-only'
-      });
+      return res.status(202).json({ ok: true, relayId, accepted: true, storage: 'runtime-ciphertext-log-only' });
     }
 
     const isDeviceRequest = mode === 'device' || (mode !== 'session' && Boolean(body.device && typeof body.device === 'object'));
-    const auth = isDeviceRequest
-      ? await resolveDeviceAuth(req, body, config)
-      : await resolveSessionAuth(req, body, config);
-
-    if (!auth.ok) {
-      return res.status(401).json({ error: auth.reason });
-    }
+    const auth = isDeviceRequest ? await resolveDeviceAuth(req, body, config) : await resolveSessionAuth(req, body, config);
+    if (!auth.ok) return res.status(401).json({ error: auth.reason });
 
     if (isDeviceRequest) {
       const device = resolveDeviceHints(req, body);
       const recommendation = chooseDeviceProfile(device || {});
-      const payload = {
-        updatedAt: Date.now(),
-        identity: {
-          alias: auth.identity.alias,
-          authMethod: 'sea',
-          authProvider: 'gun'
-        },
-        hints: device,
-        profile: recommendation.profile,
-        recommendation
-      };
-
+      const payload = { updatedAt: Date.now(), identity: { alias: auth.identity.alias, authMethod: 'sea', authProvider: 'gun' }, hints: device, profile: recommendation.profile, recommendation };
       res.setHeader('Set-Cookie', buildDeviceCookie(payload, req?.headers?.host || req?.headers?.Host || ''));
-
       return res.status(200).json({
-        ok: true,
-        authenticated: true,
-        service: '3dvr-portal',
-        session: {
-          scope: auth.identity.scope || 'portal-device',
-          issuedAt: auth.identity.issuedAt,
-          origin: auth.identity.origin,
-          action: auth.identity.action || normalizeText(body.action) || 'device'
-        },
-        identity: {
-          pub: auth.identity.pub,
-          alias: auth.identity.alias,
-          origin: auth.identity.origin,
-          action: auth.identity.action,
-          issuedAt: auth.identity.issuedAt,
-          scope: auth.identity.scope
-        },
-        device,
-        recommendation,
-        storedDevice: payload
+        ok: true, authenticated: true, service: '3dvr-portal',
+        session: { scope: auth.identity.scope || 'portal-device', issuedAt: auth.identity.issuedAt, origin: auth.identity.origin, action: auth.identity.action || normalizeText(body.action) || 'device' },
+        identity: { pub: auth.identity.pub, alias: auth.identity.alias, origin: auth.identity.origin, action: auth.identity.action, issuedAt: auth.identity.issuedAt, scope: auth.identity.scope },
+        device, recommendation, storedDevice: payload
       });
     }
 
     const device = resolveDeviceHints(req, body);
-    const cookie = buildSharedIdentityCookie(auth.identity, req?.headers?.host || req?.headers?.Host || '');
-    res.setHeader('Set-Cookie', cookie);
-
+    res.setHeader('Set-Cookie', buildSharedIdentityCookie(auth.identity, req?.headers?.host || req?.headers?.Host || ''));
     return res.status(200).json({
-      ok: true,
-      authenticated: true,
-      service: '3dvr-portal',
-      session: {
-        scope: auth.identity.scope || 'portal-session',
-        issuedAt: auth.identity.issuedAt,
-        origin: auth.identity.origin,
-        action: auth.identity.action || normalizeText(body.action) || 'session'
-      },
-      identity: {
-        pub: auth.identity.pub,
-        alias: auth.identity.alias,
-        origin: auth.identity.origin,
-        action: auth.identity.action,
-        issuedAt: auth.identity.issuedAt,
-        scope: auth.identity.scope
-      },
+      ok: true, authenticated: true, service: '3dvr-portal',
+      session: { scope: auth.identity.scope || 'portal-session', issuedAt: auth.identity.issuedAt, origin: auth.identity.origin, action: auth.identity.action || normalizeText(body.action) || 'session' },
+      identity: { pub: auth.identity.pub, alias: auth.identity.alias, origin: auth.identity.origin, action: auth.identity.action, issuedAt: auth.identity.issuedAt, scope: auth.identity.scope },
       device
     });
   };
