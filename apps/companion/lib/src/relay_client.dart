@@ -13,14 +13,16 @@ class RelayClient {
   RelayClient({
     required this.baseUri,
     required this.credentials,
-    HttpClient? httpClient,
+    RelayRequestSender? sender,
     DateTime Function()? clock,
-  })  : _httpClient = httpClient ?? HttpClient(),
-        _clock = clock ?? DateTime.now;
+  })  : _sender = sender ?? DartRelayRequestSender(),
+        _clock = clock ?? DateTime.now {
+    _requireSecureRelayUri(baseUri);
+  }
 
   final Uri baseUri;
   final RelayCredentialProvider credentials;
-  final HttpClient _httpClient;
+  final RelayRequestSender _sender;
   final DateTime Function() _clock;
 
   Future<RelayRoundTrip> invoke(RelayEnvelope envelope) async {
@@ -39,26 +41,37 @@ class RelayClient {
       throw const RelayClientException('relay credential unavailable');
     }
 
-    final startedAt = _clock().toUtc();
-    final request = await _httpClient.postUrl(baseUri.resolve('/v1/relay/invoke'));
-    request.headers.set(HttpHeaders.authorizationHeader, authorization);
-    request.headers.contentType = ContentType.json;
-    request.write(jsonEncode(<String, Object?>{
-      'requestId': envelope.requestId,
-      'capabilityId': envelope.capabilityId,
-      'expiresAt': envelope.expiresAt.toUtc().toIso8601String(),
-    }));
+    // Secure-store access is asynchronous. Do not let a request cross the
+    // network boundary if it expired while credentials were being loaded.
+    if (envelope.isExpired(_clock())) {
+      throw const RelayClientException('request expired');
+    }
 
-    final response = await request.close();
-    final body = await utf8.decoder.bind(response).join();
+    final startedAt = _clock().toUtc();
+    final response = await _sender.postJson(
+      baseUri.resolve('/v1/relay/invoke'),
+      authorization: authorization,
+      body: <String, Object?>{
+        'requestId': envelope.requestId,
+        'capabilityId': envelope.capabilityId,
+        'expiresAt': envelope.expiresAt.toUtc().toIso8601String(),
+      },
+    );
+
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw RelayClientException('relay returned HTTP ${response.statusCode}');
     }
 
-    final decoded = jsonDecode(body);
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(response.body);
+    } on FormatException {
+      throw const RelayClientException('relay returned malformed JSON');
+    }
     if (decoded is! Map<String, dynamic>) {
       throw const RelayClientException('relay returned malformed JSON');
     }
+
     final finishedAt = _clock().toUtc();
     return RelayRoundTrip(
       requestId: envelope.requestId,
@@ -68,6 +81,63 @@ class RelayClient {
     );
   }
 
+  void close() => _sender.close();
+}
+
+void _requireSecureRelayUri(Uri uri) {
+  final host = uri.host.toLowerCase();
+  final isLoopback = host == '127.0.0.1' || host == 'localhost' || host == '::1';
+  if (uri.scheme == 'https') return;
+  if (uri.scheme == 'http' && isLoopback) return;
+  throw ArgumentError.value(
+    uri,
+    'baseUri',
+    'relay endpoints must use HTTPS except for loopback development',
+  );
+}
+
+abstract interface class RelayRequestSender {
+  Future<RelayHttpResponse> postJson(
+    Uri uri, {
+    required String authorization,
+    required Map<String, Object?> body,
+  });
+
+  void close();
+}
+
+class RelayHttpResponse {
+  const RelayHttpResponse({required this.statusCode, required this.body});
+
+  final int statusCode;
+  final String body;
+}
+
+class DartRelayRequestSender implements RelayRequestSender {
+  DartRelayRequestSender({HttpClient? httpClient})
+      : _httpClient = httpClient ?? HttpClient();
+
+  final HttpClient _httpClient;
+
+  @override
+  Future<RelayHttpResponse> postJson(
+    Uri uri, {
+    required String authorization,
+    required Map<String, Object?> body,
+  }) async {
+    final request = await _httpClient.postUrl(uri);
+    request.headers.set(HttpHeaders.authorizationHeader, authorization);
+    request.headers.contentType = ContentType.json;
+    request.write(jsonEncode(body));
+
+    final response = await request.close();
+    return RelayHttpResponse(
+      statusCode: response.statusCode,
+      body: await utf8.decoder.bind(response).join(),
+    );
+  }
+
+  @override
   void close() => _httpClient.close(force: true);
 }
 
