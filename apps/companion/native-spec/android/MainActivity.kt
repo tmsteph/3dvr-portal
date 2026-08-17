@@ -114,29 +114,51 @@ class MainActivity : FlutterActivity() {
 
     private fun deviceStatus(): Map<String, Any?> {
         val battery = getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
-        return mapOf("sdk" to Build.VERSION.SDK_INT, "manufacturer" to Build.MANUFACTURER, "model" to Build.MODEL, "batteryPercent" to battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY))
+        return mapOf(
+            "sdk" to Build.VERSION.SDK_INT,
+            "manufacturer" to Build.MANUFACTURER,
+            "model" to Build.MODEL,
+            "batteryPercent" to battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY),
+            "relayStatus" to CompanionRemoteRelayState.status,
+            "relayDeviceId" to CompanionRemoteRelayState.deviceId,
+            "relayLastSuccessAt" to CompanionRemoteRelayState.lastSuccessAt,
+        )
     }
 
     private fun capabilityStatus(): Map<String, Any> = mapOf(
-        "accessibilityEnabled" to isAccessibilityEnabled(), "notificationAccessEnabled" to isNotificationAccessEnabled(),
-        "messageNotificationReadEnabled" to isNotificationAccessEnabled(), "messageNotificationReplyEnabled" to isNotificationAccessEnabled(),
-        "messageHistoryEncryptedAtRest" to true, "backgroundBridgeEnabled" to true, "knownAppLaunchEnabled" to true,
-        "remoteKnownActionsEnabled" to false, "persistentPairingEnabled" to true, "relayCredentialsEncryptedAtRest" to true,
+        "accessibilityEnabled" to isAccessibilityEnabled(),
+        "notificationAccessEnabled" to isNotificationAccessEnabled(),
+        "messageNotificationReadEnabled" to isNotificationAccessEnabled(),
+        "messageNotificationReplyEnabled" to isNotificationAccessEnabled(),
+        "messageHistoryEncryptedAtRest" to true,
+        "backgroundBridgeEnabled" to true,
+        "knownAppLaunchEnabled" to true,
+        "remoteKnownActionsEnabled" to false,
+        "persistentPairingEnabled" to true,
+        "relayCredentialsEncryptedAtRest" to true,
+        "directRelayEnabled" to true,
+        "directRelayReadOnly" to true,
     )
 
     private fun openHttpUrl(raw: String): Boolean {
         val uri = runCatching { Uri.parse(raw) }.getOrNull() ?: return false
         if (uri.scheme != "https" && uri.scheme != "http") return false
-        startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return true
+        startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        return true
     }
 
     private fun openKnownApp(rawAlias: String): Boolean {
         val alias = rawAlias.trim().lowercase()
-        if (alias == "settings") { startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return true }
+        if (alias == "settings") {
+            startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            return true
+        }
         val candidates = knownApps[alias] ?: return false
         for (packageName in candidates) {
             val launchIntent = packageManager.getLaunchIntentForPackage(packageName) ?: continue
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); startActivity(launchIntent); return true
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(launchIntent)
+            return true
         }
         return false
     }

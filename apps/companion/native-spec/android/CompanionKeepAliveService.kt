@@ -15,19 +15,27 @@ class CompanionKeepAliveService : Service() {
         private const val notificationId = 38473
     }
 
+    private var remoteRelay: CompanionRemoteRelayClient? = null
+
     override fun onCreate() {
         super.onCreate()
         createChannel()
         startForeground(notificationId, buildNotification())
         CompanionNativeBridgeServer.ensureStarted(this)
+        remoteRelay = CompanionRemoteRelayClient(this).also { it.start() }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         CompanionNativeBridgeServer.ensureStarted(this)
+        if (remoteRelay == null) {
+            remoteRelay = CompanionRemoteRelayClient(this).also { it.start() }
+        }
         return START_STICKY
     }
 
     override fun onDestroy() {
+        remoteRelay?.stop()
+        remoteRelay = null
         CompanionNativeBridgeServer.stop()
         super.onDestroy()
     }
@@ -41,7 +49,7 @@ class CompanionKeepAliveService : Service() {
             "3DVR Companion bridge",
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = "Keeps the local Companion control bridge available while the app is in the background."
+            description = "Keeps the local and authenticated remote Companion bridges available while the app is in the background."
             setShowBadge(false)
         }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
@@ -63,7 +71,7 @@ class CompanionKeepAliveService : Service() {
         }
         return builder
             .setContentTitle("3DVR Companion active")
-            .setContentText("Always-on local assistant bridge")
+            .setContentText("Always-on local + secure relay assistant bridge")
             .setSmallIcon(android.R.drawable.stat_notify_sync_noanim)
             .setOngoing(true)
             .setContentIntent(pendingIntent)

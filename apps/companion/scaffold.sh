@@ -24,7 +24,7 @@ cp "$BACKUP/analysis_options.yaml" analysis_options.yaml
 
 KOTLIN_DIR="android/app/src/main/kotlin/tech/threedvr/companion"
 mkdir -p "$KOTLIN_DIR" android/app/src/main/res/xml
-for source in MainActivity.kt CompanionAccessibilityService.kt CompanionNotificationListener.kt CompanionKeepAliveService.kt CompanionNativeBridgeServer.kt CompanionStartupReceiver.kt CompanionSelfUpdater.kt CompanionShizuku.kt CompanionRelaySecretStore.kt; do
+for source in MainActivity.kt CompanionAccessibilityService.kt CompanionNotificationListener.kt CompanionKeepAliveService.kt CompanionNativeBridgeServer.kt CompanionStartupReceiver.kt CompanionSelfUpdater.kt CompanionShizuku.kt CompanionRelaySecretStore.kt CompanionRemoteRelayClient.kt; do
   cp "native-spec/android/$source" "$KOTLIN_DIR/$source"
 done
 cp native-spec/android/companion_accessibility_service.xml android/app/src/main/res/xml/companion_accessibility_service.xml
@@ -73,7 +73,7 @@ ET.SubElement(app,'provider',{a('name'):'rikka.shizuku.ShizukuProvider',a('autho
 access=ET.SubElement(app,'service',{a('name'):'.CompanionAccessibilityService',a('permission'):'android.permission.BIND_ACCESSIBILITY_SERVICE',a('exported'):'true',a('label'):'3DVR Companion accessibility'})
 f=ET.SubElement(access,'intent-filter'); ET.SubElement(f,'action',{a('name'):'android.accessibilityservice.AccessibilityService'}); ET.SubElement(access,'meta-data',{a('name'):'android.accessibilityservice',a('resource'):'@xml/companion_accessibility_service'})
 notification=ET.SubElement(app,'service',{a('name'):'.CompanionNotificationListener',a('permission'):'android.permission.BIND_NOTIFICATION_LISTENER_SERVICE',a('exported'):'false',a('label'):'3DVR Companion notifications'}); nf=ET.SubElement(notification,'intent-filter'); ET.SubElement(nf,'action',{a('name'):'android.service.notification.NotificationListenerService'})
-keep=ET.SubElement(app,'service',{a('name'):'.CompanionKeepAliveService',a('exported'):'false',a('foregroundServiceType'):'specialUse',a('stopWithTask'):'false'}); ET.SubElement(keep,'property',{a('name'):'android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE',a('value'):'Keeps the user-enabled local 3DVR Companion bridge reachable while the app is backgrounded.'})
+keep=ET.SubElement(app,'service',{a('name'):'.CompanionKeepAliveService',a('exported'):'false',a('foregroundServiceType'):'specialUse',a('stopWithTask'):'false'}); ET.SubElement(keep,'property',{a('name'):'android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE',a('value'):'Keeps the user-enabled local and authenticated remote 3DVR Companion bridges reachable while the app is backgrounded.'})
 startup=ET.SubElement(app,'receiver',{a('name'):'.CompanionStartupReceiver',a('enabled'):'true',a('exported'):'false'}); sf=ET.SubElement(startup,'intent-filter')
 for action in ('android.intent.action.BOOT_COMPLETED','android.intent.action.MY_PACKAGE_REPLACED'): ET.SubElement(sf,'action',{a('name'):action})
 ET.SubElement(app,'receiver',{a('name'):'.CompanionInstallResultReceiver',a('enabled'):'true',a('exported'):'false'})
@@ -110,4 +110,5 @@ echo "Android boot/package-replace recovery: wired"
 echo "Android self-update loopback: wired"
 echo "Android Shizuku/Sui privilege provider: wired"
 echo "Android relay credentials: Keystore-encrypted at rest"
+echo "Android direct relay: always-on read-only client wired"
 echo "iOS App Intent: staged in ios/CompanionNativeSpec (Xcode target wiring still required)"
