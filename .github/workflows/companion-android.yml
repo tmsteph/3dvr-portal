@@ -1,6 +1,11 @@
 name: Companion Android
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/companion/**'
+      - '.github/workflows/companion-android.yml'
   pull_request:
     paths:
       - 'apps/companion/**'
@@ -8,12 +13,15 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      COMPANION_BUILD_NUMBER: ${{ github.run_number }}
+      COMPANION_BUILD_NAME: 0.4.${{ github.run_number }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,9 +47,12 @@ jobs:
         working-directory: apps/companion
         run: flutter test
 
-      - name: Build debug APK
+      - name: Build versioned debug APK
         working-directory: apps/companion
-        run: flutter build apk --debug
+        run: |
+          flutter build apk --debug \
+            --build-name "$COMPANION_BUILD_NAME" \
+            --build-number "$COMPANION_BUILD_NUMBER"
 
       - name: Sign APK with persistent Companion key
         env:
@@ -70,9 +81,35 @@ jobs:
           mv "$SIGNED" "$APK"
           "$APKSIGNER" verify --verbose --print-certs "$APK"
 
-      - name: Upload APK
+      - name: Prepare canonical APK
+        run: |
+          cp apps/companion/build/app/outputs/flutter-apk/app-debug.apk "$RUNNER_TEMP/3dvr-companion.apk"
+          sha256sum "$RUNNER_TEMP/3dvr-companion.apk"
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: 3dvr-companion-debug-apk
-          path: apps/companion/build/app/outputs/flutter-apk/app-debug.apk
+          name: 3dvr-companion-apk
+          path: ${{ runner.temp }}/3dvr-companion.apk
           if-no-files-found: error
+
+      - name: Publish canonical Companion release
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$RUNNER_TEMP/3dvr-companion.apk"
+          SHA256="$(sha256sum "$APK" | awk '{print $1}')"
+          TAG="companion-build-${COMPANION_BUILD_NUMBER}"
+          NOTES="$(printf '{\"versionCode\":%s,\"versionName\":\"%s\",\"sha256\":\"%s\"}' "$COMPANION_BUILD_NUMBER" "$COMPANION_BUILD_NAME" "$SHA256")"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber
+            gh release edit "$TAG" --title "3DVR Companion $COMPANION_BUILD_NAME" --notes "$NOTES"
+          else
+            gh release create "$TAG" "$APK" \
+              --target "$GITHUB_SHA" \
+              --title "3DVR Companion $COMPANION_BUILD_NAME" \
+              --notes "$NOTES"
+          fi
