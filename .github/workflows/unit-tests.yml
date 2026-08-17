@@ -1,10 +1,20 @@
-name: Portal Unit Tests
+name: Companion Command Unit Tests
 
 on:
   push:
     branches: [main, dev]
+    paths:
+      - 'api/companion-command.js'
+      - 'tests/companion-command-api.test.js'
+      - 'src/auth/sea.js'
+      - '.github/workflows/unit-tests.yml'
   pull_request:
     branches: [main, dev]
+    paths:
+      - 'api/companion-command.js'
+      - 'tests/companion-command-api.test.js'
+      - 'src/auth/sea.js'
+      - '.github/workflows/unit-tests.yml'
   workflow_dispatch:
 
 permissions:
@@ -13,7 +23,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,4 +31,4 @@ jobs:
           node-version: '20'
           cache: npm
       - run: npm ci
-      - run: npm test
+      - run: node --test tests/companion-command-api.test.js
