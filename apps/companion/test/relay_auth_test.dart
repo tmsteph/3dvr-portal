@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:threedvr_companion/src/relay_auth.dart';
+import 'package:companion/src/relay_auth.dart';
 
 class MemoryCredentials implements RelayCredentialProvider {
   MemoryCredentials(this.value);
