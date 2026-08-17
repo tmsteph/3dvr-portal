@@ -8,6 +8,9 @@ import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 
 class CompanionKeepAliveService : Service() {
     companion object {
@@ -16,6 +19,7 @@ class CompanionKeepAliveService : Service() {
     }
 
     private var remoteRelay: CompanionRemoteRelayClient? = null
+    private var updateScheduler: ScheduledExecutorService? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -23,6 +27,7 @@ class CompanionKeepAliveService : Service() {
         startForeground(notificationId, buildNotification())
         CompanionNativeBridgeServer.ensureStarted(this)
         remoteRelay = CompanionRemoteRelayClient(this).also { it.start() }
+        startUpdateChecks()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -30,10 +35,13 @@ class CompanionKeepAliveService : Service() {
         if (remoteRelay == null) {
             remoteRelay = CompanionRemoteRelayClient(this).also { it.start() }
         }
+        if (updateScheduler == null) startUpdateChecks()
         return START_STICKY
     }
 
     override fun onDestroy() {
+        updateScheduler?.shutdownNow()
+        updateScheduler = null
         remoteRelay?.stop()
         remoteRelay = null
         CompanionNativeBridgeServer.stop()
@@ -41,6 +49,18 @@ class CompanionKeepAliveService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun startUpdateChecks() {
+        if (updateScheduler != null) return
+        updateScheduler = Executors.newSingleThreadScheduledExecutor().also { scheduler ->
+            scheduler.scheduleWithFixedDelay(
+                { CompanionSelfUpdater.maybeCheckTrustedRelease(this) },
+                20,
+                30,
+                TimeUnit.MINUTES,
+            )
+        }
+    }
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
