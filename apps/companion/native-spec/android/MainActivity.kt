@@ -15,6 +15,7 @@ import java.security.SecureRandom
 
 class MainActivity : FlutterActivity() {
     private val channelName = "tech.3dvr.companion/platform"
+    private val relaySecretsChannelName = "tech.threedvr.companion/relay_secrets"
     private val bridgePrefs = "companion_local_bridge"
     private val bridgeTokenKey = "bearer_token_v1"
 
@@ -32,6 +33,31 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         startKeepAliveService()
         MessageNotificationStore.initialize(this)
+        val relaySecretStore = CompanionRelaySecretStore(this)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, relaySecretsChannelName)
+            .setMethodCallHandler { call, result ->
+                val key = call.argument<String>("key")?.trim().orEmpty()
+                if (key.isEmpty()) {
+                    result.error("invalid_key", "Relay secret key is required.", null)
+                    return@setMethodCallHandler
+                }
+                when (call.method) {
+                    "read" -> result.success(relaySecretStore.read(key))
+                    "write" -> {
+                        val value = call.argument<String>("value")
+                        if (value == null) result.error("invalid_value", "Relay secret value is required.", null)
+                        else {
+                            relaySecretStore.write(key, value)
+                            result.success(null)
+                        }
+                    }
+                    "delete" -> {
+                        relaySecretStore.delete(key)
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -72,89 +98,58 @@ class MainActivity : FlutterActivity() {
 
     private fun startKeepAliveService() {
         val intent = Intent(this, CompanionKeepAliveService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
     }
 
     private fun getOrCreateBridgeToken(): String {
         val prefs = getSharedPreferences(bridgePrefs, Context.MODE_PRIVATE)
         val existing = prefs.getString(bridgeTokenKey, null)
         if (!existing.isNullOrBlank()) return existing
-
         val bytes = ByteArray(32)
         SecureRandom().nextBytes(bytes)
-        val created = Base64.encodeToString(
-            bytes,
-            Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
-        )
+        val created = Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
         prefs.edit().putString(bridgeTokenKey, created).apply()
         return created
     }
 
     private fun deviceStatus(): Map<String, Any?> {
         val battery = getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
-        return mapOf(
-            "sdk" to Build.VERSION.SDK_INT,
-            "manufacturer" to Build.MANUFACTURER,
-            "model" to Build.MODEL,
-            "batteryPercent" to battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY),
-        )
+        return mapOf("sdk" to Build.VERSION.SDK_INT, "manufacturer" to Build.MANUFACTURER, "model" to Build.MODEL, "batteryPercent" to battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY))
     }
 
     private fun capabilityStatus(): Map<String, Any> = mapOf(
-        "accessibilityEnabled" to isAccessibilityEnabled(),
-        "notificationAccessEnabled" to isNotificationAccessEnabled(),
-        "messageNotificationReadEnabled" to isNotificationAccessEnabled(),
-        "messageNotificationReplyEnabled" to isNotificationAccessEnabled(),
-        "messageHistoryEncryptedAtRest" to true,
-        "backgroundBridgeEnabled" to true,
-        "knownAppLaunchEnabled" to true,
-        "remoteKnownActionsEnabled" to false,
-        "persistentPairingEnabled" to true,
+        "accessibilityEnabled" to isAccessibilityEnabled(), "notificationAccessEnabled" to isNotificationAccessEnabled(),
+        "messageNotificationReadEnabled" to isNotificationAccessEnabled(), "messageNotificationReplyEnabled" to isNotificationAccessEnabled(),
+        "messageHistoryEncryptedAtRest" to true, "backgroundBridgeEnabled" to true, "knownAppLaunchEnabled" to true,
+        "remoteKnownActionsEnabled" to false, "persistentPairingEnabled" to true, "relayCredentialsEncryptedAtRest" to true,
     )
 
     private fun openHttpUrl(raw: String): Boolean {
         val uri = runCatching { Uri.parse(raw) }.getOrNull() ?: return false
         if (uri.scheme != "https" && uri.scheme != "http") return false
-        startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        return true
+        startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return true
     }
 
     private fun openKnownApp(rawAlias: String): Boolean {
         val alias = rawAlias.trim().lowercase()
-        if (alias == "settings") {
-            startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            return true
-        }
+        if (alias == "settings") { startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return true }
         val candidates = knownApps[alias] ?: return false
         for (packageName in candidates) {
             val launchIntent = packageManager.getLaunchIntentForPackage(packageName) ?: continue
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(launchIntent)
-            return true
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); startActivity(launchIntent); return true
         }
         return false
     }
 
     private fun isAccessibilityEnabled(): Boolean {
-        val manager = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
-            ?: return false
-        return manager.getEnabledAccessibilityServiceList(
-            android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK,
-        ).any { info ->
-            info.resolveInfo.serviceInfo.packageName == packageName &&
-                info.resolveInfo.serviceInfo.name.endsWith("CompanionAccessibilityService")
+        val manager = getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return false
+        return manager.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK).any { info ->
+            info.resolveInfo.serviceInfo.packageName == packageName && info.resolveInfo.serviceInfo.name.endsWith("CompanionAccessibilityService")
         }
     }
 
     private fun isNotificationAccessEnabled(): Boolean {
-        val enabled = Settings.Secure.getString(
-            contentResolver,
-            "enabled_notification_listeners",
-        ) ?: return false
+        val enabled = Settings.Secure.getString(contentResolver, "enabled_notification_listeners") ?: return false
         return enabled.split(':').any { component -> component.startsWith("$packageName/") }
     }
 }
