@@ -12,6 +12,7 @@ from companion_execution_backend import (
     CompanionExecutionRequest,
     CompanionExecutionResult,
 )
+from mobilerun_config import MobilerunConfig
 
 
 class MobilerunCoreBackend:
@@ -23,11 +24,24 @@ class MobilerunCoreBackend:
 
     @staticmethod
     def _default_device_factory() -> Any:
+        config = MobilerunConfig.from_env()
         try:
             from mobilerun import Mobilerun  # type: ignore
         except ImportError as error:
             raise RuntimeError("mobilerun-core is unavailable") from error
-        return Mobilerun().device
+
+        # Keep endpoint credentials outside Git and pass them only to the
+        # mechanics client. Supporting both common constructor spellings keeps
+        # this boundary tolerant of mobilerun-core API evolution without
+        # broadening 3DVR's authority.
+        try:
+            client = Mobilerun(base_url=config.base_url, token=config.token)
+        except TypeError:
+            try:
+                client = Mobilerun(url=config.base_url, token=config.token)
+            except TypeError as error:
+                raise RuntimeError("mobilerun-core endpoint configuration is unsupported") from error
+        return client.device
 
     def _get_device(self) -> Any:
         if self._device is None:
