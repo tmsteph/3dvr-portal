@@ -37,7 +37,9 @@ class _CompanionHomeState extends State<CompanionHome> {
   Map<String, Object?> status = const {};
   Map<String, Object?> permissionState = const {};
   Map<String, Object?> assistantState = const {};
+  Map<String, Object?> voiceAuthorizationState = const {};
   bool loading = true;
+  bool preparingVoice = false;
   String? bridgeError;
   String? persistentToken;
   Uri? desktopEndpoint;
@@ -131,6 +133,36 @@ class _CompanionHomeState extends State<CompanionHome> {
     );
   }
 
+  Future<void> _prepareVoiceSession() async {
+    setState(() => preparingVoice = true);
+    try {
+      final result = await bridge.beginVoiceAuthorization();
+      if (!mounted) return;
+      setState(() {
+        voiceAuthorizationState = result;
+        preparingVoice = false;
+      });
+      final ok = result['ok'] == true;
+      final expiresAt = result['expiresAt'];
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok
+              ? 'Voice authorization ready${expiresAt == null ? '' : ' until $expiresAt'}.'
+              : 'Voice authorization unavailable: ${result['error'] ?? 'unknown error'}'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        voiceAuthorizationState = {'ok': false, 'error': error.toString()};
+        preparingVoice = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Voice authorization failed: $error')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final capabilities = companionCapabilities
@@ -140,6 +172,12 @@ class _CompanionHomeState extends State<CompanionHome> {
     final assistantHeld = assistantState['roleHeld'] == true;
     final assistantAvailable = assistantState['roleAvailable'] == true;
     final assistantActive = assistantState['voiceServiceActive'] == true;
+    final assistantServiceReady = assistantState['serviceReady'] == true;
+    final relayConnected = status['relayStatus'] == 'connected';
+    final bridgeReady = bridgeError == null && endpoint != null;
+    final accessibilityEnabled = permissionState['accessibilityEnabled'] == true;
+    final notificationAccessEnabled = permissionState['notificationAccessEnabled'] == true;
+    final voiceAuthorizationReady = voiceAuthorizationState['ok'] == true;
 
     return Scaffold(
       appBar: AppBar(
@@ -158,10 +196,68 @@ class _CompanionHomeState extends State<CompanionHome> {
           const SizedBox(height: 8),
           Text(
             Platform.isAndroid
-                ? 'Android control runs in an always-on native foreground service. This screen is only a dashboard.'
+                ? 'Android control runs in an always-on native foreground service. This screen is your readiness dashboard.'
                 : 'Companion exposes explicit device capabilities to 3DVR Life Ops.',
           ),
           const SizedBox(height: 20),
+          if (Platform.isAndroid) ...[
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(relayConnected && assistantHeld ? Icons.auto_awesome : Icons.checklist),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Daily-driver readiness',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('Get the core path green here instead of hunting through setup screens.'),
+                    const SizedBox(height: 12),
+                    _readinessRow('Local bridge', bridgeReady),
+                    _readinessRow('Direct relay', relayConnected),
+                    _readinessRow('Android assistant', assistantHeld),
+                    _readinessRow('Voice service', assistantActive),
+                    _readinessRow('Session service', assistantServiceReady),
+                    _readinessRow('Accessibility control', accessibilityEnabled),
+                    _readinessRow('Notification access', notificationAccessEnabled),
+                    _readinessRow('One-time voice authorization', voiceAuthorizationReady),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: relayConnected && assistantHeld && !preparingVoice
+                          ? _prepareVoiceSession
+                          : null,
+                      icon: preparingVoice
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.mic),
+                      label: Text(preparingVoice ? 'Preparing…' : 'Prepare voice session'),
+                    ),
+                    if (!relayConnected || !assistantHeld) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        !relayConnected
+                            ? 'Connect the direct relay before preparing a voice session.'
+                            : 'Select 3DVR Companion as the Android assistant before preparing voice.',
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -224,7 +320,7 @@ class _CompanionHomeState extends State<CompanionHome> {
                       ),
                     const SizedBox(height: 8),
                     Text('Voice service active: $assistantActive'),
-                    Text('Session service ready: ${assistantState['serviceReady'] == true}'),
+                    Text('Session service ready: $assistantServiceReady'),
                   ],
                 ),
               ),
@@ -304,6 +400,21 @@ class _CompanionHomeState extends State<CompanionHome> {
     );
   }
 }
+
+Widget _readinessRow(String label, bool ready) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Icon(
+            ready ? Icons.check_circle : Icons.radio_button_unchecked,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: Text(label)),
+          Text(ready ? 'Ready' : 'Needs setup'),
+        ],
+      ),
+    );
 
 IconData _riskIcon(CompanionRisk risk) => switch (risk) {
       CompanionRisk.green => Icons.check_circle_outline,
