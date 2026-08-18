@@ -63,6 +63,11 @@ class CompanionPlatformBridge {
     return result ?? const {};
   }
 
+  Future<Map<String, Object?>> beginVoiceAuthorization() async {
+    final result = await _channel.invokeMapMethod<String, Object?>('beginVoiceAuthorization');
+    return result ?? const {};
+  }
+
   Future<bool> requestAssistantRole() async {
     final result = await _channel.invokeMethod<bool>('requestAssistantRole');
     return result ?? false;
