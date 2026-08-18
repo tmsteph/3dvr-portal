@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Release v0.0.58 (Week of August 10, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2, h3 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-summary { margin: 0 0 24px; font-size: 16px; color: #9ba3b4; }
+    .release-summary-list, .link-list { margin: 0; padding-left: 20px; color: #c9d1d9; }
+    .release-summary-list li + li, .link-list li + li { margin-top: 8px; }
+    .back-link, .release-nav-link { color: #58a6ff; text-decoration: none; font-weight: 600; }
+    .back-link:hover, .release-nav-link:hover { text-decoration: underline; }
+    .release-nav { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: 20px 0 40px; }
+    .release-nav-link.is-disabled { opacity: 0.4; pointer-events: none; cursor: default; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.57.html">Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release</span>
+  </nav>
+  <h1>Release v0.0.58</h1>
+  <div class="tag">Week of August 10, 2026</div>
+  <div class="release-summary">
+    <p>
+      This week, 3DVR moved closer to being a complete open computing and business system. The Portal gained an
+      always-on Android Companion control plane, the first RUNE mission language, a shared 3DVR Computing contract,
+      durable Context HQ handoffs, real self-checkout tools, safer revenue automation, and clearer public positioning
+      as an open-source CRM and business operating system.
+    </p>
+    <ul class="release-summary-list">
+      <li>
+        <strong>Always-on phone control:</strong>
+        Companion grew from a simple app into an Android control plane with an always-on local bridge,
+        notification-based message reading and replies, bounded accessibility actions, known-app launching, encrypted
+        local message history, and a staged self-update path. This work landed in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1487">PR #1487</a>.
+      </li>
+      <li>
+        <strong>RUNE v0.1:</strong>
+        the Agent can now load a small human-readable <code>.rune</code> mission format while keeping JSON missions
+        compatible. RUNE remains inspect-first and does not add hidden shell execution, loops, or implicit external
+        writes. This landed in <a href="https://github.com/tmsteph/3dvr-portal/pull/1501">PR #1501</a>.
+      </li>
+      <li>
+        <strong>3DVR Computing family:</strong>
+        a new incubator defines a shared capability runtime for Debian/Desktop, Android/Mobile, and a future
+        Chromium/Brave-derived browser. Actions resolve through explicit allow, ask, or deny policy decisions and
+        produce receipts. See <a href="https://github.com/tmsteph/3dvr-portal/pull/1503">PR #1503</a>.
+      </li>
+      <li>
+        <strong>Context HQ:</strong>
+        agents gained owner-scoped handoffs, a lightweight message bus, a Morning Sweep, hourly safe task handoffs,
+        and an admin cockpit for continuity across sessions and devices. The operating loop was built and activated in
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1489">PR #1489</a> and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1497">PR #1497</a> through
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1499">PR #1499</a>.
+      </li>
+      <li>
+        <strong>Sell useful things directly:</strong>
+        <a href="../cards/">Business Cards</a> gained server-owned pricing, artwork validation, and Stripe Checkout,
+        including current Third Eye Print Co. tiers. The new <a href="../challenge/">$1 Open-Source Business Challenge</a>
+        turns an inbound problem into a CRM lead, an attempted solution, and optional proof of value. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1438">PR #1438</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1449">PR #1449</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1485">PR #1485</a>.
+      </li>
+      <li>
+        <strong>Safer revenue operations:</strong>
+        a canonical transactional revenue ledger, acknowledgement-gated delivery states, replay-safe CRM and inbox
+        projection, bounded one-contact email canaries, and quiet-until-reply CRM behavior reduce duplicate or
+        over-eager outreach. This work spans
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1437">PR #1437</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1444">PR #1444</a> through
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1451">PR #1451</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1476">PR #1476</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1512">PR #1512</a>.
+      </li>
+      <li>
+        <strong>Business state and backups:</strong>
+        successful payments can project customers into CRM with paid-customer state, while Postgres and Gun now have
+        a documented source-of-truth and backup architecture with validated dump/snapshot tooling. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1484">PR #1484</a> and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1452">PR #1452</a>.
+      </li>
+      <li>
+        <strong>More discoverable and easier to learn from:</strong>
+        <a href="../open-source-crm/">Open-Source CRM</a> now has a crawlable product page, public app routes were
+        added to the sitemap, and the <a href="../ai-systems-lab/">AI Systems Lab</a> preserves systems research as an
+        actionable field guide. See <a href="https://github.com/tmsteph/3dvr-portal/pull/1505">PR #1505</a> and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1393">PR #1393</a>.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Safety notes</h2>
+    <p>
+      Companion is broader than before, but it is still not arbitrary shell or root access. RUNE stays inspect-first,
+      consequential Agent execution remains behind approval policy, Context HQ does not automatically promote raw
+      model or tool output into trusted memory, and the revenue worker keeps outbound delivery bounded and gated.
+      Backup tooling still requires the corresponding host-side jobs and destinations to be enabled and verified.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>What this release covers</h2>
+    <p>
+      v0.0.58 covers the weekly milestone for August 10-16, 2026, following v0.0.57 and carrying the public release
+      record through the major work merged by <a href="https://github.com/tmsteph/3dvr-portal/pull/1512">PR #1512</a>.
+    </p>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">&copy; 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
