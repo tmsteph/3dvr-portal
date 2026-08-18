@@ -158,12 +158,14 @@ class MainActivity : FlutterActivity() {
         }
         val roleManager = getSystemService(RoleManager::class.java)
         val component = ComponentName(this, CompanionVoiceInteractionService::class.java)
+        val persistedState = CompanionAssistantStateStore.snapshot(this)
         return mapOf(
             "roleAvailable" to roleManager.isRoleAvailable(RoleManager.ROLE_ASSISTANT),
             "roleHeld" to roleManager.isRoleHeld(RoleManager.ROLE_ASSISTANT),
             "voiceServiceActive" to VoiceInteractionService.isActiveService(this, component),
-            "serviceReady" to CompanionAssistantState.serviceReady,
-            "lastSessionPreparedAt" to CompanionAssistantState.lastSessionPreparedAt,
+            "serviceReady" to (persistedState["serviceReady"] == true),
+            "serviceUpdatedAt" to persistedState["serviceUpdatedAt"],
+            "lastSessionPreparedAt" to persistedState["lastSessionPreparedAt"],
         )
     }
 
