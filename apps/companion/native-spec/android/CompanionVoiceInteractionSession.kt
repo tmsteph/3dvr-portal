@@ -90,7 +90,7 @@ class CompanionVoiceInteractionSession(
 
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
-        CompanionAssistantState.lastSessionPreparedAt = System.currentTimeMillis()
+        CompanionAssistantStateStore.markSessionPrepared(sessionContext)
         setKeepAwake(true)
         mainHandler.postDelayed({ startListening() }, 300L)
     }
