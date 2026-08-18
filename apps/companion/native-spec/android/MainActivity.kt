@@ -37,6 +37,7 @@ class MainActivity : FlutterActivity() {
         startKeepAliveService()
         MessageNotificationStore.initialize(this)
         val relaySecretStore = CompanionRelaySecretStore(this)
+        val voiceAuthorizationStore = CompanionVoiceAuthorizationStore(this)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, relaySecretsChannelName)
             .setMethodCallHandler { call, result ->
                 val key = call.argument<String>("key")?.trim().orEmpty()
@@ -68,6 +69,7 @@ class MainActivity : FlutterActivity() {
                     "capabilityStatus" -> result.success(capabilityStatus())
                     "assistantStatus" -> result.success(assistantStatus())
                     "requestAssistantRole" -> result.success(requestAssistantRole())
+                    "beginVoiceAuthorization" -> result.success(beginVoiceAuthorization(voiceAuthorizationStore))
                     "openVoiceInputSettings" -> {
                         startActivity(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS))
                         result.success(true)
@@ -119,6 +121,26 @@ class MainActivity : FlutterActivity() {
         val created = Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
         prefs.edit().putString(bridgeTokenKey, created).apply()
         return created
+    }
+
+    private fun beginVoiceAuthorization(
+        store: CompanionVoiceAuthorizationStore,
+    ): Map<String, Any?> {
+        val deviceId = CompanionRemoteRelayState.deviceId
+        if (CompanionRemoteRelayState.status != "connected" || deviceId.isNullOrBlank()) {
+            store.clear()
+            return mapOf(
+                "ok" to false,
+                "error" to "direct relay is not connected",
+            )
+        }
+        val authorization = store.issue()
+        return mapOf(
+            "ok" to true,
+            "deviceId" to deviceId,
+            "nonce" to authorization.nonce,
+            "expiresAt" to authorization.expiresAt,
+        )
     }
 
     private fun assistantStatus(): Map<String, Any?> {
@@ -176,11 +198,12 @@ class MainActivity : FlutterActivity() {
             "messageHistoryEncryptedAtRest" to true,
             "backgroundBridgeEnabled" to true,
             "knownAppLaunchEnabled" to true,
-            "remoteKnownActionsEnabled" to false,
+            "remoteKnownActionsEnabled" to true,
             "persistentPairingEnabled" to true,
             "relayCredentialsEncryptedAtRest" to true,
             "directRelayEnabled" to true,
-            "directRelayReadOnly" to true,
+            "directRelayReadOnly" to false,
+            "voiceProofEnabled" to true,
             "assistantRoleAvailable" to (assistant["roleAvailable"] == true),
             "assistantRoleHeld" to (assistant["roleHeld"] == true),
             "voiceInteractionServiceActive" to (assistant["voiceServiceActive"] == true),
