@@ -104,12 +104,31 @@ jobs:
           SHA256="$(sha256sum "$APK" | awk '{print $1}')"
           TAG="companion-build-${COMPANION_BUILD_NUMBER}"
           NOTES="$(printf '{\"versionCode\":%s,\"versionName\":\"%s\",\"sha256\":\"%s\"}' "$COMPANION_BUILD_NUMBER" "$COMPANION_BUILD_NAME" "$SHA256")"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$APK" --clobber
-            gh release edit "$TAG" --title "3DVR Companion $COMPANION_BUILD_NAME" --notes "$NOTES"
+
+          retry() {
+            local attempts=6
+            local delay=3
+            local n=1
+            until "$@"; do
+              if [ "$n" -ge "$attempts" ]; then
+                echo "Command failed after $attempts attempts: $*" >&2
+                return 1
+              fi
+              echo "Transient GitHub release failure; retrying in ${delay}s (attempt $((n + 1))/$attempts)..." >&2
+              sleep "$delay"
+              n=$((n + 1))
+              delay=$((delay * 2))
+            done
+          }
+
+          if retry gh release view "$TAG" >/dev/null 2>&1; then
+            retry gh release upload "$TAG" "$APK" --clobber
+            retry gh release edit "$TAG" --title "3DVR Companion $COMPANION_BUILD_NAME" --notes "$NOTES"
           else
-            gh release create "$TAG" "$APK" \
+            retry gh release create "$TAG" "$APK" \
               --target "$GITHUB_SHA" \
               --title "3DVR Companion $COMPANION_BUILD_NAME" \
               --notes "$NOTES"
           fi
+
+          retry gh release view "$TAG" --json tagName,assets >/dev/null
