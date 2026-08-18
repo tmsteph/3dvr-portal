@@ -1,8 +1,11 @@
 package tech.threedvr.companion
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
+import android.provider.Settings
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStream
@@ -32,12 +35,13 @@ object CompanionRemoteRelayState {
 }
 
 /**
- * Owns Companion's direct read-only relay from the always-on foreground service.
+ * Owns Companion's direct relay from the always-on foreground service.
  *
- * The first live slice accepts only health and device.status. It never executes
- * shell commands, accessibility actions, app launches, URLs, messages, or other
- * mutating capabilities. Device credentials are ephemeral and encrypted at rest
- * by CompanionRelaySecretStore.
+ * Remote execution is deliberately capability-based rather than a shell. The
+ * currently admitted set is health, device.status, app.open_known, and url.open.
+ * App aliases are fixed locally and remote URLs must be clean HTTPS URLs.
+ * Accessibility, messages, arbitrary packages, Shizuku actions, and shell
+ * execution remain outside this direct-relay surface.
  */
 class CompanionRemoteRelayClient(context: Context) {
     private val appContext = context.applicationContext
@@ -76,15 +80,11 @@ class CompanionRemoteRelayClient(context: Context) {
                     failures = 0
                     continue
                 }
-                require(response.statusCode in 200..299) {
-                    "relay HTTP ${response.statusCode}"
-                }
+                require(response.statusCode in 200..299) { "relay HTTP ${response.statusCode}" }
 
                 val decoded = JSONObject(response.body)
                 val command = decoded.optJSONObject("command")
-                if (command != null) {
-                    handleCommand(credential, command)
-                }
+                if (command != null) handleCommand(credential, command)
 
                 CompanionRemoteRelayState.lastSuccessAt = System.currentTimeMillis()
                 CompanionRemoteRelayState.lastError = null
@@ -123,14 +123,8 @@ class CompanionRemoteRelayClient(context: Context) {
         }
 
         clearCredential()
-        val response = request(
-            method = "POST",
-            path = "/relay/v1/devices",
-            body = JSONObject().toString(),
-        )
-        require(response.statusCode in 200..299) {
-            "device bootstrap HTTP ${response.statusCode}"
-        }
+        val response = request(method = "POST", path = "/relay/v1/devices", body = JSONObject().toString())
+        require(response.statusCode in 200..299) { "device bootstrap HTTP ${response.statusCode}" }
         val decoded = JSONObject(response.body)
         val deviceId = decoded.optString("deviceId").trim()
         val token = decoded.optString("deviceToken").trim()
@@ -150,6 +144,7 @@ class CompanionRemoteRelayClient(context: Context) {
         val capabilityId = command.optString("capabilityId").trim()
         val expiresAt = command.optLong("expiresAt", 0L)
         if (requestId.length !in 16..86 || expiresAt <= System.currentTimeMillis()) return
+        val arguments = command.optJSONObject("arguments") ?: JSONObject()
 
         val result = when (capabilityId) {
             "health" -> CommandResult(
@@ -161,6 +156,8 @@ class CompanionRemoteRelayClient(context: Context) {
                 ),
             )
             "device.status" -> CommandResult(ok = true, data = deviceStatus())
+            "app.open_known" -> openKnownApp(arguments)
+            "url.open" -> openHttpsUrl(arguments)
             else -> CommandResult(ok = false, code = "unsupported_capability")
         }
 
@@ -180,9 +177,36 @@ class CompanionRemoteRelayClient(context: Context) {
             clearCredential()
             return
         }
-        require(response.statusCode in 200..299) {
-            "result HTTP ${response.statusCode}"
+        require(response.statusCode in 200..299) { "result HTTP ${response.statusCode}" }
+    }
+
+    private fun openKnownApp(arguments: JSONObject): CommandResult {
+        val alias = arguments.optString("alias").trim().lowercase()
+        if (alias !in ALLOWED_APP_ALIASES) return CommandResult(false, "unsupported_app_alias")
+
+        if (alias == "settings") {
+            appContext.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            return CommandResult(true, data = mapOf("opened" to true, "alias" to alias))
         }
+
+        val candidates = KNOWN_APPS[alias] ?: return CommandResult(false, "unsupported_app_alias")
+        for (packageName in candidates) {
+            val intent = appContext.packageManager.getLaunchIntentForPackage(packageName) ?: continue
+            appContext.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            return CommandResult(true, data = mapOf("opened" to true, "alias" to alias))
+        }
+        return CommandResult(false, "app_not_installed", mapOf("alias" to alias))
+    }
+
+    private fun openHttpsUrl(arguments: JSONObject): CommandResult {
+        val raw = arguments.optString("url").trim()
+        if (raw.isEmpty() || raw.length > 2048) return CommandResult(false, "invalid_url")
+        val uri = runCatching { Uri.parse(raw) }.getOrNull() ?: return CommandResult(false, "invalid_url")
+        if (uri.scheme != "https" || !uri.userInfo.isNullOrEmpty() || uri.host.isNullOrBlank()) {
+            return CommandResult(false, "invalid_url")
+        }
+        appContext.startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        return CommandResult(true, data = mapOf("opened" to true))
     }
 
     private fun deviceStatus(): Map<String, Any?> {
@@ -193,6 +217,7 @@ class CompanionRemoteRelayClient(context: Context) {
             "model" to Build.MODEL,
             "batteryPercent" to battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY),
             "bridgeActive" to true,
+            "capabilities" to listOf("health", "device.status", "app.open_known", "url.open"),
         )
     }
 
@@ -269,14 +294,8 @@ class CompanionRemoteRelayClient(context: Context) {
         return if (message.isBlank()) name else "$name: $message"
     }
 
-    private data class DeviceCredential(
-        val deviceId: String,
-        val token: String,
-        val expiresAt: Long,
-    )
-
+    private data class DeviceCredential(val deviceId: String, val token: String, val expiresAt: Long)
     private data class HttpResponse(val statusCode: Int, val body: String)
-
     private data class CommandResult(
         val ok: Boolean,
         val code: String? = null,
@@ -285,6 +304,19 @@ class CompanionRemoteRelayClient(context: Context) {
 
     companion object {
         const val RELAY_BASE_URL = "https://gun-relay-3dvr.fly.dev"
+
+        private val ALLOWED_APP_ALIASES = setOf(
+            "settings", "chatgpt", "maps", "gmail", "chrome", "calendar", "camera", "messages",
+        )
+        private val KNOWN_APPS = mapOf(
+            "chatgpt" to listOf("com.openai.chatgpt"),
+            "maps" to listOf("com.google.android.apps.maps"),
+            "gmail" to listOf("com.google.android.gm"),
+            "chrome" to listOf("com.android.chrome"),
+            "calendar" to listOf("com.google.android.calendar", "com.samsung.android.calendar"),
+            "camera" to listOf("com.sec.android.app.camera", "com.google.android.GoogleCamera"),
+            "messages" to listOf("com.google.android.apps.messaging", "com.samsung.android.messaging", "com.android.mms"),
+        )
 
         private const val DEVICE_ID_KEY = "remote.device_id"
         private const val DEVICE_TOKEN_KEY = "remote.device_token"
