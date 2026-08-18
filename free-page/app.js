@@ -82,14 +82,11 @@ function putGun(node, payload) {
 }
 
 async function saveBriefToCrm(formData) {
-  const name = valueFor(formData, 'name', 'New business launch lead');
+  const name = valueFor(formData, 'name', 'New free website lead');
   const leadEmail = valueFor(formData, 'email', '');
-  const offer = valueFor(formData, 'offer', 'Needs a clear first website.');
-  const audience = valueFor(formData, 'audience', 'Not specified');
-  const action = valueFor(formData, 'action', 'Contact me');
-  const contact = valueFor(formData, 'contact', 'Will provide contact link.');
+  const offer = valueFor(formData, 'offer', 'Needs a simple first website.');
   const now = new Date().toISOString();
-  const id = `lead-free-page-${slug(leadEmail || name)}`;
+  const id = `lead-free-site-${slug(leadEmail || name)}`;
   const record = {
     id,
     recordType: 'person',
@@ -97,29 +94,29 @@ async function saveBriefToCrm(formData) {
     email: leadEmail,
     company: name,
     role: 'Founder / operator',
-    tags: ['free-page', 'homepage-concept', 'inbound'],
+    tags: ['free-site', 'inbound', 'automated-build'],
     status: 'new',
     warmth: 'warm',
     source: 'free-page',
-    offerAmount: '$300 Starter Microsite; ongoing support available',
-    nextBestAction: 'Review the brief and prepare the personalized homepage concept.',
+    offerAmount: 'Free one-page site on a 3DVR-hosted address; optional paid upgrades',
+    nextBestAction: 'Build and publish the smallest useful one-page website, then email the live URL.',
     nextFollowUp: now.slice(0, 10),
     activityCount: 1,
     created: now,
     updated: now,
-    notes: [`Inbound free-page brief`, `Offer/project: ${offer}`, `Audience: ${audience}`, `Main action: ${action}`, `Best contact link: ${contact}`].join('\n')
+    notes: [`Inbound free website request`, `Offer/project: ${offer}`].join('\n')
   };
   const touch = {
-    id: `touch-free-page-${slug(leadEmail || name)}-${Date.now()}`,
+    id: `touch-free-site-${slug(leadEmail || name)}-${Date.now()}`,
     recordId: id,
     contactName: name,
     contactEmail: leadEmail,
     type: 'inbound',
     channel: 'free-page',
     source: 'free-page',
-    summary: 'Inbound request for a free personalized homepage concept.',
-    outcome: 'Lead captured; concept requested.',
-    message: JSON.stringify({ name, email: leadEmail, offer, audience, action, contact }),
+    summary: 'Inbound request for a free live 3DVR-hosted website.',
+    outcome: 'Lead captured for automated build and email delivery.',
+    message: JSON.stringify({ name, email: leadEmail, offer }),
     created: now,
     updated: now
   };
@@ -131,25 +128,23 @@ async function saveBriefToCrm(formData) {
 }
 
 function buildMailto(formData) {
-  const name = valueFor(formData, 'name', 'A new 3DVR page');
-  const offer = valueFor(formData, 'offer', 'I want a clearer homepage concept for my business.');
-  const audience = valueFor(formData, 'audience', 'People who might hire, book, buy, or understand this.');
-  const action = valueFor(formData, 'action', 'Contact me');
-  const contact = valueFor(formData, 'contact', 'I will send the best contact link next.');
+  const name = valueFor(formData, 'name', 'A new 3DVR website');
+  const offer = valueFor(formData, 'offer', 'I need a simple website that explains what I do and how to contact me.');
   const leadEmail = valueFor(formData, 'email', '');
 
-  const subject = `Free homepage concept for ${name}`;
+  const subject = `Free 3DVR website request — ${name}`;
   const body = [
-    'I want a free personalized homepage concept.',
+    'I want a free live one-page website on a 3DVR-hosted address.',
     '',
     `Name/business: ${name}`,
-    `Offer/project: ${offer}`,
-    `Audience: ${audience}`,
-    `Main action button: ${action}`,
-    `Best contact link: ${contact}`,
-    `Best email for reply: ${leadEmail}`,
+    `Best email for the live link: ${leadEmail}`,
     '',
-    'If the direction works, I am open to finishing and publishing the page.'
+    'What the website should explain:',
+    offer,
+    '',
+    'Please build the smallest useful version and email me the live URL.',
+    '',
+    'Optional: I can reply with my current website, social profile, logo, photos, phone number, booking link, or other details if needed.'
   ].join('\n');
 
   return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -158,7 +153,7 @@ function buildMailto(formData) {
 function trackLeadIntent() {
   if (typeof window.gtag === 'function') {
     window.gtag('event', 'generate_lead', {
-      method: 'mailto_brief'
+      method: 'free_live_site_email'
     });
   }
   return trackFirstPartyEvent('generate_lead');
@@ -168,8 +163,8 @@ trackFirstPartyEvent('page_view');
 
 shareButton?.addEventListener('click', async () => {
   const shareData = {
-    title: 'A free homepage concept from 3DVR',
-    text: 'Make your local business easier to understand and contact with a free homepage concept.',
+    title: 'Get a free live website from 3DVR',
+    text: '3DVR will build a simple one-page site, publish it on a 3DVR-hosted address, and email you the live link for free.',
     url: shareUrl
   };
   try {
@@ -200,7 +195,7 @@ if (form && mailtoLink && handoffCopy) {
     const formData = new FormData(form);
     const href = buildMailto(formData);
     mailtoLink.href = href;
-    handoffCopy.textContent = 'Your brief is saved to our follow-up desk. Review the email and send it to request your private preview.';
+    handoffCopy.textContent = 'Your request is in the 3DVR follow-up desk. Send the prepared email so the automated build queue can return a live site link.';
     await Promise.race([
       saveBriefToCrm(formData),
       trackLeadIntent(),
