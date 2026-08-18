@@ -1,8 +1,23 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { verifySignedSeaPayload, resolveSeaAuthMaxAgeMs } from '../auth/sea.js';
 
 const RELAY_BASE_URL = 'https://gun-relay-3dvr.fly.dev';
-export const READ_ONLY_COMPANION_CAPABILITIES = new Set(['health', 'device.status']);
+export const REMOTE_COMPANION_CAPABILITIES = new Set([
+  'health',
+  'device.status',
+  'app.open_known',
+  'url.open',
+]);
+const ALLOWED_APP_ALIASES = new Set([
+  'settings',
+  'chatgpt',
+  'maps',
+  'gmail',
+  'chrome',
+  'calendar',
+  'camera',
+  'messages',
+]);
 const RESULT_TIMEOUT_MS = 10_000;
 const RESULT_POLL_MS = 400;
 const text = (value = '') => String(value || '').trim();
@@ -14,6 +29,40 @@ function requestOrigin(req) {
   const host = forwardedHost || text(req?.headers?.host || req?.headers?.Host);
   const scheme = proto || (host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https');
   return host ? `${scheme}://${host}` : '';
+}
+
+function normalizeArguments(capabilityId, value) {
+  const args = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  if (capabilityId === 'health' || capabilityId === 'device.status') {
+    if (Object.keys(args).length) throw new Error('capability does not accept arguments');
+    return {};
+  }
+  if (capabilityId === 'app.open_known') {
+    const alias = text(args.alias).toLowerCase();
+    if (!ALLOWED_APP_ALIASES.has(alias)) throw new Error('unsupported app alias');
+    return { alias };
+  }
+  if (capabilityId === 'url.open') {
+    const raw = text(args.url);
+    if (!raw || raw.length > 2048) throw new Error('valid https url required');
+    let parsed;
+    try { parsed = new URL(raw); } catch (_error) { throw new Error('valid https url required'); }
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password) {
+      throw new Error('valid https url required');
+    }
+    return { url: parsed.toString() };
+  }
+  throw new Error('capability is not enabled for remote invocation');
+}
+
+function argumentDigest(argumentsValue) {
+  const canonical = JSON.stringify(argumentsValue);
+  return createHash('sha256').update(canonical).digest('hex').slice(0, 24);
+}
+
+export function companionSignedAction(mode, capabilityId, argumentsValue = {}) {
+  if (mode === 'devices') return 'devices';
+  return `invoke:${capabilityId}:${argumentDigest(argumentsValue)}`;
 }
 
 async function relayFetch(fetchImpl, token, path, options = {}) {
@@ -51,14 +100,14 @@ function chooseDevice(devices, requestedId) {
   return devices.length === 1 ? devices[0] : null;
 }
 
-async function invoke(fetchImpl, token, deviceId, capabilityId) {
+async function invoke(fetchImpl, token, deviceId, capabilityId, argumentsValue) {
   const queued = await relayFetch(fetchImpl, token, '/relay/v1/commands', {
     method: 'POST',
     body: JSON.stringify({
       requestId: `portal_${randomUUID().replaceAll('-', '')}`,
       deviceId,
       capabilityId,
-      arguments: {},
+      arguments: argumentsValue,
       ttlMs: 15_000,
     }),
   });
@@ -86,7 +135,19 @@ export function createCompanionCommandHandler(options = {}) {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const mode = text(body.companionMode || body.commandMode || body.mode || body.action);
     const capabilityId = text(body.capabilityId);
-    const signedAction = mode === 'devices' ? 'devices' : `invoke:${capabilityId}`;
+    if (mode !== 'devices' && mode !== 'invoke') return res.status(400).json({ ok: false, error: 'unsupported mode' });
+    if (mode === 'invoke' && !REMOTE_COMPANION_CAPABILITIES.has(capabilityId)) {
+      return res.status(403).json({ ok: false, error: 'capability is not enabled for remote invocation' });
+    }
+
+    let argumentsValue = {};
+    try {
+      argumentsValue = mode === 'invoke' ? normalizeArguments(capabilityId, body.arguments) : {};
+    } catch (error) {
+      return res.status(400).json({ ok: false, error: error instanceof Error ? error.message : 'invalid arguments' });
+    }
+
+    const signedAction = companionSignedAction(mode, capabilityId, argumentsValue);
     const origin = text(body.origin || requestOrigin(req) || config.PORTAL_ORIGIN);
     const auth = await verifyAuth(body, {
       scope: 'companion-command',
@@ -101,18 +162,15 @@ export function createCompanionCommandHandler(options = {}) {
       },
     });
     if (!auth.ok || auth.identity?.action !== signedAction) {
-      return res.status(401).json({ ok: false, error: auth.reason || 'Companion action proof did not match this request.' });
+      return res.status(401).json({ ok: false, error: auth.reason || 'Companion action proof did not match this exact request.' });
     }
-    if (mode !== 'devices' && mode !== 'invoke') return res.status(400).json({ ok: false, error: 'unsupported mode' });
-    if (mode === 'invoke' && !READ_ONLY_COMPANION_CAPABILITIES.has(capabilityId)) {
-      return res.status(403).json({ ok: false, error: 'capability is not enabled for remote invocation' });
-    }
+
     const oidcToken = text(config.VERCEL_OIDC_TOKEN);
     if (!oidcToken) return res.status(503).json({ ok: false, error: 'Companion workload identity is unavailable' });
 
     try {
       const devices = await activeDevices(fetchImpl, oidcToken);
-      if (mode === 'devices') return res.status(200).json({ ok: true, devices, capabilities: [...READ_ONLY_COMPANION_CAPABILITIES] });
+      if (mode === 'devices') return res.status(200).json({ ok: true, devices, capabilities: [...REMOTE_COMPANION_CAPABILITIES] });
       const device = chooseDevice(devices, body.deviceId);
       if (!device) {
         return res.status(devices.length === 0 ? 503 : 409).json({
@@ -121,7 +179,7 @@ export function createCompanionCommandHandler(options = {}) {
           devices: devices.map(({ deviceId, expiresAt }) => ({ deviceId, expiresAt })),
         });
       }
-      const result = await invoke(fetchImpl, oidcToken, device.deviceId, capabilityId);
+      const result = await invoke(fetchImpl, oidcToken, device.deviceId, capabilityId, argumentsValue);
       return res.status(200).json({
         ok: Boolean(result.commandOk), deviceId: device.deviceId, capabilityId,
         code: result.code || null, data: result.data && typeof result.data === 'object' ? result.data : {},
