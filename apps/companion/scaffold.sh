@@ -24,10 +24,11 @@ cp "$BACKUP/analysis_options.yaml" analysis_options.yaml
 
 KOTLIN_DIR="android/app/src/main/kotlin/tech/threedvr/companion"
 mkdir -p "$KOTLIN_DIR" android/app/src/main/res/xml
-for source in MainActivity.kt CompanionAccessibilityService.kt CompanionNotificationListener.kt CompanionKeepAliveService.kt CompanionNativeBridgeServer.kt CompanionStartupReceiver.kt CompanionSelfUpdater.kt CompanionShizuku.kt CompanionRelaySecretStore.kt CompanionRemoteRelayClient.kt; do
+for source in MainActivity.kt CompanionAccessibilityService.kt CompanionNotificationListener.kt CompanionKeepAliveService.kt CompanionNativeBridgeServer.kt CompanionStartupReceiver.kt CompanionSelfUpdater.kt CompanionShizuku.kt CompanionRelaySecretStore.kt CompanionRemoteRelayClient.kt CompanionVoiceInteractionService.kt CompanionVoiceInteractionSessionService.kt CompanionVoiceInteractionSession.kt; do
   cp "native-spec/android/$source" "$KOTLIN_DIR/$source"
 done
 cp native-spec/android/companion_accessibility_service.xml android/app/src/main/res/xml/companion_accessibility_service.xml
+cp native-spec/android/companion_voice_interaction_service.xml android/app/src/main/res/xml/companion_voice_interaction_service.xml
 
 cat > android/app/src/main/res/xml/companion_network_security_config.xml <<'XML'
 <?xml version="1.0" encoding="utf-8"?>
@@ -46,7 +47,7 @@ import plistlib
 import xml.etree.ElementTree as ET
 ANDROID='http://schemas.android.com/apk/res/android'; ET.register_namespace('android',ANDROID); a=lambda n:f'{{{ANDROID}}}{n}'
 manifest_path=Path('android/app/src/main/AndroidManifest.xml'); tree=ET.parse(manifest_path); root=tree.getroot()
-permissions=['android.permission.INTERNET','android.permission.FOREGROUND_SERVICE','android.permission.FOREGROUND_SERVICE_SPECIAL_USE','android.permission.POST_NOTIFICATIONS','android.permission.RECEIVE_BOOT_COMPLETED','android.permission.REQUEST_INSTALL_PACKAGES','android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION']
+permissions=['android.permission.INTERNET','android.permission.RECORD_AUDIO','android.permission.FOREGROUND_SERVICE','android.permission.FOREGROUND_SERVICE_SPECIAL_USE','android.permission.POST_NOTIFICATIONS','android.permission.RECEIVE_BOOT_COMPLETED','android.permission.REQUEST_INSTALL_PACKAGES','android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION']
 existing={n.get(a('name')) for n in root.findall('uses-permission')}
 for p in reversed(permissions):
     if p not in existing: root.insert(0,ET.Element('uses-permission',{a('name'):p}))
@@ -60,11 +61,14 @@ known={'com.openai.chatgpt','com.google.android.apps.maps','com.google.android.g
 existing_q={n.get(a('name')) for n in queries.findall('package')}
 for p in sorted(known):
     if p not in existing_q: ET.SubElement(queries,'package',{a('name'):p})
+if not any(i.find('action') is not None and i.find('action').get(a('name'))=='android.speech.RecognitionService' for i in queries.findall('intent')):
+    intent=ET.SubElement(queries,'intent'); ET.SubElement(intent,'action',{a('name'):'android.speech.RecognitionService'})
 app=root.find('application')
 if app is None: raise SystemExit('AndroidManifest.xml has no <application>')
 app.set(a('label'),'3DVR Companion'); app.set(a('networkSecurityConfig'),'@xml/companion_network_security_config')
+managed_services={'.CompanionAccessibilityService','.CompanionNotificationListener','.CompanionKeepAliveService','.CompanionVoiceInteractionService','.CompanionVoiceInteractionSessionService'}
 for service in list(app.findall('service')):
-    if service.get(a('name')) in {'.CompanionAccessibilityService','.CompanionNotificationListener','.CompanionKeepAliveService'}: app.remove(service)
+    if service.get(a('name')) in managed_services: app.remove(service)
 for receiver in list(app.findall('receiver')):
     if receiver.get(a('name')) in {'.CompanionStartupReceiver','.CompanionInstallResultReceiver'}: app.remove(receiver)
 for provider in list(app.findall('provider')):
@@ -74,6 +78,9 @@ access=ET.SubElement(app,'service',{a('name'):'.CompanionAccessibilityService',a
 f=ET.SubElement(access,'intent-filter'); ET.SubElement(f,'action',{a('name'):'android.accessibilityservice.AccessibilityService'}); ET.SubElement(access,'meta-data',{a('name'):'android.accessibilityservice',a('resource'):'@xml/companion_accessibility_service'})
 notification=ET.SubElement(app,'service',{a('name'):'.CompanionNotificationListener',a('permission'):'android.permission.BIND_NOTIFICATION_LISTENER_SERVICE',a('exported'):'false',a('label'):'3DVR Companion notifications'}); nf=ET.SubElement(notification,'intent-filter'); ET.SubElement(nf,'action',{a('name'):'android.service.notification.NotificationListenerService'})
 keep=ET.SubElement(app,'service',{a('name'):'.CompanionKeepAliveService',a('exported'):'false',a('foregroundServiceType'):'specialUse',a('stopWithTask'):'false'}); ET.SubElement(keep,'property',{a('name'):'android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE',a('value'):'Keeps the user-enabled local and authenticated remote 3DVR Companion bridges reachable while the app is backgrounded.'})
+voice=ET.SubElement(app,'service',{a('name'):'.CompanionVoiceInteractionService',a('label'):'3DVR Assistant',a('permission'):'android.permission.BIND_VOICE_INTERACTION',a('exported'):'true',a('process'):':assistant'})
+vf=ET.SubElement(voice,'intent-filter'); ET.SubElement(vf,'action',{a('name'):'android.service.voice.VoiceInteractionService'}); ET.SubElement(voice,'meta-data',{a('name'):'android.voice_interaction',a('resource'):'@xml/companion_voice_interaction_service'})
+ET.SubElement(app,'service',{a('name'):'.CompanionVoiceInteractionSessionService',a('permission'):'android.permission.BIND_VOICE_INTERACTION',a('exported'):'true',a('process'):':assistant_session'})
 startup=ET.SubElement(app,'receiver',{a('name'):'.CompanionStartupReceiver',a('enabled'):'true',a('exported'):'false'}); sf=ET.SubElement(startup,'intent-filter')
 for action in ('android.intent.action.BOOT_COMPLETED','android.intent.action.MY_PACKAGE_REPLACED'): ET.SubElement(sf,'action',{a('name'):action})
 ET.SubElement(app,'receiver',{a('name'):'.CompanionInstallResultReceiver',a('enabled'):'true',a('exported'):'false'})
@@ -110,5 +117,6 @@ echo "Android boot/package-replace recovery: wired"
 echo "Android self-update loopback: wired"
 echo "Android Shizuku/Sui privilege provider: wired"
 echo "Android relay credentials: Keystore-encrypted at rest"
-echo "Android direct relay: always-on read-only client wired"
+echo "Android direct relay: always-on client wired"
+echo "Android assistant role + VoiceInteractionService: wired"
 echo "iOS App Intent: staged in ios/CompanionNativeSpec (Xcode target wiring still required)"
