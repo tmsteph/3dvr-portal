@@ -1,4 +1,5 @@
 import sys
+import types
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "thomas-agent" / "python"))
@@ -53,3 +54,33 @@ def test_rejects_other_allowed_protocol_capabilities_in_first_slice():
     result = backend.execute(request("ui.snapshot"))
     assert result.ok is False
     assert result.error_code == "unsupported_capability"
+
+
+def test_default_factory_passes_env_endpoint_and_token(monkeypatch):
+    captured = {}
+
+    class FakeMobilerun:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+            self.device = FakeDevice()
+
+    monkeypatch.setenv("THREEDVR_MOBILERUN_URL", "http://127.0.0.1:8080/")
+    monkeypatch.setenv("THREEDVR_MOBILERUN_TOKEN", "secret-token")
+    monkeypatch.setitem(sys.modules, "mobilerun", types.SimpleNamespace(Mobilerun=FakeMobilerun))
+
+    backend = MobilerunCoreBackend()
+    result = backend.execute(request())
+
+    assert result.ok is True
+    assert captured == {"base_url": "http://127.0.0.1:8080", "token": "secret-token"}
+    assert "secret-token" not in repr(result.evidence)
+
+
+def test_default_factory_reports_missing_external_credentials(monkeypatch):
+    monkeypatch.delenv("THREEDVR_MOBILERUN_URL", raising=False)
+    monkeypatch.delenv("THREEDVR_MOBILERUN_TOKEN", raising=False)
+    backend = MobilerunCoreBackend()
+    result = backend.execute(request())
+    assert result.ok is False
+    assert result.error_code == "backend_unavailable"
+    assert "not configured" in result.evidence["detail"]
