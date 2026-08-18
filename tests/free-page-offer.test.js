@@ -6,17 +6,21 @@ const html = await readFile(new URL('../free-page/index.html', import.meta.url),
 const script = await readFile(new URL('../free-page/app.js', import.meta.url), 'utf8');
 const previewHtml = await readFile(new URL('../free-page/preview/index.html', import.meta.url), 'utf8');
 const previewScript = await readFile(new URL('../free-page/preview/app.js', import.meta.url), 'utf8');
+const launchHtml = await readFile(new URL('../new-business-launch/index.html', import.meta.url), 'utf8');
+const templateHtml = await readFile(new URL('../free-sites/_template.html', import.meta.url), 'utf8');
 const styles = await readFile(new URL('../free-page/styles.css', import.meta.url), 'utf8');
 const previewStyles = await readFile(new URL('../free-page/preview/styles.css', import.meta.url), 'utf8');
 
-test('free page offer presents the personalized homepage concept', () => {
-  assert.match(html, /Get a clearer homepage concept for free/);
-  assert.match(html, /Finish and publish the page for \$300/);
-  assert.match(html, /Request the free concept/);
+test('free page offer promises a real free live website', () => {
+  assert.match(html, /Get a simple website live for free/);
+  assert.match(html, /publish it on a 3DVR-hosted address/);
+  assert.match(html, /email you the live link/);
+  assert.match(html, /Request my free live site/);
+  assert.match(html, /Keep the simple 3DVR-hosted site at no charge/);
+  assert.doesNotMatch(html, /Finish and publish the page for \$300/);
   assert.match(html, /3dvr\.tech@gmail\.com/);
   assert.match(html, /name="email" type="email"[^>]*required/);
-  assert.match(html, /A homepage should help the right customer act/);
-  assert.match(html, /\.\.\/launch-site\//);
+  assert.match(html, /A tiny site can still do the important job/);
   assert.match(html, /<script defer src="\/_vercel\/insights\/script\.js"><\/script>/);
   assert.match(html, /googletagmanager\.com\/gtag\/js\?id=G-96XRKQ5L65/);
   assert.match(html, /gtag\('config', 'G-96XRKQ5L65'\)/);
@@ -24,10 +28,12 @@ test('free page offer presents the personalized homepage concept', () => {
   assert.match(html, /\.\.\/gun-init\.js/);
 });
 
-test('personalized preview is noindex, safely client-rendered, and tracks explicit funnel events', () => {
+test('personalized preview is noindex and agrees the simple hosted site is free', () => {
   assert.match(previewHtml, /noindex,nofollow/);
-  assert.match(previewHtml, /finish and publish this direction for \$300/i);
-  assert.match(previewHtml, /Reply about my page/);
+  assert.match(previewHtml, /publish the simple one-page version for free/i);
+  assert.match(previewHtml, /simple 3DVR-hosted site is free to keep/i);
+  assert.doesNotMatch(previewHtml, /publish this direction for \$300/i);
+  assert.match(previewHtml, /Reply about my site/);
   assert.match(previewHtml, /class="brand" href="\.\.\/"[^>]*><span>3dvr<\/span><\/a>/);
   assert.match(previewHtml, /id="contactButton"/);
   assert.match(previewHtml, /data-business/);
@@ -38,8 +44,32 @@ test('personalized preview is noindex, safely client-rendered, and tracks explic
   assert.match(previewScript, /mailto:\$\{contactEmail\}/);
   assert.doesNotMatch(previewScript, /searchParams\.get\('email'\)/);
   assert.doesNotMatch(previewScript, /innerHTML/);
-  assert.match(previewHtml, /Business offer from/);
-  assert.doesNotMatch(previewHtml, /Advertisement from/);
+  assert.match(previewHtml, /Free website offer from/);
+});
+
+test('new business launch keeps basic hosting free and sells support separately', () => {
+  assert.match(launchHtml, /publish it on a 3DVR-hosted address.*live link for free/s);
+  assert.match(launchHtml, /simple one-page 3DVR-hosted site stays free/i);
+  assert.match(launchHtml, /Pay for help, not basic hosting/);
+  assert.match(launchHtml, /Light support/);
+  assert.doesNotMatch(launchHtml, /\$5\/mo<\/strong> keeps your page live/);
+  assert.match(launchHtml, /"Free one-page website", "price": "0"/);
+});
+
+test('free site automation has a deterministic reusable template', () => {
+  for (const placeholder of [
+    '{{BUSINESS_NAME}}',
+    '{{META_DESCRIPTION}}',
+    '{{TAGLINE}}',
+    '{{PRIMARY_URL}}',
+    '{{PRIMARY_LABEL}}',
+    '{{CONTACT_EMAIL}}',
+    '{{SECTION_HEADING}}',
+    '{{SECTION_BODY}}'
+  ]) {
+    assert.match(templateHtml, new RegExp(placeholder.replace(/[{}]/g, '\\$&')));
+  }
+  assert.match(templateHtml, /Free site hosted by/);
 });
 
 test('free page layouts contain folded-phone overflow guards', () => {
@@ -51,17 +81,17 @@ test('free page layouts contain folded-phone overflow guards', () => {
   }
 });
 
-test('free page brief builds an email handoff without backend dependencies', () => {
+test('free page brief routes inbound email into the live-site build queue', () => {
   assert.match(script, /mailto:/);
-  assert.match(script, /Free homepage concept/);
+  assert.match(script, /Free 3DVR website request/);
   assert.match(script, /3dvr\.tech@gmail\.com/);
-  assert.match(script, /finishing and publishing the page/);
+  assert.match(script, /build the smallest useful version and email me the live URL/i);
   assert.match(script, /gtag\('event', 'generate_lead'/);
-  assert.match(script, /method: 'mailto_brief'/);
+  assert.match(script, /method: 'free_live_site_email'/);
   assert.match(script, /trackFirstPartyEvent\('page_view'\)/);
   assert.match(script, /trackFirstPartyEvent\('generate_lead'\)/);
   assert.match(script, /saveBriefToCrm/);
   assert.match(script, /3dvr-crm/);
   assert.match(script, /crm-touch-log/);
-  assert.match(script, /Lead captured; concept requested/);
+  assert.match(script, /Lead captured for automated build and email delivery/);
 });
