@@ -49,6 +49,15 @@ function ensureHomepageSearchShortcuts() {
     searchLink.textContent = 'Search apps';
     topButtons.insertAdjacentElement('afterbegin', searchLink);
   }
+
+  const soberSpark = document.querySelector('a.app-card[href="sober-spark/"]');
+  if (soberSpark) {
+    const existingKeywords = soberSpark.dataset.appKeywords || '';
+    if (!/\bdrugs?\b/i.test(existingKeywords)) {
+      soberSpark.dataset.appKeywords = `${existingKeywords} drug drugs drug simulator drug stimulation psychedelic psychedelics altered state`.trim();
+    }
+    soberSpark.dataset.appMode = soberSpark.dataset.appMode || 'simple';
+  }
 }
 
 function createNavbar() {
