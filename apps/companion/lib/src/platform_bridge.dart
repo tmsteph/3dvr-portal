@@ -58,6 +58,21 @@ class CompanionPlatformBridge {
     return result ?? const {};
   }
 
+  Future<Map<String, Object?>> getAssistantStatus() async {
+    final result = await _channel.invokeMapMethod<String, Object?>('assistantStatus');
+    return result ?? const {};
+  }
+
+  Future<bool> requestAssistantRole() async {
+    final result = await _channel.invokeMethod<bool>('requestAssistantRole');
+    return result ?? false;
+  }
+
+  Future<bool> openVoiceInputSettings() async {
+    final result = await _channel.invokeMethod<bool>('openVoiceInputSettings');
+    return result ?? false;
+  }
+
   Future<bool> openAccessibilitySettings() async {
     final result = await _channel.invokeMethod<bool>('openAccessibilitySettings');
     return result ?? false;

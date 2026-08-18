@@ -1,11 +1,14 @@
 package tech.threedvr.companion
 
+import android.app.role.RoleManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
 import android.provider.Settings
+import android.service.voice.VoiceInteractionService
 import android.util.Base64
 import android.view.accessibility.AccessibilityManager
 import io.flutter.embedding.android.FlutterActivity
@@ -63,6 +66,12 @@ class MainActivity : FlutterActivity() {
                 when (call.method) {
                     "deviceStatus" -> result.success(deviceStatus())
                     "capabilityStatus" -> result.success(capabilityStatus())
+                    "assistantStatus" -> result.success(assistantStatus())
+                    "requestAssistantRole" -> result.success(requestAssistantRole())
+                    "openVoiceInputSettings" -> {
+                        startActivity(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS))
+                        result.success(true)
+                    }
                     "bridgeToken" -> result.success(getOrCreateBridgeToken())
                     "notificationMetadata" -> result.success(NotificationMetadataStore.snapshot())
                     "messageNotifications" -> {
@@ -112,6 +121,38 @@ class MainActivity : FlutterActivity() {
         return created
     }
 
+    private fun assistantStatus(): Map<String, Any?> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return mapOf(
+                "roleAvailable" to false,
+                "roleHeld" to false,
+                "voiceServiceActive" to false,
+                "serviceReady" to false,
+            )
+        }
+        val roleManager = getSystemService(RoleManager::class.java)
+        val component = ComponentName(this, CompanionVoiceInteractionService::class.java)
+        return mapOf(
+            "roleAvailable" to roleManager.isRoleAvailable(RoleManager.ROLE_ASSISTANT),
+            "roleHeld" to roleManager.isRoleHeld(RoleManager.ROLE_ASSISTANT),
+            "voiceServiceActive" to VoiceInteractionService.isActiveService(this, component),
+            "serviceReady" to CompanionAssistantState.serviceReady,
+            "lastSessionPreparedAt" to CompanionAssistantState.lastSessionPreparedAt,
+        )
+    }
+
+    private fun requestAssistantRole(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
+        val roleManager = getSystemService(RoleManager::class.java)
+        if (!roleManager.isRoleAvailable(RoleManager.ROLE_ASSISTANT)) return false
+        if (roleManager.isRoleHeld(RoleManager.ROLE_ASSISTANT)) return true
+        startActivityForResult(
+            roleManager.createRequestRoleIntent(RoleManager.ROLE_ASSISTANT),
+            ASSISTANT_ROLE_REQUEST_CODE,
+        )
+        return true
+    }
+
     private fun deviceStatus(): Map<String, Any?> {
         val battery = getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
         return mapOf(
@@ -125,20 +166,26 @@ class MainActivity : FlutterActivity() {
         )
     }
 
-    private fun capabilityStatus(): Map<String, Any> = mapOf(
-        "accessibilityEnabled" to isAccessibilityEnabled(),
-        "notificationAccessEnabled" to isNotificationAccessEnabled(),
-        "messageNotificationReadEnabled" to isNotificationAccessEnabled(),
-        "messageNotificationReplyEnabled" to isNotificationAccessEnabled(),
-        "messageHistoryEncryptedAtRest" to true,
-        "backgroundBridgeEnabled" to true,
-        "knownAppLaunchEnabled" to true,
-        "remoteKnownActionsEnabled" to false,
-        "persistentPairingEnabled" to true,
-        "relayCredentialsEncryptedAtRest" to true,
-        "directRelayEnabled" to true,
-        "directRelayReadOnly" to true,
-    )
+    private fun capabilityStatus(): Map<String, Any> {
+        val assistant = assistantStatus()
+        return mapOf(
+            "accessibilityEnabled" to isAccessibilityEnabled(),
+            "notificationAccessEnabled" to isNotificationAccessEnabled(),
+            "messageNotificationReadEnabled" to isNotificationAccessEnabled(),
+            "messageNotificationReplyEnabled" to isNotificationAccessEnabled(),
+            "messageHistoryEncryptedAtRest" to true,
+            "backgroundBridgeEnabled" to true,
+            "knownAppLaunchEnabled" to true,
+            "remoteKnownActionsEnabled" to false,
+            "persistentPairingEnabled" to true,
+            "relayCredentialsEncryptedAtRest" to true,
+            "directRelayEnabled" to true,
+            "directRelayReadOnly" to true,
+            "assistantRoleAvailable" to (assistant["roleAvailable"] == true),
+            "assistantRoleHeld" to (assistant["roleHeld"] == true),
+            "voiceInteractionServiceActive" to (assistant["voiceServiceActive"] == true),
+        )
+    }
 
     private fun openHttpUrl(raw: String): Boolean {
         val uri = runCatching { Uri.parse(raw) }.getOrNull() ?: return false
@@ -173,5 +220,9 @@ class MainActivity : FlutterActivity() {
     private fun isNotificationAccessEnabled(): Boolean {
         val enabled = Settings.Secure.getString(contentResolver, "enabled_notification_listeners") ?: return false
         return enabled.split(':').any { component -> component.startsWith("$packageName/") }
+    }
+
+    companion object {
+        private const val ASSISTANT_ROLE_REQUEST_CODE = 38474
     }
 }

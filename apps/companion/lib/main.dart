@@ -36,6 +36,7 @@ class _CompanionHomeState extends State<CompanionHome> {
 
   Map<String, Object?> status = const {};
   Map<String, Object?> permissionState = const {};
+  Map<String, Object?> assistantState = const {};
   bool loading = true;
   String? bridgeError;
   String? persistentToken;
@@ -72,11 +73,7 @@ class _CompanionHomeState extends State<CompanionHome> {
         if (persistentToken == null) {
           throw StateError('Persistent Android bridge token unavailable');
         }
-        if (mounted) {
-          setState(() {
-            bridgeError = null;
-          });
-        }
+        if (mounted) setState(() => bridgeError = null);
         return;
       }
       await localServer.start();
@@ -93,11 +90,13 @@ class _CompanionHomeState extends State<CompanionHome> {
       final values = await Future.wait([
         bridge.getDeviceStatus(),
         bridge.getCapabilityStatus(),
+        if (Platform.isAndroid) bridge.getAssistantStatus() else Future.value(<String, Object?>{}),
       ]);
       if (!mounted) return;
       setState(() {
         status = values[0];
         permissionState = values[1];
+        assistantState = values[2];
         loading = false;
       });
     } catch (error) {
@@ -120,12 +119,27 @@ class _CompanionHomeState extends State<CompanionHome> {
     );
   }
 
+  Future<void> _requestAssistantRole() async {
+    final opened = await bridge.requestAssistantRole();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(opened
+            ? 'Choose 3DVR Companion as your assistant, then return here.'
+            : 'Android assistant role is unavailable on this device.'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final capabilities = companionCapabilities
         .where((capability) => capability.platforms.contains(currentPlatform))
         .toList(growable: false);
     final endpoint = activeEndpoint;
+    final assistantHeld = assistantState['roleHeld'] == true;
+    final assistantAvailable = assistantState['roleAvailable'] == true;
+    final assistantActive = assistantState['voiceServiceActive'] == true;
 
     return Scaffold(
       appBar: AppBar(
@@ -164,6 +178,58 @@ class _CompanionHomeState extends State<CompanionHome> {
                     ),
             ),
           ),
+          if (Platform.isAndroid) ...[
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(assistantActive ? Icons.record_voice_over : Icons.mic_none),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '3DVR Android assistant',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(assistantHeld
+                        ? '3DVR Companion is selected as the Android assistant.'
+                        : 'Make 3DVR the system assistant so Android can keep the voice interaction service available for hands-free use.'),
+                    const SizedBox(height: 12),
+                    if (assistantAvailable && !assistantHeld)
+                      FilledButton.icon(
+                        onPressed: _requestAssistantRole,
+                        icon: const Icon(Icons.assistant),
+                        label: const Text('Make 3DVR my assistant'),
+                      )
+                    else if (assistantHeld)
+                      const Row(
+                        children: [
+                          Icon(Icons.check_circle_outline),
+                          SizedBox(width: 8),
+                          Text('Assistant role enabled'),
+                        ],
+                      )
+                    else
+                      FilledButton.tonal(
+                        onPressed: bridge.openVoiceInputSettings,
+                        child: const Text('Open voice input settings'),
+                      ),
+                    const SizedBox(height: 8),
+                    Text('Voice service active: $assistantActive'),
+                    Text('Session service ready: ${assistantState['serviceReady'] == true}'),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           Card(
             child: Padding(
