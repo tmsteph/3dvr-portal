@@ -29,7 +29,8 @@ class CompanionHome extends StatefulWidget {
   State<CompanionHome> createState() => _CompanionHomeState();
 }
 
-class _CompanionHomeState extends State<CompanionHome> {
+class _CompanionHomeState extends State<CompanionHome>
+    with WidgetsBindingObserver {
   final CompanionPlatformBridge bridge = const CompanionPlatformBridge();
   late final LocalCompanionServer localServer = LocalCompanionServer(bridge: bridge);
   static final Uri androidNativeEndpoint = Uri.parse('http://127.0.0.1:38473');
@@ -38,6 +39,7 @@ class _CompanionHomeState extends State<CompanionHome> {
   Map<String, Object?> permissionState = const {};
   Map<String, Object?> assistantState = const {};
   Map<String, Object?> voiceAuthorizationState = const {};
+  Map<String, Object?> voiceReceipt = const {};
   bool loading = true;
   bool preparingVoice = false;
   String? bridgeError;
@@ -58,14 +60,21 @@ class _CompanionHomeState extends State<CompanionHome> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     refresh();
     _startLocalBridge();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (!Platform.isAndroid) localServer.stop();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) refresh();
   }
 
   Future<void> _startLocalBridge() async {
@@ -93,12 +102,14 @@ class _CompanionHomeState extends State<CompanionHome> {
         bridge.getDeviceStatus(),
         bridge.getCapabilityStatus(),
         if (Platform.isAndroid) bridge.getAssistantStatus() else Future.value(<String, Object?>{}),
+        if (Platform.isAndroid) bridge.getVoiceReceipt() else Future.value(<String, Object?>{}),
       ]);
       if (!mounted) return;
       setState(() {
         status = values[0];
         permissionState = values[1];
         assistantState = values[2];
+        voiceReceipt = values[3];
         loading = false;
       });
     } catch (error) {
@@ -129,6 +140,18 @@ class _CompanionHomeState extends State<CompanionHome> {
         content: Text(opened
             ? 'Choose 3DVR Companion as your assistant, then return here.'
             : 'Android assistant role is unavailable on this device.'),
+      ),
+    );
+  }
+
+  Future<void> _requestMicrophonePermission() async {
+    final opened = await bridge.requestMicrophonePermission();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(opened
+            ? 'Allow microphone access in the Android prompt.'
+            : 'Microphone permission could not be requested.'),
       ),
     );
   }
@@ -177,6 +200,7 @@ class _CompanionHomeState extends State<CompanionHome> {
     final bridgeReady = bridgeError == null && endpoint != null;
     final accessibilityEnabled = permissionState['accessibilityEnabled'] == true;
     final notificationAccessEnabled = permissionState['notificationAccessEnabled'] == true;
+    final microphoneGranted = permissionState['microphoneGranted'] == true;
     final voiceAuthorizationReady = voiceAuthorizationState['ok'] == true;
 
     return Scaffold(
@@ -225,14 +249,23 @@ class _CompanionHomeState extends State<CompanionHome> {
                     _readinessRow('Local bridge', bridgeReady),
                     _readinessRow('Direct relay', relayConnected),
                     _readinessRow('Android assistant', assistantHeld),
+                    _readinessRow('Microphone access', microphoneGranted),
                     _readinessRow('Voice service', assistantActive),
                     _readinessRow('Session service', assistantServiceReady),
                     _readinessRow('Accessibility control', accessibilityEnabled),
                     _readinessRow('Notification access', notificationAccessEnabled),
                     _readinessRow('One-time voice authorization', voiceAuthorizationReady),
+                    if (!microphoneGranted) ...[
+                      const SizedBox(height: 12),
+                      FilledButton.tonalIcon(
+                        onPressed: _requestMicrophonePermission,
+                        icon: const Icon(Icons.mic_none),
+                        label: const Text('Allow microphone'),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     FilledButton.icon(
-                      onPressed: relayConnected && assistantHeld && !preparingVoice
+                      onPressed: relayConnected && assistantHeld && microphoneGranted && !preparingVoice
                           ? _prepareVoiceSession
                           : null,
                       icon: preparingVoice
@@ -242,15 +275,65 @@ class _CompanionHomeState extends State<CompanionHome> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.mic),
-                      label: Text(preparingVoice ? 'Preparing…' : 'Prepare voice session'),
+                      label: Text(preparingVoice ? 'Preparing…' : 'Prepare Realtime voice'),
                     ),
-                    if (!relayConnected || !assistantHeld) ...[
+                    if (!relayConnected || !assistantHeld || !microphoneGranted) ...[
                       const SizedBox(height: 8),
                       Text(
                         !relayConnected
-                            ? 'Connect the direct relay before preparing a voice session.'
-                            : 'Select 3DVR Companion as the Android assistant before preparing voice.',
+                            ? 'Connect the direct relay before preparing a Realtime voice session.'
+                            : !assistantHeld
+                                ? 'Select 3DVR Companion as the Android assistant before preparing voice.'
+                                : 'Allow microphone access before preparing voice.',
                       ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.record_voice_over),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Voice round trip',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Invoke 3DVR as the Android Assistant and say “Open Maps”. The first release path only admits known app launches.',
+                    ),
+                    const SizedBox(height: 12),
+                    if (!assistantHeld)
+                      const Text('First make 3DVR Companion your Android assistant.')
+                    else if (!microphoneGranted)
+                      const Text('First allow microphone access above.')
+                    else
+                      const Text('Ready to test. Invoke your Android Assistant gesture or button and speak a supported command.'),
+                    if (voiceReceipt.isNotEmpty) ...[
+                      const Divider(height: 28),
+                      Text('Last voice receipt', style: Theme.of(context).textTheme.titleSmall),
+                      const SizedBox(height: 6),
+                      Text('Heard: ${voiceReceipt['transcript'] ?? ''}'),
+                      Text('Capability: ${voiceReceipt['capability'] ?? ''}'),
+                      Text('Target: ${voiceReceipt['target'] ?? ''}'),
+                      Text('Result: ${voiceReceipt['ok'] == true ? 'success' : 'blocked/failed'}'),
+                      Text('Code: ${voiceReceipt['code'] ?? ''}'),
+                      if (voiceReceipt['timestamp'] is num)
+                        Text(
+                          'At: ${DateTime.fromMillisecondsSinceEpoch((voiceReceipt['timestamp'] as num).toInt()).toLocal()}',
+                        ),
                     ],
                   ],
                 ),

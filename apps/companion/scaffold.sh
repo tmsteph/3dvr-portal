@@ -24,7 +24,7 @@ cp "$BACKUP/analysis_options.yaml" analysis_options.yaml
 
 KOTLIN_DIR="android/app/src/main/kotlin/tech/threedvr/companion"
 mkdir -p "$KOTLIN_DIR" android/app/src/main/res/xml
-for source in MainActivity.kt CompanionAccessibilityService.kt CompanionNotificationListener.kt CompanionKeepAliveService.kt CompanionNativeBridgeServer.kt CompanionStartupReceiver.kt CompanionSelfUpdater.kt CompanionShizuku.kt CompanionRelaySecretStore.kt CompanionRemoteRelayClient.kt CompanionVoiceAuthorizationStore.kt CompanionVoiceInteractionService.kt CompanionVoiceInteractionSessionService.kt CompanionVoiceInteractionSession.kt; do
+for source in MainActivity.kt CompanionAccessibilityService.kt CompanionNotificationListener.kt CompanionKeepAliveService.kt CompanionNativeBridgeServer.kt CompanionStartupReceiver.kt CompanionSelfUpdater.kt CompanionShizuku.kt CompanionRelaySecretStore.kt CompanionRemoteRelayClient.kt CompanionVoiceAuthorizationStore.kt CompanionVoiceReceiptStore.kt CompanionAssistantStateStore.kt CompanionVoiceCommandRouter.kt CompanionVoiceInteractionService.kt CompanionVoiceInteractionSessionService.kt CompanionVoiceInteractionSession.kt; do
   cp "native-spec/android/$source" "$KOTLIN_DIR/$source"
 done
 cp native-spec/android/companion_accessibility_service.xml android/app/src/main/res/xml/companion_accessibility_service.xml
@@ -120,4 +120,5 @@ echo "Android relay credentials: Keystore-encrypted at rest"
 echo "Android direct relay: always-on client wired"
 echo "Android one-time voice proof: wired"
 echo "Android assistant role + VoiceInteractionService: wired"
+echo "Android bounded voice app-launch round trip: wired"
 echo "iOS App Intent: staged in ios/CompanionNativeSpec (Xcode target wiring still required)"

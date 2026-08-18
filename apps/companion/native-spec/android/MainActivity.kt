@@ -1,9 +1,11 @@
 package tech.threedvr.companion
 
+import android.Manifest
 import android.app.role.RoleManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
@@ -68,7 +70,9 @@ class MainActivity : FlutterActivity() {
                     "deviceStatus" -> result.success(deviceStatus())
                     "capabilityStatus" -> result.success(capabilityStatus())
                     "assistantStatus" -> result.success(assistantStatus())
+                    "voiceReceipt" -> result.success(CompanionVoiceReceiptStore.snapshot(this))
                     "requestAssistantRole" -> result.success(requestAssistantRole())
+                    "requestMicrophonePermission" -> result.success(requestMicrophonePermission())
                     "beginVoiceAuthorization" -> result.success(beginVoiceAuthorization(voiceAuthorizationStore))
                     "openVoiceInputSettings" -> {
                         startActivity(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS))
@@ -154,12 +158,14 @@ class MainActivity : FlutterActivity() {
         }
         val roleManager = getSystemService(RoleManager::class.java)
         val component = ComponentName(this, CompanionVoiceInteractionService::class.java)
+        val persistedState = CompanionAssistantStateStore.snapshot(this)
         return mapOf(
             "roleAvailable" to roleManager.isRoleAvailable(RoleManager.ROLE_ASSISTANT),
             "roleHeld" to roleManager.isRoleHeld(RoleManager.ROLE_ASSISTANT),
             "voiceServiceActive" to VoiceInteractionService.isActiveService(this, component),
-            "serviceReady" to CompanionAssistantState.serviceReady,
-            "lastSessionPreparedAt" to CompanionAssistantState.lastSessionPreparedAt,
+            "serviceReady" to (persistedState["serviceReady"] == true),
+            "serviceUpdatedAt" to persistedState["serviceUpdatedAt"],
+            "lastSessionPreparedAt" to persistedState["lastSessionPreparedAt"],
         )
     }
 
@@ -171,6 +177,18 @@ class MainActivity : FlutterActivity() {
         startActivityForResult(
             roleManager.createRequestRoleIntent(RoleManager.ROLE_ASSISTANT),
             ASSISTANT_ROLE_REQUEST_CODE,
+        )
+        return true
+    }
+
+    private fun hasMicrophonePermission(): Boolean =
+        checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
+    private fun requestMicrophonePermission(): Boolean {
+        if (hasMicrophonePermission()) return true
+        requestPermissions(
+            arrayOf(Manifest.permission.RECORD_AUDIO),
+            MICROPHONE_PERMISSION_REQUEST_CODE,
         )
         return true
     }
@@ -193,6 +211,7 @@ class MainActivity : FlutterActivity() {
         return mapOf(
             "accessibilityEnabled" to isAccessibilityEnabled(),
             "notificationAccessEnabled" to isNotificationAccessEnabled(),
+            "microphoneGranted" to hasMicrophonePermission(),
             "messageNotificationReadEnabled" to isNotificationAccessEnabled(),
             "messageNotificationReplyEnabled" to isNotificationAccessEnabled(),
             "messageHistoryEncryptedAtRest" to true,
@@ -247,5 +266,6 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val ASSISTANT_ROLE_REQUEST_CODE = 38474
+        private const val MICROPHONE_PERMISSION_REQUEST_CODE = 38475
     }
 }
