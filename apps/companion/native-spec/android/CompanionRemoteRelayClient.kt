@@ -38,14 +38,16 @@ object CompanionRemoteRelayState {
  * Owns Companion's direct relay from the always-on foreground service.
  *
  * Remote execution is deliberately capability-based rather than a shell. The
- * currently admitted set is health, device.status, app.open_known, and url.open.
- * App aliases are fixed locally and remote URLs must be clean HTTPS URLs.
+ * user-facing admitted set is health, device.status, app.open_known, and
+ * url.open. `voice.authorize` is an internal one-time proof-of-possession
+ * challenge used only to bootstrap a locally initiated Realtime voice session.
  * Accessibility, messages, arbitrary packages, Shizuku actions, and shell
  * execution remain outside this direct-relay surface.
  */
 class CompanionRemoteRelayClient(context: Context) {
     private val appContext = context.applicationContext
     private val secretStore = CompanionRelaySecretStore(appContext)
+    private val voiceAuthorizationStore = CompanionVoiceAuthorizationStore(appContext)
     private val executor = Executors.newSingleThreadExecutor()
     private val running = AtomicBoolean(false)
 
@@ -158,6 +160,7 @@ class CompanionRemoteRelayClient(context: Context) {
             "device.status" -> CommandResult(ok = true, data = deviceStatus())
             "app.open_known" -> openKnownApp(arguments)
             "url.open" -> openHttpsUrl(arguments)
+            "voice.authorize" -> authorizeVoice(arguments)
             else -> CommandResult(ok = false, code = "unsupported_capability")
         }
 
@@ -178,6 +181,19 @@ class CompanionRemoteRelayClient(context: Context) {
             return
         }
         require(response.statusCode in 200..299) { "result HTTP ${response.statusCode}" }
+    }
+
+    private fun authorizeVoice(arguments: JSONObject): CommandResult {
+        val nonce = arguments.optString("nonce").trim()
+        if (!VOICE_NONCE_RE.matches(nonce)) {
+            return CommandResult(false, "invalid_voice_nonce")
+        }
+        val authorized = voiceAuthorizationStore.consume(nonce)
+        return if (authorized) {
+            CommandResult(true, data = mapOf("authorized" to true))
+        } else {
+            CommandResult(false, "voice_authorization_rejected")
+        }
     }
 
     private fun openKnownApp(arguments: JSONObject): CommandResult {
@@ -305,6 +321,7 @@ class CompanionRemoteRelayClient(context: Context) {
     companion object {
         const val RELAY_BASE_URL = "https://gun-relay-3dvr.fly.dev"
 
+        private val VOICE_NONCE_RE = Regex("^[A-Za-z0-9_-]{24,128}$")
         private val ALLOWED_APP_ALIASES = setOf(
             "settings", "chatgpt", "maps", "gmail", "chrome", "calendar", "camera", "messages",
         )
