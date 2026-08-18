@@ -63,6 +63,11 @@ class CompanionPlatformBridge {
     return result ?? const {};
   }
 
+  Future<Map<String, Object?>> getVoiceReceipt() async {
+    final result = await _channel.invokeMapMethod<String, Object?>('voiceReceipt');
+    return result ?? const {};
+  }
+
   Future<Map<String, Object?>> beginVoiceAuthorization() async {
     final result = await _channel.invokeMapMethod<String, Object?>('beginVoiceAuthorization');
     return result ?? const {};
@@ -70,6 +75,11 @@ class CompanionPlatformBridge {
 
   Future<bool> requestAssistantRole() async {
     final result = await _channel.invokeMethod<bool>('requestAssistantRole');
+    return result ?? false;
+  }
+
+  Future<bool> requestMicrophonePermission() async {
+    final result = await _channel.invokeMethod<bool>('requestMicrophonePermission');
     return result ?? false;
   }
 
