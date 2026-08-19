@@ -150,13 +150,15 @@ h1 {
 .section-heading > p:last-child { color: var(--muted); font-size: 1.1rem; }
 
 .pattern-grid,
-.principles-grid {
+.principles-grid,
+.materials-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
 }
 .card,
-.principles-grid article {
+.principles-grid article,
+.material-card {
   min-height: 250px;
   padding: 1.35rem;
   border: 1px solid var(--line);
@@ -165,9 +167,11 @@ h1 {
   backdrop-filter: blur(7px);
 }
 .card h3,
-.principles-grid h3 { margin: .85rem 0 .7rem; font-size: 1.45rem; }
+.principles-grid h3,
+.material-card h3 { margin: .85rem 0 .7rem; font-size: 1.45rem; }
 .card p,
-.principles-grid p { color: var(--muted); }
+.principles-grid p,
+.material-card p { color: var(--muted); }
 .feature-card { background: rgba(82,100,77,.11); }
 .number {
   font-family: Arial, Helvetica, sans-serif;
@@ -182,6 +186,43 @@ h1 {
   border-left: 4px solid var(--moss);
   background: rgba(82,100,77,.08);
   font-size: 1.05rem;
+}
+
+.materials-section { background: rgba(255,255,255,.12); }
+.material-card {
+  display: flex;
+  flex-direction: column;
+}
+.material-card p { flex: 1; }
+.buy-links {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .75rem;
+  margin-top: 1rem;
+}
+.buy-links .button { width: 100%; }
+.text-link {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: .86rem;
+  font-weight: 700;
+  color: var(--moss-dark);
+}
+.no-buy {
+  display: inline-block;
+  padding: .62rem .8rem;
+  border: 1px dashed var(--moss);
+  border-radius: 999px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: .86rem;
+  font-weight: 700;
+  color: var(--moss-dark);
+}
+.purchase-note {
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: .82rem;
 }
 
 .principles-grid article { min-height: 190px; }
@@ -234,7 +275,8 @@ footer {
 
 @media (max-width: 850px) {
   .pattern-grid,
-  .principles-grid { grid-template-columns: 1fr 1fr; }
+  .principles-grid,
+  .materials-grid { grid-template-columns: 1fr 1fr; }
   .site-header { align-items: flex-start; }
   nav { justify-content: flex-end; }
 }
@@ -245,9 +287,11 @@ footer {
   .hero { min-height: auto; }
   h1 { font-size: clamp(3.4rem, 17vw, 5.5rem); }
   .pattern-grid,
-  .principles-grid { grid-template-columns: 1fr; }
+  .principles-grid,
+  .materials-grid { grid-template-columns: 1fr; }
   .card,
-  .principles-grid article { min-height: auto; }
+  .principles-grid article,
+  .material-card { min-height: auto; }
   .wardrobe-list div { grid-template-columns: 3rem 1fr; }
   .wardrobe-list em { grid-column: 2; }
 }
