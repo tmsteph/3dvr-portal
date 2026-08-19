@@ -32,6 +32,10 @@ object CompanionVoiceReceiptStore {
             put("target", target.take(120))
             put("ok", ok)
             put("code", code.take(120))
+            put("backend", "companion-native")
+            put("transport", "android-assistant")
+            put("credentialsRedacted", true)
+            put("fallbackUsed", false)
         }
         val atomicFile = atomicFile(context)
         val output = runCatching { atomicFile.startWrite() }.getOrNull() ?: return
@@ -58,6 +62,10 @@ object CompanionVoiceReceiptStore {
             "target" to payload.optString("target"),
             "ok" to payload.optBoolean("ok", false),
             "code" to payload.optString("code"),
+            "backend" to payload.optString("backend", "companion-native"),
+            "transport" to payload.optString("transport", "android-assistant"),
+            "credentialsRedacted" to payload.optBoolean("credentialsRedacted", true),
+            "fallbackUsed" to payload.optBoolean("fallbackUsed", false),
         )
     }
 
