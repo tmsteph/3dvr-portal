@@ -1,0 +1,253 @@
+:root {
+  --paper: #f4eedf;
+  --paper-deep: #e8dcc3;
+  --ink: #2d342b;
+  --muted: #667064;
+  --moss: #52644d;
+  --moss-dark: #394735;
+  --line: rgba(45, 52, 43, 0.18);
+  --white: rgba(255, 255, 255, 0.46);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(255,255,255,.65), transparent 28rem),
+    linear-gradient(180deg, var(--paper), #eee5d3 58%, #e5d8bd);
+  color: var(--ink);
+  font-family: Georgia, 'Times New Roman', serif;
+  line-height: 1.6;
+}
+a { color: inherit; }
+.skip-link {
+  position: fixed;
+  left: 1rem;
+  top: -5rem;
+  z-index: 10;
+  background: var(--ink);
+  color: white;
+  padding: .7rem 1rem;
+}
+.skip-link:focus { top: 1rem; }
+
+.site-header,
+main,
+footer {
+  width: min(1120px, calc(100% - 2rem));
+  margin-inline: auto;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: .55rem;
+  text-decoration: none;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.brand-mark {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: .8rem;
+  letter-spacing: .12em;
+  text-transform: lowercase;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: .22rem .48rem;
+}
+nav { display: flex; flex-wrap: wrap; gap: 1rem; }
+nav a {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: .88rem;
+  text-decoration: none;
+  color: var(--muted);
+}
+nav a:hover, nav a:focus { color: var(--ink); text-decoration: underline; }
+
+.hero {
+  min-height: 72vh;
+  display: grid;
+  align-content: center;
+  padding: clamp(4rem, 9vw, 8rem) 0;
+  border-bottom: 1px solid var(--line);
+}
+.eyebrow {
+  margin: 0 0 .7rem;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--moss);
+}
+h1, h2, h3 { margin-top: 0; line-height: 1.05; }
+h1 {
+  max-width: 12ch;
+  margin-bottom: 1.2rem;
+  font-size: clamp(3.6rem, 11vw, 8.2rem);
+  font-weight: 500;
+  letter-spacing: -.055em;
+}
+.lede {
+  max-width: 760px;
+  margin: 0;
+  font-size: clamp(1.2rem, 2.7vw, 1.75rem);
+  color: var(--muted);
+}
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  margin-top: 2rem;
+}
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: .7rem 1rem;
+  border: 1px solid var(--moss);
+  border-radius: 999px;
+  color: var(--moss-dark);
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 700;
+  text-decoration: none;
+}
+.button.primary { background: var(--moss-dark); color: #f7f1e5; }
+.material-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem;
+  margin-top: 2.5rem;
+}
+.material-line span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: .38rem .7rem;
+  background: rgba(255,255,255,.2);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: .8rem;
+}
+
+.section { padding: clamp(4rem, 8vw, 7rem) 0; border-bottom: 1px solid var(--line); }
+.section-heading { max-width: 760px; margin-bottom: 2.2rem; }
+.section-heading h2,
+.manifesto h2 {
+  margin-bottom: 1rem;
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  font-weight: 500;
+  letter-spacing: -.04em;
+}
+.section-heading > p:last-child { color: var(--muted); font-size: 1.1rem; }
+
+.pattern-grid,
+.principles-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+.card,
+.principles-grid article {
+  min-height: 250px;
+  padding: 1.35rem;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--white);
+  backdrop-filter: blur(7px);
+}
+.card h3,
+.principles-grid h3 { margin: .85rem 0 .7rem; font-size: 1.45rem; }
+.card p,
+.principles-grid p { color: var(--muted); }
+.feature-card { background: rgba(82,100,77,.11); }
+.number {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: .78rem;
+  letter-spacing: .1em;
+  color: var(--moss);
+}
+.note { padding-top: .7rem; border-top: 1px solid var(--line); }
+.prototype-note {
+  margin-top: 1rem;
+  padding: 1.15rem 1.25rem;
+  border-left: 4px solid var(--moss);
+  background: rgba(82,100,77,.08);
+  font-size: 1.05rem;
+}
+
+.principles-grid article { min-height: 190px; }
+.principles-grid h3 { margin-top: 0; }
+
+.wardrobe-list { border-top: 1px solid var(--line); }
+.wardrobe-list div {
+  display: grid;
+  grid-template-columns: 4rem 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 1.05rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.wardrobe-list span,
+.wardrobe-list em {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: .82rem;
+  color: var(--muted);
+  font-style: normal;
+}
+.wardrobe-list strong { font-size: 1.18rem; }
+
+.manifesto {
+  padding: clamp(5rem, 11vw, 9rem) 0;
+  text-align: center;
+}
+.manifesto p {
+  margin: 0 auto 1rem;
+  max-width: 850px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: .9rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--moss);
+}
+.manifesto h2 { max-width: 850px; margin-inline: auto; }
+
+footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .6rem;
+  padding: 2rem 0 3rem;
+  border-top: 1px solid var(--line);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: .82rem;
+  color: var(--muted);
+}
+
+@media (max-width: 850px) {
+  .pattern-grid,
+  .principles-grid { grid-template-columns: 1fr 1fr; }
+  .site-header { align-items: flex-start; }
+  nav { justify-content: flex-end; }
+}
+
+@media (max-width: 620px) {
+  .site-header { display: block; }
+  nav { margin-top: .9rem; justify-content: flex-start; gap: .8rem; }
+  .hero { min-height: auto; }
+  h1 { font-size: clamp(3.4rem, 17vw, 5.5rem); }
+  .pattern-grid,
+  .principles-grid { grid-template-columns: 1fr; }
+  .card,
+  .principles-grid article { min-height: auto; }
+  .wardrobe-list div { grid-template-columns: 3rem 1fr; }
+  .wardrobe-list em { grid-column: 2; }
+}
