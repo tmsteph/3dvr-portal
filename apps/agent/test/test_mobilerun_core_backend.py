@@ -28,6 +28,11 @@ def test_reports_device_status_without_broadening_authority():
     result = backend.execute(request())
     assert result.ok is True
     assert result.evidence["connected"] is True
+    assert result.evidence["backend"] == "mobilerun-core"
+    assert result.evidence["transport"] == "local-android-http"
+    assert result.evidence["round_trip_latency_ms"] >= 0
+    assert result.evidence["credentials_redacted"] is True
+    assert result.evidence["fallback_used"] is False
     assert backend.supports("device.status") is True
     assert backend.supports("shell.exec") is False
 
@@ -47,6 +52,9 @@ def test_returns_structured_unavailable_evidence():
     result = backend.execute(request())
     assert result.ok is False
     assert result.error_code == "backend_unavailable"
+    assert result.evidence["backend"] == "mobilerun-core"
+    assert result.evidence["credentials_redacted"] is True
+    assert result.evidence["round_trip_latency_ms"] >= 0
 
 
 def test_rejects_other_allowed_protocol_capabilities_in_first_slice():
@@ -74,6 +82,7 @@ def test_default_factory_passes_env_endpoint_and_token(monkeypatch):
     assert result.ok is True
     assert captured == {"base_url": "http://127.0.0.1:8080", "token": "secret-token"}
     assert "secret-token" not in repr(result.evidence)
+    assert result.evidence["credentials_redacted"] is True
 
 
 def test_default_factory_reports_missing_external_credentials(monkeypatch):
@@ -84,3 +93,4 @@ def test_default_factory_reports_missing_external_credentials(monkeypatch):
     assert result.ok is False
     assert result.error_code == "backend_unavailable"
     assert "not configured" in result.evidence["detail"]
+    assert result.evidence["credentials_redacted"] is True
