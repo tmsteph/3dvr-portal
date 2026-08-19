@@ -8,7 +8,7 @@ import java.nio.charset.StandardCharsets
 
 /**
  * Stores only the latest bounded voice action receipt for user-visible audit.
- * No raw audio is stored, and receipts intentionally avoid secrets or tokens.
+ * No raw audio is stored, and receipts contain only bounded action evidence.
  *
  * The Assistant session runs in a separate Android process, so this uses an
  * app-private AtomicFile instead of SharedPreferences to keep cross-process
