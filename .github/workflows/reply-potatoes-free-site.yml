@@ -1,0 +1,115 @@
+name: Reply to potatoes free-site request
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/reply-potatoes-free-site.yml"
+
+jobs:
+  reply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GMAIL_USER: ${{ secrets.GMAIL_USER }}
+      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      TARGET_FROM: tmsteph1290@gmail.com
+      TARGET_SUBJECT: Website
+      SITE_URL: https://3dvr.tech/free-sites/potatoes/
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/agent/package-lock.json
+
+      - name: Install agent dependencies
+        working-directory: apps/agent
+        run: npm ci
+
+      - name: Find canonical inbox message and reply in thread
+        working-directory: apps/agent
+        run: |
+          node <<'NODE'
+          const { ImapFlow } = require('imapflow');
+          const nodemailer = require('nodemailer');
+
+          const user = process.env.GMAIL_USER || '3dvr.tech@gmail.com';
+          const pass = process.env.GMAIL_APP_PASSWORD;
+          const targetFrom = String(process.env.TARGET_FROM || '').toLowerCase();
+          const targetSubject = String(process.env.TARGET_SUBJECT || '').trim().toLowerCase();
+          const siteUrl = process.env.SITE_URL;
+
+          if (!pass) throw new Error('GMAIL_APP_PASSWORD is not configured');
+
+          (async () => {
+            const client = new ImapFlow({
+              host: 'imap.gmail.com',
+              port: 993,
+              secure: true,
+              auth: { user, pass },
+              logger: false,
+            });
+
+            await client.connect();
+            const lock = await client.getMailboxLock('INBOX');
+            let match = null;
+            try {
+              for await (const message of client.fetch({ seen: false }, { uid: true, envelope: true })) {
+                const from = message.envelope?.from?.[0]?.address?.toLowerCase?.() || '';
+                const subject = String(message.envelope?.subject || '').trim();
+                if (from === targetFrom && subject.toLowerCase() === targetSubject) {
+                  match = {
+                    uid: message.uid,
+                    from,
+                    subject,
+                    messageId: message.envelope?.messageId || '',
+                  };
+                  break;
+                }
+              }
+
+              if (!match) {
+                console.log('No matching unread canonical inbox request found; no email sent.');
+                return;
+              }
+
+              const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: { user, pass },
+              });
+
+              const text = [
+                'Your free site is live:',
+                siteUrl,
+                '',
+                'The simple site is free to keep on the 3DVR-hosted address. Reply with any factual corrections you want changed.',
+                '',
+                'If you ever want a custom domain, more pages, revisions, integrations, or ongoing support, those are optional upgrades.',
+                '',
+                'If you know someone else who needs a simple site, you can share https://3dvr.tech/free-sites/.'
+              ].join('\n');
+
+              await transporter.sendMail({
+                from: `3DVR <${user}>`,
+                to: match.from,
+                subject: `Re: ${match.subject}`,
+                text,
+                inReplyTo: match.messageId || undefined,
+                references: match.messageId ? [match.messageId] : undefined,
+              });
+
+              await client.messageFlagsAdd(match.uid, ['\\Seen'], { uid: true });
+              console.log(`Processed canonical inbox request from ${match.from}.`);
+            } finally {
+              lock.release();
+              await client.logout();
+            }
+          })().catch(error => {
+            console.error(error);
+            process.exitCode = 1;
+          });
+          NODE
