@@ -1,0 +1,46 @@
+name: Canonical 3DVR Inbox Check
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/canonical-inbox-check.yml"
+  workflow_dispatch:
+
+jobs:
+  inbox-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GMAIL_USER: ${{ secrets.GMAIL_USER }}
+      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      THREEDVR_INBOX_AUTO_REPLY: "false"
+      THREEDVR_INBOX_PUBLIC_AUTO_REPLY: "false"
+      THREEDVR_INBOX_FREE_DESIGN_AUTO_REPLY: "false"
+      THREEDVR_AUTOPILOT_NOTIFY_EMAIL: ""
+      THREEDVR_INBOX_LIMIT: "50"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/agent/package-lock.json
+
+      - name: Install agent dependencies
+        working-directory: apps/agent
+        run: npm ci
+
+      - name: Inspect canonical inbox
+        run: |
+          mkdir -p artifacts/canonical-inbox
+          apps/agent/thomas-agent/scripts/ask-inbox --dry-run --limit 50 > artifacts/canonical-inbox/inbox.txt 2>&1
+
+      - name: Upload inbox report
+        uses: actions/upload-artifact@v4
+        with:
+          name: canonical-inbox-report
+          path: artifacts/canonical-inbox/inbox.txt
+          retention-days: 1
