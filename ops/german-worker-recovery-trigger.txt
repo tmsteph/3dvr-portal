@@ -1,0 +1,2 @@
+2026-08-21T07:46:44Z
+Reason: hourly free-site reliability fallback re-probe after failed German worker recovery status.
