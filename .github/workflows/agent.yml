@@ -92,7 +92,7 @@ jobs:
             --max-runtime-ms 180000 \
             "$task")"
           printf '%s\n' "$result"
-          task_id="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).id))")"
+          task_id="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task queue JSON payload missing');console.log(JSON.parse(s.slice(i)).id)})")"
           echo "task_id=$task_id" >> "$GITHUB_OUTPUT"
 
       - name: Wait for German worker receipt
@@ -103,7 +103,7 @@ jobs:
           task_id='${{ steps.queue.outputs.task_id }}'
           for attempt in $(seq 1 36); do
             result="$(node thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
-            status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log((JSON.parse(s).status||'')))")"
+            status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');console.log((JSON.parse(s.slice(i)).status||''))})")"
             echo "German worker status: $status"
             case "$status" in
               completed)
