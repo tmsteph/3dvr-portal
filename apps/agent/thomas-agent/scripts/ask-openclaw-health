@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONFIG_FILE="${THREEDVR_CONFIG_FILE:-$HOME/.3dvr/config/env}"
+if [ -f "$CONFIG_FILE" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$CONFIG_FILE"
+  set +a
+fi
+
+if ! command -v openclaw >/dev/null 2>&1; then
+  echo '[openclaw-health] openclaw CLI is not installed or not on PATH.' >&2
+  exit 1
+fi
+
+probe_gateway() {
+  openclaw gateway status --require-rpc --json >/tmp/3dvr-openclaw-gateway-status.json 2>/tmp/3dvr-openclaw-gateway-status.err
+}
+
+probe_channels() {
+  openclaw channels status --probe >/tmp/3dvr-openclaw-channels-status.txt 2>/tmp/3dvr-openclaw-channels-status.err
+}
+
+healthy=true
+if ! probe_gateway; then
+  echo '[openclaw-health] gateway RPC probe failed.' >&2
+  healthy=false
+fi
+if ! probe_channels; then
+  echo '[openclaw-health] channel probe failed.' >&2
+  healthy=false
+fi
+
+if [ "$healthy" = false ]; then
+  echo '[openclaw-health] restarting managed OpenClaw gateway...'
+  openclaw gateway restart --wait 30s --json
+fi
+
+# Always show a compact post-check and fail if the runtime is still unhealthy.
+openclaw gateway status --require-rpc --json
+openclaw channels status --probe
+
+echo '[openclaw-health] gateway and channel probes passed.'
