@@ -6,6 +6,8 @@ const { buildSalesSummary, gunSafe } = require('./sales-summary');
 const OWNER_ALIAS = process.env.THREEDVR_AGENT_OWNER_ALIAS || 'tmsteph@3dvr';
 const INBOX_SESSION = process.env.THREEDVR_INBOX_TMUX_SESSION || '3dvr-inbox';
 const OUTREACH_SESSION = process.env.THREEDVR_AUTOPILOT_TMUX_SESSION || '3dvr-autopilot';
+const TASK_WORKER_SESSION = process.env.THREEDVR_AGENT_WORKER_TMUX_SESSION || '3dvr-worker';
+const CONTEXT_ROUTER_SESSION = process.env.THREEDVR_CONTEXT_TASK_ROUTER_TMUX_SESSION || '3dvr-context-router';
 const HEARTBEAT_INTERVAL_SECONDS = Number(process.env.THREEDVR_AGENT_HEARTBEAT_INTERVAL_SECONDS || 60);
 const HEARTBEAT_WRITE_TIMEOUT_MS = Number(process.env.THREEDVR_AGENT_HEARTBEAT_WRITE_TIMEOUT_MS || 10000);
 const HEARTBEAT_FLUSH_MS = Number(process.env.THREEDVR_AGENT_HEARTBEAT_FLUSH_MS || 1000);
@@ -34,7 +36,9 @@ function getRuntimeSnapshot() {
   const hostName = os.hostname();
   const inboxRunning = isSessionRunning(INBOX_SESSION);
   const outreachRunning = isSessionRunning(OUTREACH_SESSION);
-  const status = inboxRunning && outreachRunning ? 'running' : 'degraded';
+  const workerRunning = isSessionRunning(TASK_WORKER_SESSION);
+  const routerRunning = isSessionRunning(CONTEXT_ROUTER_SESSION);
+  const status = inboxRunning && outreachRunning && workerRunning && routerRunning ? 'running' : 'degraded';
   let sales = {};
   try {
     sales = gunSafe(compactRuntimeSales(buildSalesSummary({ ownerAlias: OWNER_ALIAS, recentLimit: 3 })));
@@ -60,6 +64,14 @@ function getRuntimeSnapshot() {
     outreach: {
       session: OUTREACH_SESSION,
       running: outreachRunning,
+    },
+    worker: {
+      session: TASK_WORKER_SESSION,
+      running: workerRunning,
+    },
+    router: {
+      session: CONTEXT_ROUTER_SESSION,
+      running: routerRunning,
     },
     sales,
   };
@@ -93,6 +105,8 @@ function compactRuntimeSales(summary = {}) {
 function summarizeRuntime(runtime = {}) {
   const inbox = runtime.inbox && typeof runtime.inbox === 'object' ? runtime.inbox : {};
   const outreach = runtime.outreach && typeof runtime.outreach === 'object' ? runtime.outreach : {};
+  const worker = runtime.worker && typeof runtime.worker === 'object' ? runtime.worker : {};
+  const router = runtime.router && typeof runtime.router === 'object' ? runtime.router : {};
   const sales = runtime.sales && typeof runtime.sales === 'object' ? runtime.sales : {};
   const leads = sales.leads && typeof sales.leads === 'object' ? sales.leads : {};
   const leadCounts = leads.statusCounts && typeof leads.statusCounts === 'object' ? leads.statusCounts : {};
@@ -103,7 +117,9 @@ function summarizeRuntime(runtime = {}) {
     `Status: ${normalizeText(runtime.status) || 'unknown'}`,
     `Last beat: ${normalizeText(runtime.lastBeatAt) || 'unknown'}`,
     `Inbox: ${inbox.running ? 'running' : 'stopped'} (${normalizeText(inbox.session) || INBOX_SESSION})`,
-    `Outreach: ${outreach.running ? 'running' : 'stopped'} (${normalizeText(outreach.session) || OUTREACH_SESSION})`
+    `Outreach: ${outreach.running ? 'running' : 'stopped'} (${normalizeText(outreach.session) || OUTREACH_SESSION})`,
+    `Task worker: ${worker.running ? 'running' : 'stopped'} (${normalizeText(worker.session) || TASK_WORKER_SESSION})`,
+    `Context router: ${router.running ? 'running' : 'stopped'} (${normalizeText(router.session) || CONTEXT_ROUTER_SESSION})`
   ];
   if (sales.generatedAt) {
     lines.push(`Sales: new=${leadCounts.new || 0}, contacted=${leadCounts.contacted || 0}, replied=${leadCounts.replied || 0}, failed=${leadCounts.failed || 0}, manual=${leads.manualReview || 0}, today=${outreachCounts.contactedToday || 0}`);
@@ -125,6 +141,8 @@ async function writeHeartbeat() {
     metadata: {
       inbox: snapshot.inbox,
       outreach: snapshot.outreach,
+      worker: snapshot.worker,
+      router: snapshot.router,
       startedAt: snapshot.startedAt,
       sales: snapshot.sales,
     },
@@ -154,6 +172,8 @@ async function writeHeartbeat() {
   await Promise.all([
     putGun(node.get('inbox'), snapshot.inbox, { timeoutMs: HEARTBEAT_WRITE_TIMEOUT_MS }),
     putGun(node.get('outreach'), snapshot.outreach, { timeoutMs: HEARTBEAT_WRITE_TIMEOUT_MS }),
+    putGun(node.get('worker'), snapshot.worker, { timeoutMs: HEARTBEAT_WRITE_TIMEOUT_MS }),
+    putGun(node.get('router'), snapshot.router, { timeoutMs: HEARTBEAT_WRITE_TIMEOUT_MS }),
     putGun(salesNode, {
       ownerAlias: snapshot.sales.ownerAlias,
       hostName: snapshot.sales.hostName,
@@ -179,9 +199,11 @@ async function readHeartbeat() {
   const scalarKeys = ['ownerAlias', 'service', 'status', 'hostName', 'pid', 'startedAt', 'lastBeatAt'];
   const salesNode = node.get('sales');
   const salesLeadsNode = salesNode.get('leads');
-  const [inbox, outreach, sales, salesLeads, salesStatusCounts, salesRouteCounts, salesOutreach, salesInbox, scalarValues] = await Promise.all([
+  const [inbox, outreach, worker, router, sales, salesLeads, salesStatusCounts, salesRouteCounts, salesOutreach, salesInbox, scalarValues] = await Promise.all([
     onceGun(node.get('inbox')).catch(() => null),
     onceGun(node.get('outreach')).catch(() => null),
+    onceGun(node.get('worker')).catch(() => null),
+    onceGun(node.get('router')).catch(() => null),
     onceGun(salesNode).catch(() => null),
     onceGun(salesLeadsNode).catch(() => null),
     onceGun(salesLeadsNode.get('statusCounts')).catch(() => null),
@@ -198,6 +220,8 @@ async function readHeartbeat() {
   });
   if (inbox && typeof inbox === 'object') runtime.inbox = inbox;
   if (outreach && typeof outreach === 'object') runtime.outreach = outreach;
+  if (worker && typeof worker === 'object') runtime.worker = worker;
+  if (router && typeof router === 'object') runtime.router = router;
   if (sales && typeof sales === 'object') runtime.sales = sales;
   if (!runtime.sales || typeof runtime.sales !== 'object') runtime.sales = {};
   if (salesLeads && typeof salesLeads === 'object') runtime.sales.leads = salesLeads;
