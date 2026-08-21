@@ -1,0 +1,43 @@
+name: Free Site Third-Line Recovery
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/free-site-third-line-recovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: free-site-third-line-recovery
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GMAIL_USER: ${{ secrets.GMAIL_USER }}
+      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      GH_TOKEN: ${{ secrets.GH_PAT }}
+      THREEDVR_FREE_SITE_MAX_PER_RUN: '3'
+      THREEDVR_FREE_SITE_LOOKBACK_HOURS: '24'
+    steps:
+      - name: Checkout portal
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+          cache-dependency-path: apps/agent/package-lock.json
+
+      - name: Install agent dependencies
+        run: npm --prefix apps/agent ci
+
+      - name: Run established bounded free-site worker
+        run: node apps/agent/thomas-agent/node/free-site-worker.js
