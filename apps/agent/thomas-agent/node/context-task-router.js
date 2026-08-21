@@ -10,9 +10,7 @@ const {
   writeHeartbeat,
 } = require('./agent-ops');
 
-const DEFAULT_CONTEXT_OWNER_ALIAS = process.env.THREEDVR_CONTEXT_HQ_OWNER_ALIAS
-  || process.env.THREEDVR_AGENT_OWNER_ALIAS
-  || '3dvr.tech@gmail.com';
+const DEFAULT_CONTEXT_OWNER_ALIAS = process.env.THREEDVR_CONTEXT_HQ_OWNER_ALIAS || '3dvr.tech@gmail.com';
 const DEFAULT_TASK_OWNER_ALIAS = process.env.THREEDVR_AGENT_TASK_OWNER_ALIAS || '3dvr-managed';
 const DEFAULT_TARGET = process.env.THREEDVR_CONTEXT_TASK_TARGET || 'do-worker';
 const DEFAULT_BACKEND = process.env.THREEDVR_CONTEXT_TASK_BACKEND || 'auto';
