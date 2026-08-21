@@ -19,6 +19,10 @@ on:
       - "package.json"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  statuses: write
+
 jobs:
   test:
     name: Run agent tests
@@ -46,3 +50,94 @@ jobs:
 
       - name: Run agent checks
         run: npm test
+
+  deploy-german-worker:
+    name: Deploy German agent worker
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      THREEDVR_AGENT_OWNER_ALIAS: ${{ vars.THREEDVR_AGENT_TASK_OWNER_ALIAS || '3dvr-managed' }}
+    defaults:
+      run:
+        working-directory: apps/agent
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+          cache-dependency-path: apps/agent/package-lock.json
+
+      - name: Install agent dependencies
+        run: npm ci
+
+      - name: Queue remote update
+        id: queue
+        shell: bash
+        run: |
+          set -euo pipefail
+          task='root="$(git rev-parse --show-toplevel)"; git -C "$root" diff --quiet; git -C "$root" diff --cached --quiet; git -C "$root" fetch origin main; git -C "$root" checkout main; git -C "$root" pull --ff-only origin main; npm --prefix "$root/apps/agent" ci; "$root/apps/agent/thomas-agent/scripts/ask-inbox-daemon" stop || true; "$root/apps/agent/thomas-agent/scripts/ask-inbox-daemon" start; "$root/apps/agent/thomas-agent/scripts/ask-inbox-daemon" status'
+          result="$(node thomas-agent/node/agent-task-queue.js enqueue \
+            --json \
+            --backend shell \
+            --risk workspace_write \
+            --approval-status approved \
+            --unsafe \
+            --requires shell \
+            --max-runtime-ms 180000 \
+            "$task")"
+          printf '%s\n' "$result"
+          task_id="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).id))")"
+          echo "task_id=$task_id" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for German worker receipt
+        id: remote
+        shell: bash
+        run: |
+          set -euo pipefail
+          task_id='${{ steps.queue.outputs.task_id }}'
+          for attempt in $(seq 1 36); do
+            result="$(node thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
+            status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log((JSON.parse(s).status||'')))")"
+            echo "German worker status: $status"
+            case "$status" in
+              completed)
+                printf '%s\n' "$result"
+                exit 0
+                ;;
+              failed|skipped)
+                printf '%s\n' "$result"
+                exit 1
+                ;;
+            esac
+            sleep 5
+          done
+          echo 'German worker did not return a completion receipt.' >&2
+          exit 1
+
+      - name: Publish remote deployment status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REMOTE_OUTCOME: ${{ steps.remote.outcome }}
+          QUEUE_OUTCOME: ${{ steps.queue.outcome }}
+        shell: bash
+        run: |
+          state=failure
+          description='German worker update failed'
+          if [ "$QUEUE_OUTCOME" = success ] && [ "$REMOTE_OUTCOME" = success ]; then
+            state=success
+            description='German worker updated; inbox daemon restarted'
+          fi
+          curl -fsS \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+            -d "{\"state\":\"$state\",\"context\":\"3DVR German Worker\",\"description\":\"$description\"}"
