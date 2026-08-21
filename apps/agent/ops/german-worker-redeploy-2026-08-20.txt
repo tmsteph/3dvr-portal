@@ -1,0 +1,2 @@
+German worker redeploy trigger after self-safe queue/config fixes.
+Purpose: exercise the repaired main-branch Agent Checks deployment path and restore the primary IMAP-IDLE free-site worker.
