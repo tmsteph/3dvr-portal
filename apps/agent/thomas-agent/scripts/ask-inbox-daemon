@@ -6,11 +6,19 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 if [ -f "$SCRIPT_DIR/lib/platform.sh" ]; then
   source "$SCRIPT_DIR/lib/platform.sh"
 fi
+
+CONFIG_FILE="${THREEDVR_CONFIG_FILE:-$HOME/.3dvr/config/env}"
+if [ -f "$CONFIG_FILE" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$CONFIG_FILE"
+  set +a
+fi
+
 STATE_DIR="${THREEDVR_AUTOPILOT_STATE_DIR:-$ROOT/state}"
 PID_FILE="$STATE_DIR/inbox-daemon.pid"
 LOG_FILE="$STATE_DIR/inbox-daemon.log"
 TMUX_SESSION="${THREEDVR_INBOX_TMUX_SESSION:-3dvr-inbox}"
-INTERVAL_MINUTES="${THREEDVR_INBOX_INTERVAL_MINUTES:-1}"
 
 mkdir -p "$STATE_DIR"
 
@@ -35,14 +43,14 @@ case "${1:-}" in
       fi
       exit 0
     fi
+
     if command -v tmux >/dev/null 2>&1; then
-      printf -v config_file_q '%q' "${THREEDVR_CONFIG_FILE:-}"
-      tmux new-session -d -s "$TMUX_SESSION" "unset THREEDVR_ENV_LOADED; export THREEDVR_CONFIG_FILE=$config_file_q; cd \"$ROOT\" && while true; do \"$SCRIPT_DIR/ask-inbox\" >>\"$LOG_FILE\" 2>&1; sleep \$(( ${INTERVAL_MINUTES} * 60 )); done"
-      echo "Started inbox daemon in tmux session $TMUX_SESSION. Log: $LOG_FILE"
+      tmux new-session -d -s "$TMUX_SESSION" "cd \"$ROOT\" && exec node \"$ROOT/node/inbox-monitor-loop.js\" >>\"$LOG_FILE\" 2>&1"
+      echo "Started event-driven inbox daemon in tmux session $TMUX_SESSION. Log: $LOG_FILE"
     else
       setsid node "$ROOT/node/inbox-monitor-loop.js" >>"$LOG_FILE" 2>&1 &
       echo "$!" > "$PID_FILE"
-      echo "Started inbox daemon (pid $!). Log: $LOG_FILE"
+      echo "Started event-driven inbox daemon (pid $!). Log: $LOG_FILE"
     fi
     ;;
   stop)
@@ -64,9 +72,9 @@ case "${1:-}" in
   status)
     if is_running; then
       if command -v tmux >/dev/null 2>&1; then
-        echo "Inbox daemon running in tmux session $TMUX_SESSION."
+        echo "Inbox daemon running in tmux session $TMUX_SESSION (IMAP IDLE)."
       else
-        echo "Inbox daemon running (pid $(cat "$PID_FILE"))."
+        echo "Inbox daemon running (pid $(cat "$PID_FILE")) (IMAP IDLE)."
       fi
       echo "Log: $LOG_FILE"
     else
