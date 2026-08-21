@@ -1,0 +1,128 @@
+name: Free Site Mailbox Health
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/free-site-mailbox-health.yml'
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      GMAIL_USER: ${{ secrets.GMAIL_USER }}
+      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+          cache-dependency-path: apps/agent/package-lock.json
+
+      - name: Install agent dependencies
+        run: npm --prefix apps/agent ci
+
+      - name: Inspect canonical mailbox safely
+        id: mailbox
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const { ImapFlow } = require('./apps/agent/node_modules/imapflow');
+
+          const user = process.env.GMAIL_USER || '3dvr.tech@gmail.com';
+          const pass = process.env.GMAIL_APP_PASSWORD || '';
+          if (!pass) throw new Error('GMAIL_APP_PASSWORD is not configured');
+
+          function cleanBody(source) {
+            let body = String(source || '');
+            const split = body.search(/\r?\n\r?\n/);
+            if (split >= 0) body = body.slice(split).replace(/^\r?\n\r?\n/, '');
+            return body
+              .replace(/=\r?\n/g, '')
+              .replace(/=20/g, ' ')
+              .replace(/=3D/gi, '=')
+              .replace(/<br\s*\/?>/gi, '\n')
+              .replace(/<[^>]+>/g, ' ')
+              .replace(/^--[-A-Za-z0-9_=.]+.*$/gm, ' ')
+              .replace(/^Content-(Type|Transfer-Encoding|Disposition):.*$/gim, ' ')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .slice(0, 3000);
+          }
+
+          function looksLikeRequest(subject, body) {
+            const text = `${subject}\n${body}`.toLowerCase();
+            return /\b(website|web site|free site|free website)\b/.test(text)
+              && !/\b(unsubscribe|newsletter|receipt|invoice)\b/.test(text);
+          }
+
+          (async () => {
+            const client = new ImapFlow({
+              host: 'imap.gmail.com',
+              port: 993,
+              secure: true,
+              auth: { user, pass },
+              logger: false,
+            });
+            await client.connect();
+            const lock = await client.getMailboxLock('INBOX');
+            let count = 0;
+            try {
+              const uids = await client.search({ seen: false });
+              for (const uid of uids.slice(-50)) {
+                for await (const message of client.fetch(uid, { envelope: true, source: true }, { uid: true })) {
+                  const from = String(message.envelope?.from?.[0]?.address || '').toLowerCase();
+                  if (!from || from === user.toLowerCase() || /(^|[._-])(no-?reply|mailer-daemon)@/i.test(from)) continue;
+                  const subject = String(message.envelope?.subject || '').trim();
+                  const body = cleanBody(message.source ? message.source.toString('utf8') : '');
+                  if (looksLikeRequest(subject, body)) count += 1;
+                }
+              }
+            } finally {
+              lock.release();
+              await client.logout();
+            }
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `request_count=${count}\n`);
+            console.log(`Canonical mailbox reachable; unread genuine request count: ${count}`);
+          })().catch(error => {
+            console.error(error);
+            process.exitCode = 1;
+          });
+          NODE
+
+      - name: Publish mailbox health status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MAILBOX_OUTCOME: ${{ steps.mailbox.outcome }}
+          REQUEST_COUNT: ${{ steps.mailbox.outputs.request_count }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          state=success
+          description='Canonical free-site mailbox reachable; no unread requests'
+          if [ "$MAILBOX_OUTCOME" != success ]; then
+            state=failure
+            description='Canonical free-site mailbox check failed'
+          elif [ "${REQUEST_COUNT:-0}" -gt 0 ]; then
+            state=pending
+            description="Canonical mailbox has ${REQUEST_COUNT} unread free-site request(s)"
+          fi
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+            -d "{\"state\":\"$state\",\"context\":\"3DVR Free Site Mailbox\",\"description\":\"$description\"}"
