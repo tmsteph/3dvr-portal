@@ -10,35 +10,93 @@ if [ -f "$CONFIG_FILE" ]; then
 fi
 
 if ! command -v openclaw >/dev/null 2>&1; then
+  echo 'RESULT=openclaw_cli_missing'
   echo '[openclaw-health] openclaw CLI is not installed or not on PATH.' >&2
-  exit 1
+  exit 20
 fi
 
+TMP_BASE="${TMPDIR:-/tmp}/3dvr-openclaw-health"
+mkdir -p "$TMP_BASE"
+
 probe_gateway() {
-  openclaw gateway status --require-rpc --json >/tmp/3dvr-openclaw-gateway-status.json 2>/tmp/3dvr-openclaw-gateway-status.err
+  openclaw gateway status --require-rpc --json >"$TMP_BASE/gateway.json" 2>"$TMP_BASE/gateway.err"
 }
 
 probe_channels() {
-  openclaw channels status --probe >/tmp/3dvr-openclaw-channels-status.txt 2>/tmp/3dvr-openclaw-channels-status.err
+  openclaw channels status --probe --json >"$TMP_BASE/channels.json" 2>"$TMP_BASE/channels.err"
 }
 
-healthy=true
-if ! probe_gateway; then
-  echo '[openclaw-health] gateway RPC probe failed.' >&2
-  healthy=false
-fi
-if ! probe_channels; then
-  echo '[openclaw-health] channel probe failed.' >&2
-  healthy=false
+probe_models() {
+  openclaw models status --check >"$TMP_BASE/models.txt" 2>"$TMP_BASE/models.err"
+}
+
+probe_fresh_turn() {
+  openclaw agent \
+    --agent main \
+    --session-key 3dvr-health-probe \
+    --message 'Reply with exactly OPENCLAW_OK.' \
+    --thinking low \
+    --timeout 60 \
+    --json >"$TMP_BASE/turn.json" 2>"$TMP_BASE/turn.err"
+}
+
+show_diagnostics() {
+  echo '[openclaw-health] diagnostics:' >&2
+  openclaw status --all >&2 || true
+  openclaw models status --json >&2 || true
+  for file in "$TMP_BASE"/*.err; do
+    [ -s "$file" ] || continue
+    echo "--- $file ---" >&2
+    tail -n 80 "$file" >&2 || true
+  done
+}
+
+# Transport first. A broken gateway/channel gets one bounded restart attempt.
+if ! probe_gateway || ! probe_channels; then
+  echo '[openclaw-health] gateway/channel probe failed; restarting gateway once.' >&2
+  openclaw gateway restart --wait 30s --json >&2 || true
+  sleep 2
+  if ! probe_gateway || ! probe_channels; then
+    echo 'RESULT=gateway_or_channel_failed'
+    show_diagnostics
+    exit 21
+  fi
 fi
 
-if [ "$healthy" = false ]; then
-  echo '[openclaw-health] restarting managed OpenClaw gateway...'
-  openclaw gateway restart --wait 30s --json
+# Provider/auth health. --check exits 1 for missing/expired auth and 2 for
+# expiring credentials. Expiring credentials are usable, so only 1 is fatal.
+set +e
+probe_models
+model_rc=$?
+set -e
+if [ "$model_rc" -eq 1 ]; then
+  echo '[openclaw-health] model/auth check failed; running bounded doctor repair.' >&2
+  openclaw doctor --fix >&2 || true
+  openclaw gateway restart --wait 30s --json >&2 || true
+  sleep 2
+  set +e
+  probe_models
+  model_rc=$?
+  set -e
+fi
+if [ "$model_rc" -eq 1 ]; then
+  echo 'RESULT=model_auth_failed'
+  show_diagnostics
+  exit 22
 fi
 
-# Always show a compact post-check and fail if the runtime is still unhealthy.
-openclaw gateway status --require-rpc --json
-openclaw channels status --probe
+# A healthy transport is not enough: prove that a fresh Gateway-backed agent
+# session can actually complete a model turn. Retry once after a gateway restart.
+if ! probe_fresh_turn; then
+  echo '[openclaw-health] fresh agent turn failed; restarting gateway once.' >&2
+  openclaw gateway restart --wait 30s --json >&2 || true
+  sleep 2
+  if ! probe_fresh_turn; then
+    echo 'RESULT=fresh_agent_turn_failed'
+    show_diagnostics
+    exit 23
+  fi
+fi
 
-echo '[openclaw-health] gateway and channel probes passed.'
+echo 'RESULT=fresh_session_ok'
+echo '[openclaw-health] gateway, channel, model auth, and fresh agent turn passed.' >&2
