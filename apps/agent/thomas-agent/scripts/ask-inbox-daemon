@@ -45,7 +45,10 @@ case "${1:-}" in
     fi
 
     if command -v tmux >/dev/null 2>&1; then
-      tmux new-session -d -s "$TMUX_SESSION" "cd \"$ROOT\" && exec node \"$ROOT/node/inbox-monitor-loop.js\" >>\"$LOG_FILE\" 2>&1"
+      # Keep the selected config explicit inside tmux so a restarted worker does
+      # not inherit stale campaign variables from the parent shell.
+      printf -v config_file_q '%q' "$CONFIG_FILE"
+      tmux new-session -d -s "$TMUX_SESSION" "unset THREEDVR_ENV_LOADED; export THREEDVR_CONFIG_FILE=$config_file_q; if [ -f \"\$THREEDVR_CONFIG_FILE\" ]; then set -a; . \"\$THREEDVR_CONFIG_FILE\"; set +a; fi; cd \"$ROOT\" && exec node \"$ROOT/node/inbox-monitor-loop.js\" >>\"$LOG_FILE\" 2>&1"
       echo "Started event-driven inbox daemon in tmux session $TMUX_SESSION. Log: $LOG_FILE"
     else
       setsid node "$ROOT/node/inbox-monitor-loop.js" >>"$LOG_FILE" 2>&1 &
