@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 20
     env:
       GMAIL_USER: ${{ secrets.GMAIL_USER }}
-      GMAIL_APP_PASSWORD: ${{ secrets.GH_PAT }}
+      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
       GH_TOKEN: ${{ secrets.GH_PAT }}
       THREEDVR_FREE_SITE_MAX_PER_RUN: '20'
       THREEDVR_FREE_SITE_LOOKBACK_HOURS: '24'
