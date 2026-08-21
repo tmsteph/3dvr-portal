@@ -78,13 +78,28 @@ function looksLikeRequest(subject, body) {
     && !/\b(unsubscribe|newsletter|receipt|invoice|mailer-daemon)\b/.test(text);
 }
 
+function cleanTopic(value) {
+  return String(value || '')
+    .replace(/[.!?].*$/, '')
+    .replace(/\s+(?:a|an|the)?\s*(?:free\s+)?(?:web\s*site|website)\b.*$/i, '')
+    .trim()
+    .slice(0, 80);
+}
+
 function topicFromRequest(subject, body) {
-  const text = `${subject}\n${body}`;
-  const about = text.match(/\babout\s+([A-Za-z0-9][A-Za-z0-9 &'._-]{1,80})/i);
-  if (about) return about[1].replace(/[.!?].*$/, '').trim();
   const trimmedSubject = String(subject || '').trim();
+  const standard = trimmedSubject.match(/^free\s+3dvr\s+website\s+request\s*[—–:\-]\s*(.+)$/i);
+  if (standard) return cleanTopic(standard[1]);
+
+  const text = `${trimmedSubject}\n${body}`;
+  const about = text.match(/\babout\s+([A-Za-z0-9][A-Za-z0-9 &'._-]{1,80})/i);
+  if (about) return cleanTopic(about[1]);
+
+  const named = String(body || '').match(/\b(?:name\/business|business|project)\s*:\s*([A-Za-z0-9][A-Za-z0-9 &'._-]{1,80})/i);
+  if (named) return cleanTopic(named[1]);
+
   if (trimmedSubject && !/^(website|free website|make me a website|website request)$/i.test(trimmedSubject)) {
-    return trimmedSubject;
+    return cleanTopic(trimmedSubject);
   }
   return '';
 }
@@ -149,7 +164,7 @@ async function loadRecentRequests(mailAuth) {
   try {
     const since = new Date(Date.now() - LOOKBACK_HOURS * 60 * 60 * 1000);
     const uids = await client.search({ since });
-    for await (const message of client.fetch(uids.slice(-75), { uid: true, envelope: true, source: true }, { uid: true })) {
+    for await (const message of client.fetch(uids.slice(-75), { uid: true, envelope: true, source: true, flags: true }, { uid: true })) {
       const from = normalizeEmail(message.envelope?.from?.[0]?.address);
       const subject = String(message.envelope?.subject || '').trim();
       if (!from || from === mailAuth.user || /(^|[._-])(no-?reply|mailer-daemon)@/i.test(from)) continue;
@@ -164,6 +179,7 @@ async function loadRecentRequests(mailAuth) {
         subject: subject || 'Website request',
         body,
         date,
+        seen: Boolean(message.flags?.has('\\Seen')),
       });
     }
   } finally {
@@ -184,6 +200,28 @@ function run(command, args, options = {}) {
     throw new Error((result.stderr || result.stdout || `${command} failed`).trim());
   }
   return String(result.stdout || '').trim();
+}
+
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function mergePullRequest(prUrl, cwd) {
+  for (let attempt = 1; attempt <= 15; attempt += 1) {
+    const raw = run('gh', ['pr', 'view', prUrl, '--repo', WEB_REPO, '--json', 'mergeable,state'], { cwd });
+    const status = JSON.parse(raw || '{}');
+    if (String(status.state || '').toUpperCase() === 'MERGED') return;
+    if (String(status.state || '').toUpperCase() === 'CLOSED') throw new Error(`Free-site PR closed before merge: ${prUrl}`);
+    if (String(status.mergeable || '').toUpperCase() === 'MERGEABLE') {
+      run('gh', ['pr', 'merge', prUrl, '--repo', WEB_REPO, '--squash', '--delete-branch=false'], { cwd });
+      return;
+    }
+    if (String(status.mergeable || '').toUpperCase() === 'CONFLICTING') {
+      throw new Error(`Free-site PR has merge conflicts: ${prUrl}`);
+    }
+    sleepSync(2000);
+  }
+  throw new Error(`Free-site PR did not become mergeable: ${prUrl}`);
 }
 
 function buildFallbackHtml({ title, body, contactEmail }) {
@@ -315,16 +353,40 @@ async function markSeen(mailAuth, uid) {
   }
 }
 
+async function completeExisting({ state, key, mailAuth, request, siteUrl }) {
+  if (!(await verifyLive(siteUrl))) return { pending: true, siteUrl };
+  if (!request.seen) await sendLiveReply(mailAuth, request, siteUrl);
+  await markSeen(mailAuth, request.uid);
+  state.messages[key] = {
+    ...(state.messages[key] || {}),
+    status: 'processed',
+    siteUrl,
+    existingSite: true,
+    completedAt: new Date().toISOString(),
+  };
+  saveState(state);
+  return { processed: true, existing: true, siteUrl };
+}
+
 async function processRequest({ request, state, mailAuth }) {
   const key = request.messageId || `uid-${request.uid}`;
   const existingState = state.messages[key];
   if (existingState?.status === 'processed') return { skipped: true };
-  if (existingState?.status === 'existing') {
-    await markSeen(mailAuth, request.uid);
-    return { skipped: true, existing: true, siteUrl: existingState.siteUrl };
+  if (existingState?.status === 'existing' && existingState.siteUrl) {
+    return completeExisting({ state, key, mailAuth, request, siteUrl: existingState.siteUrl });
   }
   if (existingState?.status === 'publishing' && existingState.siteUrl) {
-    if (!(await verifyLive(existingState.siteUrl))) return { pending: true, siteUrl: existingState.siteUrl };
+    if (!(await verifyLive(existingState.siteUrl))) {
+      if (existingState.prUrl) {
+        const { tempRoot, webDir } = cloneWebRepo();
+        try {
+          mergePullRequest(existingState.prUrl, webDir);
+        } finally {
+          fs.rmSync(tempRoot, { recursive: true, force: true });
+        }
+      }
+      if (!(await verifyLive(existingState.siteUrl))) return { pending: true, siteUrl: existingState.siteUrl };
+    }
     await sendLiveReply(mailAuth, request, existingState.siteUrl);
     await markSeen(mailAuth, request.uid);
     state.messages[key] = { ...existingState, status: 'processed', completedAt: new Date().toISOString() };
@@ -346,7 +408,7 @@ async function processRequest({ request, state, mailAuth }) {
           handledAt: new Date().toISOString(),
         };
         saveState(state);
-        return { skipped: true, existing: true, siteUrl: `${PUBLIC_BASE}/${slug}/` };
+        return completeExisting({ state, key, mailAuth, request, siteUrl: `${PUBLIC_BASE}/${slug}/` });
       }
       slug = `${slug}-${shortHash(`${request.from}:${key}`)}`;
     }
@@ -368,7 +430,6 @@ async function processRequest({ request, state, mailAuth }) {
       '--title', `Add free ${slug} site`,
       '--body', `Automated fulfillment of a genuine inbound free-site request. Generator: ${generated.generator}. No invented business claims.`,
     ], { cwd: webDir });
-    run('gh', ['pr', 'merge', prUrl, '--repo', WEB_REPO, '--squash', '--auto', '--delete-branch=false'], { cwd: webDir });
 
     const siteUrl = `${PUBLIC_BASE}/${slug}/`;
     state.messages[key] = {
@@ -380,6 +441,8 @@ async function processRequest({ request, state, mailAuth }) {
       startedAt: new Date().toISOString(),
     };
     saveState(state);
+
+    mergePullRequest(prUrl, webDir);
 
     if (!(await verifyLive(siteUrl))) {
       console.log(`[free-site-worker] published pending: ${siteUrl}`);
@@ -402,6 +465,7 @@ async function runOnce() {
   const mailAuth = await resolveMailAuth();
   const requests = await loadRecentRequests(mailAuth);
   let acted = 0;
+  let failed = 0;
   for (const request of requests) {
     const key = request.messageId || `uid-${request.uid}`;
     if (state.messages[key]?.status === 'processed') continue;
@@ -409,10 +473,12 @@ async function runOnce() {
       const result = await processRequest({ request, state, mailAuth });
       if (result?.processed || result?.pending || result?.existing) acted += 1;
     } catch (error) {
+      failed += 1;
       console.error(`[free-site-worker] ${request.from}: ${error.message || error}`);
+      const previous = state.messages[key] || {};
       state.messages[key] = {
-        ...(state.messages[key] || {}),
-        status: 'failed',
+        ...previous,
+        status: previous.status === 'publishing' ? 'publishing' : 'failed',
         error: String(error.message || error).slice(0, 500),
         failedAt: new Date().toISOString(),
       };
@@ -420,8 +486,8 @@ async function runOnce() {
     }
     if (acted >= MAX_PER_RUN) break;
   }
-  console.log(`[free-site-worker] requests=${requests.length} acted=${acted}`);
-  return { requests: requests.length, acted };
+  console.log(`[free-site-worker] requests=${requests.length} acted=${acted} failed=${failed}`);
+  return { requests: requests.length, acted, failed };
 }
 
 module.exports = {
@@ -434,7 +500,7 @@ module.exports = {
 };
 
 if (require.main === module) {
-  runOnce().then(() => process.exit(0)).catch((error) => {
+  runOnce().then((result) => process.exit(result.failed > 0 ? 1 : 0)).catch((error) => {
     console.error(error.message || error);
     process.exit(1);
   });
