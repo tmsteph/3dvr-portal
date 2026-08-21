@@ -40,7 +40,9 @@ test('production workflow deploys workspace to the portal Vercel project', async
   assert.match(workflow, /- "workspace\/\*\*"/);
   assert.match(workflow, /VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z/);
   assert.match(workflow, /VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch/);
-  assert.match(workflow, /\$\{\{ steps\.deploy\.outputs\.url \}\}\/workspace\//);
+  assert.match(workflow, /LOCAL_DEPLOY_URL: \$\{\{ steps\.local_deploy\.outputs\.url \}\}/);
+  assert.match(workflow, /BASE_URL="\$\{LOCAL_DEPLOY_URL:-https:\/\/portal\.3dvr\.tech\}"/);
+  assert.match(workflow, /German worker as the credential boundary/);
   assert.match(workflow, /<title>3DVR Workspace<\/title>/);
 });
 
