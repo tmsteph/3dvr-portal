@@ -27,7 +27,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GH_PAT }}
       THREEDVR_FREE_SITE_MAX_PER_RUN: '20'
       THREEDVR_FREE_SITE_LOOKBACK_HOURS: '24'
-      THREEDVR_AUTOPILOT_STATE_DIR: ${{ runner.temp }}/3dvr-free-site-state
+      THREEDVR_AUTOPILOT_STATE_DIR: /tmp/3dvr-free-site-state
     steps:
       - name: Checkout portal
         uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
       - name: Restore fulfillment state
         uses: actions/cache@v4
         with:
-          path: ${{ runner.temp }}/3dvr-free-site-state
+          path: /tmp/3dvr-free-site-state
           key: free-site-worker-state-${{ github.run_id }}
           restore-keys: |
             free-site-worker-state-
