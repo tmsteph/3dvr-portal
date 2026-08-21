@@ -91,7 +91,9 @@ case "${1:-}" in
       status=1
     fi
     echo
-    "$SUPERVISOR_DAEMON" status || true
+    if ! "$SUPERVISOR_DAEMON" status; then
+      status=1
+    fi
     exit "$status"
     ;;
   run-once)
