@@ -8,6 +8,7 @@ on:
       - '.github/workflows/free-site-third-line-recovery.yml'
   workflow_dispatch:
 
+# Recovery trigger: 2026-08-21T17:54Z
 permissions:
   contents: read
   statuses: write
