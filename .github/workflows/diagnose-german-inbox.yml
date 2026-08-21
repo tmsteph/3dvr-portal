@@ -1,0 +1,64 @@
+name: Diagnose German Inbox Worker
+
+on:
+  push:
+    branches:
+      - ops/diagnose-german-inbox
+    paths:
+      - '.github/workflows/diagnose-german-inbox.yml'
+
+permissions:
+  contents: write
+
+env:
+  THREEDVR_AGENT_OWNER_ALIAS: ${{ vars.THREEDVR_AGENT_TASK_OWNER_ALIAS || '3dvr-managed' }}
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: apps/agent
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ops/diagnose-german-inbox
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+          cache-dependency-path: apps/agent/package-lock.json
+      - run: npm ci
+      - name: Queue sanitized German worker diagnostics
+        id: queue
+        shell: bash
+        run: |
+          set -euo pipefail
+          task='root="$(git rev-parse --show-toplevel 2>/dev/null || true)"; dirty=unknown; branch=unknown; sha=unknown; daemon_cmd=no; daemon_status=unknown; gh_ok=no; tmux_ok=no; codex_ok=no; openclaw_ok=no; cfg=no; cfg_gmail_user=no; cfg_gmail_pass=no; if [ -n "$root" ]; then branch="$(git -C "$root" branch --show-current 2>/dev/null || true)"; sha="$(git -C "$root" rev-parse --short HEAD 2>/dev/null || true)"; if git -C "$root" diff --quiet && git -C "$root" diff --cached --quiet; then dirty=clean; else dirty=dirty; fi; [ -x "$root/apps/agent/thomas-agent/scripts/ask-inbox-daemon" ] && daemon_cmd=yes; fi; command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1 && gh_ok=yes; command -v tmux >/dev/null 2>&1 && tmux_ok=yes; command -v codex >/dev/null 2>&1 && codex_ok=yes; command -v openclaw >/dev/null 2>&1 && openclaw_ok=yes; [ -s "$HOME/.3dvr/config/env" ] && cfg=yes; [ "$cfg" = yes ] && grep -q "^GMAIL_USER=" "$HOME/.3dvr/config/env" 2>/dev/null && cfg_gmail_user=yes || true; [ "$cfg" = yes ] && grep -q "^GMAIL_APP_PASSWORD=" "$HOME/.3dvr/config/env" 2>/dev/null && cfg_gmail_pass=yes || true; if [ "$daemon_cmd" = yes ]; then if "$root/apps/agent/thomas-agent/scripts/ask-inbox-daemon" status >/dev/null 2>&1; then daemon_status=ok; else daemon_status=fail; fi; fi; printf "ROOT=%s DIRTY=%s BRANCH=%s SHA=%s GH=%s TMUX=%s CODEX=%s OPENCLAW=%s CONFIG=%s CONFIG_GMAIL_USER=%s CONFIG_GMAIL_PASS=%s DAEMON_CMD=%s DAEMON_STATUS=%s\n" "${root:-none}" "$dirty" "$branch" "$sha" "$gh_ok" "$tmux_ok" "$codex_ok" "$openclaw_ok" "$cfg" "$cfg_gmail_user" "$cfg_gmail_pass" "$daemon_cmd" "$daemon_status"'
+          result="$(node thomas-agent/node/agent-task-queue.js enqueue --json --backend shell --risk read_only --approval-status approved --unsafe --requires shell --max-runtime-ms 60000 "$task")"
+          task_id="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).id))")"
+          echo "task_id=$task_id" >> "$GITHUB_OUTPUT"
+      - name: Record diagnostic receipt
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          task_id='${{ steps.queue.outputs.task_id }}'
+          receipt='STATUS=timeout'
+          for attempt in $(seq 1 36); do
+            result="$(node apps/agent/thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
+            status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log((JSON.parse(s).status||'')))")"
+            if [ "$status" = completed ] || [ "$status" = failed ] || [ "$status" = skipped ]; then
+              receipt="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const j=JSON.parse(s); const out=String(j.result?.stdout||j.stdout||j.output||'').trim().replace(/[\r\n]+/g,' '); console.log('STATUS='+String(j.status||'unknown')+' '+out.slice(0,1200))})")"
+              break
+            fi
+            sleep 5
+          done
+          mkdir -p ops/tmp
+          printf '%s\n' "$receipt" > ops/tmp/german-inbox-diagnostic.txt
+          git config user.name '3DVR Actions'
+          git config user.email '3dvr.tech@gmail.com'
+          git add -- ops/tmp/german-inbox-diagnostic.txt
+          git commit -m 'ops: record German inbox diagnostic' || true
+          git push origin HEAD:ops/diagnose-german-inbox
