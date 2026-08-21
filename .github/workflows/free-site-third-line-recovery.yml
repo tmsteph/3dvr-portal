@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: free-site-third-line-recovery
@@ -40,4 +41,28 @@ jobs:
         run: npm --prefix apps/agent ci
 
       - name: Run established bounded free-site worker
+        id: worker
+        continue-on-error: true
         run: node apps/agent/thomas-agent/node/free-site-worker.js
+
+      - name: Publish third-line recovery status
+        if: always()
+        env:
+          STATUS_TOKEN: ${{ github.token }}
+          WORKER_OUTCOME: ${{ steps.worker.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          state=success
+          description='Third-line free-site worker completed'
+          if [ "$WORKER_OUTCOME" != success ]; then
+            state=failure
+            description='Third-line free-site worker failed'
+          fi
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $STATUS_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+            -d "{\"state\":\"$state\",\"context\":\"3DVR Free Site Third-Line\",\"description\":\"$description\"}"
+          [ "$state" = success ]
