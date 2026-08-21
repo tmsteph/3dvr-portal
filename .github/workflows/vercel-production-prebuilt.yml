@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - ".github/workflows/vercel-production-prebuilt.yml"
+      - "workspace/**"
+      - "codex-cloud/**"
   workflow_dispatch:
 
 permissions:
@@ -70,12 +72,22 @@ jobs:
             echo "Environment: production"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Verify Context HQ route
+      - name: Verify production routes
         shell: bash
         run: |
+          set -euo pipefail
+
           curl --fail --silent --show-error --location \
             --retry 3 --retry-delay 2 \
             "${{ steps.deploy.outputs.url }}/context-hq/" \
             --output /tmp/context-hq.html
           grep -q '<title>Context HQ | 3DVR Portal</title>' /tmp/context-hq.html
           echo "Context HQ production route verified."
+
+          curl --fail --silent --show-error --location \
+            --retry 3 --retry-delay 2 \
+            "${{ steps.deploy.outputs.url }}/workspace/" \
+            --output /tmp/workspace.html
+          grep -q '<title>3DVR Workspace</title>' /tmp/workspace.html
+          grep -q './main.js' /tmp/workspace.html
+          echo "3DVR Workspace production route verified."
