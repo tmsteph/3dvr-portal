@@ -81,7 +81,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          task='root="$(git rev-parse --show-toplevel)"; git -C "$root" diff --quiet; git -C "$root" diff --cached --quiet; git -C "$root" fetch origin main; git -C "$root" checkout main; git -C "$root" pull --ff-only origin main; npm --prefix "$root/apps/agent" ci; "$root/apps/agent/thomas-agent/scripts/ask-inbox-daemon" stop || true; "$root/apps/agent/thomas-agent/scripts/ask-inbox-daemon" start; "$root/apps/agent/thomas-agent/scripts/ask-inbox-daemon" status'
+          task='root="$(git rev-parse --show-toplevel)"; git -C "$root" diff --quiet; git -C "$root" diff --cached --quiet; git -C "$root" fetch origin main; git -C "$root" checkout main; git -C "$root" pull --ff-only origin main; npm --prefix "$root/apps/agent" ci; "$root/apps/agent/thomas-agent/scripts/ask-inbox-daemon" stop || true; "$root/apps/agent/thomas-agent/scripts/ask-agent-worker-daemon" stop || true; "$root/apps/agent/thomas-agent/scripts/ask-autopilot-daemon" stop || true; "$root/apps/agent/thomas-agent/scripts/ask-agent-heartbeat-daemon" stop || true; "$root/apps/agent/thomas-agent/scripts/ask-agent-worker-daemon" start; "$root/apps/agent/thomas-agent/scripts/ask-inbox-daemon" start; "$root/apps/agent/thomas-agent/scripts/ask-autopilot-daemon" start; "$root/apps/agent/thomas-agent/scripts/ask-agent-heartbeat-daemon" start; "$root/apps/agent/thomas-agent/scripts/ask-agent-worker-daemon" status; "$root/apps/agent/thomas-agent/scripts/ask-inbox-daemon" status; "$root/apps/agent/thomas-agent/scripts/ask-autopilot-daemon" status; "$root/apps/agent/thomas-agent/scripts/ask-agent-heartbeat-daemon" status'
           result="$(node thomas-agent/node/agent-task-queue.js enqueue \
             --json \
             --backend shell \
@@ -129,10 +129,10 @@ jobs:
         shell: bash
         run: |
           state=failure
-          description='German worker update failed'
+          description='German agent stack update failed'
           if [ "$QUEUE_OUTCOME" = success ] && [ "$REMOTE_OUTCOME" = success ]; then
             state=success
-            description='German worker updated; inbox daemon restarted'
+            description='German agent stack alive: worker, inbox, autopilot, heartbeat'
           fi
           curl -fsS \
             -X POST \
