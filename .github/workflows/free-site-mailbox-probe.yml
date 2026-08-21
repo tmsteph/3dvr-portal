@@ -59,7 +59,7 @@ jobs:
             for await (const message of client.fetch(recent, { envelope: true, source: true }, { uid: true })) {
               const subject = String(message.envelope?.subject || '').toLowerCase();
               const source = message.source ? message.source.toString('utf8').toLowerCase() : '';
-              if ((subject === 'website' || subject.includes('free website')) && source.includes('potatoes')) {
+              if (subject.includes('website') && source.includes('cats')) {
                 found = true;
                 break;
               }
