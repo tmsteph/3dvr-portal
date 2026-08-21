@@ -22,9 +22,11 @@ test('fresh workspace state yields to an existing cloud record', async () => {
 
 test('relay timeout never auto-saves empty startup state', async () => {
   const source = await read('workspace/main.js');
-  const timeoutStart = source.indexOf('setTimeout(() => {');
+  const workspaceStart = source.indexOf('async function startWorkspace()');
+  const timeoutStart = source.indexOf('setTimeout(() => {', workspaceStart);
   const timeoutEnd = source.indexOf('}, 4500);', timeoutStart);
 
+  assert.notEqual(workspaceStart, -1);
   assert.notEqual(timeoutStart, -1);
   assert.notEqual(timeoutEnd, -1);
 
