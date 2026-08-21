@@ -1,0 +1,39 @@
+name: Workspace Tests
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'workspace/**'
+      - 'codex-cloud/**'
+      - 'tests/workspace-sync.test.js'
+      - '.github/workflows/workspace-tests.yml'
+      - '.github/workflows/vercel-production-prebuilt.yml'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'workspace/**'
+      - 'codex-cloud/**'
+      - 'tests/workspace-sync.test.js'
+      - '.github/workflows/workspace-tests.yml'
+      - '.github/workflows/vercel-production-prebuilt.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Check workspace JavaScript syntax
+        run: node --check workspace/main.js
+      - name: Run workspace regression tests
+        run: node --test tests/workspace-sync.test.js
