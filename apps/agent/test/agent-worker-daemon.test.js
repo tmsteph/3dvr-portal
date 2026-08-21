@@ -24,7 +24,9 @@ test('live worker updates reload config per poll without stopping their own tmux
 
   assert.match(queueScript, /CONFIG_FILE="\$\{THREEDVR_CONFIG_FILE:-\$HOME\/\.3dvr\/config\/env\}"/);
   assert.ok(queueScript.includes('. "$CONFIG_FILE"'));
-  assert.equal(workflow.includes('ask-agent-worker-daemon\\" stop'), false);
-  assert.equal(workflow.includes('ask-agent-worker-daemon\\" start'), false);
-  assert.equal(workflow.includes('ask-agent-worker-daemon\\" status'), true);
+
+  const normalizedWorkflow = workflow.replace(/\\"/g, '"');
+  assert.equal(normalizedWorkflow.includes('ask-agent-worker-daemon" stop'), false);
+  assert.equal(normalizedWorkflow.includes('ask-agent-worker-daemon" start'), false);
+  assert.equal(normalizedWorkflow.includes('ask-agent-worker-daemon" status'), true);
 });
