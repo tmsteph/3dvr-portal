@@ -42,6 +42,35 @@ function resolveSafePath(pathname) {
   return absolutePath;
 }
 
+function isTransientNavigationError(error) {
+  const message = String(error?.message || error || '');
+  return /execution context was destroyed|most likely because of a navigation|frame was detached/i.test(message);
+}
+
+async function readLandingSnapshot(page) {
+  const landingTitle = page.locator('#landing-title');
+  let lastError;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await page.waitForLoadState('domcontentloaded');
+      await landingTitle.waitFor({ state: 'visible', timeout: 10000 });
+      const [pageTitle, heading] = await Promise.all([
+        page.title(),
+        landingTitle.innerText(),
+      ]);
+      return { pageTitle, heading: heading.trim() };
+    } catch (error) {
+      lastError = error;
+      if (!isTransientNavigationError(error) || attempt === 2) throw error;
+      await page.waitForLoadState('domcontentloaded').catch(() => {});
+      await delay(100);
+    }
+  }
+
+  throw lastError;
+}
+
 let browser;
 const server = createServer(async (request, response) => {
   try {
@@ -86,9 +115,7 @@ try {
   const response = await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
   assert(response && response.ok(), `Expected ${baseUrl} to return 2xx/3xx`);
 
-  await page.waitForSelector('#landing-title', { timeout: 10000 });
-  const pageTitle = await page.title();
-  const heading = (await page.locator('#landing-title').innerText()).trim();
+  const { pageTitle, heading } = await readLandingSnapshot(page);
 
   assert.equal(pageTitle, '3DVR Portal');
   assert.match(heading, /Welcome to the 3DVR Portal|Choose your path into the portal|Get in, get moving\.|One system\. Any device\.|One portal\. Fast access\.|Find your purpose\. Organize your life\. Launch your world\./i);
