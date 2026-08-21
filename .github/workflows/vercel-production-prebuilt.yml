@@ -32,6 +32,7 @@ env:
   VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z
   VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  THREEDVR_AGENT_OWNER_ALIAS: ${{ vars.THREEDVR_AGENT_TASK_OWNER_ALIAS || '3dvr-managed' }}
 
 jobs:
   deploy:
