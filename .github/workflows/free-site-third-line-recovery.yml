@@ -43,7 +43,15 @@ jobs:
       - name: Run established bounded free-site worker
         id: worker
         continue-on-error: true
-        run: node apps/agent/thomas-agent/node/free-site-worker.js
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A second pass is intentional: the first pass may discover a site
+          # that was fulfilled by another path and persist `existing` state.
+          # Reusing the same runner/state lets the bounded worker finalize that
+          # request (marking it seen) without generating or publishing again.
+          node apps/agent/thomas-agent/node/free-site-worker.js
+          node apps/agent/thomas-agent/node/free-site-worker.js
 
       - name: Publish third-line recovery status
         if: always()
