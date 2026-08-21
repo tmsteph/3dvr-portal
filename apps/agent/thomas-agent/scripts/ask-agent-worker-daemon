@@ -18,6 +18,7 @@ LOG_FILE="$STATE_DIR/agent-worker.log"
 TMUX_SESSION="${THREEDVR_AGENT_WORKER_TMUX_SESSION:-3dvr-worker}"
 INTERVAL_SECONDS="${THREEDVR_AGENT_WORKER_INTERVAL_SECONDS:-20}"
 ROUTER_DAEMON="$SCRIPT_DIR/ask-context-task-router-daemon"
+SUPERVISOR_DAEMON="$SCRIPT_DIR/ask-agent-supervisor-daemon"
 
 mkdir -p "$STATE_DIR"
 
@@ -37,6 +38,7 @@ case "${1:-}" in
     if is_running; then
       echo "Agent worker already running in tmux session $TMUX_SESSION."
       "$ROUTER_DAEMON" start
+      "$SUPERVISOR_DAEMON" start
       exit 0
     fi
     # tmux can retain an older environment than the invoking shell. Load the
@@ -53,8 +55,12 @@ case "${1:-}" in
       echo "Started agent worker (pid $!). Log: $LOG_FILE"
     fi
     "$ROUTER_DAEMON" start
+    "$SUPERVISOR_DAEMON" start
     ;;
   stop)
+    # Desired state flips to stopped before any organ is shut down, preventing
+    # the supervisor from fighting an intentional `3dvr agent stop` sequence.
+    "$SUPERVISOR_DAEMON" stop || true
     "$ROUTER_DAEMON" stop || true
     if ! is_running; then
       echo "Agent worker is not running."
@@ -84,6 +90,8 @@ case "${1:-}" in
     if ! "$ROUTER_DAEMON" status; then
       status=1
     fi
+    echo
+    "$SUPERVISOR_DAEMON" status || true
     exit "$status"
     ;;
   run-once)
@@ -93,6 +101,8 @@ case "${1:-}" in
     tail -n 40 "$LOG_FILE"
     echo
     "$ROUTER_DAEMON" logs || true
+    echo
+    "$SUPERVISOR_DAEMON" logs || true
     ;;
   *)
     echo 'Usage: ask-agent-worker-daemon start|stop|status|run-once|logs'
