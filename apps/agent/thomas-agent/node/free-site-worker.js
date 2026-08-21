@@ -318,7 +318,11 @@ async function markSeen(mailAuth, uid) {
 async function processRequest({ request, state, mailAuth }) {
   const key = request.messageId || `uid-${request.uid}`;
   const existingState = state.messages[key];
-  if (existingState?.status === 'processed' || existingState?.status === 'existing') return { skipped: true };
+  if (existingState?.status === 'processed') return { skipped: true };
+  if (existingState?.status === 'existing') {
+    await markSeen(mailAuth, request.uid);
+    return { skipped: true, existing: true, siteUrl: existingState.siteUrl };
+  }
   if (existingState?.status === 'publishing' && existingState.siteUrl) {
     if (!(await verifyLive(existingState.siteUrl))) return { pending: true, siteUrl: existingState.siteUrl };
     await sendLiveReply(mailAuth, request, existingState.siteUrl);
@@ -400,7 +404,7 @@ async function runOnce() {
   let acted = 0;
   for (const request of requests) {
     const key = request.messageId || `uid-${request.uid}`;
-    if (state.messages[key]?.status === 'processed' || state.messages[key]?.status === 'existing') continue;
+    if (state.messages[key]?.status === 'processed') continue;
     try {
       const result = await processRequest({ request, state, mailAuth });
       if (result?.processed || result?.pending || result?.existing) acted += 1;
