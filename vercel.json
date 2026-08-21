@@ -58,7 +58,7 @@
   ],
   "redirects": [
     {
-      "source": "/:path((?!api(?:/|$)|webhooks(?:/|$))(?!.*\\.[^/]+$).+[^/])",
+      "source": "/:path((?!api(?:/|$)|webhooks(?:/|$))(?!.*\\.[^/]+$).*[^/])",
       "has": [{ "type": "header", "key": "accept", "value": ".*text/html.*" }],
       "destination": "/:path/",
       "permanent": true

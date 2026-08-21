@@ -14,9 +14,10 @@ describe('static page URL routing', () => {
   it('canonicalizes extensionless HTML navigations to a trailing slash', async () => {
     const config = JSON.parse(await readProjectFile('vercel.json'));
     const redirects = Array.isArray(config.redirects) ? config.redirects : [];
+    const expectedSource = '/:path((?!api(?:/|$)|webhooks(?:/|$))(?!.*\\.[^/]+$).*[^/])';
 
     const rule = redirects.find((redirect) =>
-      redirect.source === '/:path((?!api(?:/|$)|webhooks(?:/|$))(?!.*\\.[^/]+$).+[^/])'
+      redirect.source === expectedSource
       && redirect.destination === '/:path/'
       && redirect.permanent === true
     );
@@ -25,6 +26,15 @@ describe('static page URL routing', () => {
     assert.deepEqual(rule.has, [
       { type: 'header', key: 'accept', value: '.*text/html.*' }
     ]);
+
+    const routePattern = new RegExp(`^${expectedSource.slice('/:path('.length, -1)}$`);
+    assert.equal(routePattern.test('calendar'), true);
+    assert.equal(routePattern.test('x'), true);
+    assert.equal(routePattern.test('tools/editor'), true);
+    assert.equal(routePattern.test('api/calendar'), false);
+    assert.equal(routePattern.test('webhooks/stripe'), false);
+    assert.equal(routePattern.test('calendar/app.js'), false);
+    assert.equal(routePattern.test('calendar/'), false);
   });
 
   it('keeps directory-local assets relative to the canonical page URL', async () => {
