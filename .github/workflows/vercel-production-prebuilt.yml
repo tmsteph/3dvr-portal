@@ -8,6 +8,13 @@ on:
       - ".github/workflows/vercel-production-prebuilt.yml"
       - "workspace/**"
       - "codex-cloud/**"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/vercel-production-prebuilt.yml"
+      - "workspace/**"
+      - "codex-cloud/**"
   workflow_dispatch:
 
 permissions:
@@ -27,6 +34,12 @@ env:
 jobs:
   deploy:
     name: Build production artifact and deploy
+    # Agent-compatible manual deploy lane: only same-repo deploy/production-* PRs
+    # may use the pull_request trigger. Ordinary PRs and forks cannot deploy.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       startsWith(github.head_ref, 'deploy/production-'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
