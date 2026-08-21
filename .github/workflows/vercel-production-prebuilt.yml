@@ -17,9 +17,11 @@ concurrency:
   group: vercel-production-prebuilt
   cancel-in-progress: true
 
+# portal.3dvr.tech is attached to this long-lived Vercel project. Keep these
+# public IDs explicit so deployment cannot silently drift to a duplicate project.
 env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z
+  VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
 jobs:
@@ -31,8 +33,8 @@ jobs:
       - name: Check Vercel production configuration
         shell: bash
         run: |
-          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "::error::Missing Vercel production deployment secrets."
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::Missing VERCEL_TOKEN production deployment secret."
             exit 1
           fi
 
@@ -70,6 +72,7 @@ jobs:
             echo "Deployment: $DEPLOY_URL"
             echo "Commit: $GITHUB_SHA"
             echo "Environment: production"
+            echo "Project: $VERCEL_PROJECT_ID"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify production routes

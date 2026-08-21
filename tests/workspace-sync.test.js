@@ -34,12 +34,21 @@ test('relay timeout never auto-saves empty startup state', async () => {
   assert.doesNotMatch(timeoutBlock, /\bsave\s*\(/, 'timeout must not overwrite unknown remote state');
 });
 
-test('production workflow deploys and verifies workspace changes', async () => {
+test('production workflow deploys workspace to the portal Vercel project', async () => {
   const workflow = await read('.github/workflows/vercel-production-prebuilt.yml');
 
   assert.match(workflow, /- "workspace\/\*\*"/);
+  assert.match(workflow, /VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z/);
+  assert.match(workflow, /VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch/);
   assert.match(workflow, /\$\{\{ steps\.deploy\.outputs\.url \}\}\/workspace\//);
   assert.match(workflow, /<title>3DVR Workspace<\/title>/);
+});
+
+test('preview workflow targets the same portal Vercel project', async () => {
+  const workflow = await read('.github/workflows/vercel-dev-preview.yml');
+
+  assert.match(workflow, /VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z/);
+  assert.match(workflow, /VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch/);
 });
 
 test('workspace and Codex Cloud link to each other', async () => {
