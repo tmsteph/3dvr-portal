@@ -16,9 +16,11 @@ on:
         required: false
         default: 'false'
 
+# Use the same long-lived project that owns portal.3dvr.tech. Public Vercel
+# project/team IDs are explicit so previews do not drift to a duplicate project.
 env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z
+  VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
   VERCEL_DEV_ALIAS: ${{ secrets.VERCEL_DEV_ALIAS }}
 
@@ -33,11 +35,11 @@ jobs:
         id: config
         shell: bash
         run: |
-          if [ -n "$VERCEL_TOKEN" ] && [ -n "$VERCEL_ORG_ID" ] && [ -n "$VERCEL_PROJECT_ID" ]; then
+          if [ -n "$VERCEL_TOKEN" ]; then
             echo "can_deploy=true" >> "$GITHUB_OUTPUT"
           else
             echo "can_deploy=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping Vercel Dev Preview because one or more Vercel secrets are not configured."
+            echo "::notice::Skipping Vercel Dev Preview because VERCEL_TOKEN is not configured for this event."
           fi
 
       - name: Checkout repository
@@ -48,7 +50,7 @@ jobs:
         if: ${{ steps.config.outputs.can_deploy == 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
