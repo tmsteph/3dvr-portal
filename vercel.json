@@ -57,6 +57,12 @@
     { "source": "/video/index.html", "destination": "/portal.3dvr.tech/video/index.html" }
   ],
   "redirects": [
+    {
+      "source": "/:path((?!api(?:/|$)|webhooks(?:/|$))(?!.*\\.[^/]+$).+[^/])",
+      "has": [{ "type": "header", "key": "accept", "value": ".*text/html.*" }],
+      "destination": "/:path/",
+      "permanent": true
+    },
     { "source": "/", "has": [{ "type": "host", "value": "crm.3dvr.tech" }], "destination": "/crm/", "permanent": false },
     { "source": "/", "has": [{ "type": "host", "value": "danny.3dvr.tech" }], "destination": "/danny/", "permanent": false },
     { "source": "/", "has": [{ "type": "host", "value": "thomas-av.3dvr.tech" }], "destination": "/thomas-av/", "permanent": false },
