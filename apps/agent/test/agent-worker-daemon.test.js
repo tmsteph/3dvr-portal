@@ -10,6 +10,6 @@ test('agent worker daemon reloads the selected 3DVR config inside its worker ses
 
   assert.match(script, /CONFIG_FILE="\$\{THREEDVR_CONFIG_FILE:-\$HOME\/\.3dvr\/config\/env\}"/);
   assert.match(script, /export THREEDVR_CONFIG_FILE=\$config_file_q/);
-  assert.match(script, /if \[ -f \\"\\\$THREEDVR_CONFIG_FILE\\" \]; then set -a; \. \\"\\\$THREEDVR_CONFIG_FILE\\"; set \+a; fi/);
+  assert.ok(script.includes('if [ -f \\"\\$THREEDVR_CONFIG_FILE\\" ]; then set -a; . \\"\\$THREEDVR_CONFIG_FILE\\"; set +a; fi;'));
   assert.match(script, /ask-agent-queue\\" run-once/);
 });
