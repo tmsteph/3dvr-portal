@@ -110,16 +110,19 @@ jobs:
             echo "German worker status: $status"
             case "$status" in
               completed)
+                echo "remote_status=completed" >> "$GITHUB_OUTPUT"
                 printf '%s\n' "$result"
                 exit 0
                 ;;
               failed|skipped)
+                echo "remote_status=$status" >> "$GITHUB_OUTPUT"
                 printf '%s\n' "$result"
                 exit 1
                 ;;
             esac
             sleep 5
           done
+          echo "remote_status=timeout" >> "$GITHUB_OUTPUT"
           echo 'German worker did not return a completion receipt.' >&2
           exit 1
 
@@ -128,12 +131,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REMOTE_OUTCOME: ${{ steps.remote.outcome }}
+          REMOTE_STATUS: ${{ steps.remote.outputs.remote_status }}
           QUEUE_OUTCOME: ${{ steps.queue.outcome }}
         shell: bash
         run: |
           state=failure
           description='German agent stack update failed'
-          if [ "$QUEUE_OUTCOME" = success ] && [ "$REMOTE_OUTCOME" = success ]; then
+          if [ "$QUEUE_OUTCOME" != success ]; then
+            description='German worker queue enqueue failed'
+          elif [ "$REMOTE_OUTCOME" != success ]; then
+            case "$REMOTE_STATUS" in
+              failed) description='German worker ran update but remote health failed' ;;
+              skipped) description='German worker update was skipped remotely' ;;
+              timeout|'') description='German worker queue accepted task but no completion receipt arrived' ;;
+              *) description="German worker remote status: $REMOTE_STATUS" ;;
+            esac
+          else
             state=success
             description='German agent stack alive: worker, router, inbox, autopilot, heartbeat, OpenClaw'
           fi
