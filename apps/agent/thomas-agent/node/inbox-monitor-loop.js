@@ -5,6 +5,7 @@ const { getOAuthAccessToken } = require('./oauth-connection');
 
 const ROOT = path.join(__dirname, '..');
 const RUNNER = path.join(ROOT, 'scripts', 'ask-inbox');
+const FREE_SITE_WORKER = path.join(__dirname, 'free-site-worker.js');
 const DEFAULT_GMAIL_USER = String(process.env.GMAIL_USER || '3dvr.tech@gmail.com').trim().toLowerCase();
 const DEFAULT_IMAP_HOST = String(process.env.THREEDVR_INBOX_IMAP_HOST || 'imap.gmail.com').trim();
 const DEFAULT_IMAP_PORT = Number.parseInt(process.env.THREEDVR_INBOX_IMAP_PORT || '993', 10);
@@ -14,6 +15,7 @@ const RECONNECT_MIN_MS = 1000;
 const RECONNECT_MAX_MS = 60 * 1000;
 const EVENT_DEBOUNCE_MS = Number.parseInt(process.env.THREEDVR_INBOX_EVENT_DEBOUNCE_MS || '750', 10);
 const MAX_IDLE_TIME_MS = Number.parseInt(process.env.THREEDVR_INBOX_MAX_IDLE_TIME_MS || String(4 * 60 * 1000), 10);
+const LOCAL_FREE_SITE_ENABLED = !/^(0|false|no|off)$/i.test(String(process.env.THREEDVR_FREE_SITE_LOCAL_WORKER || 'true').trim());
 const FREE_SITE_DISPATCH = !/^(0|false|no|off)$/i.test(String(process.env.THREEDVR_FREE_SITE_WORKFLOW_DISPATCH || 'true').trim());
 const FREE_SITE_WORKFLOW = String(process.env.THREEDVR_FREE_SITE_WORKFLOW || 'free-site-fast-lane.yml').trim();
 const FREE_SITE_REPO = String(process.env.THREEDVR_FREE_SITE_REPO || 'tmsteph/3dvr-portal').trim();
@@ -46,16 +48,26 @@ async function runInboxCycle(reason) {
   return result;
 }
 
+async function runLocalFreeSiteWorker(reason) {
+  if (!LOCAL_FREE_SITE_ENABLED) return { ok: true, skipped: true };
+  console.log(`[inbox-monitor-loop] running local free-site worker (${reason})`);
+  const result = await runCommand(process.execPath, [FREE_SITE_WORKER], 'local free-site worker');
+  if (!result.ok) {
+    console.error(`[inbox-monitor-loop] local free-site worker exited with code ${result.code}`);
+  }
+  return result;
+}
+
 async function dispatchFreeSiteFastLane(reason) {
   if (!FREE_SITE_DISPATCH) return { ok: true, skipped: true };
-  console.log(`[inbox-monitor-loop] dispatching free-site fast lane (${reason})`);
+  console.log(`[inbox-monitor-loop] dispatching free-site fallback (${reason})`);
   const result = await runCommand(
     'gh',
     ['workflow', 'run', FREE_SITE_WORKFLOW, '--repo', FREE_SITE_REPO, '--ref', 'main'],
     'free-site workflow dispatch'
   );
   if (!result.ok) {
-    console.error('[inbox-monitor-loop] free-site dispatch failed; the scheduled GitHub fallback remains available');
+    console.error('[inbox-monitor-loop] free-site fallback dispatch failed; the scheduled GitHub fallback remains available');
   }
   return result;
 }
@@ -104,8 +116,11 @@ function makeProcessor() {
       do {
         pending = false;
         const reason = pendingReason;
+        const freeSite = await runLocalFreeSiteWorker(reason);
+        if (!freeSite.ok) {
+          await dispatchFreeSiteFastLane(reason);
+        }
         await runInboxCycle(reason);
-        await dispatchFreeSiteFastLane(reason);
       } while (pending);
     } finally {
       running = false;
