@@ -11,7 +11,7 @@ function loadHeartbeatModule() {
   return require(modulePath);
 }
 
-test('agent heartbeat snapshot reflects tmux state and formats a readable summary', async () => {
+test('agent heartbeat snapshot reflects the full living stack and formats a readable summary', async () => {
   const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-heartbeat-'));
   const binDir = path.join(tmp, 'bin');
   await mkdir(binDir, { recursive: true });
@@ -35,6 +35,8 @@ exit 1
     THREEDVR_AGENT_OWNER_ALIAS: process.env.THREEDVR_AGENT_OWNER_ALIAS,
     THREEDVR_INBOX_TMUX_SESSION: process.env.THREEDVR_INBOX_TMUX_SESSION,
     THREEDVR_AUTOPILOT_TMUX_SESSION: process.env.THREEDVR_AUTOPILOT_TMUX_SESSION,
+    THREEDVR_AGENT_WORKER_TMUX_SESSION: process.env.THREEDVR_AGENT_WORKER_TMUX_SESSION,
+    THREEDVR_CONTEXT_TASK_ROUTER_TMUX_SESSION: process.env.THREEDVR_CONTEXT_TASK_ROUTER_TMUX_SESSION,
     THREEDVR_LEADS_FILE: process.env.THREEDVR_LEADS_FILE,
     THREEDVR_OUTREACH_LOG_FILE: process.env.THREEDVR_OUTREACH_LOG_FILE,
     THREEDVR_INBOX_STATE_FILE: process.env.THREEDVR_INBOX_STATE_FILE,
@@ -53,10 +55,12 @@ exit 1
     process.env.THREEDVR_AGENT_OWNER_ALIAS = 'ops@3dvr';
     process.env.THREEDVR_INBOX_TMUX_SESSION = 'beat-inbox';
     process.env.THREEDVR_AUTOPILOT_TMUX_SESSION = 'beat-outreach';
+    process.env.THREEDVR_AGENT_WORKER_TMUX_SESSION = 'beat-worker';
+    process.env.THREEDVR_CONTEXT_TASK_ROUTER_TMUX_SESSION = 'beat-router';
     process.env.THREEDVR_LEADS_FILE = leadsFile;
     process.env.THREEDVR_OUTREACH_LOG_FILE = outreachLogFile;
     process.env.THREEDVR_INBOX_STATE_FILE = inboxStateFile;
-    process.env.FAKE_TMUX_RUNNING_SESSIONS = 'beat-inbox,beat-outreach';
+    process.env.FAKE_TMUX_RUNNING_SESSIONS = 'beat-inbox,beat-outreach,beat-worker,beat-router';
 
     const heartbeat = loadHeartbeatModule();
 
@@ -66,6 +70,8 @@ exit 1
     assert.equal(running.status, 'running');
     assert.equal(running.inbox.running, true);
     assert.equal(running.outreach.running, true);
+    assert.equal(running.worker.running, true);
+    assert.equal(running.router.running, true);
     assert.equal(running.sales.ownerAlias, 'ops@3dvr');
     assert.equal(running.sales.leads.statusCounts.new, 1);
     assert.match(running.startedAt, /^\d{4}-\d{2}-\d{2}T/);
@@ -76,22 +82,29 @@ exit 1
     assert.match(runningSummary, /Status: running/);
     assert.match(runningSummary, /Inbox: running \(beat-inbox\)/);
     assert.match(runningSummary, /Outreach: running \(beat-outreach\)/);
+    assert.match(runningSummary, /Task worker: running \(beat-worker\)/);
+    assert.match(runningSummary, /Context router: running \(beat-router\)/);
     assert.match(runningSummary, /Sales: new=1, contacted=0, replied=0, failed=0, manual=0, today=0/);
 
-    process.env.FAKE_TMUX_RUNNING_SESSIONS = 'beat-inbox';
+    process.env.FAKE_TMUX_RUNNING_SESSIONS = 'beat-inbox,beat-worker';
     const degraded = heartbeat.getRuntimeSnapshot();
     assert.equal(degraded.status, 'degraded');
     assert.equal(degraded.inbox.running, true);
     assert.equal(degraded.outreach.running, false);
+    assert.equal(degraded.worker.running, true);
+    assert.equal(degraded.router.running, false);
 
     const degradedSummary = heartbeat.summarizeRuntime(degraded);
     assert.match(degradedSummary, /Status: degraded/);
     assert.match(degradedSummary, /Outreach: stopped \(beat-outreach\)/);
+    assert.match(degradedSummary, /Context router: stopped \(beat-router\)/);
   } finally {
     process.env.PATH = originalEnv.PATH;
     process.env.THREEDVR_AGENT_OWNER_ALIAS = originalEnv.THREEDVR_AGENT_OWNER_ALIAS;
     process.env.THREEDVR_INBOX_TMUX_SESSION = originalEnv.THREEDVR_INBOX_TMUX_SESSION;
     process.env.THREEDVR_AUTOPILOT_TMUX_SESSION = originalEnv.THREEDVR_AUTOPILOT_TMUX_SESSION;
+    process.env.THREEDVR_AGENT_WORKER_TMUX_SESSION = originalEnv.THREEDVR_AGENT_WORKER_TMUX_SESSION;
+    process.env.THREEDVR_CONTEXT_TASK_ROUTER_TMUX_SESSION = originalEnv.THREEDVR_CONTEXT_TASK_ROUTER_TMUX_SESSION;
     process.env.THREEDVR_LEADS_FILE = originalEnv.THREEDVR_LEADS_FILE;
     process.env.THREEDVR_OUTREACH_LOG_FILE = originalEnv.THREEDVR_OUTREACH_LOG_FILE;
     process.env.THREEDVR_INBOX_STATE_FILE = originalEnv.THREEDVR_INBOX_STATE_FILE;
