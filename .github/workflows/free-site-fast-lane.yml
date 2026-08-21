@@ -3,6 +3,7 @@ name: Free Site Fast Lane
 on:
   schedule:
     # GitHub Actions scheduled workflows support a five-minute minimum cadence.
+    # Recovery trigger: 2026-08-21T09:46Z
     - cron: '*/5 * * * *'
   workflow_dispatch:
   push:
