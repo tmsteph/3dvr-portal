@@ -84,7 +84,8 @@ async function runSupervisorCycle(options = {}) {
     const lastRestartAt = state.lastRestartAt.get(service.name) || 0;
     const cooldownMs = (options.restartCooldownSeconds || RESTART_COOLDOWN_SECONDS) * 1000;
     const threshold = options.failureThreshold || FAILURE_THRESHOLD;
-    if (failures < threshold || now - lastRestartAt < cooldownMs) continue;
+    const coolingDown = lastRestartAt > 0 && now - lastRestartAt < cooldownMs;
+    if (failures < threshold || coolingDown) continue;
 
     const restart = runDaemonImpl(service, 'start', options);
     state.lastRestartAt.set(service.name, now);
