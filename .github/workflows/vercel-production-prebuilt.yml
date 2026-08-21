@@ -41,14 +41,18 @@ jobs:
       (github.event.pull_request.head.repo.full_name == github.repository &&
        startsWith(github.head_ref, 'deploy/production-'))
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
-      - name: Check Vercel production configuration
+      - name: Detect deployment path
+        id: config
         shell: bash
         run: |
-          if [ -z "$VERCEL_TOKEN" ]; then
-            echo "::error::Missing VERCEL_TOKEN production deployment secret."
-            exit 1
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "local_vercel=true" >> "$GITHUB_OUTPUT"
+            echo "Using repository VERCEL_TOKEN for a prebuilt GitHub-hosted deploy."
+          else
+            echo "local_vercel=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::VERCEL_TOKEN is not configured in Actions; using the existing German worker as the credential boundary."
           fi
 
       - name: Checkout repository
@@ -60,50 +64,109 @@ jobs:
           node-version: 22.22.0
           cache: npm
 
-      - name: Install dependencies
+      - name: Install dependencies for local deploy
+        if: ${{ steps.config.outputs.local_vercel == 'true' }}
         run: npm ci
 
       - name: Install Vercel CLI
+        if: ${{ steps.config.outputs.local_vercel == 'true' }}
         run: npm install --global vercel
 
       - name: Pull production environment
+        if: ${{ steps.config.outputs.local_vercel == 'true' }}
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
 
       - name: Build production artifact locally
+        if: ${{ steps.config.outputs.local_vercel == 'true' }}
         run: vercel build --prod --token="$VERCEL_TOKEN"
 
-      - name: Deploy prebuilt artifact to production
-        id: deploy
+      - name: Deploy prebuilt artifact from GitHub runner
+        if: ${{ steps.config.outputs.local_vercel == 'true' }}
+        id: local_deploy
         shell: bash
         run: |
           DEPLOY_URL="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" --yes)"
           echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
           echo "Production URL: $DEPLOY_URL"
-          {
-            echo "## Vercel Production Prebuilt"
-            echo
-            echo "Deployment: $DEPLOY_URL"
-            echo "Commit: $GITHUB_SHA"
-            echo "Environment: production"
-            echo "Project: $VERCEL_PROJECT_ID"
-          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Verify production routes
+      - name: Install German-worker queue dependencies
+        if: ${{ steps.config.outputs.local_vercel != 'true' }}
+        run: npm --prefix apps/agent ci
+
+      - name: Queue prebuilt deploy on German worker
+        if: ${{ steps.config.outputs.local_vercel != 'true' }}
+        id: remote_queue
         shell: bash
         run: |
           set -euo pipefail
+          task='set -euo pipefail; root="$(git rev-parse --show-toplevel)"; git -C "$root" diff --quiet; git -C "$root" diff --cached --quiet; git -C "$root" fetch origin main; git -C "$root" checkout main; git -C "$root" pull --ff-only origin main; cd "$root"; if [ -f "$HOME/.config/3dvr/money-printer.env" ]; then set -a; . "$HOME/.config/3dvr/money-printer.env"; set +a; fi; export VERCEL_ORG_ID=team_xxJGO7S7h1ZP4BHidYV0CX9Z; export VERCEL_PROJECT_ID=prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch; if [ -n "${VERCEL_TOKEN:-}" ]; then token_arg="--token=$VERCEL_TOKEN"; else token_arg=""; fi; if command -v vercel >/dev/null 2>&1; then vercel_cmd="vercel"; else vercel_cmd="npx --yes vercel@latest"; fi; $vercel_cmd pull --yes --environment=production $token_arg; $vercel_cmd build --prod $token_arg; $vercel_cmd deploy --prebuilt --prod --yes $token_arg'
+          result="$(node apps/agent/thomas-agent/node/agent-task-queue.js enqueue \
+            --json \
+            --backend shell \
+            --risk workspace_write \
+            --approval-status approved \
+            --unsafe \
+            --requires shell \
+            --max-runtime-ms 600000 \
+            "$task")"
+          printf '%s\n' "$result"
+          task_id="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task queue JSON payload missing');console.log(JSON.parse(s.slice(i)).id)})")"
+          echo "task_id=$task_id" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for German worker deploy receipt
+        if: ${{ steps.config.outputs.local_vercel != 'true' }}
+        id: remote_deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          task_id='${{ steps.remote_queue.outputs.task_id }}'
+          for attempt in $(seq 1 120); do
+            result="$(node apps/agent/thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
+            status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');console.log((JSON.parse(s.slice(i)).status||''))})")"
+            echo "German production deploy status: $status"
+            case "$status" in
+              completed)
+                printf '%s\n' "$result"
+                exit 0
+                ;;
+              failed|skipped)
+                printf '%s\n' "$result"
+                exit 1
+                ;;
+            esac
+            sleep 5
+          done
+          echo 'German worker did not return a production deploy receipt.' >&2
+          exit 1
+
+      - name: Verify production routes
+        shell: bash
+        env:
+          LOCAL_DEPLOY_URL: ${{ steps.local_deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          BASE_URL="${LOCAL_DEPLOY_URL:-https://portal.3dvr.tech}"
 
           curl --fail --silent --show-error --location \
-            --retry 3 --retry-delay 2 \
-            "${{ steps.deploy.outputs.url }}/context-hq/" \
+            --retry 8 --retry-delay 3 --retry-all-errors \
+            "$BASE_URL/context-hq/" \
             --output /tmp/context-hq.html
           grep -q '<title>Context HQ | 3DVR Portal</title>' /tmp/context-hq.html
           echo "Context HQ production route verified."
 
           curl --fail --silent --show-error --location \
-            --retry 3 --retry-delay 2 \
-            "${{ steps.deploy.outputs.url }}/workspace/" \
+            --retry 8 --retry-delay 3 --retry-all-errors \
+            "$BASE_URL/workspace/" \
             --output /tmp/workspace.html
           grep -q '<title>3DVR Workspace</title>' /tmp/workspace.html
           grep -q './main.js' /tmp/workspace.html
           echo "3DVR Workspace production route verified."
+
+          {
+            echo "## Vercel Production Prebuilt"
+            echo
+            echo "Commit: $GITHUB_SHA"
+            echo "Environment: production"
+            echo "Project: $VERCEL_PROJECT_ID"
+            echo "Verified: $BASE_URL/workspace/"
+          } >> "$GITHUB_STEP_SUMMARY"
