@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - ".github/workflows/vercel-production-prebuilt.yml"
+      - "scripts/vercel/deploy-production-worker.sh"
       - "workspace/**"
       - "codex-cloud/**"
   pull_request:
@@ -13,6 +14,7 @@ on:
       - main
     paths:
       - ".github/workflows/vercel-production-prebuilt.yml"
+      - "scripts/vercel/deploy-production-worker.sh"
       - "workspace/**"
       - "codex-cloud/**"
   workflow_dispatch:
@@ -99,7 +101,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          task='set -euo pipefail; root="$(git rev-parse --show-toplevel)"; git -C "$root" diff --quiet; git -C "$root" diff --cached --quiet; git -C "$root" fetch origin main; git -C "$root" checkout main; git -C "$root" pull --ff-only origin main; cd "$root"; if [ -f "$HOME/.config/3dvr/money-printer.env" ]; then set -a; . "$HOME/.config/3dvr/money-printer.env"; set +a; fi; export VERCEL_ORG_ID=team_xxJGO7S7h1ZP4BHidYV0CX9Z; export VERCEL_PROJECT_ID=prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch; if [ -n "${VERCEL_TOKEN:-}" ]; then token_arg="--token=$VERCEL_TOKEN"; else token_arg=""; fi; if command -v vercel >/dev/null 2>&1; then vercel_cmd="vercel"; else vercel_cmd="npx --yes vercel@latest"; fi; $vercel_cmd pull --yes --environment=production $token_arg; $vercel_cmd build --prod $token_arg; $vercel_cmd deploy --prebuilt --prod --yes $token_arg'
+          script_ref="${GITHUB_HEAD_REF:-main}"
+          printf -v quoted_ref '%q' "$script_ref"
+          task="git fetch origin $quoted_ref && git show FETCH_HEAD:scripts/vercel/deploy-production-worker.sh | bash"
           result="$(node apps/agent/thomas-agent/node/agent-task-queue.js enqueue \
             --json \
             --backend shell \
@@ -121,8 +125,16 @@ jobs:
           set -euo pipefail
           task_id='${{ steps.remote_queue.outputs.task_id }}'
           for attempt in $(seq 1 120); do
-            result="$(node apps/agent/thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
-            status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');console.log((JSON.parse(s.slice(i)).status||''))})")"
+            if ! result="$(node apps/agent/thomas-agent/node/agent-task-queue.js status --id "$task_id" --json 2>/tmp/3dvr-task-status.err)"; then
+              echo "::warning::Transient task status read failed; retrying ($attempt/120)."
+              sleep 2
+              continue
+            fi
+            if ! status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)process.exit(2);console.log((JSON.parse(s.slice(i)).status||''))})")"; then
+              echo "::warning::Task status payload was incomplete; retrying ($attempt/120)."
+              sleep 2
+              continue
+            fi
             echo "German production deploy status: $status"
             case "$status" in
               completed)
