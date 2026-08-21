@@ -6,14 +6,9 @@ on:
       - test/free-site-mailbox-probe-20260820
     paths:
       - ".github/workflows/free-site-mailbox-probe.yml"
-  pull_request:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/free-site-mailbox-probe.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   probe:
@@ -27,6 +22,8 @@ jobs:
       GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: test/free-site-mailbox-probe-20260820
       - uses: actions/setup-node@v4
         with:
           node-version: 22.22.0
@@ -37,6 +34,7 @@ jobs:
         shell: bash
         run: |
           node --input-type=module <<'NODE'
+          import fs from 'node:fs';
           import { ImapFlow } from 'imapflow';
 
           const user = process.env.GMAIL_USER || '3dvr.tech@gmail.com';
@@ -71,6 +69,22 @@ jobs:
             await client.logout();
           }
 
-          console.log(`FREE_SITE_REQUEST_FOUND=${found}`);
-          if (!found) process.exitCode = 2;
+          fs.writeFileSync('/tmp/free-site-mailbox-probe.txt', found ? 'FOUND\n' : 'NOT_FOUND\n');
+          console.log('Mailbox probe completed; private content was not logged.');
           NODE
+      - name: Persist privacy-safe receipt
+        shell: bash
+        working-directory: .
+        run: |
+          mkdir -p ops/tmp
+          cp /tmp/free-site-mailbox-probe.txt ops/tmp/free-site-mailbox-probe.txt
+          git config user.name "3DVR Actions"
+          git config user.email "3dvr.tech@gmail.com"
+          git add -- ops/tmp/free-site-mailbox-probe.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "test: record mailbox probe result"
+            git push origin HEAD:test/free-site-mailbox-probe-20260820
+          fi
+      - name: Require request to be found
+        shell: bash
+        run: test "$(cat /tmp/free-site-mailbox-probe.txt)" = "FOUND"
