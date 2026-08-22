@@ -1,0 +1,105 @@
+name: 3DVR Managed Worker Diagnostic
+
+on:
+  push:
+    branches:
+      - 'worker-diag/**'
+
+permissions:
+  contents: write
+  statuses: write
+
+concurrency:
+  group: 3dvr-worker-diag
+  cancel-in-progress: true
+
+env:
+  MANAGED_OWNER_ALIAS: ${{ vars.THREEDVR_AGENT_TASK_OWNER_ALIAS || '3dvr-managed' }}
+
+jobs:
+  diagnose:
+    if: ${{ !contains(github.event.head_commit.message, '[diag-result]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    defaults:
+      run:
+        working-directory: apps/agent
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+          cache-dependency-path: apps/agent/package-lock.json
+
+      - name: Install queue client
+        run: npm ci
+
+      - name: Probe managed shell worker
+        id: probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          task='printf "HOST=%s\nLOAD=%s\nMEMORY=%s\n" "$(hostname)" "$(cut -d " " -f 1-3 /proc/loadavg 2>/dev/null || true)" "$(free -h 2>/dev/null | awk '\''/^Mem:/{print $3 "/" $2}'\'' || true)"'
+          result="$(THREEDVR_AGENT_OWNER_ALIAS="$MANAGED_OWNER_ALIAS" node thomas-agent/node/agent-task-queue.js enqueue \
+            --json \
+            --backend shell \
+            --risk read_only \
+            --approval-status approved \
+            --unsafe \
+            --requires shell,node \
+            --max-runtime-ms 30000 \
+            "$task")"
+          task_id="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');console.log(JSON.parse(s.slice(i)).id)})")"
+          echo "task_id=$task_id" >> "$GITHUB_OUTPUT"
+
+          final=''
+          for attempt in $(seq 1 18); do
+            result="$(THREEDVR_AGENT_OWNER_ALIAS="$MANAGED_OWNER_ALIAS" node thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
+            status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');console.log((JSON.parse(s.slice(i)).status)||'')})")"
+            echo "probe status: $status"
+            case "$status" in
+              completed|failed|skipped)
+                final="$result"
+                break
+                ;;
+            esac
+            sleep 5
+          done
+
+          if [ -z "$final" ]; then
+            final="$(THREEDVR_AGENT_OWNER_ALIAS="$MANAGED_OWNER_ALIAS" node thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
+          fi
+          printf '%s\n' "$final" > /tmp/3dvr-worker-diag.json
+
+      - name: Persist diagnostic result
+        if: always()
+        shell: bash
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ ! -s /tmp/3dvr-worker-diag.json ]; then
+            printf '{"status":"workflow_failed_before_result","sourceSha":"%s"}\n' "$SOURCE_SHA" > /tmp/3dvr-worker-diag.json
+          fi
+          node - <<'NODE' >/tmp/payload.json
+          const fs = require('fs');
+          const content = fs.readFileSync('/tmp/3dvr-worker-diag.json');
+          const payload = {
+            message: 'Record managed worker diagnostic [diag-result]',
+            content: content.toString('base64'),
+            branch: process.env.BRANCH,
+          };
+          process.stdout.write(JSON.stringify(payload));
+          NODE
+          curl -fsS -X PUT \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/worker-diagnostic-result.json" \
+            --data-binary @/tmp/payload.json
