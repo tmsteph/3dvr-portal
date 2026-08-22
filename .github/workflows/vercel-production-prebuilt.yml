@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/vercel-production-prebuilt.yml"
       - "scripts/vercel/deploy-production-worker.sh"
+      - "index.html"
       - "workspace/**"
       - "codex-cloud/**"
   pull_request:
@@ -15,6 +16,7 @@ on:
     paths:
       - ".github/workflows/vercel-production-prebuilt.yml"
       - "scripts/vercel/deploy-production-worker.sh"
+      - "index.html"
       - "workspace/**"
       - "codex-cloud/**"
   workflow_dispatch:
@@ -162,6 +164,14 @@ jobs:
 
           curl --fail --silent --show-error --location \
             --retry 8 --retry-delay 3 --retry-all-errors \
+            "$BASE_URL/" \
+            --output /tmp/portal-home.html
+          grep -q '<title>3DVR Portal</title>' /tmp/portal-home.html
+          grep -q 'id="home-title">What do you want to do?' /tmp/portal-home.html
+          echo "3DVR Portal homepage verified."
+
+          curl --fail --silent --show-error --location \
+            --retry 8 --retry-delay 3 --retry-all-errors \
             "$BASE_URL/context-hq/" \
             --output /tmp/context-hq.html
           grep -q '<title>Context HQ | 3DVR Portal</title>' /tmp/context-hq.html
@@ -181,5 +191,6 @@ jobs:
             echo "Commit: $GITHUB_SHA"
             echo "Environment: production"
             echo "Project: $VERCEL_PROJECT_ID"
+            echo "Verified: $BASE_URL/"
             echo "Verified: $BASE_URL/workspace/"
           } >> "$GITHUB_STEP_SUMMARY"
