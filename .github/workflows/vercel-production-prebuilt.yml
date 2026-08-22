@@ -17,6 +17,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: vercel-production
@@ -34,6 +35,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - name: Acknowledge owner trigger
+        if: github.event_name == 'issues'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue comment "${{ github.event.issue.number }}" --repo "${{ github.repository }}" --body "Production deploy started."
+
       - name: Require direct Vercel credentials
         shell: bash
         run: |
@@ -111,3 +118,16 @@ jobs:
           grep -q 'data-portal-swirl-logo' /tmp/live-portal-home.html
           grep -q 'id="homeOperatorForm"' /tmp/live-portal-home.html
           echo "Canonical production verified at portal.3dvr.tech."
+
+      - name: Report success on owner trigger
+        if: success() && github.event_name == 'issues'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+        run: gh issue comment "${{ github.event.issue.number }}" --repo "${{ github.repository }}" --body "Production deploy succeeded: ${DEPLOY_URL}"
+
+      - name: Report failure on owner trigger
+        if: failure() && github.event_name == 'issues'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue comment "${{ github.event.issue.number }}" --repo "${{ github.repository }}" --body "Production deploy failed. Open the Vercel Production workflow run for the failing step."
