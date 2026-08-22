@@ -1,14 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':(exclude)apps/agent/**' ':(exclude)apps/companion/**'",
-  "redirects": [
-    {
-      "source": "/",
-      "has": [{ "type": "host", "value": "wenzo.3dvr.tech" }],
-      "destination": "/wenzo/",
-      "permanent": false
-    }
-  ],
   "crons": [
     { "path": "/api/growth/homepage-hero-cron", "schedule": "43 2 * * *" },
     { "path": "/api/money/autopilot-cron", "schedule": "17 16 * * 1-5" }
@@ -54,6 +46,7 @@
     { "source": "/video/index.html", "destination": "/portal.3dvr.tech/video/index.html" }
   ],
   "redirects": [
+    { "source": "/", "has": [{ "type": "host", "value": "wenzo.3dvr.tech" }], "destination": "/wenzo/", "permanent": false },
     {
       "source": "/:path((?!api(?:/|$)|webhooks(?:/|$))(?!.*\\.[^/]+$).*[^/])",
       "has": [{ "type": "header", "key": "accept", "value": ".*text/html.*" }],
