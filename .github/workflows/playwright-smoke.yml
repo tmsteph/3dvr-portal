@@ -31,3 +31,63 @@ jobs:
 
       - name: Run Playwright checks
         run: npm run playwright:verify:linux
+
+  deploy_portal_production:
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login == github.repository_owner && startsWith(github.head_ref, 'deploy/portal-production')
+    name: Deploy canonical portal production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z
+      VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Require direct Vercel credentials
+        shell: bash
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::VERCEL_TOKEN is not configured."
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel
+
+      - name: Pull production environment
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Build production artifact
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy production artifact
+        id: deploy
+        shell: bash
+        run: |
+          DEPLOY_URL="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" --yes)"
+          echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+          echo "Production URL: $DEPLOY_URL"
+
+      - name: Verify restored portal
+        shell: bash
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 8 --retry-delay 3 --retry-all-errors "$DEPLOY_URL/" --output /tmp/deployed-home.html
+          grep -q 'data-portal-swirl-logo' /tmp/deployed-home.html
+          grep -q 'id="homeOperatorForm"' /tmp/deployed-home.html
+          curl --fail --silent --show-error --location --retry 12 --retry-delay 5 --retry-all-errors 'https://portal.3dvr.tech/' --output /tmp/live-home.html
+          grep -q 'data-portal-swirl-logo' /tmp/live-home.html
+          grep -q 'id="homeOperatorForm"' /tmp/live-home.html
