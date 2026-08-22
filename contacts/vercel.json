@@ -43,5 +43,6 @@
         }
       ]
     }
-  ]
+  ],
+  "ignoreCommand": "sh ./ignore-build.sh"
 }
