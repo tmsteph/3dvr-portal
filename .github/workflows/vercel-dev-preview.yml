@@ -1,23 +1,22 @@
 name: Vercel Dev Preview
 
 on:
-  push:
-    branches:
-      - main
-      - dev
-  pull_request:
-    branches:
-      - main
-      - dev
   workflow_dispatch:
     inputs:
       set_alias:
         description: 'Alias this deployment to the stable dev URL (uses VERCEL_DEV_ALIAS)'
         required: false
         default: 'false'
+  pull_request:
+    types:
+      - labeled
 
-# Use the same long-lived project that owns portal.3dvr.tech. Public Vercel
-# project/team IDs are explicit so previews do not drift to a duplicate project.
+# Preview deployments are opt-in so routine agent/docs/backend PR churn does not
+# consume the Vercel Hobby deployment quota. Add the `vercel-preview` label when
+# a live browser preview is actually useful, or run this workflow manually.
+permissions:
+  contents: read
+
 env:
   VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z
   VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch
@@ -27,9 +26,10 @@ env:
 jobs:
   deploy-preview:
     name: Deploy preview alias
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.label.name == 'vercel-preview' }}
     runs-on: ubuntu-latest
     env:
-      SHOULD_ALIAS: ${{ (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.set_alias == 'true') }}
+      SHOULD_ALIAS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.set_alias == 'true' }}
     steps:
       - name: Check Vercel preview configuration
         id: config

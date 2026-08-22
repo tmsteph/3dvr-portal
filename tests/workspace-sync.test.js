@@ -34,15 +34,12 @@ test('relay timeout never auto-saves empty startup state', async () => {
   assert.doesNotMatch(timeoutBlock, /\bsave\s*\(/, 'timeout must not overwrite unknown remote state');
 });
 
-test('production uses native Vercel Git with a direct manual fallback', async () => {
+test('production uses native Vercel Git on main with a direct manual fallback', async () => {
   const workflow = await read('.github/workflows/vercel-production-prebuilt.yml');
   const vercelConfig = await read('vercel.json');
 
-  assert.doesNotMatch(
-    vercelConfig,
-    /"deploymentEnabled"\s*:\s*false/,
-    'native Vercel Git deployments must stay enabled'
-  );
+  assert.match(vercelConfig, /"\*"\s*:\s*false/);
+  assert.match(vercelConfig, /"main"\s*:\s*true/);
   assert.match(workflow, /workflow_dispatch:/);
   assert.doesNotMatch(workflow, /^\s*push:/m);
   assert.doesNotMatch(workflow, /^\s*pull_request:/m);
@@ -52,9 +49,14 @@ test('production uses native Vercel Git with a direct manual fallback', async ()
   assert.doesNotMatch(workflow, /German worker/i);
 });
 
-test('preview workflow targets the same portal Vercel project', async () => {
+test('preview workflow is opt-in and targets the portal Vercel project', async () => {
   const workflow = await read('.github/workflows/vercel-dev-preview.yml');
 
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /pull_request:/);
+  assert.match(workflow, /- labeled/);
+  assert.match(workflow, /vercel-preview/);
+  assert.doesNotMatch(workflow, /^\s*push:/m);
   assert.match(workflow, /VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z/);
   assert.match(workflow, /VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch/);
 });
