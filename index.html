@@ -18,9 +18,7 @@
       color: #e6edf3;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -31,14 +29,8 @@
       color: #e6edf3;
     }
 
-    a {
-      color: inherit;
-    }
-
-    button,
-    input {
-      font: inherit;
-    }
+    a { color: inherit; }
+    button, input { font: inherit; }
 
     .shell {
       width: min(100%, 760px);
@@ -66,10 +58,7 @@
       letter-spacing: -0.02em;
     }
 
-    .brand img {
-      width: 28px;
-      height: 28px;
-    }
+    .brand img { width: 28px; height: 28px; }
 
     .top-action,
     .menu summary {
@@ -95,17 +84,9 @@
       outline: none;
     }
 
-    .menu {
-      position: relative;
-    }
-
-    .menu summary {
-      list-style: none;
-    }
-
-    .menu summary::-webkit-details-marker {
-      display: none;
-    }
+    .menu { position: relative; }
+    .menu summary { list-style: none; }
+    .menu summary::-webkit-details-marker { display: none; }
 
     .menu-panel {
       position: absolute;
@@ -140,9 +121,7 @@
       padding: 42px 0 80px;
     }
 
-    .home {
-      width: 100%;
-    }
+    .home { width: 100%; }
 
     .spinner-stage {
       position: relative;
@@ -166,10 +145,7 @@
       transition: transform 220ms ease, opacity 220ms ease;
     }
 
-    .spinner-stage[data-open="true"]::before {
-      opacity: 1;
-      transform: scale(1.7);
-    }
+    .spinner-stage[data-open="true"]::before { transform: scale(1.7); }
 
     .portal-swirl-logo {
       position: relative;
@@ -184,21 +160,11 @@
       user-select: none;
       -webkit-user-select: none;
       filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.34));
-      transition: filter 180ms ease, transform 180ms ease;
     }
 
-    .portal-swirl-logo:hover {
-      filter: drop-shadow(0 20px 38px rgba(34, 211, 238, 0.2));
-    }
-
-    .portal-swirl-logo:active {
-      cursor: grabbing;
-    }
-
-    .portal-swirl-logo:focus-visible {
-      outline: 3px solid rgba(88, 166, 255, 0.5);
-      outline-offset: 7px;
-    }
+    .portal-swirl-logo:hover { filter: drop-shadow(0 20px 38px rgba(34, 211, 238, 0.2)); }
+    .portal-swirl-logo:active { cursor: grabbing; }
+    .portal-swirl-logo:focus-visible { outline: 3px solid rgba(88, 166, 255, 0.5); outline-offset: 7px; }
 
     .portal-swirl-logo__canvas {
       display: block;
@@ -209,9 +175,7 @@
       transition: opacity 220ms ease;
     }
 
-    .portal-swirl-logo[data-logo-ready="true"] .portal-swirl-logo__canvas {
-      opacity: 1;
-    }
+    .portal-swirl-logo[data-logo-ready="true"] .portal-swirl-logo__canvas { opacity: 1; }
 
     .portal-swirl-logo__fallback {
       position: absolute;
@@ -220,37 +184,19 @@
       place-content: center;
       border: 2px solid rgba(216, 255, 247, 0.72);
       border-radius: 50%;
-      background:
-        radial-gradient(circle at 38% 32%, rgba(157, 231, 248, 0.92), rgba(42, 167, 191, 0.75) 32%, rgba(15, 118, 110, 0.78) 64%, #07111f 100%);
+      background: radial-gradient(circle at 38% 32%, rgba(157, 231, 248, 0.92), rgba(42, 167, 191, 0.75) 32%, rgba(15, 118, 110, 0.78) 64%, #07111f 100%);
       color: #fff;
       text-align: center;
       font-weight: 900;
       line-height: 0.9;
       box-shadow: inset 0 0 0 7px rgba(254, 215, 170, 0.3);
-      transition: opacity 220ms ease;
     }
 
-    .portal-swirl-logo__fallback span:first-child {
-      font-size: 1.6rem;
-    }
+    .portal-swirl-logo__fallback span:first-child { font-size: 1.6rem; }
+    .portal-swirl-logo__fallback span:last-child { margin-top: 5px; color: #ccfbf1; font-size: 0.82rem; }
+    .portal-swirl-logo[data-logo-ready="true"] .portal-swirl-logo__fallback { opacity: 0; pointer-events: none; }
 
-    .portal-swirl-logo__fallback span:last-child {
-      margin-top: 5px;
-      color: #ccfbf1;
-      font-size: 0.82rem;
-    }
-
-    .portal-swirl-logo[data-logo-ready="true"] .portal-swirl-logo__fallback {
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .spinner-nav {
-      position: absolute;
-      inset: 0;
-      z-index: 3;
-      pointer-events: none;
-    }
+    .spinner-nav { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 
     .spinner-nav__item {
       position: absolute;
@@ -275,72 +221,19 @@
     }
 
     .spinner-nav__item:hover,
-    .spinner-nav__item:focus-visible {
-      border-color: #79c0ff;
-      background: #13253b;
-      outline: none;
-    }
+    .spinner-nav__item:focus-visible { border-color: #79c0ff; background: #13253b; outline: none; }
+    .spinner-nav__item--day { top: 3px; left: 50%; transform: translate(-50%, 32px) scale(0.72); }
+    .spinner-nav__item--work { top: 50%; right: 0; transform: translate(-34px, -50%) scale(0.72); }
+    .spinner-nav__item--build { bottom: 3px; left: 50%; transform: translate(-50%, -32px) scale(0.72); }
+    .spinner-nav__item--apps { top: 50%; left: 0; transform: translate(34px, -50%) scale(0.72); }
+    .spinner-stage[data-open="true"] .spinner-nav__item { opacity: 1; pointer-events: auto; }
+    .spinner-stage[data-open="true"] .spinner-nav__item--day { transform: translate(-50%, 0) scale(1); }
+    .spinner-stage[data-open="true"] .spinner-nav__item--work { transform: translate(0, -50%) scale(1); }
+    .spinner-stage[data-open="true"] .spinner-nav__item--build { transform: translate(-50%, 0) scale(1); }
+    .spinner-stage[data-open="true"] .spinner-nav__item--apps { transform: translate(0, -50%) scale(1); }
 
-    .spinner-nav__item--day {
-      top: 3px;
-      left: 50%;
-      transform: translate(-50%, 32px) scale(0.72);
-    }
-
-    .spinner-nav__item--work {
-      top: 50%;
-      right: 0;
-      transform: translate(-34px, -50%) scale(0.72);
-    }
-
-    .spinner-nav__item--build {
-      bottom: 3px;
-      left: 50%;
-      transform: translate(-50%, -32px) scale(0.72);
-    }
-
-    .spinner-nav__item--apps {
-      top: 50%;
-      left: 0;
-      transform: translate(34px, -50%) scale(0.72);
-    }
-
-    .spinner-stage[data-open="true"] .spinner-nav__item {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .spinner-stage[data-open="true"] .spinner-nav__item--day {
-      transform: translate(-50%, 0) scale(1);
-    }
-
-    .spinner-stage[data-open="true"] .spinner-nav__item--work {
-      transform: translate(0, -50%) scale(1);
-    }
-
-    .spinner-stage[data-open="true"] .spinner-nav__item--build {
-      transform: translate(-50%, 0) scale(1);
-    }
-
-    .spinner-stage[data-open="true"] .spinner-nav__item--apps {
-      transform: translate(0, -50%) scale(1);
-    }
-
-    .spinner-hint {
-      margin: -2px 0 20px;
-      color: #6e7681;
-      font-size: 0.78rem;
-      text-align: center;
-    }
-
-    .eyebrow {
-      margin: 0 0 8px;
-      color: #8b949e;
-      font-size: 0.85rem;
-      font-weight: 800;
-      letter-spacing: 0.09em;
-      text-transform: uppercase;
-    }
+    .spinner-hint { margin: -2px 0 20px; color: #6e7681; font-size: 0.78rem; text-align: center; }
+    .eyebrow { margin: 0 0 8px; color: #8b949e; font-size: 0.85rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
 
     h1 {
       margin: 0;
@@ -349,45 +242,100 @@
       letter-spacing: -0.055em;
     }
 
-    .subhead {
-      margin: 18px 0 26px;
-      max-width: 38rem;
-      color: #9da7b3;
-      font-size: clamp(1rem, 3.5vw, 1.18rem);
-    }
+    .subhead { margin: 18px 0 24px; max-width: 38rem; color: #9da7b3; font-size: clamp(1rem, 3.5vw, 1.18rem); }
 
-    .operator-link {
+    .operator-link.operator-bar {
       width: 100%;
-      min-height: 62px;
-      padding: 16px 18px;
+      min-height: 64px;
+      padding: 8px 9px 8px 16px;
       display: flex;
       align-items: center;
-      gap: 12px;
-      border: 1px solid rgba(88, 166, 255, 0.5);
-      border-radius: 16px;
+      gap: 10px;
+      border: 1px solid rgba(88, 166, 255, 0.55);
+      border-radius: 17px;
       background: linear-gradient(180deg, #13253b, #101923);
-      color: #f0f6fc;
-      text-decoration: none;
       box-shadow: 0 12px 35px rgba(0, 0, 0, 0.22);
     }
 
-    .operator-link:hover,
-    .operator-link:focus-visible {
+    .operator-bar:focus-within {
       border-color: #79c0ff;
-      outline: 2px solid rgba(88, 166, 255, 0.22);
+      outline: 2px solid rgba(88, 166, 255, 0.2);
       outline-offset: 3px;
     }
 
-    .operator-link__prompt {
+    .operator-bar__label {
+      flex: 0 0 auto;
+      color: #79c0ff;
+      font-size: 0.84rem;
+      font-weight: 850;
+      letter-spacing: 0.02em;
+    }
+
+    .operator-bar input {
       flex: 1;
-      color: #c9d1d9;
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: #f0f6fc;
       font-size: clamp(1rem, 3.8vw, 1.12rem);
     }
 
-    .operator-link__go {
+    .operator-bar input::placeholder { color: #9da7b3; opacity: 1; }
+
+    .operator-bar button {
+      width: 46px;
+      height: 46px;
+      flex: 0 0 auto;
+      border: 0;
+      border-radius: 12px;
+      background: #1f6feb;
+      color: #fff;
+      font-size: 1.25rem;
       font-weight: 900;
-      color: #79c0ff;
+      cursor: pointer;
     }
+
+    .operator-bar button:hover,
+    .operator-bar button:focus-visible { background: #388bfd; outline: none; }
+    .operator-bar button:disabled { opacity: 0.55; cursor: progress; }
+
+    .operator-status { margin: 8px 4px 0; color: #6e7681; font-size: 0.78rem; }
+
+    .operator-result {
+      margin-top: 10px;
+      padding: 15px 16px;
+      border: 1px solid #30363d;
+      border-radius: 15px;
+      background: rgba(22, 27, 34, 0.92);
+      box-shadow: 0 12px 34px rgba(0, 0, 0, 0.18);
+    }
+
+    .operator-result[hidden] { display: none; }
+    .operator-result__head { display: flex; align-items: center; gap: 12px; }
+    .operator-result__head strong { margin-right: auto; color: #79c0ff; }
+    .operator-result__head a { color: #8b949e; font-size: 0.78rem; text-decoration: none; }
+    .operator-result__head a:hover { color: #c9d1d9; }
+    .operator-result p { margin: 11px 0 0; white-space: pre-wrap; color: #d7dee7; }
+
+    .operator-follow-ups { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 7px; }
+    .operator-follow-up,
+    .operator-result__action {
+      min-height: 38px;
+      padding: 8px 11px;
+      border: 1px solid #30363d;
+      border-radius: 999px;
+      background: #0d1117;
+      color: #c9d1d9;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .operator-follow-up:hover,
+    .operator-follow-up:focus-visible,
+    .operator-result__action:hover,
+    .operator-result__action:focus-visible { border-color: #58a6ff; outline: none; }
+    .operator-result__action { display: inline-flex; margin-top: 12px; color: #79c0ff; font-weight: 750; }
+    .operator-result__action[hidden] { display: none; }
 
     .actions {
       margin-top: 16px;
@@ -411,27 +359,11 @@
     }
 
     .action-card:hover,
-    .action-card:focus-visible {
-      border-color: #58a6ff;
-      transform: translateY(-1px);
-      outline: none;
-    }
+    .action-card:focus-visible { border-color: #58a6ff; transform: translateY(-1px); outline: none; }
+    .action-card strong { font-size: 1.08rem; }
+    .action-card span { color: #8b949e; font-size: 0.91rem; line-height: 1.35; }
 
-    .action-card strong {
-      font-size: 1.08rem;
-    }
-
-    .action-card span {
-      color: #8b949e;
-      font-size: 0.91rem;
-      line-height: 1.35;
-    }
-
-    footer {
-      padding-top: 12px;
-      color: #6e7681;
-      font-size: 0.82rem;
-    }
+    footer { padding-top: 12px; color: #6e7681; font-size: 0.82rem; }
 
     dialog {
       width: min(680px, calc(100vw - 24px));
@@ -444,128 +376,42 @@
       box-shadow: 0 24px 80px rgba(0, 0, 0, 0.62);
     }
 
-    dialog::backdrop {
-      background: rgba(0, 0, 0, 0.66);
-      backdrop-filter: blur(4px);
-    }
-
-    .apps-head {
-      position: sticky;
-      top: 0;
-      z-index: 2;
-      padding: 16px;
-      display: flex;
-      gap: 10px;
-      background: rgba(13, 17, 23, 0.96);
-      border-bottom: 1px solid #21262d;
-    }
-
-    .apps-head input {
-      flex: 1;
-      min-width: 0;
-      min-height: 46px;
-      padding: 10px 14px;
-      border: 1px solid #30363d;
-      border-radius: 12px;
-      background: #161b22;
-      color: #e6edf3;
-      outline: none;
-    }
-
-    .apps-head input:focus {
-      border-color: #58a6ff;
-    }
-
-    .apps-list {
-      padding: 10px;
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .app-link {
-      padding: 14px;
-      border: 1px solid #21262d;
-      border-radius: 12px;
-      text-decoration: none;
-    }
-
+    dialog::backdrop { background: rgba(0, 0, 0, 0.66); backdrop-filter: blur(4px); }
+    .apps-head { position: sticky; top: 0; z-index: 2; padding: 16px; display: flex; gap: 10px; background: rgba(13, 17, 23, 0.96); border-bottom: 1px solid #21262d; }
+    .apps-head input { flex: 1; min-width: 0; min-height: 46px; padding: 10px 14px; border: 1px solid #30363d; border-radius: 12px; background: #161b22; color: #e6edf3; outline: none; }
+    .apps-head input:focus { border-color: #58a6ff; }
+    .apps-list { padding: 10px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .app-link { padding: 14px; border: 1px solid #21262d; border-radius: 12px; text-decoration: none; }
     .app-link:hover,
-    .app-link:focus-visible {
-      background: #161b22;
-      border-color: #30363d;
-      outline: none;
-    }
-
+    .app-link:focus-visible { background: #161b22; border-color: #30363d; outline: none; }
     .app-link strong,
-    .app-link span {
-      display: block;
-    }
-
-    .app-link span {
-      margin-top: 4px;
-      color: #8b949e;
-      font-size: 0.84rem;
-    }
-
-    .apps-empty {
-      padding: 28px 16px;
-      color: #8b949e;
-      text-align: center;
-    }
+    .app-link span { display: block; }
+    .app-link span { margin-top: 4px; color: #8b949e; font-size: 0.84rem; }
+    .apps-empty { padding: 28px 16px; color: #8b949e; text-align: center; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
     @media (max-width: 580px) {
-      .topbar {
-        gap: 7px;
-      }
-
+      .topbar { gap: 7px; }
       .top-action,
-      .menu summary {
-        padding-inline: 11px;
-      }
-
-      .top-action--signin {
-        display: none;
-      }
-
-      main {
-        align-items: flex-start;
-        padding-top: 30px;
-      }
-
-      .spinner-stage {
-        width: min(248px, 78vw);
-        height: min(248px, 78vw);
-      }
-
-      .spinner-nav__item {
-        min-width: 58px;
-        min-height: 40px;
-        padding-inline: 11px;
-        font-size: 0.88rem;
-      }
-
+      .menu summary { padding-inline: 11px; }
+      .top-action--signin { display: none; }
+      main { align-items: flex-start; padding-top: 30px; }
+      .spinner-stage { width: min(248px, 78vw); height: min(248px, 78vw); }
+      .spinner-nav__item { min-width: 58px; min-height: 40px; padding-inline: 11px; font-size: 0.88rem; }
+      .operator-bar__label { display: none; }
       .actions,
-      .apps-list {
-        grid-template-columns: 1fr;
-      }
-
-      .action-card {
-        min-height: 105px;
-      }
+      .apps-list { grid-template-columns: 1fr; }
+      .action-card { min-height: 105px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
       .spinner-stage::before,
-      .portal-swirl-logo,
       .portal-swirl-logo__canvas,
-      .portal-swirl-logo__fallback,
-      .spinner-nav__item {
-        transition: none;
-      }
+      .spinner-nav__item { transition: none; }
     }
   </style>
   <script src="/portal-swirl-logo.js" defer></script>
+  <script type="module" src="/home-operator.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
@@ -622,12 +468,24 @@
 
         <p class="eyebrow">3DVR Portal</p>
         <h1 id="home-title">What do you want to do?</h1>
-        <p class="subhead">Tell your Operator what you need, or jump straight into one part of your life and work.</p>
+        <p class="subhead">Tell your Operator what you need. It can use this page and your Portal context to help act on it.</p>
 
-        <a class="operator-link" href="/operator/">
-          <span class="operator-link__prompt">Ask your Operator…</span>
-          <span class="operator-link__go" aria-hidden="true">→</span>
-        </a>
+        <form class="operator-link operator-bar" id="homeOperatorForm" aria-label="Ask Operator">
+          <span class="operator-bar__label" aria-hidden="true">Operator</span>
+          <input id="homeOperatorInput" name="prompt" type="text" autocomplete="off" placeholder="Ask Operator…" aria-label="Ask Operator anything">
+          <button id="homeOperatorSubmit" type="submit" aria-label="Send to Operator">→</button>
+        </form>
+        <p class="operator-status" id="homeOperatorStatus" aria-live="polite">Operator sees this page plus available Life Space, lead, CRM, and calendar context.</p>
+
+        <section class="operator-result" id="homeOperatorResult" aria-live="polite" hidden>
+          <div class="operator-result__head">
+            <strong>Operator</strong>
+            <a href="/operator/">Open full chat</a>
+          </div>
+          <p id="homeOperatorReply"></p>
+          <div class="operator-follow-ups" id="homeOperatorFollowUps" aria-label="Suggested next steps"></div>
+          <a class="operator-result__action" id="homeOperatorAction" href="/" hidden>Open workspace →</a>
+        </section>
 
         <div class="actions" aria-label="Core portal actions">
           <a class="action-card" href="/life/">
@@ -654,12 +512,13 @@
   </div>
 
   <dialog id="appsDialog" aria-labelledby="apps-title">
+    <h2 class="sr-only" id="apps-title">Portal apps</h2>
     <div class="apps-head">
       <input id="appSearch" type="search" placeholder="Search apps…" aria-label="Search portal apps">
       <button class="top-action" type="button" data-close-apps>Close</button>
     </div>
-    <div class="apps-list" id="appsList" aria-labelledby="apps-title">
-      <a class="app-link" href="/operator/" data-app="operator assistant agent chat"><strong>Operator</strong><span>Ask for help and run work.</span></a>
+    <div class="apps-list" id="appsList">
+      <a class="app-link" href="/operator/" data-app="operator assistant agent chat"><strong>Operator</strong><span>Full conversation and history.</span></a>
       <a class="app-link" href="/life/" data-app="life daily direction plan today"><strong>Daily Direction</strong><span>Plan the next useful step.</span></a>
       <a class="app-link" href="/life-space/" data-app="life space notes files sketches"><strong>Life Space</strong><span>Notes, files, links, and sketches.</span></a>
       <a class="app-link" href="/calendar/" data-app="calendar schedule events"><strong>Calendar</strong><span>Schedule and events.</span></a>
@@ -693,40 +552,31 @@
       const spinnerApps = document.querySelector('[data-spinner-open-apps]');
       let spinnerPointer = null;
 
-      const setSpinnerNav = (open) => {
+      const setSpinnerNav = open => {
         if (!spinner || !spinnerStage) return;
         spinnerStage.dataset.open = String(Boolean(open));
         spinner.setAttribute('aria-expanded', String(Boolean(open)));
       };
 
-      const toggleSpinnerNav = () => {
-        setSpinnerNav(spinnerStage?.dataset.open !== 'true');
-      };
+      const toggleSpinnerNav = () => setSpinnerNav(spinnerStage?.dataset.open !== 'true');
 
       const openApps = () => {
         setSpinnerNav(false);
         if (!dialog.open) dialog.showModal();
         search.value = '';
-        appLinks.forEach((link) => { link.hidden = false; });
+        appLinks.forEach(link => { link.hidden = false; });
         empty.hidden = true;
         window.setTimeout(() => search.focus(), 0);
       };
 
-      document.querySelectorAll('[data-open-apps]').forEach((button) => {
-        button.addEventListener('click', openApps);
-      });
-
+      document.querySelectorAll('[data-open-apps]').forEach(button => button.addEventListener('click', openApps));
       spinnerApps?.addEventListener('click', openApps);
 
-      spinner?.addEventListener('pointerdown', (event) => {
-        spinnerPointer = {
-          x: event.clientX,
-          y: event.clientY,
-          startedAt: window.performance?.now?.() ?? Date.now(),
-        };
+      spinner?.addEventListener('pointerdown', event => {
+        spinnerPointer = { x: event.clientX, y: event.clientY, startedAt: window.performance?.now?.() ?? Date.now() };
       });
 
-      spinner?.addEventListener('pointerup', (event) => {
+      spinner?.addEventListener('pointerup', event => {
         if (!spinnerPointer) return;
         const now = window.performance?.now?.() ?? Date.now();
         const distance = Math.hypot(event.clientX - spinnerPointer.x, event.clientY - spinnerPointer.y);
@@ -735,11 +585,8 @@
         if (distance <= 10 && duration <= 340) toggleSpinnerNav();
       });
 
-      spinner?.addEventListener('pointercancel', () => {
-        spinnerPointer = null;
-      });
-
-      spinner?.addEventListener('keydown', (event) => {
+      spinner?.addEventListener('pointercancel', () => { spinnerPointer = null; });
+      spinner?.addEventListener('keydown', event => {
         if (event.key === 'Enter') {
           event.preventDefault();
           toggleSpinnerNav();
@@ -747,20 +594,15 @@
       });
 
       document.querySelector('[data-close-apps]').addEventListener('click', () => dialog.close());
-
-      dialog.addEventListener('click', (event) => {
-        if (event.target === dialog) dialog.close();
-      });
-
-      document.addEventListener('pointerdown', (event) => {
-        if (spinnerStage?.dataset.open !== 'true') return;
-        if (!spinnerStage.contains(event.target)) setSpinnerNav(false);
+      dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+      document.addEventListener('pointerdown', event => {
+        if (spinnerStage?.dataset.open === 'true' && !spinnerStage.contains(event.target)) setSpinnerNav(false);
       });
 
       search.addEventListener('input', () => {
         const query = search.value.trim().toLowerCase();
         let visible = 0;
-        appLinks.forEach((link) => {
+        appLinks.forEach(link => {
           const haystack = `${link.textContent} ${link.dataset.app || ''}`.toLowerCase();
           const matches = !query || haystack.includes(query);
           link.hidden = !matches;
@@ -769,12 +611,13 @@
         empty.hidden = visible !== 0;
       });
 
-      window.addEventListener('keydown', (event) => {
+      window.addEventListener('keydown', event => {
+        const activeTag = document.activeElement?.tagName;
         if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
           event.preventDefault();
           openApps();
         }
-        if (event.key === '/' && !dialog.open && document.activeElement?.tagName !== 'INPUT') {
+        if (event.key === '/' && !dialog.open && activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
           event.preventDefault();
           openApps();
         }
