@@ -34,18 +34,20 @@ test('relay timeout never auto-saves empty startup state', async () => {
   assert.doesNotMatch(timeoutBlock, /\bsave\s*\(/, 'timeout must not overwrite unknown remote state');
 });
 
-test('production uses native Vercel Git on main with a direct manual fallback', async () => {
+test('production uses GitHub Actions as the canonical Vercel lane', async () => {
   const workflow = await read('.github/workflows/vercel-production-prebuilt.yml');
-  const vercelConfig = await read('vercel.json');
+  const vercelConfig = JSON.parse(await read('vercel.json'));
 
-  assert.match(vercelConfig, /"\*"\s*:\s*false/);
-  assert.match(vercelConfig, /"main"\s*:\s*true/);
+  assert.equal(vercelConfig.git?.deploymentEnabled, false);
+  assert.equal('ignoreCommand' in vercelConfig, false);
   assert.match(workflow, /workflow_dispatch:/);
-  assert.doesNotMatch(workflow, /^\s*push:/m);
+  assert.match(workflow, /^\s*push:/m);
+  assert.match(workflow, /- main/);
   assert.doesNotMatch(workflow, /^\s*pull_request:/m);
   assert.match(workflow, /VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z/);
   assert.match(workflow, /VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch/);
   assert.match(workflow, /vercel deploy --prebuilt --prod/);
+  assert.match(workflow, /https:\/\/portal\.3dvr\.tech\//);
   assert.doesNotMatch(workflow, /German worker/i);
 });
 
