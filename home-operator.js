@@ -11,7 +11,93 @@ const followUps = document.querySelector('#homeOperatorFollowUps');
 const actionLink = document.querySelector('#homeOperatorAction');
 
 if (form && input && submit && status && result && reply && followUps && actionLink) {
+  const LEGACY_KEY = '3dvr.operator.history.v1';
+  const BASE_KEY = '3dvr.operator.conversations.v2';
+  const identity = window.AuthIdentity?.readSharedIdentity?.() || {};
+  const accountKey = localStorage.getItem('signedIn') === 'true'
+    ? String(localStorage.getItem('userPubKey') || identity.alias || localStorage.getItem('alias') || '').trim().toLowerCase()
+    : '';
+  const conversationStoreKey = accountKey
+    ? `${BASE_KEY}.account.${encodeURIComponent(accountKey)}`
+    : BASE_KEY;
+  const makeConversationId = () => globalThis.crypto?.randomUUID?.()
+    || `conversation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const now = () => new Date().toISOString();
+
   let history = [];
+  let homeConversationId = '';
+  let homeConversationCreatedAt = '';
+
+  const readConversationStore = () => {
+    let store = { activeId: '', conversations: [] };
+
+    try {
+      const savedRaw = localStorage.getItem(conversationStoreKey)
+        || (conversationStoreKey !== BASE_KEY ? localStorage.getItem(BASE_KEY) : '')
+        || '';
+      const saved = JSON.parse(savedRaw || 'null');
+      if (saved && Array.isArray(saved.conversations)) {
+        store = {
+          activeId: String(saved.activeId || ''),
+          conversations: saved.conversations
+        };
+      } else {
+        const legacy = JSON.parse(localStorage.getItem(LEGACY_KEY) || '[]');
+        if (Array.isArray(legacy) && legacy.length) {
+          const migratedAt = now();
+          store = {
+            activeId: makeConversationId(),
+            conversations: [{
+              id: makeConversationId(),
+              createdAt: migratedAt,
+              updatedAt: migratedAt,
+              messages: legacy
+            }]
+          };
+          store.activeId = store.conversations[0].id;
+        }
+      }
+    } catch {
+      // A damaged local cache should never stop Operator from answering.
+    }
+
+    return store;
+  };
+
+  const persistHistory = () => {
+    if (!history.length) return;
+
+    if (!homeConversationId) {
+      homeConversationId = makeConversationId();
+      homeConversationCreatedAt = now();
+    }
+
+    const store = readConversationStore();
+    const updatedAt = now();
+    let conversation = store.conversations.find(item => item.id === homeConversationId);
+
+    if (!conversation) {
+      conversation = {
+        id: homeConversationId,
+        createdAt: homeConversationCreatedAt || updatedAt,
+        updatedAt,
+        messages: []
+      };
+      store.conversations.push(conversation);
+    }
+
+    conversation.messages = history.slice(-40);
+    conversation.updatedAt = updatedAt;
+    store.activeId = homeConversationId;
+    store.conversations = store.conversations
+      .filter(item => Array.isArray(item.messages) && item.messages.length)
+      .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
+      .slice(0, 50);
+
+    localStorage.setItem(conversationStoreKey, JSON.stringify(store));
+    if (conversationStoreKey !== BASE_KEY) localStorage.removeItem(BASE_KEY);
+    localStorage.removeItem(LEGACY_KEY);
+  };
 
   const installSubmitLoader = () => {
     if (submit.querySelector('.operator-submit__portal')) return;
@@ -157,6 +243,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
 
     const prior = history.slice(-12);
     history.push({ role: 'user', content: prompt });
+    persistHistory();
     input.value = '';
     setBusy(true);
     status.textContent = 'Operator is working on this page…';
@@ -175,17 +262,27 @@ if (form && input && submit && status && result && reply && followUps && actionL
       }
 
       const message = [data.reply, outcome?.message].filter(Boolean).join('\n\n');
-      history.push({ role: 'assistant', content: message });
+      const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
       const lifeSpaceActions = new Set(['create_note', 'create_checklist', 'save_link']);
-      const label = lifeSpaceActions.has(data.action?.type)
-        ? 'Open Life Space'
+      const storedActionLabel = lifeSpaceActions.has(data.action?.type)
+        ? 'Life Space'
         : data.action?.type === 'add_lead'
-          ? 'Open Lead Finder'
-          : 'Open workspace';
+          ? 'Lead Finder'
+          : 'workspace';
+      const label = storedActionLabel === 'workspace' ? 'Open workspace' : `Open ${storedActionLabel}`;
+
+      history.push({
+        role: 'assistant',
+        content: message,
+        suggestions,
+        actionUrl: outcome?.url || '',
+        actionLabel: storedActionLabel
+      });
+      persistHistory();
 
       renderResponse({
         message,
-        suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
+        suggestions,
         url: outcome?.url || '',
         label
       });
@@ -193,6 +290,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
     } catch (error) {
       const message = `I could not finish that: ${error.message}`;
       history.push({ role: 'assistant', content: message });
+      persistHistory();
       renderResponse({ message });
       status.textContent = 'Operator needs another try.';
     } finally {
