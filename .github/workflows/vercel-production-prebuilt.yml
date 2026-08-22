@@ -1,30 +1,13 @@
-name: Vercel Production
+name: Vercel Production Fallback
 
 on:
   workflow_dispatch:
-  issues:
-    types: [opened]
-  pull_request:
-    branches:
-      - main
-    types: [opened, synchronize, reopened]
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - 'apps/agent/**'
-      - 'apps/companion/**'
-      - '.github/**'
-      - 'ops/**'
-      - 'tests/**'
-      - 'scripts/**'
 
 permissions:
   contents: read
-  issues: write
 
 concurrency:
-  group: vercel-production
+  group: vercel-production-fallback
   cancel-in-progress: true
 
 env:
@@ -34,21 +17,10 @@ env:
 
 jobs:
   deploy:
-    if: >-
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'issues' && github.event.issue.user.login == github.repository_owner && github.event.issue.title == 'Deploy portal production') ||
-      (github.event_name == 'pull_request' && github.event.pull_request.user.login == github.repository_owner && startsWith(github.head_ref, 'deploy/portal-production'))
-    name: Deploy canonical production
+    name: Deploy canonical production fallback
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Acknowledge owner trigger
-        if: github.event_name == 'issues'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh issue comment "${{ github.event.issue.number }}" --repo "${{ github.repository }}" --body "Production deploy started."
-
       - name: Require direct Vercel credentials
         shell: bash
         run: |
@@ -86,56 +58,10 @@ jobs:
           echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
           echo "Production URL: $DEPLOY_URL"
 
-      - name: Verify deployed artifact
-        shell: bash
-        env:
-          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
-        run: |
-          set -euo pipefail
-
-          curl --fail --silent --show-error --location \
-            --retry 8 --retry-delay 3 --retry-all-errors \
-            "$DEPLOY_URL/" \
-            --output /tmp/portal-home.html
-          grep -q '<title>3DVR Portal</title>' /tmp/portal-home.html
-          grep -q 'id="home-title">What do you want to do?' /tmp/portal-home.html
-          grep -q 'data-portal-swirl-logo' /tmp/portal-home.html
-          grep -q 'id="homeOperatorForm"' /tmp/portal-home.html
-
-          curl --fail --silent --show-error --location \
-            --retry 8 --retry-delay 3 --retry-all-errors \
-            "$DEPLOY_URL/context-hq/" \
-            --output /tmp/context-hq.html
-          grep -q '<title>Context HQ | 3DVR Portal</title>' /tmp/context-hq.html
-
-          curl --fail --silent --show-error --location \
-            --retry 8 --retry-delay 3 --retry-all-errors \
-            "$DEPLOY_URL/workspace/" \
-            --output /tmp/workspace.html
-          grep -q '<title>3DVR Workspace</title>' /tmp/workspace.html
-          grep -q './main.js' /tmp/workspace.html
-
-      - name: Verify canonical portal alias
+      - name: Verify canonical portal
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --location \
-            --retry 12 --retry-delay 5 --retry-all-errors \
-            'https://portal.3dvr.tech/' \
-            --output /tmp/live-portal-home.html
+          curl --fail --silent --show-error --location --retry 12 --retry-delay 5 --retry-all-errors 'https://portal.3dvr.tech/' --output /tmp/live-portal-home.html
           grep -q 'data-portal-swirl-logo' /tmp/live-portal-home.html
           grep -q 'id="homeOperatorForm"' /tmp/live-portal-home.html
-          echo "Canonical production verified at portal.3dvr.tech."
-
-      - name: Report success on owner trigger
-        if: success() && github.event_name == 'issues'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
-        run: gh issue comment "${{ github.event.issue.number }}" --repo "${{ github.repository }}" --body "Production deploy succeeded: ${DEPLOY_URL}"
-
-      - name: Report failure on owner trigger
-        if: failure() && github.event_name == 'issues'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh issue comment "${{ github.event.issue.number }}" --repo "${{ github.repository }}" --body "Production deploy failed. Open the Vercel Production workflow run for the failing step."
