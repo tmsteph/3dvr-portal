@@ -1,4 +1,7 @@
 {
+  "git": {
+    "deploymentEnabled": false
+  },
   "headers": [
     {
       "source": "/(.*)\\.(css|js|png|jpg|jpeg|gif|svg|webp|woff2?)",
@@ -40,6 +43,5 @@
         }
       ]
     }
-  ],
-  "ignoreCommand": "sh ./ignore-build.sh"
+  ]
 }
