@@ -1,0 +1,136 @@
+name: 3DVR DigitalOcean Preview
+
+on:
+  push:
+    branches:
+      - 'do-preview/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: 3dvr-do-preview
+  cancel-in-progress: true
+
+env:
+  MANAGED_OWNER_ALIAS: ${{ vars.THREEDVR_AGENT_TASK_OWNER_ALIAS || '3dvr-managed' }}
+
+jobs:
+  preview:
+    name: Publish DigitalOcean preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: apps/agent
+
+    steps:
+      - name: Checkout preview ref
+        uses: actions/checkout@v4
+
+      - name: Mark preview pending
+        shell: bash
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$PREVIEW_SHA" \
+            -d '{"state":"pending","context":"3DVR DigitalOcean Preview","description":"Waiting for static-hosting worker"}'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+          cache-dependency-path: apps/agent/package-lock.json
+
+      - name: Install queue client
+        run: npm ci
+
+      - name: Queue preview on static-hosting worker
+        id: remote
+        shell: bash
+        env:
+          PREVIEW_REF: ${{ github.ref_name }}
+          PREVIEW_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          printf -v task 'root="$(git rev-parse --show-toplevel)"; git -C "$root" fetch --force origin %q; script="$(mktemp)"; git -C "$root" show %q:scripts/ops/start-machine-preview.sh > "$script"; chmod +x "$script"; "$script" "$root" %q %q 4310; rm -f "$script"' \
+            "$PREVIEW_REF" "$PREVIEW_SHA" "$PREVIEW_REF" "$PREVIEW_SHA"
+
+          result="$(THREEDVR_AGENT_OWNER_ALIAS="$MANAGED_OWNER_ALIAS" node thomas-agent/node/agent-task-queue.js enqueue \
+            --json \
+            --backend shell \
+            --risk workspace_write \
+            --approval-status approved \
+            --unsafe \
+            --requires shell,static-hosting \
+            --max-runtime-ms 180000 \
+            "$task")"
+
+          task_id="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task queue JSON payload missing');console.log(JSON.parse(s.slice(i)).id)})")"
+          echo "Queued static-hosting task: $task_id"
+
+          for attempt in $(seq 1 30); do
+            result="$(THREEDVR_AGENT_OWNER_ALIAS="$MANAGED_OWNER_ALIAS" node thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
+            status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');console.log(JSON.parse(s.slice(i)).status||'')})")"
+            echo "Static-hosting preview status: $status"
+            case "$status" in
+              completed)
+                summary="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');process.stdout.write(JSON.parse(s.slice(i)).resultSummary||'')})")"
+                printf '%s\n' "$summary"
+                preview_url="$(printf '%s\n' "$summary" | sed -n 's/^PREVIEW_URL=//p' | head -n 1)"
+                test -n "$preview_url"
+                echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
+                echo "task_id=$task_id" >> "$GITHUB_OUTPUT"
+                exit 0
+                ;;
+              failed|skipped)
+                printf '%s\n' "$result" >&2
+                exit 1
+                ;;
+            esac
+            sleep 5
+          done
+
+          echo "No static-hosting worker completed the preview task." >&2
+          exit 1
+
+      - name: Publish preview status
+        if: always()
+        shell: bash
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW_URL: ${{ steps.remote.outputs.preview_url }}
+          REMOTE_OUTCOME: ${{ steps.remote.outcome }}
+          PREVIEW_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          state=failure
+          description='DigitalOcean static-hosting preview unavailable'
+          target_url=''
+          if [ "$REMOTE_OUTCOME" = success ] && [ -n "$PREVIEW_URL" ]; then
+            state=success
+            description='DigitalOcean preview ready'
+            target_url="$PREVIEW_URL"
+          fi
+
+          payload="$(STATE="$state" DESCRIPTION="$description" TARGET_URL="$target_url" node -e 'const p={state:process.env.STATE,context:"3DVR DigitalOcean Preview",description:process.env.DESCRIPTION};if(process.env.TARGET_URL)p.target_url=process.env.TARGET_URL;process.stdout.write(JSON.stringify(p))')"
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$PREVIEW_SHA" \
+            -d "$payload"
+
+          [ "$state" = success ]
