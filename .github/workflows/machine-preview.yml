@@ -70,7 +70,7 @@ jobs:
             task_id="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task queue JSON payload missing');console.log(JSON.parse(s.slice(i)).id)})")"
             echo "Queued task: $task_id"
 
-            for attempt in $(seq 1 40); do
+            for attempt in $(seq 1 24); do
               result="$(THREEDVR_AGENT_OWNER_ALIAS="$alias" node thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
               status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');console.log(JSON.parse(s.slice(i)).status||'')})")"
               echo "Remote preview status: $status"
@@ -108,6 +108,57 @@ jobs:
           echo "::warning::Managed queue did not publish the preview; trying the legacy German worker queue once."
           run_queue 'anonymous@3dvr'
 
+      - name: Verify public preview from outside the machine
+        id: verify
+        if: steps.remote.outcome == 'success'
+        shell: bash
+        env:
+          PREVIEW_URL: ${{ steps.remote.outputs.preview_url }}
+          PREVIEW_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [ -n "$PREVIEW_URL" ]
+
+          curl -fsS \
+            --retry 10 \
+            --retry-delay 2 \
+            --retry-all-errors \
+            --connect-timeout 5 \
+            --max-time 10 \
+            "$PREVIEW_URL/__3dvr-preview" > /tmp/3dvr-preview-health.json
+
+          HEALTH_FILE=/tmp/3dvr-preview-health.json EXPECTED_SHA="$PREVIEW_SHA" node - <<'NODE'
+          const { readFileSync } = require('node:fs');
+          const health = JSON.parse(readFileSync(process.env.HEALTH_FILE, 'utf8'));
+          if (!health.ok || health.sha !== process.env.EXPECTED_SHA) {
+            throw new Error(`Preview health mismatch: expected ${process.env.EXPECTED_SHA}, got ${health.sha || 'none'}`);
+          }
+          NODE
+
+          curl -fsS \
+            --retry 5 \
+            --retry-delay 1 \
+            --retry-all-errors \
+            --connect-timeout 5 \
+            --max-time 10 \
+            "$PREVIEW_URL/" > /tmp/3dvr-preview-home.html
+          grep -Fq 'home-operator.js' /tmp/3dvr-preview-home.html
+
+          curl -fsS \
+            --retry 5 \
+            --retry-delay 1 \
+            --retry-all-errors \
+            --connect-timeout 5 \
+            --max-time 10 \
+            "$PREVIEW_URL/home-operator.js" > /dev/null
+
+          operator_options_status="$(curl -sS -o /dev/null -w '%{http_code}' \
+            --connect-timeout 5 \
+            --max-time 10 \
+            -X OPTIONS \
+            "$PREVIEW_URL/api/openai-site?provider=operator")"
+          [ "$operator_options_status" = '204' ]
+
       - name: Publish preview status
         if: always()
         shell: bash
@@ -115,16 +166,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PREVIEW_URL: ${{ steps.remote.outputs.preview_url }}
           REMOTE_OUTCOME: ${{ steps.remote.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
           PREVIEW_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           state=failure
           description='3DVR machine preview failed'
           target_url=''
-          if [ "$REMOTE_OUTCOME" = success ] && [ -n "$PREVIEW_URL" ]; then
+          if [ "$REMOTE_OUTCOME" = success ] && [ "$VERIFY_OUTCOME" = success ] && [ -n "$PREVIEW_URL" ]; then
             state=success
-            description='3DVR machine preview ready'
+            description='3DVR machine preview ready and externally verified'
             target_url="$PREVIEW_URL"
+          elif [ "$REMOTE_OUTCOME" = success ]; then
+            description='3DVR machine preview tunnel failed external verification'
           fi
 
           payload="$(STATE="$state" DESCRIPTION="$description" TARGET_URL="$target_url" node -e 'const p={state:process.env.STATE,context:"3DVR Machine Preview",description:process.env.DESCRIPTION};if(process.env.TARGET_URL)p.target_url=process.env.TARGET_URL;process.stdout.write(JSON.stringify(p))')"
@@ -144,6 +198,7 @@ jobs:
               echo "Ref: $GITHUB_REF_NAME"
               echo "SHA: $PREVIEW_SHA"
               echo "Queue: ${{ steps.remote.outputs.queue_alias }}"
+              echo 'Verification: external health + homepage + Operator route'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 

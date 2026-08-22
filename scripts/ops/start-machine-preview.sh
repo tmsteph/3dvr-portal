@@ -57,7 +57,14 @@ cat > "$base/server-run.sh" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 cd '$release'
-exec env HOST=127.0.0.1 PORT='$port' node scripts/dev-server.mjs >>'$base/server.log' 2>&1
+exec env \
+  HOST=127.0.0.1 \
+  PORT='$port' \
+  PREVIEW_ROOT='$release' \
+  PREVIEW_REF='$ref' \
+  PREVIEW_SHA='$sha' \
+  PREVIEW_PRODUCTION_ORIGIN='https://portal.3dvr.tech' \
+  node --max-old-space-size=96 scripts/preview-server.mjs >>'$base/server.log' 2>&1
 EOF
 chmod +x "$base/server-run.sh"
 
@@ -77,7 +84,8 @@ start_process "$server_session" "$base/server-run.sh" "$base/server.pid"
 
 server_ready=false
 for _ in $(seq 1 20); do
-  if curl -fsS "http://127.0.0.1:$port/" >/dev/null 2>&1; then
+  health="$(curl -fsS "http://127.0.0.1:$port/__3dvr-preview" 2>/dev/null || true)"
+  if printf '%s' "$health" | grep -Fq "\"sha\":\"$sha\""; then
     server_ready=true
     break
   fi
@@ -85,7 +93,7 @@ for _ in $(seq 1 20); do
 done
 
 if [ "$server_ready" != true ]; then
-  echo "Preview server did not become ready." >&2
+  echo "Preview server did not become ready for $sha." >&2
   tail -n 80 "$base/server.log" >&2 || true
   exit 3
 fi
