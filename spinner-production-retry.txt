@@ -1,1 +1,0 @@
-Trigger the canonical GitHub Actions production lane so portal.3dvr.tech receives the restored interactive spinner and inline Operator from main.
