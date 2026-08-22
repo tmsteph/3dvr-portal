@@ -1,2 +1,2 @@
-2026-08-22T04:37:00Z
-Reason: recover managed task worker so simplified Operator-first portal homepage production deployment can complete.
+2026-08-22T21:35:00Z
+Reason: recover the managed task worker and legacy fallback so low-load 3DVR machine previews can publish while Vercel is rate-limited.
