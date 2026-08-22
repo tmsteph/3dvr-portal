@@ -3,6 +3,7 @@ name: 3DVR Machine Preview
 on:
   push:
     branches:
+      - main
       - 'machine-preview/**'
   workflow_dispatch:
 
@@ -20,6 +21,7 @@ env:
 jobs:
   preview:
     name: Publish machine preview
+    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/heads/machine-preview/') || contains(github.event.head_commit.message, '[machine-preview]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
     defaults:
