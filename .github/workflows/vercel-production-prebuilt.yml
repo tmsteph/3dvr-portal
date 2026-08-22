@@ -2,6 +2,8 @@ name: Vercel Production
 
 on:
   workflow_dispatch:
+  issues:
+    types: [opened]
   push:
     branches:
       - main
@@ -27,6 +29,7 @@ env:
 
 jobs:
   deploy:
+    if: github.event_name != 'issues' || (github.event.issue.user.login == github.repository_owner && github.event.issue.title == 'Deploy portal production')
     name: Deploy canonical production
     runs-on: ubuntu-latest
     timeout-minutes: 20
