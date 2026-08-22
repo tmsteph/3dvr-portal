@@ -1,5 +1,6 @@
 name: Vercel Production Prebuilt
 
+# Manual production refresh for the simplified Operator-first portal home.
 on:
   push:
     branches:
