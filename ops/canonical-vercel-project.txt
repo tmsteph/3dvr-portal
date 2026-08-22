@@ -1,1 +1,0 @@
-Canonical Portal Vercel target: team_xxJGO7S7h1ZP4BHidYV0CX9Z / prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch. portal.3dvr.tech is served from this project. GitHub Actions owns production deploy selection; native Vercel Git deploys are disabled.
