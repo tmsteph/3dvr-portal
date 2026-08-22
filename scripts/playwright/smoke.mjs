@@ -86,12 +86,16 @@ try {
   const response = await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
   assert(response && response.ok(), `Expected ${baseUrl} to return 2xx/3xx`);
 
-  await page.waitForSelector('#landing-title', { timeout: 10000 });
+  await page.waitForSelector('#home-title', { timeout: 10000 });
   const pageTitle = await page.title();
-  const heading = (await page.locator('#landing-title').innerText()).trim();
+  const heading = (await page.locator('#home-title').innerText()).trim();
+  const operatorLink = page.locator('.operator-link');
+  const coreActions = page.locator('.action-card');
 
   assert.equal(pageTitle, '3DVR Portal');
-  assert.match(heading, /Welcome to the 3DVR Portal|Choose your path into the portal|Get in, get moving\.|One system\. Any device\.|One portal\. Fast access\.|Find your purpose\. Organize your life\. Launch your world\./i);
+  assert.equal(heading, 'What do you want to do?');
+  assert.equal(await operatorLink.count(), 1);
+  assert.equal(await coreActions.count(), 4);
 
   console.log(`Playwright smoke check passed in ${browserTarget.displayName} at ${baseUrl}`);
 } finally {
