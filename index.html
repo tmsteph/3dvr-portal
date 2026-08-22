@@ -137,11 +137,200 @@
       flex: 1;
       display: flex;
       align-items: center;
-      padding: 58px 0 80px;
+      padding: 42px 0 80px;
     }
 
     .home {
       width: 100%;
+    }
+
+    .spinner-stage {
+      position: relative;
+      width: min(270px, 80vw);
+      height: min(270px, 80vw);
+      margin: 0 auto 8px;
+      display: grid;
+      place-items: center;
+      isolation: isolate;
+    }
+
+    .spinner-stage::before {
+      content: '';
+      position: absolute;
+      inset: 24%;
+      z-index: -1;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(45, 212, 191, 0.17), rgba(56, 189, 248, 0.08) 48%, transparent 72%);
+      filter: blur(12px);
+      transform: scale(1.2);
+      transition: transform 220ms ease, opacity 220ms ease;
+    }
+
+    .spinner-stage[data-open="true"]::before {
+      opacity: 1;
+      transform: scale(1.7);
+    }
+
+    .portal-swirl-logo {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      place-items: center;
+      width: clamp(7.6rem, 32vw, 9.2rem);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.34));
+      transition: filter 180ms ease, transform 180ms ease;
+    }
+
+    .portal-swirl-logo:hover {
+      filter: drop-shadow(0 20px 38px rgba(34, 211, 238, 0.2));
+    }
+
+    .portal-swirl-logo:active {
+      cursor: grabbing;
+    }
+
+    .portal-swirl-logo:focus-visible {
+      outline: 3px solid rgba(88, 166, 255, 0.5);
+      outline-offset: 7px;
+    }
+
+    .portal-swirl-logo__canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      opacity: 0;
+      transition: opacity 220ms ease;
+    }
+
+    .portal-swirl-logo[data-logo-ready="true"] .portal-swirl-logo__canvas {
+      opacity: 1;
+    }
+
+    .portal-swirl-logo__fallback {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-content: center;
+      border: 2px solid rgba(216, 255, 247, 0.72);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 38% 32%, rgba(157, 231, 248, 0.92), rgba(42, 167, 191, 0.75) 32%, rgba(15, 118, 110, 0.78) 64%, #07111f 100%);
+      color: #fff;
+      text-align: center;
+      font-weight: 900;
+      line-height: 0.9;
+      box-shadow: inset 0 0 0 7px rgba(254, 215, 170, 0.3);
+      transition: opacity 220ms ease;
+    }
+
+    .portal-swirl-logo__fallback span:first-child {
+      font-size: 1.6rem;
+    }
+
+    .portal-swirl-logo__fallback span:last-child {
+      margin-top: 5px;
+      color: #ccfbf1;
+      font-size: 0.82rem;
+    }
+
+    .portal-swirl-logo[data-logo-ready="true"] .portal-swirl-logo__fallback {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .spinner-nav {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .spinner-nav__item {
+      position: absolute;
+      min-width: 64px;
+      min-height: 42px;
+      padding: 9px 13px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(88, 166, 255, 0.38);
+      border-radius: 999px;
+      background: rgba(13, 17, 23, 0.94);
+      color: #dbeafe;
+      font-weight: 800;
+      text-decoration: none;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.72);
+      transition: opacity 170ms ease, transform 220ms cubic-bezier(.2,.8,.2,1), border-color 170ms ease, background 170ms ease;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+    }
+
+    .spinner-nav__item:hover,
+    .spinner-nav__item:focus-visible {
+      border-color: #79c0ff;
+      background: #13253b;
+      outline: none;
+    }
+
+    .spinner-nav__item--day {
+      top: 3px;
+      left: 50%;
+      transform: translate(-50%, 32px) scale(0.72);
+    }
+
+    .spinner-nav__item--work {
+      top: 50%;
+      right: 0;
+      transform: translate(-34px, -50%) scale(0.72);
+    }
+
+    .spinner-nav__item--build {
+      bottom: 3px;
+      left: 50%;
+      transform: translate(-50%, -32px) scale(0.72);
+    }
+
+    .spinner-nav__item--apps {
+      top: 50%;
+      left: 0;
+      transform: translate(34px, -50%) scale(0.72);
+    }
+
+    .spinner-stage[data-open="true"] .spinner-nav__item {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .spinner-stage[data-open="true"] .spinner-nav__item--day {
+      transform: translate(-50%, 0) scale(1);
+    }
+
+    .spinner-stage[data-open="true"] .spinner-nav__item--work {
+      transform: translate(0, -50%) scale(1);
+    }
+
+    .spinner-stage[data-open="true"] .spinner-nav__item--build {
+      transform: translate(-50%, 0) scale(1);
+    }
+
+    .spinner-stage[data-open="true"] .spinner-nav__item--apps {
+      transform: translate(0, -50%) scale(1);
+    }
+
+    .spinner-hint {
+      margin: -2px 0 20px;
+      color: #6e7681;
+      font-size: 0.78rem;
+      text-align: center;
     }
 
     .eyebrow {
@@ -216,7 +405,9 @@
       border: 1px solid #30363d;
       border-radius: 16px;
       background: rgba(22, 27, 34, 0.82);
+      color: inherit;
       text-decoration: none;
+      cursor: pointer;
     }
 
     .action-card:hover,
@@ -339,7 +530,19 @@
 
       main {
         align-items: flex-start;
-        padding-top: 54px;
+        padding-top: 30px;
+      }
+
+      .spinner-stage {
+        width: min(248px, 78vw);
+        height: min(248px, 78vw);
+      }
+
+      .spinner-nav__item {
+        min-width: 58px;
+        min-height: 40px;
+        padding-inline: 11px;
+        font-size: 0.88rem;
       }
 
       .actions,
@@ -351,7 +554,18 @@
         min-height: 105px;
       }
     }
+
+    @media (prefers-reduced-motion: reduce) {
+      .spinner-stage::before,
+      .portal-swirl-logo,
+      .portal-swirl-logo__canvas,
+      .portal-swirl-logo__fallback,
+      .spinner-nav__item {
+        transition: none;
+      }
+    }
   </style>
+  <script src="/portal-swirl-logo.js" defer></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
@@ -380,6 +594,32 @@
 
     <main>
       <section class="home" aria-labelledby="home-title">
+        <div class="spinner-stage" data-spinner-nav data-open="false">
+          <nav class="spinner-nav" id="spinnerNav" aria-label="Quick portal navigation">
+            <a class="spinner-nav__item spinner-nav__item--day" href="/life/">Day</a>
+            <a class="spinner-nav__item spinner-nav__item--work" href="/growth-desk/">Work</a>
+            <a class="spinner-nav__item spinner-nav__item--build" href="/forge/">Build</a>
+            <button class="spinner-nav__item spinner-nav__item--apps" type="button" data-spinner-open-apps>Apps</button>
+          </nav>
+          <div
+            class="portal-swirl-logo"
+            data-portal-swirl-logo
+            data-spinner-nav-toggle
+            role="button"
+            tabindex="0"
+            aria-expanded="false"
+            aria-controls="spinnerNav"
+            aria-label="Interactive 3DVR portal spinner. Tap to open quick navigation. Drag to spin and tilt."
+          >
+            <canvas class="portal-swirl-logo__canvas" data-portal-swirl-canvas></canvas>
+            <span class="portal-swirl-logo__fallback" aria-hidden="true">
+              <span>3dvr</span>
+              <span>portal</span>
+            </span>
+          </div>
+        </div>
+        <p class="spinner-hint">Tap to navigate · drag to spin</p>
+
         <p class="eyebrow">3DVR Portal</p>
         <h1 id="home-title">What do you want to do?</h1>
         <p class="subhead">Tell your Operator what you need, or jump straight into one part of your life and work.</p>
@@ -448,8 +688,23 @@
       const search = document.getElementById('appSearch');
       const empty = document.getElementById('appsEmpty');
       const appLinks = Array.from(document.querySelectorAll('.app-link'));
+      const spinner = document.querySelector('[data-spinner-nav-toggle]');
+      const spinnerStage = spinner?.closest('[data-spinner-nav]');
+      const spinnerApps = document.querySelector('[data-spinner-open-apps]');
+      let spinnerPointer = null;
+
+      const setSpinnerNav = (open) => {
+        if (!spinner || !spinnerStage) return;
+        spinnerStage.dataset.open = String(Boolean(open));
+        spinner.setAttribute('aria-expanded', String(Boolean(open)));
+      };
+
+      const toggleSpinnerNav = () => {
+        setSpinnerNav(spinnerStage?.dataset.open !== 'true');
+      };
 
       const openApps = () => {
+        setSpinnerNav(false);
         if (!dialog.open) dialog.showModal();
         search.value = '';
         appLinks.forEach((link) => { link.hidden = false; });
@@ -461,10 +716,45 @@
         button.addEventListener('click', openApps);
       });
 
+      spinnerApps?.addEventListener('click', openApps);
+
+      spinner?.addEventListener('pointerdown', (event) => {
+        spinnerPointer = {
+          x: event.clientX,
+          y: event.clientY,
+          startedAt: window.performance?.now?.() ?? Date.now(),
+        };
+      });
+
+      spinner?.addEventListener('pointerup', (event) => {
+        if (!spinnerPointer) return;
+        const now = window.performance?.now?.() ?? Date.now();
+        const distance = Math.hypot(event.clientX - spinnerPointer.x, event.clientY - spinnerPointer.y);
+        const duration = now - spinnerPointer.startedAt;
+        spinnerPointer = null;
+        if (distance <= 10 && duration <= 340) toggleSpinnerNav();
+      });
+
+      spinner?.addEventListener('pointercancel', () => {
+        spinnerPointer = null;
+      });
+
+      spinner?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          toggleSpinnerNav();
+        }
+      });
+
       document.querySelector('[data-close-apps]').addEventListener('click', () => dialog.close());
 
       dialog.addEventListener('click', (event) => {
         if (event.target === dialog) dialog.close();
+      });
+
+      document.addEventListener('pointerdown', (event) => {
+        if (spinnerStage?.dataset.open !== 'true') return;
+        if (!spinnerStage.contains(event.target)) setSpinnerNav(false);
       });
 
       search.addEventListener('input', () => {
@@ -487,6 +777,10 @@
         if (event.key === '/' && !dialog.open && document.activeElement?.tagName !== 'INPUT') {
           event.preventDefault();
           openApps();
+        }
+        if (event.key === 'Escape' && spinnerStage?.dataset.open === 'true') {
+          setSpinnerNav(false);
+          spinner.focus();
         }
       });
     })();
