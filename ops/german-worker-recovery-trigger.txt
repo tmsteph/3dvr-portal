@@ -1,2 +1,2 @@
-2026-08-21T07:46:44Z
-Reason: hourly free-site reliability fallback re-probe after failed German worker recovery status.
+2026-08-22T04:10:00Z
+Reason: recover managed task worker so Operator portal-context production deployment can complete.
