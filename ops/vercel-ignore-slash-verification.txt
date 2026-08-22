@@ -1,0 +1,1 @@
+Verifies that slash-named non-main branches are ignored by Vercel before a real build.
