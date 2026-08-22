@@ -1,1 +1,1 @@
-Retry native Vercel production deployment for interactive portal spinner after build-rate-limit rejection.
+Trigger the canonical GitHub Actions production lane so portal.3dvr.tech receives the restored interactive spinner and inline Operator from main.
