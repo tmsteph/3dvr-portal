@@ -1,0 +1,2 @@
+Preview slot trigger for homepage Operator conversation persistence.
+Base: b51e2a28021cbc631acc1c055742bdb57cd87380
