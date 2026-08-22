@@ -1,0 +1,31 @@
+name: Machine Preview Tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/preview-server.mjs'
+      - 'scripts/ops/start-machine-preview.sh'
+      - 'tests/machine-preview-server.test.js'
+      - '.github/workflows/machine-preview.yml'
+      - '.github/workflows/machine-preview-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check preview scripts
+        run: |
+          node --check scripts/preview-server.mjs
+          bash -n scripts/ops/start-machine-preview.sh
+      - name: Run preview server regression test
+        run: node --test tests/machine-preview-server.test.js
