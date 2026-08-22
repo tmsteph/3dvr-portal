@@ -5,3399 +5,491 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0d1117">
   <title>3DVR Portal</title>
-  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
-  <script src="gun-init.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
-  <script src="auth-identity.js"></script>
-  <script src="score.js"></script>
-  <script src="/pwa-install.js" defer></script>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-logo.svg">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <style>
-    html {
+    :root {
       color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #0d1117;
       color: #e6edf3;
     }
-    body.landing {
-      color-scheme: dark;
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
       margin: 0;
       min-height: 100vh;
-      background: #0d1117;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(39, 125, 161, 0.16), transparent 34rem),
+        #0d1117;
       color: #e6edf3;
-      font-family: Arial, Helvetica, sans-serif;
-      line-height: 1.5;
     }
-    .landing-shell {
+
+    a {
+      color: inherit;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .shell {
+      width: min(100%, 760px);
       min-height: 100vh;
-      box-sizing: border-box;
-      padding: 16px;
-    }
-    .app-boot {
-      position: fixed;
-      inset: 0;
-      z-index: 999;
-      display: grid;
-      place-items: center;
-      gap: 16px;
-      background: #0d1117;
-      color: #e6edf3;
-      text-align: center;
-    }
-    .app-ready .app-boot {
-      display: none;
-    }
-    .top-nav__primary,
-    .hero-actions {
+      margin: 0 auto;
+      padding: 18px 18px 32px;
       display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
+      flex-direction: column;
     }
-    .top-nav__toggle,
-    .top-nav__search,
-    .top-nav__sign-in,
-    .cta,
-    .top-buttons a {
-      border: 1px solid rgba(88, 166, 255, 0.45);
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 48px;
+    }
+
+    .brand {
+      margin-right: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      font-weight: 800;
+      text-decoration: none;
+      letter-spacing: -0.02em;
+    }
+
+    .brand img {
+      width: 28px;
+      height: 28px;
+    }
+
+    .top-action,
+    .menu summary {
+      border: 1px solid #30363d;
       border-radius: 999px;
-      background: #10233d;
-      color: #e6f3ff;
+      min-height: 42px;
+      padding: 9px 13px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 44px;
-      padding: 10px 14px;
+      background: rgba(22, 27, 34, 0.88);
+      color: #e6edf3;
       text-decoration: none;
+      cursor: pointer;
       font-weight: 700;
     }
-    .hero-panel {
+
+    .top-action:hover,
+    .top-action:focus-visible,
+    .menu summary:hover,
+    .menu summary:focus-visible {
+      border-color: #58a6ff;
+      outline: none;
+    }
+
+    .menu {
+      position: relative;
+    }
+
+    .menu summary {
+      list-style: none;
+    }
+
+    .menu summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .menu-panel {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      z-index: 10;
+      width: min(280px, calc(100vw - 36px));
+      padding: 10px;
+      border: 1px solid #30363d;
+      border-radius: 14px;
+      background: #161b22;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.36);
+    }
+
+    .menu-panel a {
+      display: block;
+      padding: 11px 12px;
+      border-radius: 9px;
+      text-decoration: none;
+    }
+
+    .menu-panel a:hover,
+    .menu-panel a:focus-visible {
+      background: #21262d;
+      outline: none;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      padding: 58px 0 80px;
+    }
+
+    .home {
+      width: 100%;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: #8b949e;
+      font-size: 0.85rem;
+      font-weight: 800;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 9vw, 4.5rem);
+      line-height: 0.98;
+      letter-spacing: -0.055em;
+    }
+
+    .subhead {
+      margin: 18px 0 26px;
+      max-width: 38rem;
+      color: #9da7b3;
+      font-size: clamp(1rem, 3.5vw, 1.18rem);
+    }
+
+    .operator-link {
+      width: 100%;
+      min-height: 62px;
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid rgba(88, 166, 255, 0.5);
+      border-radius: 16px;
+      background: linear-gradient(180deg, #13253b, #101923);
+      color: #f0f6fc;
+      text-decoration: none;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.22);
+    }
+
+    .operator-link:hover,
+    .operator-link:focus-visible {
+      border-color: #79c0ff;
+      outline: 2px solid rgba(88, 166, 255, 0.22);
+      outline-offset: 3px;
+    }
+
+    .operator-link__prompt {
+      flex: 1;
+      color: #c9d1d9;
+      font-size: clamp(1rem, 3.8vw, 1.12rem);
+    }
+
+    .operator-link__go {
+      font-weight: 900;
+      color: #79c0ff;
+    }
+
+    .actions {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .action-card {
+      min-height: 128px;
+      padding: 17px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border: 1px solid #30363d;
+      border-radius: 16px;
+      background: rgba(22, 27, 34, 0.82);
+      text-decoration: none;
+    }
+
+    .action-card:hover,
+    .action-card:focus-visible {
+      border-color: #58a6ff;
+      transform: translateY(-1px);
+      outline: none;
+    }
+
+    .action-card strong {
+      font-size: 1.08rem;
+    }
+
+    .action-card span {
+      color: #8b949e;
+      font-size: 0.91rem;
+      line-height: 1.35;
+    }
+
+    footer {
+      padding-top: 12px;
+      color: #6e7681;
+      font-size: 0.82rem;
+    }
+
+    dialog {
+      width: min(680px, calc(100vw - 24px));
+      max-height: min(720px, calc(100vh - 24px));
+      padding: 0;
+      border: 1px solid #30363d;
+      border-radius: 18px;
+      background: #0d1117;
+      color: #e6edf3;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.62);
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 0, 0, 0.66);
+      backdrop-filter: blur(4px);
+    }
+
+    .apps-head {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      padding: 16px;
+      display: flex;
+      gap: 10px;
+      background: rgba(13, 17, 23, 0.96);
+      border-bottom: 1px solid #21262d;
+    }
+
+    .apps-head input {
+      flex: 1;
+      min-width: 0;
+      min-height: 46px;
+      padding: 10px 14px;
       border: 1px solid #30363d;
       border-radius: 12px;
       background: #161b22;
-      padding: 20px;
+      color: #e6edf3;
+      outline: none;
+    }
+
+    .apps-head input:focus {
+      border-color: #58a6ff;
+    }
+
+    .apps-list {
+      padding: 10px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .app-link {
+      padding: 14px;
+      border: 1px solid #21262d;
+      border-radius: 12px;
+      text-decoration: none;
+    }
+
+    .app-link:hover,
+    .app-link:focus-visible {
+      background: #161b22;
+      border-color: #30363d;
+      outline: none;
+    }
+
+    .app-link strong,
+    .app-link span {
+      display: block;
+    }
+
+    .app-link span {
+      margin-top: 4px;
+      color: #8b949e;
+      font-size: 0.84rem;
+    }
+
+    .apps-empty {
+      padding: 28px 16px;
+      color: #8b949e;
+      text-align: center;
+    }
+
+    @media (max-width: 580px) {
+      .topbar {
+        gap: 7px;
+      }
+
+      .top-action,
+      .menu summary {
+        padding-inline: 11px;
+      }
+
+      .top-action--signin {
+        display: none;
+      }
+
+      main {
+        align-items: flex-start;
+        padding-top: 54px;
+      }
+
+      .actions,
+      .apps-list {
+        grid-template-columns: 1fr;
+      }
+
+      .action-card {
+        min-height: 105px;
+      }
     }
   </style>
-  <link rel="stylesheet" href="styles/global.css">
-  <link rel="stylesheet" href="index-style.css">
-  <script src="portal-swirl-logo.js" defer></script>
-  <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" type="image/svg+xml" href="/brand/portal-logo.svg">
-  <meta name="theme-color" content="#0e1116">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png">
-  <script>
-    (() => {
-      const isStandalone =
-        window.matchMedia('(display-mode: standalone)').matches ||
-        window.navigator.standalone === true ||
-        document.referrer.startsWith('android-app://');
-
-      if (!isStandalone) {
-        document.documentElement.classList.add('app-ready');
-        return;
-      }
-
-      document.documentElement.classList.add('app-boot-enabled');
-      const hidePortalBoot = () => document.documentElement.classList.add('app-ready');
-      window.addEventListener('load', hidePortalBoot, { once: true });
-      window.setTimeout(hidePortalBoot, 3600);
-    })();
-  </script>
-  <script>
-    const prNumber = '{{PR_NUMBER}}';
-    const relayUrl = '{{WSS_RELAY_URL}}';
-    if (typeof window !== 'undefined') {
-      if (!prNumber.includes('{{')) {
-        window.__PR_NUMBER__ = prNumber;
-      }
-      if (!relayUrl.includes('{{')) {
-        window.__GUN_RELAY__ = relayUrl;
-      }
-      window.__APP_NAME__ = window.__APP_NAME__ || '3dvr-portal';
-    }
-  </script>
-
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
-<body class="landing theme-dark" data-view-mode="workshop" data-active-room="">
-  <a class="skip-link" href="#mainContent">Skip to main content</a>
-  <div class="app-boot" aria-hidden="true">
-    <div class="app-boot__mark">
-      <img src="/brand/portal-logo.svg" alt="">
-    </div>
-    <div class="app-boot__text">
-      <strong>3dvr portal</strong>
-      <span>Opening your workspace</span>
-    </div>
-    <div class="app-boot__bar"><span></span></div>
-  </div>
-  <div class="landing-shell">
-    <a class="site-backlink" href="https://3dvr.tech/" aria-label="Back to 3dvr.tech home">3dvr.tech</a>
-    <div class="top-nav top-nav--collapsed">
-      <div class="top-nav__primary">
-        <button
-          class="top-nav__toggle"
-          type="button"
-          aria-expanded="false"
-          aria-controls="landingQuickLinks"
-        >
-          <span class="top-nav__toggle-icon" aria-hidden="true"></span>
-          <span class="top-nav__toggle-text">Menu</span>
-        </button>
-        <button type="button" class="top-nav__search" data-app-search-trigger>Search apps</button>
-        <a class="top-nav__sign-in" href="sign-in.html?redirect=%2Findex.html" data-auth-entry>Sign in</a>
-      </div>
-      <div class="view-toggle-container" aria-label="Portal view mode">
-        <button class="toggle-btn" type="button" data-view-mode-button="guide" data-active="false">Guide</button>
-        <button class="toggle-btn" type="button" data-view-mode-button="human-os" data-active="false">Human O.S.</button>
-        <button class="toggle-btn" type="button" data-view-mode-button="workshop" data-active="true">Workshop</button>
-      </div>
-      <nav class="top-buttons" id="landingQuickLinks" aria-label="3DVR quick links">
-        <a href="free-page/">Free Website</a>
-        <a href="start/">Start</a>
-        <a href="life/index.html">Daily Direction</a>
-        <a href="start/#paid-lanes">Plans</a>
-        <a href="sign-in.html?redirect=%2Findex.html" data-auth-entry>Sign in</a>
-      </nav>
-    </div>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="3DVR Portal home">
+        <img src="/brand/portal-logo.svg" alt="">
+        <span>3DVR</span>
+      </a>
+      <button class="top-action" type="button" data-open-apps>Search</button>
+      <details class="menu">
+        <summary>Menu</summary>
+        <nav class="menu-panel" aria-label="Portal menu">
+          <a href="/operator/">Operator</a>
+          <a href="/home/">Apps &amp; workspace</a>
+          <a href="/calendar/">Calendar</a>
+          <a href="/crm/">CRM</a>
+          <a href="/community/">Community</a>
+          <a href="/games.html">Games</a>
+          <a href="/billing/">Plans &amp; billing</a>
+          <a href="/releases/">Releases</a>
+        </nav>
+      </details>
+      <a class="top-action top-action--signin" href="/sign-in.html?redirect=%2F">Sign in</a>
+    </header>
 
-    <main id="mainContent" class="landing-content">
-      <section class="hero" aria-labelledby="landing-title">
-        <div class="hero-breath" aria-hidden="true">
-          <span class="hero-breath__orb hero-breath__orb--primary"></span>
-          <span class="hero-breath__orb hero-breath__orb--secondary"></span>
-          <span class="hero-breath__orb hero-breath__orb--tertiary"></span>
-        </div>
-        <div class="hero-panel">
-          <div class="hero-main">
-            <span class="hero-eyebrow">Human O.S.</span>
-            <h1 id="landing-title">Find your purpose. Organize your life. Launch your world.</h1>
-            <div class="portal-swirl-brand">
-              <div class="portal-swirl-frame" aria-hidden="true"></div>
-              <div
-                class="portal-swirl-logo"
-                data-portal-swirl-logo
-                role="button"
-                tabindex="0"
-                aria-label="Interactive 3dvr portal 3D swirl logo. Press and hold to pause. Drag or touch to tilt and flip it."
-              >
-                <canvas class="portal-swirl-logo__canvas" data-portal-swirl-canvas></canvas>
-                <span class="portal-swirl-logo__fallback" aria-hidden="true">
-                  <span>3dvr</span>
-                  <span>portal</span>
-                </span>
-              </div>
-            </div>
-            <p class="hero-tagline">Pick one small next step for today.</p>
-            <div class="hero-actions">
-              <a href="operator/" class="cta primary">Talk to your operator</a>
-              <a href="life/index.html" class="cta primary">Take one small step</a>
-              <a href="forge/" class="cta ghost">I have an idea</a>
-              <a href="start/#paid-lanes" class="cta ghost">I need help building</a>
-              <a href="#app-hub-title" class="cta ghost" data-app-search-trigger>Browse apps</a>
-            </div>
-            <div class="workspace-strip" aria-label="Featured games">
-              <span class="workspace-strip__label">Featured games</span>
-              <div class="workspace-ribbon">
-                <a class="workspace-pill" href="signal-garden/">
-                  <strong>Game: Signal Garden</strong>
-                  <span>Collect sparks and wake a living constellation.</span>
-                </a>
-                <a class="workspace-pill" href="stellar-flight.html">
-                  <strong>Game: Stellar Drift</strong>
-                  <span>Fly a starfighter through deep-space drift lanes.</span>
-                </a>
-                <a class="workspace-pill" href="jetpack.html">
-                  <strong>Game: Jetpack Corridor</strong>
-                  <span>Dodge, boost, and thread the corridor in a quick-play jetpack game.</span>
-                </a>
-              </div>
-            </div>
-            <div class="workspace-strip workspace-strip--core" aria-label="Core workspaces">
-              <span class="workspace-strip__label">Core workspaces</span>
-              <div class="workspace-ribbon">
-                <a class="workspace-pill" href="operator/">
-                  <strong>Operator</strong>
-                  <span>Say what you need. Let the portal do the work.</span>
-                </a>
-                <a class="workspace-pill" href="life-space/">
-                  <strong>Life Space</strong>
-                  <span>Arrange notes, photos, links, files, and sketches your way.</span>
-                </a>
-                <a class="workspace-pill" href="contacts/index.html">
-                  <strong>Contacts</strong>
-                  <span>People and relationship context.</span>
-                </a>
-                <a class="workspace-pill" href="/chat/">
-                  <strong>Messenger</strong>
-                  <span>Shared chat and notifications.</span>
-                </a>
-                <a class="workspace-pill" href="calendar/index.html">
-                  <strong>Calendar</strong>
-                  <span>Meetings, follow-ups, and synced schedules.</span>
-                </a>
-                <a class="workspace-pill" href="billing/index.html">
-                  <strong>Billing</strong>
-                  <span>Plans, renewals, and Stripe account status.</span>
-                </a>
-                <a class="workspace-pill" href="finance/index.html">
-                  <strong>Finance</strong>
-                  <span>Shared totals and profitability checks.</span>
-                </a>
-              </div>
-            </div>
-            <div class="plan-strip" aria-label="Quick plan links">
-              <span class="plan-strip__label">Plans</span>
-              <div class="plan-ribbon plan-ribbon--compact">
-                <a class="plan-pill" href="free-trial.html">
-                  <strong>Free Plan</strong>
-                  <span>One messy thought, one step</span>
-                </a>
-                <a class="plan-pill" href="sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dstarter">
-                  <strong>$5</strong>
-                  <span>Family &amp; Friends</span>
-                </a>
-                <a class="plan-pill" href="sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dpro">
-                  <strong>$20</strong>
-                  <span>Founder</span>
-                </a>
-                <a class="plan-pill" href="sign-in.html?redirect=%2Fbilling%2F%3Fplan%3Dbuilder">
-                  <strong>$50</strong>
-                  <span>Builder</span>
-                </a>
-              </div>
-            </div>
-          </div>
-          <div class="hero-shortcuts" aria-labelledby="quick-switch-title">
-            <div class="hero-shortcuts__header">
-              <span class="eyebrow">Support lanes</span>
-              <h2 id="quick-switch-title">Start free, then grow</h2>
-            </div>
-            <div class="shortcut-grid">
-              <a href="life/index.html" class="shortcut-card">
-                <span class="shortcut-card__icon" aria-hidden="true">🌿</span>
-                <span class="shortcut-card__title">Daily Direction</span>
-                <span class="shortcut-card__meta">Free: sort your life and choose one next step.</span>
-              </a>
-              <a href="alive-system/" class="shortcut-card">
-                <span class="shortcut-card__icon" aria-hidden="true">⚡</span>
-                <span class="shortcut-card__title">Alive System</span>
-                <span class="shortcut-card__meta">Redirect restless energy into movement, building, and outreach.</span>
-              </a>
-              <a href="cell/index.html" class="shortcut-card">
-                <span class="shortcut-card__icon" aria-hidden="true">🧫</span>
-                <span class="shortcut-card__title">Support Group</span>
-                <span class="shortcut-card__meta">Cell: small-group accountability and weekly momentum.</span>
-              </a>
-              <a href="community/index.html" class="shortcut-card">
-                <span class="shortcut-card__icon" aria-hidden="true">🌐</span>
-                <span class="shortcut-card__title">Community System</span>
-                <span class="shortcut-card__meta">Circles, weekly check-ins, and builder threads.</span>
-              </a>
-              <a href="friends-family/" class="shortcut-card">
-                <span class="shortcut-card__icon" aria-hidden="true">$5</span>
-                <span class="shortcut-card__title">Friends &amp; Family Pass</span>
-                <span class="shortcut-card__meta">Get clear, try free, or help 3DVR for $5/month.</span>
-              </a>
-              <a href="start/index.html" class="shortcut-card">
-                <span class="shortcut-card__icon" aria-hidden="true">🧭</span>
-                <span class="shortcut-card__title">Start Your Thing</span>
-                <span class="shortcut-card__meta">Start Here: organize life, ideas, work, and what wants to grow.</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
+    <main>
+      <section class="home" aria-labelledby="home-title">
+        <p class="eyebrow">3DVR Portal</p>
+        <h1 id="home-title">What do you want to do?</h1>
+        <p class="subhead">Tell your Operator what you need, or jump straight into one part of your life and work.</p>
 
-      <section class="pathway-entry" aria-labelledby="pathway-entry-title">
-        <div class="app-hub__intro">
-          <span class="eyebrow">Choose your next direction</span>
-          <h2 id="pathway-entry-title">Startup skills are opportunity-creation skills.</h2>
-          <p>
-            Use builder skills to improve your life, begin a career, advance in your current work,
-            help someone you know, or start something of your own.
-          </p>
-        </div>
-        <div class="pathway-entry__grid">
-          <a href="life/index.html" class="pathway-entry__card">
-            <strong>I feel stuck</strong>
-            <span>Find direction and take one useful step.</span>
-            <b>Open Daily Direction</b>
-          </a>
-          <a href="career-launch/" class="pathway-entry__card">
-            <strong>I need a career</strong>
-            <span>Choose a direction, build evidence, and find paid work.</span>
-            <b>Start Career Launch</b>
-          </a>
-          <a href="opportunity-builder/" class="pathway-entry__card">
-            <strong>I want to grow in my current career</strong>
-            <span>Solve real problems, demonstrate value, and create new opportunities.</span>
-            <b>Build an Opportunity Brief</b>
-          </a>
-          <a href="launch-room/?mode=start-project" class="pathway-entry__card">
-            <strong>I want to start something</strong>
-            <span>Help someone, test an offer, and launch a small real project.</span>
-            <b>Open Launch Room</b>
-          </a>
-        </div>
-      </section>
+        <a class="operator-link" href="/operator/">
+          <span class="operator-link__prompt">Ask your Operator…</span>
+          <span class="operator-link__go" aria-hidden="true">→</span>
+        </a>
 
-      <section class="portal-guide" aria-labelledby="portal-guide-title" data-portal-guide>
-        <div class="portal-guide__panel">
-          <div class="portal-guide__intro">
-            <span class="eyebrow">One prompt</span>
-            <h2 id="portal-guide-title">What feels scattered today?</h2>
-            <p>Write one sentence. The portal will start with Daily Direction unless your note clearly needs another lane.</p>
-            <p class="portal-guide__memory" data-auto-identity-status>No login needed. This browser remembers what helps.</p>
-          </div>
-          <form class="portal-guide__form" data-guide-form>
-            <label class="portal-guide__label" for="portalGuidePrompt">What are you trying to sort out?</label>
-            <textarea
-              id="portalGuidePrompt"
-              rows="4"
-              maxlength="800"
-              placeholder="Example: I feel scattered and need to organize my life."
-              data-guide-prompt
-            ></textarea>
-            <div class="portal-guide__chips" aria-label="Guide starter prompts">
-              <button type="button" data-guide-chip="I feel scattered and need to organize my life.">Life</button>
-              <button type="button" data-guide-chip="I have an idea and do not know what to do next.">Idea</button>
-              <button type="button" data-guide-chip="I need money, work, or a better follow-up system.">Money</button>
-              <button type="button" data-guide-chip="I want to build a page, app, or project.">Build</button>
-            </div>
-            <button class="cta primary" type="submit" data-guide-submit>Guide me</button>
-            <p class="portal-guide__status" data-guide-status aria-live="polite"></p>
-          </form>
+        <div class="actions" aria-label="Core portal actions">
+          <a class="action-card" href="/life/">
+            <strong>Plan my day</strong>
+            <span>Get direction and choose the next useful step.</span>
+          </a>
+          <a class="action-card" href="/growth-desk/">
+            <strong>Find work or customers</strong>
+            <span>Open leads, follow-ups, CRM, and revenue work.</span>
+          </a>
+          <a class="action-card" href="/forge/">
+            <strong>Build something</strong>
+            <span>Turn an idea into a project, offer, page, or experiment.</span>
+          </a>
+          <button class="action-card" type="button" data-open-apps>
+            <strong>Open my stuff</strong>
+            <span>Search apps and jump into your workspace.</span>
+          </button>
         </div>
-
-        <article class="portal-guide__result" data-guide-result hidden>
-          <div>
-            <span class="eyebrow" data-guide-label>Best place</span>
-            <h3 data-guide-title>Daily Direction</h3>
-            <p data-guide-copy>Start with a quick life check-in and one clear next step.</p>
-          </div>
-          <ol class="portal-guide__steps" data-guide-steps></ol>
-          <div class="portal-guide__actions">
-            <a class="cta primary" href="life/index.html" data-guide-primary>Open Daily Direction</a>
-            <button class="cta ghost" type="button" data-guide-show-dock>Show matching apps</button>
-          </div>
-        </article>
-
-        <section class="portal-app-studio" data-owned-app-studio hidden aria-labelledby="owned-app-title">
-          <div class="portal-app-studio__header">
-            <div>
-              <span class="eyebrow">Your app</span>
-              <h3 id="owned-app-title" data-owned-app-title>New app draft</h3>
-              <p data-owned-app-status>Only you can edit this draft.</p>
-            </div>
-            <a class="cta primary" href="web-builder-app/index.html" data-owned-app-builder>Open Builder</a>
-          </div>
-          <div class="portal-app-studio__grid">
-            <label>
-              App name
-              <input type="text" data-owned-app-name maxlength="80" autocomplete="off">
-            </label>
-            <label>
-              What should it do?
-              <textarea rows="4" data-owned-app-prompt maxlength="1200"></textarea>
-            </label>
-          </div>
-          <div class="portal-app-studio__actions">
-            <button class="cta primary" type="button" data-owned-app-save>Save draft</button>
-            <button class="cta ghost" type="button" data-owned-app-copy>Copy build prompt</button>
-          </div>
-          <div class="portal-app-studio__owned">
-            <strong>Your drafts</strong>
-            <div class="portal-app-studio__list" data-owned-app-list></div>
-          </div>
-        </section>
-      </section>
-
-      <section class="human-os-container" aria-labelledby="human-os-title">
-        <div class="human-os-map" data-human-os-map>
-          <div class="human-os-heading">
-            <span class="eyebrow">Choose a room</span>
-            <h2 id="human-os-title">Nine doors into the portal</h2>
-          </div>
-          <div class="doors-grid" aria-label="Human O.S. rooms">
-            <button class="door-card" type="button" data-room-door="purpose">
-              <span class="door-card__label">🧭 My Purpose</span>
-              <span class="door-card__subtitle">Direction &amp; Core Values</span>
-            </button>
-            <button class="door-card" type="button" data-room-door="life">
-              <span class="door-card__label">🌱 My Life</span>
-              <span class="door-card__subtitle">Habits, Health &amp; Rhythms</span>
-            </button>
-            <button class="door-card" type="button" data-room-door="ideas">
-              <span class="door-card__label">💡 My Ideas</span>
-              <span class="door-card__subtitle">Capture Thoughts &amp; Dumps</span>
-            </button>
-            <button class="door-card" type="button" data-room-door="projects">
-              <span class="door-card__label">🛠️ My Projects</span>
-              <span class="door-card__subtitle">Build &amp; Execute</span>
-            </button>
-            <button class="door-card" type="button" data-room-door="work">
-              <span class="door-card__label">💼 My Work</span>
-              <span class="door-card__subtitle">Clients &amp; Operations</span>
-            </button>
-            <button class="door-card" type="button" data-room-door="learning">
-              <span class="door-card__label">🧠 My Learning</span>
-              <span class="door-card__subtitle">Sandboxes &amp; Knowledge</span>
-            </button>
-            <button class="door-card" type="button" data-room-door="community">
-              <span class="door-card__label">🤝 My Community</span>
-              <span class="door-card__subtitle">Collaborators &amp; P2P Mesh</span>
-            </button>
-            <button class="door-card" type="button" data-room-door="money">
-              <span class="door-card__label">💰 My Money</span>
-              <span class="door-card__subtitle">Cashflow &amp; Runway</span>
-            </button>
-            <button class="door-card" type="button" data-room-door="play">
-              <span class="door-card__label">🕹️ 3D Play</span>
-              <span class="door-card__subtitle">Physics, Games &amp; Engine</span>
-            </button>
-          </div>
-        </div>
-        <div class="room-reveal" data-room-reveal hidden>
-          <button class="room-back" type="button" data-room-back>← Back to Map</button>
-          <div>
-            <span class="eyebrow">Human O.S. room</span>
-            <h2 data-room-title>Room</h2>
-            <p data-room-subtitle>Only the portal tools for this state are shown below.</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="app-hub" aria-labelledby="app-hub-title">
-        <div class="app-hub__header">
-          <div class="app-hub__intro">
-            <span class="eyebrow">Command center</span>
-            <h2 id="app-hub-title">App dock</h2>
-            <p>Same account, same apps, deeper levels of control. Search the dock or jump into the lane you need.</p>
-          </div>
-          <div class="app-toolbar" aria-label="App list controls">
-            <div
-              class="app-search"
-              role="search"
-              aria-label="Filter app list"
-              data-app-search-container
-              data-app-search-sticky
-            >
-              <label class="app-search__label" for="appSearch">Search the dock</label>
-              <input
-                type="search"
-                id="appSearch"
-                class="app-search__input"
-                placeholder="Calendar, people, billing…"
-                aria-label="Search apps"
-                aria-describedby="appSearchHint"
-                autocomplete="off"
-                spellcheck="false"
-                data-app-search-input
-              />
-              <span id="appSearchHint" class="app-search__hint">Press / or Ctrl + K to jump here.</span>
-            </div>
-            <label class="app-toggle">
-              <span class="app-toggle__label">Show experimental apps</span>
-              <input
-                type="checkbox"
-                class="app-toggle__input"
-                aria-label="Show experimental apps"
-                data-experimental-toggle
-              />
-              <span class="app-toggle__switch" aria-hidden="true"></span>
-            </label>
-          </div>
-          <div class="app-lane-filter" aria-label="Filter app dock by lane">
-            <button type="button" data-app-lane-filter="simple" data-active="true" aria-pressed="true">Simple</button>
-            <button type="button" data-app-lane-filter="all" aria-pressed="false">All</button>
-            <button type="button" data-app-lane-filter="money" aria-pressed="false">Money</button>
-            <button type="button" data-app-lane-filter="work" aria-pressed="false">Work</button>
-            <button type="button" data-app-lane-filter="projects" aria-pressed="false">Projects</button>
-            <button type="button" data-app-lane-filter="life" aria-pressed="false">Life</button>
-            <button type="button" data-app-lane-filter="ideas" aria-pressed="false">Ideas</button>
-            <button type="button" data-app-lane-filter="learning" aria-pressed="false">Learn</button>
-            <button type="button" data-app-lane-filter="community" aria-pressed="false">Community</button>
-            <button type="button" data-app-lane-filter="play" aria-pressed="false">Game Hub</button>
-            <button type="button" data-app-lane-filter="experimental" aria-pressed="false">Experimental</button>
-          </div>
-        </div>
-        <p id="appSearchEmpty" class="app-search__empty" role="status" aria-live="polite" hidden>No apps match your search yet.</p>
-        <div class="app-grid" data-app-list>
-          <a href="forge/" class="app-card" data-app-keywords="forge frustration rant reflect project movement brief experiment codex prompt test message launch">
-            <span class="app-card__icon" aria-hidden="true">FG</span>
-            <span class="app-card__title">3DVR Forge</span>
-            <span class="app-card__meta">Get clear, pick one step, and leave with a simple plan or message.</span>
-            <span class="app-card__cta">Get help</span>
-          </a>
-          <a
-            href="friends-family/"
-            class="app-card"
-            data-app-keywords="friends family supporter support five 5 free tester early access billing starter community"
-          >
-            <span class="app-card__icon" aria-hidden="true">$5</span>
-            <span class="app-card__title">Friends &amp; Family Pass</span>
-            <span class="app-card__meta">A free or $5/month path to get clear and take one step.</span>
-            <span class="app-card__cta">Open small offer</span>
-          </a>
-          <a
-            href="offer-garden/"
-            class="app-card"
-            data-app-keywords="offer garden start free launch free success fee payments earn creator service lessons sales"
-          >
-            <span class="app-card__icon" aria-hidden="true">$0</span>
-            <span class="app-card__title">Start an Offer</span>
-            <span class="app-card__meta">Start free, make a small offer, and pay 3DVR only when money comes through your page.</span>
-            <span class="app-card__cta">Make offer</span>
-          </a>
-          <a
-            href="ideas/forge-revenue-sprint.html"
-            class="app-card"
-            data-app-keywords="forge sprint paid launch offer revenue deposit money validation test message landing page builder"
-          >
-            <span class="app-card__icon" aria-hidden="true">$300</span>
-            <span class="app-card__title">Forge Sprint</span>
-            <span class="app-card__meta">Turn a Movement Brief into a buyable 72-hour offer page, first test message, and reply tracker.</span>
-            <span class="app-card__cta">Start $300 sprint</span>
-          </a>
-          <a
-            href="ideas/lead-rescue-sprint.html"
-            class="app-card"
-            data-app-keywords="lead rescue sprint freelancers small agencies follow up client onboarding paid offer crm intake sales revenue"
-          >
-            <span class="app-card__icon" aria-hidden="true">$300</span>
-            <span class="app-card__title">Lead Rescue Sprint</span>
-            <span class="app-card__meta">A 72-hour paid setup for freelancers and small agencies losing interested buyers after the first reply.</span>
-            <span class="app-card__cta">Open paid offer</span>
-          </a>
-          <a
-            href="ideas/freelance-portfolio-validation-sprint.html"
-            class="app-card"
-            data-app-keywords="portfolio validation sprint freelance designer proof piece client acquisition paid pilot offer creative buyer feedback"
-          >
-            <span class="app-card__icon" aria-hidden="true">$500</span>
-            <span class="app-card__title">Portfolio Validation Sprint</span>
-            <span class="app-card__meta">A 7-day sprint for freelance designers who need one proof piece, buyer feedback, and a paid pilot offer.</span>
-            <span class="app-card__cta">Open paid offer</span>
-          </a>
-          <a
-            href="ideas/client-onboarding-sprint.html"
-            class="app-card"
-            data-app-keywords="client onboarding sprint freelancers small agencies checklist follow up paid offer crm intake sales revenue"
-          >
-            <span class="app-card__icon" aria-hidden="true">$300</span>
-            <span class="app-card__title">Client Onboarding Sprint</span>
-            <span class="app-card__meta">A 72-hour paid setup that turns a yes into intake, checklist, and first-week follow-up.</span>
-            <span class="app-card__cta">Open paid offer</span>
-          </a>
-          <a href="start/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🧭</span>
-            <span class="app-card__title">Start Here</span>
-            <span class="app-card__meta">Choose the right path for your idea, offer, or next 3dvr.tech collaboration.</span>
-          </a>
-          <a href="purpose-movement/" class="app-card" data-app-keywords="purpose vision movement signal launch mirror portal">
-            <span class="app-card__icon" aria-hidden="true">PM</span>
-            <span class="app-card__title">Purpose Movement</span>
-            <span class="app-card__meta">Find your purpose, visualize your movement, and launch the first doorway.</span>
-          </a>
-          <a href="manifest/" class="app-card" data-app-keywords="manifest manifestation reality builder attention body vision evidence action woop alignment master key intention portal lab">
-            <span class="app-card__icon" aria-hidden="true">RB</span>
-            <span class="app-card__title">Reality Builder</span>
-            <span class="app-card__meta">Manifestation for builders: clarify desire, train attention, and take one real action.</span>
-          </a>
-          <a href="launch-room/" class="app-card" data-app-keywords="launch room projects website builder sites lead capture crm contacts tasks billing email operator sales">
-            <span class="app-card__icon" aria-hidden="true">LR</span>
-            <span class="app-card__title">Launch Room</span>
-            <span class="app-card__meta">Turn a rough idea into a page, a plan, lead capture, and a payment path.</span>
-          </a>
-          <a href="revenue-desk/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">REV</span>
-            <span class="app-card__title">Revenue Desk</span>
-            <span class="app-card__meta">Run the daily founder loop: follow-ups, proposals, billing, and one revenue move.</span>
-          </a>
-          <a href="growth-desk/" class="app-card" data-app-keywords="growth desk command center crm outreach follow up leak sprint leads market pulse money">
-            <span class="app-card__icon" aria-hidden="true">GD</span>
-            <span class="app-card__title">Growth Desk</span>
-            <span class="app-card__meta">Review the current sprint, CRM leads, custom drafts, and next approved money move.</span>
-          </a>
-          <a href="growth-operator/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">GO</span>
-            <span class="app-card__title">Growth Operator</span>
-            <span class="app-card__meta">Find leads, prepare approved email, triage support, and keep delivery moving.</span>
-          </a>
-          <a href="operator/" class="app-card" data-app-keywords="operator openclaw assistant chat agent telegram command center personal technology department">
-            <span class="app-card__icon" aria-hidden="true">OP</span>
-            <span class="app-card__title">Operator</span>
-            <span class="app-card__meta">Talk with your OpenClaw operator, review conversations, and run work from one command center.</span>
-          </a>
-          <a href="lead-finder/" class="app-card" data-app-keywords="lead finder local businesses prospects website audit preview outreach crm sales revenue">
-            <span class="app-card__icon" aria-hidden="true">LF</span>
-            <span class="app-card__title">Lead Finder</span>
-            <span class="app-card__meta">Find public local-business opportunities, score the fit, and turn the best ones into previews.</span>
-          </a>
-          <a href="/admin/" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🛠️</span>
-            <span class="app-card__title">Agent Ops</span>
-            <span class="app-card__meta">Inspect the portal session, control the 3dvr-agent, and prepare the DigitalOcean host.</span>
-          </a>
-          <a href="calendar/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">📅</span>
-            <span class="app-card__title">Calendar</span>
-            <span class="app-card__meta">Connect Google or Outlook and manage events.</span>
-          </a>
-          <a href="cell/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🧫</span>
-            <span class="app-card__title">Cell</span>
-            <span class="app-card__meta">Build a portable organizing unit for people, projects, and mutual support.</span>
-          </a>
-          <a href="community/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🌐</span>
-            <span class="app-card__title">Community</span>
-            <span class="app-card__meta">Create builder circles, weekly check-ins, and focused project support threads.</span>
-          </a>
-          <a href="community-farming-network/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">GROW</span>
-            <span class="app-card__title">Community Farming</span>
-            <span class="app-card__meta">Coordinate neighborhood food, growing space, tools, and labor sharing.</span>
-          </a>
-          <a href="life/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🌿</span>
-            <span class="app-card__title">Daily Direction</span>
-            <span class="app-card__meta">Check in, name what needs care, and pick one small step.</span>
-          </a>
-          <a href="life-upgrade/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">7D</span>
-            <span class="app-card__title">Life Upgrade</span>
-            <span class="app-card__meta">Turn one area of life into one completed useful result within seven days.</span>
-          </a>
-          <a href="sky-room/" class="app-card" data-app-keywords="outdoor outside sky sunrise sunset daylight time nature reset technician">
-            <span class="app-card__icon" aria-hidden="true">☼</span>
-            <span class="app-card__title">Sky Room</span>
-            <span class="app-card__meta">Step outside indoors with a living sky, daylight tracker, and sunrise-to-blue-hour controls.</span>
-          </a>
-          <a href="/purpose/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">✦</span>
-            <span class="app-card__title">Purpose</span>
-            <span class="app-card__meta">Organize your life. Find your purpose. Launch meaningful projects.</span>
-            <span class="app-card__cta">Open Purpose</span>
-          </a>
-          <a href="alive-system/" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">⚡</span>
-            <span class="app-card__title">Alive System</span>
-            <span class="app-card__meta">Track energy, urges, social reps, and dopamine redirects through the portal Gun relay.</span>
-          </a>
-          <a href="sober-spark/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">SPARK</span>
-            <span class="app-card__title">Sober Spark</span>
-            <span class="app-card__meta">Open an interactive light and sound room for redirecting coffee or weed cravings.</span>
-          </a>
-          <a href="attention-shield/" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🛡️</span>
-            <span class="app-card__title">Attention Shield</span>
-            <span class="app-card__meta">Plan a local-first AI layer that filters phone notifications before they reach you.</span>
-          </a>
-          <a href="/chat/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">💬</span>
-            <span class="app-card__title">Chat</span>
-            <span class="app-card__meta">Stay in the loop, route notifications, and ship ideas faster.</span>
-          </a>
-          <a href="clipboard/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">📋</span>
-            <span class="app-card__title">Clipboard</span>
-            <span class="app-card__meta">Move commands and snippets between signed-in devices.</span>
-          </a>
-          <a href="contacts/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">📇</span>
-            <span class="app-card__title">Contacts</span>
-            <span class="app-card__meta">Keep teammates and partners close.</span>
-          </a>
-          <a href="crm/index.html" class="app-card" data-app-keywords="crm customer relationship management lead leads crm conversations messages notes follow up next steps sales">
-            <span class="app-card__icon" aria-hidden="true">📊</span>
-            <span class="app-card__title">CRM</span>
-            <span class="app-card__meta">Save quick conversations, messages, and next steps before they leave your head.</span>
-          </a>
-          <a href="memory-capture/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🎙️</span>
-            <span class="app-card__title">Memory Capture</span>
-            <span class="app-card__meta">Brain dump conversations into people notes, proposals, and 3dvr-agent cleanup tasks.</span>
-          </a>
-          <a href="deployment-guides/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🛠️</span>
-            <span class="app-card__title">Deploy Guides</span>
-            <span class="app-card__meta">Grab GitHub/Vercel tokens, IDs, and stable alias steps.</span>
-          </a>
-          <a href="email-operator/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">📨</span>
-            <span class="app-card__title">Email Operator</span>
-            <span class="app-card__meta">Triage inboxes, draft replies, and gate automation through approval queues.</span>
-          </a>
-          <a href="billing/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">💳</span>
-            <span class="app-card__title">Billing</span>
-            <span class="app-card__meta">Manage plans, invoices, renewals, and Stripe-linked account status.</span>
-          </a>
-          <a href="custom-payment/" class="app-card" data-app-keywords="custom payment checkout stripe invoice deposit business cards">
-            <span class="app-card__icon" aria-hidden="true">💵</span>
-            <span class="app-card__title">Custom Payment</span>
-            <span class="app-card__meta">Create a no-account Stripe checkout link for a customer.</span>
-          </a>
-          <a href="quote-builder/" class="app-card" data-app-keywords="quote estimate invoice pdf crm payment business cards shirts">
-            <span class="app-card__icon" aria-hidden="true">🧾</span>
-            <span class="app-card__title">Quote Builder</span>
-            <span class="app-card__meta">Build a clean quote from CRM and turn it into a payment link.</span>
-          </a>
-          <a href="finance/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">💰</span>
-            <span class="app-card__title">Finance</span>
-            <span class="app-card__meta">Log shared expenditures and keep totals aligned.</span>
-          </a>
-          <a href="games.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🎮</span>
-            <span class="app-card__title">Game Hub</span>
-            <span class="app-card__meta">Pick a quick-play experiment, reset your energy, and earn bonus points.</span>
-          </a>
-          <a href="signal-garden/" class="app-card" data-app-keywords="signal garden game calm arcade constellation spark focus play">
-            <span class="app-card__icon" aria-hidden="true">SG</span>
-            <span class="app-card__title">Signal Garden</span>
-            <span class="app-card__meta">Game: collect sparks, keep a streak alive, and wake the field.</span>
-          </a>
-          <a href="stellar-flight.html" class="app-card" data-app-keywords="stellar drift game flight starfighter space arcade play">
-            <span class="app-card__icon" aria-hidden="true">🚀</span>
-            <span class="app-card__title">Stellar Drift</span>
-            <span class="app-card__meta">Game: fly a starfighter through deep-space drift lanes.</span>
-          </a>
-          <a href="jetpack.html" class="app-card" data-app-keywords="jetpack corridor game arcade boost dodge play">
-            <span class="app-card__icon" aria-hidden="true">🕹️</span>
-            <span class="app-card__title">Jetpack Corridor</span>
-            <span class="app-card__meta">Game: dodge, boost, and thread the corridor in quick runs.</span>
-          </a>
-          <a href="3dvr-girl/" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">◎</span>
-            <span class="app-card__title">3DVR Girl</span>
-            <span class="app-card__meta">Open the visual companion portal for motion, beauty, and next-level immersion.</span>
-          </a>
-          <a href="earth-garden.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🌍</span>
-            <span class="app-card__title">Garden Planet</span>
-            <span class="app-card__meta">Explore the Earth-is-a-garden landing page and offer.</span>
-          </a>
-          <a href="home/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🖥️</span>
-            <span class="app-card__title">Home</span>
-            <span class="app-card__meta">Launch the desktop workspace for portal navigation.</span>
-          </a>
-          <a
-            href="vr-portal/"
-            class="app-card"
-            data-app-keywords="vr ar xr spatial interface desktop crm notes calendar tasks finance portal"
-          >
-            <span class="app-card__icon" aria-hidden="true">🥽</span>
-            <span class="app-card__title">Spatial Portal</span>
-            <span class="app-card__meta">Open, view, and edit core portal data inside a 3D workspace.</span>
-          </a>
-          <a
-            href="pocket-window/index.html"
-            class="app-card"
-            data-app-tier="experimental"
-            data-app-keywords="portal spatial touch motion parallax mobile experimental three window room"
-          >
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">3D</span>
-            <span class="app-card__title">Pocket Window</span>
-            <span class="app-card__meta">Open a mobile-first spatial portal with touch, mouse, and optional motion parallax.</span>
-          </a>
-          <a href="human-scale-economics/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🌱</span>
-            <span class="app-card__title">Human Economics</span>
-            <span class="app-card__meta">Explore wealth, AI, small business, nature, and shared ownership.</span>
-          </a>
-          <a href="human-scale-tech/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🧩</span>
-            <span class="app-card__title">Human-Scale Tech</span>
-            <span class="app-card__meta">Plan the trusted, open, healthy technology ecosystem behind 3DVR.</span>
-          </a>
-          <a
-            href="https://3dvr.tech/vision/"
-            class="app-card app-card--vision"
-            target="_blank"
-            rel="noopener"
-            data-app-keywords="vision roadmap open hardware backpack car laptop phone e-bike tent yurt nomad ecosystem"
-          >
-            <span class="app-card__badge">Future map</span>
-            <span class="app-card__icon" aria-hidden="true">✦</span>
-            <span class="app-card__title">Vision</span>
-            <span class="app-card__meta">Tour the 3dvr.tech open hardware and nomad ecosystem roadmap: backpack studio, pocket phone, e-bike, tent, yurt, and launch tools for building from anywhere.</span>
-            <span class="app-card__cta">Explore the future kit</span>
-          </a>
-          <a href="open-source/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">{ }</span>
-            <span class="app-card__title">Open Source</span>
-            <span class="app-card__meta">Map Linux, browsers, creative tools, hardware, phones, and Open Source Ecology.</span>
-          </a>
-          <a href="job-tracker/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🧭</span>
-            <span class="app-card__title">Job Tracker</span>
-            <span class="app-card__meta">Coordinate openings with quick jumps to tasks, calendar, notes, and contacts.</span>
-          </a>
-          <a href="lead-generation.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">📈</span>
-            <span class="app-card__title">Lead Capture</span>
-            <span class="app-card__meta">Collect inbound leads and sync with CRM instantly.</span>
-          </a>
-          <a href="market-lab/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">📣</span>
-            <span class="app-card__title">Market Lab</span>
-            <span class="app-card__meta">Track marketing angles, signal scores, CTA clicks, replies, calls, and signups.</span>
-          </a>
-          <a href="launch-site/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🌐</span>
-            <span class="app-card__title">Launch Site</span>
-            <span class="app-card__meta">Generate, revise, and publish a simple website on a 3dvr.tech subdomain.</span>
-          </a>
-          <a href="education.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🎓</span>
-            <span class="app-card__title">Learn</span>
-            <span class="app-card__meta">Unlock new lessons and level up your skills.</span>
-          </a>
-          <a href="education-suite/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">WEB</span>
-            <span class="app-card__title">Education Suite</span>
-            <span class="app-card__meta">Practice web design now, then follow the roadmap into Python, languages, databases, and cloud labs.</span>
-          </a>
-          <a href="attention-visualized/" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">AI</span>
-            <span class="app-card__title">Attention Visualized</span>
-            <span class="app-card__meta">See self-attention, softmax, Q/K/V, and tiny JavaScript attention in one browser lab.</span>
-          </a>
-          <a href="logic-lab/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">&#9878;</span>
-            <span class="app-card__title">Logic Lab</span>
-            <span class="app-card__meta">Train agents to define terms, test premises, and show their reasoning.</span>
-          </a>
-          <a href="master-key-room/" class="app-card" data-app-keywords="master key room haanel attention manifestation reflection consciousness inner engineering journal practice">
-            <span class="app-card__icon" aria-hidden="true">KEY</span>
-            <span class="app-card__title">Master Key Room</span>
-            <span class="app-card__meta">Practice a grounded 24-step attention, reflection, and action course.</span>
-          </a>
-          <a href="meditation/affirmations.html#manifestationHeading" class="app-card" data-app-keywords="manifestation woop mental contrasting affirmation vision wish outcome obstacle if then plan intention practice">
-            <span class="app-card__icon" aria-hidden="true">WOOP</span>
-            <span class="app-card__title">Manifestation Practice</span>
-            <span class="app-card__meta">Turn a vision into a wish, outcome, obstacle, and if/then plan you can act on.</span>
-          </a>
-          <a href="meditation/#meditationFlow" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🧘</span>
-            <span class="app-card__title">Meditation</span>
-            <span class="app-card__meta">Jump into the breathing room for guided calming cycles.</span>
-          </a>
-          <a href="life-force-room/" class="app-card" data-app-tier="experimental" data-app-keywords="eros life force embodiment desire consent creativity transmutation intimacy nervous system">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">LFR</span>
-            <span class="app-card__title">Life Force Room</span>
-            <span class="app-card__meta">Explore desire, embodiment, consent, and creative transmutation through a symbolic 3D room.</span>
-          </a>
-          <a href="3dvr-connect/" class="app-card" data-app-tier="experimental" data-app-keywords="3dvr connect open form consent community play space premium landing sensual menswear intimacy wellness">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">O3D</span>
-            <span class="app-card__title">3DVR Connect</span>
-            <span class="app-card__meta">Explore the consent-based community and play-space platform around Open Form.</span>
-          </a>
-          <a href="seated-spine-reset/" class="app-card" data-app-keywords="wellness posture spine stretch av tech conference laptop chair breathing">
-            <span class="app-card__icon" aria-hidden="true">AV</span>
-            <span class="app-card__title">Seated Spine Reset</span>
-            <span class="app-card__meta">Run a quiet chair-based posture reset for neck, shoulders, spine, hips, and breath.</span>
-          </a>
-          <a href="fascia-release/" class="app-card" data-app-tier="experimental" data-app-keywords="fascia release neck jaw tongue computer tension gentle reset wellness">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">FR</span>
-            <span class="app-card__title">Fascia Release</span>
-            <span class="app-card__meta">Run the gentle neck, jaw, tongue, and computer-tension reset with low-force guidance.</span>
-          </a>
-          <a href="meeting-notes/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🗒️</span>
-            <span class="app-card__title">Meetings</span>
-            <span class="app-card__meta">Take attendance and capture collaborative notes.</span>
-          </a>
-          <a href="life-space/" class="app-card" data-app-keywords="life space visual canvas board private notes photos links files lists sketches mind map spatial workspace">
-            <span class="app-card__icon" aria-hidden="true">✦</span>
-            <span class="app-card__title">Life Space</span>
-            <span class="app-card__meta">Arrange private notes, photos, links, files, lists, and sketches on a visual canvas.</span>
-          </a>
-          <a href="notes/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">📝</span>
-            <span class="app-card__title">Notes</span>
-            <span class="app-card__meta">Collaborate in real time with the community.</span>
-          </a>
-          <a href="pocket-workstation/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">📱</span>
-            <span class="app-card__title">Pocket Workstation</span>
-            <span class="app-card__meta">Turn your phone into a builder console with synced notes, commands, and projects.</span>
-          </a>
-          <a href="phone-holder-system/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">▣</span>
-            <span class="app-card__title">Phone Holder System</span>
-            <span class="app-card__meta">Prototype the Nomad Clip for ergonomic phone docking, travel, and AR workflows.</span>
-          </a>
-          <a href="nomad-clip-field-test/index.html" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">KIT</span>
-            <span class="app-card__title">Nomad Clip Field Test</span>
-            <span class="app-card__meta">Turn subscriber hardware into a focused grip, stand, tripod, and extender beta.</span>
-          </a>
-          <a href="newsroom/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">📰</span>
-            <span class="app-card__title">News Lounge</span>
-            <span class="app-card__meta">Scroll tech, XR, and social feeds without leaving the portal.</span>
-          </a>
-          <a href="profile.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">👤</span>
-            <span class="app-card__title">Profile</span>
-            <span class="app-card__meta">Track your progress and manage your rewards.</span>
-          </a>
-          <a
-            href="projects/index.html"
-            class="app-card"
-            data-app-keywords="projects seed deck launchpad project nodes social commons updates needs offers supporters"
-          >
-            <span class="app-card__icon" aria-hidden="true">📂</span>
-            <span class="app-card__title">Projects</span>
-            <span class="app-card__meta">
-              Open Seed Deck to plant ideas with pages, updates, needs, offers, and support links.
-            </span>
-          </a>
-          <a href="releases/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🚀</span>
-            <span class="app-card__title">Releases</span>
-            <span class="app-card__meta">Read the latest milestone notes and timelines.</span>
-          </a>
-          <a href="rewards.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🏆</span>
-            <span class="app-card__title">Rewards</span>
-            <span class="app-card__meta">Complete challenges to unlock real perks.</span>
-          </a>
-          <a href="sales/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">💼</span>
-            <span class="app-card__title">Sales</span>
-            <span class="app-card__meta">Navigate playbooks, training, and launch kits.</span>
-          </a>
-          <a href="roadmap/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🗺️</span>
-            <span class="app-card__title">Roadmap</span>
-            <span class="app-card__meta">
-              Review the 12-month plan for turning services into sustainable revenue.
-            </span>
-          </a>
-          <a href="strategy/" class="app-card" data-app-keywords="strategy direction career passion income offer launch paid work independence">
-            <span class="app-card__icon" aria-hidden="true">✦</span>
-            <span class="app-card__title">3DVR Direction</span>
-            <span class="app-card__meta">See the working plan for career momentum, small offers, and passion-to-income paths.</span>
-          </a>
-          <a href="expansion-path/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">✦</span>
-            <span class="app-card__title">Expansion Path</span>
-            <span class="app-card__meta">
-              Follow the longer-range path from portal software into devices and life infrastructure.
-            </span>
-          </a>
-          <a href="/seo/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🧭</span>
-            <span class="app-card__title">SEO Plan</span>
-            <span class="app-card__meta">Track visibility rules, indexing strategy, and progress updates.</span>
-          </a>
-          <a href="score-rewards/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🎯</span>
-            <span class="app-card__title">Score Rewards</span>
-            <span class="app-card__meta">Review the Stripe-linked score model, guardrails, and incentives.</span>
-          </a>
-          <a href="points-ratio/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">💱</span>
-            <span class="app-card__title">Live Point Value</span>
-            <span class="app-card__meta">Watch the Stripe pool and leaderboard drive point-to-dollar value.</span>
-          </a>
-          <a href="social/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">📣</span>
-            <span class="app-card__title">Social Planning</span>
-            <span class="app-card__meta">Organize campaigns, credentials, and automation plans.</span>
-          </a>
-          <a href="/tasks/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">✅</span>
-            <span class="app-card__title">Tasks</span>
-            <span class="app-card__meta">Plan, assign, and celebrate team wins.</span>
-          </a>
-          <a href="tinymark/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">✍️</span>
-            <span class="app-card__title">TinyMark</span>
-            <span class="app-card__meta">Draft outline-style notes and render clean HTML.</span>
-          </a>
-          <a href="portal.3dvr.tech/video/index.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🎥</span>
-            <span class="app-card__title">Video Chat</span>
-            <span class="app-card__meta">Jump into 3dvr.tech Ninja meetings in one click.</span>
-          </a>
-          <a href="webrtc-lab/" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">RTC</span>
-            <span class="app-card__title">WebRTC Lab</span>
-            <span class="app-card__meta">Test native browser video rooms with Gun-backed signaling.</span>
-          </a>
-          <a href="gun-video-lab/" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">GUN</span>
-            <span class="app-card__title">Gun Video Lab</span>
-            <span class="app-card__meta">Stream tiny camera frames directly through Gun for harsh-network experiments.</span>
-          </a>
-          <a href="gun-clip-lab/" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">REC</span>
-            <span class="app-card__title">Gun Clip Lab</span>
-            <span class="app-card__meta">Record short audio/video WebM clips and store the latest one through Gun.</span>
-          </a>
-          <a href="gun-live-room/" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">LIVE</span>
-            <span class="app-card__title">Gun Live Room</span>
-            <span class="app-card__meta">Try a Zoom-style room with tiny frames and mic chunks through Gun.</span>
-          </a>
-          <a href="gun-chunk-stream/" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">CHNK</span>
-            <span class="app-card__title">Gun Chunk Stream</span>
-            <span class="app-card__meta">Record local WebM chunks and upload them through Gun while recording.</span>
-          </a>
-          <a href="wellness.html" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🌿</span>
-            <span class="app-card__title">Wellness</span>
-            <span class="app-card__meta">Explore mindfulness, nutrition, and lifestyle resources.</span>
-          </a>
-          <a
-            href="body-mode/"
-            class="app-card"
-            data-app-tier="experimental"
-            data-app-keywords="body mode wellness posture breathing nervous system sensory reset sleep action"
-          >
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">BODY</span>
-            <span class="app-card__title">Body Mode</span>
-            <span class="app-card__meta">
-              Open sensory-friendly breath, posture, reflection, and action tools for screen-heavy days.
-            </span>
-          </a>
-          <a
-            href="inner-alignment/"
-            class="app-card"
-            data-app-keywords="inner alignment wellness consciousness training breath posture attention action threejs"
-          >
-            <span class="app-card__icon" aria-hidden="true">IA</span>
-            <span class="app-card__title">Inner Alignment</span>
-            <span class="app-card__meta">
-              Practice seated resets, breathwork, attention, visualization, and one grounded action.
-            </span>
-          </a>
-          <a href="herbal-nervous-system/" class="app-card">
-            <span class="app-card__icon" aria-hidden="true">🌿</span>
-            <span class="app-card__title">Herbal Toolkit</span>
-            <span class="app-card__meta">Map herbs, cloves, tulsi, ginger, and calming blends for nervous system rituals.</span>
-          </a>
-          <a href="debian-browser/index.html" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🐧</span>
-            <span class="app-card__title">Debian Browser Lab</span>
-            <span class="app-card__meta">Explore the Debian-in-browser experiment with VM and streaming paths.</span>
-          </a>
-          <a href="personal-debian-server/index.html" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🖧</span>
-            <span class="app-card__title">Personal Debian Server</span>
-            <span class="app-card__meta">Learn how a Debian laptop runs local-first hosting and databases.</span>
-          </a>
-          <a href="field-simulation/index.html" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🌫️</span>
-            <span class="app-card__title">Field Simulation</span>
-            <span class="app-card__meta">Watch a grayscale field diffuse across the grid.</span>
-          </a>
-          <a href="fractal-explorer/" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🌀</span>
-            <span class="app-card__title">Fractal Explorer</span>
-            <span class="app-card__meta">Explore raymarched fractals with shareable browser presets.</span>
-          </a>
-          <a
-            href="string-theory/"
-            class="app-card"
-            data-app-tier="experimental"
-            data-app-keywords="string theory physics threejs visualizer quantum brane compact dimensions"
-          >
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">∿</span>
-            <span class="app-card__title">String Theory Visualizer</span>
-            <span class="app-card__meta">Shape vibrating strings, branes, and compact dimensions in Three.js.</span>
-          </a>
-          <a href="gun-explorer/index.html" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🗺️</span>
-            <span class="app-card__title">Gun Explorer</span>
-            <span class="app-card__meta">Inspect GunJS nodes, peers, and live data snapshots.</span>
-          </a>
-          <a href="gun-demo.html" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🛰️</span>
-            <span class="app-card__title">Gun Sync Lab</span>
-            <span class="app-card__meta">Monitor relays, run the shared counter, and capture backups.</span>
-          </a>
-          <a href="tests/supabase/index.html" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🧪</span>
-            <span class="app-card__title">Supabase Test Lab</span>
-            <span class="app-card__meta">Prototype Supabase workflows before migrating portal apps.</span>
-          </a>
-          <a href="ideas/index.html" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">💡</span>
-            <span class="app-card__title">Ideas Lab</span>
-            <span class="app-card__meta">Test lightweight landing pages with local view and CTA stats.</span>
-          </a>
-          <a href="workbench-ideas/index.html" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🧰</span>
-            <span class="app-card__title">Workbench Ideas</span>
-            <span class="app-card__meta">Automate Workbench idea briefs and promotion checklists.</span>
-          </a>
-          <a href="local-models-on-phones/index.html" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">📱</span>
-            <span class="app-card__title">Local Models</span>
-            <span class="app-card__meta">Plan on-device and in-browser AI runtimes for mobile.</span>
-          </a>
-          <a href="mini-daedalos/" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🪟</span>
-            <span class="app-card__title">Mini DaedalOS</span>
-            <span class="app-card__meta">Try the vanilla Gun.js desktop shell with notes and window memory.</span>
-          </a>
-          <a href="money-ai/" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">💸</span>
-            <span class="app-card__title">Money AI</span>
-            <span class="app-card__meta">Plan income-generating automations with your own AI.</span>
-          </a>
-          <a href="money-printer/" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">MP</span>
-            <span class="app-card__title">money-printer</span>
-            <span class="app-card__meta">Run a founder control room for ideas, offers, experiments, bots, and next money actions.</span>
-          </a>
-          <a
-            href="ideas/offer-audit.html"
-            class="app-card"
-            data-app-tier="experimental"
-            data-app-keywords="money printer offer audit independent builders sales validation outreach landing page paid sprint"
-          >
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">$300</span>
-            <span class="app-card__title">Offer Audit</span>
-            <span class="app-card__meta">Sell the first Money Printer experiment: a 48-hour offer audit for independent builders.</span>
-          </a>
-          <a href="openai-app/index.html" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🤖</span>
-            <span class="app-card__title">OpenAI Workbench</span>
-            <span class="app-card__meta">Bring your own key to chat with GPT-4o and share prompts via Gun.</span>
-          </a>
-          <a href="science/" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🧪</span>
-            <span class="app-card__title">Science Lab</span>
-            <span class="app-card__meta">Run experiments, track signals, and publish VR-ready findings.</span>
-          </a>
-          <a
-            href="intention-lab/"
-            class="app-card"
-            data-app-tier="experimental"
-            data-app-keywords="attention intention manifestation random rng science meditation action experiment"
-          >
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">LAB</span>
-            <span class="app-card__title">Intention Lab</span>
-            <span class="app-card__meta">
-              Turn attention into state, state into action, and test randomness honestly.
-            </span>
-          </a>
-          <a
-            href="smallest-step/"
-            class="app-card"
-            data-app-tier="core"
-            data-app-keywords="smallest step vision ideal life manifestation action habits progress intention"
-          >
-            <span class="app-card__badge">Core</span>
-            <span class="app-card__icon" aria-hidden="true">→</span>
-            <span class="app-card__title">Smallest Step</span>
-            <span class="app-card__meta">Picture the life you want, choose one tiny move, and build proof through action.</span>
-          </a>
-          <a
-            href="portal-lab/"
-            class="app-card"
-            data-app-tier="experimental"
-            data-app-keywords="portal frequency consciousness coherence ritual sound breath rng dreams research"
-          >
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">GATE</span>
-            <span class="app-card__title">Portal Lab</span>
-            <span class="app-card__meta">
-              Explore frequency, consciousness, coherence, ritual, and randomness without overclaiming.
-            </span>
-          </a>
-          <a href="xr-motion-lab/index.html" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🥽</span>
-            <span class="app-card__title">XR Motion Lab</span>
-            <span class="app-card__meta">Use device sensors and camera passthrough for a mobile AR/VR prototype.</span>
-          </a>
-          <a href="website-builder.html" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🛠️</span>
-            <span class="app-card__title">Sites</span>
-            <span class="app-card__meta">Generate AI-built pages and keep them synced with Gun.</span>
-          </a>
-          <a href="web-builder-app/index.html" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🧩</span>
-            <span class="app-card__title">Web Builder</span>
-            <span class="app-card__meta">Use shared defaults to build, preview, and launch new sites fast.</span>
-          </a>
-          <a href="workbench-dev-lab/index.html" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🧪</span>
-            <span class="app-card__title">Workbench Dev Lab</span>
-            <span class="app-card__meta">Test prompts and site builder runs side-by-side with shared checklists.</span>
-          </a>
-          <a href="workbench-site-builder/index.html" class="app-card" data-app-tier="experimental">
-            <span class="app-card__badge">Experimental</span>
-            <span class="app-card__icon" aria-hidden="true">🏗️</span>
-            <span class="app-card__title">Workbench Site Builder</span>
-            <span class="app-card__meta">Build new sites with Workbench keys, previews, and saved runs.</span>
-          </a>
-        </div>
-      </section>
-
-      <section class="gamified-dashboard" aria-labelledby="gamified-dashboard-title">
-        <div class="gamified-dashboard__header">
-          <span class="eyebrow">Play to progress</span>
-          <h2 id="gamified-dashboard-title">Level up your portal adventure</h2>
-          <p>Track your XP and level up as you explore the portal.</p>
-        </div>
-        <div class="gamified-dashboard__grid">
-          <article class="gamified-card level-card" aria-labelledby="level-card-title">
-            <div class="level-card__heading">
-              <h3 id="level-card-title">Current level</h3>
-              <span class="level-card__badge" data-level-badge>Level 1 · Rookie</span>
-            </div>
-            <p class="level-card__subtitle" data-level-subtitle>Earn 100 XP to reach Level 2.</p>
-            <div
-              class="level-progress"
-              role="progressbar"
-              aria-live="polite"
-              aria-valuemin="0"
-              aria-valuemax="100"
-              aria-valuenow="0"
-              data-level-progress-container
-            >
-              <div class="level-progress__fill" data-level-progress></div>
-              <span class="level-progress__glow" aria-hidden="true"></span>
-            </div>
-            <dl class="level-card__stats">
-              <div>
-                <dt>XP earned</dt>
-                <dd data-level-current>0</dd>
-              </div>
-              <div>
-                <dt>Next unlock</dt>
-                <dd data-level-next>Level 2 · Explorer</dd>
-              </div>
-            </dl>
-            <p class="level-card__hint">Play any game or collaborate with the community to boost your XP faster.</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="info-panels" aria-label="How points work">
-        <article class="info-card">
-          <h3>🌟 Earn Points. Unlock Rewards.</h3>
-          <p>At 3DVR, everything you do helps you grow. Play, learn, and contribute while your progress syncs across every device.</p>
-          <p>Use your points to unlock exclusive educational content, special services, and even future cash-out opportunities.</p>
-        </article>
-        <article class="info-card">
-          <h3>How to build momentum</h3>
-          <ul>
-            <li><strong>Play</strong> games in the hub to sharpen skills and climb the leaderboard.</li>
-            <li><strong>Collaborate</strong> in shared notes, chat, and tasks to support the mission.</li>
-            <li><strong>Subscribe</strong> or share the portal to unlock pro tools and new rewards.</li>
-          </ul>
-          <p class="info-card__footer">🎯 Build your profile, contribute to the community, and be rewarded along the way.</p>
-        </article>
       </section>
     </main>
 
-    <aside id="installPrompt" class="install-banner" hidden aria-label="Install 3DVR Portal">
-      <div class="install-banner__content">
-        <span class="install-banner__text">Install 3DVR Portal for quick access.</span>
-        <button id="installBtn" class="install-btn cta primary" type="button">Install 3DVR Portal</button>
-      </div>
-      <button
-        id="installPromptClose"
-        class="install-banner__close"
-        type="button"
-        aria-label="Dismiss install prompt"
-      >
-        ×
-      </button>
-    </aside>
-
-    <footer>
-      3DVR.Tech &copy; 2025 - Open Web for Everyone | Visit <a href="https://3dvr.tech">3DVR.Tech</a> | <a href="https://github.com/tmsteph/3dvr-portal">Contribute on GitHub</a>
-    </footer>
+    <footer>Open personal computing · 3dvr.tech</footer>
   </div>
 
-  <div id="auth-modal" class="auth-modal" aria-hidden="true">
-    <div class="auth-modal__panel" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
-      <h2 id="auth-modal-title">You are already in.</h2>
-      <p>The portal remembers this browser. Add an account later only if you want sync across devices.</p>
-      <div class="auth-modal__actions">
-        <button type="button" class="cta primary" onclick="continueAsGuest()">Keep going</button>
-        <button type="button" class="cta ghost" onclick="startAccountFromHere()">Sync later</button>
-      </div>
+  <dialog id="appsDialog" aria-labelledby="apps-title">
+    <div class="apps-head">
+      <input id="appSearch" type="search" placeholder="Search apps…" aria-label="Search portal apps">
+      <button class="top-action" type="button" data-close-apps>Close</button>
     </div>
-  </div>
+    <div class="apps-list" id="appsList" aria-labelledby="apps-title">
+      <a class="app-link" href="/operator/" data-app="operator assistant agent chat"><strong>Operator</strong><span>Ask for help and run work.</span></a>
+      <a class="app-link" href="/life/" data-app="life daily direction plan today"><strong>Daily Direction</strong><span>Plan the next useful step.</span></a>
+      <a class="app-link" href="/life-space/" data-app="life space notes files sketches"><strong>Life Space</strong><span>Notes, files, links, and sketches.</span></a>
+      <a class="app-link" href="/calendar/" data-app="calendar schedule events"><strong>Calendar</strong><span>Schedule and events.</span></a>
+      <a class="app-link" href="/contacts/" data-app="contacts people relationships"><strong>Contacts</strong><span>People and relationships.</span></a>
+      <a class="app-link" href="/crm/" data-app="crm customers leads follow up sales"><strong>CRM</strong><span>Customers, leads, and follow-ups.</span></a>
+      <a class="app-link" href="/lead-finder/" data-app="lead finder prospects customers sales"><strong>Lead Finder</strong><span>Find potential customers.</span></a>
+      <a class="app-link" href="/growth-desk/" data-app="growth desk revenue sales work customers"><strong>Growth Desk</strong><span>Revenue and outreach work.</span></a>
+      <a class="app-link" href="/revenue-desk/" data-app="revenue desk money proposals billing"><strong>Revenue Desk</strong><span>Follow-ups, proposals, and billing.</span></a>
+      <a class="app-link" href="/forge/" data-app="forge build idea project"><strong>Forge</strong><span>Turn ideas into useful action.</span></a>
+      <a class="app-link" href="/launch-room/" data-app="launch room project website offer"><strong>Launch Room</strong><span>Launch a project or offer.</span></a>
+      <a class="app-link" href="/web-builder-app/" data-app="website web builder sites"><strong>Web Builder</strong><span>Build and launch websites.</span></a>
+      <a class="app-link" href="/projects/" data-app="projects tasks build"><strong>Projects</strong><span>Active work and next steps.</span></a>
+      <a class="app-link" href="/tasks/" data-app="tasks todo work"><strong>Tasks</strong><span>Plan and track work.</span></a>
+      <a class="app-link" href="/chat/" data-app="chat messenger messages"><strong>Messenger</strong><span>Shared chat and notifications.</span></a>
+      <a class="app-link" href="/finance/" data-app="finance money cashflow"><strong>Finance</strong><span>Money and profitability.</span></a>
+      <a class="app-link" href="/billing/" data-app="billing plans stripe subscriptions"><strong>Billing</strong><span>Plans and subscriptions.</span></a>
+      <a class="app-link" href="/community/" data-app="community people groups"><strong>Community</strong><span>Builder circles and shared work.</span></a>
+      <a class="app-link" href="/home/" data-app="home desktop workspace apps all"><strong>Full workspace</strong><span>Open the desktop-style portal workspace.</span></a>
+    </div>
+    <p class="apps-empty" id="appsEmpty" hidden>No matching apps.</p>
+  </dialog>
 
   <script>
-    const gun = Gun(window.__GUN_PEERS__ || [
-      'wss://relay.3dvr.tech/gun',
-      'wss://gun-relay-3dvr.fly.dev/gun'
-    ]);
-    const user = gun.user();
-    const portalRoot = gun.get('3dvr-portal');
-    if (window.AuthIdentity && typeof window.AuthIdentity.syncStorageFromSharedIdentity === 'function') {
-      try {
-        window.AuthIdentity.syncStorageFromSharedIdentity(localStorage);
-      } catch (err) {
-        console.warn('Unable to sync portal identity from shared cookie', err);
-      }
-    }
-    if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function') {
-      window.ScoreSystem.recallUserSession(user);
-    } else {
-      try {
-        user.recall({ sessionStorage: true, localStorage: true });
-      } catch (err) {
-        console.warn('Unable to recall user session', err);
-      }
-    }
+    (() => {
+      const dialog = document.getElementById('appsDialog');
+      const search = document.getElementById('appSearch');
+      const empty = document.getElementById('appsEmpty');
+      const appLinks = Array.from(document.querySelectorAll('.app-link'));
 
-    function ensureGuestId() {
-      if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
-        return window.ScoreSystem.ensureGuestIdentity();
-      }
-
-      try {
-        const legacyId = localStorage.getItem('userId');
-        if (legacyId && !localStorage.getItem('guestId')) {
-          localStorage.setItem('guestId', legacyId);
-        }
-        if (legacyId) {
-          localStorage.removeItem('userId');
-        }
-        let guestId = localStorage.getItem('guestId');
-        if (!guestId) {
-          guestId = `guest_${Math.random().toString(36).substr(2, 9)}`;
-          localStorage.setItem('guestId', guestId);
-        }
-        if (!localStorage.getItem('guestDisplayName')) {
-          localStorage.setItem('guestDisplayName', 'Guest');
-        }
-        localStorage.setItem('guest', 'true');
-        return guestId;
-      } catch (error) {
-        console.warn('Could not create local portal identity', error);
-        return '';
-      }
-    }
-
-    const PORTAL_AUTO_IDENTITY_KEY = 'portal:auto-identity:v1';
-    const PORTAL_AUTO_ACTIVITY_LIMIT = 28;
-
-    function safeParseJson(value, fallback) {
-      if (!value) return fallback;
-      try {
-        return JSON.parse(value);
-      } catch (_error) {
-        return fallback;
-      }
-    }
-
-    function readAutoIdentity() {
-      return safeParseJson(localStorage.getItem(PORTAL_AUTO_IDENTITY_KEY), null);
-    }
-
-    function writeAutoIdentity(profile) {
-      localStorage.setItem(PORTAL_AUTO_IDENTITY_KEY, JSON.stringify(profile));
-      return profile;
-    }
-
-    function createAutoIdentity({ countVisit = false } = {}) {
-      const now = new Date().toISOString();
-      const guestId = ensureGuestId();
-      const existing = readAutoIdentity();
-      const profile = existing && typeof existing === 'object' ? existing : {};
-
-      return writeAutoIdentity({
-        id: profile.id || guestId || `local_${Math.random().toString(36).slice(2, 10)}`,
-        kind: 'local-browser',
-        createdAt: profile.createdAt || now,
-        updatedAt: now,
-        visits: Number(profile.visits || 0) + (countVisit ? 1 : 0),
-        rooms: profile.rooms && typeof profile.rooms === 'object' ? profile.rooms : {},
-        apps: profile.apps && typeof profile.apps === 'object' ? profile.apps : {},
-        routeIds: profile.routeIds && typeof profile.routeIds === 'object' ? profile.routeIds : {},
-        recent: Array.isArray(profile.recent) ? profile.recent.slice(0, PORTAL_AUTO_ACTIVITY_LIMIT) : [],
-        lastViewMode: profile.lastViewMode || document.body.dataset.viewMode || 'workshop',
-        lastRoom: profile.lastRoom || '',
-        lastApp: profile.lastApp || '',
-        lastGuideRoute: profile.lastGuideRoute || '',
-      });
-    }
-
-    function countAutoIdentityVisit() {
-      try {
-        const key = 'portal:auto-identity:visit-counted';
-        if (sessionStorage.getItem(key) === 'true') {
-          return createAutoIdentity();
-        }
-        sessionStorage.setItem(key, 'true');
-        return createAutoIdentity({ countVisit: true });
-      } catch (_error) {
-        return createAutoIdentity({ countVisit: true });
-      }
-    }
-
-    function incrementCounter(map, key) {
-      const normalized = String(key || '').trim();
-      if (!normalized) return map || {};
-      const next = map && typeof map === 'object' ? { ...map } : {};
-      next[normalized] = Number(next[normalized] || 0) + 1;
-      return next;
-    }
-
-    function topCounterKey(map = {}) {
-      return Object.entries(map)
-        .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0))
-        .map(([key]) => key)[0] || '';
-    }
-
-    function rememberPortalBehavior(type, detail = {}) {
-      try {
-        const now = new Date().toISOString();
-        const current = readAutoIdentity() || createAutoIdentity();
-        const safeType = String(type || '').trim();
-        const safeDetail = detail && typeof detail === 'object' ? detail : {};
-        const next = {
-          ...current,
-          updatedAt: now,
-          lastViewMode: document.body.dataset.viewMode || current.lastViewMode || 'workshop',
-        };
-
-        if (safeType === 'room' && safeDetail.room) {
-          next.rooms = incrementCounter(next.rooms, safeDetail.room);
-          next.lastRoom = String(safeDetail.room);
-        }
-
-        if (safeType === 'app' && safeDetail.title) {
-          next.apps = incrementCounter(next.apps, safeDetail.title);
-          next.lastApp = String(safeDetail.title);
-          if (safeDetail.room) {
-            next.rooms = incrementCounter(next.rooms, safeDetail.room);
-            next.lastRoom = String(safeDetail.room);
-          }
-        }
-
-        if (safeType === 'guide' && safeDetail.routeId) {
-          next.routeIds = incrementCounter(next.routeIds, safeDetail.routeId);
-          next.lastGuideRoute = String(safeDetail.routeId);
-          if (safeDetail.room) {
-            next.rooms = incrementCounter(next.rooms, safeDetail.room);
-            next.lastRoom = String(safeDetail.room);
-          }
-        }
-
-        next.recent = [
-          {
-            type: safeType,
-            at: now,
-            room: safeDetail.room || '',
-            routeId: safeDetail.routeId || '',
-            title: safeDetail.title || '',
-          },
-          ...(Array.isArray(next.recent) ? next.recent : []),
-        ].slice(0, PORTAL_AUTO_ACTIVITY_LIMIT);
-
-        writeAutoIdentity(next);
-        window.dispatchEvent(new CustomEvent('portal-auto-identity:updated', {
-          detail: { profile: next }
-        }));
-        return next;
-      } catch (error) {
-        console.warn('Could not remember portal behavior', error);
-        return null;
-      }
-    }
-
-    function getAutoIdentitySummary() {
-      const profile = readAutoIdentity() || createAutoIdentity();
-      const preferredRoom = profile.lastRoom || topCounterKey(profile.rooms);
-      const preferredRoute = profile.lastGuideRoute || topCounterKey(profile.routeIds);
-      const preferredApp = profile.lastApp || topCounterKey(profile.apps);
-      return {
-        profile,
-        preferredRoom,
-        preferredRoute,
-        preferredApp,
-      };
-    }
-
-    window.PortalAutoIdentity = {
-      ensure: createAutoIdentity,
-      remember: rememberPortalBehavior,
-      getProfile: readAutoIdentity,
-      getSummary: getAutoIdentitySummary,
-      reset() {
-        localStorage.removeItem(PORTAL_AUTO_IDENTITY_KEY);
-        window.dispatchEvent(new CustomEvent('portal-auto-identity:updated', {
-          detail: { profile: null }
-        }));
-      },
-      storageKey: PORTAL_AUTO_IDENTITY_KEY,
-    };
-
-    countAutoIdentityVisit();
-
-    function isGunAuthInProgressError(message = '') {
-      return /already being created or authenticated/i.test(String(message || ''));
-    }
-
-    function clearStoredAuthSession() {
-      localStorage.removeItem('signedIn');
-      localStorage.removeItem('alias');
-      localStorage.removeItem('username');
-      localStorage.removeItem('password');
-    }
-
-    function restoreStoredGunSession(alias, password, attempt = 0) {
-      if (!user || user.is || !alias || !password || typeof user.auth !== 'function') {
-        return;
-      }
-
-      user.auth(alias, password, ack => {
-        if (!ack || !ack.err) {
-          return;
-        }
-
-        if (isGunAuthInProgressError(ack.err) && attempt < 8) {
-          setTimeout(() => restoreStoredGunSession(alias, password, attempt + 1), 500);
-          return;
-        }
-
-        console.warn('Session restore failed', ack.err);
-        clearStoredAuthSession();
-      });
-    }
-
-    function restoreAuthIfPossible() {
-      const signedIn = localStorage.getItem('signedIn') === 'true';
-      const alias = localStorage.getItem('alias');
-      const password = localStorage.getItem('password');
-      const authMethod = (localStorage.getItem('authMethod') || '').trim().toLowerCase();
-
-      if (signedIn && alias && password) {
-        localStorage.removeItem('guest');
-        restoreStoredGunSession(alias, password);
-      } else if (signedIn && alias && authMethod === 'oauth') {
-        localStorage.removeItem('guest');
-        localStorage.removeItem('guestId');
-        localStorage.removeItem('guestDisplayName');
-      } else if (signedIn) {
-        clearStoredAuthSession();
-      }
-    }
-
-    restoreAuthIfPossible();
-
-    if (localStorage.getItem('guest') === 'true') {
-      ensureGuestId();
-    }
-
-    window.addEventListener('load', () => {
-      const signedIn = localStorage.getItem('signedIn') === 'true';
-      const guest = localStorage.getItem('guest') === 'true';
-      const authModal = document.getElementById('auth-modal');
-
-      if (!signedIn && !guest) {
-        ensureGuestId();
-        localStorage.setItem('guest', 'true');
-      }
-
-      authModal.style.display = 'none';
-      authModal.setAttribute('aria-hidden', 'true');
-
-      if (guest || localStorage.getItem('guest') === 'true') {
-        ensureGuestId();
-      }
-      window.PortalAutoIdentity?.ensure?.();
-    });
-
-    function continueAsGuest() {
-      const authModal = document.getElementById('auth-modal');
-      if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
-        window.ScoreSystem.ensureGuestIdentity();
-      } else {
-        ensureGuestId();
-        localStorage.setItem('guest', 'true');
-      }
-      localStorage.removeItem('signedIn');
-      localStorage.removeItem('alias');
-      localStorage.removeItem('username');
-      localStorage.removeItem('password');
-      localStorage.setItem('guest', 'true');
-      authModal.style.display = 'none';
-      authModal.setAttribute('aria-hidden', 'true');
-      window.dispatchEvent(new Event('auth-modal:closed'));
-      window.dispatchEvent(new CustomEvent('portal-auth:changed', {
-        detail: { mode: 'guest' }
-      }));
-    }
-
-    function startAccountFromHere() {
-      const currentPath = `${window.location.pathname || '/'}${window.location.search || ''}${window.location.hash || ''}`;
-      window.location.href = `/sign-in.html?redirect=${encodeURIComponent(currentPath || '/index.html')}`;
-    }
-
-    function updatePortalAuthEntryLinks() {
-      const signedIn = localStorage.getItem('signedIn') === 'true';
-      const currentPath = `${window.location.pathname || '/'}${window.location.search || ''}${window.location.hash || ''}`;
-      const href = signedIn
-        ? 'profile.html'
-        : `sign-in.html?redirect=${encodeURIComponent(currentPath || '/index.html')}`;
-      const label = signedIn ? 'Profile' : 'Sign in';
-      document.querySelectorAll('[data-auth-entry]').forEach((link) => {
-        link.setAttribute('href', href);
-        link.textContent = label;
-      });
-    }
-  </script>
-
-  <script>
-    (function initGamifiedDashboard() {
-      const levelBadge = document.querySelector('[data-level-badge]');
-      if (!levelBadge) return;
-
-      const levelSubtitle = document.querySelector('[data-level-subtitle]');
-      const levelProgressFill = document.querySelector('[data-level-progress]');
-      const levelProgressContainer = document.querySelector('[data-level-progress-container]');
-      const levelCurrent = document.querySelector('[data-level-current]');
-      const levelNext = document.querySelector('[data-level-next]');
-
-      if (!levelSubtitle || !levelProgressFill || !levelCurrent || !levelNext) {
-        return;
-      }
-
-      levelProgressFill.style.width = '0%';
-
-      const levelTiers = [
-        { level: 1, xp: 0, label: 'Rookie' },
-        { level: 2, xp: 150, label: 'Explorer' },
-        { level: 3, xp: 450, label: 'Innovator' },
-        { level: 4, xp: 900, label: 'Architect' },
-        { level: 5, xp: 1500, label: 'Visionary' },
-      ];
-      const overflowStep = 600;
-
-      const formatNumber = (value) => {
-        try {
-          return new Intl.NumberFormat().format(value);
-        } catch (err) {
-          return String(value);
-        }
+      const openApps = () => {
+        if (!dialog.open) dialog.showModal();
+        search.value = '';
+        appLinks.forEach((link) => { link.hidden = false; });
+        empty.hidden = true;
+        window.setTimeout(() => search.focus(), 0);
       };
 
-      const updateLevelUi = (rawScore) => {
-        const score = Number.isFinite(rawScore) ? rawScore : 0;
-        let current = levelTiers[0];
-        let nextTier = levelTiers[1];
+      document.querySelectorAll('[data-open-apps]').forEach((button) => {
+        button.addEventListener('click', openApps);
+      });
 
-        for (let index = 0; index < levelTiers.length; index += 1) {
-          const tier = levelTiers[index];
-          const upcoming = levelTiers[index + 1];
-          if (score >= tier.xp) {
-            current = tier;
-            nextTier = upcoming ?? null;
-          } else {
-            nextTier = tier;
-            break;
-          }
-        }
+      document.querySelector('[data-close-apps]').addEventListener('click', () => dialog.close());
 
-        if (!nextTier) {
-          const overflow = Math.max(0, score - current.xp);
-          const extraLevels = Math.floor(overflow / overflowStep);
-          const remainder = overflow % overflowStep;
-          const dynamicCurrentLevel = current.level + extraLevels;
-          const dynamicCurrentXp = current.xp + extraLevels * overflowStep;
-          current = {
-            level: dynamicCurrentLevel,
-            xp: dynamicCurrentXp,
-            label: dynamicCurrentLevel > levelTiers[levelTiers.length - 1].level
-              ? 'Legend'
-              : current.label,
-          };
-          nextTier = {
-            level: dynamicCurrentLevel + 1,
-            xp: dynamicCurrentXp + overflowStep,
-            label: 'Legend',
-          };
-          const nextProgress = overflowStep
-            ? Math.min(1, remainder / overflowStep)
-            : 1;
-          const percent = Math.round(nextProgress * 100);
-          levelProgressFill.style.width = `${percent}%`;
-          levelProgressContainer?.setAttribute('aria-valuenow', String(percent));
-          levelProgressContainer?.setAttribute(
-            'aria-valuetext',
-            `Progress ${percent}% towards Level ${nextTier.level}`
-          );
-        } else {
-          const range = Math.max(1, nextTier.xp - current.xp);
-          const progress = Math.min(1, Math.max(0, (score - current.xp) / range));
-          const percent = Math.round(progress * 100);
-          levelProgressFill.style.width = `${percent}%`;
-          levelProgressContainer?.setAttribute('aria-valuenow', String(percent));
-          levelProgressContainer?.setAttribute(
-            'aria-valuetext',
-            `Progress ${percent}% towards Level ${nextTier.level}`
-          );
-        }
+      dialog.addEventListener('click', (event) => {
+        if (event.target === dialog) dialog.close();
+      });
 
-        const remainingXp = Math.max(0, nextTier ? nextTier.xp - score : 0);
-        levelBadge.textContent = `Level ${current.level} · ${current.label}`;
-        levelCurrent.textContent = formatNumber(score);
-        if (nextTier) {
-          levelNext.textContent = `Level ${nextTier.level} · ${nextTier.label}`;
-          if (remainingXp > 0) {
-            levelSubtitle.textContent = `Earn ${formatNumber(remainingXp)} XP to reach Level ${nextTier.level}.`;
-          } else {
-            levelSubtitle.textContent = `You're moments away from unlocking Level ${nextTier.level}.`;
-          }
-        } else {
-          levelNext.textContent = 'Legend tier engaged';
-          levelSubtitle.textContent = 'You have surpassed every tier. Keep stacking XP to dominate the leaderboard!';
-        }
-      };
-
-      const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function'
-        ? window.ScoreSystem.getManager({ gun, user, portalRoot })
-        : null;
-
-      if (scoreManager && typeof scoreManager.subscribe === 'function') {
-        scoreManager.subscribe((value) => {
-          updateLevelUi(Number.isFinite(value) ? value : Number(value) || 0);
+      search.addEventListener('input', () => {
+        const query = search.value.trim().toLowerCase();
+        let visible = 0;
+        appLinks.forEach((link) => {
+          const haystack = `${link.textContent} ${link.dataset.app || ''}`.toLowerCase();
+          const matches = !query || haystack.includes(query);
+          link.hidden = !matches;
+          if (matches) visible += 1;
         });
-      } else {
-        const cached = localStorage.getItem('fallbackScore');
-        updateLevelUi(Number.parseInt(cached ?? '0', 10) || 0);
-      }
+        empty.hidden = visible !== 0;
+      });
+
+      window.addEventListener('keydown', (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+          event.preventDefault();
+          openApps();
+        }
+        if (event.key === '/' && !dialog.open && document.activeElement?.tagName !== 'INPUT') {
+          event.preventDefault();
+          openApps();
+        }
+      });
     })();
   </script>
-
-  <script src="navbar.js"></script>
-
-  <script>
-    const installPrompt = document.getElementById('installPrompt');
-    const installBtn = document.getElementById('installBtn');
-    const installPromptClose = document.getElementById('installPromptClose');
-
-    let deferredPrompt;
-
-    const hideInstallPrompt = () => {
-      if (!installPrompt) return;
-      installPrompt.classList.remove('install-banner--visible');
-      installPrompt.setAttribute('hidden', '');
-    };
-
-    const showInstallPrompt = () => {
-      if (!installPrompt) return;
-      installPrompt.removeAttribute('hidden');
-      installPrompt.classList.add('install-banner--visible');
-    };
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      if (installBtn) {
-        showInstallPrompt();
-      }
-    });
-
-    installBtn?.addEventListener('click', async () => {
-      if (!deferredPrompt) return;
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      deferredPrompt = null;
-      hideInstallPrompt();
-      console.log('Install choice:', outcome);
-    });
-
-    window.addEventListener('appinstalled', () => {
-      hideInstallPrompt();
-    });
-
-    installPromptClose?.addEventListener('click', () => {
-      hideInstallPrompt();
-    });
-
-    const topNav = document.querySelector('.top-nav');
-    const topNavToggle = document.querySelector('.top-nav__toggle');
-    const topNavLinks = document.getElementById('landingQuickLinks');
-    const desktopQuery = window.matchMedia('(min-width: 721px)');
-
-    if (topNav && topNavToggle && topNavLinks) {
-      const setNavExpanded = (expanded) => {
-        topNavToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-        topNav.classList.toggle('top-nav--expanded', expanded);
-        topNav.classList.toggle('top-nav--collapsed', !expanded);
-
-        if (expanded || desktopQuery.matches) {
-          topNavLinks.removeAttribute('hidden');
-        } else {
-          topNavLinks.setAttribute('hidden', '');
-        }
-      };
-
-      const syncNavWithViewport = () => {
-        if (desktopQuery.matches) {
-          setNavExpanded(true);
-        } else {
-          const expanded = topNavToggle.getAttribute('aria-expanded') === 'true';
-          setNavExpanded(expanded);
-        }
-      };
-
-      topNavToggle.addEventListener('click', () => {
-        const expanded = topNavToggle.getAttribute('aria-expanded') === 'true';
-        setNavExpanded(!expanded);
-      });
-
-      syncNavWithViewport();
-
-      if (typeof desktopQuery.addEventListener === 'function') {
-        desktopQuery.addEventListener('change', syncNavWithViewport);
-      } else if (typeof desktopQuery.addListener === 'function') {
-        desktopQuery.addListener(syncNavWithViewport);
-      }
-    }
-
-    const searchContainer = document.querySelector(
-      '[data-app-search-container][data-app-search-sticky]'
-    );
-    const searchInput =
-      searchContainer?.querySelector('[data-app-search-input]') ?? null;
-    const experimentalToggle = document.querySelector(
-      '[data-experimental-toggle]'
-    );
-    const laneFilterButtons = Array.from(
-      document.querySelectorAll('[data-app-lane-filter]')
-    );
-    const appHub = document.querySelector('.app-hub');
-    const appGrid = document.querySelector('[data-app-list]');
-    let appCards = appGrid
-      ? Array.from(appGrid.querySelectorAll('.app-card'))
-      : [];
-    const appSearchEmpty = document.getElementById('appSearchEmpty');
-    const searchTriggers = Array.from(
-      document.querySelectorAll('[data-app-search-trigger]')
-    );
-    const viewModeButtons = Array.from(
-      document.querySelectorAll('[data-view-mode-button]')
-    );
-    const roomButtons = Array.from(
-      document.querySelectorAll('[data-room-door]')
-    );
-    const roomBackButton = document.querySelector('[data-room-back]');
-    const roomReveal = document.querySelector('[data-room-reveal]');
-    const roomTitle = document.querySelector('[data-room-title]');
-    const roomSubtitle = document.querySelector('[data-room-subtitle]');
-    const guideForm = document.querySelector('[data-guide-form]');
-    const guidePrompt = document.querySelector('[data-guide-prompt]');
-    const guideChipButtons = Array.from(document.querySelectorAll('[data-guide-chip]'));
-    const guideResult = document.querySelector('[data-guide-result]');
-    const guideLabel = document.querySelector('[data-guide-label]');
-    const guideTitle = document.querySelector('[data-guide-title]');
-    const guideCopy = document.querySelector('[data-guide-copy]');
-    const guideSteps = document.querySelector('[data-guide-steps]');
-    const guidePrimary = document.querySelector('[data-guide-primary]');
-    const guideSubmit = document.querySelector('[data-guide-submit]');
-    const guideStatus = document.querySelector('[data-guide-status]');
-    const guideShowDock = document.querySelector('[data-guide-show-dock]');
-    const autoIdentityStatus = document.querySelector('[data-auto-identity-status]');
-    const ownedAppStudio = document.querySelector('[data-owned-app-studio]');
-    const ownedAppTitle = document.querySelector('[data-owned-app-title]');
-    const ownedAppStatus = document.querySelector('[data-owned-app-status]');
-    const ownedAppBuilder = document.querySelector('[data-owned-app-builder]');
-    const ownedAppName = document.querySelector('[data-owned-app-name]');
-    const ownedAppPrompt = document.querySelector('[data-owned-app-prompt]');
-    const ownedAppSave = document.querySelector('[data-owned-app-save]');
-    const ownedAppCopy = document.querySelector('[data-owned-app-copy]');
-    const ownedAppList = document.querySelector('[data-owned-app-list]');
-    const GUIDE_API_TIMEOUT_MS = 14000;
-    let activeAppLane = 'all';
-    const roomMeta = {
-      purpose: {
-        title: '🧭 My Purpose',
-        subtitle: 'Direction, values, manifestation practice, and purpose mapping.',
-      },
-      life: {
-        title: '🌱 My Life',
-        subtitle: 'Daily rhythm, wellness, posture, nervous system, and grounded check-ins.',
-      },
-      ideas: {
-        title: '💡 My Ideas',
-        subtitle: 'Notes, memory capture, scratchpads, and lightweight idea workbenches.',
-      },
-      projects: {
-        title: '🛠️ My Projects',
-        subtitle: 'Launch rooms, project decks, site builders, and execution tools.',
-      },
-      work: {
-        title: '💼 My Work',
-        subtitle: 'Clients, CRM, sales, calendars, contacts, and daily operating loops.',
-      },
-      learning: {
-        title: '🧠 My Learning',
-        subtitle: 'Labs, education, open source, AI workbenches, and knowledge systems.',
-      },
-      community: {
-        title: '🤝 My Community',
-        subtitle: 'Circles, chat, video, mutual support, and peer-to-peer spaces.',
-      },
-      money: {
-        title: '💰 My Money',
-        subtitle: 'Finance, billing, rewards, runway, offers, and cashflow tools.',
-      },
-      play: {
-        title: '🕹️ 3D Play',
-        subtitle: 'Games, spatial prototypes, physics experiments, and 3D engine rooms.',
-      },
-    };
-    const roomSearchTerms = {
-      purpose: 'purpose direction values meaning manifestation vision start here',
-      life: 'life habits health wellness body rhythm posture nervous system reset',
-      ideas: 'ideas notes scratchpad memory capture writing brainstorm',
-      projects: 'projects launch build website app builder execution forge',
-      work: 'work clients crm sales contacts calendar leads follow up jobs',
-      learning: 'learning education docs open source ai lab knowledge',
-      community: 'community chat video collaborators members peer support',
-      money: 'money finance billing revenue cashflow offers rewards income',
-      play: 'games play 3d spatial physics xr arcade engine',
-    };
-    const portalGuideRoutes = [
-      {
-        id: 'money',
-        room: 'money',
-        href: 'revenue-desk/',
-        cta: 'Open Revenue Desk',
-        label: 'Money path',
-        title: 'Revenue Desk',
-        copy: 'Start with one money move, one follow-up, and one clear next action.',
-        search: 'revenue money follow up',
-        keywords: ['money', 'cash', 'income', 'revenue', 'bill', 'rent', 'sell', 'client', 'paid'],
-        steps: [
-          'Name the money pressure in one sentence.',
-          'Pick one person or lead to follow up with.',
-          'Use the desk to choose the next revenue move.',
-        ],
-      },
-      {
-        id: 'work',
-        room: 'work',
-        href: 'job-tracker/index.html',
-        cta: 'Open Job Tracker',
-        label: 'Work path',
-        title: 'Job Tracker',
-        copy: 'Turn work pressure into a small search, proof, or outreach step.',
-        search: 'job work crm contacts',
-        keywords: ['job', 'work', 'career', 'hire', 'hired', 'resume', 'freelance', 'client work'],
-        steps: [
-          'Name the kind of work you want next.',
-          'List one person, place, or role to contact.',
-          'Use the tracker to keep the next step visible.',
-        ],
-      },
-      {
-        id: 'app-admin',
-        room: 'projects',
-        href: 'web-builder-app/index.html',
-        cta: 'Open Builder',
-        label: 'App admin',
-        title: 'My App Studio',
-        copy: 'Make or edit an app draft that belongs to you.',
-        search: 'create edit app builder admin portal',
-        keywords: ['create app', 'make app', 'new app', 'edit app', 'my app', 'admin app', 'portal edit', 'own app', 'app builder'],
-        steps: [
-          'Say what the app should do.',
-          'Save the draft under your identity.',
-          'Open Builder when you are ready.',
-        ],
-      },
-      {
-        id: 'build',
-        room: 'projects',
-        href: 'launch-room/',
-        cta: 'Open Launch Room',
-        label: 'Build path',
-        title: 'Launch Room',
-        copy: 'Turn the thing you want to build into a page, plan, and first test.',
-        search: 'launch builder project page app',
-        keywords: ['build', 'app', 'page', 'website', 'site', 'launch', 'project', 'tool', 'software'],
-        steps: [
-          'Write the smallest useful version.',
-          'Choose the first screen or page.',
-          'Open Launch Room and make the first draft.',
-        ],
-      },
-      {
-        id: 'idea',
-        room: 'projects',
-        href: 'forge/',
-        cta: 'Open Forge',
-        label: 'Idea path',
-        title: '3DVR Forge',
-        copy: 'Turn a messy thought into a simple plan, message, and 7-day test.',
-        search: 'forge idea plan message',
-        keywords: ['idea', 'stuck idea', 'frustration', 'rant', 'dream', 'dont know', "don't know", 'what next'],
-        steps: [
-          'Say the messy version first.',
-          'Answer two easy shaping prompts.',
-          'Leave with one plan you can copy.',
-        ],
-      },
-      {
-        id: 'purpose',
-        room: 'purpose',
-        href: 'purpose/',
-        cta: 'Open Purpose',
-        label: 'Purpose path',
-        title: 'Purpose',
-        copy: 'Start with meaning, values, and the bigger direction behind the next move.',
-        search: 'purpose meaning direction values',
-        keywords: ['purpose', 'meaning', 'values', 'mission', 'vision', 'meant for more', 'direction'],
-        steps: [
-          'Name what keeps pulling at you.',
-          'Pick one value that matters now.',
-          'Open Purpose and turn that into a direction.',
-        ],
-      },
-      {
-        id: 'community',
-        room: 'community',
-        href: 'cell/index.html',
-        cta: 'Open Cell',
-        label: 'People path',
-        title: 'Cell',
-        copy: 'Use a small support cell when the next step needs people around it.',
-        search: 'community support cell people',
-        keywords: ['friend', 'family', 'community', 'support', 'group', 'people', 'accountability'],
-        steps: [
-          'Name who should be around this.',
-          'Pick one check-in or support rhythm.',
-          'Open Cell to organize the people side.',
-        ],
-      },
-      {
-        id: 'learning',
-        room: 'learning',
-        href: 'education-suite/',
-        cta: 'Open Learning',
-        label: 'Learning path',
-        title: 'Education Suite',
-        copy: 'Use a learning lane when the block is skill, practice, or understanding.',
-        search: 'learn education skill',
-        keywords: ['learn', 'study', 'practice', 'skill', 'teach', 'school', 'course'],
-        steps: [
-          'Name the skill you need.',
-          'Choose one tiny lesson or practice.',
-          'Open Learning and keep it small.',
-        ],
-      },
-      {
-        id: 'string-theory',
-        room: 'learning',
-        href: 'string-theory/',
-        cta: 'Open String Theory',
-        label: 'Physics path',
-        title: 'String Theory Visualizer',
-        copy: 'Explore vibrating strings, curled dimensions, and branes in Three.js.',
-        search: 'string theory physics threejs visualizer dimension brane quantum',
-        keywords: ['string theory', 'strings', 'physics', 'quantum', 'dimension', 'brane', 'visualize', 'visualizer', 'threejs'],
-        steps: [
-          'Open the visualizer.',
-          'Switch string modes.',
-          'Adjust energy and dimensions.',
-        ],
-      },
-      {
-        id: 'play',
-        room: 'play',
-        href: 'games.html',
-        cta: 'Open Game Hub',
-        label: 'Play path',
-        title: 'Game Hub',
-        copy: 'Use play when you need motion, reset, or a quick energy shift.',
-        search: 'game hub games play signal garden jetpack stellar',
-        keywords: ['game', 'games', 'play', 'bored', 'fun', 'reset', 'energy'],
-        steps: [
-          'Pick a quick game or motion room.',
-          'Play for a short reset.',
-          'Come back and choose one next move.',
-        ],
-      },
-      {
-        id: 'life',
-        room: 'life',
-        href: 'life/index.html',
-        cta: 'Open Daily Direction',
-        label: 'Life path',
-        title: 'Daily Direction',
-        copy: 'Start by sorting life, attention, and the one next step for today.',
-        search: 'life daily direction organize',
-        keywords: ['life', 'scattered', 'organize', 'clear', 'overwhelmed', 'stuck', 'habit', 'health', 'next step'],
-        steps: [
-          'Do a 3-minute check-in.',
-          'Name what needs attention.',
-          'Pick one small move for today.',
-        ],
-      },
-    ];
-    const humanRoomTitles = {
-      purpose: [
-        'Purpose',
-        'Purpose Movement',
-        'Reality Builder',
-        'Master Key Room',
-        'Manifestation Practice',
-        'Intention Lab',
-        'Start Here',
-      ],
-      life: [
-        'Daily Direction',
-        'Life Space',
-        'Alive System',
-        'Sober Spark',
-        'Wellness',
-        'Body Mode',
-        'Inner Alignment',
-        'Herbal Toolkit',
-        'Seated Spine Reset',
-        'Fascia Release',
-        'Life Force Room',
-      ],
-      ideas: [
-        'Life Space',
-        'Notes',
-        'TinyMark',
-        'Clipboard',
-        'Memory Capture',
-        'Ideas Lab',
-        'Workbench Ideas',
-      ],
-      projects: [
-        'Operator',
-        '3DVR Forge',
-        'Forge Sprint',
-        'Lead Rescue Sprint',
-        'Portfolio Validation Sprint',
-        'Client Onboarding Sprint',
-        'Projects',
-        'Launch Room',
-        'Launch Site',
-        'Web Builder',
-        'Workbench Site Builder',
-        'Workbench Dev Lab',
-        'Sites',
-        'Spatial Portal',
-        'Pocket Workstation',
-      ],
-      work: [
-        'Operator',
-        'Revenue Desk',
-        'Lead Rescue Sprint',
-        'Portfolio Validation Sprint',
-        'Client Onboarding Sprint',
-        'Growth Operator',
-        'CRM',
-        'Sales',
-        'Email Operator',
-        'Contacts',
-        'Calendar',
-        'Meetings',
-        'Lead Capture',
-        'Market Lab',
-        'Job Tracker',
-        'Tasks',
-      ],
-      learning: [
-        'Learn',
-        'Education Suite',
-        'Logic Lab',
-        'Open Source',
-        'Human-Scale Tech',
-        'Science Lab',
-        'String Theory Visualizer',
-        'OpenAI Workbench',
-        'Debian Browser Lab',
-        'Personal Debian Server',
-        'Local Models',
-        'Deploy Guides',
-      ],
-      community: [
-        'Community',
-        'Community Farming',
-        'Cell',
-        'Chat',
-        'Video Chat',
-        '3DVR Connect',
-        'News Lounge',
-        'Profile',
-        'Friends & Family Pass',
-      ],
-      money: [
-        'Finance',
-        'Billing',
-        'Friends & Family Pass',
-        'Forge Sprint',
-        'Lead Rescue Sprint',
-        'Portfolio Validation Sprint',
-        'Client Onboarding Sprint',
-        'Money AI',
-        'money-printer',
-        'Offer Audit',
-        'Live Point Value',
-        'Score Rewards',
-        'Rewards',
-        'Human Economics',
-      ],
-      play: [
-        'Game Hub',
-        'Signal Garden',
-        'Stellar Drift',
-        'Jetpack Corridor',
-        '3DVR Girl',
-        'Spatial Portal',
-        'Pocket Window',
-        'Fractal Explorer',
-        'Field Simulation',
-        'XR Motion Lab',
-        'Mini DaedalOS',
-        'Portal Lab',
-      ],
-    };
-    const titleToRooms = new Map();
-    Object.entries(humanRoomTitles).forEach(([room, titles]) => {
-      titles.forEach((title) => {
-        const existing = titleToRooms.get(title) || [];
-        existing.push(room);
-        titleToRooms.set(title, existing);
-      });
-    });
-    const simpleDockTitles = new Set([
-      'Daily Direction',
-      'Life',
-      'Start Here',
-      'Friends & Family Pass',
-      'Operator',
-      'Life Space',
-      'Notes',
-      'Purpose',
-      'Ideas Lab',
-      'Projects',
-      'Cell',
-      'Game Hub',
-      'Signal Garden',
-      'Stellar Drift',
-      'Jetpack Corridor',
-    ]);
-
-    if (appGrid && appCards.length > 0) {
-      const sortedCards = [...appCards].sort((a, b) => {
-        const aTitle = a
-          .querySelector('.app-card__title')
-          ?.textContent?.toLowerCase()
-          .trim();
-        const bTitle = b
-          .querySelector('.app-card__title')
-          ?.textContent?.toLowerCase()
-          .trim();
-
-        return (aTitle ?? '').localeCompare(bTitle ?? '');
-      });
-
-      sortedCards.forEach((card) => {
-        appGrid.appendChild(card);
-      });
-
-      appCards = sortedCards;
-      appCards.forEach((card) => {
-        const title = card.querySelector('.app-card__title')?.textContent?.trim();
-        if (simpleDockTitles.has(title)) {
-          card.dataset.appMode = 'simple';
-        }
-        const rooms = title ? titleToRooms.get(title) : null;
-        if (rooms && rooms.length > 0) {
-          card.dataset.humanRooms = rooms.join(' ');
-        }
-        const roomSearchText = (rooms || [])
-          .map((room) => `${room} ${roomMeta[room]?.title || ''} ${roomSearchTerms[room] || ''}`)
-          .join(' ');
-        const searchableParts = [
-          title,
-          card.querySelector('.app-card__meta')?.textContent?.trim(),
-          card.dataset.appKeywords,
-          card.dataset.appTier,
-          card.getAttribute('href')?.replace(/[/.#?=&_-]+/g, ' '),
-          roomSearchText,
-        ];
-        card.dataset.appSearchText = searchableParts
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-        card.addEventListener('click', () => {
-          window.PortalAutoIdentity?.remember?.('app', {
-            title: title || card.getAttribute('href') || 'App',
-            href: card.getAttribute('href') || '',
-            room: (card.dataset.humanRooms || '').split(/\s+/).filter(Boolean)[0] || '',
-          });
-        });
-      });
-    }
-    const prefersReducedMotionQuery =
-      typeof window.matchMedia === 'function'
-        ? window.matchMedia('(prefers-reduced-motion: reduce)')
-        : null;
-    let hasScrolledToApps = false;
-
-    const isExperimental = (card) =>
-      card.getAttribute('data-app-tier') === 'experimental';
-    const shouldShowExperimental = () => Boolean(experimentalToggle?.checked);
-    const getViewMode = () => document.body.dataset.viewMode || 'human-os';
-    const getActiveRoom = () => document.body.dataset.activeRoom || '';
-    const trackPortalBehavior = (type, detail = {}) => {
-      window.PortalAutoIdentity?.remember?.(type, detail);
-    };
-    const OWNED_APPS_STORAGE_KEY = 'portal:owned-apps:v1';
-    const WEB_BUILDER_PREFILL_KEY = 'web-builder-prefill-request';
-    const APP_ADMIN_INTENT_RE = /\b(create|make|build|start|new|edit|update|change|fix|improve|admin|manage)\b[\s\S]{0,80}\b(app|tool|page|site|website|portal)\b|\b(app|tool|page|site|website|portal)\b[\s\S]{0,80}\b(create|make|build|edit|update|change|fix|improve|admin|manage)\b/i;
-    let currentOwnedAppId = '';
-
-    const parseStoredJson = (value, fallback) => {
-      if (!value) return fallback;
-      try {
-        return JSON.parse(value);
-      } catch (_error) {
-        return fallback;
-      }
-    };
-
-    const readOwnedApps = () => {
-      const stored = parseStoredJson(localStorage.getItem(OWNED_APPS_STORAGE_KEY), []);
-      return Array.isArray(stored) ? stored.filter((app) => app && typeof app === 'object') : [];
-    };
-
-    const writeOwnedApps = (apps) => {
-      localStorage.setItem(OWNED_APPS_STORAGE_KEY, JSON.stringify(apps));
-      return apps;
-    };
-
-    const getPortalOwnerId = () => {
-      const profile = window.PortalAutoIdentity?.ensure?.();
-      return String(
-        profile?.id
-        || localStorage.getItem('userPubKey')
-        || localStorage.getItem('guestId')
-        || ''
-      ).trim();
-    };
-
-    const canAdminOwnedApp = (app) => {
-      const ownerId = getPortalOwnerId();
-      return Boolean(ownerId && app?.ownerId === ownerId);
-    };
-
-    const getOwnedAppsForCurrentOwner = () => {
-      const ownerId = getPortalOwnerId();
-      return readOwnedApps()
-        .filter((app) => app.ownerId === ownerId)
-        .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
-    };
-
-    const makeOwnedAppId = () => {
-      if (window.crypto?.randomUUID) {
-        return `app_${window.crypto.randomUUID()}`;
-      }
-      return `app_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-    };
-
-    const toAppTitle = (value = '') => {
-      const cleaned = String(value)
-        .replace(/\b(can you|please|i want|i need|i would like|help me|for me)\b/gi, ' ')
-        .replace(/\b(create|make|build|start|new|edit|update|change|fix|improve|admin|manage)\b/gi, ' ')
-        .replace(/\b(app|tool|page|site|website|portal|that|where|with|for|about|into)\b/gi, ' ')
-        .replace(/[^a-z0-9\s-]/gi, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 6)
-        .join(' ');
-
-      if (!cleaned) return 'New Portal App';
-      return cleaned.replace(/\b\w/g, (letter) => letter.toUpperCase());
-    };
-
-    const buildOwnedAppPrompt = (app) => [
-      `Build an owned 3DVR portal app named "${app.name}".`,
-      `Owner id: ${app.ownerId}.`,
-      `User request: ${app.prompt}`,
-      'Keep it mobile-first.',
-      'Make the first screen useful right away.',
-      'Store user data under this owner id.',
-      'Only show admin controls when the active owner id matches.',
-      'If code changes are needed in the shared portal, prepare them as a pull request.'
-    ].join('\n');
-
-    const mirrorOwnedAppToGun = (app) => {
-      try {
-        if (typeof portalRoot === 'undefined' || !portalRoot || !canAdminOwnedApp(app)) {
-          return;
-        }
-        portalRoot.get('owned-apps').get(app.ownerId).get(app.id).put({
-          id: app.id,
-          ownerId: app.ownerId,
-          name: app.name,
-          prompt: app.prompt,
-          buildPrompt: app.buildPrompt,
-          updatedAt: app.updatedAt,
-          createdAt: app.createdAt,
-          source: 'portal-home'
-        });
-      } catch (error) {
-        console.warn('Could not mirror owned app draft to Gun', error);
-      }
-    };
-
-    const saveOwnedAppDraft = (draft) => {
-      if (!canAdminOwnedApp(draft)) {
-        throw new Error('This draft belongs to another owner.');
-      }
-
-      const apps = readOwnedApps();
-      const existingIndex = apps.findIndex((app) => app.id === draft.id);
-      if (existingIndex >= 0 && apps[existingIndex].ownerId !== draft.ownerId) {
-        throw new Error('This draft belongs to another owner.');
-      }
-
-      if (existingIndex >= 0) {
-        apps[existingIndex] = draft;
-      } else {
-        apps.push(draft);
-      }
-
-      writeOwnedApps(apps);
-      mirrorOwnedAppToGun(draft);
-      return draft;
-    };
-
-    const makeOwnedAppDraft = (prompt, route) => {
-      const ownerId = getPortalOwnerId();
-      const now = new Date().toISOString();
-      const wantsEdit = /\b(edit|update|change|fix|improve|admin|manage)\b/i.test(prompt);
-      const latestOwnedDraft = getOwnedAppsForCurrentOwner()[0];
-      const existing = wantsEdit && latestOwnedDraft ? latestOwnedDraft : null;
-      const name = existing?.name || toAppTitle(prompt);
-      const draft = {
-        id: existing?.id || makeOwnedAppId(),
-        ownerId,
-        name,
-        prompt: String(prompt || '').trim(),
-        routeId: route?.id || 'app-admin',
-        status: 'draft',
-        createdAt: existing?.createdAt || now,
-        updatedAt: now,
-      };
-      draft.buildPrompt = buildOwnedAppPrompt(draft);
-      return saveOwnedAppDraft(draft);
-    };
-
-    const renderOwnedAppList = () => {
-      if (!ownedAppList) return;
-      const apps = getOwnedAppsForCurrentOwner();
-      ownedAppList.replaceChildren();
-
-      if (!apps.length) {
-        const empty = document.createElement('span');
-        empty.textContent = 'No drafts yet.';
-        ownedAppList.appendChild(empty);
-        return;
-      }
-
-      apps.forEach((app) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.dataset.ownedAppId = app.id;
-        button.dataset.active = app.id === currentOwnedAppId ? 'true' : 'false';
-        button.textContent = app.name || 'Untitled app';
-        ownedAppList.appendChild(button);
-      });
-    };
-
-    const getCurrentOwnedApp = () => {
-      const app = readOwnedApps().find((item) => item.id === currentOwnedAppId);
-      return app && canAdminOwnedApp(app) ? app : null;
-    };
-
-    const prepareBuilderHandoff = (app) => {
-      if (!canAdminOwnedApp(app)) {
-        if (ownedAppStatus) ownedAppStatus.textContent = 'This draft belongs to another owner.';
-        return false;
-      }
-
-      localStorage.setItem(WEB_BUILDER_PREFILL_KEY, JSON.stringify({
-        source: 'portal-home',
-        appId: app.id,
-        ownerId: app.ownerId,
-        request: app.buildPrompt,
-        siteTitle: app.name,
-        siteGoal: 'Create the first useful version.',
-        audience: 'The owner and the people they invite.',
-        createdAt: new Date().toISOString(),
-      }));
-      trackPortalBehavior('app', {
-        title: app.name,
-        href: 'web-builder-app/index.html',
-        room: 'projects',
-      });
-      return true;
-    };
-
-    const renderOwnedAppStudio = (app) => {
-      if (!ownedAppStudio || !app || !canAdminOwnedApp(app)) return;
-
-      currentOwnedAppId = app.id;
-      ownedAppStudio.hidden = false;
-      if (ownedAppTitle) ownedAppTitle.textContent = app.name || 'New app draft';
-      if (ownedAppName) ownedAppName.value = app.name || '';
-      if (ownedAppPrompt) ownedAppPrompt.value = app.prompt || '';
-      if (ownedAppStatus) {
-        ownedAppStatus.textContent = 'Only you can edit this draft.';
-      }
-      if (ownedAppBuilder) {
-        ownedAppBuilder.href = 'web-builder-app/index.html#builder-card';
-      }
-      renderOwnedAppList();
-    };
-
-    const hideOwnedAppStudio = () => {
-      if (ownedAppStudio) {
-        ownedAppStudio.hidden = true;
-      }
-    };
-
-    const handleOwnedAppIntent = (prompt, route) => {
-      if (!APP_ADMIN_INTENT_RE.test(prompt) && route?.id !== 'app-admin') {
-        hideOwnedAppStudio();
-        return null;
-      }
-
-      try {
-        const app = makeOwnedAppDraft(prompt, route);
-        renderOwnedAppStudio(app);
-        return app;
-      } catch (error) {
-        if (ownedAppStatus) {
-          ownedAppStatus.textContent = error?.message || 'Could not save this draft.';
-        }
-        return null;
-      }
-    };
-
-    const setActiveAppLane = (lane = 'all') => {
-      activeAppLane = lane || 'all';
-      laneFilterButtons.forEach((button) => {
-        const active = button.dataset.appLaneFilter === activeAppLane;
-        button.dataset.active = active ? 'true' : 'false';
-        button.setAttribute('aria-pressed', active ? 'true' : 'false');
-      });
-    };
-    const isHumanRoomCard = (card) => {
-      const activeRoom = getActiveRoom();
-      if (!activeRoom) return false;
-      return (card.dataset.humanRooms || '').split(/\s+/).includes(activeRoom);
-    };
-    const shouldHideCardForState = (card) => {
-      if (getViewMode() === 'workshop') {
-        if (activeAppLane === 'experimental') {
-          return !isExperimental(card);
-        }
-        return isExperimental(card) && !shouldShowExperimental();
-      }
-
-      const activeRoom = getActiveRoom();
-      if (!activeRoom) {
-        return true;
-      }
-
-      return !isHumanRoomCard(card);
-    };
-    const shouldHideCardForLane = (card) => {
-      if (getViewMode() !== 'workshop') {
-        return false;
-      }
-      if (activeAppLane === 'simple') {
-        return card.dataset.appMode !== 'simple';
-      }
-      if (activeAppLane === 'all' || activeAppLane === 'experimental') {
-        return false;
-      }
-      return !(card.dataset.humanRooms || '')
-        .split(/\s+/)
-        .includes(activeAppLane);
-    };
-    const syncRoomReveal = () => {
-      const activeRoom = getActiveRoom();
-      const meta = roomMeta[activeRoom];
-
-      if (!roomReveal) return;
-
-      if (!activeRoom || !meta) {
-        roomReveal.hidden = true;
-        return;
-      }
-
-      if (roomTitle) {
-        roomTitle.textContent = meta.title;
-      }
-      if (roomSubtitle) {
-        roomSubtitle.textContent = meta.subtitle;
-      }
-      roomReveal.hidden = false;
-    };
-    const setViewMode = (nextMode, nextRoom = '') => {
-      const mode = ['workshop', 'guide'].includes(nextMode) ? nextMode : 'human-os';
-      document.body.dataset.viewMode = mode;
-      document.body.dataset.activeRoom = mode === 'human-os' ? nextRoom : '';
-      if (mode !== 'workshop' && activeAppLane !== 'all') {
-        setActiveAppLane('all');
-      }
-      viewModeButtons.forEach((button) => {
-        const active = button.dataset.viewModeButton === mode;
-        button.dataset.active = active ? 'true' : 'false';
-        button.setAttribute('aria-pressed', active ? 'true' : 'false');
-      });
-      syncRoomReveal();
-      updateAppFilter(searchInput?.value ?? '');
-      trackPortalBehavior('view', { room: nextRoom || '', title: mode });
-    };
-
-    let lastGuideRoute = portalGuideRoutes.find((route) => route.id === 'life') || portalGuideRoutes[0];
-    let isGuideBusy = false;
-
-    const getAutoRoute = () => {
-      const summary = window.PortalAutoIdentity?.getSummary?.();
-      if (!summary) return null;
-
-      return portalGuideRoutes.find((route) => route.id === summary.preferredRoute)
-        || portalGuideRoutes.find((route) => route.room === summary.preferredRoom)
-        || null;
-    };
-
-    const applyAutoIdentityHints = () => {
-      const route = getAutoRoute();
-      if (autoIdentityStatus) {
-        autoIdentityStatus.textContent = route
-          ? `No login needed. This browser remembers ${route.title}.`
-          : 'No login needed. This browser remembers what helps.';
-      }
-      if (guidePrompt && !guidePrompt.value) {
-        guidePrompt.placeholder = route
-          ? `Need more help with ${route.title}, or something new?`
-          : 'Example: I feel scattered and need to organize my life.';
-      }
-    };
-
-    const scoreGuideRoute = (route, query) =>
-      route.keywords.reduce((score, keyword) => {
-        if (!query.includes(keyword)) return score;
-        return score + Math.max(1, keyword.split(/\s+/).length);
-      }, 0);
-
-    const chooseGuideRoute = (value = '') => {
-      const query = value.trim().toLowerCase();
-      if (!query) {
-        return lastGuideRoute;
-      }
-
-      let bestRoute = portalGuideRoutes.find((route) => route.id === 'life') || portalGuideRoutes[0];
-      let bestScore = 0;
-
-      portalGuideRoutes.forEach((route) => {
-        const score = scoreGuideRoute(route, query);
-        if (score > bestScore) {
-          bestRoute = route;
-          bestScore = score;
-        }
-      });
-
-      return bestRoute;
-    };
-
-    const getGuideRouteSummaries = () =>
-      portalGuideRoutes.map((route) => ({
-        id: route.id,
-        room: route.room,
-        title: route.title,
-        label: route.label,
-        copy: route.copy,
-        search: route.search,
-        keywords: route.keywords,
-      }));
-
-    const normalizeGuideSteps = (steps, fallbackSteps) => {
-      const normalized = Array.isArray(steps)
-        ? steps.map((step) => String(step || '').trim()).filter(Boolean).slice(0, 3)
-        : [];
-
-      fallbackSteps.forEach((step) => {
-        if (normalized.length < 3) {
-          normalized.push(step);
-        }
-      });
-
-      return normalized.slice(0, 3);
-    };
-
-    const parseGuideApiError = async (response) => {
-      const errorText = await response.text();
-      if (!errorText) {
-        return 'The AI guide is not available.';
-      }
-
-      try {
-        const parsed = JSON.parse(errorText);
-        return parsed?.error || parsed?.message || errorText;
-      } catch {
-        return errorText;
-      }
-    };
-
-    const setGuideBusy = (isBusy) => {
-      isGuideBusy = isBusy;
-      if (guideSubmit) {
-        guideSubmit.disabled = isBusy;
-        guideSubmit.textContent = isBusy ? 'Thinking...' : 'Guide me';
-      }
-      guideChipButtons.forEach((button) => {
-        button.disabled = isBusy;
-      });
-    };
-
-    const mergeGuideResult = (guide = {}, fallbackRoute) => {
-      const route = portalGuideRoutes.find((item) => item.id === guide.routeId) || fallbackRoute;
-
-      return {
-        ...route,
-        label: String(guide.label || route.label || '').trim() || route.label,
-        title: String(guide.title || route.title || '').trim() || route.title,
-        copy: String(guide.copy || route.copy || '').trim() || route.copy,
-        steps: normalizeGuideSteps(guide.steps, route.steps),
-        source: 'ai',
-      };
-    };
-
-    const requestGuideRoute = async (prompt, fallbackRoute) => {
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), GUIDE_API_TIMEOUT_MS);
-
-      try {
-        const response = await fetch('/api/openai-site', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal,
-          body: JSON.stringify({
-            guide: true,
-            prompt,
-            routes: getGuideRouteSummaries(),
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(await parseGuideApiError(response));
-        }
-
-        const result = await response.json();
-        return mergeGuideResult(result?.guide, fallbackRoute);
-      } catch (error) {
-        if (error?.name === 'AbortError') {
-          throw new Error('The AI guide timed out.');
-        }
-
-        throw error;
-      } finally {
-        window.clearTimeout(timeout);
-      }
-    };
-
-    const renderGuideRoute = (route) => {
-      if (!route || !guideResult) return;
-
-      lastGuideRoute = route;
-      if (guideLabel) guideLabel.textContent = route.label;
-      if (guideTitle) guideTitle.textContent = route.title;
-      if (guideCopy) guideCopy.textContent = route.copy;
-      if (guidePrimary) {
-        guidePrimary.href = route.href;
-        guidePrimary.textContent = route.cta;
-      }
-      if (guideSteps) {
-        guideSteps.replaceChildren();
-        route.steps.forEach((step) => {
-          const item = document.createElement('li');
-          item.textContent = step;
-          guideSteps.appendChild(item);
-        });
-      }
-      guideResult.hidden = false;
-    };
-
-    const submitGuidePrompt = async (value = '') => {
-      if (isGuideBusy) return;
-      const prompt = value.trim();
-      if (!prompt) {
-        if (guideStatus) guideStatus.textContent = 'Type one sentence first.';
-        guidePrompt?.focus();
-        return;
-      }
-
-      const fallbackRoute = chooseGuideRoute(prompt);
-      setGuideBusy(true);
-      if (guideStatus) guideStatus.textContent = 'AI guide is thinking...';
-      hideOwnedAppStudio();
-
-      try {
-        const route = await requestGuideRoute(prompt, fallbackRoute);
-        renderGuideRoute(route);
-        handleOwnedAppIntent(prompt, route);
-        trackPortalBehavior('guide', {
-          routeId: route.id,
-          room: route.room,
-          title: route.title,
-        });
-        if (guideStatus) guideStatus.textContent = 'AI guide ready.';
-      } catch (error) {
-        renderGuideRoute({ ...fallbackRoute, source: 'local-fallback' });
-        handleOwnedAppIntent(prompt, fallbackRoute);
-        trackPortalBehavior('guide', {
-          routeId: fallbackRoute.id,
-          room: fallbackRoute.room,
-          title: fallbackRoute.title,
-        });
-        if (guideStatus) guideStatus.textContent = 'Local guide ready. AI is unavailable.';
-      } finally {
-        setGuideBusy(false);
-        guideResult?.scrollIntoView({
-          behavior: prefersReducedMotionQuery?.matches ? 'auto' : 'smooth',
-          block: 'nearest',
-        });
-      }
-    };
-
-    const showGuideMatches = () => {
-      if (!lastGuideRoute) return;
-
-      if (lastGuideRoute.room) {
-        trackPortalBehavior('room', {
-          room: lastGuideRoute.room,
-          routeId: lastGuideRoute.id,
-          title: lastGuideRoute.title,
-        });
-        if (searchInput) {
-          searchInput.value = '';
-        }
-        setViewMode('human-os', lastGuideRoute.room);
-      } else {
-        trackPortalBehavior('view', { title: 'workshop' });
-        setViewMode('workshop');
-        if (searchInput) {
-          searchInput.value = lastGuideRoute.search || '';
-        }
-        updateAppFilter(searchInput?.value ?? '');
-      }
-
-      window.requestAnimationFrame(() => {
-        scrollAppsIntoView({ alignSearch: false });
-      });
-    };
-
-    const updateAppFilter = (value = '') => {
-      const query = value.trim().toLowerCase();
-      let visibleCount = 0;
-      appHub?.classList.toggle('app-hub--filtering', Boolean(query));
-
-      if (!query) {
-        appCards.forEach((card) => {
-          const hideForState = shouldHideCardForState(card);
-          const hideForLane = shouldHideCardForLane(card);
-          card.hidden = hideForState || hideForLane;
-          if (!card.hidden) {
-            if (appGrid) {
-              appGrid.appendChild(card);
-            }
-            visibleCount += 1;
-          }
-        });
-
-        if (appSearchEmpty) {
-          appSearchEmpty.hidden = visibleCount > 0;
-        }
-        return;
-      }
-
-      const nameMatches = [];
-      const descriptionMatches = [];
-
-      appCards.forEach((card) => {
-        const titleText = card
-          .querySelector('.app-card__title')
-          ?.textContent?.toLowerCase() ?? '';
-        const metaText = card
-          .querySelector('.app-card__meta')
-          ?.textContent?.toLowerCase() ?? '';
-        const keywordText = card.dataset.appKeywords?.toLowerCase() ?? '';
-        const searchText = card.dataset.appSearchText?.toLowerCase() ?? '';
-        const titleIncludesQuery = titleText.includes(query);
-        const metaIncludesQuery = metaText.includes(query);
-        const keywordIncludesQuery = keywordText.includes(query);
-        const searchTextIncludesQuery = searchText.includes(query);
-        const matches =
-          titleIncludesQuery || metaIncludesQuery || keywordIncludesQuery || searchTextIncludesQuery;
-        const hideForState = shouldHideCardForState(card);
-        const hideForLane = shouldHideCardForLane(card);
-
-        card.hidden = !matches || hideForState || hideForLane;
-        if (matches && !hideForState && !hideForLane) {
-          visibleCount += 1;
-          if (titleIncludesQuery) {
-            nameMatches.push(card);
-          } else if (metaIncludesQuery || keywordIncludesQuery || searchTextIncludesQuery) {
-            descriptionMatches.push(card);
-          }
-        }
-      });
-
-      const orderedResults = [...nameMatches, ...descriptionMatches];
-      if (appGrid) {
-        orderedResults.forEach((card) => {
-          appGrid.appendChild(card);
-        });
-      }
-
-      if (appSearchEmpty) {
-        appSearchEmpty.hidden = visibleCount > 0;
-      }
-    };
-
-    const toPixels = (value) => {
-      const parsed = Number.parseFloat(value);
-      return Number.isNaN(parsed) ? 0 : parsed;
-    };
-
-    const getFirstVisibleCard = () => appCards.find((card) => !card.hidden);
-
-    const ensureSearchAndCardsVisible = () => {
-      if (!searchContainer) return;
-
-      const styles = window.getComputedStyle(searchContainer);
-      const stickyTop = toPixels(styles.top);
-      const marginBottom = toPixels(styles.marginBottom);
-      const desiredGap = 16;
-      let searchRect = searchContainer.getBoundingClientRect();
-
-      if (searchRect.top < stickyTop) {
-        const adjust = searchRect.top - stickyTop;
-        window.scrollBy({ top: adjust, behavior: 'auto' });
-        searchRect = searchContainer.getBoundingClientRect();
-      }
-
-      const firstVisibleCard = getFirstVisibleCard();
-      if (!firstVisibleCard) return;
-
-      const cardRect = firstVisibleCard.getBoundingClientRect();
-      const desiredTop = searchRect.bottom + marginBottom + desiredGap;
-      const excessiveGap = cardRect.top - desiredTop;
-
-      if (excessiveGap > desiredGap) {
-        const availableScroll = Math.max(searchRect.top - stickyTop, 0);
-        const adjust = Math.min(excessiveGap, availableScroll);
-        if (adjust > 0) {
-          window.scrollBy({ top: adjust, behavior: 'auto' });
-        }
-        return;
-      }
-
-      if (cardRect.top < desiredTop) {
-        const adjust = cardRect.top - desiredTop;
-        window.scrollBy({ top: adjust, behavior: 'auto' });
-      }
-    };
-
-    const scrollAppsIntoView = ({ alignSearch = false } = {}) => {
-      if (!searchContainer && !appGrid) return;
-
-      const prefersReducedMotion = Boolean(prefersReducedMotionQuery?.matches);
-      let targetTop;
-
-      if (alignSearch && searchContainer) {
-        const styles = window.getComputedStyle(searchContainer);
-        const stickyTop = toPixels(styles.top);
-        const marginTop = toPixels(styles.marginTop);
-        const searchTop =
-          searchContainer.getBoundingClientRect().top + window.pageYOffset;
-
-        targetTop = Math.max(searchTop - stickyTop - marginTop, 0);
-      }
-
-      const firstVisibleCard = getFirstVisibleCard();
-
-      if (targetTop == null && firstVisibleCard) {
-        const styles = searchContainer
-          ? window.getComputedStyle(searchContainer)
-          : null;
-        const marginTop = styles ? toPixels(styles.marginTop) : 0;
-        const marginBottom = styles ? toPixels(styles.marginBottom) : 0;
-        const stickyTop = styles ? toPixels(styles.top) : 0;
-        const searchHeight = searchContainer
-          ? searchContainer.offsetHeight
-          : 0;
-        const desiredGap = 16;
-        const offset =
-          searchHeight + marginTop + marginBottom + stickyTop + desiredGap;
-        const cardTop =
-          firstVisibleCard.getBoundingClientRect().top + window.pageYOffset;
-        targetTop = Math.max(cardTop - offset, 0);
-      }
-
-      if (targetTop == null && appGrid) {
-        let offset = 80;
-
-        if (searchContainer) {
-          const styles = window.getComputedStyle(searchContainer);
-          const marginTop = toPixels(styles.marginTop);
-          const marginBottom = toPixels(styles.marginBottom);
-          const stickyTop = toPixels(styles.top);
-
-          offset =
-            searchContainer.offsetHeight +
-            marginTop +
-            marginBottom +
-            stickyTop +
-            16;
-        }
-
-        const gridTop =
-          appGrid.getBoundingClientRect().top + window.pageYOffset;
-        targetTop = Math.max(gridTop - offset, 0);
-      }
-
-      if (targetTop == null) return;
-
-      window.scrollTo({
-        top: targetTop,
-        behavior: prefersReducedMotion || alignSearch ? 'auto' : 'smooth',
-      });
-      hasScrolledToApps = true;
-
-      if (alignSearch && searchContainer) {
-        const delay = prefersReducedMotion ? 0 : 280;
-        window.setTimeout(() => {
-          ensureSearchAndCardsVisible();
-        }, delay);
-      }
-    };
-
-    ownedAppSave?.addEventListener('click', () => {
-      const app = getCurrentOwnedApp();
-      if (!app) {
-        if (ownedAppStatus) ownedAppStatus.textContent = 'No app draft is selected.';
-        return;
-      }
-
-      const next = {
-        ...app,
-        name: (ownedAppName?.value || '').trim() || app.name || 'New Portal App',
-        prompt: (ownedAppPrompt?.value || '').trim() || app.prompt,
-        updatedAt: new Date().toISOString(),
-      };
-      next.buildPrompt = buildOwnedAppPrompt(next);
-
-      try {
-        saveOwnedAppDraft(next);
-        renderOwnedAppStudio(next);
-        if (ownedAppStatus) ownedAppStatus.textContent = 'Draft saved. Only you can edit it.';
-      } catch (error) {
-        if (ownedAppStatus) ownedAppStatus.textContent = error?.message || 'Could not save this draft.';
-      }
-    });
-
-    ownedAppCopy?.addEventListener('click', async () => {
-      const app = getCurrentOwnedApp();
-      if (!app) {
-        if (ownedAppStatus) ownedAppStatus.textContent = 'No app draft is selected.';
-        return;
-      }
-
-      try {
-        await navigator.clipboard.writeText(app.buildPrompt || buildOwnedAppPrompt(app));
-        if (ownedAppStatus) ownedAppStatus.textContent = 'Build prompt copied.';
-      } catch (_error) {
-        if (ownedAppStatus) ownedAppStatus.textContent = app.buildPrompt || buildOwnedAppPrompt(app);
-      }
-    });
-
-    ownedAppBuilder?.addEventListener('click', (event) => {
-      const app = getCurrentOwnedApp();
-      if (!app || !prepareBuilderHandoff(app)) {
-        event.preventDefault();
-      }
-    });
-
-    ownedAppList?.addEventListener('click', (event) => {
-      const button = event.target?.closest?.('[data-owned-app-id]');
-      if (!button) return;
-      const app = readOwnedApps().find((item) => item.id === button.dataset.ownedAppId);
-      if (!app || !canAdminOwnedApp(app)) {
-        if (ownedAppStatus) ownedAppStatus.textContent = 'This draft belongs to another owner.';
-        return;
-      }
-      renderOwnedAppStudio(app);
-    });
-
-    guideForm?.addEventListener('submit', (event) => {
-      event.preventDefault();
-      submitGuidePrompt(guidePrompt?.value ?? '');
-    });
-
-    guideChipButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        const prompt = button.dataset.guideChip || '';
-        if (guidePrompt) {
-          guidePrompt.value = prompt;
-        }
-        submitGuidePrompt(prompt);
-      });
-    });
-
-    guideShowDock?.addEventListener('click', showGuideMatches);
-    window.addEventListener('portal-auto-identity:updated', applyAutoIdentityHints);
-
-    const getAuthModal = () => document.getElementById('auth-modal');
-
-    const isAuthModalVisible = () => {
-      const authModal = getAuthModal();
-      return authModal?.getAttribute('aria-hidden') === 'false';
-    };
-
-    const isStickySearchInView = () => {
-      if (!searchContainer) return false;
-      const rect = searchContainer.getBoundingClientRect();
-      const viewportHeight =
-        window.innerHeight || document.documentElement.clientHeight || 0;
-      return rect.top < viewportHeight && rect.bottom > 0;
-    };
-
-    const focusSearch = ({ scroll = false, alignSearch = false } = {}) => {
-      if (!searchInput || isAuthModalVisible()) return;
-
-      if (getViewMode() === 'guide' || (getViewMode() === 'human-os' && !getActiveRoom())) {
-        setViewMode('workshop');
-      }
-      if (scroll && activeAppLane === 'simple') {
-        setActiveAppLane('all');
-        updateAppFilter(searchInput?.value ?? '');
-      }
-
-      if (scroll) {
-        scrollAppsIntoView({ alignSearch });
-      }
-
-      const focusInput = () => {
-        if (document.activeElement === searchInput) return;
-        try {
-          searchInput.focus({ preventScroll: true });
-        } catch (err) {
-          searchInput.focus();
-        }
-        searchInput.select();
-        if (scroll) {
-          window.requestAnimationFrame(ensureSearchAndCardsVisible);
-        }
-      };
-
-      if (scroll) {
-        window.requestAnimationFrame(focusInput);
-      } else {
-        focusInput();
-      }
-    };
-
-    const handleSearchInput = (event) => {
-      const value = event.target?.value ?? '';
-      updateAppFilter(value);
-
-      const trimmedValue = value.trim();
-      if (!trimmedValue) {
-        hasScrolledToApps = false;
-        return;
-      }
-
-      if (!hasScrolledToApps) {
-        scrollAppsIntoView({ alignSearch: true });
-      } else {
-        window.requestAnimationFrame(ensureSearchAndCardsVisible);
-      }
-    };
-
-    const handleSearchKeydown = (event) => {
-      if (event.key !== 'Enter') return;
-
-      const firstVisibleCard = getFirstVisibleCard();
-      if (!firstVisibleCard) return;
-
-      event.preventDefault();
-      firstVisibleCard.focus();
-      firstVisibleCard.click();
-    };
-
-    if (searchInput) {
-      searchInput.addEventListener('input', handleSearchInput);
-      searchInput.addEventListener('search', handleSearchInput);
-      searchInput.addEventListener('focus', (event) => {
-        event.target.select();
-      });
-      searchInput.addEventListener('keydown', handleSearchKeydown);
-    }
-
-    if (experimentalToggle) {
-      experimentalToggle.addEventListener('change', () => {
-        updateAppFilter(searchInput?.value ?? '');
-      });
-    }
-
-    laneFilterButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        setViewMode('workshop');
-        setActiveAppLane(button.dataset.appLaneFilter || 'all');
-        updateAppFilter(searchInput?.value ?? '');
-        window.requestAnimationFrame(() => {
-          scrollAppsIntoView({ alignSearch: true });
-        });
-      });
-    });
-
-    viewModeButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        setViewMode(button.dataset.viewModeButton);
-      });
-    });
-
-    roomButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        const room = button.dataset.roomDoor || '';
-        if (!room) return;
-        trackPortalBehavior('room', {
-          room,
-          title: roomMeta[room]?.title || room,
-        });
-        setViewMode('human-os', room);
-        window.requestAnimationFrame(() => {
-          appHub?.scrollIntoView({
-            behavior: prefersReducedMotionQuery?.matches ? 'auto' : 'smooth',
-            block: 'start',
-          });
-        });
-      });
-    });
-
-    roomBackButton?.addEventListener('click', () => {
-      setViewMode('human-os');
-      window.requestAnimationFrame(() => {
-        document.querySelector('[data-human-os-map]')?.scrollIntoView({
-          behavior: prefersReducedMotionQuery?.matches ? 'auto' : 'smooth',
-          block: 'start',
-        });
-      });
-    });
-
-    searchTriggers.forEach((trigger) => {
-      trigger.addEventListener('click', (event) => {
-        event.preventDefault();
-        focusSearch({ scroll: true, alignSearch: true });
-      });
-    });
-
-    window.addEventListener('keydown', (event) => {
-      const isSlash = event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey;
-      const isCommandK = event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey);
-
-      const isSearchActive = document.activeElement === searchInput;
-
-      if ((isSlash || isCommandK) && !isSearchActive) {
-        event.preventDefault();
-        focusSearch();
-      }
-    });
-
-    const focusSearchWhenReady = () => {
-      if (!searchInput || isAuthModalVisible()) return;
-      if (window.location.hash !== '#appSearch') return;
-      if (!isStickySearchInView()) return;
-      window.requestAnimationFrame(() => focusSearch());
-    };
-
-    window.addEventListener('load', () => {
-      focusSearchWhenReady();
-    });
-
-    window.addEventListener('auth-modal:closed', () => {
-      focusSearchWhenReady();
-    });
-
-    const initialSearchValue = searchInput?.value ?? '';
-    setViewMode('workshop');
-    setActiveAppLane('simple');
-    updateAppFilter(initialSearchValue);
-    renderOwnedAppList();
-    applyAutoIdentityHints();
-    updatePortalAuthEntryLinks();
-  </script>
-  <script defer src="/issue-launcher.js"></script>
 </body>
 </html>
