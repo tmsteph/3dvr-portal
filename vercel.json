@@ -1,6 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':(exclude)apps/agent/**' ':(exclude)apps/companion/**'",
+  "git": {
+    "deploymentEnabled": {
+      "*": false,
+      "main": true
+    }
+  },
+  "ignoreCommand": "BASE=\"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\"; git diff --quiet \"$BASE\" HEAD -- . ':(exclude)apps/agent/**' ':(exclude)apps/companion/**' ':(exclude).github/**' ':(exclude)docs/**' ':(exclude)ops/**' ':(exclude)tests/**' ':(exclude)scripts/**' ':(exclude)README.md' ':(exclude)AGENTS.md'",
   "crons": [
     { "path": "/api/growth/homepage-hero-cron", "schedule": "43 2 * * *" },
     { "path": "/api/money/autopilot-cron", "schedule": "17 16 * * 1-5" }
