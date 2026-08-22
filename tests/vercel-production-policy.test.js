@@ -4,11 +4,11 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('native Vercel Git deploys only main', async () => {
+test('native Vercel Git deploys main and skips non-main builds', async () => {
   const config = JSON.parse(await read('vercel.json'));
   assert.equal(config.git?.deploymentEnabled?.main, true);
   assert.equal(config.git?.deploymentEnabled?.['*'], false);
-  assert.equal('ignoreCommand' in config, false);
+  assert.equal(config.ignoreCommand, '[ "$VERCEL_GIT_COMMIT_REF" != "main" ]');
 });
 
 test('GitHub Actions production workflow is manual fallback only', async () => {

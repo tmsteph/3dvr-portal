@@ -34,13 +34,13 @@ test('relay timeout never auto-saves empty startup state', async () => {
   assert.doesNotMatch(timeoutBlock, /\bsave\s*\(/, 'timeout must not overwrite unknown remote state');
 });
 
-test('production uses main-only native Vercel Git', async () => {
+test('production uses main-only native Vercel Git with a non-main safety net', async () => {
   const workflow = await read('.github/workflows/vercel-production-prebuilt.yml');
   const vercelConfig = JSON.parse(await read('vercel.json'));
 
   assert.equal(vercelConfig.git?.deploymentEnabled?.main, true);
   assert.equal(vercelConfig.git?.deploymentEnabled?.['*'], false);
-  assert.equal('ignoreCommand' in vercelConfig, false);
+  assert.equal(vercelConfig.ignoreCommand, '[ "$VERCEL_GIT_COMMIT_REF" != "main" ]');
   assert.match(workflow, /workflow_dispatch:/);
   assert.doesNotMatch(workflow, /^\s*push:/m);
   assert.doesNotMatch(workflow, /^\s*pull_request:/m);
