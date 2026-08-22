@@ -34,16 +34,22 @@ test('relay timeout never auto-saves empty startup state', async () => {
   assert.doesNotMatch(timeoutBlock, /\bsave\s*\(/, 'timeout must not overwrite unknown remote state');
 });
 
-test('production workflow deploys workspace to the portal Vercel project', async () => {
+test('production uses native Vercel Git with a direct manual fallback', async () => {
   const workflow = await read('.github/workflows/vercel-production-prebuilt.yml');
+  const vercelConfig = await read('vercel.json');
 
-  assert.match(workflow, /- "workspace\/\*\*"/);
+  assert.doesNotMatch(
+    vercelConfig,
+    /"deploymentEnabled"\s*:\s*false/,
+    'native Vercel Git deployments must stay enabled'
+  );
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.doesNotMatch(workflow, /^\s*push:/m);
+  assert.doesNotMatch(workflow, /^\s*pull_request:/m);
   assert.match(workflow, /VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z/);
   assert.match(workflow, /VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch/);
-  assert.match(workflow, /LOCAL_DEPLOY_URL: \$\{\{ steps\.local_deploy\.outputs\.url \}\}/);
-  assert.match(workflow, /BASE_URL="\$\{LOCAL_DEPLOY_URL:-https:\/\/portal\.3dvr\.tech\}"/);
-  assert.match(workflow, /German worker as the credential boundary/);
-  assert.match(workflow, /<title>3DVR Workspace<\/title>/);
+  assert.match(workflow, /vercel deploy --prebuilt --prod/);
+  assert.doesNotMatch(workflow, /German worker/i);
 });
 
 test('preview workflow targets the same portal Vercel project', async () => {
