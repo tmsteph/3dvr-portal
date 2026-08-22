@@ -13,6 +13,96 @@ const actionLink = document.querySelector('#homeOperatorAction');
 if (form && input && submit && status && result && reply && followUps && actionLink) {
   let history = [];
 
+  const installSubmitLoader = () => {
+    if (submit.querySelector('.operator-submit__portal')) return;
+
+    const style = document.createElement('style');
+    style.textContent = `
+      #homeOperatorSubmit {
+        position: relative;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+
+      #homeOperatorSubmit .operator-submit__arrow,
+      #homeOperatorSubmit .operator-submit__portal {
+        grid-area: 1 / 1;
+        pointer-events: none;
+        transition: opacity 160ms ease, transform 180ms ease;
+      }
+
+      #homeOperatorSubmit .operator-submit__arrow {
+        line-height: 1;
+      }
+
+      #homeOperatorSubmit .operator-submit__portal {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        opacity: 0;
+        transform: scale(0.68) rotate(-35deg);
+        filter: drop-shadow(0 0 6px rgba(103, 232, 249, 0.42));
+      }
+
+      #homeOperatorSubmit[data-busy="true"] {
+        background: #0f766e;
+      }
+
+      #homeOperatorSubmit[data-busy="true"]:disabled {
+        opacity: 1;
+        cursor: progress;
+      }
+
+      #homeOperatorSubmit[data-busy="true"] .operator-submit__arrow {
+        opacity: 0;
+        transform: scale(0.45) rotate(90deg);
+      }
+
+      #homeOperatorSubmit[data-busy="true"] .operator-submit__portal {
+        opacity: 1;
+        transform: scale(1);
+        animation: operator-mini-portal-spin 900ms linear infinite, operator-mini-portal-pulse 760ms ease-in-out infinite alternate;
+      }
+
+      @keyframes operator-mini-portal-spin {
+        to { transform: scale(1) rotate(360deg); }
+      }
+
+      @keyframes operator-mini-portal-pulse {
+        from { filter: drop-shadow(0 0 3px rgba(103, 232, 249, 0.28)); }
+        to { filter: drop-shadow(0 0 9px rgba(103, 232, 249, 0.72)); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #homeOperatorSubmit .operator-submit__arrow,
+        #homeOperatorSubmit .operator-submit__portal {
+          transition: none;
+        }
+
+        #homeOperatorSubmit[data-busy="true"] .operator-submit__portal {
+          animation: operator-mini-portal-pulse 1100ms ease-in-out infinite alternate;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
+    const arrow = document.createElement('span');
+    arrow.className = 'operator-submit__arrow';
+    arrow.setAttribute('aria-hidden', 'true');
+    arrow.textContent = '→';
+
+    const portal = document.createElement('img');
+    portal.className = 'operator-submit__portal';
+    portal.src = '/brand/portal-logo.svg';
+    portal.alt = '';
+    portal.setAttribute('aria-hidden', 'true');
+
+    submit.replaceChildren(arrow, portal);
+  };
+
+  installSubmitLoader();
+
   const collectPageContext = () => ({
     path: window.location.pathname,
     url: window.location.href,
@@ -33,6 +123,8 @@ if (form && input && submit && status && result && reply && followUps && actionL
   const setBusy = busy => {
     submit.disabled = busy;
     input.disabled = busy;
+    submit.dataset.busy = String(busy);
+    submit.setAttribute('aria-label', busy ? 'Operator is working' : 'Send to Operator');
     form.setAttribute('aria-busy', String(busy));
   };
 
