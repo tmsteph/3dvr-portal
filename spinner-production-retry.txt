@@ -1,1 +1,1 @@
-Owner PR trigger for the canonical production lane: publish the restored interactive spinner and inline Operator from current main to portal.3dvr.tech.
+Owner PR trigger for the canonical production lane: publish the restored interactive spinner and inline Operator from current main to portal.3dvr.tech. Synchronize trigger 2.
