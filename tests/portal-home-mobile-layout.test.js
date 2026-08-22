@@ -117,7 +117,7 @@ describe('portal home mobile layout', () => {
         });
         const page = await context.newPage();
         await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-        await page.waitForSelector('.hero-panel', { timeout: 10000 });
+        await page.waitForSelector('.home', { timeout: 10000 });
         await page.waitForTimeout(100);
 
         const result = await page.evaluate(() => {
