@@ -1,2 +1,2 @@
-2026-08-22T04:10:00Z
-Reason: recover managed task worker so Operator portal-context production deployment can complete.
+2026-08-22T04:37:00Z
+Reason: recover managed task worker so simplified Operator-first portal homepage production deployment can complete.
