@@ -27,7 +27,7 @@ before(async () => {
       const requestUrl = new URL(req.url, `http://${req.headers.host}`);
       let filePath = resolve(projectRoot, `.${requestUrl.pathname}`);
       if (requestUrl.pathname === '/' || requestUrl.pathname.endsWith('/')) {
-        filePath = resolve(filePath, requestUrl.pathname === '/' ? 'index.html' : 'index.html');
+        filePath = resolve(filePath, 'index.html');
       }
       const data = await readFile(filePath);
       const type = MIME_TYPES[extname(filePath).toLowerCase()] || 'application/octet-stream';
