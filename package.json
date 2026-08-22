@@ -53,7 +53,7 @@
     "playwright:verify:chrome-safari": "sh scripts/playwright/run-in-linux.sh playwright:verify:chrome-safari:linux",
     "vercel:alias-staging": "sh scripts/vercel/alias-staging-domains.sh",
     "playwright:ux:linux": "npm run playwright:install:linux && node scripts/playwright/ux-pass.mjs",
-    "playwright:ux": "sh scripts/playwright/run-in-linux.sh playwright:ux-pass.mjs"
+    "playwright:ux": "sh scripts/playwright/run-in-linux.sh playwright:ux:linux"
   },
   "dependencies": {
     "gun": "^0.2020.1241",
