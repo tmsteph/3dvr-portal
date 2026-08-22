@@ -9,11 +9,9 @@ on:
       - 'apps/agent/**'
       - 'apps/companion/**'
       - '.github/**'
-      - 'docs/**'
       - 'ops/**'
       - 'tests/**'
       - 'scripts/**'
-      - '**/*.md'
 
 permissions:
   contents: read
