@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   issues:
     types: [opened]
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
   push:
     branches:
       - main
@@ -30,7 +34,11 @@ env:
 
 jobs:
   deploy:
-    if: github.event_name != 'issues' || (github.event.issue.user.login == github.repository_owner && github.event.issue.title == 'Deploy portal production')
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' && github.event.issue.user.login == github.repository_owner && github.event.issue.title == 'Deploy portal production') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.user.login == github.repository_owner && startsWith(github.head_ref, 'deploy/portal-production'))
     name: Deploy canonical production
     runs-on: ubuntu-latest
     timeout-minutes: 20
