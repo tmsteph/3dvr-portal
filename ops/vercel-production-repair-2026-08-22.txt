@@ -1,1 +1,0 @@
-Repair receipt: canonical Vercel production moved to GitHub Actions; native Vercel Git deploys disabled; production workflow verifies spinner and inline Operator on portal.3dvr.tech.
