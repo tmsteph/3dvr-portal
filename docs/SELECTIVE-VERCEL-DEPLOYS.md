@@ -1,12 +1,13 @@
 # Selective Vercel deploys
 
-3DVR keeps production simple while protecting the Vercel Hobby deployment quota:
+3DVR keeps one canonical production lane while protecting the Vercel Hobby deployment quota:
 
-- `main` is the only branch that auto-deploys through native Vercel Git.
+- Native Vercel Git deployments are disabled for all branches.
+- Relevant pushes to `main` deploy through the GitHub Actions production workflow.
+- Agent, Companion, CI, docs, ops, tests, scripts, and Markdown-only changes do not trigger production.
 - Routine pull requests rely on GitHub CI and do not create Vercel previews.
-- Add the `vercel-preview` label to a pull request when a live browser preview is materially useful.
-- The preview workflow can also be run manually.
-- The production fallback workflow is manual-only and deploys directly to Vercel; it is not a second normal deployment lane.
-- The ignored-build command skips production builds when changes are limited to non-web Agent/Companion, CI, ops, docs, tests, scripts, or repository guidance files.
+- Add the `vercel-preview` label when a live browser preview is materially useful, or run the preview workflow manually.
+- Both production and preview workflows target the long-lived Vercel project that owns `portal.3dvr.tech`.
+- Production verification checks the canonical domain for the interactive spinner and inline Operator form.
 
-This avoids deployment-trigger PRs and prevents backend/automation churn from consuming the daily deployment budget.
+GitHub decides when a deployment is warranted; Vercel builds and serves the selected release. This avoids deployment-trigger PRs and fragile `ignoreCommand` filtering.
