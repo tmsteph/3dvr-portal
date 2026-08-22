@@ -4,17 +4,18 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('Vercel Git auto-deploys stay disabled', async () => {
+test('native Vercel Git deploys only main', async () => {
   const config = JSON.parse(await read('vercel.json'));
-  assert.equal(config.git?.deploymentEnabled, false);
+  assert.equal(config.git?.deploymentEnabled?.main, true);
+  assert.equal(config.git?.deploymentEnabled?.['*'], false);
   assert.equal('ignoreCommand' in config, false);
 });
 
-test('GitHub Actions owns canonical production deployment', async () => {
+test('GitHub Actions production workflow is manual fallback only', async () => {
   const workflow = await read('.github/workflows/vercel-production-prebuilt.yml');
-  assert.match(workflow, /push:/);
-  assert.match(workflow, /- main/);
   assert.match(workflow, /workflow_dispatch:/);
+  assert.doesNotMatch(workflow, /\n\s*push:/);
+  assert.doesNotMatch(workflow, /\n\s*pull_request:/);
   assert.match(workflow, /VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z/);
   assert.match(workflow, /VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch/);
   assert.match(workflow, /vercel deploy --prebuilt --prod/);
