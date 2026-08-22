@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 jobs:
   mark-ready:
@@ -54,6 +55,7 @@ jobs:
           echo "task_id=$task_id" >> "$GITHUB_OUTPUT"
 
       - name: Wait for German worker receipt
+        id: remote
         shell: bash
         run: |
           set -euo pipefail
@@ -64,15 +66,47 @@ jobs:
             echo "German worker status: $status"
             case "$status" in
               completed)
+                echo "remote_status=completed" >> "$GITHUB_OUTPUT"
                 printf '%s\n' "$result"
                 exit 0
                 ;;
               failed|skipped)
+                echo "remote_status=$status" >> "$GITHUB_OUTPUT"
                 printf '%s\n' "$result"
                 exit 1
                 ;;
             esac
             sleep 5
           done
+          echo "remote_status=timeout" >> "$GITHUB_OUTPUT"
           echo 'German worker did not return a completion receipt.' >&2
           exit 1
+
+      - name: Publish bridge status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QUEUE_OUTCOME: ${{ steps.queue.outcome }}
+          REMOTE_OUTCOME: ${{ steps.remote.outcome }}
+          REMOTE_STATUS: ${{ steps.remote.outputs.remote_status }}
+        shell: bash
+        run: |
+          state=failure
+          description='German worker did not mark GUN PR ready'
+          if [ "$QUEUE_OUTCOME" = success ] && [ "$REMOTE_OUTCOME" = success ] && [ "$REMOTE_STATUS" = completed ]; then
+            state=success
+            description='German worker marked GUN PR #1427 ready'
+          elif [ "$QUEUE_OUTCOME" != success ]; then
+            description='Could not enqueue German worker task'
+          elif [ "$REMOTE_STATUS" = timeout ] || [ -z "$REMOTE_STATUS" ]; then
+            description='German worker task timed out'
+          else
+            description="German worker task: ${REMOTE_STATUS:-failed}"
+          fi
+          curl -fsS \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+            -d "{\"state\":\"$state\",\"context\":\"GUN PR Ready Bridge\",\"description\":\"$description\"}"
