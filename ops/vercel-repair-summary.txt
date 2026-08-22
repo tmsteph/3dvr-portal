@@ -1,1 +1,0 @@
-Root cause: canonical production Vercel project was receiving Git pushes but rejecting deployments on vercel.json schema validation. Fix disables native Git deployments and uses GitHub Actions for relevant main pushes only.
