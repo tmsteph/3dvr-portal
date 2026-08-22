@@ -1,2 +1,0 @@
-Machine preview trigger for the homepage Operator history fix.
-Ref: machine-preview/operator-history
