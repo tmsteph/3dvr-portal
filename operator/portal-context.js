@@ -1,4 +1,5 @@
 import { openDatabase, loadState } from '../life-space/storage.js';
+import { createOperatorDeveloperProof } from './forge.js';
 
 const LEADS_KEY = '3dvr.leadFinder.prospects.v1';
 const CRM_KEY = 'portal-crm-local-records-v1';
@@ -22,7 +23,7 @@ function asList(value) {
 function compactRecord(record = {}, fields = []) {
   return Object.fromEntries(fields
     .map(field => [field, typeof record?.[field] === 'string' ? clean(record[field]) : record?.[field]])
-    .filter(([, value]) => value !== undefined && value !== null && value !== ''));
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')));
 }
 
 export function summarizeLifeSpaceState(state) {
@@ -100,7 +101,8 @@ export async function collectPortalContext({
   storage = globalThis.localStorage,
   openDb = openDatabase,
   load = loadState,
-  now = () => new Date()
+  now = () => new Date(),
+  developerProof = createOperatorDeveloperProof
 } = {}) {
   let lifeSpaceState = null;
   try {
@@ -115,10 +117,13 @@ export async function collectPortalContext({
   const crm = parseJson(storage?.getItem?.(CRM_KEY));
   const calendar = parseJson(storage?.getItem?.(CALENDAR_KEY));
   const capturedAt = now();
+  let developerAuth = null;
+  try { developerAuth = await developerProof(); } catch {}
 
   return {
     version: 1,
     capturedAt: capturedAt instanceof Date && !Number.isNaN(capturedAt.getTime()) ? capturedAt.toISOString() : new Date().toISOString(),
+    developerAuth,
     apps: {
       lifeSpace: summarizeLifeSpaceState(lifeSpaceState),
       leadFinder: summarizeLeadFinder(leads),
