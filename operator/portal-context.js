@@ -1,3 +1,4 @@
+import '../spinner-direction.js';
 import { openDatabase, loadState } from '../life-space/storage.js';
 
 const LEADS_KEY = '3dvr.leadFinder.prospects.v1';
