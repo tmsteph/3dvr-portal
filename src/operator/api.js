@@ -1,4 +1,5 @@
 import { buildOperatorOwnerContext } from './context.js';
+import { resolveOperatorDeveloperAccess } from './developer-access.js';
 
 export const DEFAULT_OPERATOR_MODEL = 'gpt-5.4-mini';
 export const DEFAULT_OPERATOR_GATEWAY_MODEL = 'openai/gpt-5.4-mini';
@@ -16,11 +17,11 @@ const RESPONSE_SCHEMA = {
       },
       action: {
         type: 'object', additionalProperties: false,
-        required: ['type', 'title', 'text', 'business', 'location', 'url'],
+        required: ['type', 'title', 'text', 'business', 'location', 'url', 'repo'],
         properties: {
-          type: { type: 'string', enum: ['none', 'create_note', 'create_checklist', 'save_link', 'add_lead', 'open_app'] },
+          type: { type: 'string', enum: ['none', 'create_note', 'create_checklist', 'save_link', 'add_lead', 'open_app', 'suggest_code_change', 'request_code_change'] },
           title: { type: 'string' }, text: { type: 'string' }, business: { type: 'string' },
-          location: { type: 'string' }, url: { type: 'string' }
+          location: { type: 'string' }, url: { type: 'string' }, repo: { type: 'string' }
         }
       }
     }
@@ -42,6 +43,14 @@ function sanitizePortalValue(value, depth = 0) {
     ]));
   }
   return clean(value, 200);
+}
+
+function requestOrigin(req) {
+  const forwardedProto = clean(req?.headers?.['x-forwarded-proto'] || req?.headers?.['X-Forwarded-Proto'], 20);
+  const forwardedHost = clean(req?.headers?.['x-forwarded-host'] || req?.headers?.['X-Forwarded-Host'], 300);
+  const host = forwardedHost || clean(req?.headers?.host || req?.headers?.Host, 300);
+  const protocol = forwardedProto || (host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https');
+  return host ? `${protocol}://${host}` : '';
 }
 
 export function buildPortalSnapshotInstruction(portalContext) {
@@ -75,23 +84,29 @@ async function readUpstreamError(response) {
   }
 }
 
-export function buildOperatorRequest({ prompt, history = [], portalContext = null, model = DEFAULT_OPERATOR_MODEL }) {
+export function buildOperatorRequest({ prompt, history = [], portalContext = null, developerAccess = null, model = DEFAULT_OPERATOR_MODEL }) {
   const messages = (Array.isArray(history) ? history : []).slice(-10).map(item => ({
     role: item?.role === 'assistant' ? 'assistant' : 'user', content: clean(item?.content, 1200)
   })).filter(item => item.content);
   messages.push({ role: 'user', content: clean(prompt, 2000) });
+  const developerApproved = developerAccess?.approved === true;
   return {
     model, store: false,
     instructions: [
       'You are the 3DVR Operator, a calm personal operator inside a life and business portal.',
       buildOperatorOwnerContext(),
       buildPortalSnapshotInstruction(portalContext),
+      `3DVR developer access for this turn is ${developerApproved ? 'approved for local code edits' : 'not approved for code edits; suggestions are allowed'}.`,
       'Talk like a capable partner. Lead with the useful answer. Use short, plain sentences.',
       'Use the founder context to make responses more relevant, but do not force 3DVR into unrelated questions.',
       'When the user describes a recurring workflow or repeatedly depends on an external chat/app interface, look for a practical way to move that capability into Operator or another 3DVR tool.',
-      'You may take one safe local action per turn: create_note saves a note in Life Space; create_checklist saves a checklist in Life Space; save_link saves a web link in Life Space; add_lead adds a business to Lead Finder; open_app opens an existing portal workspace.',
+      'You may take one safe action per turn: create_note saves a note in Life Space; create_checklist saves a checklist in Life Space; save_link saves a web link in Life Space; add_lead adds a business to Lead Finder; open_app opens an existing portal workspace; suggest_code_change records a native 3DVR Forge suggestion; request_code_change queues a local code edit for an approved 3DVR developer.',
       'For create_note fill title and text. For create_checklist fill title and put one checklist item per line in text. For save_link fill title, optional text, and an absolute http or https URL. For add_lead fill business and location. For open_app use only these relative URLs: /life-space/, /lead-finder/, /crm/, /growth-operator/, /web-builder-app/, /calendar/, /finance/.',
-      'Use none when the user is asking a question or when the requested action is external, destructive, costly, sensitive, or unsupported. Never claim an unsupported action happened.',
+      'For code actions fill title, text, and repo. Use repo=portal for Portal and apps in the portal monorepo. Use repo=agent only when the request is specifically about the 3DVR agent package.',
+      developerApproved
+        ? 'When the user explicitly asks Operator to change approved 3DVR code, use request_code_change. This permission is local workspace editing only; do not use it for publishing, pull requests, merges, releases, or deployments.'
+        : 'When the user asks to change 3DVR code, use suggest_code_change so the request is captured for maintainers. Do not claim the code itself was changed.',
+      'Use none when the user is asking a question or when the requested action is destructive, costly, sensitive, or unsupported. Never claim an unsupported action happened.',
       'When a safe action is clear, choose it without asking the user to navigate an interface.',
       'Include two or three short suggestions for useful next messages the user could send. Phrase each as a direct request in the user’s voice, make them specific to the conversation, and avoid repeating work that is already complete.',
       'Return only the requested JSON.'
@@ -102,19 +117,23 @@ export function buildOperatorRequest({ prompt, history = [], portalContext = nul
 }
 
 export function normalizeOperatorResult(value = {}) {
-  const allowed = new Set(['none', 'create_note', 'create_checklist', 'save_link', 'add_lead', 'open_app']);
+  const allowed = new Set(['none', 'create_note', 'create_checklist', 'save_link', 'add_lead', 'open_app', 'suggest_code_change', 'request_code_change']);
   const type = allowed.has(value?.action?.type) ? value.action.type : 'none';
   const rawUrl = clean(value?.action?.url, 500);
   const url = type === 'open_app'
     ? (/^\/(life-space|lead-finder|crm|growth-operator|web-builder-app|calendar|finance)\/$/.test(rawUrl) ? rawUrl : '')
     : type === 'save_link' && /^https?:\/\/[^\s]+$/i.test(rawUrl) ? rawUrl : '';
+  const rawRepo = clean(value?.action?.repo, 80).toLowerCase();
+  const repo = ['suggest_code_change', 'request_code_change'].includes(type)
+    ? (/^[a-z0-9][a-z0-9._-]{0,79}$/.test(rawRepo) ? rawRepo : 'portal')
+    : '';
   return {
     reply: clean(value?.reply, 1600) || 'Tell me what you want to do.',
     suggestions: (Array.isArray(value?.suggestions) ? value.suggestions : []).map(item => clean(item, 100)).filter(Boolean).slice(0, 3),
     action: {
       type, title: clean(value?.action?.title, 120), text: clean(value?.action?.text, 4000),
       business: clean(value?.action?.business, 160), location: clean(value?.action?.location, 160),
-      url
+      url, repo
     }
   };
 }
@@ -136,6 +155,10 @@ export function createOperatorHandler(options = {}) {
     const prompt = clean(req.body?.prompt, 2000);
     if (!prompt) return res.status(400).json({ error: 'Tell the operator what you need.' });
     try {
+      const developerAccess = await resolveOperatorDeveloperAccess(req.body?.developerAuth || {}, {
+        config: options.config || process.env,
+        expectedOrigin: requestOrigin(req)
+      });
       const useGateway = !apiKey && Boolean(gatewayToken);
       const requestEndpoint = useGateway ? endpoint : 'https://api.openai.com/v1/responses';
       const model = options.model || process.env.OPENAI_OPERATOR_MODEL || (useGateway ? DEFAULT_OPERATOR_GATEWAY_MODEL : DEFAULT_OPERATOR_MODEL);
@@ -145,12 +168,25 @@ export function createOperatorHandler(options = {}) {
           prompt,
           history: req.body?.history,
           portalContext: req.body?.portalContext,
+          developerAccess,
           model
         }))
       });
       if (!response.ok) return res.status(response.status).json({ error: await readUpstreamError(response) });
       const raw = outputText(await response.json());
-      return res.status(200).json(normalizeOperatorResult(JSON.parse(raw)));
+      const result = normalizeOperatorResult(JSON.parse(raw));
+      if (result.action.type === 'request_code_change' && !developerAccess.approved) {
+        result.action.type = 'suggest_code_change';
+      }
+      return res.status(200).json({
+        ...result,
+        developerAccess: {
+          authenticated: developerAccess.authenticated,
+          approved: developerAccess.approved,
+          role: developerAccess.role,
+          permissions: developerAccess.permissions
+        }
+      });
     } catch (error) { return res.status(500).json({ error: error.message || 'The operator could not respond.' }); }
   };
 }
