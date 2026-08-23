@@ -67,20 +67,18 @@ function inferMode(text = '') {
   add('build', ['build', 'app', 'website', 'site', 'software', 'tool', 'code', 'product', 'feature', 'design']);
 
   const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-  if (ranked[0][1] === 0) return 'build';
-  if (ranked[0][1] === ranked[1][1] && ranked[0][1] > 0) {
-    if (scores.startup > 0) return 'startup';
-    if (scores.career > 0) return 'career';
-  }
+  if (ranked[0][1] === 0) return 'general';
+  if (ranked[0][1] === ranked[1][1]) return 'general';
   return ranked[0][0];
 }
 
 function modeLabel(mode) {
   return {
+    general: 'something unclear',
     career: 'work / life',
     startup: 'money / business',
     build: 'something to build'
-  }[mode] || 'your next move';
+  }[mode] || 'something unclear';
 }
 
 function persist() {
@@ -156,7 +154,6 @@ function renderQuestion() {
   }));
 
   persist();
-  refs.questionTitle.focus?.();
 }
 
 function createPathCard(path, index) {
@@ -213,7 +210,7 @@ function renderResult(snapshot, guidance, message = '') {
   refs.nextAction.textContent = guidance.nextAction;
   refs.assumption.textContent = guidance.assumptionToTest;
   refs.pathList.replaceChildren(...guidance.paths.map(createPathCard));
-  refs.routeLink.href = snapshot.route || '../launch-room/';
+  refs.routeLink.href = snapshot.route || '../life/';
   refs.routeLink.querySelector('strong').textContent = snapshot.routeLabel || 'Keep going';
   refs.routeDetail.textContent = snapshot.routeDetail || 'Take this into the next 3DVR tool.';
   refs.resultStatus.textContent = message;
@@ -360,7 +357,10 @@ document.querySelector('[data-copy-generated]').addEventListener('click', () => 
 
 document.querySelector('[data-copy-plan]').addEventListener('click', () => {
   if (!state.snapshot || !state.guidance) return;
-  copyText(snapshotToText(state.snapshot, state.guidance), 'Plan copied.');
+  const text = snapshotToText(state.snapshot, state.guidance)
+    .replace('3dvr Next Move — Clarity Snapshot', '3dvr Guide — Next Move')
+    .replace('What Compass hears:', 'What Guide hears:');
+  copyText(text, 'Plan copied.');
 });
 
 document.querySelector('[data-edit]').addEventListener('click', () => {
