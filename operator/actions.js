@@ -1,5 +1,6 @@
 import { openDatabase, loadState, saveState } from '../life-space/storage.js';
 import { normalizeProspect } from '../lead-finder/core.js';
+import { queueCodeChange, saveCodeSuggestion } from './forge.js';
 
 const LEADS_KEY = '3dvr.leadFinder.prospects.v1';
 
@@ -39,6 +40,8 @@ export async function runOperatorAction(action = {}) {
     localStorage.setItem(LEADS_KEY,JSON.stringify(leads.slice(0,250)));
     return { message:`Added ${prospect.business} to Lead Finder.`, url:'/lead-finder/' };
   }
+  if (action.type === 'suggest_code_change') return saveCodeSuggestion(action);
+  if (action.type === 'request_code_change') return queueCodeChange(action);
   if (action.type === 'open_app' && action.url) return { message:'Ready to open.', url:action.url };
   return null;
 }
