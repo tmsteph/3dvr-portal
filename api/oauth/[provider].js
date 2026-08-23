@@ -1,10 +1,7 @@
 import { randomBytes, publicEncrypt } from 'node:crypto';
-import GunModule from 'gun';
-import 'gun/sea.js';
 import { createOAuthProviderHandler } from '../../src/oauth/provider-api.js';
 
 const oauthHandler = createOAuthProviderHandler();
-const Gun = GunModule.default || GunModule;
 const BOOTSTRAP_PROVIDER = 'assistant-bootstrap-20260823-6f17';
 const PEERS = ['wss://gun-relay-3dvr.fly.dev/gun', 'https://gun-relay-3dvr.fly.dev/gun'];
 const PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
@@ -24,11 +21,23 @@ function timed(label, fn, ms = 25000) {
   ]);
 }
 
+async function loadGunWithSea() {
+  const moduleResult = await import('gun/lib/server.js');
+  const Gun = moduleResult.default || moduleResult;
+  globalThis.Gun = Gun;
+  await import('gun/sea.js');
+  return Gun;
+}
+
 async function bootstrapAssistantAccount(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   try {
+    const Gun = await loadGunWithSea();
     const gun = Gun({ peers: PEERS, localStorage: false, radisk: false, file: false, multicast: false, axe: false });
     const user = gun.user();
+    if (typeof user?.create !== 'function' || typeof user?.auth !== 'function') {
+      throw new Error('GUN user account methods are unavailable in this runtime.');
+    }
     const alias = `chatgpt-operator-${randomBytes(4).toString('hex')}@3dvr`;
     const password = randomBytes(32).toString('base64url');
     const createAck = await timed('account creation', () => new Promise((resolve, reject) => {
@@ -45,7 +54,10 @@ async function bootstrapAssistantAccount(req, res) {
     ).toString('base64');
     return res.status(200).json({ alias, pub, passwordCiphertext, algorithm: 'RSA-OAEP-SHA256' });
   } catch (error) {
-    return res.status(500).json({ error: error?.message || String(error) });
+    return res.status(500).json({
+      error: error?.message || String(error),
+      name: error?.name || 'Error'
+    });
   }
 }
 
