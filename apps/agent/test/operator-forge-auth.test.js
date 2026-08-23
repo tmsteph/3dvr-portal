@@ -5,7 +5,10 @@ const path = require('node:path');
 const {
   authorizePortalOperatorTask,
   resolveRepoAlias,
+  BUILTIN_OPERATOR_DEVELOPER_BINDINGS,
 } = require('../thomas-agent/node/operator-forge-auth');
+
+const TMSTEPH_PUB = 'Cg-NVNIbxWPDBqX7OmllJQqjxy2t3KA_U2DqQBjcPQ8.1fppECqamDOHh2tKt1G5t8Yd21NjBCZ3C6qunST3lvg';
 
 function validRecord(overrides = {}) {
   return {
@@ -32,6 +35,27 @@ function validProof(overrides = {}) {
     ...overrides,
   };
 }
+
+test('built-in worker policy binds tmsteph alias to the exact SEA public key', () => {
+  assert.equal(BUILTIN_OPERATOR_DEVELOPER_BINDINGS['tmsteph@3dvr'], TMSTEPH_PUB);
+});
+
+test('built-in tmsteph SEA binding authorizes an Operator edit request', async () => {
+  const portalRepo = path.resolve('/srv/3dvr-portal');
+  const result = await authorizePortalOperatorTask(validRecord({ authPub: TMSTEPH_PUB }), {
+    now: 1_001_000,
+    env: { THREEDVR_OPERATOR_PORTAL_REPO: portalRepo },
+    verifyImpl: async () => validProof({
+      alias: 'tmsteph@3dvr',
+      pub: TMSTEPH_PUB,
+    }),
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.repoPath, portalRepo);
+  assert.equal(result.identity.alias, 'tmsteph@3dvr');
+  assert.equal(result.identity.pub, TMSTEPH_PUB);
+});
 
 test('approved signed Operator request resolves only an allowlisted repo path', async () => {
   const portalRepo = path.resolve('/srv/3dvr-portal');
@@ -85,6 +109,20 @@ test('claiming an approved alias with a different SEA key is rejected', async ()
     },
     verifyImpl: async () => validProof({
       alias: '3dvr.tech@gmail.com',
+      pub: 'pub-evil',
+    }),
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, '3DVR account is not approved for code edits');
+});
+
+test('claiming tmsteph alias with a different SEA key is rejected', async () => {
+  const result = await authorizePortalOperatorTask(validRecord({ authPub: 'pub-evil' }), {
+    now: 1_001_000,
+    env: {},
+    verifyImpl: async () => validProof({
+      alias: 'tmsteph@3dvr',
       pub: 'pub-evil',
     }),
   });
