@@ -1,15 +1,24 @@
 {
-  "checkedAt": "2026-08-23T19:29:41.858454+00:00",
+  "checkedAt": "2026-08-23T19:34:08.439472+00:00",
+  "digitalOceanPublic": {
+    "host": "167.172.193.194",
+    "ports": {
+      "22": true,
+      "80": true,
+      "443": true,
+      "4310": false
+    }
+  },
   "managed": {
-    "taskId": "remote-task-844228da4e662ae2dffa3a65",
-    "status": "unavailable",
+    "taskId": "remote-task-e1d8314de0ed255eb2301d45",
+    "status": "queued",
     "workerDeviceId": "",
     "resultSummary": "",
     "error": ""
   },
   "legacy": {
-    "taskId": "remote-task-dc7d9bef4897242d65ef8951",
-    "status": "unavailable",
+    "taskId": "remote-task-43a1b8411a1919f2fe8660cb",
+    "status": "queued",
     "workerDeviceId": "",
     "resultSummary": "",
     "error": ""
