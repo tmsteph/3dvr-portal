@@ -1,5 +1,6 @@
 import './home-busy-state.js';
 import './network-resilience.js';
+import './forge-link-label.js';
 import { revealDeveloperKeyButton } from './developer-key-ui.js';
 import { openDatabase, loadState, saveState } from '../life-space/storage.js';
 import { normalizeProspect } from '../lead-finder/core.js';
