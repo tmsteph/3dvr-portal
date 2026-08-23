@@ -1,0 +1,50 @@
+name: Machine Host Smoke
+
+on:
+  push:
+    branches:
+      - 'machine-host/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: machine-host-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify stable preview matches pointer SHA
+        shell: bash
+        env:
+          PREVIEW_HOST: preview.167.172.193.194.nip.io
+          PREVIEW_IP: 167.172.193.194
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          base="https://$PREVIEW_HOST"
+          resolve="--resolve $PREVIEW_HOST:443:$PREVIEW_IP"
+
+          health=''
+          for _ in $(seq 1 36); do
+            if health="$(curl -fsS $resolve --connect-timeout 5 --max-time 10 "$base/__3dvr-preview" 2>/dev/null)"; then
+              if HEALTH="$health" EXPECTED_SHA="$EXPECTED_SHA" python3 -c 'import json,os; h=json.loads(os.environ["HEALTH"]); raise SystemExit(0 if h.get("ok") is True and h.get("sha")==os.environ["EXPECTED_SHA"] else 1)'; then
+                break
+              fi
+            fi
+            health=''
+            sleep 3
+          done
+
+          if [ -z "$health" ]; then
+            echo "Stable preview did not become healthy for $EXPECTED_SHA" >&2
+            exit 1
+          fi
+
+          printf '%s\n' "$health"
+          curl -fsS $resolve --connect-timeout 5 --max-time 10 "$base/" | grep -Fq '<html'
+          curl -fsS $resolve --connect-timeout 5 --max-time 10 "$base/home-operator.js" | grep -Fq 'persistHistory'
+          echo "Stable machine preview verified: $base @ $EXPECTED_SHA"
