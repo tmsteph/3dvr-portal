@@ -128,7 +128,8 @@ test('portal spinner selects a direction on deliberate drag but keeps short drag
     assert.equal(new URL(page.url()).pathname, '/growth-desk/');
 
     await page.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
-    box = await page.locator('[data-spinner-nav-toggle]').boundingBox();
+    const homeSpinner = page.locator('[data-spinner-nav-toggle]');
+    box = await homeSpinner.boundingBox();
     assert.ok(box, 'spinner should still be available after returning home');
 
     const shortX = box.x + box.width / 2;
@@ -141,6 +142,10 @@ test('portal spinner selects a direction on deliberate drag but keeps short drag
 
     assert.equal(new URL(page.url()).pathname, '/');
     assert.equal(await page.locator('.spinner-nav__item--work').getAttribute('data-spinner-selected'), null);
+
+    await page.mouse.click(shortX, shortY);
+    await page.waitForFunction(() => document.querySelector('[data-spinner-nav]')?.dataset.open === 'true');
+    assert.equal(await homeSpinner.getAttribute('aria-expanded'), 'true');
   } finally {
     await browser.close();
   }
