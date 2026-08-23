@@ -1,6 +1,9 @@
 const path = require('node:path');
 
 const DEFAULT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const BUILTIN_OPERATOR_DEVELOPER_BINDINGS = Object.freeze({
+  'tmsteph@3dvr': 'Cg-NVNIbxWPDBqX7OmllJQqjxy2t3KA_U2DqQBjcPQ8.1fppECqamDOHh2tKt1G5t8Yd21NjBCZ3C6qunST3lvg',
+});
 
 function normalizeText(value = '') {
   return String(value || '').trim();
@@ -32,10 +35,21 @@ function parseBindings(value = '') {
   return bindings;
 }
 
+function withBuiltinBindings(bindings) {
+  for (const [alias, pub] of Object.entries(BUILTIN_OPERATOR_DEVELOPER_BINDINGS)) {
+    const normalizedAlias = normalizeAlias(alias);
+    const normalizedPub = normalizeText(pub);
+    if (normalizedAlias && normalizedPub && !bindings.has(normalizedAlias)) {
+      bindings.set(normalizedAlias, normalizedPub);
+    }
+  }
+  return bindings;
+}
+
 function resolvePolicy(env = process.env) {
   return {
     pubs: new Set(listFromConfig(env.THREEDVR_OPERATOR_DEVELOPER_PUBS)),
-    bindings: parseBindings(env.THREEDVR_OPERATOR_DEVELOPER_BINDINGS),
+    bindings: withBuiltinBindings(parseBindings(env.THREEDVR_OPERATOR_DEVELOPER_BINDINGS)),
   };
 }
 
@@ -128,4 +142,5 @@ module.exports = {
   authorizePortalOperatorTask,
   resolvePolicy,
   resolveRepoAlias,
+  BUILTIN_OPERATOR_DEVELOPER_BINDINGS,
 };
