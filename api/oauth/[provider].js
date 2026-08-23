@@ -25,9 +25,6 @@ async function loadGunWithSea() {
   const moduleResult = await import('gun/lib/server.js');
   const Gun = moduleResult.default || moduleResult;
   globalThis.Gun = Gun;
-  // SEA's legacy Node shim looks for a browser-like global before falling back
-  // to an internal text-encoding file that is absent from this published GUN build.
-  // Node 22 already provides crypto, TextEncoder, and TextDecoder natively.
   globalThis.self = globalThis;
   globalThis.window = globalThis;
   await import('gun/sea.js');
@@ -38,7 +35,15 @@ async function bootstrapAssistantAccount(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   try {
     const Gun = await loadGunWithSea();
-    const gun = Gun({ peers: PEERS, localStorage: false, radisk: false, file: false, multicast: false, axe: false });
+    const gun = Gun({
+      peers: PEERS,
+      localStorage: false,
+      rad: false,
+      radisk: false,
+      rfs: false,
+      multicast: false,
+      axe: false
+    });
     const user = gun.user();
     if (typeof user?.create !== 'function' || typeof user?.auth !== 'function') {
       throw new Error('GUN user account methods are unavailable in this runtime.');
