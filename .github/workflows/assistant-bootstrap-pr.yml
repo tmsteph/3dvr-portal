@@ -1,0 +1,21 @@
+name: Assistant bootstrap PR
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/bootstrap-assistant-account.mjs'
+
+jobs:
+  bootstrap:
+    if: github.head_ref == 'assistant-account-bootstrap-20260823'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node scripts/bootstrap-assistant-account.mjs
