@@ -1,5 +1,6 @@
 import './home-busy-state.js';
 import './network-resilience.js';
+import { revealDeveloperKeyButton } from './developer-key-ui.js';
 import { openDatabase, loadState, saveState } from '../life-space/storage.js';
 import { normalizeProspect } from '../lead-finder/core.js';
 
@@ -43,7 +44,9 @@ export async function runOperatorAction(action = {}) {
   }
   if (action.type === 'suggest_code_change') {
     const { saveCodeSuggestion } = await import('./forge.js');
-    return saveCodeSuggestion(action);
+    const outcome = await saveCodeSuggestion(action);
+    revealDeveloperKeyButton();
+    return outcome;
   }
   if (action.type === 'request_code_change') {
     const { queueCodeChange } = await import('./forge.js');
