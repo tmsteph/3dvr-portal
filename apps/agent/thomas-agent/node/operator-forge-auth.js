@@ -1,6 +1,9 @@
 const path = require('node:path');
 
 const DEFAULT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const BUILTIN_OPERATOR_ADMIN_BINDINGS = Object.freeze({
+  'chatgpt-operator-e18d7ed6@3dvr': 'jcsaMMOmGSjWVJOtiPHI3hZWsudATRhOglXRdDatfSA.pzn7gtgVsDxfbV_md8B4a_W4eNTOavwnZwFU0qOtYcU',
+});
 const BUILTIN_OPERATOR_DEVELOPER_BINDINGS = Object.freeze({
   'tmsteph@3dvr': 'Cg-NVNIbxWPDBqX7OmllJQqjxy2t3KA_U2DqQBjcPQ8.1fppECqamDOHh2tKt1G5t8Yd21NjBCZ3C6qunST3lvg',
 });
@@ -35,8 +38,8 @@ function parseBindings(value = '') {
   return bindings;
 }
 
-function withBuiltinBindings(bindings) {
-  for (const [alias, pub] of Object.entries(BUILTIN_OPERATOR_DEVELOPER_BINDINGS)) {
+function withBuiltinBindings(bindings, builtins) {
+  for (const [alias, pub] of Object.entries(builtins)) {
     const normalizedAlias = normalizeAlias(alias);
     const normalizedPub = normalizeText(pub);
     if (normalizedAlias && normalizedPub && !bindings.has(normalizedAlias)) {
@@ -48,8 +51,16 @@ function withBuiltinBindings(bindings) {
 
 function resolvePolicy(env = process.env) {
   return {
+    adminPubs: new Set(listFromConfig(env.THREEDVR_OPERATOR_ADMIN_PUBS)),
+    adminBindings: withBuiltinBindings(
+      parseBindings(env.THREEDVR_OPERATOR_ADMIN_BINDINGS),
+      BUILTIN_OPERATOR_ADMIN_BINDINGS
+    ),
     pubs: new Set(listFromConfig(env.THREEDVR_OPERATOR_DEVELOPER_PUBS)),
-    bindings: withBuiltinBindings(parseBindings(env.THREEDVR_OPERATOR_DEVELOPER_BINDINGS)),
+    bindings: withBuiltinBindings(
+      parseBindings(env.THREEDVR_OPERATOR_DEVELOPER_BINDINGS),
+      BUILTIN_OPERATOR_DEVELOPER_BINDINGS
+    ),
   };
 }
 
@@ -122,15 +133,17 @@ async function authorizePortalOperatorTask(record = {}, options = {}) {
 
   const policy = resolvePolicy(env);
   const alias = normalizeAlias(verified.alias);
-  const approved = policy.pubs.has(authPub) || policy.bindings.get(alias) === authPub;
-  if (!approved) return { ok: false, reason: '3DVR account is not approved for code edits' };
+  const admin = policy.adminPubs.has(authPub) || policy.adminBindings.get(alias) === authPub;
+  const developer = admin || policy.pubs.has(authPub) || policy.bindings.get(alias) === authPub;
+  if (!developer) return { ok: false, reason: '3DVR account is not approved for code edits' };
 
   const repoPath = resolveRepoAlias(record.repo, env);
-  if (!repoPath) return { ok: false, reason: `repo is not approved: ${normalizeText(record.repo) || 'unknown'}` };
+  if (!repoPath) return { ok: false, reason: `repo is not approved: ${normalizeText(record.repo) || 'unknown'}`; }
 
   return {
     ok: true,
     repoPath,
+    role: admin ? 'admin' : 'developer',
     identity: {
       alias: normalizeText(verified.alias),
       pub: authPub,
@@ -142,5 +155,6 @@ module.exports = {
   authorizePortalOperatorTask,
   resolvePolicy,
   resolveRepoAlias,
+  BUILTIN_OPERATOR_ADMIN_BINDINGS,
   BUILTIN_OPERATOR_DEVELOPER_BINDINGS,
 };
