@@ -1,0 +1,7 @@
+{
+  "combinedAuthSecretPresent": false,
+  "usernameSecretPresent": false,
+  "passwordSecretPresent": false,
+  "authenticatedHttpCode": "000",
+  "authenticated": false
+}
