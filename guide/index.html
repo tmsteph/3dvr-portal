@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guide | 3DVR Portal</title>
+  <meta name="description" content="Start with the messy version. 3DVR Guide helps you find one useful next move, compare paths, and act on it.">
+  <meta name="theme-color" content="#0d1117">
+  <link rel="icon" type="image/svg+xml" href="../brand/portal-logo.svg">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#mainContent">Skip to Guide</a>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="../index.html">3DVR <span>/ Guide</span></a>
+      <nav aria-label="Guide navigation">
+        <a href="../index.html">Portal</a>
+        <a href="../operator/">Operator</a>
+      </nav>
+    </header>
+
+    <main id="mainContent">
+      <section class="hero" aria-labelledby="guideTitle">
+        <p class="eyebrow">Start with the messy version</p>
+        <h1 id="guideTitle">What feels stuck?</h1>
+        <p class="lead">You do not need to know what kind of problem it is yet. Say what is going on, then Guide will help make it smaller.</p>
+      </section>
+
+      <section class="panel" data-start-view>
+        <form data-start-form>
+          <label for="stuckText" class="question-label">Tell Guide what is going on.</label>
+          <textarea id="stuckText" name="stuck" rows="6" maxlength="1200" placeholder="Example: I need more money, but I do not want to keep taking overtime." required></textarea>
+          <div class="quick-starts" aria-label="Quick starts">
+            <button type="button" data-preset="I need money and I do not know what to do first.">Need money</button>
+            <button type="button" data-preset="I need better work and I do not know where to start.">Need work</button>
+            <button type="button" data-preset="I have an idea but it feels too big.">Have idea</button>
+            <button type="button" data-preset="I feel stuck and need one small next step.">Feel stuck</button>
+          </div>
+          <div class="actions">
+            <button class="button primary" type="submit">Help me sort it</button>
+            <button class="button quiet" type="button" data-reset>Clear</button>
+          </div>
+          <p class="status" data-start-status role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="panel" data-question-view hidden aria-labelledby="questionTitle">
+        <div class="progress-head">
+          <span data-step-label>Question 1 of 3</span>
+          <span class="reading" data-reading></span>
+        </div>
+        <div class="mode-switch" aria-label="Change what Guide thinks this is about">
+          <span>Guide thinks this is mostly:</span>
+          <button type="button" data-mode="career">work / life</button>
+          <button type="button" data-mode="startup">money / business</button>
+          <button type="button" data-mode="build">something to build</button>
+        </div>
+        <form data-question-form>
+          <h2 id="questionTitle" data-question-title></h2>
+          <p class="help" data-question-help></p>
+          <div class="answer-chips" data-answer-chips></div>
+          <textarea name="answer" rows="4" maxlength="600" required></textarea>
+          <div class="actions">
+            <button class="button quiet" type="button" data-back>Back</button>
+            <button class="button primary" type="submit" data-next>Next</button>
+          </div>
+          <p class="status" data-question-status role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="panel result" data-result-view hidden aria-labelledby="resultTitle">
+        <div class="result-head">
+          <p class="eyebrow">Your next move</p>
+          <h2 id="resultTitle" data-result-title tabindex="-1"></h2>
+          <p data-result-hears></p>
+        </div>
+
+        <article class="recommendation">
+          <span>Try this first</span>
+          <h3 data-recommendation-title></h3>
+          <p data-recommendation-why></p>
+          <strong>Do this next</strong>
+          <p data-next-action></p>
+        </article>
+
+        <details class="paths">
+          <summary>Compare other paths</summary>
+          <div data-path-list></div>
+        </details>
+
+        <article class="assumption">
+          <span>What needs to be true</span>
+          <p data-assumption></p>
+        </article>
+
+        <div class="tool-grid" aria-label="Turn this into action">
+          <button type="button" data-tool="message"><strong>Draft a message</strong><span>Turn this into something you can send.</span></button>
+          <button type="button" data-tool="week"><strong>Make a 7-day test</strong><span>Keep the experiment small.</span></button>
+          <a data-route-link href="../launch-room/"><strong>Keep going</strong><span data-route-detail>Take this into the next 3DVR tool.</span></a>
+          <a href="../operator/"><strong>Do it with Operator</strong><span>Ask Operator to act on the next step.</span></a>
+        </div>
+
+        <article class="generated-output" data-generated-output hidden>
+          <div class="generated-head">
+            <h3 data-generated-title></h3>
+            <button type="button" class="button quiet" data-copy-generated>Copy</button>
+          </div>
+          <pre data-generated-body></pre>
+        </article>
+
+        <div class="actions result-actions">
+          <button class="button" type="button" data-copy-plan>Copy plan</button>
+          <button class="button quiet" type="button" data-edit>Change answers</button>
+          <button class="button quiet" type="button" data-start-over>Start over</button>
+        </div>
+        <p class="status" data-result-status role="status" aria-live="polite"></p>
+      </section>
+    </main>
+
+    <footer>Guide is an experimental 3DVR product. The original Forge and Next Move Lab remain available while this flow is tested.</footer>
+  </div>
+</body>
+</html>
