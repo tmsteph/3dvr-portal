@@ -21,6 +21,7 @@ jobs:
     timeout-minutes: 5
     env:
       RESULT_BRANCH: ${{ github.head_ref }}
+      DO_HOST: 167.172.193.194
     defaults:
       run:
         working-directory: apps/agent
@@ -40,8 +41,29 @@ jobs:
       - name: Install agent dependencies
         run: npm ci
 
+      - name: Probe DigitalOcean public surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$DO_HOST" <<'PY' > /tmp/server-audit-public.json
+          import json, socket, sys
+          host = sys.argv[1]
+          ports = {}
+          for port in (22, 80, 443, 4310):
+              sock = socket.socket()
+              sock.settimeout(4)
+              try:
+                  sock.connect((host, port))
+                  ports[str(port)] = True
+              except OSError:
+                  ports[str(port)] = False
+              finally:
+                  sock.close()
+          print(json.dumps({'host': host, 'ports': ports}))
+          PY
+          cat /tmp/server-audit-public.json
+
       - name: Probe managed and legacy workers
-        id: audit
         shell: bash
         run: |
           set -euo pipefail
@@ -74,8 +96,8 @@ jobs:
             cat "$outfile"
           }
 
-          probe_queue '3dvr-managed' 12 /tmp/server-audit-managed.json
-          probe_queue 'anonymous@3dvr' 20 /tmp/server-audit-legacy.json
+          probe_queue '3dvr-managed' 8 /tmp/server-audit-managed.json
+          probe_queue 'anonymous@3dvr' 12 /tmp/server-audit-legacy.json
 
       - name: Persist sanitized audit result
         if: always()
@@ -86,11 +108,16 @@ jobs:
           python3 - <<'PY'
           import datetime, json, os
 
-          def read_record(path):
+          def load_json_with_banner(path):
               try:
-                  record = json.load(open(path))
+                  text = open(path).read()
+                  start = text.find('{')
+                  return json.loads(text[start:]) if start >= 0 else {}
               except Exception:
-                  record = {}
+                  return {}
+
+          def read_record(path):
+              record = load_json_with_banner(path)
               try:
                   task_id = open(path + '.id').read().strip()
               except Exception:
@@ -103,8 +130,14 @@ jobs:
                   'error': record.get('error') or '',
               }
 
+          try:
+              public = json.load(open('/tmp/server-audit-public.json'))
+          except Exception:
+              public = {'host': os.environ.get('DO_HOST', ''), 'ports': {}}
+
           out = {
               'checkedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              'digitalOceanPublic': public,
               'managed': read_record('/tmp/server-audit-managed.json'),
               'legacy': read_record('/tmp/server-audit-legacy.json'),
           }
@@ -118,5 +151,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add ops/server-readiness-audit-result.json
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Record managed and legacy server readiness audit'
+          git commit -m 'Record server readiness audit'
           git push origin "HEAD:$RESULT_BRANCH"
