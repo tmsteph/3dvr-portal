@@ -96,7 +96,7 @@ test('home Operator conversation appears in Past conversations', { timeout: 45_0
   }
 });
 
-test('portal spinner selects a direction on deliberate drag but keeps short drags playful', { timeout: 45_000 }, async () => {
+test('portal spinner opens menu on normal spins and only activates after an intentional hold', { timeout: 45_000 }, async () => {
   const browser = await chromium.launch({ headless: true });
 
   try {
@@ -108,44 +108,66 @@ test('portal spinner selects a direction on deliberate drag but keeps short drag
     });
 
     await page.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
-    const spinner = page.locator('[data-spinner-nav-toggle]');
+    let spinner = page.locator('[data-spinner-nav-toggle]');
     await spinner.waitFor();
     let box = await spinner.boundingBox();
     assert.ok(box, 'spinner should have a pointer target');
 
-    const centerX = box.x + box.width / 2;
-    const centerY = box.y + box.height / 2;
+    let centerX = box.x + box.width / 2;
+    let centerY = box.y + box.height / 2;
     await page.mouse.move(centerX, centerY);
     await page.mouse.down();
     await page.mouse.move(centerX + 62, centerY, { steps: 6 });
 
-    const workTarget = page.locator('.spinner-nav__item--work');
+    let workTarget = page.locator('.spinner-nav__item--work');
     assert.equal(await workTarget.getAttribute('data-spinner-selected'), 'true');
-    assert.equal(await spinner.getAttribute('aria-label'), 'Release to open Work.');
+    assert.equal(await spinner.getAttribute('aria-label'), 'Work selected. Release for menu, or hold to open.');
 
+    await page.mouse.up();
+    await page.waitForTimeout(160);
+    assert.equal(new URL(page.url()).pathname, '/');
+    assert.equal(await page.locator('[data-spinner-nav]').getAttribute('data-open'), 'true');
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    spinner = page.locator('[data-spinner-nav-toggle]');
+    box = await spinner.boundingBox();
+    assert.ok(box, 'spinner should still be available for a hold gesture');
+    centerX = box.x + box.width / 2;
+    centerY = box.y + box.height / 2;
+
+    await page.mouse.move(centerX, centerY);
+    await page.mouse.down();
+    await page.mouse.move(centerX + 70, centerY, { steps: 6 });
+    workTarget = page.locator('.spinner-nav__item--work');
+    await page.waitForFunction(() => document.querySelector('.spinner-nav__item--work')?.dataset.spinnerArmed === 'true');
+    assert.equal(await spinner.getAttribute('aria-label'), 'Release to open Work.');
     await page.mouse.up();
     await page.waitForURL(url => new URL(url).pathname === '/growth-desk/');
-    assert.equal(new URL(page.url()).pathname, '/growth-desk/');
 
     await page.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
-    const homeSpinner = page.locator('[data-spinner-nav-toggle]');
-    box = await homeSpinner.boundingBox();
-    assert.ok(box, 'spinner should still be available after returning home');
+    spinner = page.locator('[data-spinner-nav-toggle]');
+    box = await spinner.boundingBox();
+    assert.ok(box, 'spinner should still be available after navigation');
+    centerX = box.x + box.width / 2;
+    centerY = box.y + box.height / 2;
 
-    const shortX = box.x + box.width / 2;
-    const shortY = box.y + box.height / 2;
-    await page.mouse.move(shortX, shortY);
+    await page.mouse.move(centerX, centerY);
     await page.mouse.down();
-    await page.mouse.move(shortX + 24, shortY, { steps: 3 });
+    await page.mouse.move(centerX + 24, centerY, { steps: 3 });
     await page.mouse.up();
-    await page.waitForTimeout(180);
-
+    await page.waitForTimeout(120);
     assert.equal(new URL(page.url()).pathname, '/');
-    assert.equal(await page.locator('.spinner-nav__item--work').getAttribute('data-spinner-selected'), null);
+    assert.equal(await page.locator('[data-spinner-nav]').getAttribute('data-open'), 'true');
 
-    await page.mouse.click(shortX, shortY);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    spinner = page.locator('[data-spinner-nav-toggle]');
+    box = await spinner.boundingBox();
+    assert.ok(box, 'spinner should remain tappable');
+    centerX = box.x + box.width / 2;
+    centerY = box.y + box.height / 2;
+    await page.mouse.click(centerX, centerY);
     await page.waitForFunction(() => document.querySelector('[data-spinner-nav]')?.dataset.open === 'true');
-    assert.equal(await homeSpinner.getAttribute('aria-expanded'), 'true');
+    assert.equal(await spinner.getAttribute('aria-expanded'), 'true');
   } finally {
     await browser.close();
   }
