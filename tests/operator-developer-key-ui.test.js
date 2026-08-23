@@ -35,3 +35,12 @@ test('a downgraded code suggestion offers the signed-in developer key for approv
   assert.match(actions, /const outcome = await saveCodeSuggestion\(action\)/);
   assert.match(actions, /revealDeveloperKeyButton\(\)/);
 });
+
+test('developer key copy reads the refreshed button key instead of a stale closure', async () => {
+  const ui = await readFile(new URL('../operator/developer-key-ui.js', import.meta.url), 'utf8');
+
+  assert.match(ui, /button\.dataset\.operatorDeveloperKey = pub/);
+  assert.match(ui, /const currentPub = String\(button\.dataset\.operatorDeveloperKey \|\| getStoredDeveloperKey\(storage\)/);
+  assert.match(ui, /writeText\(currentPub\)/);
+  assert.doesNotMatch(ui, /writeText\(pub\)/);
+});
