@@ -1,16 +1,13 @@
-name: Vercel Production Prebuilt
+name: Vercel Production Fallback
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: vercel-production-prebuilt
+  group: vercel-production-fallback
   cancel-in-progress: true
 
 env:
@@ -20,7 +17,7 @@ env:
 
 jobs:
   deploy:
-    name: Deploy canonical production
+    name: Deploy canonical production fallback
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
