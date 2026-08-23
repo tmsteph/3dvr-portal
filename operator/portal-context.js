@@ -1,3 +1,4 @@
+import '../spinner-direction.js';
 import { openDatabase, loadState } from '../life-space/storage.js';
 import { createOperatorDeveloperProof } from './forge.js';
 
@@ -6,6 +7,7 @@ const CRM_KEY = 'portal-crm-local-records-v1';
 const CALENDAR_KEY = 'calendar.local.events';
 const MAX_ITEMS = 40;
 const MAX_TEXT = 500;
+const DEVELOPER_PROOF_TIMEOUT_MS = 1200;
 
 const clean = (value, max = MAX_TEXT) => String(value ?? '').trim().slice(0, max);
 
@@ -24,6 +26,13 @@ function compactRecord(record = {}, fields = []) {
   return Object.fromEntries(fields
     .map(field => [field, typeof record?.[field] === 'string' ? clean(record[field]) : record?.[field]])
     .filter(([, value]) => value !== undefined && value !== null && value !== '')));
+}
+
+function withTimeout(promise, timeoutMs = DEVELOPER_PROOF_TIMEOUT_MS) {
+  return Promise.race([
+    Promise.resolve(promise).catch(() => null),
+    new Promise(resolve => setTimeout(() => resolve(null), timeoutMs)),
+  ]);
 }
 
 export function summarizeLifeSpaceState(state) {
@@ -117,8 +126,7 @@ export async function collectPortalContext({
   const crm = parseJson(storage?.getItem?.(CRM_KEY));
   const calendar = parseJson(storage?.getItem?.(CALENDAR_KEY));
   const capturedAt = now();
-  let developerAuth = null;
-  try { developerAuth = await developerProof(); } catch {}
+  const developerAuth = await withTimeout(developerProof());
 
   return {
     version: 1,
