@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  BUILTIN_OPERATOR_DEVELOPER_BINDINGS,
   DEFAULT_OPERATOR_DEVELOPER_ALIAS,
   resolveOperatorDeveloperAccess,
   resolveOperatorDeveloperPolicy,
@@ -11,11 +12,31 @@ import {
   normalizeOperatorResult,
 } from '../src/operator/api.js';
 
-test('default operator developer policy does not trust an alias by itself', () => {
+const TMSTEPH_PUB = 'Cg-NVNIbxWPDBqX7OmllJQqjxy2t3KA_U2DqQBjcPQ8.1fppECqamDOHh2tKt1G5t8Yd21NjBCZ3C6qunST3lvg';
+
+test('default operator developer policy trusts only the built-in exact SEA binding', () => {
   const policy = resolveOperatorDeveloperPolicy({});
   assert.equal(DEFAULT_OPERATOR_DEVELOPER_ALIAS, '3dvr.tech@gmail.com');
+  assert.equal(BUILTIN_OPERATOR_DEVELOPER_BINDINGS['tmsteph@3dvr'], TMSTEPH_PUB);
   assert.equal(policy.pubs.size, 0);
-  assert.equal(policy.bindings.size, 0);
+  assert.equal(policy.bindings.size, 1);
+  assert.equal(policy.bindings.get('tmsteph@3dvr'), TMSTEPH_PUB);
+});
+
+test('built-in tmsteph SEA public key receives native code edit permission', async () => {
+  const access = await resolveOperatorDeveloperAccess({ authPub: TMSTEPH_PUB, authProof: 'proof-1' }, {
+    config: {},
+    expectedOrigin: 'https://portal.3dvr.tech',
+    verify: async () => ({
+      ok: true,
+      identity: { alias: 'tmsteph@3dvr', pub: TMSTEPH_PUB },
+    }),
+  });
+
+  assert.equal(access.authenticated, true);
+  assert.equal(access.approved, true);
+  assert.equal(access.role, 'developer');
+  assert.deepEqual(access.permissions, ['suggest', 'edit']);
 });
 
 test('approved SEA public key receives native code edit permission', async () => {
@@ -44,6 +65,21 @@ test('claiming the maintainer alias with an unbound key remains a contributor', 
     verify: async () => ({
       ok: true,
       identity: { alias: '3dvr.tech@gmail.com', pub: 'pub-evil' },
+    }),
+  });
+
+  assert.equal(access.authenticated, true);
+  assert.equal(access.approved, false);
+  assert.equal(access.role, 'contributor');
+  assert.deepEqual(access.permissions, ['suggest']);
+});
+
+test('claiming tmsteph alias with a different SEA key remains a contributor', async () => {
+  const access = await resolveOperatorDeveloperAccess({ authPub: 'pub-evil', authProof: 'proof-evil' }, {
+    config: {},
+    verify: async () => ({
+      ok: true,
+      identity: { alias: 'tmsteph@3dvr', pub: 'pub-evil' },
     }),
   });
 
