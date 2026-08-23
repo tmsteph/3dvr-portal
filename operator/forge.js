@@ -1,7 +1,7 @@
 const FORGE_ROOT = '3dvr-portal';
 const PROOF_WAIT_MS = 900;
 const AUTH_WAIT_MS = 2600;
-const WRITE_TIMEOUT_MS = 3500;
+const WRITE_TIMEOUT_MS = 8000;
 const DEFAULT_PEERS = [
   'wss://gun-relay-3dvr.fly.dev/gun',
   'https://gun-relay-3dvr.fly.dev/gun'
@@ -193,7 +193,11 @@ function writeGun(node, value) {
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
-      reject(new Error('3DVR Forge sync timed out.'));
+      // Gun writes are local-first. A missing relay acknowledgement on a weak
+      // connection does not mean the record was lost; the browser can sync it
+      // when connectivity returns. Treat this as queued instead of failing the
+      // Operator action.
+      resolve({ queued: true, pendingSync: true });
     }, WRITE_TIMEOUT_MS);
     node.put(value, ack => {
       if (settled) return;
@@ -253,9 +257,11 @@ export async function saveCodeSuggestion(action = {}) {
     createdAt: new Date().toISOString(),
     source: 'portal-operator'
   };
-  await writeGun(context.gun.get(FORGE_ROOT).get('forge').get('suggestions').get(id), record);
+  const writeResult = await writeGun(context.gun.get(FORGE_ROOT).get('forge').get('suggestions').get(id), record);
   return {
-    message: 'Saved as a 3DVR Forge suggestion.',
+    message: writeResult?.pendingSync
+      ? 'Saved locally. 3DVR Forge will sync this suggestion when the connection recovers.'
+      : 'Saved as a 3DVR Forge suggestion.',
     url: forgeRecordUrl('suggestion', id),
     label: 'Forge suggestion'
   };
@@ -298,9 +304,11 @@ export async function queueCodeChange(action = {}) {
     authProof: proof.authProof,
     authPub: proof.authPub
   };
-  await writeGun(context.gun.get(FORGE_ROOT).get('forge').get('editRequests').get(id), record);
+  const writeResult = await writeGun(context.gun.get(FORGE_ROOT).get('forge').get('editRequests').get(id), record);
   return {
-    message: `Queued an approved developer edit for ${repo}.`,
+    message: writeResult?.pendingSync
+      ? `Queued the approved ${repo} edit locally. Forge will sync it when the connection recovers.`
+      : `Queued an approved developer edit for ${repo}.`,
     url: forgeRecordUrl('edit', id),
     label: 'Forge edit'
   };
