@@ -1,5 +1,6 @@
 const FORGE_ROOT = '3dvr-portal';
 const PROOF_WAIT_MS = 900;
+const AUTH_WAIT_MS = 2600;
 const WRITE_TIMEOUT_MS = 3500;
 const DEFAULT_PEERS = [
   'wss://gun-relay-3dvr.fly.dev/gun',
@@ -91,13 +92,60 @@ async function getGunContext({ loadRuntime = true } = {}) {
   return { gun: gunInstance, user: gunUser };
 }
 
-async function waitForSea(user) {
-  const deadline = Date.now() + PROOF_WAIT_MS;
+async function waitForSea(user, waitMs = PROOF_WAIT_MS) {
+  const deadline = Date.now() + waitMs;
   while (Date.now() < deadline) {
     if (user?._?.sea && (user?.is?.pub || user._.sea.pub)) return user._.sea;
     await new Promise(resolve => setTimeout(resolve, 50));
   }
   return user?._?.sea || null;
+}
+
+function readStoredPortalAuth() {
+  const storage = globalThis.localStorage;
+  if (storage?.getItem?.('signedIn') !== 'true') return null;
+  const alias = normalizeText(storage.getItem('alias'), 200);
+  const password = normalizeText(storage.getItem('password'), 1000);
+  const expectedPub = normalizeText(storage.getItem('userPubKey'), 500);
+  if (!alias || !password) return null;
+  return { alias, password, expectedPub };
+}
+
+async function restoreStoredPortalSea(user) {
+  const stored = readStoredPortalAuth();
+  if (!stored || typeof user?.auth !== 'function') return null;
+
+  const authenticated = await new Promise(resolve => {
+    let settled = false;
+    const finish = value => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const timer = setTimeout(() => finish(false), AUTH_WAIT_MS);
+
+    try {
+      user.auth(stored.alias, stored.password, ack => {
+        if (ack?.err) return finish(false);
+        const actualPub = normalizeText(user?.is?.pub || user?._?.sea?.pub, 500);
+        if (!actualPub) return finish(false);
+        if (stored.expectedPub && stored.expectedPub !== actualPub) return finish(false);
+        finish(true);
+      });
+    } catch {
+      finish(false);
+    }
+  });
+
+  if (!authenticated) return null;
+  return waitForSea(user, AUTH_WAIT_MS);
+}
+
+async function ensurePortalSea(user) {
+  const recalled = await waitForSea(user);
+  if (recalled && (user?.is?.pub || recalled.pub)) return recalled;
+  return restoreStoredPortalSea(user);
 }
 
 function writeGun(node, value) {
@@ -121,7 +169,7 @@ function writeGun(node, value) {
 async function signedPortalProof(scope, action, extra = {}, options = {}) {
   const context = await getGunContext(options);
   if (!context || !globalThis.Gun?.SEA?.sign) return null;
-  const sea = await waitForSea(context.user);
+  const sea = await ensurePortalSea(context.user);
   const pub = normalizeText(context.user?.is?.pub || sea?.pub, 500);
   if (!sea || !pub) return null;
   const alias = normalizeText(context.user?.is?.alias || globalThis.localStorage?.getItem?.('alias'), 200);
