@@ -1,9 +1,14 @@
 const FORGE_ROOT = '3dvr-portal';
 const PROOF_WAIT_MS = 900;
 const WRITE_TIMEOUT_MS = 3500;
+const DEFAULT_PEERS = [
+  'wss://gun-relay-3dvr.fly.dev/gun',
+  'https://gun-relay-3dvr.fly.dev/gun'
+];
 
 let gunInstance = null;
 let gunUser = null;
+let gunLoadPromise = null;
 
 function normalizeText(value = '', max = 4000) {
   return String(value || '').trim().slice(0, max);
@@ -18,10 +23,60 @@ function makeId(prefix) {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
 }
 
-function getGunContext() {
+function loadScript(src) {
+  if (typeof document === 'undefined') return Promise.reject(new Error('Browser script loading is unavailable.'));
+  const existing = document.querySelector(`script[src="${src}"]`);
+  if (existing?.dataset.loaded === 'true') return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const script = existing || document.createElement('script');
+    const cleanup = () => {
+      script.removeEventListener('load', onLoad);
+      script.removeEventListener('error', onError);
+    };
+    const onLoad = () => {
+      script.dataset.loaded = 'true';
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error(`Could not load ${src}.`));
+    };
+    script.addEventListener('load', onLoad, { once: true });
+    script.addEventListener('error', onError, { once: true });
+    if (!existing) {
+      script.src = src;
+      document.head.appendChild(script);
+    }
+  });
+}
+
+async function ensureGunRuntime() {
+  if (typeof globalThis.Gun === 'function' && globalThis.Gun.SEA?.sign) return;
+  if (!gunLoadPromise) {
+    gunLoadPromise = (async () => {
+      if (typeof globalThis.Gun !== 'function') {
+        await loadScript('https://cdn.jsdelivr.net/npm/gun/gun.js');
+      }
+      if (!globalThis.Gun?.SEA?.sign) {
+        await loadScript('https://cdn.jsdelivr.net/npm/gun/sea.js');
+      }
+      if (!Array.isArray(globalThis.__GUN_PEERS__) || !globalThis.__GUN_PEERS__.length) {
+        globalThis.__GUN_PEERS__ = DEFAULT_PEERS.slice();
+      }
+    })().catch(error => {
+      gunLoadPromise = null;
+      throw error;
+    });
+  }
+  await gunLoadPromise;
+}
+
+async function getGunContext() {
+  await ensureGunRuntime();
   if (gunInstance && gunUser) return { gun: gunInstance, user: gunUser };
   if (typeof globalThis.Gun !== 'function') return null;
-  gunInstance = globalThis.Gun({ peers: globalThis.__GUN_PEERS__ || undefined });
+  gunInstance = globalThis.Gun({ peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
   gunUser = gunInstance.user();
   try {
     gunUser.recall({ sessionStorage: true, localStorage: true });
@@ -57,12 +112,12 @@ function writeGun(node, value) {
 }
 
 async function signedPortalProof(scope, action, extra = {}) {
-  const context = getGunContext();
+  const context = await getGunContext();
   if (!context || !globalThis.Gun?.SEA?.sign) return null;
   const sea = await waitForSea(context.user);
   const pub = normalizeText(context.user?.is?.pub || sea?.pub, 500);
   if (!sea || !pub) return null;
-  const alias = normalizeText(context.user?.is?.alias || localStorage.getItem('alias'), 200);
+  const alias = normalizeText(context.user?.is?.alias || globalThis.localStorage?.getItem?.('alias'), 200);
   const payload = {
     scope,
     action,
@@ -86,7 +141,7 @@ export async function createOperatorDeveloperProof() {
 }
 
 export async function saveCodeSuggestion(action = {}) {
-  const context = getGunContext();
+  const context = await getGunContext();
   if (!context) throw new Error('3DVR Forge is unavailable in this browser.');
   const text = normalizeText(action.text);
   if (!text) throw new Error('A code suggestion is required.');
@@ -98,7 +153,7 @@ export async function saveCodeSuggestion(action = {}) {
     text,
     repo: normalizeRepo(action.repo),
     status: 'open',
-    requestedBy: normalizeText(identity.alias || localStorage.getItem('alias'), 200) || 'guest',
+    requestedBy: normalizeText(identity.alias || globalThis.localStorage?.getItem?.('alias'), 200) || 'guest',
     createdAt: new Date().toISOString(),
     source: 'portal-operator'
   };
@@ -107,7 +162,7 @@ export async function saveCodeSuggestion(action = {}) {
 }
 
 export async function queueCodeChange(action = {}) {
-  const context = getGunContext();
+  const context = await getGunContext();
   if (!context) throw new Error('3DVR Forge is unavailable in this browser.');
   const repo = normalizeRepo(action.repo);
   const requestedChange = normalizeText(action.text);
