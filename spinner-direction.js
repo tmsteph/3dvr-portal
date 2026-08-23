@@ -166,7 +166,7 @@ if (documentRef) {
       }
 
       setSelection('');
-      if (!activeGesture.wasOpen) setOpen(false);
+      if (activeGesture.engaged && !activeGesture.wasOpen) setOpen(false);
     };
 
     spinner.addEventListener('pointerdown', begin);
