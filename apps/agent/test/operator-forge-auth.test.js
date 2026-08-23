@@ -39,7 +39,7 @@ test('approved signed Operator request resolves only an allowlisted repo path', 
     now: 1_001_000,
     env: {
       THREEDVR_OPERATOR_PORTAL_REPO: portalRepo,
-      THREEDVR_OPERATOR_DEVELOPER_ALIASES: '3dvr.tech@gmail.com',
+      THREEDVR_OPERATOR_DEVELOPER_PUBS: 'pub-1',
     },
     verifyImpl: async () => validProof(),
   });
@@ -49,12 +49,25 @@ test('approved signed Operator request resolves only an allowlisted repo path', 
   assert.equal(result.identity.alias, '3dvr.tech@gmail.com');
 });
 
+test('unsigned or unknown Forge producers are rejected', async () => {
+  const result = await authorizePortalOperatorTask(validRecord({
+    requestedBy: 'attacker-controlled-client',
+    authProof: '',
+    repo: '/tmp/escape',
+  }), {
+    env: { THREEDVR_OPERATOR_DEVELOPER_PUBS: 'pub-1' },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'untrusted forge request producer');
+});
+
 test('tampering with the queued task after signing is rejected', async () => {
   const result = await authorizePortalOperatorTask(validRecord({
     task: 'Operator code request: Delete everything.',
   }), {
     now: 1_001_000,
-    env: { THREEDVR_OPERATOR_DEVELOPER_ALIASES: '3dvr.tech@gmail.com' },
+    env: { THREEDVR_OPERATOR_DEVELOPER_PUBS: 'pub-1' },
     verifyImpl: async () => validProof(),
   });
 
@@ -62,10 +75,52 @@ test('tampering with the queued task after signing is rejected', async () => {
   assert.equal(result.reason, 'forge proof content mismatch');
 });
 
+test('claiming an approved alias with a different SEA key is rejected', async () => {
+  const result = await authorizePortalOperatorTask(validRecord({ authPub: 'pub-evil' }), {
+    now: 1_001_000,
+    env: {
+      THREEDVR_OPERATOR_DEVELOPER_BINDINGS: JSON.stringify({
+        '3dvr.tech@gmail.com': 'pub-1',
+      }),
+    },
+    verifyImpl: async () => validProof({
+      alias: '3dvr.tech@gmail.com',
+      pub: 'pub-evil',
+    }),
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, '3DVR account is not approved for code edits');
+});
+
+test('valid alias-to-public-key binding can authorize a developer', async () => {
+  const result = await authorizePortalOperatorTask(validRecord(), {
+    now: 1_001_000,
+    env: {
+      THREEDVR_OPERATOR_DEVELOPER_BINDINGS: JSON.stringify({
+        '3dvr.tech@gmail.com': 'pub-1',
+      }),
+    },
+    verifyImpl: async () => validProof(),
+  });
+
+  assert.equal(result.ok, true);
+});
+
+test('queued authorization remains valid beyond five minutes by default', async () => {
+  const result = await authorizePortalOperatorTask(validRecord(), {
+    now: 1_600_000,
+    env: { THREEDVR_OPERATOR_DEVELOPER_PUBS: 'pub-1' },
+    verifyImpl: async () => validProof(),
+  });
+
+  assert.equal(result.ok, true);
+});
+
 test('valid signature from an unapproved 3DVR account cannot edit code', async () => {
   const result = await authorizePortalOperatorTask(validRecord({ authPub: 'pub-2' }), {
     now: 1_001_000,
-    env: { THREEDVR_OPERATOR_DEVELOPER_ALIASES: '3dvr.tech@gmail.com' },
+    env: { THREEDVR_OPERATOR_DEVELOPER_PUBS: 'pub-1' },
     verifyImpl: async () => validProof({
       alias: 'other@example.com',
       pub: 'pub-2',
