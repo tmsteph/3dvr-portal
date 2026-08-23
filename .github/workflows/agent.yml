@@ -51,13 +51,15 @@ jobs:
       - name: Run agent checks
         run: npm test
 
-  deploy-german-worker:
-    name: Deploy German agent worker
+  deploy-digitalocean-worker:
+    name: Deploy DigitalOcean agent worker
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: test
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     env:
+      DO_AGENT_HOST: 167.172.193.194
+      DO_AGENT_USER: root
       THREEDVR_AGENT_OWNER_ALIAS: ${{ vars.THREEDVR_AGENT_TASK_OWNER_ALIAS || '3dvr-managed' }}
     defaults:
       run:
@@ -76,79 +78,157 @@ jobs:
       - name: Install agent dependencies
         run: npm ci
 
-      - name: Queue remote update
-        id: queue
+      - name: Resolve DigitalOcean SSH key
+        id: ssh_key
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          key=''
+          for candidate in "$SSH_A" "$SSH_B" "$SSH_C"; do
+            if [ -z "$key" ] && [ -n "$candidate" ]; then
+              key="$candidate"
+            fi
+          done
+          if [ -z "$key" ]; then
+            echo 'No DigitalOcean SSH key is configured.' >&2
+            exit 1
+          fi
+
+          umask 077
+          printf '%s\n' "$key" > /tmp/3dvr-agent-key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-agent-key.raw; then
+            cp /tmp/3dvr-agent-key.raw /tmp/3dvr-agent-key
+          elif base64 -d /tmp/3dvr-agent-key.raw > /tmp/3dvr-agent-key 2>/dev/null \
+            && grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-agent-key; then
+            :
+          else
+            echo 'Configured DigitalOcean SSH key could not be decoded.' >&2
+            rm -f /tmp/3dvr-agent-key.raw /tmp/3dvr-agent-key
+            exit 1
+          fi
+          chmod 600 /tmp/3dvr-agent-key
+          rm -f /tmp/3dvr-agent-key.raw
+          echo 'present=true' >> "$GITHUB_OUTPUT"
+
+      - name: Deploy worker over SSH
+        id: deploy
         shell: bash
         run: |
           set -euo pipefail
-          # The task worker is executing this command, so never stop its own
-          # tmux session here. The queue wrapper reloads config every poll,
-          # allowing the live worker to adopt updated owner/runtime settings.
-          task='root="$(git rev-parse --show-toplevel)"; git -C "$root" diff --quiet; git -C "$root" diff --cached --quiet; git -C "$root" fetch origin main; git -C "$root" checkout main; git -C "$root" pull --ff-only origin main; npm --prefix "$root/apps/agent" ci; "$root/apps/agent/thomas-agent/scripts/ask-inbox-daemon" stop || true; "$root/apps/agent/thomas-agent/scripts/ask-context-task-router-daemon" stop || true; "$root/apps/agent/thomas-agent/scripts/ask-autopilot-daemon" stop || true; "$root/apps/agent/thomas-agent/scripts/ask-agent-heartbeat-daemon" stop || true; "$root/apps/agent/thomas-agent/scripts/ask-context-task-router-daemon" start; "$root/apps/agent/thomas-agent/scripts/ask-inbox-daemon" start; "$root/apps/agent/thomas-agent/scripts/ask-autopilot-daemon" start; "$root/apps/agent/thomas-agent/scripts/ask-agent-heartbeat-daemon" start; bash "$root/apps/agent/thomas-agent/scripts/ask-openclaw-health"; "$root/apps/agent/thomas-agent/scripts/ask-agent-worker-daemon" status; "$root/apps/agent/thomas-agent/scripts/ask-context-task-router-daemon" status; "$root/apps/agent/thomas-agent/scripts/ask-inbox-daemon" status; "$root/apps/agent/thomas-agent/scripts/ask-autopilot-daemon" status; "$root/apps/agent/thomas-agent/scripts/ask-agent-heartbeat-daemon" status'
+          opts=(-i /tmp/3dvr-agent-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+          ssh "${opts[@]}" "$DO_AGENT_USER@$DO_AGENT_HOST" \
+            "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' GITHUB_SHA='$GITHUB_SHA' THREEDVR_AGENT_OWNER_ALIAS='$THREEDVR_AGENT_OWNER_ALIAS' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          repo="$HOME/.3dvr/portal"
+          mkdir -p "$HOME/.3dvr"
+          if [ ! -d "$repo/.git" ]; then
+            rm -rf "$repo"
+            git clone "https://github.com/$GITHUB_REPOSITORY.git" "$repo"
+          fi
+
+          git -C "$repo" diff --quiet
+          git -C "$repo" diff --cached --quiet
+          git -C "$repo" fetch --prune origin main
+          git -C "$repo" checkout main
+          git -C "$repo" pull --ff-only origin main
+          git -C "$repo" merge-base --is-ancestor "$GITHUB_SHA" HEAD
+
+          cfg="$HOME/.3dvr/config/env"
+          mkdir -p "$(dirname "$cfg")"
+          touch "$cfg"
+          chmod 600 "$cfg" || true
+          cfg_tmp="$(mktemp)"
+          awk -v owner="$THREEDVR_AGENT_OWNER_ALIAS" '
+            BEGIN { found=0 }
+            /^THREEDVR_AGENT_OWNER_ALIAS=/ { print "THREEDVR_AGENT_OWNER_ALIAS=" owner; found=1; next }
+            { print }
+            END { if (!found) print "THREEDVR_AGENT_OWNER_ALIAS=" owner }
+          ' "$cfg" > "$cfg_tmp"
+          cat "$cfg_tmp" > "$cfg"
+          rm -f "$cfg_tmp"
+
+          npm --prefix "$repo/apps/agent" ci
+          scripts="$repo/apps/agent/thomas-agent/scripts"
+
+          "$scripts/ask-agent-worker-daemon" stop || true
+          "$scripts/ask-inbox-daemon" stop || true
+          "$scripts/ask-context-task-router-daemon" stop || true
+          "$scripts/ask-autopilot-daemon" stop || true
+          "$scripts/ask-agent-heartbeat-daemon" stop || true
+
+          "$scripts/ask-agent-worker-daemon" start
+          "$scripts/ask-context-task-router-daemon" start
+          "$scripts/ask-inbox-daemon" start
+          "$scripts/ask-autopilot-daemon" start
+          "$scripts/ask-agent-heartbeat-daemon" start
+
+          "$scripts/ask-agent-worker-daemon" status
+          "$scripts/ask-context-task-router-daemon" status
+          "$scripts/ask-inbox-daemon" status
+          "$scripts/ask-autopilot-daemon" status
+          "$scripts/ask-agent-heartbeat-daemon" status
+          REMOTE
+
+      - name: Verify managed queue consumption
+        id: verify
+        shell: bash
+        run: |
+          set -euo pipefail
           result="$(node thomas-agent/node/agent-task-queue.js enqueue \
             --json \
             --backend shell \
-            --risk workspace_write \
+            --risk read_only \
             --approval-status approved \
             --unsafe \
             --requires shell \
-            --max-runtime-ms 180000 \
-            "$task")"
-          printf '%s\n' "$result"
+            --max-runtime-ms 30000 \
+            'printf "3dvr-do-worker-ok\\n"')"
           task_id="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task queue JSON payload missing');console.log(JSON.parse(s.slice(i)).id)})")"
-          echo "task_id=$task_id" >> "$GITHUB_OUTPUT"
 
-      - name: Wait for German worker receipt
-        id: remote
-        shell: bash
-        run: |
-          set -euo pipefail
-          task_id='${{ steps.queue.outputs.task_id }}'
-          for attempt in $(seq 1 36); do
+          for attempt in $(seq 1 18); do
             result="$(node thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
-            status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');console.log((JSON.parse(s.slice(i)).status||''))})")"
-            echo "German worker status: $status"
+            status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');console.log(JSON.parse(s.slice(i)).status||'')})")"
             case "$status" in
               completed)
-                echo "remote_status=completed" >> "$GITHUB_OUTPUT"
-                printf '%s\n' "$result"
+                echo 'managed queue consumed by DigitalOcean worker'
                 exit 0
                 ;;
               failed|skipped)
-                echo "remote_status=$status" >> "$GITHUB_OUTPUT"
                 printf '%s\n' "$result"
                 exit 1
                 ;;
             esac
             sleep 5
           done
-          echo "remote_status=timeout" >> "$GITHUB_OUTPUT"
-          echo 'German worker did not return a completion receipt.' >&2
+          echo 'DigitalOcean worker did not consume the managed queue test task.' >&2
           exit 1
 
-      - name: Publish remote deployment status
+      - name: Publish worker deployment status
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-          REMOTE_OUTCOME: ${{ steps.remote.outcome }}
-          REMOTE_STATUS: ${{ steps.remote.outputs.remote_status }}
-          QUEUE_OUTCOME: ${{ steps.queue.outcome }}
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          SSH_OUTCOME: ${{ steps.ssh_key.outcome }}
         shell: bash
         run: |
+          set -euo pipefail
           state=failure
-          description='German agent stack update failed'
-          if [ "$QUEUE_OUTCOME" != success ]; then
-            description='German worker queue enqueue failed'
-          elif [ "$REMOTE_OUTCOME" != success ]; then
-            case "$REMOTE_STATUS" in
-              failed) description='German worker ran update but remote health failed' ;;
-              skipped) description='German worker update was skipped remotely' ;;
-              timeout|'') description='German worker queue accepted task but no completion receipt arrived' ;;
-              *) description="German worker remote status: $REMOTE_STATUS" ;;
-            esac
+          description='DigitalOcean agent worker deployment failed'
+          if [ "$SSH_OUTCOME" != success ]; then
+            description='DigitalOcean agent SSH credential unavailable'
+          elif [ "$DEPLOY_OUTCOME" != success ]; then
+            description='DigitalOcean agent SSH deployment failed'
+          elif [ "$VERIFY_OUTCOME" != success ]; then
+            description='DigitalOcean worker started but managed queue verification failed'
           else
             state=success
-            description='German agent stack alive: worker, router, inbox, autopilot, heartbeat, OpenClaw'
+            description='DigitalOcean agent worker alive and consuming managed queue tasks'
           fi
           curl -fsS \
             -X POST \
@@ -156,4 +236,9 @@ jobs:
             -H 'Accept: application/vnd.github+json' \
             -H 'X-GitHub-Api-Version: 2022-11-28' \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
-            -d "{\"state\":\"$state\",\"context\":\"3DVR German Worker\",\"description\":\"$description\"}"
+            -d "{\"state\":\"$state\",\"context\":\"3DVR DigitalOcean Worker\",\"description\":\"$description\"}"
+
+      - name: Remove SSH key
+        if: always()
+        shell: bash
+        run: rm -f /tmp/3dvr-agent-key /tmp/3dvr-agent-key.raw
