@@ -1,0 +1,22 @@
+name: Bootstrap assistant account
+
+on:
+  push:
+    branches:
+      - assistant-account-bootstrap-20260823
+    paths:
+      - '.github/workflows/bootstrap-assistant-account.yml'
+      - 'scripts/bootstrap-assistant-account.mjs'
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node scripts/bootstrap-assistant-account.mjs
