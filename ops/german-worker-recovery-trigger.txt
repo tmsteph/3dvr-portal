@@ -1,2 +1,2 @@
-2026-08-22T21:35:00Z
-Reason: recover the managed task worker and legacy fallback so low-load 3DVR machine previews can publish while Vercel is rate-limited.
+2026-08-23T06:45:00Z
+Reason: recover the managed task worker through the legacy queue after the Portal-native Operator Forge merge so signed 3DVR code tasks can be consumed.
