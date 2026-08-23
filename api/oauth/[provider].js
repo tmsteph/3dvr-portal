@@ -22,6 +22,8 @@ function timed(label, fn, ms = 25000) {
 }
 
 async function loadGunWithSea() {
+  // Explicitly trace SEA's runtime polyfill so Vercel includes it in the function bundle.
+  await import('gun/lib/text-encoding.js');
   const moduleResult = await import('gun/lib/server.js');
   const Gun = moduleResult.default || moduleResult;
   globalThis.Gun = Gun;
