@@ -139,7 +139,7 @@ async function signedPortalProof(scope, action, extra = {}, options = {}) {
 }
 
 export async function createOperatorDeveloperProof() {
-  return signedPortalProof('operator-developer-access', 'operator-chat', {}, { loadRuntime: false });
+  return signedPortalProof('operator-developer-access', 'operator-chat');
 }
 
 export async function saveCodeSuggestion(action = {}) {
