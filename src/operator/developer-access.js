@@ -1,6 +1,9 @@
 import { resolveSeaAuthMaxAgeMs, verifySignedSeaPayload } from '../auth/sea.js';
 
 export const DEFAULT_OPERATOR_DEVELOPER_ALIAS = '3dvr.tech@gmail.com';
+export const BUILTIN_OPERATOR_DEVELOPER_BINDINGS = Object.freeze({
+  'tmsteph@3dvr': 'Cg-NVNIbxWPDBqX7OmllJQqjxy2t3KA_U2DqQBjcPQ8.1fppECqamDOHh2tKt1G5t8Yd21NjBCZ3C6qunST3lvg',
+});
 
 function normalizeText(value = '') {
   return String(value || '').trim();
@@ -32,10 +35,21 @@ function parseBindings(value = '') {
   return bindings;
 }
 
+function withBuiltinBindings(bindings) {
+  for (const [alias, pub] of Object.entries(BUILTIN_OPERATOR_DEVELOPER_BINDINGS)) {
+    const normalizedAlias = normalizeAlias(alias);
+    const normalizedPub = normalizeText(pub);
+    if (normalizedAlias && normalizedPub && !bindings.has(normalizedAlias)) {
+      bindings.set(normalizedAlias, normalizedPub);
+    }
+  }
+  return bindings;
+}
+
 export function resolveOperatorDeveloperPolicy(config = process.env) {
   return {
     pubs: new Set(listFromConfig(config.THREEDVR_OPERATOR_DEVELOPER_PUBS)),
-    bindings: parseBindings(config.THREEDVR_OPERATOR_DEVELOPER_BINDINGS)
+    bindings: withBuiltinBindings(parseBindings(config.THREEDVR_OPERATOR_DEVELOPER_BINDINGS))
   };
 }
 
