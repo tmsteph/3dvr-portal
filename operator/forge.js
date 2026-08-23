@@ -101,14 +101,38 @@ async function waitForSea(user, waitMs = PROOF_WAIT_MS) {
   return user?._?.sea || null;
 }
 
-function readStoredPortalAuth() {
+function readStoredPortalIdentity() {
   const storage = globalThis.localStorage;
   if (storage?.getItem?.('signedIn') !== 'true') return null;
   const alias = normalizeText(storage.getItem('alias'), 200);
-  const password = normalizeText(storage.getItem('password'), 1000);
   const expectedPub = normalizeText(storage.getItem('userPubKey'), 500);
-  if (!alias || !password) return null;
-  return { alias, password, expectedPub };
+  if (!alias && !expectedPub) return null;
+  return { alias, expectedPub };
+}
+
+function readStoredPortalAuth() {
+  const identity = readStoredPortalIdentity();
+  if (!identity) return null;
+  const password = normalizeText(globalThis.localStorage?.getItem?.('password'), 1000);
+  if (!identity.alias || !password) return null;
+  return { ...identity, password };
+}
+
+export function developerIdentityMatches({
+  expectedAlias = '',
+  expectedPub = '',
+  actualAlias = '',
+  actualPub = ''
+} = {}) {
+  const wantedAlias = normalizeText(expectedAlias, 200).toLowerCase();
+  const wantedPub = normalizeText(expectedPub, 500);
+  const seenAlias = normalizeText(actualAlias, 200).toLowerCase();
+  const seenPub = normalizeText(actualPub, 500);
+  if (!seenPub) return false;
+  if (wantedPub && wantedPub !== seenPub) return false;
+  if (wantedAlias && seenAlias && wantedAlias !== seenAlias) return false;
+  if (!wantedPub && wantedAlias && !seenAlias) return false;
+  return true;
 }
 
 async function restoreStoredPortalSea(user) {
@@ -143,8 +167,23 @@ async function restoreStoredPortalSea(user) {
 }
 
 async function ensurePortalSea(user) {
+  const stored = readStoredPortalIdentity();
   const recalled = await waitForSea(user);
-  if (recalled && (user?.is?.pub || recalled.pub)) return recalled;
+  if (recalled) {
+    const actualPub = normalizeText(user?.is?.pub || recalled.pub, 500);
+    const actualAlias = normalizeText(user?.is?.alias, 200);
+    if (developerIdentityMatches({
+      expectedAlias: stored?.alias,
+      expectedPub: stored?.expectedPub,
+      actualAlias,
+      actualPub
+    })) {
+      return recalled;
+    }
+    try {
+      user?.leave?.();
+    } catch {}
+  }
   return restoreStoredPortalSea(user);
 }
 

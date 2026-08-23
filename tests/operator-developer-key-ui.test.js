@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 import { getStoredDeveloperKey } from '../operator/developer-key-ui.js';
+import { developerIdentityMatches } from '../operator/forge.js';
 
 function storage(values = {}) {
   return {
@@ -26,6 +27,27 @@ test('Operator developer proof can restore the existing Portal password session 
   assert.match(forge, /user\.auth\(stored\.alias, stored\.password/);
   assert.match(forge, /stored\.expectedPub && stored\.expectedPub !== actualPub/);
   assert.match(forge, /const sea = await ensurePortalSea\(context\.user\)/);
+});
+
+test('Operator refuses a stale recalled SEA identity before signing a developer proof', async () => {
+  assert.equal(developerIdentityMatches({
+    expectedAlias: 'tmsteph@3dvr',
+    expectedPub: 'current-pub',
+    actualAlias: 'other@3dvr',
+    actualPub: 'stale-pub'
+  }), false);
+
+  assert.equal(developerIdentityMatches({
+    expectedAlias: 'tmsteph@3dvr',
+    expectedPub: 'current-pub',
+    actualAlias: 'tmsteph@3dvr',
+    actualPub: 'current-pub'
+  }), true);
+
+  const forge = await readFile(new URL('../operator/forge.js', import.meta.url), 'utf8');
+  assert.match(forge, /const stored = readStoredPortalIdentity\(\)/);
+  assert.match(forge, /developerIdentityMatches\(\{/);
+  assert.match(forge, /user\?\.leave\?\.\(\)/);
 });
 
 test('a downgraded code suggestion offers the signed-in developer key for approval', async () => {
