@@ -187,7 +187,54 @@ if (form && input && submit && status && result && reply && followUps && actionL
     submit.replaceChildren(arrow, portal);
   };
 
+  const installOperatorNavigation = () => {
+    if (document.querySelector('.home-operator-links')) return;
+
+    const style = document.createElement('style');
+    style.textContent = `
+      .home-operator-links {
+        margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .home-operator-links a {
+        min-height: 40px;
+        padding: 8px 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #30363d;
+        border-radius: 999px;
+        background: rgba(22, 27, 34, 0.78);
+        color: #c9d1d9;
+        font-size: 0.9rem;
+        font-weight: 750;
+        text-decoration: none;
+      }
+
+      .home-operator-links a:hover,
+      .home-operator-links a:focus-visible {
+        border-color: #58a6ff;
+        color: #f0f6fc;
+        outline: none;
+      }
+    `;
+    document.head.appendChild(style);
+
+    const nav = document.createElement('nav');
+    nav.className = 'home-operator-links';
+    nav.setAttribute('aria-label', 'Operator navigation');
+    nav.innerHTML = `
+      <a href="/operator/">Open full Operator</a>
+      <a href="/operator/?history=1">Past conversations</a>
+    `;
+    form.insertAdjacentElement('afterend', nav);
+  };
+
   installSubmitLoader();
+  installOperatorNavigation();
 
   const collectPageContext = () => ({
     path: window.location.pathname,
