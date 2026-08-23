@@ -1,8 +1,17 @@
 {
-  "checkedAt": "2026-08-23T19:26:05.642125+00:00",
-  "taskId": "remote-task-d0fae135b2e6c65e6eb332cb",
-  "status": "unavailable",
-  "workerDeviceId": "",
-  "resultSummary": "",
-  "error": ""
+  "checkedAt": "2026-08-23T19:29:41.858454+00:00",
+  "managed": {
+    "taskId": "remote-task-844228da4e662ae2dffa3a65",
+    "status": "unavailable",
+    "workerDeviceId": "",
+    "resultSummary": "",
+    "error": ""
+  },
+  "legacy": {
+    "taskId": "remote-task-dc7d9bef4897242d65ef8951",
+    "status": "unavailable",
+    "workerDeviceId": "",
+    "resultSummary": "",
+    "error": ""
+  }
 }
