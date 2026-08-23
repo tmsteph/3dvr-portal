@@ -23,7 +23,7 @@ function asList(value) {
 function compactRecord(record = {}, fields = []) {
   return Object.fromEntries(fields
     .map(field => [field, typeof record?.[field] === 'string' ? clean(record[field]) : record?.[field]])
-    .filter(([, value]) => value !== undefined && value !== null && value !== '')));
+    .filter(([, value]) => value !== undefined && value !== null && value !== ''));
 }
 
 export function summarizeLifeSpaceState(state) {
