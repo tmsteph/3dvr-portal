@@ -1,2 +1,3 @@
 One-shot DigitalOcean preview host recovery probe.
 Synchronize after recovery workflow registration.
+Run with corrected probe workflow.
