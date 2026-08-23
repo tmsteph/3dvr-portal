@@ -1,5 +1,6 @@
 import { runOperatorAction } from './operator/actions.js';
 import { collectPortalContext } from './operator/portal-context.js';
+import { createOperatorDeveloperProof } from './operator/forge.js';
 
 const ACCOUNT_SCORE_PREFIX = '3dvr:score:';
 
@@ -222,6 +223,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
   const makeConversationId = () => globalThis.crypto?.randomUUID?.()
     || `conversation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const now = () => new Date().toISOString();
+  const idlePlaceholder = input.getAttribute('placeholder') || 'Ask Operator…';
 
   let history = [];
   let homeConversationId = '';
@@ -455,6 +457,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
   const setBusy = busy => {
     submit.disabled = busy;
     input.disabled = busy;
+    input.placeholder = busy ? 'Operator is working on this page…' : idlePlaceholder;
     submit.dataset.busy = String(busy);
     submit.setAttribute('aria-label', busy ? 'Operator is working' : 'Send to Operator');
     form.setAttribute('aria-busy', String(busy));
@@ -492,13 +495,16 @@ if (form && input && submit && status && result && reply && followUps && actionL
     persistHistory();
     input.value = '';
     setBusy(true);
-    status.textContent = 'Operator is working on this page…';
+    status.textContent = '';
 
     try {
-      const portalContext = await collectPortalContext();
+      const [portalContext, developerAuth] = await Promise.all([
+        collectPortalContext(),
+        createOperatorDeveloperProof()
+      ]);
       portalContext.page = collectPageContext();
 
-      const response = await requestOperator({ prompt, history: prior, portalContext });
+      const response = await requestOperator({ prompt, history: prior, portalContext, developerAuth });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Operator request failed.');
 
