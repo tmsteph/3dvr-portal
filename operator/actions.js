@@ -39,6 +39,14 @@ export async function runOperatorAction(action = {}) {
     localStorage.setItem(LEADS_KEY,JSON.stringify(leads.slice(0,250)));
     return { message:`Added ${prospect.business} to Lead Finder.`, url:'/lead-finder/' };
   }
+  if (action.type === 'suggest_code_change') {
+    const { saveCodeSuggestion } = await import('./forge.js');
+    return saveCodeSuggestion(action);
+  }
+  if (action.type === 'request_code_change') {
+    const { queueCodeChange } = await import('./forge.js');
+    return queueCodeChange(action);
+  }
   if (action.type === 'open_app' && action.url) return { message:'Ready to open.', url:action.url };
   return null;
 }

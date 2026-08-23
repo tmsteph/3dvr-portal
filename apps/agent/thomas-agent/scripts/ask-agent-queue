@@ -17,3 +17,11 @@ if [ -f "$CONFIG_FILE" ]; then
 fi
 
 node "$ROOT/node/agent-task-queue.js" "$@"
+
+# The German worker's long-lived loop invokes this wrapper every poll. Keeping
+# Forge dispatch here means a normal repository pull activates new Operator
+# edit support immediately without restarting the tmux session that performed
+# the update.
+if [ "${1:-}" = "run-once" ]; then
+  node "$ROOT/node/operator-forge-worker.js" run-once
+fi
