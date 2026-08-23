@@ -138,7 +138,7 @@ async function authorizePortalOperatorTask(record = {}, options = {}) {
   if (!developer) return { ok: false, reason: '3DVR account is not approved for code edits' };
 
   const repoPath = resolveRepoAlias(record.repo, env);
-  if (!repoPath) return { ok: false, reason: `repo is not approved: ${normalizeText(record.repo) || 'unknown'}`; }
+  if (!repoPath) return { ok: false, reason: `repo is not approved: ${normalizeText(record.repo) || 'unknown'}` };
 
   return {
     ok: true,
