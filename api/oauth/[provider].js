@@ -22,11 +22,14 @@ function timed(label, fn, ms = 25000) {
 }
 
 async function loadGunWithSea() {
-  // Explicitly trace SEA's runtime polyfill so Vercel includes it in the function bundle.
-  await import('gun/lib/text-encoding.js');
   const moduleResult = await import('gun/lib/server.js');
   const Gun = moduleResult.default || moduleResult;
   globalThis.Gun = Gun;
+  // SEA's legacy Node shim looks for a browser-like global before falling back
+  // to an internal text-encoding file that is absent from this published GUN build.
+  // Node 22 already provides crypto, TextEncoder, and TextDecoder natively.
+  globalThis.self = globalThis;
+  globalThis.window = globalThis;
   await import('gun/sea.js');
   return Gun;
 }
