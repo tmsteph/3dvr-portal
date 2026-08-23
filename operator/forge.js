@@ -1,5 +1,4 @@
 const FORGE_ROOT = '3dvr-portal';
-const TASK_OWNER = '3dvr-managed';
 const PROOF_WAIT_MS = 900;
 const WRITE_TIMEOUT_MS = 3500;
 
@@ -129,42 +128,21 @@ export async function queueCodeChange(action = {}) {
   const now = new Date().toISOString();
   const record = {
     id,
+    title: normalizeText(action.title, 160) || 'Operator code edit',
     task,
-    tenantId: proof.authPub,
-    tenantAlias: proof.portalAlias || proof.authPub,
-    tenantPlan: 'developer',
-    backend: 'auto',
     repo,
-    model: '',
-    thinking: 'high',
-    unsafe: false,
+    backend: 'auto',
     riskClass: 'workspace_write',
-    approvalStatus: 'not_required',
-    requiredCapabilities: 'auto',
-    maxRuntimeMs: 0,
     status: 'queued',
     createdAt: now,
     updatedAt: now,
     requestedBy: 'portal-operator',
+    requestedByAlias: proof.portalAlias || proof.authPub,
     resultSummary: '',
     error: '',
-    workerDeviceId: '',
     authProof: proof.authProof,
     authPub: proof.authPub
   };
-  const owner = context.gun.get(FORGE_ROOT).get('agentOps').get(TASK_OWNER).get('taskQueue');
-  await writeGun(owner.get('tasks').get(id), record);
-  await writeGun(owner.get('latest').get(id), {
-    id,
-    status: record.status,
-    task: record.task,
-    tenantId: record.tenantId,
-    tenantAlias: record.tenantAlias,
-    tenantPlan: record.tenantPlan,
-    riskClass: record.riskClass,
-    approvalStatus: record.approvalStatus,
-    requiredCapabilities: record.requiredCapabilities,
-    updatedAt: record.updatedAt
-  });
+  await writeGun(context.gun.get(FORGE_ROOT).get('forge').get('editRequests').get(id), record);
   return { message: `Queued an approved developer edit for ${repo}.` };
 }
