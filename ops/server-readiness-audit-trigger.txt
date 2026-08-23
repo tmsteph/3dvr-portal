@@ -1,0 +1,2 @@
+One-shot readiness audit requested 2026-08-23.
+Checks live managed worker hostname, root disk/inodes, memory, uptime, and largest 3DVR/runtime directories using the existing read-only agent queue.
