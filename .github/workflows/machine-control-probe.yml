@@ -1,0 +1,65 @@
+name: 3DVR Machine Control Probe
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ops/machine-control-probe-trigger.txt'
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  probe:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      RESULT_BRANCH: ${{ github.head_ref }}
+      DO_HOST: 167.172.193.194
+      CODEX_HOST: codex.167.233.174.20.nip.io
+    steps:
+      - name: Probe registered runners and public control surfaces
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runner_code="$(curl -sS -o /tmp/runners.json -w '%{http_code}' -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/runners?per_page=100" || true)"
+          if [ "$runner_code" = 200 ]; then
+            RUNNERS_API=true python3 -c 'import json,os; d=json.load(open("/tmp/runners.json")); rs=d.get("runners",[]); print(json.dumps({"runnersApi":True,"runnerCount":len(rs),"onlineRunnerCount":sum(1 for r in rs if r.get("status")=="online"),"runnerLabels":sorted(set(l.get("name","") for r in rs for l in r.get("labels",[]) if l.get("name")))},indent=2))' >/tmp/runner-result.json
+          else
+            printf '{"runnersApi":false,"runnerCount":0,"onlineRunnerCount":0,"runnerLabels":[]}\n' >/tmp/runner-result.json
+          fi
+
+          probe_url() {
+            local name="$1" url="$2"
+            local headers="/tmp/${name}.headers" body="/tmp/${name}.body"
+            local code
+            code="$(curl -ksS --connect-timeout 6 --max-time 10 -D "$headers" -o "$body" -w '%{http_code}' "$url" || true)"
+            local server auth location
+            server="$(awk 'BEGIN{IGNORECASE=1} /^server:/{sub(/^[^:]*:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers" 2>/dev/null || true)"
+            auth="$(awk 'BEGIN{IGNORECASE=1} /^www-authenticate:/{sub(/^[^:]*:[[:space:]]*/,""); sub(/\r$/,""); print $1; exit}' "$headers" 2>/dev/null || true)"
+            location="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]*:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "$headers" 2>/dev/null || true)"
+            NAME="$name" CODE="$code" SERVER="$server" AUTH="$auth" LOCATION="$location" python3 -c 'import json,os; print(json.dumps({"name":os.environ["NAME"],"httpCode":os.environ["CODE"],"server":os.environ["SERVER"][:80],"authScheme":os.environ["AUTH"][:30],"location":os.environ["LOCATION"][:160]}))'
+          }
+
+          probe_url do_http "http://$DO_HOST/" >/tmp/do-http.json
+          probe_url do_https "https://$DO_HOST/" >/tmp/do-https.json
+          probe_url codex_https "https://$CODEX_HOST/" >/tmp/codex.json
+
+          dns_ip="$(getent ahostsv4 "$CODEX_HOST" 2>/dev/null | awk 'NR==1{print $1}' || true)"
+          DNS_IP="$dns_ip" python3 -c 'import json,os; r=json.load(open("/tmp/runner-result.json")); r["codexDnsIp"]=os.environ.get("DNS_IP",""); r["surfaces"]=[json.load(open("/tmp/do-http.json")),json.load(open("/tmp/do-https.json")),json.load(open("/tmp/codex.json"))]; print(json.dumps(r,indent=2))' >/tmp/control-result.json
+
+      - name: Persist sanitized control result
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ ! -s /tmp/control-result.json ]; then printf '{"workflowFailedBeforeResult":true}\n' >/tmp/control-result.json; fi
+          content="$(base64 -w0 /tmp/control-result.json)"
+          payload="$(CONTENT="$content" BRANCH="$RESULT_BRANCH" python3 -c 'import json,os; print(json.dumps({"message":"Record machine control probe","content":os.environ["CONTENT"],"branch":os.environ["BRANCH"]}))')"
+          curl -fsS -X PUT -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/machine-control-probe-result.json" -d "$payload" >/dev/null
