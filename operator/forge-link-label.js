@@ -11,8 +11,18 @@ function labelForgeLink(anchor) {
     return;
   }
 
-  if (kind === 'suggestion') anchor.textContent = 'Open Forge suggestion →';
-  if (kind === 'edit') anchor.textContent = 'Open Forge edit →';
+  const label = kind === 'suggestion'
+    ? 'Forge suggestion'
+    : kind === 'edit'
+      ? 'Forge edit'
+      : '';
+  if (!label) return;
+
+  const text = `Open ${label} →`;
+  if (anchor.textContent !== text) anchor.textContent = text;
+  if (anchor.getAttribute('aria-label') !== `Open ${label}`) {
+    anchor.setAttribute?.('aria-label', `Open ${label}`);
+  }
 }
 
 export function installForgeLinkLabels(documentObj = globalThis.document) {
@@ -27,9 +37,14 @@ export function installForgeLinkLabels(documentObj = globalThis.document) {
 
   scan(documentObj);
   const observer = new MutationObserver(records => {
-    records.forEach(record => record.addedNodes.forEach(node => {
-      if (node?.nodeType === 1) scan(node);
-    }));
+    records.forEach(record => {
+      // The homepage reuses one existing action anchor. Replacing its text creates
+      // a child-list mutation whose target is the anchor, so scan the target too.
+      if (record.target?.nodeType === 1) scan(record.target);
+      record.addedNodes.forEach(node => {
+        if (node?.nodeType === 1) scan(node);
+      });
+    });
   });
   observer.observe(documentObj.body || documentObj.documentElement, { childList: true, subtree: true });
   return observer;
