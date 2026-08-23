@@ -60,16 +60,19 @@ export function revealDeveloperKeyButton({
   button.style.cursor = 'pointer';
 
   button.addEventListener('click', async () => {
+    const currentPub = String(button.dataset.operatorDeveloperKey || getStoredDeveloperKey(storage) || '').trim();
+    if (!currentPub) return;
+
     let copied = false;
     try {
       if (navigatorObj?.clipboard?.writeText) {
-        await navigatorObj.clipboard.writeText(pub);
+        await navigatorObj.clipboard.writeText(currentPub);
         copied = true;
       } else {
-        copied = copyWithFallback(pub, documentObj);
+        copied = copyWithFallback(currentPub, documentObj);
       }
     } catch {
-      copied = copyWithFallback(pub, documentObj);
+      copied = copyWithFallback(currentPub, documentObj);
     }
 
     const prior = button.textContent;
