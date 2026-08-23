@@ -1,4 +1,13 @@
 const MODES = Object.freeze({
+  general: Object.freeze({
+    title: 'Make the next step smaller',
+    hears: 'You are not sure what kind of problem this is yet.',
+    lens: 'Name what matters this week before choosing a bigger direction.',
+    nextAction: 'Write the smallest useful thing you can do today.',
+    route: '../life/',
+    routeLabel: 'Plan today',
+    routeDetail: 'Turn this into one small step for today.'
+  }),
   career: Object.freeze({
     title: 'Try one new path',
     hears: 'You want a safe way to try a new path.',
@@ -29,6 +38,23 @@ const MODES = Object.freeze({
 });
 
 const QUESTION_SETS = Object.freeze({
+  general: Object.freeze({
+    situation: Object.freeze({
+      label: '2. What part feels hardest right now?',
+      help: 'Name the part that keeps pulling your attention.',
+      placeholder: 'I have too many things competing for my attention.'
+    }),
+    desired: Object.freeze({
+      label: '3. What would feel better this week?',
+      help: 'Name one change you would notice soon.',
+      placeholder: 'I would know the one thing worth doing first.'
+    }),
+    constraint: Object.freeze({
+      label: '4. What do we need to protect?',
+      help: 'Name something that should not get worse.',
+      placeholder: 'I do not want to spend much money or lose family time.'
+    })
+  }),
   career: Object.freeze({
     situation: Object.freeze({
       label: '2. What choice are you making?',
@@ -83,6 +109,11 @@ const QUESTION_SETS = Object.freeze({
 });
 
 const ANSWERS = Object.freeze({
+  general: Object.freeze({
+    situation: ['I have too many things going on.', 'I do not know what matters most.', 'I keep going in circles.'],
+    desired: ['Pick one thing to do.', 'Feel less scattered.', 'Make one small plan.'],
+    constraint: ['I have little time.', 'I have little money.', 'I need to keep this simple.']
+  }),
   career: Object.freeze({
     situation: ['I have too many choices.', 'I am tired of my job.', 'I do not know what fits.'],
     desired: ['Pick one path to test.', 'Have more time at home.', 'Make a small plan.'],
@@ -150,6 +181,26 @@ export function createClaritySnapshot(input = {}) {
 }
 
 const FALLBACK_PATHS = Object.freeze({
+  general: Object.freeze([
+    Object.freeze({
+      title: 'Shrink it to today',
+      fit: 'Good when everything feels equally urgent.',
+      tradeoff: 'You may leave important things for later.',
+      experiment: 'Choose one useful action that takes under 30 minutes.'
+    }),
+    Object.freeze({
+      title: 'Ask one person',
+      fit: 'Good when you need another point of view.',
+      tradeoff: 'Their answer may not fit you perfectly.',
+      experiment: 'Tell one trusted person the problem in two sentences.'
+    }),
+    Object.freeze({
+      title: 'Remove one pressure',
+      fit: 'Good when the problem is mostly overload.',
+      tradeoff: 'Saying no can feel uncomfortable.',
+      experiment: 'Delay, delegate, or drop one non-urgent thing today.'
+    })
+  ]),
   career: Object.freeze([
     Object.freeze({
       title: 'Talk to someone doing the work',
@@ -213,7 +264,7 @@ const FALLBACK_PATHS = Object.freeze({
 });
 
 export function createFallbackGuidance(snapshot) {
-  const paths = FALLBACK_PATHS[snapshot?.mode] || FALLBACK_PATHS.build;
+  const paths = FALLBACK_PATHS[snapshot?.mode] || FALLBACK_PATHS.general;
 
   return {
     title: snapshot.title,
@@ -223,7 +274,9 @@ export function createFallbackGuidance(snapshot) {
       title: paths[0].title,
       why: snapshot.lens
     },
-    assumptionToTest: 'One real person wants this enough to try it.',
+    assumptionToTest: snapshot?.mode === 'general'
+      ? 'One smaller action will make the larger problem easier to see.'
+      : 'One real person wants this enough to try it.',
     nextAction: snapshot.nextAction,
     followUpQuestion: 'What would make this worth one more week?',
     fallback: true
