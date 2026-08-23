@@ -38,9 +38,10 @@ function sanitizePortalValue(value, depth = 0) {
   if (typeof value === 'boolean') return value;
   if (Array.isArray(value)) return value.slice(0, 40).map(item => sanitizePortalValue(item, depth + 1));
   if (typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).slice(0, 40).map(([key, item]) => [
-      clean(key, 80), sanitizePortalValue(item, depth + 1)
-    ]));
+    return Object.fromEntries(Object.entries(value)
+      .filter(([key]) => key !== 'developerAuth')
+      .slice(0, 40)
+      .map(([key, item]) => [clean(key, 80), sanitizePortalValue(item, depth + 1)]));
   }
   return clean(value, 200);
 }
@@ -155,7 +156,8 @@ export function createOperatorHandler(options = {}) {
     const prompt = clean(req.body?.prompt, 2000);
     if (!prompt) return res.status(400).json({ error: 'Tell the operator what you need.' });
     try {
-      const developerAccess = await resolveOperatorDeveloperAccess(req.body?.developerAuth || {}, {
+      const developerAuth = req.body?.developerAuth || req.body?.portalContext?.developerAuth || {};
+      const developerAccess = await resolveOperatorDeveloperAccess(developerAuth, {
         config: options.config || process.env,
         expectedOrigin: requestOrigin(req)
       });
