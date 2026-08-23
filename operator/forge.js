@@ -139,6 +139,8 @@ async function signedPortalProof(scope, action, extra = {}, options = {}) {
 }
 
 export async function createOperatorDeveloperProof() {
+  const signedIn = globalThis.localStorage?.getItem?.('signedIn') === 'true';
+  if (!signedIn) return null;
   return signedPortalProof('operator-developer-access', 'operator-chat');
 }
 
