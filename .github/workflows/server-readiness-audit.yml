@@ -20,7 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      THREEDVR_AGENT_OWNER_ALIAS: 3dvr-managed
       RESULT_BRANCH: ${{ github.head_ref }}
     defaults:
       run:
@@ -41,57 +40,73 @@ jobs:
       - name: Install agent dependencies
         run: npm ci
 
-      - name: Queue read-only server audit
+      - name: Probe managed and legacy workers
         id: audit
         shell: bash
         run: |
           set -euo pipefail
           task='printf "HOST=%s\n" "$(hostname -f 2>/dev/null || hostname)"; printf "IPS=%s\n" "$(hostname -I 2>/dev/null | xargs || true)"; echo "DISK_ROOT"; df -Pk / | tail -n 1; echo "INODES_ROOT"; df -Pi / | tail -n 1; echo "MEMORY_MB"; free -m | sed -n "1,2p"; echo "UPTIME"; uptime; echo "LARGEST_RUNTIME_DIRS_MB"; du -sm /opt/3dvr* /root/.3dvr /var/lib/3dvr-revenue /var/log 2>/dev/null | sort -nr | head -n 10 || true'
-          result="$(node thomas-agent/node/agent-task-queue.js enqueue --json --backend shell --risk read_only --approval-status not_required --requires shell --max-runtime-ms 60000 "$task")"
-          task_id="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task queue JSON payload missing');console.log(JSON.parse(s.slice(i)).id)})")"
-          echo "task_id=$task_id" >> "$GITHUB_OUTPUT"
 
-          final=''
-          for attempt in $(seq 1 30); do
-            result="$(node thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
-            status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');console.log(JSON.parse(s.slice(i)).status||'')})")"
-            case "$status" in
-              completed|failed|skipped)
-                final="$result"
-                break
-                ;;
-            esac
-            sleep 4
-          done
+          probe_queue() {
+            owner="$1"
+            attempts="$2"
+            outfile="$3"
+            result="$(THREEDVR_AGENT_OWNER_ALIAS="$owner" node thomas-agent/node/agent-task-queue.js enqueue --json --backend shell --risk read_only --approval-status not_required --requires shell --max-runtime-ms 60000 "$task")"
+            task_id="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task queue JSON payload missing');console.log(JSON.parse(s.slice(i)).id)})")"
+            final=''
+            for attempt in $(seq 1 "$attempts"); do
+              result="$(THREEDVR_AGENT_OWNER_ALIAS="$owner" node thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
+              status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');console.log(JSON.parse(s.slice(i)).status||'')})")"
+              case "$status" in
+                completed|failed|skipped)
+                  final="$result"
+                  break
+                  ;;
+              esac
+              sleep 4
+            done
+            if [ -z "$final" ]; then
+              final="$(THREEDVR_AGENT_OWNER_ALIAS="$owner" node thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
+            fi
+            printf '%s\n' "$final" > "$outfile"
+            printf '%s\n' "$task_id" > "${outfile}.id"
+            echo "=== $owner ==="
+            cat "$outfile"
+          }
 
-          if [ -z "$final" ]; then
-            final="$(node thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
-          fi
-          printf '%s\n' "$final" > /tmp/server-audit-task.json
-          cat /tmp/server-audit-task.json
+          probe_queue '3dvr-managed' 12 /tmp/server-audit-managed.json
+          probe_queue 'anonymous@3dvr' 20 /tmp/server-audit-legacy.json
 
       - name: Persist sanitized audit result
         if: always()
         shell: bash
-        env:
-          TASK_ID: ${{ steps.audit.outputs.task_id }}
         run: |
           set -euo pipefail
           cd "$GITHUB_WORKSPACE"
           python3 - <<'PY'
           import datetime, json, os
-          src = '/tmp/server-audit-task.json'
-          try:
-              record = json.load(open(src))
-          except Exception:
-              record = {}
+
+          def read_record(path):
+              try:
+                  record = json.load(open(path))
+              except Exception:
+                  record = {}
+              try:
+                  task_id = open(path + '.id').read().strip()
+              except Exception:
+                  task_id = ''
+              return {
+                  'taskId': task_id or record.get('id') or '',
+                  'status': record.get('status') or 'unavailable',
+                  'workerDeviceId': record.get('workerDeviceId') or '',
+                  'resultSummary': record.get('resultSummary') or '',
+                  'error': record.get('error') or '',
+              }
+
           out = {
               'checkedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-              'taskId': os.environ.get('TASK_ID') or record.get('id') or '',
-              'status': record.get('status') or 'unavailable',
-              'workerDeviceId': record.get('workerDeviceId') or '',
-              'resultSummary': record.get('resultSummary') or '',
-              'error': record.get('error') or '',
+              'managed': read_record('/tmp/server-audit-managed.json'),
+              'legacy': read_record('/tmp/server-audit-legacy.json'),
           }
           os.makedirs('ops', exist_ok=True)
           with open('ops/server-readiness-audit-result.json', 'w') as f:
@@ -103,5 +118,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add ops/server-readiness-audit-result.json
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Record managed server readiness audit'
+          git commit -m 'Record managed and legacy server readiness audit'
           git push origin "HEAD:$RESULT_BRANCH"
