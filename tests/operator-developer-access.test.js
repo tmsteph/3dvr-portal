@@ -11,15 +11,16 @@ import {
   normalizeOperatorResult,
 } from '../src/operator/api.js';
 
-test('default operator developer policy approves the 3DVR maintainer account', () => {
+test('default operator developer policy does not trust an alias by itself', () => {
   const policy = resolveOperatorDeveloperPolicy({});
   assert.equal(DEFAULT_OPERATOR_DEVELOPER_ALIAS, '3dvr.tech@gmail.com');
-  assert.equal(policy.aliases.has('3dvr.tech@gmail.com'), true);
+  assert.equal(policy.pubs.size, 0);
+  assert.equal(policy.bindings.size, 0);
 });
 
-test('approved 3DVR account receives native code edit permission', async () => {
+test('approved SEA public key receives native code edit permission', async () => {
   const access = await resolveOperatorDeveloperAccess({ authPub: 'pub-1', authProof: 'proof-1' }, {
-    config: {},
+    config: { THREEDVR_OPERATOR_DEVELOPER_PUBS: 'pub-1' },
     expectedOrigin: 'https://portal.3dvr.tech',
     verify: async () => ({
       ok: true,
@@ -33,9 +34,46 @@ test('approved 3DVR account receives native code edit permission', async () => {
   assert.deepEqual(access.permissions, ['suggest', 'edit']);
 });
 
+test('claiming the maintainer alias with an unbound key remains a contributor', async () => {
+  const access = await resolveOperatorDeveloperAccess({ authPub: 'pub-evil', authProof: 'proof-evil' }, {
+    config: {
+      THREEDVR_OPERATOR_DEVELOPER_BINDINGS: JSON.stringify({
+        '3dvr.tech@gmail.com': 'pub-1',
+      }),
+    },
+    verify: async () => ({
+      ok: true,
+      identity: { alias: '3dvr.tech@gmail.com', pub: 'pub-evil' },
+    }),
+  });
+
+  assert.equal(access.authenticated, true);
+  assert.equal(access.approved, false);
+  assert.equal(access.role, 'contributor');
+  assert.deepEqual(access.permissions, ['suggest']);
+});
+
+test('exact alias-to-public-key binding can approve a 3DVR developer', async () => {
+  const access = await resolveOperatorDeveloperAccess({ authPub: 'pub-1', authProof: 'proof-1' }, {
+    config: {
+      THREEDVR_OPERATOR_DEVELOPER_BINDINGS: JSON.stringify({
+        '3dvr.tech@gmail.com': 'pub-1',
+      }),
+    },
+    verify: async () => ({
+      ok: true,
+      identity: { alias: '3dvr.tech@gmail.com', pub: 'pub-1' },
+    }),
+  });
+
+  assert.equal(access.authenticated, true);
+  assert.equal(access.approved, true);
+  assert.equal(access.role, 'developer');
+});
+
 test('signed but unapproved 3DVR account remains a contributor', async () => {
   const access = await resolveOperatorDeveloperAccess({ authPub: 'pub-2', authProof: 'proof-2' }, {
-    config: {},
+    config: { THREEDVR_OPERATOR_DEVELOPER_PUBS: 'pub-1' },
     verify: async () => ({
       ok: true,
       identity: { alias: 'builder@example.com', pub: 'pub-2' },
