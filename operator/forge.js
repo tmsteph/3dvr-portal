@@ -72,8 +72,10 @@ async function ensureGunRuntime() {
   await gunLoadPromise;
 }
 
-async function getGunContext() {
-  await ensureGunRuntime();
+async function getGunContext({ loadRuntime = true } = {}) {
+  const hasRuntime = typeof globalThis.Gun === 'function' && globalThis.Gun.SEA?.sign;
+  if (!hasRuntime && !loadRuntime) return null;
+  if (!hasRuntime) await ensureGunRuntime();
   if (gunInstance && gunUser) return { gun: gunInstance, user: gunUser };
   if (typeof globalThis.Gun !== 'function') return null;
   gunInstance = globalThis.Gun({ peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
@@ -111,8 +113,8 @@ function writeGun(node, value) {
   });
 }
 
-async function signedPortalProof(scope, action, extra = {}) {
-  const context = await getGunContext();
+async function signedPortalProof(scope, action, extra = {}, options = {}) {
+  const context = await getGunContext(options);
   if (!context || !globalThis.Gun?.SEA?.sign) return null;
   const sea = await waitForSea(context.user);
   const pub = normalizeText(context.user?.is?.pub || sea?.pub, 500);
@@ -137,7 +139,7 @@ async function signedPortalProof(scope, action, extra = {}) {
 }
 
 export async function createOperatorDeveloperProof() {
-  return signedPortalProof('operator-developer-access', 'operator-chat');
+  return signedPortalProof('operator-developer-access', 'operator-chat', {}, { loadRuntime: false });
 }
 
 export async function saveCodeSuggestion(action = {}) {
