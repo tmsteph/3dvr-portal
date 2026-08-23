@@ -95,3 +95,53 @@ test('home Operator conversation appears in Past conversations', { timeout: 45_0
     await browser.close();
   }
 });
+
+test('portal spinner selects a direction on deliberate drag but keeps short drags playful', { timeout: 45_000 }, async () => {
+  const browser = await chromium.launch({ headless: true });
+
+  try {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.route('**/*', route => {
+      const url = new URL(route.request().url());
+      if (url.hostname !== '127.0.0.1') return route.abort('blockedbyclient');
+      return route.continue();
+    });
+
+    await page.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
+    const spinner = page.locator('[data-spinner-nav-toggle]');
+    await spinner.waitFor();
+    let box = await spinner.boundingBox();
+    assert.ok(box, 'spinner should have a pointer target');
+
+    const centerX = box.x + box.width / 2;
+    const centerY = box.y + box.height / 2;
+    await page.mouse.move(centerX, centerY);
+    await page.mouse.down();
+    await page.mouse.move(centerX + 62, centerY, { steps: 6 });
+
+    const workTarget = page.locator('.spinner-nav__item--work');
+    assert.equal(await workTarget.getAttribute('data-spinner-selected'), 'true');
+    assert.equal(await spinner.getAttribute('aria-label'), 'Release to open Work.');
+
+    await page.mouse.up();
+    await page.waitForURL(url => new URL(url).pathname === '/growth-desk/');
+    assert.equal(new URL(page.url()).pathname, '/growth-desk/');
+
+    await page.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
+    box = await page.locator('[data-spinner-nav-toggle]').boundingBox();
+    assert.ok(box, 'spinner should still be available after returning home');
+
+    const shortX = box.x + box.width / 2;
+    const shortY = box.y + box.height / 2;
+    await page.mouse.move(shortX, shortY);
+    await page.mouse.down();
+    await page.mouse.move(shortX + 24, shortY, { steps: 3 });
+    await page.mouse.up();
+    await page.waitForTimeout(180);
+
+    assert.equal(new URL(page.url()).pathname, '/');
+    assert.equal(await page.locator('.spinner-nav__item--work').getAttribute('data-spinner-selected'), null);
+  } finally {
+    await browser.close();
+  }
+});
