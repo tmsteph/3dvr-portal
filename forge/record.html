@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Forge item | 3DVR</title>
+  <meta name="theme-color" content="#111827">
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="../index-style.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <style>
+    :root { color-scheme: dark; }
+    body { min-height: 100vh; background: #0d1117; color: #e6edf3; }
+    .record-shell { width: min(100% - 32px, 760px); margin: 0 auto; padding: 24px 0 48px; }
+    .record-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+    .record-nav a { color: #c9d1d9; text-decoration: none; font-weight: 700; }
+    .record-nav a:first-child { margin-right: auto; }
+    .record-card { border: 1px solid #30363d; border-radius: 20px; background: rgba(22, 27, 34, 0.92); padding: 22px; box-shadow: 0 22px 54px rgba(0,0,0,.24); }
+    .record-eyebrow { margin: 0 0 8px; color: #79c0ff; font-size: .78rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+    .record-title { margin: 0; font-size: clamp(1.45rem, 6vw, 2.2rem); line-height: 1.1; }
+    .record-meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 22px; }
+    .record-meta span { border: 1px solid #30363d; border-radius: 999px; padding: 6px 10px; color: #8b949e; font-size: .85rem; }
+    .record-status { color: #aff5b4 !important; border-color: rgba(46,160,67,.45) !important; }
+    .record-section { margin-top: 22px; }
+    .record-section h2 { margin: 0 0 8px; font-size: .92rem; color: #8b949e; text-transform: uppercase; letter-spacing: .06em; }
+    .record-section p, .record-section pre { margin: 0; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .record-error { color: #ffb4b4; }
+    .record-loading { color: #8b949e; }
+    .record-id { margin-top: 24px; color: #6e7681; font: 12px ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main class="record-shell">
+    <nav class="record-nav" aria-label="Forge item navigation">
+      <a href="/forge/">← Forge</a>
+      <a href="/operator/">Operator</a>
+      <a href="/">Portal</a>
+    </nav>
+
+    <article class="record-card" aria-live="polite">
+      <p class="record-eyebrow" data-record-kind>Forge item</p>
+      <h1 class="record-title" data-record-title>Loading…</h1>
+      <p class="record-loading" data-record-loading>Opening this Forge record.</p>
+
+      <div data-record-content hidden>
+        <div class="record-meta">
+          <span class="record-status" data-record-status></span>
+          <span data-record-repo></span>
+          <span data-record-created></span>
+        </div>
+
+        <section class="record-section">
+          <h2 data-record-body-label>Request</h2>
+          <p data-record-body></p>
+        </section>
+
+        <section class="record-section" data-record-result-section hidden>
+          <h2>Result</h2>
+          <p data-record-result></p>
+        </section>
+
+        <section class="record-section" data-record-error-section hidden>
+          <h2>Error</h2>
+          <p class="record-error" data-record-error></p>
+        </section>
+
+        <p class="record-id" data-record-id></p>
+      </div>
+    </article>
+  </main>
+
+  <script type="module" src="record.js"></script>
+</body>
+</html>
