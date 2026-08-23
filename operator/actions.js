@@ -1,4 +1,5 @@
 import './home-busy-state.js';
+import './network-resilience.js';
 import { openDatabase, loadState, saveState } from '../life-space/storage.js';
 import { normalizeProspect } from '../lead-finder/core.js';
 
