@@ -1,0 +1,42 @@
+name: Caddy Admin Probe
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ops/caddy-admin-probe-trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      RESULT_BRANCH: ${{ github.head_ref }}
+      HOST: 167.172.193.194
+    steps:
+      - name: Probe Caddy admin API safely
+        shell: bash
+        run: |
+          set -euo pipefail
+          if timeout 4 bash -c "</dev/tcp/$HOST/2019" 2>/dev/null; then port2019=true; else port2019=false; fi
+          code=000
+          if [ "$port2019" = true ]; then
+            code="$(curl -sS --connect-timeout 5 --max-time 8 -o /tmp/config.json -w '%{http_code}' "http://$HOST:2019/config/" || true)"
+          fi
+          PORT2019="$port2019" CODE="$code" python3 -c 'import json,os; out={"port2019":os.environ["PORT2019"]=="true","configHttpCode":os.environ["CODE"],"topLevelKeys":[],"httpServers":[]}; p="/tmp/config.json"; import pathlib; f=pathlib.Path(p); d=json.load(open(p)) if f.exists() and os.environ["CODE"]=="200" else {}; out["topLevelKeys"]=sorted(d.keys()); servers=d.get("apps",{}).get("http",{}).get("servers",{}); out["httpServers"]=[{"name":k,"listen":v.get("listen",[]),"routeCount":len(v.get("routes",[]))} for k,v in servers.items()]; print(json.dumps(out,indent=2))' >/tmp/result.json
+
+      - name: Persist sanitized Caddy probe
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ ! -s /tmp/result.json ]; then printf '{"workflowFailedBeforeResult":true}\n' >/tmp/result.json; fi
+          content="$(base64 -w0 /tmp/result.json)"
+          payload="$(CONTENT="$content" BRANCH="$RESULT_BRANCH" python3 -c 'import json,os; print(json.dumps({"message":"Record Caddy admin probe","content":os.environ["CONTENT"],"branch":os.environ["BRANCH"]}))')"
+          curl -fsS -X PUT -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/caddy-admin-probe-result.json" -d "$payload" >/dev/null
