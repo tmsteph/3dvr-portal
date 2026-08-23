@@ -23,6 +23,11 @@ function makeId(prefix) {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
 }
 
+function forgeRecordUrl(kind, id) {
+  const params = new URLSearchParams({ kind, id });
+  return `/forge/record.html?${params.toString()}`;
+}
+
 function loadScript(src) {
   if (typeof document === 'undefined') return Promise.reject(new Error('Browser script loading is unavailable.'));
   const existing = document.querySelector(`script[src="${src}"]`);
@@ -162,7 +167,11 @@ export async function saveCodeSuggestion(action = {}) {
     source: 'portal-operator'
   };
   await writeGun(context.gun.get(FORGE_ROOT).get('forge').get('suggestions').get(id), record);
-  return { message: 'Saved as a 3DVR Forge suggestion.' };
+  return {
+    message: 'Saved as a 3DVR Forge suggestion.',
+    url: forgeRecordUrl('suggestion', id),
+    label: 'Forge suggestion'
+  };
 }
 
 export async function queueCodeChange(action = {}) {
@@ -203,5 +212,9 @@ export async function queueCodeChange(action = {}) {
     authPub: proof.authPub
   };
   await writeGun(context.gun.get(FORGE_ROOT).get('forge').get('editRequests').get(id), record);
-  return { message: `Queued an approved developer edit for ${repo}.` };
+  return {
+    message: `Queued an approved developer edit for ${repo}.`,
+    url: forgeRecordUrl('edit', id),
+    label: 'Forge edit'
+  };
 }
