@@ -1,0 +1,8 @@
+{
+  "url": "http://167.172.193.194/",
+  "title": "3DVR Static Test",
+  "visibleText": "3DVR Static Test 3DVR self-hosting test Static site is live. This page is served from /var/www/3dvr-test on the DigitalOcean server, through Caddy, without Vercel.",
+  "localLinks": [],
+  "optionsCode": "405",
+  "allowHeader": "GET, HEAD"
+}
