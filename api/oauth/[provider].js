@@ -25,6 +25,7 @@ async function loadGunWithSea() {
   const moduleResult = await import('gun/lib/server.js');
   const Gun = moduleResult.default || moduleResult;
   globalThis.Gun = Gun;
+  globalThis.GUN = Gun;
   globalThis.self = globalThis;
   globalThis.window = globalThis;
   await import('gun/sea.js');
