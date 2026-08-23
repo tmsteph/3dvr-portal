@@ -17,13 +17,25 @@ function listFromConfig(value = '') {
     .filter(Boolean);
 }
 
+function parseBindings(value = '') {
+  let parsed = {};
+  try {
+    parsed = JSON.parse(String(value || '{}'));
+  } catch {}
+  const bindings = new Map();
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return bindings;
+  for (const [alias, pub] of Object.entries(parsed)) {
+    const normalizedAlias = normalizeAlias(alias);
+    const normalizedPub = normalizeText(pub);
+    if (normalizedAlias && normalizedPub) bindings.set(normalizedAlias, normalizedPub);
+  }
+  return bindings;
+}
+
 export function resolveOperatorDeveloperPolicy(config = process.env) {
-  const aliases = listFromConfig(config.THREEDVR_OPERATOR_DEVELOPER_ALIASES || DEFAULT_OPERATOR_DEVELOPER_ALIAS)
-    .map(normalizeAlias);
-  const pubs = listFromConfig(config.THREEDVR_OPERATOR_DEVELOPER_PUBS);
   return {
-    aliases: new Set(aliases),
-    pubs: new Set(pubs)
+    pubs: new Set(listFromConfig(config.THREEDVR_OPERATOR_DEVELOPER_PUBS)),
+    bindings: parseBindings(config.THREEDVR_OPERATOR_DEVELOPER_BINDINGS)
   };
 }
 
@@ -59,7 +71,7 @@ export async function resolveOperatorDeveloperAccess(payload = {}, options = {})
   const policy = resolveOperatorDeveloperPolicy(config);
   const alias = normalizeAlias(auth.identity.alias);
   const pub = normalizeText(auth.identity.pub);
-  const approved = policy.aliases.has(alias) || policy.pubs.has(pub);
+  const approved = policy.pubs.has(pub) || policy.bindings.get(alias) === pub;
 
   return {
     authenticated: true,
