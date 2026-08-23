@@ -1,0 +1,30 @@
+{
+  "runnersApi": false,
+  "runnerCount": 0,
+  "onlineRunnerCount": 0,
+  "runnerLabels": [],
+  "codexDnsIp": "167.233.174.20",
+  "surfaces": [
+    {
+      "name": "do_http",
+      "httpCode": "200",
+      "server": "Caddy",
+      "authScheme": "",
+      "location": ""
+    },
+    {
+      "name": "do_https",
+      "httpCode": "000",
+      "server": "",
+      "authScheme": "",
+      "location": ""
+    },
+    {
+      "name": "codex_https",
+      "httpCode": "401",
+      "server": "Caddy",
+      "authScheme": "Basic",
+      "location": ""
+    }
+  ]
+}
