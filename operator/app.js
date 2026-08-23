@@ -34,6 +34,7 @@ function renderHistory(){const saved=store.conversations.filter(item=>item.messa
 function render({forceLatest=false}={}){const shouldFollow=forceLatest||atLatest();log.innerHTML=history.map((item,index)=>`<article class="message ${item.role}"><span>${item.role==='user'?'You':'Operator'}</span><p>${escape(item.content)}</p>${item.actionUrl?`<a href="${escape(item.actionUrl)}">Open ${escape(item.actionLabel||'workspace')} →</a>`:''}${item.role==='assistant'&&index===history.length-1&&item.suggestions?.length?`<div class="follow-ups" aria-label="Suggested next steps">${item.suggestions.map(suggestion=>`<button type="button" data-suggestion="${escape(suggestion)}">${escape(suggestion)}</button>`).join('')}</div>`:''}</article>`).join('');renderHistory();shouldFollow?followLatest():updateLatest()}
 function save(){const conversation=activeConversation();conversation.messages=history.slice(-40);conversation.updatedAt=now();store.conversations=store.conversations.filter(item=>item.messages.length||item.id===store.activeId).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0,50);localStorage.setItem(KEY,JSON.stringify(store));if(KEY!==BASE_KEY)localStorage.removeItem(BASE_KEY);localStorage.removeItem(LEGACY_KEY);render();accountSync.save(store)}
 function closeHistory(){historyPanel.hidden=true;showHistory.setAttribute('aria-expanded','false')}
+function openHistory(){historyPanel.hidden=false;showHistory.setAttribute('aria-expanded','true');historyList.querySelector('[aria-current="page"]')?.focus()||document.querySelector('#close-history').focus()}
 async function requestOperator(payload){
   const send=body=>fetch('/api/openai-site?provider=operator',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   let response=await send(payload);
@@ -46,11 +47,12 @@ input.addEventListener('keydown',event=>{if(event.key==='Enter'&&(event.ctrlKey|
 document.querySelector('.quick-prompts').addEventListener('click',event=>{const button=event.target.closest('[data-prompt]');if(!button)return;input.value=button.dataset.prompt;form.requestSubmit()});
 log.addEventListener('click',event=>{const button=event.target.closest('[data-suggestion]');if(!button)return;input.value=button.dataset.suggestion;form.requestSubmit()});
 document.querySelector('#clear-chat').onclick=()=>{store.conversations=store.conversations.filter(item=>item.messages.length);store.activeId=makeId();history=activeConversation().messages;save();closeHistory();input.focus()};
-showHistory.onclick=()=>{historyPanel.hidden=false;showHistory.setAttribute('aria-expanded','true');historyList.querySelector('[aria-current="page"]')?.focus()||document.querySelector('#close-history').focus()};
+showHistory.onclick=openHistory;
 document.querySelector('#close-history').onclick=()=>{closeHistory();showHistory.focus()};
 historyList.onclick=event=>{const button=event.target.closest('[data-conversation-id]');if(!button)return;store.activeId=button.dataset.conversationId;history=activeConversation().messages;localStorage.setItem(KEY,JSON.stringify(store));render({forceLatest:true});closeHistory();input.focus()};
 log.addEventListener('scroll',updateLatest,{passive:true});
 latest.onclick=()=>scrollLatest('smooth');
 window.addEventListener('pageshow',()=>{atLatest()?followLatest():updateLatest()});
-render({forceLatest:true});input.focus();
+render({forceLatest:true});
+if(new URLSearchParams(window.location.search).get('history')==='1') openHistory(); else input.focus();
 void accountSync.load(store).then(remoteStore=>{if(!remoteStore)return;store=mergeOperatorStores(store,remoteStore);history=activeConversation().messages;localStorage.setItem(KEY,JSON.stringify(store));render();accountSync.save(store)});
