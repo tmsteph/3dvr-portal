@@ -1,0 +1,295 @@
+name: Recover DigitalOcean Preview Host
+
+on:
+  push:
+    branches:
+      - ops/do-host-recovery
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  statuses: write
+
+concurrency:
+  group: 3dvr-do-host-recovery
+  cancel-in-progress: true
+
+env:
+  KNOWN_HOST: 167.172.193.194
+  PREVIEW_SHA: 5b1af0ade4af5ca6395e8cf4bcfce47534c18c95
+  PREVIEW_QUEUE_ALIAS: 3dvr-preview
+
+jobs:
+  recover:
+    if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[recovery-result]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Checkout recovery branch
+        uses: actions/checkout@v4
+
+      - name: Resolve available credentials and host
+        id: resolve
+        shell: bash
+        env:
+          SSH_KEY_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_KEY_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_KEY_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          DO_TOKEN_A: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          DO_TOKEN_B: ${{ secrets.DIGITALOCEAN_TOKEN }}
+          DO_TOKEN_C: ${{ secrets.DO_TOKEN }}
+        run: |
+          set -euo pipefail
+          ssh_key=''
+          do_token=''
+          for candidate in "$SSH_KEY_A" "$SSH_KEY_B" "$SSH_KEY_C"; do
+            if [ -n "$candidate" ]; then ssh_key="$candidate"; break; fi
+          done
+          for candidate in "$DO_TOKEN_A" "$DO_TOKEN_B" "$DO_TOKEN_C"; do
+            if [ -n "$candidate" ]; then do_token="$candidate"; break; fi
+          done
+
+          printf 'ssh_key_present=%s\n' "$([ -n "$ssh_key" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          printf 'do_token_present=%s\n' "$([ -n "$do_token" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+          resolved_host="$KNOWN_HOST"
+          api_matched=false
+          power_action=unavailable
+          if [ -n "$do_token" ]; then
+            api_file="$(mktemp)"
+            http_code="$(curl -sS -o "$api_file" -w '%{http_code}' \
+              -H "Authorization: Bearer $do_token" \
+              -H 'Content-Type: application/json' \
+              'https://api.digitalocean.com/v2/droplets?per_page=200' || true)"
+            if [ "$http_code" = 200 ]; then
+              read -r droplet_id droplet_status droplet_ip < <(python3 - "$api_file" "$KNOWN_HOST" <<'PY'
+import json, sys
+path, known = sys.argv[1:]
+try:
+    data = json.load(open(path))
+except Exception:
+    print('', '', '')
+    raise SystemExit
+matches = []
+for d in data.get('droplets', []):
+    ips = [v.get('ip_address','') for v in d.get('networks',{}).get('v4',[]) if v.get('type') == 'public']
+    if known in ips or d.get('name') == '3dvr-agent':
+        matches.append((str(d.get('id','')), str(d.get('status','')), ips[0] if ips else ''))
+if matches:
+    print(*matches[0])
+else:
+    print('', '', '')
+PY
+              )
+              if [ -n "${droplet_id:-}" ]; then
+                api_matched=true
+                if [ -n "${droplet_ip:-}" ]; then resolved_host="$droplet_ip"; fi
+                if [ "${droplet_status:-}" = off ]; then
+                  action_code="$(curl -sS -o /tmp/do-power.json -w '%{http_code}' -X POST \
+                    -H "Authorization: Bearer $do_token" \
+                    -H 'Content-Type: application/json' \
+                    -d '{"type":"power_on"}' \
+                    "https://api.digitalocean.com/v2/droplets/$droplet_id/actions" || true)"
+                  if [ "$action_code" = 201 ]; then power_action=power_on; else power_action=failed; fi
+                  sleep 8
+                else
+                  power_action=already_active
+                fi
+              else
+                power_action=not_found
+              fi
+            else
+              power_action=api_unavailable
+            fi
+            rm -f "$api_file" /tmp/do-power.json
+          fi
+
+          echo "resolved_host=$resolved_host" >> "$GITHUB_OUTPUT"
+          echo "api_matched=$api_matched" >> "$GITHUB_OUTPUT"
+          echo "power_action=$power_action" >> "$GITHUB_OUTPUT"
+
+          if [ -n "$ssh_key" ]; then
+            umask 077
+            printf '%s\n' "$ssh_key" > /tmp/3dvr-do-key.raw
+            if grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-do-key.raw; then
+              cp /tmp/3dvr-do-key.raw /tmp/3dvr-do-key
+            elif base64 -d /tmp/3dvr-do-key.raw > /tmp/3dvr-do-key 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-do-key; then
+              :
+            else
+              rm -f /tmp/3dvr-do-key
+            fi
+            chmod 600 /tmp/3dvr-do-key 2>/dev/null || true
+            rm -f /tmp/3dvr-do-key.raw
+          fi
+
+      - name: Probe DigitalOcean host from GitHub network
+        id: probe
+        shell: bash
+        env:
+          TARGET: ${{ steps.resolve.outputs.resolved_host }}
+        run: |
+          set -euo pipefail
+          probe_port() {
+            local port="$1"
+            if timeout 4 bash -c "</dev/tcp/$TARGET/$port" 2>/dev/null; then echo true; else echo false; fi
+          }
+          echo "port22=$(probe_port 22)" >> "$GITHUB_OUTPUT"
+          echo "port80=$(probe_port 80)" >> "$GITHUB_OUTPUT"
+          echo "port443=$(probe_port 443)" >> "$GITHUB_OUTPUT"
+          echo "port4310=$(probe_port 4310)" >> "$GITHUB_OUTPUT"
+
+      - name: Recover dedicated preview worker and publish preview
+        id: ssh
+        if: steps.resolve.outputs.ssh_key_present == 'true' && steps.probe.outputs.port22 == 'true'
+        continue-on-error: true
+        shell: bash
+        env:
+          TARGET: ${{ steps.resolve.outputs.resolved_host }}
+        run: |
+          set -euo pipefail
+          [ -f /tmp/3dvr-do-key ] || { echo 'usable_key=false' >> "$GITHUB_OUTPUT"; exit 1; }
+          opts=(-i /tmp/3dvr-do-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+
+          if ! ssh "${opts[@]}" "root@$TARGET" 'printf "3dvr-do-ssh-ok\n"' >/tmp/ssh-proof.txt; then
+            echo 'authenticated=false' >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo 'authenticated=true' >> "$GITHUB_OUTPUT"
+
+          remote="$(cat <<'REMOTE'
+set -euo pipefail
+export PREVIEW_SHA='5b1af0ade4af5ca6395e8cf4bcfce47534c18c95'
+export PREVIEW_QUEUE_ALIAS='3dvr-preview'
+repo="$HOME/.cache/3dvr-preview-source"
+mkdir -p "$HOME/.cache"
+if [ ! -d "$repo/.git" ]; then
+  rm -rf "$repo"
+  git clone --filter=blob:none https://github.com/tmsteph/3dvr-portal.git "$repo"
+fi
+git -C "$repo" fetch --force origin main
+git -C "$repo" cat-file -e "$PREVIEW_SHA^{commit}"
+
+# Start an isolated preview-only queue worker. It does not restart the normal
+# 3DVR agent, inbox, outreach, OpenClaw, or supervisor stack.
+agent_root=''
+for candidate in /opt/3dvr-agent "$HOME/.3dvr/portal/apps/agent" "$repo/apps/agent"; do
+  if [ -f "$candidate/thomas-agent/node/agent-task-queue.js" ]; then
+    agent_root="$candidate"
+    break
+  fi
+done
+if [ -n "$agent_root" ]; then
+  if [ -f "$HOME/.3dvr/config/env" ]; then
+    set -a
+    . "$HOME/.3dvr/config/env"
+    set +a
+  fi
+  session='3dvr-preview-worker'
+  tmux kill-session -t "$session" 2>/dev/null || true
+  printf -v agent_q '%q' "$agent_root"
+  worker_cmd="export THREEDVR_AGENT_OWNER_ALIAS=3dvr-preview THREEDVR_AGENT_WORKER_CAPABILITIES=shell,static-hosting THREEDVR_AGENT_WORKER_RISK_CLASSES=read_only,workspace_write; cd $agent_q; exec node thomas-agent/node/agent-task-queue.js loop --backend shell --interval-seconds 10 --worker-capabilities shell,static-hosting --worker-risk-classes read_only,workspace_write"
+  if command -v tmux >/dev/null 2>&1; then
+    tmux new-session -d -s "$session" "$worker_cmd"
+  fi
+fi
+
+script="$repo/scripts/ops/start-machine-preview.sh"
+chmod +x "$script"
+"$script" "$repo" main "$PREVIEW_SHA" 4310
+REMOTE
+          )"
+          ssh "${opts[@]}" "root@$TARGET" "bash -s" <<<"$remote" | tee /tmp/preview-output.txt
+          preview_url="$(sed -n 's/^PREVIEW_URL=//p' /tmp/preview-output.txt | tail -n1)"
+          test -n "$preview_url"
+          echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
+          echo 'worker_recovered=true' >> "$GITHUB_OUTPUT"
+
+      - name: Verify public preview
+        id: verify
+        if: steps.ssh.outputs.preview_url != ''
+        continue-on-error: true
+        shell: bash
+        env:
+          PREVIEW_URL: ${{ steps.ssh.outputs.preview_url }}
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 8 --retry-delay 2 --retry-all-errors --connect-timeout 5 --max-time 10 \
+            "$PREVIEW_URL/__3dvr-preview" > /tmp/preview-health.json
+          python3 - /tmp/preview-health.json "$PREVIEW_SHA" <<'PY'
+import json, sys
+health = json.load(open(sys.argv[1]))
+assert health.get('ok') is True
+assert health.get('sha') == sys.argv[2], (health.get('sha'), sys.argv[2])
+PY
+          curl -fsS --retry 5 --retry-delay 1 --retry-all-errors "$PREVIEW_URL/" | grep -Fq 'home-operator.js'
+          curl -fsS --retry 5 --retry-delay 1 --retry-all-errors "$PREVIEW_URL/home-operator.js" | grep -Fq 'persistHistory'
+          status="$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$PREVIEW_URL/api/openai-site?provider=operator")"
+          [ "$status" = 204 ]
+
+      - name: Write sanitized recovery result
+        if: always()
+        shell: bash
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+          SSH_KEY_PRESENT: ${{ steps.resolve.outputs.ssh_key_present }}
+          DO_TOKEN_PRESENT: ${{ steps.resolve.outputs.do_token_present }}
+          API_MATCHED: ${{ steps.resolve.outputs.api_matched }}
+          POWER_ACTION: ${{ steps.resolve.outputs.power_action }}
+          PORT22: ${{ steps.probe.outputs.port22 }}
+          PORT80: ${{ steps.probe.outputs.port80 }}
+          PORT443: ${{ steps.probe.outputs.port443 }}
+          PORT4310: ${{ steps.probe.outputs.port4310 }}
+          SSH_AUTH: ${{ steps.ssh.outputs.authenticated }}
+          WORKER_RECOVERED: ${{ steps.ssh.outputs.worker_recovered }}
+          PREVIEW_URL: ${{ steps.ssh.outputs.preview_url }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >/tmp/recovery-result.json
+import json, os, datetime
+b = lambda k: os.environ.get(k, '').lower() == 'true'
+preview = os.environ.get('PREVIEW_URL', '')
+if preview and not preview.startswith('https://'):
+    preview = ''
+result = {
+    'checkedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    'doTokenPresent': b('DO_TOKEN_PRESENT'),
+    'sshKeyPresent': b('SSH_KEY_PRESENT'),
+    'apiMatchedKnownHost': b('API_MATCHED'),
+    'powerAction': os.environ.get('POWER_ACTION') or 'unavailable',
+    'port22': b('PORT22'),
+    'port80': b('PORT80'),
+    'port443': b('PORT443'),
+    'port4310': b('PORT4310'),
+    'sshAuthenticated': b('SSH_AUTH'),
+    'previewWorkerRecovered': b('WORKER_RECOVERED'),
+    'previewUrl': preview,
+    'previewVerified': os.environ.get('VERIFY_OUTCOME') == 'success',
+}
+print(json.dumps(result, indent=2))
+PY
+          content="$(base64 -w0 /tmp/recovery-result.json)"
+          current_sha="$(curl -fsS \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/do-host-recovery-result.json?ref=$BRANCH" \
+            | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("sha", ""))' 2>/dev/null || true)"
+          python3 - "$content" "$BRANCH" "$current_sha" <<'PY' >/tmp/put.json
+import json, sys
+content, branch, sha = sys.argv[1:]
+payload = {'message': 'Record DigitalOcean host recovery [recovery-result]', 'content': content, 'branch': branch}
+if sha:
+    payload['sha'] = sha
+print(json.dumps(payload))
+PY
+          curl -fsS -X PUT \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/do-host-recovery-result.json" \
+            --data-binary @/tmp/put.json >/dev/null
+
+          rm -f /tmp/3dvr-do-key /tmp/recovery-result.json /tmp/put.json /tmp/preview-output.txt /tmp/preview-health.json /tmp/ssh-proof.txt
