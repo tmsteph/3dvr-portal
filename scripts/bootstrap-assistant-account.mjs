@@ -1,3 +1,4 @@
+// One-off secure bootstrap for the 3DVR assistant service account.
 import { randomBytes, publicEncrypt } from 'node:crypto';
 import GunModule from 'gun';
 import 'gun/sea.js';
