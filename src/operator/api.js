@@ -1,5 +1,11 @@
 import { buildOperatorOwnerContext } from './context.js';
 import { resolveOperatorDeveloperAccess } from './developer-access.js';
+import {
+  buildOperatorDraftRequest,
+  DEFAULT_OPERATOR_DRAFT_GATEWAY_MODEL,
+  DEFAULT_OPERATOR_DRAFT_MODEL,
+  normalizeOperatorDraftAwareness
+} from './draft-awareness.js';
 
 export const DEFAULT_OPERATOR_MODEL = 'gpt-5.4-mini';
 export const DEFAULT_OPERATOR_GATEWAY_MODEL = 'openai/gpt-5.4-mini';
@@ -156,13 +162,36 @@ export function createOperatorHandler(options = {}) {
     const prompt = clean(req.body?.prompt, 2000);
     if (!prompt) return res.status(400).json({ error: 'Tell the operator what you need.' });
     try {
+      const useGateway = !apiKey && Boolean(gatewayToken);
+      const requestEndpoint = useGateway ? endpoint : 'https://api.openai.com/v1/responses';
+
+      if (req.body?.draft === true) {
+        const draftModel = options.draftModel
+          || process.env.OPENAI_OPERATOR_DRAFT_MODEL
+          || (useGateway ? DEFAULT_OPERATOR_DRAFT_GATEWAY_MODEL : DEFAULT_OPERATOR_DRAFT_MODEL);
+        const response = await fetchImpl(requestEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authorizationToken}` },
+          body: JSON.stringify(buildOperatorDraftRequest({
+            prompt,
+            history: req.body?.history,
+            draftSignals: req.body?.draftSignals,
+            previousDraftSummary: req.body?.previousDraftSummary,
+            model: draftModel
+          }))
+        });
+        if (!response.ok) return res.status(response.status).json({ error: await readUpstreamError(response) });
+        const raw = outputText(await response.json());
+        return res.status(200).json({
+          draftAwareness: normalizeOperatorDraftAwareness(JSON.parse(raw))
+        });
+      }
+
       const developerAuth = req.body?.developerAuth || req.body?.portalContext?.developerAuth || {};
       const developerAccess = await resolveOperatorDeveloperAccess(developerAuth, {
         config: options.config || process.env,
         expectedOrigin: requestOrigin(req)
       });
-      const useGateway = !apiKey && Boolean(gatewayToken);
-      const requestEndpoint = useGateway ? endpoint : 'https://api.openai.com/v1/responses';
       const model = options.model || process.env.OPENAI_OPERATOR_MODEL || (useGateway ? DEFAULT_OPERATOR_GATEWAY_MODEL : DEFAULT_OPERATOR_MODEL);
       const response = await fetchImpl(requestEndpoint, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authorizationToken}` },
