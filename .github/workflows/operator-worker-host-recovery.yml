@@ -212,3 +212,5 @@ PY
             -d "$payload"
           rm -f /tmp/key
           [ "$state" = success ]
+
+# recovery trigger 2026-08-24T01:30:00Z
