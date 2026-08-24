@@ -1,0 +1,2 @@
+2026-08-23T19:20:00-07:00
+Deploy the Portal and Operator Forge worker from the 3DVR DigitalOcean server, independent of Vercel.
