@@ -45,6 +45,11 @@ function isPrivateStaticPath(pathname) {
 
 function applyBaseHeaders(res, pathname = '') {
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  if (pathname === '/cache-reset.html' || pathname === '/api/cache-reset') {
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Clear-Site-Data', '"cache"');
+    return;
+  }
   if (pathname.endsWith('service-worker.js') || pathname.endsWith('pwa-install.js')) {
     res.setHeader('Cache-Control', 'no-cache');
   } else if (/\.(png|jpg|jpeg|gif|svg|webp|woff2?)$/i.test(pathname)) {
@@ -139,6 +144,8 @@ async function runOpenAiSite(req, res, url) {
 function rewriteForHost(url, host) {
   const hostname = String(host || '').split(':')[0].toLowerCase();
   if (url.pathname === '/api/cache-reset') return '/cache-reset.html';
+  if (url.pathname === '/crm.webmanifest' && hostname === 'crm.3dvr.tech') return '/crm/root.webmanifest';
+  if (['/video', '/video/', '/video/index.html'].includes(url.pathname)) return '/portal.3dvr.tech/video/index.html';
   if (url.pathname === '/' && hostname === 'crm.3dvr.tech') return '/crm/index.html';
   if (url.pathname === '/' && hostname === 'purpose.3dvr.tech') return '/purpose/index.html';
   if (url.pathname === '/' && hostname === 'growth.3dvr.tech') return '/growth-desk/index.html';
@@ -155,6 +162,12 @@ const server = createServer(async (req, res) => {
 
   if (url.pathname === '/__3dvr-health') {
     return json(res, 200, { ok: true, host: 'self', sha: RELEASE_SHA, ref: RELEASE_REF, operatorApi: 'native', apiFallback: 'none' });
+  }
+
+  if (url.pathname === '/api/cache-reset') {
+    res.statusCode = 307;
+    res.setHeader('Location', '/cache-reset.html');
+    return res.end();
   }
 
   if (url.pathname === '/api/openai-site') {
@@ -189,7 +202,14 @@ const server = createServer(async (req, res) => {
     const body = await readFile(found.path);
     res.statusCode = 200;
     res.setHeader('Content-Type', MIME_TYPES.get(extname(found.path).toLowerCase()) || 'application/octet-stream');
-    if (pathname.endsWith('service-worker.js')) res.setHeader('Service-Worker-Allowed', '/');
+    if (pathname.endsWith('service-worker.js')) {
+      const scope = pathname === '/contacts/service-worker.js'
+        ? '/contacts/'
+        : pathname === '/calendar/service-worker.js'
+          ? '/calendar/'
+          : '/';
+      res.setHeader('Service-Worker-Allowed', scope);
+    }
     res.end(req.method === 'HEAD' ? undefined : body);
   } catch (error) {
     json(res, 500, { error: error?.message || 'Failed to read file' });
