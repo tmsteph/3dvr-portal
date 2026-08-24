@@ -65,19 +65,7 @@ jobs:
           if [ -n "$do_token" ]; then
             http="$(curl -sS -o /tmp/droplets.json -w '%{http_code}' -H "Authorization: Bearer $do_token" 'https://api.digitalocean.com/v2/droplets?per_page=200' || true)"
             if [ "$http" = 200 ]; then
-              read -r id state ip < <(python3 - "$DEFAULT_HOST" <<'PY'
-import json,sys
-known=sys.argv[1]
-data=json.load(open('/tmp/droplets.json'))
-for d in data.get('droplets',[]):
-    ips=[n.get('ip_address','') for n in d.get('networks',{}).get('v4',[]) if n.get('type')=='public']
-    if known in ips or d.get('name')=='3dvr-agent':
-        print(d.get('id',''),d.get('status',''),ips[0] if ips else '')
-        break
-else:
-    print('','','')
-PY
-              )
+              read -r id state ip < <(python3 -c 'import json,sys; known=sys.argv[1]; data=json.load(open("/tmp/droplets.json")); matches=[d for d in data.get("droplets",[]) if known in [n.get("ip_address","") for n in d.get("networks",{}).get("v4",[]) if n.get("type")=="public"] or d.get("name")=="3dvr-agent"]; d=matches[0] if matches else {}; ips=[n.get("ip_address","") for n in d.get("networks",{}).get("v4",[]) if n.get("type")=="public"]; print(d.get("id",""),d.get("status",""),ips[0] if ips else "")' "$DEFAULT_HOST")
               if [ -n "${id:-}" ]; then
                 [ -n "${ip:-}" ] && target="$ip"
                 if [ "${state:-}" = off ]; then
@@ -125,7 +113,7 @@ PY
             [ -n "$TUNNEL_TOKEN" ] && printf 'THREEDVR_CLOUDFLARE_TUNNEL_TOKEN=%s\n' "$TUNNEL_TOKEN"
           } | ssh "${opts[@]}" "root@$TARGET" 'mkdir -p "$HOME/.3dvr/config"; chmod 700 "$HOME/.3dvr/config"; umask 077; cat > "$HOME/.3dvr/config/portal-secrets.env"'
 
-      - name: Deploy production release
+      - name: Deploy portal and Forge worker
         id: deploy
         shell: bash
         env:
@@ -153,7 +141,17 @@ PY
             . "$secrets_env"
             set +a
           fi
+
           bash "$source_repo/scripts/ops/deploy-self-host-portal.sh" "$source_repo" main "$DEPLOY_SHA" 4320
+
+          npm --prefix "$source_repo/apps/agent" ci
+          scripts="$source_repo/apps/agent/thomas-agent/scripts"
+          "$scripts/ask-agent-worker-daemon" stop || true
+          "$scripts/ask-agent-worker-daemon" start
+          "$scripts/ask-agent-worker-daemon" status
+
+          cd "$source_repo/apps/agent"
+          node thomas-agent/node/operator-forge-worker.js run-once --json
           REMOTE
           )"
           printf '%s\n' "$output"
@@ -170,14 +168,7 @@ PY
           set -euo pipefail
           if [[ "$URL" == https://*.trycloudflare.com ]]; then
             curl -fsS --retry 10 --retry-delay 2 --retry-all-errors "$URL/__3dvr-health" > /tmp/health.json
-            node - "$SHA" <<'NODE'
-          const fs = require('node:fs');
-          const expected = process.argv[2];
-          const health = JSON.parse(fs.readFileSync('/tmp/health.json','utf8'));
-          if (!health.ok || health.sha !== expected || health.operatorApi !== 'native') {
-            throw new Error(`self-host health mismatch: ${JSON.stringify(health)}`);
-          }
-          NODE
+            node -e 'const fs=require("node:fs"); const expected=process.argv[1]; const health=JSON.parse(fs.readFileSync("/tmp/health.json","utf8")); if(!health.ok||health.sha!==expected||health.operatorApi!=="native") throw new Error(`self-host health mismatch: ${JSON.stringify(health)}`)' "$SHA"
             curl -fsS --retry 5 --retry-delay 1 "$URL/operator/" | grep -Fq 'Message your operator'
             options="$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$URL/api/openai-site?provider=operator")"
             [ "$options" = 200 ]
@@ -205,7 +196,7 @@ PY
           target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           if [ "$DEPLOY_OUTCOME" = success ] && [ "$VERIFY_OUTCOME" = success ]; then
             state=success
-            description='3DVR portal deployed from our server'
+            description='3DVR portal and Forge worker deployed from our server'
             if [[ "$URL" == https://* ]]; then target_url="$URL"; fi
           fi
           payload="$(STATE="$state" DESCRIPTION="$description" TARGET_URL="$target_url" node -e 'process.stdout.write(JSON.stringify({state:process.env.STATE,context:"3DVR Self Host Production",description:process.env.DESCRIPTION,target_url:process.env.TARGET_URL}))')"
