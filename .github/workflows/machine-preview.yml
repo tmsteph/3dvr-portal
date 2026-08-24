@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   statuses: write
 
 concurrency:
@@ -15,190 +15,107 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MANAGED_OWNER_ALIAS: ${{ vars.THREEDVR_AGENT_TASK_OWNER_ALIAS || '3dvr-managed' }}
+  PREVIEW_HOST: preview.167.172.193.194.nip.io
+  PREVIEW_IP: 167.172.193.194
+  PREVIEW_POINTER: machine-host/current
 
 jobs:
   preview:
-    name: Publish machine preview
+    name: Publish stable server preview
     runs-on: ubuntu-latest
-    timeout-minutes: 8
-    defaults:
-      run:
-        working-directory: apps/agent
+    timeout-minutes: 4
 
     steps:
-      - name: Checkout preview ref
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.22.0
-          cache: npm
-          cache-dependency-path: apps/agent/package-lock.json
-
-      - name: Install queue client
-        run: npm ci
-
-      - name: Queue low-load preview on 3DVR machine
-        id: remote
+      - name: Point stable preview at this commit
         shell: bash
         env:
-          PREVIEW_REF: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
           PREVIEW_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
+          curl -fsS -X PATCH \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/git/refs/heads/$PREVIEW_POINTER" \
+            -d "{\"sha\":\"$PREVIEW_SHA\",\"force\":true}" >/dev/null
 
-          printf -v task 'root="$(git rev-parse --show-toplevel)"; git -C "$root" fetch --force origin %q; script="$(mktemp)"; git -C "$root" show %q:scripts/ops/start-machine-preview.sh > "$script"; chmod +x "$script"; "$script" "$root" %q %q 4310; rm -f "$script"' \
-            "$PREVIEW_REF" "$PREVIEW_SHA" "$PREVIEW_REF" "$PREVIEW_SHA"
+      - name: Verify stable preview from outside the server
+        id: verify
+        shell: bash
+        env:
+          PREVIEW_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          base="https://$PREVIEW_HOST"
+          resolve="--resolve $PREVIEW_HOST:443:$PREVIEW_IP"
+          health=''
 
-          run_queue() {
-            local alias="$1"
-            local result task_id status summary preview_url
+          for _ in $(seq 1 40); do
+            if health="$(curl -fsS $resolve --connect-timeout 5 --max-time 10 "$base/__3dvr-preview" 2>/dev/null)"; then
+              if HEALTH="$health" EXPECTED_SHA="$PREVIEW_SHA" python3 -c 'import json,os; h=json.loads(os.environ["HEALTH"]); raise SystemExit(0 if h.get("ok") is True and h.get("sha")==os.environ["EXPECTED_SHA"] else 1)'; then
+                break
+              fi
+            fi
+            health=''
+            sleep 3
+          done
 
-            echo "Trying preview queue: $alias"
-            result="$(THREEDVR_AGENT_OWNER_ALIAS="$alias" node thomas-agent/node/agent-task-queue.js enqueue \
-              --json \
-              --backend shell \
-              --risk workspace_write \
-              --approval-status approved \
-              --unsafe \
-              --requires shell \
-              --max-runtime-ms 180000 \
-              "$task")"
-
-            task_id="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task queue JSON payload missing');console.log(JSON.parse(s.slice(i)).id)})")"
-            echo "Queued task: $task_id"
-
-            for attempt in $(seq 1 24); do
-              result="$(THREEDVR_AGENT_OWNER_ALIAS="$alias" node thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
-              status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');console.log(JSON.parse(s.slice(i)).status||'')})")"
-              echo "Remote preview status: $status"
-
-              case "$status" in
-                completed)
-                  summary="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');process.stdout.write(JSON.parse(s.slice(i)).resultSummary||'')})")"
-                  printf '%s\n' "$summary"
-                  preview_url="$(printf '%s\n' "$summary" | sed -n 's/^PREVIEW_URL=//p' | head -n 1)"
-                  if [ -z "$preview_url" ]; then
-                    echo "Completed task did not return PREVIEW_URL." >&2
-                    return 1
-                  fi
-                  echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
-                  echo "queue_alias=$alias" >> "$GITHUB_OUTPUT"
-                  echo "task_id=$task_id" >> "$GITHUB_OUTPUT"
-                  return 0
-                  ;;
-                failed|skipped)
-                  printf '%s\n' "$result" >&2
-                  return 1
-                  ;;
-              esac
-              sleep 5
-            done
-
-            echo "Preview task timed out on queue $alias." >&2
-            return 1
-          }
-
-          if run_queue "$MANAGED_OWNER_ALIAS"; then
-            exit 0
+          if [ -z "$health" ]; then
+            echo "Stable preview did not become healthy for $PREVIEW_SHA" >&2
+            exit 1
           fi
 
-          echo "::warning::Managed queue did not publish the preview; trying the legacy German worker queue once."
-          run_queue 'anonymous@3dvr'
-
-      - name: Verify public preview from outside the machine
-        id: verify
-        if: steps.remote.outcome == 'success'
-        shell: bash
-        env:
-          PREVIEW_URL: ${{ steps.remote.outputs.preview_url }}
-          PREVIEW_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          [ -n "$PREVIEW_URL" ]
-
-          curl -fsS \
-            --retry 10 \
-            --retry-delay 2 \
-            --retry-all-errors \
-            --connect-timeout 5 \
-            --max-time 10 \
-            "$PREVIEW_URL/__3dvr-preview" > /tmp/3dvr-preview-health.json
-
-          HEALTH_FILE=/tmp/3dvr-preview-health.json EXPECTED_SHA="$PREVIEW_SHA" node - <<'NODE'
-          const { readFileSync } = require('node:fs');
-          const health = JSON.parse(readFileSync(process.env.HEALTH_FILE, 'utf8'));
-          if (!health.ok || health.sha !== process.env.EXPECTED_SHA) {
-            throw new Error(`Preview health mismatch: expected ${process.env.EXPECTED_SHA}, got ${health.sha || 'none'}`);
-          }
-          NODE
-
-          curl -fsS \
-            --retry 5 \
-            --retry-delay 1 \
-            --retry-all-errors \
-            --connect-timeout 5 \
-            --max-time 10 \
-            "$PREVIEW_URL/" > /tmp/3dvr-preview-home.html
-          grep -Fq 'home-operator.js' /tmp/3dvr-preview-home.html
-
-          curl -fsS \
-            --retry 5 \
-            --retry-delay 1 \
-            --retry-all-errors \
-            --connect-timeout 5 \
-            --max-time 10 \
-            "$PREVIEW_URL/home-operator.js" > /dev/null
-
-          operator_options_status="$(curl -sS -o /dev/null -w '%{http_code}' \
-            --connect-timeout 5 \
-            --max-time 10 \
-            -X OPTIONS \
-            "$PREVIEW_URL/api/openai-site?provider=operator")"
-          [ "$operator_options_status" = '204' ]
+          printf '%s\n' "$health"
+          curl -fsS $resolve --connect-timeout 5 --max-time 10 "$base/guide/" | grep -Fq '3DVR Guide'
+          echo "preview_url=$base/guide/" >> "$GITHUB_OUTPUT"
 
       - name: Publish preview status
         if: always()
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          PREVIEW_URL: ${{ steps.remote.outputs.preview_url }}
-          REMOTE_OUTCOME: ${{ steps.remote.outcome }}
-          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
           PREVIEW_SHA: ${{ github.sha }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          PREVIEW_URL: ${{ steps.verify.outputs.preview_url }}
         run: |
           set -euo pipefail
           state=failure
-          description='3DVR machine preview failed'
-          target_url=''
-          if [ "$REMOTE_OUTCOME" = success ] && [ "$VERIFY_OUTCOME" = success ] && [ -n "$PREVIEW_URL" ]; then
+          description='3DVR server preview failed'
+          target_url="https://$PREVIEW_HOST/guide/"
+
+          if [ "$VERIFY_OUTCOME" = success ]; then
             state=success
-            description='3DVR machine preview ready and externally verified'
-            target_url="$PREVIEW_URL"
-          elif [ "$REMOTE_OUTCOME" = success ]; then
-            description='3DVR machine preview tunnel failed external verification'
+            description='3DVR server preview ready'
           fi
 
-          payload="$(STATE="$state" DESCRIPTION="$description" TARGET_URL="$target_url" node -e 'const p={state:process.env.STATE,context:"3DVR Machine Preview",description:process.env.DESCRIPTION};if(process.env.TARGET_URL)p.target_url=process.env.TARGET_URL;process.stdout.write(JSON.stringify(p))')"
+          payload="$(STATE="$state" DESCRIPTION="$description" TARGET_URL="$target_url" python3 - <<'PY'
+import json, os
+print(json.dumps({
+  'state': os.environ['STATE'],
+  'context': '3DVR Machine Preview',
+  'description': os.environ['DESCRIPTION'],
+  'target_url': os.environ['TARGET_URL'],
+}))
+PY
+)"
+
           curl -fsS -X POST \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H 'Accept: application/vnd.github+json' \
             -H 'X-GitHub-Api-Version: 2022-11-28' \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$PREVIEW_SHA" \
-            -d "$payload"
+            -d "$payload" >/dev/null
 
           if [ "$state" = success ]; then
             {
               echo '## 3DVR Machine Preview'
               echo
-              echo "Preview: $PREVIEW_URL"
+              echo "Preview: $target_url"
               echo
               echo "Ref: $GITHUB_REF_NAME"
               echo "SHA: $PREVIEW_SHA"
-              echo "Queue: ${{ steps.remote.outputs.queue_alias }}"
-              echo 'Verification: external health + homepage + Operator route'
+              echo 'Host: stable 3DVR server preview'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
