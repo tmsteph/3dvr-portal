@@ -1,6 +1,6 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createOAuthProviderHandler } from '../api/oauth/[provider].js';
@@ -31,18 +31,6 @@ function createMockRes() {
       this.headers[key] = value;
     },
   };
-}
-
-async function listApiFiles(dir) {
-  const entries = await readdir(dir, { withFileTypes: true });
-  const files = await Promise.all(entries.map(async entry => {
-    const nextPath = resolve(dir, entry.name);
-    if (entry.isDirectory()) {
-      return listApiFiles(nextPath);
-    }
-    return entry.isFile() ? [nextPath] : [];
-  }));
-  return files.flat();
 }
 
 describe('oauth provider api', () => {
@@ -258,13 +246,9 @@ describe('oauth provider api', () => {
     assert.match(res.body.error, /does not expose contacts import/i);
   });
 
-  it('keeps the portal Vercel deployment within the Hobby serverless function ceiling after adding OAuth', async () => {
-    const apiFiles = await listApiFiles(resolve(projectRoot, 'api'));
-    const jsApiFiles = apiFiles.filter(filePath => filePath.endsWith('.js'));
+  it('keeps automatic Vercel Git deployment disabled during the self-host migration', async () => {
+    const vercelConfig = JSON.parse(await readFile(resolve(projectRoot, 'vercel.json'), 'utf8'));
 
-    assert.equal(jsApiFiles.length <= 12, true, `Expected at most 12 API functions, found ${jsApiFiles.length}`);
-    assert.equal(jsApiFiles.some(filePath => filePath.endsWith('/oauth/[provider].js')), true);
-    assert.equal(jsApiFiles.some(filePath => filePath.endsWith('/stripe/checkout.js')), false);
-    assert.equal(jsApiFiles.some(filePath => filePath.endsWith('/stripe/status.js')), false);
+    assert.equal(vercelConfig?.git?.deploymentEnabled, false);
   });
 });
