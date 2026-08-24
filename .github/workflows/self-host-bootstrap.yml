@@ -1,0 +1,102 @@
+name: Bootstrap Self-Hosted 3DVR Portal
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ops/self-host-bootstrap-trigger.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: 3dvr-self-host-bootstrap
+  cancel-in-progress: true
+
+env:
+  HOST: 167.172.193.194
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - name: Generate one-time SSH key
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keygen -q -t ed25519 -N '' -C '3dvr-portal-ephemeral-bootstrap' -f /tmp/3dvr-ephemeral
+          chmod 600 /tmp/3dvr-ephemeral
+          pub="$(cut -d' ' -f1-2 /tmp/3dvr-ephemeral.pub)"
+          echo "public_key=$pub" >> "$GITHUB_OUTPUT"
+          payload="$(STATE=pending DESCRIPTION="$pub" TARGET_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" node -e 'process.stdout.write(JSON.stringify({state:process.env.STATE,context:"3DVR Bootstrap Key",description:process.env.DESCRIPTION,target_url:process.env.TARGET_URL}))')"
+          curl -fsS -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -d "$payload" >/dev/null
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Wait for one-time key authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/3dvr-ephemeral -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5)
+          for attempt in $(seq 1 120); do
+            if ssh "${opts[@]}" "root@$HOST" 'true' >/dev/null 2>&1; then
+              echo 'Ephemeral bootstrap key authorized.'
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'Timed out waiting for the one-time SSH public key to be authorized.' >&2
+          exit 1
+
+      - name: Deploy Portal and Forge worker
+        id: deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/3dvr-ephemeral -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+          remote='set -euo pipefail; repo="$HOME/.3dvr/self-host-portal/source"; mkdir -p "$(dirname "$repo")"; if [ ! -d "$repo/.git" ]; then rm -rf "$repo"; git clone --branch main "https://github.com/tmsteph/3dvr-portal.git" "$repo"; fi; if [ -z "$(git -C "$repo" status --porcelain)" ]; then git -C "$repo" fetch --prune origin main; git -C "$repo" checkout main; git -C "$repo" reset --hard origin/main; else echo "Preserving existing live Forge edits; checkout is dirty."; fi; npm --prefix "$repo/apps/agent" ci; chmod +x "$repo/scripts/ops/start-self-hosted-portal.sh"; "$repo/scripts/ops/start-self-hosted-portal.sh" "$repo" 4310'
+          printf -v remote_q '%q' "$remote"
+          ssh "${opts[@]}" "root@$HOST" "bash -lc $remote_q" | tee /tmp/self-host-bootstrap.out
+          url="$(sed -n 's/^SELF_HOST_URL=//p' /tmp/self-host-bootstrap.out | tail -n1)"
+          test -n "$url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Verify self-hosted Portal
+        id: verify
+        shell: bash
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 10 --retry-delay 2 --retry-all-errors "$URL/__3dvr-preview" | grep -Fq '"ok":true'
+          curl -fsS --retry 5 --retry-delay 1 --retry-all-errors "$URL/operator/" | grep -Fq 'Message your operator'
+          status="$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$URL/api/openai-site?provider=operator")"
+          [ "$status" = 204 ]
+
+      - name: Publish final bootstrap status
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          URL: ${{ steps.deploy.outputs.url }}
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+        run: |
+          set -euo pipefail
+          state=failure
+          description='Self-host bootstrap did not complete'
+          target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ "$DEPLOY_OUTCOME" = success ] && [ "$VERIFY_OUTCOME" = success ] && [ -n "$URL" ]; then
+            state=success
+            description='Portal + Forge live on 3DVR server'
+            target_url="$URL"
+          fi
+          payload="$(STATE="$state" DESCRIPTION="$description" TARGET_URL="$target_url" node -e 'process.stdout.write(JSON.stringify({state:process.env.STATE,context:"3DVR Self-Hosted Portal",description:process.env.DESCRIPTION,target_url:process.env.TARGET_URL}))')"
+          curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -d "$payload" >/dev/null
+          rm -f /tmp/3dvr-ephemeral /tmp/3dvr-ephemeral.pub /tmp/self-host-bootstrap.out
+          [ "$state" = success ]
