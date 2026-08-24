@@ -123,7 +123,7 @@ function renderQuestion() {
   refs.questionAnswer.value = state.answers[key] || '';
   refs.questionStatus.textContent = '';
   refs.next.textContent = state.step === 1 ? 'Show me what to do' : 'Continue';
-  refs.back.textContent = state.step === 0 ? 'Back' : 'Back';
+  refs.back.textContent = 'Back';
 
   const answers = getNextMoveAnswers(state.mode, key).length
     ? getNextMoveAnswers(state.mode, key)
@@ -133,9 +133,19 @@ function renderQuestion() {
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = answer;
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
+      const key = questionKeys[state.step];
+      state.answers[key] = answer;
       refs.questionAnswer.value = answer;
-      refs.questionAnswer.focus();
+      persist();
+
+      if (state.step === 0) {
+        state.step = 1;
+        renderQuestion();
+        return;
+      }
+
+      await finish();
     });
     return button;
   }));
@@ -213,6 +223,7 @@ async function finish() {
   const snapshot = buildSnapshot();
   refs.questionStatus.textContent = 'Thinking…';
   refs.next.disabled = true;
+  refs.answerChips.querySelectorAll('button').forEach(button => { button.disabled = true; });
 
   try {
     const guidance = await requestGuidance(snapshot);
@@ -225,6 +236,7 @@ async function finish() {
     renderResult(snapshot, createFallbackGuidance(snapshot), 'Using the simple offline version.');
   } finally {
     refs.next.disabled = false;
+    refs.answerChips.querySelectorAll('button').forEach(button => { button.disabled = false; });
   }
 }
 
@@ -274,7 +286,7 @@ refs.startForm.addEventListener('submit', event => {
 document.querySelectorAll('[data-preset]').forEach(button => {
   button.addEventListener('click', () => {
     refs.stuck.value = button.dataset.preset;
-    refs.stuck.focus();
+    refs.startForm.requestSubmit();
   });
 });
 
