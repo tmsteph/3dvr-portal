@@ -1,2 +1,2 @@
-2026-08-23T19:24:00-07:00
-Run the simple DigitalOcean self-host deployment for Portal and Forge.
+2026-08-23T19:27:00-07:00
+Deploy Portal and Operator Forge from the 3DVR DigitalOcean server now that the self-host workflow is on main.
