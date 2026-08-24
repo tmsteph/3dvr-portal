@@ -7,6 +7,7 @@ import {
 
 const STORAGE_KEY = '3dvr.guide.session.v2';
 const questionKeys = ['desired', 'constraint'];
+const mobileViewport = window.matchMedia('(max-width: 620px)');
 
 const refs = {
   startView: document.querySelector('[data-start-view]'),
@@ -99,13 +100,36 @@ function clearSaved() {
   try { localStorage.removeItem(STORAGE_KEY); } catch {}
 }
 
-function show(view) {
+function scrollViewIntoPlace(target) {
+  if (!mobileViewport.matches || !target) return;
+  requestAnimationFrame(() => {
+    target.scrollIntoView({ block: 'start', behavior: 'auto' });
+  });
+}
+
+function show(view, { scroll = true } = {}) {
   refs.startView.hidden = view !== 'start';
   refs.questionView.hidden = view !== 'question';
   refs.resultView.hidden = view !== 'result';
+  document.body.dataset.guideView = view;
+
+  if (!scroll) return;
+  const target = view === 'question'
+    ? refs.questionView
+    : view === 'result'
+      ? refs.resultView
+      : refs.startView;
+  scrollViewIntoPlace(target);
 }
 
-function renderQuestion() {
+function beginGuide(initial, { focusInput = true } = {}) {
+  state = freshState();
+  state.initial = initial;
+  state.mode = inferMode(initial);
+  renderQuestion({ focusInput });
+}
+
+function renderQuestion({ focusInput = true } = {}) {
   const key = questionKeys[state.step];
   const question = getNextMoveQuestions(state.mode)?.[key]
     || getNextMoveQuestions('general')?.[key];
@@ -134,14 +158,15 @@ function renderQuestion() {
     button.type = 'button';
     button.textContent = answer;
     button.addEventListener('click', async () => {
-      const key = questionKeys[state.step];
-      state.answers[key] = answer;
+      const answerKey = questionKeys[state.step];
+      state.answers[answerKey] = answer;
       refs.questionAnswer.value = answer;
+      refs.questionAnswer.blur();
       persist();
 
       if (state.step === 0) {
         state.step = 1;
-        renderQuestion();
+        renderQuestion({ focusInput: false });
         return;
       }
 
@@ -151,7 +176,11 @@ function renderQuestion() {
   }));
 
   persist();
-  refs.questionAnswer.focus();
+  if (focusInput) {
+    requestAnimationFrame(() => refs.questionAnswer.focus({ preventScroll: true }));
+  } else {
+    refs.questionAnswer.blur();
+  }
 }
 
 function buildSnapshot() {
@@ -203,6 +232,7 @@ function escapeHtml(value = '') {
 function renderResult(snapshot, guidance, message = '') {
   state.snapshot = snapshot;
   state.guidance = guidance;
+  refs.questionAnswer.blur();
   show('result');
 
   refs.resultTitle.textContent = guidance.recommendation.title;
@@ -215,12 +245,13 @@ function renderResult(snapshot, guidance, message = '') {
   refs.pathList.replaceChildren(...alternatives.map(createPathCard));
   refs.generatedOutput.hidden = true;
   refs.resultStatus.textContent = message;
-  refs.resultTitle.focus();
+  refs.resultTitle.focus({ preventScroll: true });
   clearSaved();
 }
 
 async function finish() {
   const snapshot = buildSnapshot();
+  refs.questionAnswer.blur();
   refs.questionStatus.textContent = 'Thinking…';
   refs.next.disabled = true;
   refs.answerChips.querySelectorAll('button').forEach(button => { button.disabled = true; });
@@ -277,16 +308,15 @@ refs.startForm.addEventListener('submit', event => {
   event.preventDefault();
   const initial = clean(refs.stuck.value);
   if (!initial) return;
-  state = freshState();
-  state.initial = initial;
-  state.mode = inferMode(initial);
-  renderQuestion();
+  beginGuide(initial, { focusInput: true });
 });
 
 document.querySelectorAll('[data-preset]').forEach(button => {
   button.addEventListener('click', () => {
-    refs.stuck.value = button.dataset.preset;
-    refs.startForm.requestSubmit();
+    const initial = clean(button.dataset.preset);
+    refs.stuck.value = initial;
+    refs.stuck.blur();
+    beginGuide(initial, { focusInput: false });
   });
 });
 
@@ -300,7 +330,7 @@ refs.questionForm.addEventListener('submit', async event => {
 
   if (state.step === 0) {
     state.step = 1;
-    renderQuestion();
+    renderQuestion({ focusInput: true });
     return;
   }
 
@@ -310,15 +340,15 @@ refs.questionForm.addEventListener('submit', async event => {
 refs.back.addEventListener('click', () => {
   const key = questionKeys[state.step];
   state.answers[key] = clean(refs.questionAnswer.value);
+  refs.questionAnswer.blur();
   if (state.step === 0) {
     refs.stuck.value = state.initial;
     show('start');
-    refs.stuck.focus();
     persist();
     return;
   }
   state.step = 0;
-  renderQuestion();
+  renderQuestion({ focusInput: false });
 });
 
 document.querySelectorAll('[data-tool]').forEach(button => {
@@ -334,7 +364,7 @@ document.querySelector('[data-copy-generated]').addEventListener('click', () => 
 
 document.querySelector('[data-edit]').addEventListener('click', () => {
   state.step = 0;
-  renderQuestion();
+  renderQuestion({ focusInput: false });
 });
 
 document.querySelector('[data-start-over]').addEventListener('click', () => {
@@ -342,10 +372,9 @@ document.querySelector('[data-start-over]').addEventListener('click', () => {
   clearSaved();
   refs.stuck.value = '';
   show('start');
-  refs.stuck.focus();
 });
 
 if (restore()) {
   refs.startStatus.textContent = 'You have an unfinished answer here.';
 }
-show('start');
+show('start', { scroll: false });
