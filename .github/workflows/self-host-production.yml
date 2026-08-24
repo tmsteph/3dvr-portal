@@ -36,7 +36,9 @@ jobs:
           set -euo pipefail
           npm ci
           node --check scripts/self-host-server.mjs
+          node --check scripts/self-host-api-router.mjs
           bash -n scripts/ops/deploy-self-host-portal.sh
+          bash -n scripts/ops/install-self-host-crons.sh
           node --test tests/operator-developer-access.test.js
 
       - name: Resolve server credentials and host
@@ -65,7 +67,7 @@ jobs:
           if [ -n "$do_token" ]; then
             http="$(curl -sS -o /tmp/droplets.json -w '%{http_code}' -H "Authorization: Bearer $do_token" 'https://api.digitalocean.com/v2/droplets?per_page=200' || true)"
             if [ "$http" = 200 ]; then
-              read -r id state ip < <(python3 -c 'import json,sys; known=sys.argv[1]; data=json.load(open("/tmp/droplets.json")); matches=[d for d in data.get("droplets",[]) if known in [n.get("ip_address","") for n in d.get("networks",{}).get("v4",[]) if n.get("type")=="public"] or d.get("name")=="3dvr-agent"]; d=matches[0] if matches else {}; ips=[n.get("ip_address","") for n in d.get("networks",{}).get("v4",[]) if n.get("type")=="public"]; print(d.get("id",""),d.get("status",""),ips[0] if ips else "")' "$DEFAULT_HOST")
+              read -r id state ip < <(python3 -c 'import json,sys; known=sys.argv[1]; data=json.load(open("/tmp/droplets.json")); matches=[d for d in data.get("droplets",[]) if known in [n.get("ip_address","") for n in d.get("networks",{}).get("v4",[]) if n.get("type")=="public"] or d.get("name") in ("3dvr-agent","debian-web")]; d=matches[0] if matches else {}; ips=[n.get("ip_address","") for n in d.get("networks",{}).get("v4",[]) if n.get("type")=="public"]; print(d.get("id",""),d.get("status",""),ips[0] if ips else "")' "$DEFAULT_HOST")
               if [ -n "${id:-}" ]; then
                 [ -n "${ip:-}" ] && target="$ip"
                 if [ "${state:-}" = off ]; then
@@ -103,13 +105,33 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
           TUNNEL_TOKEN: ${{ secrets.THREEDVR_CLOUDFLARE_TUNNEL_TOKEN }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          STRIPE_PRICE_STARTER_ID: ${{ secrets.STRIPE_PRICE_STARTER_ID }}
+          STRIPE_PRICE_PRO_ID: ${{ secrets.STRIPE_PRICE_PRO_ID }}
+          STRIPE_PRICE_BUILDER_ID: ${{ secrets.STRIPE_PRICE_BUILDER_ID }}
+          STRIPE_PRICE_EMBEDDED_ID: ${{ secrets.STRIPE_PRICE_EMBEDDED_ID }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          MICROSOFT_OAUTH_CLIENT_ID: ${{ secrets.MICROSOFT_OAUTH_CLIENT_ID }}
+          MICROSOFT_OAUTH_CLIENT_SECRET: ${{ secrets.MICROSOFT_OAUTH_CLIENT_SECRET }}
+          MICROSOFT_OAUTH_TENANT: ${{ secrets.MICROSOFT_OAUTH_TENANT }}
+          APPLE_OAUTH_CLIENT_ID: ${{ secrets.APPLE_OAUTH_CLIENT_ID }}
+          APPLE_OAUTH_TEAM_ID: ${{ secrets.APPLE_OAUTH_TEAM_ID }}
+          APPLE_OAUTH_KEY_ID: ${{ secrets.APPLE_OAUTH_KEY_ID }}
+          APPLE_OAUTH_PRIVATE_KEY: ${{ secrets.APPLE_OAUTH_PRIVATE_KEY }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           set -euo pipefail
           opts=(-i /tmp/3dvr-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
           [ -n "$OPENAI_API_KEY" ] || [ -n "$AI_GATEWAY_API_KEY" ] || { echo 'No OpenAI or AI Gateway API key is configured for Operator.' >&2; exit 1; }
           {
-            [ -n "$OPENAI_API_KEY" ] && printf 'OPENAI_API_KEY=%s\n' "$OPENAI_API_KEY"
-            [ -n "$AI_GATEWAY_API_KEY" ] && printf 'AI_GATEWAY_API_KEY=%s\n' "$AI_GATEWAY_API_KEY"
+            for key in OPENAI_API_KEY AI_GATEWAY_API_KEY STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET STRIPE_PRICE_STARTER_ID STRIPE_PRICE_PRO_ID STRIPE_PRICE_BUILDER_ID STRIPE_PRICE_EMBEDDED_ID GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET MICROSOFT_OAUTH_CLIENT_ID MICROSOFT_OAUTH_CLIENT_SECRET MICROSOFT_OAUTH_TENANT APPLE_OAUTH_CLIENT_ID APPLE_OAUTH_TEAM_ID APPLE_OAUTH_KEY_ID APPLE_OAUTH_PRIVATE_KEY GMAIL_USER GMAIL_APP_PASSWORD CRON_SECRET; do
+              value="${!key:-}"
+              [ -n "$value" ] && printf '%s=%s\n' "$key" "$value"
+            done
             [ -n "$TUNNEL_TOKEN" ] && printf 'THREEDVR_CLOUDFLARE_TUNNEL_TOKEN=%s\n' "$TUNNEL_TOKEN"
           } | ssh "${opts[@]}" "root@$TARGET" 'mkdir -p "$HOME/.3dvr/config"; chmod 700 "$HOME/.3dvr/config"; umask 077; cat > "$HOME/.3dvr/config/portal-secrets.env"'
 
@@ -143,6 +165,7 @@ jobs:
           fi
 
           bash "$source_repo/scripts/ops/deploy-self-host-portal.sh" "$source_repo" main "$DEPLOY_SHA" 4320
+          bash "$source_repo/scripts/ops/install-self-host-crons.sh"
 
           npm --prefix "$source_repo/apps/agent" ci
           scripts="$source_repo/apps/agent/thomas-agent/scripts"
@@ -168,7 +191,7 @@ jobs:
           set -euo pipefail
           if [[ "$URL" == https://*.trycloudflare.com ]]; then
             curl -fsS --retry 10 --retry-delay 2 --retry-all-errors "$URL/__3dvr-health" > /tmp/health.json
-            node -e 'const fs=require("node:fs"); const expected=process.argv[1]; const health=JSON.parse(fs.readFileSync("/tmp/health.json","utf8")); if(!health.ok||health.sha!==expected||health.operatorApi!=="native") throw new Error(`self-host health mismatch: ${JSON.stringify(health)}`)' "$SHA"
+            node -e 'const fs=require("node:fs"); const expected=process.argv[1]; const health=JSON.parse(fs.readFileSync("/tmp/health.json","utf8")); if(!health.ok||health.sha!==expected||health.operatorApi!=="native"||health.apiFallback!=="none") throw new Error(`self-host health mismatch: ${JSON.stringify(health)}`)' "$SHA"
             curl -fsS --retry 5 --retry-delay 1 "$URL/operator/" | grep -Fq 'Message your operator'
             options="$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$URL/api/openai-site?provider=operator")"
             [ "$options" = 200 ]
