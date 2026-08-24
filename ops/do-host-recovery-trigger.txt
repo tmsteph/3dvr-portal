@@ -1,2 +1,2 @@
-2026-08-24T02:16:00Z
-Reason: restore the stable 3DVR server preview host for Guide iteration without using Vercel previews.
+2026-08-24T18:53:00Z
+Reason: live out-of-band recovery probe for 3DVR server access after last night's Operator/Forge worker outage; verify DigitalOcean power state, public ports, SSH credential availability, and preview worker recovery without relying on Vercel.
