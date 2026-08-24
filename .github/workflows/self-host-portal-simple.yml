@@ -1,9 +1,9 @@
-name: Self-host 3DVR Portal Simple
+name: Self-host 3DVR Portal
 
 on:
   push:
     branches:
-      - 'deploy/self-host-portal-v2'
+      - main
     paths:
       - 'ops/self-host-deploy-simple-trigger.txt'
   workflow_dispatch:
@@ -13,12 +13,12 @@ permissions:
   statuses: write
 
 concurrency:
-  group: 3dvr-self-host-portal-simple
+  group: 3dvr-self-host-portal
   cancel-in-progress: true
 
 env:
   HOST: 167.172.193.194
-  DEPLOY_REF: deploy/self-host-portal-v2
+  DEPLOY_REF: main
 
 jobs:
   deploy:
