@@ -119,12 +119,11 @@ PY
           set -euo pipefail
           opts=(-i /tmp/3dvr-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
           [ -n "$OPENAI_API_KEY" ] || [ -n "$AI_GATEWAY_API_KEY" ] || { echo 'No OpenAI or AI Gateway API key is configured for Operator.' >&2; exit 1; }
-          ssh "${opts[@]}" "root@$TARGET" 'mkdir -p "$HOME/.3dvr/config"; chmod 700 "$HOME/.3dvr/config"; umask 077; cat > "$HOME/.3dvr/config/portal-secrets.env"'
           {
             [ -n "$OPENAI_API_KEY" ] && printf 'OPENAI_API_KEY=%s\n' "$OPENAI_API_KEY"
             [ -n "$AI_GATEWAY_API_KEY" ] && printf 'AI_GATEWAY_API_KEY=%s\n' "$AI_GATEWAY_API_KEY"
             [ -n "$TUNNEL_TOKEN" ] && printf 'THREEDVR_CLOUDFLARE_TUNNEL_TOKEN=%s\n' "$TUNNEL_TOKEN"
-          } | ssh "${opts[@]}" "root@$TARGET" 'umask 077; cat > "$HOME/.3dvr/config/portal-secrets.env"'
+          } | ssh "${opts[@]}" "root@$TARGET" 'mkdir -p "$HOME/.3dvr/config"; chmod 700 "$HOME/.3dvr/config"; umask 077; cat > "$HOME/.3dvr/config/portal-secrets.env"'
 
       - name: Deploy production release
         id: deploy
@@ -147,7 +146,6 @@ PY
           git -C "$source_repo" checkout --detach "$DEPLOY_SHA"
 
           config_dir="$HOME/.3dvr/config"
-          portal_env="$config_dir/portal.env"
           secrets_env="$config_dir/portal-secrets.env"
           mkdir -p "$config_dir"
           if [ -f "$secrets_env" ]; then
@@ -183,6 +181,8 @@ PY
             curl -fsS --retry 5 --retry-delay 1 "$URL/operator/" | grep -Fq 'Message your operator'
             options="$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$URL/api/openai-site?provider=operator")"
             [ "$options" = 200 ]
+            private_status="$(curl -sS -o /dev/null -w '%{http_code}' "$URL/package.json")"
+            [ "$private_status" = 404 ]
           elif [ "$URL" = named-cloudflare-tunnel ]; then
             echo 'Named Cloudflare tunnel started; domain verification is handled after DNS/tunnel binding.'
           else
