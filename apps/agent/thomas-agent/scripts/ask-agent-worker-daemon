@@ -19,6 +19,7 @@ TMUX_SESSION="${THREEDVR_AGENT_WORKER_TMUX_SESSION:-3dvr-worker}"
 INTERVAL_SECONDS="${THREEDVR_AGENT_WORKER_INTERVAL_SECONDS:-20}"
 ROUTER_DAEMON="$SCRIPT_DIR/ask-context-task-router-daemon"
 SUPERVISOR_DAEMON="$SCRIPT_DIR/ask-agent-supervisor-daemon"
+OPERATOR_FORGE_WORKER="$ROOT/node/operator-forge-worker.js"
 
 mkdir -p "$STATE_DIR"
 
@@ -45,7 +46,7 @@ case "${1:-}" in
     # selected 3DVR config inside the session so the managed worker always uses
     # the current owner alias, queue settings, and backend configuration.
     printf -v config_file_q '%q' "$CONFIG_FILE"
-    worker_loop="unset THREEDVR_ENV_LOADED; export THREEDVR_CONFIG_FILE=$config_file_q; if [ -f \"\$THREEDVR_CONFIG_FILE\" ]; then set -a; . \"\$THREEDVR_CONFIG_FILE\"; set +a; fi; cd \"$ROOT\" && while true; do \"$SCRIPT_DIR/ask-agent-queue\" run-once >>\"$LOG_FILE\" 2>&1; sleep \"$INTERVAL_SECONDS\"; done"
+    worker_loop="unset THREEDVR_ENV_LOADED; export THREEDVR_CONFIG_FILE=$config_file_q; if [ -f \"\$THREEDVR_CONFIG_FILE\" ]; then set -a; . \"\$THREEDVR_CONFIG_FILE\"; set +a; fi; cd \"$ROOT\" && while true; do \"$SCRIPT_DIR/ask-agent-queue\" run-once >>\"$LOG_FILE\" 2>&1; node \"$OPERATOR_FORGE_WORKER\" run-once >>\"$LOG_FILE\" 2>&1; sleep \"$INTERVAL_SECONDS\"; done"
     if command -v tmux >/dev/null 2>&1; then
       tmux new-session -d -s "$TMUX_SESSION" "$worker_loop"
       echo "Started agent worker in tmux session $TMUX_SESSION. Log: $LOG_FILE"
@@ -97,7 +98,8 @@ case "${1:-}" in
     exit "$status"
     ;;
   run-once)
-    exec "$SCRIPT_DIR/ask-agent-queue" run-once "${@:2}"
+    "$SCRIPT_DIR/ask-agent-queue" run-once "${@:2}"
+    node "$OPERATOR_FORGE_WORKER" run-once
     ;;
   logs)
     tail -n 40 "$LOG_FILE"
