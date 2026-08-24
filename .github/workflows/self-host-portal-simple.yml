@@ -1,0 +1,111 @@
+name: Self-host 3DVR Portal
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ops/self-host-deploy-simple-trigger.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: 3dvr-self-host-portal
+  cancel-in-progress: true
+
+env:
+  HOST: 167.172.193.194
+  DEPLOY_REF: main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Resolve SSH key
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          key=''
+          for candidate in "$SSH_A" "$SSH_B" "$SSH_C"; do
+            if [ -z "$key" ] && [ -n "$candidate" ]; then key="$candidate"; fi
+          done
+          if [ -z "$key" ]; then echo 'No 3DVR server SSH key is configured.' >&2; exit 1; fi
+          umask 077
+          printf '%s\n' "$key" > /tmp/3dvr-key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-key.raw; then
+            cp /tmp/3dvr-key.raw /tmp/3dvr-key
+          elif base64 -d /tmp/3dvr-key.raw > /tmp/3dvr-key 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-key; then
+            :
+          else
+            echo 'Configured SSH key could not be decoded.' >&2
+            exit 1
+          fi
+          chmod 600 /tmp/3dvr-key
+          rm -f /tmp/3dvr-key.raw
+
+      - name: Wait for 3DVR server
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 18); do
+            if timeout 5 bash -c "</dev/tcp/$HOST/22" 2>/dev/null; then exit 0; fi
+            sleep 5
+          done
+          echo "3DVR server $HOST is not reachable on SSH." >&2
+          exit 1
+
+      - name: Deploy Portal and Forge worker
+        id: remote
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/3dvr-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+          remote='set -euo pipefail; repo="$HOME/.3dvr/self-host-portal/source"; mkdir -p "$(dirname "$repo")"; if [ ! -d "$repo/.git" ]; then rm -rf "$repo"; git clone --branch "$DEPLOY_REF" "https://github.com/$GITHUB_REPOSITORY.git" "$repo"; fi; if [ -z "$(git -C "$repo" status --porcelain)" ]; then git -C "$repo" fetch --prune origin "$DEPLOY_REF"; git -C "$repo" checkout "$DEPLOY_REF"; git -C "$repo" reset --hard "origin/$DEPLOY_REF"; else echo "Preserving existing live Forge edits; deploy checkout is dirty."; fi; npm --prefix "$repo/apps/agent" ci; chmod +x "$repo/scripts/ops/start-self-hosted-portal.sh"; "$repo/scripts/ops/start-self-hosted-portal.sh" "$repo" 4310'
+          printf -v remote_q '%q' "$remote"
+          ssh "${opts[@]}" "root@$HOST" "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' DEPLOY_REF='$DEPLOY_REF' bash -lc $remote_q" | tee /tmp/self-host.out
+          url="$(sed -n 's/^SELF_HOST_URL=//p' /tmp/self-host.out | tail -n 1)"
+          test -n "$url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Verify from outside server
+        id: verify
+        shell: bash
+        env:
+          URL: ${{ steps.remote.outputs.url }}
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 10 --retry-delay 2 --retry-all-errors "$URL/__3dvr-preview" | grep -Fq '"ok":true'
+          curl -fsS --retry 5 --retry-delay 1 --retry-all-errors "$URL/operator/" | grep -Fq 'Message your operator'
+          status="$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$URL/api/openai-site?provider=operator")"
+          [ "$status" = 204 ]
+
+      - name: Publish status
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          URL: ${{ steps.remote.outputs.url }}
+          REMOTE_OUTCOME: ${{ steps.remote.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+        run: |
+          set -euo pipefail
+          state=failure
+          description='3DVR self-host deploy failed'
+          target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ "$REMOTE_OUTCOME" = success ] && [ "$VERIFY_OUTCOME" = success ] && [ -n "$URL" ]; then
+            state=success
+            description='Portal is live on the 3DVR server; Operator route verified'
+            target_url="$URL"
+          fi
+          payload="$(STATE="$state" DESCRIPTION="$description" TARGET_URL="$target_url" node -e 'process.stdout.write(JSON.stringify({state:process.env.STATE,context:"3DVR Self-Hosted Portal",description:process.env.DESCRIPTION,target_url:process.env.TARGET_URL}))')"
+          curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -d "$payload"
+          rm -f /tmp/3dvr-key /tmp/self-host.out
+          [ "$state" = success ]
