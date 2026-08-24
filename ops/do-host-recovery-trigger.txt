@@ -1,2 +1,2 @@
-2026-08-24T01:36:00Z
-Reason: diagnose and recover the DigitalOcean host so Portal Operator Forge edits can be consumed end to end.
+2026-08-24T02:16:00Z
+Reason: restore the stable 3DVR server preview host for Guide iteration without using Vercel previews.
