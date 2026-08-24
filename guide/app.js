@@ -2,12 +2,11 @@ import {
   createClaritySnapshot,
   createFallbackGuidance,
   getNextMoveAnswers,
-  getNextMoveQuestions,
-  snapshotToText
+  getNextMoveQuestions
 } from '../next-move-lab/snapshot.js';
 
-const STORAGE_KEY = '3dvr.guide.session.v1';
-const questionKeys = ['situation', 'desired', 'constraint'];
+const STORAGE_KEY = '3dvr.guide.session.v2';
+const questionKeys = ['desired', 'constraint'];
 
 const refs = {
   startView: document.querySelector('[data-start-view]'),
@@ -22,34 +21,33 @@ const refs = {
   questionStatus: document.querySelector('[data-question-status]'),
   answerChips: document.querySelector('[data-answer-chips]'),
   stepLabel: document.querySelector('[data-step-label]'),
-  reading: document.querySelector('[data-reading]'),
-  modeButtons: [...document.querySelectorAll('[data-mode]')],
   back: document.querySelector('[data-back]'),
   next: document.querySelector('[data-next]'),
   resultView: document.querySelector('[data-result-view]'),
   resultTitle: document.querySelector('[data-result-title]'),
   resultHears: document.querySelector('[data-result-hears]'),
-  recommendationTitle: document.querySelector('[data-recommendation-title]'),
   recommendationWhy: document.querySelector('[data-recommendation-why]'),
   nextAction: document.querySelector('[data-next-action]'),
   pathList: document.querySelector('[data-path-list]'),
   assumption: document.querySelector('[data-assumption]'),
-  routeLink: document.querySelector('[data-route-link]'),
-  routeDetail: document.querySelector('[data-route-detail]'),
   generatedOutput: document.querySelector('[data-generated-output]'),
   generatedTitle: document.querySelector('[data-generated-title]'),
   generatedBody: document.querySelector('[data-generated-body]'),
   resultStatus: document.querySelector('[data-result-status]')
 };
 
-let state = {
-  initial: '',
-  mode: '',
-  step: 0,
-  answers: { situation: '', desired: '', constraint: '' },
-  snapshot: null,
-  guidance: null
-};
+let state = freshState();
+
+function freshState() {
+  return {
+    initial: '',
+    mode: 'general',
+    step: 0,
+    answers: { desired: '', constraint: '' },
+    snapshot: null,
+    guidance: null
+  };
+}
 
 function clean(value = '') {
   return String(value).trim().replace(/\s+/g, ' ');
@@ -67,18 +65,8 @@ function inferMode(text = '') {
   add('build', ['build', 'app', 'website', 'site', 'software', 'tool', 'code', 'product', 'feature', 'design']);
 
   const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-  if (ranked[0][1] === 0) return 'general';
-  if (ranked[0][1] === ranked[1][1]) return 'general';
+  if (ranked[0][1] === 0 || ranked[0][1] === ranked[1][1]) return 'general';
   return ranked[0][0];
-}
-
-function modeLabel(mode) {
-  return {
-    general: 'something unclear',
-    career: 'work / life',
-    startup: 'money / business',
-    build: 'something to build'
-  }[mode] || 'something unclear';
 }
 
 function persist() {
@@ -98,7 +86,7 @@ function restore() {
     if (!saved?.initial) return false;
     state.initial = clean(saved.initial);
     state.mode = saved.mode || inferMode(state.initial);
-    state.step = Math.max(0, Math.min(2, Number(saved.step) || 0));
+    state.step = Math.max(0, Math.min(1, Number(saved.step) || 0));
     state.answers = { ...state.answers, ...(saved.answers || {}) };
     refs.stuck.value = state.initial;
     return true;
@@ -117,32 +105,31 @@ function show(view) {
   refs.resultView.hidden = view !== 'result';
 }
 
-function renderMode() {
-  refs.reading.textContent = `Mostly ${modeLabel(state.mode)}`;
-  refs.modeButtons.forEach(button => {
-    button.dataset.selected = String(button.dataset.mode === state.mode);
-    button.setAttribute('aria-pressed', String(button.dataset.mode === state.mode));
-  });
-}
-
 function renderQuestion() {
-  const questions = getNextMoveQuestions(state.mode);
   const key = questionKeys[state.step];
-  const question = questions?.[key];
+  const question = getNextMoveQuestions(state.mode)?.[key]
+    || getNextMoveQuestions('general')?.[key];
   if (!question) return;
 
   show('question');
-  renderMode();
-  refs.stepLabel.textContent = `Question ${state.step + 1} of 3`;
-  refs.questionTitle.textContent = question.label.replace(/^\d+\.\s*/, '');
-  refs.questionHelp.textContent = question.help;
+  refs.stepLabel.textContent = state.step === 0 ? 'One quick question' : 'Last question';
+  refs.questionTitle.textContent = state.step === 0
+    ? 'What would make this better?'
+    : 'What should we avoid making worse?';
+  refs.questionHelp.textContent = state.step === 0
+    ? 'Think about what you want to be different soon.'
+    : 'Time, money, stress, family, risk — whatever matters most.';
   refs.questionAnswer.placeholder = question.placeholder;
   refs.questionAnswer.value = state.answers[key] || '';
   refs.questionStatus.textContent = '';
-  refs.next.textContent = state.step === 2 ? 'Show my next move' : 'Next';
-  refs.back.textContent = state.step === 0 ? 'Back to start' : 'Back';
+  refs.next.textContent = state.step === 1 ? 'Show me what to do' : 'Continue';
+  refs.back.textContent = state.step === 0 ? 'Back' : 'Back';
 
-  refs.answerChips.replaceChildren(...getNextMoveAnswers(state.mode, key).map(answer => {
+  const answers = getNextMoveAnswers(state.mode, key).length
+    ? getNextMoveAnswers(state.mode, key)
+    : getNextMoveAnswers('general', key);
+
+  refs.answerChips.replaceChildren(...answers.slice(0, 3).map(answer => {
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = answer;
@@ -154,23 +141,16 @@ function renderQuestion() {
   }));
 
   persist();
+  refs.questionAnswer.focus();
 }
 
-function createPathCard(path, index) {
-  const article = document.createElement('article');
-  article.className = 'path-card';
-
-  const title = document.createElement('h4');
-  title.textContent = `${index + 1}. ${path.title}`;
-  const fit = document.createElement('p');
-  fit.textContent = `Fit: ${path.fit}`;
-  const tradeoff = document.createElement('p');
-  tradeoff.textContent = `Hard part: ${path.tradeoff}`;
-  const experiment = document.createElement('p');
-  experiment.textContent = `Try this: ${path.experiment}`;
-
-  article.append(title, fit, tradeoff, experiment);
-  return article;
+function buildSnapshot() {
+  return createClaritySnapshot({
+    mode: state.mode,
+    situation: state.initial,
+    desired: state.answers.desired,
+    constraint: state.answers.constraint
+  });
 }
 
 async function requestGuidance(snapshot) {
@@ -188,14 +168,26 @@ async function requestGuidance(snapshot) {
   return result.guidance;
 }
 
-function buildSnapshot() {
-  const situation = [state.initial, state.answers.situation].filter(Boolean).join(' — ');
-  return createClaritySnapshot({
-    mode: state.mode,
-    situation,
-    desired: state.answers.desired,
-    constraint: state.answers.constraint
-  });
+function createPathCard(path) {
+  const article = document.createElement('article');
+  article.className = 'path-card';
+  const title = document.createElement('h3');
+  title.textContent = path.title;
+  const fit = document.createElement('p');
+  fit.textContent = path.fit;
+  const experiment = document.createElement('p');
+  experiment.innerHTML = `<strong>Try:</strong> ${escapeHtml(path.experiment)}`;
+  article.append(title, fit, experiment);
+  return article;
+}
+
+function escapeHtml(value = '') {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }
 
 function renderResult(snapshot, guidance, message = '') {
@@ -203,36 +195,34 @@ function renderResult(snapshot, guidance, message = '') {
   state.guidance = guidance;
   show('result');
 
-  refs.resultTitle.textContent = guidance.title;
+  refs.resultTitle.textContent = guidance.recommendation.title;
   refs.resultHears.textContent = guidance.whatItHears;
-  refs.recommendationTitle.textContent = guidance.recommendation.title;
   refs.recommendationWhy.textContent = guidance.recommendation.why;
   refs.nextAction.textContent = guidance.nextAction;
   refs.assumption.textContent = guidance.assumptionToTest;
-  refs.pathList.replaceChildren(...guidance.paths.map(createPathCard));
-  refs.routeLink.href = snapshot.route || '../life/';
-  refs.routeLink.querySelector('strong').textContent = snapshot.routeLabel || 'Keep going';
-  refs.routeDetail.textContent = snapshot.routeDetail || 'Take this into the next 3DVR tool.';
-  refs.resultStatus.textContent = message;
+
+  const alternatives = guidance.paths.filter(path => path.title !== guidance.recommendation.title);
+  refs.pathList.replaceChildren(...alternatives.map(createPathCard));
   refs.generatedOutput.hidden = true;
+  refs.resultStatus.textContent = message;
   refs.resultTitle.focus();
+  clearSaved();
 }
 
 async function finish() {
   const snapshot = buildSnapshot();
-  refs.questionStatus.textContent = 'Making a short plan…';
+  refs.questionStatus.textContent = 'Thinking…';
   refs.next.disabled = true;
 
   try {
     const guidance = await requestGuidance(snapshot);
-    renderResult(snapshot, guidance, 'Guide used AI for this recommendation.');
+    renderResult(snapshot, guidance);
   } catch (error) {
     if (error.code === 'crisis_support') {
       refs.questionStatus.textContent = error.message;
-      refs.next.disabled = false;
       return;
     }
-    renderResult(snapshot, createFallbackGuidance(snapshot), 'AI was unavailable, so Guide used its built-in fallback.');
+    renderResult(snapshot, createFallbackGuidance(snapshot), 'Using the simple offline version.');
   } finally {
     refs.next.disabled = false;
   }
@@ -240,20 +230,19 @@ async function finish() {
 
 function generatedMessage() {
   const recommendation = state.guidance?.recommendation?.title || 'this next step';
-  return `Hey — I am trying ${recommendation.toLowerCase()}. My goal is ${clean(state.answers.desired).toLowerCase()}. Would you be willing to give me a quick reaction or point me toward one person I should talk to?`;
+  return `Hey — I am trying ${recommendation.toLowerCase()}. ${state.guidance?.nextAction || ''} Would you give me a quick reaction?`;
 }
 
 function generatedWeek() {
   const first = state.guidance?.nextAction || 'Take one small step.';
-  const experiment = state.guidance?.paths?.[0]?.experiment || 'Try the smallest version with one real person.';
   return [
     `Day 1 — ${first}`,
-    'Day 2 — Put the idea in front of one real person.',
-    'Day 3 — Write down what confused them or got a response.',
-    `Day 4 — ${experiment}`,
-    'Day 5 — Remove one thing that is not helping.',
-    'Day 6 — Try the smaller version again.',
-    'Day 7 — Decide: continue, change direction, or stop.'
+    'Day 2 — Notice what happened.',
+    'Day 3 — Ask one real person for feedback.',
+    'Day 4 — Make the next version smaller.',
+    'Day 5 — Try it again.',
+    'Day 6 — Keep what worked.',
+    'Day 7 — Decide what is worth continuing.'
   ].join('\n');
 }
 
@@ -261,32 +250,24 @@ function showGenerated(title, body) {
   refs.generatedTitle.textContent = title;
   refs.generatedBody.textContent = body;
   refs.generatedOutput.hidden = false;
-  refs.generatedOutput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-async function copyText(text, successMessage) {
+async function copyText(text) {
   try {
     await navigator.clipboard.writeText(text);
+    refs.resultStatus.textContent = 'Copied.';
   } catch {
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.setAttribute('readonly', '');
-    document.body.append(textarea);
-    textarea.select();
-    document.execCommand('copy');
-    textarea.remove();
+    refs.resultStatus.textContent = 'Select the text and copy it.';
   }
-  refs.resultStatus.textContent = successMessage;
 }
 
 refs.startForm.addEventListener('submit', event => {
   event.preventDefault();
   const initial = clean(refs.stuck.value);
   if (!initial) return;
+  state = freshState();
   state.initial = initial;
   state.mode = inferMode(initial);
-  state.step = 0;
-  state.answers = { situation: '', desired: '', constraint: '' };
   renderQuestion();
 });
 
@@ -294,22 +275,6 @@ document.querySelectorAll('[data-preset]').forEach(button => {
   button.addEventListener('click', () => {
     refs.stuck.value = button.dataset.preset;
     refs.stuck.focus();
-  });
-});
-
-document.querySelector('[data-reset]').addEventListener('click', () => {
-  refs.stuck.value = '';
-  refs.startStatus.textContent = '';
-  clearSaved();
-  refs.stuck.focus();
-});
-
-refs.modeButtons.forEach(button => {
-  button.addEventListener('click', () => {
-    const key = questionKeys[state.step];
-    state.answers[key] = clean(refs.questionAnswer.value);
-    state.mode = button.dataset.mode;
-    renderQuestion();
   });
 });
 
@@ -321,8 +286,8 @@ refs.questionForm.addEventListener('submit', async event => {
   state.answers[key] = answer;
   persist();
 
-  if (state.step < 2) {
-    state.step += 1;
+  if (state.step === 0) {
+    state.step = 1;
     renderQuestion();
     return;
   }
@@ -340,27 +305,19 @@ refs.back.addEventListener('click', () => {
     persist();
     return;
   }
-  state.step -= 1;
+  state.step = 0;
   renderQuestion();
 });
 
 document.querySelectorAll('[data-tool]').forEach(button => {
   button.addEventListener('click', () => {
     if (button.dataset.tool === 'message') showGenerated('Message draft', generatedMessage());
-    if (button.dataset.tool === 'week') showGenerated('7-day test', generatedWeek());
+    if (button.dataset.tool === 'week') showGenerated('7-day plan', generatedWeek());
   });
 });
 
 document.querySelector('[data-copy-generated]').addEventListener('click', () => {
-  copyText(refs.generatedBody.textContent || '', 'Copied.');
-});
-
-document.querySelector('[data-copy-plan]').addEventListener('click', () => {
-  if (!state.snapshot || !state.guidance) return;
-  const text = snapshotToText(state.snapshot, state.guidance)
-    .replace('3dvr Next Move — Clarity Snapshot', '3dvr Guide — Next Move')
-    .replace('What Compass hears:', 'What Guide hears:');
-  copyText(text, 'Plan copied.');
+  copyText(refs.generatedBody.textContent || '');
 });
 
 document.querySelector('[data-edit]').addEventListener('click', () => {
@@ -369,14 +326,7 @@ document.querySelector('[data-edit]').addEventListener('click', () => {
 });
 
 document.querySelector('[data-start-over]').addEventListener('click', () => {
-  state = {
-    initial: '',
-    mode: '',
-    step: 0,
-    answers: { situation: '', desired: '', constraint: '' },
-    snapshot: null,
-    guidance: null
-  };
+  state = freshState();
   clearSaved();
   refs.stuck.value = '';
   show('start');
@@ -384,6 +334,6 @@ document.querySelector('[data-start-over]').addEventListener('click', () => {
 });
 
 if (restore()) {
-  refs.startStatus.textContent = 'Your unfinished Guide session is still here.';
+  refs.startStatus.textContent = 'You have an unfinished answer here.';
 }
 show('start');
