@@ -1,0 +1,214 @@
+name: 3DVR Self-Hosted Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: 3dvr-self-host-production
+  cancel-in-progress: true
+
+env:
+  DEFAULT_HOST: 167.172.193.194
+
+jobs:
+  deploy:
+    name: Deploy portal to 3DVR server
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+
+      - name: Verify self-host server
+        run: |
+          set -euo pipefail
+          npm ci
+          node --check scripts/self-host-server.mjs
+          bash -n scripts/ops/deploy-self-host-portal.sh
+          node --test tests/operator-developer-access.test.js
+
+      - name: Resolve server credentials and host
+        id: resolve
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          DO_A: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          DO_B: ${{ secrets.DIGITALOCEAN_TOKEN }}
+          DO_C: ${{ secrets.DO_TOKEN }}
+        run: |
+          set -euo pipefail
+          ssh_key=''; do_token=''
+          for value in "$SSH_A" "$SSH_B" "$SSH_C"; do
+            if [ -z "$ssh_key" ] && [ -n "$value" ]; then ssh_key="$value"; fi
+          done
+          for value in "$DO_A" "$DO_B" "$DO_C"; do
+            if [ -z "$do_token" ] && [ -n "$value" ]; then do_token="$value"; fi
+          done
+          [ -n "$ssh_key" ] || { echo 'No 3DVR server SSH private key is configured.' >&2; exit 1; }
+
+          target="$DEFAULT_HOST"
+          power_action=not_checked
+          if [ -n "$do_token" ]; then
+            http="$(curl -sS -o /tmp/droplets.json -w '%{http_code}' -H "Authorization: Bearer $do_token" 'https://api.digitalocean.com/v2/droplets?per_page=200' || true)"
+            if [ "$http" = 200 ]; then
+              read -r id state ip < <(python3 - "$DEFAULT_HOST" <<'PY'
+import json,sys
+known=sys.argv[1]
+data=json.load(open('/tmp/droplets.json'))
+for d in data.get('droplets',[]):
+    ips=[n.get('ip_address','') for n in d.get('networks',{}).get('v4',[]) if n.get('type')=='public']
+    if known in ips or d.get('name')=='3dvr-agent':
+        print(d.get('id',''),d.get('status',''),ips[0] if ips else '')
+        break
+else:
+    print('','','')
+PY
+              )
+              if [ -n "${id:-}" ]; then
+                [ -n "${ip:-}" ] && target="$ip"
+                if [ "${state:-}" = off ]; then
+                  action_http="$(curl -sS -o /tmp/power.json -w '%{http_code}' -X POST -H "Authorization: Bearer $do_token" -H 'Content-Type: application/json' -d '{"type":"power_on"}' "https://api.digitalocean.com/v2/droplets/$id/actions" || true)"
+                  [ "$action_http" = 201 ] || { echo 'DigitalOcean power-on request failed.' >&2; exit 1; }
+                  power_action=powered_on
+                  sleep 15
+                else
+                  power_action=already_active
+                fi
+              fi
+            fi
+          fi
+
+          umask 077
+          printf '%s\n' "$ssh_key" > /tmp/3dvr-key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-key.raw; then
+            cp /tmp/3dvr-key.raw /tmp/3dvr-key
+          elif base64 -d /tmp/3dvr-key.raw > /tmp/3dvr-key 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-key; then
+            :
+          else
+            echo 'Configured 3DVR SSH key is invalid.' >&2
+            exit 1
+          fi
+          chmod 600 /tmp/3dvr-key
+          rm -f /tmp/3dvr-key.raw /tmp/droplets.json /tmp/power.json
+
+          echo "host=$target" >> "$GITHUB_OUTPUT"
+          echo "power_action=$power_action" >> "$GITHUB_OUTPUT"
+
+      - name: Provision portal runtime secrets
+        shell: bash
+        env:
+          TARGET: ${{ steps.resolve.outputs.host }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+          TUNNEL_TOKEN: ${{ secrets.THREEDVR_CLOUDFLARE_TUNNEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/3dvr-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+          [ -n "$OPENAI_API_KEY" ] || [ -n "$AI_GATEWAY_API_KEY" ] || { echo 'No OpenAI or AI Gateway API key is configured for Operator.' >&2; exit 1; }
+          ssh "${opts[@]}" "root@$TARGET" 'mkdir -p "$HOME/.3dvr/config"; chmod 700 "$HOME/.3dvr/config"; umask 077; cat > "$HOME/.3dvr/config/portal-secrets.env"'
+          {
+            [ -n "$OPENAI_API_KEY" ] && printf 'OPENAI_API_KEY=%s\n' "$OPENAI_API_KEY"
+            [ -n "$AI_GATEWAY_API_KEY" ] && printf 'AI_GATEWAY_API_KEY=%s\n' "$AI_GATEWAY_API_KEY"
+            [ -n "$TUNNEL_TOKEN" ] && printf 'THREEDVR_CLOUDFLARE_TUNNEL_TOKEN=%s\n' "$TUNNEL_TOKEN"
+          } | ssh "${opts[@]}" "root@$TARGET" 'umask 077; cat > "$HOME/.3dvr/config/portal-secrets.env"'
+
+      - name: Deploy production release
+        id: deploy
+        shell: bash
+        env:
+          TARGET: ${{ steps.resolve.outputs.host }}
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/3dvr-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+          output="$(ssh "${opts[@]}" "root@$TARGET" "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' DEPLOY_SHA='$DEPLOY_SHA' bash -s" <<'REMOTE'
+          set -euo pipefail
+          source_repo="$HOME/.3dvr/self-host-portal-source"
+          if [ ! -d "$source_repo/.git" ]; then
+            rm -rf "$source_repo"
+            git clone "https://github.com/$GITHUB_REPOSITORY.git" "$source_repo"
+          fi
+          git -C "$source_repo" fetch --prune origin main
+          git -C "$source_repo" cat-file -e "$DEPLOY_SHA^{commit}"
+          git -C "$source_repo" checkout --detach "$DEPLOY_SHA"
+
+          config_dir="$HOME/.3dvr/config"
+          portal_env="$config_dir/portal.env"
+          secrets_env="$config_dir/portal-secrets.env"
+          mkdir -p "$config_dir"
+          if [ -f "$secrets_env" ]; then
+            set -a
+            . "$secrets_env"
+            set +a
+          fi
+          bash "$source_repo/scripts/ops/deploy-self-host-portal.sh" "$source_repo" main "$DEPLOY_SHA" 4320
+          REMOTE
+          )"
+          printf '%s\n' "$output"
+          url="$(printf '%s\n' "$output" | sed -n 's/^PORTAL_SELF_HOST_URL=//p' | tail -n1)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Verify self-host from outside server
+        id: verify
+        shell: bash
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$URL" == https://*.trycloudflare.com ]]; then
+            curl -fsS --retry 10 --retry-delay 2 --retry-all-errors "$URL/__3dvr-health" > /tmp/health.json
+            node - "$SHA" <<'NODE'
+          const fs = require('node:fs');
+          const expected = process.argv[2];
+          const health = JSON.parse(fs.readFileSync('/tmp/health.json','utf8'));
+          if (!health.ok || health.sha !== expected || health.operatorApi !== 'native') {
+            throw new Error(`self-host health mismatch: ${JSON.stringify(health)}`);
+          }
+          NODE
+            curl -fsS --retry 5 --retry-delay 1 "$URL/operator/" | grep -Fq 'Message your operator'
+            options="$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$URL/api/openai-site?provider=operator")"
+            [ "$options" = 200 ]
+          elif [ "$URL" = named-cloudflare-tunnel ]; then
+            echo 'Named Cloudflare tunnel started; domain verification is handled after DNS/tunnel binding.'
+          else
+            echo 'No public HTTPS URL was returned by the server.' >&2
+            exit 1
+          fi
+
+      - name: Publish self-host status
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          state=failure
+          description='3DVR self-host production deploy failed'
+          target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ "$DEPLOY_OUTCOME" = success ] && [ "$VERIFY_OUTCOME" = success ]; then
+            state=success
+            description='3DVR portal deployed from our server'
+            if [[ "$URL" == https://* ]]; then target_url="$URL"; fi
+          fi
+          payload="$(STATE="$state" DESCRIPTION="$description" TARGET_URL="$target_url" node -e 'process.stdout.write(JSON.stringify({state:process.env.STATE,context:"3DVR Self Host Production",description:process.env.DESCRIPTION,target_url:process.env.TARGET_URL}))')"
+          curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -d "$payload"
+          rm -f /tmp/3dvr-key /tmp/health.json
+          [ "$state" = success ]
