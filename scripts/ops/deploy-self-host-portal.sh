@@ -46,7 +46,7 @@ fi
 ln -sfn "$release" "$current"
 
 cat > "$portal_env.tmp" <<EOF
-PORT=4320
+PORT=$port
 HOST=127.0.0.1
 PORTAL_ROOT=$current
 PORTAL_RELEASE_REF=$ref
@@ -54,8 +54,8 @@ PORTAL_RELEASE_SHA=$sha
 LEGACY_API_ORIGIN=https://3dvr-portal.vercel.app
 EOF
 
-# Preserve private runtime values that may already have been provisioned by an
-# operator or deployment workflow. Never overwrite them with empty values.
+# Preserve private runtime values already provisioned by an operator or workflow.
+# Never overwrite them with empty values and never print them.
 for key in OPENAI_API_KEY AI_GATEWAY_API_KEY THREEDVR_CLOUDFLARE_TUNNEL_TOKEN; do
   value="${!key:-}"
   if [ -z "$value" ] && [ -f "$portal_env" ]; then
@@ -163,7 +163,7 @@ Requires=3dvr-portal.service
 [Service]
 Type=simple
 EnvironmentFile=$portal_env
-ExecStart=/bin/sh -lc 'exec $cloudflared tunnel --no-autoupdate run --token "$THREEDVR_CLOUDFLARE_TUNNEL_TOKEN"'
+ExecStart=/bin/sh -lc 'exec $cloudflared tunnel --no-autoupdate run --token "\$THREEDVR_CLOUDFLARE_TUNNEL_TOKEN"'
 Restart=always
 RestartSec=5
 
