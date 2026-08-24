@@ -145,6 +145,18 @@ export function normalizeOperatorResult(value = {}) {
   };
 }
 
+export function reconcileOperatorCodeAction(result = {}, developerAccess = {}) {
+  if (!result?.action) return result;
+  const approved = developerAccess?.approved === true;
+  if (approved && result.action.type === 'suggest_code_change') {
+    result.action.type = 'request_code_change';
+    result.reply = `I’ll queue that approved ${result.action.repo || 'portal'} code edit through Forge.`;
+  } else if (!approved && result.action.type === 'request_code_change') {
+    result.action.type = 'suggest_code_change';
+  }
+  return result;
+}
+
 export function createOperatorHandler(options = {}) {
   const apiKey = options.apiKey ?? process.env.OPENAI_API_KEY;
   const gatewayToken = options.gatewayToken ?? process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN;
@@ -205,10 +217,7 @@ export function createOperatorHandler(options = {}) {
       });
       if (!response.ok) return res.status(response.status).json({ error: await readUpstreamError(response) });
       const raw = outputText(await response.json());
-      const result = normalizeOperatorResult(JSON.parse(raw));
-      if (result.action.type === 'request_code_change' && !developerAccess.approved) {
-        result.action.type = 'suggest_code_change';
-      }
+      const result = reconcileOperatorCodeAction(normalizeOperatorResult(JSON.parse(raw)), developerAccess);
       return res.status(200).json({
         ...result,
         developerAccess: {
