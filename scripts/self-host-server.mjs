@@ -30,6 +30,19 @@ const MIME_TYPES = new Map([
   ['.txt', 'text/plain; charset=utf-8']
 ]);
 
+const PRIVATE_PREFIXES = [
+  '/.github/', '/api/', '/src/', '/scripts/', '/tests/', '/ops/', '/node_modules/', '/apps/agent/'
+];
+const PRIVATE_ROOT_FILES = new Set([
+  '/package.json', '/package-lock.json', '/vercel.json', '/AGENTS.md', '/.gitignore'
+]);
+
+function isPrivateStaticPath(pathname) {
+  const clean = String(pathname || '/');
+  return PRIVATE_ROOT_FILES.has(clean)
+    || PRIVATE_PREFIXES.some(prefix => clean === prefix.slice(0, -1) || clean.startsWith(prefix));
+}
+
 function applyBaseHeaders(res, pathname = '') {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   if (pathname.endsWith('service-worker.js') || pathname.endsWith('pwa-install.js')) {
@@ -181,6 +194,8 @@ const server = createServer(async (req, res) => {
   if (!['GET', 'HEAD'].includes(req.method || '')) return json(res, 405, { error: 'Method Not Allowed' });
 
   const pathname = rewriteForHost(url, req.headers.host);
+  if (isPrivateStaticPath(pathname)) return json(res, 404, { error: 'Not found' });
+
   const found = await findFile(pathname);
   if (!found) {
     res.statusCode = 404;
