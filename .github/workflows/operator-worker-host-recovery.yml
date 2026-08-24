@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/operator-worker-host-recovery.yml'
+      - 'ops/operator-worker-host-recovery-trigger.txt'
 
 permissions:
   contents: read
