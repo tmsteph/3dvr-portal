@@ -45,18 +45,26 @@ fi
 
 ln -sfn "$release" "$current"
 
-cat > "$portal_env.tmp" <<EOF
+cat > "$portal_env.tmp" <<EOF_ENV
 PORT=$port
 HOST=127.0.0.1
 PORTAL_ROOT=$current
 PORTAL_RELEASE_REF=$ref
 PORTAL_RELEASE_SHA=$sha
-LEGACY_API_ORIGIN=https://3dvr-portal.vercel.app
-EOF
+EOF_ENV
 
-# Preserve private runtime values already provisioned by an operator or workflow.
-# Never overwrite them with empty values and never print them.
-for key in OPENAI_API_KEY AI_GATEWAY_API_KEY THREEDVR_CLOUDFLARE_TUNNEL_TOKEN; do
+# Preserve runtime configuration without printing secret values. Keys declared
+# in .env.example are portable application settings, while the extra OAuth and
+# tunnel keys cover integrations that are intentionally not committed there.
+declare -A seen_env_keys=()
+preserve_env_key() {
+  local key="$1" value=''
+  [ -n "$key" ] || return 0
+  [ -z "${seen_env_keys[$key]:-}" ] || return 0
+  seen_env_keys[$key]=1
+  case "$key" in
+    PORT|HOST|PORTAL_ROOT|PORTAL_RELEASE_REF|PORTAL_RELEASE_SHA) return 0 ;;
+  esac
   value="${!key:-}"
   if [ -z "$value" ] && [ -f "$portal_env" ]; then
     value="$(sed -n "s/^${key}=//p" "$portal_env" | tail -n1)"
@@ -67,14 +75,29 @@ for key in OPENAI_API_KEY AI_GATEWAY_API_KEY THREEDVR_CLOUDFLARE_TUNNEL_TOKEN; d
   if [ -n "$value" ]; then
     printf '%s=%s\n' "$key" "$value" >> "$portal_env.tmp"
   fi
+}
+
+if [ -f "$release/.env.example" ]; then
+  while IFS= read -r key; do
+    preserve_env_key "$key"
+  done < <(sed -n 's/^\([A-Z][A-Z0-9_]*\)=.*/\1/p' "$release/.env.example")
+fi
+for key in \
+  AI_GATEWAY_API_KEY \
+  THREEDVR_CLOUDFLARE_TUNNEL_TOKEN \
+  GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET \
+  MICROSOFT_OAUTH_CLIENT_ID MICROSOFT_OAUTH_CLIENT_SECRET MICROSOFT_OAUTH_TENANT \
+  APPLE_OAUTH_CLIENT_ID APPLE_OAUTH_TEAM_ID APPLE_OAUTH_KEY_ID APPLE_OAUTH_PRIVATE_KEY; do
+  preserve_env_key "$key"
 done
+
 mv "$portal_env.tmp" "$portal_env"
 chmod 600 "$portal_env"
 
 start_with_systemd() {
   [ "$(id -u)" = 0 ] || return 1
   command -v systemctl >/dev/null 2>&1 || return 1
-  cat > /etc/systemd/system/3dvr-portal.service <<EOF
+  cat > /etc/systemd/system/3dvr-portal.service <<EOF_SERVICE
 [Unit]
 Description=3DVR self-hosted portal
 After=network-online.target
@@ -91,7 +114,7 @@ RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOF_SERVICE
   systemctl daemon-reload
   systemctl enable --now 3dvr-portal.service
   systemctl restart 3dvr-portal.service
@@ -154,7 +177,7 @@ set +a
 
 portal_url=''
 if [ -n "${THREEDVR_CLOUDFLARE_TUNNEL_TOKEN:-}" ] && [ "$(id -u)" = 0 ] && command -v systemctl >/dev/null 2>&1; then
-  cat > /etc/systemd/system/3dvr-portal-tunnel.service <<EOF
+  cat > /etc/systemd/system/3dvr-portal-tunnel.service <<EOF_TUNNEL
 [Unit]
 Description=3DVR portal Cloudflare tunnel
 After=3dvr-portal.service
@@ -169,7 +192,7 @@ RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOF_TUNNEL
   systemctl daemon-reload
   systemctl enable --now 3dvr-portal-tunnel.service
   systemctl restart 3dvr-portal-tunnel.service
