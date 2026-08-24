@@ -1,0 +1,2 @@
+2026-08-23T19:39:00-07:00
+Publish a temporary SSH public key, wait for authorization, then deploy Portal + Forge and verify externally.
