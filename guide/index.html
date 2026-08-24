@@ -7,7 +7,7 @@
   <meta name="description" content="Tell 3DVR Guide what is going on and get one clear next step.">
   <meta name="theme-color" content="#0d1117">
   <link rel="icon" type="image/svg+xml" href="../brand/portal-logo.svg">
-  <link rel="stylesheet" href="./styles.css?v=d2265fa">
+  <link rel="stylesheet" href="./styles.css?v=first-screen-simple">
   <script type="module" src="./app.js?v=2a0eca9"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -29,13 +29,16 @@
       <section class="panel" data-start-view>
         <form data-start-form>
           <label for="stuckText" class="question-label">What’s going on?</label>
-          <textarea id="stuckText" name="stuck" rows="6" maxlength="1200" placeholder="Example: I need more money, but I don’t want to keep working overtime." required></textarea>
-          <div class="quick-starts" aria-label="Examples">
+          <div class="composer">
+            <textarea id="stuckText" name="stuck" rows="5" maxlength="1200" placeholder="Type it here…" required></textarea>
+            <button class="composer-send" type="submit" aria-label="Send to Guide">→</button>
+          </div>
+          <p class="quick-label">Or tap one:</p>
+          <div class="quick-starts" aria-label="Quick starts">
             <button type="button" data-preset="I need more money but I do not know what to do first.">I need more money</button>
             <button type="button" data-preset="I want better work but I do not know where to start.">I want better work</button>
             <button type="button" data-preset="I have an idea but it feels too big.">My idea feels too big</button>
           </div>
-          <button class="button primary wide" type="submit">Continue</button>
           <p class="status" data-start-status role="status" aria-live="polite"></p>
         </form>
       </section>
