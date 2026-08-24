@@ -7,8 +7,8 @@
   <meta name="description" content="Tell 3DVR Guide what is going on and get one clear next step.">
   <meta name="theme-color" content="#0d1117">
   <link rel="icon" type="image/svg+xml" href="../brand/portal-logo.svg">
-  <link rel="stylesheet" href="./styles.css?v=first-screen-simple">
-  <script type="module" src="./app.js?v=2a0eca9"></script>
+  <link rel="stylesheet" href="./styles.css?v=grade3-simple">
+  <script type="module" src="./app.js?v=grade3-simple"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
@@ -23,22 +23,19 @@
       <section class="hero" aria-labelledby="guideTitle">
         <p class="eyebrow">3DVR Guide</p>
         <h1 id="guideTitle">What do you need help with?</h1>
-        <p class="lead">Tell me what is going on. I’ll help you choose one useful next step.</p>
+        <p class="lead">Tell me what is going on. I’ll help you pick one next step.</p>
       </section>
 
       <section class="panel" data-start-view>
         <form data-start-form>
           <label for="stuckText" class="question-label">What’s going on?</label>
-          <div class="composer">
-            <textarea id="stuckText" name="stuck" rows="5" maxlength="1200" placeholder="Type it here…" required></textarea>
-            <button class="composer-send" type="submit" aria-label="Send to Guide">→</button>
-          </div>
-          <p class="quick-label">Or tap one:</p>
+          <textarea id="stuckText" name="stuck" rows="5" maxlength="1200" placeholder="Example: I need more money, but I do not want more overtime." required></textarea>
           <div class="quick-starts" aria-label="Quick starts">
             <button type="button" data-preset="I need more money but I do not know what to do first.">I need more money</button>
             <button type="button" data-preset="I want better work but I do not know where to start.">I want better work</button>
             <button type="button" data-preset="I have an idea but it feels too big.">My idea feels too big</button>
           </div>
+          <button class="button primary wide" type="submit">Continue</button>
           <p class="status" data-start-status role="status" aria-live="polite"></p>
         </form>
       </section>
@@ -59,52 +56,37 @@
       </section>
 
       <section class="panel result" data-result-view hidden aria-labelledby="resultTitle">
-        <p class="eyebrow">Try this first</p>
+        <p class="eyebrow">My idea</p>
         <h2 id="resultTitle" data-result-title tabindex="-1"></h2>
-        <p class="result-summary" data-result-hears></p>
+        <p class="why-line"><strong>Why:</strong> <span data-recommendation-why></span></p>
 
         <article class="next-step-card">
-          <span>Do this next</span>
+          <span>First step</span>
           <p data-next-action></p>
         </article>
 
-        <a class="button primary wide operator-cta" href="../operator/">Do this with Operator →</a>
+        <div class="helper-actions result-help">
+          <button type="button" class="button primary" data-tool="message">Write it for me</button>
+          <button type="button" class="button" data-tool="week">Make a 7-day plan</button>
+        </div>
 
-        <details class="more-details">
-          <summary>Why this?</summary>
-          <p data-recommendation-why></p>
-          <p class="assumption"><strong>What we are checking:</strong> <span data-assumption></span></p>
-        </details>
-
-        <details class="more-details">
-          <summary>Other options</summary>
-          <div data-path-list></div>
-        </details>
-
-        <details class="more-details">
-          <summary>Help me do it</summary>
-          <div class="helper-actions">
-            <button type="button" class="button" data-tool="message">Draft a message</button>
-            <button type="button" class="button" data-tool="week">Make a 7-day plan</button>
+        <article class="generated-output" data-generated-output hidden>
+          <div class="generated-head">
+            <h3 data-generated-title></h3>
+            <button type="button" class="button quiet" data-copy-generated>Copy</button>
           </div>
-          <article class="generated-output" data-generated-output hidden>
-            <div class="generated-head">
-              <h3 data-generated-title></h3>
-              <button type="button" class="button quiet" data-copy-generated>Copy</button>
-            </div>
-            <pre data-generated-body></pre>
-          </article>
-        </details>
+          <pre data-generated-body></pre>
+        </article>
 
         <div class="result-footer">
-          <button class="text-button" type="button" data-edit>Change my answers</button>
+          <button class="text-button" type="button" data-another>Show me a different idea</button>
           <button class="text-button" type="button" data-start-over>Start over</button>
         </div>
         <p class="status" data-result-status role="status" aria-live="polite"></p>
       </section>
     </main>
 
-    <footer>Guide helps you choose a next step. You decide what fits.</footer>
+    <footer>Guide helps you pick one next step.</footer>
   </div>
 </body>
 </html>
