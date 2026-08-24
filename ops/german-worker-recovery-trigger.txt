@@ -1,2 +1,2 @@
-2026-08-24T01:25:00Z
-Reason: recover and redeploy the managed worker after wiring Operator Forge edit consumption into the daemon, then resume the live portal end-to-end edit acceptance test.
+2026-08-24T01:45:00Z
+Reason: rerun managed/legacy worker recovery with direct Actions run link so the Operator Forge host failure can be diagnosed and repaired.
