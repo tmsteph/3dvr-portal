@@ -1,0 +1,2 @@
+2026-08-23T20:15:00-07:00
+Reason: trigger the first 3DVR self-hosted portal production deployment after disabling automatic Vercel Git deployments.
