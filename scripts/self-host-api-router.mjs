@@ -15,7 +15,7 @@ const MAX_BODY_BYTES = 1024 * 1024;
 const EXACT_ROUTES = new Map([
   ['/api/trial', { handler: trialHandler }],
   ['/api/github-publish', { handler: githubPublishHandler }],
-  ['/api/vercel-deploy', { handler: githubPublishHandler }],
+  ['/api/vercel-deploy', { handler: githubPublishHandler, params: { provider: 'vercel' } }],
   ['/api/session', { handler: sessionHandler }],
   ['/api/calendar/reminder-email', { handler: reminderEmailHandler }],
   ['/api/account-recovery-email', { handler: reminderEmailHandler }],
@@ -97,7 +97,7 @@ function adaptResponse(res) {
 
 function resolveRoute(pathname) {
   const exact = EXACT_ROUTES.get(pathname);
-  if (exact) return { ...exact, params: {} };
+  if (exact) return { ...exact, params: exact.params || {} };
 
   let match = pathname.match(/^\/api\/calendar\/([^/]+)$/);
   if (match) return { handler: calendarProviderHandler, params: { provider: decodeURIComponent(match[1]) } };
