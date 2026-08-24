@@ -1,2 +1,2 @@
-2026-08-23T06:45:00Z
-Reason: recover the managed task worker through the legacy queue after the Portal-native Operator Forge merge so signed 3DVR code tasks can be consumed.
+2026-08-24T01:25:00Z
+Reason: recover and redeploy the managed worker after wiring Operator Forge edit consumption into the daemon, then resume the live portal end-to-end edit acceptance test.
