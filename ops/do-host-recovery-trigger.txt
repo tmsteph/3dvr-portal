@@ -1,2 +1,2 @@
-2026-08-24T18:53:00Z
-Reason: live out-of-band recovery probe for 3DVR server access after last night's Operator/Forge worker outage; verify DigitalOcean power state, public ports, SSH credential availability, and preview worker recovery without relying on Vercel.
+2026-08-24T18:58:00Z
+Reason: run one coordinated DigitalOcean host recovery probe with the German worker recovery; verify control-plane state, public reachability, SSH availability, and preview worker status without relying on Vercel.
