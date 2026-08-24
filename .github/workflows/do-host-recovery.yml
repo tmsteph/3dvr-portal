@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/do-host-recovery.yml'
+      - 'ops/do-host-recovery-trigger.txt'
   workflow_dispatch:
 
 permissions:
