@@ -1,6 +1,16 @@
 name: Operator portal E2E
 
 on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Acceptance mode
+        required: true
+        default: bootstrap
+        type: choice
+        options:
+          - bootstrap
+          - edit
   pull_request:
     paths:
       - '.github/e2e/operator-e2e-mode.txt'
@@ -20,8 +30,9 @@ jobs:
     timeout-minutes: 10
     env:
       PORTAL_E2E_URL: https://portal.3dvr.tech
-      PORTAL_E2E_ALIAS: operator-e2e-20260823@3dvr
-      PORTAL_E2E_PASSWORD: PublicE2E-20260823-Disposable-Account!
+      PORTAL_E2E_MODE: ${{ inputs.mode || 'bootstrap' }}
+      PORTAL_E2E_ALIAS: ${{ secrets.PORTAL_E2E_ALIAS }}
+      PORTAL_E2E_PASSWORD: ${{ secrets.PORTAL_E2E_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -1,2 +1,2 @@
-2026-08-24T02:16:00Z
-Reason: restore the stable 3DVR server preview host for Guide iteration without using Vercel previews.
+2026-08-24T18:58:00Z
+Reason: run one coordinated DigitalOcean host recovery probe with the German worker recovery; verify control-plane state, public reachability, SSH availability, and preview worker status without relying on Vercel.
