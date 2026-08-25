@@ -17,7 +17,7 @@ export const LAUNCH_ROOM_MODES = Object.freeze({
     },
     tools: [
       ['Open Projects', '../projects/index.html'],
-      ['Open Growth Operator', '../growth-operator/'],
+      ['Make this earn money', '../growth-operator/?campaign=my-skill'],
       ['Track people in CRM', '../crm/index.html']
     ]
   },
@@ -97,7 +97,7 @@ export const LAUNCH_ROOM_MODES = Object.freeze({
     },
     tools: [
       ['Turn this into an offer', '../offer-garden/'],
-      ['Open Growth Operator', '../growth-operator/'],
+      ['Make this earn money', '../growth-operator/?campaign=my-skill'],
       ['Track conversations in CRM', '../crm/index.html']
     ]
   },
@@ -117,7 +117,7 @@ export const LAUNCH_ROOM_MODES = Object.freeze({
     },
     tools: [
       ['Save it as a Project', '../projects/index.html'],
-      ['Open Growth Operator', '../growth-operator/'],
+      ['Make this earn money', '../growth-operator/?campaign=my-skill'],
       ['Turn this into an offer', '../offer-garden/']
     ]
   }
