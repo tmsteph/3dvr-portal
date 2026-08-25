@@ -46,3 +46,10 @@ test('assistant admin alias with a different SEA key is not privileged', async (
   assert.equal(access.role, 'contributor');
   assert.deepEqual(access.permissions, ['suggest']);
 });
+
+test('public Operator E2E account is never a built-in admin', () => {
+  assert.equal(
+    BUILTIN_OPERATOR_ADMIN_BINDINGS['operator-e2e-20260823@3dvr@3dvr'],
+    undefined
+  );
+});
