@@ -4,10 +4,8 @@ on:
   push:
     branches:
       - main
-      - self-host/vercel-exit
     paths:
       - 'ops/self-host-bootstrap-trigger.txt'
-      - '.github/workflows/self-host-bootstrap.yml'
   workflow_dispatch:
 
 permissions:

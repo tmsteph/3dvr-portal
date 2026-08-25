@@ -9,6 +9,12 @@ const HOST = process.env.HOST || '127.0.0.1';
 const ROOT = resolve(process.env.PORTAL_ROOT || process.cwd());
 const RELEASE_SHA = String(process.env.PORTAL_RELEASE_SHA || '').trim();
 const RELEASE_REF = String(process.env.PORTAL_RELEASE_REF || 'main').trim();
+const VERCEL_FALLBACK_ORIGIN = String(process.env.VERCEL_FALLBACK_ORIGIN || '').replace(/\/+$/, '');
+const HAS_LOCAL_AI_CREDENTIAL = Boolean(
+  String(process.env.OPENAI_API_KEY || '').trim()
+  || String(process.env.AI_GATEWAY_API_KEY || '').trim()
+  || String(process.env.VERCEL_OIDC_TOKEN || '').trim()
+);
 
 const MIME_TYPES = new Map([
   ['.html', 'text/html; charset=utf-8'],
@@ -141,6 +147,33 @@ async function runOpenAiSite(req, res, url) {
   }
 }
 
+async function proxyVercelFallback(req, res, url) {
+  if (!VERCEL_FALLBACK_ORIGIN) {
+    return json(res, 503, { error: 'No local AI credential or Vercel fallback is configured.' });
+  }
+  const target = new URL(url.pathname + url.search, `${VERCEL_FALLBACK_ORIGIN}/`);
+  const body = ['GET', 'HEAD'].includes(req.method || '') ? undefined : await readRequestBody(req);
+  let upstream;
+  try {
+    upstream = await fetch(target, {
+      method: req.method,
+      headers: {
+        'content-type': req.headers['content-type'] || 'application/json',
+        accept: req.headers.accept || '*/*'
+      },
+      body
+    });
+  } catch (error) {
+    return json(res, 502, { error: 'Vercel AI fallback unavailable', detail: error?.message || String(error) });
+  }
+  res.statusCode = upstream.status;
+  for (const name of ['content-type', 'cache-control', 'location']) {
+    const value = upstream.headers.get(name);
+    if (value) res.setHeader(name, value);
+  }
+  res.end(Buffer.from(await upstream.arrayBuffer()));
+}
+
 function rewriteForHost(url, host) {
   const hostname = String(host || '').split(':')[0].toLowerCase();
   if (url.pathname === '/api/cache-reset') return '/cache-reset.html';
@@ -161,7 +194,7 @@ const server = createServer(async (req, res) => {
   applyBaseHeaders(res, url.pathname);
 
   if (url.pathname === '/__3dvr-health') {
-    return json(res, 200, { ok: true, host: 'self', sha: RELEASE_SHA, ref: RELEASE_REF, operatorApi: 'native', apiFallback: 'none' });
+    return json(res, 200, { ok: true, host: 'self', sha: RELEASE_SHA, ref: RELEASE_REF, operatorApi: HAS_LOCAL_AI_CREDENTIAL ? 'native' : (VERCEL_FALLBACK_ORIGIN ? 'vercel-ai' : 'unavailable'), apiFallback: HAS_LOCAL_AI_CREDENTIAL ? 'none' : (VERCEL_FALLBACK_ORIGIN ? 'vercel-ai' : 'unavailable') });
   }
 
   if (url.pathname === '/api/cache-reset') {
@@ -171,6 +204,7 @@ const server = createServer(async (req, res) => {
   }
 
   if (url.pathname === '/api/openai-site') {
+    if (!HAS_LOCAL_AI_CREDENTIAL && VERCEL_FALLBACK_ORIGIN) return proxyVercelFallback(req, res, url);
     return runOpenAiSite(req, res, url);
   }
 

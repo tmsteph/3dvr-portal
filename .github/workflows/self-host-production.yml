@@ -107,6 +107,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
           TUNNEL_TOKEN: ${{ secrets.THREEDVR_CLOUDFLARE_TUNNEL_TOKEN }}
+          VERCEL_FALLBACK_ORIGIN: https://3dvr-portal.vercel.app
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
           STRIPE_PRICE_STARTER_ID: ${{ secrets.STRIPE_PRICE_STARTER_ID }}
@@ -137,6 +138,7 @@ jobs:
               [ -n "$value" ] && printf '%s=%q\n' "$key" "$value"
             done
             [ -n "$TUNNEL_TOKEN" ] && printf 'THREEDVR_CLOUDFLARE_TUNNEL_TOKEN=%q\n' "$TUNNEL_TOKEN"
+            [ -n "$VERCEL_FALLBACK_ORIGIN" ] && printf 'VERCEL_FALLBACK_ORIGIN=%q\n' "$VERCEL_FALLBACK_ORIGIN"
           } > "$updates"
           scp "${opts[@]}" "$updates" "root@$TARGET:/tmp/3dvr-portal-secrets.updates"
           scp "${opts[@]}" scripts/ops/merge-env-updates.sh "root@$TARGET:/tmp/3dvr-merge-env-updates.sh"
@@ -152,7 +154,10 @@ jobs:
           set -a
           . "$secrets_env"
           set +a
-          [ -n "${OPENAI_API_KEY:-}" ] || [ -n "${AI_GATEWAY_API_KEY:-}" ] || { echo 'No OpenAI or AI Gateway API key is configured on the 3DVR host.' >&2; exit 1; }
+          if [ -z "${OPENAI_API_KEY:-}" ] && [ -z "${AI_GATEWAY_API_KEY:-}" ]; then
+            [ -n "${VERCEL_FALLBACK_ORIGIN:-}" ] || { echo 'No local AI credential or Vercel fallback is configured on the 3DVR host.' >&2; exit 1; }
+            echo 'No local AI credential yet; using the canonical Vercel AI route as the hybrid fallback.'
+          fi
           REMOTE
 
       - name: Deploy portal and Forge worker
@@ -211,7 +216,7 @@ jobs:
           set -euo pipefail
           if [[ "$URL" == https://*.trycloudflare.com ]]; then
             curl -fsS --retry 10 --retry-delay 2 --retry-all-errors "$URL/__3dvr-health" > /tmp/health.json
-            node -e 'const fs=require("node:fs"); const expected=process.argv[1]; const health=JSON.parse(fs.readFileSync("/tmp/health.json","utf8")); if(!health.ok||health.sha!==expected||health.operatorApi!=="native"||health.apiFallback!=="none") throw new Error(`self-host health mismatch: ${JSON.stringify(health)}`)' "$SHA"
+            node -e 'const fs=require("node:fs"); const expected=process.argv[1]; const health=JSON.parse(fs.readFileSync("/tmp/health.json","utf8")); if(!health.ok||health.sha!==expected||!["native","vercel-ai"].includes(health.operatorApi)||!["none","vercel-ai"].includes(health.apiFallback)) throw new Error(`self-host health mismatch: ${JSON.stringify(health)}`)' "$SHA"
             curl -fsS --retry 5 --retry-delay 1 "$URL/operator/" | grep -Fq 'Message your operator'
             options="$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$URL/api/openai-site?provider=operator")"
             [ "$options" = 200 ]
