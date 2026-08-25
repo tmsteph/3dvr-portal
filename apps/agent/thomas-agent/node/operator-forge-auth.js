@@ -3,9 +3,9 @@ const path = require('node:path');
 const DEFAULT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const BUILTIN_OPERATOR_ADMIN_BINDINGS = Object.freeze({
   'chatgpt-operator-e18d7ed6@3dvr': 'jcsaMMOmGSjWVJOtiPHI3hZWsudATRhOglXRdDatfSA.pzn7gtgVsDxfbV_md8B4a_W4eNTOavwnZwFU0qOtYcU',
-  'operator-e2e-20260823@3dvr@3dvr': 'hPXr9YUuuiQRyBSQwYkKXL9kGh848fasdgpW2gPr2qk.hXqloSFOaTte3_ekSx6EasnHjWxRBbUkjspiKkCKWfg',
 });
 const BUILTIN_OPERATOR_DEVELOPER_BINDINGS = Object.freeze({
+  'operator-secure-e2e-1787643003@3dvr': 'ANISeXozjNF0rrLuDI9HTIh6Mk3UuHIwUa_WpURZhGc.vnOeQy3vExpG07dGXPOAB1PAQ9iskI2SKnYOLbEhYSY',
   'tmsteph@3dvr': 'Cg-NVNIbxWPDBqX7OmllJQqjxy2t3KA_U2DqQBjcPQ8.1fppECqamDOHh2tKt1G5t8Yd21NjBCZ3C6qunST3lvg',
 });
 
