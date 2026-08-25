@@ -14,13 +14,13 @@ import {
 
 const TMSTEPH_PUB = 'Cg-NVNIbxWPDBqX7OmllJQqjxy2t3KA_U2DqQBjcPQ8.1fppECqamDOHh2tKt1G5t8Yd21NjBCZ3C6qunST3lvg';
 
-test('default operator developer policy trusts only the built-in exact SEA binding', () => {
+test('default operator developer policy includes the trusted exact SEA binding', () => {
   const policy = resolveOperatorDeveloperPolicy({});
   assert.equal(DEFAULT_OPERATOR_DEVELOPER_ALIAS, '3dvr.tech@gmail.com');
   assert.equal(BUILTIN_OPERATOR_DEVELOPER_BINDINGS['tmsteph@3dvr'], TMSTEPH_PUB);
   assert.equal(policy.pubs.size, 0);
-  assert.equal(policy.bindings.size, 1);
   assert.equal(policy.bindings.get('tmsteph@3dvr'), TMSTEPH_PUB);
+  assert.equal(policy.bindings.get('operator-e2e-20260823@3dvr@3dvr'), undefined);
 });
 
 test('built-in tmsteph SEA public key receives native code edit permission', async () => {
