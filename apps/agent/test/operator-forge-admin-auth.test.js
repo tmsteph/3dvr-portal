@@ -40,6 +40,10 @@ test('Forge worker binds assistant admin alias to the exact SEA public key', () 
   assert.equal(BUILTIN_OPERATOR_ADMIN_BINDINGS[ASSISTANT_ALIAS], ASSISTANT_PUB);
 });
 
+test('Forge worker never grants built-in admin to the public Operator E2E account', () => {
+  assert.equal(BUILTIN_OPERATOR_ADMIN_BINDINGS['operator-e2e-20260823@3dvr@3dvr'], undefined);
+});
+
 test('Forge worker authorizes the assistant admin for portal edits', async () => {
   const portalRepo = path.resolve('/srv/3dvr-portal');
   const result = await authorizePortalOperatorTask(record(), {
