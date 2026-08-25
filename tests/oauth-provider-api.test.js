@@ -246,9 +246,13 @@ describe('oauth provider api', () => {
     assert.match(res.body.error, /does not expose contacts import/i);
   });
 
-  it('keeps automatic Vercel Git deployment disabled during the self-host migration', async () => {
+  it('keeps Vercel Git deployment limited to main during the self-host migration', async () => {
     const vercelConfig = JSON.parse(await readFile(resolve(projectRoot, 'vercel.json'), 'utf8'));
 
-    assert.equal(vercelConfig?.git?.deploymentEnabled, false);
+    assert.deepEqual(vercelConfig?.git?.deploymentEnabled, {
+      '*': false,
+      main: true,
+    });
+    assert.equal(vercelConfig?.ignoreCommand, '[ "$VERCEL_GIT_COMMIT_REF" != "main" ]');
   });
 });
