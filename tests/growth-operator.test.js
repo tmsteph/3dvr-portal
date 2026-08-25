@@ -72,22 +72,23 @@ test('growth operator app queues agent work and can send approved outreach throu
   assert.match(js, /itemsRoot\.map\(\)\.on/);
 });
 
-test('growth operator is discoverable from the portal and email operator', async () => {
+test('growth operator is discoverable from the simplified portal and email operator', async () => {
   const portalHtml = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const emailOperatorHtml = await readFile(new URL('../email-operator/index.html', import.meta.url), 'utf8');
 
-  assert.match(portalHtml, /href="growth-operator\/"/);
-  assert.match(portalHtml, /<span class="app-card__title">Growth Operator<\/span>/);
-  assert.match(portalHtml, /Find leads, prepare approved email, triage support, and keep delivery moving\./);
+  assert.match(portalHtml, /href="\/growth-operator\/\?campaign=my-skill"/);
+  assert.match(portalHtml, /<strong>Make money<\/strong>/);
+  assert.match(portalHtml, /href="\/growth-operator\/"[^>]*><strong>Growth Operator<\/strong>/);
+  assert.match(portalHtml, /Pick a money path, find leads, and run outreach\./);
   assert.match(emailOperatorHtml, /href="..\/growth-operator\/"/);
 
-  const revenueIndex = portalHtml.indexOf('>Revenue Desk<');
-  const growthIndex = portalHtml.indexOf('>Growth Operator<');
-  const agentIndex = portalHtml.indexOf('>Agent Ops<');
+  const revenueIndex = portalHtml.indexOf('<strong>Revenue Desk</strong>');
+  const growthIndex = portalHtml.indexOf('<strong>Growth Operator</strong>');
+  const forgeIndex = portalHtml.indexOf('<strong>Forge</strong>');
 
-  assert.ok(revenueIndex !== -1, 'Revenue Desk app card should be listed');
-  assert.ok(growthIndex !== -1, 'Growth Operator app card should be listed');
-  assert.ok(agentIndex !== -1, 'Agent Ops app card should be listed');
+  assert.ok(revenueIndex !== -1, 'Revenue Desk app should be listed');
+  assert.ok(growthIndex !== -1, 'Growth Operator app should be listed');
+  assert.ok(forgeIndex !== -1, 'Forge app should be listed');
   assert.ok(revenueIndex < growthIndex, 'Growth Operator should render after Revenue Desk');
-  assert.ok(growthIndex < agentIndex, 'Growth Operator should render before Agent Ops');
+  assert.ok(growthIndex < forgeIndex, 'Growth Operator should render before Forge');
 });
