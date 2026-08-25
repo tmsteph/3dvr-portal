@@ -36,6 +36,12 @@ test('campaign research reuses the existing CRM and outbound pipeline with conse
   assert.match(js, /unified 3dvr-crm records/);
   assert.match(js, /existing Growth Operator \/ outreach pipeline/);
   assert.match(js, /agentOps'\)\.get\(AGENT_OWNER_ALIAS\)\.get\('taskQueue'/);
+  assert.match(js, /queueRoot\?\.get\('tasks'\)\.get\(task\.id\)/);
+  assert.match(js, /queueRoot\?\.get\('latest'\)\.get\(task\.id\)/);
+  assert.match(js, /status: task\.status/);
+  assert.match(js, /requiredCapabilities: task\.requiredCapabilities/);
+  assert.match(js, /backend: 'auto'/);
+  assert.match(js, /requiredCapabilities: 'auto'/);
 });
 
 test('my skill campaign carries Launch Room context into the money path', async () => {

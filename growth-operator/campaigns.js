@@ -165,14 +165,14 @@ function buildCampaignTask(key) {
     tenantId: 'portal:growth-operator',
     tenantAlias: readText('alias') || readText('username') || 'growth-operator',
     tenantPlan: 'builder',
-    backend: 'codex',
+    backend: 'auto',
     repo: 'tmsteph/3dvr-portal',
     model: '',
     thinking: 'high',
     unsafe: false,
     riskClass: 'workspace_write',
     approvalStatus: 'not_required',
-    requiredCapabilities: 'codex,crm,email,gun',
+    requiredCapabilities: 'auto',
     maxRuntimeMs: 0,
     status: 'queued',
     requestedBy: `growth-campaign:${campaignKey}`,
@@ -260,9 +260,17 @@ async function queueCampaignResearch(key) {
 
   updatePageStatus(`Queuing ${getCampaign(campaignKey).label} research…`);
   try {
-    await putGun(queueRoot?.get(task.id), task);
-    await putGun(queueRoot?.get('latest'), {
+    await putGun(queueRoot?.get('tasks').get(task.id), task);
+    await putGun(queueRoot?.get('latest').get(task.id), {
       id: task.id,
+      status: task.status,
+      task: task.task,
+      tenantId: task.tenantId,
+      tenantAlias: task.tenantAlias,
+      tenantPlan: task.tenantPlan,
+      riskClass: task.riskClass,
+      approvalStatus: task.approvalStatus,
+      requiredCapabilities: task.requiredCapabilities,
       kind: 'campaign-find-leads',
       campaign: campaignKey,
       updatedAt: task.updatedAt
