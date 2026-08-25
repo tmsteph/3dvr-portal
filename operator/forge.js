@@ -135,6 +135,27 @@ export function developerIdentityMatches({
   return true;
 }
 
+export async function seaPairCanSign(sea, expectedPub = '') {
+  const pub = normalizeText(expectedPub || sea?.pub, 500);
+  const SEA = globalThis.Gun?.SEA;
+  if (!sea || !pub || !SEA?.sign || !SEA?.verify) return false;
+  const challenge = {
+    scope: 'operator-session-self-check',
+    nonce: globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`
+  };
+  try {
+    const signed = await SEA.sign(challenge, sea);
+    const verified = await SEA.verify(signed, pub);
+    return Boolean(
+      verified
+      && verified.scope === challenge.scope
+      && verified.nonce === challenge.nonce
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function restoreStoredPortalSea(user) {
   const stored = readStoredPortalAuth();
   if (!stored || typeof user?.auth !== 'function') return null;
@@ -163,7 +184,9 @@ async function restoreStoredPortalSea(user) {
   });
 
   if (!authenticated) return null;
-  return waitForSea(user, AUTH_WAIT_MS);
+  const sea = await waitForSea(user, AUTH_WAIT_MS);
+  const actualPub = normalizeText(user?.is?.pub || sea?.pub, 500);
+  return await seaPairCanSign(sea, actualPub) ? sea : null;
 }
 
 async function ensurePortalSea(user) {
@@ -177,7 +200,7 @@ async function ensurePortalSea(user) {
       expectedPub: stored?.expectedPub,
       actualAlias,
       actualPub
-    })) {
+    }) && await seaPairCanSign(recalled, actualPub)) {
       return recalled;
     }
     try {
@@ -226,6 +249,16 @@ async function signedPortalProof(scope, action, extra = {}, options = {}) {
     ...extra
   };
   const authProof = await globalThis.Gun.SEA.sign(payload, sea);
+  let verified = null;
+  try {
+    verified = await globalThis.Gun.SEA.verify(authProof, pub);
+  } catch {}
+  if (!verified || verified.scope !== scope || verified.action !== action || verified.pub !== pub) {
+    try {
+      context.user?.leave?.();
+    } catch {}
+    throw new Error('3DVR developer signing session is invalid. Sign in again.');
+  }
   return {
     authPub: pub,
     authProof,
