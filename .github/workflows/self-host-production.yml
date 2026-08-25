@@ -166,17 +166,18 @@ jobs:
         env:
           TARGET: ${{ steps.resolve.outputs.host }}
           DEPLOY_SHA: ${{ github.sha }}
+          DEPLOY_REF: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           opts=(-i /tmp/3dvr-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
-          output="$(ssh "${opts[@]}" "root@$TARGET" "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' DEPLOY_SHA='$DEPLOY_SHA' bash -s" <<'REMOTE'
+          output="$(ssh "${opts[@]}" "root@$TARGET" "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' DEPLOY_SHA='$DEPLOY_SHA' DEPLOY_REF='$DEPLOY_REF' bash -s" <<'REMOTE'
           set -euo pipefail
           source_repo="$HOME/.3dvr/self-host-portal-source"
           if [ ! -d "$source_repo/.git" ]; then
             rm -rf "$source_repo"
             git clone "https://github.com/$GITHUB_REPOSITORY.git" "$source_repo"
           fi
-          git -C "$source_repo" fetch --prune origin main
+          git -C "$source_repo" fetch --prune origin "$DEPLOY_REF"
           git -C "$source_repo" cat-file -e "$DEPLOY_SHA^{commit}"
           git -C "$source_repo" checkout --detach "$DEPLOY_SHA"
 
@@ -189,7 +190,7 @@ jobs:
             set +a
           fi
 
-          bash "$source_repo/scripts/ops/deploy-self-host-portal.sh" "$source_repo" main "$DEPLOY_SHA" 4320
+          bash "$source_repo/scripts/ops/deploy-self-host-portal.sh" "$source_repo" "$DEPLOY_REF" "$DEPLOY_SHA" 4320
           bash "$source_repo/scripts/ops/install-self-host-crons.sh"
 
           npm --prefix "$source_repo/apps/agent" ci
