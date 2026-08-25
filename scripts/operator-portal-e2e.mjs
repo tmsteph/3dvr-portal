@@ -2,10 +2,13 @@ import { chromium } from 'playwright';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
 const baseUrl = process.env.PORTAL_E2E_URL || 'https://portal.3dvr.tech';
-const alias = process.env.PORTAL_E2E_ALIAS || 'operator-e2e-20260823@3dvr';
-const password = process.env.PORTAL_E2E_PASSWORD || 'PublicE2E-20260823-Disposable-Account!';
+const publicAlias = 'operator-e2e-20260823@3dvr';
+const publicPassword = 'PublicE2E-20260823-Disposable-Account!';
+const alias = process.env.PORTAL_E2E_ALIAS || publicAlias;
+const password = process.env.PORTAL_E2E_PASSWORD || publicPassword;
 const modeRaw = await readFile('.github/e2e/operator-e2e-mode.txt', 'utf8').catch(() => 'bootstrap');
-const mode = String(modeRaw || '').trim().toLowerCase();
+const mode = String(process.env.PORTAL_E2E_MODE || modeRaw || '').trim().toLowerCase();
+const usingPublicCredentials = alias === publicAlias && password === publicPassword;
 const artifactDir = 'e2e-artifacts';
 await mkdir(artifactDir, { recursive: true });
 
@@ -116,6 +119,9 @@ async function runEditAcceptance() {
 
 try {
   log('E2E_MODE', mode || 'bootstrap');
+  if (mode.startsWith('edit') && usingPublicCredentials) {
+    throw new Error('Edit mode requires private PORTAL_E2E_ALIAS and PORTAL_E2E_PASSWORD credentials.');
+  }
   await signInOrCreate();
   await saveArtifacts('signed-in-operator');
   if (mode.startsWith('edit')) {
