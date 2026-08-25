@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0d1117">
+  <title>Rank & File Network · 3DVR</title>
+  <meta name="description" content="Private-by-default rank-and-file committees and coalitions, coordinated through 3DVR and GUN.">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-logo.svg">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">3DVR</a>
+    <span class="network-status" id="networkStatus">Connecting…</span>
+  </header>
+
+  <main class="shell">
+    <section class="hero" aria-labelledby="pageTitle">
+      <p class="eyebrow">Distributed worker organizing</p>
+      <h1 id="pageTitle">Rank & File Network</h1>
+      <p class="lead">Small worker-led committees can cross employers, unions, trades, shifts, cities, and causes. A person can belong to many committees. Committees can join many coalitions.</p>
+      <div class="principles" aria-label="Network principles">
+        <span>Worker-led</span><span>Boundaryless</span><span>Federated</span><span>Private by default</span>
+      </div>
+    </section>
+
+    <aside class="privacy-note">
+      <strong>Privacy first.</strong> Committee names, membership events, priorities, and coalition links are encrypted before being written to GUN. Your invite codes contain the decryption secret, so treat them like keys. This is an early MVP and has not had a formal security audit.
+    </aside>
+
+    <section class="grid two" aria-label="Committee actions">
+      <details class="panel" open>
+        <summary>Create a committee</summary>
+        <form id="createCommitteeForm" class="stack">
+          <label>Committee name<input name="name" required maxlength="80" placeholder="Hotel AV rank & file"></label>
+          <label>Purpose<textarea name="purpose" maxlength="400" placeholder="What are we organizing around?"></textarea></label>
+          <label>Scope <span class="optional">optional</span><input name="scope" maxlength="120" placeholder="Encore · San Diego · AV · cross-property"></label>
+          <label>Your name or handle <span class="optional">optional</span><input name="displayName" maxlength="80" placeholder="Thomas"></label>
+          <button class="primary" type="submit">Create committee</button>
+        </form>
+      </details>
+
+      <details class="panel" id="joinCommitteePanel">
+        <summary>Join a committee</summary>
+        <form id="joinCommitteeForm" class="stack">
+          <label>Invite code<textarea id="committeeInviteInput" name="invite" required rows="3" placeholder="rf1.…"></textarea></label>
+          <label>Your name or handle <span class="optional">optional</span><input name="displayName" maxlength="80"></label>
+          <button class="primary" type="submit">Join committee</button>
+        </form>
+      </details>
+    </section>
+
+    <section class="section" aria-labelledby="committeesTitle">
+      <div class="section-head">
+        <div><p class="eyebrow">Your network</p><h2 id="committeesTitle">My committees</h2></div>
+        <span class="count" id="committeeCount">0</span>
+      </div>
+      <div id="committees" class="cards"><p class="empty">Create or join your first committee.</p></div>
+    </section>
+
+    <section class="coalition-builder" aria-labelledby="coalitionsTitle">
+      <div class="section-head">
+        <div><p class="eyebrow">Federate without centralizing</p><h2 id="coalitionsTitle">Coalitions</h2></div>
+        <span class="count" id="coalitionCount">0</span>
+      </div>
+      <p class="muted">Coalitions connect committees across any boundary. Committees remain independent and can belong to more than one coalition.</p>
+      <div class="grid two">
+        <details class="panel">
+          <summary>Create a coalition</summary>
+          <form id="createCoalitionForm" class="stack">
+            <label>Coalition name<input name="name" required maxlength="80" placeholder="San Diego AV Workers Coalition"></label>
+            <label>Purpose<textarea name="purpose" maxlength="400" placeholder="What brings these committees together?"></textarea></label>
+            <fieldset><legend>Start with committees</legend><div id="coalitionCommitteeChoices" class="choices"><span class="muted">Join a committee first.</span></div></fieldset>
+            <button class="primary" type="submit">Create coalition</button>
+          </form>
+        </details>
+
+        <details class="panel" id="joinCoalitionPanel">
+          <summary>Link a committee to a coalition</summary>
+          <form id="joinCoalitionForm" class="stack">
+            <label>Coalition invite code<textarea id="coalitionInviteInput" name="invite" required rows="3" placeholder="rf1.…"></textarea></label>
+            <label>Committee<select id="coalitionCommitteeSelect" name="committeeId" required><option value="">Join a committee first</option></select></label>
+            <button class="primary" type="submit">Link committee</button>
+          </form>
+        </details>
+      </div>
+      <div id="coalitions" class="cards"><p class="empty">No coalitions on this device yet.</p></div>
+    </section>
+
+    <section class="manifesto">
+      <h2>Small circles. Large networks.</h2>
+      <p>The unit is the trusted committee, not a giant central database. Committees can form, split, overlap, and cooperate. Coalitions are relationships between committees—not ownership over them.</p>
+    </section>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
