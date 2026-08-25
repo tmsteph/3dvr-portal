@@ -1,107 +1,96 @@
-# 3DVR Vercel Exit Plan
+# 3DVR Hybrid Hosting Plan
 
 ## Goal
 
-Run Portal production, previews, API routes, scheduled jobs, and TLS/domain routing without Vercel.
+Keep Vercel for the normal production lane while also maintaining a complete self-hosted Portal runtime that can take over when Vercel build quotas, outages, or future platform limits get in the way.
+
+This is redundancy, not a forced Vercel exit.
 
 ## Standing operations rule
 
-When the local ChatGPT/Codex runtime cannot SSH directly, do not treat that as a blocker. Use an active 3DVR server, GitHub Actions, or an ephemeral remote builder as the execution hop. Prefer the existing GitHub Actions deployment/recovery path when it can reach the target host.
+When the local ChatGPT/Codex runtime cannot SSH directly, use an active 3DVR server, GitHub Actions, or an ephemeral remote builder as the execution hop. Prefer the existing GitHub Actions deployment/recovery path when it can reach the target host.
 
 ## Current state
 
-- Automatic Vercel Git deployments are already disabled in `vercel.json`.
+- Vercel remains the canonical public production lane for `portal.3dvr.tech`.
+- Vercel Git deployment is intentionally limited to `main`; non-main branches should not consume routine production builds.
 - Portal has a self-hosted Node server and release deploy script.
-- Operator already runs natively on the self-host server.
-- This migration branch removes the legacy Vercel fallback for the remaining Portal API routes.
-- The repo already has event-driven GitHub Actions that target the 3DVR DigitalOcean host on `main` pushes.
-- The current operational blocker is the missing GitHub SSH credential for the already-authorized production host; restore that credential rather than replacing event-driven deployment with polling.
+- Operator can run natively on the self-host server.
+- The self-host lane runs Portal API routes locally rather than depending on a Vercel API fallback.
+- GitHub Actions can reach the 3DVR DigitalOcean host with the persistent `THREEDVR_SSH_PRIVATE_KEY` credential.
+- The canonical Vercel production environment can be copied directly into the host runtime by the self-host bootstrap workflow without printing secret values.
 
 ## Target architecture
 
-### Production
+### Vercel lane
 
-- One small always-on production host, preferably 1 vCPU / 2 GB (`s-1vcpu-2gb`).
-- `systemd` runs the Portal Node service.
-- Cloudflare DNS/Tunnel terminates public HTTPS and keeps origin ports private.
-- A push/merge to `main` triggers GitHub Actions, which deploys that exact commit to production.
-- Production does **not** poll GitHub for changes.
-- Secrets live only in the host runtime config and GitHub Actions secrets, never in Git.
+- Keep Vercel connected and available.
+- Normal public production remains a `main` deployment only.
+- Pull-request previews stay opt-in rather than automatic.
+- Keep the manual prebuilt Vercel fallback workflow available.
+- Do not intentionally spend Vercel builds on every branch or commit.
+
+### Self-host lane
+
+- One small always-on 3DVR host runs the Portal Node service and long-running workers.
+- GitHub Actions deploys exact approved commits; production does **not** poll GitHub for changes.
+- Cloudflare Tunnel can expose the self-host lane when needed while origin ports stay private.
+- Secrets live in the host runtime config and are bootstrapped from the canonical Vercel environment or explicit GitHub Actions secrets, never Git.
 
 ### Remote execution
 
-The existing 3DVR DigitalOcean host is `167.172.193.194`. The repo already contains GitHub Actions workflows that SSH to it on relevant `main` pushes. The documented host key currently authorized there is the Termux RSA key.
-
-Use this path before concluding that remote work is blocked merely because a particular local runtime lacks an SSH client.
+The existing 3DVR host is `167.172.193.194`. GitHub Actions can SSH to it using the persistent authorized key. Use this path before treating lack of SSH in a particular local runtime as a blocker.
 
 ### Preview and test builds
 
 - Preview builders are genuinely ephemeral.
-- Create a 2 vCPU / 4 GB builder (`s-2vcpu-4gb`) only for a preview/test that needs a remote machine.
-- Check out the requested branch, run tests, and serve the preview.
-- Delete the builder when the preview/test completes or fails.
-- Do not leave an idle builder waiting for another job.
+- Create a 2 vCPU / 4 GB builder only when a remote preview/test needs one.
+- Check out the requested branch, run tests, serve the preview, and delete the builder when the run finishes or fails.
+- Do not leave idle builders waiting for future work.
 
 ### API routes
 
-The self-host server executes Portal API handlers locally, including:
+The self-host server executes Portal API handlers locally, including Operator / Guide / Forge, sessions, Stripe, OAuth, calendar/reminders, publishing, growth, and money endpoints.
 
-- Operator / Guide / Forge / Next Move
-- Session and device APIs
-- Stripe billing routes and Stripe webhook
-- OAuth providers
-- Calendar providers and reminder email
-- Trial and GitHub publish endpoints
-- Growth and money endpoints
-
-No Portal API route should proxy to `3dvr-portal.vercel.app`.
+This independence is intentional: Vercel and self-host should each be able to carry the application rather than one being a fragile proxy for the other.
 
 ### Scheduled jobs
 
-Replace Vercel Cron with local `systemd` timers on production:
+The self-host lane uses local `systemd` timers for the intentional scheduled business jobs:
 
 - Growth homepage: daily at 02:43 UTC.
 - Money autopilot: Monday-Friday at 16:17 UTC.
 
-These timers are intentional scheduled business jobs. They call the local Portal API over loopback using the existing cron secret. They are not used to detect code changes.
+These timers are not Git polling.
 
-### DNS and TLS
+## Secret migration
 
-- Keep public names such as `portal.3dvr.tech` unchanged.
-- Point Cloudflare DNS/Tunnel at the self-host Portal.
-- Because the public origin stays the same, browser bookmarks, cookies, OAuth return URLs, and Stripe links can remain stable.
-- Verify Stripe webhook delivery and OAuth callbacks before removing Vercel.
+The bootstrap workflow uses the existing repository `VERCEL_TOKEN` plus the canonical Vercel project identifiers to pull the production environment. It filters Vercel platform-only variables, shell-escapes the remaining values, and merges them into `/root/.3dvr/config/portal-secrets.env` over SSH without printing values.
 
-## Migration gates
+Future self-host deploys merge only non-empty explicit GitHub secret updates, so the bootstrapped host copy remains intact unless intentionally replaced.
 
-1. Self-host server passes unit and smoke tests with zero Vercel API fallback.
-2. Restore/verify the GitHub Actions SSH credential for the authorized 3DVR host.
-3. An ephemeral preview builder completes a real preview/test and is deleted afterward.
-4. A `main` event deploys an exact approved commit to production without polling.
-5. Stripe, OAuth, session, Operator, Guide, and scheduled jobs pass on self-host.
-6. Switch `portal.3dvr.tech` to the self-host tunnel.
-7. Observe production through a normal operating cycle.
-8. Remove Vercel project/runtime secrets after rollback confidence is established.
+## Readiness gates
+
+1. Self-host unit and smoke tests pass with native API routing.
+2. Persistent GitHub Actions SSH authentication works.
+3. Canonical Vercel production environment is bootstrapped to the host.
+4. A self-host deployment of an exact approved commit succeeds without polling.
+5. Operator, Forge, Stripe, OAuth, session, Guide, and scheduled jobs pass on self-host.
+6. The self-host lane is reachable through a controlled HTTPS endpoint.
+7. Vercel remains healthy and main-only.
+8. Only after sustained confidence should we consider changing which lane owns `portal.3dvr.tech`.
 
 ## Cost target
 
-Current DigitalOcean Basic pricing in the account:
+Current DigitalOcean target:
 
-- Production 1 vCPU / 2 GB: $12/month.
+- 1 vCPU / 2 GB always-on host: about $12/month.
 - Weekly backups: about $2.40/month.
-- Ephemeral 2 vCPU / 4 GB builder: $0.03571/hour only while it exists.
+- Ephemeral 2 vCPU / 4 GB builder: about $0.03571/hour only while it exists.
 - Cloudflare DNS/Tunnel: start on the free tier.
 
-The Vercel replacement itself is therefore about **$14.40/month + actual builder minutes/hours**.
+This cost buys an independent runtime and fallback rather than replacing Vercel outright.
 
-Examples:
+## Failure strategy
 
-- 5 builder-hours/month: about $14.58/month.
-- 20 builder-hours/month: about $15.11/month.
-- Optional DigitalOcean Spaces/CDN later: add about $5/month.
-
-The existing 1 GB 3DVR agent host is a separate existing $6/month workload. If it remains separate, total DigitalOcean infrastructure is roughly **$20.40/month + ephemeral builder time** before optional Spaces/CDN.
-
-## Rollback
-
-Until the migration is proven, keep the existing Vercel deployment available with automatic Git deployment disabled. During cutover, DNS can point back if necessary. Once self-host operation is stable, remove Vercel entirely.
+If Vercel hits a build quota or production problem, the self-host lane gives us somewhere to build, test, operate workers, and if necessary serve Portal. If the self-host lane has trouble, Vercel remains available. We should prefer graceful redundancy over tying 3DVR to a single provider.
