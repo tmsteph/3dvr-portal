@@ -205,19 +205,23 @@ function updatePageStatus(message) {
   if (target) target.textContent = message;
 }
 
+function setCampaignSeed(input, value) {
+  if (!input) return;
+  const canReplace = !clean(input.value) || input.dataset.campaignSeed === 'true';
+  if (!canReplace) return;
+  input.value = value;
+  input.dataset.campaignSeed = 'true';
+}
+
 function seedQuickAdd(key) {
   const campaignKey = normalizeCampaign(key);
   const campaign = getCampaign(campaignKey);
   const offer = document.getElementById('itemOffer');
   const context = document.getElementById('itemContext');
+  const launch = campaignKey === 'my-skill' ? loadLaunchRoomBrief() : {};
 
-  if (offer && !clean(offer.value)) {
-    const launch = campaignKey === 'my-skill' ? loadLaunchRoomBrief() : {};
-    offer.value = clean(launch.tinyProject) || campaign.offer;
-  }
-  if (context && !clean(context.value)) {
-    context.value = campaignContext(campaignKey);
-  }
+  setCampaignSeed(offer, clean(launch.tinyProject) || campaign.offer);
+  setCampaignSeed(context, campaignContext(campaignKey));
 }
 
 function renderCampaign(key) {
@@ -256,8 +260,8 @@ async function queueCampaignResearch(key) {
 
   updatePageStatus(`Queuing ${getCampaign(campaignKey).label} research…`);
   try {
-    await putGun(queueRoot.get(task.id), task);
-    await putGun(queueRoot.get('latest'), {
+    await putGun(queueRoot?.get(task.id), task);
+    await putGun(queueRoot?.get('latest'), {
       id: task.id,
       kind: 'campaign-find-leads',
       campaign: campaignKey,
@@ -278,6 +282,12 @@ function initCampaigns() {
   document.querySelectorAll('[data-campaign]').forEach(button => {
     button.addEventListener('click', () => {
       active = selectCampaign(button.dataset.campaign);
+    });
+  });
+
+  [document.getElementById('itemOffer'), document.getElementById('itemContext')].forEach(input => {
+    input?.addEventListener('input', () => {
+      input.dataset.campaignSeed = 'false';
     });
   });
 
