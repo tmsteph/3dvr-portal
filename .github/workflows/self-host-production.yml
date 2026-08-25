@@ -39,6 +39,8 @@ jobs:
           node --check scripts/self-host-api-router.mjs
           bash -n scripts/ops/deploy-self-host-portal.sh
           bash -n scripts/ops/install-self-host-crons.sh
+          bash -n scripts/ops/merge-env-updates.sh
+          bash tests/self-host-secret-merge.test.sh
           node --test tests/operator-developer-access.test.js
 
       - name: Resolve server credentials and host
@@ -126,14 +128,32 @@ jobs:
         run: |
           set -euo pipefail
           opts=(-i /tmp/3dvr-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
-          [ -n "$OPENAI_API_KEY" ] || [ -n "$AI_GATEWAY_API_KEY" ] || { echo 'No OpenAI or AI Gateway API key is configured for Operator.' >&2; exit 1; }
+          updates="$(mktemp)"
+          trap 'rm -f "$updates"' EXIT
+          umask 077
           {
             for key in OPENAI_API_KEY AI_GATEWAY_API_KEY STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET STRIPE_PRICE_STARTER_ID STRIPE_PRICE_PRO_ID STRIPE_PRICE_BUILDER_ID STRIPE_PRICE_EMBEDDED_ID GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET MICROSOFT_OAUTH_CLIENT_ID MICROSOFT_OAUTH_CLIENT_SECRET MICROSOFT_OAUTH_TENANT APPLE_OAUTH_CLIENT_ID APPLE_OAUTH_TEAM_ID APPLE_OAUTH_KEY_ID APPLE_OAUTH_PRIVATE_KEY GMAIL_USER GMAIL_APP_PASSWORD CRON_SECRET; do
               value="${!key:-}"
-              [ -n "$value" ] && printf '%s=%s\n' "$key" "$value"
+              [ -n "$value" ] && printf '%s=%q\n' "$key" "$value"
             done
-            [ -n "$TUNNEL_TOKEN" ] && printf 'THREEDVR_CLOUDFLARE_TUNNEL_TOKEN=%s\n' "$TUNNEL_TOKEN"
-          } | ssh "${opts[@]}" "root@$TARGET" 'mkdir -p "$HOME/.3dvr/config"; chmod 700 "$HOME/.3dvr/config"; umask 077; cat > "$HOME/.3dvr/config/portal-secrets.env"'
+            [ -n "$TUNNEL_TOKEN" ] && printf 'THREEDVR_CLOUDFLARE_TUNNEL_TOKEN=%q\n' "$TUNNEL_TOKEN"
+          } > "$updates"
+          scp "${opts[@]}" "$updates" "root@$TARGET:/tmp/3dvr-portal-secrets.updates"
+          scp "${opts[@]}" scripts/ops/merge-env-updates.sh "root@$TARGET:/tmp/3dvr-merge-env-updates.sh"
+          ssh "${opts[@]}" "root@$TARGET" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          config_dir="$HOME/.3dvr/config"
+          secrets_env="$config_dir/portal-secrets.env"
+          updates=/tmp/3dvr-portal-secrets.updates
+          merge_script=/tmp/3dvr-merge-env-updates.sh
+          trap 'rm -f "$updates" "$merge_script"' EXIT
+          chmod 600 "$updates" "$merge_script"
+          bash "$merge_script" "$secrets_env" "$updates"
+          set -a
+          . "$secrets_env"
+          set +a
+          [ -n "${OPENAI_API_KEY:-}" ] || [ -n "${AI_GATEWAY_API_KEY:-}" ] || { echo 'No OpenAI or AI Gateway API key is configured on the 3DVR host.' >&2; exit 1; }
+          REMOTE
 
       - name: Deploy portal and Forge worker
         id: deploy
