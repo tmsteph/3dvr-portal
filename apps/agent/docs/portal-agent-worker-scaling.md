@@ -220,6 +220,44 @@ The scheduler should choose:
 4. Ephemeral isolated worker if task needs isolation.
 5. Reject or ask for upgrade/approval if quota, risk, or capability is missing.
 
+## Open Runtime Boundary
+
+YC's open-source QM architecture independently validates most of this design: a headless identity/policy/scheduler core, durable scoped state, isolated agent computers, and swappable model/harness backends.
+
+Use that as leverage, not as a reason to rewrite 3DVR around a new dependency.
+
+3DVR owns the stable product contract:
+
+```text
+identity + tenant state
+policy + approvals + risk
+queue + task/result records
+billing + audit
+3DVR product workflows
+```
+
+Execution stays replaceable behind a narrow runtime boundary:
+
+```text
+3DVR task
+  -> runtime adapter
+  -> native worker | Codex | OpenCode | Pi | QM-backed worker | future runtime
+  -> normalized result + audit receipt
+```
+
+Rules:
+
+- Do not let a model vendor, harness, sandbox provider, or QM-specific data shape become the product source of truth.
+- Keep user/product state portable and owned by 3DVR; runtime-specific session state may remain inside the runtime.
+- Keep model selection and agent harness selection configurable per task or worker capability.
+- Treat durable per-user sandboxes as an optional Tier 2/3 capability, not the default storage model for every user.
+- Separate reusable core behavior from deployment-specific tools, skills, secrets, and infrastructure.
+- Prefer open protocols and small capability interfaces at every boundary so a runtime can be removed without rewriting the portal.
+
+If QM is trialed later, the first proof should be one read-only task executed behind the existing 3DVR queue and policy boundary. It must preserve current tenant identity, approval/risk semantics, audit records, and task/result shapes. Removing QM must require no portal data migration.
+
+Do not delay the current Work Agent credential-store and Calendar path to perform this trial. Adopt the boundary now; substitute runtimes only when a live workload benefits.
+
 ## Portal UX
 
 Portal should expose this as one simple surface:
