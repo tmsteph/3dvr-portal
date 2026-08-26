@@ -30,12 +30,18 @@ test('campaign research reuses the existing CRM and outbound pipeline with conse
 
   assert.match(js, /maximum 10 prospects/);
   assert.match(js, /Research public information only/);
-  assert.match(js, /Never guess or synthesize email addresses/);
-  assert.match(js, /Do not mass email or blast generic lists/);
+  assert.match(js, /Never guess or synthesize private contact addresses/);
+  assert.match(js, /Do not send messages or blast generic lists from this research task/);
   assert.match(js, /existing campaign caps/);
   assert.match(js, /unified 3dvr-crm records/);
   assert.match(js, /existing Growth Operator \/ outreach pipeline/);
   assert.match(js, /agentOps'\)\.get\(AGENT_OWNER_ALIAS\)\.get\('taskQueue'/);
+  assert.match(js, /queueRoot\?\.get\('tasks'\)\.get\(task\.id\)/);
+  assert.match(js, /queueRoot\?\.get\('latest'\)\.get\(task\.id\)/);
+  assert.match(js, /status: task\.status/);
+  assert.match(js, /requiredCapabilities: task\.requiredCapabilities/);
+  assert.match(js, /backend: 'auto'/);
+  assert.match(js, /requiredCapabilities: 'auto'/);
 });
 
 test('my skill campaign carries Launch Room context into the money path', async () => {
