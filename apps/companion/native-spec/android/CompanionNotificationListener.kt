@@ -64,10 +64,12 @@ object MessageNotificationStore {
     private val lock = Any()
     private val entries = LinkedHashMap<String, MessageNotificationEntry>()
     private var loaded = false
-    private val knownSmsPackages = setOf(
+    private val knownMessagePackages = setOf(
         "com.google.android.apps.messaging",
         "com.samsung.android.messaging",
         "com.android.mms",
+        "com.whatsapp",
+        "com.whatsapp.w4b",
     )
 
     fun initialize(context: Context) {
@@ -83,9 +85,9 @@ object MessageNotificationStore {
     fun upsert(context: Context, notification: StatusBarNotification) {
         initialize(context)
         val defaultSmsPackage = runCatching { Telephony.Sms.getDefaultSmsPackage(context) }.getOrNull()
-        val isSmsApp = notification.packageName == defaultSmsPackage ||
-            notification.packageName in knownSmsPackages
-        if (!isSmsApp) return
+        val isMessageApp = notification.packageName == defaultSmsPackage ||
+            notification.packageName in knownMessagePackages
+        if (!isMessageApp) return
 
         val source = notification.notification
         val extras = source.extras
@@ -261,7 +263,7 @@ object MessageNotificationStore {
 
 /**
  * Keeps low-sensitivity notification metadata in one store and a separate,
- * encrypted-at-rest history for notifications from the current/default SMS app.
+ * encrypted-at-rest history for notifications from approved messaging apps.
  *
  * Message bodies are never written to plaintext disk or to the metadata store.
  * Dismissed notifications are retained for at most seven days / fifty entries,

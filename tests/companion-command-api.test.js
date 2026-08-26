@@ -88,7 +88,10 @@ test('lists active Companion devices and admitted capabilities', async () => {
   const res = createResponse();
   await handler(request({ mode: 'devices' }), res);
   assert.equal(res.statusCode, 200); assert.equal(res.body.devices.length, 1);
-  assert.deepEqual(res.body.capabilities, ['health', 'device.status', 'app.open_known', 'url.open']);
+  assert.deepEqual(res.body.capabilities, [
+    'health', 'device.status', 'app.open_known', 'url.open',
+    'messages.notification.read', 'messages.notification.reply',
+  ]);
   assert.equal(calls[0].options.headers.authorization, 'Bearer vercel-oidc-secret'); assert.equal(JSON.stringify(res.body).includes('vercel-oidc-secret'), false);
 });
 
@@ -108,6 +111,41 @@ test('invokes device.status on the sole connected phone and returns the result',
   await handler(request({ mode: 'invoke', capabilityId: 'device.status' }), res);
   assert.equal(res.statusCode, 200); assert.equal(res.body.ok, true); assert.equal(res.body.deviceId, 'device_abcdefghijklmnopqrstuv');
   assert.deepEqual(res.body.data, { model: 'SM-F936U1', batteryPercent: 67 }); assert.equal(calls.length, 3);
+});
+
+test('forwards bounded message reads and exact notification replies', async () => {
+  for (const [capabilityId, args] of [
+    ['messages.notification.read', { limit: 5 }],
+    ['messages.notification.reply', { key: 'sms|thread|42', text: 'On my way' }],
+  ]) {
+    const handler = createCompanionCommandHandler({
+      config: { VERCEL_OIDC_TOKEN: 'vercel-oidc-secret' }, verifyAuth: acceptedAuth(signed(capabilityId, args)),
+      fetchImpl: async (url, options) => {
+        if (url.endsWith('/relay/v1/devices')) return mockJsonResponse(200, { ok: true, devices: [{ deviceId: 'device_abcdefghijklmnopqrstuv', expiresAt: 999999 }] });
+        if (url.endsWith('/relay/v1/commands')) { const body = JSON.parse(options.body); assert.equal(body.capabilityId, capabilityId); assert.deepEqual(body.arguments, args); return mockJsonResponse(201, { ok: true, requestId: body.requestId }); }
+        if (url.includes('/relay/v1/results/')) return mockJsonResponse(200, { ok: true, commandOk: true, data: {}, completedAt: 123456 });
+        throw new Error(`unexpected URL ${url}`);
+      },
+    });
+    const res = createResponse();
+    await handler(request({ mode: 'invoke', capabilityId, arguments: args }), res);
+    assert.equal(res.statusCode, 200); assert.equal(res.body.ok, true);
+  }
+});
+
+test('rejects overbroad message reads and malformed replies before relay access', async () => {
+  for (const body of [
+    { mode: 'invoke', capabilityId: 'messages.notification.read', arguments: { limit: 50 } },
+    { mode: 'invoke', capabilityId: 'messages.notification.read', arguments: { packageName: 'com.whatsapp' } },
+    { mode: 'invoke', capabilityId: 'messages.notification.reply', arguments: { key: '', text: 'hi' } },
+    { mode: 'invoke', capabilityId: 'messages.notification.reply', arguments: { key: 'message-key', text: '' } },
+  ]) {
+    let networkCalls = 0;
+    const handler = createCompanionCommandHandler({ config: { VERCEL_OIDC_TOKEN: 'oidc-token' }, fetchImpl: async () => { networkCalls += 1; throw new Error('should not call network'); }, verifyAuth: acceptedAuth('unused') });
+    const res = createResponse();
+    await handler(request(body), res);
+    assert.equal(res.statusCode, 400); assert.equal(networkCalls, 0);
+  }
 });
 
 test('forwards a normalized known-app action to the relay', async () => {

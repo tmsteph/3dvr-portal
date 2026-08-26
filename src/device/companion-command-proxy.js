@@ -7,6 +7,8 @@ export const REMOTE_COMPANION_CAPABILITIES = new Set([
   'device.status',
   'app.open_known',
   'url.open',
+  'messages.notification.read',
+  'messages.notification.reply',
 ]);
 const ALLOWED_APP_ALIASES = new Set([
   'settings',
@@ -51,6 +53,21 @@ function normalizeArguments(capabilityId, value) {
       throw new Error('valid https url required');
     }
     return { url: parsed.toString() };
+  }
+  if (capabilityId === 'messages.notification.read') {
+    const keys = Object.keys(args);
+    if (keys.some((key) => key !== 'limit')) throw new Error('unsupported message read argument');
+    if (!keys.length) return {};
+    const limit = Number(args.limit);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 20) throw new Error('message read limit must be 1-20');
+    return { limit };
+  }
+  if (capabilityId === 'messages.notification.reply') {
+    const key = text(args.key);
+    const replyText = text(args.text);
+    if (!key || key.length > 512) throw new Error('valid message key required');
+    if (!replyText || replyText.length > 4000) throw new Error('reply text must be 1-4000 characters');
+    return { key, text: replyText };
   }
   throw new Error('capability is not enabled for remote invocation');
 }

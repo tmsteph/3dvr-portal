@@ -38,10 +38,10 @@ object CompanionRemoteRelayState {
  * Owns Companion's direct relay from the always-on foreground service.
  *
  * Remote execution is deliberately capability-based rather than a shell. The
- * user-facing admitted set is health, device.status, app.open_known, and
- * url.open. `voice.authorize` is an internal one-time proof-of-possession
+ * user-facing admitted set is health, device.status, app.open_known, url.open,
+ * and bounded notification-backed message read/reply. `voice.authorize` is an internal one-time proof-of-possession
  * challenge used only to bootstrap a locally initiated Realtime voice session.
- * Accessibility, messages, arbitrary packages, Shizuku actions, and shell
+ * Accessibility, arbitrary packages, Shizuku actions, raw SMS permissions, and shell
  * execution remain outside this direct-relay surface.
  */
 class CompanionRemoteRelayClient(context: Context) {
@@ -160,6 +160,8 @@ class CompanionRemoteRelayClient(context: Context) {
             "device.status" -> CommandResult(ok = true, data = deviceStatus())
             "app.open_known" -> openKnownApp(arguments)
             "url.open" -> openHttpsUrl(arguments)
+            "messages.notification.read" -> readMessageNotifications(arguments)
+            "messages.notification.reply" -> replyMessageNotification(arguments)
             "voice.authorize" -> authorizeVoice(arguments)
             else -> CommandResult(ok = false, code = "unsupported_capability")
         }
@@ -181,6 +183,36 @@ class CompanionRemoteRelayClient(context: Context) {
             return
         }
         require(response.statusCode in 200..299) { "result HTTP ${response.statusCode}" }
+    }
+
+    private fun readMessageNotifications(arguments: JSONObject): CommandResult {
+        val limit = if (arguments.has("limit")) arguments.optInt("limit", -1) else 10
+        if (limit !in 1..20) return CommandResult(false, "invalid_message_limit")
+        MessageNotificationStore.initialize(appContext)
+        val messages = MessageNotificationStore.snapshot().take(limit)
+        return CommandResult(
+            ok = true,
+            data = mapOf(
+                "messages" to messages,
+                "storage" to "encrypted-on-device-history",
+                "maxReturned" to 20,
+            ),
+        )
+    }
+
+    private fun replyMessageNotification(arguments: JSONObject): CommandResult {
+        val key = arguments.optString("key").trim()
+        val text = arguments.optString("text").trim()
+        if (key.isEmpty() || key.length > 512 || text.isEmpty() || text.length > 4000) {
+            return CommandResult(false, "invalid_message_reply")
+        }
+        MessageNotificationStore.initialize(appContext)
+        val replied = MessageNotificationStore.reply(appContext, key, text)
+        return if (replied) {
+            CommandResult(true, data = mapOf("key" to key, "replied" to true))
+        } else {
+            CommandResult(false, "message_reply_unavailable", mapOf("key" to key))
+        }
     }
 
     private fun authorizeVoice(arguments: JSONObject): CommandResult {
@@ -233,7 +265,10 @@ class CompanionRemoteRelayClient(context: Context) {
             "model" to Build.MODEL,
             "batteryPercent" to battery?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY),
             "bridgeActive" to true,
-            "capabilities" to listOf("health", "device.status", "app.open_known", "url.open"),
+            "capabilities" to listOf(
+                "health", "device.status", "app.open_known", "url.open",
+                "messages.notification.read", "messages.notification.reply",
+            ),
         )
     }
 
