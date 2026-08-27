@@ -106,12 +106,43 @@ jobs:
         run: |
           set -euo pipefail
           opts=(-i /tmp/3dvr-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
-          [ -n "$OPENAI_API_KEY" ] || [ -n "$AI_GATEWAY_API_KEY" ] || { echo 'No OpenAI or AI Gateway API key is configured for Operator.' >&2; exit 1; }
+          updates="$(mktemp)"
+          trap 'rm -f "$updates"' EXIT
           {
             [ -n "$OPENAI_API_KEY" ] && printf 'OPENAI_API_KEY=%s\n' "$OPENAI_API_KEY"
             [ -n "$AI_GATEWAY_API_KEY" ] && printf 'AI_GATEWAY_API_KEY=%s\n' "$AI_GATEWAY_API_KEY"
             [ -n "$TUNNEL_TOKEN" ] && printf 'THREEDVR_CLOUDFLARE_TUNNEL_TOKEN=%s\n' "$TUNNEL_TOKEN"
-          } | ssh "${opts[@]}" "root@$TARGET" 'mkdir -p "$HOME/.3dvr/config"; chmod 700 "$HOME/.3dvr/config"; umask 077; cat > "$HOME/.3dvr/config/portal-secrets.env"'
+          } > "$updates"
+
+          if [ ! -s "$updates" ]; then
+            echo 'No runtime secret updates supplied; preserving the server configuration.'
+            exit 0
+          fi
+
+          ssh "${opts[@]}" "root@$TARGET" \
+            'mkdir -p "$HOME/.3dvr/config"; chmod 700 "$HOME/.3dvr/config"; umask 077; cat > "$HOME/.3dvr/config/portal-secrets.update"' \
+            < "$updates"
+
+          ssh "${opts[@]}" "root@$TARGET" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          config_dir="$HOME/.3dvr/config"
+          secrets_env="$config_dir/portal-secrets.env"
+          incoming="$config_dir/portal-secrets.update"
+          next="$(mktemp)"
+          trap 'rm -f "$incoming" "$next" "${next}.filtered"' EXIT
+          umask 077
+          touch "$secrets_env"
+          cp "$secrets_env" "$next"
+          while IFS= read -r line; do
+            [ -n "$line" ] || continue
+            key="${line%%=*}"
+            grep -v "^${key}=" "$next" > "${next}.filtered" || true
+            mv "${next}.filtered" "$next"
+            printf '%s\n' "$line" >> "$next"
+          done < "$incoming"
+          mv "$next" "$secrets_env"
+          chmod 600 "$secrets_env"
+          REMOTE
 
       - name: Deploy portal and Forge worker
         id: deploy
