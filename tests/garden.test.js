@@ -41,6 +41,7 @@ describe('3DVR Idea Garden', () => {
     assert.match(app, /function startSync/);
     assert.match(app, /sync\.load\(buildGardenPayload\(\)\)/);
     assert.match(app, /sync\.save\(buildGardenPayload\(\)\)/);
+    assert.match(app, /accountLink\.href = signedIn \? '\/profile\.html'/);
     assert.match(app, /function downloadGarden/);
     assert.match(app, /function toolForStage/);
     assert.doesNotMatch(app, /encodeURIComponent\(idea\.text\)/);
