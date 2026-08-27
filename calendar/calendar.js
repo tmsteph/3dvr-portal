@@ -13,7 +13,9 @@ const PROVIDERS = {
   }
 };
 
-const LOCAL_EVENTS_KEY = 'calendar.local.events';
+const SHARE_TOKEN = readCalendarShareToken();
+const LOCAL_EVENTS_KEY = SHARE_TOKEN ? `calendar.shared.events:${SHARE_TOKEN}` : 'calendar.local.events';
+const SHARE_LINKS_STORAGE_PREFIX = 'calendar.share.links:';
 const PROVIDER_LABELS = {
   local: 'Local',
   google: 'Google',
@@ -71,9 +73,19 @@ const GUN_PEERS = (typeof window !== 'undefined' && window.__GUN_PEERS__) || [
 const gun = typeof Gun === 'function' ? Gun(GUN_PEERS) : null;
 const portalRoot = gun ? gun.get('3dvr-portal') : null;
 const calendarRoot = portalRoot ? portalRoot.get('calendar') : null;
-const calendarOwnerKey = calendarRoot ? resolveCalendarOwnerKey() : null;
-const gunEvents = calendarOwnerKey ? calendarRoot.get('users').get(calendarOwnerKey).get('events') : null;
+const personalCalendarOwnerKey = calendarRoot ? resolveCalendarOwnerKey() : null;
+let calendarOwnerKey = SHARE_TOKEN ? null : personalCalendarOwnerKey;
+let gunEvents = calendarOwnerKey ? calendarRoot.get('users').get(calendarOwnerKey).get('events') : null;
 let isGunApplying = false;
+let shareGunStarted = false;
+const shareState = {
+  token: SHARE_TOKEN,
+  mode: SHARE_TOKEN ? 'loading' : 'owner',
+  permission: SHARE_TOKEN ? 'view' : 'owner',
+  active: !SHARE_TOKEN,
+  label: '',
+  ownerKey: calendarOwnerKey || '',
+};
 
 const statusElements = new Map(
   Array.from(document.querySelectorAll('[data-status]')).map(el => [el.dataset.status, el])
@@ -108,6 +120,13 @@ const calendarQuickConnectedMeta = document.getElementById('calendarQuickConnect
 const calendarQuickSelected = document.getElementById('calendarQuickSelected');
 const calendarQuickSelectedMeta = document.getElementById('calendarQuickSelectedMeta');
 const portalHomeLink = document.querySelector('[data-portal-home-link]');
+const shareAccessBanner = document.querySelector('[data-share-access]');
+const shareAccessTitle = document.querySelector('[data-share-access-title]');
+const shareAccessCopy = document.querySelector('[data-share-access-copy]');
+const shareForm = document.querySelector('[data-share-form]');
+const shareLinkOutput = document.querySelector('[data-share-link-output]');
+const shareLinkField = document.querySelector('[data-share-link]');
+const shareList = document.querySelector('[data-share-list]');
 
 const calendarMonthFormatter = new Intl.DateTimeFormat(undefined, {
   month: 'long',
@@ -259,6 +278,292 @@ function resolveCalendarOwnerKey() {
   }
   const fallbackGuestId = ensureCalendarGuestId();
   return `guest:${slugifyKey(fallbackGuestId, 'guest')}`;
+}
+
+
+function readCalendarShareToken() {
+  if (typeof window === 'undefined' || !window.location) return '';
+  const hash = String(window.location.hash || '').replace(/^#/, '');
+  if (!hash) return '';
+  const params = new URLSearchParams(hash);
+  const token = (params.get('share') || '').trim();
+  return /^(?:calv|cale)_[A-Za-z0-9_-]{32,160}$/.test(token) ? token : '';
+}
+
+function sharePermissionFromToken(token = SHARE_TOKEN) {
+  return String(token || '').startsWith('cale_') ? 'edit' : 'view';
+}
+
+function canEditCalendar() {
+  return shareState.mode === 'owner' || (shareState.mode === 'share' && shareState.active && shareState.permission === 'edit');
+}
+
+function isSharedCalendar() {
+  return Boolean(shareState.token);
+}
+
+function shareRegistryStorageKey() {
+  return `${SHARE_LINKS_STORAGE_PREFIX}${personalCalendarOwnerKey || 'guest'}`;
+}
+
+function readShareRegistry() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(shareRegistryStorageKey()) || '[]');
+    return Array.isArray(parsed) ? parsed.filter(item => item && typeof item.token === 'string') : [];
+  } catch (_err) {
+    return [];
+  }
+}
+
+function writeShareRegistry(records) {
+  try {
+    localStorage.setItem(shareRegistryStorageKey(), JSON.stringify(Array.isArray(records) ? records : []));
+  } catch (err) {
+    console.warn('Unable to persist calendar share links', err);
+  }
+}
+
+function generateShareToken(permission = 'view') {
+  const bytes = new Uint8Array(32);
+  if (globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+  }
+  let binary = '';
+  bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+  const prefix = permission === 'edit' ? 'cale' : 'calv';
+  return `${prefix}_${btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')}`;
+}
+
+function buildShareUrl(token) {
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.hash = `share=${encodeURIComponent(token)}`;
+  return url.toString();
+}
+
+function getShareMetaNode(token) {
+  if (!gun || !token) return null;
+  return gun.get(`3dvr-calendar-share:${token}`).get('meta');
+}
+
+function setOwnerOnlyVisibility(shared) {
+  document.querySelectorAll('[data-owner-only]').forEach(element => {
+    element.hidden = Boolean(shared);
+  });
+}
+
+function applyShareModeUi() {
+  const shared = isSharedCalendar();
+  document.body.dataset.calendarAccess = shared ? shareState.permission : 'owner';
+  setOwnerOnlyVisibility(shared);
+
+  if (shareAccessBanner) {
+    shareAccessBanner.hidden = !shared;
+  }
+  if (shared && shareAccessTitle) {
+    if (shareState.mode === 'loading') shareAccessTitle.textContent = 'Opening shared calendar…';
+    else if (!shareState.active) shareAccessTitle.textContent = 'This share link is no longer active';
+    else shareAccessTitle.textContent = shareState.permission === 'edit' ? 'Shared calendar • Can edit' : 'Shared calendar • View only';
+  }
+  if (shared && shareAccessCopy) {
+    if (shareState.mode === 'loading') shareAccessCopy.textContent = 'Checking the secret link and loading the calendar.';
+    else if (!shareState.active) shareAccessCopy.textContent = 'Ask the calendar owner for a new link.';
+    else {
+      const label = shareState.label ? `${shareState.label}. ` : '';
+      shareAccessCopy.textContent = `${label}${shareState.permission === 'edit' ? 'You can add and change 3DVR events.' : 'You can view this calendar without signing in.'}`;
+    }
+  }
+
+  const editable = canEditCalendar();
+  if (createEventToggle) createEventToggle.hidden = !editable;
+  if (addEventForDayButton) addEventForDayButton.hidden = !editable;
+  if (!editable && createEventContainer) createEventContainer.hidden = true;
+}
+
+function renderShareLinks() {
+  if (!shareList) return;
+  shareList.innerHTML = '';
+  const records = readShareRegistry().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  if (!records.length) {
+    const empty = document.createElement('li');
+    empty.className = 'share-link-list__empty';
+    empty.textContent = 'No secret share links yet.';
+    shareList.appendChild(empty);
+    return;
+  }
+  records.forEach(record => {
+    const item = document.createElement('li');
+    item.className = 'share-link-list__item';
+    const info = document.createElement('div');
+    const title = document.createElement('strong');
+    title.textContent = record.label || (record.permission === 'edit' ? 'Edit link' : 'View link');
+    const meta = document.createElement('span');
+    meta.textContent = `${record.permission === 'edit' ? 'Can edit' : 'View only'}${record.active === false ? ' • Revoked' : ''}`;
+    info.append(title, meta);
+    const actions = document.createElement('div');
+    actions.className = 'share-link-list__actions';
+    if (record.active !== false) {
+      const copy = document.createElement('button');
+      copy.type = 'button';
+      copy.className = 'button-secondary';
+      copy.dataset.action = 'copy-existing-share';
+      copy.dataset.shareToken = record.token;
+      copy.textContent = 'Copy';
+      const revoke = document.createElement('button');
+      revoke.type = 'button';
+      revoke.className = 'button-secondary';
+      revoke.dataset.action = 'revoke-share';
+      revoke.dataset.shareToken = record.token;
+      revoke.textContent = 'Revoke';
+      actions.append(copy, revoke);
+    }
+    item.append(info, actions);
+    shareList.appendChild(item);
+  });
+}
+
+async function copyShareUrl(token) {
+  const url = buildShareUrl(token);
+  try {
+    await navigator.clipboard.writeText(url);
+    showLog('Secret calendar link copied.', 'success');
+  } catch (_err) {
+    if (shareLinkField) {
+      shareLinkField.value = url;
+      shareLinkField.focus();
+      shareLinkField.select();
+    }
+    showLog('Share link is ready to copy.', 'info');
+  }
+  return url;
+}
+
+function handleShareCreate(event) {
+  event.preventDefault();
+  if (!shareForm) return;
+  if (!personalCalendarOwnerKey || !personalCalendarOwnerKey.startsWith('user:')) {
+    showLog('Sign in to create a secret calendar share link.', 'error');
+    return;
+  }
+  if (!gun) {
+    showLog('The 3DVR relay is unavailable, so a live share link cannot be created right now.', 'error');
+    return;
+  }
+  const form = new FormData(shareForm);
+  const permission = form.get('permission') === 'edit' ? 'edit' : 'view';
+  const label = String(form.get('label') || '').trim().slice(0, 80);
+  const token = generateShareToken(permission);
+  const createdAt = new Date().toISOString();
+  const record = { token, permission, label, createdAt, active: true };
+  const metaNode = getShareMetaNode(token);
+  metaNode.put({
+    version: 1,
+    active: true,
+    ownerKey: personalCalendarOwnerKey,
+    permission,
+    label,
+    createdAt,
+  });
+  const records = readShareRegistry();
+  records.push(record);
+  writeShareRegistry(records);
+  renderShareLinks();
+  const url = buildShareUrl(token);
+  if (shareLinkField) shareLinkField.value = url;
+  if (shareLinkOutput) shareLinkOutput.hidden = false;
+  showLog(`${permission === 'edit' ? 'Editable' : 'View-only'} secret link created.`, 'success');
+}
+
+function revokeShareToken(token) {
+  const records = readShareRegistry().map(record => record.token === token
+    ? { ...record, active: false, revokedAt: new Date().toISOString() }
+    : record);
+  writeShareRegistry(records);
+  const metaNode = getShareMetaNode(token);
+  if (metaNode) metaNode.put({ active: false, revokedAt: new Date().toISOString() });
+  renderShareLinks();
+  showLog('Share link revoked. It will no longer load the live calendar.', 'success');
+}
+
+function handleShareListClick(event) {
+  const button = event.target.closest('button[data-share-token]');
+  if (!button) return;
+  const token = button.dataset.shareToken || '';
+  if (!token) return;
+  if (button.dataset.action === 'revoke-share') revokeShareToken(token);
+  else if (button.dataset.action === 'copy-existing-share') copyShareUrl(token);
+}
+
+function initializeOwnerShareControls() {
+  if (isSharedCalendar()) return;
+  renderShareLinks();
+  if (shareForm) shareForm.addEventListener('submit', handleShareCreate);
+  if (shareList) shareList.addEventListener('click', handleShareListClick);
+  const copyButton = document.querySelector('[data-action="copy-share-link"]');
+  if (copyButton) copyButton.addEventListener('click', () => {
+    const value = shareLinkField?.value || '';
+    const token = (() => {
+      try { return new URL(value).hash.replace(/^#/, '') ? new URLSearchParams(new URL(value).hash.slice(1)).get('share') || '' : ''; }
+      catch (_err) { return ''; }
+    })();
+    if (token) copyShareUrl(token);
+  });
+}
+
+function initializeSharedCalendar() {
+  if (!SHARE_TOKEN) return false;
+  applyShareModeUi();
+  if (!gun || !calendarRoot) {
+    shareState.mode = 'share';
+    shareState.active = false;
+    applyShareModeUi();
+    showLog('The shared calendar relay is unavailable.', 'error');
+    return true;
+  }
+  const metaNode = getShareMetaNode(SHARE_TOKEN);
+  metaNode.on(raw => {
+    const meta = stripGunMeta(raw);
+    const ownerKey = typeof meta?.ownerKey === 'string' ? meta.ownerKey.trim() : '';
+    const active = meta?.active !== false && Boolean(ownerKey);
+    shareState.mode = 'share';
+    shareState.active = active;
+    // Permission is part of the unguessable capability token, not mutable relay metadata.
+    shareState.permission = sharePermissionFromToken(SHARE_TOKEN);
+    shareState.label = typeof meta?.label === 'string' ? meta.label.trim() : '';
+    shareState.ownerKey = ownerKey;
+    applyShareModeUi();
+    if (!active) {
+      if (gunEvents && typeof gunEvents.off === 'function') gunEvents.off();
+      gunEvents = null;
+      shareGunStarted = false;
+      state.localEvents = [];
+      try { localStorage.removeItem(LOCAL_EVENTS_KEY); } catch (_err) {}
+      renderEvents();
+      showLog('This share link has been revoked or is invalid.', 'error');
+      return;
+    }
+    if (!/^user:[a-z0-9_-]+$/.test(ownerKey)) {
+      shareState.active = false;
+      applyShareModeUi();
+      showLog('This share link is invalid.', 'error');
+      return;
+    }
+    if (!shareGunStarted) {
+      calendarOwnerKey = ownerKey;
+      gunEvents = calendarRoot.get('users').get(ownerKey).get('events');
+      shareGunStarted = true;
+      state.localEvents = [];
+      try { localStorage.removeItem(LOCAL_EVENTS_KEY); } catch (_err) {}
+      renderEvents();
+      setupGunSync({ pushInitial: false });
+      showLog(shareState.permission === 'edit'
+        ? 'Shared calendar loaded. Changes you make here sync through the 3DVR relay.'
+        : 'Shared calendar loaded in view-only mode.', 'success');
+    }
+  });
+  return true;
 }
 
 function stripGunMeta(value) {
@@ -482,7 +787,8 @@ function syncEventsToGun(events, previousIds = new Set()) {
   });
 }
 
-function setupGunSync() {
+function setupGunSync(options = {}) {
+  const { pushInitial = !isSharedCalendar() } = options;
   if (!gunEvents) {
     console.info('3DVR calendar relay unavailable; continuing with local-only events.');
     return;
@@ -517,7 +823,7 @@ function setupGunSync() {
     isGunApplying = false;
   });
 
-  if (state.localEvents.length) {
+  if (pushInitial && state.localEvents.length) {
     syncEventsToGun(state.localEvents);
   }
 }
@@ -554,6 +860,9 @@ function readOauthConnection(provider) {
   if (provider === 'google') {
     return {
       accessToken: connection.accessToken,
+      refreshToken: connection.refreshToken || '',
+      expiresAt: connection.expiresAt || 0,
+      scopeKey: connection.scopeKey || 'calendar',
       calendarId: connection.calendarId || PROVIDERS.google.defaults.calendarId,
       source: 'oauth',
       email: connection.email || '',
@@ -562,6 +871,9 @@ function readOauthConnection(provider) {
   }
   return {
     accessToken: connection.accessToken,
+    refreshToken: connection.refreshToken || '',
+    expiresAt: connection.expiresAt || 0,
+    scopeKey: connection.scopeKey || 'calendar',
     mailbox: connection.email || connection.mailbox || '',
     source: 'oauth',
     email: connection.email || '',
@@ -721,7 +1033,7 @@ function writeLocalEvents(events, options = {}) {
   }
   renderEvents();
   scheduleReminders(sorted);
-  if (gunEvents && !skipGunSync && !isGunApplying) {
+  if (gunEvents && canEditCalendar() && !skipGunSync && !isGunApplying) {
     syncEventsToGun(sorted, previousIds);
   }
 }
@@ -734,6 +1046,7 @@ function hydrateLocalEvents() {
 }
 
 function ensureDefaultTodayEvent() {
+  if (isSharedCalendar()) return;
   const today = new Date();
   const todayKey = toDateKey(today);
   if (!todayKey) {
@@ -1005,7 +1318,7 @@ function renderSelectedDayDetails() {
   calendarDetails.hidden = false;
   calendarDetailsList.innerHTML = '';
   if (calendarDetailsActions) {
-    calendarDetailsActions.hidden = false;
+    calendarDetailsActions.hidden = !canEditCalendar();
   }
 
   const displayDate = new Date(`${selectedDate}T00:00:00`);
@@ -1064,7 +1377,7 @@ function renderSelectedDayDetails() {
         listItem.appendChild(description);
       }
 
-      if (item.normalized.provider === 'local') {
+      if (item.normalized.provider === 'local' && canEditCalendar()) {
         const actions = document.createElement('div');
         actions.className = 'calendar-view__details-item-actions';
         const editButton = document.createElement('button');
@@ -1136,6 +1449,10 @@ function handleCalendarGridKeydown(event) {
 }
 
 function handleAddEventForSelectedDay() {
+  if (!canEditCalendar()) {
+    showLog('This shared calendar is view only.', 'info');
+    return;
+  }
   const targetDate = calendarState.selectedDate || toDateKey(new Date());
   resetCreateEventFormDirty();
   prefillCreateEventForm(targetDate, { force: true });
@@ -1280,7 +1597,7 @@ function renderEvents(events = state.localEvents) {
     }
     const editButton = fragment.querySelector('[data-action="edit-event"]');
     if (editButton) {
-      if (entry.provider === 'local') {
+      if (entry.provider === 'local' && canEditCalendar()) {
         editButton.dataset.eventId = entry.id;
         editButton.hidden = false;
       } else {
@@ -1290,11 +1607,12 @@ function renderEvents(events = state.localEvents) {
     const deleteButton = fragment.querySelector('[data-action="delete-event"]');
     if (deleteButton) {
       deleteButton.dataset.eventId = entry.id;
+      deleteButton.hidden = !canEditCalendar();
     }
     const reminderButton = fragment.querySelector('[data-action="send-reminder"]');
     if (reminderButton) {
       reminderButton.dataset.eventId = entry.id;
-      reminderButton.hidden = !entry.reminderEnabled;
+      reminderButton.hidden = !entry.reminderEnabled || isSharedCalendar();
     }
     eventList.appendChild(fragment);
   });
@@ -1410,6 +1728,31 @@ function getConnectionOrWarn(provider) {
   if (!connection) {
     showLog(`${PROVIDERS[provider].label} is not connected yet. Save a token first.`, 'error');
     return null;
+  }
+  return connection;
+}
+
+
+async function getFreshConnectionOrWarn(provider, options = {}) {
+  const { silent = false } = options;
+  let connection = state.connections.get(provider);
+  if (!connection) {
+    if (!silent) showLog(`${PROVIDERS[provider].label} is not connected yet. Use the account connection button first.`, 'error');
+    return null;
+  }
+  if (connection.source !== 'oauth') return connection;
+  const runtime = window.PortalOAuth;
+  if (!runtime || typeof runtime.ensureFreshConnection !== 'function') return connection;
+  try {
+    const refreshed = await runtime.ensureFreshConnection(getOauthProviderName(provider));
+    if (refreshed?.accessToken) {
+      hydrateState();
+      connection = state.connections.get(provider) || connection;
+    }
+  } catch (err) {
+    const expired = Number(connection.expiresAt) > 0 && Number(connection.expiresAt) <= Date.now();
+    if (!silent) showLog(err.message || `Unable to refresh ${PROVIDERS[provider].label}.`, 'error');
+    if (expired) return null;
   }
   return connection;
 }
@@ -1660,10 +2003,31 @@ function importRemoteEvents(provider, events = []) {
   return { added, updated, total: added + updated };
 }
 
+
+async function importCurrentMonthFromProvider(provider) {
+  if (!PROVIDERS[provider]) return { added: 0, updated: 0, total: 0 };
+  const connection = await getFreshConnectionOrWarn(provider, { silent: true });
+  if (!connection) return { added: 0, updated: 0, total: 0 };
+  const monthStart = startOfMonth(new Date());
+  const nextMonth = new Date(monthStart);
+  nextMonth.setMonth(nextMonth.getMonth() + 1);
+  const payload = {
+    action: 'listEvents',
+    accessToken: connection.accessToken,
+    timeMin: monthStart.toISOString(),
+    timeMax: nextMonth.toISOString(),
+    maxResults: 100,
+  };
+  if (provider === 'google') payload.calendarId = connection.calendarId || PROVIDERS.google.defaults.calendarId;
+  if (provider === 'outlook' && connection.mailbox) payload.mailbox = connection.mailbox;
+  const data = await callProvider(provider, payload);
+  return importRemoteEvents(provider, data.events || []);
+}
+
 async function handleFetchEvents() {
   if (!syncForm) return;
   const provider = getSelectedProvider();
-  const connection = getConnectionOrWarn(provider);
+  const connection = await getFreshConnectionOrWarn(provider);
   if (!connection) {
     return;
   }
@@ -1804,6 +2168,10 @@ function scheduleReminders(events = state.localEvents) {
 }
 
 function updateLocalEvent(eventId, patch, options = {}) {
+  if (!canEditCalendar() && !options.skipGunSync) {
+    showLog('This shared calendar is view only.', 'info');
+    return;
+  }
   const list = state.localEvents.map(entry => {
     if (entry.id !== eventId) {
       return entry;
@@ -1824,6 +2192,10 @@ function updateLocalEvent(eventId, patch, options = {}) {
 
 function deleteLocalEvent(id, options = {}) {
   if (!id) return;
+  if (!canEditCalendar() && !options.skipGunSync) {
+    showLog('This shared calendar is view only.', 'info');
+    return;
+  }
   const remaining = state.localEvents.filter(event => event.id !== id);
   if (remaining.length === state.localEvents.length) {
     return;
@@ -1836,6 +2208,10 @@ function deleteLocalEvent(id, options = {}) {
 
 function openEventEditor(eventId) {
   if (!createEventForm || !eventId) return;
+  if (!canEditCalendar()) {
+    showLog('This shared calendar is view only.', 'info');
+    return;
+  }
   const target = state.localEvents.find(event => event.id === eventId);
   if (!target) {
     showLog('This event could not be found. It may have been removed from another session.', 'error');
@@ -1985,6 +2361,10 @@ function handleCalendarDetailsClick(event) {
 async function handleCreateEvent(event) {
   event.preventDefault();
   if (!createEventForm) return;
+  if (!canEditCalendar()) {
+    showLog('This shared calendar is view only.', 'info');
+    return;
+  }
   const formData = new FormData(createEventForm);
   const eventIdValue = formData.get('eventId');
   const requestedId = typeof eventIdValue === 'string' ? eventIdValue.trim() : '';
@@ -2159,7 +2539,7 @@ async function handleCreateEvent(event) {
       }
       const reminder = buildReminderMetadata(startIso, reminderOptions);
       const metadata = {
-        createdFrom: 'local',
+        createdFrom: isSharedCalendar() ? 'shared-edit' : 'local',
         reminder
       };
       if (recurrenceSeriesId) {
@@ -2256,7 +2636,7 @@ async function syncEventToProviders(localEvent, providers) {
       continue;
     }
     const label = config.label;
-    const connection = state.connections.get(provider);
+    const connection = await getFreshConnectionOrWarn(provider, { silent: true });
     if (!connection) {
       lines.push(`${label} is not connected. Open the section above to add a token and try again.`);
       overallType = 'error';
@@ -2400,8 +2780,17 @@ function consumePendingOauthResult() {
   }
   if (result.intent === 'calendar-connect') {
     hydrateState();
-    const providerName = result.provider === 'microsoft' ? 'Outlook' : 'Google';
-    showLog(`${providerName} connection stored locally from OAuth.`, 'success');
+    const provider = result.provider === 'microsoft' ? 'outlook' : 'google';
+    const providerName = provider === 'outlook' ? 'Outlook' : 'Google';
+    showLog(`${providerName} connected. Importing this month…`, 'success');
+    importCurrentMonthFromProvider(provider)
+      .then(imported => {
+        const count = imported?.total || 0;
+        showLog(count
+          ? `${providerName} connected and ${count} event${count === 1 ? '' : 's'} loaded for this month.`
+          : `${providerName} connected. No additional events were found for this month.`, 'success');
+      })
+      .catch(err => showLog(`${providerName} connected, but the first calendar import failed: ${err.message || 'Unknown error.'}`, 'error'));
   }
 }
 
@@ -2694,15 +3083,22 @@ initializeCalendarView();
 hydrateState();
 consumePendingOauthResult();
 hydrateLocalEvents();
-ensureDefaultTodayEvent();
 initializeCreateEventToggle();
 hydrateCreateFormDefaults();
 bindEvents();
 hydratePortalHomeLink();
 refreshOauthButtons();
-setupGunSync();
-const readyMessage = gunEvents
-  ? 'Ready to manage your calendar. Local events sync through the 3DVR relay and can connect to Google or Outlook when needed.'
-  : 'Ready to manage your local calendar. Connect Google or Outlook to sync when needed.';
-showLog(readyMessage);
-applyCreateEventPrefillFromQuery();
+applyShareModeUi();
+
+if (initializeSharedCalendar()) {
+  showLog('Opening private shared calendar…', 'info');
+} else {
+  ensureDefaultTodayEvent();
+  setupGunSync();
+  initializeOwnerShareControls();
+  const readyMessage = gunEvents
+    ? 'Ready to manage your calendar. Events sync through the 3DVR relay and can connect to Google or Outlook when needed.'
+    : 'Ready to manage your local calendar. Connect Google or Outlook to sync when needed.';
+  showLog(readyMessage);
+  applyCreateEventPrefillFromQuery();
+}

@@ -29,24 +29,24 @@
     <a class="calendar-header__back" href="../index.html" data-portal-home-link>⬅ Back to Portal</a>
     <h1 class="calendar-header__title">Calendar Hub</h1>
     <p class="calendar-header__subtitle">
-      Manage your schedule directly in the portal. Events live in your local calendar first, with optional
-      syncs to Google or Outlook when you need them.
+      A glanceable shared calendar for real life. Keep your 3DVR schedule in sync across devices, share it with people you trust,
+      and optionally connect Google or Outlook.
     </p>
     <div class="calendar-header__actions" aria-label="Calendar shortcuts">
       <a class="calendar-header__action" href="#calendar-view-title">Jump to month view</a>
     </div>
     <div class="calendar-header__highlights" aria-label="Calendar highlights">
       <article class="calendar-highlight">
-        <span>Local first</span>
-        <strong>Save events in this browser before you sync anywhere else.</strong>
+        <span>Glance first</span>
+        <strong>See the whole month, including start and end times, before you tap anything.</strong>
       </article>
       <article class="calendar-highlight">
         <span>Fast capture</span>
         <strong>Open the form, set the time, and keep moving.</strong>
       </article>
       <article class="calendar-highlight">
-        <span>Sync later</span>
-        <strong>Connect Google or Outlook only when you need them.</strong>
+        <span>Share simply</span>
+        <strong>Send a secret view or edit link without requiring another 3DVR login.</strong>
       </article>
     </div>
   </header>
@@ -59,13 +59,20 @@
     <button type="button" class="install-banner__action" data-install-button>Install app</button>
   </div>
 
+  <div class="share-access-banner" data-share-access hidden>
+    <div>
+      <strong data-share-access-title>Opening shared calendar…</strong>
+      <span data-share-access-copy>Checking the secret link and loading the calendar.</span>
+    </div>
+    <a href="./">Open my calendar</a>
+  </div>
+
   <main class="calendar-shell">
     <section class="panel panel--primary" aria-labelledby="local-calendar-title">
       <div class="panel__header">
-        <h2 id="local-calendar-title">My local calendar</h2>
+        <h2 id="local-calendar-title">My calendar</h2>
         <p class="panel__intro">
-          Add events that stay in this browser by default. When you want to share them with another service,
-          you can trigger an optional sync without leaving this page.
+          Your 3DVR events sync through the relay when available. Add or edit here, then optionally mirror events to Google or Outlook.
         </p>
       </div>
 
@@ -75,7 +82,7 @@
           <p class="calendar-stat__value" id="calendarQuickUpcoming">0</p>
           <p class="calendar-stat__meta" id="calendarQuickUpcomingMeta">No future events yet.</p>
         </article>
-        <article class="calendar-stat">
+        <article class="calendar-stat" data-owner-only>
           <p class="calendar-stat__label">Connected</p>
           <p class="calendar-stat__value" id="calendarQuickConnected">0</p>
           <p class="calendar-stat__meta" id="calendarQuickConnectedMeta">Local-only workflow active.</p>
@@ -185,7 +192,7 @@
                   </fieldset>
                 </div>
 
-                <fieldset class="create-event-form__reminder">
+                <fieldset class="create-event-form__reminder" data-owner-only>
                   <legend>Email reminder</legend>
                   <p class="field__help">Choose when to email attendees about this event.</p>
                   <div class="create-event-form__row">
@@ -223,7 +230,7 @@
                   </div>
                 </fieldset>
 
-                <fieldset class="create-event-form__sync">
+                <fieldset class="create-event-form__sync" data-owner-only>
                   <legend>Optional sync</legend>
                   <p>Select the services that should also receive this event after it is stored locally.</p>
                   <label class="chip">
@@ -276,12 +283,41 @@
     </section>
 
     <aside class="calendar-rail">
-      <section class="panel" aria-labelledby="connections-title">
+      <section class="panel share-panel" aria-labelledby="share-calendar-title" data-owner-only>
+        <div class="panel__header">
+          <h2 id="share-calendar-title">Share this calendar</h2>
+          <p class="panel__intro">Create a secret, revocable link for someone you trust. They can open it without a 3DVR account.</p>
+        </div>
+        <form class="share-form" data-share-form>
+          <label class="field">
+            <span class="field__label">Name (optional)</span>
+            <input type="text" name="label" maxlength="80" placeholder="Partner">
+          </label>
+          <label class="field">
+            <span class="field__label">Permission</span>
+            <select name="permission">
+              <option value="view">View only</option>
+              <option value="edit">Can edit</option>
+            </select>
+          </label>
+          <button type="submit">Create secret link</button>
+        </form>
+        <div class="share-link-output" data-share-link-output hidden>
+          <label class="field">
+            <span class="field__label">Secret link</span>
+            <input type="text" readonly data-share-link>
+          </label>
+          <button type="button" class="button-secondary" data-action="copy-share-link">Copy link</button>
+          <p class="field__help">The secret stays after <code>#share=</code>, so normal web requests do not receive it. Treat the link like a password: anyone who has it gets its permission.</p>
+        </div>
+        <ul class="share-link-list" data-share-list></ul>
+      </section>
+
+      <section class="panel" aria-labelledby="connections-title" data-owner-only>
         <div class="panel__header">
           <h2 id="connections-title">Optional account connections</h2>
           <p class="panel__intro">
-            Connect Google or Outlook with the portal OAuth flow, or paste a token manually when you are
-            debugging a provider integration.
+            Connect your Google/Gmail or Microsoft account once. 3DVR can then read and add calendar events without making you paste tokens.
           </p>
         </div>
 
@@ -292,7 +328,7 @@
               <span class="connection-card__status" data-status="google">Disconnected</span>
             </div>
             <div class="connection-card__actions">
-              <button type="button" class="button-secondary" data-action="oauth-connect" data-provider="google">Connect Google with OAuth</button>
+              <button type="button" class="button-secondary" data-action="oauth-connect" data-provider="google">Connect Google / Gmail</button>
             </div>
             <form class="connection-card__form" data-provider="google">
               <label class="field">
@@ -304,8 +340,7 @@
                 <input type="text" name="calendarId" placeholder="primary">
               </label>
               <p class="field__help" id="google-token-help">
-                Generate tokens via Google OAuth 2.0. Use a test project and enable the Calendar API. Tokens
-                are saved in your browser only.
+                Advanced/debug option. Normal use should go through the Google / Gmail button above.
               </p>
               <div class="connection-card__actions">
                 <button type="submit">Save connection</button>
@@ -360,7 +395,7 @@
         </div>
       </section>
 
-      <section class="panel" aria-labelledby="event-sync-title">
+      <section class="panel" aria-labelledby="event-sync-title" data-owner-only>
         <div class="panel__header">
           <h2 id="event-sync-title">Import from external calendars</h2>
           <p class="panel__intro">

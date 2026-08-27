@@ -1328,3 +1328,77 @@ button:focus-visible {
 }
 
 .calendar-rail code { overflow-wrap: anywhere; word-break: break-word; }
+
+.share-access-banner {
+  align-items: center;
+  background: rgba(67, 109, 147, 0.2);
+  border: 1px solid rgba(132, 156, 188, 0.24);
+  border-radius: 14px;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  margin: 0 auto 18px;
+  max-width: 1200px;
+  padding: 12px 16px;
+}
+
+.share-access-banner[hidden] { display: none; }
+.share-access-banner div { display: grid; gap: 2px; }
+.share-access-banner strong { color: var(--calendar-text); font-size: 0.95rem; }
+.share-access-banner span { color: var(--calendar-text-soft); font-size: 0.82rem; }
+.share-access-banner a { color: var(--calendar-text); font-size: 0.82rem; font-weight: 700; white-space: nowrap; }
+
+.share-form,
+.share-link-output {
+  display: grid;
+  gap: 12px;
+}
+
+.share-link-output {
+  background: rgba(9, 16, 27, 0.5);
+  border: 1px solid rgba(132, 156, 188, 0.16);
+  border-radius: 12px;
+  margin-top: 14px;
+  padding: 12px;
+}
+
+.share-link-output[hidden] { display: none; }
+.share-link-output input { font-size: 0.76rem; }
+
+.share-link-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.share-link-list__item {
+  align-items: center;
+  background: rgba(9, 16, 27, 0.44);
+  border: 1px solid rgba(132, 156, 188, 0.14);
+  border-radius: 10px;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 10px;
+}
+
+.share-link-list__item > div:first-child { display: grid; gap: 2px; min-width: 0; }
+.share-link-list__item strong { font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-link-list__item span,
+.share-link-list__empty { color: var(--calendar-muted); font-size: 0.76rem; }
+.share-link-list__actions { display: flex; flex-shrink: 0; gap: 6px; }
+.share-link-list__actions button { min-height: 32px; padding: 5px 8px; }
+
+body[data-calendar-access="view"] .event-card__footer-actions,
+body[data-calendar-access="view"] [data-calendar-details-actions] {
+  display: none !important;
+}
+
+@media (max-width: 540px) {
+  .share-access-banner { align-items: flex-start; flex-direction: column; margin-left: 8px; margin-right: 8px; }
+  .share-link-list__item { align-items: flex-start; flex-direction: column; }
+  .share-link-list__actions { width: 100%; }
+  .share-link-list__actions button { flex: 1; }
+}

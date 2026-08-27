@@ -9,9 +9,9 @@ test('calendar hub presents a clear hero, month-first workspace, and side rail',
   assert.match(html, /<div class="calendar-header__actions" aria-label="Calendar shortcuts">/);
   assert.match(html, /Jump to month view/);
   assert.match(html, /<div class="calendar-header__highlights" aria-label="Calendar highlights">/);
-  assert.match(html, /Local first/);
+  assert.match(html, /Glance first/);
   assert.match(html, /Fast capture/);
-  assert.match(html, /Sync later/);
+  assert.match(html, /Share simply/);
   assert.match(html, /<section class="panel panel--primary" aria-labelledby="local-calendar-title">/);
   assert.match(html, /<div class="calendar-quickstats" aria-label="Calendar summary">/);
   assert.match(html, /<div class="calendar-workspace">/);
@@ -21,12 +21,12 @@ test('calendar hub presents a clear hero, month-first workspace, and side rail',
   assert.match(html, /<section class="calendar-activity" aria-labelledby="calendar-activity-title">/);
   assert.match(html, /Imported events and status updates/);
   assert.match(html, /<aside class="calendar-rail">/);
-  assert.match(html, /<section class="panel" aria-labelledby="connections-title">/);
-  assert.match(html, /<section class="panel" aria-labelledby="event-sync-title">/);
+  assert.match(html, /<section class="panel" aria-labelledby="connections-title" data-owner-only>/);
+  assert.match(html, /<section class="panel" aria-labelledby="event-sync-title" data-owner-only>/);
   assert.match(html, /Monthly overview/);
   assert.match(html, /Optional account connections/);
   assert.match(html, /Import from external calendars/);
-  assert.match(html, /Connect Google with OAuth/);
+  assert.match(html, /Connect Google \/ Gmail/);
   assert.match(html, /Connect Microsoft with OAuth/);
   assert.match(html, /<script src="\.\/oauth\.js"><\/script>/);
 
@@ -82,4 +82,36 @@ test('calendar month cells expose useful event details to assistive tech', async
   assert.match(js, /item\.setAttribute\('aria-label'/);
   assert.match(js, /eventsForDay\.slice\(0, 3\)\.forEach\(event =>/);
   assert.match(js, /labelParts\.push/);
+});
+
+
+test('calendar supports no-login secret share links with view or edit permission', async () => {
+  const html = await readFile(new URL('../calendar/index.html', import.meta.url), 'utf8');
+  const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
+
+  assert.match(html, /Share this calendar/);
+  assert.match(html, /Create secret link/);
+  assert.match(html, /option value="view">View only/);
+  assert.match(html, /option value="edit">Can edit/);
+  assert.match(html, /data-share-access/);
+  assert.match(js, /function readCalendarShareToken\(\)/);
+  assert.match(js, /window\.location\.hash/);
+  assert.match(js, /3dvr-calendar-share:/);
+  assert.match(js, /function sharePermissionFromToken\(token = SHARE_TOKEN\)/);
+  assert.match(js, /startsWith\('cale_'\)/);
+  assert.match(js, /const prefix = permission === 'edit' \? 'cale' : 'calv'/);
+  assert.match(js, /function canEditCalendar\(\)/);
+  assert.match(js, /function revokeShareToken\(token\)/);
+  assert.match(js, /setupGunSync\(\{ pushInitial: false \}\)/);
+});
+
+test('calendar Google OAuth refreshes tokens and imports the current month after connect', async () => {
+  const oauth = await readFile(new URL('../calendar/oauth.js', import.meta.url), 'utf8');
+  const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
+
+  assert.match(oauth, /async function ensureFreshConnection\(provider/);
+  assert.match(oauth, /action: 'refresh'/);
+  assert.match(js, /async function importCurrentMonthFromProvider\(provider\)/);
+  assert.match(js, /Importing this month/);
+  assert.match(js, /await getFreshConnectionOrWarn\(provider/);
 });
