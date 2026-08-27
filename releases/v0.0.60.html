@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Release v0.0.60 (Week of August 24, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2, h3 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    code { color: #f0f6fc; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-summary { margin: 0 0 24px; font-size: 16px; color: #9ba3b4; }
+    .release-summary-list { margin: 0; padding-left: 20px; color: #c9d1d9; }
+    .release-summary-list li + li { margin-top: 10px; }
+    .back-link, .release-nav-link { color: #58a6ff; text-decoration: none; font-weight: 600; }
+    .back-link:hover, .release-nav-link:hover { text-decoration: underline; }
+    .release-nav { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: 20px 0 40px; }
+    .release-nav-link.is-disabled { opacity: 0.4; pointer-events: none; cursor: default; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.59.html">Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release</span>
+  </nav>
+  <h1>Release v0.0.60</h1>
+  <div class="tag">Week of August 24, 2026</div>
+  <div class="release-summary">
+    <p>
+      This week, 3DVR moved toward a more self-hosted, project-centered personal computing system. Portal production
+      moved onto 3DVR-controlled servers, Operator and Forge became safer and more reliable, Idea Garden grew into an
+      encrypted cross-device project hub, Growth Operator gained guided money paths, and the Portal added practical
+      tools for business audits, rank-and-file organizing, and a much more glanceable calendar.
+    </p>
+    <ul class="release-summary-list">
+      <li>
+        <strong>The Portal started standing on its own infrastructure:</strong>
+        production deployment moved away from automatic Vercel Git builds toward a native Node server on 3DVR-managed
+        infrastructure, with DigitalOcean as the direct recovery boundary for the managed agent stack. Follow-up fixes
+        preserved server-side secrets during ordinary Portal deploys and kept daemon entrypoints executable. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1753">PR #1753</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1754">PR #1754</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1765">PR #1765</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1819">PR #1819</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1820">PR #1820</a>.
+      </li>
+      <li>
+        <strong>Operator-to-Forge edits became more trustworthy:</strong>
+        approved <a href="../operator/">Operator</a> code requests now route deterministically into
+        <a href="../forge/">Forge</a>, the managed worker actually consumes those edits, SEA keypairs are verified
+        before signing, and public disposable E2E credentials are explicitly excluded from privileged edit authority.
+        See <a href="https://github.com/tmsteph/3dvr-portal/pull/1750">PR #1750</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1751">PR #1751</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1769">PR #1769</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1773">PR #1773</a>.
+      </li>
+      <li>
+        <strong>Idea Garden became a real project-nurturing space:</strong>
+        the new <a href="../garden/">Idea Garden</a> starts with fast messy idea capture, adds why-it-matters and the
+        next tiny step, lets one idea become the current focus, and now encrypts and syncs Garden data across signed-in
+        devices through the existing GUN + SEA identity layer. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1807">PR #1807</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1808">PR #1808</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1809">PR #1809</a>.
+      </li>
+      <li>
+        <strong>Growth Operator got clearer paths from skill to income:</strong>
+        <a href="../growth-operator/">Growth Operator</a> now offers guided starting paths for AV freelance, web
+        design, lead generation, market research, and a user's own skill. Launch Room context can feed the money path,
+        while the worker queue routing was repaired so campaigns reach an actually available backend instead of looking
+        queued while doing nothing. See <a href="https://github.com/tmsteph/3dvr-portal/pull/1782">PR #1782</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1783">PR #1783</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1788">PR #1788</a>.
+      </li>
+      <li>
+        <strong>A business can get an immediate useful audit:</strong>
+        the new <a href="../ideas/business-audit-generator.html">Instant Business Audit</a> turns a buyer, offer, pain,
+        and price into a browser-local downloadable conversion and fulfillment plan, then connects users who want help
+        implementing it to the existing fixed-price 48-hour Offer Audit. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1789">PR #1789</a> and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1790">PR #1790</a>.
+      </li>
+      <li>
+        <strong>Private organizing gained a federated home:</strong>
+        the new <a href="../rank-and-file/">Rank &amp; File Network</a> supports encrypted committees and coalitions
+        across employers, unions, trades, and locations, with capability-bearing invite fragments and private GUN + SEA
+        data by default. See <a href="https://github.com/tmsteph/3dvr-portal/pull/1784">PR #1784</a>.
+      </li>
+      <li>
+        <strong>The calendar became much easier to scan:</strong>
+        the <a href="../calendar/">Portal Calendar</a> month view now shows start and end times directly, preserves
+        readable event titles, removes awkward nested scrolling, and fits narrow mobile screens without horizontal month
+        panning. See <a href="https://github.com/tmsteph/3dvr-portal/pull/1816">PR #1816</a> and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1818">PR #1818</a>.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Safety notes</h2>
+    <p>
+      Operator edit authority remains tied to an approved signed SEA identity; username-only trust and public disposable
+      test credentials do not grant privileged Forge access. Idea Garden account sync encrypts payloads before writing
+      to GUN but remains an MVP using last-write-wins style reconciliation. The Rank &amp; File Network is private by
+      default but is explicitly not presented as formally audited cryptographic software. Growth campaigns retain caps,
+      public-information-only research rules, do-not-contact handling, and no guaranteed-result claims.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>What this release covers</h2>
+    <p>
+      v0.0.60 is the weekly milestone for the week of August 24, 2026. This release record includes the major Portal,
+      Operator, infrastructure, Garden, Growth, organizing, audit, and calendar work merged through August 27.
+    </p>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">&copy; 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>

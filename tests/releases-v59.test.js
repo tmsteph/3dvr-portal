@@ -5,17 +5,17 @@ import { readFile } from 'node:fs/promises';
 const releasesDir = new URL('../releases/', import.meta.url);
 
 describe('release v0.0.59', () => {
-  it('publishes v0.0.59 as the latest completed weekly milestone', async () => {
+  it('keeps v0.0.59 in the weekly release chain', async () => {
     const index = await readFile(new URL('index.html', releasesDir), 'utf8');
     const release = await readFile(new URL('v0.0.59.html', releasesDir), 'utf8');
     const release58 = await readFile(new URL('v0.0.58.html', releasesDir), 'utf8');
 
-    assert.match(index, /<h2>Latest Release<\/h2>[\s\S]*href="v0\.0\.59\.html">v0\.0\.59/);
+    assert.match(index, /href="v0\.0\.59\.html">v0\.0\.59/);
     assert.match(index, /href="v0\.0\.58\.html">v0\.0\.58/);
     assert.match(release, /<h1>Release v0\.0\.59<\/h1>/);
     assert.match(release, /Week of August 17, 2026/);
     assert.match(release, /href="v0\.0\.58\.html">Previous release<\/a>/);
-    assert.match(release, /aria-disabled="true">Next release<\/span>/);
+    assert.match(release, /href="v0\.0\.60\.html">Next release<\/a>/);
     assert.match(release58, /href="v0\.0\.59\.html">Next release<\/a>/);
     assert.match(release, /Android Assistant voice loop/);
     assert.match(release, /native Forge permissions/);
