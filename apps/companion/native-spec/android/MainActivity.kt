@@ -1,6 +1,7 @@
 package tech.threedvr.companion
 
 import android.Manifest
+import android.app.NotificationManager
 import android.app.role.RoleManager
 import android.content.ComponentName
 import android.content.Context
@@ -260,8 +261,9 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun isNotificationAccessEnabled(): Boolean {
-        val enabled = Settings.Secure.getString(contentResolver, "enabled_notification_listeners") ?: return false
-        return enabled.split(':').any { component -> component.startsWith("$packageName/") }
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return false
+        val component = ComponentName(this, CompanionNotificationListener::class.java)
+        return manager.isNotificationListenerAccessGranted(component)
     }
 
     companion object {

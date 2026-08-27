@@ -1,5 +1,7 @@
 package tech.threedvr.companion
 
+import android.app.NotificationManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -227,13 +229,9 @@ object CompanionNativeBridgeServer {
     }
 
     private fun isNotificationAccessEnabled(context: Context): Boolean {
-        val enabled = Settings.Secure.getString(
-            context.contentResolver,
-            "enabled_notification_listeners",
-        ) ?: return false
-        return enabled.split(':').any { component ->
-            component.startsWith("${context.packageName}/")
-        }
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return false
+        val component = ComponentName(context, CompanionNotificationListener::class.java)
+        return manager.isNotificationListenerAccessGranted(component)
     }
 
     private fun openKnownApp(context: Context, alias: String): Boolean {
