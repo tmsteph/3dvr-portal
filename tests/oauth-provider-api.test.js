@@ -109,6 +109,25 @@ describe('oauth provider api', () => {
     assert.match(String(res.body), /not configured on this deployment yet/i);
   });
 
+  it('requests event-level Google Calendar access instead of full calendar administration', async () => {
+    const handler = createOAuthProviderHandler({
+      config: { GOOGLE_OAUTH_CLIENT_ID: 'client.apps.googleusercontent.com', GOOGLE_OAUTH_CLIENT_SECRET: 'secret' },
+    });
+    const res = createMockRes();
+
+    await handler({
+      method: 'GET',
+      headers: { host: 'portal.3dvr.tech', 'x-forwarded-proto': 'https' },
+      query: { provider: 'google', action: 'start', scopeKey: 'calendar', returnTo: '/calendar/' },
+    }, res);
+
+    assert.equal(res.statusCode, 302);
+    const location = new URL(res.headers.Location);
+    const scopes = location.searchParams.get('scope') || '';
+    assert.match(scopes, /https:\/\/www\.googleapis\.com\/auth\/calendar\.events/);
+    assert.doesNotMatch(scopes, /https:\/\/www\.googleapis\.com\/auth\/calendar(?:\s|$)/);
+  });
+
   it('renders copyable CLI OAuth result instead of redirecting immediately', async () => {
     const handler = createOAuthProviderHandler({
       config: {},
