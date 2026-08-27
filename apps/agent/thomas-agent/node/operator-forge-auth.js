@@ -17,6 +17,16 @@ function normalizeAlias(value = '') {
   return normalizeText(value).toLowerCase();
 }
 
+function decodeForgeProof(value = '') {
+  const proof = normalizeText(value);
+  if (!proof.startsWith('b64:')) return proof;
+  try {
+    return Buffer.from(proof.slice(4), 'base64').toString('utf8');
+  } catch {
+    return '';
+  }
+}
+
 function listFromConfig(value = '') {
   return String(value || '')
     .split(',')
@@ -101,7 +111,7 @@ async function authorizePortalOperatorTask(record = {}, options = {}) {
     return { ok: false, reason: 'untrusted forge request producer' };
   }
 
-  const authProof = normalizeText(record.authProof);
+  const authProof = decodeForgeProof(record.authProof);
   const authPub = normalizeText(record.authPub);
   if (!authProof || !authPub) return { ok: false, reason: 'missing 3DVR developer proof' };
 
@@ -158,4 +168,5 @@ module.exports = {
   resolveRepoAlias,
   BUILTIN_OPERATOR_ADMIN_BINDINGS,
   BUILTIN_OPERATOR_DEVELOPER_BINDINGS,
+  decodeForgeProof,
 };
