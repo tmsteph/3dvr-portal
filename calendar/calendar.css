@@ -562,7 +562,7 @@ button:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  height: 124px;
+  height: 148px;
   padding: 12px;
   position: relative;
   transition: box-shadow 0.2s ease, transform 0.2s ease;
@@ -616,27 +616,33 @@ button:focus-visible {
 }
 
 .calendar-view__event {
+  align-items: flex-start;
   background: rgba(67, 109, 147, 0.2);
   border-radius: 10px;
   color: #d9e7f4;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   font-size: 0.85rem;
   font-weight: 600;
   line-height: 1.2;
   margin: 0;
   overflow: hidden;
   padding: 6px 8px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .calendar-view__event-time {
-  display: inline-block;
-  font-size: 0.75rem;
-  font-weight: 500;
-  text-transform: uppercase;
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.calendar-view__event-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .calendar-view__more {
@@ -1028,7 +1034,7 @@ button:focus-visible {
   }
 
   .calendar-view__grid-inner {
-    min-width: 100%;
+    min-width: 760px;
     width: 100%;
   }
 
@@ -1152,7 +1158,7 @@ button:focus-visible {
 
   .calendar-view__grid-inner {
     gap: 8px;
-    min-width: 100%;
+    min-width: 760px;
     width: 100%;
   }
 
@@ -1163,7 +1169,7 @@ button:focus-visible {
   }
 
   .calendar-view__day {
-    height: 92px;
+    height: 116px;
     padding: 10px 8px;
   }
 
