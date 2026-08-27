@@ -287,6 +287,8 @@ export function runBotLoop(botId, context = {}) {
   const brief = context.brief || {};
   const config = context.businessConfig || state.businessConfig || {};
   const experiments = context.experiments || state.experiments || [];
+  const executiveProfile = context.executiveProfile || state.executiveProfile || {};
+  const executiveFeedback = context.executiveFeedback || state.executiveFeedback || [];
   const decision = context.decision || killOrScaleExperiment(state);
   const portfolio = summarizePortfolio(experiments);
   const nextBestMoneyAction = context.nextBestMoneyAction
@@ -306,18 +308,35 @@ export function runBotLoop(botId, context = {}) {
   };
 
   switch (botId) {
-    case 'executive-agent':
+    case 'executive-agent': {
+      const direction = executiveProfile.currentDirection || nextBestMoneyAction;
+      const latestTaste = executiveFeedback.at(-1)?.text || executiveProfile.taste?.[0] || '';
+      const whatNotToDo = executiveProfile.antiPatterns?.[0]
+        || 'Do not add disconnected work that does not advance the current direction.';
+      const executiveNextAction = executiveProfile.currentDirection
+        ? `Pick the highest-leverage reversible action that advances this direction: ${direction}`
+        : nextBestMoneyAction;
       return {
         title: 'Executive Agent decision',
         generatedAt,
-        summary: 'Run Validation Bot next. The fastest money loop is buyer outreach before product build.',
+        summary: `Stay on direction: ${direction}`,
         lines: [
-          `Priority 1: ${nextBestMoneyAction}`,
-          `Priority 2: create a single validation page for ${topIdea?.business_name || 'the top offer'}.`,
-          'Priority 3: update the Founder Command Brief after replies or silence.',
-          'Do not add features until the first buyer confirms pain, urgency, and price.'
-        ]
+          `Direction: ${direction}`,
+          `Next operational move: ${executiveNextAction}`,
+          latestTaste ? `Taste check: ${latestTaste}` : 'Taste check: keep the path simple, useful, and reversible.',
+          `Do not: ${whatNotToDo}`
+        ],
+        nextBestMoneyAction: executiveNextAction,
+        executiveDecision: {
+          decision: direction,
+          why: 'Persistent company direction and founder taste should outrank generic task generation.',
+          confidence: 0.72,
+          tasteCheck: latestTaste || 'Prefer the simplest coherent path that creates real user value.',
+          tradeoffs: ['Defers work that does not compound the current direction.'],
+          whatNotToDo: [whatNotToDo]
+        }
       };
+    }
     case 'opportunity-scanner-bot':
       return {
         title: 'Opportunity scan',

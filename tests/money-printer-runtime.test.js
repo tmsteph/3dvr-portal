@@ -121,6 +121,67 @@ describe('money-printer model runtime', () => {
     assert.equal(result.ideas.length, 2);
   });
 
+  it('routes executive decisions through the configured reasoning model and constitution', async () => {
+    const requests = [];
+    const result = await runBotWithModel('executive-agent', {
+      businessConfig: { mission: 'Build useful open systems.' },
+      ideas: [],
+      experiments: [],
+      executiveProfile: {
+        currentDirection: 'Make one real workflow work end to end.',
+        taste: ['Prefer one obvious action.']
+      },
+      executiveFeedback: [{ kind: 'prefer', text: 'Keep it glanceable.' }],
+      executiveDecisions: []
+    }, {
+      ai: true,
+      fetchImpl: async (url, options) => {
+        requests.push(JSON.parse(options.body));
+        return {
+          ok: true,
+          json: async () => ({
+            output: [{
+              type: 'message',
+              content: [{
+                type: 'output_text',
+                text: JSON.stringify({
+                  title: 'Executive direction',
+                  summary: 'Finish one workflow before expanding.',
+                  lines: ['Polish the current path.'],
+                  nextBestMoneyAction: 'Test the current path with one user.',
+                  connectorOperations: [],
+                  codexPrompt: '',
+                  executiveDecision: {
+                    decision: 'Finish one workflow before expanding.',
+                    why: 'It fits the current direction and simplicity rubric.',
+                    confidence: 0.88,
+                    tasteCheck: 'One obvious path, less fragmentation.',
+                    tradeoffs: ['Defers new features.'],
+                    whatNotToDo: ['Do not start another app.']
+                  }
+                })
+              }]
+            }]
+          })
+        };
+      },
+      env: {
+        MONEY_PRINTER_AI_MODE: 'openai',
+        OPENAI_API_KEY: 'sk-test-not-real',
+        MONEY_PRINTER_MODEL: 'gpt-fast-test',
+        MONEY_PRINTER_REASONING_MODEL: 'gpt-reasoning-test'
+      }
+    });
+
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].model, 'gpt-reasoning-test');
+    assert.match(requests[0].instructions, /operating constitution/i);
+    assert.match(requests[0].input, /Make one real workflow work end to end/);
+    assert.match(requests[0].input, /Keep it glanceable/);
+    assert.equal(result.executiveDecision.confidence, 0.88);
+    assert.match(result.executiveDecision.whatNotToDo[0], /another app/);
+  });
+
   it('logs invalid model JSON and falls back to mock bot output', async () => {
     const cwd = await createTempWorkspace();
     try {

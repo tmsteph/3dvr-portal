@@ -19,3 +19,10 @@ test('founder context stays focused on professional product context', () => {
   assert.doesNotMatch(text, /medical|diagnosis|partner|child|address|password|secret/i);
   assert.match(text, /Do not expose, guess, or invent private or sensitive personal details/);
 });
+
+test('operator carries the 3DVR executive constitution', () => {
+  const request = buildOperatorRequest({ prompt: 'What should 3DVR do next?' });
+  assert.match(request.instructions, /3DVR Executive Constitution/i);
+  assert.match(request.instructions, /glanceable interfaces/i);
+  assert.match(request.instructions, /reject distracting work/i);
+});

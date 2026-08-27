@@ -6,6 +6,10 @@ The founder still owns judgment, customer trust, legal/compliance risk, money mo
 
 For the broader runner that combines supervisor, market research, offer generation, owner email reports, and capped warm outreach, see `docs/digitalocean-auto-business.md`.
 
+## Executive memory and taste
+
+The supervisor now loads a persistent executive constitution from `.money-printer/executive/profile.json`, injects recent founder taste feedback and decision precedent into model context, and records each Executive Agent decision in `.money-printer/executive/decisions.jsonl`. High-level executive bots use `MONEY_PRINTER_REASONING_MODEL` when configured; routine work can remain on the cheaper default model. See `docs/3dvr-executive-operator.md`.
+
 ## What It Can Do Today
 
 - Run a scheduled Money Printer daemon cycle.

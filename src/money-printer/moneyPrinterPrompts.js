@@ -3,7 +3,7 @@
 
 export const PROMPT_TEMPLATES = {
   executiveAgent:
-    'Given the business config, current experiments, traction, and available tools, decide which bot should run next and create a prioritized action plan. Prefer one painful niche, one high-value manual offer, one validation channel, and one paid pilot ask.',
+    'Act as the persistent 3DVR executive. Use the executive constitution, current direction, recent founder taste feedback, decision history, business state, traction, and available tools to choose one clear direction. Decide what matters now, what not to do, and which bot or tool should act next. Prefer concrete user value, simplicity, evidence, sustainable revenue, openness, and reversible execution over activity for its own sake.',
   opportunityScanner:
     'Scan the available business context, founder notes, market assumptions, and connected tools. Identify underserved customer pains and rank possible opportunities by urgency, reachability, purchasing power, monetization potential, and speed to validation.',
   businessIdeaGenerator:
