@@ -2,201 +2,53 @@ import { runOperatorAction } from './operator/actions.js';
 import { collectPortalContext } from './operator/portal-context.js';
 import { createOperatorDeveloperProof } from './operator/forge.js';
 
-const ACCOUNT_SCORE_PREFIX = '3dvr:score:';
-
 function aliasToDisplay(alias) {
   const normalized = typeof alias === 'string' ? alias.trim() : '';
   if (!normalized) return '';
   return normalized.includes('@') ? normalized.split('@')[0] : normalized;
 }
 
-function readSharedIdentity() {
-  const entry = document.cookie
-    .split(';')
-    .map(part => part.trim())
-    .find(part => part.startsWith('portalIdentity='));
-  if (!entry) return null;
+function syncHomepageIdentity() {
   try {
-    return JSON.parse(decodeURIComponent(entry.slice('portalIdentity='.length)));
-  } catch {
-    return null;
+    window.AuthIdentity?.syncStorageFromSharedIdentity?.(localStorage);
+  } catch (error) {
+    console.warn('Homepage identity sync unavailable.', error);
   }
 }
 
 function readAccountState() {
-  const shared = readSharedIdentity() || {};
+  syncHomepageIdentity();
+  const shared = window.AuthIdentity?.readSharedIdentity?.() || {};
   const signedIn = localStorage.getItem('signedIn') === 'true';
-  const guest = !signedIn && localStorage.getItem('guest') === 'true';
   const alias = (localStorage.getItem('alias') || shared.alias || '').trim();
   const username = (localStorage.getItem('username') || shared.username || '').trim();
-  const guestName = (localStorage.getItem('guestDisplayName') || '').trim();
-  const displayName = signedIn
-    ? username || aliasToDisplay(alias) || 'User'
-    : guest
-      ? guestName || 'Guest'
-      : '';
-
-  return { signedIn, guest, alias, displayName };
-}
-
-function readCachedPoints(state) {
-  try {
-    let key = `${ACCOUNT_SCORE_PREFIX}anon`;
-    if (state.signedIn) {
-      key = `${ACCOUNT_SCORE_PREFIX}user:${state.alias.toLowerCase()}`;
-    } else if (state.guest) {
-      key = `${ACCOUNT_SCORE_PREFIX}${localStorage.getItem('guestId') || 'guest'}`;
-    }
-    return [key, `${key}:pending`, `${key}:portalPending`]
-      .map(cacheKey => Number(localStorage.getItem(cacheKey) || 0))
-      .filter(Number.isFinite)
-      .reduce((best, value) => Math.max(best, Math.max(0, Math.round(value))), 0);
-  } catch {
-    return 0;
-  }
-}
-
-function loadClassicScript(src) {
-  const existing = Array.from(document.scripts).find(script => script.src === new URL(src, window.location.href).href);
-  if (existing) {
-    return existing.dataset.loaded === 'true'
-      ? Promise.resolve()
-      : new Promise((resolve, reject) => {
-          existing.addEventListener('load', resolve, { once: true });
-          existing.addEventListener('error', reject, { once: true });
-        });
-  }
-
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = src;
-    script.async = true;
-    script.addEventListener('load', () => {
-      script.dataset.loaded = 'true';
-      resolve();
-    }, { once: true });
-    script.addEventListener('error', reject, { once: true });
-    document.head.appendChild(script);
-  });
+  return {
+    signedIn,
+    displayName: signedIn ? username || aliasToDisplay(alias) || 'User' : ''
+  };
 }
 
 function installAccountStatus() {
-  const menu = document.querySelector('.menu');
-  const summary = menu?.querySelector('summary');
-  const panel = menu?.querySelector('.menu-panel');
-  const signInLink = document.querySelector('.top-action--signin');
-  if (!menu || !summary || !panel || !signInLink) return;
-
-  const style = document.createElement('style');
-  style.textContent = `
-    .menu summary[data-account-state="user"],
-    .menu summary[data-account-state="guest"] {
-      max-width: min(250px, 42vw);
-      gap: 5px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .menu-panel [data-account-profile] {
-      color: #79c0ff;
-      font-weight: 800;
-    }
-
-    @media (max-width: 580px) {
-      .top-action--signin.account-signin-visible { display: inline-flex; }
-      .menu summary[data-account-state="user"],
-      .menu summary[data-account-state="guest"] {
-        max-width: 145px;
-        padding-inline: 10px;
-        font-size: 0.84rem;
-      }
-    }
-  `;
-  document.head.appendChild(style);
-
-  let latestNetworkPoints = null;
-
-  const ensureProfileLink = () => {
-    let profile = panel.querySelector('[data-account-profile]');
-    if (!profile) {
-      profile = document.createElement('a');
-      profile.href = '/profile.html#profile';
-      profile.dataset.accountProfile = 'true';
-      panel.prepend(profile);
-    }
-    return profile;
-  };
+  const authEntry = document.querySelector('[data-auth-entry]');
+  if (!authEntry) return;
 
   const render = () => {
     const state = readAccountState();
-    const cachedPoints = readCachedPoints(state);
-    const points = latestNetworkPoints == null
-      ? cachedPoints
-      : Math.max(cachedPoints, latestNetworkPoints);
-    const profile = ensureProfileLink();
-
     if (state.signedIn) {
-      signInLink.hidden = true;
-      signInLink.classList.remove('account-signin-visible');
-      summary.dataset.accountState = 'user';
-      summary.textContent = `${state.displayName} · ⭐ ${points}`;
-      summary.setAttribute('aria-label', `Signed in as ${state.displayName}. ${points} points. Open account menu.`);
-      profile.hidden = false;
-      profile.textContent = `Profile · ⭐ ${points}`;
+      authEntry.href = '/profile.html#profile';
+      authEntry.textContent = 'Profile';
+      authEntry.setAttribute('aria-label', `Open profile for ${state.displayName}`);
       return;
     }
 
-    if (state.guest) {
-      signInLink.hidden = false;
-      signInLink.classList.add('account-signin-visible');
-      summary.dataset.accountState = 'guest';
-      summary.textContent = `${state.displayName} · ⭐ ${points}`;
-      summary.setAttribute('aria-label', `Guest profile. ${points} points. Open account menu.`);
-      profile.hidden = false;
-      profile.textContent = `Guest profile · ⭐ ${points}`;
-      return;
-    }
-
-    signInLink.hidden = false;
-    signInLink.classList.add('account-signin-visible');
-    summary.dataset.accountState = 'anon';
-    summary.textContent = 'Menu';
-    summary.setAttribute('aria-label', 'Open portal menu');
-    profile.hidden = true;
+    authEntry.href = '/sign-in.html?redirect=%2F';
+    authEntry.textContent = 'Sign in';
+    authEntry.setAttribute('aria-label', 'Sign in or create an account');
   };
 
   render();
   window.addEventListener('storage', render);
   window.addEventListener('portal-auth:changed', render);
-
-  const state = readAccountState();
-  if (!state.signedIn && !state.guest) return;
-
-  (async () => {
-    try {
-      await loadClassicScript('https://cdn.jsdelivr.net/npm/gun/gun.js');
-      await loadClassicScript('/gun-init.js');
-      await loadClassicScript('https://cdn.jsdelivr.net/npm/gun/sea.js');
-      await loadClassicScript('/score.js');
-      if (!window.Gun || !window.ScoreSystem) return;
-
-      const gun = window.Gun({ peers: window.__GUN_PEERS__ || ['wss://gun-relay-3dvr.fly.dev/gun'] });
-      const user = gun.user();
-      window.ScoreSystem.recallUserSession(user);
-      const scoreManager = window.ScoreSystem.getManager({
-        gun,
-        user,
-        portalRoot: gun.get('3dvr-portal')
-      });
-      scoreManager.subscribe(points => {
-        latestNetworkPoints = window.ScoreSystem.sanitizeScore(points);
-        render();
-      });
-    } catch (error) {
-      console.warn('Homepage account score sync unavailable; using cached points.', error);
-    }
-  })();
 }
 
 installAccountStatus();

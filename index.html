@@ -233,7 +233,6 @@
     .spinner-stage[data-open="true"] .spinner-nav__item--apps { transform: translate(0, -50%) scale(1); }
 
     .spinner-hint { margin: -2px 0 20px; color: #6e7681; font-size: 0.78rem; text-align: center; }
-    .eyebrow { margin: 0 0 8px; color: #8b949e; font-size: 0.85rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
 
     h1 {
       margin: 0;
@@ -301,6 +300,7 @@
     .operator-bar button:disabled { opacity: 0.55; cursor: progress; }
 
     .operator-status { margin: 8px 4px 0; color: #6e7681; font-size: 0.78rem; }
+    .operator-status:empty { display: none; }
 
     .operator-result {
       margin-top: 10px;
@@ -392,9 +392,9 @@
 
     @media (max-width: 580px) {
       .topbar { gap: 7px; }
+      .brand span { display: none; }
       .top-action,
       .menu summary { padding-inline: 11px; }
-      .top-action--signin { display: none; }
       main { align-items: flex-start; padding-top: 30px; }
       .spinner-stage { width: min(248px, 78vw); height: min(248px, 78vw); }
       .spinner-nav__item { min-width: 58px; min-height: 40px; padding-inline: 11px; font-size: 0.88rem; }
@@ -410,6 +410,7 @@
       .spinner-nav__item { transition: none; }
     }
   </style>
+  <script src="/auth-identity.js" defer></script>
   <script src="/portal-swirl-logo.js" defer></script>
   <script type="module" src="/home-operator.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
@@ -435,7 +436,7 @@
           <a href="/releases/">Releases</a>
         </nav>
       </details>
-      <a class="top-action top-action--signin" href="/sign-in.html?redirect=%2F">Sign in</a>
+      <a class="top-action top-action--signin" href="/sign-in.html?redirect=%2F" data-auth-entry>Sign in</a>
     </header>
 
     <main>
@@ -464,18 +465,17 @@
             </span>
           </div>
         </div>
-        <p class="spinner-hint">Tap to navigate · drag to spin</p>
+        <p class="spinner-hint">Tap for shortcuts</p>
 
-        <p class="eyebrow">3DVR Portal</p>
         <h1 id="home-title">What do you want to do?</h1>
-        <p class="subhead">Tell your Operator what you need. It can use this page and your Portal context to help act on it.</p>
+        <p class="subhead">Ask Operator, or choose a starting point.</p>
 
         <form class="operator-link operator-bar" id="homeOperatorForm" aria-label="Ask Operator">
           <span class="operator-bar__label" aria-hidden="true">Operator</span>
           <input id="homeOperatorInput" name="prompt" type="text" autocomplete="off" placeholder="Ask Operator…" aria-label="Ask Operator anything">
           <button id="homeOperatorSubmit" type="submit" aria-label="Send to Operator">→</button>
         </form>
-        <p class="operator-status" id="homeOperatorStatus" aria-live="polite">Operator sees this page plus available Life Space, lead, CRM, and calendar context.</p>
+        <p class="operator-status" id="homeOperatorStatus" aria-live="polite"></p>
 
         <section class="operator-result" id="homeOperatorResult" aria-live="polite" hidden>
           <div class="operator-result__head">
@@ -490,19 +490,19 @@
         <div class="actions" aria-label="Core portal actions">
           <a class="action-card" href="/launch-room/">
             <strong>Find my path</strong>
-            <span>Start with what you care about and turn it into one small real project.</span>
+            <span>Turn what matters into one clear next step.</span>
           </a>
           <a class="action-card" href="/growth-operator/?campaign=my-skill">
             <strong>Make money</strong>
-            <span>Pick a skill, find people who need it, and start a guided outreach loop.</span>
+            <span>Use a skill to find work and reach out.</span>
           </a>
           <a class="action-card" href="/forge/">
             <strong>Build something</strong>
-            <span>Turn an idea into a project, offer, page, or experiment.</span>
+            <span>Turn an idea into something real.</span>
           </a>
           <button class="action-card" type="button" data-open-apps>
             <strong>Open my stuff</strong>
-            <span>Search apps and jump into your workspace.</span>
+            <span>Apps, calendar, CRM, projects, and more.</span>
           </button>
         </div>
       </section>
