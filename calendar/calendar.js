@@ -824,6 +824,36 @@ function formatCalendarRange(event) {
   return start || '';
 }
 
+function formatCompactCalendarTime(value, timeZone) {
+  if (!value) return '';
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const options = { hour: 'numeric', minute: '2-digit', hour12: true };
+    if (timeZone) options.timeZone = timeZone;
+    const parts = new Intl.DateTimeFormat(undefined, options).formatToParts(date);
+    const hour = parts.find(part => part.type === 'hour')?.value || '';
+    const minute = parts.find(part => part.type === 'minute')?.value || '';
+    const period = (parts.find(part => part.type === 'dayPeriod')?.value || '').slice(0, 1).toLowerCase();
+    return `${hour}${minute && minute !== '00' ? `:${minute}` : ''}${period}`;
+  } catch (err) {
+    console.warn('Unable to format compact calendar time', value, err);
+    return '';
+  }
+}
+
+function formatCompactCalendarRange(event) {
+  if (!event) return '';
+  const start = formatCompactCalendarTime(event.start, event.timeZone);
+  const end = formatCompactCalendarTime(event.end, event.timeZone);
+  const overnight =
+    typeof event.start === 'string' &&
+    typeof event.end === 'string' &&
+    event.start.slice(0, 10) !== event.end.slice(0, 10);
+  if (start && end) return `${start}–${end}${overnight ? '+1' : ''}`;
+  return start || '';
+}
+
 function renderCalendarDayNames() {
   if (!calendarDayNames) return;
   calendarDayNames.innerHTML = '';
@@ -894,12 +924,20 @@ function renderCalendar(events = state.localEvents) {
         const item = document.createElement('li');
         item.className = 'calendar-view__event';
         const timeLabel = formatCalendarRange(event);
+        const compactTimeLabel = formatCompactCalendarRange(event);
         if (timeLabel) {
           const time = document.createElement('span');
           time.className = 'calendar-view__event-time';
-          time.textContent = timeLabel;
+          const full = document.createElement('span');
+          full.className = 'calendar-view__event-time-full';
+          full.textContent = timeLabel;
+          const compact = document.createElement('span');
+          compact.className = 'calendar-view__event-time-compact';
+          compact.textContent = compactTimeLabel || timeLabel;
+          time.append(full, compact);
           item.appendChild(time);
         }
+        item.setAttribute('aria-label', `${timeLabel ? `${timeLabel}, ` : ''}${event.title || 'Untitled event'}`);
         const title = document.createElement('span');
         title.className = 'calendar-view__event-title';
         title.textContent = event.title || 'Untitled event';
@@ -921,6 +959,10 @@ function renderCalendar(events = state.localEvents) {
     } else if (eventsForDay.length > 1) {
       labelParts.push(`${eventsForDay.length} events`);
     }
+    eventsForDay.slice(0, 3).forEach(event => {
+      const range = formatCalendarRange(event);
+      labelParts.push(`${range ? `${range} ` : ''}${event.title || 'Untitled event'}`);
+    });
     const dayKey = cellDate.toISOString().slice(0, 10);
     cell.setAttribute('aria-label', labelParts.join(', '));
     cell.dataset.date = dayKey;
