@@ -86,6 +86,7 @@ async function readUpstreamError(response) {
     const payload = await response.json();
     const code = clean(payload?.error?.code || payload?.code, 80);
     if (code === 'insufficient_quota') return 'The configured AI account has no available credits.';
+    if (response.status === 429) return fallback;
     return clean(payload?.error?.message || payload?.message, 300) || fallback;
   } catch {
     return fallback;

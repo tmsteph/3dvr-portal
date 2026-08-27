@@ -6,6 +6,7 @@ const {
   authorizePortalOperatorTask,
   resolveRepoAlias,
   BUILTIN_OPERATOR_DEVELOPER_BINDINGS,
+  decodeForgeProof,
 } = require('../thomas-agent/node/operator-forge-auth');
 
 const TMSTEPH_PUB = 'Cg-NVNIbxWPDBqX7OmllJQqjxy2t3KA_U2DqQBjcPQ8.1fppECqamDOHh2tKt1G5t8Yd21NjBCZ3C6qunST3lvg';
@@ -35,6 +36,26 @@ function validProof(overrides = {}) {
     ...overrides,
   };
 }
+
+test('base64 wrapped Forge proof survives transport unchanged', async () => {
+  const rawProof = 'SEA{\"m\":{\"scope\":\"operator-forge-task\",\"label\":\"test ✓\"},\"s\":\"signature\"}';
+  const wrappedProof = `b64:${Buffer.from(rawProof, 'utf8').toString('base64')}`;
+  assert.equal(decodeForgeProof(wrappedProof), rawProof);
+  assert.equal(decodeForgeProof(rawProof), rawProof);
+
+  let verifiedProof = '';
+  const result = await authorizePortalOperatorTask(validRecord({ authProof: wrappedProof }), {
+    now: 1_001_000,
+    env: { THREEDVR_OPERATOR_DEVELOPER_PUBS: 'pub-1' },
+    verifyImpl: async proof => {
+      verifiedProof = proof;
+      return validProof();
+    },
+  });
+
+  assert.equal(verifiedProof, rawProof);
+  assert.equal(result.ok, true);
+});
 
 test('built-in worker policy binds tmsteph alias to the exact SEA public key', () => {
   assert.equal(BUILTIN_OPERATOR_DEVELOPER_BINDINGS['tmsteph@3dvr'], TMSTEPH_PUB);

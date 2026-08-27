@@ -8,3 +8,26 @@ test('operator page is a single conversation front door with real local actions'
 test('operator keeps a browsable, account-scoped conversation archive',async()=>{const[html,app,sync]=await Promise.all([readFile(new URL('../operator/index.html',import.meta.url),'utf8'),readFile(new URL('../operator/app.js',import.meta.url),'utf8'),readFile(new URL('../operator/sync.js',import.meta.url),'utf8')]);assert.match(html,/Past conversations/);assert.match(html,/gun\/sea\.js/);assert.match(html,/auth-identity\.js/);assert.match(app,/3dvr\.operator\.conversations\.v2/);assert.match(app,/\.account\.\$\{encodeURIComponent\(accountKey\)\}/);assert.match(app,/LEGACY_KEY/);assert.match(app,/data-conversation-id/);assert.match(sync,/SEA\.encrypt/);assert.match(sync,/user\.get\(SYNC_NODE\)/)});
 test('operator can safely save checklists and web links',async()=>{const checklist=normalizeOperatorResult({reply:'Saved.',action:{type:'create_checklist',title:'Today',text:'Call Sam\nSend quote',url:''}});assert.equal(checklist.action.type,'create_checklist');const link=normalizeOperatorResult({reply:'Saved.',action:{type:'save_link',title:'Guide',text:'Read later',url:'https://example.com/guide'}});assert.equal(link.action.url,'https://example.com/guide');const unsafe=normalizeOperatorResult({reply:'No.',action:{type:'save_link',title:'Bad',text:'',url:'javascript:alert(1)'}});assert.equal(unsafe.action.url,'');const actions=await readFile(new URL('../operator/actions.js',import.meta.url),'utf8');assert.match(actions,/Saved as a checklist/);assert.match(actions,/Only web links can be saved/)});
 test('operator returns a bounded set of clean next-step suggestions',()=>{const result=normalizeOperatorResult({reply:'Ready.',suggestions:['  Make the checklist  ','Save this plan','Find a customer','Extra choice'],action:{type:'none'}});assert.deepEqual(result.suggestions,['Make the checklist','Save this plan','Find a customer'])});
+
+
+test('operator hides provider upsell details on ordinary rate limits', async () => {
+  let body;
+  const handler = createOperatorHandler({
+    apiKey: '',
+    gatewayToken: 'gateway-test',
+    fetchImpl: async () => ({
+      ok: false,
+      status: 429,
+      json: async () => ({ error: { message: 'Free tier requests are rate-limited. Upgrade at https://example.invalid/top-up' } }),
+    }),
+  });
+  const req = { method: 'POST', body: { prompt: 'Help me' }, headers: {} };
+  const res = {
+    setHeader() {},
+    status(code) { this.statusCode = code; return this; },
+    json(value) { body = value; return this; },
+  };
+  await handler(req, res);
+  assert.equal(res.statusCode, 429);
+  assert.equal(body.error, 'The operator is busy right now. Please try again in a moment.');
+});
