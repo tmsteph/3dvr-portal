@@ -49,6 +49,7 @@ describe('money-printer CLI', () => {
       const businessPath = path.join(workspaceDir, 'business.json');
       const ideasPath = path.join(workspaceDir, 'ideas.json');
       const experimentsPath = path.join(workspaceDir, 'experiments.json');
+      const executivePath = path.join(workspaceDir, 'executive', 'profile.json');
       const reportsDir = path.join(workspaceDir, 'reports');
       const eventsPath = path.join(workspaceDir, 'logs', 'events.jsonl');
 
@@ -57,7 +58,19 @@ describe('money-printer CLI', () => {
       assert.equal(await exists(businessPath), true);
       assert.equal(await exists(ideasPath), true);
       assert.equal(await exists(experimentsPath), true);
+      assert.equal(await exists(executivePath), true);
       assert.equal(await exists(reportsDir), true);
+
+      const executive = await runCli(cwd, ['executive']);
+      assert.match(executive.stdout, /3DVR Executive Constitution/);
+      assert.match(executive.stdout, /Recent founder feedback/);
+
+      const direction = await runCli(cwd, ['executive', 'direction', 'Make the first useful workflow unmistakable.']);
+      assert.match(direction.stdout, /Executive direction updated/);
+      assert.match((await readJson(executivePath)).currentDirection, /first useful workflow/);
+
+      const feedback = await runCli(cwd, ['executive', 'feedback', 'prefer', 'One obvious action per screen.']);
+      assert.match(feedback.stdout, /Taste learned: \[PREFER\]/);
 
       const mission = await runCli(cwd, [
         'mission',
@@ -84,12 +97,15 @@ describe('money-printer CLI', () => {
 
       const run = await runCli(cwd, ['run', 'executive']);
       assert.match(run.stdout, /Executive Agent decision/);
-      assert.match(run.stdout, /buyer outreach/);
+      assert.match(run.stdout, /Stay on direction/);
+      assert.match(run.stdout, /Make the first useful workflow unmistakable/);
 
       const status = await runCli(cwd, ['status']);
       assert.match(status.stdout, /Money Printer Status/);
       assert.match(status.stdout, /Ideas Generated: 5/);
       assert.match(status.stdout, /Experiments Active: 1/);
+      assert.match(status.stdout, /Direction: Make the first useful workflow unmistakable/);
+      assert.match(status.stdout, /Taste Feedback Recorded: 1/);
 
       const daemon = await runCli(cwd, ['daemon', '--once']);
       assert.match(daemon.stdout, /Daemon dry-run cycle completed once/);

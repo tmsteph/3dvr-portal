@@ -5,6 +5,7 @@ import {
   runBotLoop
 } from './moneyPrinterCore.js';
 import {
+  appendExecutiveDecision,
   appendMoneyPrinterEvent,
   loadMoneyPrinterWorkspace,
   writeMoneyPrinterReport
@@ -42,7 +43,20 @@ export async function runMoneyPrinterDaemonCycle(options = {}) {
     : { brief: generateFounderCommandBrief(loaded.state), aiMode: 'mock' };
   const founderBrief = founderBriefResult.brief;
   const metrics = buildMetrics(loaded.state);
-  const nextBestMoneyAction = getNextBestMoneyAction(loaded.state);
+  const baselineNextBestMoneyAction = getNextBestMoneyAction(loaded.state);
+  const nextBestMoneyAction = botOutput.nextBestMoneyAction || baselineNextBestMoneyAction;
+  const executiveDecisionWrite = botId === 'executive-agent'
+    ? await appendExecutiveDecision(rootDir, {
+      decision: botOutput.executiveDecision?.decision || botOutput.summary || nextBestMoneyAction,
+      why: botOutput.executiveDecision?.why || botOutput.summary || '',
+      nextAction: botOutput.nextBestMoneyAction || nextBestMoneyAction,
+      whatNotToDo: botOutput.executiveDecision?.whatNotToDo || [],
+      confidence: botOutput.executiveDecision?.confidence,
+      bot: botId,
+      model: botOutput.model || providerStatus.model,
+      source: command
+    })
+    : null;
   const connectorPlan = await generateConnectorPlanWithModel({
     ...loaded.state,
     ideas: ideaResult.ideas || loaded.state.ideas
@@ -66,7 +80,7 @@ export async function runMoneyPrinterDaemonCycle(options = {}) {
     generatedAt: new Date().toISOString(),
     mode: providerStatus.mode === 'openai' ? 'openai' : 'dry-run',
     aiMode: providerStatus.mode,
-    model: providerStatus.model,
+    model: botOutput.model || providerStatus.model,
     command,
     botId,
     mission: loaded.state.businessConfig.mission,
@@ -74,6 +88,8 @@ export async function runMoneyPrinterDaemonCycle(options = {}) {
     nextBestMoneyAction,
     founderBrief,
     botOutput,
+    executiveDecision: executiveDecisionWrite?.entry || null,
+    executiveDecisionPath: executiveDecisionWrite?.path || '',
     ideas: ideaResult.ideas || [],
     connectorOperationsPlanned: operationsWrite.added,
     connectorOperationsExecuted: executedOperations,
@@ -94,9 +110,10 @@ export async function runMoneyPrinterDaemonCycle(options = {}) {
     outputSummary: botOutput.summary,
     nextAction: nextBestMoneyAction,
     aiMode: providerStatus.mode,
-    model: providerStatus.model,
+    model: botOutput.model || providerStatus.model,
     operationsPlanned: operationsWrite.added.length,
-    operationsExecuted: executedOperations.length
+    operationsExecuted: executedOperations.length,
+    executiveDecisionId: executiveDecisionWrite?.entry?.id || ''
   });
 
   return {

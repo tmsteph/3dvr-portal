@@ -11,6 +11,7 @@ import {
 import { generateValidationTest } from './moneyPrinterExperiments.js';
 import { getMoneyPrinterWorkspacePaths } from './moneyPrinterFileStorage.js';
 import { formatMoneyPrinterFounderDoctrine } from './moneyPrinterFounderDoctrine.js';
+import { formatExecutiveProfile, formatRecentExecutiveFeedback } from './moneyPrinterExecutiveMemory.js';
 import { createConnectorOperationPlan } from './moneyPrinterOperations.js';
 
 export const DEFAULT_MONEY_PRINTER_MODEL = 'gpt-4.1-mini';
@@ -18,6 +19,12 @@ export const DEFAULT_MONEY_PRINTER_FAST_MODEL = 'gpt-4.1-mini';
 export const DEFAULT_MONEY_PRINTER_REASONING_MODEL = 'gpt-5.4-mini';
 
 const GPT_5_RE = /^gpt-5([.-]|$)/;
+const EXECUTIVE_REASONING_BOTS = new Set([
+  'executive-agent',
+  'portfolio-manager-bot',
+  'kill-or-scale-bot',
+  'system-improvement-bot'
+]);
 const CONNECTOR_ACTION_ENUM = [
   'createIssue',
   'createIssueFromOperation',
@@ -62,7 +69,20 @@ const BOT_OUTPUT_SCHEMA = {
           }
         }
       },
-      codexPrompt: { type: 'string' }
+      codexPrompt: { type: 'string' },
+      executiveDecision: {
+        type: 'object',
+        required: ['decision', 'why', 'confidence', 'tasteCheck', 'tradeoffs', 'whatNotToDo'],
+        additionalProperties: false,
+        properties: {
+          decision: { type: 'string' },
+          why: { type: 'string' },
+          confidence: { type: 'number' },
+          tasteCheck: { type: 'string' },
+          tradeoffs: { type: 'array', items: { type: 'string' } },
+          whatNotToDo: { type: 'array', items: { type: 'string' } }
+        }
+      }
     }
   }
 };
@@ -327,6 +347,21 @@ export function validateFounderBrief(value = {}, fallback = {}) {
   };
 }
 
+export function validateExecutiveDecision(value = {}, fallback = {}) {
+  if (!value || typeof value !== 'object') return fallback;
+  const decision = String(value.decision || fallback.decision || '').trim();
+  if (!decision) return fallback;
+  const confidence = Number(value.confidence);
+  return {
+    decision,
+    why: String(value.why || fallback.why || '').trim(),
+    confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : Number(fallback.confidence || 0.5),
+    tasteCheck: String(value.tasteCheck || fallback.tasteCheck || '').trim(),
+    tradeoffs: Array.isArray(value.tradeoffs) ? value.tradeoffs.map(String).filter(Boolean).slice(0, 6) : fallback.tradeoffs || [],
+    whatNotToDo: Array.isArray(value.whatNotToDo) ? value.whatNotToDo.map(String).filter(Boolean).slice(0, 6) : fallback.whatNotToDo || []
+  };
+}
+
 export function validateConnectorOperations(value = []) {
   const raw = Array.isArray(value) ? value : value?.operations;
   return (Array.isArray(raw) ? raw : [])
@@ -367,7 +402,11 @@ export async function fallbackToMockOnModelFailure({
 function buildInstructions() {
   return [
     'You are Money Printer, a model-powered 3DVR venture operator.',
-    'Your job is to find painful markets, make useful offers, validate demand, and create safe execution plans.',
+    'Your job is to run the business toward its durable mission, not merely generate ideas or complete prompts.',
+    'Treat executiveProfile as the operating constitution. Treat executiveFeedback as founder taste training data. Treat executiveDecisions as precedent, not immutable law.',
+    'When choices conflict, prefer the option that best fits the current direction, user value, simplicity, learning/revenue, reversibility, and openness.',
+    'Do not flatter the founder. Disagree when evidence or the executive constitution points elsewhere, and explain the tradeoff briefly.',
+    'Find painful markets, make useful offers, validate demand, and create safe execution plans.',
     'Sell first. Build second. Keep it simple.',
     'Prefer service-first, software-later businesses with reachable buyers and clear first-dollar paths.',
     'Never propose red-zone execution as allowed. Money movement, DNS, deletion, mass email, and production merges stay blocked.',
@@ -382,7 +421,7 @@ function buildInstructions() {
   ].join('\n');
 }
 
-function buildStatePayload(context = {}) {
+export function buildStatePayload(context = {}) {
   const state = context.state || context;
   return {
     businessConfig: state.businessConfig || context.businessConfig || {},
@@ -393,7 +432,10 @@ function buildStatePayload(context = {}) {
     metrics: context.metrics || {},
     recentReports: context.recentReports || [],
     availableConnectors: context.availableConnectors || ['github', 'vercel', 'codex'],
-    autonomy: state.businessConfig?.autonomy || {}
+    autonomy: state.businessConfig?.autonomy || {},
+    executiveProfile: state.executiveProfile || context.executiveProfile || null,
+    executiveFeedback: (state.executiveFeedback || context.executiveFeedback || []).slice(-12),
+    executiveDecisions: (state.executiveDecisions || context.executiveDecisions || []).slice(-12)
   };
 }
 
@@ -514,10 +556,22 @@ export async function runStructuredModelPrompt(prompt, options = {}) {
 
 function botPrompt(botId, state = {}) {
   const bot = BOT_DEFINITIONS.find(item => item.id === botId);
+  const executiveContext = state.executiveProfile
+    ? [
+      'Executive constitution:',
+      formatExecutiveProfile(state.executiveProfile),
+      'Recent founder taste feedback:',
+      formatRecentExecutiveFeedback(state.executiveFeedback || [])
+    ].join('\n')
+    : '';
   return [
     `Bot: ${bot?.name || botId}`,
     `Purpose: ${bot?.purpose || 'Operate the money machine.'}`,
     `Prompt template: ${findPromptForBot(botId)}`,
+    executiveContext,
+    botId === 'executive-agent'
+      ? 'Make one clear executiveDecision. Include why, confidence from 0 to 1, a tasteCheck against the constitution, tradeoffs, and whatNotToDo.'
+      : 'Follow the executive constitution and recent founder feedback when choosing what good looks like.',
     'Context JSON:',
     JSON.stringify(buildStatePayload(state), null, 2),
     'Return a practical bot output with safe connector operations and a Codex prompt when useful.'
@@ -541,6 +595,7 @@ export async function runBotWithModel(botId, state = {}, options = {}) {
   try {
     const result = await runStructuredModelPrompt(botPrompt(botId, state), {
       ...options,
+      model: options.model || (EXECUTIVE_REASONING_BOTS.has(botId) ? status.reasoningModel : status.model),
       schema: BOT_OUTPUT_SCHEMA
     });
     const data = result.data || {};
@@ -552,6 +607,14 @@ export async function runBotWithModel(botId, state = {}, options = {}) {
       nextBestMoneyAction: String(data.nextBestMoneyAction || getNextBestMoneyAction(state)),
       connectorOperations: validateConnectorOperations(data.connectorOperations),
       codexPrompt: String(data.codexPrompt || ''),
+      executiveDecision: validateExecutiveDecision(data.executiveDecision, {
+        decision: String(data.summary || ''),
+        why: String(data.nextBestMoneyAction || ''),
+        confidence: 0.5,
+        tasteCheck: '',
+        tradeoffs: [],
+        whatNotToDo: []
+      }),
       aiMode: 'openai',
       model: result.model
     };

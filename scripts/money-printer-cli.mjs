@@ -17,10 +17,13 @@ import {
 } from '../src/money-printer/moneyPrinterCore.js';
 import { runMoneyPrinterDaemonCycle } from '../src/money-printer/moneyPrinterDaemon.js';
 import {
+  appendExecutiveDecision,
+  appendExecutiveFeedback,
   appendMoneyPrinterEvent,
   ensureMoneyPrinterWorkspace,
   loadMoneyPrinterWorkspace,
   saveBusinessConfig,
+  saveExecutiveProfile,
   saveExperiments,
   saveIdeas
 } from '../src/money-printer/moneyPrinterFileStorage.js';
@@ -52,6 +55,7 @@ import {
   extractWeakSignalsFromText,
   loadWeakSignals
 } from '../src/money-printer/moneyPrinterWeakSignals.js';
+import { formatExecutiveProfile, formatRecentExecutiveFeedback } from '../src/money-printer/moneyPrinterExecutiveMemory.js';
 
 const BOT_ALIASES = {
   executive: 'executive-agent',
@@ -137,6 +141,9 @@ Usage:
   npm run money-printer -- promote <idea-id>
   npm run money-printer -- brief
   npm run money-printer -- run executive
+  npm run money-printer -- executive
+  npm run money-printer -- executive direction "Make the CRM earn its place"
+  npm run money-printer -- executive feedback prefer "One obvious action per screen"
   npm run money-printer -- status
   npm run money-printer -- ai-status
   npm run money-printer -- daemon --once
@@ -152,6 +159,7 @@ Commands:
   brief                 Generate Founder Command Brief (--ai, --mock, --json)
   run <bot-name>        Run a bot loop (--ai, --mock, --model, --save, --json)
   status                Show operator status
+  executive             Show/set direction and record founder taste feedback
   ai-status             Show provider, connector, and Codex runtime status
   daemon --once         Run one safe daemon cycle and write report/log (--ai, --execute, --json)
   operations            List/approve/execute operation plans
@@ -215,6 +223,7 @@ async function commandInit(rootDir) {
   console.log(`Config: ${path.relative(rootDir, paths.businessPath)}`);
   console.log(`Ideas: ${path.relative(rootDir, paths.ideasPath)}`);
   console.log(`Experiments: ${path.relative(rootDir, paths.experimentsPath)}`);
+  console.log(`Executive constitution: ${path.relative(rootDir, paths.executivePath)}`);
 }
 
 async function commandMission(rootDir, args) {
@@ -353,6 +362,18 @@ async function commandRun(rootDir, args, flags = {}) {
     aiMode: output.aiMode || 'mock',
     model: output.model || ''
   });
+  if (botId === 'executive-agent') {
+    await appendExecutiveDecision(rootDir, {
+      decision: output.executiveDecision?.decision || output.summary || output.title,
+      why: output.executiveDecision?.why || output.summary || '',
+      nextAction: output.nextBestMoneyAction || getNextBestMoneyAction(loaded.state),
+      whatNotToDo: output.executiveDecision?.whatNotToDo || [],
+      confidence: output.executiveDecision?.confidence,
+      bot: botId,
+      model: output.model || '',
+      source: 'cli-run'
+    });
+  }
   if (flags.json) {
     printJson(output);
     return;
@@ -367,6 +388,91 @@ async function commandRun(rootDir, args, flags = {}) {
   printBotOutput(output);
 }
 
+async function commandExecutive(rootDir, args = [], flags = {}) {
+  const subcommand = args[0] || 'show';
+  const loaded = await loadMoneyPrinterWorkspace(rootDir);
+
+  if (subcommand === 'direction') {
+    const direction = args.slice(1).join(' ').trim();
+    if (!direction) throw new Error('Missing direction. Example: executive direction "Make the CRM earn its place"');
+    const saved = await saveExecutiveProfile(rootDir, {
+      ...loaded.executiveProfile,
+      currentDirection: direction
+    });
+    await appendMoneyPrinterEvent(rootDir, {
+      command: 'executive direction',
+      inputSummary: direction,
+      outputSummary: 'Updated persistent executive direction.',
+      nextAction: 'Run executive agent with --ai or let the next supervisor cycle use the new direction.'
+    });
+    if (flags.json) {
+      printJson(saved.profile);
+      return;
+    }
+    console.log(`Executive direction updated: ${saved.profile.currentDirection}`);
+    return;
+  }
+
+  if (subcommand === 'feedback') {
+    const kind = String(args[1] || 'note').toLowerCase();
+    const text = args.slice(2).join(' ').trim();
+    if (!text) throw new Error('Missing feedback. Example: executive feedback prefer "One obvious action per screen"');
+    const result = await appendExecutiveFeedback(rootDir, {
+      kind,
+      text,
+      reason: typeof flags.reason === 'string' ? flags.reason : ''
+    });
+    await appendMoneyPrinterEvent(rootDir, {
+      command: 'executive feedback',
+      inputSummary: `${result.entry.kind}: ${result.entry.text}`,
+      outputSummary: 'Recorded founder taste feedback for future model calls.',
+      nextAction: 'The next executive/model cycle will receive this feedback as context.'
+    });
+    if (flags.json) {
+      printJson(result.entry);
+      return;
+    }
+    console.log(`Taste learned: [${result.entry.kind.toUpperCase()}] ${result.entry.text}`);
+    return;
+  }
+
+  if (subcommand === 'decisions') {
+    const limit = Math.max(1, Number.parseInt(flags.limit || '10', 10) || 10);
+    const decisions = loaded.executiveDecisions.slice(-limit).reverse();
+    if (flags.json) {
+      printJson(decisions);
+      return;
+    }
+    console.log('Recent executive decisions');
+    if (!decisions.length) {
+      console.log('No executive decisions recorded yet.');
+      return;
+    }
+    decisions.forEach(item => {
+      console.log(`- ${item.decision}`);
+      if (item.why) console.log(`  Why: ${item.why}`);
+      if (item.nextAction) console.log(`  Next: ${item.nextAction}`);
+    });
+    return;
+  }
+
+  if (subcommand !== 'show') throw new Error(`Unknown executive command: ${subcommand}`);
+  if (flags.json) {
+    printJson({
+      profile: loaded.executiveProfile,
+      recentFeedback: loaded.executiveFeedback,
+      recentDecisions: loaded.executiveDecisions
+    });
+    return;
+  }
+  console.log(formatExecutiveProfile(loaded.executiveProfile));
+  console.log();
+  console.log('Recent founder feedback:');
+  console.log(formatRecentExecutiveFeedback(loaded.executiveFeedback));
+  console.log();
+  console.log(`Decisions recorded: ${loaded.executiveDecisions.length}`);
+}
+
 async function commandStatus(rootDir) {
   const loaded = await loadMoneyPrinterWorkspace(rootDir);
   const metrics = buildMetrics(loaded.state);
@@ -374,6 +480,7 @@ async function commandStatus(rootDir) {
 
   console.log('Money Printer Status');
   console.log(`Mission: ${loaded.businessConfig.mission}`);
+  console.log(`Direction: ${loaded.executiveProfile.currentDirection}`);
   console.log(`Ideas Generated: ${metrics.ideasGenerated}`);
   console.log(`Experiments Active: ${metrics.experimentsActive}`);
   console.log(`Offers Launched: ${metrics.offersLaunched}`);
@@ -384,6 +491,8 @@ async function commandStatus(rootDir) {
   console.log(`Weak Signals Found: ${metrics.weakSignalsFound || 0}`);
   console.log(`Portfolio Focus: ${portfolio.primaryFocus}`);
   console.log(`Next Best Money Action: ${metrics.nextBestMoneyAction}`);
+  console.log(`Taste Feedback Recorded: ${loaded.executiveFeedback.length}`);
+  console.log(`Executive Decisions Recorded: ${loaded.executiveDecisions.length}`);
 }
 
 function printWeakSignals(signals = []) {
@@ -699,6 +808,9 @@ async function main() {
       break;
     case 'status':
       await commandStatus(rootDir);
+      break;
+    case 'executive':
+      await commandExecutive(rootDir, positional, flags);
       break;
     case 'ai-status':
       await commandAiStatus(rootDir, flags);
