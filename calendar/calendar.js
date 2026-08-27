@@ -893,14 +893,17 @@ function renderCalendar(events = state.localEvents) {
       eventsForDay.slice(0, 3).forEach(event => {
         const item = document.createElement('li');
         item.className = 'calendar-view__event';
-        const timeLabel = formatCalendarTime(event.start, event.timeZone);
+        const timeLabel = formatCalendarRange(event);
         if (timeLabel) {
           const time = document.createElement('span');
           time.className = 'calendar-view__event-time';
           time.textContent = timeLabel;
           item.appendChild(time);
         }
-        item.appendChild(document.createTextNode(event.title || 'Untitled event'));
+        const title = document.createElement('span');
+        title.className = 'calendar-view__event-title';
+        title.textContent = event.title || 'Untitled event';
+        item.appendChild(title);
         list.appendChild(item);
       });
       if (eventsForDay.length > 3) {

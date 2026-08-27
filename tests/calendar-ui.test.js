@@ -40,6 +40,18 @@ test('calendar hub presents a clear hero, month-first workspace, and side rail',
   );
 });
 
+test('calendar month cells show full time ranges without hiding the event title', async () => {
+  const html = await readFile(new URL('../calendar/index.html', import.meta.url), 'utf8');
+  const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../calendar/calendar.css', import.meta.url), 'utf8');
+
+  assert.match(html, /See start and end times at a glance/);
+  assert.match(js, /const timeLabel = formatCalendarRange\(event\);/);
+  assert.match(js, /title\.className = 'calendar-view__event-title';/);
+  assert.match(css, /\.calendar-view__event-title \{/);
+  assert.match(css, /min-width: 760px;/);
+});
+
 test('calendar runtime updates the quick summary strip from event and connection state', async () => {
   const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
 
