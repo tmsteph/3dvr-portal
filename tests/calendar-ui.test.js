@@ -47,9 +47,12 @@ test('calendar month cells show full time ranges without hiding the event title'
 
   assert.match(html, /See start and end times at a glance/);
   assert.match(js, /const timeLabel = formatCalendarRange\(event\);/);
+  assert.match(js, /function formatCompactCalendarRange\(event\)/);
+  assert.match(js, /calendar-view__event-time-compact/);
   assert.match(js, /title\.className = 'calendar-view__event-title';/);
   assert.match(css, /\.calendar-view__event-title \{/);
-  assert.match(css, /min-width: 760px;/);
+  assert.match(css, /@media \(max-width: 720px\) \{[\s\S]*?min-width: 0;/);
+  assert.match(css, /\.calendar-view__event-time-compact \{[\s\S]*?display: inline;/);
 });
 
 test('calendar runtime updates the quick summary strip from event and connection state', async () => {
@@ -71,4 +74,12 @@ test('calendar stylesheet keeps the month view reachable on smaller screens', as
   assert.match(css, /@media \(max-width: 720px\) \{[\s\S]*?\.calendar-header__highlights \{[\s\S]*?overflow-x: auto;/);
   assert.match(css, /@media \(max-width: 720px\) \{[\s\S]*?\.calendar-quickstats \{[\s\S]*?overflow-x: auto;/);
   assert.match(css, /@media \(max-width: 540px\) \{[\s\S]*?\.calendar-header__action \{[\s\S]*?width: 100%;/);
+});
+
+test('calendar month cells expose useful event details to assistive tech', async () => {
+  const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
+
+  assert.match(js, /item\.setAttribute\('aria-label'/);
+  assert.match(js, /eventsForDay\.slice\(0, 3\)\.forEach\(event =>/);
+  assert.match(js, /labelParts\.push/);
 });
