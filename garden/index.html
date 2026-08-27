@@ -13,23 +13,41 @@
 <body>
   <header class="topbar">
     <a class="brand" href="../">3dvr.tech</a>
-    <span class="tag">Idea Garden</span>
+    <div class="topbar-actions">
+      <span class="tag">Idea Garden</span>
+      <a class="quiet-link" href="../start/">Start</a>
+    </div>
   </header>
 
   <main>
     <section class="hero">
       <p class="eyebrow">Your ideas deserve somewhere to live.</p>
-      <h1>Plant the idea.<br />We’ll help it grow.</h1>
-      <p class="lede">You do not need a business plan, a website, or even a good explanation. Start with the spark.</p>
+      <h1>Plant the spark.<br />Grow what matters.</h1>
+      <p class="lede">You do not need a business plan, a website, or even a good explanation. Capture the thought now. Decide what it becomes later.</p>
 
       <form id="ideaForm" class="capture-card">
         <label for="ideaInput">What’s on your mind?</label>
-        <textarea id="ideaInput" maxlength="280" placeholder="I want to…" required></textarea>
+        <textarea id="ideaInput" maxlength="500" placeholder="I want to…" required></textarea>
         <div class="capture-actions">
-          <small>Messy ideas are welcome.</small>
+          <div>
+            <small>Messy ideas are welcome.</small>
+            <span id="gardenStatus" class="save-status" role="status" aria-live="polite">Stored only in this browser for now.</span>
+          </div>
           <button type="submit">Plant idea</button>
         </div>
       </form>
+    </section>
+
+    <section id="focusShelf" class="focus-shelf" hidden aria-labelledby="focusTitle">
+      <div>
+        <p class="eyebrow">Current focus</p>
+        <h2 id="focusTitle">One thing at a time</h2>
+      </div>
+      <div class="focus-card">
+        <strong id="focusIdea"></strong>
+        <p id="focusNext"></p>
+        <button id="openFocus" class="secondary-button" type="button">Open this idea</button>
+      </div>
     </section>
 
     <section class="garden-section" aria-labelledby="gardenTitle">
@@ -37,35 +55,58 @@
         <div>
           <p class="eyebrow">Your garden</p>
           <h2 id="gardenTitle">Keep the sparks alive</h2>
+          <p id="gardenSummary" class="section-copy">Seeds can rest. Projects can grow. Finished ideas still count.</p>
         </div>
-        <button id="clearDone" class="text-button" type="button">Clear finished</button>
+        <button id="downloadGarden" class="text-button" type="button">Download backup</button>
+      </div>
+
+      <div class="garden-toolbar" aria-label="Filter your ideas">
+        <div class="filter-row" role="group" aria-label="Idea stages">
+          <button class="filter-button active" type="button" data-garden-filter="all">All</button>
+          <button class="filter-button" type="button" data-garden-filter="seed">Seeds</button>
+          <button class="filter-button" type="button" data-garden-filter="exploring">Exploring</button>
+          <button class="filter-button" type="button" data-garden-filter="project">Projects</button>
+          <button class="filter-button" type="button" data-garden-filter="done">Finished</button>
+        </div>
+        <label class="search-box" for="gardenSearch">
+          <span>Search</span>
+          <input id="gardenSearch" type="search" placeholder="Find an idea…" autocomplete="off" />
+        </label>
       </div>
 
       <div id="emptyState" class="empty-state">
         <strong>Nothing planted yet.</strong>
         <span>Your first idea can be tiny.</span>
       </div>
+      <div id="noMatches" class="empty-state" hidden>
+        <strong>No ideas match that view.</strong>
+        <span>Try another stage or search.</span>
+      </div>
       <div id="ideaList" class="idea-list" aria-live="polite"></div>
+
+      <div class="garden-footer-actions">
+        <button id="clearDone" class="text-button" type="button">Clear finished ideas</button>
+      </div>
     </section>
 
     <section class="path-section" aria-labelledby="pathTitle">
-      <p class="eyebrow">When an idea wants more</p>
-      <h2 id="pathTitle">Tools appear when you need them</h2>
+      <p class="eyebrow">The tools stay in the background</p>
+      <h2 id="pathTitle">Use what the idea needs—nothing more.</h2>
       <div class="tool-grid">
         <a class="tool-card" href="../forge/">
           <span>Explore</span>
-          <strong>Shape the idea in Forge</strong>
-          <p>Turn a fuzzy thought into something clearer without committing to a project.</p>
+          <strong>Forge</strong>
+          <p>Shape a fuzzy thought and find a tiny experiment.</p>
         </a>
         <a class="tool-card" href="../launch-room/?mode=start-project">
           <span>Build</span>
-          <strong>Move it into Launch Room</strong>
-          <p>Give a growing idea a purpose, next step, and real-world experiment.</p>
+          <strong>Launch Room</strong>
+          <p>Turn a growing idea into a real project with a purpose and first move.</p>
         </a>
         <a class="tool-card" href="../life/">
           <span>Today</span>
-          <strong>Pick one next move</strong>
-          <p>Use Daily Direction when life is noisy and you only need the next useful step.</p>
+          <strong>Daily Direction</strong>
+          <p>Choose one useful action when life is noisy.</p>
         </a>
       </div>
     </section>
