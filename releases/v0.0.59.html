@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Release v0.0.59 (Week of August 17, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2, h3 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    code { color: #f0f6fc; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-summary { margin: 0 0 24px; font-size: 16px; color: #9ba3b4; }
+    .release-summary-list { margin: 0; padding-left: 20px; color: #c9d1d9; }
+    .release-summary-list li + li { margin-top: 10px; }
+    .back-link, .release-nav-link { color: #58a6ff; text-decoration: none; font-weight: 600; }
+    .back-link:hover, .release-nav-link:hover { text-decoration: underline; }
+    .release-nav { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: 20px 0 40px; }
+    .release-nav-link.is-disabled { opacity: 0.4; pointer-events: none; cursor: default; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.58.html">Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release</span>
+  </nav>
+  <h1>Release v0.0.59</h1>
+  <div class="tag">Week of August 17, 2026</div>
+  <div class="release-summary">
+    <p>
+      This week, 3DVR became much more like a personal operating system you can actually live inside. Companion gained
+      a secure direct phone-control path and its first Android Assistant voice loop, Operator moved onto the Portal
+      homepage with native Forge permissions, encrypted Workspace sync made project context portable, the free website
+      promise became truly free with automated fulfillment, and open source expanded into everyday physical life.
+    </p>
+    <ul class="release-summary-list">
+      <li>
+        <strong>Phone control became a real platform:</strong>
+        Companion added Keystore-backed relay credentials, authenticated foreground-service connectivity, bounded
+        remote app and HTTPS URL actions, signed self-updating Android releases, and a first Assistant voice round trip
+        where a request such as “Open Maps” resolves through the same constrained capability system and leaves a visible
+        receipt. See <a href="https://github.com/tmsteph/3dvr-portal/pull/1528">PR #1528</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1534">PR #1534</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1536">PR #1536</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1542">PR #1542</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1566">PR #1566</a>.
+      </li>
+      <li>
+        <strong>Operator became the front door:</strong>
+        the Portal homepage was simplified around Operator, then upgraded into a real context-aware chat surface with
+        persistent conversation history, clearer mobile reconnect behavior, and direct links to exact Forge records.
+        Approved 3DVR accounts can sign code-change requests with SEA and route them through native
+        <a href="../forge/">3DVR Forge</a> without making GitHub identity part of the permission contract. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1667">PR #1667</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1678">PR #1678</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1693">PR #1693</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1713">PR #1713</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1722">PR #1722</a>.
+      </li>
+      <li>
+        <strong>Project context can travel with you:</strong>
+        the new <a href="../workspace/">3DVR Workspace</a> adds encrypted cross-device projects, threads, project
+        memory, agent-run handoffs, and Codex/OpenClaw handoff tools on top of the existing Portal identity and GUN
+        relay. See <a href="https://github.com/tmsteph/3dvr-portal/pull/1623">PR #1623</a>.
+      </li>
+      <li>
+        <strong>The free website promise is actually free:</strong>
+        <a href="../free-page/">Free Page</a> now promises a basic live 3DVR-hosted one-page site at no charge, while
+        the fulfillment system grew from mailbox checks into an event-driven IMAP path with bounded worker execution,
+        layered fallbacks, deduplication, merge-safe publishing, live-URL verification, and in-thread delivery. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1546">PR #1546</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1606">PR #1606</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1609">PR #1609</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1651">PR #1651</a>.
+      </li>
+      <li>
+        <strong>The agent stack learned to stay alive:</strong>
+        the worker, inbox, autopilot, heartbeat, and Context HQ router were joined into one continuously running stack,
+        then given guarded self-healing and a public <a href="../alive-system/">Alive</a> health dashboard. OpenClaw health
+        checks now go beyond process reachability to model-turn health. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1614">PR #1614</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1617">PR #1617</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1618">PR #1618</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1622">PR #1622</a>.
+      </li>
+      <li>
+        <strong>Open source moved beyond software:</strong>
+        the <a href="../human-value-network/">Human Value Network</a> helps people map useful skills into mutual
+        economic resilience, while <a href="../linen/">3DVR Linen</a> and
+        <a href="../everyday-life/">Open Source Everyday Life</a> establish repairable clothing and physical goods as
+        first-class open projects, including a printable all-linen drawstring-pants pattern. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1570">PR #1570</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1583">PR #1583</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1584">PR #1584</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1585">PR #1585</a>.
+      </li>
+      <li>
+        <strong>Work Agent started becoming reusable:</strong>
+        the first <a href="../work-agent/">3DVR Work Agent</a> shell captures freelance AV roles, rates, market, and
+        agent rules, while an encrypted tenant credential-store core prepares for safe Gmail/Calendar-backed workflows
+        without exposing refresh tokens. See <a href="https://github.com/tmsteph/3dvr-portal/pull/1655">PR #1655</a>
+        and <a href="https://github.com/tmsteph/3dvr-portal/pull/1657">PR #1657</a>.
+      </li>
+      <li>
+        <strong>Development got less wasteful:</strong>
+        production deployment was narrowed toward deliberate main-only changes while low-load machine previews became
+        opt-in and independently verifiable, reducing unnecessary Vercel churn while keeping a path to real browser
+        testing. See <a href="https://github.com/tmsteph/3dvr-portal/pull/1674">PR #1674</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1696">PR #1696</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1706">PR #1706</a>.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Safety notes</h2>
+    <p>
+      Companion voice and relay control remain bounded: no arbitrary shell, unrestricted gestures, purchases, account
+      changes, or outbound messages are introduced by the v0.0.59 voice path. Forge edit authority requires a valid,
+      approved signed 3DVR identity and is separate from publish/merge/release authority. Workspace encryption is still
+      an MVP with last-write-wins synchronization and password-based unlock limitations. Work Agent credential storage
+      does not by itself enable unattended Gmail or Calendar actions. Free-site fulfillment remains limited to genuine
+      inbound one-page requests and verifies the public URL before replying.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>What this release covers</h2>
+    <p>
+      v0.0.59 covers the weekly milestone for August 17-23, 2026, following v0.0.58 and carrying the public release
+      record through the major Portal, Companion, Operator, Workspace, free-site, and open-everyday-life work merged
+      during that week.
+    </p>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">&copy; 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
