@@ -29,7 +29,10 @@ describe('3DVR Idea Garden', () => {
     assert.match(app, /function setFocus/);
     assert.match(app, /function downloadGarden/);
     assert.match(app, /function toolForStage/);
-    assert.match(app, /encodeURIComponent\(idea\.text\)/);
+    assert.doesNotMatch(app, /encodeURIComponent\(idea\.text\)/);
+    assert.doesNotMatch(app, /[?&]idea=/);
+    assert.match(app, /href: '\.\.\/forge\/'/);
+    assert.match(app, /href: '\.\.\/launch-room\/\?mode=start-project'/);
     assert.match(app, /Seed/);
     assert.match(app, /Exploring/);
     assert.match(app, /Project/);
@@ -39,6 +42,7 @@ describe('3DVR Idea Garden', () => {
   it('keeps the layout mobile-first and avoids horizontal overflow', async () => {
     const css = await readFile(new URL('../garden/style.css', import.meta.url), 'utf8');
 
+    assert.match(css, /\[hidden\]\s*\{\s*display:\s*none !important;/);
     assert.match(css, /overflow-x:\s*hidden/);
     assert.match(css, /\.garden-toolbar/);
     assert.match(css, /\.focus-shelf/);
