@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#f6f7f3" />
+  <title>Idea Garden · 3dvr.tech</title>
+  <meta name="description" content="A quiet place to collect ideas, nurture them, and turn them into real projects." />
+  <link rel="stylesheet" href="./style.css" />
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../">3dvr.tech</a>
+    <span class="tag">Idea Garden</span>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow">Your ideas deserve somewhere to live.</p>
+      <h1>Plant the idea.<br />We’ll help it grow.</h1>
+      <p class="lede">You do not need a business plan, a website, or even a good explanation. Start with the spark.</p>
+
+      <form id="ideaForm" class="capture-card">
+        <label for="ideaInput">What’s on your mind?</label>
+        <textarea id="ideaInput" maxlength="280" placeholder="I want to…" required></textarea>
+        <div class="capture-actions">
+          <small>Messy ideas are welcome.</small>
+          <button type="submit">Plant idea</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="garden-section" aria-labelledby="gardenTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Your garden</p>
+          <h2 id="gardenTitle">Keep the sparks alive</h2>
+        </div>
+        <button id="clearDone" class="text-button" type="button">Clear finished</button>
+      </div>
+
+      <div id="emptyState" class="empty-state">
+        <strong>Nothing planted yet.</strong>
+        <span>Your first idea can be tiny.</span>
+      </div>
+      <div id="ideaList" class="idea-list" aria-live="polite"></div>
+    </section>
+
+    <section class="path-section" aria-labelledby="pathTitle">
+      <p class="eyebrow">When an idea wants more</p>
+      <h2 id="pathTitle">Tools appear when you need them</h2>
+      <div class="tool-grid">
+        <a class="tool-card" href="../forge/">
+          <span>Explore</span>
+          <strong>Shape the idea in Forge</strong>
+          <p>Turn a fuzzy thought into something clearer without committing to a project.</p>
+        </a>
+        <a class="tool-card" href="../launch-room/?mode=start-project">
+          <span>Build</span>
+          <strong>Move it into Launch Room</strong>
+          <p>Give a growing idea a purpose, next step, and real-world experiment.</p>
+        </a>
+        <a class="tool-card" href="../life/">
+          <span>Today</span>
+          <strong>Pick one next move</strong>
+          <p>Use Daily Direction when life is noisy and you only need the next useful step.</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="philosophy">
+      <p>3DVR is not a website factory.</p>
+      <h2>It is a place where people remember what they wanted to make—and get help making it real.</h2>
+    </section>
+  </main>
+
+  <footer>
+    <a href="../start/">Start</a>
+    <a href="../launch-room/">Launch Room</a>
+    <a href="../forge/">Forge</a>
+  </footer>
+</body>
+</html>
