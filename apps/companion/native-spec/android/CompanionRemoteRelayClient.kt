@@ -333,6 +333,7 @@ class CompanionRemoteRelayClient(context: Context) {
             "calendar" to listOf("com.google.android.calendar", "com.samsung.android.calendar"),
             "camera" to listOf("com.sec.android.app.camera", "com.google.android.GoogleCamera"),
             "messages" to listOf("com.google.android.apps.messaging", "com.samsung.android.messaging", "com.android.mms"),
+        "whatsapp" to listOf("com.whatsapp", "com.whatsapp.w4b"),
         )
 
         private const val DEVICE_ID_KEY = "remote.device_id"

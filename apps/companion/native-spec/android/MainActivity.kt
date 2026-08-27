@@ -29,6 +29,7 @@ class MainActivity : FlutterActivity() {
         "chatgpt" to listOf("com.openai.chatgpt"),
         "maps" to listOf("com.google.android.apps.maps"),
         "gmail" to listOf("com.google.android.gm"),
+        "whatsapp" to listOf("com.whatsapp", "com.whatsapp.w4b"),
         "chrome" to listOf("com.android.chrome"),
         "termux" to listOf("com.termux"),
         "calendar" to listOf("com.google.android.calendar", "com.samsung.android.calendar"),

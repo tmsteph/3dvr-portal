@@ -251,6 +251,7 @@ object CompanionNativeBridgeServer {
             "calendar" to listOf("com.google.android.calendar", "com.samsung.android.calendar"),
             "camera" to listOf("com.sec.android.app.camera", "com.google.android.GoogleCamera"),
             "messages" to listOf("com.google.android.apps.messaging", "com.samsung.android.messaging", "com.android.mms"),
+        "whatsapp" to listOf("com.whatsapp", "com.whatsapp.w4b"),
         )[alias] ?: return false
         for (packageName in candidates) {
             val intent = context.packageManager.getLaunchIntentForPackage(packageName) ?: continue
