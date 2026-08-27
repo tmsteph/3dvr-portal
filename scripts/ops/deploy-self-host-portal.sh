@@ -56,7 +56,7 @@ EOF
 
 # Preserve private runtime values already provisioned by an operator or workflow.
 # Never overwrite them with empty values and never print them.
-for key in OPENAI_API_KEY AI_GATEWAY_API_KEY THREEDVR_CLOUDFLARE_TUNNEL_TOKEN; do
+for key in OPENAI_API_KEY AI_GATEWAY_API_KEY THREEDVR_CLOUDFLARE_TUNNEL_TOKEN GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET; do
   value="${!key:-}"
   if [ -z "$value" ] && [ -f "$portal_env" ]; then
     value="$(sed -n "s/^${key}=//p" "$portal_env" | tail -n1)"

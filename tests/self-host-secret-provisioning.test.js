@@ -11,4 +11,10 @@ test('self-host deploy preserves server secrets when Actions has no secret updat
   assert.match(workflow, /touch "\$secrets_env"/);
   assert.match(workflow, /grep -v "\^\$\{key\}=" "\$next"/);
   assert.match(workflow, /printf '%s\\n' "\$line" >> "\$next"/);
+  assert.match(workflow, /GOOGLE_OAUTH_CLIENT_ID/);
+  assert.match(workflow, /GOOGLE_OAUTH_CLIENT_SECRET/);
+
+  const deploy = await readFile(new URL('../scripts/ops/deploy-self-host-portal.sh', import.meta.url), 'utf8');
+  assert.match(deploy, /GOOGLE_OAUTH_CLIENT_ID/);
+  assert.match(deploy, /GOOGLE_OAUTH_CLIENT_SECRET/);
 });

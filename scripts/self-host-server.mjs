@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { access, readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import openAiSiteHandler from '../api/openai-site.js';
+import { createOAuthProviderHandler } from '../src/oauth/provider-api.js';
 
 const PORT = Number(process.env.PORT || 4320);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -9,6 +10,7 @@ const ROOT = resolve(process.env.PORTAL_ROOT || process.cwd());
 const RELEASE_SHA = String(process.env.PORTAL_RELEASE_SHA || '').trim();
 const RELEASE_REF = String(process.env.PORTAL_RELEASE_REF || 'main').trim();
 const LEGACY_API_ORIGIN = String(process.env.LEGACY_API_ORIGIN || '').replace(/\/+$/, '');
+const oauthProviderHandler = createOAuthProviderHandler();
 
 const MIME_TYPES = new Map([
   ['.html', 'text/html; charset=utf-8'],
@@ -136,6 +138,20 @@ async function runOpenAiSite(req, res, url) {
   }
 }
 
+async function runOAuthProvider(req, res, url) {
+  try {
+    if (req.method !== 'OPTIONS') await prepareApiRequest(req, url);
+    else { req.body = {}; req.query = Object.fromEntries(url.searchParams.entries()); }
+    const parts = url.pathname.split('/').filter(Boolean);
+    const provider = decodeURIComponent(parts[parts.length - 1] || '');
+    req.query = { ...(req.query || {}), provider };
+    await oauthProviderHandler(req, adaptResponse(res));
+  } catch (error) {
+    if (!res.headersSent) json(res, error?.statusCode || 500, { error: error?.message || 'OAuth request failed' });
+    else res.destroy(error);
+  }
+}
+
 async function proxyLegacyApi(req, res, url) {
   if (!LEGACY_API_ORIGIN) return json(res, 404, { error: 'API route is not enabled on this self-host yet.' });
   const target = new URL(url.pathname + url.search, `${LEGACY_API_ORIGIN}/`);
@@ -185,6 +201,10 @@ const server = createServer(async (req, res) => {
 
   if (url.pathname === '/api/openai-site') {
     return runOpenAiSite(req, res, url);
+  }
+
+  if (url.pathname.startsWith('/api/oauth/')) {
+    return runOAuthProvider(req, res, url);
   }
 
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/webhooks/')) {

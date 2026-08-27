@@ -103,6 +103,8 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
           TUNNEL_TOKEN: ${{ secrets.THREEDVR_CLOUDFLARE_TUNNEL_TOKEN }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
         run: |
           set -euo pipefail
           opts=(-i /tmp/3dvr-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
@@ -112,6 +114,8 @@ jobs:
             [ -n "$OPENAI_API_KEY" ] && printf 'OPENAI_API_KEY=%s\n' "$OPENAI_API_KEY"
             [ -n "$AI_GATEWAY_API_KEY" ] && printf 'AI_GATEWAY_API_KEY=%s\n' "$AI_GATEWAY_API_KEY"
             [ -n "$TUNNEL_TOKEN" ] && printf 'THREEDVR_CLOUDFLARE_TUNNEL_TOKEN=%s\n' "$TUNNEL_TOKEN"
+            [ -n "$GOOGLE_OAUTH_CLIENT_ID" ] && printf 'GOOGLE_OAUTH_CLIENT_ID=%s\n' "$GOOGLE_OAUTH_CLIENT_ID"
+            [ -n "$GOOGLE_OAUTH_CLIENT_SECRET" ] && printf 'GOOGLE_OAUTH_CLIENT_SECRET=%s\n' "$GOOGLE_OAUTH_CLIENT_SECRET"
           } > "$updates"
 
           if [ ! -s "$updates" ]; then
