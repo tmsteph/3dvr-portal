@@ -11,22 +11,38 @@ describe('3DVR Idea Garden', () => {
     assert.match(html, /id="gardenSearch"/);
     assert.match(html, /id="focusShelf"/);
     assert.match(html, /id="downloadGarden"/);
-    assert.match(html, /Stored only in this browser/);
+    assert.match(html, /Saved locally · Checking encrypted account sync/);
+    assert.match(html, /cdn\.jsdelivr\.net\/npm\/gun\/gun\.js/);
+    assert.match(html, /cdn\.jsdelivr\.net\/npm\/gun\/sea\.js/);
+    assert.match(html, /src="\/auth-identity\.js"/);
+    assert.match(html, /type="module" src="\.\/app\.js"/);
     assert.doesNotMatch(html, /credit card/i);
     assert.doesNotMatch(html, /pricing/i);
   });
 
-  it('stores a richer project model and migrates the v1 garden', async () => {
+  it('stores a richer project model, tombstones, and migrates the v1 garden', async () => {
     const app = await readFile(new URL('../garden/app.js', import.meta.url), 'utf8');
 
+    assert.match(app, /import \{ createGardenSync \} from '\.\/sync\.js'/);
     assert.match(app, /3dvr\.ideaGarden\.v2/);
     assert.match(app, /3dvr\.ideaGarden\.v1/);
+    assert.match(app, /3dvr\.ideaGarden\.deleted\.v1/);
     assert.match(app, /why:/);
     assert.match(app, /nextStep:/);
     assert.match(app, /focused:/);
     assert.match(app, /function normalizeIdea/);
+    assert.match(app, /function normalizeDeleted/);
+    assert.match(app, /function markDeleted/);
+    assert.match(app, /function reconcileDeleted/);
     assert.match(app, /function migrateLegacyIdeas/);
     assert.match(app, /function setFocus/);
+    assert.match(app, /function buildGardenPayload/);
+    assert.match(app, /version:\s*3/);
+    assert.match(app, /function startSync/);
+    assert.match(app, /sync\.load\(buildGardenPayload\(\)\)/);
+    assert.match(app, /sync\.save\(buildGardenPayload\(\)\)/);
+    assert.match(app, /accountLink\.textContent = signedIn \? \(syncReady \?/);
+    assert.match(app, /accountLink\.href = signedIn && syncReady \? '\/profile\.html'/);
     assert.match(app, /function downloadGarden/);
     assert.match(app, /function toolForStage/);
     assert.doesNotMatch(app, /encodeURIComponent\(idea\.text\)/);

@@ -1,5 +1,8 @@
+import { createGardenSync } from './sync.js';
+
 const STORAGE_KEY = '3dvr.ideaGarden.v2';
 const LEGACY_STORAGE_KEY = '3dvr.ideaGarden.v1';
+const DELETED_KEY = '3dvr.ideaGarden.deleted.v1';
 const STAGES = ['seed', 'exploring', 'project', 'done'];
 
 const stageLabels = {
@@ -31,13 +34,20 @@ const focusShelf = document.querySelector('#focusShelf');
 const focusIdea = document.querySelector('#focusIdea');
 const focusNext = document.querySelector('#focusNext');
 const openFocus = document.querySelector('#openFocus');
+const accountLink = document.querySelector('#gardenAccount');
 
 let ideas = loadIdeas();
+let deleted = loadDeleted();
 let activeFilter = 'all';
 let searchTerm = '';
+let sync = null;
+let syncTimer = null;
 
+ideas = reconcileDeleted(ideas, deleted);
 syncFilterButtons();
+renderAccountLink();
 render();
+startSync();
 
 form.addEventListener('submit', (event) => {
   event.preventDefault();
@@ -66,8 +76,9 @@ form.addEventListener('submit', (event) => {
 clearDone.addEventListener('click', () => {
   const finished = ideas.filter((idea) => idea.stage === 'done');
   if (!finished.length) return;
-  if (!window.confirm(`Remove ${finished.length} finished idea${finished.length === 1 ? '' : 's'} from this browser?`)) return;
+  if (!window.confirm(`Remove ${finished.length} finished idea${finished.length === 1 ? '' : 's'} from your Garden?`)) return;
 
+  markDeleted(finished.map((idea) => idea.id));
   ideas = ideas.filter((idea) => idea.stage !== 'done');
   persist('Finished ideas cleared.');
   render();
@@ -115,9 +126,7 @@ list.addEventListener('change', (event) => {
   if (target.matches('textarea[data-field][data-id]')) {
     updateIdea(target.dataset.id, (idea) => {
       const field = target.dataset.field;
-      if (field === 'why' || field === 'nextStep') {
-        idea[field] = clean(target.value);
-      }
+      if (field === 'why' || field === 'nextStep') idea[field] = clean(target.value);
     }, 'Idea saved.');
   }
 });
@@ -133,7 +142,8 @@ list.addEventListener('click', (event) => {
   if (deleteButton) {
     const idea = ideas.find((item) => item.id === deleteButton.dataset.delete);
     if (!idea) return;
-    if (!window.confirm('Remove this idea from this browser?')) return;
+    if (!window.confirm('Remove this idea from your Garden?')) return;
+    markDeleted([idea.id]);
     ideas = ideas.filter((item) => item.id !== idea.id);
     persist('Idea removed.');
     render();
@@ -144,10 +154,15 @@ function clean(value) {
   return String(value || '').trim().replace(/\s+/g, ' ');
 }
 
+function stamp(value) {
+  const raw = value?.updatedAt || value?.deletedAt || value?.createdAt || 0;
+  if (typeof raw === 'number') return raw;
+  const parsed = Date.parse(raw);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
 function createId() {
-  if (window.crypto && typeof window.crypto.randomUUID === 'function') {
-    return window.crypto.randomUUID();
-  }
+  if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
@@ -170,6 +185,19 @@ function normalizeIdea(value = {}) {
   };
 }
 
+function normalizeDeleted(values) {
+  if (!Array.isArray(values)) return [];
+  const byId = new Map();
+  values.forEach(value => {
+    const id = clean(value?.id);
+    if (!id) return;
+    const record = { id, deletedAt: clean(value.deletedAt) || new Date().toISOString() };
+    const current = byId.get(id);
+    if (!current || stamp(record) >= stamp(current)) byId.set(id, record);
+  });
+  return [...byId.values()];
+}
+
 function migrateLegacyIdeas(value) {
   if (!Array.isArray(value)) return [];
   return value
@@ -178,20 +206,11 @@ function migrateLegacyIdeas(value) {
 }
 
 function safeRead(key) {
-  try {
-    return window.localStorage.getItem(key);
-  } catch {
-    return null;
-  }
+  try { return window.localStorage.getItem(key); } catch { return null; }
 }
 
 function safeWrite(key, value) {
-  try {
-    window.localStorage.setItem(key, value);
-    return true;
-  } catch {
-    return false;
-  }
+  try { window.localStorage.setItem(key, value); return true; } catch { return false; }
 }
 
 function loadIdeas() {
@@ -199,37 +218,50 @@ function loadIdeas() {
     const current = safeRead(STORAGE_KEY);
     if (current) {
       const parsed = JSON.parse(current);
-      if (Array.isArray(parsed)) {
-        return normalizeFocus(parsed.map(normalizeIdea).filter((idea) => idea.text));
-      }
+      if (Array.isArray(parsed)) return normalizeFocus(parsed.map(normalizeIdea).filter((idea) => idea.text));
     }
 
     const legacy = safeRead(LEGACY_STORAGE_KEY);
     if (!legacy) return [];
     const migrated = migrateLegacyIdeas(JSON.parse(legacy));
-    if (migrated.length) {
-      safeWrite(STORAGE_KEY, JSON.stringify(migrated));
-    }
+    if (migrated.length) safeWrite(STORAGE_KEY, JSON.stringify(migrated));
     return migrated;
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
-function normalizeFocus(items) {
-  let foundFocus = false;
-  return items.map((idea) => {
-    if (idea.focused && !foundFocus && idea.stage !== 'done') {
-      foundFocus = true;
-      return idea;
-    }
-    return { ...idea, focused: false };
+function loadDeleted() {
+  try { return normalizeDeleted(JSON.parse(safeRead(DELETED_KEY) || '[]')); } catch { return []; }
+}
+
+function reconcileDeleted(items, deletedItems) {
+  const tombstones = new Map(deletedItems.map(record => [record.id, record]));
+  return items.filter(idea => {
+    const record = tombstones.get(idea.id);
+    return !record || stamp(idea) > stamp(record);
   });
 }
 
-function persist(message = 'Saved locally in this browser.') {
-  const ok = safeWrite(STORAGE_KEY, JSON.stringify(ideas));
+function normalizeFocus(items) {
+  const focusedId = items
+    .filter((idea) => idea.focused && idea.stage !== 'done')
+    .sort((a, b) => stamp(b) - stamp(a))[0]?.id;
+  return items.map((idea) => ({ ...idea, focused: Boolean(focusedId && idea.id === focusedId) }));
+}
+
+function markDeleted(ids) {
+  const now = new Date().toISOString();
+  deleted = normalizeDeleted([
+    ...deleted,
+    ...ids.filter(Boolean).map(id => ({ id, deletedAt: now })),
+  ]);
+}
+
+function persist(message = 'Saved locally in this browser.', { queueSync = true } = {}) {
+  const ideasSaved = safeWrite(STORAGE_KEY, JSON.stringify(ideas));
+  const deletedSaved = safeWrite(DELETED_KEY, JSON.stringify(deleted));
+  const ok = ideasSaved && deletedSaved;
   status.textContent = ok ? message : 'Could not save locally. Download a backup before leaving.';
+  if (ok && queueSync) scheduleAccountSync();
   return ok;
 }
 
@@ -247,12 +279,59 @@ function setFocus(id) {
   const target = ideas.find((idea) => idea.id === id);
   if (!target || target.stage === 'done') return;
   const wasFocused = target.focused;
+  const now = new Date().toISOString();
   ideas.forEach((idea) => {
     idea.focused = !wasFocused && idea.id === id;
-    if (idea.id === id) idea.updatedAt = new Date().toISOString();
+    if (idea.id === id || (!wasFocused && idea.focused)) idea.updatedAt = now;
   });
   persist(wasFocused ? 'Focus cleared.' : 'Focus set. Keep the next move small.');
   render();
+}
+
+function buildGardenPayload() {
+  return {
+    format: '3dvr-idea-garden',
+    version: 3,
+    exportedAt: new Date().toISOString(),
+    ideas: normalizeFocus(ideas.map(normalizeIdea)),
+    deleted: normalizeDeleted(deleted),
+  };
+}
+
+function applySyncedPayload(payload) {
+  if (!payload || payload.format !== '3dvr-idea-garden') return false;
+  deleted = normalizeDeleted(payload.deleted || []);
+  ideas = reconcileDeleted(
+    normalizeFocus((payload.ideas || []).map(normalizeIdea).filter((idea) => idea.text)),
+    deleted
+  );
+  return persist('Encrypted account copy loaded.', { queueSync: false });
+}
+
+function scheduleAccountSync() {
+  window.clearTimeout(syncTimer);
+  syncTimer = window.setTimeout(async () => {
+    if (!sync) return;
+    try { await sync.save(buildGardenPayload()); } catch { status.textContent = 'Saved here · Encrypted sync will retry'; }
+  }, 900);
+}
+
+async function startSync() {
+  sync = createGardenSync({ onStatus: (value) => { status.textContent = value; renderAccountLink(); } });
+  const synced = await sync.load(buildGardenPayload());
+  if (!synced) return;
+  applySyncedPayload(synced);
+  render();
+  await sync.save(buildGardenPayload());
+}
+
+function renderAccountLink() {
+  const shared = window.AuthIdentity?.readSharedIdentity?.() || {};
+  const signedIn = shared.signedIn === true || safeRead('signedIn') === 'true';
+  const alias = clean(shared.alias || safeRead('alias'));
+  const syncReady = Boolean(sync?.isReady?.());
+  accountLink.textContent = signedIn ? (syncReady ? (alias || 'Account') : 'Reconnect') : 'Sign in';
+  accountLink.href = signedIn && syncReady ? '/profile.html' : '../sign-in.html?redirect=%2Fgarden%2F';
 }
 
 function visibleIdeas() {
@@ -307,7 +386,6 @@ function renderIdeas() {
   list.replaceChildren();
   emptyState.hidden = ideas.length > 0;
   noMatches.hidden = ideas.length === 0 || visible.length > 0;
-
   visible.forEach((idea) => list.appendChild(renderIdeaCard(idea)));
 }
 
@@ -408,25 +486,14 @@ function makeNurtureField(idea, field, label, placeholder) {
 }
 
 function toolForStage(idea) {
-  if (idea.stage === 'seed') {
-    return { label: 'Explore in Forge', href: '../forge/' };
-  }
-  if (idea.stage === 'exploring') {
-    return { label: 'Shape in Launch Room', href: '../launch-room/?mode=start-project' };
-  }
-  if (idea.stage === 'project') {
-    return { label: 'Choose today’s move', href: '../life/' };
-  }
+  if (idea.stage === 'seed') return { label: 'Explore in Forge', href: '../forge/' };
+  if (idea.stage === 'exploring') return { label: 'Shape in Launch Room', href: '../launch-room/?mode=start-project' };
+  if (idea.stage === 'project') return { label: 'Choose today’s move', href: '../life/' };
   return { label: 'Start another spark', href: '#ideaForm' };
 }
 
 function downloadGarden() {
-  const payload = {
-    format: '3dvr-idea-garden',
-    version: 2,
-    exportedAt: new Date().toISOString(),
-    ideas,
-  };
+  const payload = buildGardenPayload();
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');

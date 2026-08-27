@@ -7,15 +7,18 @@
   <title>Idea Garden · 3dvr.tech</title>
   <meta name="description" content="A quiet place to collect ideas, nurture them, and turn them into real projects." />
   <link rel="stylesheet" href="./style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="/auth-identity.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
-  <script defer src="./app.js"></script>
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="../">3dvr.tech</a>
     <div class="topbar-actions">
       <span class="tag">Idea Garden</span>
-      <a class="quiet-link" href="../start/">Start</a>
+      <a class="quiet-link" id="gardenAccount" href="../sign-in.html?redirect=%2Fgarden%2F">Account</a>
     </div>
   </header>
 
@@ -31,7 +34,7 @@
         <div class="capture-actions">
           <div>
             <small>Messy ideas are welcome.</small>
-            <span id="gardenStatus" class="save-status" role="status" aria-live="polite">Stored only in this browser for now.</span>
+            <span id="gardenStatus" class="save-status" role="status" aria-live="polite">Saved locally · Checking encrypted account sync…</span>
           </div>
           <button type="submit">Plant idea</button>
         </div>
@@ -122,5 +125,6 @@
     <a href="../launch-room/">Launch Room</a>
     <a href="../forge/">Forge</a>
   </footer>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
