@@ -329,8 +329,9 @@ function renderAccountLink() {
   const shared = window.AuthIdentity?.readSharedIdentity?.() || {};
   const signedIn = shared.signedIn === true || safeRead('signedIn') === 'true';
   const alias = clean(shared.alias || safeRead('alias'));
-  accountLink.textContent = signedIn ? (alias || 'Account') : 'Sign in';
-  accountLink.href = signedIn ? '/profile.html' : '../sign-in.html?redirect=%2Fgarden%2F';
+  const syncReady = Boolean(sync?.isReady?.());
+  accountLink.textContent = signedIn ? (syncReady ? (alias || 'Account') : 'Reconnect') : 'Sign in';
+  accountLink.href = signedIn && syncReady ? '/profile.html' : '../sign-in.html?redirect=%2Fgarden%2F';
 }
 
 function visibleIdeas() {
