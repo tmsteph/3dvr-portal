@@ -323,7 +323,7 @@ function createGoogleProvider(config = process.env) {
         scopes.add('https://www.googleapis.com/auth/contacts.readonly');
       }
       if (scopeKey === 'calendar' || scopeKey === 'contacts-calendar') {
-        scopes.add('https://www.googleapis.com/auth/calendar');
+        scopes.add('https://www.googleapis.com/auth/calendar.events');
       }
       if (scopeKey === 'mail' || scopeKey === 'gmail') {
         scopes.add('https://mail.google.com/');
