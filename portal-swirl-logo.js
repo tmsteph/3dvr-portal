@@ -96,61 +96,101 @@
     textureCanvas.height = size;
     const context = textureCanvas.getContext('2d');
     const center = size / 2;
-    const radius = size * 0.45;
+    const radius = size * 0.46;
 
-    const shell = context.createRadialGradient(center, center, radius * 0.08, center, center, size * 0.66);
-    shell.addColorStop(0, '#9de7f8');
-    shell.addColorStop(0.28, '#2aa7bf');
-    shell.addColorStop(0.62, '#0f766e');
-    shell.addColorStop(1, '#07111f');
+    const shell = context.createRadialGradient(
+      size * 0.43,
+      size * 0.38,
+      radius * 0.05,
+      center,
+      center,
+      size * 0.68,
+    );
+    shell.addColorStop(0, '#10283a');
+    shell.addColorStop(0.28, '#0e4050');
+    shell.addColorStop(0.56, '#0b7778');
+    shell.addColorStop(0.82, '#083a46');
+    shell.addColorStop(1, '#06101c');
     context.fillStyle = shell;
     context.fillRect(0, 0, size, size);
 
     context.save();
     context.translate(center, center);
     if (mirrored) context.scale(-1, 1);
-    for (let arm = 0; arm < 7; arm += 1) {
+    context.globalCompositeOperation = 'screen';
+
+    for (let arm = 0; arm < 6; arm += 1) {
       context.save();
-      context.rotate((arm / 7) * TAU);
-      const gradient = context.createLinearGradient(0, 0, radius, radius * 0.32);
-      gradient.addColorStop(0, 'rgba(226, 246, 252, 0.58)');
-      gradient.addColorStop(0.5, 'rgba(125, 211, 252, 0.42)');
-      gradient.addColorStop(1, 'rgba(251, 191, 36, 0.24)');
-      context.strokeStyle = gradient;
-      context.lineWidth = 38;
+      context.rotate((arm / 6) * TAU);
+      const trail = context.createLinearGradient(0, 0, radius, radius * 0.24);
+      trail.addColorStop(0, 'rgba(217, 255, 255, 0.12)');
+      trail.addColorStop(0.28, 'rgba(115, 237, 244, 0.66)');
+      trail.addColorStop(0.68, 'rgba(32, 213, 181, 0.5)');
+      trail.addColorStop(1, 'rgba(240, 202, 99, 0.2)');
+      context.strokeStyle = trail;
+      context.lineWidth = 34;
       context.lineCap = 'round';
       context.beginPath();
-      for (let index = 0; index <= 88; index += 1) {
-        const progress = index / 88;
-        const angle = progress * TAU * 1.04;
-        const r = radius * (0.13 + progress * 0.72);
+      for (let index = 0; index <= 92; index += 1) {
+        const progress = index / 92;
+        const angle = progress * TAU * 1.12;
+        const r = radius * (0.12 + progress * 0.72);
         const x = Math.cos(angle) * r;
-        const y = Math.sin(angle) * r * 0.72;
+        const y = Math.sin(angle) * r * 0.74;
         if (index === 0) context.moveTo(x, y);
         else context.lineTo(x, y);
       }
       context.stroke();
       context.restore();
     }
+
+    context.globalCompositeOperation = 'source-over';
+
+    for (let index = 0; index < 22; index += 1) {
+      const angle = (index / 22) * TAU + 0.18;
+      const r = radius * (0.48 + (index % 4) * 0.095);
+      const dot = 2.5 + (index % 3) * 1.4;
+      context.beginPath();
+      context.arc(Math.cos(angle) * r, Math.sin(angle) * r, dot, 0, TAU);
+      context.fillStyle = index % 5 === 0
+        ? 'rgba(255, 231, 150, 0.72)'
+        : 'rgba(213, 255, 255, 0.52)';
+      context.fill();
+    }
     context.restore();
 
+    const gloss = context.createLinearGradient(0, 0, size, size);
+    gloss.addColorStop(0.1, 'rgba(255,255,255,0)');
+    gloss.addColorStop(0.35, 'rgba(255,255,255,0.14)');
+    gloss.addColorStop(0.46, 'rgba(255,255,255,0.32)');
+    gloss.addColorStop(0.58, 'rgba(255,255,255,0.06)');
+    gloss.addColorStop(0.76, 'rgba(255,255,255,0)');
+    context.fillStyle = gloss;
+    context.fillRect(0, 0, size, size);
+
     context.beginPath();
-    context.arc(center, center, radius * 0.97, 0, TAU);
-    context.strokeStyle = '#d8fff7';
-    context.lineWidth = 30;
+    context.arc(center, center, radius * 0.96, 0, TAU);
+    context.strokeStyle = '#d9ffff';
+    context.lineWidth = 20;
     context.stroke();
 
     context.beginPath();
-    context.arc(center, center, radius * 0.74, 0, TAU);
-    context.strokeStyle = 'rgba(254, 215, 170, 0.74)';
-    context.lineWidth = 12;
+    context.arc(center, center, radius * 0.82, 0, TAU);
+    context.strokeStyle = 'rgba(240, 202, 99, 0.74)';
+    context.lineWidth = 9;
     context.stroke();
 
     context.beginPath();
-    context.arc(center, center, radius * 0.36, 0, TAU);
-    context.fillStyle = 'rgba(2, 6, 23, 0.72)';
+    context.arc(center, center, radius * 0.64, 0, TAU);
+    context.strokeStyle = 'rgba(121, 237, 244, 0.38)';
+    context.lineWidth = 5;
+    context.stroke();
+
+    context.beginPath();
+    context.arc(center, center, radius * 0.34, 0, TAU);
+    context.fillStyle = 'rgba(3, 9, 17, 0.82)';
     context.fill();
-    context.strokeStyle = 'rgba(186, 230, 253, 0.38)';
+    context.strokeStyle = 'rgba(240, 202, 99, 0.7)';
     context.lineWidth = 8;
     context.stroke();
 
@@ -175,14 +215,15 @@
     if (mirrored) context.scale(-1, 1);
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.shadowColor = 'rgba(0, 0, 0, 0.55)';
-    context.shadowBlur = 28;
-    context.fillStyle = '#ffffff';
+    context.shadowColor = 'rgba(0, 0, 0, 0.62)';
+    context.shadowBlur = 26;
+    context.fillStyle = '#f8ffff';
     context.font = '900 142px Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-    context.fillText('3dvr', 0, -22);
-    context.fillStyle = '#ccfbf1';
-    context.font = '850 82px Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-    context.fillText('portal', 0, 104);
+    context.fillText('3dvr', 0, -24);
+    context.shadowBlur = 12;
+    context.fillStyle = '#f0ca63';
+    context.font = '850 74px Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    context.fillText('portal', 0, 100);
     context.restore();
 
     const texture = new THREE.CanvasTexture(textureCanvas);
@@ -195,41 +236,64 @@
     const group = new THREE.Group();
     const frontFaceTexture = makeFaceTexture(THREE, false);
     const backFaceTexture = makeFaceTexture(THREE, true);
-    const sideMaterial = new THREE.MeshStandardMaterial({
-      color: 0x0f8f8f,
-      metalness: 0.68,
-      roughness: 0.26,
+
+    const sideMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x9d6817,
+      metalness: 0.94,
+      roughness: 0.18,
+      clearcoat: 0.4,
+      clearcoatRoughness: 0.08,
     });
-    const frontMaterial = new THREE.MeshStandardMaterial({
+    const frontMaterial = new THREE.MeshPhysicalMaterial({
       map: frontFaceTexture,
-      metalness: 0.4,
-      roughness: 0.22,
+      metalness: 0.66,
+      roughness: 0.16,
+      clearcoat: 0.72,
+      clearcoatRoughness: 0.08,
     });
-    const backMaterial = new THREE.MeshStandardMaterial({
+    const backMaterial = new THREE.MeshPhysicalMaterial({
       map: backFaceTexture,
-      metalness: 0.42,
-      roughness: 0.26,
+      metalness: 0.68,
+      roughness: 0.17,
+      clearcoat: 0.7,
+      clearcoatRoughness: 0.08,
     });
 
     const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.45, 1.45, 0.34, 128, 1, false),
+      new THREE.CylinderGeometry(1.45, 1.45, 0.28, 128, 1, false),
       [sideMaterial, frontMaterial, backMaterial],
     );
     body.rotation.x = Math.PI / 2;
     group.add(body);
 
-    const rimMaterial = new THREE.MeshStandardMaterial({
-      color: 0xfed7aa,
-      metalness: 0.82,
-      roughness: 0.18,
+    const rimMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0xf0c34f,
+      metalness: 0.98,
+      roughness: 0.1,
+      clearcoat: 0.66,
+      clearcoatRoughness: 0.06,
     });
-    const frontRim = new THREE.Mesh(new THREE.TorusGeometry(1.47, 0.04, 16, 128), rimMaterial);
-    frontRim.position.z = 0.185;
+    const frontRim = new THREE.Mesh(new THREE.TorusGeometry(1.47, 0.052, 18, 128), rimMaterial);
+    frontRim.position.z = 0.153;
     group.add(frontRim);
 
     const backRim = frontRim.clone();
-    backRim.position.z = -0.185;
+    backRim.position.z = -0.153;
     group.add(backRim);
+
+    const aquaRimMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0x79edf4,
+      metalness: 0.72,
+      roughness: 0.18,
+      clearcoat: 0.58,
+      clearcoatRoughness: 0.08,
+    });
+    const frontInnerRim = new THREE.Mesh(new THREE.TorusGeometry(1.16, 0.024, 14, 128), aquaRimMaterial);
+    frontInnerRim.position.z = 0.154;
+    group.add(frontInnerRim);
+    const backInnerRim = frontInnerRim.clone();
+    backInnerRim.position.z = -0.154;
+    group.add(backInnerRim);
 
     const textGeometry = new THREE.PlaneGeometry(2.22, 2.22);
     const frontText = new THREE.Mesh(
@@ -240,7 +304,7 @@
         depthWrite: false,
       }),
     );
-    frontText.position.z = 0.225;
+    frontText.position.z = 0.182;
     group.add(frontText);
 
     const backText = new THREE.Mesh(
@@ -251,9 +315,28 @@
         depthWrite: false,
       }),
     );
-    backText.position.z = -0.225;
+    backText.position.z = -0.182;
     backText.rotation.y = Math.PI;
     group.add(backText);
+
+    const ridgeMaterial = new THREE.MeshStandardMaterial({
+      color: 0x7d4d0b,
+      metalness: 0.92,
+      roughness: 0.22,
+    });
+    const ridges = new THREE.Group();
+    for (let index = 0; index < 72; index += 1) {
+      const angle = (index / 72) * TAU;
+      const ridge = new THREE.Mesh(
+        new THREE.BoxGeometry(0.015, 0.19, 0.014),
+        ridgeMaterial,
+      );
+      ridge.position.set(Math.cos(angle) * 1.458, 0, Math.sin(angle) * 1.458);
+      ridge.rotation.y = angle;
+      ridges.add(ridge);
+    }
+    ridges.rotation.x = Math.PI / 2;
+    group.add(ridges);
 
     group.userData.faceTextures = [frontFaceTexture, backFaceTexture];
 
@@ -766,11 +849,12 @@
       context.rotate(state.currentZ + state.wobbleZ);
       context.scale(tiltScaleX, tiltScaleY);
 
-      const faceGradient = context.createRadialGradient(0, 0, radius * 0.08, 0, 0, radius);
-      faceGradient.addColorStop(0, '#9de7f8');
-      faceGradient.addColorStop(0.28, '#2aa7bf');
-      faceGradient.addColorStop(0.62, '#0f766e');
-      faceGradient.addColorStop(1, '#07111f');
+      const faceGradient = context.createRadialGradient(-radius * 0.18, -radius * 0.15, radius * 0.05, 0, 0, radius * 1.08);
+      faceGradient.addColorStop(0, '#d9ffff');
+      faceGradient.addColorStop(0.16, '#6fdee6');
+      faceGradient.addColorStop(0.42, '#0f7c7d');
+      faceGradient.addColorStop(0.72, '#0a4351');
+      faceGradient.addColorStop(1, '#06101c');
       context.beginPath();
       context.arc(0, 0, radius, 0, TAU);
       context.fillStyle = faceGradient;
@@ -789,39 +873,43 @@
           if (index === 0) context.moveTo(x, y);
           else context.lineTo(x, y);
         }
-        context.strokeStyle = 'rgba(186, 230, 253, 0.38)';
-        context.lineWidth = Math.max(4, radius * 0.066);
+        const hue = arm % 2 ? 'rgba(121, 237, 244, 0.48)' : 'rgba(240, 202, 99, 0.34)';
+        context.strokeStyle = hue;
+        context.lineWidth = Math.max(4, radius * 0.06);
         context.lineCap = 'round';
         context.stroke();
         context.restore();
       }
 
-      context.lineWidth = Math.max(7, size * 0.04);
-      context.strokeStyle = '#d8fff7';
+      context.lineWidth = Math.max(7, size * 0.042);
+      context.strokeStyle = '#e5bb50';
       context.beginPath();
       context.arc(0, 0, radius, 0, TAU);
       context.stroke();
 
       context.lineWidth = Math.max(3, size * 0.012);
-      context.strokeStyle = 'rgba(254, 215, 170, 0.74)';
+      context.strokeStyle = 'rgba(217, 255, 255, 0.74)';
       context.beginPath();
-      context.arc(0, 0, radius * 0.74, 0, TAU);
+      context.arc(0, 0, radius * 0.76, 0, TAU);
       context.stroke();
 
       context.beginPath();
       context.arc(0, 0, radius * 0.36, 0, TAU);
-      context.fillStyle = 'rgba(2, 6, 23, 0.72)';
+      context.fillStyle = 'rgba(3, 9, 17, 0.84)';
       context.fill();
+      context.lineWidth = Math.max(2, size * 0.008);
+      context.strokeStyle = 'rgba(240, 202, 99, 0.74)';
+      context.stroke();
 
       context.textAlign = 'center';
       context.textBaseline = 'middle';
       context.shadowColor = 'rgba(0, 0, 0, 0.45)';
       context.shadowBlur = size * 0.03;
-      context.fillStyle = '#ffffff';
+      context.fillStyle = '#f8ffff';
       context.font = `900 ${Math.max(18, size * 0.15)}px Inter, system-ui, sans-serif`;
       context.fillText('3dvr', 0, -size * 0.02);
-      context.fillStyle = '#ccfbf1';
-      context.font = `800 ${Math.max(11, size * 0.085)}px Inter, system-ui, sans-serif`;
+      context.fillStyle = '#f0ca63';
+      context.font = `800 ${Math.max(11, size * 0.078)}px Inter, system-ui, sans-serif`;
       context.fillText('portal', 0, size * 0.12);
       context.restore();
     };
@@ -960,15 +1048,23 @@
 
         const token = createPortalToken(THREE);
         scene.add(token);
-        scene.add(new THREE.AmbientLight(0xe2fff8, 0.72));
+        scene.add(new THREE.AmbientLight(0xdffff8, 0.66));
 
-        const key = new THREE.DirectionalLight(0xffffff, 1.35);
-        key.position.set(2.5, 2.8, 4.5);
+        const key = new THREE.DirectionalLight(0xffffff, 1.55);
+        key.position.set(2.7, 3.1, 4.8);
         scene.add(key);
 
-        const fill = new THREE.DirectionalLight(0x99f6e4, 0.62);
-        fill.position.set(-3, -1.5, 2);
+        const fill = new THREE.DirectionalLight(0x79edf4, 0.66);
+        fill.position.set(-3.2, -1.6, 2.2);
         scene.add(fill);
+
+        const warmRim = new THREE.DirectionalLight(0xf0c34f, 0.52);
+        warmRim.position.set(2.2, -2.8, -2.6);
+        scene.add(warmRim);
+
+        const sparkle = new THREE.PointLight(0xc8ffff, 0.44, 7);
+        sparkle.position.set(-1.1, 1.6, 3.4);
+        scene.add(sparkle);
 
         state.renderer = renderer;
         state.scene = scene;

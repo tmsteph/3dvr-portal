@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">3dvr Portal mark</title>
+  <desc id="desc">A luminous teal portal set into a dark coin with a warm gold rim.</desc>
+  <defs>
+    <radialGradient id="void" cx="46%" cy="43%" r="64%">
+      <stop offset="0" stop-color="#10233a"/>
+      <stop offset="0.46" stop-color="#0b3040"/>
+      <stop offset="0.77" stop-color="#087b78"/>
+      <stop offset="1" stop-color="#07111f"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="128" y1="104" x2="398" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff3ad"/>
+      <stop offset="0.34" stop-color="#e2ad36"/>
+      <stop offset="0.72" stop-color="#9a5f10"/>
+      <stop offset="1" stop-color="#f2c64f"/>
+    </linearGradient>
+    <linearGradient id="aqua" x1="162" y1="142" x2="355" y2="368" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e4ffff"/>
+      <stop offset="0.36" stop-color="#6ee7f5"/>
+      <stop offset="0.72" stop-color="#22d3ae"/>
+      <stop offset="1" stop-color="#0d7680"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#020617" flood-opacity="0.5"/>
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="#060c15"/>
+  <g filter="url(#glow)">
+    <circle cx="256" cy="250" r="193" fill="#08121f" stroke="url(#gold)" stroke-width="18"/>
+    <circle cx="256" cy="250" r="166" fill="url(#void)" stroke="#1aa9a6" stroke-width="4"/>
+    <g fill="none" stroke="url(#aqua)" stroke-width="24" stroke-linecap="round" opacity="0.82">
+      <path d="M256 250c52-8 88-46 86-91-2-37-28-68-65-78"/>
+      <path d="M256 250c8 52 46 88 91 86 37-2 68-28 78-65" transform="rotate(72 256 250)"/>
+      <path d="M256 250c-52 8-88 46-86 91-2 37 28 68 65 78" transform="rotate(144 256 250)"/>
+      <path d="M256 250c-8-52-46-88-91-86-37 2-68 28-78 65" transform="rotate(216 256 250)"/>
+      <path d="M256 250c38 4 71 30 83 65" transform="rotate(288 256 250)"/>
+    </g>
+    <circle cx="256" cy="250" r="78" fill="#050b13" stroke="#c7fbff" stroke-width="7" opacity="0.96"/>
+    <circle cx="256" cy="250" r="51" fill="#08101b" stroke="url(#gold)" stroke-width="5"/>
+    <circle cx="237" cy="229" r="13" fill="#d9ffff" opacity="0.8"/>
+  </g>
+</svg>
