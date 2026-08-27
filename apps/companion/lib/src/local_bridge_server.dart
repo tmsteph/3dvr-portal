@@ -70,6 +70,8 @@ class LocalCompanionServer {
             'notification.metadata.read',
             'messages.notification.read',
             'messages.notification.reply',
+            'messages.notification.status',
+            'messages.notification.settings',
           ],
         });
         return;
@@ -84,6 +86,26 @@ class LocalCompanionServer {
       if (request.method == 'GET' && request.uri.path == '/v1/notification-metadata') {
         final notifications = await bridge.getNotificationMetadata();
         _json(request, {'ok': true, 'notifications': notifications});
+        return;
+      }
+
+      if (request.method == 'GET' && request.uri.path == '/v1/messages/status') {
+        final status = await bridge.getCapabilityStatus();
+        final messages = await bridge.getMessageNotifications();
+        _json(request, {
+          'ok': true,
+          'notificationAccessEnabled': status['notificationAccessEnabled'] == true,
+          'messageNotificationReadEnabled': status['messageNotificationReadEnabled'] == true,
+          'messageNotificationReplyEnabled': status['messageNotificationReplyEnabled'] == true,
+          'historyCount': messages.length,
+          'storage': 'encrypted-on-device-history',
+        });
+        return;
+      }
+
+      if (request.method == 'POST' && request.uri.path == '/v1/messages/open-settings') {
+        final opened = await bridge.openNotificationAccessSettings();
+        _json(request, {'ok': opened});
         return;
       }
 

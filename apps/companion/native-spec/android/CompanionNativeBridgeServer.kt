@@ -107,6 +107,8 @@ object CompanionNativeBridgeServer {
                     "notification.metadata.read",
                     "messages.notification.read",
                     "messages.notification.reply",
+                    "messages.notification.status",
+                    "messages.notification.settings",
                     "ui.snapshot",
                     "ui.perform",
                     "update.status",
@@ -134,6 +136,24 @@ object CompanionNativeBridgeServer {
                 "ok" to true,
                 "notifications" to NotificationMetadataStore.snapshot(),
             ))
+        }
+        if (request.method == "GET" && request.path == "/v1/messages/status") {
+            val notificationAccessEnabled = isNotificationAccessEnabled(context)
+            return HttpResponse(200, mapOf(
+                "ok" to true,
+                "notificationAccessEnabled" to notificationAccessEnabled,
+                "messageNotificationReadEnabled" to notificationAccessEnabled,
+                "messageNotificationReplyEnabled" to notificationAccessEnabled,
+                "historyCount" to MessageNotificationStore.snapshot().size,
+                "storage" to "encrypted-on-device-history",
+            ))
+        }
+        if (request.method == "POST" && request.path == "/v1/messages/open-settings") {
+            context.startActivity(
+                Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+            return HttpResponse(200, mapOf("ok" to true))
         }
         if (request.method == "GET" && request.path == "/v1/messages/recent") {
             return HttpResponse(200, mapOf(
@@ -204,6 +224,16 @@ object CompanionNativeBridgeServer {
             return HttpResponse(if (result["ok"] == true) 200 else 400, result)
         }
         return HttpResponse(404, mapOf("ok" to false, "error" to "not found"))
+    }
+
+    private fun isNotificationAccessEnabled(context: Context): Boolean {
+        val enabled = Settings.Secure.getString(
+            context.contentResolver,
+            "enabled_notification_listeners",
+        ) ?: return false
+        return enabled.split(':').any { component ->
+            component.startsWith("${context.packageName}/")
+        }
     }
 
     private fun openKnownApp(context: Context, alias: String): Boolean {
