@@ -36,6 +36,7 @@ let ideas = loadIdeas();
 let activeFilter = 'all';
 let searchTerm = '';
 
+syncFilterButtons();
 render();
 
 form.addEventListener('submit', (event) => {
@@ -407,12 +408,11 @@ function makeNurtureField(idea, field, label, placeholder) {
 }
 
 function toolForStage(idea) {
-  const encoded = encodeURIComponent(idea.text);
   if (idea.stage === 'seed') {
-    return { label: 'Explore in Forge', href: `../forge/?idea=${encoded}` };
+    return { label: 'Explore in Forge', href: '../forge/' };
   }
   if (idea.stage === 'exploring') {
-    return { label: 'Shape in Launch Room', href: `../launch-room/?mode=start-project&idea=${encoded}` };
+    return { label: 'Shape in Launch Room', href: '../launch-room/?mode=start-project' };
   }
   if (idea.stage === 'project') {
     return { label: 'Choose today’s move', href: '../life/' };
