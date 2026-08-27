@@ -34,6 +34,7 @@ const STATIC_ASSETS = [
   '/seated-spine-reset/app.js',
   '/seated-spine-reset/manifest.webmanifest',
   '/brand/portal-logo.svg',
+  '/brand/portal-mark.svg',
   '/app-manifests/chat.webmanifest',
   '/app-manifests/tasks.webmanifest',
   '/app-manifests/notes.webmanifest',
