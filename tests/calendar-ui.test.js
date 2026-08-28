@@ -2,78 +2,74 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-test('calendar hub presents a clear hero, month-first workspace, and side rail', async () => {
+test('calendar presents a month-first workspace with secondary tools below', async () => {
   const html = await readFile(new URL('../calendar/index.html', import.meta.url), 'utf8');
 
   assert.match(html, /<header class="calendar-header">/);
-  assert.match(html, /<div class="calendar-header__actions" aria-label="Calendar shortcuts">/);
-  assert.match(html, /Jump to month view/);
-  assert.match(html, /<div class="calendar-header__highlights" aria-label="Calendar highlights">/);
-  assert.match(html, /Glance first/);
-  assert.match(html, /Fast capture/);
-  assert.match(html, /Share simply/);
-  assert.match(html, /<section class="panel panel--primary" aria-labelledby="local-calendar-title">/);
-  assert.match(html, /<div class="calendar-quickstats" aria-label="Calendar summary">/);
+  assert.match(html, /<h1 class="calendar-header__title">Calendar<\/h1>/);
+  assert.match(html, /<nav class="calendar-header__actions" aria-label="Calendar tools">/);
+  assert.match(html, />Share<\/a>/);
+  assert.match(html, />Connections<\/a>/);
+  assert.match(html, /<section class="panel panel--primary" aria-labelledby="calendar-view-title">/);
   assert.match(html, /<div class="calendar-workspace">/);
+  assert.match(html, /<h2 id="calendar-view-title">Month<\/h2>/);
   assert.match(html, /<aside class="calendar-planner" aria-labelledby="calendar-planner-title">/);
-  assert.match(html, /Quick planner/);
-  assert.match(html, /Open planner/);
-  assert.match(html, /<section class="calendar-activity" aria-labelledby="calendar-activity-title">/);
-  assert.match(html, /Imported events and status updates/);
-  assert.match(html, /<aside class="calendar-rail">/);
-  assert.match(html, /<section class="panel" aria-labelledby="connections-title" data-owner-only>/);
-  assert.match(html, /<section class="panel" aria-labelledby="event-sync-title" data-owner-only>/);
-  assert.match(html, /Monthly overview/);
-  assert.match(html, /Optional account connections/);
-  assert.match(html, /Import from external calendars/);
-  assert.match(html, /Connect Google \/ Gmail/);
-  assert.match(html, /Connect Microsoft with OAuth/);
+  assert.match(html, /<h2 id="calendar-planner-title">Add event<\/h2>/);
+  assert.match(html, /data-label-open="\+ Add event"/);
+  assert.match(html, /<details class="calendar-activity">/);
+  assert.match(html, /Event list & sync log/);
+  assert.match(html, /<aside class="calendar-rail" aria-label="Calendar tools">/);
+  assert.match(html, /<h2 id="share-calendar-title">Share<\/h2>/);
+  assert.match(html, /<h2 id="connections-title">Connections<\/h2>/);
+  assert.match(html, /<h2 id="event-sync-title">Import<\/h2>/);
+  assert.match(html, /Connect Google/);
+  assert.match(html, /Connect Microsoft/);
   assert.match(html, /<script src="\.\/oauth\.js"><\/script>/);
 
   assert.ok(
-    html.indexOf('panel--primary') < html.indexOf('calendar-rail'),
-    'expected the primary calendar workspace to appear before the right rail'
+    html.indexOf('calendar-stage') < html.indexOf('calendar-planner'),
+    'expected the month to appear before the event planner'
   );
   assert.ok(
-    html.indexOf('calendar-workspace') < html.indexOf('calendar-activity'),
-    'expected the month workspace to appear before the lower activity section'
+    html.indexOf('panel--primary') < html.indexOf('calendar-rail'),
+    'expected the primary calendar workspace to appear before secondary tools'
   );
 });
 
-test('calendar month cells show full time ranges without hiding the event title', async () => {
-  const html = await readFile(new URL('../calendar/index.html', import.meta.url), 'utf8');
+test('calendar month cells show time ranges and useful event titles', async () => {
   const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
-  const css = await readFile(new URL('../calendar/calendar.css', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../calendar/calendar-v2.css', import.meta.url), 'utf8');
 
-  assert.match(html, /See start and end times at a glance/);
   assert.match(js, /const timeLabel = formatCalendarRange\(event\);/);
   assert.match(js, /function formatCompactCalendarRange\(event\)/);
   assert.match(js, /calendar-view__event-time-compact/);
   assert.match(js, /title\.className = 'calendar-view__event-title';/);
   assert.match(css, /\.calendar-view__event-title \{/);
-  assert.match(css, /@media \(max-width: 720px\) \{[\s\S]*?min-width: 0;/);
-  assert.match(css, /\.calendar-view__event-time-compact \{[\s\S]*?display: inline;/);
+  assert.match(css, /\.calendar-view__event-time-compact\s*\{\s*display:\s*none;/s);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.calendar-view__event-time-compact\s*\{\s*display:\s*inline;/);
 });
 
-test('calendar runtime updates the quick summary strip from event and connection state', async () => {
+test('calendar keeps event creation and advanced settings progressive', async () => {
+  const html = await readFile(new URL('../calendar/index.html', import.meta.url), 'utf8');
   const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
 
-  assert.match(js, /const calendarQuickUpcoming = document\.getElementById\('calendarQuickUpcoming'\);/);
-  assert.match(js, /const calendarQuickConnected = document\.getElementById\('calendarQuickConnected'\);/);
-  assert.match(js, /const calendarQuickSelected = document\.getElementById\('calendarQuickSelected'\);/);
-  assert.match(js, /function updateCalendarQuickStats\(events = state\.localEvents\)/);
-  assert.match(js, /state\.connections\.has\(provider\)/);
-  assert.match(js, /getEventsForSelectedDate\(events\)/);
+  assert.match(html, /data-create-event-container hidden/);
+  assert.match(html, /<details class="form-options">/);
+  assert.match(html, /<summary>Repeat & reminders<\/summary>/);
+  assert.match(html, /<details class="connection-card__details">\s*<summary>Advanced<\/summary>/s);
+  assert.match(html, /<details class="sync-controls__range">\s*<summary>Time range<\/summary>/s);
+  assert.match(js, /function renderSelectedDayDetails\(\)/);
+  assert.match(js, /function toggleCreateEventForm\(\)/);
 });
 
-test('calendar stylesheet keeps the month view reachable on smaller screens', async () => {
-  const css = await readFile(new URL('../calendar/calendar.css', import.meta.url), 'utf8');
+test('calendar stylesheet keeps seven columns usable on smaller screens', async () => {
+  const css = await readFile(new URL('../calendar/calendar-v2.css', import.meta.url), 'utf8');
 
-  assert.match(css, /\.calendar-header__action \{/);
-  assert.match(css, /\.calendar-view \{[\s\S]*scroll-margin-top: 20px;/);
-  assert.match(css, /@media \(max-width: 720px\) \{[\s\S]*?\.calendar-header__highlights \{[\s\S]*?overflow-x: auto;/);
-  assert.match(css, /@media \(max-width: 720px\) \{[\s\S]*?\.calendar-quickstats \{[\s\S]*?overflow-x: auto;/);
-  assert.match(css, /@media \(max-width: 540px\) \{[\s\S]*?\.calendar-header__action \{[\s\S]*?width: 100%;/);
+  assert.match(css, /\.calendar-view__grid\s*\{[^}]*overflow:\s*hidden;/s);
+  assert.match(css, /\.calendar-view__day-names,\s*\.calendar-view__days\s*\{[^}]*grid-template-columns:\s*repeat\(7,\s*minmax\(0,\s*1fr\)\)/s);
+  assert.match(css, /@media \(max-width: 760px\)/);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.calendar-activity__grid,\s*\.calendar-rail\s*\{\s*grid-template-columns:\s*1fr;/);
+  assert.match(css, /@media \(max-width: 430px\)[\s\S]*?\.calendar-view__event-title\s*\{\s*display:\s*none;/);
 });
 
 test('calendar month cells expose useful event details to assistive tech', async () => {
@@ -84,13 +80,12 @@ test('calendar month cells expose useful event details to assistive tech', async
   assert.match(js, /labelParts\.push/);
 });
 
-
 test('calendar supports no-login secret share links with view or edit permission', async () => {
   const html = await readFile(new URL('../calendar/index.html', import.meta.url), 'utf8');
   const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
 
-  assert.match(html, /Share this calendar/);
-  assert.match(html, /Create secret link/);
+  assert.match(html, /<h2 id="share-calendar-title">Share<\/h2>/);
+  assert.match(html, /Create link/);
   assert.match(html, /option value="view">View only/);
   assert.match(html, /option value="edit">Can edit/);
   assert.match(html, /data-share-access/);
