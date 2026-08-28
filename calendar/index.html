@@ -53,13 +53,19 @@
           <div class="calendar-view">
             <div class="calendar-view__header">
               <div class="calendar-view__heading">
-                <h2 id="calendar-view-title">Month</h2>
+                <h2 id="calendar-view-title" data-calendar-view-title>Month</h2>
                 <p class="calendar-view__current" data-calendar-current aria-live="polite"></p>
               </div>
-              <div class="calendar-view__controls" role="group" aria-label="Change month">
-                <button type="button" class="button-secondary calendar-nav" data-calendar-nav="prev" aria-label="Previous month">‹</button>
-                <button type="button" class="button-secondary" data-calendar-today>Today</button>
-                <button type="button" class="button-secondary calendar-nav" data-calendar-nav="next" aria-label="Next month">›</button>
+              <div class="calendar-view__toolbar">
+                <div class="calendar-view__mode" role="group" aria-label="Calendar view">
+                  <button type="button" class="button-secondary" data-calendar-view-mode="month" aria-pressed="true">Month</button>
+                  <button type="button" class="button-secondary" data-calendar-view-mode="week" aria-pressed="false">7 days</button>
+                </div>
+                <div class="calendar-view__controls" role="group" aria-label="Change calendar range">
+                  <button type="button" class="button-secondary calendar-nav" data-calendar-nav="prev" aria-label="Previous range">‹</button>
+                  <button type="button" class="button-secondary" data-calendar-today>Today</button>
+                  <button type="button" class="button-secondary calendar-nav" data-calendar-nav="next" aria-label="Next range">›</button>
+                </div>
               </div>
             </div>
 

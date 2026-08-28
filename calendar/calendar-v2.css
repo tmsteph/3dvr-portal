@@ -1172,3 +1172,173 @@ summary:focus-visible {
     display: none;
   }
 }
+
+/* Rolling 7-day schedule ---------------------------------------------------- */
+.calendar-view__toolbar {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.calendar-view__mode {
+  background: #0d151f;
+  border: 1px solid var(--calendar-border);
+  border-radius: 10px;
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+}
+
+.calendar-view__mode button {
+  border-color: transparent;
+  min-height: 32px;
+  padding: 6px 10px;
+}
+
+.calendar-view__mode button[aria-pressed="true"],
+.calendar-view__mode-button--active {
+  background: #1b2b3a;
+  border-color: var(--calendar-border-strong);
+  color: var(--calendar-text);
+}
+
+.calendar-view__grid[data-calendar-view="week"] {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 8px;
+  scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  touch-action: pan-x pan-y;
+}
+
+.calendar-view__grid[data-calendar-view="week"] .calendar-view__grid-inner {
+  width: 100%;
+}
+
+.calendar-view__grid[data-calendar-view="week"] .calendar-view__day-names {
+  display: none;
+}
+
+.calendar-view__grid[data-calendar-view="week"] .calendar-view__days {
+  display: grid;
+  gap: 7px;
+  grid-auto-columns: calc((100% - 42px) / 7);
+  grid-auto-flow: column;
+  grid-template-columns: none;
+  width: 100%;
+}
+
+.calendar-view__grid[data-calendar-view="week"] .calendar-view__day--rolling {
+  height: 238px;
+  scroll-snap-align: start;
+}
+
+.calendar-view__date--rolling {
+  align-items: baseline;
+  display: flex;
+  gap: 5px;
+  justify-content: space-between;
+}
+
+.calendar-view__rolling-weekday {
+  color: var(--calendar-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.calendar-view__rolling-date {
+  color: var(--calendar-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.calendar-view__grid[data-calendar-view="week"] .calendar-view__events {
+  overflow-y: auto;
+  padding-right: 1px;
+}
+
+.calendar-view__grid[data-calendar-view="week"] .calendar-view__event-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+}
+
+@media (max-width: 900px) {
+  .calendar-view__header {
+    align-items: flex-start;
+  }
+
+  .calendar-view__toolbar {
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 5px;
+  }
+}
+
+@media (max-width: 760px) {
+  .calendar-view__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .calendar-view__toolbar {
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .calendar-view__mode button {
+    font-size: 0.72rem;
+    min-height: 34px;
+    padding: 6px 8px;
+  }
+
+  .calendar-view__grid[data-calendar-view="week"] .calendar-view__days {
+    gap: 5px;
+    grid-auto-columns: minmax(150px, calc((100% - 10px) / 3));
+  }
+
+  .calendar-view__grid[data-calendar-view="week"] .calendar-view__day--rolling {
+    height: 190px;
+    padding: 7px 6px;
+  }
+
+  .calendar-view__grid[data-calendar-view="week"] .calendar-view__date--rolling {
+    text-align: left;
+  }
+
+  .calendar-view__grid[data-calendar-view="week"] .calendar-view__event-time {
+    text-align: left;
+  }
+
+  .calendar-view__grid[data-calendar-view="week"] .calendar-view__event-title {
+    display: -webkit-box;
+    font-size: 0.68rem;
+    line-height: 1.15;
+    text-align: left;
+    -webkit-line-clamp: 2;
+  }
+}
+
+@media (max-width: 430px) {
+  .calendar-view__toolbar {
+    gap: 4px;
+  }
+
+  .calendar-view__grid[data-calendar-view="week"] .calendar-view__days {
+    grid-auto-columns: minmax(150px, 68vw);
+  }
+
+  .calendar-view__grid[data-calendar-view="week"] .calendar-view__day--rolling {
+    height: 180px;
+  }
+
+  .calendar-view__grid[data-calendar-view="week"] .calendar-view__event-title {
+    display: -webkit-box;
+  }
+}
