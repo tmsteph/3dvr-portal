@@ -6,7 +6,7 @@
   <title>3DVR Compute | Open Personal Computing Hardware</title>
   <meta name="description" content="3DVR Compute is a community-driven open hardware project for modular, repairable, Linux-first personal computers.">
   <link rel="icon" type="image/svg+xml" href="/brand/portal-mark.svg">
-  <link rel="stylesheet" href="./styles.css?v=20260828">
+  <link rel="stylesheet" href="./styles.css?v=20260828b">
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
@@ -16,106 +16,121 @@
       <span>3DVR Compute</span>
     </a>
     <div class="nav-links">
-      <a href="#vision">Vision</a>
       <a href="/compute/laptop/">Laptop</a>
       <a href="/supply-chain/">Supply Chain</a>
-      <a href="#roadmap">Roadmap</a>
+      <a href="https://balthazar.space/">Balthazar</a>
     </div>
-    <a class="button" href="mailto:3dvr.tech@gmail.com?subject=3DVR%20Compute">Join the project</a>
+    <a class="button" href="mailto:3dvr.tech@gmail.com?subject=Join%203DVR%20Compute">Join</a>
   </nav>
 
   <main>
-    <header class="hero" id="vision">
+    <header class="hero">
       <div>
-        <p class="eyebrow">Open by design. Made for people.</p>
-        <h1>Open personal computing hardware.</h1>
+        <p class="eyebrow">3DVR Compute</p>
+        <span class="status">Early design · building in public</span>
+        <h1>A computer you can keep.</h1>
         <p class="lede">
-          3DVR Compute is a community-driven effort to build computers that are modular, repairable,
-          Linux-first, and increasingly open all the way down.
+          Open personal computing hardware designed to be repaired, upgraded, understood, and improved by the people who use it.
         </p>
         <div class="hero-actions">
-          <a class="button primary" href="/compute/laptop/">Explore the laptop</a>
-          <a class="button" href="#roadmap">See the roadmap</a>
-          <a class="button" href="/supply-chain/">Open supply chain</a>
+          <a class="button primary" href="/compute/laptop/">See the laptop</a>
+          <a class="button" href="mailto:3dvr.tech@gmail.com?subject=Help%20build%203DVR%20Compute">Help build it</a>
         </div>
       </div>
 
-      <div class="device-stage" role="img" aria-label="Concept illustration of a modular 3DVR laptop with removable compute modules">
+      <div class="device-stage" role="img" aria-label="Concept illustration of a modular laptop with removable compute, storage, and I/O modules">
         <div class="laptop" aria-hidden="true">
           <div class="screen"><span class="screen-mark">3DVR</span></div>
           <div class="keyboard"></div>
         </div>
-        <div class="module one" aria-hidden="true"></div>
-        <div class="module two" aria-hidden="true"></div>
-        <div class="module three" aria-hidden="true"></div>
-        <p class="device-note">One laptop shell. Many replaceable compute paths.</p>
+        <div class="module one" data-label="I/O" aria-hidden="true"></div>
+        <div class="module two" data-label="Storage" aria-hidden="true"></div>
+        <div class="module three" data-label="Compute" aria-hidden="true"></div>
+        <div class="device-label top">Keep the screen, keyboard, battery, and case.</div>
+        <div class="device-label bottom">Swap only the parts that actually need to change.</div>
       </div>
     </header>
 
-    <section class="value-strip" aria-label="Project values">
-      <div class="value"><strong>Modular</strong><span>Upgrade parts instead of replacing the machine.</span></div>
-      <div class="value"><strong>Repairable</strong><span>Standard tools, replaceable parts, clear documentation.</span></div>
-      <div class="value"><strong>Privacy-first</strong><span>Physical controls and ownership of your data.</span></div>
-      <div class="value"><strong>Linux-first</strong><span>Freedom to use, inspect, and improve the software.</span></div>
-      <div class="value"><strong>Community-built</strong><span>Design, test, document, manufacture, and improve together.</span></div>
+    <section class="principles" aria-label="3DVR Compute principles">
+      <div class="principle"><strong>Modular</strong><span>Upgrade parts, not the whole machine.</span></div>
+      <div class="principle"><strong>Repairable</strong><span>Standard tools and replaceable parts.</span></div>
+      <div class="principle"><strong>Linux-first</strong><span>Upstream-friendly software over vendor lock-in.</span></div>
+      <div class="principle"><strong>Open by default</strong><span>Document every layer we can.</span></div>
     </section>
 
-    <section class="section" aria-labelledby="device-title">
-      <div class="section-head">
+    <section class="section" aria-labelledby="laptop-title">
+      <div class="product-panel">
         <div>
           <p class="eyebrow">First device</p>
-          <h2 id="device-title">3DVR Laptop</h2>
+          <h2 id="laptop-title">3DVR Laptop</h2>
+          <p>
+            The laptop should outlive the compute board inside it. We are separating long-lived parts—display, keyboard,
+            battery, storage, ports, and enclosure—from the faster-moving processor generation.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="/compute/laptop/">Explore the design</a>
+            <a class="button" href="/supply-chain/">Trace the supply chain</a>
+          </div>
         </div>
-        <p>
-          A continuation of the best ideas behind Balthazar: a useful laptop shell that can survive multiple
-          generations of compute hardware instead of becoming disposable when one board is obsolete.
-        </p>
-      </div>
-
-      <div class="cards">
-        <article class="card">
-          <span class="tag">Compute module</span>
-          <h3>Swap the brain.</h3>
-          <p>Prototype around modules such as Lichee Pi 4A, StarFive-based boards, Beagle boards, and other documented compute platforms.</p>
-          <a href="/compute/laptop/">Laptop concept →</a>
-        </article>
-        <article class="card">
-          <span class="tag">Open hardware</span>
-          <h3>Design the shell to last.</h3>
-          <p>Keep the keyboard, display, storage, ports, battery, enclosure, and privacy controls understandable and replaceable.</p>
-          <a href="/supply-chain/balthazar.md">Balthazar roadmap →</a>
-        </article>
-        <article class="card">
-          <span class="tag">Open supply chain</span>
-          <h3>Know what is inside.</h3>
-          <p>Trace components and materials, document substitutes, prioritize reuse, and gradually replace closed dependencies.</p>
-          <a href="/supply-chain/">Explore the registry →</a>
-        </article>
+        <div class="flow" aria-label="Laptop architecture">
+          <div class="flow-item"><strong>Shell</strong><span>Display, keyboard, case, battery.</span></div>
+          <div class="flow-item"><strong>Compute</strong><span>Replaceable CPU and memory module.</span></div>
+          <div class="flow-item"><strong>I/O</strong><span>Documented ports and expansion.</span></div>
+          <div class="flow-item"><strong>Linux</strong><span>Open software on top.</span></div>
+        </div>
       </div>
     </section>
 
-    <section class="section" id="roadmap" aria-labelledby="roadmap-title">
+    <section class="section" aria-labelledby="hardware-title">
       <div class="section-head">
         <div>
-          <p class="eyebrow">Roadmap</p>
-          <h2 id="roadmap-title">Build the open layers one at a time.</h2>
+          <p class="eyebrow">Prototype with what exists</p>
+          <h2 id="hardware-title">Real boards first.</h2>
         </div>
-        <p>We are not waiting for a perfectly open computer. We start with hardware that exists, learn from it, and replace closed layers as the community gains capability.</p>
+        <p>We can prove the laptop architecture now, then improve the compute module as open hardware gets better.</p>
       </div>
 
-      <div class="path">
-        <div class="step"><strong>1. Prototype</strong><span>Fit real modular boards into a practical laptop architecture and validate power, display, input, storage, thermals, and Linux.</span></div>
-        <div class="step"><strong>2. Open modules</strong><span>Publish mechanical, electrical, firmware, and service documentation with clear interfaces between modules.</span></div>
-        <div class="step"><strong>3. Open supply chain</strong><span>Trace components, find repairable substitutes, and work with community and regional manufacturers.</span></div>
-        <div class="step"><strong>4. Open ecosystem</strong><span>Support new RISC-V boards, accelerators, accessories, and future community-designed compute hardware.</span></div>
+      <div class="stack">
+        <article class="stack-card">
+          <span class="tag">RISC-V</span>
+          <h3>Lichee Pi 4A / LM4A</h3>
+          <p>Compact TH1520 compute with unusually useful public hardware documentation.</p>
+        </article>
+        <article class="stack-card">
+          <span class="tag">RISC-V</span>
+          <h3>StarFive + Beagle</h3>
+          <p>Alternative open-friendly RISC-V paths keep the design from depending on one board vendor.</p>
+        </article>
+        <article class="stack-card">
+          <span class="tag">Bridge</span>
+          <h3>x86 compute modules</h3>
+          <p>Useful for validating power, display, thermals, enclosure, and input while RISC-V matures.</p>
+        </article>
       </div>
     </section>
 
-    <section class="callout" aria-labelledby="community-title">
+    <section class="section" aria-labelledby="supply-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Open supply chain</p>
+          <h2 id="supply-title">Open source should reach the physical world.</h2>
+        </div>
+        <p>Trace components and materials, document closed dependencies, find substitutes, reuse what already exists, and build local capability over time.</p>
+      </div>
+      <a class="button" href="/supply-chain/">Explore the Open Supply Chain</a>
+    </section>
+
+    <aside class="heritage" aria-label="Balthazar project heritage">
+      <strong>Built from Balthazar's idea.</strong>
+      <p>We are preserving and continuing the modular, repairable laptop direction rather than pretending it started here.</p>
+      <a href="https://balthazar.space/">Original project →</a>
+    </aside>
+
+    <section class="callout" aria-labelledby="join-title">
       <div>
         <p class="eyebrow">Community hardware</p>
-        <h2 id="community-title">Help finish the computer we wish existed.</h2>
-        <p>Hardware designers, Linux developers, CAD people, repair technicians, manufacturers, makers, and curious users are all useful here.</p>
+        <h2 id="join-title">Help make it real.</h2>
+        <p>Hardware, Linux, CAD, repair, manufacturing, sourcing, documentation—there is useful work at every layer.</p>
       </div>
       <a class="button" href="mailto:3dvr.tech@gmail.com?subject=Join%203DVR%20Compute">Join 3DVR Compute</a>
     </section>
@@ -123,8 +138,8 @@
 
   <footer>
     <strong>3DVR Compute</strong>
-    <a href="/">Portal</a>
-    <a href="/supply-chain/">Open Supply Chain</a>
+    <a href="/compute/laptop/">Laptop</a>
+    <a href="/supply-chain/">Supply Chain</a>
     <a href="https://balthazar.space/">Balthazar</a>
     <a href="mailto:3dvr.tech@gmail.com">3dvr.tech@gmail.com</a>
   </footer>
