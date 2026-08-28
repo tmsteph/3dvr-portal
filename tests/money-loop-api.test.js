@@ -228,7 +228,7 @@ test('money loop handler GET without autopilot mode returns endpoint metadata', 
   assert.deepEqual(res.body, {
     ok: true,
     endpoint: 'money-loop',
-    methods: ['POST', 'GET?mode=autopilot']
+    methods: ['POST', 'GET?mode=autopilot', 'GET?mode=strategy']
   });
 });
 

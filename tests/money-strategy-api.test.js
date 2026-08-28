@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createMoneyStrategyHandler } from '../api/money/strategy.js';
+import { createMoneyLoopHandler } from '../api/money/loop.js';
 
 function createMockRes() {
   return {
@@ -14,19 +14,19 @@ function createMockRes() {
 }
 
 test('money strategy endpoint requires its scoped bearer token', async () => {
-  const handler = createMoneyStrategyHandler({
+  const handler = createMoneyLoopHandler({
     config: { MONEY_STRATEGY_TOKEN: 'strategy-secret' },
     runAutopilotImpl: async () => ({})
   });
   const res = createMockRes();
-  await handler({ method: 'GET', headers: { authorization: 'Bearer wrong' } }, res);
+  await handler({ method: 'GET', query: { mode: 'strategy' }, headers: { authorization: 'Bearer wrong' } }, res);
   assert.equal(res.statusCode, 401);
   assert.match(res.body.error, /Unauthorized money strategy/);
 });
 
 test('money strategy endpoint forces a read-only autopilot cycle', async () => {
   let received = null;
-  const handler = createMoneyStrategyHandler({
+  const handler = createMoneyLoopHandler({
     config: { MONEY_STRATEGY_TOKEN: 'strategy-secret' },
     stripeClient: { checkout: { sessions: { list() {} } } },
     runAutopilotImpl: async payload => {
@@ -42,7 +42,7 @@ test('money strategy endpoint forces a read-only autopilot cycle', async () => {
     }
   });
   const res = createMockRes();
-  await handler({ method: 'GET', headers: { authorization: 'Bearer strategy-secret' } }, res);
+  await handler({ method: 'GET', query: { mode: 'strategy' }, headers: { authorization: 'Bearer strategy-secret' } }, res);
 
   assert.equal(received.dryRun, true);
   assert.equal(received.publishEnabled, false);
