@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFile } from 'node:fs/promises';
 import {
   FREE_PAGE_ANALYTICS_PATH,
   createFreePageAnalyticsEvent,
@@ -125,4 +126,11 @@ test('returns Money Printer compatible analytics from a Gun reader', async () =>
   assert.equal(result.pageViews, 1);
   assert.equal(result.leads, 1);
   assert.deepEqual(result.topPaths, ['/free-page/']);
+});
+
+
+test('server analytics reader uses the filesystem-free Gun core build', async () => {
+  const source = await readFile(new URL('../src/analytics/freePageReader.js', import.meta.url), 'utf8');
+  assert.match(source, /import\('gun\/gun\.js'\)/);
+  assert.doesNotMatch(source, /import\('gun'\)/);
 });
