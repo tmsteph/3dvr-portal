@@ -2,11 +2,11 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
     "deploymentEnabled": {
-      "*": false,
-      "main": true
+      "**": false,
+      "main": true,
+      "preview-pr-*": true
     }
   },
-  "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ]",
   "crons": [
     { "path": "/api/growth/homepage-hero-cron", "schedule": "43 2 * * *" },
     { "path": "/api/money/autopilot-cron", "schedule": "17 16 * * 1-5" }
