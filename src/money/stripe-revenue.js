@@ -15,10 +15,18 @@ export function normalizeOfferKey(value) {
 
 export function parseAutopilotReferenceId(value = '') {
   const normalized = normalizeText(value);
+  if (!normalized.includes('__')) {
+    return { runId: '', offerProfile: '' };
+  }
   const [runId = '', offerProfile = ''] = normalized.split('__', 2);
+  const normalizedRunId = normalizeText(runId);
+  const normalizedOffer = normalizeOfferKey(offerProfile);
+  if (!/^money-[a-z0-9_-]+$/i.test(normalizedRunId) || !normalizedOffer) {
+    return { runId: '', offerProfile: '' };
+  }
   return {
-    runId: normalizeText(runId),
-    offerProfile: normalizeOfferKey(offerProfile)
+    runId: normalizedRunId,
+    offerProfile: normalizedOffer
   };
 }
 

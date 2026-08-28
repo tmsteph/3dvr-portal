@@ -35,7 +35,7 @@ function dateRange(now, days) {
 
 async function resolveGunImpl(explicitImpl) {
   if (explicitImpl) return explicitImpl;
-  const moduleResult = await import('gun');
+  const moduleResult = await import('gun/gun.js');
   const GunImpl = moduleResult.default || moduleResult;
   if (typeof GunImpl !== 'function') {
     throw new Error('Unable to load Gun for first-party analytics.');
