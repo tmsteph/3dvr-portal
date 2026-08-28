@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3DVR RISC-V | Open SoC Project</title>
+  <meta name="description" content="3DVR RISC-V is an FPGA-first open SoC project: a small, understandable RISC-V computer stack built in public for Linux, tinygrad, and future 3DVR hardware.">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-mark.svg">
+  <link rel="stylesheet" href="../styles.css?v=20260828b">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <nav class="site-nav" aria-label="3DVR Compute navigation">
+    <a class="brand" href="/compute/">
+      <img src="/brand/portal-mark.svg" alt="">
+      <span>3DVR Compute</span>
+    </a>
+    <div class="nav-links">
+      <a href="/compute/laptop/">Laptop</a>
+      <a href="/compute/risc-v/" aria-current="page">RISC-V</a>
+      <a href="/supply-chain/">Supply Chain</a>
+    </div>
+    <a class="button" href="mailto:3dvr.tech@gmail.com?subject=Help%20build%203DVR%20RISC-V">Join</a>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">3DVR Compute · RISC-V</p>
+        <span class="status">Project seed · FPGA first</span>
+        <h1>Build a computer we understand.</h1>
+        <p class="lede">
+          A small, fully open RISC-V SoC project designed to be understandable end-to-end, reproducible by other builders, and useful long before we ever manufacture silicon.
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="#first-system">See the first system</a>
+          <a class="button" href="mailto:3dvr.tech@gmail.com?subject=Help%20build%203DVR%20RISC-V">Help build it</a>
+        </div>
+      </div>
+
+      <div class="device-stage" role="img" aria-label="Concept blocks representing CPU, memory, and accelerator pieces of an open RISC-V system on chip">
+        <div class="module one" data-label="CPU" aria-hidden="true"></div>
+        <div class="module two" data-label="Memory + I/O" aria-hidden="true"></div>
+        <div class="module three" data-label="Accelerator" aria-hidden="true"></div>
+        <div class="device-label top">Start on an FPGA. Make every block inspectable and replaceable.</div>
+        <div class="device-label bottom">Boot Linux first. Optimize later.</div>
+      </div>
+    </header>
+
+    <section class="principles" aria-label="3DVR RISC-V principles">
+      <div class="principle"><strong>Small first</strong><span>One working system beats a giant unfinished architecture.</span></div>
+      <div class="principle"><strong>Open end-to-end</strong><span>RTL, tooling, software, docs, and reproducible builds.</span></div>
+      <div class="principle"><strong>FPGA-first</strong><span>Prove the design on hardware before thinking about silicon.</span></div>
+      <div class="principle"><strong>Linux-ready</strong><span>Build toward a real Debian/Linux computer, not a demo core.</span></div>
+    </section>
+
+    <section class="section" id="first-system" aria-labelledby="system-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">First system</p>
+          <h2 id="system-title">The smallest useful open computer.</h2>
+        </div>
+        <p>Keep the architecture boring enough to understand, then make each layer better in public.</p>
+      </div>
+
+      <div class="flow" aria-label="Initial SoC architecture">
+        <div class="flow-item"><strong>RISC-V CPU</strong><span>A simple existing open core first; custom work only where it earns its complexity.</span></div>
+        <div class="flow-item"><strong>Memory + interconnect</strong><span>Open, documented paths between CPU, RAM, storage, and peripherals.</span></div>
+        <div class="flow-item"><strong>Accelerator path</strong><span>A deliberately simple compute block we can eventually expose to tinygrad.</span></div>
+        <div class="flow-item"><strong>Linux</strong><span>Bootloader, kernel, Debian userspace, and reproducible setup documentation.</span></div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="roadmap-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Roadmap</p>
+          <h2 id="roadmap-title">Make it real in layers.</h2>
+        </div>
+        <p>The project should remain useful at every stage instead of waiting years for a custom chip.</p>
+      </div>
+
+      <div class="stack">
+        <article class="stack-card">
+          <span class="tag">01 · FPGA</span>
+          <h3>Reproducible SoC</h3>
+          <p>Choose a friendly FPGA board, synthesize an open RISC-V system, and make one-command builds boringly reliable.</p>
+        </article>
+        <article class="stack-card">
+          <span class="tag">02 · Linux</span>
+          <h3>Boot a real OS</h3>
+          <p>Bring up serial, storage, networking, and enough Linux support to use the machine for actual computing.</p>
+        </article>
+        <article class="stack-card">
+          <span class="tag">03 · Compute</span>
+          <h3>Tinygrad-friendly acceleration</h3>
+          <p>Experiment with a small documented accelerator interface instead of depending forever on proprietary GPU stacks.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="future-title">
+      <div class="product-panel">
+        <div>
+          <p class="eyebrow">Where it leads</p>
+          <h2 id="future-title">From FPGA to personal computer.</h2>
+          <p>
+            This project can eventually become an open compute module for 3DVR hardware. The near-term goal is learning and reproducibility; the long-term goal is a stack we could confidently put inside a Balthazar-style laptop.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="/compute/laptop/">See the laptop</a>
+            <a class="button" href="/supply-chain/">Open the supply chain</a>
+          </div>
+        </div>
+        <div class="flow" aria-label="Long-term path">
+          <div class="flow-item"><strong>FPGA</strong><span>Understand it.</span></div>
+          <div class="flow-item"><strong>Board</strong><span>Use it.</span></div>
+          <div class="flow-item"><strong>Module</strong><span>Integrate it.</span></div>
+          <div class="flow-item"><strong>Silicon</strong><span>Earn it.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="heritage" aria-label="Libre-SOC inspiration">
+      <strong>Inspired by Libre-SOC.</strong>
+      <p>Carry forward the radical openness and whole-stack thinking, while starting fresh with a smaller RISC-V-first scope.</p>
+      <a href="https://libre-soc.org/">Libre-SOC →</a>
+    </aside>
+
+    <section class="callout" aria-labelledby="join-title">
+      <div>
+        <p class="eyebrow">Open hardware</p>
+        <h2 id="join-title">Build one layer.</h2>
+        <p>RTL, FPGA bring-up, Linux, compilers, tinygrad, boards, documentation—small contributions are enough to move the project forward.</p>
+      </div>
+      <a class="button" href="mailto:3dvr.tech@gmail.com?subject=Help%20build%203DVR%20RISC-V">Join the project</a>
+    </section>
+  </main>
+
+  <footer>
+    <strong>3DVR Compute</strong>
+    <a href="/compute/">Compute</a>
+    <a href="/compute/laptop/">Laptop</a>
+    <a href="/compute/risc-v/">RISC-V</a>
+    <a href="/supply-chain/">Supply Chain</a>
+    <a href="mailto:3dvr.tech@gmail.com">3dvr.tech@gmail.com</a>
+  </footer>
+
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
