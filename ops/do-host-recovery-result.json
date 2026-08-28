@@ -1,0 +1,15 @@
+{
+  "checkedAt": "2026-08-28T22:52:09.413484+00:00",
+  "sshKeyPresent": true,
+  "doTokenPresent": false,
+  "apiMatchedKnownHost": false,
+  "powerAction": "unavailable",
+  "port22": true,
+  "port80": true,
+  "port443": true,
+  "port4310": false,
+  "sshAuthenticated": true,
+  "previewWorkerRecovered": false,
+  "previewUrl": "",
+  "previewVerified": false
+}
