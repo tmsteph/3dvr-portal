@@ -272,11 +272,52 @@ export function createMoneyLoopHandler(options = {}) {
 
     if (req.method === 'GET') {
       const mode = String(req?.query?.mode || '').trim().toLowerCase();
+
+      if (mode === 'strategy') {
+        const expectedStrategyToken = String(config.MONEY_STRATEGY_TOKEN || '').trim();
+        const providedStrategyToken = getBearerToken(req);
+        if (!expectedStrategyToken || providedStrategyToken !== expectedStrategyToken) {
+          return unauthorized(res, 'Unauthorized money strategy request.');
+        }
+
+        try {
+          const result = await runAutopilotImpl({
+            env: config,
+            fetchImpl,
+            stripeClient,
+            dryRun: true,
+            publishEnabled: false,
+            vercelDeploy: false,
+            promotionEnabled: false,
+            autoDiscover: true
+          });
+
+          return res.status(200).json({
+            ok: true,
+            mode: 'strategy-read',
+            runId: result.runId,
+            generatedAt: result.generatedAt,
+            market: result.market,
+            keywords: result.keywords,
+            analytics: result.analytics,
+            revenue: result.revenue,
+            offerSelection: result.offerSelection,
+            topOpportunity: result.topOpportunity,
+            monetization: result.monetization,
+            warnings: result.warnings
+          });
+        } catch (error) {
+          return res.status(500).json({
+            error: error?.message || 'Unable to build money strategy.'
+          });
+        }
+      }
+
       if (mode !== 'autopilot') {
         return res.status(200).json({
           ok: true,
           endpoint: 'money-loop',
-          methods: ['POST', 'GET?mode=autopilot']
+          methods: ['POST', 'GET?mode=autopilot', 'GET?mode=strategy']
         });
       }
 
