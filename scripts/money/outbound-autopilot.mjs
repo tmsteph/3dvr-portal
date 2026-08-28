@@ -1,11 +1,13 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { runAutopilotCycle } from '../../src/money/autopilot.js';
+import { makeStripeClient } from '../../src/billing/stripe.js';
 import {
   DEFAULT_OUTBOUND_PROSPECTS,
   buildOutboundQueue,
   buildOutboundSummary,
   dispatchOutboundWebhook,
+  fetchRemoteOutboundStrategy,
   outcomeTrackerToCsv,
   parseProspectsCsv,
   queueToCsv
@@ -76,8 +78,18 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const dryRun = args.dryRun ? parseBool(args.dryRun) : undefined;
   const now = new Date();
+  const stripeClient = makeStripeClient(process.env);
+  let strategy = null;
+  try {
+    strategy = await fetchRemoteOutboundStrategy({
+      strategyUrl: process.env.MONEY_OUTBOUND_STRATEGY_URL || '',
+      token: process.env.MONEY_OUTBOUND_STRATEGY_TOKEN || ''
+    });
+  } catch (error) {
+    console.warn(`Remote money strategy unavailable: ${error?.message || error}`);
+  }
   const [autopilot, prospects] = await Promise.all([
-    runAutopilotCycle({ dryRun }),
+    strategy ? Promise.resolve(strategy) : runAutopilotCycle({ dryRun, stripeClient }),
     loadProspects(args.prospects)
   ]);
 
@@ -106,6 +118,9 @@ async function main() {
     mode: args.mode,
     dailyCap: Number(args.dailyCap) || 3,
     autopilotRunId: autopilot.runId,
+    offerSelection: autopilot.offerSelection || null,
+    revenue: autopilot.revenue || null,
+    analytics: autopilot.analytics || null,
     dispatch,
     queue
   };

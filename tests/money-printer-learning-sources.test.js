@@ -34,6 +34,35 @@ test('derives measured signals and a guarded research experiment', () => {
   assert.match(evidence.research.fingerprint, /^fnv1a-/);
 });
 
+
+
+test('derives Stripe-attributed revenue without treating unrelated Stripe payments as offer evidence', () => {
+  const evidence = deriveEvidence({
+    outbound: {
+      generatedAt: '2026-08-28T00:00:00Z',
+      autopilotRunId: 'money-paid-1',
+      dispatch: { sentCount: 2 },
+      queue: [],
+      revenue: {
+        enabled: true,
+        grossRevenueCents: 50000,
+        monthlyRecurringRevenueCents: 2500,
+        byOffer: [
+          { offer: 'website-upgrade', paidCheckouts: 2, grossRevenueCents: 19800 }
+        ]
+      }
+    },
+    outcomes: []
+  });
+
+  assert.equal(evidence.signals.stripe_attributed_checkouts, 2);
+  assert.equal(evidence.signals.stripe_attributed_revenue_cents, 19800);
+  assert.equal(evidence.signals.stripe_mrr_cents, 2500);
+  assert.notEqual(evidence.signals.stripe_attributed_revenue_cents, 50000);
+  assert.equal(evidence.sources.revenue.available, true);
+  assert.match(evidence.sources.revenue.reason, /Stripe attributed revenue/);
+});
+
 test('collects the latest workflow evidence from artifact directories', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'money-evidence-'));
   await mkdir(path.join(root, 'autopilot'), { recursive: true });
