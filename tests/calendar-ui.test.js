@@ -59,7 +59,7 @@ test('calendar keeps event creation and advanced settings progressive', async ()
   assert.match(html, /<details class="connection-card__details">\s*<summary>Advanced<\/summary>/s);
   assert.match(html, /<details class="sync-controls__range">\s*<summary>Time range<\/summary>/s);
   assert.match(js, /function renderSelectedDayDetails\(\)/);
-  assert.match(js, /function handleCreateEventToggle/);
+  assert.match(js, /function toggleCreateEventForm\(\)/);
 });
 
 test('calendar stylesheet keeps seven columns usable on smaller screens', async () => {
