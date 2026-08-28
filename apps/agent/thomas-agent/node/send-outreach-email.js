@@ -6,6 +6,7 @@ const { getOAuthAccessToken } = require('./oauth-connection');
 const { createGmailTransport } = require('./gmail-transport');
 const { validateCommercialOutreach } = require('./outreach-compliance');
 const { businessHoursStatus } = require('./send-window');
+const { acquireEmailSend, markEmailSent, markEmailUncertain } = require('./email-idempotency');
 
 const DEFAULT_TRANSPORT = normalizeText(
   process.env.THREEDVR_OUTREACH_EMAIL_TRANSPORT
@@ -136,6 +137,7 @@ async function sendViaPortal(options) {
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${DEFAULT_PORTAL_EMAIL_TOKEN}`,
+      ...(options.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : {}),
     },
     body: JSON.stringify({
       mode: 'lead-outreach',
@@ -145,6 +147,7 @@ async function sendViaPortal(options) {
       text: options.text,
       senderName: 'Thomas',
       senderEmail,
+      ...(options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {}),
     }),
   });
 
@@ -185,6 +188,7 @@ async function sendViaGmail(options) {
       to: options.to,
       subject: options.subject,
       text: options.text,
+      ...(options.idempotencyKey ? { messageId: `<3dvr-${options.idempotencyKey}@3dvr.tech>` } : {}),
     });
     return;
   }
@@ -201,6 +205,7 @@ async function sendViaGmail(options) {
     to: options.to,
     subject: options.subject,
     text: options.text,
+    ...(options.idempotencyKey ? { messageId: `<3dvr-${options.idempotencyKey}@3dvr.tech>` } : {}),
   });
 }
 
@@ -250,20 +255,38 @@ async function main() {
     return;
   }
 
-  if (DEFAULT_TRANSPORT === 'gmail') {
-    await sendViaGmail(options);
-  } else if (DEFAULT_TRANSPORT === 'auto') {
-    try {
-      await sendViaPortal(options);
-    } catch (error) {
+  const reservation = acquireEmailSend({
+    from: DEFAULT_GMAIL_USER,
+    to: options.to,
+    subject: options.subject,
+    text: options.text,
+  });
+  if (!reservation.ok) {
+    throw new Error(`Duplicate email blocked: ${reservation.reason} Key=${reservation.key}`);
+  }
+  options.idempotencyKey = reservation.key;
+
+  try {
+    // Never fail over to a second transport after a send attempt. A network error can
+    // mean the first provider accepted the message but the acknowledgement was lost.
+    if (DEFAULT_TRANSPORT === 'gmail') {
       await sendViaGmail(options);
-      console.warn(error.message || error);
+    } else if (DEFAULT_TRANSPORT === 'auto') {
+      if (DEFAULT_PORTAL_EMAIL_ENDPOINT && DEFAULT_PORTAL_EMAIL_TOKEN) {
+        await sendViaPortal(options);
+      } else {
+        await sendViaGmail(options);
+      }
+    } else {
+      await sendViaPortal(options);
     }
-  } else {
-    await sendViaPortal(options);
+    markEmailSent(reservation, { transport: DEFAULT_TRANSPORT });
+  } catch (error) {
+    markEmailUncertain(reservation, error);
+    throw error;
   }
 
-  console.log(`Sent outreach email to ${options.to}`);
+  console.log(`Sent outreach email to ${options.to} [idempotency=${reservation.key.slice(0, 12)}]`);
 }
 
 module.exports = {

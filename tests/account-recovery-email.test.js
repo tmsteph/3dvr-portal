@@ -437,7 +437,8 @@ describe('account recovery email api', () => {
         senderName: 'Thomas at 3dvr.tech',
         senderEmail: '3dvr.tech@gmail.com',
         inReplyTo: '<reply-message@example.com>',
-        references: '<thread-root@example.com> <reply-message@example.com>'
+        references: '<thread-root@example.com> <reply-message@example.com>',
+        idempotencyKey: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
       }
     };
     const res = createMockRes();
@@ -453,6 +454,8 @@ describe('account recovery email api', () => {
     assert.equal(sent.replyTo, '3dvr.tech@gmail.com');
     assert.equal(sent.inReplyTo, '<reply-message@example.com>');
     assert.equal(sent.references, '<thread-root@example.com> <reply-message@example.com>');
+    assert.equal(sent.messageId, '<3dvr-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef@3dvr.tech>');
+    assert.equal(res.body.idempotencyKey, '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef');
     assert.match(sent.html, /Quick note from 3dvr\.tech/i);
     assert.match(sent.html, /font-size: 11px[^>]*>Postal address:/i);
     assert.equal((sent.html.match(/Thomas at 3dvr\.tech/gi) || []).length, 0);
