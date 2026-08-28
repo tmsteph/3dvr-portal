@@ -55,7 +55,7 @@ describe('calendar PWA configuration', () => {
   it('ships a calendar-specific service worker', async () => {
     const workerSource = await readProjectFile('calendar/service-worker.js');
 
-    assert.match(workerSource, /const CACHE_VERSION = 'v6';/);
+    assert.match(workerSource, /const CACHE_VERSION = 'v7';/);
     assert.match(workerSource, /calendar-static-/);
     assert.match(workerSource, /calendar-html-/);
     assert.match(workerSource, /scopeAsset\('global\.css'\)/);

@@ -103,15 +103,19 @@ test('calendar supports no-login secret share links with view or edit permission
   assert.match(js, /setupGunSync\(\{ pushInitial: false \}\)/);
 });
 
-test('calendar Google OAuth refreshes tokens and imports the current month after connect', async () => {
+test('calendar Google OAuth refreshes tokens and imports the upcoming schedule after connect', async () => {
+  const html = await readFile(new URL('../calendar/index.html', import.meta.url), 'utf8');
   const oauth = await readFile(new URL('../calendar/oauth.js', import.meta.url), 'utf8');
   const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
 
   assert.match(oauth, /async function ensureFreshConnection\(provider/);
   assert.match(oauth, /action: 'refresh'/);
-  assert.match(js, /async function importCurrentMonthFromProvider\(provider\)/);
-  assert.match(js, /Importing this month/);
+  assert.match(js, /async function importUpcomingScheduleFromProvider\(provider, anchorDate = new Date\(\)\)/);
+  assert.match(js, /Importing your upcoming schedule/);
   assert.match(js, /await getFreshConnectionOrWarn\(provider/);
+  assert.match(js, /windowEnd\.setMonth\(windowEnd\.getMonth\(\) \+ 3\)/);
+  assert.match(js, /async function refreshConnectedProviderCalendars\(\)/);
+  assert.match(html, /name=\"maxResults\" min=\"1\" max=\"100\" value=\"100\"/);
 });
 
 
