@@ -8,7 +8,7 @@ Front door: https://portal.3dvr.tech/business-sites/
 
 Trust step: free first draft through https://portal.3dvr.tech/free-page/
 
-Paid path: $5/month to keep a basic page live; $20–$50/month for ongoing launch, updates, and follow-up help.
+Paid path: $99 one-time Website Upgrade to keep a basic page live; $20–$50/month for ongoing launch, updates, and follow-up help.
 
 ## Target order
 
