@@ -1,11 +1,9 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const test = require('node:test');
-const assert = require('node:assert/strict');
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import test from 'node:test';
 
-const root = path.resolve(__dirname, '..');
-const html = fs.readFileSync(path.join(root, 'calendar', 'index.html'), 'utf8');
-const css = fs.readFileSync(path.join(root, 'calendar', 'calendar-v2.css'), 'utf8');
+const html = await readFile(new URL('../calendar/index.html', import.meta.url), 'utf8');
+const css = await readFile(new URL('../calendar/calendar-v2.css', import.meta.url), 'utf8');
 
 test('calendar keeps the month as the primary full-width workspace', () => {
   assert.match(html, /<link rel="stylesheet" href="\.\/calendar-v2\.css">/);
@@ -21,6 +19,10 @@ test('secondary calendar tools stay below the month and advanced settings are co
   assert.match(html, /<details class="connection-card__details">\s*<summary>Advanced<\/summary>/s);
   assert.match(html, /<details class="calendar-activity">\s*<summary>Event list & sync log<\/summary>/s);
   assert.match(html, /<details class="form-options">\s*<summary>Repeat & reminders<\/summary>/s);
+  assert.ok(
+    html.indexOf('panel--primary') < html.indexOf('calendar-rail'),
+    'expected calendar tools to follow the primary month workspace'
+  );
 });
 
 test('mobile calendar stays seven columns without horizontal month panning', () => {
