@@ -639,3 +639,71 @@ test('stripe webhook sends subscription update emails for prorated plan changes'
   assert.match(transporter.sendMail.mock.calls[1].arguments[0].html, /Amount charged today:<\/strong> \$68\.55/);
   assert.doesNotMatch(transporter.sendMail.mock.calls[0].arguments[0].subject, /Welcome to 3DVR\.Tech/);
 });
+
+test('stripe webhook sends one recovery email on the first failed invoice attempt', async () => {
+  const transporter = { sendMail: mock.fn(async payload => payload) };
+  const handler = createStripeWebhookHandler({
+    stripeClient: createStripeState().stripe,
+    config: { ...baseConfig, GMAIL_USER: 'billing@3dvr.tech', STRIPE_LOG_EMAIL: '' },
+    transporter,
+    readRawBody: async () => Buffer.from('{}'),
+    constructEvent: () => ({
+      id: 'evt_invoice_failed',
+      type: 'invoice.payment_failed',
+      created: 1700000000,
+      data: {
+        object: {
+          id: 'in_failed',
+          amount_due: 2000,
+          currency: 'usd',
+          customer_email: 'client@example.com',
+          hosted_invoice_url: 'https://invoice.stripe.com/recover-me',
+          attempt_count: 1,
+          next_payment_attempt: 1700086400
+        }
+      }
+    })
+  });
+
+  const req = { method: 'POST', headers: { 'stripe-signature': 'sig_test' } };
+  const res = createMockRes();
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(transporter.sendMail.mock.calls.length, 1);
+  const message = transporter.sendMail.mock.calls[0].arguments[0];
+  assert.equal(message.subject, 'Payment issue with your 3DVR plan');
+  assert.match(message.text, /\$20\.00/);
+  assert.match(message.text, /https:\/\/invoice\.stripe\.com\/recover-me/);
+});
+test('stripe webhook does not email on later automatic retry failures', async () => {
+  const transporter = { sendMail: mock.fn(async payload => payload) };
+  const handler = createStripeWebhookHandler({
+    stripeClient: createStripeState().stripe,
+    config: { ...baseConfig, GMAIL_USER: 'billing@3dvr.tech', STRIPE_LOG_EMAIL: '' },
+    transporter,
+    readRawBody: async () => Buffer.from('{}'),
+    constructEvent: () => ({
+      id: 'evt_invoice_failed_retry',
+      type: 'invoice.payment_failed',
+      created: 1700000000,
+      data: {
+        object: {
+          id: 'in_failed',
+          amount_due: 2000,
+          currency: 'usd',
+          customer_email: 'client@example.com',
+          hosted_invoice_url: 'https://invoice.stripe.com/recover-me',
+          attempt_count: 2
+        }
+      }
+    })
+  });
+
+  const req = { method: 'POST', headers: { 'stripe-signature': 'sig_test' } };
+  const res = createMockRes();
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(transporter.sendMail.mock.calls.length, 0);
+});

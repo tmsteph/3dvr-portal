@@ -317,7 +317,8 @@ export function createMoneyLoopHandler(options = {}) {
           market: req?.query?.market ? String(req.query.market) : undefined,
           keywords: req?.query?.keywords ? parseCsvQuery(req.query.keywords) : undefined,
           channels: req?.query?.channels ? parseCsvQuery(req.query.channels) : undefined,
-          budget: req?.query?.budget
+          budget: req?.query?.budget,
+          stripeClient
         });
 
         return res.status(200).json({
