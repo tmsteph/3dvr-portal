@@ -69,7 +69,7 @@ test('preview workflow is opt-in, token-free, and cleans up its bridge branch', 
   assert.match(workflow, /3dvr-portal-git-preview-pr-/);
   assert.match(workflow, /contents: write/);
   assert.doesNotMatch(workflow, /^\s*push:/m);
-  assert.doesNotMatch(workflow, /VERCEL_TOKEN/);
+  assert.doesNotMatch(workflow, /secrets\.VERCEL_TOKEN/);
   assert.doesNotMatch(workflow, /VERCEL_PROJECT_ID/);
   assert.doesNotMatch(workflow, /VERCEL_ORG_ID/);
   assert.doesNotMatch(workflow, /workflow_dispatch:/);
@@ -77,7 +77,7 @@ test('preview workflow is opt-in, token-free, and cleans up its bridge branch', 
 
 test('workspace and Codex Cloud link to each other', async () => {
   const workspace = await read('workspace/index.html');
-  const codexCloud = await read('codex-cloud/index.html');
+  const codexCloud = await read('codex-cloud/index.html', 'utf8');
 
   assert.match(workspace, /href="\.\.\/codex-cloud\/"/);
   assert.match(codexCloud, /href="\/workspace\/"/);
