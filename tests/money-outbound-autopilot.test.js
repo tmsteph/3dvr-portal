@@ -5,6 +5,7 @@ import {
   buildOutboundQueue,
   buildOutboundSummary,
   dispatchOutboundWebhook,
+  fetchRemoteOutboundStrategy,
   outcomeTrackerToCsv,
   parseProspectsCsv,
   queueToCsv
@@ -89,6 +90,38 @@ test('buildOutboundQueue plans auto-send only for allowlisted prospects inside c
   assert.equal(queue.find(item => item.name === 'Morgan').approvalStatus, 'needs-approval');
 });
 
+
+
+test('buildOutboundQueue follows a revenue-selected paid offer instead of hardcoding the free-page pitch', () => {
+  const paidAutopilot = {
+    runId: 'money-paid-1',
+    offerSelection: { profile: 'website-upgrade', source: 'stripe-revenue' },
+    topOpportunity: {
+      title: '3DVR Website Upgrade',
+      problem: 'The current site loses buyers at the first screen.',
+      solution: 'Clean up the main page, offer, proof, and customer path.',
+      suggestedPrice: '$99 one time'
+    },
+    monetization: {
+      checkoutUrl: 'https://buy.stripe.com/upgrade?client_reference_id=money-paid-1__website-upgrade',
+      clientReferenceId: 'money-paid-1__website-upgrade'
+    }
+  };
+  const queue = buildOutboundQueue({
+    autopilot: paidAutopilot,
+    prospects: [{ name: 'Dana', email: 'dana@example.com', company: 'Dana Electric', relationship: 'warm referral' }]
+  });
+
+  assert.equal(queue[0].offerProfile, 'website-upgrade');
+  assert.equal(queue[0].autopilotRunId, 'money-paid-1');
+  assert.equal(queue[0].clientReferenceId, 'money-paid-1__website-upgrade');
+  assert.equal(queue[0].suggestedPrice, '$99 one time');
+  assert.match(queue[0].subject, /Website Upgrade/);
+  assert.match(queue[0].messageDraft, /\$99 one time/);
+  assert.match(queue[0].messageDraft, /money-paid-1__website-upgrade/);
+  assert.doesNotMatch(queue[0].messageDraft, /\$5\/month/);
+});
+
 test('queue and outcome CSV files include money-loop tracking columns', () => {
   const queue = buildOutboundQueue({
     autopilot,
@@ -101,8 +134,38 @@ test('queue and outcome CSV files include money-loop tracking columns', () => {
 
   assert.match(queueCsv, /^id,score,name,company,segment,channel,email,relationship,approvalStatus/);
   assert.match(queueCsv, /messageDraft/);
-  assert.match(outcomeCsv, /^id,name,channel,contactedAt,replyStatus,pageRequestedAt,pageDeliveredAt/);
+  assert.match(queueCsv, /offerProfile/);
+  assert.match(queueCsv, /clientReferenceId/);
+  assert.match(outcomeCsv, /^id,name,channel,offer,offerProfile,suggestedPrice,autopilotRunId,clientReferenceId,contactedAt,replyStatus,pageRequestedAt,pageDeliveredAt/);
   assert.match(outcomeCsv, /subscriptionStatus,revenue,nextFollowUpAt/);
+});
+
+
+
+test('fetchRemoteOutboundStrategy reads the scoped portal strategy without Stripe credentials', async () => {
+  const requests = [];
+  const result = await fetchRemoteOutboundStrategy({
+    strategyUrl: 'https://portal.example/api/money/strategy',
+    token: 'strategy-token',
+    async fetchImpl(url, options) {
+      requests.push({ url, options });
+      return {
+        ok: true,
+        status: 200,
+        async text() {
+          return JSON.stringify({
+            ok: true,
+            runId: 'money-remote-1',
+            offerSelection: { profile: 'website-upgrade', source: 'stripe-revenue' }
+          });
+        }
+      };
+    }
+  });
+
+  assert.equal(result.runId, 'money-remote-1');
+  assert.equal(result.offerSelection.profile, 'website-upgrade');
+  assert.equal(requests[0].options.headers.Authorization, 'Bearer strategy-token');
 });
 
 test('dispatchOutboundWebhook skips unless allowlisted messages and webhook are present', async () => {
@@ -160,6 +223,8 @@ test('dispatchOutboundWebhook posts allowlisted messages to configured sender', 
   const payload = JSON.parse(requests[0].options.body);
   assert.equal(payload.mode, 'outbound-autopilot');
   assert.equal(payload.messages[0].to, 'dana@example.com');
+  assert.equal(payload.messages[0].metadata.autopilotRunId, 'money-1');
+  assert.equal(payload.messages[0].metadata.offerProfile, 'free-page-starter');
 });
 
 test('buildOutboundSummary includes guardrail and first draft', () => {
@@ -184,10 +249,13 @@ test('outbound workflow runs scheduled approval-first queue generation', async (
   const workflow = await readFile(new URL('../.github/workflows/outbound-autopilot.yml', import.meta.url), 'utf8');
 
   assert.match(workflow, /Outbound Autopilot/);
-  assert.match(workflow, /cron: '45 16 \* \* \*'/);
+  assert.match(workflow, /cron: '45 17 \* \* \*'/);
   assert.match(workflow, /money:outbound/);
   assert.match(workflow, /approval-required/);
   assert.match(workflow, /MONEY_OUTBOUND_SENDER_WEBHOOK_URL/);
+  assert.match(workflow, /MONEY_OUTBOUND_STRATEGY_URL/);
+  assert.match(workflow, /MONEY_OUTBOUND_STRATEGY_TOKEN/);
+  assert.doesNotMatch(workflow, /STRIPE_SECRET_KEY/);
   assert.match(workflow, /outbound-queue\.csv/);
   assert.match(workflow, /outcome-tracker\.csv/);
   assert.match(workflow, /sendEmail true/);

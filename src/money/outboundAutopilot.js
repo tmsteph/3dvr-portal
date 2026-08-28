@@ -183,10 +183,14 @@ function scoreProspect(prospect = {}) {
 function buildSubject(prospect = {}, offer = {}) {
   if (prospect.channel === 'text') return '';
   const label = prospect.company || prospect.name || 'your project';
-  if (/service|contractor|local/i.test(`${prospect.segment} ${prospect.relationship}`)) {
-    return `Simple page for ${label}`;
+  const title = clean(offer.title) || '3DVR offer';
+  if (offer.profile === 'free-page-starter' || /free page/i.test(title)) {
+    if (/service|contractor|local/i.test(`${prospect.segment} ${prospect.relationship}`)) {
+      return `Simple page for ${label}`;
+    }
+    return 'I can make you a simple one-page website';
   }
-  return 'I can make you a simple one-page website';
+  return `${title} idea for ${label}`;
 }
 
 function buildMessage(prospect = {}, offer = {}) {
@@ -194,23 +198,44 @@ function buildMessage(prospect = {}, offer = {}) {
   const greeting = firstName(label);
   const destinationUrl = clean(offer.destinationUrl) || 'https://portal.3dvr.tech/free-page/';
   const problem = clean(prospect.problemHint)
-    || 'it helps to have one clean link that explains what you do';
+    || clean(offer.problem)
+    || 'there is a small, expensive bottleneck worth fixing';
   const relationship = clean(prospect.relationship);
   const contextLine = relationship && !/warm\/local/i.test(relationship)
     ? `I thought of you because of your ${relationship} context.`
     : 'I thought of you because this is easiest to test with real people, not abstract audiences.';
+  const freePageOffer = offer.profile === 'free-page-starter' || /free page/i.test(offer.title);
 
+  if (freePageOffer) {
+    return [
+      `Hey ${greeting},`,
+      '',
+      "I'm testing a small 3DVR offer: I make a clean one-page website draft for free.",
+      contextLine,
+      `The angle is simple: ${problem}`,
+      '',
+      'If you send me the basics, I can make a first draft page. If it is useful, keeping it live is optional at $5/month. If not, no pressure.',
+      '',
+      `Details: ${destinationUrl}`
+    ].join('\n');
+  }
+
+  const title = clean(offer.title) || 'a 3DVR offer';
+  const solution = clean(offer.solution) || 'a focused implementation that fixes the bottleneck without turning it into a giant project';
+  const priceLine = clean(offer.suggestedPrice) ? `Current offer: ${clean(offer.suggestedPrice)}.` : '';
   return [
     `Hey ${greeting},`,
     '',
-    "I'm testing a small 3DVR offer: I make a clean one-page website draft for free.",
+    `I'm testing ${title} through 3DVR.`,
     contextLine,
-    `The angle is simple: ${problem}`,
+    `The problem I am checking is: ${problem}`,
     '',
-    'If you send me the basics, I can make a first draft page. If it is useful, keeping it live is optional at $5/month. If not, no pressure.',
+    `The useful version is simple: ${solution}`,
+    priceLine,
+    'If it sounds relevant, the link below has the exact next step. If not, no pressure.',
     '',
     `Details: ${destinationUrl}`
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }
 
 function buildApprovalReason(prospect = {}, mode = 'approval-required') {
@@ -231,7 +256,14 @@ export function buildOutboundQueue({
   const safeMode = allowedModes.has(clean(mode)) ? clean(mode) : 'approval-required';
   const offer = {
     title: clean(autopilot.topOpportunity?.title) || '3DVR Free Page',
-    destinationUrl: clean(autopilot.publish?.destinationUrl)
+    profile: clean(autopilot.offerSelection?.profile) || 'free-page-starter',
+    suggestedPrice: clean(autopilot.topOpportunity?.suggestedPrice),
+    problem: clean(autopilot.topOpportunity?.problem),
+    solution: clean(autopilot.topOpportunity?.solution),
+    runId: clean(autopilot.runId),
+    clientReferenceId: clean(autopilot.monetization?.clientReferenceId),
+    destinationUrl: clean(autopilot.monetization?.checkoutUrl)
+      || clean(autopilot.publish?.destinationUrl)
       || clean(autopilot.promotion?.destinationUrl)
       || 'https://portal.3dvr.tech/free-page/'
   };
@@ -258,6 +290,10 @@ export function buildOutboundQueue({
         ...prospect,
         score,
         offer: offer.title,
+        offerProfile: offer.profile,
+        suggestedPrice: offer.suggestedPrice,
+        autopilotRunId: offer.runId,
+        clientReferenceId: offer.clientReferenceId,
         destinationUrl: offer.destinationUrl,
         subject: buildSubject(prospect, offer),
         messageDraft: buildMessage(prospect, offer),
@@ -285,6 +321,11 @@ export function queueToCsv(queue = []) {
     'approvalReason',
     'subject',
     'messageDraft',
+    'offer',
+    'offerProfile',
+    'suggestedPrice',
+    'autopilotRunId',
+    'clientReferenceId',
     'destinationUrl',
     'allowAutoSend',
     'lastContactedAt',
@@ -304,6 +345,11 @@ export function outcomeTrackerToCsv(queue = []) {
     'id',
     'name',
     'channel',
+    'offer',
+    'offerProfile',
+    'suggestedPrice',
+    'autopilotRunId',
+    'clientReferenceId',
     'contactedAt',
     'replyStatus',
     'pageRequestedAt',
@@ -318,6 +364,27 @@ export function outcomeTrackerToCsv(queue = []) {
     columns.join(','),
     ...queue.map(row => columns.map(column => escapeCsv(row[column])).join(','))
   ].join('\n') + '\n';
+}
+
+export async function fetchRemoteOutboundStrategy({
+  strategyUrl = '',
+  token = '',
+  fetchImpl = fetch
+} = {}) {
+  const url = clean(strategyUrl);
+  const secret = clean(token);
+  if (!url || !secret) return null;
+
+  const response = await fetchImpl(url, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${secret}` }
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(text || `money strategy endpoint returned ${response.status}`);
+  }
+  const payload = text ? JSON.parse(text) : null;
+  return payload && payload.ok ? payload : null;
 }
 
 export async function dispatchOutboundWebhook({
@@ -366,7 +433,12 @@ export async function dispatchOutboundWebhook({
           metadata: {
             score: item.score,
             segment: item.segment,
-            offer: item.offer
+            offer: item.offer,
+            offerProfile: item.offerProfile,
+            suggestedPrice: item.suggestedPrice,
+            autopilotRunId: item.autopilotRunId,
+            clientReferenceId: item.clientReferenceId,
+            destinationUrl: item.destinationUrl
           }
         }))
       })
@@ -401,6 +473,11 @@ export function buildOutboundSummary({
   ));
   const firstDraft = top[0];
 
+  const selectedOffer = firstDraft?.offer || 'the current 3DVR offer';
+  const selectedPrice = firstDraft?.offerProfile === 'free-page-starter'
+    ? 'free draft → $5/month keep-live test'
+    : [selectedOffer, firstDraft?.suggestedPrice].filter(Boolean).join(' — ');
+
   return `# Outbound Autopilot
 
 Generated: ${now.toISOString()}
@@ -408,7 +485,7 @@ Mode: ${mode}
 
 ## Money Action
 
-Approve or contact the highest-score prospect, deliver a free page draft, and ask whether it is useful enough to keep live for $5/month.
+Use the highest-score prospect to test ${selectedPrice}. Keep the exact offer and checkout attribution attached so replies and revenue can teach the next run.
 
 ## Queue Status
 
