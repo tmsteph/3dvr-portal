@@ -292,7 +292,22 @@ function readOneTimePaymentDetails(session = {}) {
   const amountCents = Number(session?.amount_total || metadata.custom_amount_cents || 0);
   const currency = String(session?.currency || 'usd').trim() || 'usd';
   const reason = String(metadata.custom_label || '').trim() || 'Custom one-time payment';
-  const description = String(metadata.custom_description || '').trim();
+  const checkoutFields = (Array.isArray(session?.custom_fields) ? session.custom_fields : [])
+    .map(field => {
+      const label = String(field?.label?.custom || field?.key || '').trim();
+      const value = String(
+        field?.text?.value
+        ?? field?.numeric?.value
+        ?? field?.dropdown?.value
+        ?? ''
+      ).trim();
+      return label && value ? `${label}: ${value}` : '';
+    })
+    .filter(Boolean);
+  const description = [
+    String(metadata.custom_description || '').trim(),
+    ...checkoutFields
+  ].filter(Boolean).join('\n');
   const amount = formatCurrencyAmount(amountCents, currency);
 
   return {

@@ -508,7 +508,21 @@ test('stripe webhook sends one-time payment emails for payment-mode checkout ses
             custom_label: 'Custom project deposit',
             custom_description: 'Scoped sprint deposit',
             custom_amount_cents: '25000'
-          }
+          },
+          custom_fields: [
+            {
+              key: 'business_name',
+              label: { type: 'custom', custom: 'Business name' },
+              type: 'text',
+              text: { value: 'Acme Plumbing' }
+            },
+            {
+              key: 'site_url',
+              label: { type: 'custom', custom: 'Current site or free draft URL' },
+              type: 'text',
+              text: { value: 'https://example.com/draft' }
+            }
+          ]
         }
       }
     })
@@ -540,6 +554,8 @@ test('stripe webhook sends one-time payment emails for payment-mode checkout ses
   assert.match(transporter.sendMail.mock.calls[0].arguments[0].text, /\$250\.00/);
   assert.match(transporter.sendMail.mock.calls[0].arguments[0].text, /Custom project deposit/);
   assert.match(transporter.sendMail.mock.calls[0].arguments[0].text, /Scoped sprint deposit/);
+  assert.match(transporter.sendMail.mock.calls[0].arguments[0].text, /Business name: Acme Plumbing/);
+  assert.match(transporter.sendMail.mock.calls[1].arguments[0].html, /Current site or free draft URL: https:\/\/example\.com\/draft/);
   assert.match(transporter.sendMail.mock.calls[1].arguments[0].html, /Amount:<\/strong> \$250\.00/);
   assert.match(transporter.sendMail.mock.calls[1].arguments[0].html, /Reason:<\/strong> Custom project deposit/);
   assert.doesNotMatch(transporter.sendMail.mock.calls[0].arguments[0].subject, /Welcome to 3DVR\.Tech/);
