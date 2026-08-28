@@ -31,6 +31,9 @@ const DEFAULT_REMINDER_DAY_OFFSET = 0;
 const DEFAULT_REPEAT_WEEKS = null;
 const MAX_REPEAT_WEEKS = 52;
 const DEFAULT_REPEAT_GENERATION_WEEKS = MAX_REPEAT_WEEKS;
+const ROLLING_WEEK_VISIBLE_DAYS = 7;
+const ROLLING_WEEK_BUFFER_DAYS = 14;
+const CALENDAR_VIEW_MODE_KEY = 'calendar.view.mode';
 
 function startOfMonth(date) {
   const result = new Date(date);
@@ -60,11 +63,14 @@ const state = {
 const today = startOfDay(new Date());
 const calendarState = {
   viewDate: startOfMonth(new Date()),
+  rollingAnchorDate: startOfDay(new Date()),
+  viewMode: 'month',
   weekStartsOn: 0,
   selectedDate: today.toISOString().slice(0, 10),
   dayEvents: new Map()
 };
 const reminderTimers = new Map();
+let rollingScrollTimer = null;
 
 const GUN_PEERS = (typeof window !== 'undefined' && window.__GUN_PEERS__) || [
   'wss://relay.3dvr.tech/gun',
@@ -104,6 +110,10 @@ const createEventSubmitButton = createEventForm
   : null;
 const calendarDayNames = document.querySelector('[data-calendar-day-names]');
 const calendarGrid = document.querySelector('[data-calendar-grid]');
+const calendarGridViewport = document.querySelector('.calendar-view__grid');
+const calendarViewTitle = document.querySelector('[data-calendar-view-title]');
+const calendarViewModeButtons = document.querySelectorAll('[data-calendar-view-mode]');
+const calendarControls = document.querySelector('.calendar-view__controls');
 const calendarCurrentLabel = document.querySelector('[data-calendar-current]');
 const calendarTodayButton = document.querySelector('[data-calendar-today]');
 const calendarNavButtons = document.querySelectorAll('[data-calendar-nav]');
@@ -1097,6 +1107,25 @@ function ensureDefaultTodayEvent() {
   writeLocalEvents([...state.localEvents, seededEvent]);
 }
 
+function pruneLegacyAutoSeedEvents() {
+  const before = state.localEvents.length;
+  const cleaned = state.localEvents.filter(event => {
+    const seededOn = event?.metadata?.[AUTO_SEEDED_METADATA_KEY];
+    if (!seededOn) return true;
+    const title = typeof event.title === 'string' ? event.title.trim().toLowerCase() : '';
+    const description = typeof event.description === 'string' ? event.description.trim() : '';
+    const start = Date.parse(event.start || '');
+    const end = Date.parse(event.end || '');
+    const durationMinutes = Number.isNaN(start) || Number.isNaN(end) ? Infinity : Math.round((end - start) / 60000);
+    const untouchedTitle = !title || title === 'new event' || title === 'untitled event';
+    return !(untouchedTitle && !description && durationMinutes > 0 && durationMinutes <= 15);
+  });
+  if (cleaned.length !== before) {
+    writeLocalEvents(cleaned);
+    showLog(`Removed ${before - cleaned.length} old placeholder event${before - cleaned.length === 1 ? '' : 's'}.`, 'success');
+  }
+}
+
 function withTimeZoneLabel(text, timeZone) {
   if (!timeZone || !text || text === '—') {
     return text;
@@ -1183,11 +1212,14 @@ function renderCalendarDayNames() {
   }
 }
 
-function renderCalendar(events = state.localEvents) {
+function renderMonthCalendar(events = state.localEvents) {
   if (calendarCurrentLabel) {
     calendarCurrentLabel.textContent = calendarMonthFormatter.format(calendarState.viewDate);
   }
   if (!calendarGrid) return;
+  if (calendarGridViewport) calendarGridViewport.dataset.calendarView = 'month';
+  if (calendarDayNames) calendarDayNames.hidden = false;
+  calendarGrid.removeAttribute('data-rolling');
   const monthStart = startOfMonth(calendarState.viewDate || new Date());
   const gridStart = new Date(monthStart);
   const offset = getWeekdayIndex(monthStart.getDay());
@@ -1293,6 +1325,214 @@ function renderCalendar(events = state.localEvents) {
     calendarState.selectedDate = null;
   }
   renderSelectedDayDetails();
+}
+
+function formatRollingCalendarRange(anchorDate) {
+  const start = startOfDay(anchorDate instanceof Date ? anchorDate : new Date());
+  const end = new Date(start);
+  end.setDate(end.getDate() + ROLLING_WEEK_VISIBLE_DAYS - 1);
+  const startLabel = calendarShortDateFormatter.format(start);
+  const endLabel = calendarShortDateFormatter.format(end);
+  if (start.getFullYear() === end.getFullYear()) {
+    return `${startLabel} – ${endLabel}, ${end.getFullYear()}`;
+  }
+  return `${startLabel}, ${start.getFullYear()} – ${endLabel}, ${end.getFullYear()}`;
+}
+
+function updateCalendarPeriodLabel() {
+  if (!calendarCurrentLabel) return;
+  if (calendarState.viewMode === 'week') {
+    calendarCurrentLabel.textContent = formatRollingCalendarRange(calendarState.rollingAnchorDate);
+  } else {
+    calendarCurrentLabel.textContent = calendarMonthFormatter.format(calendarState.viewDate);
+  }
+}
+
+function renderRollingWeek(events = state.localEvents) {
+  if (!calendarGrid) return;
+  if (calendarGridViewport) calendarGridViewport.dataset.calendarView = 'week';
+  if (calendarDayNames) calendarDayNames.hidden = true;
+  calendarGrid.dataset.rolling = 'true';
+  calendarGrid.innerHTML = '';
+
+  const anchor = startOfDay(calendarState.rollingAnchorDate || new Date());
+  const rangeStart = new Date(anchor);
+  rangeStart.setDate(rangeStart.getDate() - ROLLING_WEEK_BUFFER_DAYS);
+  const totalDays = (ROLLING_WEEK_BUFFER_DAYS * 2) + ROLLING_WEEK_VISIBLE_DAYS;
+  const normalizedEvents = Array.isArray(events) ? events : [];
+  const todayTime = startOfDay(new Date()).getTime();
+  calendarState.dayEvents = new Map();
+
+  for (let index = 0; index < totalDays; index += 1) {
+    const cellDate = new Date(rangeStart);
+    cellDate.setDate(rangeStart.getDate() + index);
+    const cellDayTime = startOfDay(cellDate).getTime();
+    const dayKey = cellDate.toISOString().slice(0, 10);
+    const cell = document.createElement('div');
+    cell.className = 'calendar-view__day calendar-view__day--rolling';
+    cell.setAttribute('role', 'button');
+    cell.setAttribute('tabindex', '0');
+    cell.dataset.date = dayKey;
+    if (index === ROLLING_WEEK_BUFFER_DAYS) cell.dataset.rollingAnchor = 'true';
+    if (cellDayTime === todayTime) {
+      cell.classList.add('calendar-view__day--today');
+      cell.setAttribute('aria-current', 'date');
+    }
+
+    const dateHeader = document.createElement('p');
+    dateHeader.className = 'calendar-view__date calendar-view__date--rolling';
+    const weekday = document.createElement('span');
+    weekday.className = 'calendar-view__rolling-weekday';
+    weekday.textContent = calendarWeekdayFormatter.format(cellDate);
+    const date = document.createElement('span');
+    date.className = 'calendar-view__rolling-date';
+    date.textContent = calendarShortDateFormatter.format(cellDate);
+    dateHeader.append(weekday, date);
+    cell.appendChild(dateHeader);
+
+    const eventsForDay = normalizedEvents.filter(event => {
+      if (!event || typeof event.start !== 'string' || !event.start) return false;
+      const eventDate = new Date(event.start);
+      if (Number.isNaN(eventDate.getTime())) return false;
+      return startOfDay(eventDate).getTime() === cellDayTime;
+    });
+
+    if (eventsForDay.length) {
+      cell.classList.add('calendar-view__day--has-events');
+      const list = document.createElement('ul');
+      list.className = 'calendar-view__events';
+      eventsForDay.slice(0, 6).forEach(event => {
+        const item = document.createElement('li');
+        item.className = 'calendar-view__event';
+        const timeLabel = formatCalendarRange(event);
+        const compactTimeLabel = formatCompactCalendarRange(event);
+        if (timeLabel) {
+          const time = document.createElement('span');
+          time.className = 'calendar-view__event-time';
+          const full = document.createElement('span');
+          full.className = 'calendar-view__event-time-full';
+          full.textContent = timeLabel;
+          const compact = document.createElement('span');
+          compact.className = 'calendar-view__event-time-compact';
+          compact.textContent = compactTimeLabel || timeLabel;
+          time.append(full, compact);
+          item.appendChild(time);
+        }
+        const titleText = event.title || 'Busy';
+        item.setAttribute('aria-label', `${timeLabel ? `${timeLabel}, ` : ''}${titleText}`);
+        const title = document.createElement('span');
+        title.className = 'calendar-view__event-title';
+        title.textContent = titleText;
+        item.appendChild(title);
+        list.appendChild(item);
+      });
+      if (eventsForDay.length > 6) {
+        const more = document.createElement('li');
+        more.className = 'calendar-view__more';
+        more.textContent = `+${eventsForDay.length - 6} more`;
+        list.appendChild(more);
+      }
+      cell.appendChild(list);
+    }
+
+    const labelParts = [calendarFullDateFormatter.format(cellDate)];
+    if (eventsForDay.length === 1) labelParts.push('1 event');
+    else if (eventsForDay.length > 1) labelParts.push(`${eventsForDay.length} events`);
+    eventsForDay.slice(0, 6).forEach(event => {
+      const range = formatCalendarRange(event);
+      labelParts.push(`${range ? `${range} ` : ''}${event.title || 'Busy'}`);
+    });
+    cell.setAttribute('aria-label', labelParts.join(', '));
+    calendarState.dayEvents.set(dayKey, eventsForDay.slice());
+    if (calendarState.selectedDate === dayKey) {
+      cell.classList.add('calendar-view__day--selected');
+      cell.setAttribute('aria-pressed', 'true');
+    } else {
+      cell.setAttribute('aria-pressed', 'false');
+    }
+    calendarGrid.appendChild(cell);
+  }
+
+  updateCalendarPeriodLabel();
+  requestAnimationFrame(() => {
+    if (!calendarGridViewport || calendarState.viewMode !== 'week') return;
+    const anchorCell = calendarGrid.querySelector('[data-rolling-anchor="true"]');
+    if (anchorCell) calendarGridViewport.scrollLeft = Math.max(0, anchorCell.offsetLeft);
+  });
+  renderSelectedDayDetails();
+}
+
+function renderCalendar(events = state.localEvents) {
+  if (calendarState.viewMode === 'week') {
+    renderRollingWeek(events);
+  } else {
+    renderMonthCalendar(events);
+  }
+}
+
+function syncRollingAnchorFromScroll() {
+  if (calendarState.viewMode !== 'week' || !calendarGridViewport || !calendarGrid) return;
+  const cells = Array.from(calendarGrid.querySelectorAll('.calendar-view__day[data-date]'));
+  if (!cells.length) return;
+  const target = calendarGridViewport.scrollLeft + 4;
+  let anchorCell = cells[0];
+  for (const cell of cells) {
+    if (cell.offsetLeft <= target + 2) anchorCell = cell;
+    else break;
+  }
+  const parsed = new Date(`${anchorCell.dataset.date}T00:00:00`);
+  if (!Number.isNaN(parsed.getTime())) {
+    calendarState.rollingAnchorDate = startOfDay(parsed);
+    updateCalendarPeriodLabel();
+  }
+}
+
+function handleRollingCalendarScroll() {
+  if (calendarState.viewMode !== 'week') return;
+  if (rollingScrollTimer) window.clearTimeout(rollingScrollTimer);
+  rollingScrollTimer = window.setTimeout(syncRollingAnchorFromScroll, 90);
+}
+
+function readStoredCalendarViewMode() {
+  try {
+    return localStorage.getItem(CALENDAR_VIEW_MODE_KEY) === 'week' ? 'week' : 'month';
+  } catch (_err) {
+    return 'month';
+  }
+}
+
+function setCalendarViewMode(mode, options = {}) {
+  const nextMode = mode === 'week' ? 'week' : 'month';
+  calendarState.viewMode = nextMode;
+  if (nextMode === 'week') {
+    const selected = calendarState.selectedDate ? new Date(`${calendarState.selectedDate}T00:00:00`) : null;
+    calendarState.rollingAnchorDate = selected && !Number.isNaN(selected.getTime())
+      ? startOfDay(selected)
+      : startOfDay(new Date());
+  } else {
+    const selected = calendarState.selectedDate ? new Date(`${calendarState.selectedDate}T00:00:00`) : null;
+    if (selected && !Number.isNaN(selected.getTime())) calendarState.viewDate = startOfMonth(selected);
+  }
+
+  if (calendarViewTitle) calendarViewTitle.textContent = nextMode === 'week' ? '7 days' : 'Month';
+  calendarViewModeButtons.forEach(button => {
+    const active = button.dataset.calendarViewMode === nextMode;
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    button.classList.toggle('calendar-view__mode-button--active', active);
+  });
+  if (calendarControls) {
+    calendarControls.setAttribute('aria-label', nextMode === 'week' ? 'Change seven day range' : 'Change month');
+  }
+  calendarNavButtons.forEach(button => {
+    const forward = button.dataset.calendarNav === 'next';
+    button.setAttribute('aria-label', nextMode === 'week'
+      ? `${forward ? 'Next' : 'Previous'} seven days`
+      : `${forward ? 'Next' : 'Previous'} month`);
+  });
+  if (options.persist !== false) {
+    try { localStorage.setItem(CALENDAR_VIEW_MODE_KEY, nextMode); } catch (_err) {}
+  }
+  renderCalendar();
 }
 
 function renderSelectedDayDetails() {
@@ -1925,6 +2165,25 @@ function generateLocalId(prefix = 'local') {
   return `${prefix}:${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function remoteEventTitle(provider, raw) {
+  if (!raw || typeof raw !== 'object') return 'Busy';
+  const primary = provider === 'google' ? raw.summary : raw.subject;
+  if (typeof primary === 'string' && primary.trim()) return primary.trim();
+
+  const fallbackCandidates = provider === 'google'
+    ? [raw.location, raw.organizer?.displayName, raw.creator?.displayName]
+    : [raw.location?.displayName, raw.organizer?.emailAddress?.name];
+  const fallback = fallbackCandidates.find(value => typeof value === 'string' && value.trim());
+  if (fallback) return fallback.trim();
+
+  if (provider === 'google') {
+    if (raw.eventType === 'workingLocation') return 'Working location';
+    if (raw.eventType === 'outOfOffice') return 'Out of office';
+    if (raw.eventType === 'focusTime') return 'Focus time';
+  }
+  return 'Busy';
+}
+
 function mapRemoteEvent(provider, raw) {
   if (!raw) return null;
   if (provider === 'google') {
@@ -1934,14 +2193,16 @@ function mapRemoteEvent(provider, raw) {
     return {
       id: `remote:${provider}:${raw.id || `${start || ''}:${end || ''}`}`,
       provider,
-      title: raw.summary || 'Untitled event',
+      title: remoteEventTitle(provider, raw),
       description: raw.description || '',
       start: toISOStringIfPossible(start),
       end: toISOStringIfPossible(end),
       timeZone,
       link: raw.htmlLink || '',
       metadata: {
-        remoteId: raw.id || null
+        remoteId: raw.id || null,
+        remoteEventType: raw.eventType || '',
+        remoteTitleMissing: !(typeof raw.summary === 'string' && raw.summary.trim())
       },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -1954,14 +2215,15 @@ function mapRemoteEvent(provider, raw) {
     return {
       id: `remote:${provider}:${raw.id || `${start || ''}:${end || ''}`}`,
       provider,
-      title: raw.subject || 'Untitled event',
+      title: remoteEventTitle(provider, raw),
       description: raw.bodyPreview || '',
       start: toISOStringIfPossible(start),
       end: toISOStringIfPossible(end),
       timeZone,
       link: raw.webLink || '',
       metadata: {
-        remoteId: raw.id || null
+        remoteId: raw.id || null,
+        remoteTitleMissing: !(typeof raw.subject === 'string' && raw.subject.trim())
       },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -2022,6 +2284,28 @@ async function importCurrentMonthFromProvider(provider) {
   if (provider === 'outlook' && connection.mailbox) payload.mailbox = connection.mailbox;
   const data = await callProvider(provider, payload);
   return importRemoteEvents(provider, data.events || []);
+}
+
+async function refreshUntitledImportedEvents() {
+  if (isSharedCalendar()) return;
+  const providers = Array.from(new Set(
+    state.localEvents
+      .filter(event => (event.provider === 'google' || event.provider === 'outlook') && /^untitled event$/i.test(String(event.title || '').trim()))
+      .map(event => event.provider)
+  ));
+  for (const provider of providers) {
+    if (!state.connections.has(provider)) continue;
+    const before = state.localEvents.filter(event => event.provider === provider && /^untitled event$/i.test(String(event.title || '').trim())).length;
+    try {
+      await importCurrentMonthFromProvider(provider);
+      const after = state.localEvents.filter(event => event.provider === provider && /^untitled event$/i.test(String(event.title || '').trim())).length;
+      if (after < before) {
+        showLog(`Restored ${before - after} event title${before - after === 1 ? '' : 's'} from ${PROVIDERS[provider].label}.`, 'success');
+      }
+    } catch (err) {
+      console.warn(`Unable to refresh untitled ${provider} events`, err);
+    }
+  }
 }
 
 async function handleFetchEvents() {
@@ -2997,24 +3281,32 @@ function initializeCreateEventToggle() {
   updateCreateEventToggleLabel(false);
 }
 
-function changeCalendarMonth(offset) {
-  const next = new Date(calendarState.viewDate);
-  next.setMonth(next.getMonth() + offset);
-  calendarState.viewDate = startOfMonth(next);
-  calendarState.selectedDate = calendarState.viewDate.toISOString().slice(0, 10);
+function changeCalendarPeriod(offset) {
+  if (calendarState.viewMode === 'week') {
+    const next = new Date(calendarState.rollingAnchorDate || new Date());
+    next.setDate(next.getDate() + (offset * ROLLING_WEEK_VISIBLE_DAYS));
+    calendarState.rollingAnchorDate = startOfDay(next);
+    calendarState.selectedDate = calendarState.rollingAnchorDate.toISOString().slice(0, 10);
+  } else {
+    const next = new Date(calendarState.viewDate);
+    next.setMonth(next.getMonth() + offset);
+    calendarState.viewDate = startOfMonth(next);
+    calendarState.selectedDate = calendarState.viewDate.toISOString().slice(0, 10);
+  }
   renderCalendar();
 }
 
 function goToCalendarToday() {
   const now = startOfDay(new Date());
   calendarState.viewDate = startOfMonth(now);
+  calendarState.rollingAnchorDate = now;
   calendarState.selectedDate = now.toISOString().slice(0, 10);
   renderCalendar();
 }
 
 function initializeCalendarView() {
   renderCalendarDayNames();
-  renderCalendar();
+  setCalendarViewMode(readStoredCalendarViewMode(), { persist: false });
 }
 
 function bindEvents() {
@@ -3061,7 +3353,13 @@ function bindEvents() {
   calendarNavButtons.forEach(button => {
     button.addEventListener('click', () => {
       const direction = button.dataset.calendarNav === 'next' ? 1 : -1;
-      changeCalendarMonth(direction);
+      changeCalendarPeriod(direction);
+    });
+  });
+
+  calendarViewModeButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      setCalendarViewMode(button.dataset.calendarViewMode);
     });
   });
 
@@ -3072,6 +3370,10 @@ function bindEvents() {
   if (calendarGrid) {
     calendarGrid.addEventListener('click', handleCalendarGridClick);
     calendarGrid.addEventListener('keydown', handleCalendarGridKeydown);
+  }
+
+  if (calendarGridViewport) {
+    calendarGridViewport.addEventListener('scroll', handleRollingCalendarScroll, { passive: true });
   }
 
   if (addEventForDayButton) {
@@ -3093,8 +3395,9 @@ applyShareModeUi();
 if (initializeSharedCalendar()) {
   showLog('Opening private shared calendar…', 'info');
 } else {
-  ensureDefaultTodayEvent();
+  pruneLegacyAutoSeedEvents();
   setupGunSync();
+  refreshUntitledImportedEvents();
   initializeOwnerShareControls();
   const readyMessage = gunEvents
     ? 'Ready to manage your calendar. Events sync through the 3DVR relay and can connect to Google or Outlook when needed.'

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-test('calendar presents a month-first workspace with secondary tools below', async () => {
+test('calendar presents a schedule-first workspace with secondary tools below', async () => {
   const html = await readFile(new URL('../calendar/index.html', import.meta.url), 'utf8');
 
   assert.match(html, /<header class="calendar-header">/);
@@ -12,7 +12,10 @@ test('calendar presents a month-first workspace with secondary tools below', asy
   assert.match(html, />Connections<\/a>/);
   assert.match(html, /<section class="panel panel--primary" aria-labelledby="calendar-view-title">/);
   assert.match(html, /<div class="calendar-workspace">/);
-  assert.match(html, /<h2 id="calendar-view-title">Month<\/h2>/);
+  assert.match(html, /<h2 id="calendar-view-title" data-calendar-view-title>Month<\/h2>/);
+  assert.match(html, /data-calendar-view-mode="month"/);
+  assert.match(html, /data-calendar-view-mode="week"/);
+  assert.match(html, />7 days<\/button>/);
   assert.match(html, /<aside class="calendar-planner" aria-labelledby="calendar-planner-title">/);
   assert.match(html, /<h2 id="calendar-planner-title">Add event<\/h2>/);
   assert.match(html, /data-label-open="\+ Add event"/);
@@ -28,7 +31,7 @@ test('calendar presents a month-first workspace with secondary tools below', asy
 
   assert.ok(
     html.indexOf('calendar-stage') < html.indexOf('calendar-planner'),
-    'expected the month to appear before the event planner'
+    'expected the calendar view to appear before the event planner'
   );
   assert.ok(
     html.indexOf('panel--primary') < html.indexOf('calendar-rail'),
@@ -109,4 +112,30 @@ test('calendar Google OAuth refreshes tokens and imports the current month after
   assert.match(js, /async function importCurrentMonthFromProvider\(provider\)/);
   assert.match(js, /Importing this month/);
   assert.match(js, /await getFreshConnectionOrWarn\(provider/);
+});
+
+
+test('calendar offers a rolling seven-day view that can be scrolled day by day', async () => {
+  const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../calendar/calendar-v2.css', import.meta.url), 'utf8');
+
+  assert.match(js, /ROLLING_WEEK_VISIBLE_DAYS = 7/);
+  assert.match(js, /function renderRollingWeek\(events = state\.localEvents\)/);
+  assert.match(js, /function handleRollingCalendarScroll\(\)/);
+  assert.match(js, /function syncRollingAnchorFromScroll\(\)/);
+  assert.match(js, /changeCalendarPeriod\(offset\)/);
+  assert.match(css, /\.calendar-view__grid\[data-calendar-view="week"\][\s\S]*?overflow-x:\s*auto;/);
+  assert.match(css, /grid-auto-columns:\s*calc\(\(100% - 42px\) \/ 7\)/);
+  assert.match(css, /scroll-snap-type:\s*x proximity/);
+});
+
+test('calendar repairs stale untitled imports and removes legacy placeholder events', async () => {
+  const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
+
+  assert.match(js, /function remoteEventTitle\(provider, raw\)/);
+  assert.match(js, /raw\.summary/);
+  assert.match(js, /raw\.subject/);
+  assert.match(js, /async function refreshUntitledImportedEvents\(\)/);
+  assert.match(js, /function pruneLegacyAutoSeedEvents\(\)/);
+  assert.doesNotMatch(js, /\n\s*ensureDefaultTodayEvent\(\);/);
 });
