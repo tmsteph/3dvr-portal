@@ -17,6 +17,7 @@ const IMAP_TLS = !/^(0|false|no|off)$/i.test(String(process.env.THREEDVR_INBOX_I
 const MAILBOX = String(process.env.THREEDVR_INBOX_MAILBOX || 'INBOX').trim() || 'INBOX';
 const WEB_REPO = process.env.THREEDVR_FREE_SITE_REPO || 'tmsteph/3dvr-web';
 const PUBLIC_BASE = String(process.env.THREEDVR_FREE_SITE_PUBLIC_BASE || 'https://3dvr.tech/free-sites').replace(/\/+$/, '');
+const WEBSITE_UPGRADE_URL = String(process.env.THREEDVR_WEBSITE_UPGRADE_URL || 'https://buy.stripe.com/aFa6oH85M4lRfVtcMAc7u0j').trim();
 const GENERATOR_URL = process.env.THREEDVR_FREE_SITE_GENERATOR_URL || 'https://portal.3dvr.tech/api/openai-site';
 const LOOKBACK_HOURS = Math.max(1, parseInteger(process.env.THREEDVR_FREE_SITE_LOOKBACK_HOURS, 24));
 const MAX_PER_RUN = Math.max(1, parseInteger(process.env.THREEDVR_FREE_SITE_MAX_PER_RUN, 3));
@@ -321,7 +322,10 @@ async function sendLiveReply(mailAuth, request, siteUrl) {
     '',
     'The simple site is free to keep on the 3DVR-hosted address. Reply with any factual corrections you want changed.',
     '',
-    'Custom domains, more pages, revisions, integrations, and ongoing support are optional upgrades.',
+    'Want us to turn this into your real business website? The 3DVR Website Upgrade is $99 one time:',
+    WEBSITE_UPGRADE_URL,
+    '',
+    'It includes branding and layout polish, copy cleanup, a clear contact or booking action, and help connecting a domain you own.',
     '',
     'If you know someone else who needs a simple site, share https://3dvr.tech/free-sites/.'
   ].join('\n');
