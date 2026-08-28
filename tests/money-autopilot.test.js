@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  addCheckoutAttribution,
+  buildAutopilotReferenceId,
   buildOfferHtml,
   deployOfferToVercel,
   publishOfferToGitHub,
   resolveAutopilotConfig,
-  runAutopilotCycle
+  runAutopilotCycle,
+  selectRevenueBackedOffer
 } from '../src/money/autopilot.js';
 
 function createGithubFetchMock() {
@@ -107,7 +110,7 @@ test('resolveAutopilotConfig defaults to the free page starter profile', () => {
 
   assert.equal(config.market, 'people who need a simple first website for a project, service, or small business');
   assert.equal(config.autoDiscover, false);
-  assert.equal(config.offerProfile, 'free-page-starter');
+  assert.equal(config.offerProfile, 'auto');
   assert.equal(config.analytics.source, 'auto');
 });
 
@@ -406,7 +409,9 @@ test('runAutopilotCycle uses checkout URL as destination fallback', async () => 
     })
   });
 
-  assert.equal(result.publish.destinationUrl, 'https://buy.stripe.com/example123');
+  const checkoutDestination = new URL(result.publish.destinationUrl);
+  assert.equal(`${checkoutDestination.origin}${checkoutDestination.pathname}`, 'https://buy.stripe.com/example123');
+  assert.equal(checkoutDestination.searchParams.get('client_reference_id'), 'money-checkout__free-page-starter');
   assert.equal(result.monetization.checkoutConfigured, true);
   assert.equal(result.monetization.checkoutCtaLabel, 'Keep It Live');
   assert.equal(result.topOpportunity.title, '3DVR Free Page');
@@ -452,4 +457,62 @@ test('runAutopilotCycle uses public free page campaign page when checkout is mis
   assert.equal(result.promotion.destinationUrl, 'https://portal.3dvr.tech/free-page/');
   assert.equal(result.monetization.checkoutConfigured, false);
   assert.match(result.warnings.join('\n'), /free-page/);
+});
+
+test('checkout attribution adds Stripe reconciliation and campaign parameters', () => {
+  const url = addCheckoutAttribution('https://buy.stripe.com/example123', {
+    runId: 'money-20260828-abc',
+    offerProfile: 'website-upgrade'
+  });
+  const parsed = new URL(url);
+
+  assert.equal(buildAutopilotReferenceId('money-20260828-abc', 'website-upgrade'), 'money-20260828-abc__website-upgrade');
+  assert.equal(parsed.searchParams.get('client_reference_id'), 'money-20260828-abc__website-upgrade');
+  assert.equal(parsed.searchParams.get('utm_source'), '3dvr');
+  assert.equal(parsed.searchParams.get('utm_medium'), 'money-autopilot');
+  assert.equal(parsed.searchParams.get('utm_campaign'), 'website-upgrade');
+});
+
+test('revenue-backed offer selection requires meaningful evidence', () => {
+  const oneSmallSale = selectRevenueBackedOffer('auto', {
+    byOffer: [{ offer: 'website-upgrade', paidCheckouts: 1, grossRevenueCents: 9900, checkoutUrl: 'https://buy.stripe.com/upgrade' }]
+  });
+  assert.equal(oneSmallSale.profile, 'free-page-starter');
+
+  const winner = selectRevenueBackedOffer('auto', {
+    byOffer: [{ offer: 'website-upgrade', paidCheckouts: 2, grossRevenueCents: 19800, checkoutUrl: 'https://buy.stripe.com/upgrade' }]
+  });
+  assert.equal(winner.profile, 'website-upgrade');
+  assert.equal(winner.source, 'stripe-revenue');
+  assert.equal(winner.checkoutUrl, 'https://buy.stripe.com/upgrade');
+});
+test('runAutopilotCycle follows a proven Stripe offer and tracks the next checkout', async () => {
+  const result = await runAutopilotCycle({
+    env: {
+      MONEY_AUTOPILOT_PUBLISH: 'false',
+      MONEY_AUTOPILOT_PROMOTION: 'false',
+      MONEY_AUTOPILOT_OFFER_PROFILE: 'auto'
+    },
+    revenue: {
+      enabled: true,
+      byOffer: [{ offer: 'website-upgrade', paidCheckouts: 2, grossRevenueCents: 19800, checkoutUrl: 'https://buy.stripe.com/upgrade' }]
+    },
+    runLoopImpl: async payload => ({
+      runId: 'money-proven-offer',
+      generatedAt: '2026-08-28T00:00:00.000Z',
+      input: payload,
+      warnings: [],
+      signals: [],
+      opportunities: [],
+      adDrafts: [],
+      executionChecklist: []
+    })
+  });
+
+  assert.equal(result.offerSelection.profile, 'website-upgrade');
+  assert.equal(result.offerSelection.source, 'stripe-revenue');
+  assert.equal(result.topOpportunity.title, '3DVR Website Upgrade');
+  assert.equal(result.monetization.checkoutConfigured, true);
+  assert.match(result.monetization.checkoutUrl, /client_reference_id=money-proven-offer__website-upgrade/);
+  assert.match(result.artifacts.offerHtml, /3DVR Website Upgrade/);
 });

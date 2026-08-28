@@ -1,4 +1,5 @@
 import { runAutopilotCycle } from '../../src/money/autopilot.js';
+import { makeStripeClient } from '../../src/billing/stripe.js';
 
 function parseBoolean(value, fallback) {
   if (typeof value === 'boolean') {
@@ -54,6 +55,7 @@ function setHeaders(res) {
 export function createMoneyAutopilotCronHandler(options = {}) {
   const runAutopilotImpl = options.runAutopilotImpl || runAutopilotCycle;
   const config = options.config || process.env;
+  const stripeClient = options.stripeClient || makeStripeClient(config);
 
   return async function handler(req, res) {
     setHeaders(res);
@@ -93,7 +95,8 @@ export function createMoneyAutopilotCronHandler(options = {}) {
         autoDiscover,
         publishEnabled,
         vercelDeploy,
-        promotionEnabled
+        promotionEnabled,
+        stripeClient
       });
 
       return res.status(200).json({
