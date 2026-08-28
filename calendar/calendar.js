@@ -2318,24 +2318,40 @@ function importRemoteEvents(provider, events = []) {
 }
 
 
-async function importCurrentMonthFromProvider(provider) {
+async function importUpcomingScheduleFromProvider(provider, anchorDate = new Date()) {
   if (!PROVIDERS[provider]) return { added: 0, updated: 0, total: 0 };
   const connection = await getFreshConnectionOrWarn(provider, { silent: true });
   if (!connection) return { added: 0, updated: 0, total: 0 };
-  const monthStart = startOfMonth(new Date());
-  const nextMonth = new Date(monthStart);
-  nextMonth.setMonth(nextMonth.getMonth() + 1);
+  const monthStart = startOfMonth(anchorDate instanceof Date ? anchorDate : new Date());
+  const windowEnd = new Date(monthStart);
+  windowEnd.setMonth(windowEnd.getMonth() + 3);
   const payload = {
     action: 'listEvents',
     accessToken: connection.accessToken,
     timeMin: monthStart.toISOString(),
-    timeMax: nextMonth.toISOString(),
+    timeMax: windowEnd.toISOString(),
     maxResults: 100,
   };
   if (provider === 'google') payload.calendarId = connection.calendarId || PROVIDERS.google.defaults.calendarId;
   if (provider === 'outlook' && connection.mailbox) payload.mailbox = connection.mailbox;
   const data = await callProvider(provider, payload);
   return importRemoteEvents(provider, data.events || []);
+}
+
+async function refreshConnectedProviderCalendars() {
+  if (isSharedCalendar()) return;
+  const providers = Array.from(state.connections.keys()).filter(provider => PROVIDERS[provider]);
+  if (!providers.length) return;
+  const results = await Promise.allSettled(
+    providers.map(provider => importUpcomingScheduleFromProvider(provider))
+  );
+  const imported = results.reduce((total, result) => {
+    if (result.status !== 'fulfilled') return total;
+    return total + (result.value?.total || 0);
+  }, 0);
+  if (imported) {
+    showLog(`Synced ${imported} upcoming calendar event${imported === 1 ? '' : 's'}.`, 'success');
+  }
 }
 
 async function refreshUntitledImportedEvents() {
@@ -2349,7 +2365,7 @@ async function refreshUntitledImportedEvents() {
     if (!state.connections.has(provider)) continue;
     const before = state.localEvents.filter(event => event.provider === provider && /^untitled event$/i.test(String(event.title || '').trim())).length;
     try {
-      await importCurrentMonthFromProvider(provider);
+      await importUpcomingScheduleFromProvider(provider);
       const after = state.localEvents.filter(event => event.provider === provider && /^untitled event$/i.test(String(event.title || '').trim())).length;
       if (after < before) {
         showLog(`Restored ${before - after} event title${before - after === 1 ? '' : 's'} from ${PROVIDERS[provider].label}.`, 'success');
@@ -3101,15 +3117,15 @@ function handleOauthConnect(event) {
 function consumePendingOauthResult() {
   const runtime = window.PortalOAuth;
   if (!runtime || typeof runtime.consumePendingResult !== 'function') {
-    return;
+    return false;
   }
   const result = runtime.consumePendingResult();
   if (!result) {
-    return;
+    return false;
   }
   if (!result.ok) {
     showLog(result.error || 'OAuth connection could not be completed.', 'error');
-    return;
+    return true;
   }
   if (typeof runtime.storeConnectionFromResult === 'function') {
     runtime.storeConnectionFromResult(result);
@@ -3118,16 +3134,17 @@ function consumePendingOauthResult() {
     hydrateState();
     const provider = result.provider === 'microsoft' ? 'outlook' : 'google';
     const providerName = provider === 'outlook' ? 'Outlook' : 'Google';
-    showLog(`${providerName} connected. Importing this month…`, 'success');
-    importCurrentMonthFromProvider(provider)
+    showLog(`${providerName} connected. Importing your upcoming schedule…`, 'success');
+    importUpcomingScheduleFromProvider(provider)
       .then(imported => {
         const count = imported?.total || 0;
         showLog(count
-          ? `${providerName} connected and ${count} event${count === 1 ? '' : 's'} loaded for this month.`
-          : `${providerName} connected. No additional events were found for this month.`, 'success');
+          ? `${providerName} connected and ${count} upcoming event${count === 1 ? '' : 's'} loaded.`
+          : `${providerName} connected. Your upcoming schedule is already up to date.`, 'success');
       })
       .catch(err => showLog(`${providerName} connected, but the first calendar import failed: ${err.message || 'Unknown error.'}`, 'error'));
   }
+  return true;
 }
 
 function resetCreateEventFormDirty() {
@@ -3437,7 +3454,7 @@ function bindEvents() {
 
 initializeCalendarView();
 hydrateState();
-consumePendingOauthResult();
+const consumedOauthResult = consumePendingOauthResult();
 hydrateLocalEvents();
 initializeCreateEventToggle();
 hydrateCreateFormDefaults();
@@ -3452,6 +3469,11 @@ if (initializeSharedCalendar()) {
   pruneLegacyAutoSeedEvents();
   setupGunSync();
   refreshUntitledImportedEvents();
+  if (!consumedOauthResult) {
+    refreshConnectedProviderCalendars().catch(err => {
+      console.warn('Unable to refresh connected calendars', err);
+    });
+  }
   initializeOwnerShareControls();
   const readyMessage = gunEvents
     ? 'Ready to manage your calendar. Events sync through the 3DVR relay and can connect to Google or Outlook when needed.'
