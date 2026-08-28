@@ -87,6 +87,8 @@ try {
   assert(response && response.ok(), `Expected ${baseUrl} to return 2xx/3xx`);
 
   await page.waitForSelector('#home-title', { timeout: 10000 });
+  await page.waitForLoadState('networkidle');
+  await page.waitForFunction(() => document.title === '3DVR Portal', null, { timeout: 10000 });
   const pageTitle = await page.title();
   const heading = (await page.locator('#home-title').innerText()).trim();
   const operatorLink = page.locator('.operator-link');
