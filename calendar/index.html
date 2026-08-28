@@ -30,14 +30,6 @@
     <h1 class="calendar-header__title">Calendar</h1>
   </header>
 
-  <div class="install-banner" data-install-banner hidden>
-    <div class="install-banner__text">
-      <p class="install-banner__title">Install Calendar</p>
-      <p class="install-banner__meta">Keep your schedule one tap away.</p>
-    </div>
-    <button type="button" class="install-banner__action" data-install-button>Install</button>
-  </div>
-
   <div class="share-access-banner" data-share-access hidden>
     <div>
       <strong data-share-access-title>Opening shared calendar…</strong>
@@ -59,7 +51,7 @@
               <div class="calendar-view__toolbar">
                 <div class="calendar-view__mode" role="group" aria-label="Calendar view">
                   <button type="button" class="button-secondary" data-calendar-view-mode="month" aria-pressed="true">Month</button>
-                  <button type="button" class="button-secondary" data-calendar-view-mode="week" aria-pressed="false">7 days</button>
+                  <button type="button" class="button-secondary" data-calendar-view-mode="week" aria-pressed="false">Week</button>
                 </div>
                 <div class="calendar-view__controls" role="group" aria-label="Change calendar range">
                   <button type="button" class="button-secondary calendar-nav" data-calendar-nav="prev" aria-label="Previous range">‹</button>
@@ -364,6 +356,15 @@
       </section>
     </aside>
   </main>
+
+
+  <div class="install-banner" data-install-banner hidden>
+    <div class="install-banner__text">
+      <p class="install-banner__title">Install Calendar</p>
+      <p class="install-banner__meta">Keep it one tap away.</p>
+    </div>
+    <button type="button" class="install-banner__action" data-install-button>Install</button>
+  </div>
 
   <template id="event-template">
     <li class="event-card">

@@ -15,7 +15,7 @@ test('calendar presents a schedule-first workspace with secondary tools below', 
   assert.match(html, /<h2 id="calendar-view-title" data-calendar-view-title>Month<\/h2>/);
   assert.match(html, /data-calendar-view-mode="month"/);
   assert.match(html, /data-calendar-view-mode="week"/);
-  assert.match(html, />7 days<\/button>/);
+  assert.match(html, />Week<\/button>/);
   assert.match(html, /<aside class="calendar-planner" aria-labelledby="calendar-planner-title">/);
   assert.match(html, /<h2 id="calendar-planner-title">Add event<\/h2>/);
   assert.match(html, /data-label-open="\+ Add event"/);
@@ -115,7 +115,7 @@ test('calendar Google OAuth refreshes tokens and imports the current month after
 });
 
 
-test('calendar offers a rolling seven-day view that can be scrolled day by day', async () => {
+test('calendar Week view pans naturally and arrows move one day at a time', async () => {
   const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
   const css = await readFile(new URL('../calendar/calendar-v2.css', import.meta.url), 'utf8');
 
@@ -123,10 +123,19 @@ test('calendar offers a rolling seven-day view that can be scrolled day by day',
   assert.match(js, /function renderRollingWeek\(events = state\.localEvents\)/);
   assert.match(js, /function handleRollingCalendarScroll\(\)/);
   assert.match(js, /function syncRollingAnchorFromScroll\(\)/);
-  assert.match(js, /changeCalendarPeriod\(offset\)/);
+  assert.match(js, /function rollingCellScrollLeft\(cell\)/);
+  assert.doesNotMatch(js, /anchorCell\.offsetLeft/);
+  assert.match(js, /next\.setDate\(next\.getDate\(\) \+ offset\)/);
+  assert.doesNotMatch(js, /offset \* ROLLING_WEEK_VISIBLE_DAYS/);
+  assert.match(js, /function startRollingCalendarDrag\(event\)/);
+  assert.match(js, /function moveRollingCalendarDrag\(event\)/);
+  assert.match(js, /suppressCalendarClickAfterDrag/);
   assert.match(css, /\.calendar-view__grid\[data-calendar-view="week"\][\s\S]*?overflow-x:\s*auto;/);
   assert.match(css, /grid-auto-columns:\s*calc\(\(100% - 42px\) \/ 7\)/);
-  assert.match(css, /scroll-snap-type:\s*x proximity/);
+  assert.match(css, /scrollbar-width:\s*none/);
+  assert.match(css, /::-webkit-scrollbar/);
+  assert.match(css, /cursor:\s*grab/);
+  assert.match(css, /scroll-behavior:\s*auto/);
 });
 
 test('calendar repairs stale untitled imports and removes legacy placeholder events', async () => {

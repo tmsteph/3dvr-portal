@@ -1205,13 +1205,25 @@ summary:focus-visible {
 }
 
 .calendar-view__grid[data-calendar-view="week"] {
+  cursor: grab;
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  padding-bottom: 8px;
-  scroll-behavior: smooth;
+  padding-bottom: 0;
+  scroll-behavior: auto;
   scroll-snap-type: x proximity;
-  scrollbar-width: thin;
+  scrollbar-width: none;
   touch-action: pan-x pan-y;
+}
+
+.calendar-view__grid[data-calendar-view="week"]::-webkit-scrollbar {
+  display: none;
+}
+
+.calendar-view__grid[data-calendar-view="week"].is-dragging {
+  cursor: grabbing;
+  scroll-behavior: auto;
+  scroll-snap-type: none;
+  user-select: none;
 }
 
 .calendar-view__grid[data-calendar-view="week"] .calendar-view__grid-inner {

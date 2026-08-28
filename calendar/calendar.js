@@ -71,6 +71,8 @@ const calendarState = {
 };
 const reminderTimers = new Map();
 let rollingScrollTimer = null;
+let rollingDragState = null;
+let suppressCalendarClickAfterDrag = false;
 
 const GUN_PEERS = (typeof window !== 'undefined' && window.__GUN_PEERS__) || [
   'wss://relay.3dvr.tech/gun',
@@ -1457,9 +1459,16 @@ function renderRollingWeek(events = state.localEvents) {
   requestAnimationFrame(() => {
     if (!calendarGridViewport || calendarState.viewMode !== 'week') return;
     const anchorCell = calendarGrid.querySelector('[data-rolling-anchor="true"]');
-    if (anchorCell) calendarGridViewport.scrollLeft = Math.max(0, anchorCell.offsetLeft);
+    if (anchorCell) calendarGridViewport.scrollLeft = Math.max(0, rollingCellScrollLeft(anchorCell));
   });
   renderSelectedDayDetails();
+}
+
+function rollingCellScrollLeft(cell) {
+  if (!cell || !calendarGridViewport) return 0;
+  const viewportRect = calendarGridViewport.getBoundingClientRect();
+  const cellRect = cell.getBoundingClientRect();
+  return calendarGridViewport.scrollLeft + (cellRect.left - viewportRect.left);
 }
 
 function renderCalendar(events = state.localEvents) {
@@ -1477,7 +1486,7 @@ function syncRollingAnchorFromScroll() {
   const target = calendarGridViewport.scrollLeft + 4;
   let anchorCell = cells[0];
   for (const cell of cells) {
-    if (cell.offsetLeft <= target + 2) anchorCell = cell;
+    if (rollingCellScrollLeft(cell) <= target + 2) anchorCell = cell;
     else break;
   }
   const parsed = new Date(`${anchorCell.dataset.date}T00:00:00`);
@@ -1491,6 +1500,45 @@ function handleRollingCalendarScroll() {
   if (calendarState.viewMode !== 'week') return;
   if (rollingScrollTimer) window.clearTimeout(rollingScrollTimer);
   rollingScrollTimer = window.setTimeout(syncRollingAnchorFromScroll, 90);
+}
+
+function startRollingCalendarDrag(event) {
+  if (calendarState.viewMode !== 'week' || !calendarGridViewport) return;
+  if (event.pointerType === 'touch' || event.button !== 0) return;
+  rollingDragState = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startScrollLeft: calendarGridViewport.scrollLeft,
+    moved: false
+  };
+  if (typeof calendarGridViewport.setPointerCapture === 'function') {
+    calendarGridViewport.setPointerCapture(event.pointerId);
+  }
+}
+
+function moveRollingCalendarDrag(event) {
+  if (!rollingDragState || rollingDragState.pointerId !== event.pointerId || !calendarGridViewport) return;
+  const delta = event.clientX - rollingDragState.startX;
+  if (!rollingDragState.moved && Math.abs(delta) < 5) return;
+  rollingDragState.moved = true;
+  calendarGridViewport.classList.add('is-dragging');
+  calendarGridViewport.scrollLeft = rollingDragState.startScrollLeft - delta;
+  event.preventDefault();
+}
+
+function endRollingCalendarDrag(event) {
+  if (!rollingDragState || rollingDragState.pointerId !== event.pointerId || !calendarGridViewport) return;
+  const moved = rollingDragState.moved;
+  if (typeof calendarGridViewport.releasePointerCapture === 'function'
+      && calendarGridViewport.hasPointerCapture?.(event.pointerId)) {
+    calendarGridViewport.releasePointerCapture(event.pointerId);
+  }
+  rollingDragState = null;
+  calendarGridViewport.classList.remove('is-dragging');
+  if (moved) {
+    suppressCalendarClickAfterDrag = true;
+    window.setTimeout(() => { suppressCalendarClickAfterDrag = false; }, 0);
+  }
 }
 
 function readStoredCalendarViewMode() {
@@ -1514,19 +1562,19 @@ function setCalendarViewMode(mode, options = {}) {
     if (selected && !Number.isNaN(selected.getTime())) calendarState.viewDate = startOfMonth(selected);
   }
 
-  if (calendarViewTitle) calendarViewTitle.textContent = nextMode === 'week' ? '7 days' : 'Month';
+  if (calendarViewTitle) calendarViewTitle.textContent = nextMode === 'week' ? 'Week' : 'Month';
   calendarViewModeButtons.forEach(button => {
     const active = button.dataset.calendarViewMode === nextMode;
     button.setAttribute('aria-pressed', active ? 'true' : 'false');
     button.classList.toggle('calendar-view__mode-button--active', active);
   });
   if (calendarControls) {
-    calendarControls.setAttribute('aria-label', nextMode === 'week' ? 'Change seven day range' : 'Change month');
+    calendarControls.setAttribute('aria-label', nextMode === 'week' ? 'Move week view by day' : 'Change month');
   }
   calendarNavButtons.forEach(button => {
     const forward = button.dataset.calendarNav === 'next';
     button.setAttribute('aria-label', nextMode === 'week'
-      ? `${forward ? 'Next' : 'Previous'} seven days`
+      ? `${forward ? 'Next' : 'Previous'} day`
       : `${forward ? 'Next' : 'Previous'} month`);
   });
   if (options.persist !== false) {
@@ -1667,6 +1715,10 @@ function selectCalendarDate(dateString) {
 }
 
 function handleCalendarGridClick(event) {
+  if (suppressCalendarClickAfterDrag) {
+    suppressCalendarClickAfterDrag = false;
+    return;
+  }
   const cell = event.target.closest('.calendar-view__day');
   if (!cell) return;
   const { date } = cell.dataset;
@@ -3284,14 +3336,12 @@ function initializeCreateEventToggle() {
 function changeCalendarPeriod(offset) {
   if (calendarState.viewMode === 'week') {
     const next = new Date(calendarState.rollingAnchorDate || new Date());
-    next.setDate(next.getDate() + (offset * ROLLING_WEEK_VISIBLE_DAYS));
+    next.setDate(next.getDate() + offset);
     calendarState.rollingAnchorDate = startOfDay(next);
-    calendarState.selectedDate = calendarState.rollingAnchorDate.toISOString().slice(0, 10);
   } else {
     const next = new Date(calendarState.viewDate);
     next.setMonth(next.getMonth() + offset);
     calendarState.viewDate = startOfMonth(next);
-    calendarState.selectedDate = calendarState.viewDate.toISOString().slice(0, 10);
   }
   renderCalendar();
 }
@@ -3374,6 +3424,10 @@ function bindEvents() {
 
   if (calendarGridViewport) {
     calendarGridViewport.addEventListener('scroll', handleRollingCalendarScroll, { passive: true });
+    calendarGridViewport.addEventListener('pointerdown', startRollingCalendarDrag);
+    calendarGridViewport.addEventListener('pointermove', moveRollingCalendarDrag);
+    calendarGridViewport.addEventListener('pointerup', endRollingCalendarDrag);
+    calendarGridViewport.addEventListener('pointercancel', endRollingCalendarDrag);
   }
 
   if (addEventForDayButton) {
