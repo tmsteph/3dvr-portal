@@ -6,6 +6,7 @@ const { execFile } = require('child_process');
 const { promisify } = require('util');
 const nodemailer = require('nodemailer');
 const { buildGmailTransportOptions } = require('./gmail-transport');
+const { acquireEmailSend, markEmailSent, markEmailUncertain } = require('./email-idempotency');
 const {
   getCampaignAllowance,
   getFollowupEligibility,
@@ -589,7 +590,7 @@ function createMailTransport() {
   return nodemailer.createTransport(buildGmailTransportOptions(process.env, { user, pass }));
 }
 
-async function sendViaPortalEmail(email, summary, actions) {
+async function sendViaPortalEmail(email, summary, actions, idempotencyKey = '') {
   if (!DEFAULT_PORTAL_EMAIL_ENDPOINT) {
     return { ok: false, reason: 'portal email endpoint not configured' };
   }
@@ -602,9 +603,11 @@ async function sendViaPortalEmail(email, summary, actions) {
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${DEFAULT_PORTAL_EMAIL_TOKEN}`,
+      ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
     },
     body: JSON.stringify({
       mode: 'operator-alert',
+      ...(idempotencyKey ? { idempotencyKey } : {}),
       to: [DEFAULT_NOTIFY_EMAIL],
       subject: email.subject,
       text: email.text,
@@ -652,7 +655,7 @@ async function sendViaPortalEmail(email, summary, actions) {
   };
 }
 
-async function sendViaLocalGmail(email) {
+async function sendViaLocalGmail(email, idempotencyKey = '') {
   const transport = createMailTransport();
   if (!transport) {
     return { ok: false, reason: 'gmail transport not configured' };
@@ -663,6 +666,7 @@ async function sendViaLocalGmail(email) {
     to: DEFAULT_NOTIFY_EMAIL,
     subject: email.subject,
     text: email.text,
+    ...(idempotencyKey ? { messageId: `<3dvr-${idempotencyKey}@3dvr.tech>` } : {}),
   });
 
   return {
@@ -831,37 +835,52 @@ async function sendEmail(summary, actions, state) {
   }
 
   const email = buildEmail(summary, actions);
+  const reservation = acquireEmailSend({
+    from: DEFAULT_GMAIL_USER,
+    to: DEFAULT_NOTIFY_EMAIL,
+    subject: email.subject,
+    text: email.text,
+  });
+  if (!reservation.ok) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: `duplicate notification blocked: ${reservation.reason}`,
+      idempotencyKey: reservation.key,
+    };
+  }
+
   const transportMode = ['portal', 'auto', 'gmail'].includes(DEFAULT_EMAIL_TRANSPORT)
     ? DEFAULT_EMAIL_TRANSPORT
     : 'portal';
 
   let result = null;
-  if (transportMode === 'portal' || transportMode === 'auto') {
-    result = await sendViaPortalEmail(email, summary, actions);
-    if (result.ok) {
-      state.email = {
-        lastHash: decision.fingerprint,
-        lastSentAt: new Date().toISOString(),
-      };
-      return { ok: true, skipped: false, ...result };
+  try {
+    const usePortal = transportMode === 'portal'
+      || (transportMode === 'auto' && DEFAULT_PORTAL_EMAIL_ENDPOINT && DEFAULT_PORTAL_EMAIL_TOKEN);
+    if (usePortal) {
+      result = await sendViaPortalEmail(email, summary, actions, reservation.key);
+    } else {
+      result = await sendViaLocalGmail(email, reservation.key);
     }
-
-    if (transportMode === 'portal') {
-      return { ok: false, skipped: true, reason: result.reason || 'portal email failed', via: 'portal' };
-    }
+  } catch (error) {
+    markEmailUncertain(reservation, error);
+    return { ok: false, skipped: true, reason: error.message || String(error), via: transportMode };
   }
 
-  result = await sendViaLocalGmail(email);
-  if (!result.ok) {
-    return { ok: false, skipped: true, reason: result.reason || 'email transport not configured', via: 'gmail' };
+  if (!result?.ok) {
+    markEmailUncertain(reservation, new Error(result?.reason || 'email send outcome was not confirmed'));
+    return { ok: false, skipped: true, reason: result?.reason || 'email send failed', via: result?.via || transportMode };
   }
 
+  markEmailSent(reservation, { via: result.via || transportMode, runId: summary.runId });
   state.email = {
     lastHash: decision.fingerprint,
     lastSentAt: new Date().toISOString(),
+    idempotencyKey: reservation.key,
   };
 
-  return { ok: true, skipped: false, ...result };
+  return { ok: true, skipped: false, ...result, idempotencyKey: reservation.key };
 }
 
 function serializeAck(ack) {

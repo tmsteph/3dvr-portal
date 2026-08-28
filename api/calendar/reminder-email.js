@@ -4,11 +4,16 @@ import nodemailer from 'nodemailer';
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Operator-Token');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Operator-Token, Idempotency-Key');
 }
 
 function normalizeText(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeIdempotencyKey(value) {
+  const key = normalizeText(value);
+  return /^[A-Za-z0-9._:-]{16,160}$/.test(key) ? key : '';
 }
 
 function normalizeEmail(value) {
@@ -834,6 +839,9 @@ export function createLeadOutreachEmailHandler(options = {}) {
     const senderEmail = normalizeEmail(req.body?.senderEmail || resolveMailCredentials(config).user);
     const inReplyTo = normalizeText(req.body?.inReplyTo);
     const references = normalizeText(req.body?.references);
+    const idempotencyKey = normalizeIdempotencyKey(
+      req.body?.idempotencyKey || req.headers?.['idempotency-key']
+    );
 
     if (!to.length) {
       return res.status(400).json({ error: 'At least one outreach recipient is required.' });
@@ -869,6 +877,7 @@ export function createLeadOutreachEmailHandler(options = {}) {
         references: references || undefined,
         subject,
         text,
+        messageId: idempotencyKey ? `<3dvr-${idempotencyKey}@3dvr.tech>` : undefined,
         html: buildLeadOutreachHtml({
           headline,
           message: text,
@@ -877,7 +886,7 @@ export function createLeadOutreachEmailHandler(options = {}) {
         })
       });
 
-      return res.status(200).json({ success: true, mode: 'lead-outreach' });
+      return res.status(200).json({ success: true, mode: 'lead-outreach', idempotencyKey: idempotencyKey || undefined });
     } catch (error) {
       return res.status(500).json({
         error: error.message || 'Unable to send lead outreach email.'

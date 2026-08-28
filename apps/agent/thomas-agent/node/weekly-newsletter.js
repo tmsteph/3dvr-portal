@@ -1,5 +1,6 @@
 const { ImapFlow } = require('imapflow');
 const { createGmailTransport } = require('./gmail-transport');
+const { acquireEmailSend, markEmailSent, markEmailUncertain } = require('./email-idempotency');
 const DRY_RUN = /^(1|true|yes|on)$/i.test(String(process.env.NEWSLETTER_DRY_RUN || '').trim());
 const FROM = process.env.NEWSLETTER_FROM || process.env.GMAIL_USER || '3dvr.tech@gmail.com';
 const REPLY_TO = process.env.NEWSLETTER_REPLY_TO || '3dvr.tech@gmail.com';
@@ -85,17 +86,29 @@ async function main() {
     const path = `/v1/sends/${encodeURIComponent(week)}/${encodeURIComponent(subscriber.email)}`;
     const prior = await store(path);
     if (prior.send?.status === 'sent') { result.skipped += 1; continue; }
-    await store(path, { method: 'PUT', body: JSON.stringify({ status: DRY_RUN ? 'dry-run' : 'sending' }) });
+    let reservation = null;
+    if (!DRY_RUN) {
+      reservation = acquireEmailSend({ from: FROM, to: subscriber.email, subject: mail.subject, text: mail.text });
+      if (!reservation.ok) {
+        result.skipped += 1;
+        await store(path, { method: 'PUT', body: JSON.stringify({ status: 'duplicate-blocked', idempotencyKey: reservation.key }) });
+        continue;
+      }
+    }
+    await store(path, { method: 'PUT', body: JSON.stringify({ status: DRY_RUN ? 'dry-run' : 'sending', idempotencyKey: reservation?.key || '' }) });
     try {
       if (!DRY_RUN) await transport.sendMail({
         from: FROM, to: subscriber.email, replyTo: REPLY_TO, subject: mail.subject,
         text: mail.text, html: mail.html,
+        ...(reservation?.key ? { messageId: `<3dvr-${reservation.key}@3dvr.tech>` } : {}),
         headers: { 'List-Unsubscribe': `<mailto:${REPLY_TO}?subject=unsubscribe>`, 'Precedence': 'bulk' },
       });
-      await store(path, { method: 'PUT', body: JSON.stringify({ status: DRY_RUN ? 'dry-run' : 'sent', subject: mail.subject }) });
+      if (reservation) markEmailSent(reservation, { week, subscriber: subscriber.email });
+      await store(path, { method: 'PUT', body: JSON.stringify({ status: DRY_RUN ? 'dry-run' : 'sent', subject: mail.subject, idempotencyKey: reservation?.key || '' }) });
       result.sent += 1;
     } catch (error) {
-      await store(path, { method: 'PUT', body: JSON.stringify({ status: 'failed', error: text(error.message).slice(0, 300) }) });
+      if (reservation) markEmailUncertain(reservation, error);
+      await store(path, { method: 'PUT', body: JSON.stringify({ status: 'uncertain', error: text(error.message).slice(0, 300), idempotencyKey: reservation?.key || '' }) });
       result.failed.push({ email: subscriber.email, error: text(error.message).slice(0, 300) });
     }
   }
