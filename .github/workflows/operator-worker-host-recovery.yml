@@ -56,17 +56,17 @@ jobs:
             code="$(curl -sS -o /tmp/droplets.json -w '%{http_code}' -H "Authorization: Bearer $do_token" 'https://api.digitalocean.com/v2/droplets?per_page=200' || true)"
             if [ "$code" = 200 ]; then
               read -r id state ip < <(python3 - "$KNOWN_HOST" <<'PY'
-import json,sys
-known=sys.argv[1]
-data=json.load(open('/tmp/droplets.json'))
-for d in data.get('droplets',[]):
-    ips=[v.get('ip_address','') for v in d.get('networks',{}).get('v4',[]) if v.get('type')=='public']
-    if known in ips or d.get('name')=='3dvr-agent':
-        print(d.get('id',''), d.get('status',''), ips[0] if ips else '')
-        break
-else:
-    print('','','')
-PY
+          import json,sys
+          known=sys.argv[1]
+          data=json.load(open('/tmp/droplets.json'))
+          for d in data.get('droplets',[]):
+              ips=[v.get('ip_address','') for v in d.get('networks',{}).get('v4',[]) if v.get('type')=='public']
+              if known in ips or d.get('name')=='3dvr-agent':
+                  print(d.get('id',''), d.get('status',''), ips[0] if ips else '')
+                  break
+          else:
+              print('','','')
+          PY
               )
               if [ -n "${id:-}" ]; then
                 [ -n "${ip:-}" ] && target="$ip"
@@ -201,9 +201,9 @@ PY
           fi
           target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           payload="$(python3 - "$state" "$description" "$target_url" <<'PY'
-import json,sys
-print(json.dumps({'state':sys.argv[1],'context':'3DVR Operator Worker Recovery','description':sys.argv[2][:140],'target_url':sys.argv[3]}))
-PY
+          import json,sys
+          print(json.dumps({'state':sys.argv[1],'context':'3DVR Operator Worker Recovery','description':sys.argv[2][:140],'target_url':sys.argv[3]}))
+          PY
           )"
           curl -fsS -X POST \
             -H "Authorization: Bearer $GH_TOKEN" \
