@@ -457,6 +457,13 @@ button {
   font-weight: 850;
 }
 
+.woods__characters {
+  align-self: flex-start;
+  margin-top: 8px;
+  color: var(--sand);
+  font-weight: 850;
+}
+
 .archive {
   border-top: 1px solid var(--line);
 }
@@ -704,7 +711,9 @@ button {
     font-size: 0.76rem;
   }
 
-  .topbar__nav a:first-child {
+  .topbar__nav a:first-child,
+  .topbar__nav a:nth-child(3),
+  .topbar__nav a:nth-child(4) {
     display: none;
   }
 
