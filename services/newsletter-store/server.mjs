@@ -3,6 +3,7 @@ import http from 'node:http';
 import Gun from 'gun';
 import { Pool } from 'pg';
 import webpush from 'web-push';
+import { shouldNotifyForChatPublish } from './chat-message-policy.mjs';
 import { sendChatPushProof } from './chat-push-proof.mjs';
 
 const port = Number.parseInt(process.env.PORT || '8787', 10);
@@ -183,8 +184,11 @@ async function publishChatMessage(input) {
     ON CONFLICT (room, message_id) DO NOTHING
   `, [room, messageId, senderId, username || null, text, createdAt.toISOString()]);
 
-  if (rowCount === 1 && await claimChatMessage(room, messageId)) {
-    await sendChatNotifications({ room, messageId, senderId, username, text });
+  if (rowCount === 1) {
+    const claimed = await claimChatMessage(room, messageId);
+    if (claimed && shouldNotifyForChatPublish(input)) {
+      await sendChatNotifications({ room, messageId, senderId, username, text });
+    }
   }
 
   return listChatMessages({ room });
