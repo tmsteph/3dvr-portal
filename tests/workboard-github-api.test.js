@@ -122,6 +122,37 @@ test('Workboard GitHub feed reuses its server-side cache', async () => {
   assert.deepEqual(second.body, first.body);
 });
 
+test('Workboard GitHub feed coalesces concurrent cache misses', async () => {
+  let calls = 0;
+  let releaseFetch;
+  const gate = new Promise(resolve => { releaseFetch = resolve; });
+  globalThis.fetch = async () => {
+    calls += 1;
+    await gate;
+    return {
+      ok: true,
+      status: 200,
+      async json() {
+        return [{ id: 101, number: 42, title: 'Single flight', state: 'open' }];
+      }
+    };
+  };
+
+  const req = { method: 'GET' };
+  const first = createResponse();
+  const second = createResponse();
+  const firstRun = workboardGithubHandler(req, first);
+  const secondRun = workboardGithubHandler(req, second);
+
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls, 1);
+  releaseFetch();
+  await Promise.all([firstRun, secondRun]);
+
+  assert.equal(first.statusCode, 200);
+  assert.deepEqual(second.body, first.body);
+});
+
 test('Workboard GitHub feed returns a controlled error when GitHub fails without cache', async () => {
   globalThis.fetch = async () => ({ ok: false, status: 403 });
 

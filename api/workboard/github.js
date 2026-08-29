@@ -6,6 +6,7 @@ const STALE_TTL_MS = 5 * 60_000;
 
 let cachedFeed = null;
 let cachedAt = 0;
+let refreshPromise = null;
 
 function githubHeaders(config = process.env) {
   const headers = {
@@ -51,9 +52,34 @@ function sendFeed(res, payload, { stale = false } = {}) {
   return res.status(200).json(payload);
 }
 
+async function refreshFeed() {
+  if (!refreshPromise) {
+    const url = `https://api.github.com/repos/${REPOSITORY}/issues?state=all&per_page=${ITEM_LIMIT}&sort=updated&direction=desc`;
+    refreshPromise = (async () => {
+      const response = await fetch(url, { headers: githubHeaders() });
+      if (!response.ok) {
+        const error = new Error('GitHub work feed is temporarily unavailable.');
+        error.status = response.status;
+        throw error;
+      }
+
+      const payload = await response.json();
+      const items = Array.isArray(payload) ? payload.map(normalizeItem).filter(item => item.id) : [];
+      cachedFeed = { ok: true, repository: REPOSITORY, items };
+      cachedAt = Date.now();
+      return cachedFeed;
+    })().finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  return refreshPromise;
+}
+
 export function __resetWorkboardGithubCacheForTests() {
   cachedFeed = null;
   cachedAt = 0;
+  refreshPromise = null;
 }
 
 export default async function handler(req, res) {
@@ -65,29 +91,15 @@ export default async function handler(req, res) {
   const fresh = cachedPayload(CACHE_TTL_MS);
   if (fresh) return sendFeed(res, fresh);
 
-  const url = `https://api.github.com/repos/${REPOSITORY}/issues?state=all&per_page=${ITEM_LIMIT}&sort=updated&direction=desc`;
-
   try {
-    const response = await fetch(url, { headers: githubHeaders() });
-    if (!response.ok) {
-      const stale = cachedPayload(STALE_TTL_MS);
-      if (stale) return sendFeed(res, stale, { stale: true });
-      return res.status(502).json({
-        error: 'GitHub work feed is temporarily unavailable.',
-        status: response.status
-      });
-    }
-
-    const payload = await response.json();
-    const items = Array.isArray(payload) ? payload.map(normalizeItem).filter(item => item.id) : [];
-    cachedFeed = { ok: true, repository: REPOSITORY, items };
-    cachedAt = Date.now();
-    return sendFeed(res, cachedFeed);
+    const payload = await refreshFeed();
+    return sendFeed(res, payload);
   } catch (error) {
     const stale = cachedPayload(STALE_TTL_MS);
     if (stale) return sendFeed(res, stale, { stale: true });
     return res.status(502).json({
-      error: error?.message || 'GitHub work feed is temporarily unavailable.'
+      error: error?.message || 'GitHub work feed is temporarily unavailable.',
+      ...(Number.isFinite(error?.status) ? { status: error.status } : {})
     });
   }
 }
