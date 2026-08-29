@@ -55,11 +55,12 @@ if [ ! -d "$repo/.git" ]; then
   git clone "https://github.com/${GITHUB_REPOSITORY:-tmsteph/3dvr-portal}.git" "$repo"
 fi
 
-git -C "$repo" diff --quiet
-git -C "$repo" diff --cached --quiet
+# This is a dedicated managed deployment clone. Always converge it to origin/main
+# instead of treating local file-mode or generated-file changes as user work.
 git -C "$repo" fetch --prune origin main
-git -C "$repo" checkout main
-git -C "$repo" pull --ff-only origin main
+git -C "$repo" checkout -B main origin/main
+git -C "$repo" reset --hard origin/main
+git -C "$repo" clean -fd
 
 cd "$repo/3dvr-os"
 rm -rf .vercel
