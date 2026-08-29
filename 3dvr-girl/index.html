@@ -3,143 +3,135 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>3DVR Girl Portal</title>
-  <meta name="theme-color" content="#111314">
+  <title>3DVR Girl — Build the Future</title>
+  <meta name="description" content="The evolving visual world of 3DVR Girl: nature, movement, open technology, and the stories between them.">
+  <meta name="theme-color" content="#0b0f0d">
   <link rel="stylesheet" href="styles.css">
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
-<body data-guide="feminine">
-  <main class="girl-shell">
+<body>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="3DVR Girl home">
+      <span class="brand__mark">3DVR</span>
+      <span>Girl</span>
+    </a>
+    <nav class="topbar__nav" aria-label="Page navigation">
+      <a href="#worlds">Worlds</a>
+      <a href="#woods">Woods</a>
+      <a href="#archive">Archive</a>
+      <a class="topbar__portal" href="../index.html">Portal ↗</a>
+    </nav>
+  </header>
+
+  <main id="top">
     <section class="hero" aria-labelledby="pageTitle">
-      <img class="hero__image" id="heroImage" src="assets/portal-arrival.png" alt="3DVR Girl standing inside a glowing blue portal ring">
-      <img class="hero__guide-image" id="heroGuideImage" src="assets/guides/feminine.png" alt="" aria-hidden="true">
-      <div class="hero__portal-brand" aria-hidden="true">
-        <span>3DVR</span>
-      </div>
-      <div class="hero__shade" aria-hidden="true"></div>
-
-      <nav class="hero__nav" aria-label="Page navigation">
-        <a href="../index.html">3DVR</a>
-        <a href="#studio">Studio</a>
-        <a href="#story">Story</a>
-        <a href="#gallery">Scenes</a>
-      </nav>
-
+      <img class="hero__image" src="assets/festival-dance.jpg" alt="3DVR Girl dancing outdoors in warm festival light">
+      <div class="hero__veil" aria-hidden="true"></div>
       <div class="hero__content">
-        <p class="eyebrow">Avatar channel</p>
-        <h1 id="pageTitle">3DVR Girl</h1>
-        <p class="hero__copy">
-          A cleaner portal identity for guided scenes, immersive wellness, and character-led sign-in moments.
-        </p>
-        <div class="hero__actions" aria-label="Featured scenes">
-          <button class="scene-chip is-active" type="button" data-focus-image="portal-arrival">
-            <span aria-hidden="true">01</span>
-            Portal
-          </button>
-          <button class="scene-chip" type="button" data-focus-image="pool-welcome">
-            <span aria-hidden="true">02</span>
-            Refresh
-          </button>
-          <button class="scene-chip" type="button" data-focus-image="meditation-seat">
-            <span aria-hidden="true">03</span>
-            Calm
-          </button>
+        <p class="eyebrow">Character archive / living world</p>
+        <h1 id="pageTitle">3DVR<br>Girl</h1>
+        <p class="hero__copy">Nature. Movement. Open technology that still feels human.</p>
+        <div class="hero__tags" aria-label="Character qualities">
+          <span>Human first</span>
+          <span>Open source</span>
+          <span>Earth + future</span>
         </div>
+        <a class="button" href="#worlds">Enter the world <span aria-hidden="true">↓</span></a>
       </div>
     </section>
 
-    <section class="studio-console" id="studio" aria-label="3DVR Girl studio console">
-      <aside class="signal-panel" id="signal">
-        <p class="eyebrow">Live signal</p>
-        <h2>Portal profile</h2>
-        <div class="signal-meter" aria-label="Portal signal level">
-          <span style="--level: 86%"></span>
-        </div>
-        <dl class="identity-list">
-          <div>
-            <dt>Scene</dt>
-            <dd id="modeLabel">Portal</dd>
-          </div>
-          <div>
-            <dt>Guide</dt>
-            <dd id="guideLabel">Feminine</dd>
-          </div>
-          <div>
-            <dt>Use</dt>
-            <dd>Sign-in atmosphere</dd>
-          </div>
+    <section class="intro section" aria-labelledby="introTitle">
+      <div class="intro__copy">
+        <p class="eyebrow">Who she is</p>
+        <h2 id="introTitle">Not a mascot.<br>A point of view.</h2>
+        <p class="lede">3DVR Girl is the human side of the 3DVR universe: curious, playful, grounded, and willing to walk through the strange new door first.</p>
+        <p>Her world lives between natural materials and digital possibility — beaches, courtyards, festivals, meditation, portals, and now the woods. The technology is present, but it does not need to shout.</p>
+      </div>
+      <aside class="identity-card" aria-label="3DVR Girl character notes">
+        <p class="eyebrow">Field notes</p>
+        <dl>
+          <div><dt>Energy</dt><dd>Warm, adventurous, calm</dd></div>
+          <div><dt>Look</dt><dd>Messy blonde bun, subtle blue accents</dd></div>
+          <div><dt>Materials</dt><dd>Cream linen, crochet, natural textures</dd></div>
+          <div><dt>Signal</dt><dd>Technology in service of life</dd></div>
         </dl>
       </aside>
-
-      <section class="stage" aria-live="polite">
-        <div class="stage__media">
-          <img id="stageImage" src="assets/portal-arrival.png" alt="Selected 3DVR Girl scene">
-          <div class="stage__glow" aria-hidden="true"></div>
-        </div>
-        <div class="stage__caption">
-          <p class="eyebrow" id="stageKicker">Portal ring</p>
-          <h2 id="stageTitle">Next-level immersion</h2>
-          <p id="stageCopy">Bright ring, studio posture, and an instant 3DVR read for the main entry point.</p>
-        </div>
-      </section>
-
-      <aside class="guide-panel">
-        <p class="eyebrow">Sign-in atmosphere</p>
-        <h2 class="guide-title">Choose your guide</h2>
-        <p class="guide-copy">
-          Pick the presence that greets users as the portal opens.
-        </p>
-
-        <div class="guide-preview" id="guidePreview" aria-live="polite">
-          <img id="guidePreviewImage" src="assets/guides/feminine.png" alt="Cartoon feminine 3DVR guide inside a soft portal ring">
-          <div>
-            <p class="eyebrow" id="guidePreviewKicker">Feminine guide</p>
-            <h3 id="guidePreviewTitle">Warm studio presence</h3>
-            <p id="guidePreviewCopy">Soft, focused, and human-forward for a calm portal greeting.</p>
-          </div>
-        </div>
-
-        <div class="guide-grid" id="guideGrid" aria-label="Choose your guide"></div>
-        <p class="guide-note" id="guideNote">Feminine guide selected.</p>
-      </aside>
     </section>
 
-    <section class="story-section" id="story" aria-labelledby="storyTitle">
-      <div class="story-media">
-        <img src="assets/3dvr-girl-kala-forest.webp" alt="3DVR Girl and Kala standing together on a wooded trail">
-      </div>
-      <div class="story-copy">
-        <p class="eyebrow">Field lore / unofficial canon</p>
-        <h2 id="storyTitle">The Woods Chapter</h2>
-        <p class="story-lede">The portal had always opened into light. This time, it opened into trees.</p>
-        <p>3DVR Girl followed the signal past the last mapped node, where the network thinned into moss, cedar, and old paths with no coordinates. That was where she met Kala — not another avatar or a copy, but a keeper of a different layer of the system.</p>
-        <p>Kala called it the Root Network: the part of reality that was connected long before anyone invented cables. She taught 3DVR Girl to listen for patterns in wind, water, and memory. In return, 3DVR Girl showed Kala how to carry those patterns through the portal without flattening them into data.</p>
-        <p>By sunset, they understood the same thing from opposite directions: technology and nature were never enemies. They were two interfaces to the same living system.</p>
-        <p class="story-ending">And somewhere deeper in the woods, another portal woke up.</p>
-        <div class="story-characters" aria-label="The Woods Chapter characters">
-          <article>
-            <span>01</span>
-            <h3>3DVR Girl</h3>
-            <p>Portal traveler. Builder. Carries the signal into new worlds.</p>
-          </article>
-          <article>
-            <span>02</span>
-            <h3>Kala</h3>
-            <p>Forest guide. Root Network keeper. Listens for the system that was already there.</p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section class="gallery-section" id="gallery" aria-labelledby="galleryTitle">
+    <section class="worlds section" id="worlds" aria-labelledby="worldsTitle">
       <div class="section-heading">
-        <p class="eyebrow">Scene set</p>
-        <h2 id="galleryTitle">Choose the portal frame</h2>
+        <div>
+          <p class="eyebrow">Four modes</p>
+          <h2 id="worldsTitle">One character.<br>Different worlds.</h2>
+        </div>
+        <p>Less glowing-logo sci-fi. More places you can almost step into.</p>
       </div>
-      <div class="scene-rail" id="sceneRail" aria-label="Scene quick select"></div>
-      <div class="gallery-grid" id="galleryGrid"></div>
+
+      <div class="world-grid">
+        <figure class="world-card world-card--wide">
+          <img src="assets/festival-dance.jpg" alt="3DVR Girl dancing at an outdoor festival" loading="lazy">
+          <figcaption><span>01</span><strong>Movement</strong><small>Music, people, freedom.</small></figcaption>
+        </figure>
+        <figure class="world-card">
+          <img src="assets/pool-welcome.png" alt="3DVR Girl relaxing in a sunlit pool" loading="lazy">
+          <figcaption><span>02</span><strong>Water</strong><small>Reset the system.</small></figcaption>
+        </figure>
+        <figure class="world-card">
+          <img src="assets/meditation-seat.png" alt="3DVR Girl seated in meditation" loading="lazy">
+          <figcaption><span>03</span><strong>Stillness</strong><small>Listen before building.</small></figcaption>
+        </figure>
+        <figure class="world-card world-card--wide world-card--portal">
+          <img src="assets/portal-arrival.png" alt="3DVR Girl standing inside a blue portal" loading="lazy">
+          <figcaption><span>04</span><strong>Portal</strong><small>The future, used sparingly.</small></figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="woods section" id="woods" aria-labelledby="woodsTitle">
+      <div class="woods__media">
+        <img src="assets/3dvr-girl-kala-forest.webp" alt="3DVR Girl and Kala standing together on a wooded trail" loading="lazy">
+      </div>
+      <div class="woods__copy">
+        <p class="eyebrow">Field lore / The Woods Chapter</p>
+        <h2 id="woodsTitle">Then the portal opened into trees.</h2>
+        <p class="lede">Past the last mapped node, 3DVR Girl met Kala — keeper of the Root Network.</p>
+        <p>Kala called it the layer that was connected before anyone invented cables: patterns carried through soil, wind, water, memory, and living things. 3DVR Girl showed her a portal. Kala showed her that the network was already everywhere.</p>
+        <p>By sunset they understood the same thing from opposite directions: nature and technology were never enemies. They were two interfaces to the same living system.</p>
+        <div class="character-pair" aria-label="The Woods Chapter characters">
+          <div><span>3DVR Girl</span><small>Portal traveler · builder · signal carrier</small></div>
+          <div><span>Kala</span><small>Forest guide · Root Network keeper</small></div>
+        </div>
+        <p class="woods__ending">Somewhere deeper in the woods, another portal woke up.</p>
+      </div>
+    </section>
+
+    <section class="archive section" id="archive" aria-labelledby="archiveTitle">
+      <div class="section-heading archive__heading">
+        <div>
+          <p class="eyebrow">Scene archive</p>
+          <h2 id="archiveTitle">More of her world.</h2>
+        </div>
+        <p>Tap a scene to open it full-size.</p>
+      </div>
+      <div class="filters" id="sceneFilters" aria-label="Filter scene archive"></div>
+      <div class="archive-grid" id="archiveGrid"></div>
     </section>
   </main>
+
+  <dialog class="scene-dialog" id="sceneDialog" aria-labelledby="dialogTitle">
+    <button class="scene-dialog__close" id="dialogClose" type="button" aria-label="Close scene">×</button>
+    <div class="scene-dialog__media"><img id="dialogImage" alt=""></div>
+    <div class="scene-dialog__copy">
+      <p class="eyebrow" id="dialogMode"></p>
+      <h2 id="dialogTitle"></h2>
+      <p id="dialogCopy"></p>
+    </div>
+  </dialog>
+
+  <footer class="footer">
+    <p>3DVR Girl is an evolving fictional character in the 3DVR world.</p>
+    <a href="../index.html">Back to 3DVR Portal →</a>
+  </footer>
 
   <script src="app.js"></script>
   <script defer src="/issue-launcher.js"></script>
