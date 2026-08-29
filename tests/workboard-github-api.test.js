@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
 
-import workboardGithubHandler from '../api/workboard/github.js';
+import workboardGithubHandler, { __resetWorkboardGithubCacheForTests } from '../api/workboard/github.js';
 
 const originalFetch = globalThis.fetch;
 
@@ -27,6 +27,7 @@ function createResponse() {
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  __resetWorkboardGithubCacheForTests();
 });
 
 test('Workboard GitHub feed rejects non-GET requests', async () => {
@@ -98,7 +99,30 @@ test('Workboard GitHub feed normalizes issues and pull requests', async () => {
   assert.match(String(res.headers.get('cache-control')), /s-maxage=60/);
 });
 
-test('Workboard GitHub feed returns a controlled error when GitHub fails', async () => {
+test('Workboard GitHub feed reuses its server-side cache', async () => {
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return {
+      ok: true,
+      status: 200,
+      async json() {
+        return [{ id: 101, number: 42, title: 'Cached item', state: 'open' }];
+      }
+    };
+  };
+
+  const req = { method: 'GET' };
+  const first = createResponse();
+  const second = createResponse();
+  await workboardGithubHandler(req, first);
+  await workboardGithubHandler(req, second);
+
+  assert.equal(calls, 1);
+  assert.deepEqual(second.body, first.body);
+});
+
+test('Workboard GitHub feed returns a controlled error when GitHub fails without cache', async () => {
   globalThis.fetch = async () => ({ ok: false, status: 403 });
 
   const req = { method: 'GET' };
