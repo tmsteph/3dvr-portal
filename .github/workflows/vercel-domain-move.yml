@@ -1,0 +1,94 @@
+name: Move 3DVR domain to 3dvr team
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/vercel-domain-move.yml'
+
+permissions:
+  contents: read
+
+env:
+  DEV_HOST: 167.71.156.94
+  SSH_USER: root
+
+jobs:
+  move-and-attach:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Resolve server SSH key
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          key=''
+          for candidate in "$SSH_A" "$SSH_B" "$SSH_C"; do
+            if [ -z "$key" ] && [ -n "$candidate" ]; then key="$candidate"; fi
+          done
+          [ -n "$key" ] || { echo '::error::No 3DVR SSH key configured.'; exit 1; }
+          umask 077
+          printf '%s\n' "$key" > /tmp/key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/key.raw; then
+            cp /tmp/key.raw /tmp/key
+          else
+            base64 -d /tmp/key.raw > /tmp/key
+          fi
+          chmod 600 /tmp/key
+
+      - name: Move domain ownership and attach OS
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i /tmp/key -o BatchMode=yes -o StrictHostKeyChecking=accept-new root@$DEV_HOST 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          cli=(npx --yes vercel@latest)
+
+          echo 'Confirming source ownership...'
+          "${cli[@]}" domains inspect 3dvr.tech --scope tmstephs-projects >/tmp/3dvr-domain-before.txt
+          cat /tmp/3dvr-domain-before.txt
+
+          echo 'Moving 3dvr.tech ownership to the 3dvr team...'
+          printf 'y\n' | "${cli[@]}" domains move 3dvr.tech 3dvr --scope tmstephs-projects
+
+          echo 'Confirming target ownership...'
+          "${cli[@]}" domains inspect 3dvr.tech --scope 3dvr
+
+          repo="$HOME/.3dvr/portal"
+          mkdir -p "$HOME/.3dvr"
+          if [ ! -d "$repo/.git" ]; then
+            git clone https://github.com/tmsteph/3dvr-portal.git "$repo"
+          fi
+          git -C "$repo" reset --hard
+          git -C "$repo" clean -fd
+          git -C "$repo" fetch --prune origin main
+          git -C "$repo" checkout -B main origin/main
+          git -C "$repo" reset --hard origin/main
+          git -C "$repo" clean -fd
+
+          cd "$repo/3dvr-os"
+          rm -rf .vercel
+          "${cli[@]}" link --yes --project 3dvr-os --scope 3dvr
+          "${cli[@]}" domains add os.3dvr.tech 3dvr-os --scope 3dvr --force
+          deploy_url="$("${cli[@]}" deploy --prod --yes --scope 3dvr)"
+          "${cli[@]}" alias set "$deploy_url" os.3dvr.tech --scope 3dvr
+
+          echo "Deployment URL: $deploy_url"
+          curl --fail --silent --show-error --location --retry 12 --retry-delay 5 --retry-all-errors \
+            "$deploy_url" -o /tmp/3dvr-os-deploy.html
+          grep -q 'Daedalos' /tmp/3dvr-os-deploy.html
+
+          curl --fail --silent --show-error --location --retry 18 --retry-delay 5 --retry-all-errors \
+            https://os.3dvr.tech/ -o /tmp/3dvr-os-domain.html
+          grep -q 'Daedalos' /tmp/3dvr-os-domain.html
+          echo '3DVR OS is live at https://os.3dvr.tech/'
+          REMOTE
+
+      - name: Cleanup
+        if: always()
+        run: rm -f /tmp/key /tmp/key.raw
