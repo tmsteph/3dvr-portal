@@ -123,6 +123,7 @@
               <option value="ideas">💡 Ideas</option>
               <option value="support">🛟 Support</option>
               <option value="random">🎲 Random</option>
+              <option value="test">🧪 Test</option>
             </select>
           </div>
           <p id="room-description" class="chat-card__hint">All-hands updates and daily announcements.</p>
@@ -204,6 +205,10 @@ const ROOM_DETAILS = {
   random: {
     label: '#random',
     description: 'Celebrate wins, share memes, and connect between sprints.'
+  },
+  test: {
+    label: '#test',
+    description: 'Manual experiments and diagnostics. No push notifications.'
   }
 };
 const initialChatTarget = parseChatTarget(window.location.hash);
@@ -1278,7 +1283,7 @@ async function ensurePushSubscription({ verifyDelivery = false } = {}) {
 
   const result = await callChatPushApi('subscribe', {
     userId,
-    rooms: getAvailableChatRooms(),
+    rooms: getAvailableChatRooms().filter(room => room !== 'test'),
     subscription: subscription.toJSON(),
     userAgent: navigator.userAgent,
     verifyDelivery: verifyDelivery || createdSubscription
