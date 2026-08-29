@@ -5,7 +5,7 @@ mkdir -p "$LOG_DIR"
 sleep 15
 
 termux-wake-lock >/dev/null 2>&1 || true
-/system/bin/am start --user 0 -n com.termux/.app.TermuxActivity >/dev/null 2>&1 || true
+am start --user 0 -n com.termux/.app.TermuxActivity >/dev/null 2>&1 || true
 
 if ! pgrep -f 'desktop-commander.* remote' >/dev/null 2>&1; then
   if [ -x "$HOME/bin/start-desktop-commander-remote" ]; then

@@ -54,3 +54,13 @@ test('Termux install creates Android boot startup', () => {
   assert.match(boot, /3dvr agent start/);
   assert.match(boot, /3dvr-desktop start/);
 });
+
+test('Termux activity launches use the Termux am compatibility wrapper', () => {
+  const start = read('3dvr-desktop/scripts/start-termux.sh');
+  const boot = read('3dvr-desktop/scripts/termux-boot.sh');
+
+  assert.match(start, /\nam start .*com\.termux\.x11/);
+  assert.match(boot, /\nam start .*com\.termux\//);
+  assert.doesNotMatch(start, /\/system\/bin\/am start/);
+  assert.doesNotMatch(boot, /\/system\/bin\/am start/);
+});
