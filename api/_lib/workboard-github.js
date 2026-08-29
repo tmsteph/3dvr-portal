@@ -84,7 +84,7 @@ export function __resetWorkboardGithubCacheForTests() {
 
 export function createWorkboardGithubHandler(options = {}) {
   const {
-    fetchImpl = globalThis.fetch,
+    fetchImpl,
     config = process.env
   } = options;
 
@@ -98,7 +98,10 @@ export function createWorkboardGithubHandler(options = {}) {
     if (fresh) return sendFeed(res, fresh);
 
     try {
-      const payload = await refreshFeed({ fetchImpl, config });
+      const payload = await refreshFeed({
+        fetchImpl: fetchImpl || ((...args) => globalThis.fetch(...args)),
+        config
+      });
       return sendFeed(res, payload);
     } catch (error) {
       const stale = cachedPayload(STALE_TTL_MS);
