@@ -58,6 +58,8 @@
   <p class="lede">A tiny, reusable graphical desktop environment for phones, VMs, and Linux machines.</p>
   <div class="actions">
     <a class="button primary" href="./README.md">Install / source</a>
+    <a class="button" href="./ARCHITECTURE.md">Architecture</a>
+    <a class="button" href="./TROUBLESHOOTING.md">Recovery</a>
     <a class="button" href="../3dvr-os/">Open Daedalos web desktop</a>
   </div>
 
@@ -65,14 +67,14 @@
     <div class="screen">
       <div class="window">
         <div class="titlebar">Terminal — 3DVR Desktop</div>
-        <div class="terminal"><b>tmsteph@3dvr</b>:~$ 3dvr-desktop doctor<br>ok&nbsp;&nbsp;&nbsp;openbox<br>ok&nbsp;&nbsp;&nbsp;tint2<br>ok&nbsp;&nbsp;&nbsp;rofi<br>ok&nbsp;&nbsp;&nbsp;xterm</div>
+        <div class="terminal"><b>you@3dvr</b>:~$ 3dvr-desktop doctor<br>ok&nbsp;&nbsp;&nbsp;3dvr-shell<br>ok&nbsp;&nbsp;&nbsp;Termux:Boot<br>ok&nbsp;&nbsp;&nbsp;3DVR Companion bridge<br><br>$ 3dvr-desktop probe-x11</div>
       </div>
       <div class="panel"><span class="app">3D</span><span class="app">▤</span><span class="app">›_</span><span class="clock">10:32</span></div>
     </div>
   </section>
 
   <section class="grid">
-    <article class="card"><h2>Phone</h2><p>Termux:X11 + XFWM4 + our native GTK 3dvr-shell, built directly on Android without requiring proot.</p></article>
+    <article class="card"><h2>Phone</h2><p>Termux:X11 + XFWM4 + native GTK 3dvr-shell, with unlock-aware boot recovery and a permissioned Android bridge.</p></article>
     <article class="card"><h2>VM</h2><p>Our tiny Debian lab is the safe reference machine for building and testing the desktop.</p></article>
     <article class="card"><h2>Linux</h2><p>Run it directly on Debian-family machines through normal Xorg and the same config.</p></article>
   </section>

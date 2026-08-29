@@ -30,6 +30,7 @@ class MainActivity : FlutterActivity() {
         "gmail" to listOf("com.google.android.gm"),
         "chrome" to listOf("com.android.chrome"),
         "termux" to listOf("com.termux"),
+        "termux_x11" to listOf("com.termux.x11"),
         "calendar" to listOf("com.google.android.calendar", "com.samsung.android.calendar"),
         "camera" to listOf("com.sec.android.app.camera", "com.google.android.GoogleCamera"),
     )

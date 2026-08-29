@@ -25,36 +25,29 @@ case "$command" in
     exec rofi -show drun -show-icons
     ;;
   doctor)
-    missing=0
     if is_termux; then
-      for name in termux-x11 xfwm4 xfsettingsd wmctrl clang pkg-config; do
-        if command -v "$name" >/dev/null 2>&1; then
-          printf 'ok   %s\n' "$name"
-        else
-          printf 'miss %s\n' "$name"
-          missing=1
-        fi
-      done
-      if [ -x "$HOME/3dvr-shell/3dvr-shell" ]; then
-        printf 'ok   3dvr-shell\n'
+      exec "$ROOT/scripts/doctor-termux.sh"
+    fi
+    missing=0
+    for name in openbox tint2 rofi xterm; do
+      if command -v "$name" >/dev/null 2>&1; then
+        printf 'ok   %s\n' "$name"
       else
-        printf 'miss 3dvr-shell\n'
+        printf 'miss %s\n' "$name"
         missing=1
       fi
-    else
-      for name in openbox tint2 rofi xterm; do
-        if command -v "$name" >/dev/null 2>&1; then
-          printf 'ok   %s\n' "$name"
-        else
-          printf 'miss %s\n' "$name"
-          missing=1
-        fi
-      done
-    fi
+    done
     exit "$missing"
     ;;
+  probe-x11)
+    if ! is_termux; then
+      echo 'probe-x11 is only available on the Termux target.' >&2
+      exit 2
+    fi
+    exec "$ROOT/scripts/probe-termux-x11.sh"
+    ;;
   *)
-    echo 'usage: 3dvr-desktop [start|launcher|doctor]' >&2
+    echo 'usage: 3dvr-desktop [start|launcher|doctor|probe-x11]' >&2
     exit 2
     ;;
 esac
