@@ -1,6 +1,6 @@
 # Calendar deployment
 
-`calendar/` is deployed as the standalone Vercel project `3dvr-portal-calendar`.
+`calendar/` is deployed as the standalone Vercel project `3dvr-calendar` in the `3dvr` team.
 
 Production URL: `https://calendar.3dvr.tech/`
 
