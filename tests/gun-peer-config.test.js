@@ -40,6 +40,15 @@ describe('Gun peer configuration', () => {
     }
   });
 
+  it('lets isolated browser tests disable the default Gun relays', async () => {
+    const sharedInit = await read('gun-init.js');
+    const chatE2e = await read('tests/chat-cross-browser.e2e.test.js');
+
+    assert.match(sharedInit, /__DISABLE_GUN_DEFAULT_PEERS__/);
+    assert.match(sharedInit, /disableDefaultPeers \? \[\] : defaultPeers/);
+    assert.match(chatE2e, /__DISABLE_GUN_DEFAULT_PEERS__ = true/);
+  });
+
   it('does not let Chat try the dead relay before the working Fly relay', async () => {
     const source = await read('chat/index.html');
 
