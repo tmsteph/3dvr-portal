@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 env:
-  DEV_HOST: 104.248.213.186
+  DEV_HOST: 167.71.156.94
   SSH_USER: root
 
 jobs:
@@ -47,9 +47,6 @@ jobs:
             exit 1
           fi
           chmod 600 /tmp/3dvr-server-key
-          ssh-keygen -y -f /tmp/3dvr-server-key > /tmp/3dvr-server-key.pub
-          echo "AUTOMATION_PUBLIC_KEY=$(cat /tmp/3dvr-server-key.pub)"
-          echo "AUTOMATION_KEY_FINGERPRINT=$(ssh-keygen -lf /tmp/3dvr-server-key.pub | awk '{print $2}')"
 
       - name: Start persistent Vercel device login on 3dvr-dev
         shell: bash
@@ -131,4 +128,4 @@ jobs:
 
       - name: Remove SSH key
         if: always()
-        run: rm -f /tmp/3dvr-server-key /tmp/3dvr-server-key.raw /tmp/3dvr-server-key.pub
+        run: rm -f /tmp/3dvr-server-key /tmp/3dvr-server-key.raw
