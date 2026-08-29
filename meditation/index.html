@@ -3,357 +3,464 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>3DVR Meditation — Be Here</title>
-  <meta name="description" content="A quiet visual meditation space from 3DVR: breathe, soften your focus, and stay as long as you like." />
-  <meta name="theme-color" content="#071521" />
+  <title>3DVR Meditation — The Journey</title>
+  <meta name="description" content="A living meditation world from 3DVR. Breathe, wander, collect light, and let the experience deepen over time." />
+  <meta name="theme-color" content="#050913" />
   <script defer src="/_vercel/insights/script.js"></script>
   <style>
     :root {
       color-scheme: dark;
-      --ink: #e7f0ea;
-      --muted: rgba(231, 240, 234, .64);
-      --line: rgba(231, 240, 234, .14);
-      --panel: rgba(4, 18, 28, .40);
-      --glow: rgba(153, 222, 201, .38);
+      --ink: #eef7f5;
+      --muted: rgba(238,247,245,.66);
+      --line: rgba(238,247,245,.16);
+      --panel: rgba(4,10,22,.38);
+      --glow: rgba(139,235,220,.44);
     }
-
     * { box-sizing: border-box; }
-    html, body { margin: 0; min-height: 100%; background: #06131e; }
+    html, body { margin: 0; width: 100%; min-height: 100%; background: #050913; }
     body {
       min-height: 100svh;
       overflow: hidden;
       font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: var(--ink);
-      background:
-        radial-gradient(circle at 18% 20%, rgba(53, 116, 113, .33), transparent 36%),
-        radial-gradient(circle at 85% 78%, rgba(61, 78, 128, .28), transparent 40%),
-        linear-gradient(160deg, #05111b 0%, #0a1c25 50%, #07131e 100%);
+      background: radial-gradient(circle at 50% 45%, #0d2034 0%, #070d1c 52%, #03050b 100%);
     }
-
-    .sky,
-    .wash,
-    .vignette { position: fixed; inset: 0; pointer-events: none; }
-    .sky { width: 100%; height: 100%; opacity: .58; }
-
-    .wash::before,
-    .wash::after {
-      content: "";
-      position: absolute;
-      width: 56vmax;
-      height: 56vmax;
-      border-radius: 50%;
-      filter: blur(70px);
-      opacity: .18;
-      animation: drift 28s ease-in-out infinite alternate;
+    #world { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+    .vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(circle at center, transparent 34%, rgba(0,0,0,.52) 100%); z-index: 2; }
+    .hud { position: fixed; inset: 0; z-index: 3; pointer-events: none; display: grid; grid-template-rows: auto 1fr auto; padding: clamp(.8rem,2vw,1.4rem); }
+    header, footer { display:flex; justify-content:space-between; align-items:center; gap:1rem; color:var(--muted); font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; }
+    a { color: inherit; text-decoration:none; pointer-events:auto; }
+    a:hover { color:var(--ink); }
+    .journey { display:flex; align-items:center; gap:.7rem; min-width:0; }
+    .stage-name { color:var(--ink); white-space:nowrap; }
+    .progress { width:min(30vw,220px); height:4px; border-radius:999px; overflow:hidden; background:rgba(255,255,255,.12); }
+    .progress > span { display:block; width:0%; height:100%; border-radius:inherit; background:linear-gradient(90deg, rgba(142,229,212,.7), rgba(174,155,255,.92)); transition:width 1s linear; }
+    .center { display:grid; place-items:center; text-align:center; }
+    .practice { width:min(92vw,700px); display:grid; justify-items:center; gap:.65rem; transform:translateY(4vh); pointer-events:none; }
+    .orb-wrap { width:min(26vw,170px); aspect-ratio:1; position:relative; display:grid; place-items:center; transition:opacity 1.2s ease, transform 1.2s ease; }
+    .orb-ring, .orb, .orb-core { position:absolute; border-radius:50%; will-change:transform,opacity; }
+    .orb-ring { inset:2%; border:1px solid rgba(226,255,248,.25); box-shadow:0 0 70px rgba(92,196,176,.14); animation:breatheRing 12s ease-in-out infinite; }
+    .orb { inset:17%; background:radial-gradient(circle at 35% 28%, rgba(255,255,255,.92), rgba(153,226,211,.42) 25%, rgba(98,122,211,.22) 58%, rgba(0,0,0,0) 76%); box-shadow:0 0 64px var(--glow), inset 0 0 40px rgba(255,255,255,.18); animation:breathe 12s ease-in-out infinite; }
+    .orb-core { inset:42%; background:#f7ffff; box-shadow:0 0 28px rgba(214,255,247,.85); animation:corePulse 3s ease-in-out infinite; }
+    @keyframes breathe { 0%,100% {transform:scale(.72);opacity:.66} 48%,56% {transform:scale(1.18);opacity:1} }
+    @keyframes breatheRing { 0%,100% {transform:scale(.82);opacity:.25} 48%,56% {transform:scale(1.1);opacity:.82} }
+    @keyframes corePulse { 0%,100% {transform:scale(.7);opacity:.65} 50% {transform:scale(1.15);opacity:1} }
+    .breath-label { margin:0; min-height:1.4em; color:rgba(238,247,245,.78); font-size:clamp(.75rem,1.8vw,.9rem); letter-spacing:.24em; text-transform:uppercase; transition:opacity .7s ease; }
+    h1 { margin:.2rem 0 0; font-size:clamp(1.8rem,5vw,4rem); line-height:.95; font-weight:430; letter-spacing:-.045em; transition:opacity 1s ease; }
+    .thought { margin:.3rem 0 0; max-width:34rem; min-height:2.8em; color:var(--muted); font-size:clamp(.9rem,2vw,1.08rem); line-height:1.55; transition:opacity 1s ease; }
+    .bottom { display:flex; justify-content:space-between; align-items:flex-end; gap:1rem; }
+    .stats { display:flex; gap:.55rem; flex-wrap:wrap; }
+    .chip, button { border:1px solid var(--line); background:var(--panel); color:var(--muted); border-radius:999px; padding:.55rem .8rem; backdrop-filter:blur(12px); font:inherit; }
+    .chip strong { color:var(--ink); font-weight:600; }
+    .controls { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:.45rem; pointer-events:auto; }
+    button { cursor:pointer; transition:.2s ease; text-transform:uppercase; letter-spacing:.08em; font-size:.68rem; }
+    button:hover, button:focus-visible { color:var(--ink); border-color:rgba(238,247,245,.34); background:rgba(12,24,42,.72); outline:none; }
+    .hint { position:fixed; left:50%; bottom:5.6rem; transform:translateX(-50%); z-index:4; pointer-events:none; color:rgba(238,247,245,.48); font-size:.68rem; letter-spacing:.1em; text-transform:uppercase; text-align:center; transition:opacity 1s ease; }
+    .flash { position:fixed; inset:0; z-index:5; pointer-events:none; opacity:0; background:radial-gradient(circle at center, rgba(188,255,246,.24), transparent 42%); transition:opacity .18s ease; }
+    .flash.on { opacity:1; }
+    .stage-toast { position:fixed; inset:0; z-index:6; pointer-events:none; display:grid; place-items:center; opacity:0; transition:opacity 1.2s ease; }
+    .stage-toast.show { opacity:1; }
+    .stage-toast div { text-align:center; text-shadow:0 0 30px rgba(0,0,0,.85); }
+    .stage-toast small { display:block; color:rgba(238,247,245,.62); letter-spacing:.22em; text-transform:uppercase; margin-bottom:.5rem; }
+    .stage-toast strong { font-size:clamp(2.2rem,8vw,6.5rem); font-weight:400; letter-spacing:-.04em; }
+    body.words-hidden h1, body.words-hidden .thought, body.words-hidden .breath-label { opacity:0; }
+    body.words-hidden .orb-wrap { transform:scale(1.14); opacity:.84; }
+    body.interface-hidden header, body.interface-hidden footer, body.interface-hidden .hint { opacity:0; }
+    header, footer, .hint { transition:opacity .6s ease; }
+    .fallback { display:none; position:fixed; inset:0; z-index:10; place-items:center; padding:2rem; text-align:center; background:radial-gradient(circle,#132539,#050913 70%); }
+    .fallback.show { display:grid; }
+    @media (max-width:700px) {
+      .hud { padding:.8rem; }
+      header span:last-child { display:none; }
+      .progress { width:27vw; }
+      .practice { transform:translateY(1vh); }
+      .orb-wrap { width:min(38vw,155px); }
+      .bottom { align-items:flex-end; }
+      .stats { max-width:46vw; }
+      .chip { padding:.48rem .64rem; }
+      footer { font-size:.62rem; }
+      .hint { bottom:6.8rem; width:90%; }
     }
-
-    .wash::before {
-      left: -16vmax;
-      top: -18vmax;
-      background: #5ea493;
-    }
-
-    .wash::after {
-      right: -21vmax;
-      bottom: -20vmax;
-      background: #626fa4;
-      animation-duration: 34s;
-      animation-direction: alternate-reverse;
-    }
-
-    .vignette {
-      background: radial-gradient(circle at center, transparent 30%, rgba(0, 0, 0, .37) 100%);
-    }
-
-    @keyframes drift {
-      from { transform: translate3d(-2vw, -1vh, 0) scale(.96); }
-      to   { transform: translate3d(7vw, 6vh, 0) scale(1.12); }
-    }
-
-    main {
-      position: relative;
-      z-index: 2;
-      min-height: 100svh;
-      display: grid;
-      grid-template-rows: auto 1fr auto;
-      padding: clamp(1rem, 3vw, 2.2rem);
-    }
-
-    header,
-    footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      font-size: .82rem;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    a { color: inherit; text-decoration: none; }
-    a:hover { color: var(--ink); }
-
-    .center {
-      display: grid;
-      place-items: center;
-      text-align: center;
-    }
-
-    .practice {
-      width: min(92vw, 720px);
-      display: grid;
-      justify-items: center;
-      gap: clamp(1rem, 3vh, 1.8rem);
-    }
-
-    .orb-wrap {
-      width: min(46vw, 280px);
-      aspect-ratio: 1;
-      display: grid;
-      place-items: center;
-      position: relative;
-      transition: transform 1.2s ease;
-    }
-
-    .orb-ring,
-    .orb {
-      position: absolute;
-      border-radius: 50%;
-      will-change: transform, opacity;
-    }
-
-    .orb-ring {
-      inset: 4%;
-      border: 1px solid rgba(219, 245, 235, .20);
-      box-shadow: 0 0 90px rgba(102, 187, 164, .12);
-      animation: breathe-ring 12s ease-in-out infinite;
-    }
-
-    .orb {
-      inset: 18%;
-      background:
-        radial-gradient(circle at 34% 28%, rgba(246, 255, 250, .68), rgba(151, 218, 198, .24) 30%, rgba(79, 139, 129, .10) 66%, rgba(0,0,0,0) 76%);
-      box-shadow:
-        0 0 60px var(--glow),
-        inset 0 0 44px rgba(233, 255, 247, .15);
-      animation: breathe 12s ease-in-out infinite;
-    }
-
-    @keyframes breathe {
-      0%, 100% { transform: scale(.72); opacity: .68; }
-      48%, 56% { transform: scale(1.18); opacity: 1; }
-    }
-
-    @keyframes breathe-ring {
-      0%, 100% { transform: scale(.82); opacity: .25; }
-      48%, 56% { transform: scale(1.08); opacity: .78; }
-    }
-
-    .breath-label {
-      min-height: 1.4em;
-      margin: 0;
-      font-size: clamp(.84rem, 2vw, 1rem);
-      letter-spacing: .22em;
-      text-transform: uppercase;
-      color: rgba(231, 240, 234, .74);
-      transition: opacity .8s ease;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: clamp(2rem, 7vw, 5rem);
-      line-height: .95;
-      font-weight: 450;
-      letter-spacing: -.045em;
-    }
-
-    .thought {
-      max-width: 32rem;
-      min-height: 3.2em;
-      margin: 0;
-      font-size: clamp(1rem, 2.6vw, 1.3rem);
-      line-height: 1.55;
-      color: var(--muted);
-      transition: opacity 1.2s ease;
-    }
-
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: .55rem;
-    }
-
-    button {
-      border: 1px solid var(--line);
-      background: var(--panel);
-      color: var(--muted);
-      border-radius: 999px;
-      padding: .7rem 1rem;
-      font: inherit;
-      cursor: pointer;
-      backdrop-filter: blur(12px);
-      transition: background .2s ease, color .2s ease, border-color .2s ease;
-    }
-
-    button:hover,
-    button:focus-visible {
-      color: var(--ink);
-      border-color: rgba(231, 240, 234, .28);
-      background: rgba(9, 29, 39, .66);
-      outline: none;
-    }
-
-    body.words-hidden h1,
-    body.words-hidden .thought,
-    body.words-hidden .breath-label { opacity: 0; }
-    body.words-hidden .orb-wrap { transform: scale(1.12); }
-
-    @media (max-width: 600px) {
-      main { padding: 1rem; }
-      header span:last-child { display: none; }
-      footer { font-size: .7rem; }
-      .orb-wrap { width: min(58vw, 250px); }
-    }
-
     @media (prefers-reduced-motion: reduce) {
-      .wash::before, .wash::after, .orb, .orb-ring { animation: none; }
-      .orb { transform: scale(.92); }
+      .orb, .orb-ring, .orb-core { animation:none; }
+      .orb { transform:scale(.94); }
     }
   </style>
 </head>
 <body>
-  <canvas class="sky" aria-hidden="true"></canvas>
-  <div class="wash" aria-hidden="true"></div>
+  <canvas id="world" aria-label="Interactive meditation world"></canvas>
   <div class="vignette" aria-hidden="true"></div>
+  <div class="flash" id="flash" aria-hidden="true"></div>
+  <div class="stage-toast" id="stageToast" aria-live="polite"><div><small>going deeper</small><strong id="toastName">Awakening</strong></div></div>
 
-  <main>
+  <div class="hud">
     <header>
-      <a href="../index.html">3dvr · meditation</a>
-      <span>nothing to accomplish here</span>
+      <div class="journey">
+        <a href="../index.html">3dvr · meditation</a>
+        <span class="stage-name" id="stageName">Stillness</span>
+        <span class="progress" aria-hidden="true"><span id="progressBar"></span></span>
+      </div>
+      <span id="elapsed">00:00</span>
     </header>
 
-    <section class="center" aria-label="Meditation space">
+    <section class="center" aria-label="Meditation guide">
       <div class="practice">
-        <div class="orb-wrap" aria-hidden="true">
-          <div class="orb-ring"></div>
-          <div class="orb"></div>
-        </div>
+        <div class="orb-wrap" aria-hidden="true"><div class="orb-ring"></div><div class="orb"></div><div class="orb-core"></div></div>
         <p class="breath-label" id="breathLabel">breathe in</p>
-        <h1>Be here.</h1>
-        <p class="thought" id="thought">You do not need to solve the next hour from inside this minute.</p>
-        <div class="controls" aria-label="Meditation controls">
-          <button type="button" id="wordsButton">Hide words</button>
-          <button type="button" id="fullscreenButton">Fullscreen</button>
-          <button type="button" id="resetButton">New thought</button>
-        </div>
+        <h1 id="mainTitle">Be here.</h1>
+        <p class="thought" id="thought">The world can move without you for a moment.</p>
       </div>
     </section>
 
-    <footer>
-      <span>inhale · soften · exhale</span>
-      <span>stay as long as you like</span>
+    <footer class="bottom">
+      <div class="stats" aria-label="Journey stats">
+        <span class="chip">light <strong id="lightCount">0</strong></span>
+        <span class="chip">depth <strong id="depthCount">1</strong>/5</span>
+      </div>
+      <div class="controls" aria-label="Meditation controls">
+        <button type="button" id="wordsButton">hide words</button>
+        <button type="button" id="uiButton">hide ui</button>
+        <button type="button" id="deeperButton">go deeper</button>
+        <button type="button" id="fullscreenButton">fullscreen</button>
+      </div>
     </footer>
-  </main>
+  </div>
 
-  <script>
-    (() => {
-      const thoughts = [
-        "You do not need to solve the next hour from inside this minute.",
-        "Let the world keep moving without you for a moment.",
-        "Notice the space around the thought, not only the thought.",
-        "Your breath is already happening. You can simply notice it.",
-        "Soften your eyes. Unclench what can unclench.",
-        "Nothing is asking you to hurry here.",
-        "The next useful thing can wait until after this breath.",
-        "Feel gravity holding you without effort.",
-        "For one minute, existence is enough.",
-        "You are allowed to simply observe."
-      ];
+  <p class="hint" id="hint">move the mouse · drag on touch · WASD / arrows · collect the lights</p>
+  <div class="fallback" id="fallback"><div><h1>Be here.</h1><p>Your browser could not start the 3D journey. The breathing space still belongs to you.</p></div></div>
 
-      const thought = document.getElementById("thought");
-      const breathLabel = document.getElementById("breathLabel");
-      const wordsButton = document.getElementById("wordsButton");
-      const fullscreenButton = document.getElementById("fullscreenButton");
-      const resetButton = document.getElementById("resetButton");
-      let thoughtIndex = 0;
+  <script type="module">
+    const thoughts = [
+      "The world can move without you for a moment.",
+      "Let your attention become wider than the thought.",
+      "There is nowhere else this breath needs to go.",
+      "Notice what is already quiet underneath the noise.",
+      "Soft eyes. Loose jaw. Heavy shoulders.",
+      "You do not have to chase the light. Let it find you.",
+      "Awareness can move without effort.",
+      "The boundary between observer and world can soften.",
+      "Stay curious. Nothing here needs a name.",
+      "Go gently. Deeper does not mean faster."
+    ];
 
-      function newThought() {
-        thoughtIndex = (thoughtIndex + 1 + Math.floor(Math.random() * (thoughts.length - 1))) % thoughts.length;
-        thought.style.opacity = 0;
-        setTimeout(() => {
-          thought.textContent = thoughts[thoughtIndex];
-          thought.style.opacity = 1;
-        }, 700);
-      }
+    const stages = [
+      { name:"Stillness", at:0, title:"Be here.", fog:0x07101c, bg:0x040914, speed:.42, stars:1, rings:0, portal:0 },
+      { name:"Awakening", at:90, title:"Open.", fog:0x081426, bg:0x050b19, speed:.58, stars:1.3, rings:1, portal:0 },
+      { name:"Flow", at:240, title:"Drift.", fog:0x0b1230, bg:0x07091c, speed:.78, stars:1.7, rings:2, portal:.25 },
+      { name:"Vision", at:480, title:"See through.", fog:0x120d31, bg:0x08071c, speed:1.0, stars:2.1, rings:4, portal:.7 },
+      { name:"Beyond", at:900, title:"Become the space.", fog:0x170a2b, bg:0x070514, speed:1.18, stars:2.7, rings:7, portal:1 }
+    ];
 
-      resetButton.addEventListener("click", newThought);
-      setInterval(newThought, 30000);
+    const stageName = document.getElementById("stageName");
+    const depthCount = document.getElementById("depthCount");
+    const progressBar = document.getElementById("progressBar");
+    const elapsed = document.getElementById("elapsed");
+    const thought = document.getElementById("thought");
+    const breathLabel = document.getElementById("breathLabel");
+    const mainTitle = document.getElementById("mainTitle");
+    const lightCount = document.getElementById("lightCount");
+    const wordsButton = document.getElementById("wordsButton");
+    const uiButton = document.getElementById("uiButton");
+    const deeperButton = document.getElementById("deeperButton");
+    const fullscreenButton = document.getElementById("fullscreenButton");
+    const hint = document.getElementById("hint");
+    const flash = document.getElementById("flash");
+    const stageToast = document.getElementById("stageToast");
+    const toastName = document.getElementById("toastName");
+    const fallback = document.getElementById("fallback");
+    const canvas = document.getElementById("world");
+    const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-      wordsButton.addEventListener("click", () => {
-        document.body.classList.toggle("words-hidden");
-        wordsButton.textContent = document.body.classList.contains("words-hidden") ? "Show words" : "Hide words";
+    let sessionStart = performance.now();
+    let stageBoost = 0;
+    let currentStage = 0;
+    let collected = 0;
+    let thoughtIndex = 0;
+    let stageToastTimer;
+
+    function formatTime(s) {
+      const m = Math.floor(s/60).toString().padStart(2,"0");
+      const sec = Math.floor(s%60).toString().padStart(2,"0");
+      return `${m}:${sec}`;
+    }
+
+    function sessionSeconds() { return (performance.now()-sessionStart)/1000 + stageBoost; }
+
+    function resolveStage(sec) {
+      let i = 0;
+      for (let n=0;n<stages.length;n++) if (sec >= stages[n].at) i=n;
+      return i;
+    }
+
+    function stageProgress(sec, index) {
+      if (index >= stages.length-1) return 1;
+      const a=stages[index].at, b=stages[index+1].at;
+      return Math.max(0,Math.min(1,(sec-a)/(b-a)));
+    }
+
+    function showStageToast(index) {
+      toastName.textContent = stages[index].name;
+      stageToast.classList.add("show");
+      clearTimeout(stageToastTimer);
+      stageToastTimer=setTimeout(()=>stageToast.classList.remove("show"),2600);
+    }
+
+    function nextThought() {
+      thoughtIndex=(thoughtIndex+1+Math.floor(Math.random()*(thoughts.length-1)))%thoughts.length;
+      thought.style.opacity=0;
+      setTimeout(()=>{ thought.textContent=thoughts[thoughtIndex]; thought.style.opacity=1; },650);
+    }
+    setInterval(nextThought,32000);
+
+    wordsButton.addEventListener("click",()=>{
+      document.body.classList.toggle("words-hidden");
+      wordsButton.textContent=document.body.classList.contains("words-hidden")?"show words":"hide words";
+    });
+    uiButton.addEventListener("click",()=>{
+      document.body.classList.toggle("interface-hidden");
+      uiButton.textContent=document.body.classList.contains("interface-hidden")?"show ui":"hide ui";
+    });
+    fullscreenButton.addEventListener("click",async()=>{
+      try { if(!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen(); } catch(_){}
+    });
+    deeperButton.addEventListener("click",()=>{
+      const next=Math.min(stages.length-1,currentStage+1);
+      if(next===currentStage) { pulseFlash(); return; }
+      stageBoost=Math.max(stageBoost,stages[next].at-(performance.now()-sessionStart)/1000+.1);
+    });
+
+    function pulseFlash(){ flash.classList.add("on"); setTimeout(()=>flash.classList.remove("on"),170); }
+
+    function updateBreath(){
+      const phase=(performance.now()/1000)%12;
+      breathLabel.textContent=phase<5.5?"breathe in":phase<6.5?"rest":"breathe out";
+      requestAnimationFrame(updateBreath);
+    }
+    requestAnimationFrame(updateBreath);
+
+    let THREE;
+    try {
+      THREE = await import("https://cdn.jsdelivr.net/npm/three@0.185.1/+esm");
+    } catch (error) {
+      console.error(error);
+      fallback.classList.add("show");
+      throw error;
+    }
+
+    const renderer = new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:"high-performance"});
+    renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+    renderer.setSize(innerWidth,innerHeight,false);
+    renderer.outputColorSpace=THREE.SRGBColorSpace;
+    renderer.toneMapping=THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure=1.15;
+
+    const scene=new THREE.Scene();
+    scene.background=new THREE.Color(stages[0].bg);
+    scene.fog=new THREE.FogExp2(stages[0].fog,.018);
+    const camera=new THREE.PerspectiveCamera(68,innerWidth/innerHeight,.1,700);
+    camera.position.set(0,2.2,12);
+
+    const rig=new THREE.Group();
+    scene.add(rig);
+    rig.add(camera);
+
+    const hemi=new THREE.HemisphereLight(0x9edfff,0x130c27,.72);
+    scene.add(hemi);
+    const coreLight=new THREE.PointLight(0x9affec,4,80,1.6);
+    coreLight.position.set(0,4,-18);
+    scene.add(coreLight);
+
+    const starGroup=new THREE.Group();
+    scene.add(starGroup);
+    const starGeo=new THREE.BufferGeometry();
+    const starCount=2400;
+    const pos=new Float32Array(starCount*3);
+    const sizes=new Float32Array(starCount);
+    for(let i=0;i<starCount;i++){
+      const r=45+Math.random()*260;
+      const theta=Math.random()*Math.PI*2;
+      const phi=Math.acos(THREE.MathUtils.randFloatSpread(2));
+      pos[i*3]=r*Math.sin(phi)*Math.cos(theta);
+      pos[i*3+1]=r*Math.cos(phi)*.7+20;
+      pos[i*3+2]=r*Math.sin(phi)*Math.sin(theta)-60;
+      sizes[i]=Math.random();
+    }
+    starGeo.setAttribute("position",new THREE.BufferAttribute(pos,3));
+    const starMat=new THREE.PointsMaterial({color:0xcdeeff,size:.42,transparent:true,opacity:.7,sizeAttenuation:true,depthWrite:false,blending:THREE.AdditiveBlending});
+    const stars=new THREE.Points(starGeo,starMat);
+    starGroup.add(stars);
+
+    const dustGeo=new THREE.BufferGeometry();
+    const dustCount=900;
+    const dustPos=new Float32Array(dustCount*3);
+    for(let i=0;i<dustCount;i++){
+      dustPos[i*3]=THREE.MathUtils.randFloatSpread(44);
+      dustPos[i*3+1]=THREE.MathUtils.randFloat(-4,18);
+      dustPos[i*3+2]=THREE.MathUtils.randFloat(-130,18);
+    }
+    dustGeo.setAttribute("position",new THREE.BufferAttribute(dustPos,3));
+    const dustMat=new THREE.PointsMaterial({color:0x71e9d5,size:.12,transparent:true,opacity:.26,depthWrite:false,blending:THREE.AdditiveBlending});
+    const dust=new THREE.Points(dustGeo,dustMat); scene.add(dust);
+
+    const floorGeo=new THREE.PlaneGeometry(220,300,70,100);
+    floorGeo.rotateX(-Math.PI/2);
+    const fp=floorGeo.attributes.position;
+    for(let i=0;i<fp.count;i++){
+      const x=fp.getX(i), z=fp.getZ(i);
+      const edge=Math.min(1,Math.abs(x)/70);
+      const wave=Math.sin(x*.18)+Math.cos(z*.11)+Math.sin((x+z)*.08);
+      fp.setY(i,-4.2+wave*.35+edge*5.5+Math.pow(edge,2)*8);
+    }
+    floorGeo.computeVertexNormals();
+    const floorMat=new THREE.MeshStandardMaterial({color:0x0b1f30,roughness:.82,metalness:.15,transparent:true,opacity:.72,wireframe:false});
+    const floor=new THREE.Mesh(floorGeo,floorMat); floor.position.z=-90; scene.add(floor);
+
+    const wireMat=new THREE.MeshBasicMaterial({color:0x256c7c,wireframe:true,transparent:true,opacity:.08,blending:THREE.AdditiveBlending});
+    const wireFloor=new THREE.Mesh(floorGeo.clone(),wireMat); wireFloor.position.copy(floor.position); wireFloor.position.y=.04; scene.add(wireFloor);
+
+    const orbGroup=new THREE.Group();
+    orbGroup.position.set(0,4,-22);
+    scene.add(orbGroup);
+    const bigOrb=new THREE.Mesh(new THREE.IcosahedronGeometry(4.2,5),new THREE.MeshPhysicalMaterial({color:0x6bdcc8,emissive:0x244c75,emissiveIntensity:1.2,transparent:true,opacity:.24,roughness:.05,metalness:.1,transmission:.2,depthWrite:false}));
+    orbGroup.add(bigOrb);
+    const orbWire=new THREE.Mesh(new THREE.IcosahedronGeometry(4.7,2),new THREE.MeshBasicMaterial({color:0xa8fff0,wireframe:true,transparent:true,opacity:.12,blending:THREE.AdditiveBlending}));
+    orbGroup.add(orbWire);
+
+    const ringGroup=new THREE.Group(); ringGroup.position.copy(orbGroup.position); scene.add(ringGroup);
+    const rings=[];
+    for(let i=0;i<7;i++){
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(6.8+i*1.35,.035,8,160),new THREE.MeshBasicMaterial({color:i%2?0x9f83ff:0x62ffe2,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+      ring.rotation.set(Math.PI/2+(i%3)*.26,i*.33,i*.17);
+      rings.push(ring); ringGroup.add(ring);
+    }
+
+    const portal=new THREE.Group(); portal.position.set(0,4,-76); scene.add(portal);
+    const portalCore=new THREE.Mesh(new THREE.CircleGeometry(8.2,96),new THREE.MeshBasicMaterial({color:0xa26eff,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+    portal.add(portalCore);
+    const portalRing=new THREE.Mesh(new THREE.TorusGeometry(9.5,.14,12,160),new THREE.MeshBasicMaterial({color:0x7cffe8,transparent:true,opacity:0,blending:THREE.AdditiveBlending})); portal.add(portalRing);
+
+    const geometryGroup=new THREE.Group(); geometryGroup.position.set(0,5,-44); scene.add(geometryGroup);
+    for(let i=0;i<5;i++){
+      const g=new THREE.Mesh(new THREE.TorusKnotGeometry(6+i*.65,.018,180,12,2+i%2,3),new THREE.MeshBasicMaterial({color:i%2?0xc591ff:0x8ffff1,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+      g.rotation.set(i*.32,i*.51,i*.14); geometryGroup.add(g);
+    }
+
+    const moteGeo=new THREE.SphereGeometry(.18,10,10);
+    const moteMat=new THREE.MeshBasicMaterial({color:0xbffff4,transparent:true,opacity:.95,blending:THREE.AdditiveBlending});
+    const motes=[];
+    function resetMote(mote, far=true){
+      const angle=Math.random()*Math.PI*2;
+      const radius=4+Math.random()*13;
+      mote.position.set(Math.cos(angle)*radius,THREE.MathUtils.randFloat(-1,11),far?THREE.MathUtils.randFloat(-85,-20):THREE.MathUtils.randFloat(-30,-8));
+      mote.userData.phase=Math.random()*Math.PI*2;
+      mote.userData.baseY=mote.position.y;
+      mote.scale.setScalar(.6+Math.random()*1.1);
+    }
+    for(let i=0;i<28;i++){
+      const m=new THREE.Mesh(moteGeo,moteMat.clone());
+      m.material.color.setHSL(.46+Math.random()*.22,.8,.72);
+      resetMote(m,false); motes.push(m); scene.add(m);
+    }
+
+    const pulseGroup=new THREE.Group(); scene.add(pulseGroup);
+    function createPulse(){
+      const p=new THREE.Mesh(new THREE.RingGeometry(.4,.46,64),new THREE.MeshBasicMaterial({color:0xcffff6,transparent:true,opacity:.75,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false}));
+      p.position.copy(camera.getWorldPosition(new THREE.Vector3()));
+      p.quaternion.copy(camera.getWorldQuaternion(new THREE.Quaternion()));
+      p.translateZ(-3);
+      p.userData.life=1; pulseGroup.add(p);
+    }
+
+    const input={x:0,y:0,tx:0,ty:0,forward:0,strafe:0,up:0};
+    let pointerDown=false,lastX=0,lastY=0;
+    function pointerMove(x,y,drag=false){
+      if(drag){ input.tx+= (x-lastX)*.0028; input.ty+=(y-lastY)*.0028; }
+      else { input.tx=(x/innerWidth-.5)*.72; input.ty=(y/innerHeight-.5)*.42; }
+      input.tx=THREE.MathUtils.clamp(input.tx,-1.2,1.2); input.ty=THREE.MathUtils.clamp(input.ty,-.8,.8); lastX=x; lastY=y;
+    }
+    canvas.addEventListener("pointerdown",e=>{pointerDown=true;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture?.(e.pointerId);createPulse();});
+    canvas.addEventListener("pointermove",e=>pointerMove(e.clientX,e.clientY,pointerDown||e.pointerType==="touch"));
+    canvas.addEventListener("pointerup",()=>pointerDown=false);
+    canvas.addEventListener("pointercancel",()=>pointerDown=false);
+    canvas.addEventListener("dblclick",createPulse);
+
+    const keys=new Set();
+    addEventListener("keydown",e=>{ if(["INPUT","TEXTAREA","BUTTON"].includes(document.activeElement?.tagName)) return; keys.add(e.key.toLowerCase()); if(e.code==="Space"){e.preventDefault();createPulse();} });
+    addEventListener("keyup",e=>keys.delete(e.key.toLowerCase()));
+
+    let hintTimer=setTimeout(()=>hint.style.opacity="0",14000);
+    function collectMote(m){
+      collected++; lightCount.textContent=collected; pulseFlash(); resetMote(m,true);
+      stageBoost+=Math.min(7,1.2+currentStage*.5);
+    }
+
+    function resize(){ renderer.setPixelRatio(Math.min(devicePixelRatio||1,2)); renderer.setSize(innerWidth,innerHeight,false); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); }
+    addEventListener("resize",resize,{passive:true});
+
+    const clock=new THREE.Clock();
+    const temp=new THREE.Vector3();
+    function animate(){
+      const dt=Math.min(.05,clock.getDelta());
+      const t=performance.now()*.001;
+      const sec=sessionSeconds();
+      const nextStage=resolveStage(sec);
+      if(nextStage!==currentStage){ currentStage=nextStage; showStageToast(currentStage); nextThought(); }
+      const st=stages[currentStage];
+      stageName.textContent=st.name; depthCount.textContent=currentStage+1; mainTitle.textContent=st.title;
+      progressBar.style.width=`${stageProgress(sec,currentStage)*100}%`;
+      elapsed.textContent=formatTime((performance.now()-sessionStart)/1000);
+
+      input.forward=(keys.has("w")||keys.has("arrowup")?1:0)-(keys.has("s")||keys.has("arrowdown")?1:0);
+      input.strafe=(keys.has("d")||keys.has("arrowright")?1:0)-(keys.has("a")||keys.has("arrowleft")?1:0);
+      input.up=(keys.has("e")?1:0)-(keys.has("q")?1:0);
+      input.x+=(input.tx-input.x)*Math.min(1,dt*2.2); input.y+=(input.ty-input.y)*Math.min(1,dt*2.2);
+
+      const autoSpeed=(reduceMotion?.08:.32)*st.speed;
+      rig.position.z-=autoSpeed*dt;
+      if(rig.position.z<-54) rig.position.z=5;
+      rig.position.x+=input.strafe*dt*5;
+      rig.position.y+=input.up*dt*3;
+      rig.position.x=THREE.MathUtils.clamp(rig.position.x,-11,11); rig.position.y=THREE.MathUtils.clamp(rig.position.y,-2,8);
+      camera.rotation.y=-input.x*.46; camera.rotation.x=-input.y*.38;
+      camera.position.x=Math.sin(t*.12)*.45; camera.position.y=2.2+Math.sin(t*.19)*.28;
+      if(input.forward) rig.position.z-=input.forward*dt*4.5;
+
+      const targetBg=new THREE.Color(st.bg); scene.background.lerp(targetBg,dt*.3);
+      scene.fog.color.lerp(new THREE.Color(st.fog),dt*.3);
+      scene.fog.density+=(.018-currentStage*.0016-scene.fog.density)*dt*.5;
+      starMat.opacity+=(Math.min(.96,.48+st.stars*.16)-starMat.opacity)*dt;
+      starMat.size=.34+st.stars*.08;
+      stars.rotation.y+=dt*.002*(1+currentStage*.25); stars.rotation.z=Math.sin(t*.025)*.04;
+      dust.rotation.y-=dt*.003; dustMat.opacity=.18+currentStage*.045;
+
+      orbGroup.rotation.y+=dt*.08*(1+currentStage*.3); orbWire.rotation.x-=dt*.06; bigOrb.scale.setScalar(1+Math.sin(t*.7)*.035);
+      ringGroup.rotation.z+=dt*.018;
+      rings.forEach((r,i)=>{ const target=i<st.rings?.13:0; r.material.opacity+=(target-r.material.opacity)*dt*1.4; r.rotation.z+=dt*(.012+i*.003); });
+
+      portalCore.material.opacity+=(st.portal*.13-portalCore.material.opacity)*dt;
+      portalRing.material.opacity+=(st.portal*.38-portalRing.material.opacity)*dt;
+      portal.rotation.z+=dt*.035;
+      portal.scale.setScalar(1+Math.sin(t*.35)*.025);
+      geometryGroup.children.forEach((g,i)=>{ const target=currentStage>=3?.06+(currentStage-3)*.055:0; g.material.opacity+=(target-g.material.opacity)*dt; g.rotation.x+=dt*(.018+i*.002); g.rotation.y-=dt*(.012+i*.001); });
+
+      camera.getWorldPosition(temp);
+      motes.forEach((m,i)=>{
+        m.position.y=m.userData.baseY+Math.sin(t*(.7+i%4*.09)+m.userData.phase)*.65;
+        m.rotation.y+=dt*.6;
+        const d=m.position.distanceTo(temp);
+        m.material.opacity=.5+Math.sin(t*1.6+m.userData.phase)*.35;
+        if(d<1.7) collectMote(m);
+        if(m.position.z>rig.position.z+18) resetMote(m,true);
       });
 
-      fullscreenButton.addEventListener("click", async () => {
-        try {
-          if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
-          else await document.exitFullscreen();
-        } catch (_) {}
-      });
+      for(let i=pulseGroup.children.length-1;i>=0;i--){ const p=pulseGroup.children[i]; p.userData.life-=dt*.55; p.scale.multiplyScalar(1+dt*2.2); p.material.opacity=Math.max(0,p.userData.life*.6); if(p.userData.life<=0){pulseGroup.remove(p);p.geometry.dispose();p.material.dispose();} }
 
-      function updateBreathLabel() {
-        const phase = (performance.now() / 1000) % 12;
-        breathLabel.textContent = phase < 5.6 ? "breathe in" : phase < 6.4 ? "rest" : "breathe out";
-        requestAnimationFrame(updateBreathLabel);
-      }
-      requestAnimationFrame(updateBreathLabel);
-
-      const canvas = document.querySelector(".sky");
-      const ctx = canvas.getContext("2d");
-      const dots = [];
-      const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-      function resize() {
-        const dpr = Math.min(devicePixelRatio || 1, 2);
-        canvas.width = innerWidth * dpr;
-        canvas.height = innerHeight * dpr;
-        canvas.style.width = innerWidth + "px";
-        canvas.style.height = innerHeight + "px";
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        dots.length = 0;
-        const count = Math.max(26, Math.min(80, Math.floor((innerWidth * innerHeight) / 22000)));
-        for (let i = 0; i < count; i++) {
-          dots.push({
-            x: Math.random() * innerWidth,
-            y: Math.random() * innerHeight,
-            r: .35 + Math.random() * 1.2,
-            a: .08 + Math.random() * .28,
-            s: reduceMotion ? 0 : .02 + Math.random() * .08,
-            p: Math.random() * Math.PI * 2
-          });
-        }
-      }
-
-      function draw(t) {
-        ctx.clearRect(0, 0, innerWidth, innerHeight);
-        for (const d of dots) {
-          const glow = d.a + Math.sin(t * .00022 + d.p) * .06;
-          d.y -= d.s;
-          if (d.y < -4) d.y = innerHeight + 4;
-          ctx.beginPath();
-          ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(224, 244, 237, ${Math.max(.03, glow)})`;
-          ctx.fill();
-        }
-        requestAnimationFrame(draw);
-      }
-
-      addEventListener("resize", resize, { passive: true });
-      resize();
-      requestAnimationFrame(draw);
-    })();
+      coreLight.intensity=3.2+Math.sin(t*.7)*.8+currentStage*.65;
+      renderer.toneMappingExposure=1.02+currentStage*.07;
+      renderer.render(scene,camera);
+      requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
   </script>
 </body>
 </html>
