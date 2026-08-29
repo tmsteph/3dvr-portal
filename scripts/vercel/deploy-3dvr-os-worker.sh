@@ -2,8 +2,8 @@
 set -euo pipefail
 
 repo="${1:-$HOME/.3dvr/portal}"
-team_id="${VERCEL_TEAM_ID:-team_xxJGO7S7h1ZP4BHidYV0CX9Z}"
-scope_slug="${VERCEL_SCOPE_SLUG:-tmstephs-projects}"
+team_id="${VERCEL_TEAM_ID:-team_KXuVUd00RMnDsjoqwdREcZ7J}"
+scope_slug="${VERCEL_SCOPE_SLUG:-3dvr}"
 project_name="${PROJECT_NAME:-3dvr-os}"
 project_domain="${PROJECT_DOMAIN:-os.3dvr.tech}"
 env_file="${MONEY_PRINTER_ENV_FILE:-$HOME/.config/3dvr/money-printer.env}"
@@ -46,13 +46,13 @@ if [ -z "$auth_mode" ]; then
 fi
 
 echo "Vercel authentication mode: $auth_mode"
+echo "Vercel scope: $scope_slug ($team_id)"
 
 mkdir -p "$(dirname "$repo")"
 if [ ! -d "$repo/.git" ]; then
   git clone "https://github.com/${GITHUB_REPOSITORY:-tmsteph/3dvr-portal}.git" "$repo"
 fi
 
-# Dedicated managed clone: discard leftovers from previous automated runs before switching refs.
 git -C "$repo" reset --hard
 git -C "$repo" clean -fd
 git -C "$repo" fetch --prune origin main
