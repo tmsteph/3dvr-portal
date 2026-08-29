@@ -6,11 +6,13 @@
   <title>3DVR Operator</title>
   <meta name="theme-color" content="#07101c">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="app-search.css">
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="/gun-init.js"></script>
   <script src="/auth-identity.js"></script>
   <script type="module" src="app.js"></script>
+  <script type="module" src="app-search.js"></script>
   <script type="module" src="live-awareness.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -34,7 +36,7 @@
     <section class="welcome">
       <p>YOUR OPERATOR</p>
       <h1>What do you want me to do?</h1>
-      <span>Talk normally. I can guide you and make safe changes inside the portal.</span>
+      <span>Search 3DVR apps or talk normally. I can launch tools, guide you, and make safe changes inside the portal.</span>
       <div class="quick-prompts" aria-label="Things to try">
         <button type="button" data-prompt="Help me plan my day and choose the most important next step.">Plan my day</button>
         <button type="button" data-prompt="Help me capture and organize an idea I have.">Organize an idea</button>
@@ -42,10 +44,14 @@
         <button type="button" data-prompt="Turn what I need to do into a clear checklist.">Make a checklist</button>
       </div>
     </section>
+    <section id="app-search-results" hidden aria-label="3DVR app search results">
+      <div class="app-search-heading"><strong>3DVR apps</strong><small id="app-search-count"></small></div>
+      <nav id="app-search-list" aria-label="Matching 3DVR apps and pages"></nav>
+    </section>
     <form id="operator-form">
-      <label for="operator-input">Message your operator</label>
-      <textarea id="operator-input" rows="3" placeholder="Save this idea… Find me customers… Help me plan today…" aria-describedby="operator-status operator-sync operator-hint" required></textarea>
-      <div><span><small id="operator-status" role="status">Ready</small><small id="operator-sync" role="status">Saved on this device</small><small id="operator-hint">Ctrl + Enter to send</small></span><button type="submit">Do it →</button></div>
+      <label for="operator-input">Message your operator or search 3DVR</label>
+      <textarea id="operator-input" rows="3" placeholder="Calendar… CRM… Meditation… or ask Operator anything…" aria-describedby="operator-status operator-sync operator-hint" required></textarea>
+      <div><span><small id="operator-status" role="status">Ready</small><small id="operator-sync" role="status">Saved on this device</small><small id="operator-hint">↓ apps · Ctrl + Enter to send</small></span><button type="submit">Do it →</button></div>
     </form>
   </main>
   <script defer src="/issue-launcher.js"></script>
