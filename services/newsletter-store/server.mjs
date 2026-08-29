@@ -25,7 +25,7 @@ if (vapidPublicKey && vapidPrivateKey) {
 
 const pool = new Pool({ connectionString: databaseUrl, max: 4, idleTimeoutMillis: 10_000 });
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const chatRooms = new Set(['general', 'tech', 'random', 'ideas', 'support']);
+const chatRooms = new Set(['general', 'tech', 'random', 'ideas', 'support', 'test']);
 
 function json(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
