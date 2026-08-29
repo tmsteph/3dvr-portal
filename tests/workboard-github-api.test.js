@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
 
-import workboardGithubHandler, { __resetWorkboardGithubCacheForTests } from '../api/workboard/github.js';
+import workboardGithubHandler, { __resetWorkboardGithubCacheForTests } from '../src/workboard/github-feed.js';
 
 const originalFetch = globalThis.fetch;
 

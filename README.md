@@ -23,6 +23,10 @@ The customer-facing portal remains at the repository root. Separately deployed/r
 
 Run `npm test` for the portal, `npm run test:agent` for the agent, or `npm run test:all` for both.
 
+## Current consolidation plan
+
+The ecosystem-wide simplification and shipping plan is tracked in [`docs/ecosystem-consolidation.md`](docs/ecosystem-consolidation.md). Its operating rule is simple: keep the public story clear, route users through a few strong intents, and move experiments behind stable core products.
+
 ## What is here now?
 
 - Portal Home and installable web apps
