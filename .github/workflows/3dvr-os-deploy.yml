@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - '3dvr-os/**'
+      - 'scripts/vercel/deploy-3dvr-os-worker.sh'
       - '.github/workflows/3dvr-os-deploy.yml'
   workflow_dispatch:
 
@@ -29,7 +30,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Resolve server SSH key
-        id: ssh_key
         shell: bash
         env:
           SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
@@ -62,44 +62,18 @@ jobs:
           chmod 600 /tmp/3dvr-server-key
           rm -f /tmp/3dvr-server-key.raw
 
-      - name: Deploy through server-held Vercel credentials
-        id: deploy
+      - name: Deploy from an always-on 3DVR server
         shell: bash
         run: |
           set -euo pipefail
           opts=(-i /tmp/3dvr-server-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+          deployed=0
 
-          deploy_host=''
-          for candidate in "$DEV_HOST" "$FALLBACK_HOST"; do
-            if ssh "${opts[@]}" "$SSH_USER@$candidate" \
-              'test -r "$HOME/.config/3dvr/money-printer.env" && grep -q "^VERCEL_TOKEN=." "$HOME/.config/3dvr/money-printer.env"' \
-              >/dev/null 2>&1; then
-              deploy_host="$candidate"
-              break
-            fi
-          done
-
-          if [ -z "$deploy_host" ]; then
-            echo '::error::No reachable 3DVR server has a configured VERCEL_TOKEN.'
-            exit 1
-          fi
-
-          echo "Using 3DVR server $deploy_host for Vercel deployment"
-          ssh "${opts[@]}" "$SSH_USER@$deploy_host" \
-            "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' VERCEL_TEAM_ID='$VERCEL_TEAM_ID' PROJECT_NAME='$PROJECT_NAME' PROJECT_DOMAIN='$PROJECT_DOMAIN' bash -s" <<'REMOTE'
+          for host in "$DEV_HOST" "$FALLBACK_HOST"; do
+            echo "Trying 3DVR deployment host: $host"
+            if ssh "${opts[@]}" "$SSH_USER@$host" \
+              "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' VERCEL_TEAM_ID='$VERCEL_TEAM_ID' PROJECT_NAME='$PROJECT_NAME' PROJECT_DOMAIN='$PROJECT_DOMAIN' bash -s" <<'REMOTE'
           set -euo pipefail
-
-          env_file="$HOME/.config/3dvr/money-printer.env"
-          set -a
-          # shellcheck disable=SC1090
-          . "$env_file"
-          set +a
-
-          if [ -z "${VERCEL_TOKEN:-}" ]; then
-            echo 'VERCEL_TOKEN missing from server credential file' >&2
-            exit 1
-          fi
-
           repo="$HOME/.3dvr/portal"
           mkdir -p "$HOME/.3dvr"
           if [ ! -d "$repo/.git" ]; then
@@ -110,85 +84,29 @@ jobs:
           git -C "$repo" fetch --prune origin main
           git -C "$repo" checkout main
           git -C "$repo" pull --ff-only origin main
-
-          auth=(-H "Authorization: Bearer $VERCEL_TOKEN" -H 'Content-Type: application/json')
-          status="$(curl -sS -o /tmp/3dvr-os-project.json -w '%{http_code}' "${auth[@]}" \
-            "https://api.vercel.com/v9/projects/$PROJECT_NAME?teamId=$VERCEL_TEAM_ID")"
-
-          if [ "$status" = 404 ]; then
-            cat > /tmp/3dvr-os-project-create.json <<JSON
-          {
-            "name": "$PROJECT_NAME",
-            "gitRepository": {
-              "repo": "https://github.com/$GITHUB_REPOSITORY",
-              "type": "github"
-            },
-            "rootDirectory": "3dvr-os"
-          }
-          JSON
-            status="$(curl -sS -o /tmp/3dvr-os-project.json -w '%{http_code}' -X POST "${auth[@]}" \
-              "https://api.vercel.com/v11/projects?teamId=$VERCEL_TEAM_ID" \
-              --data-binary @/tmp/3dvr-os-project-create.json)"
-          fi
-
-          case "$status" in
-            200|201) ;;
-            *) cat /tmp/3dvr-os-project.json >&2; exit 1 ;;
-          esac
-
-          project_id="$(python3 - <<'PY'
-          import json
-          with open('/tmp/3dvr-os-project.json', encoding='utf-8') as f:
-              data = json.load(f)
-          print(data['id'])
-          PY
-          )"
-          export VERCEL_ORG_ID="$VERCEL_TEAM_ID"
-          export VERCEL_PROJECT_ID="$project_id"
-
-          if command -v vercel >/dev/null 2>&1; then
-            vercel_cmd=(vercel)
-          else
-            vercel_cmd=(npx --yes vercel@latest)
-          fi
-          token_args=(--token "$VERCEL_TOKEN")
-
-          cd "$repo/3dvr-os"
-          rm -rf .vercel
-          "${vercel_cmd[@]}" pull --yes --environment=production "${token_args[@]}"
-          "${vercel_cmd[@]}" build --prod "${token_args[@]}"
-          deploy_url="$("${vercel_cmd[@]}" deploy --prebuilt --prod --yes "${token_args[@]}")"
-          echo "Deployment URL: $deploy_url"
-
-          curl -fsS "${auth[@]}" \
-            "https://api.vercel.com/v9/projects/$PROJECT_NAME/domains?teamId=$VERCEL_TEAM_ID" \
-            -o /tmp/3dvr-os-domains.json
-
-          if ! PROJECT_DOMAIN="$PROJECT_DOMAIN" python3 - <<'PY'
-          import json, os, sys
-          with open('/tmp/3dvr-os-domains.json', encoding='utf-8') as f:
-              data = json.load(f)
-          sys.exit(0 if any(d.get('name') == os.environ['PROJECT_DOMAIN'] for d in data.get('domains', [])) else 1)
-          PY
-          then
-            domain_status="$(curl -sS -o /tmp/3dvr-os-domain-add.json -w '%{http_code}' -X POST "${auth[@]}" \
-              "https://api.vercel.com/v10/projects/$PROJECT_NAME/domains?teamId=$VERCEL_TEAM_ID" \
-              --data "{\"name\":\"$PROJECT_DOMAIN\"}")"
-            case "$domain_status" in
-              200|201) ;;
-              *) cat /tmp/3dvr-os-domain-add.json >&2; exit 1 ;;
-            esac
-          fi
-
-          curl --fail --silent --show-error --location --retry 8 --retry-delay 3 --retry-all-errors \
-            "$deploy_url" --output /tmp/3dvr-os-deploy.html
-          grep -q 'Daedalos' /tmp/3dvr-os-deploy.html
-
-          curl --fail --silent --show-error --location --retry 18 --retry-delay 5 --retry-all-errors \
-            "https://$PROJECT_DOMAIN/" --output /tmp/3dvr-os-domain.html
-          grep -q 'Daedalos' /tmp/3dvr-os-domain.html
-          echo "3DVR OS is live at https://$PROJECT_DOMAIN/"
+          chmod +x "$repo/scripts/vercel/deploy-3dvr-os-worker.sh"
+          bash "$repo/scripts/vercel/deploy-3dvr-os-worker.sh" "$repo"
           REMOTE
+            then
+              deployed=1
+              break
+            fi
+            echo "::warning::Deployment host $host could not complete the OS deploy."
+          done
+
+          if [ "$deployed" -ne 1 ]; then
+            echo '::error::No always-on 3DVR server could complete the Vercel deployment.'
+            exit 1
+          fi
+
+      - name: Verify os.3dvr.tech externally
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 12 --retry-delay 5 --retry-all-errors \
+            "https://$PROJECT_DOMAIN/" --output /tmp/os-domain.html
+          grep -q 'Daedalos' /tmp/os-domain.html
+          echo "3DVR OS is live at https://$PROJECT_DOMAIN/"
 
       - name: Remove SSH key
         if: always()
