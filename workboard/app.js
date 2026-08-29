@@ -7,15 +7,27 @@ const DEFAULT_PEERS = [
 ];
 
 const records = new Map();
-const lanes = ['inbox', 'working', 'review', 'done'];
-const laneEls = Object.fromEntries(lanes.map(name => [name, document.querySelector(`[data-lane="${name}"]`)]));
 const template = document.getElementById('card-template');
+const cards = document.getElementById('work-cards');
+const emptyState = document.getElementById('empty-state');
 const connectionStatus = document.getElementById('connection-status');
 const liveDot = document.getElementById('live-dot');
+const portalOrb = document.getElementById('portal-orb');
 const dispatchForm = document.getElementById('dispatch-form');
 const dispatchStatus = document.getElementById('dispatch-status');
 const dispatchSubmit = document.getElementById('dispatch-submit');
 const dispatchResult = document.getElementById('dispatch-result');
+const filterButtons = [...document.querySelectorAll('[data-filter]')];
+
+let currentFilter = 'focus';
+
+const filterCopy = {
+  focus: ['FOCUS', 'Needs you + active work'],
+  inbox: ['QUEUE', 'Waiting to start'],
+  review: ['NEEDS YOU', 'Decisions and review'],
+  done: ['DONE', 'Recently completed'],
+  all: ['ALL WORK', 'Everything in one place']
+};
 
 function clean(value = '', max = 500) {
   return String(value ?? '').trim().slice(0, max);
@@ -28,7 +40,6 @@ function laneFor(status = '', kind = '') {
   if (['done', 'completed', 'complete', 'merged', 'closed', 'success', 'succeeded'].includes(normalized)) return 'done';
   if (['review', 'ready_for_review', 'awaiting_review', 'needs_review', 'blocked', 'failed', 'error'].includes(normalized)) return 'review';
   if (['working', 'running', 'in_progress', 'executing', 'claimed', 'processing'].includes(normalized)) return 'working';
-  if (kind === 'suggestion' && ['open', 'new'].includes(normalized)) return 'inbox';
   return 'inbox';
 }
 
@@ -56,28 +67,56 @@ function ownerFor(record) {
 
 function kindLabel(kind) {
   if (kind === 'edit') return 'Forge edit';
-  if (kind === 'github-pr') return 'GitHub PR';
-  if (kind === 'github-issue') return 'GitHub issue';
-  return 'Suggestion';
+  if (kind === 'github-pr') return 'Pull request';
+  if (kind === 'github-issue') return 'Issue';
+  return 'Agent task';
+}
+
+function friendlyStatus(item, lane) {
+  const normalized = clean(item.record.status || 'open', 80).toLowerCase().replace(/[\s-]+/g, '_');
+  if (lane === 'review') {
+    if (['failed', 'error', 'blocked'].includes(normalized)) return normalized.replaceAll('_', ' ');
+    return 'needs review';
+  }
+  if (lane === 'working') return 'working';
+  if (lane === 'done') return normalized === 'merged' ? 'merged' : 'done';
+  return 'queued';
+}
+
+function sortedItems() {
+  return [...records.values()].sort((a, b) => {
+    const aTime = new Date(a.record.updatedAt || a.record.createdAt || 0).getTime();
+    const bTime = new Date(b.record.updatedAt || b.record.createdAt || 0).getTime();
+    return bTime - aTime;
+  });
+}
+
+function matchesFilter(item, filter) {
+  const lane = laneFor(item.record.status, item.kind);
+  if (filter === 'all') return true;
+  if (filter === 'focus') return lane === 'review' || lane === 'working';
+  return lane === filter;
 }
 
 function renderCard(item) {
   const node = template.content.firstElementChild.cloneNode(true);
   const record = item.record;
-  const status = clean(record.status || 'open', 80);
+  const lane = laneFor(record.status, item.kind);
   const result = clean(record.resultSummary || record.error || '', 500);
   const link = node.querySelector('.open-record');
 
   node.dataset.id = item.id;
+  node.dataset.lane = lane;
   node.querySelector('.kind').textContent = kindLabel(item.kind);
-  node.querySelector('.status').textContent = status.replaceAll('_', ' ');
-  node.querySelector('h3').textContent = clean(record.title || (item.kind === 'edit' ? 'Operator code edit' : 'Operator suggestion'), 160);
+  node.querySelector('.status').textContent = friendlyStatus(item, lane);
+  node.querySelector('h3').textContent = clean(record.title || (item.kind === 'edit' ? 'Operator code edit' : 'Agent task'), 160);
   node.querySelector('.task').textContent = compactTask(record) || 'No description yet.';
   node.querySelector('.repo').textContent = clean(record.repo || 'portal', 80);
   node.querySelector('.owner').textContent = ownerFor(record);
   node.querySelector('time').textContent = displayDate(record.updatedAt || record.createdAt);
   node.querySelector('time').dateTime = clean(record.updatedAt || record.createdAt, 80);
   link.href = item.url || recordUrl(item.kind, item.id);
+
   if (item.url) {
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
@@ -92,27 +131,73 @@ function renderCard(item) {
   return node;
 }
 
+function setPulseMessage({ review, working }) {
+  const message = document.getElementById('focus-message');
+  if (review > 0) {
+    message.textContent = review === 1 ? 'One thing is waiting for your decision.' : `${review} things are waiting for your decision.`;
+    return;
+  }
+  if (working > 0) {
+    message.textContent = working === 1 ? 'One agent is working. Nothing needs you.' : `${working} agents are working. Nothing needs you.`;
+    return;
+  }
+  message.textContent = 'Nothing needs you right now.';
+}
+
+function updateEmptyState(filter) {
+  const title = emptyState.querySelector('strong');
+  const copy = emptyState.querySelector('span');
+  if (filter === 'focus') {
+    title.textContent = 'Nothing demanding your attention.';
+    copy.textContent = 'The agents can keep moving.';
+  } else if (filter === 'inbox') {
+    title.textContent = 'The queue is clear.';
+    copy.textContent = 'Give an agent something new above.';
+  } else if (filter === 'review') {
+    title.textContent = 'You are all caught up.';
+    copy.textContent = 'No decisions are waiting on you.';
+  } else if (filter === 'done') {
+    title.textContent = 'No completed work yet.';
+    copy.textContent = 'Finished work will collect here.';
+  } else {
+    title.textContent = 'No work to show.';
+    copy.textContent = 'Queue something above to get moving.';
+  }
+}
+
 function render() {
-  const all = [...records.values()].sort((a, b) => {
-    const aTime = new Date(a.record.updatedAt || a.record.createdAt || 0).getTime();
-    const bTime = new Date(b.record.updatedAt || b.record.createdAt || 0).getTime();
-    return bTime - aTime;
+  const all = sortedItems();
+  const counts = { inbox: 0, working: 0, review: 0, done: 0 };
+  all.forEach(item => { counts[laneFor(item.record.status, item.kind)] += 1; });
+
+  const visible = all.filter(item => matchesFilter(item, currentFilter));
+  cards.replaceChildren(...visible.map(renderCard));
+  cards.hidden = visible.length === 0;
+  emptyState.hidden = visible.length !== 0;
+  updateEmptyState(currentFilter);
+
+  document.getElementById('review-count').textContent = counts.review;
+  document.getElementById('working-count').textContent = counts.working;
+  document.getElementById('focus-count').textContent = counts.review + counts.working;
+  document.getElementById('inbox-count').textContent = counts.inbox;
+  document.getElementById('review-filter-count').textContent = counts.review;
+  document.getElementById('done-count').textContent = counts.done;
+  document.getElementById('visible-count').textContent = `${visible.length} ${visible.length === 1 ? 'item' : 'items'}`;
+
+  const [eyebrow, title] = filterCopy[currentFilter] || filterCopy.focus;
+  document.getElementById('feed-eyebrow').textContent = eyebrow;
+  document.getElementById('feed-title').textContent = title;
+  setPulseMessage(counts);
+}
+
+function setFilter(filter) {
+  currentFilter = filterCopy[filter] ? filter : 'focus';
+  filterButtons.forEach(button => {
+    const active = button.dataset.filter === currentFilter;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
   });
-
-  const grouped = Object.fromEntries(lanes.map(name => [name, []]));
-  all.forEach(item => grouped[laneFor(item.record.status, item.kind)].push(item));
-
-  lanes.forEach(name => {
-    const lane = laneEls[name];
-    const cards = lane.querySelector('.cards');
-    cards.replaceChildren(...grouped[name].map(renderCard));
-    lane.querySelector('.count').textContent = grouped[name].length;
-  });
-
-  document.getElementById('total-count').textContent = all.length;
-  document.getElementById('active-count').textContent = grouped.inbox.length + grouped.working.length;
-  document.getElementById('review-count').textContent = grouped.review.length;
-  document.getElementById('done-count').textContent = grouped.done.length;
+  render();
 }
 
 function watchCollection(node, kind) {
@@ -156,7 +241,7 @@ async function loadGithubWork() {
     });
 
     render();
-    connectionStatus.textContent = 'Live Forge + GitHub';
+    connectionStatus.textContent = 'Forge + GitHub live';
   } catch (error) {
     console.warn('Workboard GitHub feed unavailable:', error);
   }
@@ -172,16 +257,17 @@ async function submitDispatch(event) {
 
   dispatchSubmit.disabled = true;
   dispatchResult.hidden = true;
-  dispatchStatus.textContent = 'Signing and queuing…';
+  dispatchStatus.textContent = 'Signing + queuing…';
 
   try {
     const result = await queueCodeChange({ title, repo, text });
     dispatchStatus.textContent = result.message || 'Queued.';
     dispatchResult.href = result.url;
-    dispatchResult.textContent = `${result.label || 'Open queued task'} →`;
+    dispatchResult.textContent = `${result.label || 'Open task'} →`;
     dispatchResult.hidden = false;
     document.getElementById('dispatch-title-input').value = '';
     document.getElementById('dispatch-task').value = '';
+    setFilter('inbox');
   } catch (error) {
     dispatchStatus.textContent = clean(error?.message || 'Could not queue this task.', 240);
   } finally {
@@ -191,7 +277,9 @@ async function submitDispatch(event) {
 
 function start() {
   dispatchForm?.addEventListener('submit', submitDispatch);
+  filterButtons.forEach(button => button.addEventListener('click', () => setFilter(button.dataset.filter)));
   loadGithubWork();
+  render();
 
   if (typeof globalThis.Gun !== 'function') {
     connectionStatus.textContent = 'Forge unavailable';
@@ -207,8 +295,9 @@ function start() {
   watchCollection(forge.get('suggestions'), 'suggestion');
   watchCollection(forge.get('editRequests'), 'edit');
 
-  connectionStatus.textContent = 'Live Forge data';
+  connectionStatus.textContent = 'Forge live';
   liveDot.classList.add('live');
+  portalOrb?.classList.add('live');
 }
 
 start();
