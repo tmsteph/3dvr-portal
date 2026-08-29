@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { dispatchPaidCheckout } from '../../src/money/fulfillment-router.js';
 import {
   BILLING_ACTIVE_STATUSES,
   getBillingPlan,
@@ -445,6 +446,26 @@ async function notifyTeamOfOneTimePayment(email, details = {}, { transporter, co
   }
 }
 
+async function notifyFulfillmentQueue(dispatch, { transporter, config } = {}) {
+  const order = dispatch?.order;
+  if (!order) return;
+  const gmailUser = String(config?.GMAIL_USER || '').trim();
+  const target = String(config?.AUTO_BUSINESS_OWNER_EMAIL || config?.STRIPE_LOG_EMAIL || gmailUser).trim();
+  if (!gmailUser || !target || !transporter?.sendMail) return;
+  const ticket = dispatch?.ticket || {};
+  const ticketLine = ticket.url ? `\nTask: ${ticket.url}` : `\nTask queue: ${ticket.status || 'unknown'}${ticket.reason ? ` — ${ticket.reason}` : ''}`;
+  try {
+    await sendMailSafely(transporter, {
+      from: `"3DVR Auto Business" <${gmailUser}>`,
+      to: target,
+      subject: `[FULFILLMENT:${order.lane}] ${order.offer} ${order.amount}`,
+      text: `${order.privateSummary}${ticketLine}`
+    });
+  } catch (error) {
+    console.error('Failed to notify fulfillment queue:', error?.message || error);
+  }
+}
+
 function readCheckoutPlan(session = {}) {
   const metadataPlan = normalizeBillingPlan(session?.metadata?.plan || session?.subscription_details?.metadata?.plan || '');
   if (metadataPlan && getBillingPlan(metadataPlan)?.kind === 'subscription') {
@@ -569,6 +590,7 @@ export function createStripeWebhookHandler(options = {}) {
     ? createTransporter(runtimeConfig)
     : options.transporter;
   const readRawBodyImpl = options.readRawBody || getRawBody;
+  const fulfillmentDispatcher = options.fulfillmentDispatcher || (event => dispatchPaidCheckout(event, { config: runtimeConfig, fetchImpl: options.fetchImpl || globalThis.fetch }));
   const constructEvent = options.constructEvent || ((payload, signature) => {
     if (!stripeClient?.webhooks?.constructEvent) {
       throw new Error('Stripe webhook verification is not configured.');
@@ -629,6 +651,14 @@ export function createStripeWebhookHandler(options = {}) {
       transporter,
       config: runtimeConfig
     });
+
+    if (['checkout.session.completed', 'checkout.session.async_payment_succeeded'].includes(event.type)) {
+      const fulfillment = await fulfillmentDispatcher(event);
+      if (fulfillment?.order) {
+        await notifyFulfillmentQueue(fulfillment, { transporter, config: runtimeConfig });
+        console.log('Auto Business fulfillment:', fulfillment.order.eventId, fulfillment.order.lane, fulfillment.ticket?.status);
+      }
+    }
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
