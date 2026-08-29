@@ -707,3 +707,37 @@ test('stripe webhook does not email on later automatic retry failures', async ()
   assert.equal(res.statusCode, 200);
   assert.equal(transporter.sendMail.mock.calls.length, 0);
 });
+test('stripe webhook dispatches paid Auto Business fulfillment and queues a private handoff', async () => {
+  const transporter = { sendMail: mock.fn(async payload => payload) };
+  const fulfillmentDispatcher = mock.fn(async () => ({
+    order: {
+      eventId: 'evt_autobusiness_paid', lane: 'agent', offer: 'automation-quick-win', amount: '$299.00',
+      privateSummary: 'Paid order\nPrivate intake stays here.'
+    },
+    ticket: { status: 'created', url: 'https://github.com/tmsteph/3dvr-portal/issues/2000' }
+  }));
+  const handler = createStripeWebhookHandler({
+    stripeClient: createStripeState().stripe,
+    config: { ...baseConfig, GMAIL_USER: 'billing@3dvr.tech', STRIPE_LOG_EMAIL: '' },
+    transporter, fulfillmentDispatcher,
+    readRawBody: async () => Buffer.from('{}'),
+    constructEvent: () => ({
+      id: 'evt_autobusiness_paid', type: 'checkout.session.completed', created: 1700000000,
+      data: { object: {
+        id: 'cs_autobusiness_paid', mode: 'payment', payment_status: 'paid', amount_total: 29900, currency: 'usd',
+        customer_details: {}, metadata: { offer: 'automation-quick-win', source: 'autobusiness' }
+      }}
+    })
+  });
+  const req = { method: 'POST', headers: { 'stripe-signature': 'sig_test' } };
+  const res = createMockRes();
+  await handler(req, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(fulfillmentDispatcher.mock.calls.length, 1);
+  assert.equal(transporter.sendMail.mock.calls.length, 1);
+  const handoff = transporter.sendMail.mock.calls[0].arguments[0];
+  assert.equal(handoff.to, 'billing@3dvr.tech');
+  assert.equal(handoff.subject, '[FULFILLMENT:agent] automation-quick-win $299.00');
+  assert.match(handoff.text, /Private intake stays here/);
+  assert.match(handoff.text, /issues\/2000/);
+});
