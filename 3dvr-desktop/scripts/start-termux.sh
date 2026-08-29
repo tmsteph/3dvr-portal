@@ -25,7 +25,7 @@ if ! pgrep -x termux-x11 >/dev/null 2>&1; then
   termux-x11 $TERMUX_X11_ARGS "$DISPLAY_NUM" >>"$STATE/x11.log" 2>&1 &
   sleep 1
 fi
-/system/bin/am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity >/dev/null 2>&1 || true
+am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity >/dev/null 2>&1 || true
 sleep 1
 
 exec "$DEST/scripts/phone/start-3dvr-shell-session"
