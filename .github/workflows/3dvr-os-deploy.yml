@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 env:
-  DEV_HOST: 165.22.167.186
+  DEV_HOST: 104.248.213.186
   FALLBACK_HOST: 167.172.193.194
   SSH_USER: root
   VERCEL_TEAM_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z
