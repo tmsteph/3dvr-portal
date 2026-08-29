@@ -1,0 +1,59 @@
+# 3DVR Desktop panel
+rounded = 0
+border_width = 0
+background_color = #101418 92
+border_color = #30383f 100
+
+rounded = 7
+border_width = 1
+background_color = #1d2429 100
+border_color = #344048 100
+
+panel_items = LTSC
+panel_size = 100% 36
+panel_position = bottom center horizontal
+panel_background_id = 1
+panel_padding = 6 4 6
+panel_layer = top
+panel_monitor = all
+panel_shrink = 0
+
+launcher_padding = 2 5 2
+launcher_background_id = 0
+launcher_icon_background_id = 0
+launcher_icon_size = 25
+launcher_tooltip = 1
+launcher_item_app = 3dvr-launcher.desktop
+launcher_item_app = 3dvr-files.desktop
+launcher_item_app = 3dvr-terminal.desktop
+
+taskbar_mode = single_desktop
+taskbar_padding = 4 0 4
+taskbar_background_id = 0
+taskbar_active_background_id = 0
+task_align = left
+
+task_text = 1
+task_icon = 1
+task_centered = 1
+task_maximum_size = 180 32
+task_padding = 6 3 6
+task_background_id = 2
+task_active_background_id = 2
+task_font_color = #eef3f5 100
+mouse_left = toggle_iconify
+mouse_right = close
+
+systray_padding = 4 2 4
+systray_background_id = 0
+systray_icon_size = 22
+
+clock_background_id = 0
+clock_padding = 8 0
+time1_format = %H:%M
+time1_font = Sans 10
+clock_font_color = #eef3f5 100
+
+tooltip_padding = 6 4
+tooltip_background_id = 2
+tooltip_font_color = #eef3f5 100

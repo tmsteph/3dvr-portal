@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=3DVR Apps
+Comment=Open the 3DVR Desktop application launcher
+Exec=rofi -show drun -show-icons
+Icon=system-run
+Terminal=false
+Categories=System;

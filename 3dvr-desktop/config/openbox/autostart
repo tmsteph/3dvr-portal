@@ -1,0 +1,4 @@
+# 3DVR Desktop session
+xsetroot -solid '#101418' &
+tint2 &
+xterm &
