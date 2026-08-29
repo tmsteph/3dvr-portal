@@ -51,7 +51,35 @@ function installAccountStatus() {
   window.addEventListener('portal-auth:changed', render);
 }
 
+function installOsLauncher() {
+  const osUrl = 'https://os.3dvr.tech/';
+  const actions = document.querySelector('.actions');
+  if (actions && !actions.querySelector('[data-3dvr-os-launcher]')) {
+    const launcher = document.createElement('a');
+    launcher.className = 'action-card';
+    launcher.href = osUrl;
+    launcher.dataset.threedvrOsLauncher = 'true';
+    launcher.innerHTML = `
+      <strong>3DVR OS</strong>
+      <span>Open Daedalos / TommyOS in your browser.</span>
+    `;
+    actions.appendChild(launcher);
+  }
+
+  const appsList = document.querySelector('#appsList');
+  if (appsList && !appsList.querySelector('[data-3dvr-os-app]')) {
+    const app = document.createElement('a');
+    app.className = 'app-link';
+    app.href = osUrl;
+    app.dataset.app = '3dvr os daedalos tommyos linux browser desktop';
+    app.dataset.threedvrOsApp = 'true';
+    app.innerHTML = '<strong>3DVR OS</strong><span>Daedalos / TommyOS browser desktop with Linux on demand.</span>';
+    appsList.appendChild(app);
+  }
+}
+
 installAccountStatus();
+installOsLauncher();
 
 const form = document.querySelector('#homeOperatorForm');
 const input = document.querySelector('#homeOperatorInput');
