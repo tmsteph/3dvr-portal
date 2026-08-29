@@ -114,7 +114,7 @@ The open-source contribution ledger is high-value proof and should be easy to re
 - [x] Identify redundant Workboard endpoint already routed through shared `/api/session?route=workboard-github`.
 - [x] Remove that redundant serverless entry while preserving self-host/test imports.
 - [x] Add an automated serverless-function budget guard.
-- [ ] Verify a production deployment from current `main` reaches READY.
+- [x] Verify a production deployment from current `main` reaches READY.
 
 ### P1 — make the ecosystem legible
 
@@ -151,3 +151,4 @@ This consolidation phase is successful when:
 - Found `/api/workboard/github` already rewritten to the shared session handler, making its standalone API file redundant for Vercel deployment.
 - Reduced Portal API entry files from 13 to 12 by removing the redundant Workboard deployment wrapper while keeping the shared implementation intact.
 - Added a deployment-budget regression test so future API growth fails locally/CI before it breaks production.
+- Verified the merged `main` deployment reached READY with 12 Node.js functions, and `https://portal.3dvr.tech/` returned HTTP 200.
