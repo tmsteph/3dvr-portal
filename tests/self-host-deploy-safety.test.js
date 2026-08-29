@@ -24,6 +24,13 @@ test('self-host deploy rolls back live health or Workboard failures', () => {
   assert.match(source, /if ! validate_workboard "\$live_url"; then[\s\S]*?rollback_live/);
 });
 
+test('rollback restarts the backend that actually started', () => {
+  assert.match(source, /live_backend=''/);
+  assert.match(source, /if start_with_systemd; then\s+live_backend=systemd\s+else\s+start_with_tmux\s+live_backend=tmux/s);
+  assert.match(source, /restart_live_service\(\) \{\s+case "\$live_backend" in/s);
+  assert.match(source, /tmux\)\s+start_with_tmux/s);
+});
+
 test('Cloudflare tunnel changes happen only after live validation', () => {
   const liveWorkboard = source.indexOf('validate_workboard "$live_url"');
   const cloudflared = source.indexOf('cloudflared="$(command -v cloudflared || true)"');
