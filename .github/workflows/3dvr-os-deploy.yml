@@ -13,115 +13,184 @@ permissions:
   contents: read
 
 env:
+  DEV_HOST: 165.22.167.186
+  FALLBACK_HOST: 167.172.193.194
+  SSH_USER: root
   VERCEL_TEAM_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z
-  VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z
-  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
   PROJECT_NAME: 3dvr-os
   PROJECT_DOMAIN: os.3dvr.tech
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - name: Require Vercel token
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -z "$VERCEL_TOKEN" ]; then
-            echo '::error::VERCEL_TOKEN is not configured.'
-            exit 1
-          fi
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.22.0
+      - name: Resolve server SSH key
+        id: ssh_key
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          key=''
+          for candidate in "$SSH_A" "$SSH_B" "$SSH_C"; do
+            if [ -z "$key" ] && [ -n "$candidate" ]; then
+              key="$candidate"
+            fi
+          done
+          if [ -z "$key" ]; then
+            echo '::error::No 3DVR server SSH key is configured.'
+            exit 1
+          fi
 
-      - name: Create or resolve Vercel project
-        id: project
+          umask 077
+          printf '%s\n' "$key" > /tmp/3dvr-server-key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-server-key.raw; then
+            cp /tmp/3dvr-server-key.raw /tmp/3dvr-server-key
+          elif base64 -d /tmp/3dvr-server-key.raw > /tmp/3dvr-server-key 2>/dev/null \
+            && grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-server-key; then
+            :
+          else
+            echo '::error::Configured SSH key could not be decoded.'
+            exit 1
+          fi
+          chmod 600 /tmp/3dvr-server-key
+          rm -f /tmp/3dvr-server-key.raw
+
+      - name: Deploy through server-held Vercel credentials
+        id: deploy
         shell: bash
         run: |
           set -euo pipefail
+          opts=(-i /tmp/3dvr-server-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+
+          deploy_host=''
+          for candidate in "$DEV_HOST" "$FALLBACK_HOST"; do
+            if ssh "${opts[@]}" "$SSH_USER@$candidate" \
+              'test -r "$HOME/.config/3dvr/money-printer.env" && grep -q "^VERCEL_TOKEN=." "$HOME/.config/3dvr/money-printer.env"' \
+              >/dev/null 2>&1; then
+              deploy_host="$candidate"
+              break
+            fi
+          done
+
+          if [ -z "$deploy_host" ]; then
+            echo '::error::No reachable 3DVR server has a configured VERCEL_TOKEN.'
+            exit 1
+          fi
+
+          echo "Using 3DVR server $deploy_host for Vercel deployment"
+          ssh "${opts[@]}" "$SSH_USER@$deploy_host" \
+            "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' VERCEL_TEAM_ID='$VERCEL_TEAM_ID' PROJECT_NAME='$PROJECT_NAME' PROJECT_DOMAIN='$PROJECT_DOMAIN' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          env_file="$HOME/.config/3dvr/money-printer.env"
+          set -a
+          # shellcheck disable=SC1090
+          . "$env_file"
+          set +a
+
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo 'VERCEL_TOKEN missing from server credential file' >&2
+            exit 1
+          fi
+
+          repo="$HOME/.3dvr/portal"
+          mkdir -p "$HOME/.3dvr"
+          if [ ! -d "$repo/.git" ]; then
+            git clone "https://github.com/$GITHUB_REPOSITORY.git" "$repo"
+          fi
+          git -C "$repo" diff --quiet
+          git -C "$repo" diff --cached --quiet
+          git -C "$repo" fetch --prune origin main
+          git -C "$repo" checkout main
+          git -C "$repo" pull --ff-only origin main
+
           auth=(-H "Authorization: Bearer $VERCEL_TOKEN" -H 'Content-Type: application/json')
-          status="$(curl -sS -o /tmp/project.json -w '%{http_code}' "${auth[@]}" \
+          status="$(curl -sS -o /tmp/3dvr-os-project.json -w '%{http_code}' "${auth[@]}" \
             "https://api.vercel.com/v9/projects/$PROJECT_NAME?teamId=$VERCEL_TEAM_ID")"
 
           if [ "$status" = 404 ]; then
-            cat > /tmp/project-create.json <<JSON
+            cat > /tmp/3dvr-os-project-create.json <<JSON
           {
             "name": "$PROJECT_NAME",
             "gitRepository": {
-              "repo": "https://github.com/tmsteph/3dvr-portal",
+              "repo": "https://github.com/$GITHUB_REPOSITORY",
               "type": "github"
             },
             "rootDirectory": "3dvr-os"
           }
           JSON
-            status="$(curl -sS -o /tmp/project.json -w '%{http_code}' -X POST "${auth[@]}" \
+            status="$(curl -sS -o /tmp/3dvr-os-project.json -w '%{http_code}' -X POST "${auth[@]}" \
               "https://api.vercel.com/v11/projects?teamId=$VERCEL_TEAM_ID" \
-              --data-binary @/tmp/project-create.json)"
+              --data-binary @/tmp/3dvr-os-project-create.json)"
           fi
 
           case "$status" in
             200|201) ;;
-            *) cat /tmp/project.json >&2; exit 1 ;;
+            *) cat /tmp/3dvr-os-project.json >&2; exit 1 ;;
           esac
 
-          project_id="$(node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('/tmp/project.json','utf8')); if(!j.id) process.exit(1); process.stdout.write(j.id)")"
-          echo "VERCEL_PROJECT_ID=$project_id" >> "$GITHUB_ENV"
-          echo "project_id=$project_id" >> "$GITHUB_OUTPUT"
-          echo "Using Vercel project $project_id"
+          project_id="$(python3 - <<'PY'
+          import json
+          with open('/tmp/3dvr-os-project.json', encoding='utf-8') as f:
+              data = json.load(f)
+          print(data['id'])
+          PY
+          )"
+          export VERCEL_ORG_ID="$VERCEL_TEAM_ID"
+          export VERCEL_PROJECT_ID="$project_id"
 
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
+          if command -v vercel >/dev/null 2>&1; then
+            vercel_cmd=(vercel)
+          else
+            vercel_cmd=(npx --yes vercel@latest)
+          fi
+          token_args=(--token "$VERCEL_TOKEN")
 
-      - name: Build and deploy static OS
-        id: deploy
-        shell: bash
-        working-directory: 3dvr-os
-        run: |
-          set -euo pipefail
-          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-          vercel build --prod --token="$VERCEL_TOKEN"
-          deploy_url="$(vercel deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN")"
-          echo "url=$deploy_url" >> "$GITHUB_OUTPUT"
-          echo "3DVR OS deployment: $deploy_url"
+          cd "$repo/3dvr-os"
+          rm -rf .vercel
+          "${vercel_cmd[@]}" pull --yes --environment=production "${token_args[@]}"
+          "${vercel_cmd[@]}" build --prod "${token_args[@]}"
+          deploy_url="$("${vercel_cmd[@]}" deploy --prebuilt --prod --yes "${token_args[@]}")"
+          echo "Deployment URL: $deploy_url"
 
-      - name: Attach os.3dvr.tech
-        shell: bash
-        run: |
-          set -euo pipefail
-          auth=(-H "Authorization: Bearer $VERCEL_TOKEN" -H 'Content-Type: application/json')
           curl -fsS "${auth[@]}" \
             "https://api.vercel.com/v9/projects/$PROJECT_NAME/domains?teamId=$VERCEL_TEAM_ID" \
-            -o /tmp/domains.json
+            -o /tmp/3dvr-os-domains.json
 
-          if node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('/tmp/domains.json','utf8')); process.exit((j.domains||[]).some(d=>d.name===process.env.PROJECT_DOMAIN)?0:1)"; then
-            echo "$PROJECT_DOMAIN is already attached"
-          else
-            status="$(curl -sS -o /tmp/domain-add.json -w '%{http_code}' -X POST "${auth[@]}" \
+          if ! PROJECT_DOMAIN="$PROJECT_DOMAIN" python3 - <<'PY'
+          import json, os, sys
+          with open('/tmp/3dvr-os-domains.json', encoding='utf-8') as f:
+              data = json.load(f)
+          sys.exit(0 if any(d.get('name') == os.environ['PROJECT_DOMAIN'] for d in data.get('domains', [])) else 1)
+          PY
+          then
+            domain_status="$(curl -sS -o /tmp/3dvr-os-domain-add.json -w '%{http_code}' -X POST "${auth[@]}" \
               "https://api.vercel.com/v10/projects/$PROJECT_NAME/domains?teamId=$VERCEL_TEAM_ID" \
               --data "{\"name\":\"$PROJECT_DOMAIN\"}")"
-            case "$status" in
-              200|201) cat /tmp/domain-add.json ;;
-              *) cat /tmp/domain-add.json >&2; exit 1 ;;
+            case "$domain_status" in
+              200|201) ;;
+              *) cat /tmp/3dvr-os-domain-add.json >&2; exit 1 ;;
             esac
           fi
 
-      - name: Verify deployment
-        shell: bash
-        env:
-          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
-        run: |
-          set -euo pipefail
-          curl --fail --silent --show-error --location --retry 6 --retry-delay 3 "$DEPLOY_URL" --output /tmp/os-deploy.html
-          grep -q 'Daedalos' /tmp/os-deploy.html
+          curl --fail --silent --show-error --location --retry 8 --retry-delay 3 --retry-all-errors \
+            "$deploy_url" --output /tmp/3dvr-os-deploy.html
+          grep -q 'Daedalos' /tmp/3dvr-os-deploy.html
 
-          curl --fail --silent --show-error --location --retry 12 --retry-delay 5 --retry-all-errors \
-            "https://$PROJECT_DOMAIN/" --output /tmp/os-domain.html
-          grep -q 'Daedalos' /tmp/os-domain.html
+          curl --fail --silent --show-error --location --retry 18 --retry-delay 5 --retry-all-errors \
+            "https://$PROJECT_DOMAIN/" --output /tmp/3dvr-os-domain.html
+          grep -q 'Daedalos' /tmp/3dvr-os-domain.html
           echo "3DVR OS is live at https://$PROJECT_DOMAIN/"
+          REMOTE
+
+      - name: Remove SSH key
+        if: always()
+        shell: bash
+        run: rm -f /tmp/3dvr-server-key /tmp/3dvr-server-key.raw
