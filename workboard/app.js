@@ -1,3 +1,5 @@
+import { queueCodeChange } from '../operator/forge.js';
+
 const ROOT = '3dvr-portal';
 const DEFAULT_PEERS = [
   'wss://gun-relay-3dvr.fly.dev/gun',
@@ -10,6 +12,10 @@ const laneEls = Object.fromEntries(lanes.map(name => [name, document.querySelect
 const template = document.getElementById('card-template');
 const connectionStatus = document.getElementById('connection-status');
 const liveDot = document.getElementById('live-dot');
+const dispatchForm = document.getElementById('dispatch-form');
+const dispatchStatus = document.getElementById('dispatch-status');
+const dispatchSubmit = document.getElementById('dispatch-submit');
+const dispatchResult = document.getElementById('dispatch-result');
 
 function clean(value = '', max = 500) {
   return String(value ?? '').trim().slice(0, max);
@@ -104,7 +110,36 @@ function watchCollection(node, kind) {
   });
 }
 
+async function submitDispatch(event) {
+  event.preventDefault();
+  const formData = new FormData(dispatchForm);
+  const title = clean(formData.get('title'), 160);
+  const repo = clean(formData.get('repo'), 80) || 'portal';
+  const text = clean(formData.get('task'), 4000);
+  if (!text) return;
+
+  dispatchSubmit.disabled = true;
+  dispatchResult.hidden = true;
+  dispatchStatus.textContent = 'Signing and queuing…';
+
+  try {
+    const result = await queueCodeChange({ title, repo, text });
+    dispatchStatus.textContent = result.message || 'Queued.';
+    dispatchResult.href = result.url;
+    dispatchResult.textContent = `${result.label || 'Open queued task'} →`;
+    dispatchResult.hidden = false;
+    document.getElementById('dispatch-title-input').value = '';
+    document.getElementById('dispatch-task').value = '';
+  } catch (error) {
+    dispatchStatus.textContent = clean(error?.message || 'Could not queue this task.', 240);
+  } finally {
+    dispatchSubmit.disabled = false;
+  }
+}
+
 function start() {
+  dispatchForm?.addEventListener('submit', submitDispatch);
+
   if (typeof globalThis.Gun !== 'function') {
     connectionStatus.textContent = 'Forge unavailable';
     return;
