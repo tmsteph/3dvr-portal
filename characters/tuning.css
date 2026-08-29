@@ -1,0 +1,47 @@
+/* Small visual corrections layered over the main Universe stylesheet. */
+
+/* The forest source image is very bright on larger laptop/desktop displays.
+   Pull the highlights down and give the type a denser backdrop without
+   flattening Kayla and 3DVR Girl into silhouettes. */
+.hero-image {
+  filter: saturate(.78) contrast(1.08) brightness(.68);
+}
+
+.hero-shade {
+  background:
+    linear-gradient(90deg, rgba(2,6,5,.94) 0%, rgba(2,6,5,.64) 43%, rgba(2,6,5,.24) 72%),
+    linear-gradient(180deg, rgba(2,6,5,.34) 0%, rgba(2,6,5,.18) 40%, rgba(2,6,5,.95) 100%);
+}
+
+/* Canonical 3DVR Bot: compact yellow barrel droid / mascot companion. */
+.bot-image {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(240,201,110,.15), transparent 32%),
+    radial-gradient(circle at 50% 66%, rgba(82,185,255,.11), transparent 42%),
+    #07100d;
+}
+
+.bot-image img {
+  width: min(78%, 520px);
+  height: auto;
+  max-height: 86%;
+  object-fit: contain;
+  filter: drop-shadow(0 26px 38px rgba(0,0,0,.35));
+}
+
+@media (max-width: 900px) {
+  .hero-image {
+    filter: saturate(.8) contrast(1.06) brightness(.72);
+  }
+
+  .hero-shade {
+    background: linear-gradient(180deg, rgba(2,6,5,.34), rgba(2,6,5,.46) 45%, rgba(2,6,5,.96) 100%);
+  }
+}
+
+@media (max-width: 620px) {
+  .bot-image img {
+    width: min(86%, 430px);
+    max-height: 88%;
+  }
+}
