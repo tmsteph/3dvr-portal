@@ -19,8 +19,8 @@ concurrency:
 env:
   DEV_HOST: 167.71.156.94
   SSH_USER: root
-  VERCEL_SCOPE: tmstephs-projects
-  VERCEL_PROJECT: 3dvr-portal-calendar
+  VERCEL_SCOPE: 3dvr
+  VERCEL_PROJECT: 3dvr-calendar
   CALENDAR_DOMAIN: calendar.3dvr.tech
 
 jobs:
@@ -75,6 +75,11 @@ jobs:
           git -C "$repo" checkout -B main origin/main
           git -C "$repo" reset --hard origin/main
           git -C "$repo" clean -fd
+
+          "${cli[@]}" domains inspect 3dvr.tech --scope "$VERCEL_SCOPE" >/dev/null
+          if ! "${cli[@]}" project inspect "$VERCEL_PROJECT" --scope "$VERCEL_SCOPE" >/dev/null 2>&1; then
+            "${cli[@]}" project add "$VERCEL_PROJECT" --scope "$VERCEL_SCOPE"
+          fi
 
           cd "$repo/calendar"
           rm -rf .vercel
