@@ -191,14 +191,28 @@ start_with_tmux() {
   tmux new-session -d -s "$session" "$command"
 }
 
+live_backend=''
+
 restart_live_service() {
-  if [ "$(id -u)" = 0 ] && command -v systemctl >/dev/null 2>&1; then
-    systemctl restart 3dvr-portal.service
-  elif command -v tmux >/dev/null 2>&1; then
-    start_with_tmux
-  else
-    return 1
-  fi
+  case "$live_backend" in
+    systemd)
+      if systemctl restart 3dvr-portal.service; then
+        return 0
+      fi
+      if command -v tmux >/dev/null 2>&1; then
+        start_with_tmux
+        live_backend=tmux
+        return 0
+      fi
+      return 1
+      ;;
+    tmux)
+      start_with_tmux
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
 rollback_live() {
@@ -224,8 +238,11 @@ rollback_live() {
   set -e
 }
 
-if ! start_with_systemd; then
+if start_with_systemd; then
+  live_backend=systemd
+else
   start_with_tmux
+  live_backend=tmux
 fi
 
 live_url="http://127.0.0.1:$port"
