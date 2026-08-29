@@ -28,6 +28,7 @@ async function openRandomRoom(browser, durableMessages, publishCalls = []) {
     serviceWorkers: 'block'
   });
   await context.addInitScript(() => {
+    window.__DISABLE_GUN_DEFAULT_PEERS__ = true;
     window.__GUN_PEERS__ = [];
   });
   await context.route('**/api/trial', async route => {

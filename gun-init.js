@@ -9,7 +9,11 @@
   const existingPeers = Array.isArray(global.__GUN_PEERS__)
     ? global.__GUN_PEERS__
     : [];
-  const mergedPeers = Array.from(new Set([...defaultPeers, ...existingPeers].filter(Boolean)))
+  const disableDefaultPeers = global.__DISABLE_GUN_DEFAULT_PEERS__ === true;
+  const mergedPeers = Array.from(new Set([
+    ...(disableDefaultPeers ? [] : defaultPeers),
+    ...existingPeers
+  ].filter(Boolean)))
     .filter(peer => !disabledPeers.has(peer));
   global.__GUN_PEERS__ = mergedPeers;
 
