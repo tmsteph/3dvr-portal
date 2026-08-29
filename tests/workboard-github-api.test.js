@@ -153,14 +153,18 @@ test('Workboard GitHub feed coalesces concurrent cache misses', async () => {
   assert.deepEqual(second.body, first.body);
 });
 
-test('Workboard GitHub feed returns a controlled error when GitHub fails without cache', async () => {
+test('Workboard GitHub feed degrades safely when GitHub fails without cache', async () => {
   globalThis.fetch = async () => ({ ok: false, status: 403 });
 
   const req = { method: 'GET' };
   const res = createResponse();
   await workboardGithubHandler(req, res);
 
-  assert.equal(res.statusCode, 502);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.ok, true);
+  assert.equal(res.body.repository, 'tmsteph/3dvr-portal');
+  assert.deepEqual(res.body.items, []);
+  assert.equal(res.body.degraded, true);
   assert.equal(res.body.error, 'GitHub work feed is temporarily unavailable.');
   assert.equal(res.body.status, 403);
 });
