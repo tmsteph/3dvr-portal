@@ -1,0 +1,93 @@
+name: Calendar Production
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'calendar/**'
+      - '.github/workflows/calendar-production.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: calendar-production
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z
+  VERCEL_PROJECT_ID: prj_pESdbRo2Hhfz4mfXXcdJy1A8swEk
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  VERCEL_SCOPE: tmstephs-projects
+  VERCEL_PROJECT: 3dvr-portal-calendar
+  CALENDAR_DOMAIN: calendar.3dvr.tech
+
+jobs:
+  deploy:
+    name: Deploy standalone calendar
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Require Vercel credentials
+        shell: bash
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::VERCEL_TOKEN is not configured."
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel
+
+      - name: Link standalone Calendar project
+        working-directory: calendar
+        shell: bash
+        run: |
+          rm -rf .vercel
+          vercel link --yes \
+            --project "$VERCEL_PROJECT" \
+            --scope "$VERCEL_SCOPE" \
+            --token "$VERCEL_TOKEN"
+      - name: Attach calendar.3dvr.tech
+        working-directory: calendar
+        shell: bash
+        run: |
+          vercel domains add "$CALENDAR_DOMAIN" "$VERCEL_PROJECT" \
+            --scope "$VERCEL_SCOPE" \
+            --token "$VERCEL_TOKEN" \
+            --force
+
+      - name: Deploy Calendar production
+        id: deploy
+        working-directory: calendar
+        shell: bash
+        run: |
+          DEPLOY_URL="$(vercel deploy --prod --yes --force \
+            --scope "$VERCEL_SCOPE" \
+            --token "$VERCEL_TOKEN")"
+          echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+          echo "Calendar deployment: $DEPLOY_URL"
+          vercel alias set "$DEPLOY_URL" "$CALENDAR_DOMAIN" \
+            --scope "$VERCEL_SCOPE" \
+            --token "$VERCEL_TOKEN"
+
+      - name: Verify calendar domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location \
+            --retry 18 --retry-delay 5 --retry-all-errors \
+            "https://$CALENDAR_DOMAIN/" -o /tmp/calendar-live.html
+          grep -q 'data-calendar-view-title' /tmp/calendar-live.html
+          grep -q '3DVR Portal – Calendar' /tmp/calendar-live.html
+          ! grep -q '<title>3DVR Portal</title>' /tmp/calendar-live.html
