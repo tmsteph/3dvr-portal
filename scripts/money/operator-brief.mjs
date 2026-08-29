@@ -107,7 +107,12 @@ async function main() {
   });
 }
 
-main().catch(error => {
+main().then(() => {
+  // Gun keeps background timers/sockets alive after the CLI has completed its
+  // awaited work. This is a one-shot workflow command, so terminate cleanly
+  // once outputs and delivery have finished instead of waiting for handles.
+  process.exit(0);
+}).catch(error => {
   console.error(error?.message || error);
   process.exit(1);
 });
