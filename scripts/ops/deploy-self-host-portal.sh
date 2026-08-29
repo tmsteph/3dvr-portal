@@ -133,6 +133,11 @@ if [ "$ready" != true ]; then
   exit 4
 fi
 
+# Verify the agent work surface before exposing this release publicly.
+curl -fsS --retry 3 --retry-delay 1 "http://127.0.0.1:$port/workboard/" | grep -Fq 'AGENT WORKBOARD'
+workboard_feed="$(curl -fsS --retry 3 --retry-delay 1 "http://127.0.0.1:$port/api/workboard/github")"
+printf '%s' "$workboard_feed" | node -e 'let s=""; process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s); if(!p.ok||!Array.isArray(p.items)) throw new Error("invalid Workboard GitHub feed");})'
+
 cloudflared="$(command -v cloudflared || true)"
 if [ -z "$cloudflared" ]; then
   if [ "$(id -u)" = 0 ]; then cloudflared=/usr/local/bin/cloudflared; else cloudflared="$base/bin/cloudflared"; fi
