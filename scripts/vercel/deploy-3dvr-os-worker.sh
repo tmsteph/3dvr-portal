@@ -10,6 +10,7 @@ env_file="${MONEY_PRINTER_ENV_FILE:-$HOME/.config/3dvr/money-printer.env}"
 
 if [ -r "$env_file" ]; then
   set -a
+  # shellcheck disable=SC1090
   . "$env_file"
   set +a
 fi
@@ -53,6 +54,7 @@ if [ ! -d "$repo/.git" ]; then
   git clone "https://github.com/${GITHUB_REPOSITORY:-tmsteph/3dvr-portal}.git" "$repo"
 fi
 
+# Dedicated managed clone: discard leftovers from previous automated runs.
 git -C "$repo" reset --hard
 git -C "$repo" clean -fd
 git -C "$repo" fetch --prune origin main
@@ -76,7 +78,8 @@ JSON
   case "$status" in 200|201) ;; *) cat /tmp/3dvr-os-project.json >&2; exit 1 ;; esac
   project_id="$(python3 - <<'PY'
 import json
-print(json.load(open('/tmp/3dvr-os-project.json'))['id'])
+with open('/tmp/3dvr-os-project.json', encoding='utf-8') as f:
+    print(json.load(f)['id'])
 PY
 )"
   export VERCEL_ORG_ID="$team_id" VERCEL_PROJECT_ID="$project_id"
@@ -94,8 +97,13 @@ else
 fi
 
 echo "Deployment URL: $deploy_url"
-curl --fail --silent --show-error --location --retry 8 --retry-delay 3 --retry-all-errors "$deploy_url" --output /tmp/3dvr-os-deploy.html
+# Generated deployment URLs may be protected by Vercel Authentication. `vercel curl`
+# supplies the project protection bypass automatically for an authenticated CLI session.
+"${vercel_cmd[@]}" curl "$deploy_url" --scope "$scope_slug" "${token_args[@]}" > /tmp/3dvr-os-deploy.html
 grep -q 'Daedalos' /tmp/3dvr-os-deploy.html
-curl --fail --silent --show-error --location --retry 18 --retry-delay 5 --retry-all-errors "https://$project_domain/" --output /tmp/3dvr-os-domain.html
+
+# The public custom domain is the user-facing health check.
+curl --fail --silent --show-error --location --retry 18 --retry-delay 5 --retry-all-errors \
+  "https://$project_domain/" --output /tmp/3dvr-os-domain.html
 grep -q 'Daedalos' /tmp/3dvr-os-domain.html
 echo "3DVR_OS_URL=https://$project_domain/"
