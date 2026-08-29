@@ -43,6 +43,84 @@ if [ ! -d "$release" ]; then
   mv "$tmp" "$release"
 fi
 
+wait_for_release() {
+  local base_url="$1"
+  local expected_sha="$2"
+  local health
+  for _ in $(seq 1 30); do
+    health="$(curl -fsS "$base_url/__3dvr-health" 2>/dev/null || true)"
+    if printf '%s' "$health" | grep -Fq "\"sha\":\"$expected_sha\""; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+validate_workboard() {
+  local base_url="$1"
+  local feed
+  curl -fsS --retry 3 --retry-delay 1 "$base_url/workboard/" | grep -Fq 'AGENT WORKBOARD' || return 1
+  feed="$(curl -fsS --retry 3 --retry-delay 1 "$base_url/api/workboard/github")" || return 1
+  printf '%s' "$feed" | node -e 'let s=""; process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s); if(!p.ok||!Array.isArray(p.items)) throw new Error("invalid Workboard GitHub feed");})'
+}
+
+candidate_port="${THREEDVR_PORTAL_CANDIDATE_PORT:-$((port + 1000))}"
+if ! [[ "$candidate_port" =~ ^[0-9]+$ ]] || [ "$candidate_port" -lt 1 ] || [ "$candidate_port" -gt 65535 ] || [ "$candidate_port" -eq "$port" ]; then
+  echo "Invalid candidate port: $candidate_port" >&2
+  exit 2
+fi
+candidate_log="$state/candidate-$sha.log"
+candidate_pid=''
+
+cleanup_candidate() {
+  if [ -n "$candidate_pid" ]; then
+    kill "$candidate_pid" 2>/dev/null || true
+    wait "$candidate_pid" 2>/dev/null || true
+    candidate_pid=''
+  fi
+}
+trap cleanup_candidate EXIT
+
+(
+  set -a
+  [ -f "$common_env" ] && . "$common_env"
+  [ -f "$portal_env" ] && . "$portal_env"
+  set +a
+  export PORT="$candidate_port"
+  export HOST=127.0.0.1
+  export PORTAL_ROOT="$release"
+  export PORTAL_RELEASE_REF="$ref"
+  export PORTAL_RELEASE_SHA="$sha"
+  export LEGACY_API_ORIGIN=https://3dvr-portal.vercel.app
+  cd "$release"
+  exec node scripts/self-host-server.mjs
+) >"$candidate_log" 2>&1 &
+candidate_pid=$!
+
+candidate_url="http://127.0.0.1:$candidate_port"
+if ! wait_for_release "$candidate_url" "$sha"; then
+  echo 'Candidate 3DVR portal release did not become healthy.' >&2
+  tail -n 100 "$candidate_log" >&2 2>/dev/null || true
+  exit 4
+fi
+if ! validate_workboard "$candidate_url"; then
+  echo 'Candidate 3DVR portal release failed Workboard validation.' >&2
+  tail -n 100 "$candidate_log" >&2 2>/dev/null || true
+  exit 4
+fi
+cleanup_candidate
+trap - EXIT
+
+previous_release="$(readlink -f "$current" 2>/dev/null || true)"
+previous_env="$state/portal.env.before-$sha-$$"
+had_previous_env=false
+if [ -f "$portal_env" ]; then
+  cp "$portal_env" "$previous_env"
+  chmod 600 "$previous_env"
+  had_previous_env=true
+fi
+
 ln -sfn "$release" "$current"
 
 cat > "$portal_env.tmp" <<EOF
@@ -58,8 +136,8 @@ EOF
 # Never overwrite them with empty values and never print them.
 for key in OPENAI_API_KEY AI_GATEWAY_API_KEY THREEDVR_CLOUDFLARE_TUNNEL_TOKEN GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET; do
   value="${!key:-}"
-  if [ -z "$value" ] && [ -f "$portal_env" ]; then
-    value="$(sed -n "s/^${key}=//p" "$portal_env" | tail -n1)"
+  if [ -z "$value" ] && [ "$had_previous_env" = true ]; then
+    value="$(sed -n "s/^${key}=//p" "$previous_env" | tail -n1)"
   fi
   if [ -z "$value" ] && [ -f "$common_env" ]; then
     value="$(sed -n "s/^${key}=//p" "$common_env" | tail -n1)"
@@ -113,30 +191,60 @@ start_with_tmux() {
   tmux new-session -d -s "$session" "$command"
 }
 
+restart_live_service() {
+  if [ "$(id -u)" = 0 ] && command -v systemctl >/dev/null 2>&1; then
+    systemctl restart 3dvr-portal.service
+  elif command -v tmux >/dev/null 2>&1; then
+    start_with_tmux
+  else
+    return 1
+  fi
+}
+
+rollback_live() {
+  echo 'Rolling back the failed 3DVR portal release.' >&2
+  set +e
+  if [ -n "$previous_release" ] && [ -d "$previous_release" ]; then
+    ln -sfn "$previous_release" "$current"
+    if [ "$had_previous_env" = true ]; then
+      cp "$previous_env" "$portal_env"
+      chmod 600 "$portal_env"
+    else
+      rm -f "$portal_env"
+    fi
+    restart_live_service
+  else
+    if [ "$(id -u)" = 0 ] && command -v systemctl >/dev/null 2>&1; then
+      systemctl stop 3dvr-portal.service
+    fi
+    if command -v tmux >/dev/null 2>&1; then
+      tmux kill-session -t 3dvr-portal-production 2>/dev/null
+    fi
+  fi
+  set -e
+}
+
 if ! start_with_systemd; then
   start_with_tmux
 fi
 
-ready=false
-for _ in $(seq 1 30); do
-  health="$(curl -fsS "http://127.0.0.1:$port/__3dvr-health" 2>/dev/null || true)"
-  if printf '%s' "$health" | grep -Fq "\"sha\":\"$sha\""; then
-    ready=true
-    break
-  fi
-  sleep 1
-done
-if [ "$ready" != true ]; then
+live_url="http://127.0.0.1:$port"
+if ! wait_for_release "$live_url" "$sha"; then
   echo '3DVR portal service did not become healthy.' >&2
   systemctl status 3dvr-portal.service --no-pager 2>/dev/null || true
   [ -f "$state/server.log" ] && tail -n 100 "$state/server.log" >&2 || true
+  rollback_live
+  rm -f "$previous_env"
   exit 4
 fi
 
-# Verify the agent work surface before exposing this release publicly.
-curl -fsS --retry 3 --retry-delay 1 "http://127.0.0.1:$port/workboard/" | grep -Fq 'AGENT WORKBOARD'
-workboard_feed="$(curl -fsS --retry 3 --retry-delay 1 "http://127.0.0.1:$port/api/workboard/github")"
-printf '%s' "$workboard_feed" | node -e 'let s=""; process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s); if(!p.ok||!Array.isArray(p.items)) throw new Error("invalid Workboard GitHub feed");})'
+if ! validate_workboard "$live_url"; then
+  echo 'Live 3DVR portal release failed Workboard validation.' >&2
+  rollback_live
+  rm -f "$previous_env"
+  exit 4
+fi
+rm -f "$previous_env"
 
 cloudflared="$(command -v cloudflared || true)"
 if [ -z "$cloudflared" ]; then
