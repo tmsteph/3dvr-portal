@@ -166,6 +166,13 @@ static void launch_app(GtkButton *button, gpointer data) {
   run_async(app->command);
 }
 
+static void get_screen_size(int *w, int *h) {
+  Display *dpy = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+  int screen = DefaultScreen(dpy);
+  *w = DisplayWidth(dpy, screen);
+  *h = DisplayHeight(dpy, screen);
+}
+
 static gboolean get_workarea(int *x, int *y, int *w, int *h) {
   Display *dpy = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
   Window root = DefaultRootWindow(dpy);
@@ -178,8 +185,9 @@ static gboolean get_workarea(int *x, int *y, int *w, int *h) {
     XFree(data); return TRUE;
   }
   if (data) XFree(data);
-  GdkScreen *screen = gdk_screen_get_default();
-  *x = 0; *y = BAR_HEIGHT; *w = gdk_screen_get_width(screen); *h = gdk_screen_get_height(screen) - BAR_HEIGHT;
+  int sw = 0, sh = 0;
+  get_screen_size(&sw, &sh);
+  *x = 0; *y = BAR_HEIGHT; *w = sw; *h = sh - BAR_HEIGHT;
   return FALSE;
 }
 
@@ -415,8 +423,9 @@ static GtkWidget *build_home(void) {
   gtk_window_set_type_hint(GTK_WINDOW(window), GDK_WINDOW_TYPE_HINT_DESKTOP);
   gtk_window_set_keep_below(GTK_WINDOW(window), TRUE);
   gtk_window_set_accept_focus(GTK_WINDOW(window), TRUE);
-  GdkScreen *screen = gdk_screen_get_default();
-  gtk_window_set_default_size(GTK_WINDOW(window), gdk_screen_get_width(screen), gdk_screen_get_height(screen));
+  int sw = 0, sh = 0;
+  get_screen_size(&sw, &sh);
+  gtk_window_set_default_size(GTK_WINDOW(window), sw, sh);
   gtk_window_move(GTK_WINDOW(window), 0, 0);
   gtk_style_context_add_class(gtk_widget_get_style_context(window), "home");
   gtk_style_context_add_class(gtk_widget_get_style_context(title), "title");
@@ -460,7 +469,8 @@ static void reserve_top(GtkWidget *window) {
   if (!gw) return;
   Display *dpy = GDK_DISPLAY_XDISPLAY(gdk_window_get_display(gw));
   Window xid = GDK_WINDOW_XID(gw);
-  int sw = gdk_screen_get_width(gdk_window_get_screen(gw));
+  int sw = 0, sh = 0;
+  get_screen_size(&sw, &sh);
   unsigned long strut[4] = {0, 0, BAR_HEIGHT, 0};
   unsigned long partial[12] = {0,0,BAR_HEIGHT,0, 0,0,0,0, 0,(unsigned long)(sw-1),0,0};
   Atom a = XInternAtom(dpy, "_NET_WM_STRUT", False);
@@ -499,8 +509,8 @@ static GtkWidget *build_spinner_window(void) {
   gtk_window_set_skip_pager_hint(GTK_WINDOW(window), TRUE);
   gtk_window_set_type_hint(GTK_WINDOW(window), GDK_WINDOW_TYPE_HINT_UTILITY);
   gtk_window_set_default_size(GTK_WINDOW(window), size, size);
-  GdkScreen *screen = gdk_screen_get_default();
-  int sw = gdk_screen_get_width(screen), sh = gdk_screen_get_height(screen);
+  int sw = 0, sh = 0;
+  get_screen_size(&sw, &sh);
   gtk_window_move(GTK_WINDOW(window), sw - size - 28, (sh - size) / 2);
   gtk_style_context_add_class(gtk_widget_get_style_context(window), "spinner-float");
   gtk_style_context_add_class(gtk_widget_get_style_context(event), "spinner-knob");
@@ -526,8 +536,9 @@ static GtkWidget *build_bar(void) {
   gtk_window_set_accept_focus(GTK_WINDOW(window), FALSE);
   gtk_window_set_focus_on_map(GTK_WINDOW(window), FALSE);
   gtk_window_set_type_hint(GTK_WINDOW(window), GDK_WINDOW_TYPE_HINT_DOCK);
-  GdkScreen *screen = gdk_screen_get_default();
-  gtk_window_set_default_size(GTK_WINDOW(window), gdk_screen_get_width(screen), BAR_HEIGHT);
+  int sw = 0, sh = 0;
+  get_screen_size(&sw, &sh);
+  gtk_window_set_default_size(GTK_WINDOW(window), sw, BAR_HEIGHT);
   gtk_window_move(GTK_WINDOW(window), 0, 0);
   gtk_style_context_add_class(gtk_widget_get_style_context(window), "topbar");
   gtk_widget_set_hexpand(grid, TRUE);
