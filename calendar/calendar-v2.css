@@ -389,9 +389,19 @@ body {
 }
 
 .calendar-view__details-actions button,
-.calendar-view__details-edit {
+.calendar-view__details-edit,
+.calendar-view__details-delete {
   font-size: 0.82rem;
   padding: 7px 10px;
+}
+
+.calendar-view__details-delete {
+  border-color: rgba(239, 176, 176, 0.3);
+  color: var(--calendar-danger);
+}
+
+.calendar-view__details-delete:hover {
+  background: rgba(239, 176, 176, 0.12);
 }
 
 .calendar-view__details-list {
