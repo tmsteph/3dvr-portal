@@ -1,0 +1,27 @@
+#!/data/data/com.termux/files/usr/bin/python3
+import ctypes, sys, time
+
+wid = int(sys.argv[1], 0)
+X = ctypes.CDLL('/data/data/com.termux/files/usr/lib/libX11.so')
+P = ctypes.c_void_p
+X.XOpenDisplay.argtypes = [ctypes.c_char_p]
+X.XOpenDisplay.restype = P
+X.XInternAtom.argtypes = [P, ctypes.c_char_p, ctypes.c_int]
+X.XInternAtom.restype = ctypes.c_ulong
+X.XChangeProperty.argtypes = [P, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_ulong,
+                              ctypes.c_int, ctypes.c_int, ctypes.c_void_p, ctypes.c_int]
+X.XUnmapWindow.argtypes = [P, ctypes.c_ulong]
+X.XMapRaised.argtypes = [P, ctypes.c_ulong]
+X.XSync.argtypes = [P, ctypes.c_int]
+
+d = X.XOpenDisplay(b':0')
+if not d:
+    raise SystemExit(1)
+a = X.XInternAtom(d, b'_MOTIF_WM_HINTS', 0)
+vals = (ctypes.c_ulong * 5)(2, 0, 0, 0, 0)
+X.XChangeProperty(d, wid, a, a, 32, 0, ctypes.cast(vals, ctypes.c_void_p), 5)
+X.XUnmapWindow(d, wid)
+X.XSync(d, 0)
+time.sleep(.08)
+X.XMapRaised(d, wid)
+X.XSync(d, 0)

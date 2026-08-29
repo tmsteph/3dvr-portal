@@ -1,0 +1,41 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -u
+export DISPLAY=:0
+match="${1:?window class match required}"
+slot="${2:-auto}"
+
+for _ in $(seq 1 100); do
+  ids=$(xprop -root _NET_CLIENT_LIST 2>/dev/null | grep -o '0x[0-9a-fA-F]*')
+  for id in $ids; do
+    xprop -id "$id" WM_CLASS 2>/dev/null | grep -qi -- "$match" || continue
+
+    read -r x y w h <<EOF
+$(xprop -root _NET_WORKAREA 2>/dev/null | grep -o '[0-9][0-9]*' | head -4 | tr '\n' ' ')
+EOF
+    : "${x:=0}" "${y:=120}" "${w:=1808}" "${h:=4338}"
+    half=$((h / 2))
+
+    if [ "$slot" = auto ]; then
+      count=0
+      for wid in $ids; do
+        cls=$(xprop -id "$wid" WM_CLASS 2>/dev/null || true)
+        echo "$cls" | grep -qi '3dvr-shell' && continue
+        [ -n "$cls" ] && count=$((count + 1))
+      done
+      [ $((count % 2)) -eq 0 ] && slot=bottom || slot=top
+    fi
+    "$HOME/bin/3dvr-undecorate" "$id" >/dev/null 2>&1 || true
+    sleep .12
+    wmctrl -ir "$id" -b remove,maximized_vert,maximized_horz >/dev/null 2>&1 || true
+    case "$slot" in
+      bottom) yy=$((y + half)); hh=$half ;;
+      full)   yy=$y; hh=$h ;;
+      *)      yy=$y; hh=$half ;;
+    esac
+    wmctrl -ir "$id" -e "0,$x,$yy,$w,$hh" >/dev/null 2>&1 || true
+    wmctrl -ia "$id" >/dev/null 2>&1 || true
+    exit 0
+  done
+  sleep .15
+done
+exit 1

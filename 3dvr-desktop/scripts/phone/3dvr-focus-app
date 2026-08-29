@@ -1,0 +1,15 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -u
+needle="${1:-}"
+[ -n "$needle" ] || exit 2
+export DISPLAY="${DISPLAY:-:0}"
+wmctrl -k off >/dev/null 2>&1 || true
+clients="$(xprop -root _NET_CLIENT_LIST 2>/dev/null | grep -o '0x[0-9a-fA-F]*' || true)"
+for id in $clients; do
+  props="$(xprop -id "$id" WM_CLASS _NET_WM_NAME WM_NAME 2>/dev/null || true)"
+  if printf '%s' "$props" | grep -qi -- "$needle"; then
+    wmctrl -ia "$id" >/dev/null 2>&1 || true
+    exit 0
+  fi
+done
+exit 1

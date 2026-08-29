@@ -72,7 +72,7 @@
   </section>
 
   <section class="grid">
-    <article class="card"><h2>Phone</h2><p>Termux:X11 outside, Debian proot inside, the same 3DVR session on top.</p></article>
+    <article class="card"><h2>Phone</h2><p>Termux:X11 + XFWM4 + our native GTK 3dvr-shell, built directly on Android without requiring proot.</p></article>
     <article class="card"><h2>VM</h2><p>Our tiny Debian lab is the safe reference machine for building and testing the desktop.</p></article>
     <article class="card"><h2>Linux</h2><p>Run it directly on Debian-family machines through normal Xorg and the same config.</p></article>
   </section>
@@ -80,7 +80,7 @@
   <section class="stack">
     <div class="eyebrow">Desktop environment</div>
     <h2>One 3DVR session, replaceable parts.</h2>
-    <p class="note">Openbox manages windows. Tint2 is the panel. Rofi launches apps. PCManFM handles files. Xterm is the baseline terminal. 3DVR owns the session defaults, install flow, launchers, and cross-device behavior—so these components can be swapped later without changing what “3DVR Desktop” means.</p>
+    <p class="note">On Android, XFWM4 manages windows while our GTK 3dvr-shell owns the home screen, app launcher, running-app overview, touch controls, and window actions. Linux/VMs currently keep the smaller Openbox + Tint2 fallback. 3DVR owns the session either way, so implementation pieces can evolve without changing what “3DVR Desktop” means.</p>
     <p class="note"><strong>Daedalos</strong> remains the browser-native desktop. <strong>3DVR Desktop</strong> is the native Linux desktop. The long-term goal is for them to feel like two runtimes of the same personal computer.</p>
   </section>
 </main>

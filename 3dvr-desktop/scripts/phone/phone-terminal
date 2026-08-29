@@ -1,0 +1,9 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -u
+export DISPLAY=:0
+export GDK_SCALE=1
+export GDK_DPI_SCALE=1.00
+xfce4-terminal --hide-menubar --hide-borders --hide-toolbar --hide-scrollbar --font="Cascadia Mono PL 24" "$@" &
+pid=$!
+"$HOME/bin/3dvr-place-class" 'xfce4-terminal' auto >/dev/null 2>&1 &
+wait "$pid"

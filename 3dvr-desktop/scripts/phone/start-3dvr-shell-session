@@ -1,0 +1,30 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -u
+export DISPLAY="${DISPLAY:-:0}"
+state="$HOME/.local/state/termux-gui-v2"
+mkdir -p "$state"
+
+# Minimal X11 session: XFWM handles windows; 3DVR owns the shell.
+xfsettingsd >"$state/xfsettingsd.log" 2>&1 &
+settings_pid=$!
+xfwm4 --replace >"$state/xfwm4.log" 2>&1 &
+wm_pid=$!
+
+for _ in $(seq 1 60); do
+  kill -0 "$wm_pid" 2>/dev/null || exit 1
+  DISPLAY=:0 xprop -root _NET_SUPPORTING_WM_CHECK >/dev/null 2>&1 && break
+  sleep .2
+done
+
+# Phone performance: dragging draws a lightweight outline; snapping is instant.
+xfconf-query -c xfwm4 -p /general/box_move -s true 2>/dev/null || true
+xfconf-query -c xfwm4 -p /general/box_resize -s true 2>/dev/null || true
+xfconf-query -c xfwm4 -p /general/use_compositing -s false 2>/dev/null || true
+xfconf-query -c xfwm4 -p /general/show_frame_shadow -s false 2>/dev/null || true
+
+while kill -0 "$wm_pid" 2>/dev/null; do
+  if ! pgrep -f '^/data/data/com.termux/files/home/3dvr-shell/3dvr-shell$' >/dev/null 2>&1; then
+    "$HOME/3dvr-shell/3dvr-shell" >>"$state/3dvr-shell-session.log" 2>&1 &
+  fi
+  sleep 2
+done
