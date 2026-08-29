@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { access, readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import openAiSiteHandler from '../api/openai-site.js';
-import workboardGithubHandler from '../api/workboard/github.js';
+import workboardGithubHandler from '../src/workboard/github-feed.js';
 import { createOAuthProviderHandler } from '../src/oauth/provider-api.js';
 
 const PORT = Number(process.env.PORT || 4320);
