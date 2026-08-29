@@ -106,7 +106,11 @@ export function createWorkboardGithubHandler(options = {}) {
     } catch (error) {
       const stale = cachedPayload(STALE_TTL_MS);
       if (stale) return sendFeed(res, stale, { stale: true });
-      return res.status(502).json({
+      return sendFeed(res, {
+        ok: true,
+        repository: REPOSITORY,
+        items: [],
+        degraded: true,
         error: error?.message || 'GitHub work feed is temporarily unavailable.',
         ...(Number.isFinite(error?.status) ? { status: error.status } : {})
       });
