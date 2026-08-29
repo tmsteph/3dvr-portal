@@ -1,10 +1,4 @@
-const fs = require('node:fs');
-const path = require('node:path');
-
-const ROOT = path.join(__dirname, '..');
-const DEFAULT_STATE_DIR = process.env.THREEDVR_AUTOPILOT_STATE_DIR || path.join(ROOT, 'state');
-const DEFAULT_STATE_FILE = process.env.THREEDVR_WEBSITE_UPGRADE_STATE_FILE
-  || path.join(DEFAULT_STATE_DIR, 'website-upgrade-fulfillment-state.json');
+const { websiteUpgradeFulfillmentNode } = require('./gun-db');
 
 const TERMINAL_STATUSES = new Set(['delivered', 'blocked']);
 const VALID_STATUSES = new Set(['received', 'processing', 'delivered', 'blocked', 'failed']);
@@ -13,40 +7,41 @@ function nowIso(now = () => new Date()) {
   return now().toISOString();
 }
 
-function ensureStateFile(stateFile = DEFAULT_STATE_FILE) {
-  fs.mkdirSync(path.dirname(stateFile), { recursive: true });
-  if (!fs.existsSync(stateFile)) {
-    const initial = { version: 1, orders: {} };
-    fs.writeFileSync(stateFile, `${JSON.stringify(initial, null, 2)}\n`);
-    return initial;
-  }
-
-  // Fulfillment history is safety-critical: never treat unreadable/corrupt
-  // persisted state as an empty history, because that could redeliver a paid
-  // Stripe Checkout Session. Surface the error and require recovery instead.
-  const parsed = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
-  if (!parsed.orders || typeof parsed.orders !== 'object' || Array.isArray(parsed.orders)) {
-    throw new Error(`Invalid Website Upgrade fulfillment state: ${stateFile}`);
-  }
-  return { version: 1, orders: parsed.orders };
-}
-
-function saveState(state, stateFile = DEFAULT_STATE_FILE) {
-  fs.mkdirSync(path.dirname(stateFile), { recursive: true });
-  const tmp = `${stateFile}.tmp`;
-  fs.writeFileSync(tmp, `${JSON.stringify(state, null, 2)}\n`);
-  fs.renameSync(tmp, stateFile);
-}
-
 function requireSessionId(order) {
   const sessionId = String(order?.sessionId || '').trim();
   if (!sessionId) throw new Error('Website Upgrade fulfillment requires a Stripe Checkout Session ID.');
   return sessionId;
 }
 
-function receiveOrder(state, order, options = {}) {
+function sessionNode(sessionId) {
+  return websiteUpgradeFulfillmentNode().get(sessionId);
+}
+
+function readNode(node, timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Timed out reading Website Upgrade fulfillment state from GunJS.')), timeoutMs);
+    node.once((data) => {
+      clearTimeout(timer);
+      resolve(data && typeof data === 'object' ? data : null);
+    });
+  });
+}
+
+function writeNode(node, value, timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Timed out writing Website Upgrade fulfillment state to GunJS.')), timeoutMs);
+    node.put(value, (ack) => {
+      clearTimeout(timer);
+      if (ack && ack.err) reject(new Error(`GunJS fulfillment write failed: ${ack.err}`));
+      else resolve(value);
+    });
+  });
+}
+
+async function receiveOrder(order, options = {}) {
   const sessionId = requireSessionId(order);
-  const existing = state.orders[sessionId];
+  const node = (options.node || sessionNode)(sessionId);
+  const existing = await readNode(node, options.timeoutMs);
   if (existing) return { record: existing, created: false, terminal: TERMINAL_STATUSES.has(existing.status) };
 
   const at = nowIso(options.now);
@@ -63,13 +58,14 @@ function receiveOrder(state, order, options = {}) {
     attempts: 0,
     deliverySentAt: null,
   };
-  state.orders[sessionId] = record;
+  await writeNode(node, record, options.timeoutMs);
   return { record, created: true, terminal: false };
 }
 
-function transitionOrder(state, sessionId, status, details = {}, options = {}) {
+async function transitionOrder(sessionId, status, details = {}, options = {}) {
   if (!VALID_STATUSES.has(status)) throw new Error(`Invalid Website Upgrade fulfillment status: ${status}`);
-  const record = state.orders[sessionId];
+  const node = (options.node || sessionNode)(sessionId);
+  const record = await readNode(node, options.timeoutMs);
   if (!record) throw new Error(`Unknown Website Upgrade fulfillment session: ${sessionId}`);
   if (TERMINAL_STATUSES.has(record.status) && record.status !== status) return record;
 
@@ -77,7 +73,7 @@ function transitionOrder(state, sessionId, status, details = {}, options = {}) {
   const next = { ...record, ...details, status, updatedAt: at };
   if (status === 'processing') next.attempts = Number(record.attempts || 0) + 1;
   if (status === 'delivered' && !next.deliverySentAt) next.deliverySentAt = at;
-  state.orders[sessionId] = next;
+  await writeNode(node, next, options.timeoutMs);
   return next;
 }
 
@@ -86,11 +82,10 @@ function shouldDeliver(record) {
 }
 
 module.exports = {
-  DEFAULT_STATE_FILE,
   TERMINAL_STATUSES,
-  ensureStateFile,
+  readNode,
   receiveOrder,
-  saveState,
   shouldDeliver,
   transitionOrder,
+  writeNode,
 };
