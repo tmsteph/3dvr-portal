@@ -60,7 +60,7 @@ wait_for_release() {
 validate_workboard() {
   local base_url="$1"
   local feed
-  curl -fsS --retry 3 --retry-delay 1 "$base_url/workboard/" | grep -Fq 'AGENT WORKBOARD' || return 1
+  curl -fsS --retry 3 --retry-delay 1 "$base_url/workboard/" | grep -Fq 'AGENT WORKSPACE' || return 1
   feed="$(curl -fsS --retry 3 --retry-delay 1 "$base_url/api/workboard/github")" || return 1
   printf '%s' "$feed" | node -e 'let s=""; process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s); if(!p.ok||!Array.isArray(p.items)) throw new Error("invalid Workboard GitHub feed");})'
 }
