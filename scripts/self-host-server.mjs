@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { access, readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import openAiSiteHandler from '../api/openai-site.js';
+import workboardGithubHandler from '../api/workboard/github.js';
 import { createOAuthProviderHandler } from '../src/oauth/provider-api.js';
 
 const PORT = Number(process.env.PORT || 4320);
@@ -22,7 +23,7 @@ const MIME_TYPES = new Map([
   ['.webmanifest', 'application/manifest+json; charset=utf-8'],
   ['.svg', 'image/svg+xml'],
   ['.png', 'image/png'],
-  ['.jpg', 'image/jpeg'],
+  ['.jpg', 'image/jpg'],
   ['.jpeg', 'image/jpeg'],
   ['.gif', 'image/gif'],
   ['.webp', 'image/webp'],
@@ -138,6 +139,16 @@ async function runOpenAiSite(req, res, url) {
   }
 }
 
+async function runWorkboardGithub(req, res, url) {
+  try {
+    req.query = Object.fromEntries(url.searchParams.entries());
+    await workboardGithubHandler(req, adaptResponse(res));
+  } catch (error) {
+    if (!res.headersSent) json(res, error?.statusCode || 500, { error: error?.message || 'Workboard GitHub feed failed' });
+    else res.destroy(error);
+  }
+}
+
 async function runOAuthProvider(req, res, url) {
   try {
     if (req.method !== 'OPTIONS') await prepareApiRequest(req, url);
@@ -201,6 +212,10 @@ const server = createServer(async (req, res) => {
 
   if (url.pathname === '/api/openai-site') {
     return runOpenAiSite(req, res, url);
+  }
+
+  if (url.pathname === '/api/workboard/github') {
+    return runWorkboardGithub(req, res, url);
   }
 
   if (url.pathname.startsWith('/api/oauth/')) {
