@@ -17,7 +17,8 @@ env:
   DEV_HOST: 167.71.156.94
   FALLBACK_HOST: 167.172.193.194
   SSH_USER: root
-  VERCEL_TEAM_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z
+  VERCEL_TEAM_ID: team_KXuVUd00RMnDsjoqwdREcZ7J
+  VERCEL_SCOPE_SLUG: 3dvr
   PROJECT_NAME: 3dvr-os
   PROJECT_DOMAIN: os.3dvr.tech
 
@@ -64,7 +65,7 @@ jobs:
           for host in "$DEV_HOST" "$FALLBACK_HOST"; do
             echo "Trying 3DVR deployment host: $host"
             if ssh "${opts[@]}" "$SSH_USER@$host" \
-              "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' VERCEL_TEAM_ID='$VERCEL_TEAM_ID' PROJECT_NAME='$PROJECT_NAME' PROJECT_DOMAIN='$PROJECT_DOMAIN' bash -s" <<'REMOTE'
+              "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' VERCEL_TEAM_ID='$VERCEL_TEAM_ID' VERCEL_SCOPE_SLUG='$VERCEL_SCOPE_SLUG' PROJECT_NAME='$PROJECT_NAME' PROJECT_DOMAIN='$PROJECT_DOMAIN' bash -s" <<'REMOTE'
           set -euo pipefail
           repo="$HOME/.3dvr/portal"
           mkdir -p "$HOME/.3dvr"
