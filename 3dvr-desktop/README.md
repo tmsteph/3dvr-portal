@@ -28,13 +28,17 @@ Those are implementation pieces, not the identity of 3DVR Desktop, and can be re
 ```sh
 ./3dvr-desktop/install.sh
 3dvr-desktop doctor
+3dvr-desktop probe-x11   # optional isolated X11 check on Termux
 3dvr-desktop start
 ```
 
 On Termux the installer builds `native/shell.c` into `~/3dvr-shell/3dvr-shell`, installs the
 phone launcher scripts, and creates `~/.termux/boot/02-3dvr-desktop` for Termux:Boot.
-The boot entry starts the already-authorized remote control if needed, starts the 3DVR agent
-when present, brings Termux forward, and starts the graphical session automatically.
+The boot entry starts non-graphical services first, waits for Android to be normally unlocked, then
+uses the paired 3DVR Companion for the foreground handoff before starting the graphical session.
+
+For implementation details see [`ARCHITECTURE.md`](./ARCHITECTURE.md). For recovery and known
+Termux:X11 issues see [`TROUBLESHOOTING.md`](./TROUBLESHOOTING.md).
 
 ## Source of truth
 

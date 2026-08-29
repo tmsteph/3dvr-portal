@@ -44,23 +44,61 @@ test('Linux fallback keeps panel, launcher, and terminal', () => {
   assert.match(launcher, /rofi -show drun/);
 });
 
-test('Termux install creates Android boot startup', () => {
+test('Termux install creates unlock-aware Android boot startup', () => {
   const install = read('3dvr-desktop/scripts/install-termux.sh');
   const boot = read('3dvr-desktop/scripts/termux-boot.sh');
+  const afterUnlock = read('3dvr-desktop/scripts/phone/start-after-unlock.sh');
 
   assert.match(install, /\.termux\/boot\/02-3dvr-desktop/);
   assert.match(install, /build-termux-shell\.sh/);
-  assert.match(boot, /TermuxActivity/);
   assert.match(boot, /3dvr agent start/);
-  assert.match(boot, /3dvr-desktop start/);
+  assert.match(boot, /start-after-unlock\.sh/);
+  assert.match(afterUnlock, /3dvr-desktop start/);
 });
 
-test('Termux activity launches use the Termux am compatibility wrapper', () => {
+test('Termux startup verifies a real X11 display before starting the shell', () => {
   const start = read('3dvr-desktop/scripts/start-termux.sh');
-  const boot = read('3dvr-desktop/scripts/termux-boot.sh');
-
+  assert.match(start, /\.X11-unix/);
+  assert.match(start, /xprop -root/);
+  assert.match(start, /Termux:X11 did not become ready/);
+  assert.match(start, /start-3dvr-shell-session/);
   assert.match(start, /\nam start .*com\.termux\.x11/);
-  assert.match(boot, /\nam start .*com\.termux\//);
   assert.doesNotMatch(start, /\/system\/bin\/am start/);
-  assert.doesNotMatch(boot, /\/system\/bin\/am start/);
+});
+
+test('Android boot waits for unlock and uses the Companion foreground handoff', () => {
+  const wait = read('3dvr-desktop/scripts/phone/await-android-ready.py');
+  assert.match(wait, /\/v1\/ui\/snapshot/);
+  assert.match(wait, /device locked/);
+  assert.match(wait, /\/v1\/open-app/);
+  assert.match(wait, /'alias': 'termux'/);
+  assert.match(wait, /'alias': 'termux_x11'/);
+});
+
+test('Termux doctor and probe make dependency failures observable', () => {
+  const cli = read('3dvr-desktop/bin/3dvr-desktop');
+  const doctor = read('3dvr-desktop/scripts/doctor-termux.sh');
+  const probe = read('3dvr-desktop/scripts/probe-termux-x11.sh');
+
+  assert.match(cli, /probe-x11/);
+  assert.match(doctor, /com\.termux\.x11/);
+  assert.match(doctor, /com\.termux\.boot/);
+  assert.match(doctor, /3DVR Companion bridge/);
+  assert.match(probe, /x11-probe\.log/);
+  assert.match(probe, /xprop -root/);
+});
+
+test('Companion keeps Termux:X11 as an explicit allow-listed Android target', () => {
+  const activity = read('apps/companion/native-spec/android/MainActivity.kt');
+  const bridge = read('apps/companion/native-spec/android/CompanionNativeBridgeServer.kt');
+  assert.match(activity, /"termux_x11" to listOf\("com\.termux\.x11"\)/);
+  assert.match(bridge, /"termux_x11" to listOf\("com\.termux\.x11"\)/);
+});
+
+test('desktop architecture and troubleshooting are checked in', () => {
+  const architecture = read('3dvr-desktop/ARCHITECTURE.md');
+  const troubleshooting = read('3dvr-desktop/TROUBLESHOOTING.md');
+  assert.match(architecture, /Source-of-truth rule/);
+  assert.match(troubleshooting, /probe-x11/);
+  assert.match(troubleshooting, /Android 16/);
 });
