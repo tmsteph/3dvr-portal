@@ -23,6 +23,8 @@ function clean(value = '', max = 500) {
 
 function laneFor(status = '', kind = '') {
   const normalized = clean(status, 80).toLowerCase().replace(/[\s-]+/g, '_');
+  if (kind === 'github-pr') return ['closed', 'merged'].includes(normalized) ? 'done' : 'review';
+  if (kind === 'github-issue') return normalized === 'closed' ? 'done' : 'inbox';
   if (['done', 'completed', 'complete', 'merged', 'closed', 'success', 'succeeded'].includes(normalized)) return 'done';
   if (['review', 'ready_for_review', 'awaiting_review', 'needs_review', 'blocked', 'failed', 'error'].includes(normalized)) return 'review';
   if (['working', 'running', 'in_progress', 'executing', 'claimed', 'processing'].includes(normalized)) return 'working';
@@ -44,12 +46,19 @@ function displayDate(value) {
 }
 
 function compactTask(record) {
-  const raw = clean(record.task || record.text || record.requestedChange || '', 1200);
+  const raw = clean(record.task || record.text || record.body || record.requestedChange || '', 1200);
   return raw.replace(/^Operator code request:\s*/i, '').replace(/\s+Make the smallest useful change[\s\S]*$/i, '');
 }
 
 function ownerFor(record) {
-  return clean(record.assignedTo || record.agent || record.backend || record.requestedByAlias || record.requestedBy || 'unassigned', 80);
+  return clean(record.assignedTo || record.agent || record.backend || record.user || record.requestedByAlias || record.requestedBy || 'unassigned', 80);
+}
+
+function kindLabel(kind) {
+  if (kind === 'edit') return 'Forge edit';
+  if (kind === 'github-pr') return 'GitHub PR';
+  if (kind === 'github-issue') return 'GitHub issue';
+  return 'Suggestion';
 }
 
 function renderCard(item) {
@@ -57,9 +66,10 @@ function renderCard(item) {
   const record = item.record;
   const status = clean(record.status || 'open', 80);
   const result = clean(record.resultSummary || record.error || '', 500);
+  const link = node.querySelector('.open-record');
 
   node.dataset.id = item.id;
-  node.querySelector('.kind').textContent = item.kind === 'edit' ? 'Forge edit' : 'Suggestion';
+  node.querySelector('.kind').textContent = kindLabel(item.kind);
   node.querySelector('.status').textContent = status.replaceAll('_', ' ');
   node.querySelector('h3').textContent = clean(record.title || (item.kind === 'edit' ? 'Operator code edit' : 'Operator suggestion'), 160);
   node.querySelector('.task').textContent = compactTask(record) || 'No description yet.';
@@ -67,7 +77,11 @@ function renderCard(item) {
   node.querySelector('.owner').textContent = ownerFor(record);
   node.querySelector('time').textContent = displayDate(record.updatedAt || record.createdAt);
   node.querySelector('time').dateTime = clean(record.updatedAt || record.createdAt, 80);
-  node.querySelector('.open-record').href = recordUrl(item.kind, item.id);
+  link.href = item.url || recordUrl(item.kind, item.id);
+  if (item.url) {
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+  }
 
   if (result) {
     const resultEl = node.querySelector('.result');
@@ -110,6 +124,44 @@ function watchCollection(node, kind) {
   });
 }
 
+async function loadGithubWork() {
+  try {
+    const response = await fetch('/api/workboard/github', { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error(`GitHub feed returned ${response.status}`);
+    const payload = await response.json();
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+
+    for (const key of [...records.keys()]) {
+      if (key.startsWith('github:')) records.delete(key);
+    }
+
+    items.forEach(item => {
+      const kind = item.kind === 'github-pr' ? 'github-pr' : 'github-issue';
+      const status = item.merged ? 'merged' : clean(item.state || 'open', 80);
+      const key = `github:${kind}:${item.id}`;
+      records.set(key, {
+        id: item.id,
+        kind,
+        url: clean(item.url, 1000),
+        record: {
+          title: clean(item.title, 240),
+          body: clean(item.body, 2000),
+          repo: clean(payload.repository || '3dvr-portal', 80),
+          user: clean(item.user, 80),
+          status,
+          createdAt: clean(item.createdAt, 80),
+          updatedAt: clean(item.updatedAt, 80)
+        }
+      });
+    });
+
+    render();
+    connectionStatus.textContent = 'Live Forge + GitHub';
+  } catch (error) {
+    console.warn('Workboard GitHub feed unavailable:', error);
+  }
+}
+
 async function submitDispatch(event) {
   event.preventDefault();
   const formData = new FormData(dispatchForm);
@@ -139,6 +191,7 @@ async function submitDispatch(event) {
 
 function start() {
   dispatchForm?.addEventListener('submit', submitDispatch);
+  loadGithubWork();
 
   if (typeof globalThis.Gun !== 'function') {
     connectionStatus.textContent = 'Forge unavailable';
