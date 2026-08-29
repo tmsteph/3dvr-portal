@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101418">
+  <title>3DVR Desktop — a portable Linux desktop environment</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d1114;
+      --panel: #151b1f;
+      --line: #283238;
+      --text: #f1f5f7;
+      --muted: #9eabb2;
+      --accent: #82d7a3;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); }
+    a { color: inherit; }
+    main { width: min(980px, calc(100% - 32px)); margin: 0 auto; padding: 64px 0 80px; }
+    .eyebrow { color: var(--accent); text-transform: uppercase; letter-spacing: .14em; font-size: 12px; }
+    h1 { margin: 10px 0 14px; font-size: clamp(42px, 8vw, 84px); line-height: .94; letter-spacing: -.06em; }
+    .lede { max-width: 680px; color: var(--muted); font-size: clamp(18px, 3vw, 24px); line-height: 1.45; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 28px 0 46px; }
+    .button { text-decoration: none; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: var(--panel); }
+    .button.primary { color: #07110b; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+    .desktop { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: #101418; box-shadow: 0 24px 80px rgba(0,0,0,.35); }
+    .screen { height: 330px; position: relative; background: linear-gradient(145deg, #131a1e, #0b0f11); }
+    .window { position: absolute; left: 9%; top: 12%; width: min(560px, 72%); height: 230px; border: 1px solid #3b474e; background: #0d1113; border-radius: 9px; overflow: hidden; }
+    .titlebar { height: 34px; padding: 8px 12px; background: #1b2227; color: var(--muted); font-size: 12px; }
+    .terminal { padding: 16px; font: 13px/1.55 ui-monospace, monospace; color: #d8e2e7; }
+    .terminal b { color: var(--accent); }
+    .panel { position: absolute; inset: auto 0 0; height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 8px; background: rgba(16,20,24,.96); border-top: 1px solid #29343a; }
+    .app { width: 27px; height: 27px; border-radius: 7px; display: grid; place-items: center; background: #20292e; font-size: 11px; }
+    .clock { margin-left: auto; color: var(--muted); font-size: 12px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 42px; }
+    .card { border: 1px solid var(--line); background: var(--panel); border-radius: 13px; padding: 18px; }
+    .card h2 { margin: 0 0 7px; font-size: 17px; }
+    .card p { margin: 0; color: var(--muted); line-height: 1.5; }
+    .stack { margin-top: 42px; padding: 22px; border: 1px solid var(--line); border-radius: 14px; }
+    .stack h2 { margin-top: 0; }
+    code { color: #cfe7d8; }
+    .note { color: var(--muted); line-height: 1.55; }
+    @media (max-width: 700px) {
+      main { padding-top: 42px; }
+      .grid { grid-template-columns: 1fr; }
+      .screen { height: 260px; }
+      .window { width: 82%; height: 180px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Open personal computing · native layer</div>
+  <h1>3DVR Desktop</h1>
+  <p class="lede">A tiny, reusable graphical desktop environment for phones, VMs, and Linux machines.</p>
+  <div class="actions">
+    <a class="button primary" href="./README.md">Install / source</a>
+    <a class="button" href="../3dvr-os/">Open Daedalos web desktop</a>
+  </div>
+
+  <section class="desktop" aria-label="3DVR Desktop preview">
+    <div class="screen">
+      <div class="window">
+        <div class="titlebar">Terminal — 3DVR Desktop</div>
+        <div class="terminal"><b>tmsteph@3dvr</b>:~$ 3dvr-desktop doctor<br>ok&nbsp;&nbsp;&nbsp;openbox<br>ok&nbsp;&nbsp;&nbsp;tint2<br>ok&nbsp;&nbsp;&nbsp;rofi<br>ok&nbsp;&nbsp;&nbsp;xterm</div>
+      </div>
+      <div class="panel"><span class="app">3D</span><span class="app">▤</span><span class="app">›_</span><span class="clock">10:32</span></div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <article class="card"><h2>Phone</h2><p>Termux:X11 outside, Debian proot inside, the same 3DVR session on top.</p></article>
+    <article class="card"><h2>VM</h2><p>Our tiny Debian lab is the safe reference machine for building and testing the desktop.</p></article>
+    <article class="card"><h2>Linux</h2><p>Run it directly on Debian-family machines through normal Xorg and the same config.</p></article>
+  </section>
+
+  <section class="stack">
+    <div class="eyebrow">Desktop environment</div>
+    <h2>One 3DVR session, replaceable parts.</h2>
+    <p class="note">Openbox manages windows. Tint2 is the panel. Rofi launches apps. PCManFM handles files. Xterm is the baseline terminal. 3DVR owns the session defaults, install flow, launchers, and cross-device behavior—so these components can be swapped later without changing what “3DVR Desktop” means.</p>
+    <p class="note"><strong>Daedalos</strong> remains the browser-native desktop. <strong>3DVR Desktop</strong> is the native Linux desktop. The long-term goal is for them to feel like two runtimes of the same personal computer.</p>
+  </section>
+</main>
+</body>
+</html>
