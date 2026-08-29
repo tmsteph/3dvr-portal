@@ -11,7 +11,7 @@ test('3DVR Girl page ships the dark character-world redesign', async () => {
     read('3dvr-girl/app.js')
   ]);
 
-  assert.match(html, /Not a mascot\.\s*A point of view\./);
+  assert.match(html, /Not a mascot\.<br>A point of view\./);
   assert.match(html, /id="woods"/);
   assert.match(html, /id="archiveGrid"/);
   assert.match(html, /3dvr-girl-kala-forest\.webp/);
