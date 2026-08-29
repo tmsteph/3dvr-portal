@@ -1,0 +1,15 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -u
+state_dir="$HOME/.config/termux-x11"
+state_file="$state_dir/input-mode"
+mkdir -p "$state_dir"
+mode="$(cat "$state_file" 2>/dev/null || printf touch)"
+if [ "$mode" = touch ]; then
+  timeout 4 termux-x11-preference touchMode:Trackpad >/dev/null 2>&1 || true
+  printf trackpad > "$state_file"
+  command -v notify-send >/dev/null && notify-send "Input: Trackpad" "Precise pointer + multi-touch gestures"
+else
+  timeout 4 termux-x11-preference 'touchMode:Simulated touchscreen' >/dev/null 2>&1 || true
+  printf touch > "$state_file"
+  command -v notify-send >/dev/null && notify-send "Input: Touch" "Tap apps directly; two fingers scroll"
+fi

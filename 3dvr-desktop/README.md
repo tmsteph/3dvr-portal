@@ -1,59 +1,48 @@
 # 3DVR Desktop
 
-3DVR Desktop is the native desktop environment for 3DVR personal computing.
-It is intentionally small enough to run on a phone through Termux:X11, in a tiny VM,
-or on a normal Debian/Linux machine.
+3DVR Desktop is the native desktop environment for 3DVR personal computing. It is intended
+to be a reusable environment in the same product category as GNOME or KDE, while staying
+small enough for a phone, a tiny VM, or a normal Linux machine.
 
-Think of it as the 3DVR equivalent of a lightweight GNOME or KDE session:
+## Architecture
 
-- Openbox manages windows.
-- Tint2 provides the panel and task switcher.
-- Rofi is the application launcher.
-- PCManFM provides lightweight file browsing.
-- Xterm is the baseline terminal.
-- 3DVR owns the session, defaults, launchers, install flow, and cross-device behavior.
+The Android/Termux implementation is the primary reference today:
+
+- **3dvr-shell** — our GTK home screen, app launcher, running-app overview, top bar, touch controls, and window actions.
+- **XFWM4** — the underlying X11 window manager.
+- **Termux:X11** — the Android display server and touch/input bridge.
+- **XFCE utilities** — terminal, files, settings, and lightweight supporting services.
+- **3DVR launchers** — phone-aware wrappers for Firefox, Chromium, Terminal, Files, Settings, and the 3DVR cockpit.
+
+The ordinary Linux/VM target currently uses Openbox + Tint2 + Rofi as a lightweight fallback.
+Those are implementation pieces, not the identity of 3DVR Desktop, and can be replaced over time.
 
 ## Targets
 
-- `termux`: Android + Termux:X11 + Debian `proot-distro`
-- `linux`: Debian or Debian-derived Linux using Xorg
-- `vm`: the same Linux target inside `termux-ui-lab`
+- `termux`: native Android + Termux:X11 + XFWM4 + `3dvr-shell`; Debian proot is not required for the desktop.
+- `linux`: Debian-family Linux using Xorg + the lightweight fallback session.
+- `vm`: the Linux target inside `termux-ui-lab` for safe desktop testing.
 
-## Install
+## Install and run
 
 ```sh
 ./3dvr-desktop/install.sh
-```
-
-The installer detects Termux versus normal Linux. Then start the desktop with:
-
-```sh
+3dvr-desktop doctor
 3dvr-desktop start
 ```
 
-Check the environment with:
+On Termux the installer builds `native/shell.c` into `~/3dvr-shell/3dvr-shell`, installs the
+phone launcher scripts, and creates `~/.termux/boot/02-3dvr-desktop` for Termux:Boot.
+The boot entry starts the already-authorized remote control if needed, starts the 3DVR agent
+when present, brings Termux forward, and starts the graphical session automatically.
 
-```sh
-3dvr-desktop doctor
-```
+## Source of truth
+
+The native shell in `native/` and `scripts/phone/` was captured from the working phone setup
+built on August 28, 2026. Device-local edits should be reconciled back here so the monorepo,
+not an individual phone, remains the canonical desktop implementation.
 
 ## Relationship to Daedalos
 
-Daedalos / TommyOS is the browser-native desktop in `3dvr-os/`. 3DVR Desktop is the
-native Linux/X11 desktop. The long-term goal is one 3DVR computing experience with a
-web shell when the browser is the best runtime and a native shell when Linux is available.
-
-## Status
-
-This first checked-in baseline was captured from the working `termux-ui-lab` VM. The
-phone's live Termux configuration should be reconciled into this directory whenever the
-phone endpoint is online, so the repository remains the source of truth rather than any device.
-
-## Android boot automation
-
-The Termux installer creates `~/.termux/boot/00-3dvr-start`. With the Termux:Boot
-companion app installed and opened once, Android runs this script after reboot. It starts
-the existing Desktop Commander remote command, the 3DVR agent when installed, and
-3DVR Desktop / Termux:X11. It also asks Android to foreground Termux and Termux:X11.
-Recent Android versions may block automatic foreground launches, but the background
-startup still works.
+Daedalos / TommyOS in `3dvr-os/` is the browser-native desktop. 3DVR Desktop is the native
+Linux/X11 desktop. They are two runtimes of the same long-term personal-computing system.
