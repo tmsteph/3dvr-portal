@@ -39,21 +39,14 @@ jobs:
           set -euo pipefail
           key=''
           for candidate in "$SSH_A" "$SSH_B" "$SSH_C"; do
-            if [ -z "$key" ] && [ -n "$candidate" ]; then
-              key="$candidate"
-            fi
+            if [ -z "$key" ] && [ -n "$candidate" ]; then key="$candidate"; fi
           done
-          if [ -z "$key" ]; then
-            echo '::error::No 3DVR server SSH key is configured.'
-            exit 1
-          fi
-
+          [ -n "$key" ] || { echo '::error::No 3DVR server SSH key is configured.'; exit 1; }
           umask 077
           printf '%s\n' "$key" > /tmp/3dvr-server-key.raw
           if grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-server-key.raw; then
             cp /tmp/3dvr-server-key.raw /tmp/3dvr-server-key
-          elif base64 -d /tmp/3dvr-server-key.raw > /tmp/3dvr-server-key 2>/dev/null \
-            && grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-server-key; then
+          elif base64 -d /tmp/3dvr-server-key.raw > /tmp/3dvr-server-key 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-server-key; then
             :
           else
             echo '::error::Configured SSH key could not be decoded.'
@@ -68,7 +61,6 @@ jobs:
           set -euo pipefail
           opts=(-i /tmp/3dvr-server-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
           deployed=0
-
           for host in "$DEV_HOST" "$FALLBACK_HOST"; do
             echo "Trying 3DVR deployment host: $host"
             if ssh "${opts[@]}" "$SSH_USER@$host" \
@@ -79,6 +71,8 @@ jobs:
           if [ ! -d "$repo/.git" ]; then
             git clone "https://github.com/$GITHUB_REPOSITORY.git" "$repo"
           fi
+          git -C "$repo" reset --hard
+          git -C "$repo" clean -fd
           git -C "$repo" fetch --prune origin main
           git -C "$repo" checkout -B main origin/main
           git -C "$repo" reset --hard origin/main
@@ -91,11 +85,7 @@ jobs:
             fi
             echo "::warning::Deployment host $host could not complete the OS deploy."
           done
-
-          if [ "$deployed" -ne 1 ]; then
-            echo '::error::No always-on 3DVR server could complete the Vercel deployment.'
-            exit 1
-          fi
+          [ "$deployed" -eq 1 ] || { echo '::error::No always-on 3DVR server could complete the Vercel deployment.'; exit 1; }
 
       - name: Verify os.3dvr.tech externally
         shell: bash
