@@ -52,6 +52,18 @@ test('calendar month cells show time ranges and useful event titles', async () =
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.calendar-view__event-time-compact\s*\{\s*display:\s*inline;/);
 });
 
+test('calendar selected-day details expose a confirmed delete action for local events', async () => {
+  const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../calendar/calendar-v2.css', import.meta.url), 'utf8');
+
+  assert.match(js, /deleteButton\.dataset\.action = 'delete-event'/);
+  assert.match(js, /deleteButton\.textContent = 'Delete'/);
+  assert.match(js, /function confirmAndDeleteEvent\(id\)/);
+  assert.match(js, /window\.confirm\(`/);
+  assert.match(js, /handleCalendarDetailsClick[\s\S]*?confirmAndDeleteEvent\(eventId\)/);
+  assert.match(css, /\.calendar-view__details-delete/);
+});
+
 test('calendar keeps event creation and advanced settings progressive', async () => {
   const html = await readFile(new URL('../calendar/index.html', import.meta.url), 'utf8');
   const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');

@@ -1668,6 +1668,7 @@ function renderSelectedDayDetails() {
       if (item.normalized.provider === 'local' && canEditCalendar()) {
         const actions = document.createElement('div');
         actions.className = 'calendar-view__details-item-actions';
+
         const editButton = document.createElement('button');
         editButton.type = 'button';
         editButton.className = 'button-secondary calendar-view__details-edit';
@@ -1675,6 +1676,16 @@ function renderSelectedDayDetails() {
         editButton.dataset.eventId = item.raw.id;
         editButton.textContent = 'Edit';
         actions.appendChild(editButton);
+
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'button-secondary calendar-view__details-delete';
+        deleteButton.dataset.action = 'delete-event';
+        deleteButton.dataset.eventId = item.raw.id;
+        deleteButton.setAttribute('aria-label', `Delete ${item.normalized.title}`);
+        deleteButton.textContent = 'Delete';
+        actions.appendChild(deleteButton);
+
         listItem.appendChild(actions);
       }
 
@@ -2542,6 +2553,15 @@ function updateLocalEvent(eventId, patch, options = {}) {
   writeLocalEvents(list, options);
 }
 
+function confirmAndDeleteEvent(id) {
+  if (!id || !canEditCalendar()) return;
+  const target = state.localEvents.find(event => event.id === id);
+  if (!target) return;
+  const title = typeof target.title === 'string' && target.title.trim() ? target.title.trim() : 'this event';
+  if (!window.confirm(`Delete “${title}”? This can’t be undone.`)) return;
+  deleteLocalEvent(id);
+}
+
 function deleteLocalEvent(id, options = {}) {
   if (!id) return;
   if (!canEditCalendar() && !options.skipGunSync) {
@@ -2697,17 +2717,22 @@ function handleEventListClick(event) {
   if (!deleteButton) return;
   const { eventId } = deleteButton.dataset;
   if (eventId) {
-    deleteLocalEvent(eventId);
+    confirmAndDeleteEvent(eventId);
   }
 }
 
 function handleCalendarDetailsClick(event) {
   const editButton = event.target.closest('button[data-action="edit-event"]');
-  if (!editButton) return;
-  const { eventId } = editButton.dataset;
-  if (eventId) {
-    openEventEditor(eventId);
+  if (editButton) {
+    const { eventId } = editButton.dataset;
+    if (eventId) openEventEditor(eventId);
+    return;
   }
+
+  const deleteButton = event.target.closest('button[data-action="delete-event"]');
+  if (!deleteButton) return;
+  const { eventId } = deleteButton.dataset;
+  if (eventId) confirmAndDeleteEvent(eventId);
 }
 
 async function handleCreateEvent(event) {
