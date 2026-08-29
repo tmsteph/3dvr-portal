@@ -106,12 +106,14 @@ jobs:
               if [ ! -d "$repo/.git" ]; then
                 git clone https://github.com/tmsteph/3dvr-portal.git "$repo" || exit 1
               fi
+              git -C "$repo" reset --hard || exit 1
+              git -C "$repo" clean -fd || exit 1
               git -C "$repo" fetch --prune origin main || exit 1
-              git -C "$repo" checkout main || exit 1
+              git -C "$repo" checkout -B main origin/main || exit 1
               git -C "$repo" reset --hard origin/main || exit 1
               GITHUB_REPOSITORY=tmsteph/3dvr-portal \
-              VERCEL_TEAM_ID=team_xxJGO7S7h1ZP4BHidYV0CX9Z \
-              VERCEL_SCOPE_SLUG=tmstephs-projects \
+              VERCEL_TEAM_ID=team_KXuVUd00RMnDsjoqwdREcZ7J \
+              VERCEL_SCOPE_SLUG=3dvr \
               PROJECT_NAME=3dvr-os \
               PROJECT_DOMAIN=os.3dvr.tech \
               bash "$repo/scripts/vercel/deploy-3dvr-os-worker.sh" "$repo"
