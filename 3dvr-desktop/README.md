@@ -48,3 +48,12 @@ web shell when the browser is the best runtime and a native shell when Linux is 
 This first checked-in baseline was captured from the working `termux-ui-lab` VM. The
 phone's live Termux configuration should be reconciled into this directory whenever the
 phone endpoint is online, so the repository remains the source of truth rather than any device.
+
+## Android boot automation
+
+The Termux installer creates `~/.termux/boot/00-3dvr-start`. With the Termux:Boot
+companion app installed and opened once, Android runs this script after reboot. It starts
+the existing Desktop Commander remote command, the 3DVR agent when installed, and
+3DVR Desktop / Termux:X11. It also asks Android to foreground Termux and Termux:X11.
+Recent Android versions may block automatic foreground launches, but the background
+startup still works.

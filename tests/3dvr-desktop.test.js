@@ -28,3 +28,15 @@ test('3DVR Desktop session has a panel, launcher, and terminal', () => {
   assert.match(panel, /3dvr-launcher\.desktop/);
   assert.match(launcher, /rofi -show drun/);
 });
+
+test('Termux install creates Android boot startup', () => {
+  const install = read('3dvr-desktop/scripts/install-termux.sh');
+  const boot = read('3dvr-desktop/scripts/termux-boot.sh');
+
+  assert.match(install, /\.termux\/boot\/00-3dvr-start/);
+  assert.match(install, /Termux:Boot/);
+  assert.match(boot, /desktop-commander remote/);
+  assert.match(boot, /3dvr agent start/);
+  assert.match(boot, /3dvr-desktop start/);
+  assert.match(boot, /com\.termux\.x11/);
+});

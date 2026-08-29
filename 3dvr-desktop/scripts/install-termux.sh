@@ -11,13 +11,17 @@ if ! proot-distro list | grep -qE '^ *debian '; then
   proot-distro install debian
 fi
 
-mkdir -p "$DEST" "$HOME/.local/bin"
+mkdir -p "$DEST" "$HOME/.local/bin" "$HOME/.termux/boot"
 cp -R "$ROOT/." "$DEST/"
 ln -sf "$DEST/bin/3dvr-desktop" "$PREFIX/bin/3dvr-desktop"
+cp "$DEST/scripts/termux-boot.sh" "$HOME/.termux/boot/00-3dvr-start"
+chmod +x "$HOME/.termux/boot/00-3dvr-start"
 
 proot-distro login debian \
   --bind "$DEST:/opt/3dvr-desktop" \
   -- /bin/sh -lc '/opt/3dvr-desktop/scripts/install-debian.sh'
 
 echo '3DVR Desktop installed for Termux.'
+echo 'Boot script installed at ~/.termux/boot/00-3dvr-start.'
+echo 'Install and open Termux:Boot once so Android runs it after reboot.'
 echo 'Make sure the Termux:X11 Android app is installed, then run: 3dvr-desktop start'
