@@ -105,12 +105,8 @@ jobs:
           "${cli[@]}" alias set "$deploy_url" "$CALENDAR_DOMAIN" \
             --scope "$VERCEL_SCOPE"
 
-          curl --fail --silent --show-error --location \
-            --retry 12 --retry-delay 5 --retry-all-errors \
-            "$deploy_url" -o /tmp/calendar-deploy.html
-          grep -q 'data-calendar-view-title' /tmp/calendar-deploy.html
-          grep -q '3DVR Portal – Calendar' /tmp/calendar-deploy.html
-
+          # Raw Vercel deployment URLs can be protected while the public custom
+          # domain remains healthy. Validate the public production alias instead.
           curl --fail --silent --show-error --location \
             --retry 18 --retry-delay 5 --retry-all-errors \
             "https://$CALENDAR_DOMAIN/" -o /tmp/calendar-live.html
