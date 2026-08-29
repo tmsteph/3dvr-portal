@@ -20,15 +20,15 @@ function ensureStateFile(stateFile = DEFAULT_STATE_FILE) {
     fs.writeFileSync(stateFile, `${JSON.stringify(initial, null, 2)}\n`);
     return initial;
   }
-  try {
-    const parsed = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
-    return {
-      version: 1,
-      orders: parsed.orders && typeof parsed.orders === 'object' ? parsed.orders : {},
-    };
-  } catch {
-    return { version: 1, orders: {} };
+
+  // Fulfillment history is safety-critical: never treat unreadable/corrupt
+  // persisted state as an empty history, because that could redeliver a paid
+  // Stripe Checkout Session. Surface the error and require recovery instead.
+  const parsed = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  if (!parsed.orders || typeof parsed.orders !== 'object' || Array.isArray(parsed.orders)) {
+    throw new Error(`Invalid Website Upgrade fulfillment state: ${stateFile}`);
   }
+  return { version: 1, orders: parsed.orders };
 }
 
 function saveState(state, stateFile = DEFAULT_STATE_FILE) {
