@@ -1,6 +1,11 @@
 const REPOSITORY = 'tmsteph/3dvr-portal';
 const API_VERSION = '2022-11-28';
 const ITEM_LIMIT = 40;
+const CACHE_TTL_MS = 60_000;
+const STALE_TTL_MS = 5 * 60_000;
+
+let cachedFeed = null;
+let cachedAt = 0;
 
 function githubHeaders(config = process.env) {
   const headers = {
@@ -34,17 +39,39 @@ function normalizeItem(item = {}) {
   };
 }
 
+function cachedPayload(maxAgeMs, now = Date.now()) {
+  if (!cachedFeed || !cachedAt) return null;
+  if (now - cachedAt > maxAgeMs) return null;
+  return cachedFeed;
+}
+
+function sendFeed(res, payload, { stale = false } = {}) {
+  res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+  if (stale) res.setHeader('Warning', '110 - Response is stale');
+  return res.status(200).json(payload);
+}
+
+export function __resetWorkboardGithubCacheForTests() {
+  cachedFeed = null;
+  cachedAt = 0;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
+  const fresh = cachedPayload(CACHE_TTL_MS);
+  if (fresh) return sendFeed(res, fresh);
+
   const url = `https://api.github.com/repos/${REPOSITORY}/issues?state=all&per_page=${ITEM_LIMIT}&sort=updated&direction=desc`;
 
   try {
     const response = await fetch(url, { headers: githubHeaders() });
     if (!response.ok) {
+      const stale = cachedPayload(STALE_TTL_MS);
+      if (stale) return sendFeed(res, stale, { stale: true });
       return res.status(502).json({
         error: 'GitHub work feed is temporarily unavailable.',
         status: response.status
@@ -53,10 +80,12 @@ export default async function handler(req, res) {
 
     const payload = await response.json();
     const items = Array.isArray(payload) ? payload.map(normalizeItem).filter(item => item.id) : [];
-
-    res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
-    return res.status(200).json({ ok: true, repository: REPOSITORY, items });
+    cachedFeed = { ok: true, repository: REPOSITORY, items };
+    cachedAt = Date.now();
+    return sendFeed(res, cachedFeed);
   } catch (error) {
+    const stale = cachedPayload(STALE_TTL_MS);
+    if (stale) return sendFeed(res, stale, { stale: true });
     return res.status(502).json({
       error: error?.message || 'GitHub work feed is temporarily unavailable.'
     });
