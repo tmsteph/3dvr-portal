@@ -59,8 +59,9 @@ wait_for_release() {
 
 validate_workboard() {
   local base_url="$1"
-  local feed
-  curl -fsS --retry 3 --retry-delay 1 "$base_url/workboard/" | grep -Fq 'AGENT WORKSPACE' || return 1
+  local html feed
+  html="$(curl -fsS --retry 3 --retry-delay 1 "$base_url/workboard/")" || return 1
+  [[ "$html" == *'id="page-title"'* && "$html" == *'id="dispatch-form"'* ]] || return 1
 
   # The Workboard shell is release-critical; its external GitHub feed is not.
   # A temporary GitHub API outage or rate limit should degrade the feed rather
