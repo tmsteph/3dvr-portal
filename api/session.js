@@ -2,7 +2,7 @@ import { verifySignedSeaPayload, resolveSeaAuthMaxAgeMs } from '../src/auth/sea.
 import { chooseDeviceProfile, normalizeDeviceHints } from '../src/device/profile.js';
 import { createCompanionCommandHandler } from '../src/device/companion-command-proxy.js';
 import { buildTurnCredentialPayload } from '../src/webrtc/turn-credentials.js';
-import { createWorkboardGithubHandler } from './_lib/workboard-github.js';
+import { createWorkboardGithubHandler } from '../src/workboard/github-feed.js';
 
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

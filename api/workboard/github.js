@@ -1,6 +1,6 @@
 export {
   __resetWorkboardGithubCacheForTests,
   createWorkboardGithubHandler
-} from '../_lib/workboard-github.js';
+} from '../../src/workboard/github-feed.js';
 
-export { default } from '../_lib/workboard-github.js';
+export { default } from '../../src/workboard/github-feed.js';
