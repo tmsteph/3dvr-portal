@@ -1,0 +1,127 @@
+name: Deploy 3DVR OS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '3dvr-os/**'
+      - '.github/workflows/3dvr-os-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_TEAM_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z
+  VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  PROJECT_NAME: 3dvr-os
+  PROJECT_DOMAIN: os.3dvr.tech
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Require Vercel token
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo '::error::VERCEL_TOKEN is not configured.'
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+
+      - name: Create or resolve Vercel project
+        id: project
+        shell: bash
+        run: |
+          set -euo pipefail
+          auth=(-H "Authorization: Bearer $VERCEL_TOKEN" -H 'Content-Type: application/json')
+          status="$(curl -sS -o /tmp/project.json -w '%{http_code}' "${auth[@]}" \
+            "https://api.vercel.com/v9/projects/$PROJECT_NAME?teamId=$VERCEL_TEAM_ID")"
+
+          if [ "$status" = 404 ]; then
+            cat > /tmp/project-create.json <<JSON
+          {
+            "name": "$PROJECT_NAME",
+            "gitRepository": {
+              "repo": "https://github.com/tmsteph/3dvr-portal",
+              "type": "github"
+            },
+            "rootDirectory": "3dvr-os"
+          }
+          JSON
+            status="$(curl -sS -o /tmp/project.json -w '%{http_code}' -X POST "${auth[@]}" \
+              "https://api.vercel.com/v11/projects?teamId=$VERCEL_TEAM_ID" \
+              --data-binary @/tmp/project-create.json)"
+          fi
+
+          case "$status" in
+            200|201) ;;
+            *) cat /tmp/project.json >&2; exit 1 ;;
+          esac
+
+          project_id="$(node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('/tmp/project.json','utf8')); if(!j.id) process.exit(1); process.stdout.write(j.id)")"
+          echo "VERCEL_PROJECT_ID=$project_id" >> "$GITHUB_ENV"
+          echo "project_id=$project_id" >> "$GITHUB_OUTPUT"
+          echo "Using Vercel project $project_id"
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Build and deploy static OS
+        id: deploy
+        shell: bash
+        working-directory: 3dvr-os
+        run: |
+          set -euo pipefail
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          vercel build --prod --token="$VERCEL_TOKEN"
+          deploy_url="$(vercel deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN")"
+          echo "url=$deploy_url" >> "$GITHUB_OUTPUT"
+          echo "3DVR OS deployment: $deploy_url"
+
+      - name: Attach os.3dvr.tech
+        shell: bash
+        run: |
+          set -euo pipefail
+          auth=(-H "Authorization: Bearer $VERCEL_TOKEN" -H 'Content-Type: application/json')
+          curl -fsS "${auth[@]}" \
+            "https://api.vercel.com/v9/projects/$PROJECT_NAME/domains?teamId=$VERCEL_TEAM_ID" \
+            -o /tmp/domains.json
+
+          if node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('/tmp/domains.json','utf8')); process.exit((j.domains||[]).some(d=>d.name===process.env.PROJECT_DOMAIN)?0:1)"; then
+            echo "$PROJECT_DOMAIN is already attached"
+          else
+            status="$(curl -sS -o /tmp/domain-add.json -w '%{http_code}' -X POST "${auth[@]}" \
+              "https://api.vercel.com/v10/projects/$PROJECT_NAME/domains?teamId=$VERCEL_TEAM_ID" \
+              --data "{\"name\":\"$PROJECT_DOMAIN\"}")"
+            case "$status" in
+              200|201) cat /tmp/domain-add.json ;;
+              *) cat /tmp/domain-add.json >&2; exit 1 ;;
+            esac
+          fi
+
+      - name: Verify deployment
+        shell: bash
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 6 --retry-delay 3 "$DEPLOY_URL" --output /tmp/os-deploy.html
+          grep -q 'Daedalos' /tmp/os-deploy.html
+
+          curl --fail --silent --show-error --location --retry 12 --retry-delay 5 --retry-all-errors \
+            "https://$PROJECT_DOMAIN/" --output /tmp/os-domain.html
+          grep -q 'Daedalos' /tmp/os-domain.html
+          echo "3DVR OS is live at https://$PROJECT_DOMAIN/"
