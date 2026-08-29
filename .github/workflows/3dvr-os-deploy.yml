@@ -79,12 +79,10 @@ jobs:
           if [ ! -d "$repo/.git" ]; then
             git clone "https://github.com/$GITHUB_REPOSITORY.git" "$repo"
           fi
-          git -C "$repo" diff --quiet
-          git -C "$repo" diff --cached --quiet
           git -C "$repo" fetch --prune origin main
-          git -C "$repo" checkout main
-          git -C "$repo" pull --ff-only origin main
-          chmod +x "$repo/scripts/vercel/deploy-3dvr-os-worker.sh"
+          git -C "$repo" checkout -B main origin/main
+          git -C "$repo" reset --hard origin/main
+          git -C "$repo" clean -fd
           bash "$repo/scripts/vercel/deploy-3dvr-os-worker.sh" "$repo"
           REMOTE
             then
