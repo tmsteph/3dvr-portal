@@ -9,6 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="/gun-init.js"></script>
+  <script src="/auth-identity.js"></script>
   <script type="module" src="app.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -29,6 +30,26 @@
         <p class="lede">Operator is the command line. This board is the persistent work graph.</p>
       </div>
       <div class="status-pill"><span id="live-dot" aria-hidden="true"></span><span id="connection-status">Connecting…</span></div>
+    </section>
+
+    <section class="dispatch" aria-labelledby="dispatch-title">
+      <div class="dispatch-copy">
+        <p class="eyebrow">DISPATCH</p>
+        <h2 id="dispatch-title">Give an agent work</h2>
+        <p>Queue a signed Forge task without starting a chat.</p>
+      </div>
+      <form id="dispatch-form">
+        <div class="dispatch-grid">
+          <label>Title <input id="dispatch-title-input" name="title" maxlength="160" placeholder="Improve the calendar"></label>
+          <label>Repo <input id="dispatch-repo" name="repo" maxlength="80" value="portal" autocapitalize="none" spellcheck="false"></label>
+        </div>
+        <label>Task <textarea id="dispatch-task" name="task" rows="3" maxlength="4000" placeholder="Describe the outcome you want…" required></textarea></label>
+        <div class="dispatch-actions">
+          <span id="dispatch-status" role="status">Ready to queue</span>
+          <button id="dispatch-submit" type="submit">Queue work →</button>
+        </div>
+        <a id="dispatch-result" class="dispatch-result" hidden>Open queued task →</a>
+      </form>
     </section>
 
     <section class="summary" aria-label="Work summary">
