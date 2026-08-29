@@ -38,6 +38,12 @@ function autopilotStateNode() {
   return gun.get(APP_ROOT).get(OPS_ROOT).get(AUTOPILOT_ROOT).get('state');
 }
 
+// Canonical paid Website Upgrade fulfillment records. Each child is keyed by
+// the immutable Stripe Checkout Session ID so every worker sees the same state.
+function websiteUpgradeFulfillmentNode() {
+  return gun.get(APP_ROOT).get(OPS_ROOT).get(AUTOPILOT_ROOT).get('website-upgrade-fulfillment');
+}
+
 function portalAgentOpsNode() {
   return gun.get(PORTAL_ROOT).get('agentOps');
 }
@@ -64,6 +70,7 @@ module.exports = {
   outreachArtifactsNode,
   autopilotRunsNode,
   autopilotStateNode,
+  websiteUpgradeFulfillmentNode,
   portalAgentOpsNode,
   portalCrmNode,
   portalCrmTouchLogNode,
