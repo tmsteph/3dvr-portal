@@ -2,6 +2,7 @@ const PROJECT_LAUNCHPAD_ROOT = 'projectLaunchpad';
 const LOCAL_KEY = '3dvr-project-launchpad';
 const LAUNCH_ROOM_PREFILL_KEY = '3dvr.launch-room.project-prefill.v1';
 const WEB_BUILDER_PREFILL_KEY = 'web-builder-prefill-request';
+const GROWTH_OPERATOR_PROJECT_BRIEF_KEY = '3dvr.growthOperator.project-lead-brief.v1';
 
 const seedProjects = [
   {
@@ -355,6 +356,12 @@ function renderProjects() {
     buildPage.textContent = 'Build page';
     actions.append(buildPage);
 
+    const findPeople = document.createElement('button');
+    findPeople.type = 'button';
+    findPeople.dataset.findPeople = project.slug;
+    findPeople.textContent = 'Find people';
+    actions.append(findPeople);
+
     const follow = document.createElement('button');
     follow.type = 'button';
     follow.dataset.follow = project.slug;
@@ -463,6 +470,29 @@ function buildProjectPage(slug) {
   }
 }
 
+function findProjectPeople(slug) {
+  const project = state.nodes.get(slug);
+  if (!project) return;
+
+  const brief = {
+    projectName: project.name,
+    projectSlug: project.slug,
+    mission: project.mission,
+    category: project.category,
+    offer: project.offers[0] || '',
+    needs: project.needs,
+    support: project.support || ''
+  };
+
+  try {
+    window.sessionStorage.setItem(GROWTH_OPERATOR_PROJECT_BRIEF_KEY, JSON.stringify(brief));
+    els.status.textContent = 'People brief prepared. Opening Growth Operator for review…';
+    window.location.href = '../growth-operator/?from=project';
+  } catch (_error) {
+    els.status.textContent = 'Could not prepare the Growth Operator brief in this browser.';
+  }
+}
+
 function bindFilters() {
   els.filters.forEach(button => {
     button.addEventListener('click', () => {
@@ -502,6 +532,12 @@ els.list.addEventListener('click', event => {
   const buildPageButton = event.target.closest('[data-build-page]');
   if (buildPageButton) {
     buildProjectPage(buildPageButton.dataset.buildPage);
+    return;
+  }
+
+  const findPeopleButton = event.target.closest('[data-find-people]');
+  if (findPeopleButton) {
+    findProjectPeople(findPeopleButton.dataset.findPeople);
     return;
   }
 

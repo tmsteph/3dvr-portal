@@ -49,6 +49,10 @@ describe('3DVR Seed Deck', () => {
     assert.match(js, /LOCAL_KEY = '3dvr-project-launchpad'/);
     assert.match(js, /LAUNCH_ROOM_PREFILL_KEY = '3dvr\.launch-room\.project-prefill\.v1'/);
     assert.match(js, /WEB_BUILDER_PREFILL_KEY = 'web-builder-prefill-request'/);
+    assert.match(js, /GROWTH_OPERATOR_PROJECT_BRIEF_KEY = '3dvr\.growthOperator\.project-lead-brief\.v1'/);
+    assert.match(js, /findPeople\.textContent = 'Find people'/);
+    assert.match(js, /sessionStorage\.setItem\(GROWTH_OPERATOR_PROJECT_BRIEF_KEY/);
+    assert.match(js, /window\.location\.href = '\.\.\/growth-operator\/\?from=project'/);
     assert.match(js, /buildPage\.textContent = 'Build page'/);
     assert.match(js, /sessionStorage\.setItem\(WEB_BUILDER_PREFILL_KEY/);
     assert.match(js, /window\.location\.href = '\.\.\/web-builder-app\/'/);

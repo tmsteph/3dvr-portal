@@ -45,6 +45,12 @@ test('growth operator app queues agent work and can send approved outreach throu
   const js = await readFile(new URL('app.js', baseDir), 'utf8');
 
   assert.match(js, /OPERATOR_NODE = 'growthOperator'/);
+  assert.match(js, /PROJECT_LEAD_BRIEF_KEY = '3dvr\.growthOperator\.project-lead-brief\.v1'/);
+  assert.match(js, /function hydrateProjectLeadBrief/);
+  assert.match(js, /sessionStorage\.getItem\(PROJECT_LEAD_BRIEF_KEY\)/);
+  assert.match(js, /Review the target, then use Find leads when you want research queued/);
+  assert.match(js, /Find 10 likely-fit people or organizations for this project/);
+  assert.match(js, /Do not contact them; return candidates and draft next steps for review/);
   assert.match(js, /AGENT_OWNER_ALIAS = '3dvr-managed'/);
   assert.match(js, /AUDIENCE_LEAD_SOURCES = Object\.freeze/);
   assert.match(js, /key: 'forge-revenue-sprint'/);
