@@ -33,6 +33,8 @@ test('launch room ships a local-first Movement Brief flow', async () => {
   assert.match(html, /Download Markdown/);
   assert.match(html, /Build Launch Page/);
   assert.match(html, /data-action="build-launch-page"/);
+  assert.match(html, /Create Project Draft/);
+  assert.match(html, /data-action="create-project"/);
   assert.match(html, /Movement Brief/);
   assert.match(html, /Launch Checklist/);
   assert.match(html, /Next 3 Actions/);
@@ -53,6 +55,10 @@ test('launch room ships a local-first Movement Brief flow', async () => {
   assert.match(html, /data-mode-tools/);
 
   assert.match(app, /STORAGE_KEY = '3dvr\.launch-room\.movement-brief\.v1'/);
+  assert.match(app, /PROJECT_PREFILL_KEY = '3dvr\.launch-room\.project-prefill\.v1'/);
+  assert.match(app, /sessionStorage\.setItem\(PROJECT_PREFILL_KEY/);
+  assert.match(app, /window\.location\.href = '\.\.\/projects\/\?from=launch-room'/);
+  assert.match(app, /createProjectButton\.addEventListener\('click', createProjectDraft\)/);
   assert.match(app, /function buildBrief/);
   assert.match(app, /function briefToMarkdown/);
   assert.match(app, /function buildLaunchPage/);

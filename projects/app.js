@@ -1,5 +1,6 @@
 const PROJECT_LAUNCHPAD_ROOT = 'projectLaunchpad';
 const LOCAL_KEY = '3dvr-project-launchpad';
+const LAUNCH_ROOM_PREFILL_KEY = '3dvr.launch-room.project-prefill.v1';
 
 const seedProjects = [
   {
@@ -164,6 +165,34 @@ function normalizeNode(node) {
     createdAt: Number(node.createdAt || Date.now()),
     updatedAt: Number(node.updatedAt || Date.now()),
   };
+}
+
+function applyLaunchRoomPrefill() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('from') !== 'launch-room') return;
+
+  try {
+    const raw = window.sessionStorage.getItem(LAUNCH_ROOM_PREFILL_KEY);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+
+    els.name.value = clean(draft.name);
+    els.stage.value = clean(draft.stage) || 'seed';
+    els.slug.value = clean(draft.slug) || slugify(draft.name);
+    els.category.value = clean(draft.category) || 'movement / project';
+    els.mission.value = clean(draft.mission);
+    els.needs.value = Array.isArray(draft.needs) ? draft.needs.map(clean).filter(Boolean).join('\n') : clean(draft.needs);
+    els.offers.value = Array.isArray(draft.offers) ? draft.offers.map(clean).filter(Boolean).join('\n') : clean(draft.offers);
+    els.contact.value = clean(draft.contact);
+    els.support.value = clean(draft.support);
+
+    window.sessionStorage.removeItem(LAUNCH_ROOM_PREFILL_KEY);
+    els.status.textContent = 'Project draft prefilled from Launch Room. Review it, then save when ready.';
+    els.form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    els.name.focus({ preventScroll: true });
+  } catch (_error) {
+    els.status.textContent = 'Launch Room project draft could not be loaded. Nothing was saved.';
+  }
 }
 
 function saveLocalBackup() {
@@ -440,3 +469,4 @@ loadLocalBackup();
 bindFilters();
 renderProjects();
 bindGun();
+applyLaunchRoomPrefill();
