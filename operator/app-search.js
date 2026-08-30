@@ -6,6 +6,7 @@ const count = document.querySelector('#app-search-count');
 const FEATURED = [
   { title: '3DVR Portal', href: '/', description: 'Home and app launcher', aliases: 'home dashboard portal apps' },
   { title: 'Operator', href: '/operator/', description: 'AI operator for 3DVR', aliases: 'assistant ai chat agent' },
+  { title: '3DVR Teach', href: '/teach/', description: 'Turn demonstrations into reusable agent skills', aliases: 'teach show me how record workflow skill training demonstration' },
   { title: 'Calendar', href: '/calendar/', description: 'Schedule and events', aliases: 'schedule appointments events booking' },
   { title: 'CRM', href: '/crm/', description: 'Customers and relationships', aliases: 'customers clients sales relationships' },
   { title: 'Contacts', href: '/contacts/', description: 'People and contact records', aliases: 'people address book' },
