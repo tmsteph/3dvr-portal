@@ -611,6 +611,29 @@ function persistOperatorToken() {
   }
 }
 
+function deliveryItemFromCustomer(item) {
+  const now = new Date().toISOString();
+  const projectLabel = item.projectName || item.projectSlug || 'this customer';
+  const delivery = normalizeItem({
+    id: `delivery-${item.id}`,
+    name: item.name,
+    email: item.email,
+    lane: 'delivery',
+    stage: 'working',
+    offer: item.offer,
+    context: `First delivery for ${projectLabel}. Confirm the promised outcome, ship the smallest useful result, and record what changed for the customer.`,
+    draft: '',
+    nextStep: 'Confirm the first deliverable, produce one visible result, then mark delivered when the customer has received it.',
+    source: `customer:${item.id}`,
+    projectSlug: item.projectSlug,
+    projectName: item.projectName,
+    createdAt: now,
+    updatedAt: now
+  });
+  if (delivery) delivery.draft = buildDraft(delivery);
+  return delivery;
+}
+
 async function markCustomer(item) {
   if (!item || item.lane !== 'lead') return;
   const confirmed = window.confirm(`Mark ${item.name} as a customer? This records a win; it does not charge them or send a message.`);
@@ -619,8 +642,13 @@ async function markCustomer(item) {
   const now = new Date().toISOString();
   await updateItem(item.id, {
     stage: 'done',
-    nextStep: 'Customer won. Start the first delivery step.'
+    nextStep: 'Customer won. First delivery item created.'
   });
+
+  const deliveryItem = deliveryItemFromCustomer(item);
+  if (deliveryItem) {
+    await saveItem(deliveryItem, `Customer won. Added first delivery for ${item.name}.`);
+  }
 
   if (item.projectSlug && projectUpdatesRoot) {
     const updateId = makeId('customer', `${item.projectSlug}-${item.name}`);
@@ -641,6 +669,37 @@ async function markCustomer(item) {
   }
 
   updateStatus(`${item.name} marked as a customer${item.projectName ? ` for ${item.projectName}` : ''}.`);
+}
+
+async function markDelivered(item) {
+  if (!item || item.lane !== 'delivery') return;
+  const confirmed = window.confirm(`Mark delivery to ${item.name} complete? This records the outcome; it does not send a message.`);
+  if (!confirmed) return;
+
+  await updateItem(item.id, {
+    stage: 'done',
+    nextStep: 'Delivery completed. Capture the outcome and ask for feedback or a referral only if the customer is happy.'
+  });
+
+  if (item.projectSlug && projectUpdatesRoot) {
+    const updateId = makeId('delivery', `${item.projectSlug}-${item.name}`);
+    const projectUpdate = {
+      id: updateId,
+      projectId: item.projectSlug,
+      projectSlug: item.projectSlug,
+      title: `First delivery completed: ${item.name}`,
+      body: `${item.name} received the first delivery. Next: capture what changed, turn the result into proof, and ask for feedback or a referral only if it feels earned.`,
+      createdAt: Date.now()
+    };
+    try {
+      await putGun(projectUpdatesRoot.get(updateId), projectUpdate);
+    } catch (error) {
+      updateStatus(`Delivery marked complete, but the project proof update did not sync. ${error.message || 'Gun sync failed.'}`);
+      return;
+    }
+  }
+
+  updateStatus(`Delivery to ${item.name} marked complete. Capture the outcome before moving on.`);
 }
 
 async function sendApprovedEmail(item) {
@@ -733,8 +792,9 @@ function renderQueue() {
           <button type="button" data-action="approve" data-item-id="${safe(item.id)}">Approve</button>
           <button type="button" data-action="send" data-item-id="${safe(item.id)}" ${isSending ? 'disabled' : ''}>${isSending ? 'Sending...' : 'Send approved'}</button>
           ${item.lane === 'lead' && item.stage !== 'done' ? `<button type="button" data-action="customer" data-item-id="${safe(item.id)}">Mark customer</button>` : ''}
+          ${item.lane === 'delivery' && item.stage !== 'done' ? `<button type="button" data-action="delivered" data-item-id="${safe(item.id)}">Mark delivered</button>` : ''}
           <button type="button" data-action="queue-agent" data-item-id="${safe(item.id)}">Queue agent</button>
-          <button type="button" data-action="done" data-item-id="${safe(item.id)}">Done</button>
+          ${item.lane !== 'delivery' ? `<button type="button" data-action="done" data-item-id="${safe(item.id)}">Done</button>` : ''}
         </div>
       </article>
     `;
@@ -875,6 +935,9 @@ function bindEvents() {
     }
     if (action === 'customer') {
       await markCustomer(item);
+    }
+    if (action === 'delivered') {
+      await markDelivered(item);
     }
     if (action === 'queue-agent') {
       await queueAgentTask(item.lane === 'support' ? 'support-triage' : item.lane === 'delivery' ? 'delivery-pass' : 'draft-outreach', item);

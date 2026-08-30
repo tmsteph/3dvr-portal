@@ -50,6 +50,16 @@ test('growth operator app queues agent work and can send approved outreach throu
   assert.match(js, /projectSlug: normalizeText\(value\.projectSlug\)/);
   assert.match(js, /source: state\.projectLeadBrief\?\.projectSlug \? `project:\$\{state\.projectLeadBrief\.projectSlug\}`/);
   assert.match(js, /function markCustomer/);
+  assert.match(js, /function deliveryItemFromCustomer/);
+  assert.match(js, /id: `delivery-\$\{item\.id\}`/);
+  assert.match(js, /lane: 'delivery'/);
+  assert.match(js, /First delivery item created/);
+  assert.match(js, /function markDelivered/);
+  assert.match(js, /Mark delivery to \$\{item\.name\} complete\?/);
+  assert.match(js, /it does not send a message/);
+  assert.match(js, /title: `First delivery completed: \$\{item\.name\}`/);
+  assert.match(js, /data-action=\"delivered\"/);
+  assert.match(js, /Capture the outcome/);
   assert.match(js, /Mark \$\{item\.name\} as a customer\?/);
   assert.match(js, /it does not charge them or send a message/);
   assert.match(js, /title: `First customer: \$\{item\.name\}`/);
