@@ -99,23 +99,25 @@
   },
   "sources": {
     "analytics": {
-      "available": false,
-      "run_id": "money-20260712171841-v58z41",
-      "reason": "GA4 credentials or session count unavailable"
+      "available": true,
+      "run_id": "money-20260829194515-4bumsa",
+      "reason": "gun-first-party session count imported"
     },
     "outbound": {
       "available": true,
-      "run_id": "money-20260712174048-m51r2m",
+      "run_id": "money-20260829195840-33uatw",
       "queue_size": 4
     },
     "revenue": {
       "available": true,
       "rows": 4,
+      "stripe_attributed_checkouts": 0,
+      "stripe_attributed_revenue_cents": 0,
       "reason": "outbound outcome tracker imported"
     },
     "research": {
       "available": true,
-      "run_id": "market-pulse-20260712172802",
+      "run_id": "market-pulse-20260830053033",
       "signals_analyzed": 11
     }
   },
