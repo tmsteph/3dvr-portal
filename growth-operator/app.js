@@ -1,5 +1,6 @@
 const STORAGE_KEY = '3dvr.growthOperator.items.v1';
 const TOKEN_STORAGE_KEY = '3dvr.growthOperator.operatorEmailToken.v1';
+const PROJECT_LEAD_BRIEF_KEY = '3dvr.growthOperator.project-lead-brief.v1';
 const ROOT_KEY = '3dvr-portal';
 const OPERATOR_NODE = 'growthOperator';
 const AGENT_OWNER_ALIAS = '3dvr-managed';
@@ -64,7 +65,8 @@ const STAGE_LABELS = Object.freeze({
 const state = {
   items: loadItems(),
   sendingId: '',
-  queueing: false
+  queueing: false,
+  projectLeadBrief: null
 };
 
 const gun = typeof Gun === 'function' ? Gun(window.__GUN_PEERS__ || DEFAULT_PEERS) : null;
@@ -153,6 +155,44 @@ function readStorageText(key) {
     return normalizeText(window.localStorage.getItem(key));
   } catch (_error) {
     return '';
+  }
+}
+
+function hydrateProjectLeadBrief() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('from') !== 'project') return;
+
+  try {
+    const raw = window.sessionStorage.getItem(PROJECT_LEAD_BRIEF_KEY);
+    if (!raw) return;
+    const brief = JSON.parse(raw);
+    const projectName = normalizeText(brief?.projectName);
+    if (!projectName) return;
+
+    state.projectLeadBrief = {
+      projectName,
+      projectSlug: normalizeText(brief.projectSlug),
+      mission: normalizeText(brief.mission),
+      category: normalizeText(brief.category),
+      offer: normalizeText(brief.offer),
+      needs: Array.isArray(brief.needs) ? brief.needs.map(normalizeText).filter(Boolean).slice(0, 8) : [],
+      support: normalizeText(brief.support)
+    };
+    window.sessionStorage.removeItem(PROJECT_LEAD_BRIEF_KEY);
+
+    if (els.itemOffer && state.projectLeadBrief.offer) {
+      els.itemOffer.value = state.projectLeadBrief.offer;
+    }
+    if (els.itemContext) {
+      els.itemContext.value = [
+        `Project: ${state.projectLeadBrief.projectName}`,
+        state.projectLeadBrief.mission,
+        state.projectLeadBrief.category ? `Audience/category: ${state.projectLeadBrief.category}` : ''
+      ].filter(Boolean).join('\n');
+    }
+    updateStatus(`Loaded ${projectName}. Review the target, then use Find leads when you want research queued.`);
+  } catch (_error) {
+    updateStatus('Project people brief could not be loaded. Nothing was queued or sent.');
   }
 }
 
@@ -460,7 +500,21 @@ function buildAgentTask(kind, item = null) {
   ];
 
   if (kind === 'find-leads') {
-    taskLines.push('Find 10 likely-fit 3dvr.tech leads from public sources, existing CRM gaps, market research, and referral context.');
+    const project = state.projectLeadBrief;
+    if (project) {
+      taskLines.push(
+        '',
+        `Target project: ${project.projectName}${project.projectSlug ? ` (${project.projectSlug})` : ''}`,
+        project.mission ? `Project mission: ${project.mission}` : '',
+        project.category ? `Audience/category: ${project.category}` : '',
+        project.offer ? `First offer or invitation: ${project.offer}` : '',
+        project.needs.length ? `Current needs: ${project.needs.join('; ')}` : '',
+        project.support ? `Project/support page: ${project.support}` : '',
+        'Find 10 likely-fit people or organizations for this project from public sources, existing CRM gaps, market research, and referral context. Prefer plausible first customers, collaborators, or introducers. Do not contact them; return candidates and draft next steps for review.'
+      );
+    } else {
+      taskLines.push('Find 10 likely-fit 3dvr.tech leads from public sources, existing CRM gaps, market research, and referral context.');
+    }
   }
   if (kind === 'draft-outreach') {
     taskLines.push('Draft the next approved outreach note for each lead with an email or clear contact path.');
@@ -795,6 +849,7 @@ function init() {
   }
   bindEvents();
   render();
+  hydrateProjectLeadBrief();
   subscribeGun();
   subscribeAutopilotState();
   subscribeCrm();
