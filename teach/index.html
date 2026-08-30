@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#091018">
+  <meta name="color-scheme" content="dark">
+  <title>3DVR Teach</title>
+  <meta name="description" content="Show 3DVR how you do a task once, then turn the demonstration into a reusable agent skill.">
+  <link rel="canonical" href="https://portal.3dvr.tech/teach/">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-mark.svg">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="3DVR Portal home">
+        <img src="/brand/portal-mark.svg" alt="">
+        <span>3DVR Teach</span>
+      </a>
+      <a class="top-action" href="/operator/">Operator</a>
+    </header>
+
+    <section class="hero" aria-labelledby="teach-title">
+      <p class="eyebrow">DEMONSTRATION → SKILL</p>
+      <h1 id="teach-title">Teach it once.</h1>
+      <p>Show 3DVR how you do real work. The recording stays on this device; Teach turns your notes into a reusable skill draft.</p>
+    </section>
+
+    <ol class="flow" aria-label="Teach flow">
+      <li class="active"><span>1</span> Capture</li>
+      <li><span>2</span> Structure</li>
+      <li><span>3</span> Hand off</li>
+    </ol>
+
+    <section class="panel" aria-labelledby="task-heading">
+      <div class="section-heading">
+        <div>
+          <p class="step-label">1 · Capture</p>
+          <h2 id="task-heading">Show me how</h2>
+        </div>
+        <span class="privacy-badge">Device only</span>
+      </div>
+
+      <div class="field-grid">
+        <label>
+          <span>Task</span>
+          <input id="task-name" type="text" placeholder="Book a freelance AV gig" autocomplete="off">
+        </label>
+        <label>
+          <span>Goal</span>
+          <input id="task-goal" type="text" placeholder="Get the right job on the calendar at a good rate" autocomplete="off">
+        </label>
+      </div>
+
+      <label class="check-row">
+        <input id="include-mic" type="checkbox" checked>
+        <span><strong>Narrate while you work</strong><small>Explain why you make decisions, not just what you click.</small></span>
+      </label>
+
+      <div class="capture-stage" id="capture-stage" data-state="idle">
+        <video id="capture-preview" muted playsinline hidden></video>
+        <div class="capture-placeholder" id="capture-placeholder">
+          <div class="capture-orb" aria-hidden="true">◎</div>
+          <strong>Ready to learn from you</strong>
+          <span>Choose a screen, window, or tab when your browser asks.</span>
+        </div>
+        <div class="recording-status" id="recording-status" aria-live="polite">
+          <span class="recording-dot" aria-hidden="true"></span>
+          <span id="recording-label">Not recording</span>
+          <time id="recording-time">00:00</time>
+        </div>
+      </div>
+
+      <div class="capture-actions">
+        <button class="primary" id="start-recording" type="button">Show me how</button>
+        <button id="pause-recording" type="button" hidden>Pause</button>
+        <button id="stop-recording" type="button" hidden>Finish</button>
+      </div>
+      <p class="hint" id="capture-hint">Nothing is uploaded automatically. Stop before opening passwords, private messages, or unrelated sensitive information.</p>
+      <a class="recording-link" id="save-recording" href="#" hidden>Save recording to this device</a>
+    </section>
+
+    <section class="panel" aria-labelledby="structure-heading">
+      <div class="section-heading">
+        <div>
+          <p class="step-label">2 · Structure</p>
+          <h2 id="structure-heading">What mattered?</h2>
+        </div>
+        <button class="quiet" id="add-step" type="button">+ Add step</button>
+      </div>
+
+      <p class="section-copy">Capture the judgment calls. A future agent can infer clicks; the useful part is knowing what to notice and why.</p>
+      <div id="steps" class="steps" aria-live="polite"></div>
+
+      <label class="full-field">
+        <span>How do we know it worked?</span>
+        <textarea id="success-criteria" rows="3" placeholder="The gig is confirmed, rate and dates are correct, and the calendar entry matches the agreement."></textarea>
+      </label>
+      <label class="full-field">
+        <span>When should the agent stop and ask?</span>
+        <textarea id="stop-conditions" rows="3" placeholder="Rate is below my minimum, dates conflict, or the client asks for something unusual."></textarea>
+      </label>
+
+      <button class="primary" id="generate-skill" type="button">Build skill draft</button>
+    </section>
+
+    <section class="panel skill-panel" id="skill-panel" aria-labelledby="skill-heading" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="step-label">3 · Hand off</p>
+          <h2 id="skill-heading">Reusable skill draft</h2>
+        </div>
+        <span class="status-badge">Review first</span>
+      </div>
+
+      <p class="section-copy">This is an editable first pass, not autonomous permission. Operator should still test it and ask before risky actions.</p>
+      <textarea id="skill-output" class="skill-output" rows="18" spellcheck="false" aria-label="Generated skill draft"></textarea>
+      <div class="skill-actions">
+        <button id="copy-skill" type="button">Copy skill</button>
+        <button class="primary" id="send-operator" type="button">Teach Operator →</button>
+      </div>
+      <p class="hint" id="skill-status" aria-live="polite"></p>
+    </section>
+
+    <footer>
+      <span>3DVR Teach · learn by demonstration</span>
+      <a href="/">Back to Portal</a>
+    </footer>
+  </main>
+</body>
+</html>
