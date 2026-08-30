@@ -48,6 +48,11 @@ describe('3DVR Seed Deck', () => {
     assert.match(js, /PROJECT_LAUNCHPAD_ROOT = 'projectLaunchpad'/);
     assert.match(js, /LOCAL_KEY = '3dvr-project-launchpad'/);
     assert.match(js, /LAUNCH_ROOM_PREFILL_KEY = '3dvr\.launch-room\.project-prefill\.v1'/);
+    assert.match(js, /WEB_BUILDER_PREFILL_KEY = 'web-builder-prefill-request'/);
+    assert.match(js, /buildPage\.textContent = 'Build page'/);
+    assert.match(js, /sessionStorage\.setItem\(WEB_BUILDER_PREFILL_KEY/);
+    assert.match(js, /window\.location\.href = '\.\.\/web-builder-app\/'/);
+    assert.match(js, /Page draft prepared\. Opening Web Builder for review/);
     assert.match(js, /new URLSearchParams\(window\.location\.search\)/);
     assert.match(js, /sessionStorage\.getItem\(LAUNCH_ROOM_PREFILL_KEY\)/);
     assert.match(js, /sessionStorage\.removeItem\(LAUNCH_ROOM_PREFILL_KEY\)/);
