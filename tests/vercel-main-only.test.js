@@ -4,10 +4,10 @@ import { readFile } from 'node:fs/promises';
 
 const vercel = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
 
-test('Vercel skips routine main builds and ordinary branches while allowing opt-in preview bridges', () => {
+test('Vercel temporarily enables main for the controlled production release', () => {
   assert.deepEqual(vercel.git?.deploymentEnabled, {
     '**': false,
-    main: false,
+    main: true,
     'preview-pr-*': true,
   });
   assert.equal(vercel.ignoreCommand, undefined);
