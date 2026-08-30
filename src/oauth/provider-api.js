@@ -385,11 +385,14 @@ function createGoogleProvider(config = process.env) {
       if (scopeKey === 'contacts' || scopeKey === 'contacts-calendar') {
         scopes.add('https://www.googleapis.com/auth/contacts.readonly');
       }
-      if (scopeKey === 'calendar' || scopeKey === 'contacts-calendar') {
+      if (scopeKey === 'calendar' || scopeKey === 'contacts-calendar' || scopeKey === 'calendar-gmail-send') {
         scopes.add('https://www.googleapis.com/auth/calendar.events');
       }
       if (scopeKey === 'mail' || scopeKey === 'gmail') {
         scopes.add('https://www.googleapis.com/auth/gmail.readonly');
+        scopes.add('https://www.googleapis.com/auth/gmail.send');
+      }
+      if (scopeKey === 'gmail-send' || scopeKey === 'calendar-gmail-send') {
         scopes.add('https://www.googleapis.com/auth/gmail.send');
       }
       const params = new URLSearchParams({
@@ -630,7 +633,7 @@ function createMicrosoftProvider(config = process.env) {
       if (scopeKey === 'contacts' || scopeKey === 'contacts-calendar') {
         scopes.add('Contacts.Read');
       }
-      if (scopeKey === 'calendar' || scopeKey === 'contacts-calendar') {
+      if (scopeKey === 'calendar' || scopeKey === 'contacts-calendar' || scopeKey === 'calendar-gmail-send') {
         scopes.add('Calendars.ReadWrite');
       }
       if (scopeKey === 'mail' || scopeKey === 'outlook') {
@@ -861,6 +864,8 @@ function isScopeSupported(provider, scopeKey = 'identity') {
   if (normalized === 'contacts') return Boolean(provider.supports.contacts);
   if (normalized === 'calendar') return Boolean(provider.supports.calendar);
   if (normalized === 'contacts-calendar') return Boolean(provider.supports.contacts && provider.supports.calendar);
+  if (normalized === 'gmail-send') return Boolean(provider.supports.mail);
+  if (normalized === 'calendar-gmail-send') return Boolean(provider.supports.calendar && provider.supports.mail);
   if (normalized === 'mail' || normalized === 'gmail' || normalized === 'outlook') return Boolean(provider.supports.mail);
   return false;
 }
