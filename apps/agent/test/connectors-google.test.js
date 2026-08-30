@@ -33,6 +33,17 @@ function fixturePaths() {
   };
 }
 
+function registryOptions(options) {
+  return { filePath: options.registryFilePath };
+}
+
+function vaultOptions(options) {
+  return {
+    filePath: options.vaultFilePath,
+    keyMaterial: options.keyMaterial,
+  };
+}
+
 function futureExpiry() {
   return Date.now() + (60 * 60 * 1000);
 }
@@ -45,14 +56,14 @@ test('account registry keeps two Google identities distinct and addressable by a
     email: 'person@example.com',
     scopes: ['gmail.readonly'],
     credentialRef: 'google-oauth:test-personal',
-  }, options);
+  }, registryOptions(options));
   const work = upsertAccount({
     provider: 'google',
     alias: 'work',
     email: 'work@example.com',
     scopes: ['gmail.compose', 'gmail.readonly'],
     credentialRef: 'google-oauth:test-work',
-  }, options);
+  }, registryOptions(options));
 
   assert.notEqual(personal.id, work.id);
   assert.deepEqual(listAccounts({ provider: 'google', filePath: options.registryFilePath }).map((account) => account.alias), [
@@ -68,17 +79,17 @@ test('Google OAuth vault encrypts refresh tokens at rest', () => {
     provider: 'google',
     alias: 'personal',
     email: 'person@example.com',
-  }, options);
+  }, registryOptions(options));
   const secret = 'refresh-token-that-must-not-be-plaintext';
   const ref = saveGoogleCredential(account.id, {
     refreshToken: secret,
     accessToken: 'access-token',
     expiresAt: futureExpiry(),
-  }, options);
+  }, vaultOptions(options));
 
   const rawVault = fs.readFileSync(options.vaultFilePath, 'utf8');
   assert.equal(rawVault.includes(secret), false);
-  assert.equal(loadGoogleCredential(ref, options).refreshToken, secret);
+  assert.equal(loadGoogleCredential(ref, vaultOptions(options)).refreshToken, secret);
 });
 
 test('registered Google accounts resolve separate access tokens', async () => {
