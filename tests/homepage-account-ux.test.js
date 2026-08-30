@@ -14,9 +14,13 @@ test('homepage account entry follows portal auth state', async () => {
   assert.match(html, /data-auth-entry>Sign in<\/a>/);
   assert.match(app, /syncStorageFromSharedIdentity\?\.\(localStorage\)/);
   assert.match(app, /authEntry\.href = '\/profile\.html#profile'/);
-  assert.match(app, /authEntry\.textContent = 'Profile'/);
+  assert.match(app, /3dvr:score:user:/);
+  assert.match(app, /:pending/);
+  assert.match(app, /:portalPending/);
+  assert.match(app, /authEntry\.textContent = `\$\{state\.displayName\} · ⭐ \$\{points\}`/);
   assert.match(app, /authEntry\.href = '\/sign-in\.html\?redirect=%2F'/);
   assert.match(app, /authEntry\.textContent = 'Sign in'/);
+  assert.match(app, /installOsLauncher/);
   assert.doesNotMatch(app, /signInLink\.hidden/);
 });
 

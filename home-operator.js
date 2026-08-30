@@ -24,8 +24,22 @@ function readAccountState() {
   const username = (localStorage.getItem('username') || shared.username || '').trim();
   return {
     signedIn,
+    alias,
     displayName: signedIn ? username || aliasToDisplay(alias) || 'User' : ''
   };
+}
+
+function readCachedPoints(state) {
+  if (!state.signedIn || !state.alias) return 0;
+  try {
+    const key = `3dvr:score:user:${state.alias.toLowerCase()}`;
+    return [key, `${key}:pending`, `${key}:portalPending`]
+      .map(cacheKey => Number(localStorage.getItem(cacheKey) || 0))
+      .filter(Number.isFinite)
+      .reduce((best, value) => Math.max(best, Math.max(0, Math.round(value))), 0);
+  } catch {
+    return 0;
+  }
 }
 
 function installAccountStatus() {
@@ -35,9 +49,10 @@ function installAccountStatus() {
   const render = () => {
     const state = readAccountState();
     if (state.signedIn) {
+      const points = readCachedPoints(state);
       authEntry.href = '/profile.html#profile';
-      authEntry.textContent = 'Profile';
-      authEntry.setAttribute('aria-label', `Open profile for ${state.displayName}`);
+      authEntry.textContent = `${state.displayName} · ⭐ ${points}`;
+      authEntry.setAttribute('aria-label', `Open profile for ${state.displayName}. ${points} points.`);
       return;
     }
 
