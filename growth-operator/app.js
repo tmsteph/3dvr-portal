@@ -75,6 +75,7 @@ const operatorRoot = portalRoot ? portalRoot.get(OPERATOR_NODE) : null;
 const itemsRoot = operatorRoot ? operatorRoot.get('items') : null;
 const crmRoot = gun ? gun.get('3dvr-crm') : null;
 const touchRoot = portalRoot ? portalRoot.get('crm-touch-log') : null;
+const projectUpdatesRoot = portalRoot ? portalRoot.get('projectLaunchpad').get('updates') : null;
 // The worker writes its health state under the server-side agent root. Reading
 // it here makes a dead/stale worker visible even when the CRM queue is empty.
 const autopilotStateRoot = gun ? gun.get('3dvr').get('ops').get('autopilot').get('state') : null;
@@ -236,6 +237,8 @@ function normalizeItem(value) {
     draft: normalizeText(value.draft),
     nextStep: normalizeText(value.nextStep),
     source: normalizeText(value.source) || 'growth-operator',
+    projectSlug: normalizeText(value.projectSlug),
+    projectName: normalizeText(value.projectName),
     approvedAt: normalizeText(value.approvedAt),
     sentAt: normalizeText(value.sentAt),
     createdAt: normalizeText(value.createdAt),
@@ -433,7 +436,9 @@ function buildItemFromForm() {
     context: normalizeText(els.itemContext.value),
     draft: '',
     nextStep: lane === 'lead' ? 'Draft one specific outreach note.' : 'Clarify the next customer-visible step.',
-    source: 'growth-operator',
+    source: state.projectLeadBrief?.projectSlug ? `project:${state.projectLeadBrief.projectSlug}` : 'growth-operator',
+    projectSlug: state.projectLeadBrief?.projectSlug || '',
+    projectName: state.projectLeadBrief?.projectName || '',
     approvedAt: '',
     sentAt: '',
     createdAt: now,
@@ -510,7 +515,8 @@ function buildAgentTask(kind, item = null) {
         project.offer ? `First offer or invitation: ${project.offer}` : '',
         project.needs.length ? `Current needs: ${project.needs.join('; ')}` : '',
         project.support ? `Project/support page: ${project.support}` : '',
-        'Find 10 likely-fit people or organizations for this project from public sources, existing CRM gaps, market research, and referral context. Prefer plausible first customers, collaborators, or introducers. Do not contact them; return candidates and draft next steps for review.'
+        'Find 10 likely-fit people or organizations for this project from public sources, existing CRM gaps, market research, and referral context. Prefer plausible first customers, collaborators, or introducers. Do not contact them; return candidates and draft next steps for review.',
+        `When adding Growth Operator lead records for this search, preserve projectSlug=${project.projectSlug || 'unknown'} and projectName=${project.projectName}; use source=project:${project.projectSlug || 'unknown'} so wins can flow back to the project.`
       );
     } else {
       taskLines.push('Find 10 likely-fit 3dvr.tech leads from public sources, existing CRM gaps, market research, and referral context.');
@@ -605,6 +611,38 @@ function persistOperatorToken() {
   }
 }
 
+async function markCustomer(item) {
+  if (!item || item.lane !== 'lead') return;
+  const confirmed = window.confirm(`Mark ${item.name} as a customer? This records a win; it does not charge them or send a message.`);
+  if (!confirmed) return;
+
+  const now = new Date().toISOString();
+  await updateItem(item.id, {
+    stage: 'done',
+    nextStep: 'Customer won. Start the first delivery step.'
+  });
+
+  if (item.projectSlug && projectUpdatesRoot) {
+    const updateId = makeId('customer', `${item.projectSlug}-${item.name}`);
+    const projectUpdate = {
+      id: updateId,
+      projectId: item.projectSlug,
+      projectSlug: item.projectSlug,
+      title: `First customer: ${item.name}`,
+      body: `${item.name} was marked as a customer from Growth Operator. Next step: start delivery and learn from the first real use.`,
+      createdAt: Date.now()
+    };
+    try {
+      await putGun(projectUpdatesRoot.get(updateId), projectUpdate);
+    } catch (error) {
+      updateStatus(`Customer marked, but the project update did not sync. ${error.message || 'Gun sync failed.'}`);
+      return;
+    }
+  }
+
+  updateStatus(`${item.name} marked as a customer${item.projectName ? ` for ${item.projectName}` : ''}.`);
+}
+
 async function sendApprovedEmail(item) {
   if (!item.email) {
     updateStatus(`Add an email before sending to ${item.name}.`);
@@ -686,6 +724,7 @@ function renderQueue() {
           <div class="queue-meta">
             ${item.email ? `<span>${safe(item.email)}</span>` : '<span>No email</span>'}
             ${item.offer ? `<span>${safe(item.offer)}</span>` : ''}
+            ${item.projectName ? `<span>Project: ${safe(item.projectName)}</span>` : ''}
           </div>
         </div>
         <div class="draft-box">${safe(item.draft || buildDraft(item))}</div>
@@ -693,6 +732,7 @@ function renderQueue() {
           <button type="button" data-action="draft" data-item-id="${safe(item.id)}">Draft</button>
           <button type="button" data-action="approve" data-item-id="${safe(item.id)}">Approve</button>
           <button type="button" data-action="send" data-item-id="${safe(item.id)}" ${isSending ? 'disabled' : ''}>${isSending ? 'Sending...' : 'Send approved'}</button>
+          ${item.lane === 'lead' && item.stage !== 'done' ? `<button type="button" data-action="customer" data-item-id="${safe(item.id)}">Mark customer</button>` : ''}
           <button type="button" data-action="queue-agent" data-item-id="${safe(item.id)}">Queue agent</button>
           <button type="button" data-action="done" data-item-id="${safe(item.id)}">Done</button>
         </div>
@@ -832,6 +872,9 @@ function bindEvents() {
     }
     if (action === 'send') {
       await sendApprovedEmail(item);
+    }
+    if (action === 'customer') {
+      await markCustomer(item);
     }
     if (action === 'queue-agent') {
       await queueAgentTask(item.lane === 'support' ? 'support-triage' : item.lane === 'delivery' ? 'delivery-pass' : 'draft-outreach', item);
