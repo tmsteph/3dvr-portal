@@ -55,6 +55,7 @@ let currentSources = [];
 let currentSearchUsage = null;
 let generateStatusAnimationTimer = null;
 let billingStatusSyncPromise = null;
+let currentProjectContext = null;
 let resolveDefaultsFirstRecord = null;
 const defaultsFirstRecordPromise = new Promise(resolve => {
   resolveDefaultsFirstRecord = resolve;
@@ -77,6 +78,7 @@ const vercelStorageKey = 'web-builder-vercel';
 const githubStorageKey = 'web-builder-github';
 const modelStorageKey = 'web-builder-model';
 const builderPrefillStorageKey = 'web-builder-prefill-request';
+const builderProjectContextStorageKey = 'web-builder-project-context';
 
 const STATUS_TONE_CLASSES = ['status--info', 'status--success', 'status--warning', 'status--error'];
 const LOAD_DEFAULTS_LABEL = 'Reload shared defaults';
@@ -386,7 +388,18 @@ function hydrateBuilderPrefill() {
   const raw = safeRead(localStorage, builderPrefillStorageKey) || safeRead(sessionStorage, builderPrefillStorageKey);
   const prefill = safeParseJson(raw);
   if (!prefill || typeof prefill !== 'object') {
+    const storedProjectContext = safeParseJson(safeRead(sessionStorage, builderProjectContextStorageKey));
+    if (storedProjectContext?.projectSlug) {
+      currentProjectContext = storedProjectContext;
+    }
     return;
+  }
+
+  const projectSlug = String(prefill.projectSlug || '').trim();
+  const projectName = String(prefill.projectName || '').trim();
+  if (projectSlug) {
+    currentProjectContext = { projectSlug, projectName: projectName || projectSlug };
+    safeWrite(sessionStorage, builderProjectContextStorageKey, JSON.stringify(currentProjectContext));
   }
 
   const request = String(prefill.request || '').trim();
@@ -1617,6 +1630,65 @@ async function handleIterate() {
   await requestGeneration(prompt, 'iterate');
 }
 
+function normalizePublicUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(raw.includes('://') ? raw : `https://${raw}`);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : '';
+  } catch (_error) {
+    return '';
+  }
+}
+
+function putGunRecord(node, payload) {
+  return new Promise((resolve, reject) => {
+    if (!node || typeof node.put !== 'function') {
+      reject(new Error('Project graph is unavailable.'));
+      return;
+    }
+    const timer = window.setTimeout(() => resolve({ timedOut: true }), 5000);
+    node.put(payload, ack => {
+      window.clearTimeout(timer);
+      if (ack?.err) reject(new Error(String(ack.err)));
+      else resolve(ack || {});
+    });
+  });
+}
+
+async function recordProjectDeployment(rawUrl) {
+  const project = currentProjectContext;
+  const url = normalizePublicUrl(rawUrl);
+  if (!project?.projectSlug || !url) return;
+
+  const now = Date.now();
+  const updateId = `page-${project.projectSlug}-${now.toString(36)}`;
+  try {
+    await Promise.all([
+      putGunRecord(
+        portalRoot.get('projectLaunchpad').get('nodes').get(project.projectSlug),
+        { support: url, updatedAt: now }
+      ),
+      putGunRecord(
+        portalRoot.get('projectLaunchpad').get('updates').get(updateId),
+        {
+          id: updateId,
+          projectId: project.projectSlug,
+          projectSlug: project.projectSlug,
+          title: 'Project page deployed',
+          body: `Live page: ${url}`,
+          createdAt: now
+        }
+      )
+    ]);
+    safeRemove(sessionStorage, builderProjectContextStorageKey);
+    currentProjectContext = null;
+    logMessage(`Linked deployed page back to project ${project.projectName || project.projectSlug}.`);
+  } catch (error) {
+    logMessage(`Site deployed, but project link-back did not sync: ${error.message || 'Gun sync failed.'}`);
+  }
+}
+
 async function handleDeploy() {
   if (!currentHtml) {
     setGenerateStatus('Generate a site first, then deploy from the Publish panel.', 'warning');
@@ -1655,8 +1727,10 @@ async function handleDeploy() {
       return;
     }
 
-    setGenerateStatus(`Deployed: ${result.url || result.inspectUrl}`, 'success');
-    logMessage(`Deployment ready at ${result.url || 'Vercel inspect panel'}`);
+    const deployedUrl = result.url || '';
+    setGenerateStatus(`Deployed: ${deployedUrl || result.inspectUrl}`, 'success');
+    logMessage(`Deployment ready at ${deployedUrl || 'Vercel inspect panel'}`);
+    await recordProjectDeployment(deployedUrl);
   } catch (error) {
     setGenerateStatus('Unable to reach the Vercel deploy API.', 'error');
     logMessage(error.message || 'Network error');
