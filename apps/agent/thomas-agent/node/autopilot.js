@@ -893,6 +893,7 @@ function serializeAck(ack) {
 
 function gunSafe(value) {
   if (value === null || value === undefined) return '';
+  if (typeof value === 'number' && !Number.isFinite(value)) return String(value);
   if (Array.isArray(value)) {
     return value.reduce((output, item, index) => {
       output[`item_${index}`] = gunSafe(item);
@@ -1320,6 +1321,7 @@ module.exports = {
   countUnenriched,
   formatCounts,
   formatRouteCounts,
+  gunSafe,
   needsEnrichment,
   pickAutoSendLeads,
   splitLocations,

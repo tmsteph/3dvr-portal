@@ -6,6 +6,7 @@ const {
   countRouteBuckets,
   countStatuses,
   formatRouteCounts,
+  gunSafe,
   pickAutoSendLeads,
   splitLocations,
 } = require('../thomas-agent/node/autopilot');
@@ -16,6 +17,14 @@ test('splitLocations preserves city and state commas', () => {
     splitLocations('San Diego, CA;La Mesa, CA\nEl Cajon, CA'),
     ['San Diego, CA', 'La Mesa, CA', 'El Cajon, CA']
   );
+});
+
+test('gunSafe serializes non-finite numbers before Gun persistence', () => {
+  assert.deepEqual(gunSafe({ finite: 5, unlimited: Infinity, missing: NaN }), {
+    finite: 5,
+    unlimited: 'Infinity',
+    missing: 'NaN',
+  });
 });
 
 test('countRouteBuckets separates email, form, page-only, and unenriched new leads', () => {
