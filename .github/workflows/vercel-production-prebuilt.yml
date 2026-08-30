@@ -41,6 +41,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Enforce Vercel Hobby function budget
+        run: node --test tests/vercel-function-budget.test.js
+
       - name: Install Vercel CLI
         run: npm install --global vercel
 
