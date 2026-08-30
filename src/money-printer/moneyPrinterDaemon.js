@@ -22,16 +22,19 @@ import {
   getModelProviderStatus,
   runBotWithModel
 } from './moneyPrinterModelProvider.js';
+import { updateLearningLedger } from './learningRuntime.js';
 
 // money-printer-daemon MVP: a safe dry-run cycle for future DigitalOcean scheduling.
-// It intentionally performs no destructive provider calls and exits cleanly for development.
+// External and financial operations remain gated by the operation queue, while every
+// wake cycle is now remembered so repeated failure can change the next experiment.
 
 export async function runMoneyPrinterDaemonCycle(options = {}) {
   const rootDir = options.rootDir || process.cwd();
   const command = options.command || 'daemon';
   const botId = options.botId || 'executive-agent';
+  const env = options.env || process.env;
   const loaded = await loadMoneyPrinterWorkspace(rootDir);
-  const providerStatus = getModelProviderStatus(options, options.env || process.env);
+  const providerStatus = getModelProviderStatus(options, env);
   const botOutput = options.ai
     ? await runBotWithModel(botId, loaded.state, { ...options, rootDir })
     : runBotLoop(botId, loaded.state);
@@ -76,6 +79,25 @@ export async function runMoneyPrinterDaemonCycle(options = {}) {
     bot: botId
   });
 
+  const learningEvidenceDir = String(
+    options.learningEvidenceDir
+    || env.MONEY_PRINTER_EVIDENCE_DIR
+    || ''
+  ).trim();
+  const learning = await updateLearningLedger({
+    rootDir,
+    evidenceDir: learningEvidenceDir,
+    measurement: learningEvidenceDir ? null : {
+      observed_at: new Date().toISOString(),
+      source: command,
+      experiment_id: loaded.state.experiments?.find(experiment => experiment.status === 'running')?.id
+        || loaded.state.experiments?.[0]?.id
+        || 'daemon-observation',
+      note: `Money Printer wake cycle: ${botOutput.summary || nextBestMoneyAction}`
+    },
+    recordObservation: true
+  });
+
   const report = {
     generatedAt: new Date().toISOString(),
     mode: providerStatus.mode === 'openai' ? 'openai' : 'dry-run',
@@ -95,6 +117,8 @@ export async function runMoneyPrinterDaemonCycle(options = {}) {
     connectorOperationsExecuted: executedOperations,
     nextCodexPrompt: codexPrompt.prompt,
     codexPromptPath: codexPrompt.promptPath,
+    learning: learning.summary,
+    learningLedgerPath: learning.ledgerPath,
     rawModelOutputPath: botOutput.rawOutputPath
       || connectorPlan.rawOutputPath
       || ideaResult.rawOutputPath
@@ -113,13 +137,17 @@ export async function runMoneyPrinterDaemonCycle(options = {}) {
     model: botOutput.model || providerStatus.model,
     operationsPlanned: operationsWrite.added.length,
     operationsExecuted: executedOperations.length,
-    executiveDecisionId: executiveDecisionWrite?.entry?.id || ''
+    executiveDecisionId: executiveDecisionWrite?.entry?.id || '',
+    learningMilestone: learning.summary.milestone,
+    learningStalledCycles: learning.summary.stalledCycles,
+    learningChangeDimension: learning.summary.nextExperiment?.change_dimension || ''
   });
 
   return {
     report,
     reportPath,
     event: log.event,
-    eventLogPath: log.path
+    eventLogPath: log.path,
+    learning
   };
 }
