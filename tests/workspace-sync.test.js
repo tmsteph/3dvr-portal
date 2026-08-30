@@ -34,11 +34,11 @@ test('relay timeout never auto-saves empty startup state', async () => {
   assert.doesNotMatch(timeoutBlock, /\bsave\s*\(/, 'timeout must not overwrite unknown remote state');
 });
 
-test('production keeps Vercel main closed plus opt-in preview bridges with a default deny rule', async () => {
+test('controlled production release temporarily enables Vercel main while preserving preview/default-deny rules', async () => {
   const workflow = await read('.github/workflows/vercel-production-prebuilt.yml');
   const vercelConfig = JSON.parse(await read('vercel.json'));
 
-  assert.equal(vercelConfig.git?.deploymentEnabled?.main, false);
+  assert.equal(vercelConfig.git?.deploymentEnabled?.main, true);
   assert.equal(vercelConfig.git?.deploymentEnabled?.['preview-pr-*'], true);
   assert.equal(vercelConfig.git?.deploymentEnabled?.['**'], false);
   assert.equal(vercelConfig.ignoreCommand, undefined);
