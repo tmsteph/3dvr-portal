@@ -38,6 +38,10 @@ function autopilotStateNode() {
   return gun.get(APP_ROOT).get(OPS_ROOT).get(AUTOPILOT_ROOT).get('state');
 }
 
+function websiteUpgradeFulfillmentNode() {
+  return gun.get(APP_ROOT).get(OPS_ROOT).get(AUTOPILOT_ROOT).get('website-upgrade-fulfillment');
+}
+
 function portalAgentOpsNode() {
   return gun.get(PORTAL_ROOT).get('agentOps');
 }
@@ -64,6 +68,7 @@ module.exports = {
   outreachArtifactsNode,
   autopilotRunsNode,
   autopilotStateNode,
+  websiteUpgradeFulfillmentNode,
   portalAgentOpsNode,
   portalCrmNode,
   portalCrmTouchLogNode,
