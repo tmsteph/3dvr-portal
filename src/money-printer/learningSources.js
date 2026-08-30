@@ -64,14 +64,59 @@ function fingerprint(value = '') {
   return `fnv1a-${(hash >>> 0).toString(16).padStart(8, '0')}`;
 }
 
+export function classifyRevenueProvenance(outcome = {}) {
+  const explicit = [
+    outcome.revenueProvenance,
+    outcome.revenue_provenance,
+    outcome.customerRelationship,
+    outcome.customer_relationship,
+    outcome.relationship,
+    outcome.buyerType,
+    outcome.buyer_type,
+    outcome.customerType,
+    outcome.customer_type
+  ].map(value => String(value || '').trim().toLowerCase()).find(Boolean) || '';
+
+  if (['founder', 'owner', 'self', 'internal'].includes(explicit)) return 'founder';
+  if (['friend', 'family', 'personal-network'].includes(explicit)) return 'friend';
+  if (['stranger', 'unrelated', 'independent', 'cold-market'].includes(explicit)) return 'stranger';
+  return 'unattributed';
+}
+
+function isPayingOutcome(item = {}) {
+  return cents(item.revenue) > 0
+    || positive(item.subscriptionStatus)
+    || /customer|paid/i.test(item.keepLiveDecision || '');
+}
+
+function provenanceSignals(outcomes = []) {
+  const totals = {
+    founder_customers: 0,
+    friend_customers: 0,
+    stranger_customers: 0,
+    founder_revenue_cents: 0,
+    friend_revenue_cents: 0,
+    stranger_revenue_cents: 0
+  };
+
+  for (const item of outcomes) {
+    const provenance = classifyRevenueProvenance(item);
+    if (provenance === 'unattributed') continue;
+    if (isPayingOutcome(item)) totals[`${provenance}_customers`] += 1;
+    totals[`${provenance}_revenue_cents`] += cents(item.revenue);
+  }
+  return totals;
+}
+
 export function deriveEvidence({ autopilot = null, outbound = null, outcomes = [], marketPulse = null } = {}) {
   const queue = Array.isArray(outbound?.queue) ? outbound.queue : [];
   const sentFromQueue = queue.filter(item => item.lastContactedAt || item.contactedAt || /sent|contacted/i.test(item.status || '')).length;
   const sentFromDispatch = Number(outbound?.dispatch?.sentCount || 0);
   const replies = outcomes.filter(item => positive(item.replyStatus)).length;
   const calls = outcomes.filter(item => /booked|scheduled/i.test(item.replyStatus || item.notes || '')).length;
-  const customers = outcomes.filter(item => positive(item.subscriptionStatus) || /customer|paid/i.test(item.keepLiveDecision || '')).length;
+  const customers = outcomes.filter(item => isPayingOutcome(item)).length;
   const revenueCents = outcomes.reduce((sum, item) => sum + cents(item.revenue), 0);
+  const provenance = provenanceSignals(outcomes);
   const stripeRevenue = autopilot?.revenue || outbound?.revenue || null;
   const stripeOfferRows = Array.isArray(stripeRevenue?.byOffer) ? stripeRevenue.byOffer : [];
   const stripeAttributedRevenueCents = stripeOfferRows.reduce((sum, item) => sum + Math.max(0, Number(item?.grossRevenueCents || 0)), 0);
@@ -88,6 +133,7 @@ export function deriveEvidence({ autopilot = null, outbound = null, outcomes = [
     calls_booked: calls,
     customers,
     revenue_cents: revenueCents,
+    ...provenance,
     ...(stripeRevenueAvailable ? {
       stripe_attributed_checkouts: stripeAttributedCheckouts,
       stripe_attributed_revenue_cents: stripeAttributedRevenueCents,
@@ -142,9 +188,15 @@ export function deriveEvidence({ autopilot = null, outbound = null, outcomes = [
         rows: outcomes.length,
         stripe_attributed_checkouts: stripeAttributedCheckouts,
         stripe_attributed_revenue_cents: stripeAttributedRevenueCents,
+        provenance_rows: {
+          founder: provenance.founder_customers,
+          friend: provenance.friend_customers,
+          stranger: provenance.stranger_customers,
+          unattributed: outcomes.filter(item => isPayingOutcome(item) && classifyRevenueProvenance(item) === 'unattributed').length
+        },
         reason: stripeRevenueAvailable
-          ? 'Stripe attributed revenue imported; outcome tracker kept as supplemental feedback'
-          : outcomes.length ? 'outbound outcome tracker imported' : 'revenue evidence unavailable'
+          ? 'Stripe attributed revenue imported; explicit outcome provenance kept separate from unattributed Stripe revenue'
+          : outcomes.length ? 'outbound outcome tracker imported with explicit revenue provenance when supplied' : 'revenue evidence unavailable'
       },
       research: { available: researchAvailable, run_id: marketPulse?.runId || '', signals_analyzed: Number(marketPulse?.signalsAnalyzed || 0) }
     }
