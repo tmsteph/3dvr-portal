@@ -99,7 +99,7 @@ async function loadBlackouts() {
 connectButton.addEventListener('click', () => {
   window.PortalOAuth.begin('google', {
     intent: 'connect',
-    scopeKey: 'calendar-mail',
+    scopeKey: 'calendar-gmail-send',
     aliasHint: ADMIN_EMAIL,
     returnTo: '/sd-day-traders-admin/'
   });

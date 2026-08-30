@@ -14,7 +14,7 @@ describe('SD Day Traders admin', () => {
 
     assert.match(html, /\/calendar\/oauth\.js/);
     assert.match(html, /data-blackout-form/);
-    assert.match(app, /scopeKey:\s*'calendar-mail'/);
+    assert.match(app, /scopeKey:\s*'calendar-gmail-send'/);
     assert.match(app, /gamboaesai@gmail\.com/);
     assert.match(app, /action:\s*'createEvent'/);
     assert.match(app, /startDate:\s*date/);

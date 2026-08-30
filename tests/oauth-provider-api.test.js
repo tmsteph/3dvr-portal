@@ -128,7 +128,7 @@ describe('oauth provider api', () => {
     assert.doesNotMatch(scopes, /https:\/\/www\.googleapis\.com\/auth\/calendar(?:\s|$)/);
   });
 
-  it('can request Google Calendar and Gmail permissions together', async () => {
+  it('supports send-only Google Gmail access without mailbox read permission', async () => {
     const handler = createOAuthProviderHandler({
       config: { GOOGLE_OAUTH_CLIENT_ID: 'client.apps.googleusercontent.com', GOOGLE_OAUTH_CLIENT_SECRET: 'secret' },
     });
@@ -137,14 +137,34 @@ describe('oauth provider api', () => {
     await handler({
       method: 'GET',
       headers: { host: 'portal.3dvr.tech', 'x-forwarded-proto': 'https' },
-      query: { provider: 'google', action: 'start', scopeKey: 'calendar-mail', returnTo: '/sd-day-traders-admin/' },
+      query: { provider: 'google', action: 'start', scopeKey: 'gmail-send', returnTo: '/sd-day-traders-admin/' },
     }, res);
 
     assert.equal(res.statusCode, 302);
-    const scopes = new URL(res.headers.Location).searchParams.get('scope') || '';
-    assert.match(scopes, /calendar\.events/);
-    assert.match(scopes, /gmail\.send/);
-    assert.match(scopes, /gmail\.readonly/);
+    const location = new URL(res.headers.Location);
+    const scopes = location.searchParams.get('scope') || '';
+    assert.match(scopes, /https:\/\/www\.googleapis\.com\/auth\/gmail\.send/);
+    assert.doesNotMatch(scopes, /https:\/\/www\.googleapis\.com\/auth\/gmail\.readonly/);
+  });
+
+  it('supports Calendar plus Gmail send without mailbox read permission', async () => {
+    const handler = createOAuthProviderHandler({
+      config: { GOOGLE_OAUTH_CLIENT_ID: 'client.apps.googleusercontent.com', GOOGLE_OAUTH_CLIENT_SECRET: 'secret' },
+    });
+    const res = createMockRes();
+
+    await handler({
+      method: 'GET',
+      headers: { host: 'portal.3dvr.tech', 'x-forwarded-proto': 'https' },
+      query: { provider: 'google', action: 'start', scopeKey: 'calendar-gmail-send', returnTo: '/sd-day-traders-admin/' },
+    }, res);
+
+    assert.equal(res.statusCode, 302);
+    const location = new URL(res.headers.Location);
+    const scopes = location.searchParams.get('scope') || '';
+    assert.match(scopes, /https:\/\/www\.googleapis\.com\/auth\/calendar\.events/);
+    assert.match(scopes, /https:\/\/www\.googleapis\.com\/auth\/gmail\.send/);
+    assert.doesNotMatch(scopes, /https:\/\/www\.googleapis\.com\/auth\/gmail\.readonly/);
   });
 
   it('renders copyable CLI OAuth result instead of redirecting immediately', async () => {
