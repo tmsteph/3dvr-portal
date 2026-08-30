@@ -1,10 +1,8 @@
 name: Outbound Autopilot
 
 on:
-  schedule:
-    # 9:45 AM Pacific Standard / 10:45 AM Pacific Daylight.
-    # Always inside business hours year-round.
-    - cron: '45 17 * * *'
+  # Diagnostic queue builder only. Real outbound sales runs on the DigitalOcean agent.
+  # Keep this manual so a non-sending diagnostic does not waste scheduled Actions compute.
   workflow_dispatch:
     inputs:
       mode:
@@ -45,7 +43,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.22.0
           cache: npm
 
       - name: Install dependencies
