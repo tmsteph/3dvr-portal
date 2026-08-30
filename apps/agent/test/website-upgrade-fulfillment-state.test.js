@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
+  readNode,
   receiveOrder,
   reserveDelivery,
   shouldDeliver,
@@ -42,6 +43,19 @@ test('receives each Stripe Checkout Session only once', async () => {
   assert.equal(replay.created, false);
   assert.equal(node.records.size, 1);
   assert.equal(replay.record.businessName, 'Example Studio');
+});
+
+test('fails closed on malformed shared fulfillment state', async () => {
+  const malformedNode = {
+    once(callback) {
+      callback('corrupt-existing-record');
+    },
+  };
+
+  await assert.rejects(
+    readNode(malformedNode),
+    /Malformed Website Upgrade fulfillment state/
+  );
 });
 
 test('tracks processing attempts and safe retry state', async () => {
