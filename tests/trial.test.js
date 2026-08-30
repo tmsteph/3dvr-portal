@@ -91,12 +91,14 @@ describe('trial handler', () => {
     await handler(req, res);
 
     assert.equal(res.statusCode, 200);
-    assert.deepEqual(res.body, {
-      stripeConfigured: true,
-      priceConfigured: true,
-      mailConfigured: true,
-      chatPushPublicKey: 'public-vapid-key',
-    });
+    assert.equal(res.body.stripeConfigured, true);
+    assert.equal(res.body.priceConfigured, true);
+    assert.equal(res.body.mailConfigured, true);
+    assert.equal(res.body.chatPushPublicKey, 'public-vapid-key');
+    assert.equal(res.body.businessCardCheckout?.stripeConfigured, true);
+    assert.equal(res.body.businessCardCheckout?.artworkUploadConfigured, true);
+    assert.ok(Array.isArray(res.body.businessCardCheckout?.products));
+    assert.ok(res.body.businessCardCheckout.products.length > 0);
     assert.equal(stripe.customers.list.mock.calls.length, 0);
     assert.equal(stripe.subscriptions.create.mock.calls.length, 0);
   });
