@@ -22,7 +22,15 @@ function readNode(node, timeoutMs = 5000) {
     const timer = setTimeout(() => reject(new Error('Timed out reading Website Upgrade fulfillment state from GunJS.')), timeoutMs);
     node.once((data) => {
       clearTimeout(timer);
-      resolve(data && typeof data === 'object' ? data : null);
+      if (data === null || data === undefined) {
+        resolve(null);
+        return;
+      }
+      if (typeof data !== 'object' || Array.isArray(data)) {
+        reject(new Error('Malformed Website Upgrade fulfillment state in GunJS.'));
+        return;
+      }
+      resolve(data);
     });
   });
 }
