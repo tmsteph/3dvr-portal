@@ -19,8 +19,8 @@ test('GitHub Actions production workflow is manual fallback only', async () => {
   assert.match(workflow, /workflow_dispatch:/);
   assert.doesNotMatch(workflow, /\n\s*push:/);
   assert.doesNotMatch(workflow, /\n\s*pull_request:/);
-  assert.match(workflow, /VERCEL_ORG_ID: team_KXuVUd00RMnDsjoqwdREcZ7J/);
-  assert.match(workflow, /VERCEL_PROJECT_ID: prj_V49UqQXH0kmkYcL0NZFBkklzsbuy/);
+  assert.match(workflow, /VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z/);
+  assert.match(workflow, /VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch/);
 
   const budgetGuard = workflow.indexOf('node --test tests/vercel-function-budget.test.js');
   const productionDeploy = workflow.indexOf('vercel deploy --prebuilt --prod');
