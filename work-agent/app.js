@@ -803,37 +803,69 @@
     addActivity('Rate and booking rules updated.');
   }
 
+  const AV_CONTACT_KIND_LABELS = {
+    'production-company': 'Production company',
+    'labor-coordinator': 'Labor coordinator / scheduler',
+    'pm-td': 'PM / technical director',
+    'crew-chief': 'Crew chief / lead',
+    technician: 'Freelance technician',
+    venue: 'Venue / property AV contact',
+    other: 'Other AV contact',
+  };
+
+  function avContactKindLabel(kind) {
+    return AV_CONTACT_KIND_LABELS[kind] || AV_CONTACT_KIND_LABELS.other;
+  }
+
+  function avContactHref(company) {
+    const params = new URLSearchParams({
+      view: 'av',
+      new: '1',
+      name: company.contactName || '',
+      email: company.email || '',
+      company: company.name || '',
+      role: avContactKindLabel(company.kind),
+      tags: `industry/av, av/network, av/type/${company.kind || 'other'}, source/work-agent`,
+      status: company.relationship === 'warm' ? 'Active' : 'Prospect',
+      notes: `Added from 3DVR Work Agent. Relationship: ${company.relationship || 'unknown'}.`,
+    });
+    return `/contacts/?${params.toString()}`;
+  }
+
   function outreachDraft(company) {
     const profile = state.profile;
     const rate = Number(state.rules.targetRate) || 0;
     const role = profile.roles || 'AV technician';
     const market = profile.market || 'my market';
     const name = profile.name || '—';
+    const firstName = String(company.contactName || '').trim().split(/\s+/)[0];
+    const greeting = firstName ? `Hi ${firstName}` : `Hi ${company.name} team`;
     if (company.relationship === 'warm') {
-      return `Hi ${company.name} team — I’m opening up more freelance availability for ${role} work around ${market}. I’d be glad to work together again. My current day rate is $${rate}. If you have upcoming calls, feel free to send dates and show details.\n\nThanks,\n${name}`;
+      return `${greeting} — I’m opening up more freelance availability for ${role} work around ${market}. I’d be glad to work together again. My current day rate is $${rate}. If you have upcoming calls, feel free to send dates and show details.\n\nThanks,\n${name}`;
     }
     if (company.relationship === 'referred') {
-      return `Hi ${company.name} team — I was referred your way and wanted to introduce myself. I’m a freelance ${role} based around ${market}. My current day rate is $${rate}. I’d be happy to send availability and a resume for your technician pool.\n\nThanks,\n${name}`;
+      return `${greeting} — I was referred your way and wanted to introduce myself. I’m a freelance ${role} based around ${market}. My current day rate is $${rate}. I’d be happy to send availability and a resume for your technician pool.\n\nThanks,\n${name}`;
     }
-    return `Hi ${company.name} team — I’m a freelance ${role} based around ${market} and I’d like to be considered for your technician pool. My current day rate is $${rate}. If useful, I can send current availability and a resume.\n\nThanks,\n${name}`;
+    return `${greeting} — I’m a freelance ${role} based around ${market} and I’d like to be considered for your technician pool. My current day rate is $${rate}. If useful, I can send current availability and a resume.\n\nThanks,\n${name}`;
   }
 
   function renderCompanies() {
     const container = $('company-list');
     if (!state.companies.length) {
-      container.innerHTML = '<div class="empty">Add a production company to start a small, intentional call list.</div>';
+      container.innerHTML = '<div class="empty">Add an AV contact to start a small, intentional network. Production companies and labor coordinators are the best first records.</div>';
       return;
     }
     container.innerHTML = state.companies.map(company => `
       <article class="company-card" data-company-id="${escapeHtml(company.id)}">
         <div class="company-top">
-          <div><h3>${escapeHtml(company.name)}</h3><div class="company-meta">${escapeHtml(company.email)} · ${escapeHtml(company.relationship)}</div></div>
+          <div><h3>${escapeHtml(company.contactName || company.name)}</h3><div class="company-meta">${escapeHtml(company.contactName ? `${company.name} · ` : '')}${escapeHtml(avContactKindLabel(company.kind))} · ${escapeHtml(company.email)} · ${escapeHtml(company.relationship)}</div></div>
           <span class="pill">Explicit send</span>
         </div>
         <label>Outreach draft<textarea data-company-draft>${escapeHtml(company.draft || outreachDraft(company))}</textarea></label>
         <div class="company-actions">
           <button class="button compact" type="button" data-company-action="refresh">Refresh draft</button>
           <button class="button compact" type="button" data-company-action="send">Send resume + outreach</button>
+          <a class="button compact" href="${escapeHtml(avContactHref(company))}">Save to AV Contacts</a>
           <button class="button compact" type="button" data-company-action="remove">Remove</button>
         </div>
       </article>
@@ -1017,8 +1049,10 @@
     event.preventDefault();
     const company = {
       id: uniqueId('company'),
+      contactName: $('company-contact-name').value.trim(),
       name: $('company-name').value.trim(),
       email: $('company-email').value.trim().toLowerCase(),
+      kind: $('company-kind').value,
       relationship: $('company-relationship').value,
       draft: '',
       createdAt: Date.now(),
@@ -1028,7 +1062,7 @@
     state.companies.push(company);
     saveState();
     renderCompanies();
-    addActivity(`Added ${company.name} to the freelance call list.`);
+    addActivity(`Added ${company.contactName || company.name} to the AV network.`);
     $('company-form').reset();
   });
 
