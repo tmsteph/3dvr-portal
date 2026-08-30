@@ -1,5 +1,3 @@
-const { websiteUpgradeFulfillmentNode } = require('./gun-db');
-
 const TERMINAL_STATUSES = new Set(['delivered', 'blocked']);
 const VALID_STATUSES = new Set(['received', 'processing', 'delivered', 'blocked', 'failed']);
 
@@ -14,6 +12,9 @@ function requireSessionId(order) {
 }
 
 function sessionNode(sessionId) {
+  // Keep the real Gun client lazy. Unit tests inject a node factory and should
+  // not open a persistent relay connection merely by importing this module.
+  const { websiteUpgradeFulfillmentNode } = require('./gun-db');
   return websiteUpgradeFulfillmentNode().get(sessionId);
 }
 
