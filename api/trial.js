@@ -1,7 +1,6 @@
 import Stripe from 'stripe';
 import nodemailer from 'nodemailer';
-import { saveNewsletterSubscriber } from './_lib/newsletter-store.js';
-import { callChatPushStore } from './_lib/chat-push-store.js';
+import { saveNewsletterSubscriber, callChatPushStore } from '../src/services/newsletter-store-client.js';
 import {
   createBusinessCardOrderHandler,
   getBusinessCardCheckoutConfig,
