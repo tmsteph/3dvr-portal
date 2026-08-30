@@ -1,0 +1,70 @@
+import assert from 'node:assert/strict';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import test from 'node:test';
+import { applyMeasurement, createLearningLedger } from '../src/money-printer/learningLedger.js';
+import {
+  addMoneyPrinterOperations,
+  approveMoneyPrinterOperation,
+  loadMoneyPrinterOperations
+} from '../src/money-printer/moneyPrinterOperations.js';
+import { runMoneyPrinterSupervisor } from '../scripts/money-printer-supervisor.mjs';
+
+test('supervisor does not auto-approve or execute operations after learning budget exhaustion', async () => {
+  const rootDir = await mkdtemp(path.join(tmpdir(), 'money-supervisor-budget-'));
+  const originalEnv = {
+    MONEY_PRINTER_AUTO_APPROVE_GREEN: process.env.MONEY_PRINTER_AUTO_APPROVE_GREEN,
+    MONEY_PRINTER_ALLOW_GITHUB_WRITE: process.env.MONEY_PRINTER_ALLOW_GITHUB_WRITE,
+    MONEY_PRINTER_LIVE_CONNECTORS: process.env.MONEY_PRINTER_LIVE_CONNECTORS
+  };
+
+  try {
+    process.env.MONEY_PRINTER_AUTO_APPROVE_GREEN = 'true';
+    process.env.MONEY_PRINTER_ALLOW_GITHUB_WRITE = 'false';
+    process.env.MONEY_PRINTER_LIVE_CONNECTORS = 'false';
+
+    const ledger = applyMeasurement(createLearningLedger(), {
+      signals: { agent_cost_cents: 15000 },
+      record_observation: true
+    }).ledger;
+    const docsDir = path.join(rootDir, 'docs');
+    await mkdir(docsDir, { recursive: true });
+    await writeFile(
+      path.join(docsDir, 'money-printer-learning-ledger.json'),
+      `${JSON.stringify(ledger, null, 2)}\n`,
+      'utf8'
+    );
+
+    const added = await addMoneyPrinterOperations(rootDir, [{
+      provider: 'github',
+      action: 'createIssue',
+      title: 'Approved operation must remain blocked',
+      summary: 'Budget gate regression test.',
+      risk: 'green',
+      payload: { title: 'Budget gate regression test', body: 'Do not execute.' }
+    }]);
+    await approveMoneyPrinterOperation(rootDir, added.added[0].id);
+
+    const result = await runMoneyPrinterSupervisor({
+      rootDir,
+      mock: true,
+      autoApproveGreen: true,
+      executeApproved: true
+    });
+
+    const operations = await loadMoneyPrinterOperations(rootDir);
+    const approved = operations.find(operation => operation.id === added.added[0].id);
+    assert.equal(result.executionBlockedByBudget, true);
+    assert.equal(result.autoApprovedCount, 0);
+    assert.equal(result.executedApprovedCount, 0);
+    assert.equal(result.guardrails.blocksExecutionWhenLearningBudgetExhausted, true);
+    assert.equal(approved.status, 'approved');
+  } finally {
+    for (const [key, value] of Object.entries(originalEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
