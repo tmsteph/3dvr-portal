@@ -56,10 +56,41 @@ async function receiveOrder(order, options = {}) {
     receivedAt: at,
     updatedAt: at,
     attempts: 0,
+    deliveryState: 'pending',
+    deliveryReservedAt: null,
+    deliveryReservationId: null,
     deliverySentAt: null,
   };
   await writeNode(node, record, options.timeoutMs);
   return { record, created: true, terminal: false };
+}
+
+async function reserveDelivery(sessionId, reservationId, options = {}) {
+  const id = String(reservationId || '').trim();
+  if (!id) throw new Error('Website Upgrade delivery reservation requires an ID.');
+
+  const node = (options.node || sessionNode)(sessionId);
+  const record = await readNode(node, options.timeoutMs);
+  if (!record) throw new Error(`Unknown Website Upgrade fulfillment session: ${sessionId}`);
+
+  if (
+    TERMINAL_STATUSES.has(record.status)
+    || record.deliverySentAt
+    || record.deliveryReservedAt
+  ) {
+    return { record, reserved: false };
+  }
+
+  const at = nowIso(options.now);
+  const next = {
+    ...record,
+    deliveryState: 'reserved',
+    deliveryReservedAt: at,
+    deliveryReservationId: id,
+    updatedAt: at,
+  };
+  await writeNode(node, next, options.timeoutMs);
+  return { record: next, reserved: true };
 }
 
 async function transitionOrder(sessionId, status, details = {}, options = {}) {
@@ -72,19 +103,28 @@ async function transitionOrder(sessionId, status, details = {}, options = {}) {
   const at = nowIso(options.now);
   const next = { ...record, ...details, status, updatedAt: at };
   if (status === 'processing') next.attempts = Number(record.attempts || 0) + 1;
-  if (status === 'delivered' && !next.deliverySentAt) next.deliverySentAt = at;
+  if (status === 'delivered') {
+    if (!next.deliverySentAt) next.deliverySentAt = at;
+    next.deliveryState = 'sent';
+  }
   await writeNode(node, next, options.timeoutMs);
   return next;
 }
 
 function shouldDeliver(record) {
-  return Boolean(record && record.status !== 'delivered' && !record.deliverySentAt);
+  return Boolean(
+    record
+    && !TERMINAL_STATUSES.has(record.status)
+    && !record.deliveryReservedAt
+    && !record.deliverySentAt
+  );
 }
 
 module.exports = {
   TERMINAL_STATUSES,
   readNode,
   receiveOrder,
+  reserveDelivery,
   shouldDeliver,
   transitionOrder,
   writeNode,
