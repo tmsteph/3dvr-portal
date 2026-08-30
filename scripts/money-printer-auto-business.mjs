@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import {
   checkAutoBusinessSetup,
   runAutoBusinessCycle
 } from '../src/money-printer/autoBusiness.js';
+import { deriveEvidence } from '../src/money-printer/learningSources.js';
+import { updateLearningLedger } from '../src/money-printer/learningRuntime.js';
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = {};
@@ -82,6 +85,60 @@ function printSetupCheck(setup = {}) {
   }
 }
 
+function buildCycleEvidence(report = {}, previousSignals = {}) {
+  const evidence = deriveEvidence({
+    autopilot: report.autopilot || null,
+    outbound: {
+      generatedAt: report.generatedAt || new Date().toISOString(),
+      autopilotRunId: report.autopilot?.runId || '',
+      dispatch: { sentCount: Number(report.outreach?.sent || 0) },
+      queue: [],
+      revenue: report.autopilot?.revenue || null
+    },
+    outcomes: [],
+    marketPulse: report.marketPulse || null
+  });
+
+  const previous = previousSignals || {};
+  const currentOutreach = Number(previous.outreach_sent || 0);
+  const sentThisCycle = Number(report.outreach?.sent || 0);
+  evidence.signals.outreach_sent = currentOutreach + Math.max(0, sentThisCycle);
+
+  // Funnel and revenue signals are cumulative learning evidence. Never let a source
+  // that only reports its latest window erase previously observed progress.
+  for (const [key, value] of Object.entries(evidence.signals || {})) {
+    if (key === 'outreach_sent' || key === 'stripe_mrr_cents') continue;
+    const prior = Number(previous[key] || 0);
+    const observed = Number(value || 0);
+    if (Number.isFinite(prior) && Number.isFinite(observed)) {
+      evidence.signals[key] = Math.max(prior, observed);
+    }
+  }
+
+  evidence.source = 'auto-business-cycle';
+  evidence.observed_at = report.generatedAt || new Date().toISOString();
+  evidence.note = String(report.critique?.nextMoneyMove || '').slice(0, 500);
+  return evidence;
+}
+
+async function attachCycleLearning(rootDir, report = {}) {
+  const before = await updateLearningLedger({ rootDir });
+  const evidence = buildCycleEvidence(report, before.ledger?.current_signals || {});
+  const learning = await updateLearningLedger({
+    rootDir,
+    evidence,
+    recordObservation: true
+  });
+
+  report.learning = learning.summary;
+  report.learningLedgerPath = learning.ledgerPath;
+  report.learningOutcome = learning.outcome;
+  if (report.paths?.latestReportPath) {
+    await writeFile(report.paths.latestReportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  }
+  return learning;
+}
+
 async function main() {
   const args = parseArgs();
   if (args.help || args.h) {
@@ -89,9 +146,10 @@ async function main() {
     return;
   }
 
+  const rootDir = path.resolve(args.root || process.cwd());
   if (args.setupCheck) {
     const setup = await checkAutoBusinessSetup({
-      rootDir: path.resolve(args.root || process.cwd()),
+      rootDir,
       market: args.market,
       keywords: args.keywords,
       channels: args.channels,
@@ -117,23 +175,38 @@ async function main() {
     return;
   }
 
-  const report = await runAutoBusinessCycle({
-    rootDir: path.resolve(args.root || process.cwd()),
-    market: args.market,
-    keywords: args.keywords,
-    channels: args.channels,
-    dryRun: parseBool(args.dryRun),
-    outreachEnabled: parseBool(args.outreachEnabled),
-    outreachMode: args.outreachMode,
-    outreachDailyLimit: args.outreachDailyLimit ? Number(args.outreachDailyLimit) : undefined,
-    contactsFile: args.contactsFile,
-    suppressionFile: args.suppressionFile,
-    facebookQueueEnabled: parseBool(args.facebookQueue),
-    facebookAutoApprove: parseBool(args.facebookAutoApprove),
-    facebookRunWorker: parseBool(args.facebookRunWorker),
-    facebookDryRun: parseBool(args.facebookDryRun),
-    facebookLimit: args.facebookLimit ? Number(args.facebookLimit) : undefined
-  });
+  // Initialize/read learning before the full cycle. The nested supervisor still uses the
+  // saved decision to plan, but it defers the no-signal wake observation so the whole
+  // market/offer/outreach cycle counts as exactly one learning observation.
+  await updateLearningLedger({ rootDir });
+  const previousDefer = process.env.MONEY_PRINTER_DEFER_LEARNING_OBSERVATION;
+  process.env.MONEY_PRINTER_DEFER_LEARNING_OBSERVATION = 'true';
+
+  let report;
+  try {
+    report = await runAutoBusinessCycle({
+      rootDir,
+      market: args.market,
+      keywords: args.keywords,
+      channels: args.channels,
+      dryRun: parseBool(args.dryRun),
+      outreachEnabled: parseBool(args.outreachEnabled),
+      outreachMode: args.outreachMode,
+      outreachDailyLimit: args.outreachDailyLimit ? Number(args.outreachDailyLimit) : undefined,
+      contactsFile: args.contactsFile,
+      suppressionFile: args.suppressionFile,
+      facebookQueueEnabled: parseBool(args.facebookQueue),
+      facebookAutoApprove: parseBool(args.facebookAutoApprove),
+      facebookRunWorker: parseBool(args.facebookRunWorker),
+      facebookDryRun: parseBool(args.facebookDryRun),
+      facebookLimit: args.facebookLimit ? Number(args.facebookLimit) : undefined
+    });
+  } finally {
+    if (previousDefer === undefined) delete process.env.MONEY_PRINTER_DEFER_LEARNING_OBSERVATION;
+    else process.env.MONEY_PRINTER_DEFER_LEARNING_OBSERVATION = previousDefer;
+  }
+
+  await attachCycleLearning(rootDir, report);
 
   if (args.json) {
     console.log(JSON.stringify(report, null, 2));
@@ -146,6 +219,9 @@ async function main() {
   console.log(`Selected market: ${report.marketResearch?.selectedMarket || report.config.market}`);
   console.log(`Facebook jobs queued: ${report.facebook?.queued || 0}/${report.facebook?.drafted || 0}`);
   console.log(`Outreach sent: ${report.outreach?.sent || 0}`);
+  console.log(`Learning milestone: ${report.learning?.milestone || 'pre-revenue'}`);
+  console.log(`Stranger customers: ${report.learning?.strangerCustomers || 0}/${report.learning?.strangerCustomerGoal || 10}`);
+  console.log(`Next experiment: ${report.learning?.nextExperiment?.change_dimension || 'measurement'}`);
   console.log(`Owner email: ${report.ownerEmail?.sent ? 'sent' : report.ownerEmail?.reason || 'not sent'}`);
   console.log(`Missing setup items: ${report.credentials?.missing?.length || 0}`);
   console.log(`Report: ${report.paths?.latestReportPath || ''}`);
