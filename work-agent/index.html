@@ -39,7 +39,7 @@
       <a href="#schedule">Schedule</a>
       <a href="#inbox">Inbox</a>
       <a href="#profile">Resume</a>
-      <a href="#companies">Companies</a>
+      <a href="#companies">AV network</a>
       <a href="#rules">Rules</a>
     </nav>
 
@@ -142,14 +142,29 @@
     <section id="companies" class="panel">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">4 · Build the call list</p>
-          <h2>Freelance companies</h2>
-          <p>Add companies you want to work with. The agent drafts outreach from your profile and attaches the generated resume; sending remains explicit.</p>
+          <p class="eyebrow">4 · Build the AV network</p>
+          <h2>AV contacts</h2>
+          <p>Start with the people who can create or fill calls: production companies, labor coordinators, PMs, crew chiefs, venues, and other technicians. Outreach is personalized and sending remains explicit.</p>
         </div>
       </div>
+      <div class="actions">
+        <a class="button" href="/contacts/?view=av">Open AV Contacts</a>
+      </div>
       <form id="company-form" class="company-form">
+        <label>Contact name <span class="optional">optional</span><input id="company-contact-name" placeholder="Labor coordinator or PM" /></label>
         <label>Company<input id="company-name" required placeholder="Production company" /></label>
         <label>Email<input id="company-email" type="email" required placeholder="labor@example.com" /></label>
+        <label>AV contact type
+          <select id="company-kind">
+            <option value="production-company">Production company</option>
+            <option value="labor-coordinator">Labor coordinator / scheduler</option>
+            <option value="pm-td">PM / technical director</option>
+            <option value="crew-chief">Crew chief / lead</option>
+            <option value="technician">Freelance technician</option>
+            <option value="venue">Venue / property AV contact</option>
+            <option value="other">Other AV contact</option>
+          </select>
+        </label>
         <label>Relationship
           <select id="company-relationship">
             <option value="warm">They know my work</option>
@@ -157,7 +172,7 @@
             <option value="cold">New company</option>
           </select>
         </label>
-        <button class="button" type="submit">Add company</button>
+        <button class="button" type="submit">Add AV contact</button>
       </form>
       <div id="company-list" class="company-list"></div>
     </section>
