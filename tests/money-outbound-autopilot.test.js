@@ -245,11 +245,12 @@ test('buildOutboundSummary includes guardrail and first draft', () => {
   assert.match(summary, /Auto-send requires mode/);
 });
 
-test('outbound workflow runs scheduled approval-first queue generation', async () => {
+test('outbound workflow runs manual diagnostic queue generation', async () => {
   const workflow = await readFile(new URL('../.github/workflows/outbound-autopilot.yml', import.meta.url), 'utf8');
 
   assert.match(workflow, /Outbound Autopilot/);
-  assert.match(workflow, /cron: '45 17 \* \* \*'/);
+  assert.doesNotMatch(workflow, /schedule:/);
+  assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /money:outbound/);
   assert.match(workflow, /approval-required/);
   assert.match(workflow, /MONEY_OUTBOUND_SENDER_WEBHOOK_URL/);
