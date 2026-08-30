@@ -1,0 +1,69 @@
+:root {
+  color-scheme: dark;
+  --bg: #0d100e;
+  --panel: #151a17;
+  --line: #2c3930;
+  --text: #f3f6f4;
+  --muted: #a8b4ac;
+  --accent: #8be0a8;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #17251d 0, var(--bg) 42%);
+  color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+button, input { font: inherit; }
+.shell { width: min(980px, calc(100% - 32px)); margin: 0 auto; padding: 42px 0 70px; }
+.topbar, .connection-card { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+h1, h2 { margin: 0; line-height: 1.1; }
+h1 { font-size: clamp(2rem, 6vw, 3.8rem); }
+h2 { font-size: 1.35rem; }
+.eyebrow { margin: 0 0 8px; color: var(--accent); font-size: .78rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.muted { color: var(--muted); }
+.card {
+  margin-top: 24px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: rgba(21, 26, 23, .9);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, .18);
+}
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.primary, .ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 999px;
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  text-decoration: none;
+  cursor: pointer;
+}
+.primary { background: var(--accent); color: #0a140d; border-color: transparent; font-weight: 800; }
+.ghost { color: var(--text); background: transparent; }
+label { display: grid; gap: 7px; margin: 18px 0; font-weight: 700; }
+input { width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 12px 13px; background: #0d120f; color: var(--text); }
+.status { min-height: 24px; margin-bottom: 0; }
+.blackouts { display: grid; gap: 10px; margin-top: 18px; }
+.blackout {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #101511;
+}
+.blackout strong { display: block; }
+.future-card { border-style: dashed; }
+footer { margin-top: 28px; }
+@media (max-width: 720px) {
+  .topbar, .connection-card { align-items: stretch; flex-direction: column; }
+  .grid { grid-template-columns: 1fr; }
+  .primary, .ghost { width: 100%; }
+  .shell { width: min(100% - 22px, 980px); padding-top: 24px; }
+  .card { padding: 18px; border-radius: 18px; }
+}

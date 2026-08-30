@@ -385,10 +385,10 @@ function createGoogleProvider(config = process.env) {
       if (scopeKey === 'contacts' || scopeKey === 'contacts-calendar') {
         scopes.add('https://www.googleapis.com/auth/contacts.readonly');
       }
-      if (scopeKey === 'calendar' || scopeKey === 'contacts-calendar') {
+      if (scopeKey === 'calendar' || scopeKey === 'contacts-calendar' || scopeKey === 'calendar-mail') {
         scopes.add('https://www.googleapis.com/auth/calendar.events');
       }
-      if (scopeKey === 'mail' || scopeKey === 'gmail') {
+      if (scopeKey === 'mail' || scopeKey === 'gmail' || scopeKey === 'calendar-mail') {
         scopes.add('https://www.googleapis.com/auth/gmail.readonly');
         scopes.add('https://www.googleapis.com/auth/gmail.send');
       }
@@ -861,6 +861,7 @@ function isScopeSupported(provider, scopeKey = 'identity') {
   if (normalized === 'contacts') return Boolean(provider.supports.contacts);
   if (normalized === 'calendar') return Boolean(provider.supports.calendar);
   if (normalized === 'contacts-calendar') return Boolean(provider.supports.contacts && provider.supports.calendar);
+  if (normalized === 'calendar-mail') return Boolean(provider.supports.calendar && provider.supports.mail);
   if (normalized === 'mail' || normalized === 'gmail' || normalized === 'outlook') return Boolean(provider.supports.mail);
   return false;
 }

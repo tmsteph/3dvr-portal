@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101311">
+  <title>SD Day Traders Admin | 3DVR</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">3DVR client workspace</p>
+        <h1>SD Day Traders Admin</h1>
+        <p class="muted">Manage Esai’s booking availability and Google connection.</p>
+      </div>
+      <a class="ghost" href="https://sd-day-traders.3dvr.tech">View public site</a>
+    </header>
+
+    <section class="card connection-card">
+      <div>
+        <p class="eyebrow">Google</p>
+        <h2>Calendar + Gmail</h2>
+        <p class="muted" data-google-status>Not connected.</p>
+      </div>
+      <button class="primary" type="button" data-connect-google>Connect Google</button>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <p class="eyebrow">Availability</p>
+        <h2>Block a date</h2>
+        <p class="muted">Adds an all-day “SDDT unavailable” event to Esai’s Google Calendar.</p>
+        <form data-blackout-form>
+          <label>
+            Date
+            <input type="date" name="date" required>
+          </label>
+          <label>
+            Note <span class="muted">optional</span>
+            <input type="text" name="note" maxlength="120" placeholder="Travel, family day, event…">
+          </label>
+          <button class="primary" type="submit">Block this date</button>
+          <p class="status" data-blackout-status aria-live="polite"></p>
+        </form>
+      </article>
+
+      <article class="card">
+        <p class="eyebrow">Upcoming</p>
+        <h2>Blackout dates</h2>
+        <div class="blackouts" data-blackouts>
+          <p class="muted">Connect Google to load blackout dates.</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="card future-card">
+      <p class="eyebrow">Next</p>
+      <h2>Working hours + automatic booking</h2>
+      <p class="muted">
+        Next we’ll add recurring working hours, read normal busy events from Google Calendar,
+        and expose only the resulting free slots to the customer-facing calendar.
+      </p>
+    </section>
+
+    <footer>
+      <p class="muted">Development workspace. Public booking is not connected to these settings yet.</p>
+    </footer>
+  </main>
+  <script src="/calendar/oauth.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

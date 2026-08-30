@@ -79,6 +79,40 @@ describe('calendar provider api', () => {
     assert.match(fetchImpl.mock.calls[0].arguments[0], /googleapis\.com/);
   });
 
+  it('creates Google all-day events for blackout dates', async () => {
+    let requestBody = null;
+    const fetchImpl = mock.fn(async (_url, options) => {
+      requestBody = JSON.parse(options.body);
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return { id: 'blackout-1', ...requestBody };
+        }
+      };
+    });
+    const handler = createCalendarProviderHandler({ fetchImpl });
+    const req = {
+      method: 'POST',
+      query: { provider: 'google' },
+      body: {
+        action: 'createEvent',
+        accessToken: 'token_google',
+        title: 'SD Day Traders unavailable',
+        startDate: '2026-09-04',
+        endDate: '2026-09-05'
+      }
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(requestBody.start, { date: '2026-09-04' });
+    assert.deepEqual(requestBody.end, { date: '2026-09-05' });
+    assert.equal('dateTime' in requestBody.start, false);
+  });
+
   it('serves Outlook events through the shared provider route', async () => {
     const fetchImpl = mock.fn(async (url) => ({
       ok: true,
