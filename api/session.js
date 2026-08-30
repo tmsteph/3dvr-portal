@@ -3,6 +3,7 @@ import { chooseDeviceProfile, normalizeDeviceHints } from '../src/device/profile
 import { createCompanionCommandHandler } from '../src/device/companion-command-proxy.js';
 import { buildTurnCredentialPayload } from '../src/webrtc/turn-credentials.js';
 import { createWorkboardGithubHandler } from '../src/workboard/github-feed.js';
+import { createAvFreelanceKitHandler } from '../src/av-freelance-kit.js';
 
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -120,6 +121,12 @@ function isWorkboardGithubRequest(req) {
   return route === 'workboard-github';
 }
 
+function isAvFreelanceKitRequest(req) {
+  const requestUrl = getRequestUrl(req);
+  const route = normalizeText(requestUrl.searchParams.get('route'));
+  return route === 'av-freelance-kit';
+}
+
 function resolveDeviceHints(req, body = {}) {
   const source = body?.device && typeof body.device === 'object' ? body.device : {};
   return normalizeDeviceHints({
@@ -174,11 +181,13 @@ export function createSessionHandler(options = {}) {
   const { config = process.env, fetchImpl = globalThis.fetch, verifyCompanionAuth } = options;
   const companionCommand = createCompanionCommandHandler({ config, fetchImpl, verifyAuth: verifyCompanionAuth });
   const workboardGithub = createWorkboardGithubHandler({ config, fetchImpl });
+  const avFreelanceKit = createAvFreelanceKitHandler({ config });
 
   return async function handler(req, res) {
     setCorsHeaders(res);
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method === 'GET' && isWorkboardGithubRequest(req)) return workboardGithub(req, res);
+    if (req.method === 'GET' && isAvFreelanceKitRequest(req)) return avFreelanceKit(req, res);
     if (req.method === 'GET' && isTurnCredentialRequest(req)) {
       res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json(buildTurnCredentialPayload({ config }));
