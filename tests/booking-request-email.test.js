@@ -27,12 +27,14 @@ function transport() {
 }
 
 function request(overrides = {}) {
+  const { headers = {}, body = {}, ...rest } = overrides;
   return {
     method: 'POST',
+    ...rest,
     headers: {
       origin: ORIGIN,
       'idempotency-key': 'booking-test-1234567890',
-      ...(overrides.headers || {}),
+      ...headers,
     },
     body: {
       name: 'Release Test',
@@ -42,9 +44,8 @@ function request(overrides = {}) {
       time: '10:30',
       timeZone: 'America/New_York',
       summary: '1:30 PM local · 10:30 AM PT',
-      ...(overrides.body || {}),
+      ...body,
     },
-    ...overrides,
   };
 }
 
@@ -62,7 +63,7 @@ describe('SD Day Traders booking request email', () => {
     const mail = transport();
     const handler = createBookingRequestHandler({ config, mailTransport: mail });
     const res = response();
-    await handler(request({ headers: { origin: ORIGIN } }), res);
+    await handler(request({ headers: { origin: ORIGIN, 'idempotency-key': '' } }), res);
     assert.equal(res.statusCode, 400);
     assert.equal(mail.sendMail.mock.calls.length, 0);
   });
