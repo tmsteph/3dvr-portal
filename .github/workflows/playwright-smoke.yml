@@ -32,6 +32,9 @@ jobs:
       - name: Run Workboard regression tests
         run: node --test tests/workboard-*.test.js
 
+      - name: Enforce Vercel Hobby function budget
+        run: node --test tests/vercel-function-budget.test.js
+
       - name: Run SD Day Traders booking mail tests
         run: node --test tests/booking-request-email.test.js
 

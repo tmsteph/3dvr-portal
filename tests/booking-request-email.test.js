@@ -1,6 +1,6 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { createBookingRequestHandler } from '../api/calendar/booking-request.js';
+import { createUnifiedEmailHandler } from '../api/calendar/reminder-email.js';
 
 const ORIGIN = 'https://sd-day-traders.3dvr.tech';
 const config = {
@@ -37,6 +37,7 @@ function request(overrides = {}) {
       ...headers,
     },
     body: {
+      mode: 'booking-request',
       name: 'Release Test',
       email: 'customer@example.com',
       topic: 'Chart review',
@@ -52,7 +53,7 @@ function request(overrides = {}) {
 describe('SD Day Traders booking request email', () => {
   it('rejects requests from any origin except the live SD Day Traders site', async () => {
     const mail = transport();
-    const handler = createBookingRequestHandler({ config, mailTransport: mail });
+    const handler = createUnifiedEmailHandler({ config, mailTransport: mail });
     const res = response();
     await handler(request({ headers: { origin: 'https://evil.example', 'idempotency-key': 'booking-test-1234567890' } }), res);
     assert.equal(res.statusCode, 403);
@@ -61,7 +62,7 @@ describe('SD Day Traders booking request email', () => {
 
   it('requires an idempotency key', async () => {
     const mail = transport();
-    const handler = createBookingRequestHandler({ config, mailTransport: mail });
+    const handler = createUnifiedEmailHandler({ config, mailTransport: mail });
     const res = response();
     await handler(request({ headers: { origin: ORIGIN, 'idempotency-key': '' } }), res);
     assert.equal(res.statusCode, 400);
@@ -70,7 +71,7 @@ describe('SD Day Traders booking request email', () => {
 
   it('silently accepts honeypot spam without sending mail', async () => {
     const mail = transport();
-    const handler = createBookingRequestHandler({ config, mailTransport: mail });
+    const handler = createUnifiedEmailHandler({ config, mailTransport: mail });
     const res = response();
     await handler(request({ body: { website: 'spam.example' } }), res);
     assert.equal(res.statusCode, 202);
@@ -79,7 +80,7 @@ describe('SD Day Traders booking request email', () => {
 
   it('sends only to fixed Esai organizer and the validated customer', async () => {
     const mail = transport();
-    const handler = createBookingRequestHandler({ config, mailTransport: mail });
+    const handler = createUnifiedEmailHandler({ config, mailTransport: mail });
     const res = response();
     await handler(request({ body: { to: 'attacker@example.com' } }), res);
 
@@ -108,14 +109,14 @@ describe('SD Day Traders booking request email', () => {
         return { messageId: '<organizer@example.com>' };
       }),
     };
-    const handler = createBookingRequestHandler({ config, mailTransport: mail });
+    const handler = createUnifiedEmailHandler({ config, mailTransport: mail });
     const res = response();
     await handler(request(), res);
     assert.equal(res.statusCode, 200);
     assert.deepEqual(res.body.warnings, ['customer_ack_failed']);
 
     const failMail = { sendMail: mock.fn(async () => { throw new Error('organizer down'); }) };
-    const failHandler = createBookingRequestHandler({ config, mailTransport: failMail });
+    const failHandler = createUnifiedEmailHandler({ config, mailTransport: failMail });
     const failRes = response();
     await failHandler(request(), failRes);
     assert.equal(failRes.statusCode, 500);

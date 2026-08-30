@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import nodemailer from 'nodemailer';
+import { createBookingRequestHandler } from '../../src/calendar/booking-request-email.js';
 
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -905,6 +906,7 @@ export function createUnifiedEmailHandler(options = {}) {
   const accountRecoveryHandler = createAccountRecoveryEmailHandler({ config, mailTransport });
   const operatorAlertHandler = createOperatorAlertEmailHandler({ config, mailTransport });
   const leadOutreachHandler = createLeadOutreachEmailHandler({ config, mailTransport });
+  const bookingRequestHandler = createBookingRequestHandler({ config, mailTransport });
 
   return async function unifiedEmailHandler(req, res) {
     setCorsHeaders(res);
@@ -918,6 +920,9 @@ export function createUnifiedEmailHandler(options = {}) {
     }
 
     const mode = normalizeText(req.body?.mode).toLowerCase();
+    if (mode === 'booking-request') {
+      return bookingRequestHandler(req, res);
+    }
     if (
       mode === 'lookup'
       || mode === 'recovery-verification'
