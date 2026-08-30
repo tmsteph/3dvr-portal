@@ -27,6 +27,14 @@ Run `npm test` for the portal, `npm run test:agent` for the agent, or `npm run t
 
 The ecosystem-wide simplification and shipping plan is tracked in [`docs/ecosystem-consolidation.md`](docs/ecosystem-consolidation.md). Its operating rule is simple: keep the public story clear, route users through a few strong intents, and move experiments behind stable core products.
 
+### Ecosystem map
+
+- **Core** — maintained public paths: `3dvr.tech`, Portal, 3DVR OS, 3DVR Calendar, and `tmsteph.com`.
+- **Labs** — experiments and research such as TommyOS / Daedalos, AI Systems Lab, browser-computing prototypes, characters, hardware concepts, and interactive experiments.
+- **Legacy** — superseded projects kept for history. Their README files should point visitors to the current Core replacement.
+
+Default rule: extend a Core path when possible; use Labs when the work is intentionally experimental; do not revive Legacy as a competing product line.
+
 ## What is here now?
 
 - Portal Home and installable web apps
