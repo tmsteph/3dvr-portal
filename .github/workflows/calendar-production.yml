@@ -113,6 +113,15 @@ jobs:
           grep -q 'data-calendar-view-title' /tmp/calendar-live.html
           grep -q '3DVR Portal – Calendar' /tmp/calendar-live.html
           ! grep -q '<title>3DVR Portal</title>' /tmp/calendar-live.html
+
+          # The standalone deployment has its own root, so every root-relative
+          # asset referenced by calendar/index.html must ship with calendar/.
+          curl --fail --silent --show-error --location \
+            --retry 6 --retry-delay 2 --retry-all-errors \
+            "https://$CALENDAR_DOMAIN/issue-launcher.js" -o /tmp/calendar-issue-launcher.js
+          grep -q 'calendarIssueLauncherSource' /tmp/calendar-issue-launcher.js
+          grep -q 'portal.3dvr.tech/issue-launcher.js' /tmp/calendar-issue-launcher.js
+
           echo "Calendar is live at https://$CALENDAR_DOMAIN/"
           REMOTE
 
