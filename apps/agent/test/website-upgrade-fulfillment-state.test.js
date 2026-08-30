@@ -1,12 +1,18 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+
+const gunDbPath = require.resolve('../thomas-agent/node/gun-db');
+const fulfillmentPath = require.resolve('../thomas-agent/node/website-upgrade-fulfillment-state');
+delete require.cache[gunDbPath];
+delete require.cache[fulfillmentPath];
+
 const {
   readNode,
   receiveOrder,
   reserveDelivery,
   shouldDeliver,
   transitionOrder,
-} = require('../thomas-agent/node/website-upgrade-fulfillment-state');
+} = require(fulfillmentPath);
 
 function order() {
   return {
@@ -33,6 +39,10 @@ function memoryNodeFactory() {
   node.records = records;
   return node;
 }
+
+test('importing fulfillment state does not open the real Gun client', () => {
+  assert.equal(require.cache[gunDbPath], undefined);
+});
 
 test('receives each Stripe Checkout Session only once', async () => {
   const node = memoryNodeFactory();
