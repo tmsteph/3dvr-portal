@@ -3,347 +3,208 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="3DVR Work Agent helps freelance AV workers find and manage work around their existing schedule." />
+  <meta name="description" content="3DVR Work Agent helps freelance AV workers understand their schedule, build a resume, evaluate offers, and handle outreach from one place." />
+  <meta name="theme-color" content="#07111f" />
   <title>3DVR Work Agent</title>
-  <style>
-    :root {
-      color-scheme: dark;
-      --bg: #06111f;
-      --panel: rgba(11, 28, 49, 0.92);
-      --panel-soft: rgba(18, 41, 69, 0.7);
-      --text: #f7fbff;
-      --muted: rgba(247, 251, 255, 0.68);
-      --border: rgba(255, 255, 255, 0.12);
-      --accent: #f0c75e;
-      --accent-text: #211a09;
-      --good: #90e0a8;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      min-height: 100dvh;
-      font-family: "Segoe UI", system-ui, sans-serif;
-      background: radial-gradient(circle at top, #12365d 0%, var(--bg) 52%, #02070d 100%);
-      color: var(--text);
-    }
-
-    main {
-      width: min(100% - 32px, 920px);
-      margin: 0 auto;
-      padding: 36px 0 72px;
-    }
-
-    header {
-      display: grid;
-      gap: 12px;
-      margin-bottom: 24px;
-    }
-
-    .eyebrow {
-      color: var(--accent);
-      font-size: 0.78rem;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-    }
-
-    h1,
-    h2,
-    p {
-      margin: 0;
-    }
-
-    h1 {
-      font-size: clamp(2rem, 8vw, 3.5rem);
-      line-height: 1;
-    }
-
-    header p {
-      max-width: 680px;
-      color: var(--muted);
-      line-height: 1.6;
-    }
-
-    .grid {
-      display: grid;
-      gap: 16px;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .card {
-      display: grid;
-      gap: 16px;
-      padding: 20px;
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      background: var(--panel);
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.24);
-    }
-
-    .card.wide {
-      grid-column: 1 / -1;
-    }
-
-    .card h2 {
-      font-size: 1.12rem;
-    }
-
-    .card p,
-    .helper,
-    .status {
-      color: var(--muted);
-      font-size: 0.92rem;
-      line-height: 1.5;
-    }
-
-    label {
-      display: grid;
-      gap: 7px;
-      color: var(--muted);
-      font-size: 0.84rem;
-    }
-
-    input,
-    textarea,
-    select {
-      width: 100%;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: rgba(0, 0, 0, 0.2);
-      color: var(--text);
-      padding: 12px 13px;
-      font: inherit;
-    }
-
-    textarea {
-      min-height: 88px;
-      resize: vertical;
-    }
-
-    button,
-    .button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 44px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px 14px;
-      background: var(--panel-soft);
-      color: var(--text);
-      font: inherit;
-      font-weight: 700;
-      text-decoration: none;
-      cursor: pointer;
-    }
-
-    button.primary {
-      border-color: transparent;
-      background: var(--accent);
-      color: var(--accent-text);
-    }
-
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .connection {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 14px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.025);
-    }
-
-    .connection strong {
-      display: block;
-      margin-bottom: 3px;
-    }
-
-    .pill {
-      display: inline-flex;
-      border-radius: 999px;
-      padding: 5px 9px;
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--muted);
-      font-size: 0.75rem;
-      white-space: nowrap;
-    }
-
-    .pill.connected {
-      background: rgba(144, 224, 168, 0.14);
-      color: var(--good);
-    }
-
-    .activity {
-      display: grid;
-      gap: 10px;
-    }
-
-    .activity-item {
-      padding: 14px;
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.04);
-      color: var(--muted);
-      line-height: 1.5;
-    }
-
-    @media (max-width: 720px) {
-      main {
-        width: min(100% - 24px, 920px);
-        padding-top: 24px;
-      }
-
-      .grid {
-        grid-template-columns: 1fr;
-      }
-
-      .card.wide {
-        grid-column: auto;
-      }
-
-      .connection {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-
-      .connection button {
-        width: 100%;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="/styles/global.css" />
+  <link rel="stylesheet" href="/work-agent/styles.css" />
   <script src="/oauth.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
   <script defer src="/work-agent/app.js"></script>
 </head>
 <body>
-  <main>
-    <header>
-      <span class="eyebrow">3DVR Work Agent</span>
-      <h1>Your freelance booking agent.</h1>
-      <p>Give the agent your experience, availability, and rules. It can find AV work, prepare outreach, watch replies, and eventually handle routine booking while keeping you in control.</p>
+  <a class="skip-link" href="#main">Skip to work agent</a>
+  <main id="main" class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">3DVR Work Agent · early access</p>
+        <h1>Your work, managed.</h1>
+        <p class="hero-copy">Connect the places your schedule and offers already live. The agent turns them into one availability picture, helps represent you professionally, and prepares the next move.</p>
+      </div>
+      <div class="hero-actions">
+        <button id="sync-all" class="button primary" type="button">Sync my work</button>
+        <a class="button" href="/av-freelance/">AV Freelance Launchpad</a>
+      </div>
+      <p class="trust-note">Nothing is sent automatically in this version. Email sends require a tap. OAuth credentials stay in this browser. When you tap Scan, relevant message text is sent to the configured 3DVR AI service for interpretation.</p>
     </header>
 
-    <section class="grid" aria-label="Work agent setup">
-      <article class="card">
+    <section class="status-grid" aria-label="Agent status">
+      <article class="stat"><span>Next open day</span><strong id="next-open-day">—</strong></article>
+      <article class="stat"><span>Calendar</span><strong id="calendar-stat">Not connected</strong></article>
+      <article class="stat"><span>Work email</span><strong id="mail-stat">Not connected</strong></article>
+      <article class="stat"><span>Offers to review</span><strong id="offer-count">0</strong></article>
+    </section>
+
+    <nav class="section-nav" aria-label="Work agent sections">
+      <a href="#schedule">Schedule</a>
+      <a href="#inbox">Inbox</a>
+      <a href="#profile">Resume</a>
+      <a href="#companies">Companies</a>
+      <a href="#rules">Rules</a>
+    </nav>
+
+    <section id="schedule" class="panel">
+      <div class="section-heading">
         <div>
-          <h2>1. Worker profile</h2>
-          <p>Enough context to represent you accurately.</p>
+          <p class="eyebrow">1 · Know when you can work</p>
+          <h2>Availability</h2>
+          <p>Calendar events and protected days are hard constraints. Email detections stay suggestions until you confirm them.</p>
         </div>
-        <label>
-          Name
-          <input id="name" autocomplete="name" placeholder="Your name" />
-        </label>
-        <label>
-          Main roles
-          <input id="roles" placeholder="A1, A2, stagehand, video, lighting" />
-        </label>
-        <label>
-          Home market
-          <input id="market" placeholder="San Diego, CA" />
-        </label>
-        <label>
-          Minimum day rate
-          <input id="minimum-rate" inputmode="numeric" placeholder="$400" />
-        </label>
-        <label>
-          Notes for your agent
-          <textarea id="notes" placeholder="Touring experience, preferred clients, travel limits, union notes, specialties..."></textarea>
-        </label>
-        <button id="save-profile" class="primary" type="button">Save profile</button>
-        <p id="profile-status" class="status" aria-live="polite"></p>
-      </article>
+        <button id="sync-calendar" class="button" type="button">Sync calendar</button>
+      </div>
 
-      <article class="card">
-        <div>
-          <h2>2. Resume</h2>
-          <p>Your resume becomes source material for personalized outreach.</p>
-        </div>
-        <label>
-          Resume file
-          <input id="resume" type="file" accept=".pdf,.doc,.docx,.txt" />
-        </label>
-        <p id="resume-status" class="status">No resume selected yet.</p>
-        <p class="helper">This first shell only records the selected filename. Secure upload and resume parsing are the next backend step.</p>
-      </article>
-
-      <article class="card wide">
-        <div>
-          <h2>3. Connections</h2>
-          <p>Use the worker's own accounts. The agent should never impersonate a shared 3DVR mailbox.</p>
-        </div>
-
-        <div class="connection">
-          <div>
-            <strong>Google email</strong>
-            <span id="mail-detail" class="helper">Required to send outreach and read replies.</span>
-          </div>
-          <span id="mail-pill" class="pill">Not connected</span>
-          <button id="connect-mail" type="button">Connect Gmail</button>
-        </div>
-
-        <div class="connection">
+      <div class="connection-grid">
+        <article class="connection">
           <div>
             <strong>Google Calendar</strong>
-            <span id="calendar-detail" class="helper">Adds a second source of truth for open days.</span>
+            <p id="calendar-detail">Use your calendar as a source of busy time.</p>
           </div>
           <span id="calendar-pill" class="pill">Not connected</span>
-          <button id="connect-calendar" type="button">Connect calendar</button>
-        </div>
-
-        <div class="connection">
+          <button id="connect-calendar" class="button compact" type="button">Connect</button>
+        </article>
+        <article class="connection">
           <div>
-            <strong>Encore schedule</strong>
-            <span class="helper">Read the worker's employer schedule so the agent only chases work on genuinely open days.</span>
+            <strong>Gmail</strong>
+            <p id="mail-detail">Scan for booking requests, call times, rate offers, and schedule changes.</p>
           </div>
-          <span class="pill">Connector next</span>
-          <button type="button" disabled>Connect Encore</button>
-        </div>
-      </article>
+          <span id="mail-pill" class="pill">Not connected</span>
+          <button id="connect-mail" class="button compact" type="button">Connect</button>
+        </article>
+      </div>
 
-      <article class="card">
-        <div>
-          <h2>4. Agent rules</h2>
-          <p>Start conservative. Automation can increase after trust is earned.</p>
-        </div>
-        <label>
-          Outbound mode
-          <select id="outbound-mode">
-            <option value="draft">Draft everything for approval</option>
-            <option value="approved">Auto-send only pre-approved outreach</option>
-            <option value="routine">Handle routine outreach and replies</option>
-          </select>
-        </label>
-        <label>
-          Booking authority
-          <select id="booking-mode">
-            <option value="ask">Always ask before accepting work</option>
-            <option value="rules">Accept only when job matches my rules</option>
-          </select>
-        </label>
-        <button id="save-rules" class="primary" type="button">Save rules</button>
-        <p id="rules-status" class="status" aria-live="polite"></p>
-      </article>
+      <div class="availability-toolbar">
+        <form id="day-off-form" class="inline-form">
+          <label>
+            Protect a day
+            <input id="day-off-date" type="date" required />
+          </label>
+          <label>
+            Reason <span class="optional">optional</span>
+            <input id="day-off-note" placeholder="Family day, travel, rest…" />
+          </label>
+          <button class="button" type="submit">Keep it off</button>
+        </form>
+      </div>
 
-      <article class="card">
-        <div>
-          <h2>Agent activity</h2>
-          <p>A simple audit trail for what the agent found, drafted, sent, or needs approved.</p>
-        </div>
-        <div class="activity">
-          <div class="activity-item">No outreach yet. Finish the setup, then the first backend worker can begin with draft-only prospecting.</div>
-        </div>
-      </article>
+      <div id="availability-grid" class="availability-grid" aria-live="polite"></div>
+
+      <details class="portal-import">
+        <summary>Import a schedule from a work portal</summary>
+        <p>For portals without an API, copy the visible schedule and paste it here. The agent will pull recognizable dates into your availability. Browser-login automation comes later.</p>
+        <label>
+          Schedule text
+          <textarea id="portal-schedule-text" placeholder="Example: Sep 3 — Grand Ballroom — 7:00 AM call&#10;Sep 5 — OFF&#10;Sep 7 — Harbor Ballroom — 2:00 PM"></textarea>
+        </label>
+        <button id="import-portal-schedule" class="button" type="button">Import dates</button>
+        <p id="portal-import-status" class="status" aria-live="polite"></p>
+      </details>
     </section>
+
+    <section id="inbox" class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">2 · Turn messages into decisions</p>
+          <h2>Work inbox</h2>
+          <p>Scan recent work-related mail. AI extracts dates, call times, roles, venues, and rates, then compares each offer with your availability rules.</p>
+        </div>
+        <button id="scan-mail" class="button primary" type="button">Scan work email</button>
+      </div>
+      <p id="mail-scan-status" class="status" aria-live="polite">Connect Gmail to begin.</p>
+      <div id="mail-signals" class="signal-list"></div>
+    </section>
+
+    <section id="profile" class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">3 · Represent the worker well</p>
+          <h2>Profile + resume</h2>
+          <p>Give the agent facts once. It uses the same source material for resumes and outreach.</p>
+        </div>
+      </div>
+      <form id="profile-form" class="form-grid">
+        <label>Name<input id="name" autocomplete="name" placeholder="Your name" /></label>
+        <label>Home market<input id="market" placeholder="San Diego, CA" /></label>
+        <label class="wide">Primary roles<input id="roles" placeholder="A1, A2, RF, comms, video…" /></label>
+        <label class="wide">Professional headline<input id="headline" placeholder="Live-event audio specialist with touring and corporate AV experience" /></label>
+        <label class="wide">Experience<textarea id="experience" placeholder="One role or project per line. Include company/show, responsibility, and years when useful."></textarea></label>
+        <label class="wide">Skills / systems<textarea id="skills" placeholder="Shure Axient, Wireless Workbench, Dante, Yamaha, FreeSpeak II, networking…"></textarea></label>
+        <label class="wide">Notes for the agent<textarea id="notes" placeholder="Preferred clients, travel limits, strengths, credentials, anything the agent should know."></textarea></label>
+        <div class="wide actions">
+          <button class="button primary" type="submit">Save profile</button>
+          <button id="generate-resume" class="button" type="button">Build resume</button>
+          <button id="download-resume" class="button" type="button">Download text</button>
+        </div>
+      </form>
+      <p id="profile-status" class="status" aria-live="polite"></p>
+      <article id="resume-preview" class="resume-preview" hidden></article>
+    </section>
+
+    <section id="companies" class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">4 · Build the call list</p>
+          <h2>Freelance companies</h2>
+          <p>Add companies you want to work with. The agent drafts outreach from your profile and attaches the generated resume; sending remains explicit.</p>
+        </div>
+      </div>
+      <form id="company-form" class="company-form">
+        <label>Company<input id="company-name" required placeholder="Production company" /></label>
+        <label>Email<input id="company-email" type="email" required placeholder="labor@example.com" /></label>
+        <label>Relationship
+          <select id="company-relationship">
+            <option value="warm">They know my work</option>
+            <option value="referred">Referral / introduction</option>
+            <option value="cold">New company</option>
+          </select>
+        </label>
+        <button class="button" type="submit">Add company</button>
+      </form>
+      <div id="company-list" class="company-list"></div>
+    </section>
+
+    <section id="rules" class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">5 · Give the agent boundaries</p>
+          <h2>Rate + booking rules</h2>
+          <p>These rules drive recommendations and negotiation drafts. They do not authorize unattended acceptance yet.</p>
+        </div>
+      </div>
+      <form id="rules-form" class="form-grid">
+        <label>Target day rate<input id="target-rate" type="number" min="0" step="25" inputmode="numeric" placeholder="600" /></label>
+        <label>Minimum day rate<input id="minimum-rate" type="number" min="0" step="25" inputmode="numeric" placeholder="450" /></label>
+        <label>Normal day length<input id="day-length" type="number" min="1" max="24" step="1" inputmode="numeric" placeholder="10" /></label>
+        <label>Overtime multiplier<input id="overtime-rate" type="number" min="1" max="3" step="0.1" inputmode="decimal" placeholder="1.5" /></label>
+        <label>Max travel radius (miles)<input id="travel-radius" type="number" min="0" step="5" inputmode="numeric" placeholder="50" /></label>
+        <label>Response style
+          <select id="response-style">
+            <option value="warm">Warm and professional</option>
+            <option value="direct">Short and direct</option>
+            <option value="firm">Firm on boundaries</option>
+          </select>
+        </label>
+        <label class="wide">Standing instructions<textarea id="standing-instructions" placeholder="Example: Avoid overnight calls when possible. Prefer A1 work. Travel gigs need hotel + travel paid."></textarea></label>
+        <div class="wide actions"><button class="button primary" type="submit">Save agent rules</button></div>
+      </form>
+      <p id="rules-status" class="status" aria-live="polite"></p>
+    </section>
+
+    <section class="panel audit-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Audit trail</p>
+          <h2>What the agent has done</h2>
+          <p>Connections, imports, scans, drafts, and sends are recorded locally so the worker can see what happened.</p>
+        </div>
+        <button id="clear-activity" class="button compact" type="button">Clear</button>
+      </div>
+      <div id="activity-list" class="activity-list"></div>
+    </section>
+
+    <footer>
+      <span>3DVR.Tech · Build the future together.</span>
+      <a href="mailto:3dvr.tech@gmail.com">Support</a>
+    </footer>
   </main>
   <script defer src="/issue-launcher.js"></script>
 </body>
