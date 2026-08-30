@@ -45,8 +45,11 @@ test('production keeps Vercel main closed plus opt-in preview bridges with a def
   assert.match(workflow, /workflow_dispatch:/);
   assert.doesNotMatch(workflow, /^\s*push:/m);
   assert.doesNotMatch(workflow, /^\s*pull_request:/m);
-  assert.match(workflow, /VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z/);
-  assert.match(workflow, /VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch/);
+  assert.match(workflow, /VERCEL_ORG_ID: team_KXuVUd00RMnDsjoqwdREcZ7J/);
+  assert.match(workflow, /VERCEL_PROJECT_ID: prj_V49UqQXH0kmkYcL0NZFBkklzsbuy/);
+  assert.match(workflow, /Enforce Vercel Hobby function budget/);
+  assert.match(workflow, /Detect direct Vercel credentials/);
+  assert.match(workflow, /skipping the optional Vercel fallback deployment/);
   assert.match(workflow, /vercel deploy --prebuilt --prod/);
   assert.match(workflow, /https:\/\/portal\.3dvr\.tech\//);
   assert.doesNotMatch(workflow, /German worker/i);
