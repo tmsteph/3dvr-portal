@@ -32,6 +32,8 @@ export const REVENUE_PROVENANCE_KEYS = [
 ];
 
 const PROGRESS_KEYS = [
+  'signups',
+  'qualified_leads',
   'qualified_replies',
   'calls_booked',
   'customers',
@@ -105,7 +107,7 @@ function buildAutonomy(progress = {}) {
     level = 1;
     label = 'draft-and-test';
   }
-  if (milestone === 'stranger-dollar') {
+  if (milestone === 'stranger-dollar' || milestone === 'repeatable-demand') {
     level = 2;
     label = 'preapproved-green-actions';
   }
@@ -127,13 +129,14 @@ function buildAutonomy(progress = {}) {
 }
 
 export function buildLearningProgress(signals = {}, previousProgress = {}, budget = {}) {
-  const economics = buildEconomics(signals, budget);
-  const milestone = classifyMilestone(signals);
+  const current = normalizeSignals(signals);
+  const economics = buildEconomics(current, budget);
+  const milestone = classifyMilestone(current);
   const progress = {
     milestone,
-    stranger_customers: normalizeSignals(signals).stranger_customers,
+    stranger_customers: current.stranger_customers,
     stranger_customer_goal: STRANGER_CUSTOMER_GOAL,
-    stranger_customers_remaining: Math.max(0, STRANGER_CUSTOMER_GOAL - normalizeSignals(signals).stranger_customers),
+    stranger_customers_remaining: Math.max(0, STRANGER_CUSTOMER_GOAL - current.stranger_customers),
     stalled_cycles: numberOrZero(previousProgress.stalled_cycles),
     economics
   };
@@ -142,6 +145,10 @@ export function buildLearningProgress(signals = {}, previousProgress = {}, budge
 
 function dimensionForSignals(signals = {}, progress = {}) {
   const current = normalizeSignals(signals);
+  const knownCustomers = Math.max(
+    current.customers,
+    current.founder_customers + current.friend_customers + current.stranger_customers
+  );
   if (progress.economics?.budget_exhausted) {
     return {
       change_dimension: 'cost',
@@ -163,14 +170,14 @@ function dimensionForSignals(signals = {}, progress = {}) {
       success_metric: current.outreach_sent > 0 ? 'qualified_replies' : 'qualified_leads'
     };
   }
-  if ((current.qualified_leads > 0 || current.qualified_replies > 0 || current.calls_booked > 0) && current.customers === 0) {
+  if ((current.qualified_leads > 0 || current.qualified_replies > 0 || current.calls_booked > 0) && knownCustomers === 0) {
     return {
       change_dimension: 'offer',
       reason: 'Qualified interest exists but nobody has paid. Change one offer variable such as scope, proof, price presentation, or guarantee.',
       success_metric: 'customers'
     };
   }
-  if (current.customers > 0 && current.stranger_customers === 0) {
+  if (knownCustomers > 0 && current.stranger_customers === 0) {
     return {
       change_dimension: 'distribution',
       reason: 'Revenue exists, but none is proven to come from an unrelated buyer. Keep the offer stable and reach people outside the founder/friend network.',
@@ -249,8 +256,9 @@ export function createLearningLedger() {
   };
 }
 
-function hasMeaningfulProgress(delta = {}) {
-  return PROGRESS_KEYS.some(key => numberOrZero(delta[key]) > 0);
+function hasMeaningfulProgress(delta = {}, successMetric = '') {
+  const keys = new Set([...PROGRESS_KEYS, String(successMetric || '').trim()].filter(Boolean));
+  return [...keys].some(key => numberOrZero(delta[key]) > 0);
 }
 
 export function applyMeasurement(ledger = createLearningLedger(), measurement = {}, options = {}) {
@@ -262,7 +270,7 @@ export function applyMeasurement(ledger = createLearningLedger(), measurement = 
   if (!signalsChanged && !recordObservation) return { changed: false, ledger };
 
   const priorStalledCycles = numberOrZero(ledger.progress?.stalled_cycles);
-  const stalledCycles = hasMeaningfulProgress(delta) ? 0 : priorStalledCycles + 1;
+  const stalledCycles = hasMeaningfulProgress(delta, ledger.decision?.success_metric) ? 0 : priorStalledCycles + 1;
   const progress = buildLearningProgress(current, { ...ledger.progress, stalled_cycles: stalledCycles }, ledger.budget || {});
   progress.stalled_cycles = stalledCycles;
   progress.autonomy = buildAutonomy(progress);
@@ -317,6 +325,7 @@ export function applyEvidence(ledger = createLearningLedger(), evidence = {}, op
   if (measurement.changed || researchChanged || sourcesChanged) next = { ...next, sources: evidence.sources || {} };
   return {
     changed: measurement.changed || researchChanged || sourcesChanged,
+    signalsChanged: Boolean(measurement.signalsChanged),
     ledger: next,
     outcome: measurement.outcome,
     researchChanged,
