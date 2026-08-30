@@ -1,6 +1,6 @@
 # 3DVR ecosystem consolidation
 
-Status: active
+Status: complete
 
 Started: 2026-08-29
 
@@ -125,10 +125,10 @@ The open-source contribution ledger is high-value proof and should be easy to re
 
 ### P2 — increase proof and conversion
 
-- [ ] Publish three 3DVR client case studies.
-- [ ] Tighten supporting 3dvr.tech pages and pricing consistency.
-- [ ] Elevate tmsteph open-source contribution proof.
-- [ ] Make the commercial-to-open-source funding loop understandable in one sentence.
+- [x] Publish three 3DVR client case studies.
+- [x] Tighten supporting 3dvr.tech pages and pricing consistency.
+- [x] Elevate tmsteph open-source contribution proof.
+- [x] Make the commercial-to-open-source funding loop understandable in one sentence.
 
 ## Definition of done for this phase
 
@@ -157,3 +157,9 @@ This consolidation phase is successful when:
 - Labeled `3DVR-Website` and `3dvr-app` as Legacy with forward pointers, and added Legacy pointers to the previously empty `3dvr-website-build` and `3dvr-react-app` repositories.
 - Re-verified the Portal first screen: the four dominant action cards are Find my path, Make money, Build something, and Open my stuff; the full app catalog remains behind Search / Open my stuff rather than competing as top-level cards.
 - P1 ecosystem-legibility sprint complete; next work moves to proof and conversion.
+- Published and production-verified three client case studies for SC Librarian, Cruisers Garage, and San Diego Van Life. Avoided using the stale GIF Academy testimonial as flagship proof after verifying the current site credits a different designer.
+- Added a direct customer-proof path from the 3dvr.tech homepage and made the commercial-to-open-source loop explicit: paid client work helps fund open tools for everyone.
+- Used the controlled Vercel publish lane for the P2 batch, verified the live case-study page returned HTTP 200, then restored the deployment quota guard.
+- Elevated the existing tmsteph open-source contribution ledger to the homepage hero with a direct “Open Source Proof · 3 upstream merges” path; verified the production `tmsteph.com/index.js` serves it.
+- Reconciled public pricing language so 3DVR clearly starts free, $5 is light support, direct launch help starts at $20, $50 is business support, $200 is team operations, and custom work remains available; verified the production homepage, plans page, and launch metadata.
+- Restored the 3dvr-web Vercel quota guard after the final controlled publish. P2 is complete, closing the ecosystem consolidation phase.
