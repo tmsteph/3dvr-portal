@@ -458,7 +458,9 @@ function buildProjectPage(slug) {
       : 'Explain the project clearly and give visitors one useful next step.',
     audience: project.category && project.category !== 'project'
       ? `People interested in ${project.category}.`
-      : 'People this project is meant to help.'
+      : 'People this project is meant to help.',
+    projectSlug: project.slug,
+    projectName: project.name
   };
 
   try {

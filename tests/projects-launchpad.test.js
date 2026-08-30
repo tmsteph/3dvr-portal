@@ -55,6 +55,8 @@ describe('3DVR Seed Deck', () => {
     assert.match(js, /window\.location\.href = '\.\.\/growth-operator\/\?from=project'/);
     assert.match(js, /buildPage\.textContent = 'Build page'/);
     assert.match(js, /sessionStorage\.setItem\(WEB_BUILDER_PREFILL_KEY/);
+    assert.match(js, /projectSlug: project\.slug/);
+    assert.match(js, /projectName: project\.name/);
     assert.match(js, /window\.location\.href = '\.\.\/web-builder-app\/'/);
     assert.match(js, /Page draft prepared\. Opening Web Builder for review/);
     assert.match(js, /new URLSearchParams\(window\.location\.search\)/);
