@@ -8,124 +8,19 @@
   <title>AV Freelancer Starter Kit | 3DVR</title>
   <link rel="stylesheet" href="../../styles/global.css">
   <link rel="stylesheet" href="../styles.css">
-  <script defer src="/_vercel/insights/script.js"></script>
-  <style>
-    .kit-intro { min-height: auto; }
-    .kit-section { padding: clamp(1.5rem, 5vw, 4.25rem); border: 1px solid var(--surface-border); border-radius: 28px; background: linear-gradient(145deg, rgba(14, 35, 59, 0.88), rgba(4, 12, 22, 0.9)); }
-    .kit-list { display: grid; gap: 0.7rem; padding-left: 1.25rem; color: var(--text-muted); }
-    .kit-list strong { color: var(--text-main); }
-    .script { margin: 1rem 0 0; padding: 1rem; border: 1px solid rgba(125, 211, 252, 0.16); border-radius: 16px; background: rgba(2, 9, 17, 0.45); color: var(--text-muted); white-space: pre-wrap; }
-    .download-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.25rem; }
-    .formula { padding: 1rem; border-left: 3px solid var(--accent); background: rgba(125, 211, 252, 0.07); color: var(--text-main); }
-    @media (max-width: 780px) { .kit-section { border-radius: 20px; } }
-  </style>
 </head>
 <body class="theme-dark freelance-page">
-  <a class="skip-link" href="#mainContent">Skip to main content</a>
   <div class="freelance-shell">
-    <header class="freelance-nav">
-      <a class="brand-link" href="../../index.html">3DVR</a>
-      <nav aria-label="Starter kit navigation">
-        <a href="../">AV Freelance Launchpad</a>
-      </nav>
-    </header>
-
-    <main id="mainContent">
-      <section class="hero kit-intro" aria-labelledby="kitTitle">
-        <p class="eyebrow">Purchase complete</p>
-        <h1 id="kitTitle">AV Freelancer Starter Kit</h1>
-        <p class="hero-copy">Keep this page bookmarked. Copy the scripts, download the templates, and use the checklists on your next booking.</p>
-        <div class="download-row">
-          <a class="button button--primary" href="rate-card-template.csv" download>Download rate card</a>
-          <a class="button" href="outreach-scripts.txt" download>Download outreach scripts</a>
-          <a class="button" href="show-day-checklist.txt" download>Download show-day checklist</a>
+    <main>
+      <section class="hero">
+        <p class="eyebrow">Protected purchase</p>
+        <h1>AV Freelancer Starter Kit</h1>
+        <p class="hero-copy">Starter Kit access now requires a verified paid Stripe checkout session.</p>
+        <div class="hero-actions">
+          <a class="button button--primary" href="../">Return to the AV Freelance Launchpad</a>
         </div>
       </section>
-
-      <section class="kit-section" aria-labelledby="rateTitle">
-        <p class="eyebrow">01 — Price the work</p>
-        <h2 id="rateTitle">Set a rate you can defend.</h2>
-        <p class="formula"><strong>Target day rate = (annual income goal + business overhead + tax/buffer) ÷ realistic billable days.</strong></p>
-        <ul class="kit-list">
-          <li>Choose one primary role you want to be called for: A1, A2, V1, V2, LED, projection, RF, comms, streaming, general AV lead, or another clear lane.</li>
-          <li>Write down three numbers: <strong>target rate</strong>, <strong>minimum acceptable rate</strong>, and <strong>walk-away rate</strong>.</li>
-          <li>Define what a day includes: expected hours, overtime, travel time, parking, per diem, gear, and cancellation terms.</li>
-          <li>Quote the job, not your old hourly wage. Freelance pricing has to cover unpaid admin, gaps between jobs, insurance, taxes, and equipment.</li>
-        </ul>
-      </section>
-
-      <section class="kit-section" aria-labelledby="outreachTitle">
-        <p class="eyebrow">02 — Get called</p>
-        <h2 id="outreachTitle">Use short, human outreach.</h2>
-        <p class="script"><strong>Warm contact</strong>
-Hey [Name] — I’m opening up a little more freelance availability for [role]. If you ever need another solid [A1/A2/V1/etc.] in [city], I’d love to work together. My current day rate is [rate]. Happy to send availability anytime.</p>
-        <p class="script"><strong>Production company</strong>
-Hi [Name/Team] — I’m a freelance [role] based in [city] with experience in [2–3 relevant areas]. I’m taking on more independent show work and would like to get into your technician pool. My current day rate is [rate]. Portfolio/resume: [link]. Thanks — [name]</p>
-        <p class="script"><strong>Simple follow-up</strong>
-Hey [Name] — quick follow-up in case this got buried. I still have some availability for [month/date range] and would be glad to help with [role]. No pressure if you’re covered.</p>
-      </section>
-
-      <section class="kit-section" aria-labelledby="bookingTitle">
-        <p class="eyebrow">03 — Before saying yes</p>
-        <h2 id="bookingTitle">Confirm the job in writing.</h2>
-        <ul class="kit-list">
-          <li><strong>Role:</strong> what exactly are you responsible for?</li>
-          <li><strong>Date and call time:</strong> include expected end time and load-out.</li>
-          <li><strong>Rate:</strong> day rate or hourly structure, minimum call, overtime trigger, travel, parking, per diem, and gear.</li>
-          <li><strong>Location:</strong> venue, loading instructions, parking, credential requirements.</li>
-          <li><strong>Client contact:</strong> name and mobile number for show day.</li>
-          <li><strong>Payment:</strong> who receives the invoice, required PO/vendor paperwork, and payment terms.</li>
-        </ul>
-      </section>
-
-      <section class="kit-section" aria-labelledby="showTitle">
-        <p class="eyebrow">04 — Run the show</p>
-        <h2 id="showTitle">Make yourself easy to rehire.</h2>
-        <ul class="kit-list">
-          <li>Arrive early enough to solve access, parking, credentials, and gear surprises before call time.</li>
-          <li>Confirm the chain of command and communication method.</li>
-          <li>Ask what “show ready” means for your system and when it must be ready.</li>
-          <li>Document important settings, patching, frequencies, IPs, file versions, or handoff notes as appropriate.</li>
-          <li>Before leaving, confirm you are released and ask where the invoice should go.</li>
-          <li>Send a short thank-you after the gig and keep the relationship alive without pestering people.</li>
-        </ul>
-      </section>
-
-      <section class="kit-section" aria-labelledby="invoiceTitle">
-        <p class="eyebrow">05 — Close the loop</p>
-        <h2 id="invoiceTitle">Invoice fast. Track every job.</h2>
-        <ul class="kit-list">
-          <li>Invoice within 24 hours unless the client gives different instructions.</li>
-          <li>Include your name/business, invoice number, date, client, show/job, agreed rate, overtime or expenses, total, and payment instructions.</li>
-          <li>Track: booked date, client, role, rate, invoice sent date, due date, paid date, and whether you would work for them again.</li>
-          <li>Do not confuse booked revenue with cash received.</li>
-        </ul>
-      </section>
-
-      <section class="kit-section" aria-labelledby="planTitle">
-        <p class="eyebrow">06 — 30-day transition</p>
-        <h2 id="planTitle">Build a runway, not a dramatic exit.</h2>
-        <ol class="path-list">
-          <li><span class="step">Week 1</span><div><h3>Package yourself</h3><p>Choose your lane, rate, one short bio, and one link you can send.</p></div></li>
-          <li><span class="step">Week 2</span><div><h3>Reconnect</h3><p>Message people who already know your work. Aim for real relationships, not mass outreach.</p></div></li>
-          <li><span class="step">Week 3</span><div><h3>Take one independent job</h3><p>Run the full loop: confirm, work, invoice, follow up, record what happened.</p></div></li>
-          <li><span class="step">Week 4</span><div><h3>Measure repeatability</h3><p>Count repeat clients, booked days, average rate, and cash actually collected before changing your employment situation.</p></div></li>
-        </ol>
-      </section>
-
-      <section class="kit-section" aria-labelledby="ruleTitle">
-        <p class="eyebrow">The rule</p>
-        <h2 id="ruleTitle">One good client is worth more than 100 cold leads.</h2>
-        <p class="hero-copy">Be reliable, easy to work with, technically sharp, and clear about money. The compounding asset is a small network of people who trust you enough to call again.</p>
-        <p class="hero-note">This kit is educational and does not guarantee income or replace legal, tax, insurance, or accounting advice.</p>
-      </section>
     </main>
-
-    <footer>
-      <span>3DVR.Tech — Build the future together.</span>
-      <a href="mailto:3dvr.tech@gmail.com">Support</a>
-    </footer>
   </div>
-  <script defer src="/issue-launcher.js"></script>
 </body>
 </html>
