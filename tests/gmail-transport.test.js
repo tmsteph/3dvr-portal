@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildGmailTransportOptions } from '../api/_lib/gmail-transport.js';
+import { buildGmailTransportOptions } from '../src/email/gmail-transport.js';
 
 describe('gmail transport', () => {
   it('defaults to Gmail SMTP 587 with STARTTLS', () => {

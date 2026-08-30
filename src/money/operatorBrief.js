@@ -1,4 +1,4 @@
-import { createGmailTransport } from '../../api/_lib/gmail-transport.js';
+import { createGmailTransport } from '../email/gmail-transport.js';
 
 function clean(value) {
   return String(value || '').trim();
