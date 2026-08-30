@@ -3,6 +3,7 @@
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 import {
   checkAutoBusinessSetup,
   runAutoBusinessCycle
@@ -85,7 +86,7 @@ function printSetupCheck(setup = {}) {
   }
 }
 
-function buildCycleEvidence(report = {}, previousSignals = {}) {
+export function buildCycleEvidence(report = {}, previousSignals = {}) {
   const evidence = deriveEvidence({
     autopilot: report.autopilot || null,
     outbound: {
@@ -121,7 +122,7 @@ function buildCycleEvidence(report = {}, previousSignals = {}) {
   return evidence;
 }
 
-async function attachCycleLearning(rootDir, report = {}) {
+export async function attachCycleLearning(rootDir, report = {}) {
   const before = await updateLearningLedger({ rootDir });
   const evidence = buildCycleEvidence(report, before.ledger?.current_signals || {});
   const learning = await updateLearningLedger({
@@ -228,7 +229,9 @@ async function main() {
   console.log(`Next money move: ${report.critique?.nextMoneyMove || ''}`);
 }
 
-main().catch(error => {
-  console.error(`money-printer:auto-business: ${error.message}`);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch(error => {
+    console.error(`money-printer:auto-business: ${error.message}`);
+    process.exitCode = 1;
+  });
+}
