@@ -1,6 +1,13 @@
 # 3DVR OS
 
-Daedalos / TommyOS browser-native desktop.
+**Core product:** 3DVR OS is the maintained open personal-computing path for the 3DVR ecosystem.
+
+It grows out of the Daedalos / TommyOS browser-native desktop experiments, but the naming boundary is now explicit:
+
+- **3DVR OS** — Core product and supported public path.
+- **TommyOS / Daedalos experiments** — Labs lineage for research, prototypes, and ideas that may graduate into 3DVR OS.
+
+New user-facing operating-system work should land in 3DVR OS unless it is intentionally experimental. Proven Labs work can be absorbed here without requiring users to understand the internal experiment history.
 
 ## Deployment
 
