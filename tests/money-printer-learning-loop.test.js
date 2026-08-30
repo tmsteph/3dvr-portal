@@ -36,6 +36,19 @@ test('tracks economics separately from demand validation', () => {
   assert.equal(first.ledger.progress.autonomy.level, 2);
 });
 
+test('repeatable demand keeps level two autonomy until economics earn level three', () => {
+  const result = applyMeasurement(createLearningLedger(), {
+    signals: {
+      stranger_customers: 10,
+      stranger_revenue_cents: 1000,
+      revenue_cents: 1000
+    }
+  });
+  assert.equal(result.ledger.progress.milestone, 'repeatable-demand');
+  assert.equal(result.ledger.progress.autonomy.level, 2);
+  assert.equal(result.ledger.progress.economics.self_sustaining, false);
+});
+
 test('empty wake cycles become evidence and trigger adaptation', () => {
   let ledger = createLearningLedger();
   for (let cycle = 0; cycle < 3; cycle += 1) {
@@ -49,6 +62,19 @@ test('empty wake cycles become evidence and trigger adaptation', () => {
   assert.equal(ledger.decision.should_adapt, true);
   assert.equal(ledger.decision.change_dimension, 'distribution');
   assert.equal(ledger.outcomes.length, 3);
+});
+
+test('qualified leads reset the stall counter when they are the active success metric', () => {
+  let ledger = createLearningLedger();
+  ledger = applyMeasurement(ledger, { record_observation: true }).ledger;
+  ledger = applyMeasurement(ledger, { record_observation: true }).ledger;
+  assert.equal(ledger.progress.stalled_cycles, 2);
+  ledger = applyMeasurement(ledger, {
+    signals: { visits: 20, qualified_leads: 1 },
+    record_observation: true
+  }).ledger;
+  assert.equal(ledger.progress.stalled_cycles, 0);
+  assert.equal(ledger.decision.should_adapt, false);
 });
 
 test('qualified interest with no customers changes the offer, not everything', () => {
