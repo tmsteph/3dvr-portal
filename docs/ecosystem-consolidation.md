@@ -118,7 +118,7 @@ The open-source contribution ledger is high-value proof and should be easy to re
 
 ### P1 — make the ecosystem legible
 
-- [ ] Add Core / Labs / Legacy guidance to relevant public/project indexes.
+- [x] Add Core / Labs / Legacy guidance to relevant public/project indexes.
 - [ ] Label or archive superseded 3DVR repositories and point them to active replacements.
 - [x] Canonize TommyOS as a research prototype and 3DVR OS as the product path.
 - [ ] Reduce Portal first-screen emphasis on individual tools; keep the four intents dominant.
@@ -153,3 +153,4 @@ This consolidation phase is successful when:
 - Added a deployment-budget regression test so future API growth fails locally/CI before it breaks production.
 - Verified the merged `main` deployment reached READY with 12 Node.js functions, and `https://portal.3dvr.tech/` returned HTTP 200.
 - Started P1 consolidation by defining 3DVR OS as the maintained Core product and TommyOS / Daedalos as Labs research lineage; future user-facing OS work should default to 3DVR OS while experimental ideas can graduate into it.
+- Made the Core / Labs / Legacy map visible in the Portal project README and the active `3dvr-web` README, so contributors can identify the maintained public paths without opening the full roadmap.
