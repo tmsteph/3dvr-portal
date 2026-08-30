@@ -57,6 +57,16 @@ Then:
 - Target staffing coordinators, labor coordinators, production managers, technical directors, venue AV managers, and other public business contacts.
 - Use public listings only; never guess names, emails, phone numbers, or business facts.
 
+## Auto-development experiment loop
+
+- Treat customer behavior as the deciding signal for low-risk product changes.
+- Assign visitors deterministically so the same person keeps seeing the same variant until a winner is promoted.
+- Use Gun at `3dvr-portal/growth/experiments/<experiment>/...` as the shared event/config source of truth.
+- Compare unique visitors, not raw repeated clicks. Require minimum sample size, minimum conversions, meaningful lift, and a statistical confidence threshold before promotion.
+- Auto-promote only allowlisted low-risk classes such as copy, layout, CTA wording, and discovery flows. Pricing, billing, privacy, auth, security, legal, or destructive changes require explicit review.
+- Optimize for the deepest reliable customer outcome available. Revenue/paid conversion beats qualified leads, which beat activation, which beat engagement.
+- First live reusable experiment: `av-freelance-hero`, optimizing visits from the AV Freelance Launchpad into the free Work Agent. The existing daily growth cron evaluates it alongside the homepage experiment.
+
 ## Product principles
 
 - A third grader should understand the next action.

@@ -111,7 +111,13 @@ test('homepage growth cron handler runs the cycle and returns diagnostics', asyn
         },
         reason: 'Auto-promoted clarity from stronger click and clarity signals.',
       };
-    }
+    },
+    runExperimentImpl: async (definition, payload) => ({
+      experiment: definition.id,
+      dryRun: payload.dryRun,
+      action: 'insufficient-data',
+      promoted: false,
+    })
   });
 
   const req = {
@@ -132,4 +138,5 @@ test('homepage growth cron handler runs the cycle and returns diagnostics', asyn
   assert.equal(res.body.recommendedWinner, 'clarity');
   assert.equal(res.body.action, 'dry-run');
   assert.equal(res.body.totals.totalViews, 12);
+  assert.equal(res.body.experiments.avFreelanceHero.experiment, 'av-freelance-hero');
 });

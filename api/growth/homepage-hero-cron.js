@@ -1,4 +1,6 @@
 import { runHomepageHeroCronCycle } from '../../src/growth/homepage-hero-cron.js';
+import { runExperimentCronCycle } from '../../src/growth/experiment-cron.js';
+import { AV_FREELANCE_HERO_EXPERIMENT } from '../../src/growth/experiments.js';
 
 function parseBoolean(value, fallback) {
   if (typeof value === 'boolean') {
@@ -53,6 +55,7 @@ function setHeaders(res) {
 
 export function createHomepageHeroGrowthCronHandler(options = {}) {
   const runCycleImpl = options.runCycleImpl || runHomepageHeroCronCycle;
+  const runExperimentImpl = options.runExperimentImpl || runExperimentCronCycle;
   const config = options.config || process.env;
 
   return async function handler(req, res) {
@@ -84,10 +87,18 @@ export function createHomepageHeroGrowthCronHandler(options = {}) {
     );
 
     try {
-      const result = await runCycleImpl({
+      const cycleOptions = {
         dryRun,
         gunPeers: config.GROWTH_GUN_PEERS,
-      });
+      };
+      const result = await runCycleImpl(cycleOptions);
+      let avFreelance = null;
+      let avFreelanceError = '';
+      try {
+        avFreelance = await runExperimentImpl(AV_FREELANCE_HERO_EXPERIMENT, cycleOptions);
+      } catch (error) {
+        avFreelanceError = error?.message || 'AV freelance experiment evaluation failed.';
+      }
 
       return res.status(200).json({
         ok: true,
@@ -107,6 +118,11 @@ export function createHomepageHeroGrowthCronHandler(options = {}) {
         stats: result.stats,
         totals: result.totals,
         reason: result.reason,
+        experiments: {
+          homepageHero: result,
+          avFreelanceHero: avFreelance,
+        },
+        experimentErrors: avFreelanceError ? { avFreelanceHero: avFreelanceError } : {},
       });
     } catch (error) {
       return res.status(500).json({
