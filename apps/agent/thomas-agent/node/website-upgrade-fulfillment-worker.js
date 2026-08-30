@@ -14,6 +14,11 @@ function defaultStateApi() {
   return require('./website-upgrade-fulfillment-state');
 }
 
+function validEmail(value) {
+  const email = text(value).toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '';
+}
+
 function validateBoundedOrder(order) {
   const sessionId = text(order?.sessionId);
   const slug = text(order?.slug).toLowerCase();
@@ -29,7 +34,9 @@ function validateBoundedOrder(order) {
     throw new Error('Website Upgrade target must be the validated 3DVR-hosted free-site URL.');
   }
   if (!businessName) throw new Error('Website Upgrade order is missing businessName.');
+  if (businessName.length > 160) throw new Error('Website Upgrade businessName is too long.');
   if (!mainAction) throw new Error('Website Upgrade order is missing mainAction.');
+  if (mainAction.length > 240) throw new Error('Website Upgrade mainAction is too long.');
 
   return { sessionId, slug, siteUrl, businessName, mainAction };
 }
@@ -92,9 +99,10 @@ async function processUpgradeOrder(order, options = {}) {
     };
   }
 
-  if (!text(order.customerEmail)) {
+  const customerEmail = validEmail(order.customerEmail);
+  if (!customerEmail) {
     record = await state.transitionOrder(bounded.sessionId, 'blocked', {
-      reason: 'Website Upgrade order is missing customer email.',
+      reason: 'Website Upgrade order is missing a valid customer email.',
     });
     return { ok: false, status: 'blocked', record };
   }
@@ -106,7 +114,7 @@ async function processUpgradeOrder(order, options = {}) {
   let publication;
   try {
     publication = await publishUpgrade({
-      order,
+      order: { ...order, customerEmail },
       record,
       idempotencyKey: publicationKey(bounded.sessionId),
     });
@@ -118,7 +126,16 @@ async function processUpgradeOrder(order, options = {}) {
     return { ok: false, status: 'failed', stage: 'publish', record: failed };
   }
 
-  const finalUrl = text(publication?.siteUrl || order.siteUrl);
+  const finalUrl = text(publication?.siteUrl || bounded.siteUrl);
+  if (finalUrl !== bounded.siteUrl) {
+    const failed = await failOrder(state, bounded.sessionId, 'Website Upgrade publisher returned an unexpected target URL.', {
+      stage: 'publish',
+      publicationKey: publicationKey(bounded.sessionId),
+      attemptedFinalUrl: finalUrl || null,
+    });
+    return { ok: false, status: 'failed', stage: 'publish', record: failed };
+  }
+
   const publicationDetails = {
     publicationKey: publicationKey(bounded.sessionId),
     prUrl: text(publication?.prUrl) || null,
@@ -128,7 +145,7 @@ async function processUpgradeOrder(order, options = {}) {
   let verified = false;
   try {
     verified = Boolean(await verifyUpgrade({
-      order,
+      order: { ...order, customerEmail },
       record,
       publication,
       siteUrl: finalUrl,
@@ -169,7 +186,7 @@ async function processUpgradeOrder(order, options = {}) {
 
   try {
     await sendDelivery({
-      order,
+      order: { ...order, customerEmail },
       record,
       siteUrl: finalUrl,
       idempotencyKey: deliveryKey(bounded.sessionId),
@@ -213,4 +230,5 @@ module.exports = {
   processUpgradeOrders,
   publicationKey,
   validateBoundedOrder,
+  validEmail,
 };
