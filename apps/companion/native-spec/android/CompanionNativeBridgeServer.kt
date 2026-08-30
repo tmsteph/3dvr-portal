@@ -1,5 +1,7 @@
 package tech.threedvr.companion
 
+import android.app.NotificationManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -107,6 +109,8 @@ object CompanionNativeBridgeServer {
                     "notification.metadata.read",
                     "messages.notification.read",
                     "messages.notification.reply",
+                    "messages.notification.status",
+                    "messages.notification.settings",
                     "ui.snapshot",
                     "ui.perform",
                     "update.status",
@@ -133,6 +137,26 @@ object CompanionNativeBridgeServer {
             return HttpResponse(200, mapOf(
                 "ok" to true,
                 "notifications" to NotificationMetadataStore.snapshot(),
+            ))
+        }
+        if (request.method == "GET" && request.path == "/v1/messages/status") {
+            MessageNotificationStore.initialize(context)
+            val notificationAccessEnabled = isNotificationAccessEnabled(context)
+            return HttpResponse(200, mapOf(
+                "ok" to true,
+                "notificationAccessEnabled" to notificationAccessEnabled,
+                "messageNotificationReadEnabled" to notificationAccessEnabled,
+                "messageNotificationReplyEnabled" to notificationAccessEnabled,
+                "historyCount" to MessageNotificationStore.snapshot().size,
+                "storage" to "encrypted-on-device-history",
+            ))
+        }
+        if (request.method == "POST" && request.path == "/v1/messages/open-settings") {
+            return HttpResponse(400, mapOf(
+                "ok" to false,
+                "foregroundInteractionRequired" to true,
+                "intentAction" to Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS,
+                "error" to "foreground interaction required to open notification access settings",
             ))
         }
         if (request.method == "GET" && request.path == "/v1/messages/recent") {
@@ -206,6 +230,12 @@ object CompanionNativeBridgeServer {
         return HttpResponse(404, mapOf("ok" to false, "error" to "not found"))
     }
 
+    private fun isNotificationAccessEnabled(context: Context): Boolean {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return false
+        val component = ComponentName(context, CompanionNotificationListener::class.java)
+        return manager.isNotificationListenerAccessGranted(component)
+    }
+
     private fun openKnownApp(context: Context, alias: String): Boolean {
         if (alias == "settings") {
             context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -224,6 +254,7 @@ object CompanionNativeBridgeServer {
             "calendar" to listOf("com.google.android.calendar", "com.samsung.android.calendar"),
             "camera" to listOf("com.sec.android.app.camera", "com.google.android.GoogleCamera"),
             "messages" to listOf("com.google.android.apps.messaging", "com.samsung.android.messaging", "com.android.mms"),
+            "whatsapp" to listOf("com.whatsapp", "com.whatsapp.w4b"),
         )[alias] ?: return false
         for (packageName in candidates) {
             val intent = context.packageManager.getLaunchIntentForPackage(packageName) ?: continue

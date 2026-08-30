@@ -1,6 +1,7 @@
 package tech.threedvr.companion
 
 import android.Manifest
+import android.app.NotificationManager
 import android.app.role.RoleManager
 import android.content.ComponentName
 import android.content.Context
@@ -28,6 +29,7 @@ class MainActivity : FlutterActivity() {
         "chatgpt" to listOf("com.openai.chatgpt"),
         "maps" to listOf("com.google.android.apps.maps"),
         "gmail" to listOf("com.google.android.gm"),
+        "whatsapp" to listOf("com.whatsapp", "com.whatsapp.w4b"),
         "chrome" to listOf("com.android.chrome"),
         "termux" to listOf("com.termux"),
         "termux_x11" to listOf("com.termux.x11"),
@@ -261,8 +263,9 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun isNotificationAccessEnabled(): Boolean {
-        val enabled = Settings.Secure.getString(contentResolver, "enabled_notification_listeners") ?: return false
-        return enabled.split(':').any { component -> component.startsWith("$packageName/") }
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return false
+        val component = ComponentName(this, CompanionNotificationListener::class.java)
+        return manager.isNotificationListenerAccessGranted(component)
     }
 
     companion object {

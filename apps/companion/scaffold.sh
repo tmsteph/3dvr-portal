@@ -57,7 +57,7 @@ if queries is None:
     for i,c in enumerate(list(root)):
         if c.tag=='uses-permission': insert_at=i+1
     root.insert(insert_at,queries)
-known={'com.openai.chatgpt','com.google.android.apps.maps','com.google.android.gm','com.android.chrome','com.termux','com.google.android.calendar','com.samsung.android.calendar','com.sec.android.app.camera','com.google.android.GoogleCamera','com.google.android.apps.messaging','com.samsung.android.messaging','com.android.mms','moe.shizuku.privileged.api'}
+known={'com.openai.chatgpt','com.google.android.apps.maps','com.google.android.gm','com.android.chrome','com.termux','com.google.android.calendar','com.samsung.android.calendar','com.sec.android.app.camera','com.google.android.GoogleCamera','com.google.android.apps.messaging','com.samsung.android.messaging','com.android.mms','com.whatsapp','com.whatsapp.w4b','moe.shizuku.privileged.api'}
 existing_q={n.get(a('name')) for n in queries.findall('package')}
 for p in sorted(known):
     if p not in existing_q: ET.SubElement(queries,'package',{a('name'):p})
