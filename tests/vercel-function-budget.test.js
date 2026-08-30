@@ -11,7 +11,6 @@ async function listApiEntries(dir = API_ROOT) {
   const files = [];
 
   for (const entry of entries) {
-    if (entry.name === '_lib') continue;
     const child = new URL(`${entry.name}${entry.isDirectory() ? '/' : ''}`, dir);
     if (entry.isDirectory()) files.push(...await listApiEntries(child));
     else if (entry.isFile() && entry.name.endsWith('.js')) files.push(child);
