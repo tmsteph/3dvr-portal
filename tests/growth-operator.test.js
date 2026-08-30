@@ -46,6 +46,14 @@ test('growth operator app queues agent work and can send approved outreach throu
 
   assert.match(js, /OPERATOR_NODE = 'growthOperator'/);
   assert.match(js, /PROJECT_LEAD_BRIEF_KEY = '3dvr\.growthOperator\.project-lead-brief\.v1'/);
+  assert.match(js, /projectUpdatesRoot = portalRoot \? portalRoot\.get\('projectLaunchpad'\)\.get\('updates'\) : null/);
+  assert.match(js, /projectSlug: normalizeText\(value\.projectSlug\)/);
+  assert.match(js, /source: state\.projectLeadBrief\?\.projectSlug \? `project:\$\{state\.projectLeadBrief\.projectSlug\}`/);
+  assert.match(js, /function markCustomer/);
+  assert.match(js, /Mark \$\{item\.name\} as a customer\?/);
+  assert.match(js, /it does not charge them or send a message/);
+  assert.match(js, /title: `First customer: \$\{item\.name\}`/);
+  assert.match(js, /data-action=\"customer\"/);
   assert.match(js, /function hydrateProjectLeadBrief/);
   assert.match(js, /sessionStorage\.getItem\(PROJECT_LEAD_BRIEF_KEY\)/);
   assert.match(js, /Review the target, then use Find leads when you want research queued/);
