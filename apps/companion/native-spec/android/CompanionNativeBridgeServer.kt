@@ -140,6 +140,7 @@ object CompanionNativeBridgeServer {
             ))
         }
         if (request.method == "GET" && request.path == "/v1/messages/status") {
+            MessageNotificationStore.initialize(context)
             val notificationAccessEnabled = isNotificationAccessEnabled(context)
             return HttpResponse(200, mapOf(
                 "ok" to true,
@@ -151,11 +152,12 @@ object CompanionNativeBridgeServer {
             ))
         }
         if (request.method == "POST" && request.path == "/v1/messages/open-settings") {
-            context.startActivity(
-                Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
-            return HttpResponse(200, mapOf("ok" to true))
+            return HttpResponse(400, mapOf(
+                "ok" to false,
+                "foregroundInteractionRequired" to true,
+                "intentAction" to Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS,
+                "error" to "foreground interaction required to open notification access settings",
+            ))
         }
         if (request.method == "GET" && request.path == "/v1/messages/recent") {
             return HttpResponse(200, mapOf(
@@ -251,7 +253,7 @@ object CompanionNativeBridgeServer {
             "calendar" to listOf("com.google.android.calendar", "com.samsung.android.calendar"),
             "camera" to listOf("com.sec.android.app.camera", "com.google.android.GoogleCamera"),
             "messages" to listOf("com.google.android.apps.messaging", "com.samsung.android.messaging", "com.android.mms"),
-        "whatsapp" to listOf("com.whatsapp", "com.whatsapp.w4b"),
+            "whatsapp" to listOf("com.whatsapp", "com.whatsapp.w4b"),
         )[alias] ?: return false
         for (packageName in candidates) {
             val intent = context.packageManager.getLaunchIntentForPackage(packageName) ?: continue
