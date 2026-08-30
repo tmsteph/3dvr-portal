@@ -19,6 +19,7 @@ import {
   loadMoneyPrinterOperations
 } from '../src/money-printer/moneyPrinterOperations.js';
 import { runMoneyPrinterDaemonCycle } from '../src/money-printer/moneyPrinterDaemon.js';
+import { updateLearningLedger } from '../src/money-printer/learningRuntime.js';
 import { readGithubStatus } from '../src/money-printer/moneyPrinterGithubConnector.js';
 import { readVercelStatus } from '../src/money-printer/moneyPrinterVercelConnector.js';
 
@@ -115,9 +116,10 @@ export async function runMoneyPrinterSupervisor(options = {}) {
       ...runOptions,
       command: 'supervisor-cycle'
     });
+  const persistedLearning = daemon?.learning || await updateLearningLedger({ rootDir });
 
   const learningBudgetExhausted = Boolean(
-    daemon?.learning?.ledger?.progress?.economics?.budget_exhausted
+    persistedLearning?.ledger?.progress?.economics?.budget_exhausted
     || daemon?.report?.executionBlockedByBudget
   );
   const afterPlanOperations = await loadMoneyPrinterOperations(rootDir);
@@ -146,7 +148,7 @@ export async function runMoneyPrinterSupervisor(options = {}) {
     healthOnly: Boolean(options.healthOnly),
     daemonReportPath: daemon?.reportPath || '',
     eventLogPath: daemon?.eventLogPath || '',
-    nextBestMoneyAction: daemon?.report?.nextBestMoneyAction || '',
+    nextBestMoneyAction: daemon?.report?.nextBestMoneyAction || persistedLearning?.summary?.nextExperiment?.reason || '',
     codexPromptPath: daemon?.report?.codexPromptPath || '',
     operationsBefore: beforeOperations.length,
     operationsAfterPlanning: afterPlanOperations.length,
@@ -156,7 +158,7 @@ export async function runMoneyPrinterSupervisor(options = {}) {
     operationStatusCounts: countByStatus(finalOperations),
     operationRiskCounts: countByRisk(finalOperations),
     executedApprovedCount: executedOperations.length,
-    learning: daemon?.report?.learning || null,
+    learning: daemon?.report?.learning || persistedLearning?.summary || null,
     learningDirective: daemon?.report?.learningDirective || '',
     executionBlockedByBudget: learningBudgetExhausted,
     runtime: {
