@@ -1,5 +1,7 @@
 const Gun = require('gun');
+const { installSafeGunJsonParser } = require('./gun-json-compat');
 
+installSafeGunJsonParser();
 const RELAY = process.env.THREEDVR_GUN_RELAY || 'https://gun-relay-3dvr.fly.dev/gun';
 const APP_ROOT = process.env.THREEDVR_GUN_ROOT || '3dvr';
 const CRM_ROOT = process.env.THREEDVR_GUN_CRM || 'crm';
