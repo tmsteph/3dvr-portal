@@ -26,13 +26,13 @@
       <section class="hero" aria-labelledby="heroTitle">
         <p class="eyebrow">AV Freelance Launchpad</p>
         <h1 id="heroTitle">You already know how to run the show. Build work that belongs to you.</h1>
-        <p class="hero-copy">
+        <p class="hero-copy" id="heroCopy">
           For event technicians who are good at the work but want more control over their time, clients,
           rates, and direction. Keep your income stable while you build a freelance runway one relationship at a time.
         </p>
         <div class="hero-actions">
-          <a class="button button--primary" href="../work-agent/">Use the free Work Agent</a>
-          <a class="button" href="https://buy.stripe.com/00w8wPeua4lR5gPcMAc7u0n">Get the $9 templates</a>
+          <a class="button button--primary" href="../work-agent/" data-primary-work-agent data-work-agent-cta="hero">Use the free Work Agent</a>
+          <a class="button" href="https://buy.stripe.com/00w8wPeua4lR5gPcMAc7u0n" data-starter-kit-cta="hero">Get the $9 templates</a>
         </div>
         <p class="hero-note">
           Start free: connect your schedule, build your worker profile, review work-email signals, and set your rate boundaries before buying anything. 3DVR is not affiliated with Encore.
@@ -60,7 +60,7 @@
           </article>
         </div>
         <div class="hero-actions">
-          <a class="button button--primary" href="../work-agent/">Open Work Agent — free</a>
+          <a class="button button--primary" href="../work-agent/" data-work-agent-cta="product">Open Work Agent — free</a>
         </div>
       </section>
 
@@ -85,7 +85,7 @@
           </article>
         </div>
         <div class="hero-actions">
-          <a class="button button--primary" href="https://buy.stripe.com/00w8wPeua4lR5gPcMAc7u0n">Buy once — instant access</a>
+          <a class="button button--primary" href="https://buy.stripe.com/00w8wPeua4lR5gPcMAc7u0n" data-starter-kit-cta="kit">Buy once — instant access</a>
         </div>
       </section>
 
@@ -108,6 +108,8 @@
       <a href="../index.html">Back to Portal</a>
     </footer>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script type="module" src="./experiment.js"></script>
   <script defer src="/issue-launcher.js"></script>
 </body>
 </html>
