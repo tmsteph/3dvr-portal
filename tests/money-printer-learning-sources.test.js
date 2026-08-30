@@ -3,7 +3,13 @@ import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { collectLearningEvidence, deriveEvidence, parseCsv, parseEmbeddedJson } from '../src/money-printer/learningSources.js';
+import {
+  classifyRevenueProvenance,
+  collectLearningEvidence,
+  deriveEvidence,
+  parseCsv,
+  parseEmbeddedJson
+} from '../src/money-printer/learningSources.js';
 
 test('parses JSON after npm and runtime chatter', () => {
   const parsed = parseEmbeddedJson('> npm run research\nhello\n{"runId":"market-pulse-1","signalsAnalyzed":4}\n');
@@ -34,7 +40,27 @@ test('derives measured signals and a guarded research experiment', () => {
   assert.match(evidence.research.fingerprint, /^fnv1a-/);
 });
 
+test('only explicit relationship metadata counts toward founder friend or stranger milestones', () => {
+  const evidence = deriveEvidence({
+    outcomes: [
+      { id: 'founder-1', relationship: 'founder', subscriptionStatus: 'active', revenue: '$1.00' },
+      { id: 'friend-1', customer_relationship: 'friend', subscriptionStatus: 'active', revenue: '$2.00' },
+      { id: 'stranger-1', revenue_provenance: 'stranger', subscriptionStatus: 'active', revenue: '$3.00' },
+      { id: 'unknown-1', source: 'reddit', subscriptionStatus: 'active', revenue: '$4.00' }
+    ]
+  });
 
+  assert.equal(classifyRevenueProvenance({ relationship: 'founder' }), 'founder');
+  assert.equal(classifyRevenueProvenance({ source: 'reddit' }), 'unattributed');
+  assert.equal(evidence.signals.founder_customers, 1);
+  assert.equal(evidence.signals.friend_customers, 1);
+  assert.equal(evidence.signals.stranger_customers, 1);
+  assert.equal(evidence.signals.founder_revenue_cents, 100);
+  assert.equal(evidence.signals.friend_revenue_cents, 200);
+  assert.equal(evidence.signals.stranger_revenue_cents, 300);
+  assert.equal(evidence.signals.revenue_cents, 1000);
+  assert.equal(evidence.sources.revenue.provenance_rows.unattributed, 1);
+});
 
 test('derives Stripe-attributed revenue without treating unrelated Stripe payments as offer evidence', () => {
   const evidence = deriveEvidence({
@@ -59,6 +85,7 @@ test('derives Stripe-attributed revenue without treating unrelated Stripe paymen
   assert.equal(evidence.signals.stripe_attributed_revenue_cents, 19800);
   assert.equal(evidence.signals.stripe_mrr_cents, 2500);
   assert.notEqual(evidence.signals.stripe_attributed_revenue_cents, 50000);
+  assert.equal(evidence.signals.stranger_revenue_cents, 0);
   assert.equal(evidence.sources.revenue.available, true);
   assert.match(evidence.sources.revenue.reason, /Stripe attributed revenue/);
 });
