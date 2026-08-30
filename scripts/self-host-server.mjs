@@ -3,18 +3,16 @@ import { access, readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import openAiSiteHandler from '../api/openai-site.js';
 import { runNativeApi } from './self-host-api-router.mjs';
+import workboardGithubHandler from '../src/workboard/github-feed.js';
+import { createOAuthProviderHandler } from '../src/oauth/provider-api.js';
 
 const PORT = Number(process.env.PORT || 4320);
 const HOST = process.env.HOST || '127.0.0.1';
 const ROOT = resolve(process.env.PORTAL_ROOT || process.cwd());
 const RELEASE_SHA = String(process.env.PORTAL_RELEASE_SHA || '').trim();
 const RELEASE_REF = String(process.env.PORTAL_RELEASE_REF || 'main').trim();
-const VERCEL_FALLBACK_ORIGIN = String(process.env.VERCEL_FALLBACK_ORIGIN || '').replace(/\/+$/, '');
-const HAS_LOCAL_AI_CREDENTIAL = Boolean(
-  String(process.env.OPENAI_API_KEY || '').trim()
-  || String(process.env.AI_GATEWAY_API_KEY || '').trim()
-  || String(process.env.VERCEL_OIDC_TOKEN || '').trim()
-);
+const LEGACY_API_ORIGIN = String(process.env.LEGACY_API_ORIGIN || '').replace(/\/+$/, '');
+const oauthProviderHandler = createOAuthProviderHandler();
 
 const MIME_TYPES = new Map([
   ['.html', 'text/html; charset=utf-8'],
@@ -51,11 +49,6 @@ function isPrivateStaticPath(pathname) {
 
 function applyBaseHeaders(res, pathname = '') {
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  if (pathname === '/cache-reset.html' || pathname === '/api/cache-reset') {
-    res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('Clear-Site-Data', '"cache"');
-    return;
-  }
   if (pathname.endsWith('service-worker.js') || pathname.endsWith('pwa-install.js')) {
     res.setHeader('Cache-Control', 'no-cache');
   } else if (/\.(png|jpg|jpeg|gif|svg|webp|woff2?)$/i.test(pathname)) {
@@ -147,11 +140,33 @@ async function runOpenAiSite(req, res, url) {
   }
 }
 
-async function proxyVercelFallback(req, res, url) {
-  if (!VERCEL_FALLBACK_ORIGIN) {
-    return json(res, 503, { error: 'No local AI credential or Vercel fallback is configured.' });
+async function runWorkboardGithub(req, res, url) {
+  try {
+    req.query = Object.fromEntries(url.searchParams.entries());
+    await workboardGithubHandler(req, adaptResponse(res));
+  } catch (error) {
+    if (!res.headersSent) json(res, error?.statusCode || 500, { error: error?.message || 'Workboard GitHub feed failed' });
+    else res.destroy(error);
   }
-  const target = new URL(url.pathname + url.search, `${VERCEL_FALLBACK_ORIGIN}/`);
+}
+
+async function runOAuthProvider(req, res, url) {
+  try {
+    if (req.method !== 'OPTIONS') await prepareApiRequest(req, url);
+    else { req.body = {}; req.query = Object.fromEntries(url.searchParams.entries()); }
+    const parts = url.pathname.split('/').filter(Boolean);
+    const provider = decodeURIComponent(parts[parts.length - 1] || '');
+    req.query = { ...(req.query || {}), provider };
+    await oauthProviderHandler(req, adaptResponse(res));
+  } catch (error) {
+    if (!res.headersSent) json(res, error?.statusCode || 500, { error: error?.message || 'OAuth request failed' });
+    else res.destroy(error);
+  }
+}
+
+async function proxyLegacyApi(req, res, url) {
+  if (!LEGACY_API_ORIGIN) return json(res, 404, { error: 'API route is not enabled on this self-host yet.' });
+  const target = new URL(url.pathname + url.search, `${LEGACY_API_ORIGIN}/`);
   const body = ['GET', 'HEAD'].includes(req.method || '') ? undefined : await readRequestBody(req);
   let upstream;
   try {
@@ -159,26 +174,25 @@ async function proxyVercelFallback(req, res, url) {
       method: req.method,
       headers: {
         'content-type': req.headers['content-type'] || 'application/json',
-        accept: req.headers.accept || '*/*'
+        'accept': req.headers.accept || '*/*'
       },
       body
     });
   } catch (error) {
-    return json(res, 502, { error: 'Vercel AI fallback unavailable', detail: error?.message || String(error) });
+    return json(res, 502, { error: 'Legacy API fallback unavailable', detail: error?.message || String(error) });
   }
   res.statusCode = upstream.status;
   for (const name of ['content-type', 'cache-control', 'location']) {
     const value = upstream.headers.get(name);
     if (value) res.setHeader(name, value);
   }
-  res.end(Buffer.from(await upstream.arrayBuffer()));
+  const buffer = Buffer.from(await upstream.arrayBuffer());
+  res.end(buffer);
 }
 
 function rewriteForHost(url, host) {
   const hostname = String(host || '').split(':')[0].toLowerCase();
   if (url.pathname === '/api/cache-reset') return '/cache-reset.html';
-  if (url.pathname === '/crm.webmanifest' && hostname === 'crm.3dvr.tech') return '/crm/root.webmanifest';
-  if (['/video', '/video/', '/video/index.html'].includes(url.pathname)) return '/portal.3dvr.tech/video/index.html';
   if (url.pathname === '/' && hostname === 'crm.3dvr.tech') return '/crm/index.html';
   if (url.pathname === '/' && hostname === 'purpose.3dvr.tech') return '/purpose/index.html';
   if (url.pathname === '/' && hostname === 'growth.3dvr.tech') return '/growth-desk/index.html';
@@ -194,24 +208,25 @@ const server = createServer(async (req, res) => {
   applyBaseHeaders(res, url.pathname);
 
   if (url.pathname === '/__3dvr-health') {
-    return json(res, 200, { ok: true, host: 'self', sha: RELEASE_SHA, ref: RELEASE_REF, operatorApi: HAS_LOCAL_AI_CREDENTIAL ? 'native' : (VERCEL_FALLBACK_ORIGIN ? 'vercel-ai' : 'unavailable'), apiFallback: HAS_LOCAL_AI_CREDENTIAL ? 'none' : (VERCEL_FALLBACK_ORIGIN ? 'vercel-ai' : 'unavailable') });
-  }
-
-  if (url.pathname === '/api/cache-reset') {
-    res.statusCode = 307;
-    res.setHeader('Location', '/cache-reset.html');
-    return res.end();
+    return json(res, 200, { ok: true, host: 'self', sha: RELEASE_SHA, ref: RELEASE_REF, operatorApi: 'native' });
   }
 
   if (url.pathname === '/api/openai-site') {
-    if (!HAS_LOCAL_AI_CREDENTIAL && VERCEL_FALLBACK_ORIGIN) return proxyVercelFallback(req, res, url);
     return runOpenAiSite(req, res, url);
+  }
+
+  if (url.pathname === '/api/workboard/github') {
+    return runWorkboardGithub(req, res, url);
+  }
+
+  if (url.pathname.startsWith('/api/oauth/')) {
+    return runOAuthProvider(req, res, url);
   }
 
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/webhooks/')) {
     const handled = await runNativeApi(req, res, url);
     if (handled) return;
-    return json(res, 404, { error: 'API route not found' });
+    return proxyLegacyApi(req, res, url);
   }
 
   if (!['GET', 'HEAD'].includes(req.method || '')) return json(res, 405, { error: 'Method Not Allowed' });
@@ -236,14 +251,7 @@ const server = createServer(async (req, res) => {
     const body = await readFile(found.path);
     res.statusCode = 200;
     res.setHeader('Content-Type', MIME_TYPES.get(extname(found.path).toLowerCase()) || 'application/octet-stream');
-    if (pathname.endsWith('service-worker.js')) {
-      const scope = pathname === '/contacts/service-worker.js'
-        ? '/contacts/'
-        : pathname === '/calendar/service-worker.js'
-          ? '/calendar/'
-          : '/';
-      res.setHeader('Service-Worker-Allowed', scope);
-    }
+    if (pathname.endsWith('service-worker.js')) res.setHeader('Service-Worker-Allowed', '/');
     res.end(req.method === 'HEAD' ? undefined : body);
   } catch (error) {
     json(res, 500, { error: error?.message || 'Failed to read file' });

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0d1117">
+  <title>Micro Support | 3DVR Portal</title>
+  <meta name="description" content="Support a person or small project with a tiny one-time payment.">
+  <link rel="canonical" href="https://portal.3dvr.tech/micro-support/">
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 50% -10%, rgba(34, 211, 238, 0.12), transparent 30rem),
+        radial-gradient(circle at 85% 28%, rgba(240, 202, 99, 0.08), transparent 24rem),
+        #0d1117;
+      color: #e6edf3;
+    }
+    a { color: inherit; }
+
+    .shell { width: min(100% - 32px, 760px); margin: 0 auto; padding: 20px 0 48px; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 56px; }
+    .brand { margin-right: auto; font-weight: 850; text-decoration: none; letter-spacing: -0.02em; }
+    .back { color: #9da7b3; text-decoration: none; font-size: 0.92rem; }
+    .back:hover, .back:focus-visible { color: #e6edf3; }
+
+    .eyebrow { margin: 0 0 10px; color: #79c0ff; font-size: 0.78rem; font-weight: 850; letter-spacing: 0.11em; text-transform: uppercase; }
+    h1 { margin: 0; max-width: 680px; font-size: clamp(2.55rem, 10vw, 5.25rem); line-height: 0.94; letter-spacing: -0.06em; }
+    .lede { margin: 22px 0 0; max-width: 620px; color: #aab4c0; font-size: clamp(1.05rem, 3.6vw, 1.25rem); line-height: 1.55; }
+
+    .tiers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 34px; }
+    .tier {
+      min-height: 230px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #30363d;
+      border-radius: 20px;
+      background: rgba(22, 27, 34, 0.84);
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+    }
+    .tier strong.price { display: block; font-size: 3rem; letter-spacing: -0.06em; }
+    .tier h2 { margin: 3px 0 8px; font-size: 1.3rem; }
+    .tier p { margin: 0 0 22px; color: #9da7b3; line-height: 1.48; }
+    .tier .button { margin-top: auto; }
+
+    .button {
+      min-height: 50px;
+      padding: 12px 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #58a6ff;
+      border-radius: 14px;
+      background: #1f6feb;
+      color: #fff;
+      font-weight: 850;
+      text-decoration: none;
+      transition: transform 150ms ease, background 150ms ease;
+    }
+    .button:hover, .button:focus-visible { background: #388bfd; transform: translateY(-1px); outline: none; }
+
+    .how { margin-top: 52px; padding-top: 34px; border-top: 1px solid #21262d; }
+    .how h2 { margin: 0 0 18px; font-size: 1.45rem; }
+    .steps { display: grid; gap: 10px; }
+    .step { padding: 15px 16px; border: 1px solid #21262d; border-radius: 14px; background: rgba(13, 17, 23, 0.65); color: #c9d1d9; line-height: 1.45; }
+    .step strong { color: #f0ca63; }
+
+    .pilot {
+      margin-top: 28px;
+      padding: 18px;
+      border: 1px solid rgba(240, 202, 99, 0.26);
+      border-radius: 16px;
+      background: rgba(240, 202, 99, 0.055);
+      color: #bdc7d2;
+      line-height: 1.52;
+    }
+    .pilot strong { color: #f0ca63; }
+    .fine { margin: 20px 2px 0; color: #7d8794; font-size: 0.82rem; line-height: 1.5; }
+    footer { margin-top: 48px; color: #6e7681; font-size: 0.82rem; }
+
+    @media (max-width: 620px) {
+      header { margin-bottom: 40px; }
+      .tiers { grid-template-columns: 1fr; }
+      .tier { min-height: 205px; }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <a class="brand" href="/">3DVR</a>
+      <a class="back" href="/">Portal</a>
+    </header>
+
+    <main>
+      <p class="eyebrow">Micro Support · Pilot</p>
+      <h1>A dollar can still mean: keep going.</h1>
+      <p class="lede">Tiny payments for family, friends, makers, and small projects. Pick an amount, then tell us who or what you want to support at checkout.</p>
+
+      <section class="tiers" aria-label="Support amounts">
+        <article class="tier">
+          <strong class="price">$1</strong>
+          <h2>Signal</h2>
+          <p>A tiny vote of confidence. Good for saying “I see this, and I want it to continue.”</p>
+          <a class="button" href="https://buy.stripe.com/aFa5kDadUdWrdNleUIc7u0l">Send $1 support</a>
+        </article>
+
+        <article class="tier">
+          <strong class="price">$5</strong>
+          <h2>Boost</h2>
+          <p>A small practical push toward materials, hosting, transport, learning, or the next experiment.</p>
+          <a class="button" href="https://buy.stripe.com/6oU6oH99Q3hN38H5k8c7u0m">Send $5 support</a>
+        </article>
+      </section>
+
+      <section class="how" aria-labelledby="how-title">
+        <h2 id="how-title">How the pilot works</h2>
+        <div class="steps">
+          <div class="step"><strong>1.</strong> Choose $1 or $5.</div>
+          <div class="step"><strong>2.</strong> Stripe asks who or what you are supporting.</div>
+          <div class="step"><strong>3.</strong> 3DVR.Tech records the intent and allocates the support to that person or project.</div>
+        </div>
+      </section>
+
+      <aside class="pilot">
+        <strong>This is support, not an investment product.</strong><br>
+        The pilot does not offer equity, interest, repayment, profit-sharing, or a financial return. Payments are currently collected through the 3DVR.Tech Stripe account and manually allocated. They are not presented as tax-deductible charitable donations.
+      </aside>
+      <p class="fine">Future versions can add personal project pages, visible goals, recurring support, direct recipient payouts, and—only where appropriate—separately structured investment or lending tools.</p>
+    </main>
+
+    <footer>People funding people · one small signal at a time.</footer>
+  </div>
+</body>
+</html>

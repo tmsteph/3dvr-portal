@@ -25,7 +25,7 @@ describe('contacts PWA configuration', () => {
     assert.equal(rootManifest.id, '/');
     assert.equal(contactsManifest.id, '/contacts/');
     assert.notEqual(rootManifest.id, contactsManifest.id);
-    assert.ok(rootManifest.icons.some((icon) => icon.src === '/brand/portal-logo.svg'));
+    assert.ok(rootManifest.icons.some((icon) => icon.src === '/brand/portal-mark.svg'));
   });
 
   it('uses a contacts-scoped webmanifest identity', async () => {

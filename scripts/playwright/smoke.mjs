@@ -87,6 +87,8 @@ try {
   assert(response && response.ok(), `Expected ${baseUrl} to return 2xx/3xx`);
 
   await page.waitForSelector('#home-title', { timeout: 10000 });
+  await page.waitForLoadState('networkidle');
+  await page.waitForFunction(() => document.title === '3DVR Portal', null, { timeout: 10000 });
   const pageTitle = await page.title();
   const heading = (await page.locator('#home-title').innerText()).trim();
   const operatorLink = page.locator('.operator-link');
@@ -95,7 +97,7 @@ try {
   assert.equal(pageTitle, '3DVR Portal');
   assert.equal(heading, 'What do you want to do?');
   assert.equal(await operatorLink.count(), 1);
-  assert.equal(await coreActions.count(), 4);
+  assert.equal(await coreActions.count(), 5);
 
   console.log(`Playwright smoke check passed in ${browserTarget.displayName} at ${baseUrl}`);
 } finally {

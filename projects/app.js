@@ -1,5 +1,8 @@
 const PROJECT_LAUNCHPAD_ROOT = 'projectLaunchpad';
 const LOCAL_KEY = '3dvr-project-launchpad';
+const LAUNCH_ROOM_PREFILL_KEY = '3dvr.launch-room.project-prefill.v1';
+const WEB_BUILDER_PREFILL_KEY = 'web-builder-prefill-request';
+const GROWTH_OPERATOR_PROJECT_BRIEF_KEY = '3dvr.growthOperator.project-lead-brief.v1';
 
 const seedProjects = [
   {
@@ -166,6 +169,34 @@ function normalizeNode(node) {
   };
 }
 
+function applyLaunchRoomPrefill() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('from') !== 'launch-room') return;
+
+  try {
+    const raw = window.sessionStorage.getItem(LAUNCH_ROOM_PREFILL_KEY);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+
+    els.name.value = clean(draft.name);
+    els.stage.value = clean(draft.stage) || 'seed';
+    els.slug.value = clean(draft.slug) || slugify(draft.name);
+    els.category.value = clean(draft.category) || 'movement / project';
+    els.mission.value = clean(draft.mission);
+    els.needs.value = Array.isArray(draft.needs) ? draft.needs.map(clean).filter(Boolean).join('\n') : clean(draft.needs);
+    els.offers.value = Array.isArray(draft.offers) ? draft.offers.map(clean).filter(Boolean).join('\n') : clean(draft.offers);
+    els.contact.value = clean(draft.contact);
+    els.support.value = clean(draft.support);
+
+    window.sessionStorage.removeItem(LAUNCH_ROOM_PREFILL_KEY);
+    els.status.textContent = 'Project draft prefilled from Launch Room. Review it, then save when ready.';
+    els.form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    els.name.focus({ preventScroll: true });
+  } catch (_error) {
+    els.status.textContent = 'Launch Room project draft could not be loaded. Nothing was saved.';
+  }
+}
+
 function saveLocalBackup() {
   try {
     const payload = {
@@ -319,6 +350,18 @@ function renderProjects() {
       actions.append(support);
     }
 
+    const buildPage = document.createElement('button');
+    buildPage.type = 'button';
+    buildPage.dataset.buildPage = project.slug;
+    buildPage.textContent = 'Build page';
+    actions.append(buildPage);
+
+    const findPeople = document.createElement('button');
+    findPeople.type = 'button';
+    findPeople.dataset.findPeople = project.slug;
+    findPeople.textContent = 'Find people';
+    actions.append(findPeople);
+
     const follow = document.createElement('button');
     follow.type = 'button';
     follow.dataset.follow = project.slug;
@@ -394,6 +437,64 @@ function followProject(slug) {
   els.status.textContent = 'Follow saved.';
 }
 
+function buildProjectPage(slug) {
+  const project = state.nodes.get(slug);
+  if (!project) return;
+
+  const firstOffer = project.offers[0] || '';
+  const request = [
+    `Create a simple launch page for ${project.name}.`,
+    project.mission ? `Mission: ${project.mission}` : '',
+    firstOffer ? `First offer or invitation: ${firstOffer}` : '',
+    project.needs.length ? `Current needs: ${project.needs.join('; ')}.` : '',
+    'Keep the page focused on one clear next step and make it work well on mobile.'
+  ].filter(Boolean).join(' ');
+
+  const prefill = {
+    request,
+    siteTitle: project.name,
+    siteGoal: firstOffer
+      ? `Help visitors understand the project and take this first step: ${firstOffer}`
+      : 'Explain the project clearly and give visitors one useful next step.',
+    audience: project.category && project.category !== 'project'
+      ? `People interested in ${project.category}.`
+      : 'People this project is meant to help.',
+    projectSlug: project.slug,
+    projectName: project.name
+  };
+
+  try {
+    window.sessionStorage.setItem(WEB_BUILDER_PREFILL_KEY, JSON.stringify(prefill));
+    els.status.textContent = 'Page draft prepared. Opening Web Builder for review…';
+    window.location.href = '../web-builder-app/';
+  } catch (_error) {
+    els.status.textContent = 'Could not prepare the Web Builder draft in this browser.';
+  }
+}
+
+function findProjectPeople(slug) {
+  const project = state.nodes.get(slug);
+  if (!project) return;
+
+  const brief = {
+    projectName: project.name,
+    projectSlug: project.slug,
+    mission: project.mission,
+    category: project.category,
+    offer: project.offers[0] || '',
+    needs: project.needs,
+    support: project.support || ''
+  };
+
+  try {
+    window.sessionStorage.setItem(GROWTH_OPERATOR_PROJECT_BRIEF_KEY, JSON.stringify(brief));
+    els.status.textContent = 'People brief prepared. Opening Growth Operator for review…';
+    window.location.href = '../growth-operator/?from=project';
+  } catch (_error) {
+    els.status.textContent = 'Could not prepare the Growth Operator brief in this browser.';
+  }
+}
+
 function bindFilters() {
   els.filters.forEach(button => {
     button.addEventListener('click', () => {
@@ -430,9 +531,21 @@ function bindGun() {
 els.form.addEventListener('submit', saveNode);
 els.updateForm.addEventListener('submit', saveUpdate);
 els.list.addEventListener('click', event => {
-  const button = event.target.closest('[data-follow]');
-  if (!button) return;
-  followProject(button.dataset.follow);
+  const buildPageButton = event.target.closest('[data-build-page]');
+  if (buildPageButton) {
+    buildProjectPage(buildPageButton.dataset.buildPage);
+    return;
+  }
+
+  const findPeopleButton = event.target.closest('[data-find-people]');
+  if (findPeopleButton) {
+    findProjectPeople(findPeopleButton.dataset.findPeople);
+    return;
+  }
+
+  const followButton = event.target.closest('[data-follow]');
+  if (!followButton) return;
+  followProject(followButton.dataset.follow);
 });
 
 loadSeeds();
@@ -440,3 +553,4 @@ loadLocalBackup();
 bindFilters();
 renderProjects();
 bindGun();
+applyLaunchRoomPrefill();

@@ -1,0 +1,130 @@
+name: Calendar Production
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'calendar/**'
+      - '.github/workflows/calendar-production.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: calendar-production
+  cancel-in-progress: true
+
+env:
+  DEV_HOST: 167.71.156.94
+  SSH_USER: root
+  VERCEL_SCOPE: 3dvr
+  VERCEL_PROJECT: 3dvr-calendar
+  LEGACY_VERCEL_SCOPE: tmstephs-projects
+  LEGACY_VERCEL_PROJECT: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch
+  CALENDAR_DOMAIN: calendar.3dvr.tech
+
+jobs:
+  deploy:
+    name: Deploy standalone calendar
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Resolve server SSH key
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          key=''
+          for candidate in "$SSH_A" "$SSH_B" "$SSH_C"; do
+            if [ -z "$key" ] && [ -n "$candidate" ]; then key="$candidate"; fi
+          done
+          [ -n "$key" ] || { echo '::error::No 3DVR SSH key configured.'; exit 1; }
+          umask 077
+          printf '%s\n' "$key" > /tmp/key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/key.raw; then
+            cp /tmp/key.raw /tmp/key
+          else
+            base64 -d /tmp/key.raw > /tmp/key
+          fi
+          chmod 600 /tmp/key
+
+      - name: Deploy Calendar from 3DVR dev host
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i /tmp/key \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=accept-new \
+            "$SSH_USER@$DEV_HOST" \
+            "VERCEL_SCOPE='$VERCEL_SCOPE' VERCEL_PROJECT='$VERCEL_PROJECT' LEGACY_VERCEL_SCOPE='$LEGACY_VERCEL_SCOPE' LEGACY_VERCEL_PROJECT='$LEGACY_VERCEL_PROJECT' CALENDAR_DOMAIN='$CALENDAR_DOMAIN' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cli=(npx --yes vercel@latest)
+          "${cli[@]}" whoami
+
+          repo="$HOME/.3dvr/calendar-deploy"
+          mkdir -p "$HOME/.3dvr"
+          if [ ! -d "$repo/.git" ]; then
+            git clone https://github.com/tmsteph/3dvr-portal.git "$repo"
+          fi
+          git -C "$repo" reset --hard
+          git -C "$repo" clean -fd
+          git -C "$repo" fetch --prune origin main
+          git -C "$repo" checkout -B main origin/main
+          git -C "$repo" reset --hard origin/main
+          git -C "$repo" clean -fd
+
+          "${cli[@]}" domains inspect 3dvr.tech --scope "$VERCEL_SCOPE" >/dev/null
+
+          legacy_endpoint="/v9/projects/$LEGACY_VERCEL_PROJECT/domains/$CALENDAR_DOMAIN"
+          if "${cli[@]}" api "$legacy_endpoint" --scope "$LEGACY_VERCEL_SCOPE" >/dev/null 2>&1; then
+            echo "Detaching $CALENDAR_DOMAIN from the legacy Portal project..."
+            "${cli[@]}" api "$legacy_endpoint" -X DELETE --scope "$LEGACY_VERCEL_SCOPE" --dangerously-skip-permissions >/dev/null
+          fi
+
+          if ! "${cli[@]}" project inspect "$VERCEL_PROJECT" --scope "$VERCEL_SCOPE" >/dev/null 2>&1; then
+            "${cli[@]}" project add "$VERCEL_PROJECT" --scope "$VERCEL_SCOPE"
+          fi
+
+          cd "$repo/calendar"
+          rm -rf .vercel
+          "${cli[@]}" link --yes \
+            --project "$VERCEL_PROJECT" \
+            --scope "$VERCEL_SCOPE"
+          "${cli[@]}" domains add "$CALENDAR_DOMAIN" "$VERCEL_PROJECT" \
+            --scope "$VERCEL_SCOPE" \
+            --force
+
+          deploy_url="$("${cli[@]}" deploy --prod --yes --force \
+            --scope "$VERCEL_SCOPE")"
+          echo "Calendar deployment: $deploy_url"
+          "${cli[@]}" alias set "$deploy_url" "$CALENDAR_DOMAIN" \
+            --scope "$VERCEL_SCOPE"
+
+          # Raw Vercel deployment URLs can be protected while the public custom
+          # domain remains healthy. Validate the public production alias instead.
+          curl --fail --silent --show-error --location \
+            --retry 18 --retry-delay 5 --retry-all-errors \
+            "https://$CALENDAR_DOMAIN/" -o /tmp/calendar-live.html
+          grep -q 'data-calendar-view-title' /tmp/calendar-live.html
+          grep -q '3DVR Portal – Calendar' /tmp/calendar-live.html
+          ! grep -q '<title>3DVR Portal</title>' /tmp/calendar-live.html
+
+          # The standalone deployment has its own root, so every root-relative
+          # asset referenced by calendar/index.html must ship with calendar/.
+          curl --fail --silent --show-error --location \
+            --retry 6 --retry-delay 2 --retry-all-errors \
+            "https://$CALENDAR_DOMAIN/issue-launcher.js" -o /tmp/calendar-issue-launcher.js
+          grep -q 'calendarIssueLauncherSource' /tmp/calendar-issue-launcher.js
+          grep -q 'portal.3dvr.tech/issue-launcher.js' /tmp/calendar-issue-launcher.js
+
+          echo "Calendar is live at https://$CALENDAR_DOMAIN/"
+          REMOTE
+
+      - name: Cleanup
+        if: always()
+        run: rm -f /tmp/key /tmp/key.raw

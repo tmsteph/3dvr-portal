@@ -34,38 +34,53 @@ test('relay timeout never auto-saves empty startup state', async () => {
   assert.doesNotMatch(timeoutBlock, /\bsave\s*\(/, 'timeout must not overwrite unknown remote state');
 });
 
-test('production uses main-only native Vercel Git with a non-main safety net', async () => {
+test('production keeps Vercel main closed plus opt-in preview bridges with a default deny rule', async () => {
   const workflow = await read('.github/workflows/vercel-production-prebuilt.yml');
   const vercelConfig = JSON.parse(await read('vercel.json'));
 
-  assert.equal(vercelConfig.git?.deploymentEnabled?.main, true);
-  assert.equal(vercelConfig.git?.deploymentEnabled?.['*'], false);
-  assert.equal(vercelConfig.ignoreCommand, '[ "$VERCEL_GIT_COMMIT_REF" != "main" ]');
+  assert.equal(vercelConfig.git?.deploymentEnabled?.main, false);
+  assert.equal(vercelConfig.git?.deploymentEnabled?.['preview-pr-*'], true);
+  assert.equal(vercelConfig.git?.deploymentEnabled?.['**'], false);
+  assert.equal(vercelConfig.ignoreCommand, undefined);
   assert.match(workflow, /workflow_dispatch:/);
   assert.doesNotMatch(workflow, /^\s*push:/m);
   assert.doesNotMatch(workflow, /^\s*pull_request:/m);
-  assert.match(workflow, /VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z/);
-  assert.match(workflow, /VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch/);
+  assert.match(workflow, /VERCEL_ORG_ID: team_KXuVUd00RMnDsjoqwdREcZ7J/);
+  assert.match(workflow, /VERCEL_PROJECT_ID: prj_V49UqQXH0kmkYcL0NZFBkklzsbuy/);
+  assert.match(workflow, /Enforce Vercel Hobby function budget/);
+  assert.match(workflow, /Detect direct Vercel credentials/);
+  assert.match(workflow, /skipping the optional Vercel fallback deployment/);
   assert.match(workflow, /vercel deploy --prebuilt --prod/);
   assert.match(workflow, /https:\/\/portal\.3dvr\.tech\//);
   assert.doesNotMatch(workflow, /German worker/i);
 });
 
-test('preview workflow is opt-in and targets the portal Vercel project', async () => {
+test('preview workflow is opt-in, token-free, and cleans up its bridge branch', async () => {
   const workflow = await read('.github/workflows/vercel-dev-preview.yml');
 
-  assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /pull_request:/);
   assert.match(workflow, /- labeled/);
+  assert.match(workflow, /- unlabeled/);
+  assert.match(workflow, /- synchronize/);
+  assert.match(workflow, /- reopened/);
+  assert.match(workflow, /- closed/);
   assert.match(workflow, /vercel-preview/);
+  assert.match(workflow, /preview-pr-\$\{\{ github\.event\.pull_request\.number \}\}/);
+  assert.match(workflow, /git push --force origin/);
+  assert.match(workflow, /git push origin --delete/);
+  assert.match(workflow, /head\.repo\.full_name == github\.repository/);
+  assert.match(workflow, /3dvr-portal-git-preview-pr-/);
+  assert.match(workflow, /contents: write/);
   assert.doesNotMatch(workflow, /^\s*push:/m);
-  assert.match(workflow, /VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z/);
-  assert.match(workflow, /VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch/);
+  assert.doesNotMatch(workflow, /secrets\.VERCEL_TOKEN/);
+  assert.doesNotMatch(workflow, /VERCEL_PROJECT_ID/);
+  assert.doesNotMatch(workflow, /VERCEL_ORG_ID/);
+  assert.doesNotMatch(workflow, /workflow_dispatch:/);
 });
 
 test('workspace and Codex Cloud link to each other', async () => {
   const workspace = await read('workspace/index.html');
-  const codexCloud = await read('codex-cloud/index.html');
+  const codexCloud = await read('codex-cloud/index.html', 'utf8');
 
   assert.match(workspace, /href="\.\.\/codex-cloud\/"/);
   assert.match(codexCloud, /href="\/workspace\/"/);

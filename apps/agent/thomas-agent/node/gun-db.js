@@ -1,6 +1,6 @@
 const Gun = require('gun');
 
-const RELAY = process.env.THREEDVR_GUN_RELAY || 'wss://gun-relay-3dvr.fly.dev/gun';
+const RELAY = process.env.THREEDVR_GUN_RELAY || 'https://gun-relay-3dvr.fly.dev/gun';
 const APP_ROOT = process.env.THREEDVR_GUN_ROOT || '3dvr';
 const CRM_ROOT = process.env.THREEDVR_GUN_CRM || 'crm';
 const LEADS_ROOT = process.env.THREEDVR_GUN_LEADS || 'leads';
@@ -38,6 +38,10 @@ function autopilotStateNode() {
   return gun.get(APP_ROOT).get(OPS_ROOT).get(AUTOPILOT_ROOT).get('state');
 }
 
+function websiteUpgradeFulfillmentNode() {
+  return gun.get(APP_ROOT).get(OPS_ROOT).get(AUTOPILOT_ROOT).get('website-upgrade-fulfillment');
+}
+
 function portalAgentOpsNode() {
   return gun.get(PORTAL_ROOT).get('agentOps');
 }
@@ -64,6 +68,7 @@ module.exports = {
   outreachArtifactsNode,
   autopilotRunsNode,
   autopilotStateNode,
+  websiteUpgradeFulfillmentNode,
   portalAgentOpsNode,
   portalCrmNode,
   portalCrmTouchLogNode,

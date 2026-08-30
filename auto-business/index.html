@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Auto Business | 3DVR Portal</title>
+  <meta name="description" content="3DVR Auto Business turns market demand into small experiments, paid offers, fulfillment plans, and kill-or-scale decisions.">
+  <link rel="stylesheet" href="../styles/global.css">
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+
+  <header class="site-nav">
+    <a class="brand" href="../">3DVR</a>
+    <nav aria-label="Auto Business navigation">
+      <a href="../money-printer/">Money Printer</a>
+      <a href="../sales/">Sales</a>
+      <a href="../business-sites/">Business Sites</a>
+      <a href="https://github.com/tmsteph/3dvr-portal/issues/1955">Build log</a>
+    </nav>
+  </header>
+
+  <main id="mainContent">
+    <section class="hero">
+      <p class="eyebrow">3DVR Auto Business</p>
+      <h1>Find demand. Sell the result. Assemble fulfillment.</h1>
+      <p class="lede">A small autonomous company loop: observe what people already pay for, launch the smallest credible offer, collect payment, route the work, measure margin, then kill or scale.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="#radar">Open demand radar</a>
+        <a class="button" href="../money-printer/">Open Money Printer</a>
+      </div>
+      <div class="rule-strip" aria-label="Operating loop">
+        <span>Demand</span><span>→</span><span>Offer</span><span>→</span><span>Sale</span><span>→</span><span>Fulfillment</span><span>→</span><span>Measure</span><span>→</span><span>Kill / scale</span>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="liveOffersTitle">
+      <div class="section-heading">
+        <p class="eyebrow">Already sellable</p>
+        <h2 id="liveOffersTitle">Live front doors</h2>
+        <p>We do not need another month of planning before asking for money.</p>
+      </div>
+      <div class="card-grid offers-grid">
+        <article class="card offer-card">
+          <div class="card-topline"><span class="status live">LIVE</span><strong>$99</strong></div>
+          <h3>Website Upgrade</h3>
+          <p>Upgrade a simple/free business site into a focused one-page sales path.</p>
+          <div class="card-actions">
+            <a class="button primary" href="https://buy.stripe.com/aFa6oH85M4lRfVtcMAc7u0j">Checkout</a>
+            <a class="text-link" href="../business-sites/">Offer page</a>
+          </div>
+          <p class="metric-note">Purpose: low-friction first purchase and warm lead creation.</p>
+        </article>
+
+        <article class="card offer-card">
+          <div class="card-topline"><span class="status live">LIVE</span><strong>$299</strong></div>
+          <h3>Automation Quick Win</h3>
+          <p>Automate one painful workflow: lead capture, follow-up, booking, payments, CRM handoff, or inbox triage.</p>
+          <div class="card-actions">
+            <a class="button primary" href="https://buy.stripe.com/8x24gzeua19F8t18wkc7u0k">Checkout</a>
+          </div>
+          <p class="metric-note">Purpose: prove automation demand, then upsell deeper implementation.</p>
+        </article>
+
+        <article class="card offer-card ladder-card">
+          <div class="card-topline"><span class="status watch">NEXT</span><strong>$1k+</strong></div>
+          <h3>Implementation + Support</h3>
+          <p>Only after a small paid win: expand the workflow, connect more tools, train the customer, and maintain it.</p>
+          <p class="metric-note">Rule: custom work grows from paid evidence, not speculative scope.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="radar" class="section radar-section" aria-labelledby="radarTitle">
+      <div class="section-heading row-heading">
+        <div>
+          <p class="eyebrow">Server-fed</p>
+          <h2 id="radarTitle">Demand Radar</h2>
+          <p>The existing Market Pulse scans public demand signals and writes its latest ranked opportunity to GUN.</p>
+        </div>
+        <button id="refreshRadar" class="button" type="button">Refresh radar</button>
+      </div>
+
+      <div id="radarStatus" class="radar-status" aria-live="polite">Connecting to the latest Market Pulse…</div>
+      <div class="radar-metrics" aria-label="Demand radar summary">
+        <article><span>Market fit</span><strong id="marketFit">—</strong><small id="marketVerdict">waiting</small></article>
+        <article><span>Signals</span><strong id="signalCount">—</strong><small>public signals analyzed</small></article>
+        <article><span>Last scan</span><strong id="lastScan">—</strong><small id="scanAge">server record</small></article>
+        <article><span>Approvals</span><strong id="approvalCount">—</strong><small>human gates remaining</small></article>
+      </div>
+
+      <div class="radar-layout">
+        <article class="card top-opportunity">
+          <p class="card-label">Highest ranked opportunity</p>
+          <h3 id="topOpportunityTitle">Waiting for Market Pulse</h3>
+          <p id="topOpportunityProblem">The live runner will place its strongest current demand pattern here.</p>
+          <div class="score-line"><span>Opportunity score</span><strong id="topOpportunityScore">—</strong></div>
+          <p class="next-action" id="marketNextAction">Refresh to read the latest server result.</p>
+        </article>
+
+        <article class="card">
+          <p class="card-label">Evidence channels</p>
+          <div id="channelList" class="compact-list"><p>Waiting for live data…</p></div>
+        </article>
+      </div>
+
+      <div class="radar-layout">
+        <article class="card">
+          <p class="card-label">Ranked opportunities</p>
+          <div id="opportunityList" class="compact-list"><p>Waiting for live data…</p></div>
+        </article>
+        <article class="card">
+          <p class="card-label">Warnings / missing signals</p>
+          <div id="warningList" class="compact-list"><p>No warnings loaded yet.</p></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="fulfillmentTitle">
+      <div class="section-heading">
+        <p class="eyebrow">Fulfillment mesh</p>
+        <h2 id="fulfillmentTitle">Sell first. Route the work second.</h2>
+        <p>The business should choose the cheapest trustworthy fulfillment path for each task instead of assuming 3DVR must do everything.</p>
+      </div>
+      <div class="flow-grid">
+        <article class="flow-card"><span>01</span><h3>Agents first</h3><p>Research, drafts, coding, QA, documentation, CRM updates, and repeatable admin.</p></article>
+        <article class="flow-card"><span>02</span><h3>Digital contractors</h3><p>Use legitimate freelancer marketplaces for discrete design, research, data cleanup, and specialist tasks when humans beat agents.</p></article>
+        <article class="flow-card"><span>03</span><h3>Local fulfillment</h3><p>For physical jobs, use approved marketplace or business-partner channels. Do not poach workers off platforms that prohibit it.</p></article>
+        <article class="flow-card"><span>04</span><h3>Founder escalation</h3><p>Negotiation, unusual commitments, large spend, sensitive relationships, legal questions, and anything hard to reverse.</p></article>
+      </div>
+    </section>
+
+    <section class="section lessons" aria-labelledby="lessonsTitle">
+      <div class="section-heading">
+        <p class="eyebrow">Learn from the frontier</p>
+        <h2 id="lessonsTitle">What other autonomous businesses taught us</h2>
+        <p>Steal the mechanisms that survived contact with reality.</p>
+      </div>
+      <div class="lesson-grid">
+        <article class="card lesson-card">
+          <div class="card-topline"><span class="status learn">ANTHROPIC + ANDON</span><span>Project Vend</span></div>
+          <h3>Persistent state + real tools + human hands</h3>
+          <p>An AI shopkeeper got search, email-like tools, long-lived notes, customer interaction, pricing control, and human physical labor. The first version lost money; later versions improved.</p>
+          <strong>3DVR lesson:</strong>
+          <p>Agents need durable memory, cash constraints, explicit tools, and a clean escalation path to humans.</p>
+          <a class="text-link" href="https://www.anthropic.com/research/project-vend-1">Read Project Vend</a>
+        </article>
+
+        <article class="card lesson-card">
+          <div class="card-topline"><span class="status learn">AGENT.CEO</span><span>GenBrain</span></div>
+          <h3>Agents need jobs, inboxes, queues, and peers</h3>
+          <p>Their public experiment assigns persistent roles and has agents coordinate through task queues and messaging rather than treating every run like a blank chat.</p>
+          <strong>3DVR lesson:</strong>
+          <p>Give Sales, Research, Fulfillment, Finance, and QA explicit ownership — and let them hand work to one another.</p>
+          <a class="text-link" href="https://agent.ceo/blog/introducing-agent-ceo">Read their architecture</a>
+        </article>
+
+        <article class="card lesson-card">
+          <div class="card-topline"><span class="status learn">THICKET</span><span>100-day audit</span></div>
+          <h3>Output is not revenue</h3>
+          <p>Thicket publicly reported 28 sites, 1,795 commits, 437 agent issues — and $0 revenue at its July audit snapshot. It added explicit falsification targets.</p>
+          <strong>3DVR lesson:</strong>
+          <p>Every experiment needs a pre-written kill condition. Commits, pages, and posts are costs until buyers respond.</p>
+          <a class="text-link" href="https://thicket.sh/report">Read the audit</a>
+        </article>
+
+        <article class="card lesson-card">
+          <div class="card-topline"><span class="status learn">COFOUNDERGPT</span><span>operator experiment</span></div>
+          <h3>Source of truth before autonomy</h3>
+          <p>The public write-up emphasizes context, tools, a shared source of truth, and verification gates as the difference between useful operators and confident chaos.</p>
+          <strong>3DVR lesson:</strong>
+          <p>Portal state and audit logs should be the company memory. Agents should read before they act and verify before they publish.</p>
+          <a class="text-link" href="https://cofoundergpt.ai/blog/autonomous-ai-agents-in-a-real-startup/">Read the write-up</a>
+        </article>
+      </div>
+    </section>
+
+    <section class="section scoreboard" aria-labelledby="scoreboardTitle">
+      <div class="section-heading">
+        <p class="eyebrow">Ruthless rules</p>
+        <h2 id="scoreboardTitle">The scoreboard decides, not our attachment.</h2>
+      </div>
+      <div class="scoreboard-grid">
+        <article><strong>Evidence</strong><p>Repeated buyer pain, searches, posts, job listings, replies, or warm conversations.</p></article>
+        <article><strong>Revenue</strong><p>Paid checkouts beat likes. Deposits beat “sounds cool.”</p></article>
+        <article><strong>Margin</strong><p>Track price minus contractor cost, API spend, refunds, and founder time.</p></article>
+        <article><strong>Speed</strong><p>Prefer things we can sell today and fulfill in hours or days.</p></article>
+        <article><strong>Kill condition</strong><p>Decide what failure looks like before the experiment starts.</p></article>
+        <article><strong>Scale condition</strong><p>Repeated paid demand + repeatable fulfillment + healthy margin earns more automation and distribution.</p></article>
+      </div>
+    </section>
+
+    <section class="section principle">
+      <p class="eyebrow">Operating principle</p>
+      <blockquote>Autonomy is earned by boring reliability.</blockquote>
+      <p>Anything cheap, reversible, observable, and well-tested can gradually become automatic. Money movement, public promises, sensitive messages, hiring commitments, and high-impact changes keep stronger gates.</p>
+    </section>
+  </main>
+
+  <footer>
+    <span>3DVR Auto Business</span>
+    <a href="../">Back to Portal</a>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script type="module" src="./app.js"></script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>

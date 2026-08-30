@@ -2,6 +2,26 @@
 
 A worker-owned freelance booking agent for AV technicians and stagehands.
 
+## First market: AV contacts
+
+The first vertical is intentionally narrow: live-event AV workers and the people who book them. Contacts is the canonical network; Work Agent is the operator that acts on those records.
+
+Use `industry/av` as the durable vertical tag. More specific tags can describe the relationship without creating separate databases:
+
+```text
+industry/av
+av/network
+av/type/production-company
+av/type/labor-coordinator
+av/type/pm-td
+av/type/crew-chief
+av/type/technician
+av/type/venue
+source/work-agent
+```
+
+The initial network should favor high-leverage contacts who can directly create or fill calls: labor coordinators, production-company schedulers, PMs/TDs, crew chiefs, and trusted technicians. Generic CRM expansion comes after this AV loop produces repeat work.
+
 ## First useful loop
 
 1. Worker signs in and connects their own email.

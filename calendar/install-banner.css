@@ -1,14 +1,12 @@
 .install-banner {
-  display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 0 auto 16px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: var(--bg-panel, rgba(255, 255, 255, 0.92));
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted, #9aa7b5);
+  display: flex;
+  gap: 10px;
+  margin: 24px auto 8px;
   max-width: 1100px;
+  padding: 10px 4px 2px;
 }
 
 .install-banner[hidden],
@@ -17,45 +15,59 @@
 }
 
 .install-banner__text {
-  display: grid;
-  gap: 4px;
-  line-height: 1.4;
-  color: var(--text-primary, #0f172a);
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  line-height: 1.3;
+}
+
+.install-banner__title,
+.install-banner__meta {
+  margin: 0;
 }
 
 .install-banner__title {
-  margin: 0;
-  font-size: 1rem;
+  color: var(--text-primary, #d7e0e8);
+  font-size: 0.8rem;
   font-weight: 600;
 }
 
 .install-banner__meta {
-  margin: 0;
-  color: var(--text-muted, #4b5563);
-  font-size: 0.93rem;
+  color: var(--text-muted, #7f8b98);
+  font-size: 0.75rem;
 }
 
 .install-banner__action {
-  margin-left: auto;
-  padding: 10px 16px;
-  border-radius: 999px;
-  border: 1px solid var(--accent, #2563eb);
-  background: var(--accent, #2563eb);
-  color: #fff;
-  font-weight: 600;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  color: var(--text-primary, #d7e0e8);
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: auto;
+  padding: 5px 9px;
 }
 
 .install-banner__action:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.24);
 }
 
 .install-banner__action:disabled {
-  opacity: 0.6;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
+  opacity: 0.5;
+}
+
+@media (max-width: 760px) {
+  .install-banner {
+    margin: 18px 12px 8px;
+    padding-top: 8px;
+  }
+
+  .install-banner__meta {
+    display: none;
+  }
 }

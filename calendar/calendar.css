@@ -127,11 +127,13 @@ body {
 }
 
 .panel--primary {
+  min-width: 0;
   padding: 30px;
 }
 
 .calendar-rail {
   display: grid;
+  min-width: 0;
   gap: 18px;
   position: sticky;
   top: 24px;
@@ -139,6 +141,7 @@ body {
 
 .panel {
   background: var(--calendar-surface);
+  min-width: 0;
   border: 1px solid rgba(132, 156, 188, 0.18);
   border-radius: var(--calendar-radius);
   box-shadow: var(--calendar-shadow);
@@ -201,6 +204,7 @@ body {
 
 .calendar-workspace {
   display: grid;
+  min-width: 0;
   gap: 22px;
   grid-template-columns: minmax(0, 1.45fr) minmax(300px, 360px);
   align-items: start;
@@ -262,6 +266,7 @@ body {
 }
 
 .connection-card {
+  min-width: 0;
   background: var(--calendar-surface-soft);
   border: 1px solid rgba(132, 156, 188, 0.18);
   border-radius: calc(var(--calendar-radius) - 6px);
@@ -483,6 +488,7 @@ button:focus-visible {
   flex-direction: column;
   gap: 16px;
   min-height: 100%;
+  min-width: 0;
   padding: 26px;
   scroll-margin-top: 20px;
 }
@@ -520,6 +526,8 @@ button:focus-visible {
 
 
 .calendar-view__grid {
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
   padding-bottom: 8px;
   -webkit-overflow-scrolling: touch;
@@ -562,7 +570,7 @@ button:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  height: 124px;
+  height: 148px;
   padding: 12px;
   position: relative;
   transition: box-shadow 0.2s ease, transform 0.2s ease;
@@ -588,6 +596,13 @@ button:focus-visible {
   box-shadow: 0 0 0 2px rgba(67, 109, 147, 0.28);
 }
 
+.calendar-view__day--today .calendar-view__date {
+  align-self: flex-start;
+  background: rgba(156, 192, 224, 0.24);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+
 .calendar-view__day--selected {
   border-color: var(--calendar-primary-dark);
   box-shadow: 0 0 0 2px rgba(67, 109, 147, 0.36);
@@ -611,32 +626,42 @@ button:focus-visible {
   list-style: none;
   margin: 0;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 0;
 }
 
 .calendar-view__event {
+  align-items: flex-start;
   background: rgba(67, 109, 147, 0.2);
   border-radius: 10px;
   color: #d9e7f4;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   font-size: 0.85rem;
   font-weight: 600;
   line-height: 1.2;
   margin: 0;
   overflow: hidden;
   padding: 6px 8px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .calendar-view__event-time {
-  display: inline-block;
-  font-size: 0.75rem;
-  font-weight: 500;
-  text-transform: uppercase;
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.calendar-view__event-time-compact {
+  display: none;
+}
+
+.calendar-view__event-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .calendar-view__more {
@@ -979,7 +1004,7 @@ button:focus-visible {
   }
 
   .calendar-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .calendar-rail {
@@ -1005,7 +1030,7 @@ button:focus-visible {
   }
 
   .calendar-workspace {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .calendar-view {
@@ -1028,18 +1053,48 @@ button:focus-visible {
   }
 
   .calendar-view__grid-inner {
-    min-width: 100%;
+    min-width: 0;
     width: 100%;
   }
 
   .calendar-view__day-names,
   .calendar-view__days {
-    gap: 8px;
-    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .calendar-view__day-name {
+    font-size: 0.68rem;
   }
 
   .calendar-view__day {
-    min-height: 100px;
+    border-radius: 9px;
+    min-height: 136px;
+    padding: 8px 5px;
+  }
+
+  .calendar-view__event {
+    border-radius: 6px;
+    gap: 1px;
+    padding: 5px 4px;
+  }
+
+  .calendar-view__event-time {
+    font-size: 0.64rem;
+    letter-spacing: -0.035em;
+  }
+
+  .calendar-view__event-time-full {
+    display: none;
+  }
+
+  .calendar-view__event-time-compact {
+    display: inline;
+  }
+
+  .calendar-view__event-title {
+    font-size: 0.68rem;
+    -webkit-line-clamp: 1;
   }
 
   .calendar-view__details {
@@ -1047,7 +1102,7 @@ button:focus-visible {
   }
 
   .calendar-activity__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1150,30 +1205,54 @@ button:focus-visible {
     width: 100%;
   }
 
+  .calendar-view__grid {
+    margin-left: -8px;
+    margin-right: -8px;
+  }
+
   .calendar-view__grid-inner {
-    gap: 8px;
-    min-width: 100%;
+    gap: 5px;
+    min-width: 0;
     width: 100%;
   }
 
   .calendar-view__day-names,
   .calendar-view__days {
-    gap: 6px;
-    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .calendar-view__day-name {
+    font-size: 0.6rem;
   }
 
   .calendar-view__day {
-    height: 92px;
-    padding: 10px 8px;
+    border-radius: 7px;
+    height: 132px;
+    padding: 6px 3px;
   }
 
   .calendar-view__date {
-    font-size: 1rem;
+    font-size: 0.88rem;
+    text-align: center;
   }
 
   .calendar-view__event {
-    font-size: 0.8rem;
-    padding: 5px 6px;
+    font-size: 0.68rem;
+    padding: 4px 3px;
+  }
+
+  .calendar-view__event-time {
+    font-size: 0.58rem;
+    text-align: center;
+    width: 100%;
+  }
+
+  .calendar-view__event-title {
+    font-size: 0.62rem;
+    line-height: 1.05;
+    text-align: center;
+    width: 100%;
   }
 
   .calendar-view__details {
@@ -1220,4 +1299,106 @@ button:focus-visible {
   .sync-controls__actions button {
     width: 100%;
   }
+}
+
+@media (max-width: 420px) {
+  body {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .panel--primary,
+  .panel {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .calendar-view {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .calendar-view__day {
+    height: 122px;
+  }
+
+  .calendar-view__event-title {
+    font-size: 0.56rem;
+  }
+}
+
+.calendar-rail code { overflow-wrap: anywhere; word-break: break-word; }
+
+.share-access-banner {
+  align-items: center;
+  background: rgba(67, 109, 147, 0.2);
+  border: 1px solid rgba(132, 156, 188, 0.24);
+  border-radius: 14px;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  margin: 0 auto 18px;
+  max-width: 1200px;
+  padding: 12px 16px;
+}
+
+.share-access-banner[hidden] { display: none; }
+.share-access-banner div { display: grid; gap: 2px; }
+.share-access-banner strong { color: var(--calendar-text); font-size: 0.95rem; }
+.share-access-banner span { color: var(--calendar-text-soft); font-size: 0.82rem; }
+.share-access-banner a { color: var(--calendar-text); font-size: 0.82rem; font-weight: 700; white-space: nowrap; }
+
+.share-form,
+.share-link-output {
+  display: grid;
+  gap: 12px;
+}
+
+.share-link-output {
+  background: rgba(9, 16, 27, 0.5);
+  border: 1px solid rgba(132, 156, 188, 0.16);
+  border-radius: 12px;
+  margin-top: 14px;
+  padding: 12px;
+}
+
+.share-link-output[hidden] { display: none; }
+.share-link-output input { font-size: 0.76rem; }
+
+.share-link-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.share-link-list__item {
+  align-items: center;
+  background: rgba(9, 16, 27, 0.44);
+  border: 1px solid rgba(132, 156, 188, 0.14);
+  border-radius: 10px;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 10px;
+}
+
+.share-link-list__item > div:first-child { display: grid; gap: 2px; min-width: 0; }
+.share-link-list__item strong { font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-link-list__item span,
+.share-link-list__empty { color: var(--calendar-muted); font-size: 0.76rem; }
+.share-link-list__actions { display: flex; flex-shrink: 0; gap: 6px; }
+.share-link-list__actions button { min-height: 32px; padding: 5px 8px; }
+
+body[data-calendar-access="view"] .event-card__footer-actions,
+body[data-calendar-access="view"] [data-calendar-details-actions] {
+  display: none !important;
+}
+
+@media (max-width: 540px) {
+  .share-access-banner { align-items: flex-start; flex-direction: column; margin-left: 8px; margin-right: 8px; }
+  .share-link-list__item { align-items: flex-start; flex-direction: column; }
+  .share-link-list__actions { width: 100%; }
+  .share-link-list__actions button { flex: 1; }
 }

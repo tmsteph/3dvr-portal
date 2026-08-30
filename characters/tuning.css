@@ -1,0 +1,52 @@
+/* Small visual corrections layered over the main Universe stylesheet. */
+
+/* The current hero is the darker crew group portrait. Keep enough exposure
+   for faces and the yellow Bot while preserving a dense text-safe left side. */
+.hero-image {
+  object-position: center center;
+  filter: saturate(.9) contrast(1.03) brightness(.88);
+}
+
+.hero-shade {
+  background:
+    linear-gradient(90deg, rgba(2,6,5,.91) 0%, rgba(2,6,5,.56) 43%, rgba(2,6,5,.08) 72%),
+    linear-gradient(180deg, rgba(2,6,5,.16) 0%, rgba(2,6,5,.04) 42%, rgba(2,6,5,.9) 100%);
+}
+
+/* Canonical 3DVR Bot: compact yellow barrel droid / mascot companion. */
+.bot-image {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(240,201,110,.15), transparent 32%),
+    radial-gradient(circle at 50% 66%, rgba(82,185,255,.11), transparent 42%),
+    #07100d;
+}
+
+.bot-image img {
+  width: min(78%, 520px);
+  height: auto;
+  max-height: 86%;
+  object-fit: contain;
+  filter: drop-shadow(0 26px 38px rgba(0,0,0,.35));
+}
+
+@media (max-width: 900px) {
+  .hero-image {
+    object-position: 58% center;
+    filter: saturate(.9) contrast(1.02) brightness(.84);
+  }
+
+  .hero-shade {
+    background: linear-gradient(180deg, rgba(2,6,5,.18), rgba(2,6,5,.28) 45%, rgba(2,6,5,.94) 100%);
+  }
+}
+
+@media (max-width: 620px) {
+  .hero-image {
+    object-position: 62% center;
+  }
+
+  .bot-image img {
+    width: min(86%, 430px);
+    max-height: 88%;
+  }
+}

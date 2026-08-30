@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3DVR Laptop | 3DVR Compute</title>
+  <meta name="description" content="A modular, repairable, Linux-first laptop concept from 3DVR Compute, continuing the open hardware ideas behind Balthazar.">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-mark.svg">
+  <link rel="stylesheet" href="../styles.css?v=20260828b">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <nav class="site-nav" aria-label="3DVR Laptop navigation">
+    <a class="brand" href="/compute/">
+      <img src="/brand/portal-mark.svg" alt="">
+      <span>3DVR Compute</span>
+    </a>
+    <div class="nav-links">
+      <a href="/compute/">Compute</a>
+      <a href="/supply-chain/">Supply Chain</a>
+      <a href="https://balthazar.space/">Balthazar</a>
+    </div>
+    <a class="button" href="mailto:3dvr.tech@gmail.com?subject=Help%20build%203DVR%20Laptop">Help build it</a>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">3DVR Laptop</p>
+        <span class="status">Concept · early prototype planning</span>
+        <h1>Keep the laptop. Swap the computer.</h1>
+        <p class="lede">
+          A repairable laptop shell designed to survive multiple generations of compute hardware instead of becoming disposable with each processor cycle.
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="mailto:3dvr.tech@gmail.com?subject=Help%20build%203DVR%20Laptop">Help build it</a>
+          <a class="button" href="/supply-chain/">Open supply chain</a>
+        </div>
+      </div>
+
+      <div class="device-stage" role="img" aria-label="Concept illustration of the 3DVR Laptop with replaceable modules">
+        <div class="laptop" aria-hidden="true">
+          <div class="screen"><span class="screen-mark">3DVR</span></div>
+          <div class="keyboard"></div>
+        </div>
+        <div class="module one" data-label="I/O" aria-hidden="true"></div>
+        <div class="module two" data-label="Storage" aria-hidden="true"></div>
+        <div class="module three" data-label="Compute" aria-hidden="true"></div>
+        <div class="device-label top">Long-lived laptop parts stay useful.</div>
+        <div class="device-label bottom">Compute becomes a replaceable module.</div>
+      </div>
+    </header>
+
+    <section class="principles" aria-label="3DVR Laptop design principles">
+      <div class="principle"><strong>Replaceable compute</strong><span>Support more than one board generation.</span></div>
+      <div class="principle"><strong>Serviceable essentials</strong><span>Battery, storage, keyboard, display.</span></div>
+      <div class="principle"><strong>Hardware privacy</strong><span>Physical control where practical.</span></div>
+      <div class="principle"><strong>Open documentation</strong><span>Repair, modify, manufacture.</span></div>
+    </section>
+
+    <section class="section" aria-labelledby="architecture-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Architecture</p>
+          <h2 id="architecture-title">Separate what ages quickly from what should last.</h2>
+        </div>
+        <p>The processor changes fast. A good keyboard, display, battery system, enclosure, storage interface, and ports should not have to become waste at the same pace.</p>
+      </div>
+
+      <div class="target-grid">
+        <div class="target"><strong>Compute module</strong><span>CPU, memory, and board-level compute live behind a documented replaceable interface.</span></div>
+        <div class="target"><strong>Display + input</strong><span>Use common interfaces and replaceable assemblies for the screen, keyboard, and trackpad.</span></div>
+        <div class="target"><strong>Power + battery</strong><span>Serviceable power design with published electrical and mechanical information.</span></div>
+        <div class="target"><strong>I/O + storage</strong><span>Keep storage and useful ports independent from any single processor board where practical.</span></div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="prototype-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Prototype candidates</p>
+          <h2 id="prototype-title">Start with boards we can actually test.</h2>
+        </div>
+        <p>The chassis and module interface are the experiment. We do not need to design a new processor before we can learn whether the laptop architecture works.</p>
+      </div>
+
+      <div class="stack">
+        <article class="stack-card">
+          <span class="tag">RISC-V</span>
+          <h3>Lichee Pi 4A / LM4A</h3>
+          <p>A compact TH1520 path with public schematics, BOM, drawings, and 3D models useful for the first hardware trace.</p>
+        </article>
+        <article class="stack-card">
+          <span class="tag">RISC-V</span>
+          <h3>StarFive / Beagle</h3>
+          <p>Alternative boards give the module standard a chance to prove it is genuinely vendor-independent.</p>
+        </article>
+        <article class="stack-card">
+          <span class="tag">Bridge</span>
+          <h3>Documented x86 modules</h3>
+          <p>Useful for validating power, thermals, display, input, and enclosure without waiting on every RISC-V software gap.</p>
+        </article>
+      </div>
+    </section>
+
+    <aside class="heritage" aria-label="Balthazar heritage">
+      <strong>A continuation, not a reinvention.</strong>
+      <p>Balthazar already explored the core idea of a modular, repairable laptop. 3DVR Compute is preserving that direction and adapting it to hardware we can test now.</p>
+      <a href="https://balthazar.space/">See Balthazar →</a>
+    </aside>
+
+    <section class="callout" aria-labelledby="build-title">
+      <div>
+        <p class="eyebrow">Next physical milestone</p>
+        <h2 id="build-title">Build one ugly prototype that works.</h2>
+        <p>Validate the module boundary, power, display, keyboard, storage, thermals, and Linux first. Beauty comes after the architecture proves itself.</p>
+      </div>
+      <a class="button" href="mailto:3dvr.tech@gmail.com?subject=Contribute%20to%203DVR%20Laptop">Contribute</a>
+    </section>
+  </main>
+
+  <footer>
+    <strong>3DVR Laptop</strong>
+    <a href="/compute/">3DVR Compute</a>
+    <a href="/supply-chain/">Supply Chain</a>
+    <a href="https://balthazar.space/">Balthazar</a>
+    <a href="mailto:3dvr.tech@gmail.com">3dvr.tech@gmail.com</a>
+  </footer>
+
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>

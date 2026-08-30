@@ -66,6 +66,7 @@ jobs:
         run: npm ci
 
       - name: Run operator brief
+        timeout-minutes: 5
         env:
           INPUT_MODE: ${{ inputs.mode || 'auto' }}
           EVENT_SCHEDULE: ${{ github.event.schedule }}
@@ -76,7 +77,7 @@ jobs:
             mode="day"
           fi
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
-            npm run money:operator-brief -- \
+            timeout --signal=TERM --kill-after=15s 4m npm run money:operator-brief -- \
               --dryRun true \
               --mode "$mode" \
               --sendEmail true \
@@ -86,7 +87,7 @@ jobs:
               --emailOut artifacts/money-autopilot/email-message.txt \
               --deliveryOut artifacts/money-autopilot/email-delivery.json
           else
-            npm run money:operator-brief -- \
+            timeout --signal=TERM --kill-after=15s 4m npm run money:operator-brief -- \
               --mode "$mode" \
               --sendEmail true \
               --out artifacts/money-autopilot/latest.json \
@@ -97,6 +98,7 @@ jobs:
           fi
 
       - name: Upload autopilot artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: money-autopilot-${{ github.run_id }}

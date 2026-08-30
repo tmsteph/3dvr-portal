@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>3DVR Workboard</title>
+  <meta name="theme-color" content="#07101c">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="/auth-identity.js"></script>
+  <script type="module" src="app.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <main>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="3DVR Portal home"><span class="brand-mark">3DVR</span><span class="brand-section">Work</span></a>
+      <div class="topbar-right">
+        <div class="connection"><span id="live-dot" aria-hidden="true"></span><span id="connection-status">Connecting…</span></div>
+        <a class="quiet-link" href="/operator/">Operator</a>
+      </div>
+    </header>
+
+    <section class="hero" aria-labelledby="page-title">
+      <div class="portal-orb" id="portal-orb" aria-hidden="true"><span></span></div>
+      <div class="hero-copy">
+        <p class="eyebrow">AGENT WORKSPACE</p>
+        <h1 id="page-title">What's moving?</h1>
+        <p class="lede">See what needs you. Let the rest keep running.</p>
+      </div>
+    </section>
+
+    <section class="dispatch" aria-labelledby="dispatch-title">
+      <form id="dispatch-form">
+        <label class="sr-only" for="dispatch-task" id="dispatch-title">Give an agent work</label>
+        <div class="dispatch-composer">
+          <textarea id="dispatch-task" name="task" rows="2" maxlength="4000" placeholder="What should the agents handle?" required></textarea>
+          <button id="dispatch-submit" type="submit" aria-label="Queue work">Send <span aria-hidden="true">→</span></button>
+        </div>
+        <div class="dispatch-underbar">
+          <span id="dispatch-status" role="status">Ready</span>
+          <details>
+            <summary>Options</summary>
+            <div class="dispatch-options">
+              <label>Title <input id="dispatch-title-input" name="title" maxlength="160" placeholder="Optional title"></label>
+              <label>Repo <input id="dispatch-repo" name="repo" maxlength="80" value="portal" autocapitalize="none" spellcheck="false"></label>
+            </div>
+          </details>
+          <a id="dispatch-result" class="dispatch-result" hidden>Open task →</a>
+        </div>
+      </form>
+    </section>
+
+    <section class="pulse" aria-label="Current work summary">
+      <div class="pulse-main">
+        <span class="pulse-label">RIGHT NOW</span>
+        <strong id="focus-message">Loading agent activity…</strong>
+      </div>
+      <div class="pulse-counts">
+        <span><strong id="review-count">0</strong> need you</span>
+        <span><strong id="working-count">0</strong> working</span>
+      </div>
+    </section>
+
+    <nav class="filters" aria-label="Filter work">
+      <button class="filter active" type="button" data-filter="focus" aria-pressed="true">Focus <span id="focus-count">0</span></button>
+      <button class="filter" type="button" data-filter="inbox" aria-pressed="false">Queue <span id="inbox-count">0</span></button>
+      <button class="filter" type="button" data-filter="review" aria-pressed="false">Needs you <span id="review-filter-count">0</span></button>
+      <button class="filter" type="button" data-filter="done" aria-pressed="false">Done <span id="done-count">0</span></button>
+      <button class="filter filter-all" type="button" data-filter="all" aria-pressed="false">All</button>
+    </nav>
+
+    <section class="work-feed" aria-live="polite" aria-label="Agent work">
+      <header class="feed-header">
+        <div>
+          <p class="eyebrow" id="feed-eyebrow">FOCUS</p>
+          <h2 id="feed-title">Needs you + active work</h2>
+        </div>
+        <span id="visible-count">0 items</span>
+      </header>
+      <div class="cards" id="work-cards" role="list"></div>
+      <div class="empty" id="empty-state" hidden>
+        <div class="empty-orb" aria-hidden="true"></div>
+        <strong>Nothing demanding your attention.</strong>
+        <span>The agents can keep moving.</span>
+      </div>
+    </section>
+
+    <template id="card-template">
+      <article class="card" role="listitem">
+        <div class="card-marker" aria-hidden="true"></div>
+        <div class="card-body">
+          <div class="card-topline"><span class="kind"></span><span class="status"></span></div>
+          <h3></h3>
+          <p class="task"></p>
+          <p class="result" hidden></p>
+          <div class="card-bottom">
+            <div class="meta"><span class="repo"></span><span class="owner"></span><time></time></div>
+            <a class="open-record">Open <span aria-hidden="true">→</span></a>
+          </div>
+        </div>
+      </article>
+    </template>
+  </main>
+</body>
+</html>

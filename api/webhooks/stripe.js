@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { dispatchPaidCheckout } from '../../src/money/fulfillment-router.js';
 import {
   BILLING_ACTIVE_STATUSES,
   getBillingPlan,
@@ -259,6 +260,62 @@ async function notifyTeamOfSubscriptionUpdate(email, details = {}, { transporter
   }
 }
 
+function readPaymentFailureDetails(invoice = {}, config = process.env) {
+  const amount = formatCurrencyAmount(invoice?.amount_due, invoice?.currency) || 'your invoice amount';
+  const portalOrigin = String(config?.PORTAL_ORIGIN || 'https://portal.3dvr.tech').trim().replace(/\/+$/, '');
+  const recoveryUrl = String(invoice?.hosted_invoice_url || '').trim() || `${portalOrigin}/billing/`;
+  const attemptCount = Number(invoice?.attempt_count || 0);
+  const nextPaymentAttempt = Number(invoice?.next_payment_attempt || 0);
+  const nextAttemptAt = nextPaymentAttempt
+    ? new Date(nextPaymentAttempt * 1000).toISOString()
+    : '';
+
+  return {
+    amount,
+    recoveryUrl,
+    attemptCount: Number.isFinite(attemptCount) ? attemptCount : 0,
+    nextAttemptAt
+  };
+}
+
+function shouldSendPaymentFailureRecovery(invoice = {}) {
+  const attemptCount = Number(invoice?.attempt_count || 0);
+  return !Number.isFinite(attemptCount) || attemptCount <= 1;
+}
+
+async function sendPaymentFailureRecoveryEmail(email, details = {}, { transporter, config } = {}) {
+  const gmailUser = String(config?.GMAIL_USER || '').trim();
+  const recoveryUrl = String(details.recoveryUrl || '').trim();
+  if (!email || !gmailUser || !recoveryUrl || !transporter?.sendMail) return false;
+
+  const amount = String(details.amount || 'your invoice amount').trim();
+  const retryText = details.nextAttemptAt
+    ? ` Stripe currently has another retry scheduled after ${details.nextAttemptAt}.`
+    : '';
+
+  try {
+    await sendMailSafely(transporter, {
+      from: `"Thomas @ 3DVR.Tech" <${gmailUser}>`,
+      to: email,
+      subject: 'Payment issue with your 3DVR plan',
+      text: `Hey there — Stripe could not process ${amount} for your 3DVR plan.${retryText}\n\nYou can fix the payment here:\n${recoveryUrl}\n\nThanks,\nThomas`,
+      html: `
+        <div style="font-family: sans-serif; font-size: 16px; line-height: 1.5;">
+          <h2>Quick billing fix</h2>
+          <p>Stripe could not process <strong>${escapeHtml(amount)}</strong> for your 3DVR plan.</p>
+          <p><a href="${escapeHtml(recoveryUrl)}">Update or complete the payment</a></p>
+          ${details.nextAttemptAt ? `<p>Stripe currently has another retry scheduled.</p>` : ''}
+          <p>Thanks,<br>Thomas<br>3DVR.Tech</p>
+        </div>
+      `
+    });
+    return true;
+  } catch (error) {
+    console.error(`Failed to send payment recovery email to ${email}:`, error?.message || error);
+    return false;
+  }
+}
+
 function formatCurrencyAmount(amountCents, currency = 'usd') {
   const normalizedCurrency = String(currency || 'usd').trim().toUpperCase() || 'USD';
   const normalizedAmountCents = Number(amountCents);
@@ -292,7 +349,22 @@ function readOneTimePaymentDetails(session = {}) {
   const amountCents = Number(session?.amount_total || metadata.custom_amount_cents || 0);
   const currency = String(session?.currency || 'usd').trim() || 'usd';
   const reason = String(metadata.custom_label || '').trim() || 'Custom one-time payment';
-  const description = String(metadata.custom_description || '').trim();
+  const checkoutFields = (Array.isArray(session?.custom_fields) ? session.custom_fields : [])
+    .map(field => {
+      const label = String(field?.label?.custom || field?.key || '').trim();
+      const value = String(
+        field?.text?.value
+        ?? field?.numeric?.value
+        ?? field?.dropdown?.value
+        ?? ''
+      ).trim();
+      return label && value ? `${label}: ${value}` : '';
+    })
+    .filter(Boolean);
+  const description = [
+    String(metadata.custom_description || '').trim(),
+    ...checkoutFields
+  ].filter(Boolean).join('\n');
   const amount = formatCurrencyAmount(amountCents, currency);
 
   return {
@@ -371,6 +443,26 @@ async function notifyTeamOfOneTimePayment(email, details = {}, { transporter, co
     });
   } catch (error) {
     console.error('Failed to notify team of one-time payment:', error?.message || error);
+  }
+}
+
+async function notifyFulfillmentQueue(dispatch, { transporter, config } = {}) {
+  const order = dispatch?.order;
+  if (!order) return;
+  const gmailUser = String(config?.GMAIL_USER || '').trim();
+  const target = String(config?.AUTO_BUSINESS_OWNER_EMAIL || config?.STRIPE_LOG_EMAIL || gmailUser).trim();
+  if (!gmailUser || !target || !transporter?.sendMail) return;
+  const ticket = dispatch?.ticket || {};
+  const ticketLine = ticket.url ? `\nTask: ${ticket.url}` : `\nTask queue: ${ticket.status || 'unknown'}${ticket.reason ? ` — ${ticket.reason}` : ''}`;
+  try {
+    await sendMailSafely(transporter, {
+      from: `"3DVR Auto Business" <${gmailUser}>`,
+      to: target,
+      subject: `[FULFILLMENT:${order.lane}] ${order.offer} ${order.amount}`,
+      text: `${order.privateSummary}${ticketLine}`
+    });
+  } catch (error) {
+    console.error('Failed to notify fulfillment queue:', error?.message || error);
   }
 }
 
@@ -498,6 +590,7 @@ export function createStripeWebhookHandler(options = {}) {
     ? createTransporter(runtimeConfig)
     : options.transporter;
   const readRawBodyImpl = options.readRawBody || getRawBody;
+  const fulfillmentDispatcher = options.fulfillmentDispatcher || (event => dispatchPaidCheckout(event, { config: runtimeConfig, fetchImpl: options.fetchImpl || globalThis.fetch }));
   const constructEvent = options.constructEvent || ((payload, signature) => {
     if (!stripeClient?.webhooks?.constructEvent) {
       throw new Error('Stripe webhook verification is not configured.');
@@ -542,14 +635,30 @@ export function createStripeWebhookHandler(options = {}) {
       });
     }
 
+    const eventObject = event.data?.object || {};
+    const eventPaymentLink = typeof eventObject.payment_link === 'string'
+      ? eventObject.payment_link
+      : String(eventObject.payment_link?.id || '').trim();
     await logStripeEvent(event, {
       receivedAt: new Date().toISOString(),
       canceledCount: cleanupResult.canceledCount || 0,
-      cancelledSubscriptionIds: cleanupResult.cancelledSubscriptionIds || []
+      cancelledSubscriptionIds: cleanupResult.cancelledSubscriptionIds || [],
+      clientReferenceId: String(eventObject.client_reference_id || '').trim(),
+      paymentLinkId: eventPaymentLink,
+      amountCents: Number(eventObject.amount_total ?? eventObject.amount_paid ?? eventObject.amount_due ?? 0),
+      currency: String(eventObject.currency || '').trim().toLowerCase()
     }, {
       transporter,
       config: runtimeConfig
     });
+
+    if (['checkout.session.completed', 'checkout.session.async_payment_succeeded'].includes(event.type)) {
+      const fulfillment = await fulfillmentDispatcher(event);
+      if (fulfillment?.order) {
+        await notifyFulfillmentQueue(fulfillment, { transporter, config: runtimeConfig });
+        console.log('Auto Business fulfillment:', fulfillment.order.eventId, fulfillment.order.lane, fulfillment.ticket?.status);
+      }
+    }
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
@@ -586,6 +695,19 @@ export function createStripeWebhookHandler(options = {}) {
         const updateDetails = readSubscriptionUpdateDetails(invoice, runtimeConfig);
         await sendSubscriptionUpdateEmail(email, updateDetails, { transporter, config: runtimeConfig });
         await notifyTeamOfSubscriptionUpdate(email, updateDetails, { transporter, config: runtimeConfig });
+      }
+    }
+
+    if (event.type === 'invoice.payment_failed') {
+      const invoice = event.data?.object || {};
+      const email = String(invoice.customer_email || '').trim();
+      if (email && shouldSendPaymentFailureRecovery(invoice)) {
+        const recoveryDetails = readPaymentFailureDetails(invoice, runtimeConfig);
+        const sent = await sendPaymentFailureRecoveryEmail(email, recoveryDetails, {
+          transporter,
+          config: runtimeConfig
+        });
+        console.log('Stripe payment recovery:', invoice.id || '', email, sent ? 'sent' : 'not-sent');
       }
     }
 

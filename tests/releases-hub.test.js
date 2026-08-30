@@ -15,12 +15,19 @@ async function fileExists(path) {
 }
 
 describe('release hub backfill', () => {
-  it('updates the release index with the weekly milestones through v0.0.56', async () => {
+  it('updates the release index with the weekly milestones through v0.0.60', async () => {
     const indexUrl = new URL('index.html', baseDir);
     assert.equal(await fileExists(indexUrl), true, 'releases/index.html should exist');
 
     const html = await readFile(indexUrl, 'utf8');
     assert.match(html, /Latest Release/);
+    assert.match(html, /<h2>Latest Release<\/h2>[\s\S]*href="v0\.0\.60\.html">v0\.0\.60/);
+    assert.match(html, /Week of August 24, 2026/);
+    assert.match(html, /href="v0\.0\.59\.html">v0\.0\.59/);
+    assert.match(html, /Week of August 17, 2026/);
+    assert.match(html, /href="v0\.0\.58\.html">v0\.0\.58</);
+    assert.match(html, /Week of August 10, 2026/);
+    assert.match(html, /href="v0\.0\.57\.html">v0\.0\.57</);
     assert.match(html, /href="v0\.0\.56\.html">v0\.0\.56</);
     assert.match(html, /Week of July 27, 2026/);
     assert.match(html, /Operator/);
@@ -107,7 +114,7 @@ describe('release hub backfill', () => {
 
   it('ships the new milestone pages with coherent navigation, summaries, and source links', async () => {
     const releases = [
-      ['v0.0.56.html', /Week of July 27, 2026/, /Conversation-first portal/i, /aria-disabled="true"/],
+      ['v0.0.56.html', /Week of July 27, 2026/, /Conversation-first portal/i, /href="v0\.0\.57\.html"/],
       ['v0.0.55.html', /Week of July 20, 2026/, /Guided personal change/i, /href="v0\.0\.56\.html"/],
       ['v0.0.54.html', /Week of July 13, 2026/, /Personalized preview funnel/i, /aria-disabled="true"/],
       ['v0.0.53.html', /Week of July 6, 2026/, /Money Printer becomes an operating loop/i, /href="v0\.0\.54\.html"/],

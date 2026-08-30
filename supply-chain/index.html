@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open Supply Chain | 3DVR</title>
+  <meta
+    name="description"
+    content="A community-built map of where materials come from, how products are made, and how we can repair, recycle, substitute, and produce more locally."
+  >
+  <link rel="stylesheet" href="../style.css?v=open-supply-chain">
+  <link rel="stylesheet" href="../everyday-life/styles.css?v=20260828">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="everyday-life-page">
+  <nav class="life-nav" aria-label="Open supply chain navigation">
+    <a href="../index.html">3DVR</a>
+    <a href="/open-source/">Open Source</a>
+    <a href="/everyday-life/">Everyday Life</a>
+    <a href="#registry">Registry</a>
+    <a href="#balthazar">Balthazar</a>
+    <a href="#contribute">Contribute</a>
+  </nav>
+
+  <header class="life-hero">
+    <p class="eyebrow">3DVR Open Supply Chain</p>
+    <h1>Open the physical world.</h1>
+    <p class="hero-copy">
+      Open source should not stop at software or schematics. We want to understand where materials come from,
+      who makes each part, how it can be repaired, and how communities can build better alternatives.
+    </p>
+    <div class="hero-actions">
+      <a class="button primary" href="#registry">Start with the registry</a>
+      <a class="button" href="#balthazar">See the north-star device</a>
+    </div>
+  </header>
+
+  <main>
+    <section aria-labelledby="purpose-title">
+      <p class="eyebrow">The Goal</p>
+      <h2 id="purpose-title">Trace it. Repair it. Reuse it. Make it locally.</h2>
+      <p class="hero-copy">
+        The first version is deliberately simple: a public, community-maintained record of materials,
+        components, suppliers, substitutes, recyclability, labor context, and open manufacturing paths.
+      </p>
+    </section>
+
+    <section id="registry" aria-labelledby="registry-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Registry 0.1</p>
+          <h2 id="registry-title">Map one layer at a time.</h2>
+        </div>
+        <p>Start with common computing materials and components, then expand outward.</p>
+      </div>
+
+      <div class="project-grid">
+        <article class="project-card live">
+          <span class="status">First</span>
+          <h3>Materials</h3>
+          <p>Copper, aluminum, silicon, glass, plastics, lithium, nickel, gold, tin, and other inputs.</p>
+          <p class="project-seed">Track origin, reuse potential, recycling paths, and practical substitutes.</p>
+        </article>
+
+        <article class="project-card">
+          <span class="status">Next</span>
+          <h3>Components</h3>
+          <p>PCBs, connectors, displays, batteries, enclosures, memory, processors, and radios.</p>
+          <p class="project-seed">Record open alternatives, repairability, and sourcing options.</p>
+        </article>
+
+        <article class="project-card">
+          <span class="status">Next</span>
+          <h3>Processes</h3>
+          <p>Recycling, machining, board assembly, fabrication, testing, and refurbishment.</p>
+          <p class="project-seed">Favor safe, legal, documented community and cooperative production.</p>
+        </article>
+
+        <article class="project-card">
+          <span class="status">Long term</span>
+          <h3>Extraction</h3>
+          <p>Understand which raw materials still require new extraction after reuse and recycling.</p>
+          <p class="project-seed">Support transparent, regulated, worker-owned or community-benefiting models.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="standard" aria-labelledby="record-title">
+      <p class="eyebrow">Open Supply Record 0.1</p>
+      <h2 id="record-title">Every entry should answer seven questions.</h2>
+      <ol class="standard-list">
+        <li><strong>What is it?</strong><span>Material or component, function, and specifications that matter.</span></li>
+        <li><strong>Where is it from?</strong><span>Known origin, processor, manufacturer, or supplier.</span></li>
+        <li><strong>Who made it?</strong><span>Available labor, ownership, and community context.</span></li>
+        <li><strong>Can we reuse it?</strong><span>Salvage, refurbishment, and second-life options.</span></li>
+        <li><strong>Can we recycle it?</strong><span>Known recovery paths and material loops.</span></li>
+        <li><strong>Can we substitute it?</strong><span>More available, repairable, open, or lower-impact alternatives.</span></li>
+        <li><strong>Can we make it?</strong><span>Open designs, tools, skills, and organizations moving toward local production.</span></li>
+      </ol>
+    </section>
+
+    <section id="balthazar" aria-labelledby="balthazar-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">North-Star Device</p>
+          <h2 id="balthazar-title">Build toward a Balthazar.</h2>
+        </div>
+        <p>A real open laptop gives the registry a concrete target instead of leaving it as an abstract catalog.</p>
+      </div>
+
+      <div class="project-grid">
+        <article class="project-card live">
+          <span class="status">Start here</span>
+          <h3>Lichee Pi 4A / LM4A</h3>
+          <p>Trace a RISC-V computer we can physically inspect: TH1520, memory, storage, power, radios, connectors, PCB, and enclosure.</p>
+          <p class="project-seed">Sipeed publishes schematics, a BOM, dimensional drawings, and a 3D model, giving us a strong first source set.</p>
+        </article>
+
+        <article class="project-card">
+          <span class="status">Prototype</span>
+          <h3>Balthazar-style laptop</h3>
+          <p>Use an existing swappable RISC-V compute module inside a repairable laptop before attempting to design a processor ourselves.</p>
+          <p class="project-seed">Open case, keyboard, power, I/O, storage, privacy controls, and Linux integration first.</p>
+        </article>
+
+        <article class="project-card">
+          <span class="status">Then</span>
+          <h3>Replace closed layers</h3>
+          <p>Identify proprietary firmware, undocumented chips, closed GPU/NPU paths, and fragile supplier dependencies.</p>
+          <p class="project-seed">Replace one dependency at a time with open, documented, repairable alternatives.</p>
+        </article>
+
+        <article class="project-card">
+          <span class="status">Long term</span>
+          <h3>Community manufacturing</h3>
+          <p>Move from assembly toward regional production of cases, keyboards, boards, power systems, and eventually compute hardware.</p>
+          <p class="project-seed">Open source all the way down without pretending every layer can be localized on day one.</p>
+        </article>
+      </div>
+
+      <div class="hero-actions">
+        <a class="button primary" href="https://balthazar.space/">Explore Balthazar</a>
+        <a class="button" href="https://github.com/balthazar-space">Balthazar hardware repositories</a>
+        <a class="button" href="./balthazar.md">Read our roadmap</a>
+      </div>
+    </section>
+
+    <section id="contribute" class="makers" aria-labelledby="contribute-title">
+      <div>
+        <p class="eyebrow">Community First</p>
+        <h2 id="contribute-title">Research one thing. Share what you learn.</h2>
+      </div>
+      <p>
+        No giant master plan is required. Pick one material, component, recycler, cooperative, open-hardware project,
+        or local manufacturer. Document trustworthy sources and missing information. The map grows one verified entry at a time.
+      </p>
+    </section>
+
+    <section class="closing" aria-label="Open supply chain manifesto">
+      <p>Know where it came from.</p>
+      <p>Keep useful material in circulation.</p>
+      <p>Build local capability.</p>
+      <strong>Open source all the way down.</strong>
+    </section>
+  </main>
+
+  <footer>
+    <a href="/everyday-life/">Open Source Everyday Life</a>
+    <a href="mailto:3dvr.tech@gmail.com">3dvr.tech@gmail.com</a>
+  </footer>
+
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>

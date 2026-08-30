@@ -27,7 +27,10 @@ jobs:
   test:
     name: Run agent tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The full agent syntax + Node test suite now routinely exceeds 15 minutes.
+    # Keep a finite cap, but allow healthy runs to finish instead of being
+    # reported as cancelled midway through otherwise passing tests.
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: apps/agent

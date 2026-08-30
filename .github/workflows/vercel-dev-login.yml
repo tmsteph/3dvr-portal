@@ -1,0 +1,133 @@
+name: Authenticate 3DVR Dev with Vercel
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/vercel-dev-login.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DEV_HOST: 167.71.156.94
+  SSH_USER: root
+
+jobs:
+  start-device-login:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Resolve server SSH key
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          key=''
+          for candidate in "$SSH_A" "$SSH_B" "$SSH_C"; do
+            if [ -z "$key" ] && [ -n "$candidate" ]; then
+              key="$candidate"
+            fi
+          done
+          [ -n "$key" ] || { echo '::error::No 3DVR server SSH key is configured.'; exit 1; }
+          umask 077
+          printf '%s\n' "$key" > /tmp/3dvr-server-key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-server-key.raw; then
+            cp /tmp/3dvr-server-key.raw /tmp/3dvr-server-key
+          elif base64 -d /tmp/3dvr-server-key.raw > /tmp/3dvr-server-key 2>/dev/null \
+            && grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-server-key; then
+            :
+          else
+            echo '::error::Configured SSH key could not be decoded.'
+            exit 1
+          fi
+          chmod 600 /tmp/3dvr-server-key
+
+      - name: Start persistent Vercel device login on 3dvr-dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/3dvr-server-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+          ssh "${opts[@]}" "$SSH_USER@$DEV_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+            apt-get update -qq
+            apt-get install -y -qq nodejs npm util-linux git curl
+          fi
+
+          pkill -f 'vercel.*login' >/dev/null 2>&1 || true
+          rm -f /tmp/vercel-device-login.log /tmp/vercel-device-login.pid
+          nohup script -q -f -c 'npx --yes vercel@latest login' /tmp/vercel-device-login.log \
+            >/dev/null 2>&1 </dev/null &
+          echo $! > /tmp/vercel-device-login.pid
+          REMOTE
+
+          login_url=''
+          for attempt in $(seq 1 18); do
+            raw="$(ssh "${opts[@]}" "$SSH_USER@$DEV_HOST" 'cat /tmp/vercel-device-login.log 2>/dev/null || true')"
+            clean="$(printf '%s' "$raw" | sed -r 's/\x1B\[[0-9;?]*[ -\/]*[@-~]//g')"
+            login_url="$(printf '%s\n' "$clean" | grep -Eo 'https://vercel\.com/oauth/device\?user_code=[A-Z0-9-]+' | tail -n 1 || true)"
+            if [ -n "$login_url" ]; then
+              break
+            fi
+            sleep 5
+          done
+
+          if [ -z "$login_url" ]; then
+            echo '::error::Vercel device login URL was not produced.'
+            ssh "${opts[@]}" "$SSH_USER@$DEV_HOST" 'cat /tmp/vercel-device-login.log 2>/dev/null || true'
+            exit 1
+          fi
+
+          echo "VERCEL_DEVICE_LOGIN_URL=$login_url"
+          echo "Open this URL and approve the device login: $login_url"
+
+      - name: Start post-login OS deploy watcher
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/3dvr-server-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+          ssh "${opts[@]}" "$SSH_USER@$DEV_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          pkill -f '3dvr-os-post-login-deploy' >/dev/null 2>&1 || true
+          cat > /tmp/3dvr-os-post-login-deploy.sh <<'SCRIPT'
+          #!/usr/bin/env bash
+          set -u
+          for attempt in $(seq 1 180); do
+            if npx --yes vercel@latest whoami >/dev/null 2>&1; then
+              repo="$HOME/.3dvr/portal"
+              mkdir -p "$HOME/.3dvr"
+              if [ ! -d "$repo/.git" ]; then
+                git clone https://github.com/tmsteph/3dvr-portal.git "$repo" || exit 1
+              fi
+              git -C "$repo" reset --hard || exit 1
+              git -C "$repo" clean -fd || exit 1
+              git -C "$repo" fetch --prune origin main || exit 1
+              git -C "$repo" checkout -B main origin/main || exit 1
+              git -C "$repo" reset --hard origin/main || exit 1
+              GITHUB_REPOSITORY=tmsteph/3dvr-portal \
+              VERCEL_TEAM_ID=team_KXuVUd00RMnDsjoqwdREcZ7J \
+              VERCEL_SCOPE_SLUG=3dvr \
+              PROJECT_NAME=3dvr-os \
+              PROJECT_DOMAIN=os.3dvr.tech \
+              bash "$repo/scripts/vercel/deploy-3dvr-os-worker.sh" "$repo"
+              exit $?
+            fi
+            sleep 10
+          done
+          exit 1
+          SCRIPT
+          chmod +x /tmp/3dvr-os-post-login-deploy.sh
+          nohup /tmp/3dvr-os-post-login-deploy.sh \
+            >/tmp/3dvr-os-post-login-deploy.log 2>&1 </dev/null &
+          REMOTE
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f /tmp/3dvr-server-key /tmp/3dvr-server-key.raw

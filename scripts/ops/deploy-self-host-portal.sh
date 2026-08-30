@@ -43,31 +43,112 @@ if [ ! -d "$release" ]; then
   mv "$tmp" "$release"
 fi
 
+wait_for_release() {
+  local base_url="$1"
+  local expected_sha="$2"
+  local health
+  for _ in $(seq 1 30); do
+    health="$(curl -fsS "$base_url/__3dvr-health" 2>/dev/null || true)"
+    if printf '%s' "$health" | grep -Fq "\"sha\":\"$expected_sha\""; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+validate_workboard() {
+  local base_url="$1"
+  local html feed
+  html="$(curl -fsS --retry 3 --retry-delay 1 "$base_url/workboard/")" || return 1
+  [[ "$html" == *'id="page-title"'* && "$html" == *'id="dispatch-form"'* ]] || return 1
+
+  # The Workboard shell is release-critical; its external GitHub feed is not.
+  # A temporary GitHub API outage or rate limit should degrade the feed rather
+  # than roll back otherwise healthy portal releases.
+  if feed="$(curl -fsS --retry 2 --retry-delay 1 "$base_url/api/workboard/github" 2>/dev/null)"; then
+    if ! printf '%s' "$feed" | node -e 'let s=""; process.stdin.on("data",d=>s+=d).on("end",()=>{const p=JSON.parse(s); if(!p.ok||!Array.isArray(p.items)) throw new Error("invalid Workboard GitHub feed");})' 2>/dev/null; then
+      echo 'Workboard GitHub feed returned an invalid payload during deploy validation; continuing because the Workboard shell is healthy.' >&2
+    fi
+  else
+    echo 'Workboard GitHub feed unavailable during deploy validation; continuing because the Workboard shell is healthy.' >&2
+  fi
+  return 0
+}
+
+candidate_port="${THREEDVR_PORTAL_CANDIDATE_PORT:-$((port + 1000))}"
+if ! [[ "$candidate_port" =~ ^[0-9]+$ ]] || [ "$candidate_port" -lt 1 ] || [ "$candidate_port" -gt 65535 ] || [ "$candidate_port" -eq "$port" ]; then
+  echo "Invalid candidate port: $candidate_port" >&2
+  exit 2
+fi
+candidate_log="$state/candidate-$sha.log"
+candidate_pid=''
+
+cleanup_candidate() {
+  if [ -n "$candidate_pid" ]; then
+    kill "$candidate_pid" 2>/dev/null || true
+    wait "$candidate_pid" 2>/dev/null || true
+    candidate_pid=''
+  fi
+}
+trap cleanup_candidate EXIT
+
+(
+  set -a
+  [ -f "$common_env" ] && . "$common_env"
+  [ -f "$portal_env" ] && . "$portal_env"
+  set +a
+  export PORT="$candidate_port"
+  export HOST=127.0.0.1
+  export PORTAL_ROOT="$release"
+  export PORTAL_RELEASE_REF="$ref"
+  export PORTAL_RELEASE_SHA="$sha"
+  export LEGACY_API_ORIGIN=https://3dvr-portal.vercel.app
+  cd "$release"
+  exec node scripts/self-host-server.mjs
+) >"$candidate_log" 2>&1 &
+candidate_pid=$!
+
+candidate_url="http://127.0.0.1:$candidate_port"
+if ! wait_for_release "$candidate_url" "$sha"; then
+  echo 'Candidate 3DVR portal release did not become healthy.' >&2
+  tail -n 100 "$candidate_log" >&2 2>/dev/null || true
+  exit 4
+fi
+if ! validate_workboard "$candidate_url"; then
+  echo 'Candidate 3DVR portal release failed Workboard validation.' >&2
+  tail -n 100 "$candidate_log" >&2 2>/dev/null || true
+  exit 4
+fi
+cleanup_candidate
+trap - EXIT
+
+previous_release="$(readlink -f "$current" 2>/dev/null || true)"
+previous_env="$state/portal.env.before-$sha-$$"
+had_previous_env=false
+if [ -f "$portal_env" ]; then
+  cp "$portal_env" "$previous_env"
+  chmod 600 "$previous_env"
+  had_previous_env=true
+fi
+
 ln -sfn "$release" "$current"
 
-cat > "$portal_env.tmp" <<EOF_ENV
+cat > "$portal_env.tmp" <<EOF
 PORT=$port
 HOST=127.0.0.1
 PORTAL_ROOT=$current
 PORTAL_RELEASE_REF=$ref
 PORTAL_RELEASE_SHA=$sha
-EOF_ENV
+LEGACY_API_ORIGIN=https://3dvr-portal.vercel.app
+EOF
 
-# Preserve runtime configuration without printing secret values. Keys declared
-# in .env.example are portable application settings, while the extra OAuth and
-# tunnel keys cover integrations that are intentionally not committed there.
-declare -A seen_env_keys=()
-preserve_env_key() {
-  local key="$1" value=''
-  [ -n "$key" ] || return 0
-  [ -z "${seen_env_keys[$key]:-}" ] || return 0
-  seen_env_keys[$key]=1
-  case "$key" in
-    PORT|HOST|PORTAL_ROOT|PORTAL_RELEASE_REF|PORTAL_RELEASE_SHA) return 0 ;;
-  esac
+# Preserve private runtime values already provisioned by an operator or workflow.
+# Never overwrite them with empty values and never print them.
+for key in OPENAI_API_KEY AI_GATEWAY_API_KEY THREEDVR_CLOUDFLARE_TUNNEL_TOKEN GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET; do
   value="${!key:-}"
-  if [ -z "$value" ] && [ -f "$portal_env" ]; then
-    value="$(sed -n "s/^${key}=//p" "$portal_env" | tail -n1)"
+  if [ -z "$value" ] && [ "$had_previous_env" = true ]; then
+    value="$(sed -n "s/^${key}=//p" "$previous_env" | tail -n1)"
   fi
   if [ -z "$value" ] && [ -f "$common_env" ]; then
     value="$(sed -n "s/^${key}=//p" "$common_env" | tail -n1)"
@@ -75,29 +156,14 @@ preserve_env_key() {
   if [ -n "$value" ]; then
     printf '%s=%s\n' "$key" "$value" >> "$portal_env.tmp"
   fi
-}
-
-if [ -f "$release/.env.example" ]; then
-  while IFS= read -r key; do
-    preserve_env_key "$key"
-  done < <(sed -n 's/^\([A-Z][A-Z0-9_]*\)=.*/\1/p' "$release/.env.example")
-fi
-for key in \
-  AI_GATEWAY_API_KEY \
-  THREEDVR_CLOUDFLARE_TUNNEL_TOKEN \
-  GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET \
-  MICROSOFT_OAUTH_CLIENT_ID MICROSOFT_OAUTH_CLIENT_SECRET MICROSOFT_OAUTH_TENANT \
-  APPLE_OAUTH_CLIENT_ID APPLE_OAUTH_TEAM_ID APPLE_OAUTH_KEY_ID APPLE_OAUTH_PRIVATE_KEY; do
-  preserve_env_key "$key"
 done
-
 mv "$portal_env.tmp" "$portal_env"
 chmod 600 "$portal_env"
 
 start_with_systemd() {
   [ "$(id -u)" = 0 ] || return 1
   command -v systemctl >/dev/null 2>&1 || return 1
-  cat > /etc/systemd/system/3dvr-portal.service <<EOF_SERVICE
+  cat > /etc/systemd/system/3dvr-portal.service <<EOF
 [Unit]
 Description=3DVR self-hosted portal
 After=network-online.target
@@ -114,7 +180,7 @@ RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
-EOF_SERVICE
+EOF
   systemctl daemon-reload
   systemctl enable --now 3dvr-portal.service
   systemctl restart 3dvr-portal.service
@@ -136,25 +202,77 @@ start_with_tmux() {
   tmux new-session -d -s "$session" "$command"
 }
 
-if ! start_with_systemd; then
+live_backend=''
+
+restart_live_service() {
+  case "$live_backend" in
+    systemd)
+      if systemctl restart 3dvr-portal.service; then
+        return 0
+      fi
+      if command -v tmux >/dev/null 2>&1; then
+        start_with_tmux
+        live_backend=tmux
+        return 0
+      fi
+      return 1
+      ;;
+    tmux)
+      start_with_tmux
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+rollback_live() {
+  echo 'Rolling back the failed 3DVR portal release.' >&2
+  set +e
+  if [ -n "$previous_release" ] && [ -d "$previous_release" ]; then
+    ln -sfn "$previous_release" "$current"
+    if [ "$had_previous_env" = true ]; then
+      cp "$previous_env" "$portal_env"
+      chmod 600 "$portal_env"
+    else
+      rm -f "$portal_env"
+    fi
+    restart_live_service
+  else
+    if [ "$(id -u)" = 0 ] && command -v systemctl >/dev/null 2>&1; then
+      systemctl stop 3dvr-portal.service
+    fi
+    if command -v tmux >/dev/null 2>&1; then
+      tmux kill-session -t 3dvr-portal-production 2>/dev/null
+    fi
+  fi
+  set -e
+}
+
+if start_with_systemd; then
+  live_backend=systemd
+else
   start_with_tmux
+  live_backend=tmux
 fi
 
-ready=false
-for _ in $(seq 1 30); do
-  health="$(curl -fsS "http://127.0.0.1:$port/__3dvr-health" 2>/dev/null || true)"
-  if printf '%s' "$health" | grep -Fq "\"sha\":\"$sha\""; then
-    ready=true
-    break
-  fi
-  sleep 1
-done
-if [ "$ready" != true ]; then
+live_url="http://127.0.0.1:$port"
+if ! wait_for_release "$live_url" "$sha"; then
   echo '3DVR portal service did not become healthy.' >&2
   systemctl status 3dvr-portal.service --no-pager 2>/dev/null || true
   [ -f "$state/server.log" ] && tail -n 100 "$state/server.log" >&2 || true
+  rollback_live
+  rm -f "$previous_env"
   exit 4
 fi
+
+if ! validate_workboard "$live_url"; then
+  echo 'Live 3DVR portal release failed Workboard validation.' >&2
+  rollback_live
+  rm -f "$previous_env"
+  exit 4
+fi
+rm -f "$previous_env"
 
 cloudflared="$(command -v cloudflared || true)"
 if [ -z "$cloudflared" ]; then
@@ -177,7 +295,7 @@ set +a
 
 portal_url=''
 if [ -n "${THREEDVR_CLOUDFLARE_TUNNEL_TOKEN:-}" ] && [ "$(id -u)" = 0 ] && command -v systemctl >/dev/null 2>&1; then
-  cat > /etc/systemd/system/3dvr-portal-tunnel.service <<EOF_TUNNEL
+  cat > /etc/systemd/system/3dvr-portal-tunnel.service <<EOF
 [Unit]
 Description=3DVR portal Cloudflare tunnel
 After=3dvr-portal.service
@@ -192,7 +310,7 @@ RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
-EOF_TUNNEL
+EOF
   systemctl daemon-reload
   systemctl enable --now 3dvr-portal-tunnel.service
   systemctl restart 3dvr-portal-tunnel.service

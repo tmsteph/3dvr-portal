@@ -35,12 +35,24 @@ function dateRange(now, days) {
 
 async function resolveGunImpl(explicitImpl) {
   if (explicitImpl) return explicitImpl;
-  const moduleResult = await import('gun');
+  const moduleResult = await import('gun/gun.js');
   const GunImpl = moduleResult.default || moduleResult;
   if (typeof GunImpl !== 'function') {
     throw new Error('Unable to load Gun for first-party analytics.');
   }
   return GunImpl;
+}
+
+async function resolveWebSocketImpl(explicitImpl) {
+  if (explicitImpl) return explicitImpl;
+  if (typeof globalThis.WebSocket === 'function') return globalThis.WebSocket;
+  try {
+    const moduleResult = await import('ws');
+    const WebSocketImpl = moduleResult.WebSocket || moduleResult.default || moduleResult;
+    return typeof WebSocketImpl === 'function' ? WebSocketImpl : null;
+  } catch {
+    return null;
+  }
 }
 
 function waitForPeer(gun, timeoutMs, triggerNode) {
@@ -63,6 +75,7 @@ export async function createFreePageAnalyticsReader(options = {}) {
   if (options.client) return options.client;
 
   const GunImpl = await resolveGunImpl(options.GunImpl);
+  const WebSocketImpl = await resolveWebSocketImpl(options.WebSocketImpl);
   const peers = parsePeers(options.peers);
   const gun = options.gun || GunImpl({
     peers,
@@ -70,7 +83,8 @@ export async function createFreePageAnalyticsReader(options = {}) {
     multicast: false,
     localStorage: false,
     radisk: false,
-    file: false
+    file: false,
+    ...(WebSocketImpl ? { WebSocket: WebSocketImpl } : {})
   });
   const eventsNode = getGunNode(gun, FREE_PAGE_ANALYTICS_PATH);
   const connectedPeer = await waitForPeer(gun, options.connectTimeoutMs || 3500, eventsNode);
@@ -99,6 +113,7 @@ export async function fetchFirstPartyAnalyticsHints(config = {}, options = {}) {
     const reader = await createFreePageAnalyticsReader({
       client: options.client,
       GunImpl: options.GunImpl,
+      WebSocketImpl: options.WebSocketImpl,
       gun: options.gun,
       peers: config.gunPeers,
       connectTimeoutMs: options.connectTimeoutMs

@@ -8,6 +8,7 @@ const { getOAuthAccessToken } = require('./oauth-connection');
 const { appendContactFooter, buildContactFooter } = require('./contact-footer');
 const { appendOutreachLog, readOutreachLog } = require('./outreach-log');
 const { buildPersonalizedPreviewUrl } = require('./outreach-draft-queue');
+const { acquireEmailSend, markEmailSent, markEmailUncertain } = require('./email-idempotency');
 const {
   claimLease,
   isHandled,
@@ -1448,7 +1449,7 @@ async function sendPortalAlert(alert) {
   };
 }
 
-async function sendLeadReply(message, lead, state) {
+async function sendLeadReply(message, lead, state, idempotencyKey = '') {
   if (!DEFAULT_PORTAL_EMAIL_ENDPOINT) {
     return { ok: false, reason: 'portal email endpoint not configured' };
   }
@@ -1464,9 +1465,11 @@ async function sendLeadReply(message, lead, state) {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${DEFAULT_PORTAL_EMAIL_TOKEN}`,
+        ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
       },
       body: JSON.stringify({
         mode: 'lead-outreach',
+        ...(idempotencyKey ? { idempotencyKey } : {}),
         to: [message.replyToEmail || message.fromEmail],
         subject: buildReplySubject(message.subject),
         headline: draft.headline,
@@ -1503,7 +1506,7 @@ async function sendLeadReply(message, lead, state) {
   };
 }
 
-async function sendPublicAgentReply(message, state) {
+async function sendPublicAgentReply(message, state, idempotencyKey = '') {
   if (!DEFAULT_PORTAL_EMAIL_ENDPOINT) {
     return { ok: false, reason: 'portal email endpoint not configured' };
   }
@@ -1519,9 +1522,11 @@ async function sendPublicAgentReply(message, state) {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${DEFAULT_PORTAL_EMAIL_TOKEN}`,
+        ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
       },
       body: JSON.stringify({
         mode: 'lead-outreach',
+        ...(idempotencyKey ? { idempotencyKey } : {}),
         to: [message.replyToEmail || message.fromEmail],
         subject: buildReplySubject(message.subject),
         headline: draft.headline,
@@ -1559,7 +1564,7 @@ async function sendPublicAgentReply(message, state) {
   };
 }
 
-async function sendFreeDesignReply(message, state) {
+async function sendFreeDesignReply(message, state, idempotencyKey = '') {
   if (!DEFAULT_PORTAL_EMAIL_ENDPOINT) return { ok: false, reason: 'portal email endpoint not configured' };
   if (!DEFAULT_PORTAL_EMAIL_TOKEN) return { ok: false, reason: 'portal email token not configured' };
   const draft = buildFreeDesignReplyDraft(message, state);
@@ -1571,9 +1576,11 @@ async function sendFreeDesignReply(message, state) {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${DEFAULT_PORTAL_EMAIL_TOKEN}`,
+        ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
       },
       body: JSON.stringify({
         mode: 'lead-outreach',
+        ...(idempotencyKey ? { idempotencyKey } : {}),
         to: [message.replyToEmail || message.fromEmail],
         subject: buildReplySubject(message.subject),
         headline: draft.headline,
@@ -1661,16 +1668,46 @@ async function sendCoordinatedReply(kind, message, sendImpl) {
     };
   }
 
+  const recipient = normalizeEmail(message.replyToEmail || message.fromEmail);
+  const subject = buildReplySubject(message.subject);
+  const reservation = acquireEmailSend({
+    from: DEFAULT_REPLY_SENDER_EMAIL,
+    to: recipient,
+    subject,
+    text: `coordinated-reply:${actionId}`,
+  });
+
+  if (!reservation.ok) {
+    await releaseLease(`reply:${actionId}`, lease.lease?.token).catch(() => {});
+    return {
+      ok: false,
+      skipped: true,
+      reason: `duplicate reply blocked: ${reservation.reason}`,
+      idempotencyKey: reservation.key,
+    };
+  }
+
   try {
-    const result = await sendImpl();
+    let result;
+    try {
+      result = await sendImpl(reservation.key);
+    } catch (error) {
+      markEmailUncertain(reservation, error);
+      throw error;
+    }
+
     if (result?.ok) {
+      markEmailSent(reservation, { kind, actionId });
       await markHandled(kind, actionId, {
         to: result.to || '',
-        subject: result.subject || buildReplySubject(message.subject),
+        subject: result.subject || subject,
         replySource: result.replySource || '',
+        idempotencyKey: reservation.key,
       }).catch((error) => {
         console.warn(`Unable to mark coordinated reply handled: ${error.message || error}`);
       });
+    } else {
+      markEmailUncertain(reservation, new Error(result?.reason || 'reply send outcome was not confirmed'));
     }
     return result;
   } finally {
@@ -2017,7 +2054,7 @@ async function main() {
     } else {
       for (const { message, lead, meta } of autoReplyCandidates) {
         if (!canSendAutoReply(state)) break;
-        const result = await sendCoordinatedReply('inbox-lead-reply', message, () => sendLeadReply(message, lead, state));
+        const result = await sendCoordinatedReply('inbox-lead-reply', message, (idempotencyKey) => sendLeadReply(message, lead, state, idempotencyKey));
         if (result.skipped) {
           console.log(`Skipped auto-reply to ${lead.name || message.from}: ${result.reason}`);
           continue;
@@ -2051,7 +2088,7 @@ async function main() {
     } else {
       for (const { message, meta } of publicAgentAutoReplyCandidates) {
         if (!canSendAutoReply(state)) break;
-        const result = await sendCoordinatedReply('inbox-public-agent-reply', message, () => sendPublicAgentReply(message, state));
+        const result = await sendCoordinatedReply('inbox-public-agent-reply', message, (idempotencyKey) => sendPublicAgentReply(message, state, idempotencyKey));
         if (result.skipped) {
           console.log(`Skipped public 3dvr-agent auto-reply from ${message.fromEmail}: ${result.reason}`);
           continue;
@@ -2084,7 +2121,7 @@ async function main() {
     } else {
       for (const { message, meta } of freeDesignAutoReplyCandidates) {
         if (!canSendAutoReply(state)) break;
-        const result = await sendCoordinatedReply('inbox-free-design-reply', message, () => sendFreeDesignReply(message, state));
+        const result = await sendCoordinatedReply('inbox-free-design-reply', message, (idempotencyKey) => sendFreeDesignReply(message, state, idempotencyKey));
         if (result.skipped) {
           console.log(`Skipped free-design auto-reply from ${message.fromEmail}: ${result.reason}`);
           continue;

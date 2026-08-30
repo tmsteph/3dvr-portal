@@ -13,7 +13,9 @@ const PROVIDERS = {
   }
 };
 
-const LOCAL_EVENTS_KEY = 'calendar.local.events';
+const SHARE_TOKEN = readCalendarShareToken();
+const LOCAL_EVENTS_KEY = SHARE_TOKEN ? `calendar.shared.events:${SHARE_TOKEN}` : 'calendar.local.events';
+const SHARE_LINKS_STORAGE_PREFIX = 'calendar.share.links:';
 const PROVIDER_LABELS = {
   local: 'Local',
   google: 'Google',
@@ -29,6 +31,9 @@ const DEFAULT_REMINDER_DAY_OFFSET = 0;
 const DEFAULT_REPEAT_WEEKS = null;
 const MAX_REPEAT_WEEKS = 52;
 const DEFAULT_REPEAT_GENERATION_WEEKS = MAX_REPEAT_WEEKS;
+const ROLLING_WEEK_VISIBLE_DAYS = 7;
+const ROLLING_WEEK_BUFFER_DAYS = 14;
+const CALENDAR_VIEW_MODE_KEY = 'calendar.view.mode';
 
 function startOfMonth(date) {
   const result = new Date(date);
@@ -58,11 +63,16 @@ const state = {
 const today = startOfDay(new Date());
 const calendarState = {
   viewDate: startOfMonth(new Date()),
+  rollingAnchorDate: startOfDay(new Date()),
+  viewMode: 'month',
   weekStartsOn: 0,
   selectedDate: today.toISOString().slice(0, 10),
   dayEvents: new Map()
 };
 const reminderTimers = new Map();
+let rollingScrollTimer = null;
+let rollingDragState = null;
+let suppressCalendarClickAfterDrag = false;
 
 const GUN_PEERS = (typeof window !== 'undefined' && window.__GUN_PEERS__) || [
   'wss://relay.3dvr.tech/gun',
@@ -71,9 +81,19 @@ const GUN_PEERS = (typeof window !== 'undefined' && window.__GUN_PEERS__) || [
 const gun = typeof Gun === 'function' ? Gun(GUN_PEERS) : null;
 const portalRoot = gun ? gun.get('3dvr-portal') : null;
 const calendarRoot = portalRoot ? portalRoot.get('calendar') : null;
-const calendarOwnerKey = calendarRoot ? resolveCalendarOwnerKey() : null;
-const gunEvents = calendarOwnerKey ? calendarRoot.get('users').get(calendarOwnerKey).get('events') : null;
+const personalCalendarOwnerKey = calendarRoot ? resolveCalendarOwnerKey() : null;
+let calendarOwnerKey = SHARE_TOKEN ? null : personalCalendarOwnerKey;
+let gunEvents = calendarOwnerKey ? calendarRoot.get('users').get(calendarOwnerKey).get('events') : null;
 let isGunApplying = false;
+let shareGunStarted = false;
+const shareState = {
+  token: SHARE_TOKEN,
+  mode: SHARE_TOKEN ? 'loading' : 'owner',
+  permission: SHARE_TOKEN ? 'view' : 'owner',
+  active: !SHARE_TOKEN,
+  label: '',
+  ownerKey: calendarOwnerKey || '',
+};
 
 const statusElements = new Map(
   Array.from(document.querySelectorAll('[data-status]')).map(el => [el.dataset.status, el])
@@ -92,6 +112,10 @@ const createEventSubmitButton = createEventForm
   : null;
 const calendarDayNames = document.querySelector('[data-calendar-day-names]');
 const calendarGrid = document.querySelector('[data-calendar-grid]');
+const calendarGridViewport = document.querySelector('.calendar-view__grid');
+const calendarViewTitle = document.querySelector('[data-calendar-view-title]');
+const calendarViewModeButtons = document.querySelectorAll('[data-calendar-view-mode]');
+const calendarControls = document.querySelector('.calendar-view__controls');
 const calendarCurrentLabel = document.querySelector('[data-calendar-current]');
 const calendarTodayButton = document.querySelector('[data-calendar-today]');
 const calendarNavButtons = document.querySelectorAll('[data-calendar-nav]');
@@ -108,6 +132,13 @@ const calendarQuickConnectedMeta = document.getElementById('calendarQuickConnect
 const calendarQuickSelected = document.getElementById('calendarQuickSelected');
 const calendarQuickSelectedMeta = document.getElementById('calendarQuickSelectedMeta');
 const portalHomeLink = document.querySelector('[data-portal-home-link]');
+const shareAccessBanner = document.querySelector('[data-share-access]');
+const shareAccessTitle = document.querySelector('[data-share-access-title]');
+const shareAccessCopy = document.querySelector('[data-share-access-copy]');
+const shareForm = document.querySelector('[data-share-form]');
+const shareLinkOutput = document.querySelector('[data-share-link-output]');
+const shareLinkField = document.querySelector('[data-share-link]');
+const shareList = document.querySelector('[data-share-list]');
 
 const calendarMonthFormatter = new Intl.DateTimeFormat(undefined, {
   month: 'long',
@@ -259,6 +290,292 @@ function resolveCalendarOwnerKey() {
   }
   const fallbackGuestId = ensureCalendarGuestId();
   return `guest:${slugifyKey(fallbackGuestId, 'guest')}`;
+}
+
+
+function readCalendarShareToken() {
+  if (typeof window === 'undefined' || !window.location) return '';
+  const hash = String(window.location.hash || '').replace(/^#/, '');
+  if (!hash) return '';
+  const params = new URLSearchParams(hash);
+  const token = (params.get('share') || '').trim();
+  return /^(?:calv|cale)_[A-Za-z0-9_-]{32,160}$/.test(token) ? token : '';
+}
+
+function sharePermissionFromToken(token = SHARE_TOKEN) {
+  return String(token || '').startsWith('cale_') ? 'edit' : 'view';
+}
+
+function canEditCalendar() {
+  return shareState.mode === 'owner' || (shareState.mode === 'share' && shareState.active && shareState.permission === 'edit');
+}
+
+function isSharedCalendar() {
+  return Boolean(shareState.token);
+}
+
+function shareRegistryStorageKey() {
+  return `${SHARE_LINKS_STORAGE_PREFIX}${personalCalendarOwnerKey || 'guest'}`;
+}
+
+function readShareRegistry() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(shareRegistryStorageKey()) || '[]');
+    return Array.isArray(parsed) ? parsed.filter(item => item && typeof item.token === 'string') : [];
+  } catch (_err) {
+    return [];
+  }
+}
+
+function writeShareRegistry(records) {
+  try {
+    localStorage.setItem(shareRegistryStorageKey(), JSON.stringify(Array.isArray(records) ? records : []));
+  } catch (err) {
+    console.warn('Unable to persist calendar share links', err);
+  }
+}
+
+function generateShareToken(permission = 'view') {
+  const bytes = new Uint8Array(32);
+  if (globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+  }
+  let binary = '';
+  bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+  const prefix = permission === 'edit' ? 'cale' : 'calv';
+  return `${prefix}_${btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')}`;
+}
+
+function buildShareUrl(token) {
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.hash = `share=${encodeURIComponent(token)}`;
+  return url.toString();
+}
+
+function getShareMetaNode(token) {
+  if (!gun || !token) return null;
+  return gun.get(`3dvr-calendar-share:${token}`).get('meta');
+}
+
+function setOwnerOnlyVisibility(shared) {
+  document.querySelectorAll('[data-owner-only]').forEach(element => {
+    element.hidden = Boolean(shared);
+  });
+}
+
+function applyShareModeUi() {
+  const shared = isSharedCalendar();
+  document.body.dataset.calendarAccess = shared ? shareState.permission : 'owner';
+  setOwnerOnlyVisibility(shared);
+
+  if (shareAccessBanner) {
+    shareAccessBanner.hidden = !shared;
+  }
+  if (shared && shareAccessTitle) {
+    if (shareState.mode === 'loading') shareAccessTitle.textContent = 'Opening shared calendar…';
+    else if (!shareState.active) shareAccessTitle.textContent = 'This share link is no longer active';
+    else shareAccessTitle.textContent = shareState.permission === 'edit' ? 'Shared calendar • Can edit' : 'Shared calendar • View only';
+  }
+  if (shared && shareAccessCopy) {
+    if (shareState.mode === 'loading') shareAccessCopy.textContent = 'Checking the secret link and loading the calendar.';
+    else if (!shareState.active) shareAccessCopy.textContent = 'Ask the calendar owner for a new link.';
+    else {
+      const label = shareState.label ? `${shareState.label}. ` : '';
+      shareAccessCopy.textContent = `${label}${shareState.permission === 'edit' ? 'You can add and change 3DVR events.' : 'You can view this calendar without signing in.'}`;
+    }
+  }
+
+  const editable = canEditCalendar();
+  if (createEventToggle) createEventToggle.hidden = !editable;
+  if (addEventForDayButton) addEventForDayButton.hidden = !editable;
+  if (!editable && createEventContainer) createEventContainer.hidden = true;
+}
+
+function renderShareLinks() {
+  if (!shareList) return;
+  shareList.innerHTML = '';
+  const records = readShareRegistry().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  if (!records.length) {
+    const empty = document.createElement('li');
+    empty.className = 'share-link-list__empty';
+    empty.textContent = 'No secret share links yet.';
+    shareList.appendChild(empty);
+    return;
+  }
+  records.forEach(record => {
+    const item = document.createElement('li');
+    item.className = 'share-link-list__item';
+    const info = document.createElement('div');
+    const title = document.createElement('strong');
+    title.textContent = record.label || (record.permission === 'edit' ? 'Edit link' : 'View link');
+    const meta = document.createElement('span');
+    meta.textContent = `${record.permission === 'edit' ? 'Can edit' : 'View only'}${record.active === false ? ' • Revoked' : ''}`;
+    info.append(title, meta);
+    const actions = document.createElement('div');
+    actions.className = 'share-link-list__actions';
+    if (record.active !== false) {
+      const copy = document.createElement('button');
+      copy.type = 'button';
+      copy.className = 'button-secondary';
+      copy.dataset.action = 'copy-existing-share';
+      copy.dataset.shareToken = record.token;
+      copy.textContent = 'Copy';
+      const revoke = document.createElement('button');
+      revoke.type = 'button';
+      revoke.className = 'button-secondary';
+      revoke.dataset.action = 'revoke-share';
+      revoke.dataset.shareToken = record.token;
+      revoke.textContent = 'Revoke';
+      actions.append(copy, revoke);
+    }
+    item.append(info, actions);
+    shareList.appendChild(item);
+  });
+}
+
+async function copyShareUrl(token) {
+  const url = buildShareUrl(token);
+  try {
+    await navigator.clipboard.writeText(url);
+    showLog('Secret calendar link copied.', 'success');
+  } catch (_err) {
+    if (shareLinkField) {
+      shareLinkField.value = url;
+      shareLinkField.focus();
+      shareLinkField.select();
+    }
+    showLog('Share link is ready to copy.', 'info');
+  }
+  return url;
+}
+
+function handleShareCreate(event) {
+  event.preventDefault();
+  if (!shareForm) return;
+  if (!personalCalendarOwnerKey || !personalCalendarOwnerKey.startsWith('user:')) {
+    showLog('Sign in to create a secret calendar share link.', 'error');
+    return;
+  }
+  if (!gun) {
+    showLog('The 3DVR relay is unavailable, so a live share link cannot be created right now.', 'error');
+    return;
+  }
+  const form = new FormData(shareForm);
+  const permission = form.get('permission') === 'edit' ? 'edit' : 'view';
+  const label = String(form.get('label') || '').trim().slice(0, 80);
+  const token = generateShareToken(permission);
+  const createdAt = new Date().toISOString();
+  const record = { token, permission, label, createdAt, active: true };
+  const metaNode = getShareMetaNode(token);
+  metaNode.put({
+    version: 1,
+    active: true,
+    ownerKey: personalCalendarOwnerKey,
+    permission,
+    label,
+    createdAt,
+  });
+  const records = readShareRegistry();
+  records.push(record);
+  writeShareRegistry(records);
+  renderShareLinks();
+  const url = buildShareUrl(token);
+  if (shareLinkField) shareLinkField.value = url;
+  if (shareLinkOutput) shareLinkOutput.hidden = false;
+  showLog(`${permission === 'edit' ? 'Editable' : 'View-only'} secret link created.`, 'success');
+}
+
+function revokeShareToken(token) {
+  const records = readShareRegistry().map(record => record.token === token
+    ? { ...record, active: false, revokedAt: new Date().toISOString() }
+    : record);
+  writeShareRegistry(records);
+  const metaNode = getShareMetaNode(token);
+  if (metaNode) metaNode.put({ active: false, revokedAt: new Date().toISOString() });
+  renderShareLinks();
+  showLog('Share link revoked. It will no longer load the live calendar.', 'success');
+}
+
+function handleShareListClick(event) {
+  const button = event.target.closest('button[data-share-token]');
+  if (!button) return;
+  const token = button.dataset.shareToken || '';
+  if (!token) return;
+  if (button.dataset.action === 'revoke-share') revokeShareToken(token);
+  else if (button.dataset.action === 'copy-existing-share') copyShareUrl(token);
+}
+
+function initializeOwnerShareControls() {
+  if (isSharedCalendar()) return;
+  renderShareLinks();
+  if (shareForm) shareForm.addEventListener('submit', handleShareCreate);
+  if (shareList) shareList.addEventListener('click', handleShareListClick);
+  const copyButton = document.querySelector('[data-action="copy-share-link"]');
+  if (copyButton) copyButton.addEventListener('click', () => {
+    const value = shareLinkField?.value || '';
+    const token = (() => {
+      try { return new URL(value).hash.replace(/^#/, '') ? new URLSearchParams(new URL(value).hash.slice(1)).get('share') || '' : ''; }
+      catch (_err) { return ''; }
+    })();
+    if (token) copyShareUrl(token);
+  });
+}
+
+function initializeSharedCalendar() {
+  if (!SHARE_TOKEN) return false;
+  applyShareModeUi();
+  if (!gun || !calendarRoot) {
+    shareState.mode = 'share';
+    shareState.active = false;
+    applyShareModeUi();
+    showLog('The shared calendar relay is unavailable.', 'error');
+    return true;
+  }
+  const metaNode = getShareMetaNode(SHARE_TOKEN);
+  metaNode.on(raw => {
+    const meta = stripGunMeta(raw);
+    const ownerKey = typeof meta?.ownerKey === 'string' ? meta.ownerKey.trim() : '';
+    const active = meta?.active !== false && Boolean(ownerKey);
+    shareState.mode = 'share';
+    shareState.active = active;
+    // Permission is part of the unguessable capability token, not mutable relay metadata.
+    shareState.permission = sharePermissionFromToken(SHARE_TOKEN);
+    shareState.label = typeof meta?.label === 'string' ? meta.label.trim() : '';
+    shareState.ownerKey = ownerKey;
+    applyShareModeUi();
+    if (!active) {
+      if (gunEvents && typeof gunEvents.off === 'function') gunEvents.off();
+      gunEvents = null;
+      shareGunStarted = false;
+      state.localEvents = [];
+      try { localStorage.removeItem(LOCAL_EVENTS_KEY); } catch (_err) {}
+      renderEvents();
+      showLog('This share link has been revoked or is invalid.', 'error');
+      return;
+    }
+    if (!/^user:[a-z0-9_-]+$/.test(ownerKey)) {
+      shareState.active = false;
+      applyShareModeUi();
+      showLog('This share link is invalid.', 'error');
+      return;
+    }
+    if (!shareGunStarted) {
+      calendarOwnerKey = ownerKey;
+      gunEvents = calendarRoot.get('users').get(ownerKey).get('events');
+      shareGunStarted = true;
+      state.localEvents = [];
+      try { localStorage.removeItem(LOCAL_EVENTS_KEY); } catch (_err) {}
+      renderEvents();
+      setupGunSync({ pushInitial: false });
+      showLog(shareState.permission === 'edit'
+        ? 'Shared calendar loaded. Changes you make here sync through the 3DVR relay.'
+        : 'Shared calendar loaded in view-only mode.', 'success');
+    }
+  });
+  return true;
 }
 
 function stripGunMeta(value) {
@@ -482,7 +799,8 @@ function syncEventsToGun(events, previousIds = new Set()) {
   });
 }
 
-function setupGunSync() {
+function setupGunSync(options = {}) {
+  const { pushInitial = !isSharedCalendar() } = options;
   if (!gunEvents) {
     console.info('3DVR calendar relay unavailable; continuing with local-only events.');
     return;
@@ -517,7 +835,7 @@ function setupGunSync() {
     isGunApplying = false;
   });
 
-  if (state.localEvents.length) {
+  if (pushInitial && state.localEvents.length) {
     syncEventsToGun(state.localEvents);
   }
 }
@@ -554,6 +872,9 @@ function readOauthConnection(provider) {
   if (provider === 'google') {
     return {
       accessToken: connection.accessToken,
+      refreshToken: connection.refreshToken || '',
+      expiresAt: connection.expiresAt || 0,
+      scopeKey: connection.scopeKey || 'calendar',
       calendarId: connection.calendarId || PROVIDERS.google.defaults.calendarId,
       source: 'oauth',
       email: connection.email || '',
@@ -562,6 +883,9 @@ function readOauthConnection(provider) {
   }
   return {
     accessToken: connection.accessToken,
+    refreshToken: connection.refreshToken || '',
+    expiresAt: connection.expiresAt || 0,
+    scopeKey: connection.scopeKey || 'calendar',
     mailbox: connection.email || connection.mailbox || '',
     source: 'oauth',
     email: connection.email || '',
@@ -721,7 +1045,7 @@ function writeLocalEvents(events, options = {}) {
   }
   renderEvents();
   scheduleReminders(sorted);
-  if (gunEvents && !skipGunSync && !isGunApplying) {
+  if (gunEvents && canEditCalendar() && !skipGunSync && !isGunApplying) {
     syncEventsToGun(sorted, previousIds);
   }
 }
@@ -734,6 +1058,7 @@ function hydrateLocalEvents() {
 }
 
 function ensureDefaultTodayEvent() {
+  if (isSharedCalendar()) return;
   const today = new Date();
   const todayKey = toDateKey(today);
   if (!todayKey) {
@@ -784,6 +1109,25 @@ function ensureDefaultTodayEvent() {
   writeLocalEvents([...state.localEvents, seededEvent]);
 }
 
+function pruneLegacyAutoSeedEvents() {
+  const before = state.localEvents.length;
+  const cleaned = state.localEvents.filter(event => {
+    const seededOn = event?.metadata?.[AUTO_SEEDED_METADATA_KEY];
+    if (!seededOn) return true;
+    const title = typeof event.title === 'string' ? event.title.trim().toLowerCase() : '';
+    const description = typeof event.description === 'string' ? event.description.trim() : '';
+    const start = Date.parse(event.start || '');
+    const end = Date.parse(event.end || '');
+    const durationMinutes = Number.isNaN(start) || Number.isNaN(end) ? Infinity : Math.round((end - start) / 60000);
+    const untouchedTitle = !title || title === 'new event' || title === 'untitled event';
+    return !(untouchedTitle && !description && durationMinutes > 0 && durationMinutes <= 15);
+  });
+  if (cleaned.length !== before) {
+    writeLocalEvents(cleaned);
+    showLog(`Removed ${before - cleaned.length} old placeholder event${before - cleaned.length === 1 ? '' : 's'}.`, 'success');
+  }
+}
+
 function withTimeZoneLabel(text, timeZone) {
   if (!timeZone || !text || text === '—') {
     return text;
@@ -824,6 +1168,36 @@ function formatCalendarRange(event) {
   return start || '';
 }
 
+function formatCompactCalendarTime(value, timeZone) {
+  if (!value) return '';
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const options = { hour: 'numeric', minute: '2-digit', hour12: true };
+    if (timeZone) options.timeZone = timeZone;
+    const parts = new Intl.DateTimeFormat(undefined, options).formatToParts(date);
+    const hour = parts.find(part => part.type === 'hour')?.value || '';
+    const minute = parts.find(part => part.type === 'minute')?.value || '';
+    const period = (parts.find(part => part.type === 'dayPeriod')?.value || '').slice(0, 1).toLowerCase();
+    return `${hour}${minute && minute !== '00' ? `:${minute}` : ''}${period}`;
+  } catch (err) {
+    console.warn('Unable to format compact calendar time', value, err);
+    return '';
+  }
+}
+
+function formatCompactCalendarRange(event) {
+  if (!event) return '';
+  const start = formatCompactCalendarTime(event.start, event.timeZone);
+  const end = formatCompactCalendarTime(event.end, event.timeZone);
+  const overnight =
+    typeof event.start === 'string' &&
+    typeof event.end === 'string' &&
+    event.start.slice(0, 10) !== event.end.slice(0, 10);
+  if (start && end) return `${start}–${end}${overnight ? '+1' : ''}`;
+  return start || '';
+}
+
 function renderCalendarDayNames() {
   if (!calendarDayNames) return;
   calendarDayNames.innerHTML = '';
@@ -840,11 +1214,14 @@ function renderCalendarDayNames() {
   }
 }
 
-function renderCalendar(events = state.localEvents) {
+function renderMonthCalendar(events = state.localEvents) {
   if (calendarCurrentLabel) {
     calendarCurrentLabel.textContent = calendarMonthFormatter.format(calendarState.viewDate);
   }
   if (!calendarGrid) return;
+  if (calendarGridViewport) calendarGridViewport.dataset.calendarView = 'month';
+  if (calendarDayNames) calendarDayNames.hidden = false;
+  calendarGrid.removeAttribute('data-rolling');
   const monthStart = startOfMonth(calendarState.viewDate || new Date());
   const gridStart = new Date(monthStart);
   const offset = getWeekdayIndex(monthStart.getDay());
@@ -893,14 +1270,25 @@ function renderCalendar(events = state.localEvents) {
       eventsForDay.slice(0, 3).forEach(event => {
         const item = document.createElement('li');
         item.className = 'calendar-view__event';
-        const timeLabel = formatCalendarTime(event.start, event.timeZone);
+        const timeLabel = formatCalendarRange(event);
+        const compactTimeLabel = formatCompactCalendarRange(event);
         if (timeLabel) {
           const time = document.createElement('span');
           time.className = 'calendar-view__event-time';
-          time.textContent = timeLabel;
+          const full = document.createElement('span');
+          full.className = 'calendar-view__event-time-full';
+          full.textContent = timeLabel;
+          const compact = document.createElement('span');
+          compact.className = 'calendar-view__event-time-compact';
+          compact.textContent = compactTimeLabel || timeLabel;
+          time.append(full, compact);
           item.appendChild(time);
         }
-        item.appendChild(document.createTextNode(event.title || 'Untitled event'));
+        item.setAttribute('aria-label', `${timeLabel ? `${timeLabel}, ` : ''}${event.title || 'Untitled event'}`);
+        const title = document.createElement('span');
+        title.className = 'calendar-view__event-title';
+        title.textContent = event.title || 'Untitled event';
+        item.appendChild(title);
         list.appendChild(item);
       });
       if (eventsForDay.length > 3) {
@@ -918,6 +1306,10 @@ function renderCalendar(events = state.localEvents) {
     } else if (eventsForDay.length > 1) {
       labelParts.push(`${eventsForDay.length} events`);
     }
+    eventsForDay.slice(0, 3).forEach(event => {
+      const range = formatCalendarRange(event);
+      labelParts.push(`${range ? `${range} ` : ''}${event.title || 'Untitled event'}`);
+    });
     const dayKey = cellDate.toISOString().slice(0, 10);
     cell.setAttribute('aria-label', labelParts.join(', '));
     cell.dataset.date = dayKey;
@@ -935,6 +1327,260 @@ function renderCalendar(events = state.localEvents) {
     calendarState.selectedDate = null;
   }
   renderSelectedDayDetails();
+}
+
+function formatRollingCalendarRange(anchorDate) {
+  const start = startOfDay(anchorDate instanceof Date ? anchorDate : new Date());
+  const end = new Date(start);
+  end.setDate(end.getDate() + ROLLING_WEEK_VISIBLE_DAYS - 1);
+  const startLabel = calendarShortDateFormatter.format(start);
+  const endLabel = calendarShortDateFormatter.format(end);
+  if (start.getFullYear() === end.getFullYear()) {
+    return `${startLabel} – ${endLabel}, ${end.getFullYear()}`;
+  }
+  return `${startLabel}, ${start.getFullYear()} – ${endLabel}, ${end.getFullYear()}`;
+}
+
+function updateCalendarPeriodLabel() {
+  if (!calendarCurrentLabel) return;
+  if (calendarState.viewMode === 'week') {
+    calendarCurrentLabel.textContent = formatRollingCalendarRange(calendarState.rollingAnchorDate);
+  } else {
+    calendarCurrentLabel.textContent = calendarMonthFormatter.format(calendarState.viewDate);
+  }
+}
+
+function renderRollingWeek(events = state.localEvents) {
+  if (!calendarGrid) return;
+  if (calendarGridViewport) calendarGridViewport.dataset.calendarView = 'week';
+  if (calendarDayNames) calendarDayNames.hidden = true;
+  calendarGrid.dataset.rolling = 'true';
+  calendarGrid.innerHTML = '';
+
+  const anchor = startOfDay(calendarState.rollingAnchorDate || new Date());
+  const rangeStart = new Date(anchor);
+  rangeStart.setDate(rangeStart.getDate() - ROLLING_WEEK_BUFFER_DAYS);
+  const totalDays = (ROLLING_WEEK_BUFFER_DAYS * 2) + ROLLING_WEEK_VISIBLE_DAYS;
+  const normalizedEvents = Array.isArray(events) ? events : [];
+  const todayTime = startOfDay(new Date()).getTime();
+  calendarState.dayEvents = new Map();
+
+  for (let index = 0; index < totalDays; index += 1) {
+    const cellDate = new Date(rangeStart);
+    cellDate.setDate(rangeStart.getDate() + index);
+    const cellDayTime = startOfDay(cellDate).getTime();
+    const dayKey = cellDate.toISOString().slice(0, 10);
+    const cell = document.createElement('div');
+    cell.className = 'calendar-view__day calendar-view__day--rolling';
+    cell.setAttribute('role', 'button');
+    cell.setAttribute('tabindex', '0');
+    cell.dataset.date = dayKey;
+    if (index === ROLLING_WEEK_BUFFER_DAYS) cell.dataset.rollingAnchor = 'true';
+    if (cellDayTime === todayTime) {
+      cell.classList.add('calendar-view__day--today');
+      cell.setAttribute('aria-current', 'date');
+    }
+
+    const dateHeader = document.createElement('p');
+    dateHeader.className = 'calendar-view__date calendar-view__date--rolling';
+    const weekday = document.createElement('span');
+    weekday.className = 'calendar-view__rolling-weekday';
+    weekday.textContent = calendarWeekdayFormatter.format(cellDate);
+    const date = document.createElement('span');
+    date.className = 'calendar-view__rolling-date';
+    date.textContent = calendarShortDateFormatter.format(cellDate);
+    dateHeader.append(weekday, date);
+    cell.appendChild(dateHeader);
+
+    const eventsForDay = normalizedEvents.filter(event => {
+      if (!event || typeof event.start !== 'string' || !event.start) return false;
+      const eventDate = new Date(event.start);
+      if (Number.isNaN(eventDate.getTime())) return false;
+      return startOfDay(eventDate).getTime() === cellDayTime;
+    });
+
+    if (eventsForDay.length) {
+      cell.classList.add('calendar-view__day--has-events');
+      const list = document.createElement('ul');
+      list.className = 'calendar-view__events';
+      eventsForDay.slice(0, 6).forEach(event => {
+        const item = document.createElement('li');
+        item.className = 'calendar-view__event';
+        const timeLabel = formatCalendarRange(event);
+        const compactTimeLabel = formatCompactCalendarRange(event);
+        if (timeLabel) {
+          const time = document.createElement('span');
+          time.className = 'calendar-view__event-time';
+          const full = document.createElement('span');
+          full.className = 'calendar-view__event-time-full';
+          full.textContent = timeLabel;
+          const compact = document.createElement('span');
+          compact.className = 'calendar-view__event-time-compact';
+          compact.textContent = compactTimeLabel || timeLabel;
+          time.append(full, compact);
+          item.appendChild(time);
+        }
+        const titleText = event.title || 'Busy';
+        item.setAttribute('aria-label', `${timeLabel ? `${timeLabel}, ` : ''}${titleText}`);
+        const title = document.createElement('span');
+        title.className = 'calendar-view__event-title';
+        title.textContent = titleText;
+        item.appendChild(title);
+        list.appendChild(item);
+      });
+      if (eventsForDay.length > 6) {
+        const more = document.createElement('li');
+        more.className = 'calendar-view__more';
+        more.textContent = `+${eventsForDay.length - 6} more`;
+        list.appendChild(more);
+      }
+      cell.appendChild(list);
+    }
+
+    const labelParts = [calendarFullDateFormatter.format(cellDate)];
+    if (eventsForDay.length === 1) labelParts.push('1 event');
+    else if (eventsForDay.length > 1) labelParts.push(`${eventsForDay.length} events`);
+    eventsForDay.slice(0, 6).forEach(event => {
+      const range = formatCalendarRange(event);
+      labelParts.push(`${range ? `${range} ` : ''}${event.title || 'Busy'}`);
+    });
+    cell.setAttribute('aria-label', labelParts.join(', '));
+    calendarState.dayEvents.set(dayKey, eventsForDay.slice());
+    if (calendarState.selectedDate === dayKey) {
+      cell.classList.add('calendar-view__day--selected');
+      cell.setAttribute('aria-pressed', 'true');
+    } else {
+      cell.setAttribute('aria-pressed', 'false');
+    }
+    calendarGrid.appendChild(cell);
+  }
+
+  updateCalendarPeriodLabel();
+  requestAnimationFrame(() => {
+    if (!calendarGridViewport || calendarState.viewMode !== 'week') return;
+    const anchorCell = calendarGrid.querySelector('[data-rolling-anchor="true"]');
+    if (anchorCell) calendarGridViewport.scrollLeft = Math.max(0, rollingCellScrollLeft(anchorCell));
+  });
+  renderSelectedDayDetails();
+}
+
+function rollingCellScrollLeft(cell) {
+  if (!cell || !calendarGridViewport) return 0;
+  const viewportRect = calendarGridViewport.getBoundingClientRect();
+  const cellRect = cell.getBoundingClientRect();
+  return calendarGridViewport.scrollLeft + (cellRect.left - viewportRect.left);
+}
+
+function renderCalendar(events = state.localEvents) {
+  if (calendarState.viewMode === 'week') {
+    renderRollingWeek(events);
+  } else {
+    renderMonthCalendar(events);
+  }
+}
+
+function syncRollingAnchorFromScroll() {
+  if (calendarState.viewMode !== 'week' || !calendarGridViewport || !calendarGrid) return;
+  const cells = Array.from(calendarGrid.querySelectorAll('.calendar-view__day[data-date]'));
+  if (!cells.length) return;
+  const target = calendarGridViewport.scrollLeft + 4;
+  let anchorCell = cells[0];
+  for (const cell of cells) {
+    if (rollingCellScrollLeft(cell) <= target + 2) anchorCell = cell;
+    else break;
+  }
+  const parsed = new Date(`${anchorCell.dataset.date}T00:00:00`);
+  if (!Number.isNaN(parsed.getTime())) {
+    calendarState.rollingAnchorDate = startOfDay(parsed);
+    updateCalendarPeriodLabel();
+  }
+}
+
+function handleRollingCalendarScroll() {
+  if (calendarState.viewMode !== 'week') return;
+  if (rollingScrollTimer) window.clearTimeout(rollingScrollTimer);
+  rollingScrollTimer = window.setTimeout(syncRollingAnchorFromScroll, 90);
+}
+
+function startRollingCalendarDrag(event) {
+  if (calendarState.viewMode !== 'week' || !calendarGridViewport) return;
+  if (event.pointerType === 'touch' || event.button !== 0) return;
+  rollingDragState = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startScrollLeft: calendarGridViewport.scrollLeft,
+    moved: false
+  };
+  if (typeof calendarGridViewport.setPointerCapture === 'function') {
+    calendarGridViewport.setPointerCapture(event.pointerId);
+  }
+}
+
+function moveRollingCalendarDrag(event) {
+  if (!rollingDragState || rollingDragState.pointerId !== event.pointerId || !calendarGridViewport) return;
+  const delta = event.clientX - rollingDragState.startX;
+  if (!rollingDragState.moved && Math.abs(delta) < 5) return;
+  rollingDragState.moved = true;
+  calendarGridViewport.classList.add('is-dragging');
+  calendarGridViewport.scrollLeft = rollingDragState.startScrollLeft - delta;
+  event.preventDefault();
+}
+
+function endRollingCalendarDrag(event) {
+  if (!rollingDragState || rollingDragState.pointerId !== event.pointerId || !calendarGridViewport) return;
+  const moved = rollingDragState.moved;
+  if (typeof calendarGridViewport.releasePointerCapture === 'function'
+      && calendarGridViewport.hasPointerCapture?.(event.pointerId)) {
+    calendarGridViewport.releasePointerCapture(event.pointerId);
+  }
+  rollingDragState = null;
+  calendarGridViewport.classList.remove('is-dragging');
+  if (moved) {
+    suppressCalendarClickAfterDrag = true;
+    window.setTimeout(() => { suppressCalendarClickAfterDrag = false; }, 0);
+  }
+}
+
+function readStoredCalendarViewMode() {
+  try {
+    return localStorage.getItem(CALENDAR_VIEW_MODE_KEY) === 'week' ? 'week' : 'month';
+  } catch (_err) {
+    return 'month';
+  }
+}
+
+function setCalendarViewMode(mode, options = {}) {
+  const nextMode = mode === 'week' ? 'week' : 'month';
+  calendarState.viewMode = nextMode;
+  if (nextMode === 'week') {
+    const selected = calendarState.selectedDate ? new Date(`${calendarState.selectedDate}T00:00:00`) : null;
+    calendarState.rollingAnchorDate = selected && !Number.isNaN(selected.getTime())
+      ? startOfDay(selected)
+      : startOfDay(new Date());
+  } else {
+    const selected = calendarState.selectedDate ? new Date(`${calendarState.selectedDate}T00:00:00`) : null;
+    if (selected && !Number.isNaN(selected.getTime())) calendarState.viewDate = startOfMonth(selected);
+  }
+
+  if (calendarViewTitle) calendarViewTitle.textContent = nextMode === 'week' ? 'Week' : 'Month';
+  calendarViewModeButtons.forEach(button => {
+    const active = button.dataset.calendarViewMode === nextMode;
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    button.classList.toggle('calendar-view__mode-button--active', active);
+  });
+  if (calendarControls) {
+    calendarControls.setAttribute('aria-label', nextMode === 'week' ? 'Move week view by day' : 'Change month');
+  }
+  calendarNavButtons.forEach(button => {
+    const forward = button.dataset.calendarNav === 'next';
+    button.setAttribute('aria-label', nextMode === 'week'
+      ? `${forward ? 'Next' : 'Previous'} day`
+      : `${forward ? 'Next' : 'Previous'} month`);
+  });
+  if (options.persist !== false) {
+    try { localStorage.setItem(CALENDAR_VIEW_MODE_KEY, nextMode); } catch (_err) {}
+  }
+  renderCalendar();
 }
 
 function renderSelectedDayDetails() {
@@ -960,7 +1606,7 @@ function renderSelectedDayDetails() {
   calendarDetails.hidden = false;
   calendarDetailsList.innerHTML = '';
   if (calendarDetailsActions) {
-    calendarDetailsActions.hidden = false;
+    calendarDetailsActions.hidden = !canEditCalendar();
   }
 
   const displayDate = new Date(`${selectedDate}T00:00:00`);
@@ -1019,9 +1665,10 @@ function renderSelectedDayDetails() {
         listItem.appendChild(description);
       }
 
-      if (item.normalized.provider === 'local') {
+      if (item.normalized.provider === 'local' && canEditCalendar()) {
         const actions = document.createElement('div');
         actions.className = 'calendar-view__details-item-actions';
+
         const editButton = document.createElement('button');
         editButton.type = 'button';
         editButton.className = 'button-secondary calendar-view__details-edit';
@@ -1029,6 +1676,16 @@ function renderSelectedDayDetails() {
         editButton.dataset.eventId = item.raw.id;
         editButton.textContent = 'Edit';
         actions.appendChild(editButton);
+
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'button-secondary calendar-view__details-delete';
+        deleteButton.dataset.action = 'delete-event';
+        deleteButton.dataset.eventId = item.raw.id;
+        deleteButton.setAttribute('aria-label', `Delete ${item.normalized.title}`);
+        deleteButton.textContent = 'Delete';
+        actions.appendChild(deleteButton);
+
         listItem.appendChild(actions);
       }
 
@@ -1069,6 +1726,10 @@ function selectCalendarDate(dateString) {
 }
 
 function handleCalendarGridClick(event) {
+  if (suppressCalendarClickAfterDrag) {
+    suppressCalendarClickAfterDrag = false;
+    return;
+  }
   const cell = event.target.closest('.calendar-view__day');
   if (!cell) return;
   const { date } = cell.dataset;
@@ -1091,6 +1752,10 @@ function handleCalendarGridKeydown(event) {
 }
 
 function handleAddEventForSelectedDay() {
+  if (!canEditCalendar()) {
+    showLog('This shared calendar is view only.', 'info');
+    return;
+  }
   const targetDate = calendarState.selectedDate || toDateKey(new Date());
   resetCreateEventFormDirty();
   prefillCreateEventForm(targetDate, { force: true });
@@ -1235,7 +1900,7 @@ function renderEvents(events = state.localEvents) {
     }
     const editButton = fragment.querySelector('[data-action="edit-event"]');
     if (editButton) {
-      if (entry.provider === 'local') {
+      if (entry.provider === 'local' && canEditCalendar()) {
         editButton.dataset.eventId = entry.id;
         editButton.hidden = false;
       } else {
@@ -1245,11 +1910,12 @@ function renderEvents(events = state.localEvents) {
     const deleteButton = fragment.querySelector('[data-action="delete-event"]');
     if (deleteButton) {
       deleteButton.dataset.eventId = entry.id;
+      deleteButton.hidden = !canEditCalendar();
     }
     const reminderButton = fragment.querySelector('[data-action="send-reminder"]');
     if (reminderButton) {
       reminderButton.dataset.eventId = entry.id;
-      reminderButton.hidden = !entry.reminderEnabled;
+      reminderButton.hidden = !entry.reminderEnabled || isSharedCalendar();
     }
     eventList.appendChild(fragment);
   });
@@ -1365,6 +2031,31 @@ function getConnectionOrWarn(provider) {
   if (!connection) {
     showLog(`${PROVIDERS[provider].label} is not connected yet. Save a token first.`, 'error');
     return null;
+  }
+  return connection;
+}
+
+
+async function getFreshConnectionOrWarn(provider, options = {}) {
+  const { silent = false } = options;
+  let connection = state.connections.get(provider);
+  if (!connection) {
+    if (!silent) showLog(`${PROVIDERS[provider].label} is not connected yet. Use the account connection button first.`, 'error');
+    return null;
+  }
+  if (connection.source !== 'oauth') return connection;
+  const runtime = window.PortalOAuth;
+  if (!runtime || typeof runtime.ensureFreshConnection !== 'function') return connection;
+  try {
+    const refreshed = await runtime.ensureFreshConnection(getOauthProviderName(provider));
+    if (refreshed?.accessToken) {
+      hydrateState();
+      connection = state.connections.get(provider) || connection;
+    }
+  } catch (err) {
+    const expired = Number(connection.expiresAt) > 0 && Number(connection.expiresAt) <= Date.now();
+    if (!silent) showLog(err.message || `Unable to refresh ${PROVIDERS[provider].label}.`, 'error');
+    if (expired) return null;
   }
   return connection;
 }
@@ -1537,6 +2228,25 @@ function generateLocalId(prefix = 'local') {
   return `${prefix}:${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function remoteEventTitle(provider, raw) {
+  if (!raw || typeof raw !== 'object') return 'Busy';
+  const primary = provider === 'google' ? raw.summary : raw.subject;
+  if (typeof primary === 'string' && primary.trim()) return primary.trim();
+
+  const fallbackCandidates = provider === 'google'
+    ? [raw.location, raw.organizer?.displayName, raw.creator?.displayName]
+    : [raw.location?.displayName, raw.organizer?.emailAddress?.name];
+  const fallback = fallbackCandidates.find(value => typeof value === 'string' && value.trim());
+  if (fallback) return fallback.trim();
+
+  if (provider === 'google') {
+    if (raw.eventType === 'workingLocation') return 'Working location';
+    if (raw.eventType === 'outOfOffice') return 'Out of office';
+    if (raw.eventType === 'focusTime') return 'Focus time';
+  }
+  return 'Busy';
+}
+
 function mapRemoteEvent(provider, raw) {
   if (!raw) return null;
   if (provider === 'google') {
@@ -1546,14 +2256,16 @@ function mapRemoteEvent(provider, raw) {
     return {
       id: `remote:${provider}:${raw.id || `${start || ''}:${end || ''}`}`,
       provider,
-      title: raw.summary || 'Untitled event',
+      title: remoteEventTitle(provider, raw),
       description: raw.description || '',
       start: toISOStringIfPossible(start),
       end: toISOStringIfPossible(end),
       timeZone,
       link: raw.htmlLink || '',
       metadata: {
-        remoteId: raw.id || null
+        remoteId: raw.id || null,
+        remoteEventType: raw.eventType || '',
+        remoteTitleMissing: !(typeof raw.summary === 'string' && raw.summary.trim())
       },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -1566,14 +2278,15 @@ function mapRemoteEvent(provider, raw) {
     return {
       id: `remote:${provider}:${raw.id || `${start || ''}:${end || ''}`}`,
       provider,
-      title: raw.subject || 'Untitled event',
+      title: remoteEventTitle(provider, raw),
       description: raw.bodyPreview || '',
       start: toISOStringIfPossible(start),
       end: toISOStringIfPossible(end),
       timeZone,
       link: raw.webLink || '',
       metadata: {
-        remoteId: raw.id || null
+        remoteId: raw.id || null,
+        remoteTitleMissing: !(typeof raw.subject === 'string' && raw.subject.trim())
       },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -1615,10 +2328,69 @@ function importRemoteEvents(provider, events = []) {
   return { added, updated, total: added + updated };
 }
 
+
+async function importUpcomingScheduleFromProvider(provider, anchorDate = new Date()) {
+  if (!PROVIDERS[provider]) return { added: 0, updated: 0, total: 0 };
+  const connection = await getFreshConnectionOrWarn(provider, { silent: true });
+  if (!connection) return { added: 0, updated: 0, total: 0 };
+  const monthStart = startOfMonth(anchorDate instanceof Date ? anchorDate : new Date());
+  const windowEnd = new Date(monthStart);
+  windowEnd.setMonth(windowEnd.getMonth() + 3);
+  const payload = {
+    action: 'listEvents',
+    accessToken: connection.accessToken,
+    timeMin: monthStart.toISOString(),
+    timeMax: windowEnd.toISOString(),
+    maxResults: 100,
+  };
+  if (provider === 'google') payload.calendarId = connection.calendarId || PROVIDERS.google.defaults.calendarId;
+  if (provider === 'outlook' && connection.mailbox) payload.mailbox = connection.mailbox;
+  const data = await callProvider(provider, payload);
+  return importRemoteEvents(provider, data.events || []);
+}
+
+async function refreshConnectedProviderCalendars() {
+  if (isSharedCalendar()) return;
+  const providers = Array.from(state.connections.keys()).filter(provider => PROVIDERS[provider]);
+  if (!providers.length) return;
+  const results = await Promise.allSettled(
+    providers.map(provider => importUpcomingScheduleFromProvider(provider))
+  );
+  const imported = results.reduce((total, result) => {
+    if (result.status !== 'fulfilled') return total;
+    return total + (result.value?.total || 0);
+  }, 0);
+  if (imported) {
+    showLog(`Synced ${imported} upcoming calendar event${imported === 1 ? '' : 's'}.`, 'success');
+  }
+}
+
+async function refreshUntitledImportedEvents() {
+  if (isSharedCalendar()) return;
+  const providers = Array.from(new Set(
+    state.localEvents
+      .filter(event => (event.provider === 'google' || event.provider === 'outlook') && /^untitled event$/i.test(String(event.title || '').trim()))
+      .map(event => event.provider)
+  ));
+  for (const provider of providers) {
+    if (!state.connections.has(provider)) continue;
+    const before = state.localEvents.filter(event => event.provider === provider && /^untitled event$/i.test(String(event.title || '').trim())).length;
+    try {
+      await importUpcomingScheduleFromProvider(provider);
+      const after = state.localEvents.filter(event => event.provider === provider && /^untitled event$/i.test(String(event.title || '').trim())).length;
+      if (after < before) {
+        showLog(`Restored ${before - after} event title${before - after === 1 ? '' : 's'} from ${PROVIDERS[provider].label}.`, 'success');
+      }
+    } catch (err) {
+      console.warn(`Unable to refresh untitled ${provider} events`, err);
+    }
+  }
+}
+
 async function handleFetchEvents() {
   if (!syncForm) return;
   const provider = getSelectedProvider();
-  const connection = getConnectionOrWarn(provider);
+  const connection = await getFreshConnectionOrWarn(provider);
   if (!connection) {
     return;
   }
@@ -1759,6 +2531,10 @@ function scheduleReminders(events = state.localEvents) {
 }
 
 function updateLocalEvent(eventId, patch, options = {}) {
+  if (!canEditCalendar() && !options.skipGunSync) {
+    showLog('This shared calendar is view only.', 'info');
+    return;
+  }
   const list = state.localEvents.map(entry => {
     if (entry.id !== eventId) {
       return entry;
@@ -1777,8 +2553,21 @@ function updateLocalEvent(eventId, patch, options = {}) {
   writeLocalEvents(list, options);
 }
 
+function confirmAndDeleteEvent(id) {
+  if (!id || !canEditCalendar()) return;
+  const target = state.localEvents.find(event => event.id === id);
+  if (!target) return;
+  const title = typeof target.title === 'string' && target.title.trim() ? target.title.trim() : 'this event';
+  if (!window.confirm(`Delete “${title}”? This can’t be undone.`)) return;
+  deleteLocalEvent(id);
+}
+
 function deleteLocalEvent(id, options = {}) {
   if (!id) return;
+  if (!canEditCalendar() && !options.skipGunSync) {
+    showLog('This shared calendar is view only.', 'info');
+    return;
+  }
   const remaining = state.localEvents.filter(event => event.id !== id);
   if (remaining.length === state.localEvents.length) {
     return;
@@ -1791,6 +2580,10 @@ function deleteLocalEvent(id, options = {}) {
 
 function openEventEditor(eventId) {
   if (!createEventForm || !eventId) return;
+  if (!canEditCalendar()) {
+    showLog('This shared calendar is view only.', 'info');
+    return;
+  }
   const target = state.localEvents.find(event => event.id === eventId);
   if (!target) {
     showLog('This event could not be found. It may have been removed from another session.', 'error');
@@ -1924,22 +2717,31 @@ function handleEventListClick(event) {
   if (!deleteButton) return;
   const { eventId } = deleteButton.dataset;
   if (eventId) {
-    deleteLocalEvent(eventId);
+    confirmAndDeleteEvent(eventId);
   }
 }
 
 function handleCalendarDetailsClick(event) {
   const editButton = event.target.closest('button[data-action="edit-event"]');
-  if (!editButton) return;
-  const { eventId } = editButton.dataset;
-  if (eventId) {
-    openEventEditor(eventId);
+  if (editButton) {
+    const { eventId } = editButton.dataset;
+    if (eventId) openEventEditor(eventId);
+    return;
   }
+
+  const deleteButton = event.target.closest('button[data-action="delete-event"]');
+  if (!deleteButton) return;
+  const { eventId } = deleteButton.dataset;
+  if (eventId) confirmAndDeleteEvent(eventId);
 }
 
 async function handleCreateEvent(event) {
   event.preventDefault();
   if (!createEventForm) return;
+  if (!canEditCalendar()) {
+    showLog('This shared calendar is view only.', 'info');
+    return;
+  }
   const formData = new FormData(createEventForm);
   const eventIdValue = formData.get('eventId');
   const requestedId = typeof eventIdValue === 'string' ? eventIdValue.trim() : '';
@@ -2114,7 +2916,7 @@ async function handleCreateEvent(event) {
       }
       const reminder = buildReminderMetadata(startIso, reminderOptions);
       const metadata = {
-        createdFrom: 'local',
+        createdFrom: isSharedCalendar() ? 'shared-edit' : 'local',
         reminder
       };
       if (recurrenceSeriesId) {
@@ -2211,7 +3013,7 @@ async function syncEventToProviders(localEvent, providers) {
       continue;
     }
     const label = config.label;
-    const connection = state.connections.get(provider);
+    const connection = await getFreshConnectionOrWarn(provider, { silent: true });
     if (!connection) {
       lines.push(`${label} is not connected. Open the section above to add a token and try again.`);
       overallType = 'error';
@@ -2340,24 +3142,34 @@ function handleOauthConnect(event) {
 function consumePendingOauthResult() {
   const runtime = window.PortalOAuth;
   if (!runtime || typeof runtime.consumePendingResult !== 'function') {
-    return;
+    return false;
   }
   const result = runtime.consumePendingResult();
   if (!result) {
-    return;
+    return false;
   }
   if (!result.ok) {
     showLog(result.error || 'OAuth connection could not be completed.', 'error');
-    return;
+    return true;
   }
   if (typeof runtime.storeConnectionFromResult === 'function') {
     runtime.storeConnectionFromResult(result);
   }
   if (result.intent === 'calendar-connect') {
     hydrateState();
-    const providerName = result.provider === 'microsoft' ? 'Outlook' : 'Google';
-    showLog(`${providerName} connection stored locally from OAuth.`, 'success');
+    const provider = result.provider === 'microsoft' ? 'outlook' : 'google';
+    const providerName = provider === 'outlook' ? 'Outlook' : 'Google';
+    showLog(`${providerName} connected. Importing your upcoming schedule…`, 'success');
+    importUpcomingScheduleFromProvider(provider)
+      .then(imported => {
+        const count = imported?.total || 0;
+        showLog(count
+          ? `${providerName} connected and ${count} upcoming event${count === 1 ? '' : 's'} loaded.`
+          : `${providerName} connected. Your upcoming schedule is already up to date.`, 'success');
+      })
+      .catch(err => showLog(`${providerName} connected, but the first calendar import failed: ${err.message || 'Unknown error.'}`, 'error'));
   }
+  return true;
 }
 
 function resetCreateEventFormDirty() {
@@ -2563,24 +3375,30 @@ function initializeCreateEventToggle() {
   updateCreateEventToggleLabel(false);
 }
 
-function changeCalendarMonth(offset) {
-  const next = new Date(calendarState.viewDate);
-  next.setMonth(next.getMonth() + offset);
-  calendarState.viewDate = startOfMonth(next);
-  calendarState.selectedDate = calendarState.viewDate.toISOString().slice(0, 10);
+function changeCalendarPeriod(offset) {
+  if (calendarState.viewMode === 'week') {
+    const next = new Date(calendarState.rollingAnchorDate || new Date());
+    next.setDate(next.getDate() + offset);
+    calendarState.rollingAnchorDate = startOfDay(next);
+  } else {
+    const next = new Date(calendarState.viewDate);
+    next.setMonth(next.getMonth() + offset);
+    calendarState.viewDate = startOfMonth(next);
+  }
   renderCalendar();
 }
 
 function goToCalendarToday() {
   const now = startOfDay(new Date());
   calendarState.viewDate = startOfMonth(now);
+  calendarState.rollingAnchorDate = now;
   calendarState.selectedDate = now.toISOString().slice(0, 10);
   renderCalendar();
 }
 
 function initializeCalendarView() {
   renderCalendarDayNames();
-  renderCalendar();
+  setCalendarViewMode(readStoredCalendarViewMode(), { persist: false });
 }
 
 function bindEvents() {
@@ -2627,7 +3445,13 @@ function bindEvents() {
   calendarNavButtons.forEach(button => {
     button.addEventListener('click', () => {
       const direction = button.dataset.calendarNav === 'next' ? 1 : -1;
-      changeCalendarMonth(direction);
+      changeCalendarPeriod(direction);
+    });
+  });
+
+  calendarViewModeButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      setCalendarViewMode(button.dataset.calendarViewMode);
     });
   });
 
@@ -2640,6 +3464,14 @@ function bindEvents() {
     calendarGrid.addEventListener('keydown', handleCalendarGridKeydown);
   }
 
+  if (calendarGridViewport) {
+    calendarGridViewport.addEventListener('scroll', handleRollingCalendarScroll, { passive: true });
+    calendarGridViewport.addEventListener('pointerdown', startRollingCalendarDrag);
+    calendarGridViewport.addEventListener('pointermove', moveRollingCalendarDrag);
+    calendarGridViewport.addEventListener('pointerup', endRollingCalendarDrag);
+    calendarGridViewport.addEventListener('pointercancel', endRollingCalendarDrag);
+  }
+
   if (addEventForDayButton) {
     addEventForDayButton.addEventListener('click', handleAddEventForSelectedDay);
   }
@@ -2647,17 +3479,30 @@ function bindEvents() {
 
 initializeCalendarView();
 hydrateState();
-consumePendingOauthResult();
+const consumedOauthResult = consumePendingOauthResult();
 hydrateLocalEvents();
-ensureDefaultTodayEvent();
 initializeCreateEventToggle();
 hydrateCreateFormDefaults();
 bindEvents();
 hydratePortalHomeLink();
 refreshOauthButtons();
-setupGunSync();
-const readyMessage = gunEvents
-  ? 'Ready to manage your calendar. Local events sync through the 3DVR relay and can connect to Google or Outlook when needed.'
-  : 'Ready to manage your local calendar. Connect Google or Outlook to sync when needed.';
-showLog(readyMessage);
-applyCreateEventPrefillFromQuery();
+applyShareModeUi();
+
+if (initializeSharedCalendar()) {
+  showLog('Opening private shared calendar…', 'info');
+} else {
+  pruneLegacyAutoSeedEvents();
+  setupGunSync();
+  refreshUntitledImportedEvents();
+  if (!consumedOauthResult) {
+    refreshConnectedProviderCalendars().catch(err => {
+      console.warn('Unable to refresh connected calendars', err);
+    });
+  }
+  initializeOwnerShareControls();
+  const readyMessage = gunEvents
+    ? 'Ready to manage your calendar. Events sync through the 3DVR relay and can connect to Google or Outlook when needed.'
+    : 'Ready to manage your local calendar. Connect Google or Outlook to sync when needed.';
+  showLog(readyMessage);
+  applyCreateEventPrefillFromQuery();
+}

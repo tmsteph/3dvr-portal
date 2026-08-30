@@ -8,6 +8,7 @@ import {
   runMetaMarketWorkerOnce
 } from '../growth/meta-market-worker.js';
 import { runAutopilotCycle } from '../money/autopilot.js';
+import { makeStripeClient } from '../billing/stripe.js';
 import {
   appendMoneyPrinterEvent,
   ensureMoneyPrinterWorkspace,
@@ -671,22 +672,26 @@ function buildComplianceFooter(config = {}) {
   return lines.join('\n');
 }
 
-function buildOutreachMessage({ contact, market, topOpportunity, config }) {
+function buildOutreachMessage({ contact, market, topOpportunity, config, destinationUrl = '' }) {
   const name = contact.name ? ` ${contact.name}` : '';
   const title = topOpportunity?.title || '3DVR Forge Sprint';
   const problem = topOpportunity?.problem || `keeping leads, follow-up, and launch work organized for ${market}`;
   const solution = topOpportunity?.solution || 'a focused setup sprint that turns one messy project into a paid test, landing page, and follow-up loop';
+  const suggestedPrice = String(topOpportunity?.suggestedPrice || '').trim();
   const firstName = name.trim().split(/\s+/)[0] || 'there';
+  const offerLines = [
+    `The useful version is simple: ${solution}`,
+    suggestedPrice ? `Current offer: ${suggestedPrice}.` : '',
+    destinationUrl ? `Details: ${destinationUrl}` : 'Would it be useful if I sent you the one-page version and a direct setup option?'
+  ].filter(Boolean);
   return {
-    subject: `Quick 3DVR launch sprint idea for ${contact.company || 'your project'}`,
+    subject: `Quick 3DVR idea for ${contact.company || 'your project'}: ${title}`,
     text: [
       `Hi ${firstName},`,
       '',
       `I am testing ${title} for ${market}. The problem I am checking is: ${problem}`,
       '',
-      `The useful version is simple: ${solution}`,
-      '',
-      'Would it be useful if I sent you the one-page version and a direct setup option?',
+      ...offerLines,
       '',
       'If this is not relevant, use the opt-out note below and I will not follow up.',
       buildComplianceFooter(config)
@@ -694,7 +699,7 @@ function buildOutreachMessage({ contact, market, topOpportunity, config }) {
   };
 }
 
-async function runWarmOutreach({ config, env, paths, topOpportunity, market }) {
+async function runWarmOutreach({ config, env, paths, topOpportunity, market, destinationUrl = '', autopilotRunId = '', offerProfile = '' }) {
   const result = {
     enabled: config.outreachEnabled,
     attempted: 0,
@@ -761,7 +766,7 @@ async function runWarmOutreach({ config, env, paths, topOpportunity, market }) {
   }).slice(0, remaining);
 
   for (const contact of candidates) {
-    const message = buildOutreachMessage({ contact, market, topOpportunity, config });
+    const message = buildOutreachMessage({ contact, market, topOpportunity, config, destinationUrl });
     result.attempted += 1;
     try {
       await transport.sendMail({
@@ -771,11 +776,14 @@ async function runWarmOutreach({ config, env, paths, topOpportunity, market }) {
         text: message.text
       });
       result.sent += 1;
-      result.messages.push({ email: contact.email, subject: message.subject, status: 'sent' });
+      result.messages.push({ email: contact.email, subject: message.subject, status: 'sent', autopilotRunId, offerProfile, destinationUrl });
       byEmail[contact.email] = {
         lastSentAt: nowIso(),
         subject: message.subject,
-        source: contact.source || ''
+        source: contact.source || '',
+        autopilotRunId,
+        offerProfile,
+        destinationUrl
       };
     } catch (error) {
       result.skipped += 1;
@@ -971,6 +979,7 @@ export async function runAutoBusinessCycle(options = {}) {
   const workspace = await ensureMoneyPrinterWorkspace(rootDir);
   const paths = getMoneyPrinterWorkspacePaths(rootDir);
   const config = resolveAutoBusinessConfig(options, env);
+  const stripeClient = options.stripeClient || makeStripeClient(env);
   const credentials = credentialStatus(env);
   const missing = missingCredentials(credentials);
 
@@ -1013,7 +1022,8 @@ export async function runAutoBusinessCycle(options = {}) {
     budget: config.budget,
     limit: config.signalLimit,
     dryRun: config.autopilotDryRun,
-    autoDiscover: true
+    autoDiscover: true,
+    stripeClient
   }), {
     runId: '',
     market: config.market,
@@ -1053,7 +1063,10 @@ export async function runAutoBusinessCycle(options = {}) {
     env,
     paths,
     topOpportunity: autopilot.topOpportunity || marketPulse.topOpportunity,
-    market: autopilot.market || config.market
+    market: autopilot.market || config.market,
+    destinationUrl: autopilot.monetization?.checkoutUrl || autopilot.publish?.destinationUrl || autopilot.promotion?.destinationUrl || '',
+    autopilotRunId: autopilot.runId || '',
+    offerProfile: autopilot.offerSelection?.profile || ''
   }), {
     enabled: config.outreachEnabled,
     attempted: 0,

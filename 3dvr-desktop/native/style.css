@@ -1,0 +1,106 @@
+* {
+  font-family: Sans;
+  color: #f4f5f7;
+}
+.home {
+  background: #0b0e12;
+}
+.title {
+  font-size: 62px;
+  font-weight: 800;
+}
+.subtitle {
+  font-size: 32px;
+  color: #8e98a4;
+  margin-bottom: 4px;
+}
+.section-label {
+  font-size: 30px;
+  font-weight: 700;
+  color: #cbd1d8;
+  margin-top: 10px;
+}
+.search {
+  min-height: 78px;
+  font-size: 34px;
+  border-radius: 28px;
+  padding: 0 28px;
+  background: #151a20;
+  border: 1px solid #252c34;
+}
+.search:focus {
+  border-color: #687481;
+  background: #171d23;
+}
+.running-card {
+  background: #151b21;
+  border: 1px solid #252d35;
+  border-radius: 26px;
+  padding: 18px;
+}
+.running-card:hover,
+.running-card:active {
+  background: #1b232b;
+}
+.running-label {
+  font-size: 28px;
+  font-weight: 700;
+}
+.empty-running {
+  font-size: 26px;
+  color: #77818c;
+  padding: 20px;
+}
+.app-tile {
+  background: transparent;
+  border: none;
+  border-radius: 34px;
+  padding: 24px;
+}
+.app-tile:hover,
+.app-tile:active {
+  background: #141a20;
+}
+.app-label {
+  font-size: 30px;
+  font-weight: 650;
+}
+.topbar {
+  background: rgba(8, 11, 15, 0.98);
+  border-bottom: 1px solid #1b2128;
+}
+.bar-button {
+  background: transparent;
+  border: none;
+  border-radius: 24px;
+  font-size: 30px;
+  font-weight: 700;
+  padding: 16px 26px;
+}
+.bar-button:hover,
+.bar-button:active {
+  background: #151b21;
+}
+.clock {
+  font-size: 30px;
+  font-weight: 650;
+  color: #d8dde3;
+}
+.spinner-knob {
+  background: rgba(17, 23, 29, 0.94);
+  border: 1px solid #38434d;
+  border-radius: 999px;
+}
+.spinner-knob:hover,
+.spinner-knob:active {
+  background: #1a232b;
+  border-color: #6f7d89;
+}
+.spinner-label {
+  font-size: 46px;
+  font-weight: 700;
+  color: #d9dee4;
+}
+.spinner-float {
+  background: transparent;
+}

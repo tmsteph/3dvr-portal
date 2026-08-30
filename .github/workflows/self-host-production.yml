@@ -36,11 +36,7 @@ jobs:
           set -euo pipefail
           npm ci
           node --check scripts/self-host-server.mjs
-          node --check scripts/self-host-api-router.mjs
           bash -n scripts/ops/deploy-self-host-portal.sh
-          bash -n scripts/ops/install-self-host-crons.sh
-          bash -n scripts/ops/merge-env-updates.sh
-          bash tests/self-host-secret-merge.test.sh
           node --test tests/operator-developer-access.test.js
 
       - name: Resolve server credentials and host
@@ -69,7 +65,7 @@ jobs:
           if [ -n "$do_token" ]; then
             http="$(curl -sS -o /tmp/droplets.json -w '%{http_code}' -H "Authorization: Bearer $do_token" 'https://api.digitalocean.com/v2/droplets?per_page=200' || true)"
             if [ "$http" = 200 ]; then
-              read -r id state ip < <(python3 -c 'import json,sys; known=sys.argv[1]; data=json.load(open("/tmp/droplets.json")); matches=[d for d in data.get("droplets",[]) if known in [n.get("ip_address","") for n in d.get("networks",{}).get("v4",[]) if n.get("type")=="public"] or d.get("name") in ("3dvr-agent","debian-web")]; d=matches[0] if matches else {}; ips=[n.get("ip_address","") for n in d.get("networks",{}).get("v4",[]) if n.get("type")=="public"]; print(d.get("id",""),d.get("status",""),ips[0] if ips else "")' "$DEFAULT_HOST")
+              read -r id state ip < <(python3 -c 'import json,sys; known=sys.argv[1]; data=json.load(open("/tmp/droplets.json")); matches=[d for d in data.get("droplets",[]) if known in [n.get("ip_address","") for n in d.get("networks",{}).get("v4",[]) if n.get("type")=="public"] or d.get("name")=="3dvr-agent"]; d=matches[0] if matches else {}; ips=[n.get("ip_address","") for n in d.get("networks",{}).get("v4",[]) if n.get("type")=="public"]; print(d.get("id",""),d.get("status",""),ips[0] if ips else "")' "$DEFAULT_HOST")
               if [ -n "${id:-}" ]; then
                 [ -n "${ip:-}" ] && target="$ip"
                 if [ "${state:-}" = off ]; then
@@ -107,57 +103,49 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
           TUNNEL_TOKEN: ${{ secrets.THREEDVR_CLOUDFLARE_TUNNEL_TOKEN }}
-          VERCEL_FALLBACK_ORIGIN: https://3dvr-portal.vercel.app
-          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
-          STRIPE_PRICE_STARTER_ID: ${{ secrets.STRIPE_PRICE_STARTER_ID }}
-          STRIPE_PRICE_PRO_ID: ${{ secrets.STRIPE_PRICE_PRO_ID }}
-          STRIPE_PRICE_BUILDER_ID: ${{ secrets.STRIPE_PRICE_BUILDER_ID }}
-          STRIPE_PRICE_EMBEDDED_ID: ${{ secrets.STRIPE_PRICE_EMBEDDED_ID }}
           GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
           GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
-          MICROSOFT_OAUTH_CLIENT_ID: ${{ secrets.MICROSOFT_OAUTH_CLIENT_ID }}
-          MICROSOFT_OAUTH_CLIENT_SECRET: ${{ secrets.MICROSOFT_OAUTH_CLIENT_SECRET }}
-          MICROSOFT_OAUTH_TENANT: ${{ secrets.MICROSOFT_OAUTH_TENANT }}
-          APPLE_OAUTH_CLIENT_ID: ${{ secrets.APPLE_OAUTH_CLIENT_ID }}
-          APPLE_OAUTH_TEAM_ID: ${{ secrets.APPLE_OAUTH_TEAM_ID }}
-          APPLE_OAUTH_KEY_ID: ${{ secrets.APPLE_OAUTH_KEY_ID }}
-          APPLE_OAUTH_PRIVATE_KEY: ${{ secrets.APPLE_OAUTH_PRIVATE_KEY }}
-          GMAIL_USER: ${{ secrets.GMAIL_USER }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           set -euo pipefail
           opts=(-i /tmp/3dvr-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
           updates="$(mktemp)"
           trap 'rm -f "$updates"' EXIT
-          umask 077
           {
-            for key in OPENAI_API_KEY AI_GATEWAY_API_KEY STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET STRIPE_PRICE_STARTER_ID STRIPE_PRICE_PRO_ID STRIPE_PRICE_BUILDER_ID STRIPE_PRICE_EMBEDDED_ID GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET MICROSOFT_OAUTH_CLIENT_ID MICROSOFT_OAUTH_CLIENT_SECRET MICROSOFT_OAUTH_TENANT APPLE_OAUTH_CLIENT_ID APPLE_OAUTH_TEAM_ID APPLE_OAUTH_KEY_ID APPLE_OAUTH_PRIVATE_KEY GMAIL_USER GMAIL_APP_PASSWORD CRON_SECRET; do
-              value="${!key:-}"
-              [ -n "$value" ] && printf '%s=%q\n' "$key" "$value"
-            done
-            [ -n "$TUNNEL_TOKEN" ] && printf 'THREEDVR_CLOUDFLARE_TUNNEL_TOKEN=%q\n' "$TUNNEL_TOKEN"
-            [ -n "$VERCEL_FALLBACK_ORIGIN" ] && printf 'VERCEL_FALLBACK_ORIGIN=%q\n' "$VERCEL_FALLBACK_ORIGIN"
+            [ -n "$OPENAI_API_KEY" ] && printf 'OPENAI_API_KEY=%s\n' "$OPENAI_API_KEY"
+            [ -n "$AI_GATEWAY_API_KEY" ] && printf 'AI_GATEWAY_API_KEY=%s\n' "$AI_GATEWAY_API_KEY"
+            [ -n "$TUNNEL_TOKEN" ] && printf 'THREEDVR_CLOUDFLARE_TUNNEL_TOKEN=%s\n' "$TUNNEL_TOKEN"
+            [ -n "$GOOGLE_OAUTH_CLIENT_ID" ] && printf 'GOOGLE_OAUTH_CLIENT_ID=%s\n' "$GOOGLE_OAUTH_CLIENT_ID"
+            [ -n "$GOOGLE_OAUTH_CLIENT_SECRET" ] && printf 'GOOGLE_OAUTH_CLIENT_SECRET=%s\n' "$GOOGLE_OAUTH_CLIENT_SECRET"
           } > "$updates"
-          scp "${opts[@]}" "$updates" "root@$TARGET:/tmp/3dvr-portal-secrets.updates"
-          scp "${opts[@]}" scripts/ops/merge-env-updates.sh "root@$TARGET:/tmp/3dvr-merge-env-updates.sh"
+
+          if [ ! -s "$updates" ]; then
+            echo 'No runtime secret updates supplied; preserving the server configuration.'
+            exit 0
+          fi
+
+          ssh "${opts[@]}" "root@$TARGET" \
+            'mkdir -p "$HOME/.3dvr/config"; chmod 700 "$HOME/.3dvr/config"; umask 077; cat > "$HOME/.3dvr/config/portal-secrets.update"' \
+            < "$updates"
+
           ssh "${opts[@]}" "root@$TARGET" 'bash -s' <<'REMOTE'
           set -euo pipefail
           config_dir="$HOME/.3dvr/config"
           secrets_env="$config_dir/portal-secrets.env"
-          updates=/tmp/3dvr-portal-secrets.updates
-          merge_script=/tmp/3dvr-merge-env-updates.sh
-          trap 'rm -f "$updates" "$merge_script"' EXIT
-          chmod 600 "$updates" "$merge_script"
-          bash "$merge_script" "$secrets_env" "$updates"
-          set -a
-          . "$secrets_env"
-          set +a
-          if [ -z "${OPENAI_API_KEY:-}" ] && [ -z "${AI_GATEWAY_API_KEY:-}" ]; then
-            [ -n "${VERCEL_FALLBACK_ORIGIN:-}" ] || { echo 'No local AI credential or Vercel fallback is configured on the 3DVR host.' >&2; exit 1; }
-            echo 'No local AI credential yet; using the canonical Vercel AI route as the hybrid fallback.'
-          fi
+          incoming="$config_dir/portal-secrets.update"
+          next="$(mktemp)"
+          trap 'rm -f "$incoming" "$next" "${next}.filtered"' EXIT
+          umask 077
+          touch "$secrets_env"
+          cp "$secrets_env" "$next"
+          while IFS= read -r line; do
+            [ -n "$line" ] || continue
+            key="${line%%=*}"
+            grep -v "^${key}=" "$next" > "${next}.filtered" || true
+            mv "${next}.filtered" "$next"
+            printf '%s\n' "$line" >> "$next"
+          done < "$incoming"
+          mv "$next" "$secrets_env"
+          chmod 600 "$secrets_env"
           REMOTE
 
       - name: Deploy portal and Forge worker
@@ -166,18 +154,17 @@ jobs:
         env:
           TARGET: ${{ steps.resolve.outputs.host }}
           DEPLOY_SHA: ${{ github.sha }}
-          DEPLOY_REF: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           opts=(-i /tmp/3dvr-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
-          output="$(ssh "${opts[@]}" "root@$TARGET" "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' DEPLOY_SHA='$DEPLOY_SHA' DEPLOY_REF='$DEPLOY_REF' bash -s" <<'REMOTE'
+          output="$(ssh "${opts[@]}" "root@$TARGET" "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' DEPLOY_SHA='$DEPLOY_SHA' bash -s" <<'REMOTE'
           set -euo pipefail
           source_repo="$HOME/.3dvr/self-host-portal-source"
           if [ ! -d "$source_repo/.git" ]; then
             rm -rf "$source_repo"
             git clone "https://github.com/$GITHUB_REPOSITORY.git" "$source_repo"
           fi
-          git -C "$source_repo" fetch --prune origin "$DEPLOY_REF"
+          git -C "$source_repo" fetch --prune origin main
           git -C "$source_repo" cat-file -e "$DEPLOY_SHA^{commit}"
           git -C "$source_repo" checkout --detach "$DEPLOY_SHA"
 
@@ -190,8 +177,7 @@ jobs:
             set +a
           fi
 
-          bash "$source_repo/scripts/ops/deploy-self-host-portal.sh" "$source_repo" "$DEPLOY_REF" "$DEPLOY_SHA" 4320
-          bash "$source_repo/scripts/ops/install-self-host-crons.sh"
+          bash "$source_repo/scripts/ops/deploy-self-host-portal.sh" "$source_repo" main "$DEPLOY_SHA" 4320
 
           npm --prefix "$source_repo/apps/agent" ci
           scripts="$source_repo/apps/agent/thomas-agent/scripts"
@@ -217,7 +203,7 @@ jobs:
           set -euo pipefail
           if [[ "$URL" == https://*.trycloudflare.com ]]; then
             curl -fsS --retry 10 --retry-delay 2 --retry-all-errors "$URL/__3dvr-health" > /tmp/health.json
-            node -e 'const fs=require("node:fs"); const expected=process.argv[1]; const health=JSON.parse(fs.readFileSync("/tmp/health.json","utf8")); if(!health.ok||health.sha!==expected||!["native","vercel-ai"].includes(health.operatorApi)||!["none","vercel-ai"].includes(health.apiFallback)) throw new Error(`self-host health mismatch: ${JSON.stringify(health)}`)' "$SHA"
+            node -e 'const fs=require("node:fs"); const expected=process.argv[1]; const health=JSON.parse(fs.readFileSync("/tmp/health.json","utf8")); if(!health.ok||health.sha!==expected||health.operatorApi!=="native") throw new Error(`self-host health mismatch: ${JSON.stringify(health)}`)' "$SHA"
             curl -fsS --retry 5 --retry-delay 1 "$URL/operator/" | grep -Fq 'Message your operator'
             options="$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$URL/api/openai-site?provider=operator")"
             [ "$options" = 200 ]

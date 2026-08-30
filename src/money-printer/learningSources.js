@@ -72,16 +72,27 @@ export function deriveEvidence({ autopilot = null, outbound = null, outcomes = [
   const calls = outcomes.filter(item => /booked|scheduled/i.test(item.replyStatus || item.notes || '')).length;
   const customers = outcomes.filter(item => positive(item.subscriptionStatus) || /customer|paid/i.test(item.keepLiveDecision || '')).length;
   const revenueCents = outcomes.reduce((sum, item) => sum + cents(item.revenue), 0);
-  const analyticsAvailable = Boolean(autopilot?.analytics?.enabled && Number.isFinite(Number(autopilot?.analytics?.sessions)));
+  const stripeRevenue = autopilot?.revenue || outbound?.revenue || null;
+  const stripeOfferRows = Array.isArray(stripeRevenue?.byOffer) ? stripeRevenue.byOffer : [];
+  const stripeAttributedRevenueCents = stripeOfferRows.reduce((sum, item) => sum + Math.max(0, Number(item?.grossRevenueCents || 0)), 0);
+  const stripeAttributedCheckouts = stripeOfferRows.reduce((sum, item) => sum + Math.max(0, Number(item?.paidCheckouts || 0)), 0);
+  const stripeRevenueAvailable = Boolean(stripeRevenue?.enabled);
+  const analyticsSource = autopilot?.analytics || outbound?.analytics || null;
+  const analyticsAvailable = Boolean(analyticsSource?.enabled && Number.isFinite(Number(analyticsSource?.sessions)));
   const researchAvailable = Boolean(marketPulse?.runId);
 
   const signals = {
-    ...(analyticsAvailable ? { visits: Number(autopilot.analytics.sessions) } : {}),
+    ...(analyticsAvailable ? { visits: Number(analyticsSource.sessions) } : {}),
     outreach_sent: Math.max(sentFromQueue, sentFromDispatch),
     qualified_replies: replies,
     calls_booked: calls,
     customers,
-    revenue_cents: revenueCents
+    revenue_cents: revenueCents,
+    ...(stripeRevenueAvailable ? {
+      stripe_attributed_checkouts: stripeAttributedCheckouts,
+      stripe_attributed_revenue_cents: stripeAttributedRevenueCents,
+      stripe_mrr_cents: Math.max(0, Number(stripeRevenue?.monthlyRecurringRevenueCents || 0))
+    } : {})
   };
   const researchCore = researchAvailable ? {
     market: marketPulse.market || '',
@@ -126,7 +137,15 @@ export function deriveEvidence({ autopilot = null, outbound = null, outcomes = [
           : 'analytics source or session count unavailable'
       },
       outbound: { available: Boolean(outbound), run_id: outbound?.autopilotRunId || '', queue_size: queue.length },
-      revenue: { available: outcomes.length > 0, rows: outcomes.length, reason: outcomes.length ? 'outbound outcome tracker imported' : 'outcome tracker unavailable' },
+      revenue: {
+        available: outcomes.length > 0 || stripeRevenueAvailable,
+        rows: outcomes.length,
+        stripe_attributed_checkouts: stripeAttributedCheckouts,
+        stripe_attributed_revenue_cents: stripeAttributedRevenueCents,
+        reason: stripeRevenueAvailable
+          ? 'Stripe attributed revenue imported; outcome tracker kept as supplemental feedback'
+          : outcomes.length ? 'outbound outcome tracker imported' : 'revenue evidence unavailable'
+      },
       research: { available: researchAvailable, run_id: marketPulse?.runId || '', signals_analyzed: Number(marketPulse?.signalsAnalyzed || 0) }
     }
   };

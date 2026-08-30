@@ -123,6 +123,7 @@
               <option value="ideas">💡 Ideas</option>
               <option value="support">🛟 Support</option>
               <option value="random">🎲 Random</option>
+              <option value="test">🧪 Test</option>
             </select>
           </div>
           <p id="room-description" class="chat-card__hint">All-hands updates and daily announcements.</p>
@@ -204,6 +205,10 @@ const ROOM_DETAILS = {
   random: {
     label: '#random',
     description: 'Celebrate wins, share memes, and connect between sprints.'
+  },
+  test: {
+    label: '#test',
+    description: 'Manual experiments and diagnostics. No push notifications.'
   }
 };
 const initialChatTarget = parseChatTarget(window.location.hash);
@@ -1073,7 +1078,36 @@ function loadRoom(roomName) {
     }
   };
 
-  roomStream.on(ingestMessage);
+  const legacyBackfillCandidates = new Map();
+  const durableMessageIds = new Set();
+  const legacyBackfillsInFlight = new Set();
+  const LEGACY_BACKFILL_MIN_AGE_MS = 30_000;
+
+  const ingestGunMessage = (message, id) => {
+    const normalizedId = normalizeMessageId(id);
+    const createdAt = Number(message?.createdAt) || 0;
+    const sender = typeof message?.sender === 'string' ? message.sender.trim() : '';
+    const text = typeof message?.text === 'string' ? message.text.trim() : '';
+    if (normalizedId && normalizedId !== '_latest' && sender && text && createdAt > 0 &&
+        createdAt <= Date.now() - LEGACY_BACKFILL_MIN_AGE_MS) {
+      legacyBackfillCandidates.set(normalizedId, { ...message, sender, text, createdAt });
+    }
+    ingestMessage(message, id);
+  };
+
+  const backfillLegacyMessages = () => {
+    if (roomName !== currentRoom) return;
+    legacyBackfillCandidates.forEach((message, messageId) => {
+      if (durableMessageIds.has(messageId) || legacyBackfillsInFlight.has(messageId)) return;
+      legacyBackfillsInFlight.add(messageId);
+      publishChatMessageToServer(roomName, messageId, message, { backfill: true })
+        .then(() => durableMessageIds.add(messageId))
+        .catch(error => console.warn('Legacy chat backfill failed; will retry', error))
+        .finally(() => legacyBackfillsInFlight.delete(messageId));
+    });
+  };
+
+  roomStream.on(ingestGunMessage);
 
   const followedMessageIds = new Set();
   const followMessageChain = (messageId, remaining = 50) => {
@@ -1082,7 +1116,7 @@ function loadRoom(roomName) {
     const messageNode = chat.get(messageId);
     messageNode.on(message => {
       if (!message || typeof message.text !== 'string' || !message.text.trim()) return;
-      ingestMessage(message, messageId);
+      ingestGunMessage(message, messageId);
       if (typeof messageNode.off === 'function') {
         messageNode.off();
       }
@@ -1097,7 +1131,7 @@ function loadRoom(roomName) {
       try {
         const recentMessages = JSON.parse(pointer.recent);
         if (Array.isArray(recentMessages)) {
-          recentMessages.forEach(entry => ingestMessage(entry?.message, entry?.id));
+          recentMessages.forEach(entry => ingestGunMessage(entry?.message, entry?.id));
         }
       } catch (error) {
         console.warn('Unable to reconcile recent chat messages', error);
@@ -1109,10 +1143,17 @@ function loadRoom(roomName) {
 
   const reconcileRoom = () => {
     if (roomName !== currentRoom) return;
-    chat.map().once(ingestMessage);
+    chat.map().once(ingestGunMessage);
     chat.get('_latest').once(ingestLatestPointer);
     syncChatMessagesFromServer(roomName)
-      .then(entries => entries.forEach(entry => ingestMessage(entry?.message, entry?.id)))
+      .then(entries => {
+        entries.forEach(entry => {
+          const messageId = normalizeMessageId(entry?.id);
+          if (messageId) durableMessageIds.add(messageId);
+          ingestMessage(entry?.message, entry?.id);
+        });
+        backfillLegacyMessages();
+      })
       .catch(error => console.warn('Durable chat sync unavailable; using GUN fallback', error));
   };
   currentRoomReconcile = reconcileRoom;
@@ -1200,14 +1241,15 @@ async function callChatMessageApi(action, payload = {}) {
   return response.json();
 }
 
-async function publishChatMessageToServer(room, messageId, message) {
+async function publishChatMessageToServer(room, messageId, message, { backfill = false } = {}) {
   return callChatMessageApi('publish', {
     room,
     messageId,
     senderId: message.sender,
     username: message.username,
     text: message.text,
-    createdAt: message.createdAt
+    createdAt: message.createdAt,
+    backfill: backfill === true
   });
 }
 
@@ -1241,7 +1283,7 @@ async function ensurePushSubscription({ verifyDelivery = false } = {}) {
 
   const result = await callChatPushApi('subscribe', {
     userId,
-    rooms: getAvailableChatRooms(),
+    rooms: getAvailableChatRooms().filter(room => room !== 'test'),
     subscription: subscription.toJSON(),
     userAgent: navigator.userAgent,
     verifyDelivery: verifyDelivery || createdSubscription

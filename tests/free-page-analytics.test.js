@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFile } from 'node:fs/promises';
 import {
   FREE_PAGE_ANALYTICS_PATH,
   createFreePageAnalyticsEvent,
   summarizeFreePageAnalytics,
   writeFreePageAnalyticsEvent
 } from '../src/analytics/freePage.js';
-import { fetchFirstPartyAnalyticsHints } from '../src/analytics/freePageReader.js';
+import { createFreePageAnalyticsReader, fetchFirstPartyAnalyticsHints } from '../src/analytics/freePageReader.js';
 
 function trackingGun() {
   const writes = [];
@@ -125,4 +126,46 @@ test('returns Money Printer compatible analytics from a Gun reader', async () =>
   assert.equal(result.pageViews, 1);
   assert.equal(result.leads, 1);
   assert.deepEqual(result.topPaths, ['/free-page/']);
+});
+
+
+test('server analytics reader uses the filesystem-free Gun core build', async () => {
+  const source = await readFile(new URL('../src/analytics/freePageReader.js', import.meta.url), 'utf8');
+  assert.match(source, /import\('gun\/gun\.js'\)/);
+  assert.doesNotMatch(source, /import\('gun'\)/);
+});
+
+
+test('server analytics reader passes an explicit WebSocket transport to Gun', async () => {
+  let receivedOptions = null;
+  class FakeWebSocket {}
+  const chain = {
+    get() { return this; },
+    once(callback) { callback?.(); return this; }
+  };
+  const gun = {
+    ...chain,
+    _: {
+      root: {
+        on(event, callback) {
+          if (event === 'hi') queueMicrotask(() => callback({ url: 'wss://example.test/gun' }));
+        }
+      }
+    }
+  };
+  const GunImpl = options => {
+    receivedOptions = options;
+    return gun;
+  };
+
+  await createFreePageAnalyticsReader({
+    GunImpl,
+    WebSocketImpl: FakeWebSocket,
+    peers: ['wss://example.test/gun'],
+    connectTimeoutMs: 50
+  });
+
+  assert.equal(receivedOptions.WebSocket, FakeWebSocket);
+  assert.equal(receivedOptions.radisk, false);
+  assert.equal(receivedOptions.file, false);
 });

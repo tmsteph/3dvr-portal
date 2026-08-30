@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Stronger-Than-Original Linen Repair — 3DVR Linen</title>
+  <meta name="description" content="A visual 3DVR Linen guide to repairing linen pants with a backing patch, sturdy linen thread, and backstitch so high-stress repairs can outlast the original seam.">
+  <meta name="theme-color" content="#1f1d18">
+  <script defer src="/_vercel/insights/script.js"></script>
+  <script defer src="/issue-launcher.js"></script>
+  <style>
+    :root {
+      --bg: #1f1d18;
+      --paper: #2a2721;
+      --ink: #f1eadc;
+      --muted: #b8ae9b;
+      --line: #4b4438;
+      --linen: #8f7a55;
+      --linen-light: #d9c7a0;
+      --patch: #b79f72;
+      --good: #8caf8c;
+      --warn: #d28c74;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    a { color: inherit; }
+
+    .wrap {
+      max-width: 980px;
+      margin: auto;
+      padding: 20px 16px 56px;
+    }
+
+    .site-nav {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .site-nav a {
+      text-decoration: none;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 9px 12px;
+    }
+
+    .site-nav .brand {
+      font-weight: 800;
+      border: 0;
+      padding-left: 0;
+    }
+
+    .site-nav a:focus-visible {
+      outline: 3px solid var(--linen);
+      outline-offset: 3px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 24px;
+      align-items: center;
+      padding: 28px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 6vw, 4.5rem);
+      line-height: .96;
+      margin: 0 0 16px;
+      letter-spacing: -.04em;
+    }
+
+    h2 { font-size: 1.45rem; margin: 0 0 10px; }
+    h3 { font-size: 1rem; margin: 0 0 6px; }
+    p { margin: 0 0 12px; }
+
+    .lede {
+      font-size: 1.1rem;
+      color: var(--muted);
+      max-width: 55ch;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: .84rem;
+      margin-bottom: 14px;
+    }
+
+    .hero-note {
+      border-left: 4px solid var(--good);
+      padding: 12px 14px;
+      background: #263127;
+      border-radius: 8px;
+      color: #cfe1cf;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 20px;
+    }
+
+    .wide { grid-column: 1 / -1; }
+
+    .materials {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .material {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #332f27;
+    }
+
+    .small { font-size: .9rem; color: var(--muted); }
+    .diagram { width: 100%; height: auto; display: block; }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      font-size: .86rem;
+      color: var(--muted);
+    }
+
+    .dot {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 5px;
+      vertical-align: -1px;
+    }
+
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .bad,
+    .good {
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+    }
+
+    .bad { background: #352724; }
+    .good { background: #263127; }
+    .bad strong { color: var(--warn); }
+    .good strong { color: var(--good); }
+
+    .steps { display: grid; gap: 12px; }
+
+    .step {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .num {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--linen);
+      color: #1f1d18;
+      font-weight: 800;
+    }
+
+    .footer {
+      margin-top: 20px;
+      text-align: center;
+      color: var(--muted);
+      font-size: .88rem;
+    }
+
+    @media (max-width: 700px) {
+      .hero,
+      .grid,
+      .materials,
+      .comparison { grid-template-columns: 1fr; }
+      .wide { grid-column: auto; }
+      .hero { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="site-nav" aria-label="Linen repair navigation">
+      <a class="brand" href="../">3dvr linen</a>
+      <a href="../">← Linen project</a>
+    </nav>
+
+    <section class="hero">
+      <div>
+        <div class="badge">Linen field repair guide</div>
+        <h1>Repair it stronger than it started.</h1>
+        <p class="lede">
+          The trick is not simply stronger thread. It is <strong>spreading the load</strong>
+          across healthy fabric with a backing patch and dense, overlapping stitches.
+        </p>
+      </div>
+      <div class="hero-note">
+        <strong>Rule #1</strong><br>
+        Never sew only through the torn edge. That edge is already weak. Build a new load-bearing zone around it.
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card wide">
+        <h2>The repair anatomy</h2>
+        <svg class="diagram" viewBox="0 0 900 410" role="img" aria-label="Diagram showing torn linen, a large backing patch, and reinforced stitch rows">
+          <defs>
+            <pattern id="weave" width="14" height="14" patternUnits="userSpaceOnUse">
+              <rect width="14" height="14" fill="#d9c7a0"/>
+              <path d="M0 7H14M7 0V14" stroke="#c4ad80" stroke-width="1"/>
+            </pattern>
+            <pattern id="patch" width="12" height="12" patternUnits="userSpaceOnUse">
+              <rect width="12" height="12" fill="#b79f72"/>
+              <path d="M0 6H12M6 0V12" stroke="#9b8258" stroke-width="1"/>
+            </pattern>
+          </defs>
+          <rect x="80" y="50" width="740" height="300" rx="34" fill="url(#weave)" stroke="#8b7959" stroke-width="3"/>
+          <rect x="270" y="105" width="360" height="190" rx="22" fill="url(#patch)" opacity=".9" stroke="#6c5b3f" stroke-width="3" stroke-dasharray="10 8"/>
+          <path d="M412 150 C440 165 420 190 455 205 C485 220 456 245 492 260" fill="none" stroke="#b66f5d" stroke-width="6" stroke-linecap="round"/>
+          <path d="M330 135H575 M330 160H575 M330 240H575 M330 265H575" stroke="#45433d" stroke-width="5" stroke-dasharray="13 9" stroke-linecap="round"/>
+          <path d="M290 125V275 M610 125V275" stroke="#45433d" stroke-width="4" stroke-dasharray="10 8"/>
+          <circle cx="455" cy="205" r="18" fill="#2a2721" stroke="#b66f5d" stroke-width="4"/>
+          <text x="455" y="210" text-anchor="middle" font-size="18" font-weight="700" fill="#d28c74">tear</text>
+          <text x="450" y="84" text-anchor="middle" font-size="20" font-weight="700" fill="#4b3921">backing patch extends well past damage</text>
+          <text x="450" y="328" text-anchor="middle" font-size="18" fill="#302d27">multiple stitch rows spread tension into healthy linen</text>
+        </svg>
+        <div class="legend">
+          <span><span class="dot" style="background:#d9c7a0"></span>Original linen</span>
+          <span><span class="dot" style="background:#b79f72"></span>Reinforcement linen</span>
+          <span><span class="dot" style="background:#45433d"></span>Stitch rows</span>
+          <span><span class="dot" style="background:#b66f5d"></span>Damage</span>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Use these materials</h2>
+        <div class="materials">
+          <div class="material">
+            <h3>Thread</h3>
+            <p><strong>18/3 linen thread</strong> for very sturdy hand repairs.</p>
+            <p class="small">Alternative: Gütermann linen No. 30.</p>
+          </div>
+          <div class="material">
+            <h3>Needle</h3>
+            <p><strong>Sharp hand needle</strong> with a large enough eye for the thread.</p>
+            <p class="small">Bohin big-eye sharps are a good upgrade from generic repair-kit needles.</p>
+          </div>
+          <div class="material">
+            <h3>Patch</h3>
+            <p><strong>Similar or heavier linen</strong>, washed first.</p>
+            <p class="small">Aim for ½–1 inch of healthy fabric beyond the damaged zone.</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Why your repair keeps breaking</h2>
+        <div class="comparison">
+          <div class="bad">
+            <strong>Weak repair</strong>
+            <p class="small">A single tight seam follows the original tear. The force stays concentrated in the same tiny strip of fabric.</p>
+          </div>
+          <div class="good">
+            <strong>Strong repair</strong>
+            <p class="small">A patch behind the fabric plus several stitch rows creates a larger load-bearing area.</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Best hand stitch</h2>
+        <svg class="diagram" viewBox="0 0 650 240" role="img" aria-label="Backstitch diagram">
+          <rect x="35" y="40" width="580" height="160" rx="24" fill="#d9c7a0" stroke="#a58d64" stroke-width="3"/>
+          <path d="M100 125H180 L145 95 L225 125 L190 95 L270 125 L235 95 L315 125 L280 95 L360 125 L325 95 L405 125 L370 95 L450 125 L415 95 L495 125" fill="none" stroke="#46423b" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+          <text x="325" y="178" text-anchor="middle" font-size="18" font-weight="700" fill="#28241e">BACKSTITCH</text>
+        </svg>
+        <p class="small">Each stitch overlaps the previous stitch’s territory, creating a stronger continuous seam than a simple running stitch.</p>
+      </article>
+
+      <article class="card">
+        <h2>Do it in this order</h2>
+        <div class="steps">
+          <div class="step"><div class="num">1</div><div><strong>Trim loose fibers only.</strong><br><span class="small">Do not enlarge the tear.</span></div></div>
+          <div class="step"><div class="num">2</div><div><strong>Place the patch behind it.</strong><br><span class="small">Extend well into undamaged fabric.</span></div></div>
+          <div class="step"><div class="num">3</div><div><strong>Secure the patch perimeter.</strong><br><span class="small">Small stitches, relaxed tension.</span></div></div>
+          <div class="step"><div class="num">4</div><div><strong>Backstitch across the stress zone.</strong><br><span class="small">Use two or more parallel rows for crotch, seat, or knees.</span></div></div>
+          <div class="step"><div class="num">5</div><div><strong>Stop before the cloth puckers.</strong><br><span class="small">Too much thread tension can make the thread cut through the linen.</span></div></div>
+        </div>
+      </article>
+
+      <article class="card wide">
+        <h2>The “stronger than original” recipe</h2>
+        <p><strong>Washed linen patch + heavy linen thread + backstitch + multiple rows + relaxed thread tension.</strong></p>
+        <p class="small">For a recurring failure spot, reinforce the area <em>before</em> it tears next time. Think of the patch as a structural plate rather than a bandage.</p>
+      </article>
+    </section>
+
+    <div class="footer">3DVR Linen • open, repairable, human-scale clothing • designed to be readable beside the sewing kit</div>
+  </main>
+</body>
+</html>

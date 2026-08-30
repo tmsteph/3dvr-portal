@@ -1,6 +1,7 @@
 import { runMoneyLoop } from './engine.js';
 import { collectDemandSignals } from './sources.js';
 import { fetchFirstPartyAnalyticsHints } from '../analytics/freePageReader.js';
+import { collectStripeRevenueHints } from './stripe-revenue.js';
 
 const DEFAULT_AUTOPILOT_PROFILE = {
   market: 'people who need a simple first website for a project, service, or small business',
@@ -14,7 +15,7 @@ const DEFAULT_AUTOPILOT_PROFILE = {
   publishPathPrefix: 'money-ai/offers',
   checkoutCtaLabel: 'Keep It Live',
   defaultDestinationUrl: 'https://portal.3dvr.tech/free-page/',
-  offerProfile: 'free-page-starter'
+  offerProfile: 'auto'
 };
 
 const FIRST_PARTY_OFFER_PROFILES = {
@@ -62,6 +63,46 @@ const FIRST_PARTY_OFFER_PROFILES = {
         headline: 'A free first website page',
         body: 'Not everyone needs a full site first. I am helping people get one simple page live: what you do, who it is for, proof, and a contact path.',
         cta: 'Get a free page'
+      }
+    ]
+  },
+  'website-upgrade': {
+    id: '3dvr-website-upgrade',
+    title: '3DVR Website Upgrade',
+    audience: 'small service businesses with an existing site that is dated, unclear, or weak at turning visitors into calls and inquiries',
+    problem: 'A business can have a website and still lose customers when the offer, proof, mobile layout, or next action is hard to understand.',
+    solution: 'A focused one-page website upgrade with a clearer offer, stronger call to action, mobile cleanup, and a simple customer contact path.',
+    mvp: 'One business-ready page with offer, proof, services, primary CTA, contact path, and mobile-first layout.',
+    suggestedPrice: '$99 one time',
+    painScore: 84,
+    willingnessToPay: 78,
+    speedToBuild: 92,
+    competitionGap: 63,
+    evidence: [
+      '3DVR already has a live Website Upgrade checkout and free-site outreach pipeline.',
+      'The existing workflow can use a free concept as proof before asking for the paid upgrade.'
+    ],
+    executionChecklist: [
+      'Target owner-led service businesses whose current site has an unclear offer or customer path.',
+      'Create a small personalized homepage concept before asking for payment.',
+      'Send the concept with one question and one $99 Website Upgrade checkout.',
+      'After payment, move the business into the build queue automatically.',
+      'Use completed upgrades and customer replies to refine the next concept and offer.'
+    ],
+    adDrafts: [
+      {
+        id: 'website-upgrade-email-1',
+        channel: 'email',
+        headline: 'I made a cleaner homepage direction for your business',
+        body: 'I put together a simple homepage direction that makes the offer and next step easier to understand. If you like the direction, I can turn it into a business-ready one-page upgrade for $99.',
+        cta: 'See the concept'
+      },
+      {
+        id: 'website-upgrade-local-1',
+        channel: 'local outreach',
+        headline: 'A small website upgrade instead of a rebuild',
+        body: 'You may not need a whole new website. I can clean up the main page so customers understand what you do and what to do next.',
+        cta: 'See a free concept'
       }
     ]
   },
@@ -675,6 +716,68 @@ export function resolveAutopilotConfig(options = {}) {
   };
 }
 
+const REVENUE_OFFER_ALIASES = Object.freeze({
+  'free-page-starter': 'free-page-starter',
+  'website-upgrade': 'website-upgrade',
+  'microbusiness-launch-sprint': 'microbusiness-launch-sprint'
+});
+
+function trackingValue(value, maxLength = 150) {
+  return String(value || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, maxLength);
+}
+
+export function buildAutopilotReferenceId(runId = '', offerProfile = '') {
+  const run = trackingValue(runId, 150);
+  const offer = trackingValue(offerProfile, 40);
+  return [run, offer].filter(Boolean).join('__').slice(0, 200);
+}
+
+export function addCheckoutAttribution(checkoutUrl = '', { runId = '', offerProfile = '' } = {}) {
+  const raw = String(checkoutUrl || '').trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(raw);
+    const referenceId = buildAutopilotReferenceId(runId, offerProfile);
+    if (referenceId) url.searchParams.set('client_reference_id', referenceId);
+    if (!url.searchParams.has('utm_source')) url.searchParams.set('utm_source', '3dvr');
+    if (!url.searchParams.has('utm_medium')) url.searchParams.set('utm_medium', 'money-autopilot');
+    if (offerProfile && !url.searchParams.has('utm_campaign')) {
+      url.searchParams.set('utm_campaign', trackingValue(offerProfile, 150));
+    }
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
+export function selectRevenueBackedOffer(configuredProfile = 'auto', revenue = {}) {
+  const requested = String(configuredProfile || '').trim() || 'auto';
+  if (requested !== 'auto') {
+    return { profile: requested, source: 'configured', checkoutUrl: '', evidence: null };
+  }
+
+  const candidates = (Array.isArray(revenue?.byOffer) ? revenue.byOffer : [])
+    .map(item => ({ ...item, profile: REVENUE_OFFER_ALIASES[item?.offer] || '' }))
+    .filter(item => item.profile && (Number(item.paidCheckouts) >= 2 || Number(item.grossRevenueCents) >= 20000))
+    .sort((a, b) => Number(b.grossRevenueCents || 0) - Number(a.grossRevenueCents || 0));
+
+  if (candidates.length) {
+    const winner = candidates[0];
+    return {
+      profile: winner.profile,
+      source: 'stripe-revenue',
+      checkoutUrl: String(winner.checkoutUrl || '').trim(),
+      evidence: winner
+    };
+  }
+
+  return { profile: 'free-page-starter', source: 'fallback', checkoutUrl: '', evidence: null };
+}
+
 function applyFirstPartyOfferProfile(report = {}, profileName = '') {
   const profile = FIRST_PARTY_OFFER_PROFILES[profileName];
   if (!profile) {
@@ -1025,6 +1128,19 @@ export async function runAutopilotCycle(options = {}) {
   const config = resolveAutopilotConfig(options);
   const warnings = [];
 
+  let revenue = options.revenue || null;
+  if (!revenue) {
+    try {
+      revenue = await (options.collectRevenueImpl || collectStripeRevenueHints)({
+        stripeClient: options.stripeClient,
+        limit: options.revenueSampleLimit || 100
+      });
+    } catch (error) {
+      revenue = { enabled: false, byOffer: [] };
+      warnings.push(`Stripe revenue signals unavailable: ${error?.message || error}`);
+    }
+  }
+
   const useFirstPartyAnalytics = config.analytics.source === 'gun';
   const analytics = useFirstPartyAnalytics
     ? await (options.firstPartyAnalyticsImpl || fetchFirstPartyAnalyticsHints)(config.analytics, {
@@ -1091,20 +1207,26 @@ export async function runAutopilotCycle(options = {}) {
     openAiModel: config.openAiModel
   });
 
-  const profiledReport = applyFirstPartyOfferProfile(report, config.offerProfile);
+  const offerSelection = selectRevenueBackedOffer(config.offerProfile, revenue);
+  const profiledReport = applyFirstPartyOfferProfile(report, offerSelection.profile);
+  const baseCheckoutUrl = offerSelection.checkoutUrl || config.monetization.checkoutUrl;
+  const attributedCheckoutUrl = addCheckoutAttribution(baseCheckoutUrl, {
+    runId: profiledReport.runId,
+    offerProfile: offerSelection.profile
+  });
 
   const reportWithMonetization = {
     ...profiledReport,
     monetization: {
       ...(profiledReport.monetization || {}),
-      checkoutUrl: config.monetization.checkoutUrl || config.promotion.defaultDestinationUrl,
-      checkoutCtaLabel: config.monetization.checkoutUrl
+      checkoutUrl: attributedCheckoutUrl || config.promotion.defaultDestinationUrl,
+      checkoutCtaLabel: baseCheckoutUrl
         ? config.monetization.checkoutCtaLabel
         : 'Start Free'
     }
   };
 
-  if (!config.monetization.checkoutUrl) {
+  if (!baseCheckoutUrl) {
     warnings.push(`Checkout URL not configured. Campaign traffic will use ${config.promotion.defaultDestinationUrl}.`);
   }
 
@@ -1193,7 +1315,7 @@ export async function runAutopilotCycle(options = {}) {
 
   publish.destinationUrl = publish.vercel.url
     || publish.github.htmlUrl
-    || config.monetization.checkoutUrl
+    || attributedCheckoutUrl
     || config.promotion.defaultDestinationUrl
     || '';
 
@@ -1253,6 +1375,8 @@ export async function runAutopilotCycle(options = {}) {
     budget: reportWithMonetization.input?.budget || config.budget,
     marketSelection,
     analytics,
+    revenue,
+    offerSelection,
     signalsAnalyzed: reportWithMonetization.signals.length,
     warnings: uniqueStrings([...warnings, ...(reportWithMonetization.warnings || [])]),
     topOpportunity: reportWithMonetization.topOpportunity,
@@ -1262,9 +1386,11 @@ export async function runAutopilotCycle(options = {}) {
     publish,
     promotion,
     monetization: {
-      checkoutConfigured: Boolean(config.monetization.checkoutUrl),
-      checkoutUrl: config.monetization.checkoutUrl,
-      checkoutCtaLabel: config.monetization.checkoutCtaLabel
+      checkoutConfigured: Boolean(baseCheckoutUrl),
+      baseCheckoutUrl,
+      checkoutUrl: attributedCheckoutUrl,
+      checkoutCtaLabel: baseCheckoutUrl ? config.monetization.checkoutCtaLabel : 'Start Free',
+      clientReferenceId: buildAutopilotReferenceId(reportWithMonetization.runId, offerSelection.profile)
     },
     artifacts: {
       offerHtml

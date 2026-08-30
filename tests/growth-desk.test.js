@@ -23,8 +23,8 @@ test('Growth Desk ships as a CRM-backed operator surface', async () => {
   assert.match(script, /gun\.get\('3dvr-crm'\)/);
   assert.match(script, /crm-outreach-drafts/);
   assert.match(script, /Inspect outreach/);
-  assert.match(portal, /href="growth-desk\/"/);
-  assert.match(portal, /<span class="app-card__title">Growth Desk<\/span>/);
+  assert.match(portal, /href="\/growth-desk\/"/);
+  assert.match(portal, /<strong>Growth Desk<\/strong>/);
   assert.match(vercel, /growth\.3dvr\.tech/);
   assert.match(vercel, /\/growth-desk\/index\.html/);
 });

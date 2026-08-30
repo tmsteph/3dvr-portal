@@ -1,0 +1,86 @@
+name: Deploy 3DVR OS via Legacy Worker
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/3dvr-os-legacy-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: apps/agent
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+          cache-dependency-path: apps/agent/package-lock.json
+
+      - name: Install queue client
+        run: npm ci
+
+      - name: Queue OS deployment on legacy worker
+        id: remote
+        shell: bash
+        env:
+          THREEDVR_AGENT_OWNER_ALIAS: anonymous@3dvr
+        run: |
+          set -euo pipefail
+          task='root="$(git rev-parse --show-toplevel)"; git -C "$root" diff --quiet; git -C "$root" diff --cached --quiet; git -C "$root" fetch --prune origin main; git -C "$root" checkout main; git -C "$root" pull --ff-only origin main; chmod +x "$root/scripts/vercel/deploy-3dvr-os-worker.sh"; GITHUB_REPOSITORY=tmsteph/3dvr-portal VERCEL_TEAM_ID=team_xxJGO7S7h1ZP4BHidYV0CX9Z VERCEL_SCOPE_SLUG=tmstephs-projects PROJECT_NAME=3dvr-os PROJECT_DOMAIN=os.3dvr.tech bash "$root/scripts/vercel/deploy-3dvr-os-worker.sh" "$root"'
+
+          result="$(node thomas-agent/node/agent-task-queue.js enqueue \
+            --json \
+            --backend shell \
+            --risk workspace_write \
+            --approval-status approved \
+            --unsafe \
+            --requires shell \
+            --max-runtime-ms 240000 \
+            "$task")"
+
+          task_id="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task queue JSON payload missing');console.log(JSON.parse(s.slice(i)).id)})")"
+          echo "Queued legacy OS deployment task: $task_id"
+
+          for attempt in $(seq 1 48); do
+            result="$(node thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
+            status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');console.log(JSON.parse(s.slice(i)).status||'')})")"
+            echo "Legacy worker status: $status"
+            case "$status" in
+              completed)
+                summary="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');process.stdout.write(JSON.parse(s.slice(i)).resultSummary||'')})")"
+                printf '%s\n' "$summary"
+                printf '%s\n' "$summary" | grep -q '^3DVR_OS_URL=https://os\.3dvr\.tech/$'
+                exit 0
+                ;;
+              failed|skipped)
+                printf '%s\n' "$result" >&2
+                exit 1
+                ;;
+            esac
+            sleep 5
+          done
+
+          echo 'Legacy worker did not finish the OS deployment task.' >&2
+          exit 1
+
+      - name: Verify public OS
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 12 --retry-delay 5 --retry-all-errors \
+            'https://os.3dvr.tech/' --output /tmp/os-domain.html
+          grep -q 'Daedalos' /tmp/os-domain.html
+          echo '3DVR OS is live at https://os.3dvr.tech/'

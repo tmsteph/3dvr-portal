@@ -24,6 +24,17 @@ function makeId(prefix) {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
 }
 
+function encodeForgeProof(value = '') {
+  const text = String(value || '');
+  if (!text) return '';
+  const bytes = new TextEncoder().encode(text);
+  let binary = '';
+  for (let index = 0; index < bytes.length; index += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+  }
+  return `b64:${globalThis.btoa(binary)}`;
+}
+
 function forgeRecordUrl(kind, id) {
   const params = new URLSearchParams({ kind, id });
   return `/forge/record.html?${params.toString()}`;
@@ -334,7 +345,7 @@ export async function queueCodeChange(action = {}) {
     requestedByAlias: proof.portalAlias || proof.authPub,
     resultSummary: '',
     error: '',
-    authProof: proof.authProof,
+    authProof: encodeForgeProof(proof.authProof),
     authPub: proof.authPub
   };
   const writeResult = await writeGun(context.gun.get(FORGE_ROOT).get('forge').get('editRequests').get(id), record);

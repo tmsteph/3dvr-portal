@@ -3,151 +3,110 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3DVR Portal – Calendar Hub</title>
+  <title>3DVR Portal – Calendar</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./global.css">
-  <link rel="stylesheet" href="./calendar.css">
+  <link rel="stylesheet" href="./calendar-v2.css">
   <link rel="stylesheet" href="./install-banner.css">
   <link rel="manifest" href="./calendar.webmanifest">
   <link rel="icon" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="512x512" href="./icons/icon-512.png">
-  <meta name="theme-color" content="#0e1116">
-  <script
-    src="./pwa-install.js"
-    data-sw-url="./service-worker.js"
-    data-sw-scope="./"
-    defer
-  ></script>
-
+  <meta name="theme-color" content="#0b1017">
+  <script src="./pwa-install.js" data-sw-url="./service-worker.js" data-sw-scope="./" defer></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
   <header class="calendar-header">
-    <a class="calendar-header__back" href="../index.html" data-portal-home-link>⬅ Back to Portal</a>
-    <h1 class="calendar-header__title">Calendar Hub</h1>
-    <p class="calendar-header__subtitle">
-      Manage your schedule directly in the portal. Events live in your local calendar first, with optional
-      syncs to Google or Outlook when you need them.
-    </p>
-    <div class="calendar-header__actions" aria-label="Calendar shortcuts">
-      <a class="calendar-header__action" href="#calendar-view-title">Jump to month view</a>
+    <div class="calendar-header__top">
+      <a class="calendar-header__back" href="../index.html" data-portal-home-link>← Portal</a>
+      <nav class="calendar-header__actions" aria-label="Calendar tools">
+        <a class="calendar-header__action" href="#share-calendar-title" data-owner-only>Share</a>
+        <a class="calendar-header__action" href="#connections-title" data-owner-only>Connections</a>
+      </nav>
     </div>
-    <div class="calendar-header__highlights" aria-label="Calendar highlights">
-      <article class="calendar-highlight">
-        <span>Local first</span>
-        <strong>Save events in this browser before you sync anywhere else.</strong>
-      </article>
-      <article class="calendar-highlight">
-        <span>Fast capture</span>
-        <strong>Open the form, set the time, and keep moving.</strong>
-      </article>
-      <article class="calendar-highlight">
-        <span>Sync later</span>
-        <strong>Connect Google or Outlook only when you need them.</strong>
-      </article>
-    </div>
+    <h1 class="calendar-header__title">Calendar</h1>
   </header>
 
-  <div class="install-banner" data-install-banner hidden>
-    <div class="install-banner__text">
-      <p class="install-banner__title">Install Calendar Hub</p>
-      <p class="install-banner__meta">Open your schedule instantly and keep entries available offline.</p>
+  <div class="share-access-banner" data-share-access hidden>
+    <div>
+      <strong data-share-access-title>Opening shared calendar…</strong>
+      <span data-share-access-copy>Loading the shared calendar.</span>
     </div>
-    <button type="button" class="install-banner__action" data-install-button>Install app</button>
+    <a href="./">My calendar</a>
   </div>
 
   <main class="calendar-shell">
-    <section class="panel panel--primary" aria-labelledby="local-calendar-title">
-      <div class="panel__header">
-        <h2 id="local-calendar-title">My local calendar</h2>
-        <p class="panel__intro">
-          Add events that stay in this browser by default. When you want to share them with another service,
-          you can trigger an optional sync without leaving this page.
-        </p>
-      </div>
-
-      <div class="calendar-quickstats" aria-label="Calendar summary">
-        <article class="calendar-stat">
-          <p class="calendar-stat__label">Upcoming</p>
-          <p class="calendar-stat__value" id="calendarQuickUpcoming">0</p>
-          <p class="calendar-stat__meta" id="calendarQuickUpcomingMeta">No future events yet.</p>
-        </article>
-        <article class="calendar-stat">
-          <p class="calendar-stat__label">Connected</p>
-          <p class="calendar-stat__value" id="calendarQuickConnected">0</p>
-          <p class="calendar-stat__meta" id="calendarQuickConnectedMeta">Local-only workflow active.</p>
-        </article>
-        <article class="calendar-stat">
-          <p class="calendar-stat__label">Selected day</p>
-          <p class="calendar-stat__value" id="calendarQuickSelected">Today</p>
-          <p class="calendar-stat__meta" id="calendarQuickSelectedMeta">Pick a day to review its schedule.</p>
-        </article>
-      </div>
-
+    <section class="panel panel--primary" aria-labelledby="calendar-view-title">
       <div class="calendar-workspace">
         <div class="calendar-stage">
-          <div class="calendar-view" aria-labelledby="calendar-view-title">
+          <div class="calendar-view">
             <div class="calendar-view__header">
-              <div>
-                <h3 id="calendar-view-title">Monthly overview</h3>
-                <p class="calendar-view__subtitle">See your saved events at a glance and click a day to focus it.</p>
+              <div class="calendar-view__heading">
+                <h2 id="calendar-view-title" data-calendar-view-title>Month</h2>
+                <p class="calendar-view__current" data-calendar-current aria-live="polite"></p>
               </div>
-              <div class="calendar-view__controls" role="group" aria-label="Change month">
-                <button type="button" class="button-secondary" data-calendar-nav="prev" aria-label="Previous month">‹</button>
-                <button type="button" class="button-secondary" data-calendar-today>Today</button>
-                <button type="button" class="button-secondary" data-calendar-nav="next" aria-label="Next month">›</button>
+              <div class="calendar-view__toolbar">
+                <div class="calendar-view__mode" role="group" aria-label="Calendar view">
+                  <button type="button" class="button-secondary" data-calendar-view-mode="month" aria-pressed="true">Month</button>
+                  <button type="button" class="button-secondary" data-calendar-view-mode="week" aria-pressed="false">Week</button>
+                </div>
+                <div class="calendar-view__controls" role="group" aria-label="Change calendar range">
+                  <button type="button" class="button-secondary calendar-nav" data-calendar-nav="prev" aria-label="Previous range">‹</button>
+                  <button type="button" class="button-secondary" data-calendar-today>Today</button>
+                  <button type="button" class="button-secondary calendar-nav" data-calendar-nav="next" aria-label="Next range">›</button>
+                </div>
               </div>
             </div>
-            <p class="calendar-view__current" data-calendar-current aria-live="polite"></p>
+
             <div class="calendar-view__grid" role="grid" aria-describedby="calendar-view-title">
               <div class="calendar-view__grid-inner">
                 <div class="calendar-view__day-names" data-calendar-day-names role="row"></div>
                 <div class="calendar-view__days" data-calendar-grid role="rowgroup"></div>
               </div>
             </div>
+
             <div class="calendar-view__details" data-calendar-details hidden>
-              <h4 class="calendar-view__details-title" data-calendar-details-title></h4>
-              <p class="calendar-view__details-empty" data-calendar-details-empty>No events for this day yet. Use the button below to add one.</p>
-              <div class="calendar-view__details-actions" data-calendar-details-actions hidden>
-                <button type="button" class="button-secondary" data-action="add-event-for-day">Add event for this day</button>
+              <div class="calendar-view__details-heading">
+                <h3 class="calendar-view__details-title" data-calendar-details-title></h3>
+                <div class="calendar-view__details-actions" data-calendar-details-actions hidden>
+                  <button type="button" class="button-secondary" data-action="add-event-for-day">+ Add event</button>
+                </div>
               </div>
+              <p class="calendar-view__details-empty" data-calendar-details-empty>No events. Add one if you need it.</p>
               <ul class="calendar-view__details-list" data-calendar-details-list></ul>
             </div>
           </div>
         </div>
 
         <aside class="calendar-planner" aria-labelledby="calendar-planner-title">
-          <div class="planner-card planner-card--accent">
+          <div class="planner-card">
             <div class="planner-card__header">
-              <p class="planner-card__eyebrow">Quick planner</p>
-              <h3 id="calendar-planner-title">Add an event without losing the month</h3>
-              <p class="planner-card__intro">
-                Keep the month visible, pick a day, then open the planner only when you need to capture or edit a slot.
-              </p>
+              <h2 id="calendar-planner-title">Add event</h2>
+              <p class="planner-card__intro">Create or edit a 3DVR event.</p>
             </div>
             <div class="create-event-actions">
               <button
                 type="button"
                 data-action="toggle-create-event"
-                data-label-open="Open planner"
-                data-label-close="Hide planner"
+                data-label-open="+ Add event"
+                data-label-close="Close"
                 data-label-edit-open="Editing event"
                 data-label-edit-close="Cancel edit"
                 aria-expanded="false"
                 aria-controls="create-event-form"
-              >Open planner</button>
+              >+ Add event</button>
             </div>
 
             <div class="create-event-form__container" data-create-event-container hidden>
               <form class="create-event-form" id="create-event-form">
                 <input type="hidden" name="eventId">
-                <div class="create-event-form__row">
-                  <label class="field">
+                <div class="create-event-form__row create-event-form__row--primary">
+                  <label class="field field--title">
                     <span class="field__label">Title</span>
-                    <input type="text" name="title" required placeholder="Sprint planning">
+                    <input type="text" name="title" required placeholder="Event title">
                   </label>
                   <label class="field">
                     <span class="field__label">Start</span>
@@ -163,69 +122,64 @@
                     <span class="field__label">Timezone</span>
                     <input type="text" name="timeZone" required>
                   </label>
-                  <label class="field">
-                    <span class="field__label">Description</span>
-                    <textarea name="description" rows="3" placeholder="Add agenda and dial-in details"></textarea>
+                  <label class="field field--wide">
+                    <span class="field__label">Notes</span>
+                    <textarea name="description" rows="2" placeholder="Optional"></textarea>
                   </label>
                 </div>
 
-                <div class="create-event-form__row">
-                  <fieldset class="field">
-                    <legend class="field__label">Repeat</legend>
-                    <p class="field__help">Create weekly copies so recurring meetings stay in sync.</p>
-                    <label class="field field--checkbox">
-                      <input type="checkbox" name="repeatWeekly">
-                      <span class="field__label">Repeat every week</span>
-                    </label>
-                    <label class="field">
-                      <span class="field__label">Number of weeks</span>
-                      <input type="number" name="repeatWeeks" min="1" max="52" placeholder="Indefinitely">
-                      <span class="field__help">Includes the first week. Leave blank to repeat indefinitely (default).</span>
-                    </label>
-                  </fieldset>
-                </div>
+                <details class="form-options">
+                  <summary>Repeat & reminders</summary>
+                  <div class="form-options__body">
+                    <fieldset class="create-event-form__repeat">
+                      <legend>Repeat</legend>
+                      <label class="field field--checkbox">
+                        <input type="checkbox" name="repeatWeekly">
+                        <span class="field__label">Repeat weekly</span>
+                      </label>
+                      <label class="field">
+                        <span class="field__label">Weeks</span>
+                        <input type="number" name="repeatWeeks" min="1" max="52" placeholder="Indefinitely">
+                      </label>
+                    </fieldset>
 
-                <fieldset class="create-event-form__reminder">
-                  <legend>Email reminder</legend>
-                  <p class="field__help">Choose when to email attendees about this event.</p>
-                  <div class="create-event-form__row">
-                    <label class="field">
-                      <span class="field__label">Send reminder</span>
-                      <select name="reminderDayOffset">
-                        <option value="0">The day of the event</option>
-                        <option value="-1">Day before</option>
-                      </select>
-                    </label>
-                    <label class="field">
-                      <span class="field__label">At</span>
-                      <input type="time" name="reminderTime" value="10:00">
-                    </label>
-                    <label class="field">
-                      <span class="field__label">Recipients</span>
-                      <input type="text" name="reminderRecipients" placeholder="team@example.com, guest@example.com">
-                      <span class="field__help">Comma separate addresses. Defaults to you if left blank.</span>
-                    </label>
-                    <label class="field">
-                      <span class="field__label">Reminder link</span>
-                      <input type="url" name="reminderLink" placeholder="https://meet.example.com/room">
-                      <span class="field__help">Optional meeting or watch link to include in reminder emails.</span>
-                    </label>
-                    <label class="field">
-                      <span class="field__label">Reminder message</span>
-                      <textarea name="reminderMessage" rows="3" placeholder="Add the invite link and quick instructions"></textarea>
-                      <span class="field__help">Shared in the reminder email along with the event details.</span>
-                    </label>
-                    <label class="field field--checkbox">
-                      <input type="checkbox" name="sendReminderAfterSave">
-                      <span class="field__label">Send reminder right after saving</span>
-                      <span class="field__help">Uses the reminder schedule above and recipients to email immediately.</span>
-                    </label>
+                    <fieldset class="create-event-form__reminder" data-owner-only>
+                      <legend>Email reminder</legend>
+                      <div class="create-event-form__row">
+                        <label class="field">
+                          <span class="field__label">When</span>
+                          <select name="reminderDayOffset">
+                            <option value="0">Event day</option>
+                            <option value="-1">Day before</option>
+                          </select>
+                        </label>
+                        <label class="field">
+                          <span class="field__label">At</span>
+                          <input type="time" name="reminderTime" value="10:00">
+                        </label>
+                        <label class="field field--wide">
+                          <span class="field__label">Recipients</span>
+                          <input type="text" name="reminderRecipients" placeholder="email@example.com">
+                        </label>
+                        <label class="field field--wide">
+                          <span class="field__label">Link</span>
+                          <input type="url" name="reminderLink" placeholder="https://…">
+                        </label>
+                        <label class="field field--wide">
+                          <span class="field__label">Message</span>
+                          <textarea name="reminderMessage" rows="2" placeholder="Optional"></textarea>
+                        </label>
+                        <label class="field field--checkbox field--wide">
+                          <input type="checkbox" name="sendReminderAfterSave">
+                          <span class="field__label">Send immediately after saving</span>
+                        </label>
+                      </div>
+                    </fieldset>
                   </div>
-                </fieldset>
+                </details>
 
-                <fieldset class="create-event-form__sync">
-                  <legend>Optional sync</legend>
-                  <p>Select the services that should also receive this event after it is stored locally.</p>
+                <fieldset class="create-event-form__sync" data-owner-only>
+                  <legend>Also sync to</legend>
                   <label class="chip">
                     <input type="checkbox" name="syncProviders" value="google">
                     <span>Google</span>
@@ -236,53 +190,68 @@
                   </label>
                 </fieldset>
 
-                <button type="submit">Save event</button>
+                <div class="create-event-form__actions">
+                  <button type="submit">Save event</button>
+                </div>
               </form>
             </div>
           </div>
         </aside>
       </div>
 
-      <section class="calendar-activity" aria-labelledby="calendar-activity-title">
-        <div class="calendar-activity__header">
-          <div>
-            <p class="planner-card__eyebrow">Activity</p>
-            <h3 id="calendar-activity-title">Imported events and status updates</h3>
-            <p class="planner-card__intro">
-              Keep long event cards and sync messages below the main calendar so the month stays the focus.
-            </p>
-          </div>
-        </div>
+      <details class="calendar-activity">
+        <summary>Event list & sync log</summary>
         <div class="calendar-activity__grid">
           <div class="event-results" aria-live="polite">
             <div class="event-results__empty" data-empty>
-              <p>No events yet. Add one above or import from Google/Outlook when you're ready.</p>
+              <p>No events yet.</p>
             </div>
             <ul class="event-results__list" data-event-list></ul>
           </div>
 
           <div class="calendar-console">
-            <h4 class="calendar-console__title">Log</h4>
-            <p class="calendar-console__intro">Import, sync, and reminder updates land here while you work.</p>
-            <div
-              class="log"
-              aria-live="polite"
-              data-log
-              data-empty-message="Import, sync, and reminder updates will appear here."
-            ></div>
+            <h3 class="calendar-console__title">Sync log</h3>
+            <div class="log" aria-live="polite" data-log data-empty-message="Sync updates appear here."></div>
           </div>
         </div>
-      </section>
+      </details>
     </section>
 
-    <aside class="calendar-rail">
-      <section class="panel" aria-labelledby="connections-title">
+    <aside class="calendar-rail" aria-label="Calendar tools">
+      <section class="panel share-panel" aria-labelledby="share-calendar-title" data-owner-only>
         <div class="panel__header">
-          <h2 id="connections-title">Optional account connections</h2>
-          <p class="panel__intro">
-            Connect Google or Outlook with the portal OAuth flow, or paste a token manually when you are
-            debugging a provider integration.
-          </p>
+          <h2 id="share-calendar-title">Share</h2>
+          <p class="panel__intro">Send a private view or edit link. No login needed.</p>
+        </div>
+        <form class="share-form" data-share-form>
+          <label class="field">
+            <span class="field__label">Name</span>
+            <input type="text" name="label" maxlength="80" placeholder="Partner">
+          </label>
+          <label class="field">
+            <span class="field__label">Access</span>
+            <select name="permission">
+              <option value="view">View only</option>
+              <option value="edit">Can edit</option>
+            </select>
+          </label>
+          <button type="submit">Create link</button>
+        </form>
+        <div class="share-link-output" data-share-link-output hidden>
+          <label class="field">
+            <span class="field__label">Secret link</span>
+            <input type="text" readonly data-share-link>
+          </label>
+          <button type="button" class="button-secondary" data-action="copy-share-link">Copy link</button>
+          <p class="field__help">Anyone with this link gets the selected access.</p>
+        </div>
+        <ul class="share-link-list" data-share-list></ul>
+      </section>
+
+      <section class="panel" aria-labelledby="connections-title" data-owner-only>
+        <div class="panel__header">
+          <h2 id="connections-title">Connections</h2>
+          <p class="panel__intro">Connect once. Your calendar stays in sync.</p>
         </div>
 
         <div class="connection-grid">
@@ -292,86 +261,65 @@
               <span class="connection-card__status" data-status="google">Disconnected</span>
             </div>
             <div class="connection-card__actions">
-              <button type="button" class="button-secondary" data-action="oauth-connect" data-provider="google">Connect Google with OAuth</button>
+              <button type="button" data-action="oauth-connect" data-provider="google">Connect Google</button>
             </div>
-            <form class="connection-card__form" data-provider="google">
-              <label class="field">
-                <span class="field__label">Access token</span>
-                <textarea name="accessToken" rows="3" required placeholder="ya29.a0AWY..." aria-describedby="google-token-help"></textarea>
-              </label>
-              <label class="field">
-                <span class="field__label">Calendar ID (optional)</span>
-                <input type="text" name="calendarId" placeholder="primary">
-              </label>
-              <p class="field__help" id="google-token-help">
-                Generate tokens via Google OAuth 2.0. Use a test project and enable the Calendar API. Tokens
-                are saved in your browser only.
-              </p>
-              <div class="connection-card__actions">
-                <button type="submit">Save connection</button>
-                <button type="button" class="button-secondary" data-action="disconnect" data-provider="google">Disconnect</button>
-              </div>
-            </form>
             <details class="connection-card__details">
-              <summary>Need help?</summary>
-              <ol>
-                <li>Create an OAuth 2.0 client in the Google Cloud console.</li>
-                <li>Authorize the playground or your dev app with the <code>https://www.googleapis.com/auth/calendar</code> scope.</li>
-                <li>Paste the returned <strong>access_token</strong> here. Refresh tokens can be rotated manually for now.</li>
-              </ol>
+              <summary>Advanced</summary>
+              <form class="connection-card__form" data-provider="google">
+                <label class="field">
+                  <span class="field__label">Access token</span>
+                  <textarea name="accessToken" rows="2" required placeholder="ya29…"></textarea>
+                </label>
+                <label class="field">
+                  <span class="field__label">Calendar ID</span>
+                  <input type="text" name="calendarId" placeholder="primary">
+                </label>
+                <div class="connection-card__actions">
+                  <button type="submit">Save token</button>
+                  <button type="button" class="button-secondary" data-action="disconnect" data-provider="google">Disconnect</button>
+                </div>
+              </form>
             </details>
           </article>
 
           <article class="connection-card" aria-labelledby="outlook-connection-title">
             <div class="connection-card__header">
-              <h3 id="outlook-connection-title">Outlook / Microsoft 365</h3>
+              <h3 id="outlook-connection-title">Outlook</h3>
               <span class="connection-card__status" data-status="outlook">Disconnected</span>
             </div>
             <div class="connection-card__actions">
-              <button type="button" class="button-secondary" data-action="oauth-connect" data-provider="microsoft">Connect Microsoft with OAuth</button>
+              <button type="button" data-action="oauth-connect" data-provider="microsoft">Connect Microsoft</button>
             </div>
-            <form class="connection-card__form" data-provider="outlook">
-              <label class="field">
-                <span class="field__label">Access token</span>
-                <textarea name="accessToken" rows="3" required placeholder="EwBwA8l6B..." aria-describedby="outlook-token-help"></textarea>
-              </label>
-              <label class="field">
-                <span class="field__label">Mailbox (optional)</span>
-                <input type="email" name="mailbox" placeholder="user@contoso.com">
-              </label>
-              <p class="field__help" id="outlook-token-help">
-                Create an Azure AD app registration with Calendars.ReadWrite delegated permissions and paste the
-                access token here. Microsoft Graph endpoints are proxied through our API folder.
-              </p>
-              <div class="connection-card__actions">
-                <button type="submit">Save connection</button>
-                <button type="button" class="button-secondary" data-action="disconnect" data-provider="outlook">Disconnect</button>
-              </div>
-            </form>
             <details class="connection-card__details">
-              <summary>Need help?</summary>
-              <ol>
-                <li>Register a single-page application in Azure.</li>
-                <li>Grant delegated permissions for <code>Calendars.ReadWrite</code> and <code>offline_access</code>.</li>
-                <li>Use the OAuth 2.0 authorization code flow to fetch tokens, then paste the <strong>access_token</strong> here.</li>
-              </ol>
+              <summary>Advanced</summary>
+              <form class="connection-card__form" data-provider="outlook">
+                <label class="field">
+                  <span class="field__label">Access token</span>
+                  <textarea name="accessToken" rows="2" required placeholder="Token"></textarea>
+                </label>
+                <label class="field">
+                  <span class="field__label">Mailbox</span>
+                  <input type="email" name="mailbox" placeholder="user@example.com">
+                </label>
+                <div class="connection-card__actions">
+                  <button type="submit">Save token</button>
+                  <button type="button" class="button-secondary" data-action="disconnect" data-provider="outlook">Disconnect</button>
+                </div>
+              </form>
             </details>
           </article>
         </div>
       </section>
 
-      <section class="panel" aria-labelledby="event-sync-title">
+      <section class="panel" aria-labelledby="event-sync-title" data-owner-only>
         <div class="panel__header">
-          <h2 id="event-sync-title">Import from external calendars</h2>
-          <p class="panel__intro">
-            Pull events from connected providers when you want to copy them into your local calendar. Choose a
-            provider below to start an import.
-          </p>
+          <h2 id="event-sync-title">Import</h2>
+          <p class="panel__intro">Pull events from a connected calendar.</p>
         </div>
 
         <form class="sync-controls" id="event-sync-form">
-          <fieldset class="sync-controls__group">
-            <legend>Provider</legend>
+          <fieldset class="sync-controls__group sync-controls__providers">
+            <legend>From</legend>
             <label class="chip">
               <input type="radio" name="provider" value="google" checked>
               <span>Google</span>
@@ -382,30 +330,41 @@
             </label>
           </fieldset>
 
-          <fieldset class="sync-controls__group">
-            <legend>Time range</legend>
-            <label class="field">
-              <span class="field__label">From</span>
-              <input type="datetime-local" name="timeMin">
-            </label>
-            <label class="field">
-              <span class="field__label">To</span>
-              <input type="datetime-local" name="timeMax">
-            </label>
-            <label class="field">
-              <span class="field__label">Max events</span>
-              <input type="number" name="maxResults" min="1" max="100" value="20">
-            </label>
-          </fieldset>
+          <details class="sync-controls__range">
+            <summary>Time range</summary>
+            <fieldset class="sync-controls__group">
+              <label class="field">
+                <span class="field__label">From</span>
+                <input type="datetime-local" name="timeMin">
+              </label>
+              <label class="field">
+                <span class="field__label">To</span>
+                <input type="datetime-local" name="timeMax">
+              </label>
+              <label class="field">
+                <span class="field__label">Max events</span>
+                <input type="number" name="maxResults" min="1" max="100" value="100">
+              </label>
+            </fieldset>
+          </details>
 
           <div class="sync-controls__actions">
             <button type="button" data-action="fetch-events">Import events</button>
-            <button type="button" data-action="refresh-status">Refresh status</button>
+            <button type="button" class="button-secondary" data-action="refresh-status">Refresh</button>
           </div>
         </form>
       </section>
     </aside>
   </main>
+
+
+  <div class="install-banner" data-install-banner hidden>
+    <div class="install-banner__text">
+      <p class="install-banner__title">Install Calendar</p>
+      <p class="install-banner__meta">Keep it one tap away.</p>
+    </div>
+    <button type="button" class="install-banner__action" data-install-button>Install</button>
+  </div>
 
   <template id="event-template">
     <li class="event-card">
@@ -414,14 +373,8 @@
         <span class="event-card__provider" data-field="provider"></span>
       </div>
       <dl class="event-card__meta">
-        <div>
-          <dt>Starts</dt>
-          <dd data-field="start"></dd>
-        </div>
-        <div>
-          <dt>Ends</dt>
-          <dd data-field="end"></dd>
-        </div>
+        <div><dt>Starts</dt><dd data-field="start"></dd></div>
+        <div><dt>Ends</dt><dd data-field="end"></dd></div>
         <div data-reminder-block>
           <dt>Reminder</dt>
           <dd>

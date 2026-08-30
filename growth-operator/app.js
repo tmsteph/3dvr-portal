@@ -1,5 +1,6 @@
 const STORAGE_KEY = '3dvr.growthOperator.items.v1';
 const TOKEN_STORAGE_KEY = '3dvr.growthOperator.operatorEmailToken.v1';
+const PROJECT_LEAD_BRIEF_KEY = '3dvr.growthOperator.project-lead-brief.v1';
 const ROOT_KEY = '3dvr-portal';
 const OPERATOR_NODE = 'growthOperator';
 const AGENT_OWNER_ALIAS = '3dvr-managed';
@@ -64,7 +65,8 @@ const STAGE_LABELS = Object.freeze({
 const state = {
   items: loadItems(),
   sendingId: '',
-  queueing: false
+  queueing: false,
+  projectLeadBrief: null
 };
 
 const gun = typeof Gun === 'function' ? Gun(window.__GUN_PEERS__ || DEFAULT_PEERS) : null;
@@ -73,6 +75,7 @@ const operatorRoot = portalRoot ? portalRoot.get(OPERATOR_NODE) : null;
 const itemsRoot = operatorRoot ? operatorRoot.get('items') : null;
 const crmRoot = gun ? gun.get('3dvr-crm') : null;
 const touchRoot = portalRoot ? portalRoot.get('crm-touch-log') : null;
+const projectUpdatesRoot = portalRoot ? portalRoot.get('projectLaunchpad').get('updates') : null;
 // The worker writes its health state under the server-side agent root. Reading
 // it here makes a dead/stale worker visible even when the CRM queue is empty.
 const autopilotStateRoot = gun ? gun.get('3dvr').get('ops').get('autopilot').get('state') : null;
@@ -156,6 +159,44 @@ function readStorageText(key) {
   }
 }
 
+function hydrateProjectLeadBrief() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('from') !== 'project') return;
+
+  try {
+    const raw = window.sessionStorage.getItem(PROJECT_LEAD_BRIEF_KEY);
+    if (!raw) return;
+    const brief = JSON.parse(raw);
+    const projectName = normalizeText(brief?.projectName);
+    if (!projectName) return;
+
+    state.projectLeadBrief = {
+      projectName,
+      projectSlug: normalizeText(brief.projectSlug),
+      mission: normalizeText(brief.mission),
+      category: normalizeText(brief.category),
+      offer: normalizeText(brief.offer),
+      needs: Array.isArray(brief.needs) ? brief.needs.map(normalizeText).filter(Boolean).slice(0, 8) : [],
+      support: normalizeText(brief.support)
+    };
+    window.sessionStorage.removeItem(PROJECT_LEAD_BRIEF_KEY);
+
+    if (els.itemOffer && state.projectLeadBrief.offer) {
+      els.itemOffer.value = state.projectLeadBrief.offer;
+    }
+    if (els.itemContext) {
+      els.itemContext.value = [
+        `Project: ${state.projectLeadBrief.projectName}`,
+        state.projectLeadBrief.mission,
+        state.projectLeadBrief.category ? `Audience/category: ${state.projectLeadBrief.category}` : ''
+      ].filter(Boolean).join('\n');
+    }
+    updateStatus(`Loaded ${projectName}. Review the target, then use Find leads when you want research queued.`);
+  } catch (_error) {
+    updateStatus('Project people brief could not be loaded. Nothing was queued or sent.');
+  }
+}
+
 function loadItems() {
   const stored = loadJson(STORAGE_KEY, []);
   if (!Array.isArray(stored)) return {};
@@ -196,6 +237,8 @@ function normalizeItem(value) {
     draft: normalizeText(value.draft),
     nextStep: normalizeText(value.nextStep),
     source: normalizeText(value.source) || 'growth-operator',
+    projectSlug: normalizeText(value.projectSlug),
+    projectName: normalizeText(value.projectName),
     approvedAt: normalizeText(value.approvedAt),
     sentAt: normalizeText(value.sentAt),
     createdAt: normalizeText(value.createdAt),
@@ -393,7 +436,9 @@ function buildItemFromForm() {
     context: normalizeText(els.itemContext.value),
     draft: '',
     nextStep: lane === 'lead' ? 'Draft one specific outreach note.' : 'Clarify the next customer-visible step.',
-    source: 'growth-operator',
+    source: state.projectLeadBrief?.projectSlug ? `project:${state.projectLeadBrief.projectSlug}` : 'growth-operator',
+    projectSlug: state.projectLeadBrief?.projectSlug || '',
+    projectName: state.projectLeadBrief?.projectName || '',
     approvedAt: '',
     sentAt: '',
     createdAt: now,
@@ -460,7 +505,22 @@ function buildAgentTask(kind, item = null) {
   ];
 
   if (kind === 'find-leads') {
-    taskLines.push('Find 10 likely-fit 3dvr.tech leads from public sources, existing CRM gaps, market research, and referral context.');
+    const project = state.projectLeadBrief;
+    if (project) {
+      taskLines.push(
+        '',
+        `Target project: ${project.projectName}${project.projectSlug ? ` (${project.projectSlug})` : ''}`,
+        project.mission ? `Project mission: ${project.mission}` : '',
+        project.category ? `Audience/category: ${project.category}` : '',
+        project.offer ? `First offer or invitation: ${project.offer}` : '',
+        project.needs.length ? `Current needs: ${project.needs.join('; ')}` : '',
+        project.support ? `Project/support page: ${project.support}` : '',
+        'Find 10 likely-fit people or organizations for this project from public sources, existing CRM gaps, market research, and referral context. Prefer plausible first customers, collaborators, or introducers. Do not contact them; return candidates and draft next steps for review.',
+        `When adding Growth Operator lead records for this search, preserve projectSlug=${project.projectSlug || 'unknown'} and projectName=${project.projectName}; use source=project:${project.projectSlug || 'unknown'} so wins can flow back to the project.`
+      );
+    } else {
+      taskLines.push('Find 10 likely-fit 3dvr.tech leads from public sources, existing CRM gaps, market research, and referral context.');
+    }
   }
   if (kind === 'draft-outreach') {
     taskLines.push('Draft the next approved outreach note for each lead with an email or clear contact path.');
@@ -551,6 +611,97 @@ function persistOperatorToken() {
   }
 }
 
+function deliveryItemFromCustomer(item) {
+  const now = new Date().toISOString();
+  const projectLabel = item.projectName || item.projectSlug || 'this customer';
+  const delivery = normalizeItem({
+    id: `delivery-${item.id}`,
+    name: item.name,
+    email: item.email,
+    lane: 'delivery',
+    stage: 'working',
+    offer: item.offer,
+    context: `First delivery for ${projectLabel}. Confirm the promised outcome, ship the smallest useful result, and record what changed for the customer.`,
+    draft: '',
+    nextStep: 'Confirm the first deliverable, produce one visible result, then mark delivered when the customer has received it.',
+    source: `customer:${item.id}`,
+    projectSlug: item.projectSlug,
+    projectName: item.projectName,
+    createdAt: now,
+    updatedAt: now
+  });
+  if (delivery) delivery.draft = buildDraft(delivery);
+  return delivery;
+}
+
+async function markCustomer(item) {
+  if (!item || item.lane !== 'lead') return;
+  const confirmed = window.confirm(`Mark ${item.name} as a customer? This records a win; it does not charge them or send a message.`);
+  if (!confirmed) return;
+
+  const now = new Date().toISOString();
+  await updateItem(item.id, {
+    stage: 'done',
+    nextStep: 'Customer won. First delivery item created.'
+  });
+
+  const deliveryItem = deliveryItemFromCustomer(item);
+  if (deliveryItem) {
+    await saveItem(deliveryItem, `Customer won. Added first delivery for ${item.name}.`);
+  }
+
+  if (item.projectSlug && projectUpdatesRoot) {
+    const updateId = makeId('customer', `${item.projectSlug}-${item.name}`);
+    const projectUpdate = {
+      id: updateId,
+      projectId: item.projectSlug,
+      projectSlug: item.projectSlug,
+      title: `First customer: ${item.name}`,
+      body: `${item.name} was marked as a customer from Growth Operator. Next step: start delivery and learn from the first real use.`,
+      createdAt: Date.now()
+    };
+    try {
+      await putGun(projectUpdatesRoot.get(updateId), projectUpdate);
+    } catch (error) {
+      updateStatus(`Customer marked, but the project update did not sync. ${error.message || 'Gun sync failed.'}`);
+      return;
+    }
+  }
+
+  updateStatus(`${item.name} marked as a customer${item.projectName ? ` for ${item.projectName}` : ''}.`);
+}
+
+async function markDelivered(item) {
+  if (!item || item.lane !== 'delivery') return;
+  const confirmed = window.confirm(`Mark delivery to ${item.name} complete? This records the outcome; it does not send a message.`);
+  if (!confirmed) return;
+
+  await updateItem(item.id, {
+    stage: 'done',
+    nextStep: 'Delivery completed. Capture the outcome and ask for feedback or a referral only if the customer is happy.'
+  });
+
+  if (item.projectSlug && projectUpdatesRoot) {
+    const updateId = makeId('delivery', `${item.projectSlug}-${item.name}`);
+    const projectUpdate = {
+      id: updateId,
+      projectId: item.projectSlug,
+      projectSlug: item.projectSlug,
+      title: `First delivery completed: ${item.name}`,
+      body: `${item.name} received the first delivery. Next: capture what changed, turn the result into proof, and ask for feedback or a referral only if it feels earned.`,
+      createdAt: Date.now()
+    };
+    try {
+      await putGun(projectUpdatesRoot.get(updateId), projectUpdate);
+    } catch (error) {
+      updateStatus(`Delivery marked complete, but the project proof update did not sync. ${error.message || 'Gun sync failed.'}`);
+      return;
+    }
+  }
+
+  updateStatus(`Delivery to ${item.name} marked complete. Capture the outcome before moving on.`);
+}
+
 async function sendApprovedEmail(item) {
   if (!item.email) {
     updateStatus(`Add an email before sending to ${item.name}.`);
@@ -632,6 +783,7 @@ function renderQueue() {
           <div class="queue-meta">
             ${item.email ? `<span>${safe(item.email)}</span>` : '<span>No email</span>'}
             ${item.offer ? `<span>${safe(item.offer)}</span>` : ''}
+            ${item.projectName ? `<span>Project: ${safe(item.projectName)}</span>` : ''}
           </div>
         </div>
         <div class="draft-box">${safe(item.draft || buildDraft(item))}</div>
@@ -639,8 +791,10 @@ function renderQueue() {
           <button type="button" data-action="draft" data-item-id="${safe(item.id)}">Draft</button>
           <button type="button" data-action="approve" data-item-id="${safe(item.id)}">Approve</button>
           <button type="button" data-action="send" data-item-id="${safe(item.id)}" ${isSending ? 'disabled' : ''}>${isSending ? 'Sending...' : 'Send approved'}</button>
+          ${item.lane === 'lead' && item.stage !== 'done' ? `<button type="button" data-action="customer" data-item-id="${safe(item.id)}">Mark customer</button>` : ''}
+          ${item.lane === 'delivery' && item.stage !== 'done' ? `<button type="button" data-action="delivered" data-item-id="${safe(item.id)}">Mark delivered</button>` : ''}
           <button type="button" data-action="queue-agent" data-item-id="${safe(item.id)}">Queue agent</button>
-          <button type="button" data-action="done" data-item-id="${safe(item.id)}">Done</button>
+          ${item.lane !== 'delivery' ? `<button type="button" data-action="done" data-item-id="${safe(item.id)}">Done</button>` : ''}
         </div>
       </article>
     `;
@@ -779,6 +933,12 @@ function bindEvents() {
     if (action === 'send') {
       await sendApprovedEmail(item);
     }
+    if (action === 'customer') {
+      await markCustomer(item);
+    }
+    if (action === 'delivered') {
+      await markDelivered(item);
+    }
     if (action === 'queue-agent') {
       await queueAgentTask(item.lane === 'support' ? 'support-triage' : item.lane === 'delivery' ? 'delivery-pass' : 'draft-outreach', item);
     }
@@ -795,6 +955,7 @@ function init() {
   }
   bindEvents();
   render();
+  hydrateProjectLeadBrief();
   subscribeGun();
   subscribeAutopilotState();
   subscribeCrm();

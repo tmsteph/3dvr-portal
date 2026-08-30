@@ -1,4 +1,5 @@
 import { buildOperatorOwnerContext } from './context.js';
+import { DEFAULT_EXECUTIVE_PROFILE, formatExecutiveProfile } from '../money-printer/moneyPrinterExecutiveMemory.js';
 import { resolveOperatorDeveloperAccess } from './developer-access.js';
 import {
   buildOperatorDraftRequest,
@@ -85,6 +86,7 @@ async function readUpstreamError(response) {
     const payload = await response.json();
     const code = clean(payload?.error?.code || payload?.code, 80);
     if (code === 'insufficient_quota') return 'The configured AI account has no available credits.';
+    if (response.status === 429) return fallback;
     return clean(payload?.error?.message || payload?.message, 300) || fallback;
   } catch {
     return fallback;
@@ -102,6 +104,8 @@ export function buildOperatorRequest({ prompt, history = [], portalContext = nul
     instructions: [
       'You are the 3DVR Operator, a calm personal operator inside a life and business portal.',
       buildOperatorOwnerContext(),
+      'For 3DVR business strategy, prioritization, product direction, or operating decisions, act as the founder-aligned executive layer rather than a generic assistant. Apply this constitution and be willing to reject distracting work:',
+      formatExecutiveProfile(DEFAULT_EXECUTIVE_PROFILE),
       buildPortalSnapshotInstruction(portalContext),
       `3DVR developer access for this turn is ${developerApproved ? 'approved for local code edits' : 'not approved for code edits; suggestions are allowed'}.`,
       'Talk like a capable partner. Lead with the useful answer. Use short, plain sentences.',

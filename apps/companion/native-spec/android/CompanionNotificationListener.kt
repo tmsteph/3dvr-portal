@@ -64,10 +64,12 @@ object MessageNotificationStore {
     private val lock = Any()
     private val entries = LinkedHashMap<String, MessageNotificationEntry>()
     private var loaded = false
-    private val knownSmsPackages = setOf(
+    private val knownMessagingPackages = setOf(
         "com.google.android.apps.messaging",
         "com.samsung.android.messaging",
         "com.android.mms",
+        "com.whatsapp",
+        "com.whatsapp.w4b",
     )
 
     fun initialize(context: Context) {
@@ -83,9 +85,9 @@ object MessageNotificationStore {
     fun upsert(context: Context, notification: StatusBarNotification) {
         initialize(context)
         val defaultSmsPackage = runCatching { Telephony.Sms.getDefaultSmsPackage(context) }.getOrNull()
-        val isSmsApp = notification.packageName == defaultSmsPackage ||
-            notification.packageName in knownSmsPackages
-        if (!isSmsApp) return
+        val isSupportedMessagingApp = notification.packageName == defaultSmsPackage ||
+            notification.packageName in knownMessagingPackages
+        if (!isSupportedMessagingApp) return
 
         val source = notification.notification
         val extras = source.extras

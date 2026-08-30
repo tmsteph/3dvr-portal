@@ -2,11 +2,11 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
     "deploymentEnabled": {
-      "*": false,
-      "main": true
+      "**": false,
+      "main": false,
+      "preview-pr-*": true
     }
   },
-  "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ]",
   "crons": [
     { "path": "/api/growth/homepage-hero-cron", "schedule": "43 2 * * *" },
     { "path": "/api/money/autopilot-cron", "schedule": "17 16 * * 1-5" }
@@ -36,6 +36,8 @@
   ],
   "rewrites": [
     { "source": "/api/cache-reset", "destination": "/cache-reset.html" },
+    { "source": "/api/workboard/github", "destination": "/api/session?route=workboard-github" },
+    { "source": "/api/av-freelance-kit", "destination": "/api/session?route=av-freelance-kit" },
     { "source": "/crm.webmanifest", "has": [{ "type": "host", "value": "crm.3dvr.tech" }], "destination": "/crm/root.webmanifest" },
     { "source": "/", "has": [{ "type": "host", "value": "crm.3dvr.tech" }], "destination": "/crm/index.html" },
     { "source": "/", "has": [{ "type": "host", "value": "purpose.3dvr.tech" }], "destination": "/purpose/index.html" },

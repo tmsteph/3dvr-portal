@@ -1,415 +1,265 @@
 const scenes = [
   {
-    id: 'portal-arrival',
-    title: 'Next-level immersion',
-    kicker: 'Portal arrival',
-    mode: 'Portal',
-    copy: 'A polished portal-ready frame with the 3DVR mark, blue ring, and a cleaner model direction.',
-    image: 'assets/portal-arrival.png',
-    alt: '3DVR Girl standing inside a glowing blue portal ring'
-  },
-  {
-    id: 'pool-welcome',
-    title: 'Pool welcome',
-    kicker: 'Pool welcome',
-    mode: 'Refresh',
-    copy: 'Bright water, bougainvillea, and an inviting close frame for a lighter first impression.',
-    image: 'assets/pool-welcome.png',
-    alt: '3DVR Girl smiling from a bright swimming pool'
-  },
-  {
-    id: 'pool-stand',
-    title: 'Sunlit reset',
-    kicker: 'Pool stand',
-    mode: 'Reset',
-    copy: 'Clean pool light and centered posture for an open, restorative scene.',
-    image: 'assets/pool-stand.png',
-    alt: '3DVR Girl standing in a blue swimming pool'
-  },
-  {
-    id: 'meditation-seat',
-    title: 'Meditation seat',
-    kicker: 'Meditation',
-    mode: 'Calm',
-    copy: 'A composed seated frame for breathwork, guided entry, and quieter portal states.',
-    image: 'assets/meditation-seat.png',
-    alt: '3DVR Girl seated in a meditation pose on a sunlit mat'
-  },
-  {
-    id: 'courtyard-crouch',
-    title: 'Courtyard pause',
-    kicker: 'Courtyard pause',
-    mode: 'Ease',
-    copy: 'Warm architecture and a relaxed pose for soft profile moments and scene transitions.',
-    image: 'assets/courtyard-crouch.png',
-    alt: '3DVR Girl crouching in a sunlit courtyard'
-  },
-  {
-    id: 'balance-tree',
-    title: 'Balance protocol',
-    kicker: 'Courtyard balance',
-    mode: 'Balance',
-    copy: 'Sunlit calm and ritual posture for daily check-ins, breathwork, and soft onboarding.',
-    image: 'assets/balance-tree.jpg',
-    alt: '3DVR Girl balancing in a courtyard'
-  },
-  {
-    id: 'warrior-flow',
-    title: 'White-light discipline',
-    kicker: 'Warrior flow',
-    mode: 'Focus',
-    copy: 'Strong side profile for motion cards, training prompts, and embodied focus.',
-    image: 'assets/warrior-flow.jpg',
-    alt: '3DVR Girl in a warrior stance'
+    id: 'woods-duo',
+    title: 'Root Network',
+    mode: 'Forest',
+    collection: 'forest',
+    image: 'assets/3dvr-girl-kala-forest.webp',
+    alt: '3DVR Girl and Kala standing together on a wooded trail',
+    copy: 'The first Woods Chapter frame: 3DVR Girl meets Kala beyond the last mapped node.'
   },
   {
     id: 'festival-dance',
-    title: 'Crowd pulse',
-    kicker: 'Festival pulse',
-    mode: 'Pulse',
-    copy: 'The high-energy social frame: music, movement, and immersive crowd atmosphere.',
+    title: 'Festival pulse',
+    mode: 'Movement',
+    collection: 'movement',
     image: 'assets/festival-dance.jpg',
-    alt: '3DVR Girl dancing at a festival'
+    alt: '3DVR Girl dancing at an outdoor festival',
+    copy: 'Warm crowd energy, motion, music, and the less-polished side of the 3DVR world.'
   },
   {
-    id: 'downward-flow',
-    title: 'Grounded arc',
-    kicker: 'Flow posture',
-    mode: 'Restore',
-    copy: 'A physical reset visual for recovery, nervous-system pages, and lower-energy sessions.',
-    image: 'assets/downward-flow.jpg',
-    alt: '3DVR Girl in a downward stretch posture'
-  },
-  {
-    id: 'courtyard-stand',
-    title: 'Soft launch',
-    kicker: 'Courtyard stand',
-    mode: 'Presence',
-    copy: 'Simple full-body frame with warm architecture, useful for profile and directory cards.',
-    image: 'assets/courtyard-stand.jpg',
-    alt: '3DVR Girl standing in a sunny courtyard'
-  },
-  {
-    id: 'over-shoulder',
-    title: 'Afterimage',
-    kicker: 'Back turn',
-    mode: 'Mystery',
-    copy: 'A quieter frame for teaser tiles, transitions, and portal memory moments.',
-    image: 'assets/over-shoulder.jpg',
-    alt: '3DVR Girl looking back over her shoulder'
-  },
-  {
-    id: 'sunlit-crouch',
-    title: 'Low sun signal',
-    kicker: 'Sunlit crouch',
-    mode: 'Presence',
-    copy: 'A warm courtyard pose for social cutdowns, avatar intros, and light lifestyle cards.',
-    image: 'assets/sunlit-crouch.jpg',
-    alt: '3DVR Girl crouching in warm courtyard light'
-  },
-  {
-    id: 'pool-signal',
-    title: 'Waterline focus',
-    kicker: 'Pool signal',
-    mode: 'Refresh',
-    copy: 'A bright pool frame that points the brand toward summer, wellness, and visual reset moments.',
-    image: 'assets/pool-signal.jpg',
-    alt: '3DVR Girl standing in a sunlit pool'
-  },
-  {
-    id: 'courtyard-meditation',
-    title: 'Calm body channel',
-    kicker: 'Courtyard meditation',
-    mode: 'Calm',
-    copy: 'A seated frame for manifestation, breathwork, and soft-focus portal programming.',
-    image: 'assets/courtyard-meditation.jpg',
-    alt: '3DVR Girl sitting cross-legged in a courtyard'
-  },
-  {
-    id: 'courtyard-profile',
-    title: 'Profile lockup',
-    kicker: 'Courtyard profile',
-    mode: 'Profile',
-    copy: 'A clean side-profile asset for bios, campaign covers, and creator identity cards.',
-    image: 'assets/courtyard-profile.jpg',
-    alt: '3DVR Girl standing in profile in a courtyard'
-  },
-  {
-    id: 'sunlit-curve',
-    title: 'Golden hour line',
-    kicker: 'Sunlit curve',
-    mode: 'Motion',
-    copy: 'A standing motion pose with warm shadows, useful for transition tiles and rhythm prompts.',
-    image: 'assets/sunlit-curve.jpg',
-    alt: '3DVR Girl posing in warm sunlit shadows'
+    id: 'warrior-flow',
+    title: 'Warrior flow',
+    mode: 'Movement',
+    collection: 'movement',
+    image: 'assets/warrior-flow.jpg',
+    alt: '3DVR Girl holding a wide warrior stance',
+    copy: 'A grounded movement frame built around balance, focus, and physical presence.'
   },
   {
     id: 'wide-flow',
     title: 'Open stance',
-    kicker: 'Wide flow',
-    mode: 'Power',
-    copy: 'A wide-frame movement pose that expands the gallery beyond still portrait energy.',
+    mode: 'Movement',
+    collection: 'movement',
     image: 'assets/wide-flow.jpg',
-    alt: '3DVR Girl holding a wide movement stance'
+    alt: '3DVR Girl holding a wide movement pose',
+    copy: 'A wider posture that gives the character space to feel active rather than posed.'
+  },
+  {
+    id: 'downward-flow',
+    title: 'Grounded arc',
+    mode: 'Movement',
+    collection: 'movement',
+    image: 'assets/downward-flow.jpg',
+    alt: '3DVR Girl in a downward stretch',
+    copy: 'Recovery, breath, and nervous-system reset before the next jump.'
+  },
+  {
+    id: 'pool-welcome',
+    title: 'Waterline',
+    mode: 'Water',
+    collection: 'water',
+    image: 'assets/pool-welcome.png',
+    alt: '3DVR Girl smiling from a sunlit pool',
+    copy: 'Bright water and bougainvillea: a simple summer reset with almost no interface at all.'
+  },
+  {
+    id: 'pool-stand',
+    title: 'Sunlit reset',
+    mode: 'Water',
+    collection: 'water',
+    image: 'assets/pool-stand.png',
+    alt: '3DVR Girl standing in a blue swimming pool',
+    copy: 'A clean open-water frame for the restorative side of the character.'
+  },
+  {
+    id: 'pool-signal',
+    title: 'Pool signal',
+    mode: 'Water',
+    collection: 'water',
+    image: 'assets/pool-signal.jpg',
+    alt: '3DVR Girl in a bright pool scene',
+    copy: 'A lighter lifestyle frame where the 3DVR signal stays in the background.'
+  },
+  {
+    id: 'meditation-seat',
+    title: 'Meditation seat',
+    mode: 'Stillness',
+    collection: 'stillness',
+    image: 'assets/meditation-seat.png',
+    alt: '3DVR Girl seated in meditation',
+    copy: 'Quiet body, quiet interface. The portal can wait.'
+  },
+  {
+    id: 'courtyard-meditation',
+    title: 'Courtyard calm',
+    mode: 'Stillness',
+    collection: 'stillness',
+    image: 'assets/courtyard-meditation.jpg',
+    alt: '3DVR Girl sitting cross-legged in a courtyard',
+    copy: 'A softer courtyard frame for breathwork, reflection, and daily ritual.'
   },
   {
     id: 'tree-prayer',
     title: 'Prayer balance',
-    kicker: 'Tree prayer',
-    mode: 'Balance',
-    copy: 'A stable one-leg frame for practice sequences, daily rituals, and mindful check-ins.',
+    mode: 'Stillness',
+    collection: 'stillness',
     image: 'assets/tree-prayer.jpg',
-    alt: '3DVR Girl holding a tree pose with hands in prayer'
+    alt: '3DVR Girl balancing in tree pose with hands in prayer',
+    copy: 'Balance as a practice instead of a dashboard metric.'
+  },
+  {
+    id: 'balance-tree',
+    title: 'Balance protocol',
+    mode: 'Stillness',
+    collection: 'stillness',
+    image: 'assets/balance-tree.jpg',
+    alt: '3DVR Girl balancing in a sunny courtyard',
+    copy: 'Warm natural light and a ritual posture for slower moments.'
+  },
+  {
+    id: 'courtyard-profile',
+    title: 'Courtyard profile',
+    mode: 'Sun',
+    collection: 'sun',
+    image: 'assets/courtyard-profile.jpg',
+    alt: '3DVR Girl standing in profile in a sunlit courtyard',
+    copy: 'Simple architecture, natural light, and the recognizable blue-accented silhouette.'
+  },
+  {
+    id: 'courtyard-stand',
+    title: 'Soft launch',
+    mode: 'Sun',
+    collection: 'sun',
+    image: 'assets/courtyard-stand.jpg',
+    alt: '3DVR Girl standing in a warm courtyard',
+    copy: 'A full-body lifestyle frame with almost nothing competing for attention.'
+  },
+  {
+    id: 'sunlit-crouch',
+    title: 'Low sun signal',
+    mode: 'Sun',
+    collection: 'sun',
+    image: 'assets/sunlit-crouch.jpg',
+    alt: '3DVR Girl crouching in warm courtyard light',
+    copy: 'Relaxed, playful, and intentionally less like a polished tech ad.'
+  },
+  {
+    id: 'sunlit-curve',
+    title: 'Golden-hour line',
+    mode: 'Sun',
+    collection: 'sun',
+    image: 'assets/sunlit-curve.jpg',
+    alt: '3DVR Girl in warm sunlit shadows',
+    copy: 'A motion portrait built from shadow, shape, and late-day warmth.'
+  },
+  {
+    id: 'over-shoulder',
+    title: 'Afterimage',
+    mode: 'Sun',
+    collection: 'sun',
+    image: 'assets/over-shoulder.jpg',
+    alt: '3DVR Girl looking back over her shoulder',
+    copy: 'A quieter transition frame for memory, mystery, and leaving one scene for another.'
+  },
+  {
+    id: 'portal-arrival',
+    title: 'Portal arrival',
+    mode: 'Portal',
+    collection: 'portal',
+    image: 'assets/portal-arrival.png',
+    alt: '3DVR Girl standing inside a blue portal ring',
+    copy: 'The overtly futuristic mode — useful when the story really needs the portal to be visible.'
   },
   {
     id: 'blue-portal-stance',
-    title: 'Brand portal stance',
-    kicker: 'Blue portal stance',
+    title: 'Blue portal stance',
     mode: 'Portal',
-    copy: 'A high-brand read with blue rings, 3DVR mark, and a direct avatar-channel landing image.',
+    collection: 'portal',
     image: 'assets/blue-portal-stance.jpg',
-    alt: '3DVR Girl standing in a blue branded portal'
+    alt: '3DVR Girl standing in a bright blue portal',
+    copy: 'The highest-tech frame in the archive, kept as a contrast to the more grounded scenes.'
   }
 ];
 
-const guides = [
-  {
-    id: 'feminine',
-    label: 'Feminine',
-    title: 'Feminine guide',
-    image: 'assets/guides/feminine.png',
-    alt: 'Cartoon feminine 3DVR guide inside a soft portal ring',
-    note: 'Feminine guide selected.',
-    headline: 'Warm studio presence',
-    copy: 'Soft, focused, and human-forward for a calm portal greeting.'
-  },
-  {
-    id: 'masculine',
-    label: 'Masculine',
-    title: 'Masculine guide',
-    image: 'assets/guides/masculine.png',
-    alt: 'Cartoon masculine 3DVR guide inside a blue portal ring',
-    note: 'Masculine guide selected.',
-    headline: 'Grounded signal',
-    copy: 'Steady, composed, and direct for a focused entry into the experience.'
-  },
-  {
-    id: 'robot',
-    label: 'Robot',
-    title: 'Robot guide',
-    image: 'assets/guides/robot.png',
-    alt: 'Cartoon robot 3DVR guide inside a glowing portal ring',
-    note: 'Robot guide selected.',
-    headline: 'Precision interface',
-    copy: 'Clean, technical, and luminous for a more synthetic portal atmosphere.'
-  },
-  {
-    id: 'nature',
-    label: 'Nature',
-    title: 'Nature guide',
-    image: 'assets/guides/nature.png',
-    alt: 'Cartoon nature 3DVR guide inside a green portal ring',
-    note: 'Nature guide selected.',
-    headline: 'Restorative path',
-    copy: 'Botanical, bright, and grounded for a softer environmental welcome.'
-  },
-  {
-    id: 'cosmic',
-    label: 'Cosmic',
-    title: 'Cosmic guide',
-    image: 'assets/guides/cosmic.png',
-    alt: 'Cartoon cosmic 3DVR guide inside a violet portal ring',
-    note: 'Cosmic guide selected.',
-    headline: 'Astral companion',
-    copy: 'Dreamlike, spacious, and cinematic for a more surreal opening mood.'
-  },
-  {
-    id: 'portal',
-    label: 'Portal',
-    title: 'Portal guide',
-    image: 'assets/guides/portal.png',
-    alt: 'Cartoon blue 3DVR portal guide with concentric rings',
-    note: 'Portal guide selected.',
-    headline: 'Pure 3DVR frame',
-    copy: 'Brand-first, abstract, and light-driven when you want the portal itself to lead.'
-  }
+const filters = [
+  ['all', 'All'],
+  ['forest', 'Forest'],
+  ['sun', 'Sun'],
+  ['water', 'Water'],
+  ['movement', 'Movement'],
+  ['stillness', 'Stillness'],
+  ['portal', 'Portal']
 ];
 
-const GUIDE_STORAGE_KEY = '3dvrGirlGuide';
-const $ = (selector) => document.querySelector(selector);
+const archiveGrid = document.querySelector('#archiveGrid');
+const sceneFilters = document.querySelector('#sceneFilters');
+const sceneDialog = document.querySelector('#sceneDialog');
+const dialogClose = document.querySelector('#dialogClose');
+const dialogImage = document.querySelector('#dialogImage');
+const dialogMode = document.querySelector('#dialogMode');
+const dialogTitle = document.querySelector('#dialogTitle');
+const dialogCopy = document.querySelector('#dialogCopy');
 
-const refs = {
-  stageImage: $('#stageImage'),
-  stageTitle: $('#stageTitle'),
-  stageKicker: $('#stageKicker'),
-  stageCopy: $('#stageCopy'),
-  modeLabel: $('#modeLabel'),
-  guideLabel: $('#guideLabel'),
-  galleryGrid: $('#galleryGrid'),
-  sceneRail: $('#sceneRail'),
-  guideGrid: $('#guideGrid'),
-  guideNote: $('#guideNote'),
-  heroImage: $('#heroImage'),
-  heroGuideImage: $('#heroGuideImage'),
-  guidePreviewImage: $('#guidePreviewImage'),
-  guidePreviewKicker: $('#guidePreviewKicker'),
-  guidePreviewTitle: $('#guidePreviewTitle'),
-  guidePreviewCopy: $('#guidePreviewCopy')
-};
-
-function setText(node, text) {
-  if (node) {
-    node.textContent = text;
-  }
-}
-
-function setScene(sceneId) {
-  const scene = scenes.find((item) => item.id === sceneId) || scenes[0];
-
-  if (refs.stageImage) {
-    refs.stageImage.src = scene.image;
-    refs.stageImage.alt = scene.alt;
-  }
-
-  if (refs.heroImage) {
-    refs.heroImage.src = scene.image;
-    refs.heroImage.alt = scene.alt;
-  }
-
-  setText(refs.stageTitle, scene.title);
-  setText(refs.stageKicker, scene.kicker);
-  setText(refs.stageCopy, scene.copy);
-  setText(refs.modeLabel, scene.mode);
-
-  document.querySelectorAll('[data-focus-image]').forEach((control) => {
-    const active = control.dataset.focusImage === scene.id;
-    control.classList.toggle('is-active', active);
-    control.setAttribute('aria-pressed', String(active));
-  });
-}
-
-function createSceneButton(scene, index) {
+function createArchiveCard(scene) {
   const button = document.createElement('button');
-  button.className = 'scene-chip';
+  button.className = 'archive-card';
   button.type = 'button';
-  button.dataset.focusImage = scene.id;
-  button.setAttribute('aria-label', `Select ${scene.kicker}`);
-  button.setAttribute('aria-pressed', 'false');
-
-  const number = document.createElement('span');
-  number.setAttribute('aria-hidden', 'true');
-  number.textContent = String(index + 1).padStart(2, '0');
-
-  button.append(number, scene.mode);
-  button.addEventListener('click', () => setScene(scene.id));
-  return button;
-}
-
-function createGalleryCard(scene) {
-  const button = document.createElement('button');
-  button.className = 'gallery-card';
-  button.type = 'button';
-  button.dataset.focusImage = scene.id;
-  button.setAttribute('aria-label', `Select ${scene.kicker}`);
-  button.setAttribute('aria-pressed', 'false');
+  button.dataset.collection = scene.collection;
+  button.dataset.sceneId = scene.id;
+  button.setAttribute('aria-label', `Open ${scene.title}`);
 
   const image = document.createElement('img');
   image.src = scene.image;
   image.alt = scene.alt;
   image.loading = 'lazy';
 
-  const label = document.createElement('span');
-  label.textContent = scene.kicker;
+  const caption = document.createElement('span');
+  caption.className = 'archive-card__caption';
 
-  button.append(image, label);
-  button.addEventListener('click', () => setScene(scene.id));
+  const mode = document.createElement('span');
+  mode.textContent = scene.mode;
+
+  const title = document.createElement('strong');
+  title.textContent = scene.title;
+
+  caption.append(mode, title);
+  button.append(image, caption);
+  button.addEventListener('click', () => openScene(scene));
   return button;
 }
 
-function createScenes() {
-  scenes.forEach((scene, index) => {
-    if (refs.sceneRail) {
-      refs.sceneRail.append(createSceneButton(scene, index));
-    }
-    if (refs.galleryGrid) {
-      refs.galleryGrid.append(createGalleryCard(scene));
-    }
+function openScene(scene) {
+  if (!sceneDialog || !dialogImage) return;
+  dialogImage.src = scene.image;
+  dialogImage.alt = scene.alt;
+  dialogMode.textContent = scene.mode;
+  dialogTitle.textContent = scene.title;
+  dialogCopy.textContent = scene.copy;
+  sceneDialog.showModal();
+}
+
+function setFilter(collection) {
+  document.querySelectorAll('.filter-button').forEach(button => {
+    const active = button.dataset.collection === collection;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+
+  document.querySelectorAll('.archive-card').forEach(card => {
+    card.hidden = collection !== 'all' && card.dataset.collection !== collection;
   });
 }
 
-function setGuide(guideId) {
-  const guide = guides.find((item) => item.id === guideId) || guides[0];
-  document.body.dataset.guide = guide.id;
-
-  setText(refs.guideNote, guide.note);
-  setText(refs.guideLabel, guide.label);
-  setText(refs.guidePreviewKicker, guide.title);
-  setText(refs.guidePreviewTitle, guide.headline);
-  setText(refs.guidePreviewCopy, guide.copy);
-
-  if (refs.heroGuideImage) {
-    refs.heroGuideImage.src = guide.image;
-  }
-
-  if (refs.guidePreviewImage) {
-    refs.guidePreviewImage.src = guide.image;
-    refs.guidePreviewImage.alt = guide.alt;
-  }
-
-  try {
-    localStorage.setItem(GUIDE_STORAGE_KEY, guide.id);
-  } catch (error) {
-    // The picker still works when storage is unavailable.
-  }
-
-  document.querySelectorAll('[data-guide-option]').forEach((control) => {
-    const active = control.dataset.guideOption === guide.id;
-    control.classList.toggle('is-active', active);
-    control.setAttribute('aria-pressed', String(active));
-  });
+if (archiveGrid) {
+  scenes.forEach(scene => archiveGrid.append(createArchiveCard(scene)));
 }
 
-function createGuidePicker() {
-  if (!refs.guideGrid) {
-    return;
-  }
-
-  guides.forEach((guide) => {
+if (sceneFilters) {
+  filters.forEach(([id, label]) => {
     const button = document.createElement('button');
-    button.className = 'guide-option';
+    button.className = 'filter-button';
     button.type = 'button';
-    button.dataset.guideOption = guide.id;
-    button.setAttribute('aria-label', `Choose ${guide.title}`);
+    button.dataset.collection = id;
     button.setAttribute('aria-pressed', 'false');
-
-    const image = document.createElement('img');
-    image.src = guide.image;
-    image.alt = guide.alt;
-    image.loading = 'lazy';
-
-    const label = document.createElement('span');
-    label.textContent = guide.label;
-
-    button.append(image, label);
-    button.addEventListener('click', () => setGuide(guide.id));
-    refs.guideGrid.append(button);
+    button.textContent = label;
+    button.addEventListener('click', () => setFilter(id));
+    sceneFilters.append(button);
   });
+  setFilter('all');
 }
 
-function getStoredGuide() {
-  try {
-    return localStorage.getItem(GUIDE_STORAGE_KEY);
-  } catch (error) {
-    return null;
-  }
-}
-
-document.querySelectorAll('[data-focus-image]').forEach((control) => {
-  control.setAttribute('aria-pressed', 'false');
-  control.addEventListener('click', () => setScene(control.dataset.focusImage));
+dialogClose?.addEventListener('click', () => sceneDialog?.close());
+sceneDialog?.addEventListener('click', event => {
+  if (event.target === sceneDialog) sceneDialog.close();
 });
-
-createScenes();
-createGuidePicker();
-setScene('portal-arrival');
-setGuide(getStoredGuide() || 'feminine');

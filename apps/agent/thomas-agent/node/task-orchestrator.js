@@ -10,7 +10,7 @@ const DEFAULT_CLAUDE_MODEL = process.env.THREEDVR_AGENT_TASK_CLAUDE_MODEL || pro
 const DEFAULT_THINKING = process.env.THREEDVR_AGENT_TASK_THINKING || 'high';
 const HIGH_RISK_PATTERN = /\b(send|email|dm|sms|post|publish|deploy|merge|push|delete|remove|rm\s+-rf|reset\s+--hard|payment|charge|refund|purchase|buy|invoice|stripe|bank|payroll|credential|secret|token|password)\b/i;
 const CODE_PATTERN = /\b(code|repo|github|pull request|pr\b|commit|test|bug|fix|refactor|file|function|typescript|javascript|node|python|css|html)\b/i;
-const SALES_PATTERN = /\b(lead|sales|outreach|reply|inbox|customer|client|prospect|invoice|proposal|close)\b/i;
+const SALES_PATTERN = /\b(leads?|sales|outreach|repl(?:y|ies)|inbox|customers?|clients?|prospects?|invoices?|proposals?|close)\b/i;
 
 function parseInteger(value, fallback) {
   const parsed = Number.parseInt(String(value || ''), 10);
@@ -92,11 +92,27 @@ function parseArgs(argv) {
   return options;
 }
 
+function riskScanText(task) {
+  const text = normalizeText(task);
+  if (!text) return '';
+
+  return text
+    .split(/(?<=[.!?])\s+|\n+/)
+    .filter((sentence) => {
+      const trimmed = sentence.trim();
+      const prohibition = /^(?:do\s+not|don't|never|must\s+not)\b/i.test(trimmed);
+      const mixedIntent = /\b(?:then|after(?:wards)?|once|unless|but|however)\b/i.test(trimmed);
+      return !prohibition || mixedIntent;
+    })
+    .join(' ');
+}
+
 function classifyTask(task) {
   const text = normalizeText(task);
+  const requestedActions = riskScanText(text);
   return {
     kind: CODE_PATTERN.test(text) ? 'code' : SALES_PATTERN.test(text) ? 'sales' : 'general',
-    highRisk: HIGH_RISK_PATTERN.test(text),
+    highRisk: HIGH_RISK_PATTERN.test(requestedActions),
     needsTools: /\b(browser|website|gmail|calendar|file|terminal|shell|server|digital ocean|vps|deploy|repo|github)\b/i.test(text),
   };
 }

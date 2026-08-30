@@ -4,13 +4,11 @@ import { readFile } from 'node:fs/promises';
 
 const vercel = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
 
-test('Vercel deploys production from main and never auto-builds feature branches', () => {
+test('Vercel skips routine main builds and ordinary branches while allowing opt-in preview bridges', () => {
   assert.deepEqual(vercel.git?.deploymentEnabled, {
-    '*': false,
-    main: true,
+    '**': false,
+    main: false,
+    'preview-pr-*': true,
   });
-  assert.equal(
-    vercel.ignoreCommand,
-    '[ "$VERCEL_GIT_COMMIT_REF" != "main" ]'
-  );
+  assert.equal(vercel.ignoreCommand, undefined);
 });

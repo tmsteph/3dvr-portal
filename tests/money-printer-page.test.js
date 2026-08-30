@@ -95,7 +95,7 @@ describe('money-printer MVP', () => {
     assert.match(bots, /System Improvement Bot/);
 
     const prompts = await readFile(new URL('moneyPrinterPrompts.js', srcDir), 'utf8');
-    assert.match(prompts, /Given the business config/);
+    assert.match(prompts, /persistent 3DVR executive/);
     assert.match(prompts, /service-first, software-later/);
 
     const connector = await readFile(new URL('moneyPrinterConnectors.js', srcDir), 'utf8');

@@ -1,1897 +1,466 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mindfulness Breathing Room | 3DVR Portal</title>
-  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
-  <script src="/gun-init.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
-  <script src="../score.js"></script>
-  <link rel="stylesheet" href="../styles/global.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>3DVR Meditation — The Journey</title>
+  <meta name="description" content="A living meditation world from 3DVR. Breathe, wander, collect light, and let the experience deepen over time." />
+  <meta name="theme-color" content="#050913" />
+  <script defer src="/_vercel/insights/script.js"></script>
   <style>
     :root {
       color-scheme: dark;
-      --cycle-duration: 14000ms;
+      --ink: #eef7f5;
+      --muted: rgba(238,247,245,.66);
+      --line: rgba(238,247,245,.16);
+      --panel: rgba(4,10,22,.38);
+      --glow: rgba(139,235,220,.44);
     }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; min-height: 100%; background: #050913; }
     body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      display: flex;
-      flex-direction: column;
-      background: radial-gradient(circle at 20% 20%, rgba(58, 180, 242, 0.2), transparent 60%),
-        radial-gradient(circle at 80% 30%, rgba(94, 234, 212, 0.18), transparent 55%),
-        #05070c;
-      color: #f8fafc;
-      overflow-x: hidden;
-      overflow-y: auto;
-    }
-    .session-meta {
-      width: min(100%, 760px);
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 16px;
-      padding: 0 16px;
-    }
-    .session-meta__item {
-      border-radius: 18px;
-      border: 1px solid rgba(148, 163, 184, 0.22);
-      background: rgba(15, 23, 42, 0.68);
-      box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
-      padding: 18px 20px;
-      display: grid;
-      gap: 6px;
-    }
-    .session-meta__label {
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      font-size: 0.75rem;
-      color: rgba(148, 163, 184, 0.75);
-    }
-    .session-meta__value {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #f8fafc;
-      letter-spacing: 0.02em;
-    }
-    body::before,
-    body::after {
-      content: '';
-      position: fixed;
-      width: 520px;
-      height: 520px;
-      border-radius: 50%;
-      filter: blur(120px);
-      opacity: 0.55;
-      pointer-events: none;
-      z-index: 0;
-    }
-    body::before {
-      top: -200px;
-      left: -160px;
-      background: radial-gradient(circle, rgba(56, 189, 248, 0.55), transparent 65%);
-      animation: breatheGlow var(--cycle-duration) ease-in-out infinite;
-    }
-    body::after {
-      bottom: -220px;
-      right: -160px;
-      background: radial-gradient(circle, rgba(129, 140, 248, 0.55), transparent 65%);
-      animation: breatheGlow var(--cycle-duration) ease-in-out infinite reverse;
-    }
-    .session-shell {
-      position: relative;
-      z-index: 1;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 48px 24px 64px;
-      gap: 36px;
-    }
-    header {
-      text-align: center;
-      max-width: 720px;
-    }
-    header p {
-      margin: 0;
-      text-transform: uppercase;
-      letter-spacing: 0.24em;
-      color: rgba(226, 232, 240, 0.65);
-      font-size: 0.85rem;
-    }
-    header h1 {
-      margin: 14px 0 12px;
-      font-size: clamp(2.25rem, 5vw, 3.2rem);
-      letter-spacing: -0.04em;
-    }
-    header span {
-      display: inline-block;
-      margin-top: 8px;
-      color: rgba(226, 232, 240, 0.75);
-      font-size: 1.05rem;
-      line-height: 1.7;
-    }
-    .header-links {
-      margin-top: 24px;
-      display: flex;
-      justify-content: center;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-    .header-links a {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 20px;
-      border-radius: 999px;
-      border: 1px solid rgba(94, 234, 212, 0.35);
-      background: rgba(15, 23, 42, 0.55);
-      color: #f8fafc;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
-      text-decoration: none;
-    }
-    .header-links a:hover,
-    .header-links a:focus {
-      transform: translateY(-2px);
-      background: rgba(56, 189, 248, 0.22);
-      border-color: rgba(94, 234, 212, 0.6);
-      outline: none;
-    }
-    .breathing-space {
-      position: relative;
-      width: clamp(320px, 38vw, 760px);
-      height: clamp(320px, 38vw, 760px);
-      border-radius: 40px;
-      background: linear-gradient(160deg, rgba(15, 23, 42, 0.8), rgba(17, 24, 39, 0.65));
-      border: 1px solid rgba(148, 163, 184, 0.25);
-      box-shadow: 0 40px 120px rgba(8, 15, 35, 0.55);
-      backdrop-filter: blur(18px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 28px;
+      min-height: 100svh;
       overflow: hidden;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at 50% 45%, #0d2034 0%, #070d1c 52%, #03050b 100%);
     }
-    .breathing-space::before {
-      content: '';
-      position: absolute;
-      inset: 16px;
-      border-radius: 28px;
-      background: radial-gradient(circle, rgba(56, 189, 248, 0.18) 0%, rgba(12, 19, 33, 0.6) 65%);
-      animation: breathePulse calc(var(--cycle-duration) * 0.75) ease-in-out infinite;
-    }
-    .count-display {
-      position: absolute;
-      top: 38px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: clamp(1.35rem, 3vw, 2.1rem);
-      letter-spacing: 0.24em;
-      font-weight: 500;
-      pointer-events: none;
-      opacity: 0.8;
-      transition: opacity 0.4s ease;
-      display: inline-flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      color: var(--count-color);
-      --count-color: rgba(226, 232, 240, 0.7);
-      --count-glow: rgba(148, 163, 184, 0.25);
-      --count-scale-rest: 0.88;
-      --count-scale-peak: 1.18;
-      --count-scale-settle: 0.94;
-      --count-scale-final: 1.22;
-    }
-    .floating-score {
-      position: relative;
-      display: inline-flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      padding: 12px 16px;
-      border-radius: 14px;
-      border: 1px solid rgba(148, 163, 184, 0.28);
-      background: rgba(15, 23, 42, 0.7);
-      box-shadow: 0 18px 48px rgba(8, 15, 35, 0.35);
-      backdrop-filter: blur(12px);
-      color: rgba(226, 232, 240, 0.85);
-      text-align: center;
-      pointer-events: none;
-      align-self: center;
-      margin-top: 8px;
-      margin-bottom: 12px;
-      z-index: 1;
-    }
-    .floating-score__label {
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.24em;
-      color: rgba(148, 163, 184, 0.75);
-    }
-    .floating-score__value {
-      font-size: clamp(1.2rem, 2.8vw, 1.8rem);
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      color: #f8fafc;
-      text-shadow: 0 0 18px rgba(94, 234, 212, 0.45);
-    }
-    .count-display::after {
-      content: '';
-      width: 40px;
-      height: 3px;
-      border-radius: 999px;
-      background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.35), transparent);
-      opacity: 0;
-      transform: scaleX(0.6) translateY(0);
-      transition: opacity 0.4s ease, transform 0.4s ease;
-    }
-    .count-display__value {
-      display: inline-block;
-      opacity: 0.85;
-      color: var(--count-color);
-      transform: translateY(0) scale(var(--count-scale-rest));
-      transition: color 0.6s ease, text-shadow 0.6s ease, transform 0.4s ease;
-      text-shadow: 0 0 0 var(--count-glow);
-    }
-    .count-display__value.is-ticking {
-      animation: countTick 1s cubic-bezier(0.4, 0, 0.2, 1) both;
-      text-shadow: 0 0 18px var(--count-glow);
-    }
-    .count-display.is-transitioning::after {
-      opacity: 0.95;
-      transform: scaleX(1.35) translateY(-2px);
-      background: linear-gradient(90deg, transparent, rgba(248, 250, 252, 0.8), transparent);
-    }
-    .count-display.is-transitioning .count-display__value {
-      color: #f8fafc;
-      text-shadow: 0 0 24px rgba(248, 250, 252, 0.6);
-    }
-    .count-display__value.is-ticking.is-transitioning {
-      animation: countTick 1s cubic-bezier(0.4, 0, 0.2, 1) both,
-        countFinalBeat 0.9s ease-out both;
-    }
-    .count-display[data-phase='inhale'] {
-      --count-color: #5eead4;
-      --count-glow: rgba(94, 234, 212, 0.35);
-      --count-scale-peak: 1.26;
-      --count-scale-rest: 0.92;
-      --count-scale-final: 1.34;
-    }
-    .count-display[data-phase='hold'] {
-      --count-color: #c4b5fd;
-      --count-glow: rgba(196, 181, 253, 0.32);
-      --count-scale-peak: 1.2;
-      --count-scale-rest: 0.9;
-      --count-scale-final: 1.26;
-    }
-    .count-display[data-phase='exhale'] {
-      --count-color: #60a5fa;
-      --count-glow: rgba(96, 165, 250, 0.32);
-      --count-scale-peak: 1.22;
-      --count-scale-rest: 0.88;
-      --count-scale-final: 1.28;
-    }
-    .count-display[data-phase='rest'] {
-      --count-color: #94a3b8;
-      --count-glow: rgba(148, 163, 184, 0.28);
-      --count-scale-peak: 1.14;
-      --count-scale-rest: 0.86;
-      --count-scale-final: 1.2;
-    }
-    .count-display[data-phase='idle'] {
-      --count-color: rgba(226, 232, 240, 0.7);
-      --count-glow: rgba(148, 163, 184, 0.22);
-      --count-scale-peak: 1.12;
-      --count-scale-rest: 0.86;
-      --count-scale-final: 1.16;
-    }
-    .breath-circle {
-      position: relative;
-      width: clamp(200px, 22vw, 360px);
-      height: clamp(200px, 22vw, 360px);
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(56, 189, 248, 0.35), rgba(37, 99, 235, 0.22));
-      box-shadow: 0 30px 60px rgba(15, 23, 42, 0.35);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transform: scale(var(--target-scale, 1));
-      transition: transform var(--transition-duration, 2400ms) cubic-bezier(0.45, 0, 0.55, 1),
-        background 0.8s ease, box-shadow 0.8s ease;
-    }
-    .breath-circle::after {
-      content: '';
-      position: absolute;
-      inset: 22px;
-      border-radius: 50%;
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      opacity: 0.65;
-      transition: opacity 0.6s ease;
-    }
-    .breath-circle.inhale {
-      --target-scale: 1.16;
-      background: radial-gradient(circle, rgba(94, 234, 212, 0.45), rgba(56, 189, 248, 0.32));
-    }
-    .breath-circle.hold {
-      --target-scale: 1.16;
-      background: radial-gradient(circle, rgba(129, 140, 248, 0.44), rgba(56, 189, 248, 0.28));
-      box-shadow: 0 36px 80px rgba(17, 24, 39, 0.45);
-    }
-    .breath-circle.exhale {
-      --target-scale: 0.86;
-      background: radial-gradient(circle, rgba(37, 99, 235, 0.28), rgba(17, 94, 189, 0.22));
-    }
-    .breath-circle.rest {
-      --target-scale: 0.9;
-      background: radial-gradient(circle, rgba(46, 117, 221, 0.25), rgba(15, 76, 173, 0.18));
-      box-shadow: 0 26px 55px rgba(12, 18, 30, 0.4);
-    }
-    .breath-circle.rest::after {
-      opacity: 0.4;
-    }
-    .instructions {
-      position: absolute;
-      bottom: 32px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: calc(100% - 64px);
-      max-width: 360px;
-      text-align: center;
-      color: rgba(226, 232, 240, 0.8);
-      font-size: 1.05rem;
-      line-height: 1.6;
-    }
-    .instructions h2 {
-      margin: 0 0 8px;
-      font-size: 1.25rem;
-      letter-spacing: 0.04em;
-      color: #f8fafc;
-    }
-    .controls {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-    .stretch-callout {
-      width: min(100%, 760px);
-      border-radius: 24px;
-      border: 1px solid rgba(148, 163, 184, 0.22);
-      background: rgba(15, 23, 42, 0.72);
-      box-shadow: 0 26px 70px rgba(7, 13, 30, 0.55);
-      padding: 24px 26px;
-      display: grid;
-      gap: 14px;
-      text-align: left;
-    }
-    .stretch-callout__tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 14px;
-      border-radius: 999px;
-      background: rgba(56, 189, 248, 0.16);
-      color: rgba(226, 232, 240, 0.85);
-      font-size: 0.82rem;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-    }
-    .stretch-callout h2 {
-      margin: 0;
-      font-size: clamp(1.4rem, 3.5vw, 2rem);
-      letter-spacing: -0.01em;
-    }
-    .stretch-callout p {
-      margin: 0;
-      color: rgba(226, 232, 240, 0.82);
-      line-height: 1.65;
-    }
-    .stretch-callout__actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-    .stretch-callout__link {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 20px;
-      border-radius: 999px;
-      border: 1px solid rgba(94, 234, 212, 0.35);
-      background: rgba(15, 23, 42, 0.65);
-      color: #f8fafc;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      text-decoration: none;
-      transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
-    }
-    .stretch-callout__link:hover,
-    .stretch-callout__link:focus {
-      transform: translateY(-2px);
-      background: rgba(56, 189, 248, 0.22);
-      border-color: rgba(94, 234, 212, 0.6);
-      outline: none;
-    }
-    .controls button,
-    .controls select {
-      appearance: none;
-      border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.28);
-      padding: 10px 20px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      background: rgba(15, 23, 42, 0.6);
-      color: #f8fafc;
-      cursor: pointer;
-      transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
-    }
-    .controls button:hover,
-    .controls button:focus,
-    .controls select:hover,
-    .controls select:focus {
-      background: rgba(56, 189, 248, 0.22);
-      border-color: rgba(94, 234, 212, 0.45);
-      outline: none;
-      transform: translateY(-1px);
-    }
-    .controls button:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-    .controls button[aria-pressed="true"] {
-      background: linear-gradient(120deg, rgba(56, 189, 248, 0.25), rgba(129, 140, 248, 0.28));
-      border-color: rgba(148, 163, 184, 0.45);
-      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.25);
-    }
-    .controls .slider-control {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 6px;
-      padding: 12px 16px;
-      border-radius: 16px;
-      border: 1px solid rgba(148, 163, 184, 0.18);
-      background: rgba(15, 23, 42, 0.45);
-      min-width: 200px;
-    }
-    .controls .slider-control span {
-      font-size: 0.85rem;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: rgba(226, 232, 240, 0.75);
-    }
-    .controls input[type='range'] {
-      width: 100%;
-      accent-color: #38bdf8;
-    }
-    .controls .slider-value {
-      font-weight: 600;
-      color: #f8fafc;
-      letter-spacing: 0.05em;
-    }
-    .breathing-guide {
-      width: min(100%, 960px);
-      margin: 12px auto 0;
-      display: grid;
-      gap: 24px;
-      text-align: left;
-    }
-    .breathing-guide h2 {
-      margin: 0;
-      font-size: clamp(1.6rem, 3vw, 2.2rem);
-      letter-spacing: -0.015em;
-    }
-    .breathing-guide__intro {
-      margin: 0;
-      color: rgba(226, 232, 240, 0.78);
-      font-size: 1.05rem;
-      line-height: 1.7;
-    }
-    .breathing-guide__grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 20px;
-    }
-    .breathing-guide__card {
-      border-radius: 20px;
-      border: 1px solid rgba(148, 163, 184, 0.18);
-      background: rgba(15, 23, 42, 0.55);
-      box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
-      padding: 20px 24px 22px;
-      display: grid;
-      gap: 14px;
-    }
-    .breathing-guide__card--cta {
-      align-content: start;
-      gap: 18px;
-    }
-    .breathing-guide__card h3 {
-      margin: 0;
-      font-size: 1.15rem;
-      letter-spacing: 0.01em;
-      color: #f8fafc;
-    }
-    .breathing-guide__summary {
-      margin: 0;
-      color: rgba(226, 232, 240, 0.82);
-      line-height: 1.65;
-    }
-    .breathing-guide__card dl {
-      margin: 0;
-      display: grid;
-      gap: 10px;
-    }
-    .breathing-guide__card dt {
-      font-size: 0.78rem;
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      color: rgba(148, 163, 184, 0.7);
-    }
-    .breathing-guide__card dd {
-      margin: 2px 0 0;
-      color: rgba(226, 232, 240, 0.82);
-      line-height: 1.65;
-    }
-    .breathing-guide__card dd + dt {
-      margin-top: 8px;
-    }
-    .breathing-guide__link {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 10px 20px;
-      border-radius: 999px;
-      border: 1px solid rgba(94, 234, 212, 0.35);
-      background: rgba(15, 23, 42, 0.6);
-      color: #f8fafc;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      text-decoration: none;
-      transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-      width: fit-content;
-    }
-    .breathing-guide__link:hover,
-    .breathing-guide__link:focus {
-      background: rgba(56, 189, 248, 0.24);
-      border-color: rgba(94, 234, 212, 0.55);
-      transform: translateY(-2px);
-      outline: none;
-    }
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
-    }
-    footer {
-      padding: 28px 24px;
-      text-align: center;
-      font-size: 0.9rem;
-      color: rgba(226, 232, 240, 0.65);
-    }
-    @keyframes breatheGlow {
-      0%,
-      100% {
-        transform: scale(0.92);
-        opacity: 0.45;
-      }
-      50% {
-        transform: scale(1.08);
-        opacity: 0.65;
-      }
-    }
-    @keyframes breathePulse {
-      0%,
-      100% {
-        transform: scale(0.85);
-        opacity: 0.5;
-      }
-      50% {
-        transform: scale(1.08);
-        opacity: 0.85;
-      }
-    }
-    @media (min-width: 1024px) {
-      header h1 {
-        font-size: clamp(2.8rem, 4vw, 4rem);
-      }
-      .session-shell {
-        gap: 44px;
-      }
-    }
-    @media (max-width: 640px) {
-      .session-shell {
-        padding-top: 36px;
-        gap: 28px;
-      }
-      .count-display {
-        top: 28px;
-        letter-spacing: 0.2em;
-      }
-      .breathing-space {
-        border-radius: 24px;
-      }
-      .instructions {
-        bottom: 24px;
-        font-size: 1rem;
-      }
-      .controls {
-        flex-direction: column;
-      }
-      .controls button,
-      .controls select {
-        width: 100%;
-      }
-      .breathing-guide {
-        gap: 20px;
-      }
-    }
-    @keyframes countTick {
-      0% {
-        opacity: 0;
-        transform: translateY(-10px) scale(var(--count-scale-rest));
-      }
-      35% {
-        opacity: 1;
-        transform: translateY(0) scale(var(--count-scale-peak));
-      }
-      70% {
-        opacity: 0.95;
-        transform: translateY(0) scale(var(--count-scale-settle));
-      }
-      100% {
-        opacity: 0.75;
-        transform: translateY(8px) scale(var(--count-scale-rest));
-      }
-    }
-    @keyframes countFinalBeat {
-      0% {
-        opacity: 1;
-        transform: translateY(0) scale(var(--count-scale-peak));
-      }
-      55% {
-        opacity: 1;
-        transform: translateY(-6px) scale(var(--count-scale-final));
-      }
-      100% {
-        opacity: 0.92;
-        transform: translateY(6px) scale(var(--count-scale-settle));
-      }
+    #world { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+    .vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(circle at center, transparent 34%, rgba(0,0,0,.52) 100%); z-index: 2; }
+    .hud { position: fixed; inset: 0; z-index: 3; pointer-events: none; display: grid; grid-template-rows: auto 1fr auto; padding: clamp(.8rem,2vw,1.4rem); }
+    header, footer { display:flex; justify-content:space-between; align-items:center; gap:1rem; color:var(--muted); font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; }
+    a { color: inherit; text-decoration:none; pointer-events:auto; }
+    a:hover { color:var(--ink); }
+    .journey { display:flex; align-items:center; gap:.7rem; min-width:0; }
+    .stage-name { color:var(--ink); white-space:nowrap; }
+    .progress { width:min(30vw,220px); height:4px; border-radius:999px; overflow:hidden; background:rgba(255,255,255,.12); }
+    .progress > span { display:block; width:0%; height:100%; border-radius:inherit; background:linear-gradient(90deg, rgba(142,229,212,.7), rgba(174,155,255,.92)); transition:width 1s linear; }
+    .center { display:grid; place-items:center; text-align:center; }
+    .practice { width:min(92vw,700px); display:grid; justify-items:center; gap:.65rem; transform:translateY(4vh); pointer-events:none; }
+    .orb-wrap { width:min(26vw,170px); aspect-ratio:1; position:relative; display:grid; place-items:center; transition:opacity 1.2s ease, transform 1.2s ease; }
+    .orb-ring, .orb, .orb-core { position:absolute; border-radius:50%; will-change:transform,opacity; }
+    .orb-ring { inset:2%; border:1px solid rgba(226,255,248,.25); box-shadow:0 0 70px rgba(92,196,176,.14); animation:breatheRing 12s ease-in-out infinite; }
+    .orb { inset:17%; background:radial-gradient(circle at 35% 28%, rgba(255,255,255,.92), rgba(153,226,211,.42) 25%, rgba(98,122,211,.22) 58%, rgba(0,0,0,0) 76%); box-shadow:0 0 64px var(--glow), inset 0 0 40px rgba(255,255,255,.18); animation:breathe 12s ease-in-out infinite; }
+    .orb-core { inset:42%; background:#f7ffff; box-shadow:0 0 28px rgba(214,255,247,.85); animation:corePulse 3s ease-in-out infinite; }
+    @keyframes breathe { 0%,100% {transform:scale(.72);opacity:.66} 48%,56% {transform:scale(1.18);opacity:1} }
+    @keyframes breatheRing { 0%,100% {transform:scale(.82);opacity:.25} 48%,56% {transform:scale(1.1);opacity:.82} }
+    @keyframes corePulse { 0%,100% {transform:scale(.7);opacity:.65} 50% {transform:scale(1.15);opacity:1} }
+    .breath-label { margin:0; min-height:1.4em; color:rgba(238,247,245,.78); font-size:clamp(.75rem,1.8vw,.9rem); letter-spacing:.24em; text-transform:uppercase; transition:opacity .7s ease; }
+    h1 { margin:.2rem 0 0; font-size:clamp(1.8rem,5vw,4rem); line-height:.95; font-weight:430; letter-spacing:-.045em; transition:opacity 1s ease; }
+    .thought { margin:.3rem 0 0; max-width:34rem; min-height:2.8em; color:var(--muted); font-size:clamp(.9rem,2vw,1.08rem); line-height:1.55; transition:opacity 1s ease; }
+    .bottom { display:flex; justify-content:space-between; align-items:flex-end; gap:1rem; }
+    .stats { display:flex; gap:.55rem; flex-wrap:wrap; }
+    .chip, button { border:1px solid var(--line); background:var(--panel); color:var(--muted); border-radius:999px; padding:.55rem .8rem; backdrop-filter:blur(12px); font:inherit; }
+    .chip strong { color:var(--ink); font-weight:600; }
+    .controls { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:.45rem; pointer-events:auto; }
+    button { cursor:pointer; transition:.2s ease; text-transform:uppercase; letter-spacing:.08em; font-size:.68rem; }
+    button:hover, button:focus-visible { color:var(--ink); border-color:rgba(238,247,245,.34); background:rgba(12,24,42,.72); outline:none; }
+    .hint { position:fixed; left:50%; bottom:5.6rem; transform:translateX(-50%); z-index:4; pointer-events:none; color:rgba(238,247,245,.48); font-size:.68rem; letter-spacing:.1em; text-transform:uppercase; text-align:center; transition:opacity 1s ease; }
+    .flash { position:fixed; inset:0; z-index:5; pointer-events:none; opacity:0; background:radial-gradient(circle at center, rgba(188,255,246,.24), transparent 42%); transition:opacity .18s ease; }
+    .flash.on { opacity:1; }
+    .stage-toast { position:fixed; inset:0; z-index:6; pointer-events:none; display:grid; place-items:center; opacity:0; transition:opacity 1.2s ease; }
+    .stage-toast.show { opacity:1; }
+    .stage-toast div { text-align:center; text-shadow:0 0 30px rgba(0,0,0,.85); }
+    .stage-toast small { display:block; color:rgba(238,247,245,.62); letter-spacing:.22em; text-transform:uppercase; margin-bottom:.5rem; }
+    .stage-toast strong { font-size:clamp(2.2rem,8vw,6.5rem); font-weight:400; letter-spacing:-.04em; }
+    body.words-hidden h1, body.words-hidden .thought, body.words-hidden .breath-label { opacity:0; }
+    body.words-hidden .orb-wrap { transform:scale(1.14); opacity:.84; }
+    body.interface-hidden header, body.interface-hidden footer, body.interface-hidden .hint { opacity:0; }
+    header, footer, .hint { transition:opacity .6s ease; }
+    .fallback { display:none; position:fixed; inset:0; z-index:10; place-items:center; padding:2rem; text-align:center; background:radial-gradient(circle,#132539,#050913 70%); }
+    .fallback.show { display:grid; }
+    @media (max-width:700px) {
+      .hud { padding:.8rem; }
+      header span:last-child { display:none; }
+      .progress { width:27vw; }
+      .practice { transform:translateY(1vh); }
+      .orb-wrap { width:min(38vw,155px); }
+      .bottom { align-items:flex-end; }
+      .stats { max-width:46vw; }
+      .chip { padding:.48rem .64rem; }
+      footer { font-size:.62rem; }
+      .hint { bottom:6.8rem; width:90%; }
     }
     @media (prefers-reduced-motion: reduce) {
-      body::before,
-      body::after,
-      .breathing-space::before,
-      .breath-circle {
-        animation: none !important;
-        transition: none !important;
-      }
-      .count-display::after {
-        transition: none !important;
-      }
-      .count-display__value.is-transitioning {
-        animation: none !important;
-      }
+      .orb, .orb-ring, .orb-core { animation:none; }
+      .orb { transform:scale(.94); }
     }
   </style>
-
-  <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
-  <a class="skip-link" href="#meditationFlow">Skip to breathing guidance</a>
-  <div class="session-shell">
+  <canvas id="world" aria-label="Interactive meditation world"></canvas>
+  <div class="vignette" aria-hidden="true"></div>
+  <div class="flash" id="flash" aria-hidden="true"></div>
+  <div class="stage-toast" id="stageToast" aria-live="polite"><div><small>going deeper</small><strong id="toastName">Awakening</strong></div></div>
+
+  <div class="hud">
     <header>
-      <p>3DVR mindfulness studio</p>
-      <h1>Mindfulness Breathing Room</h1>
-      <span>Follow the gentle cues for as many rounds as you need. Set your cadence, press play, and let the cycle guide you
-        back to center.</span>
-      <div class="header-links" role="navigation" aria-label="Meditation quick links">
-        <a href="../index.html">Return to 3DVR Portal</a>
-        <a href="./guided-stretching.html">Visit guided stretching flow</a>
-        <a href="./affirmations.html">Explore affirmations studio</a>
+      <div class="journey">
+        <a href="../index.html">3dvr · meditation</a>
+        <span class="stage-name" id="stageName">Stillness</span>
+        <span class="progress" aria-hidden="true"><span id="progressBar"></span></span>
       </div>
+      <span id="elapsed">00:00</span>
     </header>
-    <section class="session-meta" aria-label="Profile and score status">
-      <div class="session-meta__item" id="sessionProfile" aria-live="polite">
-        <span class="session-meta__label">Signed in as</span>
-        <span id="sessionProfileName" class="session-meta__value">👤 Guest</span>
-      </div>
-      <div
-        class="session-meta__item"
-        id="sessionScore"
-        role="status"
-        aria-live="polite"
-        aria-label="Your current score"
-      >
-        <span class="session-meta__label">Your Score</span>
-        <span id="sessionScoreValue" class="session-meta__value">0</span>
+
+    <section class="center" aria-label="Meditation guide">
+      <div class="practice">
+        <div class="orb-wrap" aria-hidden="true"><div class="orb-ring"></div><div class="orb"></div><div class="orb-core"></div></div>
+        <p class="breath-label" id="breathLabel">breathe in</p>
+        <h1 id="mainTitle">Be here.</h1>
+        <p class="thought" id="thought">The world can move without you for a moment.</p>
       </div>
     </section>
-    <section class="stretch-callout" aria-label="Guided stretch reminder">
-      <span class="stretch-callout__tag">screen break reset</span>
-      <h2>Unwind tight shoulders and wrists between computer sessions</h2>
-      <p>Take twelve minutes to stand up, loosen your neck, and finish seated without ever needing a mat. The looped
-        routine pairs audio and visual breath cues so you can stretch beside your desk and return refreshed.</p>
-      <div class="stretch-callout__actions">
-        <a class="stretch-callout__link" href="./guided-stretching.html">Open the standing &amp; seated stretch loop</a>
-        <a class="stretch-callout__link" href="#breathingGuideHeading">See breathing techniques</a>
+
+    <footer class="bottom">
+      <div class="stats" aria-label="Journey stats">
+        <span class="chip">light <strong id="lightCount">0</strong></span>
+        <span class="chip">depth <strong id="depthCount">1</strong>/5</span>
       </div>
-    </section>
-    <div
-      id="floatingSessionScore"
-      class="floating-score"
-      role="status"
-      aria-live="polite"
-      aria-label="Your meditation score"
-    >
-      <span class="floating-score__label">Score</span>
-      <span id="floatingSessionScoreValue" class="floating-score__value">0</span>
-    </div>
-    <div class="breathing-space" role="application" aria-labelledby="meditationFlow">
-      <div id="countDisplay" class="count-display" aria-hidden="true">
-        <span class="count-display__value">&mdash;</span>
+      <div class="controls" aria-label="Meditation controls">
+        <button type="button" id="wordsButton">hide words</button>
+        <button type="button" id="uiButton">hide ui</button>
+        <button type="button" id="deeperButton">go deeper</button>
+        <button type="button" id="fullscreenButton">fullscreen</button>
       </div>
-      <div id="breathCircle" class="breath-circle inhale" aria-hidden="true"></div>
-      <div id="meditationFlow" class="instructions" aria-live="polite">
-        <h2 id="phaseName">Inhale</h2>
-        <p id="phasePrompt">Breathe in slowly through your nose and fill your lungs.</p>
-      </div>
-    </div>
-    <div class="controls">
-      <button type="button" id="toggleSession">Start session</button>
-      <select id="paceControl" aria-label="Select breathing pace">
-        <option value="slow">Slow &amp; restorative (6 / 2 / 6 / 2)</option>
-        <option value="balanced" selected>Balanced rhythm (4 / 4 / 4 / 2)</option>
-        <option value="energizing">Energizing focus (3 / 3 / 3 / 1)</option>
-        <option value="box">Box breathing (4 / 4 / 4 / 4)</option>
-      </select>
-      <button type="button" id="audioToggle" aria-pressed="false">Enable background audio</button>
-      <label class="slider-control" for="musicVolume">
-        <span>Music volume <span id="musicVolumeValue" class="slider-value">60%</span></span>
-        <input id="musicVolume" type="range" min="0" max="100" value="60" step="5" aria-describedby="musicVolumeValue">
-      </label>
-      <label class="slider-control" for="breathVolume">
-        <span>Breath volume <span id="breathVolumeValue" class="slider-value">105%</span></span>
-        <input id="breathVolume" type="range" min="0" max="125" value="105" step="5" aria-describedby="breathVolumeValue">
-      </label>
-      <span id="audioStatus" class="sr-only" aria-live="polite"></span>
-    </div>
-    <section class="breathing-guide" aria-labelledby="breathingGuideHeading">
-      <h2 id="breathingGuideHeading">Breathing techniques at a glance</h2>
-      <p class="breathing-guide__intro">Each pacing option draws from long-standing contemplative traditions and is backed by
-        contemporary research on the nervous system. Explore the stories and science to choose the rhythm that supports
-        your intention today.</p>
-      <div class="breathing-guide__grid">
-        <article class="breathing-guide__card">
-          <h3>Slow &amp; restorative</h3>
-          <p class="breathing-guide__summary">A gentle six-count inhale and exhale with soft pauses encourages full diaphragmatic
-            movement and leaves space to notice subtle shifts in mood.</p>
-          <dl>
-            <dt>History</dt>
-            <dd>Echoes of this pattern appear in classical pranayama texts that guided practitioners to extend and
-              equalize the breath for deep relaxation.</dd>
-            <dt>Science</dt>
-            <dd>Breathing around five cycles per minute is linked to greater heart rate variability, calmer amygdala
-              activity, and a measurable drop in circulating stress hormones.</dd>
-          </dl>
-        </article>
-        <article class="breathing-guide__card">
-          <h3>Balanced rhythm</h3>
-          <p class="breathing-guide__summary">Even four-count phases with a brief rest create a steady cadence that is easy to
-            memorize and perfect for returning to center in a busy day.</p>
-          <dl>
-            <dt>History</dt>
-            <dd>Modern biofeedback pioneers popularized this "coherent" breathing tempo to help meditators and athletes
-              synchronize breath and heartbeat.</dd>
-            <dt>Science</dt>
-            <dd>Maintaining symmetry between inhale and exhale supports vagal tone, improving focus and emotional
-              regulation across multiple clinical trials.</dd>
-          </dl>
-        </article>
-        <article class="breathing-guide__card">
-          <h3>Energizing focus</h3>
-          <p class="breathing-guide__summary">Quicker three-count waves cultivate alertness and can be used before demanding work
-            or creative sprints when you want a brighter mental state.</p>
-          <dl>
-            <dt>History</dt>
-            <dd>Fast, rhythmic breathing shows up in yogic bellows techniques and martial arts warm-ups designed to
-              awaken the senses.</dd>
-            <dt>Science</dt>
-            <dd>Short, rapid inhalations momentarily activate the sympathetic branch of the nervous system, increasing
-              beta brain wave activity and sharpening reaction time.</dd>
-          </dl>
-        </article>
-        <article class="breathing-guide__card">
-          <h3>Box breathing</h3>
-          <p class="breathing-guide__summary">Four equal phases mirror the sides of a square&mdash;inhale, hold, exhale, hold&mdash;to
-            train calm concentration under pressure.</p>
-          <dl>
-            <dt>History</dt>
-            <dd>Also known as sama vritti in yoga, the method was embraced by Navy SEAL trainers in the late 20th century
-              to help teams reset quickly between high-stakes missions.</dd>
-            <dt>Science</dt>
-            <dd>The consistent pacing balances carbon dioxide and oxygen levels, stimulating baroreceptors that slow the
-              heart and reduce perceived stress within a few cycles.</dd>
-          </dl>
-        </article>
-      </div>
-    </section>
+    </footer>
   </div>
-  <footer>
-    Tip: Use background audio to keep the rhythm going even if you dim the screen or switch apps.
-  </footer>
-  <script>
-    const gun = Gun(window.__GUN_PEERS__ || [
-      'wss://relay.3dvr.tech/gun',
-      'wss://gun-relay-3dvr.fly.dev/gun'
-    ]);
-    const user = gun.user();
-    const portalRoot = gun.get('3dvr-portal');
 
-    if (window.ScoreSystem && typeof window.ScoreSystem.recallUserSession === 'function') {
-      window.ScoreSystem.recallUserSession(user);
-    } else {
-      try {
-        user.recall({ sessionStorage: true, localStorage: true });
-      } catch (err) {
-        console.warn('Unable to recall user session', err);
-      }
+  <p class="hint" id="hint">move the mouse · drag on touch · WASD / arrows · collect the lights</p>
+  <div class="fallback" id="fallback"><div><h1>Be here.</h1><p>Your browser could not start the 3D journey. The breathing space still belongs to you.</p></div></div>
+
+  <script type="module">
+    const thoughts = [
+      "The world can move without you for a moment.",
+      "Let your attention become wider than the thought.",
+      "There is nowhere else this breath needs to go.",
+      "Notice what is already quiet underneath the noise.",
+      "Soft eyes. Loose jaw. Heavy shoulders.",
+      "You do not have to chase the light. Let it find you.",
+      "Awareness can move without effort.",
+      "The boundary between observer and world can soften.",
+      "Stay curious. Nothing here needs a name.",
+      "Go gently. Deeper does not mean faster."
+    ];
+
+    const stages = [
+      { name:"Stillness", at:0, title:"Be here.", fog:0x07101c, bg:0x040914, speed:.42, stars:1, rings:0, portal:0 },
+      { name:"Awakening", at:90, title:"Open.", fog:0x081426, bg:0x050b19, speed:.58, stars:1.3, rings:1, portal:0 },
+      { name:"Flow", at:240, title:"Drift.", fog:0x0b1230, bg:0x07091c, speed:.78, stars:1.7, rings:2, portal:.25 },
+      { name:"Vision", at:480, title:"See through.", fog:0x120d31, bg:0x08071c, speed:1.0, stars:2.1, rings:4, portal:.7 },
+      { name:"Beyond", at:900, title:"Become the space.", fog:0x170a2b, bg:0x070514, speed:1.18, stars:2.7, rings:7, portal:1 }
+    ];
+
+    const stageName = document.getElementById("stageName");
+    const depthCount = document.getElementById("depthCount");
+    const progressBar = document.getElementById("progressBar");
+    const elapsed = document.getElementById("elapsed");
+    const thought = document.getElementById("thought");
+    const breathLabel = document.getElementById("breathLabel");
+    const mainTitle = document.getElementById("mainTitle");
+    const lightCount = document.getElementById("lightCount");
+    const wordsButton = document.getElementById("wordsButton");
+    const uiButton = document.getElementById("uiButton");
+    const deeperButton = document.getElementById("deeperButton");
+    const fullscreenButton = document.getElementById("fullscreenButton");
+    const hint = document.getElementById("hint");
+    const flash = document.getElementById("flash");
+    const stageToast = document.getElementById("stageToast");
+    const toastName = document.getElementById("toastName");
+    const fallback = document.getElementById("fallback");
+    const canvas = document.getElementById("world");
+    const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let sessionStart = performance.now();
+    let stageBoost = 0;
+    let currentStage = 0;
+    let collected = 0;
+    let thoughtIndex = 0;
+    let stageToastTimer;
+
+    function formatTime(s) {
+      const m = Math.floor(s/60).toString().padStart(2,"0");
+      const sec = Math.floor(s%60).toString().padStart(2,"0");
+      return `${m}:${sec}`;
     }
 
-    const scoreManager = window.ScoreSystem && typeof window.ScoreSystem.getManager === 'function'
-      ? window.ScoreSystem.getManager({ gun, user, portalRoot })
-      : null;
+    function sessionSeconds() { return (performance.now()-sessionStart)/1000 + stageBoost; }
 
-    const sessionScoreValueEl = document.getElementById('sessionScoreValue');
-    const floatingSessionScoreValueEl = document.getElementById('floatingSessionScoreValue');
-    const sessionProfileNameEl = document.getElementById('sessionProfileName');
-
-    function sanitizeScoreDisplay(value) {
-      if (window.ScoreSystem && typeof window.ScoreSystem.sanitizeScore === 'function') {
-        return window.ScoreSystem.sanitizeScore(value);
-      }
-      const numeric = typeof value === 'number' ? value : Number(value);
-      if (!Number.isFinite(numeric)) return 0;
-      return Math.max(0, Math.round(numeric));
+    function resolveStage(sec) {
+      let i = 0;
+      for (let n=0;n<stages.length;n++) if (sec >= stages[n].at) i=n;
+      return i;
     }
 
-    function updateSessionScoreDisplay(value) {
-      if (!sessionScoreValueEl) {
-        return;
-      }
-      const safeScore = sanitizeScoreDisplay(value);
-      sessionScoreValueEl.textContent = safeScore;
-      if (floatingSessionScoreValueEl) {
-        floatingSessionScoreValueEl.textContent = safeScore;
-      }
+    function stageProgress(sec, index) {
+      if (index >= stages.length-1) return 1;
+      const a=stages[index].at, b=stages[index+1].at;
+      return Math.max(0,Math.min(1,(sec-a)/(b-a)));
     }
 
-    updateSessionScoreDisplay(scoreManager ? scoreManager.getCurrent() : 0);
-
-    if (scoreManager && typeof scoreManager.subscribe === 'function') {
-      scoreManager.subscribe(updateSessionScoreDisplay);
+    function showStageToast(index) {
+      toastName.textContent = stages[index].name;
+      stageToast.classList.add("show");
+      clearTimeout(stageToastTimer);
+      stageToastTimer=setTimeout(()=>stageToast.classList.remove("show"),2600);
     }
 
-    function aliasToDisplay(alias) {
-      const normalized = typeof alias === 'string' ? alias.trim() : '';
-      if (!normalized) return '';
-      if (normalized.includes('@')) {
-        return normalized.split('@')[0];
-      }
-      return normalized;
+    function nextThought() {
+      thoughtIndex=(thoughtIndex+1+Math.floor(Math.random()*(thoughts.length-1)))%thoughts.length;
+      thought.style.opacity=0;
+      setTimeout(()=>{ thought.textContent=thoughts[thoughtIndex]; thought.style.opacity=1; },650);
+    }
+    setInterval(nextThought,32000);
+
+    wordsButton.addEventListener("click",()=>{
+      document.body.classList.toggle("words-hidden");
+      wordsButton.textContent=document.body.classList.contains("words-hidden")?"show words":"hide words";
+    });
+    uiButton.addEventListener("click",()=>{
+      document.body.classList.toggle("interface-hidden");
+      uiButton.textContent=document.body.classList.contains("interface-hidden")?"show ui":"hide ui";
+    });
+    fullscreenButton.addEventListener("click",async()=>{
+      try { if(!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen(); } catch(_){}
+    });
+    deeperButton.addEventListener("click",()=>{
+      const next=Math.min(stages.length-1,currentStage+1);
+      if(next===currentStage) { pulseFlash(); return; }
+      stageBoost=Math.max(stageBoost,stages[next].at-(performance.now()-sessionStart)/1000+.1);
+    });
+
+    function pulseFlash(){ flash.classList.add("on"); setTimeout(()=>flash.classList.remove("on"),170); }
+
+    function updateBreath(){
+      const phase=(performance.now()/1000)%12;
+      breathLabel.textContent=phase<5.5?"breathe in":phase<6.5?"rest":"breathe out";
+      requestAnimationFrame(updateBreath);
+    }
+    requestAnimationFrame(updateBreath);
+
+    let THREE;
+    try {
+      THREE = await import("https://cdn.jsdelivr.net/npm/three@0.185.1/+esm");
+    } catch (error) {
+      console.error(error);
+      fallback.classList.add("show");
+      throw error;
     }
 
-    const isSignedIn = localStorage.getItem('signedIn') === 'true';
-    const isGuest = !isSignedIn && localStorage.getItem('guest') === 'true';
-    let latestDisplayName = '';
-    let aliasDisplay = aliasToDisplay(localStorage.getItem('alias'));
+    const renderer = new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:"high-performance"});
+    renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+    renderer.setSize(innerWidth,innerHeight,false);
+    renderer.outputColorSpace=THREE.SRGBColorSpace;
+    renderer.toneMapping=THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure=1.15;
 
-    function updateProfileDisplay() {
-      if (!sessionProfileNameEl) {
-        return;
-      }
-      if (latestDisplayName) {
-        sessionProfileNameEl.textContent = `👤 ${latestDisplayName}`;
-        return;
-      }
-      if (isSignedIn) {
-        const stored = (localStorage.getItem('username') || '').trim();
-        const fallback = stored || aliasDisplay || 'Guest';
-        sessionProfileNameEl.textContent = `👤 ${fallback}`;
-        return;
-      }
-      if (isGuest) {
-        const guestStored = (localStorage.getItem('guestDisplayName') || '').trim();
-        const fallbackName = guestStored || aliasDisplay || 'Guest';
-        sessionProfileNameEl.textContent = `👤 ${fallbackName}`;
-        return;
-      }
-      sessionProfileNameEl.textContent = '👤 Guest';
+    const scene=new THREE.Scene();
+    scene.background=new THREE.Color(stages[0].bg);
+    scene.fog=new THREE.FogExp2(stages[0].fog,.018);
+    const camera=new THREE.PerspectiveCamera(68,innerWidth/innerHeight,.1,700);
+    camera.position.set(0,2.2,12);
+
+    const rig=new THREE.Group();
+    scene.add(rig);
+    rig.add(camera);
+
+    const hemi=new THREE.HemisphereLight(0x9edfff,0x130c27,.72);
+    scene.add(hemi);
+    const coreLight=new THREE.PointLight(0x9affec,4,80,1.6);
+    coreLight.position.set(0,4,-18);
+    scene.add(coreLight);
+
+    const starGroup=new THREE.Group();
+    scene.add(starGroup);
+    const starGeo=new THREE.BufferGeometry();
+    const starCount=2400;
+    const pos=new Float32Array(starCount*3);
+    const sizes=new Float32Array(starCount);
+    for(let i=0;i<starCount;i++){
+      const r=45+Math.random()*260;
+      const theta=Math.random()*Math.PI*2;
+      const phi=Math.acos(THREE.MathUtils.randFloatSpread(2));
+      pos[i*3]=r*Math.sin(phi)*Math.cos(theta);
+      pos[i*3+1]=r*Math.cos(phi)*.7+20;
+      pos[i*3+2]=r*Math.sin(phi)*Math.sin(theta)-60;
+      sizes[i]=Math.random();
+    }
+    starGeo.setAttribute("position",new THREE.BufferAttribute(pos,3));
+    const starMat=new THREE.PointsMaterial({color:0xcdeeff,size:.42,transparent:true,opacity:.7,sizeAttenuation:true,depthWrite:false,blending:THREE.AdditiveBlending});
+    const stars=new THREE.Points(starGeo,starMat);
+    starGroup.add(stars);
+
+    const dustGeo=new THREE.BufferGeometry();
+    const dustCount=900;
+    const dustPos=new Float32Array(dustCount*3);
+    for(let i=0;i<dustCount;i++){
+      dustPos[i*3]=THREE.MathUtils.randFloatSpread(44);
+      dustPos[i*3+1]=THREE.MathUtils.randFloat(-4,18);
+      dustPos[i*3+2]=THREE.MathUtils.randFloat(-130,18);
+    }
+    dustGeo.setAttribute("position",new THREE.BufferAttribute(dustPos,3));
+    const dustMat=new THREE.PointsMaterial({color:0x71e9d5,size:.12,transparent:true,opacity:.26,depthWrite:false,blending:THREE.AdditiveBlending});
+    const dust=new THREE.Points(dustGeo,dustMat); scene.add(dust);
+
+    const floorGeo=new THREE.PlaneGeometry(220,300,70,100);
+    floorGeo.rotateX(-Math.PI/2);
+    const fp=floorGeo.attributes.position;
+    for(let i=0;i<fp.count;i++){
+      const x=fp.getX(i), z=fp.getZ(i);
+      const edge=Math.min(1,Math.abs(x)/70);
+      const wave=Math.sin(x*.18)+Math.cos(z*.11)+Math.sin((x+z)*.08);
+      fp.setY(i,-4.2+wave*.35+edge*5.5+Math.pow(edge,2)*8);
+    }
+    floorGeo.computeVertexNormals();
+    const floorMat=new THREE.MeshStandardMaterial({color:0x0b1f30,roughness:.82,metalness:.15,transparent:true,opacity:.72,wireframe:false});
+    const floor=new THREE.Mesh(floorGeo,floorMat); floor.position.z=-90; scene.add(floor);
+
+    const wireMat=new THREE.MeshBasicMaterial({color:0x256c7c,wireframe:true,transparent:true,opacity:.08,blending:THREE.AdditiveBlending});
+    const wireFloor=new THREE.Mesh(floorGeo.clone(),wireMat); wireFloor.position.copy(floor.position); wireFloor.position.y=.04; scene.add(wireFloor);
+
+    const orbGroup=new THREE.Group();
+    orbGroup.position.set(0,4,-22);
+    scene.add(orbGroup);
+    const bigOrb=new THREE.Mesh(new THREE.IcosahedronGeometry(4.2,5),new THREE.MeshPhysicalMaterial({color:0x6bdcc8,emissive:0x244c75,emissiveIntensity:1.2,transparent:true,opacity:.24,roughness:.05,metalness:.1,transmission:.2,depthWrite:false}));
+    orbGroup.add(bigOrb);
+    const orbWire=new THREE.Mesh(new THREE.IcosahedronGeometry(4.7,2),new THREE.MeshBasicMaterial({color:0xa8fff0,wireframe:true,transparent:true,opacity:.12,blending:THREE.AdditiveBlending}));
+    orbGroup.add(orbWire);
+
+    const ringGroup=new THREE.Group(); ringGroup.position.copy(orbGroup.position); scene.add(ringGroup);
+    const rings=[];
+    for(let i=0;i<7;i++){
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(6.8+i*1.35,.035,8,160),new THREE.MeshBasicMaterial({color:i%2?0x9f83ff:0x62ffe2,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+      ring.rotation.set(Math.PI/2+(i%3)*.26,i*.33,i*.17);
+      rings.push(ring); ringGroup.add(ring);
     }
 
-    updateProfileDisplay();
+    const portal=new THREE.Group(); portal.position.set(0,4,-76); scene.add(portal);
+    const portalCore=new THREE.Mesh(new THREE.CircleGeometry(8.2,96),new THREE.MeshBasicMaterial({color:0xa26eff,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+    portal.add(portalCore);
+    const portalRing=new THREE.Mesh(new THREE.TorusGeometry(9.5,.14,12,160),new THREE.MeshBasicMaterial({color:0x7cffe8,transparent:true,opacity:0,blending:THREE.AdditiveBlending})); portal.add(portalRing);
 
-    function ensureGuestId() {
-      if (window.ScoreSystem && typeof window.ScoreSystem.ensureGuestIdentity === 'function') {
-        return window.ScoreSystem.ensureGuestIdentity();
-      }
-      const legacyId = localStorage.getItem('userId');
-      if (legacyId && !localStorage.getItem('guestId')) {
-        localStorage.setItem('guestId', legacyId);
-      }
-      if (legacyId) {
-        localStorage.removeItem('userId');
-      }
-      let guestId = localStorage.getItem('guestId');
-      if (!guestId) {
-        guestId = `guest_${Math.random().toString(36).substr(2, 9)}`;
-        localStorage.setItem('guestId', guestId);
-      }
-      if (!localStorage.getItem('guestDisplayName')) {
-        localStorage.setItem('guestDisplayName', 'Guest');
-      }
-      return guestId;
+    const geometryGroup=new THREE.Group(); geometryGroup.position.set(0,5,-44); scene.add(geometryGroup);
+    for(let i=0;i<5;i++){
+      const g=new THREE.Mesh(new THREE.TorusKnotGeometry(6+i*.65,.018,180,12,2+i%2,3),new THREE.MeshBasicMaterial({color:i%2?0xc591ff:0x8ffff1,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+      g.rotation.set(i*.32,i*.51,i*.14); geometryGroup.add(g);
     }
 
-    if (isSignedIn) {
-      try {
-        user.get('alias').on((alias) => {
-          aliasDisplay = aliasToDisplay(alias);
-          updateProfileDisplay();
-        });
-        user.get('username').on((name) => {
-          const normalized = typeof name === 'string' ? name.trim() : '';
-          latestDisplayName = normalized;
-          if (normalized) {
-            localStorage.setItem('username', normalized);
-          }
-          updateProfileDisplay();
-        });
-      } catch (err) {
-        console.warn('Unable to subscribe to user profile', err);
-      }
-    } else if (isGuest) {
-      const guestId = ensureGuestId();
-      const guestProfile = gun.get('3dvr-guests').get(guestId);
-      guestProfile.get('username').on((name) => {
-        const normalized = typeof name === 'string' ? name.trim() : '';
-        latestDisplayName = normalized;
-        if (normalized) {
-          localStorage.setItem('guestDisplayName', normalized);
-        }
-        updateProfileDisplay();
+    const moteGeo=new THREE.SphereGeometry(.18,10,10);
+    const moteMat=new THREE.MeshBasicMaterial({color:0xbffff4,transparent:true,opacity:.95,blending:THREE.AdditiveBlending});
+    const motes=[];
+    function resetMote(mote, far=true){
+      const angle=Math.random()*Math.PI*2;
+      const radius=4+Math.random()*13;
+      mote.position.set(Math.cos(angle)*radius,THREE.MathUtils.randFloat(-1,11),far?THREE.MathUtils.randFloat(-85,-20):THREE.MathUtils.randFloat(-30,-8));
+      mote.userData.phase=Math.random()*Math.PI*2;
+      mote.userData.baseY=mote.position.y;
+      mote.scale.setScalar(.6+Math.random()*1.1);
+    }
+    for(let i=0;i<28;i++){
+      const m=new THREE.Mesh(moteGeo,moteMat.clone());
+      m.material.color.setHSL(.46+Math.random()*.22,.8,.72);
+      resetMote(m,false); motes.push(m); scene.add(m);
+    }
+
+    const pulseGroup=new THREE.Group(); scene.add(pulseGroup);
+    function createPulse(){
+      const p=new THREE.Mesh(new THREE.RingGeometry(.4,.46,64),new THREE.MeshBasicMaterial({color:0xcffff6,transparent:true,opacity:.75,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false}));
+      p.position.copy(camera.getWorldPosition(new THREE.Vector3()));
+      p.quaternion.copy(camera.getWorldQuaternion(new THREE.Quaternion()));
+      p.translateZ(-3);
+      p.userData.life=1; pulseGroup.add(p);
+    }
+
+    const input={x:0,y:0,tx:0,ty:0,forward:0,strafe:0,up:0};
+    let pointerDown=false,lastX=0,lastY=0;
+    function pointerMove(x,y,drag=false){
+      if(drag){ input.tx+= (x-lastX)*.0028; input.ty+=(y-lastY)*.0028; }
+      else { input.tx=(x/innerWidth-.5)*.72; input.ty=(y/innerHeight-.5)*.42; }
+      input.tx=THREE.MathUtils.clamp(input.tx,-1.2,1.2); input.ty=THREE.MathUtils.clamp(input.ty,-.8,.8); lastX=x; lastY=y;
+    }
+    canvas.addEventListener("pointerdown",e=>{pointerDown=true;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture?.(e.pointerId);createPulse();});
+    canvas.addEventListener("pointermove",e=>pointerMove(e.clientX,e.clientY,pointerDown||e.pointerType==="touch"));
+    canvas.addEventListener("pointerup",()=>pointerDown=false);
+    canvas.addEventListener("pointercancel",()=>pointerDown=false);
+    canvas.addEventListener("dblclick",createPulse);
+
+    const keys=new Set();
+    addEventListener("keydown",e=>{ if(["INPUT","TEXTAREA","BUTTON"].includes(document.activeElement?.tagName)) return; keys.add(e.key.toLowerCase()); if(e.code==="Space"){e.preventDefault();createPulse();} });
+    addEventListener("keyup",e=>keys.delete(e.key.toLowerCase()));
+
+    let hintTimer=setTimeout(()=>hint.style.opacity="0",14000);
+    function collectMote(m){
+      collected++; lightCount.textContent=collected; pulseFlash(); resetMote(m,true);
+      stageBoost+=Math.min(7,1.2+currentStage*.5);
+    }
+
+    function resize(){ renderer.setPixelRatio(Math.min(devicePixelRatio||1,2)); renderer.setSize(innerWidth,innerHeight,false); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); }
+    addEventListener("resize",resize,{passive:true});
+
+    const clock=new THREE.Clock();
+    const temp=new THREE.Vector3();
+    function animate(){
+      const dt=Math.min(.05,clock.getDelta());
+      const t=performance.now()*.001;
+      const sec=sessionSeconds();
+      const nextStage=resolveStage(sec);
+      if(nextStage!==currentStage){ currentStage=nextStage; showStageToast(currentStage); nextThought(); }
+      const st=stages[currentStage];
+      stageName.textContent=st.name; depthCount.textContent=currentStage+1; mainTitle.textContent=st.title;
+      progressBar.style.width=`${stageProgress(sec,currentStage)*100}%`;
+      elapsed.textContent=formatTime((performance.now()-sessionStart)/1000);
+
+      input.forward=(keys.has("w")||keys.has("arrowup")?1:0)-(keys.has("s")||keys.has("arrowdown")?1:0);
+      input.strafe=(keys.has("d")||keys.has("arrowright")?1:0)-(keys.has("a")||keys.has("arrowleft")?1:0);
+      input.up=(keys.has("e")?1:0)-(keys.has("q")?1:0);
+      input.x+=(input.tx-input.x)*Math.min(1,dt*2.2); input.y+=(input.ty-input.y)*Math.min(1,dt*2.2);
+
+      const autoSpeed=(reduceMotion?.08:.32)*st.speed;
+      rig.position.z-=autoSpeed*dt;
+      if(rig.position.z<-54) rig.position.z=5;
+      rig.position.x+=input.strafe*dt*5;
+      rig.position.y+=input.up*dt*3;
+      rig.position.x=THREE.MathUtils.clamp(rig.position.x,-11,11); rig.position.y=THREE.MathUtils.clamp(rig.position.y,-2,8);
+      camera.rotation.y=-input.x*.46; camera.rotation.x=-input.y*.38;
+      camera.position.x=Math.sin(t*.12)*.45; camera.position.y=2.2+Math.sin(t*.19)*.28;
+      if(input.forward) rig.position.z-=input.forward*dt*4.5;
+
+      const targetBg=new THREE.Color(st.bg); scene.background.lerp(targetBg,dt*.3);
+      scene.fog.color.lerp(new THREE.Color(st.fog),dt*.3);
+      scene.fog.density+=(.018-currentStage*.0016-scene.fog.density)*dt*.5;
+      starMat.opacity+=(Math.min(.96,.48+st.stars*.16)-starMat.opacity)*dt;
+      starMat.size=.34+st.stars*.08;
+      stars.rotation.y+=dt*.002*(1+currentStage*.25); stars.rotation.z=Math.sin(t*.025)*.04;
+      dust.rotation.y-=dt*.003; dustMat.opacity=.18+currentStage*.045;
+
+      orbGroup.rotation.y+=dt*.08*(1+currentStage*.3); orbWire.rotation.x-=dt*.06; bigOrb.scale.setScalar(1+Math.sin(t*.7)*.035);
+      ringGroup.rotation.z+=dt*.018;
+      rings.forEach((r,i)=>{ const target=i<st.rings?.13:0; r.material.opacity+=(target-r.material.opacity)*dt*1.4; r.rotation.z+=dt*(.012+i*.003); });
+
+      portalCore.material.opacity+=(st.portal*.13-portalCore.material.opacity)*dt;
+      portalRing.material.opacity+=(st.portal*.38-portalRing.material.opacity)*dt;
+      portal.rotation.z+=dt*.035;
+      portal.scale.setScalar(1+Math.sin(t*.35)*.025);
+      geometryGroup.children.forEach((g,i)=>{ const target=currentStage>=3?.06+(currentStage-3)*.055:0; g.material.opacity+=(target-g.material.opacity)*dt; g.rotation.x+=dt*(.018+i*.002); g.rotation.y-=dt*(.012+i*.001); });
+
+      camera.getWorldPosition(temp);
+      motes.forEach((m,i)=>{
+        m.position.y=m.userData.baseY+Math.sin(t*(.7+i%4*.09)+m.userData.phase)*.65;
+        m.rotation.y+=dt*.6;
+        const d=m.position.distanceTo(temp);
+        m.material.opacity=.5+Math.sin(t*1.6+m.userData.phase)*.35;
+        if(d<1.7) collectMote(m);
+        if(m.position.z>rig.position.z+18) resetMote(m,true);
       });
+
+      for(let i=pulseGroup.children.length-1;i>=0;i--){ const p=pulseGroup.children[i]; p.userData.life-=dt*.55; p.scale.multiplyScalar(1+dt*2.2); p.material.opacity=Math.max(0,p.userData.life*.6); if(p.userData.life<=0){pulseGroup.remove(p);p.geometry.dispose();p.material.dispose();} }
+
+      coreLight.intensity=3.2+Math.sin(t*.7)*.8+currentStage*.65;
+      renderer.toneMappingExposure=1.02+currentStage*.07;
+      renderer.render(scene,camera);
+      requestAnimationFrame(animate);
     }
-
-    const phasesByPace = {
-      slow: [
-        {
-          label: 'Inhale',
-          prompt: 'Draw a long breath in through your nose for six counts.',
-          duration: 6000,
-          transitionDuration: 3600,
-          className: 'inhale'
-        },
-        {
-          label: 'Hold',
-          prompt: 'Hold gently and soften your shoulders for two counts.',
-          duration: 2000,
-          transitionDuration: 500,
-          className: 'hold'
-        },
-        {
-          label: 'Exhale',
-          prompt: 'Exhale through the mouth for six counts, let the jaw release.',
-          duration: 6000,
-          transitionDuration: 3600,
-          className: 'exhale'
-        },
-        {
-          label: 'Rest',
-          prompt: 'Pause and notice how you feel before the next wave.',
-          duration: 2000,
-          transitionDuration: 600,
-          className: 'rest'
-        }
-      ],
-      balanced: [
-        {
-          label: 'Inhale',
-          prompt: 'Breathe in slowly through your nose and fill your lungs.',
-          duration: 4000,
-          transitionDuration: 2400,
-          className: 'inhale'
-        },
-        {
-          label: 'Hold',
-          prompt: 'Hold softly and scan for any tension you can let go.',
-          duration: 4000,
-          transitionDuration: 500,
-          className: 'hold'
-        },
-        {
-          label: 'Exhale',
-          prompt: 'Release the breath through the mouth and soften the chest.',
-          duration: 4000,
-          transitionDuration: 2400,
-          className: 'exhale'
-        },
-        {
-          label: 'Rest',
-          prompt: 'Let the breath settle for two counts before you begin again.',
-          duration: 2000,
-          transitionDuration: 600,
-          className: 'rest'
-        }
-      ],
-      energizing: [
-        {
-          label: 'Inhale',
-          prompt: 'Sip a quick inhale through the nose for three counts.',
-          duration: 3000,
-          transitionDuration: 1800,
-          className: 'inhale'
-        },
-        {
-          label: 'Hold',
-          prompt: 'Hold lightly and lift through the crown of your head.',
-          duration: 3000,
-          transitionDuration: 500,
-          className: 'hold'
-        },
-        {
-          label: 'Exhale',
-          prompt: 'Breathe out with control for three counts, feel grounded.',
-          duration: 3000,
-          transitionDuration: 1800,
-          className: 'exhale'
-        },
-        {
-          label: 'Rest',
-          prompt: 'Take a soft pause for one count before the next inhale.',
-          duration: 1000,
-          transitionDuration: 450,
-          className: 'rest'
-        }
-      ],
-      box: [
-        {
-          label: 'Inhale',
-          prompt: 'Inhale evenly through your nose for four counts, expanding the ribs in all directions.',
-          duration: 4000,
-          transitionDuration: 2400,
-          className: 'inhale'
-        },
-        {
-          label: 'Hold',
-          prompt: 'Hold gently for four counts as you trace the top edge of the box in your mind.',
-          duration: 4000,
-          transitionDuration: 500,
-          className: 'hold'
-        },
-        {
-          label: 'Exhale',
-          prompt: 'Exhale smoothly through the nose for four counts, keeping the jaw and hands relaxed.',
-          duration: 4000,
-          transitionDuration: 2400,
-          className: 'exhale'
-        },
-        {
-          label: 'Rest',
-          prompt: 'Pause for four counts at the base of the box before the next inhale begins.',
-          duration: 4000,
-          transitionDuration: 600,
-          className: 'rest'
-        }
-      ]
-    };
-
-    const phaseAudioSettings = {
-      inhale: { frequency: 228, intensity: 0.32, releaseLevel: 0.05, padLevel: 0.08 },
-      hold: { frequency: 284, intensity: 0.22, releaseLevel: 0.05, padLevel: 0.07 },
-      exhale: { frequency: 184, intensity: 0.28, releaseLevel: 0.03, padLevel: 0.07 },
-      rest: { frequency: 148, intensity: 0.16, releaseLevel: 0.02, padLevel: 0.06 },
-      default: { frequency: 196, intensity: 0.24, releaseLevel: 0.02, padLevel: 0.07 }
-    };
-
-    const breathCueSettings = {
-      inhale: {
-        filter: { start: 260, end: 480 },
-        q: 0.75,
-        peak: 0.45,
-        sustain: 0.26,
-        release: 1.1,
-        attackRatio: 0.5
-      },
-      exhale: {
-        filter: { start: 360, end: 240 },
-        q: 0.78,
-        peak: 0.4,
-        sustain: 0.18,
-        release: 1.3,
-        attackRatio: 0.38
-      }
-    };
-
-    const toneCueSettings = {
-      inhale: { type: 'triangle', start: 340, end: 460, peak: 0.18, sustain: 0.1, duration: 1.7 },
-      hold: { type: 'triangle', start: 320, end: 320, peak: 0.12, sustain: 0.08, duration: 1.2 },
-      exhale: { type: 'triangle', start: 300, end: 220, peak: 0.17, sustain: 0.1, duration: 1.8 },
-      rest: { type: 'sine', start: 220, end: 196, peak: 0.1, sustain: 0.06, duration: 1 }
-    };
-
-    const breathCircle = document.getElementById('breathCircle');
-    const phaseName = document.getElementById('phaseName');
-    const phasePrompt = document.getElementById('phasePrompt');
-    const toggleSession = document.getElementById('toggleSession');
-    const paceControl = document.getElementById('paceControl');
-    const countDisplay = document.getElementById('countDisplay');
-    const countValue = countDisplay ? countDisplay.querySelector('.count-display__value') : null;
-    const audioToggle = document.getElementById('audioToggle');
-    const audioStatus = document.getElementById('audioStatus');
-    const musicVolumeControl = document.getElementById('musicVolume');
-    const musicVolumeValue = document.getElementById('musicVolumeValue');
-    const breathVolumeControl = document.getElementById('breathVolume');
-    const breathVolumeValue = document.getElementById('breathVolumeValue');
-
-    let currentPaceKey = paceControl.value;
-    let phases = phasesByPace[currentPaceKey];
-    let phaseIndex = 0;
-    let timeoutId = null;
-    let isRunning = false;
-    let hasStarted = false;
-    let restartOnReturn = false;
-    const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
-    let counterAnimationId = null;
-    let counterTimeoutId = null;
-    let lastDisplayedSecond = 0;
-    const wakeLockSupported = 'wakeLock' in navigator;
-    let wakeLock = null;
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext || null;
-    const audioSupported = typeof AudioContextClass === 'function';
-    let audioContext = null;
-    let audioMasterGain = null;
-    let musicGain = null;
-    let breathGuidanceGain = null;
-    let leadOscillator = null;
-    let leadGain = null;
-    let padOscillator = null;
-    let padGain = null;
-    let noiseSource = null;
-    let noiseGain = null;
-    let breathCueGain = null;
-    let toneCueGain = null;
-    let backgroundAudioEnabled = false;
-    const activeBreathCues = new Set();
-    const activeToneCues = new Set();
-
-    async function requestWakeLock() {
-      if (!wakeLockSupported || wakeLock) {
-        return;
-      }
-      try {
-        wakeLock = await navigator.wakeLock.request('screen');
-        wakeLock.addEventListener('release', () => {
-          wakeLock = null;
-          if (isRunning && !document.hidden) {
-            requestWakeLock();
-          }
-        });
-      } catch (error) {
-        wakeLock = null;
-        console.warn('Unable to acquire screen wake lock', error);
-      }
-    }
-
-    async function releaseWakeLock() {
-      if (!wakeLockSupported || !wakeLock) {
-        return;
-      }
-      try {
-        await wakeLock.release();
-      } catch (error) {
-        console.warn('Unable to release screen wake lock', error);
-      } finally {
-        wakeLock = null;
-      }
-    }
-
-    function updateAudioStatus(message) {
-      if (audioStatus) {
-        audioStatus.textContent = message;
-      }
-    }
-
-    function createNoiseBuffer(context) {
-      const duration = 2 * context.sampleRate;
-      const buffer = context.createBuffer(1, duration, context.sampleRate);
-      const channel = buffer.getChannelData(0);
-      for (let i = 0; i < duration; i += 1) {
-        channel[i] = (Math.random() * 2 - 1) * 0.45;
-      }
-      return buffer;
-    }
-
-    let musicVolumeSetting = musicVolumeControl ? Number(musicVolumeControl.value) / 100 : 0.6;
-    let breathVolumeSetting = breathVolumeControl ? Number(breathVolumeControl.value) / 100 : 1.05;
-
-    function updateVolumeLabel(target, value) {
-      if (target) {
-        target.textContent = `${value}%`;
-      }
-    }
-
-    updateVolumeLabel(musicVolumeValue, musicVolumeControl ? musicVolumeControl.value : 60);
-    updateVolumeLabel(breathVolumeValue, breathVolumeControl ? breathVolumeControl.value : 105);
-
-    function buildAudioGraph() {
-      if (!audioSupported || audioContext) {
-        return;
-      }
-      audioContext = new AudioContextClass();
-      audioMasterGain = audioContext.createGain();
-      audioMasterGain.gain.value = 0;
-      audioMasterGain.connect(audioContext.destination);
-
-      musicGain = audioContext.createGain();
-      musicGain.gain.value = musicVolumeSetting;
-      musicGain.connect(audioMasterGain);
-
-      breathGuidanceGain = audioContext.createGain();
-      breathGuidanceGain.gain.value = breathVolumeSetting;
-      breathGuidanceGain.connect(audioMasterGain);
-
-      breathCueGain = audioContext.createGain();
-      breathCueGain.gain.value = 1.1;
-      breathCueGain.connect(breathGuidanceGain);
-
-      toneCueGain = audioContext.createGain();
-      toneCueGain.gain.value = 0.38;
-      toneCueGain.connect(breathGuidanceGain);
-
-      leadOscillator = audioContext.createOscillator();
-      leadOscillator.type = 'sine';
-      leadOscillator.frequency.value = phaseAudioSettings.default.frequency;
-      leadGain = audioContext.createGain();
-      leadGain.gain.value = 0.0001;
-      leadOscillator.connect(leadGain);
-      leadGain.connect(musicGain);
-      leadOscillator.start();
-
-      padOscillator = audioContext.createOscillator();
-      padOscillator.type = 'triangle';
-      padOscillator.frequency.value = 98;
-      padGain = audioContext.createGain();
-      padGain.gain.value = 0.05;
-      padOscillator.connect(padGain);
-      padGain.connect(musicGain);
-      padOscillator.start();
-
-      noiseSource = audioContext.createBufferSource();
-      noiseSource.buffer = createNoiseBuffer(audioContext);
-      noiseSource.loop = true;
-      const noiseFilter = audioContext.createBiquadFilter();
-      noiseFilter.type = 'lowpass';
-      noiseFilter.frequency.value = 420;
-      noiseGain = audioContext.createGain();
-      noiseGain.gain.value = 0.06;
-      noiseSource.connect(noiseFilter);
-      noiseFilter.connect(noiseGain);
-      noiseGain.connect(musicGain);
-      noiseSource.start();
-    }
-
-    async function enableBackgroundAudio() {
-      if (!audioSupported || !audioToggle) {
-        return;
-      }
-      buildAudioGraph();
-      if (!audioContext) {
-        updateAudioStatus('Background audio could not be initialized.');
-        return;
-      }
-      if (audioContext.state === 'suspended') {
-        try {
-          await audioContext.resume();
-        } catch (error) {
-          console.warn('Unable to resume audio context', error);
-          updateAudioStatus('Background audio is blocked by the browser.');
-          return;
-        }
-      }
-      backgroundAudioEnabled = true;
-      audioToggle.setAttribute('aria-pressed', 'true');
-      audioToggle.textContent = 'Disable background audio';
-      if (audioMasterGain) {
-        const now = audioContext.currentTime;
-        audioMasterGain.gain.cancelScheduledValues(now);
-        audioMasterGain.gain.linearRampToValueAtTime(0.45, now + 1.2);
-      }
-      if (!hasStarted) {
-        updateAudioStatus('Background audio enabled. Starting a fresh breathing cycle.');
-        startSession({ resetPhase: true });
-      } else if (!isRunning) {
-        settlePhaseAudio(true);
-        updateAudioStatus('Background audio enabled. Press resume to continue your session.');
-      } else {
-        updateAudioStatus('Background audio enabled.');
-        if (phases[phaseIndex]) {
-          applyPhaseAudio(phases[phaseIndex]);
-        }
-      }
-    }
-
-    function settlePhaseAudio(toSilence = false) {
-      if (!audioContext || !leadGain) {
-        return;
-      }
-      const now = audioContext.currentTime;
-      const target = toSilence ? 0.0001 : 0.04;
-      leadGain.gain.cancelScheduledValues(now);
-      leadGain.gain.setTargetAtTime(target, now, 0.6);
-      if (padGain) {
-        const padTarget = toSilence ? 0.02 : 0.05;
-        padGain.gain.cancelScheduledValues(now);
-        padGain.gain.setTargetAtTime(padTarget, now, 1.2);
-      }
-      if (noiseGain) {
-        const noiseTarget = toSilence ? 0.01 : 0.03;
-        noiseGain.gain.cancelScheduledValues(now);
-        noiseGain.gain.setTargetAtTime(noiseTarget, now, 1.5);
-      }
-      if (breathCueGain) {
-        const cueTarget = toSilence ? 0 : 1.1;
-        breathCueGain.gain.cancelScheduledValues(now);
-        breathCueGain.gain.setTargetAtTime(cueTarget, now, 0.8);
-      }
-      if (toneCueGain) {
-        const toneTarget = toSilence ? 0.0001 : 0.38;
-        toneCueGain.gain.cancelScheduledValues(now);
-        toneCueGain.gain.setTargetAtTime(toneTarget, now, 0.6);
-      }
-    }
-
-    function disableBackgroundAudio() {
-      if (!audioContext) {
-        return;
-      }
-      backgroundAudioEnabled = false;
-      if (audioToggle) {
-        audioToggle.setAttribute('aria-pressed', 'false');
-        audioToggle.textContent = 'Enable background audio';
-      }
-      updateAudioStatus('Background audio muted.');
-      settlePhaseAudio(true);
-      if (audioMasterGain) {
-        const now = audioContext.currentTime;
-        audioMasterGain.gain.cancelScheduledValues(now);
-        audioMasterGain.gain.linearRampToValueAtTime(0, now + 0.8);
-      }
-      stopBreathCues(true);
-      stopToneCues(true);
-    }
-
-    function applyPhaseAudio(phase) {
-      if (!backgroundAudioEnabled || !audioContext || !leadGain || !leadOscillator) {
-        return;
-      }
-      const settings = phaseAudioSettings[phase.className] || phaseAudioSettings.default;
-      const now = audioContext.currentTime;
-      const durationSeconds = Math.max(phase.duration / 1000, 0.6);
-      leadOscillator.frequency.cancelScheduledValues(now);
-      leadOscillator.frequency.linearRampToValueAtTime(settings.frequency, now + 0.4);
-      leadGain.gain.cancelScheduledValues(now);
-      leadGain.gain.setTargetAtTime(settings.intensity, now, 0.45);
-      const releaseDelay = Math.max(durationSeconds - 0.6, 0.3);
-      leadGain.gain.setTargetAtTime(settings.releaseLevel, now + releaseDelay, 1.1);
-      if (padGain) {
-        padGain.gain.cancelScheduledValues(now);
-        padGain.gain.setTargetAtTime(settings.padLevel, now, 1.1);
-      }
-      if (noiseGain) {
-        noiseGain.gain.cancelScheduledValues(now);
-        noiseGain.gain.setTargetAtTime(Math.max(settings.padLevel - 0.03, 0.015), now, 1.2);
-      }
-    }
-
-    function stopBreathCues(force = false) {
-      if (!activeBreathCues.size) {
-        return;
-      }
-      const cues = Array.from(activeBreathCues);
-      cues.forEach((cue) => {
-        try {
-          if (force && cue.source) {
-            cue.source.stop();
-          }
-        } catch (error) {
-          console.warn('Unable to stop breath cue', error);
-        }
-        if (cue.cleanup) {
-          cue.cleanup();
-        }
-      });
-      activeBreathCues.clear();
-    }
-
-    function stopToneCues(force = false) {
-      if (!activeToneCues.size) {
-        return;
-      }
-      const cues = Array.from(activeToneCues);
-      cues.forEach((cue) => {
-        try {
-          if (force && cue.source) {
-            cue.source.stop();
-          }
-        } catch (error) {
-          console.warn('Unable to stop tone cue', error);
-        }
-        if (cue.cleanup) {
-          cue.cleanup();
-        }
-      });
-      activeToneCues.clear();
-    }
-
-    function triggerBreathCue(phase) {
-      if (!backgroundAudioEnabled || !audioContext || !breathCueGain) {
-        return;
-      }
-      const settings = breathCueSettings[phase.className];
-      if (!settings) {
-        return;
-      }
-      stopBreathCues();
-      const durationSeconds = Math.max(phase.duration / 1000, 0.8);
-      const attack = Math.min(durationSeconds * settings.attackRatio, 1.6);
-      const sustainTransition = Math.min(Math.max(durationSeconds * 0.35, 0.5), Math.max(durationSeconds - 0.2, 0.8));
-      const release = Math.min(Math.max(settings.release, 0.35), 1.8);
-      const peakLevel = Math.min((typeof settings.peak === 'number' ? settings.peak : 0.6) * 1.1, 1.5);
-      const sustainLevel = Math.min((typeof settings.sustain === 'number' ? settings.sustain : peakLevel * 0.65) * 1.05, 1.2);
-      const source = audioContext.createBufferSource();
-      source.buffer = createNoiseBuffer(audioContext);
-      source.loop = true;
-      const filter = audioContext.createBiquadFilter();
-      const filterSettings = settings.filter || {};
-      const fallbackFrequency = typeof filterSettings === 'number' ? filterSettings : 420;
-      const filterStart = typeof filterSettings === 'number' ? filterSettings : (filterSettings.start || fallbackFrequency);
-      const filterEnd = typeof filterSettings === 'number' ? filterSettings : (filterSettings.end || filterStart);
-      filter.type = 'bandpass';
-      filter.Q.value = typeof settings.q === 'number' ? settings.q : 0.7;
-      filter.frequency.value = filterStart;
-      const gainNode = audioContext.createGain();
-      gainNode.gain.value = 0.0001;
-      source.connect(filter);
-      filter.connect(gainNode);
-      gainNode.connect(breathCueGain);
-
-      const now = audioContext.currentTime;
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(0.0001, now);
-      gainNode.gain.linearRampToValueAtTime(peakLevel, now + attack);
-      const sustainTime = now + attack + sustainTransition;
-      if (filterStart && filterEnd && filter.frequency) {
-        filter.frequency.cancelScheduledValues(now);
-        filter.frequency.setValueAtTime(filterStart, now);
-        filter.frequency.linearRampToValueAtTime(filterEnd, sustainTime);
-      }
-      gainNode.gain.linearRampToValueAtTime(sustainLevel, sustainTime);
-      gainNode.gain.linearRampToValueAtTime(0.0001, sustainTime + release);
-
-      const stopTime = sustainTime + release + 0.5;
-      source.start(now);
-      source.stop(stopTime);
-
-      const cleanup = () => {
-        source.removeEventListener('ended', cleanup);
-        try {
-          gainNode.disconnect();
-          filter.disconnect();
-        } catch (error) {
-          console.warn('Unable to clean up breath cue', error);
-        }
-        activeBreathCues.delete(registration);
-      };
-
-      const registration = { source, cleanup };
-      activeBreathCues.add(registration);
-      source.addEventListener('ended', cleanup);
-    }
-
-    function triggerToneCue(phase) {
-      if (!backgroundAudioEnabled || !audioContext || !toneCueGain) {
-        return;
-      }
-      const settings = toneCueSettings[phase.className];
-      if (!settings) {
-        return;
-      }
-      stopToneCues();
-      const now = audioContext.currentTime;
-      const phaseDuration = Math.max(phase.duration / 1000, 0.8);
-      const cueDuration = Math.min(Math.max(settings.duration || phaseDuration, 0.6), Math.max(phaseDuration, 0.8));
-      const oscillator = audioContext.createOscillator();
-      oscillator.type = settings.type || 'sine';
-      const startFrequency = Math.max(settings.start || settings.end || 320, 60);
-      oscillator.frequency.setValueAtTime(startFrequency, now);
-      const endFrequency = settings.end || startFrequency;
-      if (endFrequency && endFrequency !== startFrequency) {
-        oscillator.frequency.linearRampToValueAtTime(endFrequency, now + cueDuration * 0.85);
-      }
-      const gainNode = audioContext.createGain();
-      gainNode.gain.setValueAtTime(0.0001, now);
-      const basePeak = Math.max(settings.peak || 0.18, 0.08);
-      const baseSustain = Math.max(settings.sustain || basePeak * 0.5, 0.04);
-      const peakLevel = Math.min(basePeak * 1.1, 1);
-      const sustainLevel = Math.min(baseSustain * 1.05, 0.9);
-      gainNode.gain.linearRampToValueAtTime(peakLevel, now + 0.2);
-      gainNode.gain.linearRampToValueAtTime(sustainLevel, now + cueDuration * 0.55);
-      gainNode.gain.setTargetAtTime(0.0001, now + cueDuration, 0.4);
-      oscillator.connect(gainNode);
-      gainNode.connect(toneCueGain);
-      oscillator.start(now);
-      const stopTime = now + cueDuration + 0.6;
-      oscillator.stop(stopTime);
-      const cleanup = () => {
-        oscillator.removeEventListener('ended', cleanup);
-        try {
-          gainNode.disconnect();
-        } catch (error) {
-          console.warn('Unable to clean up tone cue', error);
-        }
-        activeToneCues.delete(registration);
-      };
-      const registration = { source: oscillator, cleanup };
-      activeToneCues.add(registration);
-      oscillator.addEventListener('ended', cleanup);
-    }
-
-    function updateCountText(value, animate = true) {
-      if (!countValue) {
-        return;
-      }
-      if (!animate) {
-        countValue.classList.remove('is-ticking');
-        countValue.textContent = value;
-        return;
-      }
-      countValue.classList.remove('is-ticking');
-      countValue.textContent = value;
-      void countValue.offsetWidth;
-      countValue.classList.add('is-ticking');
-    }
-
-    function setCounterTransitionState(active) {
-      if (!countDisplay) {
-        return;
-      }
-      if (active) {
-        countDisplay.classList.add('is-transitioning');
-        if (countValue) {
-          countValue.classList.add('is-transitioning');
-        }
-      } else {
-        countDisplay.classList.remove('is-transitioning');
-        if (countValue) {
-          countValue.classList.remove('is-transitioning');
-        }
-      }
-    }
-
-    function setToggleLabel() {
-      if (!hasStarted) {
-        toggleSession.textContent = 'Start session';
-      } else if (isRunning) {
-        toggleSession.textContent = 'Pause session';
-      } else {
-        toggleSession.textContent = 'Resume session';
-      }
-    }
-
-    function stopCounter() {
-      if (counterAnimationId !== null) {
-        window.cancelAnimationFrame(counterAnimationId);
-        counterAnimationId = null;
-      }
-      if (counterTimeoutId !== null) {
-        window.clearTimeout(counterTimeoutId);
-        counterTimeoutId = null;
-      }
-      if (countValue) {
-        countValue.classList.remove('is-ticking');
-      }
-      setCounterTransitionState(false);
-      lastDisplayedSecond = 0;
-    }
-
-    function setIdleCount() {
-      if (!countDisplay) {
-        return;
-      }
-      stopCounter();
-      setCounterTransitionState(false);
-      updateCountText('—', false);
-      countDisplay.style.opacity = 0.8;
-      countDisplay.dataset.phase = 'idle';
-      lastDisplayedSecond = 0;
-      settlePhaseAudio(true);
-    }
-
-    function startCounter(duration) {
-      if (!countDisplay) {
-        return;
-      }
-      stopCounter();
-      countDisplay.style.opacity = 1;
-      const start = performance.now();
-      const totalSeconds = Math.max(1, Math.round(duration / 1000));
-      setCounterTransitionState(totalSeconds === 1);
-      updateCountText('1');
-      lastDisplayedSecond = 1;
-      const updateCount = (now) => {
-        const elapsed = Math.min(now - start, duration);
-        const seconds = Math.floor(elapsed / 1000) + 1;
-        if (seconds !== lastDisplayedSecond && seconds <= totalSeconds) {
-          lastDisplayedSecond = seconds;
-          updateCountText(String(seconds));
-          if (totalSeconds - seconds <= 1) {
-            setCounterTransitionState(true);
-          } else if (countDisplay && countDisplay.classList.contains('is-transitioning')) {
-            setCounterTransitionState(false);
-          }
-        }
-        if (elapsed < duration) {
-          counterAnimationId = window.requestAnimationFrame(updateCount);
-        }
-      };
-      counterAnimationId = window.requestAnimationFrame(updateCount);
-      counterTimeoutId = window.setTimeout(() => {
-        stopCounter();
-        updateCountText(String(totalSeconds), false);
-      }, duration);
-    }
-
-    function applyPhase(phase) {
-      breathCircle.className = `breath-circle ${phase.className}`;
-      breathCircle.style.setProperty('--transition-duration', `${phase.transitionDuration || phase.duration}ms`);
-      phaseName.textContent = phase.label;
-      phasePrompt.textContent = phase.prompt;
-      if (countDisplay) {
-        countDisplay.dataset.phase = phase.className;
-      }
-      if (isRunning) {
-        applyPhaseAudio(phase);
-        triggerBreathCue(phase);
-        triggerToneCue(phase);
-        startCounter(phase.duration);
-      } else {
-        setIdleCount();
-      }
-    }
-
-    function showIdlePhase() {
-      const exhalePhase = phases.find((phase) => phase.className === 'exhale');
-      if (exhalePhase) {
-        applyPhase(exhalePhase);
-      } else if (phases.length) {
-        applyPhase(phases[0]);
-      }
-      if (!isRunning) {
-        setIdleCount();
-      }
-    }
-
-    function awardCyclePoint() {
-      if (!scoreManager || typeof scoreManager.increment !== 'function') {
-        return;
-      }
-      if (document.hidden) {
-        return;
-      }
-      try {
-        scoreManager.increment(1);
-      } catch (err) {
-        console.warn('Unable to increment meditation score', err);
-      }
-    }
-
-    function scheduleNextPhase() {
-      const phase = phases[phaseIndex];
-      applyPhase(phase);
-      timeoutId = window.setTimeout(() => {
-        const isLastPhase = phases.length > 0 && phaseIndex === phases.length - 1;
-        phaseIndex = (phaseIndex + 1) % phases.length;
-        if (isRunning) {
-          if (isLastPhase) {
-            awardCyclePoint();
-          }
-          scheduleNextPhase();
-        }
-      }, phase.duration);
-    }
-
-    function startSession(options = {}) {
-      const { resetPhase = false } = options;
-      clearTimeout(timeoutId);
-      stopCounter();
-      if (resetPhase || !hasStarted) {
-        phaseIndex = 0;
-      }
-      isRunning = true;
-      hasStarted = true;
-      setToggleLabel();
-      requestWakeLock();
-      scheduleNextPhase();
-    }
-
-    function pauseSession() {
-      isRunning = false;
-      clearTimeout(timeoutId);
-      stopCounter();
-      setToggleLabel();
-      settlePhaseAudio(true);
-      releaseWakeLock();
-    }
-
-    toggleSession.addEventListener('click', () => {
-      if (isRunning) {
-        pauseSession();
-      } else {
-        startSession();
-      }
-    });
-
-    paceControl.addEventListener('change', (event) => {
-      currentPaceKey = event.target.value;
-      phases = phasesByPace[currentPaceKey];
-      phaseIndex = 0;
-      updateCycleDuration();
-      if (isRunning) {
-        startSession({ resetPhase: true });
-      } else {
-        showIdlePhase();
-        setToggleLabel();
-      }
-    });
-
-    if (audioToggle) {
-      if (!audioSupported) {
-        audioToggle.disabled = true;
-        audioToggle.textContent = 'Background audio not supported';
-        audioToggle.setAttribute('aria-pressed', 'false');
-        updateAudioStatus('Background audio is not supported in this browser.');
-      } else {
-        audioToggle.addEventListener('click', () => {
-          if (backgroundAudioEnabled) {
-            disableBackgroundAudio();
-          } else {
-            enableBackgroundAudio();
-          }
-        });
-      }
-    }
-
-    function applyMusicVolumeFromControl() {
-      if (!musicVolumeControl) {
-        return;
-      }
-      musicVolumeSetting = Math.min(Math.max(Number(musicVolumeControl.value) / 100, 0), 1);
-      updateVolumeLabel(musicVolumeValue, musicVolumeControl.value);
-      if (musicGain && audioContext) {
-        const now = audioContext.currentTime;
-        musicGain.gain.cancelScheduledValues(now);
-        musicGain.gain.setTargetAtTime(musicVolumeSetting, now, 0.25);
-      }
-    }
-
-    function applyBreathVolumeFromControl() {
-      if (!breathVolumeControl) {
-        return;
-      }
-      breathVolumeSetting = Math.min(Math.max(Number(breathVolumeControl.value) / 100, 0), 1.25);
-      updateVolumeLabel(breathVolumeValue, breathVolumeControl.value);
-      if (breathGuidanceGain && audioContext) {
-        const now = audioContext.currentTime;
-        breathGuidanceGain.gain.cancelScheduledValues(now);
-        breathGuidanceGain.gain.setTargetAtTime(breathVolumeSetting, now, 0.25);
-      }
-    }
-
-    if (musicVolumeControl) {
-      musicVolumeControl.addEventListener('input', applyMusicVolumeFromControl);
-    }
-
-    if (breathVolumeControl) {
-      breathVolumeControl.addEventListener('input', applyBreathVolumeFromControl);
-    }
-
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        if (backgroundAudioEnabled && isRunning) {
-          restartOnReturn = false;
-          releaseWakeLock();
-        } else {
-          restartOnReturn = isRunning;
-          if (isRunning) {
-            pauseSession();
-          } else {
-            releaseWakeLock();
-          }
-        }
-      } else {
-        if (backgroundAudioEnabled && audioContext && audioContext.state === 'suspended') {
-          audioContext.resume().catch(() => {});
-        }
-        if (backgroundAudioEnabled && isRunning) {
-          requestWakeLock();
-        } else if (restartOnReturn) {
-          restartOnReturn = false;
-          startSession({ resetPhase: true });
-        } else if (isRunning) {
-          requestWakeLock();
-        }
-      }
-    });
-
-    function updateCycleDuration() {
-      const totalDuration = phases.reduce((sum, phase) => sum + phase.duration, 0);
-      document.documentElement.style.setProperty('--cycle-duration', `${totalDuration}ms`);
-    }
-
-    function handleMotionPreference(event) {
-      if (event.matches) {
-        if (isRunning) {
-          pauseSession();
-        } else {
-          setToggleLabel();
-        }
-      } else if (!isRunning && !hasStarted) {
-        startSession();
-      }
-    }
-
-    if (typeof motionPreference.addEventListener === 'function') {
-      motionPreference.addEventListener('change', handleMotionPreference);
-    } else if (typeof motionPreference.addListener === 'function') {
-      motionPreference.addListener(handleMotionPreference);
-    }
-
-    window.addEventListener('pagehide', () => {
-      releaseWakeLock();
-    });
-    window.addEventListener('beforeunload', () => {
-      releaseWakeLock();
-    });
-
-    showIdlePhase();
-    updateCycleDuration();
-
-    if (!motionPreference.matches) {
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => {
-          startSession();
-        });
-      });
-    } else {
-      setToggleLabel();
-    }
+    requestAnimationFrame(animate);
   </script>
-  <script src="../navbar.js"></script>
-  <script defer src="/issue-launcher.js"></script>
 </body>
 </html>

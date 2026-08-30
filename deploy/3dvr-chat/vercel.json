@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/", "destination": "https://portal.3dvr.tech/chat/" },
+    { "source": "/:path*", "destination": "https://portal.3dvr.tech/:path*" }
+  ]
+}

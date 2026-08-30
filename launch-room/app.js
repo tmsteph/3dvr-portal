@@ -1,12 +1,14 @@
 import { buildModeBrief, getLaunchRoomMode } from './modes.js';
 
 const STORAGE_KEY = '3dvr.launch-room.movement-brief.v1';
+const PROJECT_PREFILL_KEY = '3dvr.launch-room.project-prefill.v1';
 
 const form = document.getElementById('movementBriefForm');
 const clearButton = document.querySelector('[data-action="clear"]');
 const copyButton = document.querySelector('[data-action="copy"]');
 const downloadButton = document.querySelector('[data-action="download"]');
 const buildLaunchPageButton = document.querySelector('[data-action="build-launch-page"]');
+const createProjectButton = document.querySelector('[data-action="create-project"]');
 const copyLaunchPageButton = document.querySelector('[data-action="copy-launch-page"]');
 const status = document.getElementById('draftStatus');
 const modeSelect = document.getElementById('launchMode');
@@ -294,6 +296,33 @@ async function copyLaunchPage() {
   status.textContent = 'Launch Page Draft copied to clipboard.';
 }
 
+function createProjectDraft() {
+  const brief = buildBrief(getState());
+  const audience = asClause(brief.audience);
+  const projectDraft = {
+    name: brief.movementName,
+    slug: slugify(brief.movementName),
+    stage: 'seed',
+    category: 'movement / project',
+    mission: brief.mission,
+    needs: [
+      `Feedback from ${audience}`,
+      'One person willing to try the first version'
+    ],
+    offers: [brief.tinyProject],
+    contact: '',
+    support: ''
+  };
+
+  try {
+    window.sessionStorage.setItem(PROJECT_PREFILL_KEY, JSON.stringify(projectDraft));
+    status.textContent = 'Project draft prepared. Opening Projects for review…';
+    window.location.href = '../projects/?from=launch-room';
+  } catch {
+    status.textContent = 'Could not prepare the project draft in this browser.';
+  }
+}
+
 const storedDraft = loadDraft();
 const requestedMode = new URLSearchParams(window.location.search).get('mode');
 const initialMode = getLaunchRoomMode(requestedMode || storedDraft.mode || 'start-project');
@@ -344,5 +373,7 @@ copyButton.addEventListener('click', copyBrief);
 downloadButton.addEventListener('click', downloadBrief);
 
 buildLaunchPageButton.addEventListener('click', generateLaunchPage);
+
+createProjectButton.addEventListener('click', createProjectDraft);
 
 copyLaunchPageButton.addEventListener('click', copyLaunchPage);

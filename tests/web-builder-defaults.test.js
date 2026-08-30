@@ -67,6 +67,12 @@ test('web builder accepts homepage owned-app handoff', async () => {
   const app = await readFile(new URL('../web-builder-app/app.js', import.meta.url), 'utf8');
 
   assert.match(app, /builderPrefillStorageKey = 'web-builder-prefill-request'/);
+  assert.match(app, /builderProjectContextStorageKey = 'web-builder-project-context'/);
+  assert.match(app, /currentProjectContext = \{ projectSlug, projectName: projectName \|\| projectSlug \}/);
+  assert.match(app, /function recordProjectDeployment/);
+  assert.match(app, /portalRoot\.get\('projectLaunchpad'\)\.get\('nodes'\)\.get\(project\.projectSlug\)/);
+  assert.match(app, /title: 'Project page deployed'/);
+  assert.match(app, /await recordProjectDeployment\(deployedUrl\)/);
   assert.match(app, /hydrateBuilderPrefill\(\)/);
   assert.match(app, /builderRequestInput\.value = request/);
   assert.match(app, /siteTitleInput\.value = title/);

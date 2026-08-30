@@ -188,6 +188,53 @@
     return payload;
   }
 
+
+  async function refreshConnection(provider, options = {}) {
+    const normalizedProvider = normalizeText(provider).toLowerCase();
+    const current = options.connection || getConnection(normalizedProvider);
+    if (!current || typeof current !== 'object') {
+      throw new Error(`No ${normalizedProvider} OAuth connection is stored.`);
+    }
+    const refreshToken = normalizeText(current.refreshToken || current.refresh_token);
+    if (!refreshToken) {
+      return current;
+    }
+    const response = await global.fetch(`/api/oauth/${encodeURIComponent(normalizedProvider)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'refresh',
+        refreshToken,
+        scopeKey: normalizeText(current.scopeKey) || normalizeText(options.scopeKey) || 'calendar',
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || `Unable to refresh ${normalizedProvider} OAuth.`);
+    }
+    return setConnection(normalizedProvider, {
+      ...current,
+      ...payload,
+      refreshToken: normalizeText(payload.refreshToken) || refreshToken,
+      source: 'oauth',
+    });
+  }
+
+  async function ensureFreshConnection(provider, options = {}) {
+    const normalizedProvider = normalizeText(provider).toLowerCase();
+    const current = options.connection || getConnection(normalizedProvider);
+    if (!current || typeof current !== 'object') return null;
+    const expiresAt = Number(current.expiresAt) || 0;
+    const refreshSkewMs = Math.max(30_000, Number(options.refreshSkewMs) || 90_000);
+    if (!expiresAt || expiresAt > Date.now() + refreshSkewMs) {
+      return current;
+    }
+    if (!normalizeText(current.refreshToken || current.refresh_token)) {
+      return current;
+    }
+    return refreshConnection(normalizedProvider, { ...options, connection: current });
+  }
+
   function writeAuthSession(payload) {
     const alias = normalizeEmail(payload && payload.alias);
     const username = normalizeText(payload && payload.username) || (alias.includes('@') ? alias.split('@')[0] : alias) || 'User';
@@ -244,9 +291,11 @@
     consumePendingResult,
     fetchProviderConfig,
     getConnection,
+    ensureFreshConnection,
     listContacts,
     readConnections,
     readPendingResult,
+    refreshConnection,
     setConnection,
     storeConnectionFromResult,
     writeAuthSession,

@@ -47,6 +47,23 @@ describe('3DVR Seed Deck', () => {
 
     assert.match(js, /PROJECT_LAUNCHPAD_ROOT = 'projectLaunchpad'/);
     assert.match(js, /LOCAL_KEY = '3dvr-project-launchpad'/);
+    assert.match(js, /LAUNCH_ROOM_PREFILL_KEY = '3dvr\.launch-room\.project-prefill\.v1'/);
+    assert.match(js, /WEB_BUILDER_PREFILL_KEY = 'web-builder-prefill-request'/);
+    assert.match(js, /GROWTH_OPERATOR_PROJECT_BRIEF_KEY = '3dvr\.growthOperator\.project-lead-brief\.v1'/);
+    assert.match(js, /findPeople\.textContent = 'Find people'/);
+    assert.match(js, /sessionStorage\.setItem\(GROWTH_OPERATOR_PROJECT_BRIEF_KEY/);
+    assert.match(js, /window\.location\.href = '\.\.\/growth-operator\/\?from=project'/);
+    assert.match(js, /buildPage\.textContent = 'Build page'/);
+    assert.match(js, /sessionStorage\.setItem\(WEB_BUILDER_PREFILL_KEY/);
+    assert.match(js, /projectSlug: project\.slug/);
+    assert.match(js, /projectName: project\.name/);
+    assert.match(js, /window\.location\.href = '\.\.\/web-builder-app\/'/);
+    assert.match(js, /Page draft prepared\. Opening Web Builder for review/);
+    assert.match(js, /new URLSearchParams\(window\.location\.search\)/);
+    assert.match(js, /sessionStorage\.getItem\(LAUNCH_ROOM_PREFILL_KEY\)/);
+    assert.match(js, /sessionStorage\.removeItem\(LAUNCH_ROOM_PREFILL_KEY\)/);
+    assert.match(js, /Project draft prefilled from Launch Room\. Review it, then save when ready\./);
+    assert.match(js, /applyLaunchRoomPrefill\(\)/);
     assert.match(js, /gun\.get\('3dvr-portal'\)\.get\(PROJECT_LAUNCHPAD_ROOT\)/);
     assert.match(js, /root\?\.get\('nodes'\)\.get\(node\.slug\)\.put\(node\)/);
     assert.match(js, /root\?\.get\('updates'\)\.get\(update\.id\)\.put\(update\)/);
@@ -59,10 +76,9 @@ describe('3DVR Seed Deck', () => {
   it('keeps Projects registered in the portal dock as the launchpad entry', async () => {
     const html = await readFile(new URL('../index.html', baseDir), 'utf8');
 
-    assert.match(html, /href="projects\/index\.html"/);
-    assert.match(html, /<span class="app-card__title">Projects<\/span>/);
-    assert.match(html, /Open Seed Deck to plant ideas with pages, updates, needs, offers, and support links/);
-    assert.match(html, /data-app-keywords="[^"]*\bseed deck\b[^"]*"/);
-    assert.match(html, /data-app-keywords="[^"]*\blaunchpad\b[^"]*"/);
+    assert.match(html, /href="\/projects\/"/);
+    assert.match(html, /<strong>Projects<\/strong>/);
+    assert.match(html, /Active work and next steps\./);
+    assert.match(html, /data-app="[^"]*\bprojects\b[^"]*"/);
   });
 });

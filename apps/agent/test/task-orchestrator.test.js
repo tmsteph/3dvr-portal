@@ -31,6 +31,21 @@ test('classifyTask separates code and high-risk side effects', () => {
   assert.equal(risky.highRisk, true);
 });
 
+test('classifyTask does not treat explicit no-side-effect research constraints as requested actions', () => {
+  const research = classifyTask(
+    'Research up to 10 public prospects. Do NOT send email, submit forms, DM, publish, buy anything, or contact anyone. Return the top 3 candidates with public evidence and a draft message for later review.'
+  );
+
+  assert.equal(research.kind, 'sales');
+  assert.equal(research.highRisk, false);
+});
+
+test('classifyTask keeps mixed or conditional side-effect instructions high risk', () => {
+  const mixed = classifyTask('Do not send anything yet, but publish the message after review.');
+
+  assert.equal(mixed.highRisk, true);
+});
+
 test('pickBackend prefers codex for code and openclaw for tool-heavy general work', () => {
   assert.equal(pickBackend(
     { backend: 'auto' },

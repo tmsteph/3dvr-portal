@@ -11,8 +11,76 @@
   <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="theme-color" content="#0d1117" />
   <link rel="stylesheet" href="style.css" />
+  <style>
+    .campaign-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: .75rem;
+    }
+    .campaign-card {
+      display: grid;
+      gap: .35rem;
+      min-height: 150px;
+      align-content: start;
+      text-align: left;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-soft);
+      color: var(--text);
+      padding: .9rem;
+    }
+    .campaign-card span,
+    .campaign-active > div > span {
+      color: var(--teal);
+      font-size: .72rem;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .campaign-card strong {
+      font-size: 1rem;
+      line-height: 1.25;
+    }
+    .campaign-card small {
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .campaign-card[aria-pressed="true"] {
+      border-color: var(--teal);
+      background: rgba(94, 234, 212, .09);
+      box-shadow: 0 0 0 1px rgba(94, 234, 212, .18);
+    }
+    .campaign-active {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-top: .9rem;
+      padding-top: .9rem;
+      border-top: 1px solid var(--line);
+    }
+    .campaign-active strong {
+      display: block;
+      margin-top: .2rem;
+      font-size: 1.2rem;
+    }
+    .campaign-active p {
+      max-width: 720px;
+      margin: .35rem 0 0;
+      color: var(--muted);
+    }
+    @media (max-width: 900px) {
+      .campaign-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .campaign-active { align-items: stretch; flex-direction: column; }
+    }
+    @media (max-width: 640px) {
+      .campaign-grid { grid-template-columns: 1fr; }
+      .campaign-card { min-height: 0; }
+    }
+  </style>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="../gun-init.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
   <div class="shell">
@@ -69,6 +137,54 @@
           <span>Delivery</span>
           <strong id="deliveryQueueCount">0</strong>
         </article>
+      </section>
+
+      <section class="panel campaign-panel" aria-labelledby="campaign-title">
+        <div class="section-head">
+          <p class="eyebrow">Pick a money path</p>
+          <h2 id="campaign-title">What do you want to get paid for?</h2>
+          <p>Choose one simple lane. The Operator will focus lead research, drafts, and follow-ups around it. You can change paths anytime.</p>
+        </div>
+
+        <div class="campaign-grid" role="list" aria-label="Outreach campaign presets">
+          <button class="campaign-card" type="button" data-campaign="av-freelance" aria-pressed="false">
+            <span>AV freelance</span>
+            <strong>Get booked for shows</strong>
+            <small>Production companies, venues, hotels, labor teams.</small>
+          </button>
+          <button class="campaign-card" type="button" data-campaign="web-design" aria-pressed="false">
+            <span>Web design</span>
+            <strong>Fix visible website problems</strong>
+            <small>Find a real issue, show a small useful improvement.</small>
+          </button>
+          <button class="campaign-card" type="button" data-campaign="lead-generation" aria-pressed="false">
+            <span>Lead generation</span>
+            <strong>Sell useful prospect research</strong>
+            <small>Small verified lists with public contact paths and fit notes.</small>
+          </button>
+          <button class="campaign-card" type="button" data-campaign="market-research" aria-pressed="false">
+            <span>Market research</span>
+            <strong>Turn research into a decision brief</strong>
+            <small>Competitors, pricing, demand signals, and opportunities.</small>
+          </button>
+          <button class="campaign-card" type="button" data-campaign="my-skill" aria-pressed="false">
+            <span>My own skill</span>
+            <strong>Use my Launch Room idea</strong>
+            <small>Turn the project or service you care about into a first outreach test.</small>
+          </button>
+        </div>
+
+        <div class="campaign-active" aria-live="polite">
+          <div>
+            <span>Active money path</span>
+            <strong id="activeCampaignTitle">Choose a path</strong>
+            <p id="activeCampaignDescription">Pick the closest match. The first goal is one real conversation, not a giant campaign.</p>
+          </div>
+          <div class="hero-actions">
+            <button id="campaignFindButton" class="button primary" type="button">Find 10 leads for this path</button>
+            <a id="campaignLeadFinderLink" class="button" href="../lead-finder/">Research manually</a>
+          </div>
+        </div>
       </section>
 
       <section class="operator-grid">
@@ -174,6 +290,7 @@
   </nav>
 
   <script type="module" src="app.js"></script>
+  <script type="module" src="campaigns.js"></script>
   <script defer src="/issue-launcher.js"></script>
 </body>
 </html>

@@ -17,6 +17,69 @@ const GOOGLE_CONTACTS_FIELDS = [
   'biographies',
 ].join(',');
 
+
+function gmailHeader(headers = [], name = '') {
+  const target = String(name || '').toLowerCase();
+  const match = (Array.isArray(headers) ? headers : []).find(item => String(item?.name || '').toLowerCase() === target);
+  return normalizeOAuthText(match?.value);
+}
+
+function decodeGmailData(value = '') {
+  if (!value) return '';
+  try {
+    return fromBase64Url(value).toString('utf8');
+  } catch (_err) {
+    return '';
+  }
+}
+
+function stripHtml(value = '') {
+  return String(value || '')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/p\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function gmailPayloadText(payload = {}) {
+  const chunks = [];
+  function visit(part) {
+    if (!part || typeof part !== 'object') return;
+    const mimeType = String(part.mimeType || '').toLowerCase();
+    const data = part.body?.data;
+    if (data && (mimeType === 'text/plain' || mimeType === 'text/html' || !mimeType)) {
+      const decoded = decodeGmailData(data);
+      if (decoded) chunks.push(mimeType === 'text/html' ? stripHtml(decoded) : decoded.trim());
+    }
+    (Array.isArray(part.parts) ? part.parts : []).forEach(visit);
+  }
+  visit(payload);
+  return chunks.join('\n\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 8000);
+}
+
+function safeMailHeader(value = '', max = 300) {
+  return String(value || '').replace(/[\r\n]+/g, ' ').trim().slice(0, max);
+}
+
+function isEmailAddress(value = '') {
+  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(value || '').trim());
+}
+
+function encodeMailSubject(value = '') {
+  const clean = safeMailHeader(value, 240);
+  return `=?UTF-8?B?${Buffer.from(clean, 'utf8').toString('base64')}?=`;
+}
+
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -323,10 +386,11 @@ function createGoogleProvider(config = process.env) {
         scopes.add('https://www.googleapis.com/auth/contacts.readonly');
       }
       if (scopeKey === 'calendar' || scopeKey === 'contacts-calendar') {
-        scopes.add('https://www.googleapis.com/auth/calendar');
+        scopes.add('https://www.googleapis.com/auth/calendar.events');
       }
       if (scopeKey === 'mail' || scopeKey === 'gmail') {
-        scopes.add('https://mail.google.com/');
+        scopes.add('https://www.googleapis.com/auth/gmail.readonly');
+        scopes.add('https://www.googleapis.com/auth/gmail.send');
       }
       const params = new URLSearchParams({
         client_id: config.GOOGLE_OAUTH_CLIENT_ID,
@@ -448,6 +512,102 @@ function createGoogleProvider(config = process.env) {
           };
         }),
         nextPageToken: normalizeOAuthText(payload.nextPageToken),
+      };
+    },
+
+    async listMail(accessToken, fetchImpl, { query = '', limit = 20 } = {}) {
+      const params = new URLSearchParams({
+        maxResults: String(Math.min(Math.max(Number(limit) || 1, 1), 25)),
+      });
+      const normalizedQuery = normalizeOAuthText(query);
+      if (normalizedQuery) params.set('q', normalizedQuery.slice(0, 1000));
+      const listResponse = await fetchImpl(`https://gmail.googleapis.com/gmail/v1/users/me/messages?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const listPayload = await listResponse.json().catch(() => ({}));
+      if (!listResponse.ok) {
+        throw new Error(listPayload.error?.message || 'Unable to search Gmail.');
+      }
+      const summaries = Array.isArray(listPayload.messages) ? listPayload.messages.slice(0, 25) : [];
+      const messages = await Promise.all(summaries.map(async summary => {
+        const response = await fetchImpl(
+          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(summary.id)}?format=full`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        const item = await response.json().catch(() => ({}));
+        if (!response.ok) return null;
+        const headers = item.payload?.headers || [];
+        return {
+          id: normalizeOAuthText(item.id),
+          threadId: normalizeOAuthText(item.threadId),
+          internalDate: normalizeOAuthText(item.internalDate),
+          from: gmailHeader(headers, 'From'),
+          to: gmailHeader(headers, 'To'),
+          subject: gmailHeader(headers, 'Subject'),
+          date: gmailHeader(headers, 'Date'),
+          messageId: gmailHeader(headers, 'Message-ID'),
+          references: gmailHeader(headers, 'References'),
+          snippet: normalizeOAuthText(item.snippet).slice(0, 1000),
+          text: gmailPayloadText(item.payload),
+        };
+      }));
+      return { messages: messages.filter(Boolean), nextPageToken: normalizeOAuthText(listPayload.nextPageToken) };
+    },
+    async sendMail(accessToken, fetchImpl, { to, subject, text, threadId = '', inReplyTo = '', references = '', attachment = null } = {}) {
+      const recipient = normalizeOAuthEmail(to);
+      if (!isEmailAddress(recipient)) throw new Error('A valid recipient email is required.');
+      const cleanSubject = safeMailHeader(subject || '(no subject)', 240);
+      const cleanReplyId = safeMailHeader(inReplyTo, 300);
+      const cleanReferences = safeMailHeader(references, 600);
+      const messageText = String(text || '').slice(0, 20000);
+      const attachmentContent = attachment && typeof attachment === 'object' ? String(attachment.content || '').slice(0, 60000) : '';
+      const attachmentFilename = safeMailHeader(attachment?.filename || 'resume.txt', 120).replace(/[^A-Za-z0-9._ -]/g, '_') || 'resume.txt';
+      const attachmentType = safeMailHeader(attachment?.contentType || 'text/plain; charset=UTF-8', 120);
+      const lines = [
+        `To: ${recipient}`,
+        `Subject: ${encodeMailSubject(cleanSubject)}`,
+        'MIME-Version: 1.0',
+      ];
+      if (cleanReplyId) lines.push(`In-Reply-To: ${cleanReplyId}`);
+      if (cleanReferences) lines.push(`References: ${cleanReferences}`);
+      if (attachmentContent) {
+        const boundary = `3dvr_${randomBase64Url(12)}`;
+        lines.push(
+          `Content-Type: multipart/mixed; boundary="${boundary}"`,
+          '',
+          `--${boundary}`,
+          'Content-Type: text/plain; charset=UTF-8',
+          'Content-Transfer-Encoding: 8bit',
+          '',
+          messageText,
+          `--${boundary}`,
+          `Content-Type: ${attachmentType}; name="${attachmentFilename}"`,
+          `Content-Disposition: attachment; filename="${attachmentFilename}"`,
+          'Content-Transfer-Encoding: base64',
+          '',
+          Buffer.from(attachmentContent, 'utf8').toString('base64'),
+          `--${boundary}--`,
+        );
+      } else {
+        lines.push('Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: 8bit', '', messageText);
+      }
+      const body = { raw: toBase64Url(lines.join('\r\n')) };
+      const normalizedThreadId = normalizeOAuthText(threadId);
+      if (normalizedThreadId) body.threadId = normalizedThreadId;
+      const response = await fetchImpl('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error?.message || 'Unable to send Gmail message.');
+      return {
+        ok: true,
+        id: normalizeOAuthText(payload.id),
+        threadId: normalizeOAuthText(payload.threadId || normalizedThreadId),
       };
     },
   };
@@ -950,6 +1110,46 @@ async function handleListContacts(res, providerName, provider, body, fetchImpl) 
   }
 }
 
+
+async function handleListMail(res, providerName, provider, body, fetchImpl) {
+  if (!provider.supports.mail || typeof provider.listMail !== 'function') {
+    return jsonError(res, 400, `${provider.label} mail reading is not available in this portal yet.`);
+  }
+  const accessToken = normalizeOAuthText(body.accessToken);
+  if (!accessToken) return jsonError(res, 400, 'Access token is required.');
+  try {
+    const payload = await provider.listMail(accessToken, fetchImpl, {
+      query: body.query,
+      limit: body.limit,
+    });
+    return res.status(200).json(payload);
+  } catch (err) {
+    return jsonError(res, 502, err?.message || `Unable to read ${provider.label} mail.`);
+  }
+}
+
+async function handleSendMail(res, providerName, provider, body, fetchImpl) {
+  if (!provider.supports.mail || typeof provider.sendMail !== 'function') {
+    return jsonError(res, 400, `${provider.label} mail sending is not available in this portal yet.`);
+  }
+  const accessToken = normalizeOAuthText(body.accessToken);
+  if (!accessToken) return jsonError(res, 400, 'Access token is required.');
+  try {
+    const payload = await provider.sendMail(accessToken, fetchImpl, {
+      to: body.to,
+      subject: body.subject,
+      text: body.text,
+      threadId: body.threadId,
+      inReplyTo: body.inReplyTo,
+      references: body.references,
+      attachment: body.attachment,
+    });
+    return res.status(200).json(payload);
+  } catch (err) {
+    return jsonError(res, 502, err?.message || `Unable to send ${provider.label} mail.`);
+  }
+}
+
 export function createOAuthProviderHandler({ config = process.env, fetchImpl = fetch } = {}) {
   const providers = createProviders(config);
 
@@ -991,6 +1191,14 @@ export function createOAuthProviderHandler({ config = process.env, fetchImpl = f
 
     if (req.method === 'POST' && action === 'listcontacts') {
       return handleListContacts(res, providerName, provider, body, fetchImpl);
+    }
+
+    if (req.method === 'POST' && action === 'listmail') {
+      return handleListMail(res, providerName, provider, body, fetchImpl);
+    }
+
+    if (req.method === 'POST' && action === 'sendmail') {
+      return handleSendMail(res, providerName, provider, body, fetchImpl);
     }
 
     return jsonError(res, 405, 'Method Not Allowed.');

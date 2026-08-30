@@ -22,12 +22,13 @@ async function waitForServer() {
   throw new Error('Chat test server did not start.');
 }
 
-async function openRandomRoom(browser, durableMessages) {
+async function openRandomRoom(browser, durableMessages, publishCalls = []) {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     serviceWorkers: 'block'
   });
   await context.addInitScript(() => {
+    window.__DISABLE_GUN_DEFAULT_PEERS__ = true;
     window.__GUN_PEERS__ = [];
   });
   await context.route('**/api/trial', async route => {
@@ -37,6 +38,7 @@ async function openRandomRoom(browser, durableMessages) {
     }
     const body = request.postDataJSON();
     if (body.kind === 'chat-message' && body.action === 'publish') {
+      publishCalls.push(body);
       if (!durableMessages.some(entry => entry.id === body.messageId)) {
         durableMessages.push({
           id: body.messageId,
@@ -125,6 +127,54 @@ describe('Chat cross-browser delivery', () => {
     await waitForMessage(chromePage, message);
 
     assert.match(await chromePage.locator('.message').filter({ hasText: message }).first().textContent(), /Cross-browser sync test/);
+    await Promise.all([chromeContext.close(), firefoxContext.close()]);
+  });
+
+  it('backfills legacy cached history so a fresh browser can see it', async () => {
+    const durableMessages = [{
+      id: 'durable-baseline',
+      message: {
+        sender: 'server-user',
+        username: 'Server User',
+        text: 'Already durable',
+        createdAt: Date.now() - 180_000
+      }
+    }];
+    const publishCalls = [];
+    const { context: chromeContext, page: chromePage } =
+      await openRandomRoom(chromiumBrowser, durableMessages, publishCalls);
+    const legacyId = `legacy-cached-${Date.now()}`;
+    const legacyText = `Legacy cached history ${Date.now()}`;
+    const legacyMessage = {
+      sender: 'legacy-user',
+      username: 'Legacy User',
+      text: legacyText,
+      createdAt: Date.now() - 120_000
+    };
+
+    await chromePage.evaluate(({ messageId, message }) => new Promise(resolve => {
+      chat.get(messageId).put(message, () => resolve());
+    }), { messageId: legacyId, message: legacyMessage });
+
+    const deadline = Date.now() + 10_000;
+    while (!durableMessages.some(entry => entry.id === legacyId) && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    assert.ok(durableMessages.some(entry => entry.id === legacyId), 'legacy message was not backfilled');
+    const backfillCalls = publishCalls.filter(call => call.messageId === legacyId);
+    assert.equal(backfillCalls.length, 1);
+    assert.equal(backfillCalls[0].backfill, true);
+    assert.equal(publishCalls.some(call => call.messageId === 'durable-baseline'), false);
+
+    const { context: firefoxContext, page: firefoxPage } =
+      await openRandomRoom(firefoxBrowser, durableMessages);
+    await waitForMessage(firefoxPage, legacyText);
+
+    await new Promise(resolve => setTimeout(resolve, 1_500));
+    assert.equal(publishCalls.filter(call => call.messageId === legacyId).length, 1);
+    assert.equal(durableMessages.filter(entry => entry.id === legacyId).length, 1);
+
     await Promise.all([chromeContext.close(), firefoxContext.close()]);
   });
 

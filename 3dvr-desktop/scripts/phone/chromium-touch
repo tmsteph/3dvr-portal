@@ -1,0 +1,15 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -u
+export DISPLAY=:0
+mkdir -p "$HOME/.config/termux-x11"
+timeout 4 termux-x11-preference touchMode:"Direct touch" >/dev/null 2>&1 || true
+printf direct > "$HOME/.config/termux-x11/input-mode"
+chromium-browser \
+  --force-device-scale-factor=1.65 \
+  --touch-events=enabled \
+  --no-default-browser-check \
+  --disable-session-crashed-bubble \
+  "$@" &
+pid=$!
+"$HOME/bin/3dvr-place-class" chromium auto >/dev/null 2>&1 &
+wait "$pid"

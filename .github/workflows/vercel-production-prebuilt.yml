@@ -11,24 +11,16 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z
-  VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch
+  VERCEL_ORG_ID: team_KXuVUd00RMnDsjoqwdREcZ7J
+  VERCEL_PROJECT_ID: prj_V49UqQXH0kmkYcL0NZFBkklzsbuy
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
 jobs:
   deploy:
-    name: Deploy canonical production fallback
+    name: Validate and deploy canonical production fallback
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Require direct Vercel credentials
-        shell: bash
-        run: |
-          if [ -z "$VERCEL_TOKEN" ]; then
-            echo "::error::VERCEL_TOKEN is not configured."
-            exit 1
-          fi
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -41,16 +33,34 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Enforce Vercel Hobby function budget
+        run: node --test tests/vercel-function-budget.test.js
+
+      - name: Detect direct Vercel credentials
+        id: vercel-creds
+        shell: bash
+        run: |
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::VERCEL_TOKEN is not configured; skipping the optional Vercel fallback deployment."
+          fi
+
       - name: Install Vercel CLI
+        if: ${{ steps.vercel-creds.outputs.enabled == 'true' }}
         run: npm install --global vercel
 
       - name: Pull production environment
+        if: ${{ steps.vercel-creds.outputs.enabled == 'true' }}
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
 
       - name: Build production artifact
+        if: ${{ steps.vercel-creds.outputs.enabled == 'true' }}
         run: vercel build --prod --token="$VERCEL_TOKEN"
 
       - name: Deploy production artifact
+        if: ${{ steps.vercel-creds.outputs.enabled == 'true' }}
         id: deploy
         shell: bash
         run: |

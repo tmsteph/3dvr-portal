@@ -1,82 +1,78 @@
 name: Vercel Dev Preview
 
 on:
-  workflow_dispatch:
-    inputs:
-      set_alias:
-        description: 'Alias this deployment to the stable dev URL (uses VERCEL_DEV_ALIAS)'
-        required: false
-        default: 'false'
   pull_request:
     types:
       - labeled
+      - unlabeled
+      - synchronize
+      - reopened
+      - closed
 
-# Preview deployments are opt-in so routine agent/docs/backend PR churn does not
-# consume the Vercel Hobby deployment quota. Add the `vercel-preview` label when
-# a live browser preview is actually useful, or run this workflow manually.
+# Preview deployments stay opt-in so routine agent/docs/backend PR churn does not
+# consume the Vercel Hobby deployment quota. Add the `vercel-preview` label and
+# this workflow mirrors the PR head to preview-pr-<number>. Vercel's normal Git
+# integration deploys only those bridge branches, so no VERCEL_TOKEN is needed.
 permissions:
-  contents: read
+  contents: write
+  pull-requests: read
 
-env:
-  VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z
-  VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch
-  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-  VERCEL_DEV_ALIAS: ${{ secrets.VERCEL_DEV_ALIAS }}
+concurrency:
+  group: vercel-preview-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
-  deploy-preview:
-    name: Deploy preview alias
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.label.name == 'vercel-preview' }}
+  sync-preview-branch:
+    name: Update preview branch
+    if: >-
+      github.event.action != 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (
+        (github.event.action == 'labeled' && github.event.label.name == 'vercel-preview') ||
+        (
+          github.event.action != 'labeled' &&
+          github.event.action != 'unlabeled' &&
+          contains(github.event.pull_request.labels.*.name, 'vercel-preview')
+        )
+      )
     runs-on: ubuntu-latest
-    env:
-      SHOULD_ALIAS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.set_alias == 'true' }}
     steps:
-      - name: Check Vercel preview configuration
-        id: config
-        shell: bash
-        run: |
-          if [ -n "$VERCEL_TOKEN" ]; then
-            echo "can_deploy=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "can_deploy=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping Vercel Dev Preview because VERCEL_TOKEN is not configured for this event."
-          fi
-
-      - name: Checkout repository
-        if: ${{ steps.config.outputs.can_deploy == 'true' }}
+      - name: Checkout PR head
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        if: ${{ steps.config.outputs.can_deploy == 'true' }}
-        uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
 
-      - name: Install dependencies
-        if: ${{ steps.config.outputs.can_deploy == 'true' }}
-        run: npm ci
+      - name: Push stable preview bridge branch
+        env:
+          PREVIEW_BRANCH: preview-pr-${{ github.event.pull_request.number }}
+        run: git push --force origin "HEAD:refs/heads/${PREVIEW_BRANCH}"
 
-      - name: Install Vercel CLI
-        if: ${{ steps.config.outputs.can_deploy == 'true' }}
-        run: npm install --global vercel
-
-      - name: Pull preview environment from Vercel
-        if: ${{ steps.config.outputs.can_deploy == 'true' }}
-        run: vercel pull --yes --environment=preview --token=$VERCEL_TOKEN
-
-      - name: Build preview artifact
-        if: ${{ steps.config.outputs.can_deploy == 'true' }}
-        run: vercel build --token=$VERCEL_TOKEN
-
-      - name: Deploy preview artifact
-        if: ${{ steps.config.outputs.can_deploy == 'true' }}
-        id: deploy
+      - name: Publish preview URL
+        env:
+          PREVIEW_URL: https://3dvr-portal-git-preview-pr-${{ github.event.pull_request.number }}-tmstephs-projects.vercel.app
         run: |
-          DEPLOY_URL=$(vercel deploy --prebuilt --target=preview --token=$VERCEL_TOKEN --yes)
-          echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
-          echo "Preview URL: $DEPLOY_URL"
+          echo "### Vercel preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "$PREVIEW_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "This URL updates automatically while the \`vercel-preview\` label is present." >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Vercel preview::$PREVIEW_URL"
 
-      - name: Alias deployment to stable dev URL
-        if: ${{ steps.config.outputs.can_deploy == 'true' && env.VERCEL_DEV_ALIAS != '' && env.SHOULD_ALIAS == 'true' }}
-        run: vercel alias set ${{ steps.deploy.outputs.url }} $VERCEL_DEV_ALIAS --token=$VERCEL_TOKEN
+  cleanup-preview-branch:
+    name: Remove preview branch
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (
+        github.event.action == 'closed' ||
+        (github.event.action == 'unlabeled' && github.event.label.name == 'vercel-preview')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Delete preview bridge branch
+        env:
+          PREVIEW_BRANCH: preview-pr-${{ github.event.pull_request.number }}
+        run: git push origin --delete "$PREVIEW_BRANCH" || true
