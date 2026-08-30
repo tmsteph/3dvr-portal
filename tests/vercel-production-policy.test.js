@@ -4,11 +4,11 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('native Vercel Git deploys production plus explicit preview bridge branches', async () => {
+test('Vercel Git keeps production closed by default and allows explicit preview bridge branches', async () => {
   const config = JSON.parse(await read('vercel.json'));
   assert.deepEqual(config.git?.deploymentEnabled, {
     '**': false,
-    main: true,
+    main: false,
     'preview-pr-*': true,
   });
   assert.equal(config.ignoreCommand, undefined);
