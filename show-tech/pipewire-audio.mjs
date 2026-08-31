@@ -7,7 +7,7 @@ const SPECIAL_TARGETS = new Set([
   '@DEFAULT_AUDIO_SOURCE@',
 ]);
 
-function run(command, args) {
+function systemRun(command, args) {
   return spawnSync(command, args, { encoding: 'utf8', timeout: 2500, maxBuffer: 1024 * 1024 });
 }
 
@@ -34,6 +34,7 @@ export function parseWpctlStatus(output) {
     if (/\bSinks:\s*$/.test(line)) { section = 'sink'; continue; }
     if (/\bSources:\s*$/.test(line)) { section = 'source'; continue; }
     if (/\bDevices:\s*$/.test(line)) { section = 'device'; continue; }
+    if (/^\s*[A-Za-z][^:]*:\s*$/.test(line)) { section = null; continue; }
     if (!section) continue;
     const match = line.match(/^\s*(\*)?\s*(\d+)\.\s+(.+?)\s*$/);
     if (!match) continue;
@@ -48,8 +49,12 @@ export function parseWpctlStatus(output) {
   return devices;
 }
 
-export function createPipewireAudioAdapter({ emit = () => {}, command = process.env.SHOW_WPCTL_COMMAND || 'wpctl' } = {}) {
-  const version = run(command, ['--version']);
+export function createPipewireAudioAdapter({
+  emit = () => {},
+  command = process.env.SHOW_WPCTL_COMMAND || 'wpctl',
+  runCommand = args => systemRun(command, args),
+} = {}) {
+  const version = runCommand(['--version']);
   const state = {
     toolAvailable: version.status === 0,
     sessionAvailable: false,
@@ -63,7 +68,7 @@ export function createPipewireAudioAdapter({ emit = () => {}, command = process.
 
   function refresh({ quiet = false } = {}) {
     if (!state.toolAvailable) return state;
-    const status = run(command, ['status', '-n']);
+    const status = runCommand(['status', '-n']);
     state.refreshedAt = Date.now();
     if (status.status !== 0) {
       state.sessionAvailable = false;
@@ -77,8 +82,8 @@ export function createPipewireAudioAdapter({ emit = () => {}, command = process.
 
     state.sessionAvailable = true;
     state.lastError = null;
-    let sinks = run(command, ['list', 'audio', 'sinks']);
-    let sources = run(command, ['list', 'audio', 'sources']);
+    const sinks = runCommand(['list', 'audio', 'sinks']);
+    const sources = runCommand(['list', 'audio', 'sources']);
     if (sinks.status === 0 && sources.status === 0) {
       state.sinks = parseList(sinks.stdout, 'sink');
       state.sources = parseList(sources.stdout, 'source');
@@ -107,14 +112,14 @@ export function createPipewireAudioAdapter({ emit = () => {}, command = process.
   }
 
   function execute(args, errorLabel) {
-    const result = run(command, args);
+    const result = runCommand(args);
     if (result.status !== 0) {
       const message = (result.stderr || result.stdout || `${errorLabel} failed`).trim();
       state.lastError = message;
       throw new Error(message);
     }
     state.lastError = null;
-    return result.stdout.trim();
+    return result.stdout?.trim() || '';
   }
 
   function handle(action) {
