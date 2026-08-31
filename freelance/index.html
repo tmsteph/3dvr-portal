@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Freelance Client Desk | 3DVR</title>
+  <meta name="description" content="Find clients, remember relationships, book freelance work, and keep track of follow-ups and payments with 3DVR." />
+  <meta name="theme-color" content="#07111f" />
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-mark.svg" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script type="module" src="./app.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">3DVR</a>
+    <nav aria-label="Freelancer navigation">
+      <a href="/crm/flow.html">CRM</a>
+      <a href="/contacts/">Contacts</a>
+      <a href="/calendar/">Calendar</a>
+      <a href="/sales/">Find clients</a>
+    </nav>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Freelancer client system</p>
+        <h1>Find work. Remember people. Get called again.</h1>
+        <p class="lede">One simple desk for leads, follow-ups, booked gigs, and getting paid.</p>
+      </div>
+      <div class="hero-actions">
+        <button class="button primary" type="button" data-open-dialog="clientDialog">+ Client</button>
+        <button class="button" type="button" data-open-dialog="gigDialog">+ Gig</button>
+      </div>
+    </section>
+
+    <section class="metrics" aria-label="Freelance metrics">
+      <article><strong id="metricDue">0</strong><span>Follow-ups due</span></article>
+      <article><strong id="metricBooked">0</strong><span>Upcoming gigs</span></article>
+      <article><strong id="metricActive">0</strong><span>Repeat clients</span></article>
+      <article><strong id="metricUnpaid">0</strong><span>Need payment</span></article>
+    </section>
+
+    <section class="today-grid" aria-label="Today">
+      <article class="panel focus-panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Do this next</p>
+            <h2>Today</h2>
+          </div>
+          <span id="syncState" class="status-pill">Syncing</span>
+        </div>
+        <div id="todayList" class="stack empty-target"></div>
+      </article>
+
+      <article class="panel find-panel">
+        <p class="eyebrow">Grow the network</p>
+        <h2>Find clients</h2>
+        <p>Start with people and production companies most likely to hire you again.</p>
+        <div class="find-actions">
+          <a class="button primary" href="/sales/">Find opportunities</a>
+          <a class="button" href="/contacts/">Search contacts</a>
+          <a class="button" href="/av-freelance/">AV launchpad</a>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Relationship pipeline</p>
+          <h2>Clients</h2>
+        </div>
+        <label class="search-label">
+          <span class="sr-only">Search clients</span>
+          <input id="clientSearch" type="search" placeholder="Search clients" />
+        </label>
+      </div>
+      <div id="clientList" class="client-grid empty-target"></div>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Booked work</p>
+          <h2>Gigs</h2>
+        </div>
+        <button class="button compact" type="button" data-open-dialog="gigDialog">+ Gig</button>
+      </div>
+      <div id="gigList" class="gig-list empty-target"></div>
+    </section>
+
+    <section class="panel money-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Close the loop</p>
+          <h2>Get paid</h2>
+        </div>
+      </div>
+      <div id="unpaidList" class="stack empty-target"></div>
+    </section>
+  </main>
+
+  <dialog id="clientDialog" class="dialog">
+    <form id="clientForm" method="dialog">
+      <div class="dialog-heading">
+        <div><p class="eyebrow">New relationship</p><h2>Add client</h2></div>
+        <button class="icon-button" type="button" data-close-dialog="clientDialog" aria-label="Close">×</button>
+      </div>
+      <div class="form-grid">
+        <label><span>Name *</span><input id="clientName" required autocomplete="name" /></label>
+        <label><span>Company</span><input id="clientCompany" autocomplete="organization" /></label>
+        <label><span>Email</span><input id="clientEmail" type="email" autocomplete="email" /></label>
+        <label><span>Phone</span><input id="clientPhone" type="tel" autocomplete="tel" /></label>
+        <label><span>Your role</span><input id="clientRole" placeholder="A1, A2, V1, RF…" /></label>
+        <label><span>Normal rate</span><input id="clientRate" placeholder="$600/day" /></label>
+        <label><span>Warmth</span><select id="clientWarmth"><option value="cold">Cold</option><option value="warm" selected>Warm</option><option value="hot">Hot</option></select></label>
+        <label><span>Source</span><input id="clientSource" placeholder="Referral, old coworker…" /></label>
+        <label><span>Follow up</span><input id="clientFollowUp" type="date" /></label>
+        <label class="wide"><span>Next action</span><input id="clientAction" placeholder="Send availability for September" /></label>
+        <label class="wide"><span>Notes</span><textarea id="clientNotes" rows="4"></textarea></label>
+      </div>
+      <div class="dialog-actions">
+        <button class="button" type="button" data-close-dialog="clientDialog">Cancel</button>
+        <button class="button primary" type="submit">Save client</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="gigDialog" class="dialog">
+    <form id="gigForm" method="dialog">
+      <div class="dialog-heading">
+        <div><p class="eyebrow">New work</p><h2>Add gig</h2></div>
+        <button class="icon-button" type="button" data-close-dialog="gigDialog" aria-label="Close">×</button>
+      </div>
+      <div class="form-grid">
+        <label><span>Client</span><select id="gigClient"></select></label>
+        <label><span>Gig / event *</span><input id="gigTitle" required placeholder="General session A1" /></label>
+        <label><span>Start *</span><input id="gigStart" type="date" required /></label>
+        <label><span>End</span><input id="gigEnd" type="date" /></label>
+        <label><span>Role</span><input id="gigRole" placeholder="A1" /></label>
+        <label><span>Rate</span><input id="gigRate" placeholder="$600/day" /></label>
+        <label><span>Venue</span><input id="gigVenue" /></label>
+        <label><span>Status</span><select id="gigStatus"><option>Lead</option><option>Quoted</option><option selected>Booked</option><option>Completed</option><option>Cancelled</option></select></label>
+        <label class="wide"><span>Notes</span><textarea id="gigNotes" rows="4"></textarea></label>
+      </div>
+      <div class="dialog-actions">
+        <button class="button" type="button" data-close-dialog="gigDialog">Cancel</button>
+        <button class="button primary" type="submit">Save gig</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer class="shell footer">
+    <span>3DVR — Build the future together.</span>
+    <a href="mailto:3dvr.tech@gmail.com">Support</a>
+  </footer>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
