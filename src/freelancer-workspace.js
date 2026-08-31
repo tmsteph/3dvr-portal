@@ -1,6 +1,6 @@
 const SAFE_ID = /^[a-z0-9][a-z0-9-]{2,62}$/;
 
-export const FREELANCER_WORKSPACE_VERSION = 1;
+export const FREELANCER_WORKSPACE_VERSION = 2;
 export const FREELANCER_WORKSPACE_ACTIONS = Object.freeze([
   'status',
   'provision',
@@ -9,7 +9,7 @@ export const FREELANCER_WORKSPACE_ACTIONS = Object.freeze([
   'session',
 ]);
 
-export const DEFAULT_FREELANCER_WORKSPACE_IMAGE = 'lscr.io/linuxserver/webtop:debian-xfce';
+export const DEFAULT_FREELANCER_WORKSPACE_IMAGE = 'lscr.io/linuxserver/firefox:latest';
 
 function normalizeText(value = '', max = 256) {
   return String(value || '').trim().slice(0, max);
@@ -60,12 +60,14 @@ export function buildFreelancerWorkspaceSpec({ identity = {}, timezone = 'Americ
       pub: normalizeText(identity.pub, 500),
       alias: normalizeText(identity.alias, 200),
     },
+    profile: 'browser-agent',
     image: DEFAULT_FREELANCER_WORKSPACE_IMAGE,
     timezone: normalizeText(timezone, 80) || 'UTC',
     resources: {
       cpu: 1,
-      memoryMb: 1536,
+      memoryMb: 1024,
       shmMb: 1024,
+      minHostReserveMb: 768,
     },
     persistence: {
       browserProfile: true,
@@ -79,8 +81,11 @@ export function buildFreelancerWorkspaceSpec({ identity = {}, timezone = 'Americ
     },
     capabilities: {
       browser: true,
-      desktop: true,
+      desktop: false,
       portalSessions: true,
+      agentControl: 'pelorus',
+      accessibilityTree: true,
+      visionFallback: true,
       gmailConnector: true,
       outlookConnector: true,
       calendarConnector: true,
@@ -92,11 +97,12 @@ export function buildFreelancerWorkspaceSpec({ identity = {}, timezone = 'Americ
       privileged: false,
       publicInternetExposure: false,
       accessMode: 'reverse-proxy-session',
+      agentApiPublic: false,
     },
   };
 }
 
-const REDACT_KEYS = /(password|secret|token|authorization|cookie|credential|refresh)/i;
+const REDACT_KEYS = /(password|secret|token|authorization|cookie|credential|refresh|api.?key)/i;
 
 export function redactWorkspacePayload(value) {
   if (Array.isArray(value)) return value.map(redactWorkspacePayload);
