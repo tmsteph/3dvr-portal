@@ -34,6 +34,15 @@ function normalizeEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text) ? text : '';
 }
 
+function resolveRequestEmail(envelope = {}, mailboxUser = '') {
+  const ownMailbox = normalizeEmail(mailboxUser);
+  const envelopeFrom = normalizeEmail(envelope?.from?.[0]?.address);
+  const replyTo = normalizeEmail(envelope?.replyTo?.[0]?.address);
+  if (!envelopeFrom) return '';
+  if (envelopeFrom === ownMailbox) return replyTo || '';
+  return envelopeFrom;
+}
+
 function slugify(value) {
   return String(value || '')
     .toLowerCase()
@@ -166,9 +175,9 @@ async function loadRecentRequests(mailAuth) {
     const since = new Date(Date.now() - LOOKBACK_HOURS * 60 * 60 * 1000);
     const uids = await client.search({ since });
     for await (const message of client.fetch(uids.slice(-75), { uid: true, envelope: true, source: true, flags: true }, { uid: true })) {
-      const from = normalizeEmail(message.envelope?.from?.[0]?.address);
+      const from = resolveRequestEmail(message.envelope, mailAuth.user);
       const subject = String(message.envelope?.subject || '').trim();
-      if (!from || from === mailAuth.user || /(^|[._-])(no-?reply|mailer-daemon)@/i.test(from)) continue;
+      if (!from || /(^|[._-])(no-?reply|mailer-daemon)@/i.test(from)) continue;
       const body = cleanBody(message.source ? message.source.toString('utf8') : '');
       if (!looksLikeRequest(subject, body)) continue;
       const date = message.envelope?.date instanceof Date ? message.envelope.date.toISOString() : new Date().toISOString();
@@ -498,6 +507,7 @@ module.exports = {
   buildFallbackHtml,
   cleanBody,
   looksLikeRequest,
+  resolveRequestEmail,
   runOnce,
   slugify,
   topicFromRequest,

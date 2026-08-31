@@ -896,6 +896,78 @@ export function createLeadOutreachEmailHandler(options = {}) {
   };
 }
 
+export function createFreeSiteRequestEmailHandler(options = {}) {
+  const {
+    config = process.env,
+    mailTransport
+  } = options;
+
+  function getTransport() {
+    return mailTransport || createTransport(config);
+  }
+
+  return async function freeSiteRequestEmailHandler(req, res) {
+    setCorsHeaders(res);
+    if (req.method === 'OPTIONS') return res.status(200).end();
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+
+    const honeypot = normalizeText(req.body?.website);
+    if (honeypot) return res.status(200).json({ success: true, mode: 'free-site-request' });
+
+    const rawName = normalizeText(req.body?.name);
+    const name = rawName.replace(/\s+/g, ' ').slice(0, 120);
+    const email = normalizeEmail(req.body?.email);
+    const offer = normalizeText(req.body?.offer);
+
+    if (!name || rawName.length > 120) {
+      return res.status(400).json({ error: 'A business or project name is required.' });
+    }
+    if (!email) {
+      return res.status(400).json({ error: 'A valid delivery email is required.' });
+    }
+    if (!offer || offer.length > 1600) {
+      return res.status(400).json({ error: 'Describe the website in 1 to 1600 characters.' });
+    }
+
+    const inbox = normalizeEmail(config.GMAIL_USER);
+    if (!inbox) {
+      return res.status(503).json({ error: 'Free-site intake email is not configured.' });
+    }
+
+    let transport;
+    try {
+      transport = getTransport();
+    } catch (error) {
+      return res.status(503).json({ error: error.message || 'Free-site intake email is unavailable.' });
+    }
+
+    const text = [
+      'I want a free live one-page website on a 3DVR-hosted address.',
+      '',
+      `Name/business: ${name}`,
+      `Best email for the live link: ${email}`,
+      '',
+      'What the website should explain:',
+      offer,
+      '',
+      'Please build the smallest useful version and email me the live URL.'
+    ].join('\n');
+
+    try {
+      await transport.sendMail({
+        from: `"3DVR Free Site" <${inbox}>`,
+        to: [inbox],
+        replyTo: email,
+        subject: `Free 3DVR website request — ${name}`,
+        text
+      });
+      return res.status(200).json({ success: true, mode: 'free-site-request' });
+    } catch (error) {
+      return res.status(500).json({ error: error.message || 'Unable to queue the free-site request.' });
+    }
+  };
+}
+
 export function createUnifiedEmailHandler(options = {}) {
   const {
     config = process.env,
@@ -907,6 +979,7 @@ export function createUnifiedEmailHandler(options = {}) {
   const operatorAlertHandler = createOperatorAlertEmailHandler({ config, mailTransport });
   const leadOutreachHandler = createLeadOutreachEmailHandler({ config, mailTransport });
   const bookingRequestHandler = createBookingRequestHandler({ config, mailTransport });
+  const freeSiteRequestHandler = createFreeSiteRequestEmailHandler({ config, mailTransport });
 
   return async function unifiedEmailHandler(req, res) {
     setCorsHeaders(res);
@@ -922,6 +995,9 @@ export function createUnifiedEmailHandler(options = {}) {
     const mode = normalizeText(req.body?.mode).toLowerCase();
     if (mode === 'booking-request') {
       return bookingRequestHandler(req, res);
+    }
+    if (mode === 'free-site-request') {
+      return freeSiteRequestHandler(req, res);
     }
     if (
       mode === 'lookup'

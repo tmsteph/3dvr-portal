@@ -327,6 +327,64 @@ describe('account recovery email api', () => {
     assert.match(res.body.error, /not configured on this deployment/i);
   });
 
+  it('accepts a public free-site request only into the configured 3DVR inbox', async () => {
+    const mail = createMailTransport();
+    const handler = createUnifiedEmailHandler({
+      config: baseConfig,
+      mailTransport: mail
+    });
+
+    const req = {
+      method: 'POST',
+      headers: {},
+      body: {
+        mode: 'free-site-request',
+        name: 'Rosa Garden Care',
+        email: 'rosa@example.com',
+        offer: 'I want customers to see my gardening services and email for a quote.',
+        website: ''
+      }
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.mode, 'free-site-request');
+    assert.equal(mail.sendMail.mock.calls.length, 1);
+    const sent = mail.sendMail.mock.calls[0].arguments[0];
+    assert.deepEqual(sent.to, ['bot@example.com']);
+    assert.equal(sent.replyTo, 'rosa@example.com');
+    assert.equal(sent.subject, 'Free 3DVR website request — Rosa Garden Care');
+    assert.match(sent.text, /Name\/business: Rosa Garden Care/);
+    assert.match(sent.text, /Best email for the live link: rosa@example\.com/);
+    assert.match(sent.text, /build the smallest useful version and email me the live URL/i);
+  });
+
+  it('rejects invalid free-site request fields before sending mail', async () => {
+    const mail = createMailTransport();
+    const handler = createUnifiedEmailHandler({
+      config: baseConfig,
+      mailTransport: mail
+    });
+    const req = {
+      method: 'POST',
+      headers: {},
+      body: {
+        mode: 'free-site-request',
+        name: 'Test',
+        email: 'not-an-email',
+        offer: 'A useful site.'
+      }
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(mail.sendMail.mock.calls.length, 0);
+  });
+
   it('rejects operator alerts without the shared token', async () => {
     const mail = createMailTransport();
     const handler = createUnifiedEmailHandler({
