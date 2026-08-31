@@ -1,0 +1,89 @@
+name: Migrate Vercel Auth to OVH
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/migrate-vercel-auth-to-ovh.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+env:
+  OLD_HOST: 167.71.156.94
+  OLD_USER: root
+  OVH_HOST: 40.160.137.41
+  OVH_USER: debian
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Resolve server SSH key
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          key=''
+          for candidate in "$SSH_A" "$SSH_B" "$SSH_C"; do
+            if [ -z "$key" ] && [ -n "$candidate" ]; then key="$candidate"; fi
+          done
+          [ -n "$key" ] || { echo '::error::No 3DVR server SSH key is configured.'; exit 1; }
+          umask 077
+          printf '%s\n' "$key" > /tmp/3dvr-server-key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-server-key.raw; then
+            cp /tmp/3dvr-server-key.raw /tmp/3dvr-server-key
+          elif base64 -d /tmp/3dvr-server-key.raw > /tmp/3dvr-server-key 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-server-key; then
+            :
+          else
+            echo '::error::Configured SSH key could not be decoded.'
+            exit 1
+          fi
+          chmod 600 /tmp/3dvr-server-key
+          rm -f /tmp/3dvr-server-key.raw
+
+      - name: Copy Vercel CLI auth to OVH
+        id: migrate
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/3dvr-server-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+
+          echo 'Validating Vercel login on old dev host...'
+          ssh "${opts[@]}" "$OLD_USER@$OLD_HOST" 'npx --yes vercel@latest whoami >/dev/null'
+
+          auth_dir="$(ssh "${opts[@]}" "$OLD_USER@$OLD_HOST" 'for d in .local/share/com.vercel.cli .config/com.vercel.cli .vercel; do if [ -f "$HOME/$d/auth.json" ]; then printf "%s\n" "$d"; exit 0; fi; done; exit 1')"
+          [ -n "$auth_dir" ] || { echo '::error::Vercel auth directory not found on old dev host.'; exit 1; }
+          echo "Migrating Vercel auth directory: $auth_dir"
+
+          ssh "${opts[@]}" "$OLD_USER@$OLD_HOST" "tar -C \"\$HOME\" -czf - '$auth_dir'" \
+            | ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" 'tar -C "$HOME" -xzf -'
+
+          echo 'Validating Vercel login on OVH...'
+          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" 'npx --yes vercel@latest whoami'
+
+      - name: Publish migration status
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const ok = '${{ steps.migrate.outcome }}' === 'success';
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: ok ? 'success' : 'failure',
+              context: '3DVR OVH Vercel auth',
+              description: ok ? 'Vercel auth migrated to OVH' : 'Vercel auth migration failed',
+              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f /tmp/3dvr-server-key /tmp/3dvr-server-key.raw
