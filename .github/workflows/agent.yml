@@ -27,9 +27,6 @@ jobs:
   test:
     name: Run agent tests
     runs-on: ubuntu-latest
-    # The full agent syntax + Node test suite now routinely exceeds 15 minutes.
-    # Keep a finite cap, but allow healthy runs to finish instead of being
-    # reported as cancelled midway through otherwise passing tests.
     timeout-minutes: 30
     defaults:
       run:
@@ -37,20 +34,16 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22.22.0
           cache: npm
           cache-dependency-path: apps/agent/package-lock.json
-
       - name: Install agent dependencies
         run: npm ci
-
       - name: Audit production dependencies
         run: npm audit --omit=dev
-
       - name: Run agent checks
         run: npm test
 
@@ -71,17 +64,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22.22.0
           cache: npm
           cache-dependency-path: apps/agent/package-lock.json
-
       - name: Install agent dependencies
         run: npm ci
-
       - name: Resolve DigitalOcean SSH key
         id: ssh_key
         shell: bash
@@ -93,33 +83,20 @@ jobs:
           set -euo pipefail
           key=''
           for candidate in "$SSH_A" "$SSH_B" "$SSH_C"; do
-            if [ -z "$key" ] && [ -n "$candidate" ]; then
-              key="$candidate"
-            fi
+            if [ -z "$key" ] && [ -n "$candidate" ]; then key="$candidate"; fi
           done
-          if [ -z "$key" ]; then
-            echo 'No DigitalOcean SSH key is configured.' >&2
-            exit 1
-          fi
-
+          if [ -z "$key" ]; then echo 'No DigitalOcean SSH key is configured.' >&2; exit 1; fi
           umask 077
           printf '%s\n' "$key" > /tmp/3dvr-agent-key.raw
           if grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-agent-key.raw; then
             cp /tmp/3dvr-agent-key.raw /tmp/3dvr-agent-key
-          elif base64 -d /tmp/3dvr-agent-key.raw > /tmp/3dvr-agent-key 2>/dev/null \
-            && grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-agent-key; then
-            :
-          else
-            echo 'Configured DigitalOcean SSH key could not be decoded.' >&2
-            rm -f /tmp/3dvr-agent-key.raw /tmp/3dvr-agent-key
-            exit 1
-          fi
+          elif base64 -d /tmp/3dvr-agent-key.raw > /tmp/3dvr-agent-key 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-agent-key; then :
+          else echo 'Configured DigitalOcean SSH key could not be decoded.' >&2; rm -f /tmp/3dvr-agent-key.raw /tmp/3dvr-agent-key; exit 1; fi
           chmod 600 /tmp/3dvr-agent-key
           rm -f /tmp/3dvr-agent-key.raw
           printf '%s\n' '167.172.193.194 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFoepoGbXWiidk4axaBwsI1Y/GWVckiqJxGLkBpTV6Pc' > /tmp/3dvr-known-hosts
           chmod 600 /tmp/3dvr-known-hosts
           echo 'present=true' >> "$GITHUB_OUTPUT"
-
       - name: Deploy worker over SSH
         id: deploy
         shell: bash
@@ -127,63 +104,46 @@ jobs:
           set -euo pipefail
           opts=(-i /tmp/3dvr-agent-key -o BatchMode=yes -o UserKnownHostsFile=/tmp/3dvr-known-hosts -o StrictHostKeyChecking=yes -o ConnectTimeout=10)
           owner_b64="$(printf '%s' "$THREEDVR_AGENT_OWNER_ALIAS" | base64 -w 0)"
-          ssh "${opts[@]}" "$DO_AGENT_USER@$DO_AGENT_HOST" \
-            "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' GITHUB_SHA='$GITHUB_SHA' THREEDVR_AGENT_OWNER_ALIAS_B64='$owner_b64' THREEDVR_NODE_BIN='$THREEDVR_NODE_BIN' bash -s" <<'REMOTE'
+          ssh "${opts[@]}" "$DO_AGENT_USER@$DO_AGENT_HOST" "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' GITHUB_SHA='$GITHUB_SHA' THREEDVR_AGENT_OWNER_ALIAS_B64='$owner_b64' THREEDVR_NODE_BIN='$THREEDVR_NODE_BIN' bash -s" <<'REMOTE'
           set -euo pipefail
           THREEDVR_AGENT_OWNER_ALIAS="$(printf '%s' "$THREEDVR_AGENT_OWNER_ALIAS_B64" | base64 -d)"
-
           repo="$HOME/.3dvr/portal"
           mkdir -p "$HOME/.3dvr"
-          if [ ! -d "$repo/.git" ]; then
-            rm -rf "$repo"
-            git clone "https://github.com/$GITHUB_REPOSITORY.git" "$repo"
-          fi
-
+          if [ ! -d "$repo/.git" ]; then rm -rf "$repo"; git clone "https://github.com/$GITHUB_REPOSITORY.git" "$repo"; fi
           git -C "$repo" diff --quiet
           git -C "$repo" diff --cached --quiet
           git -C "$repo" fetch --prune origin main
           git -C "$repo" checkout main
           git -C "$repo" pull --ff-only origin main
           git -C "$repo" merge-base --is-ancestor "$GITHUB_SHA" HEAD
-
           cfg="$HOME/.3dvr/config/env"
-          mkdir -p "$(dirname "$cfg")"
-          touch "$cfg"
-          chmod 600 "$cfg" || true
-          cfg_tmp="$(mktemp)"
-          printf -v owner_q '%q' "$THREEDVR_AGENT_OWNER_ALIAS"
+          mkdir -p "$(dirname "$cfg")"; touch "$cfg"; chmod 600 "$cfg" || true
+          cfg_tmp="$(mktemp)"; printf -v owner_q '%q' "$THREEDVR_AGENT_OWNER_ALIAS"
           awk '!/^(THREEDVR_AGENT_OWNER_ALIAS|THREEDVR_AGENT_QUEUE_STORE|THREEDVR_NODE_BIN)=/' "$cfg" > "$cfg_tmp"
           printf 'THREEDVR_AGENT_OWNER_ALIAS=%s\n' "$owner_q" >> "$cfg_tmp"
           printf '%s\n' 'THREEDVR_AGENT_QUEUE_STORE=sqlite' 'THREEDVR_NODE_BIN=/opt/node-v22/bin/node' >> "$cfg_tmp"
-          cat "$cfg_tmp" > "$cfg"
-          rm -f "$cfg_tmp"
-
-          [ -x "$THREEDVR_NODE_BIN" ] || { echo "Required Node binary is unavailable: $THREEDVR_NODE_BIN" >&2; exit 1; }
-          "$THREEDVR_NODE_BIN" -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 13)) process.exit(1); require("node:sqlite")' \
-            || { echo 'Node >=22.13 with SQLite support is unavailable.' >&2; exit 1; }
+          cat "$cfg_tmp" > "$cfg"; rm -f "$cfg_tmp"
+          [ -x "$THREEDVR_NODE_BIN" ] || exit 1
+          "$THREEDVR_NODE_BIN" -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 13)) process.exit(1); require("node:sqlite")'
           export PATH="$(dirname "$THREEDVR_NODE_BIN"):$PATH"
           npm --prefix "$repo/apps/agent" ci
           scripts="$repo/apps/agent/thomas-agent/scripts"
-
           "$scripts/ask-agent-worker-daemon" stop || true
           "$scripts/ask-inbox-daemon" stop || true
           "$scripts/ask-context-task-router-daemon" stop || true
           "$scripts/ask-autopilot-daemon" stop || true
           "$scripts/ask-agent-heartbeat-daemon" stop || true
-
           "$scripts/ask-agent-worker-daemon" start
           "$scripts/ask-context-task-router-daemon" start
           "$scripts/ask-inbox-daemon" start
           "$scripts/ask-autopilot-daemon" start
           "$scripts/ask-agent-heartbeat-daemon" start
-
           "$scripts/ask-agent-worker-daemon" status
           "$scripts/ask-context-task-router-daemon" status
           "$scripts/ask-inbox-daemon" status
           "$scripts/ask-autopilot-daemon" status
           "$scripts/ask-agent-heartbeat-daemon" status
           REMOTE
-
       - name: Verify managed queue consumption
         id: verify
         shell: bash
@@ -191,45 +151,26 @@ jobs:
           set -euo pipefail
           opts=(-i /tmp/3dvr-agent-key -o BatchMode=yes -o UserKnownHostsFile=/tmp/3dvr-known-hosts -o StrictHostKeyChecking=yes -o ConnectTimeout=10)
           owner_b64="$(printf '%s' "$THREEDVR_AGENT_OWNER_ALIAS" | base64 -w 0)"
-          ssh "${opts[@]}" "$DO_AGENT_USER@$DO_AGENT_HOST" \
-            "THREEDVR_AGENT_OWNER_ALIAS_B64='$owner_b64' THREEDVR_NODE_BIN='$THREEDVR_NODE_BIN' bash -s" <<'REMOTE'
+          ssh "${opts[@]}" "$DO_AGENT_USER@$DO_AGENT_HOST" "THREEDVR_AGENT_OWNER_ALIAS_B64='$owner_b64' THREEDVR_NODE_BIN='$THREEDVR_NODE_BIN' bash -s" <<'REMOTE'
           set -euo pipefail
           export THREEDVR_AGENT_OWNER_ALIAS="$(printf '%s' "$THREEDVR_AGENT_OWNER_ALIAS_B64" | base64 -d)"
+          export THREEDVR_CONFIG_FILE="$HOME/.3dvr/config/env"
+          if [ -f "$THREEDVR_CONFIG_FILE" ]; then set -a; . "$THREEDVR_CONFIG_FILE"; set +a; fi
           cd "$HOME/.3dvr/portal/apps/agent"
           export THREEDVR_AGENT_QUEUE_STORE=sqlite
-          [ -x "$THREEDVR_NODE_BIN" ] || { echo "Required Node binary is unavailable: $THREEDVR_NODE_BIN" >&2; exit 1; }
-          "$THREEDVR_NODE_BIN" -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 13)) process.exit(1); require("node:sqlite")' \
-            || { echo 'Node >=22.13 with SQLite support is unavailable.' >&2; exit 1; }
-
-          result="$("$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js enqueue \
-            --json \
-            --backend shell \
-            --risk read_only \
-            --approval-status approved \
-            --unsafe \
-            --requires shell \
-            --max-runtime-ms 30000 \
-            'printf "3dvr-do-worker-ok\\n"')"
+          [ -x "$THREEDVR_NODE_BIN" ] || exit 1
+          "$THREEDVR_NODE_BIN" -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 13)) process.exit(1); require("node:sqlite")'
+          result="$("$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js enqueue --json --backend shell --risk read_only --approval-status approved --unsafe --requires shell --max-runtime-ms 30000 'printf "3dvr-do-worker-ok\\n"')"
           task_id="$(printf '%s' "$result" | "$THREEDVR_NODE_BIN" -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task queue JSON payload missing');console.log(JSON.parse(s.slice(i)).id)})")"
           for attempt in $(seq 1 18); do
             result="$("$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
             status="$(printf '%s' "$result" | "$THREEDVR_NODE_BIN" -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');console.log(JSON.parse(s.slice(i)).status||'')})")"
-            case "$status" in
-              completed)
-                echo 'managed SQLite queue consumed by DigitalOcean worker'
-                exit 0
-                ;;
-              failed|skipped)
-                printf '%s\n' "$result"
-                exit 1
-                ;;
-            esac
+            case "$status" in completed) echo 'managed SQLite queue consumed by DigitalOcean worker'; exit 0;; failed|skipped) printf '%s\n' "$result"; exit 1;; esac
             sleep 5
           done
           echo 'DigitalOcean worker did not consume the managed SQLite queue test task.' >&2
           exit 1
           REMOTE
-
       - name: Publish worker deployment status
         if: always()
         env:
@@ -240,26 +181,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          state=failure
-          description='DigitalOcean agent worker deployment failed'
-          if [ "$SSH_OUTCOME" != success ]; then
-            description='DigitalOcean agent SSH credential unavailable'
-          elif [ "$DEPLOY_OUTCOME" != success ]; then
-            description='DigitalOcean agent SSH deployment failed'
-          elif [ "$VERIFY_OUTCOME" != success ]; then
-            description='DigitalOcean worker started but managed queue verification failed'
-          else
-            state=success
-            description='DigitalOcean agent worker alive and consuming managed queue tasks'
-          fi
-          curl -fsS \
-            -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
-            -d "{\"state\":\"$state\",\"context\":\"3DVR DigitalOcean Worker\",\"description\":\"$description\"}"
-
+          state=failure; description='DigitalOcean agent worker deployment failed'
+          if [ "$SSH_OUTCOME" != success ]; then description='DigitalOcean agent SSH credential unavailable'
+          elif [ "$DEPLOY_OUTCOME" != success ]; then description='DigitalOcean agent SSH deployment failed'
+          elif [ "$VERIFY_OUTCOME" != success ]; then description='DigitalOcean worker started but managed queue verification failed'
+          else state=success; description='DigitalOcean agent worker alive and consuming managed queue tasks'; fi
+          curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -d "{\"state\":\"$state\",\"context\":\"3DVR DigitalOcean Worker\",\"description\":\"$description\"}"
       - name: Remove SSH key
         if: always()
         shell: bash
