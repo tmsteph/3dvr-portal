@@ -74,9 +74,20 @@ jobs:
 
           sudo bash "$repo/ops/host/install-resource-lanes.sh"
 
+          current_node_major="$(node -p 'Number(process.versions.node.split(".")[0])' 2>/dev/null || echo 0)"
+          if [ "$current_node_major" -lt 22 ]; then
+            echo "Upgrading OVH host Node.js from major $current_node_major to 22..."
+            sudo apt-get update -qq
+            sudo apt-get install -y ca-certificates curl
+            curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+            hash -r
+          fi
+
           node_bin="$(command -v node || true)"
-          if [ -x /opt/node-v22/bin/node ]; then node_bin=/opt/node-v22/bin/node; fi
           [ -n "$node_bin" ] || { echo 'Node is not installed on workspace host.' >&2; exit 1; }
+          node_major="$($node_bin -p 'Number(process.versions.node.split(".")[0])')"
+          [ "$node_major" -ge 22 ] || { echo "Node 22+ is required; found $($node_bin --version)." >&2; exit 1; }
           echo "HOST_NODE=$($node_bin --version)"
           "$node_bin" --check "$repo/apps/agent/thomas-agent/node/freelancer-workspace-runtime.js"
           "$node_bin" --check "$repo/apps/agent/thomas-agent/node/freelancer-workspace.js"
