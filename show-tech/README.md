@@ -1,8 +1,8 @@
 # 3DVR Show-Tech Node v0.1
 
-A small proof that an ordinary computer can become a discoverable, remotely controlled audio/video output node on a local network.
+A small proof that an ordinary computer can become a discoverable, remotely controlled audio/video output node on a network.
 
-This is deliberately dependency-free. It needs Node.js 22+ and a browser.
+The core needs Node.js 22+. Browser output works with no extra dependencies. When GStreamer is installed, the same node automatically advertises a native AV output capability.
 
 ## Architecture
 
@@ -11,16 +11,18 @@ Desk / Core
     |
     | control + state (small messages)
     v
-Show Node --------------------> local browser / display / speakers
+Show Node --------------------> browser output
+    |                         > GStreamer display / speakers
     |
     +-- UDP discovery
+    +-- explicit URL targets for routed/cloud nodes
     +-- capability manifest
     +-- authenticated actions
     +-- local timestamp scheduling
     +-- SSE state/events
 ```
 
-The control plane is intentionally separate from the future media data plane. Large audio/video streams should not be routed through the Core just to be controlled.
+The control plane stays separate from media transport. Large audio/video streams do not need to pass through the Core just to be controlled.
 
 ## Run a node
 
@@ -28,16 +30,48 @@ The control plane is intentionally separate from the future media data plane. La
 SHOW_NODE_TOKEN=demo-secret node show-tech/node.mjs
 ```
 
-Open this on the output machine and make it fullscreen:
+Open the browser output locally and make it fullscreen:
 
 ```text
 http://localhost:47771/output
 ```
 
-The node listens on:
+The node listens on UDP `47770` for LAN discovery and HTTP `47771` for capabilities, state, control, events, and browser output.
 
-- UDP `47770` for discovery
-- HTTP `47771` for capability/state/control/output
+## Native GStreamer output
+
+On Debian/Ubuntu:
+
+```bash
+sudo apt install gstreamer1.0-tools gstreamer1.0-plugins-base
+SHOW_NODE_TOKEN=demo-secret node show-tech/node.mjs
+```
+
+The node will then advertise `av.gstreamer` with these actions:
+
+- `native.av.test` — SMPTE video bars plus a 1 kHz audio test tone
+- `native.media.play` — native media playback through GStreamer `playbin`
+- `native.media.stop`
+
+Test physical outputs:
+
+```bash
+curl -X POST http://NODE_IP:47771/v1/actions \
+  -H 'Authorization: Bearer demo-secret' \
+  -H 'Content-Type: application/json' \
+  -d '{"type":"native.av.test","payload":{"durationMs":1000,"outputMode":"output"}}'
+```
+
+On a machine with a graphical/audio session, `output` uses GStreamer's automatic video and audio sinks. In cloud/headless environments use `"outputMode":"headless"`; the exact same audio/video pipelines run into `fakesink`, allowing CI to verify that buffers flow and the pipeline reaches clean end-of-stream without pretending a cloud VM has a monitor or speakers.
+
+Play a file or URL natively:
+
+```bash
+curl -X POST http://NODE_IP:47771/v1/actions \
+  -H 'Authorization: Bearer demo-secret' \
+  -H 'Content-Type: application/json' \
+  -d '{"type":"native.media.play","payload":{"src":"/absolute/path/to/media.mp4"}}'
+```
 
 ## Discover nodes
 
@@ -47,7 +81,7 @@ From another computer on the same LAN:
 node show-tech/discover.mjs
 ```
 
-A discovered node reports its ID, hostname, platform, architecture, protocol version, address, and control port.
+For routed networks and cloud nodes, use `show-tech/control.mjs` with explicit node URLs rather than relying on broadcast discovery.
 
 ## Inspect capabilities
 
@@ -55,7 +89,7 @@ A discovered node reports its ID, hostname, platform, architecture, protocol ver
 curl http://NODE_IP:47771/v1/capabilities
 ```
 
-## Send an action
+## Browser output actions
 
 ```bash
 curl -X POST http://NODE_IP:47771/v1/actions \
@@ -64,44 +98,7 @@ curl -X POST http://NODE_IP:47771/v1/actions \
   -d '{"type":"display.text","payload":{"text":"Welcome to 3DVR Show"}}'
 ```
 
-Change the output background:
-
-```bash
-curl -X POST http://NODE_IP:47771/v1/actions \
-  -H 'Authorization: Bearer demo-secret' \
-  -H 'Content-Type: application/json' \
-  -d '{"type":"display.color","payload":{"color":"#101827"}}'
-```
-
-Load media into the browser output:
-
-```bash
-curl -X POST http://NODE_IP:47771/v1/actions \
-  -H 'Authorization: Bearer demo-secret' \
-  -H 'Content-Type: application/json' \
-  -d '{"type":"media.load","payload":{"src":"https://example.com/video.mp4","autoplay":false}}'
-```
-
-Then send `media.play`, `media.pause`, `media.volume`, or `media.mute`.
-
-Browsers may require a local user gesture before unmuted media can autoplay. Native media/audio adapters will remove that browser limitation later.
-
-## Schedule locally
-
-`executeAt` is Unix epoch time in milliseconds. The Core can preload an action and let the node execute it locally:
-
-```json
-{
-  "id": "cue-42-screen-1",
-  "type": "display.text",
-  "executeAt": 1788216000000,
-  "payload": { "text": "GO" }
-}
-```
-
-This prototype allows scheduling up to 24 hours ahead.
-
-## v0.1 actions
+Browser actions currently include:
 
 - `display.color`
 - `display.text`
@@ -111,16 +108,29 @@ This prototype allows scheduling up to 24 hours ahead.
 - `media.volume`
 - `media.mute`
 
+## Schedule locally
+
+`executeAt` is Unix epoch time in milliseconds. The Core can deliver an action early and let each node execute it locally:
+
+```json
+{
+  "id": "cue-42-screen-1",
+  "type": "native.av.test",
+  "executeAt": 1788216000000,
+  "payload": { "durationMs": 1000 }
+}
+```
+
+The current prototype accepts scheduling up to 24 hours ahead. Cloud-stage CI already exercises shared timestamped cues across multiple nodes.
+
 ## Next adapters
 
-Keep the protocol stable and replace/extend the browser output with capability adapters:
-
-1. PipeWire audio device enumeration, routing, gain and mute on Linux.
-2. GStreamer video playback/output with explicit display selection.
+1. PipeWire audio device enumeration, patching, gain and mute on Linux.
+2. Explicit GStreamer display/audio-device selection and media preloading.
 3. OSC and MIDI input/output.
 4. Art-Net/sACN lighting output through OLA or a native adapter.
 5. PJLink projector control.
-6. RTP/SRT/WebRTC media transport where live media is required.
-7. Windows and macOS native capability adapters behind the same node contract.
+6. RTP/SRT/WebRTC media transport for live feeds.
+7. Windows and macOS native adapters behind the same node contract.
 
-The goal is not for every computer to expose every capability. Each node advertises what hardware and software it actually has, and the Show Core patches logical show resources to those capabilities.
+The goal is not for every computer to expose every capability. Each node advertises the hardware/software it actually has, and the Show Core patches logical show resources to those capabilities.
