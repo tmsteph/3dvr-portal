@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 
 function hasCommand(command) {
   const result = spawnSync(command, ['--version'], { stdio: 'ignore' });
@@ -105,7 +106,7 @@ export function createNativeAvAdapter({ emit = () => {}, outputMode = process.en
   function play(payload = {}) {
     const src = String(payload.src || '');
     if (!src) throw new Error('native.media.play requires payload.src');
-    const uri = /^[a-z][a-z0-9+.-]*:/i.test(src) ? src : new URL(`file://${src}`).href;
+    const uri = /^[a-z][a-z0-9+.-]*:/i.test(src) ? src : pathToFileURL(src).href;
     const sinks = resolveSinks(payload.outputMode);
     const volume = clamp(Number(payload.volume ?? 1), 0, 1);
     const args = ['playbin', `uri=${uri}`, `volume=${volume}`];
