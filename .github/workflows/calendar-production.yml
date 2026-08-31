@@ -17,8 +17,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DEV_HOST: 167.71.156.94
-  SSH_USER: root
+  DEV_HOST: 40.160.137.41
+  SSH_USER: debian
   VERCEL_SCOPE: 3dvr
   VERCEL_PROJECT: 3dvr-calendar
   LEGACY_VERCEL_SCOPE: tmstephs-projects
@@ -53,7 +53,7 @@ jobs:
           fi
           chmod 600 /tmp/key
 
-      - name: Deploy Calendar from 3DVR dev host
+      - name: Deploy Calendar from OVH dev lane
         shell: bash
         run: |
           set -euo pipefail

@@ -1,19 +1,14 @@
-name: Authenticate 3DVR Dev with Vercel
+name: Authenticate OVH Dev with Vercel
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/vercel-dev-login.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 env:
-  DEV_HOST: 167.71.156.94
-  SSH_USER: root
+  DEV_HOST: 40.160.137.41
+  SSH_USER: debian
 
 jobs:
   start-device-login:
@@ -48,17 +43,16 @@ jobs:
           fi
           chmod 600 /tmp/3dvr-server-key
 
-      - name: Start persistent Vercel device login on 3dvr-dev
+      - name: Start persistent Vercel device login on OVH dev lane
         shell: bash
         run: |
           set -euo pipefail
           opts=(-i /tmp/3dvr-server-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
           ssh "${opts[@]}" "$SSH_USER@$DEV_HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
-          export DEBIAN_FRONTEND=noninteractive
           if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
-            apt-get update -qq
-            apt-get install -y -qq nodejs npm util-linux git curl
+            sudo apt-get update -qq
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nodejs npm util-linux git curl
           fi
 
           pkill -f 'vercel.*login' >/dev/null 2>&1 || true
