@@ -13,7 +13,9 @@ import {
 import { generateAndSaveCodexPrompt } from './moneyPrinterCodexRunner.js';
 import {
   addMoneyPrinterOperations,
-  executeApprovedMoneyPrinterOperations
+  buildMoneyPrinterOperationContext,
+  executeApprovedMoneyPrinterOperations,
+  loadMoneyPrinterOperations
 } from './moneyPrinterOperations.js';
 import {
   generateConnectorPlanWithModel,
@@ -55,6 +57,9 @@ export async function runMoneyPrinterDaemonCycle(options = {}) {
   const botId = options.botId || 'executive-agent';
   const env = options.env || process.env;
   const loaded = await loadMoneyPrinterWorkspace(rootDir);
+  const operationQueue = buildMoneyPrinterOperationContext(
+    await loadMoneyPrinterOperations(rootDir)
+  );
 
   const learningEvidenceDir = String(
     options.learningEvidenceDir
@@ -77,6 +82,7 @@ export async function runMoneyPrinterDaemonCycle(options = {}) {
   const learningDirective = buildLearningDirective(learning);
   const planningState = {
     ...loaded.state,
+    operationQueue,
     learning: learning.summary,
     learningLedger: {
       progress: learning.ledger?.progress || {},

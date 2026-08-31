@@ -24,6 +24,8 @@ npm run money-printer -- executive decisions --limit 10
 
 The next Executive Agent, Founder Brief, opportunity, connector-plan, and Codex prompt receives the constitution plus recent feedback and decisions as context.
 
+The daemon also injects a compact operation-queue history before planning. Planned/approved work is treated as already in flight, executed work is repeated only with fresh evidence or a recurring need, and failed/skipped outcomes are visible so the operator can diagnose rather than loop. Operation payloads are intentionally excluded from this model context.
+
 ## Model routing
 
 Routine model work uses `MONEY_PRINTER_MODEL`. High-level executive decisions automatically use `MONEY_PRINTER_REASONING_MODEL` when configured. This keeps the operating layer model-independent while reserving stronger models for direction, portfolio, kill-or-scale, and system-improvement decisions.

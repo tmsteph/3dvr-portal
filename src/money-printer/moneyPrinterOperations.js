@@ -268,6 +268,37 @@ export async function loadMoneyPrinterOperations(rootDir = process.cwd()) {
   return Array.isArray(value) ? value.map(createConnectorOperationPlan).filter(Boolean) : [];
 }
 
+export function buildMoneyPrinterOperationContext(operations = [], limit = 12) {
+  const normalized = Array.isArray(operations)
+    ? operations.map(createConnectorOperationPlan).filter(Boolean)
+    : [];
+  const counts = normalized.reduce((result, operation) => {
+    const status = operation.status || 'unknown';
+    result[status] = (result[status] || 0) + 1;
+    return result;
+  }, {});
+  const recent = normalized.slice(-Math.max(1, Number(limit) || 12)).map(operation => ({
+    id: operation.id,
+    provider: operation.provider,
+    action: operation.action,
+    title: operation.title,
+    summary: operation.summary,
+    risk: operation.risk,
+    status: operation.status,
+    updatedAt: operation.updatedAt,
+    outcome: operation.result ? {
+      ok: Boolean(operation.result.ok),
+      status: String(operation.result.status || operation.status || ''),
+      message: String(operation.result.message || '').slice(0, 240)
+    } : null
+  }));
+  return {
+    total: normalized.length,
+    counts,
+    recent
+  };
+}
+
 export async function saveMoneyPrinterOperations(rootDir = process.cwd(), operations = []) {
   const { operationsPath } = getMoneyPrinterOperationPaths(rootDir);
   await writeJsonFile(operationsPath, operations.map(createConnectorOperationPlan).filter(Boolean));
