@@ -7,6 +7,7 @@ on:
       - 'apps/agent/thomas-agent/node/freelancer-workspace*.js'
       - 'apps/agent/thomas-agent/scripts/ask-freelancer-workspace'
       - 'apps/agent/test/freelancer-workspace-runtime.test.js'
+      - 'ops/host/install-resource-lanes.sh'
       - '.github/workflows/freelancer-workspace-host.yml'
   workflow_dispatch:
 
@@ -14,8 +15,8 @@ permissions:
   contents: read
 
 env:
-  WORKSPACE_HOST: 167.71.156.94
-  SSH_USER: root
+  WORKSPACE_HOST: 40.160.137.41
+  SSH_USER: debian
 
 jobs:
   deploy:
@@ -51,7 +52,7 @@ jobs:
           chmod 600 /tmp/3dvr-workspace-key
           rm -f /tmp/3dvr-workspace-key.raw
 
-      - name: Install workspace runtime on 3DVR dev host
+      - name: Configure OVH workspace host
         shell: bash
         run: |
           set -euo pipefail
@@ -68,20 +69,25 @@ jobs:
           git -C "$repo" reset --hard origin/main
           git -C "$repo" merge-base --is-ancestor "$GITHUB_SHA" HEAD
 
+          sudo bash "$repo/ops/host/install-resource-lanes.sh"
+
           node_bin="$(command -v node || true)"
           if [ -x /opt/node-v22/bin/node ]; then node_bin=/opt/node-v22/bin/node; fi
           [ -n "$node_bin" ] || { echo 'Node is not installed on workspace host.' >&2; exit 1; }
           "$node_bin" --check "$repo/apps/agent/thomas-agent/node/freelancer-workspace-runtime.js"
           "$node_bin" --check "$repo/apps/agent/thomas-agent/node/freelancer-workspace.js"
           FREELANCER_WORKSPACE_ROOT="$HOME/.3dvr/freelancer-workspaces" \
-            "$node_bin" "$repo/apps/agent/thomas-agent/node/freelancer-workspace.js" status fw-host-health --json
+            "$repo/apps/agent/thomas-agent/scripts/ask-freelancer-workspace" status fw-host-health --json
 
           if command -v docker >/dev/null 2>&1 && docker version >/dev/null 2>&1; then
             echo 'WORKSPACE_DOCKER_READY=1'
+            docker ps --filter 'label=3dvr.kind=freelancer-workspace' --format 'WORKSPACE={{.Names}} STATUS={{.Status}}'
           else
             echo 'WORKSPACE_DOCKER_READY=0'
             echo 'Workspace runtime is installed; Docker host setup is still required before provisioning.'
           fi
+
+          /usr/local/bin/3dvr-lane-status
           REMOTE
 
       - name: Remove SSH key

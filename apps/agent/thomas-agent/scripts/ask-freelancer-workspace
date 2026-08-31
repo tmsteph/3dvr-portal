@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
+if [ -r /etc/3dvr/resource-lanes.env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . /etc/3dvr/resource-lanes.env
+  set +a
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 exec node "$SCRIPT_DIR/../node/freelancer-workspace.js" "$@"

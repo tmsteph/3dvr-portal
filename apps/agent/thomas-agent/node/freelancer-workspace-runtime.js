@@ -43,6 +43,8 @@ function buildDockerRunArgs(metadata, env = process.env) {
   const bindAddress = normalizeText(env.FREELANCER_WORKSPACE_BIND_ADDRESS, 80) || '127.0.0.1';
   const timezone = normalizeText(metadata.timezone, 80) || 'America/Los_Angeles';
   const image = normalizeText(env.FREELANCER_WORKSPACE_IMAGE, 240) || DEFAULT_IMAGE;
+  const cgroupParent = normalizeText(env.FREELANCER_WORKSPACE_CGROUP_PARENT, 120);
+  const cgroupArgs = cgroupParent ? ['--cgroup-parent', cgroupParent] : [];
   const configDir = path.join(metadata.rootDir, 'config');
   return [
     'run', '-d',
@@ -51,6 +53,7 @@ function buildDockerRunArgs(metadata, env = process.env) {
     '--label', `3dvr.workspace=${metadata.workspaceId}`,
     '--restart', 'unless-stopped',
     '--shm-size', '1g',
+    ...cgroupArgs,
     '--memory', `${workspaceMemoryMb(env)}m`,
     '--cpus', normalizeText(env.FREELANCER_WORKSPACE_CPUS, 20) || '1.0',
     '-e', 'PUID=1000',
