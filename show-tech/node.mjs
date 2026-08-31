@@ -6,6 +6,8 @@ import crypto from 'node:crypto';
 import { URL } from 'node:url';
 import { createNativeAvAdapter } from './native-av.mjs';
 import { createPipewireAudioAdapter } from './pipewire-audio.mjs';
+import { createPatchbay } from './patchbay.mjs';
+import { patchUiHtml } from './patch-ui.mjs';
 
 const HTTP_PORT = Number(process.env.SHOW_NODE_PORT || 47771);
 const DISCOVERY_PORT = Number(process.env.SHOW_DISCOVERY_PORT || 47770);
@@ -32,11 +34,13 @@ function emit(event) {
 
 const nativeAv = createNativeAvAdapter({ emit });
 const pipewire = createPipewireAudioAdapter({ emit });
+const patchbay = createPatchbay({ nativeAv, pipewire, emit });
 const state = {
   display: { background: '#000000', text: '3DVR Show Node', textColor: '#ffffff' },
   media: { src: null, playing: false, volume: 1, muted: false },
   native: nativeAv.state,
   audio: pipewire.state,
+  patchbay: patchbay.state,
 };
 
 const nodeIdentity = { id: nodeId, name: nodeName, platform: process.platform, arch: process.arch };
@@ -44,10 +48,11 @@ function capabilityEnvelope() {
   return {
     protocol: '3dvr-show-node/0.1',
     node: nodeIdentity,
-    endpoints: { httpPort: HTTP_PORT, outputPath: '/output' },
+    endpoints: { httpPort: HTTP_PORT, outputPath: '/output', patchPath: '/patch', portsPath: '/v1/ports' },
     capabilities: [
       { id: 'display.browser', kind: 'video.output', actions: ['display.color', 'display.text'] },
       { id: 'media.browser', kind: 'av.output', actions: ['media.load', 'media.play', 'media.pause', 'media.volume', 'media.mute'] },
+      { id: 'patchbay.node', kind: 'av.patchbay', actions: ['patch.set', 'patch.clear'] },
       ...nativeAv.capabilities(),
       ...pipewire.capabilities(),
     ],
@@ -55,6 +60,8 @@ function capabilityEnvelope() {
 }
 
 function adapterAction(action) {
+  const patchResult = patchbay.handle(action);
+  if (patchResult !== null) return patchResult;
   const nativeResult = nativeAv.handle(action);
   if (nativeResult !== null) return nativeResult;
   const audioResult = pipewire.handle(action);
@@ -160,8 +167,10 @@ const server = http.createServer((req, res) => {
     uptimeMs: Date.now() - startedAt,
     nativeAv: nativeAv.state,
     pipewire: pipewire.state,
+    patchbay: patchbay.manifest(),
   });
   if (req.method === 'GET' && url.pathname === '/v1/capabilities') return json(res, 200, capabilityEnvelope());
+  if (req.method === 'GET' && url.pathname === '/v1/ports') return json(res, 200, patchbay.manifest());
   if (req.method === 'GET' && url.pathname === '/v1/state') return json(res, 200, state);
   if (req.method === 'GET' && url.pathname === '/v1/events') {
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
@@ -170,6 +179,9 @@ const server = http.createServer((req, res) => {
   }
   if (req.method === 'GET' && url.pathname === '/output') {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); res.end(outputHtml); return;
+  }
+  if (req.method === 'GET' && url.pathname === '/patch') {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); res.end(patchUiHtml); return;
   }
   if (req.method === 'POST' && url.pathname === '/v1/actions') {
     if (!authorized(req)) return json(res, 401, { accepted: false, error: 'unauthorized' });
@@ -185,6 +197,7 @@ const server = http.createServer((req, res) => {
 server.listen(HTTP_PORT, '0.0.0.0', () => {
   console.log(`3DVR Show Node ${nodeId}`);
   console.log(`Output: http://0.0.0.0:${HTTP_PORT}/output`);
+  console.log(`Patchbay: http://0.0.0.0:${HTTP_PORT}/patch`);
   console.log(`Native AV: ${nativeAv.state.available ? `${nativeAv.state.backend} (${nativeAv.state.outputMode})` : 'unavailable'}`);
   console.log(`PipeWire: ${pipewire.state.sessionAvailable ? `${pipewire.state.sinks.length} sinks / ${pipewire.state.sources.length} sources` : pipewire.state.lastError || 'unavailable'}`);
   console.log(`Control token: ${token}`);
