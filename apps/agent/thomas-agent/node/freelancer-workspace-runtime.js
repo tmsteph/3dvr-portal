@@ -1,16 +1,24 @@
 const { randomBytes } = require('node:crypto');
 const { mkdir, readFile, writeFile, chmod, readdir } = require('node:fs/promises');
 const net = require('node:net');
+const os = require('node:os');
 const path = require('node:path');
 const { promisify } = require('node:util');
 const { execFile } = require('node:child_process');
 
 const execFileAsync = promisify(execFile);
 const SAFE_ID = /^[a-z0-9][a-z0-9-]{2,62}$/;
-const DEFAULT_IMAGE = 'lscr.io/linuxserver/webtop:debian-xfce';
+const DEFAULT_IMAGE = 'lscr.io/linuxserver/firefox:latest';
+const DEFAULT_MEMORY_MB = 1024;
+const DEFAULT_HOST_RESERVE_MB = 768;
 
 function normalizeText(value = '', max = 300) {
   return String(value || '').trim().slice(0, max);
+}
+
+function positiveInteger(value, fallback) {
+  const parsed = Number.parseInt(String(value || ''), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 function validateWorkspaceId(value = '') {
@@ -21,6 +29,14 @@ function validateWorkspaceId(value = '') {
 
 function containerNameForWorkspace(workspaceId) {
   return `3dvr-${validateWorkspaceId(workspaceId)}`;
+}
+
+function workspaceMemoryMb(env = process.env) {
+  return positiveInteger(env.FREELANCER_WORKSPACE_MEMORY_MB, DEFAULT_MEMORY_MB);
+}
+
+function minHostReserveMb(env = process.env) {
+  return positiveInteger(env.FREELANCER_WORKSPACE_MIN_HOST_RESERVE_MB, DEFAULT_HOST_RESERVE_MB);
 }
 
 function buildDockerRunArgs(metadata, env = process.env) {
@@ -35,7 +51,7 @@ function buildDockerRunArgs(metadata, env = process.env) {
     '--label', `3dvr.workspace=${metadata.workspaceId}`,
     '--restart', 'unless-stopped',
     '--shm-size', '1g',
-    '--memory', normalizeText(env.FREELANCER_WORKSPACE_MEMORY, 40) || '1536m',
+    '--memory', `${workspaceMemoryMb(env)}m`,
     '--cpus', normalizeText(env.FREELANCER_WORKSPACE_CPUS, 20) || '1.0',
     '-e', 'PUID=1000',
     '-e', 'PGID=1000',
@@ -43,6 +59,9 @@ function buildDockerRunArgs(metadata, env = process.env) {
     '-e', 'CUSTOM_USER=freelancer',
     '-e', `PASSWORD=${metadata.password}`,
     '-e', 'START_DOCKER=false',
+    '-e', 'PELORUS=true',
+    '-e', 'PIXELFLUX_WAYLAND=true',
+    '-e', 'MAX_RES=1920x1080',
     '-e', `TITLE=3DVR Work · ${metadata.workspaceId}`,
     '-p', `${bindAddress}:${metadata.port}:3001`,
     '-v', `${configDir}:/config`,
@@ -134,12 +153,26 @@ function statusFromInspect(result) {
   return 'unknown';
 }
 
-function createFreelancerWorkspaceRuntime({ env = process.env, run = defaultRun, now = () => new Date() } = {}) {
+function createFreelancerWorkspaceRuntime({
+  env = process.env,
+  run = defaultRun,
+  now = () => new Date(),
+  getFreeMemoryMb = () => Math.floor(os.freemem() / 1024 / 1024),
+} = {}) {
   async function resolve(workspaceId) {
     const id = validateWorkspaceId(workspaceId);
     const rootDir = path.join(workspaceRoot(env), id);
     const existing = await readMetadata(rootDir);
     return { id, rootDir, existing };
+  }
+
+  function assertHostCapacity() {
+    if (/^(1|true|yes|on)$/i.test(String(env.FREELANCER_WORKSPACE_SKIP_CAPACITY_CHECK || ''))) return;
+    const freeMb = Number(getFreeMemoryMb());
+    const requiredMb = workspaceMemoryMb(env) + minHostReserveMb(env);
+    if (!Number.isFinite(freeMb) || freeMb < requiredMb) {
+      throw new Error(`Workspace host needs at least ${requiredMb} MB free (${workspaceMemoryMb(env)} MB workspace + ${minHostReserveMb(env)} MB host reserve); ${Number.isFinite(freeMb) ? freeMb : 'unknown'} MB is available.`);
+    }
   }
 
   async function status(workspaceId) {
@@ -151,6 +184,8 @@ function createFreelancerWorkspaceRuntime({ env = process.env, run = defaultRun,
       workspaceId: id,
       status: statusFromInspect(inspect),
       url: publicUrl(existing, env),
+      agentPath: '/pelorus/',
+      profile: 'browser-agent',
       createdAt: existing.createdAt,
       lastStartedAt: existing.lastStartedAt || existing.createdAt,
     };
@@ -159,11 +194,13 @@ function createFreelancerWorkspaceRuntime({ env = process.env, run = defaultRun,
   async function provision(workspaceId, options = {}) {
     const { id, rootDir, existing } = await resolve(workspaceId);
     if (existing) return status(id);
+    assertHostCapacity();
     const port = await findAvailablePort(env);
     const createdAt = now().toISOString();
     const metadata = {
-      version: 1,
+      version: 2,
       workspaceId: id,
+      profile: 'browser-agent',
       containerName: containerNameForWorkspace(id),
       rootDir,
       port,
@@ -181,6 +218,7 @@ function createFreelancerWorkspaceRuntime({ env = process.env, run = defaultRun,
   async function start(workspaceId) {
     const { id, rootDir, existing } = await resolve(workspaceId);
     if (!existing) throw new Error('Workspace is not provisioned.');
+    assertHostCapacity();
     const result = await run('docker', ['start', existing.containerName]);
     if (!result.ok) throw new Error(`Workspace failed to start: ${normalizeText(result.stderr, 1000)}`);
     existing.lastStartedAt = now().toISOString();
@@ -206,7 +244,7 @@ function createFreelancerWorkspaceRuntime({ env = process.env, run = defaultRun,
       ...current,
       username: 'freelancer',
       password: existing.password,
-      warning: 'Treat these desktop credentials like a password. They are not stored in portal state.',
+      warning: 'Treat these browser credentials like a password. They are not stored in portal state.',
     };
   }
 
@@ -215,6 +253,8 @@ function createFreelancerWorkspaceRuntime({ env = process.env, run = defaultRun,
 
 module.exports = {
   DEFAULT_IMAGE,
+  DEFAULT_HOST_RESERVE_MB,
+  DEFAULT_MEMORY_MB,
   buildDockerRunArgs,
   containerNameForWorkspace,
   createFreelancerWorkspaceRuntime,
