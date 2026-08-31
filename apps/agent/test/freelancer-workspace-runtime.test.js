@@ -17,7 +17,9 @@ test('docker workspace is isolated, agent-enabled and only loopback-published by
     timezone: 'America/Los_Angeles',
     password: 'secret',
   };
-  const args = buildDockerRunArgs(metadata, {});
+  const args = buildDockerRunArgs(metadata, {
+    FREELANCER_WORKSPACE_CGROUP_PARENT: '3dvr-workspaces.slice',
+  });
   assert.ok(args.includes('127.0.0.1:32123:3001'));
   assert.ok(args.includes('/tmp/fw-test-worker/config:/config'));
   assert.ok(args.includes('START_DOCKER=false'));
@@ -26,6 +28,8 @@ test('docker workspace is isolated, agent-enabled and only loopback-published by
   assert.ok(args.includes('MAX_RES=1920x1080'));
   assert.ok(args.includes('1024m'));
   assert.ok(args.includes('1.0'));
+  assert.ok(args.includes('--cgroup-parent'));
+  assert.ok(args.includes('3dvr-workspaces.slice'));
   assert.ok(args.some(arg => String(arg).includes('linuxserver/firefox')));
   assert.equal(args.includes('--privileged'), false);
   assert.equal(args.some(arg => String(arg).includes('/var/run/docker.sock')), false);
