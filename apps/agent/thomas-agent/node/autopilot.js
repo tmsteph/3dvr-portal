@@ -705,7 +705,7 @@ function buildActionItems(summary) {
       actions.push(`Website-quality review blocked outreach: ${excluded.join(', ')}`);
     }
   }
-  if (summary.campaign?.sendBlockedReason) {
+  if (summary.campaign?.sendBlockedReason && !isBusinessHoursDeferral(summary.campaign.sendBlockedReason)) {
     actions.push(`Campaign sending blocked: ${summary.campaign.sendBlockedReason}`);
   }
   if (summary.routeCounts?.formReady > 0) {
@@ -794,7 +794,14 @@ function buildEmail(summary, actions) {
   };
 }
 
-function shouldSendEmail({ actions, state, dryRun, noEmail }) {
+function isBusinessHoursDeferral(reason) {
+  return normalizeText(reason).toLowerCase().startsWith('outside business hours');
+}
+
+function shouldSendEmail({ actions, state, dryRun, noEmail, sendBlockedReason = '' }) {
+  if (isBusinessHoursDeferral(sendBlockedReason)) {
+    return { send: false, reason: 'outside business hours; operator summary deferred' };
+  }
   if (dryRun || noEmail) {
     return { send: false, reason: 'dry-run or no-email' };
   }
@@ -829,6 +836,7 @@ async function sendEmail(summary, actions, state) {
     state,
     dryRun: summary.dryRun,
     noEmail: summary.noEmail,
+    sendBlockedReason: summary.campaign?.sendBlockedReason || '',
   });
   if (!decision.send) {
     return { ok: false, skipped: true, reason: decision.reason };
