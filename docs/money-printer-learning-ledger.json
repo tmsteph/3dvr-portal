@@ -9,7 +9,17 @@
     "qualified_replies": 0,
     "calls_booked": 0,
     "customers": 0,
-    "revenue_cents": 0
+    "revenue_cents": 0,
+    "stripe_attributed_checkouts": 0,
+    "stripe_attributed_revenue_cents": 0,
+    "stripe_mrr_cents": 0,
+    "founder_customers": 0,
+    "friend_customers": 0,
+    "stranger_customers": 0,
+    "founder_revenue_cents": 0,
+    "friend_revenue_cents": 0,
+    "stranger_revenue_cents": 0,
+    "agent_cost_cents": 0
   },
   "backlog": [
     {
@@ -58,10 +68,64 @@
       "score": 0.125
     }
   ],
-  "outcomes": [],
+  "outcomes": [
+    {
+      "observed_at": "2026-08-30T23:59:46.353Z",
+      "experiment_id": "daemon-observation",
+      "source": "supervisor-cycle",
+      "signals": {
+        "visits": 0,
+        "signups": 0,
+        "qualified_leads": 0,
+        "outreach_sent": 0,
+        "qualified_replies": 0,
+        "calls_booked": 0,
+        "customers": 0,
+        "revenue_cents": 0,
+        "stripe_attributed_checkouts": 0,
+        "stripe_attributed_revenue_cents": 0,
+        "stripe_mrr_cents": 0,
+        "founder_customers": 0,
+        "friend_customers": 0,
+        "stranger_customers": 0,
+        "founder_revenue_cents": 0,
+        "friend_revenue_cents": 0,
+        "stranger_revenue_cents": 0,
+        "agent_cost_cents": 0
+      },
+      "delta": {
+        "visits": 0,
+        "signups": 0,
+        "qualified_leads": 0,
+        "outreach_sent": 0,
+        "qualified_replies": 0,
+        "calls_booked": 0,
+        "customers": 0,
+        "revenue_cents": 0,
+        "stripe_attributed_checkouts": 0,
+        "stripe_attributed_revenue_cents": 0,
+        "stripe_mrr_cents": 0,
+        "founder_customers": 0,
+        "friend_customers": 0,
+        "stranger_customers": 0,
+        "founder_revenue_cents": 0,
+        "friend_revenue_cents": 0,
+        "stranger_revenue_cents": 0,
+        "agent_cost_cents": 0
+      },
+      "milestone": "pre-revenue",
+      "stalled_cycles": 1,
+      "note": "Money Printer wake cycle started."
+    }
+  ],
   "decision": {
     "experiment_id": "market-customer-intake-automation-for-owner-led-service-busin",
-    "reason": "Executed one bounded GREEN action: prepare-validation-brief."
+    "reason": "Executed one bounded GREEN action: prepare-validation-brief.",
+    "change_dimension": "measurement",
+    "success_metric": "qualified_leads",
+    "one_variable_rule": "Change one meaningful variable per experiment; hold the rest constant long enough to measure.",
+    "should_adapt": false,
+    "autonomy_level": 0
   },
   "guardrails": {
     "auto_execute": [
@@ -127,5 +191,27 @@
       "artifact_path": "docs/money-printer-experiments/market-customer-intake-automation-for-owner-led-service-busin.md",
       "executed_at": "2026-07-12T17:28:02.917Z"
     }
-  ]
+  ],
+  "progress": {
+    "milestone": "pre-revenue",
+    "stranger_customers": 0,
+    "stranger_customer_goal": 10,
+    "stranger_customers_remaining": 10,
+    "stalled_cycles": 1,
+    "economics": {
+      "revenue_cents": 0,
+      "agent_cost_cents": 0,
+      "net_cents": 0,
+      "costs_measured": false,
+      "self_sustaining": false,
+      "weekly_budget_cents": 15000,
+      "budget_remaining_cents": 15000,
+      "budget_exhausted": false
+    },
+    "autonomy": {
+      "level": 0,
+      "label": "observe",
+      "rule": "Research, measure, and create internal artifacts only."
+    }
+  }
 }
