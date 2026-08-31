@@ -5,6 +5,9 @@ DEFAULT_ALIAS="${THREEDVR_DEV_ALIAS:-do-dev}"
 DEFAULT_HOST="${THREEDVR_DEV_HOST:-167.172.193.194}"
 DEFAULT_USER="${THREEDVR_DEV_USER:-root}"
 DEFAULT_KEY="${THREEDVR_DEV_KEY:-id_ed25519_3dvr}"
+OVH_HOST="${THREEDVR_OVH_HOST:-40.160.137.41}"
+DO_HOST="${THREEDVR_DO_HOST:-167.172.193.194}"
+HETZNER_HOST="${THREEDVR_HETZNER_HOST:-167.233.174.20}"
 
 usage() {
   cat <<'USAGE'
@@ -13,10 +16,14 @@ usage() {
 Commands:
   3dvr device bootstrap [--host HOST] [--alias do-dev] [--user root] [--key id_ed25519_3dvr]
   3dvr device approve "PUBLIC_KEY"
+  3dvr device mesh [--name NAME] [--reverse-port PORT]
+  3dvr device mesh-status
 
-Run bootstrap on a new laptop/phone/tablet. It installs the local SSH alias,
-prints the public key, and prints the approval command for an existing server
-session. Run approve on the DigitalOcean server to authorize that public key.
+`mesh` prepares a phone or laptop as a roaming 3DVR node. It uses OVH as the
+always-on rendezvous, authorizes the device on DigitalOcean through OVH, and
+creates a loopback-only reverse SSH tunnel so cloud machines can reach the
+device even behind NAT. Hetzner joins automatically once its cloud SSH link is
+available.
 USAGE
 }
 
@@ -83,6 +90,8 @@ ensure_config_block() {
     printf '  User %s\n' "$server_user"
     printf '  IdentityFile %s\n' "$key_path"
     printf '  IdentitiesOnly yes\n'
+    printf '  ServerAliveInterval 30\n'
+    printf '  ServerAliveCountMax 3\n'
   } >> "$ssh_config"
   echo "Added SSH config: Host $alias_name -> $server_user@$host"
 }
@@ -150,12 +159,222 @@ approve() {
   fi
 }
 
+is_termux() {
+  command -v termux-info >/dev/null 2>&1 || case "${PREFIX:-}" in *com.termux*) return 0;; *) return 1;; esac
+}
+
+mesh_args() {
+  mesh_name="$(safe_name "$(hostname 2>/dev/null || echo device)")"
+  reverse_port=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --name) mesh_name="$(safe_name "${2:-}")"; shift 2 ;;
+      --name=*) mesh_name="$(safe_name "${1#--name=}")"; shift ;;
+      --reverse-port) reverse_port="${2:-}"; shift 2 ;;
+      --reverse-port=*) reverse_port="${1#--reverse-port=}"; shift ;;
+      --help|-h) usage; exit 0 ;;
+      *) die "Unknown mesh option: $1" ;;
+    esac
+  done
+  [ -n "$mesh_name" ] || die "Mesh node name is empty."
+  if [ -z "$reverse_port" ]; then
+    checksum="$(printf '%s' "$mesh_name" | cksum | awk '{print $1}')"
+    reverse_port=$((22000 + checksum % 1000))
+  fi
+  case "$reverse_port" in *[!0-9]*|'') die "Reverse port must be numeric.";; esac
+  [ "$reverse_port" -ge 20000 ] && [ "$reverse_port" -le 29999 ] || die "Reverse port must be between 20000 and 29999."
+}
+
+append_authorized_key() {
+  key="$1"
+  [ -n "$key" ] || return 0
+  mkdir -p "$HOME/.ssh"
+  chmod 700 "$HOME/.ssh"
+  touch "$HOME/.ssh/authorized_keys"
+  chmod 600 "$HOME/.ssh/authorized_keys"
+  grep -qxF "$key" "$HOME/.ssh/authorized_keys" || printf '%s\n' "$key" >> "$HOME/.ssh/authorized_keys"
+}
+
+mesh_remote_alias() {
+  source_alias="$1"
+  target_alias="$2"
+  target_user="$3"
+  target_port="$4"
+  proxy_jump="${5:-}"
+  proxy_line=""
+  [ -z "$proxy_jump" ] || proxy_line="  ProxyJump $proxy_jump"
+
+  payload="$(cat <<EOF
+set -euo pipefail
+cfg=\"\$HOME/.ssh/config\"
+mkdir -p \"\$HOME/.ssh\"; touch \"\$cfg\"; chmod 700 \"\$HOME/.ssh\"; chmod 600 \"\$cfg\"
+tmp=\"\$(mktemp)\"
+sed '/^# BEGIN $target_alias\$/,/^# END $target_alias\$/d' \"\$cfg\" > \"\$tmp\"
+cat >> \"\$tmp\" <<'CFG'
+# BEGIN $target_alias
+Host $target_alias
+  HostName 127.0.0.1
+  Port $target_port
+  User $target_user
+  IdentityFile ~/.ssh/id_ed25519_3dvr_mesh
+  IdentitiesOnly yes
+  StrictHostKeyChecking accept-new
+  ConnectTimeout 6
+  ServerAliveInterval 30
+$proxy_line
+# END $target_alias
+CFG
+mv \"\$tmp\" \"\$cfg\"; chmod 600 \"\$cfg\"
+EOF
+)"
+  ssh -o BatchMode=yes -o ConnectTimeout=8 "$source_alias" "$payload"
+}
+
+mesh_join() {
+  mesh_args "$@"
+  ssh_dir="$HOME/.ssh"
+  key_name="id_ed25519_3dvr"
+  key_path="$ssh_dir/$key_name"
+  local_user="$(id -un)"
+  local_port="${THREEDVR_DEVICE_SSH_PORT:-22}"
+  if is_termux; then
+    local_port="${THREEDVR_DEVICE_SSH_PORT:-8022}"
+    command -v sshd >/dev/null 2>&1 || die "Termux needs OpenSSH. Run: pkg install openssh"
+    pgrep -x sshd >/dev/null 2>&1 || sshd
+  fi
+
+  mkdir -p "$ssh_dir"
+  chmod 700 "$ssh_dir"
+  if [ ! -s "$key_path" ]; then
+    ssh-keygen -q -t ed25519 -N '' -C "$mesh_name-3dvr" -f "$key_path"
+  fi
+  chmod 600 "$key_path"
+  public_key="$(cat "$key_path.pub")"
+
+  ensure_config_block "$ssh_dir/config" 3dvr-ovh "$OVH_HOST" debian "$key_path"
+  ensure_config_block "$ssh_dir/config" 3dvr-do "$DO_HOST" root "$key_path"
+  ensure_config_block "$ssh_dir/config" 3dvr-hetzner "$HETZNER_HOST" root "$key_path"
+
+  if ! ssh -o BatchMode=yes -o ConnectTimeout=6 3dvr-ovh true >/dev/null 2>&1; then
+    cat <<EOF
+This device is prepared but needs one approval on OVH.
+
+Public key:
+$public_key
+
+Authorize that key on OVH, then rerun:
+  3dvr device mesh --name $mesh_name --reverse-port $reverse_port
+EOF
+    return 2
+  fi
+
+  approve_cmd="umask 077; mkdir -p \"\$HOME/.ssh\"; touch \"\$HOME/.ssh/authorized_keys\"; chmod 700 \"\$HOME/.ssh\"; chmod 600 \"\$HOME/.ssh/authorized_keys\"; grep -qxF $(quote_sh "$public_key") \"\$HOME/.ssh/authorized_keys\" || printf '%s\\n' $(quote_sh "$public_key") >> \"\$HOME/.ssh/authorized_keys\""
+  ssh -o BatchMode=yes 3dvr-ovh "ssh 3dvr-do $(quote_sh "$approve_cmd")"
+
+  ovh_pub="$(ssh -o BatchMode=yes 3dvr-ovh 'cat ~/.ssh/id_ed25519_3dvr_mesh.pub')"
+  do_pub="$(ssh -o BatchMode=yes 3dvr-ovh "ssh 3dvr-do 'cat ~/.ssh/id_ed25519_3dvr_mesh.pub'")"
+  append_authorized_key "$ovh_pub"
+  append_authorized_key "$do_pub"
+
+  node_alias="3dvr-$mesh_name"
+  mesh_remote_alias 3dvr-ovh "$node_alias" "$local_user" "$reverse_port"
+  if ssh -o BatchMode=yes 3dvr-ovh 'ssh -o BatchMode=yes -o ConnectTimeout=5 3dvr-do true' >/dev/null 2>&1; then
+    do_payload="$(cat <<EOF
+set -euo pipefail
+cfg=\"\$HOME/.ssh/config\"; touch \"\$cfg\"; chmod 600 \"\$cfg\"; tmp=\"\$(mktemp)\"
+sed '/^# BEGIN $node_alias\$/,/^# END $node_alias\$/d' \"\$cfg\" > \"\$tmp\"
+cat >> \"\$tmp\" <<'CFG'
+# BEGIN $node_alias
+Host $node_alias
+  HostName 127.0.0.1
+  Port $reverse_port
+  User $local_user
+  ProxyJump 3dvr-ovh
+  IdentityFile ~/.ssh/id_ed25519_3dvr_mesh
+  IdentitiesOnly yes
+  StrictHostKeyChecking accept-new
+  ConnectTimeout 6
+# END $node_alias
+CFG
+mv \"\$tmp\" \"\$cfg\"; chmod 600 \"\$cfg\"
+EOF
+)"
+    ssh -o BatchMode=yes 3dvr-ovh "ssh 3dvr-do $(quote_sh "$do_payload")"
+  fi
+
+  tunnel_dir="$HOME/.3dvr/bin"
+  tunnel_script="$tunnel_dir/mesh-tunnel-$mesh_name"
+  mkdir -p "$tunnel_dir"
+  cat > "$tunnel_script" <<EOF
+#!/usr/bin/env bash
+exec ssh -N -T -o ExitOnForwardFailure=yes -o BatchMode=yes -o ConnectTimeout=8 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -R 127.0.0.1:$reverse_port:127.0.0.1:$local_port 3dvr-ovh
+EOF
+  chmod 700 "$tunnel_script"
+
+  if command -v systemctl >/dev/null 2>&1 && ! is_termux; then
+    unit_dir="$HOME/.config/systemd/user"
+    unit="$unit_dir/3dvr-mesh-$mesh_name.service"
+    mkdir -p "$unit_dir"
+    cat > "$unit" <<EOF
+[Unit]
+Description=3DVR roaming mesh tunnel ($mesh_name)
+After=network-online.target
+
+[Service]
+ExecStart=$tunnel_script
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+EOF
+    systemctl --user daemon-reload >/dev/null 2>&1 || true
+    systemctl --user enable --now "3dvr-mesh-$mesh_name.service" >/dev/null 2>&1 || true
+  fi
+
+  if ! pgrep -f "mesh-tunnel-$mesh_name" >/dev/null 2>&1; then
+    nohup "$tunnel_script" >"$HOME/.3dvr/mesh-$mesh_name.log" 2>&1 &
+    sleep 1
+  fi
+
+  echo "Mesh node: $node_alias"
+  echo "OVH: connected"
+  echo "DigitalOcean: device key authorized"
+  if ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-ovh "ssh -o BatchMode=yes -o ConnectTimeout=6 $node_alias true" >/dev/null 2>&1; then
+    echo "Reverse path: healthy"
+  else
+    echo "Reverse path: tunnel started; verification pending"
+  fi
+  if ssh -o BatchMode=yes -o ConnectTimeout=5 3dvr-hetzner true >/dev/null 2>&1; then
+    echo "Hetzner: directly reachable from this device"
+  else
+    echo "Hetzner: pending cloud-side SSH recovery"
+  fi
+}
+
+mesh_status() {
+  for alias_name in 3dvr-ovh 3dvr-do 3dvr-hetzner; do
+    if ssh -o BatchMode=yes -o ConnectTimeout=4 "$alias_name" true >/dev/null 2>&1; then
+      echo "$alias_name: reachable"
+    else
+      echo "$alias_name: unavailable"
+    fi
+  done
+  if pgrep -af 'mesh-tunnel-' >/dev/null 2>&1; then
+    echo "reverse tunnel: running"
+  else
+    echo "reverse tunnel: not running"
+  fi
+}
+
 cmd="${1:-help}"
 shift || true
 
 case "$cmd" in
   bootstrap|connect|setup) bootstrap "$@" ;;
   approve|authorize) approve "$@" ;;
+  mesh|join) mesh_join "$@" ;;
+  mesh-status|status) mesh_status "$@" ;;
   help|-h|--help) usage ;;
   *) usage; exit 1 ;;
 esac
