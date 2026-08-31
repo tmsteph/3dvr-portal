@@ -12,6 +12,7 @@
   <script src="/gun-init.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="/auth-identity.js" defer></script>
   <script type="module" src="./app.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -32,11 +33,12 @@
     <section class="hero">
       <div>
         <p class="eyebrow">Freelancer client system</p>
-        <h1>Find work. Remember people. Get called again.</h1>
+        <h1>Find work. Apply. Book. Get paid.</h1>
         <p class="lede">One simple desk for leads, follow-ups, booked gigs, and getting paid.</p>
       </div>
       <div class="hero-actions">
-        <button class="button primary" type="button" data-open-dialog="clientDialog">+ Client</button>
+        <button class="button primary" type="button" data-open-dialog="opportunityDialog">+ Opportunity</button>
+        <button class="button" type="button" data-open-dialog="clientDialog">+ Client</button>
         <button class="button" type="button" data-open-dialog="gigDialog">+ Gig</button>
         <a class="button" href="/freelance/schedule.html">Schedule</a>
         <a class="button" href="/freelance/workspace.html">Workspace</a>
@@ -48,6 +50,13 @@
       <article><strong id="metricBooked">0</strong><span>Upcoming gigs</span></article>
       <article><strong id="metricActive">0</strong><span>Repeat clients</span></article>
       <article><strong id="metricUnpaid">0</strong><span>Need payment</span></article>
+    </section>
+
+    <section class="metrics opportunity-metrics" aria-label="Opportunity metrics">
+      <article><strong id="metricReady">0</strong><span>Ready to apply</span></article>
+      <article><strong id="metricApplied">0</strong><span>Applications out</span></article>
+      <article><strong id="metricConversations">0</strong><span>Interviews / offers</span></article>
+      <article><strong id="metricOpportunityBooked">0</strong><span>Won opportunities</span></article>
     </section>
 
     <section class="today-grid" aria-label="Today">
@@ -72,6 +81,17 @@
           <a class="button" href="/av-freelance/">AV launchpad</a>
         </div>
       </article>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Opportunity pipeline</p>
+          <h2>Work pipeline</h2>
+        </div>
+        <button class="button compact" type="button" data-open-dialog="opportunityDialog">+ Opportunity</button>
+      </div>
+      <div id="opportunityList" class="gig-list empty-target"></div>
     </section>
 
     <section class="panel">
@@ -109,6 +129,31 @@
       <div id="unpaidList" class="stack empty-target"></div>
     </section>
   </main>
+
+  <dialog id="opportunityDialog" class="dialog">
+    <form id="opportunityForm" method="dialog">
+      <div class="dialog-heading">
+        <div><p class="eyebrow">New opportunity</p><h2>Track work</h2></div>
+        <button class="icon-button" type="button" data-close-dialog="opportunityDialog" aria-label="Close">×</button>
+      </div>
+      <div class="form-grid">
+        <label><span>Company</span><input id="opportunityCompany" autocomplete="organization" /></label>
+        <label><span>Role *</span><input id="opportunityTitle" required /></label>
+        <label><span>Location</span><input id="opportunityLocation" /></label>
+        <label><span>Compensation</span><input id="opportunityCompensation" placeholder="$600/day or $95k" /></label>
+        <label><span>Status</span><select id="opportunityStatus"><option>Found</option><option>Ready</option><option>Applied</option><option>Interview</option><option>Offered</option><option>Booked</option><option>Passed</option><option>Rejected</option></select></label>
+        <label><span>Fit score</span><input id="opportunityFitScore" type="number" min="0" max="100" value="70" /></label>
+        <label><span>Calendar</span><select id="opportunityAvailability"><option value="unknown">Not checked</option><option value="clear">Clear</option><option value="conflict">Conflict</option></select></label>
+        <label><span>Source URL</span><input id="opportunitySourceUrl" type="url" /></label>
+        <label class="wide"><span>Requirements / blockers</span><input id="opportunityRequirements" placeholder="Clearance, certification, travel…" /></label>
+        <label class="wide"><span>Notes</span><textarea id="opportunityNotes" rows="4"></textarea></label>
+      </div>
+      <div class="dialog-actions">
+        <button class="button" type="button" data-close-dialog="opportunityDialog">Cancel</button>
+        <button class="button primary" type="submit">Save opportunity</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="clientDialog" class="dialog">
     <form id="clientForm" method="dialog">

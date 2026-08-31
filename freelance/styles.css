@@ -260,3 +260,9 @@ h3 { margin: 0; font-size: 1.05rem; }
   .gig-row .card-actions { grid-column: 1 / -1; }
   .search-label input { width: 130px; }
 }
+
+.opportunity-metrics { margin-top: -4px; }
+.opportunity-row .opportunity-requirements {
+  color: var(--amber);
+  font-size: .82rem;
+}
