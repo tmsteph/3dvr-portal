@@ -21,6 +21,8 @@ test('docker workspace is isolated and only loopback-published by default', () =
   assert.ok(args.includes('127.0.0.1:32123:3001'));
   assert.ok(args.includes('/tmp/fw-test-worker/config:/config'));
   assert.ok(args.includes('START_DOCKER=false'));
+  assert.ok(args.includes('1536m'));
+  assert.ok(args.includes('1.0'));
   assert.equal(args.includes('--privileged'), false);
   assert.equal(args.some(arg => String(arg).includes('/var/run/docker.sock')), false);
 });
@@ -53,5 +55,9 @@ test('runtime provisions persistent metadata and starts/stops same container', a
   await runtime.start('fw-test-worker');
   assert.equal((await runtime.status('fw-test-worker')).status, 'running');
   assert.equal(calls.filter(call => call[1] === 'run').length, 1);
+  const second = await runtime.provision('fw-second-worker');
+  const secondMetadata = JSON.parse(await readFile(path.join(root, 'fw-second-worker', '.workspace.json'), 'utf8'));
+  assert.equal(second.status, 'running');
+  assert.notEqual(secondMetadata.port, metadata.port);
   await rm(root, { recursive: true, force: true });
 });
