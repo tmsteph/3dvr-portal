@@ -1,12 +1,13 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTrialHandler } from '../api/trial.js';
+import { calculateAvBookingEstimate, createTrialHandler } from '../api/trial.js';
 
 const baseConfig = {
   STRIPE_SECRET_KEY: 'sk_test_key',
   STRIPE_PRICE_ID: 'price_123',
   GMAIL_USER: 'bot@example.com',
   GMAIL_APP_PASSWORD: 'app_password',
+  OPERATOR_EMAIL_TO: 'operator@example.com',
   CHAT_PUSH_VAPID_PUBLIC_KEY: 'public-vapid-key',
 };
 
@@ -139,6 +140,113 @@ describe('trial handler', () => {
 
     assert.equal(res.statusCode, 400);
     assert.equal(chatPushStore.mock.calls.length, 0);
+  });
+
+  it('calculates AV booking overtime after a ten-hour day', () => {
+    const estimate = calculateAvBookingEstimate({
+      level: 'lead',
+      technicians: 2,
+      days: 2,
+      hoursPerDay: 12,
+    });
+
+    assert.equal(estimate.dayRate, 750);
+    assert.equal(estimate.baseTotal, 3000);
+    assert.equal(estimate.overtimeHoursPerDay, 2);
+    assert.equal(estimate.overtimeTotal, 900);
+    assert.equal(estimate.total, 3900);
+  });
+
+  it('emails a valid AV booking request privately without touching Stripe', async () => {
+    const stripe = createMockStripe();
+    const mailTransport = createMailTransport();
+    const handler = createTrialHandler({ stripeClient: stripe, mailTransport, config: baseConfig });
+    const req = {
+      method: 'POST',
+      body: {
+        kind: 'av-booking-request',
+        source: '3dvr.tech/hire-av',
+        name: 'Jordan Lee',
+        email: 'jordan@example.com',
+        company: 'Acme Events',
+        phone: '555-0100',
+        eventDate: '2026-09-15',
+        venue: 'San Diego Convention Center',
+        role: 'General session A1',
+        level: 'lead',
+        technicians: 1,
+        days: 2,
+        hoursPerDay: 10,
+        notes: 'Need someone comfortable with corporate general sessions.',
+        companyWebsite: '',
+      },
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body, { success: true, estimate: 1500, currency: 'USD' });
+    assert.equal(mailTransport.sendMail.mock.calls.length, 1);
+    assert.equal(stripe.customers.list.mock.calls.length, 0);
+    assert.equal(stripe.subscriptions.create.mock.calls.length, 0);
+
+    const message = mailTransport.sendMail.mock.calls[0].arguments[0];
+    assert.equal(message.to, 'operator@example.com');
+    assert.equal(message.replyTo, 'jordan@example.com');
+    assert.match(message.subject, /AV booking request/);
+    assert.match(message.text, /San Diego Convention Center/);
+    assert.match(message.text, /"total": 1500/);
+  });
+
+  it('rejects incomplete AV booking requests without sending mail', async () => {
+    const mailTransport = createMailTransport();
+    const handler = createTrialHandler({
+      stripeClient: createMockStripe(),
+      mailTransport,
+      config: baseConfig,
+    });
+    const req = {
+      method: 'POST',
+      body: {
+        kind: 'av-booking-request',
+        email: 'not-an-email',
+        name: 'Jordan',
+        level: 'lead',
+        technicians: 1,
+        days: 1,
+        hoursPerDay: 10,
+      },
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(mailTransport.sendMail.mock.calls.length, 0);
+  });
+
+  it('silently drops honeypot AV booking spam', async () => {
+    const mailTransport = createMailTransport();
+    const handler = createTrialHandler({
+      stripeClient: createMockStripe(),
+      mailTransport,
+      config: baseConfig,
+    });
+    const req = {
+      method: 'POST',
+      body: {
+        kind: 'av-booking-request',
+        companyWebsite: 'https://spam.example',
+      },
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body, { success: true });
+    assert.equal(mailTransport.sendMail.mock.calls.length, 0);
   });
 
   it('rejects invalid email payloads', async () => {
