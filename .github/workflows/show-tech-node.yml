@@ -22,4 +22,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node --test show-tech/test.mjs
+      - run: node --test show-tech/test.mjs show-tech/cloud-stage-test.mjs
