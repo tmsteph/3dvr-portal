@@ -1,5 +1,5 @@
 const { randomBytes } = require('node:crypto');
-const { mkdir, readFile, writeFile, chmod } = require('node:fs/promises');
+const { mkdir, readFile, writeFile, chmod, readdir } = require('node:fs/promises');
 const net = require('node:net');
 const path = require('node:path');
 const { promisify } = require('node:util');
@@ -35,6 +35,8 @@ function buildDockerRunArgs(metadata, env = process.env) {
     '--label', `3dvr.workspace=${metadata.workspaceId}`,
     '--restart', 'unless-stopped',
     '--shm-size', '1g',
+    '--memory', normalizeText(env.FREELANCER_WORKSPACE_MEMORY, 40) || '1536m',
+    '--cpus', normalizeText(env.FREELANCER_WORKSPACE_CPUS, 20) || '1.0',
     '-e', 'PUID=1000',
     '-e', 'PGID=1000',
     '-e', `TZ=${timezone}`,
@@ -66,24 +68,8 @@ async function canListen(port, host = '127.0.0.1') {
   });
 }
 
-async function findAvailablePort(env = process.env) {
-  const start = Math.max(1024, Number(env.FREELANCER_WORKSPACE_PORT_START) || 32000);
-  const end = Math.min(65535, Number(env.FREELANCER_WORKSPACE_PORT_END) || 32999);
-  for (let port = start; port <= end; port += 1) {
-    if (await canListen(port)) return port;
-  }
-  throw new Error('No freelancer workspace ports are available.');
-}
-
 function workspaceRoot(env = process.env) {
   return normalizeText(env.FREELANCER_WORKSPACE_ROOT, 400) || '/var/lib/3dvr/freelancer-workspaces';
-}
-
-function publicUrl(metadata, env = process.env) {
-  const configured = normalizeText(env.FREELANCER_WORKSPACE_PUBLIC_BASE_URL, 400).replace(/\/+$/g, '');
-  if (configured) return `${configured}/${metadata.workspaceId}/`;
-  const bindAddress = normalizeText(env.FREELANCER_WORKSPACE_BIND_ADDRESS, 80) || '127.0.0.1';
-  return `https://${bindAddress}:${metadata.port}/`;
 }
 
 function metadataPath(rootDir) {
@@ -97,6 +83,40 @@ async function readMetadata(rootDir) {
     if (error?.code === 'ENOENT') return null;
     throw error;
   }
+}
+
+async function allocatedWorkspacePorts(env = process.env) {
+  const root = workspaceRoot(env);
+  const allocated = new Set();
+  let entries = [];
+  try {
+    entries = await readdir(root, { withFileTypes: true });
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const metadata = await readMetadata(path.join(root, entry.name)).catch(() => null);
+    if (Number.isInteger(Number(metadata?.port))) allocated.add(Number(metadata.port));
+  }
+  return allocated;
+}
+
+async function findAvailablePort(env = process.env) {
+  const start = Math.max(1024, Number(env.FREELANCER_WORKSPACE_PORT_START) || 32000);
+  const end = Math.min(65535, Number(env.FREELANCER_WORKSPACE_PORT_END) || 32999);
+  const allocated = await allocatedWorkspacePorts(env);
+  for (let port = start; port <= end; port += 1) {
+    if (!allocated.has(port) && await canListen(port)) return port;
+  }
+  throw new Error('No freelancer workspace ports are available.');
+}
+
+function publicUrl(metadata, env = process.env) {
+  const configured = normalizeText(env.FREELANCER_WORKSPACE_PUBLIC_BASE_URL, 400).replace(/\/+$/g, '');
+  if (configured) return `${configured}/${metadata.workspaceId}/`;
+  const bindAddress = normalizeText(env.FREELANCER_WORKSPACE_BIND_ADDRESS, 80) || '127.0.0.1';
+  return `https://${bindAddress}:${metadata.port}/`;
 }
 
 async function writeMetadata(rootDir, metadata) {
