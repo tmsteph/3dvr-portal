@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Schedule Coordinator | 3DVR</title>
+  <meta name="description" content="Coordinate freelance bookings, Encore time-off, IATSE availability, and protected rest days." />
+  <meta name="theme-color" content="#07111f" />
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-mark.svg" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script type="module" src="./schedule.js"></script>
+  <style>
+    .schedule-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; }
+    .schedule-list { display:grid; gap:10px; }
+    .schedule-row { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:14px; border:1px solid rgba(148,163,184,.18); border-radius:14px; }
+    .schedule-row strong { display:block; margin-bottom:4px; }
+    .schedule-row p { margin:0; opacity:.78; }
+    .status-warning { color:#fbbf24; }
+    .status-danger { color:#f87171; }
+    .status-good { color:#86efac; }
+    .compact-form { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin-top:14px; }
+    .compact-form label { display:grid; gap:6px; }
+    .compact-form button { align-self:end; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">3DVR</a>
+    <nav aria-label="Freelancer navigation">
+      <a href="/freelance/">Freelancer Desk</a>
+      <a href="/calendar/">Calendar</a>
+      <a href="/crm/flow.html">CRM</a>
+      <a href="/sales/">Find clients</a>
+    </nav>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Freelancer manager</p>
+        <h1>Keep work from owning your calendar.</h1>
+        <p class="lede">Outside bookings become scheduling actions: protect IATSE availability, request Encore time off, and keep at least two real days off each week.</p>
+      </div>
+      <div class="hero-actions">
+        <a class="button" href="/freelance/">Back to clients</a>
+        <a class="button primary" href="/calendar/">Open calendar</a>
+      </div>
+    </section>
+
+    <section class="metrics" aria-label="Schedule metrics">
+      <article><strong id="metricOutside">0</strong><span>Outside work days</span></article>
+      <article><strong id="metricEncoreRequests">0</strong><span>UKG requests needed</span></article>
+      <article><strong id="metricRest">0</strong><span>Protected rest days</span></article>
+      <article><strong id="metricConflicts">0</strong><span>Conflicts</span></article>
+    </section>
+
+    <section class="schedule-grid">
+      <article class="panel">
+        <p class="eyebrow">Connections</p>
+        <h2>Work systems</h2>
+        <div class="schedule-list">
+          <div class="schedule-row"><div><strong>IATSE Local 122</strong><p>Availability connector target</p></div><span class="status-warning">Needs product session</span></div>
+          <div class="schedule-row"><div><strong>Encore UKG / UltiPro</strong><p>Time-off request connector</p></div><span class="status-warning">Login required</span></div>
+          <div class="schedule-row"><div><strong>3DVR Freelancer Desk</strong><p>Booked outside gigs</p></div><span class="status-good">Live</span></div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <p class="eyebrow">Guardrail</p>
+        <h2>Two days off</h2>
+        <p>The coordinator reserves at least two non-work days per Monday–Sunday week and prefers consecutive days whenever the schedule allows it.</p>
+        <form id="protectedForm" class="compact-form">
+          <label><span>Protect a date</span><input id="protectedDate" type="date" required /></label>
+          <label><span>Reason</span><input id="protectedLabel" placeholder="Personal / appointment" /></label>
+          <button class="button primary" type="submit">Protect day</button>
+        </form>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div><p class="eyebrow">Do this next</p><h2>Scheduling actions</h2></div>
+        <span id="syncState" class="status-pill">Syncing</span>
+      </div>
+      <div id="actionList" class="schedule-list"></div>
+    </section>
+
+    <section class="schedule-grid">
+      <article class="panel">
+        <p class="eyebrow">Rest first</p>
+        <h2>Protected days</h2>
+        <div id="restList" class="schedule-list"></div>
+      </article>
+      <article class="panel">
+        <p class="eyebrow">Manual bridge</p>
+        <h2>Encore shifts</h2>
+        <p>Use this only until the UKG/Lighthouse schedule connector is wired into 3DVR.</p>
+        <form id="encoreForm" class="compact-form">
+          <label><span>Date</span><input id="encoreDate" type="date" required /></label>
+          <label><span>Shift / event</span><input id="encoreTitle" placeholder="Encore shift" /></label>
+          <button class="button" type="submit">Add shift</button>
+        </form>
+        <div id="encoreList" class="schedule-list" style="margin-top:14px"></div>
+      </article>
+    </section>
+  </main>
+
+  <footer class="shell footer">
+    <span>3DVR — Work should fit your life.</span>
+    <a href="/freelance/">Freelancer Desk</a>
+  </footer>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
