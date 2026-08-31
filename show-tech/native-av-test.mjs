@@ -67,8 +67,8 @@ test('native AV test pushes video and audio buffers through GStreamer headlessly
   });
   assert.equal(response.status, 202);
   const accepted = await response.json();
-  assert.equal(accepted.nativeResult.backend, 'gstreamer');
-  assert.equal(accepted.nativeResult.headless, true);
+  assert.equal(accepted.adapterResult.backend, 'gstreamer');
+  assert.equal(accepted.adapterResult.headless, true);
 
   const native = await waitForNativeComplete();
   assert.equal(native.lastExit.code, 0);
