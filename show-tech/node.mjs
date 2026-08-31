@@ -5,6 +5,7 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import { URL } from 'node:url';
 import { createNativeAvAdapter } from './native-av.mjs';
+import { createPipewireAudioAdapter } from './pipewire-audio.mjs';
 
 const HTTP_PORT = Number(process.env.SHOW_NODE_PORT || 47771);
 const DISCOVERY_PORT = Number(process.env.SHOW_DISCOVERY_PORT || 47770);
@@ -30,32 +31,46 @@ function emit(event) {
 }
 
 const nativeAv = createNativeAvAdapter({ emit });
+const pipewire = createPipewireAudioAdapter({ emit });
 const state = {
   display: { background: '#000000', text: '3DVR Show Node', textColor: '#ffffff' },
   media: { src: null, playing: false, volume: 1, muted: false },
   native: nativeAv.state,
+  audio: pipewire.state,
 };
 
-const capabilities = {
-  protocol: '3dvr-show-node/0.1',
-  node: { id: nodeId, name: nodeName, platform: process.platform, arch: process.arch },
-  endpoints: { httpPort: HTTP_PORT, outputPath: '/output' },
-  capabilities: [
-    { id: 'display.browser', kind: 'video.output', actions: ['display.color', 'display.text'] },
-    { id: 'media.browser', kind: 'av.output', actions: ['media.load', 'media.play', 'media.pause', 'media.volume', 'media.mute'] },
-    ...nativeAv.capabilities(),
-  ],
-};
+const nodeIdentity = { id: nodeId, name: nodeName, platform: process.platform, arch: process.arch };
+function capabilityEnvelope() {
+  return {
+    protocol: '3dvr-show-node/0.1',
+    node: nodeIdentity,
+    endpoints: { httpPort: HTTP_PORT, outputPath: '/output' },
+    capabilities: [
+      { id: 'display.browser', kind: 'video.output', actions: ['display.color', 'display.text'] },
+      { id: 'media.browser', kind: 'av.output', actions: ['media.load', 'media.play', 'media.pause', 'media.volume', 'media.mute'] },
+      ...nativeAv.capabilities(),
+      ...pipewire.capabilities(),
+    ],
+  };
+}
+
+function adapterAction(action) {
+  const nativeResult = nativeAv.handle(action);
+  if (nativeResult !== null) return nativeResult;
+  const audioResult = pipewire.handle(action);
+  if (audioResult !== null) return audioResult;
+  return null;
+}
 
 function applyAction(action) {
   const { type, payload = {} } = action || {};
-  const nativeResult = nativeAv.handle(action);
-  if (nativeResult !== null) {
+  const adapterResult = adapterAction(action);
+  if (adapterResult !== null) {
     const event = {
       type: 'state',
       actionId: action.id || crypto.randomUUID(),
       appliedAt: Date.now(),
-      nativeResult,
+      adapterResult,
       state,
     };
     emit(event);
@@ -139,8 +154,14 @@ const events=new EventSource('/v1/events'); events.onmessage=e=>{const m=JSON.pa
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  if (req.method === 'GET' && url.pathname === '/v1/health') return json(res, 200, { ok: true, nodeId, uptimeMs: Date.now() - startedAt, nativeAv: nativeAv.state });
-  if (req.method === 'GET' && url.pathname === '/v1/capabilities') return json(res, 200, capabilities);
+  if (req.method === 'GET' && url.pathname === '/v1/health') return json(res, 200, {
+    ok: true,
+    nodeId,
+    uptimeMs: Date.now() - startedAt,
+    nativeAv: nativeAv.state,
+    pipewire: pipewire.state,
+  });
+  if (req.method === 'GET' && url.pathname === '/v1/capabilities') return json(res, 200, capabilityEnvelope());
   if (req.method === 'GET' && url.pathname === '/v1/state') return json(res, 200, state);
   if (req.method === 'GET' && url.pathname === '/v1/events') {
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
@@ -165,13 +186,14 @@ server.listen(HTTP_PORT, '0.0.0.0', () => {
   console.log(`3DVR Show Node ${nodeId}`);
   console.log(`Output: http://0.0.0.0:${HTTP_PORT}/output`);
   console.log(`Native AV: ${nativeAv.state.available ? `${nativeAv.state.backend} (${nativeAv.state.outputMode})` : 'unavailable'}`);
+  console.log(`PipeWire: ${pipewire.state.sessionAvailable ? `${pipewire.state.sinks.length} sinks / ${pipewire.state.sources.length} sources` : pipewire.state.lastError || 'unavailable'}`);
   console.log(`Control token: ${token}`);
 });
 
 const discovery = dgram.createSocket('udp4');
 discovery.on('message', (msg, rinfo) => {
   if (msg.toString().trim() !== '3DVR_SHOW_DISCOVER_V1') return;
-  const reply = Buffer.from(JSON.stringify({ ...capabilities.node, protocol: capabilities.protocol, httpPort: HTTP_PORT }));
+  const reply = Buffer.from(JSON.stringify({ ...nodeIdentity, protocol: '3dvr-show-node/0.1', httpPort: HTTP_PORT }));
   discovery.send(reply, rinfo.port, rinfo.address);
 });
 discovery.bind(DISCOVERY_PORT, '0.0.0.0', () => console.log(`Discovery UDP :${DISCOVERY_PORT}`));

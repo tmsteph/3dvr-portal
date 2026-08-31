@@ -26,4 +26,4 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gstreamer1.0-tools gstreamer1.0-plugins-base
-      - run: node --test show-tech/test.mjs show-tech/cloud-stage-test.mjs show-tech/native-av-test.mjs
+      - run: node --test show-tech/test.mjs show-tech/cloud-stage-test.mjs show-tech/native-av-test.mjs show-tech/pipewire-audio-test.mjs
