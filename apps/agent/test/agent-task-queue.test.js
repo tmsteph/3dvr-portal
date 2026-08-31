@@ -5,6 +5,7 @@ const {
   buildTaskArgs,
   canWorkerRunTask,
   enqueueTask,
+  enqueueFlushMs,
   formatTask,
   listTasks,
   readTask,
@@ -76,6 +77,12 @@ test('enqueueTask writes queued task records and summaries', async () => {
   assert.equal(list.length, 1);
   assert.equal(list[0].id, 'task-1');
   assert.equal(list[0].tenantId, 'google:123');
+});
+
+test('enqueueFlushMs keeps in-memory tests instant and gives relay writes a grace period', () => {
+  assert.equal(enqueueFlushMs({ rootNode: fakeRoot() }), 0);
+  assert.equal(enqueueFlushMs({ enqueueFlushMs: 0 }), 0);
+  assert.equal(enqueueFlushMs({ enqueueFlushMs: 750 }), 750);
 });
 
 test('buildTaskArgs includes execute and only passes unsafe when requested', () => {

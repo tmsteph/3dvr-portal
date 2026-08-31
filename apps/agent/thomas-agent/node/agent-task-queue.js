@@ -15,6 +15,7 @@ const DEFAULT_WORKER_INTERVAL_SECONDS = parseInteger(process.env.THREEDVR_AGENT_
 const DEFAULT_TASK_LIMIT = parseInteger(process.env.THREEDVR_AGENT_WORKER_LIMIT, 10);
 const DEFAULT_LEASE_TTL_MS = parseInteger(process.env.THREEDVR_AGENT_WORKER_LEASE_TTL_MS, 30 * 60 * 1000);
 const DEFAULT_TENANT_PLAN = process.env.THREEDVR_AGENT_TENANT_PLAN || 'free';
+const DEFAULT_ENQUEUE_FLUSH_MS = parseInteger(process.env.THREEDVR_AGENT_ENQUEUE_FLUSH_MS, 3000);
 const DEFAULT_WORKER_CAPABILITIES = process.env.THREEDVR_AGENT_WORKER_CAPABILITIES || 'node,auto,codex,openai,claude,openclaw,shell';
 const DEFAULT_WORKER_RISK_CLASSES = process.env.THREEDVR_AGENT_WORKER_RISK_CLASSES || 'read_only,draft,workspace_write';
 const VALID_RISK_CLASSES = new Set(['read_only', 'draft', 'workspace_write', 'external_write', 'money', 'credential']);
@@ -27,6 +28,13 @@ function parseInteger(value, fallback) {
 
 function normalizeText(value) {
   return String(value || '').trim();
+}
+
+function enqueueFlushMs(options = {}) {
+  if (options.rootNode) return 0;
+  if (options.enqueueFlushMs === undefined) return DEFAULT_ENQUEUE_FLUSH_MS;
+  const parsed = Number.parseInt(String(options.enqueueFlushMs), 10);
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : DEFAULT_ENQUEUE_FLUSH_MS;
 }
 
 function normalizeCsv(value) {
@@ -383,6 +391,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--unsafe') options.unsafe = true;
     else if (arg === '--json') options.json = true;
     else if (arg === '--interval-seconds') options.intervalSeconds = parseInteger(argv[++index], DEFAULT_WORKER_INTERVAL_SECONDS);
+    else if (arg === '--enqueue-flush-ms') options.enqueueFlushMs = parseInteger(argv[++index], DEFAULT_ENQUEUE_FLUSH_MS);
     else positional.push(arg);
   }
   options.task = positional.join(' ');
@@ -394,6 +403,8 @@ async function cli(argv = process.argv.slice(2)) {
   if (options.command === 'enqueue') {
     const record = await enqueueTask(options.task, options);
     console.log(options.json ? JSON.stringify(record, null, 2) : `Queued ${record.id}: ${record.task}`);
+    const flushMs = enqueueFlushMs(options);
+    if (flushMs > 0) await new Promise(resolve => setTimeout(resolve, flushMs));
     return;
   }
   if (options.command === 'list') {
@@ -440,6 +451,7 @@ module.exports = {
   canWorkerRunTask,
   csvToList,
   enqueueTask,
+  enqueueFlushMs,
   formatTask,
   listTasks,
   normalizeTaskRecord,
