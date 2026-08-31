@@ -1,4 +1,4 @@
-const OFFERS = new Set(['website-upgrade', 'automation-quick-win', 'business-sites']);
+const OFFERS = new Set(['website-upgrade', 'automation-quick-win', 'business-sites', 'freelancer-growth-autopilot']);
 const OWNER = /\b(legal|lawyer|tax|irs|refund|chargeback|bank transfer|wire transfer|password|credential|secret|api key|medical|hipaa|regulated)\b/i;
 const LOCAL = /\b(on[- ]?site|in person|physical install|mount|wiring|cabling|repair|delivery|moving|event setup|stagehand|hardware install|field service)\b/i;
 const CONTRACTOR = /\b(logo|graphic design|illustration|photography|video edit|3d model|3d modeling|cad|copywriting|translation|voiceover)\b/i;
@@ -24,7 +24,7 @@ export function readCheckoutFieldMap(session = {}) {
 }
 export function isAutoBusinessCheckout(session = {}) {
   const metadata = session?.metadata && typeof session.metadata === 'object' ? session.metadata : {};
-  const offer = lower(metadata.offer || metadata.offer_id || metadata.custom_label);
+  const offer = lower(metadata.offer || metadata.offer_id || metadata.product_key || metadata.custom_label);
   const source = lower(metadata.source);
   return OFFERS.has(offer) || source === 'autobusiness' || source === 'free-site-campaign';
 }
@@ -53,7 +53,7 @@ export function buildFulfillmentOrder(event = {}) {
 
   const metadata = session?.metadata && typeof session.metadata === 'object' ? session.metadata : {};
   const fields = readCheckoutFieldMap(session);
-  const offer = lower(metadata.offer || metadata.offer_id || metadata.custom_label) || 'autobusiness-order';
+  const offer = lower(metadata.offer || metadata.offer_id || metadata.product_key || metadata.custom_label) || 'autobusiness-order';
   const route = chooseFulfillmentLane({ offer, fields, metadata });
   const eventId = clean(event.id);
   const sessionId = clean(session.id);
