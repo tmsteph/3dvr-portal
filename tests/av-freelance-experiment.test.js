@@ -8,6 +8,9 @@ test('AV Freelance Launchpad runs a Gun-backed copy experiment on the free Work 
   assert.match(html, /id="heroCopy"/);
   assert.match(html, /data-work-agent-cta="hero"/);
   assert.match(html, /data-starter-kit-cta="hero"/);
+  assert.match(html, /No account, call, or manual delivery is required/);
+  assert.match(html, /Downloads unlock only after the returned checkout session is verified as paid/);
+  assert.match(html, /Pay \$9 — download immediately/);
   assert.match(html, /cdn\.jsdelivr\.net\/npm\/gun\/gun\.js/);
   assert.match(html, /type="module" src="\.\/experiment\.js"/);
   assert.match(js, /AV_FREELANCE_HERO_EXPERIMENT/);
