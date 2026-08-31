@@ -54,16 +54,16 @@ export function createPipewireAudioAdapter({
   command = process.env.SHOW_WPCTL_COMMAND || 'wpctl',
   runCommand = args => systemRun(command, args),
 } = {}) {
-  const version = runCommand(['--version']);
+  const probe = runCommand(['--help']);
   const state = {
-    toolAvailable: version.status === 0,
+    toolAvailable: probe.status === 0,
     sessionAvailable: false,
-    backend: version.status === 0 ? 'pipewire/wireplumber' : null,
+    backend: probe.status === 0 ? 'pipewire/wireplumber' : null,
     sinks: [],
     sources: [],
     devices: [],
     refreshedAt: null,
-    lastError: version.status === 0 ? null : 'wpctl is not installed',
+    lastError: probe.status === 0 ? null : 'wpctl is not installed',
   };
 
   function refresh({ quiet = false } = {}) {
