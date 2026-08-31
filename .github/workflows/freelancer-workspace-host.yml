@@ -77,10 +77,11 @@ jobs:
           node_bin="$(command -v node || true)"
           if [ -x /opt/node-v22/bin/node ]; then node_bin=/opt/node-v22/bin/node; fi
           [ -n "$node_bin" ] || { echo 'Node is not installed on workspace host.' >&2; exit 1; }
+          echo "HOST_NODE=$($node_bin --version)"
           "$node_bin" --check "$repo/apps/agent/thomas-agent/node/freelancer-workspace-runtime.js"
           "$node_bin" --check "$repo/apps/agent/thomas-agent/node/freelancer-workspace.js"
-          FREELANCER_WORKSPACE_ROOT="$HOME/.3dvr/freelancer-workspaces" \
-            "$repo/apps/agent/thomas-agent/scripts/ask-freelancer-workspace" status fw-host-health --json
+          PATH="$(dirname "$node_bin"):$PATH" FREELANCER_WORKSPACE_ROOT="$HOME/.3dvr/freelancer-workspaces" \
+            bash "$repo/apps/agent/thomas-agent/scripts/ask-freelancer-workspace" status fw-host-health --json
 
           if command -v docker >/dev/null 2>&1 && docker version >/dev/null 2>&1; then
             echo 'WORKSPACE_DOCKER_READY=1'
