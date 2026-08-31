@@ -111,7 +111,7 @@
       <div>
         <p class="eyebrow">One-minute brief</p>
         <h2 id="brief-heading">What should your website say?</h2>
-        <p class="section-copy">Give us the basics. The email it opens is also our automation trigger, so your request goes straight into the build queue.</p>
+        <p class="section-copy">Give us the basics. Submit once and the automated build queue takes it from there.</p>
       </div>
 
       <form class="brief-card" id="freePageBrief">
@@ -127,17 +127,18 @@
           What do you want customers to hire, book, buy, or understand?
           <textarea name="offer" rows="4" placeholder="I do lighting for corporate events. I want people to see what I do and email me for availability." required></textarea>
         </label>
+        <input name="website" type="text" tabindex="-1" autocomplete="off" hidden aria-hidden="true">
         <button class="button primary wide" type="submit">Request my free live site</button>
       </form>
     </section>
 
     <section class="handoff" aria-live="polite">
       <div>
-        <p class="eyebrow">Final step</p>
-        <h2>Send the email. We’ll return with the live site.</h2>
-        <p id="handoffCopy">Your request is also saved to the 3DVR follow-up desk. Send the prepared email and the automated build queue can pick it up.</p>
+        <p class="eyebrow">Automated handoff</p>
+        <h2>Submit once. We’ll return with the live site.</h2>
+        <p id="handoffCopy">Your request goes straight to the automated build queue. Email is available only as a fallback if direct intake is unavailable.</p>
       </div>
-      <a id="mailtoLink" class="button secondary" href="mailto:3dvr.tech@gmail.com?subject=Free%203DVR%20website">Email 3DVR</a>
+      <a id="mailtoLink" class="button secondary" href="mailto:3dvr.tech@gmail.com?subject=Free%203DVR%20website">Email 3DVR instead</a>
     </section>
 
     <section class="keep-live">

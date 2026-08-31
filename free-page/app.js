@@ -150,10 +150,29 @@ function buildMailto(formData) {
   return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
+async function submitDirectRequest(formData) {
+  const response = await fetch('/api/calendar/reminder-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      mode: 'free-site-request',
+      name: valueFor(formData, 'name', ''),
+      email: valueFor(formData, 'email', ''),
+      offer: valueFor(formData, 'offer', ''),
+      website: valueFor(formData, 'website', '')
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.success) {
+    throw new Error(payload?.error || `Free-site intake returned ${response.status}`);
+  }
+  return payload;
+}
+
 function trackLeadIntent() {
   if (typeof window.gtag === 'function') {
     window.gtag('event', 'generate_lead', {
-      method: 'free_live_site_email'
+      method: 'free_live_site_direct'
     });
   }
   return trackFirstPartyEvent('generate_lead');
@@ -194,14 +213,31 @@ if (form && mailtoLink && handoffCopy) {
     event.preventDefault();
     const formData = new FormData(form);
     const href = buildMailto(formData);
+    const submitButton = form.querySelector('button[type="submit"]');
     mailtoLink.href = href;
-    handoffCopy.textContent = 'Your request is in the 3DVR follow-up desk. Send the prepared email so the automated build queue can return a live site link.';
-    await Promise.race([
+    if (submitButton) submitButton.disabled = true;
+    handoffCopy.textContent = 'Submitting your request to the automated build queue…';
+
+    const sideEffects = Promise.allSettled([
       saveBriefToCrm(formData),
-      trackLeadIntent(),
-      new Promise(resolve => setTimeout(resolve, 800))
+      trackLeadIntent()
     ]);
-    window.location.href = href;
+
+    try {
+      await submitDirectRequest(formData);
+      await Promise.race([
+        sideEffects,
+        new Promise(resolve => setTimeout(resolve, 800))
+      ]);
+      handoffCopy.textContent = 'Request received. The automated build queue will publish the site and email you the live link.';
+      if (submitButton) submitButton.textContent = 'Request received';
+      form.reset();
+    } catch (error) {
+      console.info('Direct free-site intake unavailable; falling back to email.', error.message);
+      handoffCopy.textContent = 'Direct intake is temporarily unavailable. Send the prepared email to place the same request in the build queue.';
+      if (submitButton) submitButton.disabled = false;
+      window.location.href = href;
+    }
   });
 
   form.addEventListener('input', () => {

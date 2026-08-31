@@ -81,17 +81,22 @@ test('free page layouts contain folded-phone overflow guards', () => {
   }
 });
 
-test('free page brief routes inbound email into the live-site build queue', () => {
+test('free page brief submits directly into the live-site build queue with email fallback', () => {
+  assert.match(script, /\/api\/calendar\/reminder-email/);
+  assert.match(script, /mode: 'free-site-request'/);
+  assert.match(script, /submitDirectRequest/);
   assert.match(script, /mailto:/);
   assert.match(script, /Free 3DVR website request/);
   assert.match(script, /3dvr\.tech@gmail\.com/);
   assert.match(script, /build the smallest useful version and email me the live URL/i);
   assert.match(script, /gtag\('event', 'generate_lead'/);
-  assert.match(script, /method: 'free_live_site_email'/);
+  assert.match(script, /method: 'free_live_site_direct'/);
   assert.match(script, /trackFirstPartyEvent\('page_view'\)/);
   assert.match(script, /trackFirstPartyEvent\('generate_lead'\)/);
   assert.match(script, /saveBriefToCrm/);
   assert.match(script, /3dvr-crm/);
   assert.match(script, /crm-touch-log/);
   assert.match(script, /Lead captured for automated build and email delivery/);
+  assert.match(html, /Submit once\. We’ll return with the live site/);
+  assert.match(html, /name="website"[^>]*hidden/);
 });
