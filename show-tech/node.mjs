@@ -4,6 +4,7 @@ import dgram from 'node:dgram';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import { URL } from 'node:url';
+import { createNativeAvAdapter } from './native-av.mjs';
 
 const HTTP_PORT = Number(process.env.SHOW_NODE_PORT || 47771);
 const DISCOVERY_PORT = Number(process.env.SHOW_DISCOVERY_PORT || 47770);
@@ -12,21 +13,6 @@ const nodeName = process.env.SHOW_NODE_NAME || os.hostname();
 const token = process.env.SHOW_NODE_TOKEN || crypto.randomBytes(18).toString('base64url');
 const startedAt = Date.now();
 const clients = new Set();
-
-const state = {
-  display: { background: '#000000', text: '3DVR Show Node', textColor: '#ffffff' },
-  media: { src: null, playing: false, volume: 1, muted: false },
-};
-
-const capabilities = {
-  protocol: '3dvr-show-node/0.1',
-  node: { id: nodeId, name: nodeName, platform: process.platform, arch: process.arch },
-  endpoints: { httpPort: HTTP_PORT, outputPath: '/output' },
-  capabilities: [
-    { id: 'display.browser', kind: 'video.output', actions: ['display.color', 'display.text'] },
-    { id: 'media.browser', kind: 'av.output', actions: ['media.load', 'media.play', 'media.pause', 'media.volume', 'media.mute'] },
-  ],
-};
 
 function json(res, status, body) {
   const data = JSON.stringify(body, null, 2);
@@ -43,8 +29,39 @@ function emit(event) {
   for (const client of clients) client.write(payload);
 }
 
+const nativeAv = createNativeAvAdapter({ emit });
+const state = {
+  display: { background: '#000000', text: '3DVR Show Node', textColor: '#ffffff' },
+  media: { src: null, playing: false, volume: 1, muted: false },
+  native: nativeAv.state,
+};
+
+const capabilities = {
+  protocol: '3dvr-show-node/0.1',
+  node: { id: nodeId, name: nodeName, platform: process.platform, arch: process.arch },
+  endpoints: { httpPort: HTTP_PORT, outputPath: '/output' },
+  capabilities: [
+    { id: 'display.browser', kind: 'video.output', actions: ['display.color', 'display.text'] },
+    { id: 'media.browser', kind: 'av.output', actions: ['media.load', 'media.play', 'media.pause', 'media.volume', 'media.mute'] },
+    ...nativeAv.capabilities(),
+  ],
+};
+
 function applyAction(action) {
   const { type, payload = {} } = action || {};
+  const nativeResult = nativeAv.handle(action);
+  if (nativeResult !== null) {
+    const event = {
+      type: 'state',
+      actionId: action.id || crypto.randomUUID(),
+      appliedAt: Date.now(),
+      nativeResult,
+      state,
+    };
+    emit(event);
+    return event;
+  }
+
   switch (type) {
     case 'display.color':
       state.display.background = String(payload.color || '#000000');
@@ -122,7 +139,7 @@ const events=new EventSource('/v1/events'); events.onmessage=e=>{const m=JSON.pa
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  if (req.method === 'GET' && url.pathname === '/v1/health') return json(res, 200, { ok: true, nodeId, uptimeMs: Date.now() - startedAt });
+  if (req.method === 'GET' && url.pathname === '/v1/health') return json(res, 200, { ok: true, nodeId, uptimeMs: Date.now() - startedAt, nativeAv: nativeAv.state });
   if (req.method === 'GET' && url.pathname === '/v1/capabilities') return json(res, 200, capabilities);
   if (req.method === 'GET' && url.pathname === '/v1/state') return json(res, 200, state);
   if (req.method === 'GET' && url.pathname === '/v1/events') {
@@ -147,6 +164,7 @@ const server = http.createServer((req, res) => {
 server.listen(HTTP_PORT, '0.0.0.0', () => {
   console.log(`3DVR Show Node ${nodeId}`);
   console.log(`Output: http://0.0.0.0:${HTTP_PORT}/output`);
+  console.log(`Native AV: ${nativeAv.state.available ? `${nativeAv.state.backend} (${nativeAv.state.outputMode})` : 'unavailable'}`);
   console.log(`Control token: ${token}`);
 });
 
@@ -157,3 +175,11 @@ discovery.on('message', (msg, rinfo) => {
   discovery.send(reply, rinfo.port, rinfo.address);
 });
 discovery.bind(DISCOVERY_PORT, '0.0.0.0', () => console.log(`Discovery UDP :${DISCOVERY_PORT}`));
+
+function shutdown() {
+  nativeAv.stop('shutdown');
+  discovery.close();
+  server.close(() => process.exit(0));
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
