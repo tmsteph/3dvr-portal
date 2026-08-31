@@ -5,6 +5,7 @@ const CONTRACTOR = /\b(logo|graphic design|illustration|photography|video edit|3
 
 const clean = value => String(value || '').trim();
 const lower = value => clean(value).toLowerCase();
+const normalizeOffer = value => lower(value).replace(/[_\s]+/g, '-');
 
 function money(cents, code = 'usd') {
   const amount = Number(cents || 0);
@@ -24,7 +25,7 @@ export function readCheckoutFieldMap(session = {}) {
 }
 export function isAutoBusinessCheckout(session = {}) {
   const metadata = session?.metadata && typeof session.metadata === 'object' ? session.metadata : {};
-  const offer = lower(metadata.offer || metadata.offer_id || metadata.product_key || metadata.custom_label);
+  const offer = normalizeOffer(metadata.offer || metadata.offer_id || metadata.product_key || metadata.custom_label);
   const source = lower(metadata.source);
   return OFFERS.has(offer) || source === 'autobusiness' || source === 'free-site-campaign';
 }
@@ -53,7 +54,7 @@ export function buildFulfillmentOrder(event = {}) {
 
   const metadata = session?.metadata && typeof session.metadata === 'object' ? session.metadata : {};
   const fields = readCheckoutFieldMap(session);
-  const offer = lower(metadata.offer || metadata.offer_id || metadata.product_key || metadata.custom_label) || 'autobusiness-order';
+  const offer = normalizeOffer(metadata.offer || metadata.offer_id || metadata.product_key || metadata.custom_label) || 'autobusiness-order';
   const route = chooseFulfillmentLane({ offer, fields, metadata });
   const eventId = clean(event.id);
   const sessionId = clean(session.id);
