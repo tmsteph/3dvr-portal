@@ -1,0 +1,96 @@
+name: Link OVH and DigitalOcean
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/cloud-core-link.yml']
+
+permissions:
+  contents: read
+
+env:
+  OVH_HOST: 40.160.137.41
+  OVH_USER: debian
+  DO_HOST: 167.172.193.194
+  DO_USER: root
+
+jobs:
+  link:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Resolve bootstrap key
+        shell: bash
+        env:
+          RAW_KEY: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "$RAW_KEY" ]
+          umask 077
+          printf '%s\n' "$RAW_KEY" > /tmp/key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/key.raw; then cp /tmp/key.raw /tmp/key; else base64 -d /tmp/key.raw > /tmp/key; fi
+          chmod 600 /tmp/key
+          rm -f /tmp/key.raw
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
+          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" true
+          ssh "${opts[@]}" "$DO_USER@$DO_HOST" true
+
+      - name: Generate dedicated mesh keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
+          keycmd='umask 077; mkdir -p "$HOME/.ssh"; test -s "$HOME/.ssh/id_ed25519_3dvr_mesh" || ssh-keygen -q -t ed25519 -N "" -C "3dvr-cloud-mesh" -f "$HOME/.ssh/id_ed25519_3dvr_mesh"; cat "$HOME/.ssh/id_ed25519_3dvr_mesh.pub"'
+          OVH_PUB="$(ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" "$keycmd")"
+          DO_PUB="$(ssh "${opts[@]}" "$DO_USER@$DO_HOST" "$keycmd")"
+          echo "OVH_PUB_B64=$(printf '%s' "$OVH_PUB" | base64 -w0)" >> "$GITHUB_ENV"
+          echo "DO_PUB_B64=$(printf '%s' "$DO_PUB" | base64 -w0)" >> "$GITHUB_ENV"
+
+      - name: Cross-authorize and add aliases
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
+          configure() {
+            local host="$1" user="$2" peer_b64="$3" alias="$4" peer_host="$5" peer_user="$6"
+            ssh "${opts[@]}" "$user@$host" "PEER_B64='$peer_b64' ALIAS='$alias' PEER_HOST='$peer_host' PEER_USER='$peer_user' bash -s" <<'REMOTE'
+          set -euo pipefail
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          touch "$HOME/.ssh/authorized_keys"
+          chmod 700 "$HOME/.ssh"; chmod 600 "$HOME/.ssh/authorized_keys"
+          pub="$(printf '%s' "$PEER_B64" | base64 -d)"
+          grep -qxF "$pub" "$HOME/.ssh/authorized_keys" || printf '%s\n' "$pub" >> "$HOME/.ssh/authorized_keys"
+          cfg="$HOME/.ssh/config"; touch "$cfg"; chmod 600 "$cfg"
+          tmp="$(mktemp)"
+          sed "/^# BEGIN $ALIAS$/,/^# END $ALIAS$/d" "$cfg" > "$tmp"
+          cat >> "$tmp" <<CFG
+          # BEGIN $ALIAS
+          Host $ALIAS
+            HostName $PEER_HOST
+            User $PEER_USER
+            IdentityFile ~/.ssh/id_ed25519_3dvr_mesh
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking accept-new
+            ConnectTimeout 6
+            ServerAliveInterval 30
+          # END $ALIAS
+          CFG
+          mv "$tmp" "$cfg"; chmod 600 "$cfg"
+          REMOTE
+          }
+          configure "$OVH_HOST" "$OVH_USER" "$DO_PUB_B64" 3dvr-do "$DO_HOST" "$DO_USER"
+          configure "$DO_HOST" "$DO_USER" "$OVH_PUB_B64" 3dvr-ovh "$OVH_HOST" "$OVH_USER"
+
+      - name: Verify both directions
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
+          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" "ssh 3dvr-do 'hostname; id -un'"
+          ssh "${opts[@]}" "$DO_USER@$DO_HOST" "ssh 3dvr-ovh 'hostname; id -un'"
+
+      - name: Remove bootstrap key
+        if: always()
+        run: rm -f /tmp/key /tmp/key.raw
