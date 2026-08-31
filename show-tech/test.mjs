@@ -37,13 +37,26 @@ test.before(async () => {
 
 test.after(() => child?.kill('SIGTERM'));
 
-test('advertises browser AV capabilities', async () => {
+test('advertises browser AV and patchbay capabilities', async () => {
   const response = await fetch(`http://127.0.0.1:${httpPort}/v1/capabilities`);
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.protocol, '3dvr-show-node/0.1');
   assert.equal(body.node.id, 'test-node');
   assert.ok(body.capabilities.some(capability => capability.kind === 'av.output'));
+  assert.ok(body.capabilities.some(capability => capability.id === 'patchbay.node'));
+  assert.equal(body.endpoints.patchPath, '/patch');
+});
+
+test('exposes patchable ports and controller UI', async () => {
+  const portsResponse = await fetch(`http://127.0.0.1:${httpPort}/v1/ports`);
+  assert.equal(portsResponse.status, 200);
+  const manifest = await portsResponse.json();
+  assert.ok(manifest.logicalOutputs.some(port => port.id === 'program.video'));
+  assert.ok(manifest.ports.some(port => port.id === 'video:browser'));
+  const ui = await fetch(`http://127.0.0.1:${httpPort}/patch`);
+  assert.equal(ui.status, 200);
+  assert.match(await ui.text(), /Show Patchbay/);
 });
 
 test('rejects unauthenticated actions', async () => {
@@ -64,6 +77,17 @@ test('applies authenticated actions', async () => {
   assert.equal(response.status, 202);
   const state = await (await fetch(`http://127.0.0.1:${httpPort}/v1/state`)).json();
   assert.equal(state.display.text, 'online');
+});
+
+test('patches logical video output through authenticated actions', async () => {
+  const response = await fetch(`http://127.0.0.1:${httpPort}/v1/actions`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ type: 'patch.set', payload: { logical: 'program.video', target: 'video:browser' } }),
+  });
+  assert.equal(response.status, 202);
+  const ports = await (await fetch(`http://127.0.0.1:${httpPort}/v1/ports`)).json();
+  assert.equal(ports.patches['program.video'], 'video:browser');
 });
 
 test('schedules an action for local execution', async () => {
