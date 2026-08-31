@@ -4,6 +4,11 @@ import {
   normalizeFreelanceClient,
   normalizeFreelanceGig,
 } from '../src/freelance-client-system.js';
+import {
+  buildOpportunityPipeline,
+  getNextOpportunityStatus,
+  normalizeFreelanceOpportunity,
+} from '../src/freelance-opportunity-pipeline.js';
 
 const gun = Gun(window.__GUN_PEERS__ || [
   'wss://relay.3dvr.tech/gun',
@@ -11,10 +16,13 @@ const gun = Gun(window.__GUN_PEERS__ || [
 ]);
 const crmRecords = gun.get('3dvr-crm');
 const gigRecords = gun.get('3dvr-freelance-gigs');
+const opportunityOwnerKey = resolveOpportunityOwnerKey();
+const opportunityRecords = gun.get('3dvr-freelance-opportunities').get(opportunityOwnerKey);
 
 const state = {
   clients: Object.create(null),
   gigs: Object.create(null),
+  opportunities: Object.create(null),
   renderTimer: null,
 };
 
@@ -24,11 +32,27 @@ const els = {
   metricBooked: document.getElementById('metricBooked'),
   metricActive: document.getElementById('metricActive'),
   metricUnpaid: document.getElementById('metricUnpaid'),
+  metricReady: document.getElementById('metricReady'),
+  metricApplied: document.getElementById('metricApplied'),
+  metricConversations: document.getElementById('metricConversations'),
+  metricOpportunityBooked: document.getElementById('metricOpportunityBooked'),
+  opportunityList: document.getElementById('opportunityList'),
   todayList: document.getElementById('todayList'),
   clientList: document.getElementById('clientList'),
   gigList: document.getElementById('gigList'),
   unpaidList: document.getElementById('unpaidList'),
   clientSearch: document.getElementById('clientSearch'),
+  opportunityForm: document.getElementById('opportunityForm'),
+  opportunityCompany: document.getElementById('opportunityCompany'),
+  opportunityTitle: document.getElementById('opportunityTitle'),
+  opportunityLocation: document.getElementById('opportunityLocation'),
+  opportunityCompensation: document.getElementById('opportunityCompensation'),
+  opportunityStatus: document.getElementById('opportunityStatus'),
+  opportunityFitScore: document.getElementById('opportunityFitScore'),
+  opportunityAvailability: document.getElementById('opportunityAvailability'),
+  opportunitySourceUrl: document.getElementById('opportunitySourceUrl'),
+  opportunityRequirements: document.getElementById('opportunityRequirements'),
+  opportunityNotes: document.getElementById('opportunityNotes'),
   clientDialog: document.getElementById('clientDialog'),
   clientForm: document.getElementById('clientForm'),
   clientName: document.getElementById('clientName'),
@@ -55,6 +79,23 @@ const els = {
   gigNotes: document.getElementById('gigNotes'),
 };
 
+function resolveOpportunityOwnerKey() {
+  const sharedIdentity = window.AuthIdentity?.readSharedIdentity?.();
+  const signedIn = Boolean(sharedIdentity?.signedIn) || localStorage.getItem('signedIn') === 'true';
+  const alias = String(sharedIdentity?.alias || localStorage.getItem('alias') || '').trim();
+  if (signedIn && alias) return `user:${alias}`;
+
+  const storageKey = '3dvr-freelance-device-id';
+  let deviceId = String(localStorage.getItem(storageKey) || '').trim();
+  if (!deviceId) {
+    deviceId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    localStorage.setItem(storageKey, deviceId);
+  }
+  return `device:${deviceId}`;
+}
+
 function safe(value) {
   return String(value == null ? '' : value)
     .replace(/&/g, '&amp;')
@@ -64,6 +105,15 @@ function safe(value) {
 
 function safeAttr(value) {
   return safe(value).replace(/"/g, '&quot;');
+}
+
+function safeHttpUrl(value) {
+  try {
+    const url = new URL(String(value || '').trim());
+    return ['http:', 'https:'].includes(url.protocol) ? safeAttr(url.href) : '';
+  } catch {
+    return '';
+  }
 }
 
 function makeId(prefix) {
@@ -104,10 +154,12 @@ function setSynced() {
 }
 
 function getDashboard() {
-  return buildFreelancerDashboard({
+  const dashboard = buildFreelancerDashboard({
     clients: Object.values(state.clients),
     gigs: Object.values(state.gigs),
   });
+  dashboard.opportunities = buildOpportunityPipeline(Object.values(state.opportunities));
+  return dashboard;
 }
 
 function empty(message, action = '') {
@@ -123,6 +175,10 @@ function renderMetrics(dashboard) {
   els.metricBooked.textContent = String(dashboard.metrics.booked);
   els.metricActive.textContent = String(dashboard.metrics.active);
   els.metricUnpaid.textContent = String(dashboard.metrics.unpaid);
+  els.metricReady.textContent = String(dashboard.opportunities.metrics.ready);
+  els.metricApplied.textContent = String(dashboard.opportunities.metrics.applied);
+  els.metricConversations.textContent = String(dashboard.opportunities.metrics.conversations);
+  els.metricOpportunityBooked.textContent = String(dashboard.opportunities.metrics.booked);
 }
 
 function renderToday(dashboard) {
@@ -179,6 +235,45 @@ function renderToday(dashboard) {
   els.todayList.innerHTML = actions.length
     ? actions.slice(0, 8).join('')
     : empty('Nothing urgent. Add a client, find an opportunity, or book your next gig.');
+}
+
+function renderOpportunities(dashboard) {
+  const opportunities = dashboard.opportunities.open.slice(0, 24);
+  if (!opportunities.length) {
+    els.opportunityList.innerHTML = empty(
+      'No opportunities tracked yet.',
+      '<button class="button primary" type="button" data-open-dialog="opportunityDialog">Add an opportunity</button>',
+    );
+    return;
+  }
+
+  els.opportunityList.innerHTML = opportunities.map(opportunity => {
+    const availability = opportunity.availability === 'clear'
+      ? 'Calendar clear'
+      : opportunity.availability === 'conflict' ? 'Calendar conflict' : 'Calendar unchecked';
+    const nextStatus = getNextOpportunityStatus(opportunity);
+    const nextAction = nextStatus === 'Applied' ? 'Apply'
+      : nextStatus === 'Interview' ? 'Interview'
+        : nextStatus === 'Offered' ? 'Offer' : nextStatus === 'Booked' ? 'Book' : '';
+    return `
+      <article class="gig-row opportunity-row">
+        <div class="gig-date">
+          <strong>${safe(opportunity.fitScore)}%</strong>
+          <span>${safe(opportunity.status)}</span>
+        </div>
+        <div>
+          <h3>${safe(opportunity.title)}${opportunity.company ? ` · ${safe(opportunity.company)}` : ''}</h3>
+          <p>${safe([opportunity.location, opportunity.compensation, availability].filter(Boolean).join(' · '))}</p>
+          ${opportunity.requirements ? `<p class="opportunity-requirements">${safe(opportunity.requirements)}</p>` : ''}
+        </div>
+        <div class="card-actions">
+          ${safeHttpUrl(opportunity.sourceUrl) ? `<a class="mini-button" href="${safeHttpUrl(opportunity.sourceUrl)}" target="_blank" rel="noreferrer">Listing</a>` : ''}
+          ${nextAction ? `<button class="mini-button good" type="button" data-opportunity-action="advance" data-opportunity-id="${safeAttr(opportunity.id)}">${safe(nextAction)}</button>` : ''}
+          <button class="mini-button" type="button" data-opportunity-action="pass" data-opportunity-id="${safeAttr(opportunity.id)}">Pass</button>
+        </div>
+      </article>
+    `;
+  }).join('');
 }
 
 function renderClients(dashboard) {
@@ -298,6 +393,7 @@ function render() {
   const dashboard = getDashboard();
   renderMetrics(dashboard);
   renderToday(dashboard);
+  renderOpportunities(dashboard);
   renderClients(dashboard);
   renderGigs(dashboard);
   renderUnpaid(dashboard);
@@ -319,6 +415,34 @@ function openDialog(id) {
 
 function closeDialog(id) {
   document.getElementById(id)?.close();
+}
+
+function handleOpportunitySubmit(event) {
+  event.preventDefault();
+  const id = makeId('opportunity');
+  const now = new Date().toISOString();
+  const status = els.opportunityStatus.value;
+  const record = {
+    id,
+    company: els.opportunityCompany.value.trim(),
+    title: els.opportunityTitle.value.trim(),
+    location: els.opportunityLocation.value.trim(),
+    compensation: els.opportunityCompensation.value.trim(),
+    status,
+    fitScore: Number(els.opportunityFitScore.value || 0),
+    availability: els.opportunityAvailability.value,
+    sourceUrl: els.opportunitySourceUrl.value.trim(),
+    requirements: els.opportunityRequirements.value.trim(),
+    notes: els.opportunityNotes.value.trim(),
+    foundAt: now,
+    appliedAt: status === 'Applied' ? now : '',
+    updatedAt: now,
+  };
+  if (!record.title) return;
+  opportunityRecords.get(id).put(record);
+  els.opportunityForm.reset();
+  els.opportunityFitScore.value = '70';
+  closeDialog('opportunityDialog');
 }
 
 function handleClientSubmit(event) {
@@ -384,6 +508,14 @@ function handleGigSubmit(event) {
   closeDialog('gigDialog');
 }
 
+function updateOpportunity(id, patch) {
+  if (!id || !state.opportunities[id]) return;
+  opportunityRecords.get(id).put({
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
 function updateClient(id, patch) {
   if (!id || !state.clients[id]) return;
   crmRecords.get(id).put({
@@ -413,6 +545,22 @@ function handleActionClick(event) {
     return;
   }
 
+  const opportunityButton = event.target.closest('[data-opportunity-action]');
+  if (opportunityButton) {
+    const { opportunityAction, opportunityId } = opportunityButton.dataset;
+    const opportunity = state.opportunities[opportunityId];
+    if (!opportunity) return;
+    if (opportunityAction === 'pass') updateOpportunity(opportunityId, { status: 'Passed' });
+    if (opportunityAction === 'advance') {
+      const status = getNextOpportunityStatus(opportunity);
+      if (status) updateOpportunity(opportunityId, {
+        status,
+        ...(status === 'Applied' && !opportunity.appliedAt ? { appliedAt: new Date().toISOString() } : {}),
+      });
+    }
+    return;
+  }
+
   const clientButton = event.target.closest('[data-client-action]');
   if (clientButton) {
     const { clientAction, clientId } = clientButton.dataset;
@@ -437,6 +585,18 @@ function handleActionClick(event) {
     if (gigAction === 'paid') updateGig(gigId, { paymentStatus: 'Paid' });
   }
 }
+
+opportunityRecords.map().on((data, key) => {
+  if (!data) {
+    delete state.opportunities[key];
+    scheduleRender();
+    return;
+  }
+  const opportunity = normalizeFreelanceOpportunity({ ...data, id: data.id || key });
+  if (!opportunity.id || !opportunity.title) return;
+  state.opportunities[opportunity.id] = opportunity;
+  scheduleRender();
+});
 
 crmRecords.map().on((data, key) => {
   if (!data) {
@@ -465,6 +625,7 @@ gigRecords.map().on((data, key) => {
 });
 
 document.addEventListener('click', handleActionClick);
+els.opportunityForm.addEventListener('submit', handleOpportunitySubmit);
 els.clientForm.addEventListener('submit', handleClientSubmit);
 els.gigForm.addEventListener('submit', handleGigSubmit);
 els.clientSearch.addEventListener('input', scheduleRender);
