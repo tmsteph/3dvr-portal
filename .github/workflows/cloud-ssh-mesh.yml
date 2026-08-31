@@ -1,0 +1,180 @@
+name: Bootstrap 3DVR Cloud SSH Mesh
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cloud-ssh-mesh.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  OVH_HOST: 40.160.137.41
+  DO_HOST: 167.172.193.194
+  HETZNER_HOST: 167.233.174.20
+
+jobs:
+  mesh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Resolve bootstrap SSH access
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/mesh-bootstrap-a
+          write_key "$SSH_B" /tmp/mesh-bootstrap-b
+          write_key "$SSH_C" /tmp/mesh-bootstrap-c
+
+          pick_connection() {
+            local host="$1"; shift
+            local user key
+            for user in "$@"; do
+              for key in /tmp/mesh-bootstrap-a /tmp/mesh-bootstrap-b /tmp/mesh-bootstrap-c; do
+                [ -f "$key" ] || continue
+                if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 "$user@$host" true >/dev/null 2>&1; then
+                  printf '%s|%s\n' "$user" "$key"
+                  return 0
+                fi
+              done
+            done
+            return 1
+          }
+
+          ovh="$(pick_connection "$OVH_HOST" debian root)" || { echo '::error::No bootstrap SSH access to OVH.'; exit 1; }
+          do_conn="$(pick_connection "$DO_HOST" root debian)" || { echo '::error::No bootstrap SSH access to DigitalOcean.'; exit 1; }
+          hetz="$(pick_connection "$HETZNER_HOST" root debian ubuntu tmsteph)" || { echo '::error::No bootstrap SSH access to Hetzner.'; exit 1; }
+
+          echo "OVH_USER=${ovh%%|*}" >> "$GITHUB_ENV"
+          echo "OVH_KEY=${ovh#*|}" >> "$GITHUB_ENV"
+          echo "DO_USER=${do_conn%%|*}" >> "$GITHUB_ENV"
+          echo "DO_KEY=${do_conn#*|}" >> "$GITHUB_ENV"
+          echo "HETZNER_USER=${hetz%%|*}" >> "$GITHUB_ENV"
+          echo "HETZNER_KEY=${hetz#*|}" >> "$GITHUB_ENV"
+          echo "Bootstrap access found: OVH=${ovh%%|*}, DigitalOcean=${do_conn%%|*}, Hetzner=${hetz%%|*}"
+
+      - name: Create per-host mesh keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          ensure_pub() {
+            local label="$1" host="$2" user="$3" key="$4"
+            ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 "$user@$host" \
+              "umask 077; mkdir -p \"\$HOME/.ssh\"; if [ ! -s \"\$HOME/.ssh/id_ed25519_3dvr_mesh\" ]; then ssh-keygen -q -t ed25519 -N '' -C '3dvr-mesh-$label' -f \"\$HOME/.ssh/id_ed25519_3dvr_mesh\"; fi; cat \"\$HOME/.ssh/id_ed25519_3dvr_mesh.pub\""
+          }
+          OVH_PUB="$(ensure_pub ovh "$OVH_HOST" "$OVH_USER" "$OVH_KEY")"
+          DO_PUB="$(ensure_pub do "$DO_HOST" "$DO_USER" "$DO_KEY")"
+          HETZNER_PUB="$(ensure_pub hetzner "$HETZNER_HOST" "$HETZNER_USER" "$HETZNER_KEY")"
+          echo "OVH_PUB_B64=$(printf '%s' "$OVH_PUB" | base64 -w0)" >> "$GITHUB_ENV"
+          echo "DO_PUB_B64=$(printf '%s' "$DO_PUB" | base64 -w0)" >> "$GITHUB_ENV"
+          echo "HETZNER_PUB_B64=$(printf '%s' "$HETZNER_PUB" | base64 -w0)" >> "$GITHUB_ENV"
+
+      - name: Cross-authorize mesh keys and aliases
+        shell: bash
+        run: |
+          set -euo pipefail
+          configure_host() {
+            local host="$1" user="$2" key="$3"
+            ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 "$user@$host" \
+              "OVH_PUB_B64='$OVH_PUB_B64' DO_PUB_B64='$DO_PUB_B64' HETZNER_PUB_B64='$HETZNER_PUB_B64' HETZNER_USER='$HETZNER_USER' bash -s" <<'REMOTE'
+          set -euo pipefail
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          touch "$HOME/.ssh/authorized_keys"
+          chmod 600 "$HOME/.ssh/authorized_keys"
+          for encoded in "$OVH_PUB_B64" "$DO_PUB_B64" "$HETZNER_PUB_B64"; do
+            pub="$(printf '%s' "$encoded" | base64 -d)"
+            grep -qxF "$pub" "$HOME/.ssh/authorized_keys" || printf '%s\n' "$pub" >> "$HOME/.ssh/authorized_keys"
+          done
+
+          config="$HOME/.ssh/config"
+          tmp="$(mktemp)"
+          if [ -f "$config" ]; then
+            sed '/^# BEGIN 3DVR CLOUD MESH$/,/^# END 3DVR CLOUD MESH$/d' "$config" > "$tmp"
+          else
+            : > "$tmp"
+          fi
+          cat >> "$tmp" <<CFG
+          # BEGIN 3DVR CLOUD MESH
+          Host 3dvr-ovh
+            HostName 40.160.137.41
+            User debian
+            IdentityFile ~/.ssh/id_ed25519_3dvr_mesh
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking accept-new
+            ConnectTimeout 6
+            ServerAliveInterval 30
+          Host 3dvr-do
+            HostName 167.172.193.194
+            User root
+            IdentityFile ~/.ssh/id_ed25519_3dvr_mesh
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking accept-new
+            ConnectTimeout 6
+            ServerAliveInterval 30
+          Host 3dvr-hetzner
+            HostName 167.233.174.20
+            User $HETZNER_USER
+            IdentityFile ~/.ssh/id_ed25519_3dvr_mesh
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking accept-new
+            ConnectTimeout 6
+            ServerAliveInterval 30
+          # END 3DVR CLOUD MESH
+          CFG
+          mv "$tmp" "$config"
+          chmod 600 "$config"
+          REMOTE
+          }
+          configure_host "$OVH_HOST" "$OVH_USER" "$OVH_KEY"
+          configure_host "$DO_HOST" "$DO_USER" "$DO_KEY"
+          configure_host "$HETZNER_HOST" "$HETZNER_USER" "$HETZNER_KEY"
+
+      - name: Verify all six SSH directions
+        shell: bash
+        run: |
+          set -euo pipefail
+          verify_from() {
+            local source="$1" host="$2" user="$3" key="$4"; shift 4
+            echo "=== $source ==="
+            local peer
+            for peer in "$@"; do
+              printf '%s -> %s: ' "$source" "$peer"
+              ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 "$user@$host" \
+                "ssh '$peer' 'printf \"%s/%s\\n\" \"\$(hostname)\" \"\$(id -un)\"'" \
+                | tail -n 1
+            done
+          }
+          verify_from OVH "$OVH_HOST" "$OVH_USER" "$OVH_KEY" 3dvr-do 3dvr-hetzner
+          verify_from DigitalOcean "$DO_HOST" "$DO_USER" "$DO_KEY" 3dvr-ovh 3dvr-hetzner
+          verify_from Hetzner "$HETZNER_HOST" "$HETZNER_USER" "$HETZNER_KEY" 3dvr-ovh 3dvr-do
+
+      - name: Remove bootstrap keys
+        if: always()
+        shell: bash
+        run: rm -f /tmp/mesh-bootstrap-a /tmp/mesh-bootstrap-b /tmp/mesh-bootstrap-c /tmp/mesh-bootstrap-*.raw
