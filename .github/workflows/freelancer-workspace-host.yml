@@ -94,6 +94,37 @@ jobs:
           PATH="$(dirname "$node_bin"):$PATH" FREELANCER_WORKSPACE_ROOT="$HOME/.3dvr/freelancer-workspaces" \
             bash "$repo/apps/agent/thomas-agent/scripts/ask-freelancer-workspace" status fw-host-health --json
 
+          npx_bin="$(command -v npx)"
+          sudo tee /etc/systemd/system/desktop-commander-remote.service >/dev/null <<UNIT
+          [Unit]
+          Description=Remote Desktop Commander device agent
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          User=debian
+          Group=debian
+          WorkingDirectory=/home/debian
+          Environment=HOME=/home/debian
+          Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          ExecStart=$npx_bin -y @wonderwhy-er/desktop-commander@latest remote
+          Restart=on-failure
+          RestartSec=10
+          KillSignal=SIGINT
+          TimeoutStopSec=20
+          Slice=3dvr-dev.slice
+
+          [Install]
+          WantedBy=multi-user.target
+          UNIT
+          sudo systemctl daemon-reload
+          sudo systemctl enable --now desktop-commander-remote.service
+          sleep 4
+          echo '=== desktop commander ==='
+          sudo systemctl --no-pager --full status desktop-commander-remote.service || true
+          sudo journalctl -u desktop-commander-remote.service -n 60 --no-pager || true
+
           if command -v docker >/dev/null 2>&1 && docker version >/dev/null 2>&1; then
             echo 'WORKSPACE_DOCKER_READY=1'
             docker ps --filter 'label=3dvr.kind=freelancer-workspace' --format 'WORKSPACE={{.Names}} STATUS={{.Status}}'
