@@ -14,9 +14,10 @@ permissions:
   contents: read
 
 env:
-  DEV_HOST: 167.71.156.94
+  PRIMARY_HOST: 40.160.137.41
+  PRIMARY_USER: debian
   FALLBACK_HOST: 167.172.193.194
-  SSH_USER: root
+  FALLBACK_USER: root
   VERCEL_TEAM_ID: team_KXuVUd00RMnDsjoqwdREcZ7J
   VERCEL_SCOPE_SLUG: 3dvr
   PROJECT_NAME: 3dvr-os
@@ -62,9 +63,9 @@ jobs:
           set -euo pipefail
           opts=(-i /tmp/3dvr-server-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
           deployed=0
-          for host in "$DEV_HOST" "$FALLBACK_HOST"; do
-            echo "Trying 3DVR deployment host: $host"
-            if ssh "${opts[@]}" "$SSH_USER@$host" \
+          for target in "$PRIMARY_USER@$PRIMARY_HOST" "$FALLBACK_USER@$FALLBACK_HOST"; do
+            echo "Trying 3DVR deployment host: $target"
+            if ssh "${opts[@]}" "$target" \
               "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' VERCEL_TEAM_ID='$VERCEL_TEAM_ID' VERCEL_SCOPE_SLUG='$VERCEL_SCOPE_SLUG' PROJECT_NAME='$PROJECT_NAME' PROJECT_DOMAIN='$PROJECT_DOMAIN' bash -s" <<'REMOTE'
           set -euo pipefail
           repo="$HOME/.3dvr/portal"
@@ -84,7 +85,7 @@ jobs:
               deployed=1
               break
             fi
-            echo "::warning::Deployment host $host could not complete the OS deploy."
+            echo "::warning::Deployment host $target could not complete the OS deploy."
           done
           [ "$deployed" -eq 1 ] || { echo '::error::No always-on 3DVR server could complete the Vercel deployment.'; exit 1; }
 
