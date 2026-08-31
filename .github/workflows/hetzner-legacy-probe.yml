@@ -1,0 +1,53 @@
+name: Probe Hetzner Legacy Worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/hetzner-legacy-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: apps/agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+          cache-dependency-path: apps/agent/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Probe legacy Hetzner worker queue
+        shell: bash
+        env:
+          THREEDVR_AGENT_OWNER_ALIAS: anonymous@3dvr
+        run: |
+          set -euo pipefail
+          result="$(node thomas-agent/node/agent-task-queue.js enqueue --json --backend shell --risk read_only --approval-status approved --unsafe --requires shell --max-runtime-ms 30000 'printf "3dvr-legacy-probe:%s:%s\\n" "$(hostname)" "$(id -un)"')"
+          task_id="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task queue JSON payload missing');console.log(JSON.parse(s.slice(i)).id)})")"
+          echo "Legacy task: $task_id"
+          for attempt in $(seq 1 24); do
+            result="$(node thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
+            status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');console.log(JSON.parse(s.slice(i)).status||'')})")"
+            case "$status" in
+              completed)
+                printf '%s\n' "$result"
+                exit 0
+                ;;
+              failed|skipped)
+                printf '%s\n' "$result"
+                exit 1
+                ;;
+            esac
+            sleep 5
+          done
+          printf '%s\n' "$result"
+          echo 'Legacy Hetzner worker did not consume the probe.' >&2
+          exit 1
