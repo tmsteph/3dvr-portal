@@ -37,7 +37,7 @@ test('falls back to status parsing and emits safe wpctl control commands', () =>
   const runCommand = args => {
     calls.push(args);
     const key = args.join(' ');
-    if (key === '--version') return result(0, 'wpctl 0.4\n');
+    if (key === '--help') return result(0, 'Usage: wpctl\n');
     if (key === 'status -n') return result(0, legacyStatus);
     if (key === 'list audio sinks' || key === 'list audio sources') return result(1, '', 'Usage: wpctl');
     if (key.startsWith('set-volume ') || key.startsWith('set-mute ') || key.startsWith('set-default ')) return result(0);
@@ -65,7 +65,7 @@ test('falls back to status parsing and emits safe wpctl control commands', () =>
 test('uses machine-readable wpctl list output when available', () => {
   const runCommand = args => {
     const key = args.join(' ');
-    if (key === '--version') return result(0, 'wpctl 0.5\n');
+    if (key === '--help') return result(0, 'Usage: wpctl\n');
     if (key === 'status -n') return result(0, 'Audio\n');
     if (key === 'list audio sinks') return result(0, '52\tshow_sink\tAudio/Sink\t*\n');
     if (key === 'list audio sources') return result(0, '53\tshow_source\tAudio/Source\t\n');
@@ -79,8 +79,8 @@ test('uses machine-readable wpctl list output when available', () => {
 });
 
 test('does not advertise audio control when wpctl cannot connect to PipeWire', () => {
-  const runCommand = args => args[0] === '--version'
-    ? result(0, 'wpctl 0.4\n')
+  const runCommand = args => args[0] === '--help'
+    ? result(0, 'Usage: wpctl\n')
     : result(2, '', 'Could not connect to PipeWire');
   const adapter = createPipewireAudioAdapter({ runCommand });
   assert.equal(adapter.state.toolAvailable, true);
