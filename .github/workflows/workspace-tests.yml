@@ -6,6 +6,11 @@ on:
     paths:
       - 'workspace/**'
       - 'codex-cloud/**'
+      - 'src/freelancer-workspace.js'
+      - 'src/freelancer-workspace-control.js'
+      - 'freelance/workspace.html'
+      - 'tests/freelancer-workspace.test.js'
+      - 'tests/freelancer-workspace-control.test.js'
       - 'tests/workspace-sync.test.js'
       - '.github/workflows/workspace-tests.yml'
       - '.github/workflows/vercel-production-prebuilt.yml'
@@ -14,6 +19,11 @@ on:
     paths:
       - 'workspace/**'
       - 'codex-cloud/**'
+      - 'src/freelancer-workspace.js'
+      - 'src/freelancer-workspace-control.js'
+      - 'freelance/workspace.html'
+      - 'tests/freelancer-workspace.test.js'
+      - 'tests/freelancer-workspace-control.test.js'
       - 'tests/workspace-sync.test.js'
       - '.github/workflows/workspace-tests.yml'
       - '.github/workflows/vercel-production-prebuilt.yml'
@@ -36,4 +46,4 @@ jobs:
       - name: Check workspace JavaScript syntax
         run: node --check workspace/main.js
       - name: Run workspace regression tests
-        run: node --test tests/workspace-sync.test.js
+        run: node --test tests/workspace-sync.test.js tests/freelancer-workspace.test.js tests/freelancer-workspace-control.test.js

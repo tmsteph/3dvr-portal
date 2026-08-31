@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Freelancer Workspace | 3DVR</title>
+  <meta name="description" content="A persistent personal cloud work environment for freelance portals, email, calendars, and scheduling." />
+  <meta name="theme-color" content="#07111f" />
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-mark.svg" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .workspace-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; }
+    .workspace-list { display:grid; gap:10px; margin-top:14px; }
+    .workspace-row { padding:14px; border:1px solid rgba(148,163,184,.18); border-radius:14px; }
+    .workspace-row strong { display:block; margin-bottom:5px; }
+    .workspace-row p { margin:0; opacity:.78; }
+    .ready { color:#86efac; }
+    .next { color:#fbbf24; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">3DVR</a>
+    <nav aria-label="Freelancer navigation">
+      <a href="/freelance/">Freelancer Desk</a>
+      <a href="/freelance/schedule.html">Schedule</a>
+      <a href="/work-agent/">Work Agent</a>
+      <a href="/calendar/">Calendar</a>
+    </nav>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Freelancer workspace</p>
+        <h1>Your cloud work computer.</h1>
+        <p class="lede">Email and calendars connect directly. Old-school staffing and employer portals live in your own persistent browser so the agent can work across both worlds.</p>
+      </div>
+      <div class="hero-actions">
+        <a class="button primary" href="/work-agent/">Open Work Agent</a>
+        <a class="button" href="/freelance/schedule.html">Open schedule</a>
+      </div>
+    </section>
+
+    <section class="metrics" aria-label="Workspace architecture">
+      <article><strong class="ready">Ready</strong><span>Workspace runtime</span></article>
+      <article><strong>Persistent</strong><span>Browser profile</span></article>
+      <article><strong>Native</strong><span>Gmail / Outlook</span></article>
+      <article><strong>On demand</strong><span>Cloud desktop</span></article>
+    </section>
+
+    <section class="workspace-grid">
+      <article class="panel">
+        <p class="eyebrow">One worker · one environment</p>
+        <h2>What stays yours</h2>
+        <div class="workspace-list">
+          <div class="workspace-row"><strong>Browser sessions</strong><p>Portal cookies and browser storage persist even when the desktop sleeps.</p></div>
+          <div class="workspace-row"><strong>Work rules</strong><p>Rates, availability, protected days, approval levels, and travel preferences stay worker-scoped.</p></div>
+          <div class="workspace-row"><strong>Audit history</strong><p>Portal reads, drafts, approvals, and external actions can be traced back to the worker.</p></div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <p class="eyebrow">Use the cheapest path</p>
+        <h2>Connectors first. Browser second.</h2>
+        <div class="workspace-list">
+          <div class="workspace-row"><strong>Gmail / Outlook / Calendar</strong><p>Use native integrations in the background. No desktop needs to stay awake.</p></div>
+          <div class="workspace-row"><strong>IATSE / Encore / staffing portals</strong><p>Use the persistent browser when a portal does not provide the API we need.</p></div>
+          <div class="workspace-row"><strong>VNC-style human handoff</strong><p>You handle MFA, CAPTCHA, or unusual login steps; the agent continues from the same session afterward.</p></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Build status</p>
+          <h2>Provisioning foundation is in place</h2>
+        </div>
+        <span class="status-pill">Pilot</span>
+      </div>
+      <div class="workspace-list">
+        <div class="workspace-row"><strong class="ready">✓ Isolated container runtime</strong><p>Provision, start, stop, inspect, and preserve one browser profile per freelancer.</p></div>
+        <div class="workspace-row"><strong class="ready">✓ Safe host defaults</strong><p>Desktop binds to loopback, has no host Docker socket, and does not require privileged mode.</p></div>
+        <div class="workspace-row"><strong class="ready">✓ Repeatable CLI + tests</strong><p>The existing 3DVR agent can manage workspace lifecycle on a Docker host.</p></div>
+        <div class="workspace-row"><strong class="next">Next: secure portal-to-host control</strong><p>Signed 3DVR sessions, quotas, and an HTTPS identity gateway will turn provisioning into a one-tap user action.</p></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <p class="eyebrow">The customer loop</p>
+      <h2>Login once. Then manage the work.</h2>
+      <p>Connect email and calendar, open the workspace for any portal login that needs a human, then let Work Agent merge availability, opportunities, scheduling actions, and follow-ups in one place.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="/work-agent/">Set up Work Agent</a>
+        <a class="button" href="/freelance/">Back to Freelancer Desk</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="shell footer">
+    <span>3DVR — Work should fit your life.</span>
+    <a href="/docs/freelancer-workspaces.md">Architecture</a>
+  </footer>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
