@@ -1,0 +1,25 @@
+name: Show-Tech Node
+
+on:
+  push:
+    paths:
+      - 'show-tech/**'
+      - '.github/workflows/show-tech-node.yml'
+  pull_request:
+    paths:
+      - 'show-tech/**'
+      - '.github/workflows/show-tech-node.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test show-tech/test.mjs
