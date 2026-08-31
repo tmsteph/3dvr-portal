@@ -1,0 +1,57 @@
+const assert = require('node:assert/strict');
+const { mkdtemp, readFile, rm } = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
+const test = require('node:test');
+const {
+  buildDockerRunArgs,
+  createFreelancerWorkspaceRuntime,
+} = require('../thomas-agent/node/freelancer-workspace-runtime');
+
+test('docker workspace is isolated and only loopback-published by default', () => {
+  const metadata = {
+    workspaceId: 'fw-test-worker',
+    containerName: '3dvr-fw-test-worker',
+    rootDir: '/tmp/fw-test-worker',
+    port: 32123,
+    timezone: 'America/Los_Angeles',
+    password: 'secret',
+  };
+  const args = buildDockerRunArgs(metadata, {});
+  assert.ok(args.includes('127.0.0.1:32123:3001'));
+  assert.ok(args.includes('/tmp/fw-test-worker/config:/config'));
+  assert.ok(args.includes('START_DOCKER=false'));
+  assert.equal(args.includes('--privileged'), false);
+  assert.equal(args.some(arg => String(arg).includes('/var/run/docker.sock')), false);
+});
+
+test('runtime provisions persistent metadata and starts/stops same container', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), '3dvr-fw-'));
+  const calls = [];
+  let running = false;
+  const run = async (command, args) => {
+    calls.push([command, ...args]);
+    if (args[0] === 'run') running = true;
+    if (args[0] === 'start') running = true;
+    if (args[0] === 'stop') running = false;
+    if (args[0] === 'inspect') return { ok: true, stdout: running ? 'true\n' : 'false\n', stderr: '' };
+    return { ok: true, stdout: '', stderr: '' };
+  };
+  const env = {
+    FREELANCER_WORKSPACE_ROOT: root,
+    FREELANCER_WORKSPACE_PORT_START: '32888',
+    FREELANCER_WORKSPACE_PORT_END: '32899',
+  };
+  const runtime = createFreelancerWorkspaceRuntime({ env, run, now: () => new Date('2026-08-31T02:00:00Z') });
+  const created = await runtime.provision('fw-test-worker');
+  assert.equal(created.status, 'running');
+  const metadata = JSON.parse(await readFile(path.join(root, 'fw-test-worker', '.workspace.json'), 'utf8'));
+  assert.equal(metadata.workspaceId, 'fw-test-worker');
+  assert.ok(metadata.password.length >= 24);
+  await runtime.stop('fw-test-worker');
+  assert.equal((await runtime.status('fw-test-worker')).status, 'stopped');
+  await runtime.start('fw-test-worker');
+  assert.equal((await runtime.status('fw-test-worker')).status, 'running');
+  assert.equal(calls.filter(call => call[1] === 'run').length, 1);
+  await rm(root, { recursive: true, force: true });
+});
