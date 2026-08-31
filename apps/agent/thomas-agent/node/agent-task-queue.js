@@ -11,6 +11,7 @@ const {
 } = require('./agent-ops');
 
 const DEFAULT_BACKEND = process.env.THREEDVR_AGENT_TASK_QUEUE_BACKEND || process.env.THREEDVR_AGENT_TASK_BACKEND || 'auto';
+const DEFAULT_QUEUE_STORE = process.env.THREEDVR_AGENT_QUEUE_STORE || 'gun';
 const DEFAULT_WORKER_INTERVAL_SECONDS = parseInteger(process.env.THREEDVR_AGENT_WORKER_INTERVAL_SECONDS, 20);
 const DEFAULT_TASK_LIMIT = parseInteger(process.env.THREEDVR_AGENT_WORKER_LIMIT, 10);
 const DEFAULT_LEASE_TTL_MS = parseInteger(process.env.THREEDVR_AGENT_WORKER_LEASE_TTL_MS, 30 * 60 * 1000);
@@ -30,8 +31,16 @@ function normalizeText(value) {
   return String(value || '').trim();
 }
 
+function queueStore(options = {}) {
+  return normalizeText(options.queueStore || DEFAULT_QUEUE_STORE).toLowerCase() === 'sqlite' ? 'sqlite' : 'gun';
+}
+
+function sqliteQueue() {
+  return require('./task-queue-sqlite-store');
+}
+
 function enqueueFlushMs(options = {}) {
-  if (options.rootNode) return 0;
+  if (options.rootNode || queueStore(options) === 'sqlite') return 0;
   if (options.enqueueFlushMs === undefined) return DEFAULT_ENQUEUE_FLUSH_MS;
   const parsed = Number.parseInt(String(options.enqueueFlushMs), 10);
   return Number.isFinite(parsed) ? Math.max(0, parsed) : DEFAULT_ENQUEUE_FLUSH_MS;
@@ -85,6 +94,21 @@ function normalizeTenantRecord(record = {}) {
     tenantId,
     tenantAlias: normalizeText(record.tenantAlias) || normalizeText(record.requestedBy) || tenantId,
     tenantPlan: normalizeText(record.tenantPlan) || DEFAULT_TENANT_PLAN,
+  };
+}
+
+function taskSummary(record = {}) {
+  return {
+    id: record.id,
+    status: record.status,
+    task: record.task,
+    tenantId: record.tenantId,
+    tenantAlias: record.tenantAlias,
+    tenantPlan: record.tenantPlan,
+    riskClass: record.riskClass,
+    approvalStatus: record.approvalStatus,
+    requiredCapabilities: record.requiredCapabilities,
+    updatedAt: record.updatedAt,
   };
 }
 
@@ -142,23 +166,18 @@ async function enqueueTask(task, options = {}) {
     updatedAt: nowIso(now),
     requestedBy: options.requestedBy || 'cli',
   });
+  const summary = taskSummary(record);
+  if (queueStore(options) === 'sqlite') {
+    sqliteQueue().writeTask(record, options);
+    return record;
+  }
   await putGun(taskNode(id, options), record, options);
-  await putGun(queueNode(options).get('latest').get(id), {
-    id,
-    status: record.status,
-    task: record.task,
-    tenantId: record.tenantId,
-    tenantAlias: record.tenantAlias,
-    tenantPlan: record.tenantPlan,
-    riskClass: record.riskClass,
-    approvalStatus: record.approvalStatus,
-    requiredCapabilities: record.requiredCapabilities,
-    updatedAt: record.updatedAt,
-  }, options);
+  await putGun(queueNode(options).get('latest').get(id), summary, options);
   return record;
 }
 
 function listTasks(options = {}) {
+  if (queueStore(options) === 'sqlite') return sqliteQueue().listTasks(options);
   const node = queueNode(options).get('latest');
   const timeoutMs = options.timeoutMs || 2500;
   return new Promise((resolve) => {
@@ -179,6 +198,7 @@ function listTasks(options = {}) {
 }
 
 function readTask(id, options = {}) {
+  if (queueStore(options) === 'sqlite') return sqliteQueue().readTask(id, options);
   return new Promise((resolve) => {
     taskNode(id, options).once((data) => resolve(data || null));
   });
@@ -193,19 +213,13 @@ async function updateTask(id, patch = {}, options = {}) {
     id,
     updatedAt: patch.updatedAt || nowIso(options.now || Date.now()),
   });
+  const summary = taskSummary(updated);
+  if (queueStore(options) === 'sqlite') {
+    sqliteQueue().writeTask(updated, options);
+    return updated;
+  }
   await putGun(taskNode(id, options), updated, options);
-  await putGun(queueNode(options).get('latest').get(id), {
-    id,
-    status: updated.status,
-    task: updated.task,
-    tenantId: updated.tenantId,
-    tenantAlias: updated.tenantAlias,
-    tenantPlan: updated.tenantPlan,
-    riskClass: updated.riskClass,
-    approvalStatus: updated.approvalStatus,
-    requiredCapabilities: updated.requiredCapabilities,
-    updatedAt: updated.updatedAt,
-  }, options);
+  await putGun(queueNode(options).get('latest').get(id), summary, options);
   return updated;
 }
 
@@ -267,26 +281,55 @@ async function runQueuedTask(record, options = {}) {
     return { ok: false, skipped: true, reason: runnable.reason };
   }
 
-  const lease = await claimLease(`remote-task:${record.id}`, {
-    ...options,
-    ttlMs: options.leaseTtlMs || DEFAULT_LEASE_TTL_MS,
-  });
-  if (!lease.acquired) {
-    return { ok: false, skipped: true, reason: `held by ${lease.ownerDeviceId || 'another worker'}` };
+  let lease;
+  let claimed = record;
+  if (queueStore(options) === 'sqlite') {
+    const now = options.now || Date.now();
+    const claimToken = crypto.randomUUID();
+    claimed = sqliteQueue().claimTask(
+      record.id,
+      claimToken,
+      runnable.profile.workerId,
+      now + (options.leaseTtlMs || DEFAULT_LEASE_TTL_MS),
+      now,
+      options,
+    );
+    if (!claimed) return { ok: false, skipped: true, reason: 'claimed by another worker' };
+    claimed.workerCapabilities = normalizeCsv(runnable.profile.capabilities);
+  } else {
+    lease = await claimLease(`remote-task:${record.id}`, {
+      ...options,
+      ttlMs: options.leaseTtlMs || DEFAULT_LEASE_TTL_MS,
+    });
+    if (!lease.acquired) {
+      return { ok: false, skipped: true, reason: `held by ${lease.ownerDeviceId || 'another worker'}` };
+    }
+    await updateTask(record.id, {
+      status: 'running',
+      workerDeviceId: lease.lease?.deviceId || '',
+      workerCapabilities: normalizeCsv(runnable.profile.capabilities),
+      startedAt: nowIso(),
+    }, options);
   }
 
-  await updateTask(record.id, {
-    status: 'running',
-    workerDeviceId: lease.lease?.deviceId || '',
-    workerCapabilities: normalizeCsv(runnable.profile.capabilities),
-    startedAt: nowIso(),
-  }, options);
-
+  let renewalTimer;
+  if (claimed.claimToken) {
+    const ttlMs = options.leaseTtlMs || DEFAULT_LEASE_TTL_MS;
+    renewalTimer = setInterval(() => {
+      try {
+        sqliteQueue().renewClaim(claimed.id, claimed.claimToken, Date.now() + ttlMs, options);
+      } catch {
+        // A later heartbeat or the token-checked terminal write can recover;
+        // never let a transient renewal error crash the worker process.
+      }
+    }, Math.max(1, Math.floor(ttlMs / 3)));
+    renewalTimer.unref?.();
+  }
   try {
     const runAgentTaskImpl = options.runAgentTaskImpl || require('./task-orchestrator').runAgentTask;
-    const result = await runAgentTaskImpl(buildTaskArgs(record, options), options.hooks || {});
+    const result = await runAgentTaskImpl(buildTaskArgs(claimed, options), options.hooks || {});
     const summary = summarizeTaskResult(result);
-    await updateTask(record.id, {
+    await finishClaimedTask(claimed, {
       status: result.ok ? 'completed' : result.skipped ? 'skipped' : 'failed',
       completedAt: nowIso(),
       resultSummary: summary,
@@ -295,7 +338,7 @@ async function runQueuedTask(record, options = {}) {
     return result;
   } catch (error) {
     const message = error.message || String(error);
-    await updateTask(record.id, {
+    await finishClaimedTask(claimed, {
       status: 'failed',
       completedAt: nowIso(),
       error: message,
@@ -303,7 +346,61 @@ async function runQueuedTask(record, options = {}) {
     }, options);
     return { ok: false, error: message };
   } finally {
-    await releaseLease(`remote-task:${record.id}`, lease.lease?.token, options).catch(() => {});
+    if (renewalTimer) clearInterval(renewalTimer);
+    if (lease) await releaseLease(`remote-task:${record.id}`, lease.lease?.token, options).catch(() => {});
+  }
+}
+
+async function updateGunTask(id, record, options = {}) {
+  const gunOptions = { ...options, queueStore: 'gun' };
+  const { claimExpiresAt, claimToken, queueSource, ...publicRecord } = record;
+  await putGun(taskNode(id, gunOptions), publicRecord, gunOptions);
+  await putGun(queueNode(gunOptions).get('latest').get(id), taskSummary(publicRecord), gunOptions);
+}
+
+async function finishClaimedTask(claimed, patch, options = {}) {
+  if (queueStore(options) !== 'sqlite') return updateTask(claimed.id, patch, options);
+  const updated = normalizeTaskRecord({
+    ...claimed,
+    ...patch,
+    id: claimed.id,
+    updatedAt: patch.updatedAt || nowIso(options.now || Date.now()),
+  });
+  const finished = sqliteQueue().finishTask(claimed.id, claimed.claimToken, updated, options);
+  if (!finished) throw new Error(`Lost SQLite claim for task ${claimed.id}.`);
+  await mirrorTerminalTask(updated, options).catch(() => {});
+  return updated;
+}
+
+function timestamp(record = {}) {
+  const value = Date.parse(record.updatedAt || '');
+  return Number.isFinite(value) ? value : 0;
+}
+
+async function mirrorTerminalTask(record, options = {}) {
+  if (!['completed', 'failed', 'skipped'].includes(record.status)) return false;
+  const remote = await readTask(record.id, { ...options, queueStore: 'gun' });
+  if (remote && timestamp(remote) > timestamp(record)) return false;
+  await updateGunTask(record.id, record, options);
+  return true;
+}
+
+async function syncTerminalResults(options = {}) {
+  if (queueStore(options) !== 'sqlite') return;
+  const records = sqliteQueue().listTasks(options);
+  for (const record of records) {
+    await mirrorTerminalTask(record, options).catch(() => {});
+  }
+}
+
+async function importLegacyGunTasks(options = {}) {
+  if (queueStore(options) !== 'sqlite') return;
+  const gunOptions = { ...options, queueStore: 'gun' };
+  const summaries = await listTasks(gunOptions);
+  for (const summary of summaries) {
+    if (summary.status !== 'queued') continue;
+    const record = await readTask(summary.id, gunOptions);
+    if (record && record.status === 'queued') sqliteQueue().importTask(normalizeTaskRecord(record), options);
   }
 }
 
@@ -330,15 +427,22 @@ async function runWorkerOnce(options = {}) {
       maxConcurrency: profile.maxConcurrency,
     },
   }).catch(() => {});
+  await syncTerminalResults(options);
+  await importLegacyGunTasks(options);
   const tasks = await listTasks(options);
+  const now = options.now || Date.now();
   const queued = tasks
-    .filter(task => task.status === 'queued')
+    .filter(task => task.status === 'queued'
+      || (queueStore(options) === 'sqlite' && task.status === 'running' && task.claimExpiresAt <= now))
     .filter(task => canWorkerRunTask(task, options).ok)
     .slice(0, options.limit || DEFAULT_TASK_LIMIT);
   const results = [];
   for (const summary of queued) {
     const record = await readTask(summary.id, options);
-    if (!record || record.status !== 'queued') continue;
+    const recoverable = queueStore(options) === 'sqlite'
+      && record?.status === 'running'
+      && record.claimExpiresAt <= now;
+    if (!record || (record.status !== 'queued' && !recoverable)) continue;
     results.push({ id: record.id, result: await runQueuedTask(record, options) });
   }
   return results;
@@ -363,6 +467,7 @@ function parseArgs(argv = process.argv.slice(2)) {
   const options = {
     command,
     backend: DEFAULT_BACKEND,
+    queueStore: DEFAULT_QUEUE_STORE,
     task: '',
     id: '',
     unsafe: false,
@@ -374,6 +479,7 @@ function parseArgs(argv = process.argv.slice(2)) {
   for (let index = 1; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--backend') options.backend = argv[++index] || DEFAULT_BACKEND;
+    else if (arg === '--queue-store') options.queueStore = argv[++index] || DEFAULT_QUEUE_STORE;
     else if (arg === '--repo') options.repo = argv[++index] || '';
     else if (arg === '--model') options.model = argv[++index] || '';
     else if (arg === '--thinking') options.thinking = argv[++index] || '';
@@ -402,20 +508,20 @@ async function cli(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
   if (options.command === 'enqueue') {
     const record = await enqueueTask(options.task, options);
-    console.log(options.json ? JSON.stringify(record, null, 2) : `Queued ${record.id}: ${record.task}`);
+    console.log(options.json ? JSON.stringify(publicTask(record), null, 2) : `Queued ${record.id}: ${record.task}`);
     const flushMs = enqueueFlushMs(options);
     if (flushMs > 0) await new Promise(resolve => setTimeout(resolve, flushMs));
     return;
   }
   if (options.command === 'list') {
     const tasks = await listTasks(options);
-    if (options.json) console.log(JSON.stringify(tasks, null, 2));
+    if (options.json) console.log(JSON.stringify(tasks.map(publicTask), null, 2));
     else tasks.forEach(task => console.log(`${task.updatedAt || ''} ${task.status || ''} ${task.id || ''} ${task.task || ''}`));
     return;
   }
   if (options.command === 'status' || options.command === 'result') {
     const record = await readTask(options.id || options.task, options);
-    console.log(options.json ? JSON.stringify(record || {}, null, 2) : formatTask(record));
+    console.log(options.json ? JSON.stringify(publicTask(record), null, 2) : formatTask(record));
     return;
   }
   if (options.command === 'run-once') {
@@ -428,6 +534,12 @@ async function cli(argv = process.argv.slice(2)) {
     return;
   }
   console.log('Usage: ask-agent-queue enqueue|list|status|result|run-once|loop [options] "task"');
+}
+
+function publicTask(record) {
+  if (!record) return {};
+  const { claimExpiresAt, claimToken, queueSource, ...publicRecord } = record;
+  return publicRecord;
 }
 
 function formatTask(record) {
@@ -452,11 +564,13 @@ module.exports = {
   csvToList,
   enqueueTask,
   enqueueFlushMs,
+  queueStore,
   formatTask,
   listTasks,
   normalizeTaskRecord,
   normalizeTenantRecord,
   parseArgs,
+  publicTask,
   readTask,
   runQueuedTask,
   runWorkerLoop,

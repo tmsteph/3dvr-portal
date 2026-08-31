@@ -16,12 +16,27 @@ if [ -f "$CONFIG_FILE" ]; then
   set +a
 fi
 
-node "$ROOT/node/agent-task-queue.js" "$@"
+NODE_BIN="${THREEDVR_NODE_BIN:-node}"
+if ! command -v "$NODE_BIN" >/dev/null 2>&1; then
+  echo "3DVR queue requires Node >=22.13 with node:sqlite; not found: $NODE_BIN" >&2
+  exit 1
+fi
+if ! "$NODE_BIN" -e '
+  const [major, minor] = process.versions.node.split(".").map(Number);
+  if (major < 22 || (major === 22 && minor < 13)) process.exit(1);
+  require("node:sqlite");
+' >/dev/null 2>&1; then
+  version="$($NODE_BIN --version 2>/dev/null || printf unknown)"
+  echo "3DVR queue requires Node >=22.13 with node:sqlite; $NODE_BIN is $version or lacks SQLite support." >&2
+  exit 1
+fi
+
+"$NODE_BIN" "$ROOT/node/agent-task-queue.js" "$@"
 
 # The German worker's long-lived loop invokes this wrapper every poll. Keeping
 # Forge dispatch here means a normal repository pull activates new Operator
 # edit support immediately without restarting the tmux session that performed
 # the update.
 if [ "${1:-}" = "run-once" ]; then
-  node "$ROOT/node/operator-forge-worker.js" run-once
+  "$NODE_BIN" "$ROOT/node/operator-forge-worker.js" run-once
 fi
