@@ -6,6 +6,11 @@ import {
   getBusinessCardCheckoutConfig,
 } from '../src/billing/api-business-card-order.js';
 
+const AV_BOOKING_RATES = Object.freeze({
+  lead: { label: 'Lead technician', dayRate: 750 },
+  support: { label: 'Support technician', dayRate: 500 },
+});
+
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -28,8 +33,63 @@ function createMailTransport(config) {
   });
 }
 
+function normalizeLine(value, maxLength = 180) {
+  return String(value || '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+}
+
+function normalizeLongText(value, maxLength = 2000) {
+  return String(value || '').trim().slice(0, maxLength);
+}
+
+function normalizeEmail(value) {
+  const email = normalizeLine(value, 254).toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '';
+}
+
+function boundedInteger(value, minimum, maximum) {
+  const parsed = Number.parseInt(String(value || ''), 10);
+  if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
+    throw new Error(`Expected an integer from ${minimum} to ${maximum}.`);
+  }
+  return parsed;
+}
+
+export function calculateAvBookingEstimate(input = {}) {
+  const level = normalizeLine(input.level, 24).toLowerCase();
+  const rate = AV_BOOKING_RATES[level];
+  if (!rate) {
+    throw new Error('Choose a valid technician level.');
+  }
+
+  const technicians = boundedInteger(input.technicians, 1, 8);
+  const days = boundedInteger(input.days, 1, 14);
+  const hoursPerDay = boundedInteger(input.hoursPerDay, 4, 18);
+  const overtimeHoursPerDay = Math.max(hoursPerDay - 10, 0);
+  const overtimeRate = (rate.dayRate / 10) * 1.5;
+  const baseTotal = rate.dayRate * technicians * days;
+  const overtimeTotal = Math.round(overtimeHoursPerDay * overtimeRate * technicians * days);
+
+  return {
+    level,
+    label: rate.label,
+    dayRate: rate.dayRate,
+    technicians,
+    days,
+    hoursPerDay,
+    overtimeHoursPerDay,
+    overtimeRate,
+    baseTotal,
+    overtimeTotal,
+    total: baseTotal + overtimeTotal,
+  };
+}
+
 export function createTrialHandler(options = {}) {
-  const { 
+  const {
     stripeClient,
     mailTransport,
     config = process.env,
@@ -154,6 +214,89 @@ export function createTrialHandler(options = {}) {
       } catch (error) {
         console.error('Chat message request failed:', error);
         return res.status(503).json({ error: 'Chat sync is temporarily unavailable.' });
+      }
+    }
+
+    // Reuse this existing serverless route for booking intake so the public site
+    // does not add another Vercel function. Requests are emailed privately and
+    // are not written to public Gun nodes.
+    if (kind === 'av-booking-request') {
+      const honeyPot = normalizeLine(req.body?.companyWebsite, 200);
+      if (honeyPot) {
+        return res.status(200).json({ success: true });
+      }
+
+      const normalizedEmail = normalizeEmail(email);
+      const name = normalizeLine(req.body?.name, 120);
+      const company = normalizeLine(req.body?.company, 160);
+      const phone = normalizeLine(req.body?.phone, 80);
+      const eventDate = normalizeLine(req.body?.eventDate, 20);
+      const venue = normalizeLine(req.body?.venue, 180);
+      const role = normalizeLine(req.body?.role || 'AV technician', 120);
+      const notes = normalizeLongText(req.body?.notes, 2000);
+      const normalizedSource = normalizeLine(source || '3dvr.tech/hire-av', 160);
+
+      if (!name || !normalizedEmail || !/^\d{4}-\d{2}-\d{2}$/.test(eventDate) || !venue) {
+        return res.status(400).json({ error: 'Add your name, email, event date, and venue.' });
+      }
+
+      let estimate;
+      try {
+        estimate = calculateAvBookingEstimate(req.body || {});
+      } catch {
+        return res.status(400).json({ error: 'Check the crew size, days, hours, and technician level.' });
+      }
+
+      if (!config.GMAIL_USER || !config.GMAIL_APP_PASSWORD) {
+        return res.status(503).json({ error: 'Booking requests are temporarily unavailable.' });
+      }
+
+      const destination = normalizeEmail(config.OPERATOR_EMAIL_TO) || normalizeEmail(config.GMAIL_USER);
+      const submittedAt = new Date().toISOString();
+      const requestRecord = {
+        type: 'av-booking-request',
+        name,
+        email: normalizedEmail,
+        phone,
+        company,
+        eventDate,
+        venue,
+        role,
+        source: normalizedSource,
+        estimate: {
+          label: estimate.label,
+          dayRate: estimate.dayRate,
+          technicians: estimate.technicians,
+          days: estimate.days,
+          hoursPerDay: estimate.hoursPerDay,
+          overtimeHoursPerDay: estimate.overtimeHoursPerDay,
+          total: estimate.total,
+          currency: 'USD',
+        },
+        notes,
+        submittedAt,
+      };
+
+      try {
+        await transporter.sendMail({
+          from: `"3DVR AV Booking" <${config.GMAIL_USER}>`,
+          to: destination,
+          replyTo: normalizedEmail,
+          subject: `AV booking request: ${eventDate} · ${venue}`,
+          text: JSON.stringify(requestRecord, null, 2),
+          headers: {
+            'X-3DVR-Request-Type': 'av-booking-request',
+            'X-3DVR-Request-Source': normalizedSource,
+          },
+        });
+        return res.status(200).json({
+          success: true,
+          estimate: estimate.total,
+          currency: 'USD',
+        });
+      } catch (err) {
+        console.error('AV booking request email failed:', err.message);
+        return res.status(503).json({ error: 'Booking requests are temporarily unavailable.' });
       }
     }
 
