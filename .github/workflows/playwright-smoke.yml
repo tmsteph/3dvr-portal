@@ -32,6 +32,9 @@ jobs:
       - name: Run Workboard regression tests
         run: node --test tests/workboard-*.test.js
 
+      - name: Run freelancer scheduling regression tests
+        run: node --test tests/freelance-client-system.test.js tests/work-schedule-coordinator.test.js
+
       - name: Enforce Vercel Hobby function budget
         run: node --test tests/vercel-function-budget.test.js
 
