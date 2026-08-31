@@ -224,6 +224,84 @@ function sanitizeErrorBody(raw = '') {
   return withoutTags.slice(0, 120);
 }
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 8000;
+const DEFAULT_REQUEST_CONCURRENCY = 4;
+const MAX_REQUEST_CONCURRENCY = 6;
+
+function normalizeRequestTimeout(value) {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_REQUEST_TIMEOUT_MS;
+  }
+  return Math.max(1, Math.min(30000, Math.floor(value)));
+}
+
+function normalizeConcurrency(value) {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_REQUEST_CONCURRENCY;
+  }
+  return Math.max(1, Math.min(MAX_REQUEST_CONCURRENCY, Math.floor(value)));
+}
+
+async function settleWithConcurrency(tasks, concurrency) {
+  const results = new Array(tasks.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < tasks.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      try {
+        results[index] = { status: 'fulfilled', value: await tasks[index]() };
+      } catch (reason) {
+        results[index] = { status: 'rejected', reason };
+      }
+    }
+  }
+
+  const workerCount = Math.min(tasks.length, normalizeConcurrency(concurrency));
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
+async function fetchJson({ url, fetchImpl, fetchOptions, sourceLabel, requestTimeoutMs }) {
+  const timeoutMs = normalizeRequestTimeout(requestTimeoutMs);
+  const controller = new AbortController();
+  let timeoutId;
+
+  const timeout = new Promise((resolve, reject) => {
+    timeoutId = setTimeout(() => {
+      controller.abort();
+      reject(new Error(`${sourceLabel} request timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([
+      (async () => {
+        const response = await fetchImpl(url, {
+          ...fetchOptions,
+          signal: controller.signal
+        });
+        return readJson(response, sourceLabel);
+      })(),
+      timeout
+    ]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function successfulPayloadsOrThrow(results) {
+  const payloads = results
+    .filter(result => result.status === 'fulfilled')
+    .map(result => result.value);
+
+  if (!payloads.length && results.length) {
+    throw results.find(result => result.status === 'rejected').reason;
+  }
+  return payloads;
+}
+
 async function readJson(response, sourceLabel = 'Demand source') {
   if (!response.ok) {
     const errorBody = await response.text();
@@ -235,19 +313,33 @@ async function readJson(response, sourceLabel = 'Demand source') {
   return response.json();
 }
 
-export async function fetchHackerNewsSignals({ keywords = [], limit = 24, fetchImpl = globalThis.fetch } = {}) {
+export async function fetchHackerNewsSignals({
+  keywords = [],
+  limit = 24,
+  fetchImpl = globalThis.fetch,
+  requestTimeoutMs,
+  concurrency
+} = {}) {
   const perKeyword = Math.max(3, Math.ceil(limit / Math.max(1, keywords.length)));
   const collected = [];
-
-  for (const keyword of keywords) {
+  const tasks = keywords.map(keyword => async () => {
     const params = new URLSearchParams({
       query: keyword,
       tags: 'story',
       hitsPerPage: String(perKeyword)
     });
     const url = `https://hn.algolia.com/api/v1/search?${params.toString()}`;
-    const response = await fetchImpl(url);
-    const payload = await readJson(response, 'Hacker News');
+    const payload = await fetchJson({
+      url,
+      fetchImpl,
+      sourceLabel: 'Hacker News',
+      requestTimeoutMs
+    });
+    return { keyword, payload };
+  });
+
+  const results = await settleWithConcurrency(tasks, concurrency);
+  successfulPayloadsOrThrow(results).forEach(({ keyword, payload }) => {
     const hits = Array.isArray(payload.hits) ? payload.hits : [];
 
     hits.forEach(hit => {
@@ -261,19 +353,24 @@ export async function fetchHackerNewsSignals({ keywords = [], limit = 24, fetchI
         createdAt: hit.created_at
       }, keyword));
     });
-  }
+  });
 
   return takeTopSignals(dedupeSignals(collected), limit);
 }
 
-export async function fetchRedditSignals({ keywords = [], limit = 24, fetchImpl = globalThis.fetch } = {}) {
+export async function fetchRedditSignals({
+  keywords = [],
+  limit = 24,
+  fetchImpl = globalThis.fetch,
+  requestTimeoutMs,
+  concurrency
+} = {}) {
   const businessSubreddits = ['freelance', 'smallbusiness', 'entrepreneur', 'startups'];
   const requestCount = Math.max(1, keywords.length * businessSubreddits.length);
   const perRequest = Math.max(2, Math.ceil(limit / requestCount));
   const collected = [];
-
-  for (const keyword of keywords) {
-    for (const subreddit of businessSubreddits) {
+  const tasks = keywords.flatMap(keyword => {
+    return businessSubreddits.map(subreddit => async () => {
       const params = new URLSearchParams({
         q: keyword,
         restrict_sr: '1',
@@ -283,33 +380,42 @@ export async function fetchRedditSignals({ keywords = [], limit = 24, fetchImpl 
         type: 'link'
       });
       const url = `https://www.reddit.com/r/${subreddit}/search.json?${params.toString()}`;
-      const response = await fetchImpl(url, {
-        headers: {
-          'User-Agent': '3dvr-money-loop/0.1'
-        }
+      const payload = await fetchJson({
+        url,
+        fetchImpl,
+        fetchOptions: {
+          headers: {
+            'User-Agent': '3dvr-money-loop/0.1'
+          }
+        },
+        sourceLabel: `Reddit r/${subreddit}`,
+        requestTimeoutMs
       });
+      return { keyword, subreddit, payload };
+    });
+  });
 
-      const payload = await readJson(response, `Reddit r/${subreddit}`);
-      const children = Array.isArray(payload?.data?.children) ? payload.data.children : [];
+  const results = await settleWithConcurrency(tasks, concurrency);
+  successfulPayloadsOrThrow(results).forEach(({ keyword, subreddit, payload }) => {
+    const children = Array.isArray(payload?.data?.children) ? payload.data.children : [];
 
-      children.forEach(item => {
-        const data = item?.data || {};
-        const permalink = typeof data.permalink === 'string' && data.permalink
-          ? `https://www.reddit.com${data.permalink}`
-          : data.url;
+    children.forEach(item => {
+      const data = item?.data || {};
+      const permalink = typeof data.permalink === 'string' && data.permalink
+        ? `https://www.reddit.com${data.permalink}`
+        : data.url;
 
-        collected.push(normalizeSignal(`reddit:r/${subreddit}`, {
-          id: data.id,
-          title: data.title,
-          summary: data.selftext,
-          url: permalink,
-          popularity: data.score,
-          comments: data.num_comments,
-          createdAt: data.created_utc ? new Date(data.created_utc * 1000).toISOString() : ''
-        }, keyword));
-      });
-    }
-  }
+      collected.push(normalizeSignal(`reddit:r/${subreddit}`, {
+        id: data.id,
+        title: data.title,
+        summary: data.selftext,
+        url: permalink,
+        popularity: data.score,
+        comments: data.num_comments,
+        createdAt: data.created_utc ? new Date(data.created_utc * 1000).toISOString() : ''
+      }, keyword));
+    });
+  });
 
   return takeTopSignals(dedupeSignals(collected), limit);
 }
@@ -328,9 +434,16 @@ export async function collectDemandSignals(options = {}) {
   }
 
   const warnings = [];
+  const requestOptions = {
+    keywords,
+    limit: signalLimit,
+    fetchImpl,
+    requestTimeoutMs: options.requestTimeoutMs,
+    concurrency: options.concurrency
+  };
   const batches = await Promise.allSettled([
-    fetchHackerNewsSignals({ keywords, limit: signalLimit, fetchImpl }),
-    fetchRedditSignals({ keywords, limit: signalLimit, fetchImpl })
+    fetchHackerNewsSignals(requestOptions),
+    fetchRedditSignals(requestOptions)
   ]);
 
   const signals = [];
