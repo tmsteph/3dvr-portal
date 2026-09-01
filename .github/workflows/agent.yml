@@ -110,8 +110,11 @@ jobs:
           repo="$HOME/.3dvr/portal"
           mkdir -p "$HOME/.3dvr"
           if [ ! -d "$repo/.git" ]; then rm -rf "$repo"; git clone "https://github.com/$GITHUB_REPOSITORY.git" "$repo"; fi
-          git -C "$repo" diff --quiet
-          git -C "$repo" diff --cached --quiet
+          if ! git -C "$repo" diff --quiet || ! git -C "$repo" diff --cached --quiet || [ -n "$(git -C "$repo" ls-files --others --exclude-standard)" ]; then
+            stash_name="agent-deploy-$(date -u +%Y%m%dT%H%M%SZ)"
+            git -C "$repo" stash push --include-untracked -m "$stash_name"
+            echo "Preserved local checkout changes in stash: $stash_name"
+          fi
           git -C "$repo" fetch --prune origin main
           git -C "$repo" checkout main
           git -C "$repo" pull --ff-only origin main
