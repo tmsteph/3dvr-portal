@@ -9,6 +9,7 @@ import {
   getNextOpportunityStatus,
   normalizeFreelanceOpportunity,
 } from '../src/freelance-opportunity-pipeline.js';
+import { createFreelanceStateEntry } from '../src/freelance-state.js';
 
 const gun = Gun(window.__GUN_PEERS__ || [
   'wss://relay.3dvr.tech/gun',
@@ -18,6 +19,7 @@ const crmRecords = gun.get('3dvr-crm');
 const gigRecords = gun.get('3dvr-freelance-gigs');
 const opportunityOwnerKey = resolveOpportunityOwnerKey();
 const opportunityRecords = gun.get('3dvr-freelance-opportunities').get(opportunityOwnerKey);
+const stateRecords = gun.get('3dvr-freelance-state').get(opportunityOwnerKey);
 
 const state = {
   clients: Object.create(null),
@@ -121,6 +123,18 @@ function makeId(prefix) {
     return `${prefix}-${crypto.randomUUID()}`;
   }
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function recordState(kind, subjectType, subjectId, summary, details = '') {
+  const entry = createFreelanceStateEntry({
+    id: makeId('state'),
+    kind,
+    subjectType,
+    subjectId,
+    summary,
+    details,
+  });
+  stateRecords.get(entry.id).put(entry);
 }
 
 function dateKey(value = new Date()) {
@@ -440,6 +454,13 @@ function handleOpportunitySubmit(event) {
   };
   if (!record.title) return;
   opportunityRecords.get(id).put(record);
+  recordState(
+    'fact',
+    'opportunity',
+    id,
+    `Opportunity added: ${record.title}`,
+    [record.company, record.compensation, record.location].filter(Boolean).join(' · '),
+  );
   els.opportunityForm.reset();
   els.opportunityFitScore.value = '70';
   closeDialog('opportunityDialog');
@@ -470,6 +491,13 @@ function handleClientSubmit(event) {
   };
   if (!record.name) return;
   crmRecords.get(id).put(record);
+  recordState(
+    'fact',
+    'client',
+    id,
+    `Client added: ${record.name}`,
+    [record.company, record.freelanceRole, record.freelanceRate].filter(Boolean).join(' · '),
+  );
   els.clientForm.reset();
   closeDialog('clientDialog');
 }
@@ -497,6 +525,13 @@ function handleGigSubmit(event) {
   };
   if (!record.title || !record.startDate) return;
   gigRecords.get(id).put(record);
+  recordState(
+    record.status === 'Booked' ? 'decision' : 'fact',
+    'gig',
+    id,
+    `${record.status} gig: ${record.title}`,
+    [record.clientName, record.role, record.rate, record.venue].filter(Boolean).join(' · '),
+  );
   if (client && ['Booked', 'Completed'].includes(record.status)) {
     crmRecords.get(client.id).put({
       status: 'Active',
@@ -550,13 +585,19 @@ function handleActionClick(event) {
     const { opportunityAction, opportunityId } = opportunityButton.dataset;
     const opportunity = state.opportunities[opportunityId];
     if (!opportunity) return;
-    if (opportunityAction === 'pass') updateOpportunity(opportunityId, { status: 'Passed' });
+    if (opportunityAction === 'pass') {
+      updateOpportunity(opportunityId, { status: 'Passed' });
+      recordState('decision', 'opportunity', opportunityId, `Passed on: ${opportunity.title}`);
+    }
     if (opportunityAction === 'advance') {
       const status = getNextOpportunityStatus(opportunity);
-      if (status) updateOpportunity(opportunityId, {
-        status,
-        ...(status === 'Applied' && !opportunity.appliedAt ? { appliedAt: new Date().toISOString() } : {}),
-      });
+      if (status) {
+        updateOpportunity(opportunityId, {
+          status,
+          ...(status === 'Applied' && !opportunity.appliedAt ? { appliedAt: new Date().toISOString() } : {}),
+        });
+        recordState('decision', 'opportunity', opportunityId, `${status}: ${opportunity.title}`);
+      }
     }
     return;
   }
@@ -570,9 +611,11 @@ function handleActionClick(event) {
         nextFollowUp: addDays(7),
         nextBestAction: 'Follow up if new work or availability comes up.',
       });
+      recordState('action', 'client', clientId, `Contacted: ${state.clients[clientId]?.name || clientId}`);
     }
     if (clientAction === 'active') {
       updateClient(clientId, { status: 'Active', warmth: 'hot' });
+      recordState('decision', 'client', clientId, `Marked repeat client: ${state.clients[clientId]?.name || clientId}`);
     }
     return;
   }
@@ -580,9 +623,20 @@ function handleActionClick(event) {
   const gigButton = event.target.closest('[data-gig-action]');
   if (gigButton) {
     const { gigAction, gigId } = gigButton.dataset;
-    if (gigAction === 'complete') updateGig(gigId, { status: 'Completed', paymentStatus: 'Not invoiced' });
-    if (gigAction === 'invoice') updateGig(gigId, { paymentStatus: 'Invoiced' });
-    if (gigAction === 'paid') updateGig(gigId, { paymentStatus: 'Paid' });
+    const gig = state.gigs[gigId];
+    const gigName = gig?.title || gigId;
+    if (gigAction === 'complete') {
+      updateGig(gigId, { status: 'Completed', paymentStatus: 'Not invoiced' });
+      recordState('action', 'gig', gigId, `Completed gig: ${gigName}`);
+    }
+    if (gigAction === 'invoice') {
+      updateGig(gigId, { paymentStatus: 'Invoiced' });
+      recordState('action', 'gig', gigId, `Invoiced gig: ${gigName}`);
+    }
+    if (gigAction === 'paid') {
+      updateGig(gigId, { paymentStatus: 'Paid' });
+      recordState('action', 'gig', gigId, `Paid gig: ${gigName}`);
+    }
   }
 }
 
