@@ -144,7 +144,7 @@ jobs:
           export THREEDVR_AGENT_QUEUE_STORE=sqlite
           [ -x "$THREEDVR_NODE_BIN" ] || exit 1
           "$THREEDVR_NODE_BIN" -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 13)) process.exit(1); require("node:sqlite")'
-          result="$("$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js enqueue --json --backend shell --risk read_only --approval-status approved --unsafe --requires node --max-runtime-ms 30000 'printf "3dvr-do-worker-ok\\n"')"
+          result="$("$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js enqueue --json --backend shell --risk read_only --approval-status approved --unsafe --requires shell --max-runtime-ms 30000 'printf "3dvr-do-worker-ok\\n"')"
           task_id="$(printf '%s' "$result" | "$THREEDVR_NODE_BIN" -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task queue JSON payload missing');console.log(JSON.parse(s.slice(i)).id)})")"
           for attempt in $(seq 1 18); do
             result="$("$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
