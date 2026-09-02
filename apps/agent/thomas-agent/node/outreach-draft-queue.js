@@ -147,7 +147,7 @@ function enqueueDraftRequest(lead = {}, options = {}) {
     },
     preview: { recipientId, url: previewUrl },
     instructions: {
-      maximumWords: 110,
+      maximumWords: 160,
       targetWords: 75,
       requiredGreeting: `Hi ${normalizeText(lead.name)} team,`,
       requiredPreviewUrl: previewUrl,

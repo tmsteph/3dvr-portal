@@ -99,9 +99,46 @@ function buildTemplateOutreachDraft(lead = {}) {
     : '';
   if (offerProfile === 'business-sites') {
     const variant = normalizeText(lead.experimentVariant || lead.variant).toLowerCase();
-    const body = variant === 'b'
-      ? `Hi ${name} team,\n\nI'm Thomas with 3dvr.tech in San Diego. I made a focused one-page site concept for ${name} built around one action: call, book, or request a quote.${previewLine}\n\nI can put it live within 3 business days after I have the basics for $99 setup + $19/month. If I miss that launch window, I refund the setup fee.\n\nWant the 5-item launch checklist?\n\nThomas`
-      : `Hi ${name} team,\n\nI'm Thomas with 3dvr.tech in San Diego. I made a one-page version of your customer path so people can quickly understand what you do and take one clear next step.${previewLine}\n\nIf you want it live, I can launch it within 3 business days after I have the basics for $99 setup + $19/month. If I miss that launch window, I refund the setup fee.\n\nWant the launch checklist?\n\nThomas`;
+    const hasExistingSite = Boolean(normalizeText(lead.site || lead.link));
+    const body = hasExistingSite
+      ? variant === 'b'
+        ? `Hi ${name} team,
+
+I'm Thomas with 3dvr.tech in San Diego. I made a focused one-page concept for ${name}.${previewLine}
+
+I can make one focused website upgrade for $99 one time, and you keep your current hosting.
+
+Want me to send the short upgrade checklist?
+
+Thomas`
+        : `Hi ${name} team,
+
+I'm Thomas with 3dvr.tech in San Diego. I made a one-page version of your customer path so the next step is clearer.${previewLine}
+
+I can make one focused website upgrade for $99 one time. You keep your current hosting.
+
+Want the upgrade checklist?
+
+Thomas`
+      : variant === 'b'
+        ? `Hi ${name} team,
+
+I'm Thomas with 3dvr.tech in San Diego. I made a focused one-page site concept for ${name} built around one action: call, book, or request a quote.${previewLine}
+
+I can put it live within 3 business days after I have the basics for $99 setup + $19/month. If I miss that launch window, I refund the setup fee.
+
+Want the 5-item launch checklist?
+
+Thomas`
+        : `Hi ${name} team,
+
+I'm Thomas with 3dvr.tech in San Diego. I made a one-page version of your customer path so people can quickly understand what you do and take one clear next step.${previewLine}
+
+If you want it live, I can launch it within 3 business days after I have the basics for $99 setup + $19/month. If I miss that launch window, I refund the setup fee.
+
+Want the launch checklist?
+
+Thomas`;
     return { source: variant === 'b' ? 'template-business-sites-b' : 'template-business-sites-a', text: finalizeCommercialOutreach(body) };
   }
   if (offerProfile === 'free-page') {
