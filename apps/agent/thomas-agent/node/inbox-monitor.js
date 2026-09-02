@@ -44,6 +44,9 @@ const DEFAULT_IMAP_TLS = !/^(0|false|no|off)$/i.test(String(process.env.THREEDVR
 const DEFAULT_MAILBOX = normalizeText(process.env.THREEDVR_INBOX_MAILBOX || 'INBOX');
 const DEFAULT_POLL_LIMIT = parseInteger(process.env.THREEDVR_INBOX_LIMIT, 10);
 const DEFAULT_AUTO_REPLY = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_INBOX_AUTO_REPLY || '').trim());
+const DEFAULT_AUTO_REPLY_CAMPAIGN_ID = normalizeText(process.env.THREEDVR_INBOX_AUTO_REPLY_CAMPAIGN_ID);
+const DEFAULT_BUSINESS_SITES_PAYMENT_URL = normalizeText(process.env.THREEDVR_BUSINESS_SITES_PAYMENT_URL);
+const DEFAULT_BUSINESS_UPGRADE_PAYMENT_URL = normalizeText(process.env.THREEDVR_BUSINESS_UPGRADE_PAYMENT_URL);
 const DEFAULT_AUTO_REPLY_LIMIT = parseInteger(process.env.THREEDVR_INBOX_AUTO_REPLY_LIMIT, 1);
 const DEFAULT_AUTO_REPLY_MIN_DELAY_MINUTES = parseInteger(process.env.THREEDVR_INBOX_AUTO_REPLY_MIN_DELAY_MINUTES, 0);
 const DEFAULT_AUTO_REPLY_MAX_DELAY_MINUTES = parseInteger(process.env.THREEDVR_INBOX_AUTO_REPLY_MAX_DELAY_MINUTES, 0);
@@ -192,6 +195,8 @@ Environment:
   THREEDVR_AUTOPILOT_EMAIL_TOKEN                portal email relay token
   THREEDVR_AUTOPILOT_EMAIL_TOKEN_FILE           optional token file path
   THREEDVR_INBOX_AUTO_REPLY                     true to auto-reply to matched contacted leads
+  THREEDVR_INBOX_AUTO_REPLY_CAMPAIGN_ID         when set, only auto-reply to this outreach campaign
+  THREEDVR_BUSINESS_SITES_PAYMENT_URL           hosted checkout used after positive proof-campaign replies
   THREEDVR_INBOX_AUTO_REPLY_LIMIT               max automated replies per run
   THREEDVR_INBOX_AUTO_REPLY_MIN_DELAY_MINUTES   lower bound before auto-reply
   THREEDVR_INBOX_AUTO_REPLY_MAX_DELAY_MINUTES   upper bound before auto-reply
@@ -509,12 +514,14 @@ function recordLeadReplyFeedback(message, lead, state, options = {}) {
     route: 'email',
     subject: message.subject,
     experiment: outbound?.experiment || outbound?.experimentId || '',
+    campaignId: outbound?.campaignId || outbound?.experiment || outbound?.experimentId || '',
     variant: outbound?.variant || lead.variant || '',
     note: `Inbound reply ${messageId}`,
   }, options.logOptions);
 
   meta.feedbackRecordedAt = feedback.timestamp;
   meta.feedbackExperiment = feedback.experiment;
+  meta.feedbackCampaignId = feedback.campaignId || outbound?.campaignId || feedback.experiment || '';
   meta.feedbackVariant = feedback.variant;
   state.messages[messageId] = meta;
   return { recorded: true, updated, feedback };
@@ -1094,6 +1101,53 @@ function buildReplyHeadline(message, state) {
   return repeatCount > 0 ? 'Got your follow-up.' : 'Got your note.';
 }
 
+function isBusinessSitesProofReply(message, state) {
+  if (!DEFAULT_AUTO_REPLY_CAMPAIGN_ID) return false;
+  const meta = state?.messages?.[message?.messageId] || {};
+  const campaignId = normalizeText(meta.feedbackCampaignId || meta.feedbackExperiment);
+  return campaignId === DEFAULT_AUTO_REPLY_CAMPAIGN_ID;
+}
+
+function buildBusinessSitesProofReplyDraft(lead, message, state) {
+  const greeting = firstName(message.from, message.fromEmail);
+  const intent = detectReplyIntent(message);
+  const checkout = DEFAULT_BUSINESS_SITES_PAYMENT_URL;
+  const upgradeCheckout = DEFAULT_BUSINESS_UPGRADE_PAYMENT_URL;
+  let lines;
+  if (intent === 'pricing') {
+    lines = [
+      `Hi ${greeting},`,
+      '',
+      'If you already have a site: $99 one-time upgrade, and you keep your current hosting.',
+      'If you do not have a site: $99 setup + $19/month for a simple first site.',
+      'Once payment is in and I have the five launch basics, I launch within 3 business days. If 3DVR misses that window, I refund the setup fee.',
+      ...(upgradeCheckout ? ['', `Existing-site upgrade: ${upgradeCheckout}`] : []),
+      ...(checkout ? [`First-site launch: ${checkout}`] : []),
+    ];
+  } else {
+    lines = [
+      `Hi ${greeting},`,
+      '',
+      'Great. Here are the five launch basics:',
+      '1. Business name exactly as you want it shown',
+      '2. Main service or offer',
+      '3. Main action: call, book, or request a quote',
+      '4. Best public phone/email/address',
+      '5. Logo, colors, or photos you want used (optional)',
+      '',
+      'If you already have a site, the upgrade is $99 one time and you keep your hosting.',
+      'If you need a first site, it is $99 setup + $19/month; the 3-business-day launch window starts once payment and those basics are complete.',
+      ...(upgradeCheckout ? [`Existing-site upgrade: ${upgradeCheckout}`] : []),
+      ...(checkout ? [`First-site launch: ${checkout}`] : []),
+    ];
+  }
+  return {
+    headline: intent === 'pricing' ? 'Fixed price, simple launch.' : 'Here is the launch checklist.',
+    text: ensureReplyContactFooter(lines.join('\n')),
+    source: 'business-sites-proof',
+  };
+}
+
 function buildReplyText(lead, message, state) {
   const greeting = firstName(message.from, message.fromEmail);
   const repeatCount = countThreadAutoReplies(state, message);
@@ -1355,6 +1409,10 @@ async function buildLlmReplyDraft(lead, message, state, options = {}) {
 }
 
 async function buildReplyDraft(lead, message, state, options = {}) {
+  const proofIntent = detectReplyIntent(message);
+  if (isBusinessSitesProofReply(message, state) && ['pricing', 'interested'].includes(proofIntent)) {
+    return buildBusinessSitesProofReplyDraft(lead, message, state);
+  }
   const allowTemplateFallback = !DEFAULT_REPLY_MODE.endsWith('-strict');
   const normalizedMode = DEFAULT_REPLY_MODE.replace(/-strict$/, '');
   const attempts = normalizedMode === 'template'
@@ -1761,6 +1819,10 @@ function pickAutoReplyCandidates(messages, leadMap, state) {
       if (!lead) return null;
       const meta = state.messages[message.messageId];
       if (!meta || !meta.dueAt || meta.autoRepliedAt) return null;
+      if (DEFAULT_AUTO_REPLY_CAMPAIGN_ID) {
+        const campaignId = normalizeText(meta.feedbackCampaignId || meta.feedbackExperiment);
+        if (campaignId !== DEFAULT_AUTO_REPLY_CAMPAIGN_ID) return null;
+      }
       const dueAt = new Date(meta.dueAt).getTime();
       if (!Number.isFinite(dueAt) || dueAt > Date.now()) return null;
       return { message, lead, meta };

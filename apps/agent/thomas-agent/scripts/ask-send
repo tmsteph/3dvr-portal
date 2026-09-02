@@ -3,6 +3,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Per-send values from the guarded autopilot must win over persistent config.
+runtime_offer_profile_set="${THREEDVR_OUTREACH_OFFER_PROFILE+x}"
+runtime_offer_profile="${THREEDVR_OUTREACH_OFFER_PROFILE:-}"
+runtime_leads_file_set="${THREEDVR_LEADS_FILE+x}"
+runtime_leads_file="${THREEDVR_LEADS_FILE:-}"
+runtime_postal_set="${THREEDVR_OUTREACH_POSTAL_ADDRESS+x}"
+runtime_postal="${THREEDVR_OUTREACH_POSTAL_ADDRESS:-}"
+runtime_phone_set="${THREEDVR_OUTREACH_PHONE+x}"
+runtime_phone="${THREEDVR_OUTREACH_PHONE:-}"
 runtime_message_mode_set="${THREEDVR_OUTREACH_MESSAGE_MODE+x}"
 runtime_message_mode="${THREEDVR_OUTREACH_MESSAGE_MODE:-}"
 runtime_experiment_id_set="${THREEDVR_OUTREACH_EXPERIMENT_ID+x}"
@@ -16,6 +24,10 @@ runtime_recipient_id="${THREEDVR_OUTREACH_RECIPIENT_ID:-}"
 runtime_request_id_set="${THREEDVR_OUTREACH_DRAFT_REQUEST_ID+x}"
 runtime_request_id="${THREEDVR_OUTREACH_DRAFT_REQUEST_ID:-}"
 source "$SCRIPT_DIR/lib/platform.sh"
+[ "$runtime_offer_profile_set" = x ] && export THREEDVR_OUTREACH_OFFER_PROFILE="$runtime_offer_profile"
+[ "$runtime_leads_file_set" = x ] && export THREEDVR_LEADS_FILE="$runtime_leads_file"
+[ "$runtime_postal_set" = x ] && export THREEDVR_OUTREACH_POSTAL_ADDRESS="$runtime_postal"
+[ "$runtime_phone_set" = x ] && export THREEDVR_OUTREACH_PHONE="$runtime_phone"
 [ "$runtime_message_mode_set" = x ] && export THREEDVR_OUTREACH_MESSAGE_MODE="$runtime_message_mode"
 [ "$runtime_experiment_id_set" = x ] && export THREEDVR_OUTREACH_EXPERIMENT_ID="$runtime_experiment_id"
 [ "$runtime_variant_set" = x ] && export THREEDVR_OUTREACH_VARIANT="$runtime_variant"
@@ -172,7 +184,7 @@ if [ "$mode" = "offer" ]; then
   message="$($SCRIPT_DIR/ask-message offer)"
   draft_source="manual-offer"
 else
-  if [ "$message_mode" = "template" ] && [ "${THREEDVR_OUTREACH_OFFER_PROFILE:-}" != "free-page" ] && printf '%s' "$variant" | grep -Eq '^[abc]$'; then
+  if [ "$message_mode" = "template" ] && [ "${THREEDVR_OUTREACH_OFFER_PROFILE:-}" != "free-page" ] && [ "${THREEDVR_OUTREACH_OFFER_PROFILE:-}" != "business-sites" ] && printf '%s' "$variant" | grep -Eq '^[abc]$'; then
     message="$("$SCRIPT_DIR/ask-message" "$variant" "$name")"
     draft_source="template-$variant"
   else
@@ -221,7 +233,13 @@ esac
 route="$(node "$LEAD_ROUTE_JS" --contact "$contact" --link "$link" --variant "$variant" 2>/dev/null || true)"
 [ -z "$route" ] && route="site"
 
-if [ "${THREEDVR_OUTREACH_OFFER_PROFILE:-}" = "free-page" ]; then
+if [ "${THREEDVR_OUTREACH_OFFER_PROFILE:-}" = "business-sites" ]; then
+  if [ -n "$link" ]; then
+    subject="quick website upgrade for $name"
+  else
+    subject="3-day website launch for $name"
+  fi
+elif [ "${THREEDVR_OUTREACH_OFFER_PROFILE:-}" = "free-page" ]; then
   subject="A free one-page website for $name"
 elif [ "${THREEDVR_OUTREACH_OFFER_PROFILE:-}" = "av-operator" ]; then
   subject="AV operator available for upcoming events"

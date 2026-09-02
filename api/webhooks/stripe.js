@@ -342,6 +342,75 @@ function escapeHtml(value = '') {
     .replace(/'/g, '&#39;');
 }
 
+function isBusinessSitesOrder(session = {}) {
+  return String(session?.metadata?.offer_key || '').trim() === 'business_sites_3day';
+}
+
+function readCheckoutCustomField(session = {}, key = '') {
+  const fields = Array.isArray(session?.custom_fields) ? session.custom_fields : [];
+  const match = fields.find(field => String(field?.key || '').trim() === key);
+  return String(match?.text?.value || match?.numeric?.value || match?.dropdown?.value || '').trim();
+}
+
+function readBusinessSitesOrderDetails(session = {}) {
+  return {
+    businessName: String(
+      session?.collected_information?.business_name
+      || session?.customer_details?.name
+      || session?.metadata?.business_name
+      || ''
+    ).trim(),
+    website: readCheckoutCustomField(session, 'business_website'),
+    sessionId: String(session?.id || '').trim(),
+    subscriptionId: String(session?.subscription?.id || session?.subscription || '').trim(),
+    campaign: String(session?.metadata?.campaign || '').trim()
+  };
+}
+
+async function sendBusinessSitesOrderEmail(email, details = {}, { transporter, config } = {}) {
+  const gmailUser = String(config?.GMAIL_USER || '').trim();
+  if (!email || !gmailUser) return;
+  const business = String(details.businessName || 'your business').trim();
+  const subject = `Payment received — 3DVR 3-day site for ${business}`;
+  const checklist = [
+    '1. Business name exactly as you want it shown',
+    '2. Main service or offer',
+    '3. Main action: call, book, or request a quote',
+    '4. Best public phone/email/address',
+    '5. Logo, colors, or photos you want used (optional)'
+  ];
+  await sendMailSafely(transporter, {
+    from: `"Thomas @ 3DVR.Tech" <${gmailUser}>`,
+    to: email,
+    replyTo: gmailUser,
+    subject,
+    text: `Payment received — thank you.\n\nReply to this email with these five launch basics:\n${checklist.join('\n')}\n\nThe 3-business-day launch window starts once I have all required basics. If 3DVR misses that launch window, the $99 setup fee is refunded. Hosting/support is $19/month.\n\nThomas\n3dvr.tech`,
+    html: `<div style="font-family:sans-serif;font-size:16px;line-height:1.5"><h2>Payment received</h2><p>Thanks — your 3DVR 3-day site order is in.</p><p>Reply with these five launch basics:</p><ol>${checklist.map(item => `<li>${escapeHtml(item.replace(/^\d+\.\s*/, ''))}</li>`).join('')}</ol><p>The 3-business-day launch window starts once all required basics are complete. If 3DVR misses that window, the <strong>$99 setup fee is refunded</strong>. Hosting/support is <strong>$19/month</strong>.</p><p>Thomas<br>3dvr.tech</p></div>`
+  });
+}
+
+async function notifyBusinessSitesOrder(details = {}, email = '', { transporter, config } = {}) {
+  const gmailUser = String(config?.GMAIL_USER || '').trim();
+  if (!gmailUser) return;
+  const business = String(details.businessName || email || 'new customer').trim();
+  const lines = [
+    `Customer: ${email || 'unknown'}`,
+    `Business: ${business}`,
+    `Website/domain: ${details.website || 'not supplied'}`,
+    `Checkout session: ${details.sessionId || 'unknown'}`,
+    `Subscription: ${details.subscriptionId || 'unknown'}`,
+    `Campaign: ${details.campaign || 'business_sites_3day'}`,
+    '',
+    'Status: PAID — waiting for the five launch basics from the customer reply.'
+  ];
+  await sendMailSafely(transporter, {
+    from: `"3DVR.Tech Order Notifier" <${gmailUser}>`,
+    to: gmailUser,
+    subject: `[Paid order] 3-Day Business Site — ${business}`,
+    text: lines.join('\n')
+  });
+}
+
 function readOneTimePaymentDetails(session = {}) {
   const metadata = session?.metadata && typeof session.metadata === 'object'
     ? session.metadata
@@ -671,7 +740,12 @@ export function createStripeWebhookHandler(options = {}) {
       console.log('Stripe session:', JSON.stringify(session, null, 2));
 
       if (email) {
-        if (session.mode === 'payment' || normalizeBillingPlan(session.metadata?.plan || '') === 'custom') {
+        if (isBusinessSitesOrder(session)) {
+          const orderDetails = readBusinessSitesOrderDetails(session);
+          console.log('Paid 3-day business site order:', email, orderDetails.businessName || orderDetails.website || session.id);
+          await sendBusinessSitesOrderEmail(email, orderDetails, { transporter, config: runtimeConfig });
+          await notifyBusinessSitesOrder(orderDetails, email, { transporter, config: runtimeConfig });
+        } else if (session.mode === 'payment' || normalizeBillingPlan(session.metadata?.plan || '') === 'custom') {
           const paymentDetails = readOneTimePaymentDetails(session);
           console.log('One-time payment:', email, paymentDetails.amount || paymentDetails.amountCents);
           await sendOneTimePaymentEmail(email, paymentDetails, { transporter, config: runtimeConfig });

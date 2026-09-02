@@ -97,6 +97,13 @@ function buildTemplateOutreachDraft(lead = {}) {
       ? `\n\nMy work:\n${normalizeText(lead.previewUrl)}`
       : `\n\nI made a sample page:\n${normalizeText(lead.previewUrl)}`
     : '';
+  if (offerProfile === 'business-sites') {
+    const variant = normalizeText(lead.experimentVariant || lead.variant).toLowerCase();
+    const body = variant === 'b'
+      ? `Hi ${name} team,\n\nI'm Thomas with 3dvr.tech in San Diego. I made a focused one-page site concept for ${name} built around one action: call, book, or request a quote.${previewLine}\n\nI can put it live within 3 business days after I have the basics for $99 setup + $19/month. If I miss that launch window, I refund the setup fee.\n\nWant the 5-item launch checklist?\n\nThomas`
+      : `Hi ${name} team,\n\nI'm Thomas with 3dvr.tech in San Diego. I made a one-page version of your customer path so people can quickly understand what you do and take one clear next step.${previewLine}\n\nIf you want it live, I can launch it within 3 business days after I have the basics for $99 setup + $19/month. If I miss that launch window, I refund the setup fee.\n\nWant the launch checklist?\n\nThomas`;
+    return { source: variant === 'b' ? 'template-business-sites-b' : 'template-business-sites-a', text: finalizeCommercialOutreach(body) };
+  }
   if (offerProfile === 'free-page') {
     const variant = normalizeText(lead.experimentVariant || lead.variant).toLowerCase();
     const body = variant === 'b'
@@ -134,7 +141,15 @@ function buildPrompt(lead = {}) {
   const name = normalizeText(lead.name);
   const site = normalizeText(lead.site);
   const contact = normalizeText(lead.contact);
-  const offerLines = currentOfferProfile() === 'free-page'
+  const offerLines = currentOfferProfile() === 'business-sites'
+    ? [
+      '- Offer a focused one-page business site launched within 3 business days after the customer supplies the required business facts/content.',
+      '- The fixed offer is $99 setup + $19/month hosting/support.',
+      '- If 3dvr.tech misses that launch window, the setup fee is refunded.',
+      '- Ask whether they want the short launch checklist.',
+      '- Say Thomas is with 3dvr.tech in San Diego.',
+    ]
+    : currentOfferProfile() === 'free-page'
     ? [
       '- Offer a personalized homepage concept at no cost, with no obligation to continue.',
       '- Ask whether they would like to take a look at it.',
@@ -162,7 +177,7 @@ function buildPrompt(lead = {}) {
     '- Write as Thomas, not as a company team.',
     ...offerLines,
     '- No fake specifics about their site.',
-    '- No pricing.',
+    currentOfferProfile() === 'business-sites' ? '- Use only the fixed $99 setup + $19/month price above.' : '- No pricing.',
     '- No hype, no exclamation marks, no markdown.',
     '- If a contact phone number is configured, include the same footer block used by the inbox replies.',
     '- Close with exactly: Thomas',
@@ -177,7 +192,14 @@ function buildLocalPrompt(lead = {}) {
   const name = normalizeText(lead.name) || 'there';
   const site = normalizeText(lead.site);
   const contact = normalizeText(lead.contact);
-  const offerLines = currentOfferProfile() === 'free-page'
+  const offerLines = currentOfferProfile() === 'business-sites'
+    ? [
+      'Offer: a focused one-page business site launched within 3 business days after the customer supplies the required business facts/content.',
+      'Price: $99 setup + $19/month hosting/support.',
+      'Guarantee: if 3dvr.tech misses that launch window, refund the setup fee.',
+      'Ask whether they want the short launch checklist.',
+    ]
+    : currentOfferProfile() === 'free-page'
     ? [
       'Offer: a personalized homepage concept at no cost, with no obligation to continue.',
       'Ask whether they would like to take a look at it.',
@@ -196,7 +218,7 @@ function buildLocalPrompt(lead = {}) {
     'Return only JSON: {"text":"..."}',
     'Voice: direct, warm, and human. Use words a third grader can read.',
     'Facts: 3dvr.tech helps with website work, customer outreach, clearer offers, and small workflow fixes.',
-    'Do not invent prices, guarantees, integrations, or meetings.',
+    currentOfferProfile() === 'business-sites' ? 'Use only the fixed price and launch-window refund promise above; do not invent other guarantees.' : 'Do not invent prices, guarantees, integrations, or meetings.',
     'Do not include a signature beyond Thomas.',
     'If a contact phone number is configured, include the same footer block used by the inbox replies.',
     `Lead: ${name}`,

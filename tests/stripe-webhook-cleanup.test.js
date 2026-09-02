@@ -741,3 +741,46 @@ test('stripe webhook dispatches paid Auto Business fulfillment and queues a priv
   assert.match(handoff.text, /Private intake stays here/);
   assert.match(handoff.text, /issues\/2000/);
 });
+
+
+test('stripe webhook routes the 3-day business site checkout into launch fulfillment', async () => {
+  const transporter = { sendMail: mock.fn(async payload => payload) };
+  const handler = createStripeWebhookHandler({
+    stripeClient: createStripeState().stripe,
+    config: { ...baseConfig, GMAIL_USER: '3dvr.tech@gmail.com', STRIPE_LOG_EMAIL: '' },
+    transporter,
+    readRawBody: async () => Buffer.from('{}'),
+    constructEvent: () => ({
+      id: 'evt_business_site_checkout',
+      type: 'checkout.session.completed',
+      created: 1700000000,
+      data: {
+        object: {
+          id: 'cs_business_site',
+          mode: 'subscription',
+          subscription: 'sub_business_site',
+          customer: 'cus_business_site',
+          customer_details: { email: 'owner@example.com', name: 'Acme Repair' },
+          collected_information: { business_name: 'Acme Repair LLC' },
+          custom_fields: [{ key: 'business_website', text: { value: 'https://acmerepair.example' } }],
+          metadata: { offer_key: 'business_sites_3day', campaign: 'business-sites-proof-2026-09-02' }
+        }
+      }
+    })
+  });
+  const req = { method: 'POST', headers: { 'stripe-signature': 'sig_test' } };
+  const res = createMockRes();
+  await handler(req, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(transporter.sendMail.mock.calls.length, 2);
+  const payloads = transporter.sendMail.mock.calls.map(call => call.arguments[0]);
+  assert.match(payloads[0].subject, /Payment received .* 3DVR 3-day site/i);
+  assert.match(payloads[0].text, /five launch basics/i);
+  assert.match(payloads[0].text, /3-business-day launch window/i);
+  assert.match(payloads[0].text, /\$99 setup fee is refunded/i);
+  assert.match(payloads[1].subject, /\[Paid order\] 3-Day Business Site/);
+  assert.match(payloads[1].text, /Acme Repair LLC/);
+  assert.match(payloads[1].text, /acmerepair\.example/);
+  assert.match(payloads[1].text, /waiting for the five launch basics/i);
+  assert.doesNotMatch(payloads[0].subject, /Welcome to 3DVR/i);
+});
