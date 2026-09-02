@@ -39,6 +39,14 @@ function sqliteQueue() {
   return require('./task-queue-sqlite-store');
 }
 
+function gunSyncEnabled(options = {}) {
+  const value = options.gunSync === undefined
+    ? process.env.THREEDVR_AGENT_QUEUE_GUN_SYNC
+    : options.gunSync;
+  if (value === undefined || value === null || value === '') return true;
+  return !/^(0|false|no|off)$/i.test(String(value).trim());
+}
+
 function enqueueFlushMs(options = {}) {
   if (options.rootNode || queueStore(options) === 'sqlite') return 0;
   if (options.enqueueFlushMs === undefined) return DEFAULT_ENQUEUE_FLUSH_MS;
@@ -378,6 +386,7 @@ function timestamp(record = {}) {
 }
 
 async function mirrorTerminalTask(record, options = {}) {
+  if (!gunSyncEnabled(options)) return false;
   if (!['completed', 'failed', 'skipped'].includes(record.status)) return false;
   const remote = await readTask(record.id, { ...options, queueStore: 'gun' });
   if (remote && timestamp(remote) > timestamp(record)) return false;
@@ -386,7 +395,7 @@ async function mirrorTerminalTask(record, options = {}) {
 }
 
 async function syncTerminalResults(options = {}) {
-  if (queueStore(options) !== 'sqlite') return;
+  if (queueStore(options) !== 'sqlite' || !gunSyncEnabled(options)) return;
   const records = sqliteQueue().listTasks(options);
   for (const record of records) {
     await mirrorTerminalTask(record, options).catch(() => {});
@@ -394,7 +403,7 @@ async function syncTerminalResults(options = {}) {
 }
 
 async function importLegacyGunTasks(options = {}) {
-  if (queueStore(options) !== 'sqlite') return;
+  if (queueStore(options) !== 'sqlite' || !gunSyncEnabled(options)) return;
   const gunOptions = { ...options, queueStore: 'gun' };
   const summaries = await listTasks(gunOptions);
   for (const summary of summaries) {
@@ -564,6 +573,7 @@ module.exports = {
   csvToList,
   enqueueTask,
   enqueueFlushMs,
+  gunSyncEnabled,
   queueStore,
   formatTask,
   listTasks,

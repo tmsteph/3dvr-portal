@@ -6,6 +6,7 @@ const {
   canWorkerRunTask,
   enqueueTask,
   enqueueFlushMs,
+  gunSyncEnabled,
   formatTask,
   listTasks,
   readTask,
@@ -221,4 +222,11 @@ test('unsafe high-risk task is approved and can run on capable worker', async ()
   assert.equal(results.length, 1);
   assert.equal(completed.approvalStatus, 'approved');
   assert.equal(completed.status, 'completed');
+});
+
+
+test('gunSyncEnabled can isolate SQLite workers from GUN', () => {
+  assert.equal(gunSyncEnabled({ gunSync: false }), false);
+  assert.equal(gunSyncEnabled({ gunSync: 'off' }), false);
+  assert.equal(gunSyncEnabled({ gunSync: true }), true);
 });
