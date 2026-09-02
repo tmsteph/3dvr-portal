@@ -38,6 +38,14 @@ function routeFromVariant(variant) {
 }
 
 function routeFromContact({ contact = '', link = '', variant = '' } = {}) {
+  const directContact = normalizeText(contact);
+  if (directContact) {
+    const lower = directContact.toLowerCase();
+    if (/^mailto:/.test(lower) || (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lower) && !/^https?:\/\//.test(lower))) return 'email';
+    const digits = directContact.replace(/\D/g, '');
+    if (!/^https?:\/\//.test(lower) && /^[+()\d.\s-]+$/.test(directContact) && digits.length >= 7) return 'phone';
+  }
+
   const variantRoute = routeFromVariant(variant);
   if (variantRoute) return variantRoute;
 

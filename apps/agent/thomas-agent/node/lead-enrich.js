@@ -526,6 +526,19 @@ function decideEnrichmentUpdate(row, result, options = {}) {
   };
 }
 
+function rowIdentity(row = {}) {
+  return `${normalizeText(row.name).toLowerCase()}|${normalizeText(row.link).toLowerCase()}`;
+}
+
+function mergeEnrichmentUpdates(currentRows, updatedRows) {
+  const updates = new Map(updatedRows.map((row) => [rowIdentity(row), row]));
+  return currentRows.map((row) => {
+    const update = updates.get(rowIdentity(row));
+    if (!update) return row;
+    return { ...row, contact: update.contact, variant: update.variant };
+  });
+}
+
 function shouldEnrich(row, options) {
   if (options.name && row.name !== options.name) return false;
   if (!row.link && !row.contact) return false;
@@ -551,6 +564,7 @@ async function main() {
   }
 
   const { rows } = readRows(LEADS_FILE);
+  const changedRows = [];
   let checked = 0;
   let changed = 0;
 
@@ -571,6 +585,7 @@ async function main() {
           row.contact = result.contact;
         }
         row.variant = nextVariant;
+        changedRows.push({ ...row });
         changed += 1;
       } else {
         console.log(`${row.name}: kept ${row.contact || result.contact || '-'} (${result.source})`);
@@ -581,7 +596,8 @@ async function main() {
   }
 
   if (!options.dryRun) {
-    writeRows(LEADS_FILE, rows);
+    const latestRows = readRows(LEADS_FILE).rows;
+    writeRows(LEADS_FILE, mergeEnrichmentUpdates(latestRows, changedRows));
   }
 
   console.log(`Checked: ${checked}`);
@@ -601,6 +617,7 @@ module.exports = {
   extractLinks,
   extractMailto,
   isPlaceholderEmail,
+  mergeEnrichmentUpdates,
   normalizeEmailCandidate,
   normalizeRouteFromSource,
   normalizeText,
