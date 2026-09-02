@@ -47,10 +47,11 @@ test('countRouteBuckets separates email, form, page-only, and unenriched new lea
   assert.deepEqual(countRouteBuckets(rows), {
     emailReady: 1,
     formReady: 1,
+    phoneReady: 0,
     pageOnly: 2,
     unenriched: 1,
   });
-  assert.equal(formatRouteCounts(countRouteBuckets(rows)), 'emailReady=1, formReady=1, pageOnly=2, unenriched=1');
+  assert.equal(formatRouteCounts(countRouteBuckets(rows)), 'emailReady=1, formReady=1, phoneReady=0, pageOnly=2, unenriched=1');
 });
 
 test('buildActionItems includes form review commands without auto-submitting forms', () => {
@@ -86,4 +87,18 @@ test('pickAutoSendLeads does not retry successful recipients from the outreach l
   ];
 
   assert.deepEqual(pickAutoSendLeads(rows, 5, entries).map((lead) => lead.name), ['Fresh Lead']);
+});
+
+
+test('phone-only leads are surfaced for human call review', () => {
+  const rows = [{ name: 'No Site Shop', status: 'new', link: '', contact: '+1 619 555 0123', variant: '' }];
+  const routeCounts = countRouteBuckets(rows);
+  assert.equal(routeCounts.phoneReady, 1);
+  const actions = buildActionItems({
+    counts: { new: 1, contacted: 0, nurture: 0, replied: 0, closed: 0 },
+    routeCounts, topNew: ['No Site Shop'], topReplied: [], topForm: [], topPhone: ['No Site Shop'], topPageOnly: [],
+    autoSent: [], openAiCosts: { available: false }, codex: { mode: 'off' }, errors: [], followups: { eligible: 0 },
+  });
+  assert.match(actions.join('\n'), /Review no-site phone leads: No Site Shop/);
+  assert.match(actions.join('\n'), /ask-message phone \"No Site Shop\"/);
 });

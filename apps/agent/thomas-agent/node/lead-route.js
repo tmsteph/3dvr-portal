@@ -1,4 +1,4 @@
-const ROUTES = new Set(['email', 'form', 'contact-page', 'site']);
+const ROUTES = new Set(['email', 'form', 'contact-page', 'phone', 'site']);
 const ACTIONS = new Set(['email', 'form', 'open', 'review', 'unreachable']);
 
 function normalizeText(value) {
@@ -24,7 +24,7 @@ function routeFromVariant(variant) {
   const raw = normalizeText(variant).toLowerCase();
   if (!raw) return '';
 
-  const explicit = raw.match(/\broute\s*=\s*(email|form|contact-page|site|contact-page-unverified)\b/i);
+  const explicit = raw.match(/\broute\s*=\s*(email|form|contact-page|phone|site|contact-page-unverified)\b/i);
   if (explicit) return normalizeRoute(explicit[1]);
 
   if (/\bcontact-page-unverified\b/i.test(raw)) return 'contact-page';
@@ -49,6 +49,11 @@ function routeFromContact({ contact = '', link = '', variant = '' } = {}) {
     const lower = text.toLowerCase();
     if (/^mailto:/.test(lower) || (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lower) && !/^https?:\/\//.test(lower))) {
       return 'email';
+    }
+
+    const digits = text.replace(/\D/g, '');
+    if (!/^https?:\/\//.test(lower) && /^[+()\d.\s-]+$/.test(text) && digits.length >= 7) {
+      return 'phone';
     }
 
     if (/^https?:\/\//.test(lower)) {

@@ -272,6 +272,7 @@ function countRouteBuckets(rows) {
   const routeCounts = {
     emailReady: 0,
     formReady: 0,
+    phoneReady: 0,
     pageOnly: 0,
     unenriched: 0,
   };
@@ -285,6 +286,8 @@ function countRouteBuckets(rows) {
       routeCounts.emailReady += 1;
     } else if (route === 'form') {
       routeCounts.formReady += 1;
+    } else if (route === 'phone') {
+      routeCounts.phoneReady += 1;
     } else if (route === 'contact-page') {
       routeCounts.pageOnly += 1;
     } else if (route === 'site' && !contact && !link) {
@@ -682,7 +685,7 @@ function formatCounts(counts) {
 }
 
 function formatRouteCounts(routeCounts) {
-  return `emailReady=${routeCounts.emailReady}, formReady=${routeCounts.formReady}, pageOnly=${routeCounts.pageOnly}, unenriched=${routeCounts.unenriched}`;
+  return `emailReady=${routeCounts.emailReady}, formReady=${routeCounts.formReady}, phoneReady=${routeCounts.phoneReady}, pageOnly=${routeCounts.pageOnly}, unenriched=${routeCounts.unenriched}`;
 }
 
 function buildActionItems(summary) {
@@ -714,6 +717,10 @@ function buildActionItems(summary) {
       actions.push(`ask-form "${summary.topForm[0]}"`);
       actions.push(`ask-send "${summary.topForm[0]}"`);
     }
+  }
+  if (summary.routeCounts?.phoneReady > 0) {
+    actions.push(`Review no-site phone leads: ${summary.topPhone.join(', ') || `${summary.routeCounts.phoneReady} phone lead(s)`}`);
+    if (summary.topPhone[0]) actions.push(`ask-message phone "${summary.topPhone[0]}"`);
   }
   if (summary.routeCounts?.pageOnly > 0) {
     actions.push(`Review page-only leads: ${summary.topPageOnly.join(', ') || `${summary.routeCounts.pageOnly} page-only lead(s)`}`);
@@ -952,6 +959,7 @@ async function persistGunSummary(summary) {
     topNew: summary.topNew,
     topReplied: summary.topReplied,
     topForm: summary.topForm,
+    topPhone: summary.topPhone,
     topPageOnly: summary.topPageOnly,
     combo: summary.combo || null,
     openAiCosts: summary.openAiCosts,
@@ -1141,6 +1149,7 @@ async function main() {
   const topNew = topLeadNames(finalRows, 'new');
   const topReplied = topLeadNames(finalRows, 'replied');
   const topForm = topRouteLeadNames(finalRows, 'form');
+  const topPhone = topRouteLeadNames(finalRows, 'phone');
   const topPageOnly = topRouteLeadNames(finalRows, 'contact-page').concat(topRouteLeadNames(finalRows, 'site'));
   const followupPolicies = finalRows
     .filter((row) => normalizeText(row.status).toLowerCase() === 'contacted')
@@ -1184,6 +1193,7 @@ async function main() {
     commands.push(`ask-form "${topForm[0]}"`);
     commands.push(`ask-send "${topForm[0]}"`);
   }
+  if (routeCounts.phoneReady > 0 && topPhone[0]) commands.push(`ask-message phone "${topPhone[0]}"`);
   if (routeCounts.pageOnly > 0 && topPageOnly[0]) {
     commands.push(`ask-send "${topPageOnly[0]}"`);
   }
@@ -1236,6 +1246,7 @@ async function main() {
     topNew,
     topReplied,
     topForm,
+    topPhone,
     topPageOnly,
     autoSent,
     commands: Array.from(new Set(commands)),
