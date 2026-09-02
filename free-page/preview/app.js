@@ -5,6 +5,8 @@ import {
 
 const params = new URLSearchParams(window.location.search);
 const recipientId = clean(params.get('r'), 80);
+const offerProfile = clean(params.get('offer'), 40).toLowerCase();
+const isBusinessSitesOffer = offerProfile === 'business-sites';
 const business = clean(params.get('name'), 80) || 'your business';
 const focus = clean(params.get('focus'), 180)
   || 'A focused page can make your main service and best contact path obvious.';
@@ -75,6 +77,16 @@ const claimButton = document.querySelector('#claimButton');
 const subject = `Finish the homepage concept for ${business}`;
 const body = `Hi Thomas,\n\nI'd like to talk about finishing the homepage concept for ${business}.\n\nPreview reference: ${recipientId || 'not provided'}`;
 claimButton.href = `mailto:3dvr.tech@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+if (isBusinessSitesOffer) {
+  document.querySelector('#offerEyebrow').innerHTML = `A focused one-page site for <span data-business>${business}</span>`;
+  document.querySelector('#claimOffer').textContent = 'Already have a site? $99 one-time upgrade. No site? $99 setup + $19/month.';
+  document.querySelector('#contactNote').textContent = 'Keep your current hosting if you have it. If you need a first site, I can launch within 3 business days after I have the basics; if 3DVR misses that window, I refund the setup fee.';
+  claimButton.textContent = 'Get the right plan';
+  const launchSubject = `Website plan for ${business}`;
+  const launchBody = `Hi Thomas,\n\nPlease send me the right website plan for ${business}.\n\nPreview reference: ${recipientId || 'not provided'}`;
+  claimButton.href = `mailto:3dvr.tech@gmail.com?subject=${encodeURIComponent(launchSubject)}&body=${encodeURIComponent(launchBody)}`;
+}
 claimButton.addEventListener('click', () => track('claim_intent'));
 
 track('preview_view');

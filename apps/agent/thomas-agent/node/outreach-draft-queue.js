@@ -38,6 +38,8 @@ function buildPersonalizedPreviewUrl(preview = {}, options = {}) {
   const url = new URL(baseUrl);
   url.searchParams.set('r', cleanId(preview.recipientId));
   url.searchParams.set('name', normalizeText(preview.name).slice(0, 80));
+  const offerProfile = normalizeText(preview.offerProfile || currentOfferProfile());
+  if (offerProfile) url.searchParams.set('offer', offerProfile);
   if (normalizeText(preview.focus)) url.searchParams.set('focus', normalizeText(preview.focus).slice(0, 180));
   if (normalizeText(preview.action)) url.searchParams.set('action', normalizeText(preview.action).slice(0, 40));
   const contactEmail = normalizeEmail(preview.contactEmail);
@@ -90,8 +92,12 @@ function listRequests(status = 'pending', options = {}) {
 
 function findRequestForLead(lead, options = {}) {
   const fingerprint = leadFingerprint(lead);
+  const campaignId = normalizeText(options.campaignId || lead.campaignId);
+  const offerProfile = normalizeText(options.offerProfile || currentOfferProfile());
   for (const status of ['ready', 'pending']) {
-    const match = listRequests(status, options).find(request => request.leadFingerprint === fingerprint);
+    const match = listRequests(status, options).find(request => request.leadFingerprint === fingerprint
+      && (!campaignId || normalizeText(request.campaignId) === campaignId)
+      && (!offerProfile || normalizeText(request.offerProfile) === offerProfile));
     if (match) return { status, request: match };
   }
   return null;
@@ -102,7 +108,7 @@ function enqueueDraftRequest(lead = {}, options = {}) {
   const recipientEmail = normalizeEmail(lead.recipientEmail || lead.contact);
   if (!recipientEmail) throw new Error('A verified recipient email is required before queueing a draft.');
 
-  const existing = findRequestForLead(lead, { queueDir });
+  const existing = findRequestForLead(lead, { queueDir, campaignId: options.campaignId || lead.campaignId, offerProfile: currentOfferProfile() });
   if (existing) return { ...existing.request, ready: existing.status === 'ready' };
 
   const paths = ensureQueue(queueDir);
@@ -113,8 +119,11 @@ function enqueueDraftRequest(lead = {}, options = {}) {
     name: lead.name,
     focus: lead.previewFocus,
     action: lead.previewAction,
+    offerProfile: currentOfferProfile(),
   }, options);
   const avOperator = currentOfferProfile() === 'av-operator';
+  const businessSites = currentOfferProfile() === 'business-sites';
+  const hasExistingSite = Boolean(normalizeText(lead.site || lead.link));
   const avJobSearch = avOperator
     && /^(?:1|true|yes|on)$/i.test(normalizeText(process.env.THREEDVR_OUTREACH_AV_JOB_SEARCH));
   if (avJobSearch) {
@@ -127,6 +136,7 @@ function enqueueDraftRequest(lead = {}, options = {}) {
     status: 'pending',
     createdAt: new Date().toISOString(),
     campaignId: normalizeText(options.campaignId || lead.campaignId),
+    offerProfile: currentOfferProfile(),
     experimentVariant: normalizeText(options.experimentVariant || lead.experimentVariant),
     leadFingerprint: leadFingerprint(lead),
     lead: {
@@ -145,10 +155,16 @@ function enqueueDraftRequest(lead = {}, options = {}) {
       readingLevel: 'third grade',
       offer: avOperator
         ? 'Thomas as an audio-visual operator for event days at $500/day, covering audio, video, show calls, troubleshooting, load-in, and strike.'
-        : 'A no-cost one-page website draft with no obligation to keep it.',
+        : businessSites
+          ? hasExistingSite
+            ? 'A $99 one-time website upgrade on the existing website setup. Do not require a hosting move. Focus on one page or customer path.'
+            : 'A simple first one-page business site launched within 3 business days after receiving the required business facts/content, for $99 setup + $19/month hosting/support. If 3dvr.tech misses that launch window, refund the setup fee.'
+          : 'A no-cost one-page website draft with no obligation to keep it.',
       prohibited: avOperator
         ? ['invented observations', 'guarantees', 'hype', 'alternate recipients']
-        : ['invented observations', 'pricing', 'guarantees', 'hype', 'alternate recipients'],
+        : businessSites
+          ? ['invented observations', 'unapproved pricing', 'unapproved guarantees', 'hype', 'alternate recipients']
+          : ['invented observations', 'pricing', 'guarantees', 'hype', 'alternate recipients'],
     },
   };
   writeJsonAtomic(path.join(paths.pending, `${id}.json`), request);
