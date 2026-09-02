@@ -8,6 +8,7 @@ const {
   extractEmails,
   extractMailto,
   isPlaceholderEmail,
+  mergeEnrichmentUpdates,
 } = require('../thomas-agent/node/lead-enrich');
 
 test('extractMailto decodes encoded mailto values', () => {
@@ -130,4 +131,20 @@ test('decideEnrichmentUpdate keeps mailto leads unless prefer-form refresh is ex
   const explicit = decideEnrichmentUpdate(row, result, { refresh: true, preferForm: true });
   assert.equal(explicit.shouldReplaceContact, true);
   assert.equal(explicit.nextVariant, 'osm-service+route=form');
+});
+
+
+test('mergeEnrichmentUpdates preserves concurrent additions and statuses', () => {
+  const currentRows = [
+    { name: 'Acme', link: 'https://acme.example', contact: 'https://acme.example', status: 'contacted', date: '2026-09-02', variant: 'route=site' },
+    { name: 'New Lead', link: '', contact: '+1-619-555-0199', status: 'new', date: '2026-09-02', variant: 'route=phone' },
+  ];
+  const updates = [
+    { name: 'Acme', link: 'https://acme.example', contact: 'mailto:owner@acme.example', status: 'new', date: '2026-09-02', variant: 'route=email' },
+  ];
+  const merged = mergeEnrichmentUpdates(currentRows, updates);
+  assert.equal(merged[0].status, 'contacted');
+  assert.equal(merged[0].contact, 'mailto:owner@acme.example');
+  assert.equal(merged[0].variant, 'route=email');
+  assert.equal(merged[1].name, 'New Lead');
 });

@@ -20,6 +20,8 @@ test('routeFromContact classifies common lead routes', () => {
   assert.equal(routeFromContact({ contact: 'owner@example.com', link: 'https://example.com' }), 'email');
   assert.equal(routeFromContact({ contact: 'https://example.com/contact', link: 'https://example.com' }), 'contact-page');
   assert.equal(routeFromContact({ contact: 'https://example.com', link: 'https://example.com' }), 'site');
+  assert.equal(routeFromContact({ contact: '+1-619-555-0101', variant: 'osm-service+route=site' }), 'phone');
+  assert.equal(routeFromContact({ contact: 'mailto:owner@example.com', variant: 'osm-service+route=site' }), 'email');
 });
 
 test('leadAction maps routes to next-step actions', () => {
