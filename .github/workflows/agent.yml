@@ -153,6 +153,18 @@ jobs:
             sleep 5
           done
           echo 'DigitalOcean worker did not consume the managed SQLite queue test task.' >&2
+          echo '--- managed worker diagnostics ---' >&2
+          scripts="$HOME/.3dvr/portal/apps/agent/thomas-agent/scripts"
+          "$scripts/ask-agent-worker-daemon" status >&2 || true
+          "$scripts/ask-agent-worker-daemon" logs >&2 || true
+          echo "node=$($THREEDVR_NODE_BIN --version 2>/dev/null || echo unavailable)" >&2
+          echo "queue_store=${THREEDVR_AGENT_QUEUE_STORE:-unset}" >&2
+          echo "owner_alias=${THREEDVR_AGENT_OWNER_ALIAS:-unset}" >&2
+          if [ -n "${THREEDVR_AGENT_QUEUE_DB:-}" ]; then echo "queue_db=$THREEDVR_AGENT_QUEUE_DB" >&2; else echo 'queue_db=<default>' >&2; fi
+          echo "task_id=$task_id" >&2
+          "$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js status --id "$task_id" --json >&2 || true
+          "$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js list --json >&2 || true
+          if command -v tmux >/dev/null 2>&1; then tmux list-sessions >&2 || true; fi
           exit 1
           REMOTE
       - name: Publish worker deployment status
