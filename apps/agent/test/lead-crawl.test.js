@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const {
   buildSearchQueries,
+  dedupeLeads,
   parseDuckDuckGoResults,
   resolveSearchResultUrl,
 } = require('../thomas-agent/node/lead-crawl');
@@ -37,4 +38,15 @@ test('DuckDuckGo result parsing keeps business sites and rejects government and 
 
 test('DuckDuckGo redirect resolution rejects internal search links without a destination', () => {
   assert.equal(resolveSearchResultUrl('https://duckduckgo.com/l/?foo=bar'), '');
+});
+
+
+test('dedupe prioritizes direct email before website and phone-only leads', () => {
+  const leads = [
+    { name: 'Phone First', link: '', contact: '+1 619 555 0101' },
+    { name: 'Site First', link: 'https://site.example', contact: 'https://site.example' },
+    { name: 'Email Later', link: 'https://email.example', contact: 'mailto:owner@email.example' },
+  ];
+  const picked = dedupeLeads(leads, new Set(), 2, { includeChains: true });
+  assert.deepEqual(picked.map((lead) => lead.name), ['Email Later', 'Site First']);
 });

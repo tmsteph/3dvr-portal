@@ -443,11 +443,23 @@ function appendLeads(filePath, leads) {
   }
 }
 
+function leadContactPriority(lead = {}) {
+  const contact = String(lead.contact || '').trim().toLowerCase();
+  const link = String(lead.link || '').trim().toLowerCase();
+  if (/^mailto:/.test(contact)) return 3;
+  if (/^https?:\/\//.test(link)) return 2;
+  if (contact) return 1;
+  return 0;
+}
+
 function dedupeLeads(leads, existingKeys, limit, { includeChains = false } = {}) {
   const seen = new Set();
   const output = [];
+  const rankedLeads = [...leads].sort((left, right) => (
+    leadContactPriority(right) - leadContactPriority(left)
+  ));
 
-  for (const lead of leads) {
+  for (const lead of rankedLeads) {
     if (!includeChains && CHAIN_NAME_PATTERN.test(lead.name)) {
       continue;
     }
@@ -527,7 +539,9 @@ async function main() {
 
 module.exports = {
   buildSearchQueries,
+  dedupeLeads,
   isLikelyBusinessSearchResult,
+  leadContactPriority,
   parseDuckDuckGoResults,
   resolveSearchResultUrl,
 };
