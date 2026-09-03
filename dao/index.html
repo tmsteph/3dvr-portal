@@ -6,12 +6,11 @@
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0d1117">
   <title>3DVR DAO | 3DVR</title>
-  <meta name="description" content="A simple 3DVR experiment: reward useful work with verifiable credits and use them to help the community make decisions.">
+  <meta name="description" content="A simple 3DVR experiment for rewarding useful work, community governance, and transparent funding decisions.">
   <style>
     :root {
       color-scheme: dark;
       --bg: #0d1117;
-      --panel: #161b22;
       --text: #e6edf3;
       --muted: #9da7b3;
       --line: #30363d;
@@ -21,7 +20,6 @@
       background: var(--bg);
       color: var(--text);
     }
-
     * { box-sizing: border-box; }
     body { margin: 0; background: radial-gradient(circle at 50% 0%, rgba(240,202,99,.10), transparent 30rem), var(--bg); color: var(--text); line-height: 1.55; }
     a { color: var(--link); }
@@ -35,12 +33,13 @@
     .flow { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin: 34px 0; }
     .card { padding: 19px; border: 1px solid var(--line); border-radius: 16px; background: rgba(22,27,34,.82); }
     .card strong { display: block; font-size: 1.08rem; }
-    .card span, .card p { color: var(--muted); }
-    .card span { display: block; margin-top: 5px; }
+    .card span { display: block; margin-top: 5px; color: var(--muted); }
     section { margin-top: 16px; padding: 22px; border: 1px solid var(--line); border-radius: 16px; background: rgba(22,27,34,.68); }
     h2 { margin: 0 0 8px; font-size: 1.35rem; }
     section p { margin: 0; color: var(--muted); }
     section p + p { margin-top: 10px; }
+    ul { margin: 10px 0 0; padding-left: 1.2rem; color: #c9d1d9; }
+    li + li { margin-top: 7px; }
     .sources a { display: inline-block; margin: 9px 14px 0 0; }
     footer { margin-top: 36px; color: #6e7681; font-size: .82rem; }
     @media (max-width: 560px) { .flow { grid-template-columns: 1fr; } }
@@ -57,15 +56,45 @@
 
   <p class="eyebrow">Research idea</p>
   <h1>3DVR DAO</h1>
-  <p class="lead">People and computers do useful work. The network records it. Useful work can earn credits. The community can use those credits to help decide what gets built, funded, or rewarded.</p>
+  <p class="lead">People and computers do useful work. The network records it. Useful work can earn credits. The community can use those credits to help decide what 3DVR builds, funds, and rewards.</p>
   <span class="status">Experiment only · no token sale</span>
 
   <div class="flow" aria-label="How 3DVR credits could work">
     <div class="card"><strong>1. Do useful work</strong><span>Host, relay, compute, code, test, document, or help someone.</span></div>
     <div class="card"><strong>2. Get a receipt</strong><span>A signed record shows what happened and who took part.</span></div>
     <div class="card"><strong>3. Earn credits</strong><span>Verified work can create 3DVR Credits.</span></div>
-    <div class="card"><strong>4. Help decide</strong><span>Credits and reputation can help guide community projects and rewards.</span></div>
+    <div class="card"><strong>4. Help govern</strong><span>Credits and reputation can help guide projects, treasury spending, and rewards.</span></div>
   </div>
+
+  <section>
+    <h2>How 3DVR could be governed</h2>
+    <p>The DAO would give contributors a real voice without turning 3DVR into simple one-token-one-vote rule.</p>
+    <ul>
+      <li>Anyone can make a public proposal.</li>
+      <li>Useful work builds credits and reputation.</li>
+      <li>Contributors can vote directly or delegate their voice.</li>
+      <li>Treasury spending stays public and can require multiple approvals.</li>
+      <li>Maintainers keep limited safety and security powers early on, then decentralize them as the system matures.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>What could the treasury fund?</h2>
+    <p>3DVR revenue, donations, grants, or future protocol fees could feed a transparent community treasury.</p>
+    <ul>
+      <li>Open-source 3DVR projects and contributor bounties</li>
+      <li>Servers, hardware, research, and shared infrastructure</li>
+      <li>Small grants to community builders</li>
+      <li>New businesses or tools that fit the 3DVR mission</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Could there be a 3DVR investment fund?</h2>
+    <p>Potentially. A separately governed pool could eventually invest part of the treasury in projects, startups, crypto, or other assets the community believes strengthen the ecosystem.</p>
+    <p>AI could research opportunities, compare risk, watch the portfolio, and suggest allocations. The community would approve the rules and major moves instead of giving an AI unlimited control of real money.</p>
+    <p>If real money is pooled or people expect investment returns, we would need a proper legal structure and regulatory review before launching it.</p>
+  </section>
 
   <section>
     <h2>Inspired by GUN + AXE</h2>
@@ -75,7 +104,7 @@
 
   <section>
     <h2>First step</h2>
-    <p>Build simple test credits with GUN + SEA. No real money. No speculation. Prove that useful work can be recorded and verified first. If that works, we can decide later whether a transferable crypto token or blockchain layer is even needed.</p>
+    <p>Build simple test credits with GUN + SEA. No real money. No speculation. Use them first for contribution tracking and small governance experiments. If that works, we can decide later whether a transferable crypto token, community treasury, or investment layer makes sense.</p>
   </section>
 
   <section class="sources">
@@ -86,7 +115,7 @@
     <a href="https://www.youtube.com/watch?v=EHZyaupYjYo" target="_blank" rel="noreferrer">AXE talk</a>
   </section>
 
-  <footer>3DVR · Reward useful work.</footer>
+  <footer>3DVR · Reward useful work. Govern together.</footer>
 </main>
 <script defer src="/issue-launcher.js"></script>
 </body>
