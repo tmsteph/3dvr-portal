@@ -10,6 +10,7 @@ const {
   formatTask,
   listTasks,
   readTask,
+  requiredWorkerCapabilities,
   runWorkerOnce,
   updateTask,
 } = require('../thomas-agent/node/agent-task-queue');
@@ -99,6 +100,34 @@ test('buildTaskArgs includes execute and only passes unsafe when requested', () 
   }), ['--backend', 'shell', '--execute', '--no-print-prompt', '--unsafe', 'Deploy']);
 });
 
+test('concrete backend capability cannot be hidden by a weaker requires list', () => {
+  const required = requiredWorkerCapabilities({
+    backend: 'shell',
+    requiredCapabilities: 'node',
+  });
+
+  assert.deepEqual(required.sort(), ['node', 'shell']);
+  assert.equal(canWorkerRunTask({
+    backend: 'shell',
+    requiredCapabilities: 'node',
+    riskClass: 'read_only',
+    approvalStatus: 'approved',
+  }, {
+    workerCapabilities: 'node,codex',
+  }).ok, false);
+});
+
+test('health backend is intrinsic and does not require shell or model capability', () => {
+  assert.deepEqual(requiredWorkerCapabilities({ backend: 'health' }), []);
+  assert.equal(canWorkerRunTask({
+    backend: 'health',
+    riskClass: 'read_only',
+    approvalStatus: 'not_required',
+  }, {
+    workerCapabilities: 'node,codex',
+  }).ok, true);
+});
+
 test('updateTask changes status and formatTask renders results', async () => {
   const rootNode = fakeRoot();
   await enqueueTask('Research market', {
@@ -148,6 +177,38 @@ test('runWorkerOnce claims and executes queued tasks through injected hooks', as
   assert.equal(results.length, 1);
   assert.equal(completed.status, 'completed');
   assert.match(completed.resultSummary, /summary/);
+});
+
+test('health task completes without invoking a model or shell executor', async () => {
+  const rootNode = fakeRoot();
+  await enqueueTask('Worker health check', {
+    rootNode,
+    ownerAlias: 'tenant-a',
+    id: 'health-task',
+    backend: 'health',
+    riskClass: 'read_only',
+    force: true,
+  });
+  let externalExecutions = 0;
+
+  const results = await runWorkerOnce({
+    rootNode,
+    ownerAlias: 'tenant-a',
+    deviceId: 'do-worker',
+    workerCapabilities: 'node,codex',
+    force: true,
+    runAgentTaskImpl: async () => {
+      externalExecutions += 1;
+      throw new Error('health backend must not invoke task orchestrator');
+    },
+  });
+  const completed = await readTask('health-task', { rootNode, ownerAlias: 'tenant-a' });
+
+  assert.equal(externalExecutions, 0);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].result.backend, 'health');
+  assert.equal(completed.status, 'completed');
+  assert.match(completed.resultSummary, /3dvr-worker-ok/);
 });
 
 test('worker skips tasks that need approval or unsupported capabilities', async () => {

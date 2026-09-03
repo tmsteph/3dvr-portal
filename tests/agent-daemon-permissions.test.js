@@ -6,6 +6,7 @@ const scripts = [
   '../apps/agent/thomas-agent/scripts/ask-agent-worker-daemon',
   '../apps/agent/thomas-agent/scripts/ask-agent-supervisor-daemon',
   '../apps/agent/thomas-agent/scripts/ask-context-task-router-daemon',
+  '../apps/agent/thomas-agent/scripts/ask-organism-sync-daemon',
 ];
 
 test('agent daemon entrypoints stay executable for self-host deploys', async () => {

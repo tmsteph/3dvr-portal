@@ -8,6 +8,7 @@ const workerDaemon = path.join(__dirname, '..', 'thomas-agent', 'scripts', 'ask-
 const queueWrapper = path.join(__dirname, '..', 'thomas-agent', 'scripts', 'ask-agent-queue');
 const agentWorkflow = path.join(__dirname, '..', '..', '..', '.github', 'workflows', 'agent.yml');
 const routerDaemon = path.join(__dirname, '..', 'thomas-agent', 'scripts', 'ask-context-task-router-daemon');
+const organismDaemon = path.join(__dirname, '..', 'thomas-agent', 'scripts', 'ask-organism-sync-daemon');
 
 test('agent worker daemon reloads the selected 3DVR config inside its worker session', async () => {
   const script = await readFile(workerDaemon, 'utf8');
@@ -16,6 +17,17 @@ test('agent worker daemon reloads the selected 3DVR config inside its worker ses
   assert.match(script, /export THREEDVR_CONFIG_FILE=\$config_file_q/);
   assert.ok(script.includes('if [ -f \\"\\$THREEDVR_CONFIG_FILE\\" ]; then set -a; . \\"\\$THREEDVR_CONFIG_FILE\\"; set +a; fi;'));
   assert.match(script, /ask-agent-queue\\" run-once/);
+});
+
+test('worker lifecycle owns context routing, organism sync, and supervision', async () => {
+  const script = await readFile(workerDaemon, 'utf8');
+
+  assert.match(script, /ORGANISM_DAEMON="\$SCRIPT_DIR\/ask-organism-sync-daemon"/);
+  assert.match(script, /"\$ROUTER_DAEMON" start/);
+  assert.match(script, /"\$ORGANISM_DAEMON" start/);
+  assert.match(script, /"\$SUPERVISOR_DAEMON" start/);
+  assert.match(script, /"\$ORGANISM_DAEMON" stop \|\| true/);
+  assert.match(script, /"\$ORGANISM_DAEMON" status/);
 });
 
 test('queue wrapper reloads and validates its configured Node SQLite runtime', async () => {
@@ -52,6 +64,16 @@ test('context router reloads config and honors the configured Node runtime', asy
   assert.match(script, /THREEDVR_NODE_BIN:-node/);
 });
 
+test('organism sync daemon reloads config and runs the persistent memory bridge', async () => {
+  const script = await readFile(organismDaemon, 'utf8');
+
+  assert.match(script, /CONFIG_FILE="\$\{THREEDVR_CONFIG_FILE:-\$HOME\/\.3dvr\/config\/env\}"/);
+  assert.match(script, /\. "\$CONFIG_FILE"/);
+  assert.match(script, /organism-sync\.js/);
+  assert.match(script, /3dvr-organism-sync/);
+  assert.match(script, /run-now/);
+});
+
 test('owner alias config quoting preserves data without executing shell syntax', () => {
   const owner = `customer name'; touch /tmp/3dvr-owner-injection; # $(false)`;
   const script = `
@@ -76,7 +98,7 @@ test('owner alias config quoting preserves data without executing shell syntax',
   }
 });
 
-test('worker deployment is out-of-band and verifies managed queue consumption', async () => {
+test('worker deployment is out-of-band and verifies managed queue consumption safely', async () => {
   const [queueScript, workflow] = await Promise.all([
     readFile(queueWrapper, 'utf8'),
     readFile(agentWorkflow, 'utf8'),
@@ -108,5 +130,7 @@ test('worker deployment is out-of-band and verifies managed queue consumption', 
   assert.match(normalizedWorkflow, /"\$THREEDVR_NODE_BIN" -e 'const \[major, minor\].*require\("node:sqlite"\)'/);
   assert.equal(normalizedWorkflow.includes('node thomas-agent/node/agent-task-queue.js'), false);
   assert.match(normalizedWorkflow, /Verify managed queue consumption/);
+  assert.match(normalizedWorkflow, /--backend health --risk read_only --approval-status approved/);
+  assert.equal(normalizedWorkflow.includes('--backend shell --risk read_only'), false);
   assert.match(normalizedWorkflow, /DigitalOcean agent worker alive and consuming managed queue tasks/);
 });
