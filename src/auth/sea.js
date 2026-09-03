@@ -197,7 +197,8 @@ export async function verifySignedSeaPayload(payload = {}, options = {}) {
       action,
       issuedAt,
       scope
-    }
+    },
+    verified
   };
 }
 
