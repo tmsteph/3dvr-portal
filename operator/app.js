@@ -1,4 +1,5 @@
 import { runOperatorAction } from './actions.js';
+import { installOperatorAttachments } from './attachments.js';
 import { collectPortalContext } from './portal-context.js';
 import { createOperatorDeveloperProof } from './forge.js';
 import { readDefaultSecret } from '../web-builder-app/defaults.js';
@@ -25,6 +26,7 @@ function activeConversation(){let conversation=store.conversations.find(item=>it
 let history=activeConversation().messages;
 let openaiKey='';const gun=window.Gun?window.Gun({peers:window.__GUN_PEERS__||undefined}):null;gun?.get('3dvr-portal')?.get('ai-workbench')?.get('defaults')?.on(data=>{openaiKey=readDefaultSecret(data,'openai')||openaiKey});
 const accountSync=createOperatorSync({windowObj:window,onStatus:message=>{syncStatus.textContent=message}});
+const attachments=installOperatorAttachments({form,input,onStatus:message=>{status.textContent=message}});
 const escape=value=>String(value||'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 function atLatest(){return log.scrollHeight-log.scrollTop-log.clientHeight<48}
 function updateLatest(){latest.hidden=!history.length||atLatest()}
@@ -44,8 +46,8 @@ async function requestOperator(payload){
   if(response.status===503&&openaiKey) response=await send({...payload,apiKey:openaiKey});
   return response;
 }
-form.addEventListener('submit',async event=>{event.preventDefault();const prompt=input.value.trim();if(!prompt)return;const prior=history.map(({role,content})=>({role,content}));history.push({role:'user',content:prompt});input.value='';save();status.textContent='Working…';form.querySelector('button').disabled=true;
-try{const [portalContext,developerAuth]=await Promise.all([collectPortalContext(),createOperatorDeveloperProof()]);const response=await requestOperator({prompt,history:prior,portalContext,developerAuth});const data=await response.json();if(!response.ok)throw new Error(data.error||'Operator request failed.');let outcome=null;if(data.action?.type!=='none')outcome=await runOperatorAction(data.action,{developerAccess:data.developerAccess});const lifeSpaceActions=new Set(['create_note','create_checklist','save_link']);history.push({role:'assistant',content:[data.reply,outcome?.message].filter(Boolean).join('\n\n'),suggestions:Array.isArray(data.suggestions)?data.suggestions:[],actionUrl:outcome?.url||'',actionLabel:lifeSpaceActions.has(data.action?.type)?'Life Space':data.action?.type==='add_lead'?'Lead Finder':'workspace'});save();status.textContent='Ready';}catch(error){history.push({role:'assistant',content:`I could not finish that: ${error.message}`});save();status.textContent='Try again';}finally{form.querySelector('button').disabled=false;input.focus()}});
+form.addEventListener('submit',async event=>{event.preventDefault();const prompt=input.value.trim();const images=attachments.getPayload();if(!prompt&&!images.length)return;const prior=history.map(({role,content})=>({role,content}));const historyPrompt=images.length?`${prompt}${prompt?'\n\n':''}[Attached screenshot: ${images[0].name}]`:prompt;history.push({role:'user',content:historyPrompt});input.value='';save();status.textContent='Working…';form.querySelector('button[type="submit"]').disabled=true;
+try{const [portalContext,developerAuth]=await Promise.all([collectPortalContext(),createOperatorDeveloperProof()]);const response=await requestOperator({prompt:prompt||'Please analyze the attached screenshot.',images,history:prior,portalContext,developerAuth});const data=await response.json();if(!response.ok)throw new Error(data.error||'Operator request failed.');let outcome=null;if(data.action?.type!=='none')outcome=await runOperatorAction(data.action,{developerAccess:data.developerAccess});const lifeSpaceActions=new Set(['create_note','create_checklist','save_link']);history.push({role:'assistant',content:[data.reply,outcome?.message].filter(Boolean).join('\n\n'),suggestions:Array.isArray(data.suggestions)?data.suggestions:[],actionUrl:outcome?.url||'',actionLabel:lifeSpaceActions.has(data.action?.type)?'Life Space':data.action?.type==='add_lead'?'Lead Finder':'workspace'});attachments.clear();save();status.textContent='Ready';}catch(error){history.push({role:'assistant',content:`I could not finish that: ${error.message}`});save();status.textContent='Try again';}finally{form.querySelector('button[type="submit"]').disabled=false;input.focus()}});
 input.addEventListener('keydown',event=>{if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();form.requestSubmit()}});
 document.querySelector('.quick-prompts').addEventListener('click',event=>{const button=event.target.closest('[data-prompt]');if(!button)return;input.value=button.dataset.prompt;form.requestSubmit()});
 log.addEventListener('click',event=>{const button=event.target.closest('[data-suggestion]');if(!button)return;input.value=button.dataset.suggestion;form.requestSubmit()});
