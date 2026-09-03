@@ -747,6 +747,41 @@ function buildActionItems(summary) {
   return actions;
 }
 
+
+function isExpectedCampaignBlock(reason) {
+  const normalized = normalizeText(reason).toLowerCase();
+  return !normalized
+    || isBusinessHoursDeferral(normalized)
+    || normalized === 'daily or campaign send limit reached'
+    || normalized === 'campaign is outside its active date range'
+    || normalized === 'threedvr_autopilot_paused is enabled';
+}
+
+function buildAlertItems(summary) {
+  const alerts = [];
+  if (summary.counts?.replied > 0) {
+    alerts.push(`Prospect replied: ${summary.topReplied?.join(', ') || `${summary.counts.replied} replied lead(s)`}`);
+  }
+
+  const failedSends = (summary.autoSent || []).filter((entry) => entry.status === 'send_failed');
+  if (failedSends.length) alerts.push(`Outreach send failed: ${failedSends.map((entry) => entry.name).join(', ')}`);
+
+  const blockedReason = summary.campaign?.sendBlockedReason || '';
+  if (blockedReason && !isExpectedCampaignBlock(blockedReason)) {
+    alerts.push(`Campaign stuck: ${blockedReason}`);
+  }
+
+  if (summary.openAiCosts?.limitExceeded) {
+    alerts.push(`OpenAI spend guard hit: $${summary.openAiCosts.totalUsd.toFixed(2)} / $${summary.openAiCosts.limitUsd.toFixed(2)}`);
+  }
+
+  if (summary.campaign?.draftQueueEnabled && summary.codex?.mode === 'codex' && !summary.codex.ok) {
+    alerts.push(`Draft queue blocked: Codex ${summary.codex.reason || 'status probe failed'}`);
+  }
+
+  return alerts;
+}
+
 function buildEmail(summary, actions) {
   const subject = actions.length
     ? `[3dvr-agent] action needed: ${actions[0]}`
@@ -1254,12 +1289,15 @@ async function main() {
   };
 
   const actions = buildActionItems(summary);
+  const alertItems = buildAlertItems(summary);
   summary.actionRequired = actions.length > 0;
   summary.actionItems = actions;
+  summary.alertRequired = alertItems.length > 0;
+  summary.alertItems = alertItems;
 
   let emailResult = null;
   try {
-    emailResult = await sendEmail(summary, actions, state);
+    emailResult = await sendEmail(summary, alertItems, state);
   } catch (error) {
     emailResult = { ok: false, skipped: true, reason: error.message || 'email failed' };
     errors.push(`email failed: ${emailResult.reason}`);
@@ -1335,6 +1373,7 @@ async function main() {
 
 module.exports = {
   buildActionItems,
+  buildAlertItems,
   countRouteBuckets,
   countStatuses,
   countUnenriched,

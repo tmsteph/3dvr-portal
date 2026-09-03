@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const {
   buildActionItems,
+  buildAlertItems,
   countRouteBuckets,
   countStatuses,
   formatRouteCounts,
@@ -101,4 +102,38 @@ test('phone-only leads are surfaced for human call review', () => {
   });
   assert.match(actions.join('\n'), /Review no-site phone leads: No Site Shop/);
   assert.match(actions.join('\n'), /ask-message phone \"No Site Shop\"/);
+});
+
+
+test('routine operator work stays out of interrupt emails', () => {
+  const alerts = buildAlertItems({
+    counts: { new: 20, contacted: 3, nurture: 0, replied: 0, closed: 0 },
+    topReplied: [],
+    autoSent: [
+      { name: 'Sent Lead', ok: true, status: 'sent' },
+      { name: 'Draft Lead', ok: false, status: 'queued' },
+      { name: 'Quality Lead', ok: false, status: 'quality_blocked' },
+    ],
+    campaign: { sendBlockedReason: 'outside business hours (America/Los_Angeles, 08:30-16:30, Monday-Friday)', draftQueueEnabled: true },
+    openAiCosts: { limitExceeded: false },
+    codex: { mode: 'codex', ok: true },
+  });
+  assert.deepEqual(alerts, []);
+});
+
+test('only genuinely important campaign events trigger interrupt emails', () => {
+  const alerts = buildAlertItems({
+    counts: { new: 0, contacted: 3, nurture: 0, replied: 1, closed: 0 },
+    topReplied: ['Warm Prospect'],
+    autoSent: [{ name: 'Broken Send', ok: false, status: 'send_failed' }],
+    campaign: { sendBlockedReason: 'THREEDVR_OUTREACH_POSTAL_ADDRESS is not configured', draftQueueEnabled: true },
+    openAiCosts: { limitExceeded: true, totalUsd: 5.5, limitUsd: 5 },
+    codex: { mode: 'codex', ok: false, reason: 'auth expired' },
+  });
+  const text = alerts.join('\n');
+  assert.match(text, /Prospect replied: Warm Prospect/);
+  assert.match(text, /Outreach send failed: Broken Send/);
+  assert.match(text, /Campaign stuck: THREEDVR_OUTREACH_POSTAL_ADDRESS is not configured/);
+  assert.match(text, /OpenAI spend guard hit/);
+  assert.match(text, /Draft queue blocked: Codex auth expired/);
 });
