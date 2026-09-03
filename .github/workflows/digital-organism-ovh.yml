@@ -94,6 +94,32 @@ jobs:
             echo 'Preserving existing OVH Organism memory state.'
           fi
 
+          # Context HQ contains deliberate session handoffs, so it is a safe first
+          # memory source. Read them on the DigitalOcean control node (where the
+          # Gun runtime is already installed), then import them locally on OVH.
+          # importContextSessions is provenance-idempotent and never resurrects a
+          # handoff that the owner explicitly forgot.
+          context_sessions="$(mktemp)"
+          if ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-do \
+            'repo="$HOME/.3dvr/self-host-portal-source"; test -f "$repo/apps/agent/thomas-agent/node/context-hq.js"; cd "$repo/apps/agent"; node thomas-agent/node/context-hq.js sessions --owner tmsteph@3dvr --json' \
+            > "$context_sessions" 2>/dev/null; then
+            if [ -s "$context_sessions" ]; then
+              ORGANISM_MODULE="$repo/apps/agent/thomas-agent/node/digital-organism.js" \
+              CONTEXT_SESSIONS="$context_sessions" \
+              "$node_bin" -e '
+                const fs = require("node:fs");
+                const organism = require(process.env.ORGANISM_MODULE);
+                const sessions = JSON.parse(fs.readFileSync(process.env.CONTEXT_SESSIONS, "utf8"));
+                organism.importContextSessions(Array.isArray(sessions) ? sessions : []).then(result => {
+                  process.stdout.write(`Imported ${result.imported.length} approved Context HQ handoff(s); skipped ${result.skipped.length}.\n`);
+                }).catch(error => { console.error(error); process.exit(1); });
+              '
+            fi
+          else
+            echo 'Context HQ handoffs were not reachable from the DigitalOcean control node; preserving existing Organism state.' >&2
+          fi
+          rm -f "$context_sessions"
+
           sudo mkdir -p /etc/3dvr
           sudo touch /etc/3dvr/organism.env
           sudo chmod 600 /etc/3dvr/organism.env
