@@ -13,7 +13,7 @@
     .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
     .release-summary { margin: 0 0 24px; font-size: 16px; color: #9ba3b4; }
     .release-summary-list { margin: 0; padding-left: 20px; color: #c9d1d9; }
-    .release-summary-list li + li { margin-top: 10px; }
+    .release-summary-list li + li { margin-top: 12px; }
     .back-link, .release-nav-link { color: #58a6ff; text-decoration: none; font-weight: 600; }
     .back-link:hover, .release-nav-link:hover { text-decoration: underline; }
     .release-nav { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: 20px 0 40px; }
@@ -28,68 +28,70 @@
     <a class="release-nav-link" href="v0.0.60.html">Previous release</a>
     <span class="release-nav-link is-disabled" aria-disabled="true">Next release</span>
   </nav>
+
   <h1>Release v0.0.61</h1>
   <div class="tag">Week of August 31, 2026</div>
 
   <div class="section">
-    <h2>Release phase</h2>
+    <h2>Release status</h2>
     <ul class="phase-list">
       <li><strong>Released:</strong> Thursday, September 3, 2026</li>
-      <li><strong>Weekend validation:</strong> September 4–6, 2026</li>
+      <li><strong>Extra testing:</strong> September 4–6, 2026</li>
     </ul>
   </div>
 
   <div class="release-summary">
     <p>
-      This week, 3DVR pulled more of the system into one coherent loop. Operator can see screenshots and prove its
-      self-edit path, the Digital Organism now supplies durable local memory to the canonical agent, server and workspace
-      infrastructure is more resilient, freelancers gained a real working environment, Show-Tech became an
-      implementation-backed network AV system, and the autonomous business stack learned to use evidence before
-      repeating work.
+      This release makes 3DVR easier to use and more useful. Operator can understand screenshots. The Portal can remember
+      useful information. Our servers and workers are more reliable. Freelancer Desk can handle more of the work day.
+      Show-Tech can turn regular computers into AV control and output nodes. Our business tools can also remember what
+      worked before they try the next step.
     </p>
+
     <ul class="release-summary-list">
       <li>
-        <strong>Operator became a real multimodal control surface:</strong>
-        <a href="../operator/">Operator</a> now accepts screenshot attachments and screenshot-only turns, shows a
-        visible busy state, keeps the mobile header usable, and has a full live production acceptance test covering the
-        390px mobile flow, screenshot understanding, attachment cleanup, and API/browser failures. See
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2123">PR #2123</a>.
+        <strong>Operator can understand screenshots.</strong>
+        <a href="../operator/">Operator</a> can now accept screenshots, including messages that only contain an image.
+        It shows when it is busy, works better on small phone screens, and has a full live test for the mobile flow.
+        See <a href="https://github.com/tmsteph/3dvr-portal/pull/2123">PR #2123</a>.
       </li>
+
       <li>
-        <strong>Digital Organism became the Portal's durable local memory layer:</strong>
-        the canonical <code>apps/agent</code> runtime now owns append-only remember/recall/correct/forget memory,
-        imports deliberate Context HQ handoffs with provenance, retrieves memory locally before task construction, and
-        continuously syncs approved handoffs on the worker. Memory-bearing execution requires an explicit backend rather
-        than silently choosing a provider. See
+        <strong>The Portal can remember useful information.</strong>
+        Digital Organism now gives the main 3DVR agent local memory. It can remember, recall, correct, and forget saved
+        information. It can also bring in approved notes from Context HQ. Personal memory stays local until a user picks
+        a backend that may use it. See
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2113">PR #2113</a>,
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2114">PR #2114</a>,
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2116">PR #2116</a>, and
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2118">PR #2118</a>.
       </li>
+
       <li>
-        <strong>Self-editing moved from concept toward proved machinery:</strong>
-        the difficult owner-only Operator → Forge path now has an integration test that signs a real request, runs the
-        real authorization and worker logic, commits and pushes a harmless canary to a disposable remote, and verifies
-        independently that the edit landed. See
+        <strong>Operator can safely test editing code.</strong>
+        We now have a real test for the owner-only Operator → Forge edit path. The test signs a request, makes a harmless
+        code change, pushes it to a throwaway Git repo, and checks that the change really landed. This proves the path
+        works without opening up production access. See
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2124">PR #2124</a>.
       </li>
+
       <li>
-        <strong>The agent runtime became more infrastructure-grade:</strong>
-        production task execution gained a transactional SQLite queue with claim renewal and recovery, safer isolated
-        workers and health probes, while OVH gained protected production/workspace/dev resource lanes. The cloud core now
-        has dedicated SSH mesh paths and roaming-device joins for Termux and Linux laptops. See
+        <strong>Servers and workers are more reliable.</strong>
+        Agent jobs now use a durable SQLite queue. Workers can recover from some failures. OVH has separate areas for
+        production, workspaces, and development. Our cloud servers also have better SSH links, and phones or laptops can
+        join the mesh more easily. See
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2038">PR #2038</a>,
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2048">PR #2048</a>,
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2058">PR #2058</a>,
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2061">PR #2061</a>, and
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2104">PR #2104</a>.
       </li>
+
       <li>
-        <strong>Freelancer Desk grew into an actual work operating system:</strong>
-        <a href="../freelance/">Freelancer Desk</a> now connects client relationships, opportunity stages, gigs,
-        invoicing/payment state, schedule protection, and a lightweight fact/decision/action ledger. Isolated persistent
-        browser workspaces add a compatibility path for sites without useful APIs, and Freelancer Growth Autopilot adds a
-        recurring managed-service path. See
+        <strong>Freelancer Desk can handle more of the work day.</strong>
+        <a href="../freelance/">Freelancer Desk</a> can track clients, possible jobs, booked gigs, payments, schedules,
+        and simple notes about facts, decisions, and actions. It also has private browser workspaces for websites that do
+        not have a good API, plus a Growth Autopilot service path. See
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2034">PR #2034</a>,
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2037">PR #2037</a>,
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2039">PR #2039</a>,
@@ -98,23 +100,23 @@
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2071">PR #2071</a>, and
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2072">PR #2072</a>.
       </li>
+
       <li>
-        <strong>Show-Tech became implementation-backed AV infrastructure:</strong>
-        ordinary computers can now act as authenticated capability-advertising AV nodes with local cue scheduling,
-        multi-node cloud synchronization, native GStreamer playback/test output, PipeWire/WirePlumber audio control, and
-        a logical program audio/video patchbay. See
+        <strong>Regular computers can become Show-Tech AV nodes.</strong>
+        A computer can now join a Show-Tech network, report what it can do, receive timed cues, and play or route audio
+        and video. We added cloud sync, GStreamer output, PipeWire audio control, and a simple logical AV patchbay. See
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2067">PR #2067</a>,
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2068">PR #2068</a>,
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2069">PR #2069</a>,
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2070">PR #2070</a>, and
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2073">PR #2073</a>.
       </li>
+
       <li>
-        <strong>The launch and business loops started closing on evidence:</strong>
-        Launch Room briefs can become Projects, Projects can hand work to Web Builder and Growth Operator, customer wins
-        can become delivery proof, and the local-business website loop now supports hosting-safe upgrades, first-site
-        launches, campaign-aware replies, paid fulfillment, better lead routing, and quieter operator alerts. Money
-        Printer also remembers operation outcomes before planning more work. See
+        <strong>Business tools can remember what worked.</strong>
+        Launch Room can send ideas into Projects. Projects can send work to Web Builder and Growth Operator. Customer
+        wins can become proof of delivery. The local-business website system can also handle more of the path from lead to
+        paid work. Money Printer now keeps notes about past results before it plans the next move. See
         <a href="https://github.com/tmsteph/3dvr-portal/pull/1980">PR #1980</a>,
         <a href="https://github.com/tmsteph/3dvr-portal/pull/1982">PR #1982</a>,
         <a href="https://github.com/tmsteph/3dvr-portal/pull/1984">PR #1984</a>,
@@ -123,12 +125,13 @@
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2074">PR #2074</a>, and
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2100">PR #2100</a>.
       </li>
+
       <li>
-        <strong>3DVR clarified how it learns and grows:</strong>
-        the new <a href="../teach/">Teach</a> flow turns local screen/narration demonstrations into review-first skill
-        drafts, the autonomy ladder now lives with the canonical agent, and the roadmap explicitly favors an excellent
-        free/open core while charging for scarce human effort, managed convenience, and real operating costs rather than
-        artificial lock-in. See
+        <strong>3DVR is getting easier to teach and stays open.</strong>
+        <a href="../teach/">Teach</a> can turn a screen demo and narration into a skill draft that a person reviews
+        before using. We also made the agent's levels of freedom clearer. The long-term plan still keeps the core product
+        free and open, while charging for real services and real operating costs instead of locking features away on
+        purpose. See
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2015">PR #2015</a>,
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2016">PR #2016</a>, and
         <a href="https://github.com/tmsteph/3dvr-portal/pull/2115">PR #2115</a>.
@@ -137,25 +140,21 @@
   </div>
 
   <div class="section">
-    <h2>Safety notes</h2>
+    <h2>Safety</h2>
     <p>
-      Digital Organism recall and context construction remain local, and memory-bearing execution requires an explicit
-      provider/backend before personal context leaves the machine. Operator/Forge write authority remains signed and
-      owner-bound; the self-edit acceptance path uses temporary credentials and a disposable remote rather than weakening
-      production authority. Freelancer browser workspaces remain isolated and loopback-only by default, and external
-      schedule/account changes are not silently performed. Show-Tech mutations remain authenticated and native AV uses
-      fixed structured commands instead of exposing arbitrary shell execution. Outreach retains public-information-only
-      research, quality gates, caps, do-not-contact handling, and review-only phone routes rather than automated calling.
+      Personal memory stays local until the user chooses a backend that may use it. Only the approved owner can use the
+      Operator → Forge edit path. The self-edit test uses temporary keys and a throwaway Git repo. Freelancer browser
+      workspaces stay private to the local machine by default. Show-Tech only accepts known AV commands, not any shell
+      command. Outreach still uses public information, sending limits, do-not-contact rules, and human review for phone
+      leads.
     </p>
   </div>
 
   <div class="section">
-    <h2>What this release covers</h2>
+    <h2>In short</h2>
     <p>
-      v0.0.61 is the weekly milestone for the week of August 31, 2026. It summarizes the major Portal,
-      Operator, Digital Organism, agent-runtime, infrastructure, freelancer, Show-Tech, launch-loop, and autonomous
-      business work merged after v0.0.60 through September 3. It was published on September 3, with weekend validation
-      continuing as the normal stabilization pass.
+      v0.0.61 brings better screenshots, memory, self-edit testing, server reliability, freelancer tools, AV networking,
+      and smarter business automation into one weekly release.
     </p>
   </div>
 
