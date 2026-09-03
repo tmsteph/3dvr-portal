@@ -4,7 +4,8 @@ const { authorizePortalOperatorTask } = require('./operator-forge-auth');
 
 const DEFAULT_LIMIT = 5;
 const DEFAULT_READ_TIMEOUT_MS = 1800;
-const EXTERNAL_WRITE_PATTERN = /\b(push|merge|deploy|publish|release|pull request|open a pr|create a pr|send|email|post)\b/i;
+const GITHUB_WRITE_PATTERN = /\b(push|merge|pull request|open a pr|create a pr|commit(?: to github)?|github branch|push to github)\b/i;
+const BLOCKED_EXTERNAL_WRITE_PATTERN = /\b(deploy|release|send|email|post|force[- ]?push|delete (?:the )?(?:repo|repository|branch|tag)|transfer (?:the )?(?:repo|repository)|repository settings|repo settings|secrets?|billing|reset\s+--hard)\b/i;
 
 function normalizeText(value = '') {
   return String(value || '').trim();
@@ -59,13 +60,17 @@ async function updateForgeRequest(id, patch, options = {}) {
   }, options.writeTimeoutMs);
 }
 
-function editOnlyTask(record = {}) {
+function editOnlyTask(record = {}, auth = {}) {
   const task = normalizeText(record.task);
   if (!task) return { ok: false, reason: 'missing code edit request' };
-  if (EXTERNAL_WRITE_PATTERN.test(task)) {
-    return { ok: false, reason: 'maintainer approval is required for publishing, PR, merge, or deployment actions' };
+  if (BLOCKED_EXTERNAL_WRITE_PATTERN.test(task)) {
+    return { ok: false, reason: 'that external or destructive action still requires a separate protected path' };
   }
-  return { ok: true, task };
+  const githubWrite = GITHUB_WRITE_PATTERN.test(task);
+  if (githubWrite && auth.role !== 'owner') {
+    return { ok: false, reason: 'owner authorization is required for GitHub writes' };
+  }
+  return { ok: true, task, githubWrite };
 }
 
 async function runForgeRequest(record, options = {}) {
@@ -84,7 +89,7 @@ async function runForgeRequest(record, options = {}) {
     return { ok: false, rejected: true, reason: auth.reason };
   }
 
-  const edit = editOnlyTask(record);
+  const edit = editOnlyTask(record, auth);
   if (!edit.ok) {
     await updateForgeRequest(record.id, {
       status: 'approval_required',
@@ -102,13 +107,17 @@ async function runForgeRequest(record, options = {}) {
 
   try {
     const runImpl = options.runAgentTaskImpl || runAgentTask;
-    const result = await runImpl([
+    const args = [
       '--backend', record.backend || 'auto',
       '--execute',
       '--no-print-prompt',
       '--repo', auth.repoPath,
-      edit.task,
-    ], options.hooks || {});
+    ];
+    if (edit.githubWrite) args.push('--unsafe');
+    args.push(edit.githubWrite
+      ? `${edit.task} This GitHub write was explicitly authorized by the signed 3DVR owner session. You may create a branch, commit, push, open a pull request, or merge when the task explicitly asks for it. Do not deploy, release, force-push, delete repositories/branches/tags, change secrets/settings/billing, or perform unrelated external actions.`
+      : edit.task);
+    const result = await runImpl(args, options.hooks || {});
     const summary = normalizeText(result?.reason || result?.result?.stdout || result?.result?.stderr || `ok=${Boolean(result?.ok)}`).slice(0, 2000);
     await updateForgeRequest(record.id, {
       status: result?.ok ? 'completed' : result?.skipped ? 'approval_required' : 'failed',
