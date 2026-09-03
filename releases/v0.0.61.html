@@ -43,7 +43,7 @@
       business tools, personal context, automation, and device control into one system that people can understand and own.
     </p>
     <p>
-      The <strong>3DVR Portal</strong> is the web home for those tools. Each app handles a different kind of work, but they
+      The <strong><a href="../">3DVR Portal</a></strong> is the web home for those tools. Each app handles a different kind of work, but they
       are designed to share context and hand work to one another instead of acting like separate islands.
     </p>
   </div>
@@ -72,19 +72,19 @@
       </li>
 
       <li>
-        <strong>Digital Organism</strong>
+        <strong><a href="https://github.com/tmsteph/3dvr-digital-organism">Digital Organism</a></strong>
         <span class="app-description"><strong>What it is:</strong> Digital Organism is 3DVR's memory layer. It is meant to help the system remember useful facts and past work instead of starting from zero every time.</span>
-        <span class="update-note"><strong>This week:</strong> It now gives the main 3DVR agent local memory. It can remember, recall, correct, and forget saved information. It can also bring in approved notes from Context HQ, the Portal area used to organize shared context. Personal memory stays local until a user picks a backend that may use it. See <a href="https://github.com/tmsteph/3dvr-portal/pull/2113">PR #2113</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2114">PR #2114</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2116">PR #2116</a>, and <a href="https://github.com/tmsteph/3dvr-portal/pull/2118">PR #2118</a>.</span>
+        <span class="update-note"><strong>This week:</strong> It now gives the main 3DVR agent local memory. It can remember, recall, correct, and forget saved information. It can also bring in approved notes from <a href="../context-hq/">Context HQ</a>, the Portal area used to organize shared context. Personal memory stays local until a user picks a backend that may use it. See <a href="https://github.com/tmsteph/3dvr-portal/pull/2113">PR #2113</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2114">PR #2114</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2116">PR #2116</a>, and <a href="https://github.com/tmsteph/3dvr-portal/pull/2118">PR #2118</a>.</span>
       </li>
 
       <li>
-        <strong>Forge</strong>
+        <strong><a href="../forge/">Forge</a></strong>
         <span class="app-description"><strong>What it is:</strong> Forge is the controlled code-editing side of 3DVR. Operator can help describe a change, while Forge handles approved code work with clear permissions and a record of what happened.</span>
         <span class="update-note"><strong>This week:</strong> We added a real test for the owner-only Operator → Forge edit path. The test signs a request, makes a harmless code change, pushes it to a throwaway Git repo, and checks that the change landed. This proves the path works without opening up production access. See <a href="https://github.com/tmsteph/3dvr-portal/pull/2124">PR #2124</a>.</span>
       </li>
 
       <li>
-        <strong>3DVR Agent and cloud workers</strong>
+        <strong><a href="https://github.com/tmsteph/3dvr-portal/tree/main/apps/agent">3DVR Agent and cloud workers</a></strong>
         <span class="app-description"><strong>What they are:</strong> The 3DVR Agent is the background worker system. It takes jobs from the Portal and runs them on computers or servers, so work does not have to stay inside one browser tab.</span>
         <span class="update-note"><strong>This week:</strong> Agent jobs now use a durable SQLite queue. Workers can recover from some failures. OVH has separate areas for production, workspaces, and development. Our cloud servers also have better SSH links, and phones or laptops can join the mesh more easily. See <a href="https://github.com/tmsteph/3dvr-portal/pull/2038">PR #2038</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2048">PR #2048</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2058">PR #2058</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2061">PR #2061</a>, and <a href="https://github.com/tmsteph/3dvr-portal/pull/2104">PR #2104</a>.</span>
       </li>
@@ -96,20 +96,20 @@
       </li>
 
       <li>
-        <strong>Show-Tech</strong>
+        <strong><a href="https://github.com/tmsteph/3dvr-portal/tree/main/show-tech">Show-Tech</a></strong>
         <span class="app-description"><strong>What it is:</strong> Show-Tech is 3DVR's networked audio-video control system. The idea is that ordinary computers can become useful show nodes for playback, routing, control, and other AV jobs.</span>
         <span class="update-note"><strong>This week:</strong> A computer can join a Show-Tech network, report what it can do, receive timed cues, and play or route audio and video. We added cloud sync, GStreamer output, PipeWire audio control, and a simple logical AV patchbay. See <a href="https://github.com/tmsteph/3dvr-portal/pull/2067">PR #2067</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2068">PR #2068</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2069">PR #2069</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2070">PR #2070</a>, and <a href="https://github.com/tmsteph/3dvr-portal/pull/2073">PR #2073</a>.</span>
       </li>
 
       <li>
-        <strong>Launch Room, Projects, Web Builder, Growth Operator, and Money Printer</strong>
+        <strong>Business apps</strong>
         <span class="app-description"><strong>What they are:</strong> These apps cover the path from an idea to real business work.</span>
         <ul class="app-list">
-          <li><strong>Launch Room</strong> helps turn a rough idea or goal into a clearer project brief.</li>
-          <li><strong>Projects</strong> is where that work can be organized and handed to other 3DVR tools.</li>
-          <li><strong>Web Builder</strong> helps create or improve websites.</li>
-          <li><strong>Growth Operator</strong> helps with finding customers, outreach, and other growth work.</li>
-          <li><strong>Money Printer</strong> is the experiment loop: try a business action, record what happened, and use that result when choosing the next move.</li>
+          <li><strong><a href="../launch-room/">Launch Room</a></strong> helps turn a rough idea or goal into a clearer project brief.</li>
+          <li><strong><a href="../projects/">Projects</a></strong> is where that work can be organized and handed to other 3DVR tools.</li>
+          <li><strong><a href="../web-builder-app/">Web Builder</a></strong> helps create or improve websites.</li>
+          <li><strong><a href="../growth-operator/">Growth Operator</a></strong> helps with finding customers, outreach, and other growth work.</li>
+          <li><strong><a href="../money-printer/">Money Printer</a></strong> is the experiment loop: try a business action, record what happened, and use that result when choosing the next move.</li>
         </ul>
         <span class="update-note"><strong>This week:</strong> These tools connect more of the path from idea to project to customer work. Launch Room can send ideas into Projects. Projects can send work to Web Builder and Growth Operator. Customer wins can become proof of delivery. The local-business website system can handle more of the path from lead to paid work. Money Printer now keeps notes about past results before planning the next move. See <a href="https://github.com/tmsteph/3dvr-portal/pull/1980">PR #1980</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/1982">PR #1982</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/1984">PR #1984</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/1985">PR #1985</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/1988">PR #1988</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2074">PR #2074</a>, and <a href="https://github.com/tmsteph/3dvr-portal/pull/2100">PR #2100</a>.</span>
       </li>
