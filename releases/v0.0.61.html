@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Release v0.0.61 (Week of August 31, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2, h3 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    code { color: #f0f6fc; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-summary { margin: 0 0 24px; font-size: 16px; color: #9ba3b4; }
+    .release-summary-list { margin: 0; padding-left: 20px; color: #c9d1d9; }
+    .release-summary-list li + li { margin-top: 10px; }
+    .back-link, .release-nav-link { color: #58a6ff; text-decoration: none; font-weight: 600; }
+    .back-link:hover, .release-nav-link:hover { text-decoration: underline; }
+    .release-nav { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: 20px 0 40px; }
+    .release-nav-link.is-disabled { opacity: 0.4; pointer-events: none; cursor: default; }
+    .phase-list { margin: 0; padding-left: 20px; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a class="back-link" href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a class="release-nav-link" href="v0.0.60.html">Previous release</a>
+    <span class="release-nav-link is-disabled" aria-disabled="true">Next release</span>
+  </nav>
+  <h1>Release v0.0.61</h1>
+  <div class="tag">Week of August 31, 2026</div>
+
+  <div class="section">
+    <h2>Release phase</h2>
+    <ul class="phase-list">
+      <li><strong>Released:</strong> Thursday, September 3, 2026</li>
+      <li><strong>Weekend validation:</strong> September 4–6, 2026</li>
+    </ul>
+  </div>
+
+  <div class="release-summary">
+    <p>
+      This week, 3DVR pulled more of the system into one coherent loop. Operator can see screenshots and prove its
+      self-edit path, the Digital Organism now supplies durable local memory to the canonical agent, server and workspace
+      infrastructure is more resilient, freelancers gained a real working environment, Show-Tech became an
+      implementation-backed network AV system, and the autonomous business stack learned to use evidence before
+      repeating work.
+    </p>
+    <ul class="release-summary-list">
+      <li>
+        <strong>Operator became a real multimodal control surface:</strong>
+        <a href="../operator/">Operator</a> now accepts screenshot attachments and screenshot-only turns, shows a
+        visible busy state, keeps the mobile header usable, and has a full live production acceptance test covering the
+        390px mobile flow, screenshot understanding, attachment cleanup, and API/browser failures. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2123">PR #2123</a>.
+      </li>
+      <li>
+        <strong>Digital Organism became the Portal's durable local memory layer:</strong>
+        the canonical <code>apps/agent</code> runtime now owns append-only remember/recall/correct/forget memory,
+        imports deliberate Context HQ handoffs with provenance, retrieves memory locally before task construction, and
+        continuously syncs approved handoffs on the worker. Memory-bearing execution requires an explicit backend rather
+        than silently choosing a provider. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2113">PR #2113</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2114">PR #2114</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2116">PR #2116</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2118">PR #2118</a>.
+      </li>
+      <li>
+        <strong>Self-editing moved from concept toward proved machinery:</strong>
+        the difficult owner-only Operator → Forge path now has an integration test that signs a real request, runs the
+        real authorization and worker logic, commits and pushes a harmless canary to a disposable remote, and verifies
+        independently that the edit landed. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2124">PR #2124</a>.
+      </li>
+      <li>
+        <strong>The agent runtime became more infrastructure-grade:</strong>
+        production task execution gained a transactional SQLite queue with claim renewal and recovery, safer isolated
+        workers and health probes, while OVH gained protected production/workspace/dev resource lanes. The cloud core now
+        has dedicated SSH mesh paths and roaming-device joins for Termux and Linux laptops. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2038">PR #2038</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2048">PR #2048</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2058">PR #2058</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2061">PR #2061</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2104">PR #2104</a>.
+      </li>
+      <li>
+        <strong>Freelancer Desk grew into an actual work operating system:</strong>
+        <a href="../freelance/">Freelancer Desk</a> now connects client relationships, opportunity stages, gigs,
+        invoicing/payment state, schedule protection, and a lightweight fact/decision/action ledger. Isolated persistent
+        browser workspaces add a compatibility path for sites without useful APIs, and Freelancer Growth Autopilot adds a
+        recurring managed-service path. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2034">PR #2034</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2037">PR #2037</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2039">PR #2039</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2043">PR #2043</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2062">PR #2062</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2071">PR #2071</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2072">PR #2072</a>.
+      </li>
+      <li>
+        <strong>Show-Tech became implementation-backed AV infrastructure:</strong>
+        ordinary computers can now act as authenticated capability-advertising AV nodes with local cue scheduling,
+        multi-node cloud synchronization, native GStreamer playback/test output, PipeWire/WirePlumber audio control, and
+        a logical program audio/video patchbay. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2067">PR #2067</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2068">PR #2068</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2069">PR #2069</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2070">PR #2070</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2073">PR #2073</a>.
+      </li>
+      <li>
+        <strong>The launch and business loops started closing on evidence:</strong>
+        Launch Room briefs can become Projects, Projects can hand work to Web Builder and Growth Operator, customer wins
+        can become delivery proof, and the local-business website loop now supports hosting-safe upgrades, first-site
+        launches, campaign-aware replies, paid fulfillment, better lead routing, and quieter operator alerts. Money
+        Printer also remembers operation outcomes before planning more work. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1980">PR #1980</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1982">PR #1982</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1984">PR #1984</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1985">PR #1985</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/1988">PR #1988</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2074">PR #2074</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2100">PR #2100</a>.
+      </li>
+      <li>
+        <strong>3DVR clarified how it learns and grows:</strong>
+        the new <a href="../teach/">Teach</a> flow turns local screen/narration demonstrations into review-first skill
+        drafts, the autonomy ladder now lives with the canonical agent, and the roadmap explicitly favors an excellent
+        free/open core while charging for scarce human effort, managed convenience, and real operating costs rather than
+        artificial lock-in. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2015">PR #2015</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2016">PR #2016</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2115">PR #2115</a>.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Safety notes</h2>
+    <p>
+      Digital Organism recall and context construction remain local, and memory-bearing execution requires an explicit
+      provider/backend before personal context leaves the machine. Operator/Forge write authority remains signed and
+      owner-bound; the self-edit acceptance path uses temporary credentials and a disposable remote rather than weakening
+      production authority. Freelancer browser workspaces remain isolated and loopback-only by default, and external
+      schedule/account changes are not silently performed. Show-Tech mutations remain authenticated and native AV uses
+      fixed structured commands instead of exposing arbitrary shell execution. Outreach retains public-information-only
+      research, quality gates, caps, do-not-contact handling, and review-only phone routes rather than automated calling.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>What this release covers</h2>
+    <p>
+      v0.0.61 is the weekly milestone for the week of August 31, 2026. It summarizes the major Portal,
+      Operator, Digital Organism, agent-runtime, infrastructure, freelancer, Show-Tech, launch-loop, and autonomous
+      business work merged after v0.0.60 through September 3. It was published on September 3, with weekend validation
+      continuing as the normal stabilization pass.
+    </p>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">&copy; 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
