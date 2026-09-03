@@ -1,6 +1,9 @@
 import { resolveSeaAuthMaxAgeMs, verifySignedSeaPayload } from '../auth/sea.js';
 
 export const DEFAULT_OPERATOR_DEVELOPER_ALIAS = '3dvr.tech@gmail.com';
+export const BUILTIN_OPERATOR_OWNER_BINDINGS = Object.freeze({
+  'tmsteph@3dvr': 'Cg-NVNIbxWPDBqX7OmllJQqjxy2t3KA_U2DqQBjcPQ8.1fppECqamDOHh2tKt1G5t8Yd21NjBCZ3C6qunST3lvg',
+});
 export const BUILTIN_OPERATOR_ADMIN_BINDINGS = Object.freeze({
   'chatgpt-operator-e18d7ed6@3dvr': 'jcsaMMOmGSjWVJOtiPHI3hZWsudATRhOglXRdDatfSA.pzn7gtgVsDxfbV_md8B4a_W4eNTOavwnZwFU0qOtYcU',
 });
@@ -52,6 +55,11 @@ function withBuiltinBindings(bindings, builtins) {
 
 export function resolveOperatorDeveloperPolicy(config = process.env) {
   return {
+    ownerPubs: new Set(listFromConfig(config.THREEDVR_OPERATOR_OWNER_PUBS)),
+    ownerBindings: withBuiltinBindings(
+      parseBindings(config.THREEDVR_OPERATOR_OWNER_BINDINGS),
+      BUILTIN_OPERATOR_OWNER_BINDINGS
+    ),
     adminPubs: new Set(listFromConfig(config.THREEDVR_OPERATOR_ADMIN_PUBS)),
     adminBindings: withBuiltinBindings(
       parseBindings(config.THREEDVR_OPERATOR_ADMIN_BINDINGS),
@@ -97,14 +105,21 @@ export async function resolveOperatorDeveloperAccess(payload = {}, options = {})
   const policy = resolveOperatorDeveloperPolicy(config);
   const alias = normalizeAlias(auth.identity.alias);
   const pub = normalizeText(auth.identity.pub);
-  const admin = policy.adminPubs.has(pub) || policy.adminBindings.get(alias) === pub;
+  const owner = policy.ownerPubs.has(pub) || policy.ownerBindings.get(alias) === pub;
+  const admin = owner || policy.adminPubs.has(pub) || policy.adminBindings.get(alias) === pub;
   const developer = admin || policy.pubs.has(pub) || policy.bindings.get(alias) === pub;
 
   return {
     authenticated: true,
     approved: developer,
-    role: admin ? 'admin' : developer ? 'developer' : 'contributor',
-    permissions: admin ? ['suggest', 'edit', 'admin'] : developer ? ['suggest', 'edit'] : ['suggest'],
+    role: owner ? 'owner' : admin ? 'admin' : developer ? 'developer' : 'contributor',
+    permissions: owner
+      ? ['suggest', 'edit', 'github_write']
+      : admin
+        ? ['suggest', 'edit', 'admin']
+        : developer
+          ? ['suggest', 'edit']
+          : ['suggest'],
     identity: {
       alias: auth.identity.alias,
       pub
