@@ -41,5 +41,8 @@ jobs:
       - name: Run SD Day Traders booking mail tests
         run: node --test tests/booking-request-email.test.js
 
+      - name: Run Operator self-edit integration test
+        run: node --test tests/operator-self-edit-integration.test.js
+
       - name: Run Playwright checks
         run: npm run playwright:verify:linux
