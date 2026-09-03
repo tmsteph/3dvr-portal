@@ -88,10 +88,10 @@ form.addEventListener('submit', async event => {
     const proof = await createOrganismRecallProof(query, { requestId, limit });
     setState('Asking your private OVH memory…');
 
-    const response = await fetch('/api/organism-recall', {
+    const response = await fetch('/api/openai-site?provider=operator', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...proof, query, requestId, limit })
+      body: JSON.stringify({ organismRecall: true, ...proof, query, requestId, limit })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) throw new Error(data.error || 'Recall failed.');
