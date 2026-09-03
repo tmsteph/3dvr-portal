@@ -39,6 +39,8 @@ function openHistory(){historyPanel.hidden=false;showHistory.setAttribute('aria-
 async function requestOperator(payload){
   const send=body=>fetch('/api/openai-site?provider=operator',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   let response=await send(payload);
+  if(response.status===429){await new Promise(resolve=>setTimeout(resolve,700));response=await send(payload)}
+  if(response.status===429){await new Promise(resolve=>setTimeout(resolve,1400));response=await send(payload)}
   if(response.status===503&&openaiKey) response=await send({...payload,apiKey:openaiKey});
   return response;
 }
