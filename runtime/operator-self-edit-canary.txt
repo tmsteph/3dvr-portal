@@ -1,0 +1,5 @@
+Operator self-edit canary.
+
+This file exists only so the signed-in 3DVR owner can safely test the full Operator → Forge → GitHub self-edit path without changing product behavior.
+
+status=baseline
