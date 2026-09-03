@@ -51,7 +51,20 @@ export async function runOperatorAction(action = {}) {
   }
   if (action.type === 'request_code_change') {
     const { queueCodeChange } = await import('./forge.js');
-    return queueCodeChange(action);
+    const forgeOutcome = await queueCodeChange(action);
+    try {
+      const { queueOperatorAgentEdit } = await import('./agent-edit-queue.js');
+      const agentOutcome = await queueOperatorAgentEdit(action);
+      return {
+        ...forgeOutcome,
+        message: `${forgeOutcome.message} ${agentOutcome.message}`
+      };
+    } catch (error) {
+      return {
+        ...forgeOutcome,
+        message: `${forgeOutcome.message} The edit is recorded in Forge, but the live agent queue could not be reached: ${error.message || 'unknown error'}`
+      };
+    }
   }
   if (action.type === 'open_app' && action.url) return { message:'Ready to open.', url:action.url };
   return null;
