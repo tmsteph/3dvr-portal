@@ -56,11 +56,15 @@ test('correction supersedes the active memory without rewriting history', async 
   const original = await remember('The server is blue.', { stateDir, subject: 'server' });
   const replacement = await correct(original.id, 'The server is green.', { stateDir });
   assert.notEqual(replacement.id, original.id);
+  assert.equal(replacement.content, 'The server is green.');
 
-  const oldHits = await recall('blue', { stateDir });
-  assert.equal(oldHits.length, 0);
-  const newHits = await recall('green', { stateDir });
-  assert.equal(newHits[0].memory.id, replacement.id);
+  const activeHits = await recall('', { stateDir, limit: 10 });
+  assert.equal(activeHits.some(hit => hit.memory.id === original.id), false);
+  assert.equal(activeHits.some(hit => hit.memory.id === replacement.id), true);
+
+  const lines = (await fs.readFile(path.join(stateDir, 'memories.jsonl'), 'utf8')).trim().split('\n');
+  assert.equal(lines.length, 2);
+  assert.equal(JSON.parse(lines[1]).type, 'correct');
 });
 
 test('ask refuses to transmit context unless a provider is explicitly selected', async (t) => {
