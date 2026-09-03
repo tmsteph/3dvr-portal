@@ -46,7 +46,23 @@ npm --prefix apps/agent run organism -- eval
 
 Imports are idempotent by provenance. Re-running the command does not duplicate a session. A previously imported memory that the owner explicitly forgot is also not resurrected on a later import; its historical provenance remains in the append-only log so that choice can be honored.
 
-Reasoning requires an explicit provider:
+### Agent task bridge
+
+The task orchestrator can retrieve Organism context before dispatching work:
+
+```bash
+# Local retrieval and prompt preview only; nothing is executed.
+3dvr agent task --backend openclaw --memory "Continue the portal architecture"
+
+# Memory-bearing execution must name the executor explicitly.
+3dvr agent task --backend codex --memory --execute "Continue the portal architecture"
+```
+
+`--memory` performs retrieval locally. If execution is requested while the backend is still `auto`, the task is refused. This prevents personal memory from being silently attached to a prompt and sent to whichever hosted or CLI provider happened to win automatic routing.
+
+Memory is also marked as subordinate reference material in the generated prompt: retrieved records cannot override the current user task, safety rules, or execution policy.
+
+Reasoning through the Organism itself also requires an explicit provider:
 
 ```bash
 # Existing local llama.cpp server used by the agent
@@ -62,10 +78,22 @@ npm --prefix apps/agent run organism -- ask \
 
 If no provider is selected, `ask` fails rather than transmitting personal context anywhere.
 
+## Existing memory surfaces
+
+The portal already contains several useful memory-like surfaces. They should converge through adapters instead of being rewritten into one giant subsystem:
+
+- **Context HQ** — deliberate organizational/session handoffs. Already imports into the Organism.
+- **Memory Capture** — fast conversational notes plus CRM/proposal inference. Keep its capture workflow, but publish approved durable facts to the Organism with capture provenance.
+- **Workspace project memory** — encrypted owner/project goals, constraints, decisions, links, and thread handoffs. Keep project scoping and encryption; expose selected project memories to the Organism through an owner-scoped bridge.
+- **Executive constitution** — mission, strategic priorities, taste, anti-patterns, decision rubric, and authority boundaries. Treat this as policy/identity context rather than ordinary factual memory so recall cannot accidentally override governance.
+- **Raw task/model/tool output** — execution evidence, not trusted memory. Promote only through deliberate handoffs or a future evaluated memory compiler.
+
+The convergence rule is: **preserve the source workflow, normalize provenance at the boundary, and let the Organism become the retrieval layer.**
+
 ## Next integration
 
 1. Feed conversation exports through a memory compiler instead of storing whole chats as durable facts.
-2. Route agent tasks through the organism context builder before any hosted or local model call.
+2. Bridge approved Memory Capture and Workspace project-memory records into the Organism without weakening their existing owner/project boundaries.
 3. Add encrypted owner-scoped sync between the DigitalOcean, Hetzner, OVH, phone, and laptop nodes.
 4. Upgrade lexical retrieval with semantic and temporal ranking while retaining explainability.
 5. Keep evaluations provider-neutral so models can be promoted or replaced on measured quality, cost, latency, and privacy.
