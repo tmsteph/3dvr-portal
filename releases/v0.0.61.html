@@ -11,14 +11,18 @@
     code { color: #f0f6fc; }
     .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
     .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
-    .release-summary { margin: 0 0 24px; font-size: 16px; color: #9ba3b4; }
+    .release-summary { margin: 0 0 24px; font-size: 16px; color: #c9d1d9; }
     .release-summary-list { margin: 0; padding-left: 20px; color: #c9d1d9; }
-    .release-summary-list li + li { margin-top: 12px; }
+    .release-summary-list li + li { margin-top: 18px; }
+    .app-description { display: block; margin: 4px 0; color: #e6edf3; }
+    .update-note { display: block; margin-top: 4px; color: #c9d1d9; }
     .back-link, .release-nav-link { color: #58a6ff; text-decoration: none; font-weight: 600; }
     .back-link:hover, .release-nav-link:hover { text-decoration: underline; }
     .release-nav { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin: 20px 0 40px; }
     .release-nav-link.is-disabled { opacity: 0.4; pointer-events: none; cursor: default; }
     .phase-list { margin: 0; padding-left: 20px; }
+    .app-list { margin: 10px 0 0; padding-left: 20px; }
+    .app-list li + li { margin-top: 8px; }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -33,6 +37,18 @@
   <div class="tag">Week of August 31, 2026</div>
 
   <div class="section">
+    <h2>What is 3DVR?</h2>
+    <p>
+      3DVR is an open-source set of tools for getting useful work done with AI. The goal is to bring projects,
+      business tools, personal context, automation, and device control into one system that people can understand and own.
+    </p>
+    <p>
+      The <strong>3DVR Portal</strong> is the web home for those tools. Each app handles a different kind of work, but they
+      are designed to share context and hand work to one another instead of acting like separate islands.
+    </p>
+  </div>
+
+  <div class="section">
     <h2>Release schedule</h2>
     <ul class="phase-list">
       <li><strong>Internal release:</strong> Thursday, September 3, 2026</li>
@@ -43,99 +59,65 @@
 
   <div class="release-summary">
     <p>
-      This release makes 3DVR easier to use and more useful. Operator can understand screenshots. The Portal can remember
-      useful information. Our servers and workers are more reliable. Freelancer Desk can handle more of the work day.
-      Show-Tech can turn regular computers into AV control and output nodes. Our business tools can also remember what
-      worked before they try the next step.
+      This week makes the 3DVR system easier to use and more connected. The main AI assistant can understand screenshots.
+      The memory system can keep useful context. Background workers are more reliable. Freelancers have a stronger work
+      hub. Regular computers can become networked AV nodes. The business tools can also learn from past results.
     </p>
 
     <ul class="release-summary-list">
       <li>
-        <strong>Operator can understand screenshots.</strong>
-        <a href="../operator/">Operator</a> can now accept screenshots, including messages that only contain an image.
-        It shows when it is busy, works better on small phone screens, and has a full live test for the mobile flow.
-        See <a href="https://github.com/tmsteph/3dvr-portal/pull/2123">PR #2123</a>.
+        <strong><a href="../operator/">Operator</a></strong>
+        <span class="app-description"><strong>What it is:</strong> Operator is the main AI assistant and front door to 3DVR. You can ask it questions, give it context, share files or screenshots, and ask it to help move work through the Portal.</span>
+        <span class="update-note"><strong>This week:</strong> Operator can now understand screenshots, including messages that contain only an image. It shows when it is busy, works better on small phone screens, and has a full live test for the mobile flow. See <a href="https://github.com/tmsteph/3dvr-portal/pull/2123">PR #2123</a>.</span>
       </li>
 
       <li>
-        <strong>The Portal can remember useful information.</strong>
-        Digital Organism now gives the main 3DVR agent local memory. It can remember, recall, correct, and forget saved
-        information. It can also bring in approved notes from Context HQ. Personal memory stays local until a user picks
-        a backend that may use it. See
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2113">PR #2113</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2114">PR #2114</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2116">PR #2116</a>, and
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2118">PR #2118</a>.
+        <strong>Digital Organism</strong>
+        <span class="app-description"><strong>What it is:</strong> Digital Organism is 3DVR's memory layer. It is meant to help the system remember useful facts and past work instead of starting from zero every time.</span>
+        <span class="update-note"><strong>This week:</strong> It now gives the main 3DVR agent local memory. It can remember, recall, correct, and forget saved information. It can also bring in approved notes from Context HQ, the Portal area used to organize shared context. Personal memory stays local until a user picks a backend that may use it. See <a href="https://github.com/tmsteph/3dvr-portal/pull/2113">PR #2113</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2114">PR #2114</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2116">PR #2116</a>, and <a href="https://github.com/tmsteph/3dvr-portal/pull/2118">PR #2118</a>.</span>
       </li>
 
       <li>
-        <strong>Operator can safely test editing code.</strong>
-        We now have a real test for the owner-only Operator → Forge edit path. The test signs a request, makes a harmless
-        code change, pushes it to a throwaway Git repo, and checks that the change really landed. This proves the path
-        works without opening up production access. See
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2124">PR #2124</a>.
+        <strong>Forge</strong>
+        <span class="app-description"><strong>What it is:</strong> Forge is the controlled code-editing side of 3DVR. Operator can help describe a change, while Forge handles approved code work with clear permissions and a record of what happened.</span>
+        <span class="update-note"><strong>This week:</strong> We added a real test for the owner-only Operator → Forge edit path. The test signs a request, makes a harmless code change, pushes it to a throwaway Git repo, and checks that the change landed. This proves the path works without opening up production access. See <a href="https://github.com/tmsteph/3dvr-portal/pull/2124">PR #2124</a>.</span>
       </li>
 
       <li>
-        <strong>Servers and workers are more reliable.</strong>
-        Agent jobs now use a durable SQLite queue. Workers can recover from some failures. OVH has separate areas for
-        production, workspaces, and development. Our cloud servers also have better SSH links, and phones or laptops can
-        join the mesh more easily. See
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2038">PR #2038</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2048">PR #2048</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2058">PR #2058</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2061">PR #2061</a>, and
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2104">PR #2104</a>.
+        <strong>3DVR Agent and cloud workers</strong>
+        <span class="app-description"><strong>What they are:</strong> The 3DVR Agent is the background worker system. It takes jobs from the Portal and runs them on computers or servers, so work does not have to stay inside one browser tab.</span>
+        <span class="update-note"><strong>This week:</strong> Agent jobs now use a durable SQLite queue. Workers can recover from some failures. OVH has separate areas for production, workspaces, and development. Our cloud servers also have better SSH links, and phones or laptops can join the mesh more easily. See <a href="https://github.com/tmsteph/3dvr-portal/pull/2038">PR #2038</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2048">PR #2048</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2058">PR #2058</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2061">PR #2061</a>, and <a href="https://github.com/tmsteph/3dvr-portal/pull/2104">PR #2104</a>.</span>
       </li>
 
       <li>
-        <strong>Freelancer Desk can handle more of the work day.</strong>
-        <a href="../freelance/">Freelancer Desk</a> can track clients, possible jobs, booked gigs, payments, schedules,
-        and simple notes about facts, decisions, and actions. It also has private browser workspaces for websites that do
-        not have a good API, plus a Growth Autopilot service path. See
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2034">PR #2034</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2037">PR #2037</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2039">PR #2039</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2043">PR #2043</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2062">PR #2062</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2071">PR #2071</a>, and
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2072">PR #2072</a>.
+        <strong><a href="../freelance/">Freelancer Desk</a></strong>
+        <span class="app-description"><strong>What it is:</strong> Freelancer Desk is a simple work hub for independent workers. It brings clients, possible jobs, booked gigs, schedules, invoices, and payments into one place.</span>
+        <span class="update-note"><strong>This week:</strong> It can track more of the full work day, including simple notes about facts, decisions, and next actions. It also has private browser workspaces for websites that do not have a good API, plus a Growth Autopilot path for recurring growth help. See <a href="https://github.com/tmsteph/3dvr-portal/pull/2034">PR #2034</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2037">PR #2037</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2039">PR #2039</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2043">PR #2043</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2062">PR #2062</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2071">PR #2071</a>, and <a href="https://github.com/tmsteph/3dvr-portal/pull/2072">PR #2072</a>.</span>
       </li>
 
       <li>
-        <strong>Regular computers can become Show-Tech AV nodes.</strong>
-        A computer can now join a Show-Tech network, report what it can do, receive timed cues, and play or route audio
-        and video. We added cloud sync, GStreamer output, PipeWire audio control, and a simple logical AV patchbay. See
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2067">PR #2067</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2068">PR #2068</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2069">PR #2069</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2070">PR #2070</a>, and
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2073">PR #2073</a>.
+        <strong>Show-Tech</strong>
+        <span class="app-description"><strong>What it is:</strong> Show-Tech is 3DVR's networked audio-video control system. The idea is that ordinary computers can become useful show nodes for playback, routing, control, and other AV jobs.</span>
+        <span class="update-note"><strong>This week:</strong> A computer can join a Show-Tech network, report what it can do, receive timed cues, and play or route audio and video. We added cloud sync, GStreamer output, PipeWire audio control, and a simple logical AV patchbay. See <a href="https://github.com/tmsteph/3dvr-portal/pull/2067">PR #2067</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2068">PR #2068</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2069">PR #2069</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2070">PR #2070</a>, and <a href="https://github.com/tmsteph/3dvr-portal/pull/2073">PR #2073</a>.</span>
       </li>
 
       <li>
-        <strong>Business tools can remember what worked.</strong>
-        Launch Room can send ideas into Projects. Projects can send work to Web Builder and Growth Operator. Customer
-        wins can become proof of delivery. The local-business website system can also handle more of the path from lead to
-        paid work. Money Printer now keeps notes about past results before it plans the next move. See
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/1980">PR #1980</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/1982">PR #1982</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/1984">PR #1984</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/1985">PR #1985</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/1988">PR #1988</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2074">PR #2074</a>, and
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2100">PR #2100</a>.
+        <strong>Launch Room, Projects, Web Builder, Growth Operator, and Money Printer</strong>
+        <span class="app-description"><strong>What they are:</strong> These apps cover the path from an idea to real business work.</span>
+        <ul class="app-list">
+          <li><strong>Launch Room</strong> helps turn a rough idea or goal into a clearer project brief.</li>
+          <li><strong>Projects</strong> is where that work can be organized and handed to other 3DVR tools.</li>
+          <li><strong>Web Builder</strong> helps create or improve websites.</li>
+          <li><strong>Growth Operator</strong> helps with finding customers, outreach, and other growth work.</li>
+          <li><strong>Money Printer</strong> is the experiment loop: try a business action, record what happened, and use that result when choosing the next move.</li>
+        </ul>
+        <span class="update-note"><strong>This week:</strong> These tools connect more of the path from idea to project to customer work. Launch Room can send ideas into Projects. Projects can send work to Web Builder and Growth Operator. Customer wins can become proof of delivery. The local-business website system can handle more of the path from lead to paid work. Money Printer now keeps notes about past results before planning the next move. See <a href="https://github.com/tmsteph/3dvr-portal/pull/1980">PR #1980</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/1982">PR #1982</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/1984">PR #1984</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/1985">PR #1985</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/1988">PR #1988</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2074">PR #2074</a>, and <a href="https://github.com/tmsteph/3dvr-portal/pull/2100">PR #2100</a>.</span>
       </li>
 
       <li>
-        <strong>3DVR is getting easier to teach and stays open.</strong>
-        <a href="../teach/">Teach</a> can turn a screen demo and narration into a skill draft that a person reviews
-        before using. We also made the agent's levels of freedom clearer. The long-term plan still keeps the core product
-        free and open, while charging for real services and real operating costs instead of locking features away on
-        purpose. See
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2015">PR #2015</a>,
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2016">PR #2016</a>, and
-        <a href="https://github.com/tmsteph/3dvr-portal/pull/2115">PR #2115</a>.
+        <strong><a href="../teach/">Teach</a></strong>
+        <span class="app-description"><strong>What it is:</strong> Teach is a way to show 3DVR how you do something instead of writing a long set of instructions. A person can demonstrate a task, then review the skill before the system uses it.</span>
+        <span class="update-note"><strong>This week:</strong> Teach can turn a screen demonstration and narration into a skill draft. We also made the agent's levels of freedom clearer. The long-term plan still keeps the core product free and open, while charging for real services and real operating costs instead of locking useful features away on purpose. See <a href="https://github.com/tmsteph/3dvr-portal/pull/2015">PR #2015</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2016">PR #2016</a>, and <a href="https://github.com/tmsteph/3dvr-portal/pull/2115">PR #2115</a>.</span>
       </li>
     </ul>
   </div>
@@ -155,8 +137,8 @@
     <h2>In short</h2>
     <p>
       v0.0.61 is the internal Thursday release for this week. We test it Friday through Sunday, then make the stable public
-      release on Monday. It brings better screenshots, memory, self-edit testing, server reliability, freelancer tools,
-      AV networking, and smarter business automation.
+      release on Monday. The bigger theme is connection: the assistant, memory, workers, freelancer tools, AV tools, and
+      business apps are starting to work more like parts of one understandable system.
     </p>
   </div>
 
