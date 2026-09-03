@@ -281,6 +281,22 @@ export async function createOperatorDeveloperProof() {
   return signedPortalProof('operator-developer-access', 'operator-chat');
 }
 
+export async function createOrganismRecallProof(query, options = {}) {
+  const signedIn = globalThis.localStorage?.getItem?.('signedIn') === 'true';
+  if (!signedIn) throw new Error('Sign in with your 3DVR account before asking your memory.');
+  const text = normalizeText(query, 2000);
+  if (!text) throw new Error('A memory question is required.');
+  const requestId = normalizeText(options.requestId || makeId('organism-recall'), 160);
+  const limit = Math.min(10, Math.max(1, Number.parseInt(options.limit || '5', 10) || 5));
+  const proof = await signedPortalProof('digital-organism', 'recall', {
+    query: text,
+    requestId,
+    limit
+  });
+  if (!proof) throw new Error('Refresh your 3DVR sign-in before asking your memory.');
+  return { ...proof, query: text, requestId, limit };
+}
+
 export async function saveCodeSuggestion(action = {}) {
   const context = await getGunContext();
   if (!context) throw new Error('3DVR Forge is unavailable in this browser.');
