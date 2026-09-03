@@ -15,6 +15,8 @@ const OWNER_ALIAS = process.env.THREEDVR_AGENT_OWNER_ALIAS || '3dvr-managed';
 const SERVICES = [
   { name: 'inbox', script: 'ask-inbox-daemon' },
   { name: 'outreach', script: 'ask-autopilot-daemon' },
+  { name: 'context-router', script: 'ask-context-task-router-daemon' },
+  { name: 'organism-memory', script: 'ask-organism-sync-daemon' },
   { name: 'worker-router', script: 'ask-agent-worker-daemon' },
   { name: 'heartbeat', script: 'ask-agent-heartbeat-daemon' },
 ];
