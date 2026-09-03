@@ -25,12 +25,12 @@ describe('release v0.0.61', () => {
     assert.match(release, /href="v0\.0\.60\.html">Previous release<\/a>/);
 
     assert.match(release, /href="\.\.\/operator\/">Operator<\/a>/);
-    assert.match(release, /href="https:\/\/github\.com\/tmsteph\/3dvr-digital-organism">Digital Organism<\/a>/);
+    assert.match(release, /href="\.\.\/digital-organism\/">Digital Organism<\/a>/);
     assert.match(release, /href="\.\.\/context-hq\/">Context HQ<\/a>/);
     assert.match(release, /href="\.\.\/forge\/">Forge<\/a>/);
-    assert.match(release, /href="https:\/\/github\.com\/tmsteph\/3dvr-portal\/tree\/main\/apps\/agent">3DVR Agent and cloud workers<\/a>/);
+    assert.match(release, /href="\.\.\/agent\/">3DVR Agent and cloud workers<\/a>/);
     assert.match(release, /href="\.\.\/freelance\/">Freelancer Desk<\/a>/);
-    assert.match(release, /href="https:\/\/github\.com\/tmsteph\/3dvr-portal\/tree\/main\/show-tech">Show-Tech<\/a>/);
+    assert.match(release, /href="\.\.\/show-tech\/">Show-Tech<\/a>/);
     assert.match(release, /href="\.\.\/launch-room\/">Launch Room<\/a>/);
     assert.match(release, /href="\.\.\/projects\/">Projects<\/a>/);
     assert.match(release, /href="\.\.\/web-builder-app\/">Web Builder<\/a>/);
@@ -47,5 +47,18 @@ describe('release v0.0.61', () => {
     assert.match(release, /Teach is a way to show 3DVR how you do something/);
     assert.match(release, /<h2>Safety<\/h2>/);
     assert.match(release, /<h2>In short<\/h2>/);
+  });
+
+  it('gives code-first projects simple public landing pages', async () => {
+    const organism = await readFile(new URL('../digital-organism/index.html', releasesDir), 'utf8');
+    const agent = await readFile(new URL('../agent/index.html', releasesDir), 'utf8');
+    const showTech = await readFile(new URL('../show-tech/index.html', releasesDir), 'utf8');
+
+    assert.match(organism, /<h1>Digital Organism<\/h1>/);
+    assert.match(organism, /github\.com\/tmsteph\/3dvr-digital-organism/);
+    assert.match(agent, /<h1>3DVR Agent<\/h1>/);
+    assert.match(agent, /github\.com\/tmsteph\/3dvr-portal\/tree\/main\/apps\/agent/);
+    assert.match(showTech, /<h1>Show-Tech<\/h1>/);
+    assert.match(showTech, /github\.com\/tmsteph\/3dvr-portal\/tree\/main\/show-tech/);
   });
 });

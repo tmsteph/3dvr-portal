@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>3DVR Agent | 3DVR</title>
+  <meta name="description" content="3DVR Agent is the background worker system that runs Portal jobs on computers and servers.">
+  <style>
+    :root{color-scheme:dark;--bg:#0d1117;--panel:#161b22;--text:#e6edf3;--muted:#9da7b3;--line:#30363d;--link:#58a6ff}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.6}
+    main{width:min(820px,100%);margin:auto;padding:28px 18px 64px}.nav{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:42px}.nav a,a{color:var(--link)}
+    .eyebrow{color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:.78rem}h1{font-size:clamp(2.4rem,8vw,4.5rem);line-height:1;margin:.3rem 0 1rem}h2{margin-top:0}
+    .lead{font-size:1.18rem;max-width:680px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:30px 0}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px}.card p{color:var(--muted);margin-bottom:0}
+    .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}.button{display:inline-block;padding:11px 16px;border:1px solid var(--line);border-radius:10px;text-decoration:none;font-weight:700}.button.primary{background:var(--link);color:#07111f;border-color:var(--link)}
+    @media(max-width:620px){.grid{grid-template-columns:1fr}}
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+<main>
+  <nav class="nav"><a href="../">3DVR Portal</a><a href="../operator/">Operator</a><a href="../digital-organism/">Digital Organism</a></nav>
+  <p class="eyebrow">3DVR background workers</p>
+  <h1>3DVR Agent</h1>
+  <p class="lead">3DVR Agent is the worker system behind the Portal. It can take a job from the web app and run it on a computer or server instead of keeping everything inside one browser tab.</p>
+
+  <div class="grid">
+    <section class="card"><h2>Run jobs</h2><p>Pick up queued work and run it on the right machine.</p></section>
+    <section class="card"><h2>Keep going</h2><p>Durable queues and worker recovery help work survive restarts and small failures.</p></section>
+    <section class="card"><h2>Use many machines</h2><p>Cloud servers, laptops, phones, and other nodes can join the wider 3DVR system.</p></section>
+    <section class="card"><h2>Share context</h2><p>The Agent can use approved Portal context and Digital Organism memory when doing work.</p></section>
+  </div>
+
+  <section class="card">
+    <h2>Where it is today</h2>
+    <p>The Agent is mainly a runtime and operations project rather than a standalone consumer app. This page gives it a public home while the source remains in the Portal monorepo.</p>
+    <div class="actions">
+      <a class="button primary" href="https://github.com/tmsteph/3dvr-portal/tree/main/apps/agent">Open source code</a>
+      <a class="button" href="../operator/">Open Operator</a>
+    </div>
+  </section>
+</main>
+<script defer src="/issue-launcher.js"></script>
+</body>
+</html>
