@@ -1,17 +1,22 @@
-const { gun } = require('./gun-db');
 const { runAgentTask } = require('./task-orchestrator');
 const { authorizePortalOperatorTask } = require('./operator-forge-auth');
 
 const DEFAULT_LIMIT = 5;
 const DEFAULT_READ_TIMEOUT_MS = 1800;
 const BLOCKED_EXTERNAL_WRITE_PATTERN = /\b(deploy|release|send|email|post|force[- ]?push|delete (?:the )?(?:repo|repository|branch|tag)|transfer (?:the )?(?:repo|repository)|repository settings|repo settings|secrets?|billing|reset\s+--hard)\b/i;
+let defaultGun = null;
 
 function normalizeText(value = '') {
   return String(value || '').trim();
 }
 
+function getDefaultGun() {
+  if (!defaultGun) defaultGun = require('./gun-db').gun;
+  return defaultGun;
+}
+
 function forgeRequestsNode(options = {}) {
-  return options.rootNode || gun.get('3dvr-portal').get('forge').get('editRequests');
+  return options.rootNode || getDefaultGun().get('3dvr-portal').get('forge').get('editRequests');
 }
 
 function putGun(node, payload, timeoutMs = 3000) {
