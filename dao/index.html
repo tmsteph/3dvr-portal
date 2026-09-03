@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0d1117">
+  <title>3DVR DAO + Credits | 3DVR</title>
+  <meta name="description" content="A 3DVR research direction inspired by GUN, SEA, AXE, and Proof of Propagation: turn useful network and community work into verifiable credits and decentralized governance.">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d1117;
+      --panel: #161b22;
+      --panel-soft: rgba(22, 27, 34, 0.76);
+      --text: #e6edf3;
+      --muted: #9da7b3;
+      --line: #30363d;
+      --link: #58a6ff;
+      --gold: #f0ca63;
+      --teal: #67e8f9;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 18% 0%, rgba(240, 202, 99, 0.12), transparent 28rem),
+        radial-gradient(circle at 82% 16%, rgba(103, 232, 249, 0.09), transparent 26rem),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    a { color: var(--link); }
+
+    main {
+      width: min(900px, 100%);
+      margin: 0 auto;
+      padding: 24px 18px 72px;
+    }
+
+    .nav {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 48px;
+      font-weight: 700;
+    }
+
+    .nav a { text-decoration: none; }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--gold);
+      font-size: 0.78rem;
+      font-weight: 850;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 760px;
+      font-size: clamp(2.55rem, 9vw, 5.2rem);
+      line-height: 0.98;
+      letter-spacing: -0.055em;
+    }
+
+    .lead {
+      max-width: 730px;
+      margin: 22px 0 0;
+      color: #c9d1d9;
+      font-size: clamp(1.05rem, 3.4vw, 1.28rem);
+    }
+
+    .status {
+      display: inline-flex;
+      margin-top: 20px;
+      padding: 7px 11px;
+      border: 1px solid rgba(240, 202, 99, 0.32);
+      border-radius: 999px;
+      background: rgba(240, 202, 99, 0.08);
+      color: #f6df9a;
+      font-size: 0.84rem;
+      font-weight: 800;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 9px;
+      margin: 38px 0;
+      align-items: stretch;
+    }
+
+    .flow-step {
+      min-height: 116px;
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: var(--panel-soft);
+    }
+
+    .flow-step strong,
+    .flow-step span { display: block; }
+    .flow-step strong { color: #f0f6fc; }
+    .flow-step span { margin-top: 7px; color: var(--muted); font-size: 0.86rem; line-height: 1.35; }
+
+    .flow-step.credit {
+      border-color: rgba(240, 202, 99, 0.5);
+      background: linear-gradient(180deg, rgba(240, 202, 99, 0.13), rgba(22, 27, 34, 0.84));
+    }
+
+    .section {
+      margin-top: 18px;
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel-soft);
+    }
+
+    .section h2 {
+      margin: 0 0 10px;
+      font-size: clamp(1.35rem, 4vw, 1.8rem);
+      letter-spacing: -0.025em;
+    }
+
+    .section p { color: var(--muted); }
+    .section p:last-child { margin-bottom: 0; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .mini {
+      padding: 17px;
+      border: 1px solid #282e36;
+      border-radius: 14px;
+      background: rgba(13, 17, 23, 0.72);
+    }
+
+    .mini strong { display: block; margin-bottom: 6px; }
+    .mini span { color: var(--muted); font-size: 0.92rem; }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    ol, ul { margin: 12px 0 0; padding-left: 1.25rem; color: #c9d1d9; }
+    li + li { margin-top: 8px; }
+
+    .note {
+      border-color: rgba(103, 232, 249, 0.28);
+      background: rgba(103, 232, 249, 0.045);
+    }
+
+    .warning {
+      border-color: rgba(240, 202, 99, 0.28);
+      background: rgba(240, 202, 99, 0.045);
+    }
+
+    .sources a { display: inline-block; margin: 6px 12px 0 0; }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 28px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 10px 15px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      color: var(--text);
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .button.primary {
+      border-color: var(--gold);
+      background: var(--gold);
+      color: #17130a;
+    }
+
+    footer { margin-top: 40px; color: #6e7681; font-size: 0.82rem; }
+
+    @media (max-width: 760px) {
+      .flow { grid-template-columns: 1fr; }
+      .flow-step { min-height: 0; }
+      .grid,
+      .split { grid-template-columns: 1fr; }
+      .section { padding: 20px; }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Page navigation">
+    <a href="../">3DVR Portal</a>
+    <a href="../community/">Community</a>
+    <a href="../finance/">Finance</a>
+    <a href="https://github.com/tmsteph/3dvr-portal/tree/main/dao">Source</a>
+  </nav>
+
+  <p class="eyebrow">Open economic coordination · research concept</p>
+  <h1>3DVR DAO + Credits</h1>
+  <p class="lead">What if useful work for the network created verifiable value? We are exploring a community economy inspired by GUN, SEA, AXE, and Proof of Propagation.</p>
+  <span class="status">Research stage · no token sale</span>
+
+  <div class="flow" aria-label="Proposed 3DVR credit flow">
+    <div class="flow-step"><strong>1. Useful work</strong><span>Relay data, host storage, provide compute, build, test, document, or help the community.</span></div>
+    <div class="flow-step"><strong>2. Signed receipt</strong><span>Participants cryptographically attest to what happened.</span></div>
+    <div class="flow-step"><strong>3. Verification</strong><span>Peers check provenance, history, and rules instead of trusting one central operator.</span></div>
+    <div class="flow-step credit"><strong>4. 3DVR Credit</strong><span>A test credit represents verified contribution rather than speculative mining.</span></div>
+    <div class="flow-step"><strong>5. Coordination</strong><span>Credits and reputation can inform proposals, rewards, grants, and governance.</span></div>
+  </div>
+
+  <section class="section">
+    <h2>Where the idea comes from</h2>
+    <p>GUN creator Mark Nadal described AXE as the <strong>Advanced eXchange Equation</strong>. Its published roadmap goes beyond peer routing: Stage 3 proposed contracts for bandwidth and relay service, with bandwidth tokenized by metering throughput. The same AXE documentation describes SEA as a necessary cryptographic primitive and references working identity and wallet demonstrations.</p>
+    <p>The accompanying “Trusting Strangers with Axes” cartoon explains the economic idea with receipts and child coins: useful network activity leaves evidence, that evidence can be combined into new value, and coin history can help peers reason about cheating and Sybil behavior.</p>
+  </section>
+
+  <section class="section">
+    <h2>What 3DVR would keep</h2>
+    <div class="grid">
+      <div class="mini"><strong>GUN graph</strong><span>Shared proposals, public activity, contribution records, and portable community state.</span></div>
+      <div class="mini"><strong>SEA signatures</strong><span>Keys, identity, signatures, and encrypted or authenticated records.</span></div>
+      <div class="mini"><strong>AXE networking ideas</strong><span>Peer discovery, relays, useful bandwidth, and an incentive model tied to network service.</span></div>
+      <div class="mini"><strong>Receipts + provenance</strong><span>Credits should point back to why they exist, who signed the work, and how they were verified.</span></div>
+    </div>
+  </section>
+
+  <div class="split">
+    <section class="section note">
+      <h2>Our extension</h2>
+      <p>AXE focused heavily on bandwidth. 3DVR can test the same principle across the broader open-source organism.</p>
+      <ul>
+        <li>Relay and bandwidth</li>
+        <li>Storage and compute</li>
+        <li>Code contributions</li>
+        <li>Documentation and testing</li>
+        <li>Useful AI-agent work</li>
+        <li>Community support and project stewardship</li>
+      </ul>
+    </section>
+
+    <section class="section warning">
+      <h2>What it is not yet</h2>
+      <p>This page does not launch a cryptocurrency, promise financial value, or create an investment fund. A real transferable token, pooled treasury, or AI-managed investment fund would require substantially stronger settlement rules plus legal and regulatory review.</p>
+      <p>The first experiment should be contribution credits, not speculation.</p>
+    </section>
+  </div>
+
+  <section class="section">
+    <h2>First prototype</h2>
+    <ol>
+      <li>Create a SEA identity for each participating node or contributor.</li>
+      <li>Record signed receipts for a small class of objectively useful work.</li>
+      <li>Verify receipts from independent peers and preserve their provenance in GUN.</li>
+      <li>Issue non-cash test credits with no promised market value.</li>
+      <li>Use those credits alongside reputation for small community proposals and grants.</li>
+      <li>Only after adversarial testing decide whether transferability or an external settlement layer is useful.</li>
+    </ol>
+  </section>
+
+  <section class="section">
+    <h2>Why not just put everything on a blockchain?</h2>
+    <p>Because most of the 3DVR organism is communication, identity, collaboration, and shared state. GUN is designed for highly available peer-to-peer data, while a blockchain-style consensus layer is most valuable where irreversible financial settlement or double-spend protection actually requires it. The goal is to use each tool where it is strongest rather than making every interaction a transaction.</p>
+  </section>
+
+  <section class="section sources">
+    <h2>Original material</h2>
+    <p>These are the GUN/AXE references that inspired this direction.</p>
+    <a href="https://gun.eco/docs/Trusting-Strangers-with-Axes" target="_blank" rel="noreferrer">Trusting Strangers with Axes</a>
+    <a href="https://github.com/amark/gun/wiki/AXE" target="_blank" rel="noreferrer">GUN AXE wiki</a>
+    <a href="https://web.archive.org/web/20190129194522/http://web.stanford.edu/~nadal/A-Decentralized-Data-Synchronization-Protocol.pdf" target="_blank" rel="noreferrer">Archived AXE whitepaper</a>
+    <a href="https://www.youtube.com/watch?v=EHZyaupYjYo" target="_blank" rel="noreferrer">Proof of Propagation / AXE talk</a>
+  </section>
+
+  <div class="actions">
+    <a class="button primary" href="https://github.com/tmsteph/3dvr-portal/issues/new" target="_blank" rel="noreferrer">Help design the experiment</a>
+    <a class="button" href="../community/">Open 3DVR Community</a>
+  </div>
+
+  <footer>3DVR · Build the useful network first. Let value emerge from contribution.</footer>
+</main>
+<script defer src="/issue-launcher.js"></script>
+</body>
+</html>
