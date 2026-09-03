@@ -8,6 +8,7 @@ const {
 const HOST = process.env.THREEDVR_ORGANISM_HOST || '127.0.0.1';
 const PORT = Number.parseInt(process.env.THREEDVR_ORGANISM_PORT || '4311', 10);
 const API_TOKEN = String(process.env.THREEDVR_ORGANISM_API_TOKEN || '').trim();
+const REMOTE_RECALL = process.env.THREEDVR_ORGANISM_REMOTE_RECALL === '1';
 const startedAt = new Date().toISOString();
 
 function sendJson(res, status, payload, extraHeaders = {}) {
@@ -50,7 +51,7 @@ async function health() {
     storage: 'append-only local JSONL',
     activeMemories: memories.length,
     events: events.length,
-    privateRecallEnabled: Boolean(API_TOKEN),
+    remoteRecallEnabled: Boolean(API_TOKEN) && REMOTE_RECALL,
     startedAt,
     checkedAt: new Date().toISOString(),
   };
@@ -77,6 +78,9 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && url.pathname === '/recall') {
+      if (!REMOTE_RECALL) {
+        return sendJson(res, 404, { ok: false, error: 'Remote recall is disabled.' });
+      }
       if (!API_TOKEN) {
         return sendJson(res, 503, {
           ok: false,
