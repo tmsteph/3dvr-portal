@@ -21,6 +21,7 @@ const DEFAULT_WORKER_CAPABILITIES = process.env.THREEDVR_AGENT_WORKER_CAPABILITI
 const DEFAULT_WORKER_RISK_CLASSES = process.env.THREEDVR_AGENT_WORKER_RISK_CLASSES || 'read_only,draft,workspace_write';
 const VALID_RISK_CLASSES = new Set(['read_only', 'draft', 'workspace_write', 'external_write', 'money', 'credential']);
 const APPROVAL_REQUIRED_RISKS = new Set(['external_write', 'money', 'credential']);
+const INTRINSIC_BACKENDS = new Set(['health']);
 
 function parseInteger(value, fallback) {
   const parsed = Number.parseInt(String(value || ''), 10);
@@ -123,20 +124,22 @@ function taskSummary(record = {}) {
 function normalizeTaskRecord(record = {}) {
   const tenant = normalizeTenantRecord(record);
   const riskClass = normalizeRiskClass(record.riskClass);
+  const backend = normalizeText(record.backend) || DEFAULT_BACKEND;
+  const defaultRequirement = INTRINSIC_BACKENDS.has(backend.toLowerCase()) ? '' : backend;
   return {
     id: normalizeText(record.id),
     task: normalizeText(record.task),
     tenantId: tenant.tenantId,
     tenantAlias: tenant.tenantAlias,
     tenantPlan: tenant.tenantPlan,
-    backend: normalizeText(record.backend) || DEFAULT_BACKEND,
+    backend,
     repo: normalizeText(record.repo),
     model: normalizeText(record.model),
     thinking: normalizeText(record.thinking),
     unsafe: Boolean(record.unsafe),
     riskClass,
     approvalStatus: defaultApprovalStatus({ ...record, riskClass }),
-    requiredCapabilities: normalizeCsv(record.requiredCapabilities || record.requires || record.backend || DEFAULT_BACKEND),
+    requiredCapabilities: normalizeCsv(record.requiredCapabilities || record.requires || defaultRequirement),
     maxRuntimeMs: parseInteger(record.maxRuntimeMs, 0),
     status: normalizeText(record.status) || 'queued',
     createdAt: normalizeText(record.createdAt) || nowIso(),
@@ -251,9 +254,18 @@ function workerProfile(options = {}) {
   };
 }
 
+function requiredWorkerCapabilities(record = {}) {
+  const backend = normalizeText(record.backend || DEFAULT_BACKEND).toLowerCase();
+  const required = new Set(csvToList(record.requiredCapabilities || record.requires));
+  if (!INTRINSIC_BACKENDS.has(backend) && backend && backend !== 'auto') {
+    required.add(backend);
+  }
+  return [...required];
+}
+
 function canWorkerRunTask(record = {}, options = {}) {
   const profile = workerProfile(options);
-  const required = csvToList(record.requiredCapabilities || record.backend || DEFAULT_BACKEND);
+  const required = requiredWorkerCapabilities(record);
   const missingCapabilities = required.filter(capability => !profile.capabilities.includes(capability));
   if (missingCapabilities.length) {
     return {
@@ -334,8 +346,17 @@ async function runQueuedTask(record, options = {}) {
     renewalTimer.unref?.();
   }
   try {
-    const runAgentTaskImpl = options.runAgentTaskImpl || require('./task-orchestrator').runAgentTask;
-    const result = await runAgentTaskImpl(buildTaskArgs(claimed, options), options.hooks || {});
+    let result;
+    if (normalizeText(claimed.backend).toLowerCase() === 'health') {
+      result = {
+        ok: true,
+        backend: 'health',
+        result: { stdout: '3dvr-worker-ok' },
+      };
+    } else {
+      const runAgentTaskImpl = options.runAgentTaskImpl || require('./task-orchestrator').runAgentTask;
+      result = await runAgentTaskImpl(buildTaskArgs(claimed, options), options.hooks || {});
+    }
     const summary = summarizeTaskResult(result);
     await finishClaimedTask(claimed, {
       status: result.ok ? 'completed' : result.skipped ? 'skipped' : 'failed',
@@ -582,6 +603,7 @@ module.exports = {
   parseArgs,
   publicTask,
   readTask,
+  requiredWorkerCapabilities,
   runQueuedTask,
   runWorkerLoop,
   runWorkerOnce,
