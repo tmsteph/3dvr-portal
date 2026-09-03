@@ -45,7 +45,7 @@ jobs:
           rm -f /tmp/key.raw
           ssh -i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 "$OVH_USER@$OVH_HOST" true
 
-      - name: Deploy and start organism
+      - name: Deploy, test, and start private organism
         shell: bash
         run: |
           set -euo pipefail
@@ -85,7 +85,7 @@ jobs:
           User=$USER
           WorkingDirectory=$repo/apps/agent
           Environment=NODE_ENV=production
-          Environment=THREEDVR_ORGANISM_HOST=0.0.0.0
+          Environment=THREEDVR_ORGANISM_HOST=127.0.0.1
           Environment=THREEDVR_ORGANISM_PORT=$ORGANISM_PORT
           Environment=THREEDVR_ORGANISM_REMOTE_RECALL=0
           EnvironmentFile=-/etc/3dvr/organism.env
@@ -108,18 +108,17 @@ jobs:
             if curl --fail --silent --show-error "http://127.0.0.1:$ORGANISM_PORT/health" >/tmp/organism-health.json; then break; fi
             sleep 1
           done
+          test -s /tmp/organism-health.json
           cat /tmp/organism-health.json
-
-          if command -v ufw >/dev/null 2>&1 && sudo ufw status | grep -q '^Status: active'; then
-            sudo ufw allow "$ORGANISM_PORT/tcp" comment '3DVR Digital Organism health'
-          fi
+          sudo systemctl is-active --quiet 3dvr-organism.service
           REMOTE
 
-      - name: Verify public health endpoint
+      - name: Verify private health over SSH
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --retry 8 --retry-delay 3 "http://$OVH_HOST:$ORGANISM_PORT/health"
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" "curl --fail --silent --show-error http://127.0.0.1:$ORGANISM_PORT/health"
 
       - name: Remove SSH key
         if: always()
