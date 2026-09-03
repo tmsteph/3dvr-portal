@@ -93,9 +93,7 @@ systemctl restart 3dvr-organism-owner-bridge-tunnel.service
 bridge_url=''
 for _ in $(seq 1 80); do
   bridge_url="$(grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' "$log_file" | tail -n1 || true)"
-  if [ -n "$bridge_url" ] && curl -fsS --retry 2 --retry-delay 1 "$bridge_url/health" >/dev/null 2>&1; then
-    break
-  fi
+  [ -n "$bridge_url" ] && break
   sleep 0.5
 done
 
@@ -105,5 +103,8 @@ if [ -z "$bridge_url" ]; then
   exit 5
 fi
 
-curl -fsS --retry 4 --retry-delay 1 "$bridge_url/health" >/dev/null
+# Do not require the DigitalOcean host itself to resolve the brand-new
+# trycloudflare hostname. Some host resolvers cache NXDOMAIN for longer than
+# Cloudflare takes to publish the quick-tunnel record. The GitHub deployment
+# runner performs the authoritative external HTTPS health check next.
 printf 'PORTAL_ORGANISM_BRIDGE_URL=%s\n' "$bridge_url"
