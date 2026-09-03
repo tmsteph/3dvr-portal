@@ -20,7 +20,7 @@ concurrency:
 env:
   OVH_HOST: 40.160.137.41
   OVH_USER: debian
-  PUBLIC_HOST: organism.40.160.137.41.nip.io
+  ORGANISM_PORT: 4311
 
 jobs:
   deploy:
@@ -50,7 +50,7 @@ jobs:
         run: |
           set -euo pipefail
           opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
-          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" "PUBLIC_HOST='$PUBLIC_HOST' bash -s" <<'REMOTE'
+          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" "ORGANISM_PORT='$ORGANISM_PORT' bash -s" <<'REMOTE'
           set -euo pipefail
 
           repo="$HOME/services/3dvr-portal-organism"
@@ -85,8 +85,9 @@ jobs:
           User=$USER
           WorkingDirectory=$repo/apps/agent
           Environment=NODE_ENV=production
-          Environment=THREEDVR_ORGANISM_HOST=127.0.0.1
-          Environment=THREEDVR_ORGANISM_PORT=4311
+          Environment=THREEDVR_ORGANISM_HOST=0.0.0.0
+          Environment=THREEDVR_ORGANISM_PORT=$ORGANISM_PORT
+          Environment=THREEDVR_ORGANISM_REMOTE_RECALL=0
           EnvironmentFile=-/etc/3dvr/organism.env
           ExecStart=$node_bin $repo/apps/agent/thomas-agent/node/digital-organism-server.js
           Restart=always
@@ -104,49 +105,13 @@ jobs:
           sudo systemctl restart 3dvr-organism.service
 
           for attempt in 1 2 3 4 5; do
-            if curl --fail --silent --show-error http://127.0.0.1:4311/health >/tmp/organism-health.json; then break; fi
+            if curl --fail --silent --show-error "http://127.0.0.1:$ORGANISM_PORT/health" >/tmp/organism-health.json; then break; fi
             sleep 1
           done
           cat /tmp/organism-health.json
 
-          if command -v caddy >/dev/null 2>&1 && [ -f /etc/caddy/Caddyfile ]; then
-            sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.before-organism
-            tmp_caddy="$(mktemp)"
-            sudo awk '
-              /^# BEGIN 3DVR DIGITAL ORGANISM$/ { skip=1; next }
-              /^# END 3DVR DIGITAL ORGANISM$/ { skip=0; next }
-              !skip { print }
-            ' /etc/caddy/Caddyfile > "$tmp_caddy"
-            cat >> "$tmp_caddy" <<CADDY
-
-          # BEGIN 3DVR DIGITAL ORGANISM
-          $PUBLIC_HOST {
-            encode zstd gzip
-            header {
-              X-Content-Type-Options nosniff
-              Referrer-Policy no-referrer
-            }
-            @public path / /health
-            handle @public {
-              reverse_proxy 127.0.0.1:4311
-            }
-            handle {
-              respond "Not Found" 404
-            }
-          }
-          # END 3DVR DIGITAL ORGANISM
-          CADDY
-            sudo cp "$tmp_caddy" /etc/caddy/Caddyfile
-            rm -f "$tmp_caddy"
-            if ! sudo caddy validate --config /etc/caddy/Caddyfile; then
-              sudo cp /etc/caddy/Caddyfile.before-organism /etc/caddy/Caddyfile
-              sudo caddy validate --config /etc/caddy/Caddyfile
-              exit 1
-            fi
-            sudo systemctl reload caddy
-          else
-            echo 'Caddy is not installed/configured; organism is running loopback-only.' >&2
-            exit 1
+          if command -v ufw >/dev/null 2>&1 && sudo ufw status | grep -q '^Status: active'; then
+            sudo ufw allow "$ORGANISM_PORT/tcp" comment '3DVR Digital Organism health'
           fi
           REMOTE
 
@@ -154,7 +119,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --retry 8 --retry-delay 3 "https://$PUBLIC_HOST/health"
+          curl --fail --silent --show-error --retry 8 --retry-delay 3 "http://$OVH_HOST:$ORGANISM_PORT/health"
 
       - name: Remove SSH key
         if: always()
