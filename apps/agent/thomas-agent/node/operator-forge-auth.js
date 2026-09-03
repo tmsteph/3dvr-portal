@@ -149,6 +149,9 @@ async function authorizePortalOperatorTask(record = {}, options = {}) {
   if (normalizeText(verified.taskId) !== normalizeText(record.id)) return { ok: false, reason: 'forge proof task mismatch' };
   if (normalizeText(verified.repo).toLowerCase() !== normalizeText(record.repo).toLowerCase()) return { ok: false, reason: 'forge proof repo mismatch' };
   if (normalizeText(verified.task) !== normalizeText(record.task)) return { ok: false, reason: 'forge proof content mismatch' };
+  if (Boolean(verified.githubWriteRequested) !== Boolean(record.githubWriteRequested)) {
+    return { ok: false, reason: 'forge proof GitHub intent mismatch' };
+  }
 
   const policy = resolvePolicy(env);
   const alias = normalizeAlias(verified.alias);
@@ -156,6 +159,7 @@ async function authorizePortalOperatorTask(record = {}, options = {}) {
   const admin = owner || policy.adminPubs.has(authPub) || policy.adminBindings.get(alias) === authPub;
   const developer = admin || policy.pubs.has(authPub) || policy.bindings.get(alias) === authPub;
   if (!developer) return { ok: false, reason: '3DVR account is not approved for code edits' };
+  if (record.githubWriteRequested && !owner) return { ok: false, reason: '3DVR owner authorization is required for GitHub writes' };
 
   const repoPath = resolveRepoAlias(record.repo, env);
   if (!repoPath) return { ok: false, reason: `repo is not approved: ${normalizeText(record.repo) || 'unknown'}` };
@@ -164,6 +168,7 @@ async function authorizePortalOperatorTask(record = {}, options = {}) {
     ok: true,
     repoPath,
     role: owner ? 'owner' : admin ? 'admin' : 'developer',
+    githubWriteApproved: Boolean(record.githubWriteRequested && owner),
     identity: {
       alias: normalizeText(verified.alias),
       pub: authPub,
