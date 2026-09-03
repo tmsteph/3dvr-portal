@@ -25,14 +25,9 @@ rm -f /tmp/3dvr-organism-ovh-health.json
 health="$(curl -fsS "http://127.0.0.1:$portal_port/__3dvr-health")"
 printf '%s' "$health" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.ok||x.organismRecall!=="signed-owner")process.exit(1)})'
 
-# Reuse the Portal's already-running Cloudflare quick tunnel. Starting a second
-# account-less tunnel on every deploy caused Cloudflare HTTP 429 rate limits.
-tunnel_log="$portal_base/state/tunnel.log"
-bridge_url="$(grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' "$tunnel_log" 2>/dev/null | tail -n1 || true)"
-if [ -z "$bridge_url" ]; then
-  echo 'The Portal public tunnel URL is not available yet.' >&2
-  tail -n 40 "$tunnel_log" >&2 2>/dev/null || true
-  exit 5
-fi
-
-printf 'PORTAL_ORGANISM_BRIDGE_URL=%s\n' "$bridge_url"
+# Keep one public quick tunnel alive across portal releases. Restarting an
+# account-less tunnel on every deploy causes Cloudflare HTTP 429 rate limits.
+tunnel_output="$(THREEDVR_PORTAL_PRODUCTION_DIR="$portal_base" THREEDVR_PORTAL_PORT="$portal_port" bash "$portal_root/scripts/ops/ensure-portal-public-tunnel.sh")"
+printf '%s\n' "$tunnel_output"
+bridge_url="$(printf '%s\n' "$tunnel_output" | sed -n 's/^PORTAL_ORGANISM_BRIDGE_URL=//p' | tail -n1)"
+[ -n "$bridge_url" ] || { echo 'The persistent Portal public tunnel URL is unavailable.' >&2; exit 5; }
