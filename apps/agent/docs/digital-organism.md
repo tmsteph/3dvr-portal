@@ -24,7 +24,7 @@ The first integrated version uses an append-only JSONL event log at:
 
 Events record remembers, corrections, and forgetting. Active memory is reconstructed from that history, so correction/deletion semantics remain auditable without rewriting prior events.
 
-This is deliberately simple. Encryption, richer indexing, Context HQ ingestion, sync, and semantic retrieval can be added after the recall/evaluation loop proves useful.
+This is deliberately simple. Encryption, richer indexing, sync, and semantic retrieval can be added after the recall/evaluation loop proves useful.
 
 ## Commands
 
@@ -34,10 +34,17 @@ From the monorepo root:
 npm --prefix apps/agent run organism -- remember --subject infrastructure "The primary worker is the DigitalOcean node."
 npm --prefix apps/agent run organism -- recall "Which worker do we use?"
 npm --prefix apps/agent run organism -- context "Which worker do we use?"
+npm --prefix apps/agent run organism -- import-context
 npm --prefix apps/agent run organism -- eval
 ```
 
-`recall` and `context` are local-only.
+`recall`, `context`, and `import-context` are local memory operations.
+
+### Context HQ bridge
+
+`import-context` reads approved Context HQ session handoffs and turns them into provenance-bearing organism memories. The session id becomes the source id, and the project, summary, decisions, open loops, artifacts, and original timestamp remain attached to the durable memory.
+
+Imports are idempotent by provenance. Re-running the command does not duplicate a session. A previously imported memory that the owner explicitly forgot is also not resurrected on a later import; its historical provenance remains in the append-only log so that choice can be honored.
 
 Reasoning requires an explicit provider:
 
@@ -57,8 +64,8 @@ If no provider is selected, `ask` fails rather than transmitting personal contex
 
 ## Next integration
 
-1. Import approved Context HQ session handoffs as provenance-bearing memories.
-2. Feed conversation exports through a memory compiler instead of storing whole chats as durable facts.
+1. Feed conversation exports through a memory compiler instead of storing whole chats as durable facts.
+2. Route agent tasks through the organism context builder before any hosted or local model call.
 3. Add encrypted owner-scoped sync between the DigitalOcean, Hetzner, OVH, phone, and laptop nodes.
-4. Route agent tasks through the organism context builder before any hosted or local model call.
+4. Upgrade lexical retrieval with semantic and temporal ranking while retaining explainability.
 5. Keep evaluations provider-neutral so models can be promoted or replaced on measured quality, cost, latency, and privacy.

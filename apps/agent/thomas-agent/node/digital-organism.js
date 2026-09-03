@@ -75,6 +75,22 @@ function replayMemories(events = []) {
   return [...active.values()];
 }
 
+function sourceKey(sourceType, sourceId) {
+  const type = normalizeText(sourceType);
+  const id = normalizeText(sourceId);
+  return type && id ? `${type}\u0000${id}` : '';
+}
+
+function historicalSourceKeys(events = []) {
+  const keys = new Set();
+  for (const event of events) {
+    const memory = event.memory;
+    const key = memory && sourceKey(memory.sourceType, memory.sourceId);
+    if (key) keys.add(key);
+  }
+  return keys;
+}
+
 function makeMemory(content, options = {}) {
   const text = normalizeText(content);
   if (!text) throw new Error('Memory content is required.');
@@ -135,6 +151,69 @@ async function correct(memoryId, content, options = {}) {
     memory,
   }, options);
   return memory;
+}
+
+function contextSessionContent(session = {}) {
+  const lines = [];
+  const summary = normalizeText(session.summary);
+  if (summary) lines.push(summary);
+  const decisions = normalizeText(session.decisions);
+  if (decisions) lines.push(`Decisions: ${decisions}`);
+  const openLoops = normalizeText(session.openLoops);
+  if (openLoops) lines.push(`Open loops: ${openLoops}`);
+  const artifacts = normalizeText(session.artifacts);
+  if (artifacts) lines.push(`Artifacts: ${artifacts}`);
+  return lines.join('\n');
+}
+
+async function importContextSessions(sessions = [], options = {}) {
+  const events = await loadEvents(options);
+  const seen = historicalSourceKeys(events);
+  const imported = [];
+  const skipped = [];
+  const ordered = [...sessions].sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+
+  for (const session of ordered) {
+    const sessionId = normalizeText(session.id);
+    const key = sourceKey('context-hq', sessionId);
+    const content = contextSessionContent(session);
+    if (!sessionId || !content) {
+      skipped.push({ id: sessionId, reason: 'missing-id-or-content' });
+      continue;
+    }
+    if (seen.has(key)) {
+      skipped.push({ id: sessionId, reason: 'already-imported' });
+      continue;
+    }
+
+    const memory = makeMemory(content, {
+      kind: 'session',
+      subject: normalizeText(session.project) || 'general',
+      sourceType: 'context-hq',
+      sourceId: sessionId,
+      createdAt: normalizeText(session.createdAt) || undefined,
+      confidence: 1,
+      importance: 0.7,
+    });
+    await appendEvent({
+      type: 'remember',
+      recordedAt: nowIso(options.now || Date.now()),
+      memory,
+    }, options);
+    seen.add(key);
+    imported.push(memory);
+  }
+
+  return { imported, skipped };
+}
+
+async function importContextHq(options = {}, runtime = {}) {
+  const listSessionsImpl = runtime.listSessionsImpl || require('./context-hq').listSessions;
+  const sessions = await listSessionsImpl({
+    ownerAlias: options.ownerAlias,
+    limit: options.limit,
+  });
+  return importContextSessions(sessions, options);
 }
 
 function scoreMemory(queryTokens, memory) {
@@ -278,6 +357,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--provider') options.provider = argv[++index] || '';
     else if (arg === '--url') options.url = argv[++index] || '';
     else if (arg === '--model') options.model = argv[++index] || '';
+    else if (arg === '--owner') options.ownerAlias = argv[++index] || '';
     else if (arg === '--limit') options.limit = Number.parseInt(argv[++index] || '', 10) || 5;
     else if (arg === '--state-dir') options.stateDir = argv[++index] || '';
     else if (arg === '--json') options.json = true;
@@ -288,7 +368,7 @@ function parseArgs(argv = process.argv.slice(2)) {
 }
 
 function usage() {
-  console.log(`3DVR Digital Organism\n\nUsage:\n  organism remember [options] "memory"\n  organism recall [--limit 5] "query"\n  organism context "question"\n  organism ask --provider llama|compatible [--url URL] [--model MODEL] "question"\n  organism forget MEMORY_ID\n  organism correct MEMORY_ID "replacement memory"\n  organism eval\n\nPrivacy rule:\n  recall/context are local-only. ask never chooses a model provider implicitly.`);
+  console.log(`3DVR Digital Organism\n\nUsage:\n  organism remember [options] "memory"\n  organism recall [--limit 5] "query"\n  organism context "question"\n  organism import-context [--owner OWNER] [--json]\n  organism ask --provider llama|compatible [--url URL] [--model MODEL] "question"\n  organism forget MEMORY_ID\n  organism correct MEMORY_ID "replacement memory"\n  organism eval\n\nPrivacy rule:\n  recall/context/import-context are local memory operations. ask never chooses a model provider implicitly.`);
 }
 
 async function cli(argv = process.argv.slice(2)) {
@@ -306,6 +386,13 @@ async function cli(argv = process.argv.slice(2)) {
   if (options.command === 'context') {
     const context = await buildContext(options.text, options);
     console.log(options.json ? JSON.stringify(context, null, 2) : context.text);
+    return 0;
+  }
+  if (options.command === 'import-context') {
+    const result = await importContextHq(options);
+    console.log(options.json
+      ? JSON.stringify(result, null, 2)
+      : `imported ${result.imported.length} Context HQ session(s); skipped ${result.skipped.length}`);
     return 0;
   }
   if (options.command === 'ask') {
@@ -337,8 +424,12 @@ module.exports = {
   ask,
   appendEvent,
   buildContext,
+  contextSessionContent,
   correct,
   forget,
+  historicalSourceKeys,
+  importContextHq,
+  importContextSessions,
   loadEvents,
   makeMemory,
   recall,
@@ -349,6 +440,7 @@ module.exports = {
   requestLlama,
   requireExplicitProvider,
   selfEval,
+  sourceKey,
   statePaths,
   tokens,
 };

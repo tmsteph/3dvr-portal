@@ -9,6 +9,7 @@ const {
   buildContext,
   correct,
   forget,
+  importContextSessions,
   recall,
   remember,
 } = require('../thomas-agent/node/digital-organism');
@@ -65,6 +66,52 @@ test('correction supersedes the active memory without rewriting history', async 
   const lines = (await fs.readFile(path.join(stateDir, 'memories.jsonl'), 'utf8')).trim().split('\n');
   assert.equal(lines.length, 2);
   assert.equal(JSON.parse(lines[1]).type, 'correct');
+});
+
+test('Context HQ session handoffs import as provenance-bearing memory exactly once', async (t) => {
+  const stateDir = await tempStateDir();
+  t.after(() => fs.rm(stateDir, { recursive: true, force: true }));
+  const sessions = [{
+    id: 'session-123',
+    project: 'digital-organism',
+    summary: 'Portal is the canonical runtime for the Digital Organism.',
+    decisions: 'Keep the standalone repo as a reference and future extraction target.',
+    openLoops: 'Route agent prompts through organism context.',
+    artifacts: 'PR #2113',
+    createdAt: '2026-09-03T00:00:00.000Z',
+  }];
+
+  const first = await importContextSessions(sessions, { stateDir });
+  assert.equal(first.imported.length, 1);
+  assert.equal(first.imported[0].sourceType, 'context-hq');
+  assert.equal(first.imported[0].sourceId, 'session-123');
+
+  const second = await importContextSessions(sessions, { stateDir });
+  assert.equal(second.imported.length, 0);
+  assert.equal(second.skipped[0].reason, 'already-imported');
+
+  const hits = await recall('canonical runtime Portal', { stateDir });
+  assert.equal(hits[0].memory.id, first.imported[0].id);
+  assert.match(hits[0].memory.content, /future extraction target/);
+});
+
+test('forgotten Context HQ memory is not silently resurrected by re-import', async (t) => {
+  const stateDir = await tempStateDir();
+  t.after(() => fs.rm(stateDir, { recursive: true, force: true }));
+  const sessions = [{
+    id: 'session-forget-me',
+    project: 'privacy',
+    summary: 'A session the owner later chooses to forget.',
+    createdAt: '2026-09-03T00:00:00.000Z',
+  }];
+
+  const first = await importContextSessions(sessions, { stateDir });
+  await forget(first.imported[0].id, { stateDir });
+  const second = await importContextSessions(sessions, { stateDir });
+
+  assert.equal(second.imported.length, 0);
+  assert.equal(second.skipped[0].reason, 'already-imported');
+  assert.equal((await recall('owner later chooses forget', { stateDir })).length, 0);
 });
 
 test('ask refuses to transmit context unless a provider is explicitly selected', async (t) => {
