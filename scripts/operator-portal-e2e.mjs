@@ -22,12 +22,31 @@ const context = await browser.newContext({
   userAgent: '3DVR-Operator-E2E/1.0 Playwright'
 });
 const page = await context.newPage();
+const pageErrors = [];
+const operatorStatuses = [];
+const operatorRequestFailures = [];
 
 page.on('console', message => {
   const text = message.text();
   if (!/password/i.test(text)) console.log(`[browser:${message.type()}] ${text}`);
 });
-page.on('pageerror', error => console.log(`[pageerror] ${error.message}`));
+page.on('pageerror', error => {
+  pageErrors.push(error.message);
+  console.log(`[pageerror] ${error.message}`);
+});
+page.on('response', response => {
+  if (response.url().includes('/api/openai-site?provider=operator')) {
+    operatorStatuses.push(response.status());
+    log('E2E_OPERATOR_HTTP', response.status());
+  }
+});
+page.on('requestfailed', request => {
+  if (request.url().includes('/api/openai-site?provider=operator')) {
+    const reason = request.failure()?.errorText || 'unknown';
+    operatorRequestFailures.push(reason);
+    log('E2E_OPERATOR_REQUEST_FAILED', reason);
+  }
+});
 page.on('dialog', async dialog => {
   console.log(`[dialog:${dialog.type()}] ${dialog.message()}`);
   await dialog.accept();
@@ -51,6 +70,7 @@ async function signInOrCreate() {
     return path === '/operator/' || path === '/operator';
   }, { timeout: 90_000 });
   await page.locator('#operator-input').waitFor({ state: 'visible', timeout: 30_000 });
+  await page.locator('.operator-attach').waitFor({ state: 'visible', timeout: 30_000 });
 
   const identity = await page.evaluate(() => ({
     signedIn: localStorage.getItem('signedIn'),
@@ -66,6 +86,101 @@ async function signInOrCreate() {
     throw new Error(`Portal sign-in did not establish a SEA identity: ${JSON.stringify(identity)}`);
   }
   return identity;
+}
+
+async function assertMobileLayout() {
+  const layout = await page.evaluate(() => {
+    const form = document.querySelector('#operator-form')?.getBoundingClientRect();
+    const input = document.querySelector('#operator-input')?.getBoundingClientRect();
+    return {
+      viewport: window.innerWidth,
+      formLeft: form?.left,
+      formRight: form?.right,
+      formWidth: form?.width,
+      inputWidth: input?.width
+    };
+  });
+  log('E2E_MOBILE_LAYOUT', JSON.stringify(layout));
+  if (!layout.formWidth || layout.formLeft < -1 || layout.formRight > layout.viewport + 1 || layout.inputWidth < 280) {
+    throw new Error(`Operator composer does not fit the 390px mobile viewport: ${JSON.stringify(layout)}`);
+  }
+}
+
+async function createScreenshotFixture(token) {
+  const fixturePath = `${artifactDir}/operator-input-screenshot.png`;
+  const fixture = await context.newPage();
+  await fixture.setViewportSize({ width: 900, height: 500 });
+  await fixture.setContent(`<!doctype html><html><body style="margin:0;background:#06101c;color:#f4fff9;font-family:Arial,sans-serif;display:grid;place-items:center;height:100vh"><main style="text-align:center;border:8px solid #79edcf;border-radius:28px;padding:55px"><div style="font-size:42px;letter-spacing:4px">3DVR SCREENSHOT TEST</div><strong style="display:block;margin-top:28px;font-size:72px;letter-spacing:5px">${token}</strong></main></body></html>`);
+  await fixture.screenshot({ path: fixturePath, fullPage: true });
+  await fixture.close();
+  return fixturePath;
+}
+
+async function runScreenshotAcceptance() {
+  await assertMobileLayout();
+  const token = `VR-${String(Date.now()).slice(-6)}`;
+  const fixturePath = await createScreenshotFixture(token);
+  const fileInput = page.locator('#operator-form input[type="file"]');
+  await fileInput.setInputFiles(fixturePath);
+  await page.locator('.operator-attachment-preview').waitFor({ state: 'visible', timeout: 10_000 });
+  await page.locator('.operator-attachment-tray').waitFor({ state: 'visible', timeout: 10_000 });
+
+  const previewSrc = await page.locator('.operator-attachment-preview').getAttribute('src');
+  if (!previewSrc?.startsWith('data:image/png;base64,')) {
+    throw new Error('Screenshot preview was not converted to an image data URL.');
+  }
+  log('E2E_SCREENSHOT_ATTACHED', token);
+
+  const assistantsBefore = await page.locator('#operator-log .message.assistant').count();
+  const prompt = `Read the large code in the attached screenshot. Reply with the exact code ${token} somewhere in your answer. Do not take any action.`;
+  await page.locator('#operator-input').fill(prompt);
+  await page.locator('#operator-form button[type="submit"]').click();
+
+  await page.waitForFunction(() => document.querySelector('#operator-form')?.getAttribute('aria-busy') === 'true', null, { timeout: 5_000 });
+  const busy = await page.evaluate(() => {
+    const submit = document.querySelector('#operator-form button[type="submit"]');
+    const portal = document.querySelector('#operator-form .operator-submit__portal');
+    const style = portal ? getComputedStyle(portal) : null;
+    return {
+      formBusy: document.querySelector('#operator-form')?.getAttribute('aria-busy'),
+      disabled: submit?.disabled,
+      dataBusy: submit?.getAttribute('data-busy'),
+      portalOpacity: style?.opacity,
+      portalAnimation: style?.animationName
+    };
+  });
+  log('E2E_BUSY_STATE', JSON.stringify(busy));
+  if (busy.formBusy !== 'true' || !busy.disabled || busy.dataBusy !== 'true' || busy.portalOpacity === '0') {
+    throw new Error(`Visible busy indicator did not activate: ${JSON.stringify(busy)}`);
+  }
+  await saveArtifacts('operator-working');
+
+  await page.waitForFunction(before => document.querySelectorAll('#operator-log .message.assistant').length > before, assistantsBefore, { timeout: 180_000 });
+  await page.waitForFunction(() => document.querySelector('#operator-form')?.getAttribute('aria-busy') === 'false', null, { timeout: 15_000 });
+
+  const reply = String(await page.locator('#operator-log .message.assistant').last().innerText()).trim();
+  log('E2E_SCREENSHOT_REPLY', reply.replace(/\s+/g, ' ').slice(0, 1200));
+  await saveArtifacts('operator-screenshot-reply');
+
+  if (/I could not finish that:/i.test(reply)) {
+    throw new Error(`Operator returned an application error: ${reply}`);
+  }
+  if (!reply.includes(token)) {
+    throw new Error(`Operator did not read the screenshot token ${token}. Reply: ${reply}`);
+  }
+  if (!operatorStatuses.includes(200)) {
+    throw new Error(`Operator API never returned HTTP 200. Statuses: ${operatorStatuses.join(',') || 'none'}`);
+  }
+  if (operatorRequestFailures.length) {
+    throw new Error(`Operator API request failure: ${operatorRequestFailures.join('; ')}`);
+  }
+  if (pageErrors.length) {
+    throw new Error(`Browser page errors occurred: ${pageErrors.join('; ')}`);
+  }
+  if (await page.locator('.operator-attachment-tray').isVisible()) {
+    throw new Error('Screenshot attachment was not cleared after a successful response.');
+  }
+  log('E2E_SCREENSHOT_PASS', token);
 }
 
 async function runEditAcceptance() {
@@ -124,6 +239,7 @@ try {
   }
   await signInOrCreate();
   await saveArtifacts('signed-in-operator');
+  await runScreenshotAcceptance();
   if (mode.startsWith('edit')) {
     await runEditAcceptance();
   }
