@@ -57,9 +57,9 @@ test('correction supersedes the active memory without rewriting history', async 
   const replacement = await correct(original.id, 'The server is green.', { stateDir });
   assert.notEqual(replacement.id, original.id);
 
-  const oldHits = await recall('server blue', { stateDir });
+  const oldHits = await recall('blue', { stateDir });
   assert.equal(oldHits.length, 0);
-  const newHits = await recall('server green', { stateDir });
+  const newHits = await recall('green', { stateDir });
   assert.equal(newHits[0].memory.id, replacement.id);
 });
 
