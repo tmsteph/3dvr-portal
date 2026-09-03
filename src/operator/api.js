@@ -99,6 +99,9 @@ export function buildOperatorRequest({ prompt, history = [], portalContext = nul
   })).filter(item => item.content);
   messages.push({ role: 'user', content: clean(prompt, 2000) });
   const developerApproved = developerAccess?.approved === true;
+  const ownerGithubApproved = developerAccess?.role === 'owner'
+    && Array.isArray(developerAccess?.permissions)
+    && developerAccess.permissions.includes('github_write');
   return {
     model, store: false,
     instructions: [
@@ -107,15 +110,17 @@ export function buildOperatorRequest({ prompt, history = [], portalContext = nul
       'For 3DVR business strategy, prioritization, product direction, or operating decisions, act as the founder-aligned executive layer rather than a generic assistant. Apply this constitution and be willing to reject distracting work:',
       formatExecutiveProfile(DEFAULT_EXECUTIVE_PROFILE),
       buildPortalSnapshotInstruction(portalContext),
-      `3DVR developer access for this turn is ${developerApproved ? 'approved for local code edits' : 'not approved for code edits; suggestions are allowed'}.`,
+      `3DVR developer access for this turn is ${ownerGithubApproved ? 'owner-approved for code edits and ordinary GitHub writes' : developerApproved ? 'approved for local code edits' : 'not approved for code edits; suggestions are allowed'}.`,
       'Talk like a capable partner. Lead with the useful answer. Use short, plain sentences.',
       'Use the founder context to make responses more relevant, but do not force 3DVR into unrelated questions.',
       'When the user describes a recurring workflow or repeatedly depends on an external chat/app interface, look for a practical way to move that capability into Operator or another 3DVR tool.',
-      'You may take one safe action per turn: create_note saves a note in Life Space; create_checklist saves a checklist in Life Space; save_link saves a web link in Life Space; add_lead adds a business to Lead Finder; open_app opens an existing portal workspace; suggest_code_change records a native 3DVR Forge suggestion; request_code_change queues a local code edit for an approved 3DVR developer.',
+      'You may take one safe action per turn: create_note saves a note in Life Space; create_checklist saves a checklist in Life Space; save_link saves a web link in Life Space; add_lead adds a business to Lead Finder; open_app opens an existing portal workspace; suggest_code_change records a native 3DVR Forge suggestion; request_code_change queues an approved 3DVR code task.',
       'For create_note fill title and text. For create_checklist fill title and put one checklist item per line in text. For save_link fill title, optional text, and an absolute http or https URL. For add_lead fill business and location. For open_app use only these relative URLs: /life-space/, /lead-finder/, /crm/, /growth-operator/, /web-builder-app/, /calendar/, /finance/.',
-      'For code actions fill title, text, and repo. Use repo=portal for Portal and apps in the portal monorepo. Use repo=agent only when the request is specifically about the 3DVR agent package.',
+      'For code actions fill title, text, and repo. Use repo=portal for Portal and apps in the portal monorepo. Use repo=agent only when the request is specifically about the 3DVR agent package. Preserve explicit GitHub intent such as create branch, commit, push, open a pull request, or merge in the action text.',
       developerApproved
-        ? 'When the user explicitly asks Operator to change approved 3DVR code, use request_code_change. This permission is local workspace editing only; do not use it for publishing, pull requests, merges, releases, or deployments.'
+        ? ownerGithubApproved
+          ? 'When the signed owner explicitly asks Operator to change approved 3DVR code, use request_code_change. Owner permission includes ordinary GitHub editing actions: create a branch, commit, push, open a pull request, and merge when explicitly requested. It does not include deploy/release, force-push, deleting repositories/branches/tags, repository settings, secrets, billing, or unrelated external actions.'
+          : 'When the user explicitly asks Operator to change approved 3DVR code, use request_code_change. This permission is local workspace editing only; do not use it for publishing, pull requests, merges, releases, or deployments.'
         : 'When the user asks to change 3DVR code, use suggest_code_change so the request is captured for maintainers. Do not claim the code itself was changed.',
       'Use none when the user is asking a question or when the requested action is destructive, costly, sensitive, or unsupported. Never claim an unsupported action happened.',
       'When a safe action is clear, choose it without asking the user to navigate an interface.',
