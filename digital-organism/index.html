@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Digital Organism | 3DVR</title>
+  <meta name="description" content="Digital Organism is 3DVR's user-owned memory layer for remembering useful context across work and conversations.">
+  <style>
+    :root{color-scheme:dark;--bg:#0d1117;--panel:#161b22;--text:#e6edf3;--muted:#9da7b3;--line:#30363d;--link:#58a6ff}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.6}
+    main{width:min(820px,100%);margin:auto;padding:28px 18px 64px}.nav{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:42px}.nav a,a{color:var(--link)}
+    .eyebrow{color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:.78rem}h1{font-size:clamp(2.4rem,8vw,4.5rem);line-height:1;margin:.3rem 0 1rem}h2{margin-top:0}
+    .lead{font-size:1.18rem;max-width:680px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:30px 0}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px}.card p{color:var(--muted);margin-bottom:0}
+    .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}.button{display:inline-block;padding:11px 16px;border:1px solid var(--line);border-radius:10px;text-decoration:none;font-weight:700}.button.primary{background:var(--link);color:#07111f;border-color:var(--link)}
+    @media(max-width:620px){.grid{grid-template-columns:1fr}}
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+<main>
+  <nav class="nav"><a href="../">3DVR Portal</a><a href="../operator/">Operator</a><a href="../context-hq/">Context HQ</a></nav>
+  <p class="eyebrow">3DVR memory layer</p>
+  <h1>Digital Organism</h1>
+  <p class="lead">Digital Organism helps 3DVR remember useful facts, decisions, and past work instead of starting from zero every time.</p>
+
+  <div class="grid">
+    <section class="card"><h2>Remember</h2><p>Save useful context with where it came from, so memory can be checked later.</p></section>
+    <section class="card"><h2>Recall</h2><p>Bring the right past context back before the next answer or action.</p></section>
+    <section class="card"><h2>Correct</h2><p>Update or remove memories when they are wrong, old, or no longer wanted.</p></section>
+    <section class="card"><h2>User-owned</h2><p>The project is designed to stay local-first and work across different AI models and providers.</p></section>
+  </div>
+
+  <section class="card">
+    <h2>Where it is today</h2>
+    <p>The working runtime is connected to the 3DVR Agent. The standalone open-source project also documents the longer path from remembering, to connecting, learning, and eventually a continual personal intelligence layer.</p>
+    <div class="actions">
+      <a class="button primary" href="https://github.com/tmsteph/3dvr-digital-organism">Open source code</a>
+      <a class="button" href="../context-hq/">Open Context HQ</a>
+    </div>
+  </section>
+</main>
+<script defer src="/issue-launcher.js"></script>
+</body>
+</html>
