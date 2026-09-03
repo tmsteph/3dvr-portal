@@ -10,7 +10,18 @@ Started: 2026-08-29
 
 The ecosystem is already broad enough. The current phase is consolidation: ship what exists, make the strongest paths obvious, reduce duplicate surfaces, and turn working experiments into dependable products.
 
-Operating rule: **Sell first. Build second. Keep it simple.**
+Operating rule: **Make the product excellent and accessible. Give away the core. Charge for scarce human effort, managed convenience, and higher-cost operations.**
+
+This replaces a narrower "sell first, build second" interpretation. Early adoption, usefulness, trust, learning, and open access are valid forms of product proof even before strong revenue. Revenue still matters, but it should come primarily from work that has real marginal cost: implementation, custom builds, managed hosting, support, integrations, audiovisual production, physical goods, and other hands-on services.
+
+### Economic boundary
+
+- **Free/open core:** Portal, core apps, portable data, documented exports, self-hostable/open-source foundations, and useful entry-level Agent capabilities should remain broadly accessible whenever sustainable.
+- **Cheap early access:** early hosted tiers may intentionally be priced below mature-market value while 3DVR learns what people use and love.
+- **Paid service:** charge for founder/team time, bespoke implementation, migration, integration, consulting, design, production, deployment, and priority support.
+- **Paid managed convenience:** charge when 3DVR operates infrastructure, handles ongoing administration, provides stronger service guarantees, or absorbs meaningful compute/vendor cost.
+- **No artificial lock-in:** do not cripple the open product merely to manufacture upgrades. Paid tiers should save time, reduce complexity, add capacity, or provide accountable service.
+- **Proof beyond revenue:** track active users, completed outcomes, repeat use, referrals, contributions, successful exports/restores, reliability, and customer willingness to recommend alongside revenue and margin.
 
 ## Product map
 
@@ -57,7 +68,7 @@ Next improvements:
 1. Add three strong case studies with screenshot, problem, what shipped, turnaround, and customer result.
 2. Reconcile pricing language across homepage and supporting pages.
 3. Upgrade thin supporting pages rather than adding more navigation destinations.
-4. Make the funding loop explicit: client work helps fund open tools for everyone.
+4. Make the funding loop explicit: paid service and managed convenience help fund open tools for everyone.
 5. Surface a small amount of credible open-source proof without turning the customer homepage into a developer portfolio.
 
 ### Portal
@@ -103,7 +114,8 @@ The open-source contribution ledger is high-value proof and should be easy to re
 2. **Core / Labs / Legacy must be obvious.** Names and README files should tell contributors where active work belongs.
 3. **Independent deployment is earned by a real boundary.** Calendar and OS are good candidates because they have distinct product surfaces. Tiny features should not become separate services by default.
 4. **Portal stays under its hosting budget.** On Vercel Hobby, keep root serverless endpoints at or below 12 until the hosting strategy changes.
-5. **Proof beats breadth.** Prefer finishing, screenshots, users, case studies, upstream merges, and reliability over another unfinished surface.
+5. **Proof beats breadth.** Prefer finishing, screenshots, users, repeat use, case studies, upstream merges, reliability, and healthy service economics over another unfinished surface.
+6. **Do not confuse monetization with product quality.** The core product may be free or cheap; scarce labor and operational responsibility should not be.
 
 ## Immediate consolidation sprint
 
@@ -138,10 +150,15 @@ This consolidation phase is successful when:
 - A new visitor can explain the relationship between 3dvr.tech, Portal, 3DVR OS, and tmsteph.com after one short visit.
 - Portal users can start from intent without understanding the internal app catalog.
 - Active repositories are clearly distinguishable from experiments and history.
-- The public sites show concrete proof: customers served, things shipped, and upstream contributions accepted.
+- The public sites show concrete proof: people helped, things shipped, repeat use, customers served where applicable, and upstream contributions accepted.
 - New work is more often finishing or connecting an existing path than creating another disconnected surface.
 
 ## Work log
+
+### 2026-09-02
+
+- Refined the economic strategy after roadmap review: 3DVR should optimize early for an excellent, broadly accessible open product rather than treating immediate setup-fee revenue as the sole validation gate.
+- Established the free/open core + paid service/managed convenience boundary, including non-revenue product-proof metrics.
 
 ### 2026-08-29
 
