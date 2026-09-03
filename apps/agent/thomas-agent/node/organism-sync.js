@@ -5,7 +5,10 @@ const DEFAULT_INTERVAL_SECONDS = parsePositiveInteger(
   process.env.THREEDVR_ORGANISM_SYNC_INTERVAL_SECONDS,
   300,
 );
-const DEFAULT_OWNER_ALIAS = process.env.THREEDVR_AGENT_OWNER_ALIAS || '3dvr-managed';
+const DEFAULT_CONTEXT_OWNER_ALIAS = process.env.THREEDVR_CONTEXT_HQ_OWNER_ALIAS
+  || process.env.THREEDVR_PORTAL_ACCOUNT
+  || '3dvr.tech@gmail.com';
+const DEFAULT_HEARTBEAT_OWNER_ALIAS = process.env.THREEDVR_AGENT_OWNER_ALIAS || '3dvr-managed';
 
 function parsePositiveInteger(value, fallback) {
   const parsed = Number.parseInt(String(value || ''), 10);
@@ -23,17 +26,18 @@ function sleep(ms) {
 async function runSyncOnce(options = {}, runtime = {}) {
   const importContextHqImpl = runtime.importContextHqImpl || importContextHq;
   const writeHeartbeatImpl = runtime.writeHeartbeatImpl || writeHeartbeat;
-  const ownerAlias = normalizeText(options.ownerAlias) || DEFAULT_OWNER_ALIAS;
+  const contextOwnerAlias = normalizeText(options.contextOwnerAlias || options.ownerAlias) || DEFAULT_CONTEXT_OWNER_ALIAS;
+  const heartbeatOwnerAlias = normalizeText(options.heartbeatOwnerAlias) || DEFAULT_HEARTBEAT_OWNER_ALIAS;
   const memoryStateDir = statePaths(options).stateDir;
 
   try {
     const result = await importContextHqImpl({
-      ownerAlias,
+      ownerAlias: contextOwnerAlias,
       limit: options.limit,
       stateDir: options.stateDir,
     });
     await writeHeartbeatImpl('organism-sync', {
-      ownerAlias,
+      ownerAlias: heartbeatOwnerAlias,
       status: 'running',
       metadata: {
         imported: result.imported.length,
@@ -43,7 +47,8 @@ async function runSyncOnce(options = {}, runtime = {}) {
     }).catch(() => {});
     return {
       ok: true,
-      ownerAlias,
+      contextOwnerAlias,
+      heartbeatOwnerAlias,
       memoryStateDir,
       imported: result.imported.length,
       skipped: result.skipped.length,
@@ -52,7 +57,7 @@ async function runSyncOnce(options = {}, runtime = {}) {
   } catch (error) {
     const message = error.message || String(error);
     await writeHeartbeatImpl('organism-sync', {
-      ownerAlias,
+      ownerAlias: heartbeatOwnerAlias,
       status: 'degraded',
       metadata: {
         error: message.slice(0, 500),
@@ -61,7 +66,8 @@ async function runSyncOnce(options = {}, runtime = {}) {
     }).catch(() => {});
     return {
       ok: false,
-      ownerAlias,
+      contextOwnerAlias,
+      heartbeatOwnerAlias,
       memoryStateDir,
       error: message,
     };
@@ -86,14 +92,16 @@ function parseArgs(argv = process.argv.slice(2)) {
   const options = {
     once: false,
     intervalSeconds: DEFAULT_INTERVAL_SECONDS,
-    ownerAlias: '',
+    contextOwnerAlias: '',
+    heartbeatOwnerAlias: '',
     stateDir: '',
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--once') options.once = true;
     else if (arg === '--interval-seconds') options.intervalSeconds = parsePositiveInteger(argv[++index], DEFAULT_INTERVAL_SECONDS);
-    else if (arg === '--owner') options.ownerAlias = argv[++index] || '';
+    else if (arg === '--owner' || arg === '--context-owner') options.contextOwnerAlias = argv[++index] || '';
+    else if (arg === '--heartbeat-owner') options.heartbeatOwnerAlias = argv[++index] || '';
     else if (arg === '--state-dir') options.stateDir = argv[++index] || '';
     else throw new Error(`Unknown option: ${arg}`);
   }
@@ -116,6 +124,8 @@ async function main(argv = process.argv.slice(2)) {
 }
 
 module.exports = {
+  DEFAULT_CONTEXT_OWNER_ALIAS,
+  DEFAULT_HEARTBEAT_OWNER_ALIAS,
   DEFAULT_INTERVAL_SECONDS,
   parseArgs,
   parsePositiveInteger,
