@@ -144,7 +144,7 @@ jobs:
           export THREEDVR_AGENT_QUEUE_STORE=sqlite
           [ -x "$THREEDVR_NODE_BIN" ] || exit 1
           "$THREEDVR_NODE_BIN" -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 13)) process.exit(1); require("node:sqlite")'
-          result="$("$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js enqueue --json --backend shell --risk read_only --approval-status approved --unsafe --requires shell --max-runtime-ms 30000 'printf "3dvr-do-worker-ok\\n"')"
+          result="$("$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js enqueue --json --backend health --risk read_only --approval-status approved 'DigitalOcean worker health check')"
           task_id="$(printf '%s' "$result" | "$THREEDVR_NODE_BIN" -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task queue JSON payload missing');console.log(JSON.parse(s.slice(i)).id)})")"
           for attempt in $(seq 1 18); do
             result="$("$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
@@ -152,7 +152,7 @@ jobs:
             case "$status" in completed) echo 'managed SQLite queue consumed by DigitalOcean worker'; exit 0;; failed|skipped) printf '%s\n' "$result"; exit 1;; esac
             sleep 5
           done
-          echo 'DigitalOcean worker did not consume the managed SQLite queue test task.' >&2
+          echo 'DigitalOcean worker did not consume the managed SQLite queue health task.' >&2
           exit 1
           REMOTE
       - name: Publish worker deployment status
