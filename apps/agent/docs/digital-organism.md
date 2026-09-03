@@ -24,7 +24,7 @@ The first integrated version uses an append-only JSONL event log at:
 
 Events record remembers, corrections, and forgetting. Active memory is reconstructed from that history, so correction/deletion semantics remain auditable without rewriting prior events.
 
-This is deliberately simple. Encryption, richer indexing, sync, and semantic retrieval can be added after the recall/evaluation loop proves useful.
+This is deliberately simple. Encryption, richer indexing, cross-node sync, and semantic retrieval can be added after the recall/evaluation loop proves useful.
 
 ## Commands
 
@@ -45,6 +45,25 @@ npm --prefix apps/agent run organism -- eval
 `import-context` reads approved Context HQ session handoffs and turns them into provenance-bearing organism memories. The session id becomes the source id, and the project, summary, decisions, open loops, artifacts, and original timestamp remain attached to the durable memory.
 
 Imports are idempotent by provenance. Re-running the command does not duplicate a session. A previously imported memory that the owner explicitly forgot is also not resurrected on a later import; its historical provenance remains in the append-only log so that choice can be honored.
+
+### Continuous server sync
+
+The persistent agent host runs `organism-sync.js` through `ask-organism-sync-daemon`. By default it checks Context HQ every 300 seconds and imports any new deliberate handoffs into the local Organism store.
+
+```bash
+apps/agent/thomas-agent/scripts/ask-organism-sync-daemon status
+apps/agent/thomas-agent/scripts/ask-organism-sync-daemon run-now
+```
+
+The worker lifecycle starts and stops this daemon with the Context router, and the agent supervisor health-checks both services so a crashed memory bridge or routing process can be restarted automatically.
+
+The sync heartbeat publishes only operational metadata such as imported/skipped counts and the state directory. Memory bodies are not copied into heartbeat telemetry.
+
+Configure the interval with:
+
+```bash
+THREEDVR_ORGANISM_SYNC_INTERVAL_SECONDS=300
+```
 
 ### Agent task bridge
 
@@ -78,11 +97,17 @@ npm --prefix apps/agent run organism -- ask \
 
 If no provider is selected, `ask` fails rather than transmitting personal context anywhere.
 
+## Worker trust boundary
+
+Queue records may declare extra requirements, but they cannot use that field to hide the executor they actually request. Concrete backends such as `shell`, `codex`, or `openai` must also be present in the worker's own capability allowlist before the task can be claimed.
+
+Deployment verification uses the intrinsic `health` backend. A health task is read-only and completes inside the queue worker without invoking a shell, model, or external provider. This lets deployment prove that the persistent SQLite queue is actually being consumed without granting extra production authority just for CI.
+
 ## Existing memory surfaces
 
 The portal already contains several useful memory-like surfaces. They should converge through adapters instead of being rewritten into one giant subsystem:
 
-- **Context HQ** — deliberate organizational/session handoffs. Already imports into the Organism.
+- **Context HQ** — deliberate organizational/session handoffs. Already imports continuously into the Organism on the persistent worker.
 - **Memory Capture** — fast conversational notes plus CRM/proposal inference. Keep its capture workflow, but publish approved durable facts to the Organism with capture provenance.
 - **Workspace project memory** — encrypted owner/project goals, constraints, decisions, links, and thread handoffs. Keep project scoping and encryption; expose selected project memories to the Organism through an owner-scoped bridge.
 - **Executive constitution** — mission, strategic priorities, taste, anti-patterns, decision rubric, and authority boundaries. Treat this as policy/identity context rather than ordinary factual memory so recall cannot accidentally override governance.
