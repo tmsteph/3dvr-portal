@@ -83,25 +83,32 @@ test('concurrent workers atomically claim a SQLite task only once', async (t) =>
   assert.equal((await readTask('concurrent-task', options)).status, 'completed');
 });
 
-test('long SQLite work renews a tiny claim lease against a competing worker', async (t) => {
+test('long SQLite work renews an expired initial claim against a competing worker', async (t) => {
   const options = await queueOptions(t, {
     rootNode: fakeRoot(),
     workerCapabilities: 'openai',
-    leaseTtlMs: 15,
+    // The old 15 ms lease made this a scheduler lottery under parallel CI load.
+    // Keep the competitor beyond the initial lease while leaving several renewal
+    // intervals for the worker to prove that the lease really stays alive.
+    leaseTtlMs: 200,
   });
   await enqueueTask('slow', { ...options, id: 'slow-task', backend: 'openai' });
   let executions = 0;
   const runAgentTaskImpl = async () => {
     executions += 1;
-    await new Promise(resolve => setTimeout(resolve, 80));
+    await new Promise(resolve => setTimeout(resolve, 650));
     return { ok: true, result: { stdout: 'slow done' } };
   };
 
-  const first = runWorkerOnce({ ...options, deviceId: 'worker-a', runAgentTaskImpl });
-  await new Promise(resolve => setTimeout(resolve, 40));
+  // Attach rejection handling immediately so a genuine lease-loss regression is
+  // reported as an assertion instead of an unhandled-rejection timing artifact.
+  const first = runWorkerOnce({ ...options, deviceId: 'worker-a', runAgentTaskImpl })
+    .then(value => ({ value }), error => ({ error }));
+  await new Promise(resolve => setTimeout(resolve, 400));
   const competing = await runWorkerOnce({ ...options, deviceId: 'worker-b', runAgentTaskImpl });
-  await first;
+  const firstOutcome = await first;
 
+  assert.ifError(firstOutcome.error);
   assert.equal(executions, 1);
   assert.equal(competing.length, 0);
   assert.equal((await readTask('slow-task', options)).status, 'completed');
