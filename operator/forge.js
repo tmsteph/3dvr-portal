@@ -2,6 +2,7 @@ const FORGE_ROOT = '3dvr-portal';
 const PROOF_WAIT_MS = 900;
 const AUTH_WAIT_MS = 2600;
 const WRITE_TIMEOUT_MS = 8000;
+const GITHUB_WRITE_PATTERN = /\b(push|merge|pull request|open a pr|create a pr|commit(?: to github)?|github branch|push to github)\b/i;
 const DEFAULT_PEERS = [
   'wss://gun-relay-3dvr.fly.dev/gun',
   'https://gun-relay-3dvr.fly.dev/gun'
@@ -313,17 +314,21 @@ export async function queueCodeChange(action = {}) {
   const repo = normalizeRepo(action.repo);
   const requestedChange = normalizeText(action.text);
   if (!requestedChange) throw new Error('A code change request is required.');
+  const githubWriteRequested = GITHUB_WRITE_PATTERN.test(requestedChange);
   const id = makeId('operator-task');
   const task = [
     `Operator code request: ${requestedChange}`,
     'Make the smallest useful change in the working repository and run focused tests.',
     'Use an isolated branch or worktree when practical.',
-    'If the request explicitly asks to commit, push, open a pull request, or merge on GitHub, preserve that intent; the worker will only execute those GitHub writes for the cryptographically verified owner account. Otherwise keep the change local for review.'
+    githubWriteRequested
+      ? 'The signed request includes GitHub write intent. Preserve exactly the requested repository workflow.'
+      : 'Keep repository changes local for review unless the signed request explicitly authorized a GitHub write.'
   ].join(' ');
   const proof = await signedPortalProof('operator-forge-task', 'queue-code-change', {
     taskId: id,
     repo,
-    task
+    task,
+    githubWriteRequested
   });
   if (!proof) throw new Error('Sign in with your 3DVR developer account before editing code.');
 
@@ -334,7 +339,8 @@ export async function queueCodeChange(action = {}) {
     task,
     repo,
     backend: 'auto',
-    riskClass: 'workspace_write',
+    githubWriteRequested,
+    riskClass: githubWriteRequested ? 'external_write' : 'workspace_write',
     status: 'queued',
     createdAt: now,
     updatedAt: now,
@@ -349,7 +355,9 @@ export async function queueCodeChange(action = {}) {
   return {
     message: writeResult?.pendingSync
       ? `Queued the approved ${repo} edit locally. Forge will sync it when the connection recovers.`
-      : `Queued an approved developer edit for ${repo}.`,
+      : githubWriteRequested
+        ? `Queued the signed owner GitHub edit for ${repo}.`
+        : `Queued an approved developer edit for ${repo}.`,
     url: forgeRecordUrl('edit', id),
     label: 'Forge edit'
   };
