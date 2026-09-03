@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  SERVICES,
   makeSupervisorState,
   runSupervisorCycle,
 } = require('../thomas-agent/node/agent-supervisor');
@@ -10,6 +11,11 @@ const services = [
   { name: 'inbox', script: 'ask-inbox-daemon' },
   { name: 'worker-router', script: 'ask-agent-worker-daemon' },
 ];
+
+test('default supervisor owns the context router and organism memory sync', () => {
+  assert.ok(SERVICES.some(service => service.script === 'ask-context-task-router-daemon'));
+  assert.ok(SERVICES.some(service => service.script === 'ask-organism-sync-daemon'));
+});
 
 test('supervisor does nothing when desired state is stopped', async () => {
   let calls = 0;
