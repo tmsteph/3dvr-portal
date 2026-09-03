@@ -2,12 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  BUILTIN_OPERATOR_OWNER_BINDINGS,
   BUILTIN_OPERATOR_DEVELOPER_BINDINGS,
   DEFAULT_OPERATOR_DEVELOPER_ALIAS,
   resolveOperatorDeveloperAccess,
   resolveOperatorDeveloperPolicy,
 } from '../src/operator/developer-access.js';
 import {
+  buildOperatorRequest,
   buildPortalSnapshotInstruction,
   normalizeOperatorResult,
 } from '../src/operator/api.js';
@@ -17,13 +19,15 @@ const TMSTEPH_PUB = 'Cg-NVNIbxWPDBqX7OmllJQqjxy2t3KA_U2DqQBjcPQ8.1fppECqamDOHh2t
 test('default operator developer policy includes the trusted exact SEA binding', () => {
   const policy = resolveOperatorDeveloperPolicy({});
   assert.equal(DEFAULT_OPERATOR_DEVELOPER_ALIAS, '3dvr.tech@gmail.com');
+  assert.equal(BUILTIN_OPERATOR_OWNER_BINDINGS['tmsteph@3dvr'], TMSTEPH_PUB);
   assert.equal(BUILTIN_OPERATOR_DEVELOPER_BINDINGS['tmsteph@3dvr'], TMSTEPH_PUB);
   assert.equal(policy.pubs.size, 0);
+  assert.equal(policy.ownerBindings.get('tmsteph@3dvr'), TMSTEPH_PUB);
   assert.equal(policy.bindings.get('tmsteph@3dvr'), TMSTEPH_PUB);
   assert.equal(policy.bindings.get('operator-e2e-20260823@3dvr@3dvr'), undefined);
 });
 
-test('built-in tmsteph SEA public key receives native code edit permission', async () => {
+test('built-in tmsteph SEA public key receives owner GitHub permission', async () => {
   const access = await resolveOperatorDeveloperAccess({ authPub: TMSTEPH_PUB, authProof: 'proof-1' }, {
     config: {},
     expectedOrigin: 'https://portal.3dvr.tech',
@@ -35,11 +39,24 @@ test('built-in tmsteph SEA public key receives native code edit permission', asy
 
   assert.equal(access.authenticated, true);
   assert.equal(access.approved, true);
-  assert.equal(access.role, 'developer');
-  assert.deepEqual(access.permissions, ['suggest', 'edit']);
+  assert.equal(access.role, 'owner');
+  assert.deepEqual(access.permissions, ['suggest', 'edit', 'github_write']);
 });
 
-test('approved SEA public key receives native code edit permission', async () => {
+test('owner-aware Operator prompt permits ordinary GitHub edits but keeps destructive actions protected', () => {
+  const request = buildOperatorRequest({
+    prompt: 'Fix the mobile nav and push it to GitHub.',
+    developerAccess: {
+      approved: true,
+      role: 'owner',
+      permissions: ['suggest', 'edit', 'github_write'],
+    },
+  });
+  assert.match(request.instructions, /create a branch, commit, push, open a pull request, and merge/i);
+  assert.match(request.instructions, /does not include deploy\/release, force-push/i);
+});
+
+test('approved SEA public key receives native local code edit permission', async () => {
   const access = await resolveOperatorDeveloperAccess({ authPub: 'pub-1', authProof: 'proof-1' }, {
     config: { THREEDVR_OPERATOR_DEVELOPER_PUBS: 'pub-1' },
     expectedOrigin: 'https://portal.3dvr.tech',
