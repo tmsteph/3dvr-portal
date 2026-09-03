@@ -1,6 +1,9 @@
 const path = require('node:path');
 
 const DEFAULT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const BUILTIN_OPERATOR_OWNER_BINDINGS = Object.freeze({
+  'tmsteph@3dvr': 'Cg-NVNIbxWPDBqX7OmllJQqjxy2t3KA_U2DqQBjcPQ8.1fppECqamDOHh2tKt1G5t8Yd21NjBCZ3C6qunST3lvg',
+});
 const BUILTIN_OPERATOR_ADMIN_BINDINGS = Object.freeze({
   'chatgpt-operator-e18d7ed6@3dvr': 'jcsaMMOmGSjWVJOtiPHI3hZWsudATRhOglXRdDatfSA.pzn7gtgVsDxfbV_md8B4a_W4eNTOavwnZwFU0qOtYcU',
 });
@@ -62,6 +65,11 @@ function withBuiltinBindings(bindings, builtins) {
 
 function resolvePolicy(env = process.env) {
   return {
+    ownerPubs: new Set(listFromConfig(env.THREEDVR_OPERATOR_OWNER_PUBS)),
+    ownerBindings: withBuiltinBindings(
+      parseBindings(env.THREEDVR_OPERATOR_OWNER_BINDINGS),
+      BUILTIN_OPERATOR_OWNER_BINDINGS
+    ),
     adminPubs: new Set(listFromConfig(env.THREEDVR_OPERATOR_ADMIN_PUBS)),
     adminBindings: withBuiltinBindings(
       parseBindings(env.THREEDVR_OPERATOR_ADMIN_BINDINGS),
@@ -144,7 +152,8 @@ async function authorizePortalOperatorTask(record = {}, options = {}) {
 
   const policy = resolvePolicy(env);
   const alias = normalizeAlias(verified.alias);
-  const admin = policy.adminPubs.has(authPub) || policy.adminBindings.get(alias) === authPub;
+  const owner = policy.ownerPubs.has(authPub) || policy.ownerBindings.get(alias) === authPub;
+  const admin = owner || policy.adminPubs.has(authPub) || policy.adminBindings.get(alias) === authPub;
   const developer = admin || policy.pubs.has(authPub) || policy.bindings.get(alias) === authPub;
   if (!developer) return { ok: false, reason: '3DVR account is not approved for code edits' };
 
@@ -154,7 +163,7 @@ async function authorizePortalOperatorTask(record = {}, options = {}) {
   return {
     ok: true,
     repoPath,
-    role: admin ? 'admin' : 'developer',
+    role: owner ? 'owner' : admin ? 'admin' : 'developer',
     identity: {
       alias: normalizeText(verified.alias),
       pub: authPub,
@@ -166,6 +175,7 @@ module.exports = {
   authorizePortalOperatorTask,
   resolvePolicy,
   resolveRepoAlias,
+  BUILTIN_OPERATOR_OWNER_BINDINGS,
   BUILTIN_OPERATOR_ADMIN_BINDINGS,
   BUILTIN_OPERATOR_DEVELOPER_BINDINGS,
   decodeForgeProof,
