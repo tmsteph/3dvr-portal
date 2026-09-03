@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 const releasesDir = new URL('../releases/', import.meta.url);
 
 describe('release v0.0.61', () => {
-  it('publishes v0.0.61 as the latest release and links the archive correctly', async () => {
+  it('publishes v0.0.61 as the latest release and keeps the simpler release notes', async () => {
     const index = await readFile(new URL('index.html', releasesDir), 'utf8');
     const previous = await readFile(new URL('v0.0.60.html', releasesDir), 'utf8');
     const release = await readFile(new URL('v0.0.61.html', releasesDir), 'utf8');
@@ -18,10 +18,11 @@ describe('release v0.0.61', () => {
     assert.match(release, /Released:<\/strong> Thursday, September 3, 2026/);
     assert.doesNotMatch(release, /Release Candidate/);
     assert.match(release, /href="v0\.0\.60\.html">Previous release<\/a>/);
-    assert.match(release, /Operator became a real multimodal control surface/);
-    assert.match(release, /Digital Organism became the Portal's durable local memory layer/);
-    assert.match(release, /Self-editing moved from concept toward proved machinery/);
-    assert.match(release, /Show-Tech became implementation-backed AV infrastructure/);
-    assert.match(release, /Safety notes/);
+    assert.match(release, /Operator can understand screenshots/);
+    assert.match(release, /The Portal can remember useful information/);
+    assert.match(release, /Operator can safely test editing code/);
+    assert.match(release, /Regular computers can become Show-Tech AV nodes/);
+    assert.match(release, /<h2>Safety<\/h2>/);
+    assert.match(release, /<h2>In short<\/h2>/);
   });
 });
