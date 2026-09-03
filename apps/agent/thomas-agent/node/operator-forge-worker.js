@@ -4,7 +4,6 @@ const { authorizePortalOperatorTask } = require('./operator-forge-auth');
 
 const DEFAULT_LIMIT = 5;
 const DEFAULT_READ_TIMEOUT_MS = 1800;
-const GITHUB_WRITE_PATTERN = /\b(push|merge|pull request|open a pr|create a pr|commit(?: to github)?|github branch|push to github)\b/i;
 const BLOCKED_EXTERNAL_WRITE_PATTERN = /\b(deploy|release|send|email|post|force[- ]?push|delete (?:the )?(?:repo|repository|branch|tag)|transfer (?:the )?(?:repo|repository)|repository settings|repo settings|secrets?|billing|reset\s+--hard)\b/i;
 
 function normalizeText(value = '') {
@@ -66,8 +65,8 @@ function editOnlyTask(record = {}, auth = {}) {
   if (BLOCKED_EXTERNAL_WRITE_PATTERN.test(task)) {
     return { ok: false, reason: 'that external or destructive action still requires a separate protected path' };
   }
-  const githubWrite = GITHUB_WRITE_PATTERN.test(task);
-  if (githubWrite && auth.role !== 'owner') {
+  const githubWrite = Boolean(record.githubWriteRequested);
+  if (githubWrite && (auth.role !== 'owner' || auth.githubWriteApproved !== true)) {
     return { ok: false, reason: 'owner authorization is required for GitHub writes' };
   }
   return { ok: true, task, githubWrite };
@@ -115,7 +114,7 @@ async function runForgeRequest(record, options = {}) {
     ];
     if (edit.githubWrite) args.push('--unsafe');
     args.push(edit.githubWrite
-      ? `${edit.task} This GitHub write was explicitly authorized by the signed 3DVR owner session. You may create a branch, commit, push, open a pull request, or merge when the task explicitly asks for it. Do not deploy, release, force-push, delete repositories/branches/tags, change secrets/settings/billing, or perform unrelated external actions.`
+      ? `${edit.task} This exact GitHub write intent was cryptographically signed by the 3DVR owner. You may create a branch, commit, push, open a pull request, or merge only as explicitly requested. Do not deploy, release, force-push, delete repositories/branches/tags, change secrets/settings/billing, or perform unrelated external actions.`
       : edit.task);
     const result = await runImpl(args, options.hooks || {});
     const summary = normalizeText(result?.reason || result?.result?.stdout || result?.result?.stderr || `ok=${Boolean(result?.ok)}`).slice(0, 2000);
