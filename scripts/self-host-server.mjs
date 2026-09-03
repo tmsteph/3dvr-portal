@@ -4,6 +4,7 @@ import { extname, join, normalize, resolve } from 'node:path';
 import openAiSiteHandler from '../api/openai-site.js';
 import workboardGithubHandler from '../src/workboard/github-feed.js';
 import { createOAuthProviderHandler } from '../src/oauth/provider-api.js';
+import { createOrganismBridgeHandler } from '../src/organism/bridge.js';
 
 const PORT = Number(process.env.PORT || 4320);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -12,6 +13,7 @@ const RELEASE_SHA = String(process.env.PORTAL_RELEASE_SHA || '').trim();
 const RELEASE_REF = String(process.env.PORTAL_RELEASE_REF || 'main').trim();
 const LEGACY_API_ORIGIN = String(process.env.LEGACY_API_ORIGIN || '').replace(/\/+$/, '');
 const oauthProviderHandler = createOAuthProviderHandler();
+const organismBridgeHandler = createOrganismBridgeHandler();
 
 const MIME_TYPES = new Map([
   ['.html', 'text/html; charset=utf-8'],
@@ -139,6 +141,16 @@ async function runOpenAiSite(req, res, url) {
   }
 }
 
+async function runOrganismRecall(req, res, url) {
+  try {
+    await prepareApiRequest(req, url);
+    await organismBridgeHandler(req, adaptResponse(res));
+  } catch (error) {
+    if (!res.headersSent) json(res, error?.statusCode || 500, { ok: false, error: error?.message || 'Digital Organism request failed' });
+    else res.destroy(error);
+  }
+}
+
 async function runWorkboardGithub(req, res, url) {
   try {
     req.query = Object.fromEntries(url.searchParams.entries());
@@ -207,7 +219,11 @@ const server = createServer(async (req, res) => {
   applyBaseHeaders(res, url.pathname);
 
   if (url.pathname === '/__3dvr-health') {
-    return json(res, 200, { ok: true, host: 'self', sha: RELEASE_SHA, ref: RELEASE_REF, operatorApi: 'native' });
+    return json(res, 200, { ok: true, host: 'self', sha: RELEASE_SHA, ref: RELEASE_REF, operatorApi: 'native', organismRecall: 'signed-owner' });
+  }
+
+  if (url.pathname === '/recall') {
+    return runOrganismRecall(req, res, url);
   }
 
   if (url.pathname === '/api/openai-site') {
