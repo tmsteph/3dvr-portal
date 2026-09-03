@@ -25,7 +25,7 @@ const MIME_TYPES = new Map([
   ['.webmanifest', 'application/manifest+json; charset=utf-8'],
   ['.svg', 'image/svg+xml'],
   ['.png', 'image/png'],
-  ['.jpg', 'image/jpeg'],
+  ['.jpg', 'image/jpg'],
   ['.jpeg', 'image/jpeg'],
   ['.gif', 'image/gif'],
   ['.webp', 'image/webp'],
@@ -222,7 +222,7 @@ const server = createServer(async (req, res) => {
     return json(res, 200, { ok: true, host: 'self', sha: RELEASE_SHA, ref: RELEASE_REF, operatorApi: 'native', organismRecall: 'signed-owner' });
   }
 
-  if (url.pathname === '/recall') {
+  if (url.pathname === '/health' || url.pathname === '/recall') {
     return runOrganismRecall(req, res, url);
   }
 
