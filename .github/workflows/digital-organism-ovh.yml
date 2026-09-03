@@ -6,6 +6,7 @@ on:
     paths:
       - 'apps/agent/thomas-agent/node/digital-organism.js'
       - 'apps/agent/thomas-agent/node/digital-organism-server.js'
+      - 'apps/agent/thomas-agent/node/digital-organism-bridge.js'
       - 'apps/agent/test/digital-organism.test.js'
       - '.github/workflows/digital-organism-ovh.yml'
   workflow_dispatch:
@@ -45,7 +46,7 @@ jobs:
           rm -f /tmp/key.raw
           ssh -i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 "$OVH_USER@$OVH_HOST" true
 
-      - name: Deploy, test, and start private organism
+      - name: Deploy, test, bootstrap, and start private organism
         shell: bash
         run: |
           set -euo pipefail
@@ -69,6 +70,29 @@ jobs:
           trap 'rm -rf "$tmp_state"' EXIT
           THREEDVR_ORGANISM_DIR="$tmp_state" "$node_bin" --test "$repo/apps/agent/test/digital-organism.test.js"
           THREEDVR_ORGANISM_DIR="$tmp_state" "$node_bin" "$repo/apps/agent/thomas-agent/node/digital-organism.js" eval
+
+          memory_dir="$HOME/.3dvr/state/organism"
+          memory_log="$memory_dir/memories.jsonl"
+          mkdir -p "$memory_dir"
+          chmod 700 "$memory_dir" 2>/dev/null || true
+          if [ ! -s "$memory_log" ]; then
+            bootstrap="$(mktemp)"
+            if ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-do 'test -s ~/.3dvr/state/organism/memories.jsonl && cat ~/.3dvr/state/organism/memories.jsonl' > "$bootstrap" 2>/dev/null && [ -s "$bootstrap" ]; then
+              if "$node_bin" -e 'const fs=require("node:fs"); for (const line of fs.readFileSync(process.argv[1],"utf8").split(/\r?\n/).filter(Boolean)) JSON.parse(line)' "$bootstrap"; then
+                mv "$bootstrap" "$memory_log"
+                chmod 600 "$memory_log"
+                echo 'Bootstrapped existing private Organism state from the DigitalOcean control node.'
+              else
+                rm -f "$bootstrap"
+                echo 'DigitalOcean Organism state was invalid; leaving OVH memory empty.' >&2
+              fi
+            else
+              rm -f "$bootstrap"
+              echo 'No existing DigitalOcean Organism state found; OVH starts with an empty durable memory log.'
+            fi
+          else
+            echo 'Preserving existing OVH Organism memory state.'
+          fi
 
           sudo mkdir -p /etc/3dvr
           sudo touch /etc/3dvr/organism.env
