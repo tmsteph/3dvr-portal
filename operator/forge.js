@@ -227,10 +227,6 @@ function writeGun(node, value) {
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
-      // Gun writes are local-first. A missing relay acknowledgement on a weak
-      // connection does not mean the record was lost; the browser can sync it
-      // when connectivity returns. Treat this as queued instead of failing the
-      // Operator action.
       resolve({ queued: true, pendingSync: true });
     }, WRITE_TIMEOUT_MS);
     node.put(value, ack => {
@@ -320,8 +316,9 @@ export async function queueCodeChange(action = {}) {
   const id = makeId('operator-task');
   const task = [
     `Operator code request: ${requestedChange}`,
-    'Make the smallest useful change in the working repository.',
-    'Use an isolated branch or worktree when practical, run focused tests, and keep the changes local for review.'
+    'Make the smallest useful change in the working repository and run focused tests.',
+    'Use an isolated branch or worktree when practical.',
+    'If the request explicitly asks to commit, push, open a pull request, or merge on GitHub, preserve that intent; the worker will only execute those GitHub writes for the cryptographically verified owner account. Otherwise keep the change local for review.'
   ].join(' ');
   const proof = await signedPortalProof('operator-forge-task', 'queue-code-change', {
     taskId: id,
