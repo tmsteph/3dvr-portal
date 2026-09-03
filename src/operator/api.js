@@ -38,6 +38,19 @@ const RESPONSE_SCHEMA = {
 
 const clean = (value, max = 3000) => String(value || '').trim().slice(0, max);
 const outputText = data => (data?.output || []).flatMap(item => item?.content || []).find(item => item?.type === 'output_text')?.text || '';
+const IMAGE_DATA_URL = /^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=\r\n]+$/i;
+
+export function normalizeOperatorImages(images = []) {
+  return (Array.isArray(images) ? images : []).slice(0, 1).map(image => {
+    const dataUrl = String(image?.dataUrl || '').trim();
+    if (!dataUrl || dataUrl.length > 6_000_000 || !IMAGE_DATA_URL.test(dataUrl)) return null;
+    return {
+      name: clean(image?.name, 120) || 'screenshot',
+      type: clean(image?.type, 60),
+      dataUrl
+    };
+  }).filter(Boolean);
+}
 
 function sanitizePortalValue(value, depth = 0) {
   if (depth > 5 || value === undefined || value === null) return null;
@@ -94,11 +107,21 @@ async function readUpstreamError(response) {
   }
 }
 
-export function buildOperatorRequest({ prompt, history = [], portalContext = null, developerAccess = null, model = DEFAULT_OPERATOR_MODEL }) {
+export function buildOperatorRequest({ prompt, images = [], history = [], portalContext = null, developerAccess = null, model = DEFAULT_OPERATOR_MODEL }) {
   const messages = (Array.isArray(history) ? history : []).slice(-10).map(item => ({
     role: item?.role === 'assistant' ? 'assistant' : 'user', content: clean(item?.content, 1200)
   })).filter(item => item.content);
-  messages.push({ role: 'user', content: clean(prompt, 2000) });
+  const cleanPrompt = clean(prompt, 2000);
+  const imageInputs = normalizeOperatorImages(images);
+  messages.push({
+    role: 'user',
+    content: imageInputs.length
+      ? [
+          { type: 'input_text', text: cleanPrompt || 'Please analyze the attached screenshot.' },
+          ...imageInputs.map(image => ({ type: 'input_image', image_url: image.dataUrl, detail: 'auto' }))
+        ]
+      : cleanPrompt
+  });
   const developerApproved = developerAccess?.approved === true;
   const ownerGithubApproved = developerAccess?.role === 'owner'
     && Array.isArray(developerAccess?.permissions)
@@ -114,6 +137,7 @@ export function buildOperatorRequest({ prompt, history = [], portalContext = nul
       `3DVR developer access for this turn is ${ownerGithubApproved ? 'owner-approved for code edits and ordinary GitHub writes' : developerApproved ? 'approved for local code edits' : 'not approved for code edits; suggestions are allowed'}.`,
       'Talk like a capable partner. Lead with the useful answer. Use short, plain sentences.',
       'Use the founder context to make responses more relevant, but do not force 3DVR into unrelated questions.',
+      'When a screenshot is attached, inspect the image directly and use what is visibly present instead of claiming the interface cannot accept images.',
       'When the user describes a recurring workflow or repeatedly depends on an external chat/app interface, look for a practical way to move that capability into Operator or another 3DVR tool.',
       'You may take one safe action per turn: create_note saves a note in Life Space; create_checklist saves a checklist in Life Space; save_link saves a web link in Life Space; add_lead adds a business to Lead Finder; open_app opens an existing portal workspace; suggest_code_change records a native 3DVR Forge suggestion; request_code_change queues an approved 3DVR code task.',
       'For create_note fill title and text. For create_checklist fill title and put one checklist item per line in text. For save_link fill title, optional text, and an absolute http or https URL. For add_lead fill business and location. For open_app use only these relative URLs: /life-space/, /lead-finder/, /crm/, /growth-operator/, /web-builder-app/, /calendar/, /finance/.',
@@ -221,6 +245,7 @@ export function createOperatorHandler(options = {}) {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authorizationToken}` },
         body: JSON.stringify(buildOperatorRequest({
           prompt,
+          images: req.body?.images,
           history: req.body?.history,
           portalContext: req.body?.portalContext,
           developerAccess,
