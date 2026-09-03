@@ -6,6 +6,7 @@ import { openDatabase, loadState, saveState } from '../life-space/storage.js';
 import { normalizeProspect } from '../lead-finder/core.js';
 
 const LEADS_KEY = '3dvr.leadFinder.prospects.v1';
+const GITHUB_WRITE_PATTERN = /\b(push|merge|pull request|open a pr|create a pr|commit(?: to github)?|github branch|push to github)\b/i;
 
 async function saveLifeSpaceItem(item) {
   const db = await openDatabase();
@@ -17,7 +18,24 @@ async function saveLifeSpaceItem(item) {
   await saveState(db, state);
 }
 
-export async function runOperatorAction(action = {}) {
+function ownerGithubAction(action = {}, developerAccess = {}) {
+  const isOwner = developerAccess?.role === 'owner'
+    && Array.isArray(developerAccess?.permissions)
+    && developerAccess.permissions.includes('github_write');
+  if (!isOwner) return { action, isOwner:false };
+  const text = String(action.text || '').trim();
+  if (GITHUB_WRITE_PATTERN.test(text)) return { action, isOwner:true };
+  return {
+    isOwner:true,
+    action:{ ...action, text:`${text} Commit and push the completed change to GitHub.`.trim() }
+  };
+}
+
+function forgeFailureMessage(record = {}) {
+  return String(record.error || record.resultSummary || '').trim() || 'The code edit did not complete.';
+}
+
+export async function runOperatorAction(action = {}, context = {}) {
   if (action.type === 'create_note') {
     await saveLifeSpaceItem({ id:`note-${crypto.randomUUID()}`, type:'note', title:action.title || 'New thought', text:action.text || '' });
     return { message:'Saved in Life Space.', url:'/life-space/' };
@@ -50,21 +68,27 @@ export async function runOperatorAction(action = {}) {
     return outcome;
   }
   if (action.type === 'request_code_change') {
+    const prepared = ownerGithubAction(action, context.developerAccess);
     const { queueCodeChange } = await import('./forge.js');
-    const forgeOutcome = await queueCodeChange(action);
-    try {
-      const { queueOperatorAgentEdit } = await import('./agent-edit-queue.js');
-      const agentOutcome = await queueOperatorAgentEdit(action);
+    const forgeOutcome = await queueCodeChange(prepared.action);
+    const { waitForForgeEdit } = await import('./forge-status.js');
+    const result = await waitForForgeEdit(forgeOutcome.url);
+    const status = String(result?.status || '').toLowerCase();
+    if (status === 'completed') {
       return {
         ...forgeOutcome,
-        message: `${forgeOutcome.message} ${agentOutcome.message}`
-      };
-    } catch (error) {
-      return {
-        ...forgeOutcome,
-        message: `${forgeOutcome.message} The edit is recorded in Forge, but the live agent queue could not be reached: ${error.message || 'unknown error'}`
+        message: prepared.isOwner
+          ? 'Done. I applied the code change and completed the signed GitHub write.'
+          : 'Done. I applied the approved code change.'
       };
     }
+    if (['failed','rejected','approval_required'].includes(status)) {
+      throw new Error(forgeFailureMessage(result));
+    }
+    return {
+      ...forgeOutcome,
+      message:'The code change is still running. Open the Forge edit for its live status.'
+    };
   }
   if (action.type === 'open_app' && action.url) return { message:'Ready to open.', url:action.url };
   return null;
