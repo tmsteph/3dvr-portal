@@ -1,6 +1,7 @@
 import { buildOperatorOwnerContext } from './context.js';
 import { DEFAULT_EXECUTIVE_PROFILE, formatExecutiveProfile } from '../money-printer/moneyPrinterExecutiveMemory.js';
 import { resolveOperatorDeveloperAccess } from './developer-access.js';
+import { createOrganismVercelRelay } from '../organism/vercel-relay.js';
 import {
   buildOperatorDraftRequest,
   DEFAULT_OPERATOR_DRAFT_GATEWAY_MODEL,
@@ -171,12 +172,14 @@ export function createOperatorHandler(options = {}) {
   const gatewayToken = options.gatewayToken ?? process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN;
   const endpoint = options.endpoint || (gatewayToken ? 'https://ai-gateway.vercel.sh/v1/responses' : 'https://api.openai.com/v1/responses');
   const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const organismRelay = createOrganismVercelRelay({ ...(options.organism || {}), fetchImpl });
   return async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+    if (req.body?.organismRecall === true) return organismRelay(req, res);
     const requestApiKey = clean(req.body?.apiKey, 300);
     const authorizationToken = apiKey || gatewayToken || requestApiKey;
     if (!authorizationToken) return res.status(503).json({ error: 'The operator is temporarily unavailable.' });
