@@ -23,6 +23,13 @@ function readState() {
   return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
 }
 
+function writeState(state) {
+  fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
+  const tmp = `${STATE_FILE}.tmp`;
+  fs.writeFileSync(tmp, `${JSON.stringify(state, null, 2)}\n`);
+  fs.renameSync(tmp, STATE_FILE);
+}
+
 function finalizeExistingState() {
   if (!fs.existsSync(STATE_FILE)) return 0;
   const state = readState();
@@ -35,11 +42,27 @@ function finalizeExistingState() {
     finalized += 1;
   }
   if (!finalized) return 0;
-  fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
-  const tmp = `${STATE_FILE}.tmp`;
-  fs.writeFileSync(tmp, `${JSON.stringify(state, null, 2)}\n`);
-  fs.renameSync(tmp, STATE_FILE);
+  writeState(state);
   return finalized;
+}
+
+function quarantineTerminalFailures() {
+  if (!fs.existsSync(STATE_FILE)) return 0;
+  const state = readState();
+  let quarantined = 0;
+  for (const entry of Object.values(state.messages || {})) {
+    if (entry?.status !== 'failed') continue;
+    const error = String(entry.error || entry.lastError || '');
+    if (!/nothing to commit, working tree clean/i.test(error)) continue;
+    entry.status = 'processed';
+    entry.completedAt = new Date().toISOString();
+    entry.noop = true;
+    entry.noopReason = 'generated site already matches repository content';
+    quarantined += 1;
+  }
+  if (!quarantined) return 0;
+  writeState(state);
+  return quarantined;
 }
 
 function failedRequestCount() {
@@ -48,24 +71,25 @@ function failedRequestCount() {
 }
 
 async function main() {
-  // GitHub Actions checkout credentials only cover the portal checkout. Configure
-  // gh as git's credential helper so the bounded worker can clone/push 3dvr-web.
   configureGitHubAuth();
 
-  // GitHub Actions runners are ephemeral, so use two passes per cycle:
-  // pass 1 discovers/publishes; pass 2 marks already-existing sites seen.
-  // Then normalize those entries to processed so they cannot starve newer mail.
+  // Do not let deterministic clean-tree no-ops poison every scheduled run.
+  // They are terminal/idempotent outcomes, not retryable fulfillment failures.
+  const quarantinedBefore = quarantineTerminalFailures();
+
   for (let cycle = 1; cycle <= 3; cycle += 1) {
     const first = await runOnce();
     const second = await runOnce();
     const finalized = finalizeExistingState();
+    const quarantined = quarantineTerminalFailures();
     const acted = Number(first?.acted || 0) + Number(second?.acted || 0);
-    console.log(`[free-site-actions-runner] cycle=${cycle} acted=${acted} finalized_existing=${finalized}`);
-    if (acted === 0 && finalized === 0) break;
+    console.log(`[free-site-actions-runner] cycle=${cycle} acted=${acted} finalized_existing=${finalized} quarantined_noop=${quarantined}`);
+    if (acted === 0 && finalized === 0 && quarantined === 0) break;
   }
 
   const failed = failedRequestCount();
   if (failed > 0) throw new Error(`Free-site worker left ${failed} request(s) in failed state.`);
+  if (quarantinedBefore > 0) console.log(`[free-site-actions-runner] recovered_terminal_noops=${quarantinedBefore}`);
 }
 
 main().catch((error) => {
