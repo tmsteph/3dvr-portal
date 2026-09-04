@@ -1,0 +1,29 @@
+name: LicheePi U-Boot Environment Write Drill
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-fwenv-write-drill.yml'
+      - 'scripts/ops/licheepi-fwenv-write-drill.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enforce on-site safety window
+        run: test "$(date -u +%s)" -lt "$(date -u -d '2026-09-04 23:00:00Z' +%s)"
+      - name: Write, verify, and restore harmless U-Boot probe variable
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          OVH_HOST: 40.160.137.41
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash scripts/ops/licheepi-fwenv-write-drill.sh
