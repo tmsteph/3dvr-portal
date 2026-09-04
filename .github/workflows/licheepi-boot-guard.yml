@@ -10,12 +10,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   guard:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: Verify known-good boot path is still preserved
@@ -34,3 +34,54 @@ jobs:
           test -n "$user"
           opts=(-i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
           ssh "${opts[@]}" "$user@$OVH_HOST" "ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a 'bash -s'" < scripts/ops/licheepi-boot-guard.sh
+      - name: Configure OVH jump alias for on-site drill
+        if: contains(github.event.head_commit.message, '[lpi-drill]')
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          OVH_HOST: 40.160.137.41
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$SSH_A" > /tmp/key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/key.raw; then cp /tmp/key.raw /tmp/key; else base64 -d /tmp/key.raw > /tmp/key; fi
+          chmod 600 /tmp/key
+          user=''
+          for u in debian root; do if ssh -i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$u@$OVH_HOST" true >/dev/null 2>&1; then user="$u"; break; fi; done
+          test -n "$user"
+          ssh -i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@$OVH_HOST" 'bash -s' <<'OVH'
+          set -euo pipefail
+          ssh -o BatchMode=yes -o ConnectTimeout=6 3dvr-hetzner true
+          cfg="$HOME/.ssh/config"; mkdir -p "$HOME/.ssh"; touch "$cfg"; chmod 700 "$HOME/.ssh"; chmod 600 "$cfg"
+          identity="$(ssh -G lpi4a 2>/dev/null | awk '$1=="identityfile"{print $2; exit}')"
+          piuser="$(ssh -G lpi4a 2>/dev/null | awk '$1=="user"{print $2; exit}')"
+          test -n "$identity" -a -n "$piuser"
+          tmp="$(mktemp)"
+          sed '/^# BEGIN 3DVR LPI4A HETZNER JUMP$/,/^# END 3DVR LPI4A HETZNER JUMP$/d' "$cfg" > "$tmp"
+          cat >> "$tmp" <<CFG
+# BEGIN 3DVR LPI4A HETZNER JUMP
+Host lpi4a-hetzner
+  HostName 127.0.0.1
+  Port 2223
+  User $piuser
+  IdentityFile $identity
+  IdentitiesOnly yes
+  BatchMode yes
+  StrictHostKeyChecking accept-new
+  ConnectTimeout 6
+  ProxyCommand ssh -o BatchMode=yes -o ConnectTimeout=6 3dvr-hetzner -W %h:%p
+# END 3DVR LPI4A HETZNER JUMP
+CFG
+          mv "$tmp" "$cfg"; chmod 600 "$cfg"
+          ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a true
+          ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a-hetzner true
+          OVH
+      - name: Run on-site resilience drill
+        if: contains(github.event.head_commit.message, '[lpi-drill]')
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          OVH_HOST: 40.160.137.41
+          HETZNER_HOST: 40.160.137.41
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash scripts/ops/licheepi-resilience-drill.sh
