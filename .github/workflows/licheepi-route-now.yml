@@ -1,0 +1,27 @@
+name: LicheePi Route Now
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-route-now.yml'
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check all three Pi recovery routes now
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -u
+          write_key(){ raw="$1"; dest="$2"; [ -n "$raw" ] || return 0; printf '%s\n' "$raw" > "$dest.raw"; if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest"; elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :; else rm -f "$dest" "$dest.raw"; return 0; fi; chmod 600 "$dest"; rm -f "$dest.raw"; }
+          write_key "${SSH_A:-}" /tmp/r-a; write_key "${SSH_B:-}" /tmp/r-b; write_key "${SSH_C:-}" /tmp/r-c
+          pick(){ host="$1"; shift; for u in "$@"; do for k in /tmp/r-a /tmp/r-b /tmp/r-c; do [ -f "$k" ] || continue; if ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 "$u@$host" true >/dev/null 2>&1; then printf '%s|%s\n' "$u" "$k"; return 0; fi; done; done; return 1; }
+          ovh="$(pick 40.160.137.41 debian root || true)"; do_c="$(pick 167.172.193.194 root debian || true)"
+          ovh_route=false; hetz_route=false; do_route=false
+          if [ -n "$ovh" ]; then u="${ovh%%|*}"; k="${ovh#*|}"; ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 "$u@40.160.137.41" "ssh -n -o BatchMode=yes -o ConnectTimeout=5 lpi4a true" >/dev/null 2>&1 && ovh_route=true; ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 "$u@40.160.137.41" "ssh -n -o BatchMode=yes -o ConnectTimeout=5 lpi4a-hetzner true" >/dev/null 2>&1 && hetz_route=true; fi
+          if [ -n "$do_c" ]; then u="${do_c%%|*}"; k="${do_c#*|}"; ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 "$u@167.172.193.194" "ssh -n -o BatchMode=yes -o ConnectTimeout=5 lpi4a-digitalocean true" >/dev/null 2>&1 && do_route=true; fi
+          printf 'OVH_ROUTE=%s\nHETZNER_ROUTE=%s\nDIGITALOCEAN_ROUTE=%s\n' "$ovh_route" "$hetz_route" "$do_route"
