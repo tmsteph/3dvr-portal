@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-09-04T20:56:24.406129+00:00",
+  "ok": true,
+  "ovh": true,
+  "hetzner": true,
+  "digitalOcean": true,
+  "digitalOceanUser": "root",
+  "piService": {
+    "SERVICE": "active",
+    "ENABLED": "enabled"
+  }
+}
