@@ -25,19 +25,44 @@ jobs:
           SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
           SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
           OVH_HOST: 40.160.137.41
+          DO_HOST: 167.172.193.194
         run: |
           set -euo pipefail
           write_key(){ raw="$1"; dest="$2"; [ -n "$raw" ] || return 0; printf '%s\n' "$raw" > "$dest.raw"; if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest"; elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :; else rm -f "$dest" "$dest.raw"; return 0; fi; chmod 600 "$dest"; rm -f "$dest.raw"; }
           write_key "$SSH_A" /tmp/a; write_key "$SSH_B" /tmp/b; write_key "$SSH_C" /tmp/c
-          user=''; key=''
-          for u in debian root; do for k in /tmp/a /tmp/b /tmp/c; do [ -f "$k" ] || continue; if ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$u@$OVH_HOST" true >/dev/null 2>&1; then user="$u"; key="$k"; break 2; fi; done; done
-          test -n "$user"
-          opts=(-i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
 
-          if ssh "${opts[@]}" "$user@$OVH_HOST" "ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a 'bash -s'" < scripts/ops/licheepi-boot-guard.sh; then
+          pick(){
+            host="$1"; shift
+            for u in "$@"; do
+              for k in /tmp/a /tmp/b /tmp/c; do
+                [ -f "$k" ] || continue
+                if ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$u@$host" true >/dev/null 2>&1; then
+                  printf '%s|%s\n' "$u" "$k"
+                  return 0
+                fi
+              done
+            done
+            return 1
+          }
+
+          ovh="$(pick "$OVH_HOST" debian root)" || { echo 'OVH bootstrap unavailable.' >&2; exit 1; }
+          ou="${ovh%%|*}"; ok="${ovh#*|}"
+          o=(-i "$ok" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
+
+          if ssh "${o[@]}" "$ou@$OVH_HOST" "ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a 'bash -s'" < scripts/ops/licheepi-boot-guard.sh; then
             echo 'Boot guard verified through direct OVH LicheePi path.'
-          else
-            echo 'Direct OVH LicheePi path is unavailable; trying the Hetzner fallback.' >&2
-            ssh "${opts[@]}" "$user@$OVH_HOST" "ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a-hetzner 'bash -s'" < scripts/ops/licheepi-boot-guard.sh
-            echo 'Boot guard verified through OVH -> Hetzner -> LicheePi fallback.'
+            exit 0
           fi
+
+          echo 'Direct OVH LicheePi path is unavailable; trying the Hetzner fallback.' >&2
+          if ssh "${o[@]}" "$ou@$OVH_HOST" "ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a-hetzner 'bash -s'" < scripts/ops/licheepi-boot-guard.sh; then
+            echo 'Boot guard verified through OVH -> Hetzner -> LicheePi fallback.'
+            exit 0
+          fi
+
+          echo 'Hetzner fallback is unavailable; trying the independent DigitalOcean route.' >&2
+          do_conn="$(pick "$DO_HOST" root debian)" || { echo 'DigitalOcean bootstrap unavailable.' >&2; exit 1; }
+          du="${do_conn%%|*}"; dk="${do_conn#*|}"
+          d=(-i "$dk" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
+          ssh "${d[@]}" "$du@$DO_HOST" "ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a-digitalocean 'bash -s'" < scripts/ops/licheepi-boot-guard.sh
+          echo 'Boot guard verified through DigitalOcean -> LicheePi fallback.'
