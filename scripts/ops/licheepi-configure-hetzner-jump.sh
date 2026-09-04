@@ -29,7 +29,7 @@ test -n "$user"
 
 ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@$OVH_HOST" 'bash -s' <<'OVH'
 set -euo pipefail
-ssh -o BatchMode=yes -o ConnectTimeout=6 3dvr-hetzner true
+ssh -n -o BatchMode=yes -o ConnectTimeout=6 3dvr-hetzner true
 cfg="$HOME/.ssh/config"; mkdir -p "$HOME/.ssh"; touch "$cfg"; chmod 700 "$HOME/.ssh"; chmod 600 "$cfg"
 identity="$(ssh -G lpi4a 2>/dev/null | awk '$1=="identityfile"{print $2; exit}')"
 piuser="$(ssh -G lpi4a 2>/dev/null | awk '$1=="user"{print $2; exit}')"
@@ -51,7 +51,7 @@ Host lpi4a-hetzner
 # END 3DVR LPI4A HETZNER JUMP
 CFG
 mv "$tmp" "$cfg"; chmod 600 "$cfg"
-ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a true
-ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a-hetzner true
+ssh -n -o BatchMode=yes -o ConnectTimeout=8 lpi4a true
+ssh -n -o BatchMode=yes -o ConnectTimeout=8 lpi4a-hetzner true
 printf 'OVH_PATH_OK\nHETZNER_PATH_OK\n'
 OVH
