@@ -1,21 +1,25 @@
 name: LicheePi Mainline One-Shot Test
+
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/licheepi-mainline-oneshot-test.yml'
-      - 'scripts/ops/licheepi-mainline-oneshot-test.sh'
   workflow_dispatch:
+    inputs:
+      safety_ack:
+        description: 'Type RUN_MAINLINE71_ONESHOT only when physical recovery is available and vendor l0 has been re-verified'
+        required: true
+        type: string
+
 permissions:
   contents: write
+
 jobs:
   test:
+    if: ${{ inputs.safety_ack == 'RUN_MAINLINE71_ONESHOT' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Refuse after onsite window
-        run: test "$(date -u +%s)" -lt "$(date -u -d '2026-09-04 23:00:00Z' +%s)"
+      - name: Require explicit recovery-ready acknowledgement
+        run: test "${{ inputs.safety_ack }}" = 'RUN_MAINLINE71_ONESHOT'
       - name: Run one-shot mainline71 with durable vendor fallback
         env:
           SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
