@@ -5,102 +5,123 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0d1117">
-  <title>3DVR DAO | Govern the Network</title>
-  <meta name="description" content="A working 3DVR DAO prototype for contribution credits, governance, treasury decisions, and AI-assisted community capital allocation.">
+  <title>3DVR Community Governance</title>
+  <meta name="description" content="A 3DVR experiment in community governance, contribution credits, transparent funding, and AI-assisted capital research.">
   <style>
     :root{color-scheme:dark;--bg:#0d1117;--panel:#161b22;--panel2:#111820;--text:#e6edf3;--muted:#9da7b3;--line:#30363d;--blue:#58a6ff;--gold:#f0ca63;--green:#56d364;--red:#ff7b72;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
-    *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at 50% 0%,rgba(240,202,99,.11),transparent 30rem),var(--bg);line-height:1.5;color:var(--text)}
-    a{color:var(--blue)} button{font:inherit} main{width:min(980px,100%);margin:auto;padding:22px 16px 70px}
-    nav{display:flex;gap:15px;flex-wrap:wrap;margin-bottom:42px;font-weight:750} nav a{text-decoration:none}
-    .eyebrow{margin:0 0 8px;color:var(--gold);font-size:.78rem;font-weight:850;text-transform:uppercase;letter-spacing:.1em}
-    h1{margin:0;font-size:clamp(2.7rem,10vw,5.8rem);line-height:.96;letter-spacing:-.055em}.lead{max-width:760px;margin:18px 0 0;color:#c9d1d9;font-size:clamp(1.08rem,3.6vw,1.35rem)}
-    .status{display:inline-block;margin-top:18px;padding:7px 11px;border:1px solid rgba(240,202,99,.35);border-radius:999px;color:#f6df9a;font-size:.83rem;font-weight:800}
-    .hero-line{margin:30px 0 8px;padding:18px 20px;border:1px solid rgba(240,202,99,.27);border-radius:16px;background:rgba(240,202,99,.05);font-size:clamp(1.05rem,3vw,1.22rem);font-weight:750}
-    .grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px;margin-top:14px}.panel{grid-column:span 12;padding:20px;border:1px solid var(--line);border-radius:17px;background:rgba(22,27,34,.82)}
-    .half{grid-column:span 6}.third{grid-column:span 4}.two-thirds{grid-column:span 8}.panel h2,.panel h3{margin:0 0 8px}.panel h2{font-size:1.35rem}.panel h3{font-size:1rem}.muted,.panel p{color:var(--muted)}.panel p{margin:6px 0 0}
-    .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}.kpi{padding:14px;border:1px solid #2a3139;border-radius:13px;background:var(--panel2)}.kpi strong{display:block;font-size:1.35rem}.kpi span{color:var(--muted);font-size:.82rem}
-    .proposal{border-color:rgba(88,166,255,.35)}.proposal-head{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}.proposal-head>div:first-child{flex:1;min-width:240px}.pill{display:inline-block;padding:5px 8px;border:1px solid #3a424c;border-radius:999px;color:#c9d1d9;font-size:.77rem;font-weight:800}.ask{font-size:1.55rem;font-weight:850;color:#fff}
-    .progress{height:11px;margin-top:14px;border-radius:999px;background:#242b33;overflow:hidden}.progress>div{height:100%;width:72%;background:linear-gradient(90deg,#2ea043,var(--green))}.vote-row{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}.vote{min-height:42px;padding:9px 14px;border:1px solid var(--line);border-radius:11px;background:#18202a;color:var(--text);font-weight:800;cursor:pointer}.vote:hover{border-color:var(--blue)}.vote.yes{border-color:rgba(86,211,100,.5)}.vote.no{border-color:rgba(255,123,114,.45)}
-    .result{margin-top:10px;color:#c9d1d9;font-size:.9rem}.list{margin:10px 0 0;padding-left:1.15rem;color:#c9d1d9}.list li+li{margin-top:7px}
-    .treasury-row{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:12px}.bar{height:9px;margin-top:5px;border-radius:99px;background:#242b33;overflow:hidden}.bar i{display:block;height:100%;background:#4c8ed9}.bar.operations i{width:52%}.bar.grants i{width:28%}.bar.invest i{width:20%}
-    .ai{border-color:rgba(103,232,249,.28);background:linear-gradient(180deg,rgba(103,232,249,.055),rgba(22,27,34,.82))}.ai-score{font-size:2rem;font-weight:900;color:#a5f3fc}.recommendation{margin-top:13px;padding:14px;border:1px solid #2e3d44;border-radius:13px;background:#0f171d}.recommendation strong{display:block}
-    .receipt{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:12px 0;border-top:1px solid #242b33}.receipt:first-of-type{border-top:0}.dot{width:9px;height:9px;margin-top:7px;border-radius:50%;background:var(--green)}.receipt small{color:#7d8590}.credits{font-weight:850;color:#f6df9a;white-space:nowrap}
-    .architecture{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-top:12px}.arch{padding:13px;border:1px solid #2c333b;border-radius:12px;background:#111820}.arch strong{display:block}.arch span{color:var(--muted);font-size:.83rem}
-    .note{margin-top:14px;padding:13px;border-left:3px solid var(--gold);background:rgba(240,202,99,.045);color:#c9d1d9;font-size:.9rem}.sources a{display:inline-block;margin:8px 14px 0 0}footer{margin-top:38px;color:#6e7681;font-size:.82rem}
-    @media(max-width:760px){.half,.third,.two-thirds{grid-column:span 12}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.architecture{grid-template-columns:1fr 1fr}}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 50% 0%,rgba(240,202,99,.11),transparent 30rem),var(--bg);line-height:1.55;color:var(--text)}
+    a{color:var(--blue)}button{font:inherit}main{width:min(980px,100%);margin:auto;padding:22px 16px 70px}nav{display:flex;gap:15px;flex-wrap:wrap;margin-bottom:48px;font-weight:750}nav a{text-decoration:none}
+    .eyebrow{margin:0 0 8px;color:var(--gold);font-size:.78rem;font-weight:850;text-transform:uppercase;letter-spacing:.1em}h1{margin:0;max-width:850px;font-size:clamp(2.7rem,9vw,5.5rem);line-height:.98;letter-spacing:-.055em}.lead{max-width:760px;margin:20px 0 0;color:#c9d1d9;font-size:clamp(1.08rem,3.6vw,1.35rem)}
+    .plain{max-width:760px;margin:24px 0 0;padding:20px;border:1px solid rgba(240,202,99,.25);border-radius:17px;background:rgba(240,202,99,.045)}.plain strong{display:block;margin-bottom:6px;font-size:1.15rem}.plain p{margin:0;color:#c9d1d9}.status{display:inline-block;margin-top:18px;padding:7px 11px;border:1px solid rgba(240,202,99,.35);border-radius:999px;color:#f6df9a;font-size:.83rem;font-weight:800}
+    .section-title{margin:52px 0 8px;font-size:1.65rem}.section-intro{max-width:760px;margin:0;color:var(--muted)}.story{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}.story-card{padding:18px;border:1px solid var(--line);border-radius:15px;background:rgba(22,27,34,.72)}.story-card b{display:block;margin-bottom:5px}.story-card span{color:var(--muted);font-size:.9rem}
+    .govern{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}.govern-card{padding:18px;border:1px solid var(--line);border-radius:15px;background:rgba(22,27,34,.65)}.govern-card b{display:block}.govern-card p{margin:5px 0 0;color:var(--muted)}
+    .cta-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:24px}.cta{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 15px;border:1px solid var(--gold);border-radius:11px;background:var(--gold);color:#17130a;font-weight:850;text-decoration:none}.cta-note{color:var(--muted);font-size:.9rem}
+    .demo-header{margin:68px 0 10px;padding-top:10px;border-top:1px solid var(--line)}.demo-header h2{margin:0;font-size:clamp(2rem,6vw,3.4rem);letter-spacing:-.035em}.demo-header p{max-width:760px;margin:9px 0 0;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px;margin-top:20px}.panel{grid-column:span 12;padding:20px;border:1px solid var(--line);border-radius:17px;background:rgba(22,27,34,.82)}.half{grid-column:span 6}.third{grid-column:span 4}.two-thirds{grid-column:span 8}.panel h2,.panel h3{margin:0 0 8px}.panel h2{font-size:1.35rem}.muted,.panel p{color:var(--muted)}.panel p{margin:6px 0 0}
+    .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}.kpi{padding:14px;border:1px solid #2a3139;border-radius:13px;background:var(--panel2)}.kpi strong{display:block;font-size:1.35rem}.kpi span{color:var(--muted);font-size:.82rem}.proposal{border-color:rgba(88,166,255,.35)}.proposal-head{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}.proposal-head>div:first-child{flex:1;min-width:240px}.pill{display:inline-block;padding:5px 8px;border:1px solid #3a424c;border-radius:999px;color:#c9d1d9;font-size:.77rem;font-weight:800}.ask{font-size:1.55rem;font-weight:850;color:#fff}
+    .progress{height:11px;margin-top:14px;border-radius:999px;background:#242b33;overflow:hidden}.progress>div{height:100%;width:72%;background:linear-gradient(90deg,#2ea043,var(--green))}.vote-row{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}.vote{min-height:42px;padding:9px 14px;border:1px solid var(--line);border-radius:11px;background:#18202a;color:var(--text);font-weight:800;cursor:pointer}.vote:hover{border-color:var(--blue)}.vote.yes{border-color:rgba(86,211,100,.5)}.vote.no{border-color:rgba(255,123,114,.45)}.result{margin-top:10px;color:#c9d1d9;font-size:.9rem}.list{margin:10px 0 0;padding-left:1.15rem;color:#c9d1d9}.list li+li{margin-top:7px}
+    .treasury-row{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:12px}.bar{height:9px;margin-top:5px;border-radius:99px;background:#242b33;overflow:hidden}.bar i{display:block;height:100%;background:#4c8ed9}.bar.operations i{width:52%}.bar.grants i{width:28%}.bar.invest i{width:20%}.ai{border-color:rgba(103,232,249,.28);background:linear-gradient(180deg,rgba(103,232,249,.055),rgba(22,27,34,.82))}.ai-score{font-size:2rem;font-weight:900;color:#a5f3fc}.recommendation{margin-top:13px;padding:14px;border:1px solid #2e3d44;border-radius:13px;background:#0f171d}.recommendation strong{display:block}
+    .receipt{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:12px 0;border-top:1px solid #242b33}.receipt:first-of-type{border-top:0}.dot{width:9px;height:9px;margin-top:7px;border-radius:50%;background:var(--green)}.receipt small{color:#7d8590}.credits{font-weight:850;color:#f6df9a;white-space:nowrap}.architecture{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-top:12px}.arch{padding:13px;border:1px solid #2c333b;border-radius:12px;background:#111820}.arch strong{display:block}.arch span{color:var(--muted);font-size:.83rem}.note{margin-top:14px;padding:13px;border-left:3px solid var(--gold);background:rgba(240,202,99,.045);color:#c9d1d9;font-size:.9rem}.sources a{display:inline-block;margin:8px 14px 0 0}footer{margin-top:38px;color:#6e7681;font-size:.82rem}
+    @media(max-width:760px){.story{grid-template-columns:1fr 1fr}.govern{grid-template-columns:1fr}.half,.third,.two-thirds{grid-column:span 12}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.architecture{grid-template-columns:1fr 1fr}}@media(max-width:480px){.story{grid-template-columns:1fr}}
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
 <main>
   <nav aria-label="Page navigation"><a href="../">3DVR Portal</a><a href="../community/">Community</a><a href="https://github.com/tmsteph/3dvr-portal/tree/main/dao">Source</a></nav>
-  <p class="eyebrow">Working governance prototype</p>
-  <h1>Build 3DVR.<br>Earn a voice.</h1>
-  <p class="lead">3DVR can become a network where useful work earns reputation and credits, contributors help govern the roadmap, and a transparent treasury funds the next useful thing.</p>
-  <span class="status">Interactive demo · simulated credits and money</span>
-  <div class="hero-line">Useful work → signed receipt → reputation + credits → proposal → vote → treasury action → public receipt.</div>
+
+  <p class="eyebrow">A possible DAO for 3DVR</p>
+  <h1>Help build 3DVR.<br>Help decide what it becomes.</h1>
+  <p class="lead">3DVR is open source. As more people contribute, we want responsibility to spread too — not just the code.</p>
+  <div class="plain">
+    <strong>In plain English</strong>
+    <p>A 3DVR DAO would be a way for contributors to help decide what gets built, what gets funded, and how shared resources are used. People earn trust by doing useful work. Important decisions stay public.</p>
+  </div>
+  <span class="status">Early experiment · not a token sale or investment product</span>
+
+  <h2 class="section-title">How it could work</h2>
+  <p class="section-intro">The idea starts with contribution and governance. Cryptocurrency is optional, not the point.</p>
+  <div class="story">
+    <div class="story-card"><b>1. Contribute</b><span>Write code, test, document, host infrastructure, help users, or do other useful work.</span></div>
+    <div class="story-card"><b>2. Prove the work</b><span>A signed receipt records what happened and who participated.</span></div>
+    <div class="story-card"><b>3. Build trust</b><span>Useful contributions build reputation and experimental 3DVR Credits.</span></div>
+    <div class="story-card"><b>4. Help decide</b><span>Contributors can propose ideas, vote, delegate, and help guide shared resources.</span></div>
+  </div>
+
+  <h2 class="section-title">What would the community actually govern?</h2>
+  <p class="section-intro">Not everything needs a vote. The goal is to share meaningful decisions where community participation makes 3DVR stronger.</p>
+  <div class="govern">
+    <div class="govern-card"><b>What we build</b><p>Roadmap priorities, public proposals, standards, and long-term project direction.</p></div>
+    <div class="govern-card"><b>What we fund</b><p>Contributor bounties, grants, hardware, servers, research, and shared infrastructure.</p></div>
+    <div class="govern-card"><b>Who takes responsibility</b><p>Stewards, delegated roles, maintainers, and gradually decentralized decision rights.</p></div>
+    <div class="govern-card"><b>How shared capital is used</b><p>Potentially, a separately governed pool for aligned businesses, public goods, infrastructure, or investments.</p></div>
+  </div>
+
+  <div class="cta-row"><a class="cta" href="#demo">Try a simple example ↓</a><span class="cta-note">Everything below is simulated.</span></div>
+
+  <div class="demo-header" id="demo">
+    <p class="eyebrow">Interactive example</p>
+    <h2>What could this feel like?</h2>
+    <p>Imagine you contributed to 3DVR and opened the governance page. Here is one possible proposal, your contribution history, and a transparent community treasury.</p>
+  </div>
 
   <div class="grid">
     <section class="panel proposal two-thirds">
-      <div class="proposal-head"><div><span class="pill">Proposal #001 · Infrastructure</span><h2>Buy three open RISC-V boards for community testing</h2><p>Fund hardware for Debian, browser, tinygrad, and 3DVR edge-node experiments.</p></div><div><div class="ask">$450</div><div class="muted">from Community Grants</div></div></div>
+      <div class="proposal-head"><div><span class="pill">Example proposal #001</span><h2>Buy three open RISC-V boards for community testing</h2><p>Fund hardware for Debian, browser, tinygrad, and 3DVR edge-node experiments.</p></div><div><div class="ask">$450</div><div class="muted">from Community Grants</div></div></div>
       <div class="kpis"><div class="kpi"><strong id="yesCount">18</strong><span>support</span></div><div class="kpi"><strong id="noCount">4</strong><span>oppose</span></div><div class="kpi"><strong>11</strong><span>contributors</span></div><div class="kpi"><strong>72%</strong><span>reputation-weighted support</span></div></div>
       <div class="progress" aria-label="72 percent support"><div></div></div>
       <div class="vote-row"><button class="vote yes" data-vote="yes">Support proposal</button><button class="vote no" data-vote="no">Oppose</button><button class="vote" data-vote="delegate">Delegate my voice</button></div>
-      <div class="result" id="voteResult">Try the vote buttons. This demo changes only your local page.</div>
+      <div class="result" id="voteResult">Try the buttons. Nothing is submitted; this only changes the demo on your device.</div>
     </section>
 
     <section class="panel third">
-      <h2>Your contribution wallet</h2>
+      <h2>Your contribution history</h2>
       <div class="kpis" style="grid-template-columns:1fr 1fr"><div class="kpi"><strong>184</strong><span>3DVR Credits</span></div><div class="kpi"><strong>68</strong><span>Reputation</span></div></div>
       <ul class="list"><li>+40 merged code</li><li>+25 testing</li><li>+18 relay uptime</li><li>+12 documentation</li></ul>
-      <p>Money alone should not buy control. Governance can blend contribution history, reputation, delegation, and bounded credits.</p>
+      <p>Money alone should not buy control. Governance could blend contribution history, reputation, delegation, and bounded credits.</p>
     </section>
 
     <section class="panel half">
-      <h2>Treasury</h2><p>Example allocation of a simulated $25,000 community treasury.</p>
+      <h2>Community treasury</h2><p>Example allocation of a simulated $25,000 treasury.</p>
       <div class="treasury-row"><div><strong>Operations</strong><div class="bar operations"><i></i></div></div><strong>$13,000</strong></div>
       <div class="treasury-row"><div><strong>Community grants</strong><div class="bar grants"><i></i></div></div><strong>$7,000</strong></div>
-      <div class="treasury-row"><div><strong>Investment pool</strong><div class="bar invest"><i></i></div></div><strong>$5,000</strong></div>
-      <div class="note">Major spending can require a public proposal plus multiple human approvals. No single founder, token whale, or AI gets unilateral treasury control.</div>
+      <div class="treasury-row"><div><strong>Future capital pool</strong><div class="bar invest"><i></i></div></div><strong>$5,000</strong></div>
+      <div class="note">Major spending could require a public proposal plus multiple human approvals. No single founder, token holder, or AI gets unilateral treasury control.</div>
     </section>
 
     <section class="panel half ai">
-      <span class="pill">AI Capital Scout · demo</span><h2>Research, don’t rule</h2>
+      <span class="pill">AI Capital Scout · example</span><h2>AI researches. People govern.</h2>
       <div class="recommendation"><strong>Candidate: community-owned edge compute</strong><span class="ai-score">82/100</span><p>Strong mission fit, reusable infrastructure, measurable utilization. Main risk: operational complexity.</p></div>
-      <p>AI can scout grants, infrastructure, startups, crypto, hardware, and public-good opportunities; compare risk; model scenarios; and explain recommendations. The community sets the mandate and approves major moves.</p>
-    </section>
-
-    <section class="panel half">
-      <h2>What the DAO can govern</h2>
-      <ul class="list"><li>Roadmap priorities and public proposals</li><li>Contributor grants, bounties, and rewards</li><li>Shared servers, hardware, research, and infrastructure</li><li>Standards, stewards, and delegated responsibilities</li><li>Eventually: a separately governed community investment mandate</li></ul>
-      <p>Maintainers can keep narrow safety and security powers early, with those powers explicitly reduced as governance proves itself.</p>
+      <p>AI could scout grants, infrastructure, startups, crypto, hardware, and public-good opportunities; compare risk; model scenarios; and explain recommendations. The community would set the mandate and approve major moves.</p>
     </section>
 
     <section class="panel half">
       <h2>Public receipt trail</h2>
       <div class="receipt"><span class="dot"></span><div><strong>PR merged: DAO dashboard</strong><small>Signed contribution · code</small></div><span class="credits">+24</span></div>
-      <div class="receipt"><span class="dot"></span><div><strong>Hetzner relay uptime verified</strong><small>Signed service receipt · 30 days</small></div><span class="credits">+18</span></div>
+      <div class="receipt"><span class="dot"></span><div><strong>Relay uptime verified</strong><small>Signed service receipt · 30 days</small></div><span class="credits">+18</span></div>
       <div class="receipt"><span class="dot"></span><div><strong>Proposal #001 opened</strong><small>Governance event · public</small></div><span class="credits">—</span></div>
       <div class="receipt" id="demoReceipt" hidden><span class="dot"></span><div><strong id="receiptTitle">Demo vote recorded</strong><small>Local simulation · not submitted</small></div><span class="credits">✓</span></div>
     </section>
 
-    <section class="panel">
-      <h2>How GUN fits</h2>
-      <div class="architecture"><div class="arch"><strong>GUN</strong><span>Shared proposals, receipts, discussions, and governance graph.</span></div><div class="arch"><strong>SEA</strong><span>Identity, signatures, and proof that an actor approved an event.</span></div><div class="arch"><strong>AXE idea</strong><span>Reward useful network work and preserve provenance instead of wasting work.</span></div><div class="arch"><strong>Settlement</strong><span>Use a stronger financial layer only when real transferable money requires finality.</span></div></div>
-    </section>
-
-    <section class="panel">
-      <h2>Could 3DVR invest?</h2>
-      <p>Potentially, through a separately governed capital pool. Its mandate could include 3DVR businesses, open-source public goods, hardware, infrastructure, startups, crypto, or other assets that strengthen the ecosystem. AI could continuously research and explain opportunities, while community rules, human approvals, and transparent receipts control execution.</p>
+    <section class="panel half">
+      <h2>Could 3DVR eventually invest?</h2>
+      <p>Potentially, through a separate community-governed capital pool. Its mandate could support 3DVR businesses, open-source public goods, hardware, infrastructure, startups, crypto, or other assets that strengthen the ecosystem.</p>
       <div class="note">This prototype does not pool money, sell a token, or promise returns. A real investment vehicle would need the appropriate legal structure, custody, tax, and regulatory review before launch.</div>
     </section>
 
+    <section class="panel">
+      <h2>Why GUN + AXE?</h2>
+      <p>GUN's older AXE research explored a similar idea: useful network work creates signed receipts, and those receipts can become part of a system for value and trust.</p>
+      <div class="architecture"><div class="arch"><strong>GUN</strong><span>Shared proposals, receipts, discussions, and governance data.</span></div><div class="arch"><strong>SEA</strong><span>Identity and signatures: who approved what.</span></div><div class="arch"><strong>AXE idea</strong><span>Reward useful work and preserve its history.</span></div><div class="arch"><strong>Settlement</strong><span>Add stronger financial finality only if real transferable money needs it.</span></div></div>
+    </section>
+
     <section class="panel sources">
-      <h2>Where the idea started</h2><p>GUN's older AXE research explored signed receipts, useful network service, and coin history as a foundation for value.</p>
+      <h2>Original GUN material</h2>
       <a href="https://gun.eco/docs/Trusting-Strangers-with-Axes" target="_blank" rel="noreferrer">Trusting Strangers with Axes</a><a href="https://github.com/amark/gun/wiki/AXE" target="_blank" rel="noreferrer">AXE wiki</a><a href="https://www.youtube.com/watch?v=EHZyaupYjYo" target="_blank" rel="noreferrer">AXE talk</a>
     </section>
   </div>
-  <footer>3DVR · Build useful things. Prove the work. Govern together.</footer>
+
+  <footer>3DVR · Build useful things. Share responsibility. Govern together.</footer>
 </main>
 <script>
   const yesCount=document.getElementById('yesCount');
