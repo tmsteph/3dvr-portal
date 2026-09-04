@@ -12,7 +12,9 @@ describe('3DVR DAO pages', () => {
     assert.match(page, /Decentralized Autonomous Organization/);
     assert.match(page, /Autonomous.*does not mean AI runs the organization/s);
     assert.match(page, /What would that mean for 3DVR\?/);
-    assert.match(page, /The goal is not to sell a coin/);
+    assert.match(page, /A 3DVR coin or token could eventually be part of that system/);
+    assert.match(page, /selling one could be one way to fund the ecosystem/);
+    assert.match(page, /The DAO is bigger than the coin/);
     assert.match(page, /Could 3DVR invest money too\?/);
     assert.match(page, /href="\.\/demo\/"/);
     assert.doesNotMatch(page, /data-vote=/);
