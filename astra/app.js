@@ -22,7 +22,7 @@ form.addEventListener('submit', async event => {
     }
 
     show('Asking GPT-6 Astra...');
-    const response = await fetch('/api/astra-canary', {
+    const response = await fetch('/api/openai-site?provider=astra', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
