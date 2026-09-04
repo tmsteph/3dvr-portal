@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "probeWriteVerified": true,
+  "probeRestored": true,
+  "semanticEnvironmentRestored": true,
+  "probePreviouslyExisted": false,
+  "crcMatches": true,
+  "crcStoredLE": "0x9efdb275",
+  "crcCalculated": "0x9efdb275",
+  "bootcmdPreserved": true,
+  "bootConfigPreserved": true,
+  "extlinuxDefault": "l0",
+  "cloudServicesActive": {
+    "ovh": true,
+    "hetzner": true,
+    "digitalOcean": true
+  }
+}
