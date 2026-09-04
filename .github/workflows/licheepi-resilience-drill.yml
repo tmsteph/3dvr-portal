@@ -26,3 +26,5 @@ jobs:
           HETZNER_HOST: 167.233.174.20
           GITHUB_TOKEN: ${{ github.token }}
         run: bash scripts/ops/licheepi-resilience-drill.sh
+
+# Manual resilience run requested while physical recovery is available: 2026-09-04
