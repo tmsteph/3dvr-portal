@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "bootcmdState": "unknown",
+  "bootcmd": "run bootcmd_load; bootslave; sysboot mmc ${mmcdev}:${mmcbootpart} any $boot_conf_addr_r $boot_conf_file;",
+  "normalHelperPresent": false,
+  "normalHelperMatches": true,
+  "crcMatches": true,
+  "environmentSha256": "2b5c3f2cf54650abc3da366def191870e40cd096c50bc285a7e940c24b0aca3a",
+  "kernel": "5.10.113+",
+  "extlinuxDefault": "l0",
+  "services": {
+    "ovh": "active",
+    "hetzner": "active",
+    "digitalOcean": "active"
+  }
+}
