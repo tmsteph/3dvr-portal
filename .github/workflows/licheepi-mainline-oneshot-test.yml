@@ -1,0 +1,27 @@
+name: LicheePi Mainline One-Shot Test
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-mainline-oneshot-test.yml'
+      - 'scripts/ops/licheepi-mainline-oneshot-test.sh'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Refuse after onsite window
+        run: test "$(date -u +%s)" -lt "$(date -u -d '2026-09-04 23:00:00Z' +%s)"
+      - name: Run one-shot mainline71 with durable vendor fallback
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          OVH_HOST: 40.160.137.41
+          DO_HOST: 167.172.193.194
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash scripts/ops/licheepi-mainline-oneshot-test.sh
