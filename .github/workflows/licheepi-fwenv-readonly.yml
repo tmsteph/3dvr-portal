@@ -25,3 +25,5 @@ jobs:
           OVH_HOST: 40.160.137.41
           GITHUB_TOKEN: ${{ github.token }}
         run: bash scripts/ops/licheepi-fwenv-readonly.sh
+
+# On-site verification run: read-only U-Boot environment access only.
