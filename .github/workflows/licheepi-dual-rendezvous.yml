@@ -1,0 +1,28 @@
+name: LicheePi Dual-Cloud Recovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-dual-rendezvous.yml'
+      - 'scripts/ops/licheepi-dual-rendezvous.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install and verify dual-cloud recovery
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          OVH_HOST: 40.160.137.41
+          HETZNER_HOST: 167.233.174.20
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash scripts/ops/licheepi-dual-rendezvous.sh
