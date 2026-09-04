@@ -1,0 +1,22 @@
+name: LicheePi Anchor Diagnostics
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-anchor-probe.yml'
+      - 'scripts/ops/licheepi-anchor-probe.sh'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe cloud and Pi paths
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: bash scripts/ops/licheepi-anchor-probe.sh
