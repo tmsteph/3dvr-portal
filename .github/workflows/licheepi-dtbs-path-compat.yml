@@ -22,7 +22,7 @@ jobs:
           conn=''
           for u in root debian; do for k in /tmp/k-a /tmp/k-b /tmp/k-c; do [ -f "$k" ] || continue; if ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$u@167.172.193.194" true >/dev/null 2>&1; then conn="$u|$k"; break 2; fi; done; done
           test -n "$conn"; u="${conn%%|*}"; k="${conn#*|}"
-          ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$u@167.172.193.194" "ssh -n -o BatchMode=yes -o ConnectTimeout=8 lpi4a-digitalocean 'bash -s'" <<'PI'
+          REMOTE=$(cat <<'PI'
           set -euo pipefail
           test -d /boot/dtbs
           if [ -e /dtbs ] || [ -L /dtbs ]; then
@@ -33,3 +33,6 @@ jobs:
           test -s /dtbs/linux-image-7.1.12+deb14-riscv64/thead/th1520-lichee-pi-4a-aic8801-test.dtb
           printf 'DTBS=%s\n' "$(readlink -f /dtbs)"
           PI
+          )
+          B64="$(printf '%s' "$REMOTE" | base64 -w0)"
+          ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$u@167.172.193.194" "printf '%s' '$B64' | base64 -d | ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a-digitalocean 'bash -s'"
