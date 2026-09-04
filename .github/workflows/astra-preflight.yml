@@ -29,4 +29,4 @@ jobs:
       - run: node --check api/openai-site.js
       - run: node --check src/astra/canary.js
       - run: node --check astra/app.js
-      - run: node --test tests/vercel-function-budget.test.js
+      - run: node --test tests/astra-canary.test.js tests/vercel-function-budget.test.js
