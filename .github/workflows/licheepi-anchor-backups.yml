@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/licheepi-anchor-backups.yml'
       - 'scripts/ops/licheepi-anchor-backup.sh'
+      - 'scripts/ops/licheepi-backup-stage-probe.sh'
   workflow_dispatch:
 
 permissions:
@@ -22,6 +23,10 @@ jobs:
       GITHUB_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+      - name: Probe OVH source stages
+        run: ANCHOR_HOST=40.160.137.41 ANCHOR_USERS='debian root' PI_ALIAS=lpi4a bash scripts/ops/licheepi-backup-stage-probe.sh
+      - name: Probe Hetzner source stages
+        run: ANCHOR_HOST=167.233.174.20 ANCHOR_USERS='root debian ubuntu tmsteph' PI_ALIAS=lpi4a-hetzner bash scripts/ops/licheepi-backup-stage-probe.sh
       - name: Choose shared backup stamp
         run: echo "STAMP=$(date -u +%Y%m%dT%H%M%SZ)" >> "$GITHUB_ENV"
       - name: Back up through OVH tunnel
@@ -45,9 +50,6 @@ jobs:
           lu="$(field /tmp/ovh-backup.txt LIVE_UBOOT)"
           test -n "$oe" -a -n "$he" -a -n "$ob" -a -n "$hb" -a -n "$lu"
           test "$oe" = "$he"
-          # Compressed tar bytes may differ because gzip/tar can encode creation
-          # time. Environment bytes must match exactly; each boot archive is
-          # independently checksum-verified on its anchor.
           STAMP="$STAMP" ENV_SHA="$oe" OVH_BOOT_SHA="$ob" HETZ_BOOT_SHA="$hb" LIVE_UBOOT="$lu" python3 - <<'PY' >/tmp/result.json
           import datetime,json,os
           print(json.dumps({
