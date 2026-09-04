@@ -1,0 +1,58 @@
+name: LicheePi Independent Recovery Backups
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-anchor-backups.yml'
+      - 'scripts/ops/licheepi-anchor-backup.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pull independent OVH and Hetzner backups
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          ovh="$(STAMP="$stamp" ANCHOR_HOST=40.160.137.41 ANCHOR_USERS='debian root' PI_ALIAS=lpi4a bash scripts/ops/licheepi-anchor-backup.sh)"
+          hetz="$(STAMP="$stamp" ANCHOR_HOST=167.233.174.20 ANCHOR_USERS='root debian ubuntu tmsteph' PI_ALIAS=lpi4a-hetzner bash scripts/ops/licheepi-anchor-backup.sh)"
+          field(){ printf '%s\n' "$1" | sed -n "s/^$2=//p"; }
+          oe="$(field "$ovh" ENV_SHA)"; he="$(field "$hetz" ENV_SHA)"
+          ob="$(field "$ovh" BOOT_SHA)"; hb="$(field "$hetz" BOOT_SHA)"
+          lu="$(field "$ovh" LIVE_UBOOT)"
+          test -n "$oe" -a -n "$he" -a -n "$ob" -a -n "$hb" -a -n "$lu"
+          test "$oe" = "$he"; test "$ob" = "$hb"
+          STAMP="$stamp" ENV_SHA="$oe" BOOT_SHA="$ob" LIVE_UBOOT="$lu" python3 - <<'PY' >/tmp/result.json
+          import datetime,json,os
+          print(json.dumps({
+            'checkedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'ok':True,'backupStamp':os.environ['STAMP'],
+            'ovhBackup':True,'hetznerBackup':True,'independentPulls':True,
+            'environmentSha256':os.environ['ENV_SHA'],'vendorBootSha256':os.environ['BOOT_SHA'],
+            'liveUboot':os.environ['LIVE_UBOOT'],
+            'verification':'Each cloud anchor independently pulled and verified the exact U-Boot environment and known-good vendor boot recovery set through its own Pi reverse tunnel; cross-anchor hashes match.'
+          },indent=2))
+          PY
+          cat /tmp/result.json
+          content="$(base64 -w0 /tmp/result.json)"
+          url="https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/licheepi-anchor-backup-result.json"
+          sha="$(curl -fsS -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' "$url" 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get('"'"'sha'"'"','"'"''"'"'))' 2>/dev/null || true)"
+          python3 - "$content" "$sha" <<'PY' >/tmp/payload.json
+          import json,sys
+          p={'message':'Record verified LicheePi anchor backups','content':sys.argv[1],'branch':'main'}
+          if sys.argv[2]: p['sha']=sys.argv[2]
+          print(json.dumps(p))
+          PY
+          curl -fsS -X PUT -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' "$url" --data-binary @/tmp/payload.json >/dev/null
