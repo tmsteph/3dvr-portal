@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-09-04T18:19:20.381742+00:00",
+  "ok": true,
+  "backupStamp": "20260904T181846Z",
+  "ovhBackup": true,
+  "hetznerBackup": true,
+  "independentPulls": true,
+  "environmentSha256": "2b5c3f2cf54650abc3da366def191870e40cd096c50bc285a7e940c24b0aca3a",
+  "ovhVendorBootSha256": "1649f2287d422cf3021cdeabddd0cb0504507c1286087437649eb7eb4499130f",
+  "hetznerVendorBootSha256": "1649f2287d422cf3021cdeabddd0cb0504507c1286087437649eb7eb4499130f",
+  "liveUboot": "U-Boot 2020.01-gd6c9182f-dirty",
+  "verification": "OVH and Hetzner independently pulled and locally checksum-verified the exact U-Boot environment and known-good vendor boot recovery set through separate Pi reverse tunnels. Exact environment hashes match across anchors."
+}
