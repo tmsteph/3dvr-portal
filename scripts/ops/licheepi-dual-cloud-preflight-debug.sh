@@ -34,14 +34,14 @@ check(){
   local label="$1"; shift
   if "$@"; then echo "$label=OK"; else echo "$label=FAIL:$?"; fi
 }
-check OVH_ROUTE ssh -o BatchMode=yes -o ConnectTimeout=6 lpi4a true
-check HETZNER_ROUTE ssh -o BatchMode=yes -o ConnectTimeout=6 lpi4a-hetzner true
+check OVH_ROUTE ssh -n -o BatchMode=yes -o ConnectTimeout=6 lpi4a true
+check HETZNER_ROUTE ssh -n -o BatchMode=yes -o ConnectTimeout=6 lpi4a-hetzner true
 printf 'DEFAULT_RAW='
-ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a "grep -i '^[[:space:]]*default[[:space:]]' /boot/extlinux/extlinux.conf | head -1" || true
+ssh -n -o BatchMode=yes -o ConnectTimeout=8 lpi4a "grep -i '^[[:space:]]*default[[:space:]]' /boot/extlinux/extlinux.conf | head -1" || true
 printf 'KERNEL='
-ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a uname -r || true
+ssh -n -o BatchMode=yes -o ConnectTimeout=8 lpi4a uname -r || true
 printf 'BOOT_ID_PRESENT='
-ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a 'test -s /proc/sys/kernel/random/boot_id && echo yes || echo no' || true
+ssh -n -o BatchMode=yes -o ConnectTimeout=8 lpi4a 'test -s /proc/sys/kernel/random/boot_id && echo yes || echo no' || true
 printf 'PI_USER='
 ssh -G lpi4a 2>/dev/null | awk '$1=="user"{print $2; exit}'
 printf 'HETZNER_ALIAS_HOST='
