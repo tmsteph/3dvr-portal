@@ -1,0 +1,27 @@
+name: LicheePi U-Boot Probe Cleanup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-fwenv-probe-cleanup.yml'
+      - 'scripts/ops/licheepi-fwenv-probe-cleanup.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove harmless probe and verify U-Boot environment
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          OVH_HOST: 40.160.137.41
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash scripts/ops/licheepi-fwenv-probe-cleanup.sh
