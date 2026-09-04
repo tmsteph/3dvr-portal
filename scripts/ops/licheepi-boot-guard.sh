@@ -16,7 +16,11 @@ check 'mainline kernel exists' '[ -s /boot/vmlinux-7.1.12+deb14-riscv64 ]'
 check 'mainline initrd exists' '[ -s /boot/initrd.img-7.1.12+deb14-riscv64 ]'
 check 'ssh active' 'systemctl is-active --quiet ssh || systemctl is-active --quiet sshd'
 check 'OVH tunnel enabled' 'systemctl is-enabled --quiet lichee-tunnel.service'
+check 'OVH tunnel active' 'systemctl is-active --quiet lichee-tunnel.service'
 check 'Hetzner tunnel enabled' 'systemctl is-enabled --quiet 3dvr-lpi-hetzner.service'
+check 'Hetzner tunnel active' 'systemctl is-active --quiet 3dvr-lpi-hetzner.service'
+check 'DigitalOcean tunnel enabled' 'systemctl is-enabled --quiet 3dvr-lpi-digitalocean.service'
+check 'DigitalOcean tunnel active' 'systemctl is-active --quiet 3dvr-lpi-digitalocean.service'
 check 'network heal enabled' 'systemctl is-enabled --quiet 3dvr-lpi-network-heal.timer'
 
 exit "$fail"
