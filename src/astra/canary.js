@@ -1,10 +1,13 @@
-import { resolveOperatorDeveloperAccess } from '../operator/developer-access.js';
-
 export const ASTRA_MODEL = 'gpt-6-astra';
 export const ASTRA_GATEWAY_MODEL = 'openai/gpt-6-astra';
 export const ASTRA_REASONING_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
 
 const clean = (value, max = 4000) => String(value || '').trim().slice(0, max);
+
+async function resolveDefaultDeveloperAccess(payload, options) {
+  const { resolveOperatorDeveloperAccess } = await import('../operator/developer-access.js');
+  return resolveOperatorDeveloperAccess(payload, options);
+}
 
 function requestOrigin(req) {
   const forwardedProto = clean(req?.headers?.['x-forwarded-proto'] || req?.headers?.['X-Forwarded-Proto'], 20);
@@ -60,7 +63,7 @@ export function createAstraCanaryHandler(options = {}) {
   const apiKey = options.apiKey ?? process.env.OPENAI_API_KEY;
   const gatewayToken = options.gatewayToken ?? process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN;
   const fetchImpl = options.fetchImpl || globalThis.fetch;
-  const resolveDeveloperAccess = options.resolveDeveloperAccess || resolveOperatorDeveloperAccess;
+  const resolveDeveloperAccess = options.resolveDeveloperAccess || resolveDefaultDeveloperAccess;
   const config = options.config || process.env;
 
   return async function handler(req, res) {
