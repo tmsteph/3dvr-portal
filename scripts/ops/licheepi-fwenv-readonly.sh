@@ -57,7 +57,8 @@ cleanup(){
   if [ "$config_mode" = default-file ]; then
     if [ "$had_config" = true ]; then sudo -n cp -a "$restore" /etc/fw_env.config; else sudo -n rm -f /etc/fw_env.config; fi
   fi
-  rm -f "$restore" "$cfg" /tmp/3dvr-env-after-fwprint.bin
+  rm -f "$restore" "$cfg"
+  sudo -n rm -f /tmp/3dvr-env-after-fwprint.bin
 }
 trap cleanup EXIT
 
