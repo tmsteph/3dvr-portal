@@ -85,14 +85,15 @@ set -u
 mkdir -p "$HOME/.local/bin" "$HOME/.ssh" "$HOME/.config/systemd/user"
 chmod 700 "$HOME/.ssh"
 
-# Discover a boot-safe private key that can reach OVH.
+# Discover a boot-safe private key that can reach OVH. The dedicated tunnel
+# key is first because the primary port-2223 path has already proven it works.
 out_user=''
 out_key=''
-candidates=''
+candidates="$HOME/.ssh/3dvr_tunnel_ed25519"
 if ssh -G 3dvr-ovh >/dev/null 2>&1; then
   cfg_key="$(ssh -G 3dvr-ovh 2>/dev/null | awk '$1=="identityfile"{print $2; exit}')"
   cfg_key="${cfg_key/#\~/$HOME}"
-  candidates="$cfg_key"
+  candidates="$candidates $cfg_key"
 fi
 candidates="$candidates $HOME/.ssh/id_ed25519_3dvr $HOME/.ssh/id_ed25519_3dvr_mesh $HOME/.ssh/id_ed25519"
 for u in debian root; do
@@ -258,8 +259,19 @@ EOF
   sudo systemctl enable --now 3dvr-lpi-network-heal.timer >/dev/null 2>&1 || true
 fi
 
+primary_pid="$(pgrep -f '/usr/bin/ssh .*2223:localhost:22' | head -n1 || true)"
+primary_unit=''
+primary_unit_enabled=''
+if [ -n "$primary_pid" ] && [ -r "/proc/$primary_pid/cgroup" ]; then
+  primary_unit="$(awk -F/ '{for(i=NF;i>=1;i--) if($i ~ /\.service$/){print $i; exit}}' "/proc/$primary_pid/cgroup")"
+  [ -z "$primary_unit" ] || primary_unit_enabled="$(systemctl is-enabled "$primary_unit" 2>/dev/null || true)"
+fi
+printf 'primary_pid=%s\n' "$primary_pid"
+printf 'primary_unit=%s\n' "$primary_unit"
+printf 'primary_unit_enabled=%s\n' "$primary_unit_enabled"
 printf 'primary_process=%s\n' "$(ps -ef | grep -E '[s]sh .*2223|[m]esh-tunnel' | head -n1 | tr '\n' ' ')"
 printf 'fallback_process=%s\n' "$(ps -ef | grep -E '[s]sh .*2224|[f]allback-tunnel' | head -n1 | tr '\n' ' ')"
+printf 'fallback_service=%s\n' "$(systemctl is-active 3dvr-lpi-fallback.service 2>/dev/null || true)"
 printf 'ssh_active=%s\n' "$(systemctl is-active ssh 2>/dev/null || systemctl is-active sshd 2>/dev/null || true)"
 printf 'network_timer=%s\n' "$(systemctl is-enabled 3dvr-lpi-network-heal.timer 2>/dev/null || true)"
 printf 'ips=%s\n' "$(hostname -I 2>/dev/null)"
