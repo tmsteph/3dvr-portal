@@ -11,8 +11,7 @@ RESULT=/tmp/licheepi-env-crc-result.json
 #   CONFIG_SYS_MMC_ENV_DEV=0
 #   CONFIG_ENV_OFFSET=0xe0000
 #   CONFIG_ENV_SIZE=0x20000
-# Do not change these constants unless the live U-Boot build identity changes
-# and the matching source is re-verified first.
+# These constants are only valid while the live U-Boot build identity matches.
 EXPECTED_UBOOT_COMMIT=d6c9182f
 ENV_DEVICE=/dev/mmcblk0
 ENV_OFFSET_HEX=0xe0000
@@ -86,15 +85,16 @@ fi
 
 REMOTE=$(cat <<'REMOTE'
 set -euo pipefail
-expected_commit="$EXPECTED_UBOOT_COMMIT"
-env_device="$ENV_DEVICE"
-env_offset_hex="$ENV_OFFSET_HEX"
-env_size_hex="$ENV_SIZE_HEX"
+# Values below are pinned to the exact installed U-Boot source commit d6c9182f.
+expected_commit=d6c9182f
+env_device=/dev/mmcblk0
+env_offset_hex=0xe0000
+env_size_hex=0x20000
 tmp=/tmp/3dvr-env.bin
 boot0=/dev/mmcblk0boot0
 
-# First prove the live bootloader identity. We never trust a stored offset just
-# because it looks plausible.
+# First prove the live bootloader identity. Never use the stored offset if this
+# exact build check stops matching.
 live_id="$(sudo strings "$boot0" 2>/dev/null | grep -m1 -E 'U-Boot 2020\.01-gd6c9182f' || true)"
 if [ -z "$live_id" ]; then
   python3 - <<'PY'
@@ -121,9 +121,9 @@ if len(data) != size:
 stored=data[:4]
 calc=zlib.crc32(data[4:]) & 0xffffffff
 stored_le=struct.unpack('<I',stored)[0]
-# Parse only variable names plus a few non-secret boot-control values.
 raw=data[4:].split(b'\0\0',1)[0]
 items={}
+keys=[]
 for item in raw.split(b'\0'):
     if b'=' not in item:
         continue
@@ -132,13 +132,9 @@ for item in raw.split(b'\0'):
         key=k.decode('ascii')
     except UnicodeDecodeError:
         continue
+    keys.append(key)
     if key in {'bootdelay','bootcount','bootlimit','upgrade_available','boot_partition','root_partition','mmcdev'}:
         items[key]=v.decode('utf-8','replace')[:200]
-keys=[]
-for item in raw.split(b'\0'):
-    if b'=' in item:
-        try: keys.append(item.split(b'=',1)[0].decode('ascii'))
-        except UnicodeDecodeError: pass
 print(json.dumps({
     'ok': stored_le == calc,
     'sourceValidated': True,
@@ -167,7 +163,7 @@ REMOTE
 B64="$(printf '%s' "$REMOTE" | base64 -w0)"
 set +e
 ssh "${O[@]}" "$OU@$OVH_HOST" \
-  "EXPECTED_UBOOT_COMMIT='$EXPECTED_UBOOT_COMMIT' ENV_DEVICE='$ENV_DEVICE' ENV_OFFSET_HEX='$ENV_OFFSET_HEX' ENV_SIZE_HEX='$ENV_SIZE_HEX' printf '%s' '$B64' | base64 -d | EXPECTED_UBOOT_COMMIT='$EXPECTED_UBOOT_COMMIT' ENV_DEVICE='$ENV_DEVICE' ENV_OFFSET_HEX='$ENV_OFFSET_HEX' ENV_SIZE_HEX='$ENV_SIZE_HEX' ssh -o BatchMode=yes -o ConnectTimeout=10 lpi4a 'bash -s'" \
+  "printf '%s' '$B64' | base64 -d | ssh -o BatchMode=yes -o ConnectTimeout=10 lpi4a 'bash -s'" \
   > "$RESULT"
 rc=$?
 set -e
