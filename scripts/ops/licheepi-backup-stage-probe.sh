@@ -33,29 +33,25 @@ set -u
 ok=true
 check(){ name="$1"; shift; if "$@" >/dev/null 2>&1; then printf '%s=true\n' "$name"; else printf '%s=false\n' "$name"; ok=false; fi; }
 
-check pi_route ssh -o BatchMode=yes -o ConnectTimeout=7 "$PI_ALIAS" true
-check pi_sudo ssh -o BatchMode=yes -o ConnectTimeout=7 "$PI_ALIAS" sudo -n true
+# -n prevents nested SSH from consuming the remainder of this stdin-fed script.
+check pi_route ssh -n -o BatchMode=yes -o ConnectTimeout=7 "$PI_ALIAS" true
+check pi_sudo ssh -n -o BatchMode=yes -o ConnectTimeout=7 "$PI_ALIAS" sudo -n true
 
-# Prove each backup source independently, but discard payloads.
-if ssh -o BatchMode=yes -o ConnectTimeout=8 "$PI_ALIAS" "sudo -n sh -c \"strings /dev/mmcblk0boot0 2>/dev/null | grep -m1 -E 'U-Boot 2020\\.01-gd6c9182f' >/dev/null\""; then echo uboot_identity=true; else echo uboot_identity=false; ok=false; fi
+if ssh -n -o BatchMode=yes -o ConnectTimeout=8 "$PI_ALIAS" "sudo -n sh -c \"strings /dev/mmcblk0boot0 2>/dev/null | grep -m1 -E 'U-Boot 2020\\.01-gd6c9182f' >/dev/null\""; then echo uboot_identity=true; else echo uboot_identity=false; ok=false; fi
 
-# Exact environment region should be 131072 bytes.
-env_bytes="$(ssh -o BatchMode=yes -o ConnectTimeout=10 "$PI_ALIAS" "sudo -n dd if=/dev/mmcblk0 bs=512 skip=1792 count=256 status=none | wc -c" 2>/dev/null || true)"
+env_bytes="$(ssh -n -o BatchMode=yes -o ConnectTimeout=10 "$PI_ALIAS" "sudo -n dd if=/dev/mmcblk0 bs=512 skip=1792 count=256 status=none | wc -c" 2>/dev/null || true)"
 if [ "$env_bytes" = 131072 ]; then echo env_read=true; else echo env_read=false; echo env_bytes="${env_bytes:-0}"; ok=false; fi
 
-# Validate that the required vendor recovery paths actually exist.
 paths='extlinux Image vmlinux-5.10.113-lpi4a initrd.img-5.10.113-lpi4a dtbs/linux-image-5.10.113-lpi4a'
 for p in $paths; do
   key="path_$(printf '%s' "$p" | tr '/.-' '___')"
-  if ssh -o BatchMode=yes -o ConnectTimeout=7 "$PI_ALIAS" "test -e '/boot/$p'" >/dev/null 2>&1; then printf '%s=true\n' "$key"; else printf '%s=false\n' "$key"; ok=false; fi
+  if ssh -n -o BatchMode=yes -o ConnectTimeout=7 "$PI_ALIAS" "test -e '/boot/$p'" >/dev/null 2>&1; then printf '%s=true\n' "$key"; else printf '%s=false\n' "$key"; ok=false; fi
 done
 
-# Test tar production separately and only count bytes; no archive content leaks.
-tar_bytes="$(ssh -o BatchMode=yes -o ConnectTimeout=25 "$PI_ALIAS" "sudo -n tar -C /boot -czf - extlinux Image vmlinux-5.10.113-lpi4a initrd.img-5.10.113-lpi4a dtbs/linux-image-5.10.113-lpi4a 2>/dev/null | wc -c" 2>/dev/null || true)"
+tar_bytes="$(ssh -n -o BatchMode=yes -o ConnectTimeout=25 "$PI_ALIAS" "sudo -n tar -C /boot -czf - extlinux Image vmlinux-5.10.113-lpi4a initrd.img-5.10.113-lpi4a dtbs/linux-image-5.10.113-lpi4a 2>/dev/null | wc -c" 2>/dev/null || true)"
 case "$tar_bytes" in ''|*[!0-9]*) tar_bytes=0;; esac
 if [ "$tar_bytes" -gt 1000000 ]; then echo vendor_tar=true; echo vendor_tar_bytes="$tar_bytes"; else echo vendor_tar=false; echo vendor_tar_bytes="$tar_bytes"; ok=false; fi
 
-# Test that anchor storage is writable.
 testdir="$HOME/.3dvr/backups/licheepi/.probe-$$"
 if mkdir -p "$testdir" 2>/dev/null && printf x > "$testdir/test" 2>/dev/null && rm -rf "$testdir" 2>/dev/null; then echo anchor_storage=true; else echo anchor_storage=false; ok=false; fi
 
