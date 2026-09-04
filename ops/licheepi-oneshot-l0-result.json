@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-09-04T21:26:07.649134+00:00",
+  "ok": true,
+  "oneShotTarget": "l0",
+  "bootcmdRestoredBeforeLinux": true,
+  "helperRemovedAfterVerification": true,
+  "bootTimeBefore": 1788554714,
+  "bootTimeAfter": 1788557034,
+  "bootTimeChanged": true,
+  "kernelAfter": "5.10.113+",
+  "extlinuxDefault": "l0",
+  "crcAfter": "0x82887444",
+  "environmentSha256After": "b01b14f4f81cf5045e690aea8f9dde7e014aacbacf74afb88a8b6553d60f8fec",
+  "routesAfterReboot": {
+    "ovh": true,
+    "hetzner": true,
+    "digitalOcean": true
+  }
+}
