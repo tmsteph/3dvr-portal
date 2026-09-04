@@ -37,24 +37,24 @@ umask 077
 dest="$HOME/.3dvr/backups/licheepi/$STAMP"
 mkdir -p "$dest"
 
+# Every nested SSH invocation uses -n. This is essential because this script is
+# itself arriving on stdin via `bash -s`; without -n the first nested SSH can
+# consume the remaining script and make a partial backup look deceptively clean.
 stage=pi-route
-ssh -o BatchMode=yes -o ConnectTimeout=8 "$PI_ALIAS" true
+ssh -n -o BatchMode=yes -o ConnectTimeout=8 "$PI_ALIAS" true
 stage=uboot-identity
-live="$(ssh -o BatchMode=yes -o ConnectTimeout=8 "$PI_ALIAS" "sudo -n strings /dev/mmcblk0boot0 2>/dev/null | grep -m1 -E 'U-Boot 2020\\.01-gd6c9182f' || true")"
+live="$(ssh -n -o BatchMode=yes -o ConnectTimeout=8 "$PI_ALIAS" "sudo -n strings /dev/mmcblk0boot0 2>/dev/null | grep -m1 -E 'U-Boot 2020\\.01-gd6c9182f' || true")"
 test -n "$live"
 
 stage=environment
-ssh -o BatchMode=yes -o ConnectTimeout=10 "$PI_ALIAS" "sudo -n dd if=/dev/mmcblk0 bs=512 skip=1792 count=256 status=none" > "$dest/uboot-env.bin"
+ssh -n -o BatchMode=yes -o ConnectTimeout=10 "$PI_ALIAS" "sudo -n dd if=/dev/mmcblk0 bs=512 skip=1792 count=256 status=none" > "$dest/uboot-env.bin"
 
 stage=vendor-boot
-# Some historical optional files can disappear as packages evolve. The required
-# extlinux directory and vendor kernel payload stay in the archive while tar is
-# allowed to skip a named optional path that is absent.
-ssh -o BatchMode=yes -o ConnectTimeout=25 "$PI_ALIAS" "sudo -n tar --ignore-failed-read -C /boot -czf - extlinux Image vmlinux-5.10.113-lpi4a initrd.img-5.10.113-lpi4a dtbs/linux-image-5.10.113-lpi4a 2>/dev/null" > "$dest/vendor-boot-recovery.tar.gz"
+ssh -n -o BatchMode=yes -o ConnectTimeout=25 "$PI_ALIAS" "sudo -n tar --ignore-failed-read -C /boot -czf - extlinux Image vmlinux-5.10.113-lpi4a initrd.img-5.10.113-lpi4a dtbs/linux-image-5.10.113-lpi4a 2>/dev/null" > "$dest/vendor-boot-recovery.tar.gz"
 test -s "$dest/vendor-boot-recovery.tar.gz"
 
 stage=baseline
-ssh -o BatchMode=yes -o ConnectTimeout=8 "$PI_ALIAS" "cat /etc/os-release; printf '\n'; uname -a; printf '\n'; cat /proc/cmdline" > "$dest/system-baseline.txt"
+ssh -n -o BatchMode=yes -o ConnectTimeout=8 "$PI_ALIAS" "cat /etc/os-release; printf '\n'; uname -a; printf '\n'; cat /proc/cmdline" > "$dest/system-baseline.txt"
 printf '%s\n' "$live" > "$dest/live-uboot.txt"
 
 stage=environment-crc
