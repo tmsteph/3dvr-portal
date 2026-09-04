@@ -20,6 +20,20 @@ function createResponse() {
   };
 }
 
+function successfulAiResponse() {
+  return {
+    ok: true,
+    async json() {
+      return {
+        output: [{
+          type: 'message',
+          content: [{ type: 'output_text', text: 'What I see\nA manual bottleneck.\n\nSmallest useful fix\nUse one intake sheet.\n\nTry this now\nCreate three columns.\n\nWhat 3DVR could automate next\nSync the intake.' }]
+        }]
+      };
+    }
+  };
+}
+
 test('normalizes a challenge submission', () => {
   assert.deepEqual(normalizeChallengeSubmission({
     name: '  Rosa’s Garden Care  ',
@@ -53,17 +67,7 @@ test('handler generates and emails the challenge response', async () => {
   const fetchImpl = async (url, init) => {
     requestUrl = url;
     requestBody = JSON.parse(init.body);
-    return {
-      ok: true,
-      async json() {
-        return {
-          output: [{
-            type: 'message',
-            content: [{ type: 'output_text', text: 'What I see\nA manual bottleneck.\n\nSmallest useful fix\nUse one intake sheet.\n\nTry this now\nCreate three columns.\n\nWhat 3DVR could automate next\nSync the intake.' }]
-          }]
-        };
-      }
-    };
+    return successfulAiResponse();
   };
 
   const mailTransport = {
@@ -120,4 +124,45 @@ test('handler rejects invalid submissions without calling AI or email', async ()
 
   assert.equal(res.statusCode, 400);
   assert.equal(called, false);
+});
+
+test('handler rate limits repeated requests before spending on AI', async () => {
+  let aiCalls = 0;
+  let mailCalls = 0;
+  const handler = createChallengeHandler({
+    fetchImpl: async () => {
+      aiCalls += 1;
+      return successfulAiResponse();
+    },
+    mailTransport: {
+      async sendMail(message) {
+        mailCalls += 1;
+        return { messageId: `message-${mailCalls}`, accepted: [message.to] };
+      }
+    },
+    maxPerHour: 1,
+    now: () => 1_800_000_000_000,
+    config: { OPENAI_API_KEY: 'test-key', GMAIL_USER: '3dvr@example.com', GMAIL_APP_PASSWORD: 'test-pass' }
+  });
+  const request = {
+    method: 'POST',
+    headers: { 'x-forwarded-for': '203.0.113.42' },
+    body: {
+      name: 'Rosa’s Garden Care',
+      email: 'rosa@example.com',
+      problem: 'Every Friday I manually copy bookings from email into a spreadsheet.'
+    }
+  };
+
+  const first = createResponse();
+  await handler(request, first);
+  const second = createResponse();
+  await handler(request, second);
+
+  assert.equal(first.statusCode, 200);
+  assert.equal(second.statusCode, 429);
+  assert.equal(second.headers['X-RateLimit-Remaining'], '0');
+  assert.ok(Number(second.headers['Retry-After']) > 0);
+  assert.equal(aiCalls, 1);
+  assert.equal(mailCalls, 1);
 });
