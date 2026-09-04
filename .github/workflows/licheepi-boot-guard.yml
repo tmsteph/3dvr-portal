@@ -1,0 +1,36 @@
+name: LicheePi Boot Rollback Guard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/ops/licheepi-**'
+      - 'docs/licheepi-**'
+      - '.github/workflows/licheepi-**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify known-good boot path is still preserved
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          OVH_HOST: 40.160.137.41
+        run: |
+          set -euo pipefail
+          write_key(){ raw="$1"; dest="$2"; [ -n "$raw" ] || return 0; printf '%s\n' "$raw" > "$dest.raw"; if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest"; elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :; else rm -f "$dest" "$dest.raw"; return 0; fi; chmod 600 "$dest"; rm -f "$dest.raw"; }
+          write_key "$SSH_A" /tmp/a; write_key "$SSH_B" /tmp/b; write_key "$SSH_C" /tmp/c
+          user=''; key=''
+          for u in debian root; do for k in /tmp/a /tmp/b /tmp/c; do [ -f "$k" ] || continue; if ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$u@$OVH_HOST" true >/dev/null 2>&1; then user="$u"; key="$k"; break 2; fi; done; done
+          test -n "$user"
+          opts=(-i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
+          ssh "${opts[@]}" "$user@$OVH_HOST" "ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a 'bash -s'" < scripts/ops/licheepi-boot-guard.sh
