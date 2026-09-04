@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/licheepi-ovh-hetzner-alias.yml'
+      - 'scripts/ops/configure-licheepi-ovh-hetzner-alias-remote.sh'
   workflow_dispatch:
 
 permissions:
@@ -15,6 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Configure and verify OVH jump alias
         shell: bash
         env:
@@ -24,43 +28,42 @@ jobs:
           OVH_HOST: 40.160.137.41
         run: |
           set -euo pipefail
-          write_key(){ raw="$1"; dest="$2"; [ -n "$raw" ] || return 0; printf '%s\n' "$raw" > "$dest.raw"; if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest"; elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :; else rm -f "$dest" "$dest.raw"; return 0; fi; chmod 600 "$dest"; rm -f "$dest.raw"; }
-          write_key "$SSH_A" /tmp/a; write_key "$SSH_B" /tmp/b; write_key "$SSH_C" /tmp/c
-          user=''; key=''
-          for u in debian root; do
-            for k in /tmp/a /tmp/b /tmp/c; do
-              [ -f "$k" ] || continue
-              if ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$u@$OVH_HOST" true >/dev/null 2>&1; then user="$u"; key="$k"; break 2; fi
+
+          write_key() {
+            raw="$1"
+            dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+
+          write_key "$SSH_A" /tmp/a
+          write_key "$SSH_B" /tmp/b
+          write_key "$SSH_C" /tmp/c
+
+          user=''
+          key=''
+          for candidate_user in debian root; do
+            for candidate_key in /tmp/a /tmp/b /tmp/c; do
+              [ -f "$candidate_key" ] || continue
+              if ssh -i "$candidate_key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$candidate_user@$OVH_HOST" true >/dev/null 2>&1; then
+                user="$candidate_user"
+                key="$candidate_key"
+                break 2
+              fi
             done
           done
-          test -n "$user"
-          ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@$OVH_HOST" 'bash -s' <<'OVH'
-          set -euo pipefail
-          ssh -o BatchMode=yes -o ConnectTimeout=6 3dvr-hetzner true
-          cfg="$HOME/.ssh/config"; mkdir -p "$HOME/.ssh"; touch "$cfg"; chmod 700 "$HOME/.ssh"; chmod 600 "$cfg"
-          identity="$(ssh -G lpi4a 2>/dev/null | awk '$1=="identityfile"{print $2; exit}')"
-          piuser="$(ssh -G lpi4a 2>/dev/null | awk '$1=="user"{print $2; exit}')"
-          test -n "$identity" -a -n "$piuser"
-          tmp="$(mktemp)"
-          sed '/^# BEGIN 3DVR LPI4A HETZNER JUMP$/,/^# END 3DVR LPI4A HETZNER JUMP$/d' "$cfg" > "$tmp"
-          cat >> "$tmp" <<CFG
-# BEGIN 3DVR LPI4A HETZNER JUMP
-Host lpi4a-hetzner
-  HostName 127.0.0.1
-  Port 2223
-  User $piuser
-  IdentityFile $identity
-  IdentitiesOnly yes
-  BatchMode yes
-  StrictHostKeyChecking accept-new
-  ConnectTimeout 6
-  ProxyCommand ssh -o BatchMode=yes -o ConnectTimeout=6 3dvr-hetzner -W %h:%p
-# END 3DVR LPI4A HETZNER JUMP
-CFG
-          mv "$tmp" "$cfg"; chmod 600 "$cfg"
-          ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a true
-          ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a-hetzner true
-          printf 'OVH_PATH_OK\nHETZNER_PATH_OK\n'
-          OVH
 
-# Triggered while Thomas is on-site for recovery coverage.
+          test -n "$user"
+          ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@$OVH_HOST" 'bash -s' < scripts/ops/configure-licheepi-ovh-hetzner-alias-remote.sh
+
+# Used for LicheePi recovery coverage through the OVH -> Hetzner path.
