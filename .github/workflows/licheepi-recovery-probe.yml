@@ -24,6 +24,7 @@ jobs:
           SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
           SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
           OVH_HOST: 40.160.137.41
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -u
           write_key() {
