@@ -4,6 +4,9 @@ export const DEFAULT_OPERATOR_DEVELOPER_ALIAS = '3dvr.tech@gmail.com';
 export const BUILTIN_OPERATOR_OWNER_BINDINGS = Object.freeze({
   'tmsteph@3dvr': 'Cg-NVNIbxWPDBqX7OmllJQqjxy2t3KA_U2DqQBjcPQ8.1fppECqamDOHh2tKt1G5t8Yd21NjBCZ3C6qunST3lvg',
 });
+export const BUILTIN_OPERATOR_OWNER_PUBS = Object.freeze(
+  [...new Set(Object.values(BUILTIN_OPERATOR_OWNER_BINDINGS))]
+);
 export const BUILTIN_OPERATOR_ADMIN_BINDINGS = Object.freeze({
   'chatgpt-operator-e18d7ed6@3dvr': 'jcsaMMOmGSjWVJOtiPHI3hZWsudATRhOglXRdDatfSA.pzn7gtgVsDxfbV_md8B4a_W4eNTOavwnZwFU0qOtYcU',
 });
@@ -55,7 +58,10 @@ function withBuiltinBindings(bindings, builtins) {
 
 export function resolveOperatorDeveloperPolicy(config = process.env) {
   return {
-    ownerPubs: new Set(listFromConfig(config.THREEDVR_OPERATOR_OWNER_PUBS)),
+    ownerPubs: new Set([
+      ...BUILTIN_OPERATOR_OWNER_PUBS,
+      ...listFromConfig(config.THREEDVR_OPERATOR_OWNER_PUBS),
+    ]),
     ownerBindings: withBuiltinBindings(
       parseBindings(config.THREEDVR_OPERATOR_OWNER_BINDINGS),
       BUILTIN_OPERATOR_OWNER_BINDINGS
