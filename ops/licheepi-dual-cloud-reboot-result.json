@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-09-04T20:46:19.567403+00:00",
+  "ok": true,
+  "routesAfterReboot": {
+    "ovh": true,
+    "hetzner": true
+  },
+  "defaultAfter": "l0",
+  "kernelBefore": "5.10.113+",
+  "kernelAfter": "5.10.113+",
+  "bootTimeBefore": 1788541334,
+  "bootTimeAfter": 1788554714,
+  "bootTimeChanged": true
+}
