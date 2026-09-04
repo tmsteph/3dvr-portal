@@ -4,93 +4,81 @@ Last reviewed: 2026-09-04
 
 ## Goal
 
-Move the LicheePi 4A toward upstream Debian/mainline without ever making a new kernel or userland the only remotely bootable system before it has proved healthy.
+Move the LicheePi 4A toward upstream Debian/mainline without ever making a new kernel the only remotely bootable system before it has proved healthy.
 
 ## Current known-good state
 
-- Root filesystem: `/dev/mmcblk0p3`, ext4.
-- Boot filesystem: `/dev/mmcblk0p2`, ext4.
-- Current userland reports Debian forky/sid.
-- Known-good boot entry: `l0`, Sipeed/RevyOS `5.10.113-lpi4a`.
-- Mainline candidate: `mainline71`, Debian `7.1.12+deb14-riscv64`.
-- `/boot/extlinux/extlinux.conf` currently defaults to `l0`.
-- OVH reverse SSH recovery: `lpi4a` / port 2223.
-- Hetzner reverse SSH recovery: `lpi4a-hetzner` / port 2223.
-- SSH and both tunnel services are enabled at boot.
-- Network self-heal timer is enabled.
+- Root: `/dev/mmcblk0p3`, ext4, Debian forky/sid.
+- Boot: `/dev/mmcblk0p2`, ext4.
+- Known-good: `l0`, vendor/RevyOS `5.10.113-lpi4a`.
+- Rescue: `l0r`.
+- Candidate: `mainline71`, Debian `7.1.12+deb14-riscv64`.
+- extlinux default remains `l0`.
+- OVH recovery: `lpi4a` / 2223.
+- Hetzner recovery: `lpi4a-hetzner` / 2223.
+- SSH, both reverse tunnels, and network self-heal are boot-enabled.
 
-## Non-negotiable migration rules
+## Hard rules
 
-1. Keep `l0` and its vendor kernel/device trees until the mainline system has passed repeated reboot, network, SSH, storage, display, USB, and package-management checks.
-2. Do not replace `/boot/Image` in place without first preserving a versioned rescue copy or equivalent known-good boot entry.
-3. Do not remove the old kernel package/modules or run destructive autoremove until the new boot has been promoted.
-4. Do not make `mainline71` the permanent default until automatic rollback is armed and tested.
-5. A candidate boot is not "good" merely because the kernel starts. It must restore remote SSH through at least one cloud path and then both paths.
-6. Any migration script must fail closed if the known-good recovery entry, boot files, or both cloud recovery anchors are unavailable before staging.
-7. Do not repeat the prior kexec experiment as the normal test method. The previous mainline kexec attempt hung before SSH returned; use kexec only as a targeted diagnostic after watchdog reset is proven.
+1. Never remove/overwrite `l0`, `l0r`, or their vendor kernel/DTBs while mainline is experimental.
+2. Never make `mainline71` durable default until a deliberate failed-boot rollback drill succeeds.
+3. Do not use kexec as the normal test path; a previous mainline kexec hung before SSH returned.
+4. Do not depend on physical console access for an ordinary candidate-kernel failure.
+5. Do not mutate the U-Boot environment until exact-source validation and two independent cloud backups are green.
 
-## Verified U-Boot environment layout
+## Verified U-Boot environment
 
-The live bootloader reports `U-Boot 2020.01-gd6c9182f-dirty`. The exact matching RevyOS source commit is `d6c9182f6238f2fc4b386b9e4c5d2cfebbef4746`.
+Live build: `U-Boot 2020.01-gd6c9182f-dirty`.
+Exact matching RevyOS source: `d6c9182f6238f2fc4b386b9e4c5d2cfebbef4746`.
 
-That source defines:
+Verified layout:
 
-- `CONFIG_ENV_IS_IN_MMC=y`
-- `CONFIG_SYS_MMC_ENV_DEV=0`
-- `CONFIG_ENV_OFFSET=0xe0000`
-- `CONFIG_ENV_SIZE=0x20000`
+- `/dev/mmcblk0`
+- offset `0xe0000`
+- size `0x20000`
+- CRC matches the live stored environment.
 
-The matching board header also defines `CONFIG_SYS_MMC_ENV_DEV 0`.
+Any bootloader build change invalidates these constants until re-verified.
 
-The read-only live probe confirms the stored environment CRC exactly matches the calculated CRC for that region.
+## Vendor rollback nuance
 
-Treat this layout as invalid immediately if the live U-Boot build identity changes. Never carry the offsets forward to another bootloader build without re-verification.
+Upstream-style `CONFIG_BOOTCOUNT_LIMIT` is not enabled. Do not use the generic bootcount framework assumption.
 
-## Bootcount is not enabled
+The exact vendor source **does** implement a custom U-Boot `rollback` command. When explicitly invoked with `bootlimit` configured it persists `bootcount` with `env_save()` and can restore `boot_partition`/`root_partition` from their `_alt` values after failed attempts.
 
-Do not rely on the generic `bootcount` strings found in the U-Boot binary. The exact installed `light_lpi4a_defconfig` does not enable `CONFIG_BOOTCOUNT_LIMIT`, and the live environment has no `bootcount`, `bootlimit`, or `altbootcmd` variables.
+But the live environment currently has no `bootcount`, `bootlimit`, `boot_partition(_alt)`, or `root_partition(_alt)` values, and the live boot flow is:
 
-Therefore the current installed bootloader does **not yet have a proven automatic boot-count rollback path**.
+`run bootcmd_load; bootslave; sysboot mmc ${mmcdev}:${mmcbootpart} any $boot_conf_addr_r $boot_conf_file;`
 
-Preferred development order:
+So the custom vendor rollback command is present but **not currently wired into this board's live extlinux boot path**. Treat it as a candidate mechanism, not an active safeguard.
 
-1. preserve the raw environment independently on OVH and Hetzner;
-2. verify Linux-side read access with `fw_printenv`;
-3. prove one bounded environment write/read/restore cycle;
-4. design a one-shot boot command that restores the normal vendor boot state before launching `mainline71`;
-5. validate the board's real hardware watchdog reset path as another safety layer;
-6. avoid rebuilding/flashing U-Boot unless the safer one-shot design cannot meet the recovery requirement.
+## Mainline preflight status
 
-## Required sequence before the first persistent mainline trial
+The no-reboot 7.1 preflight currently verifies:
 
-1. Exact-source read-only environment CRC validator passes.
-2. Raw environment backup exists on at least two independent cloud hosts with matching SHA-256.
-3. `fw_printenv` output is proven to match the raw parser without writing anything.
-4. A harmless reversible environment write/read/restore cycle passes and the CRC remains valid.
-5. A one-shot rollback design is implemented that leaves `default l0` as the normal durable state.
-6. Deliberately force the rollback logic through a safe drill and verify the board returns to `l0` plus both cloud tunnels.
-7. Only then allow a one-shot `mainline71` boot trial.
+- candidate kernel, initramfs, and test DTB exist;
+- candidate root UUID matches `/dev/mmcblk0p3`;
+- ext4/MMC root drivers are present in the initramfs;
+- AIC8800 bridge modules and firmware exist;
+- upstream PowerVR module exists;
+- TH1520 HDMI and Verisilicon display modules exist;
+- GPU/HDMI/display DTB evidence exists;
+- `l0` remains default and both vendor recovery entries remain intact.
 
-## Extra fallback layers
+Known cautions:
 
-- Hardware watchdog devices exist on the board and both current and candidate kernels have watchdog support. Validate the real watchdog driver/reset behavior before using it to guard a risky test.
-- Keep the dual-cloud SSH recovery paths independent; loss of one cloud host must not imply loss of board access.
-- Keep a known-good boot recovery bundle off the Pi itself.
+- candidate has `CONFIG_DW_WATCHDOG=n`; do not depend on the current DW hardware watchdog for first-boot recovery;
+- candidate uses 96 MiB default CMA and has no explicit `cma=` override; validate graphics/display before promotion.
 
-## Promotion gate
+## Required sequence before a mainline reboot
 
-A candidate can become the default only after all are true:
+1. Exact-source environment CRC validation: green.
+2. Independent OVH + Hetzner recovery backups with matching hashes: green.
+3. `fw_printenv` configured read-only and matched against the raw parser.
+4. Bounded environment write/read/restore test with backup already in place.
+5. Implement a one-shot candidate boot whose durable fallback remains `l0`.
+6. Deliberately test the fallback without booting mainline if possible.
+7. Only then perform one `mainline71` reboot trial.
+8. Promote only after repeated successful boots plus network, both tunnels, storage, package manager, GPU/display, and workload checks.
 
-- deliberate failed-boot test proves automatic fallback to `l0`;
-- clean mainline kernel boot;
-- root filesystem mounts read/write;
-- network comes up without manual action;
-- OpenSSH is active;
-- OVH reverse tunnel is healthy;
-- Hetzner reverse tunnel is healthy;
-- package manager works;
-- expected storage and device tree are present;
-- GPU/display is usable for the intended workload;
-- a normal reboot after the fallback test again restores both recovery paths.
-
-Until that deliberate rollback drill passes, `l0` remains the canonical rescue default.
+Until those gates are satisfied, `l0` is the canonical boot and rescue path.
