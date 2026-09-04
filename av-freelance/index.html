@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="A practical 3DVR path and instant starter kit for AV technicians who want to build a more independent freelance career without making a reckless jump.">
+  <meta name="description" content="A practical 3DVR path for AV technicians to find work, hire crew, set freelance rates, and build a more independent career.">
   <meta name="theme-color" content="#07111f">
   <title>AV Freelance Launchpad | 3DVR</title>
   <link rel="stylesheet" href="../styles/global.css">
@@ -17,7 +17,8 @@
     <header class="freelance-nav">
       <a class="brand-link" href="../index.html">3DVR</a>
       <nav aria-label="AV Freelance Launchpad navigation">
-        <a href="../career-launch/">Career Plan</a>
+        <a href="#network">AV Network</a>
+        <a href="#rateCalculator">Rate Calculator</a>
         <a href="../job-tracker/index.html">Job Tracker</a>
       </nav>
     </header>
@@ -27,22 +28,104 @@
         <p class="eyebrow">AV Freelance Launchpad</p>
         <h1 id="heroTitle">You already know how to run the show. Build work that belongs to you.</h1>
         <p class="hero-copy" id="heroCopy">
-          For event technicians who are good at the work but want more control over their time, clients,
-          rates, and direction. Keep your income stable while you build a freelance runway one relationship at a time.
+          For event technicians who want more control over their time, clients, rates, and direction.
+          Keep your income stable while you build a freelance runway one relationship at a time.
         </p>
         <div class="hero-actions">
-          <a class="button button--primary" href="../work-agent/" data-primary-work-agent data-work-agent-cta="hero">Use the free Work Agent</a>
+          <a class="button button--primary" href="#network">Find AV work</a>
+          <a class="button" href="../work-agent/" data-primary-work-agent data-work-agent-cta="hero">Use the free Work Agent</a>
           <a class="button" href="https://buy.stripe.com/00w8wPeua4lR5gPcMAc7u0n" data-starter-kit-cta="hero">Get the $9 templates</a>
         </div>
         <p class="hero-note">
-          Start free: connect your schedule, build your worker profile, review work-email signals, and set your rate boundaries before buying anything. 3DVR is not affiliated with Encore.
+          Start free. The San Diego AV Network is an early beta for connecting technicians, production companies, and useful freelancer tools. 3DVR is not affiliated with Encore.
         </p>
+      </section>
+
+      <section class="offer" id="network" aria-labelledby="networkTitle">
+        <div class="section-heading">
+          <p class="eyebrow">San Diego beta</p>
+          <h2 id="networkTitle">Find calls. Find crew. Build your network.</h2>
+          <p>We are starting small with the live-event community we understand. No fake listings and no paywall to join the beta.</p>
+        </div>
+
+        <div class="role-grid" aria-label="Common AV roles">
+          <span>A1</span>
+          <span>A2</span>
+          <span>V1</span>
+          <span>V2</span>
+          <span>Graphics</span>
+          <span>Camera</span>
+          <span>LED</span>
+          <span>Lighting</span>
+          <span>Stagehand</span>
+        </div>
+
+        <div class="network-grid">
+          <article>
+            <p class="card-kicker">Workers</p>
+            <h3>Get listed for calls</h3>
+            <p>Tell us your roles, experience, home market, availability, and preferred rates. We will use the first listings to shape the public directory.</p>
+            <a class="button button--primary" href="mailto:3dvr.tech@gmail.com?subject=AV%20Network%20-%20Worker%20Listing&body=Name%3A%0ARoles%3A%0AHome%20market%3A%0AAvailability%3A%0ATarget%20rate%3A%0ALink%20or%20resume%3A%0A">Join the worker directory</a>
+          </article>
+          <article>
+            <p class="card-kicker">Companies</p>
+            <h3>Post an AV opportunity</h3>
+            <p>Send the role, date, location, rate, and call details. Early beta postings are free while we learn what the market actually needs.</p>
+            <a class="button button--primary" href="mailto:3dvr.tech@gmail.com?subject=AV%20Network%20-%20Post%20a%20Job&body=Company%3A%0ARole%3A%0ADate%3A%0ALocation%3A%0ARate%3A%0ACall%20details%3A%0AContact%3A%0A">Post a job free</a>
+          </article>
+          <article>
+            <p class="card-kicker">Your pipeline</p>
+            <h3>Track every lead</h3>
+            <p>Keep applications, production companies, follow-ups, and opportunities in one place instead of losing them across texts and inboxes.</p>
+            <a class="button" href="../job-tracker/index.html">Open Job Tracker</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="offer calculator-section" id="rateCalculator" aria-labelledby="calculatorTitle">
+        <div class="section-heading">
+          <p class="eyebrow">Free freelancer tool</p>
+          <h2 id="calculatorTitle">Know the day rate you need.</h2>
+          <p>Start from the labor rate you want, then include overtime, daily costs, and a buffer for the business overhead a payroll job normally hides.</p>
+        </div>
+
+        <form class="rate-calculator" data-rate-calculator>
+          <div class="calculator-fields">
+            <label>
+              Target hourly labor rate
+              <span class="input-wrap"><span aria-hidden="true">$</span><input name="hourlyRate" type="number" min="0" step="1" value="45" inputmode="decimal"></span>
+            </label>
+            <label>
+              Straight-time hours
+              <input name="baseHours" type="number" min="0" step="0.5" value="10" inputmode="decimal">
+            </label>
+            <label>
+              Overtime hours
+              <input name="overtimeHours" type="number" min="0" step="0.5" value="0" inputmode="decimal">
+            </label>
+            <label>
+              Daily costs
+              <span class="input-wrap"><span aria-hidden="true">$</span><input name="dailyCosts" type="number" min="0" step="1" value="0" inputmode="decimal"></span>
+            </label>
+            <label>
+              Business buffer
+              <span class="input-wrap"><input name="bufferPercent" type="number" min="0" max="100" step="1" value="15" inputmode="decimal"><span aria-hidden="true">%</span></span>
+            </label>
+          </div>
+          <button class="button button--primary" type="submit">Calculate my day rate</button>
+          <div class="calculator-result" data-rate-result aria-live="polite">
+            <span>Suggested quote</span>
+            <strong>—</strong>
+            <p>Rounded up to the next $25 so the number is easy to quote.</p>
+          </div>
+        </form>
+        <p class="hero-note">This is a planning tool, not tax or financial advice. Adjust the buffer for your own taxes, insurance, unpaid admin time, gear, and downtime.</p>
       </section>
 
       <section class="offer" aria-labelledby="agentTitle">
         <div class="section-heading">
           <p class="eyebrow">Help first</p>
-          <h2 id="agentTitle">The Work Agent is the actual product.</h2>
+          <h2 id="agentTitle">The Work Agent reduces the booking admin.</h2>
           <p>Give it the information a good freelance booking manager needs, then let it reduce the admin between you and the next good call.</p>
         </div>
         <div class="offer-grid">
@@ -111,6 +194,7 @@
   </div>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script type="module" src="./experiment.js"></script>
+  <script type="module" src="./rate-calculator.js"></script>
   <script defer src="/issue-launcher.js"></script>
 </body>
 </html>
