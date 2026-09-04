@@ -62,3 +62,5 @@ CFG
           ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a-hetzner true
           printf 'OVH_PATH_OK\nHETZNER_PATH_OK\n'
           OVH
+
+# Triggered while Thomas is on-site for recovery coverage.
