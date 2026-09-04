@@ -36,19 +36,17 @@ set -euo pipefail
 cfg=/tmp/3dvr-fw_env.config
 printf '/dev/mmcblk0 0xe0000 0x20000\n' > "$cfg"
 
-tool="$(command -v fw_printenv || true)"
-source='installed'
-work=/tmp/3dvr-fwenv-tool
-if [ -z "$tool" ]; then
-  source='temporary-deb-extract'
-  rm -rf "$work"; mkdir -p "$work/debs" "$work/root"
-  cd "$work/debs"
-  apt-get download libubootenv-tool libubootenv0.1 >/dev/null 2>&1 || apt-get download libubootenv-tool libubootenv0.2 >/dev/null 2>&1
-  for d in ./*.deb; do dpkg-deb -x "$d" "$work/root"; done
-  tool="$(find "$work/root" -type f -name fw_printenv -print -quit)"
-  [ -x "$tool" ]
-  export LD_LIBRARY_PATH="$work/root/usr/lib/riscv64-linux-gnu:$work/root/lib/riscv64-linux-gnu:${LD_LIBRARY_PATH:-}"
+# Install Debian's supported userspace reader if missing. This modifies only
+# normal rootfs packages; it does not write U-Boot or /boot state.
+if ! command -v fw_printenv >/dev/null 2>&1; then
+  sudo -n apt-get update >/dev/null
+  if ! sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y libubootenv-tool >/dev/null 2>&1; then
+    sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y u-boot-tools >/dev/null
+  fi
 fi
+tool="$(command -v fw_printenv)"
+[ -x "$tool" ]
+source='installed-debian-package'
 
 help="$($tool -h 2>&1 || true)"
 args=()
@@ -71,7 +69,7 @@ else
   sudo -n install -m 0644 "$cfg" /etc/fw_env.config
 fi
 
-get(){ sudo -n env LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}" "$tool" "${args[@]}" "$1" 2>/dev/null | sed -n "s/^$1=//p"; }
+get(){ sudo -n "$tool" "${args[@]}" "$1" 2>/dev/null | sed -n "s/^$1=//p"; }
 bootcmd="$(get bootcmd)"
 boot_conf_file="$(get boot_conf_file)"
 bootdelay="$(get bootdelay)"
@@ -108,7 +106,7 @@ PY
 REMOTE
 )
 B64="$(printf '%s' "$REMOTE" | base64 -w0)"
-ssh "${opts[@]}" "$user@$OVH_HOST" "printf '%s' '$B64' | base64 -d | ssh -o BatchMode=yes -o ConnectTimeout=15 lpi4a 'bash -s'" > "$RESULT"
+ssh "${opts[@]}" "$user@$OVH_HOST" "printf '%s' '$B64' | base64 -d | ssh -o BatchMode=yes -o ConnectTimeout=30 lpi4a 'bash -s'" > "$RESULT"
 cat "$RESULT"
 
 if [ -n "${GITHUB_TOKEN:-}" ]; then
