@@ -34,6 +34,7 @@ opts=(-i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=
 REMOTE=$(cat <<'REMOTE'
 set -euo pipefail
 cfg=/tmp/3dvr-fw_env.config
+all=/tmp/3dvr-fw_env_all.txt
 printf '/dev/mmcblk0 0xe0000 0x20000\n' > "$cfg"
 
 if ! command -v fw_printenv >/dev/null 2>&1; then
@@ -55,7 +56,7 @@ cleanup(){
   if [ "$config_mode" = default-file ]; then
     if [ "$had_config" = true ]; then sudo -n cp -a "$restore" /etc/fw_env.config; else sudo -n rm -f /etc/fw_env.config; fi
   fi
-  rm -f "$restore" "$cfg"
+  rm -f "$restore" "$cfg" "$all"
   sudo -n rm -f /tmp/3dvr-env-after-fwprint.bin
 }
 trap cleanup EXIT
@@ -74,16 +75,25 @@ boot_conf_file="$(get boot_conf_file)"
 bootdelay="$(get bootdelay)"
 mmcdev="$(get mmcdev)"
 mmcbootpart="$(get mmcbootpart)"
+# libubootenv prints NAME= with exit 0 even when a named variable is absent.
+# Only the full iterator output distinguishes real presence.
+sudo -n "$tool" "${args[@]}" 2>/dev/null > "$all"
 probe_absent=true
-if sudo -n "$tool" "${args[@]}" threedvr_probe >/dev/null 2>&1; then probe_absent=false; fi
+if grep -q '^threedvr_probe=' "$all"; then probe_absent=false; fi
 extlinux_default="$(awk 'tolower($1)=="default"{print $2; exit}' /boot/extlinux/extlinux.conf)"
+
+# Require every recovery service still active while auditing boot state.
+cloud_ok=true
+for unit in lichee-tunnel.service 3dvr-lpi-hetzner.service 3dvr-lpi-digitalocean.service; do
+  systemctl is-active --quiet "$unit" || cloud_ok=false
+done
 
 tmp=/tmp/3dvr-env-after-fwprint.bin
 sudo -n dd if=/dev/mmcblk0 of="$tmp" bs=512 skip=1792 count=256 status=none
 sudo -n chmod 0644 "$tmp"
-python3 - "$tmp" "$source" "$config_mode" "$bootcmd" "$boot_conf_file" "$bootdelay" "$mmcdev" "$mmcbootpart" "$probe_absent" "$extlinux_default" <<'PY'
+python3 - "$tmp" "$source" "$config_mode" "$bootcmd" "$boot_conf_file" "$bootdelay" "$mmcdev" "$mmcbootpart" "$probe_absent" "$extlinux_default" "$cloud_ok" <<'PY'
 import hashlib,json,struct,sys,zlib
-p,source,config_mode,bootcmd,conf,delay,mmcdev,part,probe_absent,extlinux_default=sys.argv[1:]
+p,source,config_mode,bootcmd,conf,delay,mmcdev,part,probe_absent,extlinux_default,cloud_ok=sys.argv[1:]
 data=open(p,'rb').read(); stored=struct.unpack('<I',data[:4])[0]; calc=zlib.crc32(data[4:])&0xffffffff
 expected='run bootcmd_load; bootslave; sysboot mmc ${mmcdev}:${mmcbootpart} any $boot_conf_addr_r $boot_conf_file;'
 checks={
@@ -95,6 +105,7 @@ checks={
  'mmcbootpart': part=='2',
  'probe_absent': probe_absent=='true',
  'extlinux_default_l0': extlinux_default=='l0',
+ 'three_cloud_services_active': cloud_ok=='true',
 }
 print(json.dumps({
  'ok':all(checks.values()),
@@ -106,7 +117,8 @@ print(json.dumps({
  'crcStoredLE':hex(stored),'crcCalculated':hex(calc),
  'bootFlow':{'bootcmd':bootcmd,'boot_conf_file':conf,'bootdelay':delay,'mmcdev':mmcdev,'mmcbootpart':part},
  'extlinuxDefault':extlinux_default,
- 'probeVariableAbsent':probe_absent=='true'
+ 'probeVariableAbsent':probe_absent=='true',
+ 'threeCloudServicesActive':cloud_ok=='true'
 },indent=2))
 PY
 REMOTE
