@@ -24,8 +24,9 @@ const summaryEl=document.getElementById('summary');
 const button=document.getElementById('import');
 const gun=Gun(window.__GUN_PEERS__||['wss://gun-relay-3dvr.fly.dev/gun']);
 const root=gun.get('3dvr-crm');
+const autoImport=location.hash.startsWith('#go=');
 function decode(){
-  const raw=location.hash.replace(/^#(?:data=)?/,'');
+  const raw=location.hash.replace(/^#(?:data|go)=?/,'');
   if(!raw) return [];
   const json=decodeURIComponent(escape(atob(raw.replace(/-/g,'+').replace(/_/g,'/'))));
   const data=JSON.parse(json);
@@ -40,26 +41,31 @@ try{
   statusEl.textContent=leads.map(x=>`• ${clean(x.name)||'(unnamed lead)'}${x.company?` — ${clean(x.company)}`:''}`).join('\n');
   button.disabled=!leads.length;
 }catch(err){summaryEl.textContent='Could not read this import link.';statusEl.textContent=err.message;statusEl.className='err'}
-button.addEventListener('click',async()=>{
+async function importLeads(){
   button.disabled=true;statusEl.textContent='Importing…';
   const now=new Date().toISOString();
   let done=0;
-  for(const item of leads){
-    const name=clean(item.name); if(!name) continue;
-    const id=clean(item.id)||`import-${slug(item.company||name)}-${slug(name)}`;
-    const record={
-      id,recordType:'person',name,email:clean(item.email),company:clean(item.company),phone:clean(item.phone),role:clean(item.role),tags:clean(item.tags),
-      status:clean(item.status)||'Lead',warmth:clean(item.warmth)||'warm',fit:clean(item.fit),urgency:clean(item.urgency),nextFollowUp:clean(item.nextFollowUp),
-      marketSegment:clean(item.marketSegment),primaryPain:clean(item.primaryPain),painSeverity:clean(item.painSeverity),currentWorkaround:clean(item.currentWorkaround),
-      pilotStatus:clean(item.pilotStatus),offerAmount:clean(item.offerAmount),lastSignal:clean(item.lastSignal),nextExperiment:clean(item.nextExperiment),
-      nextBestAction:clean(item.nextBestAction),objection:clean(item.objection),lastContacted:clean(item.lastContacted),notes:clean(item.notes),source:clean(item.source)||'Lead import',
-      created:clean(item.created)||now,updated:now,activityCount:Number(item.activityCount||0),contactId:''
-    };
-    await new Promise((resolve,reject)=>root.get(id).put(record,ack=>ack&&ack.err?reject(new Error(ack.err)):resolve()));
-    done++;
-  }
-  statusEl.textContent=`Imported ${done} lead${done===1?'':'s'}. You can safely close this page or open CRM.`;statusEl.className='ok';
-});
+  try{
+    for(const item of leads){
+      const name=clean(item.name); if(!name) continue;
+      const id=clean(item.id)||`import-${slug(item.company||name)}-${slug(name)}`;
+      const record={
+        id,recordType:'person',name,email:clean(item.email),company:clean(item.company),phone:clean(item.phone),role:clean(item.role),tags:clean(item.tags),
+        status:clean(item.status)||'Lead',warmth:clean(item.warmth)||'warm',fit:clean(item.fit),urgency:clean(item.urgency),nextFollowUp:clean(item.nextFollowUp),
+        marketSegment:clean(item.marketSegment),primaryPain:clean(item.primaryPain),painSeverity:clean(item.painSeverity),currentWorkaround:clean(item.currentWorkaround),
+        pilotStatus:clean(item.pilotStatus),offerAmount:clean(item.offerAmount),lastSignal:clean(item.lastSignal),nextExperiment:clean(item.nextExperiment),
+        nextBestAction:clean(item.nextBestAction),objection:clean(item.objection),lastContacted:clean(item.lastContacted),notes:clean(item.notes),source:clean(item.source)||'Lead import',
+        created:clean(item.created)||now,updated:now,activityCount:Number(item.activityCount||0),contactId:''
+      };
+      await new Promise((resolve,reject)=>root.get(id).put(record,ack=>ack&&ack.err?reject(new Error(ack.err)):resolve()));
+      done++;
+    }
+    statusEl.textContent=`Imported ${done} lead${done===1?'':'s'}. You can safely close this page or open CRM.`;statusEl.className='ok';
+    summaryEl.textContent='Import complete.';
+  }catch(err){statusEl.textContent=`Import stopped: ${err.message}`;statusEl.className='err';button.disabled=false}
+}
+button.addEventListener('click',importLeads);
+if(autoImport&&leads.length){summaryEl.textContent=`Importing ${leads.length} leads…`;setTimeout(importLeads,350)}
 </script>
 </body>
 </html>
