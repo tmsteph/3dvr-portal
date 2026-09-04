@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   BUILTIN_OPERATOR_OWNER_BINDINGS,
+  BUILTIN_OPERATOR_OWNER_PUBS,
   BUILTIN_OPERATOR_DEVELOPER_BINDINGS,
   DEFAULT_OPERATOR_DEVELOPER_ALIAS,
   resolveOperatorDeveloperAccess,
@@ -20,8 +21,10 @@ test('default operator developer policy includes the trusted exact SEA binding',
   const policy = resolveOperatorDeveloperPolicy({});
   assert.equal(DEFAULT_OPERATOR_DEVELOPER_ALIAS, '3dvr.tech@gmail.com');
   assert.equal(BUILTIN_OPERATOR_OWNER_BINDINGS['tmsteph@3dvr'], TMSTEPH_PUB);
+  assert.deepEqual(BUILTIN_OPERATOR_OWNER_PUBS, [TMSTEPH_PUB]);
   assert.equal(BUILTIN_OPERATOR_DEVELOPER_BINDINGS['tmsteph@3dvr'], TMSTEPH_PUB);
   assert.equal(policy.pubs.size, 0);
+  assert.equal(policy.ownerPubs.has(TMSTEPH_PUB), true);
   assert.equal(policy.ownerBindings.get('tmsteph@3dvr'), TMSTEPH_PUB);
   assert.equal(policy.bindings.get('tmsteph@3dvr'), TMSTEPH_PUB);
   assert.equal(policy.bindings.get('operator-e2e-20260823@3dvr@3dvr'), undefined);
@@ -34,6 +37,22 @@ test('built-in tmsteph SEA public key receives owner GitHub permission', async (
     verify: async () => ({
       ok: true,
       identity: { alias: 'tmsteph@3dvr', pub: TMSTEPH_PUB },
+    }),
+  });
+
+  assert.equal(access.authenticated, true);
+  assert.equal(access.approved, true);
+  assert.equal(access.role, 'owner');
+  assert.deepEqual(access.permissions, ['suggest', 'edit', 'github_write']);
+});
+
+test('trusted owner SEA key remains owner when the portal alias spelling changes', async () => {
+  const access = await resolveOperatorDeveloperAccess({ authPub: TMSTEPH_PUB, authProof: 'proof-1' }, {
+    config: {},
+    expectedOrigin: 'https://portal.3dvr.tech',
+    verify: async () => ({
+      ok: true,
+      identity: { alias: 'tmsteph', pub: TMSTEPH_PUB },
     }),
   });
 
