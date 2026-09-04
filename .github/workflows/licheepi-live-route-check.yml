@@ -1,0 +1,22 @@
+name: LicheePi Live Route Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-live-route-check.yml'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check OVH and Hetzner Pi routes
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          OVH_HOST: 40.160.137.41
+        run: bash scripts/ops/licheepi-dual-cloud-preflight-debug.sh
