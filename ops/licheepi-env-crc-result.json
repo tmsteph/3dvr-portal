@@ -1,1 +1,1 @@
-{"ok": false, "reason": "read-only environment validation failed before producing a result", "remoteExit": 1}
+{"ok":true,"sourceValidated":true,"sourceCommit":"d6c9182f6238f2fc4b386b9e4c5d2cfebbef4746","liveUboot":"U-Boot 2020.01-gd6c9182f-dirty","device":"/dev/mmcblk0","offsetHex":"0xe0000","sizeHex":"0x20000","crcStoredLE":"0x9efdb275","crcCalculated":"0x9efdb275","crcMatches":true,"variableCount":35,"hasBootcmd":true,"hasAltbootcmd":false,"hasBootcount":false,"hasBootlimit":false,"bootControl":{"bootdelay":"2","mmcdev":"0"}}
