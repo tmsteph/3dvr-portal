@@ -85,3 +85,5 @@ CFG
           HETZNER_HOST: 40.160.137.41
           GITHUB_TOKEN: ${{ github.token }}
         run: bash scripts/ops/licheepi-resilience-drill.sh
+
+# Explicitly triggered only during the 2026-09-04 on-site recovery window.
