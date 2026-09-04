@@ -1,0 +1,44 @@
+name: LicheePi Mainline Arm Diagnose
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-mainline-arm-diagnose.yml'
+  workflow_dispatch:
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Inspect mainline pre-arm state through DigitalOcean
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          write_key(){ raw="$1"; dest="$2"; [ -n "$raw" ] || return 0; printf '%s\n' "$raw" > "$dest.raw"; if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest"; elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :; else rm -f "$dest" "$dest.raw"; return 0; fi; chmod 600 "$dest"; rm -f "$dest.raw"; }
+          write_key "${SSH_A:-}" /tmp/a-a; write_key "${SSH_B:-}" /tmp/a-b; write_key "${SSH_C:-}" /tmp/a-c
+          conn=''; for u in root debian; do for k in /tmp/a-a /tmp/a-b /tmp/a-c; do [ -f "$k" ] || continue; if ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$u@167.172.193.194" true >/dev/null 2>&1; then conn="$u|$k"; break 2; fi; done; done; test -n "$conn"; u="${conn%%|*}"; k="${conn#*|}"
+          ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$u@167.172.193.194" "ssh -n -o BatchMode=yes -o ConnectTimeout=8 lpi4a-digitalocean 'bash -s'" <<'PI'
+          set -u
+          ok(){ if "$@" >/dev/null 2>&1; then echo "$1_CHECK=true"; else echo "$1_CHECK=false"; fi; }
+          echo "KERNEL=$(uname -r)"
+          echo "DTBS_LINK=$(readlink -f /dtbs 2>/dev/null || true)"
+          test -s /dtbs/linux-image-7.1.12+deb14-riscv64/thead/th1520-lichee-pi-4a-aic8801-test.dtb; echo "DTB_CHECK=$?"
+          test -s /boot/vmlinux-7.1.12+deb14-riscv64; echo "KERNEL_FILE_CHECK=$?"
+          test -s /boot/initrd.img-7.1.12+deb14-riscv64; echo "INITRD_CHECK=$?"
+          echo "ONESHOT_EXISTS=$(test -s /boot/extlinux/mainline-once.conf && echo true || echo false)"
+          echo "ONESHOT_DEFAULT=$(awk 'tolower($1)=="default"{print $2;exit}' /boot/extlinux/mainline-once.conf 2>/dev/null || true)"
+          echo "ONESHOT_TAG=$(grep -c '3dvr_mainline_trial=1' /boot/extlinux/mainline-once.conf 2>/dev/null || true)"
+          echo "AUTO_SCRIPT=$(test -x /usr/local/sbin/3dvr-mainline-auto-return && echo true || echo false)"
+          echo "REPORT_SCRIPT=$(test -x /usr/local/sbin/3dvr-mainline-trial-report && echo true || echo false)"
+          echo "UNIT_EXISTS=$(test -s /etc/systemd/system/3dvr-mainline-auto-return.service && echo true || echo false)"
+          echo "UNIT_ENABLED=$(systemctl is-enabled 3dvr-mainline-auto-return.service 2>/dev/null || true)"
+          echo "DAEMON_RELOAD=$(sudo -n systemctl daemon-reload >/dev/null 2>&1; echo $?)"
+          cfg=/tmp/diag-fw.config; printf '/dev/mmcblk0 0xe0000 0x20000\n' > "$cfg"
+          boot="$(sudo -n fw_printenv -c "$cfg" bootcmd 2>/dev/null | sed 's/^bootcmd=//')"
+          printf 'BOOTCMD_NORMAL=%s\n' "$(test "$boot" = 'run bootcmd_load; bootslave; sysboot mmc ${mmcdev}:${mmcbootpart} any $boot_conf_addr_r $boot_conf_file;' && echo true || echo false)"
+          echo "SUDO=$(sudo -n true >/dev/null 2>&1; echo $?)"
+          rm -f "$cfg"
+          PI
