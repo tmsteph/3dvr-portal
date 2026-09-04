@@ -1,0 +1,35 @@
+name: LicheePi DTB Path Compatibility
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-dtbs-path-compat.yml'
+  workflow_dispatch:
+jobs:
+  align:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Align Linux /dtbs with boot-partition /boot/dtbs
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          write_key(){ raw="$1"; dest="$2"; [ -n "$raw" ] || return 0; printf '%s\n' "$raw" > "$dest.raw"; if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest"; elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :; else rm -f "$dest" "$dest.raw"; return 0; fi; chmod 600 "$dest"; rm -f "$dest.raw"; }
+          write_key "${SSH_A:-}" /tmp/k-a; write_key "${SSH_B:-}" /tmp/k-b; write_key "${SSH_C:-}" /tmp/k-c
+          conn=''
+          for u in root debian; do for k in /tmp/k-a /tmp/k-b /tmp/k-c; do [ -f "$k" ] || continue; if ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$u@167.172.193.194" true >/dev/null 2>&1; then conn="$u|$k"; break 2; fi; done; done
+          test -n "$conn"; u="${conn%%|*}"; k="${conn#*|}"
+          ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$u@167.172.193.194" "ssh -n -o BatchMode=yes -o ConnectTimeout=8 lpi4a-digitalocean 'bash -s'" <<'PI'
+          set -euo pipefail
+          test -d /boot/dtbs
+          if [ -e /dtbs ] || [ -L /dtbs ]; then
+            test "$(readlink -f /dtbs)" = "$(readlink -f /boot/dtbs)"
+          else
+            sudo -n ln -s /boot/dtbs /dtbs
+          fi
+          test -s /dtbs/linux-image-7.1.12+deb14-riscv64/thead/th1520-lichee-pi-4a-aic8801-test.dtb
+          printf 'DTBS=%s\n' "$(readlink -f /dtbs)"
+          PI
