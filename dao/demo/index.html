@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0d1117">
+  <title>3DVR DAO Demo</title>
+  <meta name="description" content="A simple interactive example of how 3DVR community decisions could work.">
+  <style>
+    :root{color-scheme:dark;--bg:#0d1117;--panel:#161b22;--text:#e6edf3;--muted:#9da7b3;--line:#30363d;--blue:#58a6ff;--gold:#f0ca63;--green:#56d364;--red:#ff7b72;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 0%,rgba(88,166,255,.09),transparent 28rem),var(--bg);color:var(--text);line-height:1.55}a{color:var(--blue)}button{font:inherit}main{width:min(900px,100%);margin:auto;padding:24px 18px 70px}nav{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:42px;font-weight:750}nav a{text-decoration:none}.eyebrow{margin:0 0 8px;color:var(--gold);font-size:.78rem;font-weight:850;text-transform:uppercase;letter-spacing:.1em}h1{margin:0;font-size:clamp(2.6rem,9vw,5rem);line-height:1;letter-spacing:-.05em}.lead{max-width:700px;margin:18px 0 0;color:#c9d1d9;font-size:clamp(1.05rem,3.5vw,1.25rem)}.note{margin-top:18px;color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:28px}.card{padding:20px;border:1px solid var(--line);border-radius:17px;background:rgba(22,27,34,.82)}.wide{grid-column:1/-1}.card h2{margin:0 0 8px;font-size:1.35rem}.card p{margin:6px 0 0;color:var(--muted)}.money{font-size:1.9rem;font-weight:900}.votes{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.votes button{min-height:42px;padding:9px 14px;border:1px solid var(--line);border-radius:11px;background:#18202a;color:var(--text);font-weight:800;cursor:pointer}.votes button:hover{border-color:var(--blue)}.yes{border-color:rgba(86,211,100,.5)!important}.no{border-color:rgba(255,123,114,.45)!important}.count{display:flex;gap:18px;margin-top:14px}.count strong{font-size:1.4rem}.count span{display:block;color:var(--muted);font-size:.82rem}.result{margin-top:12px;color:#c9d1d9}.rows{margin-top:12px}.row{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-top:1px solid #242b33}.row:first-child{border-top:0}.row span{color:var(--muted)}.receipt{margin-top:12px;padding:12px;border:1px solid #2f3943;border-radius:12px;background:#111820}.hidden{display:none}.back{display:inline-block;margin-top:28px;font-weight:800}footer{margin-top:38px;color:#6e7681;font-size:.82rem}@media(max-width:650px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}}
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+<main>
+  <nav><a href="../">← DAO overview</a><a href="../../">3DVR Portal</a></nav>
+
+  <p class="eyebrow">Simple example</p>
+  <h1>What could shared decision-making feel like?</h1>
+  <p class="lead">Imagine you helped 3DVR for a while. You open this page and see one community decision, your contribution history, and how shared money is being used.</p>
+  <p class="note">This is only a demo. Nothing here sends a real vote or moves real money.</p>
+
+  <div class="grid">
+    <section class="card wide">
+      <h2>Should 3DVR buy three RISC-V boards for community testing?</h2>
+      <p>The boards would be used for Linux, browser, AI, and edge-computing experiments.</p>
+      <div class="money">$450</div>
+      <div class="count"><div><strong id="yesCount">18</strong><span>support</span></div><div><strong id="noCount">4</strong><span>oppose</span></div></div>
+      <div class="votes"><button class="yes" data-vote="yes">Support</button><button class="no" data-vote="no">Oppose</button><button data-vote="delegate">Let someone I trust vote for me</button></div>
+      <div class="result" id="voteResult">Try a button to see how a decision could be recorded.</div>
+      <div class="receipt hidden" id="demoReceipt"><strong id="receiptTitle">Demo vote recorded</strong><br><span>This stays on your device and is not submitted.</span></div>
+    </section>
+
+    <section class="card">
+      <h2>Your history</h2>
+      <p>Useful work could build trust over time.</p>
+      <div class="rows"><div class="row"><span>Merged code</span><strong>+40</strong></div><div class="row"><span>Testing</span><strong>+25</strong></div><div class="row"><span>Keeping a relay online</span><strong>+18</strong></div><div class="row"><span>Documentation</span><strong>+12</strong></div></div>
+      <p>Credits are only one possible way to recognize work. Money alone should not buy control.</p>
+    </section>
+
+    <section class="card">
+      <h2>Shared money</h2>
+      <p>Example use of a $25,000 community fund.</p>
+      <div class="rows"><div class="row"><span>Running 3DVR</span><strong>$13,000</strong></div><div class="row"><span>Community projects</span><strong>$7,000</strong></div><div class="row"><span>Future opportunities</span><strong>$5,000</strong></div></div>
+      <p>Large spending could require a public proposal and more than one person to approve it.</p>
+    </section>
+
+    <section class="card wide">
+      <h2>Where could AI help?</h2>
+      <p>AI could research grants, hardware, companies, crypto, infrastructure, or other opportunities and explain the pros and cons. People would still choose the rules and approve important moves.</p>
+    </section>
+  </div>
+
+  <a class="back" href="../">← Back to the plain-English overview</a>
+  <footer>3DVR · Example only. No real votes or money.</footer>
+</main>
+<script>
+  const yesCount=document.getElementById('yesCount');
+  const noCount=document.getElementById('noCount');
+  const result=document.getElementById('voteResult');
+  const receipt=document.getElementById('demoReceipt');
+  const receiptTitle=document.getElementById('receiptTitle');
+  document.querySelectorAll('[data-vote]').forEach(button=>button.addEventListener('click',()=>{
+    const vote=button.dataset.vote;
+    if(vote==='yes'){yesCount.textContent=String(Number(yesCount.textContent)+1);result.textContent='Demo support recorded.';receiptTitle.textContent='Demo: you supported this idea';}
+    if(vote==='no'){noCount.textContent=String(Number(noCount.textContent)+1);result.textContent='Demo opposition recorded.';receiptTitle.textContent='Demo: you opposed this idea';}
+    if(vote==='delegate'){result.textContent='Demo: you chose to let a trusted person vote for you.';receiptTitle.textContent='Demo: voting responsibility shared';}
+    receipt.classList.remove('hidden');
+  }));
+</script>
+<script defer src="/issue-launcher.js"></script>
+</body>
+</html>
