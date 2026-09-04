@@ -1,11 +1,11 @@
-name: LicheePi Three-Path Resilience Drill
+name: LicheePi Dual-Cloud Reboot Test
 
 on:
   push:
     branches: [main]
     paths:
       - '.github/workflows/licheepi-resilience-drill.yml'
-      - 'scripts/ops/licheepi-resilience-drill.sh'
+      - 'scripts/ops/licheepi-dual-cloud-reboot-test.sh'
       - 'scripts/ops/licheepi-configure-hetzner-jump.sh'
   workflow_dispatch:
 
@@ -13,9 +13,9 @@ permissions:
   contents: write
 
 jobs:
-  drill:
+  reboot-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - name: Enforce on-site safety window
@@ -27,12 +27,11 @@ jobs:
           SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
           OVH_HOST: 40.160.137.41
         run: bash scripts/ops/licheepi-configure-hetzner-jump.sh
-      - name: Test failover and reboot recovery
+      - name: Reboot known-good l0 and verify both clouds return
         env:
           SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
           SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
           SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
           OVH_HOST: 40.160.137.41
-          HETZNER_HOST: 40.160.137.41
           GITHUB_TOKEN: ${{ github.token }}
-        run: bash scripts/ops/licheepi-resilience-drill.sh
+        run: bash scripts/ops/licheepi-dual-cloud-reboot-test.sh
