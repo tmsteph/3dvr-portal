@@ -1,0 +1,28 @@
+name: LicheePi Guarded Mainline Kexec Trial
+
+on:
+  workflow_run:
+    workflows: ["LicheePi Three-Path Resilience Drill"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mainline-trial:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Try Debian mainline non-persistently and auto-return to vendor
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          OVH_HOST: 40.160.137.41
+          HETZNER_HOST: 167.233.174.20
+          GITHUB_TOKEN: ${{ github.token }}
+          CUTOFF_UTC: 2026-09-04T23:00:00Z
+        run: bash scripts/ops/licheepi-mainline-kexec-test.sh
