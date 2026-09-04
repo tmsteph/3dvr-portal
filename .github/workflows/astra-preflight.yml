@@ -1,0 +1,32 @@
+name: GPT-6 Astra Preflight
+
+on:
+  pull_request:
+    paths:
+      - 'api/openai-site.js'
+      - 'src/astra/**'
+      - 'astra/**'
+      - 'tests/astra-*.test.js'
+      - '.github/workflows/astra-*.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'api/openai-site.js'
+      - 'src/astra/**'
+      - 'astra/**'
+      - 'tests/astra-*.test.js'
+      - '.github/workflows/astra-*.yml'
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --check api/openai-site.js
+      - run: node --check src/astra/canary.js
+      - run: node --check astra/app.js
+      - run: node --test tests/vercel-function-budget.test.js
