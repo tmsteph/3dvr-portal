@@ -1,0 +1,27 @@
+name: LicheePi fw_printenv Read-Only Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-fwenv-readonly.yml'
+      - 'scripts/ops/licheepi-fwenv-readonly.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate fw_printenv without writing boot state
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          OVH_HOST: 40.160.137.41
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash scripts/ops/licheepi-fwenv-readonly.sh
