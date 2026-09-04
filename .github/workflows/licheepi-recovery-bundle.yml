@@ -1,0 +1,84 @@
+name: LicheePi Recovery Bundle
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-recovery-bundle.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Save known-good boot state on both cloud anchors
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          OVH_HOST: 40.160.137.41
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          write_key(){ raw="$1"; dest="$2"; [ -n "$raw" ] || return 0; printf '%s\n' "$raw" > "$dest.raw"; if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest"; elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :; else rm -f "$dest" "$dest.raw"; return 0; fi; chmod 600 "$dest"; rm -f "$dest.raw"; }
+          write_key "$SSH_A" /tmp/a; write_key "$SSH_B" /tmp/b; write_key "$SSH_C" /tmp/c
+          user=''; key=''
+          for u in debian root; do for k in /tmp/a /tmp/b /tmp/c; do [ -f "$k" ] || continue; if ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$u@$OVH_HOST" true >/dev/null 2>&1; then user="$u"; key="$k"; break 2; fi; done; done
+          test -n "$user"
+          opts=(-i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          remote="$user@$OVH_HOST"
+
+          ssh "${opts[@]}" "$remote" "STAMP='$stamp' bash -s" <<'OVH'
+          set -euo pipefail
+          dest="$HOME/.3dvr/backups/licheepi/$STAMP"
+          mkdir -p "$dest"; chmod 700 "$HOME/.3dvr" "$HOME/.3dvr/backups" "$HOME/.3dvr/backups/licheepi" "$dest" 2>/dev/null || true
+          ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a "sudo -n tar -C / -czf - boot etc/fstab etc/os-release etc/systemd/system/lichee-tunnel.service etc/systemd/system/3dvr-lpi-hetzner.service etc/systemd/system/3dvr-lpi-network-heal.service etc/systemd/system/3dvr-lpi-network-heal.timer 2>/dev/null" > "$dest/boot-and-recovery-config.tar.gz"
+          ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a "sudo -n dd if=/dev/mmcblk0boot0 bs=1M status=none 2>/dev/null | gzip -1" > "$dest/mmcblk0boot0.img.gz"
+          ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a "dpkg-query -W -f='\${Package}\t\${Version}\n' 2>/dev/null || true" > "$dest/packages.tsv"
+          ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a "uname -a; printf '\nCMDLINE '; cat /proc/cmdline; printf '\n'; lsblk -o NAME,SIZE,FSTYPE,LABEL,PARTLABEL,UUID,PARTUUID,MOUNTPOINTS" > "$dest/system.txt"
+          (cd "$dest" && sha256sum * > SHA256SUMS)
+          chmod 600 "$dest"/*
+
+          hetz=false
+          if ssh -o BatchMode=yes -o ConnectTimeout=6 3dvr-hetzner true >/dev/null 2>&1; then
+            hdest=".3dvr/backups/licheepi/$STAMP"
+            ssh 3dvr-hetzner "mkdir -p '$hdest' && chmod 700 .3dvr .3dvr/backups .3dvr/backups/licheepi '$hdest' 2>/dev/null || true"
+            tar -C "$dest" -cf - . | ssh 3dvr-hetzner "tar -C '$hdest' -xf - && chmod 600 '$hdest'/*"
+            hetz=true
+          fi
+          printf 'STAMP=%s\nOVH_PATH=%s\nHETZNER_COPY=%s\n' "$STAMP" "$dest" "$hetz" > /tmp/lichee-backup-result
+          OVH
+
+          out="$(ssh "${opts[@]}" "$remote" 'cat /tmp/lichee-backup-result; rm -f /tmp/lichee-backup-result')"
+          STAMP="$(printf '%s\n' "$out" | sed -n 's/^STAMP=//p')"
+          OVH_PATH="$(printf '%s\n' "$out" | sed -n 's/^OVH_PATH=//p')"
+          HETZNER_COPY="$(printf '%s\n' "$out" | sed -n 's/^HETZNER_COPY=//p')"
+          STAMP="$STAMP" OVH_PATH="$OVH_PATH" HETZNER_COPY="$HETZNER_COPY" python3 - <<'PY' >/tmp/result.json
+          import datetime,json,os
+          print(json.dumps({
+            'checkedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'ok':bool(os.environ.get('STAMP')),
+            'backupStamp':os.environ.get('STAMP',''),
+            'ovhBackup':bool(os.environ.get('OVH_PATH')),
+            'hetznerBackup':os.environ.get('HETZNER_COPY')=='true',
+            'contains':['/boot tree','mmcblk0boot0 image','package manifest','system/partition manifest','recovery service definitions'],
+            'note':'Private SSH keys are intentionally not copied into the recovery bundle.'
+          },indent=2))
+          PY
+          cat /tmp/result.json
+          content="$(base64 -w0 /tmp/result.json)"
+          url="https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/licheepi-recovery-bundle-result.json"
+          sha="$(curl -fsS -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' "$url" 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("sha", ""))' 2>/dev/null || true)"
+          python3 - "$content" "$sha" <<'PY' >/tmp/payload.json
+          import json,sys
+          p={'message':'Record LicheePi recovery bundle','content':sys.argv[1],'branch':'main'}
+          if sys.argv[2]: p['sha']=sys.argv[2]
+          print(json.dumps(p))
+          PY
+          curl -fsS -X PUT -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' "$url" --data-binary @/tmp/payload.json >/dev/null
