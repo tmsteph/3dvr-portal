@@ -3,6 +3,7 @@ import nodemailer from 'nodemailer';
 export const CHALLENGE_PAYMENT_URL = 'https://buy.stripe.com/5kQaEXeua5pVeRpfYMc7u0g';
 export const DEFAULT_CHALLENGE_MODEL = 'gpt-5.4-mini';
 export const DEFAULT_CHALLENGE_GATEWAY_MODEL = 'openai/gpt-5.4-mini';
+export const DEFAULT_CHALLENGE_MAX_PER_HOUR = 6;
 
 const cleanLine = (value, max = 180) => String(value || '')
   .replace(/[\r\n\t]+/g, ' ')
@@ -15,6 +16,12 @@ const cleanText = (value, max = 3000) => String(value || '').trim().slice(0, max
 function normalizeEmail(value) {
   const email = cleanLine(value, 254).toLowerCase();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '';
+}
+
+function boundedPositiveInteger(value, fallback, maximum = 50) {
+  const parsed = Number.parseInt(String(value || ''), 10);
+  if (!Number.isInteger(parsed) || parsed < 1) return fallback;
+  return Math.min(parsed, maximum);
 }
 
 export function normalizeChallengeSubmission(input = {}) {
@@ -203,7 +210,44 @@ function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
+function resolveClientKey(req, submission) {
+  const forwarded = String(req?.headers?.['x-forwarded-for'] || '').split(',')[0].trim();
+  const remote = cleanLine(req?.socket?.remoteAddress, 120);
+  return cleanLine(forwarded || remote || submission.email, 254) || submission.email;
+}
+
+export function consumeChallengeRateLimit(store, key, options = {}) {
+  const now = Number(options.now ?? Date.now());
+  const windowMs = Number(options.windowMs || 60 * 60 * 1000);
+  const max = boundedPositiveInteger(options.max, DEFAULT_CHALLENGE_MAX_PER_HOUR);
+  const current = store.get(key);
+
+  if (!current || current.resetAt <= now) {
+    store.set(key, { count: 1, resetAt: now + windowMs });
+    return { allowed: true, remaining: max - 1, retryAfterSeconds: 0 };
+  }
+
+  if (current.count >= max) {
+    return {
+      allowed: false,
+      remaining: 0,
+      retryAfterSeconds: Math.max(1, Math.ceil((current.resetAt - now) / 1000))
+    };
+  }
+
+  current.count += 1;
+  store.set(key, current);
+  return { allowed: true, remaining: max - current.count, retryAfterSeconds: 0 };
+}
+
 export function createChallengeHandler(options = {}) {
+  const config = options.config || process.env;
+  const rateLimitStore = options.rateLimitStore || new Map();
+  const maxPerHour = boundedPositiveInteger(
+    options.maxPerHour || config.CHALLENGE_MAX_PER_HOUR,
+    DEFAULT_CHALLENGE_MAX_PER_HOUR
+  );
+
   return async function challengeHandler(req, res) {
     setCorsHeaders(res);
 
@@ -215,6 +259,20 @@ export function createChallengeHandler(options = {}) {
       submission = normalizeChallengeSubmission(req.body || {});
     } catch (error) {
       return res.status(400).json({ error: error.message });
+    }
+
+    const limit = consumeChallengeRateLimit(rateLimitStore, resolveClientKey(req, submission), {
+      max: maxPerHour,
+      now: typeof options.now === 'function' ? options.now() : Date.now()
+    });
+    res.setHeader('X-RateLimit-Remaining', String(limit.remaining));
+    if (!limit.allowed) {
+      res.setHeader('Retry-After', String(limit.retryAfterSeconds));
+      return res.status(429).json({
+        ok: false,
+        delivered: false,
+        error: 'Too many challenge requests. Please try again later.'
+      });
     }
 
     try {
