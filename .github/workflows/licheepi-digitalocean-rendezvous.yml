@@ -1,0 +1,28 @@
+name: LicheePi DigitalOcean Recovery Route
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-digitalocean-rendezvous.yml'
+      - 'scripts/ops/licheepi-digitalocean-rendezvous.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  add-route:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add and verify independent DigitalOcean Pi tunnel
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          OVH_HOST: 40.160.137.41
+          DO_HOST: 167.172.193.194
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash scripts/ops/licheepi-digitalocean-rendezvous.sh
