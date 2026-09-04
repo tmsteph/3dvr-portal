@@ -5,6 +5,7 @@ import {
   createBusinessCardOrderHandler,
   getBusinessCardCheckoutConfig,
 } from '../src/billing/api-business-card-order.js';
+import { createChallengeHandler } from '../src/challenge/api.js';
 
 const AV_BOOKING_RATES = Object.freeze({
   lead: { label: 'Lead technician', dayRate: 750 },
@@ -103,6 +104,10 @@ export function createTrialHandler(options = {}) {
     mailTransport: transporter,
     config,
   });
+  const businessChallengeHandler = createChallengeHandler({
+    mailTransport: transporter,
+    config,
+  });
 
   async function sendWelcomeEmail(to) {
     await transporter.sendMail({
@@ -182,6 +187,10 @@ export function createTrialHandler(options = {}) {
     }
 
     const { email, kind, consent, source } = req.body || {};
+
+    if (kind === 'business-challenge') {
+      return businessChallengeHandler(req, res);
+    }
 
     if (kind === 'business-card-order') {
       return businessCardOrderHandler(req, res);
