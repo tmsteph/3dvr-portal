@@ -36,8 +36,6 @@ set -euo pipefail
 cfg=/tmp/3dvr-fw_env.config
 printf '/dev/mmcblk0 0xe0000 0x20000\n' > "$cfg"
 
-# Prefer an installed tool, but do not install packages in this read-only gate.
-# If absent, download/extract Debian packages into /tmp only.
 tool="$(command -v fw_printenv || true)"
 source='installed'
 work=/tmp/3dvr-fwenv-tool
@@ -53,26 +51,39 @@ if [ -z "$tool" ]; then
 fi
 
 help="$($tool -h 2>&1 || true)"
-# Debian/libubootenv accepts -c for an alternate config. Fail closed if this
-# binary does not expose that interface.
-printf '%s' "$help" | grep -q -- '-c' || { echo '{"ok":false,"reason":"fw_printenv lacks expected -c option"}'; exit 2; }
+args=()
+config_mode='-c'
+restore=/tmp/3dvr-fw_env.config.original
+had_config=false
+cleanup(){
+  if [ "$config_mode" = default-file ]; then
+    if [ "$had_config" = true ]; then sudo -n cp -a "$restore" /etc/fw_env.config; else sudo -n rm -f /etc/fw_env.config; fi
+  fi
+  rm -f "$restore" "$cfg" /tmp/3dvr-env-after-fwprint.bin
+}
+trap cleanup EXIT
 
-# Read only selected non-secret boot-flow variables.
-get(){ sudo -n env LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}" "$tool" -c "$cfg" "$1" 2>/dev/null | sed -n "s/^$1=//p"; }
+if printf '%s' "$help" | grep -q -- '-c'; then
+  args=(-c "$cfg")
+else
+  config_mode='default-file'
+  if sudo -n test -e /etc/fw_env.config; then sudo -n cp -a /etc/fw_env.config "$restore"; sudo -n chmod 0644 "$restore"; had_config=true; fi
+  sudo -n install -m 0644 "$cfg" /etc/fw_env.config
+fi
+
+get(){ sudo -n env LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}" "$tool" "${args[@]}" "$1" 2>/dev/null | sed -n "s/^$1=//p"; }
 bootcmd="$(get bootcmd)"
 boot_conf_file="$(get boot_conf_file)"
 bootdelay="$(get bootdelay)"
 mmcdev="$(get mmcdev)"
 mmcbootpart="$(get mmcbootpart)"
 
-# Independently re-read and CRC-check the raw bytes after fw_printenv. This also
-# proves the read-only operation did not mutate the environment.
 tmp=/tmp/3dvr-env-after-fwprint.bin
 sudo -n dd if=/dev/mmcblk0 of="$tmp" bs=512 skip=1792 count=256 status=none
 sudo -n chmod 0644 "$tmp"
-python3 - "$tmp" "$source" "$bootcmd" "$boot_conf_file" "$bootdelay" "$mmcdev" "$mmcbootpart" <<'PY'
+python3 - "$tmp" "$source" "$config_mode" "$bootcmd" "$boot_conf_file" "$bootdelay" "$mmcdev" "$mmcbootpart" <<'PY'
 import hashlib,json,struct,sys,zlib
-p,source,bootcmd,conf,delay,mmcdev,part=sys.argv[1:]
+p,source,config_mode,bootcmd,conf,delay,mmcdev,part=sys.argv[1:]
 data=open(p,'rb').read(); stored=struct.unpack('<I',data[:4])[0]; calc=zlib.crc32(data[4:])&0xffffffff
 expected='run bootcmd_load; bootslave; sysboot mmc ${mmcdev}:${mmcbootpart} any $boot_conf_addr_r $boot_conf_file;'
 checks={
@@ -86,6 +97,7 @@ checks={
 print(json.dumps({
  'ok':all(checks.values()),
  'toolSource':source,
+ 'configMode':config_mode,
  'config':'/dev/mmcblk0 0xe0000 0x20000',
  'checks':checks,
  'environmentSha256':hashlib.sha256(data).hexdigest(),
@@ -93,7 +105,6 @@ print(json.dumps({
  'bootFlow':{'bootcmd':bootcmd,'boot_conf_file':conf,'bootdelay':delay,'mmcdev':mmcdev,'mmcbootpart':part}
 },indent=2))
 PY
-rm -f "$tmp" "$cfg"
 REMOTE
 )
 B64="$(printf '%s' "$REMOTE" | base64 -w0)"
