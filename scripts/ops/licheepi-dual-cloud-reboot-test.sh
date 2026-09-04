@@ -38,9 +38,11 @@ pi(){ ssh -n -o BatchMode=yes -o ConnectTimeout=8 lpi4a "$@"; }
 
 route lpi4a
 route lpi4a-hetzner
-DEFAULT="$(pi sh -c "grep -i '^[[:space:]]*default[[:space:]]' /boot/extlinux/extlinux.conf | head -1 | tr -s ' ' | cut -d' ' -f2")"
+# Pull raw files/values from the Pi and parse locally on OVH. This avoids SSH
+# reconstructing shell expressions such as awk programs and losing quoting.
+DEFAULT="$(pi cat /boot/extlinux/extlinux.conf | awk 'tolower($1)=="default"{print $2; exit}')"
 test "$DEFAULT" = l0
-BEFORE_BTIME="$(pi awk '$1=="btime"{print $2; exit}' /proc/stat)"
+BEFORE_BTIME="$(pi cat /proc/stat | awk '$1=="btime"{print $2; exit}')"
 KERNEL_BEFORE="$(pi uname -r)"
 case "$KERNEL_BEFORE" in 5.10.113*) ;; *) exit 21;; esac
 test -n "$BEFORE_BTIME"
@@ -49,9 +51,9 @@ pi sudo -n systemctl reboot >/dev/null 2>&1 || true
 sleep 12
 wait_route lpi4a
 wait_route lpi4a-hetzner
-AFTER_BTIME="$(pi awk '$1=="btime"{print $2; exit}' /proc/stat)"
+AFTER_BTIME="$(pi cat /proc/stat | awk '$1=="btime"{print $2; exit}')"
 KERNEL_AFTER="$(pi uname -r)"
-DEFAULT_AFTER="$(pi sh -c "grep -i '^[[:space:]]*default[[:space:]]' /boot/extlinux/extlinux.conf | head -1 | tr -s ' ' | cut -d' ' -f2")"
+DEFAULT_AFTER="$(pi cat /boot/extlinux/extlinux.conf | awk 'tolower($1)=="default"{print $2; exit}')"
 test "$BEFORE_BTIME" != "$AFTER_BTIME"
 test "$DEFAULT_AFTER" = l0
 case "$KERNEL_AFTER" in 5.10.113*) ;; *) exit 22;; esac
