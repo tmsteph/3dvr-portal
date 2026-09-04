@@ -1,0 +1,24 @@
+name: LicheePi DigitalOcean Recovery Diagnose
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-do-recovery-diagnose.yml'
+      - 'scripts/ops/licheepi-do-recovery-diagnose.sh'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Diagnose Pi through surviving DigitalOcean route
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          DO_HOST: 167.172.193.194
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash scripts/ops/licheepi-do-recovery-diagnose.sh
