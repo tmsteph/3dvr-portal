@@ -1,0 +1,116 @@
+name: LicheePi Remote Recovery Probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-recovery-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe LicheePi through OVH
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          OVH_HOST: 40.160.137.41
+        run: |
+          set -u
+          write_key() {
+            raw="$1"; dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"; return 0
+            fi
+            chmod 600 "$dest"; rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/key-a
+          write_key "$SSH_B" /tmp/key-b
+          write_key "$SSH_C" /tmp/key-c
+
+          ovh_user=''; ovh_key=''
+          for user in debian root; do
+            for key in /tmp/key-a /tmp/key-b /tmp/key-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$OVH_HOST" true >/dev/null 2>&1; then
+                ovh_user="$user"; ovh_key="$key"; break 2
+              fi
+            done
+          done
+
+          result=/tmp/result.json
+          if [ -z "$ovh_user" ]; then
+            printf '{"ovhReachable":false,"reversePort2223":false,"aliasPresent":false,"licheePiSsh":false,"note":"No bootstrap SSH access to OVH"}\n' > "$result"
+          else
+            ssh_opts=(-i "$ovh_key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
+            port=false; alias=false; pi=false; host=''; user=''; uptime=''; ip=''; tunnel=''
+
+            if ssh "${ssh_opts[@]}" "$ovh_user@$OVH_HOST" "timeout 3 bash -c '</dev/tcp/127.0.0.1/2223'" >/dev/null 2>&1; then port=true; fi
+            if ssh "${ssh_opts[@]}" "$ovh_user@$OVH_HOST" "grep -Eq '^[[:space:]]*Host[[:space:]]+lpi4a([[:space:]]|$)' ~/.ssh/config 2>/dev/null"; then alias=true; fi
+
+            out="$(ssh "${ssh_opts[@]}" "$ovh_user@$OVH_HOST" "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 lpi4a 'printf \"HOST=%s\\nUSER=%s\\nUPTIME=%s\\nIPS=%s\\n\" \"\$(hostname)\" \"\$(id -un)\" \"\$(uptime -p 2>/dev/null || true)\" \"\$(hostname -I 2>/dev/null || true)\"'" 2>/dev/null || true)"
+            if printf '%s' "$out" | grep -q '^HOST='; then
+              pi=true
+              host="$(printf '%s\n' "$out" | sed -n 's/^HOST=//p' | head -n1)"
+              user="$(printf '%s\n' "$out" | sed -n 's/^USER=//p' | head -n1)"
+              uptime="$(printf '%s\n' "$out" | sed -n 's/^UPTIME=//p' | head -n1)"
+              ip="$(printf '%s\n' "$out" | sed -n 's/^IPS=//p' | head -n1)"
+            else
+              direct="$(ssh "${ssh_opts[@]}" "$ovh_user@$OVH_HOST" "ssh -p 2223 -i ~/.ssh/id_ed25519_3dvr_mesh -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 sipeed@127.0.0.1 'printf \"HOST=%s\\nUSER=%s\\nUPTIME=%s\\nIPS=%s\\n\" \"\$(hostname)\" \"\$(id -un)\" \"\$(uptime -p 2>/dev/null || true)\" \"\$(hostname -I 2>/dev/null || true)\"'" 2>/dev/null || true)"
+              if printf '%s' "$direct" | grep -q '^HOST='; then
+                pi=true
+                host="$(printf '%s\n' "$direct" | sed -n 's/^HOST=//p' | head -n1)"
+                user="$(printf '%s\n' "$direct" | sed -n 's/^USER=//p' | head -n1)"
+                uptime="$(printf '%s\n' "$direct" | sed -n 's/^UPTIME=//p' | head -n1)"
+                ip="$(printf '%s\n' "$direct" | sed -n 's/^IPS=//p' | head -n1)"
+              fi
+            fi
+
+            ssline="$(ssh "${ssh_opts[@]}" "$ovh_user@$OVH_HOST" "ss -ltnp 2>/dev/null | grep -E '127\\.0\\.0\\.1:2223|:2223' | head -n1" 2>/dev/null || true)"
+            [ -n "$ssline" ] && tunnel="$ssline"
+
+            OVH_REACH=true PORT="$port" ALIAS="$alias" PI="$pi" HOST="$host" USER="$user" UPTIME="$uptime" IPS="$ip" TUNNEL="$tunnel" python3 - <<'PY' > "$result"
+          import json, os, datetime
+          print(json.dumps({
+            "checkedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "ovhReachable": os.environ.get("OVH_REACH") == "true",
+            "reversePort2223": os.environ.get("PORT") == "true",
+            "aliasPresent": os.environ.get("ALIAS") == "true",
+            "licheePiSsh": os.environ.get("PI") == "true",
+            "host": os.environ.get("HOST", ""),
+            "user": os.environ.get("USER", ""),
+            "uptime": os.environ.get("UPTIME", ""),
+            "ips": os.environ.get("IPS", ""),
+            "listener": os.environ.get("TUNNEL", "")
+          }, indent=2))
+          PY
+          fi
+
+          cat "$result"
+
+          content="$(base64 -w0 "$result")"
+          url="https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/licheepi-recovery-result.json"
+          sha="$(curl -fsS -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' "$url" 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("sha", ""))' 2>/dev/null || true)"
+          python3 - "$content" "$sha" <<'PY' >/tmp/payload.json
+          import json,sys
+          p={"message":"Record LicheePi recovery probe","content":sys.argv[1],"branch":"main"}
+          if sys.argv[2]: p["sha"]=sys.argv[2]
+          print(json.dumps(p))
+          PY
+          curl -fsS -X PUT -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' "$url" --data-binary @/tmp/payload.json >/dev/null
+          rm -f /tmp/key-* /tmp/result.json /tmp/payload.json
