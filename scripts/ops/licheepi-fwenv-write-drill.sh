@@ -19,6 +19,8 @@ for name,path in checks.items():
     assert d.get('ok') is True, (name,d)
 assert json.load(open(checks['backups'])).get('independentPulls') is True
 assert json.load(open(checks['reboot'])).get('routesAfterReboot') == {'ovh':True,'hetzner':True}
+assert json.load(open(checks['fwread'])).get('probeVariableAbsent') is True
+assert json.load(open(checks['fwread'])).get('threeCloudServicesActive') is True
 assert json.load(open(checks['digitalocean'])).get('digitalOcean') is True
 PY
 
@@ -51,7 +53,27 @@ value="onsite-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 before=/tmp/3dvr-fwenv-before.txt
 after=/tmp/3dvr-fwenv-after.txt
 raw=/tmp/3dvr-fwenv-after.bin
-cleanup(){ rm -f "$cfg" "$before" "$after"; sudo -n rm -f "$raw"; }
+old_present=false
+old_value=''
+mutated=false
+
+restore_probe(){
+  # Best-effort emergency restore if any check fails after the write.
+  [ "$mutated" = true ] || return 0
+  set +e
+  if [ "$old_present" = true ]; then
+    sudo -n fw_setenv -c "$cfg" "$var" "$old_value"
+  else
+    sudo -n fw_setenv -c "$cfg" "$var"
+  fi
+  mutated=false
+  set -e
+}
+cleanup(){
+  restore_probe || true
+  rm -f "$cfg" "$before" "$after"
+  sudo -n rm -f "$raw"
+}
 trap cleanup EXIT
 
 command -v fw_printenv >/dev/null
@@ -60,40 +82,40 @@ fw_printenv -h 2>&1 | grep -q -- '-c'
 fw_setenv -h 2>&1 | grep -q -- '-c'
 sudo -n true
 
-# All recovery/boot prerequisites must still be healthy at the instant of write.
 conf=/boot/extlinux/extlinux.conf
 grep -Eq '^[[:space:]]*default[[:space:]]+l0([[:space:]]|$)' "$conf"
 systemctl is-active --quiet ssh || systemctl is-active --quiet sshd
-systemctl is-active --quiet lichee-tunnel.service
-systemctl is-active --quiet 3dvr-lpi-hetzner.service
-systemctl is-active --quiet 3dvr-lpi-digitalocean.service
+for unit in lichee-tunnel.service 3dvr-lpi-hetzner.service 3dvr-lpi-digitalocean.service; do
+  systemctl is-active --quiet "$unit"
+  systemctl is-enabled --quiet "$unit"
+done
 
-# Capture a semantic snapshot. No full environment leaves the Pi.
+# Full iterator output is the only reliable way to detect variable presence in
+# libubootenv; querying one absent name still prints NAME= with exit status 0.
 sudo -n fw_printenv -c "$cfg" 2>/dev/null | LC_ALL=C sort > "$before"
-old_present=false
-old_value=''
-if line="$(sudo -n fw_printenv -c "$cfg" "$var" 2>/dev/null)"; then
+if grep -q "^${var}=" "$before"; then
   old_present=true
-  old_value="${line#*=}"
+  old_value="$(sed -n "s/^${var}=//p" "$before" | head -1)"
 fi
 bootcmd_before="$(sudo -n fw_printenv -c "$cfg" bootcmd 2>/dev/null | sed 's/^bootcmd=//')"
 conf_before="$(sudo -n fw_printenv -c "$cfg" boot_conf_file 2>/dev/null | sed 's/^boot_conf_file=//')"
 
 # The only intentional U-Boot mutation in this drill.
 sudo -n fw_setenv -c "$cfg" "$var" "$value"
-readback="$(sudo -n fw_printenv -c "$cfg" "$var" 2>/dev/null | sed "s/^$var=//")"
+mutated=true
+readback="$(sudo -n fw_printenv -c "$cfg" 2>/dev/null | sed -n "s/^${var}=//p" | head -1)"
 test "$readback" = "$value"
 
-# Restore exactly what existed before the drill.
+# Restore exactly what existed before the drill, then disarm emergency restore.
 if [ "$old_present" = true ]; then
   sudo -n fw_setenv -c "$cfg" "$var" "$old_value"
 else
   sudo -n fw_setenv -c "$cfg" "$var"
 fi
+mutated=false
 sudo -n fw_printenv -c "$cfg" 2>/dev/null | LC_ALL=C sort > "$after"
 cmp -s "$before" "$after"
 
-# Independently verify CRC and critical boot variables after the restore.
 sudo -n dd if=/dev/mmcblk0 of="$raw" bs=512 skip=1792 count=256 status=none
 sudo -n chmod 0644 "$raw"
 bootcmd_after="$(sudo -n fw_printenv -c "$cfg" bootcmd 2>/dev/null | sed 's/^bootcmd=//')"
@@ -101,14 +123,13 @@ conf_after="$(sudo -n fw_printenv -c "$cfg" boot_conf_file 2>/dev/null | sed 's/
 test "$bootcmd_before" = "$bootcmd_after"
 test "$conf_before" = "$conf_after"
 grep -Eq '^[[:space:]]*default[[:space:]]+l0([[:space:]]|$)' "$conf"
+for unit in lichee-tunnel.service 3dvr-lpi-hetzner.service 3dvr-lpi-digitalocean.service; do systemctl is-active --quiet "$unit"; done
 
 python3 - "$raw" "$old_present" "$bootcmd_after" "$conf_after" <<'PY'
 import json,struct,sys,zlib
 p,old_present,bootcmd,conf=sys.argv[1:]
-data=open(p,'rb').read()
-assert len(data)==0x20000
-stored=struct.unpack('<I',data[:4])[0]
-calc=zlib.crc32(data[4:]) & 0xffffffff
+data=open(p,'rb').read(); assert len(data)==0x20000
+stored=struct.unpack('<I',data[:4])[0]; calc=zlib.crc32(data[4:]) & 0xffffffff
 expected='run bootcmd_load; bootslave; sysboot mmc ${mmcdev}:${mmcbootpart} any $boot_conf_addr_r $boot_conf_file;'
 ok=(stored==calc and bootcmd==expected and conf=='/extlinux/extlinux.conf')
 print(json.dumps({
