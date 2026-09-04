@@ -85,16 +85,12 @@ fi
 
 REMOTE=$(cat <<'REMOTE'
 set -euo pipefail
-# Values below are pinned to the exact installed U-Boot source commit d6c9182f.
-expected_commit=d6c9182f
 env_device=/dev/mmcblk0
 env_offset_hex=0xe0000
 env_size_hex=0x20000
 tmp=/tmp/3dvr-env.bin
 boot0=/dev/mmcblk0boot0
 
-# First prove the live bootloader identity. Never use the stored offset if this
-# exact build check stops matching.
 live_id="$(sudo strings "$boot0" 2>/dev/null | grep -m1 -E 'U-Boot 2020\.01-gd6c9182f' || true)"
 if [ -z "$live_id" ]; then
   python3 - <<'PY'
@@ -106,7 +102,6 @@ fi
 
 offset=$((env_offset_hex))
 size=$((env_size_hex))
-# Read only the exact environment region from the eMMC user area. No writes.
 sudo dd if="$env_device" of="$tmp" bs=1 skip="$offset" count="$size" status=none
 sudo chmod 0644 "$tmp"
 
@@ -118,23 +113,30 @@ size=int(size_hex,16)
 if len(data) != size:
     print(json.dumps({'ok':False,'reason':'short environment read','bytesRead':len(data),'expectedBytes':size}))
     raise SystemExit(43)
-stored=data[:4]
+stored_le=struct.unpack('<I',data[:4])[0]
 calc=zlib.crc32(data[4:]) & 0xffffffff
-stored_le=struct.unpack('<I',stored)[0]
 raw=data[4:].split(b'\0\0',1)[0]
+# Whitelist only boot-flow values needed to design recovery. Do not dump the
+# whole environment: it may contain identifiers we do not need in a public
+# receipt.
+allowed={
+  'bootdelay','bootcount','bootlimit','upgrade_available',
+  'boot_partition','boot_partition_alt','root_partition','root_partition_alt',
+  'mmcdev','mmcbootpart','default_mmcdev','boottype','boot_conf_file',
+  'bootcmd','bootcmd_load','findpart','mmc_select','finduuid','set_bootargs',
+  'uuid_rootfsA','uuid_rootfsB'
+}
 items={}
 keys=[]
 for item in raw.split(b'\0'):
     if b'=' not in item:
         continue
     k,v=item.split(b'=',1)
-    try:
-        key=k.decode('ascii')
-    except UnicodeDecodeError:
-        continue
+    try: key=k.decode('ascii')
+    except UnicodeDecodeError: continue
     keys.append(key)
-    if key in {'bootdelay','bootcount','bootlimit','upgrade_available','boot_partition','root_partition','mmcdev'}:
-        items[key]=v.decode('utf-8','replace')[:200]
+    if key in allowed:
+        items[key]=v.decode('utf-8','replace')[:1200]
 print(json.dumps({
     'ok': stored_le == calc,
     'sourceValidated': True,
@@ -147,14 +149,10 @@ print(json.dumps({
     'crcCalculated': hex(calc),
     'crcMatches': stored_le == calc,
     'variableCount': len(keys),
-    'hasBootcmd': 'bootcmd' in keys,
-    'hasAltbootcmd': 'altbootcmd' in keys,
-    'hasBootcount': 'bootcount' in keys,
-    'hasBootlimit': 'bootlimit' in keys,
-    'bootControl': items,
+    'hasRollbackInputs': {k:(k in keys) for k in ['bootcount','bootlimit','boot_partition','boot_partition_alt','root_partition','root_partition_alt']},
+    'bootFlow': items,
 }, separators=(',',':')))
-if stored_le != calc:
-    raise SystemExit(44)
+if stored_le != calc: raise SystemExit(44)
 PY
 rm -f "$tmp"
 REMOTE
@@ -181,9 +179,7 @@ rm -f /tmp/lpi-crc-* /tmp/lpi-crc-payload.json
 
 python3 - "$RESULT" <<'PY'
 import json,sys
-try:
-    ok=bool(json.load(open(sys.argv[1])).get('ok'))
-except Exception:
-    ok=False
+try: ok=bool(json.load(open(sys.argv[1])).get('ok'))
+except Exception: ok=False
 raise SystemExit(0 if ok else 1)
 PY
