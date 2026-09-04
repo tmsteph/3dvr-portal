@@ -25,9 +25,17 @@ jobs:
       - name: Choose shared backup stamp
         run: echo "STAMP=$(date -u +%Y%m%dT%H%M%SZ)" >> "$GITHUB_ENV"
       - name: Back up through OVH tunnel
-        run: STAMP="$STAMP" ANCHOR_HOST=40.160.137.41 ANCHOR_USERS='debian root' PI_ALIAS=lpi4a bash scripts/ops/licheepi-anchor-backup.sh | tee /tmp/ovh-backup.txt
+        run: |
+          set -euo pipefail
+          STAMP="$STAMP" ANCHOR_HOST=40.160.137.41 ANCHOR_USERS='debian root' PI_ALIAS=lpi4a bash scripts/ops/licheepi-anchor-backup.sh | tee /tmp/ovh-backup.txt
+          grep -q '^ENV_SHA=' /tmp/ovh-backup.txt
+          grep -q '^BOOT_SHA=' /tmp/ovh-backup.txt
       - name: Back up through Hetzner tunnel
-        run: STAMP="$STAMP" ANCHOR_HOST=167.233.174.20 ANCHOR_USERS='root debian ubuntu tmsteph' PI_ALIAS=lpi4a-hetzner bash scripts/ops/licheepi-anchor-backup.sh | tee /tmp/hetz-backup.txt
+        run: |
+          set -euo pipefail
+          STAMP="$STAMP" ANCHOR_HOST=167.233.174.20 ANCHOR_USERS='root debian ubuntu tmsteph' PI_ALIAS=lpi4a-hetzner bash scripts/ops/licheepi-anchor-backup.sh | tee /tmp/hetz-backup.txt
+          grep -q '^ENV_SHA=' /tmp/hetz-backup.txt
+          grep -q '^BOOT_SHA=' /tmp/hetz-backup.txt
       - name: Compare and record verified backups
         run: |
           set -euo pipefail
@@ -36,16 +44,21 @@ jobs:
           ob="$(field /tmp/ovh-backup.txt BOOT_SHA)"; hb="$(field /tmp/hetz-backup.txt BOOT_SHA)"
           lu="$(field /tmp/ovh-backup.txt LIVE_UBOOT)"
           test -n "$oe" -a -n "$he" -a -n "$ob" -a -n "$hb" -a -n "$lu"
-          test "$oe" = "$he"; test "$ob" = "$hb"
-          STAMP="$STAMP" ENV_SHA="$oe" BOOT_SHA="$ob" LIVE_UBOOT="$lu" python3 - <<'PY' >/tmp/result.json
+          test "$oe" = "$he"
+          # Compressed tar bytes may differ because gzip/tar can encode creation
+          # time. Environment bytes must match exactly; each boot archive is
+          # independently checksum-verified on its anchor.
+          STAMP="$STAMP" ENV_SHA="$oe" OVH_BOOT_SHA="$ob" HETZ_BOOT_SHA="$hb" LIVE_UBOOT="$lu" python3 - <<'PY' >/tmp/result.json
           import datetime,json,os
           print(json.dumps({
             'checkedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'ok':True,'backupStamp':os.environ['STAMP'],
             'ovhBackup':True,'hetznerBackup':True,'independentPulls':True,
-            'environmentSha256':os.environ['ENV_SHA'],'vendorBootSha256':os.environ['BOOT_SHA'],
+            'environmentSha256':os.environ['ENV_SHA'],
+            'ovhVendorBootSha256':os.environ['OVH_BOOT_SHA'],
+            'hetznerVendorBootSha256':os.environ['HETZ_BOOT_SHA'],
             'liveUboot':os.environ['LIVE_UBOOT'],
-            'verification':'OVH and Hetzner independently pulled the exact U-Boot environment and known-good vendor boot recovery set through separate Pi reverse tunnels; local checks passed and cross-anchor hashes match.'
+            'verification':'OVH and Hetzner independently pulled and locally checksum-verified the exact U-Boot environment and known-good vendor boot recovery set through separate Pi reverse tunnels. Exact environment hashes match across anchors.'
           },indent=2))
           PY
           cat /tmp/result.json
