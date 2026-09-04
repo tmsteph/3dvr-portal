@@ -84,7 +84,7 @@ test('signed owner Forge edit reaches completed after a real commit and push', a
       status: 'queued',
       createdAt: new Date().toISOString(),
       requestedBy: 'portal-operator',
-      authProof,
+      authProof: `b64:${Buffer.from(authProof, 'utf8').toString('base64')}`,
       authPub: pair.pub
     };
     const env = {
