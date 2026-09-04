@@ -79,7 +79,7 @@
     <nav aria-label="Challenge navigation">
       <a href="#how">How it works</a>
       <a href="#problem">Send a problem</a>
-      <a class="nav-pill" href="https://buy.stripe.com/5kQaEXeua5pVeRpfYMc7u0g">Send $1</a>
+      <a class="nav-pill" href="#problem">Start free</a>
     </nav>
   </header>
 
@@ -235,7 +235,7 @@
           warmth: 'warm',
           source: 'one-dollar-business-challenge',
           offerAmount: 'Free problem-solving; optional $1 thank-you',
-          nextBestAction: 'Review the submitted problem and attempt the smallest useful open-source solution.',
+          nextBestAction: 'Autonomous response requested; review only if automatic delivery fails.',
           nextFollowUp: now.slice(0, 10),
           activityCount: 1,
           created: now,
@@ -251,7 +251,7 @@
           channel: 'challenge-page',
           source: 'one-dollar-business-challenge',
           summary: 'Inbound $1 Open-Source Business Challenge submission.',
-          outcome: 'Problem captured for review.',
+          outcome: 'Problem captured and autonomous response requested.',
           message: JSON.stringify({ name, email, problem }),
           created: now,
           updated: now
@@ -263,17 +263,42 @@
         return recordSaved && touchSaved;
       }
 
+      async function deliverSolution(name, email, problem) {
+        try {
+          const response = await fetch('/api/challenge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, problem })
+          });
+          if (!response.ok) return false;
+          const payload = await response.json();
+          return payload?.delivered === true;
+        } catch {
+          return false;
+        }
+      }
+
       form?.addEventListener('submit', async event => {
         event.preventDefault();
         const data = new FormData(form);
         const name = clean(data.get('name'));
         const email = clean(data.get('email'));
         const problem = clean(data.get('problem'));
-        status.textContent = 'Sending your challenge…';
+        status.textContent = 'Working on the smallest useful fix…';
 
-        const saved = await saveLead(name, email, problem);
+        const [saved, delivered] = await Promise.all([
+          saveLead(name, email, problem),
+          deliverSolution(name, email, problem)
+        ]);
+
+        if (delivered) {
+          status.textContent = `Sent. Check ${email} for the fix. Only pay the $1 if it genuinely helped.`;
+          form.reset();
+          return;
+        }
+
         if (saved) {
-          status.textContent = 'Got it. Your problem is in the 3DVR challenge queue.';
+          status.textContent = 'Your problem is saved, but the automatic response hit a snag. We can review it manually.';
           form.reset();
           return;
         }
