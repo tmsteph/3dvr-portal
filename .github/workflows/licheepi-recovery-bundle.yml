@@ -13,9 +13,9 @@ permissions:
 jobs:
   backup:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
-      - name: Save known-good boot state on both cloud anchors
+      - name: Save and verify known-good boot state on both cloud anchors
         shell: bash
         env:
           SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
@@ -28,47 +28,96 @@ jobs:
           write_key(){ raw="$1"; dest="$2"; [ -n "$raw" ] || return 0; printf '%s\n' "$raw" > "$dest.raw"; if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest"; elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :; else rm -f "$dest" "$dest.raw"; return 0; fi; chmod 600 "$dest"; rm -f "$dest.raw"; }
           write_key "$SSH_A" /tmp/a; write_key "$SSH_B" /tmp/b; write_key "$SSH_C" /tmp/c
           user=''; key=''
-          for u in debian root; do for k in /tmp/a /tmp/b /tmp/c; do [ -f "$k" ] || continue; if ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$u@$OVH_HOST" true >/dev/null 2>&1; then user="$u"; key="$k"; break 2; fi; done; done
+          for u in debian root; do
+            for k in /tmp/a /tmp/b /tmp/c; do
+              [ -f "$k" ] || continue
+              if ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$u@$OVH_HOST" true >/dev/null 2>&1; then user="$u"; key="$k"; break 2; fi
+            done
+          done
           test -n "$user"
           opts=(-i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
           stamp="$(date -u +%Y%m%dT%H%M%SZ)"
           remote="$user@$OVH_HOST"
 
-          ssh "${opts[@]}" "$remote" "STAMP='$stamp' bash -s" <<'OVH'
+          # Keep raw recovery data private on the cloud anchors. Only the
+          # sanitized verification receipt is written to this public repo.
+          out="$(ssh "${opts[@]}" "$remote" "STAMP='$stamp' bash -s" <<'OVH'
           set -euo pipefail
+          umask 077
           dest="$HOME/.3dvr/backups/licheepi/$STAMP"
-          mkdir -p "$dest"; chmod 700 "$HOME/.3dvr" "$HOME/.3dvr/backups" "$HOME/.3dvr/backups/licheepi" "$dest" 2>/dev/null || true
-          ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a "sudo -n tar -C / -czf - boot etc/fstab etc/os-release etc/systemd/system/lichee-tunnel.service etc/systemd/system/3dvr-lpi-hetzner.service etc/systemd/system/3dvr-lpi-network-heal.service etc/systemd/system/3dvr-lpi-network-heal.timer 2>/dev/null" > "$dest/boot-and-recovery-config.tar.gz"
-          ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a "sudo -n dd if=/dev/mmcblk0boot0 bs=1M status=none 2>/dev/null | gzip -1" > "$dest/mmcblk0boot0.img.gz"
+          mkdir -p "$dest"
+
+          # Require both board access and the independent Hetzner cloud mesh.
+          ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a true
+          ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-hetzner true
+
+          # Verify the exact bootloader identity before trusting the environment
+          # region. These offsets are from the exact RevyOS source commit
+          # d6c9182f6238f2fc4b386b9e4c5d2cfebbef4746.
+          live_uboot="$(ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a "sudo -n strings /dev/mmcblk0boot0 2>/dev/null | grep -m1 -E 'U-Boot 2020\\.01-gd6c9182f' || true")"
+          test -n "$live_uboot"
+
+          # Boot filesystem + small recovery metadata bundle.
+          ssh -o BatchMode=yes -o ConnectTimeout=12 lpi4a "sudo -n tar --ignore-failed-read -C / -czf - boot etc/fstab etc/os-release etc/systemd/system/lichee-tunnel.service etc/systemd/system/3dvr-lpi-hetzner.service etc/systemd/system/3dvr-lpi-network-heal.service etc/systemd/system/3dvr-lpi-network-heal.timer 2>/dev/null" > "$dest/boot-and-recovery-config.tar.gz"
+
+          # Bootloader copies and the exact validated U-Boot environment.
+          ssh -o BatchMode=yes -o ConnectTimeout=12 lpi4a "sudo -n dd if=/dev/mmcblk0boot0 bs=1M status=none 2>/dev/null | gzip -1" > "$dest/mmcblk0boot0.img.gz"
+          ssh -o BatchMode=yes -o ConnectTimeout=12 lpi4a "sudo -n dd if=/dev/mmcblk0boot1 bs=1M status=none 2>/dev/null | gzip -1" > "$dest/mmcblk0boot1.img.gz"
+          ssh -o BatchMode=yes -o ConnectTimeout=12 lpi4a "sudo -n dd if=/dev/mmcblk0 bs=512 skip=1792 count=256 status=none 2>/dev/null" > "$dest/uboot-env.bin"
+          # Also preserve the first 2 MiB of the eMMC user area, which contains
+          # early disk metadata around the environment/partition-table region.
+          ssh -o BatchMode=yes -o ConnectTimeout=12 lpi4a "sudo -n dd if=/dev/mmcblk0 bs=1M count=2 status=none 2>/dev/null | gzip -1" > "$dest/mmcblk0-first-2MiB.img.gz"
+
           ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a "dpkg-query -W -f='\${Package}\t\${Version}\n' 2>/dev/null || true" > "$dest/packages.tsv"
           ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a "uname -a; printf '\nCMDLINE '; cat /proc/cmdline; printf '\n'; lsblk -o NAME,SIZE,FSTYPE,LABEL,PARTLABEL,UUID,PARTUUID,MOUNTPOINTS" > "$dest/system.txt"
-          (cd "$dest" && sha256sum * > SHA256SUMS)
-          chmod 600 "$dest"/*
+          printf '%s\n' "$live_uboot" > "$dest/live-uboot.txt"
 
-          hetz=false
-          if ssh -o BatchMode=yes -o ConnectTimeout=6 3dvr-hetzner true >/dev/null 2>&1; then
-            hdest=".3dvr/backups/licheepi/$STAMP"
-            ssh 3dvr-hetzner "mkdir -p '$hdest' && chmod 700 .3dvr .3dvr/backups .3dvr/backups/licheepi '$hdest' 2>/dev/null || true"
-            tar -C "$dest" -cf - . | ssh 3dvr-hetzner "tar -C '$hdest' -xf - && chmod 600 '$hdest'/*"
-            hetz=true
-          fi
-          printf 'STAMP=%s\nOVH_PATH=%s\nHETZNER_COPY=%s\n' "$STAMP" "$dest" "$hetz" > /tmp/lichee-backup-result
+          # Verify the environment itself before copying the backup anywhere.
+          python3 - "$dest/uboot-env.bin" <<'PY'
+          import struct,sys,zlib
+          data=open(sys.argv[1],'rb').read()
+          assert len(data)==0x20000, len(data)
+          stored=struct.unpack('<I',data[:4])[0]
+          calc=zlib.crc32(data[4:]) & 0xffffffff
+          assert stored==calc, (hex(stored),hex(calc))
+          PY
+
+          (cd "$dest" && sha256sum boot-and-recovery-config.tar.gz mmcblk0boot0.img.gz mmcblk0boot1.img.gz uboot-env.bin mmcblk0-first-2MiB.img.gz packages.tsv system.txt live-uboot.txt > SHA256SUMS)
+          (cd "$dest" && sha256sum -c SHA256SUMS >/dev/null)
+          env_sha="$(sha256sum "$dest/uboot-env.bin" | awk '{print $1}')"
+
+          hdest="$HOME/.3dvr/backups/licheepi/$STAMP"
+          ssh 3dvr-hetzner "umask 077; mkdir -p '$hdest'"
+          tar -C "$dest" -cf - . | ssh 3dvr-hetzner "umask 077; tar -C '$hdest' -xf -"
+          ssh 3dvr-hetzner "cd '$hdest' && sha256sum -c SHA256SUMS >/dev/null"
+          hetz_env_sha="$(ssh 3dvr-hetzner "sha256sum '$hdest/uboot-env.bin'" | awk '{print $1}')"
+          test "$env_sha" = "$hetz_env_sha"
+
+          printf 'STAMP=%s\nOVH_PATH=%s\nHETZNER_PATH=%s\nENV_SHA=%s\nLIVE_UBOOT=%s\n' "$STAMP" "$dest" "$hdest" "$env_sha" "$live_uboot"
           OVH
+          )"
 
-          out="$(ssh "${opts[@]}" "$remote" 'cat /tmp/lichee-backup-result; rm -f /tmp/lichee-backup-result')"
           STAMP="$(printf '%s\n' "$out" | sed -n 's/^STAMP=//p')"
           OVH_PATH="$(printf '%s\n' "$out" | sed -n 's/^OVH_PATH=//p')"
-          HETZNER_COPY="$(printf '%s\n' "$out" | sed -n 's/^HETZNER_COPY=//p')"
-          STAMP="$STAMP" OVH_PATH="$OVH_PATH" HETZNER_COPY="$HETZNER_COPY" python3 - <<'PY' >/tmp/result.json
+          HETZNER_PATH="$(printf '%s\n' "$out" | sed -n 's/^HETZNER_PATH=//p')"
+          ENV_SHA="$(printf '%s\n' "$out" | sed -n 's/^ENV_SHA=//p')"
+          LIVE_UBOOT="$(printf '%s\n' "$out" | sed -n 's/^LIVE_UBOOT=//p')"
+          test -n "$STAMP" -a -n "$OVH_PATH" -a -n "$HETZNER_PATH" -a -n "$ENV_SHA" -a -n "$LIVE_UBOOT"
+
+          STAMP="$STAMP" OVH_PATH="$OVH_PATH" HETZNER_PATH="$HETZNER_PATH" ENV_SHA="$ENV_SHA" LIVE_UBOOT="$LIVE_UBOOT" python3 - <<'PY' >/tmp/result.json
           import datetime,json,os
           print(json.dumps({
             'checkedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            'ok':bool(os.environ.get('STAMP')),
-            'backupStamp':os.environ.get('STAMP',''),
-            'ovhBackup':bool(os.environ.get('OVH_PATH')),
-            'hetznerBackup':os.environ.get('HETZNER_COPY')=='true',
-            'contains':['/boot tree','mmcblk0boot0 image','package manifest','system/partition manifest','recovery service definitions'],
-            'note':'Private SSH keys are intentionally not copied into the recovery bundle.'
+            'ok':True,
+            'backupStamp':os.environ['STAMP'],
+            'ovhBackup':True,
+            'hetznerBackup':True,
+            'environmentSha256':os.environ['ENV_SHA'],
+            'liveUboot':os.environ['LIVE_UBOOT'],
+            'environmentLayout':{'device':'/dev/mmcblk0','offsetHex':'0xe0000','sizeHex':'0x20000','sourceCommit':'d6c9182f6238f2fc4b386b9e4c5d2cfebbef4746'},
+            'contains':['/boot tree','mmcblk0boot0 image','mmcblk0boot1 image','exact raw U-Boot environment','first 2 MiB of eMMC user area','package manifest','system/partition manifest','recovery service definitions'],
+            'verification':'All listed files passed SHA-256 verification on OVH and Hetzner; the raw environment also passed its U-Boot CRC check.',
+            'note':'Raw recovery images stay private on the cloud anchors. Private SSH keys are intentionally not copied.'
           },indent=2))
           PY
           cat /tmp/result.json
@@ -77,7 +126,7 @@ jobs:
           sha="$(curl -fsS -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' "$url" 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("sha", ""))' 2>/dev/null || true)"
           python3 - "$content" "$sha" <<'PY' >/tmp/payload.json
           import json,sys
-          p={'message':'Record LicheePi recovery bundle','content':sys.argv[1],'branch':'main'}
+          p={'message':'Record verified LicheePi recovery bundle','content':sys.argv[1],'branch':'main'}
           if sys.argv[2]: p['sha']=sys.argv[2]
           print(json.dumps(p))
           PY
