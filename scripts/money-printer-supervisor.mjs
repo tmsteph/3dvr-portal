@@ -19,6 +19,7 @@ import {
   loadMoneyPrinterOperations
 } from '../src/money-printer/moneyPrinterOperations.js';
 import { runMoneyPrinterDaemonCycle } from '../src/money-printer/moneyPrinterDaemon.js';
+import { updateLearningLedger } from '../src/money-printer/learningRuntime.js';
 import { readGithubStatus } from '../src/money-printer/moneyPrinterGithubConnector.js';
 import { readVercelStatus } from '../src/money-printer/moneyPrinterVercelConnector.js';
 
@@ -115,15 +116,21 @@ export async function runMoneyPrinterSupervisor(options = {}) {
       ...runOptions,
       command: 'supervisor-cycle'
     });
+  const persistedLearning = daemon?.learning || await updateLearningLedger({ rootDir });
 
+  const learningBudgetExhausted = Boolean(
+    persistedLearning?.ledger?.progress?.economics?.budget_exhausted
+    || daemon?.report?.executionBlockedByBudget
+  );
   const afterPlanOperations = await loadMoneyPrinterOperations(rootDir);
-  const autoApprovedOperations = options.autoApproveGreen || process.env.MONEY_PRINTER_AUTO_APPROVE_GREEN === 'true'
+  const autoApprovedOperations = !learningBudgetExhausted
+    && (options.autoApproveGreen || process.env.MONEY_PRINTER_AUTO_APPROVE_GREEN === 'true')
     ? await autoApproveMoneyPrinterOperations(rootDir, {
       ...runOptions,
       autoApproveGreen: true
     })
     : [];
-  const executedOperations = options.executeApproved
+  const executedOperations = options.executeApproved && !learningBudgetExhausted
     ? await executeApprovedMoneyPrinterOperations(rootDir, {
       ...runOptions,
       execute: true
@@ -141,7 +148,7 @@ export async function runMoneyPrinterSupervisor(options = {}) {
     healthOnly: Boolean(options.healthOnly),
     daemonReportPath: daemon?.reportPath || '',
     eventLogPath: daemon?.eventLogPath || '',
-    nextBestMoneyAction: daemon?.report?.nextBestMoneyAction || '',
+    nextBestMoneyAction: daemon?.report?.nextBestMoneyAction || persistedLearning?.summary?.nextExperiment?.reason || '',
     codexPromptPath: daemon?.report?.codexPromptPath || '',
     operationsBefore: beforeOperations.length,
     operationsAfterPlanning: afterPlanOperations.length,
@@ -151,6 +158,9 @@ export async function runMoneyPrinterSupervisor(options = {}) {
     operationStatusCounts: countByStatus(finalOperations),
     operationRiskCounts: countByRisk(finalOperations),
     executedApprovedCount: executedOperations.length,
+    learning: daemon?.report?.learning || persistedLearning?.summary || null,
+    learningDirective: daemon?.report?.learningDirective || '',
+    executionBlockedByBudget: learningBudgetExhausted,
     runtime: {
       openAiKeyPresent: providerStatus.openAiKeyPresent,
       liveConnectorsEnabled: providerStatus.liveConnectorsEnabled,
@@ -167,7 +177,8 @@ export async function runMoneyPrinterSupervisor(options = {}) {
       changesDns: false,
       mergesProduction: false,
       executesCodeWithoutExplicitFlag: false,
-      executesOnlyApprovedOperations: Boolean(options.executeApproved)
+      executesOnlyApprovedOperations: Boolean(options.executeApproved && !learningBudgetExhausted),
+      blocksExecutionWhenLearningBudgetExhausted: true
     }
   };
 
@@ -177,10 +188,13 @@ export async function runMoneyPrinterSupervisor(options = {}) {
   await appendMoneyPrinterEvent(rootDir, {
     command: 'supervisor',
     inputSummary: options.healthOnly ? 'health-only' : 'scheduled cycle',
-    outputSummary: `${summary.operationsAddedThisCycle} operation(s) added; ${summary.executedApprovedCount} approved operation(s) executed.`,
+    outputSummary: learningBudgetExhausted
+      ? `${summary.operationsAddedThisCycle} operation(s) added; execution blocked because the learning budget is exhausted.`
+      : `${summary.operationsAddedThisCycle} operation(s) added; ${summary.executedApprovedCount} approved operation(s) executed.`,
     nextAction: summary.nextBestMoneyAction || 'Review supervisor-latest.json and approve or reject planned operations.',
     aiMode: summary.mode,
-    model: summary.model
+    model: summary.model,
+    executionBlockedByBudget: learningBudgetExhausted
   });
 
   return {
@@ -219,6 +233,9 @@ async function main() {
   console.log(`Operations added: ${result.operationsAddedThisCycle}`);
   console.log(`Green operations auto-approved: ${result.autoApprovedCount}`);
   console.log(`Approved operations executed: ${result.executedApprovedCount}`);
+  if (result.executionBlockedByBudget) {
+    console.log('Execution blocked: measured learning budget exhausted.');
+  }
   console.log(`Codex prompt: ${result.codexPromptPath ? path.relative(result.rootDir, result.codexPromptPath) : 'not generated'}`);
   console.log(`Next action: ${result.nextBestMoneyAction || 'Review planned operations and recent market signals.'}`);
   console.log('Guardrails: no email sending, money movement, DNS changes, or production merges.');

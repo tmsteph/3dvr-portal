@@ -66,6 +66,11 @@ export async function runMoneyPrinterDaemonCycle(options = {}) {
     || env.MONEY_PRINTER_EVIDENCE_DIR
     || ''
   ).trim();
+  const deferLearningObservation = String(
+    options.deferLearningObservation
+    ?? env.MONEY_PRINTER_DEFER_LEARNING_OBSERVATION
+    ?? ''
+  ).trim().toLowerCase() === 'true';
   const learning = await updateLearningLedger({
     rootDir,
     evidenceDir: learningEvidenceDir,
@@ -75,9 +80,11 @@ export async function runMoneyPrinterDaemonCycle(options = {}) {
       experiment_id: loaded.state.experiments?.find(experiment => experiment.status === 'running')?.id
         || loaded.state.experiments?.[0]?.id
         || 'daemon-observation',
-      note: 'Money Printer wake cycle started.'
+      note: deferLearningObservation
+        ? 'Money Printer wake cycle started; observation deferred to the enclosing business cycle.'
+        : 'Money Printer wake cycle started.'
     },
-    recordObservation: true
+    recordObservation: !deferLearningObservation
   });
   const learningDirective = buildLearningDirective(learning);
   const planningState = {
@@ -168,6 +175,7 @@ export async function runMoneyPrinterDaemonCycle(options = {}) {
     codexPromptPath: codexPrompt.promptPath,
     learning: learning.summary,
     learningDirective,
+    learningObservationDeferred: deferLearningObservation,
     learningLedgerPath: learning.ledgerPath,
     rawModelOutputPath: botOutput.rawOutputPath
       || connectorPlan.rawOutputPath
@@ -191,6 +199,7 @@ export async function runMoneyPrinterDaemonCycle(options = {}) {
     learningMilestone: learning.summary.milestone,
     learningStalledCycles: learning.summary.stalledCycles,
     learningChangeDimension: learning.summary.nextExperiment?.change_dimension || '',
+    learningObservationDeferred: deferLearningObservation,
     executionBlockedByBudget: Boolean(options.execute && budgetExhausted)
   });
 
