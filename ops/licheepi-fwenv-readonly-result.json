@@ -1,5 +1,5 @@
 {
-  "ok": true,
+  "ok": false,
   "toolSource": "installed-debian-package",
   "configMode": "-c",
   "config": "/dev/mmcblk0 0xe0000 0x20000",
@@ -9,16 +9,20 @@
     "boot_conf_file": true,
     "bootdelay": true,
     "mmcdev": true,
-    "mmcbootpart": true
+    "mmcbootpart": true,
+    "probe_absent": false,
+    "extlinux_default_l0": true
   },
-  "environmentSha256": "2b5c3f2cf54650abc3da366def191870e40cd096c50bc285a7e940c24b0aca3a",
-  "crcStoredLE": "0x9efdb275",
-  "crcCalculated": "0x9efdb275",
+  "environmentSha256": "0741e2605100bab4a4db2e79c2ee2a1ee87149fc13645c6e9b28e0ece707c26c",
+  "crcStoredLE": "0x269fe4a5",
+  "crcCalculated": "0x269fe4a5",
   "bootFlow": {
     "bootcmd": "run bootcmd_load; bootslave; sysboot mmc ${mmcdev}:${mmcbootpart} any $boot_conf_addr_r $boot_conf_file;",
     "boot_conf_file": "/extlinux/extlinux.conf",
     "bootdelay": "2",
     "mmcdev": "0",
     "mmcbootpart": "2"
-  }
+  },
+  "extlinuxDefault": "l0",
+  "probeVariableAbsent": false
 }
