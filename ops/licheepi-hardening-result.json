@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "checkedAt": "2026-09-04T17:33:11.412138+00:00",
+  "primaryPort2223": true,
+  "fallbackPort2224": false,
+  "pi": {
+    "outbound_ovh": "false",
+    "outbound_user": "",
+    "outbound_key": "",
+    "sudo_nopasswd": "true",
+    "fallback_install": "none",
+    "primary_process": "sipeed       752       1  0 17:03 ?        00:00:00 /usr/bin/ssh -NT -i /home/sipeed/.ssh/3dvr_tunnel_ed25519 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 -o ExitOnForwardFailure=yes -R 2223:localhost:22 debian@40.160.137.41 ",
+    "fallback_process": "",
+    "ssh_active": "active",
+    "network_timer": "enabled",
+    "ips": "10.21.77.109 172.25.6.107 "
+  },
+  "raw": "outbound_ovh=false\noutbound_user=\noutbound_key=\nsudo_nopasswd=true\nfallback_install=none\nprimary_process=sipeed       752       1  0 17:03 ?        00:00:00 /usr/bin/ssh -NT -i /home/sipeed/.ssh/3dvr_tunnel_ed25519 -o ServerAliveInterval=15 -o ServerAliveCountMax=2 -o ExitOnForwardFailure=yes -R 2223:localhost:22 debian@40.160.137.41 \nfallback_process=\nssh_active=active\nnetwork_timer=enabled\nips=10.21.77.109 172.25.6.107 "
+}
