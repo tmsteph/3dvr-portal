@@ -6,7 +6,7 @@ on:
       - 'api/openai-site.js'
       - 'src/astra/**'
       - 'astra/**'
-      - 'tests/astra-canary.test.js'
+      - 'tests/astra-*.test.js'
       - '.github/workflows/astra-canary.yml'
   push:
     branches:
@@ -15,7 +15,7 @@ on:
       - 'api/openai-site.js'
       - 'src/astra/**'
       - 'astra/**'
-      - 'tests/astra-canary.test.js'
+      - 'tests/astra-*.test.js'
       - '.github/workflows/astra-canary.yml'
 
 jobs:
@@ -28,4 +28,4 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node --test tests/astra-canary.test.js tests/openai-site.test.js tests/vercel-function-budget.test.js
+      - run: node --test tests/astra-*.test.js tests/openai-site.test.js tests/vercel-function-budget.test.js
