@@ -1,0 +1,57 @@
+{
+  "checkedAt": "2026-09-04T21:28:00.731849+00:00",
+  "ok": true,
+  "kernel": "5.10.113+",
+  "bootTime": 1788557100,
+  "extlinuxDefault": "l0",
+  "bootcmdIsNormal": true,
+  "bootcmd": "run bootcmd_load; bootslave; sysboot mmc ${mmcdev}:${mmcbootpart} any $boot_conf_addr_r $boot_conf_file;",
+  "normalHelperPresent": false,
+  "normalHelperMatches": false,
+  "crcMatches": true,
+  "crcStoredLE": "0x82887444",
+  "crcCalculated": "0x82887444",
+  "environmentSha256": "b01b14f4f81cf5045e690aea8f9dde7e014aacbacf74afb88a8b6553d60f8fec",
+  "services": {
+    "ovh": {
+      "active": "active",
+      "enabled": "enabled"
+    },
+    "hetzner": {
+      "active": "active",
+      "enabled": "enabled"
+    },
+    "digitalOcean": {
+      "active": "active",
+      "enabled": "enabled"
+    }
+  },
+  "network": {
+    "routes": [
+      "default via 10.21.77.1 dev end1 proto dhcp src 10.21.77.109 metric 110 ",
+      "default via 172.25.4.1 dev wlan0 proto dhcp src 172.25.6.107 metric 600 ",
+      "10.21.77.0/24 dev end1 proto kernel scope link src 10.21.77.109 metric 110 ",
+      "172.25.4.0/22 dev wlan0 proto kernel scope link src 172.25.6.107 metric 600 "
+    ],
+    "addresses": [
+      "lo               UNKNOWN        127.0.0.1/8 ::1/128 ",
+      "dummy0           DOWN           ",
+      "ip_vti0@NONE     DOWN           ",
+      "sit0@NONE        DOWN           ",
+      "end0             DOWN           ",
+      "end1             UP             10.21.77.109/24 fe80::3502:9709:3072:e8a/64 ",
+      "wlan0            UP             172.25.6.107/22 fe80::ef47:d9bd:e9ee:5eea/64 "
+    ]
+  },
+  "journal": {
+    "ovh": [
+      "Sep 04 21:24:50 lpi4a systemd[1]: Started lichee-tunnel.service - 3DVR Lichee Pi reverse SSH tunnel."
+    ],
+    "hetzner": [
+      "Sep 04 21:24:50 lpi4a systemd[1]: Started 3dvr-lpi-hetzner.service - 3DVR LicheePi reverse SSH recovery tunnel to Hetzner."
+    ],
+    "digitalOcean": [
+      "Sep 04 21:24:50 lpi4a systemd[1]: Started 3dvr-lpi-digitalocean.service - 3DVR LicheePi reverse SSH recovery tunnel to DigitalOcean."
+    ]
+  }
+}
