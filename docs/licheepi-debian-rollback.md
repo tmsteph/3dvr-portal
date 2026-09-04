@@ -43,8 +43,8 @@ Do **not** repeat kexec as the default test strategy. It remains a diagnostic op
 2. Validate U-Boot environment access read-only against the exact installed bootloader source.
 3. Back up the raw environment and known-good boot files before any environment write.
 4. Configure and verify Linux-side `fw_printenv` access.
-5. Add U-Boot `bootlimit` + `altbootcmd` logic that automatically restores the vendor `l0` path when a candidate boot never becomes healthy.
-6. Add a late userspace success service that marks the candidate good only after network, OpenSSH, and both recovery tunnels are healthy.
+5. Prove a harmless write/read/restore cycle before relying on any U-Boot environment mutation.
+6. Build a one-shot rollback mechanism from capabilities actually enabled in this U-Boot build; do not assume bootcount support.
 7. Deliberately test the rollback mechanism while the vendor kernel is still the normal default.
 8. Only after rollback is proven, perform a one-shot `mainline71` boot trial.
 
@@ -61,7 +61,21 @@ That exact source defines:
 
 The matching board header defines `CONFIG_SYS_MMC_ENV_DEV 0`.
 
+The read-only CRC validator has confirmed that the live environment at `/dev/mmcblk0`, offset `0xe0000`, size `0x20000`, matches its stored CRC.
+
 These values are valid only while the live U-Boot build identity still matches `d6c9182f`. Any future bootloader change invalidates them until the new source/configuration is verified.
+
+## Bootcount correction
+
+The U-Boot binary contains generic `bootcount`/`bootlimit` strings, but the exact `light_lpi4a_defconfig` does **not** enable `CONFIG_BOOTCOUNT_LIMIT`, and the live environment contains no `bootcount`, `bootlimit`, or `altbootcmd` variables. Therefore we must not claim automatic boot-count rollback is available on the installed bootloader.
+
+Options going forward are evaluated in this order:
+
+1. a one-shot U-Boot environment/boot-script scheme that restores the normal `l0` path *before* attempting the candidate kernel;
+2. a verified hardware-watchdog-assisted scheme if the board's real watchdog reset path can be proven safely;
+3. rebuilding/replacing U-Boot with bootcount support only as a later option, because touching the bootloader itself carries substantially more recovery risk.
+
+No persistent bootloader mutation is allowed until the raw environment is backed up independently and a read/write/restore drill succeeds.
 
 ## Persistent switch gate
 
@@ -76,18 +90,6 @@ Do not make `mainline71` the normal boot until all of these pass:
 - GPU/display reaches the required usable state
 - package management works
 - the old `l0` and `l0r` entries remain intact
-
-## Automatic rollback target
-
-The intended persistent design is U-Boot bootcount/bootlimit:
-
-- stage the candidate without deleting `l0`
-- set a small `bootlimit`
-- candidate boots increment the boot count
-- Debian marks the boot successful only after network + SSH + both recovery tunnels + core services are healthy
-- if the success mark never arrives, `altbootcmd` restores/boots the vendor `l0` path automatically
-
-Environment writes remain forbidden until the exact-source read-only CRC validation succeeds and a raw backup has been captured.
 
 ## Disaster boundary
 
