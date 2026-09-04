@@ -26,26 +26,38 @@ for u in $ANCHOR_USERS; do
     fi
   done
 done
-[ -n "$anchor_user" ] || { printf '{"ok":false,"reason":"anchor bootstrap unavailable"}\n'; exit 1; }
+[ -n "$anchor_user" ] || { printf 'ERROR_STAGE=anchor-bootstrap\n' >&2; exit 1; }
 opts=(-i "$anchor_key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
 
 ssh "${opts[@]}" "$anchor_user@$ANCHOR_HOST" "STAMP='$STAMP' PI_ALIAS='$PI_ALIAS' bash -s" <<'REMOTE'
 set -euo pipefail
+stage=init
+trap 'printf "ERROR_STAGE=%s\n" "$stage" >&2' ERR
 umask 077
 dest="$HOME/.3dvr/backups/licheepi/$STAMP"
 mkdir -p "$dest"
-ssh -o BatchMode=yes -o ConnectTimeout=8 "$PI_ALIAS" true
 
+stage=pi-route
+ssh -o BatchMode=yes -o ConnectTimeout=8 "$PI_ALIAS" true
+stage=uboot-identity
 live="$(ssh -o BatchMode=yes -o ConnectTimeout=8 "$PI_ALIAS" "sudo -n strings /dev/mmcblk0boot0 2>/dev/null | grep -m1 -E 'U-Boot 2020\\.01-gd6c9182f' || true")"
 test -n "$live"
 
-# Exact U-Boot environment verified against RevyOS commit d6c9182f.
+stage=environment
 ssh -o BatchMode=yes -o ConnectTimeout=10 "$PI_ALIAS" "sudo -n dd if=/dev/mmcblk0 bs=512 skip=1792 count=256 status=none" > "$dest/uboot-env.bin"
-# Preserve the mutable boot policy plus the known-good vendor boot payload.
-ssh -o BatchMode=yes -o ConnectTimeout=20 "$PI_ALIAS" "sudo -n tar -C /boot -czf - extlinux Image vmlinux-5.10.113-lpi4a initrd.img-5.10.113-lpi4a dtbs/linux-image-5.10.113-lpi4a 2>/dev/null" > "$dest/vendor-boot-recovery.tar.gz"
+
+stage=vendor-boot
+# Some historical optional files can disappear as packages evolve. The required
+# extlinux directory and vendor kernel payload stay in the archive while tar is
+# allowed to skip a named optional path that is absent.
+ssh -o BatchMode=yes -o ConnectTimeout=25 "$PI_ALIAS" "sudo -n tar --ignore-failed-read -C /boot -czf - extlinux Image vmlinux-5.10.113-lpi4a initrd.img-5.10.113-lpi4a dtbs/linux-image-5.10.113-lpi4a 2>/dev/null" > "$dest/vendor-boot-recovery.tar.gz"
+test -s "$dest/vendor-boot-recovery.tar.gz"
+
+stage=baseline
 ssh -o BatchMode=yes -o ConnectTimeout=8 "$PI_ALIAS" "cat /etc/os-release; printf '\n'; uname -a; printf '\n'; cat /proc/cmdline" > "$dest/system-baseline.txt"
 printf '%s\n' "$live" > "$dest/live-uboot.txt"
 
+stage=environment-crc
 python3 - "$dest/uboot-env.bin" <<'PY'
 import struct,sys,zlib
 data=open(sys.argv[1],'rb').read()
@@ -54,6 +66,8 @@ stored=struct.unpack('<I',data[:4])[0]
 calc=zlib.crc32(data[4:]) & 0xffffffff
 assert stored==calc, (hex(stored),hex(calc))
 PY
+
+stage=checksums
 (cd "$dest" && sha256sum uboot-env.bin vendor-boot-recovery.tar.gz system-baseline.txt live-uboot.txt > SHA256SUMS && sha256sum -c SHA256SUMS >/dev/null)
 
 printf 'STAMP=%s\nENV_SHA=%s\nBOOT_SHA=%s\nLIVE_UBOOT=%s\n' \
