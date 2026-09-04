@@ -6,6 +6,11 @@ on:
     paths:
       - '.github/workflows/verify-crm-import.yml'
       - 'scripts/crm/verify-recent-imports.mjs'
+  pull_request:
+    paths:
+      - '.github/workflows/verify-crm-import.yml'
+      - 'scripts/crm/verify-recent-imports.mjs'
+      - 'ops/crm-import-verification-trigger.txt'
 
 jobs:
   verify:
