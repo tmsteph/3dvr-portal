@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>3DVR CRM · Import leads</title>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <style>
+    body{font-family:system-ui,sans-serif;background:#070b12;color:#eef2ff;margin:0;padding:24px}main{max-width:680px;margin:auto}button{font:inherit;padding:12px 16px;border:0;border-radius:10px;cursor:pointer}pre{white-space:pre-wrap;background:#111827;padding:14px;border-radius:12px;overflow:auto}.muted{color:#94a3b8}.ok{color:#86efac}.err{color:#fca5a5}
+  </style>
+</head>
+<body>
+<main>
+  <h1>Import leads into 3DVR CRM</h1>
+  <p class="muted">The lead data stays in the URL fragment on your device; it is not stored in this page or repository.</p>
+  <p id="summary">Reading import…</p>
+  <button id="import" disabled>Import leads</button>
+  <pre id="status"></pre>
+  <p><a href="./" style="color:#7dd3fc">Open CRM</a></p>
+</main>
+<script>
+const statusEl=document.getElementById('status');
+const summaryEl=document.getElementById('summary');
+const button=document.getElementById('import');
+const gun=Gun(window.__GUN_PEERS__||['wss://gun-relay-3dvr.fly.dev/gun']);
+const root=gun.get('3dvr-crm');
+function decode(){
+  const raw=location.hash.replace(/^#(?:data=)?/,'');
+  if(!raw) return [];
+  const json=decodeURIComponent(escape(atob(raw.replace(/-/g,'+').replace(/_/g,'/'))));
+  const data=JSON.parse(json);
+  return Array.isArray(data)?data:[];
+}
+function clean(v){return String(v==null?'':v).trim()}
+function slug(v){return clean(v).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,72)}
+let leads=[];
+try{
+  leads=decode();
+  summaryEl.textContent=leads.length?`${leads.length} leads ready to import.`:'No lead data found in this link.';
+  statusEl.textContent=leads.map(x=>`• ${clean(x.name)||'(unnamed lead)'}${x.company?` — ${clean(x.company)}`:''}`).join('\n');
+  button.disabled=!leads.length;
+}catch(err){summaryEl.textContent='Could not read this import link.';statusEl.textContent=err.message;statusEl.className='err'}
+button.addEventListener('click',async()=>{
+  button.disabled=true;statusEl.textContent='Importing…';
+  const now=new Date().toISOString();
+  let done=0;
+  for(const item of leads){
+    const name=clean(item.name); if(!name) continue;
+    const id=clean(item.id)||`import-${slug(item.company||name)}-${slug(name)}`;
+    const record={
+      id,recordType:'person',name,email:clean(item.email),company:clean(item.company),phone:clean(item.phone),role:clean(item.role),tags:clean(item.tags),
+      status:clean(item.status)||'Lead',warmth:clean(item.warmth)||'warm',fit:clean(item.fit),urgency:clean(item.urgency),nextFollowUp:clean(item.nextFollowUp),
+      marketSegment:clean(item.marketSegment),primaryPain:clean(item.primaryPain),painSeverity:clean(item.painSeverity),currentWorkaround:clean(item.currentWorkaround),
+      pilotStatus:clean(item.pilotStatus),offerAmount:clean(item.offerAmount),lastSignal:clean(item.lastSignal),nextExperiment:clean(item.nextExperiment),
+      nextBestAction:clean(item.nextBestAction),objection:clean(item.objection),lastContacted:clean(item.lastContacted),notes:clean(item.notes),source:clean(item.source)||'Lead import',
+      created:clean(item.created)||now,updated:now,activityCount:Number(item.activityCount||0),contactId:''
+    };
+    await new Promise((resolve,reject)=>root.get(id).put(record,ack=>ack&&ack.err?reject(new Error(ack.err)):resolve()));
+    done++;
+  }
+  statusEl.textContent=`Imported ${done} lead${done===1?'':'s'}. You can safely close this page or open CRM.`;statusEl.className='ok';
+});
+</script>
+</body>
+</html>
