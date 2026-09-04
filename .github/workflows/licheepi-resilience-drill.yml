@@ -1,21 +1,21 @@
-name: LicheePi Dual-Cloud Reboot Test
+name: LicheePi Dual-Cloud Preflight Debug
 
 on:
   push:
     branches: [main]
     paths:
       - '.github/workflows/licheepi-resilience-drill.yml'
-      - 'scripts/ops/licheepi-dual-cloud-reboot-test.sh'
+      - 'scripts/ops/licheepi-dual-cloud-preflight-debug.sh'
       - 'scripts/ops/licheepi-configure-hetzner-jump.sh'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  reboot-test:
+  preflight:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
       - name: Enforce on-site safety window
@@ -27,11 +27,10 @@ jobs:
           SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
           OVH_HOST: 40.160.137.41
         run: bash scripts/ops/licheepi-configure-hetzner-jump.sh
-      - name: Reboot known-good l0 and verify both clouds return
+      - name: Read-only dual-cloud preflight diagnostics
         env:
           SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
           SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
           SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
           OVH_HOST: 40.160.137.41
-          GITHUB_TOKEN: ${{ github.token }}
-        run: bash scripts/ops/licheepi-dual-cloud-reboot-test.sh
+        run: bash scripts/ops/licheepi-dual-cloud-preflight-debug.sh
