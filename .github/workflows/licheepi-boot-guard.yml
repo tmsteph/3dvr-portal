@@ -33,4 +33,11 @@ jobs:
           for u in debian root; do for k in /tmp/a /tmp/b /tmp/c; do [ -f "$k" ] || continue; if ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$u@$OVH_HOST" true >/dev/null 2>&1; then user="$u"; key="$k"; break 2; fi; done; done
           test -n "$user"
           opts=(-i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
-          ssh "${opts[@]}" "$user@$OVH_HOST" "ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a 'bash -s'" < scripts/ops/licheepi-boot-guard.sh
+
+          if ssh "${opts[@]}" "$user@$OVH_HOST" "ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a 'bash -s'" < scripts/ops/licheepi-boot-guard.sh; then
+            echo 'Boot guard verified through direct OVH LicheePi path.'
+          else
+            echo 'Direct OVH LicheePi path is unavailable; trying the Hetzner fallback.' >&2
+            ssh "${opts[@]}" "$user@$OVH_HOST" "ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a-hetzner 'bash -s'" < scripts/ops/licheepi-boot-guard.sh
+            echo 'Boot guard verified through OVH -> Hetzner -> LicheePi fallback.'
+          fi
