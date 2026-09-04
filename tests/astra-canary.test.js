@@ -5,7 +5,7 @@ import {
   ASTRA_MODEL,
   buildAstraCanaryRequest,
   createAstraCanaryHandler
-} from '../api/astra-canary.js';
+} from '../src/astra/canary.js';
 
 function createMockRes() {
   return {
