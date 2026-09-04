@@ -136,7 +136,16 @@ async function runScreenshotAcceptance() {
   await page.locator('#operator-input').fill(prompt);
   await page.locator('#operator-form button[type="submit"]').click();
 
-  await page.waitForFunction(() => document.querySelector('#operator-form')?.getAttribute('aria-busy') === 'true', null, { timeout: 5_000 });
+  await page.waitForFunction(() => {
+    const form = document.querySelector('#operator-form');
+    const submit = form?.querySelector('button[type="submit"]');
+    const portal = form?.querySelector('.operator-submit__portal');
+    const opacity = portal ? Number.parseFloat(getComputedStyle(portal).opacity || '0') : 0;
+    return form?.getAttribute('aria-busy') === 'true'
+      && submit?.disabled
+      && submit?.getAttribute('data-busy') === 'true'
+      && opacity > 0;
+  }, null, { timeout: 5_000 });
   const busy = await page.evaluate(() => {
     const submit = document.querySelector('#operator-form button[type="submit"]');
     const portal = document.querySelector('#operator-form .operator-submit__portal');
@@ -150,7 +159,7 @@ async function runScreenshotAcceptance() {
     };
   });
   log('E2E_BUSY_STATE', JSON.stringify(busy));
-  if (busy.formBusy !== 'true' || !busy.disabled || busy.dataBusy !== 'true' || busy.portalOpacity === '0') {
+  if (busy.formBusy !== 'true' || !busy.disabled || busy.dataBusy !== 'true' || Number.parseFloat(busy.portalOpacity || '0') <= 0) {
     throw new Error(`Visible busy indicator did not activate: ${JSON.stringify(busy)}`);
   }
   await saveArtifacts('operator-working');
