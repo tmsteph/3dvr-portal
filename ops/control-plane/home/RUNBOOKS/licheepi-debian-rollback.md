@@ -42,30 +42,34 @@ That source defines:
 
 The matching board header also defines `CONFIG_SYS_MMC_ENV_DEV 0`.
 
+The read-only live probe confirms the stored environment CRC exactly matches the calculated CRC for that region.
+
 Treat this layout as invalid immediately if the live U-Boot build identity changes. Never carry the offsets forward to another bootloader build without re-verification.
 
-## Automatic rollback design
+## Bootcount is not enabled
 
-The installed U-Boot contains boot-count support (`bootcount` / `bootlimit`). The intended final guard is:
+Do not rely on the generic `bootcount` strings found in the U-Boot binary. The exact installed `light_lpi4a_defconfig` does not enable `CONFIG_BOOTCOUNT_LIMIT`, and the live environment has no `bootcount`, `bootlimit`, or `altbootcmd` variables.
 
-- preserve `l0` as the canonical known-good boot;
-- stage the candidate separately;
-- set `bootcount=0` when a candidate is armed;
-- set `bootlimit` to a small number (normally 2);
-- candidate boot attempts the new Debian/mainline path;
-- `altbootcmd` restores/boots the known-good `l0` path after the boot limit is exceeded;
-- a late userspace health service marks the candidate good only after network, OpenSSH, OVH recovery, Hetzner recovery, and core services are healthy.
+Therefore the current installed bootloader does **not yet have a proven automatic boot-count rollback path**.
+
+Preferred development order:
+
+1. preserve the raw environment independently on OVH and Hetzner;
+2. verify Linux-side read access with `fw_printenv`;
+3. prove one bounded environment write/read/restore cycle;
+4. design a one-shot boot command that restores the normal vendor boot state before launching `mainline71`;
+5. validate the board's real hardware watchdog reset path as another safety layer;
+6. avoid rebuilding/flashing U-Boot unless the safer one-shot design cannot meet the recovery requirement.
 
 ## Required sequence before the first persistent mainline trial
 
-1. Run the exact-source read-only environment CRC validator.
-2. Confirm stored CRC matches the exact `0x20000` environment region at MMC0 offset `0xe0000`.
-3. Capture a raw environment backup and checksum it on at least two independent cloud hosts.
-4. Configure `fw_printenv` and prove its output matches the raw parser without writing anything.
-5. Test a harmless reversible environment write/read/restore cycle only after the backup exists.
-6. Install the rollback variables while leaving `default l0` unchanged.
-7. Deliberately force the rollback logic through a safe drill and verify the board returns to `l0` plus both cloud tunnels.
-8. Only then allow a one-shot `mainline71` boot trial.
+1. Exact-source read-only environment CRC validator passes.
+2. Raw environment backup exists on at least two independent cloud hosts with matching SHA-256.
+3. `fw_printenv` output is proven to match the raw parser without writing anything.
+4. A harmless reversible environment write/read/restore cycle passes and the CRC remains valid.
+5. A one-shot rollback design is implemented that leaves `default l0` as the normal durable state.
+6. Deliberately force the rollback logic through a safe drill and verify the board returns to `l0` plus both cloud tunnels.
+7. Only then allow a one-shot `mainline71` boot trial.
 
 ## Extra fallback layers
 
