@@ -1,0 +1,76 @@
+name: LicheePi Hardening Audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-hardening-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit LicheePi recovery layers
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          OVH_HOST: 40.160.137.41
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -u
+          write_key(){ raw="$1"; dest="$2"; [ -n "$raw" ] || return 0; printf '%s\n' "$raw" > "$dest.raw"; if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest"; elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :; else rm -f "$dest" "$dest.raw"; return 0; fi; chmod 600 "$dest"; rm -f "$dest.raw"; }
+          write_key "$SSH_A" /tmp/key-a; write_key "$SSH_B" /tmp/key-b; write_key "$SSH_C" /tmp/key-c
+          ovh_user=''; ovh_key=''
+          for u in debian root; do for k in /tmp/key-a /tmp/key-b /tmp/key-c; do [ -f "$k" ] || continue; if ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$u@$OVH_HOST" true >/dev/null 2>&1; then ovh_user="$u"; ovh_key="$k"; break 2; fi; done; done
+          result=/tmp/result.json
+          if [ -z "$ovh_user" ]; then echo '{"ok":false,"note":"OVH bootstrap unavailable"}' > "$result"; else
+            opts=(-i "$ovh_key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
+            ssh "${opts[@]}" "$ovh_user@$OVH_HOST" "ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a 'bash -s'" <<'REMOTE' >/tmp/audit.txt 2>&1 || true
+set +e
+printf 'hostname=%s\n' "$(hostname)"
+printf 'user=%s\n' "$(id -un)"
+printf 'uptime=%s\n' "$(uptime -p 2>/dev/null)"
+printf 'ips=%s\n' "$(hostname -I 2>/dev/null)"
+printf 'sudo_nopasswd='; sudo -n true >/dev/null 2>&1 && echo true || echo false
+printf 'systemd_user='; systemctl --user is-system-running 2>/dev/null || true
+printf 'linger='; loginctl show-user "$(id -un)" -p Linger --value 2>/dev/null || true
+printf 'ssh_enabled='; sudo -n systemctl is-enabled ssh 2>/dev/null || systemctl is-enabled ssh 2>/dev/null || true
+printf 'ssh_active='; systemctl is-active ssh 2>/dev/null || true
+printf 'network_manager='; systemctl is-active NetworkManager 2>/dev/null || true
+printf 'systemd_networkd='; systemctl is-active systemd-networkd 2>/dev/null || true
+printf 'wpa_supplicant='; systemctl is-active wpa_supplicant 2>/dev/null || true
+printf 'user_services_begin\n'; systemctl --user list-unit-files 2>/dev/null | grep -Ei '3dvr|mesh|tunnel|ssh' || true; printf 'user_services_end\n'
+printf 'system_services_begin\n'; systemctl list-unit-files 2>/dev/null | grep -Ei '3dvr|mesh|tunnel|network|ssh' || true; printf 'system_services_end\n'
+printf 'processes_begin\n'; ps -ef | grep -E '[s]sh .*2223|[a]utossh|[3]dvr|[m]esh-tunnel' || true; printf 'processes_end\n'
+printf 'crontab_begin\n'; crontab -l 2>/dev/null || true; printf 'crontab_end\n'
+printf 'rc_local='; test -x /etc/rc.local && echo true || echo false
+printf 'connections_begin\n'; nmcli -t -f NAME,TYPE,AUTOCONNECT,AUTOCONNECT-PRIORITY connection show 2>/dev/null || true; printf 'connections_end\n'
+printf 'default_route=%s\n' "$(ip route show default | tr '\n' ';')"
+REMOTE
+            AUDIT="$(cat /tmp/audit.txt)" python3 - <<'PY' > "$result"
+import json, os, datetime
+text=os.environ.get('AUDIT','')
+kv={}
+for line in text.splitlines():
+    if '=' in line and not line.endswith('_begin') and not line.endswith('_end'):
+        k,v=line.split('=',1); kv[k]=v
+print(json.dumps({"ok": bool(kv.get('hostname')), "checkedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(), "summary": kv, "raw": text}, indent=2))
+PY
+          fi
+          cat "$result"
+          content="$(base64 -w0 "$result")"; url="https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/licheepi-hardening-audit.json"; sha="$(curl -fsS -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' "$url" 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("sha", ""))' 2>/dev/null || true)"
+          python3 - "$content" "$sha" <<'PY' >/tmp/payload.json
+import json,sys
+p={'message':'Record LicheePi hardening audit','content':sys.argv[1],'branch':'main'}
+if sys.argv[2]: p['sha']=sys.argv[2]
+print(json.dumps(p))
+PY
+          curl -fsS -X PUT -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' "$url" --data-binary @/tmp/payload.json >/dev/null
