@@ -1,0 +1,64 @@
+name: LicheePi Debian Upgrade Preflight
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-os-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Inspect boot and storage layout through OVH
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          OVH_HOST: 40.160.137.41
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          write_key(){ raw="$1"; dest="$2"; [ -n "$raw" ] || return 0; printf '%s\n' "$raw" > "$dest.raw"; if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest"; elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :; else rm -f "$dest" "$dest.raw"; return 0; fi; chmod 600 "$dest"; rm -f "$dest.raw"; }
+          write_key "$SSH_A" /tmp/a; write_key "$SSH_B" /tmp/b; write_key "$SSH_C" /tmp/c
+          user=''; key=''
+          for u in debian root; do for k in /tmp/a /tmp/b /tmp/c; do [ -f "$k" ] || continue; if ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$u@$OVH_HOST" true >/dev/null 2>&1; then user="$u"; key="$k"; break 2; fi; done; done
+          [ -n "$user" ]
+          opts=(-i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
+          ssh "${opts[@]}" "$user@$OVH_HOST" "ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a 'bash -s'" <<'PI' >/tmp/lpi-preflight.txt
+          set -u
+          echo '=== OS ==='; cat /etc/os-release 2>/dev/null || true
+          echo '=== KERNEL ==='; uname -a || true
+          echo '=== CMDLINE ==='; cat /proc/cmdline 2>/dev/null || true
+          echo '=== ROOT ==='; findmnt -no SOURCE,FSTYPE,OPTIONS / 2>/dev/null || true
+          echo '=== BLOCK ==='; lsblk -o NAME,PATH,SIZE,FSTYPE,LABEL,PARTLABEL,UUID,PARTUUID,MOUNTPOINTS 2>/dev/null || true
+          echo '=== DF ==='; df -hT / /boot /boot/efi 2>/dev/null || true
+          echo '=== BOOTDIR ==='; find /boot -maxdepth 3 -type f \( -name 'extlinux.conf' -o -name 'uEnv.txt' -o -name 'boot.scr' -o -name 'boot.cmd' -o -name 'grub.cfg' -o -name 'Image*' -o -name 'vmlinuz*' -o -name '*.dtb' \) -printf '%p\n' 2>/dev/null | sort || true
+          echo '=== EXTLINUX ==='; cat /boot/extlinux/extlinux.conf 2>/dev/null || true
+          echo '=== UENV ==='; cat /boot/uEnv.txt 2>/dev/null || true
+          echo '=== FSTAB ==='; cat /etc/fstab 2>/dev/null || true
+          echo '=== UBOOT ENV ==='; if command -v fw_printenv >/dev/null 2>&1; then sudo -n fw_printenv 2>/dev/null || fw_printenv 2>/dev/null || true; else echo unavailable; fi
+          echo '=== RECOVERY SERVICES ==='; systemctl is-enabled ssh 2>/dev/null || systemctl is-enabled sshd 2>/dev/null || true; systemctl is-enabled lichee-tunnel.service 2>/dev/null || true; systemctl is-enabled 3dvr-lpi-hetzner.service 2>/dev/null || true; systemctl is-enabled 3dvr-lpi-network-heal.timer 2>/dev/null || true
+          PI
+          python3 - <<'PY' >/tmp/result.json
+          import json, datetime
+          raw=open('/tmp/lpi-preflight.txt').read()
+          print(json.dumps({'checkedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),'ok':True,'raw':raw}, indent=2))
+          PY
+          cat /tmp/result.json
+          content="$(base64 -w0 /tmp/result.json)"
+          url="https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/licheepi-os-preflight-result.json"
+          sha="$(curl -fsS -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' "$url" 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin).get("sha", ""))' 2>/dev/null || true)"
+          python3 - "$content" "$sha" <<'PY' >/tmp/payload.json
+          import json,sys
+          p={'message':'Record LicheePi OS upgrade preflight','content':sys.argv[1],'branch':'main'}
+          if sys.argv[2]: p['sha']=sys.argv[2]
+          print(json.dumps(p))
+          PY
+          curl -fsS -X PUT -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' "$url" --data-binary @/tmp/payload.json >/dev/null
