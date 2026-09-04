@@ -1,0 +1,54 @@
+name: 3DVR Self-Host Disk Maintenance
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: 3dvr-self-host-disk-maintenance
+  cancel-in-progress: true
+
+env:
+  DEFAULT_HOST: 167.172.193.194
+
+jobs:
+  recover:
+    name: Keep production disk healthy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Recover disk space when needed
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          ssh_key=''
+          for value in "$SSH_A" "$SSH_B" "$SSH_C"; do
+            if [ -z "$ssh_key" ] && [ -n "$value" ]; then ssh_key="$value"; fi
+          done
+          [ -n "$ssh_key" ] || { echo 'No 3DVR server SSH private key is configured.' >&2; exit 1; }
+
+          umask 077
+          printf '%s\n' "$ssh_key" > /tmp/3dvr-key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-key.raw; then
+            cp /tmp/3dvr-key.raw /tmp/3dvr-key
+          elif base64 -d /tmp/3dvr-key.raw > /tmp/3dvr-key 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-key; then
+            :
+          else
+            echo 'Configured 3DVR SSH key is invalid.' >&2
+            exit 1
+          fi
+          chmod 600 /tmp/3dvr-key
+
+          opts=(-i /tmp/3dvr-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+          ssh "${opts[@]}" "root@$DEFAULT_HOST" 'bash -s' < scripts/ops/recover-self-host-disk.sh
+          rm -f /tmp/3dvr-key /tmp/3dvr-key.raw
