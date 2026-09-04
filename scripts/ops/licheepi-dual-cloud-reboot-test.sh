@@ -22,7 +22,9 @@ user=''; key=''
 for u in debian root; do
   for k in /tmp/lpi-b-a /tmp/lpi-b-b /tmp/lpi-b-c; do
     [ -f "$k" ] || continue
-    if ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$u@$OVH_HOST" true >/dev/null 2>&1; then user="$u"; key="$k"; break 2; fi
+    if ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$u@$OVH_HOST" true >/dev/null 2>&1; then
+      user="$u"; key="$k"; break 2
+    fi
   done
 done
 test -n "$user"
@@ -30,23 +32,27 @@ O=(-i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=acc
 ovh(){ ssh "${O[@]}" "$user@$OVH_HOST" "$@"; }
 route(){ ovh "ssh -o BatchMode=yes -o ConnectTimeout=6 $1 true" >/dev/null 2>&1; }
 wait_route(){ local r="$1"; for _ in $(seq 1 60); do route "$r" && return 0; sleep 3; done; return 1; }
-pi(){ ovh "ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a $*"; }
+pi_script(){
+  local script="$1" b64
+  b64="$(printf '%s' "$script" | base64 -w0)"
+  ovh "printf '%s' '$b64' | base64 -d | ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a 'bash -s'"
+}
 
 route lpi4a
 route lpi4a-hetzner
-DEFAULT="$(pi "\"awk '\\$1==\\\"default\\\"{print \\$2; exit}' /boot/extlinux/extlinux.conf\"")"
+DEFAULT="$(pi_script "awk '\$1==\"default\"{print \$2; exit}' /boot/extlinux/extlinux.conf")"
 test "$DEFAULT" = l0
-BEFORE="$(pi "'cat /proc/sys/kernel/random/boot_id'")"
-KERNEL_BEFORE="$(pi "'uname -r'")"
+BEFORE="$(pi_script 'cat /proc/sys/kernel/random/boot_id')"
+KERNEL_BEFORE="$(pi_script 'uname -r')"
 case "$KERNEL_BEFORE" in 5.10.113*) ;; *) exit 21;; esac
 
-pi "'sudo -n systemctl reboot'" >/dev/null 2>&1 || true
+pi_script 'sudo -n systemctl reboot' >/dev/null 2>&1 || true
 sleep 12
 wait_route lpi4a
 wait_route lpi4a-hetzner
-AFTER="$(pi "'cat /proc/sys/kernel/random/boot_id'")"
-KERNEL_AFTER="$(pi "'uname -r'")"
-DEFAULT_AFTER="$(pi "\"awk '\\$1==\\\"default\\\"{print \\$2; exit}' /boot/extlinux/extlinux.conf\"")"
+AFTER="$(pi_script 'cat /proc/sys/kernel/random/boot_id')"
+KERNEL_AFTER="$(pi_script 'uname -r')"
+DEFAULT_AFTER="$(pi_script "awk '\$1==\"default\"{print \$2; exit}' /boot/extlinux/extlinux.conf")"
 test "$BEFORE" != "$AFTER"
 test "$DEFAULT_AFTER" = l0
 case "$KERNEL_AFTER" in 5.10.113*) ;; *) exit 22;; esac
