@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "fwPrintenvPath": "/usr/bin/fw_printenv",
+  "fwSetenvPath": "/usr/bin/fw_setenv",
+  "fwSetenvOptions": {
+    "c": true,
+    "s": true,
+    "N": false
+  },
+  "probePresent": true,
+  "probeValueLength": 0,
+  "crcMatches": true,
+  "crcStoredLE": "0x9efdb275",
+  "crcCalculated": "0x9efdb275",
+  "bootcmdPreserved": true,
+  "bootConfigPreserved": true,
+  "extlinuxDefault": "l0"
+}
