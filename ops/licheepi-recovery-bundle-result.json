@@ -1,0 +1,15 @@
+{
+  "checkedAt": "2026-09-04T17:47:05.740715+00:00",
+  "ok": false,
+  "backupStamp": "",
+  "ovhBackup": false,
+  "hetznerBackup": false,
+  "contains": [
+    "/boot tree",
+    "mmcblk0boot0 image",
+    "package manifest",
+    "system/partition manifest",
+    "recovery service definitions"
+  ],
+  "note": "Private SSH keys are intentionally not copied into the recovery bundle."
+}
