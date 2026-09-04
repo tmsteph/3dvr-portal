@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-09-04T17:43:33.074339+00:00",
+  "ok": true,
+  "environment": {
+    "FW_ENV_CONFIG": "",
+    "DT_ENV": "",
+    "MMC0_HEAD_ENVSTRINGS": " 917693 bootcmd=run bootcmd_load; bootslave; sysboot mmc ${mmcdev}:${mmcbootpart} any $boot_conf_addr_r $boot_conf_file;; 917929 bootdelay=2;",
+    "MMC0_TAIL_ENVSTRINGS": "",
+    "BOOT0_ENVSTRINGS": " 539400 bootcmd=run distro_bootcmd; 539427 bootdelay=2; 540302 set_bootargs=setenv bootargs console=ttyS0,115200 root=PARTUUID=${uuid_rootfsA} rootfstype=ext4 rootwait rw earlycon clk_ignore_unused loglevel=7 eth=$ethaddr rootrwoptions=rw,noatime rootrwreset=${factory_reset} init=/lib/systemd/systemd; 541020 bootcmd=run bootcmd_load; bootslave; run finduuid; run set_bootargs; booti $kernel_addr - $dtb_addr;;",
+    "BOOT1_ENVSTRINGS": ""
+  }
+}
