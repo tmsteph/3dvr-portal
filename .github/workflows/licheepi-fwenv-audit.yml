@@ -1,0 +1,27 @@
+name: LicheePi U-Boot Environment Audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/licheepi-fwenv-audit.yml'
+      - 'scripts/ops/licheepi-fwenv-audit.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Locate U-Boot environment without modifying it
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          OVH_HOST: 40.160.137.41
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash scripts/ops/licheepi-fwenv-audit.sh
