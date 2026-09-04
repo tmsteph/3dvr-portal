@@ -1,3 +1,4 @@
+import { createAstraCanaryHandler } from '../src/astra/canary.js';
 import { createForgeHandler } from '../src/forge/api.js';
 import { createGuideHandler } from '../src/guide/api.js';
 import { createNextMoveGuidanceHandler } from '../src/next-move/api.js';
@@ -461,6 +462,7 @@ export function createSiteGeneratorHandler(options = {}) {
 }
 
 export function createOpenAiSiteRouter(options = {}) {
+  const astraHandler = createAstraCanaryHandler(options.astra || options);
   const siteHandler = createSiteGeneratorHandler(options);
   const forgeHandler = createForgeHandler(options.forge || options);
   const guideHandler = createGuideHandler(options.guide || options);
@@ -469,6 +471,10 @@ export function createOpenAiSiteRouter(options = {}) {
   const workAgentHandler = createWorkAgentAiHandler(options.workAgent || options);
 
   return async function handler(req, res) {
+    if (req?.body?.astraCanary === true || req?.query?.provider === 'astra') {
+      return astraHandler(req, res);
+    }
+
     if (req?.body?.forge === true || req?.query?.provider === 'forge') {
       return forgeHandler(req, res);
     }
