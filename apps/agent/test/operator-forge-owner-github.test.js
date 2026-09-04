@@ -5,6 +5,7 @@ const path = require('node:path');
 const {
   authorizePortalOperatorTask,
   BUILTIN_OPERATOR_OWNER_BINDINGS,
+  BUILTIN_OPERATOR_OWNER_PUBS,
 } = require('../thomas-agent/node/operator-forge-auth');
 const { editOnlyTask } = require('../thomas-agent/node/operator-forge-worker');
 
@@ -22,8 +23,23 @@ function signedRecord(task, githubWriteRequested = false) {
   };
 }
 
+function verifiedOwnerTask(task, alias = 'tmsteph@3dvr', githubWriteRequested = true) {
+  return {
+    scope: 'operator-forge-task',
+    action: 'queue-code-change',
+    alias,
+    pub: TMSTEPH_PUB,
+    iat: 1_000_000,
+    taskId: 'operator-task-github-1',
+    repo: 'portal',
+    task,
+    githubWriteRequested,
+  };
+}
+
 test('tmsteph is the built-in Forge owner binding', () => {
   assert.equal(BUILTIN_OPERATOR_OWNER_BINDINGS['tmsteph@3dvr'], TMSTEPH_PUB);
+  assert.deepEqual(BUILTIN_OPERATOR_OWNER_PUBS, [TMSTEPH_PUB]);
 });
 
 test('verified tmsteph Forge request resolves as owner with signed GitHub permission', async () => {
@@ -32,17 +48,7 @@ test('verified tmsteph Forge request resolves as owner with signed GitHub permis
   const result = await authorizePortalOperatorTask(signedRecord(task, true), {
     now: 1_001_000,
     env: { THREEDVR_OPERATOR_PORTAL_REPO: repoPath },
-    verifyImpl: async () => ({
-      scope: 'operator-forge-task',
-      action: 'queue-code-change',
-      alias: 'tmsteph@3dvr',
-      pub: TMSTEPH_PUB,
-      iat: 1_000_000,
-      taskId: 'operator-task-github-1',
-      repo: 'portal',
-      task,
-      githubWriteRequested: true,
-    }),
+    verifyImpl: async () => verifiedOwnerTask(task),
   });
 
   assert.equal(result.ok, true);
@@ -51,22 +57,25 @@ test('verified tmsteph Forge request resolves as owner with signed GitHub permis
   assert.equal(result.repoPath, repoPath);
 });
 
+test('verified owner key survives a legacy tmsteph alias without suffix', async () => {
+  const task = 'Operator code request: Fix the nav and push the commit to GitHub.';
+  const result = await authorizePortalOperatorTask(signedRecord(task, true), {
+    now: 1_001_000,
+    env: {},
+    verifyImpl: async () => verifiedOwnerTask(task, 'tmsteph'),
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.role, 'owner');
+  assert.equal(result.githubWriteApproved, true);
+});
+
 test('queued GitHub flag cannot be added after the owner signed the request', async () => {
   const task = 'Operator code request: Fix the nav spacing locally.';
   const result = await authorizePortalOperatorTask(signedRecord(task, true), {
     now: 1_001_000,
     env: {},
-    verifyImpl: async () => ({
-      scope: 'operator-forge-task',
-      action: 'queue-code-change',
-      alias: 'tmsteph@3dvr',
-      pub: TMSTEPH_PUB,
-      iat: 1_000_000,
-      taskId: 'operator-task-github-1',
-      repo: 'portal',
-      task,
-      githubWriteRequested: false,
-    }),
+    verifyImpl: async () => verifiedOwnerTask(task, 'tmsteph@3dvr', false),
   });
 
   assert.equal(result.ok, false);
