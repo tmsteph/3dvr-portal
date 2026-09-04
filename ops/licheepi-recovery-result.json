@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-09-04T17:21:17.686464+00:00",
+  "ovhReachable": true,
+  "reversePort2223": true,
+  "aliasPresent": true,
+  "licheePiSsh": true,
+  "host": "lpi4a",
+  "user": "sipeed",
+  "uptime": "up 19 minutes",
+  "ips": "10.21.77.109 172.25.6.107 ",
+  "listener": "LISTEN 0      128        127.0.0.1:2223       0.0.0.0:*                                               "
+}
