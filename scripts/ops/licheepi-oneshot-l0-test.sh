@@ -5,8 +5,6 @@ OVH_HOST="${OVH_HOST:-40.160.137.41}"
 DO_HOST="${DO_HOST:-167.172.193.194}"
 GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-tmsteph/3dvr-portal}"
 RESULT=/tmp/licheepi-oneshot-l0-result.json
-NORMAL='run bootcmd_load; bootslave; sysboot mmc ${mmcdev}:${mmcbootpart} any $boot_conf_addr_r $boot_conf_file;'
-ONESHOT='setenv bootcmd ${normal_bootcmd}; saveenv; run bootcmd_load; bootslave; sysboot mmc ${mmcdev}:${mmcbootpart} any $boot_conf_addr_r /extlinux/oneshot-l0.conf;'
 
 python3 - <<'PY'
 import json
@@ -50,7 +48,8 @@ ssh "${D[@]}" "$DU@$DO_HOST" "ssh -n -o BatchMode=yes -o ConnectTimeout=7 lpi4a-
 
 ARM=$(cat <<'PI'
 set -euo pipefail
-NORMAL="$1"; ONESHOT="$2"
+NORMAL='run bootcmd_load; bootslave; sysboot mmc ${mmcdev}:${mmcbootpart} any $boot_conf_addr_r $boot_conf_file;'
+ONESHOT='setenv bootcmd ${normal_bootcmd}; saveenv; run bootcmd_load; bootslave; sysboot mmc ${mmcdev}:${mmcbootpart} any $boot_conf_addr_r /extlinux/oneshot-l0.conf;'
 cfg=/tmp/3dvr-fw_env-oneshot.config
 printf '/dev/mmcblk0 0xe0000 0x20000\n' > "$cfg"
 trap 'rm -f "$cfg"' EXIT
@@ -89,8 +88,7 @@ printf 'BTIME=%s\n' "$before_btime"
 PI
 )
 AB64="$(printf '%s' "$ARM" | base64 -w0)"
-N64="$(printf '%s' "$NORMAL" | base64 -w0)"; O64="$(printf '%s' "$ONESHOT" | base64 -w0)"
-out="$(ssh "${O[@]}" "$OU@$OVH_HOST" "N=\$(printf '%s' '$N64'|base64 -d); Q=\$(printf '%s' '$O64'|base64 -d); printf '%s' '$AB64'|base64 -d|ssh -o BatchMode=yes -o ConnectTimeout=15 lpi4a 'bash -s -- \"\$N\" \"\$Q\"'")"
+out="$(ssh "${O[@]}" "$OU@$OVH_HOST" "printf '%s' '$AB64' | base64 -d | ssh -o BatchMode=yes -o ConnectTimeout=15 lpi4a 'bash -s'")"
 BEFORE_BTIME="$(printf '%s\n' "$out" | sed -n 's/^BTIME=//p')"; test -n "$BEFORE_BTIME"
 
 # Trigger exactly one known-good reboot.
@@ -104,7 +102,7 @@ wait_ovh; wait_hetz; wait_do
 
 VERIFY=$(cat <<'PI'
 set -euo pipefail
-NORMAL="$1"
+NORMAL='run bootcmd_load; bootslave; sysboot mmc ${mmcdev}:${mmcbootpart} any $boot_conf_addr_r $boot_conf_file;'
 cfg=/tmp/3dvr-fw_env-oneshot.config; printf '/dev/mmcblk0 0xe0000 0x20000\n' > "$cfg"; trap 'rm -f "$cfg"' EXIT
 get(){ sudo -n fw_printenv -c "$cfg" "$1" 2>/dev/null | sed -n "s/^$1=//p"; }
 test "$(get bootcmd)" = "$NORMAL"
@@ -127,7 +125,7 @@ printf 'AFTER_BTIME=%s\nKERNEL=%s\nDEFAULT=l0\nBOOTCMD_RESTORED=true\n' "$(awk '
 PI
 )
 VB64="$(printf '%s' "$VERIFY" | base64 -w0)"
-post="$(ssh "${O[@]}" "$OU@$OVH_HOST" "N=\$(printf '%s' '$N64'|base64 -d); printf '%s' '$VB64'|base64 -d|ssh -o BatchMode=yes -o ConnectTimeout=12 lpi4a 'bash -s -- \"\$N\"'")"
+post="$(ssh "${O[@]}" "$OU@$OVH_HOST" "printf '%s' '$VB64' | base64 -d | ssh -o BatchMode=yes -o ConnectTimeout=12 lpi4a 'bash -s'")"
 AFTER_BTIME="$(printf '%s\n' "$post"|sed -n 's/^AFTER_BTIME=//p')"; test -n "$AFTER_BTIME"; test "$AFTER_BTIME" != "$BEFORE_BTIME"
 KERNEL="$(printf '%s\n' "$post"|sed -n 's/^KERNEL=//p')"; ENV_SHA="$(printf '%s\n' "$post"|sed -n 's/^ENV_SHA=//p')"; CRC="$(printf '%s\n' "$post"|sed -n 's/^CRC=//p')"
 
