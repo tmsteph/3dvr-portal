@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run Operator self-edit integration test
+        run: node --test tests/operator-self-edit-integration.test.js
+
       - name: Run Workboard regression tests
         run: node --test tests/workboard-*.test.js
 
@@ -43,9 +46,6 @@ jobs:
 
       - name: Run autonomous dollar challenge tests
         run: node --test tests/challenge-api.test.js
-
-      - name: Run Operator self-edit integration test
-        run: node --test tests/operator-self-edit-integration.test.js
 
       - name: Run Playwright checks
         run: npm run playwright:verify:linux
