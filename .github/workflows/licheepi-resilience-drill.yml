@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/licheepi-resilience-drill.yml'
       - 'scripts/ops/licheepi-resilience-drill.sh'
+      - 'scripts/ops/licheepi-configure-hetzner-jump.sh'
   workflow_dispatch:
 
 permissions:
@@ -17,52 +18,15 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Configure OVH jump to Hetzner LicheePi tunnel
-        shell: bash
+      - name: Enforce on-site safety window
+        run: test "$(date -u +%s)" -lt "$(date -u -d '2026-09-04 23:00:00Z' +%s)"
+      - name: Configure OVH to Hetzner jump path
         env:
           SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
           SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
           SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
           OVH_HOST: 40.160.137.41
-        run: |
-          set -euo pipefail
-          write_key(){ raw="$1"; dest="$2"; [ -n "$raw" ] || return 0; printf '%s\n' "$raw" > "$dest.raw"; if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest"; elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :; else rm -f "$dest" "$dest.raw"; return 0; fi; chmod 600 "$dest"; rm -f "$dest.raw"; }
-          write_key "$SSH_A" /tmp/a; write_key "$SSH_B" /tmp/b; write_key "$SSH_C" /tmp/c
-          user=''; key=''
-          for u in debian root; do
-            for k in /tmp/a /tmp/b /tmp/c; do
-              [ -f "$k" ] || continue
-              if ssh -i "$k" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$u@$OVH_HOST" true >/dev/null 2>&1; then user="$u"; key="$k"; break 2; fi
-            done
-          done
-          test -n "$user"
-          ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@$OVH_HOST" 'bash -s' <<'OVH'
-          set -euo pipefail
-          ssh -o BatchMode=yes -o ConnectTimeout=6 3dvr-hetzner true
-          cfg="$HOME/.ssh/config"; mkdir -p "$HOME/.ssh"; touch "$cfg"; chmod 700 "$HOME/.ssh"; chmod 600 "$cfg"
-          identity="$(ssh -G lpi4a 2>/dev/null | awk '$1=="identityfile"{print $2; exit}')"
-          piuser="$(ssh -G lpi4a 2>/dev/null | awk '$1=="user"{print $2; exit}')"
-          test -n "$identity" -a -n "$piuser"
-          tmp="$(mktemp)"
-          sed '/^# BEGIN 3DVR LPI4A HETZNER JUMP$/,/^# END 3DVR LPI4A HETZNER JUMP$/d' "$cfg" > "$tmp"
-          cat >> "$tmp" <<CFG
-# BEGIN 3DVR LPI4A HETZNER JUMP
-Host lpi4a-hetzner
-  HostName 127.0.0.1
-  Port 2223
-  User $piuser
-  IdentityFile $identity
-  IdentitiesOnly yes
-  BatchMode yes
-  StrictHostKeyChecking accept-new
-  ConnectTimeout 6
-  ProxyCommand ssh -o BatchMode=yes -o ConnectTimeout=6 3dvr-hetzner -W %h:%p
-# END 3DVR LPI4A HETZNER JUMP
-CFG
-          mv "$tmp" "$cfg"; chmod 600 "$cfg"
-          ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a true
-          ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a-hetzner true
-          OVH
+        run: bash scripts/ops/licheepi-configure-hetzner-jump.sh
       - name: Test failover and reboot recovery
         env:
           SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
@@ -72,5 +36,3 @@ CFG
           HETZNER_HOST: 40.160.137.41
           GITHUB_TOKEN: ${{ github.token }}
         run: bash scripts/ops/licheepi-resilience-drill.sh
-
-# On-site recovery window run: Hetzner data path is reached through OVH control alias.
