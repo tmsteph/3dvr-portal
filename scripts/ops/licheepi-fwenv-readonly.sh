@@ -36,8 +36,6 @@ set -euo pipefail
 cfg=/tmp/3dvr-fw_env.config
 printf '/dev/mmcblk0 0xe0000 0x20000\n' > "$cfg"
 
-# Install Debian's supported userspace reader if missing. This modifies only
-# normal rootfs packages; it does not write U-Boot or /boot state.
 if ! command -v fw_printenv >/dev/null 2>&1; then
   sudo -n apt-get update >/dev/null
   if ! sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y libubootenv-tool >/dev/null 2>&1; then
@@ -76,13 +74,16 @@ boot_conf_file="$(get boot_conf_file)"
 bootdelay="$(get bootdelay)"
 mmcdev="$(get mmcdev)"
 mmcbootpart="$(get mmcbootpart)"
+probe_absent=true
+if sudo -n "$tool" "${args[@]}" threedvr_probe >/dev/null 2>&1; then probe_absent=false; fi
+extlinux_default="$(awk 'tolower($1)=="default"{print $2; exit}' /boot/extlinux/extlinux.conf)"
 
 tmp=/tmp/3dvr-env-after-fwprint.bin
 sudo -n dd if=/dev/mmcblk0 of="$tmp" bs=512 skip=1792 count=256 status=none
 sudo -n chmod 0644 "$tmp"
-python3 - "$tmp" "$source" "$config_mode" "$bootcmd" "$boot_conf_file" "$bootdelay" "$mmcdev" "$mmcbootpart" <<'PY'
+python3 - "$tmp" "$source" "$config_mode" "$bootcmd" "$boot_conf_file" "$bootdelay" "$mmcdev" "$mmcbootpart" "$probe_absent" "$extlinux_default" <<'PY'
 import hashlib,json,struct,sys,zlib
-p,source,config_mode,bootcmd,conf,delay,mmcdev,part=sys.argv[1:]
+p,source,config_mode,bootcmd,conf,delay,mmcdev,part,probe_absent,extlinux_default=sys.argv[1:]
 data=open(p,'rb').read(); stored=struct.unpack('<I',data[:4])[0]; calc=zlib.crc32(data[4:])&0xffffffff
 expected='run bootcmd_load; bootslave; sysboot mmc ${mmcdev}:${mmcbootpart} any $boot_conf_addr_r $boot_conf_file;'
 checks={
@@ -92,6 +93,8 @@ checks={
  'bootdelay': delay=='2',
  'mmcdev': mmcdev=='0',
  'mmcbootpart': part=='2',
+ 'probe_absent': probe_absent=='true',
+ 'extlinux_default_l0': extlinux_default=='l0',
 }
 print(json.dumps({
  'ok':all(checks.values()),
@@ -101,7 +104,9 @@ print(json.dumps({
  'checks':checks,
  'environmentSha256':hashlib.sha256(data).hexdigest(),
  'crcStoredLE':hex(stored),'crcCalculated':hex(calc),
- 'bootFlow':{'bootcmd':bootcmd,'boot_conf_file':conf,'bootdelay':delay,'mmcdev':mmcdev,'mmcbootpart':part}
+ 'bootFlow':{'bootcmd':bootcmd,'boot_conf_file':conf,'bootdelay':delay,'mmcdev':mmcdev,'mmcbootpart':part},
+ 'extlinuxDefault':extlinux_default,
+ 'probeVariableAbsent':probe_absent=='true'
 },indent=2))
 PY
 REMOTE
