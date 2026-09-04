@@ -1,0 +1,17 @@
+{
+  "checkedAt": "2026-09-04T17:37:21.039930+00:00",
+  "ok": true,
+  "ovhPrimary": true,
+  "hetznerFallback": true,
+  "hetznerUser": "root",
+  "pi": {
+    "PRIMARY_PID": "752",
+    "PRIMARY_UNIT": "lichee-tunnel.service",
+    "PRIMARY_UNIT_ENABLED": "enabled",
+    "SSH_ACTIVE": "active",
+    "NETWORK_HEAL": "enabled",
+    "HETZNER_SERVICE": "active",
+    "HETZNER_ENABLED": "enabled",
+    "IPS": "10.21.77.109 172.25.6.107 "
+  }
+}
