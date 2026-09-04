@@ -1,0 +1,26 @@
+name: Verify CRM import
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/verify-crm-import.yml'
+      - 'scripts/crm/verify-recent-imports.mjs'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Verify recent CRM imports
+        env:
+          EXPECTED_IMPORT_COUNT: '15'
+          RECENT_WINDOW_MS: '7200000'
+          COLLECT_MS: '9000'
+        run: node scripts/crm/verify-recent-imports.mjs
