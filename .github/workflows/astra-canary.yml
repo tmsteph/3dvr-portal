@@ -1,0 +1,31 @@
+name: GPT-6 Astra Canary
+
+on:
+  pull_request:
+    paths:
+      - 'api/openai-site.js'
+      - 'src/astra/**'
+      - 'astra/**'
+      - 'tests/astra-*.test.js'
+      - '.github/workflows/astra-canary.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'api/openai-site.js'
+      - 'src/astra/**'
+      - 'astra/**'
+      - 'tests/astra-*.test.js'
+      - '.github/workflows/astra-canary.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/astra-*.test.js tests/openai-site.test.js tests/vercel-function-budget.test.js

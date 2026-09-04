@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>3DVR Astra Canary</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #101512; color: #f4f6f2; }
+    main { width: min(720px, calc(100% - 32px)); padding: 28px; box-sizing: border-box; }
+    h1 { margin: 0 0 8px; font-size: clamp(1.7rem, 6vw, 2.6rem); }
+    p { line-height: 1.5; color: #c8d0c9; }
+    textarea { width: 100%; min-height: 150px; box-sizing: border-box; padding: 14px; border-radius: 12px; border: 1px solid #465047; background: #171d19; color: inherit; font: inherit; resize: vertical; }
+    .row { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+    select, button { padding: 11px 14px; border-radius: 10px; border: 1px solid #526056; font: inherit; }
+    button { cursor: pointer; font-weight: 700; }
+    button:disabled { cursor: wait; opacity: .65; }
+    pre { margin-top: 18px; padding: 16px; border-radius: 12px; background: #171d19; border: 1px solid #343d36; white-space: pre-wrap; word-break: break-word; min-height: 72px; }
+    a { color: #b7e9c2; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>GPT-6 Astra Canary</h1>
+    <p>Owner-only. Uses the same signed 3DVR developer proof as Operator. Existing production model defaults stay unchanged.</p>
+    <form id="astra-form">
+      <textarea id="prompt" required>What is the most useful next improvement for 3DVR's AI architecture? Answer in three short sentences.</textarea>
+      <div class="row">
+        <label for="effort">Reasoning</label>
+        <select id="effort">
+          <option value="low" selected>Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="xhigh">XHigh</option>
+          <option value="max">Max</option>
+        </select>
+        <button id="send" type="submit">Ask Astra</button>
+      </div>
+    </form>
+    <pre id="result" aria-live="polite">Ready.</pre>
+    <p><a href="/">Back to 3DVR Portal</a></p>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
