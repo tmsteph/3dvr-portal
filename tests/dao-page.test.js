@@ -4,32 +4,36 @@ import { readFile } from 'node:fs/promises';
 
 const portalRoot = new URL('../', import.meta.url);
 
-describe('3DVR DAO page', () => {
-  it('explains the governance idea before showing the interactive dashboard', async () => {
+describe('3DVR DAO pages', () => {
+  it('keeps the main DAO page simple and sends the interactive example to a separate page', async () => {
     const page = await readFile(new URL('dao/index.html', portalRoot), 'utf8');
 
-    assert.match(page, /Help build 3DVR\./);
-    assert.match(page, /Help decide what it becomes\./);
-    assert.match(page, /DAO = Decentralized Autonomous Organization/);
-    assert.match(page, /shared rules, public records, and voting/);
-    assert.match(page, /It does not mean AI runs the organization/);
-    assert.match(page, /How it could work/);
-    assert.match(page, /What would the community actually govern\?/);
-    assert.match(page, /Try a simple example/);
-    assert.match(page, /What could this feel like\?/);
-    assert.ok(page.indexOf('DAO = Decentralized Autonomous Organization') < page.indexOf('Example proposal #001'));
-    assert.match(page, /Support proposal/);
-    assert.match(page, /Delegate my voice/);
-    assert.match(page, /Your contribution history/);
-    assert.match(page, /Community treasury/);
-    assert.match(page, /Future capital pool/);
-    assert.match(page, /AI Capital Scout/);
-    assert.match(page, /Public receipt trail/);
-    assert.match(page, /Why GUN \+ AXE\?/);
-    assert.match(page, /Could 3DVR eventually invest\?/);
-    assert.match(page, /data-vote="yes"/);
-    assert.match(page, /demoReceipt/);
+    assert.match(page, /What is a DAO\?/);
+    assert.match(page, /Decentralized Autonomous Organization/);
+    assert.match(page, /Autonomous.*does not mean AI runs the organization/s);
+    assert.match(page, /What would that mean for 3DVR\?/);
+    assert.match(page, /The goal is not to sell a coin/);
+    assert.match(page, /Could 3DVR invest money too\?/);
+    assert.match(page, /href="\.\/demo\/"/);
+    assert.doesNotMatch(page, /data-vote=/);
+    assert.doesNotMatch(page, /reputation-weighted/);
+    assert.doesNotMatch(page, /settlement/i);
     assert.match(page, /Trusting Strangers with Axes/);
-    assert.match(page, /gun\.eco\/docs\/Trusting-Strangers-with-Axes/);
+  });
+
+  it('puts the interactive example on the demo page using plain language', async () => {
+    const demo = await readFile(new URL('dao/demo/index.html', portalRoot), 'utf8');
+
+    assert.match(demo, /What could shared decision-making feel like\?/);
+    assert.match(demo, /Should 3DVR buy three RISC-V boards/);
+    assert.match(demo, /Let someone I trust vote for me/);
+    assert.match(demo, /Your history/);
+    assert.match(demo, /Shared money/);
+    assert.match(demo, /Where could AI help\?/);
+    assert.match(demo, /data-vote="yes"/);
+    assert.match(demo, /demoReceipt/);
+    assert.doesNotMatch(demo, /reputation-weighted/);
+    assert.doesNotMatch(demo, /settlement/i);
+    assert.doesNotMatch(demo, /capital scout/i);
   });
 });
