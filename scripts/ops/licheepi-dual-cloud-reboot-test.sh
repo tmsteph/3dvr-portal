@@ -28,42 +28,49 @@ for u in debian root; do
   done
 done
 test -n "$user"
-O=(-i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
-ovh(){ ssh "${O[@]}" "$user@$OVH_HOST" "$@"; }
-route(){ ovh "ssh -o BatchMode=yes -o ConnectTimeout=6 $1 true" >/dev/null 2>&1; }
+
+out="$(ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$OVH_HOST" 'bash -s' <<'OVH'
+set -euo pipefail
+route(){ ssh -o BatchMode=yes -o ConnectTimeout=6 "$1" true >/dev/null 2>&1; }
 wait_route(){ local r="$1"; for _ in $(seq 1 60); do route "$r" && return 0; sleep 3; done; return 1; }
-pi_script(){
-  local script="$1" b64
-  b64="$(printf '%s' "$script" | base64 -w0)"
-  ovh "printf '%s' '$b64' | base64 -d | ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a 'bash -s'"
-}
 
 route lpi4a
 route lpi4a-hetzner
-DEFAULT="$(pi_script "awk '\$1==\"default\"{print \$2; exit}' /boot/extlinux/extlinux.conf")"
+DEFAULT="$(ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a "grep -i '^default ' /boot/extlinux/extlinux.conf | head -1 | tr -s ' ' | cut -d' ' -f2")"
 test "$DEFAULT" = l0
-BEFORE="$(pi_script 'cat /proc/sys/kernel/random/boot_id')"
-KERNEL_BEFORE="$(pi_script 'uname -r')"
+BEFORE="$(ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a cat /proc/sys/kernel/random/boot_id)"
+KERNEL_BEFORE="$(ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a uname -r)"
 case "$KERNEL_BEFORE" in 5.10.113*) ;; *) exit 21;; esac
 
-pi_script 'sudo -n systemctl reboot' >/dev/null 2>&1 || true
+ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a 'sudo -n systemctl reboot' >/dev/null 2>&1 || true
 sleep 12
 wait_route lpi4a
 wait_route lpi4a-hetzner
-AFTER="$(pi_script 'cat /proc/sys/kernel/random/boot_id')"
-KERNEL_AFTER="$(pi_script 'uname -r')"
-DEFAULT_AFTER="$(pi_script "awk '\$1==\"default\"{print \$2; exit}' /boot/extlinux/extlinux.conf")"
+AFTER="$(ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a cat /proc/sys/kernel/random/boot_id)"
+KERNEL_AFTER="$(ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a uname -r)"
+DEFAULT_AFTER="$(ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a "grep -i '^default ' /boot/extlinux/extlinux.conf | head -1 | tr -s ' ' | cut -d' ' -f2")"
 test "$BEFORE" != "$AFTER"
 test "$DEFAULT_AFTER" = l0
 case "$KERNEL_AFTER" in 5.10.113*) ;; *) exit 22;; esac
 
-BEFORE="$BEFORE" AFTER="$AFTER" KERNEL_BEFORE="$KERNEL_BEFORE" KERNEL_AFTER="$KERNEL_AFTER" python3 - <<'PY' > "$RESULT"
+printf 'BEFORE=%s\nAFTER=%s\nKERNEL_BEFORE=%s\nKERNEL_AFTER=%s\nDEFAULT_AFTER=%s\n' "$BEFORE" "$AFTER" "$KERNEL_BEFORE" "$KERNEL_AFTER" "$DEFAULT_AFTER"
+OVH
+)"
+
+BEFORE="$(printf '%s\n' "$out" | sed -n 's/^BEFORE=//p')"
+AFTER="$(printf '%s\n' "$out" | sed -n 's/^AFTER=//p')"
+KERNEL_BEFORE="$(printf '%s\n' "$out" | sed -n 's/^KERNEL_BEFORE=//p')"
+KERNEL_AFTER="$(printf '%s\n' "$out" | sed -n 's/^KERNEL_AFTER=//p')"
+DEFAULT_AFTER="$(printf '%s\n' "$out" | sed -n 's/^DEFAULT_AFTER=//p')"
+test -n "$BEFORE" -a -n "$AFTER" -a -n "$KERNEL_BEFORE" -a -n "$KERNEL_AFTER"
+
+BEFORE="$BEFORE" AFTER="$AFTER" KERNEL_BEFORE="$KERNEL_BEFORE" KERNEL_AFTER="$KERNEL_AFTER" DEFAULT_AFTER="$DEFAULT_AFTER" python3 - <<'PY' > "$RESULT"
 import datetime,json,os
 print(json.dumps({
   'checkedAt':datetime.datetime.now(datetime.timezone.utc).isoformat(),
   'ok':True,
   'routesAfterReboot':{'ovh':True,'hetzner':True},
-  'defaultAfter':'l0',
+  'defaultAfter':os.environ['DEFAULT_AFTER'],
   'kernelBefore':os.environ['KERNEL_BEFORE'],
   'kernelAfter':os.environ['KERNEL_AFTER'],
   'bootIdChanged':os.environ['BEFORE'] != os.environ['AFTER']
