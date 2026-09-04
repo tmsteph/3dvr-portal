@@ -18,79 +18,71 @@ The current known-good recovery baseline is:
 
 ## Non-negotiable safety rule
 
-Do **not** overwrite or remove the known-good vendor boot path while Debian/mainline is still experimental.
-
-Until the mainline path has survived repeated boot, network, SSH, graphics, and workload validation, keep:
-
-- `default l0`
-- `/boot/Image`
-- `/boot/vmlinux-5.10.113-lpi4a`
-- the vendor DTBs used by `l0`
-- `label l0`
-- `label l0r`
-
-The `mainline71` entry must remain additive, not destructive.
+Do **not** overwrite or remove the known-good vendor boot path while Debian/mainline is still experimental. Keep `default l0`, the 5.10 vendor kernel/DTBs, `l0`, and `l0r`. `mainline71` remains additive until rollback and repeated mainline boots are proven.
 
 ## Prior kexec result
 
-A mainline kexec attempt has already been tried. It hung before a new SSH connection became available, consistent with an early RISC-V handoff/bring-up failure. The normal U-Boot default was not changed and the machine recovered on the next ordinary boot.
+A mainline kexec attempt already hung before a new SSH connection became available. The board recovered only because normal U-Boot boot state had not changed. Do not use kexec as the default test method.
 
-Do **not** repeat kexec as the default test strategy. It remains a diagnostic option only if we later have a proven hardware watchdog/reset path and a specific reason to exercise it.
+## U-Boot environment source of truth
+
+The live bootloader identifies as `U-Boot 2020.01-gd6c9182f-dirty`. Exact matching RevyOS source commit: `d6c9182f6238f2fc4b386b9e4c5d2cfebbef4746`.
+
+Verified environment layout:
+
+- `CONFIG_ENV_IS_IN_MMC=y`
+- MMC device `0` → `/dev/mmcblk0`
+- offset `0xe0000`
+- size `0x20000`
+
+The live read-only probe verifies the stored CRC against that exact region.
+
+## Vendor rollback capability: present, but not wired into the live boot flow
+
+The exact vendor source contains a custom U-Boot command named `rollback`. It is separate from upstream `CONFIG_BOOTCOUNT_LIMIT`.
+
+When invoked with `bootlimit` configured, the vendor command:
+
+- increments `bootcount`;
+- persists it with `env_save()`;
+- after the configured number of failed attempts, restores `boot_partition` from `boot_partition_alt` and `root_partition` from `root_partition_alt`;
+- removes the `_alt` values after rollback.
+
+However, the **live** environment currently has none of those rollback variables, and its actual boot command is:
+
+`run bootcmd_load; bootslave; sysboot mmc ${mmcdev}:${mmcbootpart} any $boot_conf_addr_r $boot_conf_file;`
+
+The live boot path therefore does not currently invoke the custom `rollback` command. We must not rely on it until we deliberately wire and test it.
 
 ## Current safest development path
 
 1. Keep `default l0` unchanged.
-2. Validate U-Boot environment access read-only against the exact installed bootloader source.
-3. Back up the raw environment and known-good boot files before any environment write.
-4. Configure and verify Linux-side `fw_printenv` access.
-5. Prove a harmless write/read/restore cycle before relying on any U-Boot environment mutation.
-6. Build a one-shot rollback mechanism from capabilities actually enabled in this U-Boot build; do not assume bootcount support.
-7. Deliberately test the rollback mechanism while the vendor kernel is still the normal default.
-8. Only after rollback is proven, perform a one-shot `mainline71` boot trial.
+2. Maintain exact-source read-only environment validation.
+3. Store the exact U-Boot environment plus known-good vendor boot recovery set independently on OVH and Hetzner.
+4. Run no-reboot mainline preflight for root storage, initramfs, DTB, Wi-Fi bridge, PowerVR/display, and watchdog capability.
+5. Configure `fw_printenv` read-only and prove its interpretation matches our validated raw parser.
+6. Only after two independent backups exist, prove a bounded environment write/read/restore cycle.
+7. Decide whether the vendor custom `rollback` command can safely guard an extlinux candidate boot without replacing U-Boot.
+8. Deliberately test rollback while `l0` remains the durable normal state.
+9. Only then perform a one-shot `mainline71` boot.
 
-## U-Boot environment source of truth
+## Mainline-specific warning
 
-The live bootloader identifies as `U-Boot 2020.01-gd6c9182f-dirty`. The exact matching RevyOS source commit is `d6c9182f6238f2fc4b386b9e4c5d2cfebbef4746`.
-
-That exact source defines:
-
-- `CONFIG_ENV_IS_IN_MMC=y`
-- `CONFIG_SYS_MMC_ENV_DEV=0`
-- `CONFIG_ENV_OFFSET=0xe0000`
-- `CONFIG_ENV_SIZE=0x20000`
-
-The matching board header defines `CONFIG_SYS_MMC_ENV_DEV 0`.
-
-The read-only CRC validator has confirmed that the live environment at `/dev/mmcblk0`, offset `0xe0000`, size `0x20000`, matches its stored CRC.
-
-These values are valid only while the live U-Boot build identity still matches `d6c9182f`. Any future bootloader change invalidates them until the new source/configuration is verified.
-
-## Bootcount correction
-
-The U-Boot binary contains generic `bootcount`/`bootlimit` strings, but the exact `light_lpi4a_defconfig` does **not** enable `CONFIG_BOOTCOUNT_LIMIT`, and the live environment contains no `bootcount`, `bootlimit`, or `altbootcmd` variables. Therefore we must not claim automatic boot-count rollback is available on the installed bootloader.
-
-Options going forward are evaluated in this order:
-
-1. a one-shot U-Boot environment/boot-script scheme that restores the normal `l0` path *before* attempting the candidate kernel;
-2. a verified hardware-watchdog-assisted scheme if the board's real watchdog reset path can be proven safely;
-3. rebuilding/replacing U-Boot with bootcount support only as a later option, because touching the bootloader itself carries substantially more recovery risk.
-
-No persistent bootloader mutation is allowed until the raw environment is backed up independently and a read/write/restore drill succeeds.
+The staged 7.1 kernel has soft-watchdog support but does not currently enable `CONFIG_DW_WATCHDOG`. Therefore the first mainline boot must **not** depend on the current DesignWare hardware watchdog for recovery unless another compatible hardware watchdog path is separately proven.
 
 ## Persistent switch gate
 
 Do not make `mainline71` the normal boot until all of these pass:
 
-- deliberate rollback drill returns automatically to `l0`
-- mainline kernel reaches multi-user target repeatedly
-- Wi-Fi/network works after cold boot
-- both cloud reverse SSH paths reconnect automatically
-- SSH accepts the existing recovery keys
-- storage mounts cleanly
-- GPU/display reaches the required usable state
-- package management works
-- the old `l0` and `l0r` entries remain intact
+- deliberate failed-boot drill returns automatically to `l0`;
+- clean mainline boot reaches multi-user target repeatedly;
+- eMMC root mounts correctly;
+- Wi-Fi/network returns without manual action;
+- both cloud reverse SSH paths reconnect;
+- storage and package management work;
+- GPU/display reaches the intended usable state;
+- `l0` and `l0r` remain intact.
 
 ## Disaster boundary
 
-A Debian/mainline experiment must never require physically attaching a display, keyboard, or mouse merely because the new kernel failed. The vendor boot path and cloud recovery paths must remain independently recoverable throughout the transition.
+A Debian/mainline experiment must never require local display/keyboard access merely because the candidate kernel failed. The vendor boot path and independent cloud recovery paths stay recoverable throughout the transition.
