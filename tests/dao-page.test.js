@@ -10,12 +10,14 @@ describe('3DVR DAO page', () => {
 
     assert.match(page, /Help build 3DVR\./);
     assert.match(page, /Help decide what it becomes\./);
-    assert.match(page, /In plain English/);
+    assert.match(page, /DAO = Decentralized Autonomous Organization/);
+    assert.match(page, /shared rules, public records, and voting/);
+    assert.match(page, /It does not mean AI runs the organization/);
     assert.match(page, /How it could work/);
     assert.match(page, /What would the community actually govern\?/);
     assert.match(page, /Try a simple example/);
     assert.match(page, /What could this feel like\?/);
-    assert.ok(page.indexOf('In plain English') < page.indexOf('Example proposal #001'));
+    assert.ok(page.indexOf('DAO = Decentralized Autonomous Organization') < page.indexOf('Example proposal #001'));
     assert.match(page, /Support proposal/);
     assert.match(page, /Delegate my voice/);
     assert.match(page, /Your contribution history/);
