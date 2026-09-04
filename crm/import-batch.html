@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>3DVR CRM · Batch import</title>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <style>body{font-family:system-ui,sans-serif;background:#070b12;color:#eef2ff;margin:0;padding:24px}main{max-width:680px;margin:auto}pre{white-space:pre-wrap;background:#111827;padding:14px;border-radius:12px}.muted{color:#94a3b8}.ok{color:#86efac}.err{color:#fca5a5}a{color:#7dd3fc}</style>
+</head>
+<body><main><h1>3DVR CRM import</h1><p class="muted">Private batch data stays in the URL fragment on this device and is never stored in this page or repository.</p><p id="summary">Reading batch…</p><pre id="status"></pre><p><a href="./">Open CRM</a></p></main>
+<script>
+const summary=document.getElementById('summary');
+const status=document.getElementById('status');
+const gun=Gun(window.__GUN_PEERS__||['wss://gun-relay-3dvr.fly.dev/gun']);
+const root=gun.get('3dvr-crm');
+const clean=v=>String(v==null?'':v).trim();
+const slug=v=>clean(v).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,72);
+function b64bytes(raw){raw=raw.replace(/-/g,'+').replace(/_/g,'/');while(raw.length%4)raw+='=';return Uint8Array.from(atob(raw),c=>c.charCodeAt(0));}
+async function decodeBatch(){
+  const raw=location.hash.replace(/^#(?:go=|data=)?/,'');
+  if(!raw)return [];
+  const bytes=b64bytes(raw);
+  const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  const text=await new Response(stream).text();
+  const data=JSON.parse(text);
+  return Array.isArray(data)?data:[];
+}
+async function put(record){return new Promise((resolve,reject)=>root.get(record.id).put(record,ack=>ack&&ack.err?reject(new Error(ack.err)):resolve()));}
+async function run(){
+  try{
+    const leads=await decodeBatch();
+    if(!leads.length){summary.textContent='No lead batch found in this link.';return;}
+    summary.textContent=`Importing ${leads.length} leads…`;
+    status.textContent=leads.map(x=>`• ${clean(x.name)||'(unnamed lead)'}`).join('\n');
+    const now=new Date().toISOString();
+    let done=0;
+    for(const item of leads){
+      const name=clean(item.name);if(!name)continue;
+      const id=clean(item.id)||`import-${slug(item.company||name)}-${slug(name)}`;
+      await put({
+        id,recordType:'person',name,email:clean(item.email),company:clean(item.company),phone:clean(item.phone),role:clean(item.role),tags:clean(item.tags),
+        status:clean(item.status)||'Lead',warmth:clean(item.warmth)||'warm',fit:clean(item.fit),urgency:clean(item.urgency),nextFollowUp:clean(item.nextFollowUp),
+        marketSegment:clean(item.marketSegment),primaryPain:clean(item.primaryPain),painSeverity:clean(item.painSeverity),currentWorkaround:clean(item.currentWorkaround),
+        pilotStatus:clean(item.pilotStatus),offerAmount:clean(item.offerAmount),lastSignal:clean(item.lastSignal),nextExperiment:clean(item.nextExperiment),nextBestAction:clean(item.nextBestAction),
+        objection:clean(item.objection),lastContacted:clean(item.lastContacted),notes:clean(item.notes),source:clean(item.source)||'Private batch import',created:clean(item.created)||now,updated:now,activityCount:Number(item.activityCount||0),contactId:''
+      });
+      done++;
+    }
+    summary.textContent='Import complete.';status.textContent=`Imported ${done} lead${done===1?'':'s'} into 3DVR CRM.`;status.className='ok';
+  }catch(err){summary.textContent='Import failed.';status.textContent=err.message;status.className='err';}
+}
+run();
+</script></body></html>
