@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-09-04T17:42:01.335432+00:00",
+  "ok": true,
+  "capabilities": {
+    "KEXEC_COMMAND": "",
+    "WATCHDOG_DEVICES": "/dev/watchdog /dev/watchdog0 /dev/watchdog1 /dev/watchdog2 ",
+    "WATCHDOG_SYSFS": "",
+    "VENDOR_CONFIG": "CONFIG_KEXEC=y;CONFIG_WATCHDOG=y;CONFIG_DW_WATCHDOG=y;",
+    "MAINLINE_CONFIG": "CONFIG_KEXEC=y;CONFIG_WATCHDOG=y;CONFIG_SOFT_WATCHDOG=m;",
+    "WDCTL": "/usr/bin/wdctl",
+    "WDCTL_OUT": "",
+    "BOOTSTRINGS_mmcblk0": "",
+    "BOOTSTRINGS_mmcblk0boot0": "U-Boot SPL 2020.01-gd6c9182f-dirty (Jul 21 2023 - 11:42:37 +0200);U-Boot;u-boot;** Invalid partition type \"%.32s\" (expect \"U-Boot\");u-boot,dm-pre-reloc;u-boot,dm-pre-proper;u-boot,dm-spl;u-boot,dm-tpl;bootlimit;Failed to strict_strtoul bootlimit;bootcount;Failed to set env bootcount %s: ret = %d;No valid device tree binary found - please append one to U-Boot binary, use u-boot-dtb.bin or define CONFIG_OF_EMBED. For sandbox, use -d <file.dtb>;U-Boot 2020.01-gd6c9182f-dirty;u-boot,efi-partition-entries-offset;u-boot,i2c-offset-len;u-boot,i2c-transaction-bytes;U-Boot-THEAD;u-boot,mmc-env-partition;u-boot,mmc-env-offset;u-boot;U-Boot;U-Boot 2020.01-gd6c9182f-dirty (Jul 21 2023 - 11:42:37 +0200);u-boot,dm-pre-reloc;",
+    "BOOTSTRINGS_mmcblk0boot1": ""
+  }
+}
