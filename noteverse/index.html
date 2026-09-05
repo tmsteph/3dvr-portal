@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#090d16">
+  <title>Noteverse · 3DVR</title>
+  <meta name="description" content="Explore and edit your Life Space notes as a living 3D constellation.">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="/auth-identity.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="3DVR Portal home">3DVR</a>
+      <div class="title-block">
+        <p class="eyebrow">Life Space · 3D view</p>
+        <h1>Noteverse</h1>
+      </div>
+      <a class="quiet-link" href="/life-space/">2D Life Space</a>
+    </header>
+
+    <section class="controls" aria-label="Noteverse controls">
+      <label>
+        <span>Space</span>
+        <select id="space-select" aria-label="Choose Life Space"></select>
+      </label>
+      <button id="remix" type="button">✨ Remix</button>
+      <button id="center" type="button">◎ Center</button>
+      <p id="sync-status" role="status">Loading your universe…</p>
+    </section>
+
+    <section class="workspace">
+      <div class="stage-wrap">
+        <canvas id="noteverse-canvas" aria-label="Interactive 3D constellation of Life Space notes"></canvas>
+        <div class="stage-hint">Drag to orbit · scroll/pinch to zoom · tap a crystal to open it</div>
+        <div id="empty-state" class="empty-state" hidden>
+          <span>✦</span>
+          <h2>Your universe is quiet.</h2>
+          <p>Add a thought and watch it appear in space.</p>
+        </div>
+      </div>
+
+      <aside class="editor" aria-labelledby="editor-title">
+        <div class="editor-head">
+          <div>
+            <p class="eyebrow">Selected object</p>
+            <h2 id="editor-title">Choose a crystal</h2>
+          </div>
+          <span id="item-type" class="type-chip">—</span>
+        </div>
+
+        <label class="field">
+          <span>Title</span>
+          <input id="item-title" maxlength="120" disabled placeholder="Select something in space">
+        </label>
+        <label class="field">
+          <span id="body-label">Note</span>
+          <textarea id="item-body" rows="6" maxlength="4000" disabled placeholder="Select something in space"></textarea>
+        </label>
+
+        <div class="depth-controls" aria-label="Move selected note in 3D">
+          <span>Move in space</span>
+          <div>
+            <button type="button" data-nudge="x:-1" disabled>← X</button>
+            <button type="button" data-nudge="x:1" disabled>X →</button>
+            <button type="button" data-nudge="y:1" disabled>↑ Y</button>
+            <button type="button" data-nudge="y:-1" disabled>↓ Y</button>
+            <button type="button" data-nudge="z:1" disabled>Near</button>
+            <button type="button" data-nudge="z:-1" disabled>Far</button>
+          </div>
+        </div>
+
+        <button id="delete-item" class="danger" type="button" disabled>Delete from Life Space</button>
+      </aside>
+    </section>
+
+    <form id="add-note" class="composer">
+      <label class="sr-only" for="new-note">New note</label>
+      <input id="new-note" maxlength="280" autocomplete="off" placeholder="Drop a thought into the universe…">
+      <button type="submit">+ Manifest</button>
+    </form>
+
+    <footer>
+      <span id="item-count">0 objects</span>
+      <span>Same data as Life Space · encrypted account sync when signed in</span>
+    </footer>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
