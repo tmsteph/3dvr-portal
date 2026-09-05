@@ -15,8 +15,10 @@ fi
 STATE_DIR="${THREEDVR_AUTOPILOT_STATE_DIR:-$ROOT/state}"
 PID_FILE="$STATE_DIR/agent-worker.pid"
 LOG_FILE="$STATE_DIR/agent-worker.log"
+BRIDGE_LOG_FILE="$STATE_DIR/agent-worker-bridge.log"
 TMUX_SESSION="${THREEDVR_AGENT_WORKER_TMUX_SESSION:-3dvr-worker}"
 INTERVAL_SECONDS="${THREEDVR_AGENT_WORKER_INTERVAL_SECONDS:-20}"
+BRIDGE_INTERVAL_SECONDS="${THREEDVR_AGENT_WORKER_BRIDGE_INTERVAL_SECONDS:-60}"
 ROUTER_DAEMON="$SCRIPT_DIR/ask-context-task-router-daemon"
 ORGANISM_DAEMON="$SCRIPT_DIR/ask-organism-sync-daemon"
 SUPERVISOR_DAEMON="$SCRIPT_DIR/ask-agent-supervisor-daemon"
@@ -43,20 +45,18 @@ case "${1:-}" in
       "$SUPERVISOR_DAEMON" start
       exit 0
     fi
-    # tmux can retain an older environment than the invoking shell. Load the
-    # selected 3DVR config inside the session so the managed worker always uses
-    # the current owner alias, queue settings, and backend configuration.
-    # ask-agent-queue owns Forge dispatch for run-once, so invoke the wrapper
-    # exactly once per poll to avoid duplicate Forge scans/reprocessing.
+    # Keep the latency-sensitive SQLite queue independent from GUN/AXE and
+    # Forge compatibility work. A slow relay may delay the bridge lane, but it
+    # can no longer delay local task claims.
     printf -v config_file_q '%q' "$CONFIG_FILE"
-    worker_loop="unset THREEDVR_ENV_LOADED; export THREEDVR_CONFIG_FILE=$config_file_q; if [ -f \"\$THREEDVR_CONFIG_FILE\" ]; then set -a; . \"\$THREEDVR_CONFIG_FILE\"; set +a; fi; cd \"$ROOT\" && while true; do \"$SCRIPT_DIR/ask-agent-queue\" run-once >>\"$LOG_FILE\" 2>&1; sleep \"$INTERVAL_SECONDS\"; done"
+    worker_loop="unset THREEDVR_ENV_LOADED; export THREEDVR_CONFIG_FILE=$config_file_q; if [ -f \"\$THREEDVR_CONFIG_FILE\" ]; then set -a; . \"\$THREEDVR_CONFIG_FILE\"; set +a; fi; cd \"$ROOT\" || exit 1; while true; do THREEDVR_AGENT_LOCAL_QUEUE_ONLY=1 \"$SCRIPT_DIR/ask-agent-queue\" run-once >>\"$LOG_FILE\" 2>&1; sleep \"$INTERVAL_SECONDS\"; done & while true; do \"$SCRIPT_DIR/ask-agent-queue\" run-once >>\"$BRIDGE_LOG_FILE\" 2>&1; sleep \"$BRIDGE_INTERVAL_SECONDS\"; done & wait"
     if command -v tmux >/dev/null 2>&1; then
       tmux new-session -d -s "$TMUX_SESSION" "$worker_loop"
-      echo "Started agent worker in tmux session $TMUX_SESSION. Log: $LOG_FILE"
+      echo "Started agent worker in tmux session $TMUX_SESSION. Local log: $LOG_FILE Bridge log: $BRIDGE_LOG_FILE"
     else
       setsid sh -c "$worker_loop" >/dev/null 2>&1 &
       echo "$!" > "$PID_FILE"
-      echo "Started agent worker (pid $!). Log: $LOG_FILE"
+      echo "Started agent worker (pid $!). Local log: $LOG_FILE Bridge log: $BRIDGE_LOG_FILE"
     fi
     "$ROUTER_DAEMON" start
     "$ORGANISM_DAEMON" start
@@ -87,17 +87,26 @@ case "${1:-}" in
     status=0
     if is_running; then
       echo "Agent worker running in tmux session $TMUX_SESSION."
-      echo "Log: $LOG_FILE"
+      echo "Local log: $LOG_FILE"
+      echo "Bridge log: $BRIDGE_LOG_FILE"
       if [ -f "$LOG_FILE" ]; then
-        echo "Recent worker log:"
-        tail -n 20 "$LOG_FILE" || true
+        echo "Recent local worker log:"
+        tail -n 12 "$LOG_FILE" || true
+      fi
+      if [ -f "$BRIDGE_LOG_FILE" ]; then
+        echo "Recent bridge log:"
+        tail -n 12 "$BRIDGE_LOG_FILE" || true
       fi
     else
       echo "Agent worker is not running."
       status=1
       if [ -f "$LOG_FILE" ]; then
-        echo "Recent worker log:"
-        tail -n 40 "$LOG_FILE" || true
+        echo "Recent local worker log:"
+        tail -n 24 "$LOG_FILE" || true
+      fi
+      if [ -f "$BRIDGE_LOG_FILE" ]; then
+        echo "Recent bridge log:"
+        tail -n 24 "$BRIDGE_LOG_FILE" || true
       fi
     fi
     echo
@@ -118,7 +127,11 @@ case "${1:-}" in
     "$SCRIPT_DIR/ask-agent-queue" run-once "${@:2}"
     ;;
   logs)
-    tail -n 40 "$LOG_FILE"
+    echo "Local queue log:"
+    tail -n 40 "$LOG_FILE" 2>/dev/null || true
+    echo
+    echo "GUN/Forge bridge log:"
+    tail -n 40 "$BRIDGE_LOG_FILE" 2>/dev/null || true
     echo
     "$ROUTER_DAEMON" logs || true
     echo
