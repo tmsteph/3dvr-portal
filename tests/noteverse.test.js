@@ -17,7 +17,13 @@ test('Noteverse ships a real 3D Life Space workspace', async () => {
   assert.match(html, /id="noteverse-canvas"/);
   assert.match(html, /id="new-note"/);
   assert.match(html, /id="motion-look"/);
-  assert.match(css, /\.workspace/);
+  assert.match(html, /id="sun-menu"/);
+  assert.match(html, /id="editor-panel"/);
+  assert.doesNotMatch(html, /<footer>/);
+  assert.doesNotMatch(html, /class="controls"/);
+  assert.match(css, /\.stage-wrap/);
+  assert.match(css, /body \{ margin: 0; overflow: hidden/);
+  assert.match(css, /\.panel\[hidden\]/);
 
   assert.match(app, /three@0\.165\.0\/build\/three\.module\.js/);
   assert.match(app, /new THREE\.WebGLRenderer/);
@@ -33,6 +39,10 @@ test('Noteverse ships a real 3D Life Space workspace', async () => {
   assert.match(app, /dollyCamera\(delta \* 0\.025\)/);
   assert.match(app, /motionYaw = angleDeltaDegrees/);
   assert.match(app, /motionPitch = Math\.max/);
+  assert.match(app, /sunTarget/);
+  assert.match(app, /userData\.isSun/);
+  assert.match(app, /setSunMenu/);
+  assert.match(app, /sunLight\.intensity/);
   assert.doesNotMatch(app, /radius \+= Math\.sign/);
 
   assert.match(lifeSpace, /href="\/noteverse\/"/);
