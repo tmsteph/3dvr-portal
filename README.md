@@ -36,6 +36,8 @@ Run `npm test` for the portal, `npm run test:agent` for the agent, `npm run test
 
 The ecosystem-wide simplification and shipping plan is tracked in [`docs/ecosystem-consolidation.md`](docs/ecosystem-consolidation.md). Its operating rule is simple: keep the public story clear, route users through a few strong intents, and move experiments behind stable core products.
 
+The ongoing repo-by-repo cleanup and canonical destination for older experiments is tracked in [`docs/repository-migration-map.md`](docs/repository-migration-map.md).
+
 ### Ecosystem map
 
 - **Core** — maintained public paths: `3dvr.tech`, Portal, 3DVR OS, 3DVR Calendar, and `tmsteph.com`.
