@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
 
+# Re-run after authorization reset to capture the current device-flow state.
 jobs:
   inspect:
     runs-on: ubuntu-latest
