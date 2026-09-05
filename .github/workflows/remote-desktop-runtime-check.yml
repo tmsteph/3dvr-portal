@@ -9,7 +9,7 @@ on:
 permissions:
   contents: read
 
-# Re-run after authorization reset to capture the current device-flow state.
+# Post-hardening inspection: 2026-09-05T22:13Z
 jobs:
   inspect:
     runs-on: ubuntu-latest
@@ -57,9 +57,15 @@ jobs:
           ps -eo user,pid,ppid,etime,%cpu,%mem,args --width 220 | awk -v p="$pid" '$2==p || $3==p || /desktop-commander remote/ || /@wonderwhy-er\/desktop-commander/' \
             | sed -E 's/[A-Za-z0-9_-]{40,}/[redacted]/g' || true
           echo '--- fresh journal ---'
-          sudo -n journalctl -u "$unit" --since '-10 min' --no-pager \
+          sudo -n journalctl -u "$unit" --since '-5 min' --no-pager \
             | sed -E 's/[A-Za-z0-9_-]{40,}/[redacted]/g' | tail -120
-          echo '--- outbound sockets for agent processes ---'
-          pids="$(pgrep -d, -f 'desktop-commander remote|@wonderwhy-er/desktop-commander' || true)"
-          if [ -n "$pids" ]; then sudo -n ss -tpn 2>/dev/null | grep -E "pid=($(echo "$pids" | tr ',' '|'))," | sed -E 's/[A-Za-z0-9_-]{40,}/[redacted]/g' || true; fi
+          echo '--- persisted-state metadata ---'
+          python3 - <<'PY'
+          import json, os
+          p=os.path.expanduser('/home/debian/.desktop-commander-device/device.json')
+          d=json.load(open(p))
+          s=d.get('session')
+          print('has_device_id=', bool(d.get('deviceId')))
+          print('has_session=', isinstance(s,dict) and bool(s.get('access_token')) and bool(s.get('refresh_token')))
+          PY
           REMOTE
