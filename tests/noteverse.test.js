@@ -16,6 +16,7 @@ test('Noteverse ships a real 3D Life Space workspace', async () => {
   assert.match(html, /<title>Noteverse · 3DVR<\/title>/);
   assert.match(html, /id="noteverse-canvas"/);
   assert.match(html, /id="new-note"/);
+  assert.match(html, /id="motion-look"/);
   assert.match(css, /\.workspace/);
 
   assert.match(app, /three@0\.165\.0\/build\/three\.module\.js/);
@@ -24,6 +25,11 @@ test('Noteverse ships a real 3D Life Space workspace', async () => {
   assert.match(app, /createLifeSpaceSync/);
   assert.match(app, /exportWorkspace/);
   assert.match(app, /noteversePosition/);
+  assert.match(app, /function panCamera/);
+  assert.match(app, /function dollyCamera/);
+  assert.match(app, /requestPermission/);
+  assert.match(app, /deviceorientation/);
+  assert.doesNotMatch(app, /radius \+= Math\.sign/);
 
   assert.match(lifeSpace, /href="\/noteverse\/"/);
   assert.match(appSearch, /title: 'Noteverse'/);
