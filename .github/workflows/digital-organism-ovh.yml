@@ -9,11 +9,13 @@ on:
       - 'apps/agent/thomas-agent/node/digital-organism-bridge.js'
       - 'apps/agent/thomas-agent/node/retrieval-lab.js'
       - 'apps/agent/thomas-agent/node/organism-sync.js'
+      - 'apps/agent/thomas-agent/node/organism-replica-sync.js'
       - 'apps/agent/thomas-agent/node/task-memory-sync.js'
       - 'apps/agent/thomas-agent/node/task-handoff-sync.js'
       - 'apps/agent/test/digital-organism.test.js'
       - 'apps/agent/test/retrieval-lab.test.js'
       - 'apps/agent/test/organism-sync.test.js'
+      - 'apps/agent/test/organism-replica-sync.test.js'
       - 'apps/agent/test/task-memory-sync.test.js'
       - '.github/workflows/digital-organism-ovh.yml'
   workflow_dispatch:
@@ -80,6 +82,7 @@ jobs:
             "$repo/apps/agent/test/digital-organism.test.js" \
             "$repo/apps/agent/test/retrieval-lab.test.js" \
             "$repo/apps/agent/test/organism-sync.test.js" \
+            "$repo/apps/agent/test/organism-replica-sync.test.js" \
             "$repo/apps/agent/test/task-memory-sync.test.js"
           THREEDVR_ORGANISM_DIR="$tmp_state" "$node_bin" "$repo/apps/agent/thomas-agent/node/digital-organism.js" eval
 
@@ -106,8 +109,6 @@ jobs:
             echo 'Preserving existing OVH Organism memory state.'
           fi
 
-          # Context HQ contains deliberate session handoffs. Keep this compatibility
-          # source, but do not depend on the relay for local task continuity.
           context_sessions="$(mktemp)"
           if ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-do \
             'repo="$HOME/.3dvr/self-host-portal-source"; test -f "$repo/apps/agent/thomas-agent/node/context-hq.js"; cd "$repo/apps/agent"; node thomas-agent/node/context-hq.js sessions --owner tmsteph@3dvr --json' \
@@ -125,14 +126,10 @@ jobs:
               '
             fi
           else
-            echo 'Context HQ handoffs were not reachable from the DigitalOcean control node; preserving existing Organism state.' >&2
+            echo 'Context HQ handoffs were not reachable from DigitalOcean; preserving existing Organism state.' >&2
           fi
           rm -f "$context_sessions"
 
-          # Pull only public task records from the managed SQLite queue. The local
-          # task-memory compiler discards raw result/model/tool output, excludes
-          # health probes, and imports finalized work through the same provenance-
-          # idempotent memory boundary used by approved handoffs.
           task_records="$(mktemp)"
           if ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-do '
             set -e
@@ -195,9 +192,42 @@ jobs:
           WantedBy=multi-user.target
           SERVICE
 
+          sudo tee /etc/systemd/system/3dvr-organism-replica.service >/dev/null <<SERVICE
+          [Unit]
+          Description=3DVR Digital Organism private replica and retrieval evaluation
+          After=network-online.target 3dvr-organism.service
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          User=$USER
+          WorkingDirectory=$repo/apps/agent
+          Environment=HOME=$HOME
+          Environment=NODE_ENV=production
+          ExecStart=$node_bin $repo/apps/agent/thomas-agent/node/organism-replica-sync.js --remote 3dvr-do --evaluate
+          NoNewPrivileges=true
+          PrivateTmp=true
+          SERVICE
+
+          sudo tee /etc/systemd/system/3dvr-organism-replica.timer >/dev/null <<TIMER
+          [Unit]
+          Description=Sync private Digital Organism evidence every five minutes
+
+          [Timer]
+          OnBootSec=2min
+          OnUnitActiveSec=5min
+          RandomizedDelaySec=30
+          Persistent=true
+
+          [Install]
+          WantedBy=timers.target
+          TIMER
+
           sudo systemctl daemon-reload
           sudo systemctl enable --now 3dvr-organism.service
           sudo systemctl restart 3dvr-organism.service
+          sudo systemctl enable --now 3dvr-organism-replica.timer
+          sudo systemctl start 3dvr-organism-replica.service
 
           for attempt in 1 2 3 4 5; do
             if curl --fail --silent --show-error "http://127.0.0.1:$ORGANISM_PORT/health" >/tmp/organism-health.json; then break; fi
@@ -206,6 +236,7 @@ jobs:
           test -s /tmp/organism-health.json
           cat /tmp/organism-health.json
           sudo systemctl is-active --quiet 3dvr-organism.service
+          sudo systemctl is-active --quiet 3dvr-organism-replica.timer
           REMOTE
 
       - name: Verify private health over SSH
@@ -213,7 +244,7 @@ jobs:
         run: |
           set -euo pipefail
           opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
-          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" "curl --fail --silent --show-error http://127.0.0.1:$ORGANISM_PORT/health"
+          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" "curl --fail --silent --show-error http://127.0.0.1:$ORGANISM_PORT/health && systemctl is-active --quiet 3dvr-organism-replica.timer"
 
       - name: Remove SSH key
         if: always()
