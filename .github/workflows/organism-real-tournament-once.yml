@@ -59,7 +59,9 @@ jobs:
           if [ -f "$THREEDVR_CONFIG_FILE" ]; then set -a; . "$THREEDVR_CONFIG_FILE"; set +a; fi
           cd "$HOME/.3dvr/portal/apps/agent"
           [ -x "$THREEDVR_NODE_BIN" ] || exit 1
-          echo 'Running live Digital Organism real-evidence tournament (aggregate output only).'
+          echo 'Live Digital Organism evidence summary (aggregate output only):'
+          "$THREEDVR_NODE_BIN" thomas-agent/node/retrieval-lab.js evidence
+          echo 'Live Digital Organism real-evidence tournament:'
           "$THREEDVR_NODE_BIN" thomas-agent/node/retrieval-lab.js real-tournament --promote
           REMOTE
 
