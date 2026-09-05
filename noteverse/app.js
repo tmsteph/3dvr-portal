@@ -250,6 +250,7 @@ function renderScene() {
     mesh.position.set(position.x, position.y, position.z);
     mesh.userData.itemId = item.id;
     mesh.userData.phase = index * 0.73;
+    mesh.userData.baseY = position.y;
     mesh.add(makeLabel(item));
     objectGroup.add(mesh);
     meshById.set(item.id, mesh);
@@ -482,6 +483,7 @@ nudgeButtons.forEach(button => button.addEventListener('click', () => {
   item.updatedAt = Date.now();
   const mesh = meshById.get(item.id);
   mesh?.position.set(position.x, position.y, position.z);
+  if (mesh) mesh.userData.baseY = position.y;
   renderConnections(currentItems());
   saveSoon();
 }));
@@ -548,8 +550,8 @@ function animate(time) {
     for (const mesh of selectableMeshes) {
       mesh.rotation.x += 0.0013;
       mesh.rotation.y += 0.0021;
-      const base = itemPosition(selectedItem()?.id === mesh.userData.itemId ? selectedItem() : currentItems().find(item => item.id === mesh.userData.itemId), 0);
-      if (base) mesh.position.y += (base.y + Math.sin(time * 0.00075 + mesh.userData.phase) * 0.055 - mesh.position.y) * 0.06;
+      const baseY = Number(mesh.userData.baseY);
+      if (Number.isFinite(baseY)) mesh.position.y += (baseY + Math.sin(time * 0.00075 + mesh.userData.phase) * 0.055 - mesh.position.y) * 0.06;
     }
     core.scale.setScalar(1 + Math.sin(time * 0.0024) * 0.08);
   }
