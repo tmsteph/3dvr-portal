@@ -39,7 +39,7 @@ The first integrated version uses an append-only JSONL event log at:
 ~/.3dvr/state/organism/memories.jsonl
 ```
 
-Events record remembers, corrections, and forgetting. Active memory is reconstructed from that history, so correction/deletion semantics remain auditable without rewriting prior events.
+Events record remembers, corrections, forgetting, and explicit retrieval approvals. Active memory is reconstructed from that history, so correction/deletion semantics remain auditable without rewriting prior events. Retrieval feedback is evaluation evidence and does not itself become an active memory.
 
 This is deliberately simple. Encryption, richer indexing, cross-node sync, and semantic retrieval can be added after the recall/evaluation loop proves useful.
 
@@ -56,6 +56,40 @@ npm --prefix apps/agent run organism -- eval
 ```
 
 `recall`, `context`, and `import-context` are local memory operations.
+
+### Retrieval discovery loop
+
+The retrieval lab lets multiple ranking strategies compete without replacing production recall first.
+
+```bash
+# Synthetic bootstrap benchmark
+npm --prefix apps/agent run organism:discover -- tournament
+
+# Inspect benchmark evidence extracted from real organism history
+npm --prefix apps/agent run organism:discover -- evidence
+
+# Compare strategies against real evidence
+npm --prefix apps/agent run organism:discover -- real-tournament
+
+# Promote only when the real-evidence safety threshold is met
+npm --prefix apps/agent run organism:discover -- real-tournament --promote
+```
+
+Real evidence is weighted by how directly it represents owner intent:
+
+- an **explicitly approved retrieval** uses the exact query and selected active memory and has the strongest weight,
+- a **memory correction** treats the replacement as the expected current answer and has strong weight,
+- an **approved Context HQ handoff** contributes lighter topical evidence because its query is derived rather than observed.
+
+An explicit approval can be recorded after inspecting recall results:
+
+```bash
+npm --prefix apps/agent run organism:discover -- approve --memory MEM_ID "Which worker do we use?"
+```
+
+A real tournament will not promote a strategy unless it has at least three real benchmark cases by default and at least one correction or explicit retrieval approval. This prevents a pile of derived Context HQ examples from selecting production behavior by itself.
+
+The selected strategy remains an inspectable local record at `~/.3dvr/state/organism/retrieval-strategy.json`. The benchmark source stays in the append-only organism history, so future strategies can be reevaluated against the same evidence.
 
 ### Context HQ bridge
 
@@ -137,6 +171,7 @@ The convergence rule is: **preserve the source workflow, normalize provenance at
 1. Feed conversation exports through a memory compiler instead of storing whole chats as durable facts.
 2. Bridge approved Memory Capture and Workspace project-memory records into the Organism without weakening their existing owner/project boundaries.
 3. Add encrypted owner-scoped sync between the DigitalOcean, Hetzner, OVH, phone, and laptop nodes.
-4. Upgrade lexical retrieval with semantic and temporal ranking while retaining explainability, then evaluate learned ranking strategies against the bootstrap rules.
-5. Keep evaluations provider-neutral so models can be promoted or replaced on measured quality, cost, latency, and privacy.
-6. Extend the evaluation loop to compare memory compilers, retrieval strategies, planning methods, and agent coordination—not only model checkpoints.
+4. Add semantic/embedding candidates to the retrieval tournament and require them to beat the real-evidence benchmark before promotion.
+5. Capture retrieval approval automatically from interfaces where the owner explicitly selects, corrects, or reuses a memory.
+6. Keep evaluations provider-neutral so models can be promoted or replaced on measured quality, cost, latency, and privacy.
+7. Extend the evaluation loop to compare memory compilers, retrieval strategies, planning methods, and agent coordination—not only model checkpoints.
