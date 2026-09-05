@@ -4,14 +4,21 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 
-const { remember } = require('../thomas-agent/node/digital-organism');
+const {
+  correct,
+  importContextSessions,
+  remember,
+} = require('../thomas-agent/node/digital-organism');
 const {
   adaptiveRecall,
   builtInBenchmark,
   evaluateStrategies,
   promoteStrategy,
   readSelectedStrategy,
+  realBenchmark,
+  recordRetrievalFeedback,
   runBuiltInTournament,
+  runRealTournament,
 } = require('../thomas-agent/node/retrieval-lab');
 
 async function tempStateDir() {
@@ -67,4 +74,116 @@ test('winning strategy can be promoted and reused for adaptive recall', async (t
   assert.ok(hits.length >= 2);
   assert.equal(hits[0].strategy, selected.strategy);
   assert.ok([oldMemory.id, newMemory.id].includes(hits[0].memory.id));
+});
+
+test('real benchmark turns corrections, approved handoffs, and retrieval approval into weighted evidence', async (t) => {
+  const stateDir = await tempStateDir();
+  t.after(() => fs.rm(stateDir, { recursive: true, force: true }));
+
+  const oldMemory = await remember('The primary worker is DigitalOcean.', {
+    stateDir,
+    subject: 'primary worker',
+    createdAt: '2026-01-01T12:00:00.000Z',
+  });
+  const replacement = await correct(oldMemory.id, 'The primary worker is OVH.', {
+    stateDir,
+    createdAt: '2026-09-05T12:00:00.000Z',
+  });
+
+  await importContextSessions([{
+    id: 'approved-handoff',
+    project: 'digital-organism',
+    summary: 'The Digital Organism uses evidence to select retrieval strategies.',
+    createdAt: '2026-09-05T12:10:00.000Z',
+  }], { stateDir });
+
+  await recordRetrievalFeedback('Which machine is the primary worker?', replacement.id, {
+    stateDir,
+    now: Date.parse('2026-09-05T12:20:00.000Z'),
+  });
+
+  const benchmark = await realBenchmark({ stateDir });
+  assert.equal(benchmark.evidence.caseCount, 3);
+  assert.equal(benchmark.evidence.correction, 1);
+  assert.equal(benchmark.evidence['context-hq'], 1);
+  assert.equal(benchmark.evidence['retrieval-feedback'], 1);
+  assert.equal(benchmark.evidence.highQualityCount, 2);
+  assert.equal(benchmark.memories.some(memory => memory.id === oldMemory.id), false);
+  assert.equal(benchmark.memories.some(memory => memory.id === replacement.id), true);
+
+  const feedbackCase = benchmark.cases.find(testCase => testCase.evidenceType === 'retrieval-feedback');
+  const correctionCase = benchmark.cases.find(testCase => testCase.evidenceType === 'correction');
+  const contextCase = benchmark.cases.find(testCase => testCase.evidenceType === 'context-hq');
+  assert.equal(feedbackCase.weight, 3);
+  assert.equal(correctionCase.weight, 2);
+  assert.equal(contextCase.weight, 0.5);
+});
+
+test('real tournament can promote only after enough evidence includes a correction or explicit approval', async (t) => {
+  const stateDir = await tempStateDir();
+  t.after(() => fs.rm(stateDir, { recursive: true, force: true }));
+
+  const oldMemory = await remember('The current deployment home is DigitalOcean.', {
+    stateDir,
+    subject: 'deployment home',
+    createdAt: '2026-01-01T12:00:00.000Z',
+  });
+  const replacement = await correct(oldMemory.id, 'The current deployment home is OVH.', {
+    stateDir,
+    createdAt: '2026-09-05T12:00:00.000Z',
+  });
+  await recordRetrievalFeedback('Where is the current deployment home?', replacement.id, {
+    stateDir,
+    now: Date.parse('2026-09-05T12:10:00.000Z'),
+  });
+  await importContextSessions([{
+    id: 'approved-real-tournament',
+    project: 'deployment',
+    summary: 'OVH is the persistent workload host for the Digital Organism.',
+    createdAt: '2026-09-05T12:15:00.000Z',
+  }], { stateDir });
+
+  const tournament = await runRealTournament({
+    stateDir,
+    promote: true,
+    now: Date.parse('2026-09-05T13:00:00.000Z'),
+  });
+
+  assert.ok(tournament.winner);
+  assert.equal(tournament.evidence.caseCount, 3);
+  assert.equal(tournament.promotionEligibility.eligible, true);
+  assert.equal(tournament.promotion.strategy, tournament.winner);
+
+  const selected = await readSelectedStrategy({ stateDir });
+  assert.equal(selected.strategy, tournament.winner);
+  assert.equal(selected.evaluation.evidence.caseCount, 3);
+});
+
+test('Context HQ evidence alone cannot promote a strategy', async (t) => {
+  const stateDir = await tempStateDir();
+  t.after(() => fs.rm(stateDir, { recursive: true, force: true }));
+
+  await importContextSessions([
+    { id: 'ctx-1', project: 'one', summary: 'Alpha project uses local memory.', createdAt: '2026-09-05T10:00:00.000Z' },
+    { id: 'ctx-2', project: 'two', summary: 'Beta project uses durable provenance.', createdAt: '2026-09-05T10:01:00.000Z' },
+    { id: 'ctx-3', project: 'three', summary: 'Gamma project evaluates retrieval.', createdAt: '2026-09-05T10:02:00.000Z' },
+  ], { stateDir });
+
+  const tournament = await runRealTournament({ stateDir, promote: true });
+  assert.ok(tournament.winner);
+  assert.equal(tournament.evidence.caseCount, 3);
+  assert.equal(tournament.evidence.highQualityCount, 0);
+  assert.equal(tournament.promotionEligibility.eligible, false);
+  assert.match(tournament.promotionBlocked, /correction|approved retrieval/);
+  assert.equal(await readSelectedStrategy({ stateDir }), null);
+});
+
+test('retrieval approval rejects unknown or forgotten memories', async (t) => {
+  const stateDir = await tempStateDir();
+  t.after(() => fs.rm(stateDir, { recursive: true, force: true }));
+
+  await assert.rejects(
+    recordRetrievalFeedback('Where is it?', 'mem_missing', { stateDir }),
+    /inactive or unknown memory/,
+  );
 });
