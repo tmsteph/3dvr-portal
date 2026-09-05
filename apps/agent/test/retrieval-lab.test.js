@@ -14,6 +14,7 @@ const {
   builtInBenchmark,
   evaluateStrategies,
   promoteStrategy,
+  promotionDecision,
   readSelectedStrategy,
   realBenchmark,
   recordRetrievalFeedback,
@@ -119,7 +120,7 @@ test('real benchmark turns corrections, approved handoffs, and retrieval approva
   assert.equal(contextCase.weight, 0.5);
 });
 
-test('real tournament can promote only after enough evidence includes a correction or explicit approval', async (t) => {
+test('real tournament keeps the baseline incumbent when real evidence only ties', async (t) => {
   const stateDir = await tempStateDir();
   t.after(() => fs.rm(stateDir, { recursive: true, force: true }));
 
@@ -152,11 +153,42 @@ test('real tournament can promote only after enough evidence includes a correcti
   assert.ok(tournament.winner);
   assert.equal(tournament.evidence.caseCount, 3);
   assert.equal(tournament.promotionEligibility.eligible, true);
-  assert.equal(tournament.promotion.strategy, tournament.winner);
+  assert.equal(tournament.winner, 'baseline-jaccard');
+  assert.equal(tournament.promotion, undefined);
+  assert.match(tournament.promotionBlocked, /incumbent baseline-jaccard already leads/);
+  assert.equal(await readSelectedStrategy({ stateDir }), null);
+});
 
-  const selected = await readSelectedStrategy({ stateDir });
-  assert.equal(selected.strategy, tournament.winner);
-  assert.equal(selected.evaluation.evidence.caseCount, 3);
+test('promotion decision requires a meaningful MRR gain without hit@1 regression', () => {
+  const selected = { strategy: 'baseline-jaccard' };
+  const tinyGain = promotionDecision({
+    winner: 'query-coverage',
+    results: [
+      { strategy: 'baseline-jaccard', mrr: 0.70, hitAt1: 0.60 },
+      { strategy: 'query-coverage', mrr: 0.71, hitAt1: 0.61 },
+    ],
+  }, selected);
+  assert.equal(tinyGain.eligible, false);
+  assert.match(tinyGain.reason, /below required/);
+
+  const realGain = promotionDecision({
+    winner: 'query-coverage',
+    results: [
+      { strategy: 'baseline-jaccard', mrr: 0.70, hitAt1: 0.60 },
+      { strategy: 'query-coverage', mrr: 0.75, hitAt1: 0.62 },
+    ],
+  }, selected);
+  assert.equal(realGain.eligible, true);
+
+  const regression = promotionDecision({
+    winner: 'query-coverage',
+    results: [
+      { strategy: 'baseline-jaccard', mrr: 0.70, hitAt1: 0.70 },
+      { strategy: 'query-coverage', mrr: 0.76, hitAt1: 0.65 },
+    ],
+  }, selected);
+  assert.equal(regression.eligible, false);
+  assert.match(regression.reason, /regress hit@1/);
 });
 
 test('Context HQ evidence alone cannot promote a strategy', async (t) => {
