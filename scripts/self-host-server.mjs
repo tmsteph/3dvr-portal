@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { access, readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import openAiSiteHandler from '../api/openai-site.js';
+import { runNativeApi } from './self-host-api-router.mjs';
 import workboardGithubHandler from '../src/workboard/github-feed.js';
 import { createOAuthProviderHandler } from '../src/oauth/provider-api.js';
 import { createOrganismBridgeHandler } from '../src/organism/bridge.js';
@@ -239,6 +240,8 @@ const server = createServer(async (req, res) => {
   }
 
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/webhooks/')) {
+    const handled = await runNativeApi(req, res, url);
+    if (handled) return;
     return proxyLegacyApi(req, res, url);
   }
 

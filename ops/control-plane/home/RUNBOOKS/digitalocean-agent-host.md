@@ -14,6 +14,10 @@ Use this runbook for the live `3dvr-agent` droplet.
 - CLI symlink: `/usr/local/bin/3dvr`
 - Worker sessions: `3dvr-inbox`, `3dvr-autopilot`, `3dvr-heartbeat`
 
+## Remote Execution Rule
+
+If the current ChatGPT/Codex runtime cannot SSH directly, do not treat that as a blocker. Use GitHub Actions or another active 3DVR server as the execution hop. The repository already contains event-driven Actions that SSH to this host on relevant `main` pushes. Prefer that route over adding polling.
+
 ## What Runs There
 
 The droplet currently runs:
@@ -58,8 +62,8 @@ sleep 3
 
 - Do not overwrite `/root/.3dvr/config/env` unless you intend to update the outbound phone, Gmail app password, or portal auth settings.
 - Do not commit runtime logs such as `thomas-agent/outreach-log.ndjson`.
-- If `3dvr agent status` shows a stopped worker, check the tmux session first before changing the service file.
 - If the portal runtime card is blank, force a fresh heartbeat with `3dvr agent heartbeat` and then refresh `portal.3dvr.tech/admin/`.
+- If GitHub Actions reports that no DigitalOcean SSH credential is configured, restore the already-authorized host key in repository Actions secrets rather than replacing deployment with a Git polling loop.
 
 ## Verification
 
@@ -69,4 +73,3 @@ The host is considered healthy when:
 - `3dvr agent heartbeat` writes successfully
 - `3dvr agent status` shows inbox, outreach, and heartbeat sections
 - `portal.3dvr.tech/admin/` shows the live runtime card
-
