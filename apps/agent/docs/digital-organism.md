@@ -14,6 +14,23 @@ The standalone `tmsteph/3dvr-digital-organism` repository is an architectural re
 
 The organism stores durable memory outside model weights and never chooses a remote model implicitly. A person can inspect the exact retrieved context before asking any model to reason over it.
 
+## Design rule: discover, don't encode
+
+The Digital Organism is also guided by Rich Sutton's 2019 essay [*The Bitter Lesson*](https://www.incompleteideas.net/IncIdeas/BitterLesson.html).
+
+General mechanisms that can benefit from more computation, search, learning, and experience should be preferred over increasingly elaborate hand-authored intelligence. Human judgment remains essential for purpose, permissions, safety boundaries, ownership, interfaces, and evaluations; the organism should increasingly discover useful memories, relationships, strategies, abstractions, and workflows from evidence.
+
+Practical consequences:
+
+- preserve source experience so future models can reinterpret it,
+- keep retrieval/search general and measurable,
+- treat today's schemas and ranking rules as revisable scaffolding,
+- evaluate competing memory, retrieval, planning, and learning strategies instead of permanently blessing the first hand-designed one,
+- keep model boundaries small enough to benefit from stronger or cheaper compute over time,
+- avoid complexity that prevents the system from scaling with additional data, models, agents, or computation.
+
+A useful architecture test is: **are we building machinery that can discover better behavior, or manually encoding behavior that the machinery should eventually learn to discover?**
+
 ## Storage
 
 The first integrated version uses an append-only JSONL event log at:
@@ -120,5 +137,6 @@ The convergence rule is: **preserve the source workflow, normalize provenance at
 1. Feed conversation exports through a memory compiler instead of storing whole chats as durable facts.
 2. Bridge approved Memory Capture and Workspace project-memory records into the Organism without weakening their existing owner/project boundaries.
 3. Add encrypted owner-scoped sync between the DigitalOcean, Hetzner, OVH, phone, and laptop nodes.
-4. Upgrade lexical retrieval with semantic and temporal ranking while retaining explainability.
+4. Upgrade lexical retrieval with semantic and temporal ranking while retaining explainability, then evaluate learned ranking strategies against the bootstrap rules.
 5. Keep evaluations provider-neutral so models can be promoted or replaced on measured quality, cost, latency, and privacy.
+6. Extend the evaluation loop to compare memory compilers, retrieval strategies, planning methods, and agent coordination—not only model checkpoints.
