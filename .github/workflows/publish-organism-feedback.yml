@@ -1,0 +1,99 @@
+name: Publish tested Organism feedback
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-organism-feedback.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-organism-feedback
+  cancel-in-progress: false
+
+env:
+  OVH_HOST: 40.160.137.41
+  OVH_USER: debian
+  PATCH_SHA256: 45613ee859f635e0b354e5f21104036f4953b93a12b533471f7d645223b291c5
+
+jobs:
+  publish:
+    if: github.event.head_commit.message == 'Stage Organism feedback publisher'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Resolve OVH SSH key
+        shell: bash
+        env:
+          RAW_KEY: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "$RAW_KEY" ]
+          umask 077
+          printf '%s\n' "$RAW_KEY" > /tmp/key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/key.raw; then
+            cp /tmp/key.raw /tmp/key
+          else
+            base64 -d /tmp/key.raw > /tmp/key
+          fi
+          chmod 600 /tmp/key
+          rm -f /tmp/key.raw
+
+      - name: Fetch frozen tested patch from OVH
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          scp "${opts[@]}" "$OVH_USER@$OVH_HOST:/home/debian/organism-feedback-publish.tgz" /tmp/organism-feedback-publish.tgz
+          echo "$PATCH_SHA256  /tmp/organism-feedback-publish.tgz" | sha256sum -c -
+          tar -xzf /tmp/organism-feedback-publish.tgz -C "$GITHUB_WORKSPACE"
+
+      - name: Install dependencies and run focused trust tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm --prefix apps/agent ci
+          node --test \
+            tests/organism-access.test.js \
+            tests/organism-feedback.test.js \
+            apps/agent/test/digital-organism-bridge-feedback.test.js \
+            apps/agent/test/retrieval-lab.test.js
+
+      - name: Commit the tested feature atomically
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name '3DVR Automation'
+          git config user.email 'automation@3dvr.tech'
+          git add \
+            apps/agent/test/digital-organism-bridge-feedback.test.js \
+            apps/agent/test/retrieval-lab.test.js \
+            apps/agent/thomas-agent/node/digital-organism-bridge.js \
+            apps/agent/thomas-agent/node/retrieval-lab.js \
+            operator/forge.js \
+            organism/app.js \
+            src/organism/access.js \
+            src/organism/bridge.js \
+            src/organism/remote.js \
+            tests/organism-access.test.js \
+            tests/organism-feedback.test.js
+          git rm .github/workflows/publish-organism-feedback.yml
+          git commit -m 'Add reversible signed retrieval feedback'
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f /tmp/key /tmp/key.raw /tmp/organism-feedback-publish.tgz
