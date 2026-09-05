@@ -17,6 +17,17 @@ function decodeQuery(encoded = '') {
   return text;
 }
 
+function existingApproval(events = [], query = '', memoryId = '') {
+  const text = String(query || '').trim().toLowerCase();
+  const id = String(memoryId || '').trim();
+  return events.find(event => (
+    event.type === 'retrieval-feedback'
+    && event.outcome === 'approved'
+    && String(event.memoryId || '').trim() === id
+    && String(event.query || '').trim().toLowerCase() === text
+  )) || null;
+}
+
 function normalizeMemoryId(value = '') {
   const id = String(value || '').trim();
   if (!id || id.length > 300) throw new Error('Memory id must be between 1 and 300 characters.');
@@ -57,10 +68,11 @@ async function main(argv = process.argv.slice(2)) {
   if (command === 'approve') {
     const query = decodeQuery(argv[1]);
     const memoryId = normalizeMemoryId(argv[2]);
-    const event = await recordRetrievalFeedback(query, memoryId, {
+    const prior = existingApproval(await loadEvents(), query, memoryId);
+    const event = prior || await recordRetrievalFeedback(query, memoryId, {
       sourceType: 'owner-signed-portal'
     });
-    process.stdout.write(JSON.stringify({ ok: true, memoryId: event.memoryId }));
+    process.stdout.write(JSON.stringify({ ok: true, memoryId: event.memoryId, duplicate: Boolean(prior) }));
     return;
   }
 
@@ -69,6 +81,7 @@ async function main(argv = process.argv.slice(2)) {
 
 module.exports = {
   decodeQuery,
+  existingApproval,
   main,
   normalizeMemoryId,
 };
