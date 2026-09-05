@@ -1,2 +1,2 @@
-2026-09-04T16:45:00-07:00
-Reason: move self-hosted production to OVH-first deployment with DigitalOcean as emergency fallback.
+2026-09-05T15:59:00-07:00
+Reason: deploy owner-signed Digital Organism retrieval feedback and the “This was right” learning control to OVH-first production.
