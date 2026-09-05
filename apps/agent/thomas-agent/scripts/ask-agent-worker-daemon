@@ -88,9 +88,17 @@ case "${1:-}" in
     if is_running; then
       echo "Agent worker running in tmux session $TMUX_SESSION."
       echo "Log: $LOG_FILE"
+      if [ -f "$LOG_FILE" ]; then
+        echo "Recent worker log:"
+        tail -n 20 "$LOG_FILE" || true
+      fi
     else
       echo "Agent worker is not running."
       status=1
+      if [ -f "$LOG_FILE" ]; then
+        echo "Recent worker log:"
+        tail -n 40 "$LOG_FILE" || true
+      fi
     fi
     echo
     if ! "$ROUTER_DAEMON" status; then
