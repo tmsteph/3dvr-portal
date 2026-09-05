@@ -31,13 +31,14 @@
       </label>
       <button id="remix" type="button">✨ Remix</button>
       <button id="center" type="button">◎ Center</button>
+      <button id="motion-look" type="button" hidden>📱 Motion look</button>
       <p id="sync-status" role="status">Loading your universe…</p>
     </section>
 
     <section class="workspace">
       <div class="stage-wrap">
         <canvas id="noteverse-canvas" aria-label="Interactive 3D constellation of Life Space notes"></canvas>
-        <div class="stage-hint">Drag to orbit · scroll/pinch to zoom · tap a crystal to open it</div>
+        <div class="stage-hint">Drag to move · pinch/wheel forward &amp; back · Shift+drag to look · tap a crystal</div>
         <div id="empty-state" class="empty-state" hidden>
           <span>✦</span>
           <h2>Your universe is quiet.</h2>
