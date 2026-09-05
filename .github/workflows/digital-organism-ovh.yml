@@ -201,3 +201,5 @@ jobs:
       - name: Remove SSH key
         if: always()
         run: rm -f /tmp/key /tmp/key.raw
+
+# Trigger normal deployment after an Actions-authored feature commit.
