@@ -1,5 +1,11 @@
-import { resolveOrganismAccess } from './access.js';
-import { recallFromOvh } from './remote.js';
+import {
+  resolveOrganismAccess,
+  resolveOrganismFeedbackAccess
+} from './access.js';
+import {
+  approveRetrievalOnOvh,
+  recallFromOvh
+} from './remote.js';
 
 function sendJson(res, status, payload) {
   const body = JSON.stringify(payload);
@@ -31,7 +37,9 @@ async function readJson(req, maxBytes = 96 * 1024) {
 
 export function createOrganismBridgeHandler(options = {}) {
   const accessImpl = options.accessImpl || resolveOrganismAccess;
+  const feedbackAccessImpl = options.feedbackAccessImpl || resolveOrganismFeedbackAccess;
   const recallImpl = options.recallImpl || recallFromOvh;
+  const approveImpl = options.approveImpl || approveRetrievalOnOvh;
 
   return async function organismBridgeHandler(req, res) {
     const method = String(req.method || 'GET').toUpperCase();
@@ -46,7 +54,7 @@ export function createOrganismBridgeHandler(options = {}) {
       });
     }
 
-    if (method !== 'POST' || pathname !== '/recall') {
+    if (method !== 'POST' || !['/recall', '/feedback'].includes(pathname)) {
       return sendJson(res, 404, { ok: false, error: 'Not found.' });
     }
 
@@ -55,6 +63,32 @@ export function createOrganismBridgeHandler(options = {}) {
       payload = await readJson(req);
     } catch {
       return sendJson(res, 400, { ok: false, error: 'Invalid JSON request.' });
+    }
+
+    const isFeedback = pathname === '/feedback' || payload.organismFeedback === true;
+    if (isFeedback) {
+      const access = await feedbackAccessImpl(payload, options);
+      if (!access.ok) {
+        return sendJson(res, access.status || 403, { ok: false, error: access.reason || 'Unauthorized.' });
+      }
+      try {
+        await approveImpl(access.query, access.memoryId, {
+          sshHost: options.sshHost,
+          remoteScript: options.remoteScript,
+          timeoutMs: options.timeoutMs
+        });
+        return sendJson(res, 200, {
+          ok: true,
+          requestId: access.requestId,
+          memoryId: access.memoryId
+        });
+      } catch (error) {
+        console.error('Digital Organism bridge approval failed:', error?.message || error);
+        return sendJson(res, 502, {
+          ok: false,
+          error: 'The private Digital Organism could not record this approval.'
+        });
+      }
     }
 
     const access = await accessImpl(payload, options);
