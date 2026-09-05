@@ -48,7 +48,7 @@ jobs:
           printf '%s\n' '167.172.193.194 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFoepoGbXWiidk4axaBwsI1Y/GWVckiqJxGLkBpTV6Pc' > /tmp/3dvr-known-hosts
           chmod 600 /tmp/3dvr-known-hosts
 
-      - name: Run gated real-evidence tournament
+      - name: Diagnose and run gated real-evidence tournament
         shell: bash
         run: |
           set -euo pipefail
@@ -59,7 +59,25 @@ jobs:
           if [ -f "$THREEDVR_CONFIG_FILE" ]; then set -a; . "$THREEDVR_CONFIG_FILE"; set +a; fi
           cd "$HOME/.3dvr/portal/apps/agent"
           [ -x "$THREEDVR_NODE_BIN" ] || exit 1
-          echo 'Live Digital Organism evidence summary (aggregate output only):'
+          echo 'Context HQ session counts (aggregate only):'
+          "$THREEDVR_NODE_BIN" - <<'NODE'
+          const { listSessions } = require('./thomas-agent/node/context-hq');
+          const aliases = [...new Set([
+            process.env.THREEDVR_CONTEXT_HQ_OWNER_ALIAS || '3dvr.tech@gmail.com',
+            '3dvr.tech@gmail.com',
+            '3dvr-managed',
+            'tmsteph',
+          ].filter(Boolean))];
+          (async () => {
+            for (const alias of aliases) {
+              const sessions = await listSessions({ ownerAlias: alias });
+              console.log(`${alias}: ${sessions.length}`);
+            }
+          })().catch(error => { console.error(error.message || error); process.exitCode = 1; });
+          NODE
+          echo 'Run one explicit organism sync cycle:'
+          "$THREEDVR_NODE_BIN" thomas-agent/node/organism-sync.js --once
+          echo 'Live Digital Organism evidence summary after sync:'
           "$THREEDVR_NODE_BIN" thomas-agent/node/retrieval-lab.js evidence
           echo 'Live Digital Organism real-evidence tournament:'
           "$THREEDVR_NODE_BIN" thomas-agent/node/retrieval-lab.js real-tournament --promote
