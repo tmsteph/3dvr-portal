@@ -11,6 +11,7 @@ const FEATURED = [
   { title: 'CRM', href: '/crm/', description: 'Customers and relationships', aliases: 'customers clients sales relationships' },
   { title: 'Contacts', href: '/contacts/', description: 'People and contact records', aliases: 'people address book' },
   { title: 'Life Space', href: '/life-space/', description: 'Notes, ideas, links, and checklists', aliases: 'notes ideas links checklist personal' },
+  { title: 'Noteverse', href: '/noteverse/', description: 'Explore Life Space notes in a living 3D constellation', aliases: '3d notes spatial ideas constellation life space productivity' },
   { title: 'Workboard', href: '/workboard/', description: 'Projects, issues, and agent work', aliases: 'projects tasks issues agents jira kanban' },
   { title: 'Meditation', href: '/meditation/', description: 'Relax and explore', aliases: 'relax breathing calm mindfulness trip' },
   { title: 'Body Mode', href: '/body-mode/', description: 'Physical reset and body tools', aliases: 'stretch posture movement wellness' },
