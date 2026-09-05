@@ -4,6 +4,7 @@ import { createCompanionCommandHandler } from '../src/device/companion-command-p
 import { buildTurnCredentialPayload } from '../src/webrtc/turn-credentials.js';
 import { createWorkboardGithubHandler } from '../src/workboard/github-feed.js';
 import { createAvFreelanceKitHandler } from '../src/av-freelance-kit.js';
+import { createCrmCheckHandler } from '../src/crm-check-handler.js';
 
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -127,6 +128,12 @@ function isAvFreelanceKitRequest(req) {
   return route === 'av-freelance-kit';
 }
 
+function isCrmCheckRequest(req) {
+  const requestUrl = getRequestUrl(req);
+  const route = normalizeText(requestUrl.searchParams.get('route'));
+  return route === 'crm-check';
+}
+
 function resolveDeviceHints(req, body = {}) {
   const source = body?.device && typeof body.device === 'object' ? body.device : {};
   return normalizeDeviceHints({
@@ -182,12 +189,14 @@ export function createSessionHandler(options = {}) {
   const companionCommand = createCompanionCommandHandler({ config, fetchImpl, verifyAuth: verifyCompanionAuth });
   const workboardGithub = createWorkboardGithubHandler({ config, fetchImpl });
   const avFreelanceKit = createAvFreelanceKitHandler({ config });
+  const crmCheck = createCrmCheckHandler({ config });
 
   return async function handler(req, res) {
     setCorsHeaders(res);
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method === 'GET' && isWorkboardGithubRequest(req)) return workboardGithub(req, res);
     if (req.method === 'GET' && isAvFreelanceKitRequest(req)) return avFreelanceKit(req, res);
+    if (req.method === 'GET' && isCrmCheckRequest(req)) return crmCheck(req, res);
     if (req.method === 'GET' && isTurnCredentialRequest(req)) {
       res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json(buildTurnCredentialPayload({ config }));
