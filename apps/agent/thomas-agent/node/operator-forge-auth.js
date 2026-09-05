@@ -67,15 +67,16 @@ function withBuiltinBindings(bindings, builtins) {
 }
 
 function resolvePolicy(env = process.env) {
+  const ownerBindings = withBuiltinBindings(
+    parseBindings(env.THREEDVR_OPERATOR_OWNER_BINDINGS),
+    BUILTIN_OPERATOR_OWNER_BINDINGS
+  );
   return {
     ownerPubs: new Set([
-      ...BUILTIN_OPERATOR_OWNER_PUBS,
+      ...ownerBindings.values(),
       ...listFromConfig(env.THREEDVR_OPERATOR_OWNER_PUBS),
     ]),
-    ownerBindings: withBuiltinBindings(
-      parseBindings(env.THREEDVR_OPERATOR_OWNER_BINDINGS),
-      BUILTIN_OPERATOR_OWNER_BINDINGS
-    ),
+    ownerBindings,
     adminPubs: new Set(listFromConfig(env.THREEDVR_OPERATOR_ADMIN_PUBS)),
     adminBindings: withBuiltinBindings(
       parseBindings(env.THREEDVR_OPERATOR_ADMIN_BINDINGS),
