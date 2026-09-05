@@ -55,7 +55,7 @@ jobs:
           rm -f /tmp/key.raw
           ssh -i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 "$OVH_USER@$OVH_HOST" true
 
-      - name: Deploy, test, bootstrap, and start private organism
+      - name: Deploy, test, replicate, and start private organism
         shell: bash
         run: |
           set -euo pipefail
@@ -96,7 +96,7 @@ jobs:
               if "$node_bin" -e 'const fs=require("node:fs"); for (const line of fs.readFileSync(process.argv[1],"utf8").split(/\r?\n/).filter(Boolean)) JSON.parse(line)' "$bootstrap"; then
                 mv "$bootstrap" "$memory_log"
                 chmod 600 "$memory_log"
-                echo 'Bootstrapped existing private Organism state from the DigitalOcean control node.'
+                echo 'Bootstrapped existing private Organism state from DigitalOcean.'
               else
                 rm -f "$bootstrap"
                 echo 'DigitalOcean Organism state was invalid; leaving OVH memory empty.' >&2
@@ -109,58 +109,10 @@ jobs:
             echo 'Preserving existing OVH Organism memory state.'
           fi
 
-          context_sessions="$(mktemp)"
-          if ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-do \
-            'repo="$HOME/.3dvr/self-host-portal-source"; test -f "$repo/apps/agent/thomas-agent/node/context-hq.js"; cd "$repo/apps/agent"; node thomas-agent/node/context-hq.js sessions --owner tmsteph@3dvr --json' \
-            > "$context_sessions" 2>/dev/null; then
-            if [ -s "$context_sessions" ]; then
-              ORGANISM_MODULE="$repo/apps/agent/thomas-agent/node/digital-organism.js" \
-              CONTEXT_SESSIONS="$context_sessions" \
-              "$node_bin" -e '
-                const fs = require("node:fs");
-                const organism = require(process.env.ORGANISM_MODULE);
-                const sessions = JSON.parse(fs.readFileSync(process.env.CONTEXT_SESSIONS, "utf8"));
-                organism.importContextSessions(Array.isArray(sessions) ? sessions : []).then(result => {
-                  process.stdout.write(`Imported ${result.imported.length} approved Context HQ handoff(s); skipped ${result.skipped.length}.\n`);
-                }).catch(error => { console.error(error); process.exit(1); });
-              '
-            fi
-          else
-            echo 'Context HQ handoffs were not reachable from DigitalOcean; preserving existing Organism state.' >&2
-          fi
-          rm -f "$context_sessions"
-
-          task_records="$(mktemp)"
-          if ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-do '
-            set -e
-            repo="$HOME/.3dvr/portal"
-            cd "$repo/apps/agent"
-            export THREEDVR_CONFIG_FILE="$HOME/.3dvr/config/env"
-            if [ -f "$THREEDVR_CONFIG_FILE" ]; then set -a; . "$THREEDVR_CONFIG_FILE"; set +a; fi
-            node_bin="${THREEDVR_NODE_BIN:-/opt/node-v22/bin/node}"
-            "$node_bin" thomas-agent/node/agent-task-queue.js list --json --queue-store sqlite --limit 100
-          ' > "$task_records" 2>/dev/null; then
-            if [ -s "$task_records" ]; then
-              TASK_MEMORY_MODULE="$repo/apps/agent/thomas-agent/node/task-memory-sync.js" \
-              TASK_RECORDS="$task_records" \
-              "$node_bin" -e '
-                const fs = require("node:fs");
-                const taskMemory = require(process.env.TASK_MEMORY_MODULE);
-                const tasks = JSON.parse(fs.readFileSync(process.env.TASK_RECORDS, "utf8"));
-                taskMemory.importTaskHandoffsFromTasks(Array.isArray(tasks) ? tasks : []).then(result => {
-                  process.stdout.write(`Safe task handoffs: imported ${result.imported.length}; skipped ${result.skipped.length}; scanned ${result.scanned}.\n`);
-                }).catch(error => { console.error(error); process.exit(1); });
-              '
-            fi
-          else
-            echo 'Managed task records were not reachable from DigitalOcean; preserving existing Organism state.' >&2
-          fi
-          rm -f "$task_records"
-
-          echo 'OVH Organism evidence (aggregate only):'
-          "$node_bin" "$repo/apps/agent/thomas-agent/node/retrieval-lab.js" evidence
-          echo 'OVH Organism retrieval tournament:'
-          "$node_bin" "$repo/apps/agent/thomas-agent/node/retrieval-lab.js" real-tournament --promote
+          # DigitalOcean owns capture (safe finalized tasks + approved Context HQ
+          # handoffs). OVH only merges the append-only event stream, preserving any
+          # OVH-local corrections or retrieval approvals instead of overwriting them.
+          "$node_bin" "$repo/apps/agent/thomas-agent/node/organism-replica-sync.js" --remote 3dvr-do --evaluate
 
           sudo mkdir -p /etc/3dvr
           sudo touch /etc/3dvr/organism.env
