@@ -89,22 +89,21 @@ jobs:
           ssh "${opts[@]}" "$WORKER_USER@$WORKER_HOST" \
             "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' GITHUB_SHA='$GITHUB_SHA' OWNER_ALIAS='$OWNER_ALIAS' bash -s" <<'REMOTE'
           set -euo pipefail
-          repo="$HOME/.3dvr/portal"
+
+          # Keep the managed worker in a dedicated checkout. The older
+          # ~/.3dvr/portal tree may contain hand-edited or experimental work
+          # and is deliberately left untouched by automation.
+          repo="$HOME/.3dvr/managed-worker"
           mkdir -p "$HOME/.3dvr"
           if [ ! -d "$repo/.git" ]; then
             rm -rf "$repo"
             git clone "https://github.com/$GITHUB_REPOSITORY.git" "$repo"
           fi
 
-          if ! git -C "$repo" diff --quiet || ! git -C "$repo" diff --cached --quiet; then
-            echo 'Worker checkout has uncommitted changes; refusing to overwrite them.' >&2
-            git -C "$repo" status --short >&2
-            exit 42
-          fi
-
           git -C "$repo" fetch --prune origin main
-          git -C "$repo" checkout main
-          git -C "$repo" pull --ff-only origin main
+          git -C "$repo" checkout -B main origin/main
+          git -C "$repo" reset --hard origin/main
+          git -C "$repo" clean -fd
           npm --prefix "$repo/apps/agent" ci
 
           cfg="$HOME/.3dvr/config/env"
