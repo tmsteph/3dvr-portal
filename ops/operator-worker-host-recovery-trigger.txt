@@ -1,2 +1,2 @@
-2026-09-04T23:23:00Z
-Reason: refresh the live Operator Forge worker to current main, restart it, and process the queue after a production edit was rejected as invalid 3DVR developer proof.
+2026-09-04T17:25:00-07:00
+Reason: start the Operator Forge worker from its dedicated managed Hetzner checkout while preserving the older local-edits checkout untouched.
