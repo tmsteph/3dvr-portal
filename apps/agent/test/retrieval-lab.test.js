@@ -45,6 +45,16 @@ test('built-in tournament rewards a strategy that handles current-state conflict
   assert.equal(winner.strategy, tournament.winner);
 });
 
+test('synthetic tournament cannot promote a live retrieval selection', async (t) => {
+  const stateDir = await tempStateDir();
+  t.after(() => fs.rm(stateDir, { recursive: true, force: true }));
+
+  const tournament = await runBuiltInTournament({ stateDir, promote: true });
+  assert.equal(tournament.promotion, undefined);
+  assert.match(tournament.promotionBlocked, /synthetic benchmark cannot promote live retrieval/);
+  assert.equal(await readSelectedStrategy({ stateDir }), null);
+});
+
 test('winning strategy can be promoted and reused for adaptive recall', async (t) => {
   const stateDir = await tempStateDir();
   t.after(() => fs.rm(stateDir, { recursive: true, force: true }));
@@ -147,6 +157,8 @@ test('real tournament keeps the baseline incumbent when real evidence only ties'
   const tournament = await runRealTournament({
     stateDir,
     promote: true,
+    minCases: 3,
+    minHighQuality: 2,
     now: Date.parse('2026-09-05T13:00:00.000Z'),
   });
 
@@ -191,6 +203,27 @@ test('promotion decision requires a meaningful MRR gain without hit@1 regression
   assert.match(regression.reason, /regress hit@1/);
 });
 
+test('live promotion defaults require five cases and two high-quality signals', async (t) => {
+  const stateDir = await tempStateDir();
+  t.after(() => fs.rm(stateDir, { recursive: true, force: true }));
+
+  const oldMemory = await remember('The worker was DigitalOcean.', { stateDir, subject: 'worker' });
+  const replacement = await correct(oldMemory.id, 'The worker is OVH.', { stateDir });
+  await recordRetrievalFeedback('Where is the worker?', replacement.id, { stateDir });
+  await importContextSessions([{
+    id: 'threshold-context',
+    project: 'worker',
+    summary: 'OVH hosts persistent Digital Organism work.',
+  }], { stateDir });
+
+  const tournament = await runRealTournament({ stateDir, promote: true });
+  assert.equal(tournament.evidence.caseCount, 3);
+  assert.equal(tournament.evidence.highQualityCount, 2);
+  assert.equal(tournament.promotionEligibility.eligible, false);
+  assert.match(tournament.promotionBlocked, /at least 5 real benchmark cases/);
+  assert.equal(await readSelectedStrategy({ stateDir }), null);
+});
+
 test('Context HQ evidence alone cannot promote a strategy', async (t) => {
   const stateDir = await tempStateDir();
   t.after(() => fs.rm(stateDir, { recursive: true, force: true }));
@@ -201,12 +234,12 @@ test('Context HQ evidence alone cannot promote a strategy', async (t) => {
     { id: 'ctx-3', project: 'three', summary: 'Gamma project evaluates retrieval.', createdAt: '2026-09-05T10:02:00.000Z' },
   ], { stateDir });
 
-  const tournament = await runRealTournament({ stateDir, promote: true });
+  const tournament = await runRealTournament({ stateDir, promote: true, minCases: 3 });
   assert.ok(tournament.winner);
   assert.equal(tournament.evidence.caseCount, 3);
   assert.equal(tournament.evidence.highQualityCount, 0);
   assert.equal(tournament.promotionEligibility.eligible, false);
-  assert.match(tournament.promotionBlocked, /correction|approved retrieval/);
+  assert.match(tournament.promotionBlocked, /corrections|approved retrievals/);
   assert.equal(await readSelectedStrategy({ stateDir }), null);
 });
 
