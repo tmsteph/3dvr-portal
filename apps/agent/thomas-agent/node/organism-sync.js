@@ -175,9 +175,9 @@ module.exports = {
 
 if (require.main === module) {
   main().then(code => {
-    process.exitCode = code;
+    process.exit(code);
   }).catch(error => {
     console.error(`[organism-sync] ${error.message || error}`);
-    process.exitCode = 1;
+    process.exit(1);
   });
 }
