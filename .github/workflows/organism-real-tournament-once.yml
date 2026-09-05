@@ -1,0 +1,69 @@
+name: Digital Organism Real Evidence Tournament
+
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/organism-real-tournament-once.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    name: Evaluate live retrieval evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DO_AGENT_HOST: 167.172.193.194
+      DO_AGENT_USER: root
+      THREEDVR_NODE_BIN: /opt/node-v22/bin/node
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve DigitalOcean SSH key
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          key=''
+          for candidate in "$SSH_A" "$SSH_B" "$SSH_C"; do
+            if [ -z "$key" ] && [ -n "$candidate" ]; then key="$candidate"; fi
+          done
+          if [ -z "$key" ]; then echo 'No DigitalOcean SSH key is configured.' >&2; exit 1; fi
+          umask 077
+          printf '%s\n' "$key" > /tmp/3dvr-agent-key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-agent-key.raw; then
+            cp /tmp/3dvr-agent-key.raw /tmp/3dvr-agent-key
+          elif base64 -d /tmp/3dvr-agent-key.raw > /tmp/3dvr-agent-key 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-agent-key; then
+            :
+          else
+            echo 'Configured DigitalOcean SSH key could not be decoded.' >&2
+            rm -f /tmp/3dvr-agent-key.raw /tmp/3dvr-agent-key
+            exit 1
+          fi
+          chmod 600 /tmp/3dvr-agent-key
+          rm -f /tmp/3dvr-agent-key.raw
+          printf '%s\n' '167.172.193.194 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFoepoGbXWiidk4axaBwsI1Y/GWVckiqJxGLkBpTV6Pc' > /tmp/3dvr-known-hosts
+          chmod 600 /tmp/3dvr-known-hosts
+
+      - name: Run gated real-evidence tournament
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/3dvr-agent-key -o BatchMode=yes -o UserKnownHostsFile=/tmp/3dvr-known-hosts -o StrictHostKeyChecking=yes -o ConnectTimeout=10)
+          ssh "${opts[@]}" "$DO_AGENT_USER@$DO_AGENT_HOST" "THREEDVR_NODE_BIN='$THREEDVR_NODE_BIN' bash -s" <<'REMOTE'
+          set -euo pipefail
+          export THREEDVR_CONFIG_FILE="$HOME/.3dvr/config/env"
+          if [ -f "$THREEDVR_CONFIG_FILE" ]; then set -a; . "$THREEDVR_CONFIG_FILE"; set +a; fi
+          cd "$HOME/.3dvr/portal/apps/agent"
+          [ -x "$THREEDVR_NODE_BIN" ] || exit 1
+          echo 'Running live Digital Organism real-evidence tournament (aggregate output only).'
+          "$THREEDVR_NODE_BIN" thomas-agent/node/retrieval-lab.js real-tournament --promote
+          REMOTE
+
+      - name: Remove SSH key
+        if: always()
+        shell: bash
+        run: rm -f /tmp/3dvr-agent-key /tmp/3dvr-agent-key.raw /tmp/3dvr-known-hosts
