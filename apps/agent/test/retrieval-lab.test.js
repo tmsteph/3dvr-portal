@@ -87,6 +87,26 @@ test('winning strategy can be promoted and reused for adaptive recall', async (t
   assert.ok([oldMemory.id, newMemory.id].includes(hits[0].memory.id));
 });
 
+test('exact-query rejection suppresses a memory without deleting it, and later approval restores it', async (t) => {
+  const stateDir = await tempStateDir();
+  t.after(() => fs.rm(stateDir, { recursive: true, force: true }));
+  const wanted = await remember('OVH is the durable Digital Organism replica.', { stateDir, subject: 'durable replica' });
+  await remember('DigitalOcean is the control node.', { stateDir, subject: 'control node' });
+  const query = 'Where is the durable Digital Organism replica?';
+
+  assert.ok((await adaptiveRecall(query, { stateDir })).some(hit => hit.memory.id === wanted.id));
+  await recordRetrievalFeedback(query, wanted.id, { stateDir, outcome: 'rejected' });
+  assert.equal((await adaptiveRecall(query, { stateDir })).some(hit => hit.memory.id === wanted.id), false);
+  assert.equal((await realBenchmark({ stateDir })).evidence['retrieval-feedback'], 0);
+
+  await recordRetrievalFeedback(query, wanted.id, { stateDir, outcome: 'approved' });
+  assert.ok((await adaptiveRecall(query, { stateDir })).some(hit => hit.memory.id === wanted.id));
+  assert.equal((await realBenchmark({ stateDir })).evidence['retrieval-feedback'], 1);
+
+  await recordRetrievalFeedback(query, wanted.id, { stateDir, outcome: 'rejected' });
+  assert.equal((await realBenchmark({ stateDir })).evidence['retrieval-feedback'], 0);
+});
+
 test('real benchmark turns corrections, approved handoffs, and retrieval approval into weighted evidence', async (t) => {
   const stateDir = await tempStateDir();
   t.after(() => fs.rm(stateDir, { recursive: true, force: true }));

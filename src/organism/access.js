@@ -112,8 +112,8 @@ export async function resolveOrganismAccess(payload = {}, options = {}) {
 
 export async function resolveOrganismFeedbackAccess(payload = {}, options = {}) {
   const checked = await verifyOwnerPayload(payload, options, {
-    missing: 'Sign in before approving a memory.',
-    expired: 'Memory approval expired. Try again.'
+    missing: 'Sign in before rating a memory.',
+    expired: 'Memory feedback expired. Try again.'
   });
   if (!checked.ok) return checked;
 
@@ -122,18 +122,27 @@ export async function resolveOrganismFeedbackAccess(payload = {}, options = {}) 
   const query = normalizeText(payload.query, 2000);
   const memoryId = normalizeText(payload.memoryId, 300);
   const requestId = normalizeText(payload.requestId, 160);
+  const actionOutcome = auth.identity.action === 'approve-retrieval'
+    ? 'approved'
+    : auth.identity.action === 'reject-retrieval'
+      ? 'rejected'
+      : '';
+  const outcome = normalizeText(payload.outcome, 20).toLowerCase();
 
-  if (auth.identity.action !== 'approve-retrieval') {
-    return { ok: false, status: 403, reason: 'Memory proof did not authorize retrieval approval.' };
+  if (!actionOutcome) {
+    return { ok: false, status: 403, reason: 'Memory proof did not authorize retrieval feedback.' };
+  }
+  if (outcome !== actionOutcome || normalizeText(verified.outcome, 20).toLowerCase() !== actionOutcome) {
+    return { ok: false, status: 403, reason: 'Feedback outcome did not match the signed memory request.' };
   }
   if (!query || query !== normalizeText(verified.query, 2000)) {
-    return { ok: false, status: 403, reason: 'Question did not match the signed memory approval.' };
+    return { ok: false, status: 403, reason: 'Question did not match the signed memory feedback.' };
   }
   if (!memoryId || memoryId !== normalizeText(verified.memoryId, 300)) {
-    return { ok: false, status: 403, reason: 'Memory id did not match the signed memory approval.' };
+    return { ok: false, status: 403, reason: 'Memory id did not match the signed memory feedback.' };
   }
   if (!requestId || requestId !== normalizeText(verified.requestId, 160)) {
-    return { ok: false, status: 403, reason: 'Request id did not match the signed memory approval.' };
+    return { ok: false, status: 403, reason: 'Request id did not match the signed memory feedback.' };
   }
 
   return {
@@ -142,6 +151,7 @@ export async function resolveOrganismFeedbackAccess(payload = {}, options = {}) 
     query,
     memoryId,
     requestId,
+    outcome: actionOutcome,
     identity: auth.identity
   };
 }

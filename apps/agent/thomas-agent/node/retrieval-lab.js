@@ -314,6 +314,13 @@ function realBenchmarkFromEvents(events = []) {
     }
 
     if (event.type === 'retrieval-feedback' && event.outcome === 'approved') {
+      const latest = [...events].reverse().find(candidate => (
+        candidate.type === 'retrieval-feedback'
+        && String(candidate.memoryId || '').trim() === String(event.memoryId || '').trim()
+        && normalizeFeedbackQuery(candidate.query) === normalizeFeedbackQuery(event.query)
+        && ['approved', 'rejected'].includes(candidate.outcome)
+      ));
+      if (latest !== event) continue;
       addCase({
         name: `approved retrieval ${event.memoryId}`,
         query: event.query,
@@ -372,7 +379,15 @@ async function recordRetrievalFeedback(query, memoryId, options = {}) {
     throw new Error(`Cannot ${outcome === 'approved' ? 'approve' : 'reject'} inactive or unknown memory: ${id}`);
   }
 
-  return appendEvent({
+  const prior = [...events].reverse().find(event => (
+    event.type === 'retrieval-feedback'
+    && String(event.memoryId || '').trim() === id
+    && normalizeFeedbackQuery(event.query) === normalizeFeedbackQuery(text)
+    && ['approved', 'rejected'].includes(event.outcome)
+  ));
+  if (prior?.outcome === outcome) return { ...prior, duplicate: true };
+
+  const event = await appendEvent({
     type: 'retrieval-feedback',
     outcome,
     recordedAt: new Date(options.now || Date.now()).toISOString(),
@@ -380,6 +395,7 @@ async function recordRetrievalFeedback(query, memoryId, options = {}) {
     memoryId: id,
     sourceType: options.sourceType || 'manual',
   }, options);
+  return { ...event, duplicate: false };
 }
 
 function selectionPath(options = {}) {
@@ -573,9 +589,10 @@ async function cli(argv = process.argv.slice(2)) {
     console.log(options.json ? JSON.stringify(benchmark, null, 2) : renderEvidence(benchmark));
     return 0;
   }
-  if (options.command === 'approve') {
-    const event = await recordRetrievalFeedback(options.text, options.memoryId, options);
-    console.log(options.json ? JSON.stringify(event, null, 2) : `approved ${event.memoryId}`);
+  if (options.command === 'approve' || options.command === 'reject') {
+    const outcome = options.command === 'approve' ? 'approved' : 'rejected';
+    const event = await recordRetrievalFeedback(options.text, options.memoryId, { ...options, outcome });
+    console.log(options.json ? JSON.stringify(event, null, 2) : `${outcome} ${event.memoryId}${event.duplicate ? ' (duplicate)' : ''}`);
     return 0;
   }
   if (options.command === 'recall') {

@@ -299,19 +299,22 @@ export async function createOrganismRecallProof(query, options = {}) {
 
 export async function createOrganismFeedbackProof(query, memoryId, options = {}) {
   const signedIn = globalThis.localStorage?.getItem?.('signedIn') === 'true';
-  if (!signedIn) throw new Error('Sign in with your 3DVR account before approving a memory.');
+  if (!signedIn) throw new Error('Sign in with your 3DVR account before rating a memory.');
   const text = normalizeText(query, 2000);
   const id = normalizeText(memoryId, 300);
+  const outcome = options.outcome === 'rejected' ? 'rejected' : 'approved';
+  const action = outcome === 'rejected' ? 'reject-retrieval' : 'approve-retrieval';
   if (!text) throw new Error('The original memory question is required.');
   if (!id) throw new Error('A memory id is required.');
   const requestId = normalizeText(options.requestId || makeId('organism-feedback'), 160);
-  const proof = await signedPortalProof('digital-organism', 'approve-retrieval', {
+  const proof = await signedPortalProof('digital-organism', action, {
     query: text,
     memoryId: id,
-    requestId
+    requestId,
+    outcome
   });
-  if (!proof) throw new Error('Refresh your 3DVR sign-in before approving a memory.');
-  return { ...proof, query: text, memoryId: id, requestId };
+  if (!proof) throw new Error('Refresh your 3DVR sign-in before rating a memory.');
+  return { ...proof, query: text, memoryId: id, requestId, outcome };
 }
 
 export async function saveCodeSuggestion(action = {}) {

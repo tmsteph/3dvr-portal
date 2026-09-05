@@ -26,15 +26,16 @@ function clearResults() {
   while (results.firstChild) results.firstChild.remove();
 }
 
-async function approveMemory(query, memory, approvalButton) {
+async function rateMemory(query, memory, outcome, clickedButton, otherButton) {
   const memoryId = String(memory?.id || '').trim();
   if (!memoryId) return;
-  approvalButton.disabled = true;
-  setState('Signing your approval…');
+  clickedButton.disabled = true;
+  const approving = outcome === 'approved';
+  setState(approving ? 'Signing your approval…' : 'Signing “not relevant”…');
 
   try {
     const requestId = globalThis.crypto?.randomUUID?.() || `feedback-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const proof = await createOrganismFeedbackProof(query, memoryId, { requestId });
+    const proof = await createOrganismFeedbackProof(query, memoryId, { requestId, outcome });
     const response = await fetch('/api/openai-site?provider=operator', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -44,17 +45,21 @@ async function approveMemory(query, memory, approvalButton) {
         ...proof,
         query,
         memoryId,
-        requestId
+        requestId,
+        outcome
       })
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.ok) throw new Error(data.error || 'Could not record memory approval.');
-    approvalButton.textContent = 'Approved ✓';
-    approvalButton.dataset.approved = 'true';
-    setState('Approved. This is now high-quality evidence for future retrieval tournaments.');
+    if (!response.ok || !data.ok) throw new Error(data.error || 'Could not record memory feedback.');
+    clickedButton.textContent = approving ? 'Approved ✓' : 'Not relevant ✓';
+    clickedButton.dataset.feedback = outcome;
+    otherButton.disabled = false;
+    setState(approving
+      ? 'Approved. This is high-quality evidence for future retrieval tournaments.'
+      : 'Marked not relevant for this exact question. The memory itself was not deleted.');
   } catch (error) {
-    approvalButton.disabled = false;
-    setState(error?.message || 'Could not approve this memory.', true);
+    clickedButton.disabled = false;
+    setState(error?.message || 'Could not record memory feedback.', true);
   }
 }
 
@@ -84,8 +89,15 @@ function memoryCard(hit, query) {
     approve.type = 'button';
     approve.className = 'memory-approve';
     approve.textContent = 'This was right';
-    approve.addEventListener('click', () => approveMemory(query, memory, approve));
-    card.append(approve);
+
+    const reject = document.createElement('button');
+    reject.type = 'button';
+    reject.className = 'memory-approve';
+    reject.textContent = 'Not relevant';
+
+    approve.addEventListener('click', () => rateMemory(query, memory, 'approved', approve, reject));
+    reject.addEventListener('click', () => rateMemory(query, memory, 'rejected', reject, approve));
+    card.append(approve, reject);
   }
 
   return card;
@@ -141,7 +153,7 @@ form.addEventListener('submit', async event => {
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) throw new Error(data.error || 'Recall failed.');
 
-    setState('Private recall complete. Mark a memory “This was right” only when it actually answered your question.');
+    setState('Private recall complete. Mark useful hits “This was right,” or hide bad hits for this exact question with “Not relevant.”');
     renderContext(data.context || {}, query);
   } catch (error) {
     setState(error?.message || 'Could not query your Digital Organism.', true);

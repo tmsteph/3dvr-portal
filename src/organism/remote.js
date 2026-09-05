@@ -53,15 +53,30 @@ export async function recallFromOvh(query, options = {}) {
   return parsed.context;
 }
 
-export async function approveRetrievalOnOvh(query, memoryId, options = {}) {
+async function retrievalFeedbackOnOvh(query, memoryId, outcome, options = {}) {
   const text = normalizeText(query, 2000);
   const id = normalizeText(memoryId, 300);
+  const normalizedOutcome = outcome === 'rejected' ? 'rejected' : 'approved';
   if (!text) throw new Error('Question is required.');
   if (!id) throw new Error('Memory id is required.');
   const encoded = Buffer.from(text, 'utf8').toString('base64url');
-  const parsed = await runBridge(['approve', encoded, id], options);
-  if (!parsed?.ok || parsed.memoryId !== id) {
-    throw new Error(parsed?.error || 'OVH Digital Organism approval failed.');
+  const command = normalizedOutcome === 'rejected' ? 'reject' : 'approve';
+  const parsed = await runBridge([command, encoded, id], options);
+  if (!parsed?.ok || parsed.memoryId !== id || parsed.outcome !== normalizedOutcome) {
+    throw new Error(parsed?.error || `OVH Digital Organism ${command} failed.`);
   }
-  return { ok: true, memoryId: id };
+  return {
+    ok: true,
+    memoryId: id,
+    outcome: normalizedOutcome,
+    duplicate: Boolean(parsed.duplicate)
+  };
+}
+
+export async function approveRetrievalOnOvh(query, memoryId, options = {}) {
+  return retrievalFeedbackOnOvh(query, memoryId, 'approved', options);
+}
+
+export async function rejectRetrievalOnOvh(query, memoryId, options = {}) {
+  return retrievalFeedbackOnOvh(query, memoryId, 'rejected', options);
 }

@@ -27,7 +27,7 @@ test('private bridge records explicit owner approval for an active memory', asyn
     env: { ...process.env, THREEDVR_ORGANISM_DIR: stateDir }
   });
   const response = JSON.parse(stdout);
-  assert.deepEqual(response, { ok: true, memoryId: memory.id, duplicate: false });
+  assert.deepEqual(response, { ok: true, memoryId: memory.id, outcome: 'approved', duplicate: false });
   const events = await loadEvents({ stateDir });
   const feedback = events.find(event => event.type === 'retrieval-feedback');
   assert.equal(feedback.memoryId, memory.id);
@@ -49,6 +49,27 @@ test('private bridge makes identical owner approvals idempotent', async () => {
 
   const events = await loadEvents({ stateDir });
   assert.equal(events.filter(event => event.type === 'retrieval-feedback').length, 1);
+});
+
+test('private bridge supports reject then approve with latest feedback winning', async () => {
+  const stateDir = await tempState();
+  const memory = await remember('Feedback can be reversed without rewriting memory.', { stateDir });
+  const query = 'Was this useful?';
+  const encoded = Buffer.from(query, 'utf8').toString('base64url');
+  const env = { ...process.env, THREEDVR_ORGANISM_DIR: stateDir };
+
+  const rejected = JSON.parse((await execFileAsync(process.execPath, [bridge, 'reject', encoded, memory.id], { env })).stdout);
+  const duplicateReject = JSON.parse((await execFileAsync(process.execPath, [bridge, 'reject', encoded, memory.id], { env })).stdout);
+  const approved = JSON.parse((await execFileAsync(process.execPath, [bridge, 'approve', encoded, memory.id], { env })).stdout);
+  assert.equal(rejected.outcome, 'rejected');
+  assert.equal(rejected.duplicate, false);
+  assert.equal(duplicateReject.duplicate, true);
+  assert.equal(approved.outcome, 'approved');
+  assert.equal(approved.duplicate, false);
+
+  const events = (await loadEvents({ stateDir })).filter(event => event.type === 'retrieval-feedback');
+  assert.equal(events.length, 2);
+  assert.equal(events.at(-1).outcome, 'approved');
 });
 
 test('private bridge refuses approval for a forgotten memory', async () => {

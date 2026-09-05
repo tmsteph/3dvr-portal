@@ -27,6 +27,7 @@ async function signedRequest({
   requestId = 'req-1',
   limit = 5,
   memoryId = '',
+  outcome = action === 'reject-retrieval' ? 'rejected' : 'approved',
   iat = Date.now()
 }) {
   const signed = {
@@ -38,14 +39,14 @@ async function signedRequest({
     iat,
     query,
     requestId,
-    ...(action === 'recall' ? { limit } : { memoryId })
+    ...(action === 'recall' ? { limit } : { memoryId, outcome })
   };
   return {
     authPub: pair.pub,
     authProof: await SEA.sign(signed, pair),
     query,
     requestId,
-    ...(action === 'recall' ? { limit } : { memoryId })
+    ...(action === 'recall' ? { limit } : { memoryId, outcome })
   };
 }
 
@@ -135,6 +136,26 @@ test('accepts owner-signed retrieval approval bound to exact query and memory id
   assert.equal(result.requestId, payload.requestId);
 });
 
+test('accepts owner-signed retrieval rejection as a separate action', async () => {
+  const pair = await SEA.pair();
+  const alias = 'organism-owner@test';
+  const now = Date.now();
+  const payload = await signedRequest({
+    pair,
+    alias,
+    action: 'reject-retrieval',
+    memoryId: 'memory-123',
+    iat: now
+  });
+  const result = await resolveOrganismFeedbackAccess(payload, {
+    config: ownerConfig(alias, pair.pub),
+    now
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.outcome, 'rejected');
+  assert.equal(result.memoryId, 'memory-123');
+});
+
 test('retrieval approval rejects memory id changed after signing', async () => {
   const pair = await SEA.pair();
   const alias = 'organism-owner@test';
@@ -168,5 +189,5 @@ test('recall proof cannot be replayed as retrieval approval', async () => {
   });
   assert.equal(result.ok, false);
   assert.equal(result.status, 403);
-  assert.match(result.reason, /did not authorize retrieval approval/i);
+  assert.match(result.reason, /did not authorize retrieval feedback/i);
 });

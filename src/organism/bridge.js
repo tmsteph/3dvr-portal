@@ -4,7 +4,8 @@ import {
 } from './access.js';
 import {
   approveRetrievalOnOvh,
-  recallFromOvh
+  recallFromOvh,
+  rejectRetrievalOnOvh
 } from './remote.js';
 
 function sendJson(res, status, payload) {
@@ -40,6 +41,7 @@ export function createOrganismBridgeHandler(options = {}) {
   const feedbackAccessImpl = options.feedbackAccessImpl || resolveOrganismFeedbackAccess;
   const recallImpl = options.recallImpl || recallFromOvh;
   const approveImpl = options.approveImpl || approveRetrievalOnOvh;
+  const rejectImpl = options.rejectImpl || rejectRetrievalOnOvh;
 
   return async function organismBridgeHandler(req, res) {
     const method = String(req.method || 'GET').toUpperCase();
@@ -72,7 +74,8 @@ export function createOrganismBridgeHandler(options = {}) {
         return sendJson(res, access.status || 403, { ok: false, error: access.reason || 'Unauthorized.' });
       }
       try {
-        await approveImpl(access.query, access.memoryId, {
+        const feedbackImpl = access.outcome === 'rejected' ? rejectImpl : approveImpl;
+        const feedback = await feedbackImpl(access.query, access.memoryId, {
           sshHost: options.sshHost,
           remoteScript: options.remoteScript,
           timeoutMs: options.timeoutMs
@@ -80,13 +83,15 @@ export function createOrganismBridgeHandler(options = {}) {
         return sendJson(res, 200, {
           ok: true,
           requestId: access.requestId,
-          memoryId: access.memoryId
+          memoryId: access.memoryId,
+          outcome: access.outcome,
+          duplicate: Boolean(feedback?.duplicate)
         });
       } catch (error) {
-        console.error('Digital Organism bridge approval failed:', error?.message || error);
+        console.error('Digital Organism bridge feedback failed:', error?.message || error);
         return sendJson(res, 502, {
           ok: false,
-          error: 'The private Digital Organism could not record this approval.'
+          error: 'The private Digital Organism could not record this feedback.'
         });
       }
     }
