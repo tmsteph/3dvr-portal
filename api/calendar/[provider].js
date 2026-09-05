@@ -13,6 +13,24 @@ function validateIsoDate(value) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+function validateDateOnly(value) {
+  const raw = String(value || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return null;
+  }
+  const date = new Date(`${raw}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? null : raw;
+}
+
+function prepareAllDayDates(startDate, endDate) {
+  const start = validateDateOnly(startDate);
+  const end = validateDateOnly(endDate);
+  if (!start || !end || end <= start) {
+    return null;
+  }
+  return { start, end };
+}
+
 function prepareEventDates(start, end) {
   const normalizedStart = validateIsoDate(start);
   const normalizedEnd = validateIsoDate(end);
@@ -92,23 +110,25 @@ async function createGoogleEvent(body, fetchImpl) {
     return { status: 400, payload: { error: 'Access token is required.' } };
   }
 
-  const { start, end } = prepareEventDates(body.start, body.end) || {};
-  if (!start || !end) {
-    return { status: 400, payload: { error: 'Valid start and end datetimes are required.' } };
+  const allDay = prepareAllDayDates(body.startDate, body.endDate);
+  const timed = prepareEventDates(body.start, body.end);
+  if (!allDay && !timed) {
+    return {
+      status: 400,
+      payload: { error: 'Valid start/end datetimes or startDate/endDate are required.' }
+    };
   }
 
   const calendarId = body.calendarId?.trim() || 'primary';
   const eventPayload = {
     summary: body.title || 'Untitled event',
     description: body.description || '',
-    start: {
-      dateTime: start,
-      timeZone: body.timeZone || 'UTC'
-    },
-    end: {
-      dateTime: end,
-      timeZone: body.timeZone || 'UTC'
-    }
+    start: allDay
+      ? { date: allDay.start }
+      : { dateTime: timed.start, timeZone: body.timeZone || 'UTC' },
+    end: allDay
+      ? { date: allDay.end }
+      : { dateTime: timed.end, timeZone: body.timeZone || 'UTC' }
   };
 
   const response = await fetchImpl(
