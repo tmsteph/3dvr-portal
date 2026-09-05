@@ -69,14 +69,19 @@ jobs:
             'tmsteph',
           ].filter(Boolean))];
           (async () => {
-            for (const alias of aliases) {
-              const sessions = await listSessions({ ownerAlias: alias });
-              console.log(`${alias}: ${sessions.length}`);
-            }
-          })().catch(error => { console.error(error.message || error); process.exitCode = 1; });
+            const counts = await Promise.all(aliases.map(async alias => [alias, (await listSessions({ ownerAlias: alias })).length]));
+            for (const [alias, count] of counts) console.log(`${alias}: ${count}`);
+            process.exit(0);
+          })().catch(error => { console.error(error.message || error); process.exit(1); });
           NODE
           echo 'Run one explicit organism sync cycle:'
-          "$THREEDVR_NODE_BIN" thomas-agent/node/organism-sync.js --once
+          "$THREEDVR_NODE_BIN" - <<'NODE'
+          const { runSyncOnce } = require('./thomas-agent/node/organism-sync');
+          runSyncOnce().then(report => {
+            console.log(`[organism-sync] ok=${report.ok} owner=${report.contextOwnerAlias} imported=${report.imported || 0} skipped=${report.skipped || 0}`);
+            process.exit(report.ok ? 0 : 1);
+          }).catch(error => { console.error(error.message || error); process.exit(1); });
+          NODE
           echo 'Live Digital Organism evidence summary after sync:'
           "$THREEDVR_NODE_BIN" thomas-agent/node/retrieval-lab.js evidence
           echo 'Live Digital Organism real-evidence tournament:'
