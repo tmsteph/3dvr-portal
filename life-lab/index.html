@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>3DVR Life Lab</title>
+  <meta name="description" content="A Three.js artificial-life laboratory for evolution, emergence, and live data science inside 3DVR.">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <main class="lab-shell">
+    <nav class="nav" aria-label="Life Lab navigation">
+      <a href="../">3DVR Portal</a>
+      <a href="../digital-organism/">Digital Organism</a>
+      <a href="https://github.com/tmsteph/browser-life">Browser Life ancestry</a>
+    </nav>
+
+    <header class="hero">
+      <div>
+        <p class="eyebrow">3DVR experimental computing</p>
+        <h1>Life Lab</h1>
+        <p class="lead">A tiny universe where inherited traits compete for energy, reproduce, mutate, and become data.</p>
+      </div>
+      <div class="experiment-card" aria-live="polite">
+        <span class="experiment-label">Daily science</span>
+        <strong id="experiment-name">Loading experiment…</strong>
+        <span id="experiment-hypothesis">Preparing a hypothesis.</span>
+      </div>
+    </header>
+
+    <section class="lab-grid">
+      <article class="world-card">
+        <div class="world-heading">
+          <div>
+            <p class="eyebrow">Live universe</p>
+            <h2>Evolution in 3D</h2>
+          </div>
+          <div class="world-actions">
+            <button id="pause" type="button">Pause</button>
+            <button id="chaos" type="button">Inject mutation</button>
+            <button id="reset" type="button">New universe</button>
+          </div>
+        </div>
+
+        <div id="world" class="world" role="img" aria-label="Interactive 3D artificial life simulation">
+          <div class="world-hint">Drag to orbit · scroll/pinch to zoom · tap empty space to seed food</div>
+        </div>
+
+        <div class="controls" aria-label="Simulation controls">
+          <label>
+            <span>Food rain <output id="food-output">8</output></span>
+            <input id="food-rate" type="range" min="1" max="20" step="1" value="8">
+          </label>
+          <label>
+            <span>Mutation <output id="mutation-output">8%</output></span>
+            <input id="mutation-rate" type="range" min="0" max="30" step="1" value="8">
+          </label>
+          <label>
+            <span>Time <output id="time-output">1×</output></span>
+            <input id="time-scale" type="range" min="0.25" max="4" step="0.25" value="1">
+          </label>
+        </div>
+      </article>
+
+      <aside class="science-card">
+        <div>
+          <p class="eyebrow">Data science</p>
+          <h2>Selection monitor</h2>
+        </div>
+
+        <div class="metrics">
+          <div><span>Population</span><strong id="population">0</strong></div>
+          <div><span>Generation</span><strong id="generation">0</strong></div>
+          <div><span>Diversity</span><strong id="diversity">0%</strong></div>
+          <div><span>Survival</span><strong id="survival">0%</strong></div>
+        </div>
+
+        <canvas id="trend-chart" class="trend-chart" width="640" height="240" aria-label="Population and diversity trend chart"></canvas>
+
+        <section class="trait-grid" aria-label="Average inherited traits">
+          <div><span>Speed</span><strong id="mean-speed">0</strong></div>
+          <div><span>Sense</span><strong id="mean-sense">0</strong></div>
+          <div><span>Size</span><strong id="mean-size">0</strong></div>
+          <div><span>Births / deaths</span><strong id="birth-death">0 / 0</strong></div>
+        </section>
+
+        <section class="finding">
+          <span class="experiment-label">Current finding</span>
+          <p id="science-note">The first measurements will appear as the population starts moving.</p>
+        </section>
+
+        <p class="method-note">Diversity is normalized Shannon entropy across inherited color families. The correlation readout compares living creatures' traits with their current energy, so it is exploratory—not causal proof.</p>
+      </aside>
+    </section>
+
+    <section class="origin-card">
+      <p class="eyebrow">Project lineage</p>
+      <h2>From Browser Life to Digital Organism</h2>
+      <p>This experiment revives the 2021 Browser Life idea—creatures as data-producing organisms—and gives it a home beside 3DVR's Digital Organism. One studies emergent artificial life; the other studies durable personal intelligence. Both ask the same question: what happens when a system can keep history and adapt?</p>
+    </section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
