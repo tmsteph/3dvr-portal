@@ -1,9 +1,13 @@
 const {
-  buildContext,
   loadEvents,
+  renderContext,
   replayMemories,
 } = require('./digital-organism');
-const { recordRetrievalFeedback } = require('./retrieval-lab');
+const {
+  adaptiveRecall,
+  readSelectedStrategy,
+  recordRetrievalFeedback,
+} = require('./retrieval-lab');
 
 function decodeQuery(encoded = '') {
   const value = String(encoded || '').trim();
@@ -37,7 +41,15 @@ async function main(argv = process.argv.slice(2)) {
   if (command === 'context') {
     const query = decodeQuery(argv[1]);
     const limit = Math.min(10, Math.max(1, Number.parseInt(argv[2] || '5', 10) || 5));
-    const context = await buildContext(query, { limit });
+    const selected = await readSelectedStrategy();
+    const strategy = selected?.strategy || 'baseline-jaccard';
+    const hits = await adaptiveRecall(query, { limit });
+    const context = {
+      question: query,
+      hits,
+      text: renderContext(query, hits),
+      strategy,
+    };
     process.stdout.write(JSON.stringify({ ok: true, context }));
     return;
   }
