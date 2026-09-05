@@ -424,6 +424,34 @@ async function runBuiltInTournament(options = {}) {
   return tournament;
 }
 
+function promotionDecision(tournament = {}, selected = null, options = {}) {
+  const incumbent = selected?.strategy || 'baseline-jaccard';
+  const challenger = tournament.winner || '';
+  const minMrrGain = Number.isFinite(Number(options.minMrrGain))
+    ? Math.max(0, Number(options.minMrrGain))
+    : 0.02;
+  if (!challenger) {
+    return { eligible: false, reason: 'no challenger won the tournament', incumbent, challenger, minMrrGain };
+  }
+  if (challenger === incumbent) {
+    return { eligible: false, reason: `incumbent ${incumbent} already leads`, incumbent, challenger, minMrrGain, mrrGain: 0, hitAt1Gain: 0 };
+  }
+  const incumbentResult = (tournament.results || []).find(result => result.strategy === incumbent);
+  const challengerResult = (tournament.results || []).find(result => result.strategy === challenger);
+  if (!incumbentResult || !challengerResult) {
+    return { eligible: false, reason: 'incumbent and challenger must both be evaluated', incumbent, challenger, minMrrGain };
+  }
+  const mrrGain = challengerResult.mrr - incumbentResult.mrr;
+  const hitAt1Gain = challengerResult.hitAt1 - incumbentResult.hitAt1;
+  if (mrrGain + Number.EPSILON < minMrrGain) {
+    return { eligible: false, reason: `challenger MRR gain ${mrrGain.toFixed(3)} is below required ${minMrrGain.toFixed(3)}`, incumbent, challenger, minMrrGain, mrrGain, hitAt1Gain };
+  }
+  if (hitAt1Gain < -Number.EPSILON) {
+    return { eligible: false, reason: `challenger would regress hit@1 by ${Math.abs(hitAt1Gain).toFixed(3)}`, incumbent, challenger, minMrrGain, mrrGain, hitAt1Gain };
+  }
+  return { eligible: true, reason: 'challenger clears incumbent margin', incumbent, challenger, minMrrGain, mrrGain, hitAt1Gain };
+}
+
 function realPromotionEligibility(benchmark, options = {}) {
   const minCases = Math.max(1, Number.parseInt(options.minCases || '3', 10) || 3);
   if (benchmark.cases.length < minCases) {
@@ -440,12 +468,16 @@ async function runRealTournament(options = {}) {
   const tournament = evaluateStrategies(benchmark.cases, benchmark.memories, options);
   tournament.evidence = benchmark.evidence;
   tournament.promotionEligibility = realPromotionEligibility(benchmark, options);
+  const selected = await readSelectedStrategy(options);
+  tournament.promotionDecision = promotionDecision(tournament, selected, options);
 
   if (options.promote && tournament.winner) {
-    if (tournament.promotionEligibility.eligible) {
-      tournament.promotion = await promoteStrategy(tournament.winner, tournament, options);
-    } else {
+    if (!tournament.promotionEligibility.eligible) {
       tournament.promotionBlocked = tournament.promotionEligibility.reason;
+    } else if (!tournament.promotionDecision.eligible) {
+      tournament.promotionBlocked = tournament.promotionDecision.reason;
+    } else {
+      tournament.promotion = await promoteStrategy(tournament.winner, tournament, options);
     }
   }
   return tournament;
@@ -466,6 +498,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--memory') options.memoryId = argv[++index] || '';
     else if (arg === '--limit') options.limit = Number.parseInt(argv[++index] || '', 10) || 5;
     else if (arg === '--min-cases') options.minCases = Number.parseInt(argv[++index] || '', 10) || 3;
+    else if (arg === '--min-mrr-gain') options.minMrrGain = Number.parseFloat(argv[++index] || '');
     else if (arg === '--state-dir') options.stateDir = argv[++index] || '';
     else positional.push(arg);
   }
@@ -549,6 +582,7 @@ module.exports = {
   lexicalMetrics,
   memoriesById,
   promoteStrategy,
+  promotionDecision,
   rankMemories,
   readSelectedStrategy,
   realBenchmark,
