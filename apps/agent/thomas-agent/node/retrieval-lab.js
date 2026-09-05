@@ -341,21 +341,40 @@ async function realBenchmark(options = {}) {
   return realBenchmarkFromEvents(await loadEvents(options));
 }
 
+function normalizeFeedbackQuery(query = '') {
+  return String(query || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function retrievalFeedbackForQuery(events = [], query = '') {
+  const wanted = normalizeFeedbackQuery(query);
+  const latest = new Map();
+  if (!wanted) return latest;
+  for (const event of events) {
+    if (event.type !== 'retrieval-feedback') continue;
+    if (normalizeFeedbackQuery(event.query) !== wanted) continue;
+    if (!['approved', 'rejected'].includes(event.outcome)) continue;
+    latest.set(String(event.memoryId || '').trim(), event.outcome);
+  }
+  return latest;
+}
+
 async function recordRetrievalFeedback(query, memoryId, options = {}) {
   const text = String(query || '').trim();
   const id = String(memoryId || '').trim();
+  const outcome = String(options.outcome || 'approved').trim().toLowerCase();
   if (!text) throw new Error('Retrieval feedback requires the original query.');
   if (!id) throw new Error('Retrieval feedback requires --memory MEMORY_ID.');
+  if (!['approved', 'rejected'].includes(outcome)) throw new Error(`Unsupported retrieval feedback outcome: ${outcome}`);
 
   const events = await loadEvents(options);
   const active = replayMemories(events);
   if (!active.some(memory => memory.id === id)) {
-    throw new Error(`Cannot approve inactive or unknown memory: ${id}`);
+    throw new Error(`Cannot ${outcome === 'approved' ? 'approve' : 'reject'} inactive or unknown memory: ${id}`);
   }
 
   return appendEvent({
     type: 'retrieval-feedback',
-    outcome: 'approved',
+    outcome,
     recordedAt: new Date(options.now || Date.now()).toISOString(),
     query: text,
     memoryId: id,
@@ -411,8 +430,13 @@ async function adaptiveRecall(query, options = {}) {
     ? { strategy: options.strategy }
     : await readSelectedStrategy(options);
   const strategy = selected?.strategy || 'baseline-jaccard';
-  const memories = await activeMemories(options);
-  return rankMemories(query, memories, strategy, options);
+  const events = await loadEvents(options);
+  const memories = replayMemories(events);
+  const feedback = retrievalFeedbackForQuery(events, query);
+  const limit = Math.max(1, Number.parseInt(options.limit || '5', 10) || 5);
+  return rankMemories(query, memories, strategy, { ...options, limit: Math.max(limit, memories.length) })
+    .filter(hit => feedback.get(hit.memory.id) !== 'rejected')
+    .slice(0, limit);
 }
 
 async function runBuiltInTournament(options = {}) {
@@ -583,6 +607,7 @@ module.exports = {
   evaluateStrategies,
   lexicalMetrics,
   memoriesById,
+  normalizeFeedbackQuery,
   promoteStrategy,
   promotionDecision,
   rankMemories,
@@ -590,6 +615,7 @@ module.exports = {
   realBenchmark,
   realBenchmarkFromEvents,
   realPromotionEligibility,
+  retrievalFeedbackForQuery,
   recordRetrievalFeedback,
   recencyScore,
   runBuiltInTournament,
