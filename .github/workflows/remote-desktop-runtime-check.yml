@@ -1,0 +1,64 @@
+name: Inspect OVH Remote Desktop Runtime
+
+on:
+  push:
+    paths:
+      - '.github/workflows/remote-desktop-runtime-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect fresh Desktop Commander runtime
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest";
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :;
+            else rm -f "$dest" "$dest.raw"; return 0; fi
+            chmod 600 "$dest"; rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/key-a
+          write_key "$SSH_B" /tmp/key-b
+          write_key "$SSH_C" /tmp/key-c
+          selected=''
+          for user in debian root; do
+            for key in /tmp/key-a /tmp/key-b /tmp/key-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@40.160.137.41" true >/dev/null 2>&1; then selected="$user|$key"; break 2; fi
+            done
+          done
+          [ -n "$selected" ] || { echo 'OVH SSH unavailable' >&2; exit 1; }
+          IFS='|' read -r user key <<< "$selected"
+          opts=(-i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$user@40.160.137.41" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          unit=desktop-commander-remote.service
+          echo '--- unit properties ---'
+          sudo -n systemctl show "$unit" -p ActiveState -p SubState -p MainPID -p User -p Group -p Restart -p RestartUSec -p KillMode -p TimeoutStopUSec -p ExecStart -p EnvironmentFiles --no-pager \
+            | sed -E 's/[A-Za-z0-9_-]{40,}/[redacted]/g'
+          echo '--- process tree ---'
+          pid="$(sudo -n systemctl show "$unit" -p MainPID --value)"
+          ps -eo user,pid,ppid,etime,%cpu,%mem,args --width 220 | awk -v p="$pid" '$2==p || $3==p || /desktop-commander remote/ || /@wonderwhy-er\/desktop-commander/' \
+            | sed -E 's/[A-Za-z0-9_-]{40,}/[redacted]/g' || true
+          echo '--- fresh journal ---'
+          sudo -n journalctl -u "$unit" --since '-10 min' --no-pager \
+            | sed -E 's/[A-Za-z0-9_-]{40,}/[redacted]/g' | tail -120
+          echo '--- outbound sockets for agent processes ---'
+          pids="$(pgrep -d, -f 'desktop-commander remote|@wonderwhy-er/desktop-commander' || true)"
+          if [ -n "$pids" ]; then sudo -n ss -tpn 2>/dev/null | grep -E "pid=($(echo "$pids" | tr ',' '|'))," | sed -E 's/[A-Za-z0-9_-]{40,}/[redacted]/g' || true; fi
+          REMOTE
