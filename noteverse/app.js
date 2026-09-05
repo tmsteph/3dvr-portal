@@ -453,8 +453,10 @@ function handleDeviceOrientation(event) {
     motionBaseline = { alpha: event.alpha, beta: event.beta };
     return;
   }
-  motionYaw = -angleDeltaDegrees(event.alpha, motionBaseline.alpha) * Math.PI / 180;
-  motionPitch = -Math.max(-70, Math.min(70, event.beta - motionBaseline.beta)) * Math.PI / 180;
+  // On phones, the screen should behave like a window into the world: pivoting
+  // the device moves the view in the same physical direction instead of mirroring it.
+  motionYaw = angleDeltaDegrees(event.alpha, motionBaseline.alpha) * Math.PI / 180;
+  motionPitch = Math.max(-70, Math.min(70, event.beta - motionBaseline.beta)) * Math.PI / 180;
   updateCamera();
 }
 
@@ -613,7 +615,8 @@ canvas.addEventListener('pointermove', event => {
       const delta = distance - previousPinchDistance;
       if (Math.abs(delta) > 0.4) {
         moved = true;
-        dollyCamera(delta * 0.025);
+        // Touch depth is intentionally opposite the desktop-style zoom convention.
+        dollyCamera(-delta * 0.025);
       }
     }
     previousPinchDistance = distance;
@@ -625,8 +628,11 @@ canvas.addEventListener('pointermove', event => {
   const dy = next.y - previous.y;
   gestureTravel += Math.hypot(dx, dy);
   if (gestureTravel > 5) moved = true;
-  if (event.shiftKey) lookCamera(dx, dy);
-  else panCamera(dx, dy);
+  if (event.shiftKey && event.pointerType !== 'touch') lookCamera(dx, dy);
+  else {
+    const direction = event.pointerType === 'touch' ? -1 : 1;
+    panCamera(dx * direction, dy * direction);
+  }
 });
 
 function releasePointer(event) {
