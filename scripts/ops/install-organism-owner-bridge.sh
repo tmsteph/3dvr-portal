@@ -16,9 +16,13 @@ remote_script="${THREEDVR_ORGANISM_REMOTE_SCRIPT:-/home/debian/services/3dvr-por
   exit 3
 }
 
-# The self-host Portal owns /recall and reaches OVH over the existing SSH mesh.
-# Verify that private hop before publishing any public relay address.
-ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-ovh node "$remote_script" health >/tmp/3dvr-organism-ovh-health.json
+# OVH is now the preferred portal/control host. When the Organism runtime is
+# local, validate it directly; otherwise use the existing private SSH mesh.
+if [ -f "$remote_script" ]; then
+  node "$remote_script" health >/tmp/3dvr-organism-ovh-health.json
+else
+  ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-ovh node "$remote_script" health >/tmp/3dvr-organism-ovh-health.json
+fi
 node -e 'const fs=require("node:fs"); const x=JSON.parse(fs.readFileSync("/tmp/3dvr-organism-ovh-health.json","utf8")); if(!x.ok) process.exit(1)'
 rm -f /tmp/3dvr-organism-ovh-health.json
 
