@@ -12,28 +12,40 @@ try {
 } catch {}
 
 const { default: SEA } = await import('gun/sea.js');
-const { resolveOrganismAccess } = await import('../src/organism/access.js');
+const {
+  resolveOrganismAccess,
+  resolveOrganismFeedbackAccess
+} = await import('../src/organism/access.js');
 
 const ORIGIN = 'https://portal.3dvr.tech';
 
-async function signedRequest({ pair, alias, query = 'What servers are we using?', requestId = 'req-1', limit = 5, iat = Date.now() }) {
+async function signedRequest({
+  pair,
+  alias,
+  action = 'recall',
+  query = 'What servers are we using?',
+  requestId = 'req-1',
+  limit = 5,
+  memoryId = '',
+  iat = Date.now()
+}) {
   const signed = {
     scope: 'digital-organism',
-    action: 'recall',
+    action,
     alias,
     pub: pair.pub,
     origin: ORIGIN,
     iat,
     query,
     requestId,
-    limit
+    ...(action === 'recall' ? { limit } : { memoryId })
   };
   return {
     authPub: pair.pub,
     authProof: await SEA.sign(signed, pair),
     query,
     requestId,
-    limit
+    ...(action === 'recall' ? { limit } : { memoryId })
   };
 }
 
@@ -100,4 +112,61 @@ test('rejects a valid signature from a non-owner account', async () => {
   assert.equal(result.ok, false);
   assert.equal(result.status, 403);
   assert.match(result.reason, /owner requests only/i);
+});
+
+test('accepts owner-signed retrieval approval bound to exact query and memory id', async () => {
+  const pair = await SEA.pair();
+  const alias = 'organism-owner@test';
+  const now = Date.now();
+  const payload = await signedRequest({
+    pair,
+    alias,
+    action: 'approve-retrieval',
+    memoryId: 'memory-123',
+    iat: now
+  });
+  const result = await resolveOrganismFeedbackAccess(payload, {
+    config: ownerConfig(alias, pair.pub),
+    now
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.query, payload.query);
+  assert.equal(result.memoryId, 'memory-123');
+  assert.equal(result.requestId, payload.requestId);
+});
+
+test('retrieval approval rejects memory id changed after signing', async () => {
+  const pair = await SEA.pair();
+  const alias = 'organism-owner@test';
+  const now = Date.now();
+  const payload = await signedRequest({
+    pair,
+    alias,
+    action: 'approve-retrieval',
+    memoryId: 'memory-123',
+    iat: now
+  });
+  payload.memoryId = 'memory-evil-swap';
+  const result = await resolveOrganismFeedbackAccess(payload, {
+    config: ownerConfig(alias, pair.pub),
+    now
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 403);
+  assert.match(result.reason, /Memory id did not match/i);
+});
+
+test('recall proof cannot be replayed as retrieval approval', async () => {
+  const pair = await SEA.pair();
+  const alias = 'organism-owner@test';
+  const now = Date.now();
+  const payload = await signedRequest({ pair, alias, iat: now });
+  payload.memoryId = 'memory-123';
+  const result = await resolveOrganismFeedbackAccess(payload, {
+    config: ownerConfig(alias, pair.pub),
+    now
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 403);
+  assert.match(result.reason, /did not authorize retrieval approval/i);
 });
