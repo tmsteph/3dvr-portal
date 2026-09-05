@@ -33,10 +33,9 @@ fi
 
 "$NODE_BIN" "$ROOT/node/agent-task-queue.js" "$@"
 
-# The German worker's long-lived loop invokes this wrapper every poll. Keeping
-# Forge dispatch here means a normal repository pull activates new Operator
-# edit support immediately without restarting the tmux session that performed
-# the update.
-if [ "${1:-}" = "run-once" ]; then
+# Forge is deliberately separable from the fast local SQLite poll. Production
+# can keep the local queue responsive even when GUN/AXE or Forge reconciliation
+# is slow, while a compatibility lane continues to run Forge normally.
+if [ "${1:-}" = "run-once" ] && ! [[ "${THREEDVR_AGENT_SKIP_FORGE:-0}" =~ ^(1|true|yes|on)$ ]]; then
   "$NODE_BIN" "$ROOT/node/operator-forge-worker.js" run-once
 fi
