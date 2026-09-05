@@ -1,0 +1,64 @@
+name: Inspect OVH Remote Desktop Auth State
+
+on:
+  push:
+    paths:
+      - '.github/workflows/remote-desktop-auth-inspect.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Locate Desktop Commander auth storage
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest";
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :;
+            else rm -f "$dest" "$dest.raw"; return 0; fi
+            chmod 600 "$dest"; rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/key-a
+          write_key "$SSH_B" /tmp/key-b
+          write_key "$SSH_C" /tmp/key-c
+          selected=''
+          for user in debian root; do
+            for key in /tmp/key-a /tmp/key-b /tmp/key-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@40.160.137.41" true >/dev/null 2>&1; then selected="$user|$key"; break 2; fi
+            done
+          done
+          [ -n "$selected" ] || exit 1
+          IFS='|' read -r user key <<< "$selected"
+          ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 "$user@40.160.137.41" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          unit=desktop-commander-remote.service
+          echo '--- service definition (secret-bearing directives omitted) ---'
+          sudo -n systemctl cat "$unit" --no-pager | grep -Ev '^[[:space:]]*(Environment|EnvironmentFile)=' || true
+          echo '--- runtime directories ---'
+          sudo -n systemctl show "$unit" -p User -p Group -p WorkingDirectory -p RootDirectory -p StateDirectory -p CacheDirectory -p ConfigurationDirectory -p RuntimeDirectory --no-pager
+          echo '--- candidate auth/config files (names, size, mtime only) ---'
+          find /home/debian /root -xdev -maxdepth 6 -type f \( -iname '*desktop*commander*' -o -iname '*commander*' -o -iname '*mcp*' -o -iname '*credential*' -o -iname '*auth*' -o -iname '*token*' \) \
+            -printf '%TY-%Tm-%TdT%TH:%TM:%TS %s %p\n' 2>/dev/null | sort | tail -160
+          echo '--- package auth-storage references ---'
+          pkg="$(find /home/debian/.npm/_npx -path '*/node_modules/@wonderwhy-er/desktop-commander' -type d 2>/dev/null | head -1 || true)"
+          if [ -n "$pkg" ]; then
+            echo "package=$pkg"
+            grep -RInE 'device/verify|device code|deviceCode|access.?token|refresh.?token|credential|auth.*file|config.*dir|homedir|XDG|keytar|remote.*auth' "$pkg/dist" 2>/dev/null \
+              | sed -E 's/[A-Za-z0-9_-]{40,}/[redacted]/g' | head -160 || true
+          fi
+          REMOTE
