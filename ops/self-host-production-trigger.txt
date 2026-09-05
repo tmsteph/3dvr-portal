@@ -1,2 +1,2 @@
-2026-09-05T15:59:00-07:00
-Reason: deploy owner-signed Digital Organism retrieval feedback and the “This was right” learning control to OVH-first production.
+2026-09-05T16:43:00-07:00
+Reason: deploy reversible owner-signed Digital Organism retrieval feedback, including “This was right” and exact-query “Not relevant”, to OVH-first production.
