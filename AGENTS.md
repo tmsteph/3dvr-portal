@@ -9,9 +9,18 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - Treat the mirrored files as portable context, but prefer the live `~/` files when both are present.
 
 ## Focus Rule
-- Default to work that helps win or serve a paying customer.
-- Keep this operating rule visible in planning, commits, and reviews: `Sell first. Build second. Keep it simple.`
-- Avoid expanding billing, portal, or platform scope unless the change supports a real user flow, active delivery, or a clear revenue path.
+- Default to work that creates a useful outcome for a real user, customer, contributor, or operator.
+- Keep the open core strong and broadly accessible. Revenue should come primarily from scarce human effort, managed convenience, infrastructure/compute cost, accountable service, integrations, physical goods, and other work with real marginal cost.
+- Prefer finishing, connecting, measuring, and simplifying existing paths over adding another disconnected surface.
+- Do not cripple the open product merely to manufacture an upgrade path. Paid work should save time, reduce complexity, add capacity, or provide accountable service.
+
+## Canonical Monorepo Rule
+- `tmsteph/3dvr-portal` is the default home for active 3DVR product, platform, and research development.
+- New capability does not automatically mean a new app, package, service, or repository. Extend an existing Portal flow or subsystem when that is simpler.
+- Independent deployment, packaging, installation, or release does **not** by itself require a separate repository.
+- Create or continue a separate repository only when it closely tracks a substantial upstream project, genuinely needs an independent contributor/release lifecycle, or is intentionally preserved as a reference/history surface.
+- Before starting work in an older 3DVR repository, check `docs/repository-migration-map.md`. If its active continuation is already in Portal, make the change in Portal and keep the old repo as ancestry/reference.
+- When an old repo's useful idea is absorbed, update its README to point to the canonical Portal path rather than maintaining two active implementations.
 
 ## Agent Execution Principles
 - Think before coding: state important assumptions, surface conflicting interpretations, and ask when guessing would
@@ -73,9 +82,10 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
   - Resolve conflicts, run focused tests, push `HEAD:BRANCH_NAME`, then retry `gh pr merge`.
 
 ## Deployment Topology
-- The repository is an asymmetric monorepo: the Vercel portal remains at the root and the separately deployed Hetzner agent lives in `apps/agent`.
+- The repository is an asymmetric monorepo: the Vercel portal remains at the root, the separately deployed Hetzner agent lives in `apps/agent`, and other runtime/platform packages can keep their own deployment boundaries inside the same repository.
 - Keep `apps/agent` excluded from Vercel output. Agent changes use their own dependency install, test workflow, environment, and worker cutover.
 - For agent-specific instructions, follow `apps/agent/AGENTS.md`.
+- Keep independently deployed components in the monorepo unless there is a stronger repository boundary than deployment alone.
 - Keep `3dvr-portal` and `3dvr-web` on the same branch matrix:
   - `main` -> `portal.3dvr.tech` and `3dvr.tech`
   - `staging` -> `portal-staging.3dvr.tech` and `staging.3dvr.tech`
@@ -96,11 +106,14 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - Document decisions inline so future contributors understand why a choice was made.
 - When you learn repo-specific context that would help the next agent, update the relevant `AGENTS.md` before finishing.
 
-## Data Layer (GunJS)
-- Treat GunJS as the source of truth. Read and write through shared Gun nodes, not device-local storage.
-- When caching, always sync back to the originating Gun node and describe node shapes near the related code.
-- Use explicit node paths (e.g., `gun.get('namespace').get('resource')`) to keep data portable across sessions.
-- Sensitive guest life data may remain device-local until encrypted, owner-scoped sync is implemented and approved.
+## Data Layer
+- Do not treat any single browser-side database as the universal source of truth. Choose storage based on durability, authority, privacy, size, and sync requirements.
+- Use **Postgres/server-backed APIs** for durable structured business/account data when server authority is appropriate.
+- Use **Gun** for realtime/local-first collaboration and experiments where peer sync is useful.
+- Use **object storage** for files and larger immutable assets.
+- Use **device-local storage** for drafts, caches, UI state, and experiences that are intentionally local; sensitive guest life data may remain device-local until encrypted, owner-scoped sync is implemented and approved.
+- Existing Gun-backed apps remain supported. When working in one, use explicit node paths (for example `gun.get('namespace').get('resource')`) and keep coordination logic testable.
+- When caching authoritative data locally, define the synchronization boundary clearly rather than silently creating a second source of truth.
 
 ## Design & UX
 - Build mobile-first layouts that adapt gracefully to all screen sizes, including ultra-wide and VR displays.
