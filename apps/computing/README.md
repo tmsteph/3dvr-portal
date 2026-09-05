@@ -2,7 +2,9 @@
 
 3DVR Computing is the incubator for an open, agent-native family of computing products. The first shared primitive is deliberately small: a capability contract that lets the same 3DVR Agent request actions from a browser, Debian system, or Android device while preserving user authority and an audit receipt.
 
-This lives inside `3dvr-portal` only while the contract is young. The platform pieces should remain independently releasable so they can move into dedicated repositories as they mature.
+`tmsteph/3dvr-portal` is the canonical monorepo for this work. Platform pieces may become independently deployable, installable, or releasable as they mature, but **independent deployment does not imply a separate repository**. Keeping the shared contracts, Agent integration, tests, and product surfaces together makes cross-device changes easier to verify and reduces duplicate implementations.
+
+A separate repository should be the exception: use one when a component must track an upstream project closely, has a genuinely independent contributor/release lifecycle, or is intentionally preserved as a public reference/archive. Otherwise, new computing work belongs here.
 
 ## Family
 
@@ -30,6 +32,8 @@ Every request returns a receipt. This makes automation observable before we add 
 npm --prefix apps/computing test
 npm --prefix apps/computing run demo
 ```
+
+From the repository root, `npm run test:all` also includes the Computing test suite.
 
 The demo uses mock adapters so it is safe to run anywhere. Real Debian, Android, and browser adapters can implement the same contract without changing the policy layer.
 
