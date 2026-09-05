@@ -89,11 +89,13 @@ function memoryCard(hit, query) {
     approve.type = 'button';
     approve.className = 'memory-approve';
     approve.textContent = 'This was right';
+    approve.setAttribute('aria-label', 'Mark this memory as right for this question');
 
     const reject = document.createElement('button');
     reject.type = 'button';
     reject.className = 'memory-approve';
     reject.textContent = 'Not relevant';
+    reject.setAttribute('aria-label', 'Mark this memory as not relevant for this question');
 
     approve.addEventListener('click', () => rateMemory(query, memory, 'approved', approve, reject));
     reject.addEventListener('click', () => rateMemory(query, memory, 'rejected', reject, approve));
