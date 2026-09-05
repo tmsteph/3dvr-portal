@@ -37,6 +37,7 @@
   "rewrites": [
     { "source": "/api/cache-reset", "destination": "/cache-reset.html" },
     { "source": "/api/workboard/github", "destination": "/api/session?route=workboard-github" },
+    { "source": "/api/crm-check", "destination": "/api/session?route=crm-check" },
     { "source": "/api/av-freelance-kit", "destination": "/api/session?route=av-freelance-kit" },
     { "source": "/crm.webmanifest", "has": [{ "type": "host", "value": "crm.3dvr.tech" }], "destination": "/crm/root.webmanifest" },
     { "source": "/", "has": [{ "type": "host", "value": "crm.3dvr.tech" }], "destination": "/crm/index.html" },
