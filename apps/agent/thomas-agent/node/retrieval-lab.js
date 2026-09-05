@@ -419,7 +419,7 @@ async function runBuiltInTournament(options = {}) {
   const benchmark = builtInBenchmark();
   const tournament = evaluateStrategies(benchmark.cases, benchmark.memories, options);
   if (options.promote && tournament.winner) {
-    tournament.promotion = await promoteStrategy(tournament.winner, tournament, options);
+    tournament.promotionBlocked = 'synthetic benchmark cannot promote live retrieval; use real-tournament --promote with real evidence';
   }
   return tournament;
 }
@@ -453,14 +453,15 @@ function promotionDecision(tournament = {}, selected = null, options = {}) {
 }
 
 function realPromotionEligibility(benchmark, options = {}) {
-  const minCases = Math.max(1, Number.parseInt(options.minCases || '3', 10) || 3);
+  const minCases = Math.max(1, Number.parseInt(options.minCases || '5', 10) || 5);
+  const minHighQuality = Math.max(1, Number.parseInt(options.minHighQuality || '2', 10) || 2);
   if (benchmark.cases.length < minCases) {
-    return { eligible: false, reason: `need at least ${minCases} real benchmark cases` };
+    return { eligible: false, reason: `need at least ${minCases} real benchmark cases`, minCases, minHighQuality };
   }
-  if (benchmark.evidence.highQualityCount < 1) {
-    return { eligible: false, reason: 'need at least one correction or explicitly approved retrieval' };
+  if (benchmark.evidence.highQualityCount < minHighQuality) {
+    return { eligible: false, reason: `need at least ${minHighQuality} corrections or explicitly approved retrievals`, minCases, minHighQuality };
   }
-  return { eligible: true, reason: 'real evidence threshold met' };
+  return { eligible: true, reason: 'real evidence threshold met', minCases, minHighQuality };
 }
 
 async function runRealTournament(options = {}) {
@@ -497,7 +498,8 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--strategy') options.strategy = argv[++index] || '';
     else if (arg === '--memory') options.memoryId = argv[++index] || '';
     else if (arg === '--limit') options.limit = Number.parseInt(argv[++index] || '', 10) || 5;
-    else if (arg === '--min-cases') options.minCases = Number.parseInt(argv[++index] || '', 10) || 3;
+    else if (arg === '--min-cases') options.minCases = Number.parseInt(argv[++index] || '', 10) || 5;
+    else if (arg === '--min-high-quality') options.minHighQuality = Number.parseInt(argv[++index] || '', 10) || 2;
     else if (arg === '--min-mrr-gain') options.minMrrGain = Number.parseFloat(argv[++index] || '');
     else if (arg === '--state-dir') options.stateDir = argv[++index] || '';
     else positional.push(arg);
