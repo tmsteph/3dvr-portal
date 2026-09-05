@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
 
+# Triggered after Desktop Commander authorization was restored.
 jobs:
   repair:
     runs-on: ubuntu-latest
