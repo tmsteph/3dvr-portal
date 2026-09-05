@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Human Language Lab | 3DVR Portal</title>
+  <meta name="description" content="Human v0 is a 3DVR experiment in human-first, agent-native programming: readable intent that compiles into inspectable conventional code.">
+  <link rel="canonical" href="https://portal.3dvr.tech/human-language/">
+  <link rel="stylesheet" href="../style.css?v=human-language-v0">
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; background: #08110d; color: #eaf6ef; font-family: Inter, system-ui, sans-serif; }
+    main { width: min(920px, calc(100% - 32px)); margin: 0 auto; padding: 56px 0 80px; }
+    nav { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 56px; }
+    nav a, a { color: #91e8b5; }
+    .eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: .78rem; color: #91e8b5; }
+    h1 { font-size: clamp(2.6rem, 8vw, 5.6rem); line-height: .96; margin: 10px 0 22px; max-width: 850px; }
+    .lede { font-size: clamp(1.1rem, 3vw, 1.45rem); line-height: 1.55; color: #c7d7cd; max-width: 760px; }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin: 30px 0 54px; }
+    .button { display: inline-block; padding: 12px 18px; border: 1px solid #315441; border-radius: 999px; text-decoration: none; }
+    .button.primary { background: #91e8b5; color: #08110d; border-color: #91e8b5; font-weight: 700; }
+    section { border-top: 1px solid #23372b; padding: 38px 0; }
+    h2 { font-size: 1.7rem; margin: 0 0 14px; }
+    p, li { line-height: 1.65; color: #c7d7cd; }
+    pre { overflow-x: auto; padding: 22px; border-radius: 18px; background: #0e1b14; border: 1px solid #294334; color: #eaf6ef; font-size: .95rem; line-height: 1.55; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 22px; }
+    .card { padding: 20px; border-radius: 16px; background: #0d1812; border: 1px solid #23372b; }
+    .card strong { display: block; margin-bottom: 8px; }
+    .status { color: #91e8b5; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main>
+    <nav aria-label="Human Language Lab navigation">
+      <a href="/">Portal</a>
+      <a href="/open-source/">Open Source</a>
+      <a href="https://github.com/tmsteph/app-creation">Source</a>
+    </nav>
+
+    <p class="eyebrow">3DVR experiment · Human v0</p>
+    <h1>Programming should feel more human.</h1>
+    <p class="lede">
+      Human Language Lab explores a human-first, agent-native programming language: express intent clearly,
+      keep the meaning strict, and compile it into ordinary inspectable software.
+    </p>
+    <div class="actions">
+      <a class="button primary" href="https://github.com/tmsteph/app-creation">Open the experiment</a>
+      <a class="button" href="https://github.com/tmsteph/app-creation/blob/main/examples/garage.human">Read the first program</a>
+    </div>
+
+    <section>
+      <h2>The idea</h2>
+      <p>
+        Instead of spending more compute teaching agents to navigate huge, ambiguous codebases, make the programming
+        language itself smaller, clearer, safer, and easier for both people and agents to understand.
+      </p>
+      <pre><code>app GarageCRM
+
+data Customer:
+    name
+    email
+    status = "lead"
+
+when Customer is created:
+    send welcome email
+    notify sales
+
+when payment succeeds:
+    Customer.status = "client"
+    create project</code></pre>
+    </section>
+
+    <section>
+      <h2>Design rules</h2>
+      <div class="grid">
+        <div class="card"><strong>Human-readable</strong><span>Code should communicate intent before syntax trivia.</span></div>
+        <div class="card"><strong>Machine-verifiable</strong><span>Ambiguity should become a compiler error, not a guess.</span></div>
+        <div class="card"><strong>Agent-native</strong><span>Small structured programs should reduce searching, rewriting, and retries.</span></div>
+        <div class="card"><strong>Inspectable</strong><span>AI can help author programs, but AI is not required to run them.</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Current experiment</h2>
+      <p class="status">v0 is working.</p>
+      <p>
+        The prototype includes a tiny <code>.human</code> syntax, a dependency-free compiler to Python, a Garage CRM example,
+        tests, CI, and a source-size comparison. The first toy program is roughly 44% smaller than its comparable hand-written
+        Python version. That is only an early source-surface measurement—not yet a claim about energy or total agent cost.
+      </p>
+    </section>
+
+    <section>
+      <h2>Next question</h2>
+      <p>
+        Can coding agents implement the same change in Human with fewer tokens, retries, mistakes, and wall-clock time than
+        Python or TypeScript? That benchmark is the next step.
+      </p>
+    </section>
+  </main>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
