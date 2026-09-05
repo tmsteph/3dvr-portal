@@ -7,7 +7,14 @@ on:
       - 'apps/agent/thomas-agent/node/digital-organism.js'
       - 'apps/agent/thomas-agent/node/digital-organism-server.js'
       - 'apps/agent/thomas-agent/node/digital-organism-bridge.js'
+      - 'apps/agent/thomas-agent/node/retrieval-lab.js'
+      - 'apps/agent/thomas-agent/node/organism-sync.js'
+      - 'apps/agent/thomas-agent/node/task-memory-sync.js'
+      - 'apps/agent/thomas-agent/node/task-handoff-sync.js'
       - 'apps/agent/test/digital-organism.test.js'
+      - 'apps/agent/test/retrieval-lab.test.js'
+      - 'apps/agent/test/organism-sync.test.js'
+      - 'apps/agent/test/task-memory-sync.test.js'
       - '.github/workflows/digital-organism-ovh.yml'
   workflow_dispatch:
 
@@ -65,10 +72,15 @@ jobs:
 
           node_bin="$(command -v node)"
           test -n "$node_bin"
+          npm --prefix "$repo/apps/agent" ci
 
           tmp_state="$(mktemp -d)"
           trap 'rm -rf "$tmp_state"' EXIT
-          THREEDVR_ORGANISM_DIR="$tmp_state" "$node_bin" --test "$repo/apps/agent/test/digital-organism.test.js"
+          THREEDVR_ORGANISM_DIR="$tmp_state" "$node_bin" --test \
+            "$repo/apps/agent/test/digital-organism.test.js" \
+            "$repo/apps/agent/test/retrieval-lab.test.js" \
+            "$repo/apps/agent/test/organism-sync.test.js" \
+            "$repo/apps/agent/test/task-memory-sync.test.js"
           THREEDVR_ORGANISM_DIR="$tmp_state" "$node_bin" "$repo/apps/agent/thomas-agent/node/digital-organism.js" eval
 
           memory_dir="$HOME/.3dvr/state/organism"
@@ -94,11 +106,8 @@ jobs:
             echo 'Preserving existing OVH Organism memory state.'
           fi
 
-          # Context HQ contains deliberate session handoffs, so it is a safe first
-          # memory source. Read them on the DigitalOcean control node (where the
-          # Gun runtime is already installed), then import them locally on OVH.
-          # importContextSessions is provenance-idempotent and never resurrects a
-          # handoff that the owner explicitly forgot.
+          # Context HQ contains deliberate session handoffs. Keep this compatibility
+          # source, but do not depend on the relay for local task continuity.
           context_sessions="$(mktemp)"
           if ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-do \
             'repo="$HOME/.3dvr/self-host-portal-source"; test -f "$repo/apps/agent/thomas-agent/node/context-hq.js"; cd "$repo/apps/agent"; node thomas-agent/node/context-hq.js sessions --owner tmsteph@3dvr --json' \
@@ -119,6 +128,42 @@ jobs:
             echo 'Context HQ handoffs were not reachable from the DigitalOcean control node; preserving existing Organism state.' >&2
           fi
           rm -f "$context_sessions"
+
+          # Pull only public task records from the managed SQLite queue. The local
+          # task-memory compiler discards raw result/model/tool output, excludes
+          # health probes, and imports finalized work through the same provenance-
+          # idempotent memory boundary used by approved handoffs.
+          task_records="$(mktemp)"
+          if ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-do '
+            set -e
+            repo="$HOME/.3dvr/portal"
+            cd "$repo/apps/agent"
+            export THREEDVR_CONFIG_FILE="$HOME/.3dvr/config/env"
+            if [ -f "$THREEDVR_CONFIG_FILE" ]; then set -a; . "$THREEDVR_CONFIG_FILE"; set +a; fi
+            node_bin="${THREEDVR_NODE_BIN:-/opt/node-v22/bin/node}"
+            "$node_bin" thomas-agent/node/agent-task-queue.js list --json --queue-store sqlite --limit 100
+          ' > "$task_records" 2>/dev/null; then
+            if [ -s "$task_records" ]; then
+              TASK_MEMORY_MODULE="$repo/apps/agent/thomas-agent/node/task-memory-sync.js" \
+              TASK_RECORDS="$task_records" \
+              "$node_bin" -e '
+                const fs = require("node:fs");
+                const taskMemory = require(process.env.TASK_MEMORY_MODULE);
+                const tasks = JSON.parse(fs.readFileSync(process.env.TASK_RECORDS, "utf8"));
+                taskMemory.importTaskHandoffsFromTasks(Array.isArray(tasks) ? tasks : []).then(result => {
+                  process.stdout.write(`Safe task handoffs: imported ${result.imported.length}; skipped ${result.skipped.length}; scanned ${result.scanned}.\n`);
+                }).catch(error => { console.error(error); process.exit(1); });
+              '
+            fi
+          else
+            echo 'Managed task records were not reachable from DigitalOcean; preserving existing Organism state.' >&2
+          fi
+          rm -f "$task_records"
+
+          echo 'OVH Organism evidence (aggregate only):'
+          "$node_bin" "$repo/apps/agent/thomas-agent/node/retrieval-lab.js" evidence
+          echo 'OVH Organism retrieval tournament:'
+          "$node_bin" "$repo/apps/agent/thomas-agent/node/retrieval-lab.js" real-tournament --promote
 
           sudo mkdir -p /etc/3dvr
           sudo touch /etc/3dvr/organism.env
