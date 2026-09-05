@@ -29,6 +29,10 @@ test('Noteverse ships a real 3D Life Space workspace', async () => {
   assert.match(app, /function dollyCamera/);
   assert.match(app, /requestPermission/);
   assert.match(app, /deviceorientation/);
+  assert.match(app, /event\.pointerType === 'touch' \? -1 : 1/);
+  assert.match(app, /dollyCamera\(-delta \* 0\.025\)/);
+  assert.match(app, /motionYaw = angleDeltaDegrees/);
+  assert.match(app, /motionPitch = Math\.max/);
   assert.doesNotMatch(app, /radius \+= Math\.sign/);
 
   assert.match(lifeSpace, /href="\/noteverse\/"/);
