@@ -26,6 +26,11 @@ const addForm = $('#add-note');
 const newNoteInput = $('#new-note');
 const motionLookButton = $('#motion-look');
 const stageHint = $('.stage-hint');
+const sunMenu = $('#sun-menu');
+const editorPanel = $('#editor-panel');
+const sunHint = $('#sun-hint');
+const closeSunMenuButton = $('#close-sun-menu');
+const closeEditorButton = $('#close-editor');
 
 const defaultState = () => ({
   version: 1,
@@ -58,6 +63,7 @@ let gestureTravel = 0;
 const activePointers = new Map();
 let primaryPointerId = null;
 let previousPinchDistance = null;
+let sunMenuOpen = false;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x070b12);
@@ -80,10 +86,27 @@ warmLight.position.set(-5, 1, 4);
 scene.add(warmLight);
 
 const core = new THREE.Mesh(
-  new THREE.SphereGeometry(0.23, 20, 20),
-  new THREE.MeshStandardMaterial({ color: 0xfff5bc, emissive: 0x9a6d1f, emissiveIntensity: 1.5 })
+  new THREE.SphereGeometry(0.38, 24, 24),
+  new THREE.MeshStandardMaterial({ color: 0xfff1a3, emissive: 0xe09a2d, emissiveIntensity: 2.1, roughness: 0.22 })
 );
+core.userData.isSun = true;
 scene.add(core);
+
+const sunHalo = new THREE.Mesh(
+  new THREE.SphereGeometry(0.6, 24, 24),
+  new THREE.MeshBasicMaterial({ color: 0xffd56b, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false })
+);
+scene.add(sunHalo);
+
+const sunTarget = new THREE.Mesh(
+  new THREE.SphereGeometry(0.86, 18, 18),
+  new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false })
+);
+sunTarget.userData.isSun = true;
+scene.add(sunTarget);
+
+const sunLight = new THREE.PointLight(0xffd36f, 18, 20, 1.7);
+scene.add(sunLight);
 
 const starsGeometry = new THREE.BufferGeometry();
 const starPositions = new Float32Array(320 * 3);
@@ -190,7 +213,7 @@ function makeLabel(item) {
   context.fillStyle = '#edf5ff';
   context.font = '600 28px system-ui, sans-serif';
   context.textAlign = 'center';
-  context.textBaseline = 'middle';
+  constext.textBaseline = 'middle';
   context.fillText(text || 'Untitled', 256, 49, 460);
   const texture = new THREE.CanvasTexture(labelCanvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -283,6 +306,16 @@ function selectedItem() {
   return currentSpace()?.items?.find(item => item.id === selectedId) || null;
 }
 
+function setSunMenu(open) {
+  sunMenuOpen = Boolean(open);
+  sunMenu.hidden = !sunMenuOpen;
+  if (sunHint) sunHint.hidden = sunMenuOpen;
+  if (sunMenuOpen) {
+    selectedId = null;
+    refreshSelection();
+  }
+}
+
 function refreshSelection() {
   const item = selectedItem();
   for (const [id, mesh] of meshById) mesh.scale.setScalar(id === selectedId ? 1.28 : 1);
@@ -296,6 +329,7 @@ function refreshSelection() {
     bodyInput.disabled = true;
     deleteButton.disabled = true;
     nudgeButtons.forEach(button => { button.disabled = true; });
+    editorPanel.hidden = true;
     return;
   }
 
@@ -308,6 +342,10 @@ function refreshSelection() {
   bodyInput.disabled = item.type === 'file' || item.type === 'image';
   deleteButton.disabled = false;
   nudgeButtons.forEach(button => { button.disabled = false; });
+  editorPanel.hidden = false;
+  sunMenuOpen = false;
+  sunMenu.hidden = true;
+  if (sunHint) sunHint.hidden = true;
 }
 
 function populateSpaces() {
@@ -363,7 +401,7 @@ function addNote(text) {
     x: 40 + offset,
     y: 40 + offset,
     w: 300,
-    h: 220,
+   h: 220,
     color: '#fff3c9',
     z: Date.now(),
     createdAt: Date.now(),
@@ -385,6 +423,7 @@ function deleteSelected() {
   space.items.splice(index, 1);
   selectedId = null;
   renderScene();
+  editorPanel.hidden = true;
   saveSoon();
 }
 
@@ -507,7 +546,12 @@ function pick(clientX, clientY) {
   pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
-  const hit = raycaster.intersectObjects(selectableMeshes, false)[0];
+  const hit = raycaster.intersectObjects([sunTarget, ...selectableMeshes], false)[0];
+  if (hit?.object?.userData?.isSun) {
+    setSunMenu(!sunMenuOpen);
+    return;
+  }
+  setSunMenu(false);
   selectedId = hit?.object?.userData?.itemId || null;
   refreshSelection();
 }
@@ -515,12 +559,21 @@ function pick(clientX, clientY) {
 spaceSelect.addEventListener('change', () => {
   state.activeSpaceId = spaceSelect.value;
   selectedId = null;
+  setSunMenu(false);
   renderScene();
   saveSoon();
 });
 
-$('#center').addEventListener('click', resetCamera);
+$('#center').addEventListener('click', () => {
+  resetCamera();
+  setSunMenu(false);
+});
 motionLookButton?.addEventListener('click', toggleMotionLook);
+closeSunMenuButton?.addEventListener('click', () => setSunMenu(false));
+closeEditorButton?.addEventListener('click', () => {
+  selectedId = null;
+  refreshSelection();
+});
 
 $('#remix').addEventListener('click', () => {
   const space = currentSpace();
@@ -539,6 +592,7 @@ addForm.addEventListener('submit', event => {
   if (!text) return newNoteInput.focus();
   addNote(text);
   newNoteInput.value = '';
+  setSunMenu(false);
 });
 
 titleInput.addEventListener('input', () => {
@@ -675,8 +729,8 @@ async function initialize() {
   motionLookButton?.setAttribute('aria-pressed', 'false');
   if (stageHint) {
     stageHint.textContent = touchDevice
-      ? 'Drag to move · pinch forward/back · tap a crystal · Motion look above'
-      : 'Drag to move · wheel forward/back · Shift+drag to look · WASD + arrows';
+      ? 'Drag to fly · pinch depth · tap sun for commands · tap crystals to edit'
+      : 'Drag to fly · wheel depth · Shift+drag to look · tap sun for commands';
   }
   resetCamera();
   resize();
@@ -714,7 +768,11 @@ function animate(time) {
       const baseY = Number(mesh.userData.baseY);
       if (Number.isFinite(baseY)) mesh.position.y += (baseY + Math.sin(time * 0.00075 + mesh.userData.phase) * 0.055 - mesh.position.y) * 0.06;
     }
-    core.scale.setScalar(1 + Math.sin(time * 0.0024) * 0.08);
+    const solarPulse = Math.sin(time * 0.0024);
+    core.scale.setScalar((sunMenuOpen ? 1.16 : 1) + solarPulse * 0.07);
+    sunHalo.scale.setScalar((sunMenuOpen ? 1.32 : 1) + solarPulse * 0.12);
+    sunHalo.material.opacity = (sunMenuOpen ? 0.28 : 0.14) + (solarPulse + 1) * 0.025;
+    sunLight.intensity = (sunMenuOpen ? 27 : 18) + solarPulse * 2.5;
   }
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
