@@ -16,6 +16,14 @@ if [ -f "$CONFIG_FILE" ]; then
   set +a
 fi
 
+# The fast production lane is intentionally local-only. Apply this override
+# after loading config so a stale config file cannot accidentally re-enable a
+# slow GUN/AXE reconciliation step on the latency-sensitive SQLite poll.
+if [[ "${THREEDVR_AGENT_LOCAL_QUEUE_ONLY:-0}" =~ ^(1|true|yes|on)$ ]]; then
+  export THREEDVR_AGENT_QUEUE_GUN_SYNC=0
+  export THREEDVR_AGENT_SKIP_FORGE=1
+fi
+
 NODE_BIN="${THREEDVR_NODE_BIN:-node}"
 if ! command -v "$NODE_BIN" >/dev/null 2>&1; then
   echo "3DVR queue requires Node >=22.13 with node:sqlite; not found: $NODE_BIN" >&2
