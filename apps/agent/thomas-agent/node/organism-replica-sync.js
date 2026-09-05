@@ -83,29 +83,50 @@ async function syncReplicaOnce(options = {}, runtime = {}) {
 }
 
 function parseArgs(argv = process.argv.slice(2)) {
-  const options = {};
+  const options = { evaluate: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--remote') options.remote = argv[++index] || '';
     else if (arg === '--remote-log') options.remoteLog = argv[++index] || '';
     else if (arg === '--state-dir') options.stateDir = argv[++index] || '';
+    else if (arg === '--evaluate') options.evaluate = true;
     else throw new Error(`Unknown option: ${arg}`);
   }
   return options;
 }
 
-async function cli(argv = process.argv.slice(2)) {
-  const report = await syncReplicaOnce(parseArgs(argv));
+function renderTournament(tournament = {}) {
+  const lines = [`winner=${tournament.winner || 'none'}`];
+  const evidence = tournament.evidence || {};
+  lines.push(`cases=${evidence.caseCount || 0} highQuality=${evidence.highQualityCount || 0}`);
+  for (const result of tournament.results || []) {
+    lines.push(`${result.strategy}:mrr=${Number(result.mrr || 0).toFixed(3)},hit@1=${Number(result.hitAt1 || 0).toFixed(3)}`);
+  }
+  if (tournament.promotion) lines.push(`promoted=${tournament.promotion.strategy}`);
+  if (tournament.promotionBlocked) lines.push(`promotionBlocked=${tournament.promotionBlocked}`);
+  return lines.join(' ');
+}
+
+async function cli(argv = process.argv.slice(2), runtime = {}) {
+  const options = parseArgs(argv);
+  const report = await syncReplicaOnce(options, runtime);
   console.log(`Organism replica: imported=${report.imported} skipped=${report.skipped} remote=${report.remoteEvents} localBefore=${report.localEventsBefore}`);
+  if (options.evaluate) {
+    const runRealTournamentImpl = runtime.runRealTournamentImpl || require('./retrieval-lab').runRealTournament;
+    const tournament = await runRealTournamentImpl({ ...options, promote: true });
+    console.log(`Organism retrieval: ${renderTournament(tournament)}`);
+  }
   return 0;
 }
 
 module.exports = {
   canonical,
+  cli,
   fetchRemoteEvents,
   mergeRemoteEvents,
   parseArgs,
   parseEventLog,
+  renderTournament,
   syncReplicaOnce,
 };
 
