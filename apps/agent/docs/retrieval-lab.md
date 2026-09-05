@@ -35,7 +35,12 @@ The real benchmark is derived from the append-only Organism event history. Curre
 - explicit owner-approved retrievals — high-quality evidence, weight 3;
 - approved Context HQ / safe task handoffs — useful low-weight evidence, weight 0.5.
 
-The portal's **This was right** control records an owner-signed retrieval approval bound to the exact query and memory ID. Unknown or forgotten memories cannot be approved, and ordinary recall authorization cannot be replayed as approval authorization.
+The portal exposes two owner-signed feedback controls bound to the exact query and memory ID:
+
+- **This was right** records an approved retrieval and can become high-quality benchmark evidence.
+- **Not relevant** records a rejection for that exact query. It suppresses that memory only for the same query; it does not delete, rewrite, or globally demote the memory.
+
+Feedback is reversible and latest-event-wins. Repeating the same state is idempotent, while `approved → rejected → approved` is valid. If a later rejection supersedes an earlier approval, that stale approval is also removed from the real benchmark until the owner approves it again. Unknown or forgotten memories cannot be rated, and ordinary recall authorization cannot be replayed as feedback authorization.
 
 Inspect aggregate evidence without printing private memory bodies:
 
@@ -65,7 +70,7 @@ When a real challenger clears all gates, promotion writes the selected strategy 
 
 ## Live adaptive recall
 
-Private Digital Organism recall now reads the promoted selection. With no promotion record it uses `baseline-jaccard`; after a gated promotion, subsequent private recall automatically uses the promoted strategy.
+Private Digital Organism recall reads the promoted selection. With no promotion record it uses `baseline-jaccard`; after a gated promotion, subsequent private recall automatically uses the promoted strategy. Exact-query rejections are applied after ranking so a bad hit can be hidden without changing the underlying memory or strategy.
 
 ```bash
 npm run organism:discover -- recall "what server is the agent runtime using?"
@@ -77,7 +82,7 @@ This creates the evolutionary loop:
 ```text
 experience
    ↓
-real corrections + explicit approvals + safe handoffs
+real corrections + owner feedback + safe handoffs
    ↓
 candidate strategies
    ↓
