@@ -19,9 +19,9 @@ test('pearsonCorrelation detects aligned traits and energy', () => {
 
 test('summarizePopulation returns usable evolutionary metrics', () => {
   const creatures = [
-    { genes: { speed: 1, sense: 5, size: 0.8, hue: 0.05 }, energy: 40, generation: 2 },
-    { genes: { speed: 2, sense: 7, size: 1.1, hue: 0.35 }, energy: 65, generation: 3 },
-    { genes: { speed: 3, sense: 9, size: 1.4, hue: 0.75 }, energy: 90, generation: 4 },
+    { lineage: 'alpha', genes: { speed: 1, sense: 5, size: 0.8, hue: 0.05 }, energy: 40, generation: 2 },
+    { lineage: 'alpha', genes: { speed: 2, sense: 7, size: 1.1, hue: 0.35 }, energy: 65, generation: 3 },
+    { lineage: 'beta', genes: { speed: 3, sense: 9, size: 1.4, hue: 0.75 }, energy: 90, generation: 4 },
   ];
   const summary = summarizePopulation(creatures, { births: 8, deaths: 2 });
 
@@ -30,7 +30,10 @@ test('summarizePopulation returns usable evolutionary metrics', () => {
   assert.equal(summary.births, 8);
   assert.equal(summary.deaths, 2);
   assert.ok(summary.diversity > 0.4);
+  assert.equal(summary.livingLineages, 2);
+  assert.ok(Math.abs(summary.dominantLineageShare - 2 / 3) < 1e-9);
   assert.equal(summary.energyCorrelation.trait, 'speed');
   assert.ok(summary.energyCorrelation.value > 0.99);
+  assert.match(selectionNarrative(summary), /largest family holds 67%/i);
   assert.match(selectionNarrative(summary), /exploratory signal/i);
 });

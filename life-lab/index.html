@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>3DVR Life Lab</title>
-  <meta name="description" content="A Three.js artificial-life laboratory for evolution, emergence, and live data science inside 3DVR.">
+  <meta name="description" content="A Three.js artificial-life laboratory for evolution, emergence, ancestry, and live data science inside 3DVR.">
   <link rel="stylesheet" href="styles.css">
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -20,7 +20,7 @@
       <div>
         <p class="eyebrow">3DVR experimental computing</p>
         <h1>Life Lab</h1>
-        <p class="lead">A tiny universe where inherited traits compete for energy, reproduce, mutate, and become data.</p>
+        <p class="lead">A tiny universe where inherited traits compete for energy, reproduce, mutate, become data, and leave a family history behind.</p>
       </div>
       <div class="experiment-card" aria-live="polite">
         <span class="experiment-label">Daily science</span>
@@ -44,7 +44,7 @@
         </div>
 
         <div id="world" class="world" role="img" aria-label="Interactive 3D artificial life simulation">
-          <div class="world-hint">Drag to orbit · scroll/pinch to zoom · tap empty space to seed food</div>
+          <div class="world-hint">Drag to orbit · scroll/pinch to zoom · tap a creature to inspect · tap empty space to seed food</div>
         </div>
 
         <div class="controls" aria-label="Simulation controls">
@@ -92,6 +92,56 @@
 
         <p class="method-note">Diversity is normalized Shannon entropy across inherited color families. The correlation readout compares living creatures' traits with their current energy, so it is exploratory—not causal proof.</p>
       </aside>
+    </section>
+
+    <section class="lineage-card" aria-labelledby="lineage-heading">
+      <div class="lineage-heading">
+        <div>
+          <p class="eyebrow">Evolutionary archaeology</p>
+          <h2 id="lineage-heading">Lineage explorer</h2>
+        </div>
+        <div class="lineage-actions">
+          <button id="replay-lineage" type="button" disabled>Replay family</button>
+          <button id="clear-selection" type="button" disabled>Clear selection</button>
+        </div>
+      </div>
+
+      <div class="lineage-grid">
+        <div class="lineage-summary" aria-live="polite">
+          <div class="creature-title-row">
+            <div>
+              <span class="experiment-label">Selected organism</span>
+              <strong id="selected-name">Tap a creature in the universe</strong>
+            </div>
+            <span id="selected-state" class="state-pill">No selection</span>
+          </div>
+
+          <p id="selected-note" class="lineage-note">Every birth is now archived with parent, genes, generation, birth time, and birth position. Select a creature to inspect the record.</p>
+
+          <div class="lineage-metrics">
+            <div><span>Generation</span><strong id="selected-generation">—</strong></div>
+            <div><span>Family share</span><strong id="selected-share">—</strong></div>
+            <div><span>Descendants</span><strong id="selected-descendants">—</strong></div>
+            <div><span>Mutation distance</span><strong id="selected-mutation">—</strong></div>
+          </div>
+
+          <div class="gene-strip" aria-label="Selected inherited traits">
+            <div><span>Speed</span><strong id="selected-speed">—</strong></div>
+            <div><span>Sense</span><strong id="selected-sense">—</strong></div>
+            <div><span>Size</span><strong id="selected-size">—</strong></div>
+            <div><span>Age / lifespan</span><strong id="selected-age">—</strong></div>
+          </div>
+
+          <div id="replay-status" class="replay-status">Replay turns the family archive into a time-compressed 3D ancestry map.</div>
+        </div>
+
+        <div class="ancestry-panel">
+          <span class="experiment-label">Ancestor chain</span>
+          <ol id="ancestry-list" class="ancestry-list">
+            <li>Select a living creature to reveal its parents and mutations.</li>
+          </ol>
+        </div>
+      </div>
     </section>
 
     <section class="origin-card">

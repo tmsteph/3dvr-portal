@@ -55,6 +55,11 @@ button:focus-visible {
   background: rgba(125, 249, 200, 0.09);
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .lab-shell {
   width: min(1500px, 100%);
   margin: 0 auto;
@@ -116,6 +121,7 @@ h2 {
 .experiment-card,
 .world-card,
 .science-card,
+.lineage-card,
 .origin-card {
   border: 1px solid var(--line);
   background: linear-gradient(145deg, rgba(17, 38, 33, 0.88), rgba(7, 16, 15, 0.93));
@@ -146,6 +152,7 @@ h2 {
 
 .world-card,
 .science-card,
+.lineage-card,
 .origin-card {
   border-radius: 28px;
 }
@@ -162,7 +169,8 @@ h2 {
   padding: 20px 22px 15px;
 }
 
-.world-actions {
+.world-actions,
+.lineage-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -237,14 +245,18 @@ input[type="range"] {
 }
 
 .metrics,
-.trait-grid {
+.trait-grid,
+.lineage-metrics,
+.gene-strip {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
 .metrics div,
-.trait-grid div {
+.trait-grid div,
+.lineage-metrics div,
+.gene-strip div {
   border: 1px solid var(--line);
   border-radius: 18px;
   padding: 13px;
@@ -252,7 +264,9 @@ input[type="range"] {
 }
 
 .metrics span,
-.trait-grid span {
+.trait-grid span,
+.lineage-metrics span,
+.gene-strip span {
   display: block;
   margin-bottom: 4px;
   color: var(--muted);
@@ -263,7 +277,9 @@ input[type="range"] {
   font-size: clamp(1.45rem, 4vw, 2.25rem);
 }
 
-.trait-grid strong {
+.trait-grid strong,
+.lineage-metrics strong,
+.gene-strip strong {
   font-size: 1rem;
 }
 
@@ -292,6 +308,109 @@ input[type="range"] {
   line-height: 1.55;
 }
 
+.lineage-card {
+  margin-top: 20px;
+  padding: 24px;
+}
+
+.lineage-heading,
+.creature-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.lineage-heading {
+  margin-bottom: 20px;
+}
+
+.lineage-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+  gap: 18px;
+}
+
+.lineage-summary,
+.ancestry-panel {
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.creature-title-row strong {
+  display: block;
+  font-size: clamp(1.15rem, 3vw, 1.65rem);
+}
+
+.state-pill {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.state-pill.alive {
+  border-color: rgba(125, 249, 200, 0.42);
+  color: var(--accent);
+  background: rgba(125, 249, 200, 0.07);
+}
+
+.state-pill.dead {
+  border-color: rgba(255, 157, 138, 0.38);
+  color: var(--danger);
+  background: rgba(255, 157, 138, 0.06);
+}
+
+.lineage-note {
+  margin: 16px 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.gene-strip {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 10px;
+}
+
+.replay-status {
+  margin-top: 14px;
+  border-left: 2px solid var(--accent-2);
+  padding: 3px 0 3px 12px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.ancestry-list {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding-left: 24px;
+}
+
+.ancestry-list li {
+  border-bottom: 1px solid rgba(178, 255, 219, 0.09);
+  padding: 0 0 9px 3px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.ancestry-list li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.ancestry-list strong {
+  color: var(--text);
+}
+
 .origin-card {
   margin-top: 20px;
   padding: 24px;
@@ -305,7 +424,8 @@ input[type="range"] {
 
 @media (max-width: 980px) {
   .hero,
-  .lab-grid {
+  .lab-grid,
+  .lineage-grid {
     grid-template-columns: 1fr;
   }
 
@@ -323,17 +443,24 @@ input[type="range"] {
     margin-bottom: 28px;
   }
 
-  .world-heading {
+  .world-heading,
+  .lineage-heading,
+  .creature-title-row {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .world-actions {
+  .world-actions,
+  .lineage-actions {
     justify-content: flex-start;
   }
 
   .controls {
     grid-template-columns: 1fr;
+  }
+
+  .gene-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .world {

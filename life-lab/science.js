@@ -57,6 +57,8 @@ export function summarizePopulation(creatures, totals = {}) {
       meanSpeed: 0,
       meanSense: 0,
       meanSize: 0,
+      livingLineages: 0,
+      dominantLineageShare: 0,
       energyCorrelation: { trait: 'speed', value: 0 },
     };
   }
@@ -71,6 +73,12 @@ export function summarizePopulation(creatures, totals = {}) {
     ['sense', pearsonCorrelation(senses, energies)],
     ['size', pearsonCorrelation(sizes, energies)],
   ].sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+  const lineageCounts = new Map();
+  creatures.forEach((creature) => {
+    const lineage = creature.lineage || 'unknown';
+    lineageCounts.set(lineage, (lineageCounts.get(lineage) || 0) + 1);
+  });
+  const dominantLineageCount = Math.max(...lineageCounts.values());
 
   return {
     population,
@@ -82,6 +90,8 @@ export function summarizePopulation(creatures, totals = {}) {
     meanSpeed: mean(speeds),
     meanSense: mean(senses),
     meanSize: mean(sizes),
+    livingLineages: lineageCounts.size,
+    dominantLineageShare: dominantLineageCount / population,
     energyCorrelation: {
       trait: correlations[0][0],
       value: correlations[0][1],
@@ -98,6 +108,9 @@ export function selectionNarrative(summary) {
   const direction = correlation >= 0 ? 'higher' : 'lower';
   const strength = Math.abs(correlation);
   const confidenceWord = strength > 0.45 ? 'strongly' : strength > 0.2 ? 'moderately' : 'weakly';
+  const lineageSentence = summary.livingLineages
+    ? ` The largest family holds ${(summary.dominantLineageShare * 100).toFixed(0)}% of the living population across ${summary.livingLineages} lineages.`
+    : '';
 
-  return `${summary.energyCorrelation.trait} is ${confidenceWord} associated with ${direction} survivor energy (r=${correlation.toFixed(2)}). Diversity is ${(summary.diversity * 100).toFixed(0)}%. Treat this as an exploratory signal, not proof of causation.`;
+  return `${summary.energyCorrelation.trait} is ${confidenceWord} associated with ${direction} survivor energy (r=${correlation.toFixed(2)}). Diversity is ${(summary.diversity * 100).toFixed(0)}%.${lineageSentence} Treat this as an exploratory signal, not proof of causation.`;
 }

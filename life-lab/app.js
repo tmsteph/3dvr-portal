@@ -1,4 +1,10 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.176.0/build/three.module.js';
+import {
+  ancestorChain,
+  descendantsOf,
+  geneDistance,
+  summarizeLineage,
+} from './lineage.js';
 import { selectionNarrative, summarizePopulation } from './science.js';
 
 const worldEl = document.getElementById('world');
@@ -25,10 +31,27 @@ const scienceNoteEl = document.getElementById('science-note');
 const chart = document.getElementById('trend-chart');
 const chartContext = chart.getContext('2d');
 
+const replayButton = document.getElementById('replay-lineage');
+const clearSelectionButton = document.getElementById('clear-selection');
+const selectedNameEl = document.getElementById('selected-name');
+const selectedStateEl = document.getElementById('selected-state');
+const selectedNoteEl = document.getElementById('selected-note');
+const selectedGenerationEl = document.getElementById('selected-generation');
+const selectedShareEl = document.getElementById('selected-share');
+const selectedDescendantsEl = document.getElementById('selected-descendants');
+const selectedMutationEl = document.getElementById('selected-mutation');
+const selectedSpeedEl = document.getElementById('selected-speed');
+const selectedSenseEl = document.getElementById('selected-sense');
+const selectedSizeEl = document.getElementById('selected-size');
+const selectedAgeEl = document.getElementById('selected-age');
+const replayStatusEl = document.getElementById('replay-status');
+const ancestryListEl = document.getElementById('ancestry-list');
+
 const WORLD_RADIUS = 18;
 const MAX_CREATURES = 180;
 const MAX_FOOD = 280;
 const creatureGeometry = new THREE.IcosahedronGeometry(0.48, 1);
+const replayGeometry = new THREE.SphereGeometry(0.22, 10, 8);
 const foodMaterial = new THREE.PointsMaterial({ color: 0xb5ffd9, size: 0.32, sizeAttenuation: true });
 const pointerState = new Map();
 const raycaster = new THREE.Raycaster();
@@ -50,6 +73,12 @@ let cameraDistance = 39;
 let dragDistance = 0;
 let pinchStart = null;
 let lastTime = performance.now();
+let selectedCreatureId = null;
+let renderedAncestryFor = null;
+let lastLineagePanelUpdate = 0;
+let replay = null;
+
+const lineageArchive = new Map();
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x030807);
@@ -75,6 +104,9 @@ const boundary = new THREE.Mesh(
 );
 scene.add(boundary);
 
+const replayGroup = new THREE.Group();
+scene.add(replayGroup);
+
 const starGeometry = new THREE.BufferGeometry();
 const starPositions = new Float32Array(900 * 3);
 for (let index = 0; index < 900; index += 1) {
@@ -97,6 +129,23 @@ function random(min, max) {
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function makeId() {
+  return globalThis.crypto?.randomUUID?.() || `life-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function shortId(id) {
+  return String(id || '').split('-')[0].slice(0, 8) || 'unknown';
+}
+
+function cloneGenes(genes) {
+  return {
+    speed: genes.speed,
+    sense: genes.sense,
+    size: genes.size,
+    hue: genes.hue,
+  };
 }
 
 function randomDirection() {
@@ -131,6 +180,25 @@ function createGenes(parentGenes = null, wild = false) {
   };
 }
 
+function archiveCreature(creature, parent) {
+  lineageArchive.set(creature.id, {
+    id: creature.id,
+    parentId: creature.parentId,
+    lineage: creature.lineage,
+    generation: creature.generation,
+    birthTime: elapsed,
+    deathTime: null,
+    birthPosition: {
+      x: creature.position.x,
+      y: creature.position.y,
+      z: creature.position.z,
+    },
+    deathPosition: null,
+    genes: cloneGenes(creature.genes),
+    parentGenes: parent ? cloneGenes(parent.genes) : null,
+  });
+}
+
 function makeCreature(parent = null, wild = false) {
   const genes = createGenes(parent?.genes, wild);
   const material = new THREE.MeshStandardMaterial({
@@ -138,6 +206,7 @@ function makeCreature(parent = null, wild = false) {
     roughness: 0.42,
     metalness: 0.08,
     emissive: new THREE.Color().setHSL(genes.hue, 0.5, 0.08),
+    emissiveIntensity: 0.9,
   });
   const mesh = new THREE.Mesh(creatureGeometry, material);
   const scale = 0.52 + genes.size * 0.44;
@@ -145,7 +214,11 @@ function makeCreature(parent = null, wild = false) {
   mesh.position.copy(parent ? parent.position.clone().add(randomDirection().multiplyScalar(1.1)) : randomPoint());
   scene.add(mesh);
 
-  return {
+  const id = makeId();
+  const creature = {
+    id,
+    parentId: parent?.id || null,
+    lineage: parent?.lineage || id,
     genes,
     mesh,
     position: mesh.position,
@@ -154,13 +227,28 @@ function makeCreature(parent = null, wild = false) {
     age: 0,
     generation: parent ? parent.generation + 1 : 0,
     wander: randomDirection(),
-    lineage: parent?.lineage || crypto.randomUUID?.() || Math.random().toString(36).slice(2),
   };
+  mesh.userData.creatureId = id;
+  archiveCreature(creature, parent);
+  return creature;
+}
+
+function liveCreatureById(id) {
+  return creatures.find((creature) => creature.id === id) || null;
 }
 
 function removeCreature(index) {
   const [creature] = creatures.splice(index, 1);
   if (!creature) return;
+  const record = lineageArchive.get(creature.id);
+  if (record) {
+    record.deathTime = elapsed;
+    record.deathPosition = {
+      x: creature.position.x,
+      y: creature.position.y,
+      z: creature.position.z,
+    };
+  }
   scene.remove(creature.mesh);
   creature.mesh.material.dispose();
   deaths += 1;
@@ -411,19 +499,261 @@ function dailyExperiment() {
   return experiments[seed % experiments.length];
 }
 
+function resetSelectionPanel() {
+  selectedNameEl.textContent = 'Tap a creature in the universe';
+  selectedStateEl.textContent = 'No selection';
+  selectedStateEl.className = 'state-pill';
+  selectedNoteEl.textContent = 'Every birth is archived with parent, genes, generation, birth time, and birth position. Select a creature to inspect the record.';
+  selectedGenerationEl.textContent = '—';
+  selectedShareEl.textContent = '—';
+  selectedDescendantsEl.textContent = '—';
+  selectedMutationEl.textContent = '—';
+  selectedSpeedEl.textContent = '—';
+  selectedSenseEl.textContent = '—';
+  selectedSizeEl.textContent = '—';
+  selectedAgeEl.textContent = '—';
+  replayStatusEl.textContent = 'Replay turns the family archive into a time-compressed 3D ancestry map.';
+  ancestryListEl.replaceChildren();
+  const item = document.createElement('li');
+  item.textContent = 'Select a living creature to reveal its parents and mutations.';
+  ancestryListEl.append(item);
+  replayButton.disabled = true;
+  clearSelectionButton.disabled = true;
+  renderedAncestryFor = null;
+}
+
+function refreshCreatureHighlight() {
+  const selected = selectedCreatureId ? lineageArchive.get(selectedCreatureId) : null;
+  creatures.forEach((creature) => {
+    const sameFamily = selected && creature.lineage === selected.lineage;
+    creature.mesh.material.emissiveIntensity = creature.id === selectedCreatureId ? 5.4 : sameFamily ? 2.2 : 0.9;
+  });
+}
+
+function lineageNarrative(record, liveCreature, summary, descendantCount) {
+  const status = liveCreature ? `alive with ${liveCreature.energy.toFixed(0)} energy` : 'preserved in the archive after death';
+  let familyStatus = `${summary.living} of ${summary.born} recorded family members are alive`;
+  if (summary.share >= 0.5) familyStatus = `this family controls ${Math.round(summary.share * 100)}% of the living universe`;
+  else if (summary.share >= 0.25) familyStatus = `this family is a major clade at ${Math.round(summary.share * 100)}% of the living universe`;
+  return `Creature ${shortId(record.id)} is ${status}; ${familyStatus}. It has ${descendantCount} recorded descendants and the family has reached generation ${summary.maxGeneration}.`;
+}
+
+function renderAncestry(record) {
+  const chain = ancestorChain(lineageArchive, record.id, 9);
+  ancestryListEl.replaceChildren();
+
+  chain.forEach((ancestor, index) => {
+    const item = document.createElement('li');
+    const label = document.createElement('strong');
+    label.textContent = index === 0
+      ? `G${ancestor.generation} · ${shortId(ancestor.id)} (selected)`
+      : `G${ancestor.generation} · ${shortId(ancestor.id)}`;
+    item.append(label);
+
+    const detail = document.createElement('span');
+    const parent = ancestor.parentId ? lineageArchive.get(ancestor.parentId) : null;
+    const mutation = parent ? geneDistance(ancestor.genes, parent.genes).toFixed(2) : 'founder';
+    detail.textContent = ` — speed ${ancestor.genes.speed.toFixed(2)}, sense ${ancestor.genes.sense.toFixed(1)}, size ${ancestor.genes.size.toFixed(2)}, mutation ${mutation}`;
+    item.append(detail);
+    ancestryListEl.append(item);
+  });
+
+  renderedAncestryFor = record.id;
+}
+
+function updateLineagePanel(force = false) {
+  if (!selectedCreatureId) return;
+  const record = lineageArchive.get(selectedCreatureId);
+  if (!record) {
+    selectedCreatureId = null;
+    resetSelectionPanel();
+    refreshCreatureHighlight();
+    return;
+  }
+
+  const liveCreature = liveCreatureById(record.id);
+  const livingIds = new Set(creatures.map((creature) => creature.id));
+  const family = summarizeLineage(lineageArchive, livingIds, record.lineage);
+  const descendantCount = descendantsOf(lineageArchive, record.id).length;
+  const parent = record.parentId ? lineageArchive.get(record.parentId) : null;
+  const mutationDistance = parent ? geneDistance(record.genes, parent.genes) : 0;
+  const lifespan = liveCreature
+    ? liveCreature.age
+    : Math.max(0, Number(record.deathTime ?? elapsed) - record.birthTime);
+
+  selectedNameEl.textContent = `Creature ${shortId(record.id)}`;
+  selectedStateEl.textContent = liveCreature ? 'Alive' : 'Archived';
+  selectedStateEl.className = `state-pill ${liveCreature ? 'alive' : 'dead'}`;
+  selectedNoteEl.textContent = lineageNarrative(record, liveCreature, family, descendantCount);
+  selectedGenerationEl.textContent = `G${record.generation}`;
+  selectedShareEl.textContent = `${Math.round(family.share * 100)}%`;
+  selectedDescendantsEl.textContent = String(descendantCount);
+  selectedMutationEl.textContent = parent ? mutationDistance.toFixed(2) : 'Founder';
+  selectedSpeedEl.textContent = record.genes.speed.toFixed(2);
+  selectedSenseEl.textContent = record.genes.sense.toFixed(1);
+  selectedSizeEl.textContent = record.genes.size.toFixed(2);
+  selectedAgeEl.textContent = liveCreature ? `${lifespan.toFixed(1)}s alive` : `${lifespan.toFixed(1)}s total`;
+  replayButton.disabled = false;
+  clearSelectionButton.disabled = false;
+
+  if (force || renderedAncestryFor !== record.id) renderAncestry(record);
+}
+
+function selectCreature(creature) {
+  if (!creature) return;
+  if (replay) stopLineageReplay();
+  selectedCreatureId = creature.id;
+  refreshCreatureHighlight();
+  updateLineagePanel(true);
+}
+
+function clearReplayGroup() {
+  replayGroup.children.slice().forEach((child) => {
+    replayGroup.remove(child);
+    if (child.geometry && child.geometry !== replayGeometry) child.geometry.dispose();
+    if (child.material) child.material.dispose();
+  });
+}
+
+function birthVector(record) {
+  return new THREE.Vector3(record.birthPosition.x, record.birthPosition.y, record.birthPosition.z);
+}
+
+function startLineageReplay() {
+  const selected = selectedCreatureId ? lineageArchive.get(selectedCreatureId) : null;
+  if (!selected) return;
+
+  if (replay) {
+    stopLineageReplay();
+    return;
+  }
+
+  const family = [...lineageArchive.values()]
+    .filter((record) => record.lineage === selected.lineage)
+    .sort((a, b) => a.birthTime - b.birthTime);
+
+  if (!family.length) return;
+
+  const familyLookup = new Map(family.map((record) => [record.id, record]));
+  const nodes = family.map((record) => {
+    const material = new THREE.MeshBasicMaterial({
+      color: new THREE.Color().setHSL(record.genes.hue, 0.82, 0.65),
+      transparent: true,
+      opacity: 0.04,
+    });
+    const node = new THREE.Mesh(replayGeometry, material);
+    node.position.copy(birthVector(record));
+    node.visible = false;
+    node.userData.record = record;
+    replayGroup.add(node);
+    return node;
+  });
+
+  const lines = family
+    .filter((record) => record.parentId && familyLookup.has(record.parentId))
+    .map((record) => {
+      const parent = familyLookup.get(record.parentId);
+      const geometry = new THREE.BufferGeometry().setFromPoints([birthVector(parent), birthVector(record)]);
+      const material = new THREE.LineBasicMaterial({
+        color: new THREE.Color().setHSL(record.genes.hue, 0.6, 0.55),
+        transparent: true,
+        opacity: 0.2,
+      });
+      const line = new THREE.Line(geometry, material);
+      line.visible = false;
+      line.userData.birthTime = record.birthTime;
+      replayGroup.add(line);
+      return line;
+    });
+
+  const minTime = family[0].birthTime;
+  const maxTime = Math.max(elapsed, ...family.map((record) => record.deathTime ?? record.birthTime));
+  replay = {
+    family,
+    nodes,
+    lines,
+    startAt: performance.now(),
+    duration: clamp(family.length * 180, 6500, 14000),
+    minTime,
+    maxTime: Math.max(minTime + 1, maxTime),
+    wasPaused: paused,
+  };
+
+  paused = true;
+  pauseButton.disabled = true;
+  creatures.forEach((creature) => {
+    creature.mesh.visible = false;
+  });
+  foodPoints.visible = false;
+  boundary.material.opacity = 0.025;
+  replayButton.textContent = 'Exit replay';
+  replayStatusEl.textContent = `Replaying ${family.length} recorded births from family ${shortId(selected.lineage)}.`;
+}
+
+function stopLineageReplay() {
+  if (!replay) return;
+  const wasPaused = replay.wasPaused;
+  clearReplayGroup();
+  replay = null;
+  creatures.forEach((creature) => {
+    creature.mesh.visible = true;
+  });
+  foodPoints.visible = true;
+  boundary.material.opacity = 0.055;
+  paused = wasPaused;
+  pauseButton.disabled = false;
+  pauseButton.textContent = paused ? 'Resume' : 'Pause';
+  replayButton.textContent = 'Replay family';
+  replayStatusEl.textContent = 'Replay turns the family archive into a time-compressed 3D ancestry map.';
+  refreshCreatureHighlight();
+}
+
+function updateLineageReplay(now) {
+  if (!replay) return;
+  const progress = clamp((now - replay.startAt) / replay.duration, 0, 1);
+  const simulatedTime = replay.minTime + (replay.maxTime - replay.minTime) * progress;
+  let visible = 0;
+  let maxGeneration = 0;
+
+  replay.nodes.forEach((node) => {
+    const record = node.userData.record;
+    node.visible = record.birthTime <= simulatedTime;
+    if (!node.visible) return;
+    visible += 1;
+    maxGeneration = Math.max(maxGeneration, record.generation);
+    const aliveAtTime = record.deathTime == null || record.deathTime > simulatedTime;
+    node.material.opacity = aliveAtTime ? 0.92 : 0.13;
+    const selectedScale = record.id === selectedCreatureId ? 2.4 : 1;
+    const generationScale = 1 + Math.min(record.generation, 12) * 0.045;
+    node.scale.setScalar(selectedScale * generationScale);
+  });
+
+  replay.lines.forEach((line) => {
+    line.visible = line.userData.birthTime <= simulatedTime;
+  });
+
+  replayStatusEl.textContent = progress < 1
+    ? `Replay ${Math.round(progress * 100)}% · ${visible}/${replay.family.length} births visible · generation ${maxGeneration}`
+    : `Replay complete · ${replay.family.length} births · family reached generation ${maxGeneration}. Exit replay to return to the live universe.`;
+}
+
 function resetUniverse(useDailyPreset = true) {
+  if (replay) stopLineageReplay();
   creatures.forEach((creature) => {
     scene.remove(creature.mesh);
     creature.mesh.material.dispose();
   });
   creatures = [];
   foods = [];
+  lineageArchive.clear();
+  selectedCreatureId = null;
   births = 0;
   deaths = 0;
   elapsed = 0;
   foodAccumulator = 0;
   sampleAccumulator = 0;
   history = [];
+  resetSelectionPanel();
 
   if (useDailyPreset) {
     const experiment = dailyExperiment();
@@ -450,17 +780,38 @@ function injectChaos() {
   updateOutputs();
 }
 
-function seedFoodFromPointer(event) {
+function pointerToWorld(event) {
   const rect = renderer.domElement.getBoundingClientRect();
   pointerVector.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
   pointerVector.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointerVector, camera);
+}
+
+function creatureFromPointer(event) {
+  pointerToWorld(event);
+  const intersections = raycaster.intersectObjects(creatures.map((creature) => creature.mesh), false);
+  if (!intersections.length) return null;
+  return liveCreatureById(intersections[0].object.userData.creatureId);
+}
+
+function seedFoodFromPointer(event) {
+  pointerToWorld(event);
   const point = new THREE.Vector3();
   if (raycaster.ray.intersectPlane(seedPlane, point)) {
     if (point.length() > WORLD_RADIUS * 0.82) point.setLength(WORLD_RADIUS * 0.82);
     addFood(point, 18);
     syncFoodGeometry();
   }
+}
+
+function handleWorldTap(event) {
+  if (replay) return;
+  const creature = creatureFromPointer(event);
+  if (creature) {
+    selectCreature(creature);
+    return;
+  }
+  seedFoodFromPointer(event);
 }
 
 function pointerDistance() {
@@ -497,7 +848,7 @@ renderer.domElement.addEventListener('pointermove', (event) => {
 
 renderer.domElement.addEventListener('pointerup', (event) => {
   const pointer = pointerState.get(event.pointerId);
-  if (pointer && pointerState.size === 1 && dragDistance < 8) seedFoodFromPointer(event);
+  if (pointer && pointerState.size === 1 && dragDistance < 8) handleWorldTap(event);
   pointerState.delete(event.pointerId);
   if (pointerState.size < 2) pinchStart = null;
 });
@@ -513,12 +864,22 @@ renderer.domElement.addEventListener('wheel', (event) => {
 }, { passive: false });
 
 pauseButton.addEventListener('click', () => {
+  if (replay) return;
   paused = !paused;
   pauseButton.textContent = paused ? 'Resume' : 'Pause';
 });
 
-chaosButton.addEventListener('click', injectChaos);
+chaosButton.addEventListener('click', () => {
+  if (!replay) injectChaos();
+});
 resetButton.addEventListener('click', () => resetUniverse(false));
+replayButton.addEventListener('click', startLineageReplay);
+clearSelectionButton.addEventListener('click', () => {
+  if (replay) stopLineageReplay();
+  selectedCreatureId = null;
+  resetSelectionPanel();
+  refreshCreatureHighlight();
+});
 [foodRateInput, mutationInput, timeScaleInput].forEach((input) => input.addEventListener('input', updateOutputs));
 window.addEventListener('resize', resize);
 
@@ -527,8 +888,13 @@ function animate(now) {
   lastTime = now;
 
   if (!paused) updateSimulation(delta);
+  if (replay) updateLineageReplay(now);
   updateCamera();
   updateDashboard();
+  if (selectedCreatureId && now - lastLineagePanelUpdate > 400) {
+    updateLineagePanel(false);
+    lastLineagePanelUpdate = now;
+  }
   drawChart();
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
