@@ -1,2 +1,2 @@
-2026-08-23T20:15:00-07:00
-Reason: trigger the first 3DVR self-hosted portal production deployment after disabling automatic Vercel Git deployments.
+2026-09-04T16:45:00-07:00
+Reason: move self-hosted production to OVH-first deployment with DigitalOcean as emergency fallback.

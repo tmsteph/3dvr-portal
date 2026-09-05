@@ -1,9 +1,12 @@
 name: 3DVR Self-Hosted Production
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
-  workflow_dispatch:
+    paths:
+      - '.github/workflows/self-host-production.yml'
+      - 'ops/self-host-production-trigger.txt'
 
 permissions:
   contents: write
@@ -11,16 +14,17 @@ permissions:
 
 concurrency:
   group: 3dvr-self-host-production
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
-  DEFAULT_HOST: 167.172.193.194
+  PRIMARY_HOST: 40.160.137.41
+  FALLBACK_HOST: 167.172.193.194
 
 jobs:
   deploy:
-    name: Deploy portal to 3DVR server
+    name: Deploy portal to OVH-first 3DVR production
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,7 +35,7 @@ jobs:
           node-version: 22.22.0
           cache: npm
 
-      - name: Verify self-host server
+      - name: Verify self-host server code
         run: |
           set -euo pipefail
           npm ci
@@ -41,67 +45,77 @@ jobs:
           bash -n scripts/ops/install-organism-owner-bridge.sh
           node --test tests/operator-developer-access.test.js tests/organism-access.test.js
 
-      - name: Resolve server credentials and host
+      - name: Resolve OVH-first portal credentials
         id: resolve
         shell: bash
         env:
           SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
           SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
           SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
-          DO_A: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-          DO_B: ${{ secrets.DIGITALOCEAN_TOKEN }}
-          DO_C: ${{ secrets.DO_TOKEN }}
         run: |
           set -euo pipefail
-          ssh_key=''; do_token=''
-          for value in "$SSH_A" "$SSH_B" "$SSH_C"; do
-            if [ -z "$ssh_key" ] && [ -n "$value" ]; then ssh_key="$value"; fi
-          done
-          for value in "$DO_A" "$DO_B" "$DO_C"; do
-            if [ -z "$do_token" ] && [ -n "$value" ]; then do_token="$value"; fi
-          done
-          [ -n "$ssh_key" ] || { echo 'No 3DVR server SSH private key is configured.' >&2; exit 1; }
-
-          target="$DEFAULT_HOST"
-          power_action=not_checked
-          if [ -n "$do_token" ]; then
-            http="$(curl -sS -o /tmp/droplets.json -w '%{http_code}' -H "Authorization: Bearer $do_token" 'https://api.digitalocean.com/v2/droplets?per_page=200' || true)"
-            if [ "$http" = 200 ]; then
-              read -r id state ip < <(python3 -c 'import json,sys; known=sys.argv[1]; data=json.load(open("/tmp/droplets.json")); matches=[d for d in data.get("droplets",[]) if known in [n.get("ip_address","") for n in d.get("networks",{}).get("v4",[]) if n.get("type")=="public"] or d.get("name")=="3dvr-agent"]; d=matches[0] if matches else {}; ips=[n.get("ip_address","") for n in d.get("networks",{}).get("v4",[]) if n.get("type")=="public"]; print(d.get("id",""),d.get("status",""),ips[0] if ips else "")' "$DEFAULT_HOST")
-              if [ -n "${id:-}" ]; then
-                [ -n "${ip:-}" ] && target="$ip"
-                if [ "${state:-}" = off ]; then
-                  action_http="$(curl -sS -o /tmp/power.json -w '%{http_code}' -X POST -H "Authorization: Bearer $do_token" -H 'Content-Type: application/json' -d '{"type":"power_on"}' "https://api.digitalocean.com/v2/droplets/$id/actions" || true)"
-                  [ "$action_http" = 201 ] || { echo 'DigitalOcean power-on request failed.' >&2; exit 1; }
-                  power_action=powered_on
-                  sleep 15
-                else
-                  power_action=already_active
-                fi
-              fi
-            fi
-          fi
-
           umask 077
-          printf '%s\n' "$ssh_key" > /tmp/3dvr-key.raw
-          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-key.raw; then
-            cp /tmp/3dvr-key.raw /tmp/3dvr-key
-          elif base64 -d /tmp/3dvr-key.raw > /tmp/3dvr-key 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-key; then
-            :
-          else
-            echo 'Configured 3DVR SSH key is invalid.' >&2
-            exit 1
-          fi
-          chmod 600 /tmp/3dvr-key
-          rm -f /tmp/3dvr-key.raw /tmp/droplets.json /tmp/power.json
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/prod-a
+          write_key "$SSH_B" /tmp/prod-b
+          write_key "$SSH_C" /tmp/prod-c
 
-          echo "host=$target" >> "$GITHUB_OUTPUT"
-          echo "power_action=$power_action" >> "$GITHUB_OUTPUT"
+          pick() {
+            local host="$1"; shift
+            local user key
+            for user in "$@"; do
+              for key in /tmp/prod-a /tmp/prod-b /tmp/prod-c; do
+                [ -f "$key" ] || continue
+                if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host" true >/dev/null 2>&1; then
+                  printf '%s|%s|%s\n' "$host" "$user" "$key"
+                  return 0
+                fi
+              done
+            done
+            return 1
+          }
+
+          connection="$(pick "$PRIMARY_HOST" debian root || true)"
+          role=primary
+          if [ -z "$connection" ]; then
+            echo 'OVH primary is unavailable; trying DigitalOcean emergency fallback.' >&2
+            connection="$(pick "$FALLBACK_HOST" root debian || true)"
+            role=fallback
+          fi
+          [ -n "$connection" ] || { echo 'Neither OVH nor DigitalOcean is reachable with configured SSH keys.' >&2; exit 1; }
+
+          IFS='|' read -r host user key <<< "$connection"
+          if [ "$user" != root ]; then
+            ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host" 'sudo -n true' \
+              || { echo "$user@$host is reachable but passwordless sudo is unavailable." >&2; exit 1; }
+          fi
+          cp "$key" /tmp/3dvr-key
+          chmod 600 /tmp/3dvr-key
+          rm -f /tmp/prod-a /tmp/prod-b /tmp/prod-c
+          echo "host=$host" >> "$GITHUB_OUTPUT"
+          echo "user=$user" >> "$GITHUB_OUTPUT"
+          echo "role=$role" >> "$GITHUB_OUTPUT"
+          echo "Production target: $role $user@$host"
 
       - name: Provision portal runtime secrets
         shell: bash
         env:
           TARGET: ${{ steps.resolve.outputs.host }}
+          TARGET_USER: ${{ steps.resolve.outputs.user }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
           TUNNEL_TOKEN: ${{ secrets.THREEDVR_CLOUDFLARE_TUNNEL_TOKEN }}
@@ -109,7 +123,7 @@ jobs:
           GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
         run: |
           set -euo pipefail
-          opts=(-i /tmp/3dvr-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+          opts=(-i /tmp/3dvr-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
           updates="$(mktemp)"
           trap 'rm -f "$updates"' EXIT
           {
@@ -121,15 +135,15 @@ jobs:
           } > "$updates"
 
           if [ ! -s "$updates" ]; then
-            echo 'No runtime secret updates supplied; preserving the server configuration.'
+            echo 'No runtime secret updates supplied; preserving server configuration.'
             exit 0
           fi
 
-          ssh "${opts[@]}" "root@$TARGET" \
+          ssh "${opts[@]}" "$TARGET_USER@$TARGET" \
             'mkdir -p "$HOME/.3dvr/config"; chmod 700 "$HOME/.3dvr/config"; umask 077; cat > "$HOME/.3dvr/config/portal-secrets.update"' \
             < "$updates"
 
-          ssh "${opts[@]}" "root@$TARGET" 'bash -s' <<'REMOTE'
+          ssh "${opts[@]}" "$TARGET_USER@$TARGET" 'bash -s' <<'REMOTE'
           set -euo pipefail
           config_dir="$HOME/.3dvr/config"
           secrets_env="$config_dir/portal-secrets.env"
@@ -150,18 +164,26 @@ jobs:
           chmod 600 "$secrets_env"
           REMOTE
 
-      - name: Deploy portal, Forge worker, and Organism bridge
+      - name: Deploy portal and Organism bridge
         id: deploy
         shell: bash
         env:
           TARGET: ${{ steps.resolve.outputs.host }}
+          TARGET_USER: ${{ steps.resolve.outputs.user }}
           DEPLOY_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          opts=(-i /tmp/3dvr-key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
-          output="$(ssh "${opts[@]}" "root@$TARGET" "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' DEPLOY_SHA='$DEPLOY_SHA' bash -s" <<'REMOTE'
+          opts=(-i /tmp/3dvr-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+          remote_home="/root"
+          prefix="env"
+          if [ "$TARGET_USER" != root ]; then
+            remote_home="/home/$TARGET_USER"
+            prefix="sudo -n env HOME=$remote_home"
+          fi
+          output="$(ssh "${opts[@]}" "$TARGET_USER@$TARGET" "$prefix GITHUB_REPOSITORY='$GITHUB_REPOSITORY' DEPLOY_SHA='$DEPLOY_SHA' bash -s" <<'REMOTE'
           set -euo pipefail
           source_repo="$HOME/.3dvr/self-host-portal-source"
+          mkdir -p "$HOME/.3dvr"
           if [ ! -d "$source_repo/.git" ]; then
             rm -rf "$source_repo"
             git clone "https://github.com/$GITHUB_REPOSITORY.git" "$source_repo"
@@ -181,15 +203,7 @@ jobs:
 
           bash "$source_repo/scripts/ops/deploy-self-host-portal.sh" "$source_repo" main "$DEPLOY_SHA" 4320
           bash "$source_repo/scripts/ops/install-organism-owner-bridge.sh"
-
-          npm --prefix "$source_repo/apps/agent" ci
-          scripts="$source_repo/apps/agent/thomas-agent/scripts"
-          "$scripts/ask-agent-worker-daemon" stop || true
-          "$scripts/ask-agent-worker-daemon" start
-          "$scripts/ask-agent-worker-daemon" status
-
-          cd "$source_repo/apps/agent"
-          node thomas-agent/node/operator-forge-worker.js run-once --json
+          echo 'Forge/agent workers are intentionally kept off the production portal host.'
           REMOTE
           )"
           printf '%s\n' "$output"
@@ -250,14 +264,15 @@ jobs:
           DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
           VERIFY_OUTCOME: ${{ steps.verify.outcome }}
           URL: ${{ steps.deploy.outputs.url }}
+          ROLE: ${{ steps.resolve.outputs.role }}
         run: |
           set -euo pipefail
           state=failure
-          description='3DVR self-host production deploy failed'
+          description="3DVR self-host production deploy failed ($ROLE)"
           target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           if [ "$DEPLOY_OUTCOME" = success ] && [ "$VERIFY_OUTCOME" = success ]; then
             state=success
-            description='3DVR portal, Forge worker, and private Organism bridge deployed'
+            description="3DVR portal and Organism bridge deployed ($ROLE)"
             if [[ "$URL" == https://* ]]; then target_url="$URL"; fi
           fi
           payload="$(STATE="$state" DESCRIPTION="$description" TARGET_URL="$target_url" node -e 'process.stdout.write(JSON.stringify({state:process.env.STATE,context:"3DVR Self Host Production",description:process.env.DESCRIPTION,target_url:process.env.TARGET_URL}))')"

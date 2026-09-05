@@ -14,10 +14,10 @@ permissions:
 
 concurrency:
   group: 3dvr-operator-worker-host-recovery
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
-  KNOWN_HOST: 167.172.193.194
+  WORKER_HOST: 167.233.174.20
 
 jobs:
   recover:
@@ -27,107 +27,66 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Resolve worker host and credentials
+      - name: Resolve Hetzner worker credentials
         id: resolve
         shell: bash
         env:
           SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
           SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
           SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
-          DO_A: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-          DO_B: ${{ secrets.DIGITALOCEAN_TOKEN }}
-          DO_C: ${{ secrets.DO_TOKEN }}
         run: |
           set -euo pipefail
-          ssh_key=''; do_token=''
-          for x in "$SSH_A" "$SSH_B" "$SSH_C"; do
-            if [ -z "$ssh_key" ] && [ -n "$x" ]; then ssh_key="$x"; fi
-          done
-          for x in "$DO_A" "$DO_B" "$DO_C"; do
-            if [ -z "$do_token" ] && [ -n "$x" ]; then do_token="$x"; fi
-          done
-
-          echo "ssh_present=$([ -n "$ssh_key" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "token_present=$([ -n "$do_token" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-
-          target="$KNOWN_HOST"
-          power_action=unavailable
-          if [ -n "$do_token" ]; then
-            code="$(curl -sS -o /tmp/droplets.json -w '%{http_code}' -H "Authorization: Bearer $do_token" 'https://api.digitalocean.com/v2/droplets?per_page=200' || true)"
-            if [ "$code" = 200 ]; then
-              read -r id state ip < <(python3 - "$KNOWN_HOST" <<'PY'
-          import json,sys
-          known=sys.argv[1]
-          data=json.load(open('/tmp/droplets.json'))
-          for d in data.get('droplets',[]):
-              ips=[v.get('ip_address','') for v in d.get('networks',{}).get('v4',[]) if v.get('type')=='public']
-              if known in ips or d.get('name')=='3dvr-agent':
-                  print(d.get('id',''), d.get('status',''), ips[0] if ips else '')
-                  break
-          else:
-              print('','','')
-          PY
-              )
-              if [ -n "${id:-}" ]; then
-                [ -n "${ip:-}" ] && target="$ip"
-                if [ "${state:-}" = off ]; then
-                  action_code="$(curl -sS -o /tmp/power.json -w '%{http_code}' -X POST -H "Authorization: Bearer $do_token" -H 'Content-Type: application/json' -d '{"type":"power_on"}' "https://api.digitalocean.com/v2/droplets/$id/actions" || true)"
-                  if [ "$action_code" = 201 ]; then power_action=power_on; else power_action=power_failed; fi
-                  sleep 15
-                else
-                  power_action=already_active
-                fi
-              else
-                power_action=not_found
-              fi
-            else
-              power_action=api_unavailable
-            fi
-          fi
-          echo "target=$target" >> "$GITHUB_OUTPUT"
-          echo "power_action=$power_action" >> "$GITHUB_OUTPUT"
-
-          if [ -n "$ssh_key" ]; then
-            umask 077
-            printf '%s\n' "$ssh_key" > /tmp/key.raw
-            if grep -q 'BEGIN .*PRIVATE KEY' /tmp/key.raw; then
-              cp /tmp/key.raw /tmp/key
-            elif base64 -d /tmp/key.raw > /tmp/key 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' /tmp/key; then
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
               :
             else
-              rm -f /tmp/key
+              rm -f "$dest" "$dest.raw"
+              return 0
             fi
-            chmod 600 /tmp/key 2>/dev/null || true
-            rm -f /tmp/key.raw
-          fi
-          rm -f /tmp/droplets.json /tmp/power.json
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/worker-a
+          write_key "$SSH_B" /tmp/worker-b
+          write_key "$SSH_C" /tmp/worker-c
 
-      - name: Probe SSH port
-        id: probe
-        shell: bash
-        env:
-          TARGET: ${{ steps.resolve.outputs.target }}
-        run: |
-          set -euo pipefail
-          if timeout 6 bash -c "</dev/tcp/$TARGET/22" 2>/dev/null; then
-            echo 'port22=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'port22=false' >> "$GITHUB_OUTPUT"
-          fi
+          selected=''
+          selected_user=''
+          for user in root debian ubuntu tmsteph; do
+            for key in /tmp/worker-a /tmp/worker-b /tmp/worker-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 "$user@$WORKER_HOST" true >/dev/null 2>&1; then
+                selected="$key"
+                selected_user="$user"
+                break 2
+              fi
+            done
+          done
+          [ -n "$selected" ] || { echo 'Hetzner worker host is not reachable with configured SSH keys.' >&2; exit 1; }
+          cp "$selected" /tmp/key
+          chmod 600 /tmp/key
+          rm -f /tmp/worker-a /tmp/worker-b /tmp/worker-c
+          echo "user=$selected_user" >> "$GITHUB_OUTPUT"
+          echo 'ssh_present=true' >> "$GITHUB_OUTPUT"
+          echo "Worker target: $selected_user@$WORKER_HOST"
 
       - name: Recover managed worker and process Forge queue
         id: recover
-        if: steps.resolve.outputs.ssh_present == 'true' && steps.probe.outputs.port22 == 'true'
         continue-on-error: true
         shell: bash
         env:
-          TARGET: ${{ steps.resolve.outputs.target }}
+          WORKER_USER: ${{ steps.resolve.outputs.user }}
           OWNER_ALIAS: ${{ vars.THREEDVR_AGENT_TASK_OWNER_ALIAS || '3dvr-managed' }}
         run: |
           set -euo pipefail
-          [ -f /tmp/key ]
-          opts=(-i /tmp/key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
-          ssh "${opts[@]}" "root@$TARGET" \
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+          ssh "${opts[@]}" "$WORKER_USER@$WORKER_HOST" \
             "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' GITHUB_SHA='$GITHUB_SHA' OWNER_ALIAS='$OWNER_ALIAS' bash -s" <<'REMOTE'
           set -euo pipefail
           repo="$HOME/.3dvr/portal"
@@ -181,23 +140,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SSH_PRESENT: ${{ steps.resolve.outputs.ssh_present }}
-          TOKEN_PRESENT: ${{ steps.resolve.outputs.token_present }}
-          POWER_ACTION: ${{ steps.resolve.outputs.power_action }}
-          PORT22: ${{ steps.probe.outputs.port22 }}
           RECOVER_OUTCOME: ${{ steps.recover.outcome }}
         run: |
           set -euo pipefail
           state=failure
-          description='Operator worker host recovery failed'
+          description='Hetzner Operator worker recovery failed'
           if [ "$SSH_PRESENT" != true ]; then
-            description='Operator worker SSH credential unavailable'
-          elif [ "$PORT22" != true ]; then
-            description="Operator worker host unreachable on SSH; power=$POWER_ACTION token=$TOKEN_PRESENT"
-          elif [ "$RECOVER_OUTCOME" != success ]; then
-            description='Operator worker SSH reached host but recovery command failed'
-          else
+            description='Hetzner Operator worker SSH unavailable'
+          elif [ "$RECOVER_OUTCOME" = success ]; then
             state=success
-            description='Operator worker recovered and Forge queue pass completed'
+            description='Hetzner Operator worker recovered and Forge queue pass completed'
           fi
           target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           payload="$(python3 - "$state" "$description" "$target_url" <<'PY'
@@ -213,5 +165,3 @@ jobs:
             -d "$payload"
           rm -f /tmp/key
           [ "$state" = success ]
-
-# recovery trigger 2026-08-24T01:30:00Z
