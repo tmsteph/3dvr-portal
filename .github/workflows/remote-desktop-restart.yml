@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
 
+# Re-triggered 2026-09-05 to generate a fresh remote-device authorization flow.
 jobs:
   restart:
     runs-on: ubuntu-latest
