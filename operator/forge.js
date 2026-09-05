@@ -297,6 +297,23 @@ export async function createOrganismRecallProof(query, options = {}) {
   return { ...proof, query: text, requestId, limit };
 }
 
+export async function createOrganismFeedbackProof(query, memoryId, options = {}) {
+  const signedIn = globalThis.localStorage?.getItem?.('signedIn') === 'true';
+  if (!signedIn) throw new Error('Sign in with your 3DVR account before approving a memory.');
+  const text = normalizeText(query, 2000);
+  const id = normalizeText(memoryId, 300);
+  if (!text) throw new Error('The original memory question is required.');
+  if (!id) throw new Error('A memory id is required.');
+  const requestId = normalizeText(options.requestId || makeId('organism-feedback'), 160);
+  const proof = await signedPortalProof('digital-organism', 'approve-retrieval', {
+    query: text,
+    memoryId: id,
+    requestId
+  });
+  if (!proof) throw new Error('Refresh your 3DVR sign-in before approving a memory.');
+  return { ...proof, query: text, memoryId: id, requestId };
+}
+
 export async function saveCodeSuggestion(action = {}) {
   const context = await getGunContext();
   if (!context) throw new Error('3DVR Forge is unavailable in this browser.');

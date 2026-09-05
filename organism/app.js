@@ -1,4 +1,7 @@
-import { createOrganismRecallProof } from '../operator/forge.js';
+import {
+  createOrganismFeedbackProof,
+  createOrganismRecallProof
+} from '../operator/forge.js';
 
 const form = document.getElementById('recallForm');
 const question = document.getElementById('question');
@@ -23,7 +26,39 @@ function clearResults() {
   while (results.firstChild) results.firstChild.remove();
 }
 
-function memoryCard(hit) {
+async function approveMemory(query, memory, approvalButton) {
+  const memoryId = String(memory?.id || '').trim();
+  if (!memoryId) return;
+  approvalButton.disabled = true;
+  setState('Signing your approval…');
+
+  try {
+    const requestId = globalThis.crypto?.randomUUID?.() || `feedback-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const proof = await createOrganismFeedbackProof(query, memoryId, { requestId });
+    const response = await fetch('/api/openai-site?provider=operator', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        organismRecall: true,
+        organismFeedback: true,
+        ...proof,
+        query,
+        memoryId,
+        requestId
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.error || 'Could not record memory approval.');
+    approvalButton.textContent = 'Approved ✓';
+    approvalButton.dataset.approved = 'true';
+    setState('Approved. This is now high-quality evidence for future retrieval tournaments.');
+  } catch (error) {
+    approvalButton.disabled = false;
+    setState(error?.message || 'Could not approve this memory.', true);
+  }
+}
+
+function memoryCard(hit, query) {
   const memory = hit?.memory || {};
   const card = document.createElement('article');
   card.className = 'memory';
@@ -43,10 +78,20 @@ function memoryCard(hit) {
   meta.textContent = `${source || 'private memory'}${memory.createdAt ? ` · ${memory.createdAt}` : ''}${score}`;
 
   card.append(subject, content, meta);
+
+  if (memory.id) {
+    const approve = document.createElement('button');
+    approve.type = 'button';
+    approve.className = 'memory-approve';
+    approve.textContent = 'This was right';
+    approve.addEventListener('click', () => approveMemory(query, memory, approve));
+    card.append(approve);
+  }
+
   return card;
 }
 
-function renderContext(context = {}) {
+function renderContext(context = {}, query = '') {
   clearResults();
   const hits = Array.isArray(context.hits) ? context.hits : [];
   if (!hits.length) {
@@ -56,7 +101,7 @@ function renderContext(context = {}) {
     results.append(empty);
     return;
   }
-  for (const hit of hits) results.append(memoryCard(hit));
+  for (const hit of hits) results.append(memoryCard(hit, query));
 }
 
 function refreshIdentity() {
@@ -96,8 +141,8 @@ form.addEventListener('submit', async event => {
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) throw new Error(data.error || 'Recall failed.');
 
-    setState('Private recall complete.');
-    renderContext(data.context || {});
+    setState('Private recall complete. Mark a memory “This was right” only when it actually answered your question.');
+    renderContext(data.context || {}, query);
   } catch (error) {
     setState(error?.message || 'Could not query your Digital Organism.', true);
   } finally {

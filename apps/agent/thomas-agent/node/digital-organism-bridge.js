@@ -3,6 +3,7 @@ const {
   loadEvents,
   replayMemories,
 } = require('./digital-organism');
+const { recordRetrievalFeedback } = require('./retrieval-lab');
 
 function decodeQuery(encoded = '') {
   const value = String(encoded || '').trim();
@@ -10,6 +11,12 @@ function decodeQuery(encoded = '') {
   const text = Buffer.from(value, 'base64url').toString('utf8').trim();
   if (!text || text.length > 2000) throw new Error('Question must be between 1 and 2000 characters.');
   return text;
+}
+
+function normalizeMemoryId(value = '') {
+  const id = String(value || '').trim();
+  if (!id || id.length > 300) throw new Error('Memory id must be between 1 and 300 characters.');
+  return id;
 }
 
 async function main(argv = process.argv.slice(2)) {
@@ -35,10 +42,28 @@ async function main(argv = process.argv.slice(2)) {
     return;
   }
 
+  if (command === 'approve') {
+    const query = decodeQuery(argv[1]);
+    const memoryId = normalizeMemoryId(argv[2]);
+    const event = await recordRetrievalFeedback(query, memoryId, {
+      sourceType: 'owner-signed-portal'
+    });
+    process.stdout.write(JSON.stringify({ ok: true, memoryId: event.memoryId }));
+    return;
+  }
+
   throw new Error('Unsupported bridge command.');
 }
 
-main().catch(error => {
-  process.stdout.write(JSON.stringify({ ok: false, error: error?.message || String(error) }));
-  process.exitCode = 1;
-});
+module.exports = {
+  decodeQuery,
+  main,
+  normalizeMemoryId,
+};
+
+if (require.main === module) {
+  main().catch(error => {
+    process.stdout.write(JSON.stringify({ ok: false, error: error?.message || String(error) }));
+    process.exitCode = 1;
+  });
+}
