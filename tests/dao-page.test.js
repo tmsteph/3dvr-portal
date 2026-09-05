@@ -10,17 +10,23 @@ describe('3DVR DAO pages', () => {
 
     assert.match(page, /What is a DAO\?/);
     assert.match(page, /Decentralized Autonomous Organization/);
+    assert.match(page, /does <strong>not<\/strong> need its own coin/);
+    assert.match(page, /Blockchain is common/);
     assert.match(page, /Autonomous.*does not mean AI runs the organization/s);
     assert.match(page, /What would that mean for 3DVR\?/);
-    assert.match(page, /A 3DVR coin or token could eventually be part of that system/);
-    assert.match(page, /selling one could be one way to fund the ecosystem/);
-    assert.match(page, /The DAO is bigger than the coin/);
+    assert.match(page, /future coin or token remains optional/);
+    assert.match(page, /DAO should work without one/);
     assert.match(page, /Quick next experiment/);
     assert.match(page, /3DVR Credits/);
     assert.match(page, /record one useful contribution in GUN/);
     assert.match(page, /sign the receipt with SEA/);
+    assert.match(page, /do not automatically make every value immutable/);
+    assert.match(page, /financial double-spending/);
+    assert.match(page, /Where could a coin fit\?/);
+    assert.match(page, /separate experiment, not a requirement for the DAO/);
     assert.match(page, /Then AXE/);
     assert.match(page, /Could 3DVR invest money too\?/);
+    assert.match(page, /separate experiment rather than pretending to represent all of 3DVR/);
     assert.match(page, /href="\.\/demo\/"/);
     assert.doesNotMatch(page, /data-vote=/);
     assert.doesNotMatch(page, /reputation-weighted/);
