@@ -1,70 +1,91 @@
 # Retrieval Lab
 
-The Retrieval Lab makes the Digital Organism's **discover, don't encode** principle executable without destabilizing the production memory path.
+The Retrieval Lab makes the Digital Organism's **discover, don't encode** principle executable without letting a tiny benchmark silently change production behavior.
 
-Instead of assuming one hand-written ranking formula is correct forever, the lab runs multiple retrieval strategies against the same labeled benchmark and lets evaluation choose the winner.
+Instead of assuming one hand-written ranking formula is correct forever, the lab runs multiple retrieval strategies against the same evidence, measures them, and can promote a challenger only after it clears explicit safety gates.
 
 ## Strategies
 
 The first tournament includes:
 
-- `baseline-jaccard` — the current lexical/Jaccard-style ranking with importance and confidence boosts.
+- `baseline-jaccard` — lexical/Jaccard-style ranking with importance and confidence boosts.
 - `query-coverage` — rewards covering more of the user's query and matching the memory subject.
 - `recency-coverage` — adds a recency signal so current-state memories can beat stale but lexically similar records.
 
 These are intentionally simple. The important part is the interface: more strategies can be added and compared without declaring any one of them permanent architecture.
 
-## Run a tournament
+## Synthetic tournament
 
 From `apps/agent`:
 
 ```bash
 npm run organism:discover -- tournament
-```
-
-For machine-readable results:
-
-```bash
 npm run organism:discover -- tournament --json
 ```
 
-The tournament reports mean reciprocal rank (MRR) and hit@1 for every strategy.
+The synthetic tournament reports mean reciprocal rank (MRR) and hit@1 for every strategy. It exists to test the mechanism and candidate strategies.
 
-## Promote the winner
+**Synthetic evidence cannot promote the live retrieval selection.** `tournament --promote` is deliberately blocked. Production promotion must use real Organism evidence.
+
+## Real evidence
+
+The real benchmark is derived from the append-only Organism event history. Current evidence sources include:
+
+- corrections — high-quality evidence, weight 2;
+- explicit owner-approved retrievals — high-quality evidence, weight 3;
+- approved Context HQ / safe task handoffs — useful low-weight evidence, weight 0.5.
+
+The portal's **This was right** control records an owner-signed retrieval approval bound to the exact query and memory ID. Unknown or forgotten memories cannot be approved, and ordinary recall authorization cannot be replayed as approval authorization.
+
+Inspect aggregate evidence without printing private memory bodies:
 
 ```bash
-npm run organism:discover -- tournament --promote
+npm run organism:discover -- evidence
+npm run organism:discover -- real-tournament
 ```
 
-Promotion writes the evaluated winner and its scores to the organism state directory as `retrieval-strategy.json`.
+## Safe production promotion
 
-This does not silently change the existing production `organism recall` path yet. It changes **adaptive lab recall**, giving us a safe promotion boundary while the benchmark grows beyond synthetic cases.
+Production evaluation can request promotion with:
 
-## Use the promoted strategy
+```bash
+npm run organism:discover -- real-tournament --promote
+```
+
+A challenger is promoted only when all of these default gates pass:
+
+1. at least **5 real benchmark cases** exist;
+2. at least **2 high-quality signals** are corrections or explicit retrieval approvals;
+3. the challenger beats the current incumbent by at least **0.02 MRR**;
+4. the challenger does **not regress hit@1**.
+
+A tie keeps the incumbent. Before any selection exists, `baseline-jaccard` is the incumbent. Thresholds can be raised for experiments with `--min-cases`, `--min-high-quality`, and `--min-mrr-gain`.
+
+When a real challenger clears all gates, promotion writes the selected strategy and evaluation record to `retrieval-strategy.json`.
+
+## Live adaptive recall
+
+Private Digital Organism recall now reads the promoted selection. With no promotion record it uses `baseline-jaccard`; after a gated promotion, subsequent private recall automatically uses the promoted strategy.
 
 ```bash
 npm run organism:discover -- recall "what server is the agent runtime using?"
 npm run organism:discover -- selected
 ```
 
-Adaptive recall loads the promoted strategy and applies it to the owner's active organism memories. With no promotion record, it falls back to `baseline-jaccard`.
-
-## Why the separation matters
-
-A tiny synthetic benchmark is enough to prove the mechanism, not enough to justify automatically replacing production retrieval. The next step is to collect labeled retrieval examples from real successful and corrected interactions, then make production promotion conditional on beating the current strategy across that frozen evaluation set.
-
-That gives the organism a real evolutionary loop:
+This creates the evolutionary loop:
 
 ```text
 experience
+   ↓
+real corrections + explicit approvals + safe handoffs
    ↓
 candidate strategies
    ↓
 frozen evaluation suite
    ↓
-measure
+compare against incumbent
    ↓
-promote winner / keep incumbent
+promote only on meaningful improvement / otherwise keep incumbent
    ↓
 more experience
 ```
