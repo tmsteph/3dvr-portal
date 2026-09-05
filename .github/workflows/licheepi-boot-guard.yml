@@ -45,22 +45,25 @@ jobs:
             return 1
           }
 
-          ovh="$(pick "$OVH_HOST" debian root)" || { echo 'OVH bootstrap unavailable.' >&2; exit 1; }
-          ou="${ovh%%|*}"; ok="${ovh#*|}"
-          o=(-i "$ok" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
+          if ovh="$(pick "$OVH_HOST" debian root)"; then
+            ou="${ovh%%|*}"; ok="${ovh#*|}"
+            o=(-i "$ok" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
 
-          if ssh "${o[@]}" "$ou@$OVH_HOST" "ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a 'bash -s'" < scripts/ops/licheepi-boot-guard.sh; then
-            echo 'Boot guard verified through direct OVH LicheePi path.'
-            exit 0
+            if ssh "${o[@]}" "$ou@$OVH_HOST" "ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a 'bash -s'" < scripts/ops/licheepi-boot-guard.sh; then
+              echo 'Boot guard verified through direct OVH LicheePi path.'
+              exit 0
+            fi
+
+            echo 'Direct OVH LicheePi path is unavailable; trying the Hetzner fallback.' >&2
+            if ssh "${o[@]}" "$ou@$OVH_HOST" "ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a-hetzner 'bash -s'" < scripts/ops/licheepi-boot-guard.sh; then
+              echo 'Boot guard verified through OVH -> Hetzner -> LicheePi fallback.'
+              exit 0
+            fi
+          else
+            echo 'OVH bootstrap unavailable; skipping OVH-based recovery paths.' >&2
           fi
 
-          echo 'Direct OVH LicheePi path is unavailable; trying the Hetzner fallback.' >&2
-          if ssh "${o[@]}" "$ou@$OVH_HOST" "ssh -o BatchMode=yes -o ConnectTimeout=8 lpi4a-hetzner 'bash -s'" < scripts/ops/licheepi-boot-guard.sh; then
-            echo 'Boot guard verified through OVH -> Hetzner -> LicheePi fallback.'
-            exit 0
-          fi
-
-          echo 'Hetzner fallback is unavailable; trying the independent DigitalOcean route.' >&2
+          echo 'Trying the independent DigitalOcean route.' >&2
           do_conn="$(pick "$DO_HOST" root debian)" || { echo 'DigitalOcean bootstrap unavailable.' >&2; exit 1; }
           du="${do_conn%%|*}"; dk="${do_conn#*|}"
           d=(-i "$dk" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6)
