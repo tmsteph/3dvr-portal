@@ -1,0 +1,129 @@
+name: Migrate Portal Edge to OVH
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/migrate-portal-ovh-edge.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migrate-portal-ovh-edge
+  cancel-in-progress: false
+
+env:
+  OVH_HOST: 40.160.137.41
+  OVH_USER: debian
+  PORTAL_DNS_RECORD_ID: rec_938a6d34779611712104b9c3
+
+jobs:
+  migrate:
+    if: github.event.head_commit.message == 'Migrate portal edge from Vercel to OVH'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Resolve OVH SSH key
+        shell: bash
+        env:
+          RAW_KEY: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "$RAW_KEY" ]
+          umask 077
+          printf '%s\n' "$RAW_KEY" > /tmp/key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/key.raw; then
+            cp /tmp/key.raw /tmp/key
+          else
+            base64 -d /tmp/key.raw > /tmp/key
+          fi
+          chmod 600 /tmp/key
+          rm -f /tmp/key.raw
+
+      - name: Stage OVH HTTP edge without changing DNS
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          curl --fail --silent --show-error http://127.0.0.1:4320/organism/app.js | grep -F "reject.textContent = 'Not relevant'"
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y caddy
+          sudo tee /etc/caddy/Caddyfile >/dev/null <<'CADDY'
+          http://portal.3dvr.tech {
+            reverse_proxy 127.0.0.1:4320
+          }
+          CADDY
+          sudo caddy validate --config /etc/caddy/Caddyfile
+          sudo systemctl enable --now caddy
+          sudo systemctl restart caddy
+          curl --fail --silent --show-error -H 'Host: portal.3dvr.tech' http://127.0.0.1/organism/app.js | grep -F "reject.textContent = 'Not relevant'"
+          REMOTE
+
+      - name: Prove port 80 works from outside OVH before cutover
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 15 -H 'Host: portal.3dvr.tech' "http://$OVH_HOST/organism/app.js" \
+            | grep -F "reject.textContent = 'Not relevant'"
+
+      - name: Point canonical portal DNS at OVH
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" \
+            "npx --yes vercel@59.11.7 dns update '$PORTAL_DNS_RECORD_ID' --scope 3dvr --type A --value '$OVH_HOST' --ttl 60 --comment 'OVH self-hosted canonical 3DVR Portal' --non-interactive"
+
+      - name: Confirm authoritative DNS cutover
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 20); do
+            answer="$(dig +short @ns1.vercel-dns.com portal.3dvr.tech A | tail -n1 || true)"
+            echo "authoritative portal A: ${answer:-pending}"
+            if [ "$answer" = "$OVH_HOST" ]; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Enable automatic HTTPS on OVH
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          sudo tee /etc/caddy/Caddyfile >/dev/null <<'CADDY'
+          portal.3dvr.tech {
+            encode zstd gzip
+            reverse_proxy 127.0.0.1:4320
+          }
+          CADDY
+          sudo caddy validate --config /etc/caddy/Caddyfile
+          sudo systemctl restart caddy
+          REMOTE
+
+      - name: Verify canonical HTTPS serves the new Organism UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error --max-time 15 \
+              --resolve "portal.3dvr.tech:443:$OVH_HOST" \
+              https://portal.3dvr.tech/organism/app.js \
+              | grep -Fq "reject.textContent = 'Not relevant'"; then
+              curl --fail --silent --show-error --max-time 15 \
+                --resolve "portal.3dvr.tech:443:$OVH_HOST" \
+                https://portal.3dvr.tech/__3dvr-health
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f /tmp/key /tmp/key.raw
