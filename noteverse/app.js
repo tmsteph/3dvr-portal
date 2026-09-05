@@ -616,7 +616,7 @@ canvas.addEventListener('pointermove', event => {
       if (Math.abs(delta) > 0.4) {
         moved = true;
         // Touch depth is intentionally opposite the desktop-style zoom convention.
-        dollyCamera(-delta * 0.025);
+        dollyCamera(delta * 0.025);
       }
     }
     previousPinchDistance = distance;
