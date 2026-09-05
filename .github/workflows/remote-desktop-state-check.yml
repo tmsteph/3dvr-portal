@@ -1,0 +1,50 @@
+name: Check OVH Remote Desktop State
+
+on:
+  push:
+    paths:
+      - '.github/workflows/remote-desktop-state-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check persisted state metadata
+        shell: bash
+        env:
+          SSH_KEY: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s\n' "$SSH_KEY" > /tmp/key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/key.raw; then cp /tmp/key.raw /tmp/key;
+          else base64 -d /tmp/key.raw > /tmp/key; fi
+          chmod 600 /tmp/key
+          ssh -i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 debian@40.160.137.41 'python3 - <<'"'"'PY'"'"'
+          import json, os, stat
+          p=os.path.expanduser("~/.desktop-commander-device/device.json")
+          print("exists=", os.path.isfile(p))
+          if os.path.isfile(p):
+              s=os.stat(p)
+              print("size=", s.st_size)
+              print("mode=", oct(stat.S_IMODE(s.st_mode)))
+              print("owner_uid=", s.st_uid)
+              try:
+                  d=json.load(open(p))
+                  print("json_valid= true")
+                  print("top_level_keys=", sorted(d.keys()))
+                  print("has_device_id=", bool(d.get("deviceId")))
+                  sess=d.get("session")
+                  print("has_session_object=", isinstance(sess, dict))
+                  if isinstance(sess, dict):
+                      print("session_keys=", sorted(sess.keys()))
+                      print("session_fields_nonempty=", all(bool(v) for v in sess.values()))
+              except Exception as e:
+                  print("json_valid= false")
+                  print("error_type=", type(e).__name__)
+          PY'
