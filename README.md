@@ -8,20 +8,29 @@
 
 **https://portal.3dvr.tech**
 
+## Canonical monorepo
+
+`tmsteph/3dvr-portal` is the default home for active 3DVR product, platform, and research development.
+
+New capability should normally extend this repository rather than create another 3DVR repository. Independent deployment, packaging, or release does **not** by itself require a separate repository. Shared code and cross-product contracts should stay together so the Agent, Portal, devices, tests, and experiments can evolve as one system.
+
+Separate repositories remain useful when work must closely track an upstream project, has a genuinely independent contributor/release lifecycle, or is intentionally preserved as a reference or historical archive. Older 3DVR repositories should increasingly point back here when their active ideas have been absorbed.
+
 ## Repository layout
 
 The customer-facing portal remains at the repository root. Separately deployed/runtime apps live under `apps/`.
 
 ```text
 3dvr-portal/
-├── apps/agent/       # 3dvr CLI and worker runtime
+├── apps/agent/       # 3dvr CLI, worker runtime, and Digital Organism integration
 ├── apps/companion/   # Android Companion control plane
+├── apps/computing/   # shared browser/Desktop/Mobile capability contracts
 ├── api/              # portal serverless APIs
 ├── tests/            # portal tests
-└── ...               # portal pages and assets
+└── ...               # portal pages, labs, docs, scripts, and assets
 ```
 
-Run `npm test` for the portal, `npm run test:agent` for the agent, or `npm run test:all` for both.
+Run `npm test` for the portal, `npm run test:agent` for the agent, `npm run test:computing` for Computing, or `npm run test:all` for the integrated monorepo verification.
 
 ## Current consolidation plan
 
@@ -40,7 +49,9 @@ Default rule: extend a Core path when possible; use Labs when the work is intent
 - Portal Home and installable web apps
 - CRM, Contacts, Calendar, Tasks, Notes, and community tools
 - Agent operations and the RUNE v0.1 mission language
+- Digital Organism memory/retrieval work integrated with the Agent runtime
 - Android Companion for opt-in phone control
+- 3DVR Computing capability contracts for browser, desktop, and mobile control
 - Money Printer experiments for turning demand into offers and delivery
 - Open-source computing, hardware, VR, and education experiments
 
