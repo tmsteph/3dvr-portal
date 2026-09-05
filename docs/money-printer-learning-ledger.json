@@ -28,12 +28,12 @@
       "title": "Customer Intake automation for owner-led service businesses that need clearer lead follow-up",
       "hypothesis": "owner-led service businesses that need clearer lead follow-up teams repeatedly lose time on customer intake and need a faster process.",
       "metric": "qualified_replies",
-      "confidence": 0.82,
+      "confidence": 0.83,
       "effort": 2,
       "risk": "GREEN",
       "status": "prepared",
-      "evidence_run_id": "market-pulse-20260712172802",
-      "score": 0.41
+      "evidence_run_id": "market-pulse-20260905043707",
+      "score": 0.415
     },
     {
       "id": "buyer-language-research",
@@ -79,12 +79,12 @@
     ]
   },
   "research": {
-    "latest_run_id": "market-pulse-20260712172802",
-    "observed_at": "2026-07-12T17:28:02.917Z",
-    "fingerprint": "fnv1a-ae33b7d5",
+    "latest_run_id": "market-pulse-20260905043707",
+    "observed_at": "2026-09-05T04:37:07.207Z",
+    "fingerprint": "fnv1a-f36e049d",
     "market": "owner-led service businesses that need clearer lead follow-up",
-    "signals_analyzed": 11,
-    "fit_score": 82,
+    "signals_analyzed": 12,
+    "fit_score": 83,
     "verdict": "strong signal",
     "strongest_channel": "Hacker News",
     "opportunity": {
@@ -99,24 +99,32 @@
   },
   "sources": {
     "analytics": {
-      "available": false,
-      "run_id": "money-20260712171841-v58z41",
-      "reason": "GA4 credentials or session count unavailable"
+      "available": true,
+      "run_id": "money-20260904193701-su2yme",
+      "reason": "gun-first-party session count imported"
     },
     "outbound": {
       "available": true,
-      "run_id": "money-20260712174048-m51r2m",
+      "run_id": "money-20260830222335-mglepn",
       "queue_size": 4
     },
     "revenue": {
       "available": true,
       "rows": 4,
-      "reason": "outbound outcome tracker imported"
+      "stripe_attributed_checkouts": 0,
+      "stripe_attributed_revenue_cents": 0,
+      "provenance_rows": {
+        "founder": 0,
+        "friend": 0,
+        "stranger": 0,
+        "unattributed": 0
+      },
+      "reason": "outbound outcome tracker imported with explicit revenue provenance when supplied"
     },
     "research": {
       "available": true,
-      "run_id": "market-pulse-20260712172802",
-      "signals_analyzed": 11
+      "run_id": "market-pulse-20260905043707",
+      "signals_analyzed": 12
     }
   },
   "executions": [
@@ -126,6 +134,13 @@
       "action": "prepare-validation-brief",
       "artifact_path": "docs/money-printer-experiments/market-customer-intake-automation-for-owner-led-service-busin.md",
       "executed_at": "2026-07-12T17:28:02.917Z"
+    },
+    {
+      "execution_key": "market-customer-intake-automation-for-owner-led-service-busin:fnv1a-f36e049d",
+      "experiment_id": "market-customer-intake-automation-for-owner-led-service-busin",
+      "action": "prepare-validation-brief",
+      "artifact_path": "docs/money-printer-experiments/market-customer-intake-automation-for-owner-led-service-busin.md",
+      "executed_at": "2026-09-05T04:37:07.207Z"
     }
   ]
 }
