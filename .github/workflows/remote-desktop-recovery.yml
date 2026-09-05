@@ -1,0 +1,75 @@
+name: Recover OVH Remote Desktop
+
+on:
+  push:
+    paths:
+      - '.github/workflows/remote-desktop-recovery.yml'
+      - 'ops/remote-desktop-recovery-trigger.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Resolve OVH SSH access
+        id: ssh
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest";
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :;
+            else rm -f "$dest" "$dest.raw"; return 0; fi
+            chmod 600 "$dest"; rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/key-a
+          write_key "$SSH_B" /tmp/key-b
+          write_key "$SSH_C" /tmp/key-c
+          for user in debian root; do
+            for key in /tmp/key-a /tmp/key-b /tmp/key-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@40.160.137.41" true >/dev/null 2>&1; then
+                cp "$key" /tmp/ovh-key; chmod 600 /tmp/ovh-key
+                echo "user=$user" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+          done
+          echo 'OVH SSH unavailable' >&2
+          exit 1
+
+      - name: Diagnose Desktop Commander
+        shell: bash
+        env:
+          USERNAME: ${{ steps.ssh.outputs.user }}
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/ovh-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$USERNAME@40.160.137.41" 'bash -s' <<'REMOTE'
+          set -u
+          echo "host=$(hostname)"
+          echo "uptime=$(uptime -p)"
+          echo "user=$(id -un) uid=$(id -u)"
+          echo '--- matching processes ---'
+          ps -eo user,pid,etime,args --width 220 | grep -Ei '(desktop.?commander|remote.?desktop|mcp.*commander|commander.*mcp)' | grep -v -E 'grep|github' || true
+          echo '--- matching system units ---'
+          sudo -n systemctl list-unit-files --type=service --no-pager 2>/dev/null | grep -Ei '(desktop|commander|remote|mcp)' || true
+          echo '--- matching user unit files ---'
+          find "$HOME/.config/systemd/user" /etc/systemd/system -maxdepth 1 -type f \( -iname '*desktop*' -o -iname '*commander*' -o -iname '*remote*' -o -iname '*mcp*' \) -printf '%p\n' 2>/dev/null || true
+          echo '--- pm2 process names ---'
+          if command -v pm2 >/dev/null 2>&1; then pm2 ls --no-color 2>/dev/null | sed -n '1,40p' || true; fi
+          echo '--- recent matching journal lines ---'
+          sudo -n journalctl --since '-20 min' --no-pager 2>/dev/null | grep -Ei '(desktop.?commander|remote.?desktop|mcp.*commander|commander.*mcp)' | tail -80 || true
+          REMOTE
