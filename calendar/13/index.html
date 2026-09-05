@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>13-Month Calendar · 3DVR</title>
+  <meta name="description" content="A Gregorian-compatible 13 × 28 calendar experiment for Open Personal Computing.">
+  <meta name="theme-color" content="#0b1017">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Poppins, system-ui, sans-serif;
+      --bg: #0b1017;
+      --surface: #111923;
+      --surface-2: #172230;
+      --line: #28384a;
+      --text: #f4f7fb;
+      --muted: #9fb0c3;
+      --accent: #7ee0b8;
+      --accent-soft: rgba(126, 224, 184, .12);
+      --today: #ffe58a;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); }
+    button, a { font: inherit; }
+    a { color: inherit; }
+    button { cursor: pointer; }
+
+    .shell { width: min(1500px, 100%); margin: 0 auto; padding: 20px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 28px; }
+    .back { color: var(--muted); text-decoration: none; font-weight: 600; }
+    .back:hover { color: var(--text); }
+    .badge { border: 1px solid var(--line); border-radius: 999px; padding: 7px 11px; color: var(--muted); font-size: .78rem; }
+
+    .hero { display: grid; gap: 20px; grid-template-columns: minmax(0, 1.4fr) minmax(280px, .6fr); align-items: stretch; margin-bottom: 24px; }
+    .hero-copy, .today-card, .selection, .month, .special-day { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; }
+    .hero-copy { padding: clamp(24px, 4vw, 48px); }
+    .eyebrow { margin: 0 0 8px; color: var(--accent); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .76rem; }
+    h1 { margin: 0; font-size: clamp(2rem, 5vw, 4.8rem); line-height: .98; letter-spacing: -.05em; }
+    .hero-copy p:last-child { margin: 18px 0 0; color: var(--muted); max-width: 65ch; line-height: 1.65; }
+
+    .today-card { padding: 24px; display: flex; flex-direction: column; justify-content: space-between; gap: 28px; }
+    .today-card__label { color: var(--muted); font-size: .82rem; }
+    .today-card__fixed { font-size: clamp(1.55rem, 3vw, 2.35rem); font-weight: 700; margin-top: 5px; }
+    .today-card__gregorian { color: var(--muted); margin-top: 8px; }
+    .equation { color: var(--accent); font-weight: 700; font-size: 1.1rem; }
+
+    .controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 26px 0 18px; }
+    .controls h2 { margin: 0; font-size: clamp(1.5rem, 3vw, 2.3rem); }
+    .button-row { display: flex; gap: 8px; }
+    .control { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 12px; min-width: 44px; min-height: 42px; padding: 8px 13px; }
+    .control:hover { border-color: var(--accent); }
+
+    .selection { padding: 16px 18px; margin-bottom: 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; color: var(--muted); }
+    .selection strong { color: var(--text); }
+
+    .months { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+    .month { padding: 16px; min-width: 0; }
+    .month--sol { border-color: rgba(126, 224, 184, .5); box-shadow: inset 0 0 0 1px rgba(126, 224, 184, .08); }
+    .month__title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+    .month__title h3 { margin: 0; font-size: 1rem; }
+    .month__title span { color: var(--muted); font-size: .72rem; }
+    .week, .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .week { margin-bottom: 5px; color: var(--muted); font-size: .62rem; text-align: center; }
+    .day { border: 0; background: transparent; color: var(--text); border-radius: 8px; aspect-ratio: 1; min-width: 0; display: grid; place-items: center; padding: 0; font-size: .76rem; }
+    .day:hover, .day:focus-visible { background: var(--surface-2); outline: none; }
+    .day--today { background: var(--today); color: #111; font-weight: 700; }
+    .day--selected { box-shadow: inset 0 0 0 2px var(--accent); }
+
+    .special-days { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+    .special-day { padding: 18px; color: var(--muted); }
+    .special-day strong { color: var(--text); display: block; margin-bottom: 5px; }
+    .special-day--active { border-color: var(--today); }
+
+    .note { margin: 18px 0 60px; color: var(--muted); font-size: .82rem; line-height: 1.6; }
+    .note strong { color: var(--text); }
+
+    @media (max-width: 1100px) { .months { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 820px) {
+      .hero { grid-template-columns: 1fr; }
+      .months { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 540px) {
+      .shell { padding: 14px; }
+      .months { grid-template-columns: 1fr; }
+      .special-days { grid-template-columns: 1fr; }
+      .month { padding: 18px; }
+      .day { aspect-ratio: auto; min-height: 38px; font-size: .9rem; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar">
+      <a class="back" href="../">← Calendar</a>
+      <span class="badge">Open Personal Computing experiment</span>
+    </div>
+
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">A more regular year</p>
+        <h1>13 months.<br>28 days each.</h1>
+        <p>This view keeps ordinary Gregorian dates underneath for compatibility, while giving every month exactly four weeks. The extra Year Day — and Leap Day when needed — sit outside the weekly cycle.</p>
+      </div>
+      <aside class="today-card" aria-live="polite">
+        <div>
+          <div class="today-card__label">Today in the 13-month calendar</div>
+          <div class="today-card__fixed" id="todayFixed">—</div>
+          <div class="today-card__gregorian" id="todayGregorian">—</div>
+        </div>
+        <div class="equation">13 × 28 = 364 + 1</div>
+      </aside>
+    </section>
+
+    <section aria-labelledby="yearTitle">
+      <div class="controls">
+        <h2 id="yearTitle">Year <span id="yearNumber"></span></h2>
+        <div class="button-row">
+          <button class="control" type="button" id="previousYear" aria-label="Previous year">‹</button>
+          <button class="control" type="button" id="thisYear">Today</button>
+          <button class="control" type="button" id="nextYear" aria-label="Next year">›</button>
+        </div>
+      </div>
+
+      <div class="selection" id="selection" aria-live="polite">
+        Tap a day to see its normal Gregorian date.
+      </div>
+
+      <div class="months" id="months"></div>
+      <div class="special-days" id="specialDays"></div>
+    </section>
+
+    <p class="note"><strong>Model:</strong> this follows the International Fixed Calendar pattern: Sol is the 7th month, inserted between June and July. Every month begins on Sunday. Year Day follows December 28; Leap Day is inserted after June 28 in leap years. These special days have no weekday, so the 52-week rhythm never shifts.</p>
+  </main>
+
+  <script>
+    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'Sol', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    const today = new Date();
+    let displayYear = today.getFullYear();
+    let selectedKey = '';
+
+    const monthsEl = document.getElementById('months');
+    const specialsEl = document.getElementById('specialDays');
+    const yearNumberEl = document.getElementById('yearNumber');
+    const selectionEl = document.getElementById('selection');
+
+    function isLeapYear(year) {
+      return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+    }
+
+    function dayOfYear(date) {
+      const year = date.getFullYear();
+      const start = Date.UTC(year, 0, 1);
+      const current = Date.UTC(year, date.getMonth(), date.getDate());
+      return Math.floor((current - start) / 86400000) + 1;
+    }
+
+    function toFixed(date) {
+      const year = date.getFullYear();
+      const leap = isLeapYear(year);
+      let ordinal = dayOfYear(date);
+
+      if (leap && ordinal === 169) {
+        return { year, special: 'Leap Day', key: `${year}-leap` };
+      }
+      if (leap && ordinal > 169) ordinal -= 1;
+      if (ordinal === 365) {
+        return { year, special: 'Year Day', key: `${year}-year` };
+      }
+
+      const monthIndex = Math.floor((ordinal - 1) / 28);
+      const day = ((ordinal - 1) % 28) + 1;
+      return { year, monthIndex, month: MONTHS[monthIndex], day, key: `${year}-${monthIndex}-${day}` };
+    }
+
+    function fixedToGregorian(year, monthIndex, day) {
+      let ordinal = monthIndex * 28 + day;
+      if (isLeapYear(year) && ordinal > 168) ordinal += 1;
+      return new Date(year, 0, ordinal);
+    }
+
+    function specialToGregorian(year, special) {
+      if (special === 'Leap Day') return new Date(year, 0, 169);
+      return new Date(year, 11, 31);
+    }
+
+    const fullDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'full' });
+
+    function describeFixed(value) {
+      return value.special ? `${value.special}, ${value.year}` : `${value.month} ${value.day}, ${value.year}`;
+    }
+
+    function setSelection(fixed, gregorian) {
+      selectedKey = fixed.key;
+      selectionEl.innerHTML = `<strong>${describeFixed(fixed)}</strong><span>↔</span><span>${fullDate.format(gregorian)}</span>`;
+      render();
+    }
+
+    function renderMonth(monthIndex, currentFixed) {
+      const card = document.createElement('article');
+      card.className = `month${monthIndex === 6 ? ' month--sol' : ''}`;
+
+      const heading = document.createElement('div');
+      heading.className = 'month__title';
+      heading.innerHTML = `<h3>${MONTHS[monthIndex]}</h3><span>Month ${monthIndex + 1}</span>`;
+      card.appendChild(heading);
+
+      const week = document.createElement('div');
+      week.className = 'week';
+      WEEKDAYS.forEach(name => {
+        const cell = document.createElement('span');
+        cell.textContent = name;
+        week.appendChild(cell);
+      });
+      card.appendChild(week);
+
+      const days = document.createElement('div');
+      days.className = 'days';
+      for (let day = 1; day <= 28; day += 1) {
+        const fixed = { year: displayYear, monthIndex, month: MONTHS[monthIndex], day, key: `${displayYear}-${monthIndex}-${day}` };
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'day';
+        button.textContent = day;
+        button.title = fullDate.format(fixedToGregorian(displayYear, monthIndex, day));
+        if (currentFixed.key === fixed.key) button.classList.add('day--today');
+        if (selectedKey === fixed.key) button.classList.add('day--selected');
+        button.addEventListener('click', () => setSelection(fixed, fixedToGregorian(displayYear, monthIndex, day)));
+        days.appendChild(button);
+      }
+      card.appendChild(days);
+      return card;
+    }
+
+    function renderSpecials(currentFixed) {
+      specialsEl.innerHTML = '';
+      const specials = [];
+      if (isLeapYear(displayYear)) {
+        specials.push({ name: 'Leap Day', detail: 'A bonus day after June 28.', key: `${displayYear}-leap` });
+      }
+      specials.push({ name: 'Year Day', detail: 'The 365th day, after December 28.', key: `${displayYear}-year` });
+
+      specials.forEach(item => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'special-day';
+        if (currentFixed.key === item.key) card.classList.add('special-day--active');
+        if (selectedKey === item.key) card.classList.add('day--selected');
+        card.innerHTML = `<strong>${item.name}</strong>${item.detail} No weekday.`;
+        card.addEventListener('click', () => {
+          const fixed = { year: displayYear, special: item.name, key: item.key };
+          setSelection(fixed, specialToGregorian(displayYear, item.name));
+        });
+        specialsEl.appendChild(card);
+      });
+    }
+
+    function render() {
+      const currentFixed = toFixed(today);
+      yearNumberEl.textContent = displayYear;
+      monthsEl.innerHTML = '';
+      MONTHS.forEach((_, index) => monthsEl.appendChild(renderMonth(index, currentFixed)));
+      renderSpecials(currentFixed);
+    }
+
+    const todayFixed = toFixed(today);
+    document.getElementById('todayFixed').textContent = describeFixed(todayFixed);
+    document.getElementById('todayGregorian').textContent = fullDate.format(today);
+
+    document.getElementById('previousYear').addEventListener('click', () => { displayYear -= 1; selectedKey = ''; render(); });
+    document.getElementById('nextYear').addEventListener('click', () => { displayYear += 1; selectedKey = ''; render(); });
+    document.getElementById('thisYear').addEventListener('click', () => { displayYear = today.getFullYear(); selectedKey = todayFixed.key; selectionEl.innerHTML = `<strong>${describeFixed(todayFixed)}</strong><span>↔</span><span>${fullDate.format(today)}</span>`; render(); });
+
+    render();
+  </script>
+</body>
+</html>
