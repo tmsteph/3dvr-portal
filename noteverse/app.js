@@ -24,6 +24,8 @@ const deleteButton = $('#delete-item');
 const nudgeButtons = [...document.querySelectorAll('[data-nudge]')];
 const addForm = $('#add-note');
 const newNoteInput = $('#new-note');
+const motionLookButton = $('#motion-look');
+const stageHint = $('.stage-hint');
 
 const defaultState = () => ({
   version: 1,
@@ -45,11 +47,17 @@ let sync = null;
 let selectedId = null;
 let saveTimer = null;
 let labelTimer = null;
-let yaw = 0.45;
-let pitch = 0.22;
-let radius = 15;
-let pointerDown = null;
+let yaw = 0;
+let pitch = 0;
+let motionYaw = 0;
+let motionPitch = 0;
+let motionEnabled = false;
+let motionBaseline = null;
 let moved = false;
+let gestureTravel = 0;
+const activePointers = new Map();
+let primaryPointerId = null;
+let previousPinchDistance = null;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x070b12);
@@ -380,15 +388,107 @@ function deleteSelected() {
   saveSoon();
 }
 
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
+const movementForward = new THREE.Vector3();
+const movementRight = new THREE.Vector3();
+
+function forwardVector(target = new THREE.Vector3(), includeMotion = true) {
+  const lookYaw = yaw + (includeMotion ? motionYaw : 0);
+  const lookPitch = Math.max(-1.42, Math.min(1.42, pitch + (includeMotion ? motionPitch : 0)));
+  return target.set(
+    Math.cos(lookPitch) * Math.sin(lookYaw),
+    Math.sin(lookPitch),
+    Math.cos(lookPitch) * Math.cos(lookYaw)
+  ).normalize();
+}
+
 function updateCamera() {
-  pitch = Math.max(-1.18, Math.min(1.18, pitch));
-  radius = Math.max(5.5, Math.min(28, radius));
-  camera.position.set(
-    radius * Math.cos(pitch) * Math.sin(yaw),
-    radius * Math.sin(pitch),
-    radius * Math.cos(pitch) * Math.cos(yaw)
-  );
-  camera.lookAt(0, 0, 0);
+  pitch = Math.max(-1.32, Math.min(1.32, pitch));
+  const forward = forwardVector(movementForward);
+  camera.lookAt(camera.position.clone().add(forward));
+}
+
+function resetCamera() {
+  camera.position.set(6.25, 3.3, 12.6);
+  const forward = camera.position.clone().multiplyScalar(-1).normalize();
+  yaw = Math.atan2(forward.x, forward.z);
+  pitch = Math.asin(forward.y);
+  motionYaw = 0;
+  motionPitch = 0;
+  motionBaseline = null;
+  updateCamera();
+}
+
+function panCamera(dx, dy) {
+  const forward = forwardVector(movementForward, false);
+  movementRight.copy(forward).cross(WORLD_UP).normalize();
+  const scale = 0.012 * Math.max(0.75, Math.min(2.4, camera.position.length() / 10));
+  camera.position.addScaledVector(movementRight, dx * scale);
+  camera.position.addScaledVector(WORLD_UP, -dy * scale);
+  updateCamera();
+}
+
+function dollyCamera(distance) {
+  camera.position.addScaledVector(forwardVector(movementForward), distance);
+  if (camera.position.length() > 70) camera.position.setLength(70);
+  updateCamera();
+}
+
+function lookCamera(dx, dy) {
+  yaw -= dx * 0.005;
+  pitch -= dy * 0.005;
+  updateCamera();
+}
+
+function angleDeltaDegrees(value, baseline) {
+  let delta = value - baseline;
+  while (delta > 180) delta -= 360;
+  while (delta < -180) delta += 360;
+  return delta;
+}
+
+function handleDeviceOrientation(event) {
+  if (!motionEnabled || event.alpha == null || event.beta == null) return;
+  if (!motionBaseline) {
+    motionBaseline = { alpha: event.alpha, beta: event.beta };
+    return;
+  }
+  motionYaw = -angleDeltaDegrees(event.alpha, motionBaseline.alpha) * Math.PI / 180;
+  motionPitch = -Math.max(-70, Math.min(70, event.beta - motionBaseline.beta)) * Math.PI / 180;
+  updateCamera();
+}
+
+async function toggleMotionLook() {
+  if (motionEnabled) {
+    motionEnabled = false;
+    motionBaseline = null;
+    motionYaw = 0;
+    motionPitch = 0;
+    window.removeEventListener('deviceorientation', handleDeviceOrientation);
+    motionLookButton.textContent = '📱 Motion look';
+    motionLookButton.setAttribute('aria-pressed', 'false');
+    updateCamera();
+    return;
+  }
+
+  try {
+    const OrientationEvent = window.DeviceOrientationEvent;
+    if (typeof OrientationEvent?.requestPermission === 'function') {
+      const permission = await OrientationEvent.requestPermission();
+      if (permission !== 'granted') {
+        motionLookButton.textContent = 'Motion blocked';
+        return;
+      }
+    }
+    motionEnabled = true;
+    motionBaseline = null;
+    window.addEventListener('deviceorientation', handleDeviceOrientation, { passive: true });
+    motionLookButton.textContent = '📱 Motion on';
+    motionLookButton.setAttribute('aria-pressed', 'true');
+  } catch {
+    motionLookButton.textContent = 'Motion unavailable';
+    motionLookButton.disabled = true;
+  }
 }
 
 function resize() {
@@ -417,12 +517,8 @@ spaceSelect.addEventListener('change', () => {
   saveSoon();
 });
 
-$('#center').addEventListener('click', () => {
-  yaw = 0.45;
-  pitch = 0.22;
-  radius = 15;
-  updateCamera();
-});
+$('#center').addEventListener('click', resetCamera);
+motionLookButton?.addEventListener('click', toggleMotionLook);
 
 $('#remix').addEventListener('click', () => {
   const space = currentSpace();
@@ -488,36 +584,95 @@ nudgeButtons.forEach(button => button.addEventListener('click', () => {
   saveSoon();
 }));
 
+function pointerDistance() {
+  const values = [...activePointers.values()];
+  if (values.length < 2) return null;
+  return Math.hypot(values[0].x - values[1].x, values[0].y - values[1].y);
+}
+
 canvas.addEventListener('pointerdown', event => {
-  pointerDown = { x: event.clientX, y: event.clientY };
-  moved = false;
+  activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  if (primaryPointerId == null) {
+    primaryPointerId = event.pointerId;
+    moved = false;
+    gestureTravel = 0;
+  }
+  if (activePointers.size === 2) previousPinchDistance = pointerDistance();
   canvas.setPointerCapture(event.pointerId);
 });
 
 canvas.addEventListener('pointermove', event => {
-  if (!pointerDown) return;
-  const dx = event.clientX - pointerDown.x;
-  const dy = event.clientY - pointerDown.y;
-  if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
-  yaw -= dx * 0.007;
-  pitch += dy * 0.007;
-  pointerDown = { x: event.clientX, y: event.clientY };
-  updateCamera();
+  const previous = activePointers.get(event.pointerId);
+  if (!previous) return;
+  const next = { x: event.clientX, y: event.clientY };
+  activePointers.set(event.pointerId, next);
+
+  if (activePointers.size >= 2) {
+    const distance = pointerDistance();
+    if (previousPinchDistance != null && distance != null) {
+      const delta = distance - previousPinchDistance;
+      if (Math.abs(delta) > 0.4) {
+        moved = true;
+        dollyCamera(delta * 0.025);
+      }
+    }
+    previousPinchDistance = distance;
+    return;
+  }
+
+  if (event.pointerId !== primaryPointerId) return;
+  const dx = next.x - previous.x;
+  const dy = next.y - previous.y;
+  gestureTravel += Math.hypot(dx, dy);
+  if (gestureTravel > 5) moved = true;
+  if (event.shiftKey) lookCamera(dx, dy);
+  else panCamera(dx, dy);
 });
 
-canvas.addEventListener('pointerup', event => {
-  if (!moved) pick(event.clientX, event.clientY);
-  pointerDown = null;
-});
-canvas.addEventListener('pointercancel', () => { pointerDown = null; });
+function releasePointer(event) {
+  const wasPrimary = event.pointerId === primaryPointerId;
+  if (wasPrimary && !moved && activePointers.size === 1) pick(event.clientX, event.clientY);
+  activePointers.delete(event.pointerId);
+  previousPinchDistance = activePointers.size >= 2 ? pointerDistance() : null;
+  if (wasPrimary) primaryPointerId = activePointers.keys().next().value ?? null;
+  if (!activePointers.size) {
+    moved = false;
+    gestureTravel = 0;
+  }
+}
+
+canvas.addEventListener('pointerup', releasePointer);
+canvas.addEventListener('pointercancel', releasePointer);
+canvas.addEventListener('contextmenu', event => event.preventDefault());
 canvas.addEventListener('wheel', event => {
   event.preventDefault();
-  radius += Math.sign(event.deltaY) * 0.85;
-  updateCamera();
+  dollyCamera(-event.deltaY * 0.008);
 }, { passive: false });
 
+window.addEventListener('keydown', event => {
+  const tag = document.activeElement?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  const step = event.shiftKey ? 0.8 : 0.38;
+  if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') panCamera(-step / 0.012, 0);
+  else if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') panCamera(step / 0.012, 0);
+  else if (event.key === 'ArrowUp') panCamera(0, -step / 0.012);
+  else if (event.key === 'ArrowDown') panCamera(0, step / 0.012);
+  else if (event.key.toLowerCase() === 'w') dollyCamera(step);
+  else if (event.key.toLowerCase() === 's') dollyCamera(-step);
+  else return;
+  event.preventDefault();
+});
+
 async function initialize() {
-  updateCamera();
+  const touchDevice = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+  motionLookButton.hidden = !('DeviceOrientationEvent' in window && touchDevice);
+  motionLookButton?.setAttribute('aria-pressed', 'false');
+  if (stageHint) {
+    stageHint.textContent = touchDevice
+      ? 'Drag to move · pinch forward/back · tap a crystal · Motion look above'
+      : 'Drag to move · wheel forward/back · Shift+drag to look · WASD + arrows';
+  }
+  resetCamera();
   resize();
   db = await openDatabase();
   state = await loadState(db) || defaultState();
