@@ -1,0 +1,1 @@
+2026-09-05: Diagnose the OVH Desktop Commander agent after it stopped accepting commands and then dropped offline during union-portal access recovery.
