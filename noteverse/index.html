@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#090d16">
+  <meta name="theme-color" content="#070b12">
   <title>Noteverse · 3DVR</title>
   <meta name="description" content="Explore and edit your Life Space notes as a living 3D constellation.">
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
@@ -14,82 +14,94 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main class="app-shell">
-    <header class="topbar">
-      <a class="brand" href="/" aria-label="3DVR Portal home">3DVR</a>
-      <div class="title-block">
-        <p class="eyebrow">Life Space · 3D view</p>
-        <h1>Noteverse</h1>
-      </div>
-      <a class="quiet-link" href="/life-space/">2D Life Space</a>
-    </header>
+  <main class="game-shell">
+    <section class="stage-wrap" aria-label="Noteverse game space">
+      <canvas id="noteverse-canvas" aria-label="Interactive 3D constellation of Life Space notes"></canvas>
 
-    <section class="controls" aria-label="Noteverse controls">
-      <label>
-        <span>Space</span>
-        <select id="space-select" aria-label="Choose Life Space"></select>
-      </label>
-      <button id="remix" type="button">✨ Remix</button>
-      <button id="center" type="button">◎ Center</button>
-      <button id="motion-look" type="button" hidden>📱 Motion look</button>
-      <p id="sync-status" role="status">Loading your universe…</p>
-    </section>
-
-    <section class="workspace">
-      <div class="stage-wrap">
-        <canvas id="noteverse-canvas" aria-label="Interactive 3D constellation of Life Space notes"></canvas>
-        <div class="stage-hint">Drag to move · pinch/wheel forward &amp; back · Shift+drag to look · tap a crystal</div>
-        <div id="empty-state" class="empty-state" hidden>
-          <span>✦</span>
-          <h2>Your universe is quiet.</h2>
-          <p>Add a thought and watch it appear in space.</p>
+      <div class="hud hud-brand">
+        <a class="brand" href="/" aria-label="3DVR Portal home">3DVR</a>
+        <div>
+          <span class="eyebrow">Life Space · 3D</span>
+          <strong>Noteverse</strong>
         </div>
       </div>
 
-      <aside class="editor" aria-labelledby="editor-title">
-        <div class="editor-head">
+      <div class="hud hud-tools">
+        <label class="space-chip">
+          <span class="sr-only">Space</span>
+          <select id="space-select" aria-label="Choose Life Space"></select>
+        </label>
+        <a class="hud-button" href="/life-space/" aria-label="Open 2D Life Space">2D</a>
+      </div>
+
+      <p id="sync-status" class="sync-status" role="status">Loading your universe…</p>
+      <div class="stage-hint">Drag to fly · pinch/wheel depth · tap the sun for commands · tap a crystal to edit</div>
+      <div id="item-count" class="item-count">0 objects</div>
+      <div id="sun-hint" class="sun-hint">☀ Tap the sun</div>
+
+      <div id="empty-state" class="empty-state" hidden>
+        <span>✦</span>
+        <h2>Your universe is quiet.</h2>
+        <p>Tap the sun and manifest your first thought.</p>
+      </div>
+
+      <section id="sun-menu" class="panel sun-menu" aria-labelledby="sun-menu-title" hidden>
+        <div class="panel-head">
           <div>
-            <p class="eyebrow">Selected object</p>
+            <span class="eyebrow">Solar core</span>
+            <h2 id="sun-menu-title">Home star</h2>
+          </div>
+          <button id="close-sun-menu" class="icon-button" type="button" aria-label="Close sun menu">×</button>
+        </div>
+        <form id="add-note" class="solar-composer">
+          <label class="sr-only" for="new-note">New note</label>
+          <input id="new-note" maxlength="280" autocomplete="off" placeholder="Manifest a thought…">
+          <button type="submit">✦ Create</button>
+        </form>
+        <div class="solar-actions">
+          <button id="remix" type="button">✨ Remix</button>
+          <button id="center" type="button">◎ Recenter</button>
+          <button id="motion-look" type="button" hidden>📱 Motion look</button>
+        </div>
+        <p class="panel-note">The sun is your home base. Come back here to create and reshape the universe.</p>
+      </section>
+
+      <aside id="editor-panel" class="panel editor" aria-labelledby="editor-title" hidden>
+        <div class="panel-head">
+          <div>
+            <span class="eyebrow">Crystal</span>
             <h2 id="editor-title">Choose a crystal</h2>
           </div>
-          <span id="item-type" class="type-chip">—</span>
+          <div class="panel-head-actions">
+            <span id="item-type" class="type-chip">—</span>
+            <button id="close-editor" class="icon-button" type="button" aria-label="Close editor">×</button>
+          </div>
         </div>
 
         <label class="field">
           <span>Title</span>
-          <input id="item-title" maxlength="120" disabled placeholder="Select something in space">
+          <input id="item-title" maxlength="120" disabled placeholder="Untitled">
         </label>
         <label class="field">
           <span id="body-label">Note</span>
-          <textarea id="item-body" rows="6" maxlength="4000" disabled placeholder="Select something in space"></textarea>
+          <textarea id="item-body" rows="5" maxlength="4000" disabled placeholder="Write here…"></textarea>
         </label>
 
         <div class="depth-controls" aria-label="Move selected note in 3D">
-          <span>Move in space</span>
+          <span>Move crystal</span>
           <div>
-            <button type="button" data-nudge="x:-1" disabled>← X</button>
-            <button type="button" data-nudge="x:1" disabled>X →</button>
-            <button type="button" data-nudge="y:1" disabled>↑ Y</button>
-            <button type="button" data-nudge="y:-1" disabled>↓ Y</button>
+            <button type="button" data-nudge="x:-1" disabled>←</button>
+            <button type="button" data-nudge="x:1" disabled>→</button>
+            <button type="button" data-nudge="y:1" disabled>↑</button>
+            <button type="button" data-nudge="y:-1" disabled>↓</button>
             <button type="button" data-nudge="z:1" disabled>Near</button>
             <button type="button" data-nudge="z:-1" disabled>Far</button>
           </div>
         </div>
 
-        <button id="delete-item" class="danger" type="button" disabled>Delete from Life Space</button>
+        <button id="delete-item" class="danger" type="button" disabled>Delete</button>
       </aside>
     </section>
-
-    <form id="add-note" class="composer">
-      <label class="sr-only" for="new-note">New note</label>
-      <input id="new-note" maxlength="280" autocomplete="off" placeholder="Drop a thought into the universe…">
-      <button type="submit">+ Manifest</button>
-    </form>
-
-    <footer>
-      <span id="item-count">0 objects</span>
-      <span>Same data as Life Space · encrypted account sync when signed in</span>
-    </footer>
   </main>
   <script type="module" src="app.js"></script>
 </body>
