@@ -2,6 +2,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 const {
+  appendEvent,
   loadEvents,
   replayMemories,
   statePaths,
@@ -13,6 +14,12 @@ const STRATEGY_NAMES = [
   'query-coverage',
   'recency-coverage',
 ];
+
+const STOP_TOKENS = new Set([
+  'the', 'and', 'for', 'that', 'this', 'with', 'from', 'into', 'are', 'was', 'were',
+  'have', 'has', 'had', 'our', 'your', 'their', 'its', 'about', 'what', 'which', 'when',
+  'where', 'who', 'why', 'how', 'can', 'could', 'should', 'would', 'will', 'use', 'used',
+]);
 
 function normalizeNumber(value, fallback = 0) {
   return Number.isFinite(Number(value)) ? Number(value) : fallback;
@@ -120,20 +127,24 @@ function evaluateStrategies(cases = [], memories = [], options = {}) {
         name: testCase.name || testCase.query,
         query: testCase.query,
         expectedIds,
+        evidenceType: testCase.evidenceType || 'benchmark',
+        weight: Math.max(0, normalizeNumber(testCase.weight, 1)),
         reciprocalRank: rr,
         hitAt1: rr === 1,
         rankedIds: hits.map(hit => hit.memory.id),
       };
     });
 
-    const total = Math.max(1, caseResults.length);
-    const mrr = caseResults.reduce((sum, result) => sum + result.reciprocalRank, 0) / total;
-    const hitAt1 = caseResults.filter(result => result.hitAt1).length / total;
+    const totalWeight = caseResults.reduce((sum, result) => sum + result.weight, 0) || 1;
+    const mrr = caseResults.reduce((sum, result) => sum + result.reciprocalRank * result.weight, 0) / totalWeight;
+    const hitAt1 = caseResults.reduce((sum, result) => sum + (result.hitAt1 ? result.weight : 0), 0) / totalWeight;
     return {
       strategy,
       score: mrr,
       mrr,
       hitAt1,
+      caseCount: caseResults.length,
+      evidenceWeight: totalWeight,
       cases: caseResults,
     };
   });
@@ -145,8 +156,8 @@ function evaluateStrategies(cases = [], memories = [], options = {}) {
   });
 
   return {
-    winner: results[0]?.strategy || null,
-    results,
+    winner: cases.length ? results[0]?.strategy || null : null,
+    results: cases.length ? results : [],
   };
 }
 
@@ -223,6 +234,135 @@ function builtInBenchmark() {
   return { memories, cases };
 }
 
+function usefulTokens(text, limit = 5) {
+  return [...tokens(text)]
+    .filter(token => !STOP_TOKENS.has(token))
+    .slice(0, limit);
+}
+
+function benchmarkQueryForMemory(memory = {}) {
+  const query = [...new Set([
+    ...usefulTokens(memory.subject || '', 4),
+    ...usefulTokens(memory.content || '', 5),
+  ])];
+  return query.join(' ');
+}
+
+function correctionBenchmarkQuery(previous = {}, replacement = {}) {
+  const previousTokens = usefulTokens(previous.content || '', 12);
+  const replacementTokens = new Set(usefulTokens(replacement.content || '', 12));
+  const shared = previousTokens.filter(token => replacementTokens.has(token));
+  const query = [...new Set([
+    ...usefulTokens(replacement.subject || previous.subject || '', 4),
+    ...shared.slice(0, 5),
+  ])];
+  return query.join(' ') || benchmarkQueryForMemory(replacement);
+}
+
+function memoriesById(events = []) {
+  const memories = new Map();
+  for (const event of events) {
+    if (event.memory?.id) memories.set(event.memory.id, event.memory);
+  }
+  return memories;
+}
+
+function realBenchmarkFromEvents(events = []) {
+  const active = replayMemories(events);
+  const activeIds = new Set(active.map(memory => memory.id));
+  const history = memoriesById(events);
+  const cases = [];
+  const seen = new Set();
+  const counts = {
+    correction: 0,
+    'context-hq': 0,
+    'retrieval-feedback': 0,
+  };
+
+  function addCase(testCase) {
+    const query = String(testCase.query || '').trim();
+    if (!query || !activeIds.has(testCase.expectedId)) return;
+    const key = `${testCase.evidenceType}\u0000${testCase.expectedId}\u0000${query.toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    cases.push({ ...testCase, query });
+    counts[testCase.evidenceType] = (counts[testCase.evidenceType] || 0) + 1;
+  }
+
+  for (const event of events) {
+    if (event.type === 'correct' && event.memory?.id) {
+      const previous = history.get(event.memoryId) || {};
+      addCase({
+        name: `correction ${event.memoryId} -> ${event.memory.id}`,
+        query: correctionBenchmarkQuery(previous, event.memory),
+        expectedId: event.memory.id,
+        evidenceType: 'correction',
+        weight: 2,
+        now: Date.parse(event.recordedAt || event.memory.createdAt || '') || undefined,
+      });
+    }
+
+    if (event.type === 'remember' && event.memory?.sourceType === 'context-hq') {
+      addCase({
+        name: `approved Context HQ handoff ${event.memory.sourceId || event.memory.id}`,
+        query: benchmarkQueryForMemory(event.memory),
+        expectedId: event.memory.id,
+        evidenceType: 'context-hq',
+        weight: 0.5,
+        now: Date.parse(event.recordedAt || event.memory.createdAt || '') || undefined,
+      });
+    }
+
+    if (event.type === 'retrieval-feedback' && event.outcome === 'approved') {
+      addCase({
+        name: `approved retrieval ${event.memoryId}`,
+        query: event.query,
+        expectedId: event.memoryId,
+        evidenceType: 'retrieval-feedback',
+        weight: 3,
+        now: Date.parse(event.recordedAt || '') || undefined,
+      });
+    }
+  }
+
+  return {
+    memories: active,
+    cases,
+    evidence: {
+      ...counts,
+      caseCount: cases.length,
+      highQualityCount: counts.correction + counts['retrieval-feedback'],
+      activeMemoryCount: active.length,
+    },
+  };
+}
+
+async function realBenchmark(options = {}) {
+  return realBenchmarkFromEvents(await loadEvents(options));
+}
+
+async function recordRetrievalFeedback(query, memoryId, options = {}) {
+  const text = String(query || '').trim();
+  const id = String(memoryId || '').trim();
+  if (!text) throw new Error('Retrieval feedback requires the original query.');
+  if (!id) throw new Error('Retrieval feedback requires --memory MEMORY_ID.');
+
+  const events = await loadEvents(options);
+  const active = replayMemories(events);
+  if (!active.some(memory => memory.id === id)) {
+    throw new Error(`Cannot approve inactive or unknown memory: ${id}`);
+  }
+
+  return appendEvent({
+    type: 'retrieval-feedback',
+    outcome: 'approved',
+    recordedAt: new Date(options.now || Date.now()).toISOString(),
+    query: text,
+    memoryId: id,
+    sourceType: options.sourceType || 'manual',
+  }, options);
+}
+
 function selectionPath(options = {}) {
   return path.join(statePaths(options).stateDir, 'retrieval-strategy.json');
 }
@@ -249,10 +389,12 @@ async function promoteStrategy(strategy, tournament, options = {}) {
     selectedAt: new Date(options.now || Date.now()).toISOString(),
     evaluation: tournament ? {
       winner: tournament.winner,
+      evidence: tournament.evidence || null,
       results: tournament.results.map(result => ({
         strategy: result.strategy,
         mrr: result.mrr,
         hitAt1: result.hitAt1,
+        caseCount: result.caseCount,
       })),
     } : null,
   };
@@ -282,6 +424,33 @@ async function runBuiltInTournament(options = {}) {
   return tournament;
 }
 
+function realPromotionEligibility(benchmark, options = {}) {
+  const minCases = Math.max(1, Number.parseInt(options.minCases || '3', 10) || 3);
+  if (benchmark.cases.length < minCases) {
+    return { eligible: false, reason: `need at least ${minCases} real benchmark cases` };
+  }
+  if (benchmark.evidence.highQualityCount < 1) {
+    return { eligible: false, reason: 'need at least one correction or explicitly approved retrieval' };
+  }
+  return { eligible: true, reason: 'real evidence threshold met' };
+}
+
+async function runRealTournament(options = {}) {
+  const benchmark = await realBenchmark(options);
+  const tournament = evaluateStrategies(benchmark.cases, benchmark.memories, options);
+  tournament.evidence = benchmark.evidence;
+  tournament.promotionEligibility = realPromotionEligibility(benchmark, options);
+
+  if (options.promote && tournament.winner) {
+    if (tournament.promotionEligibility.eligible) {
+      tournament.promotion = await promoteStrategy(tournament.winner, tournament, options);
+    } else {
+      tournament.promotionBlocked = tournament.promotionEligibility.reason;
+    }
+  }
+  return tournament;
+}
+
 function parseArgs(argv = process.argv.slice(2)) {
   const options = {
     command: argv[0] || 'tournament',
@@ -294,7 +463,9 @@ function parseArgs(argv = process.argv.slice(2)) {
     if (arg === '--json') options.json = true;
     else if (arg === '--promote') options.promote = true;
     else if (arg === '--strategy') options.strategy = argv[++index] || '';
+    else if (arg === '--memory') options.memoryId = argv[++index] || '';
     else if (arg === '--limit') options.limit = Number.parseInt(argv[++index] || '', 10) || 5;
+    else if (arg === '--min-cases') options.minCases = Number.parseInt(argv[++index] || '', 10) || 3;
     else if (arg === '--state-dir') options.stateDir = argv[++index] || '';
     else positional.push(arg);
   }
@@ -304,11 +475,26 @@ function parseArgs(argv = process.argv.slice(2)) {
 
 function renderTournament(tournament) {
   const lines = [`winner: ${tournament.winner || 'none'}`];
+  if (tournament.evidence) {
+    lines.push(`real evidence: ${tournament.evidence.caseCount} cases (${tournament.evidence.correction} corrections, ${tournament.evidence['retrieval-feedback']} approvals, ${tournament.evidence['context-hq']} Context HQ)`);
+  }
   for (const result of tournament.results) {
-    lines.push(`${result.strategy}\tmrr=${result.mrr.toFixed(3)}\thit@1=${result.hitAt1.toFixed(3)}`);
+    lines.push(`${result.strategy}\tmrr=${result.mrr.toFixed(3)}\thit@1=${result.hitAt1.toFixed(3)}\tcases=${result.caseCount}`);
   }
   if (tournament.promotion) lines.push(`promoted: ${tournament.promotion.strategy}`);
+  if (tournament.promotionBlocked) lines.push(`promotion blocked: ${tournament.promotionBlocked}`);
   return lines.join('\n');
+}
+
+function renderEvidence(benchmark) {
+  const evidence = benchmark.evidence;
+  return [
+    `real benchmark cases: ${evidence.caseCount}`,
+    `corrections: ${evidence.correction}`,
+    `explicit approvals: ${evidence['retrieval-feedback']}`,
+    `approved Context HQ handoffs: ${evidence['context-hq']}`,
+    `active memories: ${evidence.activeMemoryCount}`,
+  ].join('\n');
 }
 
 async function cli(argv = process.argv.slice(2)) {
@@ -316,6 +502,21 @@ async function cli(argv = process.argv.slice(2)) {
   if (options.command === 'tournament') {
     const result = await runBuiltInTournament(options);
     console.log(options.json ? JSON.stringify(result, null, 2) : renderTournament(result));
+    return 0;
+  }
+  if (options.command === 'real-tournament') {
+    const result = await runRealTournament(options);
+    console.log(options.json ? JSON.stringify(result, null, 2) : renderTournament(result));
+    return 0;
+  }
+  if (options.command === 'evidence') {
+    const benchmark = await realBenchmark(options);
+    console.log(options.json ? JSON.stringify(benchmark, null, 2) : renderEvidence(benchmark));
+    return 0;
+  }
+  if (options.command === 'approve') {
+    const event = await recordRetrievalFeedback(options.text, options.memoryId, options);
+    console.log(options.json ? JSON.stringify(event, null, 2) : `approved ${event.memoryId}`);
     return 0;
   }
   if (options.command === 'recall') {
@@ -341,14 +542,22 @@ module.exports = {
   STRATEGY_NAMES,
   activeMemories,
   adaptiveRecall,
+  benchmarkQueryForMemory,
   builtInBenchmark,
+  correctionBenchmarkQuery,
   evaluateStrategies,
   lexicalMetrics,
+  memoriesById,
   promoteStrategy,
   rankMemories,
   readSelectedStrategy,
+  realBenchmark,
+  realBenchmarkFromEvents,
+  realPromotionEligibility,
+  recordRetrievalFeedback,
   recencyScore,
   runBuiltInTournament,
+  runRealTournament,
   scoreWithStrategy,
   selectionPath,
 };
