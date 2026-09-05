@@ -1,0 +1,58 @@
+name: Restart OVH Remote Desktop
+
+on:
+  push:
+    paths:
+      - '.github/workflows/remote-desktop-restart.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  restart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Restart Desktop Commander on OVH
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest";
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :;
+            else rm -f "$dest" "$dest.raw"; return 0; fi
+            chmod 600 "$dest"; rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/key-a
+          write_key "$SSH_B" /tmp/key-b
+          write_key "$SSH_C" /tmp/key-c
+          selected=''
+          for user in debian root; do
+            for key in /tmp/key-a /tmp/key-b /tmp/key-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@40.160.137.41" true >/dev/null 2>&1; then
+                selected="$user|$key"; break 2
+              fi
+            done
+          done
+          [ -n "$selected" ] || { echo 'OVH SSH unavailable' >&2; exit 1; }
+          IFS='|' read -r user key <<< "$selected"
+          opts=(-i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$user@40.160.137.41" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          sudo -n systemctl restart desktop-commander-remote.service
+          sleep 3
+          sudo -n systemctl is-active --quiet desktop-commander-remote.service
+          sudo -n systemctl --no-pager --full status desktop-commander-remote.service | sed -n '1,12p'
+          echo '--- recent service log ---'
+          sudo -n journalctl -u desktop-commander-remote.service --since '-2 min' --no-pager | tail -40
+          REMOTE
