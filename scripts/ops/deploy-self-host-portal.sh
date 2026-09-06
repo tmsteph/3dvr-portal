@@ -29,10 +29,18 @@ current="$base/current"
 state="$base/state"
 config_dir="${THREEDVR_CONFIG_DIR:-$HOME/.3dvr/config}"
 common_env="$config_dir/env"
+settings_env="$config_dir/portal-settings.env"
 portal_env="$config_dir/portal.env"
+secrets_env="$config_dir/portal-secrets.env"
 
 mkdir -p "$releases" "$state" "$config_dir"
 chmod 700 "$config_dir" 2>/dev/null || true
+if [ -f "$settings_env" ]; then
+  set -a
+  . "$settings_env"
+  set +a
+fi
+legacy_api_origin="${THREEDVR_LEGACY_API_ORIGIN-https://3dvr-portal.vercel.app}"
 
 if [ ! -d "$release" ]; then
   tmp="$releases/.tmp-$sha-$$"
@@ -97,13 +105,14 @@ trap cleanup_candidate EXIT
   set -a
   [ -f "$common_env" ] && . "$common_env"
   [ -f "$portal_env" ] && . "$portal_env"
+  [ -f "$secrets_env" ] && . "$secrets_env"
   set +a
   export PORT="$candidate_port"
   export HOST=127.0.0.1
   export PORTAL_ROOT="$release"
   export PORTAL_RELEASE_REF="$ref"
   export PORTAL_RELEASE_SHA="$sha"
-  export LEGACY_API_ORIGIN=https://3dvr-portal.vercel.app
+  export LEGACY_API_ORIGIN="$legacy_api_origin"
   cd "$release"
   exec node scripts/self-host-server.mjs
 ) >"$candidate_log" 2>&1 &
@@ -140,23 +149,13 @@ HOST=127.0.0.1
 PORTAL_ROOT=$current
 PORTAL_RELEASE_REF=$ref
 PORTAL_RELEASE_SHA=$sha
-LEGACY_API_ORIGIN=https://3dvr-portal.vercel.app
+LEGACY_API_ORIGIN=$legacy_api_origin
 EOF
 
-# Preserve private runtime values already provisioned by an operator or workflow.
-# Never overwrite them with empty values and never print them.
-for key in OPENAI_API_KEY AI_GATEWAY_API_KEY THREEDVR_CLOUDFLARE_TUNNEL_TOKEN GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET; do
-  value="${!key:-}"
-  if [ -z "$value" ] && [ "$had_previous_env" = true ]; then
-    value="$(sed -n "s/^${key}=//p" "$previous_env" | tail -n1)"
-  fi
-  if [ -z "$value" ] && [ -f "$common_env" ]; then
-    value="$(sed -n "s/^${key}=//p" "$common_env" | tail -n1)"
-  fi
-  if [ -n "$value" ]; then
-    printf '%s=%s\n' "$key" "$value" >> "$portal_env.tmp"
-  fi
-done
+# Secrets live in their own root-readable file so adding a new API dependency does
+# not require editing this deploy script or duplicating secret values into portal.env.
+touch "$secrets_env"
+chmod 600 "$secrets_env"
 mv "$portal_env.tmp" "$portal_env"
 chmod 600 "$portal_env"
 
@@ -173,6 +172,7 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=$current
 EnvironmentFile=-$common_env
+EnvironmentFile=-$secrets_env
 EnvironmentFile=$portal_env
 ExecStart=/usr/bin/env node $current/scripts/self-host-server.mjs
 Restart=always
@@ -197,8 +197,9 @@ start_with_tmux() {
   printf -v current_q '%q' "$current"
   printf -v common_env_q '%q' "$common_env"
   printf -v portal_env_q '%q' "$portal_env"
+  printf -v secrets_env_q '%q' "$secrets_env"
   printf -v log_q '%q' "$log"
-  command="set -a; [ -f $common_env_q ] && . $common_env_q; . $portal_env_q; set +a; cd $current_q; exec node scripts/self-host-server.mjs >>$log_q 2>&1"
+  command="set -a; [ -f $common_env_q ] && . $common_env_q; [ -f $secrets_env_q ] && . $secrets_env_q; . $portal_env_q; set +a; cd $current_q; exec node scripts/self-host-server.mjs >>$log_q 2>&1"
   tmux new-session -d -s "$session" "$command"
 }
 
@@ -290,6 +291,7 @@ fi
 
 set -a
 [ -f "$common_env" ] && . "$common_env"
+[ -f "$secrets_env" ] && . "$secrets_env"
 . "$portal_env"
 set +a
 
@@ -303,6 +305,7 @@ Requires=3dvr-portal.service
 
 [Service]
 Type=simple
+EnvironmentFile=-$secrets_env
 EnvironmentFile=$portal_env
 ExecStart=/bin/sh -lc 'exec $cloudflared tunnel --no-autoupdate run --token "\$THREEDVR_CLOUDFLARE_TUNNEL_TOKEN"'
 Restart=always

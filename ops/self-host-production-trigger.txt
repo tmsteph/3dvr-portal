@@ -1,2 +1,2 @@
-2026-09-05T16:43:00-07:00
-Reason: deploy reversible owner-signed Digital Organism retrieval feedback, including “This was right” and exact-query “Not relevant”, to OVH-first production.
+2026-09-05T17:15:00-07:00
+Reason: deploy the self-host migration hardening to OVH in shadow mode. Keep canonical DNS on Vercel; verify native API coverage, readiness telemetry, secret-file loading, and rollback before any cutover.

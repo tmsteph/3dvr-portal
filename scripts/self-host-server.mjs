@@ -1,7 +1,17 @@
 import { createServer } from 'node:http';
 import { access, readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
+import calendarProviderHandler from '../api/calendar/[provider].js';
+import calendarReminderEmailHandler from '../api/calendar/reminder-email.js';
+import githubPublishHandler from '../api/github-publish.js';
+import homepageHeroCronHandler from '../api/growth/homepage-hero-cron.js';
+import moneyAutopilotCronHandler from '../api/money/autopilot-cron.js';
+import moneyLoopHandler from '../api/money/loop.js';
 import openAiSiteHandler from '../api/openai-site.js';
+import sessionHandler from '../api/session.js';
+import stripeDashboardHandler from '../api/stripe/[route].js';
+import trialHandler from '../api/trial.js';
+import stripeWebhookHandler from '../api/webhooks/stripe.js';
 import workboardGithubHandler from '../src/workboard/github-feed.js';
 import { createOAuthProviderHandler } from '../src/oauth/provider-api.js';
 import { createOrganismBridgeHandler } from '../src/organism/bridge.js';
@@ -14,6 +24,26 @@ const RELEASE_REF = String(process.env.PORTAL_RELEASE_REF || 'main').trim();
 const LEGACY_API_ORIGIN = String(process.env.LEGACY_API_ORIGIN || '').replace(/\/+$/, '');
 const oauthProviderHandler = createOAuthProviderHandler();
 const organismBridgeHandler = createOrganismBridgeHandler();
+const legacyFallbackRequests = new Map();
+const nativeApiRoutes = Object.freeze([
+  '/api/account-recovery-email',
+  '/api/calendar/:provider',
+  '/api/calendar/reminder-email',
+  '/api/crm-check',
+  '/api/av-freelance-kit',
+  '/api/github-publish',
+  '/api/growth/homepage-hero-cron',
+  '/api/money/autopilot-cron',
+  '/api/money/loop',
+  '/api/oauth/:provider',
+  '/api/openai-site',
+  '/api/session',
+  '/api/stripe/:route',
+  '/api/trial',
+  '/api/vercel-deploy',
+  '/api/workboard/github',
+  '/webhooks/stripe'
+]);
 
 const MIME_TYPES = new Map([
   ['.html', 'text/html; charset=utf-8'],
@@ -50,7 +80,10 @@ function isPrivateStaticPath(pathname) {
 
 function applyBaseHeaders(res, pathname = '') {
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  if (pathname.endsWith('service-worker.js') || pathname.endsWith('pwa-install.js')) {
+  if (pathname === '/cache-reset.html' || pathname === '/api/cache-reset') {
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Clear-Site-Data', '"cache"');
+  } else if (pathname.endsWith('service-worker.js') || pathname.endsWith('pwa-install.js')) {
     res.setHeader('Cache-Control', 'no-cache');
   } else if (/\.(png|jpg|jpeg|gif|svg|webp|woff2?)$/i.test(pathname)) {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
@@ -120,17 +153,50 @@ async function prepareApiRequest(req, url) {
   req.query = Object.fromEntries(url.searchParams.entries());
 }
 
-function adaptResponse(res) {
+function adaptResponse(res, backend = 'self-host') {
+  if (!res.headersSent) res.setHeader('X-3DVR-API-Backend', backend);
   res.status = code => { res.statusCode = code; return res; };
   res.json = payload => {
     if (!res.headersSent) res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.end(JSON.stringify(payload));
     return res;
   };
+  res.send = payload => {
+    if (payload == null) res.end();
+    else if (Buffer.isBuffer(payload) || typeof payload === 'string') res.end(payload);
+    else res.json(payload);
+    return res;
+  };
   return res;
 }
 
+async function runApiHandler(handler, req, res, url, query = {}) {
+  try {
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method || '')) await prepareApiRequest(req, url);
+    else {
+      req.body = {};
+      req.query = Object.fromEntries(url.searchParams.entries());
+    }
+    req.query = { ...(req.query || {}), ...query };
+    await handler(req, adaptResponse(res));
+  } catch (error) {
+    if (!res.headersSent) json(res, error?.statusCode || 500, { error: error?.message || 'API request failed' });
+    else res.destroy(error);
+  }
+}
+
+async function runStripeWebhook(req, res, url) {
+  try {
+    req.query = Object.fromEntries(url.searchParams.entries());
+    await stripeWebhookHandler(req, adaptResponse(res));
+  } catch (error) {
+    if (!res.headersSent) json(res, error?.statusCode || 500, { error: error?.message || 'Stripe webhook failed' });
+    else res.destroy(error);
+  }
+}
+
 async function runOpenAiSite(req, res, url) {
+  if (!res.headersSent) res.setHeader('X-3DVR-API-Backend', 'self-host');
   try {
     if (req.method !== 'OPTIONS') await prepareApiRequest(req, url);
     else { req.body = {}; req.query = Object.fromEntries(url.searchParams.entries()); }
@@ -142,6 +208,7 @@ async function runOpenAiSite(req, res, url) {
 }
 
 async function runOrganismRecall(req, res, url) {
+  if (!res.headersSent) res.setHeader('X-3DVR-API-Backend', 'self-host');
   try {
     await prepareApiRequest(req, url);
     await organismBridgeHandler(req, adaptResponse(res));
@@ -152,6 +219,7 @@ async function runOrganismRecall(req, res, url) {
 }
 
 async function runWorkboardGithub(req, res, url) {
+  if (!res.headersSent) res.setHeader('X-3DVR-API-Backend', 'self-host');
   try {
     req.query = Object.fromEntries(url.searchParams.entries());
     await workboardGithubHandler(req, adaptResponse(res));
@@ -162,6 +230,7 @@ async function runWorkboardGithub(req, res, url) {
 }
 
 async function runOAuthProvider(req, res, url) {
+  if (!res.headersSent) res.setHeader('X-3DVR-API-Backend', 'self-host');
   try {
     if (req.method !== 'OPTIONS') await prepareApiRequest(req, url);
     else { req.body = {}; req.query = Object.fromEntries(url.searchParams.entries()); }
@@ -177,6 +246,11 @@ async function runOAuthProvider(req, res, url) {
 
 async function proxyLegacyApi(req, res, url) {
   if (!LEGACY_API_ORIGIN) return json(res, 404, { error: 'API route is not enabled on this self-host yet.' });
+  const key = `${req.method || 'GET'} ${url.pathname}`;
+  const seen = legacyFallbackRequests.get(key) || 0;
+  legacyFallbackRequests.set(key, seen + 1);
+  if (seen === 0) console.warn(`3DVR self-host legacy API fallback: ${key}`);
+  if (!res.headersSent) res.setHeader('X-3DVR-API-Backend', 'legacy-vercel');
   const target = new URL(url.pathname + url.search, `${LEGACY_API_ORIGIN}/`);
   const body = ['GET', 'HEAD'].includes(req.method || '') ? undefined : await readRequestBody(req);
   let upstream;
@@ -201,6 +275,32 @@ async function proxyLegacyApi(req, res, url) {
   res.end(buffer);
 }
 
+function environmentReadiness() {
+  const groups = {
+    ai: Boolean(process.env.OPENAI_API_KEY || process.env.AI_GATEWAY_API_KEY),
+    googleOauth: Boolean(process.env.GOOGLE_OAUTH_CLIENT_ID && process.env.GOOGLE_OAUTH_CLIENT_SECRET),
+    mail: Boolean(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD),
+    stripe: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET)
+  };
+  return { groups, ok: Object.values(groups).every(Boolean) };
+}
+
+function readinessPayload() {
+  const environment = environmentReadiness();
+  const legacyApiFallback = Boolean(LEGACY_API_ORIGIN);
+  return {
+    ok: true,
+    cutoverReady: environment.ok && !legacyApiFallback,
+    sha: RELEASE_SHA,
+    ref: RELEASE_REF,
+    legacyApiFallback,
+    legacyFallbackRequestCount: [...legacyFallbackRequests.values()].reduce((sum, count) => sum + count, 0),
+    legacyFallbackRoutesSeen: [...legacyFallbackRequests.keys()].sort(),
+    environment: environment.groups,
+    nativeApiRoutes
+  };
+}
+
 function rewriteForHost(url, host) {
   const hostname = String(host || '').split(':')[0].toLowerCase();
   if (url.pathname === '/api/cache-reset') return '/cache-reset.html';
@@ -219,24 +319,51 @@ const server = createServer(async (req, res) => {
   applyBaseHeaders(res, url.pathname);
 
   if (url.pathname === '/__3dvr-health') {
-    return json(res, 200, { ok: true, host: 'self', sha: RELEASE_SHA, ref: RELEASE_REF, operatorApi: 'native', organismRecall: 'signed-owner' });
+    return json(res, 200, {
+      ok: true,
+      host: 'self',
+      sha: RELEASE_SHA,
+      ref: RELEASE_REF,
+      operatorApi: 'native',
+      organismRecall: 'signed-owner',
+      legacyApiFallback: Boolean(LEGACY_API_ORIGIN)
+    });
   }
+
+  if (url.pathname === '/__3dvr-readiness') {
+    return json(res, 200, readinessPayload());
+  }
+
+  if (url.pathname === '/api/cache-reset') url.pathname = '/cache-reset.html';
 
   if (url.pathname === '/health' || url.pathname === '/recall') {
     return runOrganismRecall(req, res, url);
   }
 
-  if (url.pathname === '/api/openai-site') {
-    return runOpenAiSite(req, res, url);
+  if (url.pathname === '/api/openai-site') return runOpenAiSite(req, res, url);
+  if (url.pathname === '/api/workboard/github') return runWorkboardGithub(req, res, url);
+  if (url.pathname === '/api/session') return runApiHandler(sessionHandler, req, res, url);
+  if (url.pathname === '/api/crm-check') return runApiHandler(sessionHandler, req, res, url, { route: 'crm-check' });
+  if (url.pathname === '/api/av-freelance-kit') return runApiHandler(sessionHandler, req, res, url, { route: 'av-freelance-kit' });
+  if (url.pathname === '/api/trial') return runApiHandler(trialHandler, req, res, url);
+  if (url.pathname === '/api/github-publish') return runApiHandler(githubPublishHandler, req, res, url);
+  if (url.pathname === '/api/vercel-deploy') return runApiHandler(githubPublishHandler, req, res, url, { provider: 'vercel' });
+  if (url.pathname === '/api/calendar/reminder-email' || url.pathname === '/api/account-recovery-email') {
+    return runApiHandler(calendarReminderEmailHandler, req, res, url);
   }
-
-  if (url.pathname === '/api/workboard/github') {
-    return runWorkboardGithub(req, res, url);
+  if (url.pathname.startsWith('/api/calendar/')) {
+    const provider = decodeURIComponent(url.pathname.split('/').filter(Boolean).at(-1) || '');
+    return runApiHandler(calendarProviderHandler, req, res, url, { provider });
   }
-
-  if (url.pathname.startsWith('/api/oauth/')) {
-    return runOAuthProvider(req, res, url);
+  if (url.pathname === '/api/growth/homepage-hero-cron') return runApiHandler(homepageHeroCronHandler, req, res, url);
+  if (url.pathname === '/api/money/autopilot-cron') return runApiHandler(moneyAutopilotCronHandler, req, res, url);
+  if (url.pathname === '/api/money/loop') return runApiHandler(moneyLoopHandler, req, res, url);
+  if (url.pathname.startsWith('/api/stripe/')) {
+    const route = decodeURIComponent(url.pathname.split('/').filter(Boolean).at(-1) || '');
+    return runApiHandler(stripeDashboardHandler, req, res, url, { route });
   }
+  if (url.pathname === '/webhooks/stripe') return runStripeWebhook(req, res, url);
+  if (url.pathname.startsWith('/api/oauth/')) return runOAuthProvider(req, res, url);
 
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/webhooks/')) {
     return proxyLegacyApi(req, res, url);
@@ -264,7 +391,12 @@ const server = createServer(async (req, res) => {
     const body = await readFile(found.path);
     res.statusCode = 200;
     res.setHeader('Content-Type', MIME_TYPES.get(extname(found.path).toLowerCase()) || 'application/octet-stream');
-    if (pathname.endsWith('service-worker.js')) res.setHeader('Service-Worker-Allowed', '/');
+    if (pathname.endsWith('service-worker.js')) {
+      const scope = pathname.startsWith('/contacts/') ? '/contacts/'
+        : pathname.startsWith('/calendar/') ? '/calendar/'
+          : '/';
+      res.setHeader('Service-Worker-Allowed', scope);
+    }
     res.end(req.method === 'HEAD' ? undefined : body);
   } catch (error) {
     json(res, 500, { error: error?.message || 'Failed to read file' });
