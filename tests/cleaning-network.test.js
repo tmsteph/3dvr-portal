@@ -102,7 +102,7 @@ describe('cleaning network', () => {
         kind: 'cleaning-lead', partner: 'crew-one', name: 'Taylor Homeowner', email: 'taylor@example.com', phone: '555-0199',
         address: '123 Test St', postalCode: '92101', serviceType: 'Home cleaning', propertyType: 'Apartment', bedrooms: '2', bathrooms: '1',
         squareFeet: '900', preferredDate: '2026-09-10', frequency: 'Every two weeks', pets: 'Small dog', notes: 'Focus on kitchen.',
-        utmSource: 'whatsapp', utmCampaign: 'esai-roommate', pageUrl: 'https://portal.3dvr.tech/cleaning-network/?partner=crew-one',
+        utmSource: 'whatsapp', utmCampaign: 'esai-roommate', pageUrl: 'https://portal.3dvr.tech/cleaning-network/?partner=crew-one&token=do-not-store', referrer: 'https://example.org/referral?secret=drop-me#frag',
       },
     }, res);
     assert.equal(res.statusCode, 200);
@@ -116,7 +116,29 @@ describe('cleaning network', () => {
     assert.match(message.subject, /cln_abc123xyz/);
     assert.match(message.text, /123 Test St/);
     assert.match(message.text, /"utmSource": "whatsapp"/);
+    assert.match(message.text, /"pageUrl": "https:\/\/portal\.3dvr\.tech\/cleaning-network\/"/);
+    assert.match(message.text, /"referrer": "https:\/\/example\.org\/referral"/);
+    assert.equal(message.text.includes('do-not-store'), false);
+    assert.equal(message.text.includes('drop-me'), false);
     assert.equal(message.headers['X-3DVR-Request-ID'], 'cln_abc123xyz');
+  });
+
+  it('keeps a private archive copy in the configured Gmail inbox when no operator override exists', async () => {
+    const mailTransport = createMailTransport();
+    const handler = createHandler({
+      mailTransport,
+      config: {
+        ...baseConfig,
+        OPERATOR_EMAIL_TO: undefined,
+        CLEANING_PARTNERS_JSON: JSON.stringify({ 'crew-one': { name: 'Crew One', email: 'crew@example.com' } }),
+      },
+    });
+    const res = createMockRes();
+    await handler({ method: 'POST', body: { kind: 'cleaning-lead', partner: 'crew-one', name: 'Morgan', phone: '555', postalCode: '92014', serviceType: 'Home cleaning' } }, res);
+    assert.equal(res.statusCode, 200);
+    const message = mailTransport.sendMail.mock.calls[0].arguments[0];
+    assert.equal(message.to, 'crew@example.com');
+    assert.equal(message.bcc, 'bot@example.com');
   });
 
   it('accepts phone-only contact details and keeps the lead in the operator inbox', async () => {

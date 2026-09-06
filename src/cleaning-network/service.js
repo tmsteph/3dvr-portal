@@ -44,12 +44,17 @@ function parseObject(value) {
   }
 }
 
-function normalizePublicUrl(value) {
+function normalizePublicUrl(value, { stripQuery = false } = {}) {
   const raw = cleanLine(value, 500);
   if (!raw) return '';
   try {
     const url = new URL(raw);
-    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : '';
+    if (!['http:', 'https:'].includes(url.protocol)) return '';
+    if (stripQuery) {
+      url.search = '';
+      url.hash = '';
+    }
+    return url.toString();
   } catch {
     return '';
   }
@@ -151,7 +156,8 @@ function destinationFor(config, partner) {
 
 function archiveFor(config, destination) {
   const archive = normalizeEmail(config.CLEANING_LEAD_ARCHIVE_EMAIL)
-    || normalizeEmail(config.OPERATOR_EMAIL_TO);
+    || normalizeEmail(config.OPERATOR_EMAIL_TO)
+    || normalizeEmail(config.GMAIL_USER);
   return archive && archive !== destination ? archive : '';
 }
 
@@ -252,8 +258,8 @@ export function createCleaningNetworkService(options = {}) {
       pets: cleanLine(body.pets, 180),
       notes: cleanLongText(body.notes, 3000),
       source: cleanLine(body.source || `cleaning-network:${partner.partner}`, 160),
-      pageUrl: normalizePublicUrl(body.pageUrl),
-      referrer: normalizePublicUrl(body.referrer),
+      pageUrl: normalizePublicUrl(body.pageUrl, { stripQuery: true }),
+      referrer: normalizePublicUrl(body.referrer, { stripQuery: true }),
       utmSource: cleanLine(body.utmSource, 100),
       utmMedium: cleanLine(body.utmMedium, 100),
       utmCampaign: cleanLine(body.utmCampaign, 140),
@@ -274,6 +280,7 @@ export function createCleaningNetworkService(options = {}) {
           'X-3DVR-Request-Source': record.source,
         },
       });
+      console.log(`Cleaning lead queued: ${id} partner=${partner.partner} archived=${Boolean(archive)}`);
       return res.status(200).json({ success: true, requestId: id, partner: partner.partner, partnerName: partner.name });
     } catch (error) {
       console.error('Cleaning request email failed:', error.message);
@@ -329,6 +336,7 @@ export function createCleaningNetworkService(options = {}) {
           'X-3DVR-Request-ID': id,
         },
       });
+      console.log(`Cleaning partner request queued: ${id}`);
       return res.status(200).json({ success: true, requestId: id });
     } catch (error) {
       console.error('Cleaning partner request email failed:', error.message);
