@@ -312,6 +312,7 @@ body {
 }
 
 .finance-field input,
+.finance-field select,
 .finance-field textarea {
   border-radius: 1rem;
   border: 1px solid rgba(148, 163, 184, 0.25);
@@ -328,6 +329,7 @@ body {
 }
 
 .finance-field input:focus,
+.finance-field select:focus,
 .finance-field textarea:focus {
   outline: none;
   border-color: rgba(56, 189, 248, 0.75);

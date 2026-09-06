@@ -440,6 +440,56 @@ function groupLabelFromType(group) {
   return labels[group] || humanizeStripeLabel(group);
 }
 
+function resolveFinancingKind(transaction, sourceSummary) {
+  const type = String(transaction?.type || '').trim().toLowerCase();
+  const sourceObject = String(sourceSummary?.sourceObject || '').trim().toLowerCase();
+  const descriptor = [
+    transaction?.description,
+    sourceSummary?.label,
+    sourceSummary?.detail,
+    sourceObject,
+    type,
+    transaction?.reporting_category,
+  ].join(' ').toLowerCase();
+
+  if (
+    sourceObject === 'pending_paydown'
+    || /external transfer to paydown|external transfer to pay down/.test(descriptor)
+  ) {
+    return 'paydown_deposit';
+  }
+  if (
+    sourceObject === 'flex_loan_paydown'
+    || type === 'anticipation_repayment'
+    || type.includes('financing_paydown')
+    || /withheld funds? .*pay down|fund withheld .*pay down|loan repayment|loan paydown/.test(descriptor)
+  ) {
+    return 'repayment';
+  }
+  if (
+    ['advance', 'advance_funding'].includes(type)
+    || type.includes('financing_funding')
+    || (sourceObject === 'flex_loan' && Number(transaction?.net) > 0)
+    || /loan funding|loan funded|capital funding|advance funding|financing funding/.test(descriptor)
+  ) {
+    return 'funding';
+  }
+  return 'other';
+}
+
+function extractFlexLoanId(transaction, sourceSummary) {
+  const haystack = [
+    transaction?.description,
+    sourceSummary?.label,
+    sourceSummary?.detail,
+    sourceSummary?.sourceId,
+    transaction?.source?.loan,
+    transaction?.source?.flex_loan,
+  ].join(' ');
+  const match = haystack.match(/\bflxln_[A-Za-z0-9]+\b/);
+  return match ? match[0] : '';
+}
+
 function normalizeBalanceTransaction(transaction) {
   const currency = String(transaction?.currency || 'usd').trim().toUpperCase() || 'USD';
   const amount = typeof transaction?.amount === 'number' ? transaction.amount : 0;
@@ -447,6 +497,8 @@ function normalizeBalanceTransaction(transaction) {
   const net = typeof transaction?.net === 'number' ? transaction.net : amount - fee;
   const sourceSummary = describeBalanceTransactionSource(transaction);
   const group = classifyBalanceTransaction(transaction, sourceSummary);
+  const financingKind = group === 'financing' ? resolveFinancingKind(transaction, sourceSummary) : '';
+  const loanId = group === 'financing' ? extractFlexLoanId(transaction, sourceSummary) : '';
   const typeLabel = humanizeStripeLabel(transaction?.type);
   const reportingLabel = humanizeStripeLabel(transaction?.reporting_category || transaction?.type);
   let label = sourceSummary.label || reportingLabel;
@@ -483,6 +535,8 @@ function normalizeBalanceTransaction(transaction) {
     customerEmail: sourceSummary.customerEmail,
     group,
     groupLabel: groupLabelFromType(group),
+    financingKind,
+    loanId,
     direction: net > 0 ? 'inflow' : net < 0 ? 'outflow' : 'flat',
   };
 }
@@ -500,6 +554,9 @@ function summarizeCashflowTransactions(transactions = []) {
     payins: {},
     financingIn: {},
     financingOut: {},
+    financingFunding: {},
+    financingRepayments: {},
+    financingPaydownDeposits: {},
     customerPayments: {},
     refunds: {},
   };
@@ -533,6 +590,13 @@ function summarizeCashflowTransactions(transactions = []) {
       } else {
         addCurrencyTotal(summary.financingOut, currency, Math.abs(transaction.net || transaction.amount));
       }
+      if (transaction.financingKind === 'funding') {
+        addCurrencyTotal(summary.financingFunding, currency, Math.abs(transaction.net || transaction.amount));
+      } else if (transaction.financingKind === 'repayment') {
+        addCurrencyTotal(summary.financingRepayments, currency, Math.abs(transaction.net || transaction.amount));
+      } else if (transaction.financingKind === 'paydown_deposit') {
+        addCurrencyTotal(summary.financingPaydownDeposits, currency, Math.abs(transaction.net || transaction.amount));
+      }
     }
     if (transaction.group === 'customer_payment' && transaction.amount > 0) {
       addCurrencyTotal(summary.customerPayments, currency, transaction.amount);
@@ -552,6 +616,9 @@ function summarizeCashflowTransactions(transactions = []) {
     payins: compactCurrencyTotals(summary.payins),
     financingIn: compactCurrencyTotals(summary.financingIn),
     financingOut: compactCurrencyTotals(summary.financingOut),
+    financingFunding: compactCurrencyTotals(summary.financingFunding),
+    financingRepayments: compactCurrencyTotals(summary.financingRepayments),
+    financingPaydownDeposits: compactCurrencyTotals(summary.financingPaydownDeposits),
     customerPayments: compactCurrencyTotals(summary.customerPayments),
     refunds: compactCurrencyTotals(summary.refunds),
   };
@@ -803,7 +870,8 @@ async function listCashflow(req, stripeClient, res) {
       expand: ['data.source']
     }).autoPagingToArray({ limit: detailLimit }),
     stripeClient.balanceTransactions.list({
-      limit: 100
+      limit: 100,
+      expand: ['data.source']
     }).autoPagingToArray({ limit: summaryLimit }),
   ]);
 
@@ -820,6 +888,63 @@ async function listCashflow(req, stripeClient, res) {
       summaryLimit,
       isTruncated: summaryRawTransactions.length >= summaryLimit,
     }
+  });
+}
+
+function summarizeFinancingByLoan(transactions = []) {
+  const loans = new Map();
+  transactions.forEach(transaction => {
+    if (!transaction || transaction.group !== 'financing') return;
+    const key = transaction.loanId || 'unmatched-financing';
+    const existing = loans.get(key) || {
+      loanId: transaction.loanId || '',
+      currency: transaction.currency || 'USD',
+      funding: 0,
+      repayments: 0,
+      paydownDeposits: 0,
+      otherNet: 0,
+      firstActivityAt: null,
+      lastActivityAt: null,
+      transactionCount: 0,
+    };
+    const value = Math.abs(Number(transaction.net || transaction.amount || 0));
+    if (transaction.financingKind === 'funding') existing.funding += value;
+    else if (transaction.financingKind === 'repayment') existing.repayments += value;
+    else if (transaction.financingKind === 'paydown_deposit') existing.paydownDeposits += value;
+    else existing.otherNet += Number(transaction.net || transaction.amount || 0);
+    const stamp = Date.parse(transaction.createdAt || '');
+    if (Number.isFinite(stamp)) {
+      if (!existing.firstActivityAt || stamp < Date.parse(existing.firstActivityAt)) existing.firstActivityAt = transaction.createdAt;
+      if (!existing.lastActivityAt || stamp > Date.parse(existing.lastActivityAt)) existing.lastActivityAt = transaction.createdAt;
+    }
+    existing.transactionCount += 1;
+    loans.set(key, existing);
+  });
+  return Array.from(loans.values()).sort((a, b) => Date.parse(b.lastActivityAt || 0) - Date.parse(a.lastActivityAt || 0));
+}
+
+async function listFinancing(stripeClient, res) {
+  const rawTransactions = await stripeClient.balanceTransactions.list({
+    limit: 100,
+    expand: ['data.source']
+  }).autoPagingToArray({ limit: 5000 });
+  const transactions = rawTransactions
+    .map(normalizeBalanceTransaction)
+    .filter(transaction => transaction.group === 'financing');
+  const summary = summarizeCashflowTransactions(rawTransactions);
+  return res.status(200).json({
+    updatedAt: new Date().toISOString(),
+    transactionCount: transactions.length,
+    transactions,
+    loans: summarizeFinancingByLoan(transactions),
+    summary: {
+      funding: summary.financingFunding,
+      repayments: summary.financingRepayments,
+      paydownDeposits: summary.financingPaydownDeposits,
+      legacyIn: summary.financingIn,
+      legacyOut: summary.financingOut,
+    },
+    isTruncated: rawTransactions.length >= 5000,
   });
 }
 
@@ -898,6 +1023,9 @@ export function createStripeDashboardHandler({
       }
       if (route === 'cashflow') {
         return await listCashflow(req, resolvedStripeClient, res);
+      }
+      if (route === 'financing') {
+        return await listFinancing(resolvedStripeClient, res);
       }
       if (route === 'events') {
         return await listEvents(req, resolvedStripeClient, res, config);

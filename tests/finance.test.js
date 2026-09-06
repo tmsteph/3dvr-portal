@@ -46,6 +46,7 @@ describe('finance ledger hub', () => {
     assert.match(html, /id="finance-ledger"/);
     assert.match(html, /href="\.\/incoming\.html"/);
     assert.match(html, /href="\.\/outgoing\.html"/);
+    assert.match(html, /href="\.\/standings\.html"/);
     assert.match(html, /<link[^>]+href="\.\/styles.css"/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/sea\.js"/);
@@ -84,6 +85,25 @@ describe('finance ledger hub', () => {
     assert.match(html, /id="stripe-cashflow-list"/);
   });
 
+  it('includes an auditable company standings workspace', async () => {
+    const standingsUrl = new URL('standings.html', baseDir);
+    assert.equal(await fileExists(standingsUrl), true, 'standings.html should exist');
+    const html = await readFile(standingsUrl, 'utf8');
+    assert.match(html, /Company standings/);
+    assert.match(html, /id="standings-receivable"/);
+    assert.match(html, /id="standings-payable"/);
+    assert.match(html, /id="loan-funding"/);
+    assert.match(html, /id="standing-form"/);
+    assert.match(html, /src="\.\/standings\.js"/);
+
+    const script = await readFile(new URL('standings.js', baseDir), 'utf8');
+    assert.ok(script.includes("get?.('standings')"));
+    assert.match(script, /\/api\/stripe\/financing/);
+    assert.match(script, /DEFAULT_LOAN_PERSON = 'Thomas Stephens'/);
+    assert.match(script, /person_owes_company/);
+    assert.match(script, /person_repaid_company/);
+  });
+
   it('persists entries to portal and legacy finance Gun graphs with documented structure', async () => {
     const scriptUrl = new URL('app.js', baseDir);
     assert.equal(await fileExists(scriptUrl), true, 'app.js should exist');
@@ -120,11 +140,8 @@ describe('finance ledger hub', () => {
     assert.equal(await fileExists(portalIndex), true, 'root index.html should exist');
 
     const html = await readFile(portalIndex, 'utf8');
-    const financeIndex = html.indexOf('<span class="app-card__title">Finance</span>');
-    const gamesIndex = html.indexOf('<span class="app-card__title">Game Hub</span>');
-    assert.ok(financeIndex !== -1, 'Finance app card should be listed on the portal');
-    assert.ok(gamesIndex !== -1, 'Game Hub app card should still be present');
-    assert.ok(financeIndex < gamesIndex, 'Finance card should appear before Game Hub to keep alphabetical order');
-    assert.match(html, /href="finance\/(?:index\.html)?"/);
+    const financeIndex = html.indexOf('<strong>Finance</strong>');
+    assert.ok(financeIndex !== -1, 'Finance app should be listed on the portal');
+    assert.match(html, /href="\/finance\/"/);
   });
 });

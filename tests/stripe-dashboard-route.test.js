@@ -111,13 +111,30 @@ function createDashboardStripeMock() {
       available_on: 1700001300,
       created: 1700001250,
       currency: 'usd',
-      description: 'Stripe Capital repayment',
+      description: 'Stripe Capital repayment for flex loan flxln_test123',
       fee: 0,
       net: -1200,
       reporting_category: 'adjustment',
       status: 'available',
       type: 'anticipation_repayment',
       source: 'src_financing_out'
+    },
+    {
+      id: 'txn_paydown_deposit',
+      amount: 5000,
+      available_on: 1700001400,
+      created: 1700001350,
+      currency: 'usd',
+      description: 'External transfer to paydown financing balance',
+      fee: 0,
+      net: 5000,
+      reporting_category: 'financing_paydown',
+      status: 'available',
+      type: 'financing_paydown',
+      source: {
+        id: 'pndngpd_test',
+        object: 'pending_paydown'
+      }
     }
   ];
 
@@ -274,19 +291,38 @@ test('stripe dashboard route serves Stripe cashflow summaries and counterparties
   assert.equal(res.body.transactions[0].group, 'customer_payment');
   assert.equal(res.body.transactions[1].group, 'payout');
   assert.equal(res.body.transactions[4].group, 'financing');
-  assert.deepEqual(res.body.summary.inflow, { USD: 263000 });
+  assert.deepEqual(res.body.summary.inflow, { USD: 268000 });
   assert.deepEqual(res.body.summary.outflow, { USD: 8200 });
   assert.deepEqual(res.body.summary.fees, { USD: 320 });
-  assert.deepEqual(res.body.summary.net, { USD: 254480 });
+  assert.deepEqual(res.body.summary.net, { USD: 259480 });
   assert.deepEqual(res.body.summary.payouts, { USD: 7000 });
   assert.deepEqual(res.body.summary.payins, { USD: 3000 });
-  assert.deepEqual(res.body.summary.financingIn, { USD: 250000 });
+  assert.deepEqual(res.body.summary.financingIn, { USD: 255000 });
+  assert.deepEqual(res.body.summary.financingFunding, { USD: 250000 });
+  assert.deepEqual(res.body.summary.financingRepayments, { USD: 1200 });
+  assert.deepEqual(res.body.summary.financingPaydownDeposits, { USD: 5000 });
   assert.deepEqual(res.body.summary.financingOut, { USD: 1200 });
   assert.equal(stripeClient.balanceTransactions.list.mock.calls.length, 2);
   assert.deepEqual(
     stripeClient.balanceTransactions.list.mock.calls[0].arguments[0].expand,
     ['data.source']
   );
+});
+
+test('stripe dashboard route separates funding, repayment, and paydown deposits', async () => {
+  const handler = createStripeDashboardHandler({ stripeClient: createDashboardStripeMock() });
+  const req = { method: 'GET', query: { route: 'financing' } };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.transactionCount, 3);
+  assert.deepEqual(res.body.summary.funding, { USD: 250000 });
+  assert.deepEqual(res.body.summary.repayments, { USD: 1200 });
+  assert.deepEqual(res.body.summary.paydownDeposits, { USD: 5000 });
+  assert.equal(res.body.transactions.find(row => row.id === 'txn_paydown_deposit').financingKind, 'paydown_deposit');
+  assert.equal(res.body.transactions.find(row => row.id === 'txn_financing_out').loanId, 'flxln_test123');
 });
 
 test('stripe dashboard route rejects unknown endpoints', async () => {

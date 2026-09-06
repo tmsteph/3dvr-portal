@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Company standings • 3dvr Finance</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="../score.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="finance-body">
+  <a href="#page-main" class="finance-skip-link">Skip to standings</a>
+  <nav class="finance-nav" aria-label="Finance navigation">
+    <a class="finance-nav__link" href="./index.html">Finance overview</a>
+    <a class="finance-nav__link" href="./stripe.html">Stripe</a>
+    <a class="finance-nav__link" href="./incoming.html">Incoming</a>
+    <a class="finance-nav__link" href="./outgoing.html">Outgoing</a>
+  </nav>
+  <main id="page-main" class="finance-shell" aria-labelledby="page-title">
+    <header class="finance-hero">
+      <p class="finance-hero__eyebrow">Internal accounting</p>
+      <h1 id="page-title" class="finance-hero__title">Company standings</h1>
+      <p class="finance-hero__lead">See who owes 3DVR, who 3DVR owes, and the Stripe financing evidence behind those balances. Every change is an auditable ledger entry.</p>
+    </header>
+
+    <section class="finance-layout" aria-labelledby="position-title">
+      <div class="finance-card finance-card--metrics">
+        <div class="finance-card__header">
+          <h2 id="position-title" class="finance-card__title">Internal position</h2>
+          <p class="finance-card__subhead">People ↔ 3DVR</p>
+        </div>
+        <dl class="finance-summary__grid">
+          <div class="finance-summary__stat"><dt>People owe 3DVR</dt><dd id="standings-receivable">$0.00</dd></div>
+          <div class="finance-summary__stat"><dt>3DVR owes people</dt><dd id="standings-payable">$0.00</dd></div>
+          <div class="finance-summary__stat"><dt>Net internal</dt><dd id="standings-net">$0.00</dd></div>
+        </dl>
+        <p id="standings-status" class="finance-helper" role="status" aria-live="polite">Loading shared standings ledger…</p>
+      </div>
+
+      <div class="finance-card finance-card--metrics">
+        <div class="finance-card__header">
+          <h2 class="finance-card__title">Stripe loan evidence</h2>
+          <p class="finance-card__subhead">External liability</p>
+        </div>
+        <dl class="finance-summary__grid">
+          <div class="finance-summary__stat"><dt>Verified funding</dt><dd id="loan-funding">—</dd></div>
+          <div class="finance-summary__stat"><dt>Repayments</dt><dd id="loan-repayments">—</dd></div>
+          <div class="finance-summary__stat"><dt>Paydown deposits</dt><dd id="loan-deposits">—</dd></div>
+        </dl>
+        <p id="loan-status" class="finance-helper" role="status" aria-live="polite">Loading Stripe financing history…</p>
+        <p id="loan-note" class="finance-helper">Stripe repayments and a person’s debt to 3DVR are different ledgers. A business repayment does not silently erase an internal receivable.</p>
+        <div class="finance-card__actions">
+          <button id="loan-refresh" type="button" class="finance-button finance-button--secondary">Refresh evidence</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="finance-card finance-card--ledger" aria-labelledby="people-title">
+      <div class="finance-card__header">
+        <h2 id="people-title" class="finance-card__title">Everyone’s standing</h2>
+        <span class="finance-card__subhead">Positive = owes 3DVR</span>
+      </div>
+      <div id="standings-people" class="finance-ledger" role="list">
+        <p id="standings-people-empty" class="finance-ledger__empty">No internal balances have been recorded yet.</p>
+      </div>
+    </section>
+
+    <section class="finance-layout" aria-labelledby="entry-title">
+      <div class="finance-card finance-card--form">
+        <div class="finance-card__header">
+          <h2 id="entry-title" class="finance-card__title">Record a standing change</h2>
+          <p class="finance-card__subhead">Append-only</p>
+        </div>
+        <form id="standing-form" class="finance-form" autocomplete="off">
+          <div class="finance-form__grid">
+            <label class="finance-field"><span class="finance-field__label">Person</span><input id="standing-person" name="person" type="text" placeholder="Name" required></label>
+            <label class="finance-field"><span class="finance-field__label">Amount (USD)</span><input id="standing-amount" name="amount" type="number" min="0.01" step="0.01" inputmode="decimal" required></label>
+            <label class="finance-field"><span class="finance-field__label">Date</span><input id="standing-date" name="date" type="date" required></label>
+          </div>
+          <label class="finance-field"><span class="finance-field__label">What happened?</span>
+            <select id="standing-kind" name="kind" required>
+              <option value="person_owes_company">Person received company money → owes 3DVR more</option>
+              <option value="person_repaid_company">Person paid / credited 3DVR → owes 3DVR less</option>
+              <option value="company_owes_person">Person covered a company cost → 3DVR owes them more</option>
+              <option value="company_repaid_person">3DVR reimbursed person → 3DVR owes them less</option>
+            </select>
+          </label>
+          <label class="finance-field"><span class="finance-field__label">Reason / evidence</span><textarea id="standing-note" name="note" rows="3" placeholder="Loan proceeds, reimbursement, receipt, transfer, project…"></textarea></label>
+          <button type="submit" class="finance-button">Add ledger entry</button>
+        </form>
+      </div>
+
+      <div class="finance-card finance-card--metrics">
+        <div class="finance-card__header">
+          <h2 class="finance-card__title">Loan allocation</h2>
+          <p class="finance-card__subhead">Turn evidence into responsibility</p>
+        </div>
+        <p class="finance-helper">Verified Stripe funding is provisionally included in Thomas’s standing because the loan proceeds went into his personal account. Do not add that opening amount again. Use the ledger only for documented repayments, business-use credits, reimbursements, or other advances.</p>
+      </div>
+    </section>
+
+    <section class="finance-card finance-card--ledger" aria-labelledby="history-title">
+      <div class="finance-card__header"><h2 id="history-title" class="finance-card__title">Standing history</h2><span class="finance-card__subhead">Audit trail</span></div>
+      <div id="standings-history" class="finance-ledger" role="list"><p id="standings-history-empty" class="finance-ledger__empty">No standing changes logged yet.</p></div>
+    </section>
+  </main>
+  <script type="module" src="./standings.js"></script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
