@@ -467,10 +467,11 @@ function resolveFinancingKind(transaction, sourceSummary) {
     return 'repayment';
   }
   if (
-    ['advance', 'advance_funding'].includes(type)
+    ['advance', 'advance_funding', 'financing_payout'].includes(type)
+    || sourceObject === 'flex_loan_payout'
     || type.includes('financing_funding')
     || (sourceObject === 'flex_loan' && Number(transaction?.net) > 0)
-    || /loan funding|loan funded|capital funding|advance funding|financing funding/.test(descriptor)
+    || /loan funding|loan funded|capital funding|advance funding|financing funding|payout of your loan/.test(descriptor)
   ) {
     return 'funding';
   }

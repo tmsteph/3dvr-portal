@@ -93,17 +93,22 @@ function createDashboardStripeMock() {
     },
     {
       id: 'txn_financing_in',
-      amount: 250000,
+      amount: 280000,
       available_on: 1700001200,
       created: 1700001100,
       currency: 'usd',
-      description: 'Stripe Capital funding',
+      description: 'Payout of your loan',
       fee: 0,
-      net: 250000,
-      reporting_category: 'adjustment',
+      net: 280000,
+      reporting_category: 'financing_payout',
       status: 'available',
-      type: 'advance_funding',
-      source: 'src_financing_in'
+      type: 'financing_payout',
+      source: {
+        id: 'flxlnpo_test',
+        object: 'flex_loan_payout',
+        loan: 'flxln_test123',
+        description: 'Payout of your loan'
+      }
     },
     {
       id: 'txn_financing_out',
@@ -291,14 +296,14 @@ test('stripe dashboard route serves Stripe cashflow summaries and counterparties
   assert.equal(res.body.transactions[0].group, 'customer_payment');
   assert.equal(res.body.transactions[1].group, 'payout');
   assert.equal(res.body.transactions[4].group, 'financing');
-  assert.deepEqual(res.body.summary.inflow, { USD: 268000 });
+  assert.deepEqual(res.body.summary.inflow, { USD: 298000 });
   assert.deepEqual(res.body.summary.outflow, { USD: 8200 });
   assert.deepEqual(res.body.summary.fees, { USD: 320 });
-  assert.deepEqual(res.body.summary.net, { USD: 259480 });
+  assert.deepEqual(res.body.summary.net, { USD: 289480 });
   assert.deepEqual(res.body.summary.payouts, { USD: 7000 });
   assert.deepEqual(res.body.summary.payins, { USD: 3000 });
-  assert.deepEqual(res.body.summary.financingIn, { USD: 255000 });
-  assert.deepEqual(res.body.summary.financingFunding, { USD: 250000 });
+  assert.deepEqual(res.body.summary.financingIn, { USD: 285000 });
+  assert.deepEqual(res.body.summary.financingFunding, { USD: 280000 });
   assert.deepEqual(res.body.summary.financingRepayments, { USD: 1200 });
   assert.deepEqual(res.body.summary.financingPaydownDeposits, { USD: 5000 });
   assert.deepEqual(res.body.summary.financingOut, { USD: 1200 });
@@ -318,9 +323,11 @@ test('stripe dashboard route separates funding, repayment, and paydown deposits'
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.transactionCount, 3);
-  assert.deepEqual(res.body.summary.funding, { USD: 250000 });
+  assert.deepEqual(res.body.summary.funding, { USD: 280000 });
   assert.deepEqual(res.body.summary.repayments, { USD: 1200 });
   assert.deepEqual(res.body.summary.paydownDeposits, { USD: 5000 });
+  assert.equal(res.body.transactions.find(row => row.id === 'txn_financing_in').financingKind, 'funding');
+  assert.equal(res.body.transactions.find(row => row.id === 'txn_financing_in').loanId, 'flxln_test123');
   assert.equal(res.body.transactions.find(row => row.id === 'txn_paydown_deposit').financingKind, 'paydown_deposit');
   assert.equal(res.body.transactions.find(row => row.id === 'txn_financing_out').loanId, 'flxln_test123');
 });
