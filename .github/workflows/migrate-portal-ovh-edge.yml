@@ -1,10 +1,24 @@
 name: Migrate Portal Edge to OVH
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/migrate-portal-ovh-edge.yml'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Stage only, or perform the final DNS cutover after every gate passes
+        required: true
+        default: stage
+        type: choice
+        options:
+          - stage
+          - cutover
+      expected_sha:
+        description: Self-host release SHA to verify (defaults to this workflow commit)
+        required: false
+        type: string
+      confirm:
+        description: For cutover only, enter portal.3dvr.tech
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -17,13 +31,30 @@ env:
   OVH_HOST: 40.160.137.41
   OVH_USER: debian
   PORTAL_DNS_RECORD_ID: rec_938a6d34779611712104b9c3
+  VERCEL_ORIGIN_CNAME: cname.vercel-dns.com.
 
 jobs:
   migrate:
-    if: github.event.head_commit.message == 'Migrate portal edge from Vercel to OVH'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve target release
+        id: target
+        shell: bash
+        env:
+          INPUT_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          sha="${INPUT_SHA:-$GITHUB_SHA}"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          if [ "${{ inputs.mode }}" = cutover ] && [ "${{ inputs.confirm }}" != portal.3dvr.tech ]; then
+            echo 'Cutover confirmation must exactly equal portal.3dvr.tech.' >&2
+            exit 2
+          fi
+
       - name: Resolve OVH SSH key
         shell: bash
         env:
@@ -41,6 +72,19 @@ jobs:
           chmod 600 /tmp/key
           rm -f /tmp/key.raw
 
+      - name: Verify the intended self-host release and readiness
+        shell: bash
+        env:
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          require=''
+          if [ "$MODE" = cutover ]; then require='--require-no-legacy'; fi
+          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" \
+            "node /opt/3dvr-portal-production/current/scripts/ops/check-self-host-readiness.mjs http://127.0.0.1:4320 --expect-sha '$TARGET_SHA' $require"
+
       - name: Stage OVH HTTP edge without changing DNS
         shell: bash
         run: |
@@ -48,28 +92,41 @@ jobs:
           opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
           ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
-          curl --fail --silent --show-error http://127.0.0.1:4320/organism/app.js | grep -F "reject.textContent = 'Not relevant'"
-          sudo apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y caddy
+          command -v caddy >/dev/null
           sudo tee /etc/caddy/Caddyfile >/dev/null <<'CADDY'
           http://portal.3dvr.tech {
+            encode zstd gzip
             reverse_proxy 127.0.0.1:4320
           }
           CADDY
           sudo caddy validate --config /etc/caddy/Caddyfile
           sudo systemctl enable --now caddy
           sudo systemctl restart caddy
-          curl --fail --silent --show-error -H 'Host: portal.3dvr.tech' http://127.0.0.1/organism/app.js | grep -F "reject.textContent = 'Not relevant'"
+          curl --fail --silent --show-error -H 'Host: portal.3dvr.tech' http://127.0.0.1/__3dvr-health
           REMOTE
 
-      - name: Prove port 80 works from outside OVH before cutover
+      - name: Prove OVH port 80 works from outside before any DNS change
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --max-time 15 -H 'Host: portal.3dvr.tech' "http://$OVH_HOST/organism/app.js" \
-            | grep -F "reject.textContent = 'Not relevant'"
+          curl --fail --silent --show-error --max-time 15 \
+            -H 'Host: portal.3dvr.tech' "http://$OVH_HOST/__3dvr-health" > /tmp/edge-health.json
+          node -e 'const h=require("/tmp/edge-health.json"); if(!h.ok||h.host!=="self") throw new Error(JSON.stringify(h))'
+
+      - name: Confirm Vercel is still the authoritative origin before cutover
+        if: inputs.mode == 'cutover'
+        shell: bash
+        run: |
+          set -euo pipefail
+          answer="$(dig +short @ns1.vercel-dns.com portal.3dvr.tech CNAME | tail -n1)"
+          [ "$answer" = "$VERCEL_ORIGIN_CNAME" ] || {
+            echo "Unexpected pre-cutover DNS target: ${answer:-none}" >&2
+            exit 1
+          }
 
       - name: Point canonical portal DNS at OVH
+        id: cutover_dns
+        if: inputs.mode == 'cutover'
         shell: bash
         run: |
           set -euo pipefail
@@ -78,6 +135,7 @@ jobs:
             "npx --yes vercel@59.11.7 dns update '$PORTAL_DNS_RECORD_ID' --scope 3dvr --type A --value '$OVH_HOST' --ttl 60 --comment 'OVH self-hosted canonical 3DVR Portal' --non-interactive"
 
       - name: Confirm authoritative DNS cutover
+        if: inputs.mode == 'cutover'
         shell: bash
         run: |
           set -euo pipefail
@@ -90,6 +148,7 @@ jobs:
           exit 1
 
       - name: Enable automatic HTTPS on OVH
+        if: inputs.mode == 'cutover'
         shell: bash
         run: |
           set -euo pipefail
@@ -106,24 +165,42 @@ jobs:
           sudo systemctl restart caddy
           REMOTE
 
-      - name: Verify canonical HTTPS serves the new Organism UI
+      - name: Verify canonical HTTPS on OVH
+        if: inputs.mode == 'cutover'
         shell: bash
+        env:
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
         run: |
           set -euo pipefail
           for attempt in $(seq 1 30); do
             if curl --fail --silent --show-error --max-time 15 \
               --resolve "portal.3dvr.tech:443:$OVH_HOST" \
-              https://portal.3dvr.tech/organism/app.js \
-              | grep -Fq "reject.textContent = 'Not relevant'"; then
+              https://portal.3dvr.tech/__3dvr-health > /tmp/https-health.json 2>/dev/null; then
+              node -e 'const h=require("/tmp/https-health.json"); const sha=process.argv[1]; if(!h.ok||h.host!=="self"||h.sha!==sha) throw new Error(JSON.stringify(h))' "$TARGET_SHA"
               curl --fail --silent --show-error --max-time 15 \
                 --resolve "portal.3dvr.tech:443:$OVH_HOST" \
-                https://portal.3dvr.tech/__3dvr-health
+                https://portal.3dvr.tech/noteverse/ | grep -Fq '<title>Noteverse · 3DVR</title>'
               exit 0
             fi
             sleep 2
           done
           exit 1
 
+      - name: Roll DNS back to Vercel if cutover verification fails
+        if: failure() && inputs.mode == 'cutover' && steps.cutover_dns.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" \
+            "npx --yes vercel@59.11.7 dns update '$PORTAL_DNS_RECORD_ID' --scope 3dvr --type CNAME --value '$VERCEL_ORIGIN_CNAME' --ttl 60 --comment 'Automatic rollback to Vercel' --non-interactive" || true
+          for attempt in $(seq 1 20); do
+            answer="$(dig +short @ns1.vercel-dns.com portal.3dvr.tech CNAME | tail -n1 || true)"
+            if [ "$answer" = "$VERCEL_ORIGIN_CNAME" ]; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+
       - name: Remove SSH key
         if: always()
-        run: rm -f /tmp/key /tmp/key.raw
+        run: rm -f /tmp/key /tmp/key.raw /tmp/edge-health.json /tmp/https-health.json
