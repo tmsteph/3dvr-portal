@@ -54,68 +54,99 @@ function normalizeEmail(email) {
 }
 
 function summarizeInvoices(invoices = []) {
+  const parent = new Map();
+
+  const ensure = token => {
+    if (token && !parent.has(token)) parent.set(token, token);
+    return token;
+  };
+  const find = token => {
+    let current = ensure(token);
+    while (current && parent.get(current) !== current) {
+      parent.set(current, parent.get(parent.get(current)));
+      current = parent.get(current);
+    }
+    return current;
+  };
+  const union = (left, right) => {
+    const leftRoot = find(left);
+    const rightRoot = find(right);
+    if (leftRoot && rightRoot && leftRoot !== rightRoot) parent.set(rightRoot, leftRoot);
+  };
+
+  const records = invoices.filter(Boolean).map(invoice => {
+    const customer = invoice.customer && typeof invoice.customer === 'object' ? invoice.customer : null;
+    const customerId = typeof invoice.customer === 'string' ? invoice.customer : customer?.id;
+    const email = normalizeEmail(invoice.customer_email || customer?.email || '');
+    const billingEmail = normalizeEmail(customer?.metadata?.billing_email || '');
+    const portalAlias = String(customer?.metadata?.portal_alias || '').trim().toLowerCase();
+    const tokens = [
+      customerId ? `customer:${customerId}` : '',
+      email ? `email:${email}` : '',
+      billingEmail ? `email:${billingEmail}` : '',
+      portalAlias ? `alias:${portalAlias}` : ''
+    ].filter(Boolean);
+    tokens.forEach(ensure);
+    tokens.slice(1).forEach(token => union(tokens[0], token));
+    return { invoice, customerId, email, billingEmail, portalAlias, tokens };
+  }).filter(record => record.tokens.length);
+
+  const identities = new Map();
+  records.forEach(record => {
+    const root = find(record.tokens[0]);
+    const identity = identities.get(root) || { emails: new Set(), portalAliases: new Set(), customerIds: new Set() };
+    if (record.email) identity.emails.add(record.email);
+    if (record.billingEmail) identity.emails.add(record.billingEmail);
+    if (record.portalAlias) identity.portalAliases.add(record.portalAlias);
+    if (record.customerId) identity.customerIds.add(record.customerId);
+    identities.set(root, identity);
+  });
+
   const totals = new Map();
-
-  invoices.forEach(invoice => {
-    if (!invoice) {
-      return;
-    }
-
-    const customerId = typeof invoice.customer === 'string'
-      ? invoice.customer
-      : invoice.customer?.id;
-    if (!customerId) {
-      return;
-    }
-
+  records.forEach(record => {
+    const { invoice } = record;
+    const root = find(record.tokens[0]);
+    const identity = identities.get(root);
+    const emails = Array.from(identity?.emails || []).sort();
+    const portalAliases = Array.from(identity?.portalAliases || []).sort();
+    const customerIds = Array.from(identity?.customerIds || []).sort();
+    const aggregateKey = portalAliases[0] || emails[0] || customerIds[0] || root;
     const currency = String(invoice.currency || 'usd').toUpperCase();
     const amountPaid = typeof invoice.amount_paid === 'number' ? invoice.amount_paid : 0;
-    const email = invoice.customer_email || invoice.customer?.email || '';
     const name = invoice.customer_name || invoice.customer?.name || '';
-    const aggregateKey = normalizeEmail(email) || customerId;
-
-    if (!aggregateKey) {
-      return;
-    }
-
-    const existing = totals.get(aggregateKey) || {
+    const existing = totals.get(root) || {
       aggregateKey,
-      customerIds: new Set(),
+      customerIds: new Set(customerIds),
+      emails: new Set(emails),
+      portalAliases: new Set(portalAliases),
       currency,
       amountPaid: 0,
       invoiceCount: 0,
-      email,
+      email: record.email || emails[0] || '',
       name,
       lastInvoiceAt: null
     };
 
-    existing.customerIds.add(customerId);
+    customerIds.forEach(value => existing.customerIds.add(value));
+    emails.forEach(value => existing.emails.add(value));
+    portalAliases.forEach(value => existing.portalAliases.add(value));
     existing.amountPaid += amountPaid;
     existing.invoiceCount += 1;
-    existing.lastInvoiceAt = Math.max(existing.lastInvoiceAt || 0, toMilliseconds(invoice.created) || 0)
-      || existing.lastInvoiceAt;
-
-    if (email && !existing.email) {
-      existing.email = email;
-    }
-    if (name && !existing.name) {
-      existing.name = name;
-    }
-    if (!existing.currency) {
-      existing.currency = currency;
-    }
-
-    totals.set(aggregateKey, existing);
+    existing.lastInvoiceAt = Math.max(existing.lastInvoiceAt || 0, toMilliseconds(invoice.created) || 0) || existing.lastInvoiceAt;
+    if (record.email && !existing.email) existing.email = record.email;
+    if (name && !existing.name) existing.name = name;
+    totals.set(root, existing);
   });
 
   return Array.from(totals.values())
     .map(entry => ({
       ...entry,
-      customerIds: Array.from(entry.customerIds)
+      customerIds: Array.from(entry.customerIds).sort(),
+      emails: Array.from(entry.emails).sort(),
+      portalAliases: Array.from(entry.portalAliases).sort()
     }))
     .sort((a, b) => b.amountPaid - a.amountPaid);
 }
-
 function summarizeBalances(entries) {
   if (!Array.isArray(entries)) {
     return {};

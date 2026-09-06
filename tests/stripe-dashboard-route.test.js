@@ -251,6 +251,61 @@ test('stripe dashboard route serves customer summaries', async () => {
   assert.deepEqual(res.body.customers[0].customerIds, ['cus_1']);
 });
 
+test('stripe dashboard route merges explicitly linked customer email identities', async () => {
+  const stripeClient = {
+    invoices: {
+      list: mock.fn(() => ({
+        autoPagingToArray: async () => ([
+          {
+            customer: {
+              id: 'cus_gmail',
+              email: 'tmsteph1290@gmail.com',
+              name: 'Thomas Stephens',
+              metadata: {
+                billing_email: 'thomas.michael.stephens@outlook.com',
+                portal_alias: 'tmsteph@3dvr'
+              }
+            },
+            currency: 'usd',
+            amount_paid: 500,
+            created: 1700000000
+          },
+          {
+            customer: {
+              id: 'cus_outlook',
+              email: 'thomas.michael.stephens@outlook.com',
+              name: 'Thomas Stephens',
+              metadata: { portal_alias: 'tmsteph@3dvr' }
+            },
+            currency: 'usd',
+            amount_paid: 700,
+            created: 1700000300
+          },
+          {
+            customer: { id: 'cus_old_gmail', email: 'tmsteph1290@gmail.com', name: 'Thomas Stephens', metadata: {} },
+            currency: 'usd',
+            amount_paid: 300,
+            created: 1699999000
+          }
+        ])
+      }))
+    }
+  };
+  const handler = createStripeDashboardHandler({ stripeClient });
+  const req = { method: 'GET', query: { route: 'customers' } };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.count, 1);
+  assert.deepEqual(res.body.currencyTotals, { USD: 1500 });
+  assert.equal(res.body.customers[0].aggregateKey, 'tmsteph@3dvr');
+  assert.deepEqual(res.body.customers[0].customerIds, ['cus_gmail', 'cus_old_gmail', 'cus_outlook']);
+  assert.deepEqual(res.body.customers[0].emails, ['thomas.michael.stephens@outlook.com', 'tmsteph1290@gmail.com']);
+  assert.deepEqual(res.body.customers[0].portalAliases, ['tmsteph@3dvr']);
+});
+
 test('stripe dashboard route serves balance metrics', async () => {
   const stripeClient = createDashboardStripeMock();
   const handler = createStripeDashboardHandler({ stripeClient });

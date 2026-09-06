@@ -16,11 +16,19 @@ export function normalizeStripeCustomerRecord(record = {}) {
   const customerIds = Array.isArray(record.customerIds)
     ? record.customerIds.map(value => String(value || '').trim()).filter(Boolean)
     : [];
+  const emails = Array.isArray(record.emails)
+    ? Array.from(new Set(record.emails.map(value => String(value || '').trim().toLowerCase()).filter(Boolean)))
+    : [];
+  const portalAliases = Array.isArray(record.portalAliases)
+    ? Array.from(new Set(record.portalAliases.map(value => String(value || '').trim().toLowerCase()).filter(Boolean)))
+    : [];
 
   return {
     aggregateKey,
     customerId,
     customerIds,
+    emails,
+    portalAliases,
     email: String(record.email || '').trim().toLowerCase(),
     name: String(record.name || '').trim(),
     currency,
