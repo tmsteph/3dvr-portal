@@ -68,19 +68,6 @@ function installAccountStatus() {
 
 function installOsLauncher() {
   const osUrl = 'https://os.3dvr.tech/';
-  const actions = document.querySelector('.actions');
-  if (actions && !actions.querySelector('[data-3dvr-os-launcher]')) {
-    const launcher = document.createElement('a');
-    launcher.className = 'action-card';
-    launcher.href = osUrl;
-    launcher.dataset.threedvrOsLauncher = 'true';
-    launcher.innerHTML = `
-      <strong>3DVR OS</strong>
-      <span>Open Daedalos / TommyOS in your browser.</span>
-    `;
-    actions.appendChild(launcher);
-  }
-
   const appsList = document.querySelector('#appsList');
   if (appsList && !appsList.querySelector('[data-3dvr-os-app]')) {
     const app = document.createElement('a');
@@ -88,13 +75,37 @@ function installOsLauncher() {
     app.href = osUrl;
     app.dataset.app = '3dvr os daedalos tommyos linux browser desktop';
     app.dataset.threedvrOsApp = 'true';
-    app.innerHTML = '<strong>3DVR OS</strong><span>Daedalos / TommyOS browser desktop with Linux on demand.</span>';
+    app.innerHTML = '<strong>3DVR OS</strong><span>Open personal computing and the browser desktop.</span>';
     appsList.appendChild(app);
+  }
+}
+
+function installLabsLauncher() {
+  const appsList = document.querySelector('#appsList');
+  if (appsList && !appsList.querySelector('[data-3dvr-labs-app]')) {
+    const app = document.createElement('a');
+    app.className = 'app-link';
+    app.href = '/labs/';
+    app.dataset.app = 'labs experiments experimental computing research life lab noteverse digital organism 13 month calendar';
+    app.dataset.threedvrLabsApp = 'true';
+    app.innerHTML = '<strong>Labs</strong><span>Explore 3D experiments, artificial life, and new computing ideas.</span>';
+    appsList.appendChild(app);
+  }
+
+  const menu = document.querySelector('.menu-panel');
+  if (menu && !menu.querySelector('[data-3dvr-labs-menu]')) {
+    const link = document.createElement('a');
+    link.href = '/labs/';
+    link.dataset.threedvrLabsMenu = 'true';
+    link.textContent = 'Labs';
+    const games = [...menu.querySelectorAll('a')].find(item => item.getAttribute('href') === '/games.html');
+    menu.insertBefore(link, games || null);
   }
 }
 
 installAccountStatus();
 installOsLauncher();
+installLabsLauncher();
 
 const form = document.querySelector('#homeOperatorForm');
 const input = document.querySelector('#homeOperatorInput');
