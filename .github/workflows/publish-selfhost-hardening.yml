@@ -1,0 +1,80 @@
+name: Publish self-host hardening
+
+on:
+  push:
+    branches: [infra/self-host-migration-hardening]
+    paths:
+      - '.github/workflows/publish-selfhost-hardening.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-selfhost-hardening
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+
+      - name: Fetch frozen tested source bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 5 --retry-delay 2 \
+            https://concentrate-gold-chocolate-argument.trycloudflare.com/selfhost-hardening-publish.tgz \
+            -o /tmp/selfhost-hardening.tgz
+          echo 'e90bd37df9379a73b9be9cffa26ec5ac4ca936f67ab9e96060ada0891295386a  /tmp/selfhost-hardening.tgz' | sha256sum -c -
+          tar -xzf /tmp/selfhost-hardening.tgz -C "$GITHUB_WORKSPACE"
+
+      - name: Verify migration hardening
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          node --check scripts/self-host-server.mjs
+          node --check scripts/ops/check-self-host-readiness.mjs
+          bash -n scripts/ops/deploy-self-host-portal.sh
+          bash -n scripts/ops/configure-self-host-mode.sh
+          node --test \
+            tests/self-host-deploy-safety.test.js \
+            tests/self-host-oauth-route.test.js \
+            tests/self-host-public-tunnel.test.js \
+            tests/self-host-secret-provisioning.test.js \
+            tests/self-host-cutover-readiness.test.js \
+            tests/stripe-dashboard-route.test.js
+
+      - name: Commit verified hardening atomically
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name '3DVR Automation'
+          git config user.email 'automation@3dvr.tech'
+          git add \
+            .github/workflows/migrate-portal-ovh-edge.yml \
+            .github/workflows/self-host-production.yml \
+            docs/self-host-migration.md \
+            ops/self-host-production-trigger.txt \
+            scripts/ops/check-self-host-readiness.mjs \
+            scripts/ops/configure-self-host-mode.sh \
+            scripts/ops/deploy-self-host-portal.sh \
+            scripts/self-host-server.mjs \
+            tests/self-host-cutover-readiness.test.js \
+            tests/self-host-secret-provisioning.test.js
+          git rm .github/workflows/publish-selfhost-hardening.yml
+          git commit -m 'Harden OVH portal migration gates'
+          git push origin HEAD:infra/self-host-migration-hardening
+
+      - name: Remove temporary bundle
+        if: always()
+        run: rm -f /tmp/selfhost-hardening.tgz
