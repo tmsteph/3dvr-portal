@@ -12,7 +12,7 @@
   <header class="site-header">
     <a class="brand" href="#top" aria-label="Cleaning page home"><span id="headerBrandMark" class="brand-mark">CN</span><span id="headerBrandName">Cleaning Network</span></a>
     <nav aria-label="Cleaning Network navigation">
-      <a href="#services">Services</a><a href="#how">How it works</a><a href="#request">Quote</a><a class="nav-pill" href="#partners">For cleaners</a>
+      <a href="#services">Services</a><a id="howNavLink" href="#how">How it works</a><a href="#request">Quote</a><a id="partnerNavLink" class="nav-pill" href="#partners">For cleaners</a>
     </nav>
   </header>
 
@@ -23,7 +23,7 @@
         <h1 id="partnerName">Cleaning Network</h1>
         <p id="partnerIntro" class="lead">Tell us what needs cleaning, where it is, and when you want it done. A local cleaning team can follow up with availability and a quote.</p>
         <div id="partnerContact" class="partner-contact" hidden></div>
-        <div class="hero-actions"><a class="button primary" href="#request">Request a quote</a><a class="button secondary" href="#partners">I run a cleaning company</a></div>
+        <div class="hero-actions"><a class="button primary" href="#request">Request a quote</a><a id="partnerHeroAction" class="button secondary" href="#partners">I run a cleaning company</a></div>
         <p class="trust-line">Private request · No payment collected · Your contact details go to the team handling the request. A private copy is kept for follow-up and support.</p>
       </div>
       <aside class="hero-card" aria-label="What happens next">
@@ -35,15 +35,15 @@
 
     <section id="services" class="section-block">
       <div class="section-heading"><p class="eyebrow">Common jobs</p><h2>Start with the cleaning people already need.</h2></div>
-      <div class="service-grid">
-        <article><span>🏠</span><strong>Home cleaning</strong><p>One-time or recurring cleaning for houses and apartments.</p></article>
-        <article><span>📦</span><strong>Move in / move out</strong><p>Deep cleaning before keys change hands.</p></article>
-        <article><span>🏢</span><strong>Office & commercial</strong><p>Flexible cleaning for offices, shops, and shared spaces.</p></article>
-        <article><span>🔁</span><strong>Turnovers</strong><p>Short-term rentals, post-event cleanup, and repeat resets.</p></article>
+      <div class="service-grid" aria-label="Choose a cleaning service">
+        <button class="service-card" type="button" data-service="Home cleaning" aria-pressed="false"><span>🏠</span><strong>Home cleaning</strong><p>One-time or recurring cleaning for houses and apartments.</p><small>Choose this job →</small></button>
+        <button class="service-card" type="button" data-service="Move in / move out" aria-pressed="false"><span>📦</span><strong>Move in / move out</strong><p>Deep cleaning before keys change hands.</p><small>Choose this job →</small></button>
+        <button class="service-card" type="button" data-service="Office / commercial" aria-pressed="false"><span>🏢</span><strong>Office & commercial</strong><p>Flexible cleaning for offices, shops, and shared spaces.</p><small>Choose this job →</small></button>
+        <button class="service-card" type="button" data-service="Rental turnover" aria-pressed="false"><span>🔁</span><strong>Turnovers</strong><p>Short-term rentals, post-event cleanup, and repeat resets.</p><small>Choose this job →</small></button>
       </div>
     </section>
 
-    <section id="how" class="how-section">
+    <section id="how" class="how-section" data-platform-only>
       <div><p class="eyebrow">Built for handoff</p><h2>One system, many cleaning companies.</h2></div>
       <p>Each partner can have a shareable branded page while requests stay structured and route privately. The page can grow into scheduling, payments, customer history, and reporting only when the real workflow proves those features are useful.</p>
     </section>
@@ -51,6 +51,7 @@
     <section id="request" class="request-section">
       <div class="request-copy"><p class="eyebrow">Quote request</p><h2>What needs cleaning?</h2><p>Give the cleaner enough context to respond with something useful instead of starting another round of phone tag.</p><div class="privacy-card"><strong>Privacy first</strong><p>Full customer details are delivered privately. We do not publish your phone, email, or address to the public portal.</p></div></div>
       <form id="cleaningLeadForm" class="request-form">
+        <p id="selectedService" class="selected-service" hidden></p>
         <div class="field-grid">
           <label>Full name<input name="name" autocomplete="name" maxlength="120" required></label>
           <label>Email<input name="email" type="email" autocomplete="email" maxlength="254"></label>
@@ -78,7 +79,7 @@
       </form>
     </section>
 
-    <section id="partners" class="partner-section">
+    <section id="partners" class="partner-section" data-platform-only>
       <div class="partner-copy"><p class="eyebrow">For cleaners & agencies</p><h2>Give every company a page it can actually share.</h2><p>A partner page can carry the company's name, service area, public contact info, and its own lead routing while staying on the same underlying system.</p><ul><li>Shareable partner URL</li><li>Private lead routing + central archive</li><li>Source and campaign attribution</li><li>No new app to learn for the first version</li></ul><p class="price-note">Need a standalone page too? 3DVR's current Website Upgrade is $99 once. Reseller/partner pricing can be defined with the first operator instead of guessing it here.</p><a class="text-link" href="../business-sites/">See the $99 page scope →</a></div>
       <form id="partnerInterestForm" class="request-form partner-form">
         <p class="form-kicker">Create a partner page</p>
@@ -104,7 +105,7 @@
     </section>
   </main>
 
-  <footer><p><span id="footerBrand">Cleaning Network</span> · Built on <a href="../">3DVR</a></p></footer>
+  <footer><p><span id="footerBrand">Cleaning Network</span> · Website by <a href="../">3DVR</a></p></footer>
   <script src="app.js" defer></script>
 </body>
 </html>

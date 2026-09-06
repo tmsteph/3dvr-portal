@@ -60,6 +60,11 @@ function normalizePublicUrl(value, { stripQuery = false } = {}) {
   }
 }
 
+function normalizeHexColor(value) {
+  const color = cleanLine(value, 7);
+  return /^#[0-9a-fA-F]{6}$/.test(color) ? color : '';
+}
+
 function humanizeSlug(slug) {
   return String(slug || '')
     .split('-')
@@ -130,6 +135,9 @@ function resolvePartner(config, rawPartner) {
     serviceArea: cleanLine(profile.serviceArea, 160),
     publicPhone: cleanLine(profile.publicPhone, 80),
     website: normalizePublicUrl(profile.website),
+    logoUrl: normalizePublicUrl(profile.logoUrl),
+    accent: normalizeHexColor(profile.accent),
+    accentDark: normalizeHexColor(profile.accentDark),
     email,
   };
 }
@@ -143,6 +151,9 @@ export function getPublicCleaningPartner(config = {}, rawPartner = 'network') {
     serviceArea: profile.serviceArea,
     publicPhone: profile.publicPhone,
     website: profile.website,
+    logoUrl: profile.logoUrl,
+    accent: profile.accent,
+    accentDark: profile.accentDark,
     configured: profile.configured,
   };
 }

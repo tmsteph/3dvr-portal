@@ -57,6 +57,9 @@ describe('cleaning network', () => {
             serviceArea: 'San Diego',
             publicPhone: '(619) 555-0100',
             website: 'https://crew.example.com',
+            logoUrl: 'https://crew.example.com/logo.png',
+            accent: '#245c45',
+            accentDark: '#163c2d',
             email: 'private-routing@example.com',
           },
         }),
@@ -69,6 +72,9 @@ describe('cleaning network', () => {
     assert.equal(res.body.name, 'Crew One Cleaning');
     assert.equal(res.body.configured, true);
     assert.equal(res.body.serviceArea, 'San Diego');
+    assert.equal(res.body.logoUrl, 'https://crew.example.com/logo.png');
+    assert.equal(res.body.accent, '#245c45');
+    assert.equal(res.body.accentDark, '#163c2d');
     assert.equal('email' in res.body, false);
     assert.equal(JSON.stringify(res.body).includes('private-routing@example.com'), false);
   });
