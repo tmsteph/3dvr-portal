@@ -27,6 +27,18 @@ const standingSources = [primaryRoot, legacyRoot].filter(Boolean);
 const entries = new Map();
 let financing = { loaded: false, fundingCents: 0, repaymentsCents: 0, depositsCents: 0, loans: [], updatedAt: null };
 
+function stripeOpeningCents() {
+  const explicit = Array.from(entries.values())
+    .filter(entry => entry.kind === STRIPE_LOAN_OPENING_KIND && personKey(entry.person) === personKey(DEFAULT_LOAN_PERSON))
+    .reduce((sum, entry) => sum + Math.max(0, signedChange(entry)), 0);
+  return explicit || financing.fundingCents;
+}
+
+function stripePrincipalCreditCents() {
+  return Math.min(stripeOpeningCents(), Math.max(0, financing.repaymentsCents));
+}
+
+
 const $ = id => document.getElementById(id);
 const form = $('standing-form');
 const personInput = $('standing-person');
@@ -101,6 +113,7 @@ function buildStandings() {
       balanceCents: financing.fundingCents,
       lastActivity: financing.updatedAt,
       derivedFundingCents: financing.fundingCents,
+      stripeRepaymentCreditCents: 0,
       entryCount: 0
     });
   }
@@ -108,13 +121,25 @@ function buildStandings() {
     const name = String(entry.person || '').trim();
     if (!name) return;
     const key = personKey(name);
-    const existing = byPerson.get(key) || { name, balanceCents: 0, lastActivity: null, derivedFundingCents: 0, entryCount: 0 };
+    const existing = byPerson.get(key) || { name, balanceCents: 0, lastActivity: null, derivedFundingCents: 0, stripeRepaymentCreditCents: 0, entryCount: 0 };
     existing.balanceCents += signedChange(entry);
     existing.entryCount += 1;
     const activity = entry.date || entry.createdAt;
     if (!existing.lastActivity || Date.parse(activity || 0) > Date.parse(existing.lastActivity || 0)) existing.lastActivity = activity;
     byPerson.set(key, existing);
   });
+
+  const opening = stripeOpeningCents();
+  const credit = stripePrincipalCreditCents();
+  if (opening > 0 && credit > 0) {
+    const key = personKey(DEFAULT_LOAN_PERSON);
+    const existing = byPerson.get(key) || { name: DEFAULT_LOAN_PERSON, balanceCents: opening, lastActivity: financing.updatedAt, derivedFundingCents: opening, stripeRepaymentCreditCents: 0, entryCount: 0 };
+    existing.balanceCents -= credit;
+    existing.stripeRepaymentCreditCents = credit;
+    if (!existing.lastActivity || Date.parse(financing.updatedAt || 0) > Date.parse(existing.lastActivity || 0)) existing.lastActivity = financing.updatedAt;
+    byPerson.set(key, existing);
+  }
+
   return Array.from(byPerson.values()).sort((a, b) => Math.abs(b.balanceCents) - Math.abs(a.balanceCents));
 }
 
@@ -159,7 +184,8 @@ function render() {
       const notes = document.createElement('p');
       notes.className = 'finance-entry__notes';
       const parts = [];
-      if (item.derivedFundingCents > 0) parts.push(`${currency(item.derivedFundingCents)} verified Stripe funding provisionally assigned from the financing ledger`);
+      if (item.derivedFundingCents > 0) parts.push(`${currency(item.derivedFundingCents)} verified Stripe advance`);
+      if (item.stripeRepaymentCreditCents > 0) parts.push(`${currency(item.stripeRepaymentCreditCents)} Stripe repayments credited against principal`);
       if (item.entryCount) parts.push(`${item.entryCount} manual ledger entr${item.entryCount === 1 ? 'y' : 'ies'}`);
       if (item.lastActivity) parts.push(`Latest ${formatDate(item.lastActivity)}`);
       notes.textContent = parts.join(' • ');
@@ -261,9 +287,16 @@ async function fetchFinancing() {
     const response = await fetch('/api/stripe/financing');
     if (!response.ok) throw new Error(`Stripe API responded with ${response.status}`);
     const payload = await response.json();
+    const classifiedFunding = totalsCents(payload.summary?.funding);
+    const payoutFunding = Array.isArray(payload.transactions)
+      ? payload.transactions.reduce((sum, row) => {
+          const isFlexLoanPayout = row?.type === 'financing_payout' && row?.sourceObject === 'flex_loan_payout';
+          return sum + (isFlexLoanPayout ? Math.max(0, Number(row.net) || Number(row.amount) || 0) : 0);
+        }, 0)
+      : 0;
     financing = {
       loaded: true,
-      fundingCents: totalsCents(payload.summary?.funding),
+      fundingCents: classifiedFunding || payoutFunding,
       repaymentsCents: totalsCents(payload.summary?.repayments),
       depositsCents: totalsCents(payload.summary?.paydownDeposits),
       loans: Array.isArray(payload.loans) ? payload.loans : [],
@@ -275,7 +308,10 @@ async function fetchFinancing() {
     const loanIds = financing.loans.map(loan => loan.loanId).filter(Boolean);
     const unmatched = financing.loans.some(loan => !loan.loanId);
     if (financing.fundingCents > 0) {
-      loanStatusEl.textContent = `${loanIds.length ? `${loanIds.length} Stripe loan${loanIds.length === 1 ? '' : 's'} found. ` : ''}${currency(financing.fundingCents)} verified as financing funding; ${currency(financing.repaymentsCents)} has been classified as repayments.${unmatched ? ' Some financing rows still need review.' : ''}`;
+      const principalCredit = stripePrincipalCreditCents();
+      const principalRemaining = Math.max(0, stripeOpeningCents() - principalCredit);
+      const abovePrincipal = Math.max(0, financing.repaymentsCents - stripeOpeningCents());
+      loanStatusEl.textContent = `${loanIds.length ? `${loanIds.length} Stripe loan${loanIds.length === 1 ? '' : 's'} found. ` : ''}${currency(financing.fundingCents)} verified advance; ${currency(financing.repaymentsCents)} repaid through Stripe. ${currency(principalCredit)} is credited against ${DEFAULT_LOAN_PERSON}'s principal, leaving ${currency(principalRemaining)} principal outstanding.${abovePrincipal ? ` ${currency(abovePrincipal)} was paid above principal and is shown separately as financing cost, not a personal balance.` : ''}${unmatched ? ' Some financing rows still need review.' : ''}`;
     } else {
       loanStatusEl.textContent = `Financing activity exists, but no transaction is yet safely classified as original loan funding. Do not book a personal balance from the old “financing in” total.`;
     }

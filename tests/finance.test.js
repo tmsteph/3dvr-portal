@@ -104,6 +104,9 @@ describe('finance ledger hub', () => {
     assert.match(script, /person_repaid_company/);
     assert.match(script, /stripe_loan_opening/);
     assert.match(script, /hasExplicitStripeOpening/);
+    assert.match(script, /stripePrincipalCreditCents/);
+    assert.match(script, /financing_payout/);
+    assert.match(script, /Stripe repayments credited against principal/);
   });
 
   it('persists entries to portal and legacy finance Gun graphs with documented structure', async () => {
