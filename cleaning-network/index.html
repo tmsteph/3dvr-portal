@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cleaning Network | Simple booking pages for local cleaners</title>
+  <meta name="description" content="A simple cleaning-service landing page and customer intake flow that can be reused by partner cleaning companies.">
+  <link rel="canonical" href="https://portal.3dvr.tech/cleaning-network/">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../" aria-label="3DVR home"><span class="brand-mark">3D</span><span>3DVR</span></a>
+    <nav aria-label="Cleaning Network navigation">
+      <a href="#services">Services</a>
+      <a href="#request">Get a quote</a>
+      <a class="nav-pill" href="#partners">For cleaners</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Local cleaning, without the phone tag</p>
+        <h1 id="partnerName">Cleaning Network</h1>
+        <p id="partnerIntro" class="lead">Tell us what needs cleaning, where it is, and when you want it done. A local cleaning team can follow up with availability and a quote.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#request">Request a quote</a>
+          <a class="button secondary" href="#partners">Get a page for your company</a>
+        </div>
+        <p class="meta-note">No account required. No payment collected here.</p>
+      </div>
+      <aside class="proof-card" aria-label="How it works">
+        <p class="card-kicker">One simple flow</p>
+        <ol>
+          <li>Share the cleaning details.</li>
+          <li>A cleaner reviews the request.</li>
+          <li>You get a quote and scheduling options.</li>
+        </ol>
+      </aside>
+    </section>
+
+    <section id="services" class="section-block" aria-labelledby="servicesHeading">
+      <div class="section-heading">
+        <p class="eyebrow">Common jobs</p>
+        <h2 id="servicesHeading">Start with the work people already need.</h2>
+      </div>
+      <div class="service-grid">
+        <article><strong>Home cleaning</strong><span>Recurring or one-time cleaning for homes and apartments.</span></article>
+        <article><strong>Move in / move out</strong><span>Deep cleaning before keys change hands.</span></article>
+        <article><strong>Office & commercial</strong><span>Flexible cleaning for offices, shops, and shared spaces.</span></article>
+        <article><strong>Turnovers & special jobs</strong><span>Rental turnovers, post-event cleanup, and custom requests.</span></article>
+      </div>
+    </section>
+
+    <section id="request" class="request-section" aria-labelledby="requestHeading">
+      <div class="request-copy">
+        <p class="eyebrow">Quote request</p>
+        <h2 id="requestHeading">What needs cleaning?</h2>
+        <p>Give us enough detail to route the job. The first version intentionally keeps the process lightweight.</p>
+      </div>
+      <form id="cleaningLeadForm" class="request-form">
+        <div class="field-grid">
+          <label>Full name<input name="name" autocomplete="name" required></label>
+          <label>Email<input name="email" type="email" autocomplete="email"></label>
+          <label>Phone<input name="phone" type="tel" autocomplete="tel"></label>
+          <label>ZIP / postal code<input name="postalCode" autocomplete="postal-code" required></label>
+          <label>Service
+            <select name="serviceType" required>
+              <option value="">Choose one</option>
+              <option>Home cleaning</option>
+              <option>Move in / move out</option>
+              <option>Office / commercial</option>
+              <option>Rental turnover</option>
+              <option>Deep cleaning</option>
+              <option>Other</option>
+            </select>
+          </label>
+          <label>Property type
+            <select name="propertyType">
+              <option value="">Not sure / other</option>
+              <option>Apartment</option>
+              <option>House</option>
+              <option>Office</option>
+              <option>Retail</option>
+              <option>Short-term rental</option>
+            </select>
+          </label>
+          <label>Preferred date<input name="preferredDate" type="date"></label>
+          <label>Frequency
+            <select name="frequency">
+              <option>One time</option>
+              <option>Weekly</option>
+              <option>Every two weeks</option>
+              <option>Monthly</option>
+              <option>Not sure yet</option>
+            </select>
+          </label>
+        </div>
+        <label>Anything else we should know?<textarea name="notes" rows="5" placeholder="Bedrooms, bathrooms, square footage, pets, access details, or anything unusual."></textarea></label>
+        <label class="honeypot" aria-hidden="true">Company website<input name="companyWebsite" tabindex="-1" autocomplete="off"></label>
+        <button class="button primary" type="submit">Send request</button>
+        <p id="formStatus" class="form-status" role="status" aria-live="polite">Add an email or phone number so a cleaner can reach you.</p>
+      </form>
+    </section>
+
+    <section id="partners" class="partner-section" aria-labelledby="partnerHeading">
+      <div>
+        <p class="eyebrow">For cleaning companies</p>
+        <h2 id="partnerHeading">Give every partner a page they can actually share.</h2>
+        <p>This system is designed to grow into branded partner pages, lead routing, job handoff, and simple reporting without forcing every cleaner to build their own stack.</p>
+      </div>
+      <div class="partner-card">
+        <strong>Start simple</strong>
+        <p>We can launch each cleaning company with a focused landing page and intake form, then add routing, domains, CRM, payments, and automation only when the workflow proves it needs them.</p>
+        <a class="button secondary" href="../business-sites/">Get a business page</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p><span id="footerBrand">Cleaning Network</span> · Powered by <a href="../">3DVR</a></p>
+  </footer>
+  <script src="app.js" defer></script>
+</body>
+</html>
