@@ -226,6 +226,80 @@ export function createTrialHandler(options = {}) {
       }
     }
 
+    if (kind === 'cleaning-lead') {
+      const honeyPot = normalizeLine(req.body?.companyWebsite, 200);
+      if (honeyPot) {
+        return res.status(200).json({ success: true });
+      }
+
+      const name = normalizeLine(req.body?.name, 120);
+      const normalizedEmail = normalizeEmail(email);
+      const phone = normalizeLine(req.body?.phone, 80);
+      const postalCode = normalizeLine(req.body?.postalCode, 24);
+      const serviceType = normalizeLine(req.body?.serviceType, 120);
+      const propertyType = normalizeLine(req.body?.propertyType, 120);
+      const preferredDate = normalizeLine(req.body?.preferredDate, 20);
+      const frequency = normalizeLine(req.body?.frequency, 80);
+      const notes = normalizeLongText(req.body?.notes, 2000);
+      const requestedPartner = normalizeLine(req.body?.partner || 'network', 48).toLowerCase();
+      const partner = /^[a-z0-9-]{1,48}$/.test(requestedPartner) ? requestedPartner : 'network';
+      const normalizedSource = normalizeLine(source || `cleaning-network:${partner}`, 160);
+
+      if (!name || (!normalizedEmail && !phone) || !postalCode || !serviceType) {
+        return res.status(400).json({ error: 'Add your name, contact info, postal code, and cleaning service.' });
+      }
+
+      if (!config.GMAIL_USER || !config.GMAIL_APP_PASSWORD) {
+        return res.status(503).json({ error: 'Cleaning requests are temporarily unavailable.' });
+      }
+
+      let partnerEmails = {};
+      if (config.CLEANING_PARTNER_EMAILS_JSON) {
+        try {
+          partnerEmails = JSON.parse(config.CLEANING_PARTNER_EMAILS_JSON);
+        } catch (error) {
+          console.error('Invalid CLEANING_PARTNER_EMAILS_JSON:', error.message);
+        }
+      }
+      const configuredPartnerEmail = normalizeEmail(partnerEmails?.[partner]);
+      const destination = configuredPartnerEmail || normalizeEmail(config.CLEANING_LEAD_EMAIL_TO)
+        || normalizeEmail(config.OPERATOR_EMAIL_TO) || normalizeEmail(config.GMAIL_USER);
+      const submittedAt = new Date().toISOString();
+      const requestRecord = {
+        type: 'cleaning-lead',
+        partner,
+        name,
+        email: normalizedEmail,
+        phone,
+        postalCode,
+        serviceType,
+        propertyType,
+        preferredDate,
+        frequency,
+        notes,
+        source: normalizedSource,
+        submittedAt,
+      };
+
+      try {
+        await transporter.sendMail({
+          from: `"3DVR Cleaning Network" <${config.GMAIL_USER}>`,
+          to: destination,
+          replyTo: normalizedEmail || config.GMAIL_USER,
+          subject: `Cleaning request: ${serviceType} · ${postalCode}`,
+          text: JSON.stringify(requestRecord, null, 2),
+          headers: {
+            'X-3DVR-Request-Type': 'cleaning-lead',
+            'X-3DVR-Request-Source': normalizedSource,
+          },
+        });
+        return res.status(200).json({ success: true });
+      } catch (err) {
+        console.error('Cleaning request email failed:', err.message);
+        return res.status(503).json({ error: 'Cleaning requests are temporarily unavailable.' });
+      }
+    }
+
     // Reuse this existing serverless route for booking intake so the public site
     // does not add another Vercel function. Requests are emailed privately and
     // are not written to public Gun nodes.
