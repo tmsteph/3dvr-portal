@@ -102,6 +102,8 @@ describe('finance ledger hub', () => {
     assert.match(script, /DEFAULT_LOAN_PERSON = 'Thomas Stephens'/);
     assert.match(script, /person_owes_company/);
     assert.match(script, /person_repaid_company/);
+    assert.match(script, /stripe_loan_opening/);
+    assert.match(script, /hasExplicitStripeOpening/);
   });
 
   it('persists entries to portal and legacy finance Gun graphs with documented structure', async () => {

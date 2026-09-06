@@ -1,4 +1,5 @@
 const DEFAULT_LOAN_PERSON = 'Thomas Stephens';
+const STRIPE_LOAN_OPENING_KIND = 'stripe_loan_opening';
 const peers = window.__GUN_PEERS__ || [
   'wss://relay.3dvr.tech/gun',
   'wss://gun-relay-3dvr.fly.dev/gun'
@@ -70,6 +71,7 @@ function cleanRecord(raw) {
 
 function signedChange(entry) {
   const cents = Math.max(0, Math.round(Number(entry.amountCents) || 0));
+  if (entry.kind === STRIPE_LOAN_OPENING_KIND) return Number(entry.changeCents) || cents;
   if (entry.kind === 'person_owes_company' || entry.kind === 'company_repaid_person') return cents;
   if (entry.kind === 'person_repaid_company' || entry.kind === 'company_owes_person') return -cents;
   return Number(entry.changeCents) || 0;
@@ -80,7 +82,8 @@ function labelForKind(kind) {
     person_owes_company: 'Person received company money',
     person_repaid_company: 'Person paid / credited 3DVR',
     company_owes_person: 'Person covered a company cost',
-    company_repaid_person: '3DVR reimbursed person'
+    company_repaid_person: '3DVR reimbursed person',
+    [STRIPE_LOAN_OPENING_KIND]: 'Verified Stripe loan opening'
   }[kind] || 'Standing adjustment';
 }
 
@@ -90,7 +93,9 @@ function personKey(name) {
 
 function buildStandings() {
   const byPerson = new Map();
-  if (financing.fundingCents > 0) {
+  const hasExplicitStripeOpening = Array.from(entries.values())
+    .some(entry => entry.kind === STRIPE_LOAN_OPENING_KIND);
+  if (financing.fundingCents > 0 && !hasExplicitStripeOpening) {
     byPerson.set(personKey(DEFAULT_LOAN_PERSON), {
       name: DEFAULT_LOAN_PERSON,
       balanceCents: financing.fundingCents,
