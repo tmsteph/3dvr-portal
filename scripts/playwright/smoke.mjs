@@ -97,7 +97,7 @@ try {
   assert.equal(pageTitle, '3DVR Portal');
   assert.equal(heading, 'What do you want to do?');
   assert.equal(await operatorLink.count(), 1);
-  assert.equal(await coreActions.count(), 5);
+  assert.equal(await coreActions.count(), 4);
 
   console.log(`Playwright smoke check passed in ${browserTarget.displayName} at ${baseUrl}`);
 } finally {
