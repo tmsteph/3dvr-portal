@@ -54,15 +54,13 @@ jobs:
             tests/self-host-cutover-readiness.test.js \
             tests/stripe-dashboard-route.test.js
 
-      - name: Commit verified hardening atomically
+      - name: Commit verified code and documentation
         shell: bash
         run: |
           set -euo pipefail
           git config user.name '3DVR Automation'
           git config user.email 'automation@3dvr.tech'
           git add \
-            .github/workflows/migrate-portal-ovh-edge.yml \
-            .github/workflows/self-host-production.yml \
             docs/self-host-migration.md \
             ops/self-host-production-trigger.txt \
             scripts/ops/check-self-host-readiness.mjs \
@@ -71,8 +69,7 @@ jobs:
             scripts/self-host-server.mjs \
             tests/self-host-cutover-readiness.test.js \
             tests/self-host-secret-provisioning.test.js
-          git rm .github/workflows/publish-selfhost-hardening.yml
-          git commit -m 'Harden OVH portal migration gates'
+          git commit -m 'Harden OVH portal migration runtime'
           git push origin HEAD:infra/self-host-migration-hardening
 
       - name: Remove temporary bundle
