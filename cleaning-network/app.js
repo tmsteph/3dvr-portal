@@ -2,6 +2,9 @@ const leadForm = document.querySelector('#cleaningLeadForm');
 const partnerForm = document.querySelector('#partnerInterestForm');
 const leadStatus = document.querySelector('#formStatus');
 const partnerStatus = document.querySelector('#partnerStatus');
+const serviceSelect = leadForm.elements.namedItem('serviceType');
+const serviceCards = Array.from(document.querySelectorAll('[data-service]'));
+const selectedService = document.querySelector('#selectedService');
 const params = new URLSearchParams(window.location.search);
 const requestedPartner = /^[a-z0-9-]{1,48}$/.test(String(params.get('partner') || '').toLowerCase())
   ? String(params.get('partner')).toLowerCase() : 'network';
@@ -20,14 +23,54 @@ function todayLocal() {
 
 document.querySelector('#preferredDate').min = todayLocal();
 
+function syncServiceSelection(value) {
+  const selected = String(value || '');
+  serviceCards.forEach(card => {
+    const active = card.dataset.service === selected;
+    card.classList.toggle('selected', active);
+    card.setAttribute('aria-pressed', String(active));
+  });
+  selectedService.textContent = selected ? `Selected job: ${selected}` : '';
+  selectedService.hidden = !selected;
+}
+
+serviceCards.forEach(card => {
+  card.addEventListener('click', () => {
+    serviceSelect.value = card.dataset.service || '';
+    syncServiceSelection(serviceSelect.value);
+    document.querySelector('#request').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+
+serviceSelect.addEventListener('change', () => syncServiceSelection(serviceSelect.value));
+
 function updatePartner(profile) {
   resolvedPartner = profile.partner || 'network';
+  const branded = Boolean(profile.configured && resolvedPartner !== 'network');
+  document.body.classList.toggle('partner-page', branded);
+  document.querySelectorAll('[data-platform-only]').forEach(node => { node.hidden = branded; });
+  ['#howNavLink', '#partnerNavLink', '#partnerHeroAction'].forEach(selector => {
+    const node = document.querySelector(selector);
+    if (node) node.hidden = branded;
+  });
+  if (profile.accent) document.documentElement.style.setProperty('--accent', profile.accent);
+  if (profile.accentDark) document.documentElement.style.setProperty('--accent-dark', profile.accentDark);
+  document.title = branded ? `${profile.name} | Request a cleaning quote` : 'Cleaning Network | Request a local cleaning quote';
   document.querySelector('#partnerName').textContent = profile.name || 'Cleaning Network';
   document.querySelector('#partnerIntro').textContent = profile.intro || '';
   document.querySelector('#footerBrand').textContent = profile.name || 'Cleaning Network';
   document.querySelector('#headerBrandName').textContent = profile.name || 'Cleaning Network';
   const initials = String(profile.name || 'Cleaning Network').split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase();
-  document.querySelector('#headerBrandMark').textContent = initials || 'CN';
+  const brandMark = document.querySelector('#headerBrandMark');
+  brandMark.replaceChildren();
+  if (profile.logoUrl) {
+    const logo = document.createElement('img');
+    logo.src = profile.logoUrl;
+    logo.alt = '';
+    brandMark.append(logo);
+  } else {
+    brandMark.textContent = initials || 'CN';
+  }
   const eyebrow = document.querySelector('#serviceAreaEyebrow');
   eyebrow.textContent = profile.serviceArea ? `Cleaning in ${profile.serviceArea}` : 'Simple local cleaning requests';
   const contact = document.querySelector('#partnerContact');
@@ -95,6 +138,7 @@ async function postForm(form, statusNode, kind, extra = {}) {
     if (form === leadForm) {
       document.querySelector('#preferredDate').min = todayLocal();
       form.querySelector('details')?.removeAttribute('open');
+      syncServiceSelection('');
     }
     const reference = result.requestId ? ` Reference: ${result.requestId}.` : '';
     setStatus(statusNode, `Sent successfully.${reference}`, 'success');
