@@ -162,6 +162,68 @@ function createDashboardStripeMock() {
         ])
       }))
     },
+    charges: {
+      list: mock.fn(() => ({
+        autoPagingToArray: async () => ([
+          {
+            id: 'ch_thomas_gmail',
+            amount: 1000,
+            amount_captured: 1000,
+            amount_refunded: 0,
+            captured: true,
+            paid: true,
+            status: 'succeeded',
+            currency: 'usd',
+            created: 1764000000,
+            billing_details: { email: 'tmsteph1290@gmail.com', name: 'Thomas M Stephens Jr.' },
+            customer: {
+              id: 'cus_thomas',
+              email: 'tmsteph1290@gmail.com',
+              metadata: { billing_email: 'thomas.michael.stephens@outlook.com', portal_alias: 'tmsteph@3dvr' }
+            }
+          },
+          {
+            id: 'ch_thomas_outlook',
+            amount: 500,
+            amount_captured: 500,
+            amount_refunded: 0,
+            captured: true,
+            paid: true,
+            status: 'succeeded',
+            currency: 'usd',
+            created: 1764100000,
+            billing_details: { email: 'thomas.michael.stephens@outlook.com', name: 'Thomas Stephens' },
+            customer: null
+          },
+          {
+            id: 'ch_brenda',
+            amount: 2000,
+            amount_captured: 2000,
+            amount_refunded: 0,
+            captured: true,
+            paid: true,
+            status: 'succeeded',
+            currency: 'usd',
+            created: 1764200000,
+            billing_details: { email: 'brenda@example.com', name: 'Brenda Stephens' },
+            customer: { id: 'cus_brenda', email: 'brenda@example.com', metadata: {} }
+          },
+          {
+            id: 'ch_failed',
+            amount: 9000,
+            amount_captured: 0,
+            amount_refunded: 0,
+            captured: false,
+            paid: false,
+            status: 'failed',
+            currency: 'usd',
+            created: 1764300000,
+            billing_details: { email: 'failed@example.com', name: 'Failed Payment' },
+            customer: null
+          }
+        ])
+      }))
+    },
     subscriptions: {
       list: mock.fn(() => ({
         autoPagingToArray: async () => ([
@@ -304,6 +366,30 @@ test('stripe dashboard route merges explicitly linked customer email identities'
   assert.deepEqual(res.body.customers[0].customerIds, ['cus_gmail', 'cus_old_gmail', 'cus_outlook']);
   assert.deepEqual(res.body.customers[0].emails, ['thomas.michael.stephens@outlook.com', 'tmsteph1290@gmail.com']);
   assert.deepEqual(res.body.customers[0].portalAliases, ['tmsteph@3dvr']);
+});
+
+
+test('stripe dashboard route serves the successful payment contribution ledger', async () => {
+  const stripeClient = createDashboardStripeMock();
+  const handler = createStripeDashboardHandler({ stripeClient });
+  const req = { method: 'GET', query: { route: 'contributions' } };
+  const res = createMockRes();
+
+  await handler(req, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.count, 2);
+  assert.equal(res.body.successfulPaymentCount, 3);
+  assert.equal(res.body.totalCents, 3500);
+  assert.equal(res.body.startAt, '2025-11-19T22:22:50.000Z');
+  const thomas = res.body.contributors.find(row => row.name === 'Thomas Stephens');
+  assert.ok(thomas);
+  assert.equal(thomas.amountCents, 1500);
+  assert.equal(thomas.paymentCount, 2);
+  assert.deepEqual(thomas.emails, ['thomas.michael.stephens@outlook.com', 'tmsteph1290@gmail.com']);
+  assert.deepEqual(thomas.portalAliases, ['tmsteph@3dvr']);
+  assert.equal(stripeClient.charges.list.mock.calls.length, 1);
+  assert.deepEqual(stripeClient.charges.list.mock.calls[0].arguments[0].expand, ['data.customer']);
 });
 
 test('stripe dashboard route serves balance metrics', async () => {

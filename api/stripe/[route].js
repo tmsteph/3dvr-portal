@@ -147,6 +147,122 @@ function summarizeInvoices(invoices = []) {
     }))
     .sort((a, b) => b.amountPaid - a.amountPaid);
 }
+const CONTRIBUTION_START_AT = '2025-11-19T22:22:50.000Z';
+
+function summarizeContributionCharges(charges = []) {
+  const parent = new Map();
+  const ensure = token => {
+    if (token && !parent.has(token)) parent.set(token, token);
+    return token;
+  };
+  const find = token => {
+    let current = ensure(token);
+    while (current && parent.get(current) !== current) {
+      parent.set(current, parent.get(parent.get(current)));
+      current = parent.get(current);
+    }
+    return current;
+  };
+  const union = (left, right) => {
+    const leftRoot = find(left);
+    const rightRoot = find(right);
+    if (leftRoot && rightRoot && leftRoot !== rightRoot) parent.set(rightRoot, leftRoot);
+  };
+
+  const records = charges
+    .filter(charge => charge && charge.paid === true && charge.status === 'succeeded' && charge.captured !== false)
+    .filter(charge => String(charge.currency || '').toLowerCase() === 'usd')
+    .map(charge => {
+      const customer = charge.customer && typeof charge.customer === 'object' ? charge.customer : null;
+      const customerId = typeof charge.customer === 'string' ? charge.customer : customer?.id;
+      const email = normalizeEmail(charge.billing_details?.email || charge.receipt_email || customer?.email || '');
+      const billingEmail = normalizeEmail(customer?.metadata?.billing_email || '');
+      const portalAlias = String(customer?.metadata?.portal_alias || '').trim().toLowerCase();
+      const tokens = [
+        customerId ? `customer:${customerId}` : '',
+        email ? `email:${email}` : '',
+        billingEmail ? `email:${billingEmail}` : '',
+        portalAlias ? `alias:${portalAlias}` : ''
+      ].filter(Boolean);
+      tokens.forEach(ensure);
+      tokens.slice(1).forEach(token => union(tokens[0], token));
+      const captured = Number(charge.amount_captured ?? charge.amount ?? 0);
+      const refunded = Number(charge.amount_refunded || 0);
+      return {
+        charge,
+        customerId,
+        email,
+        billingEmail,
+        portalAlias,
+        tokens,
+        amountCents: Math.max(0, captured - refunded),
+        name: String(charge.billing_details?.name || customer?.name || '').trim()
+      };
+    })
+    .filter(record => record.tokens.length && record.amountCents > 0);
+
+  const identities = new Map();
+  records.forEach(record => {
+    const root = find(record.tokens[0]);
+    const identity = identities.get(root) || {
+      emails: new Set(), portalAliases: new Set(), customerIds: new Set(), names: new Set()
+    };
+    if (record.email) identity.emails.add(record.email);
+    if (record.billingEmail) identity.emails.add(record.billingEmail);
+    if (record.portalAlias) identity.portalAliases.add(record.portalAlias);
+    if (record.customerId) identity.customerIds.add(record.customerId);
+    if (record.name) identity.names.add(record.name);
+    identities.set(root, identity);
+  });
+
+  const totals = new Map();
+  records.forEach(record => {
+    const root = find(record.tokens[0]);
+    const identity = identities.get(root);
+    const existing = totals.get(root) || {
+      aggregateKey: Array.from(identity?.portalAliases || [])[0]
+        || Array.from(identity?.emails || [])[0]
+        || Array.from(identity?.customerIds || [])[0]
+        || root,
+      amountCents: 0,
+      paymentCount: 0,
+      firstPaymentAt: null,
+      lastPaymentAt: null,
+      emails: new Set(identity?.emails || []),
+      portalAliases: new Set(identity?.portalAliases || []),
+      customerIds: new Set(identity?.customerIds || []),
+      names: new Set(identity?.names || [])
+    };
+    existing.amountCents += record.amountCents;
+    existing.paymentCount += 1;
+    const createdAt = record.charge.created ? new Date(Number(record.charge.created) * 1000).toISOString() : null;
+    if (createdAt) {
+      if (!existing.firstPaymentAt || Date.parse(createdAt) < Date.parse(existing.firstPaymentAt)) existing.firstPaymentAt = createdAt;
+      if (!existing.lastPaymentAt || Date.parse(createdAt) > Date.parse(existing.lastPaymentAt)) existing.lastPaymentAt = createdAt;
+    }
+    totals.set(root, existing);
+  });
+
+  return Array.from(totals.values()).map(entry => {
+    const portalAliases = Array.from(entry.portalAliases).sort();
+    const emails = Array.from(entry.emails).sort();
+    const names = Array.from(entry.names).filter(Boolean).sort();
+    const knownName = portalAliases.includes('tmsteph@3dvr') ? 'Thomas Stephens' : '';
+    return {
+      aggregateKey: entry.aggregateKey,
+      name: knownName || names[0] || emails[0] || entry.aggregateKey,
+      currency: 'USD',
+      amountCents: entry.amountCents,
+      paymentCount: entry.paymentCount,
+      firstPaymentAt: entry.firstPaymentAt,
+      lastPaymentAt: entry.lastPaymentAt,
+      emails,
+      portalAliases,
+      customerIds: Array.from(entry.customerIds).sort()
+    };
+  }).sort((a, b) => b.amountCents - a.amountCents);
+}
+
 function summarizeBalances(entries) {
   if (!Array.isArray(entries)) {
     return {};
@@ -869,6 +985,30 @@ async function listCustomers(stripeClient, res) {
   });
 }
 
+async function listContributions(stripeClient, res) {
+  const createdGte = Math.floor(Date.parse(CONTRIBUTION_START_AT) / 1000);
+  const chargesIterator = stripeClient.charges.list({
+    limit: 100,
+    created: { gte: createdGte },
+    expand: ['data.customer']
+  });
+  const charges = await chargesIterator.autoPagingToArray({ limit: 5000 });
+  const contributors = summarizeContributionCharges(charges);
+  const totalCents = contributors.reduce((sum, contributor) => sum + contributor.amountCents, 0);
+  const successfulPaymentCount = contributors.reduce((sum, contributor) => sum + contributor.paymentCount, 0);
+
+  return res.status(200).json({
+    updatedAt: new Date().toISOString(),
+    startAt: CONTRIBUTION_START_AT,
+    currency: 'USD',
+    contributors,
+    count: contributors.length,
+    successfulPaymentCount,
+    totalCents,
+    isTruncated: charges.length >= 5000
+  });
+}
+
 async function listMetrics(stripeClient, res, config = process.env) {
   const subscriptionsIterator = stripeClient.subscriptions.list({
     status: 'active',
@@ -1052,6 +1192,9 @@ export function createStripeDashboardHandler({
       }
       if (route === 'metrics') {
         return await listMetrics(resolvedStripeClient, res, config);
+      }
+      if (route === 'contributions') {
+        return await listContributions(resolvedStripeClient, res);
       }
       if (route === 'cashflow') {
         return await listCashflow(req, resolvedStripeClient, res);

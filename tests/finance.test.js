@@ -94,6 +94,12 @@ describe('finance ledger hub', () => {
     assert.match(html, /id="standings-payable"/);
     assert.match(html, /id="loan-funding"/);
     assert.match(html, /id="standing-form"/);
+    assert.match(html, /Portal points & account value/);
+    assert.match(html, /id="contribution-total"/);
+    assert.match(html, /id="portal-points-total"/);
+    assert.match(html, /id="projected-account-value"/);
+    assert.match(html, /id="point-dollar-ratio"/);
+    assert.match(html, /id="contribution-people"/);
     assert.match(html, /src="\.\/standings\.js"/);
 
     const script = await readFile(new URL('standings.js', baseDir), 'utf8');
@@ -104,9 +110,15 @@ describe('finance ledger hub', () => {
     assert.match(script, /person_repaid_company/);
     assert.match(script, /stripe_loan_opening/);
     assert.match(script, /hasExplicitStripeOpening/);
-    assert.match(script, /stripePrincipalCreditCents/);
+    assert.match(script, /stripePersonalPaymentCreditCents/);
+    assert.match(script, /loanReceivableCents/);
+    assert.match(script, /\/api\/stripe\/contributions/);
+    assert.match(script, /\/api\/stripe\/metrics/);
+    assert.match(script, /get\?\.\('userStats'\)/);
+    assert.match(script, /portalPointsTotal/);
+    assert.match(script, /payments do not mint points/);
     assert.match(script, /financing_payout/);
-    assert.match(script, /Stripe repayments credited against principal/);
+    assert.match(script, /personal Stripe payments credited against the advance/);
   });
 
   it('persists entries to portal and legacy finance Gun graphs with documented structure', async () => {

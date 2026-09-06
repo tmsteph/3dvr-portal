@@ -25,7 +25,7 @@
     <header class="finance-hero">
       <p class="finance-hero__eyebrow">Internal accounting</p>
       <h1 id="page-title" class="finance-hero__title">Company standings</h1>
-      <p class="finance-hero__lead">See who owes 3DVR, who 3DVR owes, and the Stripe financing evidence behind those balances. Every change is an auditable ledger entry.</p>
+      <p class="finance-hero__lead">See who owes 3DVR, how much each person has put into the shared Stripe account, and what the existing portal points imply at the projected account value. Money and points remain separate ledgers.</p>
     </header>
 
     <section class="finance-layout" aria-labelledby="position-title">
@@ -53,9 +53,9 @@
           <div class="finance-summary__stat"><dt>Paydown deposits</dt><dd id="loan-deposits">—</dd></div>
         </dl>
         <p id="loan-status" class="finance-helper" role="status" aria-live="polite">Loading Stripe financing history…</p>
-        <p id="loan-note" class="finance-helper">Stripe repayments and a person’s debt to 3DVR are different ledgers. A business repayment does not silently erase an internal receivable.</p>
+        <p id="loan-note" class="finance-helper">Stripe financing repayments and a person’s debt to 3DVR are different ledgers. Thomas’s internal receivable is reduced only by payments attributable to Thomas, not by money paid by everyone else.</p>
         <div class="finance-card__actions">
-          <button id="loan-refresh" type="button" class="finance-button finance-button--secondary">Refresh evidence</button>
+          <button id="loan-refresh" type="button" class="finance-button finance-button--secondary">Refresh account data</button>
         </div>
       </div>
     </section>
@@ -67,6 +67,24 @@
       </div>
       <div id="standings-people" class="finance-ledger" role="list">
         <p id="standings-people-empty" class="finance-ledger__empty">No internal balances have been recorded yet.</p>
+      </div>
+    </section>
+
+    <section class="finance-card finance-card--ledger" aria-labelledby="points-title">
+      <div class="finance-card__header">
+        <h2 id="points-title" class="finance-card__title">Portal points & account value</h2>
+        <span class="finance-card__subhead">Existing portal points + Stripe payment ledger</span>
+      </div>
+      <dl class="finance-summary__grid">
+        <div class="finance-summary__stat"><dt>Actual contributions</dt><dd id="contribution-total">—</dd></div>
+        <div class="finance-summary__stat"><dt>Total portal points</dt><dd id="portal-points-total">—</dd></div>
+        <div class="finance-summary__stat"><dt>Projected account value</dt><dd id="projected-account-value">—</dd></div>
+        <div class="finance-summary__stat"><dt>Projected $ / point</dt><dd id="point-dollar-ratio">—</dd></div>
+      </dl>
+      <p id="contribution-status" class="finance-helper" role="status" aria-live="polite">Loading Stripe payments and portal points…</p>
+      <p class="finance-helper">Portal points are the scores already assigned in the portal; Stripe payments do not create points here. Projected valuation treats Thomas’s unpaid receivable as restored account cash, while leaving every person’s portal points unchanged. This is an internal reference value, not a legal ownership calculation.</p>
+      <div id="contribution-people" class="finance-ledger" role="list">
+        <p id="contribution-people-empty" class="finance-ledger__empty">No Stripe contributions found for this accounting period.</p>
       </div>
     </section>
 
@@ -100,7 +118,7 @@
           <h2 class="finance-card__title">Loan allocation</h2>
           <p class="finance-card__subhead">Turn evidence into responsibility</p>
         </div>
-        <p class="finance-helper">Verified Stripe funding is provisionally included in Thomas’s standing because the loan proceeds went into his personal account. Do not add that opening amount again. Use the ledger only for documented repayments, business-use credits, reimbursements, or other advances.</p>
+        <p class="finance-helper">Verified Stripe funding opens Thomas’s receivable because the proceeds went into his personal account. Payments made under Thomas’s linked Stripe identities are credited automatically. Do not manually log those same Stripe payments again; use the manual ledger only for off-Stripe repayments, reimbursements, business-use credits, or other adjustments.</p>
       </div>
     </section>
 

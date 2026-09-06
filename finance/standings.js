@@ -21,11 +21,16 @@ function createGun() {
 }
 
 const gun = createGun();
-const primaryRoot = gun?.get?.('3dvr-portal')?.get?.('finance')?.get?.('standings');
+const portalRoot = gun?.get?.('3dvr-portal');
+const primaryRoot = portalRoot?.get?.('finance')?.get?.('standings');
+const portalStatsRoot = portalRoot?.get?.('userStats');
 const legacyRoot = gun?.get?.('finance')?.get?.('standings');
 const standingSources = [primaryRoot, legacyRoot].filter(Boolean);
 const entries = new Map();
+const portalStats = new Map();
 let financing = { loaded: false, fundingCents: 0, repaymentsCents: 0, depositsCents: 0, loans: [], updatedAt: null };
+let contributions = { loaded: false, contributors: [], totalCents: 0, successfulPaymentCount: 0, startAt: null, updatedAt: null };
+let accountBalance = { loaded: false, availableCents: 0, pendingCents: 0, updatedAt: null };
 
 function stripeOpeningCents() {
   const explicit = Array.from(entries.values())
@@ -34,8 +39,19 @@ function stripeOpeningCents() {
   return explicit || financing.fundingCents;
 }
 
-function stripePrincipalCreditCents() {
-  return Math.min(stripeOpeningCents(), Math.max(0, financing.repaymentsCents));
+function defaultLoanContributor() {
+  return contributions.contributors.find(contributor =>
+    personKey(contributor.name) === personKey(DEFAULT_LOAN_PERSON)
+    || (Array.isArray(contributor.portalAliases) && contributor.portalAliases.includes('tmsteph@3dvr'))
+  ) || null;
+}
+
+function stripePersonalPaymentCreditCents() {
+  return Math.min(stripeOpeningCents(), Math.max(0, Number(defaultLoanContributor()?.amountCents) || 0));
+}
+
+function loanReceivableCents() {
+  return Math.max(0, stripeOpeningCents() - stripePersonalPaymentCreditCents());
 }
 
 
@@ -59,11 +75,31 @@ const loanRepaymentsEl = $('loan-repayments');
 const loanDepositsEl = $('loan-deposits');
 const loanStatusEl = $('loan-status');
 const loanRefresh = $('loan-refresh');
+const contributionTotalEl = $('contribution-total');
+const portalPointsTotalEl = $('portal-points-total');
+const projectedAccountValueEl = $('projected-account-value');
+const pointDollarRatioEl = $('point-dollar-ratio');
+const contributionStatusEl = $('contribution-status');
+const contributionPeopleEl = $('contribution-people');
+const contributionPeopleEmpty = $('contribution-people-empty');
 
 dateInput.value = new Date().toISOString().slice(0, 10);
 
 function currency(cents) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((Number(cents) || 0) / 100);
+}
+
+function formatPoints(value) {
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(Number(value) || 0);
+}
+
+function formatPercent(value) {
+  return new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 1 }).format(Number(value) || 0);
+}
+
+function usdCents(totals) {
+  if (!totals || typeof totals !== 'object') return 0;
+  return Number(totals.USD ?? totals.usd ?? 0) || 0;
 }
 
 function formatDate(value) {
@@ -113,7 +149,7 @@ function buildStandings() {
       balanceCents: financing.fundingCents,
       lastActivity: financing.updatedAt,
       derivedFundingCents: financing.fundingCents,
-      stripeRepaymentCreditCents: 0,
+      stripePersonalPaymentCreditCents: 0,
       entryCount: 0
     });
   }
@@ -121,7 +157,7 @@ function buildStandings() {
     const name = String(entry.person || '').trim();
     if (!name) return;
     const key = personKey(name);
-    const existing = byPerson.get(key) || { name, balanceCents: 0, lastActivity: null, derivedFundingCents: 0, stripeRepaymentCreditCents: 0, entryCount: 0 };
+    const existing = byPerson.get(key) || { name, balanceCents: 0, lastActivity: null, derivedFundingCents: 0, stripePersonalPaymentCreditCents: 0, entryCount: 0 };
     existing.balanceCents += signedChange(entry);
     existing.entryCount += 1;
     const activity = entry.date || entry.createdAt;
@@ -130,12 +166,12 @@ function buildStandings() {
   });
 
   const opening = stripeOpeningCents();
-  const credit = stripePrincipalCreditCents();
+  const credit = stripePersonalPaymentCreditCents();
   if (opening > 0 && credit > 0) {
     const key = personKey(DEFAULT_LOAN_PERSON);
-    const existing = byPerson.get(key) || { name: DEFAULT_LOAN_PERSON, balanceCents: opening, lastActivity: financing.updatedAt, derivedFundingCents: opening, stripeRepaymentCreditCents: 0, entryCount: 0 };
+    const existing = byPerson.get(key) || { name: DEFAULT_LOAN_PERSON, balanceCents: opening, lastActivity: financing.updatedAt, derivedFundingCents: opening, stripePersonalPaymentCreditCents: 0, entryCount: 0 };
     existing.balanceCents -= credit;
-    existing.stripeRepaymentCreditCents = credit;
+    existing.stripePersonalPaymentCreditCents = credit;
     if (!existing.lastActivity || Date.parse(financing.updatedAt || 0) > Date.parse(existing.lastActivity || 0)) existing.lastActivity = financing.updatedAt;
     byPerson.set(key, existing);
   }
@@ -144,6 +180,7 @@ function buildStandings() {
 }
 
 function render() {
+  renderLoanStatus();
   const standings = buildStandings();
   const receivable = standings.reduce((sum, item) => sum + Math.max(item.balanceCents, 0), 0);
   const payable = standings.reduce((sum, item) => sum + Math.max(-item.balanceCents, 0), 0);
@@ -185,7 +222,7 @@ function render() {
       notes.className = 'finance-entry__notes';
       const parts = [];
       if (item.derivedFundingCents > 0) parts.push(`${currency(item.derivedFundingCents)} verified Stripe advance`);
-      if (item.stripeRepaymentCreditCents > 0) parts.push(`${currency(item.stripeRepaymentCreditCents)} Stripe repayments credited against principal`);
+      if (item.stripePersonalPaymentCreditCents > 0) parts.push(`${currency(item.stripePersonalPaymentCreditCents)} personal Stripe payments credited against the advance`);
       if (item.entryCount) parts.push(`${item.entryCount} manual ledger entr${item.entryCount === 1 ? 'y' : 'ies'}`);
       if (item.lastActivity) parts.push(`Latest ${formatDate(item.lastActivity)}`);
       notes.textContent = parts.join(' • ');
@@ -193,7 +230,124 @@ function render() {
       peopleEl.append(card);
     });
   }
+  renderContributionPoints();
   renderHistory();
+}
+
+function portalPointRecordForContributor(contributor) {
+  const aliases = Array.isArray(contributor?.portalAliases)
+    ? contributor.portalAliases.map(alias => String(alias || '').trim().toLowerCase()).filter(Boolean)
+    : [];
+  for (const alias of aliases) {
+    const exact = portalStats.get(alias);
+    if (exact) return exact;
+  }
+  const name = personKey(contributor?.name);
+  if (!name) return null;
+  return Array.from(portalStats.values()).find(record => personKey(record.username) === name) || null;
+}
+
+function portalPointsTotal() {
+  return Array.from(portalStats.values()).reduce((sum, record) => sum + Math.max(0, Math.round(Number(record.points) || 0)), 0);
+}
+
+function renderContributionPoints() {
+  const receivable = loanReceivableCents();
+  const totalPoints = portalPointsTotal();
+  const currentCashCents = Math.max(0, accountBalance.availableCents + accountBalance.pendingCents);
+  const projectedAccountValueCents = currentCashCents + receivable;
+  const dollarsPerPoint = totalPoints > 0 && accountBalance.loaded
+    ? (projectedAccountValueCents / 100) / totalPoints
+    : null;
+
+  contributionTotalEl.textContent = contributions.loaded ? currency(contributions.totalCents) : '—';
+  portalPointsTotalEl.textContent = formatPoints(totalPoints);
+  projectedAccountValueEl.textContent = accountBalance.loaded ? currency(projectedAccountValueCents) : '—';
+  pointDollarRatioEl.textContent = dollarsPerPoint === null ? '—' : `${currency(dollarsPerPoint * 100)} / point`;
+
+  if (!contributions.loaded) {
+    contributionStatusEl.textContent = 'Loading Stripe payments and portal points…';
+  } else {
+    const period = contributions.startAt ? ` since ${formatDate(contributions.startAt)}` : '';
+    const cashNote = accountBalance.loaded ? ` Live Stripe cash is ${currency(currentCashCents)}.` : ' Live Stripe cash is unavailable.';
+    contributionStatusEl.textContent = `${contributions.successfulPaymentCount} successful USD payment${contributions.successfulPaymentCount === 1 ? '' : 's'}${period}, totaling ${currency(contributions.totalCents)}.${cashNote} ${formatPoints(totalPoints)} existing portal points are used unchanged. Projected valuation adds Thomas’s ${currency(receivable)} receivable as restored cash; payments do not mint points.`;
+  }
+
+  contributionPeopleEl.innerHTML = '';
+  const rows = [];
+  const usedPortalAliases = new Set();
+
+  contributions.contributors.forEach(contributor => {
+    const pointRecord = portalPointRecordForContributor(contributor);
+    if (pointRecord?.alias) usedPortalAliases.add(String(pointRecord.alias).trim().toLowerCase());
+    rows.push({
+      name: pointRecord?.username || contributor.name || contributor.aggregateKey || 'Unknown contributor',
+      contributor,
+      pointRecord
+    });
+  });
+
+  portalStats.forEach(record => {
+    const alias = String(record.alias || '').trim().toLowerCase();
+    if (alias && usedPortalAliases.has(alias)) return;
+    const matchedByName = rows.some(row => row.pointRecord && personKey(row.pointRecord.username) === personKey(record.username));
+    if (matchedByName) return;
+    rows.push({ name: record.username || record.alias || 'Portal user', contributor: null, pointRecord: record });
+  });
+
+  if (!rows.length) {
+    contributionPeopleEmpty.hidden = false;
+    contributionPeopleEl.append(contributionPeopleEmpty);
+    return;
+  }
+
+  contributionPeopleEmpty.hidden = true;
+  rows
+    .sort((a, b) => {
+      const pointDelta = (Number(b.pointRecord?.points) || 0) - (Number(a.pointRecord?.points) || 0);
+      if (pointDelta) return pointDelta;
+      return (Number(b.contributor?.amountCents) || 0) - (Number(a.contributor?.amountCents) || 0);
+    })
+    .forEach(row => {
+      const points = Math.max(0, Math.round(Number(row.pointRecord?.points) || 0));
+      const share = totalPoints > 0 ? points / totalPoints : 0;
+      const projectedValueCents = dollarsPerPoint === null ? null : Math.round(points * dollarsPerPoint * 100);
+      const contributor = row.contributor;
+
+      const card = document.createElement('article');
+      card.className = 'finance-entry';
+      card.setAttribute('role', 'listitem');
+      const header = document.createElement('div');
+      header.className = 'finance-entry__header';
+      const titleGroup = document.createElement('div');
+      titleGroup.className = 'finance-entry__title-group';
+      const title = document.createElement('h3');
+      title.className = 'finance-entry__title';
+      title.textContent = row.name;
+      const meta = document.createElement('p');
+      meta.className = 'finance-entry__meta';
+      meta.textContent = row.pointRecord
+        ? `${formatPoints(points)} portal points • ${formatPercent(share)} of portal points`
+        : 'No linked portal points found';
+      titleGroup.append(title, meta);
+      const amount = document.createElement('span');
+      amount.className = 'finance-entry__amount finance-entry__amount--positive';
+      amount.textContent = contributor ? currency(contributor.amountCents) : '$0.00';
+      header.append(titleGroup, amount);
+
+      const notes = document.createElement('p');
+      notes.className = 'finance-entry__notes';
+      const noteParts = [];
+      if (contributor) noteParts.push(`${contributor.paymentCount || 0} successful Stripe payment${contributor.paymentCount === 1 ? '' : 's'}`);
+      else noteParts.push('No linked Stripe payments in this period');
+      if (projectedValueCents !== null && row.pointRecord) noteParts.push(`${currency(projectedValueCents)} implied value at projected account value`);
+      if (row.pointRecord?.alias) noteParts.push(`Portal ${row.pointRecord.alias}`);
+      const emails = Array.isArray(contributor?.emails) ? contributor.emails.filter(Boolean) : [];
+      if (emails.length) noteParts.push(emails.join(' + '));
+      notes.textContent = noteParts.join(' • ');
+      card.append(header, notes);
+      contributionPeopleEl.append(card);
+    });
 }
 
 function renderHistory() {
@@ -244,6 +398,29 @@ function handleStandingUpdate(raw, id) {
 
 standingSources.forEach(source => source?.map?.().on?.(handleStandingUpdate));
 
+function handlePortalStatsUpdate(raw, id) {
+  if (!id || id === '_') return;
+  const aliasKey = String(id || '').trim().toLowerCase();
+  if (!raw) {
+    portalStats.delete(aliasKey);
+  } else {
+    const record = cleanRecord(raw);
+    if (record) {
+      const alias = String(record.alias || id || '').trim();
+      const points = Math.max(0, Math.round(Number(record.points) || 0));
+      portalStats.set(aliasKey, {
+        ...record,
+        alias,
+        username: String(record.username || alias || '').trim(),
+        points
+      });
+    }
+  }
+  render();
+}
+
+portalStatsRoot?.map?.().on?.(handlePortalStatsUpdate);
+
 form.addEventListener('submit', event => {
   event.preventDefault();
   const person = personInput.value.trim();
@@ -278,11 +455,29 @@ function totalsCents(totals) {
   return Object.values(totals).reduce((sum, value) => sum + (Number(value) || 0), 0);
 }
 
+function renderLoanStatus() {
+  if (!financing.loaded) {
+    loanStatusEl.textContent = 'Loading Stripe financing history…';
+    return;
+  }
+  if (financing.fundingCents <= 0) {
+    loanStatusEl.textContent = 'Financing activity exists, but no transaction is safely classified as the original loan funding.';
+    return;
+  }
+
+  const loanIds = financing.loans.map(loan => loan.loanId).filter(Boolean);
+  const unmatched = financing.loans.some(loan => !loan.loanId);
+  const personalCredit = stripePersonalPaymentCreditCents();
+  const principalRemaining = loanReceivableCents();
+  const abovePrincipal = Math.max(0, financing.repaymentsCents - stripeOpeningCents());
+  const personalPart = contributions.loaded
+    ? ` ${currency(personalCredit)} of payments attributable to ${DEFAULT_LOAN_PERSON} are credited against the internal advance, leaving ${currency(principalRemaining)} owed to 3DVR.`
+    : ' Waiting for the contribution ledger before calculating the internal receivable.';
+  loanStatusEl.textContent = `${loanIds.length ? `${loanIds.length} Stripe loan${loanIds.length === 1 ? '' : 's'} found. ` : ''}${currency(financing.fundingCents)} verified advance; ${currency(financing.repaymentsCents)} has been repaid to Stripe from account activity.${personalPart}${abovePrincipal ? ` ${currency(abovePrincipal)} was paid above principal as financing cost.` : ''}${unmatched ? ' Some financing rows still need review.' : ''}`;
+}
+
 async function fetchFinancing() {
-  loanRefresh.disabled = true;
-  loanRefresh.textContent = 'Refreshing…';
   loanStatusEl.classList.remove('finance-helper--error');
-  loanStatusEl.textContent = 'Reconciling Stripe financing movements…';
   try {
     const response = await fetch('/api/stripe/financing');
     if (!response.ok) throw new Error(`Stripe API responded with ${response.status}`);
@@ -305,26 +500,64 @@ async function fetchFinancing() {
     loanFundingEl.textContent = currency(financing.fundingCents);
     loanRepaymentsEl.textContent = currency(financing.repaymentsCents);
     loanDepositsEl.textContent = currency(financing.depositsCents);
-    const loanIds = financing.loans.map(loan => loan.loanId).filter(Boolean);
-    const unmatched = financing.loans.some(loan => !loan.loanId);
-    if (financing.fundingCents > 0) {
-      const principalCredit = stripePrincipalCreditCents();
-      const principalRemaining = Math.max(0, stripeOpeningCents() - principalCredit);
-      const abovePrincipal = Math.max(0, financing.repaymentsCents - stripeOpeningCents());
-      loanStatusEl.textContent = `${loanIds.length ? `${loanIds.length} Stripe loan${loanIds.length === 1 ? '' : 's'} found. ` : ''}${currency(financing.fundingCents)} verified advance; ${currency(financing.repaymentsCents)} repaid through Stripe. ${currency(principalCredit)} is credited against ${DEFAULT_LOAN_PERSON}'s principal, leaving ${currency(principalRemaining)} principal outstanding.${abovePrincipal ? ` ${currency(abovePrincipal)} was paid above principal and is shown separately as financing cost, not a personal balance.` : ''}${unmatched ? ' Some financing rows still need review.' : ''}`;
-    } else {
-      loanStatusEl.textContent = `Financing activity exists, but no transaction is yet safely classified as original loan funding. Do not book a personal balance from the old “financing in” total.`;
-    }
     render();
   } catch (error) {
     loanStatusEl.textContent = `Unable to load financing evidence: ${error.message}`;
     loanStatusEl.classList.add('finance-helper--error');
-  } finally {
-    loanRefresh.disabled = false;
-    loanRefresh.textContent = 'Refresh evidence';
+    throw error;
   }
 }
 
-loanRefresh.addEventListener('click', fetchFinancing);
-fetchFinancing();
+async function fetchContributions() {
+  contributionStatusEl.classList.remove('finance-helper--error');
+  try {
+    const response = await fetch('/api/stripe/contributions');
+    if (!response.ok) throw new Error(`Stripe API responded with ${response.status}`);
+    const payload = await response.json();
+    contributions = {
+      loaded: true,
+      contributors: Array.isArray(payload.contributors) ? payload.contributors : [],
+      totalCents: Math.max(0, Number(payload.totalCents) || 0),
+      successfulPaymentCount: Math.max(0, Number(payload.successfulPaymentCount) || 0),
+      startAt: payload.startAt || null,
+      updatedAt: payload.updatedAt || new Date().toISOString()
+    };
+    render();
+  } catch (error) {
+    contributionStatusEl.textContent = `Unable to load Stripe payment ledger: ${error.message}`;
+    contributionStatusEl.classList.add('finance-helper--error');
+    throw error;
+  }
+}
+
+async function fetchAccountBalance() {
+  try {
+    const response = await fetch('/api/stripe/metrics');
+    if (!response.ok) throw new Error(`Stripe API responded with ${response.status}`);
+    const payload = await response.json();
+    accountBalance = {
+      loaded: true,
+      availableCents: usdCents(payload.available),
+      pendingCents: usdCents(payload.pending),
+      updatedAt: new Date().toISOString()
+    };
+    render();
+  } catch (error) {
+    accountBalance = { ...accountBalance, loaded: false };
+    render();
+    throw error;
+  }
+}
+
+async function refreshAccountData() {
+  loanRefresh.disabled = true;
+  loanRefresh.textContent = 'Refreshing…';
+  await Promise.allSettled([fetchFinancing(), fetchContributions(), fetchAccountBalance()]);
+  loanRefresh.disabled = false;
+  loanRefresh.textContent = 'Refresh account data';
+  render();
+}
+
+loanRefresh.addEventListener('click', refreshAccountData);
+refreshAccountData();
 render();
