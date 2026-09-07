@@ -133,7 +133,7 @@ function classifyTask(task) {
 
 function commandExists(command, execFileImpl = execFile) {
   return new Promise((resolve) => {
-    execFileImpl('sh', ['-lc', `command -v ${shellQuote(command)}`], (error, stdout) => {
+    execFileImpl('sh', ['-c', `command -v ${shellQuote(command)}`], (error, stdout) => {
       resolve(!error && Boolean(normalizeText(stdout)));
     });
   });
@@ -506,6 +506,7 @@ if (require.main === module) {
 module.exports = {
   parseArgs,
   classifyTask,
+  commandExists,
   detectCapabilities,
   pickBackend,
   buildPrompt,

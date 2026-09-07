@@ -7,6 +7,7 @@ const {
   callClaude,
   callOpenAI,
   classifyTask,
+  commandExists,
   describeCommand,
   memoryExecutionAllowed,
   parseArgs,
@@ -48,6 +49,18 @@ test('classifyTask keeps mixed or conditional side-effect instructions high risk
   const mixed = classifyTask('Do not send anything yet, but publish the message after review.');
 
   assert.equal(mixed.highRisk, true);
+});
+
+test('commandExists preserves the worker PATH instead of launching a login shell', async () => {
+  let invocation = null;
+  const found = await commandExists('codex', (command, args, callback) => {
+    invocation = { command, args };
+    callback(null, '/managed/tools/codex\n');
+  });
+
+  assert.equal(found, true);
+  assert.equal(invocation.command, 'sh');
+  assert.deepEqual(invocation.args, ['-c', "command -v 'codex'"]);
 });
 
 test('pickBackend prefers codex for code and openclaw for tool-heavy general work', () => {
