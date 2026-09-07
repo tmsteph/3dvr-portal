@@ -2,4 +2,5 @@ Operator self-edit canary.
 
 This file exists only so the signed-in 3DVR owner can safely test the full Operator → Forge → GitHub self-edit path without changing product behavior.
 
-status=baseline
+status=production-e2e-20260907g
+Production user test timestamp: 2026-09-07T21:45:55Z.
