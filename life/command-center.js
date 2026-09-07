@@ -8,6 +8,9 @@
     someday: 'Someday'
   };
   const LIFE_STORAGE_KEY = 'portal-life-checkins';
+  const CRM_STORAGE_KEY = 'portal-crm-local-records-v1';
+  const CALENDAR_STORAGE_KEY = 'calendar.local.events';
+  const LIFE_SPACE_STORAGE_KEY = '3dvr-life-space-state';
   const BASE_STORAGE_KEY = '3dvr.command-center.v1';
 
   const capture = document.getElementById('commandCapture');
@@ -25,6 +28,20 @@
   if (!capture || !textInput || !bucketInput || !list || !tabs) return;
 
   const normalize = value => String(value || '').trim();
+  const parseJson = (raw, fallback = null) => {
+    try {
+      const parsed = JSON.parse(raw || 'null');
+      return parsed ?? fallback;
+    } catch {
+      return fallback;
+    }
+  };
+  const asList = value => Array.isArray(value)
+    ? value
+    : value && typeof value === 'object'
+      ? Object.values(value)
+      : [];
+
   const accountIdentity = () => {
     const signedIn = localStorage.getItem('signedIn') === 'true';
     if (!signedIn) return 'local';
@@ -49,18 +66,14 @@
   });
 
   const parseStore = () => {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(storageKey) || 'null');
-      if (!parsed || typeof parsed !== 'object') return { activeBucket: 'today', items: [] };
-      return {
-        activeBucket: BUCKETS.includes(parsed.activeBucket) ? parsed.activeBucket : 'today',
-        items: Array.isArray(parsed.items)
-          ? parsed.items.map(normalizeItem).filter(item => item.text)
-          : []
-      };
-    } catch {
-      return { activeBucket: 'today', items: [] };
-    }
+    const parsed = parseJson(localStorage.getItem(storageKey));
+    if (!parsed || typeof parsed !== 'object') return { activeBucket: 'today', items: [] };
+    return {
+      activeBucket: BUCKETS.includes(parsed.activeBucket) ? parsed.activeBucket : 'today',
+      items: Array.isArray(parsed.items)
+        ? parsed.items.map(normalizeItem).filter(item => item.text)
+        : []
+    };
   };
 
   let state = parseStore();
@@ -77,13 +90,7 @@
   const allOpenItems = () => BUCKETS.flatMap(bucket => currentItems(bucket));
 
   function importLatestDailyStep() {
-    let entries = [];
-    try {
-      const parsed = JSON.parse(localStorage.getItem(LIFE_STORAGE_KEY) || '[]');
-      if (Array.isArray(parsed)) entries = parsed;
-    } catch {
-      return;
-    }
+    const entries = asList(parseJson(localStorage.getItem(LIFE_STORAGE_KEY), []));
     if (!entries.length) return;
 
     entries.sort((a, b) => String(b?.createdAt || b?.date || '').localeCompare(String(a?.createdAt || a?.date || '')));
@@ -102,6 +109,7 @@
       sourceKey
     }));
     persist();
+    render();
   }
 
   function setIdentityLabel() {
@@ -238,6 +246,82 @@
     renderStatus();
   }
 
+  function eventStart(event) {
+    return new Date(event?.start || event?.startTime || event?.date || 0);
+  }
+
+  function nextCalendarEvent() {
+    const events = asList(parseJson(localStorage.getItem(CALENDAR_STORAGE_KEY), []));
+    const threshold = Date.now() - 60 * 60 * 1000;
+    return events
+      .map(event => ({ event, start: eventStart(event) }))
+      .filter(entry => Number.isFinite(entry.start.getTime()) && entry.start.getTime() >= threshold)
+      .sort((a, b) => a.start - b.start)[0] || null;
+  }
+
+  function crmSignal() {
+    const records = asList(parseJson(localStorage.getItem(CRM_STORAGE_KEY), []));
+    const actionable = records.filter(record => normalize(record?.nextBestAction || record?.nextExperiment));
+    const top = actionable[0] || records[0] || null;
+    return { count: records.length, actionable: actionable.length, top };
+  }
+
+  function lifeSpaceCount() {
+    const stateValue = parseJson(localStorage.getItem(LIFE_SPACE_STORAGE_KEY));
+    const spaces = Array.isArray(stateValue?.spaces) ? stateValue.spaces : [];
+    return spaces.reduce((count, space) => count + (Array.isArray(space?.items) ? space.items.length : 0), 0);
+  }
+
+  function makeFeedCard(href, label, value, detail) {
+    const card = document.createElement('a');
+    card.className = 'command-feed';
+    card.href = href;
+
+    const small = document.createElement('small');
+    small.textContent = label;
+    const strong = document.createElement('strong');
+    strong.textContent = value;
+    const span = document.createElement('span');
+    span.textContent = detail;
+    card.append(small, strong, span);
+    return card;
+  }
+
+  function renderConnectedFeeds() {
+    const sources = document.querySelector('.sources');
+    if (!sources || document.querySelector('.command-feeds')) return;
+
+    const style = document.createElement('style');
+    style.textContent = `
+      .command-feeds { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
+      .command-feed { min-width:0; padding:11px; display:grid; gap:3px; border:1px solid var(--line); border-radius:13px; background:rgba(255,255,255,.035); text-decoration:none; }
+      .command-feed small { color:var(--muted); font-weight:850; }
+      .command-feed strong { overflow-wrap:anywhere; line-height:1.25; }
+      .command-feed span { color:var(--muted); font-size:.8rem; line-height:1.3; }
+      @media (max-width:700px) { .command-feeds { grid-template-columns:1fr; } }
+    `;
+    document.head.appendChild(style);
+
+    const feeds = document.createElement('div');
+    feeds.className = 'command-feeds';
+
+    const next = nextCalendarEvent();
+    const calendarTitle = next ? normalize(next.event?.title || next.event?.summary) || 'Upcoming event' : 'No local event';
+    const calendarDetail = next
+      ? new Intl.DateTimeFormat(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' }).format(next.start)
+      : 'Open Calendar to sync or add one.';
+    feeds.appendChild(makeFeedCard('../calendar/', 'Calendar', calendarTitle, calendarDetail));
+
+    const crm = crmSignal();
+    const crmAction = normalize(crm.top?.nextBestAction || crm.top?.nextExperiment || crm.top?.name || crm.top?.company || crm.top?.business);
+    feeds.appendChild(makeFeedCard('../crm/', 'CRM', crmAction || 'No local signal', `${crm.actionable} actionable · ${crm.count} records`));
+
+    const projectCount = lifeSpaceCount();
+    feeds.appendChild(makeFeedCard('../life-space/', 'Projects', projectCount ? `${projectCount} saved items` : 'No local items', 'Life Space'));
+
+    sources.insertAdjacentElement('beforebegin', feeds);
+  }
+
   capture.addEventListener('submit', event => {
     event.preventDefault();
     const text = normalize(textInput.value);
@@ -275,7 +359,20 @@
     if (focusDone.dataset.itemId) finishItem(focusDone.dataset.itemId);
   });
 
+  const latestStep = document.getElementById('latestStep');
+  if (latestStep && typeof MutationObserver === 'function') {
+    new MutationObserver(importLatestDailyStep).observe(latestStep, { childList: true, subtree: true, characterData: true });
+  }
+
+  window.addEventListener('storage', event => {
+    if ([CRM_STORAGE_KEY, CALENDAR_STORAGE_KEY, LIFE_SPACE_STORAGE_KEY].includes(event.key)) {
+      document.querySelector('.command-feeds')?.remove();
+      renderConnectedFeeds();
+    }
+  });
+
   setIdentityLabel();
   importLatestDailyStep();
+  renderConnectedFeeds();
   render();
 })();
