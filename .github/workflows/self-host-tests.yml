@@ -1,0 +1,57 @@
+name: Self-Host Tests
+
+on:
+  push:
+    branches:
+      - 'self-host/**'
+    paths:
+      - 'scripts/self-host-server.mjs'
+      - 'scripts/self-host-api-router.mjs'
+      - 'scripts/ops/deploy-self-host-portal.sh'
+      - 'scripts/ops/install-self-host-crons.sh'
+      - 'scripts/ops/merge-env-updates.sh'
+      - 'tests/self-host-secret-merge.test.sh'
+      - '.env.example'
+      - 'docs/VERCEL-EXIT.md'
+      - '.github/workflows/self-host-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/self-host-server.mjs'
+      - 'scripts/self-host-api-router.mjs'
+      - 'scripts/ops/deploy-self-host-portal.sh'
+      - 'scripts/ops/install-self-host-crons.sh'
+      - 'scripts/ops/merge-env-updates.sh'
+      - 'tests/self-host-secret-merge.test.sh'
+      - '.env.example'
+      - 'docs/VERCEL-EXIT.md'
+      - '.github/workflows/self-host-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Check self-host JavaScript syntax
+        run: |
+          node --check scripts/self-host-server.mjs
+          node --check scripts/self-host-api-router.mjs
+      - name: Check self-host shell scripts
+        run: |
+          bash -n scripts/ops/deploy-self-host-portal.sh
+          bash -n scripts/ops/install-self-host-crons.sh
+          bash -n scripts/ops/merge-env-updates.sh
+          bash -n tests/self-host-secret-merge.test.sh
+      - name: Run self-host relevant regression tests
+        run: |
+          bash tests/self-host-secret-merge.test.sh
+          node --test tests/operator-developer-access.test.js tests/oauth-provider-api.test.js tests/next-move-guidance-api.test.js
