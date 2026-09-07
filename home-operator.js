@@ -416,7 +416,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
 
       let outcome = null;
       if (data.action?.type && data.action.type !== 'none') {
-        outcome = await runOperatorAction(data.action);
+        outcome = await runOperatorAction(data.action, { developerAccess: data.developerAccess });
       }
 
       const message = [data.reply, outcome?.message].filter(Boolean).join('\n\n');

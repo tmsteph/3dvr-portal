@@ -25,6 +25,7 @@ test('homepage Operator sends the signed developer proof used by full Operator',
   assert.match(client, /const \[portalContext, developerAuth\] = await Promise\.all/);
   assert.match(client, /createOperatorDeveloperProof\(\)/);
   assert.match(client, /requestOperator\(\{ prompt, history: prior, portalContext, developerAuth \}\)/);
+  assert.match(client, /runOperatorAction\(data\.action, \{ developerAccess: data\.developerAccess \}\)/);
 });
 
 test('homepage busy state lives in the Operator input instead of the status line', async () => {

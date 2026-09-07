@@ -26,6 +26,13 @@ test('Operator passes verified developer access into code actions', () => {
   assert.match(source, /response\.status===429/);
 });
 
+test('signed owner Portal edits are trusted without a second confirmation', () => {
+  const source = read('src/operator/api.js');
+  assert.match(source, /ordinary Portal implementation requests/);
+  assert.match(source, /Use request_code_change immediately without asking for another confirmation/);
+  assert.match(source, /Treat normal Portal code edits as trusted workspace actions/);
+});
+
 test('Operator page mounts portal feedback after the main app', () => {
   const source = read('operator/index.html');
   const mainEnd = source.indexOf('</main>');
