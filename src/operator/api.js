@@ -179,10 +179,29 @@ export function normalizeOperatorResult(value = {}) {
   };
 }
 
-export function reconcileOperatorCodeAction(result = {}, developerAccess = {}) {
+const CODE_EDIT_INTENT_PATTERN = /\b(?:fix|edit|update|change|modify|improve|refactor|implement|add|remove|rename|rewrite|build)\b/i;
+const CODE_EDIT_TARGET_PATTERN = /(?:\b(?:code|repo|repository|source|file)\b|(?:^|\s)(?:[a-z0-9._-]+\/)+[a-z0-9._-]+|\b[a-z0-9._-]+\.(?:js|mjs|cjs|ts|tsx|jsx|html|css|json|md|sh|py|yml|yaml|txt)\b)/i;
+
+export function looksLikeExplicitCodeEdit(prompt = '') {
+  const text = clean(prompt, 2000);
+  return CODE_EDIT_INTENT_PATTERN.test(text) && CODE_EDIT_TARGET_PATTERN.test(text);
+}
+
+export function reconcileOperatorCodeAction(result = {}, developerAccess = {}, prompt = '') {
   if (!result?.action) return result;
   const approved = developerAccess?.approved === true;
-  if (approved && result.action.type === 'suggest_code_change') {
+  if (approved && result.action.type === 'none' && looksLikeExplicitCodeEdit(prompt)) {
+    result.action = {
+      type: 'request_code_change',
+      title: 'Operator code edit',
+      text: clean(prompt, 4000),
+      business: '',
+      location: '',
+      url: '',
+      repo: 'portal'
+    };
+    result.reply = 'I’ll queue that approved portal code edit through Forge.';
+  } else if (approved && result.action.type === 'suggest_code_change') {
     result.action.type = 'request_code_change';
     result.reply = `I’ll queue that approved ${result.action.repo || 'portal'} code edit through Forge.`;
   } else if (!approved && result.action.type === 'request_code_change') {
@@ -254,7 +273,7 @@ export function createOperatorHandler(options = {}) {
       });
       if (!response.ok) return res.status(response.status).json({ error: await readUpstreamError(response) });
       const raw = outputText(await response.json());
-      const result = reconcileOperatorCodeAction(normalizeOperatorResult(JSON.parse(raw)), developerAccess);
+      const result = reconcileOperatorCodeAction(normalizeOperatorResult(JSON.parse(raw)), developerAccess, prompt);
       return res.status(200).json({
         ...result,
         developerAccess: {
