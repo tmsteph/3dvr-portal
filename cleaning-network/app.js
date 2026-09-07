@@ -3,15 +3,30 @@ const partnerForm = document.querySelector('#partnerInterestForm');
 const leadStatus = document.querySelector('#formStatus');
 const partnerStatus = document.querySelector('#partnerStatus');
 const serviceSelect = leadForm.elements.namedItem('serviceType');
-const serviceCards = Array.from(document.querySelectorAll('[data-service]'));
 const selectedService = document.querySelector('#selectedService');
+const serviceGrid = document.querySelector('#serviceGrid');
+const heroImage = document.querySelector('#heroImage');
+const partnerDialog = document.querySelector('#partnerDialog');
+const openPartnerDialogButton = document.querySelector('#openPartnerDialog');
+const cleanerLink = document.querySelector('#cleanerLink');
+const closePartnerDialogButton = document.querySelector('#closePartnerDialog');
 const params = new URLSearchParams(window.location.search);
 const requestedPartner = /^[a-z0-9-]{1,48}$/.test(String(params.get('partner') || '').toLowerCase())
   ? String(params.get('partner')).toLowerCase()
   : 'network';
 let resolvedPartner = 'network';
+let serviceCards = [];
+
+const SERVICE_IMAGES = Object.freeze({
+  home: 'https://images.unsplash.com/photo-1758523670739-0d26a3ee976d?auto=format&fit=crop&fm=jpg&q=78&w=1200',
+  move: 'https://images.unsplash.com/photo-1786396798391-8c3f330cf3a8?auto=format&fit=crop&fm=jpg&q=78&w=1200',
+  office: 'https://images.unsplash.com/photo-1781637590564-01c65dbf2039?auto=format&fit=crop&fm=jpg&q=78&w=1200',
+  turnover: 'https://images.unsplash.com/photo-1785486249936-a9a95dfcb63d?auto=format&fit=crop&fm=jpg&q=78&w=1200',
+  deep: 'https://images.unsplash.com/photo-1527515545081-5db817172677?auto=format&fit=crop&fm=jpg&q=78&w=1200',
+});
 
 function setStatus(node, message, state = '') {
+  if (!node) return;
   node.textContent = message;
   node.className = `form-status ${state}`.trim();
 }
@@ -24,6 +39,22 @@ function todayLocal() {
 
 document.querySelector('#preferredDate').min = todayLocal();
 
+function imageForService(label) {
+  const value = String(label || '').toLowerCase();
+  if (value.includes('move')) return SERVICE_IMAGES.move;
+  if (value.includes('office') || value.includes('commercial')) return SERVICE_IMAGES.office;
+  if (value.includes('turnover') || value.includes('rental') || value.includes('airbnb')) return SERVICE_IMAGES.turnover;
+  if (value.includes('deep')) return SERVICE_IMAGES.deep;
+  return SERVICE_IMAGES.home;
+}
+
+function shortServiceLabel(label) {
+  return String(label || '')
+    .replace(/office\s*\/\s*commercial/i, 'Office')
+    .replace(/move in\s*\/\s*move out/i, 'Move in / out')
+    .replace(/rental turnover/i, 'Turnover');
+}
+
 function syncServiceSelection(value) {
   const selected = String(value || '');
   serviceCards.forEach(card => {
@@ -35,22 +66,92 @@ function syncServiceSelection(value) {
   selectedService.hidden = !selected;
 }
 
-serviceCards.forEach(card => card.addEventListener('click', () => {
-  serviceSelect.value = card.dataset.service || '';
-  syncServiceSelection(serviceSelect.value);
-  document.querySelector('#quote').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}));
+function bindServiceCards() {
+  serviceCards = Array.from(document.querySelectorAll('[data-service]'));
+  serviceCards.forEach(card => card.addEventListener('click', () => {
+    serviceSelect.value = card.dataset.service || '';
+    syncServiceSelection(serviceSelect.value);
+    document.querySelector('#quote').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
+}
+
+function renderServices(services) {
+  if (!Array.isArray(services) || services.length === 0) return;
+  const cleaned = [...new Set(services.map(value => String(value || '').trim()).filter(Boolean))].slice(0, 8);
+  if (!cleaned.length) return;
+
+  serviceGrid.replaceChildren();
+  serviceSelect.replaceChildren();
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'Choose one';
+  serviceSelect.append(placeholder);
+
+  cleaned.forEach(service => {
+    const card = document.createElement('button');
+    card.className = 'service-card';
+    card.type = 'button';
+    card.dataset.service = service;
+    card.setAttribute('aria-pressed', 'false');
+
+    const image = document.createElement('img');
+    image.loading = 'lazy';
+    image.src = imageForService(service);
+    image.alt = '';
+
+    const label = document.createElement('span');
+    label.textContent = shortServiceLabel(service);
+    card.append(image, label);
+    serviceGrid.append(card);
+
+    const option = document.createElement('option');
+    option.value = service;
+    option.textContent = service;
+    serviceSelect.append(option);
+  });
+
+  const other = document.createElement('option');
+  other.value = 'Other';
+  other.textContent = 'Other';
+  serviceSelect.append(other);
+  bindServiceCards();
+  syncServiceSelection('');
+}
+
+bindServiceCards();
 serviceSelect.addEventListener('change', () => syncServiceSelection(serviceSelect.value));
+
+function openPartnerDialog() {
+  if (!partnerDialog) return;
+  if (typeof partnerDialog.showModal === 'function') partnerDialog.showModal();
+  else partnerDialog.setAttribute('open', '');
+  partnerForm?.querySelector('input')?.focus();
+}
+
+function closePartnerDialog() {
+  if (!partnerDialog) return;
+  if (typeof partnerDialog.close === 'function') partnerDialog.close();
+  else partnerDialog.removeAttribute('open');
+}
+
+openPartnerDialogButton?.addEventListener('click', openPartnerDialog);
+cleanerLink?.addEventListener('click', openPartnerDialog);
+closePartnerDialogButton?.addEventListener('click', closePartnerDialog);
+partnerDialog?.addEventListener('click', event => {
+  if (event.target === partnerDialog) closePartnerDialog();
+});
 
 function updatePartner(profile) {
   resolvedPartner = profile.partner || 'network';
   const branded = Boolean(profile.configured && resolvedPartner !== 'network');
   document.body.classList.toggle('partner-page', branded);
 
-  const cleanerLink = document.querySelector('#cleanerLink');
   if (cleanerLink) cleanerLink.hidden = branded;
+  if (openPartnerDialogButton) openPartnerDialogButton.hidden = branded;
   if (profile.accent) document.documentElement.style.setProperty('--accent', profile.accent);
   if (profile.accentDark) document.documentElement.style.setProperty('--accent-dark', profile.accentDark);
+  if (profile.heroImageUrl) heroImage.src = profile.heroImageUrl;
+  if (Array.isArray(profile.services) && profile.services.length) renderServices(profile.services);
 
   document.title = branded
     ? `${profile.name} | Request a cleaning quote`
