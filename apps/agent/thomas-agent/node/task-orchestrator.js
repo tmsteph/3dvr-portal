@@ -223,7 +223,10 @@ function memoryExecutionAllowed(options = {}) {
 
 function backendCommand(backend, prompt, options) {
   if (backend === 'codex') {
-    return { command: 'codex', args: ['exec', '--cd', options.repo || DEFAULT_REPO, '--skip-git-repo-check', prompt] };
+    const args = ['exec'];
+    if (options.unsafe) args.push('--sandbox', 'danger-full-access');
+    args.push('--cd', options.repo || DEFAULT_REPO, '--skip-git-repo-check', prompt);
+    return { command: 'codex', args };
   }
   if (backend === 'openclaw') {
     return { command: 'openclaw', args: ['agent', '--message', prompt, '--thinking', options.thinking || DEFAULT_THINKING] };

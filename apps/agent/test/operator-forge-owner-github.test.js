@@ -7,7 +7,7 @@ const {
   BUILTIN_OPERATOR_OWNER_BINDINGS,
   BUILTIN_OPERATOR_OWNER_PUBS,
 } = require('../thomas-agent/node/operator-forge-auth');
-const { editOnlyTask, executorNeedsApproval } = require('../thomas-agent/node/operator-forge-worker');
+const { editOnlyTask, executorNeedsApproval, executorExecutionBlocked } = require('../thomas-agent/node/operator-forge-worker');
 
 const TMSTEPH_PUB = 'Cg-NVNIbxWPDBqX7OmllJQqjxy2t3KA_U2DqQBjcPQ8.1fppECqamDOHh2tKt1G5t8Yd21NjBCZ3C6qunST3lvg';
 
@@ -119,6 +119,17 @@ test('worker does not mark a confirmation request as completed work', () => {
   assert.equal(executorNeedsApproval({
     ok: true,
     result: { stdout: 'Updated the file, ran tests, committed, and pushed the branch.' },
+  }), false);
+});
+
+test('worker treats a no-side-effect environment block as failure, not completion', () => {
+  assert.equal(executorExecutionBlocked({
+    ok: true,
+    result: { stdout: 'Blocked by the execution environment; no side effects occurred. The workspace is read-only.' },
+  }), true);
+  assert.equal(executorExecutionBlocked({
+    ok: true,
+    result: { stdout: 'Updated the file, committed, and pushed successfully.' },
   }), false);
 });
 
