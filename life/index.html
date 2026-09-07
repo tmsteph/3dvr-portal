@@ -3,426 +3,192 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Daily Direction | 3dvr Portal</title>
+  <meta name="theme-color" content="#07131d" />
+  <title>Command Center | 3DVR Portal</title>
   <style>
     :root {
+      color-scheme: dark;
       --bg: #07131d;
-      --panel: rgba(14, 27, 41, 0.92);
+      --panel: rgba(14, 27, 41, 0.94);
       --panel-soft: rgba(22, 40, 58, 0.78);
       --line: rgba(148, 197, 255, 0.18);
       --text: #f6fbff;
-      --muted: #b7c8d8;
+      --muted: #aebfd0;
       --blue: #8cc4ff;
       --mint: #9be7c7;
       --gold: #f4d27a;
-      --shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
+      --danger: #ff9b9b;
+      --shadow: 0 18px 54px rgba(0, 0, 0, 0.3);
       --radius: 18px;
     }
 
-    * {
-      box-sizing: border-box;
-    }
-
-    html,
-    body {
-      width: 100%;
-      max-width: 100%;
-      margin: 0;
-      overflow-x: hidden;
-    }
-
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; max-width: 100%; overflow-x: hidden; }
     body {
       min-height: 100vh;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: var(--text);
       background:
-        radial-gradient(circle at 12% 12%, rgba(140, 196, 255, 0.18), transparent 28%),
-        linear-gradient(180deg, #06101a 0%, #0d1b29 100%);
+        radial-gradient(circle at 12% 0%, rgba(140, 196, 255, 0.16), transparent 30rem),
+        linear-gradient(180deg, #06101a, #0d1b29);
     }
+    a { color: inherit; }
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; }
 
-    a {
-      color: inherit;
-    }
-
-    button,
-    input,
-    textarea {
-      font: inherit;
-    }
-
-    .shell {
-      width: min(100% - 28px, 860px);
-      margin: 0 auto;
-      padding: 18px 0 36px;
-    }
-
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-bottom: 16px;
-      padding: 12px 14px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: rgba(8, 17, 29, 0.76);
-      box-shadow: var(--shadow);
-    }
-
-    .topbar strong {
-      display: block;
-      font-size: 1rem;
-    }
-
-    .topbar span {
-      display: block;
-      margin-top: 2px;
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-
-    .topbar nav {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      gap: 8px;
-    }
-
-    .topbar a,
-    .button,
-    .quick-picks button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 42px;
-      padding: 10px 13px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--text);
-      text-decoration: none;
-      font-weight: 800;
-      cursor: pointer;
-    }
-
-    .hero,
-    .card {
+    .shell { width: min(100% - 22px, 920px); margin: 0 auto; padding: 12px 0 30px; }
+    .topbar,
+    .panel,
+    details.checkin {
       border: 1px solid var(--line);
       border-radius: var(--radius);
       background: var(--panel);
       box-shadow: var(--shadow);
     }
 
-    .hero {
-      display: grid;
-      gap: 16px;
-      margin-bottom: 16px;
-      padding: clamp(20px, 5vw, 34px);
-    }
-
-    .eyebrow {
-      width: fit-content;
-      padding: 7px 10px;
-      border: 1px solid rgba(140, 196, 255, 0.18);
-      border-radius: 999px;
-      background: rgba(140, 196, 255, 0.1);
-      color: var(--blue);
-      font-size: 0.78rem;
-      font-weight: 900;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    h1,
-    h2,
-    h3,
-    p {
-      margin-top: 0;
-    }
-
-    h1 {
-      max-width: 11ch;
-      margin-bottom: 0;
-      font-size: clamp(2.35rem, 10vw, 4rem);
-      line-height: 0.98;
-    }
-
-    .lead {
-      max-width: 42rem;
-      margin-bottom: 0;
-      color: var(--muted);
-      font-size: 1.08rem;
-      line-height: 1.55;
-    }
-
-    .hero-actions,
-    .actions {
+    .topbar {
       display: flex;
-      flex-wrap: wrap;
+      align-items: center;
       gap: 10px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
     }
-
+    .topbar__identity { margin-right: auto; min-width: 0; }
+    .topbar strong { display: block; }
+    .topbar span { display: block; margin-top: 2px; color: var(--muted); font-size: .82rem; }
+    .chip,
     .button {
-      border: 0;
-    }
-
-    .button--primary {
-      background: linear-gradient(135deg, var(--blue), var(--mint));
-      color: #06101a;
-    }
-
-    .button--secondary {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 12px;
       border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .layout {
-      display: grid;
-      grid-template-columns: minmax(0, 1.05fr) minmax(260px, 0.95fr);
-      gap: 16px;
-      align-items: start;
-    }
-
-    .card__body {
-      display: grid;
-      gap: 16px;
-      padding: clamp(18px, 4vw, 24px);
-    }
-
-    .section-title {
-      margin-bottom: 0;
-      font-size: 1.4rem;
-      line-height: 1.2;
-    }
-
-    .section-copy {
-      margin-bottom: 0;
-      color: var(--muted);
-      line-height: 1.55;
-    }
-
-    .form-grid {
-      display: grid;
-      gap: 15px;
-    }
-
-    label {
-      display: grid;
-      gap: 8px;
-      color: var(--muted);
-      font-weight: 750;
-    }
-
-    label strong {
+      border-radius: 999px;
+      background: rgba(255,255,255,.05);
       color: var(--text);
-      font-size: 1.02rem;
-    }
-
-    input,
-    textarea {
-      width: 100%;
-      min-width: 0;
-      padding: 13px 14px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--text);
-      outline: none;
-    }
-
-    textarea {
-      min-height: 92px;
-      resize: vertical;
-    }
-
-    input:focus,
-    textarea:focus {
-      border-color: rgba(140, 196, 255, 0.62);
-      box-shadow: 0 0 0 4px rgba(140, 196, 255, 0.12);
-    }
-
-    input[type="range"] {
-      padding: 0;
-      accent-color: var(--mint);
-    }
-
-    output,
-    .big-number {
-      color: var(--gold);
-      font-weight: 900;
-    }
-
-    .quick-picks {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .quick-picks button {
-      min-height: 38px;
-      padding: 8px 11px;
-      color: var(--muted);
-      font-size: 0.92rem;
-    }
-
-    .quick-picks button:hover,
-    .quick-picks button:focus-visible {
-      color: var(--text);
-      border-color: rgba(140, 196, 255, 0.45);
-      outline: none;
-    }
-
-    .save-status {
-      min-height: 1.35em;
-      margin: 0;
-      color: var(--muted);
-      font-size: 0.94rem;
-      line-height: 1.45;
-    }
-
-    .dashboard {
-      display: grid;
-      gap: 16px;
-    }
-
-    .next-step {
-      display: grid;
-      gap: 8px;
-      padding: 14px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 16px;
-      background: var(--panel-soft);
-    }
-
-    .next-step span {
-      color: var(--muted);
-      font-size: 0.86rem;
+      text-decoration: none;
       font-weight: 800;
     }
 
-    .next-step strong {
-      font-size: 1.1rem;
-      line-height: 1.35;
-    }
+    .panel { padding: 16px; margin-bottom: 12px; }
+    .hero { display: grid; gap: 12px; }
+    .eyebrow { color: var(--blue); font-size: .75rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 0; font-size: clamp(2rem, 8vw, 3.5rem); line-height: .98; letter-spacing: -.04em; }
+    .lead { margin-bottom: 0; color: var(--muted); line-height: 1.45; }
 
-    .response-loop {
+    .focus {
       display: grid;
-      gap: 12px;
-      padding: 14px;
-      border: 1px solid rgba(155, 231, 199, 0.2);
-      border-radius: 16px;
-      background: rgba(155, 231, 199, 0.08);
-    }
-
-    .response-loop[hidden] {
-      display: none;
-    }
-
-    .response-loop p {
-      margin: 0;
-      color: var(--muted);
-      line-height: 1.45;
-    }
-
-    .response-loop__actions {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .response-loop__actions .button {
-      width: 100%;
-      min-width: 0;
-      border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.06);
-      color: var(--text);
-      text-align: center;
-    }
-
-    .entry-list {
-      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
       gap: 10px;
-      margin: 0;
-      padding: 0;
-      list-style: none;
+      align-items: center;
+      padding: 13px;
+      border-radius: 15px;
+      background: linear-gradient(135deg, rgba(140,196,255,.12), rgba(155,231,199,.08));
+      border: 1px solid rgba(140,196,255,.22);
     }
+    .focus small { display: block; margin-bottom: 4px; color: var(--muted); font-weight: 800; }
+    .focus strong { display: block; line-height: 1.3; }
+    .focus .button { border: 0; background: var(--mint); color: #06101a; }
 
-    .entry-item {
+    .capture {
       display: grid;
+      grid-template-columns: minmax(0, 1fr) 150px auto;
       gap: 8px;
-      padding: 14px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 16px;
-      background: rgba(255, 255, 255, 0.04);
+      margin-top: 2px;
     }
-
-    .entry-item strong {
-      line-height: 1.3;
+    input, textarea, select {
+      width: 100%; min-width: 0; padding: 11px 12px;
+      border: 1px solid rgba(255,255,255,.11); border-radius: 12px;
+      background: rgba(255,255,255,.05); color: var(--text); outline: none;
     }
+    input:focus, textarea:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(140,196,255,.1); }
+    .capture .button { border: 0; border-radius: 12px; background: var(--blue); color: #06101a; }
 
-    .entry-meta,
-    .entry-copy {
-      margin: 0;
+    .bucket-tabs {
+      display: flex;
+      gap: 7px;
+      margin: 14px -2px 0;
+      padding: 2px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .bucket-tabs::-webkit-scrollbar { display: none; }
+    .bucket-tab {
+      flex: 0 0 auto;
+      min-height: 40px;
+      padding: 8px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.04);
       color: var(--muted);
-      line-height: 1.45;
+      font-weight: 850;
     }
+    .bucket-tab[aria-selected="true"] { background: rgba(140,196,255,.13); border-color: rgba(140,196,255,.42); color: var(--text); }
+    .bucket-count { color: var(--gold); }
 
-    .entry-copy {
-      color: var(--text);
-      white-space: pre-wrap;
+    .bucket-head { display: flex; align-items: end; gap: 10px; margin: 15px 0 9px; }
+    .bucket-head h2 { margin: 0; font-size: 1.25rem; }
+    .bucket-head span { margin-left: auto; color: var(--muted); font-size: .83rem; }
+    .item-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    .item {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) 132px auto;
+      gap: 8px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 13px;
+      background: rgba(255,255,255,.035);
     }
-
-    .footer-note {
-      margin: 18px 0 0;
-      color: var(--muted);
-      text-align: center;
-      font-size: 0.92rem;
+    .item__done, .item__delete {
+      width: 36px; height: 36px; display: grid; place-items: center;
+      border: 1px solid var(--line); border-radius: 10px;
+      background: transparent; color: var(--text);
     }
+    .item__done:hover { background: rgba(155,231,199,.12); }
+    .item__delete { color: var(--danger); }
+    .item__text { overflow-wrap: anywhere; line-height: 1.35; }
+    .empty { padding: 16px 4px 8px; color: var(--muted); text-align: center; }
 
-    @media (max-width: 760px) {
-      .shell {
-        width: min(100% - 20px, 860px);
-      }
+    .sources { display: flex; flex-wrap: wrap; gap: 8px; }
+    .sources .chip { min-height: 38px; color: var(--muted); }
 
-      .topbar,
-      .layout {
-        grid-template-columns: 1fr;
-      }
-
-      .topbar {
-        align-items: flex-start;
-      }
-
-      .topbar nav,
-      .hero-actions,
-      .actions,
-      .quick-picks {
-        width: 100%;
-      }
-
-      .topbar a,
-      .button {
-        flex: 1 1 9rem;
-      }
-
-      .response-loop__actions {
-        grid-template-columns: 1fr;
-      }
-
-      h1 {
-        max-width: 100%;
-      }
+    details.checkin { margin-top: 12px; overflow: hidden; }
+    details.checkin > summary {
+      padding: 14px 16px;
+      list-style: none;
+      cursor: pointer;
+      font-weight: 900;
     }
+    details.checkin > summary::-webkit-details-marker { display: none; }
+    .checkin__body { display: grid; gap: 14px; padding: 0 16px 16px; border-top: 1px solid var(--line); }
+    .checkin__body h2 { margin: 16px 0 0; font-size: 1.25rem; }
+    .form-grid { display: grid; gap: 13px; }
+    label { display: grid; gap: 7px; color: var(--muted); font-weight: 750; }
+    label strong { color: var(--text); }
+    textarea { min-height: 78px; resize: vertical; }
+    input[type="range"] { padding: 0; accent-color: var(--mint); }
+    output { color: var(--gold); font-weight: 900; }
+    .quick-picks, .actions { display: flex; flex-wrap: wrap; gap: 7px; }
+    .quick-picks button { min-height: 36px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); }
+    .actions .button:first-child { background: var(--mint); color: #06101a; border: 0; }
+    .save-status, .small-note { min-height: 1.2em; margin: 0; color: var(--muted); font-size: .84rem; line-height: 1.4; }
+    .daily-summary { display: grid; gap: 8px; padding: 12px; border-radius: 13px; background: var(--panel-soft); }
+    .entry-list { display: none; }
+    .response-loop { display: none; }
 
-    @media (prefers-reduced-motion: reduce) {
-      *,
-      *::before,
-      *::after {
-        animation: none !important;
-        scroll-behavior: auto !important;
-        transition: none !important;
-      }
+    @media (max-width: 700px) {
+      .shell { width: min(100% - 14px, 920px); }
+      .topbar { align-items: flex-start; flex-wrap: wrap; }
+      .capture { grid-template-columns: 1fr auto; }
+      .capture select { grid-column: 1 / -1; grid-row: 2; }
+      .capture .button { grid-column: 2; grid-row: 1; }
+      .item { grid-template-columns: auto minmax(0, 1fr) auto; }
+      .item select { grid-column: 2 / 4; }
+      .focus { grid-template-columns: 1fr; }
+      .focus .button { width: 100%; }
     }
   </style>
   <script defer src="/_vercel/insights/script.js"></script>
@@ -430,114 +196,125 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <div>
-        <strong>Daily Direction</strong>
-        <span>Check in. Pick one step.</span>
+      <div class="topbar__identity">
+        <strong id="commandCenterTitle">Command Center</strong>
+        <span>One place for what matters.</span>
       </div>
-      <nav aria-label="Daily Direction links">
-        <a href="../index.html">Portal</a>
-        <a href="../notes/">Notes</a>
-      </nav>
+      <a class="chip" href="../index.html">Portal</a>
+      <a class="chip" href="../operator/">Operator</a>
     </header>
 
-    <section class="hero">
-      <span class="eyebrow">Free plan</span>
-      <h1>Take one small step.</h1>
-      <p class="lead">You do not need a big plan. Check in, name what needs care, and pick one next move.</p>
-      <div class="hero-actions">
-        <a class="button button--primary" href="#checkin">Start</a>
-        <a class="button button--secondary" href="../index.html">Back to Portal</a>
+    <section class="panel hero" aria-labelledby="commandTitle">
+      <span class="eyebrow">Today</span>
+      <h1 id="commandTitle">What matters now?</h1>
+      <p class="lead">Capture it once. Keep it moving.</p>
+
+      <div class="focus" id="focusCard">
+        <div>
+          <small>Focus</small>
+          <strong id="focusText">Add something important.</strong>
+        </div>
+        <button class="button" id="focusDone" type="button" hidden>Done</button>
+      </div>
+
+      <form class="capture" id="commandCapture">
+        <input id="commandText" autocomplete="off" maxlength="280" placeholder="Add anything…" aria-label="New command center item" />
+        <select id="commandBucket" aria-label="Choose a list">
+          <option value="today">Today</option>
+          <option value="next">Next</option>
+          <option value="waiting">Waiting On</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="someday">Someday</option>
+        </select>
+        <button class="button" type="submit">Add</button>
+      </form>
+
+      <nav class="bucket-tabs" id="bucketTabs" aria-label="Command center lists">
+        <button class="bucket-tab" type="button" data-bucket="today" aria-selected="true">Today <span class="bucket-count" data-count="today">0</span></button>
+        <button class="bucket-tab" type="button" data-bucket="next" aria-selected="false">Next <span class="bucket-count" data-count="next">0</span></button>
+        <button class="bucket-tab" type="button" data-bucket="waiting" aria-selected="false">Waiting <span class="bucket-count" data-count="waiting">0</span></button>
+        <button class="bucket-tab" type="button" data-bucket="scheduled" aria-selected="false">Scheduled <span class="bucket-count" data-count="scheduled">0</span></button>
+        <button class="bucket-tab" type="button" data-bucket="someday" aria-selected="false">Someday <span class="bucket-count" data-count="someday">0</span></button>
+      </nav>
+
+      <div class="bucket-head">
+        <h2 id="activeBucketTitle">Today</h2>
+        <span id="commandStatus">Private on this browser</span>
+      </div>
+      <ul class="item-list" id="commandItems"></ul>
+      <p class="empty" id="commandEmpty">Nothing here.</p>
+    </section>
+
+    <section class="panel" aria-label="Connected workspaces">
+      <div class="sources">
+        <a class="chip" href="../calendar/">Calendar</a>
+        <a class="chip" href="../crm/">CRM</a>
+        <a class="chip" href="../context-hq/">Context HQ</a>
+        <a class="chip" href="../notes/">Notes</a>
+        <a class="chip" href="../growth-desk/">Work</a>
+        <a class="chip" href="../forge/">Build</a>
       </div>
     </section>
 
-    <section class="layout" aria-labelledby="lifeTitle">
-      <article class="card" id="checkin">
-        <div class="card__body">
-          <span class="eyebrow">Today</span>
-          <h2 class="section-title" id="lifeTitle">How are you?</h2>
-          <p class="section-copy">Answer in plain words. Short is good.</p>
+    <details class="checkin" id="dailyCheckin">
+      <summary>Daily check-in</summary>
+      <div class="checkin__body">
+        <h2>How are you?</h2>
+        <form id="lifeForm" class="form-grid">
+          <input id="lifeDate" name="lifeDate" type="hidden" />
+          <label for="moodScore">
+            <strong>How do you feel?</strong>
+            <span><output id="moodValue" for="moodScore">3</output> / 5</span>
+            <input id="moodScore" name="moodScore" type="range" min="1" max="5" step="1" value="3" />
+          </label>
+          <label for="todayText">
+            <strong>What needs care?</strong>
+            <textarea id="todayText" name="todayText" placeholder="Body, money, home, work, people…"></textarea>
+          </label>
+          <div class="quick-picks" aria-label="Quick care picks">
+            <button type="button" data-need="My body needs care.">Body</button>
+            <button type="button" data-need="My money needs care.">Money</button>
+            <button type="button" data-need="My home needs care.">Home</button>
+            <button type="button" data-need="My work needs care.">Work</button>
+            <button type="button" data-need="My people need care.">People</button>
+          </div>
+          <label for="trueTaskText">
+            <strong>One small step</strong>
+            <input id="trueTaskText" name="trueTaskText" type="text" placeholder="Drink water." />
+          </label>
+          <div class="quick-picks" aria-label="Quick step picks">
+            <button type="button" data-step="Drink water.">Water</button>
+            <button type="button" data-step="Take a short walk.">Walk</button>
+            <button type="button" data-step="Clean one small spot.">Clean</button>
+            <button type="button" data-step="Text one person.">Text</button>
+            <button type="button" data-step="Write one note.">Note</button>
+          </div>
+          <div class="actions">
+            <button class="button" type="submit">Save</button>
+            <button class="button" type="button" id="clearDraft">Clear</button>
+          </div>
+          <p id="saveStatus" class="save-status" role="status" aria-live="polite"></p>
+        </form>
 
-          <form id="lifeForm" class="form-grid">
-            <input id="lifeDate" name="lifeDate" type="hidden" />
-
-            <label for="moodScore">
-              <strong>How do you feel?</strong>
-              <span><output id="moodValue" for="moodScore">3</output> out of 5</span>
-              <input id="moodScore" name="moodScore" type="range" min="1" max="5" step="1" value="3" />
-            </label>
-
-            <label for="todayText">
-              <strong>What needs care?</strong>
-              <textarea id="todayText" name="todayText" placeholder="My body, money, home, work, or people..."></textarea>
-            </label>
-
-            <div class="quick-picks" aria-label="Quick care picks">
-              <button type="button" data-need="My body needs care.">Body</button>
-              <button type="button" data-need="My money needs care.">Money</button>
-              <button type="button" data-need="My home needs care.">Home</button>
-              <button type="button" data-need="My work needs care.">Work</button>
-              <button type="button" data-need="My people need care.">People</button>
-            </div>
-
-            <label for="trueTaskText">
-              <strong>What is one small step?</strong>
-              <input id="trueTaskText" name="trueTaskText" type="text" placeholder="Drink water." />
-            </label>
-
-            <div class="quick-picks" aria-label="Quick step picks">
-              <button type="button" data-step="Drink water.">Water</button>
-              <button type="button" data-step="Take a short walk.">Walk</button>
-              <button type="button" data-step="Clean one small spot.">Clean</button>
-              <button type="button" data-step="Text one person.">Text</button>
-              <button type="button" data-step="Write one note.">Note</button>
-            </div>
-
-            <div class="actions">
-              <button class="button button--primary" type="submit">Save</button>
-              <button class="button button--secondary" type="button" id="clearDraft">Clear</button>
-            </div>
-            <p id="saveStatus" class="save-status" role="status" aria-live="polite"></p>
-          </form>
+        <div class="daily-summary">
+          <span class="eyebrow">Latest step</span>
+          <strong id="latestStep">Save a check-in to pick one step.</strong>
         </div>
-      </article>
 
-      <aside class="dashboard">
-        <section class="card">
-          <div class="card__body">
-            <span class="eyebrow">Next</span>
-            <h3 class="section-title">Do this next</h3>
-            <div class="next-step">
-              <span>Saved step</span>
-              <strong id="latestStep">Save a check-in to pick one step.</strong>
-            </div>
-            <p class="section-copy">Keep it small. A small step counts.</p>
-            <div class="response-loop" id="responseLoop" hidden>
-              <strong>Your next step is saved.</strong>
-              <p>Want to do anything else?</p>
-              <div class="response-loop__actions">
-                <a class="button" id="shareTrustedLink" href="sms:?&body=I%20tried%20Daily%20Direction.%20My%20next%20step%20is%3A%20">Share with someone I trust</a>
-                <button class="button" type="button" id="copyStepButton">Copy my next step</button>
-                <button class="button" type="button" id="copyFreeLinkButton">Save my free link</button>
-                <a class="button" href="../friends-family/">See support options</a>
-              </div>
-              <p id="responseStatus" class="save-status" aria-live="polite"></p>
-            </div>
-          </div>
-        </section>
+        <div class="response-loop" id="responseLoop" hidden>
+          <a id="shareTrustedLink" href="sms:?&body=">Share</a>
+          <button type="button" id="copyStepButton">Copy step</button>
+          <button type="button" id="copyFreeLinkButton">Copy link</button>
+          <span id="responseStatus"></span>
+        </div>
+        <ul class="entry-list" id="entryList"></ul>
+      </div>
+    </details>
 
-        <section class="card">
-          <div class="card__body">
-            <span class="eyebrow">Saved</span>
-            <h3 class="section-title">Last notes</h3>
-            <ul class="entry-list" id="entryList"></ul>
-          </div>
-        </section>
-      </aside>
-    </section>
-
-    <p class="footer-note">Saved privately on this device. Encrypted sync can come later.</p>
+    <p class="small-note">The command center is account-scoped in this browser. The Thomas Brief and connected systems remain the source of fresh external data while we add safe sync.</p>
   </main>
 
+  <script src="./command-center.js?v=20260907-command-center"></script>
   <script type="module" src="./app.js?v=20260630-daily-direction"></script>
   <script defer src="/issue-launcher.js"></script>
 </body>
