@@ -1,8 +1,78 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Cleaning Network | Get a cleaning quote</title><meta name="description" content="Choose a cleaning service and request a quote in under a minute."><link rel="canonical" href="https://portal.3dvr.tech/cleaning-network/"><link rel="stylesheet" href="styles.css"></head><body>
-<header class="site-header"><a class="brand" href="#top"><span id="headerBrandMark" class="brand-mark">CN</span><span id="headerBrandName">Cleaning Network</span></a><a class="header-cta" href="#quote">Get a quote</a></header>
-<main id="top">
-<section class="hero"><div class="hero-copy"><p id="serviceAreaEyebrow" class="eyebrow">Local cleaning</p><h1 id="partnerName">Clean space. Easy quote.</h1><p id="partnerIntro" class="lead">Pick a service. We'll follow up.</p><div id="partnerContact" class="partner-contact" hidden></div><a class="button primary" href="#services">Choose a service</a><small>Private request · No payment now</small></div><img class="hero-image" fetchpriority="high" src="https://images.unsplash.com/photo-1758523670739-0d26a3ee976d?auto=format&fit=crop&fm=jpg&q=78&w=1600" alt="Professional cleaner vacuuming a bright modern living room"></section>
-<section id="services" class="services"><div class="section-title"><h2>Choose a service</h2></div><div class="service-grid" aria-label="Choose a cleaning service"><button class="service-card" type="button" data-service="Home cleaning" aria-pressed="false"><img loading="lazy" src="https://images.unsplash.com/photo-1758523670739-0d26a3ee976d?auto=format&fit=crop&fm=jpg&q=78&w=1600" alt=""><span>Home cleaning</span></button><button class="service-card" type="button" data-service="Move in / move out" aria-pressed="false"><img loading="lazy" src="https://images.unsplash.com/photo-1786396798391-8c3f330cf3a8?auto=format&fit=crop&fm=jpg&q=78&w=1200" alt=""><span>Move in / out</span></button><button class="service-card" type="button" data-service="Office / commercial" aria-pressed="false"><img loading="lazy" src="https://images.unsplash.com/photo-1781637590564-01c65dbf2039?auto=format&fit=crop&fm=jpg&q=78&w=1200" alt=""><span>Office</span></button><button class="service-card" type="button" data-service="Rental turnover" aria-pressed="false"><img loading="lazy" src="https://images.unsplash.com/photo-1785486249936-a9a95dfcb63d?auto=format&fit=crop&fm=jpg&q=78&w=1200" alt=""><span>Turnover</span></button></div></section>
-<section id="quote" class="quote-section"><div class="quote-heading"><h2>Get a quote</h2><p id="selectedService" class="selected-service" hidden></p></div><form id="cleaningLeadForm" class="quote-form"><div class="field-grid"><label>Service<select name="serviceType" required><option value="">Choose one</option><option>Home cleaning</option><option>Move in / move out</option><option>Office / commercial</option><option>Rental turnover</option><option>Deep cleaning</option><option>Other</option></select></label><label>ZIP<input name="postalCode" autocomplete="postal-code" maxlength="24" required></label><label>Name<input name="name" autocomplete="name" maxlength="120" required></label><label>Phone or email<input name="contact" autocomplete="email" maxlength="254" required></label></div><details><summary>Add job details <span>optional</span></summary><div class="field-grid details-grid"><label class="wide">Address<input name="address" autocomplete="street-address" maxlength="240"></label><label>Property<select name="propertyType"><option value="">Other / not sure</option><option>Apartment</option><option>House</option><option>Office</option><option>Retail</option><option>Short-term rental</option></select></label><label>Frequency<select name="frequency"><option>One time</option><option>Weekly</option><option>Every two weeks</option><option>Monthly</option></select></label><label>Bedrooms<input name="bedrooms" inputmode="decimal"></label><label>Bathrooms<input name="bathrooms" inputmode="decimal"></label><label>Square feet<input name="squareFeet" inputmode="numeric"></label><label>Date<input id="preferredDate" name="preferredDate" type="date"></label><label class="wide">Notes<textarea name="notes" rows="3" maxlength="3000"></textarea></label></div></details><label class="honeypot" aria-hidden="true">Website<input name="companyWebsite" tabindex="-1" autocomplete="off"></label><button class="button primary submit" type="submit">Request quote</button><p id="formStatus" class="form-status" role="status" aria-live="polite">Add your contact info.</p></form></section>
-</main><footer><span id="footerBrand">Cleaning Network</span><span id="platformCredit"> · Website by <a href="../">3DVR</a></span><a id="cleanerLink" href="../business-sites/">For cleaners</a></footer><script src="app.js" defer></script></body></html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cleaning Network | Get a cleaning quote</title>
+    <meta name="description" content="Choose a cleaning service and request a quote in under a minute.">
+    <link rel="canonical" href="https://portal.3dvr.tech/cleaning-network/">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top">
+        <span id="headerBrandMark" class="brand-mark">CN</span>
+        <span id="headerBrandName">Cleaning Network</span>
+      </a>
+      <a class="header-cta" href="#quote">Get a quote</a>
+    </header>
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <p id="serviceAreaEyebrow" class="eyebrow">Local cleaning</p>
+          <h1 id="partnerName">Clean space. Easy quote.</h1>
+          <p id="partnerIntro" class="lead">Pick a service. We'll follow up.</p>
+          <div id="partnerContact" class="partner-contact" hidden></div>
+          <a class="button primary" href="#services">Choose a service</a>
+          <small>Private request · No payment now</small>
+        </div>
+        <img class="hero-image" fetchpriority="high" src="https://images.unsplash.com/photo-1758523670739-0d26a3ee976d?auto=format&fit=crop&fm=jpg&q=78&w=1600" alt="Professional cleaner vacuuming a bright modern living room">
+      </section>
+      <section id="services" class="services">
+        <div class="section-title"><h2>Choose a service</h2></div>
+        <div class="service-grid" aria-label="Choose a cleaning service">
+          <button class="service-card" type="button" data-service="Home cleaning" aria-pressed="false"><img loading="lazy" src="https://images.unsplash.com/photo-1758523670739-0d26a3ee976d?auto=format&fit=crop&fm=jpg&q=78&w=1600" alt=""><span>Home cleaning</span></button>
+          <button class="service-card" type="button" data-service="Move in / move out" aria-pressed="false"><img loading="lazy" src="https://images.unsplash.com/photo-1786396798391-8c3f330cf3a8?auto=format&fit=crop&fm=jpg&q=78&w=1200" alt=""><span>Move in / out</span></button>
+          <button class="service-card" type="button" data-service="Office / commercial" aria-pressed="false"><img loading="lazy" src="https://images.unsplash.com/photo-1781637590564-01c65dbf2039?auto=format&fit=crop&fm=jpg&q=78&w=1200" alt=""><span>Office</span></button>
+          <button class="service-card" type="button" data-service="Rental turnover" aria-pressed="false"><img loading="lazy" src="https://images.unsplash.com/photo-1785486249936-a9a95dfcb63d?auto=format&fit=crop&fm=jpg&q=78&w=1200" alt=""><span>Turnover</span></button>
+        </div>
+      </section>
+      <section id="quote" class="quote-section">
+        <div class="quote-heading">
+          <h2>Get a quote</h2>
+          <p id="selectedService" class="selected-service" hidden></p>
+        </div>
+        <form id="cleaningLeadForm" class="quote-form">
+          <div class="field-grid">
+            <label>Service<select name="serviceType" required><option value="">Choose one</option><option>Home cleaning</option><option>Move in / move out</option><option>Office / commercial</option><option>Rental turnover</option><option>Deep cleaning</option><option>Other</option></select></label>
+            <label>ZIP<input name="postalCode" autocomplete="postal-code" maxlength="24" required></label>
+            <label>Name<input name="name" autocomplete="name" maxlength="120" required></label>
+            <label>Phone or email<input name="contact" autocomplete="email" maxlength="254" required></label>
+          </div>
+          <details>
+            <summary>Add job details <span>optional</span></summary>
+            <div class="field-grid details-grid">
+              <label class="wide">Address<input name="address" autocomplete="street-address" maxlength="240"></label>
+              <label>Property<select name="propertyType"><option value="">Other / not sure</option><option>Apartment</option><option>House</option><option>Office</option><option>Retail</option><option>Short-term rental</option></select></label>
+              <label>Frequency<select name="frequency"><option>One time</option><option>Weekly</option><option>Every two weeks</option><option>Monthly</option></select></label>
+              <label>Bedrooms<input name="bedrooms" inputmode="decimal"></label>
+              <label>Bathrooms<input name="bathrooms" inputmode="decimal"></label>
+              <label>Square feet<input name="squareFeet" inputmode="numeric"></label>
+              <label>Date<input id="preferredDate" name="preferredDate" type="date"></label>
+              <label class="wide">Notes<textarea name="notes" rows="3" maxlength="3000"></textarea></label>
+            </div>
+          </details>
+          <label class="honeypot" aria-hidden="true">Website<input name="companyWebsite" tabindex="-1" autocomplete="off"></label>
+          <button class="button primary submit" type="submit">Request quote</button>
+          <p id="formStatus" class="form-status" role="status" aria-live="polite">Add your contact info.</p>
+        </form>
+      </section>
+    </main>
+    <footer>
+      <span id="footerBrand">Cleaning Network</span>
+      <span id="platformCredit"> · Website by <a href="../">3DVR</a></span>
+      <a id="cleanerLink" href="../business-sites/">For cleaners</a>
+    </footer>
+    <script src="app.js" defer></script>
+  </body>
+</html>
