@@ -14,6 +14,7 @@ const params = new URLSearchParams(window.location.search);
 const requestedPartner = /^[a-z0-9-]{1,48}$/.test(String(params.get('partner') || '').toLowerCase())
   ? String(params.get('partner')).toLowerCase()
   : 'network';
+const previewToken = String(params.get('preview') || '');
 let resolvedPartner = 'network';
 let serviceCards = [];
 
@@ -217,7 +218,10 @@ function updatePartner(profile) {
 
 async function loadPartner() {
   try {
-    const response = await fetch(`/api/trial?kind=cleaning-partner&partner=${encodeURIComponent(requestedPartner)}`);
+    const endpoint = previewToken
+      ? `/api/trial?kind=cleaning-preview&token=${encodeURIComponent(previewToken)}`
+      : `/api/trial?kind=cleaning-partner&partner=${encodeURIComponent(requestedPartner)}`;
+    const response = await fetch(endpoint);
     const profile = await response.json();
     if (response.ok) updatePartner(profile);
   } catch {
@@ -278,16 +282,26 @@ leadForm.addEventListener('submit', async event => {
   await postForm(leadForm, leadStatus, 'cleaning-lead', {
     ...contactField,
     partner: resolvedPartner,
-    source: `cleaning-network:${resolvedPartner}`
+    source: `cleaning-network:${previewToken ? `preview:${resolvedPartner}` : resolvedPartner}`,
+    previewToken
   });
 });
 
 if (partnerForm) {
   partnerForm.addEventListener('submit', async event => {
     event.preventDefault();
-    await postForm(partnerForm, partnerStatus, 'cleaning-partner-interest', {
+    const result = await postForm(partnerForm, partnerStatus, 'cleaning-partner-interest', {
       source: 'cleaning-network:partner-interest'
     });
+    if (result?.previewUrl) {
+      const link = document.createElement('a');
+      link.href = result.previewUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = 'Open your page';
+      partnerStatus.className = 'form-status success';
+      partnerStatus.replaceChildren(document.createTextNode('Preview ready · '), link);
+    }
   });
 }
 

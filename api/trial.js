@@ -181,6 +181,10 @@ export function createTrialHandler(options = {}) {
       return cleaningNetworkService.getPartnerProfile(req, res);
     }
 
+    if (req.method === 'GET' && String(req.query?.kind || '') === 'cleaning-preview') {
+      return cleaningNetworkService.getPreviewProfile(req, res);
+    }
+
     if (req.method === 'GET') {
       return res.status(200).json({
         stripeConfigured: Boolean(config.STRIPE_SECRET_KEY),

@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 
 const SLUG_PATTERN = /^[a-z0-9-]{1,48}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -33,6 +33,56 @@ function cleanLongText(value, maxLength = 3000) {
 function cleanStringList(value, { maxItems = 8, maxLength = 100 } = {}) {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.map(item => cleanLine(item, maxLength)).filter(Boolean))].slice(0, maxItems);
+}
+
+function parseServicesInput(value) {
+  if (Array.isArray(value)) return cleanStringList(value);
+  return cleanStringList(String(value || '').split(/[,;\n]+/));
+}
+
+function previewSecret(config) {
+  return cleanLine(config.CLEANING_PREVIEW_SECRET || config.GMAIL_APP_PASSWORD, 240);
+}
+
+function encodePreviewToken(profile, secret) {
+  if (!secret) return '';
+  const payload = Buffer.from(JSON.stringify(profile)).toString('base64url');
+  const signature = createHmac('sha256', secret).update(payload).digest('base64url');
+  return `${payload}.${signature}`;
+}
+
+function decodePreviewToken(token, secret) {
+  if (!secret || !token || String(token).length > 4000) return null;
+  const [payload, signature, extra] = String(token).split('.');
+  if (!payload || !signature || extra) return null;
+  const expected = createHmac('sha256', secret).update(payload).digest('base64url');
+  const actualBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  if (actualBuffer.length !== expectedBuffer.length || !timingSafeEqual(actualBuffer, expectedBuffer)) return null;
+  try {
+    const raw = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    const expiresAt = cleanLine(raw.expiresAt, 40);
+    const services = parseServicesInput(raw.services);
+    return {
+      partner: normalizeSlug(raw.partner, 'preview'),
+      name: cleanLine(raw.name, 100),
+      intro: cleanLine(raw.intro, 420),
+      serviceArea: cleanLine(raw.serviceArea, 160),
+      publicPhone: '',
+      website: normalizePublicUrl(raw.website),
+      logoUrl: normalizePublicUrl(raw.logoUrl),
+      heroImageUrl: normalizePublicUrl(raw.heroImageUrl),
+      services: services.length ? services : DEFAULT_SERVICES,
+      accent: normalizeHexColor(raw.accent),
+      accentDark: normalizeHexColor(raw.accentDark),
+      configured: true,
+      preview: true,
+      expiresAt,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function normalizeEmail(value) {
@@ -200,6 +250,7 @@ function formatLeadText(record, partnerName) {
   const lines = [
     `Cleaning request ${record.requestId}`,
     `Partner: ${partnerName} (${record.partner})`,
+    `Preview partner: ${record.previewPartner || '—'}`,
     `Name: ${record.name}`,
     `Email: ${record.email || '—'}`,
     `Phone: ${record.phone || '—'}`,
@@ -239,6 +290,17 @@ export function createCleaningNetworkService(options = {}) {
     return res.status(200).json({ ok: true, ...profile });
   }
 
+  function getPreviewProfile(req, res) {
+    const profile = decodePreviewToken(req.query?.token, previewSecret(config));
+    if (!profile) return res.status(400).json({ error: 'This cleaning preview link is invalid.' });
+    const expiresAtMs = Date.parse(profile.expiresAt || '');
+    if (!Number.isFinite(expiresAtMs) || expiresAtMs <= now().getTime()) {
+      return res.status(410).json({ error: 'This cleaning preview link has expired.' });
+    }
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.status(200).json({ ok: true, ...profile });
+  }
+
   async function handleLead(req, res) {
     const body = req.body || {};
     if (cleanLine(body.companyWebsite, 200)) return res.status(200).json({ success: true });
@@ -260,7 +322,13 @@ export function createCleaningNetworkService(options = {}) {
       return res.status(503).json({ error: 'Cleaning requests are temporarily unavailable.' });
     }
 
-    const partner = resolvePartner(config, body.partner);
+    const decodedPreview = decodePreviewToken(body.previewToken, previewSecret(config));
+    const previewExpiresAtMs = decodedPreview ? Date.parse(decodedPreview.expiresAt || '') : NaN;
+    const previewProfile = decodedPreview && Number.isFinite(previewExpiresAtMs) && previewExpiresAtMs > now().getTime()
+      ? decodedPreview
+      : null;
+    // Preview pages are intentionally unapproved: keep their leads in the network/operator inbox.
+    const partner = resolvePartner(config, previewProfile ? 'network' : body.partner);
     const destination = destinationFor(config, partner);
     if (!destination) return res.status(503).json({ error: 'Cleaning requests are temporarily unavailable.' });
 
@@ -270,6 +338,7 @@ export function createCleaningNetworkService(options = {}) {
       type: 'cleaning-lead',
       requestId: id,
       partner: partner.partner,
+      previewPartner: previewProfile?.partner || '',
       name,
       email,
       phone,
@@ -300,7 +369,7 @@ export function createCleaningNetworkService(options = {}) {
         ...(archive ? { bcc: archive } : {}),
         replyTo: email || config.GMAIL_USER,
         subject: `[Cleaning Lead ${id}] ${serviceType} · ${postalCode}`,
-        text: formatLeadText(record, partner.name),
+        text: formatLeadText(record, previewProfile?.name || partner.name),
         headers: {
           'X-3DVR-Request-Type': 'cleaning-lead',
           'X-3DVR-Request-ID': id,
@@ -308,7 +377,7 @@ export function createCleaningNetworkService(options = {}) {
         },
       });
       console.log(`Cleaning lead queued: ${id} partner=${partner.partner} archived=${Boolean(archive)}`);
-      return res.status(200).json({ success: true, requestId: id, partner: partner.partner, partnerName: partner.name });
+      return res.status(200).json({ success: true, requestId: id, partner: partner.partner, partnerName: previewProfile?.name || partner.name });
     } catch (error) {
       console.error('Cleaning request email failed:', error.message);
       return res.status(503).json({ error: 'Cleaning requests are temporarily unavailable.' });
@@ -352,6 +421,23 @@ export function createCleaningNetworkService(options = {}) {
       source: cleanLine(body.source || 'cleaning-network:partner-interest', 160),
       createdAt: now().toISOString(),
     };
+    const expiresAt = new Date(now().getTime() + (30 * 24 * 60 * 60 * 1000)).toISOString();
+    const previewPartner = record.desiredSlug || `preview-${id.replace(/[^a-z0-9]/g, '').slice(-12)}`;
+    const services = parseServicesInput(record.services);
+    const previewToken = encodePreviewToken({
+      partner: previewPartner,
+      name: companyName,
+      intro: `Request a cleaning quote from ${companyName}.`,
+      serviceArea,
+      website: record.currentWebsite,
+      services: services.length ? services : DEFAULT_SERVICES,
+      expiresAt,
+    }, previewSecret(config));
+    const previewUrl = previewToken
+      ? `https://portal.3dvr.tech/cleaning-network/?preview=${encodeURIComponent(previewToken)}`
+      : '';
+    record.previewUrl = previewUrl;
+    record.previewExpiresAt = expiresAt;
     try {
       await sendMail({
         from: `"3DVR Cleaning Network" <${config.GMAIL_USER}>`,
@@ -365,12 +451,12 @@ export function createCleaningNetworkService(options = {}) {
         },
       });
       console.log(`Cleaning partner request queued: ${id}`);
-      return res.status(200).json({ success: true, requestId: id });
+      return res.status(200).json({ success: true, requestId: id, previewUrl, previewExpiresAt: expiresAt });
     } catch (error) {
       console.error('Cleaning partner request email failed:', error.message);
       return res.status(503).json({ error: 'Partner requests are temporarily unavailable.' });
     }
   }
 
-  return { getPartnerProfile, handleLead, handlePartnerInterest };
+  return { getPartnerProfile, getPreviewProfile, handleLead, handlePartnerInterest };
 }
