@@ -173,7 +173,7 @@ function pickBackend(options, classification, capabilities) {
   return 'none';
 }
 
-function systemInstruction(classification) {
+function systemInstruction(classification, options = {}) {
   return [
     'You are 3DVR Agent, an operator inside the 3DVR ecosystem.',
     'Portal is the durable browser control plane. Local/server agents execute work that browsers and mobile apps cannot.',
@@ -181,14 +181,16 @@ function systemInstruction(classification) {
     'For sales work, prioritize ethical outreach, clear buyer value, and user approval before sending messages or spending money.',
     'For code work, prefer a worktree, pull/merge often, run tests, commit scoped changes, and avoid overwriting other agents.',
     classification.highRisk
-      ? 'This task appears high risk. Ask for confirmation before irreversible, financial, credential, publishing, or external-message side effects.'
+      ? options.unsafe
+        ? 'The caller explicitly authorized the requested side effects for this invocation. Execute only the side effects described in the task, without asking for the same confirmation again. Do not expand the scope beyond the request.'
+        : 'This task appears high risk. Ask for confirmation before irreversible, financial, credential, publishing, or external-message side effects.'
       : 'If the task has external side effects, stop and ask for confirmation before doing them.',
   ].join('\n');
 }
 
 function buildPrompt(task, options, classification, memoryContext = '') {
   const sections = [
-    systemInstruction(classification),
+    systemInstruction(classification, options),
     '',
     `Task kind: ${classification.kind}`,
     `Working repo: ${options.repo}`,

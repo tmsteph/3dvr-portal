@@ -4,6 +4,7 @@ const { authorizePortalOperatorTask } = require('./operator-forge-auth');
 const DEFAULT_LIMIT = 5;
 const DEFAULT_READ_TIMEOUT_MS = 1800;
 const DEFAULT_RELAY_FLUSH_MS = 1200;
+const EXECUTOR_APPROVAL_PATTERN = /\b(?:please confirm|confirm that i may|need (?:your )?confirmation|awaiting confirmation|if you approve|would you like me to)\b/i;
 const BLOCKED_EXTERNAL_WRITE_PATTERN = /\b(deploy|release|send|email|post|force[- ]?push|delete (?:the )?(?:repo|repository|branch|tag)|transfer (?:the )?(?:repo|repository)|repository settings|repo settings|secrets?|billing|reset\s+--hard)\b/i;
 let defaultGun = null;
 
@@ -65,6 +66,12 @@ async function updateForgeRequest(id, patch, options = {}) {
   }, options.writeTimeoutMs);
 }
 
+function executorNeedsApproval(result = {}) {
+  if (!result?.ok) return false;
+  const text = normalizeText(result?.reason || result?.result?.stdout || result?.result?.stderr);
+  return EXECUTOR_APPROVAL_PATTERN.test(text);
+}
+
 function editOnlyTask(record = {}, auth = {}) {
   const task = normalizeText(record.task);
   if (!task) return { ok: false, reason: 'missing code edit request' };
@@ -124,13 +131,14 @@ async function runForgeRequest(record, options = {}) {
       : edit.task);
     const result = await runImpl(args, options.hooks || {});
     const summary = normalizeText(result?.reason || result?.result?.stdout || result?.result?.stderr || `ok=${Boolean(result?.ok)}`).slice(0, 2000);
+    const needsApproval = executorNeedsApproval(result);
     await updateForgeRequest(record.id, {
-      status: result?.ok ? 'completed' : result?.skipped ? 'approval_required' : 'failed',
+      status: needsApproval ? 'approval_required' : result?.ok ? 'completed' : result?.skipped ? 'approval_required' : 'failed',
       completedAt: new Date().toISOString(),
       resultSummary: summary,
-      error: result?.ok ? '' : summary,
+      error: result?.ok && !needsApproval ? '' : summary,
     }, options);
-    return result;
+    return needsApproval ? { ...result, ok: false, skipped: true, reason: summary } : result;
   } catch (error) {
     const message = error.message || String(error);
     await updateForgeRequest(record.id, {
@@ -171,6 +179,7 @@ async function cli(argv = process.argv.slice(2)) {
 
 module.exports = {
   editOnlyTask,
+  executorNeedsApproval,
   listForgeRequests,
   runForgeRequest,
   runForgeWorkerOnce,

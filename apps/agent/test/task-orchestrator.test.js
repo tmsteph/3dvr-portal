@@ -76,6 +76,15 @@ test('pickBackend prefers codex for code and openclaw for tool-heavy general wor
   ), 'openclaw');
 });
 
+test('unsafe high-risk prompt carries caller approval instead of asking again', () => {
+  const classification = classifyTask('Fix the repo, commit, and push the change.');
+  const prompt = buildPrompt('Fix the repo, commit, and push the change.', { repo: '/tmp/repo', unsafe: true }, classification);
+
+  assert.equal(classification.highRisk, true);
+  assert.match(prompt, /caller explicitly authorized the requested side effects/i);
+  assert.doesNotMatch(prompt, /ask for confirmation before/i);
+});
+
 test('buildPrompt preserves the portal and worker architecture', () => {
   const classification = classifyTask('Research a prospect');
   const prompt = buildPrompt('Research a prospect', { repo: '/tmp/repo' }, classification);

@@ -7,7 +7,7 @@ const {
   BUILTIN_OPERATOR_OWNER_BINDINGS,
   BUILTIN_OPERATOR_OWNER_PUBS,
 } = require('../thomas-agent/node/operator-forge-auth');
-const { editOnlyTask } = require('../thomas-agent/node/operator-forge-worker');
+const { editOnlyTask, executorNeedsApproval } = require('../thomas-agent/node/operator-forge-worker');
 
 const TMSTEPH_PUB = 'Cg-NVNIbxWPDBqX7OmllJQqjxy2t3KA_U2DqQBjcPQ8.1fppECqamDOHh2tKt1G5t8Yd21NjBCZ3C6qunST3lvg';
 
@@ -109,6 +109,17 @@ test('ordinary developer cannot authorize GitHub writes', () => {
   );
   assert.equal(result.ok, false);
   assert.match(result.reason, /owner authorization/i);
+});
+
+test('worker does not mark a confirmation request as completed work', () => {
+  assert.equal(executorNeedsApproval({
+    ok: true,
+    result: { stdout: 'Please confirm that I may create a branch, commit, and push.' },
+  }), true);
+  assert.equal(executorNeedsApproval({
+    ok: true,
+    result: { stdout: 'Updated the file, ran tests, committed, and pushed the branch.' },
+  }), false);
 });
 
 test('owner permission still blocks destructive GitHub and deployment actions', () => {
