@@ -33,6 +33,8 @@ test('worker lifecycle owns context routing, organism sync, and supervision', as
 test('queue wrapper reloads and validates its configured Node SQLite runtime', async () => {
   const script = await readFile(queueWrapper, 'utf8');
 
+  assert.match(script, /TOOLS_BIN="\$\{THREEDVR_AGENT_TOOLS_BIN:-\$HOME\/\.openclaw\/tools\/node\/bin\}"/);
+  assert.match(script, /export PATH="\$TOOLS_BIN:\$PATH"/);
   assert.match(script, /NODE_BIN="\$\{THREEDVR_NODE_BIN:-node\}"/);
   assert.match(script, /major < 22 \|\| \(major === 22 && minor < 13\)/);
   assert.match(script, /require\("node:sqlite"\)/);

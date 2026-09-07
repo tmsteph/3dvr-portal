@@ -16,6 +16,17 @@ if [ -f "$CONFIG_FILE" ]; then
   set +a
 fi
 
+# Server installs keep Codex/OpenClaw beside the managed Node runtime rather
+# than in the minimal service PATH. Make that stable tool bin visible on every
+# poll so auto-routing can actually select Codex for code work.
+TOOLS_BIN="${THREEDVR_AGENT_TOOLS_BIN:-$HOME/.openclaw/tools/node/bin}"
+if [ -d "$TOOLS_BIN" ]; then
+  case ":$PATH:" in
+    *":$TOOLS_BIN:"*) ;;
+    *) export PATH="$TOOLS_BIN:$PATH" ;;
+  esac
+fi
+
 # The fast production lane is intentionally local-only. Apply this override
 # after loading config so a stale config file cannot accidentally re-enable a
 # slow GUN/AXE reconciliation step on the latency-sensitive SQLite poll.
