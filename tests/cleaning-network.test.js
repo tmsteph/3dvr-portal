@@ -8,6 +8,7 @@ const baseConfig = {
   STRIPE_PRICE_ID: 'price_123',
   GMAIL_USER: 'bot@example.com',
   GMAIL_APP_PASSWORD: 'app_password',
+  CLEANING_PREVIEW_SECRET: 'preview_secret_for_tests',
   OPERATOR_EMAIL_TO: 'operator@example.com',
 };
 
@@ -195,6 +196,64 @@ describe('cleaning network', () => {
     assert.ok(Number(second.headers['Retry-After']) >= 1);
   });
 
+  it('creates a signed branded preview during cleaner onboarding', async () => {
+    const mailTransport = createMailTransport();
+    const handler = createHandler({ mailTransport });
+    const submitted = createMockRes();
+    await handler({ method: 'POST', body: {
+      kind: 'cleaning-partner-interest', companyName: 'Sparkle Co', contactName: 'Alex', email: 'alex@sparkle.example',
+      serviceArea: 'San Diego County', desiredSlug: 'sparkle-co', services: 'Homes, Turnovers',
+    } }, submitted);
+    assert.equal(submitted.statusCode, 200);
+    assert.match(submitted.body.previewUrl, /^https:\/\/portal\.3dvr\.tech\/cleaning-network\/\?preview=/);
+
+    const previewToken = new URL(submitted.body.previewUrl).searchParams.get('preview');
+    const preview = createMockRes();
+    await handler({ method: 'GET', query: { kind: 'cleaning-preview', token: previewToken }, body: {} }, preview);
+    assert.equal(preview.statusCode, 200);
+    assert.equal(preview.body.name, 'Sparkle Co');
+    assert.equal(preview.body.partner, 'sparkle-co');
+    assert.deepEqual(preview.body.services, ['Homes', 'Turnovers']);
+    assert.equal(preview.body.preview, true);
+    assert.equal('email' in preview.body, false);
+  });
+
+  it('rejects tampered cleaner preview links', async () => {
+    const handler = createHandler();
+    const preview = createMockRes();
+    await handler({ method: 'GET', query: { kind: 'cleaning-preview', token: 'tampered.payload' }, body: {} }, preview);
+    assert.equal(preview.statusCode, 400);
+  });
+
+  it('keeps preview-page leads in the operator inbox until routing is approved', async () => {
+    const mailTransport = createMailTransport();
+    const handler = createHandler({
+      mailTransport,
+      config: {
+        ...baseConfig,
+        CLEANING_PARTNERS_JSON: JSON.stringify({ 'crew-one': { name: 'Crew One', email: 'crew@example.com' } }),
+      },
+    });
+    const submitted = createMockRes();
+    await handler({ method: 'POST', body: {
+      kind: 'cleaning-partner-interest', companyName: 'Sparkle Co', contactName: 'Alex', email: 'alex@sparkle.example',
+      serviceArea: 'San Diego County', desiredSlug: 'sparkle-co',
+    } }, submitted);
+    const previewToken = new URL(submitted.body.previewUrl).searchParams.get('preview');
+
+    const lead = createMockRes();
+    await handler({ method: 'POST', body: {
+      kind: 'cleaning-lead', previewToken, partner: 'crew-one', name: 'Taylor', phone: '555-0102',
+      postalCode: '92101', serviceType: 'Home cleaning',
+    } }, lead);
+    assert.equal(lead.statusCode, 200);
+    assert.equal(lead.body.partner, 'network');
+    const message = mailTransport.sendMail.mock.calls[1].arguments[0];
+    assert.equal(message.to, 'operator@example.com');
+    assert.match(message.text, /Partner: Sparkle Co/);
+    assert.match(message.text, /Preview partner: sparkle-co/);
+  });
+
   it('captures cleaning-company onboarding separately from customer leads', async () => {
     const mailTransport = createMailTransport();
     const handler = createHandler({ mailTransport });
@@ -203,7 +262,9 @@ describe('cleaning network', () => {
       kind: 'cleaning-partner-interest', companyName: 'Sparkle Co', contactName: 'Alex', email: 'alex@sparkle.example', phone: '555-0133',
       serviceArea: 'San Diego County', currentWebsite: 'https://sparkle.example', desiredSlug: 'sparkle-co', notes: 'We outsource overflow jobs.',
     } }, res);
-    assert.deepEqual(res.body, { success: true, requestId: 'clp_abc123xyz' });
+    assert.equal(res.body.success, true);
+    assert.equal(res.body.requestId, 'clp_abc123xyz');
+    assert.match(res.body.previewUrl, /^https:\/\/portal\.3dvr\.tech\/cleaning-network\/\?preview=/);
     const message = mailTransport.sendMail.mock.calls[0].arguments[0];
     assert.equal(message.to, 'operator@example.com');
     assert.equal(message.replyTo, 'alex@sparkle.example');
