@@ -109,7 +109,55 @@ function resolveRepoAlias(repoAlias, env = process.env) {
   return candidate ? path.resolve(candidate) : '';
 }
 
+function parseSeaProof(proof = '') {
+  const text = normalizeText(proof);
+  if (!text) return null;
+  try {
+    const raw = text.startsWith('SEA') ? text.slice(3) : text;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || !Object.prototype.hasOwnProperty.call(parsed, 'm') || !parsed.s) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function verifySeaProofWithNativeWebCrypto(proof, pub) {
+  const envelope = parseSeaProof(proof);
+  const normalizedPub = normalizeText(pub);
+  if (!envelope || !normalizedPub) return undefined;
+  const [x, y, ...extra] = normalizedPub.split('.');
+  if (!x || !y || extra.length) return undefined;
+
+  const { webcrypto } = require('node:crypto');
+  if (!webcrypto?.subtle) return undefined;
+  const key = await webcrypto.subtle.importKey(
+    'jwk',
+    { kty: 'EC', crv: 'P-256', x, y, ext: true, key_ops: ['verify'] },
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['verify']
+  );
+  const message = typeof envelope.m === 'string' ? envelope.m : JSON.stringify(envelope.m);
+  const hash = await webcrypto.subtle.digest('SHA-256', Buffer.from(message, 'utf8'));
+  const signature = Buffer.from(String(envelope.s), 'base64');
+  const ok = await webcrypto.subtle.verify(
+    { name: 'ECDSA', hash: 'SHA-256' },
+    key,
+    signature,
+    hash
+  );
+  if (!ok) return undefined;
+  if (typeof envelope.m !== 'string') return envelope.m;
+  try { return JSON.parse(envelope.m); } catch { return envelope.m; }
+}
+
 async function defaultVerify(proof, pub) {
+  try {
+    const verified = await verifySeaProofWithNativeWebCrypto(proof, pub);
+    if (verified !== undefined) return verified;
+  } catch {}
+
   const Gun = require('gun');
   require('gun/sea');
   return Gun.SEA.verify(proof, pub);
@@ -192,4 +240,5 @@ module.exports = {
   BUILTIN_OPERATOR_ADMIN_BINDINGS,
   BUILTIN_OPERATOR_DEVELOPER_BINDINGS,
   decodeForgeProof,
+  verifySeaProofWithNativeWebCrypto,
 };

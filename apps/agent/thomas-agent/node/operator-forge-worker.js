@@ -3,6 +3,7 @@ const { authorizePortalOperatorTask } = require('./operator-forge-auth');
 
 const DEFAULT_LIMIT = 5;
 const DEFAULT_READ_TIMEOUT_MS = 1800;
+const DEFAULT_RELAY_FLUSH_MS = 1200;
 const BLOCKED_EXTERNAL_WRITE_PATTERN = /\b(deploy|release|send|email|post|force[- ]?push|delete (?:the )?(?:repo|repository|branch|tag)|transfer (?:the )?(?:repo|repository)|repository settings|repo settings|secrets?|billing|reset\s+--hard)\b/i;
 let defaultGun = null;
 
@@ -161,6 +162,11 @@ async function cli(argv = process.argv.slice(2)) {
   }
   const results = await runForgeWorkerOnce();
   console.log(json ? JSON.stringify(results, null, 2) : `Processed ${results.length} operator forge request(s).`);
+  if (results.length) {
+    const configured = Number.parseInt(String(process.env.THREEDVR_OPERATOR_FORGE_FLUSH_MS || ''), 10);
+    const flushMs = Number.isFinite(configured) && configured >= 0 ? configured : DEFAULT_RELAY_FLUSH_MS;
+    if (flushMs) await new Promise(resolve => setTimeout(resolve, flushMs));
+  }
 }
 
 module.exports = {

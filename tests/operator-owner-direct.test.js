@@ -15,7 +15,8 @@ test('Forge edit id is recovered from the Operator status URL', () => {
 
 test('Operator owner edits wait for Forge instead of duplicating into a second queue', () => {
   const source = read('operator/actions.js');
-  assert.match(source, /waitForForgeEdit\(forgeOutcome\.url\)/);
+  assert.match(source, /waitForForgeEdit\(forgeOutcome\.url, \{ timeoutMs: 5_000 \}\)/);
+  assert.match(source, /Started\. Forge is working on the code change in the background/);
   assert.match(source, /Commit and push the completed change to GitHub/);
   assert.doesNotMatch(source, /queueOperatorAgentEdit/);
 });

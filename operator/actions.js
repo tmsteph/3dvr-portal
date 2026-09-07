@@ -72,7 +72,7 @@ export async function runOperatorAction(action = {}, context = {}) {
     const { queueCodeChange } = await import('./forge.js');
     const forgeOutcome = await queueCodeChange(prepared.action);
     const { waitForForgeEdit } = await import('./forge-status.js');
-    const result = await waitForForgeEdit(forgeOutcome.url);
+    const result = await waitForForgeEdit(forgeOutcome.url, { timeoutMs: 5_000 });
     const status = String(result?.status || '').toLowerCase();
     if (status === 'completed') {
       return {
@@ -87,7 +87,7 @@ export async function runOperatorAction(action = {}, context = {}) {
     }
     return {
       ...forgeOutcome,
-      message:'The code change is still running. Open the Forge edit for its live status.'
+      message:'Started. Forge is working on the code change in the background.'
     };
   }
   if (action.type === 'open_app' && action.url) return { message:'Ready to open.', url:action.url };
