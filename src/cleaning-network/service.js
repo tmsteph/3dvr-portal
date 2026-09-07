@@ -2,6 +2,12 @@ import { randomUUID } from 'node:crypto';
 
 const SLUG_PATTERN = /^[a-z0-9-]{1,48}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const DEFAULT_SERVICES = Object.freeze([
+  'Home cleaning',
+  'Move in / move out',
+  'Office / commercial',
+  'Rental turnover',
+]);
 const DEFAULT_PROFILE = Object.freeze({
   partner: 'network',
   name: 'Cleaning Network',
@@ -22,6 +28,11 @@ function cleanLine(value, maxLength = 180) {
 
 function cleanLongText(value, maxLength = 3000) {
   return String(value || '').trim().slice(0, maxLength);
+}
+
+function cleanStringList(value, { maxItems = 8, maxLength = 100 } = {}) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map(item => cleanLine(item, maxLength)).filter(Boolean))].slice(0, maxItems);
 }
 
 function normalizeEmail(value) {
@@ -126,6 +137,7 @@ function resolvePartner(config, rawPartner) {
   const profile = raw || (resolved === 'network' ? {} : null) || {};
   const name = cleanLine(profile.name || (resolved === 'network' ? DEFAULT_PROFILE.name : humanizeSlug(resolved)), 100);
   const email = normalizeEmail(profile.email) || legacyEmail;
+  const services = cleanStringList(profile.services);
   return {
     requestedPartner: requested,
     partner: resolved,
@@ -136,6 +148,8 @@ function resolvePartner(config, rawPartner) {
     publicPhone: cleanLine(profile.publicPhone, 80),
     website: normalizePublicUrl(profile.website),
     logoUrl: normalizePublicUrl(profile.logoUrl),
+    heroImageUrl: normalizePublicUrl(profile.heroImageUrl),
+    services: services.length ? services : DEFAULT_SERVICES,
     accent: normalizeHexColor(profile.accent),
     accentDark: normalizeHexColor(profile.accentDark),
     email,
@@ -152,6 +166,8 @@ export function getPublicCleaningPartner(config = {}, rawPartner = 'network') {
     publicPhone: profile.publicPhone,
     website: profile.website,
     logoUrl: profile.logoUrl,
+    heroImageUrl: profile.heroImageUrl,
+    services: profile.services,
     accent: profile.accent,
     accentDark: profile.accentDark,
     configured: profile.configured,
@@ -329,6 +345,7 @@ export function createCleaningNetworkService(options = {}) {
       email,
       phone,
       serviceArea,
+      services: cleanLine(body.services, 500),
       currentWebsite: normalizePublicUrl(body.currentWebsite),
       desiredSlug: normalizeSlug(body.desiredSlug || companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), ''),
       notes: cleanLongText(body.notes, 3000),
