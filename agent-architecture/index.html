@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>3DVR Agent Architecture</title>
+  <meta name="description" content="The 3DVR founder-to-worker agent architecture: one orchestrator, focused managers, disposable workers, shared memory, and verifiable outcomes.">
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0c100e;
+      color: #f5f7f5;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #18241d 0, #0c100e 42%); }
+    main { width: min(920px, calc(100% - 32px)); margin: 0 auto; padding: 40px 0 72px; }
+    a { color: #b8efc7; }
+    .eyebrow { margin: 0 0 8px; color: #8fa99a; font-size: .8rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(2.2rem, 8vw, 4.8rem); line-height: .95; letter-spacing: -.04em; }
+    .lead { max-width: 700px; margin: 18px 0 30px; color: #c7d0ca; font-size: clamp(1rem, 3vw, 1.25rem); line-height: 1.55; }
+    .stack { display: grid; gap: 12px; }
+    .card { border: 1px solid #2c3a31; border-radius: 18px; background: rgba(19, 27, 22, .86); padding: 18px; }
+    .card strong { display: block; font-size: 1.05rem; }
+    .card p { margin: 6px 0 0; color: #b9c4bc; line-height: 1.45; }
+    .arrow { text-align: center; color: #6e8a78; font-size: 1.5rem; line-height: 1; }
+    .managers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .manager { min-height: 118px; }
+    .worker { text-align: center; border-style: dashed; }
+    .meta { margin-top: 34px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    h2 { margin: 0 0 8px; font-size: 1rem; }
+    ul { margin: 8px 0 0; padding-left: 20px; color: #bcc8c0; line-height: 1.55; }
+    .status { color: #aee9bf; font-weight: 750; }
+    footer { margin-top: 30px; color: #839088; font-size: .9rem; }
+    @media (max-width: 720px) {
+      main { padding-top: 26px; }
+      .managers, .meta { grid-template-columns: 1fr; }
+      .manager { min-height: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">3DVR · Agent System</p>
+    <h1>One brain.<br>Many hands.</h1>
+    <p class="lead">Thomas steers one persistent founder agent from phone, laptop, or voice. It delegates focused work to managers, which spin up disposable workers in isolated worktrees and return verified results.</p>
+
+    <section class="stack" aria-label="Agent hierarchy">
+      <article class="card">
+        <strong>Thomas · Founder</strong>
+        <p>Sets direction, priorities, taste, and final intent.</p>
+      </article>
+      <div class="arrow" aria-hidden="true">↓</div>
+      <article class="card">
+        <strong>Founder / Orchestrator</strong>
+        <p>Reads the root <code>AGENTS.md</code> and portable control-plane context. Breaks goals into outcomes, delegates, reconciles results, and keeps the overall thread coherent.</p>
+      </article>
+      <div class="arrow" aria-hidden="true">↓</div>
+      <div class="managers">
+        <article class="card manager"><strong>Revenue</strong><p>Leads, outreach, offers, CRM, cash-generating experiments.</p></article>
+        <article class="card manager"><strong>Product</strong><p>Portal UX, features, testing, releases, simplification.</p></article>
+        <article class="card manager"><strong>Infrastructure</strong><p>Servers, reliability, deployment, recovery, cost.</p></article>
+        <article class="card manager"><strong>Open Source</strong><p>Upstream work, research, contribution ledger, community.</p></article>
+      </div>
+      <div class="arrow" aria-hidden="true">↓</div>
+      <article class="card worker">
+        <strong>Disposable workers</strong>
+        <p>Short-lived Codex sessions/worktrees with narrow scope. They code, research, test, or operate; managers keep the durable context.</p>
+      </article>
+      <div class="arrow" aria-hidden="true">↓</div>
+      <article class="card">
+        <strong>Shared source of truth</strong>
+        <p><code>tmsteph/3dvr-portal</code> + <code>ops/control-plane</code> + GitHub history. Finished work is tested, documented, merged, and available to the next device or agent.</p>
+      </article>
+    </section>
+
+    <section class="meta">
+      <article class="card">
+        <h2>Already implemented</h2>
+        <ul>
+          <li>Canonical portal monorepo</li>
+          <li>Root and nested <code>AGENTS.md</code> guidance</li>
+          <li>Portable control-plane memory</li>
+          <li>Agent package on separate runtime</li>
+          <li>Worktree + PR discipline</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h2>Next step</h2>
+        <p class="status">Use the manager posture files under <code>ops/control-plane/roles/</code>.</p>
+        <p>When the founder agent receives a broad goal, route it to the smallest manager set possible, then delegate execution to disposable workers.</p>
+      </article>
+    </section>
+
+    <footer>
+      <a href="/astra/">Astra canary</a> · <a href="/">Portal home</a>
+    </footer>
+  </main>
+</body>
+</html>
