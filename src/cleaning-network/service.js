@@ -272,12 +272,64 @@ function formatLeadText(record, partnerName) {
   return lines.join('\n');
 }
 
+function formatLeadConfirmationText(record, partnerName) {
+  const firstName = cleanLine(record.name, 120).split(/\s+/)[0] || 'there';
+  return [
+    `Hi ${firstName},`,
+    '',
+    `We received your ${record.serviceType} request.`,
+    `Reference: ${record.requestId}`,
+    `ZIP / postal code: ${record.postalCode}`,
+    ...(record.preferredDate ? [`Preferred date: ${record.preferredDate}`] : []),
+    '',
+    `${partnerName} will follow up with availability and a quote.`,
+    'No payment has been taken.',
+    '',
+    'Reply to this email if you need to change anything.',
+  ].join('\n');
+}
+
+function createTextbeltSmsSender(config, fetchImpl = globalThis.fetch) {
+  return async ({ phone, message }) => {
+    const enabled = String(config.CLEANING_SMS_ENABLED ?? 'true').toLowerCase();
+    if (['false', '0', 'off'].includes(enabled)) {
+      return { attempted: false, sent: false };
+    }
+    if (typeof fetchImpl !== 'function') return { attempted: false, sent: false };
+    const key = cleanLine(config.TEXTBELT_API_KEY || 'textbelt', 240);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3500);
+    try {
+      const response = await fetchImpl('https://textbelt.com/text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, message, key }),
+        signal: controller.signal,
+      });
+      const payload = await response.json().catch(() => ({}));
+      return {
+        attempted: true,
+        sent: Boolean(response.ok && payload.success),
+        quotaRemaining: Number.isFinite(Number(payload.quotaRemaining)) ? Number(payload.quotaRemaining) : undefined,
+        error: cleanLine(payload.error, 200),
+      };
+    } catch (error) {
+      return { attempted: true, sent: false, error: cleanLine(error?.message, 200) };
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+}
+
 export function createCleaningNetworkService(options = {}) {
   const config = options.config || process.env;
   const mailTransport = options.mailTransport;
   const idFactory = options.idFactory;
   const now = typeof options.now === 'function' ? options.now : () => new Date();
   const limiter = options.rateLimiter || createCleaningRateLimiter();
+  const smsSender = typeof options.smsSender === 'function'
+    ? options.smsSender
+    : createTextbeltSmsSender(config, options.fetchImpl);
 
   async function sendMail(message) {
     if (!mailTransport?.sendMail) throw new Error('Mail transport is unavailable.');
@@ -376,8 +428,59 @@ export function createCleaningNetworkService(options = {}) {
           'X-3DVR-Request-Source': record.source,
         },
       });
-      console.log(`Cleaning lead queued: ${id} partner=${partner.partner} archived=${Boolean(archive)}`);
-      return res.status(200).json({ success: true, requestId: id, partner: partner.partner, partnerName: previewProfile?.name || partner.name });
+      const partnerName = previewProfile?.name || partner.name;
+      const confirmationTasks = [];
+      if (email) {
+        confirmationTasks.push((async () => {
+          try {
+            await sendMail({
+              from: `"${partnerName}" <${config.GMAIL_USER}>`,
+              to: email,
+              replyTo: normalizeEmail(config.CLEANING_CUSTOMER_REPLY_TO) || normalizeEmail(config.GMAIL_USER),
+              subject: `We received your cleaning request · ${id}`,
+              text: formatLeadConfirmationText(record, partnerName),
+              headers: {
+                'X-3DVR-Request-Type': 'cleaning-lead-confirmation',
+                'X-3DVR-Request-ID': id,
+              },
+            });
+            return { channel: 'email', sent: true };
+          } catch (error) {
+            console.error(`Cleaning confirmation email failed: ${id}`, error.message);
+            return { channel: 'email', sent: false };
+          }
+        })());
+      }
+      if (phone) {
+        confirmationTasks.push((async () => {
+          try {
+            const sms = await smsSender({
+              phone,
+              message: `Cleaning request ${id} received: ${cleanLine(serviceType, 42)}. We'll follow up with availability and a quote. No payment taken.`,
+              requestId: id,
+            });
+            if (sms?.attempted && !sms?.sent) {
+              console.warn(`Cleaning SMS confirmation not sent: ${id} ${sms.error || 'provider unavailable'}`);
+            }
+            return { channel: 'sms', sent: Boolean(sms?.sent) };
+          } catch (error) {
+            console.warn(`Cleaning SMS confirmation failed safely: ${id} ${error?.message || 'provider unavailable'}`);
+            return { channel: 'sms', sent: false };
+          }
+        })());
+      }
+      const confirmationResults = await Promise.all(confirmationTasks);
+      const confirmationEmailSent = confirmationResults.some(result => result.channel === 'email' && result.sent);
+      const smsConfirmationSent = confirmationResults.some(result => result.channel === 'sms' && result.sent);
+      console.log(`Cleaning lead queued: ${id} partner=${partner.partner} archived=${Boolean(archive)} confirmationEmail=${confirmationEmailSent} sms=${smsConfirmationSent}`);
+      return res.status(200).json({
+        success: true,
+        requestId: id,
+        partner: partner.partner,
+        partnerName,
+        confirmationEmailSent,
+        smsConfirmationSent,
+      });
     } catch (error) {
       console.error('Cleaning request email failed:', error.message);
       return res.status(503).json({ error: 'Cleaning requests are temporarily unavailable.' });

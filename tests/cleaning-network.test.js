@@ -10,6 +10,7 @@ const baseConfig = {
   GMAIL_APP_PASSWORD: 'app_password',
   CLEANING_PREVIEW_SECRET: 'preview_secret_for_tests',
   OPERATOR_EMAIL_TO: 'operator@example.com',
+  CLEANING_SMS_ENABLED: 'false',
 };
 
 function createMockStripe() {
@@ -43,6 +44,7 @@ function createHandler(overrides = {}) {
     idFactory: overrides.idFactory || (() => 'ABC-123-XYZ'),
     now: overrides.now || (() => new Date('2026-09-06T22:00:00.000Z')),
     cleaningRateLimiter: overrides.cleaningRateLimiter,
+    cleaningSmsSender: overrides.cleaningSmsSender,
   });
 }
 
@@ -113,9 +115,9 @@ describe('cleaning network', () => {
       },
     }, res);
     assert.equal(res.statusCode, 200);
-    assert.deepEqual(res.body, { success: true, requestId: 'cln_abc123xyz', partner: 'crew-one', partnerName: 'Crew One Cleaning' });
+    assert.deepEqual(res.body, { success: true, requestId: 'cln_abc123xyz', partner: 'crew-one', partnerName: 'Crew One Cleaning', confirmationEmailSent: true, smsConfirmationSent: false });
     assert.equal(stripe.customers.list.mock.calls.length, 0);
-    assert.equal(mailTransport.sendMail.mock.calls.length, 1);
+    assert.equal(mailTransport.sendMail.mock.calls.length, 2);
     const message = mailTransport.sendMail.mock.calls[0].arguments[0];
     assert.equal(message.to, 'crew@example.com');
     assert.equal(message.bcc, 'operator@example.com');
@@ -128,6 +130,12 @@ describe('cleaning network', () => {
     assert.equal(message.text.includes('do-not-store'), false);
     assert.equal(message.text.includes('drop-me'), false);
     assert.equal(message.headers['X-3DVR-Request-ID'], 'cln_abc123xyz');
+    const confirmation = mailTransport.sendMail.mock.calls[1].arguments[0];
+    assert.equal(confirmation.to, 'taylor@example.com');
+    assert.equal(confirmation.replyTo, 'bot@example.com');
+    assert.match(confirmation.subject, /We received your cleaning request/);
+    assert.match(confirmation.text, /Reference: cln_abc123xyz/);
+    assert.match(confirmation.text, /No payment has been taken/);
   });
 
   it('keeps a private archive copy in the configured Gmail inbox when no operator override exists', async () => {
@@ -158,6 +166,25 @@ describe('cleaning network', () => {
     assert.equal(message.to, 'operator@example.com');
     assert.equal(message.bcc, undefined);
     assert.equal(message.replyTo, 'bot@example.com');
+  });
+
+  it('sends a best-effort SMS confirmation when a phone number is supplied', async () => {
+    const mailTransport = createMailTransport();
+    const smsSender = mock.fn(async payload => ({ attempted: true, sent: true, payload }));
+    const handler = createHandler({ mailTransport, cleaningSmsSender: smsSender });
+    const res = createMockRes();
+    await handler({ method: 'POST', body: {
+      kind: 'cleaning-lead', name: 'Morgan', email: 'morgan@example.com', phone: '+16195550112',
+      postalCode: '92014', serviceType: 'Move in / move out',
+    } }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.confirmationEmailSent, true);
+    assert.equal(res.body.smsConfirmationSent, true);
+    assert.equal(smsSender.mock.calls.length, 1);
+    const sms = smsSender.mock.calls[0].arguments[0];
+    assert.equal(sms.phone, '+16195550112');
+    assert.match(sms.message, /cln_abc123xyz/);
+    assert.match(sms.message, /No payment taken/);
   });
 
   it('rejects incomplete and malformed cleaning leads without sending mail', async () => {

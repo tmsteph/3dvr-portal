@@ -49,11 +49,12 @@
           <p id="selectedService" class="selected-service" hidden></p>
         </div>
         <form id="cleaningLeadForm" class="quote-form">
+          <input name="serviceType" type="hidden">
           <div class="field-grid">
-            <label>Service<select name="serviceType" required><option value="">Choose one</option><option>Home cleaning</option><option>Move in / move out</option><option>Office / commercial</option><option>Rental turnover</option><option>Deep cleaning</option><option>Other</option></select></label>
             <label>ZIP<input name="postalCode" autocomplete="postal-code" maxlength="24" required></label>
             <label>Name<input name="name" autocomplete="name" maxlength="120" required></label>
-            <label>Phone or email<input name="contact" autocomplete="email" maxlength="254" required></label>
+            <label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label>
+            <label>Phone <span>optional · text confirmation when available</span><input name="phone" type="tel" autocomplete="tel" maxlength="80"></label>
           </div>
           <details>
             <summary>Add job details <span>optional</span></summary>
@@ -70,7 +71,7 @@
           </details>
           <label class="honeypot" aria-hidden="true">Website<input name="companyWebsite" tabindex="-1" autocomplete="off"></label>
           <button class="button primary submit" type="submit">Request quote</button>
-          <p id="formStatus" class="form-status" role="status" aria-live="polite">Add your contact info.</p>
+          <p id="formStatus" class="form-status" role="status" aria-live="polite">Choose a service, then add your email.</p>
         </form>
       </section>
     </main>

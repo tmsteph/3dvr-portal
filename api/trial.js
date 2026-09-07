@@ -115,6 +115,7 @@ export function createTrialHandler(options = {}) {
     idFactory: options.idFactory,
     now: options.now,
     rateLimiter: options.cleaningRateLimiter,
+    smsSender: options.cleaningSmsSender,
   });
 
   async function sendWelcomeEmail(to) {

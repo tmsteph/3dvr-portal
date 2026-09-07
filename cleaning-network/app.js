@@ -2,7 +2,7 @@ const leadForm = document.querySelector('#cleaningLeadForm');
 const partnerForm = document.querySelector('#partnerInterestForm');
 const leadStatus = document.querySelector('#formStatus');
 const partnerStatus = document.querySelector('#partnerStatus');
-const serviceSelect = leadForm.elements.namedItem('serviceType');
+const serviceInput = leadForm.elements.namedItem('serviceType');
 const selectedService = document.querySelector('#selectedService');
 const serviceGrid = document.querySelector('#serviceGrid');
 const heroImage = document.querySelector('#heroImage');
@@ -70,8 +70,8 @@ function syncServiceSelection(value) {
 function bindServiceCards() {
   serviceCards = Array.from(document.querySelectorAll('[data-service]'));
   serviceCards.forEach(card => card.addEventListener('click', () => {
-    serviceSelect.value = card.dataset.service || '';
-    syncServiceSelection(serviceSelect.value);
+    serviceInput.value = card.dataset.service || '';
+    syncServiceSelection(serviceInput.value);
     document.querySelector('#quote').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }));
 }
@@ -82,11 +82,6 @@ function renderServices(services) {
   if (!cleaned.length) return;
 
   serviceGrid.replaceChildren();
-  serviceSelect.replaceChildren();
-  const placeholder = document.createElement('option');
-  placeholder.value = '';
-  placeholder.textContent = 'Choose one';
-  serviceSelect.append(placeholder);
 
   cleaned.forEach(service => {
     const card = document.createElement('button');
@@ -105,22 +100,13 @@ function renderServices(services) {
     card.append(image, label);
     serviceGrid.append(card);
 
-    const option = document.createElement('option');
-    option.value = service;
-    option.textContent = service;
-    serviceSelect.append(option);
   });
 
-  const other = document.createElement('option');
-  other.value = 'Other';
-  other.textContent = 'Other';
-  serviceSelect.append(other);
   bindServiceCards();
   syncServiceSelection('');
 }
 
 bindServiceCards();
-serviceSelect.addEventListener('change', () => syncServiceSelection(serviceSelect.value));
 
 function openPartnerDialog() {
   if (!partnerDialog) return;
@@ -257,6 +243,7 @@ async function postForm(form, statusNode, kind, extra = {}) {
     if (form === leadForm) {
       document.querySelector('#preferredDate').min = todayLocal();
       form.querySelector('details')?.removeAttribute('open');
+      serviceInput.value = '';
       syncServiceSelection('');
     }
     const reference = result.requestId ? ` Reference: ${result.requestId}.` : '';
@@ -272,19 +259,21 @@ async function postForm(form, statusNode, kind, extra = {}) {
 
 leadForm.addEventListener('submit', async event => {
   event.preventDefault();
-  const data = new FormData(leadForm);
-  const contact = String(data.get('contact') || '').trim();
-  if (!contact) {
-    setStatus(leadStatus, 'Add a phone or email.', 'error');
+  if (!String(serviceInput.value || '').trim()) {
+    setStatus(leadStatus, 'Choose a service above first.', 'error');
+    document.querySelector('#services').scrollIntoView({ behavior: 'smooth', block: 'start' });
     return;
   }
-  const contactField = contact.includes('@') ? { email: contact } : { phone: contact };
-  await postForm(leadForm, leadStatus, 'cleaning-lead', {
-    ...contactField,
+  const result = await postForm(leadForm, leadStatus, 'cleaning-lead', {
     partner: resolvedPartner,
     source: `cleaning-network:${previewToken ? `preview:${resolvedPartner}` : resolvedPartner}`,
     previewToken
   });
+  if (result) {
+    const reference = result.requestId ? ` Reference: ${result.requestId}.` : '';
+    const textNote = result.smsConfirmationSent ? ' Text confirmation sent too.' : '';
+    setStatus(leadStatus, `Request received. Check your email for confirmation.${textNote}${reference}`, 'success');
+  }
 });
 
 if (partnerForm) {
