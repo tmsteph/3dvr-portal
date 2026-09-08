@@ -103,6 +103,27 @@ function chooseRestDaysForWeek({ dates, workDates, protectedDates, minimumRestDa
   return uniqueBy([...chosen, ...remaining], value => value).slice(0, minimumRestDays);
 }
 
+function splitEncoreAvailabilityDates({ encoreDates, horizonStart, hardWindowDays, softWeeklyMaxDays }) {
+  const hardWindowEnd = addDateDays(horizonStart, Math.max(0, Number(hardWindowDays) || 0));
+  const weeklyCounts = new Map();
+
+  encoreDates.forEach((_shift, date) => {
+    const weekStart = startOfWeekKey(date);
+    weeklyCounts.set(weekStart, (weeklyCounts.get(weekStart) || 0) + 1);
+  });
+
+  const blocking = new Map();
+  const soft = new Map();
+  encoreDates.forEach((shift, date) => {
+    const weekCount = weeklyCounts.get(startOfWeekKey(date)) || 0;
+    const isDistant = date > hardWindowEnd;
+    const isOnesieTwosie = weekCount <= Math.max(0, Number(softWeeklyMaxDays) || 0);
+    (isDistant && isOnesieTwosie ? soft : blocking).set(date, shift);
+  });
+
+  return { blocking, soft };
+}
+
 export function buildWorkSchedulePlan({
   gigs = [],
   encoreShifts = [],
@@ -110,6 +131,8 @@ export function buildWorkSchedulePlan({
   horizonStart = new Date().toISOString().slice(0, 10),
   horizonEnd,
   minimumRestDays = 2,
+  encoreHardWindowDays = 14,
+  softEncoreWeeklyMaxDays = 2,
 } = {}) {
   const start = normalizeDateKey(horizonStart);
   const end = normalizeDateKey(horizonEnd || addDateDays(start, 41));
@@ -130,11 +153,17 @@ export function buildWorkSchedulePlan({
     });
   });
 
-  const encoreDates = new Map();
+  const allEncoreDates = new Map();
   bookedEncore.forEach(shift => {
     enumerateDateRange(shift.startDate, shift.endDate).forEach(date => {
-      if (date >= start && date <= end) encoreDates.set(date, shift);
+      if (date >= start && date <= end) allEncoreDates.set(date, shift);
     });
+  });
+  const { blocking: encoreDates, soft: softEncoreDates } = splitEncoreAvailabilityDates({
+    encoreDates: allEncoreDates,
+    horizonStart: start,
+    hardWindowDays: encoreHardWindowDays,
+    softWeeklyMaxDays: softEncoreWeeklyMaxDays,
   });
 
   const protectedDates = new Set();
@@ -146,13 +175,15 @@ export function buildWorkSchedulePlan({
       });
   });
 
-  const workDates = new Set([...outsideDates.keys(), ...encoreDates.keys()]);
+  // Distant Encore onesies/twosies stay real work commitments for rest planning,
+  // but they do not close IATSE/freelance availability until they enter the hard window.
+  const workDates = new Set([...outsideDates.keys(), ...allEncoreDates.keys()]);
   const conflicts = [...outsideDates.keys()]
-    .filter(date => encoreDates.has(date))
+    .filter(date => allEncoreDates.has(date))
     .map(date => ({
       date,
       outsideGig: outsideDates.get(date),
-      encoreShift: encoreDates.get(date),
+      encoreShift: allEncoreDates.get(date),
       severity: 'high',
     }));
 
@@ -227,9 +258,11 @@ export function buildWorkSchedulePlan({
     actions: uniqueBy(actions, action => action.id),
     conflicts,
     iatseAvailability,
+    softEncoreDates: [...softEncoreDates.keys()].sort(),
     metrics: {
       outsideBookedDays: outsideDates.size,
-      encoreBookedDays: encoreDates.size,
+      encoreBookedDays: allEncoreDates.size,
+      encoreSoftDays: softEncoreDates.size,
       restDays: new Set(restDays).size,
       conflicts: conflicts.length,
       encoreRequestsNeeded: outsideDates.size,

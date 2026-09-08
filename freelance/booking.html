@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Freelance Booking Policy | 3DVR</title>
+  <meta name="description" content="Keep freelance booking rules, staffing rosters, rates, login state, and next actions in one place." />
+  <meta name="theme-color" content="#07111f" />
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-mark.svg" />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./booking.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+  <script src="/auth-identity.js" defer></script>
+  <script type="module" src="./booking.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">3DVR</a>
+    <nav aria-label="Freelancer navigation">
+      <a href="/freelance/">Desk</a>
+      <a href="/freelance/schedule.html">Schedule</a>
+      <a href="/freelance/workspace.html">Workspace</a>
+      <a href="/calendar/">Calendar</a>
+    </nav>
+  </header>
+
+  <main class="shell">
+    <section class="hero booking-hero">
+      <div>
+        <p class="eyebrow">Booking policy</p>
+        <h1>Book the best work. Protect the life.</h1>
+        <p class="lede">One source of truth for the rules and rosters that decide what should fill the calendar.</p>
+      </div>
+      <div class="hero-actions">
+        <button class="button primary" type="button" id="addSourceButton">+ Source</button>
+        <a class="button" href="/freelance/schedule.html">Open schedule</a>
+      </div>
+    </section>
+
+    <section class="metrics booking-metrics" aria-label="Booking targets">
+      <article><strong>4</strong><span>Target workdays / week</span></article>
+      <article><strong>2</strong><span>Minimum real days off</span></article>
+      <article><strong>14d</strong><span>Encore hard window</span></article>
+      <article><strong>3d</strong><span>Availability refresh</span></article>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Decision rules</p>
+          <h2>Booking rules</h2>
+        </div>
+        <a class="button compact" href="/freelance/schedule.html">Apply to schedule</a>
+      </div>
+      <div id="policyList" class="policy-grid"></div>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading roster-heading">
+        <div>
+          <p class="eyebrow">Work sources</p>
+          <h2>Roster</h2>
+        </div>
+        <div class="roster-actions">
+          <span id="sourceSyncState" class="status-pill">Syncing</span>
+          <button id="showAllButton" class="button compact" type="button">Show all</button>
+        </div>
+      </div>
+      <div class="roster-labels" aria-hidden="true">
+        <span>Source</span><span>Status</span><span>Rate</span><span>Last / next</span><span></span>
+      </div>
+      <div id="sourceList" class="source-list"></div>
+    </section>
+  </main>
+
+  <dialog id="sourceDialog" class="dialog">
+    <form id="sourceForm" method="dialog">
+      <div class="dialog-heading">
+        <div><p class="eyebrow">Work source</p><h2 id="sourceDialogTitle">Edit source</h2></div>
+        <button class="icon-button" type="button" id="closeSourceDialog" aria-label="Close">×</button>
+      </div>
+      <input id="sourceId" type="hidden" />
+      <div class="form-grid">
+        <label><span>Name *</span><input id="sourceName" required /></label>
+        <label><span>Type</span><input id="sourceKind" placeholder="Union, portal, production company…" /></label>
+        <label><span>Status</span><input id="sourceStatus" placeholder="Active, Applied, Research…" /></label>
+        <label><span>Login</span><input id="sourceLogin" placeholder="Ready, Verify, N/A" /></label>
+        <label><span>Onboarding</span><input id="sourceOnboarding" /></label>
+        <label><span>Rate</span><input id="sourceRate" placeholder="$600/day" /></label>
+        <label><span>Priority</span><input id="sourcePriority" type="number" min="1" max="999" /></label>
+        <label><span>Portal / company URL</span><input id="sourceUrl" type="url" /></label>
+        <label class="wide"><span>Last action</span><input id="sourceLastAction" /></label>
+        <label class="wide"><span>Next action</span><input id="sourceNextAction" /></label>
+      </div>
+      <div class="dialog-actions">
+        <button class="button" type="button" id="cancelSourceDialog">Cancel</button>
+        <button class="button primary" type="submit">Save source</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer class="shell footer">
+    <span>3DVR — Work should fit your life.</span>
+    <a href="/freelance/">Freelancer Desk</a>
+  </footer>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>

@@ -78,3 +78,36 @@ test('double bookings are surfaced as blocked conflicts instead of silently over
     && action.status === 'blocked'
   )));
 });
+
+test('distant Encore onesies and twosies stay open for IATSE or better freelance work', () => {
+  const plan = buildWorkSchedulePlan({
+    horizonStart: '2026-09-07',
+    horizonEnd: '2026-10-04',
+    encoreShifts: [
+      { id: 'e1', date: '2026-10-01', status: 'Booked' },
+      { id: 'e2', date: '2026-10-04', status: 'Booked' },
+    ],
+  });
+
+  assert.equal(plan.iatseAvailability['2026-10-01'], 'All Day');
+  assert.equal(plan.iatseAvailability['2026-10-04'], 'All Day');
+  assert.deepEqual(plan.softEncoreDates, ['2026-10-01', '2026-10-04']);
+  assert.equal(plan.metrics.encoreSoftDays, 2);
+});
+
+test('distant dense Encore weeks remain blocked', () => {
+  const plan = buildWorkSchedulePlan({
+    horizonStart: '2026-09-07',
+    horizonEnd: '2026-10-04',
+    encoreShifts: [
+      { id: 'e1', date: '2026-09-28', status: 'Booked' },
+      { id: 'e2', date: '2026-09-29', status: 'Booked' },
+      { id: 'e3', date: '2026-09-30', status: 'Booked' },
+    ],
+  });
+
+  assert.equal(plan.iatseAvailability['2026-09-28'], 'Booked');
+  assert.equal(plan.iatseAvailability['2026-09-29'], 'Booked');
+  assert.equal(plan.iatseAvailability['2026-09-30'], 'Booked');
+  assert.deepEqual(plan.softEncoreDates, []);
+});
