@@ -60,7 +60,7 @@ function brokerHttpRequest({ config, method = 'GET', path = '/v1/status', payloa
 async function authorizeOwner(req, body, action, { config, verify }) {
   const auth = await verify(body, {
     scope: 'secrets-broker-owner',
-    expectedOrigin: normalizeText(body.origin || requestOrigin(req)),
+    expectedOrigin: requestOrigin(req) || normalizeText(config.PORTAL_ORIGIN),
     config,
     maxAgeMs: resolveSeaAuthMaxAgeMs(config),
   });
