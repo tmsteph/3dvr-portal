@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "defaults": {
+    "approval": "always",
+    "leaseSeconds": 300,
+    "maxUses": 1
+  },
+  "backends": {
+    "bitwarden": {
+      "type": "bitwarden-secrets-manager",
+      "binary": "/usr/local/bin/bws",
+      "timeoutMs": 15000
+    }
+  },
+  "secrets": {}
+}

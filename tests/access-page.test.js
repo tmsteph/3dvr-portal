@@ -14,8 +14,10 @@ test('Access page keeps secrets out of the browser UI', () => {
 
 test('Access page exposes the owner approval path', () => {
   assert.match(page, /Create 3DVR machine access/);
-  assert.match(page, /Bitwarden Secrets Manager machine account/);
+  assert.match(page, /Bitwarden Secrets Manager/);
   assert.match(page, /3DVR Secrets Broker/);
+  assert.match(app, /secrets-broker-owner/);
+  assert.match(app, /data-decision=\"approve\"/);
 });
 
 test('Portal navigation includes Access', () => {

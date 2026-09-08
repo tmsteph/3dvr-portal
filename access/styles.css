@@ -47,3 +47,14 @@ dialog p { color: #a5b4c8; }
 dialog .note { padding: 12px; border-radius: 12px; background: rgba(14,165,233,.1); color: #cceeff; }
 .close { position: absolute; top: 10px; right: 12px; border: 0; background: transparent; color: #93a4ba; font-size: 1.8rem; cursor: pointer; }
 @media (max-width: 640px) { .next-action { align-items: stretch; flex-direction: column; } .grid, .rule-list { grid-template-columns: 1fr; } .primary { width: 100%; } .back { margin-bottom: 26px; } }
+.hero-row, .section-head.split { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.ghost { min-height: 40px; padding: 9px 13px; border: 1px solid rgba(148,163,184,.24); border-radius: 11px; background: rgba(15,23,42,.45); color: #cbd5e1; font: inherit; font-weight: 700; cursor: pointer; }
+.ghost:disabled, .primary:disabled { opacity: .55; cursor: wait; }
+.approvals { margin-top: 14px; padding: 20px; border: 1px solid rgba(148,163,184,.16); border-radius: 18px; background: rgba(15,23,42,.67); }
+.approval-list { display: grid; gap: 10px; }
+.approval-item { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 15px; border-radius: 14px; background: rgba(2,6,23,.48); }
+.approval-item strong, .approval-item span, .approval-item small { display: block; }
+.approval-item span, .approval-item small, .muted { color: #91a2b8; }
+.approval-item p { margin: 7px 0 0; color: #b9c7d8; font-size: .88rem; }
+.approval-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+@media (max-width: 640px) { .hero-row { align-items: flex-start; } .approval-item { align-items: stretch; flex-direction: column; } .approval-actions { display: grid; grid-template-columns: 1fr 1fr; } }
