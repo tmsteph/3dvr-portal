@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0d1117">
+  <title>Agent Abilities | 3DVR Portal</title>
+  <meta name="description" content="Living registry of what Thomas can delegate to his AI operating partner across connected apps, computers, automation, and the 3DVR control plane.">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+<main>
+  <nav class="nav"><a href="../">3DVR Portal</a><a href="../home/">Apps</a><a href="../agent/">Agent</a><a href="../admin/#agent-ops-card">Agent Operations</a></nav>
+  <header class="hero">
+    <p class="eyebrow">3DVR control plane · living registry</p>
+    <h1>Agent Abilities</h1>
+    <p class="lead">What the operating partner can actually access, create, automate, and operate right now—plus what is partial or still being built.</p>
+    <div class="summary" id="summary" aria-live="polite"></div>
+  </header>
+
+  <section class="controls" aria-label="Capability filters">
+    <input id="search" type="search" placeholder="Search email, browser, jobs, server…" aria-label="Search abilities">
+    <div class="filters" id="filters">
+      <button class="active" data-status="all" type="button">All</button>
+      <button data-status="working" type="button">Working</button>
+      <button data-status="partial" type="button">Partial</button>
+      <button data-status="planned" type="button">Planned</button>
+    </div>
+  </section>
+
+  <section class="registry" id="registry" aria-live="polite"></section>
+  <p class="empty" id="empty" hidden>No abilities match that filter.</p>
+
+  <section class="policy card">
+    <p class="eyebrow">Operating rules</p>
+    <h2>Autonomy with visible boundaries</h2>
+    <div class="policy-grid">
+      <div><strong>Default to action</strong><p>Read, research, organize, build, test, and prepare the next executable step when authorized tools exist.</p></div>
+      <div><strong>Approval where needed</strong><p>Consequential communications and sensitive changes keep their approval boundary.</p></div>
+      <div><strong>No secrets here</strong><p>This registry records capabilities without publishing credentials, private identifiers, tokens, or secret values.</p></div>
+      <div><strong>Verify reality</strong><p>Working means recently verified. Session-dependent systems stay partial until proven healthy again.</p></div>
+    </div>
+  </section>
+
+  <footer>Source: <a href="abilities.json">abilities.json</a> · designed to be updated by the agent control plane.</footer>
+</main>
+<script src="app.js"></script>
+<script defer src="/issue-launcher.js"></script>
+</body>
+</html>
