@@ -38,8 +38,8 @@ async function run(script, args) {
   if (stderr.trim()) console.error(stderr.trim());
 }
 
-function captureArgs(root, output, scenario) {
-  return [
+function captureArgs(root, output, scenario, replayPath = '') {
+  const args = [
     '--root', root,
     '--url', scenario.url,
     '--duration', scenario.duration || '4s',
@@ -50,6 +50,10 @@ function captureArgs(root, output, scenario) {
     '--name', scenario.name,
     '--output', output,
   ];
+  if (scenario.deterministic) args.push('--deterministic');
+  if (scenario.tick) args.push('--tick', String(scenario.tick));
+  if (replayPath) args.push('--replay', replayPath);
+  return args;
 }
 
 function verdictFromMarkdown(markdown) {
@@ -74,9 +78,18 @@ for (const scenario of config.scenarios) {
   const candidateDir = join(scenarioDir, 'candidate');
   const reportDir = join(scenarioDir, 'report');
   await mkdir(reportDir, { recursive: true });
+  let replayPath = '';
+  if (scenario.replay) {
+    replayPath = join(scenarioDir, 'replay.json');
+    const replay = typeof scenario.replay === 'string'
+      ? JSON.parse(await readFile(resolve(scenario.replay), 'utf8'))
+      : scenario.replay;
+    const replayPayload = Array.isArray(replay) ? { events: replay } : replay;
+    await writeFile(replayPath, `${JSON.stringify(replayPayload, null, 2)}\n`);
+  }
 
-  await run('capture.mjs', captureArgs(baselineRoot, baselineDir, scenario));
-  await run('capture.mjs', captureArgs(candidateRoot, candidateDir, scenario));
+  await run('capture.mjs', captureArgs(baselineRoot, baselineDir, scenario, replayPath));
+  await run('capture.mjs', captureArgs(candidateRoot, candidateDir, scenario, replayPath));
   await run('compare-captures.mjs', ['--baseline', baselineDir, '--candidate', candidateDir, '--output', reportDir]);
   await run('ai-review-capture.mjs', ['--comparison', join(reportDir, 'comparison.json')]);
 

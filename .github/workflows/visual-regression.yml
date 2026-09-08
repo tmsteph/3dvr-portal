@@ -7,6 +7,8 @@ on:
     paths:
       - 'noteverse/**'
       - 'driftspace/**'
+      - 'space-jetpack/**'
+      - 'jetpack/**'
       - 'scripts/playwright/**'
       - 'visual-regression.config.json'
       - 'package.json'

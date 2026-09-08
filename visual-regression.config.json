@@ -17,6 +17,25 @@
       "width": 640,
       "height": 360,
       "seed": 1337
+    },
+    {
+      "name": "space-jetpack-mobile-replay",
+      "url": "/space-jetpack/",
+      "duration": "2s",
+      "interval": "500ms",
+      "width": 390,
+      "height": 844,
+      "seed": 1337,
+      "deterministic": true,
+      "tick": "20ms",
+      "replay": [
+        { "at": "200ms", "type": "keydown", "code": "KeyE", "key": "e" },
+        { "at": "800ms", "type": "keyup", "code": "KeyE", "key": "e" },
+        { "at": "900ms", "type": "keydown", "code": "KeyF", "key": "f" },
+        { "at": "920ms", "type": "keyup", "code": "KeyF", "key": "f" },
+        { "at": "1200ms", "type": "keydown", "code": "KeyD", "key": "d" },
+        { "at": "1600ms", "type": "keyup", "code": "KeyD", "key": "d" }
+      ]
     }
   ]
 }

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
@@ -8,6 +8,12 @@ import process from 'node:process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { promisify } from 'node:util';
 import { launchConfiguredPlaywrightBrowser, resolvePlaywrightBrowser } from './browser-targets.mjs';
+import {
+  advanceDeterministicTimeline,
+  initializeDeterministicTimeline,
+  installDeterministicRuntime,
+  normalizeReplayEvents,
+} from './deterministic-runtime.mjs';
 
 const execFileAsync = promisify(execFile);
 const host = '127.0.0.1';
@@ -21,7 +27,7 @@ const mimeTypes = new Map([
 ]);
 
 function printHelp() {
-  console.log(`Usage: npm run visual:capture -- [options]\n\n--url <url|path>  --duration <6s>  --interval <500ms>\n--width <1280>    --height <720>   --browser <chromium>\n--name <label>    --output <dir>   --root <dir>    --seed <number>\n--full-page       --no-video\n`);
+  console.log(`Usage: npm run visual:capture -- [options]\n\n--url <url|path>  --duration <6s>  --interval <500ms>\n--width <1280>    --height <720>   --browser <chromium>\n--name <label>    --output <dir>   --root <dir>    --seed <number>\n--deterministic   --tick <16ms>    --replay <json>\n--full-page       --no-video\n`);
 }
 function parseTime(value, label) {
   const match = String(value ?? '').trim().toLowerCase().match(/^(\d+(?:\.\d+)?)(ms|s)?$/);
@@ -47,7 +53,8 @@ function parseArgs(argv) {
     browser: process.env.PLAYWRIGHT_BROWSER || 'chromium',
     name: process.env.VISUAL_CAPTURE_NAME || '', output: process.env.VISUAL_CAPTURE_OUTPUT || '',
     root: process.env.VISUAL_CAPTURE_ROOT || process.cwd(), seed: null,
-    fullPage: false, video: true,
+    deterministic: false, tickMs: parseTime(process.env.VISUAL_CAPTURE_TICK || '16ms', 'tick'),
+    replay: process.env.VISUAL_CAPTURE_REPLAY || '', fullPage: false, video: true,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -62,6 +69,9 @@ function parseArgs(argv) {
     else if (arg === '--output') options.output = next();
     else if (arg === '--root') options.root = next();
     else if (arg === '--seed') options.seed = parsePositiveInteger(next(), 'seed');
+    else if (arg === '--deterministic') options.deterministic = true;
+    else if (arg === '--tick') options.tickMs = parseTime(next(), 'tick');
+    else if (arg === '--replay') options.replay = next();
     else if (arg === '--full-page') options.fullPage = true;
     else if (arg === '--no-video') options.video = false;
     else if (arg === '--help' || arg === '-h') options.help = true;
@@ -69,6 +79,7 @@ function parseArgs(argv) {
   }
   assert(options.intervalMs > 0, 'interval must be greater than zero');
   assert(options.durationMs >= options.intervalMs, 'duration must be at least one interval');
+  assert(options.tickMs > 0, 'tick must be greater than zero');
   return options;
 }
 
@@ -142,6 +153,27 @@ async function findFfmpeg() {
   throw new Error('Video frame extraction needs ffmpeg. Install Playwright browsers or set FFMPEG_PATH.');
 }
 
+async function synthesizeVideoFromFrames(outputPath, buffers, intervalMs) {
+  const ffmpeg = await findFfmpeg();
+  const fps = Math.max(0.5, 1000 / intervalMs).toFixed(6);
+  await new Promise((resolveVideo, rejectVideo) => {
+    const child = spawn(ffmpeg, [
+      '-hide_banner', '-loglevel', 'error', '-y',
+      '-r', fps, '-f', 'image2pipe', '-c:v', 'mjpeg', '-i', 'pipe:0',
+      '-an', '-r', fps, '-c:v', 'vp8', '-deadline', 'realtime', '-speed', '8', '-b:v', '1M', outputPath,
+    ], { stdio: ['pipe', 'ignore', 'pipe'] });
+    let stderr = '';
+    child.stderr.on('data', chunk => { stderr += chunk.toString(); });
+    child.stdin.on('error', error => {
+      if (error.code !== 'EPIPE') rejectVideo(error);
+    });
+    child.once('error', rejectVideo);
+    child.once('close', code => code === 0 ? resolveVideo() : rejectVideo(new Error(stderr || `ffmpeg exited ${code}`)));
+    buffers.forEach(buffer => child.stdin.write(buffer));
+    child.stdin.end();
+  });
+}
+
 async function extractVideoFrames(videoPath, framesDir, options) {
   const ffmpeg = await findFfmpeg();
   const frames = [];
@@ -185,7 +217,7 @@ function buildReportHtml(manifest) {
   figure{margin:0;background:#1a1a1a;border-radius:10px;overflow:hidden}img{width:100%;display:block}figcaption{padding:8px 10px;color:#aaa;font-variant-numeric:tabular-nums}.stats{display:flex;flex-wrap:wrap;gap:16px}
   </style></head><body><header><h1>${escapeHtml(manifest.name)}</h1><p><code>${escapeHtml(manifest.url)}</code></p>
   <div class="stats"><span>${manifest.viewport.width}×${manifest.viewport.height}</span><span>${manifest.frames.length} frames</span>
-  <span>${manifest.performance.rafFpsDuringCapture.toFixed(1)} rAF FPS during capture</span><span>${manifest.durationMs} ms</span></div></header>${video}
+  <span>${manifest.performance.rafFpsDuringCapture.toFixed(1)} ${manifest.performance.mode === 'simulated' ? 'simulated' : 'rAF'} FPS</span><span>${manifest.durationMs} ms</span></div></header>${video}
   <section><h2>Timeline</h2><div class="grid">${frames}</div></section><section><h2>Captured errors</h2><ul>${errorItems}</ul></section></body></html>`;
 }
 
@@ -201,7 +233,7 @@ const outputDir = resolve(options.output || join('.tmp', 'visual-captures', `${t
 const framesDir = join(outputDir, 'frames');
 const rawVideoDir = join(outputDir, 'video');
 await mkdir(framesDir, { recursive: true });
-if (options.video) await mkdir(rawVideoDir, { recursive: true });
+if (options.video && !options.deterministic) await mkdir(rawVideoDir, { recursive: true });
 
 let server;
 let browser;
@@ -209,8 +241,12 @@ let context;
 let page;
 let videoHandle;
 let frames = [];
+const deterministicVideoFrames = [];
 const consoleEvents = [];
 const pageErrors = [];
+const replayEvents = options.replay
+  ? normalizeReplayEvents(JSON.parse(await readFile(resolve(options.replay), 'utf8')))
+  : [];
 let targetUrl = options.url;
 let browserTarget;
 let videoSessionStartedAt = 0;
@@ -228,17 +264,11 @@ try {
   browser = await launchConfiguredPlaywrightBrowser(browserTarget);
   context = await browser.newContext({
     viewport: { width: options.width, height: options.height },
-    ...(options.video ? { recordVideo: { dir: rawVideoDir, size: { width: options.width, height: options.height } } } : {}),
+    ...(options.video && !options.deterministic
+      ? { recordVideo: { dir: rawVideoDir, size: { width: options.width, height: options.height } } }
+      : {}),
   });
-  if (options.seed !== null) {
-    await context.addInitScript((seed) => {
-      let state = seed >>> 0;
-      Math.random = () => {
-        state = (state * 1664525 + 1013904223) >>> 0;
-        return state / 4294967296;
-      };
-    }, options.seed);
-  }
+  await installDeterministicRuntime(context, options);
   videoSessionStartedAt = Date.now();
   page = await context.newPage();
   page.on('console', (message) => {
@@ -267,9 +297,22 @@ try {
     requestAnimationFrame(tick);
   });
 
-  videoHandle = options.video ? page.video() : null;
+  videoHandle = options.video && !options.deterministic ? page.video() : null;
   captureStartedAt = Date.now();
-  if (options.video) {
+  if (options.deterministic) {
+    const timeline = await initializeDeterministicTimeline(page, replayEvents);
+    let sequence = 0;
+    for (let scheduledMs = 0; scheduledMs <= options.durationMs; scheduledMs += options.intervalMs) {
+      await advanceDeterministicTimeline(page, timeline, scheduledMs, options.tickMs, replayEvents);
+      const fileName = `frame-${String(sequence).padStart(4, '0')}-${String(scheduledMs).padStart(6, '0')}ms.png`;
+      await page.screenshot({ path: join(framesDir, fileName), fullPage: options.fullPage, animations: 'allow' });
+      if (options.video) {
+        deterministicVideoFrames.push(await page.screenshot({ type: 'jpeg', quality: 84, fullPage: options.fullPage, animations: 'allow' }));
+      }
+      frames.push({ sequence, scheduledMs, actualMs: scheduledMs, path: `frames/${fileName}`, source: 'deterministic-page' });
+      sequence += 1;
+    }
+  } else if (options.video) {
     await delay(options.durationMs);
   } else {
     let sequence = 0;
@@ -293,6 +336,7 @@ try {
     rafFpsDuringCapture: measuredDeltas * 1000 / elapsedPerfMs,
     averageFrameMs: measuredDeltas ? perf.totalDelta / measuredDeltas : 0,
     worstFrameMs: perf?.maxDelta || 0,
+    mode: options.deterministic ? 'simulated' : 'measured',
   };
 
   const title = await page.title();
@@ -301,7 +345,11 @@ try {
   context = null;
 
   let videoPath = null;
-  if (videoHandle) {
+  if (options.deterministic && options.video && frames.length) {
+    const finalPath = join(outputDir, 'capture.webm');
+    await synthesizeVideoFromFrames(finalPath, deterministicVideoFrames, options.intervalMs);
+    videoPath = relative(outputDir, finalPath).replaceAll('\\', '/');
+  } else if (videoHandle) {
     const rawPath = await videoHandle.path();
     const finalPath = join(outputDir, 'capture.webm');
     await rename(rawPath, finalPath);
@@ -325,10 +373,13 @@ try {
     intervalMs: options.intervalMs,
     viewport: { width: options.width, height: options.height },
     fullPage: options.fullPage,
-    captureMode: options.video ? 'video+extracted-frames' : 'direct-screenshots',
+    captureMode: options.deterministic
+      ? (options.video ? 'deterministic-screenshots+synthetic-video' : 'deterministic-screenshots')
+      : (options.video ? 'video+extracted-frames' : 'direct-screenshots'),
     browser: browserTarget.displayName,
     root: rootDir,
     seed: options.seed,
+    deterministic: options.deterministic ? { tickMs: options.tickMs, replay: replayEvents } : null,
     video: videoPath,
     frames,
     performance: performanceSummary,
