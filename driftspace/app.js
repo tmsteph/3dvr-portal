@@ -2,6 +2,7 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.m
 import {
   openDatabase,
   loadState,
+  saveState,
   exportWorkspace,
   importWorkspace
 } from '../life-space/storage.js';
@@ -17,6 +18,7 @@ const spaceSelect = $('#space-select');
 const syncStatus = $('#sync-status');
 const speedValue = $('#speed-value');
 const speedBar = $('#speed-bar');
+const targetHud = $('.target');
 const targetKind = $('#target-kind');
 const targetTitle = $('#target-title');
 const targetDistance = $('#target-distance');
@@ -24,6 +26,14 @@ const streakEl = $('#streak');
 const toast = $('#toast');
 const boostFlash = $('#boost-flash');
 const targetMarker = $('#target-marker');
+const dockPanel = $('#dock-panel');
+const dockType = $('#dock-type');
+const dockHeading = $('#dock-heading');
+const dockTitle = $('#dock-title');
+const dockBody = $('#dock-body');
+const dockBodyLabel = $('#dock-body-label');
+const dockLaunch = $('#dock-launch');
+const dockStatus = $('#dock-status');
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x030711);
@@ -89,6 +99,7 @@ let throttle = 0.42;
 let boost = 0;
 let streak = 0;
 let targetId = null;
+let dockedBeacon = null;
 let toastTimer = null;
 let dragTravel = 0;
 let primaryPointerId = null;
@@ -110,6 +121,19 @@ function currentSpace() {
 
 function itemTitle(item) {
   return String(item.title || item.text || item.note || item.name || item.type || 'Untitled').trim().slice(0, 72);
+}
+
+function itemBody(item) {
+  if (!item) return '';
+  if (item.type === 'checklist') return (item.rows || []).map(row => row.text || '').join('\n');
+  if (item.type === 'link') return item.note || item.url || '';
+  if (item.type === 'file' || item.type === 'image') return item.name || item.fileName || '';
+  return item.text || item.note || '';
+}
+
+function editableItemFor(beacon) {
+  const id = beacon?.userData?.item?.id;
+  return currentSpace()?.items?.find(item => item.id === id) || null;
 }
 
 function idHash(value) {
@@ -167,6 +191,7 @@ function makeLabel(text) {
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }));
   sprite.scale.set(4.6, 0.86, 1);
   sprite.position.y = 2.35;
+  sprite.userData.isLabel = true;
   return sprite;
 }
 
@@ -286,6 +311,103 @@ function flashBoost() {
   boostFlash.classList.add('on');
 }
 
+function dockAt(beacon) {
+  dockedBeacon = beacon;
+  running = false;
+  keys.clear();
+  speed = 0;
+  speedValue.textContent = '0';
+  speedBar.style.width = '0%';
+  targetMarker.hidden = true;
+  targetHud.hidden = true;
+  const dockLabel = beacon.children.find(child => child.userData?.isLabel);
+  if (dockLabel) dockLabel.visible = false;
+
+  const away = camera.position.clone().sub(beacon.position);
+  if (away.lengthSq() < 0.01) away.set(0, 0, 1);
+  camera.position.copy(beacon.position).add(away.normalize().multiplyScalar(7.8));
+  camera.lookAt(beacon.position);
+  yaw = camera.rotation.y;
+  pitch = camera.rotation.x;
+  roll = 0;
+  camera.rotation.set(pitch, yaw, roll);
+
+  const sourceItem = beacon.userData.item;
+  const item = editableItemFor(beacon);
+  dockType.textContent = String(sourceItem.type || 'idea').toUpperCase();
+  dockHeading.textContent = itemTitle(sourceItem);
+  dockTitle.value = item?.title || '';
+  dockBody.value = itemBody(item || sourceItem);
+  dockBodyLabel.textContent = sourceItem.type === 'checklist' ? 'One task per line' : sourceItem.type === 'link' ? 'Link note' : 'Note';
+  dockTitle.disabled = !item;
+  dockBody.disabled = !item || sourceItem.type === 'file' || sourceItem.type === 'image';
+  dockLaunch.textContent = item ? 'Save & launch' : 'Launch';
+  dockStatus.textContent = item ? 'Edit here, then launch back into the flow.' : 'Flight-test signal · nothing will be saved.';
+  dockPanel.hidden = false;
+}
+
+function refreshBeaconLabel(beacon, item) {
+  const label = beacon?.children?.find(child => child.userData?.isLabel);
+  if (label) {
+    beacon.remove(label);
+    label.material?.map?.dispose?.();
+    label.material?.dispose?.();
+  }
+  beacon?.add(makeLabel(itemTitle(item)));
+}
+
+async function saveDockedItem() {
+  const item = editableItemFor(dockedBeacon);
+  if (!item) return;
+  item.title = dockTitle.value.trim();
+  if (item.type === 'checklist') {
+    const previous = item.rows || [];
+    item.rows = dockBody.value.split('\n').map((text, index) => ({
+      id: previous[index]?.id || `row-${crypto.randomUUID()}`,
+      text,
+      done: previous[index]?.done || false
+    }));
+  } else if (item.type === 'link') item.note = dockBody.value;
+  else if (item.type === 'note' || !item.type) item.text = dockBody.value;
+  item.updatedAt = Date.now();
+  const space = currentSpace();
+  if (space) space.updatedAt = Date.now();
+  state.updatedAt = Date.now();
+  await saveState(db, state);
+  refreshBeaconLabel(dockedBeacon, item);
+  const refreshedLabel = dockedBeacon?.children?.find(child => child.userData?.isLabel);
+  if (refreshedLabel) refreshedLabel.visible = false;
+  try {
+    const payload = await exportWorkspace(db, state);
+    sync?.save(payload);
+  } catch {}
+  targetTitle.textContent = itemTitle(item);
+}
+
+async function launchFromDock() {
+  dockLaunch.disabled = true;
+  await saveDockedItem();
+  dockLaunch.disabled = false;
+  dockPanel.hidden = true;
+  targetHud.hidden = false;
+  const launchLabel = dockedBeacon?.children?.find(child => child.userData?.isLabel);
+  if (launchLabel) launchLabel.visible = true;
+  dockedBeacon = null;
+  const nextTarget = nearestUnpassed();
+  setTarget(nextTarget);
+  camera.lookAt(nextTarget?.position || new THREE.Vector3(0, 0, 0));
+  yaw = camera.rotation.y;
+  pitch = camera.rotation.x;
+  roll = 0;
+  camera.rotation.set(pitch, yaw, roll);
+  running = true;
+  throttle = Math.max(throttle, 0.38);
+  boost = Math.max(boost, 0.6);
+  clock.getDelta();
+  showToast('Launch');
+  flashBoost();
+}
+
 function passNearbyGate() {
   for (const beacon of beacons) {
     if (beacon.userData.passed) continue;
@@ -295,10 +417,10 @@ function passNearbyGate() {
     beacon.userData.ring.material.opacity = 0.2;
     streak += 1;
     streakEl.textContent = String(streak);
-    boost = Math.max(boost, 0.75);
-    showToast(`✦ ${itemTitle(beacon.userData.item)}`);
-    flashBoost();
-    if (targetId === beacon.userData.item.id) setTarget(nearestUnpassed());
+    setTarget(beacon);
+    showToast(`Docking · ${itemTitle(beacon.userData.item)}`);
+    dockAt(beacon);
+    return;
   }
 }
 
@@ -357,6 +479,7 @@ function updateFlight(dt) {
 }
 
 function pick(clientX, clientY) {
+  if (dockedBeacon) return;
   const rect = canvas.getBoundingClientRect();
   pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
@@ -424,7 +547,7 @@ canvas.addEventListener('pointercancel', releasePointer);
 canvas.addEventListener('contextmenu', event => event.preventDefault());
 canvas.addEventListener('wheel', event => {
   event.preventDefault();
-  throttle = THREE.MathUtils.clamp(throttle - event.deltaY * 0.0008, 0.08, 1);
+  if (!dockedBeacon) throttle = THREE.MathUtils.clamp(throttle - event.deltaY * 0.0008, 0.08, 1);
 }, { passive: false });
 
 window.addEventListener('keydown', event => {
@@ -435,6 +558,8 @@ window.addEventListener('keydown', event => {
 });
 window.addEventListener('keyup', event => keys.delete(event.key.toLowerCase()));
 
+dockLaunch.addEventListener('click', launchFromDock);
+
 launchButton.addEventListener('click', () => {
   running = true;
   launchCard.hidden = true;
@@ -444,6 +569,9 @@ launchButton.addEventListener('click', () => {
 });
 
 spaceSelect.addEventListener('change', () => {
+  dockedBeacon = null;
+  dockPanel.hidden = true;
+  targetHud.hidden = false;
   buildBeacons();
   resetFlight();
   showToast(currentSpace()?.name || 'New space');
@@ -483,7 +611,7 @@ async function refreshFromSync() {
     if (!merged?.state?.spaces?.length) return;
     state = merged.state;
     try { await importWorkspace(db, merged); } catch {}
-    if (!running) {
+    if (!running && !dockedBeacon) {
       populateSpaces();
       buildBeacons();
       resetFlight();
