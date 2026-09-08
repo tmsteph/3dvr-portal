@@ -55,7 +55,10 @@
     "playwright:verify:chrome-safari": "sh scripts/playwright/run-in-linux.sh playwright:verify:chrome-safari:linux",
     "vercel:alias-staging": "sh scripts/vercel/alias-staging-domains.sh",
     "playwright:ux:linux": "npm run playwright:install:linux && node scripts/playwright/ux-pass.mjs",
-    "playwright:ux": "sh scripts/playwright/run-in-linux.sh playwright:ux:linux"
+    "playwright:ux": "sh scripts/playwright/run-in-linux.sh playwright:ux:linux",
+    "visual:compare": "node scripts/playwright/compare-captures.mjs",
+    "visual:ai-review": "node scripts/playwright/ai-review-capture.mjs",
+    "visual:regression": "node scripts/playwright/run-visual-regression.mjs"
   },
   "dependencies": {
     "gun": "^0.2020.1241",
@@ -65,6 +68,8 @@
   },
   "devDependencies": {
     "http-server": "^14.1.1",
-    "playwright": "^1.45.0"
+    "pixelmatch": "^7.2.0",
+    "playwright": "^1.45.0",
+    "pngjs": "^7.0.0"
   }
 }

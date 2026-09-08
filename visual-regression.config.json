@@ -1,0 +1,22 @@
+{
+  "scenarios": [
+    {
+      "name": "noteverse-desktop",
+      "url": "/noteverse/",
+      "duration": "2s",
+      "interval": "500ms",
+      "width": 640,
+      "height": 360,
+      "seed": 1337
+    },
+    {
+      "name": "driftspace-desktop",
+      "url": "/driftspace/",
+      "duration": "2s",
+      "interval": "500ms",
+      "width": 640,
+      "height": 360,
+      "seed": 1337
+    }
+  ]
+}

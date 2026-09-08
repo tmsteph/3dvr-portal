@@ -22,6 +22,8 @@ Useful options:
 - `--browser firefox` for another rendering engine.
 - `--name flight-controls` for a readable artifact folder.
 - `--output /tmp/capture` for a fixed output path.
+- `--root /path/to/worktree` to capture another checkout without reinstalling Playwright.
+- `--seed 1337` to make procedural `Math.random()` content deterministic for comparisons.
 - `--no-video` for ordinary UI screenshots when timing is not important.
 - `--full-page` with `--no-video` for long document-style pages.
 ## Output
@@ -41,6 +43,14 @@ Give the capture folder to a multimodal reviewer and ask it to inspect frames ch
 
 The `rafFpsDuringCapture` field is a diagnostic signal, not a hardware benchmark. Headless Chromium may use software WebGL; use a real GPU browser session when judging production frame rate.
 
-## Next layer
+## Before/after regression
 
-The manifest format is intentionally simple so CI or an agent can later compare two runs, score visual differences, retain failure artifacts, or require an AI review before merging animation/gameplay changes.
+`npm run visual:regression` captures the configured scenarios from two worktrees, compares matching frames with pixel diffs, preserves both videos, and writes a combined summary. Scenarios live in `visual-regression.config.json`.
+
+```sh
+npm run visual:regression -- --baseline-root /tmp/base --candidate-root .
+```
+
+For pull requests that touch visual/3D routes, `.github/workflows/visual-regression.yml` automatically compares the PR against its base commit, uploads the evidence, and posts or updates one PR comment. If `OPENAI_API_KEY` is available, the most changed frame pairs and their diff images are sent to the configured multimodal reviewer (default `gpt-5.6-luna`) for a concise PASS/WARN/FAIL critique. Without a key, pixel evidence and reports still run normally.
+
+Pixel percentage alone is not a merge gate: animation can legitimately move. The AI/human review should judge whether the candidate remains coherent and intentional. Only put a route in the automatic config after same-code captures are stable; fast free-running gameplay should stay capture-only until its clock/input playback is deterministic.
