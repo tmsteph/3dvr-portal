@@ -25,6 +25,8 @@ const nudgeButtons = [...document.querySelectorAll('[data-nudge]')];
 const addForm = $('#add-note');
 const newNoteInput = $('#new-note');
 const motionLookButton = $('#motion-look');
+const flightStartButton = $('#flight-start');
+const flightExitButton = $('#flight-exit');
 const stageHint = $('.stage-hint');
 const sunMenu = $('#sun-menu');
 const editorPanel = $('#editor-panel');
@@ -64,6 +66,10 @@ const activePointers = new Map();
 let primaryPointerId = null;
 let previousPinchDistance = null;
 let sunMenuOpen = false;
+let flightMode = false;
+let flightSpeed = 2.2;
+let touchDevice = false;
+let previousAnimationTime = 0;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x070b12);
@@ -213,7 +219,7 @@ function makeLabel(item) {
   context.fillStyle = '#edf5ff';
   context.font = '600 28px system-ui, sans-serif';
   context.textAlign = 'center';
-  constext.textBaseline = 'middle';
+  context.textBaseline = 'middle';
   context.fillText(text || 'Untitled', 256, 49, 460);
   const texture = new THREE.CanvasTexture(labelCanvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -479,6 +485,35 @@ function lookCamera(dx, dy) {
   updateCamera();
 }
 
+function updateStageHint() {
+  if (!stageHint) return;
+  if (flightMode) {
+    stageHint.textContent = touchDevice
+      ? 'Flight · drag to steer · pinch speed · tap a crystal to stop and edit'
+      : 'Flight · drag to steer · wheel speed · W/S throttle · Esc to stop';
+    return;
+  }
+  stageHint.textContent = touchDevice
+    ? 'Drag to fly · pinch depth · tap sun for commands · tap crystals to edit'
+    : 'Drag to fly · wheel depth · Shift+drag to look · tap sun for commands';
+}
+
+function setFlightMode(enabled) {
+  flightMode = Boolean(enabled);
+  flightStartButton?.setAttribute('aria-pressed', String(flightMode));
+  flightExitButton.hidden = !flightMode;
+  if (flightMode) {
+    selectedId = null;
+    setSunMenu(false);
+    refreshSelection();
+  }
+  updateStageHint();
+}
+
+function adjustFlightSpeed(delta) {
+  flightSpeed = Math.max(0.35, Math.min(7, flightSpeed + delta));
+}
+
 function angleDeltaDegrees(value, baseline) {
   let delta = value - baseline;
   while (delta > 180) delta -= 360;
@@ -548,11 +583,14 @@ function pick(clientX, clientY) {
   raycaster.setFromCamera(pointer, camera);
   const hit = raycaster.intersectObjects([sunTarget, ...selectableMeshes], false)[0];
   if (hit?.object?.userData?.isSun) {
+    if (flightMode) setFlightMode(false);
     setSunMenu(!sunMenuOpen);
     return;
   }
+  const itemId = hit?.object?.userData?.itemId || null;
+  if (flightMode && itemId) setFlightMode(false);
   setSunMenu(false);
-  selectedId = hit?.object?.userData?.itemId || null;
+  selectedId = itemId;
   refreshSelection();
 }
 
@@ -569,6 +607,8 @@ $('#center').addEventListener('click', () => {
   setSunMenu(false);
 });
 motionLookButton?.addEventListener('click', toggleMotionLook);
+flightStartButton?.addEventListener('click', () => setFlightMode(true));
+flightExitButton?.addEventListener('click', () => setFlightMode(false));
 closeSunMenuButton?.addEventListener('click', () => setSunMenu(false));
 closeEditorButton?.addEventListener('click', () => {
   selectedId = null;
@@ -669,8 +709,9 @@ canvas.addEventListener('pointermove', event => {
       const delta = distance - previousPinchDistance;
       if (Math.abs(delta) > 0.4) {
         moved = true;
+        if (flightMode) adjustFlightSpeed(delta * 0.012);
         // Touch depth is intentionally opposite the desktop-style zoom convention.
-        dollyCamera(delta * 0.025);
+        else dollyCamera(delta * 0.025);
       }
     }
     previousPinchDistance = distance;
@@ -682,7 +723,11 @@ canvas.addEventListener('pointermove', event => {
   const dy = next.y - previous.y;
   gestureTravel += Math.hypot(dx, dy);
   if (gestureTravel > 5) moved = true;
-  if (event.shiftKey && event.pointerType !== 'touch') lookCamera(dx, dy);
+  if (flightMode) {
+    yaw += dx * 0.0045;
+    pitch -= dy * 0.0045;
+    updateCamera();
+  } else if (event.shiftKey && event.pointerType !== 'touch') lookCamera(dx, dy);
   else {
     const direction = event.pointerType === 'touch' ? -1 : 1;
     panCamera(dx * direction, dy * direction);
@@ -706,12 +751,29 @@ canvas.addEventListener('pointercancel', releasePointer);
 canvas.addEventListener('contextmenu', event => event.preventDefault());
 canvas.addEventListener('wheel', event => {
   event.preventDefault();
-  dollyCamera(-event.deltaY * 0.008);
+  if (flightMode) adjustFlightSpeed(-event.deltaY * 0.004);
+  else dollyCamera(-event.deltaY * 0.008);
 }, { passive: false });
 
 window.addEventListener('keydown', event => {
   const tag = document.activeElement?.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  const key = event.key.toLowerCase();
+  if (flightMode) {
+    if (event.key === 'Escape') setFlightMode(false);
+    else if (key === 'w') adjustFlightSpeed(0.35);
+    else if (key === 's') adjustFlightSpeed(-0.35);
+    else if (key === 'a') yaw -= 0.08;
+    else if (key === 'd') yaw += 0.08;
+    else if (event.key === 'ArrowUp') pitch += 0.06;
+    else if (event.key === 'ArrowDown') pitch -= 0.06;
+    else if (event.key === 'ArrowLeft') yaw -= 0.08;
+    else if (event.key === 'ArrowRight') yaw += 0.08;
+    else return;
+    updateCamera();
+    event.preventDefault();
+    return;
+  }
   const step = event.shiftKey ? 0.8 : 0.38;
   if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') panCamera(-step / 0.012, 0);
   else if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') panCamera(step / 0.012, 0);
@@ -724,14 +786,10 @@ window.addEventListener('keydown', event => {
 });
 
 async function initialize() {
-  const touchDevice = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+  touchDevice = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
   motionLookButton.hidden = !('DeviceOrientationEvent' in window && touchDevice);
   motionLookButton?.setAttribute('aria-pressed', 'false');
-  if (stageHint) {
-    stageHint.textContent = touchDevice
-      ? 'Drag to fly · pinch depth · tap sun for commands · tap crystals to edit'
-      : 'Drag to fly · wheel depth · Shift+drag to look · tap sun for commands';
-  }
+  updateStageHint();
   resetCamera();
   resize();
   db = await openDatabase();
@@ -761,6 +819,14 @@ async function initialize() {
 new ResizeObserver(resize).observe(stage);
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function animate(time) {
+  const deltaSeconds = previousAnimationTime
+    ? Math.min(0.05, Math.max(0, (time - previousAnimationTime) / 1000))
+    : 0;
+  previousAnimationTime = time;
+  if (flightMode && deltaSeconds) {
+    camera.position.addScaledVector(forwardVector(movementForward), flightSpeed * deltaSeconds);
+    updateCamera();
+  }
   if (!reduceMotion) {
     for (const mesh of selectableMeshes) {
       mesh.rotation.x += 0.0013;

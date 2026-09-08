@@ -35,6 +35,8 @@ button:disabled { opacity: .35; cursor: not-allowed; }
 .item-count { right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); padding: 6px 9px; }
 .sun-hint { left: 50%; top: 56%; padding: 6px 10px; transform: translate(-50%, -50%); color: #ffe9a1; animation: breathe 2.4s ease-in-out infinite; }
 .sun-hint[hidden] { display: none; }
+.flight-exit { position: absolute; z-index: 5; left: 50%; top: max(60px, calc(env(safe-area-inset-top) + 52px)); min-height: 38px; padding: 7px 12px; transform: translateX(-50%); border-radius: 999px; border-color: rgba(117, 189, 255, .48); background: rgba(8, 17, 30, .82); color: #cce8ff; backdrop-filter: blur(12px); }
+.flight-exit[hidden] { display: none; }
 
 .empty-state { position: absolute; inset: 0; z-index: 2; display: grid; place-content: center; justify-items: center; padding: 28px; text-align: center; pointer-events: none; }
 .empty-state span { font-size: 2.5rem; color: #fff0a0; }
