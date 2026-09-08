@@ -83,6 +83,7 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 
 ## Cloud Server Routing
 - Treat `docs/infrastructure-topology.md` as the canonical server-role map. The three VPSes are not interchangeable.
+- ChatGPT connector sessions use the Google Drive mirror `ChatGPT/3DVR Agent Server Routing Policy`; retrieve it before infrastructure/browser work when the routing policy is not already in context, and keep it synchronized with the canonical topology file.
 - **OVH (`3dvr-ovh`)** is the control/recovery anchor and the home of persistent authenticated browser state. Reuse existing browser profiles and the canonical browser controller; do not launch competing profile writers.
 - **Hetzner (`3dvr-hetzner`)** is the default agent/worker and GitHub publishing node. Put code/build/test work, Forge/Operator jobs, scheduled/batch agents, context routing, organism sync, and supervisors here.
 - **DigitalOcean / `debian-web` (`3dvr-do`)** is a 1 GB lightweight fallback. Keep concurrency low; do not add heavy builds, batch workers, duplicate helper brains, persistent experiments, or new browser/VNC workloads.
