@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { runMoneyLoop } from '../../src/money/engine.js';
 import { runAutopilotCycle } from '../../src/money/autopilot.js';
+import { createMoneyAutopilotCronHandler } from '../../src/money/autopilot-cron-handler.js';
 import {
   DEFAULT_RATE_LIMITS,
   createInMemoryRateLimiter,
@@ -262,8 +263,17 @@ export function createMoneyLoopHandler(options = {}) {
   const config = options.config || process.env;
   const resolveEntitlementImpl = options.resolveEntitlementImpl
     || (params => resolveUserEntitlement({ ...params, config }));
+  const autopilotCronHandler = createMoneyAutopilotCronHandler({
+    config,
+    runAutopilotImpl,
+    stripeClient
+  });
 
   return async function handler(req, res) {
+    if (String(req?.query?.route || '').trim() === 'autopilot-cron') {
+      return autopilotCronHandler(req, res);
+    }
+
     setCorsHeaders(res);
 
     if (req.method === 'OPTIONS') {

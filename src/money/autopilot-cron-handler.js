@@ -1,5 +1,5 @@
-import { runAutopilotCycle } from '../../src/money/autopilot.js';
-import { makeStripeClient } from '../../src/billing/stripe.js';
+import { runAutopilotCycle } from './autopilot.js';
+import { makeStripeClient } from '../billing/stripe.js';
 
 function parseBoolean(value, fallback) {
   if (typeof value === 'boolean') {
@@ -119,5 +119,3 @@ export function createMoneyAutopilotCronHandler(options = {}) {
   };
 }
 
-const handler = createMoneyAutopilotCronHandler();
-export default handler;

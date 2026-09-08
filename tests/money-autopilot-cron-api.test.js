@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createMoneyAutopilotCronHandler } from '../api/money/autopilot-cron.js';
+import { createMoneyAutopilotCronHandler } from '../src/money/autopilot-cron-handler.js';
 
 function createMockRes() {
   return {
