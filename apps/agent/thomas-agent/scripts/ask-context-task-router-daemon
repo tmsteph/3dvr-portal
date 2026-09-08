@@ -19,6 +19,7 @@ STATE_DIR="${THREEDVR_AUTOPILOT_STATE_DIR:-$ROOT/state}"
 PID_FILE="$STATE_DIR/context-task-router.pid"
 LOG_FILE="$STATE_DIR/context-task-router.log"
 TMUX_SESSION="${THREEDVR_CONTEXT_TASK_ROUTER_TMUX_SESSION:-3dvr-context-router}"
+ENABLED="${THREEDVR_CONTEXT_TASK_ROUTER_ENABLED:-true}"
 
 mkdir -p "$STATE_DIR"
 
@@ -32,6 +33,15 @@ is_running() {
   [ -n "$pid" ] || return 1
   kill -0 "$pid" 2>/dev/null
 }
+
+if [[ "$ENABLED" =~ ^(0|false|no|off)$ ]]; then
+  case "${1:-}" in
+    start|status)
+      echo "$(basename "$0" -daemon) disabled on this node."
+      exit 0
+      ;;
+  esac
+fi
 
 case "${1:-}" in
   start)
