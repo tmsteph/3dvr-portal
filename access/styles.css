@@ -1,0 +1,49 @@
+:root { color-scheme: dark; }
+body { background: #050a12; }
+.access-shell { width: min(920px, calc(100% - 28px)); margin: 0 auto; padding: 22px 0 64px; position: relative; z-index: 1; }
+.hero { padding: 22px 4px 18px; }
+.back { display: inline-block; color: #9fb0c8; margin-bottom: 36px; }
+.eyebrow { margin: 0 0 5px; color: #7dd3fc; font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+h1, h2, p { margin-top: 0; }
+h1 { margin-bottom: 8px; font-size: clamp(2.4rem, 10vw, 4.4rem); letter-spacing: -.05em; line-height: .95; }
+.lead { max-width: 560px; margin-bottom: 0; color: #9fb0c8; font-size: 1rem; }
+.next-action { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 22px; margin: 12px 0 18px; border: 1px solid rgba(125,211,252,.3); border-radius: 22px; background: linear-gradient(135deg, rgba(14,116,144,.22), rgba(15,23,42,.78)); }
+.next-action h2 { margin-bottom: 6px; font-size: 1.25rem; }
+.next-action p:last-child { margin-bottom: 0; color: #afbdd0; max-width: 620px; }
+.status-dot { display: inline-block; width: 9px; height: 9px; margin-right: 7px; border-radius: 50%; }
+.status-dot.attention { background: #fbbf24; box-shadow: 0 0 0 5px rgba(251,191,36,.1); }
+.primary { min-height: 44px; padding: 10px 16px; border: 0; border-radius: 12px; background: #e6f7ff; color: #07111e; font: inherit; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.primary:active { transform: translateY(1px); }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.card, .principles, .roadmap { border: 1px solid rgba(148,163,184,.16); border-radius: 18px; background: rgba(15,23,42,.67); }
+.card { padding: 18px; }
+.card p { margin-bottom: 0; color: #97a7bd; font-size: .92rem; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.card-head h2 { margin: 0; font-size: 1rem; }
+.pill { padding: 4px 8px; border-radius: 999px; font-size: .68rem; font-weight: 800; white-space: nowrap; }
+.pill.ready { color: #86efac; background: rgba(34,197,94,.12); }
+.pill.waiting { color: #fde68a; background: rgba(245,158,11,.12); }
+.pill.progress { color: #bae6fd; background: rgba(14,165,233,.12); }
+.principles, .roadmap { margin-top: 14px; padding: 20px; }
+.section-head h2 { margin-bottom: 14px; font-size: 1.2rem; }
+.rule-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.rule-list div { padding: 14px; border-radius: 14px; background: rgba(2,6,23,.45); }
+.rule-list strong, .rule-list span { display: block; }
+.rule-list strong { margin-bottom: 4px; }
+.rule-list span { color: #91a2b8; font-size: .86rem; }
+.roadmap ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; }
+.roadmap li { display: grid; grid-template-columns: 32px 1fr; gap: 10px; align-items: center; padding: 10px; border-radius: 13px; color: #75849a; }
+.roadmap li > span { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid #334155; border-radius: 50%; font-weight: 800; }
+.roadmap strong, .roadmap small { display: block; }
+.roadmap small { margin-top: 2px; color: #738399; }
+.roadmap li.done, .roadmap li.active { color: #e5edf8; background: rgba(2,6,23,.35); }
+.roadmap li.done > span { color: #86efac; border-color: rgba(34,197,94,.45); }
+.roadmap li.active > span { color: #fde68a; border-color: rgba(245,158,11,.5); }
+dialog { width: min(460px, calc(100% - 28px)); padding: 0; border: 1px solid #334155; border-radius: 20px; background: #0b1220; color: #e5edf8; box-shadow: 0 30px 90px rgba(0,0,0,.55); }
+dialog::backdrop { background: rgba(0,0,0,.68); backdrop-filter: blur(4px); }
+dialog form { position: relative; padding: 24px; }
+dialog h2 { margin-bottom: 9px; }
+dialog p { color: #a5b4c8; }
+dialog .note { padding: 12px; border-radius: 12px; background: rgba(14,165,233,.1); color: #cceeff; }
+.close { position: absolute; top: 10px; right: 12px; border: 0; background: transparent; color: #93a4ba; font-size: 1.8rem; cursor: pointer; }
+@media (max-width: 640px) { .next-action { align-items: stretch; flex-direction: column; } .grid, .rule-list { grid-template-columns: 1fr; } .primary { width: 100%; } .back { margin-bottom: 26px; } }
