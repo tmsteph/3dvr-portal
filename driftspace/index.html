@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#030711">
+  <title>Driftspace · 3DVR</title>
+  <meta name="description" content="Fly through your Life Space as a fast, spatial 3D world.">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="/auth-identity.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="world-shell">
+    <canvas id="world" aria-label="Interactive 3D Driftspace"></canvas>
+
+    <header class="hud top-left">
+      <a class="mark" href="/" aria-label="3DVR Portal home">3DVR</a>
+      <div><span>Experimental flight</span><strong>Driftspace</strong></div>
+    </header>
+
+    <nav class="hud top-right" aria-label="Driftspace links">
+      <select id="space-select" aria-label="Choose Life Space"></select>
+      <a href="/noteverse/">Noteverse</a>
+      <a href="/labs/">Labs</a>
+    </nav>
+    <section class="speed hud" aria-label="Flight status">
+      <span id="speed-value">0</span><small>FLOW</small>
+      <div class="speed-track"><i id="speed-bar"></i></div>
+    </section>
+
+    <section class="target hud" aria-live="polite">
+      <span id="target-kind">HOME STAR</span>
+      <strong id="target-title">Find your line</strong>
+      <small><b id="target-distance">—</b> · <b id="streak">0</b> gates</small>
+    </section>
+
+    <div class="reticle" aria-hidden="true"><i></i></div>
+    <div id="target-marker" class="target-marker" aria-hidden="true" hidden>◇</div>
+    <div id="boost-flash" class="boost-flash" aria-hidden="true"></div>
+
+    <section id="launch-card" class="launch-card">
+      <p>3DVR FLIGHT TEST</p>
+      <h1>Move first.<br>Think in motion.</h1>
+      <button id="launch" type="button">Launch</button>
+      <small id="controls">Drag to steer · pinch for speed · tap a gate to target</small>
+    </section>
+
+    <p id="sync-status" class="sync-status" role="status">Loading Life Space…</p>
+    <p id="toast" class="toast" role="status" aria-live="polite"></p>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
