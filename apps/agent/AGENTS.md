@@ -11,6 +11,15 @@
 - Keep PRs narrow and do not overwrite or revert other agents' changes unless the user explicitly asks.
 - When the agent finds or contacts business leads, keep the portal CRM current. Run `3dvr crm sync` after outreach or lead discovery; use the default filtered sync for money-relevant contacts, and only use `--include-all` when a full raw import is intentional.
 
+## Cloud Runtime Routing
+
+- Read `../../docs/infrastructure-topology.md` before changing persistent server placement.
+- Hetzner is the normal home for this package and for heavy or continuous agent work. Prefer it for coding, tests/builds, Forge/Operator, scheduled jobs, batch work, context routing, organism sync, supervisors, and GitHub publishing.
+- OVH is the control/recovery and authenticated-browser node. Browser tasks should reuse the existing OVH sessions/profile state; never create a second browser controller or a second writer for the same Chromium profile.
+- DigitalOcean (`debian-web`) is deliberately small. Its reduced runtime may keep lightweight worker, inbox, outreach, heartbeat, health, and emergency-control duties, but helper brains can be offloaded. Do not treat an intentionally offloaded helper as a failure.
+- Do not move heavy work to DigitalOcean just because the current process is already there. Use the `3dvr-ovh`, `3dvr-hetzner`, and `3dvr-do` SSH aliases to route work to the intended node.
+- If routing fails, fail safe and surface the unavailable node; do not compensate by spawning duplicate services or browser sessions.
+
 ## Agent Execution Principles
 
 - Think before coding: state important assumptions, surface conflicting interpretations, and ask when guessing would

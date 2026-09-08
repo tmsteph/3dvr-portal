@@ -81,6 +81,14 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
   - `cd /tmp/3dvr-portal-merge && git merge origin/main`
   - Resolve conflicts, run focused tests, push `HEAD:BRANCH_NAME`, then retry `gh pr merge`.
 
+## Cloud Server Routing
+- Treat `docs/infrastructure-topology.md` as the canonical server-role map. The three VPSes are not interchangeable.
+- **OVH (`3dvr-ovh`)** is the control/recovery anchor and the home of persistent authenticated browser state. Reuse existing browser profiles and the canonical browser controller; do not launch competing profile writers.
+- **Hetzner (`3dvr-hetzner`)** is the default agent/worker and GitHub publishing node. Put code/build/test work, Forge/Operator jobs, scheduled/batch agents, context routing, organism sync, and supervisors here.
+- **DigitalOcean / `debian-web` (`3dvr-do`)** is a 1 GB lightweight fallback. Keep concurrency low; do not add heavy builds, batch workers, duplicate helper brains, persistent experiments, or new browser/VNC workloads.
+- Route work through the SSH mesh rather than duplicating a service on the node where an agent happened to start. If the intended node is unavailable, report the blocker instead of silently overloading DigitalOcean.
+- Preserve authenticated sessions and credentials in place. Never print, log, or copy secrets between servers merely to make routing convenient.
+
 ## Deployment Topology
 - The repository is an asymmetric monorepo: the Vercel portal remains at the root, the separately deployed Hetzner agent lives in `apps/agent`, and other runtime/platform packages can keep their own deployment boundaries inside the same repository.
 - Keep `apps/agent` excluded from Vercel output. Agent changes use their own dependency install, test workflow, environment, and worker cutover.
