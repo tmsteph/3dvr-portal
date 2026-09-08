@@ -1,0 +1,73 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #030711;
+  color: #f4f8ff;
+}
+
+* { box-sizing: border-box; }
+html, body, .world-shell, #world { width: 100%; height: 100%; }
+body { margin: 0; overflow: hidden; background: #030711; }
+button, select, a { font: inherit; -webkit-tap-highlight-color: transparent; }
+.world-shell { position: relative; min-height: 100vh; min-height: 100dvh; overflow: hidden; }
+#world { display: block; touch-action: none; cursor: crosshair; }
+
+.hud { position: absolute; z-index: 5; }
+.top-left, .top-right { top: max(12px, env(safe-area-inset-top)); display: flex; align-items: center; gap: 9px; }
+.top-left { left: max(12px, env(safe-area-inset-left)); }
+.top-right { right: max(12px, env(safe-area-inset-right)); }
+.mark { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid rgba(137, 203, 255, .38); border-radius: 50%; background: rgba(2, 7, 17, .52); color: #dff3ff; font-size: .72rem; font-weight: 900; text-decoration: none; backdrop-filter: blur(12px); }
+.top-left span { display: block; color: #8aa0bd; font-size: .62rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.top-left strong { display: block; font-size: 1rem; letter-spacing: -.03em; text-shadow: 0 2px 14px #000; }
+.top-right a, .top-right select { min-height: 40px; padding: 8px 10px; border: 1px solid rgba(126, 159, 205, .22); border-radius: 999px; background: rgba(3, 8, 20, .58); color: #c7d7eb; text-decoration: none; backdrop-filter: blur(12px); }
+.top-right select { max-width: 145px; }
+
+.speed { left: 50%; top: max(14px, env(safe-area-inset-top)); width: 126px; transform: translateX(-50%); text-align: center; pointer-events: none; }
+.speed > span { display: block; font-size: 1.45rem; font-weight: 900; font-variant-numeric: tabular-nums; text-shadow: 0 0 18px rgba(110, 201, 255, .6); }
+.speed small { display: block; margin-top: -3px; color: #84a2c4; font-size: .55rem; font-weight: 900; letter-spacing: .18em; }
+.speed-track { height: 3px; margin-top: 5px; overflow: hidden; border-radius: 999px; background: rgba(142, 174, 214, .16); }
+.speed-track i { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #66d6ff, #ffe17f); box-shadow: 0 0 10px #67d6ff; transition: width .12s linear; }
+
+.target { left: max(14px, env(safe-area-inset-left)); bottom: max(14px, env(safe-area-inset-bottom)); max-width: min(420px, calc(100% - 28px)); padding: 12px 14px; border-left: 2px solid rgba(105, 208, 255, .7); background: linear-gradient(90deg, rgba(3, 9, 22, .78), transparent); pointer-events: none; }
+.target span, .target small { display: block; color: #8297b4; font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.target strong { display: block; max-width: 360px; margin: 3px 0 4px; overflow: hidden; color: #eef7ff; font-size: 1.08rem; text-overflow: ellipsis; white-space: nowrap; }
+.target b { color: #b8e9ff; font-weight: 850; }
+
+.reticle { position: absolute; left: 50%; top: 50%; z-index: 4; width: 34px; height: 34px; transform: translate(-50%, -50%); border: 1px solid rgba(190, 226, 255, .24); border-radius: 50%; pointer-events: none; }
+.reticle::before, .reticle::after { content: ""; position: absolute; background: rgba(220, 242, 255, .66); }
+.reticle::before { left: 50%; top: -5px; width: 1px; height: 42px; transform: translateX(-50%) scaleY(.3); }
+.reticle::after { left: -5px; top: 50%; width: 42px; height: 1px; transform: translateY(-50%) scaleX(.3); }
+.reticle i { position: absolute; inset: 12px; border-radius: 50%; background: rgba(218, 241, 255, .82); box-shadow: 0 0 11px #8fdcff; }
+.target-marker { position: absolute; z-index: 4; width: 28px; height: 28px; transform: translate(-50%, -50%) rotate(45deg); border: 1px solid rgba(255, 226, 126, .72); border-radius: 7px; color: transparent; box-shadow: 0 0 14px rgba(255, 216, 100, .24); pointer-events: none; }
+.target-marker[hidden] { display: none; }
+
+.launch-card { position: absolute; left: 50%; top: 50%; z-index: 8; width: min(520px, calc(100% - 28px)); padding: 28px; transform: translate(-50%, -50%); border: 1px solid rgba(121, 183, 238, .18); border-radius: 26px; background: rgba(2, 7, 18, .74); box-shadow: 0 26px 80px rgba(0, 0, 0, .52); text-align: center; backdrop-filter: blur(18px); }
+.launch-card[hidden] { display: none; }
+.launch-card p { margin: 0 0 10px; color: #7fd9ff; font-size: .68rem; font-weight: 900; letter-spacing: .16em; }
+.launch-card h1 { margin: 0; font-size: clamp(2.2rem, 8vw, 4.4rem); line-height: .94; letter-spacing: -.055em; }
+.launch-card button { min-width: 150px; min-height: 52px; margin: 24px auto 11px; border: 1px solid rgba(125, 219, 255, .52); border-radius: 999px; background: rgba(56, 155, 221, .18); color: #effaff; font-weight: 900; cursor: pointer; box-shadow: 0 0 34px rgba(73, 182, 246, .16); }
+.launch-card button:hover, .launch-card button:focus-visible { border-color: #b8edff; outline: none; transform: translateY(-1px); }
+.launch-card small { display: block; color: #8fa4be; line-height: 1.4; }
+
+.sync-status, .toast { position: absolute; z-index: 5; right: max(14px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); margin: 0; color: #6f86a5; font-size: .68rem; pointer-events: none; }
+.toast { left: 50%; right: auto; bottom: 18%; padding: 8px 12px; transform: translateX(-50%); border: 1px solid rgba(134, 218, 255, .2); border-radius: 999px; background: rgba(2, 8, 20, .72); color: #d9f4ff; opacity: 0; transition: opacity .2s ease; backdrop-filter: blur(12px); }
+.toast.show { opacity: 1; }
+.boost-flash { position: absolute; inset: 0; z-index: 3; background: radial-gradient(circle, transparent 28%, rgba(98, 205, 255, .14) 70%, rgba(183, 233, 255, .24)); opacity: 0; pointer-events: none; mix-blend-mode: screen; }
+.boost-flash.on { animation: boost .38s ease-out; }
+@keyframes boost { 0% { opacity: .9; } 100% { opacity: 0; } }
+
+@media (max-width: 700px) {
+  .top-left > div { display: none; }
+  .top-right { gap: 6px; }
+  .top-right a { display: none; }
+  .top-right select { max-width: 132px; min-height: 42px; }
+  .speed { top: max(13px, env(safe-area-inset-top)); }
+  .sync-status { display: none; }
+  .target { right: 14px; max-width: none; }
+  .launch-card { padding: 24px 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .speed-track i, .toast { transition: none; }
+  .boost-flash.on { animation: none; opacity: .18; }
+}
