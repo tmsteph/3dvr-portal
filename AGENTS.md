@@ -149,6 +149,7 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 ## Testing & Verification
 - For animation, 3D, gameplay, camera, or other time-dependent visual changes, run `npm run visual:capture -- --url <path>` and review the generated video/frame timeline.
 - Treat headless rAF/FPS as a diagnostic signal, not a hardware benchmark; use video-derived frames to avoid screenshot-induced WebGL stalls.
+- For before/after animation or gameplay changes, use `npm run visual:regression -- --baseline-root <base-worktree>`; keep deterministic seeds and review the AI/pixel evidence instead of gating on raw pixel percentage alone.
 - Add or update automated tests for new logic, especially around Gun node selection, identity, and sync flows.
 - If server code under `api/` changes, start the dev server (`npm run dev`) to confirm it boots cleanly.
 - Document manual walkthroughs for UX-impacting changes, including cache clears and cross-browser GunJS resilience.

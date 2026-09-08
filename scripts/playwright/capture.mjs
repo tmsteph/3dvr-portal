@@ -12,7 +12,7 @@ import { launchConfiguredPlaywrightBrowser, resolvePlaywrightBrowser } from './b
 const execFileAsync = promisify(execFile);
 const host = '127.0.0.1';
 const requestedPort = Number.parseInt(process.env.PLAYWRIGHT_CAPTURE_PORT ?? '0', 10);
-const rootDir = resolve(process.cwd());
+let rootDir = resolve(process.cwd());
 const mimeTypes = new Map([
   ['.css', 'text/css; charset=utf-8'], ['.html', 'text/html; charset=utf-8'],
   ['.js', 'application/javascript; charset=utf-8'], ['.json', 'application/json; charset=utf-8'],
@@ -21,7 +21,7 @@ const mimeTypes = new Map([
 ]);
 
 function printHelp() {
-  console.log(`Usage: npm run visual:capture -- [options]\n\n--url <url|path>  --duration <6s>  --interval <500ms>\n--width <1280>    --height <720>   --browser <chromium>\n--name <label>    --output <dir>   --full-page   --no-video\n`);
+  console.log(`Usage: npm run visual:capture -- [options]\n\n--url <url|path>  --duration <6s>  --interval <500ms>\n--width <1280>    --height <720>   --browser <chromium>\n--name <label>    --output <dir>   --root <dir>    --seed <number>\n--full-page       --no-video\n`);
 }
 function parseTime(value, label) {
   const match = String(value ?? '').trim().toLowerCase().match(/^(\d+(?:\.\d+)?)(ms|s)?$/);
@@ -46,6 +46,7 @@ function parseArgs(argv) {
     height: parsePositiveInteger(process.env.VISUAL_CAPTURE_HEIGHT || '720', 'height'),
     browser: process.env.PLAYWRIGHT_BROWSER || 'chromium',
     name: process.env.VISUAL_CAPTURE_NAME || '', output: process.env.VISUAL_CAPTURE_OUTPUT || '',
+    root: process.env.VISUAL_CAPTURE_ROOT || process.cwd(), seed: null,
     fullPage: false, video: true,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -59,6 +60,8 @@ function parseArgs(argv) {
     else if (arg === '--browser') options.browser = next();
     else if (arg === '--name') options.name = next();
     else if (arg === '--output') options.output = next();
+    else if (arg === '--root') options.root = next();
+    else if (arg === '--seed') options.seed = parsePositiveInteger(next(), 'seed');
     else if (arg === '--full-page') options.fullPage = true;
     else if (arg === '--no-video') options.video = false;
     else if (arg === '--help' || arg === '-h') options.help = true;
@@ -152,6 +155,8 @@ async function extractVideoFrames(videoPath, framesDir, options) {
       '-ss', (videoMs / 1000).toFixed(3), '-i', videoPath,
       '-frames:v', '1', outputPath,
     ], { timeout: 30000 });
+    const extracted = await stat(outputPath).catch(() => null);
+    if (!extracted?.isFile() || extracted.size === 0) continue;
     frames.push({ sequence, scheduledMs, actualMs: scheduledMs, path: `frames/${fileName}`, source: 'video' });
     sequence += 1;
   }
@@ -189,6 +194,7 @@ if (options.help) { printHelp(); process.exit(0); }
 assert(Number.isInteger(requestedPort) && requestedPort >= 0 && requestedPort < 65536,
   'PLAYWRIGHT_CAPTURE_PORT must be between 0 and 65535');
 
+rootDir = resolve(options.root);
 const startedAt = new Date();
 const label = options.name || slugify(options.url);
 const outputDir = resolve(options.output || join('.tmp', 'visual-captures', `${timestampForPath(startedAt)}-${slugify(label)}`));
@@ -224,6 +230,15 @@ try {
     viewport: { width: options.width, height: options.height },
     ...(options.video ? { recordVideo: { dir: rawVideoDir, size: { width: options.width, height: options.height } } } : {}),
   });
+  if (options.seed !== null) {
+    await context.addInitScript((seed) => {
+      let state = seed >>> 0;
+      Math.random = () => {
+        state = (state * 1664525 + 1013904223) >>> 0;
+        return state / 4294967296;
+      };
+    }, options.seed);
+  }
   videoSessionStartedAt = Date.now();
   page = await context.newPage();
   page.on('console', (message) => {
@@ -312,6 +327,8 @@ try {
     fullPage: options.fullPage,
     captureMode: options.video ? 'video+extracted-frames' : 'direct-screenshots',
     browser: browserTarget.displayName,
+    root: rootDir,
+    seed: options.seed,
     video: videoPath,
     frames,
     performance: performanceSummary,
