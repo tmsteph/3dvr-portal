@@ -4,6 +4,8 @@ Last reviewed: 2026-09-07
 
 This document is the canonical human-readable inventory for the 3DVR compute mesh. Runtime secrets and private keys must never be stored here.
 
+For ChatGPT sessions acting through connectors, the connector-visible mirror is the Google Drive document `ChatGPT/3DVR Agent Server Routing Policy`. A fresh ChatGPT session should retrieve that document before server, browser, deployment, or infrastructure work when this policy is not already in conversation context. Keep the Drive mirror synchronized with this file whenever node roles change.
+
 ## Cloud nodes
 
 | Node | Address | Primary role | Current implementation |
