@@ -163,6 +163,9 @@ chmod 600 "$portal_env"
 start_with_systemd() {
   [ "$(id -u)" = 0 ] || return 1
   command -v systemctl >/dev/null 2>&1 || return 1
+  if [ -x "$current/ops/secrets-broker/install.sh" ]; then
+    bash "$current/ops/secrets-broker/install.sh"
+  fi
   cat > /etc/systemd/system/3dvr-portal.service <<EOF
 [Unit]
 Description=3DVR self-hosted portal
