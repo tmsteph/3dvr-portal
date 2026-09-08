@@ -9,3 +9,6 @@ backups/
 # Local Gun runtime cache and ad-hoc visual verification artifact.
 /radata/
 /sky-room-production-portrait.png
+
+# Generated visual-test recordings and reports.
+/.tmp/
