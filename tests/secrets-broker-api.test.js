@@ -40,6 +40,23 @@ test('owner can read sanitized broker status through OVH socket bridge', async (
   assert.deepEqual(brokerCall, { method: 'GET', path: '/v1/status' });
 });
 
+test('owner proof origin is bound to the receiving request host, not the request body', async () => {
+  let expectedOrigin;
+  const baseVerify = verification();
+  const handler = createSecretsBrokerHandler({
+    config: {},
+    verify: async (body, options) => {
+      expectedOrigin = options.expectedOrigin;
+      return baseVerify(body, options);
+    },
+    brokerRequest: async () => ({ status: 200, body: { ok: true } }),
+  });
+  const res = response();
+  await handler(request({ action: 'status', origin: 'https://attacker.example' }), res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(expectedOrigin, 'https://portal.3dvr.tech');
+});
+
 test('non-owner signed identity cannot manage broker', async () => {
   const handler = createSecretsBrokerHandler({
     config: {}, verify: verification({ alias: 'someone@3dvr', pub: 'other-pub' }),
