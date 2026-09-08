@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08111f">
+  <title>Access · 3DVR</title>
+  <meta name="description" content="Your devices, accounts, approvals, and agent access in one place.">
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/access/styles.css">
+</head>
+<body class="theme-dark">
+  <main class="access-shell">
+    <header class="hero">
+      <a class="back" href="/">← Portal</a>
+      <p class="eyebrow">3DVR Control Plane</p>
+      <h1>Access</h1>
+      <p class="lead">Your devices and accounts, without SSH or passwords in chat.</p>
+    </header>
+
+    <section class="next-action" aria-labelledby="next-title">
+      <div>
+        <span class="status-dot attention" aria-hidden="true"></span>
+        <p class="eyebrow">Your approval</p>
+        <h2 id="next-title">Create 3DVR machine access</h2>
+        <p>Use a Bitwarden Secrets Manager machine account with a scoped access token. Your master password never needs to live on the server.</p>
+      </div>
+      <button class="primary" id="bitwardenApproval" type="button">Setup steps</button>
+    </section>
+
+    <section class="grid" aria-label="Access status">
+      <article class="card">
+        <div class="card-head"><h2>Primary control node</h2><span class="pill ready">Configured</span></div>
+        <p>Remote control is configured through Desktop Commander. Routine work should not require you to learn SSH or server administration.</p>
+      </article>
+      <article class="card">
+        <div class="card-head"><h2>Browser control</h2><span class="pill ready">Guarded</span></div>
+        <p>Persistent business, Encore, and messaging lanes use one-writer control to protect sessions.</p>
+      </article>
+      <article class="card">
+        <div class="card-head"><h2>Secrets Manager</h2><span class="pill waiting">Setup needed</span></div>
+        <p>The machine CLI is prepared. The remaining step is a dedicated machine account with access only to agent-approved secrets.</p>
+      </article>
+      <article class="card">
+        <div class="card-head"><h2>Remote desktop</h2><span class="pill progress">Internal</span></div>
+        <p>The desktop is running on OVH. A protected phone link is the next transport improvement.</p>
+      </article>
+    </section>
+    <section class="principles" aria-labelledby="principles-title">
+      <div class="section-head">
+        <p class="eyebrow">Default rules</p>
+        <h2 id="principles-title">Safe autonomy</h2>
+      </div>
+      <div class="rule-list">
+        <div><strong>Approve once</strong><span>Human approval only when a provider truly requires it.</span></div>
+        <div><strong>Least privilege</strong><span>Agents get only the secret or account scope needed for the job.</span></div>
+        <div><strong>Secrets stay local</strong><span>No passwords copied into chat, logs, prompts, or source control.</span></div>
+        <div><strong>One browser writer</strong><span>One controller owns each persistent browser session at a time.</span></div>
+      </div>
+    </section>
+
+    <section class="roadmap" aria-labelledby="roadmap-title">
+      <div class="section-head">
+        <p class="eyebrow">Next</p>
+        <h2 id="roadmap-title">3DVR Secrets Broker</h2>
+      </div>
+      <ol>
+        <li class="done"><span>1</span><div><strong>Persistent OVH control</strong><small>Desktop Commander + guarded browser lanes</small></div></li>
+        <li class="active"><span>2</span><div><strong>Bitwarden machine access</strong><small>Scoped machine account + access token</small></div></li>
+        <li><span>3</span><div><strong>Phone approval UI</strong><small>Approve new devices and permissions from this page</small></div></li>
+        <li><span>4</span><div><strong>Rotation + audit</strong><small>Change credentials safely and record who used what</small></div></li>
+      </ol>
+    </section>
+
+    <dialog id="approvalDialog">
+      <form method="dialog">
+        <button class="close" aria-label="Close">×</button>
+        <p class="eyebrow">One-time step</p>
+        <h2>Set up machine access</h2>
+        <p>In Bitwarden Secrets Manager, create a project for 3DVR Agent, create a machine account, and give it only the permissions that project needs.</p>
+        <p class="note">Create an access token for that machine account. Do not paste the token into chat; the next step is a private one-time handoff into the server.</p>
+        <button class="primary" value="close">Got it</button>
+      </form>
+    </dialog>
+  </main>
+  <script src="/access/app.js"></script>
+</body>
+</html>
