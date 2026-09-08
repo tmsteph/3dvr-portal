@@ -497,6 +497,17 @@ export function createCleaningNetworkService(options = {}) {
     const email = normalizeEmail(body.email);
     const phone = cleanLine(body.phone, 80);
     const serviceArea = cleanLine(body.serviceArea, 180);
+    const budget = cleanLine(body.budget, 40);
+    const authority = cleanLine(body.authority, 40);
+    const need = cleanLine(body.need, 60);
+    const timing = cleanLine(body.timing, 40);
+    const qualificationScore = [
+      ['1000-2499', '2500-plus'].includes(budget),
+      ['owner', 'decision-maker'].includes(authority),
+      ['more-leads', 'better-funnel', 'multi-company'].includes(need),
+      ['now', '30-days'].includes(timing),
+    ].filter(Boolean).length;
+    const qualified = qualificationScore === 4;
     if (!companyName || !contactName || !email || !serviceArea) {
       return res.status(400).json({ error: 'Add the company, contact name, email, and service area.' });
     }
@@ -517,11 +528,22 @@ export function createCleaningNetworkService(options = {}) {
       email,
       phone,
       serviceArea,
+      budget,
+      authority,
+      need,
+      timing,
+      qualificationScore,
+      qualified,
       services: cleanLine(body.services, 500),
       currentWebsite: normalizePublicUrl(body.currentWebsite),
       desiredSlug: normalizeSlug(body.desiredSlug || companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), ''),
       notes: cleanLongText(body.notes, 3000),
       source: cleanLine(body.source || 'cleaning-network:partner-interest', 160),
+      pageUrl: normalizePublicUrl(body.pageUrl, { stripQuery: true }),
+      referrer: normalizePublicUrl(body.referrer, { stripQuery: true }),
+      utmSource: cleanLine(body.utmSource, 100),
+      utmMedium: cleanLine(body.utmMedium, 100),
+      utmCampaign: cleanLine(body.utmCampaign, 140),
       createdAt: now().toISOString(),
     };
     const expiresAt = new Date(now().getTime() + (30 * 24 * 60 * 60 * 1000)).toISOString();
@@ -546,15 +568,16 @@ export function createCleaningNetworkService(options = {}) {
         from: `"3DVR Cleaning Network" <${config.GMAIL_USER}>`,
         to: destination,
         replyTo: email,
-        subject: `[Cleaning Partner ${id}] ${companyName}`,
+        subject: `[${qualified ? 'QUALIFIED ' : ''}Cleaning Partner ${id}] ${companyName}`,
         text: JSON.stringify(record, null, 2),
         headers: {
           'X-3DVR-Request-Type': 'cleaning-partner-interest',
           'X-3DVR-Request-ID': id,
+          'X-3DVR-Qualification': qualified ? 'qualified' : 'unqualified',
         },
       });
-      console.log(`Cleaning partner request queued: ${id}`);
-      return res.status(200).json({ success: true, requestId: id, previewUrl, previewExpiresAt: expiresAt });
+      console.log(`Cleaning partner request queued: ${id} qualified=${qualified} score=${qualificationScore}/4`);
+      return res.status(200).json({ success: true, requestId: id, previewUrl, previewExpiresAt: expiresAt, qualified, qualificationScore });
     } catch (error) {
       console.error('Cleaning partner request email failed:', error.message);
       return res.status(503).json({ error: 'Partner requests are temporarily unavailable.' });

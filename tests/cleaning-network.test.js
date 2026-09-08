@@ -299,6 +299,25 @@ describe('cleaning network', () => {
     assert.match(message.text, /"desiredSlug": "sparkle-co"/);
   });
 
+  it('marks only strong BANT cleaning partners as qualified', async () => {
+    const mailTransport = createMailTransport();
+    const handler = createHandler({ mailTransport });
+    const res = createMockRes();
+    await handler({ method: 'POST', body: {
+      kind: 'cleaning-partner-interest', companyName: 'Growth Clean', contactName: 'Casey', email: 'casey@growth.example',
+      serviceArea: 'San Diego County', budget: '2500-plus', authority: 'owner', need: 'more-leads', timing: '30-days',
+      utmSource: 'meta', utmCampaign: 'cleaning-growth', pageUrl: 'https://portal.3dvr.tech/cleaning-network/?utm_source=meta',
+    } }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.qualified, true);
+    assert.equal(res.body.qualificationScore, 4);
+    const message = mailTransport.sendMail.mock.calls[0].arguments[0];
+    assert.match(message.subject, /QUALIFIED Cleaning Partner/);
+    assert.equal(message.headers['X-3DVR-Qualification'], 'qualified');
+    assert.match(message.text, /"budget": "2500-plus"/);
+    assert.match(message.text, /"utmCampaign": "cleaning-growth"/);
+  });
+
   it('requires meaningful partner onboarding details', async () => {
     const mailTransport = createMailTransport();
     const handler = createHandler({ mailTransport });

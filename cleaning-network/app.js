@@ -282,14 +282,18 @@ if (partnerForm) {
     const result = await postForm(partnerForm, partnerStatus, 'cleaning-partner-interest', {
       source: 'cleaning-network:partner-interest'
     });
-    if (result?.previewUrl) {
-      const link = document.createElement('a');
-      link.href = result.previewUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.textContent = 'Open your page';
-      partnerStatus.className = 'form-status success';
-      partnerStatus.replaceChildren(document.createTextNode('Preview ready · '), link);
+    if (result) {
+      try {
+        sessionStorage.setItem('cleaningPartnerResult', JSON.stringify({
+          requestId: result.requestId || '',
+          previewUrl: result.previewUrl || '',
+          qualified: Boolean(result.qualified),
+          qualificationScore: Number(result.qualificationScore || 0)
+        }));
+      } catch {
+        // Routing still works if session storage is unavailable.
+      }
+      window.location.assign(result.qualified ? 'qualified.html' : 'thanks.html');
     }
   });
 }

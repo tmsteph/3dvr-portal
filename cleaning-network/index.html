@@ -86,9 +86,9 @@
       <div class="dialog-shell">
         <div class="dialog-heading">
           <div>
-            <p class="eyebrow">For cleaning companies</p>
-            <h2 id="partnerDialogTitle">Your brand. Your leads.</h2>
-            <p>A fast landing page, quote form, and lead routing for your company. Pilot pricing: $300 flat per page.</p>
+            <p class="eyebrow">For established cleaning companies</p>
+            <h2 id="partnerDialogTitle">More qualified leads. Better follow-up.</h2>
+            <p>Built for cleaning companies already booking work and ready to grow. Projects start at $1,000.</p>
           </div>
           <button id="closePartnerDialog" class="dialog-close" type="button" aria-label="Close">×</button>
         </div>
@@ -110,11 +110,15 @@
             <label>Preferred page name<input name="desiredSlug" maxlength="48" placeholder="sparkle-cleaning"></label>
             <label class="wide">Services<input name="services" maxlength="500" placeholder="Homes, offices, turnovers, deep cleaning"></label>
             <label class="wide">Current website <span>optional</span><input name="currentWebsite" type="url" maxlength="500" placeholder="https://"></label>
+            <label>Budget<select name="budget" required><option value="" selected disabled>Select budget</option><option value="under-500">Under $500</option><option value="500-999">$500–$999</option><option value="1000-2499">$1,000–$2,499</option><option value="2500-plus">$2,500+</option></select></label>
+            <label>Authority<select name="authority" required><option value="" selected disabled>Select role</option><option value="owner">Owner / founder</option><option value="decision-maker">I can approve the project</option><option value="researching">I’m researching for someone else</option></select></label>
+            <label>Need<select name="need" required><option value="" selected disabled>Select need</option><option value="more-leads">More qualified leads</option><option value="better-funnel">A better website / sales funnel</option><option value="multi-company">Lead routing for multiple crews / companies</option><option value="exploring">Just exploring</option></select></label>
+            <label>Timing<select name="timing" required><option value="" selected disabled>Select timing</option><option value="now">ASAP / this week</option><option value="30-days">Within 30 days</option><option value="90-days">Within 90 days</option><option value="someday">No timeline yet</option></select></label>
             <label class="wide">Anything we should know? <span>optional</span><textarea name="notes" rows="3" maxlength="3000"></textarea></label>
           </div>
           <label class="honeypot" aria-hidden="true">Website<input name="companyWebsite" tabindex="-1" autocomplete="off"></label>
-          <button class="button primary submit" type="submit">Request a page</button>
-          <p id="partnerStatus" class="form-status" role="status" aria-live="polite">No payment now. We’ll confirm the setup first.</p>
+          <button class="button primary submit" type="submit">See if we’re a fit</button>
+          <p id="partnerStatus" class="form-status" role="status" aria-live="polite">Takes about a minute. No payment now.</p>
         </form>
       </div>
     </dialog>
