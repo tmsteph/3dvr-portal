@@ -1,7 +1,7 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { createOAuthProviderHandler } from '../api/oauth/[provider].js';
+import { createOAuthProviderHandler } from '../src/oauth/provider-api.js';
 
 function createMockRes() {
   return {

@@ -4,20 +4,21 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('Vercel Git temporarily opens main for the controlled production release', async () => {
+test('Vercel Git keeps native production deploys main-only', async () => {
   const config = JSON.parse(await read('vercel.json'));
   assert.deepEqual(config.git?.deploymentEnabled, {
     '**': false,
     main: true,
-    'preview-pr-*': true,
   });
   assert.equal(config.ignoreCommand, undefined);
 });
 
-test('GitHub Actions production workflow is manual fallback only', async () => {
+test('GitHub Actions production fallback is manual or narrowly triggerable from main', async () => {
   const workflow = await read('.github/workflows/vercel-production-prebuilt.yml');
   assert.match(workflow, /workflow_dispatch:/);
-  assert.doesNotMatch(workflow, /\n\s*push:/);
+  assert.match(workflow, /\n\s*push:/);
+  assert.match(workflow, /branches: \[main\]/);
+  assert.match(workflow, /ops\/vercel-production-trigger\.txt/);
   assert.doesNotMatch(workflow, /\n\s*pull_request:/);
   assert.match(workflow, /VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z/);
   assert.match(workflow, /VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch/);

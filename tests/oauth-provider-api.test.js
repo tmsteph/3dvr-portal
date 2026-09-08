@@ -1,9 +1,9 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdir } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createOAuthProviderHandler } from '../api/oauth/[provider].js';
+import { createOAuthProviderHandler } from '../src/oauth/provider-api.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, '..');
@@ -321,7 +321,12 @@ describe('oauth provider api', () => {
     const jsApiFiles = apiFiles.filter(filePath => filePath.endsWith('.js'));
 
     assert.equal(jsApiFiles.length <= 12, true, `Expected at most 12 API functions, found ${jsApiFiles.length}`);
-    assert.equal(jsApiFiles.some(filePath => filePath.endsWith('/oauth/[provider].js')), true);
+    assert.equal(jsApiFiles.some(filePath => filePath.endsWith('/oauth/[provider].js')), false);
+    const vercelConfig = JSON.parse(await readFile(resolve(projectRoot, 'vercel.json'), 'utf8'));
+    assert.deepEqual(vercelConfig.rewrites.find(item => item.source === '/api/oauth/:provider'), {
+      source: '/api/oauth/:provider',
+      destination: '/api/calendar/:provider?mode=oauth',
+    });
     assert.equal(jsApiFiles.some(filePath => filePath.endsWith('/stripe/checkout.js')), false);
     assert.equal(jsApiFiles.some(filePath => filePath.endsWith('/stripe/status.js')), false);
   });

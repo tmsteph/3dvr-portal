@@ -34,6 +34,7 @@
     { "source": "/crm/service-worker.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }, { "key": "Service-Worker-Allowed", "value": "/" }] }
   ],
   "rewrites": [
+    { "source": "/api/oauth/:provider", "destination": "/api/calendar/:provider?mode=oauth" },
     { "source": "/api/cache-reset", "destination": "/cache-reset.html" },
     { "source": "/api/workboard/github", "destination": "/api/session?route=workboard-github" },
     { "source": "/api/crm-check", "destination": "/api/session?route=crm-check" },

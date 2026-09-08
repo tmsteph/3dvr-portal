@@ -34,16 +34,18 @@ test('relay timeout never auto-saves empty startup state', async () => {
   assert.doesNotMatch(timeoutBlock, /\bsave\s*\(/, 'timeout must not overwrite unknown remote state');
 });
 
-test('controlled production release temporarily enables Vercel main while preserving preview/default-deny rules', async () => {
+test('controlled production release keeps native Vercel Git main-only with a bounded fallback', async () => {
   const workflow = await read('.github/workflows/vercel-production-prebuilt.yml');
   const vercelConfig = JSON.parse(await read('vercel.json'));
 
   assert.equal(vercelConfig.git?.deploymentEnabled?.main, true);
-  assert.equal(vercelConfig.git?.deploymentEnabled?.['preview-pr-*'], true);
+  assert.equal(vercelConfig.git?.deploymentEnabled?.['preview-pr-*'], undefined);
   assert.equal(vercelConfig.git?.deploymentEnabled?.['**'], false);
   assert.equal(vercelConfig.ignoreCommand, undefined);
   assert.match(workflow, /workflow_dispatch:/);
-  assert.doesNotMatch(workflow, /^\s*push:/m);
+  assert.match(workflow, /^\s*push:/m);
+  assert.match(workflow, /branches: \[main\]/);
+  assert.match(workflow, /ops\/vercel-production-trigger\.txt/);
   assert.doesNotMatch(workflow, /^\s*pull_request:/m);
   assert.match(workflow, /VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z/);
   assert.match(workflow, /VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch/);

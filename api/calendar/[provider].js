@@ -1,3 +1,7 @@
+import { createOAuthProviderHandler } from '../../src/oauth/provider-api.js';
+
+const oauthProviderHandler = createOAuthProviderHandler();
+
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -259,6 +263,11 @@ export function createCalendarProviderHandler({ fetchImpl = fetch } = {}) {
   const providers = createProviderRouter(fetchImpl);
 
   return async function handler(req, res) {
+    const mode = Array.isArray(req?.query?.mode) ? req.query.mode[0] : req?.query?.mode;
+    if (String(mode || '').trim().toLowerCase() === 'oauth') {
+      return oauthProviderHandler(req, res);
+    }
+
     setCors(res);
     if (req.method === 'OPTIONS') {
       return res.status(200).end();
