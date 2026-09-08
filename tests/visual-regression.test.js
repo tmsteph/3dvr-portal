@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { promisify } from 'node:util';
 import { PNG } from 'pngjs';
+import { normalizeReplayEvents } from '../scripts/playwright/deterministic-runtime.mjs';
 
 const execFileAsync = promisify(execFile);
 const compareScript = resolve('scripts/playwright/compare-captures.mjs');
@@ -69,4 +70,28 @@ test('AI visual review leaves a useful artifact when no key is configured', asyn
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+
+test('replay events normalize human times and preserve deterministic ordering', () => {
+  const events = normalizeReplayEvents([
+    { at: '1s', type: 'keyup', code: 'KeyE' },
+    { at: '200ms', type: 'keydown', code: 'KeyE' },
+    { at: 200, type: 'keydown', code: 'KeyF' },
+  ]);
+  assert.deepEqual(events.map(event => [event.atMs, event.code]), [
+    [200, 'KeyE'],
+    [200, 'KeyF'],
+    [1000, 'KeyE'],
+  ]);
+});
+
+test('automatic visual scenarios include deterministic gameplay replay', async () => {
+  const config = JSON.parse(await readFile(resolve('visual-regression.config.json'), 'utf8'));
+  const jetpack = config.scenarios.find(scenario => scenario.name === 'space-jetpack-mobile-replay');
+  assert(jetpack);
+  assert.equal(jetpack.deterministic, true);
+  assert.equal(jetpack.tick, '20ms');
+  assert(jetpack.replay.some(event => event.type === 'keydown' && event.code === 'KeyE'));
+  assert(jetpack.replay.some(event => event.type === 'keydown' && event.code === 'KeyF'));
 });

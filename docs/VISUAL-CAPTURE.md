@@ -37,6 +37,24 @@ Each run writes `.tmp/visual-captures/<timestamp>-<name>/` with:
 
 Video is the default for animation and 3D because taking live screenshots can stall WebGL. Frames are extracted from the completed recording so the screenshot process does not change the animation being measured.
 
+For free-running gameplay, use `--deterministic` with a fixed `--tick` and optional `--replay` JSON. The harness freezes page animation time between steps, advances `requestAnimationFrame`/`performance.now()` in fixed increments, captures exact screenshots, then builds the WebM from those frozen frames. Screenshot latency therefore cannot advance the simulation.
+
+Example replay:
+
+```json
+{
+  "events": [
+    { "at": "200ms", "type": "keydown", "code": "KeyE", "key": "e" },
+    { "at": "800ms", "type": "keyup", "code": "KeyE", "key": "e" },
+    { "at": "900ms", "type": "keydown", "code": "KeyF", "key": "f" }
+  ]
+}
+```
+
+```sh
+npm run visual:capture -- --url /space-jetpack/ --deterministic --tick 20ms --replay replay.json
+```
+
 ## AI review checklist
 
 Give the capture folder to a multimodal reviewer and ask it to inspect frames chronologically plus the video. Look for missing or late objects, blank frames, flicker, pop-in, layout shifts, camera/input discontinuities, animation jumps, unreadable overlays, and console/page errors.
@@ -53,4 +71,4 @@ npm run visual:regression -- --baseline-root /tmp/base --candidate-root .
 
 For pull requests that touch visual/3D routes, `.github/workflows/visual-regression.yml` automatically compares the PR against its base commit, uploads the evidence, and posts or updates one PR comment. If `OPENAI_API_KEY` is available, the most changed frame pairs and their diff images are sent to the configured multimodal reviewer (default `gpt-5.6-luna`) for a concise PASS/WARN/FAIL critique. Without a key, pixel evidence and reports still run normally.
 
-Pixel percentage alone is not a merge gate: animation can legitimately move. The AI/human review should judge whether the candidate remains coherent and intentional. Only put a route in the automatic config after same-code captures are stable; fast free-running gameplay should stay capture-only until its clock/input playback is deterministic.
+Pixel percentage alone is not a merge gate: animation can legitimately move. The AI/human review should judge whether the candidate remains coherent and intentional. Only put a route in the automatic config after same-code captures are stable. `space-jetpack-mobile-replay` is the reference gameplay case: its movement/fire replay now compares identical code at 0.00% pixel difference in local validation.
