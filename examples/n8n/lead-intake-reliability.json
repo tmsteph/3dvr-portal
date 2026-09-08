@@ -1,0 +1,150 @@
+{
+  "name": "3DVR Lead Intake Reliability Demo",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "3dvr-lead-intake",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "0b8f6c9a-2d91-4a50-a4ab-2d94ceef0111",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-700, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $input.first().json.body ?? $input.first().json;\nconst leadId = String(source.leadId ?? '').trim();\nconst email = String(source.email ?? '').trim().toLowerCase();\nconst state = String(source.state ?? '').trim().toUpperCase();\nconst channel = String(source.source ?? 'unknown').trim();\nconst errors = [];\nif (!leadId) errors.push('leadId is required');\nif (!email || !email.includes('@')) errors.push('valid email is required');\nif (state && !/^[A-Z]{2}$/.test(state)) errors.push('state must be a two-letter code');\nif (errors.length) return [{ json: { ok: false, status: 'invalid', errors } }];\nconst store = $getWorkflowStaticData('global');\nstore.seen ??= {};\nconst now = Date.now();\nconst ttlMs = 24 * 60 * 60 * 1000;\nfor (const [key, seenAt] of Object.entries(store.seen)) { if (now - Number(seenAt) > ttlMs) delete store.seen[key]; }\nconst idempotencyKey = `lead:${leadId}`;\nconst duplicate = Boolean(store.seen[idempotencyKey]);\nif (!duplicate) store.seen[idempotencyKey] = now;\nreturn [{ json: { ok: true, status: duplicate ? 'duplicate' : 'accepted', duplicate, idempotencyKey, lead: { leadId, email, state, source: channel } } }];"
+      },
+      "id": "0b8f6c9a-2d91-4a50-a4ab-2d94ceef0222",
+      "name": "Validate + Dedupe",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-480, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            {
+              "id": "valid-condition",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0b8f6c9a-2d91-4a50-a4ab-2d94ceef0333",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-250, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 400 }
+      },
+      "id": "0b8f6c9a-2d91-4a50-a4ab-2d94ceef0444",
+      "name": "Reject Invalid",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [0, 180]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            {
+              "id": "duplicate-condition",
+              "leftValue": "={{ $json.duplicate }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0b8f6c9a-2d91-4a50-a4ab-2d94ceef0555",
+      "name": "Duplicate?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [0, -40]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, status: 'duplicate', idempotencyKey: $json.idempotencyKey } }}",
+        "options": { "responseCode": 200 }
+      },
+      "id": "0b8f6c9a-2d91-4a50-a4ab-2d94ceef0666",
+      "name": "Acknowledge Duplicate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [250, 80]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $json.lead;\nconst inServiceArea = ['NC', 'SC'].includes(lead.state);\nreturn [{ json: { ...$json, route: inServiceArea ? 'review' : 'out_of_area', crmMutation: { operation: 'upsert', externalId: lead.leadId, fields: { email: lead.email, state: lead.state, source: lead.source, route: inServiceArea ? 'review' : 'out_of_area' } } } }];"
+      },
+      "id": "0b8f6c9a-2d91-4a50-a4ab-2d94ceef0777",
+      "name": "Prepare CRM Mutation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [250, -160]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, status: 'accepted', idempotencyKey: $json.idempotencyKey, route: $json.route, crmMutation: $json.crmMutation } }}",
+        "options": { "responseCode": 202 }
+      },
+      "id": "0b8f6c9a-2d91-4a50-a4ab-2d94ceef0888",
+      "name": "Accept For CRM",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [500, -160]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Validate + Dedupe", "type": "main", "index": 0 }]]
+    },
+    "Validate + Dedupe": {
+      "main": [[{ "node": "Valid?", "type": "main", "index": 0 }]]
+    },
+    "Valid?": {
+      "main": [
+        [{ "node": "Duplicate?", "type": "main", "index": 0 }],
+        [{ "node": "Reject Invalid", "type": "main", "index": 0 }]
+      ]
+    },
+    "Duplicate?": {
+      "main": [
+        [{ "node": "Acknowledge Duplicate", "type": "main", "index": 0 }],
+        [{ "node": "Prepare CRM Mutation", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepare CRM Mutation": {
+      "main": [[{ "node": "Accept For CRM", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0b8f6c9a-2d91-4a50-a4ab-2d94ceef0999",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}
