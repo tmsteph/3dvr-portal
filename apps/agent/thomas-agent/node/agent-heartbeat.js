@@ -8,6 +8,9 @@ const INBOX_SESSION = process.env.THREEDVR_INBOX_TMUX_SESSION || '3dvr-inbox';
 const OUTREACH_SESSION = process.env.THREEDVR_AUTOPILOT_TMUX_SESSION || '3dvr-autopilot';
 const TASK_WORKER_SESSION = process.env.THREEDVR_AGENT_WORKER_TMUX_SESSION || '3dvr-worker';
 const CONTEXT_ROUTER_SESSION = process.env.THREEDVR_CONTEXT_TASK_ROUTER_TMUX_SESSION || '3dvr-context-router';
+const CONTEXT_ROUTER_ENABLED = !/^(0|false|no|off)$/i.test(
+  String(process.env.THREEDVR_CONTEXT_TASK_ROUTER_ENABLED || 'true').trim(),
+);
 const HEARTBEAT_INTERVAL_SECONDS = Number(process.env.THREEDVR_AGENT_HEARTBEAT_INTERVAL_SECONDS || 60);
 const HEARTBEAT_WRITE_TIMEOUT_MS = Number(process.env.THREEDVR_AGENT_HEARTBEAT_WRITE_TIMEOUT_MS || 10000);
 const HEARTBEAT_FLUSH_MS = Number(process.env.THREEDVR_AGENT_HEARTBEAT_FLUSH_MS || 1000);
@@ -31,6 +34,11 @@ function isSessionRunning(sessionName) {
   }
 }
 
+function getRuntimeStatus({ inboxRunning, outreachRunning, workerRunning, routerRunning, routerEnabled = CONTEXT_ROUTER_ENABLED }) {
+  const routerHealthy = !routerEnabled || routerRunning;
+  return inboxRunning && outreachRunning && workerRunning && routerHealthy ? 'running' : 'degraded';
+}
+
 function getRuntimeSnapshot() {
   const now = new Date().toISOString();
   const hostName = os.hostname();
@@ -38,7 +46,12 @@ function getRuntimeSnapshot() {
   const outreachRunning = isSessionRunning(OUTREACH_SESSION);
   const workerRunning = isSessionRunning(TASK_WORKER_SESSION);
   const routerRunning = isSessionRunning(CONTEXT_ROUTER_SESSION);
-  const status = inboxRunning && outreachRunning && workerRunning && routerRunning ? 'running' : 'degraded';
+  const status = getRuntimeStatus({
+    inboxRunning,
+    outreachRunning,
+    workerRunning,
+    routerRunning,
+  });
   let sales = {};
   try {
     sales = gunSafe(compactRuntimeSales(buildSalesSummary({ ownerAlias: OWNER_ALIAS, recentLimit: 3 })));
@@ -71,6 +84,7 @@ function getRuntimeSnapshot() {
     },
     router: {
       session: CONTEXT_ROUTER_SESSION,
+      enabled: CONTEXT_ROUTER_ENABLED,
       running: routerRunning,
     },
     sales,
@@ -119,7 +133,7 @@ function summarizeRuntime(runtime = {}) {
     `Inbox: ${inbox.running ? 'running' : 'stopped'} (${normalizeText(inbox.session) || INBOX_SESSION})`,
     `Outreach: ${outreach.running ? 'running' : 'stopped'} (${normalizeText(outreach.session) || OUTREACH_SESSION})`,
     `Task worker: ${worker.running ? 'running' : 'stopped'} (${normalizeText(worker.session) || TASK_WORKER_SESSION})`,
-    `Context router: ${router.running ? 'running' : 'stopped'} (${normalizeText(router.session) || CONTEXT_ROUTER_SESSION})`
+    `Context router: ${router.enabled === false ? 'offloaded' : router.running ? 'running' : 'stopped'} (${normalizeText(router.session) || CONTEXT_ROUTER_SESSION})`
   ];
   if (sales.generatedAt) {
     lines.push(`Sales: new=${leadCounts.new || 0}, contacted=${leadCounts.contacted || 0}, replied=${leadCounts.replied || 0}, failed=${leadCounts.failed || 0}, manual=${leads.manualReview || 0}, today=${outreachCounts.contactedToday || 0}`);
@@ -265,6 +279,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  getRuntimeStatus,
   getRuntimeSnapshot,
   compactRuntimeSales,
   summarizeRuntime,
