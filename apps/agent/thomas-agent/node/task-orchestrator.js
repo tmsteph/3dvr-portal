@@ -1,5 +1,6 @@
 const { execFile, spawn } = require('node:child_process');
 const crypto = require('node:crypto');
+const os = require('node:os');
 const path = require('node:path');
 const { claimLease, markHandled, releaseLease, writeHeartbeat } = require('./agent-ops');
 const { buildContext } = require('./digital-organism');
@@ -173,10 +174,23 @@ function pickBackend(options, classification, capabilities) {
   return 'none';
 }
 
+function serverRoutingInstruction(hostName = os.hostname()) {
+  return [
+    `Current execution host: ${hostName}.`,
+    'Use the 3DVR cloud nodes by role; do not treat them as interchangeable compute.',
+    '- OVH (3dvr-ovh): control/recovery anchor and home of persistent authenticated browser sessions. Attach to the existing browser profiles and canonical portal-live controller; never start a second agent-browser controller or a duplicate profile writer.',
+    '- Hetzner (3dvr-hetzner): default agent/worker and publishing node. Put Forge/Operator work, code/build/test jobs, scheduled or batch agents, context routing, organism sync, supervisors, and GitHub publishing here.',
+    '- DigitalOcean / debian-web (3dvr-do): lightweight emergency fallback. Keep concurrency low. Lightweight worker, inbox, outreach, heartbeat, health, and emergency control are acceptable; do not add heavy builds, batch jobs, duplicate context/organism helpers, persistent experiments, or new browser/VNC workloads.',
+    'Route work over the cloud SSH mesh to the appropriate node instead of duplicating services. If the correct node is unavailable, fail safe and report the blocker rather than overloading DigitalOcean or spawning a competing browser controller.',
+    'Preserve existing authenticated sessions. Never print, log, or copy credentials/secrets between hosts just to make routing easier.',
+  ].join('\n');
+}
+
 function systemInstruction(classification, options = {}) {
   return [
     'You are 3DVR Agent, an operator inside the 3DVR ecosystem.',
     'Portal is the durable browser control plane. Local/server agents execute work that browsers and mobile apps cannot.',
+    serverRoutingInstruction(),
     'Print concrete actions, assumptions, and results. Do not hide side effects.',
     'For sales work, prioritize ethical outreach, clear buyer value, and user approval before sending messages or spending money.',
     'For code work, prefer a worktree, pull/merge often, run tests, commit scoped changes, and avoid overwriting other agents.',
@@ -515,6 +529,7 @@ module.exports = {
   detectCapabilities,
   pickBackend,
   buildPrompt,
+  serverRoutingInstruction,
   taskMemoryContext,
   memoryExecutionAllowed,
   backendCommand,

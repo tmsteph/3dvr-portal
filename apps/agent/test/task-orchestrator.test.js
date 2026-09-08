@@ -13,6 +13,7 @@ const {
   parseArgs,
   pickBackend,
   runAgentTask,
+  serverRoutingInstruction,
   taskId,
 } = require('../thomas-agent/node/task-orchestrator');
 
@@ -85,12 +86,25 @@ test('unsafe high-risk prompt carries caller approval instead of asking again', 
   assert.doesNotMatch(prompt, /ask for confirmation before/i);
 });
 
+test('server routing instruction assigns each cloud node a distinct role', () => {
+  const routing = serverRoutingInstruction('hetzner-openclaw');
+
+  assert.match(routing, /Current execution host: hetzner-openclaw/);
+  assert.match(routing, /OVH \(3dvr-ovh\).*authenticated browser sessions/);
+  assert.match(routing, /Hetzner \(3dvr-hetzner\).*default agent\/worker and publishing node/);
+  assert.match(routing, /DigitalOcean \/ debian-web \(3dvr-do\).*lightweight emergency fallback/);
+  assert.match(routing, /never start a second agent-browser controller/);
+  assert.match(routing, /rather than overloading DigitalOcean/);
+});
+
 test('buildPrompt preserves the portal and worker architecture', () => {
   const classification = classifyTask('Research a prospect');
   const prompt = buildPrompt('Research a prospect', { repo: '/tmp/repo' }, classification);
 
   assert.match(prompt, /Portal is the durable browser control plane/);
   assert.match(prompt, /Local\/server agents execute work/);
+  assert.match(prompt, /default agent\/worker and publishing node/);
+  assert.match(prompt, /lightweight emergency fallback/);
   assert.match(prompt, /Research a prospect/);
 });
 

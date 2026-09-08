@@ -1,6 +1,6 @@
 # 3DVR Infrastructure Topology
 
-Last reviewed: 2026-09-04
+Last reviewed: 2026-09-07
 
 This document is the canonical human-readable inventory for the 3DVR compute mesh. Runtime secrets and private keys must never be stored here.
 
@@ -13,6 +13,19 @@ This document is the canonical human-readable inventory for the 3DVR compute mes
 | Hetzner | `167.233.174.20` | Agent / worker runtime | Dedicated `apps/agent` runtime, Forge worker, and background jobs |
 
 There is one DigitalOcean droplet in the current account inventory. Do not assume a second DigitalOcean node exists.
+
+## Agent routing contract
+
+Agents must route work by role, not by whichever host they happen to be running on:
+
+- **OVH**: control/recovery, portal/control-plane operations, and persistent authenticated browser state. The canonical host browser controller is `portal-live`; guards prevent a second controller from taking over the same state. Reuse the existing profiles rather than launching fresh Chromium state:
+  - `/config/chromium-profile` — general authenticated workspace, CDP `9222`
+  - `/config/encore-chromium` — Encore/UltiPro workspace, CDP `9333`
+  - `/config/messaging-chromium` — WhatsApp + Google Messages, CDP `9444`
+- **Hetzner**: default compute for agents. Run Forge/Operator, code/build/test, scheduled and batch jobs, context routing, organism sync, supervisors, and GitHub publishing here.
+- **DigitalOcean / `debian-web`**: lightweight fallback only. Keep concurrency low. Its reduced agent runtime may host the lightweight worker, inbox, outreach, heartbeat, health, and emergency control, while context/organism helper work is offloaded. Do not add heavy builds, batch workloads, duplicate helpers, persistent experiments, or new browser/VNC workloads.
+
+Use the SSH aliases `3dvr-ovh`, `3dvr-hetzner`, and `3dvr-do` to route work. If the correct node is unavailable, surface the blocker rather than silently duplicating a service elsewhere. Preserve browser/login state and never move credentials by printing or logging secrets.
 
 ## Edge / operator nodes
 
