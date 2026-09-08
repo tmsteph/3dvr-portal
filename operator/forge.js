@@ -275,10 +275,14 @@ async function signedPortalProof(scope, action, extra = {}, options = {}) {
   };
 }
 
-export async function createOperatorDeveloperProof() {
+export async function createSignedPortalProof(scope, action, extra = {}) {
   const signedIn = globalThis.localStorage?.getItem?.('signedIn') === 'true';
   if (!signedIn) return null;
-  return signedPortalProof('operator-developer-access', 'operator-chat');
+  return signedPortalProof(scope, action, extra);
+}
+
+export async function createOperatorDeveloperProof() {
+  return createSignedPortalProof('operator-developer-access', 'operator-chat');
 }
 
 export async function createOrganismRecallProof(query, options = {}) {

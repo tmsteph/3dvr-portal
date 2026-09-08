@@ -174,6 +174,7 @@ Type=simple
 WorkingDirectory=$current
 EnvironmentFile=-$common_env
 EnvironmentFile=$portal_env
+EnvironmentFile=-/etc/3dvr/secrets-broker/portal.env
 ExecStart=/usr/bin/env node $current/scripts/self-host-server.mjs
 Restart=always
 RestartSec=3
