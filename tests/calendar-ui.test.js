@@ -130,6 +130,16 @@ test('calendar Google OAuth refreshes tokens and imports the upcoming schedule a
   assert.match(html, /name=\"maxResults\" min=\"1\" max=\"100\" value=\"100\"/);
 });
 
+test('calendar invalidates stale provider auth instead of claiming it is connected', async () => {
+  const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
+
+  assert.match(js, /error\.status = response\.status/);
+  assert.match(js, /function isProviderAuthorizationError\(error\)/);
+  assert.match(js, /status === 401 \|\| status === 403/);
+  assert.match(js, /function invalidateProviderConnection\(provider, message = ''\)/);
+  assert.match(js, /needs to be reconnected before calendar events can sync/);
+});
+
 
 test('calendar Week view pans naturally and arrows move one day at a time', async () => {
   const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');

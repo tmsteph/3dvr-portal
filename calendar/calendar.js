@@ -916,6 +916,17 @@ function removeConnection(provider) {
   updateCalendarQuickStats(state.localEvents);
 }
 
+function invalidateProviderConnection(provider, message = '') {
+  removeConnection(provider);
+  const runtime = window.PortalOAuth;
+  if (runtime && typeof runtime.clearConnection === 'function') {
+    runtime.clearConnection(getOauthProviderName(provider));
+  }
+  if (message) {
+    showLog(message, 'error');
+  }
+}
+
 function updateStatus(provider, isConnected) {
   const el = statusElements.get(provider);
   if (!el) return;
@@ -2015,9 +2026,16 @@ async function callProvider(provider, payload) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = data?.error || data?.message || 'Request failed';
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
   }
   return data;
+}
+
+function isProviderAuthorizationError(error) {
+  const status = Number(error?.status) || 0;
+  return status === 401 || status === 403;
 }
 
 function getSelectedProvider() {
@@ -2345,8 +2363,19 @@ async function importUpcomingScheduleFromProvider(provider, anchorDate = new Dat
   };
   if (provider === 'google') payload.calendarId = connection.calendarId || PROVIDERS.google.defaults.calendarId;
   if (provider === 'outlook' && connection.mailbox) payload.mailbox = connection.mailbox;
-  const data = await callProvider(provider, payload);
-  return importRemoteEvents(provider, data.events || []);
+  try {
+    const data = await callProvider(provider, payload);
+    return importRemoteEvents(provider, data.events || []);
+  } catch (err) {
+    if (isProviderAuthorizationError(err)) {
+      const label = PROVIDERS[provider].label;
+      invalidateProviderConnection(
+        provider,
+        `${label} needs to be reconnected before calendar events can sync.`
+      );
+    }
+    throw err;
+  }
 }
 
 async function refreshConnectedProviderCalendars() {
