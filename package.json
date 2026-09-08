@@ -48,6 +48,7 @@
     "playwright:smoke:chrome:linux": "PLAYWRIGHT_BROWSERS=\"chrome\" PLAYWRIGHT_BROWSER=chrome npm run playwright:smoke:linux",
     "playwright:smoke:safari:linux": "PLAYWRIGHT_BROWSERS=\"safari\" PLAYWRIGHT_BROWSER=safari npm run playwright:smoke:linux",
     "playwright:smoke": "sh scripts/playwright/run-smoke.sh",
+    "visual:capture": "node scripts/playwright/capture.mjs",
     "playwright:verify:linux": "npm run playwright:e2e:linux && npm run playwright:smoke:linux",
     "playwright:verify:chrome-safari:linux": "npm run playwright:install:chrome-safari:linux && npm run playwright:smoke:chrome:linux && npm run playwright:smoke:safari:linux",
     "playwright:verify": "sh scripts/playwright/run-in-linux.sh playwright:verify:linux",
