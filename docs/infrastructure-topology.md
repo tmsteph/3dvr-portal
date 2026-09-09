@@ -132,3 +132,9 @@ The three cloud servers should feel like one small resilient computer, with OVH 
 - recoverable data,
 - workloads that can move without mystery dependencies,
 - phones, laptops, and RISC-V hardware joining as disposable edge/operator nodes rather than becoming single points of failure.
+
+## Browser writer lease update — 2026-09-08
+
+OVH currently exposes four persistent browser lanes: general `/config/chromium-profile` on CDP `9222`, Encore/UKG `/config/encore-chromium` on `9333`, messaging `/config/messaging-chromium` on `9444`, and Encore University `/config/encore-training-profile` on `9555`.
+
+The CDP bridge exposes these as `19222`, `19333`, `19444`, and `19555`. Any agent changing page state must first acquire the matching cooperative writer lease through `/usr/local/bin/3dvr-browser-lease`. Only one writer may hold a lane at once; read-only inspection may be concurrent. Expiring leases allow recovery when an agent disappears without restarting or cloning authenticated browser state.

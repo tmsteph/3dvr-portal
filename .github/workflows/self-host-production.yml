@@ -135,7 +135,7 @@ jobs:
           } > "$updates"
 
           if [ ! -s "$updates" ]; then
-            echo 'No runtime secret updates supplied; preserving server configuration.'
+            echo 'No runtime secret updates supplied; preserving the server configuration.'
             exit 0
           fi
 
