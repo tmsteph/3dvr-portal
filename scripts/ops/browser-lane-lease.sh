@@ -94,15 +94,11 @@ case "$action" in
     valid_lane "$lane" && validate_field "$owner" && valid_uint "$ttl" || usage
     prepare_state
     lease_file="$state_dir/$lane.lease"
-    if read_lease && lease_is_live && [ "$current_owner" != "$owner" ]; then
+    if read_lease && lease_is_live; then
       echo "Browser lane '$lane' is busy: owner=$current_owner expires=$current_expires" >&2
       exit 75
     fi
-    if [ "$current_owner" = "$owner" ] && lease_is_live; then
-      token="$current_token"
-    else
-      token="$(new_token)"
-    fi
+    token="$(new_token)"
     expires=$(($(date +%s) + ttl))
     write_lease "$owner" "$token" "$expires"
     printf '%s\n' "$token"
