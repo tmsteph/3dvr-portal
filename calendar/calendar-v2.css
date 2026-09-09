@@ -1364,3 +1364,77 @@ summary:focus-visible {
     display: -webkit-box;
   }
 }
+
+/* Forward-first calendar UX ------------------------------------------------ */
+.calendar-view__event {
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.calendar-view__event:hover,
+.calendar-view__event:focus-visible {
+  background: rgba(110, 155, 195, 0.22);
+  border-color: var(--calendar-border-strong);
+  outline: none;
+}
+
+.calendar-view__details-item--focused {
+  border: 1px solid var(--calendar-primary-strong);
+  box-shadow: inset 0 0 0 1px rgba(110, 155, 195, 0.18);
+}
+
+.calendar-view__day--forward .calendar-view__date--rolling {
+  text-align: left;
+}
+
+.calendar-view__day--forward .calendar-view__event-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-view__controls button:disabled {
+  cursor: default;
+  opacity: 0.34;
+}
+
+@media (max-width: 760px) {
+  .calendar-view__event-time {
+    font-size: 0.58rem;
+  }
+
+  .calendar-view__grid[data-calendar-view="week"] .calendar-view__event-time {
+    font-size: 0.72rem;
+  }
+}
+
+.calendar-view__event-time-micro {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .calendar-view__grid[data-calendar-view="month"] .calendar-view__event-time-full,
+  .calendar-view__grid[data-calendar-view="month"] .calendar-view__event-time-compact {
+    display: none;
+  }
+
+  .calendar-view__grid[data-calendar-view="month"] .calendar-view__event-time-micro {
+    align-items: center;
+    display: grid;
+    font-size: 0.5rem;
+    gap: 0;
+    justify-items: center;
+    line-height: 1.05;
+  }
+
+  .calendar-view__grid[data-calendar-view="month"] .calendar-view__event-title {
+    display: none;
+  }
+
+  .calendar-view__grid[data-calendar-view="month"] .calendar-view__rolling-weekday {
+    font-size: 0.5rem;
+    letter-spacing: 0.02em;
+  }
+
+  .calendar-view__grid[data-calendar-view="month"] .calendar-view__rolling-date {
+    font-size: 0.68rem;
+  }
+}

@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "3DVR Calendar Hub",
+  "name": "3DVR Calendar",
   "short_name": "Calendar",
-  "description": "Manage your events and sync them to Google or Outlook.",
+  "description": "See what is next, with clear times and fast event details.",
   "start_url": "./?source=pwa",
   "scope": "./",
   "display": "standalone",

@@ -12,10 +12,11 @@ test('calendar presents a schedule-first workspace with secondary tools below', 
   assert.match(html, />Connections<\/a>/);
   assert.match(html, /<section class="panel panel--primary" aria-labelledby="calendar-view-title">/);
   assert.match(html, /<div class="calendar-workspace">/);
-  assert.match(html, /<h2 id="calendar-view-title" data-calendar-view-title>Month<\/h2>/);
+  assert.match(html, /<h2 id="calendar-view-title" data-calendar-view-title>Next 7 days<\/h2>/);
   assert.match(html, /data-calendar-view-mode="month"/);
   assert.match(html, /data-calendar-view-mode="week"/);
-  assert.match(html, />Week<\/button>/);
+  assert.match(html, />7 Days<\/button>/);
+  assert.match(html, />4 Weeks<\/button>/);
   assert.match(html, /<aside class="calendar-planner" aria-labelledby="calendar-planner-title">/);
   assert.match(html, /<h2 id="calendar-planner-title">Add event<\/h2>/);
   assert.match(html, /data-label-open="\+ Add event"/);
@@ -39,7 +40,7 @@ test('calendar presents a schedule-first workspace with secondary tools below', 
   );
 });
 
-test('calendar month cells show time ranges and useful event titles', async () => {
+test('calendar forward views show time ranges and useful event titles', async () => {
   const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
   const css = await readFile(new URL('../calendar/calendar-v2.css', import.meta.url), 'utf8');
 
@@ -87,12 +88,21 @@ test('calendar stylesheet keeps seven columns usable on smaller screens', async 
   assert.match(css, /@media \(max-width: 430px\)[\s\S]*?\.calendar-view__event-title\s*\{\s*display:\s*none;/);
 });
 
-test('calendar month cells expose useful event details to assistive tech', async () => {
+test('calendar forward cells expose useful event details to assistive tech', async () => {
   const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
 
   assert.match(js, /item\.setAttribute\('aria-label'/);
   assert.match(js, /eventsForDay\.slice\(0, 3\)\.forEach\(event =>/);
   assert.match(js, /labelParts\.push/);
+});
+
+
+test('calendar relay updates preserve known event titles when partial data arrives', async () => {
+  const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
+
+  assert.match(js, /const existing = state\.localEvents\.find\(event => event\.id === id\)/);
+  assert.match(js, /\.\.\.\(existing \|\| \{\}\)/);
+  assert.match(js, /\.\.\.stripGunMeta\(raw\)/);
 });
 
 test('calendar supports no-login secret share links with view or edit permission', async () => {
@@ -141,17 +151,22 @@ test('calendar invalidates stale provider auth instead of claiming it is connect
 });
 
 
-test('calendar Week view pans naturally and arrows move one day at a time', async () => {
+test('calendar 7-day view pans naturally, stays forward-only, and arrows move one day at a time', async () => {
   const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
   const css = await readFile(new URL('../calendar/calendar-v2.css', import.meta.url), 'utf8');
 
   assert.match(js, /ROLLING_WEEK_VISIBLE_DAYS = 7/);
+  assert.match(js, /FORWARD_WEEKS_DAYS = 28/);
+  assert.match(js, /calendar\.view\.mode\.v2/);
+  assert.match(js, /return 'week';/);
   assert.match(js, /function renderRollingWeek\(events = state\.localEvents\)/);
   assert.match(js, /function handleRollingCalendarScroll\(\)/);
   assert.match(js, /function syncRollingAnchorFromScroll\(\)/);
   assert.match(js, /function rollingCellScrollLeft\(cell\)/);
   assert.doesNotMatch(js, /anchorCell\.offsetLeft/);
   assert.match(js, /next\.setDate\(next\.getDate\(\) \+ offset\)/);
+  assert.match(js, /next < today \? today : next/);
+  assert.match(js, /previousButton\.disabled = anchor <= today/);
   assert.doesNotMatch(js, /offset \* ROLLING_WEEK_VISIBLE_DAYS/);
   assert.match(js, /function startRollingCalendarDrag\(event\)/);
   assert.match(js, /function moveRollingCalendarDrag\(event\)/);
@@ -162,6 +177,19 @@ test('calendar Week view pans naturally and arrows move one day at a time', asyn
   assert.match(css, /::-webkit-scrollbar/);
   assert.match(css, /cursor:\s*grab/);
   assert.match(css, /scroll-behavior:\s*auto/);
+});
+
+
+test('calendar event chips open the exact event detail in one action', async () => {
+  const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../calendar/calendar-v2.css', import.meta.url), 'utf8');
+
+  assert.match(js, /item\.dataset\.eventId = event\.id/);
+  assert.match(js, /function focusCalendarEvent\(eventId, dateString\)/);
+  assert.match(js, /calendarState\.focusedEventId = eventId/);
+  assert.match(js, /eventChip\?\.dataset\.eventId/);
+  assert.match(js, /calendar-view__details-item--focused/);
+  assert.match(css, /\.calendar-view__details-item--focused/);
 });
 
 test('calendar repairs stale untitled imports and removes legacy placeholder events', async () => {

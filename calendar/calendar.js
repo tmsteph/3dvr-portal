@@ -32,8 +32,9 @@ const DEFAULT_REPEAT_WEEKS = null;
 const MAX_REPEAT_WEEKS = 52;
 const DEFAULT_REPEAT_GENERATION_WEEKS = MAX_REPEAT_WEEKS;
 const ROLLING_WEEK_VISIBLE_DAYS = 7;
-const ROLLING_WEEK_BUFFER_DAYS = 14;
-const CALENDAR_VIEW_MODE_KEY = 'calendar.view.mode';
+const ROLLING_WEEK_BUFFER_DAYS = 21;
+const FORWARD_WEEKS_DAYS = 28;
+const CALENDAR_VIEW_MODE_KEY = 'calendar.view.mode.v2';
 
 function startOfMonth(date) {
   const result = new Date(date);
@@ -62,12 +63,13 @@ const state = {
 
 const today = startOfDay(new Date());
 const calendarState = {
-  viewDate: startOfMonth(new Date()),
+  viewDate: startOfDay(new Date()),
   rollingAnchorDate: startOfDay(new Date()),
   viewMode: 'month',
   weekStartsOn: 0,
   selectedDate: today.toISOString().slice(0, 10),
-  dayEvents: new Map()
+  dayEvents: new Map(),
+  focusedEventId: null
 };
 const reminderTimers = new Map();
 let rollingScrollTimer = null;
@@ -822,11 +824,16 @@ function setupGunSync(options = {}) {
     if (!raw || typeof raw !== 'object') {
       return;
     }
-    const sanitized = normalizeStoredEvent({ ...stripGunMeta(raw), id });
+    const existing = state.localEvents.find(event => event.id === id) || null;
+    const sanitized = normalizeStoredEvent({
+      ...(existing || {}),
+      ...stripGunMeta(raw),
+      id
+    });
     if (!sanitized) {
       return;
     }
-    const hasExisting = state.localEvents.some(event => event.id === sanitized.id);
+    const hasExisting = Boolean(existing);
     const nextList = hasExisting
       ? state.localEvents.map(event => (event.id === sanitized.id ? { ...event, ...sanitized } : event))
       : [...state.localEvents, sanitized];
@@ -1225,52 +1232,101 @@ function renderCalendarDayNames() {
   }
 }
 
+function formatForwardCalendarRange(anchorDate, days = FORWARD_WEEKS_DAYS) {
+  const start = startOfDay(anchorDate instanceof Date ? anchorDate : new Date());
+  const end = new Date(start);
+  end.setDate(end.getDate() + Math.max(1, days) - 1);
+  const startLabel = calendarShortDateFormatter.format(start);
+  const endLabel = calendarShortDateFormatter.format(end);
+  return start.getFullYear() === end.getFullYear()
+    ? `${startLabel} – ${endLabel}, ${end.getFullYear()}`
+    : `${startLabel}, ${start.getFullYear()} – ${endLabel}, ${end.getFullYear()}`;
+}
+
+function appendCalendarEventChip(list, event) {
+  const item = document.createElement('li');
+  item.className = 'calendar-view__event';
+  item.dataset.eventId = event.id || '';
+  item.setAttribute('role', 'button');
+  item.setAttribute('tabindex', '0');
+  const timeLabel = formatCalendarRange(event);
+  const compactTimeLabel = formatCompactCalendarRange(event);
+  if (timeLabel) {
+    const time = document.createElement('span');
+    time.className = 'calendar-view__event-time';
+    const full = document.createElement('span');
+    full.className = 'calendar-view__event-time-full';
+    full.textContent = timeLabel;
+    const compact = document.createElement('span');
+    compact.className = 'calendar-view__event-time-compact';
+    compact.textContent = compactTimeLabel || timeLabel;
+    const micro = document.createElement('span');
+    micro.className = 'calendar-view__event-time-micro';
+    const microStart = formatCompactCalendarTime(event.start, event.timeZone);
+    const microEnd = formatCompactCalendarTime(event.end, event.timeZone);
+    micro.innerHTML = `<span>${microStart || ''}</span><span aria-hidden="true">→</span><span>${microEnd || ''}</span>`;
+    time.append(full, compact, micro);
+    item.appendChild(time);
+  }
+  const titleText = event.title || 'Busy';
+  item.setAttribute('aria-label', `${timeLabel ? `${timeLabel}, ` : ''}${titleText}. Open event details.`);
+  const title = document.createElement('span');
+  title.className = 'calendar-view__event-title';
+  title.textContent = titleText;
+  item.appendChild(title);
+  list.appendChild(item);
+}
+
 function renderMonthCalendar(events = state.localEvents) {
+  const today = startOfDay(new Date());
+  let rangeStart = startOfDay(calendarState.viewDate || today);
+  if (rangeStart < today) {
+    rangeStart = today;
+    calendarState.viewDate = today;
+  }
   if (calendarCurrentLabel) {
-    calendarCurrentLabel.textContent = calendarMonthFormatter.format(calendarState.viewDate);
+    calendarCurrentLabel.textContent = formatForwardCalendarRange(rangeStart);
   }
   if (!calendarGrid) return;
   if (calendarGridViewport) calendarGridViewport.dataset.calendarView = 'month';
-  if (calendarDayNames) calendarDayNames.hidden = false;
+  if (calendarDayNames) calendarDayNames.hidden = true;
   calendarGrid.removeAttribute('data-rolling');
-  const monthStart = startOfMonth(calendarState.viewDate || new Date());
-  const gridStart = new Date(monthStart);
-  const offset = getWeekdayIndex(monthStart.getDay());
-  gridStart.setDate(gridStart.getDate() - offset);
   calendarGrid.innerHTML = '';
   const normalizedEvents = Array.isArray(events) ? events : [];
-  const todayKey = startOfDay(new Date()).getTime();
+  const todayKey = today.getTime();
   calendarState.dayEvents = new Map();
 
-  for (let index = 0; index < 42; index += 1) {
-    const cellDate = new Date(gridStart);
-    cellDate.setDate(gridStart.getDate() + index);
+  for (let index = 0; index < FORWARD_WEEKS_DAYS; index += 1) {
+    const cellDate = new Date(rangeStart);
+    cellDate.setDate(rangeStart.getDate() + index);
     const cellDayTime = startOfDay(cellDate).getTime();
+    const dayKey = cellDate.toISOString().slice(0, 10);
     const cell = document.createElement('div');
-    cell.classList.add('calendar-view__day');
+    cell.className = 'calendar-view__day calendar-view__day--forward';
     cell.setAttribute('role', 'button');
     cell.setAttribute('tabindex', '0');
-    if (cellDate.getMonth() !== monthStart.getMonth()) {
-      cell.classList.add('calendar-view__day--muted');
-    }
+    cell.dataset.date = dayKey;
     if (cellDayTime === todayKey) {
       cell.classList.add('calendar-view__day--today');
       cell.setAttribute('aria-current', 'date');
     }
 
-    const dayNumber = document.createElement('p');
-    dayNumber.className = 'calendar-view__date';
-    dayNumber.textContent = String(cellDate.getDate());
-    cell.appendChild(dayNumber);
+    const dateHeader = document.createElement('p');
+    dateHeader.className = 'calendar-view__date calendar-view__date--rolling';
+    const weekday = document.createElement('span');
+    weekday.className = 'calendar-view__rolling-weekday';
+    weekday.textContent = calendarWeekdayFormatter.format(cellDate);
+    const date = document.createElement('span');
+    date.className = 'calendar-view__rolling-date';
+    date.textContent = String(cellDate.getDate());
+    date.title = calendarShortDateFormatter.format(cellDate);
+    dateHeader.append(weekday, date);
+    cell.appendChild(dateHeader);
 
     const eventsForDay = normalizedEvents.filter(event => {
-      if (!event || typeof event.start !== 'string' || !event.start) {
-        return false;
-      }
+      if (!event || typeof event.start !== 'string' || !event.start) return false;
       const eventDate = new Date(event.start);
-      if (Number.isNaN(eventDate.getTime())) {
-        return false;
-      }
+      if (Number.isNaN(eventDate.getTime())) return false;
       return startOfDay(eventDate).getTime() === cellDayTime;
     });
 
@@ -1278,30 +1334,7 @@ function renderMonthCalendar(events = state.localEvents) {
       cell.classList.add('calendar-view__day--has-events');
       const list = document.createElement('ul');
       list.className = 'calendar-view__events';
-      eventsForDay.slice(0, 3).forEach(event => {
-        const item = document.createElement('li');
-        item.className = 'calendar-view__event';
-        const timeLabel = formatCalendarRange(event);
-        const compactTimeLabel = formatCompactCalendarRange(event);
-        if (timeLabel) {
-          const time = document.createElement('span');
-          time.className = 'calendar-view__event-time';
-          const full = document.createElement('span');
-          full.className = 'calendar-view__event-time-full';
-          full.textContent = timeLabel;
-          const compact = document.createElement('span');
-          compact.className = 'calendar-view__event-time-compact';
-          compact.textContent = compactTimeLabel || timeLabel;
-          time.append(full, compact);
-          item.appendChild(time);
-        }
-        item.setAttribute('aria-label', `${timeLabel ? `${timeLabel}, ` : ''}${event.title || 'Untitled event'}`);
-        const title = document.createElement('span');
-        title.className = 'calendar-view__event-title';
-        title.textContent = event.title || 'Untitled event';
-        item.appendChild(title);
-        list.appendChild(item);
-      });
+      eventsForDay.slice(0, 3).forEach(event => appendCalendarEventChip(list, event));
       if (eventsForDay.length > 3) {
         const more = document.createElement('li');
         more.className = 'calendar-view__more';
@@ -1312,18 +1345,13 @@ function renderMonthCalendar(events = state.localEvents) {
     }
 
     const labelParts = [calendarFullDateFormatter.format(cellDate)];
-    if (eventsForDay.length === 1) {
-      labelParts.push('1 event');
-    } else if (eventsForDay.length > 1) {
-      labelParts.push(`${eventsForDay.length} events`);
-    }
+    if (eventsForDay.length === 1) labelParts.push('1 event');
+    else if (eventsForDay.length > 1) labelParts.push(`${eventsForDay.length} events`);
     eventsForDay.slice(0, 3).forEach(event => {
       const range = formatCalendarRange(event);
-      labelParts.push(`${range ? `${range} ` : ''}${event.title || 'Untitled event'}`);
+      labelParts.push(`${range ? `${range} ` : ''}${event.title || 'Busy'}`);
     });
-    const dayKey = cellDate.toISOString().slice(0, 10);
     cell.setAttribute('aria-label', labelParts.join(', '));
-    cell.dataset.date = dayKey;
     calendarState.dayEvents.set(dayKey, eventsForDay.slice());
     if (calendarState.selectedDate === dayKey) {
       cell.classList.add('calendar-view__day--selected');
@@ -1334,12 +1362,9 @@ function renderMonthCalendar(events = state.localEvents) {
     calendarGrid.appendChild(cell);
   }
 
-  if (calendarState.selectedDate && !calendarState.dayEvents.has(calendarState.selectedDate)) {
-    calendarState.selectedDate = null;
-  }
   renderSelectedDayDetails();
+  updateCalendarNavigationState();
 }
-
 function formatRollingCalendarRange(anchorDate) {
   const start = startOfDay(anchorDate instanceof Date ? anchorDate : new Date());
   const end = new Date(start);
@@ -1357,7 +1382,7 @@ function updateCalendarPeriodLabel() {
   if (calendarState.viewMode === 'week') {
     calendarCurrentLabel.textContent = formatRollingCalendarRange(calendarState.rollingAnchorDate);
   } else {
-    calendarCurrentLabel.textContent = calendarMonthFormatter.format(calendarState.viewDate);
+    calendarCurrentLabel.textContent = formatForwardCalendarRange(calendarState.viewDate);
   }
 }
 
@@ -1370,8 +1395,7 @@ function renderRollingWeek(events = state.localEvents) {
 
   const anchor = startOfDay(calendarState.rollingAnchorDate || new Date());
   const rangeStart = new Date(anchor);
-  rangeStart.setDate(rangeStart.getDate() - ROLLING_WEEK_BUFFER_DAYS);
-  const totalDays = (ROLLING_WEEK_BUFFER_DAYS * 2) + ROLLING_WEEK_VISIBLE_DAYS;
+  const totalDays = ROLLING_WEEK_VISIBLE_DAYS + ROLLING_WEEK_BUFFER_DAYS;
   const normalizedEvents = Array.isArray(events) ? events : [];
   const todayTime = startOfDay(new Date()).getTime();
   calendarState.dayEvents = new Map();
@@ -1386,7 +1410,7 @@ function renderRollingWeek(events = state.localEvents) {
     cell.setAttribute('role', 'button');
     cell.setAttribute('tabindex', '0');
     cell.dataset.date = dayKey;
-    if (index === ROLLING_WEEK_BUFFER_DAYS) cell.dataset.rollingAnchor = 'true';
+    if (index === 0) cell.dataset.rollingAnchor = 'true';
     if (cellDayTime === todayTime) {
       cell.classList.add('calendar-view__day--today');
       cell.setAttribute('aria-current', 'date');
@@ -1414,31 +1438,7 @@ function renderRollingWeek(events = state.localEvents) {
       cell.classList.add('calendar-view__day--has-events');
       const list = document.createElement('ul');
       list.className = 'calendar-view__events';
-      eventsForDay.slice(0, 6).forEach(event => {
-        const item = document.createElement('li');
-        item.className = 'calendar-view__event';
-        const timeLabel = formatCalendarRange(event);
-        const compactTimeLabel = formatCompactCalendarRange(event);
-        if (timeLabel) {
-          const time = document.createElement('span');
-          time.className = 'calendar-view__event-time';
-          const full = document.createElement('span');
-          full.className = 'calendar-view__event-time-full';
-          full.textContent = timeLabel;
-          const compact = document.createElement('span');
-          compact.className = 'calendar-view__event-time-compact';
-          compact.textContent = compactTimeLabel || timeLabel;
-          time.append(full, compact);
-          item.appendChild(time);
-        }
-        const titleText = event.title || 'Busy';
-        item.setAttribute('aria-label', `${timeLabel ? `${timeLabel}, ` : ''}${titleText}`);
-        const title = document.createElement('span');
-        title.className = 'calendar-view__event-title';
-        title.textContent = titleText;
-        item.appendChild(title);
-        list.appendChild(item);
-      });
+      eventsForDay.slice(0, 6).forEach(event => appendCalendarEventChip(list, event));
       if (eventsForDay.length > 6) {
         const more = document.createElement('li');
         more.className = 'calendar-view__more';
@@ -1473,6 +1473,7 @@ function renderRollingWeek(events = state.localEvents) {
     if (anchorCell) calendarGridViewport.scrollLeft = Math.max(0, rollingCellScrollLeft(anchorCell));
   });
   renderSelectedDayDetails();
+  updateCalendarNavigationState();
 }
 
 function rollingCellScrollLeft(cell) {
@@ -1554,9 +1555,9 @@ function endRollingCalendarDrag(event) {
 
 function readStoredCalendarViewMode() {
   try {
-    return localStorage.getItem(CALENDAR_VIEW_MODE_KEY) === 'week' ? 'week' : 'month';
+    return localStorage.getItem(CALENDAR_VIEW_MODE_KEY) === 'month' ? 'month' : 'week';
   } catch (_err) {
-    return 'month';
+    return 'week';
   }
 }
 
@@ -1570,23 +1571,23 @@ function setCalendarViewMode(mode, options = {}) {
       : startOfDay(new Date());
   } else {
     const selected = calendarState.selectedDate ? new Date(`${calendarState.selectedDate}T00:00:00`) : null;
-    if (selected && !Number.isNaN(selected.getTime())) calendarState.viewDate = startOfMonth(selected);
+    if (selected && !Number.isNaN(selected.getTime())) calendarState.viewDate = startOfDay(selected);
   }
 
-  if (calendarViewTitle) calendarViewTitle.textContent = nextMode === 'week' ? 'Week' : 'Month';
+  if (calendarViewTitle) calendarViewTitle.textContent = nextMode === 'week' ? 'Next 7 days' : 'Next 4 weeks';
   calendarViewModeButtons.forEach(button => {
     const active = button.dataset.calendarViewMode === nextMode;
     button.setAttribute('aria-pressed', active ? 'true' : 'false');
     button.classList.toggle('calendar-view__mode-button--active', active);
   });
   if (calendarControls) {
-    calendarControls.setAttribute('aria-label', nextMode === 'week' ? 'Move week view by day' : 'Change month');
+    calendarControls.setAttribute('aria-label', nextMode === 'week' ? 'Move 7-day view by day' : 'Move 4-week view');
   }
   calendarNavButtons.forEach(button => {
     const forward = button.dataset.calendarNav === 'next';
     button.setAttribute('aria-label', nextMode === 'week'
       ? `${forward ? 'Next' : 'Previous'} day`
-      : `${forward ? 'Next' : 'Previous'} month`);
+      : `${forward ? 'Next' : 'Previous'} 4 weeks`);
   });
   if (options.persist !== false) {
     try { localStorage.setItem(CALENDAR_VIEW_MODE_KEY, nextMode); } catch (_err) {}
@@ -1648,6 +1649,11 @@ function renderSelectedDayDetails() {
     .forEach(item => {
       const listItem = document.createElement('li');
       listItem.className = 'calendar-view__details-item';
+      listItem.dataset.eventId = item.raw.id || '';
+      listItem.tabIndex = -1;
+      if (calendarState.focusedEventId && item.raw.id === calendarState.focusedEventId) {
+        listItem.classList.add('calendar-view__details-item--focused');
+      }
 
       const title = document.createElement('p');
       title.className = 'calendar-view__details-item-title';
@@ -1726,6 +1732,7 @@ function selectCalendarDate(dateString) {
     return;
   }
 
+  calendarState.focusedEventId = null;
   calendarState.selectedDate = dateString;
   renderCalendar();
   if (calendarGrid) {
@@ -1736,14 +1743,34 @@ function selectCalendarDate(dateString) {
   }
 }
 
+
+function focusCalendarEvent(eventId, dateString) {
+  if (!eventId || !dateString) return;
+  calendarState.selectedDate = dateString;
+  calendarState.focusedEventId = eventId;
+  renderCalendar();
+  requestAnimationFrame(() => {
+    const detail = calendarDetailsList?.querySelector(`[data-event-id="${CSS.escape(eventId)}"]`);
+    if (!detail) return;
+    detail.focus({ preventScroll: true });
+    detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+}
+
 function handleCalendarGridClick(event) {
   if (suppressCalendarClickAfterDrag) {
     suppressCalendarClickAfterDrag = false;
     return;
   }
+  const eventChip = event.target.closest('.calendar-view__event[data-event-id]');
   const cell = event.target.closest('.calendar-view__day');
   if (!cell) return;
   const { date } = cell.dataset;
+  if (eventChip?.dataset.eventId && date) {
+    event.stopPropagation();
+    focusCalendarEvent(eventChip.dataset.eventId, date);
+    return;
+  }
   if (date) {
     selectCalendarDate(date);
   }
@@ -1751,12 +1778,15 @@ function handleCalendarGridClick(event) {
 
 function handleCalendarGridKeydown(event) {
   if (event.defaultPrevented) return;
+  const eventChip = event.target.closest('.calendar-view__event[data-event-id]');
   const cell = event.target.closest('.calendar-view__day');
   if (!cell) return;
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault();
     const { date } = cell.dataset;
-    if (date) {
+    if (eventChip?.dataset.eventId && date) {
+      focusCalendarEvent(eventChip.dataset.eventId, date);
+    } else if (date) {
       selectCalendarDate(date);
     }
   }
@@ -3404,22 +3434,34 @@ function initializeCreateEventToggle() {
   updateCreateEventToggleLabel(false);
 }
 
+function updateCalendarNavigationState() {
+  const previousButton = Array.from(calendarNavButtons).find(button => button.dataset.calendarNav === 'prev');
+  if (!previousButton) return;
+  const today = startOfDay(new Date()).getTime();
+  const anchor = calendarState.viewMode === 'week'
+    ? startOfDay(calendarState.rollingAnchorDate || new Date()).getTime()
+    : startOfDay(calendarState.viewDate || new Date()).getTime();
+  previousButton.disabled = anchor <= today;
+  previousButton.title = previousButton.disabled ? 'You are already at today.' : '';
+}
+
 function changeCalendarPeriod(offset) {
+  const today = startOfDay(new Date());
   if (calendarState.viewMode === 'week') {
-    const next = new Date(calendarState.rollingAnchorDate || new Date());
+    const next = new Date(calendarState.rollingAnchorDate || today);
     next.setDate(next.getDate() + offset);
-    calendarState.rollingAnchorDate = startOfDay(next);
+    calendarState.rollingAnchorDate = startOfDay(next < today ? today : next);
   } else {
-    const next = new Date(calendarState.viewDate);
-    next.setMonth(next.getMonth() + offset);
-    calendarState.viewDate = startOfMonth(next);
+    const next = new Date(calendarState.viewDate || today);
+    next.setDate(next.getDate() + (offset * FORWARD_WEEKS_DAYS));
+    calendarState.viewDate = startOfDay(next < today ? today : next);
   }
   renderCalendar();
 }
 
 function goToCalendarToday() {
   const now = startOfDay(new Date());
-  calendarState.viewDate = startOfMonth(now);
+  calendarState.viewDate = now;
   calendarState.rollingAnchorDate = now;
   calendarState.selectedDate = now.toISOString().slice(0, 10);
   renderCalendar();
