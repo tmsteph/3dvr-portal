@@ -3195,6 +3195,7 @@ function handleOauthConnect(event) {
     scopeKey: 'calendar',
     returnTo: `${window.location.pathname}${window.location.search}`,
     aliasHint: localStorage.getItem('signedIn') === 'true' ? (localStorage.getItem('alias') || '') : '',
+    popup: true,
   });
 }
 

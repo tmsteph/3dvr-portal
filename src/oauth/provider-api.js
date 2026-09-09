@@ -151,6 +151,7 @@ function setCookie(res, name, value, options = {}) {
   if (options.httpOnly) parts.push('HttpOnly');
   if (options.sameSite) parts.push(`SameSite=${options.sameSite}`);
   if (options.secure) parts.push('Secure');
+  if (options.domain) parts.push(`Domain=${options.domain}`);
   const next = parts.join('; ');
   const current = res.headers?.['Set-Cookie'] || res.headers?.['set-cookie'];
   if (!current) {
@@ -161,14 +162,26 @@ function setCookie(res, name, value, options = {}) {
   res.setHeader('Set-Cookie', values);
 }
 
-function clearCookie(res, name) {
+function clearCookie(res, name, options = {}) {
   setCookie(res, name, '', {
     path: '/',
     maxAge: 0,
     httpOnly: true,
     sameSite: 'Lax',
     secure: true,
+    domain: options.domain || '',
   });
+}
+
+function resolveSharedCookieDomain(hostname = '') {
+  const normalized = normalizeOAuthText(hostname).toLowerCase();
+  if (normalized === '3dvr.tech' || normalized.endsWith('.3dvr.tech')) return '.3dvr.tech';
+  return '';
+}
+
+function requestHostname(req) {
+  const raw = String(req?.headers?.['x-forwarded-host'] || req?.headers?.host || '').trim();
+  return raw.split(':')[0].toLowerCase();
 }
 
 function getRequestOrigin(req) {
@@ -179,6 +192,22 @@ function getRequestOrigin(req) {
     return 'https://portal.3dvr.tech';
   }
   return `${proto}://${forwardedHost}`;
+}
+
+function sanitizeReturnOrigin(rawValue = '', requestOrigin = '') {
+  const candidate = normalizeOAuthText(rawValue);
+  if (!candidate) return '';
+  try {
+    const parsed = new URL(candidate);
+    const hostname = parsed.hostname.toLowerCase();
+    const is3dvr = parsed.protocol === 'https:' && (hostname === '3dvr.tech' || hostname.endsWith('.3dvr.tech'));
+    const request = requestOrigin ? new URL(requestOrigin) : null;
+    const isLocalRequest = request && ['localhost', '127.0.0.1'].includes(request.hostname);
+    const isMatchingLocal = isLocalRequest && parsed.origin === request.origin;
+    return is3dvr || isMatchingLocal ? parsed.origin : '';
+  } catch (_err) {
+    return '';
+  }
 }
 
 function sanitizeReturnPath(rawValue = '') {
@@ -277,14 +306,19 @@ function parseFlowCookie(req) {
   }
 }
 
-function buildCallbackResultPage(result = {}, returnPath = DEFAULT_RETURN_PATH) {
+function buildCallbackResultPage(result = {}, returnPath = DEFAULT_RETURN_PATH, returnOrigin = '') {
+  const safePath = sanitizeReturnPath(returnPath);
+  const safeOrigin = sanitizeReturnOrigin(returnOrigin);
+  const absoluteTarget = safeOrigin ? new URL(safePath, `${safeOrigin}/`).toString() : safePath;
   const payload = {
     ...result,
-    returnTo: sanitizeReturnPath(returnPath),
+    returnTo: safePath,
+    returnOrigin: safeOrigin,
     updatedAt: Date.now(),
   };
   const serialized = JSON.stringify(payload).replace(/</g, '\\u003c');
-  const redirectTarget = JSON.stringify(sanitizeReturnPath(returnPath));
+  const redirectTarget = JSON.stringify(absoluteTarget);
+  const postMessageOrigin = JSON.stringify(safeOrigin);
   const isCli = normalizeIntent(payload.intent) === 'cli';
   return `<!DOCTYPE html>
 <html lang="en">
@@ -350,7 +384,21 @@ function buildCallbackResultPage(result = {}, returnPath = DEFAULT_RETURN_PATH) 
       }
     } catch (_err) {}
     if (${JSON.stringify(!isCli)}) {
-      window.location.replace(${redirectTarget});
+      const returnOrigin = ${postMessageOrigin};
+      let handedOff = false;
+      if (returnOrigin && window.opener && !window.opener.closed) {
+        try {
+          window.opener.postMessage({ type: '3dvr-oauth-result', result: oauthResult }, returnOrigin);
+          handedOff = true;
+          window.close();
+        } catch (_err) {}
+      }
+      if (!handedOff && returnOrigin && returnOrigin !== window.location.origin) {
+        try { window.name = '3dvr-oauth-result:' + JSON.stringify(oauthResult); } catch (_err) {}
+      }
+      if (!handedOff) {
+        window.location.replace(${redirectTarget});
+      }
     }
   </script>
 </body>
@@ -901,6 +949,10 @@ async function handleStart(req, res, providerName, provider) {
   const scopeKey = normalizeScopeKey(Array.isArray(req?.query?.scopeKey) ? req.query.scopeKey[0] : req?.query?.scopeKey);
   const aliasHint = normalizeAliasHint(Array.isArray(req?.query?.aliasHint) ? req.query.aliasHint[0] : req?.query?.aliasHint);
   const origin = getRequestOrigin(req);
+  const returnOrigin = sanitizeReturnOrigin(
+    Array.isArray(req?.query?.returnOrigin) ? req.query.returnOrigin[0] : req?.query?.returnOrigin,
+    origin,
+  );
   const redirectUri = `${origin}/api/oauth/${encodeURIComponent(providerName)}`;
 
   if (!provider.configured) {
@@ -910,7 +962,7 @@ async function handleStart(req, res, providerName, provider) {
       intent,
       scopeKey,
       error: `${provider.label} OAuth is not configured on this deployment yet.`,
-    }, returnPath);
+    }, returnPath, returnOrigin);
     return sendHtml(res, 200, html);
   }
 
@@ -921,7 +973,7 @@ async function handleStart(req, res, providerName, provider) {
       intent,
       scopeKey,
       error: `${provider.label} OAuth is currently limited to account verification in this portal.`,
-    }, returnPath);
+    }, returnPath, returnOrigin);
     return sendHtml(res, 200, html);
   }
 
@@ -937,6 +989,7 @@ async function handleStart(req, res, providerName, provider) {
     scopeKey,
     aliasHint,
     returnPath,
+    returnOrigin,
     createdAt: Date.now(),
   };
   setCookie(res, PORTAL_OAUTH_FLOW_COOKIE, buildFlowCookieValue(flow), {
@@ -945,6 +998,7 @@ async function handleStart(req, res, providerName, provider) {
     httpOnly: true,
     sameSite: 'Lax',
     secure: true,
+    domain: resolveSharedCookieDomain(requestHostname(req)),
   });
 
   const url = provider.buildAuthorizationUrl({
@@ -962,12 +1016,15 @@ async function handleStart(req, res, providerName, provider) {
 async function handleCallback(req, res, providerName, provider, body, fetchImpl) {
   const flow = parseFlowCookie(req);
   clearCookie(res, PORTAL_OAUTH_FLOW_COOKIE);
+  const sharedCookieDomain = resolveSharedCookieDomain(requestHostname(req));
+  if (sharedCookieDomain) clearCookie(res, PORTAL_OAUTH_FLOW_COOKIE, { domain: sharedCookieDomain });
 
   const query = req?.query && typeof req.query === 'object' ? req.query : {};
   const state = normalizeOAuthText(body.state || query.state);
   const code = normalizeOAuthText(body.code || query.code);
   const error = normalizeOAuthText(body.error || query.error);
   const returnPath = sanitizeReturnPath(flow?.returnPath);
+  const returnOrigin = sanitizeReturnOrigin(flow?.returnOrigin);
   const intent = normalizeIntent(flow?.intent);
   const scopeKey = normalizeScopeKey(flow?.scopeKey);
 
@@ -978,7 +1035,7 @@ async function handleCallback(req, res, providerName, provider, body, fetchImpl)
       intent,
       scopeKey,
       error: 'OAuth session expired. Start the connection again.',
-    }, returnPath);
+    }, returnPath, returnOrigin);
     return sendHtml(res, 200, html);
   }
 
@@ -989,7 +1046,7 @@ async function handleCallback(req, res, providerName, provider, body, fetchImpl)
       intent,
       scopeKey,
       error: 'OAuth state did not match the session in this browser.',
-    }, returnPath);
+    }, returnPath, returnOrigin);
     return sendHtml(res, 200, html);
   }
 
@@ -1000,7 +1057,7 @@ async function handleCallback(req, res, providerName, provider, body, fetchImpl)
       intent,
       scopeKey,
       error: `${provider.label} returned: ${error}`,
-    }, returnPath);
+    }, returnPath, returnOrigin);
     return sendHtml(res, 200, html);
   }
 
@@ -1011,7 +1068,7 @@ async function handleCallback(req, res, providerName, provider, body, fetchImpl)
       intent,
       scopeKey,
       error: `Missing ${provider.label} authorization code.`,
-    }, returnPath);
+    }, returnPath, returnOrigin);
     return sendHtml(res, 200, html);
   }
 
@@ -1040,7 +1097,7 @@ async function handleCallback(req, res, providerName, provider, body, fetchImpl)
         alias,
       },
       connection,
-    }, returnPath);
+    }, returnPath, returnOrigin);
     return sendHtml(res, 200, html);
   } catch (err) {
     const html = buildCallbackResultPage({
@@ -1049,7 +1106,7 @@ async function handleCallback(req, res, providerName, provider, body, fetchImpl)
       intent,
       scopeKey,
       error: err?.message || `Unable to finish ${provider.label} OAuth.`,
-    }, returnPath);
+    }, returnPath, returnOrigin);
     return sendHtml(res, 200, html);
   }
 }

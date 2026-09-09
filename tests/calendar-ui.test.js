@@ -140,6 +140,17 @@ test('calendar Google OAuth refreshes tokens and imports the upcoming schedule a
   assert.match(html, /name=\"maxResults\" min=\"1\" max=\"100\" value=\"100\"/);
 });
 
+test('calendar OAuth returns to the standalone origin and stores the result there', async () => {
+  const oauth = await readFile(new URL('../calendar/oauth.js', import.meta.url), 'utf8');
+  const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
+
+  assert.match(oauth, /returnOrigin:/);
+  assert.match(oauth, /3dvr-oauth-result/);
+  assert.match(oauth, /global\.addEventListener\('message'/);
+  assert.match(oauth, /global\.open\(url, '3dvr-oauth'/);
+  assert.match(js, /popup: true/);
+});
+
 test('calendar invalidates stale provider auth instead of claiming it is connected', async () => {
   const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
 

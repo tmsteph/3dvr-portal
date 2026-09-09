@@ -1,6 +1,10 @@
 (function initPortalOAuth(global) {
   const RESULT_KEY = 'portal.oauth.result';
   const CONNECTIONS_KEY = 'portal.oauth.connections';
+  const MESSAGE_TYPE = '3dvr-oauth-result';
+  const WINDOW_NAME_PREFIX = '3dvr-oauth-result:';
+  let popupProvider = '';
+  let popupListenerBound = false;
 
   function normalizeText(value) {
     return typeof value === 'string' ? value.trim() : '';
@@ -51,8 +55,19 @@
     return readJsonStorage(RESULT_KEY, null);
   }
 
+  function readWindowNameResult() {
+    try {
+      const value = typeof global.name === 'string' ? global.name : '';
+      if (!value.startsWith(WINDOW_NAME_PREFIX)) return null;
+      global.name = '';
+      return safeParse(value.slice(WINDOW_NAME_PREFIX.length), null);
+    } catch (_err) {
+      return null;
+    }
+  }
+
   function consumePendingResult() {
-    const result = readPendingResult();
+    const result = readWindowNameResult() || readPendingResult();
     removeStorageItem(RESULT_KEY);
     return result;
   }
@@ -133,6 +148,38 @@
     }
   }
 
+
+  function allowedMessageOrigins() {
+    const origins = new Set();
+    const currentOrigin = normalizeText(global.location && global.location.origin);
+    if (currentOrigin) origins.add(currentOrigin);
+    origins.add('https://portal.3dvr.tech');
+    try {
+      const host = String(global.location && global.location.hostname || '').toLowerCase();
+      if (host.startsWith('calendar-staging.')) {
+        origins.add(`${global.location.protocol}//portal-staging.${host.slice('calendar-staging.'.length)}`);
+      }
+    } catch (_err) {}
+    return origins;
+  }
+
+  function ensurePopupMessageListener() {
+    if (popupListenerBound || typeof global.addEventListener !== 'function') return;
+    popupListenerBound = true;
+    global.addEventListener('message', event => {
+      if (!allowedMessageOrigins().has(event.origin)) return;
+      const data = event.data;
+      if (!data || data.type !== MESSAGE_TYPE || !data.result || typeof data.result !== 'object') return;
+      const provider = normalizeText(data.result.provider).toLowerCase();
+      if (popupProvider && provider && provider !== popupProvider) return;
+      writeJsonStorage(RESULT_KEY, data.result);
+      popupProvider = '';
+      if (global.location && typeof global.location.reload === 'function') {
+        global.location.reload();
+      }
+    });
+  }
+
   function buildStartUrl(provider, options) {
     const normalizedProvider = normalizeText(provider).toLowerCase();
     const query = new URLSearchParams({
@@ -140,6 +187,7 @@
       intent: normalizeText(options && options.intent) || 'signin',
       scopeKey: normalizeText(options && options.scopeKey) || 'identity',
       returnTo: sanitizeReturnTo(options && options.returnTo),
+      returnOrigin: normalizeText(options && options.returnOrigin) || normalizeText(global.location && global.location.origin),
     });
     const aliasHint = normalizeEmail(options && options.aliasHint);
     if (aliasHint) {
@@ -148,9 +196,17 @@
     return `/api/oauth/${encodeURIComponent(normalizedProvider)}?${query.toString()}`;
   }
 
-  function begin(provider, options) {
-    const url = buildStartUrl(provider, options || {});
+  function begin(provider, options = {}) {
+    const url = buildStartUrl(provider, options);
+    const normalizedProvider = normalizeText(provider).toLowerCase();
+    if (options.popup && typeof global.open === 'function') {
+      ensurePopupMessageListener();
+      popupProvider = normalizedProvider;
+      const popup = global.open(url, '3dvr-oauth', 'popup=yes,width=560,height=760');
+      if (popup) return popup;
+    }
     global.location.href = url;
+    return null;
   }
 
   async function fetchProviderConfig(provider) {

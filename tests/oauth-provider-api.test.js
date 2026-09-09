@@ -128,6 +128,78 @@ describe('oauth provider api', () => {
     assert.doesNotMatch(scopes, /https:\/\/www\.googleapis\.com\/auth\/calendar(?:\s|$)/);
   });
 
+  it('hands standalone Calendar OAuth back across 3dvr subdomains without losing the flow', async () => {
+    const fetchImpl = mock.fn(async (url) => {
+      if (String(url).includes('oauth2.googleapis.com/token')) {
+        return {
+          ok: true,
+          async json() {
+            return { access_token: 'access_google', refresh_token: 'refresh_google', expires_in: 3600, scope: 'openid email profile https://www.googleapis.com/auth/calendar.events' };
+          },
+        };
+      }
+      if (String(url).includes('openidconnect.googleapis.com/v1/userinfo')) {
+        return {
+          ok: true,
+          async json() {
+            return { sub: 'google-user-1', email: 'person@example.com', email_verified: true, name: 'Calendar User' };
+          },
+        };
+      }
+      throw new Error(`Unexpected OAuth fetch: ${url}`);
+    });
+    const handler = createOAuthProviderHandler({
+      config: { GOOGLE_OAUTH_CLIENT_ID: 'client.apps.googleusercontent.com', GOOGLE_OAUTH_CLIENT_SECRET: 'secret' },
+      fetchImpl,
+    });
+    const startRes = createMockRes();
+
+    await handler({
+      method: 'GET',
+      headers: { host: 'portal.3dvr.tech', 'x-forwarded-proto': 'https' },
+      query: {
+        provider: 'google',
+        action: 'start',
+        scopeKey: 'calendar',
+        intent: 'calendar-connect',
+        returnTo: '/',
+        returnOrigin: 'https://calendar.3dvr.tech',
+      },
+    }, startRes);
+
+    assert.equal(startRes.statusCode, 302);
+    const startCookies = Array.isArray(startRes.headers['Set-Cookie']) ? startRes.headers['Set-Cookie'] : [startRes.headers['Set-Cookie']];
+    const flowCookie = startCookies.find(value => String(value).startsWith('portalOauthFlow='));
+    assert.match(String(flowCookie), /Domain=\.3dvr\.tech/);
+    const cookiePair = String(flowCookie).split(';')[0];
+    const encodedFlow = cookiePair.slice(cookiePair.indexOf('=') + 1).replace(/-/g, '+').replace(/_/g, '/');
+    const paddedFlow = encodedFlow + '='.repeat((4 - (encodedFlow.length % 4)) % 4);
+    const flow = JSON.parse(Buffer.from(paddedFlow, 'base64').toString('utf8'));
+    assert.equal(flow.returnOrigin, 'https://calendar.3dvr.tech');
+
+    const callbackRes = createMockRes();
+    await handler({
+      method: 'GET',
+      headers: {
+        host: 'portal.3dvr.tech',
+        'x-forwarded-proto': 'https',
+        cookie: cookiePair,
+      },
+      query: {
+        provider: 'google',
+        state: flow.state,
+        code: 'authorization-code',
+      },
+    }, callbackRes);
+
+    assert.equal(callbackRes.statusCode, 200);
+    assert.match(String(callbackRes.body), /window\.opener\.postMessage/);
+    assert.match(String(callbackRes.body), /3dvr-oauth-result/);
+    assert.match(String(callbackRes.body), /https:\/\/calendar\.3dvr\.tech\//);
+    const callbackCookies = Array.isArray(callbackRes.headers['Set-Cookie']) ? callbackRes.headers['Set-Cookie'] : [callbackRes.headers['Set-Cookie']];
+    assert.equal(callbackCookies.some(value => /portalOauthFlow=;.*Domain=\.3dvr\.tech/.test(String(value))), true);
+  });
+
   it('supports send-only Google Gmail access without mailbox read permission', async () => {
     const handler = createOAuthProviderHandler({
       config: { GOOGLE_OAUTH_CLIENT_ID: 'client.apps.googleusercontent.com', GOOGLE_OAUTH_CLIENT_SECRET: 'secret' },
