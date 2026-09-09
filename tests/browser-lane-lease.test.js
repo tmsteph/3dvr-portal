@@ -22,6 +22,10 @@ test('browser lanes allow one writer and hide lease tokens from status', async (
     const token = first.stdout.trim();
     assert.ok(token.length >= 16);
 
+    const sameOwner = run(stateDir, ['acquire', 'general', 'agent-a', '60']);
+    assert.equal(sameOwner.status, 75);
+    assert.equal(sameOwner.stdout.includes(token), false);
+
     const blocked = run(stateDir, ['acquire', 'general', 'agent-b', '60']);
     assert.equal(blocked.status, 75);
     assert.match(blocked.stderr, /owner=agent-a/);
