@@ -170,6 +170,7 @@ jobs:
         env:
           TARGET: ${{ steps.resolve.outputs.host }}
           TARGET_USER: ${{ steps.resolve.outputs.user }}
+          TARGET_ROLE: ${{ steps.resolve.outputs.role }}
           DEPLOY_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
@@ -180,7 +181,9 @@ jobs:
             remote_home="/home/$TARGET_USER"
             prefix="sudo -n env HOME=$remote_home"
           fi
-          output="$(ssh "${opts[@]}" "$TARGET_USER@$TARGET" "$prefix GITHUB_REPOSITORY='$GITHUB_REPOSITORY' DEPLOY_SHA='$DEPLOY_SHA' bash -s" <<'REMOTE'
+          control_node=""
+          if [ "$TARGET_ROLE" = primary ]; then control_node=ovh; fi
+          output="$(ssh "${opts[@]}" "$TARGET_USER@$TARGET" "$prefix GITHUB_REPOSITORY='$GITHUB_REPOSITORY' DEPLOY_SHA='$DEPLOY_SHA' THREEDVR_CONTROL_NODE='$control_node' bash -s" <<'REMOTE'
           set -euo pipefail
           source_repo="$HOME/.3dvr/self-host-portal-source"
           mkdir -p "$HOME/.3dvr"
