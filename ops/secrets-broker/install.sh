@@ -72,6 +72,12 @@ chown root:root "$ETC/portal.env"
 chmod 0600 "$ETC/portal.env"
 
 systemctl daemon-reload
-systemctl enable --now 3dvr-secrets-broker.service
+systemctl enable 3dvr-secrets-broker.service >/dev/null
+systemctl restart 3dvr-secrets-broker.service
+for _ in $(seq 1 50); do
+  [[ -S /run/3dvr-secrets-broker/broker.sock ]] && break
+  sleep 0.1
+done
+[[ -S /run/3dvr-secrets-broker/broker.sock ]] || { echo "Secrets broker socket did not become ready." >&2; exit 1; }
 systemctl --no-pager --full status 3dvr-secrets-broker.service | sed -n '1,16p'
 echo "3DVR Secrets Broker installed. Bitwarden remains fail-closed until BWS_ACCESS_TOKEN is set locally."

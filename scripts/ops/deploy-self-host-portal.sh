@@ -163,7 +163,7 @@ chmod 600 "$portal_env"
 
 if [ "$(id -u)" = 0 ] && [ -f "$current/ops/secrets-broker/install.sh" ]; then
   bash "$current/ops/secrets-broker/install.sh"
-  for required in policy.json agents.json bitwarden.env portal.env; do
+  for required in policy.json agents.json bitwarden.env portal.env portal.token; do
     [ -f "/etc/3dvr/secrets-broker/$required" ] || { echo "Secrets broker provisioning did not create $required" >&2; exit 6; }
   done
 fi

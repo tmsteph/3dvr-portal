@@ -22,4 +22,5 @@ test('self-host deploy preserves server secrets when Actions has no secret updat
   assert.match(deploy, /THREEDVR_CONTROL_NODE=\$\{THREEDVR_CONTROL_NODE:-\}/);
   assert.match(deploy, /bash "\$current\/ops\/secrets-broker\/install\.sh"/);
   assert.match(deploy, /Secrets broker provisioning did not create/);
+  assert.match(deploy, /portal\.token/);
 });
