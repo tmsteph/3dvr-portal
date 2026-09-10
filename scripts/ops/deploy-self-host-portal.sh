@@ -141,6 +141,7 @@ PORTAL_ROOT=$current
 PORTAL_RELEASE_REF=$ref
 PORTAL_RELEASE_SHA=$sha
 LEGACY_API_ORIGIN=https://3dvr-portal.vercel.app
+THREEDVR_CONTROL_NODE=${THREEDVR_CONTROL_NODE:-}
 EOF
 
 # Preserve private runtime values already provisioned by an operator or workflow.
