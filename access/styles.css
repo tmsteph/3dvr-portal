@@ -58,3 +58,8 @@ dialog .note { padding: 12px; border-radius: 12px; background: rgba(14,165,233,.
 .approval-item p { margin: 7px 0 0; color: #b9c7d8; font-size: .88rem; }
 .approval-actions { display: flex; gap: 8px; flex: 0 0 auto; }
 @media (max-width: 640px) { .hero-row { align-items: flex-start; } .approval-item { align-items: stretch; flex-direction: column; } .approval-actions { display: grid; grid-template-columns: 1fr 1fr; } }
+
+.secret-field { display: grid; gap: 7px; margin: 16px 0; color: #cbd5e1; font-weight: 700; }
+.secret-field span { font-size: .82rem; }
+.secret-field input { width: 100%; box-sizing: border-box; min-height: 46px; padding: 10px 12px; border: 1px solid #334155; border-radius: 12px; background: #050a12; color: #e5edf8; font: inherit; }
+.secret-field input:focus { outline: 2px solid rgba(125,211,252,.45); outline-offset: 2px; }

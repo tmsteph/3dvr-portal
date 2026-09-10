@@ -5,6 +5,9 @@ const approvalDialog = byId('approvalDialog');
 const approvalButton = byId('bitwardenApproval');
 const refreshButton = byId('refreshAccess');
 const approvalList = byId('approvalList');
+const bitwardenToken = byId('bitwardenToken');
+const connectBitwarden = byId('connectBitwarden');
+const bitwardenSetupMessage = byId('bitwardenSetupMessage');
 
 function setPill(id, text, state = 'progress') {
   const element = byId(id);
@@ -19,8 +22,14 @@ function escapeHtml(value = '') {
   })[character]);
 }
 
-async function brokerAction(action, extra = {}) {
-  const proof = await createSignedPortalProof('secrets-broker-owner', action, extra);
+async function sha256(value) {
+  const bytes = new TextEncoder().encode(String(value || ''));
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function brokerAction(action, extra = {}, proofExtra = extra) {
+  const proof = await createSignedPortalProof('secrets-broker-owner', action, proofExtra);
   if (!proof) throw new Error('Sign in with your 3DVR owner account to manage machine access.');
   const response = await fetch('/api/secrets-broker', {
     method: 'POST',
@@ -87,6 +96,30 @@ async function loadAccess() {
 }
 approvalButton?.addEventListener('click', () => {
   if (typeof approvalDialog?.showModal === 'function') approvalDialog.showModal();
+});
+
+connectBitwarden?.addEventListener('click', async () => {
+  const accessToken = bitwardenToken?.value || '';
+  bitwardenSetupMessage.textContent = '';
+  if (accessToken.length < 20) {
+    bitwardenSetupMessage.textContent = 'Paste the Bitwarden machine access token first.';
+    return;
+  }
+  connectBitwarden.disabled = true;
+  try {
+    const accessTokenHash = await sha256(accessToken);
+    await brokerAction('configure-bitwarden', { accessToken }, { accessTokenHash });
+    if (bitwardenToken) bitwardenToken.value = '';
+    bitwardenSetupMessage.textContent = 'Connected. The token is now held by the OVH broker, not this page.';
+    setTimeout(() => {
+      approvalDialog?.close();
+      loadAccess();
+    }, 500);
+  } catch (error) {
+    bitwardenSetupMessage.textContent = error.message;
+  } finally {
+    connectBitwarden.disabled = false;
+  }
 });
 
 refreshButton?.addEventListener('click', loadAccess);
