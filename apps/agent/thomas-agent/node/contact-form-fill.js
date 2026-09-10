@@ -14,6 +14,7 @@ const {
   siteUrlForLead,
 } = require('./contact-form-core');
 const { ADAPTERS, selectAdapter } = require('./form-adapters');
+const { detectHumanChallenge, humanChallengeResult } = require('./human-challenge');
 
 const DEFAULT_NAME = 'Thomas';
 const DEFAULT_COMPANY = '3DVR';
@@ -184,6 +185,15 @@ async function fillContactForm(page, lead, message, options = {}) {
   }
 
   const html = typeof page.content === 'function' ? await page.content() : '';
+  const initialChallenge = detectHumanChallenge(html, targetUrl);
+  if (initialChallenge.detected) {
+    return humanChallengeResult({
+      challenge: initialChallenge,
+      targetUrl,
+      previous: { adapterId: 'human-challenge', route: 'human-challenge' },
+    });
+  }
+
   const adapter = options.adapter || selectAdapter({ pageUrl: targetUrl, html, lead });
   if (!adapter) {
     throw new Error(`No supported form adapter found for ${targetUrl}`);
@@ -201,6 +211,17 @@ async function fillContactForm(page, lead, message, options = {}) {
       submit: Boolean(options.submit),
     },
   });
+
+  const finalHtml = typeof page.content === 'function' ? await page.content() : '';
+  const finalUrl = typeof page.url === 'function' ? page.url() : targetUrl;
+  const finalChallenge = detectHumanChallenge(finalHtml, finalUrl);
+  if (finalChallenge.detected) {
+    return humanChallengeResult({
+      challenge: finalChallenge,
+      targetUrl: finalUrl,
+      previous: { ...result, adapterId: result.adapterId || adapter.id },
+    });
+  }
 
   return {
     ...result,
@@ -311,6 +332,10 @@ async function runFormCommand(argv = process.argv.slice(2), runtime = {}) {
   console.log();
   console.log(`Filled fields: ${result.filled.map((item) => `${item.role} -> ${item.label}`).join(', ') || 'none'}`);
   console.log(`Screenshot: ${result.screenshotPath}`);
+  if (result.requiresHuman) {
+    console.log(`Human verification: required (${result.challenge?.kind || 'challenge'})`);
+    console.log('Action: keep this browser session and hand it to the owner; resume after the challenge is solved.');
+  }
   if (result.submissionMethod) {
     console.log(`Submission: ${result.submissionMethod}`);
   }

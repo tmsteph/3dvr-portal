@@ -24,7 +24,7 @@
         <h2 id="next-title">Create 3DVR machine access</h2>
         <p id="brokerMessage">Checking the OVH control node and Bitwarden Secrets Manager backend…</p>
       </div>
-      <button class="primary" id="bitwardenApproval" type="button">Setup steps</button>
+      <button class="primary" id="bitwardenApproval" type="button">Connect Bitwarden</button>
     </section>
     <section class="grid" aria-label="Access status">
       <article class="card">
@@ -74,10 +74,11 @@
         <button class="close" aria-label="Close">×</button>
         <p class="eyebrow">Bitwarden Secrets Manager</p>
         <h2>Set up machine access</h2>
-        <p>Create a Bitwarden Secrets Manager project for 3DVR Agent, then a machine account with access only to that project.</p>
-        <p class="note">The machine access token is handed directly to the OVH broker service. Do not paste it into chat, a prompt, a log, or source control.</p>
-        <p>After that one-time handoff, agents ask the broker for named capabilities instead of accessing Bitwarden directly.</p>
-        <button class="primary" value="close">Got it</button>
+        <p>Create a Bitwarden Secrets Manager machine account with access only to the 3DVR Agent project, then paste its access token here once.</p>
+        <label class="secret-field" for="bitwardenToken"><span>Machine access token</span><input id="bitwardenToken" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste token here"></label>
+        <p class="note">This goes over HTTPS straight to the OVH control plane, is stored in the broker's root-only config, and is never echoed back. Do not paste it into chat.</p>
+        <p id="bitwardenSetupMessage" class="muted" aria-live="polite"></p>
+        <button class="primary" id="connectBitwarden" type="button">Connect once</button>
       </form>
     </dialog>
   </main>

@@ -1,5 +1,7 @@
 import fs from 'node:fs';
 import http from 'node:http';
+import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { resolveSeaAuthMaxAgeMs, verifySignedSeaPayload } from '../src/auth/sea.js';
 import { resolveOperatorDeveloperPolicy } from '../src/operator/developer-access.js';
 
@@ -24,6 +26,75 @@ function readPortalToken(config) {
   const file = normalizeText(config.THREEDVR_SECRETS_BROKER_TOKEN_FILE || '/etc/3dvr/secrets-broker/portal.token', 1000);
   try { return fs.readFileSync(file, 'utf8').trim(); }
   catch { return ''; }
+}
+
+function validMachineAccessToken(value) {
+  const token = String(value || '');
+  if (token.length < 20 || token.length > 4096) return '';
+  if (/[\r\n\0]/.test(token)) return '';
+  return token;
+}
+
+export function configureBitwardenMachineAccess({ config = process.env, accessToken, run = spawnSync }) {
+  if (normalizeText(config.THREEDVR_CONTROL_NODE).toLowerCase() !== 'ovh') {
+    const error = new Error('Bitwarden machine access can only be configured on the OVH control node.');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const token = validMachineAccessToken(accessToken);
+  if (!token) {
+    const error = new Error('A valid Bitwarden machine access token is required.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const bwsBinary = normalizeText(config.BWS_BIN || '/usr/local/bin/bws', 1000);
+  const preflight = run(bwsBinary, ['project', 'list', '--output', 'none', '--color', 'no'], {
+    env: { ...process.env, ...config, BWS_ACCESS_TOKEN: token },
+    encoding: 'utf8',
+    timeout: 15000,
+    stdio: ['ignore', 'ignore', 'ignore'],
+  });
+  if (preflight.error || preflight.status !== 0) {
+    const error = new Error('Bitwarden rejected that machine access token. The existing broker credential was left unchanged.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const file = normalizeText(
+    config.THREEDVR_SECRETS_BROKER_BITWARDEN_ENV || '/etc/3dvr/secrets-broker/bitwarden.env',
+    1000,
+  );
+  const temp = `${file}.${process.pid}.${Date.now()}.tmp`;
+  let mode = 0o640;
+  let owner = null;
+  try {
+    const current = fs.statSync(file);
+    mode = current.mode & 0o777;
+    owner = { uid: current.uid, gid: current.gid };
+  } catch {}
+
+  try {
+    fs.writeFileSync(temp, `BWS_ACCESS_TOKEN=${token}\n`, { encoding: 'utf8', mode, flag: 'wx' });
+    if (owner) fs.chownSync(temp, owner.uid, owner.gid);
+    fs.chmodSync(temp, mode);
+    fs.renameSync(temp, file);
+  } finally {
+    try { if (fs.existsSync(temp)) fs.unlinkSync(temp); } catch {}
+  }
+
+  const restart = run('/usr/bin/systemctl', ['restart', '3dvr-secrets-broker.service'], {
+    encoding: 'utf8',
+    timeout: 10000,
+    stdio: ['ignore', 'ignore', 'pipe'],
+  });
+  if (restart.status !== 0) {
+    const error = new Error('Bitwarden access was saved, but the secrets broker could not restart.');
+    error.statusCode = 503;
+    throw error;
+  }
+  return { ok: true, configured: true };
 }
 
 function brokerHttpRequest({ config, method = 'GET', path = '/v1/status', payload }) {
@@ -70,6 +141,13 @@ async function authorizeOwner(req, body, action, { config, verify }) {
   if ((action === 'approve' || action === 'deny') && normalizeText(auth.verified?.approvalId) !== normalizeText(body.approvalId)) {
     return { ok: false, status: 401, reason: 'Owner proof did not match this approval.' };
   }
+  if (action === 'configure-bitwarden') {
+    const accessToken = String(body.accessToken || '');
+    const expectedHash = createHash('sha256').update(accessToken).digest('hex');
+    if (normalizeText(auth.verified?.accessTokenHash, 100) !== expectedHash) {
+      return { ok: false, status: 401, reason: 'Owner proof did not match this Bitwarden handoff.' };
+    }
+  }
   return { ok: true, identity: auth.identity };
 }
 
@@ -77,15 +155,24 @@ export function createSecretsBrokerHandler(options = {}) {
   const config = options.config || process.env;
   const verify = options.verify || verifySignedSeaPayload;
   const brokerRequest = options.brokerRequest || (request => brokerHttpRequest({ config, ...request }));
+  const configureBitwarden = options.configureBitwarden || (accessToken => configureBitwardenMachineAccess({ config, accessToken }));
 
   return async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-store, max-age=0');
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
     const body = req.body || {};
     const action = normalizeText(body.action, 40);
-    if (!['status', 'approvals', 'approve', 'deny'].includes(action)) return res.status(400).json({ ok: false, error: 'Unknown broker action.' });
+    if (!['status', 'approvals', 'approve', 'deny', 'configure-bitwarden'].includes(action)) return res.status(400).json({ ok: false, error: 'Unknown broker action.' });
     const auth = await authorizeOwner(req, body, action, { config, verify });
     if (!auth.ok) return res.status(auth.status).json({ ok: false, error: auth.reason });
+
+    if (action === 'configure-bitwarden') {
+      try {
+        return res.status(200).json(await configureBitwarden(body.accessToken));
+      } catch (error) {
+        return res.status(error?.statusCode || 500).json({ ok: false, error: normalizeText(error.message, 200) || 'Bitwarden setup failed.' });
+      }
+    }
 
     let request;
     if (action === 'status') request = { method: 'GET', path: '/v1/status' };
