@@ -14,6 +14,13 @@ test('Access page keeps the one-time machine token ephemeral', () => {
   assert.match(app, /accessTokenHash/);
 });
 
+test('Access page sends broker requests directly to the published OVH control plane', () => {
+  assert.match(app, /runtime\/organism-bridge\.json/);
+  assert.match(app, /trycloudflare\.com/);
+  assert.match(app, /fetch\(`\$\{brokerOrigin\}\/api\/secrets-broker`/);
+  assert.match(app, /credentials: 'omit'/);
+});
+
 test('Access page exposes the owner approval path', () => {
   assert.match(page, /Create 3DVR machine access/);
   assert.match(page, /Bitwarden Secrets Manager/);

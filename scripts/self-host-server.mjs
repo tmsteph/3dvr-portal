@@ -15,6 +15,10 @@ const RELEASE_REF = String(process.env.PORTAL_RELEASE_REF || 'main').trim();
 const LEGACY_API_ORIGIN = String(process.env.LEGACY_API_ORIGIN || '').replace(/\/+$/, '');
 const oauthProviderHandler = createOAuthProviderHandler();
 const organismBridgeHandler = createOrganismBridgeHandler();
+const SECRETS_BROKER_ALLOWED_ORIGINS = new Set(String(
+  process.env.THREEDVR_SECRETS_BROKER_ALLOWED_ORIGINS
+    || 'https://portal.3dvr.tech,https://3dvr-portal.vercel.app'
+).split(',').map(value => value.trim()).filter(Boolean));
 
 const MIME_TYPES = new Map([
   ['.html', 'text/html; charset=utf-8'],
@@ -64,6 +68,27 @@ function json(res, statusCode, payload) {
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(payload));
+}
+
+function handleSecretsBrokerCors(req, res, pathname) {
+  if (pathname !== '/api/secrets-broker') return false;
+  const origin = String(req.headers?.origin || '').trim();
+  const allowed = SECRETS_BROKER_ALLOWED_ORIGINS.has(origin);
+  if (allowed) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Max-Age', '600');
+  }
+  if (req.method !== 'OPTIONS') return false;
+  if (!allowed) {
+    json(res, 403, { ok: false, error: 'Origin not allowed.' });
+    return true;
+  }
+  res.statusCode = 204;
+  res.end();
+  return true;
 }
 
 function safePath(pathname) {
@@ -228,6 +253,7 @@ function rewriteForHost(url, host) {
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || `${HOST}:${PORT}`}`);
   applyBaseHeaders(res, url.pathname);
+  if (handleSecretsBrokerCors(req, res, url.pathname)) return;
 
   if (url.pathname === '/__3dvr-health') {
     return json(res, 200, { ok: true, host: 'self', sha: RELEASE_SHA, ref: RELEASE_REF, operatorApi: 'native', organismRecall: 'signed-owner' });
