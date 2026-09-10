@@ -20,4 +20,5 @@ test('self-host deploy preserves server secrets when Actions has no secret updat
   assert.match(deploy, /GOOGLE_OAUTH_CLIENT_ID/);
   assert.match(deploy, /GOOGLE_OAUTH_CLIENT_SECRET/);
   assert.match(deploy, /THREEDVR_CONTROL_NODE=\$\{THREEDVR_CONTROL_NODE:-\}/);
+  assert.match(deploy, /if \[ -f "\$current\/ops\/secrets-broker\/install\.sh" \]; then/);
 });
