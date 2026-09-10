@@ -1,2 +1,3 @@
 encore-200-study 2026-09-08T14:59Z
 2026-09-10: provision secrets broker configuration during production deploy
+2026-09-10: require broker provisioning before portal startup

@@ -161,12 +161,16 @@ done
 mv "$portal_env.tmp" "$portal_env"
 chmod 600 "$portal_env"
 
+if [ "$(id -u)" = 0 ] && [ -f "$current/ops/secrets-broker/install.sh" ]; then
+  bash "$current/ops/secrets-broker/install.sh"
+  for required in policy.json agents.json bitwarden.env portal.env; do
+    [ -f "/etc/3dvr/secrets-broker/$required" ] || { echo "Secrets broker provisioning did not create $required" >&2; exit 6; }
+  done
+fi
+
 start_with_systemd() {
   [ "$(id -u)" = 0 ] || return 1
   command -v systemctl >/dev/null 2>&1 || return 1
-  if [ -f "$current/ops/secrets-broker/install.sh" ]; then
-    bash "$current/ops/secrets-broker/install.sh"
-  fi
   cat > /etc/systemd/system/3dvr-portal.service <<EOF
 [Unit]
 Description=3DVR self-hosted portal
