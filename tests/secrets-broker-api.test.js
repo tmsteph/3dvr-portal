@@ -61,6 +61,46 @@ test('owner proof origin is bound to the receiving request host, not the request
   assert.equal(expectedOrigin, 'https://portal.3dvr.tech');
 });
 
+test('trusted canonical portal Origin is used when OVH is reached through a tunnel hostname', async () => {
+  let expectedOrigin;
+  const baseVerify = verification();
+  const handler = createSecretsBrokerHandler({
+    config: {},
+    verify: async (body, options) => {
+      expectedOrigin = options.expectedOrigin;
+      return baseVerify(body, options);
+    },
+    brokerRequest: async () => ({ status: 200, body: { ok: true } }),
+  });
+  const req = request({ action: 'status' });
+  req.headers.host = 'example-control.trycloudflare.com';
+  req.headers.origin = 'https://portal.3dvr.tech';
+  const res = response();
+  await handler(req, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(expectedOrigin, 'https://portal.3dvr.tech');
+});
+
+test('untrusted browser Origin cannot override the receiving tunnel origin', async () => {
+  let expectedOrigin;
+  const baseVerify = verification();
+  const handler = createSecretsBrokerHandler({
+    config: {},
+    verify: async (body, options) => {
+      expectedOrigin = options.expectedOrigin;
+      return baseVerify(body, options);
+    },
+    brokerRequest: async () => ({ status: 200, body: { ok: true } }),
+  });
+  const req = request({ action: 'status' });
+  req.headers.host = 'example-control.trycloudflare.com';
+  req.headers.origin = 'https://attacker.example';
+  const res = response();
+  await handler(req, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(expectedOrigin, 'https://example-control.trycloudflare.com');
+});
+
 test('non-owner signed identity cannot manage broker', async () => {
   const handler = createSecretsBrokerHandler({
     config: {}, verify: verification({ alias: 'someone@3dvr', pub: 'other-pub' }),

@@ -9,7 +9,16 @@ function normalizeText(value = '', max = 500) {
   return String(value || '').trim().slice(0, max);
 }
 
-function requestOrigin(req) {
+function trustedPortalOrigins(config = {}) {
+  return new Set(String(
+    config.THREEDVR_SECRETS_BROKER_ALLOWED_ORIGINS
+      || 'https://portal.3dvr.tech,https://3dvr-portal.vercel.app'
+  ).split(',').map(value => normalizeText(value, 1000)).filter(Boolean));
+}
+
+function requestOrigin(req, config = {}) {
+  const browserOrigin = normalizeText(req?.headers?.origin, 1000);
+  if (browserOrigin && trustedPortalOrigins(config).has(browserOrigin)) return browserOrigin;
   const proto = normalizeText(req?.headers?.['x-forwarded-proto']) || 'https';
   const host = normalizeText(req?.headers?.['x-forwarded-host'] || req?.headers?.host);
   return host ? `${proto}://${host}` : '';
@@ -131,7 +140,7 @@ function brokerHttpRequest({ config, method = 'GET', path = '/v1/status', payloa
 async function authorizeOwner(req, body, action, { config, verify }) {
   const auth = await verify(body, {
     scope: 'secrets-broker-owner',
-    expectedOrigin: requestOrigin(req) || normalizeText(config.PORTAL_ORIGIN),
+    expectedOrigin: requestOrigin(req, config) || normalizeText(config.PORTAL_ORIGIN),
     config,
     maxAgeMs: resolveSeaAuthMaxAgeMs(config),
   });

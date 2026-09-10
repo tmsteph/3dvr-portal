@@ -28,12 +28,37 @@ async function sha256(value) {
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+let brokerOriginPromise = null;
+
+async function resolveBrokerOrigin() {
+  if (brokerOriginPromise) return brokerOriginPromise;
+  brokerOriginPromise = (async () => {
+    const response = await fetch('/runtime/organism-bridge.json', {
+      cache: 'no-store',
+      credentials: 'same-origin',
+    });
+    if (!response.ok) throw new Error('OVH control-plane address is unavailable.');
+    const payload = await response.json();
+    const parsed = new URL(String(payload?.origin || ''));
+    const allowedHost = parsed.protocol === 'https:'
+      && (parsed.hostname.endsWith('.trycloudflare.com') || parsed.hostname === 'control.3dvr.tech');
+    if (!allowedHost) throw new Error('OVH control-plane address is invalid.');
+    return parsed.origin;
+  })().catch(error => {
+    brokerOriginPromise = null;
+    throw error;
+  });
+  return brokerOriginPromise;
+}
+
 async function brokerAction(action, extra = {}, proofExtra = extra) {
   const proof = await createSignedPortalProof('secrets-broker-owner', action, proofExtra);
   if (!proof) throw new Error('Sign in with your 3DVR owner account to manage machine access.');
-  const response = await fetch('/api/secrets-broker', {
+  const brokerOrigin = await resolveBrokerOrigin();
+  const response = await fetch(`${brokerOrigin}/api/secrets-broker`, {
     method: 'POST',
-    credentials: 'same-origin',
+    mode: 'cors',
+    credentials: 'omit',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ ...proof, action, ...extra }),
   });
