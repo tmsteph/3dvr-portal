@@ -145,6 +145,61 @@ jobs:
             sleep 1
           done
           "$node_bin" -e 'const fs=require("fs"); const h=JSON.parse(fs.readFileSync("/tmp/3dvr-mcp-health.json","utf8")); if(!h.ok||h.service!=="3dvr-control-gateway") process.exit(1); console.log(JSON.stringify(h))'
+
+          cd "$repo/apps/agent"
+          "$node_bin" <<'NODE'
+          const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
+          const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js');
+
+          function parse(result) {
+            return JSON.parse(result.content.find(item => item.type === 'text').text);
+          }
+
+          (async () => {
+            const client = new Client({ name: '3dvr-deploy-smoke', version: '1.0.0' });
+            const transport = new StreamableHTTPClientTransport(new URL('http://127.0.0.1:8788/mcp'));
+            await client.connect(transport);
+            try {
+              const listed = await client.listTools();
+              const status = parse(await client.callTool({ name: 'control_status', arguments: {} }));
+              const accounts = parse(await client.callTool({ name: 'accounts_list', arguments: {} }));
+              const servers = parse(await client.callTool({ name: 'servers_health', arguments: {} }));
+              const github = parse(await client.callTool({
+                name: 'github_overview',
+                arguments: { repo: 'tmsteph/3dvr-portal', limit: 5 },
+              }));
+              let crm = { configured: Boolean(status.capabilities?.crm?.configured) };
+              if (crm.configured) {
+                const summary = parse(await client.callTool({ name: 'crm_summary', arguments: {} }));
+                crm = {
+                  configured: true,
+                  backend: summary.backend,
+                  total: summary.total,
+                  suppressed: summary.suppressed,
+                  withEmail: summary.withEmail,
+                };
+              }
+              console.log(JSON.stringify({
+                ok: true,
+                toolCount: listed.tools.length,
+                tools: listed.tools.map(tool => tool.name).sort(),
+                mode: status.mode,
+                accounts: (accounts.accounts || []).map(account => account.alias || account.id),
+                servers: (servers.servers || []).map(server => ({ name: server.name, ok: server.ok })),
+                github: {
+                  repo: github.repo?.nameWithOwner || '',
+                  openPullRequestsReturned: github.openPullRequestCountReturned ?? github.openPullRequests?.length ?? 0,
+                },
+                crm,
+              }, null, 2));
+            } finally {
+              await transport.close().catch(() => {});
+            }
+          })().catch(error => {
+            console.error(error?.message || error);
+            process.exit(1);
+          });
+          NODE
           REMOTE
 
       - name: Remove SSH keys
