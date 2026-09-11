@@ -2,8 +2,37 @@ function normalizeText(value) {
   return String(value || '').trim();
 }
 
+function serviceConfig(config = process.env) {
+  const baseUrl = normalizeText(config.NEWSLETTER_STORE_URL).replace(/\/$/, '');
+  const token = normalizeText(config.NEWSLETTER_STORE_TOKEN);
+  return baseUrl && token ? { baseUrl, token } : null;
+}
+
 function crmConfigured(config = process.env) {
-  return Boolean(normalizeText(config.DATABASE_URL));
+  return Boolean(serviceConfig(config) || normalizeText(config.DATABASE_URL));
+}
+
+async function serviceGet(path, params = {}, config = process.env, fetchImpl = fetch) {
+  const selected = serviceConfig(config);
+  if (!selected) throw new Error('CRM store service is not configured.');
+  const url = new URL(`${selected.baseUrl}${path}`);
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') continue;
+    url.searchParams.set(key, String(value));
+  }
+  const response = await fetchImpl(url, {
+    method: 'GET',
+    headers: {
+      authorization: `Bearer ${selected.token}`,
+      accept: 'application/json',
+    },
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!response.ok) {
+    if (response.status === 404) throw new Error('CRM contact was not found.');
+    throw new Error(`CRM store returned ${response.status}.`);
+  }
+  return response.json();
 }
 
 async function withPool(action, config = process.env) {
@@ -37,7 +66,8 @@ function safeContact(row = {}) {
   };
 }
 
-async function crmSummary({ config = process.env } = {}) {
+async function crmSummary({ config = process.env, fetchImpl = fetch } = {}) {
+  if (serviceConfig(config)) return serviceGet('/v1/crm/summary', {}, config, fetchImpl);
   return withPool(async (pool) => {
     const [totals, statuses, recent] = await Promise.all([
       pool.query(`SELECT COUNT(*)::int AS total,
@@ -62,9 +92,16 @@ async function crmSummary({ config = process.env } = {}) {
   }, config);
 }
 
-async function searchCrmContacts({ query = '', limit = 20, includeSuppressed = false, config = process.env } = {}) {
+async function searchCrmContacts({ query = '', limit = 20, includeSuppressed = false, config = process.env, fetchImpl = fetch } = {}) {
   const term = normalizeText(query);
   const selectedLimit = Math.max(1, Math.min(100, Number(limit) || 20));
+  if (serviceConfig(config)) {
+    return serviceGet('/v1/crm/search', {
+      q: term,
+      limit: selectedLimit,
+      include_suppressed: Boolean(includeSuppressed),
+    }, config, fetchImpl);
+  }
   return withPool(async (pool) => {
     const values = [];
     const clauses = [];
@@ -91,10 +128,15 @@ async function searchCrmContacts({ query = '', limit = 20, includeSuppressed = f
   }, config);
 }
 
-async function readCrmContact({ contactId, activityLimit = 20, config = process.env } = {}) {
+async function readCrmContact({ contactId, activityLimit = 20, config = process.env, fetchImpl = fetch } = {}) {
   const id = normalizeText(contactId);
   if (!id) throw new Error('contactId is required.');
   const selectedLimit = Math.max(1, Math.min(100, Number(activityLimit) || 20));
+  if (serviceConfig(config)) {
+    return serviceGet(`/v1/crm/contacts/${encodeURIComponent(id)}`, {
+      activity_limit: selectedLimit,
+    }, config, fetchImpl);
+  }
   return withPool(async (pool) => {
     const [contact, activities] = await Promise.all([
       pool.query(`SELECT contact_id, record_type, name, company, email, phone, website, status,
@@ -128,4 +170,6 @@ module.exports = {
   readCrmContact,
   safeContact,
   searchCrmContacts,
+  serviceConfig,
+  serviceGet,
 };
