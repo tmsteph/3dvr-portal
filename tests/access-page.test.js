@@ -21,6 +21,13 @@ test('Access page sends broker requests directly to the published OVH control pl
   assert.match(app, /credentials: 'omit'/);
 });
 
+test('Access page keeps a persistent connected state after Bitwarden is ready', () => {
+  assert.match(app, /Bitwarden connected ✅/);
+  assert.match(app, /Connected ✓/);
+  assert.match(app, /brokerDot.*status-dot/);
+  assert.match(app, /approvalButton\.disabled = connected/);
+});
+
 test('Access page exposes the owner approval path', () => {
   assert.match(page, /Create 3DVR machine access/);
   assert.match(page, /Bitwarden Secrets Manager/);
