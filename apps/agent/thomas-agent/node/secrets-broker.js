@@ -190,13 +190,23 @@ class BitwardenSecretsManagerBackend {
     return parsed.value;
   }
 
-  create({ projectId, key, value, note = '' } = {}) {
-    const targetProject = normalizeText(projectId, 200);
+  create({ projectId, projectName, key, value, note = '' } = {}) {
+    let targetProject = normalizeText(projectId, 200);
+    const targetProjectName = normalizeText(projectName, 300);
     const secretKey = normalizeText(key, 500);
     const secretValue = typeof value === 'string' ? value : '';
     const secretNote = normalizeText(note, 1000);
-    if (!targetProject || !secretKey || !secretValue) throw new Error('Bitwarden project, key, and value are required');
+    if ((!targetProject && !targetProjectName) || !secretKey || !secretValue) throw new Error('Bitwarden project, key, and value are required');
     if (!this.ready()) throw new Error('Bitwarden Secrets Manager backend is not configured');
+    if (!targetProject && targetProjectName) {
+      const projects = spawnSync(this.binary, ['project', 'list', '--output', 'json', '--color', 'no'], { env: this.env, encoding: 'utf8', timeout: this.timeoutMs, maxBuffer: 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+      if (projects.error || projects.status !== 0) throw new Error('Bitwarden project lookup failed');
+      let parsedProjects;
+      try { parsedProjects = JSON.parse(projects.stdout); } catch { throw new Error('Bitwarden returned invalid project JSON'); }
+      const match = Array.isArray(parsedProjects) ? parsedProjects.find(item => normalizeText(item?.name, 300).toLowerCase() === targetProjectName.toLowerCase()) : null;
+      targetProject = normalizeText(match?.id, 200);
+      if (!targetProject) throw new Error('Bitwarden target project was not found');
+    }
     const args = ['secret', 'create', secretKey, secretValue, targetProject];
     if (secretNote) args.push('--note', secretNote);
     args.push('--output', 'json', '--color', 'no');
@@ -412,7 +422,8 @@ class SecretsBroker {
     if (!scopeAllowed(write.scopes, scope)) return deny('secret-scope-not-granted');
 
     const projectId = normalizeText(write.projectId || secret.projectId, 200);
-    if (!projectId) return deny('secret-write-project-not-configured');
+    const projectName = normalizeText(write.projectName || secret.projectName, 300);
+    if (!projectId && !projectName) return deny('secret-write-project-not-configured');
     const approval = this.#approvalConfig(policy, { approval: write.approval || secret.approval });
     const fingerprint = this.#fingerprint(agent.id, alias, capability, scope);
     const state = this.approvals();
@@ -446,7 +457,7 @@ class SecretsBroker {
 
     let created;
     try {
-      created = backend.create({ projectId, key, value, note });
+      created = backend.create({ projectId, projectName, key, value, note });
     } catch (error) {
       this.audit.append({ event: 'secret_backend_error', operation: 'write', requestId, approvalId: lease.id, agent: agent.id, secretAlias: alias, capability, scope, backend: backendName, reason: normalizeText(error.message, 300) });
       return { status: 503, body: { ok: false, decision: 'backend_unavailable', reason: 'secret-backend-unavailable', requestId } };

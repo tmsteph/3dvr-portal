@@ -19,11 +19,11 @@ function response() {
   };
 }
 
-function verification({ alias = OWNER_ALIAS, pub = OWNER_PUB, action = 'status', approvalId = '', accessTokenHash = '' } = {}) {
+function verification({ alias = OWNER_ALIAS, pub = OWNER_PUB, action = 'status', approvalId = '', accessTokenHash = '', secretValueHash = '', secretKey = '' } = {}) {
   return async () => ({
     ok: true,
     identity: { alias, pub, action, origin: 'https://portal.3dvr.tech', issuedAt: Date.now(), scope: 'secrets-broker-owner' },
-    verified: { alias, pub, action, approvalId, accessTokenHash, scope: 'secrets-broker-owner' },
+    verified: { alias, pub, action, approvalId, accessTokenHash, secretValueHash, secretKey, scope: 'secrets-broker-owner' },
   });
 }
 
@@ -141,6 +141,36 @@ test('owner approval maps to exact local broker endpoint', async () => {
   assert.equal(brokerCall.method, 'POST');
   assert.equal(brokerCall.path, `/v1/approvals/${approvalId}/approve`);
   assert.equal(brokerCall.payload.actor, OWNER_ALIAS);
+});
+
+test('owner-signed Operator save maps to the scoped broker write endpoint', async () => {
+  const value = 'fixture-data';
+  const key = 'FIXTURE_KEY';
+  let brokerCall;
+  const handler = createSecretsBrokerHandler({
+    config: {},
+    verify: verification({ action: 'store-secret', secretKey: key, secretValueHash: createHash('sha256').update(value).digest('hex') }),
+    brokerRequest: async input => { brokerCall = input; return { status: 201, body: { ok: true, stored: { id: 'created-1', key } } }; },
+  });
+  const res = response();
+  await handler(request({ action: 'store-secret', key, value, note: 'fixture' }), res);
+  assert.equal(res.statusCode, 201);
+  assert.equal(brokerCall.path, '/v1/store');
+  assert.equal(brokerCall.payload.capability, 'secret.write');
+  assert.equal(brokerCall.payload.scope, 'secrets:3dvr-agent');
+  assert.equal(brokerCall.payload.value, value);
+});
+
+test('Operator save proof is bound to key and value hash', async () => {
+  const handler = createSecretsBrokerHandler({
+    config: {},
+    verify: verification({ action: 'store-secret', secretKey: 'ORIGINAL', secretValueHash: createHash('sha256').update('original-data').digest('hex') }),
+    brokerRequest: async () => { throw new Error('must not run'); },
+  });
+  const res = response();
+  await handler(request({ action: 'store-secret', key: 'CHANGED', value: 'original-data' }), res);
+  assert.equal(res.statusCode, 401);
+  assert.match(res.body.error, /secure save/i);
 });
 
 test('owner can hand Bitwarden machine access directly to OVH without echoing the token', async () => {

@@ -150,6 +150,14 @@ async function authorizeOwner(req, body, action, { config, verify }) {
   if ((action === 'approve' || action === 'deny') && normalizeText(auth.verified?.approvalId) !== normalizeText(body.approvalId)) {
     return { ok: false, status: 401, reason: 'Owner proof did not match this approval.' };
   }
+  if (action === 'store-secret') {
+    const value = String(body.value || '');
+    const expectedHash = createHash('sha256').update(value).digest('hex');
+    if (normalizeText(auth.verified?.secretValueHash, 100) !== expectedHash
+      || normalizeText(auth.verified?.secretKey, 500) !== normalizeText(body.key, 500)) {
+      return { ok: false, status: 401, reason: 'Owner proof did not match this secure save.' };
+    }
+  }
   if (action === 'configure-bitwarden') {
     const accessToken = String(body.accessToken || '');
     const expectedHash = createHash('sha256').update(accessToken).digest('hex');
@@ -171,7 +179,7 @@ export function createSecretsBrokerHandler(options = {}) {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
     const body = req.body || {};
     const action = normalizeText(body.action, 40);
-    if (!['status', 'approvals', 'approve', 'deny', 'configure-bitwarden'].includes(action)) return res.status(400).json({ ok: false, error: 'Unknown broker action.' });
+    if (!['status', 'approvals', 'approve', 'deny', 'configure-bitwarden', 'store-secret'].includes(action)) return res.status(400).json({ ok: false, error: 'Unknown broker action.' });
     const auth = await authorizeOwner(req, body, action, { config, verify });
     if (!auth.ok) return res.status(auth.status).json({ ok: false, error: auth.reason });
 
@@ -186,7 +194,13 @@ export function createSecretsBrokerHandler(options = {}) {
     let request;
     if (action === 'status') request = { method: 'GET', path: '/v1/status' };
     else if (action === 'approvals') request = { method: 'GET', path: '/v1/approvals?status=pending' };
-    else {
+    else if (action === 'store-secret') {
+      const key = normalizeText(body.key, 500);
+      const value = typeof body.value === 'string' ? body.value : '';
+      const note = normalizeText(body.note, 1000);
+      if (!key || !value) return res.status(400).json({ ok: false, error: 'Name and value are required.' });
+      request = { method: 'POST', path: '/v1/store', payload: { secret: 'bitwarden.writer', capability: 'secret.write', scope: 'secrets:3dvr-agent', purpose: 'Owner saved a value from 3DVR Operator', key, value, note } };
+    } else {
       const approvalId = normalizeText(body.approvalId, 200);
       if (!/^apr-[a-z0-9-]{10,}$/i.test(approvalId)) return res.status(400).json({ ok: false, error: 'A valid approval id is required.' });
       request = {
