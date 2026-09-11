@@ -11,9 +11,9 @@ permissions:
   contents: read
 
 jobs:
-  inspect-digitalocean:
+  inspect-cloud-hosts:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     steps:
       - name: Inspect token metadata without exposing secrets
         shell: bash
@@ -28,16 +28,10 @@ jobs:
             local raw="$1" dest="$2"
             [ -n "$raw" ] || return 0
             printf '%s\n' "$raw" > "$dest.raw"
-            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
-              cp "$dest.raw" "$dest"
-            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
-              :
-            else
-              rm -f "$dest" "$dest.raw"
-              return 0
-            fi
-            chmod 600 "$dest"
-            rm -f "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :
+            else rm -f "$dest" "$dest.raw"; return 0; fi
+            chmod 600 "$dest"; rm -f "$dest.raw"
           }
           write_key "$SSH_A" /tmp/h-a
           write_key "$SSH_B" /tmp/h-b
@@ -46,87 +40,64 @@ jobs:
           cat > /tmp/oauth-diagnostic.sh <<'REMOTE'
           set -eu
           echo "host=$(hostname)"
-          for home in /root /home/debian /home/tmsteph; do
-            [ -d "$home" ] || continue
-            for rel in .3dvr/oauth.json .3dvr/connectors/google-oauth.enc.json .3dvr/connectors/accounts.json; do
-              f="$home/$rel"
-              if [ -f "$f" ]; then
-                echo "present=$f size=$(stat -c %s "$f") mtime=$(stat -c %y "$f" | cut -d. -f1)"
-              else
-                echo "missing=$f"
-              fi
-            done
+          find /root /home /opt -type f \( -name 'oauth.json' -o -name 'google-oauth.enc.json' -o -name 'accounts.json' \) 2>/dev/null | while read -r f; do
+            case "$f" in *node_modules*|*/.git/*) continue ;; esac
+            echo "credential_file=$f size=$(stat -c %s "$f") mtime=$(stat -c %y "$f" | cut -d. -f1)"
           done
           python3 - <<'PY'
-          import json, os
-          homes=['/root','/home/debian','/home/tmsteph']
-          for home in homes:
-              oauth=f'{home}/.3dvr/oauth.json'
-              if os.path.isfile(oauth):
-                  try:
-                      data=json.load(open(oauth))
-                      for provider,c in (data.get('connections') or {}).items():
-                          print('cli_connection', {
-                              'provider': provider,
-                              'email': c.get('email',''),
-                              'scopeKey': c.get('scopeKey') or c.get('scope_key',''),
-                              'has_refresh_token': bool(c.get('refreshToken') or c.get('refresh_token')),
-                              'has_access_token': bool(c.get('accessToken') or c.get('access_token')),
-                              'expiresAt': c.get('expiresAt') or c.get('expires_at') or 0,
-                          })
-                  except Exception as e:
-                      print('cli_connection_parse_error', type(e).__name__)
-              vault=f'{home}/.3dvr/connectors/google-oauth.enc.json'
-              if os.path.isfile(vault):
-                  try:
-                      data=json.load(open(vault))
-                      refs=sorted((data.get('secrets') or {}).keys())
-                      print('vault_refs', {'home':home,'count':len(refs),'refs':refs})
-                  except Exception as e:
-                      print('vault_parse_error', type(e).__name__)
-              reg=f'{home}/.3dvr/connectors/accounts.json'
-              if os.path.isfile(reg):
-                  try:
-                      data=json.load(open(reg))
-                      raw=data.get('accounts') or data
-                      items=raw.values() if isinstance(raw,dict) else raw if isinstance(raw,list) else []
-                      safe=[]
-                      for a in items:
-                          if isinstance(a,dict):
-                              safe.append({k:a.get(k) for k in ('id','provider','alias','email','status','credentialRef','scopes') if k in a})
-                      print('accounts', safe)
-                  except Exception as e:
-                      print('accounts_parse_error', type(e).__name__)
+          import json, os, glob
+          paths=[]
+          for base in ('/root','/home','/opt'):
+              for name in ('oauth.json','google-oauth.enc.json','accounts.json'):
+                  paths += glob.glob(base+'/**/'+name, recursive=True)
+          seen=set()
+          for f in paths:
+              if f in seen or '/node_modules/' in f or '/.git/' in f: continue
+              seen.add(f)
+              try: data=json.load(open(f))
+              except Exception: continue
+              if f.endswith('/oauth.json'):
+                  for provider,c in (data.get('connections') or {}).items():
+                      print('cli_connection', {'file':f,'provider':provider,'email':c.get('email',''),'scopeKey':c.get('scopeKey') or c.get('scope_key',''),'has_refresh_token':bool(c.get('refreshToken') or c.get('refresh_token')),'has_access_token':bool(c.get('accessToken') or c.get('access_token'))})
+              elif f.endswith('/google-oauth.enc.json'):
+                  refs=sorted((data.get('secrets') or {}).keys())
+                  print('vault_refs', {'file':f,'count':len(refs),'refs':refs})
+              elif f.endswith('/accounts.json'):
+                  raw=data.get('accounts') or data
+                  items=raw.values() if isinstance(raw,dict) else raw if isinstance(raw,list) else []
+                  safe=[]
+                  for a in items:
+                      if isinstance(a,dict): safe.append({k:a.get(k) for k in ('id','provider','alias','email','status','credentialRef','scopes') if k in a})
+                  if safe: print('accounts', {'file':f,'items':safe})
           PY
-          declared=0
-          for f in /root/.3dvr/config/* /home/debian/.3dvr/config/* /home/tmsteph/.3dvr/config/* /etc/default/* /etc/systemd/system/*.service.d/*.conf; do
-            [ -f "$f" ] || continue
-            if grep -q '^THREEDVR_CONNECTOR_MASTER_KEY=' "$f" 2>/dev/null; then
-              echo "master_key_declared_in=$f"
-              declared=1
-            fi
+          for key in THREEDVR_CONNECTOR_MASTER_KEY GMAIL_APP_PASSWORD GMAIL_USER THREEDVR_OUTREACH_EMAIL_TOKEN; do
+            found=0
+            while IFS= read -r f; do
+              if grep -q "^${key}=" "$f" 2>/dev/null; then
+                echo "key_declared=$key file=$f"
+                found=1
+              fi
+            done < <(find /root /home /opt /etc -type f \( -name '*.env' -o -name 'env' -o -name '*.conf' \) 2>/dev/null | grep -vE '/node_modules/|/.git/' | head -3000)
+            echo "key_declared_any=$key:$found"
           done
-          echo "master_key_declared=$declared"
-          running=0
-          for p in /proc/[0-9]*/environ; do
-            [ -r "$p" ] || continue
-            if tr '\0' '\n' < "$p" 2>/dev/null | grep -q '^THREEDVR_CONNECTOR_MASTER_KEY='; then
-              running=1
-              break
-            fi
-          done
-          echo "master_key_in_running_process=$running"
           REMOTE
 
-          ok=0
-          for user in root debian; do
-            for key in /tmp/h-a /tmp/h-b /tmp/h-c; do
-              [ -f "$key" ] || continue
-              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@167.172.193.194" 'bash -s' < /tmp/oauth-diagnostic.sh; then
-                echo "connected_as=$user"
-                ok=1
-                break 2
-              fi
+          scan() {
+            local label="$1" host="$2"; shift 2
+            echo "=== $label $host ==="
+            local user key
+            for user in "$@"; do
+              for key in /tmp/h-a /tmp/h-b /tmp/h-c; do
+                [ -f "$key" ] || continue
+                if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host" 'bash -s' < /tmp/oauth-diagnostic.sh; then
+                  echo "connected_as=$user"
+                  return 0
+                fi
+              done
             done
-          done
-          [ "$ok" -eq 1 ]
+            echo "unreachable=$label"
+            return 0
+          }
+          scan OVH 40.160.137.41 debian root
+          scan Hetzner 167.233.174.20 root debian ubuntu tmsteph
+          scan DigitalOcean 167.172.193.194 root debian
