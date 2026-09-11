@@ -2,7 +2,7 @@
 const { createFreelancerWorkspaceRuntime } = require('./freelancer-workspace-runtime');
 
 function usage() {
-  console.log('Usage: freelancer-workspace <status|provision|start|stop|session> <workspace-id> [--timezone TZ] [--json]');
+  console.log('Usage: freelancer-workspace <status|provision|start|stop|recreate|session> <workspace-id> [--timezone TZ] [--json]');
 }
 
 function parseArgs(argv) {
@@ -21,7 +21,7 @@ function parseArgs(argv) {
 
 async function main() {
   const { action, workspaceId, options } = parseArgs(process.argv.slice(2));
-  if (!['status', 'provision', 'start', 'stop', 'session'].includes(action) || !workspaceId) {
+  if (!['status', 'provision', 'start', 'stop', 'recreate', 'session'].includes(action) || !workspaceId) {
     usage();
     process.exitCode = 2;
     return;
