@@ -1,7 +1,6 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { DatabaseSync } = require('node:sqlite');
 
 const PERSONAL_SENT_SOURCE = 'tmsteph-gmail-sent';
 const DEFAULT_CHECK_MAX_AGE_HOURS = 24;
@@ -71,6 +70,14 @@ function normalizeDbPermissions(filePath, config = process.env) {
 }
 
 function openSuppressionDb(config = process.env) {
+  let DatabaseSync;
+  try {
+    ({ DatabaseSync } = require('node:sqlite'));
+  } catch (error) {
+    const wrapped = new Error('Outreach suppression requires Node.js 22+ with node:sqlite support.');
+    wrapped.cause = error;
+    throw wrapped;
+  }
   const filePath = resolveSuppressionDbPath(config);
   ensureSharedParent(filePath, config);
   const db = new DatabaseSync(filePath);
