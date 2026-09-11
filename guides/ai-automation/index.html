@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Build a low-cost AI automation workstation | 3DVR</title>
+  <meta name="description" content="A practical 3DVR guide to connecting ChatGPT or Claude to email, your computer, browser automation, and secure credentials without starting with an API budget.">
+  <link rel="canonical" href="https://portal.3dvr.tech/guides/ai-automation/">
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0c100e;
+      color: #f5f7f5;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #18241d 0, #0c100e 42%); }
+    a { color: #b8efc7; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .shell { width: min(900px, calc(100% - 32px)); margin: 0 auto; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 0; }
+    .brand { color: #f5f7f5; text-decoration: none; font-weight: 850; letter-spacing: .04em; }
+    .back { color: #9aafa1; font-size: .92rem; }
+    main { padding: 34px 0 72px; }
+    .eyebrow { margin: 0 0 8px; color: #8fa99a; font-size: .78rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { max-width: 760px; margin: 0; font-size: clamp(2.45rem, 8vw, 5rem); line-height: .94; letter-spacing: -.045em; }
+    .lead { max-width: 720px; margin: 20px 0 32px; color: #c7d0ca; font-size: clamp(1.05rem, 3vw, 1.28rem); line-height: 1.55; }
+    .flow { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 36px; color: #c4d0c7; font-weight: 750; }
+    .flow span { padding: 8px 12px; border: 1px solid #314138; border-radius: 999px; background: rgba(20, 29, 23, .78); }
+    .flow b { align-self: center; color: #6f8d79; }
+    .steps { display: grid; gap: 14px; counter-reset: step; }
+    .step { counter-increment: step; border: 1px solid #2c3a31; border-radius: 18px; background: rgba(19, 27, 22, .88); padding: 20px; }
+    .step h2 { margin: 0; font-size: 1.16rem; }
+    .step h2::before { content: counter(step) ". "; color: #8fd4a4; }
+    .step p { margin: 8px 0 0; color: #bdc8c0; line-height: 1.55; }
+    .step ul { margin: 10px 0 0; padding-left: 20px; color: #bdc8c0; line-height: 1.55; }
+    .prompt { margin-top: 14px; position: relative; }
+    pre { margin: 0; padding: 16px; overflow-x: auto; white-space: pre-wrap; border: 1px solid #314138; border-radius: 14px; background: #080b09; color: #dbe7df; line-height: 1.5; }
+    .copy { margin-top: 9px; border: 1px solid #3a5042; border-radius: 999px; background: #18241d; color: #e7f3ea; padding: 8px 12px; font: inherit; font-weight: 750; cursor: pointer; }
+    .copy:hover { background: #223127; }
+    .note { margin: 28px 0 0; border-left: 3px solid #79ba8d; padding: 4px 0 4px 16px; color: #bdc8c0; line-height: 1.55; }
+    .resources { margin-top: 36px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .resource { border: 1px solid #293830; border-radius: 16px; padding: 16px; background: rgba(13, 19, 15, .7); }
+    .resource strong { display: block; margin-bottom: 5px; }
+    .resource p { margin: 0; color: #9eada3; line-height: 1.45; font-size: .94rem; }
+    footer { padding: 0 0 38px; color: #7f8d84; font-size: .9rem; }
+    @media (max-width: 680px) {
+      main { padding-top: 20px; }
+      header { align-items: flex-start; }
+      .resources { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="shell">
+    <a class="brand" href="/">3DVR</a>
+    <a class="back" href="/ai-systems-lab/">AI Systems Lab</a>
+  </header>
+  <main class="shell">
+    <p class="eyebrow">Practical guide</p>
+    <h1>Give your AI hands.</h1>
+    <p class="lead">You do not need to start with a big API budget. Connect an AI to the services and computer you already use, then let it do most of the technical setup for you.</p>
+
+    <div class="flow" aria-label="Recommended automation stack">
+      <span>ChatGPT or Claude</span><b>→</b><span>Connectors</span><b>→</b><span>Desktop Commander</span><b>→</b><span>agent-browser</span><b>→</b><span>Bitwarden</span>
+    </div>
+
+    <section class="steps" aria-label="Setup order">
+      <article class="step">
+        <h2>Start with ChatGPT Free</h2>
+        <p>Open Plugins and connect the services you already use. Availability can vary by account and region, but the plugin directory is available across ChatGPT plans.</p>
+      </article>
+
+      <article class="step">
+        <h2>Connect Gmail</h2>
+        <p>If Gmail is available on your account, connect it before automating the Gmail website. Direct connectors are usually faster and more reliable for reading, searching, drafting, and supported send actions.</p>
+      </article>
+
+      <article class="step">
+        <h2>Connect Remote Desktop Commander</h2>
+        <p>This is the turning point. It gives the AI controlled access to your computer or server: terminal, files, code, processes, and scripts.</p>
+        <p>Once it works, stop following most setup guides by hand. Ask the AI to install, test, document, and maintain the rest.</p>
+      </article>
+
+      <article class="step">
+        <h2>Give the AI a setup mission</h2>
+        <p>Paste a clear goal instead of manually installing every component:</p>
+        <div class="prompt">
+          <pre id="setup-prompt">Set this computer up as a safe AI automation workstation. Install and verify agent-browser, create persistent browser sessions where useful, prefer direct connectors when available, and document what you change. Do not hard-code passwords or secrets. Stop for me when a login, permission, CAPTCHA, 2FA prompt, or other human approval is required.</pre>
+          <button class="copy" type="button" data-copy="setup-prompt">Copy setup prompt</button>
+        </div>
+      </article>
+
+      <article class="step">
+        <h2>Let it install agent-browser</h2>
+        <p>agent-browser gives the AI browser control for normal websites: navigation, clicking, typing, forms, uploads, screenshots, and page inspection. The AI can install and verify it through Desktop Commander.</p>
+        <p>If you want to do it manually, the recommended install is <code>npm install -g agent-browser</code> followed by <code>agent-browser install</code>.</p>
+      </article>
+
+      <article class="step">
+        <h2>Add Bitwarden</h2>
+        <p>Use Bitwarden Password Manager for normal logins. For agent credentials, prefer narrowly scoped secrets through Bitwarden Secrets Manager or another secrets broker instead of passwords embedded in scripts.</p>
+      </article>
+
+      <article class="step">
+        <h2>Automate real work</h2>
+        <p>Use this order: <strong>direct connector first → browser automation second → full desktop/UI control only when needed.</strong></p>
+        <p>Then add recurring jobs such as: “Every morning, check my Gmail, summarize anything important, then use my computer to update my project notes.”</p>
+      </article>
+    </section>
+
+    <p class="note"><strong>Claude works too.</strong> Claude Free can use connectors, and Claude Desktop supports local desktop extensions/MCP. Free users currently get one custom remote connector, so the exact setup limits differ from ChatGPT, but the same architecture applies.</p>
+    <p class="note"><strong>When local browser automation struggles:</strong> a managed service such as TinyFish can be a useful paid fallback for difficult websites. Start local first to keep cost and lock-in low.</p>
+
+    <section class="resources" aria-label="Official resources">
+      <article class="resource"><strong><a href="https://help.openai.com/en/articles/20001256/" target="_blank" rel="noopener noreferrer">ChatGPT Plugins</a></strong><p>OpenAI’s current plugin and availability guide.</p></article>
+      <article class="resource"><strong><a href="https://desktopcommander.app/" target="_blank" rel="noopener noreferrer">Remote Desktop Commander</a></strong><p>Connect an authorized computer or server to an AI assistant.</p></article>
+      <article class="resource"><strong><a href="https://github.com/vercel-labs/agent-browser" target="_blank" rel="noopener noreferrer">agent-browser</a></strong><p>Open-source browser automation CLI for AI agents.</p></article>
+      <article class="resource"><strong><a href="https://bitwarden.com/" target="_blank" rel="noopener noreferrer">Bitwarden</a></strong><p>Password Manager and Secrets Manager for safer credential handling.</p></article>
+      <article class="resource"><strong><a href="https://support.claude.com/en/articles/11176164-use-connectors-to-extend-claude-s-capabilities" target="_blank" rel="noopener noreferrer">Claude Connectors</a></strong><p>Anthropic’s current connector and MCP setup guidance.</p></article>
+      <article class="resource"><strong><a href="https://www.tinyfish.ai/" target="_blank" rel="noopener noreferrer">TinyFish</a></strong><p>Optional managed browser automation when a local browser is not enough.</p></article>
+    </section>
+  </main>
+  <footer class="shell">3DVR · Build the future with open, portable tools.</footer>
+  <script>
+    document.querySelectorAll('[data-copy]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const target = document.getElementById(button.dataset.copy);
+        if (!target) return;
+        const text = target.textContent.trim();
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          const helper = document.createElement('textarea');
+          helper.value = text;
+          helper.setAttribute('readonly', '');
+          helper.style.position = 'fixed';
+          helper.style.opacity = '0';
+          document.body.appendChild(helper);
+          helper.select();
+          document.execCommand('copy');
+          helper.remove();
+        }
+        button.textContent = 'Copied';
+        window.setTimeout(() => { button.textContent = 'Copy setup prompt'; }, 1600);
+      });
+    });
+  </script>
+</body>
+</html>
