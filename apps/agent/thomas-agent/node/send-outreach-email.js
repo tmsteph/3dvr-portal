@@ -7,6 +7,7 @@ const { createGmailTransport } = require('./gmail-transport');
 const { validateCommercialOutreach } = require('./outreach-compliance');
 const { businessHoursStatus } = require('./send-window');
 const { acquireEmailSend, markEmailSent, markEmailUncertain } = require('./email-idempotency');
+const { enforcementEnabled, recipientDecision, recordOutboundContact } = require('../../../../src/outreach/suppression.cjs');
 
 const DEFAULT_TRANSPORT = normalizeText(
   process.env.THREEDVR_OUTREACH_EMAIL_TRANSPORT
@@ -255,6 +256,13 @@ async function main() {
     return;
   }
 
+  if (enforcementEnabled(process.env, true)) {
+    const decision = recipientDecision(options.to);
+    if (!decision.allowed) {
+      throw new Error(`Cold outreach blocked [${decision.code}]: ${decision.reason}`);
+    }
+  }
+
   const reservation = acquireEmailSend({
     from: DEFAULT_GMAIL_USER,
     to: options.to,
@@ -281,8 +289,17 @@ async function main() {
       await sendViaPortal(options);
     }
     markEmailSent(reservation, { transport: DEFAULT_TRANSPORT });
+    recordOutboundContact(options.to, {
+      source: '3dvr-tech-outbound',
+      evidence: `idempotency:${reservation.key}`,
+    });
   } catch (error) {
     markEmailUncertain(reservation, error);
+    recordOutboundContact(options.to, {
+      source: '3dvr-tech-outbound-uncertain',
+      reason: 'A send was attempted but the delivery outcome was uncertain; block retries until reconciled.',
+      evidence: `idempotency:${reservation.key}`,
+    });
     throw error;
   }
 

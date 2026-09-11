@@ -15,6 +15,7 @@ const {
 } = require('./contact-form-core');
 const { ADAPTERS, selectAdapter } = require('./form-adapters');
 const { detectHumanChallenge, humanChallengeResult } = require('./human-challenge');
+const { domainDecision, enforcementEnabled, recordSuppression } = require('../../../../src/outreach/suppression.cjs');
 
 const DEFAULT_NAME = 'Thomas';
 const DEFAULT_COMPANY = '3DVR';
@@ -254,6 +255,14 @@ async function runFormCommand(argv = process.argv.slice(2), runtime = {}) {
   }
 
   const route = routeLabelForLead({ ...lead, contact: pageUrl });
+  let businessDomain = '';
+  try { businessDomain = new URL(pageUrl).hostname.toLowerCase().replace(/^www\./, ''); } catch {}
+  if (options.submit && !options.dryRun && enforcementEnabled(process.env, true) && businessDomain) {
+    const decision = domainDecision(businessDomain);
+    if (!decision.allowed) {
+      throw new Error(`Cold form outreach blocked [${decision.code}]: ${decision.reason}`);
+    }
+  }
   if (options.dryRun && !runtime.page && !runtime.browser && !runtime.context) {
     console.log('FORM PREVIEW');
     console.log(`Name: ${lead.name}`);
@@ -354,6 +363,15 @@ async function runFormCommand(argv = process.argv.slice(2), runtime = {}) {
   }
 
   if (result.submitted) {
+    if (businessDomain && enforcementEnabled(process.env, true)) {
+      recordSuppression(businessDomain, {
+        scope: 'domain',
+        source: '3dvr-form-outbound',
+        sourceAccount: DEFAULT_EMAIL,
+        reason: 'Business has already been contacted through a 3DVR form submission.',
+        evidence: result.targetUrl || pageUrl,
+      });
+    }
     appendOutreachLog({
       kind: 'form',
       status: 'submitted',
