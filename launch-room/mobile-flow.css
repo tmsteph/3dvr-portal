@@ -1,0 +1,18 @@
+@media (max-width: 720px) {
+  /* Progressive enhancement: the complete form stays usable if the mobile helper does not run. */
+  .launch-room__actions {
+    display: grid;
+  }
+
+  .launch-room__form.is-mobile-flow:not(.is-last-question) .launch-room__actions {
+    display: none;
+  }
+
+  body:not([data-mobile-flow]) .launch-room__brief {
+    display: grid;
+  }
+
+  body[data-mobile-flow] .launch-room__brief:not([data-generated="true"]) {
+    display: none;
+  }
+}
