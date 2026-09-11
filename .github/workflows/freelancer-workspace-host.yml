@@ -119,7 +119,10 @@ jobs:
           WantedBy=multi-user.target
           UNIT
           sudo systemctl daemon-reload
-          sudo systemctl enable --now desktop-commander-remote.service
+          # A live process can still have a dead remote socket. Explicitly restart
+          # here so a deploy is also a reliable control-channel recovery action.
+          sudo systemctl enable desktop-commander-remote.service
+          sudo systemctl restart desktop-commander-remote.service
           sleep 4
           echo '=== desktop commander ==='
           sudo systemctl --no-pager --full status desktop-commander-remote.service || true
