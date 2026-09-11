@@ -1,0 +1,153 @@
+name: Deploy 3DVR Control MCP
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/agent/connectors/**'
+      - 'apps/agent/mcp/**'
+      - 'apps/agent/package.json'
+      - 'apps/agent/package-lock.json'
+      - '.github/workflows/control-mcp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      HETZNER_HOST: 167.233.174.20
+    steps:
+      - name: Resolve Hetzner SSH access
+        id: ssh
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/3dvr-mcp-a
+          write_key "$SSH_B" /tmp/3dvr-mcp-b
+          write_key "$SSH_C" /tmp/3dvr-mcp-c
+          for user in root debian ubuntu tmsteph; do
+            for key in /tmp/3dvr-mcp-a /tmp/3dvr-mcp-b /tmp/3dvr-mcp-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$HETZNER_HOST" true >/dev/null 2>&1; then
+                echo "user=$user" >> "$GITHUB_OUTPUT"
+                echo "key=$key" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+          done
+          echo 'No configured SSH key can reach Hetzner.' >&2
+          exit 1
+
+      - name: Deploy gateway
+        shell: bash
+        env:
+          HETZNER_USER: ${{ steps.ssh.outputs.user }}
+          HETZNER_KEY: ${{ steps.ssh.outputs.key }}
+        run: |
+          set -euo pipefail
+          opts=(-i "$HETZNER_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$HETZNER_USER@$HETZNER_HOST" "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' GITHUB_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
+          set -euo pipefail
+          repo="$HOME/.3dvr/mcp-gateway-repo"
+          mkdir -p "$HOME/.3dvr"
+          if [ ! -d "$repo/.git" ]; then
+            git clone "https://github.com/$GITHUB_REPOSITORY.git" "$repo"
+          fi
+          git -C "$repo" fetch --prune origin main
+          git -C "$repo" checkout main
+          git -C "$repo" reset --hard origin/main
+          git -C "$repo" merge-base --is-ancestor "$GITHUB_SHA" HEAD
+
+          cfg="$HOME/.3dvr/config/env"
+          node_bin=''
+          if [ -f "$cfg" ]; then
+            candidate="$(sed -n 's/^export THREEDVR_NODE_BIN=//p; s/^THREEDVR_NODE_BIN=//p' "$cfg" | tail -n 1 | tr -d "'\"")"
+            [ -x "$candidate" ] && node_bin="$candidate"
+          fi
+          for candidate in "$node_bin" /root/.openclaw/tools/node/bin/node /opt/node-v22/bin/node "$(command -v node 2>/dev/null || true)"; do
+            [ -n "$candidate" ] && [ -x "$candidate" ] || continue
+            if "$candidate" -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a>22 || (a===22 && b>=13) ? 0 : 1)' >/dev/null 2>&1; then
+              node_bin="$candidate"
+              break
+            fi
+          done
+          [ -x "$node_bin" ] || { echo 'Node >=22.13 is required.' >&2; exit 1; }
+          export PATH="$(dirname "$node_bin"):$PATH"
+          npm --prefix "$repo/apps/agent" ci --no-audit --no-fund
+
+          mkdir -p "$HOME/.3dvr/bin"
+          cat > "$HOME/.3dvr/bin/start-control-mcp" <<EOF
+          #!/usr/bin/env bash
+          set -euo pipefail
+          if [ -f "$cfg" ]; then set -a; . "$cfg"; set +a; fi
+          export THREEDVR_MCP_HOST=127.0.0.1
+          export THREEDVR_MCP_PORT=8788
+          export THREEDVR_MCP_ENABLE_DRAFTS=false
+          cd "$repo/apps/agent"
+          exec "$node_bin" mcp/server.js
+          EOF
+          chmod 700 "$HOME/.3dvr/bin/start-control-mcp"
+
+          if [ "$(id -u)" -eq 0 ]; then
+            cat > /etc/systemd/system/3dvr-personal-mcp.service <<EOF
+          [Unit]
+          Description=3DVR Control MCP Gateway
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          User=$(id -un)
+          ExecStart=$HOME/.3dvr/bin/start-control-mcp
+          Restart=on-failure
+          RestartSec=3
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+            systemctl daemon-reload
+            systemctl enable --now 3dvr-personal-mcp.service
+            systemctl restart 3dvr-personal-mcp.service
+          else
+            systemctl --user daemon-reload || true
+            systemctl --user restart 3dvr-personal-mcp.service || {
+              echo 'Non-root deploy requires the existing user unit.' >&2
+              exit 1
+            }
+          fi
+
+          for attempt in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8788/healthz >/tmp/3dvr-mcp-health.json; then break; fi
+            sleep 1
+          done
+          "$node_bin" -e 'const fs=require("fs"); const h=JSON.parse(fs.readFileSync("/tmp/3dvr-mcp-health.json","utf8")); if(!h.ok||h.service!=="3dvr-control-gateway") process.exit(1); console.log(JSON.stringify(h))'
+          REMOTE
+
+      - name: Remove SSH keys
+        if: always()
+        shell: bash
+        run: rm -f /tmp/3dvr-mcp-a /tmp/3dvr-mcp-b /tmp/3dvr-mcp-c /tmp/3dvr-mcp-*.raw
