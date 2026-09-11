@@ -76,8 +76,16 @@ function renderStatus(status) {
   const enabledAgents = (status.agents || []).filter(agent => agent.enabled !== false);
   setPill('agentStatus', `${enabledAgents.length} active`, 'ready');
   byId('agentDetail').textContent = `${status.configuredSecrets || 0} secret policies · ${enabledAgents.length} scoped machine identities.`;
-  byId('brokerMessage').textContent = bitwarden?.ready
-    ? 'OVH broker is live. Agents can request scoped access; owner approval remains the gate.'
+  const connected = Boolean(bitwarden?.ready);
+  byId('next-title').textContent = connected ? 'Bitwarden connected ✅' : 'Create 3DVR machine access';
+  byId('brokerDot').className = `status-dot ${connected ? 'ready' : 'attention'}`;
+  if (approvalButton) {
+    approvalButton.textContent = connected ? 'Connected ✓' : 'Connect Bitwarden';
+    approvalButton.disabled = connected;
+    approvalButton.setAttribute('aria-disabled', connected ? 'true' : 'false');
+  }
+  byId('brokerMessage').textContent = connected
+    ? 'OVH broker is live and Bitwarden machine access is connected. Agents can request scoped access through policy.'
     : 'OVH broker is live. Bitwarden machine access still needs its one-time private handoff.';
 }
 function renderApprovals(records = []) {
