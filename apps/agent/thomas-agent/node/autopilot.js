@@ -35,6 +35,7 @@ const DEFAULT_MIN_NEW_LEADS = parseInteger(process.env.THREEDVR_AUTOPILOT_MIN_NE
 const DEFAULT_NOTIFY_NEW_LEADS = parseInteger(process.env.THREEDVR_AUTOPILOT_NOTIFY_NEW_LEADS, 3);
 const DEFAULT_ENRICH_LIMIT = parseInteger(process.env.THREEDVR_AUTOPILOT_ENRICH_LIMIT, 10);
 const DEFAULT_CRAWL_LIMIT = parseInteger(process.env.THREEDVR_AUTOPILOT_CRAWL_LIMIT, 10);
+const DEFAULT_CRAWL_SOURCE = normalizeCrawlSource(process.env.THREEDVR_AUTOPILOT_CRAWL_SOURCE || 'search');
 const DEFAULT_RADIUS_KM = parseInteger(process.env.THREEDVR_AUTOPILOT_RADIUS_KM, 8);
 const DEFAULT_FORM_MODE = String(process.env.THREEDVR_AUTOPILOT_FORM_MODE || 'review').trim().toLowerCase();
 const DEFAULT_EMAIL_MODE = String(process.env.THREEDVR_AUTOPILOT_EMAIL_MODE || 'action').trim().toLowerCase();
@@ -80,6 +81,11 @@ const DEFAULT_OPENAI_COST_LIMIT_USD = parseNumber(process.env.THREEDVR_AUTOPILOT
 const DEFAULT_OPENAI_COST_WINDOW_DAYS = parseInteger(process.env.THREEDVR_AUTOPILOT_OPENAI_COST_WINDOW_DAYS, 1);
 const DEFAULT_CODEX_PROBE = String(process.env.THREEDVR_AUTOPILOT_CODEX_PROBE || 'auth').trim().toLowerCase();
 const DEFAULT_CODEX_REPO = process.env.THREEDVR_AUTOPILOT_CODEX_REPO || path.join(os.homedir(), '3dvr-agent');
+
+function normalizeCrawlSource(value) {
+  const source = String(value || '').trim().toLowerCase();
+  return ['search', 'auto', 'overpass'].includes(source) ? source : 'search';
+}
 
 function splitList(value) {
   return String(value || '')
@@ -140,6 +146,7 @@ Environment:
   THREEDVR_AUTOPILOT_MIN_NEW_LEADS       crawl when new leads drop below this
   THREEDVR_AUTOPILOT_NOTIFY_NEW_LEADS    email when at least this many new leads need review
   THREEDVR_AUTOPILOT_CRAWL_LIMIT         max leads to add per crawl
+  THREEDVR_AUTOPILOT_CRAWL_SOURCE        search (default) | auto | overpass
   THREEDVR_AUTOPILOT_ENRICH_LIMIT        max leads to enrich per run
   THREEDVR_AUTOPILOT_RADIUS_KM           crawl radius
   THREEDVR_AUTOPILOT_NOTIFY_EMAIL        escalation target
@@ -1044,10 +1051,11 @@ async function main() {
       '--category', combo.category,
       '--limit', String(DEFAULT_CRAWL_LIMIT),
       '--radius-km', String(DEFAULT_RADIUS_KM),
+      '--source', DEFAULT_CRAWL_SOURCE,
     ];
     if (options.dryRun) crawlArgs.push('--dry-run');
     crawlResult = await runScript('ask-crawl', crawlArgs);
-    commands.push(`ask-crawl --location "${combo.location}" --category ${combo.category} --limit ${DEFAULT_CRAWL_LIMIT} --radius-km ${DEFAULT_RADIUS_KM}`);
+    commands.push(`ask-crawl --location "${combo.location}" --category ${combo.category} --limit ${DEFAULT_CRAWL_LIMIT} --radius-km ${DEFAULT_RADIUS_KM} --source ${DEFAULT_CRAWL_SOURCE}`);
     if (!crawlResult.ok) {
       errors.push(`crawl failed: ${crawlResult.error || crawlResult.stderr || 'unknown error'}`);
       updateComboStat(state, combo, { ok: false, error: crawlResult.error || crawlResult.stderr });
@@ -1391,6 +1399,7 @@ module.exports = {
   formatRouteCounts,
   gunSafe,
   isFreshDiscoveryLead,
+  normalizeCrawlSource,
   needsEnrichment,
   pickAutoSendLeads,
   splitLocations,

@@ -9,6 +9,7 @@ const {
   formatRouteCounts,
   gunSafe,
   pickAutoSendLeads,
+  normalizeCrawlSource,
   splitLocations,
 } = require('../thomas-agent/node/autopilot');
 
@@ -147,3 +148,12 @@ test('pickAutoSendLeads keeps manual or known contacts approval-only by default'
   assert.deepEqual(pickAutoSendLeads(rows, 5, [], { freshOnly: false }).map((lead) => lead.name), ['Fresh Search Lead', 'Known Contact']);
 });
 
+
+
+test('normalizeCrawlSource defaults invalid values to search', () => {
+  assert.equal(normalizeCrawlSource('search'), 'search');
+  assert.equal(normalizeCrawlSource('auto'), 'auto');
+  assert.equal(normalizeCrawlSource('overpass'), 'overpass');
+  assert.equal(normalizeCrawlSource('bogus'), 'search');
+  assert.equal(normalizeCrawlSource(''), 'search');
+});
