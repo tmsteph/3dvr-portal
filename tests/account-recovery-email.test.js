@@ -1,5 +1,6 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { writeFile, unlink } from 'node:fs/promises';
 import { createAccountRecoveryEmailHandler, createUnifiedEmailHandler } from '../api/calendar/reminder-email.js';
 
 const baseConfig = {
@@ -472,6 +473,40 @@ describe('account recovery email api', () => {
 
     assert.equal(res.statusCode, 401);
     assert.equal(mail.sendMail.mock.calls.length, 0);
+  });
+
+  it('accepts the local operator token file when the env token is absent', async () => {
+    const tokenFile = `/tmp/3dvr-operator-token-${process.pid}.txt`;
+    await writeFile(tokenFile, 'file-backed-secret\n', { mode: 0o600 });
+    const mail = createMailTransport();
+    const config = {
+      ...baseConfig,
+      AGENT_OPERATOR_EMAIL_TOKEN: '',
+      AGENT_OPERATOR_EMAIL_TOKEN_FILE: tokenFile
+    };
+    const handler = createUnifiedEmailHandler({ config, mailTransport: mail });
+
+    try {
+      const req = {
+        method: 'POST',
+        headers: { authorization: 'Bearer file-backed-secret' },
+        body: {
+          mode: 'lead-outreach',
+          to: ['tmsteph1290@gmail.com'],
+          subject: 'Relay token file test',
+          text: 'Verify the local token-file fallback.'
+        }
+      };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      assert.equal(res.statusCode, 200);
+      assert.equal(res.body.mode, 'lead-outreach');
+      assert.equal(mail.sendMail.mock.calls.length, 1);
+    } finally {
+      await unlink(tokenFile).catch(() => {});
+    }
   });
 
   it('sends lead outreach through the unified mail route', async () => {

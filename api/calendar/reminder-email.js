@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import nodemailer from 'nodemailer';
 import { createBookingRequestHandler } from '../../src/calendar/booking-request-email.js';
 
@@ -127,11 +128,27 @@ function resolvePortalOrigin(config = process.env) {
   return origin.endsWith('/') ? origin.slice(0, -1) : origin;
 }
 
+function readOptionalTokenFile(filePath) {
+  const target = normalizeText(filePath);
+  if (!target) return '';
+  try {
+    return normalizeText(readFileSync(target, 'utf8'));
+  } catch (_error) {
+    return '';
+  }
+}
+
 function resolveOperatorAlertToken(config = process.env) {
-  return normalizeText(
+  const configured = normalizeText(
     config.AGENT_OPERATOR_EMAIL_TOKEN
     || config.THREEDVR_AUTOPILOT_EMAIL_TOKEN
   );
+  if (configured) return configured;
+
+  const operatorHome = normalizeText(config.THREEDVR_OPERATOR_HOME) || '/home/debian';
+  return readOptionalTokenFile(config.AGENT_OPERATOR_EMAIL_TOKEN_FILE)
+    || readOptionalTokenFile(config.THREEDVR_AUTOPILOT_EMAIL_TOKEN_FILE)
+    || readOptionalTokenFile(`${operatorHome}/.3dvr-agent-operator-email-token`);
 }
 
 function resolveRecoveryVerificationSecret(config = process.env) {
