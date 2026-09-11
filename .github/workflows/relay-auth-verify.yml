@@ -1,0 +1,81 @@
+name: Relay Auth Verify
+
+on:
+  push:
+    branches:
+      - ops/relay-auth-verify-20260910
+    paths:
+      - '.github/workflows/relay-auth-verify.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify live OVH relay auth without sending mail
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/h-a
+          write_key "$SSH_B" /tmp/h-b
+          write_key "$SSH_C" /tmp/h-c
+
+          cat > /tmp/verify-relay.sh <<'REMOTE'
+          set -euo pipefail
+          cd /opt/3dvr-portal-production/current
+          curl -fsS http://127.0.0.1:4320/__3dvr-health
+          env -u THREEDVR_OUTREACH_EMAIL_TOKEN \
+              -u THREEDVR_AUTOPILOT_EMAIL_TOKEN \
+              -u AGENT_OPERATOR_EMAIL_TOKEN \
+              THREEDVR_OUTREACH_EMAIL_ENDPOINT=http://127.0.0.1:4320/api/calendar/reminder-email \
+              node - <<'NODE'
+          const { sendViaPortal } = require('./apps/agent/thomas-agent/node/send-outreach-email.js');
+          sendViaPortal({ to: 'invalid-recipient', subject: 'relay auth verification', text: 'no send expected' })
+            .then(() => { console.error('UNEXPECTED_SEND_SUCCESS'); process.exit(2); })
+            .catch((error) => {
+              const message = String(error?.message || error);
+              if (message.includes('At least one outreach recipient is required')) {
+                console.log('PORTAL_RELAY_AUTH_OK');
+                process.exit(0);
+              }
+              console.error('PORTAL_RELAY_AUTH_FAIL:', message);
+              process.exit(1);
+            });
+          NODE
+          REMOTE
+
+          ok=0
+          for user in debian root; do
+            for key in /tmp/h-a /tmp/h-b /tmp/h-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@40.160.137.41" 'bash -s' < /tmp/verify-relay.sh; then
+                echo "connected_as=$user"
+                ok=1
+                break 2
+              fi
+            done
+          done
+          [ "$ok" -eq 1 ]
