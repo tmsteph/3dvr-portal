@@ -32,6 +32,10 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - Goal-driven execution: turn each task into a verifiable outcome. For fixes, reproduce with a test or focused check
   first when practical; for refactors, verify behavior before and after. Keep looping until checks or a clearly stated
   blocker close the task.
+- Client scope discipline: treat explicit authorization as a hard boundary. Separate the current engagement from
+  recommended future architecture, and preserve existing behavior unless the authorized stage requires changing it. If
+  documentation conflicts with an inferred end state, re-check scope before staging anything. See
+  `docs/client-scope-discipline.md`.
 
 ## Git Workflow
 - Do not make substantive changes directly on `main`. Create a branch first.
