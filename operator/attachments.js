@@ -17,7 +17,8 @@ export function installOperatorAttachments({ form, input, onStatus } = {}) {
 
   let current = null;
   const row = form.querySelector(':scope > div');
-  const submit = row?.querySelector('button[type="submit"]');
+  const actions = row?.querySelector('.operator-actions');
+  const submit = actions?.querySelector('button[type="submit"]') || row?.querySelector('button[type="submit"]');
   if (!row || !submit) return { getPayload: () => [], clear: () => {} };
 
   const fileInput = document.createElement('input');
@@ -52,7 +53,7 @@ export function installOperatorAttachments({ form, input, onStatus } = {}) {
 
   tray.append(preview, name, remove);
   form.insertBefore(tray, row);
-  row.insertBefore(attach, submit);
+  (submit.parentElement || row).insertBefore(attach, submit);
   form.appendChild(fileInput);
 
   const style = document.createElement('style');
