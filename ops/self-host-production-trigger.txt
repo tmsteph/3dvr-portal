@@ -7,3 +7,4 @@ encore-200-study 2026-09-08T14:59Z
 2026-09-10: deploy Operator secure secret vault
 2026-09-10: deploy Access Save to 3DVR Secrets UI
 2026-09-10: deploy Bitwarden SDK stdin hardening
+2026-09-10: deploy local operator relay token file fallback
