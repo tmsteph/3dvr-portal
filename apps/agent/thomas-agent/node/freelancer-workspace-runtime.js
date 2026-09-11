@@ -259,17 +259,29 @@ function createFreelancerWorkspaceRuntime({
     const { id, rootDir, existing } = await resolve(workspaceId);
     if (!existing) throw new Error('Workspace is not provisioned.');
     const inspect = await run('docker', ['inspect', '-f', '{{.State.Running}}', existing.containerName]);
-    if (statusFromInspect(inspect) === 'running') {
+    const wasRunning = statusFromInspect(inspect) === 'running';
+    if (wasRunning) {
       const stopped = await run('docker', ['stop', '--time', '20', existing.containerName]);
       if (!stopped.ok && !/No such container/i.test(stopped.stderr)) {
         throw new Error(`Workspace failed to stop before recreate: ${normalizeText(stopped.stderr, 1000)}`);
       }
     }
+    try {
+      assertHostCapacity();
+    } catch (error) {
+      if (wasRunning) {
+        const restored = await run('docker', ['start', existing.containerName]);
+        if (!restored.ok) {
+          throw new Error(`${error.message} The existing workspace was stopped but could not be restarted: ${normalizeText(restored.stderr, 1000)}`);
+        }
+      }
+      throw error;
+    }
     const removed = await run('docker', ['rm', '-f', existing.containerName]);
     if (!removed.ok && !/No such container/i.test(removed.stderr)) {
+      if (wasRunning) await run('docker', ['start', existing.containerName]);
       throw new Error(`Workspace container failed to remove: ${normalizeText(removed.stderr, 1000)}`);
     }
-    assertHostCapacity();
     const result = await run('docker', buildDockerRunArgs(existing, env));
     if (!result.ok) throw new Error(`Workspace container failed to recreate: ${normalizeText(result.stderr, 1000)}`);
     existing.lastStartedAt = now().toISOString();
