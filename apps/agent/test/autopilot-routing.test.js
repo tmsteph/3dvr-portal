@@ -80,8 +80,8 @@ test('buildActionItems includes form review commands without auto-submitting for
 
 test('pickAutoSendLeads does not retry successful recipients from the outreach log', () => {
   const rows = [
-    { name: 'Already Sent', status: 'new', link: 'https://sent.example', contact: 'mailto:owner@sent.example', date: '2026-07-15' },
-    { name: 'Fresh Lead', status: 'new', link: 'https://fresh.example', contact: 'mailto:owner@fresh.example', date: '2026-07-15' },
+    { name: 'Already Sent', status: 'new', link: 'https://sent.example', contact: 'mailto:owner@sent.example', date: '2026-07-15', variant: 'osm-service+route=email' },
+    { name: 'Fresh Lead', status: 'new', link: 'https://fresh.example', contact: 'mailto:owner@fresh.example', date: '2026-07-15', variant: 'search-seed+route=email' },
   ];
   const entries = [
     { status: 'sent', name: 'Already Sent', contact: 'mailto:owner@sent.example' },
@@ -137,3 +137,13 @@ test('only genuinely important campaign events trigger interrupt emails', () => 
   assert.match(text, /OpenAI spend guard hit/);
   assert.match(text, /Draft queue blocked: Codex auth expired/);
 });
+
+test('pickAutoSendLeads keeps manual or known contacts approval-only by default', () => {
+  const rows = [
+    { name: 'Known Contact', status: 'new', contact: 'mailto:known@example.com', date: '2026-09-03', variant: 'manual+route=email' },
+    { name: 'Fresh Search Lead', status: 'new', contact: 'mailto:fresh@example.com', date: '2026-09-03', variant: 'search-seed+route=email' },
+  ];
+  assert.deepEqual(pickAutoSendLeads(rows, 5, []).map((lead) => lead.name), ['Fresh Search Lead']);
+  assert.deepEqual(pickAutoSendLeads(rows, 5, [], { freshOnly: false }).map((lead) => lead.name), ['Fresh Search Lead', 'Known Contact']);
+});
+

@@ -213,11 +213,11 @@ async function geocodeLocation(location) {
   url.searchParams.set('limit', '1');
   url.searchParams.set('q', location);
 
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: {
       'User-Agent': '3dvr-agent/1.0 (lead research; 3dvr.tech)',
     },
-  });
+  }, DEFAULT_TIMEOUT_MS);
 
   if (!response.ok) {
     throw new Error(`Geocoding failed: ${response.status}`);
@@ -493,25 +493,26 @@ async function main() {
   }
 
   console.log(`Crawling ${options.category} leads near ${options.location}...`);
-  const place = await geocodeLocation(options.location);
-  const bbox = bboxFromRadius(place.lat, place.lon, options.radiusKm);
-  const query = buildOverpassQuery(options.category, bbox, options.limit);
+  let place = { label: options.location };
   let leads = [];
-  let sourceUsed = 'overpass';
-  try {
-    if (options.source === 'search') {
-      sourceUsed = 'search';
-      leads = await fetchSearchSeeds(options.location, options.category, options.limit);
-    } else {
+  let sourceUsed = options.source === 'search' ? 'search' : 'overpass';
+
+  if (options.source === 'search') {
+    leads = await fetchSearchSeeds(options.location, options.category, options.limit);
+  } else {
+    try {
+      place = await geocodeLocation(options.location);
+      const bbox = bboxFromRadius(place.lat, place.lon, options.radiusKm);
+      const query = buildOverpassQuery(options.category, bbox, options.limit);
       const elements = await fetchOverpass(query);
       leads = elements.map((element) => leadFromElement(element, options.category)).filter(Boolean);
-    }
-  } catch (error) {
-    if (options.source === 'auto') {
-      sourceUsed = 'search';
-      leads = await fetchSearchSeeds(options.location, options.category, options.limit);
-    } else {
-      throw error;
+    } catch (error) {
+      if (options.source === 'auto') {
+        sourceUsed = 'search';
+        leads = await fetchSearchSeeds(options.location, options.category, options.limit);
+      } else {
+        throw error;
+      }
     }
   }
   const existingKeys = readExistingKeys(LEADS_FILE);
