@@ -60,4 +60,4 @@ latest.onclick=()=>scrollLatest('smooth');
 window.addEventListener('pageshow',()=>{atLatest()?followLatest():updateLatest()});
 render({forceLatest:true});
 if(new URLSearchParams(window.location.search).get('history')==='1') openHistory(); else input.focus();
-void accountSync.load(store).then(remoteStore=>{if(!remoteStore)return;store=mergeOperatorStores(store,remoteStore);history=activeConversation().messages;localStorage.setItem(KEY,JSON.stringify(store));render();accountSync.save(store)});
+void accountSync.load(store).then(remoteStore=>{if(!remoteStore)return;const activeId=store.activeId;store=mergeOperatorStores(store,remoteStore);if(activeId&&store.conversations.some(item=>item.id===activeId))store.activeId=activeId;history=activeConversation().messages;localStorage.setItem(KEY,JSON.stringify(store));render();accountSync.save(store)});
