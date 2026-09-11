@@ -2,41 +2,38 @@
   max-width: 1180px;
 }
 
-.launch-room .top-nav {
-  margin-bottom: 1.5rem;
+.launch-room__top-nav {
+  margin-bottom: 1.2rem;
+}
+
+.launch-room .top-buttons {
+  margin: 0;
+}
+
+.launch-room__content {
+  display: grid;
+  gap: 1rem;
 }
 
 .launch-room__hero {
-  max-width: 840px;
-  margin: 0 auto 1.5rem;
+  max-width: 760px;
+  margin: 0 auto 0.5rem;
+  text-align: center;
 }
 
-.launch-room__core-copy {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 1.15rem 1.35rem;
-  border: 1px solid rgba(56, 189, 248, 0.28);
-  border-radius: var(--radius-lg);
-  background: rgba(14, 20, 31, 0.82);
-  color: rgba(241, 245, 249, 0.92);
-  font-size: clamp(1.05rem, 0.95rem + 0.5vw, 1.35rem);
-  font-weight: 650;
-  line-height: 1.5;
+.launch-room__hero h1 {
+  margin-bottom: 0.75rem;
 }
 
-.launch-room__emotional-line {
-  max-width: 760px;
+.launch-room__hero .hero-tagline {
+  max-width: 34rem;
   margin: 0 auto;
-  color: rgba(241, 245, 249, 0.9);
-  font-size: clamp(1.18rem, 1rem + 0.85vw, 1.65rem);
-  font-weight: 750;
-  line-height: 1.32;
 }
 
 .launch-room__workspace,
 .launch-room__notes {
   display: grid;
-  gap: 1.25rem;
+  gap: 1rem;
 }
 
 .launch-room__grid {
@@ -58,34 +55,74 @@
   padding: 1rem;
 }
 
-.launch-room__form {
+.launch-room__form,
+.launch-room__brief,
+.launch-room__mode-copy,
+.launch-room__brief-heading {
   display: grid;
-  gap: 0.9rem;
+  gap: 0.75rem;
+}
+
+.launch-room__mode-copy {
+  padding: 0.95rem 0;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.launch-room__mode-copy h2,
+.launch-room__brief-heading h2 {
+  margin: 0;
+  font-size: clamp(1.3rem, 1.1rem + 0.6vw, 1.75rem);
+  line-height: 1.15;
+}
+
+.launch-room__mode-copy p,
+.launch-room__brief-heading p {
+  margin: 0;
+  color: var(--color-text-muted);
 }
 
 .brief-field {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.5rem;
 }
 
-.brief-field span,
+.brief-field[hidden] {
+  display: none;
+}
+
+.brief-field > span,
 .brief-card__label {
   color: var(--color-text-muted);
   font-size: 0.82rem;
   font-weight: 750;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
+}
+
+.brief-field--question > span {
+  color: var(--color-text);
+  font-size: 1rem;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .brief-field input,
 .brief-field textarea,
 .brief-field select {
   width: 100%;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: var(--radius-md);
+  min-height: 48px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 14px;
   background: rgba(11, 15, 24, 0.96);
   color: var(--color-text);
-  padding: 0.88rem 0.95rem;
+  padding: 0.9rem 0.95rem;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.brief-field textarea {
   resize: vertical;
 }
 
@@ -93,41 +130,94 @@
   appearance: auto;
 }
 
-.launch-room__tool-links {
-  display: grid;
-  gap: 0.75rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--surface-border);
-}
-
 .brief-field input:focus-visible,
-.brief-field textarea:focus-visible {
-  outline: 2px solid rgba(56, 189, 248, 0.55);
+.brief-field textarea:focus-visible,
+.brief-field select:focus-visible {
+  border-color: rgba(56, 189, 248, 0.7);
+  outline: 2px solid rgba(56, 189, 248, 0.34);
   outline-offset: 2px;
 }
 
-.launch-room__actions {
+.launch-room__progress {
+  display: grid;
+  gap: 0.45rem;
+  padding-top: 0.15rem;
+}
+
+.launch-room__progress[hidden],
+.launch-room__step-actions[hidden] {
+  display: none;
+}
+
+.launch-room__progress-copy {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.launch-room__progress-track {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.launch-room__progress-track span {
+  display: block;
+  width: 20%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 180ms ease;
+}
+
+.launch-room__step-actions,
+.launch-room__actions,
+.launch-room__brief-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.7rem;
   align-items: center;
+}
+
+.launch-room__step-actions {
+  justify-content: space-between;
 }
 
 .launch-room__status {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 0.92rem;
+  font-size: 0.88rem;
 }
 
 .launch-room__brief {
-  display: grid;
-  gap: 1rem;
+  align-content: start;
 }
 
-.launch-room__brief-actions {
+.launch-room__more-actions {
+  position: relative;
+}
+
+.launch-room__more-actions summary {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.65rem 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.launch-room__more-actions > div {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.6rem;
+  margin-top: 0.65rem;
 }
 
 .brief-stack {
@@ -178,19 +268,29 @@
   line-height: 1.45;
 }
 
+.launch-room__tool-links {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--surface-border);
+}
+
 .info-card {
   padding: 1rem;
   display: grid;
-  gap: 0.45rem;
+  gap: 0.4rem;
+}
+
+.info-card h3,
+.info-card p {
+  margin: 0;
 }
 
 .info-card h3 {
-  margin: 0;
   font-size: 1rem;
 }
 
 .info-card p {
-  margin: 0;
   color: var(--color-text-muted);
 }
 
@@ -200,28 +300,184 @@
     align-items: start;
   }
 
+  .launch-room__brief {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow: auto;
+  }
+
   .launch-room__notes {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 640px) {
-  .launch-room__core-copy,
+@media (max-width: 720px) {
+  .launch-room__shell {
+    padding: 0.85rem 0.85rem 2.5rem;
+  }
+
+  .launch-room__top-nav {
+    align-items: stretch;
+    margin-bottom: 0.65rem;
+  }
+
+  .launch-room .top-buttons {
+    justify-content: flex-start;
+    gap: 0.45rem;
+    max-width: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .launch-room .top-buttons a {
+    min-height: 42px;
+    padding: 0.55rem 0.9rem;
+    box-shadow: none;
+  }
+
+  .launch-room__nav-extra {
+    display: none !important;
+  }
+
+  .launch-room__content {
+    gap: 0.7rem;
+  }
+
+  .launch-room__hero {
+    margin: 0;
+    padding: 0.25rem 0.15rem 0.55rem;
+    text-align: left;
+  }
+
+  .launch-room__hero .hero-eyebrow {
+    margin-bottom: 0.45rem;
+  }
+
+  .launch-room__hero h1 {
+    margin: 0 0 0.35rem;
+    font-size: clamp(2rem, 11vw, 3rem);
+    line-height: 0.98;
+  }
+
+  .launch-room__hero .hero-tagline {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.45;
+  }
+
   .launch-room__form,
-  .launch-room__brief,
-  .info-card {
+  .launch-room__brief {
     padding: 0.9rem;
+    border-radius: 18px;
+  }
+
+  .launch-room__form {
+    gap: 0.9rem;
+  }
+
+  .launch-room__mode-copy {
+    padding: 0.15rem 0 0.8rem;
+    gap: 0.35rem;
+  }
+
+  .launch-room__mode-copy .eyebrow {
+    display: none;
+  }
+
+  .launch-room__mode-copy h2 {
+    font-size: 1.08rem;
+  }
+
+  .launch-room__mode-copy p {
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+
+  .brief-field--question > span {
+    font-size: 1.08rem;
+    font-weight: 750;
+  }
+
+  .brief-field textarea {
+    min-height: 8.25rem;
+  }
+
+  .launch-room__step-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    gap: 0.55rem;
+  }
+
+  .launch-room__step-actions .cta,
+  .launch-room__actions .cta,
+  .launch-room__brief-actions > .cta {
+    width: 100%;
+    min-height: 48px;
   }
 
   .launch-room__actions {
+    display: none;
+    grid-template-columns: 1fr;
+  }
+
+  .launch-room__form.is-last-question .launch-room__actions {
+    display: grid;
+  }
+
+  .launch-room__form.is-last-question [data-action="clear"] {
+    display: none;
+  }
+
+  .launch-room__status {
+    text-align: center;
+    font-size: 0.78rem;
+  }
+
+  .launch-room__brief:not([data-generated="true"]) {
+    display: none;
+  }
+
+  .launch-room__brief-heading {
+    gap: 0.35rem;
+  }
+
+  .launch-room__brief-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .launch-room__more-actions summary {
+    width: 100%;
+    justify-content: center;
+    min-height: 48px;
+  }
+
+  .launch-room__more-actions > div {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .launch-room__more-actions .cta {
     width: 100%;
   }
 
-  .launch-room__actions .cta {
-    width: 100%;
+  .brief-card {
+    padding: 0.85rem;
   }
 
-  .launch-room__brief-actions .cta {
-    width: 100%;
+  .launch-room__notes,
+  .launch-room footer {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launch-room__progress-track span {
+    transition: none;
   }
 }
