@@ -113,7 +113,7 @@ jobs:
           RestartSec=10
           KillSignal=SIGINT
           TimeoutStopSec=20
-          Slice=3dvr-dev.slice
+          Slice=3dvr-recovery.slice
 
           [Install]
           WantedBy=multi-user.target
