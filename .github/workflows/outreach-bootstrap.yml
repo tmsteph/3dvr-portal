@@ -50,7 +50,6 @@ jobs:
           write_key "$SSH_A" /tmp/prod-a
           write_key "$SSH_B" /tmp/prod-b
           write_key "$SSH_C" /tmp/prod-c
-
           connection=''
           for user in debian root; do
             for key in /tmp/prod-a /tmp/prod-b /tmp/prod-c; do
@@ -93,62 +92,33 @@ jobs:
           token_file="$operator_home/.3dvr-agent-operator-email-token"
           mkdir -p "$config_dir"
           chmod 700 "$config_dir"
-
           if [ ! -s "$token_file" ]; then
             umask 077
             if command -v openssl >/dev/null 2>&1; then
               openssl rand -hex 32 > "$token_file"
             else
-              python3 - <<'PY' > "$token_file"
-import secrets
-print(secrets.token_hex(32))
-PY
+              python3 -c 'import secrets; print(secrets.token_hex(32))' > "$token_file"
             fi
           fi
           chmod 600 "$token_file"
           chown "$operator_user:$operator_group" "$token_file"
           relay_token="$(tr -d '\r\n' < "$token_file")"
           [ -n "$relay_token" ]
-
           touch "$common_env"
           tmp="$(mktemp)"
           grep -v '^AGENT_OPERATOR_EMAIL_TOKEN=' "$common_env" > "$tmp" || true
           printf 'AGENT_OPERATOR_EMAIL_TOKEN=%s\n' "$relay_token" >> "$tmp"
           mv "$tmp" "$common_env"
           chmod 600 "$common_env"
-
           postal=''
           if [ -f "$outreach_env" ]; then
             postal="$(sed -n 's/^THREEDVR_OUTREACH_POSTAL_ADDRESS=//p' "$outreach_env" | tail -n1 | sed 's/^"//;s/"$//')"
           fi
           if [ -z "$postal" ]; then
-            postal="$(OPERATOR_HOME="$operator_home" python3 - <<'PY'
-import json, os, re
-from pathlib import Path
-home = Path(os.environ['OPERATOR_HOME'])
-path = home / '.claude-server-commander' / 'claude_tool_call.log'
-found = []
-if path.exists():
-    for line in path.read_text(errors='ignore').splitlines():
-        marker = 'Arguments: '
-        if marker not in line:
-            continue
-        raw = line.split(marker, 1)[1]
-        try:
-            payload = json.loads(raw)
-        except Exception:
-            continue
-        command = str(payload.get('command', ''))
-        for match in re.finditer(r'THREEDVR_OUTREACH_POSTAL_ADDRESS=(?:"([^"]+)"|\'([^\']+)\'|(\S+))', command):
-            value = next((part for part in match.groups() if part), '').strip()
-            if value and value != 'your valid business postal address':
-                found.append(value)
-print(found[-1] if found else '')
-PY
-            )"
+            log="$operator_home/.claude-server-commander/claude_tool_call.log"
+            postal="$(OPERATOR_LOG="$log" python3 -c 'import os,re,pathlib; p=pathlib.Path(os.environ["OPERATOR_LOG"]); s=p.read_text(errors="ignore") if p.exists() else ""; m=re.findall(r"THREEDVR_OUTREACH_POSTAL_ADDRESS=\\*\"([^\"]+)", s); print(m[-1].rstrip("\\") if m else "")')"
           fi
           [ -n "$postal" ] || { echo 'No previously approved outreach postal address was found on OVH.' >&2; exit 2; }
-
           umask 077
           {
             printf 'THREEDVR_OUTREACH_POSTAL_ADDRESS=%q\n' "$postal"
@@ -162,30 +132,19 @@ PY
           } > "$outreach_env"
           chmod 600 "$outreach_env"
           chown "$operator_user:$operator_group" "$outreach_env"
-
           install -d -m 755 /etc/systemd/system/3dvr-autopilot.service.d
-          cat > /etc/systemd/system/3dvr-autopilot.service.d/outreach.conf <<EOF
-[Service]
-EnvironmentFile=$outreach_env
-EOF
+          printf '[Service]\nEnvironmentFile=%s\n' "$outreach_env" > /etc/systemd/system/3dvr-autopilot.service.d/outreach.conf
           systemctl daemon-reload
           systemctl restart 3dvr-portal.service
           systemctl start 3dvr-autopilot.service || { journalctl -u 3dvr-autopilot.service -n 80 --no-pager; exit 3; }
-
           set -a
           [ -f "$common_env" ] && . "$common_env"
           [ -f "$config_dir/portal.env" ] && . "$config_dir/portal.env"
           set +a
           [ -n "${GMAIL_USER:-}" ] && [ -n "${GMAIL_APP_PASSWORD:-}" ] || { echo 'Portal mail transport credentials are not configured.' >&2; exit 4; }
-
           response="$(mktemp)"
-          code="$(curl -sS -o "$response" -w '%{http_code}' -X POST \
-            -H 'Content-Type: application/json' \
-            -H "Authorization: Bearer $relay_token" \
-            http://127.0.0.1:4320/api/calendar/reminder-email \
-            -d '{"mode":"lead-outreach"}')"
-          [ "$code" = 400 ] && grep -Fq 'At least one outreach recipient is required' "$response" \
-            || { echo "Relay auth verification failed with HTTP $code." >&2; cat "$response" >&2; rm -f "$response"; exit 5; }
+          code="$(curl -sS -o "$response" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $relay_token" http://127.0.0.1:4320/api/calendar/reminder-email -d '{"mode":"lead-outreach"}')"
+          [ "$code" = 400 ] && grep -Fq 'At least one outreach recipient is required' "$response" || { echo "Relay auth verification failed with HTTP $code." >&2; cat "$response" >&2; rm -f "$response"; exit 5; }
           rm -f "$response"
           echo 'OUTREACH_BOOTSTRAP_OK'
           REMOTE
