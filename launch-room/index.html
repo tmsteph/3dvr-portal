@@ -6,7 +6,7 @@
   <title>3DVR Launch Room | 3DVR Portal</title>
   <meta
     name="description"
-    content="Guided Purpose -> Vision -> Movement -> Project flow for turning a rough idea into a concrete Movement Brief."
+    content="Turn a rough idea into a useful project brief and a clear first move."
   >
   <link rel="stylesheet" href="../styles/global.css">
   <link rel="stylesheet" href="../index-style.css">
@@ -16,48 +16,26 @@
 <body class="landing theme-dark launch-room">
   <a class="skip-link" href="#mainContent">Skip to main content</a>
   <div class="landing-shell launch-room__shell">
-    <header class="top-nav">
+    <header class="top-nav launch-room__top-nav">
       <nav class="top-buttons" aria-label="Launch Room navigation">
-        <a href="../index.html">Portal</a>
+        <a href="../index.html">← Portal</a>
         <a href="../projects/index.html">Projects</a>
-        <a href="../web-builder-app/index.html">Web Builder</a>
-        <a href="../billing/">Billing</a>
+        <a class="launch-room__nav-extra" href="../web-builder-app/index.html">Web Builder</a>
+        <a class="launch-room__nav-extra" href="../billing/">Billing</a>
       </nav>
     </header>
 
-    <main id="mainContent" class="landing-content">
+    <main id="mainContent" class="landing-content launch-room__content">
       <section class="hero launch-room__hero" aria-labelledby="launchRoomTitle">
-        <span class="hero-eyebrow">Purpose → Vision → Movement → Project</span>
-        <h1 id="launchRoomTitle">3DVR Launch Room</h1>
-        <p class="hero-tagline" data-mode-description>
-          Turn a vague frustration into a Movement Brief you can use to start a real project.
-        </p>
-        <p class="launch-room__emotional-line">
-          Most people don’t need another productivity app. They need a place to remember what they care about.
-        </p>
-        <p class="launch-room__core-copy">
-          Answer five prompts. The room will turn them into a readable brief with a movement name, mission,
-          first audience, tiny first project, checklist, and next actions.
-        </p>
-        <div class="hero-actions">
-          <a href="../projects/index.html" class="cta primary">Open Projects</a>
-          <a href="../web-builder-app/index.html" class="cta ghost">Build the page</a>
-          <a href="../lead-generation.html" class="cta ghost">Collect leads</a>
-        </div>
+        <span class="hero-eyebrow">Idea → brief → first move</span>
+        <h1 id="launchRoomTitle">Launch Room</h1>
+        <p class="hero-tagline">Five short answers. One useful project brief.</p>
       </section>
 
-      <section class="launch-room__workspace" aria-labelledby="workflowTitle">
-        <div class="app-hub__intro">
-          <span class="eyebrow">Guided flow</span>
-          <h2 id="workflowTitle" data-mode-title>From frustration to Movement Brief</h2>
-          <p>
-            Keep the answers short. Specific is better than clever. The brief stays local in this browser for now.
-          </p>
-        </div>
-
+      <section class="launch-room__workspace" aria-label="Launch Room guided flow">
         <div class="launch-room__grid">
           <form id="movementBriefForm" class="launch-room__form" autocomplete="off">
-            <label class="brief-field" for="launchMode">
+            <label class="brief-field brief-field--mode" for="launchMode">
               <span>What are you trying to do?</span>
               <select id="launchMode" name="launchMode">
                 <option value="improve-current-work">Improve my current work</option>
@@ -67,33 +45,57 @@
                 <option value="start-project">Start a project or movement</option>
               </select>
             </label>
-            <label class="brief-field" for="worldPain">
-              <span data-field-label="worldPain">What are you tired of seeing in the world?</span>
-              <textarea id="worldPain" name="worldPain" rows="4" placeholder="Example: People feel stuck in work that drains them and nobody asks what they actually want to build."></textarea>
+
+            <div class="launch-room__mode-copy">
+              <span class="eyebrow">Your path</span>
+              <h2 data-mode-title>From an idea to a small real project</h2>
+              <p data-mode-description>
+                Help someone, test the smallest useful version, and learn from a real response.
+              </p>
+            </div>
+
+            <div class="launch-room__progress" data-mobile-progress hidden>
+              <div class="launch-room__progress-copy">
+                <span data-step-text>Question 1 of 5</span>
+                <span>Keep it short.</span>
+              </div>
+              <div class="launch-room__progress-track" aria-hidden="true">
+                <span data-step-bar></span>
+              </div>
+            </div>
+
+            <label class="brief-field brief-field--question" for="worldPain" data-question-step="1">
+              <span data-field-label="worldPain">What problem, need, or possibility keeps getting your attention?</span>
+              <textarea id="worldPain" name="worldPain" rows="4" placeholder="Describe what feels neglected or unnecessarily difficult."></textarea>
             </label>
 
-            <label class="brief-field" for="worldWish">
-              <span data-field-label="worldWish">What do you wish existed instead?</span>
-              <textarea id="worldWish" name="worldWish" rows="4" placeholder="Example: A calm place where anyone can name what matters, see a path, and launch a small real project."></textarea>
+            <label class="brief-field brief-field--question" for="worldWish" data-question-step="2">
+              <span data-field-label="worldWish">What useful change would you like to make possible?</span>
+              <textarea id="worldWish" name="worldWish" rows="4" placeholder="Describe a result people can understand."></textarea>
             </label>
 
-            <label class="brief-field" for="firstAudience">
+            <label class="brief-field brief-field--question" for="firstAudience" data-question-step="3">
               <span data-field-label="firstAudience">Who would you help first?</span>
-              <textarea id="firstAudience" name="firstAudience" rows="3" placeholder="Example: Creative parents, burned-out operators, or one friend with a useful idea but no launch plan."></textarea>
+              <textarea id="firstAudience" name="firstAudience" rows="3" placeholder="Choose someone you can reach and learn from."></textarea>
             </label>
 
-            <label class="brief-field" for="tinyProject">
+            <label class="brief-field brief-field--question" for="tinyProject" data-question-step="4">
               <span data-field-label="tinyProject">What tiny version could exist this week?</span>
-              <textarea id="tinyProject" name="tinyProject" rows="4" placeholder="Example: A one-page brief, a simple landing page, a 7-day checklist, or a prototype people can react to."></textarea>
+              <textarea id="tinyProject" name="tinyProject" rows="4" placeholder="A page, event, guide, prototype, or service test is enough."></textarea>
             </label>
 
-            <label class="brief-field" for="movementName">
-              <span data-field-label="movementName">What should we call this movement?</span>
-              <input id="movementName" name="movementName" type="text" placeholder="Example: Launch Room, Human Scale Work, or The First Tiny Project">
+            <label class="brief-field brief-field--question" for="movementName" data-question-step="5">
+              <span data-field-label="movementName">What should we call this project?</span>
+              <input id="movementName" name="movementName" type="text" placeholder="Choose a clear working name.">
             </label>
+
+            <div class="launch-room__step-actions" data-mobile-step-actions hidden>
+              <button class="cta ghost" type="button" data-step-back>Back</button>
+              <button class="cta primary" type="button" data-step-next>Next</button>
+            </div>
 
             <div class="launch-room__actions">
-              <button class="cta primary" type="submit" data-generate-label>Generate My Movement Brief</button>
+              <button class="cta primary" type="submit" data-generate-label>Generate Project Brief</button>
               <button class="cta ghost" type="button" data-action="clear">Clear</button>
             </div>
             <p class="launch-room__status" id="draftStatus" aria-live="polite">
@@ -101,26 +103,30 @@
             </p>
           </form>
 
-          <aside class="launch-room__brief" aria-labelledby="briefTitle">
-            <div class="app-hub__intro">
-              <span class="eyebrow" data-brief-label>Movement Brief</span>
-              <h2 id="briefTitle">Readable output</h2>
-              <p>
-                This is the first version of the movement document. It can grow later, but it already tells the
-                next story.
-              </p>
+          <aside class="launch-room__brief" aria-labelledby="briefTitle" data-brief-panel>
+            <div class="launch-room__brief-heading">
+              <span class="eyebrow" data-brief-label>Project Brief</span>
+              <h2 id="briefTitle">Your brief</h2>
+              <p>Use it, edit it, or turn it into the next real thing.</p>
             </div>
-            <div class="launch-room__brief-actions" aria-label="Movement Brief actions">
-              <button class="cta ghost" type="button" data-action="copy">Copy Brief</button>
-              <button class="cta ghost" type="button" data-action="download">Download Markdown</button>
+
+            <div class="launch-room__brief-actions" aria-label="Project Brief actions">
+              <button class="cta primary" type="button" data-action="create-project">Save as Project</button>
               <button class="cta ghost" type="button" data-action="build-launch-page">Build Launch Page</button>
-              <button class="cta ghost" type="button" data-action="create-project">Create Project Draft</button>
+              <button class="cta ghost" type="button" data-action="edit-answers">Edit answers</button>
+              <details class="launch-room__more-actions">
+                <summary>More actions</summary>
+                <div>
+                  <button class="cta ghost" type="button" data-action="copy">Copy Brief</button>
+                  <button class="cta ghost" type="button" data-action="download">Download Markdown</button>
+                </div>
+              </details>
             </div>
 
             <div class="brief-stack" aria-live="polite">
               <article class="brief-card brief-card--title">
-                <p class="brief-card__label" data-name-label>Movement Name</p>
-                <h3 data-brief="movementName">Your movement</h3>
+                <p class="brief-card__label" data-name-label>Project Name</p>
+                <h3 data-brief="movementName">Your project</h3>
               </article>
 
               <article class="brief-card">
@@ -129,27 +135,27 @@
               </article>
 
               <article class="brief-card">
-                <p class="brief-card__label">Worldview / Why This Matters</p>
-                <p data-brief="worldview">The brief will explain the pattern you want to change and why this movement matters.</p>
+                <p class="brief-card__label">Why this matters</p>
+                <p data-brief="worldview">The brief will explain the pattern you want to change and why it matters.</p>
               </article>
 
               <article class="brief-card">
-                <p class="brief-card__label">First Audience</p>
+                <p class="brief-card__label">First audience</p>
                 <p data-brief="audience">Name the first people you would help.</p>
               </article>
 
               <article class="brief-card">
-                <p class="brief-card__label">First Tiny Project</p>
+                <p class="brief-card__label">First tiny project</p>
                 <p data-brief="tinyProject">Describe the smallest version that could exist this week.</p>
               </article>
 
               <article class="brief-card brief-card--list">
-                <p class="brief-card__label">Launch Checklist</p>
+                <p class="brief-card__label">Launch checklist</p>
                 <ol class="brief-list" data-brief="checklist"></ol>
               </article>
 
               <article class="brief-card brief-card--list">
-                <p class="brief-card__label">Next 3 Actions</p>
+                <p class="brief-card__label">Next 3 actions</p>
                 <ol class="brief-list" data-brief="actions"></ol>
               </article>
             </div>
@@ -160,10 +166,10 @@
               aria-labelledby="launchPageDraftTitle"
               hidden
             >
-              <div class="app-hub__intro">
+              <div class="launch-room__brief-heading">
                 <span class="eyebrow">Next step</span>
                 <h2 id="launchPageDraftTitle" data-launch-page-title tabindex="-1">Launch Page Draft</h2>
-                <p>Simple page copy based on the Movement Brief above.</p>
+                <p>Simple page copy based on the brief above.</p>
               </div>
 
               <div class="launch-room__brief-actions" aria-label="Launch Page Draft actions">
@@ -192,12 +198,12 @@
                 </article>
 
                 <article class="brief-card">
-                  <p class="brief-card__label">First invitation / call to action</p>
+                  <p class="brief-card__label">First invitation</p>
                   <p data-launch-page="invitation"></p>
                 </article>
 
                 <article class="brief-card">
-                  <p class="brief-card__label">Simple contact CTA</p>
+                  <p class="brief-card__label">Contact CTA</p>
                   <p data-launch-page="contact"></p>
                 </article>
 
@@ -209,9 +215,9 @@
             </section>
 
             <section class="launch-room__tool-links" aria-labelledby="launchToolsTitle">
-              <div class="app-hub__intro">
+              <div class="launch-room__brief-heading">
                 <span class="eyebrow">Continue</span>
-                <h2 id="launchToolsTitle">Use the next relevant tool</h2>
+                <h2 id="launchToolsTitle">Next tools</h2>
               </div>
               <div class="launch-room__brief-actions" data-mode-tools></div>
             </section>
@@ -222,15 +228,15 @@
       <section class="launch-room__notes" aria-label="Launch Room notes">
         <article class="info-card">
           <h3>Local first</h3>
-          <p>Drafts stay in this browser. No backend is required for the first version.</p>
+          <p>Your draft stays in this browser.</p>
         </article>
         <article class="info-card">
-          <h3>Use it for real projects</h3>
-          <p>The output is meant to become a page, a plan, a message, and a first concrete step.</p>
+          <h3>Use it for something real</h3>
+          <p>The brief should become a page, plan, message, or first concrete step.</p>
         </article>
         <article class="info-card">
           <h3>Keep it small</h3>
-          <p>Short answers make sharper briefs. A tiny project that ships this week beats a perfect one that waits.</p>
+          <p>A tiny project that ships this week beats a perfect one that waits.</p>
         </article>
       </section>
     </main>
@@ -240,6 +246,7 @@
     </footer>
   </div>
 
+  <script type="module" src="./mobile-flow.js"></script>
   <script type="module" src="./app.js"></script>
   <script defer src="/issue-launcher.js"></script>
 </body>
