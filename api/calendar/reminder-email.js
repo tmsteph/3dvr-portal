@@ -138,17 +138,22 @@ function readOptionalTokenFile(filePath) {
   }
 }
 
-function resolveOperatorAlertToken(config = process.env) {
-  const configured = normalizeText(
-    config.AGENT_OPERATOR_EMAIL_TOKEN
-    || config.THREEDVR_AUTOPILOT_EMAIL_TOKEN
-  );
-  if (configured) return configured;
-
+function resolveOperatorAlertTokens(config = process.env) {
   const operatorHome = normalizeText(config.THREEDVR_OPERATOR_HOME) || '/home/debian';
-  return readOptionalTokenFile(config.AGENT_OPERATOR_EMAIL_TOKEN_FILE)
-    || readOptionalTokenFile(config.THREEDVR_AUTOPILOT_EMAIL_TOKEN_FILE)
-    || readOptionalTokenFile(`${operatorHome}/.3dvr-agent-operator-email-token`);
+  const candidates = [
+    normalizeText(config.AGENT_OPERATOR_EMAIL_TOKEN),
+    normalizeText(config.THREEDVR_AUTOPILOT_EMAIL_TOKEN),
+    readOptionalTokenFile(config.AGENT_OPERATOR_EMAIL_TOKEN_FILE),
+    readOptionalTokenFile(config.THREEDVR_AUTOPILOT_EMAIL_TOKEN_FILE),
+    readOptionalTokenFile(`${operatorHome}/.3dvr-agent-operator-email-token`)
+  ].filter(Boolean);
+  return Array.from(new Set(candidates));
+}
+
+function operatorAlertTokenMatches(providedToken, config = process.env) {
+  const provided = normalizeText(providedToken);
+  if (!provided) return false;
+  return resolveOperatorAlertTokens(config).some(expected => safeEqualText(provided, expected));
 }
 
 function resolveRecoveryVerificationSecret(config = process.env) {
@@ -753,9 +758,8 @@ export function createOperatorAlertEmailHandler(options = {}) {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const expectedToken = resolveOperatorAlertToken(config);
     const providedToken = parseOperatorAlertToken(req);
-    if (!expectedToken || providedToken !== expectedToken) {
+    if (!operatorAlertTokenMatches(providedToken, config)) {
       return res.status(401).json({ error: 'Unauthorized operator alert trigger.' });
     }
 
@@ -843,9 +847,8 @@ export function createLeadOutreachEmailHandler(options = {}) {
       return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    const expectedToken = resolveOperatorAlertToken(config);
     const providedToken = parseOperatorAlertToken(req);
-    if (!expectedToken || providedToken !== expectedToken) {
+    if (!operatorAlertTokenMatches(providedToken, config)) {
       return res.status(401).json({ error: 'Unauthorized lead outreach trigger.' });
     }
 
