@@ -65,3 +65,9 @@ dialog .note { padding: 12px; border-radius: 12px; background: rgba(14,165,233,.
 .secret-field span { font-size: .82rem; }
 .secret-field input { width: 100%; box-sizing: border-box; min-height: 46px; padding: 10px 12px; border: 1px solid #334155; border-radius: 12px; background: #050a12; color: #e5edf8; font: inherit; }
 .secret-field input:focus { outline: 2px solid rgba(125,211,252,.45); outline-offset: 2px; }
+
+.secret-vault { display: flex; align-items: center; justify-content: space-between; gap: 22px; margin-top: 14px; padding: 20px; border: 1px solid rgba(74,222,128,.22); border-radius: 18px; background: rgba(15,23,42,.67); }
+.secret-vault h2 { margin-bottom: 7px; font-size: 1.2rem; }
+.secret-vault p { margin-bottom: 0; color: #97a7bd; }
+.secret-vault #secretSaveStatus:not(:empty) { margin-top: 8px; color: #86efac; }
+@media (max-width: 640px) { .secret-vault { align-items: stretch; flex-direction: column; } }

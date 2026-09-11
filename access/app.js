@@ -8,6 +8,14 @@ const approvalList = byId('approvalList');
 const bitwardenToken = byId('bitwardenToken');
 const connectBitwarden = byId('connectBitwarden');
 const bitwardenSetupMessage = byId('bitwardenSetupMessage');
+const saveSecretDialog = byId('saveSecretDialog');
+const openSaveSecret = byId('openSaveSecret');
+const saveSecret = byId('saveSecret');
+const secretKey = byId('secretKey');
+const secretValue = byId('secretValue');
+const secretNote = byId('secretNote');
+const secretSaveMessage = byId('secretSaveMessage');
+const secretSaveStatus = byId('secretSaveStatus');
 
 function setPill(id, text, state = 'progress') {
   const element = byId(id);
@@ -84,6 +92,10 @@ function renderStatus(status) {
     approvalButton.disabled = connected;
     approvalButton.setAttribute('aria-disabled', connected ? 'true' : 'false');
   }
+  if (openSaveSecret) {
+    openSaveSecret.disabled = !connected;
+    openSaveSecret.setAttribute('aria-disabled', connected ? 'false' : 'true');
+  }
   byId('brokerMessage').textContent = connected
     ? 'OVH broker is live and Bitwarden machine access is connected. Agents can request scoped access through policy.'
     : 'OVH broker is live. Bitwarden machine access still needs its one-time private handoff.';
@@ -129,6 +141,40 @@ async function loadAccess() {
 }
 approvalButton?.addEventListener('click', () => {
   if (typeof approvalDialog?.showModal === 'function') approvalDialog.showModal();
+});
+
+openSaveSecret?.addEventListener('click', () => {
+  secretSaveMessage.textContent = '';
+  if (typeof saveSecretDialog?.showModal === 'function') saveSecretDialog.showModal();
+});
+
+saveSecret?.addEventListener('click', async () => {
+  const key = secretKey?.value.trim() || '';
+  const value = secretValue?.value || '';
+  const note = secretNote?.value.trim() || '';
+  secretSaveMessage.textContent = '';
+  if (!key || !value) {
+    secretSaveMessage.textContent = 'Add a name and value first.';
+    return;
+  }
+  saveSecret.disabled = true;
+  try {
+    const secretValueHash = await sha256(value);
+    const result = await brokerAction('store-secret', { key, value, note }, { secretKey: key, secretValueHash });
+    if (secretValue) secretValue.value = '';
+    if (secretKey) secretKey.value = '';
+    if (secretNote) secretNote.value = '';
+    const storedKey = result?.stored?.key || key;
+    secretSaveMessage.textContent = `Saved ${storedKey} securely.`;
+    secretSaveStatus.textContent = `Saved ${storedKey} ✓`;
+    setTimeout(() => saveSecretDialog?.close(), 650);
+    loadAccess();
+  } catch (error) {
+    if (secretValue) secretValue.value = '';
+    secretSaveMessage.textContent = error.message;
+  } finally {
+    saveSecret.disabled = false;
+  }
 });
 
 connectBitwarden?.addEventListener('click', async () => {

@@ -28,6 +28,16 @@ test('Access page keeps a persistent connected state after Bitwarden is ready', 
   assert.match(app, /approvalButton\.disabled = connected/);
 });
 
+
+test('Access page can save a secret through the owner-gated broker without persisting the value', () => {
+  assert.match(page, /Save to 3DVR Secrets/);
+  assert.match(page, /id="secretValue"[^>]*type="password"/);
+  assert.match(app, /brokerAction\('store-secret'/);
+  assert.match(app, /secretValueHash/);
+  assert.match(app, /secretValue\.value = ''/);
+  assert.doesNotMatch(app, /localStorage\.setItem\([^)]*secretValue|sessionStorage\.setItem\([^)]*secretValue/i);
+});
+
 test('Access page exposes the owner approval path', () => {
   assert.match(page, /Create 3DVR machine access/);
   assert.match(page, /Bitwarden Secrets Manager/);
