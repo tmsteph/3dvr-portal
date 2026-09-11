@@ -11,11 +11,11 @@ permissions:
   contents: read
 
 jobs:
-  verify-ovh-mail:
+  locate-ovh-mail:
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
-      - name: Verify OVH mail credential loading without exposing secrets
+      - name: Locate mail credential metadata without exposing secrets
         shell: bash
         env:
           SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
@@ -37,54 +37,63 @@ jobs:
           write_key "$SSH_B" /tmp/h-b
           write_key "$SSH_C" /tmp/h-c
 
-          cat > /tmp/check-mail.sh <<'REMOTE'
+          cat > /tmp/locate-mail.sh <<'REMOTE'
           set -euo pipefail
           home=/home/debian
-          [ -d "$home" ] || home="$HOME"
           cfg="$home/.3dvr/config"
-          echo "host=$(hostname) operator_home=$home"
-          for f in "$cfg/env" "$cfg/portal.env" "$cfg/outreach.env" "$home/.3dvr-agent-operator-email-token" "$home/.3dvr/oauth.json" "$home/.3dvr/connectors/google-oauth.enc.json" "$home/.3dvr/connectors/accounts.json"; do
-            if [ -s "$f" ]; then echo "present=$f size=$(stat -c %s "$f") mtime=$(stat -c %y "$f" | cut -d. -f1)"; else echo "missing_or_empty=$f"; fi
-          done
-          for key in GMAIL_USER GMAIL_APP_PASSWORD AGENT_OPERATOR_EMAIL_TOKEN THREEDVR_CONNECTOR_MASTER_KEY THREEDVR_OUTREACH_EMAIL_TOKEN; do
-            files=''
-            for f in "$cfg/env" "$cfg/portal.env" "$cfg/outreach.env"; do
-              [ -f "$f" ] || continue
-              if grep -q "^${key}=" "$f"; then files="$files $f"; fi
+          echo "host=$(hostname)"
+          echo '--- candidate config files ---'
+          find "$home/.3dvr" /opt/3dvr-portal-production /etc/systemd/system -maxdepth 6 -type f \
+            \( -name '*.env' -o -name 'env' -o -name '*.conf' -o -name '*.service' -o -name '*.bak' -o -name '*.backup' -o -name '*.old' \) 2>/dev/null \
+            | grep -vE '/node_modules/|/.git/' | head -1200 | while read -r f; do
+              keys=''
+              for k in GMAIL_USER GMAIL_APP_PASSWORD AGENT_OPERATOR_EMAIL_TOKEN THREEDVR_OUTREACH_EMAIL_TOKEN THREEDVR_CONNECTOR_MASTER_KEY; do
+                grep -q "^${k}=" "$f" 2>/dev/null && keys="$keys $k"
+              done
+              [ -n "$keys" ] && echo "key_file=$f keys=$keys mtime=$(stat -c %y "$f" | cut -d. -f1)"
             done
-            echo "key_present=$key:${files:-no}"
+
+          echo '--- targeted historical grep filenames only ---'
+          for k in GMAIL_APP_PASSWORD GMAIL_USER AGENT_OPERATOR_EMAIL_TOKEN; do
+            grep -RIl --exclude-dir=node_modules --exclude-dir=.git --exclude='*.log' --exclude='*.ndjson' -- "$k" "$home/.3dvr" /opt/3dvr-portal-production /etc/systemd/system 2>/dev/null \
+              | head -80 | sed "s#^#contains_${k}=#" || true
           done
-          set -a
-          [ -f "$cfg/env" ] && . "$cfg/env"
-          [ -f "$cfg/portal.env" ] && . "$cfg/portal.env"
-          [ -f "$cfg/outreach.env" ] && . "$cfg/outreach.env"
-          set +a
-          echo "runtime_GMAIL_USER=${GMAIL_USER:-unset}"
-          echo "runtime_GMAIL_APP_PASSWORD_present=$([ -n "${GMAIL_APP_PASSWORD:-}" ] && echo yes || echo no)"
-          echo "runtime_OPERATOR_TOKEN_present=$([ -n "${AGENT_OPERATOR_EMAIL_TOKEN:-}" ] && echo yes || echo no)"
-          token_file="$home/.3dvr-agent-operator-email-token"
-          if [ -s "$token_file" ]; then
-            relay_token="$(tr -d '\r\n' < "$token_file")"
-            response="$(mktemp)"
-            code="$(curl --max-time 8 -sS -o "$response" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $relay_token" http://127.0.0.1:4320/api/calendar/reminder-email -d '{"mode":"lead-outreach"}' || true)"
-            if [ "$code" = 400 ] && grep -Fq 'At least one outreach recipient is required' "$response"; then
-              echo 'portal_mail_relay_auth=working'
-            else
-              echo "portal_mail_relay_auth=failed http=$code"
-            fi
-            rm -f "$response"
-          else
-            echo 'portal_mail_relay_auth=no-token-file'
+
+          echo '--- service runtime booleans ---'
+          pid="$(systemctl show -p MainPID --value 3dvr-portal.service 2>/dev/null || true)"
+          echo "portal_pid=${pid:-0}"
+          if [ -n "$pid" ] && [ "$pid" != 0 ] && [ -r "/proc/$pid/environ" ]; then
+            python3 - "$pid" "$home/.3dvr-agent-operator-email-token" <<'PY'
+          import sys, os
+          pid, token_path = sys.argv[1:]
+          raw=open(f'/proc/{pid}/environ','rb').read().split(b'\0')
+          env={x.split(b'=',1)[0].decode(errors='ignore'):x.split(b'=',1)[1].decode(errors='ignore') for x in raw if b'=' in x}
+          for k in ('GMAIL_USER','GMAIL_APP_PASSWORD','AGENT_OPERATOR_EMAIL_TOKEN','THREEDVR_OUTREACH_EMAIL_TOKEN','THREEDVR_CONNECTOR_MASTER_KEY'):
+              if k == 'GMAIL_USER': print(f'portal_runtime_{k}={env.get(k,"unset")}')
+              else: print(f'portal_runtime_{k}_present={"yes" if env.get(k) else "no"}')
+          tok=''
+          try: tok=open(token_path).read().strip()
+          except: pass
+          print('portal_runtime_operator_token_matches_file=' + ('yes' if tok and env.get('AGENT_OPERATOR_EMAIL_TOKEN') == tok else 'no'))
+          PY
           fi
-          if command -v 3dvr >/dev/null 2>&1; then
-            3dvr email status 2>&1 | sed -E 's/(app password: ).*/\1[status only]/I' | head -20 || true
-          fi
+
+          echo '--- systemd config sources ---'
+          systemctl cat 3dvr-portal.service 2>/dev/null | sed -E 's/(Environment=.*=).*/\1<redacted>/' | grep -E 'EnvironmentFile|Environment=' || true
+          systemctl cat 3dvr-autopilot.service 2>/dev/null | sed -E 's/(Environment=.*=).*/\1<redacted>/' | grep -E 'EnvironmentFile|Environment=' || true
+
+          echo '--- known secret env files key names ---'
+          for f in "$cfg/portal-secrets.env" "$cfg/portal.env" "$cfg/env" "$cfg/outreach.env"; do
+            [ -f "$f" ] || continue
+            echo "[$f]"
+            sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' "$f" | grep -Ei 'gmail|google|oauth|token|mail|operator' || true
+          done
           REMOTE
 
           for user in debian root; do
             for key in /tmp/h-a /tmp/h-b /tmp/h-c; do
               [ -f "$key" ] || continue
-              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@40.160.137.41" 'sudo -n env HOME=/home/debian bash -s' < /tmp/check-mail.sh; then
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@40.160.137.41" 'sudo -n env HOME=/home/debian bash -s' < /tmp/locate-mail.sh; then
                 echo "connected_as=$user"
                 exit 0
               fi
