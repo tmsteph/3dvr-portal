@@ -1,0 +1,105 @@
+name: OAuth Token Host Scan
+
+on:
+  push:
+    branches:
+      - ops/oauth-token-recovery-20260910
+    paths:
+      - .github/workflows/oauth-token-host-scan.yml
+
+permissions:
+  contents: read
+
+jobs:
+  scan-hosts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Scan cloud hosts without exposing secrets
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :
+            else rm -f "$dest" "$dest.raw"; return 0; fi
+            chmod 600 "$dest"; rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/h-a
+          write_key "$SSH_B" /tmp/h-b
+          write_key "$SSH_C" /tmp/h-c
+
+          cat > /tmp/scan.sh <<'REMOTE'
+          set -eu
+          echo "host=$(hostname)"
+          find /root /home /opt -type f \( -name 'oauth.json' -o -name 'google-oauth.enc.json' -o -name 'accounts.json' \) 2>/dev/null | while read -r f; do
+            case "$f" in
+              *node_modules*|*/.git/*) continue ;;
+            esac
+            echo "credential_file=$f size=$(stat -c %s "$f") mtime=$(stat -c %y "$f" | cut -d. -f1)"
+          done
+          python3 - <<'PY'
+          import json, os, glob
+          paths=[]
+          for base in ('/root','/home','/opt'):
+              for name in ('oauth.json','google-oauth.enc.json','accounts.json'):
+                  paths += glob.glob(base+'/**/'+name, recursive=True)
+          seen=set()
+          for f in paths:
+              if f in seen or '/node_modules/' in f or '/.git/' in f: continue
+              seen.add(f)
+              try: data=json.load(open(f))
+              except Exception: continue
+              if f.endswith('/oauth.json'):
+                  for provider,c in (data.get('connections') or {}).items():
+                      print('cli_connection', {'file':f,'provider':provider,'email':c.get('email',''),'scopeKey':c.get('scopeKey') or c.get('scope_key',''),'has_refresh_token':bool(c.get('refreshToken') or c.get('refresh_token')),'has_access_token':bool(c.get('accessToken') or c.get('access_token'))})
+              elif f.endswith('/google-oauth.enc.json'):
+                  refs=sorted((data.get('secrets') or {}).keys())
+                  print('vault_refs', {'file':f,'count':len(refs),'refs':refs})
+              elif f.endswith('/accounts.json'):
+                  raw=data.get('accounts') or data
+                  items=raw.values() if isinstance(raw,dict) else raw if isinstance(raw,list) else []
+                  safe=[]
+                  for a in items:
+                      if isinstance(a,dict): safe.append({k:a.get(k) for k in ('id','provider','alias','email','status','credentialRef','scopes') if k in a})
+                  if safe: print('accounts', {'file':f,'items':safe})
+          PY
+          for key in THREEDVR_CONNECTOR_MASTER_KEY GMAIL_APP_PASSWORD GMAIL_USER THREEDVR_OUTREACH_EMAIL_TOKEN; do
+            found=0
+            while IFS= read -r f; do
+              if grep -q "^${key}=" "$f" 2>/dev/null; then
+                echo "key_declared=$key file=$f"
+                found=1
+              fi
+            done < <(find /root /home /opt /etc -type f \( -name '*.env' -o -name 'env' -o -name '*.conf' \) 2>/dev/null | grep -vE '/node_modules/|/.git/' | head -3000)
+            echo "key_declared_any=$key:$found"
+          done
+          REMOTE
+
+          scan() {
+            local label="$1" host="$2"; shift 2
+            echo "=== $label $host ==="
+            local user key
+            for user in "$@"; do
+              for key in /tmp/h-a /tmp/h-b /tmp/h-c; do
+                [ -f "$key" ] || continue
+                if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host" 'bash -s' < /tmp/scan.sh; then
+                  echo "connected_as=$user"
+                  return 0
+                fi
+              done
+            done
+            echo "unreachable=$label"
+            return 0
+          }
+          scan OVH 40.160.137.41 debian root
+          scan Hetzner 167.233.174.20 root debian ubuntu tmsteph
+          scan DigitalOcean 167.172.193.194 root debian
