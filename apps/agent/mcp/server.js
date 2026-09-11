@@ -5,13 +5,19 @@ const { createMcpExpressApp } = require('@modelcontextprotocol/sdk/server/expres
 const z = require('zod/v4');
 
 const { getAccount, listAccounts } = require('../connectors/accounts/registry');
+const { appendAudit } = require('../connectors/audit/log');
+const { crmConfigured, crmSummary, readCrmContact, searchCrmContacts } = require('../connectors/crm/postgres');
+const { githubOverview } = require('../connectors/control/github');
+const { SERVER_TARGETS, serversHealth } = require('../connectors/control/servers');
 const { createDraft, readMessage, searchMessages } = require('../connectors/google/gmail');
 const {
   legacyAccount,
   readLegacyMessage,
   searchLegacyMessages,
 } = require('../connectors/google/legacy-imap');
-const { appendAudit } = require('../connectors/audit/log');
+
+const GATEWAY_NAME = '3dvr-control-gateway';
+const GATEWAY_VERSION = '0.2.0';
 
 function publicAccount(account) {
   if (!account) return null;
@@ -28,6 +34,7 @@ function publicAccount(account) {
 function toolResult(value) {
   return { content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] };
 }
+
 async function audited(tool, meta, action, auditImpl = appendAudit) {
   try {
     const value = await action();
@@ -54,9 +61,17 @@ function createGatewayMcpServer(options = {}) {
   const legacyAccountImpl = options.legacyAccountImpl || legacyAccount;
   const searchLegacyMessagesImpl = options.searchLegacyMessagesImpl || searchLegacyMessages;
   const readLegacyMessageImpl = options.readLegacyMessageImpl || readLegacyMessage;
+  const crmConfiguredImpl = options.crmConfiguredImpl || crmConfigured;
+  const crmSummaryImpl = options.crmSummaryImpl || crmSummary;
+  const searchCrmContactsImpl = options.searchCrmContactsImpl || searchCrmContacts;
+  const readCrmContactImpl = options.readCrmContactImpl || readCrmContact;
+  const serversHealthImpl = options.serversHealthImpl || serversHealth;
+  const githubOverviewImpl = options.githubOverviewImpl || githubOverview;
   const auditImpl = options.auditImpl || appendAudit;
   const enableDrafts = options.enableDrafts ?? process.env.THREEDVR_MCP_ENABLE_DRAFTS === 'true';
-  const currentLegacyAccount = () => legacyAccountImpl(options.legacyConfig || process.env);
+  const legacyConfig = options.legacyConfig || process.env;
+  const crmConfig = options.crmConfig || process.env;
+  const currentLegacyAccount = () => legacyAccountImpl(legacyConfig);
   const isLegacyIdentifier = (identifier) => {
     const account = currentLegacyAccount();
     if (!account) return false;
@@ -85,10 +100,27 @@ function createGatewayMcpServer(options = {}) {
   };
 
   const server = new McpServer({
-    name: '3dvr-personal-gateway',
-    version: '0.1.0',
+    name: GATEWAY_NAME,
+    version: GATEWAY_VERSION,
     websiteUrl: 'https://3dvr.tech',
   });
+
+  server.registerTool('control_status', {
+    title: '3DVR control status',
+    description: 'Show which read-only control capabilities are available through the private 3DVR gateway.',
+    inputSchema: {},
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  }, async () => audited('control.status', {}, async () => ({
+    service: GATEWAY_NAME,
+    version: GATEWAY_VERSION,
+    mode: enableDrafts ? 'read-mostly-with-opt-in-drafts' : 'read-only',
+    capabilities: {
+      gmail: true,
+      crm: { backend: 'postgres', configured: crmConfiguredImpl(crmConfig) },
+      github: true,
+      servers: Object.keys(SERVER_TARGETS),
+    },
+  }), auditImpl));
 
   server.registerTool('accounts_list', {
     title: 'List connected accounts',
@@ -109,6 +141,79 @@ function createGatewayMcpServer(options = {}) {
   }, async ({ account_id }) => audited('accounts.get', { accountId: account_id }, async () => ({
     account: publicAccount(resolveAccount(account_id)),
   }), auditImpl));
+
+  server.registerTool('crm_summary', {
+    title: 'Summarize CRM',
+    description: 'Summarize the SQL-backed 3DVR CRM without returning raw import payloads.',
+    inputSchema: {},
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  }, async () => audited('crm.summary', {}, async () => crmSummaryImpl({ config: crmConfig }), auditImpl));
+
+  server.registerTool('crm_search', {
+    title: 'Search CRM',
+    description: 'Search safe fields in the SQL-backed 3DVR CRM. Suppressed contacts are excluded by default.',
+    inputSchema: {
+      query: z.string().default('').describe('Name, company, email, website, or status text.'),
+      limit: z.number().int().min(1).max(100).default(20),
+      include_suppressed: z.boolean().default(false),
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  }, async ({ query, limit, include_suppressed }) => audited(
+    'crm.search',
+    { query },
+    async () => searchCrmContactsImpl({
+      query,
+      limit,
+      includeSuppressed: include_suppressed,
+      config: crmConfig,
+    }),
+    auditImpl,
+  ));
+
+  server.registerTool('crm_read', {
+    title: 'Read CRM contact',
+    description: 'Read one SQL CRM contact and recent activity metadata. Activity bodies and raw import payloads are omitted.',
+    inputSchema: {
+      contact_id: z.string().min(1),
+      activity_limit: z.number().int().min(1).max(100).default(20),
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  }, async ({ contact_id, activity_limit }) => audited(
+    'crm.read',
+    { target: contact_id },
+    async () => readCrmContactImpl({ contactId: contact_id, activityLimit: activity_limit, config: crmConfig }),
+    auditImpl,
+  ));
+
+  server.registerTool('servers_health', {
+    title: 'Check 3DVR servers',
+    description: 'Check read-only health metadata for the known 3DVR server mesh.',
+    inputSchema: {
+      servers: z.array(z.enum(['hetzner', 'ovh', 'digitalocean'])).max(3).optional(),
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  }, async ({ servers }) => audited(
+    'servers.health',
+    {},
+    async () => serversHealthImpl({ servers }),
+    auditImpl,
+  ));
+
+  server.registerTool('github_overview', {
+    title: 'GitHub repository overview',
+    description: 'Read repository metadata and open pull requests through the authenticated GitHub CLI.',
+    inputSchema: {
+      repo: z.string().default('tmsteph/3dvr-portal').describe('Repository in owner/name form.'),
+      limit: z.number().int().min(1).max(50).default(10),
+    },
+    annotations: { readOnlyHint: true, openWorldHint: true },
+  }, async ({ repo, limit }) => audited(
+    'github.overview',
+    { target: repo },
+    async () => githubOverviewImpl({ repo, limit }),
+    auditImpl,
+  ));
+
   server.registerTool('gmail_search', {
     title: 'Search Gmail',
     description: 'Search one explicitly selected Gmail account and return matching message identifiers.',
@@ -122,7 +227,7 @@ function createGatewayMcpServer(options = {}) {
     'gmail.search',
     { accountId: account_id, query },
     async () => (isLegacyIdentifier(account_id)
-      ? searchLegacyMessagesImpl({ query, maxResults: max_results, config: options.legacyConfig || process.env })
+      ? searchLegacyMessagesImpl({ query, maxResults: max_results, config: legacyConfig })
       : searchMessagesImpl({ accountId: account_id, query, maxResults: max_results })),
     auditImpl,
   ));
@@ -140,7 +245,7 @@ function createGatewayMcpServer(options = {}) {
     'gmail.read',
     { accountId: account_id, target: message_id },
     async () => (isLegacyIdentifier(account_id)
-      ? readLegacyMessageImpl({ messageId: message_id, format, config: options.legacyConfig || process.env })
+      ? readLegacyMessageImpl({ messageId: message_id, format, config: legacyConfig })
       : readMessageImpl({ accountId: account_id, messageId: message_id, format })),
     auditImpl,
   ));
@@ -170,11 +275,11 @@ function createGatewayMcpServer(options = {}) {
           throw new Error('Draft creation for the legacy IMAP account requires OAuth migration.');
         }
         return createDraftImpl({
-        accountId: account_id,
-        to,
-        subject,
-        body,
-        threadId: thread_id,
+          accountId: account_id,
+          to,
+          subject,
+          body,
+          threadId: thread_id,
         });
       },
       auditImpl,
@@ -194,13 +299,14 @@ function safeTokenEqual(expected, candidate) {
 function isLoopbackHost(host) {
   return ['127.0.0.1', 'localhost', '::1'].includes(String(host || '').toLowerCase());
 }
+
 function createHttpApp(options = {}) {
   const app = createMcpExpressApp();
   const authToken = options.authToken ?? process.env.THREEDVR_MCP_AUTH_TOKEN ?? '';
   const gatewayOptions = options.gatewayOptions || {};
 
   app.get('/healthz', (_req, res) => {
-    res.json({ ok: true, service: '3dvr-personal-gateway', version: '0.1.0' });
+    res.json({ ok: true, service: GATEWAY_NAME, version: GATEWAY_VERSION });
   });
 
   app.post('/mcp', async (req, res) => {
@@ -245,6 +351,7 @@ function createHttpApp(options = {}) {
 
   return app;
 }
+
 async function startHttpServer(options = {}) {
   const host = options.host || process.env.THREEDVR_MCP_HOST || '127.0.0.1';
   const port = Number(options.port ?? process.env.THREEDVR_MCP_PORT ?? 8788);
@@ -262,6 +369,8 @@ async function startHttpServer(options = {}) {
 }
 
 module.exports = {
+  GATEWAY_NAME,
+  GATEWAY_VERSION,
   createGatewayMcpServer,
   createHttpApp,
   isLoopbackHost,
@@ -272,7 +381,7 @@ module.exports = {
 
 if (require.main === module) {
   startHttpServer().then(({ host, port }) => {
-    console.log(`3DVR personal MCP gateway listening on http://${host}:${port}/mcp`);
+    console.log(`3DVR Control MCP listening on http://${host}:${port}/mcp`);
   }).catch((error) => {
     console.error(error?.message || error);
     process.exit(1);

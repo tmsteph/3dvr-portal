@@ -46,6 +46,25 @@ async function openTestGateway(t, { enableDrafts = false, legacy = false } = {})
     createDraftImpl: async ({ accountId, to, subject }) => ({
       account, draft: { id: 'd1', accountId, to, subject },
     }),
+    crmConfiguredImpl: () => true,
+    crmSummaryImpl: async () => ({ backend: 'postgres', total: 12, suppressed: 1 }),
+    searchCrmContactsImpl: async ({ query, limit, includeSuppressed }) => ({
+      backend: 'postgres', query, limit, includeSuppressed,
+      contacts: [{ contactId: 'contact-1', name: 'Test Customer' }],
+    }),
+    readCrmContactImpl: async ({ contactId, activityLimit }) => ({
+      backend: 'postgres', contact: { contactId, name: 'Test Customer' },
+      activities: [{ activityId: 'activity-1', activityLimit }],
+    }),
+    serversHealthImpl: async ({ servers }) => ({
+      ok: true,
+      servers: (servers || ['hetzner', 'ovh', 'digitalocean']).map(name => ({ name, ok: true })),
+    }),
+    githubOverviewImpl: async ({ repo, limit }) => ({
+      repo: { nameWithOwner: repo },
+      openPullRequests: [{ number: 2301, title: 'Control MCP' }],
+      limit,
+    }),
   };
   const started = await startHttpServer({
     port: 0, authToken: 'test-token', gatewayOptions,
@@ -63,22 +82,61 @@ async function openTestGateway(t, { enableDrafts = false, legacy = false } = {})
   return { client, audits };
 }
 
-test('MCP gateway exposes read-only account and Gmail tools by default', async (t) => {
+test('MCP gateway exposes the read-only 3DVR control surface by default', async (t) => {
   const { client } = await openTestGateway(t);
   const listed = await client.listTools();
   const byName = new Map(listed.tools.map((tool) => [tool.name, tool]));
 
   assert.deepEqual([...byName.keys()].sort(), [
-    'accounts_get', 'accounts_list', 'gmail_read', 'gmail_search',
+    'accounts_get', 'accounts_list', 'control_status', 'crm_read', 'crm_search',
+    'crm_summary', 'github_overview', 'gmail_read', 'gmail_search', 'servers_health',
   ]);
-  for (const tool of byName.values()) {
-    assert.equal(tool.annotations.readOnlyHint, true);
-  }
+  for (const tool of byName.values()) assert.equal(tool.annotations.readOnlyHint, true);
+
+  const status = parseToolResult(await client.callTool({ name: 'control_status', arguments: {} }));
+  assert.equal(status.service, '3dvr-control-gateway');
+  assert.equal(status.mode, 'read-only');
+  assert.equal(status.capabilities.crm.backend, 'postgres');
+  assert.equal(status.capabilities.crm.configured, true);
 
   const result = parseToolResult(await client.callTool({ name: 'accounts_list', arguments: {} }));
   assert.equal(result.accounts[0].alias, 'personal');
   assert.equal('credentialRef' in result.accounts[0], false);
 });
+
+test('CRM, server, and GitHub control tools stay read-only and scoped', async (t) => {
+  const { client } = await openTestGateway(t);
+  const summary = parseToolResult(await client.callTool({ name: 'crm_summary', arguments: {} }));
+  assert.equal(summary.backend, 'postgres');
+  assert.equal(summary.total, 12);
+
+  const search = parseToolResult(await client.callTool({
+    name: 'crm_search',
+    arguments: { query: 'customer', limit: 5, include_suppressed: false },
+  }));
+  assert.equal(search.query, 'customer');
+  assert.equal(search.limit, 5);
+  assert.equal(search.includeSuppressed, false);
+  assert.equal(search.contacts[0].contactId, 'contact-1');
+
+  const crmRead = parseToolResult(await client.callTool({
+    name: 'crm_read', arguments: { contact_id: 'contact-1', activity_limit: 3 },
+  }));
+  assert.equal(crmRead.contact.contactId, 'contact-1');
+  assert.equal(crmRead.activities[0].activityLimit, 3);
+
+  const health = parseToolResult(await client.callTool({
+    name: 'servers_health', arguments: { servers: ['hetzner', 'ovh'] },
+  }));
+  assert.deepEqual(health.servers.map(row => row.name), ['hetzner', 'ovh']);
+
+  const github = parseToolResult(await client.callTool({
+    name: 'github_overview', arguments: { repo: 'tmsteph/3dvr-portal', limit: 4 },
+  }));
+  assert.equal(github.repo.nameWithOwner, 'tmsteph/3dvr-portal');
+  assert.equal(github.limit, 4);
+});
+
 test('Gmail search and read stay scoped to the selected account and are audited', async (t) => {
   const { client, audits } = await openTestGateway(t);
   const search = parseToolResult(await client.callTool({
@@ -125,12 +183,13 @@ test('draft creation is absent by default and opt-in when explicitly enabled', a
   assert.equal(draftTool.annotations.readOnlyHint, false);
   assert.equal(draftTool.annotations.destructiveHint, false);
 });
+
 test('audit persistence hashes search text instead of storing it verbatim', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-mcp-audit-'));
   const filePath = path.join(root, 'audit.ndjson');
   appendAudit({
-    actor: 'chatgpt-mcp', tool: 'gmail.search', accountId: 'personal',
-    query: 'subject:private customer name', result: 'success',
+    actor: 'chatgpt-mcp', tool: 'crm.search', accountId: 'personal',
+    query: 'private customer name', result: 'success',
   }, { filePath });
 
   const raw = fs.readFileSync(filePath, 'utf8');
