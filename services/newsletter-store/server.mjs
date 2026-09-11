@@ -5,6 +5,7 @@ import { Pool } from 'pg';
 import webpush from 'web-push';
 import { shouldNotifyForChatPublish } from './chat-message-policy.mjs';
 import { sendChatPushProof } from './chat-push-proof.mjs';
+import { crmSummary, readCrmContact, searchCrmContacts } from './crm-read.mjs';
 
 const port = Number.parseInt(process.env.PORT || '8787', 10);
 const token = String(process.env.NEWSLETTER_STORE_TOKEN || '');
@@ -247,8 +248,31 @@ async function upsertSubscriber(input) {
 
 const server = http.createServer(async (req, res) => {
   try {
-    if (req.url === '/healthz' && req.method === 'GET') {
+    const requestUrl = new URL(req.url || '/', 'http://127.0.0.1');
+    if (requestUrl.pathname === '/healthz' && req.method === 'GET') {
       await pool.query('SELECT 1'); return json(res, 200, { ok: true });
+    }
+    if (requestUrl.pathname === '/v1/crm/summary' && req.method === 'GET') {
+      if (!authorized(req)) return json(res, 401, { error: 'Unauthorized.' });
+      return json(res, 200, await crmSummary(pool));
+    }
+    if (requestUrl.pathname === '/v1/crm/search' && req.method === 'GET') {
+      if (!authorized(req)) return json(res, 401, { error: 'Unauthorized.' });
+      const result = await searchCrmContacts(pool, {
+        query: requestUrl.searchParams.get('q') || '',
+        limit: requestUrl.searchParams.get('limit') || '20',
+        includeSuppressed: requestUrl.searchParams.get('include_suppressed') === 'true',
+      });
+      return json(res, 200, result);
+    }
+    const crmContactMatch = requestUrl.pathname.match(/^\/v1\/crm\/contacts\/([^/]+)$/);
+    if (crmContactMatch && req.method === 'GET') {
+      if (!authorized(req)) return json(res, 401, { error: 'Unauthorized.' });
+      const result = await readCrmContact(pool, {
+        contactId: decodeURIComponent(crmContactMatch[1]),
+        activityLimit: requestUrl.searchParams.get('activity_limit') || '20',
+      });
+      return result ? json(res, 200, result) : json(res, 404, { error: 'CRM contact not found.' });
     }
     if (req.url === '/v1/subscribers' && req.method === 'POST') {
       if (!authorized(req)) return json(res, 401, { error: 'Unauthorized.' });
