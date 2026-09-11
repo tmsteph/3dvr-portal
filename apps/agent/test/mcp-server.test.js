@@ -13,7 +13,7 @@ function parseToolResult(result) {
   return JSON.parse(result.content.find((item) => item.type === 'text').text);
 }
 
-async function openTestGateway(t, { enableDrafts = false } = {}) {
+async function openTestGateway(t, { enableDrafts = false, legacy = false } = {}) {
   const audits = [];
   const account = {
     id: 'acct_google_test', provider: 'google', alias: 'personal',
@@ -25,12 +25,23 @@ async function openTestGateway(t, { enableDrafts = false } = {}) {
     auditImpl: (event) => audits.push(event),
     listAccountsImpl: () => [account],
     getAccountImpl: () => account,
+    legacyAccountImpl: () => (legacy ? {
+      id: 'acct_google_legacy_3dvr', provider: 'google', alias: '3dvr',
+      email: '3dvr.tech@gmail.com', scopes: ['gmail.readonly'], status: 'connected',
+    } : null),
     searchMessagesImpl: async ({ accountId, query, maxResults }) => ({
       account, messages: [{ id: 'm1', threadId: 't1' }],
       resultSizeEstimate: 1, accountId, query, maxResults,
     }),
     readMessageImpl: async ({ accountId, messageId, format }) => ({
       account, message: { id: messageId, snippet: 'hello', format }, accountId,
+    }),
+    searchLegacyMessagesImpl: async ({ query, maxResults }) => ({
+      account: { alias: '3dvr' }, messages: [{ id: '77', source: 'legacy-imap' }],
+      resultSizeEstimate: 1, query, maxResults, source: 'legacy-imap',
+    }),
+    readLegacyMessageImpl: async ({ messageId, format }) => ({
+      account: { alias: '3dvr' }, message: { id: messageId, format, source: 'legacy-imap' },
     }),
     createDraftImpl: async ({ accountId, to, subject }) => ({
       account, draft: { id: 'd1', accountId, to, subject },
@@ -85,6 +96,26 @@ test('Gmail search and read stay scoped to the selected account and are audited'
   assert.equal(read.message.id, 'm1');
   assert.equal(read.message.format, 'metadata');
   assert.deepEqual(audits.map((event) => event.tool), ['gmail.search', 'gmail.read']);
+});
+
+test('legacy 3dvr Gmail account is discoverable and routed through IMAP read tools', async (t) => {
+  const { client } = await openTestGateway(t, { legacy: true });
+  const accounts = parseToolResult(await client.callTool({ name: 'accounts_list', arguments: {} }));
+  assert.deepEqual(accounts.accounts.map((row) => row.alias).sort(), ['3dvr', 'personal']);
+
+  const search = parseToolResult(await client.callTool({
+    name: 'gmail_search',
+    arguments: { account_id: '3dvr', query: 'newer_than:7d', max_results: 3 },
+  }));
+  assert.equal(search.source, 'legacy-imap');
+  assert.equal(search.messages[0].id, '77');
+
+  const read = parseToolResult(await client.callTool({
+    name: 'gmail_read',
+    arguments: { account_id: 'acct_google_legacy_3dvr', message_id: '77' },
+  }));
+  assert.equal(read.message.source, 'legacy-imap');
+  assert.equal(read.message.format, 'metadata');
 });
 
 test('draft creation is absent by default and opt-in when explicitly enabled', async (t) => {

@@ -6,6 +6,11 @@ const z = require('zod/v4');
 
 const { getAccount, listAccounts } = require('../connectors/accounts/registry');
 const { createDraft, readMessage, searchMessages } = require('../connectors/google/gmail');
+const {
+  legacyAccount,
+  readLegacyMessage,
+  searchLegacyMessages,
+} = require('../connectors/google/legacy-imap');
 const { appendAudit } = require('../connectors/audit/log');
 
 function publicAccount(account) {
@@ -46,8 +51,39 @@ function createGatewayMcpServer(options = {}) {
   const searchMessagesImpl = options.searchMessagesImpl || searchMessages;
   const readMessageImpl = options.readMessageImpl || readMessage;
   const createDraftImpl = options.createDraftImpl || createDraft;
+  const legacyAccountImpl = options.legacyAccountImpl || legacyAccount;
+  const searchLegacyMessagesImpl = options.searchLegacyMessagesImpl || searchLegacyMessages;
+  const readLegacyMessageImpl = options.readLegacyMessageImpl || readLegacyMessage;
   const auditImpl = options.auditImpl || appendAudit;
   const enableDrafts = options.enableDrafts ?? process.env.THREEDVR_MCP_ENABLE_DRAFTS === 'true';
+  const currentLegacyAccount = () => legacyAccountImpl(options.legacyConfig || process.env);
+  const isLegacyIdentifier = (identifier) => {
+    const account = currentLegacyAccount();
+    if (!account) return false;
+    const wanted = String(identifier || '').trim().toLowerCase();
+    return [account.id, account.alias, account.email].some((value) => (
+      String(value || '').trim().toLowerCase() === wanted
+    ));
+  };
+  const mergedAccounts = (provider) => {
+    const normalizedProvider = String(provider || '').trim().toLowerCase();
+    const rows = listAccountsImpl({ provider });
+    const account = currentLegacyAccount();
+    if (account && (!normalizedProvider || normalizedProvider === 'google')) {
+      const duplicate = rows.some((candidate) => (
+        candidate.id === account.id
+        || candidate.alias === account.alias
+        || candidate.email === account.email
+      ));
+      if (!duplicate) rows.push(account);
+    }
+    return rows;
+  };
+  const resolveAccount = (identifier) => {
+    if (isLegacyIdentifier(identifier)) return currentLegacyAccount();
+    return getAccountImpl(identifier);
+  };
+
   const server = new McpServer({
     name: '3dvr-personal-gateway',
     version: '0.1.0',
@@ -62,7 +98,7 @@ function createGatewayMcpServer(options = {}) {
     },
     annotations: { readOnlyHint: true, openWorldHint: false },
   }, async ({ provider }) => audited('accounts.list', {}, async () => ({
-    accounts: listAccountsImpl({ provider }).map(publicAccount),
+    accounts: mergedAccounts(provider).map(publicAccount),
   }), auditImpl));
 
   server.registerTool('accounts_get', {
@@ -71,7 +107,7 @@ function createGatewayMcpServer(options = {}) {
     inputSchema: { account_id: z.string().min(1).describe('Account id or alias.') },
     annotations: { readOnlyHint: true, openWorldHint: false },
   }, async ({ account_id }) => audited('accounts.get', { accountId: account_id }, async () => ({
-    account: publicAccount(getAccountImpl(account_id)),
+    account: publicAccount(resolveAccount(account_id)),
   }), auditImpl));
   server.registerTool('gmail_search', {
     title: 'Search Gmail',
@@ -85,7 +121,9 @@ function createGatewayMcpServer(options = {}) {
   }, async ({ account_id, query, max_results }) => audited(
     'gmail.search',
     { accountId: account_id, query },
-    async () => searchMessagesImpl({ accountId: account_id, query, maxResults: max_results }),
+    async () => (isLegacyIdentifier(account_id)
+      ? searchLegacyMessagesImpl({ query, maxResults: max_results, config: options.legacyConfig || process.env })
+      : searchMessagesImpl({ accountId: account_id, query, maxResults: max_results })),
     auditImpl,
   ));
 
@@ -101,7 +139,9 @@ function createGatewayMcpServer(options = {}) {
   }, async ({ account_id, message_id, format }) => audited(
     'gmail.read',
     { accountId: account_id, target: message_id },
-    async () => readMessageImpl({ accountId: account_id, messageId: message_id, format }),
+    async () => (isLegacyIdentifier(account_id)
+      ? readLegacyMessageImpl({ messageId: message_id, format, config: options.legacyConfig || process.env })
+      : readMessageImpl({ accountId: account_id, messageId: message_id, format })),
     auditImpl,
   ));
 
@@ -125,13 +165,18 @@ function createGatewayMcpServer(options = {}) {
     }, async ({ account_id, to, subject, body, thread_id }) => audited(
       'gmail.create_draft',
       { accountId: account_id, target: to },
-      async () => createDraftImpl({
+      async () => {
+        if (isLegacyIdentifier(account_id)) {
+          throw new Error('Draft creation for the legacy IMAP account requires OAuth migration.');
+        }
+        return createDraftImpl({
         accountId: account_id,
         to,
         subject,
         body,
         threadId: thread_id,
-      }),
+        });
+      },
       auditImpl,
     ));
   }
