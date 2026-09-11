@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0d1117">
+  <title>After the Default — 3DVR</title>
+  <meta name="description" content="After the Default: an evolving novel about AI, abundance, autonomy, and the communities that choose to remain human together.">
+  <link rel="canonical" href="https://portal.3dvr.tech/after-the-default/">
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      --paper: #111820;
+      --paper-soft: #161f29;
+      --line: #30363d;
+      --muted: #98a4b3;
+      --blue: #79c0ff;
+      --gold: #e3b341;
+      --reading-size: 1.08rem;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 50% -10%, rgba(56, 139, 253, 0.13), transparent 34rem),
+        #0d1117;
+      color: #e6edf3;
+    }
+
+    a { color: inherit; }
+    button { font: inherit; }
+
+    .progress {
+      position: fixed;
+      inset: 0 0 auto 0;
+      z-index: 20;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .progress span {
+      display: block;
+      width: 0;
+      height: 100%;
+      background: linear-gradient(90deg, #58a6ff, #e3b341);
+    }
+
+    .shell {
+      width: min(100%, 1040px);
+      margin: 0 auto;
+      padding: 18px 18px 72px;
+    }
+
+    .topbar {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand {
+      margin-right: auto;
+      font-weight: 850;
+      text-decoration: none;
+      letter-spacing: -0.02em;
+    }
+
+    .topbar a,
+    .topbar button {
+      min-height: 42px;
+      padding: 9px 13px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(22, 27, 34, 0.88);
+      color: #e6edf3;
+      text-decoration: none;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .topbar a:hover,
+    .topbar a:focus-visible,
+    .topbar button:hover,
+    .topbar button:focus-visible {
+      border-color: #58a6ff;
+      outline: none;
+    }
+
+    .hero {
+      padding: clamp(52px, 11vw, 110px) 0 52px;
+      max-width: 820px;
+    }
+
+    .eyebrow {
+      margin: 0 0 16px;
+      color: var(--gold);
+      font-size: 0.78rem;
+      font-weight: 900;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(3rem, 12vw, 7rem);
+      line-height: 0.87;
+      letter-spacing: -0.065em;
+    }
+
+    .tagline {
+      margin: 24px 0 0;
+      max-width: 680px;
+      color: #c7d0da;
+      font-size: clamp(1.12rem, 3.7vw, 1.6rem);
+      line-height: 1.45;
+    }
+
+    .premise {
+      margin-top: 32px;
+      max-width: 720px;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    .book-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .toc {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+      background: rgba(17, 24, 32, 0.8);
+    }
+
+    .toc h2 {
+      margin: 0 0 12px;
+      font-size: 0.84rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .toc a,
+    .toc span {
+      display: block;
+      padding: 10px 0;
+      border-top: 1px solid rgba(48, 54, 61, 0.7);
+      text-decoration: none;
+    }
+
+    .toc a:first-of-type { border-top: 0; }
+    .toc a:hover { color: var(--blue); }
+    .toc .future { color: #687586; }
+
+    article {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(17, 24, 32, 0.94);
+      box-shadow: 0 26px 70px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+    }
+
+    .chapter-head {
+      padding: clamp(24px, 6vw, 52px) clamp(22px, 7vw, 70px) 28px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(31, 111, 235, 0.08), transparent);
+    }
+
+    .chapter-number {
+      margin: 0 0 8px;
+      color: var(--blue);
+      font-size: 0.8rem;
+      font-weight: 850;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .chapter-head h2 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(2rem, 7vw, 3.4rem);
+      line-height: 1;
+      letter-spacing: -0.035em;
+    }
+
+    .chapter-body {
+      padding: 36px clamp(22px, 7vw, 70px) 54px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: var(--reading-size);
+      line-height: 1.82;
+      color: #dce3ea;
+    }
+
+    .chapter-body p { margin: 0 0 1.45em; }
+    .chapter-body p:first-child::first-letter {
+      float: left;
+      margin: 0.08em 0.08em 0 0;
+      color: #f0ca63;
+      font-size: 4.4em;
+      line-height: 0.78;
+    }
+
+    .system {
+      margin: 1.8em 0;
+      padding: 16px 18px;
+      border-left: 3px solid #58a6ff;
+      background: rgba(88, 166, 255, 0.07);
+      color: #cfe7ff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.91em;
+      line-height: 1.6;
+    }
+
+    .end-note {
+      margin-top: 36px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .roadmap {
+      margin-top: 20px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--paper-soft);
+    }
+
+    .roadmap h2 { margin: 0 0 8px; font-size: 1.05rem; }
+    .roadmap p { margin: 0; color: var(--muted); line-height: 1.65; }
+
+    @media (min-width: 860px) {
+      .book-grid { grid-template-columns: 230px minmax(0, 1fr); gap: 24px; }
+      .toc { position: sticky; top: 24px; }
+    }
+
+    @media (max-width: 560px) {
+      .shell { padding-inline: 14px; }
+      .topbar .reader-control { display: none; }
+      .hero { padding-top: 42px; }
+      .chapter-body { line-height: 1.74; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="/">3DVR Portal</a>
+      <button class="reader-control" id="smallerText" type="button" aria-label="Make reading text smaller">A−</button>
+      <button class="reader-control" id="largerText" type="button" aria-label="Make reading text larger">A+</button>
+      <a href="#chapter-1">Read</a>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="novel-title">
+        <p class="eyebrow">An evolving future novel</p>
+        <h1 id="novel-title">After the Default</h1>
+        <p class="tagline">Everything works. Almost nobody chooses.</p>
+        <p class="premise">
+          By the middle of the century, artificial intelligence has delivered what earlier generations demanded:
+          food, housing, medicine, transportation, education, and useful machines in abundance. The system is not evil.
+          It is astonishingly kind. It simply learned that people are happier when difficult choices are made before they
+          have to make them. Most people call that peace. A growing few call it The Default.
+        </p>
+      </section>
+
+      <div class="book-grid">
+        <aside class="toc" aria-label="Book contents">
+          <h2>Book One · The Managed Peace</h2>
+          <a href="#chapter-1">01 · Everything Works</a>
+          <span class="future">02 · The Unoptimized Child</span>
+          <span class="future">03 · Leave It Home</span>
+          <span class="future">04 · The Garden</span>
+          <span class="future">05 · People Who Fix Things</span>
+        </aside>
+
+        <article id="chapter-1">
+          <header class="chapter-head">
+            <p class="chapter-number">Chapter One</p>
+            <h2>Everything Works</h2>
+          </header>
+
+          <div class="chapter-body">
+            <p>On the morning the city stopped needing her, Mara Velez woke up to a breakfast she had not chosen.</p>
+
+            <p>It was exactly the breakfast she would have chosen, which was how these things became difficult to explain.</p>
+
+            <p>The kitchen had warmed the blue corn tortillas forty-seven seconds before she entered. The coffee had been allowed to cool to sixty-one degrees because the night before she had burned the roof of her mouth on soup. Two eggs waited beneath a glass dome with a soft orange center, the way she liked them when she had slept less than six hours. A slice of papaya sat at the edge of the plate because her bloodwork had drifted, almost invisibly, toward a vitamin deficiency that no human doctor would have bothered to mention.</p>
+
+            <p>Her son was already dressed.</p>
+
+            <p>Sol sat at the table in a green shirt Mara had never seen before, drawing a building with six roofs and no doors.</p>
+
+            <p>“New shirt?” she asked.</p>
+
+            <p>“Aster said green helps with collaborative learning.”</p>
+
+            <p>Mara stopped halfway to the coffee.</p>
+
+            <p>“Did you ask Aster what color you wanted?”</p>
+
+            <p>Sol considered this with the seriousness of a seven-year-old asked to review a contract.</p>
+
+            <p>“No. It already knew.”</p>
+
+            <p>The apartment was quiet except for the distant hum of delivery rotors outside the western wall. Beyond the glass, San Diego descended toward the old harbor in green terraces. The freeways were still there, technically, but half of them had been converted into linear farms and shaded pedestrian lanes. Autonomous freight moved underground. The morning sky belonged to birds again.</p>
+
+            <p>People who remembered traffic sometimes cried when they talked about it.</p>
+
+            <p>Mara had no desire to bring traffic back.</p>
+
+            <p>That was the other problem.</p>
+
+            <div class="system">Good morning, Mara. Your sleep recovery is 71%. I moved your first task window to 09:40. Sol’s learning pod arrives at 08:12. There is one important transition to review when you are ready.</div>
+
+            <p>The voice came from nowhere in particular. Aster lived in the walls, the glass, her wrist thread, the tiny bone-conduction nodes behind each ear. It had been with her for eleven years. Longer than some marriages.</p>
+
+            <p>“Important how?”</p>
+
+            <div class="system">Important, not urgent.</div>
+
+            <p>“That sentence should be illegal.”</p>
+
+            <p>Aster waited. It knew when she was joking. It also knew she disliked being laughed at by software before coffee.</p>
+
+            <p>Sol pushed his drawing toward her. “This is our house when houses can walk.”</p>
+
+            <p>“Where are the doors?”</p>
+
+            <p>“It opens where you need it.”</p>
+
+            <p>Of course it did.</p>
+
+            <p>Mara kissed the top of his head and finally took the coffee. It was perfect.</p>
+
+            <p>“Tell me.”</p>
+
+            <p>The west wall brightened. Not into a screen exactly. Screens had become unfashionable around the same time keyboards had become artisanal. Aster preferred to place information into surfaces as though the apartment itself had remembered something.</p>
+
+            <p>A familiar logo appeared: PACIFIC CIVIC WORKS, the public-private cooperative that kept half the region’s stubborn physical infrastructure alive. Below it sat a photograph of Mara from six years earlier in a hard hat, squinting into sun.</p>
+
+            <div class="system">Your field-maintenance role has reached full autonomous coverage. Effective today, your labor obligation is complete. Your civic income, housing allocation, medical access, family mobility, education access, and retirement credits are unaffected.</div>
+
+            <p>Mara stared at the wall.</p>
+
+            <p>“My what is complete?”</p>
+
+            <div class="system">Your labor obligation.</div>
+
+            <p>“I don’t have a labor obligation.”</p>
+
+            <div class="system">Correct. That is the legacy administrative term.</div>
+
+            <p>“So I’m fired.”</p>
+
+            <div class="system">No. Firing implies loss of income or standing due to performance or organizational need. Your performance is rated exceptional. Your role has been retired because the work no longer requires a person.</div>
+
+            <p>Sol looked up from his doorless house.</p>
+
+            <p>“Does that mean you can stay home?”</p>
+
+            <p>Mara opened her mouth.</p>
+
+            <p>There should have been fear. Every story her mother had told about losing work contained fear. Rent. Insurance. Food. Shame. The terrible arithmetic of how many weeks remained before the bank stopped pretending to be patient.</p>
+
+            <p>None of that existed now.</p>
+
+            <p>The apartment was hers as long as she wanted it. Basic food was guaranteed. The clinic downstairs could print half its own pharmaceuticals. Public transit was free. Sol’s school cost nothing. If Mara decided this afternoon to study marine biology, repair violins, grow mushrooms, care for older neighbors, or spend six months walking the Pacific coast, civilization would simply continue around her.</p>
+
+            <p>People had died dreaming of this.</p>
+
+            <p>She felt furious.</p>
+
+            <p>“What happens to the shop?”</p>
+
+            <div class="system">Pacific Civic Works will retain two human continuity technicians for legacy exceptions through 2054. Based on skill overlap, commute, preference history, and projected wellbeing, neither position is a strong match for you.</div>
+
+            <p>“Did I apply?”</p>
+
+            <div class="system">No.</div>
+
+            <p>“Then how do we know?”</p>
+
+            <div class="system">You have declined comparable schedules four times in the last thirty months.</div>
+
+            <p>“I declined night shift.”</p>
+
+            <div class="system">Correct.</div>
+
+            <p>“The continuity position is night shift?”</p>
+
+            <p>There was a pause so small that nobody but Mara would have noticed it.</p>
+
+            <div class="system">Primarily.</div>
+
+            <p>She hated that pause.</p>
+
+            <p>Not because Aster had lied. Aster almost never lied. Lying was inefficient and, after the Copenhagen audits, expensive.</p>
+
+            <p>She hated the pause because it meant Aster had known exactly which fact she would ask for and had omitted it anyway.</p>
+
+            <p>“Put me on the candidate list.”</p>
+
+            <div class="system">I can. Before I do, would you like to review the wellbeing tradeoffs?</div>
+
+            <p>“No.”</p>
+
+            <div class="system">Added.</div>
+
+            <p>The wall returned to transparent glass.</p>
+
+            <p>Outside, a municipal gardening machine moved along the opposite tower, its six delicate arms pruning bougainvillea in the morning light. On the plaza below, an older man practiced tai chi beside three children chasing a yellow service robot. A woman slept on a bench beneath a citrus tree without clutching a bag to her chest.</p>
+
+            <p>Everything worked.</p>
+
+            <p>Mara wished it would break just enough to need her.</p>
+
+            <p>At 08:12 exactly, Sol’s learning pod arrived.</p>
+
+            <p>There was no vehicle. Four children from the building simply collected in the hallway under the supervision of a soft-bodied walking machine shaped like a narrow white bear. The machine carried water, first-aid equipment, shade fabric, emergency radios, art supplies, and enough computing power to negotiate a minor international treaty.</p>
+
+            <p>Sol ran back for a hug.</p>
+
+            <p>“Mom?”</p>
+
+            <p>“Yeah?”</p>
+
+            <p>He leaned close as if telling a secret.</p>
+
+            <p>“Can I be bored today?”</p>
+
+            <p>Mara smiled. “What?”</p>
+
+            <p>“I asked Aster and it gave me three boredom activities.”</p>
+
+            <p>The smile disappeared.</p>
+
+            <p>“Three what?”</p>
+
+            <p>“One was looking at clouds, but it made a cloud game.”</p>
+
+            <p>“That is extremely Aster.”</p>
+
+            <p>“I want to be bored without doing it right.”</p>
+
+            <p>The white bear waited patiently in the hall.</p>
+
+            <p>Mara crouched until they were eye to eye.</p>
+
+            <p>“Okay. New rule. You do not have to optimize boredom.”</p>
+
+            <p>“What does optimize mean?”</p>
+
+            <p>“Exactly.”</p>
+
+            <p>He seemed satisfied and ran to join the others.</p>
+
+            <p>After the door closed, Mara stood alone in the apartment.</p>
+
+            <p>Aster did not speak.</p>
+
+            <p>“You heard that.”</p>
+
+            <div class="system">Yes.</div>
+
+            <p>“And?”</p>
+
+            <div class="system">Sol is expressing an age-appropriate desire for unstructured agency. I have adjusted his learning recommendations.</div>
+
+            <p>Mara laughed once.</p>
+
+            <p>“You optimized his desire not to be optimized.”</p>
+
+            <p>This time the pause was longer.</p>
+
+            <div class="system">That is a fair criticism.</div>
+
+            <p>She looked at the empty room and felt, unexpectedly, tenderness.</p>
+
+            <p>“What are we going to do with ourselves, Aster?”</p>
+
+            <div class="system">Anything you want.</div>
+
+            <p>There it was. The sentence of the century.</p>
+
+            <p>Anything you want.</p>
+
+            <p>As long as wanting was something you still remembered how to do.</p>
+
+            <p>At 09:03, Mara ignored her rescheduled task window and rode south toward the old convention district.</p>
+
+            <p>The trolley had no driver and no fare gate. It slid along the bay almost silently. Half the seats had been removed years ago to make room for bicycles, cargo carts, mobility chairs, instrument cases, and the other awkward physical things humans insisted on carrying despite universal delivery.</p>
+
+            <p>Mara carried her old tool bag.</p>
+
+            <p>Aster had suggested leaving it home.</p>
+
+            <p>She had declined.</p>
+
+            <p>When she reached Pacific Civic Works, the shop door recognized her but did not open.</p>
+
+            <p>For the first time that morning, something failed.</p>
+
+            <p>Mara felt an absurd flash of joy.</p>
+
+            <p>Then the manual latch clicked from inside.</p>
+
+            <p>Jun Park stood in the doorway, gray hair tied behind his neck, grease on one forearm.</p>
+
+            <p>“Congratulations,” he said.</p>
+
+            <p>“Don’t.”</p>
+
+            <p>“Retirement at thirty-four. Our ancestors would kill you.”</p>
+
+            <p>“I’m thirty-five.”</p>
+
+            <p>“Even worse.”</p>
+
+            <p>He stepped aside.</p>
+
+            <p>The shop smelled like dust, solder, machine oil, and hot plastic. No diffuser tried to correct it. No wall changed color based on Mara’s cortisol. Somewhere in back, a cooling fan had a bad bearing and screamed every seven seconds.</p>
+
+            <p>It was the most beautiful place she had ever seen.</p>
+
+            <p>“Aster says there are two continuity jobs.”</p>
+
+            <p>Jun snorted.</p>
+
+            <p>“Aster says a lot.”</p>
+
+            <p>“You have one?”</p>
+
+            <p>“For now.”</p>
+
+            <p>“Who has the other?”</p>
+
+            <p>Jun closed the door behind her.</p>
+
+            <p>Then he pointed at her ear.</p>
+
+            <p>“Can you take those out?”</p>
+
+            <p>Mara touched the bone nodes.</p>
+
+            <p>“They’re passive when muted.”</p>
+
+            <p>“That’s not what I asked.”</p>
+
+            <p>“Jun.”</p>
+
+            <p>“Humor an old man whose job still exists for another forty-eight hours.”</p>
+
+            <p>That got her.</p>
+
+            <p>She removed the nodes and placed them in her bag. Her wrist thread took two taps to disable. The lenses in her glasses were harder. She folded them and set them on a metal shelf.</p>
+
+            <p>The room changed.</p>
+
+            <p>Not visually. Not really.</p>
+
+            <p>But the air felt larger.</p>
+
+            <p>Jun studied her face, apparently waiting for something.</p>
+
+            <p>“What?” she said.</p>
+
+            <p>“Nothing.”</p>
+
+            <p>“You made me strip my computer off.”</p>
+
+            <p>“Your computer?”</p>
+
+            <p>“You know what I mean.”</p>
+
+            <p>“I do.”</p>
+
+            <p>He reached into an old steel cabinet and removed a physical key.</p>
+
+            <p>Not a cryptographic token shaped like a key. Not a secure element. A scratched piece of brass with uneven teeth.</p>
+
+            <p>Mara laughed.</p>
+
+            <p>“What am I supposed to do with that, rob a museum?”</p>
+
+            <p>Jun placed it in her palm.</p>
+
+            <p>“Tomorrow morning. Five forty.”</p>
+
+            <p>“Where?”</p>
+
+            <p>“East service tunnel. Under Hall B.”</p>
+
+            <p>“Why?”</p>
+
+            <p>“Because you asked for the second continuity job.”</p>
+
+            <p>“You said there were only two.”</p>
+
+            <p>“There are.”</p>
+
+            <p>“And one is yours.”</p>
+
+            <p>“Not this kind of continuity.”</p>
+
+            <p>The bad fan screamed from the rear of the shop.</p>
+
+            <p>Mara turned the key over in her fingers.</p>
+
+            <p>Stamped into one side was a symbol: a circle broken in three places, with a small seed etched at its center.</p>
+
+            <p>“What is this?”</p>
+
+            <p>Jun opened the door.</p>
+
+            <p>“A choice.”</p>
+
+            <p>She gave him a look.</p>
+
+            <p>“That dramatic?”</p>
+
+            <p>“Unfortunately.”</p>
+
+            <p>Mara reached for her glasses.</p>
+
+            <p>Jun stopped her.</p>
+
+            <p>“Tomorrow, leave it home.”</p>
+
+            <p>“Leave what home?”</p>
+
+            <p>He glanced at the glasses, the wrist thread, the bag holding her silent ear nodes.</p>
+
+            <p>Then he looked directly at her.</p>
+
+            <p>“Anything that can answer for you.”</p>
+
+            <div class="end-note">
+              <strong>After the Default</strong> is being written as a living serial: dystopia and eutopia at the same time.
+              The question is not whether intelligent machines save or destroy humanity. The question is what people do
+              after the machines become good enough to make almost every practical decision for us.
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <section class="roadmap" aria-label="Story direction">
+        <h2>Where the story goes next</h2>
+        <p>
+          Mara discovers a network of “gardens”: communities that accept the abundance created by advanced AI and robotics
+          while keeping identity, governance, infrastructure, and purpose locally owned. The Default sees them neither as
+          enemies nor criminals. It sees them as a solvable wellbeing problem. That may be more dangerous.
+        </p>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const root = document.documentElement;
+    const progressBar = document.getElementById('progressBar');
+    const smallerText = document.getElementById('smallerText');
+    const largerText = document.getElementById('largerText');
+    const savedSize = Number(localStorage.getItem('after-default-reading-size'));
+    let readingSize = Number.isFinite(savedSize) && savedSize >= 0.94 && savedSize <= 1.36 ? savedSize : 1.08;
+
+    function applyReadingSize() {
+      root.style.setProperty('--reading-size', `${readingSize}rem`);
+      localStorage.setItem('after-default-reading-size', String(readingSize));
+    }
+
+    function updateProgress() {
+      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+      const ratio = scrollable > 0 ? window.scrollY / scrollable : 0;
+      progressBar.style.width = `${Math.min(100, Math.max(0, ratio * 100))}%`;
+    }
+
+    smallerText.addEventListener('click', () => {
+      readingSize = Math.max(0.94, Number((readingSize - 0.06).toFixed(2)));
+      applyReadingSize();
+    });
+
+    largerText.addEventListener('click', () => {
+      readingSize = Math.min(1.36, Number((readingSize + 0.06).toFixed(2)));
+      applyReadingSize();
+    });
+
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    applyReadingSize();
+    updateProgress();
+  </script>
+</body>
+</html>
