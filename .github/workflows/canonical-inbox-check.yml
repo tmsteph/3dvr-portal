@@ -44,3 +44,5 @@ jobs:
           name: canonical-inbox-report
           path: artifacts/canonical-inbox/inbox.txt
           retention-days: 1
+
+# Revalidated after OVH mail-runtime regression on 2026-09-10.
