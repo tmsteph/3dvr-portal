@@ -86,8 +86,68 @@ docker stats --no-stream 2>/dev/null || true
 EOF
 chmod 0755 /usr/local/bin/3dvr-lane-status
 
+cat >/usr/local/sbin/3dvr-session-gc <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+min_age="${SESSION_GC_MIN_AGE_SECONDS:-7200}"
+now_us="$(awk '{printf "%.0f\n", $1*1000000}' /proc/uptime)"
+while read -r unit; do
+  [ -n "$unit" ] || continue
+  entered_us="$(systemctl show "$unit" -p ActiveEnterTimestampMonotonic --value)"
+  [[ "$entered_us" =~ ^[0-9]+$ ]] || continue
+  age="$(( (now_us - entered_us) / 1000000 ))"
+  (( age >= min_age )) || continue
+  cg="$(systemctl show "$unit" -p ControlGroup --value)"
+  procs="/sys/fs/cgroup${cg}/cgroup.procs"
+  [ -r "$procs" ] || continue
+  safe=1
+  count=0
+  while read -r pid; do
+    [ -r "/proc/$pid/cmdline" ] || continue
+    cmd="$(tr '\0' ' ' < "/proc/$pid/cmdline")"
+    [ -n "$cmd" ] || continue
+    count=$((count + 1))
+    case "$cmd" in
+      *"cloudflared tunnel --no-autoupdate --url http://127.0.0.1:4320"*) ;;
+      *"agent-browser-linux-x64"*) ;;
+      *) safe=0 ;;
+    esac
+  done < "$procs"
+  if (( count > 0 && safe == 1 )); then
+    logger -t 3dvr-session-gc "reaping $unit age=${age}s tasks=$count"
+    systemctl stop "$unit"
+  fi
+done < <(systemctl list-units --type=scope --all --no-legend | awk '$4=="abandoned" && $1 ~ /^session-/ {print $1}')
+EOF
+chmod 0755 /usr/local/sbin/3dvr-session-gc
+
+cat >/etc/systemd/system/3dvr-session-gc.service <<'EOF'
+[Unit]
+Description=Reap disposable abandoned 3DVR sessions
+
+[Service]
+Type=oneshot
+Environment=SESSION_GC_MIN_AGE_SECONDS=7200
+ExecStart=/usr/local/sbin/3dvr-session-gc
+EOF
+
+cat >/etc/systemd/system/3dvr-session-gc.timer <<'EOF'
+[Unit]
+Description=Periodic cleanup of disposable abandoned 3DVR sessions
+
+[Timer]
+OnBootSec=20min
+OnUnitActiveSec=30min
+RandomizedDelaySec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
 systemctl daemon-reload
 systemctl start 3dvr-production.slice 3dvr-workspaces.slice 3dvr-dev.slice
+systemctl enable --now 3dvr-session-gc.timer
 
 for lane in 3dvr-production.slice 3dvr-workspaces.slice 3dvr-dev.slice; do
   systemctl is-active --quiet "$lane" || {
@@ -95,6 +155,11 @@ for lane in 3dvr-production.slice 3dvr-workspaces.slice 3dvr-dev.slice; do
     exit 1
   }
 done
+
+systemctl is-active --quiet 3dvr-session-gc.timer || {
+  echo "3dvr-session-gc.timer failed to activate." >&2
+  exit 1
+}
 
 echo "3DVR resource lanes installed."
 /usr/local/bin/3dvr-lane-status
