@@ -5,8 +5,8 @@ encore-200-study 2026-09-08T14:59Z
 2026-09-10: deploy direct browser-to-OVH secrets broker route
 2026-09-10: deploy scoped secret write support
 2026-09-10: deploy Operator secure secret vault
-2026-09-10: deploy Access Save to 3DVR Secrets UI
 2026-09-10: deploy Bitwarden SDK stdin hardening
 2026-09-10: deploy local operator relay token file fallback
 2026-09-10: deploy rotated operator relay token acceptance
 2026-09-10: deploy native self-host reminder email route
+2026-09-10: deploy unified outreach suppression gate
