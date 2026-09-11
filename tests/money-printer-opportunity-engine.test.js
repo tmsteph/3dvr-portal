@@ -81,12 +81,53 @@ describe('Money Printer Opportunity Engine', () => {
     assert.equal(state.signals.length, 1);
   });
 
+  it('links an opportunity into the canonical operating graph', () => {
+    let state = addOpportunity({}, {
+      need: 'Website automation sprint',
+      buyerWords: 'We need the lead form connected to follow-up this week.',
+      personId: 'person-tom',
+      organizationId: 'org-example',
+      taskIds: ['task-qualify'],
+      messageIds: ['message-1'],
+      expectedOutcome: 'Paid automation sprint',
+      nextActionOwner: 'Thomas',
+      followUpAt: '2026-08-03T16:00:00Z'
+    }, NOW);
+
+    const opportunityId = state.opportunities[0].id;
+    assert.deepEqual(state.opportunities[0].links, {
+      personId: 'person-tom',
+      organizationId: 'org-example',
+      projectId: '',
+      taskIds: ['task-qualify'],
+      messageIds: ['message-1'],
+      calendarEventIds: [],
+      paymentIds: [],
+      artifactIds: []
+    });
+    assert.equal(state.opportunities[0].expectedOutcome, 'Paid automation sprint');
+    assert.equal(state.opportunities[0].followUpAt, '2026-08-03T16:00:00.000Z');
+
+    state = updateOpportunity(state, opportunityId, {
+      status: 'won',
+      projectId: 'project-42',
+      links: { paymentIds: ['payment-1'] }
+    }, NOW);
+
+    assert.equal(state.opportunities[0].links.personId, 'person-tom');
+    assert.equal(state.opportunities[0].links.projectId, 'project-42');
+    assert.deepEqual(state.opportunities[0].links.paymentIds, ['payment-1']);
+    assert.deepEqual(state.opportunities[0].links.taskIds, ['task-qualify']);
+  });
+
   it('round-trips the versioned state through browser-compatible storage', () => {
     const storage = memoryStorage();
     const state = addOpportunity({}, {
       need: 'Landing page by Friday',
       buyerWords: 'Can someone build a launch page before Friday?',
-      policyStatus: 'human-provided'
+      policyStatus: 'human-provided',
+      personId: 'person-1',
+      paymentIds: ['payment-1']
     }, NOW);
 
     assert.equal(writeOpportunityEngineState(state, storage), true);
@@ -95,6 +136,8 @@ describe('Money Printer Opportunity Engine', () => {
     assert.equal(restored.opportunities.length, 1);
     assert.equal(restored.signals.length, 1);
     assert.equal(restored.opportunities[0].title, 'Landing page by Friday');
+    assert.equal(restored.opportunities[0].links.personId, 'person-1');
+    assert.deepEqual(restored.opportunities[0].links.paymentIds, ['payment-1']);
   });
 
   it('deduplicates repeated first-party submissions by source id', () => {
