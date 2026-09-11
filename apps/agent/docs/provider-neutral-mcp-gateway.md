@@ -173,3 +173,21 @@ Do not lock business logic to Anthropic-specific connector APIs. MCP is one clie
 7. MCP transport and client registration instructions.
 
 Keep the first release boring, inspectable, and reversible. The value is one dependable permissioned connector layer, not maximum autonomy on day one.
+
+## Implementation status — 2026-09-10
+
+The first transport now exists in `apps/agent/mcp/server.js` on top of the existing provider adapters.
+
+Implemented:
+
+- `accounts_list` and `accounts_get` with credential references stripped from model-visible output;
+- `gmail_search` and `gmail_read` as read-only MCP tools;
+- `gmail_create_draft` behind `THREEDVR_MCP_ENABLE_DRAFTS=true`;
+- Streamable HTTP at `/mcp` plus `/healthz`;
+- append-only audit records that hash Gmail search text and never log message bodies;
+- loopback-only safe default on `127.0.0.1:8788`;
+- refusal to bind publicly unless `THREEDVR_MCP_AUTH_TOKEN` is configured.
+
+Run locally from `apps/agent` with `npm run mcp`. Prefer OpenAI Secure MCP Tunnel for private ChatGPT development rather than exposing personal Gmail data publicly. A public production plugin will need standards-compliant OAuth authorization before private account tools are exposed.
+
+Next build steps are real account enrollment on the worker, GitHub adapter coverage, OAuth/authorization policy, approval-gated send actions, and plugin packaging/testing in ChatGPT developer mode where the account/workspace supports it.
