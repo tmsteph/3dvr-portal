@@ -37,10 +37,31 @@ publish_url() {
   printf 'PORTAL_ORGANISM_BRIDGE_URL=%s\n' "$url"
 }
 
+bridge_is_ready() {
+  local url="$1"
+  local health
+  health="$(curl -fsS --max-time 5 "$url/health" 2>/dev/null || true)"
+  [ -n "$health" ] || return 1
+  printf '%s' "$health" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const x=JSON.parse(s);if(!x.ok||x.service!=="3dvr-organism-owner-bridge")process.exit(1)}catch{process.exit(1)}})'
+}
+
+wait_for_bridge() {
+  local url="$1" attempts="${2:-20}"
+  local attempt
+  for attempt in $(seq 1 "$attempts"); do
+    bridge_is_ready "$url" && return 0
+    [ "$attempt" -lt "$attempts" ] && sleep 1
+  done
+  return 1
+}
+
 existing_url="$(read_url)"
 if is_running && [ -n "$existing_url" ]; then
-  publish_url "$existing_url"
-  exit 0
+  if wait_for_bridge "$existing_url" 20; then
+    publish_url "$existing_url"
+    exit 0
+  fi
+  echo 'Persistent Portal tunnel is running but the public bridge route is not ready; recreating it.' >&2
 fi
 
 start_tunnel() {
@@ -60,7 +81,7 @@ for delay in 0 15 45 90; do
   start_tunnel
   for _ in $(seq 1 40); do
     url="$(read_url)"
-    if [ -n "$url" ] && is_running; then
+    if [ -n "$url" ] && is_running && bridge_is_ready "$url"; then
       publish_url "$url"
       exit 0
     fi

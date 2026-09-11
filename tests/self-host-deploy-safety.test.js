@@ -37,3 +37,17 @@ test('Cloudflare tunnel changes happen only after live validation', () => {
   assert.ok(liveWorkboard >= 0);
   assert.ok(cloudflared > liveWorkboard);
 });
+
+
+test('quick tunnel is published only after semantic public readiness', () => {
+  const readinessFunction = source.indexOf('public_portal_ready()');
+  const readinessCall = source.indexOf('public_portal_ready "$candidate_url"');
+  const publishUrl = source.indexOf("printf 'PORTAL_SELF_HOST_URL=%s\\n'");
+
+  assert.ok(readinessFunction >= 0, 'public readiness helper must exist');
+  assert.ok(readinessCall > readinessFunction, 'quick tunnel loop must call semantic readiness');
+  assert.ok(publishUrl > readinessCall, 'public URL must be printed only after readiness succeeds');
+  assert.match(source, /x\.sha!==process\.argv\[1\]/);
+  assert.match(source, /Message your operator/);
+  assert.match(source, /package\.json/);
+});
