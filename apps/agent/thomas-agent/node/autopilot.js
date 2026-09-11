@@ -41,6 +41,7 @@ const DEFAULT_EMAIL_MODE = String(process.env.THREEDVR_AUTOPILOT_EMAIL_MODE || '
 const DEFAULT_EMAIL_COOLDOWN_HOURS = parseInteger(process.env.THREEDVR_AUTOPILOT_EMAIL_COOLDOWN_HOURS, 12);
 const DEFAULT_EMAIL_TRANSPORT = String(process.env.THREEDVR_AUTOPILOT_EMAIL_TRANSPORT || 'portal').trim().toLowerCase();
 const DEFAULT_AUTO_SEND = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_AUTOPILOT_AUTO_SEND || '').trim());
+const DEFAULT_FRESH_DISCOVERY_ONLY = !/^(0|false|no|off)$/i.test(String(process.env.THREEDVR_AUTOPILOT_FRESH_DISCOVERY_ONLY || 'true').trim());
 const DEFAULT_AUTO_SEND_LIMIT = parseInteger(process.env.THREEDVR_AUTOPILOT_AUTO_SEND_LIMIT, 1);
 const DEFAULT_DAILY_SEND_LIMIT = parseInteger(process.env.THREEDVR_AUTOPILOT_DAILY_SEND_LIMIT, 5);
 const DEFAULT_CAMPAIGN_SEND_LIMIT = parseInteger(process.env.THREEDVR_AUTOPILOT_CAMPAIGN_SEND_LIMIT, 0);
@@ -147,6 +148,7 @@ Environment:
   THREEDVR_AUTOPILOT_EMAIL_COOLDOWN_HOURS dedupe window for repeated emails
   THREEDVR_AUTOPILOT_EMAIL_TRANSPORT     portal | auto | gmail
   THREEDVR_AUTOPILOT_AUTO_SEND           true to send first-touch email automatically for mailto leads
+  THREEDVR_AUTOPILOT_FRESH_DISCOVERY_ONLY true (default) limits autonomous sends to crawler-discovered leads
   THREEDVR_AUTOPILOT_AUTO_SEND_LIMIT     max automated outreach sends per run
   THREEDVR_AUTOPILOT_DAILY_SEND_LIMIT    max successful outreach sends across all runs per UTC day
   THREEDVR_AUTOPILOT_CAMPAIGN_SEND_LIMIT max successful sends for the active campaign (0 disables)
@@ -342,10 +344,17 @@ function outreachPriority(row) {
   return 0;
 }
 
-function pickAutoSendLeads(rows, limit, outreachEntries = []) {
+function isFreshDiscoveryLead(row = {}) {
+  const variant = normalizeText(row.variant).toLowerCase();
+  return /^osm-[a-z0-9-]+(?:\+|$)/.test(variant) || /(?:^|\+)search-seed(?:\+|$)/.test(variant);
+}
+
+function pickAutoSendLeads(rows, limit, outreachEntries = [], options = {}) {
   const sentKeys = successfulRecipientKeys(outreachEntries);
+  const freshOnly = options.freshOnly === undefined ? DEFAULT_FRESH_DISCOVERY_ONLY : Boolean(options.freshOnly);
   return rows
     .filter((row) => normalizeText(row.status).toLowerCase() === 'new')
+    .filter((row) => !freshOnly || isFreshDiscoveryLead(row))
     .filter((row) => /^mailto:/i.test(normalizeText(row.contact)))
     .filter((row) => {
       const nameKey = `name:${normalizeText(row.name).toLowerCase()}`;
@@ -1246,6 +1255,7 @@ async function main() {
       end: DEFAULT_CAMPAIGN_END,
       paused: DEFAULT_PAUSED,
       autoSendEnabled: DEFAULT_AUTO_SEND,
+      freshDiscoveryOnly: DEFAULT_FRESH_DISCOVERY_ONLY,
       draftQueueEnabled: DEFAULT_DRAFT_QUEUE,
       qualityGateEnabled: DEFAULT_QUALITY_GATE,
       runSendLimit,
@@ -1380,6 +1390,7 @@ module.exports = {
   formatCounts,
   formatRouteCounts,
   gunSafe,
+  isFreshDiscoveryLead,
   needsEnrichment,
   pickAutoSendLeads,
   splitLocations,
