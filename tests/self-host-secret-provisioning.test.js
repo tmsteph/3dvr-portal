@@ -13,12 +13,16 @@ test('self-host deploy preserves server secrets when Actions has no secret updat
   assert.match(workflow, /printf '%s\\n' "\$line" >> "\$next"/);
   assert.match(workflow, /GOOGLE_OAUTH_CLIENT_ID/);
   assert.match(workflow, /GOOGLE_OAUTH_CLIENT_SECRET/);
+  assert.match(workflow, /GMAIL_USER/);
+  assert.match(workflow, /GMAIL_APP_PASSWORD/);
   assert.match(workflow, /TARGET_ROLE: \$\{\{ steps\.resolve\.outputs\.role \}\}/);
   assert.match(workflow, /THREEDVR_CONTROL_NODE='\$control_node'/);
 
   const deploy = await readFile(new URL('../scripts/ops/deploy-self-host-portal.sh', import.meta.url), 'utf8');
   assert.match(deploy, /GOOGLE_OAUTH_CLIENT_ID/);
   assert.match(deploy, /GOOGLE_OAUTH_CLIENT_SECRET/);
+  assert.match(deploy, /GMAIL_USER/);
+  assert.match(deploy, /GMAIL_APP_PASSWORD/);
   assert.match(deploy, /THREEDVR_CONTROL_NODE=\$\{THREEDVR_CONTROL_NODE:-\}/);
   assert.match(deploy, /bash "\$current\/ops\/secrets-broker\/install\.sh"/);
   assert.match(deploy, /Secrets broker provisioning did not create/);

@@ -121,6 +121,8 @@ jobs:
           TUNNEL_TOKEN: ${{ secrets.THREEDVR_CLOUDFLARE_TUNNEL_TOKEN }}
           GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
           GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
         run: |
           set -euo pipefail
           opts=(-i /tmp/3dvr-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
@@ -132,6 +134,8 @@ jobs:
             [ -n "$TUNNEL_TOKEN" ] && printf 'THREEDVR_CLOUDFLARE_TUNNEL_TOKEN=%s\n' "$TUNNEL_TOKEN"
             [ -n "$GOOGLE_OAUTH_CLIENT_ID" ] && printf 'GOOGLE_OAUTH_CLIENT_ID=%s\n' "$GOOGLE_OAUTH_CLIENT_ID"
             [ -n "$GOOGLE_OAUTH_CLIENT_SECRET" ] && printf 'GOOGLE_OAUTH_CLIENT_SECRET=%s\n' "$GOOGLE_OAUTH_CLIENT_SECRET"
+            [ -n "$GMAIL_USER" ] && printf 'GMAIL_USER=%s\n' "$GMAIL_USER"
+            [ -n "$GMAIL_APP_PASSWORD" ] && printf 'GMAIL_APP_PASSWORD=%s\n' "$GMAIL_APP_PASSWORD"
           } > "$updates"
 
           if [ ! -s "$updates" ]; then
