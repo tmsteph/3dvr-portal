@@ -26,6 +26,7 @@ function activeConversation(){let conversation=store.conversations.find(item=>it
 let history=activeConversation().messages;
 let openaiKey='';const gun=window.Gun?window.Gun({peers:window.__GUN_PEERS__||undefined}):null;gun?.get('3dvr-portal')?.get('ai-workbench')?.get('defaults')?.on(data=>{openaiKey=readDefaultSecret(data,'openai')||openaiKey});
 const accountSync=createOperatorSync({windowObj:window,onStatus:message=>{syncStatus.textContent=message}});
+let historySyncPromise=null,historySyncComplete=false;
 const attachments=installOperatorAttachments({form,input,onStatus:message=>{status.textContent=message}});
 const escape=value=>String(value||'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 function atLatest(){return log.scrollHeight-log.scrollTop-log.clientHeight<48}
@@ -33,11 +34,12 @@ function updateLatest(){latest.hidden=!history.length||atLatest()}
 function scrollLatest(behavior='auto'){log.scrollTo({top:log.scrollHeight,behavior});updateLatest()}
 function followLatest(){requestAnimationFrame(()=>{scrollLatest();setTimeout(()=>{if(atLatest())scrollLatest()},100)})}
 function conversationTitle(conversation){const first=conversation.messages.find(item=>item.role==='user')?.content||'New conversation';return first.length>52?`${first.slice(0,52).trim()}…`:first}
-function renderHistory(){const saved=store.conversations.filter(item=>item.messages.length).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));historyEmpty.hidden=Boolean(saved.length);historyList.innerHTML=saved.map(item=>`<button type="button" data-conversation-id="${escape(item.id)}" ${item.id===store.activeId?'aria-current="page"':''}><strong>${escape(conversationTitle(item))}</strong><span>${escape(new Date(item.updatedAt).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))}</span></button>`).join('')}
+function renderHistory(){const saved=store.conversations.filter(item=>item.messages.length).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));historyEmpty.hidden=Boolean(saved.length);if(!saved.length&&historySyncComplete)historyEmpty.textContent=accountSync.isReady()?'No saved conversations yet.':'No conversations saved here yet. Sign in to sync across devices.';historyList.innerHTML=saved.map(item=>`<button type="button" data-conversation-id="${escape(item.id)}" ${item.id===store.activeId?'aria-current="page"':''}><strong>${escape(conversationTitle(item))}</strong><span>${escape(new Date(item.updatedAt).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))}</span></button>`).join('')}
 function render({forceLatest=false}={}){const shouldFollow=forceLatest||atLatest();log.innerHTML=history.map((item,index)=>`<article class="message ${item.role}"><span>${item.role==='user'?'You':'Operator'}</span><p>${escape(item.content)}</p>${item.actionUrl?`<a href="${escape(item.actionUrl)}">Open ${escape(item.actionLabel||'workspace')} →</a>`:''}${item.role==='assistant'&&index===history.length-1&&item.suggestions?.length?`<div class="follow-ups" aria-label="Suggested next steps">${item.suggestions.map(suggestion=>`<button type="button" data-suggestion="${escape(suggestion)}">${escape(suggestion)}</button>`).join('')}</div>`:''}</article>`).join('');renderHistory();shouldFollow?followLatest():updateLatest()}
 function save(){const conversation=activeConversation();conversation.messages=history.slice(-40);conversation.updatedAt=now();store.conversations=store.conversations.filter(item=>item.messages.length||item.id===store.activeId).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0,50);localStorage.setItem(KEY,JSON.stringify(store));if(KEY!==BASE_KEY)localStorage.removeItem(BASE_KEY);localStorage.removeItem(LEGACY_KEY);render();accountSync.save(store)}
+async function syncHistory(){if(historySyncPromise)return historySyncPromise;if(!store.conversations.some(item=>item.messages.length)){historyEmpty.hidden=false;historyEmpty.textContent='Loading conversations…'}historySyncPromise=(async()=>{const remoteStore=await accountSync.load(store);if(remoteStore){store=mergeOperatorStores(store,remoteStore);history=activeConversation().messages;localStorage.setItem(KEY,JSON.stringify(store));render();void accountSync.save(store)}historySyncComplete=true;renderHistory();return remoteStore})().finally(()=>{historySyncPromise=null});return historySyncPromise}
 function closeHistory(){historyPanel.hidden=true;showHistory.setAttribute('aria-expanded','false')}
-function openHistory(){historyPanel.hidden=false;showHistory.setAttribute('aria-expanded','true');historyList.querySelector('[aria-current="page"]')?.focus()||document.querySelector('#close-history').focus()}
+function openHistory(){historyPanel.hidden=false;showHistory.setAttribute('aria-expanded','true');void syncHistory();historyList.querySelector('[aria-current="page"]')?.focus()||document.querySelector('#close-history').focus()}
 async function requestOperator(payload){
   const send=body=>fetch('/api/openai-site?provider=operator',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   let response=await send(payload);
@@ -60,4 +62,4 @@ latest.onclick=()=>scrollLatest('smooth');
 window.addEventListener('pageshow',()=>{atLatest()?followLatest():updateLatest()});
 render({forceLatest:true});
 if(new URLSearchParams(window.location.search).get('history')==='1') openHistory(); else input.focus();
-void accountSync.load(store).then(remoteStore=>{if(!remoteStore)return;store=mergeOperatorStores(store,remoteStore);history=activeConversation().messages;localStorage.setItem(KEY,JSON.stringify(store));render();accountSync.save(store)});
+void syncHistory();

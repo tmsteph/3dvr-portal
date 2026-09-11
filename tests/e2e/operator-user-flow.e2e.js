@@ -69,7 +69,7 @@ test('operator completes core user journeys on mobile', async () => {
 
   await page.goto(`${PORTAL_ORIGIN}/operator/`);
   await page.getByLabel('Message your operator').fill('Remember that I want to plan a family camping trip in October.');
-  await page.getByRole('button', { name: /Do it/ }).click();
+  await page.getByRole('button', { name: /Send to Operator/ }).click();
   await page.getByText('Saved in Life Space.').waitFor();
   assert.equal(await page.getByRole('link', { name: /Open Life Space/ }).getAttribute('href'), '/life-space/');
 
@@ -80,10 +80,10 @@ test('operator completes core user journeys on mobile', async () => {
   assert.equal(leads[0].business, 'Acme Electric');
 
   await page.getByLabel('Message your operator').fill('Make a checklist for today.');
-  await page.getByRole('button', { name: /Do it/ }).click();
+  await page.getByRole('button', { name: /Send to Operator/ }).click();
   await page.getByText('Saved as a checklist in Life Space.').waitFor();
   await page.getByLabel('Message your operator').fill('Save the example guide.');
-  await page.getByRole('button', { name: /Do it/ }).click();
+  await page.getByRole('button', { name: /Send to Operator/ }).click();
   await page.getByText('Saved the link in Life Space.').waitFor();
   const lifeSpaceItems = await page.evaluate(() => new Promise((resolve, reject) => {
     const request = indexedDB.open('3dvr-life-space');
@@ -180,7 +180,7 @@ test('operator follows new messages only while the reader is at the bottom', asy
     return element && element.scrollHeight - element.scrollTop - element.clientHeight < 48;
   });
   await page.getByLabel('Message your operator').fill('Give me the newest answer.');
-  await page.getByRole('button', { name: /Do it/ }).click();
+  await page.getByRole('button', { name: /Send to Operator/ }).click();
   await page.waitForFunction(() => {
     const element = document.querySelector('#operator-log');
     return element && element.scrollHeight - element.scrollTop - element.clientHeight < 48;
