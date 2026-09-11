@@ -231,7 +231,8 @@ jobs:
           if [[ "$URL" == https://*.trycloudflare.com ]]; then
             curl -fsS --retry 10 --retry-delay 2 --retry-all-errors "$URL/__3dvr-health" > /tmp/health.json
             node -e 'const fs=require("node:fs"); const expected=process.argv[1]; const health=JSON.parse(fs.readFileSync("/tmp/health.json","utf8")); if(!health.ok||health.sha!==expected||health.operatorApi!=="native") throw new Error(`self-host health mismatch: ${JSON.stringify(health)}`)' "$SHA"
-            curl -fsS --retry 5 --retry-delay 1 "$URL/operator/" | grep -Fq 'Message your operator'
+            curl -fsS --retry 5 --retry-delay 1 "$URL/operator/" > /tmp/operator.html
+            grep -Fq 'Message your operator' /tmp/operator.html
             options="$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$URL/api/openai-site?provider=operator")"
             [ "$options" = 200 ]
             private_status="$(curl -sS -o /dev/null -w '%{http_code}' "$URL/package.json")"
@@ -284,5 +285,5 @@ jobs:
           fi
           payload="$(STATE="$state" DESCRIPTION="$description" TARGET_URL="$target_url" node -e 'process.stdout.write(JSON.stringify({state:process.env.STATE,context:"3DVR Self Host Production",description:process.env.DESCRIPTION,target_url:process.env.TARGET_URL}))')"
           curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -d "$payload"
-          rm -f /tmp/3dvr-key /tmp/health.json /tmp/organism-bridge-health.json
+          rm -f /tmp/3dvr-key /tmp/health.json /tmp/operator.html /tmp/organism-bridge-health.json
           [ "$state" = success ]

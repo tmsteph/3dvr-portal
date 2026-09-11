@@ -6,6 +6,10 @@ const source = await readFile(
   new URL('../scripts/ops/deploy-self-host-portal.sh', import.meta.url),
   'utf8'
 );
+const workflow = await readFile(
+  new URL('../.github/workflows/self-host-production.yml', import.meta.url),
+  'utf8'
+);
 
 test('self-host deploy validates the candidate before switching current', () => {
   const candidateHealth = source.indexOf('wait_for_release "$candidate_url" "$sha"');
@@ -36,4 +40,26 @@ test('Cloudflare tunnel changes happen only after live validation', () => {
   const cloudflared = source.indexOf('cloudflared="$(command -v cloudflared || true)"');
   assert.ok(liveWorkboard >= 0);
   assert.ok(cloudflared > liveWorkboard);
+});
+
+
+test('quick tunnel is published only after semantic public readiness', () => {
+  const readinessFunction = source.indexOf('public_portal_ready()');
+  const readinessCall = source.indexOf('public_portal_ready "$candidate_url"');
+  const publishUrl = source.indexOf("printf 'PORTAL_SELF_HOST_URL=%s\\n'");
+
+  assert.ok(readinessFunction >= 0, 'public readiness helper must exist');
+  assert.ok(readinessCall > readinessFunction, 'quick tunnel loop must call semantic readiness');
+  assert.ok(publishUrl > readinessCall, 'public URL must be printed only after readiness succeeds');
+  assert.match(source, /x\.sha!==process\.argv\[1\]/);
+  assert.match(source, /operator_html=.*curl[\s\S]*Message your operator/);
+  assert.doesNotMatch(source, /curl[^\n]+\| grep -Fq 'Message your operator'/);
+  assert.match(source, /package\.json/);
+});
+
+
+test('external verification avoids curl/grep pipefail false negatives', () => {
+  assert.match(workflow, /curl -fsS --retry 5 --retry-delay 1 "\$URL\/operator\/" > \/tmp\/operator\.html/);
+  assert.match(workflow, /grep -Fq 'Message your operator' \/tmp\/operator\.html/);
+  assert.doesNotMatch(workflow, /curl[^\n]+\| grep -Fq 'Message your operator'/);
 });
