@@ -28,6 +28,18 @@ install -m 0644 "$SOURCE/secrets-broker.js" "$OPT/secrets-broker.js"
 if [[ ! -f "$ETC/policy.json" ]]; then
   install -o root -g threedvr-secrets -m 0640 "$ROOT/ops/secrets-broker/policy.example.json" "$ETC/policy.json"
 fi
+node - "$ETC/policy.json" <<'NODE'
+const fs = require('fs');
+const file = process.argv[2];
+const policy = JSON.parse(fs.readFileSync(file, 'utf8'));
+policy.backends ||= {};
+policy.backends.bitwarden ||= { type: 'bitwarden-secrets-manager', binary: '/usr/local/bin/bws', timeoutMs: 15000 };
+policy.secrets ||= {};
+policy.secrets['bitwarden.writer'] ||= { backend: 'bitwarden', write: { projectName: '3dvr Agent', capability: 'secret.write', scopes: ['secrets:3dvr-agent'], approval: { mode: 'auto' } } };
+fs.writeFileSync(file, `${JSON.stringify(policy, null, 2)}\n`);
+NODE
+chown root:threedvr-secrets "$ETC/policy.json"
+chmod 0640 "$ETC/policy.json"
 if [[ ! -f "$ETC/bitwarden.env" ]]; then
   printf '%s\n' '# BWS_ACCESS_TOKEN is handed off locally, never through chat or source control.' '# BWS_ACCESS_TOKEN=' > "$ETC/bitwarden.env"
   chown root:threedvr-secrets "$ETC/bitwarden.env"
@@ -43,6 +55,16 @@ ADMIN=(node "$OPT/secrets-broker-admin.js")
 if [[ ! -f "$PORTAL_TOKEN" ]]; then
   "${ADMIN[@]}" provision portal-owner-ui --registry "$AGENTS" --token-file "$PORTAL_TOKEN" --capabilities broker.admin --scopes 'broker:*' --label '3DVR owner portal' >/dev/null
 fi
+node - "$AGENTS" <<'NODE'
+const fs = require('fs');
+const file = process.argv[2];
+const registry = JSON.parse(fs.readFileSync(file, 'utf8'));
+const agent = registry.agents?.['portal-owner-ui'];
+if (!agent) throw new Error('portal-owner-ui is missing');
+agent.capabilities = [...new Set([...(agent.capabilities || []), 'broker.admin', 'secret.write'])];
+agent.scopes = [...new Set([...(agent.scopes || []), 'broker:*', 'secrets:3dvr-agent'])];
+fs.writeFileSync(file, `${JSON.stringify(registry, null, 2)}\n`);
+NODE
 chown root:root "$PORTAL_TOKEN"
 chmod 0600 "$PORTAL_TOKEN"
 chown root:threedvr-secrets "$AGENTS"
