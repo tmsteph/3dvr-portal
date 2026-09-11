@@ -353,6 +353,8 @@
     .operator-bar button:focus-visible { background: #388bfd; outline: none; }
     .operator-bar button:disabled { opacity: 0.55; cursor: progress; }
 
+    .operator-hint { margin: 9px 4px 0; color: #8b949e; font-size: 0.84rem; line-height: 1.45; }
+    .operator-hint strong { color: #c9d1d9; }
     .operator-status { margin: 8px 4px 0; color: #6e7681; font-size: 0.78rem; }
     .operator-status:empty { display: none; }
 
@@ -526,13 +528,14 @@
         <p class="spinner-hint">Tap for shortcuts</p>
 
         <h1 id="home-title">What do you want to do?</h1>
-        <p class="subhead">Ask Operator, or choose a starting point.</p>
+        <p class="subhead">Ask a question, tell Operator where you want to go, or choose a starting point.</p>
 
-        <form class="operator-link operator-bar" id="homeOperatorForm" aria-label="Ask Operator">
+        <form class="operator-link operator-bar" id="homeOperatorForm" aria-label="Ask or navigate with Operator">
           <span class="operator-bar__label" aria-hidden="true">Operator</span>
-          <input id="homeOperatorInput" name="prompt" type="text" autocomplete="off" placeholder="Ask Operator…" aria-label="Ask Operator anything">
+          <input id="homeOperatorInput" name="prompt" type="text" autocomplete="off" placeholder="Ask, or say where you want to go…" aria-label="Ask Operator a question or tell it where you want to go">
           <button id="homeOperatorSubmit" type="submit" aria-label="Send to Operator">→</button>
         </form>
+        <p class="operator-hint"><strong>Operator can navigate the Portal.</strong> Try “Open Projects,” “Go to CRM,” or “Start a project.”</p>
         <p class="operator-status" id="homeOperatorStatus" aria-live="polite"></p>
 
         <section class="operator-result" id="homeOperatorResult" aria-live="polite" hidden>
