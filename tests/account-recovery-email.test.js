@@ -475,13 +475,13 @@ describe('account recovery email api', () => {
     assert.equal(mail.sendMail.mock.calls.length, 0);
   });
 
-  it('accepts the local operator token file when the env token is absent', async () => {
+  it('accepts a rotated local operator token when the env token is stale', async () => {
     const tokenFile = `/tmp/3dvr-operator-token-${process.pid}.txt`;
     await writeFile(tokenFile, 'file-backed-secret\n', { mode: 0o600 });
     const mail = createMailTransport();
     const config = {
       ...baseConfig,
-      AGENT_OPERATOR_EMAIL_TOKEN: '',
+      AGENT_OPERATOR_EMAIL_TOKEN: 'stale-env-secret',
       AGENT_OPERATOR_EMAIL_TOKEN_FILE: tokenFile
     };
     const handler = createUnifiedEmailHandler({ config, mailTransport: mail });
