@@ -7,6 +7,7 @@ const path = require('node:path');
 const test = require('node:test');
 const {
   AuditChain,
+  BitwardenSecretsManagerBackend,
   SecretsBroker,
   atomicWriteJson,
   matchScope,
@@ -179,6 +180,40 @@ test('broker can add a value through a separately scoped write capability withou
   assert(!auditText.includes(request.value));
   assert.match(auditText, /secret_stored/);
   assert.equal(f.broker.audit.verify().ok, true);
+});
+
+
+test('Bitwarden writes keep the secret value out of child process arguments', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-bitwarden-stdin-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const fakeBws = path.join(root, 'bws');
+  const helper = path.join(root, 'helper.js');
+  const capture = path.join(root, 'capture.json');
+  fs.writeFileSync(fakeBws, `#!/usr/bin/env node
+const args = process.argv.slice(2);
+if (args[0] === 'project' && args[1] === 'list') process.stdout.write(JSON.stringify([{ id: 'project-1', name: '3dvr Agent', organizationId: 'org-1' }]));
+else process.exit(2);
+`);
+  fs.chmodSync(fakeBws, 0o755);
+  fs.writeFileSync(helper, `const fs = require('fs');
+let body = '';
+process.stdin.on('data', chunk => body += chunk);
+process.stdin.on('end', () => {
+  const payload = JSON.parse(body);
+  fs.writeFileSync(process.env.CAPTURE_FILE, JSON.stringify({ argv: process.argv.slice(2), payload }));
+  process.stdout.write(JSON.stringify({ id: 'created-1', key: payload.key, projectId: payload.projectId }));
+});
+`);
+  const backend = new BitwardenSecretsManagerBackend({ binary: fakeBws, sdkCreateHelper: helper }, {
+    env: { ...process.env, BWS_ACCESS_TOKEN: 'fixture-access-token', CAPTURE_FILE: capture },
+  });
+  const sensitive = 'fixture-sensitive-value-12345';
+  const result = backend.create({ projectName: '3dvr Agent', key: 'FIXTURE_KEY', value: sensitive, note: 'fixture' });
+  const seen = JSON.parse(fs.readFileSync(capture, 'utf8'));
+  assert.deepEqual(seen.argv, []);
+  assert.equal(seen.payload.value, sensitive);
+  assert.equal(seen.payload.organizationId, 'org-1');
+  assert.equal(result.id, 'created-1');
 });
 
 test('audit chain detects tampering', t => {

@@ -34,7 +34,8 @@ test('Access page can save a secret through the owner-gated broker without persi
   assert.match(page, /id="secretValue"[^>]*type="password"/);
   assert.match(app, /brokerAction\('store-secret'/);
   assert.match(app, /secretValueHash/);
-  assert.match(app, /secretValue\.value = ''/);
+  assert.match(app, /result\?\.decision !== 'allowed'/);
+  assert.equal((app.match(/secretValue\.value = ''/g) || []).length, 1);
   assert.doesNotMatch(app, /localStorage\.setItem\([^)]*secretValue|sessionStorage\.setItem\([^)]*secretValue/i);
 });
 
