@@ -36,6 +36,7 @@ import {
   updateOpportunity,
   writeOpportunityEngineState
 } from '../src/money-printer/opportunityEngine.js';
+import { parseOpportunityCaptureContext } from '../src/money-printer/opportunityLinks.js';
 
 const elements = {
   form: document.getElementById('missionForm'),
@@ -65,6 +66,7 @@ const elements = {
   toolGrid: document.getElementById('toolGrid')
 };
 
+const opportunityCaptureContext = parseOpportunityCaptureContext(window.location.search);
 const moneyPrinterStorage = createMoneyPrinterStorage();
 const MESSAGE_REVIEW_STORAGE_KEY = '3dvr.moneyPrinter.messageReviewQueue.v1';
 let connectorStatuses = [];
@@ -1044,6 +1046,8 @@ elements.opportunityCaptureForm?.addEventListener('submit', event => {
     estimatedCostMin: formData.get('estimatedCostMax'),
     suggestedResponse: formData.get('suggestedResponse'),
     nextAction: formData.get('nextAction'),
+    personId: opportunityCaptureContext.personId,
+    organizationId: opportunityCaptureContext.organizationId,
     ...sourcePolicy,
     externalId: formData.get('externalId'),
     acquisitionMode,
@@ -1059,7 +1063,9 @@ elements.opportunityCaptureForm?.addEventListener('submit', event => {
   saveOpportunityEngineState();
   elements.opportunityCaptureForm.reset();
   elements.opportunityCapturePanel.open = false;
-  elements.opportunityCaptureStatus.textContent = 'Opportunity saved with its evidence. No contact was made.';
+  elements.opportunityCaptureStatus.textContent = opportunityCaptureContext.personId
+    ? `Opportunity saved and linked to CRM ${opportunityCaptureContext.crmName || opportunityCaptureContext.personId}. No contact was made.`
+    : 'Opportunity saved with its evidence. No contact was made.';
   renderOpportunityInbox();
 });
 
@@ -1151,7 +1157,10 @@ document.addEventListener('change', event => {
 async function boot() {
   elements.missionInput.value = state.mission || DEFAULT_MISSION;
   if (elements.opportunityCapturePanel) {
-    elements.opportunityCapturePanel.open = opportunityEngineState.opportunities.length === 0;
+    elements.opportunityCapturePanel.open = Boolean(opportunityCaptureContext.personId) || opportunityEngineState.opportunities.length === 0;
+  }
+  if (opportunityCaptureContext.personId && elements.opportunityCaptureStatus) {
+    elements.opportunityCaptureStatus.textContent = `Linked to CRM: ${opportunityCaptureContext.crmName || opportunityCaptureContext.personId}. Add the buyer's actual words before saving.`;
   }
   render();
   initializeOpportunitySync();
