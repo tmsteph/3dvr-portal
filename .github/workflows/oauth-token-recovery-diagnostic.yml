@@ -11,11 +11,11 @@ permissions:
   contents: read
 
 jobs:
-  inspect-cloud-hosts:
+  verify-ovh-mail:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 4
     steps:
-      - name: Inspect token metadata without exposing secrets
+      - name: Verify OVH mail credential loading without exposing secrets
         shell: bash
         env:
           SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
@@ -37,67 +37,57 @@ jobs:
           write_key "$SSH_B" /tmp/h-b
           write_key "$SSH_C" /tmp/h-c
 
-          cat > /tmp/oauth-diagnostic.sh <<'REMOTE'
-          set -eu
-          echo "host=$(hostname)"
-          find /root /home /opt -type f \( -name 'oauth.json' -o -name 'google-oauth.enc.json' -o -name 'accounts.json' \) 2>/dev/null | while read -r f; do
-            case "$f" in *node_modules*|*/.git/*) continue ;; esac
-            echo "credential_file=$f size=$(stat -c %s "$f") mtime=$(stat -c %y "$f" | cut -d. -f1)"
+          cat > /tmp/check-mail.sh <<'REMOTE'
+          set -euo pipefail
+          home=/home/debian
+          [ -d "$home" ] || home="$HOME"
+          cfg="$home/.3dvr/config"
+          echo "host=$(hostname) operator_home=$home"
+          for f in "$cfg/env" "$cfg/portal.env" "$cfg/outreach.env" "$home/.3dvr-agent-operator-email-token" "$home/.3dvr/oauth.json" "$home/.3dvr/connectors/google-oauth.enc.json" "$home/.3dvr/connectors/accounts.json"; do
+            if [ -s "$f" ]; then echo "present=$f size=$(stat -c %s "$f") mtime=$(stat -c %y "$f" | cut -d. -f1)"; else echo "missing_or_empty=$f"; fi
           done
-          python3 - <<'PY'
-          import json, os, glob
-          paths=[]
-          for base in ('/root','/home','/opt'):
-              for name in ('oauth.json','google-oauth.enc.json','accounts.json'):
-                  paths += glob.glob(base+'/**/'+name, recursive=True)
-          seen=set()
-          for f in paths:
-              if f in seen or '/node_modules/' in f or '/.git/' in f: continue
-              seen.add(f)
-              try: data=json.load(open(f))
-              except Exception: continue
-              if f.endswith('/oauth.json'):
-                  for provider,c in (data.get('connections') or {}).items():
-                      print('cli_connection', {'file':f,'provider':provider,'email':c.get('email',''),'scopeKey':c.get('scopeKey') or c.get('scope_key',''),'has_refresh_token':bool(c.get('refreshToken') or c.get('refresh_token')),'has_access_token':bool(c.get('accessToken') or c.get('access_token'))})
-              elif f.endswith('/google-oauth.enc.json'):
-                  refs=sorted((data.get('secrets') or {}).keys())
-                  print('vault_refs', {'file':f,'count':len(refs),'refs':refs})
-              elif f.endswith('/accounts.json'):
-                  raw=data.get('accounts') or data
-                  items=raw.values() if isinstance(raw,dict) else raw if isinstance(raw,list) else []
-                  safe=[]
-                  for a in items:
-                      if isinstance(a,dict): safe.append({k:a.get(k) for k in ('id','provider','alias','email','status','credentialRef','scopes') if k in a})
-                  if safe: print('accounts', {'file':f,'items':safe})
-          PY
-          for key in THREEDVR_CONNECTOR_MASTER_KEY GMAIL_APP_PASSWORD GMAIL_USER THREEDVR_OUTREACH_EMAIL_TOKEN; do
-            found=0
-            while IFS= read -r f; do
-              if grep -q "^${key}=" "$f" 2>/dev/null; then
-                echo "key_declared=$key file=$f"
-                found=1
-              fi
-            done < <(find /root /home /opt /etc -type f \( -name '*.env' -o -name 'env' -o -name '*.conf' \) 2>/dev/null | grep -vE '/node_modules/|/.git/' | head -3000)
-            echo "key_declared_any=$key:$found"
+          for key in GMAIL_USER GMAIL_APP_PASSWORD AGENT_OPERATOR_EMAIL_TOKEN THREEDVR_CONNECTOR_MASTER_KEY THREEDVR_OUTREACH_EMAIL_TOKEN; do
+            files=''
+            for f in "$cfg/env" "$cfg/portal.env" "$cfg/outreach.env"; do
+              [ -f "$f" ] || continue
+              if grep -q "^${key}=" "$f"; then files="$files $f"; fi
+            done
+            echo "key_present=$key:${files:-no}"
           done
+          set -a
+          [ -f "$cfg/env" ] && . "$cfg/env"
+          [ -f "$cfg/portal.env" ] && . "$cfg/portal.env"
+          [ -f "$cfg/outreach.env" ] && . "$cfg/outreach.env"
+          set +a
+          echo "runtime_GMAIL_USER=${GMAIL_USER:-unset}"
+          echo "runtime_GMAIL_APP_PASSWORD_present=$([ -n "${GMAIL_APP_PASSWORD:-}" ] && echo yes || echo no)"
+          echo "runtime_OPERATOR_TOKEN_present=$([ -n "${AGENT_OPERATOR_EMAIL_TOKEN:-}" ] && echo yes || echo no)"
+          token_file="$home/.3dvr-agent-operator-email-token"
+          if [ -s "$token_file" ]; then
+            relay_token="$(tr -d '\r\n' < "$token_file")"
+            response="$(mktemp)"
+            code="$(curl --max-time 8 -sS -o "$response" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $relay_token" http://127.0.0.1:4320/api/calendar/reminder-email -d '{"mode":"lead-outreach"}' || true)"
+            if [ "$code" = 400 ] && grep -Fq 'At least one outreach recipient is required' "$response"; then
+              echo 'portal_mail_relay_auth=working'
+            else
+              echo "portal_mail_relay_auth=failed http=$code"
+            fi
+            rm -f "$response"
+          else
+            echo 'portal_mail_relay_auth=no-token-file'
+          fi
+          if command -v 3dvr >/dev/null 2>&1; then
+            3dvr email status 2>&1 | sed -E 's/(app password: ).*/\1[status only]/I' | head -20 || true
+          fi
           REMOTE
 
-          scan() {
-            local label="$1" host="$2"; shift 2
-            echo "=== $label $host ==="
-            local user key
-            for user in "$@"; do
-              for key in /tmp/h-a /tmp/h-b /tmp/h-c; do
-                [ -f "$key" ] || continue
-                if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host" 'bash -s' < /tmp/oauth-diagnostic.sh; then
-                  echo "connected_as=$user"
-                  return 0
-                fi
-              done
+          for user in debian root; do
+            for key in /tmp/h-a /tmp/h-b /tmp/h-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@40.160.137.41" 'sudo -n env HOME=/home/debian bash -s' < /tmp/check-mail.sh; then
+                echo "connected_as=$user"
+                exit 0
+              fi
             done
-            echo "unreachable=$label"
-            return 0
-          }
-          scan OVH 40.160.137.41 debian root
-          scan Hetzner 167.233.174.20 root debian ubuntu tmsteph
-          scan DigitalOcean 167.172.193.194 root debian
+          done
+          exit 1
