@@ -92,6 +92,16 @@ jobs:
           token_file="$operator_home/.3dvr-agent-operator-email-token"
           mkdir -p "$config_dir"
           chmod 700 "$config_dir"
+
+          upsert_env() {
+            local file="$1" key="$2" value="$3" tmp
+            tmp="$(mktemp)"
+            grep -v "^${key}=" "$file" > "$tmp" || true
+            printf '%s=%s\n' "$key" "$value" >> "$tmp"
+            mv "$tmp" "$file"
+            chmod 600 "$file"
+          }
+
           if [ ! -s "$token_file" ]; then
             umask 077
             if command -v openssl >/dev/null 2>&1; then
@@ -105,11 +115,9 @@ jobs:
           relay_token="$(tr -d '\r\n' < "$token_file")"
           [ -n "$relay_token" ]
           touch "$common_env"
-          tmp="$(mktemp)"
-          grep -v '^AGENT_OPERATOR_EMAIL_TOKEN=' "$common_env" > "$tmp" || true
-          printf 'AGENT_OPERATOR_EMAIL_TOKEN=%s\n' "$relay_token" >> "$tmp"
-          mv "$tmp" "$common_env"
           chmod 600 "$common_env"
+          upsert_env "$common_env" AGENT_OPERATOR_EMAIL_TOKEN "$relay_token"
+
           postal=''
           if [ -f "$outreach_env" ]; then
             postal="$(sed -n 's/^THREEDVR_OUTREACH_POSTAL_ADDRESS=//p' "$outreach_env" | tail -n1 | sed 's/^"//;s/"$//')"
@@ -119,6 +127,7 @@ jobs:
             postal="$(OPERATOR_LOG="$log" python3 -c 'import os,re,pathlib; p=pathlib.Path(os.environ["OPERATOR_LOG"]); s=p.read_text(errors="ignore") if p.exists() else ""; m=re.findall(r"THREEDVR_OUTREACH_POSTAL_ADDRESS=\\*\"([^\"]+)", s); print(m[-1].rstrip("\\") if m else "")')"
           fi
           [ -n "$postal" ] || { echo 'No previously approved outreach postal address was found on OVH.' >&2; exit 2; }
+
           umask 077
           {
             printf 'THREEDVR_OUTREACH_POSTAL_ADDRESS=%q\n' "$postal"
@@ -132,16 +141,84 @@ jobs:
           } > "$outreach_env"
           chmod 600 "$outreach_env"
           chown "$operator_user:$operator_group" "$outreach_env"
+
+          set -a
+          [ -f "$common_env" ] && . "$common_env"
+          [ -f "$config_dir/portal.env" ] && . "$config_dir/portal.env"
+          set +a
+
+          gmail_user="${GMAIL_USER:-}"
+          gmail_pass="${GMAIL_APP_PASSWORD:-}"
+
+          if [ -z "$gmail_pass" ]; then
+            for candidate in \
+              "$operator_home/3dvr-agent/.env" \
+              "$operator_home/3dvr-autopilot/.env" \
+              "$operator_home/.config/3dvr/env" \
+              "$operator_home/.config/3dvr-secrets/env" \
+              "/opt/openclaw-workspace/3dvr-portal/.env" \
+              "/etc/3dvr/organism.env" \
+              "/etc/3dvr/resource-lanes.env"; do
+              [ -r "$candidate" ] || continue
+              found="$(sed -n 's/^GMAIL_APP_PASSWORD=//p' "$candidate" | tail -n1 | sed 's/^"//;s/"$//')"
+              if [ -n "$found" ]; then
+                gmail_pass="$found"
+                found_user="$(sed -n 's/^GMAIL_USER=//p' "$candidate" | tail -n1 | sed 's/^"//;s/"$//')"
+                [ -n "$found_user" ] && gmail_user="$found_user"
+                echo 'Reusing an existing server-side Gmail credential.'
+                break
+              fi
+            done
+          fi
+
+          if [ -z "$gmail_pass" ] && [ -r /etc/3dvr/secrets-broker/bitwarden.env ] && [ -x /usr/local/bin/bws ]; then
+            set -a
+            . /etc/3dvr/secrets-broker/bitwarden.env
+            set +a
+            secret_list="$(mktemp)"
+            if /usr/local/bin/bws secret list --output json --color no > "$secret_list" 2>/dev/null; then
+              gmail_secret_id="$(python3 -c 'import json,re,sys; obj=json.load(sys.stdin); items=obj if isinstance(obj,list) else obj.get("data",obj.get("secrets",[])); scored=[]
+for x in items:
+ k=str(x.get("key","")).lower(); n=re.sub(r"[^a-z0-9]","",k); s=0
+ if "gmail" not in n: continue
+ if "3dvr" in n: s+=30
+ if n=="gmailapppassword": s+=25
+ if "app" in n and ("password" in n or "token" in n): s+=15
+ if "smtp" in n: s+=10
+ if s: scored.append((s,str(x.get("id","")),str(x.get("key",""))))
+scored.sort(reverse=True); print(scored[0][1] if scored else "")' < "$secret_list")"
+              if [ -n "$gmail_secret_id" ]; then
+                secret_record="$(mktemp)"
+                if /usr/local/bin/bws secret get "$gmail_secret_id" --output json --color no > "$secret_record" 2>/dev/null; then
+                  gmail_pass="$(python3 -c 'import json,sys; print(str(json.load(sys.stdin).get("value","")))' < "$secret_record")"
+                  [ -n "$gmail_pass" ] && echo 'Reusing the existing 3DVR Gmail credential from Bitwarden Secrets Manager.'
+                fi
+                rm -f "$secret_record"
+              fi
+            fi
+            rm -f "$secret_list"
+            unset BWS_ACCESS_TOKEN || true
+          fi
+
+          gmail_pass="$(printf '%s' "$gmail_pass" | tr -d '[:space:]')"
+          [ -n "$gmail_pass" ] || { echo 'No existing 3DVR Gmail app credential was found on OVH or in Bitwarden Secrets Manager.' >&2; exit 4; }
+          [ -n "$gmail_user" ] || gmail_user='3dvr.tech@gmail.com'
+          upsert_env "$common_env" GMAIL_USER "$gmail_user"
+          upsert_env "$common_env" GMAIL_APP_PASSWORD "$gmail_pass"
+
           install -d -m 755 /etc/systemd/system/3dvr-autopilot.service.d
           printf '[Service]\nEnvironmentFile=%s\n' "$outreach_env" > /etc/systemd/system/3dvr-autopilot.service.d/outreach.conf
           systemctl daemon-reload
           systemctl restart 3dvr-portal.service
           systemctl start 3dvr-autopilot.service || { journalctl -u 3dvr-autopilot.service -n 80 --no-pager; exit 3; }
+
           set -a
-          [ -f "$common_env" ] && . "$common_env"
+          . "$common_env"
           [ -f "$config_dir/portal.env" ] && . "$config_dir/portal.env"
           set +a
-          [ -n "${GMAIL_USER:-}" ] && [ -n "${GMAIL_APP_PASSWORD:-}" ] || { echo 'Portal mail transport credentials are not configured.' >&2; exit 4; }
+
+          NODE_PATH=/opt/3dvr-portal-production/current/node_modules node -e 'const n=require("nodemailer");const t=n.createTransport({host:"smtp.gmail.com",port:587,secure:false,requireTLS:true,auth:{user:process.env.GMAIL_USER,pass:process.env.GMAIL_APP_PASSWORD},tls:{rejectUnauthorized:true}});t.verify().then(()=>console.log("SMTP_VERIFY_OK")).catch(()=>{console.error("SMTP credential verification failed.");process.exit(1)})'
+
           response="$(mktemp)"
           code="$(curl -sS -o "$response" -w '%{http_code}' -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $relay_token" http://127.0.0.1:4320/api/calendar/reminder-email -d '{"mode":"lead-outreach"}')"
           [ "$code" = 400 ] && grep -Fq 'At least one outreach recipient is required' "$response" || { echo "Relay auth verification failed with HTTP $code." >&2; cat "$response" >&2; rm -f "$response"; exit 5; }
