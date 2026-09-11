@@ -62,7 +62,7 @@
     <p class="lead">You do not need to start with a big API budget. Connect an AI to the services and computer you already use, then let it do most of the technical setup for you.</p>
 
     <div class="flow" aria-label="Recommended automation stack">
-      <span>ChatGPT or Claude</span><b>→</b><span>Connectors</span><b>→</b><span>Desktop Commander</span><b>→</b><span>agent-browser</span><b>→</b><span>Bitwarden</span>
+      <span>ChatGPT or Claude</span><b>→</b><span>Connectors</span><b>→</b><span>Desktop Commander</span><b>→</b><span>agent-browser</span><b>→</b><span>Bitwarden</span><b>→</b><span>Scheduled Tasks</span>
     </div>
 
     <section class="steps" aria-label="Setup order">
@@ -103,9 +103,15 @@
       </article>
 
       <article class="step">
+        <h2>Add Scheduled Tasks</h2>
+        <p>Ask ChatGPT to run recurring or monitoring work for you. Free accounts can keep up to three active scheduled tasks, with recurring tasks running at most once per day. Supported connected apps such as Gmail can be used inside scheduled tasks.</p>
+        <p>Example: “Every morning, check my Gmail and summarize anything important.” Event-triggered tasks such as “when a new Gmail arrives” require an eligible paid plan.</p>
+      </article>
+
+      <article class="step">
         <h2>Automate real work</h2>
         <p>Use this order: <strong>direct connector first → browser automation second → full desktop/UI control only when needed.</strong></p>
-        <p>Then add recurring jobs such as: “Every morning, check my Gmail, summarize anything important, then use my computer to update my project notes.”</p>
+        <p>Use Scheduled Tasks for recurring cloud work, and Desktop Commander + agent-browser when the AI needs to operate your own computer or a website directly.</p>
       </article>
     </section>
 
@@ -114,6 +120,7 @@
 
     <section class="resources" aria-label="Official resources">
       <article class="resource"><strong><a href="https://help.openai.com/en/articles/20001256/" target="_blank" rel="noopener noreferrer">ChatGPT Plugins</a></strong><p>OpenAI’s current plugin and availability guide.</p></article>
+      <article class="resource"><strong><a href="https://help.openai.com/en/articles/10291617" target="_blank" rel="noopener noreferrer">Scheduled Tasks</a></strong><p>OpenAI’s current guide to one-time, recurring, monitoring, and event-triggered tasks.</p></article>
       <article class="resource"><strong><a href="https://desktopcommander.app/" target="_blank" rel="noopener noreferrer">Remote Desktop Commander</a></strong><p>Connect an authorized computer or server to an AI assistant.</p></article>
       <article class="resource"><strong><a href="https://github.com/vercel-labs/agent-browser" target="_blank" rel="noopener noreferrer">agent-browser</a></strong><p>Open-source browser automation CLI for AI agents.</p></article>
       <article class="resource"><strong><a href="https://bitwarden.com/" target="_blank" rel="noopener noreferrer">Bitwarden</a></strong><p>Password Manager and Secrets Manager for safer credential handling.</p></article>
