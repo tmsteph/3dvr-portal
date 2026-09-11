@@ -1,0 +1,195 @@
+name: 3DVR Outreach Bootstrap
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/outreach-bootstrap.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: 3dvr-outreach-bootstrap
+  cancel-in-progress: false
+
+env:
+  PRIMARY_HOST: 40.160.137.41
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Resolve OVH credentials
+        id: resolve
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/prod-a
+          write_key "$SSH_B" /tmp/prod-b
+          write_key "$SSH_C" /tmp/prod-c
+
+          connection=''
+          for user in debian root; do
+            for key in /tmp/prod-a /tmp/prod-b /tmp/prod-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$PRIMARY_HOST" true >/dev/null 2>&1; then
+                connection="$user|$key"
+                break 2
+              fi
+            done
+          done
+          [ -n "$connection" ] || { echo 'OVH is not reachable with configured SSH keys.' >&2; exit 1; }
+          IFS='|' read -r user key <<< "$connection"
+          if [ "$user" != root ]; then
+            ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@$PRIMARY_HOST" 'sudo -n true'
+          fi
+          cp "$key" /tmp/3dvr-key
+          chmod 600 /tmp/3dvr-key
+          rm -f /tmp/prod-a /tmp/prod-b /tmp/prod-c
+          echo "user=$user" >> "$GITHUB_OUTPUT"
+
+      - name: Configure guarded outreach runtime
+        shell: bash
+        env:
+          TARGET_USER: ${{ steps.resolve.outputs.user }}
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/3dvr-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+          prefix=''
+          if [ "$TARGET_USER" != root ]; then prefix='sudo -n env HOME=/home/debian'; fi
+          ssh "${opts[@]}" "$TARGET_USER@$PRIMARY_HOST" "$prefix bash -s" <<'REMOTE'
+          set -euo pipefail
+          operator_home=/home/debian
+          [ -d "$operator_home" ] || operator_home="$HOME"
+          operator_user=debian
+          id "$operator_user" >/dev/null 2>&1 || operator_user="$(id -un)"
+          operator_group="$(id -gn "$operator_user")"
+          config_dir="$operator_home/.3dvr/config"
+          outreach_env="$config_dir/outreach.env"
+          common_env="$config_dir/env"
+          token_file="$operator_home/.3dvr-agent-operator-email-token"
+          mkdir -p "$config_dir"
+          chmod 700 "$config_dir"
+
+          if [ ! -s "$token_file" ]; then
+            umask 077
+            if command -v openssl >/dev/null 2>&1; then
+              openssl rand -hex 32 > "$token_file"
+            else
+              python3 - <<'PY' > "$token_file"
+import secrets
+print(secrets.token_hex(32))
+PY
+            fi
+          fi
+          chmod 600 "$token_file"
+          chown "$operator_user:$operator_group" "$token_file"
+          relay_token="$(tr -d '\r\n' < "$token_file")"
+          [ -n "$relay_token" ]
+
+          touch "$common_env"
+          tmp="$(mktemp)"
+          grep -v '^AGENT_OPERATOR_EMAIL_TOKEN=' "$common_env" > "$tmp" || true
+          printf 'AGENT_OPERATOR_EMAIL_TOKEN=%s\n' "$relay_token" >> "$tmp"
+          mv "$tmp" "$common_env"
+          chmod 600 "$common_env"
+
+          postal=''
+          if [ -f "$outreach_env" ]; then
+            postal="$(sed -n 's/^THREEDVR_OUTREACH_POSTAL_ADDRESS=//p' "$outreach_env" | tail -n1 | sed 's/^"//;s/"$//')"
+          fi
+          if [ -z "$postal" ]; then
+            postal="$(OPERATOR_HOME="$operator_home" python3 - <<'PY'
+import json, os, re
+from pathlib import Path
+home = Path(os.environ['OPERATOR_HOME'])
+path = home / '.claude-server-commander' / 'claude_tool_call.log'
+found = []
+if path.exists():
+    for line in path.read_text(errors='ignore').splitlines():
+        marker = 'Arguments: '
+        if marker not in line:
+            continue
+        raw = line.split(marker, 1)[1]
+        try:
+            payload = json.loads(raw)
+        except Exception:
+            continue
+        command = str(payload.get('command', ''))
+        for match in re.finditer(r'THREEDVR_OUTREACH_POSTAL_ADDRESS=(?:"([^"]+)"|\'([^\']+)\'|(\S+))', command):
+            value = next((part for part in match.groups() if part), '').strip()
+            if value and value != 'your valid business postal address':
+                found.append(value)
+print(found[-1] if found else '')
+PY
+            )"
+          fi
+          [ -n "$postal" ] || { echo 'No previously approved outreach postal address was found on OVH.' >&2; exit 2; }
+
+          umask 077
+          {
+            printf 'THREEDVR_OUTREACH_POSTAL_ADDRESS=%q\n' "$postal"
+            printf 'THREEDVR_OUTREACH_OFFER_PROFILE=business-sites\n'
+            printf 'THREEDVR_AUTOPILOT_AUTO_SEND=true\n'
+            printf 'THREEDVR_AUTOPILOT_EMAIL_TRANSPORT=portal\n'
+            printf 'THREEDVR_AUTOPILOT_AUTO_SEND_LIMIT=1\n'
+            printf 'THREEDVR_AUTOPILOT_DAILY_SEND_LIMIT=5\n'
+            printf 'THREEDVR_AUTOPILOT_FRESH_DISCOVERY_ONLY=true\n'
+            printf 'THREEDVR_AUTOPILOT_PAUSED=false\n'
+          } > "$outreach_env"
+          chmod 600 "$outreach_env"
+          chown "$operator_user:$operator_group" "$outreach_env"
+
+          install -d -m 755 /etc/systemd/system/3dvr-autopilot.service.d
+          cat > /etc/systemd/system/3dvr-autopilot.service.d/outreach.conf <<EOF
+[Service]
+EnvironmentFile=$outreach_env
+EOF
+          systemctl daemon-reload
+          systemctl restart 3dvr-portal.service
+          systemctl start 3dvr-autopilot.service || { journalctl -u 3dvr-autopilot.service -n 80 --no-pager; exit 3; }
+
+          set -a
+          [ -f "$common_env" ] && . "$common_env"
+          [ -f "$config_dir/portal.env" ] && . "$config_dir/portal.env"
+          set +a
+          [ -n "${GMAIL_USER:-}" ] && [ -n "${GMAIL_APP_PASSWORD:-}" ] || { echo 'Portal mail transport credentials are not configured.' >&2; exit 4; }
+
+          response="$(mktemp)"
+          code="$(curl -sS -o "$response" -w '%{http_code}' -X POST \
+            -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer $relay_token" \
+            http://127.0.0.1:4320/api/calendar/reminder-email \
+            -d '{"mode":"lead-outreach"}')"
+          [ "$code" = 400 ] && grep -Fq 'At least one outreach recipient is required' "$response" \
+            || { echo "Relay auth verification failed with HTTP $code." >&2; cat "$response" >&2; rm -f "$response"; exit 5; }
+          rm -f "$response"
+          echo 'OUTREACH_BOOTSTRAP_OK'
+          REMOTE
+
+      - name: Clean SSH material
+        if: always()
+        run: rm -f /tmp/3dvr-key
