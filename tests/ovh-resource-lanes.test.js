@@ -5,11 +5,11 @@ import { readFile } from 'node:fs/promises';
 const installer = await readFile(new URL('../ops/host/install-resource-lanes.sh', import.meta.url), 'utf8');
 const docs = await readFile(new URL('../docs/ovh-resource-lanes.md', import.meta.url), 'utf8');
 
-test('OVH keeps a dedicated protected control slice', () => {
-  assert.match(installer, /3dvr-control\.slice/);
-  assert.match(installer, /MemoryMin=256M/);
-  assert.match(installer, /MemoryLow=512M/);
-  assert.match(installer, /TasksMax=256/);
+test('OVH keeps a dedicated protected recovery slice', () => {
+  assert.match(installer, /3dvr-recovery\.slice/);
+  assert.match(installer, /MemoryLow=256M/);
+  assert.match(installer, /MemoryHigh=512M/);
+  assert.match(installer, /TasksMax=768/);
   assert.match(docs, /Remote Desktop Commander/);
 });
 

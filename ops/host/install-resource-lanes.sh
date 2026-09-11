@@ -13,18 +13,17 @@ fi
 
 install -d -m 0755 /etc/3dvr
 
-cat >/etc/systemd/system/3dvr-control.slice <<'EOF'
+cat >/etc/systemd/system/3dvr-recovery.slice <<'EOF'
 [Unit]
-Description=3DVR rescue and remote-control workloads
+Description=3DVR protected recovery lane
 
 [Slice]
 CPUWeight=10000
 IOWeight=10000
-MemoryMin=256M
-MemoryLow=512M
-MemoryHigh=768M
-MemoryMax=1G
-TasksMax=256
+MemoryLow=256M
+MemoryHigh=512M
+MemoryMax=700M
+TasksMax=768
 EOF
 
 cat >/etc/systemd/system/3dvr-production.slice <<'EOF'
@@ -72,7 +71,7 @@ FREELANCER_WORKSPACE_MIN_HOST_RESERVE_MB=2048
 FREELANCER_WORKSPACE_MEMORY_MB=1024
 FREELANCER_WORKSPACE_CPUS=1.0
 THREEDVR_DEV_TASKS_MAX=768
-THREEDVR_CONTROL_TASKS_MAX=256
+THREEDVR_RECOVERY_TASKS_MAX=768
 EOF
 chmod 0644 /etc/3dvr/resource-lanes.env
 
@@ -107,7 +106,7 @@ chmod 0755 /usr/local/bin/3dvr-run-dev
 cat >/usr/local/bin/3dvr-lane-status <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-for lane in 3dvr-control.slice 3dvr-production.slice 3dvr-workspaces.slice 3dvr-dev.slice; do
+for lane in 3dvr-recovery.slice 3dvr-production.slice 3dvr-workspaces.slice 3dvr-dev.slice; do
   echo "=== $lane ==="
   systemctl show "$lane" \
     -p ActiveState \
@@ -137,9 +136,9 @@ EOF
 chmod 0755 /usr/local/bin/3dvr-lane-status
 
 systemctl daemon-reload
-systemctl start 3dvr-control.slice 3dvr-production.slice 3dvr-workspaces.slice 3dvr-dev.slice
+systemctl start 3dvr-recovery.slice 3dvr-production.slice 3dvr-workspaces.slice 3dvr-dev.slice
 
-for lane in 3dvr-control.slice 3dvr-production.slice 3dvr-workspaces.slice 3dvr-dev.slice; do
+for lane in 3dvr-recovery.slice 3dvr-production.slice 3dvr-workspaces.slice 3dvr-dev.slice; do
   systemctl is-active --quiet "$lane" || {
     echo "$lane failed to activate." >&2
     exit 1

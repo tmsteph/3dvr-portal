@@ -4,19 +4,18 @@ The OVH VPS is shared by public web hosting, remote-control/recovery, freelancer
 
 ## Lanes
 
-### `3dvr-control.slice`
+### `3dvr-recovery.slice`
 
-For Remote Desktop Commander, rescue shells, watchdogs, and other control-plane processes that must remain usable while another lane is saturated.
+For Remote Desktop Commander, rescue tunnels, watchdogs, and other control-plane processes that must remain usable while another lane is saturated.
 
 - `CPUWeight=10000`
 - `IOWeight=10000`
-- `MemoryMin=256M`
-- `MemoryLow=512M`
-- `MemoryHigh=768M`
-- `MemoryMax=1G`
-- `TasksMax=256`
+- `MemoryLow=256M`
+- `MemoryHigh=512M`
+- `MemoryMax=700M`
+- `TasksMax=768`
 
-Control services should explicitly set `Slice=3dvr-control.slice`. This lane is not for builds, browsers, crawlers, or ordinary application work.
+Recovery services should explicitly set `Slice=3dvr-recovery.slice`. This lane is not for builds, browsers, crawlers, or ordinary application work.
 
 ### `3dvr-production.slice`
 
@@ -74,7 +73,7 @@ sudo 3dvr-run-dev npm run build
 
 ## Why the control path stays responsive
 
-CPU and memory caps alone are not enough: Node test runners and browsers can exhaust process/thread limits before reaching their CPU ceiling. The control lane reserves scheduler priority and protected memory, while the dev lane now has a much lower aggregate task ceiling. Ad-hoc work is also explicitly routed into the dev lane instead of inheriting the recovery shell's cgroup.
+CPU and memory caps alone are not enough: Node test runners and browsers can exhaust process/thread limits before reaching their CPU ceiling. The recovery lane reserves scheduler priority and protected memory, while the dev lane now has a much lower aggregate task ceiling. Ad-hoc work is also explicitly routed into the dev lane instead of inheriting the recovery shell's cgroup.
 
 Production remains separately protected with `MemoryLow=2G` and high scheduler/I/O weight.
 
@@ -100,4 +99,4 @@ The host configuration is idempotent:
 sudo bash ops/host/install-resource-lanes.sh
 ```
 
-After installation, identify the Remote Desktop Commander/control service and attach it to `3dvr-control.slice` with a systemd drop-in before relying on this as the recovery guarantee.
+The deployment workflow pins Remote Desktop Commander to `3dvr-recovery.slice`; host reliability drop-ins may add tighter per-service caps.
