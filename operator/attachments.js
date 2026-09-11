@@ -52,7 +52,8 @@ export function installOperatorAttachments({ form, input, onStatus } = {}) {
 
   tray.append(preview, name, remove);
   form.insertBefore(tray, row);
-  row.insertBefore(attach, submit);
+  const actionRow = submit.parentElement || row;
+  actionRow.insertBefore(attach, submit);
   form.appendChild(fileInput);
 
   const style = document.createElement('style');

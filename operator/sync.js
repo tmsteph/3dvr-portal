@@ -1,7 +1,7 @@
 const SYNC_NODE='operator-v01';
 
 const delay=(windowObj,ms)=>new Promise(resolve=>windowObj.setTimeout(resolve,ms));
-const once=(node,windowObj)=>new Promise(resolve=>{let settled=false;const finish=value=>{if(settled)return;settled=true;resolve(value)};try{node.once(finish);windowObj.setTimeout(()=>finish(null),2500)}catch{finish(null)}});
+const once=(node,windowObj)=>new Promise(resolve=>{let settled=false;const finish=value=>{if(settled)return;settled=true;resolve(value)};try{node.once(finish);windowObj.setTimeout(()=>finish(null),3500)}catch{finish(null)}});
 const put=(node,value)=>new Promise(resolve=>{try{node.put(value,ack=>resolve(!ack?.err))}catch{resolve(false)}});
 const timestamp=value=>Number.isFinite(Date.parse(value||''))?Date.parse(value):0;
 
@@ -47,8 +47,13 @@ export function createOperatorSync({windowObj=window,onStatus=()=>{}}={}){
     ready:readyPromise,
     async load(localStore){
       if(!(await readyPromise)||!node)return null;
-      const record=await once(node,windowObj);
-      if(!record?.ciphertext)return null;
+      onStatus('Checking account history…');
+      let record=null;
+      for(let attempt=0;attempt<2&&!record?.ciphertext;attempt+=1){
+        record=await once(node,windowObj);
+        if(!record?.ciphertext&&attempt===0)await delay(windowObj,300);
+      }
+      if(!record?.ciphertext){onStatus('Account sync ready');return null}
       try{
         const decoded=await windowObj.SEA.decrypt(record.ciphertext,secret);
         const remoteStore=typeof decoded==='string'?JSON.parse(decoded):decoded;

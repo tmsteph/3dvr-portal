@@ -131,7 +131,7 @@ export function attachLiveDraftAwareness({
 
   installStyles();
 
-  const footer = form.querySelector(':scope > div > span') || form.querySelector('span') || form;
+  const footer = form.querySelector(':scope > div:not(.operator-attachment-tray) > span') || form.querySelector('span') || form;
   const toggle = document.createElement('button');
   toggle.type = 'button';
   toggle.className = 'operator-live-awareness';

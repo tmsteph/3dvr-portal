@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="mobile-header-fix.css">
   <link rel="stylesheet" href="app-search.css">
+  <link rel="stylesheet" href="focus.css">
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="/gun-init.js"></script>
@@ -23,23 +24,22 @@
     <header>
       <a href="/">3DVR</a>
       <div class="header-actions">
-        <a class="workboard-link" href="/teach/">Teach</a>
-        <a class="workboard-link" href="/workboard/">Workboard</a>
-        <button id="show-history" type="button" aria-expanded="false" aria-controls="conversation-history">Past conversations</button>
-        <button id="clear-chat" type="button">New conversation</button>
+        <button id="show-history" type="button" aria-label="Past conversations" aria-expanded="false" aria-controls="conversation-history">History</button>
+        <button id="clear-chat" type="button" aria-label="New conversation" title="New conversation">＋</button>
       </div>
     </header>
     <aside id="conversation-history" hidden aria-label="Past conversations">
-      <div><h2>Past conversations</h2><button id="close-history" type="button" aria-label="Close past conversations">Close</button></div>
-      <p id="history-empty">Your saved conversations will appear here.</p>
+      <div><h2>Conversations</h2><button id="close-history" type="button" aria-label="Close past conversations">×</button></div>
+      <small id="operator-sync" role="status">Checking history…</small>
+      <p id="history-empty">Loading conversations…</p>
       <nav id="history-list" aria-label="Saved conversations"></nav>
     </aside>
     <section id="operator-log" aria-live="polite" aria-relevant="additions"></section>
     <button id="operator-latest" type="button" hidden aria-label="Jump to the latest message">↓ Latest message</button>
     <section class="welcome">
       <p>YOUR OPERATOR</p>
-      <h1>What do you want me to do?</h1>
-      <span>Search 3DVR apps or talk normally. I can launch tools, guide you, and make safe changes inside the portal.</span>
+      <h1>What do you want to do?</h1>
+      <span>Ask anything, or open a 3DVR app.</span>
       <div class="quick-prompts" aria-label="Things to try">
         <button type="button" data-prompt="Help me plan my day and choose the most important next step.">Plan my day</button>
         <button type="button" data-prompt="Help me capture and organize an idea I have.">Organize an idea</button>
@@ -53,8 +53,8 @@
     </section>
     <form id="operator-form">
       <label for="operator-input">Message your operator or search 3DVR</label>
-      <textarea id="operator-input" rows="3" placeholder="Calendar… CRM… Meditation… or ask Operator anything…" aria-describedby="operator-status operator-sync operator-hint"></textarea>
-      <div><span><small id="operator-status" role="status">Ready</small><small id="operator-sync" role="status">Saved on this device</small><small id="operator-hint">↓ apps · Ctrl + Enter to send</small></span><div class="operator-actions"><button id="save-secret" type="button">🔐 Save secret</button><button type="submit">Do it →</button></div></div>
+      <textarea id="operator-input" rows="2" placeholder="Ask Operator…" aria-describedby="operator-status"></textarea>
+      <div><span><small id="operator-status" role="status">Ready</small></span><div class="operator-actions"><button id="save-secret" type="button" aria-label="Save a secret" title="Save a secret">🔐</button><button type="submit" aria-label="Send to Operator" title="Send">→</button></div></div>
     </form>
       <dialog id="secret-dialog">
       <form id="secret-form">

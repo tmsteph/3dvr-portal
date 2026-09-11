@@ -56,7 +56,6 @@ function installFullOperatorBusyIndicator() {
         overflow: hidden;
       }
 
-      #operator-form .operator-submit__label,
       #operator-form .operator-submit__arrow,
       #operator-form .operator-submit__portal {
         grid-area: 1 / 1;
@@ -64,12 +63,8 @@ function installFullOperatorBusyIndicator() {
         transition: opacity 160ms ease, transform 180ms ease;
       }
 
-      #operator-form .operator-submit__label {
-        transform: translateX(-0.45rem);
-      }
-
       #operator-form .operator-submit__arrow {
-        transform: translateX(1.35rem);
+        line-height: 1;
       }
 
       #operator-form .operator-submit__portal {
@@ -86,7 +81,6 @@ function installFullOperatorBusyIndicator() {
         cursor: progress;
       }
 
-      #operator-form button[data-busy="true"] .operator-submit__label,
       #operator-form button[data-busy="true"] .operator-submit__arrow {
         opacity: 0;
         transform: scale(0.45) rotate(90deg);
@@ -109,7 +103,6 @@ function installFullOperatorBusyIndicator() {
       }
 
       @media (prefers-reduced-motion: reduce) {
-        #operator-form .operator-submit__label,
         #operator-form .operator-submit__arrow,
         #operator-form .operator-submit__portal {
           transition: none;
@@ -123,10 +116,6 @@ function installFullOperatorBusyIndicator() {
     document.head.appendChild(style);
   }
 
-  const label = document.createElement('span');
-  label.className = 'operator-submit__label';
-  label.textContent = 'Do it';
-
   const arrow = document.createElement('span');
   arrow.className = 'operator-submit__arrow';
   arrow.setAttribute('aria-hidden', 'true');
@@ -138,12 +127,12 @@ function installFullOperatorBusyIndicator() {
   portal.alt = '';
   portal.setAttribute('aria-hidden', 'true');
 
-  submit.replaceChildren(label, arrow, portal);
+  submit.replaceChildren(arrow, portal);
 
   const sync = () => {
     const busy = submit.disabled;
     submit.dataset.busy = String(busy);
-    submit.setAttribute('aria-label', busy ? 'Operator is working' : 'Do it');
+    submit.setAttribute('aria-label', busy ? 'Operator is working' : 'Send to Operator');
     form.setAttribute('aria-busy', String(busy));
   };
 
