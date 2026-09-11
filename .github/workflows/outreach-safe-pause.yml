@@ -1,0 +1,69 @@
+name: 3DVR Outreach Safe Pause
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/outreach-safe-pause.yml'
+
+permissions:
+  contents: read
+
+env:
+  PRIMARY_HOST: 40.160.137.41
+
+jobs:
+  pause:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Resolve OVH SSH
+        id: ssh
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          for spec in "a:$SSH_A" "b:$SSH_B" "c:$SSH_C"; do
+            name="${spec%%:*}"; raw="${spec#*:}"; [ -n "$raw" ] || continue
+            file="/tmp/key-$name"; printf '%s\n' "$raw" > "$file.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$file.raw"; then cp "$file.raw" "$file"; elif base64 -d "$file.raw" > "$file" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$file"; then :; else rm -f "$file" "$file.raw"; continue; fi
+            chmod 600 "$file"; rm -f "$file.raw"
+            for user in debian root; do
+              if ssh -i "$file" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$PRIMARY_HOST" true >/dev/null 2>&1; then
+                [ "$user" = root ] || ssh -i "$file" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@$PRIMARY_HOST" 'sudo -n true'
+                cp "$file" /tmp/3dvr-key; chmod 600 /tmp/3dvr-key; echo "user=$user" >> "$GITHUB_OUTPUT"; exit 0
+              fi
+            done
+          done
+          echo 'OVH SSH unavailable.' >&2
+          exit 1
+
+      - name: Pause outbound, keep research live
+        shell: bash
+        env:
+          TARGET_USER: ${{ steps.ssh.outputs.user }}
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/3dvr-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new)
+          cmd='sudo -n bash -s'; [ "$TARGET_USER" = root ] && cmd='bash -s'
+          ssh "${opts[@]}" "$TARGET_USER@$PRIMARY_HOST" "$cmd" <<'REMOTE'
+          set -euo pipefail
+          file=/home/debian/.3dvr/config/outreach.env
+          [ -f "$file" ] || { echo 'Outreach config missing.' >&2; exit 2; }
+          tmp="$(mktemp)"
+          grep -v '^THREEDVR_AUTOPILOT_PAUSED=' "$file" > "$tmp" || true
+          printf 'THREEDVR_AUTOPILOT_PAUSED=true\n' >> "$tmp"
+          mv "$tmp" "$file"
+          chmod 600 "$file"
+          chown debian:debian "$file"
+          systemctl daemon-reload
+          echo 'OUTBOUND_PAUSED_RESEARCH_STAYS_LIVE'
+          REMOTE
+
+      - name: Clean SSH material
+        if: always()
+        run: rm -f /tmp/3dvr-key /tmp/key-*
