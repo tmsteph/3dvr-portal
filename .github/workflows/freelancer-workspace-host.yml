@@ -119,18 +119,19 @@ jobs:
           WantedBy=multi-user.target
           UNIT
 
-          # Some earlier host setup left this custom agent protected from manual
-          # restart. Override only this service so the control channel is recoverable.
+          # Override an older host-side lock that prevented recovery of this
+          # custom control agent when its remote socket went stale.
           sudo install -d -m 0755 /etc/systemd/system/desktop-commander-remote.service.d
           sudo tee /etc/systemd/system/desktop-commander-remote.service.d/99-3dvr-control.conf >/dev/null <<'DROPIN'
           [Unit]
-          RefuseManualStartStop=no
+          RefuseManualStart=no
+          RefuseManualStop=no
           DROPIN
 
           sudo systemctl daemon-reload
           echo '=== desktop commander unit properties ==='
           sudo systemctl show desktop-commander-remote.service \
-            -p RefuseManualStartStop -p FragmentPath -p DropInPaths || true
+            -p RefuseManualStart -p RefuseManualStop -p FragmentPath -p DropInPaths || true
           sudo systemctl enable desktop-commander-remote.service
           sudo systemctl restart desktop-commander-remote.service
           sleep 4
