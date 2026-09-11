@@ -18,3 +18,11 @@ test('self-host permits only trusted portal origins to call secrets broker cross
   assert.match(server, /pathname !== '\/api\/secrets-broker'/);
   assert.match(server, /req\.method !== 'OPTIONS'/);
 });
+
+test('self-host serves reminder email natively before legacy proxy', async () => {
+  const server = await readFile(new URL('../scripts/self-host-server.mjs', import.meta.url), 'utf8');
+  assert.match(server, /reminderEmailHandler/);
+  assert.match(server, /url\.pathname === '\/api\/calendar\/reminder-email'/);
+  assert.match(server, /runReminderEmail/);
+  assert.ok(server.indexOf("url.pathname === '/api/calendar/reminder-email'") < server.indexOf("url.pathname.startsWith('/api/')"));
+});
