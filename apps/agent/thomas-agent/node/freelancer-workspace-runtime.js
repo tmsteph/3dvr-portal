@@ -1,4 +1,5 @@
 const { randomBytes } = require('node:crypto');
+const { readFileSync } = require('node:fs');
 const { mkdir, readFile, writeFile, chmod, readdir } = require('node:fs/promises');
 const net = require('node:net');
 const os = require('node:os');
@@ -11,6 +12,7 @@ const SAFE_ID = /^[a-z0-9][a-z0-9-]{2,62}$/;
 const DEFAULT_IMAGE = 'lscr.io/linuxserver/firefox:latest';
 const DEFAULT_MEMORY_MB = 1024;
 const DEFAULT_HOST_RESERVE_MB = 768;
+const DEFAULT_PIDS_LIMIT = 1024;
 
 function normalizeText(value = '', max = 300) {
   return String(value || '').trim().slice(0, max);
@@ -39,6 +41,19 @@ function minHostReserveMb(env = process.env) {
   return positiveInteger(env.FREELANCER_WORKSPACE_MIN_HOST_RESERVE_MB, DEFAULT_HOST_RESERVE_MB);
 }
 
+function workspacePidsLimit(env = process.env) {
+  return positiveInteger(env.FREELANCER_WORKSPACE_PIDS_LIMIT, DEFAULT_PIDS_LIMIT);
+}
+
+function availableMemoryMb() {
+  try {
+    const meminfo = readFileSync('/proc/meminfo', 'utf8');
+    const match = /^MemAvailable:\s+(\d+)\s+kB$/m.exec(meminfo);
+    if (match) return Math.floor(Number(match[1]) / 1024);
+  } catch {}
+  return Math.floor(os.freemem() / 1024 / 1024);
+}
+
 function buildDockerRunArgs(metadata, env = process.env) {
   const bindAddress = normalizeText(env.FREELANCER_WORKSPACE_BIND_ADDRESS, 80) || '127.0.0.1';
   const timezone = normalizeText(metadata.timezone, 80) || 'America/Los_Angeles';
@@ -56,6 +71,7 @@ function buildDockerRunArgs(metadata, env = process.env) {
     ...cgroupArgs,
     '--memory', `${workspaceMemoryMb(env)}m`,
     '--cpus', normalizeText(env.FREELANCER_WORKSPACE_CPUS, 20) || '1.0',
+    '--pids-limit', String(workspacePidsLimit(env)),
     '-e', 'PUID=1000',
     '-e', 'PGID=1000',
     '-e', `TZ=${timezone}`,
@@ -160,7 +176,7 @@ function createFreelancerWorkspaceRuntime({
   env = process.env,
   run = defaultRun,
   now = () => new Date(),
-  getFreeMemoryMb = () => Math.floor(os.freemem() / 1024 / 1024),
+  getFreeMemoryMb = availableMemoryMb,
 } = {}) {
   async function resolve(workspaceId) {
     const id = validateWorkspaceId(workspaceId);
@@ -239,6 +255,28 @@ function createFreelancerWorkspaceRuntime({
     return status(id);
   }
 
+  async function recreate(workspaceId) {
+    const { id, rootDir, existing } = await resolve(workspaceId);
+    if (!existing) throw new Error('Workspace is not provisioned.');
+    const inspect = await run('docker', ['inspect', '-f', '{{.State.Running}}', existing.containerName]);
+    if (statusFromInspect(inspect) === 'running') {
+      const stopped = await run('docker', ['stop', '--time', '20', existing.containerName]);
+      if (!stopped.ok && !/No such container/i.test(stopped.stderr)) {
+        throw new Error(`Workspace failed to stop before recreate: ${normalizeText(stopped.stderr, 1000)}`);
+      }
+    }
+    const removed = await run('docker', ['rm', '-f', existing.containerName]);
+    if (!removed.ok && !/No such container/i.test(removed.stderr)) {
+      throw new Error(`Workspace container failed to remove: ${normalizeText(removed.stderr, 1000)}`);
+    }
+    assertHostCapacity();
+    const result = await run('docker', buildDockerRunArgs(existing, env));
+    if (!result.ok) throw new Error(`Workspace container failed to recreate: ${normalizeText(result.stderr, 1000)}`);
+    existing.lastStartedAt = now().toISOString();
+    await writeMetadata(rootDir, existing);
+    return status(id);
+  }
+
   async function session(workspaceId) {
     const { id, existing } = await resolve(workspaceId);
     if (!existing) throw new Error('Workspace is not provisioned.');
@@ -251,13 +289,14 @@ function createFreelancerWorkspaceRuntime({
     };
   }
 
-  return { status, provision, start, stop, session };
+  return { status, provision, start, stop, recreate, session };
 }
 
 module.exports = {
   DEFAULT_IMAGE,
   DEFAULT_HOST_RESERVE_MB,
   DEFAULT_MEMORY_MB,
+  DEFAULT_PIDS_LIMIT,
   buildDockerRunArgs,
   containerNameForWorkspace,
   createFreelancerWorkspaceRuntime,
