@@ -1,0 +1,132 @@
+name: OAuth Token Recovery Diagnostic
+
+on:
+  push:
+    branches:
+      - ops/oauth-token-recovery-20260910
+    paths:
+      - .github/workflows/oauth-token-recovery-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-digitalocean:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect token metadata without exposing secrets
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/h-a
+          write_key "$SSH_B" /tmp/h-b
+          write_key "$SSH_C" /tmp/h-c
+
+          cat > /tmp/oauth-diagnostic.sh <<'REMOTE'
+          set -eu
+          echo "host=$(hostname)"
+          for home in /root /home/debian /home/tmsteph; do
+            [ -d "$home" ] || continue
+            for rel in .3dvr/oauth.json .3dvr/connectors/google-oauth.enc.json .3dvr/connectors/accounts.json; do
+              f="$home/$rel"
+              if [ -f "$f" ]; then
+                echo "present=$f size=$(stat -c %s "$f") mtime=$(stat -c %y "$f" | cut -d. -f1)"
+              else
+                echo "missing=$f"
+              fi
+            done
+          done
+          python3 - <<'PY'
+          import json, os
+          homes=['/root','/home/debian','/home/tmsteph']
+          for home in homes:
+              oauth=f'{home}/.3dvr/oauth.json'
+              if os.path.isfile(oauth):
+                  try:
+                      data=json.load(open(oauth))
+                      for provider,c in (data.get('connections') or {}).items():
+                          print('cli_connection', {
+                              'provider': provider,
+                              'email': c.get('email',''),
+                              'scopeKey': c.get('scopeKey') or c.get('scope_key',''),
+                              'has_refresh_token': bool(c.get('refreshToken') or c.get('refresh_token')),
+                              'has_access_token': bool(c.get('accessToken') or c.get('access_token')),
+                              'expiresAt': c.get('expiresAt') or c.get('expires_at') or 0,
+                          })
+                  except Exception as e:
+                      print('cli_connection_parse_error', type(e).__name__)
+              vault=f'{home}/.3dvr/connectors/google-oauth.enc.json'
+              if os.path.isfile(vault):
+                  try:
+                      data=json.load(open(vault))
+                      refs=sorted((data.get('secrets') or {}).keys())
+                      print('vault_refs', {'home':home,'count':len(refs),'refs':refs})
+                  except Exception as e:
+                      print('vault_parse_error', type(e).__name__)
+              reg=f'{home}/.3dvr/connectors/accounts.json'
+              if os.path.isfile(reg):
+                  try:
+                      data=json.load(open(reg))
+                      raw=data.get('accounts') or data
+                      items=raw.values() if isinstance(raw,dict) else raw if isinstance(raw,list) else []
+                      safe=[]
+                      for a in items:
+                          if isinstance(a,dict):
+                              safe.append({k:a.get(k) for k in ('id','provider','alias','email','status','credentialRef','scopes') if k in a})
+                      print('accounts', safe)
+                  except Exception as e:
+                      print('accounts_parse_error', type(e).__name__)
+          PY
+          declared=0
+          for f in /root/.3dvr/config/* /home/debian/.3dvr/config/* /home/tmsteph/.3dvr/config/* /etc/default/* /etc/systemd/system/*.service.d/*.conf; do
+            [ -f "$f" ] || continue
+            if grep -q '^THREEDVR_CONNECTOR_MASTER_KEY=' "$f" 2>/dev/null; then
+              echo "master_key_declared_in=$f"
+              declared=1
+            fi
+          done
+          echo "master_key_declared=$declared"
+          running=0
+          for p in /proc/[0-9]*/environ; do
+            [ -r "$p" ] || continue
+            if tr '\0' '\n' < "$p" 2>/dev/null | grep -q '^THREEDVR_CONNECTOR_MASTER_KEY='; then
+              running=1
+              break
+            fi
+          done
+          echo "master_key_in_running_process=$running"
+          REMOTE
+
+          ok=0
+          for user in root debian; do
+            for key in /tmp/h-a /tmp/h-b /tmp/h-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@167.172.193.194" 'bash -s' < /tmp/oauth-diagnostic.sh; then
+                echo "connected_as=$user"
+                ok=1
+                break 2
+              fi
+            done
+          done
+          [ "$ok" -eq 1 ]
