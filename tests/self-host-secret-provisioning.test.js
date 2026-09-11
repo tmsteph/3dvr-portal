@@ -23,6 +23,9 @@ test('self-host deploy preserves server secrets when Actions has no secret updat
   assert.match(deploy, /GOOGLE_OAUTH_CLIENT_SECRET/);
   assert.match(deploy, /GMAIL_USER/);
   assert.match(deploy, /GMAIL_APP_PASSWORD/);
+  assert.match(deploy, /THREEDVR_OUTREACH_SUPPRESSION_ENFORCED=true/);
+  assert.match(deploy, /THREEDVR_OUTREACH_REQUIRE_PERSONAL_SENT_CHECK=true/);
+  assert.match(deploy, /chown debian:debian "\$common_env"/);
   assert.match(deploy, /THREEDVR_CONTROL_NODE=\$\{THREEDVR_CONTROL_NODE:-\}/);
   assert.match(deploy, /bash "\$current\/ops\/secrets-broker\/install\.sh"/);
   assert.match(deploy, /Secrets broker provisioning did not create/);

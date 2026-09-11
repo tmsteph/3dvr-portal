@@ -2,6 +2,9 @@ import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto
 import { readFileSync } from 'node:fs';
 import nodemailer from 'nodemailer';
 import { createBookingRequestHandler } from '../../src/calendar/booking-request-email.js';
+import suppressionModule from '../../src/outreach/suppression.cjs';
+
+const { enforcementEnabled, recipientDecision, recordOutboundContact } = suppressionModule;
 
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -876,6 +879,28 @@ export function createLeadOutreachEmailHandler(options = {}) {
       return res.status(400).json({ error: 'An outreach text body is required.' });
     }
 
+    const threadContinuation = Boolean(inReplyTo || references);
+    const suppressionEnabled = !threadContinuation && enforcementEnabled(config, false);
+    if (suppressionEnabled) {
+      try {
+        for (const recipient of to) {
+          const decision = recipientDecision(recipient, { config });
+          if (!decision.allowed) {
+            return res.status(409).json({
+              error: `Cold outreach blocked: ${decision.reason}`,
+              code: decision.code,
+              recipient,
+            });
+          }
+        }
+      } catch (error) {
+        return res.status(503).json({
+          error: `Outreach suppression check unavailable: ${error.message || error}`,
+          code: 'suppression_check_unavailable',
+        });
+      }
+    }
+
     let transport;
     try {
       transport = getTransport();
@@ -888,6 +913,25 @@ export function createLeadOutreachEmailHandler(options = {}) {
     const sender = resolveMailCredentials(config).user || 'no-reply@3dvr.tech';
     const from = `"${senderName || 'Thomas at 3dvr.tech'}" <${sender}>`;
     const replyTo = senderEmail || undefined;
+
+    if (suppressionEnabled) {
+      try {
+        for (const recipient of to) {
+          recordOutboundContact(recipient, {
+            config,
+            source: '3dvr-tech-outbound-inflight',
+            sourceAccount: sender,
+            reason: 'Cold outreach send reserved; automatic retries are blocked until reconciled.',
+            evidence: idempotencyKey ? `idempotency:${idempotencyKey}` : '',
+          });
+        }
+      } catch (error) {
+        return res.status(503).json({
+          error: `Unable to reserve outreach recipient: ${error.message || error}`,
+          code: 'suppression_reservation_failed',
+        });
+      }
+    }
 
     try {
       await transport.sendMail({
@@ -906,6 +950,17 @@ export function createLeadOutreachEmailHandler(options = {}) {
           senderEmail
         })
       });
+
+      if (suppressionEnabled) {
+        for (const recipient of to) {
+          recordOutboundContact(recipient, {
+            config,
+            source: '3dvr-tech-outbound',
+            sourceAccount: sender,
+            evidence: idempotencyKey ? `idempotency:${idempotencyKey}` : '',
+          });
+        }
+      }
 
       return res.status(200).json({ success: true, mode: 'lead-outreach', idempotencyKey: idempotencyKey || undefined });
     } catch (error) {

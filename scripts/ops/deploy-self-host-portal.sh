@@ -33,6 +33,13 @@ portal_env="$config_dir/portal.env"
 
 mkdir -p "$releases" "$state" "$config_dir"
 chmod 700 "$config_dir" 2>/dev/null || true
+if [ "$(id -u)" = 0 ] && [ "$HOME" = /home/debian ] && id debian >/dev/null 2>&1; then
+  chown debian:debian "$config_dir" 2>/dev/null || true
+  if [ -f "$common_env" ]; then
+    chown debian:debian "$common_env" 2>/dev/null || true
+    chmod 600 "$common_env" 2>/dev/null || true
+  fi
+fi
 
 if [ ! -d "$release" ]; then
   tmp="$releases/.tmp-$sha-$$"
@@ -142,6 +149,9 @@ PORTAL_RELEASE_REF=$ref
 PORTAL_RELEASE_SHA=$sha
 LEGACY_API_ORIGIN=https://3dvr-portal.vercel.app
 THREEDVR_CONTROL_NODE=${THREEDVR_CONTROL_NODE:-}
+THREEDVR_OUTREACH_SUPPRESSION_ENFORCED=true
+THREEDVR_OUTREACH_REQUIRE_PERSONAL_SENT_CHECK=true
+THREEDVR_PERSONAL_SENT_CHECK_MAX_AGE_HOURS=24
 EOF
 
 # Preserve private runtime values already provisioned by an operator or workflow.
