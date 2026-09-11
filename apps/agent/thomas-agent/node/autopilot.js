@@ -1070,7 +1070,7 @@ async function main() {
 
   const enrichNeeded = countUnenriched(afterCrawlRows);
   let enrichResult = null;
-  if (enrichNeeded > 0) {
+  if (enrichNeeded > 0 && DEFAULT_ENRICH_LIMIT > 0) {
     const enrichArgs = ['--limit', String(DEFAULT_ENRICH_LIMIT)];
     if (options.dryRun) enrichArgs.push('--dry-run');
     enrichResult = await runScript('ask-enrich', enrichArgs);
