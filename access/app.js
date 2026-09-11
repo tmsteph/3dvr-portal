@@ -161,6 +161,11 @@ saveSecret?.addEventListener('click', async () => {
   try {
     const secretValueHash = await sha256(value);
     const result = await brokerAction('store-secret', { key, value, note }, { secretKey: key, secretValueHash });
+    if (!result?.ok || result?.decision !== 'allowed' || !result?.stored?.id) {
+      throw new Error(result?.decision === 'approval_required'
+        ? 'This save still needs approval. The value is still here so you can retry.'
+        : '3DVR Secrets did not confirm the save. The value is still here so you can retry.');
+    }
     if (secretValue) secretValue.value = '';
     if (secretKey) secretKey.value = '';
     if (secretNote) secretNote.value = '';
@@ -170,7 +175,6 @@ saveSecret?.addEventListener('click', async () => {
     setTimeout(() => saveSecretDialog?.close(), 650);
     loadAccess();
   } catch (error) {
-    if (secretValue) secretValue.value = '';
     secretSaveMessage.textContent = error.message;
   } finally {
     saveSecret.disabled = false;

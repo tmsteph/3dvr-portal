@@ -25,6 +25,10 @@ install -d -o root -g root -m 0755 "$OPT"
 install -m 0755 "$SOURCE/secrets-broker-server.js" "$OPT/secrets-broker-server.js"
 install -m 0755 "$SOURCE/secrets-broker-admin.js" "$OPT/secrets-broker-admin.js"
 install -m 0644 "$SOURCE/secrets-broker.js" "$OPT/secrets-broker.js"
+install -m 0644 "$SOURCE/bitwarden-sdk-create.js" "$OPT/bitwarden-sdk-create.js"
+if ! node -e "require.resolve('@bitwarden/sdk-napi', { paths: ['$OPT'] })" >/dev/null 2>&1; then
+  npm install --omit=dev --no-audit --no-fund --prefix "$OPT" @bitwarden/sdk-napi@1.0.0 >/dev/null
+fi
 if [[ ! -f "$ETC/policy.json" ]]; then
   install -o root -g threedvr-secrets -m 0640 "$ROOT/ops/secrets-broker/policy.example.json" "$ETC/policy.json"
 fi

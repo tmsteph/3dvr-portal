@@ -23,4 +23,8 @@ test('self-host deploy preserves server secrets when Actions has no secret updat
   assert.match(deploy, /bash "\$current\/ops\/secrets-broker\/install\.sh"/);
   assert.match(deploy, /Secrets broker provisioning did not create/);
   assert.match(deploy, /portal\.token/);
+
+  const installer = await readFile(new URL('../ops/secrets-broker/install.sh', import.meta.url), 'utf8');
+  assert.match(installer, /bitwarden-sdk-create\.js/);
+  assert.match(installer, /@bitwarden\/sdk-napi@1\.0\.0/);
 });

@@ -162,6 +162,7 @@ class AuditChain {
 class BitwardenSecretsManagerBackend {
   constructor(config = {}, options = {}) {
     this.binary = normalizeText(config.binary || options.binary || process.env.BWS_BIN || '/usr/local/bin/bws', 500);
+    this.sdkCreateHelper = normalizeText(config.sdkCreateHelper || options.sdkCreateHelper || process.env.BWS_SDK_CREATE_HELPER || '/opt/3dvr/secrets-broker/bitwarden-sdk-create.js', 500);
     this.timeoutMs = Math.max(1000, Number(config.timeoutMs || options.timeoutMs || 15000));
     this.env = options.env || process.env;
   }
@@ -192,39 +193,52 @@ class BitwardenSecretsManagerBackend {
 
   create({ projectId, projectName, key, value, note = '' } = {}) {
     let targetProject = normalizeText(projectId, 200);
+    let organizationId = '';
     const targetProjectName = normalizeText(projectName, 300);
     const secretKey = normalizeText(key, 500);
     const secretValue = typeof value === 'string' ? value : '';
     const secretNote = normalizeText(note, 1000);
     if ((!targetProject && !targetProjectName) || !secretKey || !secretValue) throw new Error('Bitwarden project, key, and value are required');
     if (!this.ready()) throw new Error('Bitwarden Secrets Manager backend is not configured');
+    if (!fs.existsSync(this.sdkCreateHelper)) throw new Error('Bitwarden SDK write helper is not installed');
+
     if (!targetProject && targetProjectName) {
-      const projects = spawnSync(this.binary, ['project', 'list', '--output', 'json', '--color', 'no'], { env: this.env, encoding: 'utf8', timeout: this.timeoutMs, maxBuffer: 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+      const projects = spawnSync(this.binary, ['project', 'list', '--output', 'json', '--color', 'no'], {
+        env: this.env, encoding: 'utf8', timeout: this.timeoutMs, maxBuffer: 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'],
+      });
       if (projects.error || projects.status !== 0) throw new Error('Bitwarden project lookup failed');
       let parsedProjects;
       try { parsedProjects = JSON.parse(projects.stdout); } catch { throw new Error('Bitwarden returned invalid project JSON'); }
-      const match = Array.isArray(parsedProjects) ? parsedProjects.find(item => normalizeText(item?.name, 300).toLowerCase() === targetProjectName.toLowerCase()) : null;
+      const match = Array.isArray(parsedProjects)
+        ? parsedProjects.find(item => normalizeText(item?.name, 300).toLowerCase() === targetProjectName.toLowerCase())
+        : null;
       targetProject = normalizeText(match?.id, 200);
+      organizationId = normalizeText(match?.organizationId, 200);
       if (!targetProject) throw new Error('Bitwarden target project was not found');
     }
-    const args = ['secret', 'create', secretKey, secretValue, targetProject];
-    if (secretNote) args.push('--note', secretNote);
-    args.push('--output', 'json', '--color', 'no');
-    const result = spawnSync(this.binary, args, {
-      env: this.env,
-      encoding: 'utf8',
-      timeout: this.timeoutMs,
-      maxBuffer: 1024 * 1024,
-      stdio: ['ignore', 'pipe', 'pipe'],
+
+    if (targetProject && !organizationId) {
+      const project = spawnSync(this.binary, ['project', 'get', targetProject, '--output', 'json', '--color', 'no'], {
+        env: this.env, encoding: 'utf8', timeout: this.timeoutMs, maxBuffer: 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      if (project.error || project.status !== 0) throw new Error('Bitwarden project lookup failed');
+      let parsedProject;
+      try { parsedProject = JSON.parse(project.stdout); } catch { throw new Error('Bitwarden returned invalid project JSON'); }
+      organizationId = normalizeText(parsedProject?.organizationId, 200);
+    }
+    if (!organizationId) throw new Error('Bitwarden target organization was not found');
+
+    const input = JSON.stringify({ organizationId, projectId: targetProject, key: secretKey, value: secretValue, note: secretNote });
+    const result = spawnSync(process.execPath, [this.sdkCreateHelper], {
+      env: this.env, input, encoding: 'utf8', timeout: this.timeoutMs, maxBuffer: 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'],
     });
-    if (result.error) throw new Error(`Bitwarden create failed: ${result.error.message}`);
-    if (result.status !== 0) throw new Error('Bitwarden create failed');
+    if (result.error) throw new Error(`Bitwarden SDK create failed: ${result.error.message}`);
+    if (result.status !== 0) throw new Error('Bitwarden SDK create failed');
     let parsed;
-    try { parsed = JSON.parse(result.stdout); }
-    catch { throw new Error('Bitwarden returned invalid JSON'); }
+    try { parsed = JSON.parse(result.stdout); } catch { throw new Error('Bitwarden SDK returned invalid JSON'); }
     const id = normalizeText(parsed?.id, 200);
     if (!id) throw new Error('Bitwarden created secret id is missing');
-    return { id, key: normalizeText(parsed?.key || secretKey, 500), projectId: normalizeText(parsed?.projectId || targetProject, 200) };
+    return { id, key: normalizeText(parsed?.key || secretKey, 500), projectId: targetProject };
   }
 }
 
