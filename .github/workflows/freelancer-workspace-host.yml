@@ -11,6 +11,10 @@ on:
       - '.github/workflows/freelancer-workspace-host.yml'
   workflow_dispatch:
 
+concurrency:
+  group: freelancer-workspace-host
+  cancel-in-progress: false
+
 permissions:
   contents: read
   statuses: write
@@ -100,6 +104,8 @@ jobs:
           Description=Remote Desktop Commander device agent
           After=network-online.target
           Wants=network-online.target
+          StartLimitIntervalSec=120
+          StartLimitBurst=15
 
           [Service]
           Type=simple
@@ -131,7 +137,8 @@ jobs:
           sudo systemctl daemon-reload
           echo '=== desktop commander unit properties ==='
           sudo systemctl show desktop-commander-remote.service \
-            -p RefuseManualStart -p RefuseManualStop -p FragmentPath -p DropInPaths || true
+            -p RefuseManualStart -p RefuseManualStop -p StartLimitIntervalUSec -p StartLimitBurst -p FragmentPath -p DropInPaths || true
+          sudo systemctl reset-failed desktop-commander-remote.service || true
           sudo systemctl enable desktop-commander-remote.service
           sudo systemctl restart desktop-commander-remote.service
           sleep 4
