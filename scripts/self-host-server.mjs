@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { access, readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import openAiSiteHandler from '../api/openai-site.js';
+import reminderEmailHandler from '../api/calendar/reminder-email.js';
 import secretsBrokerHandler from '../api/secrets-broker.js';
 import workboardGithubHandler from '../src/workboard/github-feed.js';
 import { createOAuthProviderHandler } from '../src/oauth/provider-api.js';
@@ -167,6 +168,17 @@ async function runOpenAiSite(req, res, url) {
   }
 }
 
+async function runReminderEmail(req, res, url) {
+  try {
+    if (req.method !== 'OPTIONS') await prepareApiRequest(req, url);
+    else { req.body = {}; req.query = Object.fromEntries(url.searchParams.entries()); }
+    await reminderEmailHandler(req, adaptResponse(res));
+  } catch (error) {
+    if (!res.headersSent) json(res, error?.statusCode || 500, { error: error?.message || 'Reminder email API request failed' });
+    else res.destroy(error);
+  }
+}
+
 async function runSecretsBroker(req, res, url) {
   try {
     await prepareApiRequest(req, url);
@@ -265,6 +277,10 @@ const server = createServer(async (req, res) => {
 
   if (url.pathname === '/api/openai-site') {
     return runOpenAiSite(req, res, url);
+  }
+
+  if (url.pathname === '/api/calendar/reminder-email') {
+    return runReminderEmail(req, res, url);
   }
 
   if (url.pathname === '/api/secrets-broker') {
