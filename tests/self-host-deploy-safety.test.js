@@ -48,6 +48,7 @@ test('quick tunnel is published only after semantic public readiness', () => {
   assert.ok(readinessCall > readinessFunction, 'quick tunnel loop must call semantic readiness');
   assert.ok(publishUrl > readinessCall, 'public URL must be printed only after readiness succeeds');
   assert.match(source, /x\.sha!==process\.argv\[1\]/);
-  assert.match(source, /Message your operator/);
+  assert.match(source, /operator_html=.*curl[\s\S]*Message your operator/);
+  assert.doesNotMatch(source, /curl[^\n]+\| grep -Fq 'Message your operator'/);
   assert.match(source, /package\.json/);
 });

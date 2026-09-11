@@ -304,11 +304,12 @@ set +a
 
 public_portal_ready() {
   local url="$1"
-  local health options private_status
+  local health operator_html options private_status
   health="$(curl -fsS --max-time 5 "$url/__3dvr-health" 2>/dev/null || true)"
   [ -n "$health" ] || return 1
   printf '%s' "$health" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const x=JSON.parse(s);if(!x.ok||x.sha!==process.argv[1]||x.operatorApi!=="native")process.exit(1)}catch{process.exit(1)}})' "$sha" || return 1
-  curl -fsS --max-time 5 "$url/operator/" 2>/dev/null | grep -Fq 'Message your operator' || return 1
+  operator_html="$(curl -fsS --max-time 5 "$url/operator/" 2>/dev/null || true)"
+  [[ "$operator_html" == *'Message your operator'* ]] || return 1
   options="$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}' -X OPTIONS "$url/api/openai-site?provider=operator" 2>/dev/null || true)"
   [ "$options" = 200 ] || return 1
   private_status="$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}' "$url/package.json" 2>/dev/null || true)"

@@ -37,10 +37,22 @@ publish_url() {
   printf 'PORTAL_ORGANISM_BRIDGE_URL=%s\n' "$url"
 }
 
+max_wait_seconds="${THREEDVR_PUBLIC_TUNNEL_MAX_WAIT_SECONDS:-180}"
+if ! [[ "$max_wait_seconds" =~ ^[0-9]+$ ]] || [ "$max_wait_seconds" -lt 30 ]; then
+  echo 'THREEDVR_PUBLIC_TUNNEL_MAX_WAIT_SECONDS must be an integer of at least 30 seconds.' >&2
+  exit 2
+fi
+deadline_epoch=$(( $(date +%s) + max_wait_seconds ))
+
+seconds_remaining() {
+  local remaining=$(( deadline_epoch - $(date +%s) ))
+  [ "$remaining" -gt 0 ] && printf '%s\n' "$remaining" || printf '0\n'
+}
+
 bridge_is_ready() {
   local url="$1"
   local health
-  health="$(curl -fsS --max-time 5 "$url/health" 2>/dev/null || true)"
+  health="$(curl -fsS --max-time 3 "$url/health" 2>/dev/null || true)"
   [ -n "$health" ] || return 1
   printf '%s' "$health" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const x=JSON.parse(s);if(!x.ok||x.service!=="3dvr-organism-owner-bridge")process.exit(1)}catch{process.exit(1)}})'
 }
@@ -49,10 +61,33 @@ wait_for_bridge() {
   local url="$1" attempts="${2:-20}"
   local attempt
   for attempt in $(seq 1 "$attempts"); do
+    [ "$(seconds_remaining)" -gt 0 ] || return 1
     bridge_is_ready "$url" && return 0
     [ "$attempt" -lt "$attempts" ] && sleep 1
   done
   return 1
+}
+
+stop_tunnel() {
+  if command -v tmux >/dev/null 2>&1; then
+    tmux kill-session -t "$session" 2>/dev/null || true
+  fi
+  if [ -f "$pid_file" ]; then
+    local pid cmd
+    pid="$(cat "$pid_file" 2>/dev/null || true)"
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+      cmd="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true)"
+      if [[ "$cmd" == *cloudflared* && "$cmd" == *tunnel* ]]; then
+        kill "$pid" 2>/dev/null || true
+        for _ in $(seq 1 20); do
+          kill -0 "$pid" 2>/dev/null || break
+          sleep 0.1
+        done
+        kill -9 "$pid" 2>/dev/null || true
+      fi
+    fi
+    rm -f "$pid_file"
+  fi
 }
 
 existing_url="$(read_url)"
@@ -65,10 +100,9 @@ if is_running && [ -n "$existing_url" ]; then
 fi
 
 start_tunnel() {
+  stop_tunnel
   : > "$log"
-  rm -f "$pid_file"
   if command -v tmux >/dev/null 2>&1; then
-    tmux kill-session -t "$session" 2>/dev/null || true
     tmux new-session -d -s "$session" "$cloudflared tunnel --no-autoupdate --url http://127.0.0.1:$portal_port >>'$log' 2>&1"
   else
     nohup "$cloudflared" tunnel --no-autoupdate --url "http://127.0.0.1:$portal_port" >>"$log" 2>&1 </dev/null &
@@ -76,10 +110,16 @@ start_tunnel() {
   fi
 }
 
-for delay in 0 15 45 90; do
-  [ "$delay" -eq 0 ] || sleep "$delay"
+for delay in 0 10 20 40; do
+  remaining="$(seconds_remaining)"
+  [ "$remaining" -gt 0 ] || break
+  if [ "$delay" -gt 0 ]; then
+    [ "$remaining" -gt "$delay" ] || break
+    sleep "$delay"
+  fi
   start_tunnel
-  for _ in $(seq 1 40); do
+  for _ in $(seq 1 30); do
+    [ "$(seconds_remaining)" -gt 0 ] || break
     url="$(read_url)"
     if [ -n "$url" ] && is_running && bridge_is_ready "$url"; then
       publish_url "$url"
@@ -87,9 +127,10 @@ for delay in 0 15 45 90; do
     fi
     sleep 0.5
   done
-  echo "Portal public tunnel attempt did not become ready; retrying with backoff." >&2
+  echo "Portal public tunnel attempt did not become ready; retrying within ${max_wait_seconds}s deadline." >&2
   tail -n 12 "$log" >&2 2>/dev/null || true
 done
 
-echo 'Portal public tunnel is unavailable after retries.' >&2
+stop_tunnel
+echo "Portal public tunnel is unavailable within ${max_wait_seconds}s deadline." >&2
 exit 5
