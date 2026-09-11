@@ -50,6 +50,7 @@
     "gun": "^0.2020.1241",
     "imapflow": "^1.4.7",
     "nodemailer": "^9.0.3",
+    "pg": "^8.16.3",
     "zod": "^4.6.2"
   },
   "optionalDependencies": {
