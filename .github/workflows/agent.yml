@@ -38,6 +38,9 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    concurrency:
+      group: digitalocean-agent-worker
+      cancel-in-progress: false
     env:
       DO_AGENT_HOST: 167.172.193.194
       DO_AGENT_USER: root
@@ -91,6 +94,13 @@ jobs:
           set -euo pipefail
           THREEDVR_AGENT_OWNER_ALIAS="$(printf '%s' "$THREEDVR_AGENT_OWNER_ALIAS_B64" | base64 -d)"
           THREEDVR_CONTEXT_HQ_OWNER_ALIAS="$(printf '%s' "$THREEDVR_CONTEXT_HQ_OWNER_ALIAS_B64" | base64 -d)"
+          mkdir -p "$HOME/.3dvr/locks"
+          command -v flock >/dev/null 2>&1 || { echo 'flock is required for serialized agent deploys.' >&2; exit 1; }
+          exec 9>"$HOME/.3dvr/locks/agent-deploy.lock"
+          if ! flock -w 540 9; then
+            echo 'Timed out waiting for DigitalOcean agent deploy lock.' >&2
+            exit 1
+          fi
           repo="$HOME/.3dvr/portal"
           mkdir -p "$HOME/.3dvr"
           if [ ! -d "$repo/.git" ]; then rm -rf "$repo"; git clone "https://github.com/$GITHUB_REPOSITORY.git" "$repo"; fi
