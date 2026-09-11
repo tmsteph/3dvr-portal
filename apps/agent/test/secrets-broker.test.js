@@ -37,11 +37,19 @@ function fixture() {
         backend: 'mock', locator: 'calendar', capability: 'calendar.read',
         scopes: ['calendar:primary'], approval: { mode: 'auto' },
       },
+      'bitwarden.writer': {
+        backend: 'mock',
+        write: {
+          projectId: 'project-3dvr-agent', capability: 'secret.write',
+          scopes: ['secrets:3dvr-agent'], approval: { mode: 'lease', leaseSeconds: 60, maxUses: 1 },
+        },
+      },
     },
   });
-  provisionAgent({ agentsFile: files.agents, agentId: 'worker', tokenFile: files.workerToken, capabilities: ['github.api', 'calendar.read'], scopes: ['repo:tmsteph/*', 'calendar:primary'] });
+  provisionAgent({ agentsFile: files.agents, agentId: 'worker', tokenFile: files.workerToken, capabilities: ['github.api', 'calendar.read', 'secret.write'], scopes: ['repo:tmsteph/*', 'calendar:primary', 'secrets:3dvr-agent'] });
   provisionAgent({ agentsFile: files.agents, agentId: 'portal-owner-ui', tokenFile: files.adminToken, capabilities: ['broker.admin'], scopes: ['broker:*'] });
   let clock = Date.parse('2026-09-08T13:00:00Z');
+  const writes = [];
   const broker = new SecretsBroker({
     policyFile: files.policy,
     agentsFile: files.agents,
@@ -49,10 +57,16 @@ function fixture() {
     auditFile: files.audit,
     auditKeyFile: files.auditKey,
     now: () => clock,
-    backends: { mock: { get: locator => locator === 'calendar' ? 'calendar-token' : 'github-token' } },
+    backends: { mock: {
+      get: locator => locator === 'calendar' ? 'calendar-token' : 'github-token',
+      create: input => {
+        writes.push({ ...input });
+        return { id: `created-${writes.length}`, key: input.key, projectId: input.projectId };
+      },
+    } },
   });
   return {
-    root, files, broker,
+    root, files, broker, writes,
     worker: broker.authenticate(fs.readFileSync(files.workerToken, 'utf8').trim()),
     admin: broker.authenticate(fs.readFileSync(files.adminToken, 'utf8').trim()),
     tick(ms) { clock += ms; },
@@ -132,6 +146,41 @@ test('explicit auto policy can release a narrowly scoped secret without creating
   assert.equal(Object.keys(f.broker.approvals().approvals).length, 0);
 });
 
+
+test('broker can add a value through a separately scoped write capability without auditing the value', t => {
+  const f = fixture();
+  t.after(() => fs.rmSync(f.root, { recursive: true, force: true }));
+  const request = {
+    secret: 'bitwarden.writer', capability: 'secret.write', scope: 'secrets:3dvr-agent',
+    purpose: 'Save a test integration value', key: 'SMOKE_KEY',
+    value: 'fixture-value-12345', note: 'test fixture', requestId: 'write-1',
+  };
+
+  const pending = f.broker.store(f.worker, request);
+  assert.equal(pending.status, 202);
+  assert.equal(pending.body.decision, 'approval_required');
+  const approved = f.broker.decideApproval(f.admin, pending.body.approvalId, 'approve', { actor: 'tmsteph@3dvr' });
+  assert.equal(approved.status, 200);
+
+  const stored = f.broker.store(f.worker, { ...request, requestId: 'write-2' });
+  assert.equal(stored.status, 201);
+  assert.equal(stored.body.stored.id, 'created-1');
+  assert.equal(stored.body.stored.key, 'SMOKE_KEY');
+  assert.equal(stored.body.stored.projectId, 'project-3dvr-agent');
+  assert.equal('value' in stored.body.stored, false);
+  assert.equal(f.writes.length, 1);
+  assert.equal(f.writes[0].value, request.value);
+
+  const next = f.broker.store(f.worker, { ...request, requestId: 'write-3' });
+  assert.equal(next.status, 202);
+  assert.notEqual(next.body.approvalId, pending.body.approvalId);
+
+  const auditText = fs.readFileSync(f.files.audit, 'utf8');
+  assert(!auditText.includes(request.value));
+  assert.match(auditText, /secret_stored/);
+  assert.equal(f.broker.audit.verify().ok, true);
+});
+
 test('audit chain detects tampering', t => {
   const f = fixture();
   t.after(() => fs.rmSync(f.root, { recursive: true, force: true }));
@@ -156,7 +205,7 @@ test('status is sanitized and reserved for status/admin agents', t => {
   assert.equal(status.status, 200);
   assert.equal(status.body.controlNode, 'ovh');
   assert.equal(status.body.policyVersion, 7);
-  assert.equal(status.body.configuredSecrets, 2);
+  assert.equal(status.body.configuredSecrets, 3);
   const serialized = JSON.stringify(status.body);
   assert(!serialized.includes('tokenHash'));
   assert(!serialized.includes('never-logged'));

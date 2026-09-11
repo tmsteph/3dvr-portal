@@ -189,6 +189,33 @@ class BitwardenSecretsManagerBackend {
     if (typeof parsed?.value !== 'string') throw new Error('Bitwarden secret value is missing');
     return parsed.value;
   }
+
+  create({ projectId, key, value, note = '' } = {}) {
+    const targetProject = normalizeText(projectId, 200);
+    const secretKey = normalizeText(key, 500);
+    const secretValue = typeof value === 'string' ? value : '';
+    const secretNote = normalizeText(note, 1000);
+    if (!targetProject || !secretKey || !secretValue) throw new Error('Bitwarden project, key, and value are required');
+    if (!this.ready()) throw new Error('Bitwarden Secrets Manager backend is not configured');
+    const args = ['secret', 'create', secretKey, secretValue, targetProject];
+    if (secretNote) args.push('--note', secretNote);
+    args.push('--output', 'json', '--color', 'no');
+    const result = spawnSync(this.binary, args, {
+      env: this.env,
+      encoding: 'utf8',
+      timeout: this.timeoutMs,
+      maxBuffer: 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    if (result.error) throw new Error(`Bitwarden create failed: ${result.error.message}`);
+    if (result.status !== 0) throw new Error('Bitwarden create failed');
+    let parsed;
+    try { parsed = JSON.parse(result.stdout); }
+    catch { throw new Error('Bitwarden returned invalid JSON'); }
+    const id = normalizeText(parsed?.id, 200);
+    if (!id) throw new Error('Bitwarden created secret id is missing');
+    return { id, key: normalizeText(parsed?.key || secretKey, 500), projectId: normalizeText(parsed?.projectId || targetProject, 200) };
+  }
 }
 
 class SecretsBroker {
@@ -356,6 +383,87 @@ class SecretsBroker {
 
     this.audit.append({ event: 'secret_released', requestId, approvalId: lease.id, agent: agent.id, secretAlias: alias, capability, scope, backend: backendName, purpose });
     return { status: 200, body: { ok: true, decision: 'allowed', requestId, secret: value, approvalId: lease.id } };
+  }
+
+  store(agent, request = {}) {
+    const alias = normalizeText(request.secret || request.alias, 200);
+    const capability = normalizeText(request.capability, 200);
+    const scope = normalizeText(request.scope, 300);
+    const purpose = normalizeText(request.purpose, 500);
+    const key = normalizeText(request.key, 500);
+    const value = typeof request.value === 'string' ? request.value : '';
+    const note = normalizeText(request.note, 1000);
+    const requestId = normalizeText(request.requestId, 200) || `req-${crypto.randomUUID()}`;
+    const { policy, secret } = this.#policyFor(alias);
+    const write = secret?.write && typeof secret.write === 'object' ? secret.write : null;
+
+    const deny = reason => {
+      this.audit.append({ event: 'secret_write_denied', requestId, agent: agent?.id || 'unknown', secretAlias: alias, capability, scope, reason });
+      return { status: 403, body: { ok: false, decision: 'denied', reason, requestId } };
+    };
+
+    if (!agent) return deny('unauthenticated-agent');
+    if (!alias || !capability || !scope || !purpose || !key || !value) return deny('secret-capability-scope-purpose-key-value-required');
+    if (!secret) return deny('secret-policy-not-found');
+    if (!write) return deny('secret-write-policy-not-found');
+    if (normalizeText(write.capability, 200) !== capability) return deny('capability-policy-mismatch');
+    if (!agent.capabilities.includes(capability)) return deny('agent-capability-not-granted');
+    if (!scopeAllowed(agent.scopes, scope)) return deny('agent-scope-not-granted');
+    if (!scopeAllowed(write.scopes, scope)) return deny('secret-scope-not-granted');
+
+    const projectId = normalizeText(write.projectId || secret.projectId, 200);
+    if (!projectId) return deny('secret-write-project-not-configured');
+    const approval = this.#approvalConfig(policy, { approval: write.approval || secret.approval });
+    const fingerprint = this.#fingerprint(agent.id, alias, capability, scope);
+    const state = this.approvals();
+    let lease = approval.mode === 'auto' ? { id: 'policy-auto', status: 'approved', remainingUses: Number.MAX_SAFE_INTEGER } : this.#findLease(state, fingerprint);
+
+    if (!lease) {
+      let pending = this.#findPending(state, fingerprint);
+      if (!pending) {
+        const id = `apr-${crypto.randomUUID()}`;
+        pending = {
+          id, fingerprint, agent: agent.id, secretAlias: alias, capability, scope, purpose,
+          operation: 'write', status: 'pending', mode: approval.mode, leaseSeconds: approval.leaseSeconds,
+          maxUses: approval.maxUses, requestedAt: nowIso(this.now),
+        };
+        state.approvals[id] = pending;
+        this.saveApprovals(state);
+        this.audit.append({ event: 'approval_requested', operation: 'write', requestId, approvalId: id, agent: agent.id, secretAlias: alias, capability, scope, purpose, mode: approval.mode });
+      }
+      return { status: 202, body: { ok: false, decision: 'approval_required', requestId, approvalId: pending.id, scope, capability } };
+    }
+
+    const backendName = normalizeText(secret.backend, 100);
+    const backendConfig = configuredBackend(policy, backendName);
+    if (!backendConfig) return deny('backend-policy-not-found');
+    let backend = this.backends[backendName];
+    if (!backend) {
+      if (backendConfig.type === 'bitwarden-secrets-manager') backend = new BitwardenSecretsManagerBackend(backendConfig);
+      else return deny('unsupported-backend');
+    }
+    if (typeof backend.create !== 'function') return deny('backend-write-unsupported');
+
+    let created;
+    try {
+      created = backend.create({ projectId, key, value, note });
+    } catch (error) {
+      this.audit.append({ event: 'secret_backend_error', operation: 'write', requestId, approvalId: lease.id, agent: agent.id, secretAlias: alias, capability, scope, backend: backendName, reason: normalizeText(error.message, 300) });
+      return { status: 503, body: { ok: false, decision: 'backend_unavailable', reason: 'secret-backend-unavailable', requestId } };
+    }
+
+    if (lease.id !== 'policy-auto') {
+      const current = state.approvals[lease.id];
+      if (current) {
+        current.remainingUses = Math.max(0, Number(current.remainingUses || 0) - 1);
+        current.lastUsedAt = nowIso(this.now);
+        if (current.remainingUses === 0) current.status = 'consumed';
+        this.saveApprovals(state);
+      }
+    }
+
+    this.audit.append({ event: 'secret_stored', requestId, approvalId: lease.id, agent: agent.id, secretAlias: alias, capability, scope, backend: backendName, purpose, createdId: normalizeText(created?.id, 200) });
+    return { status: 201, body: { ok: true, decision: 'allowed', requestId, stored: { id: normalizeText(created?.id, 200), key: normalizeText(created?.key || key, 500), projectId: normalizeText(created?.projectId || projectId, 200) }, approvalId: lease.id } };
   }
 
   listApprovals(agent, { status } = {}) {

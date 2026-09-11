@@ -69,6 +69,12 @@ const server = http.createServer(async (req, res) => {
       return json(res, result.status, result.body);
     }
 
+    if (req.method === 'POST' && url.pathname === '/v1/store') {
+      const payload = await body(req);
+      const result = broker.store(agent, payload);
+      return json(res, result.status, result.body);
+    }
+
     const approvalMatch = url.pathname.match(/^\/v1\/approvals\/([^/]+)\/(approve|deny)$/);
     if (req.method === 'POST' && approvalMatch) {
       const payload = await body(req);
