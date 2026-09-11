@@ -12,6 +12,8 @@ h1 { margin-bottom: 8px; font-size: clamp(2.4rem, 10vw, 4.4rem); letter-spacing:
 .next-action p:last-child { margin-bottom: 0; color: #afbdd0; max-width: 620px; }
 .status-dot { display: inline-block; width: 9px; height: 9px; margin-right: 7px; border-radius: 50%; }
 .status-dot.attention { background: #fbbf24; box-shadow: 0 0 0 5px rgba(251,191,36,.1); }
+.status-dot.ready { background: #4ade80; box-shadow: 0 0 0 5px rgba(74,222,128,.12); }
+.next-action:has(.status-dot.ready) { border-color: rgba(74,222,128,.34); background: linear-gradient(135deg, rgba(22,101,52,.20), rgba(15,23,42,.78)); }
 .primary { min-height: 44px; padding: 10px 16px; border: 0; border-radius: 12px; background: #e6f7ff; color: #07111e; font: inherit; font-weight: 800; cursor: pointer; white-space: nowrap; }
 .primary:active { transform: translateY(1px); }
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
