@@ -45,6 +45,16 @@
       </article>
     </section>
 
+    <section class="secret-vault" aria-labelledby="secret-vault-title">
+      <div>
+        <p class="eyebrow">Owner vault</p>
+        <h2 id="secret-vault-title">Save to 3DVR Secrets</h2>
+        <p>Store a credential directly in the 3DVR Agent Bitwarden project through the OVH broker. Values are never echoed back or written to the audit log.</p>
+        <p id="secretSaveStatus" class="muted" aria-live="polite"></p>
+      </div>
+      <button class="primary" id="openSaveSecret" type="button" disabled>Save secret</button>
+    </section>
+
     <section class="approvals" aria-labelledby="approvals-title">
       <div class="section-head split"><div><p class="eyebrow">Owner gate</p><h2 id="approvals-title">Pending approvals</h2></div><span class="pill progress" id="approvalCount">Checking…</span></div>
       <div id="approvalList" class="approval-list" aria-live="polite"><p class="muted">Loading approval queue…</p></div>
@@ -68,6 +78,22 @@
         <li class="done"><span>4</span><div><strong>Rotation + audit</strong><small>Bounded leases + tamper-evident HMAC audit chain</small></div></li>
       </ol>
     </section>
+
+
+    <dialog id="saveSecretDialog">
+      <form method="dialog">
+        <button class="close" aria-label="Close">×</button>
+        <p class="eyebrow">3DVR Secrets</p>
+        <h2>Save securely</h2>
+        <p>This value goes over HTTPS to OVH, then through the local broker into Bitwarden Secrets Manager.</p>
+        <label class="secret-field" for="secretKey"><span>Name</span><input id="secretKey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Example: GMAIL_APP_TOKEN"></label>
+        <label class="secret-field" for="secretValue"><span>Secret value</span><input id="secretValue" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false" placeholder="Paste value"></label>
+        <label class="secret-field" for="secretNote"><span>Note (optional)</span><input id="secretNote" autocomplete="off" spellcheck="false" placeholder="What this is used for"></label>
+        <p class="note">The value stays ephemeral in this page and is cleared immediately after a successful save.</p>
+        <p id="secretSaveMessage" class="muted" aria-live="polite"></p>
+        <button class="primary" id="saveSecret" type="button">Save securely</button>
+      </form>
+    </dialog>
 
     <dialog id="approvalDialog">
       <form method="dialog">
