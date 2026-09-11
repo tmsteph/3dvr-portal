@@ -13,6 +13,20 @@ fi
 
 install -d -m 0755 /etc/3dvr
 
+cat >/etc/systemd/system/3dvr-control.slice <<'EOF'
+[Unit]
+Description=3DVR rescue and remote-control workloads
+
+[Slice]
+CPUWeight=10000
+IOWeight=10000
+MemoryMin=256M
+MemoryLow=512M
+MemoryHigh=768M
+MemoryMax=1G
+TasksMax=256
+EOF
+
 cat >/etc/systemd/system/3dvr-production.slice <<'EOF'
 [Unit]
 Description=3DVR production web and API workloads
@@ -36,7 +50,7 @@ CPUQuota=100%
 IOWeight=400
 MemoryHigh=2560M
 MemoryMax=3G
-TasksMax=4096
+TasksMax=2048
 EOF
 
 cat >/etc/systemd/system/3dvr-dev.slice <<'EOF'
@@ -49,7 +63,7 @@ CPUQuota=200%
 IOWeight=100
 MemoryHigh=2G
 MemoryMax=3G
-TasksMax=4096
+TasksMax=768
 EOF
 
 cat >/etc/3dvr/resource-lanes.env <<'EOF'
@@ -57,13 +71,43 @@ FREELANCER_WORKSPACE_CGROUP_PARENT=3dvr-workspaces.slice
 FREELANCER_WORKSPACE_MIN_HOST_RESERVE_MB=2048
 FREELANCER_WORKSPACE_MEMORY_MB=1024
 FREELANCER_WORKSPACE_CPUS=1.0
+THREEDVR_DEV_TASKS_MAX=768
+THREEDVR_CONTROL_TASKS_MAX=256
 EOF
 chmod 0644 /etc/3dvr/resource-lanes.env
+
+cat >/usr/local/bin/3dvr-run-dev <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "$#" -eq 0 ]; then
+  echo "Usage: sudo 3dvr-run-dev <command> [args...]" >&2
+  exit 2
+fi
+if [ "$(id -u)" -ne 0 ]; then
+  echo "Run with sudo so the command can enter the system dev slice." >&2
+  exit 1
+fi
+user="${SUDO_USER:-debian}"
+uid="$(id -u "$user")"
+gid="$(id -g "$user")"
+home="$(getent passwd "$user" | cut -d: -f6)"
+exec systemd-run --quiet --wait --collect --pipe \
+  --slice=3dvr-dev.slice \
+  --uid="$uid" --gid="$gid" \
+  --working-directory="${SUDO_PWD:-$PWD}" \
+  --setenv="HOME=$home" --setenv="PATH=$PATH" \
+  --property=TasksMax=384 \
+  --property=MemoryHigh=1280M \
+  --property=MemoryMax=1536M \
+  --property=CPUQuota=150% \
+  -- "$@"
+EOF
+chmod 0755 /usr/local/bin/3dvr-run-dev
 
 cat >/usr/local/bin/3dvr-lane-status <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-for lane in 3dvr-production.slice 3dvr-workspaces.slice 3dvr-dev.slice; do
+for lane in 3dvr-control.slice 3dvr-production.slice 3dvr-workspaces.slice 3dvr-dev.slice; do
   echo "=== $lane ==="
   systemctl show "$lane" \
     -p ActiveState \
@@ -71,12 +115,18 @@ for lane in 3dvr-production.slice 3dvr-workspaces.slice 3dvr-dev.slice; do
     -p CPUQuotaPerSecUSec \
     -p IOWeight \
     -p MemoryCurrent \
+    -p MemoryMin \
     -p MemoryLow \
     -p MemoryHigh \
     -p MemoryMax \
     -p TasksCurrent \
     -p TasksMax
   echo
+done
+printf '%s\n' '=== cgroup root ==='
+for file in pids.current pids.max memory.current memory.max; do
+  printf '%s: ' "$file"
+  cat "/sys/fs/cgroup/$file" 2>/dev/null || echo n/a
 done
 printf '%s\n' '=== host ==='
 printf 'CPUs: '; nproc
@@ -87,9 +137,9 @@ EOF
 chmod 0755 /usr/local/bin/3dvr-lane-status
 
 systemctl daemon-reload
-systemctl start 3dvr-production.slice 3dvr-workspaces.slice 3dvr-dev.slice
+systemctl start 3dvr-control.slice 3dvr-production.slice 3dvr-workspaces.slice 3dvr-dev.slice
 
-for lane in 3dvr-production.slice 3dvr-workspaces.slice 3dvr-dev.slice; do
+for lane in 3dvr-control.slice 3dvr-production.slice 3dvr-workspaces.slice 3dvr-dev.slice; do
   systemctl is-active --quiet "$lane" || {
     echo "$lane failed to activate." >&2
     exit 1
