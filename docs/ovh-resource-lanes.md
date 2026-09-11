@@ -1,8 +1,22 @@
 # OVH resource lanes
 
-The OVH VPS is shared by public web hosting, freelancer browser workspaces, and development/AI experiments. These workloads use systemd/cgroup v2 slices so experiments cannot consume the entire host.
+The OVH VPS is shared by public web hosting, remote-control/recovery, freelancer browser workspaces, and development/AI experiments. These workloads use systemd/cgroup v2 slices so experiments cannot consume the entire host or remove the recovery path.
 
 ## Lanes
+
+### `3dvr-control.slice`
+
+For Remote Desktop Commander, rescue shells, watchdogs, and other control-plane processes that must remain usable while another lane is saturated.
+
+- `CPUWeight=10000`
+- `IOWeight=10000`
+- `MemoryMin=256M`
+- `MemoryLow=512M`
+- `MemoryHigh=768M`
+- `MemoryMax=1G`
+- `TasksMax=256`
+
+Control services should explicitly set `Slice=3dvr-control.slice`. This lane is not for builds, browsers, crawlers, or ordinary application work.
 
 ### `3dvr-production.slice`
 
@@ -11,7 +25,7 @@ For public websites, reverse proxy, production APIs, and production databases.
 - no hard CPU quota; production can burst when capacity is idle
 - `CPUWeight=1000`
 - `IOWeight=1000`
-- `MemoryLow=2G` protects production memory under pressure
+- `MemoryLow=2G`
 - `MemoryHigh=2560M`
 - `MemoryMax=3G`
 
@@ -22,29 +36,16 @@ For a systemd service:
 Slice=3dvr-production.slice
 ```
 
-For Docker:
-
-```bash
-docker run --cgroup-parent=3dvr-production.slice ...
-```
-
-For Compose:
-
-```yaml
-services:
-  web:
-    cgroup_parent: 3dvr-production.slice
-```
-
 ### `3dvr-workspaces.slice`
 
 For freelancer Firefox/Selkies/Pelorus containers.
 
-- aggregate `CPUQuota=100%` (one vCPU total)
+- aggregate `CPUQuota=100%`
 - `CPUWeight=400`
 - `IOWeight=400`
 - `MemoryHigh=2560M`
 - `MemoryMax=3G`
+- `TasksMax=2048`
 - each workspace remains independently capped at 1 CPU / 1 GB by the runtime
 
 The workspace CLI loads `/etc/3dvr/resource-lanes.env`, so newly provisioned containers automatically receive `--cgroup-parent=3dvr-workspaces.slice` on the OVH host.
@@ -53,32 +54,33 @@ The workspace CLI loads `/etc/3dvr/resource-lanes.env`, so newly provisioned con
 
 For builds, crawlers, OpenClaw, Codex/Claude Code helpers, test databases, and other experiments.
 
-- `CPUQuota=200%` (two vCPUs maximum)
+- `CPUQuota=200%`
 - `CPUWeight=100`
 - `IOWeight=100`
 - `MemoryHigh=2G`
 - `MemoryMax=3G`
+- `TasksMax=768`
 
-A long-running systemd service should set:
+Long-running services should set `Slice=3dvr-dev.slice`. Docker experiments should use `--cgroup-parent=3dvr-dev.slice`.
 
-```ini
-[Service]
-Slice=3dvr-dev.slice
-```
-
-A Docker experiment should use:
+Ad-hoc builds, test suites, and crawlers must not run directly in the login/control shell. Run them through:
 
 ```bash
-docker run --cgroup-parent=3dvr-dev.slice ...
+sudo 3dvr-run-dev node --test tests/example.test.js
+sudo 3dvr-run-dev npm run build
 ```
 
-## Why production stays responsive
+`3dvr-run-dev` creates a transient dev-lane service with an additional 384-task, 1.5 GB memory, and 150% CPU ceiling. This prevents a test runner or crawler from exhausting host-global thread/PID headroom.
 
-On the four-vCPU OVH host, dev is hard-capped at two CPUs and workspaces are hard-capped at one CPU in aggregate. Production remains uncapped and has the highest scheduler and I/O weight, leaving CPU capacity available even while both other lanes are saturated. `MemoryLow=2G` also makes production memory much harder for the kernel to reclaim under pressure.
+## Why the control path stays responsive
+
+CPU and memory caps alone are not enough: Node test runners and browsers can exhaust process/thread limits before reaching their CPU ceiling. The control lane reserves scheduler priority and protected memory, while the dev lane now has a much lower aggregate task ceiling. Ad-hoc work is also explicitly routed into the dev lane instead of inheriting the recovery shell's cgroup.
+
+Production remains separately protected with `MemoryLow=2G` and high scheduler/I/O weight.
 
 ## Build/deploy rule
 
-Do not run application builds in `3dvr-production.slice`. Build in the dev lane, then copy or deploy the finished artifact into production. This prevents `npm`, compilers, image builds, and test suites from creating public-site latency spikes.
+Do not run application builds or test suites in `3dvr-production.slice` or from an unclassified control/login shell. Build and test in `3dvr-dev.slice`, then copy or deploy the finished artifact into production.
 
 ## Inspection
 
@@ -88,7 +90,7 @@ Run:
 sudo 3dvr-lane-status
 ```
 
-The command prints the active resource controls, current memory/tasks, host capacity, and Docker usage.
+The command prints the active controls, lane memory/tasks, cgroup-root PID usage, host capacity, and Docker usage.
 
 ## Installation
 
@@ -98,4 +100,4 @@ The host configuration is idempotent:
 sudo bash ops/host/install-resource-lanes.sh
 ```
 
-The Freelancer Workspace Host GitHub Actions workflow installs or refreshes these lanes whenever relevant host/runtime files land on `main`.
+After installation, identify the Remote Desktop Commander/control service and attach it to `3dvr-control.slice` with a systemd drop-in before relying on this as the recovery guarantee.
