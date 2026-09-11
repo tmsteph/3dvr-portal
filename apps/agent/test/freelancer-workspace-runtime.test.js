@@ -87,6 +87,7 @@ test('runtime recreates a workspace without rotating metadata or config', async 
   const run = async (command, args) => {
     calls.push([command, ...args]);
     if (args[0] === 'run') running = true;
+    if (args[0] === 'start') running = true;
     if (args[0] === 'stop') running = false;
     if (args[0] === 'rm') running = false;
     if (args[0] === 'inspect') return { ok: true, stdout: running ? 'true\n' : 'false\n', stderr: '' };
@@ -121,6 +122,35 @@ test('runtime recreates a workspace without rotating metadata or config', async 
   assert.ok(recreateRun.includes('--cgroup-parent'));
   assert.ok(recreateRun.includes('3dvr-workspaces.slice'));
   assert.ok(recreateRun.includes(`${path.join(root, 'fw-test-worker', 'config')}:/config`));
+  await rm(root, { recursive: true, force: true });
+});
+
+test('runtime restarts the existing container when recreate capacity is unsafe', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), '3dvr-fw-rollback-'));
+  const calls = [];
+  let running = false;
+  let freeMb = 8192;
+  const run = async (command, args) => {
+    calls.push([command, ...args]);
+    if (args[0] === 'run') running = true;
+    if (args[0] === 'start') running = true;
+    if (args[0] === 'stop') running = false;
+    if (args[0] === 'rm') running = false;
+    if (args[0] === 'inspect') return { ok: true, stdout: running ? 'true\n' : 'false\n', stderr: '' };
+    return { ok: true, stdout: '', stderr: '' };
+  };
+  const runtime = createFreelancerWorkspaceRuntime({
+    env: { FREELANCER_WORKSPACE_ROOT: root },
+    run,
+    getFreeMemoryMb: () => freeMb,
+  });
+  await runtime.provision('fw-test-worker');
+  freeMb = 1200;
+  await assert.rejects(() => runtime.recreate('fw-test-worker'), /needs at least 1792 MB free/);
+  assert.equal(running, true);
+  assert.ok(calls.some(call => call[1] === 'stop'));
+  assert.ok(calls.some(call => call[1] === 'start'));
+  assert.equal(calls.some(call => call[1] === 'rm'), false);
   await rm(root, { recursive: true, force: true });
 });
 
