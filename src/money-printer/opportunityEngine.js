@@ -2,7 +2,7 @@
 // External source connectors may add DemandSignals later, but every signal must
 // retain its provenance and policy state before it can become actionable.
 
-export const OPPORTUNITY_ENGINE_SCHEMA_VERSION = 1;
+export const OPPORTUNITY_ENGINE_SCHEMA_VERSION = 2;
 export const OPPORTUNITY_ENGINE_STORAGE_KEY = '3dvr.money-printer.opportunity-engine.v1';
 
 const URGENCY_WEIGHTS = {
@@ -29,6 +29,10 @@ function list(value) {
     .filter(Boolean);
 }
 
+function ids(value) {
+  return [...new Set(list(value))];
+}
+
 function timestamp(value, fallback = new Date().toISOString()) {
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) ? new Date(parsed).toISOString() : fallback;
@@ -41,6 +45,23 @@ function makeId(prefix = 'record') {
 
 function normalizeFingerprintPart(value) {
   return text(value).toLowerCase().replace(/\s+/g, ' ');
+}
+
+export function normalizeOpportunityLinks(input = {}) {
+  const links = input.links && typeof input.links === 'object' && !Array.isArray(input.links)
+    ? input.links
+    : {};
+
+  return {
+    personId: text(input.personId || links.personId),
+    organizationId: text(input.organizationId || links.organizationId),
+    projectId: text(input.projectId || links.projectId),
+    taskIds: ids(input.taskIds ?? links.taskIds),
+    messageIds: ids(input.messageIds ?? links.messageIds),
+    calendarEventIds: ids(input.calendarEventIds ?? links.calendarEventIds),
+    paymentIds: ids(input.paymentIds ?? links.paymentIds),
+    artifactIds: ids(input.artifactIds ?? links.artifactIds)
+  };
 }
 
 export function opportunitySignalFingerprint(input = {}) {
@@ -110,9 +131,13 @@ export function createOpportunityCluster(input = {}, now = new Date()) {
     title: text(input.title || input.need, primary.need),
     status: text(input.status, 'new'),
     owner: text(input.owner, 'Thomas'),
+    expectedOutcome: text(input.expectedOutcome),
     signals,
+    links: normalizeOpportunityLinks(input),
     suggestedResponse: text(input.suggestedResponse, primary.suggestedResponse),
     nextAction: text(input.nextAction, primary.nextAction),
+    nextActionOwner: text(input.nextActionOwner, input.owner || 'Thomas'),
+    followUpAt: input.followUpAt ? timestamp(input.followUpAt, '') : '',
     createdAt: timestamp(input.createdAt, primary.createdAt),
     updatedAt: timestamp(input.updatedAt, primary.updatedAt),
     expiresAt: input.expiresAt ? timestamp(input.expiresAt, primary.expiresAt) : primary.expiresAt
@@ -161,11 +186,18 @@ export function updateOpportunity(state = {}, opportunityId, patch = {}, now = n
   const current = createOpportunityEngineState(state, now);
   return {
     ...current,
-    opportunities: current.opportunities.map(opportunity => (
-      opportunity.id === opportunityId
-        ? createOpportunityCluster({ ...opportunity, ...patch, updatedAt: now.toISOString() }, now)
-        : opportunity
-    )),
+    opportunities: current.opportunities.map(opportunity => {
+      if (opportunity.id !== opportunityId) return opportunity;
+      return createOpportunityCluster({
+        ...opportunity,
+        ...patch,
+        links: {
+          ...(opportunity.links || {}),
+          ...(patch.links || {})
+        },
+        updatedAt: now.toISOString()
+      }, now);
+    }),
     updatedAt: now.toISOString()
   };
 }
