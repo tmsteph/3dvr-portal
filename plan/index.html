@@ -17,61 +17,59 @@
       <div class="header-actions">
         <div class="view-switch" role="group" aria-label="Plan detail level">
           <button class="view-button active" data-view="shared" type="button">Together</button>
-          <button class="view-button" data-view="full" type="button">Work details</button>
+          <button class="view-button" data-view="full" type="button">More detail</button>
         </div>
         <a class="operator-link" href="/operator/">Operator</a>
       </div>
     </header>
 
-    <section class="hero">
-      <p class="eyebrow">OUR LIVING PLAN</p>
-      <h1 id="theme">Loading plan…</h1>
-      <p id="north-star" class="north-star"></p>
-      <div class="meta"><span id="updated"></span><span id="horizon"></span></div>
+    <section class="ticker" aria-label="Coming up">
+      <span class="ticker-label">Coming up</span>
+      <div id="marker-list" class="ticker-items"></div>
     </section>
 
-    <section class="highlights" aria-label="At a glance">
-      <article><span>Next work</span><strong id="next-work">—</strong></article>
-      <article class="house-highlight"><span>Mexico house</span><strong id="house-window">—</strong></article>
-      <article><span>Best open day</span><strong id="open-day">—</strong></article>
-    </section>
-
-    <section class="panel shared-focus" aria-labelledby="shared-focus-title">
-      <div>
-        <p class="eyebrow">HOME + FAMILY</p>
-        <h2 id="shared-focus-title"></h2>
-        <p id="shared-focus-when" class="focus-when"></p>
-        <p id="shared-focus-detail"></p>
+    <section class="today-card" aria-labelledby="today-title">
+      <div class="today-heading">
+        <div>
+          <p class="eyebrow">TODAY</p>
+          <span id="today-date" class="today-date"></span>
+        </div>
+        <span id="today-category" class="category"></span>
       </div>
-      <ul id="shared-focus-list" class="checklist"></ul>
+      <h1 id="today-title">Loading today…</h1>
+      <p id="today-when" class="today-when"></p>
+      <p id="today-detail" class="today-detail"></p>
     </section>
 
-    <section class="panel now" aria-labelledby="now-title">
+    <section class="near-term" aria-labelledby="next-days-title">
       <div class="section-heading">
-        <div><p class="eyebrow">THIS WEEK</p><h2 id="now-title">Next 7 days</h2></div>
-        <span id="now-window"></span>
+        <div><p class="eyebrow">NEXT</p><h2 id="next-days-title">Next few days</h2></div>
       </div>
-      <div id="now-list" class="timeline"></div>
+      <div id="next-days-list" class="day-cards"></div>
     </section>
 
-    <section class="grid">
+    <section class="panel overview" aria-labelledby="overview-title">
+      <div class="section-heading overview-heading">
+        <div><p class="eyebrow">OVERVIEW</p><h2 id="overview-title">What the next stretch looks like</h2></div>
+        <div class="horizon-switch" role="group" aria-label="Calendar range">
+          <button class="horizon-button active" data-horizon="week" type="button">7 days</button>
+          <button class="horizon-button" data-horizon="fortnight" type="button">2 weeks</button>
+        </div>
+      </div>
+      <div id="overview-list" class="calendar-list"></div>
+    </section>
+
+    <section class="grid long-range">
       <article class="panel">
         <p class="eyebrow">COMING UP</p>
         <h2>Next 30 days</h2>
         <div id="month-list" class="stack"></div>
       </article>
       <article class="panel">
-        <p class="eyebrow">WHERE WE'RE HEADED</p>
+        <p class="eyebrow">DIRECTION</p>
         <h2>Next 90 days</h2>
         <div id="quarter-list" class="stack"></div>
       </article>
-    </section>
-
-    <section class="panel">
-      <div class="section-heading">
-        <div><p class="eyebrow">CHECKPOINTS</p><h2>How we'll know life is getting better</h2></div>
-      </div>
-      <div id="milestones" class="milestones"></div>
     </section>
 
     <section class="panel principles">
@@ -81,7 +79,7 @@
 
     <footer>
       <div>
-        <span>One shared plan. Updated as real life changes.</span>
+        <span>Today first. Then the next few days. Then the longer direction.</span>
         <small>Share-safe by design; sensitive health, client, credential, and internal details stay in protected systems.</small>
       </div>
       <a href="/operator/?prompt=Review%20our%20shared%20rolling%20plan%20and%20update%20it%20from%20current%20calendar%2C%20family%2C%20home%2C%20work%2C%20and%20revenue%20context">Update with Operator</a>
