@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>3DVR Master Plan</title>
+  <meta name="theme-color" content="#07101c">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <main>
+    <header>
+      <a class="brand" href="/">3DVR</a>
+      <a class="operator-link" href="/operator/">Operator →</a>
+    </header>
+
+    <section class="hero">
+      <p class="eyebrow">LIVING MASTER PLAN</p>
+      <h1 id="theme">Loading plan…</h1>
+      <p id="north-star" class="north-star"></p>
+      <div class="meta"><span id="updated"></span><span id="horizon"></span></div>
+    </section>
+
+    <section class="panel now" aria-labelledby="now-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">NOW</p><h2 id="now-title">Next 7 days</h2></div>
+        <span id="now-window"></span>
+      </div>
+      <div id="now-list" class="timeline"></div>
+    </section>
+
+    <section class="grid">
+      <article class="panel">
+        <p class="eyebrow">NEXT</p>
+        <h2>30 days</h2>
+        <div id="month-list" class="stack"></div>
+      </article>
+      <article class="panel">
+        <p class="eyebrow">DIRECTION</p>
+        <h2>90 days</h2>
+        <div id="quarter-list" class="stack"></div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div><p class="eyebrow">MILESTONES</p><h2>What proves this is working</h2></div>
+      </div>
+      <div id="milestones" class="milestones"></div>
+    </section>
+
+    <section class="panel principles">
+      <p class="eyebrow">OPERATING RULE</p>
+      <p id="operating-rule"></p>
+    </section>
+
+    <footer>
+      <span>One plan. Updated as reality changes.</span>
+      <a href="/operator/?prompt=Review%20and%20update%20my%20rolling%20master%20plan">Update with Operator</a>
+    </footer>
+  </main>
+</body>
+</html>
