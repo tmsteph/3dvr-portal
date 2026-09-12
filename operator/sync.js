@@ -12,8 +12,18 @@ export function mergeOperatorStores(localStore={},remoteStore={}){
     const current=byId.get(conversation.id);
     if(!current||timestamp(conversation.updatedAt)>=timestamp(current.updatedAt))byId.set(conversation.id,conversation);
   }
-  const conversations=[...byId.values()].filter(item=>item.messages.length).sort((a,b)=>timestamp(b.updatedAt)-timestamp(a.updatedAt)).slice(0,50);
   const requestedActive=localStore.activeId||remoteStore.activeId;
+  const localActiveId=localStore.activeId||'';
+  let conversations=[...byId.values()]
+    .filter(item=>item.messages.length||item.id===localActiveId)
+    .sort((a,b)=>timestamp(b.updatedAt)-timestamp(a.updatedAt));
+  if(conversations.length>50){
+    const activeLocal=localActiveId?conversations.find(item=>item.id===localActiveId):null;
+    conversations=conversations.slice(0,50);
+    if(activeLocal&&!conversations.some(item=>item.id===localActiveId)){
+      conversations=[...conversations.slice(0,49),activeLocal].sort((a,b)=>timestamp(b.updatedAt)-timestamp(a.updatedAt));
+    }
+  }
   const activeId=conversations.some(item=>item.id===requestedActive)?requestedActive:(conversations[0]?.id||requestedActive||globalThis.crypto?.randomUUID?.()||`conversation-${Date.now()}`);
   return{activeId,conversations};
 }

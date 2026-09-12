@@ -13,6 +13,17 @@ test('operator account sync merges device and account conversations without losi
   assert.equal(merged.conversations[0].messages[0].content,'New local edit');
 });
 
+
+test('operator account sync preserves the active local draft when remote history reaches the cap',()=>{
+  const localActive={id:'local-active',createdAt:'2026-07-01T00:00:00Z',updatedAt:'2026-07-01T00:00:00Z',messages:[]};
+  const remoteConversations=Array.from({length:50},(_,index)=>conversation(`remote-${index}`,`2026-08-${String((index%28)+1).padStart(2,'0')}T12:00:00Z`,`Remote ${index}`));
+  const merged=mergeOperatorStores({activeId:'local-active',conversations:[localActive]},{activeId:'remote-0',conversations:remoteConversations});
+  assert.equal(merged.activeId,'local-active');
+  assert.equal(merged.conversations.length,50);
+  assert.ok(merged.conversations.some(item=>item.id==='local-active'));
+  assert.equal(merged.conversations.find(item=>item.id==='local-active').messages.length,0);
+});
+
 test('operator account sync encrypts account history before writing it',async()=>{
   let written=null;
   const node={once(callback){callback(null)},put(value,callback){written=value;callback({ok:1})}};
