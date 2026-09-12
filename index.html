@@ -50,6 +50,22 @@
     a { color: inherit; }
     button, input { font: inherit; }
 
+    .skip-link {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 100;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: #f0ca63;
+      color: #0d1117;
+      font-weight: 800;
+      text-decoration: none;
+      transform: translateY(calc(-100% - 24px));
+    }
+
+    .skip-link:focus { transform: translateY(0); }
+
     .shell {
       width: min(100%, 760px);
       min-height: 100vh;
@@ -474,6 +490,7 @@
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
   <!-- test -->
   <div class="shell">
     <header class="topbar">
@@ -499,7 +516,7 @@
       <a class="top-action top-action--signin" href="/sign-in.html?redirect=%2F" data-auth-entry>Sign in</a>
     </header>
 
-    <main>
+    <main id="main-content">
       <section class="home" aria-labelledby="home-title">
         <div class="spinner-stage" data-spinner-nav data-open="false">
           <nav class="spinner-nav" id="spinnerNav" aria-label="Quick portal navigation">
