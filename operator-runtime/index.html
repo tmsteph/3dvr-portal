@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07101c">
+  <meta name="description" content="Digital Thomas: the 3DVR Operator Runtime for coordinating durable work across agents, tools, accounts, devices, and human checkpoints.">
+  <title>Digital Thomas · 3DVR Operator Runtime</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/operator-runtime/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="/">3DVR</a>
+      <nav><a href="/workboard/">Workboard</a><a href="/operator/">Operator</a></nav>
+    </header>
+    <section class="hero">
+      <p class="eyebrow">DIGITAL THOMAS</p>
+      <h1>One intent. Many safe workers.</h1>
+      <p class="lede">A durable operating system for work, business, software, communication, scheduling, research, infrastructure, and life admin.</p>
+      <div class="flow" aria-label="Operator runtime flow">
+        <span>Thomas</span><b>→</b><span>Intent</span><b>→</b><span>Queue</span><b>→</b><span>Workers</span><b>→</b><span>Tools</span><b>→</b><span>Verify</span><b>→</b><span>Memory</span>
+      </div>
+    </section>    <section class="grid three">
+      <article><p class="eyebrow">READ</p><h2>Observe</h2><p>Research, inspect, monitor, summarize, score, and prepare. Cheap and highly parallel.</p></article>
+      <article><p class="eyebrow">ACTION</p><h2>Do</h2><p>Edit, build, fill, deploy, schedule, stage, and operate inside isolated execution lanes.</p></article>
+      <article><p class="eyebrow">IDENTITY</p><h2>Represent Thomas</h2><p>Authenticated sessions, outbound communication, signatures, payments, and sensitive changes use brokered identity access.</p></article>
+    </section>
+
+    <section class="panel">
+      <div class="heading"><div><p class="eyebrow">PHASE 1</p><h2>Build the nervous system</h2></div><span class="pill">Current</span></div>
+      <div class="steps">
+        <div><strong>1</strong><span><b>Shared queue</b><small>Durable work with priority, state, dependencies, ownership, and evidence.</small></span></div>
+        <div><strong>2</strong><span><b>Worker registry</b><small>Named workers, capabilities, leases, resource budgets, and health.</small></span></div>
+        <div><strong>3</strong><span><b>Session broker</b><small>Parallel isolated browsers plus a protected authenticated identity lane.</small></span></div>
+        <div><strong>4</strong><span><b>Human checkpoints</b><small>Captcha, approval, signatures, or ambiguity pause one task instead of the whole system.</small></span></div>
+        <div><strong>5</strong><span><b>Audit + verification</b><small>Every meaningful action leaves evidence and a trustworthy completion state.</small></span></div>
+      </div>
+    </section>    <section class="panel">
+      <p class="eyebrow">CONVERGE, DON'T REBUILD</p>
+      <h2>Existing pieces become one runtime</h2>
+      <div class="links">
+        <a href="/workboard/"><b>Workboard</b><span>Queue + attention</span></a>
+        <a href="/operator/"><b>Operator</b><span>Conversation + action</span></a>
+        <a href="/work-agent/"><b>Work Agent</b><span>Domain worker pattern</span></a>
+        <a href="/money-printer/"><b>Money Printer</b><span>Executive direction</span></a>
+        <a href="/access/"><b>Access</b><span>Capabilities + credentials</span></a>
+        <a href="/projects/"><b>Projects</b><span>Durable outcomes</span></a>
+      </div>
+    </section>
+
+    <section class="panel compact">
+      <p class="eyebrow">DESIGN RULE</p>
+      <blockquote>Most work should not need the precious logged-in browser.</blockquote>
+      <p>OVH starts with two bounded action lanes plus one reserved interactive/VNC lane. The canonical authenticated browser stays single-writer and is leased only when identity is actually required.</p>
+    </section>
+
+    <footer><a href="/workboard/">Open the work queue →</a><span>Architecture: <code>docs/digital-thomas-operator-runtime.md</code></span></footer>
+  </main>
+</body>
+</html>
