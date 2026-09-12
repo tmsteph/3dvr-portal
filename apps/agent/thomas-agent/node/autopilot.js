@@ -1098,7 +1098,7 @@ async function main() {
             : !campaignAllowance.active
               ? 'campaign is outside its active date range'
               : !sendWindow.allowed
-                ? `outside business hours (${sendWindow.timezone}, ${sendWindow.start}-${sendWindow.end}, Monday-Friday)`
+                ? `quiet hours (${sendWindow.timezone}; send window ${sendWindow.start}-${sendWindow.end}, every day)`
               : campaignAllowance.allowed < 1
             ? 'daily or campaign send limit reached'
             : '';

@@ -238,7 +238,7 @@ async function main() {
   const sendWindow = businessHoursStatus();
   if (!options.probeOnly && !sendWindow.allowed) {
     throw new Error(
-      `Outreach is paused outside business hours (${sendWindow.timezone}, ${sendWindow.start}-${sendWindow.end}, Monday-Friday). `
+      `Outreach is paused during quiet hours (${sendWindow.timezone}; send window ${sendWindow.start}-${sendWindow.end}, every day). `
       + `Current local time: ${sendWindow.weekday} ${sendWindow.localTime}.`
     );
   }
