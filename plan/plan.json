@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "updatedAt": "2026-09-11T17:56:00-07:00",
+  "updatedLabel": "Sep 11, 2026",
+  "horizon": "Rolling 90 days",
+  "theme": "Earn. Stabilize. Replace weak work.",
+  "northStar": "Protect dependable income while steadily replacing lower-leverage Encore hours with higher-paying freelance work and repeatable 3DVR revenue.",
+  "operatingRule": "Work → earn → follow up → stabilize → ship. Revenue and reliability come before new feature sprawl.",
+  "now": {
+    "window": "Sep 11–17",
+    "items": [
+      {
+        "title": "Tonight — keep it light",
+        "when": "Fri Sep 11",
+        "detail": "Organize, think, and improve Operator/Launch Room UX. Avoid turning tonight into another full work shift."
+      },
+      {
+        "title": "Encore — CIRCLE UP",
+        "when": "Sat Sep 12 · 8 AM–5 PM",
+        "detail": "Protect booked income. Only interrupt the evening for a real client/revenue event."
+      },
+      {
+        "title": "Encore — Partnership Meeting A1",
+        "when": "Sun Sep 13 · 8 AM–4 PM",
+        "detail": "Strong A1 day. Let automation keep leads, applications, and documentation moving around the shift."
+      },
+      {
+        "title": "First useful opening",
+        "when": "Mon Sep 14 · after noon",
+        "detail": "After the 6 AM–12 PM A1 shift: prioritize Tom/Phase 2 if approved, strong applications, client pipeline, then portal reliability."
+      },
+      {
+        "title": "Work-only day",
+        "when": "Tue Sep 15 · 6 AM–4 PM",
+        "detail": "Do not overload this day. Keep business activity mostly automated and asynchronous."
+      },
+      {
+        "title": "Money/admin morning",
+        "when": "Wed Sep 16",
+        "detail": "Use the open morning for freelance availability, applications, leads, and follow-ups before therapy at 2 PM and Encore 5–10 PM."
+      },
+      {
+        "title": "Main 3DVR leverage day",
+        "when": "Thu Sep 17",
+        "detail": "Revenue pipeline first. Then stabilize Operator history/sync, Launch Room mobile UX, and the highest-impact reliability issue. Ship something tangible."
+      }
+    ]
+  },
+  "next30": [
+    {
+      "title": "Revenue sprint",
+      "label": "Sep 18–22",
+      "detail": "Use the lighter Sun–Tue window for fresh leads, high-fit job applications, Tom Phase 2 if approved, and trustworthy CRM follow-through."
+    },
+    {
+      "title": "Earn + collect proof",
+      "label": "Sep 23–26",
+      "detail": "Four-day Graphics OP run. Treat it as income plus résumé/proof material while automation keeps the business pipeline alive."
+    },
+    {
+      "title": "Productize the Tom pattern",
+      "label": "Late Sep → early Oct",
+      "detail": "Turn diagnose → small paid phase → safe execution → verify → next phase into a repeatable technical service that can be sold again."
+    },
+    {
+      "title": "Make Operator the cockpit",
+      "label": "By Oct 11",
+      "detail": "Past conversations, plan, CRM state, next actions, revenue signals, and important calendar context should be easy to find from one place."
+    }
+  ],
+  "next90": [
+    {
+      "title": "October — prove independence",
+      "label": "Goal",
+      "detail": "Add at least one more paying client or strong recurring opportunity, keep pursuing better freelance AV, and make 3DVR produce real monthly revenue."
+    },
+    {
+      "title": "November — make it recurring",
+      "label": "Goal",
+      "detail": "Shift from one-off wins toward maintenance, automation, website/server support, and narrow managed services with low support burden."
+    },
+    {
+      "title": "December — scale the winner",
+      "label": "Goal",
+      "detail": "Stop weak experiments and double down on whichever channel actually produced revenue. Let AI handle more prospecting, preparation, CRM, documentation, and first-pass fulfillment."
+    },
+    {
+      "title": "Long arc",
+      "label": "Direction",
+      "detail": "Encore stays the floor, higher-paying freelance AV raises the hourly rate, client technology work funds 3DVR, and 3DVR gradually becomes the system that finds and performs more of its own work."
+    }
+  ],
+  "milestones": [
+    { "target": "1+", "label": "additional paying client / repeat engagement" },
+    { "target": "$1k/mo", "label": "independent revenue neighborhood to prove repeatability" },
+    { "target": "$2k+/mo", "label": "stretch outside-Encore monthly revenue by year end" },
+    { "target": "1 cockpit", "label": "Operator holds plan, history, pipeline, and next actions" },
+    { "target": "2 days", "label": "protected rest/family time in a normal week when possible" },
+    { "target": "Less manual", "label": "each month should require less Thomas involvement per dollar earned" }
+  ]
+}
