@@ -451,6 +451,15 @@
       .brand span { display: none; }
       .top-action,
       .menu summary { padding-inline: 11px; }
+      .menu-panel {
+        position: fixed;
+        top: 74px;
+        left: max(10px, env(safe-area-inset-left));
+        right: max(10px, env(safe-area-inset-right));
+        width: auto;
+        max-height: calc(100dvh - 86px);
+        overflow-y: auto;
+      }
       main { align-items: flex-start; padding-top: 30px; }
       .spinner-stage { width: min(248px, 78vw); height: min(248px, 78vw); }
       .spinner-nav__item { min-width: 58px; min-height: 40px; padding-inline: 11px; font-size: 0.88rem; }
@@ -482,7 +491,6 @@
         <span>3DVR</span>
       </a>
       <button class="top-action" type="button" data-open-apps>Search</button>
-      <a class="top-action top-action--signin" href="/sign-in.html?redirect=%2F" data-auth-entry>Sign in</a>
       <details class="menu">
         <summary>Menu</summary>
         <nav class="menu-panel" aria-label="Portal menu">
@@ -497,6 +505,7 @@
           <a href="/releases/">Releases</a>
         </nav>
       </details>
+      <a class="top-action top-action--signin" href="/sign-in.html?redirect=%2F" data-auth-entry>Sign in</a>
     </header>
 
     <main>
