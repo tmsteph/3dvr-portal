@@ -1,164 +1,112 @@
 {
-  "version": 3,
-  "updatedAt": "2026-09-11T20:10:00-07:00",
-  "updatedLabel": "Sep 11, 2026",
+  "version": 4,
+  "updatedAt": "2026-09-12T07:30:00-07:00",
+  "updatedLabel": "Sep 12, 2026",
   "horizon": "Rolling 90 days",
   "theme": "Protect income. Care for home. Build our way forward.",
-  "northStar": "Keep work, family time, home responsibilities, and our longer-term transition visible in one place so neither of us has to reconstruct the plan from scattered calendars and chats.",
+  "northStar": "Keep the next few days obvious, the next couple of weeks easy to scan, and the longer direction available without making it dominate daily life.",
   "workNorthStar": "Protect dependable income while replacing lower-leverage hours with better work and repeatable 3DVR revenue, without letting the business consume home and family life.",
-  "operatingRule": "Home and family count as real work. Protect booked income, protect recovery time, take care of the house, then use the best open blocks for higher-leverage work.",
-  "workOperatingRule": "Work → earn → follow up → stabilize → ship. Revenue and reliability come before feature sprawl, while home/family blocks stay protected.",
-  "highlights": {
-    "nextWork": "Sat Sep 12 · 8 AM–5 PM",
-    "houseWindow": "Sun Sep 20–Tue Sep 22",
-    "openDay": "Thu Sep 17"
+  "operatingRule": "Today first. Then the next few days. Protect recovery and home time before filling open space with more work.",
+  "workOperatingRule": "Protect booked income, use open blocks for the highest-leverage work, and keep home/family commitments visible as real commitments.",
+  "markers": [
+    { "label": "Mexico house", "when": "Sep 20–22", "tone": "home" },
+    { "label": "Four-day work run", "when": "Sep 23–26", "tone": "work" }
+  ],
+  "today": {
+    "date": "2026-09-12",
+    "dayLabel": "Saturday · Sep 12",
+    "title": "Work day",
+    "when": "8 AM–5 PM",
+    "category": "work",
+    "categoryLabel": "Work",
+    "sharedDetail": "Booked most of the day. Keep tonight easy and leave space to recover for another work day tomorrow.",
+    "detail": "Protect the booked shift. Keep business activity automated unless something genuinely urgent or revenue-critical appears."
   },
-  "sharedFocus": {
-    "title": "Mexico house care window",
-    "when": "Sun Sep 20 → Tue Sep 22",
-    "detail": "Protect this as real household time before the next dense work run. Handle the important maintenance first, keep some family/rest time, and leave Tuesday with enough buffer to reset.",
-    "checklist": [
-      "Make one short house-maintenance list before leaving",
-      "Prioritize safety, moisture, utilities, cleaning, and anything getting worse",
-      "Keep at least one half-day unstructured for family/rest",
-      "Return Tuesday with Wednesday morning protected for reset"
-    ]
-  },
-  "now": {
-    "window": "Sep 11–17",
-    "items": [
-      {
-        "title": "Tonight — keep it light",
-        "when": "Fri Sep 11",
-        "category": "home",
-        "categoryLabel": "Together",
-        "sharedDetail": "No second full shift tonight. Organize, decompress, and keep the evening usable for home/family.",
-        "detail": "Keep implementation light. Small cleanup is fine; avoid turning tonight into another founder shift."
-      },
-      {
-        "title": "Work day",
-        "when": "Sat Sep 12 · 8 AM–5 PM",
-        "category": "work",
-        "categoryLabel": "Work",
-        "sharedDetail": "Booked work day. Evening should stay mostly free unless something truly urgent comes up.",
-        "detail": "Protect booked income and let automation handle routine business activity around the shift."
-      },
-      {
-        "title": "Work day",
-        "when": "Sun Sep 13 · 8 AM–4 PM",
-        "category": "work",
-        "categoryLabel": "Work",
-        "sharedDetail": "Work until 4 PM. Keep the rest of Sunday simple and recover for the early Monday start.",
-        "detail": "Treat this as an earn-and-recover day; business systems can keep leads and documentation moving quietly."
-      },
-      {
-        "title": "Morning work + useful afternoon",
-        "when": "Mon Sep 14 · 6 AM–12 PM",
-        "category": "work",
-        "categoryLabel": "Work",
-        "sharedDetail": "Work ends at noon. Use part of the afternoon for important admin, but keep enough energy for home life.",
-        "detail": "After work, prioritize active paid work, strong applications, client pipeline, then portal reliability."
-      },
-      {
-        "title": "Long workday",
-        "when": "Tue Sep 15 · 6 AM–4 PM",
-        "category": "work",
-        "categoryLabel": "Work",
-        "sharedDetail": "Treat this as a work-and-recover day. No expectation of a big 3DVR push afterward.",
-        "detail": "Keep business activity mostly automated and asynchronous."
-      },
-      {
-        "title": "Personal appointment + evening work",
-        "when": "Wed Sep 16 · afternoon/evening",
-        "category": "personal",
-        "categoryLabel": "Personal",
-        "sharedDetail": "Morning is open, but the afternoon and evening are spoken for. Keep the morning focused and calm.",
-        "detail": "Use the open morning for work/admin priorities, then protect the personal block and evening shift."
-      },
-      {
-        "title": "Open leverage day",
-        "when": "Thu Sep 17",
-        "category": "open",
-        "categoryLabel": "Open",
-        "sharedDetail": "Best open day of the week. Handle one meaningful money/work block, prep the Mexico-house list, and keep part of the day available for us.",
-        "detail": "Revenue pipeline first, then the highest-impact portal reliability/UX work and Mexico-house preparation."
-      }
-    ]
-  },
-  "next30": [
+  "nextDays": [
     {
-      "title": "Work, then Mexico house",
-      "label": "Sep 18–22",
-      "category": "home",
-      "categoryLabel": "Together",
-      "sharedDetail": "Work Friday and Saturday, then protect Sun–Tue for the Mexico house. Maintenance first, family/rest second, return Tuesday with a buffer.",
-      "detail": "Keep business work minimal during the protected house block unless something is genuinely time-sensitive."
-    },
-    {
-      "title": "Four-day work run",
-      "label": "Sep 23–26",
+      "date": "2026-09-13",
+      "title": "Work day",
+      "when": "Sun · 8 AM–4 PM",
       "category": "work",
       "categoryLabel": "Work",
-      "sharedDetail": "Four consecutive work days. Expect lower evening energy and plan recovery around them.",
-      "detail": "Use the run for income and career proof while automation keeps the business pipeline alive."
+      "sharedDetail": "Work until 4 PM. Keep Sunday evening simple because Monday starts early.",
+      "detail": "Earn-and-recover day; let routine business systems run quietly around the shift."
     },
     {
-      "title": "Lighter calendar = transition window",
-      "label": "Sep 27 → early Oct",
-      "category": "open",
-      "categoryLabel": "Open",
-      "sharedDetail": "The calendar gets lighter. Use the opening deliberately: some family/home time, some better-work hunting, and a bounded 3DVR push rather than filling every day.",
-      "detail": "Turn successful paid technical work into a repeatable service and pursue higher-paying freelance/job opportunities while keeping Operator/CRM reliable."
+      "date": "2026-09-14",
+      "title": "Morning work, open afternoon",
+      "when": "Mon · 6 AM–12 PM",
+      "category": "work",
+      "categoryLabel": "Work",
+      "sharedDetail": "Work ends at noon. Use part of the afternoon for important admin, but do not turn the whole day into work.",
+      "detail": "Use the afternoon for active paid work, strong applications, client pipeline, then portal reliability."
     },
     {
-      "title": "Make the portal useful to both of us",
-      "label": "By Oct 11",
-      "category": "home",
-      "categoryLabel": "Together",
-      "sharedDetail": "The portal should answer: what is Thomas working, when are we free, what home/family things need attention, and what is changing next.",
-      "detail": "Keep the shared page share-safe; sensitive client, health, credential, and internal operational details stay in protected systems."
+      "date": "2026-09-15",
+      "title": "Long workday",
+      "when": "Tue · 6 AM–4 PM",
+      "category": "work",
+      "categoryLabel": "Work",
+      "sharedDetail": "Treat this as a work-and-recover day with low expectations afterward.",
+      "detail": "Keep business activity mostly automated and asynchronous."
+    }
+  ],
+  "calendar": [
+    { "date":"2026-09-12", "dayShort":"Sat", "dateShort":"Sep 12", "title":"Work day", "when":"8 AM–5 PM", "category":"work", "categoryLabel":"Work" },
+    { "date":"2026-09-13", "dayShort":"Sun", "dateShort":"Sep 13", "title":"Work day", "when":"8 AM–4 PM", "category":"work", "categoryLabel":"Work" },
+    { "date":"2026-09-14", "dayShort":"Mon", "dateShort":"Sep 14", "title":"Morning work", "when":"6 AM–12 PM", "category":"work", "categoryLabel":"Work" },
+    { "date":"2026-09-15", "dayShort":"Tue", "dateShort":"Sep 15", "title":"Long workday", "when":"6 AM–4 PM", "category":"work", "categoryLabel":"Work" },
+    { "date":"2026-09-16", "dayShort":"Wed", "dateShort":"Sep 16", "title":"Personal block + evening work", "when":"Afternoon / 5–10 PM work", "category":"personal", "categoryLabel":"Personal" },
+    { "date":"2026-09-17", "dayShort":"Thu", "dateShort":"Sep 17", "title":"Open day", "when":"Best flexible day this week", "category":"open", "categoryLabel":"Open" },
+    { "date":"2026-09-18", "dayShort":"Fri", "dateShort":"Sep 18", "title":"Work day", "when":"6 AM–2:30 PM", "category":"work", "categoryLabel":"Work" },
+    { "date":"2026-09-19", "dayShort":"Sat", "dateShort":"Sep 19", "title":"Morning work", "when":"7 AM–12 PM", "category":"work", "categoryLabel":"Work" },
+    { "date":"2026-09-20", "dayShort":"Sun", "dateShort":"Sep 20", "title":"Mexico house", "when":"House care + family time", "category":"home", "categoryLabel":"Home" },
+    { "date":"2026-09-21", "dayShort":"Mon", "dateShort":"Sep 21", "title":"Mexico house", "when":"Maintenance + family/rest", "category":"home", "categoryLabel":"Home" },
+    { "date":"2026-09-22", "dayShort":"Tue", "dateShort":"Sep 22", "title":"Mexico house / return", "when":"Reset before work run", "category":"home", "categoryLabel":"Home" },
+    { "date":"2026-09-23", "dayShort":"Wed", "dateShort":"Sep 23", "title":"Graphics work run", "when":"9 AM–5:30 PM", "category":"work", "categoryLabel":"Work" },
+    { "date":"2026-09-24", "dayShort":"Thu", "dateShort":"Sep 24", "title":"Graphics work run", "when":"7 AM–5 PM", "category":"work", "categoryLabel":"Work" },
+    { "date":"2026-09-25", "dayShort":"Fri", "dateShort":"Sep 25", "title":"Graphics work run", "when":"7 AM–5 PM", "category":"work", "categoryLabel":"Work" },
+    { "date":"2026-09-26", "dayShort":"Sat", "dateShort":"Sep 26", "title":"Graphics work run", "when":"7 AM–5 PM", "category":"work", "categoryLabel":"Work" }
+  ],
+  "next30": [
+    {
+      "title": "Create breathing room",
+      "label": "Late Sep → early Oct",
+      "category": "life",
+      "categoryLabel": "Life",
+      "sharedDetail": "After the dense work run, use the lighter calendar deliberately instead of automatically filling every open day.",
+      "detail": "Balance family/home time with better-work hunting, active paid work, and a bounded 3DVR reliability push."
+    },
+    {
+      "title": "Make income less fragile",
+      "label": "By mid-Oct",
+      "category": "money",
+      "categoryLabel": "Money",
+      "sharedDetail": "Keep dependable work while building at least one more repeatable source of income.",
+      "detail": "Pursue another paying client or recurring opportunity and higher-value freelance work."
     }
   ],
   "next90": [
     {
-      "title": "October — create breathing room",
-      "label": "Goal",
+      "title": "More control over the schedule",
+      "label": "October",
       "category": "life",
       "categoryLabel": "Life",
-      "sharedDetail": "Keep income steady while creating more control over the schedule and fewer chaotic work weeks.",
-      "detail": "Add at least one more paying client or strong recurring opportunity and replace weaker work where possible."
+      "sharedDetail": "Create fewer chaotic weeks and more choice over which work Thomas says yes to.",
+      "detail": "Replace weaker work selectively while keeping the financial floor intact."
     },
     {
-      "title": "November — make income more predictable",
-      "label": "Goal",
+      "title": "More predictable independent income",
+      "label": "November–December",
       "category": "money",
       "categoryLabel": "Money",
-      "sharedDetail": "Shift some income toward recurring work so each month does not start from zero.",
-      "detail": "Move toward maintenance, automation, website/server support, and narrow managed services with low support burden."
-    },
-    {
-      "title": "December — protect what works",
-      "label": "Goal",
-      "category": "life",
-      "categoryLabel": "Life",
-      "sharedDetail": "Keep the work channels that actually help our life; stop feeding projects that only create more obligation.",
-      "detail": "Stop weak experiments and double down on the channels producing money, stability, and lower manual effort."
-    },
-    {
-      "title": "Long arc",
-      "label": "Direction",
-      "category": "future",
-      "categoryLabel": "Future",
-      "sharedDetail": "Build toward more freedom over where we live, how much time we have together, and what kinds of work Thomas says yes to.",
-      "detail": "Dependable work stays the floor, better freelance work raises the rate, client technology work funds 3DVR, and 3DVR gradually performs more of its own work."
+      "sharedDetail": "Shift some income toward recurring work so every month does not start from zero.",
+      "detail": "Scale the service/channel that actually produces legitimate revenue with low support burden."
     }
   ],
   "milestones": [
     { "target": "2 days", "label": "rest/family time protected in a normal week when possible" },
-    { "target": "1 trip", "label": "Mexico house care block protected this month" },
     { "target": "1+", "label": "additional paying client or repeat engagement" },
-    { "target": "$1k/mo", "label": "independent revenue neighborhood to prove repeatability" },
-    { "target": "1 view", "label": "shared portal plan both partners can understand quickly" },
     { "target": "Less chaos", "label": "fewer surprises and less reconstructing plans from messages" }
   ]
 }
