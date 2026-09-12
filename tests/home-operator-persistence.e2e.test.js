@@ -73,7 +73,7 @@ test('home Operator conversation appears in Past conversations', { timeout: 45_0
     });
 
     await page.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
-    await page.getByLabel('Ask Operator anything').fill(prompt);
+    await page.locator('#homeOperatorInput').fill(prompt);
     await page.getByRole('button', { name: 'Send to Operator' }).click();
     await page.getByText(responseText).waitFor();
 
@@ -86,7 +86,7 @@ test('home Operator conversation appears in Past conversations', { timeout: 45_0
 
     await page.goto(`${baseUrl}/operator/`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: 'Past conversations' }).click();
-    const savedConversation = page.getByRole('button', { name: new RegExp(prompt.slice(0, 30)) });
+    const savedConversation = page.locator(`\[data-conversation-id="${saved.conversations[0].id}"\]`);
     await savedConversation.waitFor();
     await savedConversation.click();
     await page.locator('#operator-log').getByText(prompt).waitFor();
