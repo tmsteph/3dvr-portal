@@ -1,101 +1,164 @@
 {
-  "version": 1,
-  "updatedAt": "2026-09-11T17:56:00-07:00",
+  "version": 2,
+  "updatedAt": "2026-09-11T20:02:00-07:00",
   "updatedLabel": "Sep 11, 2026",
   "horizon": "Rolling 90 days",
-  "theme": "Earn. Stabilize. Replace weak work.",
-  "northStar": "Protect dependable income while steadily replacing lower-leverage Encore hours with higher-paying freelance work and repeatable 3DVR revenue.",
-  "operatingRule": "Work → earn → follow up → stabilize → ship. Revenue and reliability come before new feature sprawl.",
+  "theme": "Protect income. Care for home. Build our way forward.",
+  "northStar": "Keep work, family time, home responsibilities, and our longer-term transition visible in one place so neither of us has to reconstruct the plan from scattered calendars and chats.",
+  "workNorthStar": "Protect dependable income while replacing lower-leverage Encore hours with better freelance work and repeatable 3DVR revenue, without letting the business consume home and family life.",
+  "operatingRule": "Home and family count as real work. Protect booked income, protect recovery time, take care of the house, then use the best open blocks for higher-leverage work.",
+  "workOperatingRule": "Work → earn → follow up → stabilize → ship. Revenue and reliability come before feature sprawl, while home/family blocks stay protected.",
+  "highlights": {
+    "nextWork": "Sat Sep 12 · 8 AM–5 PM",
+    "houseWindow": "Sun Sep 20–Tue Sep 22",
+    "openDay": "Thu Sep 17"
+  },
+  "sharedFocus": {
+    "title": "Mexico house care window",
+    "when": "Sun Sep 20 → Tue Sep 22",
+    "detail": "Protect this as real household time before the four-day Graphics run. Go down together if practical, handle the important maintenance first, and leave Tuesday with enough buffer to reset before Wednesday work.",
+    "checklist": [
+      "Make one short house-maintenance list before leaving",
+      "Prioritize safety, moisture/mold, utilities, cleaning, and anything getting worse",
+      "Keep at least one half-day unstructured for family/rest",
+      "Return Tuesday with Wednesday morning protected for reset"
+    ]
+  },
   "now": {
     "window": "Sep 11–17",
     "items": [
       {
         "title": "Tonight — keep it light",
         "when": "Fri Sep 11",
-        "detail": "Organize, think, and improve Operator/Launch Room UX. Avoid turning tonight into another full work shift."
+        "category": "home",
+        "categoryLabel": "Together",
+        "sharedDetail": "No second full shift tonight. Organize, decompress, and keep the evening usable for home/family.",
+        "detail": "Keep implementation light. UX thinking and small cleanup are fine; avoid turning tonight into another founder shift."
       },
       {
         "title": "Encore — CIRCLE UP",
         "when": "Sat Sep 12 · 8 AM–5 PM",
+        "category": "work",
+        "categoryLabel": "Work",
+        "sharedDetail": "Booked work day. Evening should stay mostly free unless something truly urgent comes up.",
         "detail": "Protect booked income. Only interrupt the evening for a real client/revenue event."
       },
       {
         "title": "Encore — Partnership Meeting A1",
         "when": "Sun Sep 13 · 8 AM–4 PM",
+        "category": "work",
+        "categoryLabel": "Work",
+        "sharedDetail": "A1 shift until 4 PM. Keep the rest of Sunday simple and recover for the early Monday start.",
         "detail": "Strong A1 day. Let automation keep leads, applications, and documentation moving around the shift."
       },
       {
-        "title": "First useful opening",
-        "when": "Mon Sep 14 · after noon",
-        "detail": "After the 6 AM–12 PM A1 shift: prioritize Tom/Phase 2 if approved, strong applications, client pipeline, then portal reliability."
+        "title": "Short workday + useful afternoon",
+        "when": "Mon Sep 14 · 6 AM–12 PM",
+        "category": "work",
+        "categoryLabel": "Work",
+        "sharedDetail": "Work ends at noon. Use part of the afternoon for important admin, but keep enough energy for home life.",
+        "detail": "After the A1 shift: Tom/Phase 2 if approved, strong applications, client pipeline, then portal reliability."
       },
       {
-        "title": "Work-only day",
+        "title": "Long workday",
         "when": "Tue Sep 15 · 6 AM–4 PM",
+        "category": "work",
+        "categoryLabel": "Work",
+        "sharedDetail": "Treat this as a work-and-recover day. No expectation of a big 3DVR push afterward.",
         "detail": "Do not overload this day. Keep business activity mostly automated and asynchronous."
       },
       {
-        "title": "Money/admin morning",
-        "when": "Wed Sep 16",
-        "detail": "Use the open morning for freelance availability, applications, leads, and follow-ups before therapy at 2 PM and Encore 5–10 PM."
+        "title": "Therapy + evening shift",
+        "when": "Wed Sep 16 · therapy 2 PM · work 5–10 PM",
+        "category": "personal",
+        "categoryLabel": "Personal",
+        "sharedDetail": "Morning is open, but the afternoon/evening is spoken for. Keep the morning focused and calm.",
+        "detail": "Use the morning for freelance availability, applications, leads, and follow-ups before therapy and Encore."
       },
       {
-        "title": "Main 3DVR leverage day",
+        "title": "Open leverage day",
         "when": "Thu Sep 17",
-        "detail": "Revenue pipeline first. Then stabilize Operator history/sync, Launch Room mobile UX, and the highest-impact reliability issue. Ship something tangible."
+        "category": "open",
+        "categoryLabel": "Open",
+        "sharedDetail": "Best open day of the week. Handle one meaningful money/work block, prep the Mexico-house list, and keep part of the day available for us.",
+        "detail": "Revenue pipeline first, then stabilize Operator history/sync and Launch Room mobile UX. Also prep the Mexico-house maintenance list and supplies."
       }
     ]
   },
   "next30": [
     {
-      "title": "Revenue sprint",
+      "title": "Work, then Mexico house",
       "label": "Sep 18–22",
-      "detail": "Use the lighter Sun–Tue window for fresh leads, high-fit job applications, Tom Phase 2 if approved, and trustworthy CRM follow-through."
+      "category": "home",
+      "categoryLabel": "Together",
+      "sharedDetail": "Encore Friday and Saturday morning, then protect Sun–Tue for the Mexico house. Maintenance first, family/rest second, return Tuesday with a buffer.",
+      "detail": "After Fri 6 AM–2:30 PM and Sat 7 AM–12 PM shifts, use Sep 20–22 as the house block. Keep business work minimal unless revenue-critical."
     },
     {
-      "title": "Earn + collect proof",
+      "title": "Four-day Graphics run",
       "label": "Sep 23–26",
-      "detail": "Four-day Graphics OP run. Treat it as income plus résumé/proof material while automation keeps the business pipeline alive."
+      "category": "work",
+      "categoryLabel": "Work",
+      "sharedDetail": "Four consecutive Graphics OP days. Expect lower evening energy and plan recovery around them.",
+      "detail": "Treat the TDO run as income plus résumé/proof material while automation keeps the business pipeline alive."
     },
     {
-      "title": "Productize the Tom pattern",
-      "label": "Late Sep → early Oct",
-      "detail": "Turn diagnose → small paid phase → safe execution → verify → next phase into a repeatable technical service that can be sold again."
+      "title": "Lighter calendar = transition window",
+      "label": "Sep 27 → early Oct",
+      "category": "open",
+      "categoryLabel": "Open",
+      "sharedDetail": "The calendar gets lighter. Use the opening deliberately: some family/home time, some better-work hunting, and a bounded 3DVR push rather than filling every day.",
+      "detail": "Turn the Tom pattern into a repeatable service and push higher-paying freelance/job opportunities while keeping Operator/CRM reliable."
     },
     {
-      "title": "Make Operator the cockpit",
+      "title": "Make the portal useful to both of us",
       "label": "By Oct 11",
-      "detail": "Past conversations, plan, CRM state, next actions, revenue signals, and important calendar context should be easy to find from one place."
+      "category": "home",
+      "categoryLabel": "Together",
+      "sharedDetail": "The portal should answer: what is Thomas working, when are we free, what home/family things need attention, and what is changing next.",
+      "detail": "Operator holds history, plan, CRM, next actions, revenue signals, calendar context, and a partner-friendly shared view."
     }
   ],
   "next90": [
     {
-      "title": "October — prove independence",
+      "title": "October — create breathing room",
       "label": "Goal",
-      "detail": "Add at least one more paying client or strong recurring opportunity, keep pursuing better freelance AV, and make 3DVR produce real monthly revenue."
+      "category": "life",
+      "categoryLabel": "Life",
+      "sharedDetail": "Keep income steady while creating more control over the schedule and fewer chaotic work weeks.",
+      "detail": "Add at least one more paying client or strong recurring opportunity and replace weaker work where possible."
     },
     {
-      "title": "November — make it recurring",
+      "title": "November — make income more predictable",
       "label": "Goal",
-      "detail": "Shift from one-off wins toward maintenance, automation, website/server support, and narrow managed services with low support burden."
+      "category": "money",
+      "categoryLabel": "Money",
+      "sharedDetail": "Shift some income toward recurring work so each month does not start from zero.",
+      "detail": "Move toward maintenance, automation, website/server support, and narrow managed services with low support burden."
     },
     {
-      "title": "December — scale the winner",
+      "title": "December — protect what works",
       "label": "Goal",
-      "detail": "Stop weak experiments and double down on whichever channel actually produced revenue. Let AI handle more prospecting, preparation, CRM, documentation, and first-pass fulfillment."
+      "category": "life",
+      "categoryLabel": "Life",
+      "sharedDetail": "Keep the work channels that actually help our life; stop feeding projects that only create more obligation.",
+      "detail": "Stop weak experiments and double down on the channels producing money, stability, and lower manual effort."
     },
     {
       "title": "Long arc",
       "label": "Direction",
-      "detail": "Encore stays the floor, higher-paying freelance AV raises the hourly rate, client technology work funds 3DVR, and 3DVR gradually becomes the system that finds and performs more of its own work."
+      "category": "future",
+      "categoryLabel": "Future",
+      "sharedDetail": "Build toward more freedom over where we live, how much time we have together, and what kinds of work Thomas says yes to.",
+      "detail": "Encore stays the floor, better freelance work raises the rate, client technology work funds 3DVR, and 3DVR gradually performs more of its own work."
     }
   ],
   "milestones": [
-    { "target": "1+", "label": "additional paying client / repeat engagement" },
+    { "target": "2 days", "label": "rest/family time protected in a normal week when possible" },
+    { "target": "1 trip", "label": "Mexico house care block protected this month" },
+    { "target": "1+", "label": "additional paying client or repeat engagement" },
     { "target": "$1k/mo", "label": "independent revenue neighborhood to prove repeatability" },
-    { "target": "$2k+/mo", "label": "stretch outside-Encore monthly revenue by year end" },
-    { "target": "1 cockpit", "label": "Operator holds plan, history, pipeline, and next actions" },
-    { "target": "2 days", "label": "protected rest/family time in a normal week when possible" },
-    { "target": "Less manual", "label": "each month should require less Thomas involvement per dollar earned" }
+    { "target": "1 view", "label": "shared portal plan both partners can understand quickly" },
+    { "target": "Less chaos", "label": "fewer surprises and less reconstructing plans from messages" }
   ]
 }
