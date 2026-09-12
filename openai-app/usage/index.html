@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenAI Usage · 3DVR Portal</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <style>
+    main { max-width: 860px; margin: 0 auto; padding: 1rem; }
+    .usage-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .usage-card { padding: 1rem; border: 1px solid rgba(127,127,127,.3); border-radius: 16px; }
+    .metric { font-size: 1.9rem; font-weight: 700; margin: .25rem 0; }
+    .meta { opacity: .76; }
+    .bar { height: 12px; border-radius: 999px; overflow: hidden; background: rgba(127,127,127,.25); }
+    .bar > span { display: block; height: 100%; background: currentColor; width: 0; }
+    .form-grid { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+    label { display: grid; gap: .35rem; }
+    input { width: 100%; padding: .65rem; }
+    button, .button-link { display: inline-block; padding: .7rem 1rem; border-radius: 12px; text-decoration: none; }
+    .actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .8rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <p><a href="/openai-app/">← OpenAI Workbench</a></p>
+    <header>
+      <p class="eyebrow">AI capacity</p>
+      <h1>OpenAI Usage</h1>
+      <p>Keep ChatGPT allowance and OpenAI API spending separate, visible, and easy to reason about.</p>
+    </header>
+
+    <section class="usage-card" aria-labelledby="chatgpt-title">
+      <h2 id="chatgpt-title">ChatGPT allowance</h2>
+      <p class="meta">OpenAI does not expose personal ChatGPT-plan message allowance through the organization Usage API, so this first version stores the numbers you see in ChatGPT locally on this device.</p>
+      <div class="form-grid">
+        <label>Allowance<input id="allowance" type="number" min="0" inputmode="numeric" placeholder="e.g. 100"></label>
+        <label>Used<input id="used" type="number" min="0" inputmode="numeric" placeholder="e.g. 28"></label>
+        <label>Reset time<input id="reset" type="datetime-local"></label>
+      </div>
+      <div class="actions">
+        <button id="save" type="button">Save allowance</button>
+        <a class="button-link" href="https://chatgpt.com/" target="_blank" rel="noreferrer">Open ChatGPT</a>
+      </div>
+      <p class="metric" id="remaining">Not set</p>
+      <div class="bar" aria-hidden="true"><span id="allowance-bar"></span></div>
+      <p class="meta" id="reset-copy">Enter the allowance shown by ChatGPT and its reset time.</p>
+    </section>
+
+    <h2>API organization usage</h2>
+    <div class="usage-grid" aria-live="polite">
+      <section class="usage-card">
+        <p class="meta">Requests · last 7 days</p>
+        <p class="metric" id="requests">—</p>
+      </section>
+      <section class="usage-card">
+        <p class="meta">Tokens · last 7 days</p>
+        <p class="metric" id="tokens">—</p>
+      </section>
+      <section class="usage-card">
+        <p class="meta">API cost · last 30 days</p>
+        <p class="metric" id="cost">—</p>
+      </section>
+    </div>
+    <p class="meta" id="api-status">Loading API usage…</p>
+  </main>
+
+  <script>
+    const storageKey = '3dvr-openai-chatgpt-allowance';
+    const allowanceInput = document.getElementById('allowance');
+    const usedInput = document.getElementById('used');
+    const resetInput = document.getElementById('reset');
+    const remaining = document.getElementById('remaining');
+    const resetCopy = document.getElementById('reset-copy');
+    const bar = document.getElementById('allowance-bar');
+
+    function loadAllowance() {
+      try {
+        return JSON.parse(localStorage.getItem(storageKey) || '{}');
+      } catch {
+        return {};
+      }
+    }
+
+    function renderAllowance() {
+      const allowance = Math.max(0, Number(allowanceInput.value || 0));
+      const used = Math.max(0, Number(usedInput.value || 0));
+      if (!allowance) {
+        remaining.textContent = 'Not set';
+        bar.style.width = '0%';
+      } else {
+        const left = Math.max(0, allowance - used);
+        remaining.textContent = `${left} of ${allowance} remaining`;
+        bar.style.width = `${Math.min(100, (used / allowance) * 100)}%`;
+      }
+      const resetAt = resetInput.value ? new Date(resetInput.value) : null;
+      if (!resetAt || Number.isNaN(resetAt.getTime())) {
+        resetCopy.textContent = 'Reset time not set.';
+        return;
+      }
+      const diff = resetAt.getTime() - Date.now();
+      if (diff <= 0) {
+        resetCopy.textContent = `Reset time reached: ${resetAt.toLocaleString()}`;
+        return;
+      }
+      const hours = Math.floor(diff / 3600000);
+      const minutes = Math.floor((diff % 3600000) / 60000);
+      resetCopy.textContent = `Resets in ${hours}h ${minutes}m · ${resetAt.toLocaleString()}`;
+    }
+
+    const stored = loadAllowance();
+    allowanceInput.value = stored.allowance || '';
+    usedInput.value = stored.used || '';
+    resetInput.value = stored.reset || '';
+    renderAllowance();
+    setInterval(renderAllowance, 60000);
+
+    document.getElementById('save').addEventListener('click', () => {
+      localStorage.setItem(storageKey, JSON.stringify({
+        allowance: allowanceInput.value,
+        used: usedInput.value,
+        reset: resetInput.value
+      }));
+      renderAllowance();
+    });
+
+    fetch('/api/openai-usage')
+      .then(async response => ({ response, data: await response.json() }))
+      .then(({ response, data }) => {
+        const status = document.getElementById('api-status');
+        if (!response.ok || !data.ok) throw new Error(data.error || 'Usage request failed.');
+        if (!data.configured) {
+          status.textContent = data.message;
+          return;
+        }
+        const usage = data.api.last7Days;
+        document.getElementById('requests').textContent = Number(usage.requests || 0).toLocaleString();
+        document.getElementById('tokens').textContent = Number((usage.inputTokens || 0) + (usage.outputTokens || 0)).toLocaleString();
+        document.getElementById('cost').textContent = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(data.api.last30Days.cost || 0);
+        status.textContent = `API data updated ${new Date(data.asOf).toLocaleString()}. ChatGPT allowance is a separate limit.`;
+      })
+      .catch(error => {
+        document.getElementById('api-status').textContent = `API usage unavailable: ${error.message}`;
+      });
+  </script>
+</body>
+</html>
