@@ -1,2 +1,2 @@
-2026-09-12T22:08:00-07:00
-Reason: verify transient tmux pane runtime limits and inspect Desktop Commander reconnect logs on Hetzner.
+2026-09-12T22:12:00-07:00
+Reason: install Desktop Commander rotated-session persistence workaround and issue one fresh authorization code.
