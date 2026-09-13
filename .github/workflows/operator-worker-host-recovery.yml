@@ -76,7 +76,7 @@ jobs:
           echo 'ssh_present=true' >> "$GITHUB_OUTPUT"
           echo "Worker target: $selected_user@$WORKER_HOST"
 
-      - name: Recover managed worker and process Forge queue
+      - name: Recover managed worker with resource guardrails
         id: recover
         continue-on-error: true
         shell: bash
@@ -90,9 +90,6 @@ jobs:
             "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' GITHUB_SHA='$GITHUB_SHA' OWNER_ALIAS='$OWNER_ALIAS' bash -s" <<'REMOTE'
           set -euo pipefail
 
-          # Keep the managed worker in a dedicated checkout. The older
-          # ~/.3dvr/portal tree may contain hand-edited or experimental work
-          # and is deliberately left untouched by automation.
           repo="$HOME/.3dvr/managed-worker"
           mkdir -p "$HOME/.3dvr"
           if [ ! -d "$repo/.git" ]; then
@@ -104,7 +101,7 @@ jobs:
           git -C "$repo" checkout -B main origin/main
           git -C "$repo" reset --hard origin/main
           git -C "$repo" clean -fd
-          npm --prefix "$repo/apps/agent" ci
+          npm --prefix "$repo/apps/agent" ci --no-audit --no-fund
 
           cfg="$HOME/.3dvr/config/env"
           mkdir -p "$(dirname "$cfg")"
@@ -120,10 +117,14 @@ jobs:
           cat "$cfg_tmp" > "$cfg"
           rm -f "$cfg_tmp"
 
-          scripts="$repo/apps/agent/thomas-agent/scripts"
-          "$scripts/ask-agent-worker-daemon" stop || true
-          "$scripts/ask-agent-worker-daemon" start
-          "$scripts/ask-agent-worker-daemon" status
+          guard="$repo/scripts/ops/hetzner-agent-guardrails.sh"
+          chmod +x "$guard"
+          if [ "$(id -u)" -eq 0 ]; then
+            "$guard" "$repo/apps/agent"
+          else
+            echo 'Non-root SSH user cannot install host-level guardrails; refusing unmanaged restart.' >&2
+            exit 1
+          fi
 
           set -a
           . "$cfg"
@@ -148,7 +149,7 @@ jobs:
             description='Hetzner Operator worker SSH unavailable'
           elif [ "$RECOVER_OUTCOME" = success ]; then
             state=success
-            description='Hetzner Operator worker recovered and Forge queue pass completed'
+            description='Hetzner recovered with bounded agent resources and Forge queue pass completed'
           fi
           target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           payload="$(python3 - "$state" "$description" "$target_url" <<'PY'
