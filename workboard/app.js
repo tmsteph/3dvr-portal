@@ -1,12 +1,17 @@
 import { queueCodeChange } from '../operator/forge.js';
+import { normalizeQueueRecordForWorkboard } from '../src/operator-runtime/task-queue-adapter.js';
+import { mergeQueueRuntimeRecord } from '../src/operator-runtime/runtime-sidecar.js';
 
 const ROOT = '3dvr-portal';
+const AGENT_OWNER_ALIAS = '3dvr-managed';
 const DEFAULT_PEERS = [
   'wss://gun-relay-3dvr.fly.dev/gun',
   'https://gun-relay-3dvr.fly.dev/gun'
 ];
 
 const records = new Map();
+const agentQueueLatest = new Map();
+const agentQueueRuntime = new Map();
 const template = document.getElementById('card-template');
 const cards = document.getElementById('work-cards');
 const emptyState = document.getElementById('empty-state');
@@ -37,13 +42,14 @@ function laneFor(status = '', kind = '') {
   const normalized = clean(status, 80).toLowerCase().replace(/[\s-]+/g, '_');
   if (kind === 'github-pr') return ['closed', 'merged'].includes(normalized) ? 'done' : 'review';
   if (kind === 'github-issue') return normalized === 'closed' ? 'done' : 'inbox';
-  if (['done', 'completed', 'complete', 'merged', 'closed', 'success', 'succeeded'].includes(normalized)) return 'done';
-  if (['review', 'ready_for_review', 'awaiting_review', 'needs_review', 'blocked', 'failed', 'error'].includes(normalized)) return 'review';
-  if (['working', 'running', 'in_progress', 'executing', 'claimed', 'processing'].includes(normalized)) return 'working';
+  if (['done', 'completed', 'complete', 'merged', 'closed', 'success', 'succeeded', 'cancelled', 'canceled'].includes(normalized)) return 'done';
+  if (['review', 'ready_for_review', 'awaiting_review', 'needs_review', 'waiting_human', 'blocked', 'failed', 'error', 'skipped'].includes(normalized)) return 'review';
+  if (['working', 'running', 'in_progress', 'executing', 'claimed', 'processing', 'waiting_external', 'verifying'].includes(normalized)) return 'working';
   return 'inbox';
 }
 
 function recordUrl(kind, id) {
+  if (kind === 'agent-task') return `/operator-runtime/?task=${encodeURIComponent(id)}`;
   const params = new URLSearchParams({ kind: kind === 'edit' ? 'edit' : 'suggestion', id });
   return `/forge/record.html?${params.toString()}`;
 }
@@ -62,20 +68,24 @@ function compactTask(record) {
 }
 
 function ownerFor(record) {
-  return clean(record.assignedTo || record.agent || record.backend || record.user || record.requestedByAlias || record.requestedBy || 'unassigned', 80);
+  return clean(record.owner || record.runtimeOwner || record.assignedTo || record.agent || record.backend || record.user || record.requestedByAlias || record.requestedBy || 'unassigned', 80);
 }
 
 function kindLabel(kind) {
   if (kind === 'edit') return 'Forge edit';
   if (kind === 'github-pr') return 'Pull request';
   if (kind === 'github-issue') return 'Issue';
+  if (kind === 'agent-task') return 'Runtime task';
   return 'Agent task';
 }
 
 function friendlyStatus(item, lane) {
   const normalized = clean(item.record.status || 'open', 80).toLowerCase().replace(/[\s-]+/g, '_');
+  if (normalized === 'waiting_external') return 'waiting outside';
+  if (normalized === 'verifying') return 'verifying';
   if (lane === 'review') {
-    if (['failed', 'error', 'blocked'].includes(normalized)) return normalized.replaceAll('_', ' ');
+    if (normalized === 'waiting_human') return 'needs you';
+    if (['failed', 'error', 'blocked', 'skipped'].includes(normalized)) return normalized.replaceAll('_', ' ');
     return 'needs review';
   }
   if (lane === 'working') return 'working';
@@ -98,12 +108,31 @@ function matchesFilter(item, filter) {
   return lane === filter;
 }
 
+function runtimeDetails(record) {
+  const details = [];
+  if (record.workflow) details.push(`workflow ${clean(record.workflow, 100)}`);
+  if (record.domain) details.push(clean(record.domain, 80));
+  if (record.workerLane) details.push(`lane ${clean(record.workerLane, 80)}`);
+  if (record.workerDeviceId) details.push(`worker ${clean(record.workerDeviceId, 24)}`);
+  if (record.humanCheckpointStatus && record.humanCheckpointStatus !== 'not_required') {
+    details.push(`checkpoint ${clean(record.humanCheckpointStatus, 60)}`);
+  }
+  if (record.verificationStatus && record.verificationStatus !== 'not_started') {
+    details.push(`verification ${clean(record.verificationStatus, 60)}`);
+  }
+  const evidenceCount = Number.parseInt(record.evidenceCount || 0, 10) || 0;
+  if (evidenceCount) details.push(`${evidenceCount} evidence`);
+  return details;
+}
+
 function renderCard(item) {
   const node = template.content.firstElementChild.cloneNode(true);
   const record = item.record;
   const lane = laneFor(record.status, item.kind);
   const result = clean(record.resultSummary || record.error || '', 500);
   const link = node.querySelector('.open-record');
+  const runtimeMeta = node.querySelector('.runtime-meta');
+  const details = runtimeDetails(record);
 
   node.dataset.id = item.id;
   node.dataset.lane = lane;
@@ -111,15 +140,20 @@ function renderCard(item) {
   node.querySelector('.status').textContent = friendlyStatus(item, lane);
   node.querySelector('h3').textContent = clean(record.title || (item.kind === 'edit' ? 'Operator code edit' : 'Agent task'), 160);
   node.querySelector('.task').textContent = compactTask(record) || 'No description yet.';
-  node.querySelector('.repo').textContent = clean(record.repo || 'portal', 80);
+  node.querySelector('.repo').textContent = clean(record.repo || record.domain || 'portal', 80);
   node.querySelector('.owner').textContent = ownerFor(record);
   node.querySelector('time').textContent = displayDate(record.updatedAt || record.createdAt);
   node.querySelector('time').dateTime = clean(record.updatedAt || record.createdAt, 80);
   link.href = item.url || recordUrl(item.kind, item.id);
 
-  if (item.url) {
+  if (/^https?:\/\//i.test(item.url || '')) {
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
+  }
+
+  if (details.length) {
+    runtimeMeta.hidden = false;
+    runtimeMeta.textContent = details.join(' · ');
   }
 
   if (result) {
@@ -138,7 +172,7 @@ function setPulseMessage({ review, working }) {
     return;
   }
   if (working > 0) {
-    message.textContent = working === 1 ? 'One agent is working. Nothing needs you.' : `${working} agents are working. Nothing needs you.`;
+    message.textContent = working === 1 ? 'One task is moving. Nothing needs you.' : `${working} tasks are moving. Nothing needs you.`;
     return;
   }
   message.textContent = 'Nothing needs you right now.';
@@ -209,6 +243,37 @@ function watchCollection(node, kind) {
   });
 }
 
+function syncAgentQueueItem(id) {
+  const latest = agentQueueLatest.get(id);
+  const key = `agent-task:${id}`;
+  if (!latest || typeof latest !== 'object') {
+    records.delete(key);
+    render();
+    return;
+  }
+  const runtime = agentQueueRuntime.get(id) || {};
+  const merged = mergeQueueRuntimeRecord(latest, runtime);
+  records.set(key, {
+    id,
+    kind: 'agent-task',
+    record: normalizeQueueRecordForWorkboard(merged)
+  });
+  render();
+}
+
+function watchAgentQueue(taskQueue) {
+  taskQueue.get('latest').map().on((value, id) => {
+    if (!value || typeof value !== 'object') agentQueueLatest.delete(id);
+    else agentQueueLatest.set(id, value);
+    syncAgentQueueItem(id);
+  });
+  taskQueue.get('runtime').map().on((value, id) => {
+    if (!value || typeof value !== 'object') agentQueueRuntime.delete(id);
+    else agentQueueRuntime.set(id, value);
+    syncAgentQueueItem(id);
+  });
+}
+
 async function loadGithubWork() {
   try {
     const response = await fetch('/api/workboard/github', { headers: { Accept: 'application/json' } });
@@ -241,7 +306,7 @@ async function loadGithubWork() {
     });
 
     render();
-    connectionStatus.textContent = 'Forge + GitHub live';
+    connectionStatus.textContent = 'Runtime + Forge + GitHub live';
   } catch (error) {
     console.warn('Workboard GitHub feed unavailable:', error);
   }
@@ -282,7 +347,7 @@ function start() {
   render();
 
   if (typeof globalThis.Gun !== 'function') {
-    connectionStatus.textContent = 'Forge unavailable';
+    connectionStatus.textContent = 'Runtime queue unavailable';
     return;
   }
 
@@ -290,12 +355,15 @@ function start() {
     ? globalThis.__GUN_PEERS__
     : DEFAULT_PEERS;
   const gun = globalThis.Gun({ peers });
-  const forge = gun.get(ROOT).get('forge');
+  const root = gun.get(ROOT);
+  const forge = root.get('forge');
+  const taskQueue = root.get('agentOps').get(AGENT_OWNER_ALIAS).get('taskQueue');
 
   watchCollection(forge.get('suggestions'), 'suggestion');
   watchCollection(forge.get('editRequests'), 'edit');
+  watchAgentQueue(taskQueue);
 
-  connectionStatus.textContent = 'Forge live';
+  connectionStatus.textContent = 'Runtime + Forge live';
   liveDot.classList.add('live');
   portalOrb?.classList.add('live');
 }
