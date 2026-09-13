@@ -129,6 +129,24 @@ OOMPolicy=stop
 Restart=no
 EOF
 
+# Bound the two interactive workloads that previously combined to exhaust RAM/swap.
+# Normal OpenClaw gateway usage is ~12 tasks; the Sep 13 failure exceeded 200.
+mkdir -p /etc/systemd/system/openclaw-cloud.service.d
+cat >/etc/systemd/system/openclaw-cloud.service.d/zzz-task-guard.conf <<'EOF'
+[Service]
+TasksMax=160
+EOF
+
+mkdir -p /etc/systemd/system/remote-desktop-vnc.service.d
+cat >/etc/systemd/system/remote-desktop-vnc.service.d/90-3dvr-resilience.conf <<'EOF'
+[Service]
+MemoryHigh=900M
+MemoryMax=1300M
+MemorySwapMax=512M
+TasksMax=320
+OOMPolicy=stop
+EOF
+
 systemctl daemon-reload
 systemctl disable --now ollama.service >/dev/null 2>&1 || true
 systemctl enable 3dvr-agent-stack.service
