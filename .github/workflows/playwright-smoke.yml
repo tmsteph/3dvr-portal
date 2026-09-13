@@ -32,6 +32,9 @@ jobs:
       - name: Run Operator self-edit integration test
         run: node --test tests/operator-self-edit-integration.test.js
 
+      - name: Run Operator business system regression tests
+        run: node --test tests/operator-business-system.test.js tests/growth-desk.test.js
+
       - name: Run Workboard regression tests
         run: node --test tests/workboard-*.test.js
 
