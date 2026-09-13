@@ -1,2 +1,2 @@
-2026-09-12T22:04:00-07:00
-Reason: apply verified tmux pane cgroup limits, disable/cap Ollama, clean caches, and audit Desktop Commander autostart on Hetzner.
+2026-09-12T22:08:00-07:00
+Reason: verify transient tmux pane runtime limits and inspect Desktop Commander reconnect logs on Hetzner.
