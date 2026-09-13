@@ -1,2 +1,2 @@
-2026-09-12T21:44:00-07:00
-Reason: rescue hetzner-openclaw after sustained load/swap exhaustion, restore the managed worker through the independent GitHub Actions SSH path, and verify remote reachability after reboot.
+2026-09-12T21:52:00-07:00
+Reason: rerun Hetzner recovery after adding cgroup/service/disk audit so the recurring OOM source can be fully isolated and hardened.
