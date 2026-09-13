@@ -81,6 +81,31 @@ jobs:
           printf '%s' "$edge_health" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.ok||x.host!=="self"||x.operatorApi!=="native")process.exit(1)})'
           REMOTE
 
+      - name: Inspect OVH host firewall read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          echo '=== nftables service ==='
+          sudo systemctl is-active nftables 2>/dev/null || true
+          echo '=== nftables ruleset ==='
+          if command -v nft >/dev/null 2>&1; then sudo nft list ruleset || true; else echo 'nft command not installed'; fi
+          echo '=== iptables IPv4 ==='
+          if command -v iptables >/dev/null 2>&1; then sudo iptables -S || true; else echo 'iptables command not installed'; fi
+          echo '=== iptables IPv6 ==='
+          if command -v ip6tables >/dev/null 2>&1; then sudo ip6tables -S || true; else echo 'ip6tables command not installed'; fi
+          echo '=== firewalld ==='
+          sudo systemctl is-active firewalld 2>/dev/null || true
+          echo '=== addresses ==='
+          ip -brief address
+          echo '=== routes ==='
+          ip route
+          echo '=== listeners ==='
+          sudo ss -ltnp | grep -E ':(22|80|443)[[:space:]]' || true
+          REMOTE
+
       - name: Prove port 80 works from outside OVH before cutover
         shell: bash
         run: |
