@@ -49,6 +49,8 @@ jobs:
           ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
           curl --fail --silent --show-error http://127.0.0.1:4320/organism/app.js | grep -F "reject.textContent = 'Not relevant'"
+          health="$(curl --fail --silent --show-error http://127.0.0.1:4320/__3dvr-health)"
+          printf '%s' "$health" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.ok||x.host!=="self"||x.operatorApi!=="native")process.exit(1)})'
           sudo apt-get update -qq
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y caddy
           sudo tee /etc/caddy/Caddyfile >/dev/null <<'CADDY'
@@ -60,6 +62,8 @@ jobs:
           sudo systemctl enable --now caddy
           sudo systemctl restart caddy
           curl --fail --silent --show-error -H 'Host: portal.3dvr.tech' http://127.0.0.1/organism/app.js | grep -F "reject.textContent = 'Not relevant'"
+          edge_health="$(curl --fail --silent --show-error -H 'Host: portal.3dvr.tech' http://127.0.0.1/__3dvr-health)"
+          printf '%s' "$edge_health" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.ok||x.host!=="self"||x.operatorApi!=="native")process.exit(1)})'
           REMOTE
 
       - name: Prove port 80 works from outside OVH before cutover
@@ -68,6 +72,8 @@ jobs:
           set -euo pipefail
           curl --fail --silent --show-error --max-time 15 -H 'Host: portal.3dvr.tech' "http://$OVH_HOST/organism/app.js" \
             | grep -F "reject.textContent = 'Not relevant'"
+          curl --fail --silent --show-error --max-time 15 -H 'Host: portal.3dvr.tech' "http://$OVH_HOST/__3dvr-health" > /tmp/precutover-health.json
+          node -e 'const fs=require("node:fs");const x=JSON.parse(fs.readFileSync("/tmp/precutover-health.json","utf8"));if(!x.ok||x.host!=="self"||x.operatorApi!=="native")process.exit(1)'
 
       - name: Point canonical portal DNS at OVH
         shell: bash
@@ -117,7 +123,8 @@ jobs:
               | grep -Fq "reject.textContent = 'Not relevant'"; then
               curl --fail --silent --show-error --max-time 15 \
                 --resolve "portal.3dvr.tech:443:$OVH_HOST" \
-                https://portal.3dvr.tech/__3dvr-health
+                https://portal.3dvr.tech/__3dvr-health > /tmp/postcutover-health.json
+              node -e 'const fs=require("node:fs");const x=JSON.parse(fs.readFileSync("/tmp/postcutover-health.json","utf8"));if(!x.ok||x.host!=="self"||x.operatorApi!=="native")process.exit(1)'
               exit 0
             fi
             sleep 2
@@ -126,4 +133,4 @@ jobs:
 
       - name: Remove SSH key
         if: always()
-        run: rm -f /tmp/key /tmp/key.raw
+        run: rm -f /tmp/key /tmp/key.raw /tmp/precutover-health.json /tmp/postcutover-health.json
