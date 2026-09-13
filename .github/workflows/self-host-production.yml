@@ -43,7 +43,7 @@ jobs:
           node --check scripts/organism-bridge-server.mjs
           bash -n scripts/ops/deploy-self-host-portal.sh
           bash -n scripts/ops/install-organism-owner-bridge.sh
-          node --test tests/operator-developer-access.test.js tests/organism-access.test.js
+          node --test tests/operator-developer-access.test.js tests/organism-access.test.js tests/self-host-deploy-persistent-tunnel.test.js
 
       - name: Resolve OVH-first portal credentials
         id: resolve
