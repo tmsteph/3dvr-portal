@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Release v0.0.62 Candidate (Week of September 7, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-nav { display: flex; justify-content: space-between; gap: 16px; margin: 20px 0 40px; }
+    .release-nav a { text-decoration: none; font-weight: 600; }
+    li + li { margin-top: 12px; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a href="v0.0.61.html">Previous release</a>
+    <span>Release Candidate</span>
+  </nav>
+
+  <h1>Release v0.0.62 Candidate</h1>
+  <div class="tag">Week of September 7, 2026</div>
+
+  <div class="section">
+    <h2>How releases work now</h2>
+    <p>
+      The Portal is still in early development, so we continuously integrate useful changes into <code>main</code> instead of
+      waiting for a weekly code freeze. The weekly release is a tested snapshot and a simple story the team can review together.
+    </p>
+    <ul>
+      <li><strong>Internal snapshot:</strong> Thursday, September 10, 2026</li>
+      <li><strong>Testing and fixes:</strong> Friday, September 11 through Sunday, September 13, 2026</li>
+      <li><strong>Stable public milestone:</strong> Monday, September 14, 2026</li>
+    </ul>
+    <p>Development can continue throughout the cycle. Monday records the tested state rather than acting as the only day changes may reach production.</p>
+  </div>
+
+  <div class="section">
+    <h2>The story this week</h2>
+    <p>
+      v0.0.62 moves 3DVR toward an understandable personal computing system: more spatial interfaces, safer agent access,
+      stronger infrastructure, and small business experiments that can turn software into real work.
+    </p>
+    <ul>
+      <li>
+        <strong>Spatial computing became useful.</strong> <a href="../noteverse/">Noteverse</a> became a full-window 3D Life Space,
+        <a href="../driftspace/">Driftspace</a> added flight, docking, and note editing, and <a href="../life-lab/">Life Lab</a>
+        added evolution, lineage, and ancestry replay. See <a href="https://github.com/tmsteph/3dvr-portal/pull/2198">#2198</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2239">#2239</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2242">#2242</a>,
+        and <a href="https://github.com/tmsteph/3dvr-portal/pull/2194">#2194</a>.
+      </li>
+      <li>
+        <strong>Visual testing caught up with the 3D work.</strong> The Portal can capture deterministic animation/gameplay runs,
+        compare frames, retain evidence, and optionally ask an AI reviewer for a second look. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2243">#2243</a>–<a href="https://github.com/tmsteph/3dvr-portal/pull/2245">#2245</a>.
+      </li>
+      <li>
+        <strong>Agent access became safer and easier to understand.</strong> The new <a href="../access/">Access Center</a>, scoped
+        Secrets Broker, Bitwarden machine-token handoff, browser-lane leases, and human-challenge detection give agents bounded ways
+        to use credentials and authenticated browser sessions without pretending CAPTCHAs can be bypassed. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2240">#2240</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2252">#2252</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2262">#2262</a>, and <a href="https://github.com/tmsteph/3dvr-portal/pull/2279">#2279</a>.
+      </li>
+      <li>
+        <strong>The cloud became a real control plane.</strong> OVH, Hetzner, and DigitalOcean now have clearer roles, health checks,
+        recovery paths, disk-pressure handling, and safer production provisioning. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2171">#2171</a> and the follow-up infrastructure work through this week.
+      </li>
+      <li>
+        <strong>Business experiments became more concrete.</strong> The <a href="../cleaning-network/">Cleaning Network</a> can onboard
+        partners and generate branded previews, the AV freelance area gained a work-network funnel and rate calculator, the Freelancer
+        Desk gained a booking policy/source roster, and an importable n8n lead-intake reliability proof landed. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2231">#2231</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2162">#2162</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2233">#2233</a>, and <a href="https://github.com/tmsteph/3dvr-portal/pull/2254">#2254</a>.
+      </li>
+      <li>
+        <strong>Everyday computing got simpler experiments.</strong> Day gained a compact command center, the Calendar gained an optional
+        13-month view, Labs became discoverable, and Human Language Lab preserves the plain-language programming experiment. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2230">#2230</a>, <a href="https://github.com/tmsteph/3dvr-portal/pull/2195">#2195</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2199">#2199</a>, and <a href="https://github.com/tmsteph/3dvr-portal/pull/2187">#2187</a>.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>What to test this weekend</h2>
+    <ul>
+      <li>Use Noteverse and Driftspace on a phone and laptop; report navigation or rendering problems.</li>
+      <li>Exercise Access Center and authenticated browser handoffs without exposing secrets.</li>
+      <li>Run the visual-regression scenarios before merging risky 3D or gameplay changes.</li>
+      <li>Try one real workflow through Day, Freelancer Desk, Cleaning Network, or the AV work funnel.</li>
+      <li>Keep production fixes small and reversible; do not hold good fixes merely to preserve a frozen candidate.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>In short</h2>
+    <p>
+      Thursday is our team checkpoint, not a wall around development. v0.0.62 is the weekly snapshot of a continuously integrated Portal.
+      We test and improve it through the weekend, then record Monday's tested state as the stable public milestone.
+    </p>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">&copy; 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
