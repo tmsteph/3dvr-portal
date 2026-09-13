@@ -1,2 +1,2 @@
-2026-09-12T21:52:00-07:00
-Reason: rerun Hetzner recovery after adding cgroup/service/disk audit so the recurring OOM source can be fully isolated and hardened.
+2026-09-12T22:04:00-07:00
+Reason: apply verified tmux pane cgroup limits, disable/cap Ollama, clean caches, and audit Desktop Commander autostart on Hetzner.
