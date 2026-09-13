@@ -97,6 +97,17 @@ jobs:
             git clone "https://github.com/$GITHUB_REPOSITORY.git" "$repo"
           fi
 
+          # Stop anything actively using this checkout before replacing its
+          # dependency tree. This makes repeated rescue runs safe and avoids
+          # npm ENOTEMPTY races from live GUN/agent processes.
+          if [ "$(id -u)" -eq 0 ]; then
+            systemctl stop 3dvr-agent-stack.service 2>/dev/null || true
+          fi
+          legacy_worker="$repo/apps/agent/thomas-agent/scripts/ask-agent-worker-daemon"
+          if [ -f "$legacy_worker" ]; then
+            bash "$legacy_worker" stop || true
+          fi
+
           # Recovery must be repeatable even if a previous run changed a file mode,
           # generated state, or was interrupted halfway through an update.
           git -C "$repo" reset --hard HEAD
@@ -105,6 +116,7 @@ jobs:
           git -C "$repo" checkout -B main origin/main
           git -C "$repo" reset --hard origin/main
           git -C "$repo" clean -fd
+          rm -rf "$repo/apps/agent/node_modules"
           npm --prefix "$repo/apps/agent" ci --no-audit --no-fund
 
           cfg="$HOME/.3dvr/config/env"
