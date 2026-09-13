@@ -50,7 +50,7 @@ EOF
 
 # tmux 3.4 places panes in tmux-spawn-*.scope units under the root user
 # manager, so service-level limits alone do not contain the real workers.
-# Apply limits directly to the known 3DVR pane scopes after every start.
+# These scopes are transient, so their properties must be changed at runtime.
 cat >/usr/local/sbin/3dvr-apply-tmux-guards <<'EOF'
 #!/usr/bin/env bash
 set -u
@@ -58,6 +58,7 @@ export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/0}"
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=/run/user/0/bus}"
 command -v tmux >/dev/null 2>&1 || exit 0
 for attempt in 1 2 3 4 5; do
+  found=0
   applied=0
   while IFS=: read -r session pid command; do
     case "$session" in
@@ -70,17 +71,24 @@ for attempt in 1 2 3 4 5; do
       3dvr-heartbeat) high=120M; max=180M; swap=96M; cpu=35% ;;
       *) continue ;;
     esac
+    found=$((found + 1))
     scope="$(sed -n 's#^0::.*\/\([^/]*\.scope\)$#\1#p' "/proc/$pid/cgroup" 2>/dev/null | head -n1)"
-    [ -n "$scope" ] || continue
-    systemctl --user set-property "$scope" \
+    [ -n "$scope" ] || { echo "3dvr guard: no scope for $session pid=$pid" >&2; continue; }
+    if output="$(systemctl --user set-property --runtime "$scope" \
       MemoryAccounting=yes MemoryHigh="$high" MemoryMax="$max" MemorySwapMax="$swap" \
-      CPUAccounting=yes CPUQuota="$cpu" TasksMax=160 OOMPolicy=continue >/dev/null 2>&1 || true
-    applied=$((applied + 1))
+      CPUAccounting=yes CPUQuota="$cpu" TasksMax=160 2>&1)"; then
+      applied=$((applied + 1))
+    else
+      echo "3dvr guard: failed $session/$scope: $output" >&2
+    fi
   done < <(tmux list-panes -a -F '#{session_name}:#{pane_pid}:#{pane_current_command}' 2>/dev/null || true)
-  [ "$applied" -gt 0 ] && exit 0
+  if [ "$found" -gt 0 ] && [ "$applied" -eq "$found" ]; then
+    exit 0
+  fi
   sleep 1
 done
-exit 0
+echo "3dvr guard: only $applied of $found pane scopes were limited" >&2
+exit 1
 EOF
 chmod 755 /usr/local/sbin/3dvr-apply-tmux-guards
 
@@ -128,7 +136,7 @@ journalctl --vacuum-size=300M >/dev/null 2>&1 || true
 apt-get clean >/dev/null 2>&1 || true
 npm cache clean --force >/dev/null 2>&1 || true
 systemctl restart 3dvr-agent-stack.service
-/usr/local/sbin/3dvr-apply-tmux-guards || true
+/usr/local/sbin/3dvr-apply-tmux-guards
 
 echo '=== post-guardrail health ==='
 systemctl --no-pager --full status 3dvr-agent-stack.service || true
@@ -146,7 +154,7 @@ if command -v tmux >/dev/null 2>&1; then
     scope="${cgroup##*/}"
     printf '%s pid=%s command=%s cgroup=%s\n' "$session" "$pid" "$command" "$cgroup"
     case "$session" in
-      3dvr-*) systemctl --user show "$scope" -p MemoryCurrent -p MemoryHigh -p MemoryMax -p MemorySwapMax -p CPUQuotaPerSecUSec -p TasksCurrent -p TasksMax -p OOMPolicy 2>/dev/null || true ;;
+      3dvr-*) systemctl --user show "$scope" -p MemoryCurrent -p MemoryHigh -p MemoryMax -p MemorySwapMax -p CPUQuotaPerSecUSec -p TasksCurrent -p TasksMax 2>/dev/null || true ;;
     esac
   done < <(tmux list-panes -a -F '#{session_name}:#{pane_pid}:#{pane_current_command}' 2>/dev/null || true)
 fi
@@ -160,9 +168,9 @@ done
 
 echo '=== desktop commander audit ==='
 ps -eo pid,ppid,etimes,rss,cmd --sort=-rss | grep -Ei 'desktop.?commander|claude-server-commander|remote.?desktop.?commander' | grep -v grep || true
-systemctl list-unit-files --type=service --no-legend 2>/dev/null | grep -Ei 'desktop|commander|openclaw' || true
-find /etc/systemd/system /root/.config/systemd -maxdepth 4 -type f 2>/dev/null | grep -Ei 'desktop|commander' || true
-find /root/.claude-server-commander -maxdepth 2 -type f -printf '%p\n' 2>/dev/null | head -40 || true
+systemctl status desktop-commander-remote.service --no-pager -l || true
+systemctl cat desktop-commander-remote.service --no-pager || true
+journalctl -u desktop-commander-remote.service -b --no-pager -n 120 || true
 
 echo '=== disk hotspots after cleanup ==='
 du -xhd1 /var /root 2>/dev/null | sort -h | tail -20 || true
