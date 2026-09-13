@@ -1,0 +1,52 @@
+name: Probe Hetzner Desktop Commander
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/hetzner-desktop-commander-probe-trigger.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  WORKER_HOST: 167.233.174.20
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Resolve Hetzner SSH key
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          for raw in "$SSH_A" "$SSH_B" "$SSH_C"; do
+            [ -n "$raw" ] || continue
+            printf '%s\n' "$raw" > /tmp/key.raw
+            if grep -q 'BEGIN .*PRIVATE KEY' /tmp/key.raw; then cp /tmp/key.raw /tmp/key;
+            elif base64 -d /tmp/key.raw > /tmp/key 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' /tmp/key; then :;
+            else rm -f /tmp/key /tmp/key.raw; continue; fi
+            chmod 600 /tmp/key
+            rm -f /tmp/key.raw
+            if ssh -i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 root@$WORKER_HOST true >/dev/null 2>&1; then exit 0; fi
+            rm -f /tmp/key
+          done
+          exit 1
+
+      - name: Read live bridge journal
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 root@$WORKER_HOST \
+            "systemctl --no-pager --full status desktop-commander-remote.service || true; echo '=== recent journal ==='; journalctl -u desktop-commander-remote.service --since '-3 minutes' --no-pager | tail -120"
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f /tmp/key /tmp/key.raw
