@@ -93,3 +93,23 @@ systemctl --no-pager --full status 3dvr-agent-stack.service || true
 systemctl show 3dvr-agent-stack.service -p ActiveState -p SubState -p MemoryCurrent -p MemoryHigh -p MemoryMax -p MemorySwapMax -p CPUQuotaPerSecUSec -p TasksCurrent -p TasksMax || true
 free -h || true
 df -h / || true
+
+echo '=== workload cgroup audit ==='
+if command -v tmux >/dev/null 2>&1; then
+  tmux ls 2>/dev/null || true
+  while IFS=: read -r session pid command; do
+    [ -n "$pid" ] || continue
+    printf '%s pid=%s command=%s cgroup=' "$session" "$pid" "$command"
+    sed -n 's/^0:://p' "/proc/$pid/cgroup" 2>/dev/null || true
+  done < <(tmux list-panes -a -F '#{session_name}:#{pane_pid}:#{pane_current_command}' 2>/dev/null || true)
+fi
+for unit in openclaw-cloud.service ollama.service; do
+  if systemctl list-unit-files "$unit" --no-legend 2>/dev/null | grep -q "$unit"; then
+    echo "--- $unit ---"
+    systemctl show "$unit" -p ActiveState -p SubState -p Restart -p MemoryCurrent -p MemoryHigh -p MemoryMax -p MemorySwapMax -p CPUQuotaPerSecUSec -p TasksCurrent -p TasksMax || true
+    systemctl cat "$unit" --no-pager || true
+  fi
+done
+
+echo '=== disk hotspots ==='
+du -xhd1 /var /root 2>/dev/null | sort -h | tail -20 || true
