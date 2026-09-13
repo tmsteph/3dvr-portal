@@ -1,0 +1,71 @@
+name: Refresh Hetzner Desktop Commander Auth
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/hetzner-desktop-commander-auth-trigger.txt'
+      - '.github/workflows/hetzner-desktop-commander-auth.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  WORKER_HOST: 167.233.174.20
+
+jobs:
+  refresh-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Resolve Hetzner SSH key
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          for raw in "$SSH_A" "$SSH_B" "$SSH_C"; do
+            [ -n "$raw" ] || continue
+            printf '%s\n' "$raw" > /tmp/key.raw
+            if grep -q 'BEGIN .*PRIVATE KEY' /tmp/key.raw; then
+              cp /tmp/key.raw /tmp/key
+            elif base64 -d /tmp/key.raw > /tmp/key 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' /tmp/key; then
+              :
+            else
+              rm -f /tmp/key /tmp/key.raw
+              continue
+            fi
+            chmod 600 /tmp/key
+            rm -f /tmp/key.raw
+            if ssh -i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 root@$WORKER_HOST true >/dev/null 2>&1; then
+              exit 0
+            fi
+            rm -f /tmp/key
+          done
+          echo 'No configured SSH key can reach Hetzner as root.' >&2
+          exit 1
+
+      - name: Restart bridge and print fresh auth code
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+          ssh "${opts[@]}" root@$WORKER_HOST 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          systemctl reset-failed desktop-commander-remote.service || true
+          systemctl restart desktop-commander-remote.service
+          sleep 6
+          echo '=== desktop commander status ==='
+          systemctl --no-pager --full status desktop-commander-remote.service || true
+          echo '=== latest authorization block ==='
+          journalctl -u desktop-commander-remote.service --since '-2 minutes' --no-pager | tail -80
+          REMOTE
+
+      - name: Remove SSH key
+        if: always()
+        shell: bash
+        run: rm -f /tmp/key /tmp/key.raw
