@@ -30,6 +30,45 @@ function escapeHtml(value = '') {
   })[character]);
 }
 
+function registryPillState(status) {
+  if (status === 'working') return 'ready';
+  if (status === 'partial') return 'waiting';
+  return 'progress';
+}
+
+function renderConnectionRegistry(payload) {
+  const list = byId('connectionList');
+  const summary = byId('connectionSummary');
+  if (!list || !summary) return;
+  const rows = (payload.capabilities || []).filter(capability => capability.showInAccess);
+  const working = rows.filter(capability => capability.status === 'working').length;
+  const partial = rows.filter(capability => capability.status === 'partial').length;
+  summary.textContent = `${rows.length} documented access paths · ${working} working · ${partial} partial/session-dependent · registry updated ${payload.updated || 'unknown'}.`;
+  list.innerHTML = rows.map(capability => `
+    <article class="connection-item">
+      <div class="connection-head">
+        <div><strong>${escapeHtml(capability.name)}</strong><small>${escapeHtml(capability.category || '')}</small></div>
+        <span class="pill ${registryPillState(capability.status)}">${escapeHtml(payload.statuses?.[capability.status] || capability.status)}</span>
+      </div>
+      <p><b>Via</b><span>${escapeHtml(capability.access || 'Not documented')}</span></p>
+      ${capability.healthCheck ? `<p><b>Check</b><span>${escapeHtml(capability.healthCheck)}</span></p>` : ''}
+      ${capability.fallback ? `<p><b>Fallback</b><span>${escapeHtml(capability.fallback)}</span></p>` : ''}
+    </article>`).join('');
+}
+
+async function loadConnectionRegistry() {
+  const list = byId('connectionList');
+  const summary = byId('connectionSummary');
+  try {
+    const response = await fetch('/abilities/abilities.json', { cache: 'no-store', credentials: 'same-origin' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    renderConnectionRegistry(await response.json());
+  } catch (error) {
+    if (summary) summary.textContent = 'Capability map is unavailable.';
+    if (list) list.innerHTML = `<p class="muted">${escapeHtml(error.message)}</p>`;
+  }
+}
+
 async function sha256(value) {
   const bytes = new TextEncoder().encode(String(value || ''));
   const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
@@ -100,6 +139,7 @@ function renderStatus(status) {
     ? 'OVH broker is live and Bitwarden machine access is connected. Agents can request scoped access through policy.'
     : 'OVH broker is live. Bitwarden machine access still needs its one-time private handoff.';
 }
+
 function renderApprovals(records = []) {
   setPill('approvalCount', records.length ? `${records.length} pending` : 'Clear', records.length ? 'waiting' : 'ready');
   if (!records.length) {
@@ -139,6 +179,7 @@ async function loadAccess() {
     refreshButton?.removeAttribute('disabled');
   }
 }
+
 approvalButton?.addEventListener('click', () => {
   if (typeof approvalDialog?.showModal === 'function') approvalDialog.showModal();
 });
@@ -205,7 +246,7 @@ connectBitwarden?.addEventListener('click', async () => {
   }
 });
 
-refreshButton?.addEventListener('click', loadAccess);
+refreshButton?.addEventListener('click', () => Promise.allSettled([loadAccess(), loadConnectionRegistry()]));
 
 approvalList?.addEventListener('click', async event => {
   const button = event.target.closest('button[data-decision]');
@@ -224,4 +265,4 @@ approvalList?.addEventListener('click', async event => {
   }
 });
 
-loadAccess();
+Promise.allSettled([loadAccess(), loadConnectionRegistry()]);
