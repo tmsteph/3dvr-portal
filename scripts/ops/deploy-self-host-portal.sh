@@ -349,27 +349,15 @@ EOF
   systemctl restart 3dvr-portal-tunnel.service
   portal_url='named-cloudflare-tunnel'
 else
-  tunnel_session=3dvr-portal-quick-tunnel
-  tunnel_log="$state/tunnel.log"
-  : > "$tunnel_log"
-  if command -v tmux >/dev/null 2>&1; then
-    tmux kill-session -t "$tunnel_session" 2>/dev/null || true
-    tmux new-session -d -s "$tunnel_session" "$cloudflared tunnel --no-autoupdate --url http://127.0.0.1:$port >>'$tunnel_log' 2>&1"
-  else
-    nohup "$cloudflared" tunnel --no-autoupdate --url "http://127.0.0.1:$port" >>"$tunnel_log" 2>&1 </dev/null &
-    echo $! > "$state/tunnel.pid"
-  fi
-  for _ in $(seq 1 60); do
-    candidate_url="$(grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' "$tunnel_log" | tail -n1 || true)"
-    if [ -n "$candidate_url" ] && public_portal_ready "$candidate_url"; then
-      portal_url="$candidate_url"
-      break
-    fi
-    sleep 0.5
-  done
-  if [ -z "$portal_url" ]; then
-    echo 'Portal quick tunnel did not become semantically ready for the deployed release.' >&2
-    tail -n 20 "$tunnel_log" >&2 2>/dev/null || true
+  # Reuse one anonymous public tunnel across releases. Starting a new Quick
+  # Tunnel on every deploy causes avoidable Cloudflare rate limits and makes a
+  # healthy local release fail for transport reasons.
+  tunnel_output="$(THREEDVR_PORTAL_PRODUCTION_DIR="$base" THREEDVR_PORTAL_PORT="$port" bash "$current/scripts/ops/ensure-portal-public-tunnel.sh")"
+  printf '%s\n' "$tunnel_output"
+  portal_url="$(printf '%s\n' "$tunnel_output" | sed -n 's/^PORTAL_SELF_HOST_URL=//p' | tail -n1)"
+  [ -n "$portal_url" ] || { echo 'Persistent Portal public tunnel URL is unavailable.' >&2; exit 5; }
+  if ! public_portal_ready "$portal_url"; then
+    echo 'Persistent Portal public tunnel is not serving the deployed release.' >&2
     exit 5
   fi
 fi
