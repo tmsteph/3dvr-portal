@@ -70,6 +70,29 @@ The runtime needs one coherent model of Thomas rather than app-specific copies:
 
 Private personal state stays out of Git. Git stores schemas, architecture, policy, and code. Runtime state belongs in private durable storage with scoped access and an audit trail.
 
+## Capability bootstrap and health contract
+
+`/abilities/abilities.json` is the public machine-readable capability and recovery map. `/access/` is the owner-facing private control/approval surface. Workers must consult the capability map before concluding that an account, device, connector, browser session, or credential path is unavailable.
+
+For each required capability, the worker should follow this order:
+
+1. Identify the documented primary access path and permission boundary.
+2. Run the least-invasive real health check appropriate to that capability.
+3. Use the documented fallback/recovery path when the primary path fails.
+4. Surface only the smallest human checkpoint required to restore operation.
+5. Record dynamic health privately; do not put secrets, private identifiers, or transient personal state in the public registry.
+
+Health is layered, not boolean:
+
+- **configured** — a known access path exists.
+- **reachable** — the underlying connector/device/service answers a lightweight probe.
+- **operational** — a harmless real operation succeeds.
+- **session** — the authenticated application/session required by the workflow is actually usable.
+
+A ping does not prove command execution. A running browser process does not prove WhatsApp or Google Messages is still paired. A saved credential does not prove the downstream service accepts it. Workers must not promote a weaker health level into a stronger one.
+
+The control plane should progressively automate these checks and reconcile private runtime health with the public runbook without requiring Thomas or the agent to rediscover integration setup from conversation history.
+
 ## Work item contract
 
 Every actionable item should normalize to the same minimum shape: `id`, `title`, `intent`, `domain`, `priority`, `state`, `risk`, `owner`, `dependencies`, `requiredCapabilities`, `identityLease`, `humanCheckpoint`, `createdAt`, `updatedAt`, `evidence`, and `result`.
@@ -82,6 +105,8 @@ The queue should support jobs, client work, outreach, software changes, calendar
 
 - `/workboard/` — task queue and human-attention surface.
 - `/operator/` — conversational operator and action surface.
+- `/abilities/` — capability, access-path, health-check, and recovery runbooks.
+- `/access/` — owner approvals, scoped machine access, and private control-plane state.
 - Money Printer Executive Operator — durable direction, founder feedback, decisions, and planning.
 - `docs/ovh-resource-lanes.md` — host-level resource isolation.
 - Browser-lane lease tooling and tests — foundation for session ownership.
@@ -97,7 +122,8 @@ Do not replace these with a parallel platform. Refactor them toward the shared c
 3. Add resource telemetry and stale-worker cleanup so runaway browsers cannot monopolize OVH.
 4. Teach Workboard to show worker/lane, human checkpoint, verification state, and evidence.
 5. Route one real workflow end to end through the runtime; the lead-to-sale revenue loop and job applications are useful stress tests, not separate architectures.
-6. Add other workflows incrementally: email triage, CRM/client follow-up, calendar/admin, development/deployment, infrastructure, household/life operations.
+6. Expand automatic capability verification from existing server/device probes to connector and authenticated-session checks.
+7. Add other workflows incrementally: email triage, CRM/client follow-up, calendar/admin, development/deployment, infrastructure, household/life operations.
 
 ## Success criterion
 
