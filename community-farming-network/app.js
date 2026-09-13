@@ -36,8 +36,6 @@ function getGunRoot() {
   window.gun = gun;
   els.status.textContent = 'Connected to the portal Gun graph.';
 
-  // Future backend hook:
-  // gun.get('3dvr-portal').get('communityFarmingNetwork').get('entries').get(id)
   return gun.get('3dvr-portal').get(FARMING_ROOT);
 }
 
@@ -70,6 +68,10 @@ function typeLabel(value) {
     garden: 'Garden',
     labor: 'Labor',
     resource: 'Tool',
+    skill: 'Skill',
+    care: 'Care',
+    learning: 'Teach / Learn',
+    transport: 'Transport',
   };
   return labels[value] || 'Post';
 }
@@ -88,7 +90,7 @@ function renderEntries() {
 
   els.list.innerHTML = '';
   if (!entries.length) {
-    els.list.innerHTML = '<article class="entry-card"><p>No posts in this lane yet. Add the first food, labor, land, or tool note.</p></article>';
+    els.list.innerHTML = '<article class="entry-card"><p>No posts in this lane yet. Add the first food, land, labor, tool, skill, care, learning, or transport note.</p></article>';
     return;
   }
 
@@ -140,7 +142,7 @@ function addEntry(event) {
   renderEntries();
   root?.get('entries').get(entry.id).put(entry);
   els.form.reset();
-  els.status.textContent = root ? 'Saved to the Community Farming Network.' : 'Saved locally.';
+  els.status.textContent = root ? 'Saved to the local support network.' : 'Saved locally.';
 }
 
 function bindFilters() {
