@@ -1,2 +1,2 @@
-2026-08-24T18:58:00Z
-Reason: recover the German 3DVR worker through the managed/legacy outbound task queue after the Operator Forge access failures; verify worker, router, inbox, autopilot, heartbeat, and OpenClaw health.
+2026-09-13T00:49:00Z
+Reason: recover recurring Hetzner/OpenClaw memory-pressure failure through the authorized managed/legacy worker queue after Desktop Commander became unresponsive; verify worker stack and OpenClaw health before applying any further resource hardening.
