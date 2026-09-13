@@ -67,6 +67,22 @@ A human checkpoint pauses that work item only. Other unrelated workers should co
 
 `src/operator-runtime/revenue-workflow.js` defines the business roles, revenue stages, valid transitions, and outbound policy decisions.
 
+`src/operator-runtime/task-queue-adapter.js` bridges canonical work items to the existing Agent Ops worker queue without changing the worker contract.
+
+`src/operator-runtime/runtime-sidecar.js` stores canonical runtime metadata beside the queue task under the same task ID so worker normalization cannot erase workflow, checkpoint, verification, or evidence context.
+
+## Persistence decision
+
+Do **not** create a second task database yet.
+
+The current transitional persistence boundary is the existing tenant-scoped Agent Ops queue:
+
+- worker record: `agentOps/<owner>/taskQueue/tasks/<id>`
+- worker summary: `agentOps/<owner>/taskQueue/latest/<id>`
+- canonical runtime sidecar: `agentOps/<owner>/taskQueue/runtime/<id>`
+
+The first managed owner is `3dvr-managed`. The sidecar is a compatibility bridge, not the final private store. Producers and UI code should depend on the runtime adapter rather than the Gun path directly wherever practical. When the final private durable store is ready, replace this adapter boundary instead of rewriting every workflow.
+
 ## Portal mapping
 
 - **Operator** — founder intent and conversational control surface.
@@ -76,25 +92,54 @@ A human checkpoint pauses that work item only. Other unrelated workers should co
 - **Money Printer / Revenue Manager** — opportunity selection, experiments, and measurable money path.
 - **Worker hosts** — OVH/control-plane workers first; additional hosts join through the same registry and queue contracts.
 
+## Execution plan
+
+### Phase 1 — persist and see shared work
+
+- [x] Define the canonical work-item and worker-registry contracts.
+- [x] Define the lead-to-sale state machine and outbound policy.
+- [x] Add an Agent Ops queue adapter instead of inventing another queue.
+- [x] Add a canonical runtime sidecar keyed by the existing task ID.
+- [x] Move Operator code-edit queueing onto the shared work-item contract as the first producer.
+- [x] Teach Workboard to join Agent Ops `latest` records with runtime sidecars.
+- [x] Show owner, workflow, worker/lane, human checkpoint, verification, and evidence count in Workboard.
+- [ ] Keep this bridge covered by regression tests and merge only after CI is green.
+
+### Phase 2 — route one real revenue opportunity
+
+- [ ] Select one real CRM lead with a clear source and relationship classification.
+- [ ] Create a `lead-to-sale` work item from the CRM record.
+- [ ] Persist every stage transition from evidence, not manual narrative.
+- [ ] Make the same item visible in Growth Desk and Workboard.
+- [ ] Stop at the appropriate human checkpoint for known contacts or sensitive outbound.
+
+### Phase 3 — real worker handoffs
+
+- [ ] Connect Revenue Manager decisions to the worker registry.
+- [ ] Let Research run in parallel on read lanes.
+- [ ] Serialize identity-bound sends through the protected identity lane.
+- [ ] Record worker/lane leases and completion evidence on the shared item.
+- [ ] Make stale/failed workers recoverable without losing the work item.
+
+### Phase 4 — event-driven revenue loop
+
+- [ ] Ingest delivery failures and replies as evidence-driven transitions.
+- [ ] Schedule follow-ups from the work item instead of chat history.
+- [ ] Generate and track proposal state from the same opportunity.
+- [ ] Verify payment before moving an opportunity to `won`.
+- [ ] Feed lessons back into offer/message experiments and the next Business Manager decision.
+
+### Phase 5 — graduate the persistence layer
+
+- [ ] Choose the final private durable runtime store with scoped access and audit history.
+- [ ] Migrate sidecar records behind the adapter boundary.
+- [ ] Keep Agent Ops queue compatibility while workers migrate.
+- [ ] Remove direct storage assumptions from product surfaces.
+
 ## Implementation status — 2026-09-12
 
-Implemented in this change:
+The architecture, business roles, runtime contracts, lead-to-sale state machine, outbound policy, queue adapter, transitional sidecar, and Workboard runtime view are implemented on the current feature branch. Phase 1 is complete except for regression/CI verification and merge.
 
-- shared work-item schema and transitions
-- worker registry schema and capability selection
-- Business Manager + Research + Sales + Marketing + Operations + Engineering role model
-- executable lead-to-sale revenue state machine
-- fresh-vs-known outbound approval policy with business-hours deferral
-- unit coverage for contracts, worker selection, policy, and the full research → payment path
-- Growth Desk representation of the same operating loop
-
-## Next implementation slice
-
-1. Persist these work items in the existing private runtime store instead of app-local state.
-2. Teach Workboard to render `owner`, `workflow`, worker/lane, checkpoint, verification, and evidence from the shared contract.
-3. Route a real CRM lead through `lead-to-sale` end to end and record each transition from actual evidence.
-4. Connect the Revenue Manager to worker selection so Research can run in parallel while identity-bound sends remain serialized.
-5. Add reply ingestion and follow-up scheduling as evidence-driven transitions instead of manual status edits.
-6. Add proposal/payment verification to close the loop.
+The next production milestone after Phase 1 is intentionally narrow: **route one real CRM lead through the same durable work item from research to a verified next step.**
 
 Do not build separate Sales Bot, Marketing Bot, or Research Bot platforms. Build one Operator runtime with reusable role definitions, skills, work items, policies, workers, and handoffs.

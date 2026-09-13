@@ -1,3 +1,7 @@
+import { createWorkItem } from '../src/operator-runtime/work-item.js';
+import { workItemToAgentQueueRecord, workItemToQueueSummary } from '../src/operator-runtime/task-queue-adapter.js';
+import { workItemToRuntimeSidecar } from '../src/operator-runtime/runtime-sidecar.js';
+
 const ROOT_KEY = '3dvr-portal';
 const MANAGED_AGENT_OWNER_ALIAS = '3dvr-managed';
 const DEFAULT_PEERS = [
@@ -57,6 +61,7 @@ export async function queueOperatorAgentEdit(action = {}) {
   const id = makeId('remote-task-operator');
   const now = new Date().toISOString();
   const requestedRepo = normalizeText(action.repo, 80).toLowerCase() || 'portal';
+  const repository = resolveRepository(requestedRepo);
   const scope = requestedRepo === 'agent'
     ? 'Focus the change on apps/agent/thomas-agent unless the task clearly requires shared portal code.'
     : 'Focus the change on the portal monorepo and keep the patch as small as practical.';
@@ -68,47 +73,50 @@ export async function queueOperatorAgentEdit(action = {}) {
   ].join('\n');
   const tenantAlias = normalizeText(globalThis.localStorage?.getItem?.('alias'), 200) || 'portal-operator';
 
-  const record = {
+  const workItem = createWorkItem({
     id,
+    title: normalizeText(action.title, 160) || 'Operator code edit',
+    intent: requestedChange,
+    domain: 'software',
+    workflow: 'operator-code-edit',
+    priority: 'normal',
+    state: 'queued',
+    risk: 'medium',
+    owner: 'engineering',
+    requiredCapabilities: ['codex'],
+    createdAt: now,
+    updatedAt: now,
+    metadata: {
+      repo: repository,
+      workerLane: 'workspace',
+      verificationStatus: 'not_started',
+      requestedBy: 'portal-operator'
+    }
+  });
+
+  const record = workItemToAgentQueueRecord(workItem, {
     task,
     tenantId: 'portal:operator',
     tenantAlias,
     tenantPlan: 'builder',
     backend: 'codex',
-    repo: resolveRepository(requestedRepo),
-    model: '',
+    repo: repository,
     thinking: 'high',
-    unsafe: false,
     riskClass: 'workspace_write',
     approvalStatus: 'not_required',
     requiredCapabilities: 'codex',
-    maxRuntimeMs: 0,
-    status: 'queued',
     requestedBy: 'portal-operator',
-    createdAt: now,
-    updatedAt: now,
-    resultSummary: '',
-    error: '',
-    workerDeviceId: ''
-  };
-  const summary = {
-    id,
-    status: record.status,
-    task,
-    tenantId: record.tenantId,
-    tenantAlias: record.tenantAlias,
-    tenantPlan: record.tenantPlan,
-    riskClass: record.riskClass,
-    approvalStatus: record.approvalStatus,
-    requiredCapabilities: record.requiredCapabilities,
-    updatedAt: now
-  };
+    workerLane: 'workspace'
+  });
+  const summary = workItemToQueueSummary(record);
+  const runtime = workItemToRuntimeSidecar(workItem, { workerLane: 'workspace' });
 
-  const [taskWrite, latestWrite] = await Promise.all([
+  const [taskWrite, latestWrite, runtimeWrite] = await Promise.all([
     putGun(taskQueue.get('tasks').get(id), record),
-    putGun(taskQueue.get('latest').get(id), summary)
+    putGun(taskQueue.get('latest').get(id), summary),
+    putGun(taskQueue.get('runtime').get(id), runtime)
   ]);
-  const pendingSync = Boolean(taskWrite?.pendingSync || latestWrite?.pendingSync);
+  const pendingSync = Boolean(taskWrite?.pendingSync || latestWrite?.pendingSync || runtimeWrite?.pendingSync);
   return {
     taskId: id,
     message: pendingSync
