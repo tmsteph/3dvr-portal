@@ -1,2 +1,2 @@
-2026-09-12T22:54:45-07:00
-Reason: force one fresh Desktop Commander device authorization code after prior code expired.
+2026-09-12T22:58:45-07:00
+Reason: controlled restart test after successful authorization; verify Desktop Commander reconnects from persisted session without user action.
