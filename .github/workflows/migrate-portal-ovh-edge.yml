@@ -61,6 +61,21 @@ jobs:
           sudo caddy validate --config /etc/caddy/Caddyfile
           sudo systemctl enable --now caddy
           sudo systemctl restart caddy
+
+          # The production portal is intentionally public on HTTP/HTTPS. If
+          # UFW is enforcing an SSH-only policy, open only the two web ports.
+          if command -v ufw >/dev/null 2>&1; then
+            ufw_status="$(sudo ufw status verbose || true)"
+            printf '%s\n' "$ufw_status"
+            if printf '%s\n' "$ufw_status" | grep -Fq 'Status: active'; then
+              sudo ufw allow 80/tcp
+              sudo ufw allow 443/tcp
+              sudo ufw status verbose
+            fi
+          fi
+          echo 'OVH web listeners:'
+          sudo ss -ltnp | grep -E ':(80|443)[[:space:]]' || true
+
           curl --fail --silent --show-error -H 'Host: portal.3dvr.tech' http://127.0.0.1/organism/app.js | grep -F "reject.textContent = 'Not relevant'"
           edge_health="$(curl --fail --silent --show-error -H 'Host: portal.3dvr.tech' http://127.0.0.1/__3dvr-health)"
           printf '%s' "$edge_health" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.ok||x.host!=="self"||x.operatorApi!=="native")process.exit(1)})'
