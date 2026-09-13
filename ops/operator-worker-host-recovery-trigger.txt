@@ -1,2 +1,2 @@
-2026-09-12T22:12:00-07:00
-Reason: install Desktop Commander rotated-session persistence workaround and issue one fresh authorization code.
+2026-09-12T22:17:00-07:00
+Reason: probe the live Hetzner Desktop Commander journal for the fresh one-time authorization code after installing the session-persistence workaround.
