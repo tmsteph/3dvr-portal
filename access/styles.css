@@ -71,3 +71,16 @@ dialog .note { padding: 12px; border-radius: 12px; background: rgba(14,165,233,.
 .secret-vault p { margin-bottom: 0; color: #97a7bd; }
 .secret-vault #secretSaveStatus:not(:empty) { margin-top: 8px; color: #86efac; }
 @media (max-width: 640px) { .secret-vault { align-items: stretch; flex-direction: column; } }
+
+.connections { margin-top: 14px; padding: 20px; border: 1px solid rgba(125,211,252,.2); border-radius: 18px; background: rgba(15,23,42,.67); }
+.connections .section-head h2 { margin-bottom: 0; }
+.registry-link { color: #bae6fd; font-weight: 800; white-space: nowrap; }
+.connection-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.connection-item { padding: 14px; border-radius: 14px; background: rgba(2,6,23,.48); border: 1px solid rgba(148,163,184,.1); }
+.connection-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.connection-head strong, .connection-head small { display: block; }
+.connection-head small { margin-top: 2px; color: #7f90a7; font-size: .72rem; }
+.connection-item p { display: grid; grid-template-columns: 58px 1fr; gap: 8px; margin: 7px 0 0; color: #9fb0c8; font-size: .8rem; }
+.connection-item b { color: #dbe7f5; }
+.connection-note { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid rgba(148,163,184,.12); color: #8091a8; font-size: .78rem; }
+@media (max-width: 640px) { .connection-list { grid-template-columns: 1fr; } .connections .section-head.split { align-items: flex-start; flex-direction: column; } }
