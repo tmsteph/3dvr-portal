@@ -1,0 +1,2 @@
+2026-09-12T22:56:00-07:00
+Reason: read the current live Desktop Commander device authorization code without restarting the bridge.
