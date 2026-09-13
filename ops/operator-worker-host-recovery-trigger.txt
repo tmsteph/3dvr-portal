@@ -1,2 +1,2 @@
-2026-09-12T22:17:00-07:00
-Reason: probe the live Hetzner Desktop Commander journal for the fresh one-time authorization code after installing the session-persistence workaround.
+2026-09-12T22:53:30-07:00
+Reason: issue a new Hetzner Desktop Commander one-time authorization code after the previous code expired; keep the live bridge steady after issuance.
