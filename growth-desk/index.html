@@ -38,19 +38,19 @@
           <p class="eyebrow">Operator workspace</p>
           <h1>Growth Desk</h1>
           <p class="lead">
-            See every campaign in one place, open the CRM record, and understand what was sent, what replied, and what needs attention.
+            Run one measurable business loop: find a real opportunity, qualify it, reach out, follow up, propose, get paid, and learn.
           </p>
           <div class="hero-actions">
             <a class="button primary" href="../crm/">Open unified CRM</a>
             <a class="button" href="../crm/?filter=follow-up-leak-sprint">Open sprint in CRM</a>
             <a class="button approval-button" href="../growth-operator/">Inspect outreach queue</a>
             <a class="button" href="../sales/market-pulse.html">Market Pulse</a>
-            <a class="button" href="https://github.com/tmsteph/3dvr-command-center" rel="noreferrer">Command Center repo</a>
+            <a class="button" href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/operator-business-system.md" rel="noreferrer">Business system docs</a>
           </div>
         </div>
         <aside class="status-card">
           <span>Current sprint · Follow-Up Leak Sprint</span>
-          <strong>Unified outreach activity</strong>
+          <strong>Lead → sale operating loop</strong>
           <p id="syncStatus" role="status" aria-live="polite">Connecting to portal CRM records.</p>
         </aside>
       </div>
@@ -59,15 +59,15 @@
     <main>
       <section class="approval-guide autopilot-guide" aria-labelledby="approval-title">
         <div>
-          <p class="eyebrow">Autopilot is on</p>
-          <h2 id="approval-title">You do not need to approve every email.</h2>
-          <p>Direct emails are drafted, checked, sent, and logged automatically. Open the queue when you want to improve the message or inspect the record.</p>
+          <p class="eyebrow">Bounded autopilot</p>
+          <h2 id="approval-title">Routine work moves. Identity-sensitive work pauses.</h2>
+          <p>Fresh direct-email leads can run during the business window. Known contacts, signatures, payments, and sensitive account actions stay behind a human checkpoint.</p>
         </div>
         <ol class="approval-steps">
-          <li><strong>Find</strong><span>Discover relevant direct-email leads.</span></li>
-          <li><strong>Check</strong><span>Validate route, quality, and compliance.</span></li>
-          <li><strong>Send</strong><span>Use the daily and campaign caps.</span></li>
-          <li><strong>Learn</strong><span>Log replies, failures, and follow-ups.</span></li>
+          <li><strong>Find</strong><span>Research real opportunities with evidence.</span></li>
+          <li><strong>Qualify</strong><span>Check fit, route, pain, and next action.</span></li>
+          <li><strong>Act</strong><span>Send or hand off under the correct policy.</span></li>
+          <li><strong>Learn</strong><span>Record evidence, outcome, and the next step.</span></li>
         </ol>
         <a class="button primary" href="../growth-operator/">Inspect outreach queue <span aria-hidden="true">→</span></a>
       </section>
@@ -89,6 +89,22 @@
           <span>Hold</span>
           <strong id="holdCount">0</strong>
         </article>
+      </section>
+
+      <section class="panel" aria-labelledby="team-title">
+        <div class="section-head">
+          <p class="eyebrow">One system, bounded roles</p>
+          <h2 id="team-title">Business Manager coordinates the team.</h2>
+          <p>The roles are reusable capabilities, not separate bot products. Any eligible worker can take the next bounded work item and hand back evidence.</p>
+        </div>
+        <div class="workflow-grid" aria-label="Business agent roles">
+          <article><span>Manager</span><strong>Business Manager</strong><p>Chooses the next highest-value action and coordinates handoffs.</p></article>
+          <article><span>Role</span><strong>Research</strong><p>Finds prospects, demand signals, pain, and evidence.</p></article>
+          <article><span>Role</span><strong>Sales</strong><p>Owns qualification, outreach, replies, proposals, and paid asks.</p></article>
+          <article><span>Role</span><strong>Marketing</strong><p>Creates offers and reusable demand-generation assets that feed Sales.</p></article>
+          <article><span>Role</span><strong>Operations</strong><p>Keeps CRM, follow-ups, schedules, evidence, and exceptions clean.</p></article>
+          <article><span>Role</span><strong>Engineering</strong><p>Builds or repairs the smallest tool needed to move a real opportunity.</p></article>
+        </div>
       </section>
 
       <section class="panel sprint-panel" aria-labelledby="sprint-title">
@@ -118,7 +134,7 @@
           <div>
             <p class="eyebrow">CRM review</p>
             <h2 id="review-title">What is actually happening?</h2>
-            <p>Contacts and message history come from the unified CRM. Routine direct-email campaigns run on autopilot; this view is for inspection, learning, replies, and exceptions.</p>
+            <p>Contacts and message history come from the unified CRM. This view is for inspection, learning, replies, follow-ups, and exceptions while bounded fresh-lead email can continue automatically.</p>
           </div>
           <button class="button" id="refreshButton" type="button">Refresh</button>
         </div>
@@ -127,27 +143,22 @@
         </div>
       </section>
 
-      <section class="workflow-grid" aria-label="Workflow">
-        <article>
-          <span>1</span>
-          <strong>Research</strong>
-          <p>Market Pulse picks the segment and top opportunity.</p>
-        </article>
-        <article>
-          <span>2</span>
-          <strong>Draft</strong>
-          <p>Command Center creates reviewed, custom messages.</p>
-        </article>
-        <article>
-          <span>3</span>
-          <strong>Approve</strong>
-          <p>CRM shows the record, draft, follow-up date, and status.</p>
-        </article>
-        <article>
-          <span>4</span>
-          <strong>Track</strong>
-          <p>Replies, holds, and follow-ups stay in CRM instead of chat history.</p>
-        </article>
+      <section class="panel" aria-labelledby="loop-title">
+        <div class="section-head">
+          <p class="eyebrow">Executable workflow</p>
+          <h2 id="loop-title">Lead → sale → learning.</h2>
+          <p>The runtime stores each opportunity as one shared work item and advances it only when the next event has evidence.</p>
+        </div>
+        <div class="workflow-grid" aria-label="Lead to sale workflow">
+          <article><span>1</span><strong>Research</strong><p>Find a real opportunity and capture source evidence.</p></article>
+          <article><span>2</span><strong>Qualify</strong><p>Confirm fit, route, need, and the next best action.</p></article>
+          <article><span>3</span><strong>Outreach</strong><p>Prepare and send a bounded message under policy.</p></article>
+          <article><span>4</span><strong>Listen</strong><p>Capture delivery, replies, failures, and external waits.</p></article>
+          <article><span>5</span><strong>Follow up</strong><p>Schedule the next touch so the opportunity cannot disappear.</p></article>
+          <article><span>6</span><strong>Proposal</strong><p>Turn interest into concrete scope, price, and next step.</p></article>
+          <article><span>7</span><strong>Payment</strong><p>Verify the paid result instead of inferring success.</p></article>
+          <article><span>8</span><strong>Learn</strong><p>Update CRM, message/offer lessons, and the next experiment.</p></article>
+        </div>
       </section>
     </main>
   </div>

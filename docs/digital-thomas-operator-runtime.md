@@ -20,6 +20,19 @@ Build only the infrastructure that removes current operational pain:
 6. Operator UI centered on Now, Waiting on Thomas, Running, Done, and Problems.
 
 Everything else plugs into these primitives.
+
+## Business operating layer
+
+The business system is a workload on this runtime, not a second agent platform. `docs/operator-business-system.md` defines the Business Manager and bounded Research, Sales, Marketing, Operations, and Engineering roles plus the first executable lead-to-sale loop.
+
+The reusable contracts now begin in `src/operator-runtime/`:
+
+- `work-item.js` — canonical work-item shape and state transitions.
+- `worker-registry.js` — worker classes, capabilities, concurrency, and eligibility.
+- `revenue-workflow.js` — business roles, revenue stages, handoffs, and outbound policy.
+
+The important pattern is **role → shared work item → capable worker → evidence → next transition**. Models and vendors may change without changing the operating system.
+
 ## Execution classes
 
 ### 1. Read workers
@@ -42,6 +55,7 @@ Start with two concurrent action-browser lanes plus one reserved interactive/VNC
 ## Resource scheduler
 
 Reuse the existing systemd resource lanes. Recovery/control-plane capacity is always protected. Workers must run in bounded dev/workspace slices rather than inheriting the Remote Desktop Commander shell's recovery privileges.
+
 ## Shared state
 
 The runtime needs one coherent model of Thomas rather than app-specific copies:
@@ -63,6 +77,7 @@ Every actionable item should normalize to the same minimum shape: `id`, `title`,
 Initial states: `queued`, `ready`, `running`, `waiting_human`, `waiting_external`, `blocked`, `verifying`, `done`, `failed`, `cancelled`.
 
 The queue should support jobs, client work, outreach, software changes, calendar/admin, household tasks, research, infrastructure, and future domains without changing the scheduler.
+
 ## Existing pieces to converge
 
 - `/workboard/` — task queue and human-attention surface.
@@ -77,11 +92,11 @@ Do not replace these with a parallel platform. Refactor them toward the shared c
 
 ## Near-term implementation order
 
-1. Define the work-item and worker-registry schemas in `src/operator-runtime/`.
+1. Persist and adopt the shared `src/operator-runtime/` work-item, worker-registry, and revenue-workflow contracts across existing apps.
 2. Extend browser-lane leases to multiple named isolated lanes plus a protected identity lane.
 3. Add resource telemetry and stale-worker cleanup so runaway browsers cannot monopolize OVH.
 4. Teach Workboard to show worker/lane, human checkpoint, verification state, and evidence.
-5. Route one real workflow end to end through the runtime; job applications are a useful stress test, not the architecture's purpose.
+5. Route one real workflow end to end through the runtime; the lead-to-sale revenue loop and job applications are useful stress tests, not separate architectures.
 6. Add other workflows incrementally: email triage, CRM/client follow-up, calendar/admin, development/deployment, infrastructure, household/life operations.
 
 ## Success criterion

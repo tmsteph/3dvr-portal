@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-test('Growth Desk ships as a CRM-backed operator surface', async () => {
+test('Growth Desk ships as a CRM-backed operator business surface', async () => {
   const html = await readFile(new URL('../growth-desk/index.html', import.meta.url), 'utf8');
   const script = await readFile(new URL('../growth-desk/app.js', import.meta.url), 'utf8');
   const portal = await readFile(new URL('../index.html', import.meta.url), 'utf8');
@@ -13,9 +13,17 @@ test('Growth Desk ships as a CRM-backed operator surface', async () => {
   assert.match(html, /Follow-Up Leak Sprint/);
   assert.match(html, /Open sprint in CRM/);
   assert.match(html, /Inspect outreach queue/);
-  assert.match(html, /You do not need to approve every email/);
-  assert.match(html, /Inspect outreach queue/);
-  assert.match(html, /Command Center repo/);
+  assert.match(html, /Bounded autopilot/);
+  assert.match(html, /Routine work moves\. Identity-sensitive work pauses\./);
+  assert.match(html, /Business system docs/);
+  assert.match(html, /Business Manager/);
+  assert.match(html, />Research</);
+  assert.match(html, />Sales</);
+  assert.match(html, />Marketing</);
+  assert.match(html, />Operations</);
+  assert.match(html, />Engineering</);
+  assert.match(html, /Lead → sale → learning/);
+  assert.match(html, />Payment</);
   assert.match(html, /id="navToggle"/);
   assert.match(html, /id="growthNav"/);
   assert.match(script, /setNav/);
