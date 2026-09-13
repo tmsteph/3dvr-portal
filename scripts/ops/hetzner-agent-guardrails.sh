@@ -3,6 +3,7 @@ set -euo pipefail
 
 agent_root="${1:-$HOME/.3dvr/managed-worker/apps/agent}"
 worker="$agent_root/thomas-agent/scripts/ask-agent-worker-daemon"
+repo_root="$(cd "$agent_root/../.." && pwd)"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo 'hetzner-agent-guardrails requires root so the host-level limits can be installed.' >&2
@@ -137,6 +138,14 @@ apt-get clean >/dev/null 2>&1 || true
 npm cache clean --force >/dev/null 2>&1 || true
 systemctl restart 3dvr-agent-stack.service
 /usr/local/sbin/3dvr-apply-tmux-guards
+
+# Desktop Commander currently persists the pre-rotation refresh token on disk.
+# Install our idempotent workaround and load it once; future service starts
+# reapply it automatically via ExecStartPre after package upgrades.
+dc_installer="$repo_root/scripts/ops/install-desktop-commander-resilience.sh"
+if [ -f "$dc_installer" ]; then
+  bash "$dc_installer"
+fi
 
 echo '=== post-guardrail health ==='
 systemctl --no-pager --full status 3dvr-agent-stack.service || true
