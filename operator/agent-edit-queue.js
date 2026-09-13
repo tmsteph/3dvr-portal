@@ -1,5 +1,6 @@
 import { createWorkItem } from '../src/operator-runtime/work-item.js';
 import { workItemToAgentQueueRecord, workItemToQueueSummary } from '../src/operator-runtime/task-queue-adapter.js';
+import { workItemToRuntimeSidecar } from '../src/operator-runtime/runtime-sidecar.js';
 
 const ROOT_KEY = '3dvr-portal';
 const MANAGED_AGENT_OWNER_ALIAS = '3dvr-managed';
@@ -108,12 +109,14 @@ export async function queueOperatorAgentEdit(action = {}) {
     workerLane: 'workspace'
   });
   const summary = workItemToQueueSummary(record);
+  const runtime = workItemToRuntimeSidecar(workItem, { workerLane: 'workspace' });
 
-  const [taskWrite, latestWrite] = await Promise.all([
+  const [taskWrite, latestWrite, runtimeWrite] = await Promise.all([
     putGun(taskQueue.get('tasks').get(id), record),
-    putGun(taskQueue.get('latest').get(id), summary)
+    putGun(taskQueue.get('latest').get(id), summary),
+    putGun(taskQueue.get('runtime').get(id), runtime)
   ]);
-  const pendingSync = Boolean(taskWrite?.pendingSync || latestWrite?.pendingSync);
+  const pendingSync = Boolean(taskWrite?.pendingSync || latestWrite?.pendingSync || runtimeWrite?.pendingSync);
   return {
     taskId: id,
     message: pendingSync
