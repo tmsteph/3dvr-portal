@@ -97,6 +97,10 @@ jobs:
             git clone "https://github.com/$GITHUB_REPOSITORY.git" "$repo"
           fi
 
+          # Recovery must be repeatable even if a previous run changed a file mode,
+          # generated state, or was interrupted halfway through an update.
+          git -C "$repo" reset --hard HEAD
+          git -C "$repo" clean -fd
           git -C "$repo" fetch --prune origin main
           git -C "$repo" checkout -B main origin/main
           git -C "$repo" reset --hard origin/main
@@ -118,9 +122,8 @@ jobs:
           rm -f "$cfg_tmp"
 
           guard="$repo/scripts/ops/hetzner-agent-guardrails.sh"
-          chmod +x "$guard"
           if [ "$(id -u)" -eq 0 ]; then
-            "$guard" "$repo/apps/agent"
+            bash "$guard" "$repo/apps/agent"
           else
             echo 'Non-root SSH user cannot install host-level guardrails; refusing unmanaged restart.' >&2
             exit 1
