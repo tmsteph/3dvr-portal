@@ -4,6 +4,16 @@
 
 The kernel should stay small. It owns durable coordination primitives and policy boundaries; CRM, Calendar, Operator, Money Printer, Community, Assembly, and future products remain replaceable userspace built on those contracts.
 
+## North star
+
+The kernel exists to increase human and community agency, not to make people dependent on 3DVR.
+
+The canonical movement loop is:
+
+> **State → Purpose → Opportunity → Build → Earn → Share → Community → Open Source → Repeat**
+
+Economic success matters, including profit-first work, but it does not override the kernel's positive-sum boundaries. The executable policy lives in `src/kernel/positiveSum.js`; the human doctrine lives in `docs/positive-world-takeover.md`.
+
 ## Kernel map
 
 | Computing concept | 3DVR concept |
@@ -28,6 +38,7 @@ The minimum kernel owns:
 - **Events** — facts that happened: message received, payment posted, task finished, deployment failed, decision made.
 - **Jobs** — executable work with owner, state, dependencies, retries, evidence, and result.
 - **Policy** — who or what may observe, prepare, execute, spend, publish, or change sensitive state.
+- **Positive-sum policy** — whether proposed work preserves agency, shared value, reasonable exit paths, and acceptable harm/lock-in risk before economics are allowed to drive execution.
 - **Audit** — enough receipts to explain what acted, why, with which capability, and what changed.
 - **Learning** — measured outcomes that can safely improve future routing, ranking, and defaults.
 
@@ -38,6 +49,19 @@ Opportunity discovery is also a kernel-level behavior because it converts observ
 The kernel should not own a specific CRM UI, social feed, email provider, payment processor, project methodology, governance system, token, blockchain, hosting vendor, or model provider.
 
 Those are packages, drivers, or policies. They may be excellent defaults without becoming permanent dependencies.
+
+## Positive-sum invariants
+
+Every app and agent may pursue different goals, but kernel-governed execution should preserve these invariants:
+
+1. Increase human agency rather than dependence.
+2. Prefer voluntary, informed participation over coercion or dark patterns.
+3. Create durable value for participants, not only value extraction for the operator.
+4. Preserve portability, interoperability, and exit paths where practical.
+5. Keep sensitive actions inside explicit permission, risk, and approval boundaries.
+6. Return reusable knowledge, standards, or code to the commons when safe and sustainable.
+
+These invariants do not require every project to be nonprofit, mission-first, or open source on day one. They define the floor beneath Aligned, Profit, and Portfolio work.
 
 ## Capability contract
 
@@ -64,7 +88,9 @@ An agent may reason about an action, but it should not invent an access path tha
 
 The general runtime loop is:
 
-> Intent → discover capability → authorize → execute → emit event → update state → evaluate outcome → continue or escalate
+> Intent → discover capability → evaluate policy → authorize → execute → emit event → update state → evaluate outcome → continue or escalate
+
+Positive-sum eligibility is part of policy evaluation. A proposal may remain visible for research and audit while being blocked from executable ranking.
 
 This makes an agent a process running against kernel contracts rather than a giant prompt that tries to remember infrastructure.
 
@@ -90,16 +116,17 @@ The Portal is the human-facing shell over the kernel. It should expose understan
 
 ## Design rules
 
-1. Keep the kernel small and boring.
-2. Prefer durable contracts over app-to-app special cases.
-3. One real-world fact should have one authoritative home and explicit links elsewhere.
-4. Capabilities are discovered, not memorized in prompts.
-5. Autonomy is scoped per capability and risk, never one global switch.
-6. Every meaningful action emits an auditable event.
-7. Apps can be replaced without breaking the organizational record.
-8. Self-improvement must be measurable and reversible.
-9. Open interfaces matter more than a single blessed implementation.
-10. Humans remain first-class participants, not exceptions to an agent system.
+1. Increase agency; never optimize the system toward dependency as the business model.
+2. Keep the kernel small and boring.
+3. Prefer durable contracts over app-to-app special cases.
+4. One real-world fact should have one authoritative home and explicit links elsewhere.
+5. Capabilities are discovered, not memorized in prompts.
+6. Autonomy is scoped per capability and risk, never one global switch.
+7. Every meaningful action emits an auditable event.
+8. Apps can be replaced without breaking the organizational record.
+9. Self-improvement must be measurable and reversible.
+10. Open interfaces matter more than a single blessed implementation.
+11. Humans remain first-class participants, not exceptions to an agent system.
 
 ## Near-term implementation order
 
@@ -107,9 +134,10 @@ The Portal is the human-facing shell over the kernel. It should expose understan
 2. Add health, route/fallback, approval, risk, and audit metadata where missing.
 3. Normalize job/event receipts between Operator runtime, Workboard, and major integrations.
 4. Keep CRM, Calendar, Projects, Finance, and communications linked through durable IDs instead of duplicated state.
-5. Treat self-improvement work as normal jobs with tests, evidence, and rollback.
-6. Add new coordination products, including Assembly, as userspace clients of these contracts.
+5. Apply the shared positive-sum evaluation to opportunity and venture execution paths without hiding blocked economics from audit.
+6. Treat self-improvement work as normal jobs with tests, evidence, and rollback.
+7. Add new coordination products, including Assembly, as userspace clients of these contracts.
 
 ## Definition of success
 
-The architecture is working when a new agent or app can join 3DVR, discover what it may do, perform useful work through stable contracts, leave trustworthy receipts, and disappear again without taking organizational knowledge with it.
+The architecture is working when a new agent or app can join 3DVR, discover what it may do, perform useful work through stable contracts, leave trustworthy receipts, preserve human agency, and disappear again without taking organizational knowledge with it.
