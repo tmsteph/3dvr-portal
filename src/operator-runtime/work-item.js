@@ -1,3 +1,5 @@
+import { evaluatePositiveSum } from '../kernel/positiveSum.js';
+
 export const WORK_ITEM_STATES = Object.freeze([
   'queued',
   'ready',
@@ -34,6 +36,15 @@ function timestamp(value) {
   return new Date().toISOString();
 }
 
+function kernelPolicy(input = {}) {
+  const source = input.kernelPolicy && typeof input.kernelPolicy === 'object'
+    ? input.kernelPolicy
+    : input.positiveSum && typeof input.positiveSum === 'object'
+      ? input.positiveSum
+      : {};
+  return evaluatePositiveSum(source);
+}
+
 export function createWorkItem(input = {}) {
   const title = text(input.title);
   const domain = text(input.domain);
@@ -60,6 +71,7 @@ export function createWorkItem(input = {}) {
     requiredCapabilities: list(input.requiredCapabilities),
     identityLease: input.identityLease || null,
     humanCheckpoint: input.humanCheckpoint || null,
+    kernelPolicy: kernelPolicy(input),
     createdAt,
     updatedAt: timestamp(input.updatedAt || createdAt),
     evidence: Array.isArray(input.evidence) ? [...input.evidence] : [],
@@ -72,6 +84,9 @@ export function transitionWorkItem(item, nextState, patch = {}) {
   if (!item || typeof item !== 'object') throw new TypeError('work item is required');
   requireValue(nextState, WORK_ITEM_STATES, 'state');
 
+  const policyChanged = (patch.kernelPolicy && typeof patch.kernelPolicy === 'object')
+    || (patch.positiveSum && typeof patch.positiveSum === 'object');
+
   return {
     ...item,
     ...patch,
@@ -83,6 +98,7 @@ export function transitionWorkItem(item, nextState, patch = {}) {
     requiredCapabilities: patch.requiredCapabilities
       ? list(patch.requiredCapabilities)
       : [...(item.requiredCapabilities || [])],
+    kernelPolicy: policyChanged ? kernelPolicy(patch) : { ...(item.kernelPolicy || evaluatePositiveSum()) },
     evidence: patch.evidence ? [...patch.evidence] : [...(item.evidence || [])],
     metadata: patch.metadata ? { ...(item.metadata || {}), ...patch.metadata } : { ...(item.metadata || {}) }
   };
