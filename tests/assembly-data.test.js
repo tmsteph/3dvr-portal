@@ -14,7 +14,7 @@ test('Assembly snapshots round-trip through the portable format', () => {
     people: [{ id: 'p1', name: 'Ava', role: 'Grower', createdAt: 1 }],
     initiatives: [{ id: 'i1', name: 'Fall beds', lead: 'Ava', createdAt: 2 }],
     commitments: [{ id: 'c1', text: 'Prepare soil', owner: 'Ava', initiativeId: 'i1', due: '2026-09-20', done: true, createdAt: 3, doneAt: 4 }],
-    decisions: [],
+    decisions: [{ id: 'd1', text: 'Launch when?', owner: 'Ava', resolution: 'Friday', done: true, createdAt: 5, doneAt: 6 }],
     needs: [],
   };
   const snapshot = createAssemblySnapshot(state, Date.UTC(2026, 8, 14));
@@ -22,7 +22,9 @@ test('Assembly snapshots round-trip through the portable format', () => {
   assert.equal(snapshot.format, ASSEMBLY_FORMAT);
   assert.equal(snapshot.version, ASSEMBLY_VERSION);
   assert.equal(snapshot.exportedAt, '2026-09-14T00:00:00.000Z');
-  assert.deepEqual(parseAssemblySnapshot(JSON.stringify(snapshot)), normalizeAssemblyState(state));
+  const restored = parseAssemblySnapshot(JSON.stringify(snapshot));
+  assert.deepEqual(restored, normalizeAssemblyState(state));
+  assert.equal(restored.decisions[0].resolution, 'Friday');
 });
 
 test('Assembly import normalizes legacy state and drops unknown fields', () => {

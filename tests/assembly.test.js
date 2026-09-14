@@ -33,7 +33,8 @@ test('Assembly models people, commitments, decisions and needs', async () => {
   assert.match(data, /decisions: \[\]/);
   assert.match(data, /needs: \[\]/);
   assert.match(app, /complete-commitment/);
-  assert.match(app, /resolve-decision/);
+  assert.match(app, /decision-resolution-form/);
+  assert.match(app, /renderDecisionHistory/);
   assert.match(app, /resolve-need/);
 });
 
@@ -61,4 +62,15 @@ test('Assembly exposes explicit portable workspace controls', async () => {
   assert.match(html, /type="module" src="\.\/app\.js"/);
   assert.match(app, /createAssemblySnapshot/);
   assert.match(app, /parseAssemblySnapshot/);
+});
+
+
+test('Assembly keeps resolved choices in a decision ledger', async () => {
+  const [html, app, data] = await Promise.all([read('assembly/index.html'), read('assembly/app.js'), read('assembly/data.js')]);
+
+  assert.match(html, /id="decisionHistoryList"/);
+  assert.match(html, />Decision ledger</);
+  assert.match(app, /What did we decide\?/);
+  assert.match(app, /resolution, done: true, doneAt: Date\.now\(\)/);
+  assert.match(data, /resolution: text\(item\.resolution\)/);
 });

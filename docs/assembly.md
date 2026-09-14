@@ -141,3 +141,7 @@ Completing a commitment no longer makes the work disappear. It records `doneAt` 
 Assembly now has an explicit, versioned `3dvr-assembly` JSON snapshot format. Export is always user-triggered, and import replaces only the browser-local copy on the current device after validating and normalizing the file. Unknown fields are discarded instead of silently becoming trusted workspace state.
 
 This gives people a private backup and transfer path before multi-user sync exists, while also creating a stable serialization boundary that future encrypted workspace storage can reuse.
+
+## Decision ledger
+
+Open decisions now require an explicit recorded resolution before they leave the active list. The resolved choice, original question, owner, and resolution time stay in a local **Decision ledger** and travel with the versioned Assembly snapshot. This turns decisions into organizational memory instead of disposable checklist items.

@@ -126,7 +126,6 @@ function renderWork() {
       const detail = [item.owner, initiativeName(item.initiativeId), item.due].filter(Boolean).join(' · ') || 'Owner not set';
       return [item.text, detail];
     }],
-    ['decisionList', state.decisions, 'No open decisions.', 'resolve-decision', item => [item.text, item.owner ? `Decision owner: ${item.owner}` : 'Decision owner not set']],
     ['needList', state.needs, 'No open needs.', 'resolve-need', item => [item.text, item.owner ? `Needed by: ${item.owner}` : 'Owner not set']],
   ];
 
@@ -151,6 +150,63 @@ function renderWork() {
       item.append(copy, makeButton('Done', action, record.id, 'record-action done'));
       list.append(item);
     }
+  }
+}
+
+function renderDecisions() {
+  const list = $('decisionList');
+  list.replaceChildren();
+  const open = state.decisions.filter(item => !item.done);
+  if (!open.length) return list.append(emptyMessage('No open decisions.'));
+
+  for (const decision of open) {
+    const item = document.createElement('article');
+    item.className = 'record decision-record';
+    const copy = document.createElement('div');
+    const title = document.createElement('strong');
+    const meta = document.createElement('span');
+    title.textContent = decision.text;
+    meta.textContent = decision.owner ? `Decision owner: ${decision.owner}` : 'Decision owner not set';
+    copy.append(title, meta);
+
+    const form = document.createElement('form');
+    form.className = 'decision-resolution-form';
+    form.dataset.decisionId = decision.id;
+    const input = document.createElement('input');
+    input.name = 'resolution';
+    input.required = true;
+    input.placeholder = 'What did we decide?';
+    input.setAttribute('aria-label', `Resolution for ${decision.text}`);
+    const button = document.createElement('button');
+    button.type = 'submit';
+    button.className = 'button primary';
+    button.textContent = 'Record decision';
+    form.append(input, button);
+    item.append(copy, form);
+    list.append(item);
+  }
+}
+
+function renderDecisionHistory() {
+  const list = $('decisionHistoryList');
+  list.replaceChildren();
+  const resolved = state.decisions
+    .filter(item => item.done)
+    .sort((a, b) => Number(b.doneAt || 0) - Number(a.doneAt || 0))
+    .slice(0, 12);
+  if (!resolved.length) return list.append(emptyMessage('Resolved choices will stay visible here.'));
+
+  for (const decision of resolved) {
+    const item = document.createElement('article');
+    item.className = 'record decision-history-record';
+    const copy = document.createElement('div');
+    const title = document.createElement('strong');
+    const meta = document.createElement('span');
+    title.textContent = decision.resolution || 'Resolved without a recorded resolution';
+    meta.textContent = [`Question: ${decision.text}`, decision.owner].filter(Boolean).join(' · ');
+    copy.append(title, meta);
+    item.append(copy);
+    list.append(item);
   }
 }
 
@@ -183,6 +239,8 @@ function render() {
   renderPeople();
   renderInitiatives();
   renderWork();
+  renderDecisions();
+  renderDecisionHistory();
   renderOutcomes();
 }
 
@@ -240,6 +298,19 @@ $('needForm').addEventListener('submit', event => {
   save();
 });
 
+document.addEventListener('submit', event => {
+  const form = event.target.closest('.decision-resolution-form');
+  if (!form) return;
+  event.preventDefault();
+  const resolution = clean(form.elements.resolution.value);
+  if (!resolution) return;
+  const decisionId = form.dataset.decisionId;
+  state.decisions = state.decisions.map(item => item.id === decisionId
+    ? { ...item, resolution, done: true, doneAt: Date.now() }
+    : item);
+  save();
+});
+
 $('exportAssembly').addEventListener('click', exportWorkspace);
 $('importAssembly').addEventListener('change', importWorkspace);
 
@@ -249,7 +320,6 @@ document.addEventListener('click', event => {
   const { action, id } = button.dataset;
   if (action === 'remove-person') state.people = state.people.filter(item => item.id !== id);
   if (action === 'complete-commitment') state.commitments = state.commitments.map(item => item.id === id ? { ...item, done: true, doneAt: Date.now() } : item);
-  if (action === 'resolve-decision') state.decisions = state.decisions.map(item => item.id === id ? { ...item, done: true, doneAt: Date.now() } : item);
   if (action === 'resolve-need') state.needs = state.needs.map(item => item.id === id ? { ...item, done: true, doneAt: Date.now() } : item);
   save();
 });
