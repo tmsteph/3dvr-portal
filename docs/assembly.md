@@ -116,3 +116,16 @@ Success is not more posting. Success is that people understand each other, make 
 4. Add a private workspace-scoped persistence path before live multi-user data.
 5. Build the first operational view: People / Now / Decisions / Needs.
 6. Connect Purpose Movement so a movement can graduate into an Assembly when more people join.
+
+## Implemented v0.1 workspace
+
+The first working Assembly surface now lives at `/assembly/` and intentionally stores its coordination data in browser-local storage under `3dvr.assembly.v1`.
+
+It provides four operational views:
+
+- **People** — members and lightweight roles.
+- **Now** — explicit commitments with owner and optional due date.
+- **Decisions** — choices that still need resolution and a decision owner.
+- **Needs** — visible asks that could unblock a person or group.
+
+The workspace also stores the Assembly name and purpose, shows a compact pulse of open work, and lets users complete or resolve records. This is deliberately a single-device prototype. Multi-user sync should not be added until workspace-scoped identity, authorization, privacy, and durable storage are defined.
