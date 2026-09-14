@@ -4,20 +4,9 @@ import {
   runMarketPulseCycle,
   selectMarketPulsePortfolioProfile,
 } from './market-pulse.js';
+import { persistMarketPulseCapsuleCandidates } from './market-pulse-capsules.js';
 
-const HELP_TEXT = `Usage: npm run market:pulse -- [options]
-
-Options:
-  --market <text>       Market or audience to research.
-  --search-mode <mode>  aligned, profit, or portfolio (default).
-  --keywords <csv>      Comma-separated pains or phrases.
-  --channels <csv>      Comma-separated social probe channels.
-  --limit <number>      Maximum demand signals to analyze.
-  --gun-peers <csv>     Comma-separated Gun relay peers for persistence.
-  --dry-run             Research and score without writing to Gun.
-  --json                Print a machine-readable summary.
-  --help                Show this help.
-`;
+const HELP_TEXT = `Usage: npm run market:pulse -- [options]\n\nOptions:\n  --market <text>       Market or audience to research.\n  --search-mode <mode>  aligned, profit, or portfolio (default).\n  --keywords <csv>      Comma-separated pains or phrases.\n  --channels <csv>      Comma-separated social probe channels.\n  --limit <number>      Maximum demand signals to analyze.\n  --gun-peers <csv>     Comma-separated Gun relay peers for persistence.\n  --dry-run             Research and score without writing to Gun.\n  --json                Print a machine-readable summary.\n  --help                Show this help.\n`;
 
 function normalizeText(value = '') {
   return String(value || '').trim();
@@ -160,6 +149,8 @@ export function buildMarketPulseCliSummary(result = {}) {
       fulfillmentScore: Number(result.topOpportunity?.fulfillmentScore || 0),
     },
     persist: result.persist || {},
+    capsulePersist: result.capsulePersist || {},
+    capsuleCandidates: Number(result.capsulePersist?.candidatesPublished || 0),
     socialProbes: summarizeProbes(result.socialProbeDrafts),
     reactionRadar: summarizeReactions(result.reactionSnapshots),
     warnings: Array.isArray(result.warnings) ? result.warnings : [],
@@ -179,6 +170,9 @@ function formatSummary(summary = {}) {
 
   if (summary.persist?.directoryListingsPublished != null) {
     lines.push(`Directory listings published: ${summary.persist.directoryListingsPublished}`);
+  }
+  if (summary.capsulePersist && !summary.capsulePersist.skipped) {
+    lines.push(`Queued Venture Capsule candidates: ${summary.capsuleCandidates}`);
   }
   if (summary.topOpportunity.title) {
     lines.push(`Top opportunity: ${summary.topOpportunity.title}`);
@@ -215,6 +209,7 @@ export async function runMarketPulseCli(options = {}) {
   const stderr = options.stderr || process.stderr;
   const env = options.env || process.env;
   const runCycleImpl = options.runCycleImpl || runMarketPulseCycle;
+  const persistCapsulesImpl = options.persistCapsulesImpl || persistMarketPulseCapsuleCandidates;
 
   try {
     const parsed = parseMarketPulseArgs(argv);
@@ -230,9 +225,27 @@ export async function runMarketPulseCli(options = {}) {
       now: options.now,
     };
     const result = await runCycleImpl(runOptions);
-    const summary = buildMarketPulseCliSummary(result);
+    let capsulePersist;
+    try {
+      capsulePersist = await persistCapsulesImpl(result, runOptions);
+    } catch (error) {
+      capsulePersist = {
+        skipped: true,
+        reason: `capsule queue error: ${error.message}`,
+        candidatesPublished: 0,
+      };
+      result.warnings = [
+        ...(Array.isArray(result.warnings) ? result.warnings : []),
+        `Venture Capsule queue: ${error.message}`,
+      ];
+    }
+    const enrichedResult = {
+      ...result,
+      capsulePersist,
+    };
+    const summary = buildMarketPulseCliSummary(enrichedResult);
     stdout.write(parsed.json ? `${JSON.stringify(summary, null, 2)}\n` : formatSummary(summary));
-    return { exitCode: 0, result, summary };
+    return { exitCode: 0, result: enrichedResult, summary };
   } catch (error) {
     stderr.write(`Market Pulse automation failed: ${error.message}\n`);
     return { exitCode: 1, error };
