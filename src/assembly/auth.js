@@ -7,10 +7,12 @@ export const ASSEMBLY_AUTH_SCOPE = 'assembly-workspace';
 const normalizeText = value => String(value || '').trim();
 
 export async function verifyAssemblyPrincipal(payload = {}, options = {}) {
-  const expectedWorkspaceId = normalizeText(options.workspaceId || payload.workspaceId);
-  const expectedPermission = normalizeText(options.permission || payload.action);
-  if (!expectedWorkspaceId) return { ok: false, reason: 'Workspace ID is required.' };
-  if (!expectedPermission) return { ok: false, reason: 'Assembly capability is required.' };
+  // These values must come from the server-side route/resource being accessed,
+  // never from client payload fields. The proof must then match them exactly.
+  const expectedWorkspaceId = normalizeText(options.workspaceId);
+  const expectedPermission = normalizeText(options.permission);
+  if (!expectedWorkspaceId) return { ok: false, reason: 'Server-selected workspace ID is required.' };
+  if (!expectedPermission) return { ok: false, reason: 'Server-selected Assembly capability is required.' };
 
   const verified = await verifySignedSeaPayload(payload, {
     scope: ASSEMBLY_AUTH_SCOPE,
