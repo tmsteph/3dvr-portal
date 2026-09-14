@@ -60,14 +60,24 @@ test('Access page and abilities registry converge on one capability map', () => 
   const remoteLinux = abilities.capabilities.find(capability => capability.id === 'remote-linux');
   const whatsapp = abilities.capabilities.find(capability => capability.id === 'whatsapp');
   const bitwarden = abilities.capabilities.find(capability => capability.id === 'bitwarden-vault');
+  const recoveryVault = abilities.capabilities.find(capability => capability.id === 'recovery-vault');
   const selfVerify = abilities.capabilities.find(capability => capability.id === 'self-verify');
   assert.equal(remoteLinux?.showInAccess, true);
   assert.match(remoteLinux?.healthCheck || '', /real command|hostname\/uptime/i);
   assert.equal(whatsapp?.showInAccess, true);
   assert.match(whatsapp?.healthCheck || '', /authenticated/i);
   assert.equal(bitwarden?.showInAccess, true);
+  assert.equal(recoveryVault?.showInAccess, true);
+  assert.equal(recoveryVault?.status, 'planned');
+  assert.match(recoveryVault?.operatorRule || '', /never request, read, log, remember, or persist decrypted/i);
   assert.equal(selfVerify?.status, 'partial');
   assert.deepEqual(Object.keys(abilities.healthLevels || {}), ['configured', 'reachable', 'operational', 'session']);
+});
+
+test('Access page links the owner to Recovery Vault', () => {
+  assert.match(page, /3DVR Recovery Vault/);
+  assert.match(page, /href="\/recovery-vault\/"/);
+  assert.match(page, /never receives the decrypted value/i);
 });
 
 test('Portal navigation includes Access', () => {
