@@ -55,7 +55,7 @@
     <section class="threshold-cycle" aria-labelledby="cycle-title">
       <div class="threshold-cycle__top">
         <h2 id="cycle-title">Where are we?</h2>
-        <span>Jan 2026 → Jan 2033</span>
+        <span>Tap a phase to explore · Jan 2026 → Jan 2033</span>
       </div>
 
       <div class="threshold-track-wrap">
@@ -66,42 +66,47 @@
       </div>
 
       <div class="threshold-years" aria-label="Cycle years">
-        <div class="threshold-year" data-year-card="2026"><span class="threshold-year__number">2026</span><strong class="threshold-year__name">Ignition</strong></div>
-        <div class="threshold-year" data-year-card="2027"><span class="threshold-year__number">2027</span><strong class="threshold-year__name">Acceleration</strong></div>
-        <div class="threshold-year" data-year-card="2028"><span class="threshold-year__number">2028</span><strong class="threshold-year__name">Materialization</strong></div>
-        <div class="threshold-year" data-year-card="2029"><span class="threshold-year__number">2029</span><strong class="threshold-year__name">Consolidation</strong></div>
-        <div class="threshold-year" data-year-card="2030"><span class="threshold-year__number">2030</span><strong class="threshold-year__name">Protocol</strong></div>
-        <div class="threshold-year" data-year-card="2031"><span class="threshold-year__number">2031</span><strong class="threshold-year__name">Institution</strong></div>
-        <div class="threshold-year" data-year-card="2032"><span class="threshold-year__number">2032</span><strong class="threshold-year__name">Localization</strong></div>
+        <button type="button" class="threshold-year" data-year-card="2026" data-phase-select="2026" aria-label="Explore 2026 Ignition"><span class="threshold-year__number">2026</span><strong class="threshold-year__name">Ignition</strong></button>
+        <button type="button" class="threshold-year" data-year-card="2027" data-phase-select="2027" aria-label="Explore 2027 Acceleration"><span class="threshold-year__number">2027</span><strong class="threshold-year__name">Acceleration</strong></button>
+        <button type="button" class="threshold-year" data-year-card="2028" data-phase-select="2028" aria-label="Explore 2028 Materialization"><span class="threshold-year__number">2028</span><strong class="threshold-year__name">Materialization</strong></button>
+        <button type="button" class="threshold-year" data-year-card="2029" data-phase-select="2029" aria-label="Explore 2029 Consolidation"><span class="threshold-year__number">2029</span><strong class="threshold-year__name">Consolidation</strong></button>
+        <button type="button" class="threshold-year" data-year-card="2030" data-phase-select="2030" aria-label="Explore 2030 Protocol"><span class="threshold-year__number">2030</span><strong class="threshold-year__name">Protocol</strong></button>
+        <button type="button" class="threshold-year" data-year-card="2031" data-phase-select="2031" aria-label="Explore 2031 Institution"><span class="threshold-year__number">2031</span><strong class="threshold-year__name">Institution</strong></button>
+        <button type="button" class="threshold-year" data-year-card="2032" data-phase-select="2032" aria-label="Explore 2032 Localization"><span class="threshold-year__number">2032</span><strong class="threshold-year__name">Localization</strong></button>
       </div>
     </section>
 
-    <section class="threshold-current" aria-label="Current phase guidance">
+    <section class="threshold-current" aria-label="Selected phase guidance" data-phase-detail>
       <article class="threshold-card threshold-phase-card">
-        <div class="threshold-card__label">Right now</div>
-        <div class="threshold-card__value"><span data-phase-year>—</span> · <span data-now-phase>—</span></div>
-        <p class="threshold-card__small" data-current-note>—</p>
+        <div class="threshold-detail-head">
+          <div>
+            <div class="threshold-card__label">Exploring</div>
+            <div class="threshold-card__value"><span data-selected-year>—</span> · <span data-selected-name>—</span></div>
+          </div>
+          <button type="button" class="threshold-now-button" data-return-now>Back to now</button>
+        </div>
+        <p class="threshold-card__small" data-selected-note>—</p>
       </article>
 
       <article class="threshold-card">
         <div class="threshold-card__label">Signal</div>
-        <div class="threshold-card__value" data-current-headline>—</div>
+        <div class="threshold-card__value" data-selected-headline>—</div>
         <div class="threshold-signal">
-          <div><strong>Watch</strong><span data-current-focus>—</span></div>
-          <div><strong>Build</strong><span data-current-build>—</span></div>
+          <div><strong>Watch</strong><span data-selected-focus>—</span></div>
+          <div><strong>Build</strong><span data-selected-build>—</span></div>
           <div><strong>Direction</strong><span>Open · resilient · local</span></div>
         </div>
       </article>
     </section>
 
     <section class="threshold-phases" aria-label="Seven forecast phases">
-      <article class="threshold-phase" data-phase-card="2026"><span class="threshold-phase__year">2026</span><h3>Ignition</h3><p>AI gains agency.</p></article>
-      <article class="threshold-phase" data-phase-card="2027"><span class="threshold-phase__year">2027</span><h3>Acceleration</h3><p>Agents connect.</p></article>
-      <article class="threshold-phase" data-phase-card="2028"><span class="threshold-phase__year">2028</span><h3>Materialization</h3><p>Change becomes physical.</p></article>
-      <article class="threshold-phase" data-phase-card="2029"><span class="threshold-phase__year">2029</span><h3>Consolidation</h3><p>Ownership becomes the battle.</p></article>
-      <article class="threshold-phase" data-phase-card="2030"><span class="threshold-phase__year">2030</span><h3>Protocol</h3><p>The rules become machine-readable.</p></article>
-      <article class="threshold-phase" data-phase-card="2031"><span class="threshold-phase__year">2031</span><h3>Institution</h3><p>Experiments become normal life.</p></article>
-      <article class="threshold-phase" data-phase-card="2032"><span class="threshold-phase__year">2032</span><h3>Localization</h3><p>The revolution comes home.</p></article>
+      <button type="button" class="threshold-phase" data-phase-card="2026" data-phase-select="2026"><span class="threshold-phase__year">2026</span><h3>Ignition</h3><p>AI gains agency.</p><span class="threshold-phase__action">Explore →</span></button>
+      <button type="button" class="threshold-phase" data-phase-card="2027" data-phase-select="2027"><span class="threshold-phase__year">2027</span><h3>Acceleration</h3><p>Agents connect.</p><span class="threshold-phase__action">Explore →</span></button>
+      <button type="button" class="threshold-phase" data-phase-card="2028" data-phase-select="2028"><span class="threshold-phase__year">2028</span><h3>Materialization</h3><p>Change becomes physical.</p><span class="threshold-phase__action">Explore →</span></button>
+      <button type="button" class="threshold-phase" data-phase-card="2029" data-phase-select="2029"><span class="threshold-phase__year">2029</span><h3>Consolidation</h3><p>Ownership becomes the battle.</p><span class="threshold-phase__action">Explore →</span></button>
+      <button type="button" class="threshold-phase" data-phase-card="2030" data-phase-select="2030"><span class="threshold-phase__year">2030</span><h3>Protocol</h3><p>The rules become machine-readable.</p><span class="threshold-phase__action">Explore →</span></button>
+      <button type="button" class="threshold-phase" data-phase-card="2031" data-phase-select="2031"><span class="threshold-phase__year">2031</span><h3>Institution</h3><p>Experiments become normal life.</p><span class="threshold-phase__action">Explore →</span></button>
+      <button type="button" class="threshold-phase" data-phase-card="2032" data-phase-select="2032"><span class="threshold-phase__year">2032</span><h3>Localization</h3><p>The revolution comes home.</p><span class="threshold-phase__action">Explore →</span></button>
     </section>
 
     <footer class="threshold-note">
