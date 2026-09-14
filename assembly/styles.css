@@ -122,6 +122,34 @@ h2 {
   font-size: 0.82rem;
 }
 
+
+.decision-record {
+  align-items: end;
+}
+
+.decision-resolution-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  width: min(520px, 100%);
+}
+
+.decision-resolution-form .button {
+  white-space: nowrap;
+}
+
+.decision-history-block {
+  display: grid;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--assembly-line);
+}
+
+.decision-history-record {
+  background: rgba(243, 210, 122, 0.055);
+}
+
 .outcome-block {
   display: grid;
   gap: 8px;
@@ -329,6 +357,8 @@ a:focus-visible {
   .commitment-form { grid-template-columns: 1fr; }
   .pulse { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .section-tabs { border-radius: 20px; }
+  .decision-record { align-items: stretch; }
+  .decision-resolution-form { grid-template-columns: 1fr; width: 100%; }
   h1 { font-size: clamp(3rem, 15vw, 5.2rem); }
 }
 

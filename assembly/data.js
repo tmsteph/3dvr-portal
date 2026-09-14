@@ -53,6 +53,7 @@ function normalizeDecision(item) {
     id: text(item.id),
     text: text(item.text),
     owner: text(item.owner),
+    resolution: text(item.resolution),
     done: Boolean(item.done),
     createdAt: timestamp(item.createdAt),
     doneAt: item.doneAt == null ? null : timestamp(item.doneAt),
