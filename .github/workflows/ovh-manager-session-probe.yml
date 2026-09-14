@@ -1,6 +1,7 @@
 name: OVH Manager Session Probe
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -11,7 +12,7 @@ permissions:
 
 jobs:
   probe:
-    if: github.event.head_commit.message == 'Probe OVH manager session'
+    if: github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'Probe OVH manager session'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -36,6 +37,13 @@ jobs:
         run: |
           set -euo pipefail
           opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          lease_owner="github-actions-ovh-manager-session-probe-${GITHUB_RUN_ID:-unknown}"
+          lease_token="$(ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" "sudo -n /usr/local/bin/3dvr-browser-lease acquire general '$lease_owner' 300")"
+          release_lease() {
+            ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" "sudo -n /usr/local/bin/3dvr-browser-lease release general '$lease_token'" >/dev/null 2>&1 || true
+          }
+          trap release_lease EXIT
+
           ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" 'node -' <<'NODE'
           const http = require('node:http');
           (async () => {
@@ -51,21 +59,25 @@ jobs:
             });
             const target = JSON.parse(await request('PUT', '/json/new?https%3A%2F%2Fwww.ovh.com%2Fmanager%2F'));
             if (!target.webSocketDebuggerUrl) throw new Error('No CDP target websocket');
-            const ws = new WebSocket(target.webSocketDebuggerUrl);
-            await new Promise((resolve, reject) => { ws.addEventListener('open', resolve, {once:true}); ws.addEventListener('error', reject, {once:true}); });
-            let seq=0; const pending=new Map();
-            ws.addEventListener('message', ev => { const m=JSON.parse(ev.data); if (m.id && pending.has(m.id)) { const {resolve,reject}=pending.get(m.id); pending.delete(m.id); m.error ? reject(new Error(m.error.message)) : resolve(m.result); } });
-            const send=(method,params={}) => new Promise((resolve,reject)=>{ const id=++seq; pending.set(id,{resolve,reject}); ws.send(JSON.stringify({id,method,params})); });
-            await send('Page.enable'); await send('Runtime.enable'); await delay(5000);
-            const result = await send('Runtime.evaluate',{expression:`JSON.stringify({href:location.href,title:document.title,text:(document.body?.innerText||'').slice(0,12000)})`,returnByValue:true});
-            const page = JSON.parse(result.result.value || '{}');
-            const href=String(page.href||'').toLowerCase(); const text=String(page.text||'').toLowerCase();
-            let state='unknown';
-            if (href.includes('/auth') || (text.includes('account id or email address') && text.includes('password'))) state='login_required';
-            else if (href.includes('/manager') && (text.includes('bare metal') || text.includes('public cloud') || text.includes('network'))) state='authenticated';
-            console.log(`OVH_MANAGER_SESSION=${state}`);
-            try { await send('Target.closeTarget',{targetId:target.id}); } catch {}
-            ws.close();
+            let ws;
+            try {
+              ws = new WebSocket(target.webSocketDebuggerUrl);
+              await new Promise((resolve, reject) => { ws.addEventListener('open', resolve, {once:true}); ws.addEventListener('error', reject, {once:true}); });
+              let seq=0; const pending=new Map();
+              ws.addEventListener('message', ev => { const m=JSON.parse(ev.data); if (m.id && pending.has(m.id)) { const {resolve,reject}=pending.get(m.id); pending.delete(m.id); m.error ? reject(new Error(m.error.message)) : resolve(m.result); } });
+              const send=(method,params={}) => new Promise((resolve,reject)=>{ const id=++seq; pending.set(id,{resolve,reject}); ws.send(JSON.stringify({id,method,params})); });
+              await send('Page.enable'); await send('Runtime.enable'); await delay(5000);
+              const result = await send('Runtime.evaluate',{expression:`JSON.stringify({href:location.href,title:document.title,text:(document.body?.innerText||'').slice(0,12000)})`,returnByValue:true});
+              const page = JSON.parse(result.result.value || '{}');
+              const href=String(page.href||'').toLowerCase(); const text=String(page.text||'').toLowerCase();
+              let state='unknown';
+              if (href.includes('/auth') || (text.includes('account id or email address') && text.includes('password'))) state='login_required';
+              else if (href.includes('/manager') && (text.includes('bare metal') || text.includes('public cloud') || text.includes('network'))) state='authenticated';
+              console.log(`OVH_MANAGER_SESSION=${state}`);
+            } finally {
+              try { if (ws) ws.close(); } catch {}
+              try { await request('GET', `/json/close/${encodeURIComponent(target.id)}`); } catch {}
+            }
           })().catch(error => { console.error(`OVH_MANAGER_SESSION_PROBE_ERROR=${error.message}`); process.exit(1); });
           NODE
 
