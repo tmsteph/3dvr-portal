@@ -16,8 +16,8 @@
 
   const els = {
     today: root.querySelector('[data-today]'),
-    nowPhase: root.querySelector('[data-now-phase]'),
-    phaseYear: root.querySelector('[data-phase-year]'),
+    nowPhases: [...root.querySelectorAll('[data-now-phase]')],
+    phaseYears: [...root.querySelectorAll('[data-phase-year]')],
     cyclePercent: root.querySelector('[data-cycle-percent]'),
     phasePercent: root.querySelector('[data-phase-percent]'),
     ring: root.querySelector('[data-cycle-ring]'),
@@ -69,8 +69,8 @@
     const next = phases[phaseIndex + 1] || null;
 
     els.today.textContent = formatDate(now);
-    els.nowPhase.textContent = phase.name;
-    els.phaseYear.textContent = String(phase.year);
+    els.nowPhases.forEach((node) => { node.textContent = phase.name; });
+    els.phaseYears.forEach((node) => { node.textContent = String(phase.year); });
     els.cyclePercent.textContent = `${cyclePercent.toFixed(1)}%`;
     els.phasePercent.textContent = `${phasePercent.toFixed(0)}% through ${phase.year}`;
     els.ring.style.setProperty('--progress', `${cyclePercent * 3.6}deg`);
