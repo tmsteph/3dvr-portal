@@ -74,3 +74,11 @@ test('Portal navigation includes Access', () => {
   assert.match(home, /href="\/access\/"/);
   assert.match(home, /<strong>Access<\/strong>/);
 });
+
+
+test('Access page documents the persistent-session recovery contract', () => {
+  assert.match(page, /Connect once, recover automatically/);
+  assert.match(page, /Verify before reconnecting/);
+  assert.match(page, /UKG\/Lighthouse and messaging stay on OVH/);
+  assert.match(page, /One human checkpoint/);
+});

@@ -55,6 +55,17 @@
       <p class="connection-note">Registry status documents what exists. A real workflow still needs the appropriate health check: configured → reachable → operational → authenticated session.</p>
     </section>
 
+    <section class="principles" aria-labelledby="persistence-title">
+      <div class="section-head"><p class="eyebrow">Persistent sessions</p><h2 id="persistence-title">Connect once, recover automatically</h2></div>
+      <div class="rule-list">
+        <div><strong>Verify before reconnecting</strong><span>Check configured → reachable → operational → authenticated before asking for login, pairing, or MFA.</span></div>
+        <div><strong>Preserve canonical sessions</strong><span>UKG/Lighthouse and messaging stay on OVH persistent browser profiles; temporary profiles are never substitutes.</span></div>
+        <div><strong>Repair the failing layer</strong><span>A stopped browser gets restarted with the same profile. Missing profile storage gets repaired before a new sign-in is requested.</span></div>
+        <div><strong>One human checkpoint</strong><span>If a provider truly requires re-pairing, MFA, CAPTCHA, or owner approval, surface one concrete action and preserve everything else.</span></div>
+      </div>
+      <p class="connection-note"><a class="registry-link" href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/persistent-access-contract.md">Persistent access runbook →</a></p>
+    </section>
+
     <section class="secret-vault" aria-labelledby="secret-vault-title">
       <div>
         <p class="eyebrow">Owner vault</p>
