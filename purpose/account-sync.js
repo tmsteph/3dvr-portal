@@ -47,6 +47,17 @@ function hasPurposeSignal(state = {}) {
   return Array.isArray(state.answers) && state.answers.slice(1).some((answer) => cleanText(answer).length >= 3);
 }
 
+function signedInMarkerExists(windowObj, storage) {
+  const shared = windowObj.AuthIdentity?.readSharedIdentity?.() || {};
+  let storedSignedIn = false;
+  try {
+    storedSignedIn = storage.getItem('signedIn') === 'true';
+  } catch {
+    storedSignedIn = false;
+  }
+  return shared.signedIn === true || storedSignedIn;
+}
+
 function once(node, timerWindow = window) {
   return new Promise((resolve) => {
     let settled = false;
@@ -94,6 +105,10 @@ export async function createPurposeAccountRuntime({ windowObj = window } = {}) {
 
   try {
     windowObj.AuthIdentity?.syncStorageFromSharedIdentity?.(storage);
+    if (!signedInMarkerExists(windowObj, storage)) {
+      return { available: false, syncCurrent: async () => false };
+    }
+
     const gun = windowObj.Gun({ peers: windowObj.__GUN_PEERS__ || [] });
     const user = gun.user();
     user.recall?.({ sessionStorage: true, localStorage: true });
