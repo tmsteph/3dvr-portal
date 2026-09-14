@@ -1,3 +1,8 @@
+import {
+  applyAlignmentProfile,
+  normalizeAlignmentProfile
+} from '../kernel/alignmentProfile.js';
+import { createAlignmentProfileSync } from '../kernel/alignmentProfileSync.js';
 import { createOpportunityEngineState } from './opportunityEngine.js';
 
 export const OPPORTUNITY_ENGINE_GUN_NODE = 'opportunity-engine-v1';
@@ -30,6 +35,18 @@ export function mergeOpportunityEngineStates(localState = {}, remoteState = {}, 
       recordTimestamp(remote),
       now.getTime()
     )).toISOString()
+  }, now);
+}
+
+export function personalizeOpportunityEngineState(state = {}, profile = {}, now = new Date()) {
+  const current = createOpportunityEngineState(state, now);
+  const normalizedProfile = normalizeAlignmentProfile(profile);
+  if (!normalizedProfile.keywords.length) return current;
+
+  return createOpportunityEngineState({
+    signals: current.signals,
+    opportunities: current.opportunities.map(opportunity => applyAlignmentProfile(opportunity, normalizedProfile)),
+    updatedAt: current.updatedAt
   }, now);
 }
 
@@ -69,16 +86,21 @@ export function createOpportunityEngineSync({ user, SEA, nodeName = OPPORTUNITY_
   const pair = user?._?.sea;
   const available = Boolean(user?.is?.pub && pair && SEA?.encrypt && SEA?.decrypt && user?.get);
   const node = available ? user.get('money-printer').get(nodeName) : null;
+  const alignmentSync = available ? createAlignmentProfileSync({ user, SEA }) : null;
 
   return {
     available,
     async read() {
       if (!available) return null;
-      const record = await once(node);
+      const [record, profile] = await Promise.all([
+        once(node),
+        alignmentSync?.read().catch(() => null)
+      ]);
       if (!record?.ciphertext) return null;
       const decrypted = await SEA.decrypt(record.ciphertext, pair);
       if (!decrypted) throw new Error('Unable to decrypt the shared Opportunity Inbox.');
-      return createOpportunityEngineState(typeof decrypted === 'string' ? JSON.parse(decrypted) : decrypted);
+      const state = createOpportunityEngineState(typeof decrypted === 'string' ? JSON.parse(decrypted) : decrypted);
+      return profile ? personalizeOpportunityEngineState(state, profile) : state;
     },
     async write(state) {
       if (!available) return false;
