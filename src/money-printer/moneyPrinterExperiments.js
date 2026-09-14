@@ -1,17 +1,19 @@
 import { scoreBusinessIdeas, slugify } from './moneyPrinterScoring.js';
+import {
+  allocateVentureCapsules,
+  createVentureCapsuleFromIdea,
+  ensureVentureCapsule
+} from './ventureCapsules.js';
 
 // Experiment lifecycle helpers for money-printer-core.
 // These functions are pure enough for the future CLI/daemon to call during scheduled loops.
 
 export function generateValidationTest(idea = null) {
-  if (!idea) {
-    return null;
-  }
-
+  if (!idea) return null;
   return {
     title: `7-day validation test: ${idea.business_name}`,
     outreach: `Draft 25 direct messages to ${idea.target_customer} using the pain: "${idea.customer_pain}"`,
-    landing_page: `One page with the offer, price test, buyer pain, proof plan, and a single "book audit" CTA.`,
+    landing_page: 'One page with the offer, price test, buyer pain, proof plan, and a single "book audit" CTA.',
     concierge_version: 'Deliver the first result manually using docs, spreadsheets, and founder time before building software.',
     success_metric: '3 qualified replies, 1 booked call, or 1 paid pilot within 7 days.',
     failure_metric: 'Fewer than 2 specific pain replies after 25 targeted messages.',
@@ -20,10 +22,7 @@ export function generateValidationTest(idea = null) {
 }
 
 export function generateTinyMvpPlan(idea = null) {
-  if (!idea) {
-    return null;
-  }
-
+  if (!idea) return null;
   return {
     title: `Tiny MVP plan: ${idea.business_name}`,
     build: [
@@ -38,13 +37,11 @@ export function generateTinyMvpPlan(idea = null) {
 }
 
 export function promoteIdeaToExperiment(idea) {
-  if (!idea) {
-    return null;
-  }
-
+  if (!idea) return null;
   const validationTest = generateValidationTest(idea);
+  const experimentId = `experiment-${slugify(idea.business_name)}`;
   return {
-    id: `experiment-${slugify(idea.business_name)}`,
+    id: experimentId,
     name: idea.business_name,
     customer: idea.target_customer,
     pain: idea.customer_pain,
@@ -52,6 +49,12 @@ export function promoteIdeaToExperiment(idea) {
     price_test: idea.revenue_path.split(',')[0] || '$300 setup or $99/month',
     validation_test: validationTest?.outreach || idea.first_test_this_week,
     status: 'Idea',
+    priorityScore: Number(idea.total_score || 50),
+    capsule: createVentureCapsuleFromIdea(idea, {
+      sourceId: experimentId,
+      successCondition: validationTest?.success_metric,
+      killCondition: validationTest?.failure_metric
+    }),
     traction: {
       leads_found: 0,
       messages_drafted: 0,
@@ -65,7 +68,7 @@ export function promoteIdeaToExperiment(idea) {
 }
 
 export function createSeedExperiment() {
-  return {
+  const experiment = {
     id: 'experiment-local-ai-websites',
     name: 'AI Website Modernization for Local Service Businesses',
     customer: 'local service providers with outdated websites',
@@ -74,6 +77,7 @@ export function createSeedExperiment() {
     price_test: '$300 setup or $99/month',
     validation_test: 'Send 25 personalized outreach emails and measure replies',
     status: 'Idea',
+    priorityScore: 64,
     traction: {
       leads_found: 0,
       messages_drafted: 0,
@@ -84,6 +88,7 @@ export function createSeedExperiment() {
     },
     next_action: 'Run Market Research Bot and Lead Finder Bot'
   };
+  return { ...experiment, capsule: ensureVentureCapsule(experiment) };
 }
 
 export function summarizePortfolio(experiments = []) {
@@ -92,6 +97,7 @@ export function summarizePortfolio(experiments = []) {
   const scaling = experiments.filter(item => item.status === 'Scaling');
   const killed = experiments.filter(item => item.status === 'Killed');
   const totalRevenue = experiments.reduce((sum, item) => sum + Number(item.traction?.revenue || 0), 0);
+  const capsulePortfolio = allocateVentureCapsules(experiments.map(item => ensureVentureCapsule(item)));
 
   return {
     totalExperiments: experiments.length,
@@ -101,7 +107,11 @@ export function summarizePortfolio(experiments = []) {
     killedExperiments: killed.length,
     totalRevenue,
     primaryFocus: revenue[0]?.name || active[0]?.name || 'No active experiment yet',
-    attentionRule: 'Keep one primary revenue experiment active and one backup idea in research.'
+    activeCapsules: capsulePortfolio.active.length,
+    researchCapsules: capsulePortfolio.research.length,
+    queuedCapsules: capsulePortfolio.queued.length,
+    capsulePortfolio,
+    attentionRule: capsulePortfolio.attentionRule
   };
 }
 
@@ -149,9 +159,7 @@ export function killOrScaleExperiment(state = {}) {
 
 export function applyExperimentStatus(experiment = {}, nextStatus = 'Idea') {
   const traction = { ...(experiment.traction || {}) };
-  if (nextStatus === 'Researching') {
-    traction.leads_found = Math.max(Number(traction.leads_found || 0), 15);
-  }
+  if (nextStatus === 'Researching') traction.leads_found = Math.max(Number(traction.leads_found || 0), 15);
   if (nextStatus === 'Validating') {
     traction.leads_found = Math.max(Number(traction.leads_found || 0), 25);
     traction.messages_drafted = Math.max(Number(traction.messages_drafted || 0), 25);
@@ -166,9 +174,5 @@ export function applyExperimentStatus(experiment = {}, nextStatus = 'Idea') {
     traction.revenue = Math.max(Number(traction.revenue || 0), 300);
   }
 
-  return {
-    ...experiment,
-    status: nextStatus,
-    traction
-  };
+  return { ...experiment, status: nextStatus, traction };
 }

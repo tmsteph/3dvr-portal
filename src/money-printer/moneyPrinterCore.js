@@ -22,11 +22,17 @@ import {
   scoreBusinessIdea,
   scoreBusinessIdeas
 } from './moneyPrinterScoring.js';
+import {
+  applyVenturePortfolioLimits,
+  capsuleCanAutoExecute,
+  DEFAULT_VENTURE_PORTFOLIO_LIMITS
+} from './ventureCapsules.js';
 
 // money-printer-core: shared engine for bots, scoring, prompts, experiments, briefs, and connector interfaces.
 // This module is intentionally free of DOM and browser storage so a future CLI or DigitalOcean daemon can reuse it.
 
 export { AUTONOMY_ZONES, BOT_GROUPS, DEFAULT_MISSION, EXPERIMENT_STATUSES, TOOL_DEFINITIONS };
+export { capsuleCanAutoExecute, DEFAULT_VENTURE_PORTFOLIO_LIMITS };
 export {
   findPromptForBot,
   generateMoneyIdeas,
@@ -71,9 +77,11 @@ export function getNextBestMoneyAction(state = {}) {
   const ideas = scoreBusinessIdeas(state.ideas || []);
   const experiments = state.experiments || [];
   const topIdea = ideas[0];
+  const activeCapsuleExperiment = experiments.find(item => item.capsule?.status === 'active');
   const revenueExperiments = experiments.filter(item => Number(item.traction?.revenue || 0) > 0);
   const staleExperiment = experiments.find(item =>
-    item.status !== 'Killed'
+    item.capsule?.status === 'active'
+    && item.status !== 'Killed'
     && Number(item.traction?.messages_sent || 0) > 0
     && Number(item.traction?.replies || 0) === 0
   );
@@ -86,15 +94,19 @@ export function getNextBestMoneyAction(state = {}) {
     return `Follow up with stale leads for ${staleExperiment.name} and rewrite the first line around the buyer pain.`;
   }
 
+  if (activeCapsuleExperiment) {
+    return activeCapsuleExperiment.next_action || `Run the smallest validation step for ${activeCapsuleExperiment.name}.`;
+  }
+
   if (topIdea?.speed_to_cash_score >= 5) {
-    return `Draft outreach to 10 reachable buyers for ${topIdea.business_name} and ask for one paid pilot call.`;
+    return `Promote ${topIdea.business_name} into a bounded Venture Capsule before drafting outreach.`;
   }
 
   if (topIdea) {
-    return `Build a landing page for ${topIdea.business_name} and package the first offer as a $300 audit.`;
+    return `Create a bounded Venture Capsule for ${topIdea.business_name} before spending build time.`;
   }
 
-  return 'Generate 5 business ideas, score them, and pick one test that can reach a buyer this week.';
+  return 'Generate 5 business ideas, score them, and promote one into a bounded Venture Capsule.';
 }
 
 export function generateFounderCommandBrief(state = {}) {
@@ -138,7 +150,7 @@ export function generateFounderCommandBrief(state = {}) {
       : 'Anything with vague buyers, no reachable channel, or no reply after a focused test.',
     currentExperimentToScale: scaleExperiment?.name || topIdea?.business_name || 'No scale candidate yet.',
     highestLeverageImprovementThisWeek:
-      'Turn the strongest offer into a repeatable validation loop: buyer list, outreach, landing page, CRM note, metric review.',
+      'Keep discovery broad while allowing only the active Venture Capsule to consume execution attention.',
     nextBestMoneyAction
   };
 }
@@ -164,7 +176,9 @@ export function buildMetrics(state = {}) {
   const generatedSeed = ideas.length ? ideas.length * 5 : 0;
   return {
     ideasGenerated: ideas.length,
-    experimentsActive: experiments.filter(item => item.status !== 'Killed').length,
+    experimentsActive: experiments.filter(item => item.capsule?.status === 'active').length,
+    experimentsResearching: experiments.filter(item => item.capsule?.status === 'research').length,
+    experimentsQueued: experiments.filter(item => item.capsule?.status === 'queued').length,
     offersLaunched: experiments.filter(item => ['Launched', 'Revenue', 'Scaling'].includes(item.status)).length,
     leadsFound: tractionTotals.leadsFound + generatedSeed,
     replies: tractionTotals.replies + (ideas.length ? 2 : 0),
@@ -179,12 +193,21 @@ export function refreshMoneyPrinterState(nextState = {}) {
   const mission = normalizeMission(nextState.mission || nextState.businessConfig?.mission || DEFAULT_MISSION);
   const ideas = scoreBusinessIdeas(nextState.ideas || []);
   const businessConfig = updateBusinessConfigFromMission(mission, ideas[0], nextState.businessConfig);
+  const venturePortfolioLimits = {
+    ...DEFAULT_VENTURE_PORTFOLIO_LIMITS,
+    ...(nextState.venturePortfolioLimits || {})
+  };
+  const experiments = applyVenturePortfolioLimits(
+    Array.isArray(nextState.experiments) ? nextState.experiments : [],
+    venturePortfolioLimits
+  );
   const updated = {
     ...nextState,
     mission,
     ideas,
     businessConfig,
-    experiments: Array.isArray(nextState.experiments) ? nextState.experiments : [],
+    venturePortfolioLimits,
+    experiments,
     weakSignals: Array.isArray(nextState.weakSignals) ? nextState.weakSignals : [],
     botOutputs: nextState.botOutputs || {}
   };
