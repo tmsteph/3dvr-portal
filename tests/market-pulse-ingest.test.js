@@ -14,7 +14,7 @@ import {
 function samplePulse(runId = 'market-pulse-run-1') {
   return {
     runId,
-    generatedAt: '2026-09-14T16:23:00.000Z',
+    generatedAt: '2099-09-14T16:23:00.000Z',
     profile: { searchMode: 'portfolio' },
     opportunities: [
       {
