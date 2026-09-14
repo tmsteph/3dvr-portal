@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>3DVR Kernel | 3DVR Portal</title>
+  <meta name="description" content="3DVR Kernel is the open foundation for self-steerable businesses, agents, and AI-native software.">
+  <style>
+    :root{color-scheme:dark;--bg:#0d1117;--panel:#161b22;--text:#e6edf3;--muted:#9da7b3;--line:#30363d;--link:#58a6ff;--good:#3fb950}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.6}
+    main{width:min(920px,100%);margin:auto;padding:28px 18px 72px}.nav{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:42px}.nav a,a{color:var(--link)}
+    .eyebrow{color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:.78rem}h1{font-size:clamp(2.5rem,8vw,5rem);line-height:1;margin:.3rem 0 1rem}h2{margin:0 0 .5rem}h3{margin:0 0 .35rem}
+    .lead{font-size:1.2rem;max-width:760px}.principle{font-size:1.08rem;border-left:3px solid var(--good);padding-left:16px;margin:28px 0;color:#c9d1d9}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:28px 0}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px}.card p{color:var(--muted);margin:.35rem 0 0}.wide{grid-column:1/-1}
+    .stack{display:grid;gap:8px;margin-top:14px}.layer{display:grid;grid-template-columns:minmax(130px,190px) 1fr;gap:14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px}.layer strong{color:#fff}.layer span{color:var(--muted)}
+    .loop{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}.step{padding:9px 12px;border:1px solid var(--line);border-radius:999px;background:#0f141b}.arrow{color:var(--muted)}
+    .boundary{margin-top:10px;padding-left:20px}.boundary li{margin:.35rem 0;color:var(--muted)}
+    .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}.button{display:inline-block;padding:11px 16px;border:1px solid var(--line);border-radius:10px;text-decoration:none;font-weight:700}.button.primary{background:var(--link);color:#07111f;border-color:var(--link)}
+    code{background:#0f141b;border:1px solid var(--line);padding:.1rem .35rem;border-radius:6px}
+    @media(max-width:680px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.layer{grid-template-columns:1fr}.arrow{display:none}}
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+<main>
+  <nav class="nav"><a href="../">3DVR Portal</a><a href="../operator/">Operator</a><a href="../agent/">Agent</a><a href="../abilities/">Abilities</a><a href="../digital-organism/">Digital Organism</a></nav>
+
+  <p class="eyebrow">Architecture · living document</p>
+  <h1>3DVR Kernel</h1>
+  <p class="lead">3DVR should act more like the Linux kernel of business and AI development: a small, open foundation that many different products, organizations, agents, and interfaces can build on.</p>
+
+  <p class="principle"><strong>The kernel is the platform. The Portal is one distribution. AI operates the system instead of living inside one app.</strong></p>
+
+  <div class="grid">
+    <section class="card"><h2>Kernel</h2><p>Goals, identity, permissions, memory, events, tasks, capabilities, policies, state, and agent coordination.</p></section>
+    <section class="card"><h2>Portal distribution</h2><p>Our opinionated user experience built on the kernel: Operator, CRM, Calendar, Forge, Launch Room, Revenue tools, and more.</p></section>
+    <section class="card"><h2>Drivers</h2><p>Adapters for Gmail, GitHub, Stripe, calendars, browsers, phones, servers, local computers, messaging, and future devices.</p></section>
+    <section class="card"><h2>Userland</h2><p>Apps and workflows can be replaced or remixed without rebuilding the underlying operating model.</p></section>
+  </div>
+
+  <section class="card">
+    <h2>System layers</h2>
+    <div class="stack">
+      <div class="layer"><strong>Goals + policy</strong><span>What matters, what is allowed, what needs approval, and how success is measured.</span></div>
+      <div class="layer"><strong>Shared state</strong><span>Current projects, people, tasks, context, finances, deployments, blockers, and system health.</span></div>
+      <div class="layer"><strong>Capabilities</strong><span>Machine-readable registry of what the system can do right now and how each capability is recovered.</span></div>
+      <div class="layer"><strong>Operator</strong><span>The coordinator. Chooses the highest-value next action and delegates work to the right agent or machine.</span></div>
+      <div class="layer"><strong>Agents + workers</strong><span>Specialized services that research, build, communicate, deploy, monitor, and maintain.</span></div>
+      <div class="layer"><strong>Apps</strong><span>Human-facing views into the same kernel state rather than disconnected silos.</span></div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:14px">
+    <h2>Self-steering control loop</h2>
+    <p>The Portal should continuously move work forward without waiting for a human to remember which app to open.</p>
+    <div class="loop" aria-label="Self-steering loop">
+      <span class="step">Observe</span><span class="arrow">→</span>
+      <span class="step">Understand</span><span class="arrow">→</span>
+      <span class="step">Prioritize</span><span class="arrow">→</span>
+      <span class="step">Plan</span><span class="arrow">→</span>
+      <span class="step">Act</span><span class="arrow">→</span>
+      <span class="step">Verify</span><span class="arrow">→</span>
+      <span class="step">Learn</span><span class="arrow">↺</span>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:14px">
+    <h2>Self-improvement loop</h2>
+    <p>Software changes should use a protected improvement pipeline rather than unconstrained self-editing.</p>
+    <div class="loop" aria-label="Self-improvement loop">
+      <span class="step">Notice friction</span><span class="arrow">→</span>
+      <span class="step">Hypothesis</span><span class="arrow">→</span>
+      <span class="step">Branch</span><span class="arrow">→</span>
+      <span class="step">Build</span><span class="arrow">→</span>
+      <span class="step">Test + eval</span><span class="arrow">→</span>
+      <span class="step">Canary</span><span class="arrow">→</span>
+      <span class="step">Measure</span><span class="arrow">→</span>
+      <span class="step">Merge or rollback</span>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Autonomous by default</h2>
+      <ul class="boundary">
+        <li>research and summarize</li>
+        <li>organize state and documentation</li>
+        <li>run tests and health checks</li>
+        <li>repair low-risk internal failures</li>
+        <li>propose and validate code/UI improvements</li>
+      </ul>
+    </section>
+    <section class="card">
+      <h2>Policy-gated</h2>
+      <ul class="boundary">
+        <li>money movement and purchases</li>
+        <li>credentials and permission changes</li>
+        <li>destructive production actions</li>
+        <li>high-impact customer communications</li>
+        <li>changes that exceed configured risk limits</li>
+      </ul>
+    </section>
+    <section class="card wide">
+      <h2>Kernel v0.1 milestone</h2>
+      <p><code>Goals + State + Capabilities + Events + Policies + Agent Loop + Evals + Rollback</code></p>
+      <p>New Portal features should increasingly plug into these primitives instead of creating isolated state and one-off automation.</p>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>North star</h2>
+    <p><strong>3DVR is an open kernel for autonomous organizations.</strong></p>
+    <p>The Portal is our reference distribution. Other people should eventually be able to build entirely different businesses, communities, and AI systems on the same kernel.</p>
+    <div class="actions">
+      <a class="button primary" href="../operator/">Open Operator</a>
+      <a class="button" href="../abilities/">Capability registry</a>
+      <a class="button" href="../agent/">Agent runtime</a>
+    </div>
+  </section>
+</main>
+<script defer src="/issue-launcher.js"></script>
+</body>
+</html>
