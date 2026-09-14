@@ -6,6 +6,32 @@ Build a community-based path from repairing and assembling electronics toward ma
 
 The goal is not to pretend every layer can be localized immediately. The goal is to steadily replace opaque dependencies with understandable, repairable, reproducible ones.
 
+## Inspirations
+
+### Hacker Fab
+
+Hacker Fab demonstrates that semiconductor fabrication does not have to remain a sealed industrial mystery. Its model is to make DIY versions of nanofabrication tools, document processes openly, and encourage independent labs, universities, clubs, and contributors to replicate and improve them.
+
+3DVR should learn especially from its emphasis on replication, documentation, low-cost tooling, measurable process capability, and strong safety culture.
+
+Reference: https://hackerfab.org/
+
+### Open Source Ecology
+
+Open Source Ecology demonstrates the larger industrial pattern: open, modular machines that can build infrastructure and eventually other machines. The Global Village Construction Set includes fabrication, agriculture, energy, construction, metalworking, circuit-making, furnaces, and material-processing equipment.
+
+3DVR should treat electronics as one branch of a broader community production stack rather than an isolated hobby.
+
+Reference: https://www.opensourceecology.org/
+
+### Balthazar Personal Computing Device
+
+Balthazar gives the stack a concrete product target: a repairable, upgradeable, open personal computer built around open architectures such as RISC-V and FPGA-based computing modules.
+
+3DVR can use Balthazar as a north star while progressively opening the supply chain underneath it.
+
+Reference: https://balthazar.space/
+
 ## Maturity ladder
 
 1. **Repair and salvage**
@@ -40,9 +66,21 @@ The goal is not to pretend every layer can be localized immediately. The goal is
    - design chips before attempting fabrication infrastructure
    - use external foundries where necessary while keeping designs and toolchains open
 
-8. **Long-term community microfabrication research**
-   - study what semiconductor, sensor, MEMS, packaging, or thin-film processes could safely become community- or university-scale
-   - treat chemicals, high voltage, vacuum systems, clean processes, and hazardous materials with professional safety controls
+8. **Community semiconductor fabrication**
+   - learn from Hacker Fab and related open nanofabrication communities
+   - replicate safe, documented tools and process modules rather than inventing everything independently
+   - begin with educational devices and coarse geometries before pursuing higher-density integrated circuits
+   - maintain professional controls for chemicals, gases, vacuum, high voltage, contamination, and waste
+
+9. **Materials and elements**
+   - connect every device BOM downward to its constituent materials and useful elements
+   - prioritize urban mining, repair, reuse, scrap sorting, and closed-loop recycling before virgin extraction
+   - develop community-scale capability for safe metal sorting, remelting, casting, wire production, sheet, simple alloys, glass, ceramics, carbon materials, and other achievable feedstocks
+   - document where copper, aluminum, iron, tin, nickel, silicon, carbon, lithium, rare earths, and other materials actually originate
+   - study responsible gathering, quarrying, mining, beneficiation, refining, and purification only where legally, environmentally, and technically appropriate
+   - treat land stewardship, worker safety, water, tailings, emissions, indigenous/local rights, and ecological restoration as part of the engineering specification
+
+See `elements.md` for the Open Elements Commons roadmap.
 
 ## First practical target
 
@@ -113,18 +151,20 @@ For every major component or process, track:
 
 - Repair before replacement.
 - Salvage before extraction.
+- Recycle before virgin mining where practical.
 - Prefer documented interfaces.
 - Prefer multiple suppliers.
 - Publish source, schematics, BOMs, firmware, tests, and mechanical files.
 - Avoid proprietary lock-in where practical.
 - Be honest about closed layers that remain.
 - Separate community-scale processes from industrial processes that require specialized safety infrastructure.
+- Treat environmental and worker protections as engineering requirements, not externalities.
 - Make the first useful thing before optimizing the whole stack.
 
 ## Long-term north star
 
-A community should eventually be able to understand, repair, reproduce, and improve the electronics it depends on.
+A community should eventually be able to understand, repair, reproduce, and improve the electronics it depends on — and understand where the matter itself came from.
 
-Not everything must be made in one neighborhood. The important thing is that the knowledge, designs, interfaces, and production path are open enough that communities can progressively take ownership of more layers.
+Not everything must be made or mined in one neighborhood. The important thing is that the knowledge, designs, interfaces, processes, and production path are open enough that communities can progressively take ownership of more layers.
 
-Open source all the way down.
+Open source all the way down — from software to silicon to atoms.
