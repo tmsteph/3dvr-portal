@@ -74,6 +74,7 @@
     }
   };
 
+  const eraNames = { past: 'HISTORY', present: 'NOW', future: 'FORECAST' };
   const scaleButtons = [...root.querySelectorAll('[data-cycle-scale]')];
   const title = root.querySelector('[data-long-title]');
   const note = root.querySelector('[data-long-note]');
@@ -82,13 +83,46 @@
   let activeScale = 'modern';
   let activeItem = 0;
 
-  function renderDetail(item) {
+  const directions = document.createElement('div');
+  directions.className = 'long-cycle-directions';
+  directions.setAttribute('aria-label', 'Timeline direction');
+  directions.innerHTML = `
+    <div class="long-cycle-directions__past"><strong>← PAST</strong><span>observed history</span></div>
+    <div class="long-cycle-directions__now"><strong>NOW</strong><span>September 2026</span></div>
+    <div class="long-cycle-directions__future"><strong>FUTURE →</strong><span>scenario, not fact</span></div>`;
+  strip.parentNode.insertBefore(directions, strip);
+
+  function eraFor(scaleKey, index) {
+    if (scaleKey === 'modern') return index <= 3 ? 'past' : index === 4 ? 'present' : 'future';
+    if (scaleKey === 'century') return index <= 5 ? 'past' : 'future';
+    if (scaleKey === 'millennium') return index <= 3 ? 'past' : index === 4 ? 'present' : 'future';
+    if (scaleKey === 'deep') return index <= 4 ? 'past' : 'present';
+    if (scaleKey === 'great') return index <= 1 ? 'past' : index === 2 ? 'present' : 'future';
+    return 'past';
+  }
+
+  function defaultIndexFor(scaleKey, items) {
+    const presentIndex = items.findIndex((_, index) => eraFor(scaleKey, index) === 'present');
+    if (presentIndex >= 0) return presentIndex;
+    let lastPast = 0;
+    items.forEach((_, index) => {
+      if (eraFor(scaleKey, index) === 'past') lastPast = index;
+    });
+    return lastPast;
+  }
+
+  function renderDetail(item, era) {
+    const worldLabel = era === 'past' ? 'Observed history' : era === 'present' ? 'Current world' : 'Future scenario';
+    detail.className = `long-cycle-detail is-${era}`;
     detail.innerHTML = `
-      <div class="long-cycle-detail__date">${item.date}</div>
+      <div class="long-cycle-detail__meta">
+        <span class="long-cycle-era long-cycle-era--${era}">${eraNames[era]}</span>
+        <span class="long-cycle-detail__date">${item.date}</span>
+      </div>
       <div class="long-cycle-detail__name">${item.name}</div>
       <div class="long-cycle-detail__grid">
         <div><strong>Sky / cycle</strong><span>${item.sky}</span></div>
-        <div><strong>World</strong><span>${item.world}</span></div>
+        <div><strong>${worldLabel}</strong><span>${item.world}</span></div>
         <div><strong>Reading</strong><span>${item.read}</span></div>
       </div>`;
   }
@@ -97,7 +131,7 @@
     const scale = scales[key];
     if (!scale) return;
     activeScale = key;
-    activeItem = 0;
+    activeItem = defaultIndexFor(key, scale.items);
     title.textContent = scale.title;
     note.textContent = scale.note;
 
@@ -107,21 +141,34 @@
       button.setAttribute('aria-pressed', String(active));
     });
 
-    strip.innerHTML = scale.items.map((item, index) => `
-      <button type="button" class="long-cycle-node${index === 0 ? ' is-active' : ''}" data-long-item="${index}">
-        <span>${item.date}</span>
-        <strong>${item.name}</strong>
-      </button>`).join('');
+    const pieces = [];
+    let previousEra = null;
+    scale.items.forEach((item, index) => {
+      const era = eraFor(key, index);
+      if (previousEra === 'past' && era === 'future') {
+        pieces.push('<div class="long-cycle-now-divider" aria-label="Present day"><strong>NOW</strong><span>2026</span></div>');
+      }
+      pieces.push(`
+        <button type="button" class="long-cycle-node is-${era}${index === activeItem ? ' is-active' : ''}" data-long-item="${index}">
+          <span class="long-cycle-era long-cycle-era--${era}">${eraNames[era]}</span>
+          <span class="long-cycle-node__date">${item.date}</span>
+          <strong>${item.name}</strong>
+        </button>`);
+      previousEra = era;
+    });
+    strip.innerHTML = pieces.join('');
 
     strip.querySelectorAll('[data-long-item]').forEach((button) => {
       button.addEventListener('click', () => {
         activeItem = Number(button.dataset.longItem);
         strip.querySelectorAll('[data-long-item]').forEach((node) => node.classList.toggle('is-active', node === button));
-        renderDetail(scale.items[activeItem]);
+        renderDetail(scale.items[activeItem], eraFor(key, activeItem));
       });
     });
 
-    renderDetail(scale.items[0]);
+    renderDetail(scale.items[activeItem], eraFor(key, activeItem));
+    const activeNode = strip.querySelector(`[data-long-item="${activeItem}"]`);
+    if (activeNode) activeNode.scrollIntoView({ inline: 'center', block: 'nearest' });
   }
 
   scaleButtons.forEach((button) => {
