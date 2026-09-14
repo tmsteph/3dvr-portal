@@ -6,6 +6,8 @@ export function emptyAssemblyState() {
   return {
     identity: { name: '', purpose: '' },
     people: [],
+    teams: [],
+    assignments: [],
     initiatives: [],
     commitments: [],
     decisions: [],
@@ -21,6 +23,25 @@ function normalizePerson(item) {
   return {
     id: text(item.id),
     name: text(item.name),
+    role: text(item.role),
+    createdAt: timestamp(item.createdAt),
+  };
+}
+
+function normalizeTeam(item) {
+  return {
+    id: text(item.id),
+    name: text(item.name),
+    purpose: text(item.purpose),
+    createdAt: timestamp(item.createdAt),
+  };
+}
+
+function normalizeAssignment(item) {
+  return {
+    id: text(item.id),
+    personId: text(item.personId),
+    teamId: text(item.teamId),
     role: text(item.role),
     createdAt: timestamp(item.createdAt),
   };
@@ -74,12 +95,22 @@ function normalizeNeed(item) {
 export function normalizeAssemblyState(value) {
   const source = value && typeof value === 'object' ? value : {};
   const identity = source.identity && typeof source.identity === 'object' ? source.identity : {};
+  const people = records(source.people).map(normalizePerson).filter(item => item.name);
+  const teams = records(source.teams).map(normalizeTeam).filter(item => item.name);
+  const personIds = new Set(people.map(item => item.id).filter(Boolean));
+  const teamIds = new Set(teams.map(item => item.id).filter(Boolean));
+  const assignments = records(source.assignments)
+    .map(normalizeAssignment)
+    .filter(item => item.personId && item.teamId && item.role)
+    .filter(item => personIds.has(item.personId) && teamIds.has(item.teamId));
   return {
     identity: {
       name: text(identity.name),
       purpose: text(identity.purpose),
     },
-    people: records(source.people).map(normalizePerson).filter(item => item.name),
+    people,
+    teams,
+    assignments,
     initiatives: records(source.initiatives).map(normalizeInitiative).filter(item => item.name),
     commitments: records(source.commitments).map(normalizeCommitment).filter(item => item.text),
     decisions: records(source.decisions).map(normalizeDecision).filter(item => item.text),

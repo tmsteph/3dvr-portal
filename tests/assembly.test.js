@@ -74,3 +74,22 @@ test('Assembly keeps resolved choices in a decision ledger', async () => {
   assert.match(app, /resolution, done: true, doneAt: Date\.now\(\)/);
   assert.match(data, /resolution: text\(item\.resolution\)/);
 });
+
+
+test('Assembly organizes people into teams with role assignments by ID', async () => {
+  const [html, app, data] = await Promise.all([read('assembly/index.html'), read('assembly/app.js'), read('assembly/data.js')]);
+
+  assert.match(html, /id="teamForm"/);
+  assert.match(html, /id="assignmentForm"/);
+  assert.match(html, /id="assignmentPerson"/);
+  assert.match(html, /id="assignmentTeam"/);
+  assert.match(html, /id="teamList"/);
+  assert.match(data, /teams: \[\]/);
+  assert.match(data, /assignments: \[\]/);
+  assert.match(data, /personIds\.has\(item\.personId\)/);
+  assert.match(data, /teamIds\.has\(item\.teamId\)/);
+  assert.match(app, /personId, teamId, role/);
+  assert.match(app, /remove-team/);
+  assert.match(app, /remove-assignment/);
+  assert.match(app, /state\.assignments = state\.assignments\.filter\(item => item\.personId !== id\)/);
+});

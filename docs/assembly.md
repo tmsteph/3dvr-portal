@@ -145,3 +145,11 @@ This gives people a private backup and transfer path before multi-user sync exis
 ## Decision ledger
 
 Open decisions now require an explicit recorded resolution before they leave the active list. The resolved choice, original question, owner, and resolution time stay in a local **Decision ledger** and travel with the versioned Assembly snapshot. This turns decisions into organizational memory instead of disposable checklist items.
+
+## Teams and roles
+
+Assembly now separates **people** from **team role assignments**. A person remains one authoritative record, while teams are lightweight working groups with a purpose. Assignments reference both records by stable ID and describe the role that person holds in that specific team.
+
+This allows one person to participate in several teams with different responsibilities without duplicating their identity. Removing a person or team removes its role assignments, and imported snapshots discard dangling assignments whose referenced person or team no longer exists.
+
+This is still coordination, not authorization. A displayed role such as `Lead` or `Steward` does **not** yet grant kernel capabilities or permissions. Future trusted workspace sync must map role policy to the shared kernel permission model explicitly rather than inferring authority from a label.
