@@ -3,51 +3,113 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>The Threshold Years: A 2026–2032 Forecast | 3DVR Research</title>
-  <meta name="description" content="A scenario forecast for 2026–2032 using technology trends, outer-planet astrology, Earth's precessional cycle, and a careful evidence boundary between astronomy and symbolic interpretation.">
+  <title>The Threshold Years | 3DVR Research</title>
+  <meta name="description" content="A live visual dashboard showing where we are in the 2026–2032 Threshold Years forecast cycle.">
   <link rel="stylesheet" href="../styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+  <link rel="stylesheet" href="./threshold.css">
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
-<body data-document="/docs/research/threshold-years-2026-2032.md">
-  <main class="research-shell">
-    <nav class="research-nav" aria-label="Research-note navigation">
-      <a class="research-nav__brand" href="../">3DVR Portal / Research</a>
-      <div class="research-nav__links">
+<body class="threshold-page">
+  <main class="threshold-shell" data-threshold-dashboard>
+    <nav class="threshold-nav" aria-label="Threshold Years navigation">
+      <a class="threshold-nav__brand" href="../">3DVR / Research</a>
+      <div class="threshold-nav__links">
         <a href="/">Portal</a>
-        <a href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/research/threshold-years-2026-2032.md" target="_blank" rel="noopener">View Markdown</a>
+        <a href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/research/threshold-years-2026-2032.md" target="_blank" rel="noopener">Deep dive</a>
       </div>
     </nav>
 
-    <header class="paper-header">
-      <p class="eyebrow">3DVR scenario forecast · September 14, 2026</p>
-      <h1 data-paper-title>The Threshold Years: A 2026–2032 Forecast</h1>
-      <p>
-        2026 breaks the seal. 2027 accelerates. 2028–2029 makes the change physical.
-        2030–2031 writes the new rules. 2032 brings the revolution home.
-      </p>
+    <header class="threshold-hero">
+      <p class="threshold-eyebrow">Live 2026–2032 scenario map</p>
+      <h1>The Threshold Years</h1>
+      <div class="threshold-nowline">
+        <span class="threshold-live-dot" aria-hidden="true"></span>
+        <span>Today: <strong data-today>Loading…</strong></span>
+        <span>·</span>
+        <span>You are in <strong><span data-phase-year>—</span> · <span data-now-phase>—</span></strong></span>
+      </div>
     </header>
 
-    <div class="paper-layout">
-      <article class="paper-content markdown-body" data-markdown-target>
-        <div class="loading">Loading the canonical Markdown forecast…</div>
+    <section class="threshold-dashboard" aria-label="Current cycle status">
+      <article class="threshold-card threshold-progress-card">
+        <div class="threshold-ring" data-cycle-ring aria-hidden="true">
+          <div class="threshold-ring__text">
+            <strong data-cycle-percent>—</strong>
+            <span>complete</span>
+          </div>
+        </div>
+        <div>
+          <div class="threshold-card__label">Cycle position</div>
+          <div class="threshold-card__value" data-cycle-position>—</div>
+          <div class="threshold-card__small" data-phase-percent>—</div>
+        </div>
       </article>
-      <aside class="paper-aside">
-        <strong>Forecast type</strong>
-        <p>Scenario map combining observable technology trends with astrological symbolism. It is not presented as a scientific prediction model.</p>
-        <strong>Core horizon</strong>
-        <p>2026–2032: agency → networks → physical infrastructure → governance → protocols → institutions → localization.</p>
-        <strong>Evidence boundary</strong>
-        <p>Astronomical positions and axial precession are factual. Astrological and civilizational-cycle interpretations remain speculative.</p>
-        <strong>Source state</strong>
-        <p data-paper-status>Loading Markdown source…</p>
-      </aside>
-    </div>
 
-    <footer class="research-footer">Build what we would want to survive the transition.</footer>
+      <article class="threshold-card">
+        <div class="threshold-card__label">Next shift</div>
+        <div class="threshold-card__value" data-next-phase>—</div>
+        <div class="threshold-card__small" data-next-countdown>—</div>
+      </article>
+    </section>
+
+    <section class="threshold-cycle" aria-labelledby="cycle-title">
+      <div class="threshold-cycle__top">
+        <h2 id="cycle-title">Where are we?</h2>
+        <span>Jan 2026 → Jan 2033</span>
+      </div>
+
+      <div class="threshold-track-wrap">
+        <div class="threshold-marker" data-cycle-marker><span>You are here</span></div>
+        <div class="threshold-track" aria-hidden="true">
+          <div class="threshold-track__fill" data-cycle-fill></div>
+        </div>
+      </div>
+
+      <div class="threshold-years" aria-label="Cycle years">
+        <div class="threshold-year" data-year-card="2026"><span class="threshold-year__number">2026</span><strong class="threshold-year__name">Ignition</strong></div>
+        <div class="threshold-year" data-year-card="2027"><span class="threshold-year__number">2027</span><strong class="threshold-year__name">Acceleration</strong></div>
+        <div class="threshold-year" data-year-card="2028"><span class="threshold-year__number">2028</span><strong class="threshold-year__name">Materialization</strong></div>
+        <div class="threshold-year" data-year-card="2029"><span class="threshold-year__number">2029</span><strong class="threshold-year__name">Consolidation</strong></div>
+        <div class="threshold-year" data-year-card="2030"><span class="threshold-year__number">2030</span><strong class="threshold-year__name">Protocol</strong></div>
+        <div class="threshold-year" data-year-card="2031"><span class="threshold-year__number">2031</span><strong class="threshold-year__name">Institution</strong></div>
+        <div class="threshold-year" data-year-card="2032"><span class="threshold-year__number">2032</span><strong class="threshold-year__name">Localization</strong></div>
+      </div>
+    </section>
+
+    <section class="threshold-current" aria-label="Current phase guidance">
+      <article class="threshold-card threshold-phase-card">
+        <div class="threshold-card__label">Right now</div>
+        <div class="threshold-card__value"><span data-phase-year>—</span> · <span data-now-phase>—</span></div>
+        <p class="threshold-card__small" data-current-note>—</p>
+      </article>
+
+      <article class="threshold-card">
+        <div class="threshold-card__label">Signal</div>
+        <div class="threshold-card__value" data-current-headline>—</div>
+        <div class="threshold-signal">
+          <div><strong>Watch</strong><span data-current-focus>—</span></div>
+          <div><strong>Build</strong><span data-current-build>—</span></div>
+          <div><strong>Direction</strong><span>Open · resilient · local</span></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="threshold-phases" aria-label="Seven forecast phases">
+      <article class="threshold-phase" data-phase-card="2026"><span class="threshold-phase__year">2026</span><h3>Ignition</h3><p>AI gains agency.</p></article>
+      <article class="threshold-phase" data-phase-card="2027"><span class="threshold-phase__year">2027</span><h3>Acceleration</h3><p>Agents connect.</p></article>
+      <article class="threshold-phase" data-phase-card="2028"><span class="threshold-phase__year">2028</span><h3>Materialization</h3><p>Change becomes physical.</p></article>
+      <article class="threshold-phase" data-phase-card="2029"><span class="threshold-phase__year">2029</span><h3>Consolidation</h3><p>Ownership becomes the battle.</p></article>
+      <article class="threshold-phase" data-phase-card="2030"><span class="threshold-phase__year">2030</span><h3>Protocol</h3><p>The rules become machine-readable.</p></article>
+      <article class="threshold-phase" data-phase-card="2031"><span class="threshold-phase__year">2031</span><h3>Institution</h3><p>Experiments become normal life.</p></article>
+      <article class="threshold-phase" data-phase-card="2032"><span class="threshold-phase__year">2032</span><h3>Localization</h3><p>The revolution comes home.</p></article>
+    </section>
+
+    <footer class="threshold-note">
+      Scenario forecast, not scientific prophecy. Astronomy supplies the clock; astrology and civilizational cycles are interpretive lenses. <a href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/research/threshold-years-2026-2032.md" target="_blank" rel="noopener">Read the reasoning and sources.</a>
+    </footer>
   </main>
-  <script src="../viewer.js"></script>
+
+  <script src="./threshold.js"></script>
   <script defer src="/issue-launcher.js"></script>
 </body>
 </html>
