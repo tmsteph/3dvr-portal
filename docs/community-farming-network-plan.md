@@ -126,6 +126,103 @@ The project should help people eat, grow, repair, move, learn, care, and coordin
 
 The important signal is not likes or follower count. It is whether a need was met, a resource was shared, a skill was taught, or a recurring relationship formed.
 
+## Home Garden Starter System
+
+The network should help a person go from "I want to grow food" to a small working garden without requiring prior gardening knowledge.
+
+Start with four garden profiles:
+
+- Window or indoor containers.
+- Balcony or patio containers.
+- Yard or raised bed.
+- Community garden plot.
+
+Ask only for information that materially changes the plan:
+
+- Rough region or climate zone, not an exact home address.
+- Available sunlight.
+- Water access.
+- Approximate growing area.
+- Time available each week.
+- Foods the household actually wants to eat.
+- Accessibility or physical constraints.
+
+The first output should be intentionally small: a three-crop starter plan, a basic planting calendar, watering guidance, expected harvest window, and a short shopping or sharing list for seed, soil, containers, compost, and tools.
+
+As the user grows food, record what was planted, when it was planted, basic inputs, harvest results, failures, pests, and lessons. Feed those observations back into future recommendations so each regional plan becomes more useful over time.
+
+The goal is not perfect self-sufficiency. The goal is to help many households produce a little, learn quickly, and connect their surplus and shortages to one another.
+
+## Food Share Loop
+
+The smallest complete loop is:
+
+Choose crops → plant → care → harvest → keep what the household needs → list surplus → gift, swap, or exchange locally → preserve or compost leftovers → save seed where practical → improve the next planting cycle.
+
+Food-share posts should be simple and time-aware:
+
+- What is available or needed.
+- Approximate quantity.
+- Harvested / ready date.
+- Best-by or pickup window when relevant.
+- Rough neighborhood or pickup area.
+- Gift, swap, optional credits, or any combination.
+
+The network should also support non-food contributions that make local food possible: seedlings, seed, compost, mulch, containers, tools, growing space, watering help, harvest help, delivery, preservation, and gardening knowledge.
+
+## Community Credits
+
+Credits can be useful, but they are optional infrastructure rather than the purpose of the project.
+
+Gifting and direct swaps remain first-class. A person should be able to participate with a zero balance and without ever using credits.
+
+The first credit system should behave like transparent mutual-credit accounting, not a speculative coin.
+
+People can earn credits for completed, acknowledged contributions such as:
+
+- Produce or preserved food.
+- Seedlings and seeds.
+- Compost or useful garden materials.
+- Garden labor.
+- Watering or harvest help.
+- Tool lending.
+- Teaching or troubleshooting.
+- Local delivery.
+- Food preservation work.
+- Providing growing space.
+
+Credits can then be used when receiving comparable help or resources from other willing participants.
+
+Version 0.1 rules:
+
+- No interest.
+- No investment promises.
+- No required blockchain.
+- No fixed dollar value required.
+- No automatic cash redemption.
+- No buying influence or governance power merely by holding credits.
+- Balances and transaction history should be understandable by ordinary participants.
+- Reasonable positive and negative balance limits should prevent hoarding and runaway debt.
+- Every credit event should point to a real completed contribution or an explicit community grant.
+- Local groups can choose to operate entirely as gifts, entirely as direct swaps, or with credits layered on top.
+
+A simple ledger is enough at first:
+
+`from`, `to`, `amount`, `reason`, `related_post`, `timestamp`, `acknowledged_by`, `notes`.
+
+If the network ever introduces cash conversion, transferable tokens, investment behavior, or wider public trading, treat that as a separate legal and economic design problem rather than quietly turning community points into a financial product.
+
+## Open Food Supply Chain
+
+The Community Farming Network is the human coordination layer. The Open Supply Chain should document the physical food-growing layer: seed, soil, compost, fertilizer or amendments, water, tools, containers, harvesting, preservation, transport, and waste/compost loops.
+
+See `../supply-chain/food.md` for the material and process record.
+
+This gives the project two complementary views:
+
+- **Community Farming Network:** who can grow, share, teach, help, transport, or receive.
+- **Open Food Supply Chain:** what physical inputs and processes are required, where they come from, and how they can become more local, regenerative, and reproducible.
+
 ## Portal Product Direction
 
 The first portal version supports:
@@ -144,6 +241,10 @@ The next iteration expands the same post model to:
 - Care/help.
 - Teaching/learning.
 - Transport.
+- Beginner home-garden plans.
+- Seasonal planting reminders.
+- Seed, seedling, compost, and tool shares.
+- Optional community-credit transactions tied to completed contributions.
 
 This keeps food as the anchor while testing whether one calm coordination surface can support more of ordinary community life.
 
@@ -158,6 +259,8 @@ Next product steps after that:
 - Add simple reputation based on completed helpful actions, not popularity.
 - Add printable flyers or QR codes for neighborhoods.
 - Connect trusted community circles to local posts.
+- Let garden results improve local planting recommendations.
+- Add a small auditable mutual-credit ledger without making credits mandatory.
 
 ## Relationship to 3DVR
 
