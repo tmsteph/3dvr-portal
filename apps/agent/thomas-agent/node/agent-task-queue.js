@@ -15,6 +15,7 @@ const DEFAULT_QUEUE_STORE = process.env.THREEDVR_AGENT_QUEUE_STORE || 'gun';
 const DEFAULT_WORKER_INTERVAL_SECONDS = parseInteger(process.env.THREEDVR_AGENT_WORKER_INTERVAL_SECONDS, 20);
 const DEFAULT_TASK_LIMIT = parseInteger(process.env.THREEDVR_AGENT_WORKER_LIMIT, 10);
 const DEFAULT_LEASE_TTL_MS = parseInteger(process.env.THREEDVR_AGENT_WORKER_LEASE_TTL_MS, 30 * 60 * 1000);
+const MIN_ACTIVE_SQLITE_CLAIM_TTL_MS = 1000;
 const DEFAULT_TENANT_PLAN = process.env.THREEDVR_AGENT_TENANT_PLAN || 'free';
 const DEFAULT_ENQUEUE_FLUSH_MS = parseInteger(process.env.THREEDVR_AGENT_ENQUEUE_FLUSH_MS, 3000);
 const DEFAULT_WORKER_CAPABILITIES = process.env.THREEDVR_AGENT_WORKER_CAPABILITIES || 'node,auto,codex,openai,claude,openclaw,shell';
@@ -337,9 +338,14 @@ async function runQueuedTask(record, options = {}) {
   if (claimed.claimToken) {
     claimRenewer = sqliteQueue().createClaimRenewer(claimed.id, claimed.claimToken, options);
     const ttlMs = options.leaseTtlMs || DEFAULT_LEASE_TTL_MS;
+    // Very short test/custom leases are vulnerable to ordinary event-loop stalls.
+    // Once work has actually started, keep at least one second of claim headroom;
+    // the production default is already much larger and is unchanged.
+    const activeTtlMs = Math.max(ttlMs, MIN_ACTIVE_SQLITE_CLAIM_TTL_MS);
+    claimRenewer.renew(Date.now() + activeTtlMs);
     renewalTimer = setInterval(() => {
       try {
-        claimRenewer.renew(Date.now() + ttlMs);
+        claimRenewer.renew(Date.now() + activeTtlMs);
       } catch {
         // A later heartbeat or the token-checked terminal write can recover;
         // never let a transient renewal error crash the worker process.
