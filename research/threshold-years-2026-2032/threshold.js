@@ -1,12 +1,89 @@
 (() => {
   const phases = [
-    { year: 2026, name: 'Ignition', headline: 'AI gains agency.', focus: 'Identity + action', build: 'Permissioned agents', note: 'Generation gives way to action, trust, identity, and authority.' },
-    { year: 2027, name: 'Acceleration', headline: 'Agents connect to agents.', focus: 'Network effects', build: 'Tiny autonomous teams', note: 'Small teams gain department-scale leverage. Human judgment becomes scarce.' },
-    { year: 2028, name: 'Materialization', headline: 'The change becomes physical.', focus: 'Robotics + energy', build: 'Local production', note: 'Automation moves deeper into energy, manufacturing, housing, food, and land.' },
-    { year: 2029, name: 'Consolidation', headline: 'Ownership becomes the battle.', focus: 'Control + capital', build: 'Open alternatives', note: 'Models, memory, identity, payment rails, and infrastructure concentrate or decentralize.' },
-    { year: 2030, name: 'Protocol', headline: 'The rules become machine-readable.', focus: 'Standards', build: 'Open protocols', note: 'Identity, provenance, payments, permissions, and reputation become core machine infrastructure.' },
-    { year: 2031, name: 'Institution', headline: 'Experiments become normal life.', focus: 'Institutions', build: 'Durable systems', note: 'Winning experiments harden into businesses, laws, schools, professions, and expectations.' },
-    { year: 2032, name: 'Localization', headline: 'The revolution comes home.', focus: 'Home + community', build: 'Resilient neighborhoods', note: 'Intelligence, energy, production, food, learning, and care become more local and personal.' }
+    {
+      year: 2026,
+      name: 'Ignition',
+      headline: 'AI gains agency.',
+      focus: 'Identity + action',
+      build: 'Permissioned agents',
+      note: 'Generation gives way to action, trust, identity, and authority.',
+      astroTitle: '♄ ☌ ♆ in Aries · ♅ → Gemini · ♇ Aquarius',
+      astroSky: 'Saturn conjunct Neptune at the start of Aries; Uranus enters Gemini; Pluto remains in Aquarius.',
+      astroSymbolism: 'Turn vision into action. Disrupt communication and technology. Rework collective power.',
+      astroFit: 'A strong ignition signature: ideas stop being abstract and begin demanding new systems.'
+    },
+    {
+      year: 2027,
+      name: 'Acceleration',
+      headline: 'Agents connect to agents.',
+      focus: 'Network effects',
+      build: 'Tiny autonomous teams',
+      note: 'Small teams gain department-scale leverage. Human judgment becomes scarce.',
+      astroTitle: '♅ ✶ ♆ · ♅ △ ♇ · ♆ ✶ ♇',
+      astroSky: 'Uranus, Neptune, and Pluto make a tight series of supportive outer-planet aspects, especially in June.',
+      astroSymbolism: 'Innovation, imagination, and deep structural power begin working through the same network.',
+      astroFit: 'The symbolism is less “spark” and more “connection” — exactly the acceleration phase.'
+    },
+    {
+      year: 2028,
+      name: 'Materialization',
+      headline: 'The change becomes physical.',
+      focus: 'Robotics + energy',
+      build: 'Local production',
+      note: 'Automation moves deeper into energy, manufacturing, housing, food, and land.',
+      astroTitle: '♄ → Taurus · ♅ Gemini · ♆ Aries · ♇ Aquarius',
+      astroSky: 'Saturn enters Taurus on April 12 while the outer planets remain in Gemini, Aries, and Aquarius.',
+      astroSymbolism: 'Saturn in Taurus asks what is materially durable: money, land, food, resources, value, and infrastructure.',
+      astroFit: 'The cycle moves from software and ideas into things that must physically work.'
+    },
+    {
+      year: 2029,
+      name: 'Consolidation',
+      headline: 'Ownership becomes the battle.',
+      focus: 'Control + capital',
+      build: 'Open alternatives',
+      note: 'Models, memory, identity, payment rails, and infrastructure concentrate or decentralize.',
+      astroTitle: '♄ Taurus · ♃ → Scorpio · ♅ Gemini · ♇ Aquarius',
+      astroSky: 'Saturn stays in Taurus; Jupiter enters Scorpio in September; Uranus remains in Gemini and Pluto in Aquarius.',
+      astroSymbolism: 'Secure resources, examine ownership, expose hidden leverage, and decide who controls shared systems.',
+      astroFit: 'The question shifts naturally from invention to possession, governance, and power.'
+    },
+    {
+      year: 2030,
+      name: 'Protocol',
+      headline: 'The rules become machine-readable.',
+      focus: 'Standards',
+      build: 'Open protocols',
+      note: 'Identity, provenance, payments, permissions, and reputation become core machine infrastructure.',
+      astroTitle: '♄ → Gemini · ♅ Gemini · ♃ → Sagittarius',
+      astroSky: 'Saturn enters Gemini on May 31 while Uranus is still transforming Gemini; Jupiter enters Sagittarius in October.',
+      astroSymbolism: 'Give structure to communication, learning, exchange, standards, networks, and the movement of information.',
+      astroFit: 'The astrological emphasis lands directly on rules for communication — the protocol phase.'
+    },
+    {
+      year: 2031,
+      name: 'Institution',
+      headline: 'Experiments become normal life.',
+      focus: 'Institutions',
+      build: 'Durable systems',
+      note: 'Winning experiments harden into businesses, laws, schools, professions, and expectations.',
+      astroTitle: '♄ Gemini · ♃ → Capricorn · ♇ Aquarius',
+      astroSky: 'Saturn spends the year in Gemini; Jupiter enters Capricorn in November; Pluto continues through Aquarius.',
+      astroSymbolism: 'Codify knowledge, professionalize systems, and turn network experiments into durable structures.',
+      astroFit: 'What worked during the disruptive years starts becoming policy, organization, and institution.'
+    },
+    {
+      year: 2032,
+      name: 'Localization',
+      headline: 'The revolution comes home.',
+      focus: 'Home + community',
+      build: 'Resilient neighborhoods',
+      note: 'Intelligence, energy, production, food, learning, and care become more local and personal.',
+      astroTitle: '♄ → Cancer · ♅ → Cancer',
+      astroSky: 'Saturn enters Cancer on July 13; Uranus first enters Cancer on August 3 before briefly retrograding back to Gemini.',
+      astroSymbolism: 'Structure and disruption both move toward home, family, nourishment, land, belonging, and local security.',
+      astroFit: 'This is the clearest symbolic match in the cycle: the technological revolution literally turns toward home.'
+    }
   ];
 
   const start = new Date(2026, 0, 1, 0, 0, 0, 0);
@@ -32,6 +109,10 @@
     selectedFocus: root.querySelector('[data-selected-focus]'),
     selectedBuild: root.querySelector('[data-selected-build]'),
     selectedNote: root.querySelector('[data-selected-note]'),
+    selectedAstroTitle: root.querySelector('[data-selected-astro-title]'),
+    selectedAstroSky: root.querySelector('[data-selected-astro-sky]'),
+    selectedAstroSymbolism: root.querySelector('[data-selected-astro-symbolism]'),
+    selectedAstroFit: root.querySelector('[data-selected-astro-fit]'),
     returnNow: root.querySelector('[data-return-now]'),
     detail: root.querySelector('[data-phase-detail]'),
     phaseCards: [...root.querySelectorAll('[data-phase-card]')],
@@ -84,6 +165,10 @@
     els.selectedFocus.textContent = phase.focus;
     els.selectedBuild.textContent = phase.build;
     els.selectedNote.textContent = phase.note;
+    els.selectedAstroTitle.textContent = phase.astroTitle;
+    els.selectedAstroSky.textContent = phase.astroSky;
+    els.selectedAstroSymbolism.textContent = phase.astroSymbolism;
+    els.selectedAstroFit.textContent = phase.astroFit;
 
     els.selectors.forEach((control) => {
       const isSelected = Number(control.dataset.phaseSelect) === phase.year;
