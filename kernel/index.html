@@ -23,16 +23,16 @@
 </head>
 <body>
 <main>
-  <nav class="nav"><a href="../">3DVR Portal</a><a href="../operator/">Operator</a><a href="../agent/">Agent</a><a href="../abilities/">Abilities</a><a href="../digital-organism/">Digital Organism</a></nav>
+  <nav class="nav"><a href="../">3DVR Portal</a><a href="../operator/">Operator</a><a href="../agent/">Agent</a><a href="../abilities/">Abilities</a><a href="../world/">Positive World</a><a href="../digital-organism/">Digital Organism</a></nav>
 
   <p class="eyebrow">Architecture · living document</p>
   <h1>3DVR Kernel</h1>
   <p class="lead">3DVR should act more like the Linux kernel of business and AI development: a small, open foundation that many different products, organizations, agents, and interfaces can build on.</p>
 
-  <p class="principle"><strong>The kernel is the platform. The Portal is one distribution. AI operates the system instead of living inside one app.</strong></p>
+  <p class="principle"><strong>The kernel is the platform. The Portal is one distribution. AI operates the system instead of living inside one app. The system should increase human agency rather than dependence.</strong></p>
 
   <div class="grid">
-    <section class="card"><h2>Kernel</h2><p>Goals, identity, permissions, memory, events, tasks, capabilities, policies, state, and agent coordination.</p></section>
+    <section class="card"><h2>Kernel</h2><p>Goals, identity, permissions, memory, events, tasks, capabilities, positive-sum policy, state, and agent coordination.</p></section>
     <section class="card"><h2>Portal distribution</h2><p>Our opinionated user experience built on the kernel: Operator, CRM, Calendar, Forge, Launch Room, Revenue tools, and more.</p></section>
     <section class="card"><h2>Drivers</h2><p>Adapters for Gmail, GitHub, Stripe, calendars, browsers, phones, servers, local computers, messaging, and future devices.</p></section>
     <section class="card"><h2>Userland</h2><p>Apps and workflows can be replaced or remixed without rebuilding the underlying operating model.</p></section>
@@ -42,11 +42,27 @@
     <h2>System layers</h2>
     <div class="stack">
       <div class="layer"><strong>Goals + policy</strong><span>What matters, what is allowed, what needs approval, and how success is measured.</span></div>
+      <div class="layer"><strong>Positive-sum policy</strong><span>Agency, shared value, openness, harm risk, lock-in risk, and whether proposed work is eligible to execute.</span></div>
       <div class="layer"><strong>Shared state</strong><span>Current projects, people, tasks, context, finances, deployments, blockers, and system health.</span></div>
       <div class="layer"><strong>Capabilities</strong><span>Machine-readable registry of what the system can do right now and how each capability is recovered.</span></div>
       <div class="layer"><strong>Operator</strong><span>The coordinator. Chooses the highest-value next action and delegates work to the right agent or machine.</span></div>
       <div class="layer"><strong>Agents + workers</strong><span>Specialized services that research, build, communicate, deploy, monitor, and maintain.</span></div>
       <div class="layer"><strong>Apps</strong><span>Human-facing views into the same kernel state rather than disconnected silos.</span></div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:14px">
+    <h2>Positive world loop</h2>
+    <p>Opportunity and profit are part of the loop, but the output should compound human capability and return reusable value to the commons.</p>
+    <div class="loop" aria-label="Positive world loop">
+      <span class="step">State</span><span class="arrow">→</span>
+      <span class="step">Purpose</span><span class="arrow">→</span>
+      <span class="step">Opportunity</span><span class="arrow">→</span>
+      <span class="step">Build</span><span class="arrow">→</span>
+      <span class="step">Earn</span><span class="arrow">→</span>
+      <span class="step">Share</span><span class="arrow">→</span>
+      <span class="step">Community</span><span class="arrow">→</span>
+      <span class="step">Open Source</span><span class="arrow">↺</span>
     </div>
   </section>
 
@@ -97,22 +113,24 @@
         <li>credentials and permission changes</li>
         <li>destructive production actions</li>
         <li>high-impact customer communications</li>
+        <li>severe harm, agency-loss, or lock-in risk</li>
         <li>changes that exceed configured risk limits</li>
       </ul>
     </section>
     <section class="card wide">
       <h2>Kernel v0.1 milestone</h2>
-      <p><code>Goals + State + Capabilities + Events + Policies + Agent Loop + Evals + Rollback</code></p>
+      <p><code>Goals + State + Capabilities + Events + Policies + Positive-Sum Gate + Agent Loop + Evals + Rollback</code></p>
       <p>New Portal features should increasingly plug into these primitives instead of creating isolated state and one-off automation.</p>
     </section>
   </div>
 
   <section class="card">
     <h2>North star</h2>
-    <p><strong>3DVR is an open kernel for autonomous organizations.</strong></p>
+    <p><strong>3DVR is an open kernel for autonomous organizations that increases human agency.</strong></p>
     <p>The Portal is our reference distribution. Other people should eventually be able to build entirely different businesses, communities, and AI systems on the same kernel.</p>
     <div class="actions">
       <a class="button primary" href="../operator/">Open Operator</a>
+      <a class="button" href="../world/">Positive World doctrine</a>
       <a class="button" href="../abilities/">Capability registry</a>
       <a class="button" href="../agent/">Agent runtime</a>
     </div>
