@@ -28,6 +28,25 @@ test('Purpose account bridge chooses the newest state before the app initializes
   assert.equal(pickNewestPurposeState(remote, local).answers[1], 'new remote focus');
 });
 
+test('signed-out Purpose skips Gun recall so local startup stays immediate', async () => {
+  let gunCalls = 0;
+  const windowObj = {
+    Gun() { gunCalls += 1; throw new Error('signed-out path must not open Gun'); },
+    SEA: { encrypt() {}, decrypt() {} },
+    AuthIdentity: { readSharedIdentity() { return { signedIn: false }; } },
+    localStorage: {
+      getItem() { return null; },
+      setItem() {}
+    },
+    document: { querySelector() { return null; } },
+    setTimeout
+  };
+
+  const runtime = await createPurposeAccountRuntime({ windowObj });
+  assert.equal(runtime.available, false);
+  assert.equal(gunCalls, 0);
+});
+
 test('Purpose account runtime restores a newer encrypted account copy into local storage', async () => {
   const storageValues = new Map();
   const local = {
@@ -39,6 +58,7 @@ test('Purpose account runtime restores a newer encrypted account copy into local
     updatedAt: '2026-09-14T20:00:00Z'
   };
   storageValues.set('3dvr-purpose-draft-v1', JSON.stringify(local));
+  storageValues.set('signedIn', 'true');
   const node = {
     get() { return this; },
     once(callback) { callback({ ciphertext: 'remote-cipher' }); },
