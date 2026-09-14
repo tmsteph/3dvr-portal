@@ -1,3 +1,5 @@
+import './alignment-sync.js';
+
 const form = document.getElementById('movementBriefForm');
 const questions = Array.from(document.querySelectorAll('[data-question-step]'));
 const progress = document.querySelector('[data-mobile-progress]');
