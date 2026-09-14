@@ -101,13 +101,18 @@ function deserialize(record = {}) {
   return {
     runId: compactText(record.runId),
     generatedAt: compactText(record.generatedAt),
+    searchMode: compactText(record.searchMode, 'portfolio'),
     market: compactText(record.market),
     signalsAnalyzed: Number(record.signalsAnalyzed || 0),
     approvalsRequired: Number(record.approvalsRequired || 0),
     topOpportunity: {
       title: compactText(record.topOpportunityTitle),
       problem: compactText(record.topOpportunityProblem),
-      score: Number(record.topOpportunityScore || 0)
+      score: Number(record.topOpportunityScore || 0),
+      marketScore: Number(record.topOpportunityMarketScore || 0),
+      profitScore: Number(record.topOpportunityProfitScore || 0),
+      alignmentScore: Number(record.topOpportunityAlignmentScore || 0),
+      fulfillmentScore: Number(record.topOpportunityFulfillmentScore || 0)
     },
     marketFit: parseJson(record.marketFitJson, {}),
     opportunities: parseJson(record.opportunitiesJson, []),
@@ -138,7 +143,7 @@ function renderPulse(record) {
 
   elements.topOpportunityTitle.textContent = pulse.topOpportunity.title || 'No ranked opportunity yet';
   elements.topOpportunityProblem.textContent = pulse.topOpportunity.problem || 'The latest scan did not produce a clear buyer problem.';
-  elements.topOpportunityScore.textContent = pulse.topOpportunity.score ? `${pulse.topOpportunity.score}/100` : '—';
+  elements.topOpportunityScore.textContent = pulse.topOpportunity.score ? `${pulse.topOpportunity.score}/100 · ${pulse.searchMode}` : '—';
   elements.marketNextAction.textContent = nextAction;
 
   const channels = Array.isArray(pulse.reactionSnapshots) ? pulse.reactionSnapshots : [];
@@ -157,7 +162,7 @@ function renderPulse(record) {
     elements.opportunityList,
     opportunities.slice(0, 6).map(opportunity => item(
       compactText(opportunity.title, 'Unnamed opportunity'),
-      `${compactText(opportunity.suggestedPrice, 'price unknown')} · score ${Number(opportunity.score || 0)}/100`
+      `${compactText(opportunity.suggestedPrice, 'price unknown')} · ${compactText(opportunity.searchMode, pulse.searchMode)} ${Number(opportunity.score || 0)}/100 · profit ${Number(opportunity.profitScore || 0)} · align ${Number(opportunity.alignmentScore || 0)} · fulfill ${Number(opportunity.fulfillmentScore || 0)}`
     )),
     'No ranked opportunities yet.'
   );

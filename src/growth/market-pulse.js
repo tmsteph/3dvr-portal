@@ -1,4 +1,4 @@
-import { deriveOpportunityFromSignal, rankOpportunities } from '../money/scoring.js';
+import { deriveOpportunityFromSignal, normalizeOpportunitySearchMode, rankOpportunities } from '../money/scoring.js';
 import { collectDemandSignals } from '../money/sources.js';
 import { buildMetaMarketExperimentPlan } from './meta-graph.js';
 import { DEFAULT_GUN_PEERS, getNode } from './homepage-hero.js';
@@ -22,6 +22,7 @@ export const MARKET_PULSE_DIRECTORY_PATH = Object.freeze([
 ]);
 
 export const DEFAULT_MARKET_PULSE_PROFILE = Object.freeze({
+  searchMode: 'portfolio',
   market: 'owner-led service businesses that need clearer lead follow-up',
   keywords: [
     'lead follow up',
@@ -33,6 +34,28 @@ export const DEFAULT_MARKET_PULSE_PROFILE = Object.freeze({
   channels: ['reddit', 'hackernews', 'facebook-groups', 'tiktok-comments', 'facebook-page', 'linkedin', 'email'],
   limit: 20,
 });
+
+export const DEFAULT_MARKET_PULSE_PORTFOLIO = Object.freeze([
+  DEFAULT_MARKET_PULSE_PROFILE,
+  Object.freeze({ market: 'event and AV teams with staffing, scheduling, and logistics pain', keywords: ['event technician scheduling', 'freelance AV staffing', 'last minute event labor', 'equipment coordination', 'corporate event production'] }),
+  Object.freeze({ market: 'local service businesses losing leads, quotes, and bookings', keywords: ['missed calls small business', 'quote follow up', 'appointment scheduling', 'dispatch workflow', 'customer review follow up'] }),
+  Object.freeze({ market: 'freelancers and creators with fragmented client operations', keywords: ['freelancer client onboarding', 'proposal follow up', 'invoice chasing', 'content workflow', 'sponsorship management'] }),
+  Object.freeze({ market: 'small organizations paying people to maintain manual admin workflows', keywords: ['spreadsheet workflow', 'data entry automation', 'reporting automation', 'document intake', 'scheduling handoff'] }),
+  Object.freeze({ market: 'general unmet paid demand for software, automation, and services', keywords: ['would pay for software', 'looking for a tool', 'manual process frustrating', 'need help automating', 'hiring someone to automate'] })
+]);
+
+export function selectMarketPulsePortfolioProfile(now = new Date()) {
+  const time = now instanceof Date ? now.getTime() : Date.parse(now);
+  const slot = Number.isFinite(time) ? Math.floor(time / (8 * 60 * 60 * 1000)) : 0;
+  const profile = DEFAULT_MARKET_PULSE_PORTFOLIO[((slot % DEFAULT_MARKET_PULSE_PORTFOLIO.length) + DEFAULT_MARKET_PULSE_PORTFOLIO.length) % DEFAULT_MARKET_PULSE_PORTFOLIO.length];
+  return {
+    searchMode: 'portfolio',
+    market: profile.market,
+    keywords: [...profile.keywords],
+    channels: [...(profile.channels || DEFAULT_MARKET_PULSE_PROFILE.channels)],
+    limit: profile.limit || DEFAULT_MARKET_PULSE_PROFILE.limit
+  };
+}
 
 const SOCIAL_PROBE_CHANNELS = Object.freeze([
   Object.freeze({
@@ -112,6 +135,7 @@ function parseList(value, fallback = []) {
 
 function normalizeProfile(input = {}) {
   return {
+    searchMode: normalizeOpportunitySearchMode(input.searchMode || DEFAULT_MARKET_PULSE_PROFILE.searchMode),
     market: normalizeText(input.market) || DEFAULT_MARKET_PULSE_PROFILE.market,
     keywords: parseList(input.keywords, DEFAULT_MARKET_PULSE_PROFILE.keywords),
     channels: parseList(input.channels, DEFAULT_MARKET_PULSE_PROFILE.channels),
@@ -140,11 +164,11 @@ function fallbackOpportunities(market) {
   ];
 }
 
-function buildOpportunities({ signals = [], market = '' } = {}) {
+function buildOpportunities({ signals = [], market = '', searchMode = 'portfolio' } = {}) {
   const raw = signals.length
     ? signals.slice(0, 10).map((signal, index) => deriveOpportunityFromSignal(signal, index, market))
     : fallbackOpportunities(market);
-  return rankOpportunities(raw).slice(0, 6);
+  return rankOpportunities(raw, undefined, searchMode).slice(0, 6);
 }
 
 function confidenceLabel(score) {
@@ -460,7 +484,7 @@ export function buildMarketPulse(demand = {}, options = {}) {
     ...(Array.isArray(demand.keywords) ? demand.keywords : []),
     ...profile.keywords,
   ]).slice(0, 12);
-  const opportunities = buildOpportunities({ signals, market: profile.market });
+  const opportunities = buildOpportunities({ signals, market: profile.market, searchMode: profile.searchMode });
   const directoryListings = buildDirectoryListings(opportunities, {
     generatedAt,
     market: profile.market,
@@ -563,6 +587,7 @@ export function serializeMarketPulseForGun(pulse = {}) {
   return {
     runId: pulse.runId || '',
     generatedAt: pulse.generatedAt || '',
+    searchMode: pulse.profile?.searchMode || 'portfolio',
     market: pulse.profile?.market || '',
     keywords: Array.isArray(pulse.profile?.keywords) ? pulse.profile.keywords.join(', ') : '',
     signalsAnalyzed: Number(pulse.signalsAnalyzed || 0),
@@ -570,6 +595,10 @@ export function serializeMarketPulseForGun(pulse = {}) {
     topOpportunityTitle: pulse.topOpportunity?.title || '',
     topOpportunityProblem: pulse.topOpportunity?.problem || '',
     topOpportunityScore: Number(pulse.topOpportunity?.score || 0),
+    topOpportunityMarketScore: Number(pulse.topOpportunity?.marketScore || 0),
+    topOpportunityProfitScore: Number(pulse.topOpportunity?.profitScore || 0),
+    topOpportunityAlignmentScore: Number(pulse.topOpportunity?.alignmentScore || 0),
+    topOpportunityFulfillmentScore: Number(pulse.topOpportunity?.fulfillmentScore || 0),
     marketFitJson: JSON.stringify(pulse.marketFit || {}),
     approvedListingCount: Array.isArray(pulse.directoryListings)
       ? pulse.directoryListings.filter((item) => item.approved).length
@@ -609,6 +638,7 @@ export function deserializeMarketPulseFromGun(record = {}) {
     runId: normalizeText(record.runId),
     generatedAt: normalizeText(record.generatedAt),
     profile: {
+      searchMode: normalizeOpportunitySearchMode(record.searchMode),
       market: normalizeText(record.market),
       keywords: parseList(record.keywords, []),
     },
@@ -618,6 +648,10 @@ export function deserializeMarketPulseFromGun(record = {}) {
       title: normalizeText(record.topOpportunityTitle),
       problem: normalizeText(record.topOpportunityProblem),
       score: Number(record.topOpportunityScore || 0),
+      marketScore: Number(record.topOpportunityMarketScore || 0),
+      profitScore: Number(record.topOpportunityProfitScore || 0),
+      alignmentScore: Number(record.topOpportunityAlignmentScore || 0),
+      fulfillmentScore: Number(record.topOpportunityFulfillmentScore || 0),
     },
     marketFit: parseJsonObjectField(record.marketFitJson, {}),
     warnings: parseJsonField(record.warningsJson),

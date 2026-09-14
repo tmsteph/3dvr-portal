@@ -270,7 +270,7 @@ function renderOpportunityInbox() {
 
   const activeCount = all.filter(opportunity => !['passed', 'expired', 'won'].includes(opportunity.status)).length;
   elements.opportunitySummary.textContent = activeCount
-    ? `${activeCount} active ${activeCount === 1 ? 'opportunity' : 'opportunities'}, ranked by actionability.`
+    ? `${activeCount} active ${activeCount === 1 ? 'opportunity' : 'opportunities'}, ranked by kernel priority.`
     : 'No qualified opportunities yet. Forward a real request to begin.';
 
   if (!visible.length) {
@@ -296,8 +296,8 @@ function renderOpportunityInbox() {
       textElement('span', 'mp-card-label', opportunity.status.replace(/-/g, ' ')),
       textElement('h3', '', opportunity.title)
     );
-    const score = textElement('strong', 'opportunity-score', `${opportunity.actionabilityScore}`);
-    score.title = 'Actionability score';
+    const score = textElement('strong', 'opportunity-score', `${opportunity.priorityScore ?? opportunity.actionabilityScore}`);
+    score.title = `${opportunity.searchMode || 'portfolio'} priority · action ${opportunity.actionabilityScore} · profit ${opportunity.profitScore} · alignment ${opportunity.alignmentScore} · fulfillment ${opportunity.fulfillmentScore}`;
     top.append(heading, score);
 
     const economics = document.createElement('div');

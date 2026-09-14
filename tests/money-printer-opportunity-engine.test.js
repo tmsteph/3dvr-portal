@@ -67,6 +67,43 @@ describe('Money Printer Opportunity Engine', () => {
     assert.deepEqual(sortOpportunityClusters([vague, strong], NOW).map(item => item.id), ['strong', 'vague']);
   });
 
+  it('keeps profit, alignment, fulfillment, and mode visible in inbox priority', () => {
+    const profitFirst = createOpportunityCluster({
+      id: 'profit-first',
+      need: 'Profitable service gap',
+      buyerWords: 'We need this handled this week and have budget.',
+      urgency: 'high',
+      confidence: 80,
+      policyStatus: 'human-provided',
+      estimatedValueMin: 500,
+      estimatedCostMax: 150,
+      searchMode: 'profit',
+      profitScore: 95,
+      alignmentScore: 10,
+      fulfillmentScore: 80
+    }, NOW);
+    const aligned = createOpportunityCluster({
+      id: 'aligned',
+      need: 'Mission aligned project',
+      buyerWords: 'We need this handled this week and have budget.',
+      urgency: 'high',
+      confidence: 80,
+      policyStatus: 'human-provided',
+      estimatedValueMin: 500,
+      estimatedCostMax: 150,
+      searchMode: 'profit',
+      profitScore: 35,
+      alignmentScore: 98,
+      fulfillmentScore: 80
+    }, NOW);
+
+    assert.equal(profitFirst.searchMode, 'profit');
+    assert.equal(profitFirst.profitScore, 95);
+    assert.equal(profitFirst.alignmentScore, 10);
+    assert.ok(profitFirst.priorityScore > 0);
+    assert.deepEqual(sortOpportunityClusters([aligned, profitFirst], NOW).map(item => item.id), ['profit-first', 'aligned']);
+  });
+
   it('preserves passed opportunities for learning while removing them from active priority', () => {
     let state = addOpportunity(createOpportunityEngineState({}, NOW), {
       id: 'signal-one',

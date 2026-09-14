@@ -6,11 +6,14 @@ import {
   parseMarketPulseArgs,
   runMarketPulseCli,
 } from '../src/growth/market-pulse-runner.js';
+import { selectMarketPulsePortfolioProfile } from '../src/growth/market-pulse.js';
 
 test('parseMarketPulseArgs reads automation options', () => {
   const parsed = parseMarketPulseArgs([
     '--market',
     'service businesses',
+    '--search-mode',
+    'profit',
     '--keywords',
     'lead follow up,client onboarding',
     '--channels',
@@ -24,6 +27,7 @@ test('parseMarketPulseArgs reads automation options', () => {
   ]);
 
   assert.equal(parsed.market, 'service businesses');
+  assert.equal(parsed.searchMode, 'profit');
   assert.deepEqual(parsed.keywords, ['lead follow up', 'client onboarding']);
   assert.deepEqual(parsed.channels, ['reddit', 'facebook-groups', 'tiktok-comments']);
   assert.equal(parsed.limit, 7);
@@ -34,6 +38,7 @@ test('parseMarketPulseArgs reads automation options', () => {
 
 test('buildMarketPulseRunOptions can be driven by environment defaults', () => {
   const options = buildMarketPulseRunOptions({}, {
+    MARKET_PULSE_SEARCH_MODE: 'aligned',
     MARKET_PULSE_MARKET: 'home service teams',
     MARKET_PULSE_KEYWORDS: 'missed calls,quote follow up',
     MARKET_PULSE_CHANNELS: 'reddit,linkedin',
@@ -42,12 +47,25 @@ test('buildMarketPulseRunOptions can be driven by environment defaults', () => {
     GROWTH_GUN_PEERS: 'wss://relay.example/gun',
   });
 
+  assert.equal(options.searchMode, 'aligned');
   assert.equal(options.market, 'home service teams');
   assert.deepEqual(options.keywords, ['missed calls', 'quote follow up']);
   assert.deepEqual(options.channels, ['reddit', 'linkedin']);
   assert.equal(options.limit, 12);
   assert.equal(options.dryRun, true);
   assert.deepEqual(options.gunPeers, ['wss://relay.example/gun']);
+});
+
+test('scheduled runs rotate through the market portfolio when no market is pinned', () => {
+  const firstNow = new Date('2026-09-14T00:23:00Z');
+  const secondNow = new Date(firstNow.getTime() + (8 * 60 * 60 * 1000));
+  const first = buildMarketPulseRunOptions({}, {}, firstNow);
+  const second = buildMarketPulseRunOptions({}, {}, secondNow);
+
+  assert.equal(first.searchMode, 'portfolio');
+  assert.equal(first.market, selectMarketPulsePortfolioProfile(firstNow).market);
+  assert.deepEqual(first.keywords, selectMarketPulsePortfolioProfile(firstNow).keywords);
+  assert.notEqual(first.market, second.market);
 });
 
 test('runMarketPulseCli runs the injected pulse cycle and prints a useful summary', async () => {
@@ -77,6 +95,7 @@ test('runMarketPulseCli runs the injected pulse cycle and prints a useful summar
         generatedAt: '2026-05-28T12:00:00.000Z',
         dryRun: options.dryRun,
         profile: {
+          searchMode: options.searchMode,
           market: options.market,
           keywords: options.keywords,
         },
@@ -91,6 +110,10 @@ test('runMarketPulseCli runs the injected pulse cycle and prints a useful summar
           title: 'Follow-up cleanup',
           problem: 'Leads are falling through.',
           score: 74,
+          marketScore: 72,
+          profitScore: 80,
+          alignmentScore: 55,
+          fulfillmentScore: 78,
         },
         persist: {
           skipped: true,
@@ -121,6 +144,7 @@ test('runMarketPulseCli runs the injected pulse cycle and prints a useful summar
   assert.equal(result.exitCode, 0);
   assert.equal(capturedOptions.dryRun, true);
   assert.equal(capturedOptions.market, 'service businesses');
+  assert.equal(capturedOptions.searchMode, 'portfolio');
   assert.match(stdout.value, /Market Pulse automation complete/);
   assert.match(stdout.value, /Reaction radar/);
   assert.equal(stderr.value, '');
@@ -136,6 +160,7 @@ test('market pulse automation is wired to npm and scheduled GitHub Actions', asy
   assert.match(workflow, /workflow_dispatch/);
   assert.match(workflow, /npm run market:pulse -- --json/);
   assert.match(workflow, /MARKET_PULSE_MARKET/);
+  assert.match(workflow, /MARKET_PULSE_SEARCH_MODE/);
   const script = await readFile(new URL('../scripts/growth/run-market-pulse.mjs', import.meta.url), 'utf8');
   assert.match(script, /process\.exit\(exitCode\)/);
 });

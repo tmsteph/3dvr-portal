@@ -23,5 +23,8 @@ describe('auto-business control room', () => {
     assert.match(js, /reactionSnapshotsJson/);
     assert.match(js, /opportunitiesJson/);
     assert.match(js, /warningsJson/);
+    assert.match(js, /topOpportunityProfitScore/);
+    assert.match(js, /alignmentScore/);
+    assert.match(js, /fulfillmentScore/);
   });
 });

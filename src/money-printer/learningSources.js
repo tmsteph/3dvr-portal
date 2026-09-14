@@ -141,12 +141,19 @@ export function deriveEvidence({ autopilot = null, outbound = null, outcomes = [
     } : {})
   };
   const researchCore = researchAvailable ? {
-    market: marketPulse.market || '',
+    market: marketPulse.market || marketPulse.profile?.market || '',
+    search_mode: marketPulse.searchMode || marketPulse.profile?.searchMode || 'portfolio',
     signals_analyzed: Number(marketPulse.signalsAnalyzed || 0),
     fit_score: Number(marketPulse.marketFit?.score || 0),
     verdict: marketPulse.marketFit?.verdict || '',
     strongest_channel: marketPulse.marketFit?.strongestChannel || '',
     opportunity: marketPulse.topOpportunity || {},
+    opportunity_scores: marketPulse.topOpportunity ? {
+      overall: Number(marketPulse.topOpportunity.score || 0),
+      profit: Number(marketPulse.topOpportunity.profitScore || 0),
+      alignment: Number(marketPulse.topOpportunity.alignmentScore || 0),
+      fulfillment: Number(marketPulse.topOpportunity.fulfillmentScore || 0)
+    } : {},
     next_action: marketPulse.marketFit?.nextAction || '',
     warnings: Array.isArray(marketPulse.warnings) ? marketPulse.warnings.slice(0, 8) : []
   } : null;

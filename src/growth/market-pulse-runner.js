@@ -2,12 +2,14 @@ import { DEFAULT_GUN_PEERS } from './homepage-hero.js';
 import {
   DEFAULT_MARKET_PULSE_PROFILE,
   runMarketPulseCycle,
+  selectMarketPulsePortfolioProfile,
 } from './market-pulse.js';
 
 const HELP_TEXT = `Usage: npm run market:pulse -- [options]
 
 Options:
   --market <text>       Market or audience to research.
+  --search-mode <mode>  aligned, profit, or portfolio (default).
   --keywords <csv>      Comma-separated pains or phrases.
   --channels <csv>      Comma-separated social probe channels.
   --limit <number>      Maximum demand signals to analyze.
@@ -61,6 +63,9 @@ export function parseMarketPulseArgs(argv = []) {
     } else if (arg === '--market') {
       parsed.market = readFlagValue(argv, index, arg);
       index += 1;
+    } else if (arg === '--search-mode') {
+      parsed.searchMode = readFlagValue(argv, index, arg);
+      index += 1;
     } else if (arg === '--keywords') {
       parsed.keywords = splitList(readFlagValue(argv, index, arg));
       index += 1;
@@ -81,15 +86,22 @@ export function parseMarketPulseArgs(argv = []) {
   return parsed;
 }
 
-export function buildMarketPulseRunOptions(parsed = {}, env = process.env) {
-  const keywords = parsed.keywords || splitList(env.MARKET_PULSE_KEYWORDS, DEFAULT_MARKET_PULSE_PROFILE.keywords);
+export function buildMarketPulseRunOptions(parsed = {}, env = process.env, now = new Date()) {
+  const portfolioProfile = selectMarketPulsePortfolioProfile(now);
+  const explicitMarket = normalizeText(parsed.market || env.MARKET_PULSE_MARKET);
+  const market = explicitMarket || portfolioProfile.market;
+  const keywords = parsed.keywords || splitList(
+    env.MARKET_PULSE_KEYWORDS,
+    explicitMarket ? DEFAULT_MARKET_PULSE_PROFILE.keywords : portfolioProfile.keywords
+  );
   const channels = parsed.channels || splitList(env.MARKET_PULSE_CHANNELS, DEFAULT_MARKET_PULSE_PROFILE.channels);
   const peers = parsed.gunPeers || splitList(env.GROWTH_GUN_PEERS, DEFAULT_GUN_PEERS);
   const envLimit = Number.parseInt(env.MARKET_PULSE_LIMIT, 10);
   const parsedLimit = Number.parseInt(parsed.limit, 10);
 
   return {
-    market: normalizeText(parsed.market || env.MARKET_PULSE_MARKET) || DEFAULT_MARKET_PULSE_PROFILE.market,
+    searchMode: normalizeText(parsed.searchMode || env.MARKET_PULSE_SEARCH_MODE) || DEFAULT_MARKET_PULSE_PROFILE.searchMode,
+    market,
     keywords,
     channels,
     limit: Number.isFinite(parsedLimit)
@@ -127,6 +139,7 @@ export function buildMarketPulseCliSummary(result = {}) {
     runId: result.runId || '',
     generatedAt: result.generatedAt || '',
     dryRun: Boolean(result.dryRun),
+    searchMode: result.profile?.searchMode || 'portfolio',
     market: result.profile?.market || '',
     keywords: Array.isArray(result.profile?.keywords) ? result.profile.keywords : [],
     signalsAnalyzed: Number(result.signalsAnalyzed || 0),
@@ -141,6 +154,10 @@ export function buildMarketPulseCliSummary(result = {}) {
       title: result.topOpportunity?.title || '',
       problem: result.topOpportunity?.problem || '',
       score: Number(result.topOpportunity?.score || 0),
+      marketScore: Number(result.topOpportunity?.marketScore || 0),
+      profitScore: Number(result.topOpportunity?.profitScore || 0),
+      alignmentScore: Number(result.topOpportunity?.alignmentScore || 0),
+      fulfillmentScore: Number(result.topOpportunity?.fulfillmentScore || 0),
     },
     persist: result.persist || {},
     socialProbes: summarizeProbes(result.socialProbeDrafts),
@@ -153,7 +170,7 @@ function formatSummary(summary = {}) {
   const lines = [
     'Market Pulse automation complete',
     `Run: ${summary.runId || 'unknown'}`,
-    `Mode: ${summary.dryRun ? 'dry run' : 'persisted to Gun'}`,
+    `Mode: ${summary.dryRun ? 'dry run' : 'persisted to Gun'} · ${summary.searchMode} search`,
     `Market: ${summary.market || 'unknown'}`,
     `Fit: ${summary.marketFit.score} (${summary.marketFit.verdict || 'searching'})`,
     `Signals: ${summary.signalsAnalyzed}`,
@@ -165,6 +182,7 @@ function formatSummary(summary = {}) {
   }
   if (summary.topOpportunity.title) {
     lines.push(`Top opportunity: ${summary.topOpportunity.title}`);
+    lines.push(`Scores: overall ${summary.topOpportunity.score}, profit ${summary.topOpportunity.profitScore}, alignment ${summary.topOpportunity.alignmentScore}, fulfillment ${summary.topOpportunity.fulfillmentScore}`);
   }
   if (summary.marketFit.nextAction) {
     lines.push(`Next action: ${summary.marketFit.nextAction}`);
@@ -205,8 +223,9 @@ export async function runMarketPulseCli(options = {}) {
       return { exitCode: 0 };
     }
 
+    const scheduleNow = typeof options.now === 'function' ? options.now() : new Date();
     const runOptions = {
-      ...buildMarketPulseRunOptions(parsed, env),
+      ...buildMarketPulseRunOptions(parsed, env, scheduleNow),
       fetchImpl: options.fetchImpl,
       now: options.now,
     };

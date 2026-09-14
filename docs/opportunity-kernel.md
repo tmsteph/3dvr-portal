@@ -82,3 +82,10 @@ The exact weights may change by mode; the underlying evidence fields should not.
 “Unlimited” means **unbounded discovery**, not infinite simultaneous execution. The system can continuously discover and remember possibilities while limiting active experiments by cash, compute, founder attention, delivery capacity, and risk budgets.
 
 That separation is essential: broad imagination at the sensing layer, ruthless scarcity at the execution layer.
+## Scheduled exploration
+
+The existing Market Pulse scheduler is the discovery heartbeat. It runs every eight hours and defaults to **Portfolio** mode. When no market is explicitly pinned, each scheduled slot rotates through a seed portfolio of demand arenas, including service businesses, event/AV operations, freelancers/creators, manual administrative workflows, and a broad unmet-paid-demand exploration lane.
+
+The seed portfolio is not an industry whitelist. It exists to keep the radar moving instead of repeatedly scanning one niche. Explicit market configuration can override a run, and future learning may add, remove, split, or reprioritize exploration lanes as evidence accumulates.
+
+The scheduler should remain single-source: improve the existing Market Pulse loop rather than creating competing cron jobs that discover the same demand independently.

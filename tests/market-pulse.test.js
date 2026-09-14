@@ -6,6 +6,7 @@ import {
   runMarketPulseCycle,
   serializeDirectoryListingForGun,
   serializeMarketPulseForGun,
+  selectMarketPulsePortfolioProfile,
 } from '../src/growth/market-pulse.js';
 
 const demand = {
@@ -25,6 +26,15 @@ const demand = {
   ],
 };
 
+test('portfolio selector changes discovery market every scheduled eight-hour slot', () => {
+  const first = selectMarketPulsePortfolioProfile(new Date('2026-09-14T00:23:00Z'));
+  const second = selectMarketPulsePortfolioProfile(new Date('2026-09-14T08:23:00Z'));
+  assert.equal(first.searchMode, 'portfolio');
+  assert.notEqual(first.market, second.market);
+  assert.ok(first.keywords.length > 0);
+  assert.ok(second.keywords.length > 0);
+});
+
 test('buildMarketPulse creates approved directory data while gating outreach', () => {
   const pulse = buildMarketPulse(demand, {
     generatedAt: '2026-05-14T10:00:00.000Z',
@@ -35,6 +45,11 @@ test('buildMarketPulse creates approved directory data while gating outreach', (
 
   assert.equal(pulse.runId, 'market-pulse-test');
   assert.equal(pulse.signalsAnalyzed, 1);
+  assert.equal(pulse.profile.searchMode, 'portfolio');
+  assert.equal(pulse.topOpportunity.searchMode, 'portfolio');
+  assert.ok(pulse.topOpportunity.profitScore > 0);
+  assert.ok(pulse.topOpportunity.alignmentScore >= 0);
+  assert.ok(pulse.topOpportunity.fulfillmentScore > 0);
   assert.ok(pulse.marketFit.score > 0);
   assert.match(pulse.marketFit.nextAction, /social probe|keyword/i);
   assert.equal(pulse.directoryListings.length, 1);
@@ -62,6 +77,9 @@ test('market pulse gun serialization keeps dashboard arrays recoverable', () => 
   const restored = deserializeMarketPulseFromGun(serialized);
 
   assert.equal(serialized.runId, 'market-pulse-test');
+  assert.equal(serialized.searchMode, 'portfolio');
+  assert.equal(restored.profile.searchMode, 'portfolio');
+  assert.equal(restored.topOpportunity.profitScore, pulse.topOpportunity.profitScore);
   assert.equal(restored.directoryListings.length, 1);
   assert.equal(restored.outreachDrafts.length, 1);
   assert.equal(restored.socialProbeDrafts.length > 0, true);

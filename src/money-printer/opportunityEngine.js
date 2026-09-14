@@ -1,8 +1,10 @@
+import { normalizeOpportunitySearchMode } from '../money/scoring.js';
+
 // Browser- and Node-safe Opportunity Engine records.
 // External source connectors may add DemandSignals later, but every signal must
 // retain its provenance and policy state before it can become actionable.
 
-export const OPPORTUNITY_ENGINE_SCHEMA_VERSION = 2;
+export const OPPORTUNITY_ENGINE_SCHEMA_VERSION = 3;
 export const OPPORTUNITY_ENGINE_STORAGE_KEY = '3dvr.money-printer.opportunity-engine.v1';
 
 const URGENCY_WEIGHTS = {
@@ -19,6 +21,10 @@ function text(value, fallback = '') {
 function number(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function clampScore(value, fallback = 50) {
+  return Math.min(100, Math.max(0, Math.round(number(value, fallback))));
 }
 
 function list(value) {
@@ -107,18 +113,48 @@ export function createDemandSignal(input = {}, now = new Date()) {
   };
 }
 
-export function scoreOpportunityCluster(cluster = {}, now = new Date()) {
+export function scoreOpportunityDimensions(cluster = {}, now = new Date()) {
   const signals = Array.isArray(cluster.signals) ? cluster.signals : [];
   const primary = signals[0] || cluster;
-  const urgency = URGENCY_WEIGHTS[text(primary.urgency, 'medium').toLowerCase()] || URGENCY_WEIGHTS.medium;
-  const confidence = Math.min(25, number(primary.confidence) / 4);
-  const evidence = text(primary.buyerWords).length >= 12 ? 15 : 0;
-  const permission = ['approved-api', 'first-party', 'human-provided', 'explicit-consent'].includes(text(primary.policyStatus)) ? 12 : 0;
-  const margin = Math.max(0, number(primary.estimatedValueMin) - number(primary.estimatedCostMax));
-  const marginScore = Math.min(12, margin / 25);
+  const searchMode = normalizeOpportunitySearchMode(cluster.searchMode || primary.searchMode);
+  const urgencyRaw = URGENCY_WEIGHTS[text(primary.urgency, 'medium').toLowerCase()] || URGENCY_WEIGHTS.medium;
+  const confidenceRaw = Math.min(25, number(primary.confidence) / 4);
+  const evidenceRaw = text(primary.buyerWords).length >= 12 ? 15 : 0;
+  const permissionRaw = ['approved-api', 'first-party', 'human-provided', 'explicit-consent'].includes(text(primary.policyStatus)) ? 12 : 0;
+  const valueFloor = Math.max(0, number(primary.estimatedValueMin));
+  const costCeiling = Math.max(0, number(primary.estimatedCostMax));
+  const margin = Math.max(0, valueFloor - costCeiling);
+  const marginRaw = Math.min(12, margin / 25);
   const expiresAt = Date.parse(primary.expiresAt);
-  const expirationPenalty = Number.isFinite(expiresAt) && expiresAt < now.getTime() ? 100 : 0;
-  return Math.max(0, Math.round(urgency + confidence + evidence + permission + marginScore - expirationPenalty));
+  const expired = Number.isFinite(expiresAt) && expiresAt < now.getTime();
+  const actionabilityScore = expired ? 0 : clampScore(urgencyRaw + confidenceRaw + evidenceRaw + permissionRaw + marginRaw, 0);
+  const marginRatioScore = valueFloor > 0 ? clampScore((margin / valueFloor) * 100, 0) : 0;
+  const urgencyScore = clampScore((urgencyRaw / URGENCY_WEIGHTS.immediate) * 100, 50);
+  const explicitProfit = Number(cluster.profitScore ?? primary.profitScore);
+  const profitScore = Number.isFinite(explicitProfit)
+    ? clampScore(explicitProfit)
+    : clampScore(marginRatioScore * 0.55 + number(primary.confidence, 50) * 0.25 + urgencyScore * 0.2);
+  const alignmentScore = clampScore(cluster.alignmentScore ?? primary.alignmentScore, 50);
+  const fulfillmentFallback = list(primary.skills).length ? 70 : 55;
+  const fulfillmentScore = clampScore(cluster.fulfillmentScore ?? primary.fulfillmentScore, fulfillmentFallback);
+  const blends = {
+    aligned: { actionability: 0.4, profit: 0.15, alignment: 0.3, fulfillment: 0.15 },
+    profit: { actionability: 0.3, profit: 0.45, alignment: 0.05, fulfillment: 0.2 },
+    portfolio: { actionability: 0.4, profit: 0.3, alignment: 0.15, fulfillment: 0.15 }
+  };
+  const blend = blends[searchMode];
+  const priorityScore = expired ? 0 : clampScore(
+    actionabilityScore * blend.actionability
+      + profitScore * blend.profit
+      + alignmentScore * blend.alignment
+      + fulfillmentScore * blend.fulfillment,
+    0
+  );
+  return { searchMode, actionabilityScore, profitScore, alignmentScore, fulfillmentScore, priorityScore };
+}
+
+export function scoreOpportunityCluster(cluster = {}, now = new Date()) {
+  return scoreOpportunityDimensions(cluster, now).actionabilityScore;
 }
 
 export function createOpportunityCluster(input = {}, now = new Date()) {
@@ -132,6 +168,10 @@ export function createOpportunityCluster(input = {}, now = new Date()) {
     status: text(input.status, 'new'),
     owner: text(input.owner, 'Thomas'),
     expectedOutcome: text(input.expectedOutcome),
+    searchMode: normalizeOpportunitySearchMode(input.searchMode || primary.searchMode),
+    alignmentScore: clampScore(input.alignmentScore ?? primary.alignmentScore, 50),
+    fulfillmentScore: clampScore(input.fulfillmentScore ?? primary.fulfillmentScore, list(primary.skills).length ? 70 : 55),
+    ...(Number.isFinite(Number(input.profitScore ?? primary.profitScore)) ? { profitScore: clampScore(input.profitScore ?? primary.profitScore) } : {}),
     signals,
     links: normalizeOpportunityLinks(input),
     suggestedResponse: text(input.suggestedResponse, primary.suggestedResponse),
@@ -144,7 +184,7 @@ export function createOpportunityCluster(input = {}, now = new Date()) {
   };
   return {
     ...cluster,
-    actionabilityScore: scoreOpportunityCluster(cluster, now)
+    ...scoreOpportunityDimensions(cluster, now)
   };
 }
 
@@ -210,6 +250,7 @@ export function sortOpportunityClusters(opportunities = [], now = new Date()) {
       const leftStatus = statusOrder[left.status] ?? 3;
       const rightStatus = statusOrder[right.status] ?? 3;
       if (leftStatus !== rightStatus) return leftStatus - rightStatus;
+      if (right.priorityScore !== left.priorityScore) return right.priorityScore - left.priorityScore;
       if (right.actionabilityScore !== left.actionabilityScore) return right.actionabilityScore - left.actionabilityScore;
       return String(right.updatedAt).localeCompare(String(left.updatedAt));
     });

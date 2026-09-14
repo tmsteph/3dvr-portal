@@ -1,36 +1,46 @@
-const DEFAULT_WEIGHTS = {
+export const OPPORTUNITY_SEARCH_MODES = Object.freeze(['aligned', 'profit', 'portfolio']);
+
+const DEFAULT_WEIGHTS = Object.freeze({
   painScore: 0.34,
   willingnessToPay: 0.3,
   speedToBuild: 0.2,
   competitionGap: 0.16
-};
+});
+
+const MODE_WEIGHTS = Object.freeze({
+  aligned: Object.freeze({ market: 0.35, profit: 0.15, alignment: 0.35, fulfillment: 0.15 }),
+  profit: Object.freeze({ market: 0.3, profit: 0.45, alignment: 0.05, fulfillment: 0.2 }),
+  portfolio: Object.freeze({ market: 0.4, profit: 0.3, alignment: 0.15, fulfillment: 0.15 })
+});
 
 function clampScore(value, fallback = 50) {
   const numeric = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(numeric)) {
-    return fallback;
-  }
+  if (!Number.isFinite(numeric)) return fallback;
   return Math.max(0, Math.min(100, Math.round(numeric)));
+}
+
+function roundScore(value) {
+  return Math.round(Number(value || 0) * 10) / 10;
 }
 
 function toId(value, prefix = 'idea') {
   const base = typeof value === 'string' ? value : String(value || '');
-  const slug = base
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+  const slug = base.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   return slug || `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function titleCase(value = '') {
-  return String(value)
-    .split(/\s+/)
-    .filter(Boolean)
-    .map(word => `${word.slice(0, 1).toUpperCase()}${word.slice(1)}`)
-    .join(' ');
+  return String(value).split(/\s+/).filter(Boolean)
+    .map(word => `${word.slice(0, 1).toUpperCase()}${word.slice(1)}`).join(' ');
 }
 
-export function scoreOpportunity(opportunity = {}, weights = DEFAULT_WEIGHTS) {
+export function normalizeOpportunitySearchMode(value = 'portfolio') {
+  const mode = String(value || '').trim().toLowerCase();
+  return OPPORTUNITY_SEARCH_MODES.includes(mode) ? mode : 'portfolio';
+}
+
+export function scoreOpportunity(opportunity = {}, weights = DEFAULT_WEIGHTS, searchMode = 'portfolio') {
+  const mode = normalizeOpportunitySearchMode(searchMode || opportunity.searchMode);
   const normalized = {
     ...opportunity,
     id: opportunity.id || toId(opportunity.title || opportunity.problem || 'opportunity'),
@@ -44,37 +54,65 @@ export function scoreOpportunity(opportunity = {}, weights = DEFAULT_WEIGHTS) {
     willingnessToPay: clampScore(opportunity.willingnessToPay, 52),
     speedToBuild: clampScore(opportunity.speedToBuild, 60),
     competitionGap: clampScore(opportunity.competitionGap, 48),
+    alignmentScore: clampScore(opportunity.alignmentScore, 50),
+    fulfillmentScore: clampScore(opportunity.fulfillmentScore, opportunity.speedToBuild ?? 60),
     evidence: Array.isArray(opportunity.evidence) ? opportunity.evidence.filter(Boolean) : []
   };
 
-  const score = (
+  const marketScore = (
     normalized.painScore * (weights.painScore ?? DEFAULT_WEIGHTS.painScore)
     + normalized.willingnessToPay * (weights.willingnessToPay ?? DEFAULT_WEIGHTS.willingnessToPay)
     + normalized.speedToBuild * (weights.speedToBuild ?? DEFAULT_WEIGHTS.speedToBuild)
     + normalized.competitionGap * (weights.competitionGap ?? DEFAULT_WEIGHTS.competitionGap)
   );
+  const derivedProfitScore = (
+    normalized.willingnessToPay * 0.4
+    + normalized.speedToBuild * 0.2
+    + normalized.competitionGap * 0.15
+    + normalized.painScore * 0.15
+    + normalized.fulfillmentScore * 0.1
+  );
+  const explicitProfitScore = Number(opportunity.profitScore);
+  const profitScore = Number.isFinite(explicitProfitScore)
+    ? clampScore(explicitProfitScore)
+    : roundScore(derivedProfitScore);
+  const dimensions = {
+    market: roundScore(marketScore),
+    profit: profitScore,
+    alignment: normalized.alignmentScore,
+    fulfillment: normalized.fulfillmentScore
+  };
+  const blend = MODE_WEIGHTS[mode];
+  const score = roundScore(
+    dimensions.market * blend.market
+    + dimensions.profit * blend.profit
+    + dimensions.alignment * blend.alignment
+    + dimensions.fulfillment * blend.fulfillment
+  );
 
   return {
     ...normalized,
-    score: Math.round(score * 10) / 10
+    searchMode: mode,
+    marketScore: dimensions.market,
+    profitScore: dimensions.profit,
+    alignmentScore: dimensions.alignment,
+    fulfillmentScore: dimensions.fulfillment,
+    score
   };
 }
 
-export function rankOpportunities(opportunities = [], weights = DEFAULT_WEIGHTS) {
+export function rankOpportunities(opportunities = [], weights = DEFAULT_WEIGHTS, searchMode = 'portfolio') {
   return opportunities
-    .map(item => scoreOpportunity(item, weights))
+    .map(item => scoreOpportunity(item, weights, searchMode))
     .sort((left, right) => {
-      if (right.score !== left.score) {
-        return right.score - left.score;
-      }
+      if (right.score !== left.score) return right.score - left.score;
+      if (right.profitScore !== left.profitScore) return right.profitScore - left.profitScore;
       return right.painScore - left.painScore;
     });
 }
 
 export function deriveOpportunityFromSignal(signal = {}, index = 0, market = 'founders') {
-  const keyword = String(signal.keyword || market)
-    .replace(/[-_]+/g, ' ')
-    .trim();
+  const keyword = String(signal.keyword || market).replace(/[-_]+/g, ' ').trim();
   const title = signal.title || `Recurring pain in ${market}`;
   const popularity = clampScore(signal.popularity, 30);
   const comments = clampScore(signal.comments, 25);
@@ -92,6 +130,9 @@ export function deriveOpportunityFromSignal(signal = {}, index = 0, market = 'fo
     willingnessToPay: Math.max(35, Math.min(90, popularity)),
     speedToBuild: 68,
     competitionGap: Math.max(35, Math.min(85, 75 - Math.round(popularity * 0.25))),
+    alignmentScore: clampScore(signal.alignmentScore, 50),
+    fulfillmentScore: clampScore(signal.fulfillmentScore, 68),
+    ...(Number.isFinite(Number(signal.profitScore)) ? { profitScore: clampScore(signal.profitScore) } : {}),
     evidence: [
       signal.source ? `${signal.source}: ${signal.title || 'signal'}` : title,
       signal.url || '',
@@ -101,18 +142,13 @@ export function deriveOpportunityFromSignal(signal = {}, index = 0, market = 'fo
 }
 
 export function buildAdDrafts(opportunities = [], channels = []) {
-  const channelList = Array.isArray(channels) && channels.length
-    ? channels
-    : ['reddit', 'x', 'linkedin'];
-
-  return opportunities.slice(0, 3).flatMap(opportunity => {
-    return channelList.map(channel => ({
-      id: `${opportunity.id}-${channel}`,
-      channel,
-      headline: `${opportunity.problem.slice(0, 60)}?`,
-      body: `${opportunity.solution} Start with ${opportunity.suggestedPrice}.`,
-      cta: `Try the ${opportunity.title.slice(0, 48)} beta`,
-      linkedOpportunityId: opportunity.id
-    }));
-  });
+  const channelList = Array.isArray(channels) && channels.length ? channels : ['reddit', 'x', 'linkedin'];
+  return opportunities.slice(0, 3).flatMap(opportunity => channelList.map(channel => ({
+    id: `${opportunity.id}-${channel}`,
+    channel,
+    headline: `${opportunity.problem.slice(0, 60)}?`,
+    body: `${opportunity.solution} Start with ${opportunity.suggestedPrice}.`,
+    cta: `Try the ${opportunity.title.slice(0, 48)} beta`,
+    linkedOpportunityId: opportunity.id
+  })));
 }

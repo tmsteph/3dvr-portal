@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
+      MARKET_PULSE_SEARCH_MODE: ${{ vars.MARKET_PULSE_SEARCH_MODE || 'portfolio' }}
       MARKET_PULSE_MARKET: ${{ vars.MARKET_PULSE_MARKET }}
       MARKET_PULSE_KEYWORDS: ${{ vars.MARKET_PULSE_KEYWORDS }}
       MARKET_PULSE_CHANNELS: ${{ vars.MARKET_PULSE_CHANNELS }}

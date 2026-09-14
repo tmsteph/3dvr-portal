@@ -98,9 +98,11 @@ test('collects the latest workflow evidence from artifact directories', async ()
   await writeFile(path.join(root, 'autopilot', 'latest.json'), JSON.stringify({ runId: 'money-1', analytics: { enabled: false } }));
   await writeFile(path.join(root, 'outbound', 'latest.json'), JSON.stringify({ generatedAt: '2026-07-13T01:00:00Z', autopilotRunId: 'money-2', dispatch: { sentCount: 0 }, queue: [] }));
   await writeFile(path.join(root, 'outbound', 'outcome-tracker.csv'), 'id,replyStatus,revenue\na,qualified,5\n');
-  await writeFile(path.join(root, 'pulse', 'latest.json'), `npm chatter\n${JSON.stringify({ runId: 'market-pulse-2', signalsAnalyzed: 3, marketFit: { score: 70 }, topOpportunity: { title: 'Fast intake' } })}`);
+  await writeFile(path.join(root, 'pulse', 'latest.json'), `npm chatter\n${JSON.stringify({ runId: 'market-pulse-2', searchMode: 'profit', signalsAnalyzed: 3, marketFit: { score: 70 }, topOpportunity: { title: 'Fast intake', score: 76, profitScore: 91, alignmentScore: 22, fulfillmentScore: 80 } })}`);
   const evidence = await collectLearningEvidence(root);
   assert.equal(evidence.research.latest_run_id, 'market-pulse-2');
+  assert.equal(evidence.research.search_mode, 'profit');
+  assert.equal(evidence.research.opportunity_scores.profit, 91);
   assert.equal(evidence.signals.qualified_replies, 1);
   assert.equal(evidence.signals.revenue_cents, 500);
   assert.equal(evidence.sources.analytics.available, false);
