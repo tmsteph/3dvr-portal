@@ -4,6 +4,7 @@ export const ASSEMBLY_VERSION = 1;
 
 export function emptyAssemblyState() {
   return {
+    workspace: { id: '', createdAt: 0 },
     identity: { name: '', purpose: '' },
     people: [],
     teams: [],
@@ -19,6 +20,14 @@ export function emptyAssemblyState() {
 const text = value => typeof value === 'string' ? value : '';
 const timestamp = value => Number.isFinite(Number(value)) ? Number(value) : 0;
 const records = value => Array.isArray(value) ? value.filter(item => item && typeof item === 'object') : [];
+
+function normalizeWorkspace(item) {
+  const source = item && typeof item === 'object' ? item : {};
+  return {
+    id: text(source.id),
+    createdAt: timestamp(source.createdAt),
+  };
+}
 
 function normalizePerson(item) {
   return {
@@ -117,6 +126,7 @@ export function normalizeAssemblyState(value) {
     .filter(item => item.personId && item.teamId && item.role)
     .filter(item => personIds.has(item.personId) && teamIds.has(item.teamId));
   const normalized = {
+    workspace: normalizeWorkspace(source.workspace),
     identity: {
       name: text(identity.name),
       purpose: text(identity.purpose),
@@ -135,6 +145,24 @@ export function normalizeAssemblyState(value) {
     .map(normalizeNeed)
     .filter(item => item.text)
     .map(item => item.matchedOfferId && !offerIds.has(item.matchedOfferId) ? { ...item, matchedOfferId: '' } : item);
+  return normalized;
+}
+
+function defaultWorkspaceId() {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  if (uuid) return `asm_${uuid}`;
+  return `asm_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function ensureWorkspaceIdentity(value, options = {}) {
+  const normalized = normalizeAssemblyState(value);
+  if (normalized.workspace.id) return normalized;
+  const now = Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now();
+  const idFactory = typeof options.idFactory === 'function' ? options.idFactory : defaultWorkspaceId;
+  normalized.workspace = {
+    id: String(idFactory()),
+    createdAt: now,
+  };
   return normalized;
 }
 
