@@ -1,6 +1,9 @@
+import { POSITIVE_SUM_KERNEL_VERSION, POSITIVE_SUM_LOOP } from '../src/kernel/positiveSum.js';
+
 export const STORAGE_KEY = '3dvr.assembly.v1';
 export const ASSEMBLY_FORMAT = '3dvr-assembly';
 export const ASSEMBLY_VERSION = 1;
+export const ASSEMBLY_POLICY_ID = 'positive-sum';
 
 export function emptyAssemblyState() {
   return {
@@ -143,6 +146,11 @@ export function createAssemblySnapshot(state, now = Date.now()) {
     format: ASSEMBLY_FORMAT,
     version: ASSEMBLY_VERSION,
     exportedAt: new Date(now).toISOString(),
+    kernelPolicy: {
+      id: ASSEMBLY_POLICY_ID,
+      version: POSITIVE_SUM_KERNEL_VERSION,
+      loop: [...POSITIVE_SUM_LOOP],
+    },
     state: normalizeAssemblyState(state),
   };
 }
