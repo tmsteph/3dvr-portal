@@ -11,7 +11,8 @@ patch_source="$SCRIPT_DIR/patch-desktop-commander-session.sh"
 patch_dest=/usr/local/sbin/3dvr-patch-desktop-commander-session
 unit=desktop-commander-remote.service
 state_dir=/var/lib/3dvr
-state_file="$state_dir/desktop-commander-session-workaround-v1"
+# v2 reloads the workaround after package-path auto-discovery was added.
+state_file="$state_dir/desktop-commander-session-workaround-v2"
 
 [ -f "$patch_source" ] || { echo "Patch helper not found: $patch_source" >&2; exit 1; }
 install -m 0755 "$patch_source" "$patch_dest"
