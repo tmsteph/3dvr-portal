@@ -129,13 +129,20 @@ jobs:
           [ -x "$THREEDVR_NODE_BIN" ] || exit 1
           "$THREEDVR_NODE_BIN" -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 13)) process.exit(1); require("node:sqlite")'
           export PATH="$(dirname "$THREEDVR_NODE_BIN"):$PATH"
-          npm --prefix "$repo/apps/agent" ci
           scripts="$repo/apps/agent/thomas-agent/scripts"
+          # Stop long-lived Node processes before npm replaces node_modules.
+          # Otherwise Gun or another live dependency can race npm's cleanup and
+          # leave ENOTEMPTY failures during rapid consecutive deployments.
           "$scripts/ask-agent-worker-daemon" stop || true
           "$scripts/ask-inbox-daemon" stop || true
           "$scripts/ask-context-task-router-daemon" stop || true
           "$scripts/ask-autopilot-daemon" stop || true
           "$scripts/ask-agent-heartbeat-daemon" stop || true
+          if ! npm --prefix "$repo/apps/agent" ci; then
+            echo 'Initial npm ci failed after daemon shutdown; retrying from a clean node_modules.' >&2
+            rm -rf "$repo/apps/agent/node_modules"
+            npm --prefix "$repo/apps/agent" ci
+          fi
           "$scripts/ask-agent-worker-daemon" start 9>&-
           "$scripts/ask-context-task-router-daemon" start 9>&-
           "$scripts/ask-inbox-daemon" start 9>&-
