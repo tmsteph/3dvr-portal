@@ -1,11 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-pkg_root="${DESKTOP_COMMANDER_PKG_ROOT:-/home/tmsteph/.local/lib/node_modules/@wonderwhy-er/desktop-commander}"
-device_js="$pkg_root/dist/remote-device/device.js"
 marker='3DVR_SESSION_PERSIST_WORKAROUND'
 
-[ -f "$device_js" ] || { echo "Desktop Commander device runtime not found: $device_js" >&2; exit 1; }
+find_pkg_root() {
+  local candidate
+  if [ -n "${DESKTOP_COMMANDER_PKG_ROOT:-}" ]; then
+    printf '%s\n' "$DESKTOP_COMMANDER_PKG_ROOT"
+    return 0
+  fi
+  for candidate in \
+    /usr/local/lib/node_modules/@wonderwhy-er/desktop-commander \
+    /home/tmsteph/.local/lib/node_modules/@wonderwhy-er/desktop-commander \
+    /root/.local/lib/node_modules/@wonderwhy-er/desktop-commander; do
+    if [ -f "$candidate/dist/remote-device/device.js" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  if command -v npm >/dev/null 2>&1; then
+    candidate="$(npm root -g 2>/dev/null || true)/@wonderwhy-er/desktop-commander"
+    if [ -f "$candidate/dist/remote-device/device.js" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  fi
+  return 1
+}
+
+pkg_root="$(find_pkg_root || true)"
+[ -n "$pkg_root" ] || { echo 'Desktop Commander global package could not be located.' >&2; exit 1; }
+device_js="$pkg_root/dist/remote-device/device.js"
 
 if grep -q "$marker" "$device_js"; then
   echo 'Desktop Commander session persistence workaround already installed.'
@@ -31,8 +56,10 @@ patch = f'''{needle}\n\n            // {marker}\n            // Supabase rotates
 path.write_text(text.replace(needle, patch, 1))
 PY
 
-node_bin="${DESKTOP_COMMANDER_NODE_BIN:-/root/.openclaw/tools/node-v22.22.0/bin/node}"
-[ -x "$node_bin" ] || node_bin="$(command -v node)"
+node_bin="${DESKTOP_COMMANDER_NODE_BIN:-}"
+if [ -z "$node_bin" ] || [ ! -x "$node_bin" ]; then
+  node_bin="$(command -v node)"
+fi
 "$node_bin" --check "$device_js"
 
 echo "Installed Desktop Commander refresh-session persistence workaround in $device_js"
