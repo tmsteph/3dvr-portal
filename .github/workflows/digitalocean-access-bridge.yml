@@ -89,9 +89,14 @@ jobs:
           systemctl daemon-reload
           systemctl reset-failed desktop-commander-remote.service || true
           systemctl enable desktop-commander-remote.service
-          if ! systemctl is-active --quiet desktop-commander-remote.service; then
+
+          resilience="$HOME/.3dvr/portal/scripts/ops/install-desktop-commander-resilience.sh"
+          if [ -f "$resilience" ]; then
+            bash "$resilience"
+          elif ! systemctl is-active --quiet desktop-commander-remote.service; then
             systemctl restart desktop-commander-remote.service
           fi
+
           sleep 5
           if ! systemctl is-active --quiet desktop-commander-remote.service; then
             systemctl --no-pager --full status desktop-commander-remote.service || true
