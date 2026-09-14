@@ -118,4 +118,44 @@ CREATE TABLE IF NOT EXISTS crm_raw_records (
   PRIMARY KEY (source_name, source_record_id)
 );
 
+CREATE TABLE IF NOT EXISTS assembly_workspace_grants (
+  grant_id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  principal_id TEXT NOT NULL,
+  profile TEXT NOT NULL CHECK (profile IN ('owner', 'editor', 'viewer')),
+  issued_by TEXT NOT NULL,
+  source_type TEXT NOT NULL DEFAULT 'invite' CHECK (source_type IN ('invite', 'bootstrap', 'admin')),
+  source_id TEXT NOT NULL,
+  granted_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (source_type, source_id)
+);
+
+CREATE INDEX IF NOT EXISTS assembly_workspace_grants_active_principal_idx
+  ON assembly_workspace_grants (workspace_id, principal_id)
+  WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS assembly_workspace_grants_workspace_idx
+  ON assembly_workspace_grants (workspace_id, granted_at DESC);
+
+CREATE TABLE IF NOT EXISTS assembly_access_events (
+  event_id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  actor_principal_id TEXT NOT NULL,
+  target_principal_id TEXT,
+  grant_id TEXT REFERENCES assembly_workspace_grants(grant_id) ON DELETE SET NULL,
+  event_type TEXT NOT NULL,
+  details JSONB NOT NULL DEFAULT '{}'::JSONB,
+  occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS assembly_access_events_workspace_time_idx
+  ON assembly_access_events (workspace_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS assembly_access_events_principal_time_idx
+  ON assembly_access_events (target_principal_id, occurred_at DESC)
+  WHERE target_principal_id IS NOT NULL;
+
 GRANT SELECT, INSERT, UPDATE, DELETE ON newsletter_subscribers, newsletter_sends, chat_push_subscriptions, chat_push_deliveries, chat_messages, crm_import_runs, crm_contacts, crm_activities, crm_raw_records TO newsletter_store;
+GRANT SELECT, INSERT, UPDATE ON assembly_workspace_grants TO newsletter_store;
+GRANT SELECT, INSERT ON assembly_access_events TO newsletter_store;
