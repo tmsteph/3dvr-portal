@@ -1,0 +1,49 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  ASSEMBLY_FORMAT,
+  ASSEMBLY_VERSION,
+  createAssemblySnapshot,
+  normalizeAssemblyState,
+  parseAssemblySnapshot,
+} from '../assembly/data.js';
+
+test('Assembly snapshots round-trip through the portable format', () => {
+  const state = {
+    identity: { name: 'Neighborhood Garden', purpose: 'Grow food together' },
+    people: [{ id: 'p1', name: 'Ava', role: 'Grower', createdAt: 1 }],
+    initiatives: [{ id: 'i1', name: 'Fall beds', lead: 'Ava', createdAt: 2 }],
+    commitments: [{ id: 'c1', text: 'Prepare soil', owner: 'Ava', initiativeId: 'i1', due: '2026-09-20', done: true, createdAt: 3, doneAt: 4 }],
+    decisions: [],
+    needs: [],
+  };
+  const snapshot = createAssemblySnapshot(state, Date.UTC(2026, 8, 14));
+
+  assert.equal(snapshot.format, ASSEMBLY_FORMAT);
+  assert.equal(snapshot.version, ASSEMBLY_VERSION);
+  assert.equal(snapshot.exportedAt, '2026-09-14T00:00:00.000Z');
+  assert.deepEqual(parseAssemblySnapshot(JSON.stringify(snapshot)), normalizeAssemblyState(state));
+});
+
+test('Assembly import normalizes legacy state and drops unknown fields', () => {
+  const imported = parseAssemblySnapshot({
+    format: ASSEMBLY_FORMAT,
+    version: ASSEMBLY_VERSION,
+    state: {
+      identity: { name: 'Team', purpose: 'Build', secretExtra: 'drop me' },
+      people: [{ id: 'p1', name: 'Sam', role: 'Builder', admin: true }],
+      commitments: [{ id: 'c1', text: 'Ship', owner: 'Sam', done: false, unexpected: 'drop me' }],
+    },
+  });
+
+  assert.deepEqual(imported.initiatives, []);
+  assert.equal(imported.identity.name, 'Team');
+  assert.equal('secretExtra' in imported.identity, false);
+  assert.equal('admin' in imported.people[0], false);
+  assert.equal('unexpected' in imported.commitments[0], false);
+});
+
+test('Assembly import rejects unrelated or unsupported files', () => {
+  assert.throws(() => parseAssemblySnapshot({ format: 'other', version: 1, state: {} }), /not a 3DVR Assembly file/);
+  assert.throws(() => parseAssemblySnapshot({ format: ASSEMBLY_FORMAT, version: 99, state: {} }), /Unsupported Assembly version/);
+});

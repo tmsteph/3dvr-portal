@@ -1,20 +1,17 @@
-const STORAGE_KEY = '3dvr.assembly.v1';
-
-const emptyState = () => ({
-  identity: { name: '', purpose: '' },
-  people: [],
-  initiatives: [],
-  commitments: [],
-  decisions: [],
-  needs: [],
-});
+import {
+  STORAGE_KEY,
+  createAssemblySnapshot,
+  emptyAssemblyState,
+  normalizeAssemblyState,
+  parseAssemblySnapshot,
+} from './data.js';
 
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-    return saved && typeof saved === 'object' ? { ...emptyState(), ...saved } : emptyState();
+    return normalizeAssemblyState(saved);
   } catch {
-    return emptyState();
+    return emptyAssemblyState();
   }
 }
 
@@ -24,8 +21,45 @@ const clean = value => String(value || '').trim();
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 function save() {
+  state = normalizeAssemblyState(state);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   render();
+}
+
+
+function workspaceSlug() {
+  return (state.identity.name || 'assembly')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') || 'assembly';
+}
+
+function exportWorkspace() {
+  const snapshot = createAssemblySnapshot(state);
+  const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${workspaceSlug()}-assembly.json`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  $('transferStatus').textContent = 'Workspace exported. Keep the file private if the Assembly is private.';
+}
+
+async function importWorkspace(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    state = parseAssemblySnapshot(await file.text());
+    save();
+    $('transferStatus').textContent = `Imported ${file.name} into this device.`;
+  } catch (error) {
+    $('transferStatus').textContent = error instanceof Error ? error.message : 'Could not import this Assembly file.';
+  } finally {
+    event.target.value = '';
+  }
 }
 
 function makeButton(label, action, id, className = 'record-action') {
@@ -205,6 +239,9 @@ $('needForm').addEventListener('submit', event => {
   event.currentTarget.reset();
   save();
 });
+
+$('exportAssembly').addEventListener('click', exportWorkspace);
+$('importAssembly').addEventListener('change', importWorkspace);
 
 document.addEventListener('click', event => {
   const button = event.target.closest('[data-action]');
