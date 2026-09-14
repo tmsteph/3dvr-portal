@@ -1,6 +1,7 @@
 import {
   ALIGNMENT_PROFILE_GUN_NODE,
-  normalizeAlignmentProfile
+  normalizeAlignmentProfile,
+  upsertAlignmentContribution
 } from './alignmentProfile.js';
 
 function once(node, timeoutMs = 2500) {
@@ -48,20 +49,29 @@ export function createAlignmentProfileSync({ user, SEA, nodeName = ALIGNMENT_PRO
   const available = Boolean(user?.is?.pub && pair && SEA?.encrypt && SEA?.decrypt && user?.get);
   const node = available ? user.get('kernel').get(nodeName) : null;
 
+  const readCurrent = async () => {
+    if (!available || !node) return null;
+    const record = await once(node);
+    if (!record?.ciphertext) return null;
+    const decoded = await SEA.decrypt(record.ciphertext, pair);
+    if (!decoded) return null;
+    const parsed = typeof decoded === 'string' ? JSON.parse(decoded) : decoded;
+    return normalizeAlignmentProfile(parsed);
+  };
+
   return {
     available,
-    async read() {
-      if (!available || !node) return null;
-      const record = await once(node);
-      if (!record?.ciphertext) return null;
-      const decoded = await SEA.decrypt(record.ciphertext, pair);
-      if (!decoded) return null;
-      const parsed = typeof decoded === 'string' ? JSON.parse(decoded) : decoded;
-      return normalizeAlignmentProfile(parsed);
-    },
+    read: readCurrent,
     async write(profile) {
       if (!available || !node) return false;
-      const normalized = normalizeAlignmentProfile(profile);
+      const incoming = normalizeAlignmentProfile(profile);
+      let normalized = incoming;
+      try {
+        const current = await readCurrent();
+        if (current) normalized = upsertAlignmentContribution(current, incoming);
+      } catch {
+        // A corrupt or unavailable previous profile must not prevent a fresh encrypted write.
+      }
       const ciphertext = await SEA.encrypt(JSON.stringify(normalized), pair);
       if (!ciphertext) throw new Error('Unable to encrypt the Alignment Profile.');
       await put(node, {
