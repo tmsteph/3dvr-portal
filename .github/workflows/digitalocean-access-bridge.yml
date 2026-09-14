@@ -110,40 +110,51 @@ jobs:
             bash "$resilience"
           fi
 
-          # A unit rewrite is not proof that the running process picked up the
-          # new runtime. Always restart, then require both Node 22 and the
-          # application's own ready signal before declaring the bridge healthy.
           systemctl restart "$unit"
           ready=0
+          pairing=0
           for attempt in 1 2 3 4 5 6; do
             sleep 5
-            if ! systemctl is-active --quiet "$unit"; then
-              continue
+            logs="$(journalctl -u "$unit" --since '-90 seconds' --no-pager)"
+            if printf '%s\n' "$logs" | grep -Fq 'Device ready'; then
+              ready=1
+              break
             fi
+            if printf '%s\n' "$logs" | grep -Fq 'Waiting for authorization'; then
+              pairing=1
+              break
+            fi
+            systemctl is-active --quiet "$unit" || continue
             pid="$(systemctl show "$unit" -p MainPID --value)"
             [ -n "$pid" ] && [ "$pid" != 0 ] || continue
             exe="$(readlink -f "/proc/$pid/exe" 2>/dev/null || true)"
             case "$exe" in
-              /opt/node-v22/*/node|/opt/node-v22/bin/node) ;;
-              *) echo "Control bridge is not running on managed Node 22: ${exe:-unknown}" >&2; continue ;;
+              /opt/node-v22*/bin/node|/opt/node-v22/bin/node) ;;
+              *) echo "Control bridge is not running on managed Node 22: ${exe:-unknown}" >&2 ;;
             esac
-            if journalctl -u "$unit" --since '-90 seconds' --no-pager | grep -Fq 'Device ready'; then
-              ready=1
-              break
-            fi
           done
 
-          if [ "$ready" -ne 1 ]; then
-            echo 'Remote Desktop Commander did not reach Device ready state.' >&2
-            systemctl --no-pager --full status "$unit" | sed -n '1,14p' || true
-            journalctl -u "$unit" --since '-2 minutes' --no-pager \
-              | grep -E 'Starting MCP Device|Connected to (Desktop Commander|Remote) MCP|Device ready|Device startup failed|Suggested solution|Shutting down device|Main process exited|Failed with result' \
-              | tail -40 || true
-            exit 1
+          if [ "$ready" -eq 1 ]; then
+            echo 'REMOTE_DESKTOP_COMMANDER_READY=1'
+            systemctl --no-pager --full status "$unit" | sed -n '1,12p'
+            exit 0
           fi
 
-          echo 'REMOTE_DESKTOP_COMMANDER_READY=1'
-          systemctl --no-pager --full status "$unit" | sed -n '1,12p'
+          if [ "$pairing" -eq 1 ]; then
+            echo 'REMOTE_DESKTOP_COMMANDER_PAIRING_REQUIRED=1' >&2
+            echo 'The machine runtime is healthy; the existing OAuth refresh token was already consumed and one browser approval is required.' >&2
+            journalctl -u "$unit" --since '-90 seconds' --no-pager \
+              | grep -E 'Persisted session invalid|Please complete authentication|https://mcp\.desktopcommander\.app/device/verify|Enter this code|Code expires|Waiting for authorization' \
+              | tail -12 || true
+            exit 2
+          fi
+
+          echo 'Remote Desktop Commander did not reach Device ready state.' >&2
+          systemctl --no-pager --full status "$unit" | sed -n '1,14p' || true
+          journalctl -u "$unit" --since '-2 minutes' --no-pager \
+            | grep -E 'Starting MCP Device|Connected to (Desktop Commander|Remote) MCP|Device ready|Device startup failed|Suggested solution|Shutting down device|Main process exited|Failed with result' \
+            | tail -40 || true
+          exit 1
           REMOTE
 
       - name: Remove SSH key
