@@ -81,6 +81,20 @@
           <button class="button primary" type="submit">Add person</button>
         </form>
         <div id="peopleList" class="record-list" aria-live="polite"></div>
+        <div class="people-structure">
+          <form id="teamForm" class="quick-form">
+            <label>Team <input id="teamName" required placeholder="Core team" /></label>
+            <label>Purpose <input id="teamPurpose" placeholder="What is this team responsible for?" /></label>
+            <button class="button primary" type="submit">Add team</button>
+          </form>
+          <form id="assignmentForm" class="quick-form assignment-form">
+            <label>Person <select id="assignmentPerson" required><option value="">Choose person</option></select></label>
+            <label>Team <select id="assignmentTeam" required><option value="">Choose team</option></select></label>
+            <label>Role <input id="assignmentRole" required placeholder="Lead, builder, steward..." /></label>
+            <button class="button primary" type="submit">Assign role</button>
+          </form>
+          <div id="teamList" class="team-list" aria-live="polite"></div>
+        </div>
       </section>
 
       <section id="now" class="workspace-section panel" aria-labelledby="nowTitle">

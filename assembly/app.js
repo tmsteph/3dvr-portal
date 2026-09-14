@@ -97,6 +97,61 @@ function renderPeople() {
   }
 }
 
+function personName(id) {
+  return state.people.find(item => item.id === id)?.name || 'Unknown person';
+}
+
+
+function renderTeams() {
+  const list = $('teamList');
+  const personSelect = $('assignmentPerson');
+  const teamSelect = $('assignmentTeam');
+  list.replaceChildren();
+  personSelect.replaceChildren(new Option('Choose person', ''));
+  teamSelect.replaceChildren(new Option('Choose team', ''));
+
+  for (const person of state.people) personSelect.append(new Option(person.name, person.id));
+  for (const team of state.teams) teamSelect.append(new Option(team.name, team.id));
+
+  if (!state.teams.length) {
+    list.append(emptyMessage('No teams yet. Create one when the Assembly needs a smaller working group.'));
+    return;
+  }
+
+  for (const team of state.teams) {
+    const card = document.createElement('article');
+    card.className = 'team-card';
+    const head = document.createElement('div');
+    head.className = 'team-card__head';
+    const copy = document.createElement('div');
+    const title = document.createElement('strong');
+    const purpose = document.createElement('span');
+    title.textContent = team.name;
+    purpose.textContent = team.purpose || 'Purpose not set';
+    copy.append(title, purpose);
+    head.append(copy, makeButton('Remove team', 'remove-team', team.id));
+    card.append(head);
+
+    const assignments = state.assignments.filter(item => item.teamId === team.id);
+    const roles = document.createElement('div');
+    roles.className = 'team-roles';
+    if (!assignments.length) {
+      roles.append(emptyMessage('No roles assigned yet.'));
+    } else {
+      for (const assignment of assignments) {
+        const row = document.createElement('div');
+        row.className = 'team-role';
+        const label = document.createElement('span');
+        label.textContent = `${personName(assignment.personId)} · ${assignment.role}`;
+        row.append(label, makeButton('Remove', 'remove-assignment', assignment.id));
+        roles.append(row);
+      }
+    }
+    card.append(roles);
+    list.append(card);
+  }
+}
+
 function renderInitiatives() {
   const list = $('initiativeList');
   const select = $('commitmentInitiative');
@@ -237,6 +292,7 @@ function render() {
   $('decisionCount').textContent = state.decisions.filter(item => !item.done).length;
   $('needCount').textContent = state.needs.filter(item => !item.done).length;
   renderPeople();
+  renderTeams();
   renderInitiatives();
   renderWork();
   renderDecisions();
@@ -255,6 +311,27 @@ $('personForm').addEventListener('submit', event => {
   const name = clean($('personName').value);
   if (!name) return;
   state.people.push({ id: uid(), name, role: clean($('personRole').value), createdAt: Date.now() });
+  event.currentTarget.reset();
+  save();
+});
+
+$('teamForm').addEventListener('submit', event => {
+  event.preventDefault();
+  const name = clean($('teamName').value);
+  if (!name) return;
+  state.teams.push({ id: uid(), name, purpose: clean($('teamPurpose').value), createdAt: Date.now() });
+  event.currentTarget.reset();
+  save();
+});
+
+$('assignmentForm').addEventListener('submit', event => {
+  event.preventDefault();
+  const personId = $('assignmentPerson').value;
+  const teamId = $('assignmentTeam').value;
+  const role = clean($('assignmentRole').value);
+  if (!personId || !teamId || !role) return;
+  const duplicate = state.assignments.some(item => item.personId === personId && item.teamId === teamId && item.role.toLowerCase() === role.toLowerCase());
+  if (!duplicate) state.assignments.push({ id: uid(), personId, teamId, role, createdAt: Date.now() });
   event.currentTarget.reset();
   save();
 });
@@ -318,7 +395,15 @@ document.addEventListener('click', event => {
   const button = event.target.closest('[data-action]');
   if (!button) return;
   const { action, id } = button.dataset;
-  if (action === 'remove-person') state.people = state.people.filter(item => item.id !== id);
+  if (action === 'remove-person') {
+    state.people = state.people.filter(item => item.id !== id);
+    state.assignments = state.assignments.filter(item => item.personId !== id);
+  }
+  if (action === 'remove-team') {
+    state.teams = state.teams.filter(item => item.id !== id);
+    state.assignments = state.assignments.filter(item => item.teamId !== id);
+  }
+  if (action === 'remove-assignment') state.assignments = state.assignments.filter(item => item.id !== id);
   if (action === 'complete-commitment') state.commitments = state.commitments.map(item => item.id === id ? { ...item, done: true, doneAt: Date.now() } : item);
   if (action === 'resolve-need') state.needs = state.needs.map(item => item.id === id ? { ...item, done: true, doneAt: Date.now() } : item);
   save();
