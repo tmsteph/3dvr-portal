@@ -18,9 +18,27 @@
       <p class="lead">A passkey-protected break-glass layer for root credentials.</p>
     </header>
 
-    <section class="status-card">
-      <span class="status-dot attention" aria-hidden="true"></span>
-      <div><strong>Architecture approved · implementation gated</strong><p>We will not ship a half-working master-password vault. The local passkey ceremony must be reviewed end to end before real secrets are entered.</p></div>
+    <section class="status-card" id="vaultStatusCard">
+      <span class="status-dot attention" id="vaultStatusDot" aria-hidden="true"></span>
+      <div><strong id="vaultStatusTitle">Checking this device…</strong><p id="vaultStatusText">No real credential will be requested until you choose to enroll a recovery passkey.</p></div>
+    </section>
+
+    <section class="card readiness" aria-labelledby="readiness-title">
+      <div class="section-head"><div><p class="eyebrow">Device readiness</p><h2 id="readiness-title">Can this device protect the vault?</h2></div><button class="secondary" id="refreshReadiness" type="button">Check again</button></div>
+      <div class="check-list" id="readinessChecks" aria-live="polite"></div>
+      <p class="note">PRF support can only be confirmed during a WebAuthn credential ceremony. The check below never asks for or stores your Bitwarden password.</p>
+    </section>
+
+    <section class="card ceremony" aria-labelledby="ceremony-title">
+      <p class="eyebrow">Safe dry run</p>
+      <h2 id="ceremony-title">Prove the passkey → encryption path first</h2>
+      <p>Enroll a dedicated recovery passkey with no secret attached. Then run an end-to-end self-test using throwaway text. Success proves the authenticator PRF can derive a local AES-256-GCM key without giving 3DVR or an agent the key material.</p>
+      <div class="actions">
+        <button class="primary" id="enrollPasskey" type="button">Enroll recovery passkey</button>
+        <button class="secondary" id="runSelfTest" type="button" disabled>Run encrypted self-test</button>
+        <button class="ghost" id="forgetEnrollment" type="button" disabled>Forget local metadata</button>
+      </div>
+      <p class="result" id="ceremonyResult" aria-live="polite"></p>
     </section>
 
     <section class="grid">
@@ -43,5 +61,6 @@
       <p>The target is any two of: trusted passkey/device, offline recovery factor, and trusted-person recovery factor. No single server or agent should ever be enough.</p>
     </section>
   </main>
+  <script type="module" src="/recovery-vault/app.js"></script>
 </body>
 </html>
