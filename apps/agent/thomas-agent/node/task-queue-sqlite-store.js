@@ -112,6 +112,24 @@ function renewClaim(id, claimToken, expiresAt, options = {}) {
   `).run(expiresAt, ownerAlias(options), String(id), claimToken).changes === 1);
 }
 
+function createClaimRenewer(id, claimToken, options = {}) {
+  const db = openDatabase(options);
+  const statement = db.prepare(`
+    UPDATE tasks SET claim_expires_at = ?
+    WHERE owner_alias = ? AND id = ? AND claim_token = ? AND status = 'running'
+  `);
+  const alias = ownerAlias(options);
+  const taskId = String(id);
+  return {
+    renew(expiresAt) {
+      return statement.run(expiresAt, alias, taskId, claimToken).changes === 1;
+    },
+    close() {
+      db.close();
+    },
+  };
+}
+
 function readTask(id, options = {}) {
   return withDatabase(options, (db) => parseRecord(db.prepare(`
     SELECT record_json, source, claim_expires_at FROM tasks WHERE owner_alias = ? AND id = ?
@@ -190,6 +208,7 @@ function finishTask(id, claimToken, record, options = {}) {
 
 module.exports = {
   claimTask,
+  createClaimRenewer,
   databasePath,
   finishTask,
   importTask,

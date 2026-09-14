@@ -333,11 +333,13 @@ async function runQueuedTask(record, options = {}) {
   }
 
   let renewalTimer;
+  let claimRenewer;
   if (claimed.claimToken) {
+    claimRenewer = sqliteQueue().createClaimRenewer(claimed.id, claimed.claimToken, options);
     const ttlMs = options.leaseTtlMs || DEFAULT_LEASE_TTL_MS;
     renewalTimer = setInterval(() => {
       try {
-        sqliteQueue().renewClaim(claimed.id, claimed.claimToken, Date.now() + ttlMs, options);
+        claimRenewer.renew(Date.now() + ttlMs);
       } catch {
         // A later heartbeat or the token-checked terminal write can recover;
         // never let a transient renewal error crash the worker process.
@@ -376,6 +378,7 @@ async function runQueuedTask(record, options = {}) {
     return { ok: false, error: message };
   } finally {
     if (renewalTimer) clearInterval(renewalTimer);
+    claimRenewer?.close();
     if (lease) await releaseLease(`remote-task:${record.id}`, lease.lease?.token, options).catch(() => {});
   }
 }
