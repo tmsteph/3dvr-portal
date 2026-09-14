@@ -2,11 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ASSEMBLY_FORMAT,
+  ASSEMBLY_POLICY_ID,
   ASSEMBLY_VERSION,
   createAssemblySnapshot,
   normalizeAssemblyState,
   parseAssemblySnapshot,
 } from '../assembly/data.js';
+import { POSITIVE_SUM_KERNEL_VERSION, POSITIVE_SUM_LOOP } from '../src/kernel/positiveSum.js';
 
 test('Assembly snapshots round-trip through the portable format', () => {
   const state = {
@@ -24,6 +26,9 @@ test('Assembly snapshots round-trip through the portable format', () => {
   assert.equal(snapshot.format, ASSEMBLY_FORMAT);
   assert.equal(snapshot.version, ASSEMBLY_VERSION);
   assert.equal(snapshot.exportedAt, '2026-09-14T00:00:00.000Z');
+  assert.equal(snapshot.kernelPolicy.id, ASSEMBLY_POLICY_ID);
+  assert.equal(snapshot.kernelPolicy.version, POSITIVE_SUM_KERNEL_VERSION);
+  assert.deepEqual(snapshot.kernelPolicy.loop, [...POSITIVE_SUM_LOOP]);
   const restored = parseAssemblySnapshot(JSON.stringify(snapshot));
   assert.deepEqual(restored, normalizeAssemblyState(state));
   assert.equal(restored.decisions[0].resolution, 'Friday');
