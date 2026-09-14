@@ -114,11 +114,20 @@ export function ingestMarketPulseCapsuleCandidates(state = {}, payload = {}) {
       ...current,
       priorityScore: candidateExperiment.priorityScore,
       capsule: {
-        ...candidateExperiment.capsule,
         ...(current.capsule || {}),
+        ...candidateExperiment.capsule,
         sourceId: candidateExperiment.id,
+        status: current.capsule?.status || 'queued',
         priorityScore: candidateExperiment.priorityScore,
         updatedAt: candidateExperiment.capsule.updatedAt || current.capsule?.updatedAt,
+        budgetCapCents: 0,
+        policy: {
+          ...(current.capsule?.policy || {}),
+          ...(candidateExperiment.capsule.policy || {}),
+          maxAutomatedSpendCents: 0,
+          externalWrites: 'approval-required',
+          irreversibleActions: 'approval-required',
+        },
       },
       marketPulse: candidateExperiment.marketPulse,
     });
