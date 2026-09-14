@@ -1,6 +1,7 @@
 name: OVH Manager Target Status
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -11,7 +12,7 @@ permissions:
 
 jobs:
   inspect:
-    if: github.event.head_commit.message == 'Read OVH manager target status'
+    if: github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'Read OVH manager target status'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
