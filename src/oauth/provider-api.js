@@ -448,7 +448,7 @@ function createGoogleProvider(config = process.env) {
         redirect_uri: redirectUri,
         response_type: 'code',
         access_type: 'offline',
-        include_granted_scopes: 'true',
+        include_granted_scopes: (scopeKey === 'gmail-send' || scopeKey === 'calendar-gmail-send') ? 'false' : 'true',
         code_challenge: sha256Base64Url(verifier),
         code_challenge_method: 'S256',
         state,
