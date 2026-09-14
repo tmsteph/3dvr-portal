@@ -1,10 +1,11 @@
+import { evaluatePositiveSum } from '../kernel/positiveSum.js';
 import { normalizeOpportunitySearchMode } from '../money/scoring.js';
 
 // Browser- and Node-safe Opportunity Engine records.
 // External source connectors may add DemandSignals later, but every signal must
 // retain its provenance and policy state before it can become actionable.
 
-export const OPPORTUNITY_ENGINE_SCHEMA_VERSION = 3;
+export const OPPORTUNITY_ENGINE_SCHEMA_VERSION = 4;
 export const OPPORTUNITY_ENGINE_STORAGE_KEY = '3dvr.money-printer.opportunity-engine.v1';
 
 const URGENCY_WEIGHTS = {
@@ -117,6 +118,7 @@ export function scoreOpportunityDimensions(cluster = {}, now = new Date()) {
   const signals = Array.isArray(cluster.signals) ? cluster.signals : [];
   const primary = signals[0] || cluster;
   const searchMode = normalizeOpportunitySearchMode(cluster.searchMode || primary.searchMode);
+  const positiveSum = evaluatePositiveSum(cluster);
   const urgencyRaw = URGENCY_WEIGHTS[text(primary.urgency, 'medium').toLowerCase()] || URGENCY_WEIGHTS.medium;
   const confidenceRaw = Math.min(25, number(primary.confidence) / 4);
   const evidenceRaw = text(primary.buyerWords).length >= 12 ? 15 : 0;
@@ -143,14 +145,24 @@ export function scoreOpportunityDimensions(cluster = {}, now = new Date()) {
     portfolio: { actionability: 0.4, profit: 0.3, alignment: 0.15, fulfillment: 0.15 }
   };
   const blend = blends[searchMode];
-  const priorityScore = expired ? 0 : clampScore(
+  const economicPriorityScore = expired ? 0 : clampScore(
     actionabilityScore * blend.actionability
       + profitScore * blend.profit
       + alignmentScore * blend.alignment
       + fulfillmentScore * blend.fulfillment,
     0
   );
-  return { searchMode, actionabilityScore, profitScore, alignmentScore, fulfillmentScore, priorityScore };
+  const priorityScore = positiveSum.positiveSumEligible ? economicPriorityScore : 0;
+  return {
+    searchMode,
+    actionabilityScore,
+    profitScore,
+    alignmentScore,
+    fulfillmentScore,
+    economicPriorityScore,
+    priorityScore,
+    ...positiveSum
+  };
 }
 
 export function scoreOpportunityCluster(cluster = {}, now = new Date()) {
@@ -161,6 +173,7 @@ export function createOpportunityCluster(input = {}, now = new Date()) {
   const signals = (Array.isArray(input.signals) && input.signals.length ? input.signals : [input])
     .map(signal => createDemandSignal(signal, now));
   const primary = signals[0];
+  const policy = evaluatePositiveSum(input);
   const cluster = {
     schemaVersion: OPPORTUNITY_ENGINE_SCHEMA_VERSION,
     id: text(input.id) || makeId('opportunity'),
@@ -172,6 +185,7 @@ export function createOpportunityCluster(input = {}, now = new Date()) {
     alignmentScore: clampScore(input.alignmentScore ?? primary.alignmentScore, 50),
     fulfillmentScore: clampScore(input.fulfillmentScore ?? primary.fulfillmentScore, list(primary.skills).length ? 70 : 55),
     ...(Number.isFinite(Number(input.profitScore ?? primary.profitScore)) ? { profitScore: clampScore(input.profitScore ?? primary.profitScore) } : {}),
+    ...policy,
     signals,
     links: normalizeOpportunityLinks(input),
     suggestedResponse: text(input.suggestedResponse, primary.suggestedResponse),
@@ -247,6 +261,7 @@ export function sortOpportunityClusters(opportunities = [], now = new Date()) {
   return [...opportunities]
     .map(opportunity => createOpportunityCluster(opportunity, now))
     .sort((left, right) => {
+      if (left.positiveSumEligible !== right.positiveSumEligible) return left.positiveSumEligible ? -1 : 1;
       const leftStatus = statusOrder[left.status] ?? 3;
       const rightStatus = statusOrder[right.status] ?? 3;
       if (leftStatus !== rightStatus) return leftStatus - rightStatus;
