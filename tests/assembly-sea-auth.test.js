@@ -109,9 +109,9 @@ test('verified principal still needs an active grant', async () => {
     maxAgeMs: 60_000,
     grants: [],
   });
-  assert.deepEqual(denied.authorization, undefined);
   assert.equal(denied.ok, false);
   assert.equal(denied.reason, 'no-active-grant');
+  assert.deepEqual(denied.authorization, { allowed: false, reason: 'no-active-grant' });
 });
 
 test('wrong origin, expired proof, and tampered signature are rejected', async () => {
