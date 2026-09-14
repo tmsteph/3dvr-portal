@@ -50,6 +50,12 @@ function firstPriceCents(value = '') {
   return Number.isFinite(amount) ? Math.round(amount * 100) : 0;
 }
 
+function capsuleStatusForExperiment(experiment = {}, fallback = 'queued') {
+  if (experiment.status === 'Killed') return 'killed';
+  if (['Revenue', 'Scaling'].includes(experiment.status)) return 'won';
+  return fallback;
+}
+
 export function normalizeVentureCapsule(input = {}, now = new Date()) {
   const createdAt = timestamp(input.createdAt, now.toISOString());
   const expiresAt = timestamp(input.expiresAt, addDays(new Date(createdAt), 7));
@@ -116,7 +122,8 @@ export function ensureVentureCapsule(experiment = {}, now = new Date()) {
   if (experiment.capsule) {
     return normalizeVentureCapsule({
       ...experiment.capsule,
-      sourceId: experiment.capsule.sourceId || experiment.id
+      sourceId: experiment.capsule.sourceId || experiment.id,
+      status: capsuleStatusForExperiment(experiment, experiment.capsule.status)
     }, now);
   }
   return normalizeVentureCapsule({
@@ -130,7 +137,7 @@ export function ensureVentureCapsule(experiment = {}, now = new Date()) {
     successCondition: 'Produce paid demand or a strong buyer commitment before expiration.',
     killCondition: 'Kill after the declared validation threshold fails or the capsule expires.',
     priorityScore: experiment.priorityScore || 50,
-    status: experiment.status === 'Killed' ? 'killed' : 'queued',
+    status: capsuleStatusForExperiment(experiment),
     createdAt: experiment.createdAt,
     updatedAt: experiment.updatedAt,
     expiresAt: experiment.expiresAt || addDays(now, 7)
