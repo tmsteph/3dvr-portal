@@ -89,7 +89,9 @@ function sameGrant(a, b) {
     a.profile === b.profile &&
     a.issuedBy === b.issuedBy &&
     a.sourceType === b.sourceType &&
-    a.sourceId === b.sourceId;
+    a.sourceId === b.sourceId &&
+    a.grantedAt === b.grantedAt &&
+    a.revokedAt === b.revokedAt;
 }
 
 export async function createWorkspaceGrant(pool, input = {}) {
