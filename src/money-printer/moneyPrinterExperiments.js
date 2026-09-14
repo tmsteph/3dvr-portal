@@ -39,8 +39,9 @@ export function generateTinyMvpPlan(idea = null) {
 export function promoteIdeaToExperiment(idea) {
   if (!idea) return null;
   const validationTest = generateValidationTest(idea);
+  const experimentId = `experiment-${slugify(idea.business_name)}`;
   return {
-    id: `experiment-${slugify(idea.business_name)}`,
+    id: experimentId,
     name: idea.business_name,
     customer: idea.target_customer,
     pain: idea.customer_pain,
@@ -50,6 +51,7 @@ export function promoteIdeaToExperiment(idea) {
     status: 'Idea',
     priorityScore: Number(idea.total_score || 50),
     capsule: createVentureCapsuleFromIdea(idea, {
+      sourceId: experimentId,
       successCondition: validationTest?.success_metric,
       killCondition: validationTest?.failure_metric
     }),
