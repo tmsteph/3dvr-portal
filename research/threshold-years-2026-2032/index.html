@@ -4,9 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>The Threshold Years | 3DVR Research</title>
-  <meta name="description" content="A live visual dashboard showing where we are in the 2026–2032 Threshold Years forecast cycle.">
+  <meta name="description" content="A live visual dashboard showing where we are in the 2026–2032 Threshold Years forecast cycle, with zoomable historical and future context.">
   <link rel="stylesheet" href="../styles.css">
   <link rel="stylesheet" href="./threshold.css">
+  <link rel="stylesheet" href="./long-cycle.css">
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body class="threshold-page">
@@ -20,7 +21,7 @@
     </nav>
 
     <header class="threshold-hero">
-      <p class="threshold-eyebrow">Live 2026–2032 scenario map</p>
+      <p class="threshold-eyebrow">Live civilizational cycle map</p>
       <h1>The Threshold Years</h1>
       <div class="threshold-nowline">
         <span class="threshold-live-dot" aria-hidden="true"></span>
@@ -119,12 +120,34 @@
       <button type="button" class="threshold-phase" data-phase-card="2032" data-phase-select="2032"><span class="threshold-phase__year">2032</span><h3>Localization</h3><p>The revolution comes home.</p><span class="threshold-phase__action">Explore →</span></button>
     </section>
 
+    <section class="long-cycle" data-long-cycle aria-label="Zoomable historical and future cycle timeline">
+      <div class="long-cycle__head">
+        <div>
+          <div class="threshold-card__label">Zoom the clock</div>
+          <h2 data-long-title>The transition in human time</h2>
+          <p data-long-note></p>
+        </div>
+      </div>
+
+      <div class="long-cycle__scales" aria-label="Timeline scale">
+        <button type="button" data-cycle-scale="modern">2020 → 2068</button>
+        <button type="button" data-cycle-scale="century">100 years</button>
+        <button type="button" data-cycle-scale="millennium">1,000 years</button>
+        <button type="button" data-cycle-scale="deep">10,000 years</button>
+        <button type="button" data-cycle-scale="great">Great Year</button>
+      </div>
+
+      <div class="long-cycle-strip" data-long-strip aria-label="Timeline markers"></div>
+      <div class="long-cycle-detail" data-long-detail aria-live="polite"></div>
+    </section>
+
     <footer class="threshold-note">
-      Planetary positions are astronomical facts; the meanings shown here are astrological interpretations, not established causal science. <a href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/research/threshold-years-2026-2032.md" target="_blank" rel="noopener">Read the reasoning and sources.</a>
+      Planetary positions and Earth’s axial precession are astronomical facts; the astrological meanings and civilizational-cycle readings shown here are interpretive frameworks, not established causal science. <a href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/research/threshold-years-2026-2032.md" target="_blank" rel="noopener">Read the reasoning and sources.</a>
     </footer>
   </main>
 
   <script src="./threshold.js"></script>
+  <script src="./long-cycle.js"></script>
   <script defer src="/issue-launcher.js"></script>
 </body>
 </html>
