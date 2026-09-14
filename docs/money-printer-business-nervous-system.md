@@ -126,11 +126,39 @@ Autonomy is granted per capability and channel, not to the entire agent at once:
 
 Promotion up the ladder requires successful outcomes and clean policy history. A policy violation, unexpected spend, suppression failure, or material complaint automatically suspends the affected capability.
 
-The intended user promise is concrete:
+The intended user promise has two equally valid forms:
 
 > “I know audio, websites, and event production. Find people I can genuinely help this week.”
 
-Opportunity Engine should translate a person's real abilities, time, location, and constraints into qualified demand and an organized path to fulfillment—not manufacture generic business ideas.
+> “Find a profitable unmet need, then figure out the cheapest trustworthy way to supply it.”
+
+Opportunity Engine should translate a person's real abilities, interests, time, location, and goals into qualified demand **when alignment matters**, while also allowing bounded profit-first discovery where personal interest is not a prerequisite. It should discover evidence-backed demand, not manufacture generic business ideas.
+
+### Search modes
+
+Every scan declares one of three modes instead of blending motivations invisibly:
+
+- **Aligned:** optimize for demand plus interest/goal/skill fit and long-term compounding value.
+- **Profit:** optimize for risk-adjusted expected contribution margin, time to revenue, capital efficiency, repeatability, and fulfillment confidence.
+- **Portfolio:** allocate capacity across both; this is the preferred default so mission and cash generation can reinforce each other.
+
+Keep `alignmentScore` and `profitScore` as separate fields. A single opaque score makes it impossible to tell whether an opportunity is attractive because Thomas cares about it or because the economics are simply strong.
+
+### Venture capsules
+
+A sufficiently strong opportunity cluster may instantiate a small **Venture Capsule** rather than forcing every experiment into an existing business line. A capsule is intentionally disposable and contains:
+
+- hypothesis and target buyer
+- evidence bundle
+- offer and price
+- supply/fulfillment plan
+- acquisition channel
+- budget cap
+- success and kill conditions
+- experiment owner and expiration
+- outcome and reusable learning
+
+The system can create many capsules over time. Most should die cheaply. Winners earn deeper automation, brand investment, distribution, and durable product status. This is how the kernel supports effectively unlimited startups without turning every idea into a permanent company.
 
 ## Channel policy
 

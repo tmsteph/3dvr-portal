@@ -66,6 +66,37 @@ Use a small operational vocabulary across products:
 
 Product-specific statuses may be richer, but they must map back to one of these operational states.
 
+## Opportunity kernel
+
+Opportunity discovery is a kernel primitive, not a feature tied to one industry, product, or founder skill. The system should treat the market as an open-ended search space and continuously look for gaps where real demand can be matched with feasible supply.
+
+The canonical opportunity loop is:
+
+> Sense demand → cluster evidence → match supply → estimate economics → run the smallest test → measure → scale or kill → learn
+
+The kernel supports three search modes:
+
+- **Aligned** — prefer opportunities that compound the owner's interests, goals, skills, relationships, reputation, or long-term assets.
+- **Profit** — personal interest is optional; rank lawful, policy-compliant opportunities by risk-adjusted expected profit, speed, capital required, repeatability, and fulfillment confidence.
+- **Portfolio** — the default operating mode; keep most attention on aligned compounding work while reserving bounded capacity for unusually strong profit-only experiments.
+
+"Unlimited opportunities" does not mean unlimited spend or reckless action. It means the search space is not hard-coded. Any new demand cluster may become a candidate venture if the system can identify a reachable buyer, a credible supply path, healthy enough unit economics, and a cheap falsifiable test.
+
+Supply is broader than the founder's own labor. It can include software, agents, existing 3DVR capabilities, contractors, vendors, local operators, reusable digital assets, or a newly assembled workflow. The kernel should ask both **"What can we sell?"** and **"What supply can we assemble to satisfy what people already want?"**
+
+Every candidate venture should carry at least:
+
+- demand evidence and confidence
+- target buyer and reachable channel
+- proposed supply path and fulfillment confidence
+- price, estimated cost, contribution margin, and time to first revenue
+- alignment score and profit score kept separately
+- smallest test, budget cap, success condition, and kill condition
+- policy/risk state and required approvals
+- learning links to prior related experiments
+
+The operator must never hide a profitable candidate merely because it is outside the founder's current interests. Likewise, it must never let an attractive profit estimate bypass safety, legality, consent, approval, or budget boundaries.
+
 ## Opportunity lifecycle
 
 DemandSignal → Opportunity → Proposal/Offer → Won/Lost → Project → Delivery → Payment → Outcome → Reputation/Learning
