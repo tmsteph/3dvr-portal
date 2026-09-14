@@ -60,8 +60,12 @@ jobs:
           opts=(-i /tmp/3dvr-do-key -o BatchMode=yes -o UserKnownHostsFile=/tmp/3dvr-known-hosts -o StrictHostKeyChecking=yes -o ConnectTimeout=10)
           ssh "${opts[@]}" "$DO_USER@$DO_HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
-          npx_bin="$(command -v npx || true)"
-          [ -n "$npx_bin" ] || { echo 'npx is required for Remote Desktop Commander.' >&2; exit 1; }
+          node_bin=/opt/node-v22/bin/node
+          dc_entry=/usr/local/lib/node_modules/@wonderwhy-er/desktop-commander/dist/index.js
+          [ -x "$node_bin" ] || { echo 'Managed Node 22 runtime is unavailable.' >&2; exit 1; }
+          [ -f "$dc_entry" ] || { echo 'Desktop Commander global install is unavailable.' >&2; exit 1; }
+          "$node_bin" -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 12)) process.exit(1)'
+
           cat >/etc/systemd/system/desktop-commander-remote.service <<UNIT
           [Unit]
           Description=Remote Desktop Commander device agent
@@ -76,8 +80,8 @@ jobs:
           Group=root
           WorkingDirectory=/root
           Environment=HOME=/root
-          Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-          ExecStart=$npx_bin -y @wonderwhy-er/desktop-commander@latest remote
+          Environment=PATH=/opt/node-v22/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          ExecStart=$node_bin $dc_entry remote --persist-session
           Restart=on-failure
           RestartSec=10
           KillSignal=SIGINT
