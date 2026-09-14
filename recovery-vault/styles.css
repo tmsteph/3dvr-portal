@@ -1,0 +1,17 @@
+:root { color-scheme: dark; }
+body { background: #050a12; }
+.vault-shell { width: min(980px, calc(100% - 28px)); margin: 0 auto; padding: 24px 0 64px; }
+.hero { padding: 18px 4px 22px; }
+.back { display: inline-block; margin-bottom: 18px; color: #9fb0c8; }
+.eyebrow { margin: 0 0 8px; color: #8fa6c4; text-transform: uppercase; letter-spacing: .12em; font-size: .74rem; }
+h1 { margin: 0 0 10px; font-size: clamp(2rem, 7vw, 4rem); line-height: 1; }
+.lead { max-width: 720px; color: #c8d3e2; font-size: 1.05rem; }
+.status-card, .card { border: 1px solid rgba(159,176,200,.18); background: rgba(9,18,31,.82); border-radius: 18px; padding: 20px; }
+.status-card { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 18px; }
+.status-card p, .card p { color: #aebed3; line-height: 1.55; }
+.status-dot { width: 11px; height: 11px; border-radius: 999px; flex: 0 0 auto; margin-top: 5px; background: #d8a23d; box-shadow: 0 0 18px rgba(216,162,61,.4); }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
+.card h2 { margin: 0 0 8px; font-size: 1.15rem; }
+.rules, .roadmap { margin-top: 14px; }
+.primary-link { display: inline-block; margin-top: 10px; padding: 10px 14px; border-radius: 10px; background: #e6edf7; color: #0b1220; font-weight: 700; text-decoration: none; }
+@media (max-width: 700px) { .grid { grid-template-columns: 1fr; } .vault-shell { width: min(100% - 20px, 980px); padding-top: 14px; } .card, .status-card { border-radius: 14px; padding: 16px; } }
