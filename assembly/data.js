@@ -12,6 +12,7 @@ export function emptyAssemblyState() {
     commitments: [],
     decisions: [],
     needs: [],
+    offers: [],
   };
 }
 
@@ -86,6 +87,18 @@ function normalizeNeed(item) {
     id: text(item.id),
     text: text(item.text),
     owner: text(item.owner),
+    matchedOfferId: text(item.matchedOfferId),
+    done: Boolean(item.done),
+    createdAt: timestamp(item.createdAt),
+    doneAt: item.doneAt == null ? null : timestamp(item.doneAt),
+  };
+}
+
+function normalizeOffer(item) {
+  return {
+    id: text(item.id),
+    text: text(item.text),
+    owner: text(item.owner),
     done: Boolean(item.done),
     createdAt: timestamp(item.createdAt),
     doneAt: item.doneAt == null ? null : timestamp(item.doneAt),
@@ -103,7 +116,7 @@ export function normalizeAssemblyState(value) {
     .map(normalizeAssignment)
     .filter(item => item.personId && item.teamId && item.role)
     .filter(item => personIds.has(item.personId) && teamIds.has(item.teamId));
-  return {
+  const normalized = {
     identity: {
       name: text(identity.name),
       purpose: text(identity.purpose),
@@ -114,8 +127,15 @@ export function normalizeAssemblyState(value) {
     initiatives: records(source.initiatives).map(normalizeInitiative).filter(item => item.name),
     commitments: records(source.commitments).map(normalizeCommitment).filter(item => item.text),
     decisions: records(source.decisions).map(normalizeDecision).filter(item => item.text),
-    needs: records(source.needs).map(normalizeNeed).filter(item => item.text),
+    offers: records(source.offers).map(normalizeOffer).filter(item => item.text),
+    needs: [],
   };
+  const offerIds = new Set(normalized.offers.map(item => item.id).filter(Boolean));
+  normalized.needs = records(source.needs)
+    .map(normalizeNeed)
+    .filter(item => item.text)
+    .map(item => item.matchedOfferId && !offerIds.has(item.matchedOfferId) ? { ...item, matchedOfferId: '' } : item);
+  return normalized;
 }
 
 export function createAssemblySnapshot(state, now = Date.now()) {
