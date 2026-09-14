@@ -26,7 +26,6 @@ function save() {
   render();
 }
 
-
 function workspaceSlug() {
   return (state.identity.name || 'assembly')
     .toLowerCase()
@@ -100,7 +99,6 @@ function renderPeople() {
 function personName(id) {
   return state.people.find(item => item.id === id)?.name || 'Unknown person';
 }
-
 
 function renderTeams() {
   const list = $('teamList');
@@ -181,7 +179,6 @@ function renderWork() {
       const detail = [item.owner, initiativeName(item.initiativeId), item.due].filter(Boolean).join(' · ') || 'Owner not set';
       return [item.text, detail];
     }],
-    ['needList', state.needs, 'No open needs.', 'resolve-need', item => [item.text, item.owner ? `Needed by: ${item.owner}` : 'Owner not set']],
   ];
 
   for (const [listId, records, emptyText, action, describe] of configs) {
@@ -205,6 +202,99 @@ function renderWork() {
       item.append(copy, makeButton('Done', action, record.id, 'record-action done'));
       list.append(item);
     }
+  }
+}
+
+function offerName(id) {
+  return state.offers.find(item => item.id === id)?.text || '';
+}
+
+function renderOffers() {
+  const list = $('offerList');
+  list.replaceChildren();
+  const open = state.offers.filter(item => !item.done);
+  if (!open.length) return list.append(emptyMessage('No active offers yet.'));
+
+  for (const offer of open) {
+    const item = document.createElement('article');
+    item.className = 'record offer-record';
+    const copy = document.createElement('div');
+    const title = document.createElement('strong');
+    const meta = document.createElement('span');
+    title.textContent = offer.text;
+    meta.textContent = offer.owner ? `Offered by: ${offer.owner}` : 'Provider not set';
+    copy.append(title, meta);
+    item.append(copy, makeButton('Close', 'close-offer', offer.id));
+    list.append(item);
+  }
+}
+
+function renderNeeds() {
+  const list = $('needList');
+  list.replaceChildren();
+  const openNeeds = state.needs.filter(item => !item.done);
+  const openOffers = state.offers.filter(item => !item.done);
+  if (!openNeeds.length) return list.append(emptyMessage('No open needs.'));
+
+  for (const need of openNeeds) {
+    const item = document.createElement('article');
+    item.className = 'record need-record';
+    const copy = document.createElement('div');
+    const title = document.createElement('strong');
+    const meta = document.createElement('span');
+    title.textContent = need.text;
+    meta.textContent = need.owner ? `Needed by: ${need.owner}` : 'Owner not set';
+    copy.append(title, meta);
+
+    const actions = document.createElement('div');
+    actions.className = 'need-actions';
+    if (openOffers.length) {
+      const form = document.createElement('form');
+      form.className = 'need-match-form';
+      form.dataset.needId = need.id;
+      const select = document.createElement('select');
+      select.name = 'offerId';
+      select.required = true;
+      select.setAttribute('aria-label', `Offer to match with ${need.text}`);
+      select.append(new Option('Match an offer…', ''));
+      for (const offer of openOffers) {
+        const label = offer.owner ? `${offer.text} · ${offer.owner}` : offer.text;
+        select.append(new Option(label, offer.id));
+      }
+      const button = document.createElement('button');
+      button.type = 'submit';
+      button.className = 'button primary';
+      button.textContent = 'Match';
+      form.append(select, button);
+      actions.append(form);
+    }
+    actions.append(makeButton('Resolve', 'resolve-need', need.id));
+    item.append(copy, actions);
+    list.append(item);
+  }
+}
+
+function renderSupportHistory() {
+  const list = $('supportHistoryList');
+  list.replaceChildren();
+  const resolved = state.needs
+    .filter(item => item.done)
+    .sort((a, b) => Number(b.doneAt || 0) - Number(a.doneAt || 0))
+    .slice(0, 12);
+  if (!resolved.length) return list.append(emptyMessage('Resolved needs will leave support receipts here.'));
+
+  for (const need of resolved) {
+    const item = document.createElement('article');
+    item.className = 'record support-receipt';
+    const copy = document.createElement('div');
+    const title = document.createElement('strong');
+    const meta = document.createElement('span');
+    title.textContent = need.text;
+    const matched = offerName(need.matchedOfferId);
+    meta.textContent = [need.owner ? `Needed by: ${need.owner}` : '', matched ? `Matched: ${matched}` : 'Resolved directly'].filter(Boolean).join(' · ');
+    copy.append(title, meta);
+    item.append(copy);
+    list.append(item);
   }
 }
 
@@ -295,6 +385,9 @@ function render() {
   renderTeams();
   renderInitiatives();
   renderWork();
+  renderNeeds();
+  renderOffers();
+  renderSupportHistory();
   renderDecisions();
   renderDecisionHistory();
   renderOutcomes();
@@ -370,20 +463,42 @@ $('needForm').addEventListener('submit', event => {
   event.preventDefault();
   const text = clean($('needText').value);
   if (!text) return;
-  state.needs.push({ id: uid(), text, owner: clean($('needOwner').value), done: false, createdAt: Date.now() });
+  state.needs.push({ id: uid(), text, owner: clean($('needOwner').value), matchedOfferId: '', done: false, createdAt: Date.now() });
+  event.currentTarget.reset();
+  save();
+});
+
+$('offerForm').addEventListener('submit', event => {
+  event.preventDefault();
+  const text = clean($('offerText').value);
+  if (!text) return;
+  state.offers.push({ id: uid(), text, owner: clean($('offerOwner').value), done: false, createdAt: Date.now() });
   event.currentTarget.reset();
   save();
 });
 
 document.addEventListener('submit', event => {
-  const form = event.target.closest('.decision-resolution-form');
-  if (!form) return;
+  const decisionForm = event.target.closest('.decision-resolution-form');
+  if (decisionForm) {
+    event.preventDefault();
+    const resolution = clean(decisionForm.elements.resolution.value);
+    if (!resolution) return;
+    const decisionId = decisionForm.dataset.decisionId;
+    state.decisions = state.decisions.map(item => item.id === decisionId
+      ? { ...item, resolution, done: true, doneAt: Date.now() }
+      : item);
+    save();
+    return;
+  }
+
+  const matchForm = event.target.closest('.need-match-form');
+  if (!matchForm) return;
   event.preventDefault();
-  const resolution = clean(form.elements.resolution.value);
-  if (!resolution) return;
-  const decisionId = form.dataset.decisionId;
-  state.decisions = state.decisions.map(item => item.id === decisionId
-    ? { ...item, resolution, done: true, doneAt: Date.now() }
+  const offerId = matchForm.elements.offerId.value;
+  if (!offerId) return;
+  const needId = matchForm.dataset.needId;
+  state.needs = state.needs.map(item => item.id === needId
+    ? { ...item, matchedOfferId: offerId, done: true, doneAt: Date.now() }
     : item);
   save();
 });
@@ -405,7 +520,8 @@ document.addEventListener('click', event => {
   }
   if (action === 'remove-assignment') state.assignments = state.assignments.filter(item => item.id !== id);
   if (action === 'complete-commitment') state.commitments = state.commitments.map(item => item.id === id ? { ...item, done: true, doneAt: Date.now() } : item);
-  if (action === 'resolve-need') state.needs = state.needs.map(item => item.id === id ? { ...item, done: true, doneAt: Date.now() } : item);
+  if (action === 'resolve-need') state.needs = state.needs.map(item => item.id === id ? { ...item, matchedOfferId: '', done: true, doneAt: Date.now() } : item);
+  if (action === 'close-offer') state.offers = state.offers.map(item => item.id === id ? { ...item, done: true, doneAt: Date.now() } : item);
   save();
 });
 

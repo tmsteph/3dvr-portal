@@ -4,11 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>3DVR Assembly</title>
-  <meta name="description" content="Organize people, commitments, decisions, needs, and outcomes around a shared purpose." />
+  <meta name="description" content="Organize people, commitments, decisions, needs, offers, and outcomes around a shared purpose." />
   <link rel="manifest" href="/app-manifests/assembly.webmanifest" />
   <meta name="theme-color" content="#07100f" />
   <link rel="stylesheet" href="../styles/global.css" />
   <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./support.css" />
   <script type="module" src="./app.js"></script>
   <script defer src="/pwa-install.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
@@ -143,16 +144,32 @@
 
       <section id="needs" class="workspace-section panel" aria-labelledby="needsTitle">
         <div class="section-copy">
-          <p class="eyebrow">Needs</p>
+          <p class="eyebrow">Needs + offers</p>
           <h2 id="needsTitle">What would unblock us?</h2>
-          <p>Make asks visible so another person can actually respond to them.</p>
+          <p>Make asks visible, surface what people can provide, and turn helpful matches into receipts.</p>
         </div>
-        <form id="needForm" class="quick-form">
-          <label>Need <input id="needText" required placeholder="A designer for the first prototype" /></label>
-          <label>Who needs it? <input id="needOwner" placeholder="Person or team" /></label>
-          <button class="button primary" type="submit">Add need</button>
-        </form>
-        <div id="needList" class="record-list" aria-live="polite"></div>
+        <div class="support-grid">
+          <div class="support-column">
+            <form id="needForm" class="quick-form support-form">
+              <label>Need <input id="needText" required placeholder="A designer for the first prototype" /></label>
+              <label>Who needs it? <input id="needOwner" placeholder="Person or team" /></label>
+              <button class="button primary" type="submit">Add need</button>
+            </form>
+            <div id="needList" class="record-list" aria-live="polite"></div>
+          </div>
+          <div class="support-column">
+            <form id="offerForm" class="quick-form support-form">
+              <label>Offer <input id="offerText" required placeholder="Design review, meeting room, spare laptop..." /></label>
+              <label>Who can provide it? <input id="offerOwner" placeholder="Person or team" /></label>
+              <button class="button primary" type="submit">Add offer</button>
+            </form>
+            <div id="offerList" class="record-list" aria-live="polite"></div>
+          </div>
+        </div>
+        <div class="support-history-block">
+          <p class="eyebrow">Support receipts</p>
+          <div id="supportHistoryList" class="record-list" aria-live="polite"></div>
+        </div>
       </section>
 
       <section class="principle">
