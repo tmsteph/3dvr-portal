@@ -1,6 +1,7 @@
 name: OVH Provider Access Audit
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -11,7 +12,7 @@ permissions:
 
 jobs:
   audit:
-    if: github.event.head_commit.message == 'Audit OVH provider access'
+    if: github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'Audit OVH provider access'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -92,6 +93,10 @@ jobs:
             if command -v "$cmd" >/dev/null 2>&1; then echo "$cmd=$(command -v "$cmd")"; else echo "$cmd=absent"; fi
           done
           echo '=== active browser processes ==='
-          pgrep -af 'chromium|chrome|agent-browser' | sed -E 's#--(password|token|secret|auth)[^ ]*#--redacted#g' || true
+          if pgrep -f 'chromium|chrome|agent-browser' >/dev/null 2>&1; then
+            echo 'browser_process=present'
+          else
+            echo 'browser_process=absent'
+          fi
           REMOTE
           rm -f /tmp/key
