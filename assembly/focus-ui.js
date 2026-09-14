@@ -1,5 +1,6 @@
 import './workspace-ui.js';
 import './invite-ui.js';
+import './access-ui.js';
 import { STORAGE_KEY, normalizeAssemblyState } from './data.js';
 import { deriveAssemblyFocus } from './focus.js';
 
