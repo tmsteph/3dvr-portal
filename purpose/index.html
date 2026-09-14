@@ -35,7 +35,7 @@
       <div class="panel-actions">
         <button class="button button--primary" type="button" data-start>Start My Purpose Map</button>
       </div>
-      <p class="privacy-note">Your answers stay on this device unless you choose to export, share, or create an account to save.</p>
+      <p class="privacy-note">Your answers stay on this device unless you sign in or choose to export or share them. Signed-in sync is encrypted to your account.</p>
     </section>
 
     <section class="stage-panel stage-panel--prompt" data-view="prompt" hidden aria-labelledby="promptTitle">
@@ -73,7 +73,7 @@
       <article class="purpose-map" data-map-output aria-live="polite"></article>
 
       <div class="save-panel" aria-label="Save options">
-        <p>Want to save this and come back later? Create a free 3DVR account to save your Purpose Map, sync across devices, and keep building.</p>
+        <p>Want to save this and come back later? Create a free 3DVR account to keep your Purpose Map encrypted, sync across devices, and let your private Alignment Profile personalize opportunity ranking.</p>
         <div class="save-actions">
           <a class="button button--primary" href="/sign-in.html?redirect=%2Fpurpose%2F" data-create-account>Create Account to Save</a>
           <button class="button button--quiet" type="button" data-device-save>Keep Using This Device</button>
@@ -109,7 +109,11 @@
     </section>
   </template>
 
-  <script type="module" src="/purpose/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="../auth-identity.js"></script>
+  <script type="module" src="/purpose/account-sync.js"></script>
   <script defer src="/issue-launcher.js"></script>
 </body>
 </html>
