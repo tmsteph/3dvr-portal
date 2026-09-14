@@ -10,10 +10,9 @@ function readWorkspace() {
   }
   const state = ensureWorkspaceIdentity(parsed);
   const previousId = parsed?.workspace?.id || '';
-  if (previousId !== state.workspace.id) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }
-  return state;
+  const created = previousId !== state.workspace.id;
+  if (created) localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  return { state, created };
 }
 
 function shortId(id) {
@@ -23,7 +22,15 @@ function shortId(id) {
 function renderWorkspaceTrust() {
   const note = document.querySelector('.privacy-note');
   if (!note) return;
-  const state = readWorkspace();
+  const { state, created } = readWorkspace();
+
+  // app.js may already hold pre-migration state in memory. Reload once after
+  // assigning an ID so its next save cannot overwrite the new workspace identity.
+  if (created) {
+    window.location.reload();
+    return;
+  }
+
   const principal = createLocalOwnerPrincipal(state.workspace.id);
   let status = document.getElementById('workspaceTrust');
   if (!status) {
