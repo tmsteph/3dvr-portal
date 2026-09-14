@@ -182,6 +182,12 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - If proot is missing, install it with `pkg install proot-distro` then `proot-distro install debian`.
 - If you need a specific script, route it through `scripts/playwright/run-in-linux.sh <npm-script-name>`.
 
+## Persistent Access Health
+- Before asking Thomas to reconnect UKG/UltiPro, Lighthouse, Google Messages, WhatsApp, Calendar, or another persistent authenticated service, read `docs/persistent-access-contract.md` and run `scripts/ops/persistent-access-health.sh`.
+- Treat its result as a starting diagnostic, then verify the target app's signed-in state. A reachable browser process is not proof of authentication.
+- Repair the failed layer without discarding the canonical OVH profile. Human re-pair/login is the last recovery step.
+- Time-off work uses the UKG/UltiPro request-off path. Do not substitute the TouchBase/UltiPro time clock.
+
 ## Browser Lane Writer Leases
 - OVH is the only home for persistent authenticated browser profiles; Hetzner and DigitalOcean must not launch replacement writers for them.
 - Before any action that changes browser state, acquire a lease with `sudo -n /usr/local/bin/3dvr-browser-lease acquire <lane> <owner>` on OVH.

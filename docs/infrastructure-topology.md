@@ -133,6 +133,10 @@ The three cloud servers should feel like one small resilient computer, with OVH 
 - workloads that can move without mystery dependencies,
 - phones, laptops, and RISC-V hardware joining as disposable edge/operator nodes rather than becoming single points of failure.
 
+## Persistent access contract — 2026-09-14
+
+Authenticated services must follow [`docs/persistent-access-contract.md`](./persistent-access-contract.md). Agents verify configured → reachable → operational → authenticated before asking Thomas to reconnect. Persistent browser sessions belong on OVH; restart the same profile before considering re-pair/login, and treat missing profile storage as an infrastructure fault rather than a reason to create a new profile.
+
 ## Browser writer lease update — 2026-09-08
 
 OVH currently exposes four persistent browser lanes: general `/config/chromium-profile` on CDP `9222`, Encore/UKG `/config/encore-chromium` on `9333`, messaging `/config/messaging-chromium` on `9444`, and Encore University `/config/encore-training-profile` on `9555`.
