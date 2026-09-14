@@ -1,3 +1,5 @@
+import { evaluatePositiveSum } from '../kernel/positiveSum.js';
+
 export const OPPORTUNITY_SEARCH_MODES = Object.freeze(['aligned', 'profit', 'portfolio']);
 
 const DEFAULT_WEIGHTS = Object.freeze({
@@ -41,8 +43,10 @@ export function normalizeOpportunitySearchMode(value = 'portfolio') {
 
 export function scoreOpportunity(opportunity = {}, weights = DEFAULT_WEIGHTS, searchMode = 'portfolio') {
   const mode = normalizeOpportunitySearchMode(searchMode || opportunity.searchMode);
+  const positiveSum = evaluatePositiveSum(opportunity);
   const normalized = {
     ...opportunity,
+    ...positiveSum,
     id: opportunity.id || toId(opportunity.title || opportunity.problem || 'opportunity'),
     title: opportunity.title || 'Untitled opportunity',
     problem: opportunity.problem || 'Pain point needs clarification',
@@ -83,12 +87,13 @@ export function scoreOpportunity(opportunity = {}, weights = DEFAULT_WEIGHTS, se
     fulfillment: normalized.fulfillmentScore
   };
   const blend = MODE_WEIGHTS[mode];
-  const score = roundScore(
+  const economicScore = roundScore(
     dimensions.market * blend.market
     + dimensions.profit * blend.profit
     + dimensions.alignment * blend.alignment
     + dimensions.fulfillment * blend.fulfillment
   );
+  const score = positiveSum.positiveSumEligible ? economicScore : 0;
 
   return {
     ...normalized,
@@ -97,6 +102,7 @@ export function scoreOpportunity(opportunity = {}, weights = DEFAULT_WEIGHTS, se
     profitScore: dimensions.profit,
     alignmentScore: dimensions.alignment,
     fulfillmentScore: dimensions.fulfillment,
+    economicScore,
     score
   };
 }
@@ -132,6 +138,11 @@ export function deriveOpportunityFromSignal(signal = {}, index = 0, market = 'fo
     competitionGap: Math.max(35, Math.min(85, 75 - Math.round(popularity * 0.25))),
     alignmentScore: clampScore(signal.alignmentScore, 50),
     fulfillmentScore: clampScore(signal.fulfillmentScore, 68),
+    agencyScore: clampScore(signal.agencyScore, 50),
+    sharedValueScore: clampScore(signal.sharedValueScore, 50),
+    opennessScore: clampScore(signal.opennessScore, 50),
+    harmRiskScore: clampScore(signal.harmRiskScore, 0),
+    lockInRiskScore: clampScore(signal.lockInRiskScore, 0),
     ...(Number.isFinite(Number(signal.profitScore)) ? { profitScore: clampScore(signal.profitScore) } : {}),
     evidence: [
       signal.source ? `${signal.source}: ${signal.title || 'signal'}` : title,
