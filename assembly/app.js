@@ -3,6 +3,7 @@ const STORAGE_KEY = '3dvr.assembly.v1';
 const emptyState = () => ({
   identity: { name: '', purpose: '' },
   people: [],
+  initiatives: [],
   commitments: [],
   decisions: [],
   needs: [],
@@ -18,7 +19,6 @@ function loadState() {
 }
 
 let state = loadState();
-
 const $ = id => document.getElementById(id);
 const clean = value => String(value || '').trim();
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -49,7 +49,6 @@ function renderPeople() {
   const list = $('peopleList');
   list.replaceChildren();
   if (!state.people.length) return list.append(emptyMessage('No people yet. Add the first person.'));
-
   for (const person of state.people) {
     const item = document.createElement('article');
     item.className = 'record';
@@ -64,9 +63,35 @@ function renderPeople() {
   }
 }
 
+function renderInitiatives() {
+  const list = $('initiativeList');
+  const select = $('commitmentInitiative');
+  list.replaceChildren();
+  select.replaceChildren(new Option('General', ''));
+  if (!state.initiatives.length) list.append(emptyMessage('No initiatives yet. Commitments can still live in General.'));
+  for (const initiative of state.initiatives) {
+    const chip = document.createElement('article');
+    chip.className = 'initiative-chip';
+    const name = document.createElement('strong');
+    const lead = document.createElement('span');
+    name.textContent = initiative.name;
+    lead.textContent = initiative.lead ? `Lead: ${initiative.lead}` : 'Lead not set';
+    chip.append(name, lead);
+    list.append(chip);
+    select.append(new Option(initiative.name, initiative.id));
+  }
+}
+
+function initiativeName(id) {
+  return state.initiatives.find(item => item.id === id)?.name || '';
+}
+
 function renderWork() {
   const configs = [
-    ['commitmentList', state.commitments, 'No open commitments.', 'complete-commitment', item => [item.text, [item.owner, item.due].filter(Boolean).join(' · ') || 'Owner not set']],
+    ['commitmentList', state.commitments, 'No open commitments.', 'complete-commitment', item => {
+      const detail = [item.owner, initiativeName(item.initiativeId), item.due].filter(Boolean).join(' · ') || 'Owner not set';
+      return [item.text, detail];
+    }],
     ['decisionList', state.decisions, 'No open decisions.', 'resolve-decision', item => [item.text, item.owner ? `Decision owner: ${item.owner}` : 'Decision owner not set']],
     ['needList', state.needs, 'No open needs.', 'resolve-need', item => [item.text, item.owner ? `Needed by: ${item.owner}` : 'Owner not set']],
   ];
@@ -95,6 +120,25 @@ function renderWork() {
   }
 }
 
+function renderOutcomes() {
+  const list = $('outcomeList');
+  list.replaceChildren();
+  const outcomes = state.commitments.filter(item => item.done).sort((a, b) => Number(b.doneAt || 0) - Number(a.doneAt || 0)).slice(0, 8);
+  if (!outcomes.length) return list.append(emptyMessage('Completed commitments will become outcomes here.'));
+  for (const outcome of outcomes) {
+    const item = document.createElement('article');
+    item.className = 'record outcome-record';
+    const copy = document.createElement('div');
+    const title = document.createElement('strong');
+    const meta = document.createElement('span');
+    title.textContent = outcome.text;
+    meta.textContent = [outcome.owner, initiativeName(outcome.initiativeId)].filter(Boolean).join(' · ') || 'Completed';
+    copy.append(title, meta);
+    item.append(copy);
+    list.append(item);
+  }
+}
+
 function render() {
   $('assemblyName').value = state.identity.name || '';
   $('assemblyPurpose').value = state.identity.purpose || '';
@@ -103,7 +147,9 @@ function render() {
   $('decisionCount').textContent = state.decisions.filter(item => !item.done).length;
   $('needCount').textContent = state.needs.filter(item => !item.done).length;
   renderPeople();
+  renderInitiatives();
   renderWork();
+  renderOutcomes();
 }
 
 $('identityForm').addEventListener('submit', event => {
@@ -121,11 +167,23 @@ $('personForm').addEventListener('submit', event => {
   save();
 });
 
+$('initiativeForm').addEventListener('submit', event => {
+  event.preventDefault();
+  const name = clean($('initiativeName').value);
+  if (!name) return;
+  state.initiatives.push({ id: uid(), name, lead: clean($('initiativeLead').value), createdAt: Date.now() });
+  event.currentTarget.reset();
+  save();
+});
+
 $('commitmentForm').addEventListener('submit', event => {
   event.preventDefault();
   const text = clean($('commitmentText').value);
   if (!text) return;
-  state.commitments.push({ id: uid(), text, owner: clean($('commitmentOwner').value), due: $('commitmentDue').value, done: false, createdAt: Date.now() });
+  state.commitments.push({
+    id: uid(), text, owner: clean($('commitmentOwner').value), initiativeId: $('commitmentInitiative').value,
+    due: $('commitmentDue').value, done: false, createdAt: Date.now(),
+  });
   event.currentTarget.reset();
   save();
 });
@@ -153,9 +211,9 @@ document.addEventListener('click', event => {
   if (!button) return;
   const { action, id } = button.dataset;
   if (action === 'remove-person') state.people = state.people.filter(item => item.id !== id);
-  if (action === 'complete-commitment') state.commitments = state.commitments.map(item => item.id === id ? { ...item, done: true } : item);
-  if (action === 'resolve-decision') state.decisions = state.decisions.map(item => item.id === id ? { ...item, done: true } : item);
-  if (action === 'resolve-need') state.needs = state.needs.map(item => item.id === id ? { ...item, done: true } : item);
+  if (action === 'complete-commitment') state.commitments = state.commitments.map(item => item.id === id ? { ...item, done: true, doneAt: Date.now() } : item);
+  if (action === 'resolve-decision') state.decisions = state.decisions.map(item => item.id === id ? { ...item, done: true, doneAt: Date.now() } : item);
+  if (action === 'resolve-need') state.needs = state.needs.map(item => item.id === id ? { ...item, done: true, doneAt: Date.now() } : item);
   save();
 });
 

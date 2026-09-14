@@ -83,13 +83,24 @@
           <h2 id="nowTitle">What did we commit to?</h2>
           <p>Every active effort should have an owner and a concrete next move.</p>
         </div>
-        <form id="commitmentForm" class="quick-form three">
+        <form id="initiativeForm" class="quick-form">
+          <label>Initiative <input id="initiativeName" required placeholder="Assembly v0.2" /></label>
+          <label>Lead <input id="initiativeLead" placeholder="Who keeps it moving?" /></label>
+          <button class="button primary" type="submit">Add initiative</button>
+        </form>
+        <div id="initiativeList" class="initiative-list" aria-live="polite"></div>
+        <form id="commitmentForm" class="quick-form commitment-form">
           <label>Commitment <input id="commitmentText" required placeholder="Ship the landing page" /></label>
           <label>Owner <input id="commitmentOwner" placeholder="Who owns it?" /></label>
+          <label>Initiative <select id="commitmentInitiative"><option value="">General</option></select></label>
           <label>Due <input id="commitmentDue" type="date" /></label>
           <button class="button primary" type="submit">Add commitment</button>
         </form>
         <div id="commitmentList" class="record-list" aria-live="polite"></div>
+        <div class="outcome-block">
+          <p class="eyebrow">Recent outcomes</p>
+          <div id="outcomeList" class="record-list" aria-live="polite"></div>
+        </div>
       </section>
 
       <section id="decisions" class="workspace-section panel" aria-labelledby="decisionsTitle">
