@@ -1,7 +1,7 @@
 {
   "version": 4,
-  "updatedAt": "2026-09-12T07:30:00-07:00",
-  "updatedLabel": "Sep 12, 2026",
+  "updatedAt": "2026-09-13T08:13:00-07:00",
+  "updatedLabel": "Sep 13, 2026",
   "horizon": "Rolling 90 days",
   "theme": "Protect income. Care for home. Build our way forward.",
   "northStar": "Keep the next few days obvious, the next couple of weeks easy to scan, and the longer direction available without making it dominate daily life.",
@@ -13,25 +13,16 @@
     { "label": "Four-day work run", "when": "Sep 23–26", "tone": "work" }
   ],
   "today": {
-    "date": "2026-09-12",
-    "dayLabel": "Saturday · Sep 12",
+    "date": "2026-09-13",
+    "dayLabel": "Sunday · Sep 13",
     "title": "Work day",
-    "when": "8 AM–5 PM",
+    "when": "8 AM–4 PM",
     "category": "work",
     "categoryLabel": "Work",
-    "sharedDetail": "Booked most of the day. Keep tonight easy and leave space to recover for another work day tomorrow.",
-    "detail": "Protect the booked shift. Keep business activity automated unless something genuinely urgent or revenue-critical appears."
+    "sharedDetail": "Booked until 4 PM. Keep tonight simple and protect recovery because Monday starts at 6 AM.",
+    "detail": "Protect the booked shift and keep routine business activity automated around it."
   },
   "nextDays": [
-    {
-      "date": "2026-09-13",
-      "title": "Work day",
-      "when": "Sun · 8 AM–4 PM",
-      "category": "work",
-      "categoryLabel": "Work",
-      "sharedDetail": "Work until 4 PM. Keep Sunday evening simple because Monday starts early.",
-      "detail": "Earn-and-recover day; let routine business systems run quietly around the shift."
-    },
     {
       "date": "2026-09-14",
       "title": "Morning work, open afternoon",
@@ -49,10 +40,18 @@
       "categoryLabel": "Work",
       "sharedDetail": "Treat this as a work-and-recover day with low expectations afterward.",
       "detail": "Keep business activity mostly automated and asynchronous."
+    },
+    {
+      "date": "2026-09-16",
+      "title": "Personal block + evening work",
+      "when": "Wed · afternoon / 5–10 PM work",
+      "category": "personal",
+      "categoryLabel": "Personal",
+      "sharedDetail": "Morning is the useful open block. The afternoon is personal time and the evening is booked for work.",
+      "detail": "Use the open morning for the highest-priority admin or revenue work, then protect the personal block and evening shift."
     }
   ],
   "calendar": [
-    { "date":"2026-09-12", "dayShort":"Sat", "dateShort":"Sep 12", "title":"Work day", "when":"8 AM–5 PM", "category":"work", "categoryLabel":"Work" },
     { "date":"2026-09-13", "dayShort":"Sun", "dateShort":"Sep 13", "title":"Work day", "when":"8 AM–4 PM", "category":"work", "categoryLabel":"Work" },
     { "date":"2026-09-14", "dayShort":"Mon", "dateShort":"Sep 14", "title":"Morning work", "when":"6 AM–12 PM", "category":"work", "categoryLabel":"Work" },
     { "date":"2026-09-15", "dayShort":"Tue", "dateShort":"Sep 15", "title":"Long workday", "when":"6 AM–4 PM", "category":"work", "categoryLabel":"Work" },
@@ -66,7 +65,8 @@
     { "date":"2026-09-23", "dayShort":"Wed", "dateShort":"Sep 23", "title":"Graphics work run", "when":"9 AM–5:30 PM", "category":"work", "categoryLabel":"Work" },
     { "date":"2026-09-24", "dayShort":"Thu", "dateShort":"Sep 24", "title":"Graphics work run", "when":"7 AM–5 PM", "category":"work", "categoryLabel":"Work" },
     { "date":"2026-09-25", "dayShort":"Fri", "dateShort":"Sep 25", "title":"Graphics work run", "when":"7 AM–5 PM", "category":"work", "categoryLabel":"Work" },
-    { "date":"2026-09-26", "dayShort":"Sat", "dateShort":"Sep 26", "title":"Graphics work run", "when":"7 AM–5 PM", "category":"work", "categoryLabel":"Work" }
+    { "date":"2026-09-26", "dayShort":"Sat", "dateShort":"Sep 26", "title":"Graphics work run", "when":"7 AM–5 PM", "category":"work", "categoryLabel":"Work" },
+    { "date":"2026-09-27", "dayShort":"Sun", "dateShort":"Sep 27", "title":"Open / recovery day", "when":"No confirmed booking", "category":"open", "categoryLabel":"Open" }
   ],
   "next30": [
     {

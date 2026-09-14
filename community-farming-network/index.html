@@ -24,22 +24,22 @@
         <p class="eyebrow">3DVR local resilience project</p>
         <h1 id="pageTitle">Community Farming Network</h1>
         <p>
-          A neighborhood coordination layer for growing food, sharing harvests, trading labor,
-          and making unused land useful without turning it into another noisy social feed.
-          Use it to grow and share food and labor across the neighborhood.
+          Start with food. Build interdependence. This is a calm neighborhood coordination layer for
+          growing food, sharing harvests, lending tools, offering skills, teaching, giving rides, and
+          helping with practical needs without turning community life into another noisy social feed.
         </p>
         <div class="hero-actions">
-          <a class="button primary" href="#shareForm">Log food or labor</a>
-          <a class="button secondary" href="#networkBoard">View network board</a>
+          <a class="button primary" href="#shareForm">Offer or request help</a>
+          <a class="button secondary" href="#networkBoard">View local network</a>
         </div>
       </div>
       <aside class="season-card" aria-labelledby="seasonTitle">
         <p class="eyebrow">Operating idea</p>
-        <h2 id="seasonTitle">Food, skills, tools, and time should move locally.</h2>
+        <h2 id="seasonTitle">Useful work builds trust.</h2>
         <ol>
-          <li><strong>Grow</strong><span>Map yards, patios, gardens, and raised beds.</span></li>
-          <li><strong>Share</strong><span>Post surplus harvests before they go to waste.</span></li>
-          <li><strong>Help</strong><span>Trade labor for planting, watering, compost, and repairs.</span></li>
+          <li><strong>Start concrete</strong><span>Food, land, tools, time, skills, and simple needs create an easy first doorway.</span></li>
+          <li><strong>Help repeatedly</strong><span>Small completed actions turn strangers into people who know they can rely on one another.</span></li>
+          <li><strong>Grow outward</strong><span>Healthy local relationships can support care, learning, transport, projects, and shared infrastructure.</span></li>
         </ol>
       </aside>
     </section>
@@ -49,27 +49,28 @@
     <section class="panel intro-grid" aria-labelledby="networkPurpose">
       <div>
         <p class="eyebrow">Why it belongs in the portal</p>
-        <h2 id="networkPurpose">A practical community layer.</h2>
+        <h2 id="networkPurpose">Community is practical infrastructure.</h2>
         <p>
-          The portal already tracks people, projects, notes, and community circles. This adds a
-          local food and labor graph: who can grow, who needs food, who has tools, and who can help.
+          The portal already tracks people, projects, notes, and community circles. This adds a real-world
+          support graph: who has food, land, tools, skills, time, transport, or care to offer; who needs help;
+          and what useful action can happen next.
         </p>
       </div>
       <div class="principles">
         <article>
           <span>1</span>
-          <h3>Low-friction offers</h3>
-          <p>Post what exists today: tomatoes, seedlings, compost, a mower, or two hours of help.</p>
+          <h3>Mutual usefulness</h3>
+          <p>Measure completed help, not likes. The point is to make people more capable together.</p>
         </article>
         <article>
           <span>2</span>
-          <h3>Neighborhood trust</h3>
-          <p>Start with known people, small circles, and clear handoffs before scaling outward.</p>
+          <h3>Local trust</h3>
+          <p>Start with known people, small circles, rough locations, and repeated collaboration before scaling.</p>
         </article>
         <article>
           <span>3</span>
-          <h3>Visible next steps</h3>
-          <p>Every post should make the next move obvious: pick up, request help, join a work day.</p>
+          <h3>One next step</h3>
+          <p>Every post should make the next move obvious: pick up, offer help, teach, join, deliver, or connect.</p>
         </article>
       </div>
     </section>
@@ -78,8 +79,8 @@
       <form id="shareForm" class="panel form-panel" aria-labelledby="shareTitle">
         <div>
           <p class="eyebrow">Quick log</p>
-          <h2 id="shareTitle">Add food, land, labor, or tools.</h2>
-          <p>Keep it simple. A rough note is enough to start coordinating.</p>
+          <h2 id="shareTitle">Add something useful.</h2>
+          <p>Keep it simple. A rough offer or request is enough to start coordinating.</p>
         </div>
         <label>
           Type
@@ -88,11 +89,15 @@
             <option value="garden">Growing space</option>
             <option value="labor">Labor request</option>
             <option value="resource">Tool or resource</option>
+            <option value="skill">Skill offer or request</option>
+            <option value="care">Care or practical help</option>
+            <option value="learning">Teach or learn</option>
+            <option value="transport">Transport or delivery</option>
           </select>
         </label>
         <label>
           Title
-          <input id="entryTitle" required placeholder="Extra basil, raised bed help, compost pile..." />
+          <input id="entryTitle" required placeholder="Extra basil, ride to an appointment, bike repair help..." />
         </label>
         <div class="field-row">
           <label>
@@ -106,7 +111,7 @@
         </div>
         <label>
           Details
-          <textarea id="entryDetails" rows="4" placeholder="What is available or needed? How should someone respond?"></textarea>
+          <textarea id="entryDetails" rows="4" placeholder="What is available or needed? What should someone do next?"></textarea>
         </label>
         <button class="button primary" type="submit">Save to network</button>
         <p id="syncStatus" class="sync-status" role="status" aria-live="polite">Connecting to Gun...</p>
@@ -114,23 +119,23 @@
 
       <aside class="panel map-panel" aria-labelledby="starterMapTitle">
         <p class="eyebrow">Starter map</p>
-        <h2 id="starterMapTitle">Four lanes to test first.</h2>
+        <h2 id="starterMapTitle">Start with food. Grow into everyday support.</h2>
         <div class="lane-list">
           <article>
-            <strong>Backyard growers</strong>
-            <span>People with soil, sun, water, and a willingness to plant more.</span>
+            <strong>Food and growing</strong>
+            <span>Harvests, seedlings, gardens, compost, land, watering, and work days.</span>
           </article>
           <article>
-            <strong>Harvest pickups</strong>
-            <span>Simple claims for excess produce, herbs, eggs, seedlings, or prepared food.</span>
+            <strong>Skills and tools</strong>
+            <span>Repairs, cooking, building, equipment, materials, teaching, and practical know-how.</span>
           </article>
           <article>
-            <strong>Work days</strong>
-            <span>Small crews for raised beds, watering, weeding, compost, fences, and cleanup.</span>
+            <strong>Care and transport</strong>
+            <span>Errands, rides, deliveries, elder support, and simple practical help.</span>
           </article>
           <article>
-            <strong>Shared kit</strong>
-            <span>Tools, seeds, soil, starts, jars, buckets, and transport help.</span>
+            <strong>Learning and projects</strong>
+            <span>Workshops, skill swaps, volunteer projects, open-source work, and community build days.</span>
           </article>
         </div>
       </aside>
@@ -140,7 +145,7 @@
       <div class="board-head">
         <div>
           <p class="eyebrow">Live board</p>
-          <h2 id="boardTitle">Neighborhood food and labor posts</h2>
+          <h2 id="boardTitle">Local offers and needs</h2>
         </div>
         <div class="filters" aria-label="Filter board">
           <button type="button" class="filter active" data-filter="all">All</button>
@@ -148,6 +153,10 @@
           <button type="button" class="filter" data-filter="garden">Gardens</button>
           <button type="button" class="filter" data-filter="labor">Labor</button>
           <button type="button" class="filter" data-filter="resource">Tools</button>
+          <button type="button" class="filter" data-filter="skill">Skills</button>
+          <button type="button" class="filter" data-filter="care">Care</button>
+          <button type="button" class="filter" data-filter="learning">Teach / Learn</button>
+          <button type="button" class="filter" data-filter="transport">Transport</button>
         </div>
       </div>
       <div id="entryList" class="entry-list" aria-live="polite"></div>
@@ -155,19 +164,19 @@
 
     <section class="panel next-panel" aria-labelledby="nextTitle">
       <p class="eyebrow">Next build steps</p>
-      <h2 id="nextTitle">How this can grow from project page to real network.</h2>
+      <h2 id="nextTitle">Turn useful posts into durable relationships.</h2>
       <div class="next-grid">
         <article>
-          <h3>1. Tie posts to contacts</h3>
-          <p>Connect offers and requests to the CRM so neighbors, volunteers, and growers do not disappear.</p>
+          <h3>1. Tie posts to people and circles</h3>
+          <p>Connect offers and requests to CRM contacts and trusted community circles so reliable relationships can compound over time.</p>
         </article>
         <article>
-          <h3>2. Add simple location privacy</h3>
-          <p>Use neighborhood labels first. Exact addresses should only be shared after a person opts in.</p>
+          <h3>2. Add privacy-aware location</h3>
+          <p>Use neighborhood labels first. Exact addresses should only be shared after a person explicitly opts in.</p>
         </article>
         <article>
-          <h3>3. Create work-day flows</h3>
-          <p>Turn labor requests into small scheduled events with tools, people, tasks, and follow-up notes.</p>
+          <h3>3. Confirm completed help</h3>
+          <p>Track when a need was actually met. Build reputation from helpful actions rather than popularity.</p>
         </article>
       </div>
     </section>
