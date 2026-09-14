@@ -36,3 +36,17 @@ test('Assembly models people, commitments, decisions and needs', async () => {
   assert.match(app, /resolve-decision/);
   assert.match(app, /resolve-need/);
 });
+
+
+test('Assembly groups commitments into initiatives and preserves outcome receipts', async () => {
+  const [html, app] = await Promise.all([read('assembly/index.html'), read('assembly/app.js')]);
+
+  assert.match(html, /id="initiativeForm"/);
+  assert.match(html, /id="commitmentInitiative"/);
+  assert.match(html, /id="outcomeList"/);
+  assert.match(app, /initiatives: \[\]/);
+  assert.match(app, /initiativeId/);
+  assert.match(app, /doneAt: Date\.now\(\)/);
+  assert.match(app, /function renderOutcomes\(\)/);
+  assert.match(app, /Completed commitments will become outcomes here\./);
+});

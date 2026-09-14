@@ -129,3 +129,9 @@ It provides four operational views:
 - **Needs** — visible asks that could unblock a person or group.
 
 The workspace also stores the Assembly name and purpose, shows a compact pulse of open work, and lets users complete or resolve records. This is deliberately a single-device prototype. Multi-user sync should not be added until workspace-scoped identity, authorization, privacy, and durable storage are defined.
+
+## Implemented v0.2 coordination loop
+
+Assembly now adds **Initiatives** between shared purpose and individual commitments. A commitment can remain in General or link to a named initiative with a lightweight lead, which keeps the workspace useful before it grows into a full project-management system.
+
+Completing a commitment no longer makes the work disappear. It records `doneAt` and renders the most recent completed commitments as **Outcome receipts**, preserving a visible trail of what the group actually accomplished. This keeps the product centered on movement and results rather than posting or activity counts.

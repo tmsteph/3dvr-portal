@@ -25,7 +25,7 @@ body.assembly-page {
 }
 
 a { color: inherit; }
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 
 .assembly-shell {
   width: min(1120px, calc(100% - 28px));
@@ -99,6 +99,39 @@ h2 {
 .privacy-note,
 .panel,
 .pulse article,
+
+.initiative-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.initiative-chip {
+  display: grid;
+  gap: 3px;
+  min-width: min(220px, 100%);
+  padding: 12px 14px;
+  border: 1px solid var(--assembly-line);
+  border-radius: 15px;
+  background: rgba(168, 230, 178, 0.055);
+}
+
+.initiative-chip span {
+  color: var(--assembly-muted);
+  font-size: 0.82rem;
+}
+
+.outcome-block {
+  display: grid;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--assembly-line);
+}
+
+.outcome-record {
+  background: rgba(168, 230, 178, 0.06);
+}
+
 .principle {
   border: 1px solid var(--assembly-line);
   background: var(--assembly-panel);
@@ -136,6 +169,10 @@ h2 {
   grid-template-columns: minmax(0, 1.5fr) minmax(160px, 0.7fr) minmax(140px, 0.55fr) auto;
 }
 
+.commitment-form {
+  grid-template-columns: minmax(0, 1.5fr) minmax(140px, 0.7fr) minmax(140px, 0.7fr) minmax(140px, 0.55fr) auto;
+}
+
 label {
   display: grid;
   gap: 6px;
@@ -144,7 +181,8 @@ label {
   font-weight: 700;
 }
 
-input {
+input,
+select {
   width: 100%;
   min-width: 0;
   border: 1px solid var(--assembly-line);
@@ -155,6 +193,7 @@ input {
 }
 
 input:focus,
+select:focus,
 button:focus-visible,
 a:focus-visible {
   outline: 3px solid rgba(168, 230, 178, 0.45);
@@ -255,7 +294,8 @@ a:focus-visible {
   .identity,
   .identity-form,
   .quick-form,
-  .quick-form.three { grid-template-columns: 1fr; }
+  .quick-form.three,
+  .commitment-form { grid-template-columns: 1fr; }
   .pulse { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .section-tabs { border-radius: 20px; }
   h1 { font-size: clamp(3rem, 15vw, 5.2rem); }
