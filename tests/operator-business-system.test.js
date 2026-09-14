@@ -28,12 +28,14 @@ test('work item implements the shared operator contract', () => {
   assert.equal(item.state, 'ready');
   assert.deepEqual(item.requiredCapabilities, ['crm-read', 'web-research']);
   assert.deepEqual(item.evidence, []);
+  assert.equal(item.kernelPolicy.positiveSumEligible, true);
   assert.equal(item.createdAt, '2026-09-12T18:00:00.000Z');
 
   const running = transitionWorkItem(item, 'running', { now: '2026-09-12T18:01:00.000Z' });
   assert.equal(running.state, 'running');
   assert.equal(running.createdAt, item.createdAt);
   assert.equal(running.updatedAt, '2026-09-12T18:01:00.000Z');
+  assert.equal(running.kernelPolicy.positiveSumEligible, true);
 });
 
 test('worker registry selects only workers with capacity and capabilities', () => {
@@ -53,6 +55,41 @@ test('worker registry selects only workers with capacity and capabilities', () =
   ];
 
   assert.deepEqual(findEligibleWorkers(workers, item).map(worker => worker.id), ['research-1']);
+});
+
+test('worker registry refuses only explicitly blocked kernel-policy work', () => {
+  const worker = createWorker({
+    id: 'action-1',
+    name: 'Action 1',
+    class: 'action',
+    capabilities: ['project-update']
+  });
+  const ordinary = createWorkItem({
+    id: 'work-safe',
+    title: 'Update project notes',
+    domain: 'projects',
+    state: 'ready',
+    requiredCapabilities: ['project-update']
+  });
+  const blocked = createWorkItem({
+    id: 'work-blocked',
+    title: 'Exploit users with a coercive flow',
+    domain: 'projects',
+    state: 'ready',
+    requiredCapabilities: ['project-update'],
+    positiveSum: {
+      agencyScore: 10,
+      sharedValueScore: 5,
+      opennessScore: 5,
+      harmRiskScore: 90,
+      lockInRiskScore: 100
+    }
+  });
+
+  assert.deepEqual(findEligibleWorkers([worker], ordinary).map(item => item.id), ['action-1']);
+  assert.equal(blocked.kernelPolicy.positiveSumEligible, false);
+  assert.deepEqual(blocked.kernelPolicy.blockedReasons, ['harm-risk', 'agency-loss', 'extreme-lock-in']);
+  assert.deepEqual(findEligibleWorkers([worker], blocked), []);
 });
 
 test('fresh email can run in business hours while known or late sends pause', () => {
