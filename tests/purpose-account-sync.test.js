@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { pickNewestPurposeState } from '../purpose/account-sync.js';
+import {
+  createPurposeAccountRuntime,
+  pickNewestPurposeState
+} from '../purpose/account-sync.js';
 
 test('Purpose page wires Gun, SEA, identity, and the account-sync bootstrap', async () => {
   const html = await readFile(new URL('../purpose/index.html', import.meta.url), 'utf8');
@@ -23,6 +26,50 @@ test('Purpose account bridge chooses the newest state before the app initializes
   };
   assert.equal(pickNewestPurposeState(local, remote).answers[1], 'new remote focus');
   assert.equal(pickNewestPurposeState(remote, local).answers[1], 'new remote focus');
+});
+
+test('Purpose account runtime restores a newer encrypted account copy into local storage', async () => {
+  const storageValues = new Map();
+  const local = {
+    answers: ['', 'local focus', '', '', ''],
+    updatedAt: '2026-09-14T19:00:00Z'
+  };
+  const remote = {
+    answers: ['', 'remote focus', 'builders', 'open tools', 'ship one'],
+    updatedAt: '2026-09-14T20:00:00Z'
+  };
+  storageValues.set('3dvr-purpose-draft-v1', JSON.stringify(local));
+  const node = {
+    get() { return this; },
+    once(callback) { callback({ ciphertext: 'remote-cipher' }); },
+    put(_value, callback) { callback({ ok: 1 }); }
+  };
+  const user = {
+    is: { pub: 'public-key' },
+    _: { sea: { priv: 'private-key' } },
+    recall() {},
+    get() { return node; }
+  };
+  const SEA = {
+    async decrypt(value) { return value === 'remote-cipher' ? JSON.stringify(remote) : null; },
+    async encrypt(value) { return `encrypted:${value.length}`; }
+  };
+  const windowObj = {
+    Gun() { return { user() { return user; } }; },
+    SEA,
+    AuthIdentity: {},
+    localStorage: {
+      getItem(key) { return storageValues.get(key) ?? null; },
+      setItem(key, value) { storageValues.set(key, value); }
+    },
+    document: { querySelector() { return null; } },
+    setTimeout
+  };
+
+  const runtime = await createPurposeAccountRuntime({ windowObj });
+  assert.equal(runtime.available, true);
+  assert.equal(runtime.restored, true);
+  assert.equal(JSON.parse(storageValues.get('3dvr-purpose-draft-v1')).answers[1], 'remote focus');
 });
 
 test('Purpose sync stores private data only through encrypted account nodes', async () => {
