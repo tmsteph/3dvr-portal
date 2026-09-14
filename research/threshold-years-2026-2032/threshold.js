@@ -172,8 +172,13 @@
   });
 
   window.addEventListener('hashchange', () => {
-    const hashYear = yearFromHash();
-    if (hashYear) renderSelected(hashYear);
+    const phase = phaseForYear(yearFromHash()) || currentPhaseFor(new Date());
+    renderSelected(phase.year);
+  });
+
+  window.addEventListener('popstate', () => {
+    const phase = phaseForYear(yearFromHash()) || currentPhaseFor(new Date());
+    renderSelected(phase.year);
   });
 
   renderLive();
