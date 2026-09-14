@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08111f">
+  <title>Recovery Vault · 3DVR</title>
+  <meta name="description" content="Owner-controlled recovery architecture for root credentials.">
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/recovery-vault/styles.css">
+</head>
+<body class="theme-dark">
+  <main class="vault-shell">
+    <header class="hero">
+      <a class="back" href="/access/">← Access</a>
+      <p class="eyebrow">3DVR Control Plane</p>
+      <h1>Recovery Vault</h1>
+      <p class="lead">A passkey-protected break-glass layer for root credentials.</p>
+    </header>
+
+    <section class="status-card">
+      <span class="status-dot attention" aria-hidden="true"></span>
+      <div><strong>Architecture approved · implementation gated</strong><p>We will not ship a half-working master-password vault. The local passkey ceremony must be reviewed end to end before real secrets are entered.</p></div>
+    </section>
+
+    <section class="grid">
+      <article class="card"><p class="eyebrow">1 · Verify</p><h2>Passkey + biometric</h2><p>WebAuthn user verification unlocks credential-bound PRF key material on the trusted device.</p></article>
+      <article class="card"><p class="eyebrow">2 · Encrypt</p><h2>Local only</h2><p>The browser encrypts recovery material with authenticated encryption before storage or synchronization.</p></article>
+      <article class="card"><p class="eyebrow">3 · Store</p><h2>Ciphertext everywhere</h2><p>3DVR servers, backups, and agents may handle the encrypted bundle but never plaintext recovery material.</p></article>
+      <article class="card"><p class="eyebrow">4 · Recover</p><h2>Owner ceremony</h2><p>AI may open the flow, but only successful local passkey verification may reveal the value, briefly and masked.</p></article>
+    </section>
+
+    <section class="card rules">
+      <p class="eyebrow">Hard boundary</p>
+      <h2>AI can help without possessing the key</h2>
+      <p>Operator may check backup health, replication state, and guide recovery. It must never receive the master password in chat, logs, memory, telemetry, or task state.</p>
+      <a class="primary-link" href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/recovery-vault.md">Read the security design →</a>
+    </section>
+
+    <section class="card roadmap">
+      <p class="eyebrow">Next</p>
+      <h2>2-of-3 recovery</h2>
+      <p>The target is any two of: trusted passkey/device, offline recovery factor, and trusted-person recovery factor. No single server or agent should ever be enough.</p>
+    </section>
+  </main>
+</body>
+</html>
