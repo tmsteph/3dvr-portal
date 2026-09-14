@@ -26,22 +26,32 @@
     nextPhase: root.querySelector('[data-next-phase]'),
     nextCountdown: root.querySelector('[data-next-countdown]'),
     cyclePosition: root.querySelector('[data-cycle-position]'),
-    currentHeadline: root.querySelector('[data-current-headline]'),
-    currentFocus: root.querySelector('[data-current-focus]'),
-    currentBuild: root.querySelector('[data-current-build]'),
-    currentNote: root.querySelector('[data-current-note]'),
+    selectedYear: root.querySelector('[data-selected-year]'),
+    selectedName: root.querySelector('[data-selected-name]'),
+    selectedHeadline: root.querySelector('[data-selected-headline]'),
+    selectedFocus: root.querySelector('[data-selected-focus]'),
+    selectedBuild: root.querySelector('[data-selected-build]'),
+    selectedNote: root.querySelector('[data-selected-note]'),
+    returnNow: root.querySelector('[data-return-now]'),
+    detail: root.querySelector('[data-phase-detail]'),
     phaseCards: [...root.querySelectorAll('[data-phase-card]')],
-    yearCards: [...root.querySelectorAll('[data-year-card]')]
+    yearCards: [...root.querySelectorAll('[data-year-card]')],
+    selectors: [...root.querySelectorAll('[data-phase-select]')]
   };
 
   const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
   const dayMs = 86400000;
+  let selectedYear = null;
 
   function currentPhaseFor(date) {
     const year = date.getFullYear();
     if (year < phases[0].year) return phases[0];
     if (year > phases.at(-1).year) return phases.at(-1);
     return phases.find((phase) => phase.year === year) || phases[0];
+  }
+
+  function phaseForYear(year) {
+    return phases.find((phase) => phase.year === Number(year)) || null;
   }
 
   function percentageBetween(date, rangeStart, rangeEnd) {
@@ -58,7 +68,47 @@
     }).format(date);
   }
 
-  function render() {
+  function yearFromHash() {
+    const value = Number(window.location.hash.replace('#', ''));
+    return phaseForYear(value) ? value : null;
+  }
+
+  function renderSelected(year) {
+    const phase = phaseForYear(year);
+    if (!phase) return;
+    selectedYear = phase.year;
+
+    els.selectedYear.textContent = String(phase.year);
+    els.selectedName.textContent = phase.name;
+    els.selectedHeadline.textContent = phase.headline;
+    els.selectedFocus.textContent = phase.focus;
+    els.selectedBuild.textContent = phase.build;
+    els.selectedNote.textContent = phase.note;
+
+    els.selectors.forEach((control) => {
+      const isSelected = Number(control.dataset.phaseSelect) === phase.year;
+      control.classList.toggle('is-selected', isSelected);
+      control.setAttribute('aria-pressed', String(isSelected));
+    });
+  }
+
+  function selectPhase(year, { updateHash = true, scroll = false } = {}) {
+    const phase = phaseForYear(year);
+    if (!phase) return;
+
+    renderSelected(phase.year);
+
+    if (updateHash && window.location.hash !== `#${phase.year}`) {
+      window.history.pushState(null, '', `#${phase.year}`);
+    }
+
+    if (scroll && els.detail) {
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      els.detail.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'nearest' });
+    }
+  }
+
+  function renderLive() {
     const now = new Date();
     const phase = currentPhaseFor(now);
     const phaseIndex = phases.findIndex((item) => item.year === phase.year);
@@ -77,11 +127,6 @@
     els.marker.style.left = `${cyclePercent}%`;
     els.fill.style.width = `${cyclePercent}%`;
     els.cyclePosition.textContent = `Year ${phaseIndex + 1} of ${phases.length}`;
-
-    els.currentHeadline.textContent = phase.headline;
-    els.currentFocus.textContent = phase.focus;
-    els.currentBuild.textContent = phase.build;
-    els.currentNote.textContent = phase.note;
 
     if (now < start) {
       const days = Math.max(0, Math.ceil((start - now) / dayMs));
@@ -108,9 +153,30 @@
     els.yearCards.forEach((card) => {
       card.classList.toggle('is-current', Number(card.dataset.yearCard) === phase.year);
     });
+
+    if (selectedYear === null) {
+      renderSelected(yearFromHash() || phase.year);
+    }
   }
 
-  render();
-  const timer = window.setInterval(render, 60 * 60 * 1000);
+  els.selectors.forEach((control) => {
+    control.addEventListener('click', () => {
+      selectPhase(Number(control.dataset.phaseSelect), { updateHash: true, scroll: true });
+    });
+  });
+
+  els.returnNow.addEventListener('click', () => {
+    const current = currentPhaseFor(new Date());
+    renderSelected(current.year);
+    window.history.pushState(null, '', `${window.location.pathname}${window.location.search}`);
+  });
+
+  window.addEventListener('hashchange', () => {
+    const hashYear = yearFromHash();
+    if (hashYear) renderSelected(hashYear);
+  });
+
+  renderLive();
+  const timer = window.setInterval(renderLive, 60 * 60 * 1000);
   window.addEventListener('pagehide', () => window.clearInterval(timer), { once: true });
 })();
