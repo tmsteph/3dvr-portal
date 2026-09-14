@@ -9,6 +9,10 @@ import {
   promoteIdeaToExperiment,
   summarizePortfolio
 } from '../src/money-printer/moneyPrinterExperiments.js';
+import {
+  refreshMoneyPrinterState,
+  updateExperimentStatusInState
+} from '../src/money-printer/moneyPrinterCore.js';
 
 function idea(id, score) {
   return {
@@ -65,4 +69,24 @@ test('promoted Money Printer ideas carry disposable capsule bounds into portfoli
   assert.equal(summary.researchCapsules, 1);
   assert.equal(summary.queuedCapsules, 1);
   assert.match(summary.attentionRule, /At most 1 active capsule and 1 research capsule/i);
+});
+
+test('Money Printer refresh persists capsule allocation and killed capsules cannot reactivate', () => {
+  const high = promoteIdeaToExperiment(idea('high', 90));
+  const middle = promoteIdeaToExperiment(idea('middle', 75));
+  const low = promoteIdeaToExperiment(idea('low', 60));
+  const state = refreshMoneyPrinterState({ experiments: [low, middle, high], ideas: [] });
+  const byName = new Map(state.experiments.map((experiment) => [experiment.name, experiment]));
+
+  assert.equal(byName.get('Business high').capsule.status, 'active');
+  assert.equal(byName.get('Business middle').capsule.status, 'research');
+  assert.equal(byName.get('Business low').capsule.status, 'queued');
+  assert.equal(state.portfolioSummary.activeCapsules, 1);
+
+  const afterKill = updateExperimentStatusInState(state, high.id, 'Killed');
+  const killed = afterKill.experiments.find((experiment) => experiment.id === high.id);
+  const promoted = afterKill.experiments.find((experiment) => experiment.id === middle.id);
+  assert.equal(killed.capsule.status, 'killed');
+  assert.equal(promoted.capsule.status, 'active');
+  assert.equal(afterKill.portfolioSummary.activeCapsules, 1);
 });
