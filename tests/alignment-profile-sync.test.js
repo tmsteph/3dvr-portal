@@ -48,6 +48,26 @@ test('alignment profile sync encrypts before account storage and restores normal
   assert.equal(restored.source, 'purpose-map');
 });
 
+test('encrypted writes upsert one source without erasing another source', async () => {
+  const user = fakeUser();
+  const sync = createAlignmentProfileSync({ user, SEA: fakeSea });
+  await sync.write({
+    source: 'purpose-map',
+    keywords: ['audio'],
+    updatedAt: '2026-09-14T20:00:00Z'
+  });
+  await sync.write({
+    source: 'launch-room',
+    keywords: ['garden'],
+    updatedAt: '2026-09-14T21:00:00Z'
+  });
+
+  const restored = await sync.read();
+  assert.deepEqual(restored.keywords.sort(), ['audio', 'garden']);
+  assert.deepEqual(Object.keys(restored.contributions).sort(), ['launch-room', 'purpose-map']);
+  assert.doesNotMatch(JSON.stringify(user.readStored()), /audio|garden/);
+});
+
 test('alignment profile sync does not write for guests', async () => {
   const sync = createAlignmentProfileSync({ user: {}, SEA: fakeSea });
   assert.equal(sync.available, false);
