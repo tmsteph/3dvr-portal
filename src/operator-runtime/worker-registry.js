@@ -50,6 +50,10 @@ export function workerCanRun(worker, workItem) {
   if (worker.status !== 'idle' && worker.status !== 'busy') return false;
   if (worker.activeCount >= worker.maxConcurrent) return false;
 
+  // Only an explicit kernel-policy block stops execution here. Legacy work items
+  // without a policy receipt continue to behave exactly as they did before.
+  if (workItem.kernelPolicy?.positiveSumEligible === false) return false;
+
   const capabilities = new Set(worker.capabilities || []);
   const required = workItem.requiredCapabilities || [];
   if (!required.every(capability => capabilities.has(capability))) return false;
