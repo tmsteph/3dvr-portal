@@ -98,7 +98,7 @@ export function createVentureCapsuleFromIdea(idea = {}, options = {}) {
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   return normalizeVentureCapsule({
     id: `capsule-${slug(idea.business_name || idea.id)}`,
-    sourceId: idea.id,
+    sourceId: options.sourceId || idea.id,
     mode: idea.searchMode || idea.mode || options.mode || 'portfolio',
     buyer: idea.target_customer,
     demandEvidenceIds: idea.demandEvidenceIds || idea.evidenceIds || [],
