@@ -60,13 +60,14 @@ jobs:
           opts=(-i /tmp/3dvr-do-key -o BatchMode=yes -o UserKnownHostsFile=/tmp/3dvr-known-hosts -o StrictHostKeyChecking=yes -o ConnectTimeout=10)
           ssh "${opts[@]}" "$DO_USER@$DO_HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
+          unit=desktop-commander-remote.service
           node_bin=/opt/node-v22/bin/node
           dc_entry=/usr/local/lib/node_modules/@wonderwhy-er/desktop-commander/dist/index.js
           [ -x "$node_bin" ] || { echo 'Managed Node 22 runtime is unavailable.' >&2; exit 1; }
           [ -f "$dc_entry" ] || { echo 'Desktop Commander global install is unavailable.' >&2; exit 1; }
           "$node_bin" -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 12)) process.exit(1)'
 
-          cat >/etc/systemd/system/desktop-commander-remote.service <<UNIT
+          cat >/etc/systemd/system/$unit <<UNIT
           [Unit]
           Description=Remote Desktop Commander device agent
           After=network-online.target
@@ -91,8 +92,8 @@ jobs:
           WantedBy=multi-user.target
           UNIT
           systemctl daemon-reload
-          systemctl reset-failed desktop-commander-remote.service || true
-          systemctl enable desktop-commander-remote.service
+          systemctl reset-failed "$unit" || true
+          systemctl enable "$unit"
 
           repo="$HOME/.3dvr/portal"
           if [ -d "$repo/.git" ]; then
@@ -107,17 +108,42 @@ jobs:
           resilience="$repo/scripts/ops/install-desktop-commander-resilience.sh"
           if [ -f "$resilience" ]; then
             bash "$resilience"
-          elif ! systemctl is-active --quiet desktop-commander-remote.service; then
-            systemctl restart desktop-commander-remote.service
           fi
 
-          sleep 5
-          if ! systemctl is-active --quiet desktop-commander-remote.service; then
-            systemctl --no-pager --full status desktop-commander-remote.service || true
-            journalctl -u desktop-commander-remote.service -n 40 --no-pager || true
+          # A unit rewrite is not proof that the running process picked up the
+          # new runtime. Always restart, then require both Node 22 and the
+          # application's own ready signal before declaring the bridge healthy.
+          systemctl restart "$unit"
+          ready=0
+          for attempt in 1 2 3 4 5 6; do
+            sleep 5
+            if ! systemctl is-active --quiet "$unit"; then
+              continue
+            fi
+            pid="$(systemctl show "$unit" -p MainPID --value)"
+            [ -n "$pid" ] && [ "$pid" != 0 ] || continue
+            exe="$(readlink -f "/proc/$pid/exe" 2>/dev/null || true)"
+            case "$exe" in
+              /opt/node-v22/*/node|/opt/node-v22/bin/node) ;;
+              *) echo "Control bridge is not running on managed Node 22: ${exe:-unknown}" >&2; continue ;;
+            esac
+            if journalctl -u "$unit" --since '-90 seconds' --no-pager | grep -Fq 'Device ready'; then
+              ready=1
+              break
+            fi
+          done
+
+          if [ "$ready" -ne 1 ]; then
+            echo 'Remote Desktop Commander did not reach Device ready state.' >&2
+            systemctl --no-pager --full status "$unit" | sed -n '1,14p' || true
+            journalctl -u "$unit" --since '-2 minutes' --no-pager \
+              | grep -E 'Starting MCP Device|Connected to (Desktop Commander|Remote) MCP|Device ready|Device startup failed|Suggested solution|Shutting down device|Main process exited|Failed with result' \
+              | tail -40 || true
             exit 1
           fi
-          systemctl --no-pager --full status desktop-commander-remote.service | sed -n '1,12p'
+
+          echo 'REMOTE_DESKTOP_COMMANDER_READY=1'
+          systemctl --no-pager --full status "$unit" | sed -n '1,12p'
           REMOTE
 
       - name: Remove SSH key
