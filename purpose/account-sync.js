@@ -117,8 +117,7 @@ export async function createPurposeAccountRuntime({ windowObj = window } = {}) {
     }
 
     const localState = parseLocal(storage);
-    const selected = pickNewestPurposeState(localState, remoteState || {});
-    const restored = Boolean(remoteState && selected === remoteState && updatedAtMs(remoteState) > updatedAtMs(localState));
+    const restored = Boolean(remoteState && updatedAtMs(remoteState) > updatedAtMs(localState));
     if (restored) storage.setItem(PURPOSE_STORAGE_KEY, JSON.stringify(remoteState));
 
     const syncCurrent = async () => {
