@@ -41,6 +41,19 @@
       <p class="result" id="ceremonyResult" aria-live="polite"></p>
     </section>
 
+    <section class="card portability" aria-labelledby="portability-title">
+      <p class="eyebrow">Portability gate</p>
+      <h2 id="portability-title">Prove recovery survives this browser</h2>
+      <p>Export the throwaway ciphertext bundle, move it to another trusted device, import it there, and recover it with the same synced passkey. The bundle is strictly validated and this client accepts only <code>self-test</code> bundles while real-secret storage is disabled.</p>
+      <input id="bundleFile" type="file" accept="application/json,.json" hidden>
+      <div class="actions">
+        <button class="secondary" id="exportSelfTestBundle" type="button" disabled>Export encrypted test bundle</button>
+        <button class="secondary" id="importSelfTestBundle" type="button">Import encrypted test bundle</button>
+        <button class="primary" id="recoverImportedBundle" type="button" disabled>Recover imported test</button>
+      </div>
+      <p class="result" id="bundleResult" aria-live="polite"></p>
+    </section>
+
     <section class="grid">
       <article class="card"><p class="eyebrow">1 · Verify</p><h2>Passkey + biometric</h2><p>WebAuthn user verification unlocks credential-bound PRF key material on the trusted device.</p></article>
       <article class="card"><p class="eyebrow">2 · Encrypt</p><h2>Local only</h2><p>The browser encrypts recovery material with authenticated encryption before storage or synchronization.</p></article>

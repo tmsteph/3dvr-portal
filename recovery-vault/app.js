@@ -1,7 +1,20 @@
+import {
+  BUNDLE_AAD,
+  BUNDLE_ALGORITHM,
+  BUNDLE_KIND,
+  BUNDLE_VERSION,
+  parseBundleText,
+  serializeBundle,
+  validateBundle,
+} from './bundle.js';
+
 const STORAGE_KEY = '3dvr-recovery-vault-enrollment-v1';
+const SELF_TEST_TEXT = '3dvr-recovery-vault-self-test-v1';
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const byId = id => document.getElementById(id);
+let latestSelfTestBundle = null;
+let importedSelfTestBundle = null;
 
 function randomBytes(length) {
   return crypto.getRandomValues(new Uint8Array(length));
@@ -53,6 +66,20 @@ function setResult(message, state = '') {
   result.dataset.state = state;
 }
 
+function setBundleResult(message, state = '') {
+  const result = byId('bundleResult');
+  if (!result) return;
+  result.textContent = message;
+  result.dataset.state = state;
+}
+
+function renderBundleState() {
+  const exportButton = byId('exportSelfTestBundle');
+  const recoverButton = byId('recoverImportedBundle');
+  if (exportButton) exportButton.disabled = !latestSelfTestBundle;
+  if (recoverButton) recoverButton.disabled = !importedSelfTestBundle;
+}
+
 function renderEnrollmentState({ announce = true } = {}) {
   const enrollment = loadEnrollment();
   const run = byId('runSelfTest');
@@ -101,7 +128,7 @@ async function renderReadiness() {
   byId('enrollPasskey').disabled = !hardReady || Boolean(enrollment);
   byId('vaultStatusTitle').textContent = enrollment ? 'Recovery passkey enrolled' : (hardReady ? 'Device is ready for a recovery passkey' : 'Recovery Vault needs one more prerequisite');
   byId('vaultStatusText').textContent = enrollment
-    ? 'Run the encrypted self-test to verify PRF key derivation and local AES-256-GCM without using a real recovery secret.'
+    ? 'Run the encrypted self-test, export its ciphertext bundle, then import and recover that bundle on another trusted device.'
     : (hardReady ? 'Next we can verify PRF support with a dedicated passkey and throwaway encrypted data. No master password is involved.' : 'Resolve the warning items below before creating a recovery credential.');
   byId('vaultStatusDot').className = `status-dot ${hardReady ? 'ready' : 'attention'}`;
   renderEnrollmentState({ announce: false });
@@ -137,17 +164,17 @@ async function enrollRecoveryPasskey() {
   setResult('Recovery passkey enrolled. Only non-secret credential metadata was saved in this browser.', 'ready');
 }
 
-async function deriveKeyWithPasskey(enrollment) {
-  const credentialId = fromBase64url(enrollment.credentialId);
-  const prfSalt = fromBase64url(enrollment.prfSalt);
+async function deriveKeyWithPasskey(metadata) {
+  const credentialId = fromBase64url(metadata.credentialId);
+  const prfSalt = fromBase64url(metadata.prfSalt);
   const assertion = await navigator.credentials.get({
     publicKey: {
       challenge: randomBytes(32),
-      rpId: enrollment.rpId,
+      rpId: metadata.rpId,
       allowCredentials: [{ type: 'public-key', id: credentialId }],
       timeout: 60000,
       userVerification: 'required',
-      extensions: { prf: { evalByCredential: { [enrollment.credentialId]: { first: prfSalt } } } },
+      extensions: { prf: { evalByCredential: { [metadata.credentialId]: { first: prfSalt } } } },
     },
   });
   const output = assertion?.getClientExtensionResults?.().prf?.results?.first;
@@ -160,20 +187,79 @@ async function deriveKeyWithPasskey(enrollment) {
   }
 }
 
+async function createSelfTestBundle(enrollment, key) {
+  const iv = randomBytes(12);
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, additionalData: encoder.encode(BUNDLE_AAD) },
+    key,
+    encoder.encode(SELF_TEST_TEXT),
+  );
+  return validateBundle({
+    version: BUNDLE_VERSION,
+    kind: BUNDLE_KIND,
+    rpId: enrollment.rpId,
+    credentialId: enrollment.credentialId,
+    prfSalt: enrollment.prfSalt,
+    iv: toBase64url(iv),
+    ciphertext: toBase64url(encrypted),
+    algorithm: BUNDLE_ALGORITHM,
+    label: '3DVR Recovery Vault portability self-test',
+    createdAt: new Date().toISOString(),
+  });
+}
+
+async function decryptSelfTestBundle(bundle, key) {
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: fromBase64url(bundle.iv), additionalData: encoder.encode(BUNDLE_AAD) },
+    key,
+    fromBase64url(bundle.ciphertext),
+  );
+  if (decoder.decode(decrypted) !== SELF_TEST_TEXT) throw new Error('Recovery bundle decrypted, but the self-test marker did not match.');
+}
+
 async function runEncryptedSelfTest() {
   const enrollment = loadEnrollment();
   if (!enrollment) throw new Error('Enroll a recovery passkey first.');
   const key = await deriveKeyWithPasskey(enrollment);
-  const iv = randomBytes(12);
-  const plain = encoder.encode('3dvr-recovery-vault-self-test-v1');
-  const aad = encoder.encode('3dvr-recovery-vault:v1:self-test');
-  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: aad }, key, plain);
-  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv, additionalData: aad }, key, encrypted);
-  if (decoder.decode(decrypted) !== decoder.decode(plain)) throw new Error('Encrypted self-test did not round-trip correctly.');
-  setResult('Success ✓ Passkey PRF → local AES-256-GCM encryption works end to end with throwaway data. No recovery secret was used.', 'ready');
+  const bundle = await createSelfTestBundle(enrollment, key);
+  await decryptSelfTestBundle(bundle, key);
+  latestSelfTestBundle = bundle;
+  renderBundleState();
+  setResult('Success ✓ Passkey PRF → encrypted portable bundle → local recovery works with throwaway data. You can now export the ciphertext-only test bundle.', 'ready');
   byId('vaultStatusTitle').textContent = 'Passkey encryption path verified';
-  byId('vaultStatusText').textContent = 'This device can derive encryption key material locally. Real-secret storage remains intentionally disabled until the bundle and recovery flow are reviewed.';
+  byId('vaultStatusText').textContent = 'Export the self-test bundle and recover it on another trusted device with the same synced passkey. Real-secret storage is still disabled.';
   byId('vaultStatusDot').className = 'status-dot ready';
+}
+
+function exportSelfTestBundle() {
+  if (!latestSelfTestBundle) throw new Error('Run the encrypted self-test first.');
+  const blob = new Blob([serializeBundle(latestSelfTestBundle)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `3dvr-recovery-self-test-${new Date().toISOString().slice(0, 10)}.json`;
+  anchor.rel = 'noopener';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+  setBundleResult('Encrypted self-test bundle exported. It contains ciphertext and passkey metadata only.', 'ready');
+}
+
+async function importSelfTestBundle(file) {
+  if (!file) throw new Error('Choose an encrypted Recovery Vault bundle first.');
+  if (file.size > 65536) throw new Error('Recovery bundle is larger than the allowed limit.');
+  importedSelfTestBundle = parseBundleText(await file.text());
+  renderBundleState();
+  const date = importedSelfTestBundle.createdAt ? ` from ${new Date(importedSelfTestBundle.createdAt).toLocaleString()}` : '';
+  setBundleResult(`Encrypted self-test bundle imported${date}. No decryption has happened yet.`, 'ready');
+}
+
+async function recoverImportedSelfTest() {
+  if (!importedSelfTestBundle) throw new Error('Import an encrypted self-test bundle first.');
+  const key = await deriveKeyWithPasskey(importedSelfTestBundle);
+  await decryptSelfTestBundle(importedSelfTestBundle, key);
+  setBundleResult('Recovery verified ✓ The imported ciphertext decrypted with this passkey and matched the self-test marker. This is the second-device recovery check we need before enabling real secrets.', 'ready');
 }
 
 byId('refreshReadiness')?.addEventListener('click', () => renderReadiness().catch(error => setResult(error.message, 'error')));
@@ -185,7 +271,7 @@ byId('enrollPasskey')?.addEventListener('click', async () => {
   finally { await renderReadiness(); }
 });
 byId('runSelfTest')?.addEventListener('click', async () => {
-  setResult('Waiting for your passkey, then testing local encryption…');
+  setResult('Waiting for your passkey, then creating a portable encrypted self-test bundle…');
   byId('runSelfTest').disabled = true;
   try { await runEncryptedSelfTest(); }
   catch (error) { setResult(error.message || 'Encrypted self-test failed.', 'error'); }
@@ -197,5 +283,25 @@ byId('forgetEnrollment')?.addEventListener('click', async () => {
   await renderReadiness();
   setResult('Local recovery metadata cleared. This does not delete the passkey from your device or passkey provider.');
 });
+byId('exportSelfTestBundle')?.addEventListener('click', () => {
+  try { exportSelfTestBundle(); }
+  catch (error) { setBundleResult(error.message || 'Bundle export failed.', 'error'); }
+});
+byId('importSelfTestBundle')?.addEventListener('click', () => byId('bundleFile')?.click());
+byId('bundleFile')?.addEventListener('change', async event => {
+  try { await importSelfTestBundle(event.target.files?.[0]); }
+  catch (error) { importedSelfTestBundle = null; renderBundleState(); setBundleResult(error.message || 'Bundle import failed.', 'error'); }
+  finally { event.target.value = ''; }
+});
+byId('recoverImportedBundle')?.addEventListener('click', async () => {
+  setBundleResult('Waiting for your passkey, then attempting local recovery…');
+  byId('recoverImportedBundle').disabled = true;
+  try { await recoverImportedSelfTest(); }
+  catch (error) { setBundleResult(error.message || 'Bundle recovery failed.', 'error'); }
+  finally { renderBundleState(); }
+});
 
-Promise.allSettled([renderReadiness()]).then(() => renderEnrollmentState());
+Promise.allSettled([renderReadiness()]).then(() => {
+  renderEnrollmentState();
+  renderBundleState();
+});

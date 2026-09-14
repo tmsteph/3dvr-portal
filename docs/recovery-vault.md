@@ -1,6 +1,6 @@
 # 3DVR Recovery Vault
 
-Status: passkey/crypto dry-run implemented; real-secret storage intentionally gated
+Status: passkey/crypto + portable ciphertext dry-run implemented; real-secret storage intentionally gated
 
 ## Purpose
 
@@ -32,41 +32,49 @@ References:
 
 ## Current implementation
 
-`/recovery-vault/` now has a deliberately secret-free verification phase:
+`/recovery-vault/` now has a deliberately secret-free verification and portability phase:
 
 1. Check HTTPS, WebAuthn, Web Crypto, platform-verifier availability, and canonical RP origin.
 2. Enroll a dedicated WebAuthn credential requesting PRF support. No recovery secret is entered.
 3. Persist only non-secret enrollment metadata in browser local storage: RP ID, credential ID, PRF input salt, version, and creation time.
 4. Require user verification again and request PRF output with `evalByCredential`.
-5. Import the PRF bytes as a non-extractable AES-GCM key, immediately overwrite the temporary byte view, and encrypt/decrypt fixed throwaway self-test text.
-6. Report success only if the authenticated encryption round-trip succeeds.
+5. Import the PRF bytes as a non-extractable AES-GCM key and overwrite the temporary byte view immediately after import.
+6. Encrypt fixed throwaway self-test text into a strictly validated ciphertext bundle.
+7. Allow that ciphertext-only bundle to be exported as JSON, imported on another trusted device, and decrypted only after the same passkey succeeds there.
+8. Report portability success only if the authenticated decryption reproduces the exact self-test marker.
 
-The dry run performs no network request and contains no password field. It proves the local authenticator → PRF → encryption path before the UI is ever allowed to accept real recovery material.
+The dry run performs no network request and contains no password field. It proves the local authenticator → PRF → encryption → export/import → recovery path before the UI is ever allowed to accept real recovery material.
 
 ## Encrypted bundle v1
 
-The future server-safe object should contain only:
+The allowlisted object contains only:
 
 - `version`
+- `kind`
 - `rpId`
 - `credentialId`
 - `prfSalt`
 - `iv`
 - `ciphertext`
 - `algorithm`
-- optional non-secret label and authenticator transport metadata
+- optional `label`
+- optional `createdAt`
 
-Never accept arbitrary extra fields. In particular, reject fields named `password`, `secret`, `value`, `plaintext`, `token`, or similar from persistent recovery storage.
+The current client accepts only `kind: "self-test"`. A `root-secret` kind is intentionally rejected until the production gate is satisfied.
+
+Unknown fields are rejected. This means fields such as `password`, `secret`, `value`, `plaintext`, `token`, or other accidental plaintext containers cannot be smuggled into persistent recovery storage.
 
 ## Storage model
 
-### Phase 1
+### Phase 1 — implemented for self-test data
 
-Store ciphertext on the trusted client and support encrypted export/import. The user can keep redundant copies in Drive, offline storage, or another approved location.
+Create ciphertext locally and support encrypted export/import. The bundle can be copied to another approved location because it contains ciphertext and non-secret recovery metadata only.
+
+Before real secrets are enabled, the exported self-test must be recovered successfully from a second trusted device using the same synced passkey or compatible authenticator.
 
 ### Phase 2
 
-Add owner-authenticated ciphertext synchronization through the 3DVR control plane. The broker should store only a validated encrypted bundle in its protected state directory. Audit records may contain hashes and timestamps, never ciphertext or plaintext values.
+Add owner-authenticated ciphertext synchronization through the 3DVR control plane. The broker should store only a validated encrypted bundle in its protected state directory. Audit records may contain hashes and timestamps, never plaintext values.
 
 ### Phase 3
 
@@ -89,7 +97,7 @@ Agents may:
 - report Recovery Vault health
 - navigate the owner to the recovery UI
 - verify that ciphertext backups exist
-- verify metadata, timestamps, and replication health
+- verify metadata, timestamps, schema, and replication health
 - request an owner recovery ceremony
 
 Agents must not:
@@ -113,7 +121,7 @@ The Bitwarden master password should therefore become a rarely used root secret 
 - PRF support proven by the enrolled authenticator
 - AES-256-GCM authenticated encryption
 - fresh IV per encryption
-- ciphertext schema allowlist
+- strict ciphertext schema allowlist
 - no plaintext persistence
 - no sensitive browser storage beyond ciphertext
 - no analytics on recovery input/output controls
@@ -122,7 +130,7 @@ The Bitwarden master password should therefore become a rarely used root secret 
 - encrypted backup/export and import
 - tested recovery from a second trusted device before the original password is considered safely recoverable
 
-The last two items are the production gate. Do not enter a Bitwarden master password into Recovery Vault until encrypted export/import and second-device recovery have both been implemented and exercised.
+Encrypted export/import is now implemented for throwaway self-test data. The remaining production gate is to exercise that flow successfully on a second trusted device and then review the real-secret input/reveal ceremony before adding any master-password field.
 
 ## Integration with existing 3DVR security
 
