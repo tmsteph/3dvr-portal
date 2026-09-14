@@ -4,82 +4,125 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>3DVR Assembly</title>
-  <meta name="description" content="3DVR Assembly helps people organize around a purpose, make commitments, decide together, and turn shared effort into outcomes." />
+  <meta name="description" content="Organize people, commitments, decisions, needs, and outcomes around a shared purpose." />
+  <link rel="manifest" href="/app-manifests/assembly.webmanifest" />
+  <meta name="theme-color" content="#07100f" />
   <link rel="stylesheet" href="../styles/global.css" />
   <link rel="stylesheet" href="./styles.css" />
+  <script defer src="./app.js"></script>
+  <script defer src="/pwa-install.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body class="assembly-page theme-dark">
-  <a class="skip-link" href="#assemblyMain">Skip to Assembly</a>
+  <a class="skip-link" href="#assemblyMain">Skip to Assembly workspace</a>
   <div class="assembly-shell">
     <nav class="assembly-nav" aria-label="Assembly navigation">
       <a href="../index.html">Portal</a>
-      <a href="../purpose-movement/">Purpose Movement</a>
+      <a href="../purpose-movement/">Purpose</a>
       <a href="../community/">Community</a>
       <a href="../contacts/">Contacts</a>
       <a href="../projects/">Projects</a>
     </nav>
 
-    <header class="hero">
-      <p class="eyebrow">3DVR Assembly · v0.1 direction</p>
-      <h1>Organize people around what matters.</h1>
-      <p class="lede">
-        Assembly is the people-coordination layer for 3DVR: form a group, make roles clear, choose what matters now,
-        record decisions, make commitments, share resources, and turn collective intention into visible outcomes.
-      </p>
-      <div class="flow" aria-label="Assembly flow">
-        <span>Purpose</span><b>→</b><span>People</span><b>→</b><span>Initiative</span><b>→</b><span>Commitment</span><b>→</b><span>Outcome</span>
+    <header class="workspace-head">
+      <div>
+        <p class="eyebrow">3DVR Assembly · local workspace</p>
+        <h1>Organize people around what matters.</h1>
+        <p class="lede">A calm place to see the people, commitments, decisions, and needs holding a shared effort together.</p>
+      </div>
+      <div class="privacy-note" role="note">
+        <strong>Private by default</strong>
+        <span>This first version stays in this browser on this device.</span>
       </div>
     </header>
 
     <main id="assemblyMain">
-      <section class="question-grid" aria-label="The six Assembly questions">
-        <article><strong>Who?</strong><span>Members, circles, roles, relationships.</span></article>
-        <article><strong>Why?</strong><span>Purpose, principles, shared direction.</span></article>
-        <article><strong>Now?</strong><span>The initiatives that deserve attention.</span></article>
-        <article><strong>Who owns it?</strong><span>Explicit commitments, owners, due dates.</span></article>
-        <article><strong>What's blocked?</strong><span>Decisions, needs, dependencies, resources.</span></article>
-        <article><strong>What happened?</strong><span>Outcomes and receipts instead of activity theater.</span></article>
-      </section>
-
-      <section class="split">
-        <article class="panel">
-          <p class="eyebrow">Not another feed</p>
-          <h2>Coordinated agency over engagement.</h2>
-          <p>
-            Community helps people find support. Assembly begins when people choose to do something together.
-            The system should make responsibility and decisions easier to see without forcing one governance model.
-          </p>
-          <div class="tags" aria-label="Supported group shapes">
-            <span>Teams</span><span>Families</span><span>Co-ops</span><span>Open source</span><span>Neighborhoods</span><span>DAOs</span>
-          </div>
-        </article>
-
-        <article class="panel kernel-panel">
-          <p class="eyebrow">Userspace, not kernel</p>
-          <h2>Built on shared 3DVR contracts.</h2>
-          <p>
-            Assembly should reuse identity, permissions, events, jobs, audit, Contacts, Projects, Calendar,
-            communications, and Finance instead of creating another isolated database.
-          </p>
-          <a class="button" href="../abilities/">Explore capabilities</a>
-        </article>
-      </section>
-
-      <section class="panel path-panel">
-        <p class="eyebrow">A natural graduation path</p>
-        <h2>Purpose becomes a movement. A movement can become an Assembly.</h2>
-        <div class="path-cards">
-          <a href="../purpose-movement/"><strong>1 · Discover</strong><span>Clarify purpose and visualize the movement.</span></a>
-          <a href="../launch-room/"><strong>2 · Signal</strong><span>Launch the first public doorway and find resonance.</span></a>
-          <a href="../community/"><strong>3 · Connect</strong><span>Find builders, support, skills, and practical help.</span></a>
-          <div><strong>4 · Assemble</strong><span>Define the people, roles, initiatives, commitments, and decisions.</span></div>
+      <section class="identity panel" aria-labelledby="identityTitle">
+        <div>
+          <p class="eyebrow">Shared direction</p>
+          <h2 id="identityTitle">What are we assembling?</h2>
         </div>
+        <form id="identityForm" class="identity-form">
+          <label>Name <input id="assemblyName" name="name" placeholder="Saturday Builders" /></label>
+          <label>Purpose <input id="assemblyPurpose" name="purpose" placeholder="What are we here to make possible?" /></label>
+          <button class="button primary" type="submit">Save</button>
+        </form>
+      </section>
+
+      <section class="pulse" aria-label="Assembly pulse">
+        <article><span id="peopleCount">0</span><strong>People</strong></article>
+        <article><span id="nowCount">0</span><strong>Open commitments</strong></article>
+        <article><span id="decisionCount">0</span><strong>Open decisions</strong></article>
+        <article><span id="needCount">0</span><strong>Open needs</strong></article>
+      </section>
+
+      <nav class="section-tabs" aria-label="Assembly sections">
+        <a href="#people">People</a>
+        <a href="#now">Now</a>
+        <a href="#decisions">Decisions</a>
+        <a href="#needs">Needs</a>
+      </nav>
+
+      <section id="people" class="workspace-section panel" aria-labelledby="peopleTitle">
+        <div class="section-copy">
+          <p class="eyebrow">People</p>
+          <h2 id="peopleTitle">Who is here?</h2>
+          <p>Keep roles simple enough that everyone knows who can help with what.</p>
+        </div>
+        <form id="personForm" class="quick-form">
+          <label>Name <input id="personName" required placeholder="Name" /></label>
+          <label>Role <input id="personRole" placeholder="Builder, guide, organizer..." /></label>
+          <button class="button primary" type="submit">Add person</button>
+        </form>
+        <div id="peopleList" class="record-list" aria-live="polite"></div>
+      </section>
+
+      <section id="now" class="workspace-section panel" aria-labelledby="nowTitle">
+        <div class="section-copy">
+          <p class="eyebrow">Now</p>
+          <h2 id="nowTitle">What did we commit to?</h2>
+          <p>Every active effort should have an owner and a concrete next move.</p>
+        </div>
+        <form id="commitmentForm" class="quick-form three">
+          <label>Commitment <input id="commitmentText" required placeholder="Ship the landing page" /></label>
+          <label>Owner <input id="commitmentOwner" placeholder="Who owns it?" /></label>
+          <label>Due <input id="commitmentDue" type="date" /></label>
+          <button class="button primary" type="submit">Add commitment</button>
+        </form>
+        <div id="commitmentList" class="record-list" aria-live="polite"></div>
+      </section>
+
+      <section id="decisions" class="workspace-section panel" aria-labelledby="decisionsTitle">
+        <div class="section-copy">
+          <p class="eyebrow">Decisions</p>
+          <h2 id="decisionsTitle">What needs a choice?</h2>
+          <p>Surface choices instead of letting them hide inside chat threads.</p>
+        </div>
+        <form id="decisionForm" class="quick-form">
+          <label>Decision <input id="decisionText" required placeholder="Which launch date do we choose?" /></label>
+          <label>Owner <input id="decisionOwner" placeholder="Who drives the choice?" /></label>
+          <button class="button primary" type="submit">Add decision</button>
+        </form>
+        <div id="decisionList" class="record-list" aria-live="polite"></div>
+      </section>
+
+      <section id="needs" class="workspace-section panel" aria-labelledby="needsTitle">
+        <div class="section-copy">
+          <p class="eyebrow">Needs</p>
+          <h2 id="needsTitle">What would unblock us?</h2>
+          <p>Make asks visible so another person can actually respond to them.</p>
+        </div>
+        <form id="needForm" class="quick-form">
+          <label>Need <input id="needText" required placeholder="A designer for the first prototype" /></label>
+          <label>Who needs it? <input id="needOwner" placeholder="Person or team" /></label>
+          <button class="button primary" type="submit">Add need</button>
+        </form>
+        <div id="needList" class="record-list" aria-live="polite"></div>
       </section>
 
       <section class="principle">
-        <p>Businesses are one kind of organism.</p>
-        <strong>Assembly is for any group of people trying to make something real together.</strong>
+        <p>Social networks optimize attention.</p>
+        <strong>Assembly optimizes coordinated agency.</strong>
       </section>
     </main>
   </div>

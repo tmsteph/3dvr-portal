@@ -1,0 +1,16 @@
+{
+  "id": "/assembly/",
+  "name": "3DVR Assembly",
+  "short_name": "Assembly",
+  "description": "Organize people, commitments, decisions, needs, and outcomes around a shared purpose.",
+  "start_url": "/assembly/?source=pwa",
+  "scope": "/assembly/",
+  "display": "standalone",
+  "background_color": "#07100f",
+  "theme_color": "#07100f",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
