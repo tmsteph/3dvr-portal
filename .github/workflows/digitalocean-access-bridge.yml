@@ -1,0 +1,107 @@
+name: DigitalOcean Access Bridge
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/digitalocean-access-bridge.yml'
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: digitalocean-access-bridge
+  cancel-in-progress: false
+
+env:
+  DO_HOST: 167.172.193.194
+  DO_USER: root
+
+jobs:
+  heal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Resolve DigitalOcean SSH key
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          key=''
+          for candidate in "$SSH_A" "$SSH_B" "$SSH_C"; do
+            if [ -z "$key" ] && [ -n "$candidate" ]; then key="$candidate"; fi
+          done
+          [ -n "$key" ] || { echo 'No DigitalOcean SSH key is configured.' >&2; exit 1; }
+          umask 077
+          printf '%s\n' "$key" > /tmp/3dvr-do-key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-do-key.raw; then
+            cp /tmp/3dvr-do-key.raw /tmp/3dvr-do-key
+          elif base64 -d /tmp/3dvr-do-key.raw > /tmp/3dvr-do-key 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' /tmp/3dvr-do-key; then
+            :
+          else
+            echo 'Configured DigitalOcean SSH key could not be decoded.' >&2
+            exit 1
+          fi
+          chmod 600 /tmp/3dvr-do-key
+          rm -f /tmp/3dvr-do-key.raw
+          printf '%s\n' '167.172.193.194 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFoepoGbXWiidk4axaBwsI1Y/GWVckiqJxGLkBpTV6Pc' > /tmp/3dvr-known-hosts
+          chmod 600 /tmp/3dvr-known-hosts
+
+      - name: Ensure Remote Desktop Commander service
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/3dvr-do-key -o BatchMode=yes -o UserKnownHostsFile=/tmp/3dvr-known-hosts -o StrictHostKeyChecking=yes -o ConnectTimeout=10)
+          ssh "${opts[@]}" "$DO_USER@$DO_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          npx_bin="$(command -v npx || true)"
+          [ -n "$npx_bin" ] || { echo 'npx is required for Remote Desktop Commander.' >&2; exit 1; }
+          cat >/etc/systemd/system/desktop-commander-remote.service <<UNIT
+          [Unit]
+          Description=Remote Desktop Commander device agent
+          After=network-online.target
+          Wants=network-online.target
+          StartLimitIntervalSec=120
+          StartLimitBurst=15
+
+          [Service]
+          Type=simple
+          User=root
+          Group=root
+          WorkingDirectory=/root
+          Environment=HOME=/root
+          Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          ExecStart=$npx_bin -y @wonderwhy-er/desktop-commander@latest remote
+          Restart=on-failure
+          RestartSec=10
+          KillSignal=SIGINT
+          TimeoutStopSec=20
+
+          [Install]
+          WantedBy=multi-user.target
+          UNIT
+          systemctl daemon-reload
+          systemctl reset-failed desktop-commander-remote.service || true
+          systemctl enable desktop-commander-remote.service
+          if ! systemctl is-active --quiet desktop-commander-remote.service; then
+            systemctl restart desktop-commander-remote.service
+          fi
+          sleep 5
+          if ! systemctl is-active --quiet desktop-commander-remote.service; then
+            systemctl --no-pager --full status desktop-commander-remote.service || true
+            journalctl -u desktop-commander-remote.service -n 40 --no-pager || true
+            exit 1
+          fi
+          systemctl --no-pager --full status desktop-commander-remote.service | sed -n '1,12p'
+          REMOTE
+
+      - name: Remove SSH key
+        if: always()
+        shell: bash
+        run: rm -f /tmp/3dvr-do-key /tmp/3dvr-do-key.raw /tmp/3dvr-known-hosts
