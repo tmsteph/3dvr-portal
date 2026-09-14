@@ -12,3 +12,4 @@ encore-200-study 2026-09-08T14:59Z
 2026-09-10: deploy unified outreach suppression gate
 2026-09-12: deploy pain-first diagnostic sales motion
 2026-09-12: deploy persistent production tunnel fix
+2026-09-14: deploy Recovery Vault passkey and portable ciphertext self-test
