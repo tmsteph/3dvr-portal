@@ -1,0 +1,118 @@
+# 3DVR Assembly
+
+**Assembly is a people-coordination project built on the 3DVR Business Kernel.**
+
+Its job is not to be another social network, CRM, company dashboard, or mandatory governance system. It helps a group of people form around a purpose, decide how they want to work together, make commitments, share resources, and turn coordinated effort into outcomes.
+
+## Why it is separate
+
+3DVR's kernel coordinates software and organizational primitives. Purpose Movement helps an individual discover a direction. Community helps builders support one another.
+
+Assembly begins when the question changes from **"What do I want to build?"** to **"How do we organize ourselves to build this together?"**
+
+Keeping that layer separate prevents business-specific assumptions from becoming kernel requirements and prevents community/social features from becoming governance infrastructure.
+
+## Core graph
+
+> Person → Assembly → Circle/Team → Initiative → Commitment → Outcome
+
+Cross-cutting records attach to that graph:
+
+- **Role** — responsibility or authority held by a member.
+- **Decision** — a proposal, chosen path, rationale, participants, and decision method.
+- **Resource** — money, equipment, space, knowledge, compute, inventory, or another shared asset.
+- **Meeting/Event** — synchronous coordination and its resulting decisions or commitments.
+- **Need/Offer** — something the group needs or something a member can provide.
+- **Message** — communication evidence linked to the relevant initiative or commitment.
+
+## Assemblies are neutral containers
+
+An Assembly may represent a:
+
+- project team
+- startup or business
+- family or household
+- neighborhood group
+- cooperative
+- mutual-aid network
+- open-source project
+- club or creative collective
+- nonprofit or volunteer effort
+- DAO, with or without a token or blockchain
+
+No governance model is assumed. A group may use a founder, vote, consent, delegation, elected roles, rough consensus, or another explicit method.
+
+## Minimum useful product
+
+Version 0 should answer six questions quickly:
+
+1. Who is here?
+2. Why are we together?
+3. What are we doing now?
+4. Who committed to what?
+5. What decision or dependency is blocking progress?
+6. What happened as a result?
+
+The initial product surface should therefore focus on:
+
+- assembly identity and purpose
+- members and roles
+- current initiatives
+- commitments with owner and due date
+- proposals/decisions
+- needs, offers, and shared resources
+- a compact Now / Next / Waiting view
+- receipts/outcomes rather than engagement metrics
+
+## Relationship to existing apps
+
+Assembly should reuse, not replace:
+
+- **Contacts** for person identity and relationships.
+- **Projects/Tasks** for executable work where those records already exist.
+- **Calendar** for time commitments.
+- **Messenger/communications** for messages.
+- **Finance/Billing** for authoritative money state.
+- **Community** for discovery, support, and informal circles.
+- **Purpose Movement / Launch Room** for turning personal purpose into an initial movement or project.
+- **DAO pages** for governance research and blockchain/token experiments when a group chooses them.
+
+Assembly's unique responsibility is the shared coordination graph connecting those records to membership, roles, commitments, and decisions.
+
+## Kernel contract
+
+Assembly is userspace. It should use kernel identity, capability discovery, policy, events, jobs, and audit rather than inventing its own integration layer.
+
+Example future actions:
+
+- `assembly.create`
+- `assembly.invite_member`
+- `assembly.assign_role`
+- `assembly.create_initiative`
+- `assembly.make_commitment`
+- `assembly.propose_decision`
+- `assembly.record_decision`
+- `assembly.record_outcome`
+
+Each action should declare authorization, side effects, visibility, reversibility, and audit behavior through the shared capability model.
+
+## Privacy and trust
+
+People-organizing data can be sensitive. Membership, private discussions, locations, schedules, household data, political/religious affiliation, conflict, and internal decisions must not be exposed through public Gun graphs or public JSON by default.
+
+Start with public product framing and low-risk prototypes. Durable multi-user Assembly data should wait for an owner/workspace-scoped storage and permission model appropriate to the record.
+
+## Product principle
+
+> Social networks optimize attention. Assembly should optimize coordinated agency.
+
+Success is not more posting. Success is that people understand each other, make explicit commitments, resolve decisions, share resources, and create outcomes they could not create alone.
+
+## First build sequence
+
+1. Publish the Assembly product framing and relationship to the kernel.
+2. Reuse Contacts identity and Projects/Tasks links rather than creating duplicate people/work databases.
+3. Define Assembly, Membership, Role, Initiative, Commitment, Decision, Resource, and Outcome schemas.
+4. Add a private workspace-scoped persistence path before live multi-user data.
+5. Build the first operational view: People / Now / Decisions / Needs.
+6. Connect Purpose Movement so a movement can graduate into an Assembly when more people join.

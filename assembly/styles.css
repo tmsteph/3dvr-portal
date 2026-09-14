@@ -1,0 +1,212 @@
+:root {
+  --assembly-bg: #07100f;
+  --assembly-panel: rgba(12, 28, 25, 0.84);
+  --assembly-text: #f6fbf7;
+  --assembly-muted: #adc4b8;
+  --assembly-line: rgba(184, 224, 197, 0.18);
+  --assembly-leaf: #a8e6b2;
+  --assembly-sun: #f3d27a;
+}
+
+* { box-sizing: border-box; }
+
+body.assembly-page {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--assembly-text);
+  font-family: "Avenir Next", "Trebuchet MS", Verdana, sans-serif;
+  background:
+    radial-gradient(circle at 16% 4%, rgba(168, 230, 178, 0.16), transparent 28rem),
+    radial-gradient(circle at 88% 18%, rgba(243, 210, 122, 0.12), transparent 24rem),
+    linear-gradient(150deg, #06100f, #091713 52%, #0c1f19);
+}
+
+a { color: inherit; }
+
+.assembly-shell {
+  width: min(1120px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 22px 0 64px;
+}
+
+.assembly-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.assembly-nav a,
+.button,
+.tags span {
+  border: 1px solid var(--assembly-line);
+  border-radius: 999px;
+  padding: 9px 13px;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.hero,
+.panel,
+.question-grid article,
+.principle {
+  border: 1px solid var(--assembly-line);
+  background: var(--assembly-panel);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+}
+
+.hero {
+  border-radius: 32px;
+  padding: clamp(28px, 7vw, 72px);
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: var(--assembly-leaf);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p { margin-top: 0; }
+
+h1 {
+  max-width: 11ch;
+  margin-bottom: 22px;
+  font-size: clamp(3rem, 9vw, 7.5rem);
+  line-height: 0.88;
+  letter-spacing: -0.07em;
+}
+
+h2 {
+  font-size: clamp(1.5rem, 4vw, 2.8rem);
+  letter-spacing: -0.04em;
+}
+
+.lede,
+.panel p,
+.question-grid span,
+.path-cards span {
+  color: var(--assembly-muted);
+  line-height: 1.65;
+}
+
+.lede {
+  max-width: 68ch;
+  font-size: 1.08rem;
+}
+
+.flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 28px;
+}
+
+.flow span,
+.flow b {
+  color: var(--assembly-sun);
+}
+
+.question-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.question-grid article {
+  display: grid;
+  gap: 8px;
+  min-height: 140px;
+  padding: 20px;
+  border-radius: 22px;
+}
+
+.question-grid strong { font-size: 1.12rem; }
+
+.split {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 16px;
+}
+
+.panel {
+  border-radius: 28px;
+  padding: clamp(24px, 5vw, 42px);
+}
+
+.kernel-panel {
+  background: linear-gradient(145deg, rgba(20, 52, 41, 0.9), rgba(12, 28, 25, 0.9));
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.button {
+  display: inline-block;
+  margin-top: 12px;
+  border-color: transparent;
+  color: #07100f;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--assembly-leaf), var(--assembly-sun));
+}
+
+.path-panel { margin-top: 16px; }
+
+.path-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.path-cards > * {
+  display: grid;
+  gap: 8px;
+  min-height: 150px;
+  padding: 18px;
+  border: 1px solid var(--assembly-line);
+  border-radius: 18px;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.principle {
+  margin-top: 16px;
+  border-radius: 28px;
+  padding: clamp(24px, 6vw, 52px);
+  text-align: center;
+}
+
+.principle p {
+  margin-bottom: 8px;
+  color: var(--assembly-muted);
+}
+
+.principle strong {
+  display: block;
+  max-width: 28ch;
+  margin: 0 auto;
+  font-size: clamp(1.5rem, 4vw, 3rem);
+  line-height: 1.1;
+}
+
+@media (max-width: 760px) {
+  .question-grid,
+  .split,
+  .path-cards { grid-template-columns: 1fr; }
+
+  .question-grid article,
+  .path-cards > * { min-height: auto; }
+
+  h1 { font-size: clamp(3rem, 16vw, 5.6rem); }
+}
