@@ -217,6 +217,7 @@ describe('oauth provider api', () => {
     const scopes = location.searchParams.get('scope') || '';
     assert.match(scopes, /https:\/\/www\.googleapis\.com\/auth\/gmail\.send/);
     assert.doesNotMatch(scopes, /https:\/\/www\.googleapis\.com\/auth\/gmail\.readonly/);
+    assert.equal(location.searchParams.get('include_granted_scopes'), 'false');
   });
 
   it('supports Calendar plus Gmail send without mailbox read permission', async () => {
@@ -237,6 +238,7 @@ describe('oauth provider api', () => {
     assert.match(scopes, /https:\/\/www\.googleapis\.com\/auth\/calendar\.events/);
     assert.match(scopes, /https:\/\/www\.googleapis\.com\/auth\/gmail\.send/);
     assert.doesNotMatch(scopes, /https:\/\/www\.googleapis\.com\/auth\/gmail\.readonly/);
+    assert.equal(location.searchParams.get('include_granted_scopes'), 'false');
   });
 
   it('renders copyable CLI OAuth result instead of redirecting immediately', async () => {
