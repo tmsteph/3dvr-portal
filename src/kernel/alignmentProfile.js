@@ -1,4 +1,4 @@
-export const ALIGNMENT_PROFILE_SCHEMA_VERSION = 1;
+export const ALIGNMENT_PROFILE_SCHEMA_VERSION = 2;
 export const ALIGNMENT_PROFILE_GUN_NODE = 'alignment-profile-v1';
 
 const STOP_WORDS = new Set([
@@ -31,16 +31,23 @@ function timestamp(value) {
   return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
 }
 
+function latestTimestamp(values = []) {
+  const latest = values
+    .map((value) => Date.parse(value || ''))
+    .filter(Number.isFinite)
+    .sort((left, right) => right - left)[0];
+  return Number.isFinite(latest) ? new Date(latest).toISOString() : null;
+}
+
 function clampScore(value, fallback = 50) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.max(0, Math.min(100, Math.round(parsed))) : fallback;
 }
 
-export function normalizeAlignmentProfile(value = {}) {
+function normalizeContribution(value = {}, fallbackSource = 'unknown') {
   const source = value && typeof value === 'object' ? value : {};
   return {
-    schemaVersion: ALIGNMENT_PROFILE_SCHEMA_VERSION,
-    source: cleanText(source.source) || 'unknown',
+    source: cleanText(source.source) || fallbackSource,
     keywords: unique(Array.isArray(source.keywords) ? source.keywords.map((item) => cleanText(item).toLowerCase()) : []).slice(0, 32),
     focusAreas: unique(Array.isArray(source.focusAreas) ? source.focusAreas.map(cleanText) : []).slice(0, 8),
     people: unique(Array.isArray(source.people) ? source.people.map(cleanText) : []).slice(0, 8),
@@ -48,6 +55,50 @@ export function normalizeAlignmentProfile(value = {}) {
     nextMoves: unique(Array.isArray(source.nextMoves) ? source.nextMoves.map(cleanText) : []).slice(0, 8),
     updatedAt: timestamp(source.updatedAt)
   };
+}
+
+function aggregateContributions(contributions = {}) {
+  const normalizedContributions = {};
+  Object.entries(contributions).forEach(([key, value]) => {
+    const sourceKey = cleanText(key || value?.source) || 'unknown';
+    normalizedContributions[sourceKey] = normalizeContribution(value, sourceKey);
+  });
+  const entries = Object.values(normalizedContributions);
+  const sourceKeys = Object.keys(normalizedContributions).sort();
+  return {
+    schemaVersion: ALIGNMENT_PROFILE_SCHEMA_VERSION,
+    source: sourceKeys.length ? sourceKeys.join('+') : 'unknown',
+    keywords: unique(entries.flatMap((entry) => entry.keywords)).slice(0, 48),
+    focusAreas: unique(entries.flatMap((entry) => entry.focusAreas)).slice(0, 12),
+    people: unique(entries.flatMap((entry) => entry.people)).slice(0, 12),
+    projects: unique(entries.flatMap((entry) => entry.projects)).slice(0, 12),
+    nextMoves: unique(entries.flatMap((entry) => entry.nextMoves)).slice(0, 12),
+    updatedAt: latestTimestamp(entries.map((entry) => entry.updatedAt)),
+    contributions: normalizedContributions
+  };
+}
+
+export function normalizeAlignmentProfile(value = {}) {
+  const source = value && typeof value === 'object' ? value : {};
+  if (source.contributions && typeof source.contributions === 'object' && !Array.isArray(source.contributions)) {
+    return aggregateContributions(source.contributions);
+  }
+  const contribution = normalizeContribution(source);
+  const hasContent = contribution.keywords.length
+    || contribution.focusAreas.length
+    || contribution.people.length
+    || contribution.projects.length
+    || contribution.nextMoves.length;
+  return aggregateContributions(hasContent ? { [contribution.source]: contribution } : {});
+}
+
+export function upsertAlignmentContribution(profile = {}, contribution = {}) {
+  const current = normalizeAlignmentProfile(profile);
+  const incoming = normalizeAlignmentProfile(contribution);
+  return aggregateContributions({
+    ...current.contributions,
+    ...incoming.contributions
+  });
 }
 
 export function buildAlignmentProfileFromPurposeState(state = {}) {
@@ -70,6 +121,33 @@ export function buildAlignmentProfileFromPurposeState(state = {}) {
     people: people ? [people] : [],
     projects: project ? [project] : [],
     nextMoves: move ? [move] : [],
+    updatedAt: state.updatedAt || new Date().toISOString()
+  });
+}
+
+export function buildAlignmentProfileFromLaunchRoomState(state = {}) {
+  const movementName = cleanText(state.movementName);
+  const worldPain = cleanText(state.worldPain);
+  const worldWish = cleanText(state.worldWish);
+  const firstAudience = cleanText(state.firstAudience);
+  const tinyProject = cleanText(state.tinyProject);
+  const mode = cleanText(state.mode);
+  const keywords = unique([
+    ...tokenize(movementName),
+    ...tokenize(worldPain),
+    ...tokenize(worldWish),
+    ...tokenize(firstAudience),
+    ...tokenize(tinyProject),
+    ...tokenize(mode)
+  ]).slice(0, 32);
+
+  return normalizeAlignmentProfile({
+    source: 'launch-room',
+    keywords,
+    focusAreas: unique([worldPain, worldWish]),
+    people: firstAudience ? [firstAudience] : [],
+    projects: unique([movementName, tinyProject]),
+    nextMoves: tinyProject ? [tinyProject] : [],
     updatedAt: state.updatedAt || new Date().toISOString()
   });
 }
@@ -100,9 +178,10 @@ export function scoreOpportunityAlignment(opportunity = {}, profile = {}) {
 }
 
 export function applyAlignmentProfile(opportunity = {}, profile = {}) {
+  const normalized = normalizeAlignmentProfile(profile);
   return {
     ...opportunity,
-    alignmentScore: scoreOpportunityAlignment(opportunity, profile),
-    alignmentProfileSource: normalizeAlignmentProfile(profile).source
+    alignmentScore: scoreOpportunityAlignment(opportunity, normalized),
+    alignmentProfileSource: normalized.source
   };
 }
