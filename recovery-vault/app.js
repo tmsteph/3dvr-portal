@@ -15,7 +15,9 @@ function toBase64url(value) {
 }
 
 function fromBase64url(value) {
-  const normalized = String(value || '').replace(/-/g, '+').replace(/_/g, '/');
+  const text = String(value || '');
+  if (!/^[A-Za-z0-9_-]+$/.test(text)) throw new Error('Invalid recovery metadata encoding.');
+  const normalized = text.replace(/-/g, '+').replace(/_/g, '/');
   const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
   const binary = atob(padded);
   return Uint8Array.from(binary, character => character.charCodeAt(0));
@@ -30,7 +32,10 @@ function canonicalRpId() {
 function loadEnrollment() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-    if (!parsed || parsed.version !== 1 || !parsed.credentialId || !parsed.prfSalt || !parsed.rpId) return null;
+    if (!parsed || parsed.version !== 1 || parsed.rpId !== '3dvr.tech') return null;
+    if (!parsed.credentialId || !parsed.prfSalt) return null;
+    fromBase64url(parsed.credentialId);
+    fromBase64url(parsed.prfSalt);
     return parsed;
   } catch {
     return null;
@@ -48,13 +53,20 @@ function setResult(message, state = '') {
   result.dataset.state = state;
 }
 
-function renderEnrollmentState() {
+function renderEnrollmentState({ announce = true } = {}) {
   const enrollment = loadEnrollment();
   const run = byId('runSelfTest');
   const forget = byId('forgetEnrollment');
+  const enroll = byId('enrollPasskey');
   if (run) run.disabled = !enrollment;
   if (forget) forget.disabled = !enrollment;
-  if (enrollment) {
+  if (enroll && enrollment) {
+    enroll.disabled = true;
+    enroll.textContent = 'Recovery passkey enrolled ✓';
+  } else if (enroll) {
+    enroll.textContent = 'Enroll recovery passkey';
+  }
+  if (enrollment && announce) {
     setResult(`Recovery passkey metadata is enrolled on this browser (${enrollment.rpId}). No secret is stored here.`, 'ready');
   }
   return enrollment;
@@ -85,12 +97,14 @@ async function renderReadiness() {
     list.innerHTML = checks.map(check => `<div class="check-row"><span class="check-icon ${check.ok ? 'ok' : 'warn'}">${check.ok ? '✓' : '!'}</span><div><strong>${check.label}</strong><small>${check.detail}</small></div></div>`).join('');
   }
   const hardReady = checks.filter(check => ['Secure HTTPS context', 'WebAuthn / passkeys', 'Web Crypto AES-GCM', 'Canonical 3dvr.tech RP'].includes(check.label)).every(check => check.ok);
-  byId('enrollPasskey').disabled = !hardReady;
-  byId('vaultStatusTitle').textContent = hardReady ? 'Device is ready for a recovery passkey' : 'Recovery Vault needs one more prerequisite';
-  byId('vaultStatusText').textContent = hardReady
-    ? 'Next we can verify PRF support with a dedicated passkey and throwaway encrypted data. No master password is involved.'
-    : 'Resolve the warning items below before creating a recovery credential.';
+  const enrollment = loadEnrollment();
+  byId('enrollPasskey').disabled = !hardReady || Boolean(enrollment);
+  byId('vaultStatusTitle').textContent = enrollment ? 'Recovery passkey enrolled' : (hardReady ? 'Device is ready for a recovery passkey' : 'Recovery Vault needs one more prerequisite');
+  byId('vaultStatusText').textContent = enrollment
+    ? 'Run the encrypted self-test to verify PRF key derivation and local AES-256-GCM without using a real recovery secret.'
+    : (hardReady ? 'Next we can verify PRF support with a dedicated passkey and throwaway encrypted data. No master password is involved.' : 'Resolve the warning items below before creating a recovery credential.');
   byId('vaultStatusDot').className = `status-dot ${hardReady ? 'ready' : 'attention'}`;
+  renderEnrollmentState({ announce: false });
 }
 
 async function enrollRecoveryPasskey() {
@@ -112,15 +126,14 @@ async function enrollRecoveryPasskey() {
   if (!credential) throw new Error('Passkey enrollment was cancelled.');
   const prf = credential.getClientExtensionResults?.().prf;
   if (!prf?.enabled) throw new Error('That authenticator did not confirm WebAuthn PRF support. Try a different passkey provider or device.');
-  const enrollment = {
+  saveEnrollment({
     version: 1,
     rpId,
     credentialId: toBase64url(credential.rawId),
     prfSalt: toBase64url(prfSalt),
     createdAt: new Date().toISOString(),
-  };
-  saveEnrollment(enrollment);
-  renderEnrollmentState();
+  });
+  renderEnrollmentState({ announce: false });
   setResult('Recovery passkey enrolled. Only non-secret credential metadata was saved in this browser.', 'ready');
 }
 
@@ -139,7 +152,12 @@ async function deriveKeyWithPasskey(enrollment) {
   });
   const output = assertion?.getClientExtensionResults?.().prf?.results?.first;
   if (!output) throw new Error('This passkey did not return PRF key material during verification.');
-  return crypto.subtle.importKey('raw', output, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+  const material = new Uint8Array(output);
+  try {
+    return await crypto.subtle.importKey('raw', material, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+  } finally {
+    material.fill(0);
+  }
 }
 
 async function runEncryptedSelfTest() {
@@ -171,12 +189,13 @@ byId('runSelfTest')?.addEventListener('click', async () => {
   byId('runSelfTest').disabled = true;
   try { await runEncryptedSelfTest(); }
   catch (error) { setResult(error.message || 'Encrypted self-test failed.', 'error'); }
-  finally { renderEnrollmentState(); }
+  finally { renderEnrollmentState({ announce: false }); }
 });
-byId('forgetEnrollment')?.addEventListener('click', () => {
+byId('forgetEnrollment')?.addEventListener('click', async () => {
   localStorage.removeItem(STORAGE_KEY);
+  renderEnrollmentState({ announce: false });
+  await renderReadiness();
   setResult('Local recovery metadata cleared. This does not delete the passkey from your device or passkey provider.');
-  renderEnrollmentState();
 });
 
 Promise.allSettled([renderReadiness()]).then(() => renderEnrollmentState());
