@@ -1,0 +1,67 @@
+:root {
+  color-scheme: dark;
+  --bg: #07110f;
+  --panel: rgba(17, 35, 29, 0.9);
+  --panel-soft: rgba(17, 35, 29, 0.58);
+  --text: #f1f7f2;
+  --muted: #aec2b6;
+  --line: rgba(164, 220, 187, 0.22);
+  --accent: #a9e5bd;
+  --accent-strong: #d9ffe4;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { max-width: 100%; overflow-x: hidden; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 10% 8%, rgba(82, 174, 121, 0.22), transparent 30rem),
+    radial-gradient(circle at 92% 22%, rgba(184, 157, 89, 0.12), transparent 26rem),
+    linear-gradient(180deg, #0b1713 0%, var(--bg) 58%, #040806 100%);
+  line-height: 1.55;
+}
+a { color: var(--accent-strong); }
+.shell { width: min(1040px, calc(100% - 28px)); margin: 0 auto; padding: 20px 0 56px; }
+.nav { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 26px; }
+.brand { color: var(--text); font-weight: 800; text-decoration: none; }
+.nav-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.nav-links a, .quiet-button { border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; background: rgba(8, 19, 15, 0.7); color: var(--text); text-decoration: none; }
+.quiet-button { font: inherit; cursor: pointer; }
+.hero, .checkin, .reflection, .principles, .handoff { border: 1px solid var(--line); border-radius: 24px; background: var(--panel); padding: clamp(22px, 4vw, 42px); margin-top: 18px; min-width: 0; }
+.hero { background: linear-gradient(145deg, rgba(26, 56, 42, 0.95), rgba(9, 22, 17, 0.92)); }
+.eyebrow { margin: 0 0 8px; color: var(--accent); font-size: .76rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+h1, h2 { margin: 0; line-height: 1.02; letter-spacing: -.04em; overflow-wrap: anywhere; }
+h1 { max-width: 850px; font-size: clamp(2.4rem, 7vw, 5.2rem); }
+h2 { font-size: clamp(1.8rem, 4vw, 3rem); }
+.lede, .hint, .handoff p, .reflection p { color: var(--muted); max-width: 760px; }
+.journey { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; color: var(--accent-strong); font-weight: 800; }
+.journey span { color: var(--muted); }
+.section-head { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: end; }
+.dimensions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 12px; margin: 22px 0; }
+.dimension { border: 1px solid var(--line); border-radius: 16px; padding: 16px; background: var(--panel-soft); min-width: 0; }
+.dimension-head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.dimension strong { font-size: 1rem; }
+.dimension output { color: var(--accent); font-weight: 800; }
+.dimension input[type="range"] { width: 100%; accent-color: var(--accent); }
+.intention { display: block; margin: 20px 0; }
+.intention span { display: block; margin-bottom: 8px; font-weight: 800; }
+textarea { width: 100%; max-width: 100%; resize: vertical; border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: #07100d; color: var(--text); font: inherit; }
+.primary, .primary-link { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; border: 0; border-radius: 999px; padding: 11px 18px; background: var(--accent); color: #082012; font: inherit; font-weight: 900; text-decoration: none; cursor: pointer; }
+.reflection-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.reflection-actions a { border: 1px solid var(--line); border-radius: 999px; padding: 9px 13px; text-decoration: none; }
+.privacy-note { font-size: .86rem; }
+.principle-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); gap: 12px; margin-top: 22px; }
+.principle-grid article { border: 1px solid var(--line); border-radius: 16px; padding: 16px; min-width: 0; }
+.principle-grid strong, .principle-grid span { display: block; }
+.principle-grid span { color: var(--muted); margin-top: 5px; }
+footer { padding: 30px 4px 0; color: var(--muted); }
+@media (max-width: 540px) {
+  .shell { width: min(100% - 18px, 1040px); }
+  .hero, .checkin, .reflection, .principles, .handoff { border-radius: 18px; padding: 20px 16px; }
+  h1 { font-size: clamp(2.2rem, 13vw, 3.6rem); }
+  .nav { align-items: flex-start; }
+  .nav-links { width: 100%; }
+  .nav-links a { flex: 1 1 auto; text-align: center; }
+}
