@@ -1,6 +1,7 @@
 name: Migrate Portal Edge to OVH
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -20,7 +21,7 @@ env:
 
 jobs:
   migrate:
-    if: github.event.head_commit.message == 'Migrate portal edge from Vercel to OVH'
+    if: github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'Migrate portal edge from Vercel to OVH'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
