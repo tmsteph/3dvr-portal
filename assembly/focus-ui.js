@@ -1,3 +1,4 @@
+import './workspace-ui.js';
 import { STORAGE_KEY, normalizeAssemblyState } from './data.js';
 import { deriveAssemblyFocus } from './focus.js';
 
