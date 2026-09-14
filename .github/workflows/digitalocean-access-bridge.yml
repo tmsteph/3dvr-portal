@@ -90,7 +90,17 @@ jobs:
           systemctl reset-failed desktop-commander-remote.service || true
           systemctl enable desktop-commander-remote.service
 
-          resilience="$HOME/.3dvr/portal/scripts/ops/install-desktop-commander-resilience.sh"
+          repo="$HOME/.3dvr/portal"
+          if [ -d "$repo/.git" ]; then
+            if ! git -C "$repo" diff --quiet || ! git -C "$repo" diff --cached --quiet || [ -n "$(git -C "$repo" ls-files --others --exclude-standard)" ]; then
+              git -C "$repo" stash push --include-untracked -m "access-bridge-$(date -u +%Y%m%dT%H%M%SZ)"
+            fi
+            git -C "$repo" fetch --prune origin main
+            git -C "$repo" checkout main
+            git -C "$repo" pull --ff-only origin main
+          fi
+
+          resilience="$repo/scripts/ops/install-desktop-commander-resilience.sh"
           if [ -f "$resilience" ]; then
             bash "$resilience"
           elif ! systemctl is-active --quiet desktop-commander-remote.service; then
