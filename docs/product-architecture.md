@@ -38,6 +38,13 @@ Merge into Guide:
 
 Guide should output a clear next move and optionally hand off to Daily Direction, Launch Room, Growth, Projects, or Forge.
 
+### Highest Vibration
+**Job:** Notice the human state that action is emerging from.
+
+Keep separate from Daily Direction and Guide. Highest Vibration is the upstream human-state layer: a private-by-default reflection on body, mind, heart, spirit, environment, purpose, creation, service, and community. It should help users notice supportive conditions without turning inner life into a leaderboard or diagnosis.
+
+Its canonical flow is **State → Purpose → Vision → Movement → Creation → Service**. When clarity appears, it hands off to Launch Room, Guide, Daily Direction, or another appropriate tool.
+
 ### Daily Direction
 **Job:** Check in today and choose one small next step.
 

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Highest Vibration | 3DVR</title>
+  <meta name="description" content="A private-by-default 3DVR check-in for noticing what helps you feel alive, aligned, connected, creative, and able to serve.">
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <nav class="nav" aria-label="Highest Vibration navigation">
+      <a class="brand" href="/">3DVR / Highest Vibration</a>
+      <div class="nav-links">
+        <a href="/launch-room/">Launch Room</a>
+        <a href="/research/highest-vibration/">Research</a>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <p class="eyebrow">State before strategy</p>
+      <h1>Return to the state where you can hear what matters.</h1>
+      <p class="lede">“Highest vibration” is used here as a personal and spiritual description of flourishing—not a medical diagnosis or a claim that human worth can be reduced to a number.</p>
+      <div class="journey" aria-label="3DVR journey">State <span>→</span> Purpose <span>→</span> Vision <span>→</span> Movement <span>→</span> Creation <span>→</span> Service</div>
+    </header>
+
+    <section class="checkin" aria-labelledby="checkin-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Two-minute check-in</p>
+          <h2 id="checkin-title">What is asking for care right now?</h2>
+        </div>
+        <button id="resetButton" class="quiet-button" type="button">Reset</button>
+      </div>
+      <p class="hint">Move each signal from 1 (depleted) to 5 (full). This is reflection, not a grade.</p>
+      <form id="vibrationForm">
+        <div id="dimensions" class="dimensions"></div>
+        <label class="intention">
+          <span>One thing that would help me feel more aligned</span>
+          <textarea id="intention" rows="3" maxlength="280" placeholder="A walk outside, call someone I love, finish one meaningful task…"></textarea>
+        </label>
+        <button class="primary" type="submit">Reflect on my state</button>
+      </form>
+    </section>
+
+    <section id="reflection" class="reflection" hidden aria-live="polite">
+      <p class="eyebrow">Your reflection</p>
+      <h2 id="reflectionTitle"></h2>
+      <p id="reflectionBody"></p>
+      <div id="reflectionActions" class="reflection-actions"></div>
+      <p class="privacy-note">Saved only in this browser unless you choose to share it elsewhere.</p>
+    </section>
+
+    <section class="principles" aria-labelledby="principles-title">
+      <p class="eyebrow">The practice</p>
+      <h2 id="principles-title">Nine doors into a fuller state</h2>
+      <div class="principle-grid">
+        <article><strong>Body</strong><span>Rest, nourishment, breath, movement.</span></article>
+        <article><strong>Mind</strong><span>Clarity, learning, focus, less noise.</span></article>
+        <article><strong>Heart</strong><span>Love, gratitude, forgiveness, connection.</span></article>
+        <article><strong>Spirit</strong><span>Prayer, meditation, awe, silence, meaning.</span></article>
+        <article><strong>Environment</strong><span>Light, nature, beauty, clean and supportive space.</span></article>
+        <article><strong>Purpose</strong><span>Knowing what matters and why.</span></article>
+        <article><strong>Creation</strong><span>Turning inner possibility into something real.</span></article>
+        <article><strong>Service</strong><span>Using your gifts to improve another life.</span></article>
+        <article><strong>Community</strong><span>People who help one another grow.</span></article>
+      </div>
+    </section>
+
+    <section class="handoff">
+      <p class="eyebrow">When the signal is clear</p>
+      <h2>Turn alignment into movement.</h2>
+      <p>Carry the state forward: name the purpose, shape a vision, and launch the smallest real expression of it.</p>
+      <a class="primary-link" href="/launch-room/">Continue to Launch Room →</a>
+    </section>
+
+    <footer>Open source human flourishing · <a href="/research/highest-vibration/">Read the working research note</a></footer>
+  </main>
+  <script src="./app.js"></script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
