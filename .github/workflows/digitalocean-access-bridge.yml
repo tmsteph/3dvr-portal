@@ -142,22 +142,38 @@ jobs:
 
           if [ "$pairing" -eq 1 ]; then
             echo 'REMOTE_DESKTOP_COMMANDER_PAIRING_REQUIRED=1' >&2
-            echo 'The machine runtime is healthy; the existing OAuth refresh token was already consumed and one browser approval is required.' >&2
-            journalctl -u "$unit" --since '-90 seconds' --no-pager \
-              | grep -E 'Persisted session invalid|Please complete authentication|https://mcp\.desktopcommander\.app/device/verify|Enter this code|Code expires|Waiting for authorization' \
-              | tail -12 || true
+            echo 'The machine runtime is healthy; one browser approval is required.' >&2
             exit 2
           fi
 
           echo 'Remote Desktop Commander did not reach Device ready state.' >&2
           systemctl --no-pager --full status "$unit" | sed -n '1,14p' || true
-          journalctl -u "$unit" --since '-2 minutes' --no-pager \
-            | grep -E 'Starting MCP Device|Connected to (Desktop Commander|Remote) MCP|Device ready|Device startup failed|Suggested solution|Shutting down device|Main process exited|Failed with result' \
-            | tail -40 || true
           exit 1
           REMOTE
 
-      - name: Remove SSH key
+      - name: Capture pairing code privately
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/3dvr-do-key -o BatchMode=yes -o UserKnownHostsFile=/tmp/3dvr-known-hosts -o StrictHostKeyChecking=yes -o ConnectTimeout=10)
+          ssh "${opts[@]}" "$DO_USER@$DO_HOST" \
+            "journalctl -u desktop-commander-remote.service --since '-90 seconds' --no-pager | awk '/Enter this code when prompted:/{getline; code=\$NF} END{print code}'" \
+            > /tmp/desktop-commander-pairing-code.txt
+          chmod 600 /tmp/desktop-commander-pairing-code.txt
+          grep -Eq '^[A-Z0-9]{4}-[A-Z0-9]{4}$' /tmp/desktop-commander-pairing-code.txt
+          echo 'PAIRING_CODE_CAPTURED=1'
+
+      - name: Upload pairing code artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-commander-pairing-code-${{ github.run_attempt }}
+          path: /tmp/desktop-commander-pairing-code.txt
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: Remove SSH key and pairing file
         if: always()
         shell: bash
-        run: rm -f /tmp/3dvr-do-key /tmp/3dvr-do-key.raw /tmp/3dvr-known-hosts
+        run: rm -f /tmp/3dvr-do-key /tmp/3dvr-do-key.raw /tmp/3dvr-known-hosts /tmp/desktop-commander-pairing-code.txt
