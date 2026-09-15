@@ -1,6 +1,7 @@
 import {
   mergeVentureOutcomeMemory,
   normalizeVentureOutcomeMemory,
+  ventureOutcomeMemoryKey,
   VENTURE_OUTCOME_MEMORY_GUN_NODE,
 } from './ventureOutcomeMemory.js';
 
@@ -70,12 +71,16 @@ export function createVentureOutcomeMemorySync({
       if (!available || !node) return false;
       const incoming = normalizeVentureOutcomeMemory(memory);
       if (!incoming.entries.length) return false;
+      let current = null;
       let merged = incoming;
       try {
-        const current = await readCurrent();
+        current = await readCurrent();
         if (current) merged = mergeVentureOutcomeMemory(current, incoming);
       } catch (_error) {
         // A corrupt or temporarily unavailable prior value must not block a fresh encrypted write.
+      }
+      if (current && ventureOutcomeMemoryKey(current) === ventureOutcomeMemoryKey(merged)) {
+        return false;
       }
       const ciphertext = await SEA.encrypt(JSON.stringify(merged), pair);
       if (!ciphertext) throw new Error('Unable to encrypt Venture Outcome Memory.');
