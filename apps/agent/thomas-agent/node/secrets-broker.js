@@ -165,28 +165,73 @@ class BitwardenSecretsManagerBackend {
     this.sdkCreateHelper = normalizeText(config.sdkCreateHelper || options.sdkCreateHelper || process.env.BWS_SDK_CREATE_HELPER || '/opt/3dvr/secrets-broker/bitwarden-sdk-create.js', 500);
     this.timeoutMs = Math.max(1000, Number(config.timeoutMs || options.timeoutMs || 15000));
     this.env = options.env || process.env;
+    this.run = options.run || spawnSync;
   }
 
   ready() {
     return Boolean(normalizeText(this.env.BWS_ACCESS_TOKEN, 2000)) && fs.existsSync(this.binary);
   }
 
-  get(locator) {
-    const secretId = normalizeText(locator, 200);
-    if (!secretId) throw new Error('Bitwarden secret locator is required');
+  #runJson(args, failureMessage) {
     if (!this.ready()) throw new Error('Bitwarden Secrets Manager backend is not configured');
-    const result = spawnSync(this.binary, ['secret', 'get', secretId, '--output', 'json', '--color', 'no'], {
+    const result = this.run(this.binary, args, {
       env: this.env,
       encoding: 'utf8',
       timeout: this.timeoutMs,
       maxBuffer: 1024 * 1024,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
-    if (result.error) throw new Error(`Bitwarden lookup failed: ${result.error.message}`);
-    if (result.status !== 0) throw new Error('Bitwarden lookup failed');
+    if (result.error) throw new Error(`${failureMessage}: ${result.error.message}`);
+    if (result.status !== 0) throw new Error(failureMessage);
     let parsed;
     try { parsed = JSON.parse(result.stdout); }
     catch { throw new Error('Bitwarden returned invalid JSON'); }
+    return parsed;
+  }
+
+  #resolveSecretId(locator) {
+    if (typeof locator === 'string') return normalizeText(locator, 200);
+    if (!locator || typeof locator !== 'object') return '';
+
+    const directId = normalizeText(locator.id || locator.secretId, 200);
+    if (directId) return directId;
+
+    const key = normalizeText(locator.key, 500);
+    let projectId = normalizeText(locator.projectId, 200);
+    const projectName = normalizeText(locator.projectName, 300);
+    if (!key || (!projectId && !projectName)) return '';
+
+    if (!projectId) {
+      const projects = this.#runJson(
+        ['project', 'list', '--output', 'json', '--color', 'no'],
+        'Bitwarden project lookup failed',
+      );
+      const match = Array.isArray(projects)
+        ? projects.find(item => normalizeText(item?.name, 300).toLowerCase() === projectName.toLowerCase())
+        : null;
+      projectId = normalizeText(match?.id, 200);
+      if (!projectId) throw new Error('Bitwarden target project was not found');
+    }
+
+    const secrets = this.#runJson(
+      ['secret', 'list', projectId, '--output', 'json', '--color', 'no'],
+      'Bitwarden secret list failed',
+    );
+    const match = Array.isArray(secrets)
+      ? secrets.find(item => normalizeText(item?.key, 500) === key)
+      : null;
+    const secretId = normalizeText(match?.id, 200);
+    if (!secretId) throw new Error('Bitwarden secret key was not found in target project');
+    return secretId;
+  }
+
+  get(locator) {
+    const secretId = this.#resolveSecretId(locator);
+    if (!secretId) throw new Error('Bitwarden secret locator is required');
+    const parsed = this.#runJson(
+      ['secret', 'get', secretId, '--output', 'json', '--color', 'no'],
+      'Bitwarden lookup failed',
+    );
     if (typeof parsed?.value !== 'string') throw new Error('Bitwarden secret value is missing');
     return parsed.value;
   }
@@ -203,7 +248,7 @@ class BitwardenSecretsManagerBackend {
     if (!fs.existsSync(this.sdkCreateHelper)) throw new Error('Bitwarden SDK write helper is not installed');
 
     if (!targetProject && targetProjectName) {
-      const projects = spawnSync(this.binary, ['project', 'list', '--output', 'json', '--color', 'no'], {
+      const projects = this.run(this.binary, ['project', 'list', '--output', 'json', '--color', 'no'], {
         env: this.env, encoding: 'utf8', timeout: this.timeoutMs, maxBuffer: 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'],
       });
       if (projects.error || projects.status !== 0) throw new Error('Bitwarden project lookup failed');
@@ -218,7 +263,7 @@ class BitwardenSecretsManagerBackend {
     }
 
     if (targetProject && !organizationId) {
-      const project = spawnSync(this.binary, ['project', 'get', targetProject, '--output', 'json', '--color', 'no'], {
+      const project = this.run(this.binary, ['project', 'get', targetProject, '--output', 'json', '--color', 'no'], {
         env: this.env, encoding: 'utf8', timeout: this.timeoutMs, maxBuffer: 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'],
       });
       if (project.error || project.status !== 0) throw new Error('Bitwarden project lookup failed');
@@ -229,7 +274,7 @@ class BitwardenSecretsManagerBackend {
     if (!organizationId) throw new Error('Bitwarden target organization was not found');
 
     const input = JSON.stringify({ organizationId, projectId: targetProject, key: secretKey, value: secretValue, note: secretNote });
-    const result = spawnSync(process.execPath, [this.sdkCreateHelper], {
+    const result = this.run(process.execPath, [this.sdkCreateHelper], {
       env: this.env, input, encoding: 'utf8', timeout: this.timeoutMs, maxBuffer: 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'],
     });
     if (result.error) throw new Error(`Bitwarden SDK create failed: ${result.error.message}`);

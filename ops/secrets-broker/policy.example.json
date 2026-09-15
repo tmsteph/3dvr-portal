@@ -12,5 +12,38 @@
       "timeoutMs": 15000
     }
   },
-  "secrets": {}
+  "secrets": {
+    "iatse.username": {
+      "backend": "bitwarden",
+      "locator": {
+        "projectName": "3dvr Agent",
+        "key": "IATSE_PORTAL_USERNAME"
+      },
+      "capability": "secret.read",
+      "scopes": [
+        "site:iatse"
+      ],
+      "approval": {
+        "mode": "lease",
+        "leaseSeconds": 300,
+        "maxUses": 2
+      }
+    },
+    "iatse.password": {
+      "backend": "bitwarden",
+      "locator": {
+        "projectName": "3dvr Agent",
+        "key": "IATSE_PORTAL_PASSWORD"
+      },
+      "capability": "secret.read",
+      "scopes": [
+        "site:iatse"
+      ],
+      "approval": {
+        "mode": "lease",
+        "leaseSeconds": 300,
+        "maxUses": 2
+      }
+    }
+  }
 }

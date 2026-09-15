@@ -71,6 +71,8 @@
         <p class="eyebrow">Owner vault</p>
         <h2 id="secret-vault-title">Save to 3DVR Secrets</h2>
         <p>Store a credential directly in the 3DVR Agent Bitwarden project through the OVH broker. Values are never echoed back or written to the audit log.</p>
+        <p class="connection-note"><strong>Machine access is not your Password Manager vault.</strong> The machine token only reaches credentials intentionally saved to Bitwarden Secrets Manager. Your Bitwarden master password stays outside the server path.</p>
+        <p class="connection-note"><a class="registry-link" href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/bitwarden-machine-access.md">Bitwarden machine access runbook →</a></p>
         <p id="secretSaveStatus" class="muted" aria-live="polite"></p>
       </div>
       <button class="primary" id="openSaveSecret" type="button" disabled>Save secret</button>
