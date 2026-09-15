@@ -121,7 +121,12 @@ jobs:
               ovh 'curl -fsS http://127.0.0.1:8200/v1/sys/seal-status | jq -c "{initialized,sealed,storage_type,version}"'
               ;;
             termux_status)
-              ovh 'bash -lc '\''if ss -ltnH | awk '\''\''\''$4 ~ /^(127\\.0\\.0\\.1|\\[::1\\]):22[0-9][0-9][0-9]$/ {found=1} END {exit !found}'\''\''\''; then jq -n "{ok:true,connected:true}"; else jq -n "{ok:true,connected:false}"; fi'\'''
+              ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          connected=false
+          ss -ltnH | awk '$4 ~ /^(127\.0\.0\.1|\[::1\]):22[0-9][0-9][0-9]$/ {found=1} END {exit !found}' && connected=true || true
+          jq -n --argjson connected "$connected" '{ok:true,connected:$connected}'
+          OVH
               ;;
             restart)
               case "$service" in
