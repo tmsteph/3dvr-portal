@@ -8,7 +8,7 @@ BACKUP="$HOME/.local/state/3dvr-desktop-backups/$(date +%Y%m%d-%H%M%S)"
 if [ "${THREEDVR_SKIP_PACKAGES:-0}" != "1" ]; then
   pkg update -y
   pkg install -y x11-repo
-  pkg install -y termux-x11-nightly xfce4 clang pkg-config gtk3 wmctrl xorg-xprop pulseaudio
+  pkg install -y openssh termux-x11-nightly xfce4 clang pkg-config gtk3 wmctrl xorg-xprop pulseaudio
 fi
 
 mkdir -p "$BACKUP" "$DEST" "$HOME/bin" "$HOME/.termux/boot"
