@@ -15,7 +15,7 @@ seal_state() {
 submit_file() {
   local file=$1
   jq -Rn --rawfile key "$file" '{key:($key|rtrimstr("\n"))}' \
-    | curl -fsS -H 'content-type: application/json' --data-binary @- "$BAO_ADDR/v1/sys/unseal" >/dev/null
+    | curl -fsS -X PUT -H 'content-type: application/json' --data-binary @- "$BAO_ADDR/v1/sys/unseal" >/dev/null
 }
 
 fetch_share() {
