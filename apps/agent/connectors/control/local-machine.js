@@ -203,11 +203,6 @@ async function runCommand(commandId, {
     ? await resolveSecrets(command.secretEnv || {})
     : {};
   const timeout = Math.max(1000, Math.min(Number(command.timeoutMs || 30_000), 300_000));
-  const { stdout, stderr } = await runImpl(command.file, command.args || [], {
-    timeout,
-    maxBuffer: 1_000_000,
-    env: { ...process.env, ...extraEnv },
-  });
   const redact = (value) => {
     let text = String(value || '');
     for (const secret of Object.values(extraEnv)) {
@@ -216,6 +211,20 @@ async function runCommand(commandId, {
     }
     return text;
   };
+  let stdout;
+  let stderr;
+  try {
+    ({ stdout, stderr } = await runImpl(command.file, command.args || [], {
+      timeout,
+      maxBuffer: 1_000_000,
+      env: { ...process.env, ...extraEnv },
+    }));
+  } catch (error) {
+    error.message = redact(error.message);
+    if ('stdout' in error) error.stdout = redact(error.stdout);
+    if ('stderr' in error) error.stderr = redact(error.stderr);
+    throw error;
+  }
   return {
     commandId: id,
     mutating: command.mutating !== false,
