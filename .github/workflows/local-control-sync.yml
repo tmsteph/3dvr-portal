@@ -1,0 +1,129 @@
+name: Sync 3DVR Local Control MCP
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/local-control-sync.yml'
+      - 'apps/agent/mcp/local-control.js'
+      - 'apps/agent/connectors/control/local-machine.js'
+      - 'apps/agent/connectors/audit/log.js'
+      - 'ops/control-mcp/**'
+
+permissions:
+  contents: read
+
+env:
+  HETZNER_HOST: 167.233.174.20
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve Hetzner SSH access
+        id: ssh
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/3dvr-mcp-a
+          write_key "$SSH_B" /tmp/3dvr-mcp-b
+          write_key "$SSH_C" /tmp/3dvr-mcp-c
+          for user in root debian ubuntu tmsteph; do
+            for key in /tmp/3dvr-mcp-a /tmp/3dvr-mcp-b /tmp/3dvr-mcp-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$HETZNER_HOST" true >/dev/null 2>&1; then
+                echo "user=$user" >> "$GITHUB_OUTPUT"
+                echo "key=$key" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+          done
+          exit 1
+
+      - name: Package local MCP
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -czf /tmp/3dvr-local-control.tgz \
+            apps/agent/mcp/local-control.js \
+            apps/agent/connectors/control/local-machine.js \
+            apps/agent/connectors/audit/log.js \
+            ops/control-mcp/install-local-control.sh \
+            ops/control-mcp/3dvr-control-service
+
+      - name: Install on OVH
+        shell: bash
+        env:
+          HETZNER_USER: ${{ steps.ssh.outputs.user }}
+          HETZNER_KEY: ${{ steps.ssh.outputs.key }}
+        run: |
+          set -euo pipefail
+          ssh_opts=(-i "$HETZNER_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          scp "${ssh_opts[@]}" /tmp/3dvr-local-control.tgz "$HETZNER_USER@$HETZNER_HOST:/tmp/3dvr-local-control.tgz"
+          ssh "${ssh_opts[@]}" "$HETZNER_USER@$HETZNER_HOST" bash -s <<'REMOTE'
+          set -euo pipefail
+          scp -q -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8 /tmp/3dvr-local-control.tgz 3dvr-ovh:/tmp/3dvr-local-control.tgz
+          ssh -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8 3dvr-ovh 'sudo -n bash -s' <<'OVH'
+          set -euo pipefail
+          rm -rf /tmp/3dvr-local-control-src
+          mkdir -p /tmp/3dvr-local-control-src
+          tar -xzf /tmp/3dvr-local-control.tgz -C /tmp/3dvr-local-control-src
+          bash /tmp/3dvr-local-control-src/ops/control-mcp/install-local-control.sh
+          command -v 3dvr-control-mcp-readonly >/dev/null
+          test -x /usr/local/libexec/3dvr-control-mcp-root
+          visudo -cf /etc/sudoers.d/3dvr-control-mcp >/dev/null
+          echo 'local-control-mcp-installed=true'
+          OVH
+          rm -f /tmp/3dvr-local-control.tgz
+          REMOTE
+
+      - name: Verify MCP protocol on OVH
+        shell: bash
+        env:
+          HETZNER_USER: ${{ steps.ssh.outputs.user }}
+          HETZNER_KEY: ${{ steps.ssh.outputs.key }}
+        run: |
+          set -euo pipefail
+          ssh_opts=(-i "$HETZNER_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${ssh_opts[@]}" "$HETZNER_USER@$HETZNER_HOST" bash -s <<'REMOTE'
+          set -euo pipefail
+          ssh -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8 3dvr-ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          timeout 8s bash -c 'printf "%s\n%s\n" \
+            '\''{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"3dvr-ci","version":"1"}}}'\'' \
+            '\''{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'\'' \
+            | /usr/local/bin/3dvr-control-mcp-readonly' > /tmp/3dvr-mcp-verify.jsonl || true
+          grep -q 'host_status' /tmp/3dvr-mcp-verify.jsonl
+          grep -q 'service_status' /tmp/3dvr-mcp-verify.jsonl
+          grep -q 'file_read' /tmp/3dvr-mcp-verify.jsonl
+          jq -n '{ok:true,mcpInstalled:true,transport:"stdio",readOnlyToolsVerified:true}'
+          rm -f /tmp/3dvr-mcp-verify.jsonl /tmp/3dvr-local-control.tgz
+          OVH
+          REMOTE
+
+      - name: Remove SSH keys
+        if: always()
+        run: rm -f /tmp/3dvr-mcp-a /tmp/3dvr-mcp-b /tmp/3dvr-mcp-c /tmp/3dvr-mcp-*.raw /tmp/3dvr-local-control.tgz
