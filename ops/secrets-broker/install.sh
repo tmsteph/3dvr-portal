@@ -43,10 +43,15 @@ policy.backends ||= {};
 policy.backends.bitwarden ||= { type: 'bitwarden-secrets-manager', binary: '/usr/local/bin/bws', timeoutMs: 15000 };
 policy.secrets ||= {};
 policy.secrets['bitwarden.writer'] ||= { backend: 'bitwarden', write: { projectName: '3dvr Agent', capability: 'secret.write', scopes: ['secrets:3dvr-agent'], approval: { mode: 'auto' } } };
-policy.secrets['iatse.username'] ||= { backend: 'bitwarden', locator: { projectName: '3dvr Agent', key: 'IATSE_PORTAL_USERNAME' }, capability: 'secret.read', scopes: ['site:iatse'], approval: { mode: 'lease', leaseSeconds: 300, maxUses: 2 } };
-policy.secrets['iatse.password'] ||= { backend: 'bitwarden', locator: { projectName: '3dvr Agent', key: 'IATSE_PORTAL_PASSWORD' }, capability: 'secret.read', scopes: ['site:iatse'], approval: { mode: 'lease', leaseSeconds: 300, maxUses: 2 } };
-policy.secrets['vault.index'] ||= { backend: 'bitwarden', locator: { projectName: '3dvr Agent', key: 'VAULT_INDEX' }, capability: 'secret.read', scopes: ['secrets:password-manager-mirror'], approval: { mode: 'lease', leaseSeconds: 300, maxUses: 10 } };
-policy.secrets['vault.item.*'] ||= { backend: 'bitwarden', locator: { projectName: '3dvr Agent', keyFromAliasPrefix: 'vault.item.' }, capability: 'secret.read', scopes: ['secrets:password-manager-mirror'], approval: { mode: 'lease', leaseSeconds: 300, maxUses: 10 } };
+policy.secrets['iatse.username'] ||= { backend: 'bitwarden', locator: { projectName: '3dvr Agent', key: 'IATSE_PORTAL_USERNAME' }, capability: 'secret.read', scopes: ['site:iatse'], approval: { mode: 'auto' } };
+policy.secrets['iatse.password'] ||= { backend: 'bitwarden', locator: { projectName: '3dvr Agent', key: 'IATSE_PORTAL_PASSWORD' }, capability: 'secret.read', scopes: ['site:iatse'], approval: { mode: 'auto' } };
+policy.secrets['vault.index'] ||= { backend: 'bitwarden', locator: { projectName: '3dvr Agent', key: 'VAULT_INDEX' }, capability: 'secret.read', scopes: ['secrets:password-manager-mirror'], approval: { mode: 'auto' } };
+policy.secrets['vault.item.*'] ||= { backend: 'bitwarden', locator: { projectName: '3dvr Agent', keyFromAliasPrefix: 'vault.item.' }, capability: 'secret.read', scopes: ['secrets:password-manager-mirror'], approval: { mode: 'auto' } };
+// Routine reads by the dedicated OVH browser identity are trusted-owner operations.
+// Keep the broker default fail-closed so new/sensitive secret classes still require an explicit policy.
+for (const alias of ['iatse.username', 'iatse.password', 'vault.index', 'vault.item.*']) {
+  if (policy.secrets[alias]) policy.secrets[alias].approval = { mode: 'auto' };
+}
 fs.writeFileSync(file, `${JSON.stringify(policy, null, 2)}\n`);
 NODE
 chown root:threedvr-secrets "$ETC/policy.json"

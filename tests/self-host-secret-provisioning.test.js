@@ -43,4 +43,6 @@ test('self-host deploy preserves server secrets when Actions has no secret updat
   assert.match(installer, /vault\.item\.\*/);
   assert.match(installer, /secrets:password-manager-mirror/);
   assert.match(installer, /ovh-browser-vault/);
+  assert.match(installer, /Routine reads by the dedicated OVH browser identity are trusted-owner operations/);
+  assert.match(installer, /policy\.secrets\[alias\]\.approval = \{ mode: 'auto' \}/);
 });

@@ -196,7 +196,7 @@ vault.index
 vault.item.VAULT_ITEM__LOGIN__EXAMPLE__ABC123
 ```
 
-Only an agent with `secret.read` plus `secrets:password-manager-mirror` can resolve them, and reads use short approval leases. The dedicated OVH browser helper gets that scope; normal agents do not.
+Only the dedicated OVH browser helper has `secret.read` plus `secrets:password-manager-mirror`, so routine mirrored credential reads are automatic for that trusted identity. Normal agents do not get the scope. Recovery/root items remain excluded from the mirror and keep their separate owner-controlled recovery path.
 
 ### One-time migration command
 

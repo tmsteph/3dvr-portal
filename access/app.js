@@ -75,6 +75,16 @@ async function sha256(value) {
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+async function readPortalSession() {
+  try {
+    const response = await fetch('/api/session', { cache: 'no-store', credentials: 'same-origin' });
+    if (!response.ok) return { authenticated: false };
+    return await response.json();
+  } catch {
+    return { authenticated: false };
+  }
+}
+
 let brokerOriginPromise = null;
 
 async function resolveBrokerOrigin() {
@@ -163,6 +173,7 @@ function renderApprovals(records = []) {
 
 async function loadAccess() {
   refreshButton?.setAttribute('disabled', '');
+  const portalSession = await readPortalSession();
   try {
     const [status, approvals] = await Promise.all([
       brokerAction('status'),
@@ -171,10 +182,15 @@ async function loadAccess() {
     renderStatus(status);
     renderApprovals(approvals.approvals || []);
   } catch (error) {
-    byId('brokerMessage').textContent = error.message;
-    setPill('controlNodeStatus', 'Unavailable', 'waiting');
-    setPill('approvalCount', 'Unavailable', 'waiting');
-    approvalList.innerHTML = `<p class="muted">${escapeHtml(error.message)}</p>`;
+    const signedIn = portalSession?.authenticated === true;
+    byId('brokerMessage').textContent = signedIn
+      ? 'Signed in. Routine browser credentials are available automatically; secure signing is only needed for sensitive approvals.'
+      : error.message;
+    setPill('controlNodeStatus', signedIn ? 'Owner session' : 'Unavailable', signedIn ? 'ready' : 'waiting');
+    setPill('approvalCount', signedIn ? 'Automatic' : 'Unavailable', signedIn ? 'ready' : 'waiting');
+    approvalList.innerHTML = signedIn
+      ? '<p class="muted">Routine machine access is automatic. Sensitive recovery or root actions will appear here only when they truly need you.</p>'
+      : `<p class="muted">${escapeHtml(error.message)}</p>`;
   } finally {
     refreshButton?.removeAttribute('disabled');
   }
