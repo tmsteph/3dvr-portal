@@ -6,9 +6,9 @@ import {
 } from '../src/money-printer/opportunityEngine.js';
 
 const positiveSum = {
-  capability: 0.7,
-  money: 0.7,
-  enjoyment: 0.7
+  agencyScore: 70,
+  sharedValueScore: 70,
+  opennessScore: 70
 };
 
 test('kernel opportunity score rewards balanced fit, demand, effort, and revenue', () => {
@@ -21,7 +21,7 @@ test('kernel opportunity score rewards balanced fit, demand, effort, and revenue
     demandScore: 90,
     effortScore: 90,
     revenueScore: 90,
-    positiveSum
+    ...positiveSum
   });
 
   const lopsided = createOpportunityCluster({
@@ -33,7 +33,7 @@ test('kernel opportunity score rewards balanced fit, demand, effort, and revenue
     demandScore: 100,
     effortScore: 100,
     revenueScore: 100,
-    positiveSum
+    ...positiveSum
   });
 
   assert.equal(balanced.opportunityScore, 90);
@@ -52,7 +52,7 @@ test('kernel dimensions influence ranking without bypassing positive-sum policy'
     demandScore: 94,
     effortScore: 88,
     revenueScore: 90,
-    positiveSum
+    ...positiveSum
   });
 
   const weak = createOpportunityCluster({
@@ -65,7 +65,7 @@ test('kernel dimensions influence ranking without bypassing positive-sum policy'
     demandScore: 40,
     effortScore: 35,
     revenueScore: 30,
-    positiveSum
+    ...positiveSum
   });
 
   const disallowed = createOpportunityCluster({
@@ -78,12 +78,11 @@ test('kernel dimensions influence ranking without bypassing positive-sum policy'
     demandScore: 100,
     effortScore: 100,
     revenueScore: 100,
-    positiveSum: {
-      capability: 0.9,
-      money: 0.9,
-      enjoyment: 0.9,
-      exploitation: 1
-    }
+    agencyScore: 90,
+    sharedValueScore: 10,
+    opennessScore: 20,
+    harmRiskScore: 90,
+    lockInRiskScore: 30
   });
 
   const sorted = sortOpportunityClusters([weak, disallowed, strong]);
