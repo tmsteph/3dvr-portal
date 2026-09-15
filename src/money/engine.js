@@ -1,6 +1,7 @@
 import { buildAdDrafts, deriveOpportunityFromSignal, rankOpportunities } from './scoring.js';
 import { collectDemandSignals } from './sources.js';
 import { createOpenAiMoneyClient, DEFAULT_OPENAI_MODEL } from './openai.js';
+import { buildBoringMoneyLane } from './boringMoneyLane.js';
 
 function makeRunId(now = new Date()) {
   const stamp = now.toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
@@ -183,6 +184,9 @@ export async function runMoneyLoop(input = {}, options = {}) {
   const opportunities = dedupeOpportunities(rankedOpportunities).slice(0, 6);
 
   const topOpportunity = opportunities[0] || null;
+  const boringMoneyLane = buildBoringMoneyLane(opportunities, {
+    channels: normalizedInput.channels
+  });
   const aiAds = sanitizeAdDrafts(aiResult?.adDrafts);
   const adDrafts = aiAds.length
     ? aiAds
@@ -211,6 +215,7 @@ export async function runMoneyLoop(input = {}, options = {}) {
     signals: demand.signals,
     opportunities,
     topOpportunity,
+    boringMoneyLane,
     adDrafts,
     executionChecklist: checklist,
     monetization: {
