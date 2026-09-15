@@ -1,4 +1,4 @@
-export const VENTURE_CAPSULE_SCHEMA_VERSION = 1;
+export const VENTURE_CAPSULE_SCHEMA_VERSION = 2;
 
 export const DEFAULT_VENTURE_PORTFOLIO_LIMITS = Object.freeze({
   maxActive: 1,
@@ -56,6 +56,51 @@ function capsuleStatusForExperiment(experiment = {}, fallback = 'queued') {
   return fallback;
 }
 
+function normalizeSearchMetadata(input = {}) {
+  const search = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  const role = ['exploit', 'explore', 'queue'].includes(clean(search.role).toLowerCase())
+    ? clean(search.role).toLowerCase()
+    : 'queue';
+  const normalized = {
+    parentOpportunityId: clean(search.parentOpportunityId),
+    candidateId: clean(search.candidateId),
+    variantKey: clean(search.variantKey),
+    hypothesis: clean(search.hypothesis),
+    role,
+    expectedValueScore: clampScore(search.expectedValueScore, 50),
+    learningScore: clampScore(search.learningScore, 50),
+    noveltyScore: clampScore(search.noveltyScore, 0),
+    searchScore: clampScore(search.searchScore, 50)
+  };
+  const hasSearch = Boolean(
+    normalized.parentOpportunityId
+      || normalized.candidateId
+      || normalized.variantKey
+      || normalized.hypothesis
+  );
+  return hasSearch ? normalized : null;
+}
+
+function researchPriorityScore(capsule = {}) {
+  if (!capsule.search) return capsule.priorityScore;
+  return clampScore(
+    capsule.search.learningScore * 0.55
+      + capsule.search.noveltyScore * 0.35
+      + capsule.priorityScore * 0.1,
+    capsule.priorityScore
+  );
+}
+
+function sortByPriority(left, right) {
+  if (right.priorityScore !== left.priorityScore) return right.priorityScore - left.priorityScore;
+  return String(right.updatedAt).localeCompare(String(left.updatedAt));
+}
+
+function sortByResearchPriority(left, right) {
+  const difference = researchPriorityScore(right) - researchPriorityScore(left);
+  return difference || sortByPriority(left, right);
+}
+
 export function normalizeVentureCapsule(input = {}, now = new Date()) {
   const createdAt = timestamp(input.createdAt, now.toISOString());
   const expiresAt = timestamp(input.expiresAt, addDays(new Date(createdAt), 7));
@@ -63,6 +108,7 @@ export function normalizeVentureCapsule(input = {}, now = new Date()) {
   const status = expired && !TERMINAL_STATUSES.has(clean(input.status).toLowerCase())
     ? 'expired'
     : (clean(input.status).toLowerCase() || 'queued');
+  const search = normalizeSearchMetadata(input.search);
 
   return {
     schemaVersion: VENTURE_CAPSULE_SCHEMA_VERSION,
@@ -86,6 +132,7 @@ export function normalizeVentureCapsule(input = {}, now = new Date()) {
     createdAt,
     updatedAt: timestamp(input.updatedAt, createdAt),
     expiresAt,
+    ...(search ? { search } : {}),
     policy: {
       maxAutomatedSpendCents: cents(input.policy?.maxAutomatedSpendCents, 0),
       externalWrites: input.policy?.externalWrites === 'allowed' ? 'allowed' : 'approval-required',
@@ -114,6 +161,7 @@ export function createVentureCapsuleFromIdea(idea = {}, options = {}) {
     status: options.status || 'queued',
     createdAt: now.toISOString(),
     expiresAt: options.expiresAt || addDays(now, 7),
+    search: options.search,
     policy: options.policy
   }, now);
 }
@@ -140,7 +188,8 @@ export function ensureVentureCapsule(experiment = {}, now = new Date()) {
     status: capsuleStatusForExperiment(experiment),
     createdAt: experiment.createdAt,
     updatedAt: experiment.updatedAt,
-    expiresAt: experiment.expiresAt || addDays(now, 7)
+    expiresAt: experiment.expiresAt || addDays(now, 7),
+    search: experiment.possibilitySearch
   }, now);
 }
 
@@ -154,15 +203,33 @@ export function allocateVentureCapsules(capsules = [], limits = {}, now = new Da
   const terminal = normalized.filter((capsule) => TERMINAL_STATUSES.has(capsule.status));
   const candidates = normalized
     .filter((capsule) => !TERMINAL_STATUSES.has(capsule.status))
-    .sort((left, right) => {
-      if (right.priorityScore !== left.priorityScore) return right.priorityScore - left.priorityScore;
-      return String(right.updatedAt).localeCompare(String(left.updatedAt));
-    });
+    .sort(sortByPriority);
 
-  const allocated = candidates.map((capsule, index) => {
-    let status = 'queued';
-    if (index < normalizedLimits.maxActive) status = 'active';
-    else if (index < normalizedLimits.maxActive + normalizedLimits.maxResearch) status = 'research';
+  const exploitFirst = [
+    ...candidates.filter(capsule => capsule.search?.role === 'exploit'),
+    ...candidates.filter(capsule => capsule.search?.role !== 'exploit')
+  ].sort((left, right) => {
+    const leftExplicit = left.search?.role === 'exploit' ? 1 : 0;
+    const rightExplicit = right.search?.role === 'exploit' ? 1 : 0;
+    if (leftExplicit !== rightExplicit) return rightExplicit - leftExplicit;
+    return sortByPriority(left, right);
+  });
+  const active = exploitFirst.slice(0, normalizedLimits.maxActive);
+  const activeIds = new Set(active.map(capsule => capsule.id));
+  const remaining = candidates.filter(capsule => !activeIds.has(capsule.id));
+  const researchFirst = [
+    ...remaining.filter(capsule => capsule.search?.role === 'explore').sort(sortByResearchPriority),
+    ...remaining.filter(capsule => capsule.search?.role !== 'explore').sort(sortByResearchPriority)
+  ];
+  const research = researchFirst.slice(0, normalizedLimits.maxResearch);
+  const researchIds = new Set(research.map(capsule => capsule.id));
+
+  const allocated = candidates.map(capsule => {
+    const status = activeIds.has(capsule.id)
+      ? 'active'
+      : researchIds.has(capsule.id)
+        ? 'research'
+        : 'queued';
     return {
       ...capsule,
       status,
