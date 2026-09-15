@@ -275,9 +275,20 @@ async function signedPortalProof(scope, action, extra = {}, options = {}) {
   };
 }
 
+async function hasPortalSession() {
+  try {
+    const response = await globalThis.fetch?.('/api/session', { cache: 'no-store', credentials: 'same-origin' });
+    if (!response?.ok) return false;
+    const payload = await response.json();
+    return payload?.authenticated === true;
+  } catch {
+    return false;
+  }
+}
+
 export async function createSignedPortalProof(scope, action, extra = {}) {
   const signedIn = globalThis.localStorage?.getItem?.('signedIn') === 'true';
-  if (!signedIn) return null;
+  if (!signedIn && !await hasPortalSession()) return null;
   return signedPortalProof(scope, action, extra);
 }
 

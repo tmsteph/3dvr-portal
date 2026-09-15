@@ -24,9 +24,7 @@
         "site:iatse"
       ],
       "approval": {
-        "mode": "lease",
-        "leaseSeconds": 300,
-        "maxUses": 2
+        "mode": "auto"
       }
     },
     "iatse.password": {
@@ -40,9 +38,7 @@
         "site:iatse"
       ],
       "approval": {
-        "mode": "lease",
-        "leaseSeconds": 300,
-        "maxUses": 2
+        "mode": "auto"
       }
     },
     "vault.index": {
@@ -56,9 +52,7 @@
         "secrets:password-manager-mirror"
       ],
       "approval": {
-        "mode": "lease",
-        "leaseSeconds": 300,
-        "maxUses": 10
+        "mode": "auto"
       }
     },
     "vault.item.*": {
@@ -72,9 +66,7 @@
         "secrets:password-manager-mirror"
       ],
       "approval": {
-        "mode": "lease",
-        "leaseSeconds": 300,
-        "maxUses": 10
+        "mode": "auto"
       }
     }
   }

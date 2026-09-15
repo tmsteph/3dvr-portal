@@ -41,6 +41,13 @@ test('Access page can save a secret through the owner-gated broker without persi
   assert.doesNotMatch(app, /localStorage\.setItem\([^)]*secretValue|sessionStorage\.setItem\([^)]*secretValue/i);
 });
 
+test('Access page treats an existing portal session as owner access without blocking routine credentials', () => {
+  assert.match(app, /fetch\('\/api\/session'/);
+  assert.match(app, /Routine machine access is automatic/);
+  assert.match(app, /approvalCount', signedIn \? 'Automatic'/);
+  assert.match(page, /Trusted-owner autonomy/);
+});
+
 test('Access page exposes the owner approval path', () => {
   assert.match(page, /Create 3DVR machine access/);
   assert.match(page, /Bitwarden Secrets Manager/);
