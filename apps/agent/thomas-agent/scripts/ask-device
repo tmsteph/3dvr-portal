@@ -201,34 +201,39 @@ mesh_remote_alias() {
   target_user="$3"
   target_port="$4"
   proxy_jump="${5:-}"
-  proxy_line=""
-  [ -z "$proxy_jump" ] || proxy_line="  ProxyJump $proxy_jump"
 
-  payload="$(cat <<EOF
+  ssh -o BatchMode=yes -o ConnectTimeout=8 "$source_alias" bash -s --     "$target_alias" "$target_user" "$target_port" "$proxy_jump" <<'REMOTE'
 set -euo pipefail
-cfg=\"\$HOME/.ssh/config\"
-mkdir -p \"\$HOME/.ssh\"; touch \"\$cfg\"; chmod 700 \"\$HOME/.ssh\"; chmod 600 \"\$cfg\"
-tmp=\"\$(mktemp)\"
-sed '/^# BEGIN $target_alias\$/,/^# END $target_alias\$/d' \"\$cfg\" > \"\$tmp\"
-cat >> \"\$tmp\" <<'CFG'
-# BEGIN $target_alias
-Host $target_alias
-  HostName 127.0.0.1
-  Port $target_port
-  User $target_user
-  IdentityFile ~/.ssh/id_ed25519_3dvr_mesh
-  IdentitiesOnly yes
-  StrictHostKeyChecking accept-new
-  ConnectTimeout 6
-  ServerAliveInterval 30
-$proxy_line
-# END $target_alias
-CFG
-mv \"\$tmp\" \"\$cfg\"; chmod 600 \"\$cfg\"
-EOF
-)"
-  ssh -o BatchMode=yes -o ConnectTimeout=8 "$source_alias" "$payload"
+alias_name=$1
+user=$2
+port=$3
+proxy_jump=${4:-}
+cfg="$HOME/.ssh/config"
+mkdir -p "$HOME/.ssh"
+touch "$cfg"
+chmod 700 "$HOME/.ssh"
+chmod 600 "$cfg"
+tmp=$(mktemp)
+sed "/^# BEGIN $alias_name$/,/^# END $alias_name$/d" "$cfg" > "$tmp"
+{
+  printf '# BEGIN %s\n' "$alias_name"
+  printf 'Host %s\n' "$alias_name"
+  printf '  HostName 127.0.0.1\n'
+  printf '  Port %s\n' "$port"
+  printf '  User %s\n' "$user"
+  [ -z "$proxy_jump" ] || printf '  ProxyJump %s\n' "$proxy_jump"
+  printf '  IdentityFile ~/.ssh/id_ed25519_3dvr_mesh\n'
+  printf '  IdentitiesOnly yes\n'
+  printf '  StrictHostKeyChecking accept-new\n'
+  printf '  ConnectTimeout 6\n'
+  printf '  ServerAliveInterval 30\n'
+  printf '# END %s\n' "$alias_name"
+} >> "$tmp"
+mv "$tmp" "$cfg"
+chmod 600 "$cfg"
+REMOTE
 }
+
 
 mesh_join() {
   mesh_args "$@"
@@ -278,28 +283,8 @@ EOF
 
   node_alias="3dvr-$mesh_name"
   mesh_remote_alias 3dvr-ovh "$node_alias" "$local_user" "$reverse_port"
-  if ssh -o BatchMode=yes 3dvr-ovh 'ssh -o BatchMode=yes -o ConnectTimeout=5 3dvr-do true' >/dev/null 2>&1; then
-    do_payload="$(cat <<EOF
-set -euo pipefail
-cfg=\"\$HOME/.ssh/config\"; touch \"\$cfg\"; chmod 600 \"\$cfg\"; tmp=\"\$(mktemp)\"
-sed '/^# BEGIN $node_alias\$/,/^# END $node_alias\$/d' \"\$cfg\" > \"\$tmp\"
-cat >> \"\$tmp\" <<'CFG'
-# BEGIN $node_alias
-Host $node_alias
-  HostName 127.0.0.1
-  Port $reverse_port
-  User $local_user
-  ProxyJump 3dvr-ovh
-  IdentityFile ~/.ssh/id_ed25519_3dvr_mesh
-  IdentitiesOnly yes
-  StrictHostKeyChecking accept-new
-  ConnectTimeout 6
-# END $node_alias
-CFG
-mv \"\$tmp\" \"\$cfg\"; chmod 600 \"\$cfg\"
-EOF
-)"
-    ssh -o BatchMode=yes 3dvr-ovh "ssh 3dvr-do $(quote_sh "$do_payload")"
+  if ssh -o BatchMode=yes -o ConnectTimeout=6 3dvr-do true >/dev/null 2>&1; then
+    mesh_remote_alias 3dvr-do "$node_alias" "$local_user" "$reverse_port" 3dvr-ovh
   fi
 
   tunnel_dir="$HOME/.3dvr/bin"
