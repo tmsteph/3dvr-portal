@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0d1117">
+  <title>Open Show Control | 3DVR Portal</title>
+  <meta name="description" content="3DVR Open Show Control: a distributed live-production system where any device can take any role.">
+  <link rel="stylesheet" href="../style.css?v=open-show-control">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d1117;
+      --panel: #161b22;
+      --panel-2: #111820;
+      --line: #30363d;
+      --text: #e6edf3;
+      --muted: #9da7b3;
+      --blue: #58a6ff;
+      --cyan: #67e8f9;
+      --gold: #f0ca63;
+      --green: #7ee787;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 50% -8rem, rgba(88, 166, 255, .16), transparent 34rem),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    a { color: inherit; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      gap: .5rem;
+      align-items: center;
+      overflow-x: auto;
+      padding: .75rem max(1rem, calc((100vw - 1080px) / 2));
+      border-bottom: 1px solid rgba(48,54,61,.8);
+      background: rgba(13,17,23,.9);
+      backdrop-filter: blur(14px);
+      white-space: nowrap;
+    }
+    .nav a {
+      padding: .5rem .7rem;
+      border-radius: 999px;
+      text-decoration: none;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: .9rem;
+    }
+    .nav a:first-child { color: var(--text); margin-right: auto; }
+    .nav a:hover, .nav a:focus-visible { color: var(--text); background: var(--panel); outline: none; }
+
+    main, footer { width: min(1080px, calc(100% - 2rem)); margin: 0 auto; }
+    section { padding: clamp(2.5rem, 7vw, 5.5rem) 0; }
+
+    .hero {
+      min-height: 72vh;
+      display: grid;
+      align-items: center;
+      gap: 2rem;
+      grid-template-columns: 1.08fr .92fr;
+    }
+    .eyebrow {
+      margin: 0 0 .65rem;
+      color: var(--cyan);
+      font-size: .78rem;
+      font-weight: 900;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { line-height: 1.06; letter-spacing: -.035em; }
+    h1 { margin: 0; font-size: clamp(2.8rem, 8vw, 6.6rem); max-width: 10ch; }
+    h2 { margin: 0 0 1rem; font-size: clamp(2rem, 5vw, 3.6rem); }
+    h3 { margin: .2rem 0 .55rem; font-size: 1.2rem; }
+    p { color: var(--muted); }
+    .lede { max-width: 60ch; font-size: clamp(1.05rem, 2.2vw, 1.3rem); }
+    .motto { margin-top: 1.4rem; font-size: 1.05rem; font-weight: 900; color: var(--gold); }
+
+    .system {
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(22,27,34,.95), rgba(17,24,32,.85));
+      box-shadow: 0 24px 80px rgba(0,0,0,.3);
+    }
+    .flow {
+      display: grid;
+      gap: .6rem;
+    }
+    .flow div {
+      padding: .85rem 1rem;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(13,17,23,.76);
+      font-weight: 800;
+    }
+    .flow div:not(:last-child)::after {
+      content: "↓";
+      display: block;
+      height: 0;
+      transform: translateY(.86rem);
+      color: var(--blue);
+      text-align: center;
+    }
+
+    .section-copy { max-width: 740px; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; margin-top: 1.7rem; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .card {
+      min-width: 0;
+      padding: 1.15rem;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+    }
+    .card p { margin-bottom: 0; }
+    .tag {
+      display: inline-block;
+      margin-bottom: .7rem;
+      padding: .2rem .5rem;
+      border: 1px solid rgba(88,166,255,.3);
+      border-radius: 999px;
+      color: var(--blue);
+      font-size: .72rem;
+      font-weight: 900;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+    .tokens { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .8rem; }
+    .tokens code {
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      padding: .3rem .5rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--bg);
+      color: #c9d1d9;
+      font-size: .79rem;
+    }
+
+    .cue {
+      margin-top: 1.6rem;
+      overflow-x: auto;
+      padding: 1.15rem;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #090d12;
+      color: #c9d1d9;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: .9rem;
+      line-height: 1.7;
+      white-space: pre;
+    }
+
+    .principle {
+      padding: clamp(1.4rem, 4vw, 2.5rem);
+      border: 1px solid rgba(240,202,99,.34);
+      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(240,202,99,.08), rgba(88,166,255,.06));
+    }
+    .principle strong { color: var(--gold); }
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+    .compare > div { padding: 1rem; border-radius: 14px; background: rgba(13,17,23,.62); }
+    .compare .prefer { border: 1px solid rgba(126,231,135,.3); }
+    .compare .avoid { border: 1px solid rgba(248,81,73,.25); }
+    .compare p { margin: .3rem 0 0; }
+
+    .vision {
+      text-align: center;
+      padding: clamp(3rem, 9vw, 7rem) 0;
+    }
+    .vision h2 { max-width: 14ch; margin-left: auto; margin-right: auto; }
+    .vision p { max-width: 680px; margin-left: auto; margin-right: auto; }
+    .vision .final { margin-top: 1.5rem; color: var(--text); font-size: clamp(1.4rem, 4vw, 2.3rem); font-weight: 950; letter-spacing: -.03em; }
+
+    footer { padding: 1.6rem 0 3rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .9rem; }
+
+    @media (max-width: 780px) {
+      .hero { min-height: auto; grid-template-columns: 1fr; padding-top: 4rem; }
+      .grid, .grid.two, .compare { grid-template-columns: 1fr; }
+      h1 { max-width: none; }
+      .nav { padding-left: 1rem; padding-right: 1rem; }
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <nav class="nav" aria-label="Open Show Control navigation">
+    <a href="../index.html">3DVR Portal</a>
+    <a href="#model">Model</a>
+    <a href="#cues">Cues</a>
+    <a href="#protocols">Protocols</a>
+    <a href="#resilience">Resilience</a>
+    <a href="#vision">Vision</a>
+  </nav>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">3DVR Open Show Control</p>
+        <h1>Any device can be anything.</h1>
+        <p class="lede">A distributed live-production system where devices advertise capabilities, shows assign roles, and cues coordinate presentation, audio, lighting, video, control, and automation across the network.</p>
+        <p class="motto">Device ≠ role.</p>
+      </div>
+      <div class="system" aria-label="Core architecture flow">
+        <div class="flow">
+          <div>Node</div>
+          <div>Capabilities</div>
+          <div>Roles</div>
+          <div>Resources</div>
+          <div>Cues</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="model">
+      <div class="section-copy">
+        <p class="eyebrow">Fundamental model</p>
+        <h2>Hardware contributes. The show decides.</h2>
+        <p>A Mac, Linux workstation, Windows PC, Raspberry Pi, RISC-V board, phone, tablet, server, or embedded controller is simply a node. It tells the network what it can do. Those capabilities can be assigned one or many roles, and those roles can move while the show is running.</p>
+      </div>
+
+      <div class="grid">
+        <article class="card">
+          <span class="tag">Nodes</span>
+          <h3>Anything can join</h3>
+          <p>General-purpose computers and tiny embedded boxes participate in the same system.</p>
+          <div class="tokens"><code>mac</code><code>linux</code><code>phone</code><code>tablet</code><code>risc-v</code><code>pi</code></div>
+        </article>
+        <article class="card">
+          <span class="tag">Capabilities</span>
+          <h3>Advertise what exists</h3>
+          <p>Capabilities describe hardware and software resources, not permanent jobs.</p>
+          <div class="tokens"><code>display-output</code><code>audio-output</code><code>camera-input</code><code>usb-dmx</code><code>midi</code><code>osc</code><code>gpio</code></div>
+        </article>
+        <article class="card">
+          <span class="tag">Roles</span>
+          <h3>Assign responsibility</h3>
+          <p>The show gives nodes temporary responsibilities that can change or fail over.</p>
+          <div class="tokens"><code>presentation-output</code><code>lighting-output</code><code>audio-playback</code><code>show-master</code><code>confidence-monitor</code></div>
+        </article>
+      </div>
+
+      <div class="grid two">
+        <article class="card">
+          <span class="tag">Example node</span>
+          <h3>FOH MacBook</h3>
+          <p><strong>Capabilities:</strong> display, audio output, presentation renderer, keyboard, touchscreen.</p>
+          <p><strong>Roles:</strong> presentation renderer, show controller, backup audio.</p>
+        </article>
+        <article class="card">
+          <span class="tag">Example node</span>
+          <h3>Stage-left Pi</h3>
+          <p><strong>Capabilities:</strong> audio output, USB-DMX, GPIO, Ethernet.</p>
+          <p><strong>Roles:</strong> lighting output, stage audio.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="cues">
+      <div class="section-copy">
+        <p class="eyebrow">Cue engine</p>
+        <h2>One GO can move the whole room.</h2>
+        <p>A cue asks for actions. It does not need to know which physical machine performs each one. The network resolves the capable node or assigned role.</p>
+      </div>
+      <div class="cue" role="img" aria-label="Example show cue">GO 42
+├─ Presentation → next slide
+├─ Lighting → recall “Keynote”
+├─ Lighting → fade house lights to 20% over 3 sec
+├─ Audio → fade walk-in music
+├─ Mixer → unmute presenter
+├─ Video → roll keynote opener
+└─ OSC → /show/keynote/start</div>
+    </section>
+
+    <section>
+      <div class="section-copy">
+        <p class="eyebrow">Discovery</p>
+        <h2>The room can assemble itself.</h2>
+        <p>A node discovers the network, authenticates, advertises capabilities, discovers the show, receives roles and resources, synchronizes state, and becomes ready.</p>
+      </div>
+      <div class="cue">Discover network → Authenticate → Advertise capabilities
+→ Discover show → Receive roles/resources → Synchronize state → Ready</div>
+      <p class="lede">A future operator could simply hear: “I found three displays, two audio outputs, one DMX interface, two cameras, and five control surfaces. How should we use them?”</p>
+    </section>
+
+    <section id="protocols">
+      <div class="section-copy">
+        <p class="eyebrow">Protocol layer</p>
+        <h2>One internal model. Many real-world interfaces.</h2>
+        <p>Adapters translate established production and device protocols into a shared internal event and resource model.</p>
+      </div>
+      <div class="grid">
+        <article class="card">
+          <span class="tag">Lighting</span>
+          <h3>DMX and network lighting</h3>
+          <div class="tokens"><code>USB-DMX</code><code>Art-Net</code><code>sACN</code><code>OSC</code></div>
+        </article>
+        <article class="card">
+          <span class="tag">Audio</span>
+          <h3>Playback, routing, mixers</h3>
+          <div class="tokens"><code>USB audio</code><code>network audio</code><code>OSC</code><code>MIDI</code><code>mixer protocols</code></div>
+        </article>
+        <article class="card">
+          <span class="tag">Control</span>
+          <h3>Humans, software, hardware</h3>
+          <div class="tokens"><code>HTTP</code><code>WebSocket</code><code>serial</code><code>GPIO</code><code>MIDI</code><code>OSC</code></div>
+        </article>
+      </div>
+      <div class="grid three">
+        <article class="card"><span class="tag">Presentation</span><h3>Slides are sources</h3><p>PPTX, PDF, images, HTML, and native scenes can all feed the presentation role. PowerPoint is an input format, not the architecture.</p></article>
+        <article class="card"><span class="tag">Video</span><h3>Anything that can render</h3><p>Local files, network streams, cameras, generated graphics, and future 3D scenes can become video resources.</p></article>
+        <article class="card"><span class="tag">Audio</span><h3>Anything that can sound</h3><p>Local playback, USB interfaces, network audio, multichannel stems, and external mixer control can share the same cue system.</p></article>
+      </div>
+    </section>
+
+    <section id="resilience">
+      <div class="section-copy">
+        <p class="eyebrow">Distributed state + failover</p>
+        <h2>A failed device should not have to stop the show.</h2>
+        <p>Shows, scenes, cues, nodes, roles, displays, fixtures, channels, audio buses, media, and resources all receive addressable identities. Nodes synchronize the state they need, while roles can migrate when hardware disappears.</p>
+      </div>
+      <div class="grid two">
+        <article class="card"><span class="tag">Takeover</span><h3>Presentation Node A fails</h3><p>Presentation Node B can assume <code>presentation-output</code> automatically or after operator approval.</p></article>
+        <article class="card"><span class="tag">Policies</span><h3>Choose the right resilience</h3><p>Automatic takeover, operator-approved takeover, mirrored playback, hot standby, and degraded-mode operation can all coexist.</p></article>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-copy">
+        <p class="eyebrow">Control surfaces</p>
+        <h2>Different views into the same show.</h2>
+        <p>Any node capable of displaying an interface can become a controller. The interface changes with the role; the underlying show does not.</p>
+      </div>
+      <div class="grid">
+        <article class="card"><h3>FOH</h3><p>Full cue stack and system health.</p></article>
+        <article class="card"><h3>Lighting</h3><p>Fixtures, scenes, universes, and looks.</p></article>
+        <article class="card"><h3>Audio</h3><p>Playback, buses, meters, and mixer control.</p></article>
+        <article class="card"><h3>Stage Manager</h3><p>GO, HOLD, timers, notes, and status.</p></article>
+        <article class="card"><h3>Presenter</h3><p>Current slide, next slide, notes, and timer.</p></article>
+        <article class="card"><h3>Audience</h3><p>Interactive experiences when the show invites participation.</p></article>
+      </div>
+    </section>
+
+    <section>
+      <div class="principle">
+        <p class="eyebrow">Design law</p>
+        <h2>Never bind functionality unnecessarily to a physical device.</h2>
+        <div class="compare">
+          <div class="prefer"><strong>Prefer</strong><p>“Find a node capable of rendering this presentation.”</p></div>
+          <div class="avoid"><strong>Avoid</strong><p>“Send this to Laptop 2.”</p></div>
+          <div class="prefer"><strong>Prefer</strong><p>“Route this audio to the stage playback role.”</p></div>
+          <div class="avoid"><strong>Avoid</strong><p>“Play this through USB interface 3 on computer A.”</p></div>
+        </div>
+        <p>Physical hardware remains directly addressable when necessary. The higher-level show operates through capabilities and roles.</p>
+      </div>
+    </section>
+
+    <section class="vision" id="vision">
+      <p class="eyebrow">Vision</p>
+      <h2>A distributed operating system for live production.</h2>
+      <p>Instead of separate “lighting computers,” “audio computers,” “presentation computers,” and “control tablets,” Open Show Control sees a network of cooperating nodes. Every connected device contributes whatever capabilities it has. Every capability can become part of the show.</p>
+      <div class="final">Any device. Any role. One show.</div>
+    </section>
+  </main>
+
+  <footer>
+    <strong>3DVR Open Show Control</strong> · Open architecture for presentations, audio, lighting, video, automation, and the devices already in the room.
+  </footer>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
