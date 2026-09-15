@@ -10,8 +10,15 @@ try {
   ({ OpenBaoBackend } = require('./openbao'));
 }
 const { DEFAULTS, SecretsBroker } = require('./secrets-broker');
+const { browserLogin } = require('./browser-login');
 
 const SOCKET_PATH = process.env.THREEDVR_SECRETS_BROKER_SOCKET || DEFAULTS.socketPath;
+const LOCAL_BROWSER_AGENT = Object.freeze({
+  id: 'local-browser-login',
+  label: 'OVH local browser login',
+  capabilities: ['browser.login', 'secret.read'],
+  scopes: ['site:iatse', 'site:ukg', 'site:lighthouse', 'secrets:password-manager-mirror'],
+});
 const broker = new SecretsBroker({
   backends: {
     openbao: new OpenBaoBackend({
@@ -67,6 +74,14 @@ const server = http.createServer(async (req, res) => {
         service: '3dvr-secrets-broker',
         openbao: broker.backends.openbao.ready(),
       });
+    }
+
+    // Browser login is intentionally local-only: this server listens on a Unix socket,
+    // the route accepts only a fixed site key, and it never returns credential values.
+    if (req.method === 'POST' && url.pathname === '/v1/browser-login') {
+      const payload = await body(req, 8 * 1024);
+      const result = await browserLogin(broker, LOCAL_BROWSER_AGENT, payload.site);
+      return json(res, result.status, result.body);
     }
 
     const agent = broker.authenticate(bearer(req));

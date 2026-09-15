@@ -26,9 +26,11 @@ install -d -o root -g root -m 0755 "$OPT"
 install -m 0755 "$SOURCE/secrets-broker-server.js" "$OPT/secrets-broker-server.js"
 install -m 0755 "$SOURCE/secrets-broker-admin.js" "$OPT/secrets-broker-admin.js"
 install -m 0644 "$SOURCE/secrets-broker.js" "$OPT/secrets-broker.js"
+install -m 0644 "$SOURCE/browser-login.js" "$OPT/browser-login.js"
 install -m 0644 "$SOURCE/bitwarden-sdk-create.js" "$OPT/bitwarden-sdk-create.js"
 install -m 0644 "$SOURCE/bitwarden-sdk-upsert.js" "$OPT/bitwarden-sdk-upsert.js"
 install -m 0755 "$ROOT/scripts/ops/import-bitwarden-export-to-secrets-manager.mjs" "$OPT/import-bitwarden-export-to-secrets-manager.mjs"
+install -m 0755 "$ROOT/scripts/ops/3dvr-browser-login.mjs" /usr/local/bin/3dvr-browser-login
 if ! node -e "require.resolve('@bitwarden/sdk-napi', { paths: ['$OPT'] })" >/dev/null 2>&1; then
   npm install --omit=dev --no-audit --no-fund --prefix "$OPT" @bitwarden/sdk-napi@1.0.0 >/dev/null
 fi
@@ -126,4 +128,4 @@ for _ in $(seq 1 50); do
 done
 [[ -S /run/3dvr-secrets-broker/broker.sock ]] || { echo "Secrets broker socket did not become ready." >&2; exit 1; }
 systemctl --no-pager --full status 3dvr-secrets-broker.service | sed -n '1,16p'
-echo "3DVR Secrets Broker installed. Bitwarden remains fail-closed until BWS_ACCESS_TOKEN is set locally."
+echo "3DVR Secrets Broker installed. Trusted local browser login: 3dvr-browser-login iatse|ukg|lighthouse"
