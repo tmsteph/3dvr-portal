@@ -273,8 +273,8 @@ EOF
     return 2
   fi
 
-  approve_cmd="umask 077; mkdir -p \"\$HOME/.ssh\"; touch \"\$HOME/.ssh/authorized_keys\"; chmod 700 \"\$HOME/.ssh\"; chmod 600 \"\$HOME/.ssh/authorized_keys\"; grep -qxF $(quote_sh "$public_key") \"\$HOME/.ssh/authorized_keys\" || printf '%s\\n' $(quote_sh "$public_key") >> \"\$HOME/.ssh/authorized_keys\""
-  ssh -o BatchMode=yes 3dvr-ovh "ssh 3dvr-do $(quote_sh "$approve_cmd")"
+  printf '%s\n' "$public_key" | ssh -o BatchMode=yes 3dvr-ovh \
+    "ssh -o BatchMode=yes 3dvr-do 'umask 077; mkdir -p ~/.ssh; touch ~/.ssh/authorized_keys; chmod 700 ~/.ssh; chmod 600 ~/.ssh/authorized_keys; key=\$(cat); grep -qxF \"\$key\" ~/.ssh/authorized_keys || printf \"%s\\n\" \"\$key\" >> ~/.ssh/authorized_keys'"
 
   ovh_pub="$(ssh -o BatchMode=yes 3dvr-ovh 'cat ~/.ssh/id_ed25519_3dvr_mesh.pub')"
   do_pub="$(ssh -o BatchMode=yes 3dvr-ovh "ssh 3dvr-do 'cat ~/.ssh/id_ed25519_3dvr_mesh.pub'")"
