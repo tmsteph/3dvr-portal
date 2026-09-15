@@ -29,6 +29,15 @@ function latestTimestamp(values = []) {
   return Number.isFinite(latest) ? new Date(latest).toISOString() : null;
 }
 
+function fingerprint(value = '') {
+  let hash = 2166136261;
+  for (const char of String(value)) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `fnv1a-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+}
+
 function tokenize(value = '') {
   return clean(value)
     .toLowerCase()
@@ -77,12 +86,18 @@ export function normalizeVentureOutcomeMemory(value = {}) {
 }
 
 export function deriveVentureOutcomeMemory(state = {}, now = new Date()) {
-  const observedAt = now instanceof Date ? now.toISOString() : new Date(now).toISOString();
+  const fallbackObservedAt = now instanceof Date ? now.toISOString() : new Date(now).toISOString();
   const entries = (Array.isArray(state.experiments) ? state.experiments : [])
     .filter((experiment) => experiment?.marketPulse)
     .map((experiment) => {
       const outcome = terminalOutcome(experiment);
       if (!outcome) return null;
+      const observedAt = timestamp(
+        experiment.outcomeObservedAt
+        || experiment.updatedAt
+        || experiment.capsule?.updatedAt
+        || experiment.marketPulse?.observedAt,
+      ) || fallbackObservedAt;
       return normalizeEntry({
         id: experiment.marketPulse.sourceOpportunityId || experiment.id,
         sourceOpportunityId: experiment.marketPulse.sourceOpportunityId,
@@ -96,7 +111,10 @@ export function deriveVentureOutcomeMemory(state = {}, now = new Date()) {
       });
     })
     .filter(Boolean);
-  return normalizeVentureOutcomeMemory({ updatedAt: entries.length ? observedAt : null, entries });
+  return normalizeVentureOutcomeMemory({
+    updatedAt: latestTimestamp(entries.map((entry) => entry.observedAt)),
+    entries,
+  });
 }
 
 export function mergeVentureOutcomeMemory(current = {}, incoming = {}) {
@@ -176,9 +194,13 @@ export function scoreVentureOutcomeMemory(candidate = {}, memory = {}) {
 export function ventureOutcomeMemoryKey(memory = {}) {
   const normalized = normalizeVentureOutcomeMemory(memory);
   if (!normalized.entries.length) return '';
+  const signature = normalized.entries
+    .map((entry) => [entry.id, entry.outcome, entry.observedAt || 'undated'].join(':'))
+    .sort()
+    .join('|');
   return [
     `v${normalized.schemaVersion}`,
     normalized.entries.length,
-    normalized.updatedAt || 'undated',
+    fingerprint(signature),
   ].join(':');
 }
