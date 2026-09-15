@@ -205,16 +205,10 @@ export function allocateVentureCapsules(capsules = [], limits = {}, now = new Da
     .filter((capsule) => !TERMINAL_STATUSES.has(capsule.status))
     .sort(sortByPriority);
 
-  const exploitFirst = [
-    ...candidates.filter(capsule => capsule.search?.role === 'exploit'),
-    ...candidates.filter(capsule => capsule.search?.role !== 'exploit')
-  ].sort((left, right) => {
-    const leftExplicit = left.search?.role === 'exploit' ? 1 : 0;
-    const rightExplicit = right.search?.role === 'exploit' ? 1 : 0;
-    if (leftExplicit !== rightExplicit) return rightExplicit - leftExplicit;
-    return sortByPriority(left, right);
-  });
-  const active = exploitFirst.slice(0, normalizedLimits.maxActive);
+  // Active execution remains ruthless: highest overall priority wins.
+  // Exploration gets a dedicated research lane below so novelty cannot silently
+  // steal the active slot from a stronger proven opportunity.
+  const active = candidates.slice(0, normalizedLimits.maxActive);
   const activeIds = new Set(active.map(capsule => capsule.id));
   const remaining = candidates.filter(capsule => !activeIds.has(capsule.id));
   const researchFirst = [

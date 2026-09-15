@@ -6,6 +6,11 @@ import {
 } from './moneyPrinterTypes.js';
 import { BOT_GROUPS, findPromptForBot, runBotLoop as runBotLoopEngine } from './moneyPrinterBots.js';
 import {
+  createPossibilitySearchPlan,
+  promoteOpportunityToPossibilityExperiments,
+  selectPossibilityPortfolio
+} from './possibilitySearch.js';
+import {
   applyExperimentStatus,
   createSeedExperiment,
   generateTinyMvpPlan,
@@ -41,6 +46,9 @@ export {
   killOrScaleExperiment,
   normalizeMission,
   promoteIdeaToExperiment,
+  createPossibilitySearchPlan,
+  promoteOpportunityToPossibilityExperiments,
+  selectPossibilityPortfolio,
   scoreBusinessIdea,
   scoreBusinessIdeas,
   summarizePortfolio
