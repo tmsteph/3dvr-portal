@@ -52,6 +52,19 @@ The workflow:
 
 Roaming devices use OVH as the rendezvous. `3dvr device mesh` can authorize a device through the cloud mesh and establish a loopback-only reverse tunnel so cloud hosts can reach a phone/laptop behind NAT.
 
+### Termux device lifecycle and recovery
+
+The Termux phone is a disposable edge node, but its CLI must not drift behind the repository. The `3dvr device mesh` implementation lives in `apps/agent/thomas-agent/scripts/ask-device`; the Termux desktop installer lives separately under `3dvr-desktop`. A desktop reinstall therefore must also refresh or relink the general `3dvr` CLI from the same checkout.
+
+For the enrolled `termux-phone` node, the expected reverse port is `22106` unless explicitly changed. Recovery order is:
+
+1. Test `ssh -o BatchMode=yes 3dvr-ovh true` on the phone. If that succeeds, the phone key and OVH trust are already valid; do not repeat approval/bootstrap.
+2. Verify the installed CLI exposes `3dvr device mesh`. If it only shows `bootstrap` and `approve`, treat that as stale CLI version drift and refresh the checkout/CLI rather than rebuilding SSH trust.
+3. Start `3dvr device mesh --name termux-phone --reverse-port 22106`, or use the standalone `3dvr-desktop/scripts/repair-termux-mesh.sh` path when the CLI itself is damaged.
+4. On OVH, verify a loopback listener on `127.0.0.1:22106` and the `3dvr-termux-phone` SSH alias before declaring the phone connected.
+
+Do not diagnose a missing reverse listener as a key-approval problem when outbound `3dvr-ovh` access already works.
+
 ## Responsibility boundaries
 
 ### OVH — primary portal/control and recovery anchor

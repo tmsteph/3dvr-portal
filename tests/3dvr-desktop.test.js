@@ -51,6 +51,8 @@ test('Termux install creates unlock-aware Android boot startup', () => {
 
   assert.match(install, /\.termux\/boot\/02-3dvr-desktop/);
   assert.match(install, /build-termux-shell\.sh/);
+  assert.match(install, /apps\/agent\/install\.sh/);
+  assert.match(install, /THREEDVR_AGENT_DIR/);
   assert.match(boot, /3dvr agent start/);
   assert.match(boot, /start-after-unlock\.sh/);
   assert.match(afterUnlock, /3dvr-desktop start/);
