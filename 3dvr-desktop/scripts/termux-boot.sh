@@ -7,7 +7,32 @@ sleep 12
 
 termux-wake-lock >/dev/null 2>&1 || true
 
-# Remote access and the agent can start while the phone is still locked.
+# Keep native SSH available so the reverse mesh has a local endpoint.
+if command -v sshd >/dev/null 2>&1 && ! pgrep -x sshd >/dev/null 2>&1; then
+  sshd >>"$LOG_DIR/sshd.log" 2>&1 || true
+fi
+
+# Supervise every previously enrolled 3DVR reverse-mesh tunnel. The generated
+# tunnel script exits when connectivity drops; this wrapper brings it back
+# without requiring Desktop Commander, a foreground Termux session, or Android
+# to keep one long-lived ssh process perfectly healthy.
+for tunnel in "$HOME"/.3dvr/bin/mesh-tunnel-*; do
+  [ -x "$tunnel" ] || continue
+  name=$(basename "$tunnel")
+  supervisor="3dvr-mesh-supervisor-$name"
+  if ! pgrep -f "$supervisor" >/dev/null 2>&1; then
+    nohup bash -c '
+      tunnel=$1
+      while true; do
+        "$tunnel" || true
+        sleep 10
+      done
+    ' "$supervisor" "$tunnel" >>"$LOG_DIR/$name.log" 2>&1 &
+  fi
+done
+
+# Desktop Commander remains an optional emergency fallback, not the primary
+# machine-control path.
 if ! pgrep -f 'desktop-commander.* remote' >/dev/null 2>&1; then
   if [ -x "$HOME/bin/start-desktop-commander-remote" ]; then
     "$HOME/bin/start-desktop-commander-remote" >/dev/null 2>&1 || true
