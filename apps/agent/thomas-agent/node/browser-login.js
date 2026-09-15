@@ -331,8 +331,9 @@ async function browserLogin(broker, agent, site) {
     broker.audit?.append?.({ event: 'browser_login', agent: agent?.id || '', site: normalizeText(site).toLowerCase(), status: result.body?.status || 'unknown' });
     return result;
   } catch (error) {
-    const reason = ['credential-approval-required', 'credential-unavailable', 'vault-login-not-found', 'vault-login-incomplete', 'browser-target-unavailable', 'websocket-runtime-unavailable'].includes(error?.message)
-      ? error.message
+    const message = String(error?.message || '');
+    const reason = /^(credential-|vault-|browser-|websocket-|cdp-)/.test(message)
+      ? message.slice(0, 160)
       : 'browser-login-error';
     broker.audit?.append?.({ event: 'browser_login', agent: agent?.id || '', site: normalizeText(site).toLowerCase(), status: 'error', reason });
     return { status: 424, body: { ok: false, site: normalizeText(site).toLowerCase(), status: 'error', reason } };
