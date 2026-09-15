@@ -35,7 +35,7 @@ jobs:
           service="$(jq -r '.service // empty' ops/control/request.json)"
           test -n "$id"
           case "$action" in
-            status|termux_status|openbao_status) ;;
+            status|termux_status|openbao_status|install_control_helper) ;;
             restart)
               case "$service" in
                 3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|openbao.service) ;;
@@ -122,6 +122,39 @@ jobs:
               ;;
             termux_status)
               ovh 'bash -lc '\''if ss -ltn | grep -Eq "[:.]2202[[:space:]]"; then jq -n "{ok:true,connected:true}"; else jq -n "{ok:true,connected:false}"; fi'\'''
+              ;;
+            install_control_helper)
+              ovh 'sudo -n bash -s' <<'OVH'
+          set -euo pipefail
+          umask 077
+          helper=$(mktemp)
+          sudoers=$(mktemp)
+          cleanup() { rm -f "$helper" "$sudoers"; }
+          trap cleanup EXIT
+          cat > "$helper" <<'SCRIPT'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          [[ ${EUID:-$(id -u)} -eq 0 ]] || { echo 'root required' >&2; exit 77; }
+          action=${1:-}
+          service=${2:-}
+          [[ "$action" == restart ]] || { echo 'only restart is allowed' >&2; exit 64; }
+          case "$service" in
+            3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|openbao.service) ;;
+            *) echo 'service is not allowlisted' >&2; exit 64 ;;
+          esac
+          exec /usr/bin/systemctl restart "$service"
+          SCRIPT
+          /usr/bin/install -o root -g root -m 0755 "$helper" /usr/local/sbin/3dvr-control-service
+          cat > "$sudoers" <<'SUDOERS'
+          debian ALL=(root) NOPASSWD: /usr/local/sbin/3dvr-control-service restart 3dvr-personal-mcp.service
+          debian ALL=(root) NOPASSWD: /usr/local/sbin/3dvr-control-service restart 3dvr-secrets-broker.service
+          debian ALL=(root) NOPASSWD: /usr/local/sbin/3dvr-control-service restart 3dvr-self-host-portal.service
+          debian ALL=(root) NOPASSWD: /usr/local/sbin/3dvr-control-service restart openbao.service
+          SUDOERS
+          /usr/bin/install -o root -g root -m 0440 "$sudoers" /etc/sudoers.d/3dvr-control-service
+          /usr/sbin/visudo -cf /etc/sudoers.d/3dvr-control-service >/dev/null
+          jq -n '{ok:true,installed:true,helper:"/usr/local/sbin/3dvr-control-service",restartServices:["3dvr-personal-mcp.service","3dvr-secrets-broker.service","3dvr-self-host-portal.service","openbao.service"]}'
+          OVH
               ;;
             restart)
               case "$service" in
