@@ -120,16 +120,22 @@ function runJson(binary, args, env = process.env) {
   return JSON.parse(result.stdout || 'null');
 }
 
-function upsert(helper, env, payload) {
+function batchUpsert(helper, env, items) {
   const result = spawnSync(process.execPath, [helper], {
     env,
-    input: JSON.stringify(payload),
+    input: JSON.stringify({ items }),
     encoding: 'utf8',
-    timeout: 30000,
-    maxBuffer: 1024 * 1024,
+    timeout: 180000,
+    maxBuffer: 4 * 1024 * 1024,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
-  if (result.error || result.status !== 0) throw new Error('Bitwarden secret upsert failed');
+  if (result.error || result.status !== 0) {
+    const safe = String(result.stderr || result.error?.message || 'unknown SDK failure')
+      .replace(/BWS_ACCESS_TOKEN=[^\s]+/gi, 'BWS_ACCESS_TOKEN=[redacted]')
+      .replace(/[A-Za-z0-9+/_=-]{48,}/g, '[redacted]')
+      .replace(/\s+/g, ' ').trim().slice(0, 500);
+    throw new Error(`Bitwarden batch upsert failed: ${safe || 'unknown SDK failure'}`);
+  }
   return JSON.parse(result.stdout || '{}');
 }
 
@@ -156,32 +162,35 @@ async function main() {
   const existing = runJson(bws, ['secret', 'list', project.id, '--output', 'json', '--color', 'no'], env);
   const byKey = new Map((Array.isArray(existing) ? existing : []).map(entry => [String(entry.key || ''), entry]));
 
-  let created = 0;
-  let updated = 0;
-  for (const record of plan.records) {
-    const current = byKey.get(record.key);
-    const result = upsert(helper, env, {
-      organizationId: project.organizationId,
-      projectId: project.id,
-      secretId: current?.id || '',
-      key: record.key,
-      value: record.value,
-      note: 'Mirrored from Bitwarden Password Manager for scoped 3DVR automation. Do not expose this value in chat or logs.',
-    });
-    if (result.updated) updated += 1; else created += 1;
-  }
-
-  const indexKey = 'VAULT_INDEX';
-  const indexCurrent = byKey.get(indexKey);
-  const indexResult = upsert(helper, env, {
+  const operations = plan.records.map(record => ({
     organizationId: project.organizationId,
     projectId: project.id,
-    secretId: indexCurrent?.id || '',
+    secretId: byKey.get(record.key)?.id || '',
+    key: record.key,
+    value: record.value,
+    note: 'Mirrored from Bitwarden Password Manager for scoped 3DVR automation. Do not expose this value in chat or logs.',
+  }));
+
+  const indexKey = 'VAULT_INDEX';
+  operations.push({
+    organizationId: project.organizationId,
+    projectId: project.id,
+    secretId: byKey.get(indexKey)?.id || '',
     key: indexKey,
     value: JSON.stringify(plan.index),
     note: 'Non-secret lookup index for mirrored Password Manager items. Item values live in VAULT_ITEM__* secrets.',
   });
-  if (indexResult.updated) updated += 1; else created += 1;
+
+  const batch = batchUpsert(helper, env, operations);
+  const results = Array.isArray(batch.results) ? batch.results : [];
+  const failures = Array.isArray(batch.failures) ? batch.failures : [];
+  const created = results.filter(item => !item.updated).length;
+  const updated = results.filter(item => item.updated).length;
+
+  if (failures.length) {
+    const summary = failures.slice(0, 5).map(item => `#${Number(item.index) + 1}: ${String(item.error || 'unknown').slice(0, 180)}`).join('; ');
+    throw new Error(`Bitwarden batch completed with ${failures.length} failure(s); source retained. ${summary}`);
+  }
 
   if (options.deleteSource) {
     try {
