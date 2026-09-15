@@ -10,6 +10,7 @@ try {
   ({ OpenBaoBackend } = require('./openbao'));
 }
 const { DEFAULTS, SecretsBroker } = require('./secrets-broker');
+const { browserLogin } = require('./browser-login');
 
 const SOCKET_PATH = process.env.THREEDVR_SECRETS_BROKER_SOCKET || DEFAULTS.socketPath;
 const broker = new SecretsBroker({
@@ -71,6 +72,12 @@ const server = http.createServer(async (req, res) => {
 
     const agent = broker.authenticate(bearer(req));
     if (!agent) return json(res, 401, { ok: false, reason: 'unauthenticated-agent' });
+
+    if (req.method === 'POST' && url.pathname === '/v1/browser-login') {
+      const payload = await body(req, 8 * 1024);
+      const result = await browserLogin(broker, agent, payload.site);
+      return json(res, result.status, result.body);
+    }
 
     if (req.method === 'GET' && url.pathname === '/v1/status') {
       const result = broker.status(agent);
