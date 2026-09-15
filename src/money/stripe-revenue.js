@@ -1,5 +1,11 @@
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'past_due']);
 
+const OFFER_OPPORTUNITY_IDS = Object.freeze({
+  'free-page-starter': '3dvr-free-page-starter',
+  'website-upgrade': '3dvr-website-upgrade',
+  'microbusiness-launch-sprint': '3dvr-microbusiness-launch-sprint'
+});
+
 function normalizeText(value) {
   return String(value || '').trim();
 }
@@ -11,6 +17,10 @@ export function normalizeOfferKey(value) {
     .replace(/[^a-z0-9-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 80);
+}
+
+export function opportunityIdForOfferProfile(value = '') {
+  return OFFER_OPPORTUNITY_IDS[normalizeOfferKey(value)] || '';
 }
 
 export function parseAutopilotReferenceId(value = '') {
@@ -46,6 +56,7 @@ function offerKeyFromPaymentLink(link = {}) {
     || ''
   );
 }
+
 function monthlyCentsForItem(item = {}) {
   const price = item.price || {};
   const recurring = price.recurring || {};
@@ -78,9 +89,31 @@ function addOfferRevenue(groups, offer, session, link) {
   if (!current.checkoutUrl && link?.url) current.checkoutUrl = normalizeText(link.url);
   groups.set(offer, current);
 }
+
+function addOpportunityRevenue(groups, opportunityId, offer, reference, session, link) {
+  if (!opportunityId) return;
+  const current = groups.get(opportunityId) || {
+    opportunityId,
+    offer,
+    paidCheckouts: 0,
+    grossRevenueCents: 0,
+    checkoutUrl: normalizeText(link?.url),
+    lastPaidAt: null,
+    runIds: []
+  };
+  current.paidCheckouts += 1;
+  current.grossRevenueCents += Number(session.amount_total || 0);
+  const created = Number(session.created || 0);
+  if (created && (!current.lastPaidAt || created > current.lastPaidAt)) current.lastPaidAt = created;
+  if (!current.checkoutUrl && link?.url) current.checkoutUrl = normalizeText(link.url);
+  if (reference.runId && !current.runIds.includes(reference.runId)) current.runIds.push(reference.runId);
+  groups.set(opportunityId, current);
+}
+
 export function summarizeStripeRevenue({ sessions = [], paymentLinks = [], subscriptions = [] } = {}) {
   const links = new Map(paymentLinks.map(link => [normalizeText(link?.id), link]));
   const groups = new Map();
+  const opportunityGroups = new Map();
   let paidCheckouts = 0;
   let grossRevenueCents = 0;
   let attributedPaidCheckouts = 0;
@@ -93,8 +126,10 @@ export function summarizeStripeRevenue({ sessions = [], paymentLinks = [], subsc
     const reference = parseAutopilotReferenceId(session?.client_reference_id);
     const link = links.get(paymentLinkId(session));
     const offer = reference.offerProfile || offerKeyFromPaymentLink(link);
+    const opportunityId = opportunityIdForOfferProfile(offer);
     if (reference.runId || offer) attributedPaidCheckouts += 1;
     addOfferRevenue(groups, offer, session, link);
+    addOpportunityRevenue(opportunityGroups, opportunityId, offer, reference, session, link);
   }
 
   let monthlyRecurringRevenueCents = 0;
@@ -117,9 +152,13 @@ export function summarizeStripeRevenue({ sessions = [], paymentLinks = [], subsc
     monthlyRecurringRevenueCents,
     byOffer: [...groups.values()].sort((a, b) => (
       b.grossRevenueCents - a.grossRevenueCents || b.paidCheckouts - a.paidCheckouts
+    )),
+    byOpportunity: [...opportunityGroups.values()].sort((a, b) => (
+      b.grossRevenueCents - a.grossRevenueCents || b.paidCheckouts - a.paidCheckouts
     ))
   };
 }
+
 export async function collectStripeRevenueHints({ stripeClient, limit = 100 } = {}) {
   if (!stripeClient?.checkout?.sessions?.list) {
     return {
@@ -131,7 +170,8 @@ export async function collectStripeRevenueHints({ stripeClient, limit = 100 } = 
       grossRevenueCents: 0,
       activeSubscribers: 0,
       monthlyRecurringRevenueCents: 0,
-      byOffer: []
+      byOffer: [],
+      byOpportunity: []
     };
   }
 
