@@ -100,6 +100,26 @@ A Venture Capsule is the kernel's disposable startup unit:
 
 Capsules are cheap to create and cheap to destroy. A capsule graduates into a durable product or company only after repeated paid demand, reliable fulfillment, healthy measured economics, and acceptable policy outcomes.
 
+## Possibility search: the Move 37 layer
+
+A strong opportunity should not collapse immediately into one obvious experiment. The kernel now expands an eligible opportunity into a **small possibility lattice** across four reversible dimensions:
+
+- offer shape: current, narrower/faster, or higher-value;
+- channel: current reachable path, inbound/referral, or partner distribution;
+- delivery: manual concierge, automation-assisted, or partner-assisted;
+- pricing hypothesis: current, lower-friction paid commitment, or premium test.
+
+The default lattice contains 81 combinations. These combinations are **search hypotheses, not market facts**. Their deltas are explicit priors used only to decide what is worth learning about next; real buyer evidence and measured outcomes must replace those priors over time.
+
+The search portfolio reserves separate attention for:
+
+1. **Exploit** — the eligible variant with the strongest expected-value path.
+2. **Explore** — a different variant selected for learning value and novelty, even when its immediate expected value is lower.
+
+Only those bounded variants enter the Venture Capsule portfolio. The other combinations remain cheap internal possibilities. External contact, price changes, spend, money movement, and irreversible actions remain approval-gated.
+
+This implements the practical lesson from AlphaGo-style search: do not merely automate the move we already would have made. Preserve enough exploration capacity to discover a better move.
+
 ## Ranking principle
 
 The kernel should prefer opportunities that maximize expected learning or expected contribution margin per constrained resource while penalizing uncertainty, irreversible downside, founder attention, policy risk, and negative participant outcomes.

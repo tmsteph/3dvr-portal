@@ -15,6 +15,7 @@ import {
   killOrScaleExperiment,
   normalizeMission,
   promoteIdeaInState,
+  promoteOpportunityToPossibilityExperiments,
   refreshMoneyPrinterState,
   runBotLoop,
   updateExperimentStatusInState
@@ -342,9 +343,16 @@ function renderOpportunityInbox() {
     const actions = document.createElement('div');
     actions.className = 'opportunity-actions';
     if (!['passed', 'expired', 'won'].includes(opportunity.status)) {
+      if (opportunity.experimentRecommended && opportunity.status !== 'experimenting') {
+        actions.append(button('Search possibilities', {
+          className: 'mp-button mp-button--primary',
+          'data-opportunity-action': 'explore',
+          'data-opportunity-id': opportunity.id
+        }));
+      }
       actions.append(
         button('Review response', {
-          className: 'mp-button mp-button--primary',
+          className: opportunity.experimentRecommended ? 'mp-button' : 'mp-button mp-button--primary',
           'data-opportunity-action': 'review',
           'data-opportunity-id': opportunity.id
         }),
@@ -391,9 +399,39 @@ function addOpportunityToReviewQueue(opportunity) {
 function handleOpportunityAction(action, opportunityId) {
   const opportunity = opportunityEngineState.opportunities.find(item => item.id === opportunityId);
   if (!opportunity) return;
+  if (action === 'explore') {
+    const generated = promoteOpportunityToPossibilityExperiments(opportunity);
+    const existingIds = new Set((state.experiments || []).map(experiment => experiment.id));
+    const additions = generated.filter(experiment => !existingIds.has(experiment.id));
+    if (!generated.length) {
+      setStatus('This opportunity needs stronger positive-sum demand evidence before possibility search can start.');
+      return;
+    }
+    if (!additions.length) {
+      setStatus('The exploit and exploration variants are already in the experiment portfolio.');
+      document.getElementById('experimentGrid')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    state = refreshDerived({
+      ...state,
+      experiments: [...(state.experiments || []), ...additions]
+    });
+    opportunityEngineState = updateOpportunity(opportunityEngineState, opportunityId, {
+      status: 'experimenting',
+      nextAction: 'Compare the exploit and exploration Venture Capsules. External contact, pricing changes, and spend still require approval.'
+    });
+    saveOpportunityEngineState();
+    saveState();
+    render();
+    setStatus(`Searched the possibility space and queued ${additions.length} bounded variants: one exploit path and one exploration path.`);
+    document.getElementById('experimentGrid')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
   if (action === 'review') {
     const added = addOpportunityToReviewQueue(opportunity);
-    opportunityEngineState = updateOpportunity(opportunityEngineState, opportunityId, { status: 'reviewing' });
+    opportunityEngineState = updateOpportunity(opportunityEngineState, opportunityId, {
+      status: opportunity.status === 'experimenting' ? 'experimenting' : 'reviewing'
+    });
     saveOpportunityEngineState();
     renderOpportunityInbox();
     renderMessageReviewQueue();

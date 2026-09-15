@@ -312,7 +312,7 @@ export function updateOpportunity(state = {}, opportunityId, patch = {}, now = n
 }
 
 export function sortOpportunityClusters(opportunities = [], now = new Date()) {
-  const statusOrder = { new: 0, 'response-ready': 1, reviewing: 2, contacted: 3, won: 4, passed: 5, expired: 6 };
+  const statusOrder = { new: 0, 'response-ready': 1, experimenting: 2, reviewing: 3, contacted: 4, won: 5, passed: 6, expired: 7 };
   return [...opportunities]
     .map(opportunity => createOpportunityCluster(opportunity, now))
     .sort((left, right) => {
