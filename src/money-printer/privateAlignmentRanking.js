@@ -3,6 +3,11 @@ import {
   scoreOpportunityAlignment,
 } from '../kernel/alignmentProfile.js';
 import { normalizeOpportunitySearchMode } from '../money/scoring.js';
+import {
+  normalizeVentureOutcomeMemory,
+  scoreVentureOutcomeMemory,
+  ventureOutcomeMemoryKey,
+} from './ventureOutcomeMemory.js';
 
 const ALIGNMENT_WEIGHTS = Object.freeze({
   aligned: 0.35,
@@ -40,24 +45,48 @@ export function alignmentPersonalizationKey(profile = {}) {
   ].join(':');
 }
 
-export function personalizeMarketPulseCandidate(candidate = {}, profile = {}) {
+export function privatePersonalizationKey(profile = {}, outcomeMemory = {}) {
+  const parts = [
+    alignmentPersonalizationKey(profile),
+    ventureOutcomeMemoryKey(outcomeMemory),
+  ].filter(Boolean);
+  return parts.join('|');
+}
+
+export function personalizeMarketPulseCandidate(candidate = {}, profile = {}, outcomeMemory = {}) {
   const normalizedProfile = normalizeAlignmentProfile(profile);
-  if (!normalizedProfile.keywords.length) return candidate;
+  const normalizedMemory = normalizeVentureOutcomeMemory(outcomeMemory);
+  const hasAlignment = normalizedProfile.keywords.length > 0;
+  const hasOutcomeMemory = normalizedMemory.entries.length > 0;
+  if (!hasAlignment && !hasOutcomeMemory) return candidate;
 
   const mode = normalizeOpportunitySearchMode(candidate.capsule?.mode || 'portfolio');
   const publicAlignmentScore = clampScore(candidate.alignmentScore, 50);
-  const alignmentScore = scoreOpportunityAlignment(candidateOpportunity(candidate), normalizedProfile);
+  const alignmentScore = hasAlignment
+    ? scoreOpportunityAlignment(candidateOpportunity(candidate), normalizedProfile)
+    : publicAlignmentScore;
   const basePriority = clampScore(candidate.capsule?.priorityScore, 0);
-  const adjustment = (alignmentScore - publicAlignmentScore) * ALIGNMENT_WEIGHTS[mode];
+  const alignmentAdjustment = hasAlignment
+    ? (alignmentScore - publicAlignmentScore) * ALIGNMENT_WEIGHTS[mode]
+    : 0;
+  const outcomeLearning = hasOutcomeMemory
+    ? scoreVentureOutcomeMemory(candidate, normalizedMemory)
+    : { adjustment: 0, matches: 0 };
   const priorityScore = basePriority <= 0
     ? 0
-    : clampScore(basePriority + adjustment, basePriority);
+    : clampScore(basePriority + alignmentAdjustment + outcomeLearning.adjustment, basePriority);
 
   return {
     ...candidate,
-    publicAlignmentScore,
-    alignmentScore,
-    alignmentProfileSource: normalizedProfile.source,
+    ...(hasAlignment ? {
+      publicAlignmentScore,
+      alignmentScore,
+      alignmentProfileSource: normalizedProfile.source,
+    } : {}),
+    ...(hasOutcomeMemory ? {
+      outcomeLearningAdjustment: outcomeLearning.adjustment,
+      outcomeLearningMatches: outcomeLearning.matches,
+    } : {}),
     capsule: {
       ...(candidate.capsule || {}),
       priorityScore,
@@ -65,9 +94,10 @@ export function personalizeMarketPulseCandidate(candidate = {}, profile = {}) {
   };
 }
 
-export function personalizeMarketPulseCapsulePayload(payload = {}, profile = {}) {
+export function personalizeMarketPulseCapsulePayload(payload = {}, profile = {}, outcomeMemory = {}) {
   const normalizedProfile = normalizeAlignmentProfile(profile);
-  const personalizationKey = alignmentPersonalizationKey(normalizedProfile);
+  const normalizedMemory = normalizeVentureOutcomeMemory(outcomeMemory);
+  const personalizationKey = privatePersonalizationKey(normalizedProfile, normalizedMemory);
   if (!personalizationKey) {
     return {
       ...payload,
@@ -80,6 +110,6 @@ export function personalizeMarketPulseCapsulePayload(payload = {}, profile = {})
     ...payload,
     personalizationKey,
     candidates: (Array.isArray(payload.candidates) ? payload.candidates : [])
-      .map((candidate) => personalizeMarketPulseCandidate(candidate, normalizedProfile)),
+      .map((candidate) => personalizeMarketPulseCandidate(candidate, normalizedProfile, normalizedMemory)),
   };
 }
