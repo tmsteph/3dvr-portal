@@ -67,3 +67,29 @@ test('boring money lane stays in research when demand or delivery speed is weak'
   assert.equal(lane.status, 'research');
   assert.equal(lane.maxAutomaticSpendUsd, 0);
 });
+
+test('boring money lane cannot promote a kernel-blocked opportunity', () => {
+  const lane = buildBoringMoneyLane([
+    {
+      id: 'blocked-high-profit',
+      title: 'Blocked high-profit candidate',
+      positiveSumEligible: false,
+      painScore: 100,
+      willingnessToPay: 100,
+      speedToBuild: 100,
+      competitionGap: 100
+    },
+    {
+      id: 'eligible',
+      title: 'Eligible paid service',
+      positiveSumEligible: true,
+      painScore: 80,
+      willingnessToPay: 75,
+      speedToBuild: 85,
+      competitionGap: 55
+    }
+  ]);
+
+  assert.equal(lane.candidate.id, 'eligible');
+  assert.notEqual(lane.candidate.id, 'blocked-high-profit');
+});

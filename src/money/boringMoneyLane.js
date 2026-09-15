@@ -51,7 +51,7 @@ function buildOffer(opportunity = {}) {
 export function buildBoringMoneyLane(opportunities = [], options = {}) {
   const channels = normalizeChannels(options.channels);
   const ranked = (Array.isArray(opportunities) ? opportunities : [])
-    .filter(item => item && typeof item === 'object')
+    .filter(item => item && typeof item === 'object' && item.positiveSumEligible !== false)
     .map(item => ({
       ...item,
       boringMoneyScore: scoreBoringMoneyOpportunity(item)
