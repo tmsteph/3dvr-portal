@@ -1,0 +1,104 @@
+name: Sync 3DVR Security Runtime
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/security-runtime-sync.yml'
+      - 'ops/secrets-broker/3dvr-secrets-broker.service'
+
+permissions:
+  contents: read
+
+env:
+  HETZNER_HOST: 167.233.174.20
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve Hetzner SSH access
+        id: ssh
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/3dvr-sync-a
+          write_key "$SSH_B" /tmp/3dvr-sync-b
+          write_key "$SSH_C" /tmp/3dvr-sync-c
+          for user in root debian ubuntu tmsteph; do
+            for key in /tmp/3dvr-sync-a /tmp/3dvr-sync-b /tmp/3dvr-sync-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$HETZNER_HOST" true >/dev/null 2>&1; then
+                echo "user=$user" >> "$GITHUB_OUTPUT"
+                echo "key=$key" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+          done
+          exit 1
+
+      - name: Install OpenBao-only broker unit
+        shell: bash
+        env:
+          HETZNER_USER: ${{ steps.ssh.outputs.user }}
+          HETZNER_KEY: ${{ steps.ssh.outputs.key }}
+        run: |
+          set -euo pipefail
+          base64 -w0 ops/secrets-broker/3dvr-secrets-broker.service > /tmp/unit.b64
+          unit_b64=$(cat /tmp/unit.b64)
+          ssh -i "$HETZNER_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 "$HETZNER_USER@$HETZNER_HOST" bash -s -- "$unit_b64" <<'REMOTE'
+          set -euo pipefail
+          unit_b64=$1
+          ssh -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8 3dvr-ovh 'sudo -n bash -s' -- "$unit_b64" <<'OVH'
+          set -euo pipefail
+          unit_b64=$1
+          tmp=$(mktemp)
+          trap 'rm -f "$tmp"' EXIT
+          printf '%s' "$unit_b64" | base64 -d > "$tmp"
+          grep -q '^After=.*openbao.service' "$tmp"
+          ! grep -q 'bitwarden.env' "$tmp"
+          install -o root -g root -m 0644 "$tmp" /etc/systemd/system/3dvr-secrets-broker.service
+          systemctl daemon-reload
+          systemctl restart 3dvr-secrets-broker.service
+          for _ in $(seq 1 30); do
+            [ -S /run/3dvr-secrets-broker/broker.sock ] && break
+            sleep 0.2
+          done
+          health=$(curl -fsS --unix-socket /run/3dvr-secrets-broker/broker.sock http://localhost/health)
+          printf '%s' "$health" | jq -e '.ok == true and .openbao == true' >/dev/null
+          pid=$(systemctl show 3dvr-secrets-broker.service -p MainPID --value)
+          [ "$pid" -gt 1 ]
+          if tr '\0' '\n' < "/proc/$pid/environ" | grep -q '^BWS_ACCESS_TOKEN='; then
+            echo 'Bitwarden token is still present in broker environment.' >&2
+            exit 9
+          fi
+          jq -n --argjson health "$health" '{ok:true,broker:$health,bitwardenRuntimeEnv:false}'
+          OVH
+          REMOTE
+
+      - name: Remove SSH keys
+        if: always()
+        run: rm -f /tmp/3dvr-sync-a /tmp/3dvr-sync-b /tmp/3dvr-sync-c /tmp/3dvr-sync-*.raw /tmp/unit.b64
