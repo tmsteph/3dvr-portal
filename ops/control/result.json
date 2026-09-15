@@ -1,8 +1,15 @@
 {
-  "ok": false,
-  "error": "control request failed before a sanitized result was produced",
-  "requestId": "2026-09-15T20:51:00Z-restart-broker-001",
-  "action": "restart",
-  "workflowOutcome": "failure",
-  "checkedAt": "2026-09-15T20:51:07Z"
+  "ok": true,
+  "installed": true,
+  "helper": "/usr/local/sbin/3dvr-control-service",
+  "restartServices": [
+    "3dvr-personal-mcp.service",
+    "3dvr-secrets-broker.service",
+    "3dvr-self-host-portal.service",
+    "openbao.service"
+  ],
+  "requestId": "2026-09-15T20:53:00Z-install-helper-001",
+  "action": "install_control_helper",
+  "workflowOutcome": "success",
+  "checkedAt": "2026-09-15T20:53:11Z"
 }
