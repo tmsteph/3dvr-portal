@@ -4,14 +4,49 @@ const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
 const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
 const z = require('zod/v4');
 
-const { fileList, fileRead, hostStatus, loadPolicy, serviceStatus } = require('../connectors/control/local-machine');
+const { appendAudit } = require('../connectors/audit/log');
+const {
+  fileList,
+  fileRead,
+  fileWrite,
+  hostStatus,
+  loadPolicy,
+  serviceAction,
+  serviceStatus,
+} = require('../connectors/control/local-machine');
 
-const server = new McpServer({ name: '3dvr-local-control', version: '0.3.0' });
+const server = new McpServer({ name: '3dvr-local-control', version: '0.4.0' });
 const policy = loadPolicy(process.env);
 
 function output(value) {
   return { content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] };
 }
+
+async function auditedMutation(tool, target, action) {
+  try {
+    const value = await action();
+    appendAudit({ actor: 'local-control-mcp', tool, target, result: 'success' });
+    return output(value);
+  } catch (error) {
+    appendAudit({ actor: 'local-control-mcp', tool, target, result: 'error', error: error?.message || error });
+    throw error;
+  }
+}
+
+server.registerTool('control_status', {
+  title: 'Local control status',
+  description: 'Show the local control policy without exposing secrets.',
+  inputSchema: {},
+  annotations: { readOnlyHint: true, openWorldHint: false },
+}, async () => output({
+  service: '3dvr-local-control',
+  version: '0.4.0',
+  mutationsEnabled: policy.enableMutations,
+  serviceAllowlist: policy.services,
+  fileRoots: policy.fileRoots,
+  maxReadBytes: policy.maxReadBytes,
+  maxWriteBytes: policy.maxWriteBytes,
+}));
 
 server.registerTool('host_status', {
   title: 'Host status',
@@ -40,6 +75,30 @@ server.registerTool('file_read', {
   inputSchema: { path: z.string().min(1) },
   annotations: { readOnlyHint: true, openWorldHint: false },
 }, async ({ path }) => output(fileRead(path, { policy })));
+
+if (policy.enableMutations) {
+  server.registerTool('service_restart', {
+    title: 'Restart controlled service',
+    description: 'Restart one locally allowlisted systemd service through the narrow privileged helper.',
+    inputSchema: { service: z.string().min(1) },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  }, async ({ service }) => auditedMutation(
+    'service.restart',
+    service,
+    () => serviceAction(service, 'restart', { policy }),
+  ));
+
+  server.registerTool('file_write', {
+    title: 'Write controlled file',
+    description: 'Atomically write one UTF-8 file inside the configured file roots.',
+    inputSchema: { path: z.string().min(1), content: z.string() },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  }, async ({ path, content }) => auditedMutation(
+    'file.write',
+    path,
+    async () => fileWrite(path, content, { policy }),
+  ));
+}
 
 async function main() {
   const transport = new StdioServerTransport();
