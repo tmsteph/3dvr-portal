@@ -1,8 +1,8 @@
 {
-  "ok": false,
-  "error": "control request failed before a sanitized result was produced",
-  "requestId": "2026-09-15T21:25:00Z-termux-retry-001",
+  "ok": true,
+  "connected": false,
+  "requestId": "2026-09-15T21:34:00Z-termux-retry-002",
   "action": "termux_status",
-  "workflowOutcome": "failure",
-  "checkedAt": "2026-09-15T21:32:43Z"
+  "workflowOutcome": "success",
+  "checkedAt": "2026-09-15T21:33:55Z"
 }
