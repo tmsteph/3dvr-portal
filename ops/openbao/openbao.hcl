@@ -1,14 +1,13 @@
 ui = false
 api_addr = "http://127.0.0.1:8200"
-cluster_addr = "http://127.0.0.1:8201"
 
-storage "raft" {
-  path = "/var/lib/openbao/raft"
-  node_id = "ovh-control-1"
+# 3DVR intentionally runs OpenBao as a single local control-node service.
+# A non-HA backend is simpler and avoids unnecessary Raft/election failure modes.
+storage "file" {
+  path = "/var/lib/openbao/data"
 }
 
 listener "tcp" {
   address = "127.0.0.1:8200"
-  cluster_address = "127.0.0.1:8201"
   tls_disable = 1
 }
