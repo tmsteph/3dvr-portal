@@ -299,4 +299,4 @@ test('terminal outcome sync writes encrypted memory from Money Printer state', a
   assert.equal(result.saved, true);
   assert.ok(storedRecord.ciphertext.startsWith('cipher:'));
   assert.ok(storedRecord.ciphertext.includes('audio'));
-}
+});
