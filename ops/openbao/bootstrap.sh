@@ -29,19 +29,21 @@ fi
 INIT_FILE="$BOOTSTRAP_DIR/init.json"
 [ -s "$INIT_FILE" ] || { echo "Missing bootstrap material: $INIT_FILE" >&2; exit 3; }
 
+seal_state() {
+  curl -fsS "$BAO_ADDR/v1/sys/seal-status" | jq -r '.sealed'
+}
+
 submit_unseal_key() {
   local index=$1
   jq -c --argjson i "$index" '{key:.unseal_keys_b64[$i]}' "$INIT_FILE" \
-    | curl -fsS -H 'content-type: application/json' --data-binary @- "$BAO_ADDR/v1/sys/unseal" >/dev/null
+    | curl -fsS -X PUT -H 'content-type: application/json' --data-binary @- "$BAO_ADDR/v1/sys/unseal" >/dev/null
 }
 
-sealed=$(bao status -format=json 2>/dev/null | jq -r '.sealed // true' || echo true)
-if [ "$sealed" = true ]; then
+if [ "$(seal_state)" = true ]; then
   submit_unseal_key 0
   submit_unseal_key 1
 fi
-sealed=$(bao status -format=json 2>/dev/null | jq -r '.sealed // true' || echo true)
-[ "$sealed" = false ] || { echo 'OpenBao failed to unseal.' >&2; exit 4; }
+[ "$(seal_state)" = false ] || { echo 'OpenBao failed to unseal.' >&2; exit 4; }
 
 export BAO_TOKEN
 BAO_TOKEN=$(jq -r '.root_token' "$INIT_FILE")
@@ -58,9 +60,14 @@ install -d -o openbao -g openbao -m 0750 /var/log/openbao
 touch /var/log/openbao/audit.log
 chown openbao:openbao /var/log/openbao/audit.log
 chmod 0600 /var/log/openbao/audit.log
-if ! bao audit list -format=json | jq -e 'has("file/")' >/dev/null; then
-  bao audit enable file file_path=/var/log/openbao/audit.log >/dev/null
-fi
+# OpenBao 2.6 manages audit devices declaratively from openbao.hcl.
+systemctl kill -s HUP openbao.service
+for _ in $(seq 1 20); do
+  if bao audit list -format=json 2>/dev/null | jq -e 'has("file/")' >/dev/null; then break; fi
+  sleep 0.25
+done
+bao audit list -format=json | jq -e 'has("file/")' >/dev/null \
+  || { echo 'Declarative OpenBao audit device did not become ready.' >&2; exit 8; }
 
 cat > "$BROKER_DIR/broker-policy.hcl" <<'HCL'
 path "kv/data/runtime/by-key/*" { capabilities = ["create", "update", "read"] }
@@ -78,7 +85,7 @@ path "sys/policies/acl" { capabilities = ["list"] }
 path "sys/policies/acl/*" { capabilities = ["create", "read", "update", "delete", "list"] }
 path "auth/approle/role/*" { capabilities = ["create", "read", "update", "delete", "list"] }
 path "sys/audit" { capabilities = ["read"] }
-path "sys/audit/*" { capabilities = ["create", "read", "update", "delete"] }
+path "sys/audit/*" { capabilities = ["read", "list"] }
 HCL
 chown root:threedvr-secrets "$BROKER_DIR/broker-policy.hcl"
 chmod 0640 "$BROKER_DIR/broker-policy.hcl"
