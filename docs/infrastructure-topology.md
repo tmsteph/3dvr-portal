@@ -1,6 +1,6 @@
 # 3DVR Infrastructure Topology
 
-Last reviewed: 2026-09-07
+Last reviewed: 2026-09-15
 
 This document is the canonical human-readable inventory for the 3DVR compute mesh. Runtime secrets and private keys must never be stored here.
 
@@ -23,9 +23,10 @@ There is one DigitalOcean droplet in the current account inventory. Do not assum
 Agents must route work by role, not by whichever host they happen to be running on:
 
 - **OVH**: control/recovery, portal/control-plane operations, and persistent authenticated browser state. The canonical host browser controller is `portal-live`; guards prevent a second controller from taking over the same state. Reuse the existing profiles rather than launching fresh Chromium state:
-  - `/config/chromium-profile` — general authenticated workspace, CDP `9222`
-  - `/config/encore-chromium` — Encore/UltiPro workspace, CDP `9333`
-  - `/config/messaging-chromium` — WhatsApp + Google Messages, CDP `9444`
+  - `/home/debian/.config/google-chrome-for-testing` — general authenticated workspace, CDP `9222`
+  - `/home/debian/.config/3dvr/browser-profiles/encore` — Encore/UltiPro workspace, CDP `9333`
+  - `/home/debian/.config/3dvr/browser-profiles/messaging` — WhatsApp + Google Messages, CDP `9444`
+  - `/home/debian/.config/3dvr/browser-profiles/training` — Encore training workspace, CDP `9555` when enabled
 - **Hetzner**: default compute for agents. Run Forge/Operator, code/build/test, scheduled and batch jobs, context routing, organism sync, supervisors, and GitHub publishing here.
 - **DigitalOcean / `debian-web`**: lightweight fallback only. Keep concurrency low. Its reduced agent runtime may host the lightweight worker, inbox, outreach, heartbeat, health, and emergency control, while context/organism helper work is offloaded. Do not add heavy builds, batch workloads, duplicate helpers, persistent experiments, or new browser/VNC workloads.
 
@@ -148,12 +149,12 @@ The three cloud servers should feel like one small resilient computer, with OVH 
 - workloads that can move without mystery dependencies,
 - phones, laptops, and RISC-V hardware joining as disposable edge/operator nodes rather than becoming single points of failure.
 
-## Persistent access contract — 2026-09-14
+## Persistent access contract — 2026-09-15
 
-Authenticated services must follow [`docs/persistent-access-contract.md`](./persistent-access-contract.md). Agents verify configured → reachable → operational → authenticated before asking Thomas to reconnect. Persistent browser sessions belong on OVH; restart the same profile before considering re-pair/login, and treat missing profile storage as an infrastructure fault rather than a reason to create a new profile.
+Authenticated services must follow [`docs/persistent-access-contract.md`](./persistent-access-contract.md). Workforce access details for IATSE, UKG, SharePoint, and Lighthouse are in [`docs/workforce-access-runbook.md`](./workforce-access-runbook.md). Agents verify configured → reachable → operational → authenticated before asking Thomas to reconnect. Persistent browser sessions belong on OVH; restart the same profile before considering re-pair/login, and treat missing profile storage as an infrastructure fault rather than a reason to create a new profile.
 
 ## Browser writer lease update — 2026-09-08
 
-OVH currently exposes four persistent browser lanes: general `/config/chromium-profile` on CDP `9222`, Encore/UKG `/config/encore-chromium` on `9333`, messaging `/config/messaging-chromium` on `9444`, and Encore University `/config/encore-training-profile` on `9555`.
+OVH currently exposes four persistent browser lanes: general `/home/debian/.config/google-chrome-for-testing` on CDP `9222`, Encore/UKG `/home/debian/.config/3dvr/browser-profiles/encore` on `9333`, messaging `/home/debian/.config/3dvr/browser-profiles/messaging` on `9444`, and Encore University `/home/debian/.config/3dvr/browser-profiles/training` on `9555` when enabled.
 
 The CDP bridge exposes these as `19222`, `19333`, `19444`, and `19555`. Any agent changing page state must first acquire the matching cooperative writer lease through `/usr/local/bin/3dvr-browser-lease`. Only one writer may hold a lane at once; read-only inspection may be concurrent. Expiring leases allow recovery when an agent disappears without restarting or cloning authenticated browser state.

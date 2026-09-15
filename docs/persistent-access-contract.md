@@ -1,6 +1,6 @@
 # Persistent Access Contract
 
-Updated: 2026-09-14
+Updated: 2026-09-15
 
 3DVR should treat access as durable infrastructure, not something Thomas has to repeatedly reconstruct in chat. The default behavior is: preserve the authenticated path, verify it, recover it automatically when safe, and ask for human action only when the upstream service truly requires it.
 
@@ -16,11 +16,15 @@ Before asking for login, pairing, MFA, or a fresh credential, the agent must che
 | --- | --- | --- |
 | Google Calendar | ChatGPT Google Calendar connector | OAuth connection managed by the connector |
 | 3DVR Portal Calendar | `portal.3dvr.tech/calendar/` | Portal identity + calendar relay/import state |
-| Encore / UKG / UltiPro | OVH persistent authenticated browser | Encore browser lane |
-| Lighthouse | OVH persistent authenticated browser | Encore/general authenticated profile as documented by the live registry |
+| IATSE Local 122 | OVH persistent authenticated browser | General browser lane + broker-backed mirrored login |
+| Encore / UKG / UltiPro | OVH persistent authenticated browser | Encore browser lane + broker-backed mirrored login |
+| Encore SharePoint / Connect | OVH persistent authenticated browser | General browser lane + Microsoft/Encore tenant session |
+| Lighthouse | OVH persistent authenticated browser | General browser lane; SharePoint-first Microsoft SSO is the canonical recovery path |
 | Google Messages / SMS | OVH persistent authenticated browser | Messaging browser lane + phone pairing |
 | WhatsApp Web | OVH persistent authenticated browser | Messaging browser lane + paired session |
 | Credentials | Bitwarden / 3DVR Secrets Broker | Never copied into chat or ad-hoc files |
+
+For exact workforce login/recovery procedures, see [`docs/workforce-access-runbook.md`](./workforce-access-runbook.md).
 
 ## Verification ladder
 
@@ -62,7 +66,7 @@ For the current known appointment, Google Calendar is authoritative: **2026-09-1
 Ask Thomas only when one of these is actually true:
 
 - Google Messages explicitly requires phone re-pairing.
-- UKG/Lighthouse explicitly requires login, MFA, or an owner-only challenge after the canonical saved session has been tested.
+- UKG/Lighthouse explicitly requires login, MFA, or an owner-only challenge after the canonical saved session and broker-backed recovery path have been tested. For Lighthouse, establish the Encore SharePoint session first.
 - Bitwarden requires an owner unlock/approval that the Secrets Broker cannot satisfy.
 - A service presents CAPTCHA, identity attestation, legal acknowledgment, or another owner-only step.
 

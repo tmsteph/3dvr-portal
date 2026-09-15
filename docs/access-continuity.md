@@ -1,6 +1,6 @@
 # 3DVR Access Continuity
 
-Last reviewed: 2026-09-14
+Last reviewed: 2026-09-15
 
 This is the canonical policy for keeping Thomas's connected systems usable across chats, agents, server restarts, and browser restarts. The default is persistence and recovery, not repeated manual login.
 
@@ -26,12 +26,12 @@ Prefer durable API/connector access whenever available. Gmail, Google Calendar, 
 
 OVH holds authenticated browser state. Reuse the existing profiles and never create a fresh profile as a recovery shortcut.
 
- | Lane | Purpose | CDP | Profile |
- | --- | --- | ---: | --- |
- | `general` | General authenticated web work | `9222` | `/config/chromium-profile` |
- | `encore` | Encore / UKG / UltiPro work | `9333` | `/config/encore-chromium` |
- | `messaging` | WhatsApp + Google Messages / SMS | `9444` | `/config/messaging-chromium` |
-| `training` | Encore University / training | `9555` | `/config/encore-training-profile` |
+| Lane | Purpose | CDP | Profile |
+| --- | --- | ---: | --- |
+| `general` | IATSE, SharePoint, Lighthouse, general authenticated web work | `9222` | `/home/debian/.config/google-chrome-for-testing` |
+| `encore` | Encore / UKG / UltiPro work | `9333` | `/home/debian/.config/3dvr/browser-profiles/encore` |
+| `messaging` | WhatsApp + Google Messages / SMS | `9444` | `/home/debian/.config/3dvr/browser-profiles/messaging` |
+| `training` | Encore University / training | `9555` | `/home/debian/.config/3dvr/browser-profiles/training` |
 
 The CDP bridge exposes these as `19222`, `19333`, `19444`, and `19555`. Any state-changing automation must hold the matching `/usr/local/bin/3dvr-browser-lease` writer lease. Read-only inspection may be concurrent.
 
@@ -59,13 +59,15 @@ Therapy scheduling should reconcile Gmail + SMS/Google Messages + Google Calenda
 
 ### Encore / UKG / UltiPro
 
-The `encore` lane is authorized for schedule and request-off workflows. **Do not use the time-clock workflow unless Thomas explicitly asks for time-clock work.** Request-off operations should reuse the existing Encore/UKG session and preserve it after completion.
+The `encore` lane is authorized for schedule and request-off workflows. `PostLogout.aspx` is an expired session, never an authenticated state; the login runner must recover through the real login page and verify `/default.aspx`. **Do not use the time-clock workflow unless Thomas explicitly asks for time-clock work.** Request-off operations should reuse the existing Encore/UKG session and preserve it after completion.
 
 ### Messaging
 
 Google Messages/SMS and WhatsApp use the `messaging` lane. If the lane process is down, recover the same profile first. Re-pair the phone only when the web provider has invalidated the pairing and recovery proves the stored session is unusable.
 
 ### Lighthouse
+
+Lighthouse recovery is **SharePoint first, then Lighthouse in the same `general` profile**. Establish the Encore Microsoft tenant session through `psav.sharepoint.com`, complete provider-enforced MFA if needed, keep the session signed in, then open Lighthouse and allow its SSO callback to complete. See [`docs/workforce-access-runbook.md`](./workforce-access-runbook.md) for the exact procedure.
 
 Lighthouse access should be checked through the documented authenticated browser path. A redirect to `/login` means the live session is not authenticated; it does not mean the account or capability should be forgotten. Recover the session using the same profile and approved credential path.
 
@@ -80,6 +82,7 @@ The desired steady state is automatic verification plus self-healing for process
 - `/abilities/` — user-facing capability/status inventory.
 - `abilities/abilities.json` — machine-readable capability registry.
 - `docs/infrastructure-topology.md` — node roles, browser lanes, and CDP bridge topology.
+- `docs/workforce-access-runbook.md` — exact IATSE, UKG, SharePoint, and Lighthouse login/recovery procedures and failure history.
 - `AGENTS.md` — browser writer-lease rules.
 - `scripts/ops/browser-lane-lease.sh` — cooperative single-writer implementation.
 - `ops/secrets-broker/` — scoped credential access.

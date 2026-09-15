@@ -183,10 +183,10 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - If you need a specific script, route it through `scripts/playwright/run-in-linux.sh <npm-script-name>`.
 
 ## Persistent Access Health
-- Before asking Thomas to reconnect UKG/UltiPro, Lighthouse, Google Messages, WhatsApp, Calendar, or another persistent authenticated service, read `docs/persistent-access-contract.md` and run `scripts/ops/persistent-access-health.sh`.
+- Before asking Thomas to reconnect UKG/UltiPro, Lighthouse, Google Messages, WhatsApp, Calendar, or another persistent authenticated service, read `docs/persistent-access-contract.md` and run `scripts/ops/persistent-access-health.sh`. For IATSE, UKG, SharePoint, or Lighthouse specifically, also read `docs/workforce-access-runbook.md`.
 - Treat its result as a starting diagnostic, then verify the target app's signed-in state. A reachable browser process is not proof of authentication.
 - Repair the failed layer without discarding the canonical OVH profile. Human re-pair/login is the last recovery step.
-- Time-off work uses the UKG/UltiPro request-off path. Do not substitute the TouchBase/UltiPro time clock.
+- Time-off work uses the UKG/UltiPro request-off path. Do not substitute the TouchBase/UltiPro time clock. Treat UKG `PostLogout.aspx` as logged out, not authenticated. For Lighthouse recovery, establish the Encore SharePoint/Microsoft session first in the same `general` profile.
 
 ## Browser Lane Writer Leases
 - OVH is the only home for persistent authenticated browser profiles; Hetzner and DigitalOcean must not launch replacement writers for them.
