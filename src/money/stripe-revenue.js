@@ -20,7 +20,8 @@ export function normalizeOfferKey(value) {
 }
 
 export function opportunityIdForOfferProfile(value = '') {
-  return OFFER_OPPORTUNITY_IDS[normalizeOfferKey(value)] || '';
+  const key = normalizeOfferKey(value);
+  return Object.hasOwn(OFFER_OPPORTUNITY_IDS, key) ? OFFER_OPPORTUNITY_IDS[key] : '';
 }
 
 export function parseAutopilotReferenceId(value = '') {
@@ -98,13 +99,18 @@ function addOpportunityRevenue(groups, opportunityId, offer, reference, session,
     paidCheckouts: 0,
     grossRevenueCents: 0,
     checkoutUrl: normalizeText(link?.url),
-    lastPaidAt: null,
+    lastCheckoutSessionCreatedAt: null,
     runIds: []
   };
   current.paidCheckouts += 1;
   current.grossRevenueCents += Number(session.amount_total || 0);
-  const created = Number(session.created || 0);
-  if (created && (!current.lastPaidAt || created > current.lastPaidAt)) current.lastPaidAt = created;
+  const sessionCreated = Number(session.created || 0);
+  if (
+    sessionCreated
+    && (!current.lastCheckoutSessionCreatedAt || sessionCreated > current.lastCheckoutSessionCreatedAt)
+  ) {
+    current.lastCheckoutSessionCreatedAt = sessionCreated;
+  }
   if (!current.checkoutUrl && link?.url) current.checkoutUrl = normalizeText(link.url);
   if (reference.runId && !current.runIds.includes(reference.runId)) current.runIds.push(reference.runId);
   groups.set(opportunityId, current);
