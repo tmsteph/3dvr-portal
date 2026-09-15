@@ -40,6 +40,8 @@ policy.backends ||= {};
 policy.backends.bitwarden ||= { type: 'bitwarden-secrets-manager', binary: '/usr/local/bin/bws', timeoutMs: 15000 };
 policy.secrets ||= {};
 policy.secrets['bitwarden.writer'] ||= { backend: 'bitwarden', write: { projectName: '3dvr Agent', capability: 'secret.write', scopes: ['secrets:3dvr-agent'], approval: { mode: 'auto' } } };
+policy.secrets['iatse.username'] ||= { backend: 'bitwarden', locator: { projectName: '3dvr Agent', key: 'IATSE_PORTAL_USERNAME' }, capability: 'secret.read', scopes: ['site:iatse'], approval: { mode: 'lease', leaseSeconds: 300, maxUses: 2 } };
+policy.secrets['iatse.password'] ||= { backend: 'bitwarden', locator: { projectName: '3dvr Agent', key: 'IATSE_PORTAL_PASSWORD' }, capability: 'secret.read', scopes: ['site:iatse'], approval: { mode: 'lease', leaseSeconds: 300, maxUses: 2 } };
 fs.writeFileSync(file, `${JSON.stringify(policy, null, 2)}\n`);
 NODE
 chown root:threedvr-secrets "$ETC/policy.json"

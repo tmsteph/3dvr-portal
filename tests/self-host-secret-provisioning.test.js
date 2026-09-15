@@ -34,4 +34,7 @@ test('self-host deploy preserves server secrets when Actions has no secret updat
   const installer = await readFile(new URL('../ops/secrets-broker/install.sh', import.meta.url), 'utf8');
   assert.match(installer, /bitwarden-sdk-create\.js/);
   assert.match(installer, /@bitwarden\/sdk-napi@1\.0\.0/);
+  assert.match(installer, /IATSE_PORTAL_USERNAME/);
+  assert.match(installer, /IATSE_PORTAL_PASSWORD/);
+  assert.match(installer, /site:iatse/);
 });
