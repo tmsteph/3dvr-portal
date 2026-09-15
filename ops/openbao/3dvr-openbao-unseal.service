@@ -1,0 +1,13 @@
+[Unit]
+Description=3DVR OpenBao mesh unseal
+After=network-online.target openbao.service
+Wants=network-online.target
+Requires=openbao.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/3dvr-openbao-unseal
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
