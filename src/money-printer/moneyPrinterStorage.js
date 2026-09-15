@@ -5,6 +5,10 @@ import {
 } from './marketPulseIngest.js';
 import { personalizeMarketPulseCapsulePayload } from './privateAlignmentRanking.js';
 import {
+  readPrivateVentureOutcomeMemory,
+  syncPrivateVentureOutcomeMemory,
+} from './privateVentureLearningRuntime.js';
+import {
   ALIGNMENT_PROFILE_GUN_NODE,
   normalizeAlignmentProfile,
 } from '../kernel/alignmentProfile.js';
@@ -22,6 +26,8 @@ const MARKET_PULSE_CAPSULE_PATH = Object.freeze([
   'latest',
 ]);
 const DEFAULT_GUN_PEERS = Object.freeze(['wss://gun-relay-3dvr.fly.dev/gun']);
+let pendingOutcomeSyncState = null;
+let outcomeSyncTimer = null;
 
 function getDefaultStorage() {
   try {
@@ -89,6 +95,12 @@ function signedInMarkerExists(storage, identity = globalThis.AuthIdentity) {
   }
 }
 
+function createGun(GunImpl = globalThis.Gun, peers = globalThis.__GUN_PEERS__) {
+  if (typeof GunImpl !== 'function') return null;
+  const peerList = Array.isArray(peers) && peers.length ? peers : [...DEFAULT_GUN_PEERS];
+  return GunImpl(peerList);
+}
+
 async function readPrivateAlignmentProfile({
   gun,
   storage,
@@ -150,6 +162,35 @@ async function readPrivateAlignmentProfileWithRetry(
   return result;
 }
 
+export function schedulePrivateVentureOutcomeMemorySync(state, {
+  storage = getDefaultStorage(),
+  GunImpl = globalThis.Gun,
+  SEA = globalThis.SEA || globalThis.Gun?.SEA,
+  identity = globalThis.AuthIdentity,
+  peers = globalThis.__GUN_PEERS__,
+  delayMs = 350,
+} = {}) {
+  if (typeof window === 'undefined' || !storage || typeof GunImpl !== 'function') return false;
+  pendingOutcomeSyncState = state;
+  if (outcomeSyncTimer) return true;
+  outcomeSyncTimer = globalThis.setTimeout(() => {
+    const nextState = pendingOutcomeSyncState;
+    pendingOutcomeSyncState = null;
+    outcomeSyncTimer = null;
+    const gun = createGun(GunImpl, peers);
+    if (!gun) return;
+    void syncPrivateVentureOutcomeMemory({
+      state: nextState,
+      gun,
+      storage,
+      SEA,
+      identity,
+      timeoutMs: 1200,
+    });
+  }, Math.max(0, delayMs));
+  return true;
+}
+
 export function readMoneyPrinterState(storage = getDefaultStorage(), key = MONEY_PRINTER_STORAGE_KEY) {
   if (!storage) {
     return null;
@@ -170,6 +211,7 @@ export function writeMoneyPrinterState(state, storage = getDefaultStorage(), key
 
   try {
     storage.setItem(key, JSON.stringify(state));
+    schedulePrivateVentureOutcomeMemorySync(state, { storage });
     return true;
   } catch {
     return false;
@@ -213,15 +255,15 @@ export async function importLatestMarketPulseCapsules({
   }
 
   try {
-    const peerList = Array.isArray(peers) && peers.length ? peers : [...DEFAULT_GUN_PEERS];
-    const gun = GunImpl(peerList);
-    const [record, alignmentRead] = await Promise.all([
+    const gun = createGun(GunImpl, peers);
+    const [record, alignmentRead, outcomeRead] = await Promise.all([
       onceNode(getNode(gun, MARKET_PULSE_CAPSULE_PATH), timeoutMs),
       readPrivateAlignmentProfileWithRetry(
         { gun, storage, SEA, identity, timeoutMs },
         profileRetryCount,
         profileRetryDelayMs,
       ),
+      readPrivateVentureOutcomeMemory({ gun, storage, SEA, identity, timeoutMs }),
     ]);
     if (!record?.candidatesJson) {
       return { imported: 0, updated: 0, skipped: true, reason: 'No capsule queue available' };
@@ -232,19 +274,24 @@ export async function importLatestMarketPulseCapsules({
     }
 
     const current = hydrateMoneyPrinterState(storage);
-    if (alignmentRead.status === 'unavailable' && current.marketPulseLastPersonalizationKey) {
+    const privateReadUnavailable = alignmentRead.status === 'unavailable' || outcomeRead.status === 'unavailable';
+    if (privateReadUnavailable && current.marketPulseLastPersonalizationKey) {
       return {
         state: current,
         imported: 0,
         updated: 0,
         skipped: true,
-        reason: 'Private alignment temporarily unavailable',
+        reason: 'Private ranking memory temporarily unavailable',
         personalized: true,
         retryRecommended: true,
       };
     }
 
-    const payload = personalizeMarketPulseCapsulePayload(publicPayload, alignmentRead.profile || {});
+    const payload = personalizeMarketPulseCapsulePayload(
+      publicPayload,
+      alignmentRead.profile || {},
+      outcomeRead.memory || {},
+    );
     const result = ingestMarketPulseCapsuleCandidates(current, payload);
     if (result.imported > 0 || result.updated > 0) {
       writeMoneyPrinterState(result.state, storage);
@@ -252,7 +299,8 @@ export async function importLatestMarketPulseCapsules({
     return {
       ...result,
       personalized: Boolean(payload.personalizationKey),
-      retryRecommended: alignmentRead.status === 'unavailable',
+      outcomeLearningApplied: Boolean(outcomeRead.memory?.entries?.length),
+      retryRecommended: privateReadUnavailable,
     };
   } catch (_error) {
     return { imported: 0, updated: 0, skipped: true, reason: 'Capsule queue unavailable' };
@@ -278,6 +326,7 @@ export function createMoneyPrinterStorage(storage = getDefaultStorage(), key = M
 }
 
 if (typeof window !== 'undefined') {
+  schedulePrivateVentureOutcomeMemorySync(hydrateMoneyPrinterState(), { delayMs: 0 });
   const initialImport = await importLatestMarketPulseCapsules();
   if (initialImport.retryRecommended) {
     globalThis.setTimeout(() => {
