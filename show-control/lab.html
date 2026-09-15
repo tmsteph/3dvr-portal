@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Open Show Control Lab | 3DVR Portal</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background:#0d1117; color:#e6edf3; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:radial-gradient(circle at 50% 0, rgba(88,166,255,.14), transparent 32rem), #0d1117; }
+    a { color:inherit; }
+    main { width:min(1050px, calc(100% - 2rem)); margin:auto; padding:1rem 0 4rem; }
+    nav { display:flex; gap:.75rem; align-items:center; padding:.8rem 0; }
+    nav a { text-decoration:none; font-weight:800; }
+    h1 { font-size:clamp(2.3rem, 7vw, 5rem); letter-spacing:-.04em; line-height:1; margin:3rem 0 1rem; }
+    h2 { margin:0 0 1rem; }
+    p { color:#9da7b3; max-width:65ch; }
+    .eyebrow { color:#67e8f9; font-size:.78rem; font-weight:900; text-transform:uppercase; letter-spacing:.12em; }
+    .toolbar { display:flex; flex-wrap:wrap; gap:.75rem; margin:1.5rem 0 2.5rem; }
+    button, .button { border:1px solid #30363d; background:#161b22; color:#e6edf3; border-radius:999px; padding:.7rem 1rem; font:inherit; font-weight:800; cursor:pointer; text-decoration:none; }
+    button.primary { border-color:#238636; background:#238636; }
+    .panel { border:1px solid #30363d; background:rgba(22,27,34,.85); border-radius:20px; padding:1rem; margin:1rem 0 2rem; }
+    .lab-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.8rem; }
+    .lab-card { border:1px solid #30363d; background:#0d1117; border-radius:14px; padding:1rem; }
+    .lab-card.is-offline { opacity:.52; }
+    .lab-card__top { display:flex; align-items:center; gap:.8rem; justify-content:space-between; }
+    .lab-card__top span { color:#9da7b3; font-size:.85rem; }
+    .lab-capabilities { display:flex; flex-wrap:wrap; gap:.35rem; margin:.8rem 0; }
+    code { background:#161b22; border:1px solid #30363d; border-radius:6px; padding:.18rem .35rem; font-size:.75rem; }
+    .role-arrow { margin-top:.7rem; color:#7ee787; font-weight:850; }
+    pre { min-height:12rem; overflow:auto; white-space:pre-wrap; background:#090d12; border:1px solid #30363d; border-radius:14px; padding:1rem; color:#c9d1d9; }
+    @media(max-width:700px){ .lab-grid{grid-template-columns:1fr;} h1{margin-top:2rem;} }
+  </style>
+</head>
+<body>
+  <main>
+    <nav><a href="./">← Architecture</a><span>Protocol 0.1 Lab</span></nav>
+    <p class="eyebrow">Working prototype</p>
+    <h1>Break a node. Keep the show alive.</h1>
+    <p>This runs the first Open Show Control protocol in your browser. Nodes advertise capabilities, roles are assigned independently of hardware identity, cues resolve through roles, and failed nodes trigger automatic reassignment.</p>
+    <div class="toolbar">
+      <button class="primary" id="goCue">GO keynote cue</button>
+      <button id="resetDemo">Reset room</button>
+      <a class="button" href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/show-control-protocol.md">Read protocol spec</a>
+    </div>
+
+    <section class="panel">
+      <p class="eyebrow">Nodes</p>
+      <h2>Capabilities in the room</h2>
+      <div class="lab-grid" id="nodes"></div>
+    </section>
+
+    <section class="panel">
+      <p class="eyebrow">Roles</p>
+      <h2>What the show needs</h2>
+      <div class="lab-grid" id="roles"></div>
+    </section>
+
+    <section class="panel">
+      <p class="eyebrow">Event log</p>
+      <h2>Resolved actions</h2>
+      <pre id="eventLog" aria-live="polite"></pre>
+    </section>
+  </main>
+  <script type="module" src="./lab.js"></script>
+</body>
+</html>
