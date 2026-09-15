@@ -274,18 +274,29 @@ export async function importLatestMarketPulseCapsules({
     }
 
     const current = hydrateMoneyPrinterState(storage);
-    const privateReadUnavailable = alignmentRead.status === 'unavailable' || outcomeRead.status === 'unavailable';
-    if (privateReadUnavailable && current.marketPulseLastPersonalizationKey) {
+    if (alignmentRead.status === 'unavailable' && current.marketPulseLastPersonalizationKey) {
       return {
         state: current,
         imported: 0,
         updated: 0,
         skipped: true,
-        reason: 'Private ranking memory temporarily unavailable',
+        reason: 'Private alignment temporarily unavailable',
         personalized: true,
         retryRecommended: true,
       };
     }
+    if (outcomeRead.status === 'unavailable' && current.marketPulseLastPersonalizationKey) {
+      return {
+        state: current,
+        imported: 0,
+        updated: 0,
+        skipped: true,
+        reason: 'Private outcome memory temporarily unavailable',
+        personalized: true,
+        retryRecommended: true,
+      };
+    }
+    const privateReadUnavailable = alignmentRead.status === 'unavailable' || outcomeRead.status === 'unavailable';
 
     const payload = personalizeMarketPulseCapsulePayload(
       publicPayload,
