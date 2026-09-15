@@ -162,14 +162,18 @@ class AuditChain {
 class BitwardenSecretsManagerBackend {
   constructor(config = {}, options = {}) {
     this.binary = normalizeText(config.binary || options.binary || process.env.BWS_BIN || '/usr/local/bin/bws', 500);
+    this.sdkReadHelper = normalizeText(config.sdkReadHelper || options.sdkReadHelper || process.env.BWS_SDK_READ_HELPER || '/opt/3dvr/secrets-broker/bitwarden-sdk-read.js', 500);
     this.sdkCreateHelper = normalizeText(config.sdkCreateHelper || options.sdkCreateHelper || process.env.BWS_SDK_CREATE_HELPER || '/opt/3dvr/secrets-broker/bitwarden-sdk-create.js', 500);
+    this.organizationId = normalizeText(config.organizationId || options.organizationId || process.env.BWS_ORGANIZATION_ID, 200);
+    this.projectId = normalizeText(config.projectId || options.projectId || process.env.BWS_PROJECT_ID, 200);
     this.timeoutMs = Math.max(1000, Number(config.timeoutMs || options.timeoutMs || 15000));
     this.env = options.env || process.env;
     this.run = options.run || spawnSync;
   }
 
   ready() {
-    return Boolean(normalizeText(this.env.BWS_ACCESS_TOKEN, 2000)) && fs.existsSync(this.binary);
+    return Boolean(normalizeText(this.env.BWS_ACCESS_TOKEN, 2000))
+      && (fs.existsSync(this.sdkReadHelper) || fs.existsSync(this.binary));
   }
 
   #runJson(args, failureMessage) {
@@ -226,6 +230,25 @@ class BitwardenSecretsManagerBackend {
   }
 
   get(locator) {
+    if (fs.existsSync(this.sdkReadHelper) && this.organizationId) {
+      const directId = typeof locator === 'string'
+        ? normalizeText(locator, 200)
+        : normalizeText(locator?.id || locator?.secretId, 200);
+      const key = typeof locator === 'object' && locator
+        ? normalizeText(locator.key, 500)
+        : '';
+      if (!directId && !key) throw new Error('Bitwarden secret locator is required');
+      const input = JSON.stringify({ organizationId: this.organizationId, projectId: this.projectId, secretId: directId, key });
+      const result = this.run(process.execPath, [this.sdkReadHelper], {
+        env: this.env, input, encoding: 'utf8', timeout: this.timeoutMs, maxBuffer: 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      if (result.error || result.status !== 0) throw new Error('Bitwarden SDK read failed');
+      let parsed;
+      try { parsed = JSON.parse(result.stdout); } catch { throw new Error('Bitwarden SDK returned invalid JSON'); }
+      if (typeof parsed?.value !== 'string') throw new Error('Bitwarden secret value is missing');
+      return parsed.value;
+    }
+
     const secretId = this.#resolveSecretId(locator);
     if (!secretId) throw new Error('Bitwarden secret locator is required');
     const parsed = this.#runJson(

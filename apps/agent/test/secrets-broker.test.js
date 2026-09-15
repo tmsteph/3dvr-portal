@@ -245,3 +245,30 @@ test('status is sanitized and reserved for status/admin agents', t => {
   assert(!serialized.includes('tokenHash'));
   assert(!serialized.includes('never-logged'));
 });
+
+
+test('Bitwarden SDK reads use stdin and do not require Docker CLI access', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-bitwarden-read-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const helper = path.join(root, 'read-helper.js');
+  const capture = path.join(root, 'capture.json');
+  fs.writeFileSync(helper, `const fs = require('fs');
+let body = '';
+process.stdin.on('data', chunk => body += chunk);
+process.stdin.on('end', () => {
+  const payload = JSON.parse(body);
+  fs.writeFileSync(process.env.CAPTURE_FILE, JSON.stringify({ argv: process.argv.slice(2), payload }));
+  process.stdout.write(JSON.stringify({ id: 'secret-1', key: payload.key, value: 'fixture-read-value' }));
+});
+`);
+  const backend = new BitwardenSecretsManagerBackend({
+    binary: path.join(root, 'missing-bws'), sdkReadHelper: helper,
+    organizationId: 'org-1', projectId: 'project-1',
+  }, { env: { ...process.env, BWS_ACCESS_TOKEN: 'fixture-access-token', CAPTURE_FILE: capture } });
+  assert.equal(backend.get({ key: 'VAULT_INDEX' }), 'fixture-read-value');
+  const seen = JSON.parse(fs.readFileSync(capture, 'utf8'));
+  assert.deepEqual(seen.argv, []);
+  assert.equal(seen.payload.organizationId, 'org-1');
+  assert.equal(seen.payload.projectId, 'project-1');
+  assert.equal(seen.payload.key, 'VAULT_INDEX');
+});

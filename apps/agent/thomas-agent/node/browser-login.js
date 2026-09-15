@@ -9,7 +9,7 @@ const SITE_CONFIG = Object.freeze({
     port: 9222,
     startUrl: 'https://member.iatse.io',
     hosts: ['member.iatse.io'],
-    directSecrets: ['iatse.username', 'iatse.password'],
+    vaultTerms: ['iatse', 'member.iatse.io'],
     usernameSelectors: ['input[type="email"]', 'input[placeholder*="email" i]', 'input[name*="email" i]'],
     passwordSelectors: ['input[type="password"]'],
     submitText: ['login'],

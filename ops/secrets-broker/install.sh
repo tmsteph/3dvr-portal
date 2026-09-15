@@ -27,6 +27,7 @@ install -m 0755 "$SOURCE/secrets-broker-server.js" "$OPT/secrets-broker-server.j
 install -m 0755 "$SOURCE/secrets-broker-admin.js" "$OPT/secrets-broker-admin.js"
 install -m 0644 "$SOURCE/secrets-broker.js" "$OPT/secrets-broker.js"
 install -m 0644 "$SOURCE/browser-login.js" "$OPT/browser-login.js"
+install -m 0644 "$SOURCE/bitwarden-sdk-read.js" "$OPT/bitwarden-sdk-read.js"
 install -m 0644 "$SOURCE/bitwarden-sdk-create.js" "$OPT/bitwarden-sdk-create.js"
 install -m 0644 "$SOURCE/bitwarden-sdk-upsert.js" "$OPT/bitwarden-sdk-upsert.js"
 install -m 0755 "$ROOT/scripts/ops/import-bitwarden-export-to-secrets-manager.mjs" "$OPT/import-bitwarden-export-to-secrets-manager.mjs"
@@ -42,7 +43,7 @@ const fs = require('fs');
 const file = process.argv[2];
 const policy = JSON.parse(fs.readFileSync(file, 'utf8'));
 policy.backends ||= {};
-policy.backends.bitwarden ||= { type: 'bitwarden-secrets-manager', binary: '/usr/local/bin/bws', timeoutMs: 15000 };
+policy.backends.bitwarden = { ...(policy.backends.bitwarden || {}), type: 'bitwarden-secrets-manager', binary: '/usr/local/bin/bws', sdkReadHelper: '/opt/3dvr/secrets-broker/bitwarden-sdk-read.js', timeoutMs: 15000 };
 policy.secrets ||= {};
 policy.secrets['bitwarden.writer'] ||= { backend: 'bitwarden', write: { projectName: '3dvr Agent', capability: 'secret.write', scopes: ['secrets:3dvr-agent'], approval: { mode: 'auto' } } };
 policy.secrets['iatse.username'] ||= { backend: 'bitwarden', locator: { projectName: '3dvr Agent', key: 'IATSE_PORTAL_USERNAME' }, capability: 'secret.read', scopes: ['site:iatse'], approval: { mode: 'auto' } };
@@ -52,14 +53,14 @@ policy.secrets['vault.item.*'] ||= { backend: 'bitwarden', locator: { projectNam
 // Routine reads by the dedicated OVH browser identity are trusted-owner operations.
 // Keep the broker default fail-closed so new/sensitive secret classes still require an explicit policy.
 for (const alias of ['iatse.username', 'iatse.password', 'vault.index', 'vault.item.*']) {
-  if (policy.secrets[alias]) policy.secrets[alias].approval = { mode: 'auto' };
+  if (policy.secrets[alias]) { policy.secrets[alias].backend = 'bitwarden'; policy.secrets[alias].approval = { mode: 'auto' }; }
 }
 fs.writeFileSync(file, `${JSON.stringify(policy, null, 2)}\n`);
 NODE
 chown root:threedvr-secrets "$ETC/policy.json"
 chmod 0640 "$ETC/policy.json"
 if [[ ! -f "$ETC/bitwarden.env" ]]; then
-  printf '%s\n' '# BWS_ACCESS_TOKEN is handed off locally, never through chat or source control.' '# BWS_ACCESS_TOKEN=' > "$ETC/bitwarden.env"
+  printf '%s\n' '# Bitwarden machine credentials/config stay local and never enter source control.' '# BWS_ACCESS_TOKEN=' '# BWS_ORGANIZATION_ID=' '# BWS_PROJECT_ID=' > "$ETC/bitwarden.env"
   chown root:threedvr-secrets "$ETC/bitwarden.env"
   chmod 0640 "$ETC/bitwarden.env"
 fi
