@@ -3,10 +3,20 @@
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
+const { OpenBaoBackend } = require('../../connectors/secrets/openbao');
 const { DEFAULTS, SecretsBroker } = require('./secrets-broker');
 
 const SOCKET_PATH = process.env.THREEDVR_SECRETS_BROKER_SOCKET || DEFAULTS.socketPath;
-const broker = new SecretsBroker();
+const broker = new SecretsBroker({
+  backends: {
+    openbao: new OpenBaoBackend({
+      addr: process.env.THREEDVR_OPENBAO_ADDR || process.env.BAO_ADDR || 'http://127.0.0.1:8200',
+      mount: process.env.THREEDVR_OPENBAO_MOUNT || 'kv',
+      roleIdFile: process.env.THREEDVR_OPENBAO_ROLE_ID_FILE || '/etc/3dvr/openbao/broker-role-id',
+      secretIdFile: process.env.THREEDVR_OPENBAO_SECRET_ID_FILE || '/etc/3dvr/openbao/broker-secret-id',
+    }),
+  },
+});
 
 function json(res, status, body) {
   res.statusCode = status;
@@ -47,7 +57,11 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url || '/', 'http://broker.local');
     if (url.pathname === '/health') {
-      return json(res, 200, { ok: true, service: '3dvr-secrets-broker' });
+      return json(res, 200, {
+        ok: true,
+        service: '3dvr-secrets-broker',
+        openbao: broker.backends.openbao.ready(),
+      });
     }
 
     const agent = broker.authenticate(bearer(req));
