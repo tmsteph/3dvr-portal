@@ -1,19 +1,8 @@
 {
-  "ok": true,
-  "host": "vps-2b6a0420",
-  "openbao": {
-    "initialized": true,
-    "sealed": false,
-    "storage_type": "file"
-  },
-  "broker": {
-    "ok": true,
-    "service": "3dvr-secrets-broker",
-    "openbao": true
-  },
-  "termuxReverseSsh": false,
-  "requestId": "2026-09-15T20:56:00Z-post-restart-status-001",
-  "action": "status",
-  "workflowOutcome": "success",
-  "checkedAt": "2026-09-15T20:56:04Z"
+  "ok": false,
+  "error": "control request failed before a sanitized result was produced",
+  "requestId": "2026-09-15T21:25:00Z-termux-retry-001",
+  "action": "termux_status",
+  "workflowOutcome": "failure",
+  "checkedAt": "2026-09-15T21:32:43Z"
 }
