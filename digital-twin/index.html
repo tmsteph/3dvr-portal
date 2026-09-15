@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3DVR Digital Twin / Booking Agent</title>
+  <meta name="description" content="A portable, open personal booking agent that helps people find, win, schedule, and manage better-paying work.">
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background:#0d1117; color:#f0f6fc; }
+    * { box-sizing:border-box; }
+    body { margin:0; }
+    main { width:min(920px, calc(100% - 32px)); margin:0 auto; padding:56px 0 80px; }
+    a { color:#7dd3fc; }
+    .eyebrow { letter-spacing:.08em; text-transform:uppercase; color:#8b949e; font-size:.8rem; }
+    h1 { font-size:clamp(2.3rem, 7vw, 5rem); line-height:.95; margin:.35rem 0 1rem; }
+    h2 { margin-top:2.5rem; }
+    p, li { line-height:1.6; color:#c9d1d9; }
+    .hero { padding:28px; border:1px solid #30363d; border-radius:22px; background:#161b22; }
+    .principle { font-size:1.2rem; color:#fff; border-left:4px solid #7dd3fc; padding-left:16px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-top:18px; }
+    .card { border:1px solid #30363d; border-radius:16px; padding:18px; background:#0d1117; }
+    .card h3 { margin-top:0; }
+    .links { display:flex; flex-wrap:wrap; gap:12px; margin-top:24px; }
+    .button { display:inline-block; padding:10px 14px; border:1px solid #30363d; border-radius:12px; text-decoration:none; background:#21262d; }
+    code { background:#21262d; padding:.15em .35em; border-radius:6px; }
+  </style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <div class="eyebrow">3DVR • Personal computing</div>
+    <h1>Digital Twin<br>Booking Agent</h1>
+    <p>One portable personal operating layer that turns messages, job portals, schedules, contacts, and opportunities into better-paid work.</p>
+    <p class="principle"><strong>The twin belongs to the person, not to a server, cloud vendor, or AI provider.</strong></p>
+    <div class="links">
+      <a class="button" href="/freelance/">Freelancer Desk</a>
+      <a class="button" href="/workboard/">Workboard</a>
+      <a class="button" href="/access/">Access</a>
+    </div>
+  </section>
+
+  <h2>What it does</h2>
+  <div class="grid">
+    <article class="card"><h3>Find</h3><p>Watch job boards, staffing systems, messages, email, referrals, and freelance portals for opportunities.</p></article>
+    <article class="card"><h3>Decide</h3><p>Normalize opportunities and prioritize them by pay, fit, urgency, effort, schedule, reliability, and learning value.</p></article>
+    <article class="card"><h3>Act</h3><p>Apply, follow up, maintain availability, protect bookings, and escalate only decisions that genuinely need the person.</p></article>
+    <article class="card"><h3>Remember</h3><p>Record every action, outcome, booking, contact, and next step so any compatible AI can continue the work.</p></article>
+  </div>
+
+  <h2>Portable by design</h2>
+  <p>If the cloud server disappears or becomes unaffordable, the person should be able to restore the same twin on a normal Linux laptop and continue. State, policies, opportunities, contacts, task history, connector configuration, and private encrypted data must be exportable. Secrets stay behind logical aliases so they can be reconnected without being baked into backups.</p>
+  <p>The target recovery experience is deliberately simple: <code>clone → install → restore → doctor → start</code>.</p>
+
+  <h2>Built for more than Thomas</h2>
+  <p>Thomas is the first deployment, not a hard-coded product assumption. Every durable record should belong to a stable twin/owner identity, with isolated queues, browser workspaces, connector configuration, policies, audit history, and learning memory.</p>
+
+  <h2>Two ways to run it</h2>
+  <div class="grid">
+    <article class="card"><h3>Free + self-hosted</h3><p>Run the open-source worker, SQLite state, browser automation, backup/restore tools, and Portal interface on your own laptop or server. Bring your own AI provider when needed.</p></article>
+    <article class="card"><h3>3DVR managed</h3><p>Pay a small recurring fee and 3DVR provisions, updates, backs up, and monitors an isolated personal worker environment with controlled browser and compute capacity.</p></article>
+  </div>
+
+  <h2>Current foundation</h2>
+  <p>This is not a blank-slate concept. The Portal already has durable SQLite agent execution, Workboard runtime state, Freelancer scheduling and booking policy, isolated persistent browser workspaces, OVH resource lanes, a roaming device mesh, Opportunity Inbox / Money Printer intelligence, and verified workforce access paths for IATSE, UKG/UltiPro, Encore SharePoint, and Lighthouse.</p>
+
+  <h2>Next build</h2>
+  <p>Unify those pieces around a stable <code>twin_id</code>, connector registry, normalized Opportunity Inbox, resource-aware queue admission, first-class activity ledger, and portable export/restore tooling. Then prove the design with a second real person before scaling the managed service.</p>
+
+  <p><a href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/digital-twin-booking-agent.md">Read the canonical architecture document on GitHub →</a></p>
+</main>
+</body>
+</html>
