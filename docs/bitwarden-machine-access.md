@@ -207,7 +207,7 @@ sudo bash -lc '
   set -a
   . /etc/3dvr/secrets-broker/bitwarden.env
   set +a
-  node /home/debian/work/3dvr-portal/scripts/ops/import-bitwarden-export-to-secrets-manager.mjs \
+  node /opt/3dvr/secrets-broker/import-bitwarden-export-to-secrets-manager.mjs \
     --input /var/lib/3dvr/freelancer-workspaces/fw-thomas-pilot/config/Downloads/<export>.json \
     --delete-source
 '

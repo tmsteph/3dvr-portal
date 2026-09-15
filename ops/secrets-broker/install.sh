@@ -28,6 +28,7 @@ install -m 0755 "$SOURCE/secrets-broker-admin.js" "$OPT/secrets-broker-admin.js"
 install -m 0644 "$SOURCE/secrets-broker.js" "$OPT/secrets-broker.js"
 install -m 0644 "$SOURCE/bitwarden-sdk-create.js" "$OPT/bitwarden-sdk-create.js"
 install -m 0644 "$SOURCE/bitwarden-sdk-upsert.js" "$OPT/bitwarden-sdk-upsert.js"
+install -m 0755 "$ROOT/scripts/ops/import-bitwarden-export-to-secrets-manager.mjs" "$OPT/import-bitwarden-export-to-secrets-manager.mjs"
 if ! node -e "require.resolve('@bitwarden/sdk-napi', { paths: ['$OPT'] })" >/dev/null 2>&1; then
   npm install --omit=dev --no-audit --no-fund --prefix "$OPT" @bitwarden/sdk-napi@1.0.0 >/dev/null
 fi

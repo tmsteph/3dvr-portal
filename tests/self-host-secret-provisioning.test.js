@@ -38,6 +38,7 @@ test('self-host deploy preserves server secrets when Actions has no secret updat
   assert.match(installer, /IATSE_PORTAL_PASSWORD/);
   assert.match(installer, /site:iatse/);
   assert.match(installer, /bitwarden-sdk-upsert\.js/);
+  assert.match(installer, /import-bitwarden-export-to-secrets-manager\.mjs/);
   assert.match(installer, /VAULT_INDEX/);
   assert.match(installer, /vault\.item\.\*/);
   assert.match(installer, /secrets:password-manager-mirror/);
