@@ -1,5 +1,4 @@
 {
-  "id": "2026-09-15T20:51:00Z-restart-broker-001",
-  "action": "restart",
-  "service": "3dvr-secrets-broker.service"
+  "id": "2026-09-15T20:53:00Z-install-helper-001",
+  "action": "install_control_helper"
 }
