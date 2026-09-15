@@ -53,6 +53,15 @@ function printSummary(report) {
     console.log(`   Problem: ${opportunity.problem}`);
   });
 
+  if (report.boringMoneyLane?.candidate) {
+    console.log('');
+    console.log('Boring money lane:');
+    console.log(`- ${report.boringMoneyLane.candidate.title} (boring score ${report.boringMoneyLane.candidate.boringMoneyScore})`);
+    console.log(`- Status: ${report.boringMoneyLane.status}`);
+    console.log(`- Offer: ${report.boringMoneyLane.offer.priceAnchor} — ${report.boringMoneyLane.offer.promise}`);
+    console.log('- Automatic spend: $0');
+  }
+
   console.log('');
   console.log('Execution checklist:');
   report.executionChecklist.forEach((item, index) => {
