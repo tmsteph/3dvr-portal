@@ -5,7 +5,7 @@ import { normalizeOpportunitySearchMode } from '../money/scoring.js';
 // External source connectors may add DemandSignals later, but every signal must
 // retain its provenance and policy state before it can become actionable.
 
-export const OPPORTUNITY_ENGINE_SCHEMA_VERSION = 4;
+export const OPPORTUNITY_ENGINE_SCHEMA_VERSION = 5;
 export const OPPORTUNITY_ENGINE_STORAGE_KEY = '3dvr.money-printer.opportunity-engine.v1';
 
 const URGENCY_WEIGHTS = {
@@ -26,6 +26,13 @@ function number(value, fallback = 0) {
 
 function clampScore(value, fallback = 50) {
   return Math.min(100, Math.max(0, Math.round(number(value, fallback))));
+}
+
+function geometricMeanScore(values = []) {
+  const normalized = values.map(value => Math.max(0, Math.min(100, number(value, 0))) / 100);
+  if (!normalized.length || normalized.some(value => value === 0)) return 0;
+  const product = normalized.reduce((total, value) => total * value, 1);
+  return clampScore(Math.pow(product, 1 / normalized.length) * 100, 0);
 }
 
 function list(value) {
@@ -132,13 +139,33 @@ export function scoreOpportunityDimensions(cluster = {}, now = new Date()) {
   const actionabilityScore = expired ? 0 : clampScore(urgencyRaw + confidenceRaw + evidenceRaw + permissionRaw + marginRaw, 0);
   const marginRatioScore = valueFloor > 0 ? clampScore((margin / valueFloor) * 100, 0) : 0;
   const urgencyScore = clampScore((urgencyRaw / URGENCY_WEIGHTS.immediate) * 100, 50);
+  const evidenceScore = text(primary.buyerWords).length >= 12 ? 100 : 30;
+  const inferredDemandScore = clampScore(
+    urgencyScore * 0.4
+      + number(primary.confidence, 50) * 0.35
+      + evidenceScore * 0.25,
+    0
+  );
+  const demandScore = clampScore(cluster.demandScore ?? primary.demandScore, inferredDemandScore);
   const explicitProfit = Number(cluster.profitScore ?? primary.profitScore);
   const profitScore = Number.isFinite(explicitProfit)
     ? clampScore(explicitProfit)
     : clampScore(marginRatioScore * 0.55 + number(primary.confidence, 50) * 0.25 + urgencyScore * 0.2);
-  const alignmentScore = clampScore(cluster.alignmentScore ?? primary.alignmentScore, 50);
+  const alignmentScore = clampScore(
+    cluster.alignmentScore ?? cluster.fitScore ?? primary.alignmentScore ?? primary.fitScore,
+    50
+  );
   const fulfillmentFallback = list(primary.skills).length ? 70 : 55;
   const fulfillmentScore = clampScore(cluster.fulfillmentScore ?? primary.fulfillmentScore, fulfillmentFallback);
+
+  // Kernel-facing names make the ranking model understandable across products:
+  // fit = mission/person alignment, demand = evidence of buyer need,
+  // effort = execution efficiency (higher means easier), revenue = economic upside.
+  const fitScore = clampScore(cluster.fitScore ?? primary.fitScore, alignmentScore);
+  const effortScore = clampScore(cluster.effortScore ?? primary.effortScore, fulfillmentScore);
+  const revenueScore = clampScore(cluster.revenueScore ?? primary.revenueScore, profitScore);
+  const opportunityScore = geometricMeanScore([fitScore, demandScore, effortScore, revenueScore]);
+
   const blends = {
     aligned: { actionability: 0.4, profit: 0.15, alignment: 0.3, fulfillment: 0.15 },
     profit: { actionability: 0.3, profit: 0.45, alignment: 0.05, fulfillment: 0.2 },
@@ -152,15 +179,36 @@ export function scoreOpportunityDimensions(cluster = {}, now = new Date()) {
       + fulfillmentScore * blend.fulfillment,
     0
   );
-  const priorityScore = positiveSum.positiveSumEligible ? economicPriorityScore : 0;
+
+  // Preserve mode-specific economics while letting a weak kernel dimension drag
+  // an otherwise attractive opportunity down. The geometric mean makes weak
+  // fit, demand, effort, or revenue visible instead of hiding it in an average.
+  const blendedPriorityScore = clampScore(
+    economicPriorityScore * 0.65 + opportunityScore * 0.35,
+    0
+  );
+  const priorityScore = positiveSum.positiveSumEligible ? blendedPriorityScore : 0;
+  const experimentRecommended = Boolean(
+    positiveSum.positiveSumEligible
+      && !expired
+      && priorityScore >= 60
+      && demandScore >= 55
+  );
+
   return {
     searchMode,
     actionabilityScore,
     profitScore,
     alignmentScore,
     fulfillmentScore,
+    fitScore,
+    demandScore,
+    effortScore,
+    revenueScore,
+    opportunityScore,
     economicPriorityScore,
     priorityScore,
+    experimentRecommended,
     ...positiveSum
   };
 }
@@ -182,9 +230,16 @@ export function createOpportunityCluster(input = {}, now = new Date()) {
     owner: text(input.owner, 'Thomas'),
     expectedOutcome: text(input.expectedOutcome),
     searchMode: normalizeOpportunitySearchMode(input.searchMode || primary.searchMode),
-    alignmentScore: clampScore(input.alignmentScore ?? primary.alignmentScore, 50),
+    alignmentScore: clampScore(
+      input.alignmentScore ?? input.fitScore ?? primary.alignmentScore ?? primary.fitScore,
+      50
+    ),
     fulfillmentScore: clampScore(input.fulfillmentScore ?? primary.fulfillmentScore, list(primary.skills).length ? 70 : 55),
     ...(Number.isFinite(Number(input.profitScore ?? primary.profitScore)) ? { profitScore: clampScore(input.profitScore ?? primary.profitScore) } : {}),
+    ...(Number.isFinite(Number(input.fitScore ?? primary.fitScore)) ? { fitScore: clampScore(input.fitScore ?? primary.fitScore) } : {}),
+    ...(Number.isFinite(Number(input.demandScore ?? primary.demandScore)) ? { demandScore: clampScore(input.demandScore ?? primary.demandScore) } : {}),
+    ...(Number.isFinite(Number(input.effortScore ?? primary.effortScore)) ? { effortScore: clampScore(input.effortScore ?? primary.effortScore) } : {}),
+    ...(Number.isFinite(Number(input.revenueScore ?? primary.revenueScore)) ? { revenueScore: clampScore(input.revenueScore ?? primary.revenueScore) } : {}),
     ...policy,
     signals,
     links: normalizeOpportunityLinks(input),
@@ -266,6 +321,7 @@ export function sortOpportunityClusters(opportunities = [], now = new Date()) {
       const rightStatus = statusOrder[right.status] ?? 3;
       if (leftStatus !== rightStatus) return leftStatus - rightStatus;
       if (right.priorityScore !== left.priorityScore) return right.priorityScore - left.priorityScore;
+      if (right.opportunityScore !== left.opportunityScore) return right.opportunityScore - left.opportunityScore;
       if (right.actionabilityScore !== left.actionabilityScore) return right.actionabilityScore - left.actionabilityScore;
       return String(right.updatedAt).localeCompare(String(left.updatedAt));
     });
