@@ -10,7 +10,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 command -v bao >/dev/null || { echo 'OpenBao CLI is not installed.' >&2; exit 3; }
 command -v jq >/dev/null || { echo 'jq is required.' >&2; exit 3; }
 
-install -d -o openbao -g openbao -m 0750 /var/lib/openbao/raft
+install -d -o openbao -g openbao -m 0750 /var/lib/openbao/data
 install -d -o root -g root -m 0755 /usr/local/lib/3dvr /opt/3dvr/secrets-broker
 install -d -o root -g root -m 0755 /etc/openbao
 
