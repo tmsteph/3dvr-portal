@@ -29,11 +29,12 @@ const SITE_CONFIG = Object.freeze({
     port: 9222,
     startUrl: 'https://lighthouse2.psav.com/login',
     hosts: ['lighthouse2.psav.com'],
-    vaultTerms: ['lighthouse', 'psav'],
+    vaultTerms: ['lighthouse', 'psav', 'ukg', 'ultipro'],
     usernameSelectors: ['input[type="email"]', 'input[placeholder*="email" i]'],
     passwordSelectors: ['input[type="password"]'],
     submitText: ['continue', 'sign in', 'login'],
     multiStep: true,
+    allowPasswordAfterEmail: false,
   },
 });
 
@@ -309,7 +310,7 @@ async function runLogin(broker, agent, site) {
     state = await pageState(session);
     classification = classifyState(site, config, state);
 
-    if (config.multiStep && classification.status === 'login_required' && state.passwordCount && credentials.password) {
+    if (config.multiStep && config.allowPasswordAfterEmail !== false && classification.status === 'login_required' && state.passwordCount && credentials.password) {
       passwordSet = await setInput(session, config.passwordSelectors, credentials.password);
       if (passwordSet && await clickSubmit(session, ['continue', 'sign in', 'login', 'submit'])) {
         await new Promise(resolve => setTimeout(resolve, 1600));

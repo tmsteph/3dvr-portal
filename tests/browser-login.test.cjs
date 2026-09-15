@@ -25,6 +25,18 @@ test('vault lookup strongly prefers the exact provider host', () => {
   assert.equal(scoreVaultItem(match, SITE_CONFIG.ukg) >= 100, true);
 });
 
+
+test('Lighthouse can reuse the Encore/UKG identity without reusing its password', () => {
+  const index = {
+    items: [
+      { key: 'VAULT_ITEM__LOGIN__UKG__BBB', type: 'login', name: 'UKG Pro', uris: ['https://n21.ultipro.com/Login.aspx'] },
+    ],
+  };
+  const match = chooseVaultItem(index, SITE_CONFIG.lighthouse);
+  assert.equal(match?.key, 'VAULT_ITEM__LOGIN__UKG__BBB');
+  assert.equal(SITE_CONFIG.lighthouse.allowPasswordAfterEmail, false);
+});
+
 test('mirrored login extraction reads only the login record', () => {
   const login = extractLogin(JSON.stringify({
     type: 'login',
