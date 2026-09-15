@@ -113,7 +113,7 @@ jobs:
           openbao=$(curl -fsS http://127.0.0.1:8200/v1/sys/seal-status | jq -c '{initialized,sealed,storage_type}')
           broker=$(curl -fsS --unix-socket /run/3dvr-secrets-broker/broker.sock http://localhost/health)
           termux=false
-          ss -ltn | grep -Eq '[:.]2202[[:space:]]' && termux=true || true
+          ss -ltnH | awk '$4 ~ /^(127\.0\.0\.1|\[::1\]):22[0-9][0-9][0-9]$/ {found=1} END {exit !found}' && termux=true || true
           jq -n --arg host "$(hostname)" --argjson openbao "$openbao" --argjson broker "$broker" --argjson termux "$termux" '{ok:true,host:$host,openbao:$openbao,broker:$broker,termuxReverseSsh:$termux}'
           OVH
               ;;
@@ -121,7 +121,7 @@ jobs:
               ovh 'curl -fsS http://127.0.0.1:8200/v1/sys/seal-status | jq -c "{initialized,sealed,storage_type,version}"'
               ;;
             termux_status)
-              ovh 'bash -lc '\''if ss -ltn | grep -Eq "[:.]2202[[:space:]]"; then jq -n "{ok:true,connected:true}"; else jq -n "{ok:true,connected:false}"; fi'\'''
+              ovh 'bash -lc '\''if ss -ltnH | awk '\''\''\''$4 ~ /^(127\\.0\\.0\\.1|\\[::1\\]):22[0-9][0-9][0-9]$/ {found=1} END {exit !found}'\''\''\''; then jq -n "{ok:true,connected:true}"; else jq -n "{ok:true,connected:false}"; fi'\'''
               ;;
             restart)
               case "$service" in
