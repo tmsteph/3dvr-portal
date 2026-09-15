@@ -71,7 +71,9 @@ export function marketPulseCandidateToExperiment(candidate = {}) {
       evidence: Array.isArray(candidate.evidence) ? candidate.evidence.filter(Boolean) : [],
       marketScore: number(candidate.marketScore),
       profitScore: number(candidate.profitScore),
+      publicAlignmentScore: number(candidate.publicAlignmentScore, number(candidate.alignmentScore)),
       alignmentScore: number(candidate.alignmentScore),
+      alignmentProfileSource: clean(candidate.alignmentProfileSource),
       fulfillmentScore: number(candidate.fulfillmentScore),
     },
   };
@@ -84,8 +86,11 @@ function isTerminalExperiment(experiment = {}) {
 
 export function ingestMarketPulseCapsuleCandidates(state = {}, payload = {}) {
   const runId = clean(payload.runId);
+  const personalizationKey = clean(payload.personalizationKey);
   const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
-  if (runId && state.marketPulseLastImportedRunId === runId) {
+  const sameRun = Boolean(runId && state.marketPulseLastImportedRunId === runId);
+  const samePersonalization = clean(state.marketPulseLastPersonalizationKey) === personalizationKey;
+  if (sameRun && samePersonalization) {
     return {
       state: refreshMoneyPrinterState(state),
       imported: 0,
@@ -139,6 +144,7 @@ export function ingestMarketPulseCapsuleCandidates(state = {}, payload = {}) {
     experiments: [...byId.values()],
     marketPulseLastImportedRunId: runId || state.marketPulseLastImportedRunId || '',
     marketPulseLastImportedAt: clean(payload.generatedAt) || state.marketPulseLastImportedAt || new Date().toISOString(),
+    marketPulseLastPersonalizationKey: personalizationKey,
   });
 
   return {
