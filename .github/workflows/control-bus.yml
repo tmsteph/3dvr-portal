@@ -161,7 +161,17 @@ jobs:
                 3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|openbao.service) ;;
                 *) exit 64 ;;
               esac
-              ovh "sudo -n /usr/local/sbin/3dvr-control-service restart '$service' && systemctl is-active '$service' | jq -R --arg service '$service' '{ok:(.==\"active\"),service:$service,state:.}'"
+              ovh 'bash -s' -- "$service" <<'OVH'
+          set -euo pipefail
+          service=${1:-}
+          case "$service" in
+            3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|openbao.service) ;;
+            *) exit 64 ;;
+          esac
+          sudo -n /usr/local/sbin/3dvr-control-service restart "$service"
+          state=$(systemctl is-active "$service" || true)
+          jq -n --arg service "$service" --arg state "$state" '{ok:($state=="active"),service:$service,state:$state}'
+          OVH
               ;;
             *) exit 64 ;;
           esac
