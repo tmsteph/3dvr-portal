@@ -296,7 +296,34 @@ exec ssh -N -T -o ExitOnForwardFailure=yes -o BatchMode=yes -o ConnectTimeout=8 
 EOF
   chmod 700 "$tunnel_script"
 
-  if command -v systemctl >/dev/null 2>&1 && ! is_termux; then
+  if is_termux; then
+    termux-wake-lock >/dev/null 2>&1 || true
+    supervisor="$tunnel_dir/mesh-supervisor-$mesh_name"
+    cat > "$supervisor" <<EOF
+#!/data/data/com.termux/files/usr/bin/bash
+termux-wake-lock >/dev/null 2>&1 || true
+while true; do
+  pgrep -x sshd >/dev/null 2>&1 || sshd >/dev/null 2>&1 || true
+  "$tunnel_script" || true
+  sleep 10
+done
+EOF
+    chmod 700 "$supervisor"
+    boot_dir="$HOME/.termux/boot"
+    boot_script="$boot_dir/03-3dvr-mesh-$mesh_name"
+    mkdir -p "$boot_dir"
+    cat > "$boot_script" <<EOF
+#!/data/data/com.termux/files/usr/bin/bash
+termux-wake-lock >/dev/null 2>&1 || true
+pgrep -f "$supervisor" >/dev/null 2>&1 || nohup "$supervisor" >>"$HOME/.3dvr/mesh-$mesh_name.log" 2>&1 &
+EOF
+    chmod 700 "$boot_script"
+    if ! pgrep -f "$supervisor" >/dev/null 2>&1; then
+      pkill -f "$tunnel_script" >/dev/null 2>&1 || true
+      nohup "$supervisor" >>"$HOME/.3dvr/mesh-$mesh_name.log" 2>&1 &
+      sleep 2
+    fi
+  elif command -v systemctl >/dev/null 2>&1; then
     unit_dir="$HOME/.config/systemd/user"
     unit="$unit_dir/3dvr-mesh-$mesh_name.service"
     mkdir -p "$unit_dir"
@@ -315,9 +342,7 @@ WantedBy=default.target
 EOF
     systemctl --user daemon-reload >/dev/null 2>&1 || true
     systemctl --user enable --now "3dvr-mesh-$mesh_name.service" >/dev/null 2>&1 || true
-  fi
-
-  if ! pgrep -f "mesh-tunnel-$mesh_name" >/dev/null 2>&1; then
+  elif ! pgrep -f "mesh-tunnel-$mesh_name" >/dev/null 2>&1; then
     nohup "$tunnel_script" >"$HOME/.3dvr/mesh-$mesh_name.log" 2>&1 &
     sleep 1
   fi

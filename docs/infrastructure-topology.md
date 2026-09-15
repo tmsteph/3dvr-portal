@@ -63,8 +63,9 @@ For the enrolled `termux-phone` node, the expected reverse port is `22106` unles
 2. Verify the installed CLI exposes `3dvr device mesh`. If it only shows `bootstrap` and `approve`, treat that as stale CLI version drift and refresh the checkout/CLI rather than rebuilding SSH trust.
 3. Start `3dvr device mesh --name termux-phone --reverse-port 22106`, or use the standalone `3dvr-desktop/scripts/repair-termux-mesh.sh` path when the CLI itself is damaged.
 4. On OVH, verify a loopback listener on `127.0.0.1:22106` and the `3dvr-termux-phone` SSH alias before declaring the phone connected.
+5. Termux mesh enrollment must immediately acquire a wake lock, supervise both local `sshd` and the reverse tunnel, and install a `~/.termux/boot/03-3dvr-mesh-*` recovery entry. Do not rely on the next Android reboot to make a newly enrolled tunnel persistent.
 
-Do not diagnose a missing reverse listener as a key-approval problem when outbound `3dvr-ovh` access already works.
+Do not diagnose a missing reverse listener as a key-approval problem when outbound `3dvr-ovh` access already works. A listener that remains present but stops delivering an SSH banner usually means the Android/Termux side has been suspended or its local `sshd` is unavailable; check the wake-lock/supervisor path before rebuilding trust.
 
 ## Responsibility boundaries
 

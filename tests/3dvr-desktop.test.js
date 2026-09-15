@@ -58,6 +58,14 @@ test('Termux install creates unlock-aware Android boot startup', () => {
   assert.match(afterUnlock, /3dvr-desktop start/);
 });
 
+test('Termux roaming mesh survives app backgrounding and reboot', () => {
+  const device = read('apps/agent/thomas-agent/scripts/ask-device');
+  assert.match(device, /termux-wake-lock/);
+  assert.match(device, /mesh-supervisor-\$mesh_name/);
+  assert.match(device, /03-3dvr-mesh-\$mesh_name/);
+  assert.match(device, /pgrep -x sshd/);
+});
+
 test('Termux startup verifies a real X11 display before starting the shell', () => {
   const start = read('3dvr-desktop/scripts/start-termux.sh');
   assert.match(start, /\.X11-unix/);
