@@ -51,11 +51,12 @@ export function createVentureOutcomeMemorySync({
   nodeName = VENTURE_OUTCOME_MEMORY_GUN_NODE,
 } = {}) {
   const pair = user?._?.sea;
-  const available = Boolean(user?.is?.pub && pair && SEA?.encrypt && SEA?.decrypt && user?.get);
-  const node = available ? user.get('kernel').get(nodeName) : null;
+  const readable = Boolean(user?.is?.pub && pair && SEA?.decrypt && user?.get);
+  const writable = Boolean(readable && SEA?.encrypt);
+  const node = readable ? user.get('kernel').get(nodeName) : null;
 
   const readCurrent = async () => {
-    if (!available || !node) return null;
+    if (!readable || !node) return null;
     const record = await once(node);
     if (!record?.ciphertext) return null;
     const decoded = await SEA.decrypt(record.ciphertext, pair);
@@ -65,10 +66,11 @@ export function createVentureOutcomeMemorySync({
   };
 
   return {
-    available,
+    available: readable,
+    writable,
     read: readCurrent,
     async write(memory) {
-      if (!available || !node) return false;
+      if (!writable || !node) return false;
       const incoming = normalizeVentureOutcomeMemory(memory);
       if (!incoming.entries.length) return false;
       let current = null;
