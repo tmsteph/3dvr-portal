@@ -53,6 +53,24 @@ function onceNode(node, timeoutMs = 900) {
   });
 }
 
+function onceNodeStatus(node, timeoutMs = 900) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value, status = 'ok') => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ value: value || null, status });
+    };
+    const timer = globalThis.setTimeout(() => finish(null, 'timeout'), timeoutMs);
+    try {
+      node.once((value) => finish(value));
+    } catch (_error) {
+      finish(null, 'error');
+    }
+  });
+}
+
 function wait(ms) {
   return new Promise((resolve) => globalThis.setTimeout(resolve, ms));
 }
@@ -78,30 +96,58 @@ async function readPrivateAlignmentProfile({
   identity = globalThis.AuthIdentity,
   timeoutMs = 900,
 } = {}) {
-  if (!gun?.user || !SEA?.decrypt || !signedInMarkerExists(storage, identity)) return null;
+  if (!signedInMarkerExists(storage, identity)) {
+    return { status: 'signed-out', profile: null };
+  }
+  if (!gun?.user || !SEA?.decrypt) {
+    return { status: 'unavailable', profile: null };
+  }
 
   try {
     const user = gun.user();
-    if (!user) return null;
+    if (!user) return { status: 'unavailable', profile: null };
     const deadline = Date.now() + Math.max(50, timeoutMs);
     user.recall?.({ sessionStorage: true, localStorage: true });
     while (!user?.is?.pub && Date.now() < deadline) {
       await wait(Math.min(50, Math.max(1, deadline - Date.now())));
     }
     const pair = user?._?.sea;
-    if (!user?.is?.pub || !pair) return null;
+    if (!user?.is?.pub || !pair) return { status: 'unavailable', profile: null };
 
     const remaining = Math.max(1, deadline - Date.now());
-    const record = await onceNode(user.get('kernel').get(ALIGNMENT_PROFILE_GUN_NODE), remaining);
-    if (!record?.ciphertext) return null;
-    const decoded = await SEA.decrypt(record.ciphertext, pair);
-    if (!decoded) return null;
+    const recordResult = await onceNodeStatus(
+      user.get('kernel').get(ALIGNMENT_PROFILE_GUN_NODE),
+      remaining,
+    );
+    if (recordResult.status !== 'ok') {
+      return { status: 'unavailable', profile: null };
+    }
+    if (!recordResult.value?.ciphertext) {
+      return { status: 'no-profile', profile: null };
+    }
+    const decoded = await SEA.decrypt(recordResult.value.ciphertext, pair);
+    if (!decoded) return { status: 'unavailable', profile: null };
     const parsed = typeof decoded === 'string' ? JSON.parse(decoded) : decoded;
     const profile = normalizeAlignmentProfile(parsed);
-    return profile.keywords.length ? profile : null;
+    return profile.keywords.length
+      ? { status: 'available', profile }
+      : { status: 'no-profile', profile: null };
   } catch (_error) {
-    return null;
+    return { status: 'unavailable', profile: null };
   }
+}
+
+async function readPrivateAlignmentProfileWithRetry(
+  args,
+  retryCount = 1,
+  retryDelayMs = 75,
+) {
+  let result = await readPrivateAlignmentProfile(args);
+  for (let attempt = 0; result.status === 'unavailable' && attempt < retryCount; attempt += 1) {
+    await wait(Math.max(0, retryDelayMs));
+    result = await readPrivateAlignmentProfile(args);
+  }
+  return result;
 }
 
 export function readMoneyPrinterState(storage = getDefaultStorage(), key = MONEY_PRINTER_STORAGE_KEY) {
@@ -159,6 +205,8 @@ export async function importLatestMarketPulseCapsules({
   identity = globalThis.AuthIdentity,
   peers = globalThis.__GUN_PEERS__,
   timeoutMs = 900,
+  profileRetryCount = 1,
+  profileRetryDelayMs = 75,
 } = {}) {
   if (!storage || typeof GunImpl !== 'function') {
     return { imported: 0, updated: 0, skipped: true, reason: 'Gun unavailable' };
@@ -167,9 +215,13 @@ export async function importLatestMarketPulseCapsules({
   try {
     const peerList = Array.isArray(peers) && peers.length ? peers : [...DEFAULT_GUN_PEERS];
     const gun = GunImpl(peerList);
-    const [record, alignmentProfile] = await Promise.all([
+    const [record, alignmentRead] = await Promise.all([
       onceNode(getNode(gun, MARKET_PULSE_CAPSULE_PATH), timeoutMs),
-      readPrivateAlignmentProfile({ gun, storage, SEA, identity, timeoutMs }),
+      readPrivateAlignmentProfileWithRetry(
+        { gun, storage, SEA, identity, timeoutMs },
+        profileRetryCount,
+        profileRetryDelayMs,
+      ),
     ]);
     if (!record?.candidatesJson) {
       return { imported: 0, updated: 0, skipped: true, reason: 'No capsule queue available' };
@@ -178,8 +230,21 @@ export async function importLatestMarketPulseCapsules({
     if (!publicPayload.candidates.length) {
       return { imported: 0, updated: 0, skipped: true, reason: 'Capsule queue empty' };
     }
-    const payload = personalizeMarketPulseCapsulePayload(publicPayload, alignmentProfile || {});
+
     const current = hydrateMoneyPrinterState(storage);
+    if (alignmentRead.status === 'unavailable' && current.marketPulseLastPersonalizationKey) {
+      return {
+        state: current,
+        imported: 0,
+        updated: 0,
+        skipped: true,
+        reason: 'Private alignment temporarily unavailable',
+        personalized: true,
+        retryRecommended: true,
+      };
+    }
+
+    const payload = personalizeMarketPulseCapsulePayload(publicPayload, alignmentRead.profile || {});
     const result = ingestMarketPulseCapsuleCandidates(current, payload);
     if (result.imported > 0 || result.updated > 0) {
       writeMoneyPrinterState(result.state, storage);
@@ -187,6 +252,7 @@ export async function importLatestMarketPulseCapsules({
     return {
       ...result,
       personalized: Boolean(payload.personalizationKey),
+      retryRecommended: alignmentRead.status === 'unavailable',
     };
   } catch (_error) {
     return { imported: 0, updated: 0, skipped: true, reason: 'Capsule queue unavailable' };
@@ -212,5 +278,10 @@ export function createMoneyPrinterStorage(storage = getDefaultStorage(), key = M
 }
 
 if (typeof window !== 'undefined') {
-  await importLatestMarketPulseCapsules();
+  const initialImport = await importLatestMarketPulseCapsules();
+  if (initialImport.retryRecommended) {
+    globalThis.setTimeout(() => {
+      void importLatestMarketPulseCapsules({ profileRetryCount: 2, profileRetryDelayMs: 150 });
+    }, 1200);
+  }
 }
