@@ -37,6 +37,12 @@ test('Lighthouse can reuse the Encore/UKG identity without reusing its password'
   assert.equal(SITE_CONFIG.lighthouse.allowPasswordAfterEmail, false);
 });
 
+test('UKG logout page is never classified as authenticated', () => {
+  const source = fs.readFileSync(path.join(root, 'apps/agent/thomas-agent/node/browser-login.js'), 'utf8');
+  assert.match(source, /postlogout\\.aspx/i);
+  assert.match(source, /session-expired/);
+});
+
 test('mirrored login extraction reads only the login record', () => {
   const login = extractLogin(JSON.stringify({
     type: 'login',

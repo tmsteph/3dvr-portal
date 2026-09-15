@@ -241,6 +241,7 @@ function classifyState(site, config, state) {
   const host = pageHost(state);
   if (!config.hosts.includes(host)) return { status: 'human_required', reason: 'external-sso' };
   if (site === 'iatse' && /dashboard/i.test(text) && !state.passwordCount) return { status: 'authenticated' };
+  if (site === 'ukg' && /postlogout\.aspx/i.test(String(state?.url || ''))) return { status: 'login_required', reason: 'session-expired' };
   if (site === 'ukg' && !/login\.aspx/i.test(String(state?.url || '')) && !state.passwordCount) return { status: 'authenticated' };
   if (site === 'lighthouse' && !/\/login(?:[/?#]|$)/i.test(String(state?.url || '')) && !state.emailCount && !state.passwordCount) return { status: 'authenticated' };
   return { status: 'login_required' };
@@ -292,6 +293,13 @@ async function runLogin(broker, agent, site) {
     let state = await pageState(session);
     let classification = classifyState(site, config, state);
     if (classification.status === 'authenticated') return { status: 200, body: { ok: true, site, ...classification, url: state.url } };
+
+    if (site === 'ukg' && /postlogout\.aspx/i.test(String(state?.url || ''))) {
+      await session.call('Page.navigate', { url: config.startUrl });
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      state = await pageState(session);
+      classification = classifyState(site, config, state);
+    }
 
     const credentials = credentialsFor(broker, agent, site, config);
     const usernameSet = await setInput(session, config.usernameSelectors, credentials.username);
