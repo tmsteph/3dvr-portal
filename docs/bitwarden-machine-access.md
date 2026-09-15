@@ -152,3 +152,90 @@ As of 2026-09-15:
 - therefore IATSE cannot yet be re-authenticated through Secrets Manager.
 
 The remaining one-time handoff is to save the IATSE username/password into the `3dvr Agent` project. After that, machine access can be policy-scoped and repeatable without relying on the normal Bitwarden vault session.
+## Bulk Password Manager mirror
+
+When Thomas wants broad automation access, use the persistent OVH Firefox workspace for the one-time Password Manager login. The browser profile persists under the freelancer workspace volume and the streamed browser is the human checkpoint for login, MFA, CAPTCHA, and export confirmation.
+
+The canonical workspace currently used for Thomas is `fw-thomas-pilot`. Its host-side download directory is:
+
+```text
+/var/lib/3dvr/freelancer-workspaces/fw-thomas-pilot/config/Downloads
+```
+
+The Bitwarden tab should be opened inside that workspace. Thomas enters the master password directly into Bitwarden; it must never be copied into chat, shell history, Git, or the Secrets Manager project.
+
+### What is mirrored by default
+
+A plaintext Bitwarden JSON export is consumed locally by `scripts/ops/import-bitwarden-export-to-secrets-manager.mjs`. The mirror is intentionally broad but not absolute. By default it includes:
+
+- login usernames and passwords;
+- TOTP seed URIs;
+- login URIs;
+- custom fields;
+- secure notes;
+- ordinary item notes and metadata.
+
+It deliberately strips password history and FIDO2/passkey credential material. It also excludes Bitwarden/root-recovery items, payment cards, identities, and SSH keys unless an owner deliberately opts those classes in.
+
+This keeps the server useful for automation without making the machine credential the only root of trust for the entire digital identity.
+
+### Storage model
+
+Each mirrored vault item becomes one structured JSON secret with a stable key:
+
+```text
+VAULT_ITEM__<TYPE>__<NAME>__<SOURCE_ID>
+```
+
+A separate `VAULT_INDEX` secret contains only lookup metadata: item names, types, source IDs, URIs, and corresponding secret keys. It contains no password values.
+
+The broker exposes these through scoped aliases:
+
+```text
+vault.index
+vault.item.VAULT_ITEM__LOGIN__EXAMPLE__ABC123
+```
+
+Only an agent with `secret.read` plus `secrets:password-manager-mirror` can resolve them, and reads use short approval leases. The dedicated OVH browser helper gets that scope; normal agents do not.
+
+### One-time migration command
+
+After a plaintext JSON export lands in the workspace Downloads directory, run from OVH with the machine token loaded only inside the privileged process:
+
+```bash
+sudo bash -lc '
+  set -a
+  . /etc/3dvr/secrets-broker/bitwarden.env
+  set +a
+  node /home/debian/work/3dvr-portal/scripts/ops/import-bitwarden-export-to-secrets-manager.mjs \
+    --input /var/lib/3dvr/freelancer-workspaces/fw-thomas-pilot/config/Downloads/<export>.json \
+    --delete-source
+'
+```
+
+The importer never logs values. It creates or updates secrets by stable key, writes/updates `VAULT_INDEX`, prints counts only, and deletes the plaintext export after a successful run. `shred` is attempted first, with deletion as a fallback.
+
+Before a real import, `--dry-run` can report only counts and excluded classes.
+
+### Optional classes
+
+Use these only when there is a concrete reason:
+
+```text
+--include-cards
+--include-identities
+--include-ssh
+--include-root
+```
+
+`--include-root` is intentionally exceptional. It can include items that the default root-of-trust filter would keep human-only. Do not use it merely for convenience.
+
+### After migration
+
+1. Confirm the importer summary contains counts only.
+2. Confirm the Password Manager export no longer exists in Downloads.
+3. Confirm `VAULT_INDEX` and `VAULT_ITEM__*` metadata exist in the `3dvr Agent` project without printing values.
+4. Test one low-risk login through the broker/browser helper.
+5. Keep the original Password Manager vault as the human source of truth; Secrets Manager is the automation mirror.
+
+Future password changes should update the mirror through the same process or a dedicated sync path. Do not assume Password Manager edits automatically propagate into Secrets Manager.

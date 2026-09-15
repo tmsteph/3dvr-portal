@@ -340,8 +340,29 @@ class SecretsBroker {
 
   #policyFor(alias) {
     const policy = this.policy();
-    const secret = policy?.secrets?.[alias];
-    if (!secret || typeof secret !== 'object' || secret.enabled === false) return { policy, secret: null };
+    const secrets = policy?.secrets || {};
+    let secret = secrets[alias];
+
+    if (!secret || typeof secret !== 'object' || secret.enabled === false) {
+      const wildcard = Object.entries(secrets)
+        .filter(([pattern, candidate]) => (
+          pattern.endsWith('*')
+          && alias.startsWith(pattern.slice(0, -1))
+          && candidate
+          && typeof candidate === 'object'
+          && candidate.enabled !== false
+        ))
+        .sort((left, right) => right[0].length - left[0].length)[0];
+      secret = wildcard?.[1] || null;
+    }
+
+    if (!secret || typeof secret !== 'object') return { policy, secret: null };
+    if (secret.locator && typeof secret.locator === 'object' && secret.locator.keyFromAliasPrefix) {
+      const prefix = normalizeText(secret.locator.keyFromAliasPrefix, 200);
+      const key = prefix && alias.startsWith(prefix) ? normalizeText(alias.slice(prefix.length), 500) : '';
+      if (!/^[A-Z0-9][A-Z0-9_.:-]{0,499}$/.test(key)) return { policy, secret: null };
+      secret = { ...secret, locator: { ...secret.locator, key } };
+    }
     return { policy, secret };
   }
 

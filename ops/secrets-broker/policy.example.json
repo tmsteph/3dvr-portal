@@ -44,6 +44,38 @@
         "leaseSeconds": 300,
         "maxUses": 2
       }
+    },
+    "vault.index": {
+      "backend": "bitwarden",
+      "locator": {
+        "projectName": "3dvr Agent",
+        "key": "VAULT_INDEX"
+      },
+      "capability": "secret.read",
+      "scopes": [
+        "secrets:password-manager-mirror"
+      ],
+      "approval": {
+        "mode": "lease",
+        "leaseSeconds": 300,
+        "maxUses": 10
+      }
+    },
+    "vault.item.*": {
+      "backend": "bitwarden",
+      "locator": {
+        "projectName": "3dvr Agent",
+        "keyFromAliasPrefix": "vault.item."
+      },
+      "capability": "secret.read",
+      "scopes": [
+        "secrets:password-manager-mirror"
+      ],
+      "approval": {
+        "mode": "lease",
+        "leaseSeconds": 300,
+        "maxUses": 10
+      }
     }
   }
 }

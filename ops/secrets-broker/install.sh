@@ -12,6 +12,7 @@ ETC=/etc/3dvr/secrets-broker
 OPT=/opt/3dvr/secrets-broker
 PORTAL_TOKEN="$ETC/portal.token"
 AGENT_TOKEN=/home/debian/.3dvr/secrets-broker/agent.token
+BROWSER_VAULT_TOKEN=/home/debian/.3dvr/secrets-broker/browser-vault.token
 AGENTS="$ETC/agents.json"
 
 getent group threedvr-agents >/dev/null || groupadd --system threedvr-agents
@@ -26,6 +27,7 @@ install -m 0755 "$SOURCE/secrets-broker-server.js" "$OPT/secrets-broker-server.j
 install -m 0755 "$SOURCE/secrets-broker-admin.js" "$OPT/secrets-broker-admin.js"
 install -m 0644 "$SOURCE/secrets-broker.js" "$OPT/secrets-broker.js"
 install -m 0644 "$SOURCE/bitwarden-sdk-create.js" "$OPT/bitwarden-sdk-create.js"
+install -m 0644 "$SOURCE/bitwarden-sdk-upsert.js" "$OPT/bitwarden-sdk-upsert.js"
 if ! node -e "require.resolve('@bitwarden/sdk-napi', { paths: ['$OPT'] })" >/dev/null 2>&1; then
   npm install --omit=dev --no-audit --no-fund --prefix "$OPT" @bitwarden/sdk-napi@1.0.0 >/dev/null
 fi
@@ -42,6 +44,8 @@ policy.secrets ||= {};
 policy.secrets['bitwarden.writer'] ||= { backend: 'bitwarden', write: { projectName: '3dvr Agent', capability: 'secret.write', scopes: ['secrets:3dvr-agent'], approval: { mode: 'auto' } } };
 policy.secrets['iatse.username'] ||= { backend: 'bitwarden', locator: { projectName: '3dvr Agent', key: 'IATSE_PORTAL_USERNAME' }, capability: 'secret.read', scopes: ['site:iatse'], approval: { mode: 'lease', leaseSeconds: 300, maxUses: 2 } };
 policy.secrets['iatse.password'] ||= { backend: 'bitwarden', locator: { projectName: '3dvr Agent', key: 'IATSE_PORTAL_PASSWORD' }, capability: 'secret.read', scopes: ['site:iatse'], approval: { mode: 'lease', leaseSeconds: 300, maxUses: 2 } };
+policy.secrets['vault.index'] ||= { backend: 'bitwarden', locator: { projectName: '3dvr Agent', key: 'VAULT_INDEX' }, capability: 'secret.read', scopes: ['secrets:password-manager-mirror'], approval: { mode: 'lease', leaseSeconds: 300, maxUses: 10 } };
+policy.secrets['vault.item.*'] ||= { backend: 'bitwarden', locator: { projectName: '3dvr Agent', keyFromAliasPrefix: 'vault.item.' }, capability: 'secret.read', scopes: ['secrets:password-manager-mirror'], approval: { mode: 'lease', leaseSeconds: 300, maxUses: 10 } };
 fs.writeFileSync(file, `${JSON.stringify(policy, null, 2)}\n`);
 NODE
 chown root:threedvr-secrets "$ETC/policy.json"
@@ -81,6 +85,14 @@ if id debian >/dev/null 2>&1 && [[ ! -f "$AGENT_TOKEN" ]]; then
   "${ADMIN[@]}" provision ovh-orchestrator --registry "$AGENTS" --token-file "$AGENT_TOKEN" --capabilities broker.status --scopes broker:status --label 'OVH agent orchestrator' >/dev/null
   chown debian:debian "$AGENT_TOKEN"
   chmod 0600 "$AGENT_TOKEN"
+  chown root:threedvr-secrets "$AGENTS"
+  chmod 0640 "$AGENTS"
+fi
+if id debian >/dev/null 2>&1 && [[ ! -f "$BROWSER_VAULT_TOKEN" ]]; then
+  install -d -o debian -g debian -m 0700 "$(dirname "$BROWSER_VAULT_TOKEN")"
+  "${ADMIN[@]}" provision ovh-browser-vault --registry "$AGENTS" --token-file "$BROWSER_VAULT_TOKEN" --capabilities secret.read --scopes 'site:iatse,secrets:password-manager-mirror' --label 'OVH browser vault helper' >/dev/null
+  chown debian:debian "$BROWSER_VAULT_TOKEN"
+  chmod 0600 "$BROWSER_VAULT_TOKEN"
   chown root:threedvr-secrets "$AGENTS"
   chmod 0640 "$AGENTS"
 fi
