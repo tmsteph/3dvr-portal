@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+[[ ${EUID:-$(id -u)} -eq 0 ]] || { echo 'root required' >&2; exit 77; }
+action=${1:-}
+service=${2:-}
+[[ "$action" == restart ]] || { echo 'only restart is allowed' >&2; exit 64; }
+case "$service" in
+  3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|openbao.service)
+    ;;
+  *)
+    echo 'service is not allowlisted' >&2
+    exit 64
+    ;;
+esac
+exec /usr/bin/systemctl restart "$service"
