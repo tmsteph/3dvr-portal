@@ -3,7 +3,12 @@
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
-const { OpenBaoBackend } = require('../../connectors/secrets/openbao');
+let OpenBaoBackend;
+try {
+  ({ OpenBaoBackend } = require('../../connectors/secrets/openbao'));
+} catch {
+  ({ OpenBaoBackend } = require('./openbao'));
+}
 const { DEFAULTS, SecretsBroker } = require('./secrets-broker');
 
 const SOCKET_PATH = process.env.THREEDVR_SECRETS_BROKER_SOCKET || DEFAULTS.socketPath;
