@@ -1,5 +1,4 @@
 {
-  "id": "2026-09-15T20:55:00Z-restart-broker-003",
-  "action": "restart",
-  "service": "3dvr-secrets-broker.service"
+  "id": "2026-09-15T20:56:00Z-post-restart-status-001",
+  "action": "status"
 }
