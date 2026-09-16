@@ -1,8 +1,10 @@
 # 3DVR Access Continuity
 
-Last reviewed: 2026-09-15
+Last reviewed: 2026-09-16
 
-This is the canonical policy for keeping Thomas's connected systems usable across chats, agents, server restarts, and browser restarts. The default is persistence and recovery, not repeated manual login.
+This is the canonical policy for keeping Thomas's connected systems usable across chats, agents, server restarts, browser restarts, and device reconnects. The default is persistence and recovery, not repeated manual login.
+
+Before claiming a service or device is inaccessible, agents should also consult [`docs/agent-access-map.md`](./agent-access-map.md), which records the available connector, server, browser, Companion, Termux, and device-mesh paths.
 
 ## Prime directive
 
@@ -11,10 +13,10 @@ Before asking Thomas to reconnect, re-pair, re-authorize, or re-enter credential
 1. Reuse the native connector or persistent authenticated browser lane already recorded in `/abilities/`.
 2. Run a read-only health check and distinguish process failure from expired authentication.
 3. Recover the existing service/session without creating a replacement profile or printing secrets.
-4. Try the documented fallback path.
-5. Ask Thomas for a human checkpoint only when the provider actually requires login, MFA, CAPTCHA, device pairing, consent, or another non-delegable step.
+4. Try the documented fallback path, including 3DVR Companion or the device mesh when the target is a device.
+5. Ask Thomas for a human checkpoint only when the provider or OS actually requires login, MFA, CAPTCHA, device pairing, consent, permission enablement, or another non-delegable step.
 
-A server restart, dead Chromium process, stale CDP bridge, or new chat is not by itself a reason to ask Thomas to sign in again.
+A server restart, dead Chromium process, stale CDP bridge, stopped Companion service, suspended Termux process, or new chat is not by itself a reason to ask Thomas to sign in or reconnect again.
 
 ## Access layers
 
@@ -35,7 +37,29 @@ OVH holds authenticated browser state. Reuse the existing profiles and never cre
 
 The CDP bridge exposes these as `19222`, `19333`, `19444`, and `19555`. Any state-changing automation must hold the matching `/usr/local/bin/3dvr-browser-lease` writer lease. Read-only inspection may be concurrent.
 
-### 3. Scoped secrets
+### 3. 3DVR Companion device access
+
+**3DVR Companion is the preferred Android connector and daily-control path.** It exposes explicit, permissioned device capabilities through the 3DVR relay/control plane and should be checked before assuming Android work requires manual interaction or Termux.
+
+Current documented Companion foundations include the native recovery bridge, authenticated direct relay, bounded device status / known-app / HTTPS URL actions, notification integration, opt-in Accessibility support for approved workflows, signed update verification, and Android Assistant/VoiceInteractionService work.
+
+Companion does not replace Termux. Companion is the Android capability adapter; Termux is the advanced Linux shell, development, SSH, mesh, and recovery/debug path. Use both when a workflow spans Android UI/app capabilities and Linux-side execution.
+
+Canonical references:
+
+- `apps/companion/README.md`
+- `apps/companion/BOOTSTRAP.md`
+- `apps/companion/docs/TRANSPORT.md`
+- `apps/computing/platforms/android.md`
+- `docs/agent-access-map.md`
+
+### 4. Termux / device mesh
+
+Termux and other roaming devices can join the 3DVR mesh through the always-on rendezvous. For Android, use Termux when shell access, SSH, repositories, local processes, or recovery/debugging are required.
+
+Do not treat a suspended reverse tunnel as lost account access. Recover the existing mesh process, wake lock, local `sshd`, and reverse tunnel using the procedure in `docs/infrastructure-topology.md` before rebuilding trust or re-authorizing keys.
+
+### 5. Scoped secrets
 
 Credentials belong behind the 3DVR secrets broker with Bitwarden as the backend. Agents should request scoped access from the broker instead of asking Thomas to paste passwords into chat. Browser profiles may hold provider cookies/session state; secrets and session cookies must never be printed into logs or documentation.
 
@@ -48,6 +72,14 @@ For a browser-backed integration, classify the failure before escalating:
 - **Page logged out:** try the approved secret-broker/autofill path if policy allows it.
 - **Provider requires MFA/CAPTCHA/device pairing:** request one explicit human checkpoint, then preserve the resulting session.
 - **Profile missing or corrupt:** treat as infrastructure failure. Restore the durable profile or backup; do not silently create a new identity.
+
+For Android/device-backed integration:
+
+- **Companion app/service stopped:** restart/recover the existing Companion path before asking for setup again.
+- **Relay unavailable:** verify the documented relay/control path and local bridge before changing device permissions.
+- **Android permission disabled:** request only the specific OS permission checkpoint required for the named capability.
+- **Termux tunnel missing:** verify outbound mesh trust, local `sshd`, wake lock, supervisor, and reverse tunnel before re-authorizing keys.
+- **Device offline:** preserve queued work and retry when the device returns; cloud automation should not depend on the phone remaining online.
 
 Every recovery should update the capability registry's verification date/status so the next agent starts from evidence rather than assumptions.
 
@@ -63,7 +95,9 @@ The `encore` lane is authorized for schedule and request-off workflows. `PostLog
 
 ### Messaging
 
-Google Messages/SMS and WhatsApp use the `messaging` lane. If the lane process is down, recover the same profile first. Re-pair the phone only when the web provider has invalidated the pairing and recovery proves the stored session is unusable.
+Google Messages/SMS and WhatsApp use the `messaging` lane today. If the lane process is down, recover the same profile first. Re-pair the phone only when the web provider has invalidated the pairing and recovery proves the stored session is unusable.
+
+Where a future messaging workflow is exposed as an explicit Companion capability, prefer that named device capability over fragile cross-app UI simulation while preserving the same approval rules.
 
 ### Lighthouse
 
@@ -75,14 +109,19 @@ Lighthouse access should be checked through the documented authenticated browser
 
 `scripts/ops/access-continuity-health.sh` performs a read-only local check of the persistent browser ports, CDP bridge service, secrets broker, and lane leases. It intentionally does not log credentials or mutate browser state.
 
-The desired steady state is automatic verification plus self-healing for process/service failures. Human reconnection should be the exception reserved for provider-enforced authentication events.
+Device health should become equally explicit: Companion registration/relay health and Termux mesh health should be independently testable so an agent can distinguish an Android capability failure from an SSH/tunnel failure.
+
+The desired steady state is automatic verification plus self-healing for process/service failures. Human reconnection should be the exception reserved for provider- or OS-enforced authentication/permission events.
 
 ## Canonical references
 
+- `docs/agent-access-map.md` — canonical map of connectors, servers, browsers, Companion, Termux, and device paths.
 - `/abilities/` — user-facing capability/status inventory.
 - `abilities/abilities.json` — machine-readable capability registry.
-- `docs/infrastructure-topology.md` — node roles, browser lanes, and CDP bridge topology.
+- `docs/infrastructure-topology.md` — node roles, browser lanes, SSH/device mesh, and CDP bridge topology.
 - `docs/workforce-access-runbook.md` — exact IATSE, UKG, SharePoint, and Lighthouse login/recovery procedures and failure history.
+- `apps/companion/README.md` — 3DVR Companion architecture and permission model.
+- `apps/companion/BOOTSTRAP.md` — current Android Companion bootstrap and activation state.
 - `AGENTS.md` — browser writer-lease rules.
 - `scripts/ops/browser-lane-lease.sh` — cooperative single-writer implementation.
 - `ops/secrets-broker/` — scoped credential access.
