@@ -1,0 +1,6 @@
+{
+  "queue_repo": "OWNER/private-command-queue",
+  "device_id": "server-name",
+  "poll_interval_seconds": 20,
+  "allowed_authors": ["YOUR_GITHUB_LOGIN"]
+}
