@@ -23,7 +23,8 @@ Access is infrastructure. Preserve it.
 
 - Do not create replacement browser profiles as a recovery shortcut.
 - Do not ask Thomas for passwords that already exist behind the secrets broker.
-- Do not print credentials, session cookies, broker tokens, Bitwarden values, or MFA artifacts into chat, logs, docs, shell history, or Git.
+- Do not print credentials, session cookies, broker tokens, Bitwarden values, reusable MFA secrets, one-time passcodes, recovery codes, or approval tokens into chat, logs, docs, shell history, or Git.
+- An ephemeral Microsoft Authenticator number-match value displayed by the provider is not a credential or reusable MFA secret. Surface only that short-lived number to Thomas when required for provider-enforced approval, then discard it.
 - Ask Thomas only for provider-enforced human checkpoints such as Microsoft Authenticator number matching, CAPTCHA, device pairing, or legal consent.
 
 ## Canonical runtime topology
@@ -107,7 +108,7 @@ Canonical start: `https://psav.sharepoint.com/` or the Connect site.
 
 When Microsoft asks for an account, use the corporate **Login ID** from the secured Encore identity record, not the public/default Encore email address. The account-reactivation notice distinguishes these identities. Do not store the actual Login ID in this public repository; resolve it from the secured identity source when needed.
 
-If Microsoft Authenticator number matching appears, surface the displayed number to Thomas and wait for approval. After approval, choose **Stay signed in: Yes** so the persistent `general` profile retains the Microsoft session.
+If Microsoft Authenticator number matching appears, surface only the ephemeral displayed number to Thomas and wait for approval. Never surface a TOTP, recovery code, push-approval token, or other reusable/authenticating secret. After approval, choose **Stay signed in: Yes** so the persistent `general` profile retains the Microsoft session.
 
 Verify success by reaching the Connect home site and seeing signed-in SharePoint navigation, not merely by observing Microsoft cookies.
 
@@ -223,7 +224,7 @@ The command response must be treated as a hint and followed by a page-level veri
 | UKG shows Login.aspx | Run broker-backed UKG login; verify `/default.aspx` |
 | UKG shows PostLogout/sessiontimeout | Treat as logged out, return to login, authenticate, verify dashboard |
 | Lighthouse shows `/login` | Verify SharePoint session first, then retry Lighthouse in the same `general` profile |
-| Microsoft asks for Authenticator | Surface only the number-match prompt; Thomas approves; preserve resulting session |
+| Microsoft asks for Authenticator | Surface only the ephemeral number-match value; Thomas approves; preserve resulting session. Never surface OTP/recovery/approval secrets. |
 | Provider shows CAPTCHA/device attestation/legal prompt | Stop at the owner checkpoint and ask for that one action |
 
 ## Security and autonomy boundaries
