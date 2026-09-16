@@ -4,39 +4,105 @@ Updated: 2026-09-16
 
 Goal: make 3DVR remote control portable across cloud servers, Termux, and laptops without depending on a proprietary remote-desktop quota.
 
+## Current verified state
+
+The Hetzner Open Runner is now mesh-aware. It accepts an exact ingress `device` and supports two actions:
+
+- `shell` — execute on the ingress machine itself.
+- `mesh-shell` — relay the command over the allowlisted 3DVR SSH mesh to a named target.
+
+Verified on 2026-09-16:
+
+- ChatGPT GitHub connector → private queue → Hetzner → local shell works.
+- ChatGPT GitHub connector → Hetzner → `mesh-shell` → OVH works.
+- ChatGPT GitHub connector → Hetzner → `mesh-shell` → DigitalOcean works.
+- OVH and DigitalOcean do not currently have independent `gh` authentication, so we deliberately did **not** copy the Hetzner GitHub credential to them.
+- `termux-phone` is registered in the routing map but its reverse SSH tunnel is currently offline/refusing connections.
+- `laptop` is registered in the routing map but is not yet enrolled as a live SSH-mesh endpoint.
+
+This already makes OVH and DigitalOcean controllable without Remote Desktop Commander. Termux and the laptop will become reachable through the same command path as soon as their edge tunnels are online.
+
 ## Topology
 
-The private GitHub queue is an ingress transport, not the source of truth. Each enrolled node has a stable `device_id` and runs the same open runner. Commands target one device explicitly. Cloud nodes also remain connected by the 3DVR SSH mesh, so a healthy node can recover another without requiring every operation to pass through GitHub.
+Current path:
 
-Current device ids:
+> ChatGPT / human GitHub client → private command issue → Hetzner Open Runner → local shell **or** SSH mesh → target machine → result back to issue
 
-- `hetzner` — default worker and already deployed
-- `ovh` — control/recovery anchor
+The GitHub queue is an ingress transport, not the architecture itself. Cloud SSH remains a separate recovery path, and provider consoles remain the final fallback.
+
+Stable target names:
+
+- `hetzner` — default worker / Open Runner ingress
+- `ovh` — control and recovery anchor
 - `digitalocean` — lightweight fallback
 - `termux-phone` — roaming Android/Termux edge node
 - `laptop` — operator edge node
 
+## Submit commands safely
+
+Do not hand-escape JSON when a CLI is available. Use:
+
+```bash
+python3 apps/agent/tools/open-runner-submit.py ovh -- hostname
+python3 apps/agent/tools/open-runner-submit.py digitalocean -- 'uptime; free -h'
+python3 apps/agent/tools/open-runner-submit.py termux-phone -- 'hostname; pwd'
+```
+
+The submitter serializes the task with `json.dumps`, avoiding malformed queue issues caused by shell/JSON quoting.
+
+## Edge enrollment
+
+The one-command edge helper is:
+
+```bash
+apps/agent/tools/join-open-runner-edge.sh DEVICE_NAME [REVERSE_PORT]
+```
+
+It enrolls or repairs the existing SSH mesh first. If the edge also has its own authenticated GitHub CLI, it prints the optional direct-runner install command; direct GitHub polling is not required for normal edge control.
+
+Known ports:
+
+- `termux-phone`: `22106`
+- `laptop`: deterministic default `22934` when enrolled as `laptop`
+
+Termux recovery/enrollment:
+
+```bash
+apps/agent/tools/join-open-runner-edge.sh termux-phone 22106
+```
+
+Laptop enrollment:
+
+```bash
+apps/agent/tools/join-open-runner-edge.sh laptop 22934
+```
+
+The mesh script creates the reverse tunnel through OVH and writes the corresponding remote SSH aliases. Once the reverse listener is healthy, Hetzner's existing `mesh-shell` routing can use that target without giving the edge a GitHub token.
+
 ## Rollout rules
 
-1. Prefer exact device targeting. Do not use `device: "any"` for mutating commands across a multi-runner fleet because more than one runner could claim it.
+1. Target one ingress runner exactly. Broadcast execution is intentionally unsupported for mutating commands.
 2. Keep `allowed_authors` narrow and the queue private.
-3. Never place secrets in issue bodies or output. Use machine-local environment files, Bitwarden/Secrets Broker references, or existing authenticated sessions.
-4. Cloud nodes may run the systemd installer in `apps/agent/tools/install-open-runner-node.sh` after `gh auth status` succeeds locally.
-5. Laptop and Termux use `apps/agent/tools/install-open-runner-edge.sh`; they do not need root/systemd.
-6. Termux should launch its runner from Termux:Boot only after its existing SSH mesh/sshd supervisor is healthy.
-7. A laptop may run the runner only while desired; SSH/Git remain valid recovery paths when it is offline.
+3. Never place secrets in issue bodies or command output. Use machine-local environment files, Bitwarden/Secrets Broker references, or existing authenticated sessions.
+4. Do not copy a broad GitHub token between machines merely to make every node poll the queue.
+5. Cloud nodes may run `install-open-runner-node.sh` only after they have independent, appropriately scoped GitHub authentication.
+6. Laptop and Termux may use `install-open-runner-edge.sh` when independently authenticated, but SSH-mesh routing is the default.
+7. Termux should restore its wake lock, local `sshd`, supervisor, and Termux:Boot tunnel before being considered online.
+8. A laptop may disappear from the network without breaking cloud automation.
 
-## Redundancy
+## Redundancy path
 
-The intended steady state is:
+Today:
 
-- direct runner on Hetzner, OVH, and DigitalOcean;
-- direct runner on Termux/laptop when those devices are online and locally authenticated to GitHub;
-- cloud SSH mesh as a separate control path;
-- provider consoles as final recovery.
+1. GitHub queue → Hetzner Open Runner.
+2. Hetzner → OVH / DigitalOcean / enrolled edges over SSH mesh.
+3. Direct human SSH to the cloud mesh.
+4. Provider console as final recovery.
 
-If a device does not have a safe GitHub credential, do not copy another machine's token to it. Keep that device reachable through SSH mesh until it can be authenticated independently.
+Next redundancy improvement: give OVH and/or DigitalOcean an independently scoped queue credential or replace GitHub ingress with an additional self-hosted queue transport. Do not make that improvement by copying Hetzner's credential.
 
 ## Verification
 
-For each enrolled node, submit a harmless command such as `hostname; id -un; uptime` targeted to that exact `device_id`, confirm the issue is claimed by the expected node, confirm exit code 0, and confirm the issue closes automatically.
+For a cloud target, submit a harmless command such as `hostname; id -un; uptime` and confirm the issue reports the expected `Target`, exit code 0, and closes automatically.
+
+For an edge target, first verify the OVH reverse listener and SSH alias. Then submit the same harmless `mesh-shell` command through the Open Runner.
