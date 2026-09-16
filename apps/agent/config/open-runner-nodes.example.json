@@ -1,0 +1,12 @@
+{
+  "queue_repo": "tmsteph/3dvr-terminal-bridge",
+  "allowed_authors": ["tmsteph"],
+  "poll_interval_seconds": 20,
+  "nodes": {
+    "hetzner": {"device_id": "hetzner", "role": "worker"},
+    "ovh": {"device_id": "ovh", "role": "control-recovery"},
+    "digitalocean": {"device_id": "digitalocean", "role": "fallback"},
+    "termux-phone": {"device_id": "termux-phone", "role": "edge"},
+    "laptop": {"device_id": "laptop", "role": "operator-edge"}
+  }
+}
