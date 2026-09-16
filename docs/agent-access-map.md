@@ -85,6 +85,14 @@ OVH owns durable browser identity. Reuse these profiles instead of creating fres
 
 The CDP bridge exposes them as `19222`, `19333`, `19444`, and `19555`. State-changing browser automation must respect the cooperative writer lease documented elsewhere in the repo.
 
+### Messaging host ownership and current state
+
+The durable messaging browser belongs on **OVH**, not the laptop. The laptop may be used as a temporary operator/fallback browser, but future agents should first inspect OVH CDP `9444` and the durable `messaging` profile.
+
+Verified 2026-09-16: OVH CDP `9444` is live with the correct durable profile, but Google Messages is at `/web/welcome` and is not paired there. The `tmsteph` laptop Brave session was separately verified paired at `/web/conversations`. Independently, OVH can reach the Android phone through `3dvr-termux-phone` on reverse port `22106`, and `termux-sms-list` works. Therefore the current server-first messaging order is: OVH messaging lane when paired -> OVH-to-phone Termux SMS read path -> Companion notification/message capabilities as they come online -> laptop Brave only as a fallback/human pairing surface.
+
+A running browser lane is only process health, not proof of provider authentication. Always inspect the target page state before declaring Google Messages usable.
+
 Known workflows using these lanes include:
 
 - IATSE Local 122 member portal

@@ -95,9 +95,16 @@ The `encore` lane is authorized for schedule and request-off workflows. `PostLog
 
 ### Messaging
 
-Google Messages/SMS and WhatsApp use the `messaging` lane today. If the lane process is down, recover the same profile first. Re-pair the phone only when the web provider has invalidated the pairing and recovery proves the stored session is unusable.
+Google Messages/SMS and WhatsApp use the OVH `messaging` lane today. **OVH is the canonical persistent browser host; the laptop is a fallback/operator surface, not the durable owner of messaging browser state.** If the lane process is down, recover the same OVH profile first. Re-pair the phone only when the web provider has invalidated the pairing and recovery proves the stored session is unusable.
 
-Where a future messaging workflow is exposed as an explicit Companion capability, prefer that named device capability over fragile cross-app UI simulation while preserving the same approval rules.
+Verified 2026-09-16:
+
+- OVH `messaging` Chrome is running on CDP `9444` with `/home/debian/.config/3dvr/browser-profiles/messaging`, but Google Messages currently resolves to `https://messages.google.com/web/welcome`; the OVH browser lane is healthy but **not currently paired/authenticated for Google Messages**.
+- The `tmsteph` laptop Brave profile reached `https://messages.google.com/web/conversations` and was verified paired/authenticated with the conversation list visible. Treat this as a temporary fallback and pairing reference, not the canonical host.
+- The phone Termux mesh is healthy through OVH on reverse port `22106`; `sshd` is supervised with a wake lock and `termux-sms-list` successfully returned recent SMS. This gives OVH/server-side agents a working SMS read path even while Google Messages Web on OVH is unpaired.
+- Do not equate a live CDP/browser process with application authentication. Check the Google Messages page state explicitly: `/web/conversations` indicates usable paired state; `/web/welcome` indicates the pairing/login checkpoint is still required.
+
+Where a messaging workflow is exposed as an explicit Companion capability, prefer that named device capability over fragile cross-app UI simulation while preserving the same approval rules. Companion notification access is the intended third redundant path alongside OVH Google Messages and Termux/SMS.
 
 ### Lighthouse
 
