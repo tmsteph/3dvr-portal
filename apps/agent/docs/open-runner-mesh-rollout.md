@@ -6,7 +6,7 @@ Goal: make 3DVR remote control portable across cloud servers, Termux, and laptop
 
 ## Current verified state
 
-The Hetzner Open Runner is now mesh-aware. It accepts an exact ingress `device` and supports two actions:
+The Hetzner Open Runner is mesh-aware. It accepts an exact ingress `device` and supports two actions:
 
 - `shell` — execute on the ingress machine itself.
 - `mesh-shell` — relay the command over the allowlisted 3DVR SSH mesh to a named target.
@@ -16,11 +16,13 @@ Verified on 2026-09-16:
 - ChatGPT GitHub connector → private queue → Hetzner → local shell works.
 - ChatGPT GitHub connector → Hetzner → `mesh-shell` → OVH works.
 - ChatGPT GitHub connector → Hetzner → `mesh-shell` → DigitalOcean works.
-- OVH and DigitalOcean do not currently have independent `gh` authentication, so we deliberately did **not** copy the Hetzner GitHub credential to them.
-- `termux-phone` is registered in the routing map but its reverse SSH tunnel is currently offline/refusing connections.
-- `laptop` is registered in the routing map but is not yet enrolled as a live SSH-mesh endpoint.
+- ChatGPT GitHub connector → Hetzner → `mesh-shell` → `termux-phone` works through OVH port `22106`.
+- Termux now has a persistent `03-3dvr-mesh-termux-phone` Termux:Boot entry and the current `ask-device` mesh implementation installed.
+- Hetzner's mesh key is authorized on Termux and its `3dvr-termux-phone` alias uses OVH as the jump host.
+- OVH and DigitalOcean do not need independent GitHub credentials for normal control; we deliberately did **not** copy the Hetzner GitHub credential to them.
+- `laptop` remains un-enrolled. Its old accidental alias/tunnel was removed from Termux, OVH, and DigitalOcean.
 
-This already makes OVH and DigitalOcean controllable without Remote Desktop Commander. Termux and the laptop will become reachable through the same command path as soon as their edge tunnels are online.
+This makes Hetzner, OVH, DigitalOcean, and Termux controllable without Remote Desktop Commander. The laptop joins the same path once it is enrolled from the laptop itself.
 
 ## Topology
 
@@ -71,11 +73,13 @@ Termux recovery/enrollment:
 apps/agent/tools/join-open-runner-edge.sh termux-phone 22106
 ```
 
-Laptop enrollment:
+Laptop enrollment, run **on the laptop itself**:
 
 ```bash
 apps/agent/tools/join-open-runner-edge.sh laptop 22934
 ```
+
+Do not paste the laptop enrollment command into Termux. On 2026-09-16 that accidentally created a second phone tunnel on port `22934`; it was removed after verification. Comment labels such as `# Termux` and `# Laptop` are documentation only and should not be pasted into shells that do not treat them as comments.
 
 The mesh script creates the reverse tunnel through OVH and writes the corresponding remote SSH aliases. Once the reverse listener is healthy, Hetzner's existing `mesh-shell` routing can use that target without giving the edge a GitHub token.
 
@@ -95,7 +99,7 @@ The mesh script creates the reverse tunnel through OVH and writes the correspond
 Today:
 
 1. GitHub queue → Hetzner Open Runner.
-2. Hetzner → OVH / DigitalOcean / enrolled edges over SSH mesh.
+2. Hetzner → OVH / DigitalOcean / Termux / enrolled edges over SSH mesh.
 3. Direct human SSH to the cloud mesh.
 4. Provider console as final recovery.
 
