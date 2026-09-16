@@ -1,6 +1,6 @@
 # 3DVR Infrastructure Topology
 
-Last reviewed: 2026-09-15
+Last reviewed: 2026-09-16
 
 This document is the canonical human-readable inventory for the 3DVR compute mesh. Runtime secrets and private keys must never be stored here.
 
@@ -14,7 +14,7 @@ For ChatGPT sessions acting through connectors, the connector-visible mirror is 
 | --- | --- | --- | --- |
 | OVH | `40.160.137.41` | Primary portal / control + recovery anchor | Stable self-hosted portal/control plane plus rendezvous for roaming devices and recovery |
 | DigitalOcean | `167.172.193.194` | Emergency fallback / lightweight control | Debian 13 `debian-web`; 1 vCPU, 1 GB RAM, 25 GB disk; keep production and heavy workers off this node |
-| Hetzner | `167.233.174.20` | Agent / worker runtime | Dedicated `apps/agent` runtime, Forge worker, and background jobs |
+| Hetzner | `167.233.174.20` | Agent / worker runtime | Dedicated `apps/agent` runtime, Forge worker, background jobs, and Open Runner remote-command ingress |
 
 There is one DigitalOcean droplet in the current account inventory. Do not assume a second DigitalOcean node exists.
 
@@ -27,10 +27,33 @@ Agents must route work by role, not by whichever host they happen to be running 
   - `/home/debian/.config/3dvr/browser-profiles/encore` — Encore/UltiPro workspace, CDP `9333`
   - `/home/debian/.config/3dvr/browser-profiles/messaging` — WhatsApp + Google Messages, CDP `9444`
   - `/home/debian/.config/3dvr/browser-profiles/training` — Encore training workspace, CDP `9555` when enabled
-- **Hetzner**: default compute for agents. Run Forge/Operator, code/build/test, scheduled and batch jobs, context routing, organism sync, supervisors, and GitHub publishing here.
+- **Hetzner**: default compute for agents. Run Forge/Operator, code/build/test, scheduled and batch jobs, context routing, organism sync, supervisors, GitHub publishing, and the Open Runner here.
 - **DigitalOcean / `debian-web`**: lightweight fallback only. Keep concurrency low. Its reduced agent runtime may host the lightweight worker, inbox, outreach, heartbeat, health, and emergency control, while context/organism helper work is offloaded. Do not add heavy builds, batch workloads, duplicate helpers, persistent experiments, or new browser/VNC workloads.
 
 Use the SSH aliases `3dvr-ovh`, `3dvr-hetzner`, and `3dvr-do` to route work. If the correct node is unavailable, surface the blocker rather than silently duplicating a service elsewhere. Preserve browser/login state and never move credentials by printing or logging secrets.
+
+## Independent remote command control — 2026-09-16
+
+The canonical general-purpose assistant-to-server escape hatch is the open-source **3DVR Open Runner**, documented in [`apps/agent/docs/open-remote-runner.md`](../apps/agent/docs/open-remote-runner.md).
+
+Current verified path:
+
+> ChatGPT GitHub connector / human GitHub client → private command issue → `3dvr-open-runner.service` on Hetzner → local shell and/or SSH mesh → result posted to the issue
+
+A live smoke test on 2026-09-16 verified that a command submitted through the GitHub connector was executed on Hetzner and closed with its result. A second command through the same path verified SSH reachability from Hetzner to both OVH and DigitalOcean.
+
+This path is deliberately independent of Remote Desktop Commander. Hosted remote-control products may remain optional convenience paths, but their subscription state, monthly tool-call quota, outage, or removal must not prevent routine server administration or recovery.
+
+Control-path preference for server work is:
+
+1. Open Runner + private GitHub queue for remote assistant/human command submission.
+2. Direct SSH / 3DVR SSH mesh for low-level administration and recovery.
+3. 3DVR MCP control gateway for safer allowlisted structured actions.
+4. Portal / Operator as the user-facing control surface over those same capabilities.
+5. Proprietary remote-desktop/command tools only as optional convenience.
+6. Provider console as the final recovery path.
+
+GitHub is the current queue transport, not the architecture itself. If GitHub is unavailable or undesirable, the runner/execution contract should be reusable behind another queue or peer transport. Do not create a new single point of failure by making GitHub the only possible recovery mechanism.
 
 ## Edge / operator nodes
 
@@ -104,7 +127,7 @@ Avoid background workers and repeated production builds on this 1 GB node.
 
 ### Hetzner — agent/worker node
 
-Keep the separately deployed `apps/agent` runtime here. Hetzner is the default home for the Operator/Forge worker, campaign workers, batch processing, scheduled agents, and other workloads that should not destabilize the portal/control endpoint.
+Keep the separately deployed `apps/agent` runtime here. Hetzner is the default home for the Operator/Forge worker, campaign workers, batch processing, scheduled agents, Open Runner, and other workloads that should not destabilize the portal/control endpoint.
 
 ## Release behavior
 
@@ -113,6 +136,8 @@ The self-hosted production workflow no longer runs on every push to `main`. It r
 ## Health monitoring
 
 `.github/workflows/cloud-health.yml` probes OVH, Hetzner, and DigitalOcean over SSH once per hour and can also be dispatched manually. A failed probe produces a failed workflow run instead of silently leaving a dead control path undiscovered.
+
+Open Runner health should be checked independently of Desktop Commander. At minimum, verify `3dvr-open-runner.service`, GitHub queue access, and direct SSH reachability so failure of one convenience transport cannot masquerade as loss of server control.
 
 ## Reliability rules
 
@@ -124,12 +149,16 @@ The self-hosted production workflow no longer runs on every push to `main`. It r
 6. **Servers first; devices roam.** Phones and laptops may disappear from the network without breaking company automation.
 7. **Edge nodes are optional capacity.** LicheePi outages must not prevent cloud automation from operating.
 8. **Production is release-driven.** A burst of commits must not become a burst of live server restarts.
+9. **No proprietary control dependency.** Paid or hosted remote-control tools may improve convenience but must never be the only path to administer, repair, or migrate 3DVR infrastructure.
+10. **Transports are replaceable.** GitHub currently transports Open Runner tasks, but direct SSH and provider-console recovery remain independent paths and the runner must be portable to another queue.
 
 ## Immediate resilience backlog
 
 - [ ] Verify the current cloud SSH mesh workflow succeeds end-to-end after the latest key changes.
 - [x] Add a lightweight recurring health probe for all three cloud nodes.
 - [ ] Extend health monitoring to explicitly record all six cloud-to-cloud SSH directions.
+- [x] Deploy and verify an open-source remote command path that does not depend on Remote Desktop Commander.
+- [ ] Add a second Open Runner transport or documented non-GitHub queue option so GitHub is not the only assistant-facing command transport.
 - [ ] Decide and document backup/restore policy for DigitalOcean; it currently has no provider snapshots/backups visible in the account inventory.
 - [ ] Inventory persistent services and data directories on OVH, DigitalOcean, and Hetzner.
 - [x] Assign the portal/control plane, workers, and fallback roles to explicit cloud nodes.
@@ -147,6 +176,7 @@ The three cloud servers should feel like one small resilient computer, with OVH 
 - reproducible deployments,
 - explicit state ownership,
 - recoverable data,
+- open and replaceable control transports,
 - workloads that can move without mystery dependencies,
 - phones, laptops, and RISC-V hardware joining as disposable edge/operator nodes rather than becoming single points of failure.
 
