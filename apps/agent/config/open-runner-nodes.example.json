@@ -1,12 +1,16 @@
 {
   "queue_repo": "tmsteph/3dvr-terminal-bridge",
+  "device_id": "hetzner",
   "allowed_authors": ["tmsteph"],
   "poll_interval_seconds": 20,
-  "nodes": {
-    "hetzner": {"device_id": "hetzner", "role": "worker"},
-    "ovh": {"device_id": "ovh", "role": "control-recovery"},
-    "digitalocean": {"device_id": "digitalocean", "role": "fallback"},
-    "termux-phone": {"device_id": "termux-phone", "role": "edge"},
-    "laptop": {"device_id": "laptop", "role": "operator-edge"}
+  "ssh_targets": {
+    "ovh": "3dvr-ovh",
+    "digitalocean": "3dvr-do",
+    "termux-phone": "3dvr-termux-phone",
+    "laptop": "3dvr-laptop"
+  },
+  "notes": {
+    "ingress": "One exact queue ingress device polls GitHub; mesh-shell relays to allowlisted SSH targets.",
+    "direct_runners": "Additional nodes may run their own exact-target runner only with independent scoped GitHub authentication."
   }
 }
