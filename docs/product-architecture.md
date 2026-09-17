@@ -1,6 +1,6 @@
 # 3DVR Product Architecture
 
-Status: working product-design direction, August 2026.
+Status: working product-design direction, September 2026.
 
 ## Product design rule
 
@@ -18,14 +18,40 @@ If two products cannot answer those questions differently, merge them.
 ## Core mental model
 
 ### Portal
-**Job:** Home and navigation.
+**Job:** Personal operating environment and capability shell.
 
-The Portal is the front door. It should not try to be another workspace itself. It should show identity/status, Operator, a small number of primary destinations, and search for everything else.
+The Portal is the persistent interface to 3DVR. It should feel less like a traditional website and more like a portable computing environment composed from small capabilities.
+
+A useful shorthand is:
+
+> **Portal = identity + data + capabilities + automation + agents + devices**
+
+The Portal should not become one giant monolithic workspace. Instead, it coordinates identity, permissions, personal data, tools, workflows, agents, and connected devices so they feel like one coherent system.
+
+The user should see intent-level actions such as **Update Availability**, **Convert Image**, **Send Invoice**, or **Find Work** rather than having to understand which website, server, API, device, or browser session performs the work.
+
+The capability model is documented in [Portal Capability Platform](./portal-capability-platform.md).
+
+### Capability model
+
+A capability is the fundamental reusable unit of the Portal.
+
+Where practical, the same capability should support three modes:
+
+1. **Human-operated** through a simple Portal UI.
+2. **Workflow-operated** by another capability or automation.
+3. **Agent-operated** by Operator or another authorized agent.
+
+Capabilities may execute locally in the browser, through WebAssembly, on 3DVR infrastructure, on a connected personal device, through an external API, or via remote browser automation. Those execution details should remain behind a common contract.
+
+Default product rule:
+
+> Before adding another top-level app, ask whether it can be a capability, workflow, view, or provider inside the Portal.
 
 ### Operator
 **Job:** Tell 3DVR what you want and let the system act.
 
-Operator is the conversational control layer across 3DVR. It should route work into the appropriate product rather than duplicate the product's entire UI.
+Operator is the conversational control layer across 3DVR. It should route work into the appropriate product or capability rather than duplicate the product's entire UI.
 
 ### Guide
 **Job:** Help me decide what to do next when I am unclear or stuck.
@@ -106,6 +132,8 @@ Keep the first layer very small:
 - Forge
 - More
 
+The **More** surface should evolve toward searchable capabilities/tools rather than a miscellaneous collection of unrelated apps.
+
 Daily Direction can be prominent contextually (for example, on the home screen in the morning) without becoming another permanent top-level category.
 
 Launch Room can appear as the natural handoff from Guide when someone is ready to turn direction into a project.
@@ -167,18 +195,20 @@ Current recommended names:
 ## Migration order
 
 1. Stop adding new top-level app names unless a genuinely new job exists.
-2. Reserve **Forge** for the current code/build/change system.
-3. Create **Guide** as the canonical direction flow and migrate the best pieces of old Forge and Next Move Lab into it.
-4. Remove old Forge wording from the planning experience and redirect old planning links safely.
-5. Consolidate Growth Desk and Revenue Desk into a single Growth experience.
-6. Move Tasks under Projects/Operator and retire the top-level Tasks entry.
-7. Redesign Portal navigation around the reduced product set.
-8. Preserve old URLs with redirects so existing links do not break.
+2. Establish the **capability** concept and common manifest across abilities, workflows, agents, and tools.
+3. Turn the existing abilities registry into the seed of a searchable Tools / Capabilities surface.
+4. Reserve **Forge** for the current code/build/change system.
+5. Create **Guide** as the canonical direction flow and migrate the best pieces of old Forge and Next Move Lab into it.
+6. Remove old Forge wording from the planning experience and redirect old planning links safely.
+7. Consolidate Growth Desk and Revenue Desk into a single Growth experience.
+8. Move Tasks under Projects/Operator and retire the top-level Tasks entry.
+9. Redesign Portal navigation around the reduced product set and capability discovery.
+10. Preserve old URLs with redirects so existing links do not break.
 
 ## Product-quality gate
 
 Before creating a new app or top-level name, ask:
 
-> Can this be a feature, mode, view, or workflow inside an existing 3DVR product?
+> Can this be a feature, mode, view, workflow, provider, or capability inside an existing 3DVR product?
 
 If yes, do that first.
