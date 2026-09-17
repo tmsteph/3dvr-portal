@@ -6,7 +6,7 @@ import {
   buildWorkSchedulePlan,
 } from '../src/work-schedule-coordinator.js';
 
-test('outside booked work creates an Encore time-off action and marks IATSE booked', () => {
+test('confirmed outside work with an approved rate creates an Encore time-off action and marks IATSE booked', () => {
   const plan = buildWorkSchedulePlan({
     horizonStart: '2026-09-01',
     horizonEnd: '2026-09-07',
@@ -17,6 +17,8 @@ test('outside booked work creates an Encore time-off action and marks IATSE book
       endDate: '2026-09-04',
       source: 'iatse',
       status: 'Booked',
+      confirmed: true,
+      rateApproved: true,
     }],
   });
 
@@ -26,6 +28,23 @@ test('outside booked work creates an Encore time-off action and marks IATSE book
     action.type === SCHEDULE_ACTION_TYPES.REQUEST_ENCORE_OFF
     && action.date === '2026-09-04'
   )));
+});
+
+test('Encore time-off stays blocked until dates are confirmed and rate is approved', () => {
+  const plan = buildWorkSchedulePlan({
+    horizonStart: '2026-09-01',
+    horizonEnd: '2026-09-07',
+    gigs: [
+      { id: 'tentative', date: '2026-09-04', source: 'freelance', status: 'Booked', rateApproved: true },
+      { id: 'cheap', date: '2026-09-05', source: 'freelance', status: 'Booked', confirmed: true },
+    ],
+  });
+
+  assert.equal(plan.iatseAvailability['2026-09-04'], 'Booked');
+  assert.equal(plan.iatseAvailability['2026-09-05'], 'Booked');
+  assert.equal(plan.metrics.encoreRequestsNeeded, 0);
+  assert.equal(plan.metrics.encoreRequestsBlockedByGate, 2);
+  assert.equal(plan.actions.some(action => action.type === SCHEDULE_ACTION_TYPES.REQUEST_ENCORE_OFF), false);
 });
 
 test('planner protects two consecutive rest days when the week allows it', () => {

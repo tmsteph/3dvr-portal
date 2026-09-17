@@ -32,8 +32,8 @@ export const FREELANCE_BOOKING_POLICY = Object.freeze([
   {
     id: 'release-first',
     level: 'hard',
-    title: 'Never assume Encore released a date',
-    summary: 'When better work wins a conflict, request the release or time off before calling it resolved.',
+    title: 'Only ask Encore off for confirmed better work',
+    summary: 'Do not request Encore time off until the outside company confirms the dates and the rate has been approved as worthwhile.',
   },
   {
     id: 'rate-quality',

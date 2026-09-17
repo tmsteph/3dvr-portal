@@ -72,6 +72,20 @@ function isOutsideWork(record = {}) {
   return record.source !== 'encore';
 }
 
+function hasConfirmedDates(record = {}) {
+  const status = String(record.confirmationStatus || '').trim().toLowerCase();
+  return record.confirmed === true || status === 'confirmed';
+}
+
+function hasApprovedRate(record = {}) {
+  const decision = String(record.rateDecision || record.rateQuality || '').trim().toLowerCase();
+  return record.rateApproved === true || ['approved', 'good', 'worth-it', 'worth_it'].includes(decision);
+}
+
+function isEncoreTimeOffEligible(record = {}) {
+  return hasConfirmedDates(record) && hasApprovedRate(record);
+}
+
 function uniqueBy(items, keyFn) {
   const seen = new Set();
   return items.filter(item => {
@@ -208,8 +222,12 @@ export function buildWorkSchedulePlan({
     else iatseAvailability[date] = 'All Day';
   });
 
+  const encoreTimeOffDates = new Map(
+    [...outsideDates.entries()].filter(([, gig]) => isEncoreTimeOffEligible(gig)),
+  );
+
   const actions = [];
-  outsideDates.forEach((gig, date) => {
+  encoreTimeOffDates.forEach((gig, date) => {
     actions.push({
       id: `encore-off:${date}:${gig.id || gig.title}`,
       type: SCHEDULE_ACTION_TYPES.REQUEST_ENCORE_OFF,
@@ -265,7 +283,8 @@ export function buildWorkSchedulePlan({
       encoreSoftDays: softEncoreDates.size,
       restDays: new Set(restDays).size,
       conflicts: conflicts.length,
-      encoreRequestsNeeded: outsideDates.size,
+      encoreRequestsNeeded: encoreTimeOffDates.size,
+      encoreRequestsBlockedByGate: outsideDates.size - encoreTimeOffDates.size,
     },
   };
 }
