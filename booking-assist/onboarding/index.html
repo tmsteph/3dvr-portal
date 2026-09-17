@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Set up Booking Assist | 3DVR</title>
+  <meta name="description" content="Set up 3DVR Booking Assist for Lighthouse, IATSE, and Encore/UKG.">
+  <link rel="stylesheet" href="../../styles/global.css">
+  <style>
+    :root { color-scheme: dark; }
+    body { margin:0; min-height:100vh; background:#090b10; color:#f5f7fb; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    .shell { width:min(820px,calc(100% - 32px)); margin:0 auto; padding:24px 0 60px; }
+    a { color:#c7d4ff; }
+    .brand { color:#fff; text-decoration:none; font-weight:850; letter-spacing:.08em; }
+    .hero { padding:8vh 0 32px; }
+    .eyebrow { color:#9fb4ff; font-weight:800; letter-spacing:.12em; text-transform:uppercase; font-size:.78rem; }
+    h1 { font-size:clamp(2.4rem,7vw,4.8rem); line-height:.98; letter-spacing:-.04em; margin:.5rem 0 1rem; }
+    .lede { color:#c4ccda; font-size:1.15rem; line-height:1.6; }
+    .steps { display:grid; gap:16px; }
+    .step { border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.045); border-radius:24px; padding:24px; }
+    .step h2 { margin:.2rem 0 .6rem; font-size:1.35rem; }
+    .step p { color:#bdc5d3; line-height:1.6; margin:.4rem 0; }
+    .num { color:#8fa7ff; font-size:.8rem; font-weight:850; }
+    .button { display:inline-flex; margin-top:12px; min-height:48px; padding:0 20px; align-items:center; justify-content:center; border-radius:999px; background:#fff; color:#0a0d12; text-decoration:none; font-weight:800; }
+    .note { margin-top:24px; padding:20px; border-radius:20px; background:#0d131d; border:1px solid rgba(255,255,255,.09); color:#c4ccda; line-height:1.6; }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <a class="brand" href="../../">3DVR</a>
+    <section class="hero">
+      <p class="eyebrow">Booking Assist setup</p>
+      <h1>Connect once. We handle the repetitive bridge.</h1>
+      <p class="lede">The production onboarding flow is being hardened for multiple customers. For the founding beta, setup uses the existing 3DVR secure access system and a short assisted connection session.</p>
+    </section>
+
+    <section class="steps">
+      <article class="step"><span class="num">01</span><h2>Create your secure workspace</h2><p>Your account gets an isolated Booking Assist identity, browser workspace, connector aliases, policies, and audit history. Your credentials are never committed to GitHub or stored in the public site.</p></article>
+      <article class="step"><span class="num">02</span><h2>Connect Lighthouse, IATSE, and Encore/UKG</h2><p>Preferred path: sign in directly inside the isolated browser session and preserve the authenticated session. When a stored credential is necessary, it goes through the 3DVR Secrets Broker into encrypted secret storage and is exposed only to the connector that needs it.</p><a class="button" href="../../access/">Open secure access</a></article>
+      <article class="step"><span class="num">03</span><h2>Choose your rules</h2><p>Tell Booking Assist what should count as booked, unavailable, or protected, plus any rules that should always require your approval. The first preset is simple: Lighthouse booked dates update IATSE availability and trigger the corresponding Encore time-off workflow.</p></article>
+      <article class="step"><span class="num">04</span><h2>Let the agent reconcile</h2><p>The backend checks connection health, reads schedule state, detects mismatches, queues required updates, and records evidence of each action. MFA, CAPTCHA, unusual conflicts, and destructive or high-impact actions stop for you.</p></article>
+    </section>
+
+    <div class="note"><strong>Security rule:</strong> do not paste Lighthouse, IATSE, Encore, Microsoft, or UKG passwords into chat. The finished onboarding flow will provide connector-specific secure inputs or direct sign-in sessions on the 3DVR control plane.</div>
+  </main>
+</body>
+</html>
