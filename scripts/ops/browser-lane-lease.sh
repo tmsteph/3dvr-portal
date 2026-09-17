@@ -9,7 +9,7 @@ Usage:
   browser-lane-lease.sh release <lane> <token>
   browser-lane-lease.sh status [lane]
 
-Lanes: general, encore, messaging, training
+Lanes: action-1, action-2, identity, interactive, general, encore, messaging, training
 USAGE
   exit 64
 }
@@ -17,12 +17,14 @@ USAGE
 state_dir="${THREEDVR_BROWSER_LEASE_DIR:-/run/lock/3dvr-browser-lanes}"
 default_ttl="${THREEDVR_BROWSER_LEASE_TTL:-900}"
 action="${1:-}"
+lanes=(action-1 action-2 identity interactive general encore messaging training)
 
 valid_lane() {
-  case "$1" in
-    general|encore|messaging|training) return 0 ;;
-    *) return 1 ;;
-  esac
+  local candidate="$1" item
+  for item in "${lanes[@]}"; do
+    [ "$candidate" = "$item" ] && return 0
+  done
+  return 1
 }
 
 valid_uint() {
@@ -132,7 +134,7 @@ case "$action" in
       valid_lane "$2" || usage
       status_one "$2"
     else
-      for item in general encore messaging training; do status_one "$item"; done
+      for item in "${lanes[@]}"; do status_one "$item"; done
     fi
     ;;
   *) usage ;;
