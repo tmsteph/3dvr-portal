@@ -50,3 +50,22 @@ test('browser lanes allow one writer and hide lease tokens from status', async (
     await rm(stateDir, { recursive: true, force: true });
   }
 });
+
+test('runtime exposes two action lanes plus protected identity and interactive lanes', async () => {
+  const stateDir = await mkdtemp(join(tmpdir(), '3dvr-browser-runtime-'));
+  try {
+    for (const lane of ['action-1', 'action-2', 'identity', 'interactive']) {
+      const acquired = run(stateDir, ['acquire', lane, `worker-${lane}`, '60']);
+      assert.equal(acquired.status, 0, `${lane}: ${acquired.stderr}`);
+    }
+
+    const status = run(stateDir, ['status']);
+    assert.equal(status.status, 0, status.stderr);
+    assert.match(status.stdout, /lane=action-1 state=leased owner=worker-action-1/);
+    assert.match(status.stdout, /lane=action-2 state=leased owner=worker-action-2/);
+    assert.match(status.stdout, /lane=identity state=leased owner=worker-identity/);
+    assert.match(status.stdout, /lane=interactive state=leased owner=worker-interactive/);
+  } finally {
+    await rm(stateDir, { recursive: true, force: true });
+  }
+});
