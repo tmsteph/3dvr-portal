@@ -184,8 +184,8 @@ The three cloud servers should feel like one small resilient computer, with OVH 
 
 Authenticated services must follow [`docs/persistent-access-contract.md`](./persistent-access-contract.md). Workforce access details for IATSE, UKG, SharePoint, and Lighthouse are in [`docs/workforce-access-runbook.md`](./workforce-access-runbook.md). Agents verify configured → reachable → operational → authenticated before asking Thomas to reconnect. Persistent browser sessions belong on OVH; restart the same profile before considering re-pair/login, and treat missing profile storage as an infrastructure fault rather than a reason to create a new profile.
 
-## Browser writer lease update — 2026-09-08
+## Browser writer lease update — 2026-09-16
 
 OVH currently exposes four persistent browser lanes: general `/home/debian/.config/google-chrome-for-testing` on CDP `9222`, Encore/UKG `/home/debian/.config/3dvr/browser-profiles/encore` on `9333`, messaging `/home/debian/.config/3dvr/browser-profiles/messaging` on `9444`, and Encore University `/home/debian/.config/3dvr/browser-profiles/training` on `9555` when enabled.
 
-The CDP bridge exposes these as `19222`, `19333`, `19444`, and `19555`. Any agent changing page state must first acquire the matching cooperative writer lease through `/usr/local/bin/3dvr-browser-lease`. Only one writer may hold a lane at once; read-only inspection may be concurrent. Expiring leases allow recovery when an agent disappears without restarting or cloning authenticated browser state.
+The authenticated Chromium lanes now run directly as host systemd services and browser tooling on OVH connects to their local CDP ports. The former Docker/network-namespace CDP bridge on `19222`–`19555` is retired and disabled; do not recreate it unless the browser lanes move back into an isolated network namespace. Any agent changing page state must still acquire the matching cooperative writer lease through `/usr/local/bin/3dvr-browser-lease`. Only one writer may hold a lane at once; read-only inspection may be concurrent. Expiring leases allow recovery when an agent disappears without restarting or cloning authenticated browser state.

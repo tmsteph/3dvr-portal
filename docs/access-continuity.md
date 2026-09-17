@@ -16,7 +16,7 @@ Before asking Thomas to reconnect, re-pair, re-authorize, or re-enter credential
 4. Try the documented fallback path, including 3DVR Companion or the device mesh when the target is a device.
 5. Ask Thomas for a human checkpoint only when the provider or OS actually requires login, MFA, CAPTCHA, device pairing, consent, permission enablement, or another non-delegable step.
 
-A server restart, dead Chromium process, stale CDP bridge, stopped Companion service, suspended Termux process, or new chat is not by itself a reason to ask Thomas to sign in or reconnect again.
+A server restart, dead Chromium process, stopped Companion service, suspended Termux process, or new chat is not by itself a reason to ask Thomas to sign in or reconnect again.
 
 ## Access layers
 
@@ -35,7 +35,7 @@ OVH holds authenticated browser state. Reuse the existing profiles and never cre
 | `messaging` | WhatsApp + Google Messages / SMS | `9444` | `/home/debian/.config/3dvr/browser-profiles/messaging` |
 | `training` | Encore University / training | `9555` | `/home/debian/.config/3dvr/browser-profiles/training` |
 
-The CDP bridge exposes these as `19222`, `19333`, `19444`, and `19555`. Any state-changing automation must hold the matching `/usr/local/bin/3dvr-browser-lease` writer lease. Read-only inspection may be concurrent.
+Browser tooling on OVH connects directly to these local CDP ports. The former Docker/network-namespace CDP bridge is retired and disabled. Any state-changing automation must still hold the matching `/usr/local/bin/3dvr-browser-lease` writer lease. Read-only inspection may be concurrent.
 
 ### 3. 3DVR Companion device access
 
@@ -68,7 +68,6 @@ Credentials belong behind the 3DVR secrets broker with Bitwarden as the backend.
 For a browser-backed integration, classify the failure before escalating:
 
 - **CDP down, profile intact:** restart/recover the existing lane process using the same durable profile, then re-test.
-- **Bridge down:** recover `3dvr-cdp-bridge.service`, then re-test the lane.
 - **Page logged out:** try the approved secret-broker/autofill path if policy allows it.
 - **Provider requires MFA/CAPTCHA/device pairing:** request one explicit human checkpoint, then preserve the resulting session.
 - **Profile missing or corrupt:** treat as infrastructure failure. Restore the durable profile or backup; do not silently create a new identity.
@@ -114,7 +113,7 @@ Lighthouse access should be checked through the documented authenticated browser
 
 ## Health contract
 
-`scripts/ops/access-continuity-health.sh` performs a read-only local check of the persistent browser ports, CDP bridge service, secrets broker, and lane leases. It intentionally does not log credentials or mutate browser state.
+`scripts/ops/access-continuity-health.sh` performs a read-only local check of the persistent browser ports, secrets broker, and lane leases. It intentionally does not log credentials or mutate browser state.
 
 Device health should become equally explicit: Companion registration/relay health and Termux mesh health should be independently testable so an agent can distinguish an Android capability failure from an SSH/tunnel failure.
 
@@ -125,7 +124,7 @@ The desired steady state is automatic verification plus self-healing for process
 - `docs/agent-access-map.md` — canonical map of connectors, servers, browsers, Companion, Termux, and device paths.
 - `/abilities/` — user-facing capability/status inventory.
 - `abilities/abilities.json` — machine-readable capability registry.
-- `docs/infrastructure-topology.md` — node roles, browser lanes, SSH/device mesh, and CDP bridge topology.
+- `docs/infrastructure-topology.md` — node roles, browser lanes, and SSH/device mesh topology.
 - `docs/workforce-access-runbook.md` — exact IATSE, UKG, SharePoint, and Lighthouse login/recovery procedures and failure history.
 - `apps/companion/README.md` — 3DVR Companion architecture and permission model.
 - `apps/companion/BOOTSTRAP.md` — current Android Companion bootstrap and activation state.

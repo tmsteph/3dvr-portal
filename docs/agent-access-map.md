@@ -83,7 +83,7 @@ OVH owns durable browser identity. Reuse these profiles instead of creating fres
 | `messaging` | WhatsApp Web + Google Messages/SMS | `9444` |
 | `training` | Encore University / training | `9555` |
 
-The CDP bridge exposes them as `19222`, `19333`, `19444`, and `19555`. State-changing browser automation must respect the cooperative writer lease documented elsewhere in the repo.
+Browser tooling on OVH connects directly to these local CDP ports. The former Docker/network-namespace CDP bridge is retired. State-changing browser automation must still respect the cooperative writer lease documented elsewhere in the repo.
 
 ### Messaging host ownership and current state
 

@@ -22,8 +22,9 @@ check_service() {
 check_port general 9222
 check_port encore 9333
 check_port messaging 9444
-check_port training 9555
-check_service 3dvr-cdp-bridge.service
+if systemctl is-enabled --quiet 3dvr-browser-lane@training.service 2>/dev/null || systemctl is-active --quiet 3dvr-browser-lane@training.service 2>/dev/null; then
+  check_port training 9555
+fi
 check_service 3dvr-secrets-broker.service
 
 if command -v /usr/local/bin/3dvr-browser-lease >/dev/null 2>&1; then
