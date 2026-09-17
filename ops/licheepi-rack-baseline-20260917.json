@@ -1,0 +1,29 @@
+{
+  "checkedAt": "2026-09-17T05:05:59.185441+00:00",
+  "ok": true,
+  "hostname": "lpi4a",
+  "knownGoodKernel": "5.10.113+",
+  "stagedKernel": "6.6.140-th1520",
+  "durableExtlinuxDefaultUnchanged": true,
+  "ethernet": {
+    "interface": "end0",
+    "address": "10.21.77.169/24",
+    "defaultRouteMetric": 100
+  },
+  "wifi": {
+    "interface": "wlan0",
+    "address": "172.25.6.107/22",
+    "defaultRouteMetric": 600
+  },
+  "remotePaths": {
+    "ovh": true,
+    "hetzner": true,
+    "digitalOcean": true
+  },
+  "cloudRescueRemotePort": 22923,
+  "piReverseSshRemotePort": 2223,
+  "rollbackBackup": "/home/debian/.3dvr/backups/licheepi/20260917T045807Z",
+  "revyos66Stage": "/boot/3dvr/revyos66",
+  "revyos66TrialConfig": "/boot/extlinux/revyos66-once.conf",
+  "normalBootConfigSha256": "b10e5fd42e9745adda4d06d96218124ae60cec709c68c7ce122e6d37b5c99188"
+}

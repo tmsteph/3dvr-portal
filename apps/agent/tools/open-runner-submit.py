@@ -8,7 +8,7 @@ import subprocess
 import sys
 
 DEFAULT_QUEUE = 'tmsteph/3dvr-terminal-bridge'
-MESH_TARGETS = {'ovh', 'digitalocean', 'termux-phone', 'laptop'}
+MESH_TARGETS = {'ovh', 'digitalocean', 'termux-phone', 'laptop', 'licheepi'}
 
 
 def main() -> int:

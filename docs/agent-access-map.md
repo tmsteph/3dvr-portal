@@ -74,7 +74,9 @@ Where available, prefer the 3DVR MCP/control gateway and Portal/Operator surface
 
 ## Persistent authenticated browser access
 
-OVH owns durable browser identity. Reuse these profiles instead of creating fresh sessions:
+This section describes Thomas's current single-user deployment. It is an operational access map, not the multi-user hosting API. In the hosted product, users receive isolated identity workspaces and a browser/session broker resolves logical lanes to hosts/processes dynamically; callers must not rely on these fixed ports.
+
+For Thomas's current deployment, OVH owns durable browser identity. Reuse these profiles instead of creating fresh sessions:
 
 | Lane | Purpose | CDP |
 | --- | --- | ---: |
@@ -83,7 +85,7 @@ OVH owns durable browser identity. Reuse these profiles instead of creating fres
 | `messaging` | WhatsApp Web + Google Messages/SMS | `9444` |
 | `training` | Encore University / training | `9555` |
 
-The CDP bridge exposes them as `19222`, `19333`, `19444`, and `19555`. State-changing browser automation must respect the cooperative writer lease documented elsewhere in the repo.
+Browser tooling on OVH connects directly to these local CDP ports. The former Docker/network-namespace CDP bridge is retired. State-changing browser automation must still respect the cooperative writer lease documented elsewhere in the repo.
 
 ### Messaging host ownership and current state
 

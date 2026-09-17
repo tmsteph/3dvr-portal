@@ -47,6 +47,11 @@
     <article class="card"><h3>Remember</h3><p>Record every action, outcome, booking, contact, and next step so any compatible AI can continue the work.</p></article>
   </div>
 
+  <h2>Swarm execution</h2>
+  <p>The Digital Twin can operate as a swarm of small, specialized AI workers coordinated through the existing durable queue. Instead of one giant agent doing everything, a coordinator can delegate work to Scouts, Booking Agents, Sales workers, Builders, Ops workers, Researchers, Archivists, and Treasurer/Supervisor functions.</p>
+  <p>Workers get only the capabilities needed for the task, run in parallel when resources are healthy, and stay queued when CPU, RAM, browser lanes, or API limits are tight. Routine work should use the cheapest adequate model or deterministic code; stronger models are reserved for work that actually needs them.</p>
+  <p class="principle"><strong>Many minds, one owner.</strong> The swarm may plan and execute in parallel, but the person's goals, identity, data, permissions, and durable memory remain anchored to the Digital Twin.</p>
+
   <h2>Portable by design</h2>
   <p>If the cloud server disappears or becomes unaffordable, the person should be able to restore the same twin on a normal Linux laptop and continue. State, policies, opportunities, contacts, task history, connector configuration, and private encrypted data must be exportable. Secrets stay behind logical aliases so they can be reconnected without being baked into backups.</p>
   <p>The target recovery experience is deliberately simple: <code>clone → install → restore → doctor → start</code>.</p>
@@ -64,9 +69,10 @@
   <p>This is not a blank-slate concept. The Portal already has durable SQLite agent execution, Workboard runtime state, Freelancer scheduling and booking policy, isolated persistent browser workspaces, OVH resource lanes, a roaming device mesh, Opportunity Inbox / Money Printer intelligence, and verified workforce access paths for IATSE, UKG/UltiPro, Encore SharePoint, and Lighthouse.</p>
 
   <h2>Next build</h2>
-  <p>Unify those pieces around a stable <code>twin_id</code>, connector registry, normalized Opportunity Inbox, resource-aware queue admission, first-class activity ledger, and portable export/restore tooling. Then prove the design with a second real person before scaling the managed service.</p>
+  <p>Unify those pieces around a stable <code>twin_id</code>, connector registry, normalized Opportunity Inbox, resource-aware queue admission, first-class activity ledger, portable export/restore tooling, and explicit swarm worker roles/capabilities. Then prove the design with a second real person before scaling the managed service.</p>
 
-  <p><a href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/digital-twin-booking-agent.md">Read the canonical architecture document on GitHub →</a></p>
+  <p><a href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/digital-twin-booking-agent.md">Read the canonical Digital Twin architecture →</a></p>
+  <p><a href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/digital-twin-swarm.md">Read the swarm execution model →</a></p>
 </main>
 </body>
 </html>
