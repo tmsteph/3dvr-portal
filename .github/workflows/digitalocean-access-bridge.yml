@@ -141,28 +141,31 @@ jobs:
           fi
 
           if [ "$pairing" -eq 1 ]; then
-            echo 'REMOTE_DESKTOP_COMMANDER_PAIRING_REQUIRED=1' >&2
-            echo 'The machine runtime is healthy; one browser approval is required.' >&2
-            exit 2
+            echo 'REMOTE_DESKTOP_COMMANDER_PAIRING_REQUIRED=1'
+            echo 'Optional adapter is awaiting browser authorization; DigitalOcean host access remains healthy.'
+            exit 0
           fi
 
-          echo 'Remote Desktop Commander did not reach Device ready state.' >&2
+          echo 'Remote Desktop Commander runtime failed before reaching ready/pairing state.' >&2
           systemctl --no-pager --full status "$unit" | sed -n '1,14p' || true
           exit 1
           REMOTE
 
-      - name: Capture pairing code privately
-        if: failure()
+      - name: Capture pairing code privately when present
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
+          [ -f /tmp/3dvr-do-key ] || exit 0
           opts=(-i /tmp/3dvr-do-key -o BatchMode=yes -o UserKnownHostsFile=/tmp/3dvr-known-hosts -o StrictHostKeyChecking=yes -o ConnectTimeout=10)
-          ssh "${opts[@]}" "$DO_USER@$DO_HOST" \
-            "journalctl -u desktop-commander-remote.service --since '-90 seconds' --no-pager | awk '/Enter this code when prompted:/{getline; code=\$NF} END{print code}'" \
-            > /tmp/desktop-commander-pairing-code.txt
-          chmod 600 /tmp/desktop-commander-pairing-code.txt
-          grep -Eq '^[A-Z0-9]{4}-[A-Z0-9]{4}$' /tmp/desktop-commander-pairing-code.txt
-          echo 'PAIRING_CODE_CAPTURED=1'
+          code="$(ssh "${opts[@]}" "$DO_USER@$DO_HOST" "journalctl -u desktop-commander-remote.service --since '-90 seconds' --no-pager | awk '/Enter this code when prompted:/{getline; code=\$NF} END{print code}'" || true)"
+          if printf '%s\n' "$code" | grep -Eq '^[A-Z0-9]{4}-[A-Z0-9]{4}$'; then
+            umask 077
+            printf '%s\n' "$code" > /tmp/desktop-commander-pairing-code.txt
+            echo 'PAIRING_CODE_CAPTURED=1'
+          else
+            echo 'PAIRING_CODE_CAPTURED=0'
+          fi
 
       - name: Upload pairing code artifact
         if: always()
