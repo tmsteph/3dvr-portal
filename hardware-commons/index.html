@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hardware Commons | 3DVR Portal</title>
+  <meta name="description" content="3DVR Hardware Commons: community-owned, repairable, reproducible computing hardware and local manufacturing.">
+  <link rel="stylesheet" href="../style.css?v=hardware-commons">
+  <link rel="stylesheet" href="../open-source/styles.css?v=hardware-commons-20260916">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="open-source-page">
+  <nav class="opensource-nav" aria-label="Hardware Commons navigation">
+    <a href="../index.html">Portal</a>
+    <a href="/open-source/">Open Source</a>
+    <a href="#ladder">Build Ladder</a>
+    <a href="#first-project">First Project</a>
+    <a href="#community">Community</a>
+  </nav>
+
+  <header class="open-hero">
+    <section class="hero-copy" aria-labelledby="hardware-commons-title">
+      <p class="eyebrow">3DVR Hardware Commons</p>
+      <h1 id="hardware-commons-title">Build the machines together.</h1>
+      <p>
+        Community-owned hardware means publishing the recipe: designs, parts, firmware, repair knowledge,
+        manufacturing notes, failures, and improvements. Start with things people can build today and climb
+        toward increasingly local computing production.
+      </p>
+      <div class="hero-actions">
+        <a class="action primary" href="#first-project">Start building</a>
+        <a class="action" href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/hardware-commons.md" target="_blank" rel="noopener">Read the roadmap</a>
+        <a class="action" href="/open-source/">Open Source field guide</a>
+      </div>
+    </section>
+
+    <section class="system-board" aria-label="Hardware Commons system map">
+      <div class="node node-os">Linux</div>
+      <div class="node node-browser">RISC-V</div>
+      <div class="node node-art">Repair</div>
+      <div class="node node-hardware">Boards</div>
+      <div class="node node-ecology">Local Fab</div>
+      <div class="node node-cad">CAD</div>
+      <div class="center-node">Commons</div>
+    </section>
+  </header>
+
+  <main>
+    <section class="principles" aria-labelledby="principles-title">
+      <div class="section-intro">
+        <p class="eyebrow">The Rule</p>
+        <h2 id="principles-title">A design is not finished until the community can reproduce it.</h2>
+        <p>
+          Hardware openness is more than posting a schematic. A useful commons includes a current BOM,
+          source files, assembly steps, repair procedures, testing, licensing, and honest documentation of what failed.
+        </p>
+      </div>
+      <div class="cards three-up">
+        <article class="guide-card">
+          <span class="kicker">Understand</span>
+          <h3>Publish the recipe</h3>
+          <p>CAD, schematics, firmware, sourcing, testing, and known limitations stay visible.</p>
+        </article>
+        <article class="guide-card">
+          <span class="kicker">Own</span>
+          <h3>Repair before replace</h3>
+          <p>Prefer standard parts, screws, sockets, replaceable modules, and documented service paths.</p>
+        </article>
+        <article class="guide-card">
+          <span class="kicker">Reproduce</span>
+          <h3>Move production closer</h3>
+          <p>Shift what we can from distant factories toward builders, shops, schools, co-ops, and local microfactories.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="stack-section" id="ladder" aria-labelledby="ladder-title">
+      <div class="section-intro">
+        <p class="eyebrow">Build Ladder</p>
+        <h2 id="ladder-title">Start easy. Climb the stack.</h2>
+        <p>Each stage should create useful hardware and stronger community capability even if the later stages take years.</p>
+      </div>
+      <div class="gap-list">
+        <article><strong>0 · Commons infrastructure</strong><span>Templates, BOMs, contribution board, shared tool inventory, build documentation.</span></article>
+        <article><strong>1 · Buildable hardware</strong><span>Keyboards, cases, mounts, adapters, repair parts, simple electronics, community assembly days.</span></article>
+        <article><strong>2 · Community computer</strong><span>RISC-V where practical, Debian/Linux, modular compute, open enclosure and carrier-board files.</span></article>
+        <article><strong>3 · Open boards</strong><span>Open EDA, pooled PCB orders, soldering, rework, inspection, fixtures, and repeatable testing.</span></article>
+        <article><strong>4 · Microfactory</strong><span>3D printing, CNC, laser cutting, PCB assembly, cables, device imaging, testing, repair.</span></article>
+        <article><strong>5 · Silicon</strong><span>FPGA-first processors, open PDK learning, RISC-V cores, HackerFab and Libre-SOC collaboration.</span></article>
+      </div>
+    </section>
+
+    <section class="stack-section" id="first-project" aria-labelledby="first-project-title">
+      <div class="section-intro">
+        <p class="eyebrow">First Concrete Build</p>
+        <h2 id="first-project-title">3DVR Open Split Keyboard</h2>
+        <p>
+          Begin with something useful, achievable, repairable, and directly connected to 3DVR's computing vision:
+          an ergonomic split keyboard that works at a desk today and can evolve toward comfortable VR typing.
+        </p>
+      </div>
+      <div class="cards three-up">
+        <article class="guide-card">
+          <span class="kicker">V0</span>
+          <h3>Off-the-shelf first</h3>
+          <p>Standard switches, accessible controller, wired connection, printable case, and open firmware.</p>
+        </article>
+        <article class="guide-card">
+          <span class="kicker">Documentation</span>
+          <h3>Reproducible by strangers</h3>
+          <p>Complete BOM, build photos, firmware instructions, test procedure, repair notes, and cost tracking.</p>
+        </article>
+        <article class="guide-card">
+          <span class="kicker">Evolution</span>
+          <h3>VR and wearable modules</h3>
+          <p>Later iterations can explore wireless halves, compact thumb clusters, mounts, and wearable configurations.</p>
+        </article>
+      </div>
+      <div class="hero-actions">
+        <a class="action primary" href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/hardware-commons.md#first-concrete-project" target="_blank" rel="noopener">Open project brief</a>
+      </div>
+    </section>
+
+    <section class="stack-section" id="community" aria-labelledby="community-title">
+      <div class="section-intro">
+        <p class="eyebrow">Community Model</p>
+        <h2 id="community-title">Hardware needs more than engineers.</h2>
+        <p>
+          Builders, repairers, CAD designers, programmers, photographers, teachers, translators, sourcers,
+          organizers, shops, and sponsors can all move a physical project forward.
+        </p>
+      </div>
+      <div class="resource-grid">
+        <div class="resource-card"><strong>Build locally</strong><span>Organize build nights, pooled orders, shared tools, repair sessions, and small batches.</span></div>
+        <div class="resource-card"><strong>Pay contributors</strong><span>Use kits, repairs, bounties, manufacturing, workshops, sponsorships, and support to fund the commons.</span></div>
+        <div class="resource-card"><strong>Share upstream</strong><span>Keep improvements public so one chapter's solution becomes another chapter's starting point.</span></div>
+        <div class="resource-card"><strong>Survive vendors</strong><span>Design for standard parts, documented interfaces, forks, alternates, and maintainable replacements.</span></div>
+      </div>
+    </section>
+
+    <section class="practice-section" aria-labelledby="next-title">
+      <div class="section-intro">
+        <p class="eyebrow">Next Moves</p>
+        <h2 id="next-title">Turn the commons into physical objects.</h2>
+      </div>
+      <ol class="practice-list">
+        <li><strong>Create the keyboard project folder.</strong><span>BOM, CAD, firmware, assembly, testing, repair, licensing.</span></li>
+        <li><strong>Inventory what we already have.</strong><span>Controllers, switches, printers, soldering tools, SBCs, displays, and fabrication access.</span></li>
+        <li><strong>Choose the simplest V0 architecture.</strong><span>Optimize for availability, repairability, cost, and reproducibility.</span></li>
+        <li><strong>Publish the first contribution task.</strong><span>Make it possible for someone new to help without needing permission.</span></li>
+      </ol>
+    </section>
+  </main>
+
+  <footer class="opensource-footer">
+    <p>3DVR Hardware Commons — understand it, repair it, reproduce it, improve it, share it.</p>
+  </footer>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
