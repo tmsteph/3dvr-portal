@@ -1,8 +1,8 @@
 # Open Runner Mesh Rollout
 
-Updated: 2026-09-16
+Updated: 2026-09-17
 
-Goal: make 3DVR remote control portable across cloud servers, Termux, and laptops without depending on a proprietary remote-desktop quota.
+Goal: make 3DVR remote control portable across cloud servers, Termux, laptops, and rack devices without depending on a proprietary remote-desktop quota.
 
 ## Current verified state
 
@@ -11,18 +11,23 @@ The Hetzner Open Runner is mesh-aware. It accepts an exact ingress `device` and 
 - `shell` — execute on the ingress machine itself.
 - `mesh-shell` — relay the command over the allowlisted 3DVR SSH mesh to a named target.
 
-Verified on 2026-09-16:
+Verified:
 
 - ChatGPT GitHub connector → private queue → Hetzner → local shell works.
 - ChatGPT GitHub connector → Hetzner → `mesh-shell` → OVH works.
 - ChatGPT GitHub connector → Hetzner → `mesh-shell` → DigitalOcean works.
 - ChatGPT GitHub connector → Hetzner → `mesh-shell` → `termux-phone` works through OVH port `22106`.
-- Termux now has a persistent `03-3dvr-mesh-termux-phone` Termux:Boot entry and the current `ask-device` mesh implementation installed.
+- ChatGPT GitHub connector → Hetzner → `mesh-shell` → `licheepi` works through the LicheePi Hetzner reverse tunnel on port `2223`.
+- Termux has a persistent `03-3dvr-mesh-termux-phone` Termux:Boot entry and the current `ask-device` mesh implementation installed.
 - Hetzner's mesh key is authorized on Termux and its `3dvr-termux-phone` alias uses OVH as the jump host.
 - OVH and DigitalOcean do not need independent GitHub credentials for normal control; we deliberately did **not** copy the Hetzner GitHub credential to them.
 - `laptop` remains un-enrolled. Its old accidental alias/tunnel was removed from Termux, OVH, and DigitalOcean.
 
-This makes Hetzner, OVH, DigitalOcean, and Termux controllable without Remote Desktop Commander. The laptop joins the same path once it is enrolled from the laptop itself.
+This makes Hetzner, OVH, DigitalOcean, Termux, and the LicheePi controllable without Remote Desktop Commander. The laptop joins the same path once it is enrolled from the laptop itself.
+
+### Canonical control policy
+
+For normal 3DVR-owned machine operations, prefer **Open Runner + the 3DVR SSH mesh**. Remote Desktop Commander is an optional recovery bridge, not the primary control plane. Direct SSH and provider consoles remain independent recovery paths.
 
 ## Topology
 
@@ -38,6 +43,7 @@ Stable target names:
 - `ovh` — control and recovery anchor
 - `digitalocean` — lightweight fallback
 - `termux-phone` — roaming Android/Termux edge node
+- `licheepi` — rack Lichee Pi 4A / RISC-V server
 - `laptop` — operator edge node
 
 ## Submit commands safely
@@ -48,6 +54,7 @@ Do not hand-escape JSON when a CLI is available. Use:
 python3 apps/agent/tools/open-runner-submit.py ovh -- hostname
 python3 apps/agent/tools/open-runner-submit.py digitalocean -- 'uptime; free -h'
 python3 apps/agent/tools/open-runner-submit.py termux-phone -- 'hostname; pwd'
+python3 apps/agent/tools/open-runner-submit.py licheepi -- 'hostname; uname -r; uptime'
 ```
 
 The submitter serializes the task with `json.dumps`, avoiding malformed queue issues caused by shell/JSON quoting.
@@ -66,6 +73,7 @@ Known ports:
 
 - `termux-phone`: `22106`
 - `laptop`: deterministic default `22934` when enrolled as `laptop`
+- `licheepi`: `2223` on its cloud rendezvous hosts; keep this port reserved for the Pi
 
 Termux recovery/enrollment:
 
@@ -93,13 +101,14 @@ The mesh script creates the reverse tunnel through OVH and writes the correspond
 6. Laptop and Termux may use `install-open-runner-edge.sh` when independently authenticated, but SSH-mesh routing is the default.
 7. Termux should restore its wake lock, local `sshd`, supervisor, and Termux:Boot tunnel before being considered online.
 8. A laptop may disappear from the network without breaking cloud automation.
+9. Reserve LicheePi reverse port `2223` on each rendezvous host; unrelated recovery tunnels must use another port.
 
 ## Redundancy path
 
 Today:
 
 1. GitHub queue → Hetzner Open Runner.
-2. Hetzner → OVH / DigitalOcean / Termux / enrolled edges over SSH mesh.
+2. Hetzner → OVH / DigitalOcean / Termux / LicheePi / enrolled edges over SSH mesh.
 3. Direct human SSH to the cloud mesh.
 4. Provider console as final recovery.
 
@@ -109,4 +118,4 @@ Next redundancy improvement: give OVH and/or DigitalOcean an independently scope
 
 For a cloud target, submit a harmless command such as `hostname; id -un; uptime` and confirm the issue reports the expected `Target`, exit code 0, and closes automatically.
 
-For an edge target, first verify the OVH reverse listener and SSH alias. Then submit the same harmless `mesh-shell` command through the Open Runner.
+For an edge or rack target, first verify its reverse listener and SSH alias. Then submit the same harmless `mesh-shell` command through the Open Runner.
