@@ -52,6 +52,20 @@ Workers request an identity lease only when needed. A lease identifies the accou
 
 Start with two concurrent action-browser lanes plus one reserved interactive/VNC lane on OVH. Increase only after resource telemetry shows safe headroom.
 
+### Multi-user browser/session architecture
+
+Thomas's current fixed OVH CDP lanes are a single-user implementation and proving ground, not the long-term hosted product boundary. Multi-user onboarding must preserve the same behavior behind a brokered identity/session layer.
+
+- Each user gets an isolated identity workspace: browser profiles/cookies, scoped secrets, permissions, audit history, task state, and durable data must never be shared across users.
+- Workers request a logical lane such as `user/jobs` or `user/employer`; a browser session broker chooses the actual host, process, container/VM boundary, profile, and ephemeral port. Product code must not depend on hard-coded CDP ports.
+- Durable browser profiles persist while browser processes are on-demand. Idle customers should not consume a permanently running Chromium instance; sessions start for work, preserve state, and may suspend after an idle timeout.
+- Concurrency, CPU, memory, storage, automation rate, and browser lifetime are quota-controlled per user/plan. Recovery/control capacity remains reserved so one customer cannot starve the host.
+- Human checkpoints such as MFA, CAPTCHA, consent, signatures, and device pairing pause only the affected task/session. They must not block unrelated work for that user or other users.
+- The control plane is shared, but execution is location-independent. A user's workers may run on 3DVR-managed infrastructure, a dedicated customer node, or the user's own computer while keeping the same queue, permissions, audit, and session contracts.
+- The open/self-hosted and managed-hosted products should use the same workspace format and runtime contracts. Moving between them should be an operational migration, not a product rewrite or data lock-in event.
+
+The intended request path is `Portal/Operator -> task queue -> user identity workspace -> browser/session broker -> isolated execution lane -> provider`. Fixed mappings such as Thomas's `9222/9333/9444` remain host-local implementation details only.
+
 ## Resource scheduler
 
 Reuse the existing systemd resource lanes. Recovery/control-plane capacity is always protected. Workers must run in bounded dev/workspace slices rather than inheriting the Remote Desktop Commander shell's recovery privileges.
@@ -118,7 +132,7 @@ Do not replace these with a parallel platform. Refactor them toward the shared c
 ## Near-term implementation order
 
 1. Persist and adopt the shared `src/operator-runtime/` work-item, worker-registry, and revenue-workflow contracts across existing apps.
-2. Extend browser-lane leases to multiple named isolated lanes plus a protected identity lane.
+2. Add a browser/session broker that maps per-user logical lanes to isolated identity workspaces and dynamic execution slots; preserve the existing writer-lease contract inside each workspace.
 3. Add resource telemetry and stale-worker cleanup so runaway browsers cannot monopolize OVH.
 4. Teach Workboard to show worker/lane, human checkpoint, verification state, and evidence.
 5. Route one real workflow end to end through the runtime; the lead-to-sale revenue loop and job applications are useful stress tests, not separate architectures.

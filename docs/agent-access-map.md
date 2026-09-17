@@ -74,7 +74,9 @@ Where available, prefer the 3DVR MCP/control gateway and Portal/Operator surface
 
 ## Persistent authenticated browser access
 
-OVH owns durable browser identity. Reuse these profiles instead of creating fresh sessions:
+This section describes Thomas's current single-user deployment. It is an operational access map, not the multi-user hosting API. In the hosted product, users receive isolated identity workspaces and a browser/session broker resolves logical lanes to hosts/processes dynamically; callers must not rely on these fixed ports.
+
+For Thomas's current deployment, OVH owns durable browser identity. Reuse these profiles instead of creating fresh sessions:
 
 | Lane | Purpose | CDP |
 | --- | --- | ---: |
