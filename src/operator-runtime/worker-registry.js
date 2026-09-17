@@ -41,13 +41,38 @@ export function createWorker(input = {}) {
     resourceBudget: input.resourceBudget && typeof input.resourceBudget === 'object'
       ? { ...input.resourceBudget }
       : {},
+    lastHeartbeatAt: text(input.lastHeartbeatAt) || null,
+    updatedAt: text(input.updatedAt) || null,
     metadata: input.metadata && typeof input.metadata === 'object' ? { ...input.metadata } : {}
+  };
+}
+
+export function workerIsStale(worker, options = {}) {
+  if (!worker) return true;
+  const heartbeat = Date.parse(worker.lastHeartbeatAt || '');
+  if (!Number.isFinite(heartbeat)) return Boolean(options.missingIsStale);
+  const now = Number.isFinite(options.now) ? options.now : Date.now();
+  const staleAfterMs = Number.isFinite(options.staleAfterMs) && options.staleAfterMs > 0
+    ? options.staleAfterMs
+    : 5 * 60_000;
+  return now - heartbeat > staleAfterMs;
+}
+
+export function touchWorkerHeartbeat(worker, options = {}) {
+  if (!worker || typeof worker !== 'object') throw new TypeError('worker is required');
+  const at = text(options.at) || new Date().toISOString();
+  return {
+    ...worker,
+    status: options.status && WORKER_STATUSES.includes(options.status) ? options.status : worker.status,
+    lastHeartbeatAt: at,
+    updatedAt: at
   };
 }
 
 export function workerCanRun(worker, workItem) {
   if (!worker || !workItem) return false;
   if (worker.status !== 'idle' && worker.status !== 'busy') return false;
+  if (workerIsStale(worker)) return false;
   if (worker.activeCount >= worker.maxConcurrent) return false;
 
   // Only an explicit kernel-policy block stops execution here. Legacy work items
@@ -72,4 +97,8 @@ export function findEligibleWorkers(workers = [], workItem) {
       const order = { read: 0, action: 1, identity: 2 };
       return order[a.class] - order[b.class];
     });
+}
+
+export function findStaleWorkers(workers = [], options = {}) {
+  return workers.filter(worker => workerIsStale(worker, { ...options, missingIsStale: false }));
 }
