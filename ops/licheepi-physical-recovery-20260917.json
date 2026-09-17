@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-09-17T04:27:00Z",
+  "recovered": true,
+  "kernel": "5.10.113+",
+  "rootPartitionGiB": 115.99,
+  "rootFsUuid": "55bb2748-0da0-4a58-a147-f53bc6835769",
+  "rootFsState": "clean",
+  "bootFsUuid": "453214dc-676f-4598-a23d-54b656ed9dbd",
+  "ovhReverseSsh": true,
+  "upstreamIssue": "https://github.com/revyos/th1520-vendor-uboot/issues/54",
+  "note": "Vendor USB recovery U-Boot automatically rewrote GPT using a 6000 MiB root default; repaired GPT metadata to 500 MiB boot plus remainder root without replacing the root filesystem."
+}

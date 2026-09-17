@@ -1,6 +1,6 @@
 # LicheePi 4A Remote Recovery
 
-Last verified: 2026-09-04
+Last verified: 2026-09-17
 
 The LicheePi 4A (`lpi4a`, user `sipeed`) must remain remotely recoverable after reboot, Wi-Fi changes, and failure of a single cloud rendezvous host.
 
@@ -68,3 +68,18 @@ Install/recovery tooling:
 - Pi addresses at verification: `10.21.77.109`, `172.25.6.107`
 
 Do not store private keys, passwords, or other secrets in this document or repository.
+## Physical recovery incident — 2026-09-17
+
+A failed early-boot firmware experiment required BOOT-button USB recovery. The board was recovered without replacing the root filesystem.
+
+- ROM recovery enumerated as `2345:7654 T-HEAD USB download gadget`.
+- Rebuilt the known-good vendor U-Boot/SPL from commit `d6c9182f6238f2fc4b386b9e4c5d2cfebbef4746` and verified RAM boot before persistent repair.
+- Restored the verified 2026-09-12 500 MiB `/boot` image; known-good firmware hashes were confirmed after boot.
+- Important vendor behavior: `light_usb_boot_check()` resets the environment and runs `gpt_partition` automatically. The stock LPi4A defaults use a 6000 MiB root entry, which truncated the GPT view of the existing ~116 GiB root filesystem. Filesystem data remained intact.
+- Repaired GPT metadata to `table=2031KB; boot=500MiB; root=rest-of-disk`, preserving root PARTUUID `80a5a8e9-c744-491a-93c1-4f4194fd690a`.
+- Final root filesystem UUID `55bb2748-0da0-4a58-a147-f53bc6835769` is clean; `/` is ~115 GiB and `/boot` mounts normally.
+- OVH reverse SSH recovered and the board boots the vendor `5.10.113+` kernel with graphical HDMI output.
+- Upstream report: https://github.com/revyos/th1520-vendor-uboot/issues/54
+
+Recovery rule: do not assume USB recovery is read-only. Before RAM-booting vendor U-Boot on an installed system, inspect its compiled `partitions` environment and `light_usb_boot_check()` behavior.
+
