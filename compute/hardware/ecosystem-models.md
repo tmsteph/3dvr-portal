@@ -74,29 +74,51 @@ The useful synthesis is:
 
 The immediate goal is not to manufacture a CPU. The immediate goal is to make the layers visible and replaceable.
 
+## Participation is part of the architecture
+
+Studying these organizations is not enough. 3DVR should participate in the ecosystems it depends on and use upstream work as a training ground for deeper hardware competence.
+
+The first concrete example came from recovering our physical LicheePi 4A:
+
+- `sipeed/sipeed_wiki#1032` records the BOOT-vs-RESET enclosure recovery gotcha;
+- `sipeed/sipeed_wiki#1033` is the active upstream documentation PR adding that clarification in place;
+- `sipeed/sipeed_wiki#1034` was closed as a duplicate after a second, larger documentation version was created.
+
+The lesson is useful beyond Sipeed: prefer the smallest upstream change that fixes a real problem, keep one canonical contribution path, and turn field experience into maintainable evidence.
+
+The operating procedure is documented in `docs/hardware-participation-loop.md`.
+
 ## Practical roadmap
 
 ### Stage 1 — learn from real boards
 
-Use the LicheePi 4A / LM4A and VisionFive hardware as active Linux and RISC-V lab machines. Record boot, kernel, firmware, GPU, NPU, networking, power, and reliability lessons instead of treating board quirks as isolated problems.
+Use the LicheePi 4A / LM4A and VisionFive hardware as active Linux and RISC-V lab machines. Record boot, kernel, firmware, GPU, NPU, networking, power, thermals, and reliability lessons instead of treating board quirks as isolated problems.
+
+Maintain a common compatibility matrix so the same categories are checked across architectures and vendors.
 
 ### Stage 2 — trace open designs
 
 Study Sipeed schematics and BOMs, BeagleBoard hardware releases, StarFive reference designs, and LattePanda carrier-board files. Turn that study into our own component and interface knowledge base.
 
-### Stage 3 — define a 3DVR carrier contract
+### Stage 3 — contribute while learning
+
+When physical use exposes a reproducible problem, open or improve the upstream issue first, then prepare the smallest useful patch. Record maintainer feedback and feed the lesson back into the hardware-lab matrix.
+
+Documentation, tests, kernel/device-tree fixes, packaging, recovery instructions, and reproducible benchmarks all count when they solve a real user problem.
+
+### Stage 4 — define a 3DVR carrier contract
 
 The Balthazar continuation should stay compute-module-neutral. Define common mechanical and electrical requirements for power, display, USB, storage, networking, thermals, mounting, keyboard, battery, and optional high-speed expansion.
 
-### Stage 4 — build adapters, not a new CPU
+### Stage 5 — build adapters, not a new CPU
 
 Prototype a common laptop/device platform that can accept LM4A, StarFive-based hardware, LattePanda Mu, and future modules through carriers or adapters. This lets the chassis, keyboard, battery system, and repair model evolve independently of processor choice.
 
-### Stage 5 — push upstream
+### Stage 6 — push upstream at deeper layers
 
-Improve Debian, mainline Linux, firmware documentation, drivers, and open tooling as issues are discovered. A useful 3DVR hardware project should improve the ecosystems it depends on rather than merely consuming them.
+Improve Debian, mainline Linux, firmware documentation, drivers, boot flows, and open tooling as issues are discovered. A useful 3DVR hardware project should improve the ecosystems it depends on rather than merely consuming them.
 
-### Stage 6 — go deeper only when earned
+### Stage 7 — go deeper only when earned
 
 Move toward FPGA-first RISC-V cores, accelerators, interconnects, and eventually a more open SoC when the team has accumulated enough practical board, kernel, PCB, firmware, and manufacturing experience.
 
@@ -104,4 +126,4 @@ Move toward FPGA-first RISC-V cores, accelerators, interconnects, and eventually
 
 Do not wait for a perfectly open computer to appear. Start with the most open practical layer available, document every dependency, make interfaces replaceable, contribute upstream, and progressively replace the closed layers.
 
-Related work: `supply-chain/balthazar.md`, `compute/hardware/compute-module-v0.md`, and `compute/hardware/prototype-01-lm4a.md`.
+Related work: `docs/hardware-participation-loop.md`, `supply-chain/balthazar.md`, `compute/hardware/compute-module-v0.md`, and `compute/hardware/prototype-01-lm4a.md`.

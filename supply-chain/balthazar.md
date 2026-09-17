@@ -45,6 +45,23 @@ Known high-level parts to trace:
 
 Official Sipeed documentation publishes schematics, a BOM, dimensional drawings, and a 3D model for the Lichee Pi 4A. Those documents are our first source set.
 
+## Hardware lab feeds the laptop design
+
+The Balthazar continuation should consume evidence from the 3DVR hardware participation loop rather than choosing modules only from specification sheets.
+
+For each candidate compute platform, capture the common matrix in `docs/hardware-participation-loop.md`: boot and recovery, Linux/mainline status, networking, graphics, accelerators, thermals, power, storage, reliability, and upstream contribution history.
+
+This turns ordinary board use into laptop requirements. Examples:
+
+- a difficult physical recovery path becomes a requirement for externally accessible recovery controls;
+- thermal throttling becomes a cooling and sensor-placement requirement;
+- proprietary or fragile boot firmware becomes a replaceability and documentation risk;
+- inconsistent module identity becomes a provisioning requirement;
+- missing battery/charging interfaces become carrier-board requirements;
+- upstream Linux maturity affects whether a module is appropriate for daily use or only experimental support.
+
+The first Sipeed contribution already demonstrates the loop: a real LPi4A recovery exposed a BOOT/RESET enclosure problem, which became upstream issue `sipeed/sipeed_wiki#1032` and active documentation PR `#1033`. The lesson for Balthazar is simple: recovery controls must remain physically reachable without dismantling the machine more than necessary.
+
 ## Open Supply Chain questions
 
 For each part, record what it does, who makes it, where it is fabricated or assembled when known, what materials are inside it, whether it can be salvaged or repaired, what substitutes exist, and what it would take for a community or cooperative to make the next layer down.
@@ -57,11 +74,11 @@ Keep the upstream Balthazar repositories and their history available. Verify lic
 
 ### 1 — Document
 
-Build a verified bill of materials for the Lichee Pi 4A / LM4A from public documentation and the physical board.
+Build a verified bill of materials for the Lichee Pi 4A / LM4A from public documentation and the physical board. Maintain the cross-platform hardware compatibility matrix alongside the BOM.
 
 ### 2 — Prototype the shell
 
-Reuse Balthazar's modular ideas for a working laptop around whichever supported compute module is easiest to integrate first. Prove display, keyboard, trackpoint/touchpad, battery, charging, storage, audio, Wi-Fi, and hardware privacy controls.
+Reuse Balthazar's modular ideas for a working laptop around whichever supported compute module is easiest to integrate first. Prove display, keyboard, trackpoint/touchpad, battery, charging, storage, audio, Wi-Fi, hardware privacy controls, cooling, and physical recovery access.
 
 ### 3 — Define the 3DVR compute-module adapter
 
@@ -81,4 +98,4 @@ Trace materials into recycling, refining, and—only where genuinely necessary�
 
 ## Principle
 
-We do not need to manufacture everything ourselves on day one. Preserve what already exists, make every dependency visible, and replace closed layers one at a time.
+We do not need to manufacture everything ourselves on day one. Preserve what already exists, make every dependency visible, test candidate hardware in the real world, contribute fixes upstream, and replace closed layers one at a time.
