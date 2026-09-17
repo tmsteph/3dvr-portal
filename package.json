@@ -58,7 +58,8 @@
     "playwright:ux": "sh scripts/playwright/run-in-linux.sh playwright:ux:linux",
     "visual:compare": "node scripts/playwright/compare-captures.mjs",
     "visual:ai-review": "node scripts/playwright/ai-review-capture.mjs",
-    "visual:regression": "node scripts/playwright/run-visual-regression.mjs"
+    "visual:regression": "node scripts/playwright/run-visual-regression.mjs",
+    "agent:transcend": "node apps/agent/thomas-agent/node/transcend-loop.js"
   },
   "dependencies": {
     "gun": "^0.2020.1241",

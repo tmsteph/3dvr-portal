@@ -1,0 +1,27 @@
+{
+  "purpose": "Turn purpose into useful action while preserving human agency.",
+  "candidates": [
+    {
+      "task": "Audit the highest-friction user workflow and produce a concrete repair plan.",
+      "purposeAlignment": 5,
+      "userValue": 5,
+      "revenue": 3,
+      "urgency": 4,
+      "unblocks": 5,
+      "reuse": 4,
+      "effort": 2,
+      "riskClass": "read_only"
+    },
+    {
+      "task": "Prepare drafts for the next validated outreach experiment.",
+      "purposeAlignment": 4,
+      "userValue": 4,
+      "revenue": 5,
+      "urgency": 3,
+      "unblocks": 4,
+      "reuse": 4,
+      "effort": 2,
+      "riskClass": "draft"
+    }
+  ]
+}
