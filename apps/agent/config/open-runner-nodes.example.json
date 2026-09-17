@@ -7,7 +7,8 @@
     "ovh": "3dvr-ovh",
     "digitalocean": "3dvr-do",
     "termux-phone": "3dvr-termux-phone",
-    "laptop": "3dvr-laptop"
+    "laptop": "3dvr-laptop",
+    "licheepi": "lpi4a-hetzner"
   },
   "notes": {
     "ingress": "One exact queue ingress device polls GitHub; mesh-shell relays to allowlisted SSH targets.",
