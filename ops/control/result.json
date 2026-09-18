@@ -11,8 +11,8 @@
     "httpStatus": 500,
     "error": "OpenAI API key is not configured."
   },
-  "requestId": "portal-backend-status-20260918-4",
+  "requestId": "portal-backend-status-20260918-5",
   "action": "portal_backend_status",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-18T22:34:06Z"
+  "checkedAt": "2026-09-18T22:36:57Z"
 }
