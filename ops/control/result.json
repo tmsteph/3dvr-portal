@@ -1,8 +1,19 @@
 {
   "ok": true,
-  "connected": false,
-  "requestId": "2026-09-15T21:40:00Z-termux-repair-check-001",
-  "action": "termux_status",
+  "host": "vps-2b6a0420",
+  "openbao": {
+    "initialized": true,
+    "sealed": false,
+    "storage_type": "file"
+  },
+  "broker": {
+    "ok": true,
+    "service": "3dvr-secrets-broker",
+    "openbao": true
+  },
+  "termuxReverseSsh": true,
+  "requestId": "openai-recovery-20260918-1",
+  "action": "status",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-15T22:03:47Z"
+  "checkedAt": "2026-09-18T21:21:30Z"
 }
