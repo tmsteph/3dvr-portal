@@ -1,0 +1,22 @@
+[Unit]
+Description=3DVR Human Handoff gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=debian
+Group=debian
+WorkingDirectory=/home/debian/worktrees/human-handoff-live
+Environment=HANDOFF_BIND=127.0.0.1
+Environment=HANDOFF_PORT=4312
+Environment=HANDOFF_PUBLIC_BASE=https://portal.3dvr.tech/human-handoff/
+ExecStart=/usr/bin/node /home/debian/worktrees/human-handoff-live/apps/agent/thomas-agent/node/human-handoff-gateway.js
+Restart=always
+RestartSec=3
+MemoryHigh=96M
+MemoryMax=160M
+TasksMax=128
+
+[Install]
+WantedBy=multi-user.target
