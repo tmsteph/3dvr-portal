@@ -35,7 +35,7 @@ jobs:
           service="$(jq -r '.service // empty' ops/control/request.json)"
           test -n "$id"
           case "$action" in
-            status|termux_status|openbao_status|portal_key_status|portal_ai_status) ;;
+            status|termux_status|openbao_status|portal_key_status|portal_ai_status|openai_admin_status) ;;
             restart)
               case "$service" in
                 3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|openbao.service) ;;
