@@ -1,10 +1,11 @@
 {
   "ok": true,
-  "service": "3dvr-portal.service",
-  "state": "active",
-  "openAiKeyConfigured": false,
-  "requestId": "portal-key-status-20260918-2",
-  "action": "portal_key_status",
+  "baseEnvHasKey": false,
+  "portalEnvHasKey": false,
+  "brokerEnvHasKey": false,
+  "environmentFiles": "/home/debian/.3dvr/config/env (ignore_errors=yes) /home/debian/.3dvr/config/portal.env (ignore_errors=no) /home/debian/.3dvr/config/portal-secrets.env (ignore_errors=yes) /etc/3dvr/secrets-broker/portal.env (ignore_errors=yes) ",
+  "requestId": "portal-env-status-20260918-1",
+  "action": "portal_env_status",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-18T22:24:30Z"
+  "checkedAt": "2026-09-18T22:25:21Z"
 }
