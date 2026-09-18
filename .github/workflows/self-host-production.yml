@@ -168,6 +168,24 @@ jobs:
           chmod 600 "$secrets_env"
           REMOTE
 
+      - name: Verify required portal runtime secrets
+        shell: bash
+        env:
+          TARGET: ${{ steps.resolve.outputs.host }}
+          TARGET_USER: ${{ steps.resolve.outputs.user }}
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/3dvr-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+          ssh "${opts[@]}" "$TARGET_USER@$TARGET" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          secrets_env="$HOME/.3dvr/config/portal-secrets.env"
+          if [ ! -f "$secrets_env" ] || ! grep -q '^OPENAI_API_KEY=' "$secrets_env"; then
+            echo 'Required portal secret OPENAI_API_KEY is missing.' >&2
+            exit 7
+          fi
+          echo 'Required portal secret OPENAI_API_KEY is configured.'
+          REMOTE
+
       - name: Deploy portal and Organism bridge
         id: deploy
         shell: bash
