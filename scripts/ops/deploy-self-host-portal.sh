@@ -30,6 +30,7 @@ state="$base/state"
 config_dir="${THREEDVR_CONFIG_DIR:-$HOME/.3dvr/config}"
 common_env="$config_dir/env"
 portal_env="$config_dir/portal.env"
+portal_secrets_env="$config_dir/portal-secrets.env"
 
 mkdir -p "$releases" "$state" "$config_dir"
 chmod 700 "$config_dir" 2>/dev/null || true
@@ -104,6 +105,7 @@ trap cleanup_candidate EXIT
   set -a
   [ -f "$common_env" ] && . "$common_env"
   [ -f "$portal_env" ] && . "$portal_env"
+  [ -f "$portal_secrets_env" ] && . "$portal_secrets_env"
   set +a
   export PORT="$candidate_port"
   export HOST=127.0.0.1
@@ -192,6 +194,7 @@ Type=simple
 WorkingDirectory=$current
 EnvironmentFile=-$common_env
 EnvironmentFile=$portal_env
+EnvironmentFile=-$portal_secrets_env
 EnvironmentFile=-/etc/3dvr/secrets-broker/portal.env
 ExecStart=/usr/bin/env node $current/scripts/self-host-server.mjs
 Restart=always
