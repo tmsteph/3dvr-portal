@@ -1,12 +1,9 @@
 {
-  "ok": true,
-  "baseEnvHasKey": false,
-  "portalEnvHasKey": false,
-  "portalSecretsEnvHasKey": true,
-  "brokerEnvHasKey": false,
-  "environmentFiles": "/home/debian/.3dvr/config/env (ignore_errors=yes) /home/debian/.3dvr/config/portal.env (ignore_errors=no) /home/debian/.3dvr/config/portal-secrets.env (ignore_errors=yes) /etc/3dvr/secrets-broker/portal.env (ignore_errors=yes) ",
-  "requestId": "portal-env-status-20260918-2",
-  "action": "portal_env_status",
+  "ok": false,
+  "httpStatus": 500,
+  "error": "OpenAI API key is not configured.",
+  "requestId": "portal-ai-status-20260918-1",
+  "action": "portal_ai_status",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-18T22:27:02Z"
+  "checkedAt": "2026-09-18T22:27:41Z"
 }
