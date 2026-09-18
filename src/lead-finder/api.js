@@ -1,4 +1,5 @@
 const DEFAULT_MODEL = 'gpt-5.6-luna';
+const DEFAULT_GATEWAY_MODEL = 'openai/gpt-5.6-luna';
 const MAX_LEADS = 25;
 
 function clean(value = '', max = 1000) {
@@ -127,7 +128,9 @@ export function parseLeadFinderResponse(responseData) {
 
 export function createLeadFinderHandler({
   apiKey = process.env.OPENAI_API_KEY,
-  model = process.env.OPENAI_LEAD_MODEL || DEFAULT_MODEL,
+  gatewayToken = process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN,
+  model = process.env.OPENAI_LEAD_MODEL,
+  endpoint,
   fetchImpl = globalThis.fetch
 } = {}) {
   return async function leadFinderHandler(req, res) {
@@ -143,15 +146,22 @@ export function createLeadFinderHandler({
     const count = Math.min(MAX_LEADS, Math.max(1, Number(req?.body?.count) || 10));
 
     if (!description) return res.status(400).json({ error: 'Describe the kind of customer you want.' });
-    if (!apiKey) {
-      return res.status(503).json({ error: 'OpenAI API is not configured yet.', code: 'openai_not_configured' });
+
+    const authorizationToken = apiKey || gatewayToken;
+    if (!authorizationToken) {
+      return res.status(503).json({ error: 'AI provider is not configured yet.', code: 'ai_not_configured' });
     }
 
     try {
-      const requestBody = buildLeadFinderRequest({ description, location, count, model });
-      const response = await fetchImpl('https://api.openai.com/v1/responses', {
+      const useGateway = !apiKey && Boolean(gatewayToken);
+      const effectiveModel = model || (useGateway ? DEFAULT_GATEWAY_MODEL : DEFAULT_MODEL);
+      const requestEndpoint = endpoint || (useGateway
+        ? 'https://ai-gateway.vercel.sh/v1/responses'
+        : 'https://api.openai.com/v1/responses');
+      const requestBody = buildLeadFinderRequest({ description, location, count, model: effectiveModel });
+      const response = await fetchImpl(requestEndpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + authorizationToken },
         body: JSON.stringify(requestBody)
       });
 
@@ -170,7 +180,8 @@ export function createLeadFinderHandler({
       const result = parseLeadFinderResponse(responseData);
       return res.status(200).json({
         ok: true,
-        model,
+        model: effectiveModel,
+        provider: useGateway ? 'vercel-ai-gateway' : 'openai',
         query: { description, location, count },
         leads: result.leads,
         sources: result.sources
