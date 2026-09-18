@@ -1,0 +1,9 @@
+http://portal.3dvr.tech {
+  handle /human-handoff* {
+    reverse_proxy 127.0.0.1:4312
+  }
+
+  handle {
+    reverse_proxy 127.0.0.1:4320
+  }
+}
