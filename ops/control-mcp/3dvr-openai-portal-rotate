@@ -71,13 +71,24 @@ async function main() {
 
   if (!serviceAccount?.id) throw new Error('OpenAI service account id missing');
 
+  if (serviceAccount.role === 'none') {
+    serviceAccount = await openai(
+      adminKey,
+      '/organization/projects/' + PROJECT_ID + '/service_accounts/' + encodeURIComponent(serviceAccount.id),
+      {
+        method: 'POST',
+        body: { role: 'member' },
+      },
+    );
+  }
+
   const keyName = SERVICE_ACCOUNT_NAME + '-' + new Date().toISOString().replace(/[:.]/g, '-');
   const apiKey = await openai(
     adminKey,
     '/organization/projects/' + PROJECT_ID + '/service_accounts/' + encodeURIComponent(serviceAccount.id) + '/api_keys',
     {
       method: 'POST',
-      body: { name: keyName },
+      body: { name: keyName, scopes: ['api.responses.write'] },
     },
   );
 
