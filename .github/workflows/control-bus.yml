@@ -35,7 +35,7 @@ jobs:
           service="$(jq -r '.service // empty' ops/control/request.json)"
           test -n "$id"
           case "$action" in
-            status|termux_status|openbao_status) ;;
+            status|termux_status|openbao_status|portal_key_status|portal_ai_status) ;;
             restart)
               case "$service" in
                 3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|openbao.service) ;;
@@ -126,6 +126,33 @@ jobs:
           connected=false
           ss -ltnH | awk '$4 ~ /^(127\.0\.0\.1|\[::1\]):22[0-9][0-9][0-9]$/ {found=1} END {exit !found}' && connected=true || true
           jq -n --argjson connected "$connected" '{ok:true,connected:$connected}'
+          OVH
+              ;;
+            portal_key_status)
+              ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          pid=$(systemctl show 3dvr-portal.service -p MainPID --value)
+          configured=false
+          if [ -n "$pid" ] && [ "$pid" != 0 ] && [ -r "/proc/$pid/environ" ]; then
+            tr '\0' '\n' < "/proc/$pid/environ" | grep -q '^OPENAI_API_KEY=.' && configured=true || true
+          fi
+          state=$(systemctl is-active 3dvr-portal.service || true)
+          jq -n --arg state "$state" --argjson configured "$configured" '{ok:($state=="active"),service:"3dvr-portal.service",state:$state,openAiKeyConfigured:$configured}'
+          OVH
+              ;;
+            portal_ai_status)
+              ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          body=$(mktemp)
+          trap 'rm -f "$body"' EXIT
+          status=$(curl -sS -o "$body" -w '%{http_code}' -H 'content-type: application/json' --data '{"prompt":"Return the smallest valid HTML page whose visible text is exactly: 3DVR AI OK","model":"gpt-4o-mini"}' https://portal.3dvr.tech/api/openai-site || true)
+          passed=false
+          [ "$status" = 200 ] && grep -q '3DVR AI OK' "$body" && passed=true || true
+          error=""
+          if [ "$passed" != true ]; then
+            error=$(jq -r '.error // empty' "$body" 2>/dev/null | head -c 300 || true)
+          fi
+          jq -n --arg status "$status" --arg error "$error" --argjson passed "$passed" '{ok:$passed,httpStatus:($status|tonumber? // 0),error:$error}'
           OVH
               ;;
             restart)
