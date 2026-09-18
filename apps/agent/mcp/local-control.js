@@ -13,9 +13,10 @@ const {
   loadPolicy,
   serviceAction,
   serviceStatus,
+  storeOpenAiAdminFromBrowserClipboard,
 } = require('../connectors/control/local-machine');
 
-const server = new McpServer({ name: '3dvr-local-control', version: '0.4.0' });
+const server = new McpServer({ name: '3dvr-local-control', version: '0.5.0' });
 const policy = loadPolicy(process.env);
 
 function output(value) {
@@ -40,7 +41,7 @@ server.registerTool('control_status', {
   annotations: { readOnlyHint: true, openWorldHint: false },
 }, async () => output({
   service: '3dvr-local-control',
-  version: '0.4.0',
+  version: '0.5.0',
   mutationsEnabled: policy.enableMutations,
   serviceAllowlist: policy.services,
   fileRoots: policy.fileRoots,
@@ -86,6 +87,17 @@ if (policy.enableMutations) {
     'service.restart',
     service,
     () => serviceAction(service, 'restart', { policy }),
+  ));
+
+  server.registerTool('openai_admin_store_from_browser_clipboard', {
+    title: 'Store OpenAI admin key from browser clipboard',
+    description: 'Store the already-copied OpenAI Admin credential from the local OpenAI browser session directly into OpenBao. The credential is never returned by this tool.',
+    inputSchema: {},
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  }, async () => auditedMutation(
+    'secret.store.openai-admin-from-browser-clipboard',
+    'OPENAI_ADMIN_KEY',
+    () => storeOpenAiAdminFromBrowserClipboard(),
   ));
 
   server.registerTool('file_write', {
