@@ -1,9 +1,10 @@
 {
   "ok": true,
-  "url": "https://platform.openai.com/settings/organization/admin-keys",
-  "title": "OpenAI Platform",
-  "requestId": "openai-admin-stage-20260918-1",
-  "action": "openai_admin_stage",
+  "handoffId": "HVAHdSJx-_xkEYiB",
+  "handoffUrl": "https://hypothesis-xhtml-bundle-thick.trycloudflare.com/human-handoff/#YTf8Bq0IgEF49bKXx_OG5Ld9Sj-PY709RFCCG3oHDgo",
+  "expiresAt": "2026-09-18T22:37:38.156Z",
+  "requestId": "openai-admin-handoff-20260918-3",
+  "action": "openai_admin_handoff",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-18T21:35:47Z"
+  "checkedAt": "2026-09-18T21:37:38Z"
 }
