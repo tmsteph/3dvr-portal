@@ -402,8 +402,7 @@ function createGateway() {
 
   async function open(token) {
     const handoff = activeOrThrow(fromInitial(token));
-    if (handoff.state !== 'needs_human') throw Object.assign(new Error('Handoff already opened.'), { statusCode: 409 });
-    initialIndex.delete(handoff.initialHash);
+    if (handoff.sessionHash) sessionIndex.delete(handoff.sessionHash);
     const sessionToken = randomBytes(32).toString('base64url');
     handoff.sessionHash = hashToken(sessionToken);
     sessionIndex.set(handoff.sessionHash, handoff.id);
@@ -537,12 +536,12 @@ function createGateway() {
           client,
         });
         handoffs.set(handoff.id, handoff);
+        initialIndex.set(handoff.initialHash, handoff.id);
         if (handoff.state === 'human_active' && handoff.sessionHash) {
           sessionIndex.set(handoff.sessionHash, handoff.id);
           await startScreencast(handoff);
         } else {
           handoff.state = 'needs_human';
-          initialIndex.set(handoff.initialHash, handoff.id);
         }
         await audit('restored', handoff).catch(() => {});
       } catch (error) {
