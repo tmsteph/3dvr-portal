@@ -160,6 +160,12 @@ EOF
 # Never overwrite them with empty values and never print them.
 for key in OPENAI_API_KEY AI_GATEWAY_API_KEY THREEDVR_CLOUDFLARE_TUNNEL_TOKEN GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET GMAIL_USER GMAIL_APP_PASSWORD; do
   value="${!key:-}"
+  # The persistent private layer is the source of truth for provisioned secrets.
+  # Prefer it over an older rendered portal.env so deploys cannot silently drop
+  # credentials when the GitHub secret is intentionally absent.
+  if [ -z "$value" ] && [ -f "$portal_secrets_env" ]; then
+    value="$(sed -n "s/^${key}=//p" "$portal_secrets_env" | tail -n1)"
+  fi
   if [ -z "$value" ] && [ "$had_previous_env" = true ]; then
     value="$(sed -n "s/^${key}=//p" "$previous_env" | tail -n1)"
   fi
