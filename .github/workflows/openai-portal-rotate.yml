@@ -1,0 +1,86 @@
+name: Rotate OpenAI Portal Key
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/openai-portal-rotate.yml'
+
+permissions:
+  contents: read
+
+env:
+  HETZNER_HOST: 167.233.174.20
+
+jobs:
+  rotate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve Hetzner SSH access
+        id: ssh
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/3dvr-openai-a
+          write_key "$SSH_B" /tmp/3dvr-openai-b
+          write_key "$SSH_C" /tmp/3dvr-openai-c
+          for user in root debian ubuntu tmsteph; do
+            for key in /tmp/3dvr-openai-a /tmp/3dvr-openai-b /tmp/3dvr-openai-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$HETZNER_HOST" true >/dev/null 2>&1; then
+                echo "user=$user" >> "$GITHUB_OUTPUT"
+                echo "key=$key" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+          done
+          exit 1
+
+      - name: Run bounded rotation on OVH
+        shell: bash
+        env:
+          HETZNER_USER: ${{ steps.ssh.outputs.user }}
+          HETZNER_KEY: ${{ steps.ssh.outputs.key }}
+        run: |
+          set -euo pipefail
+          opts=(-i "$HETZNER_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          scp "${opts[@]}" ops/control-mcp/3dvr-openai-portal-rotate "$HETZNER_USER@$HETZNER_HOST:/tmp/3dvr-openai-portal-rotate"
+          ssh "${opts[@]}" "$HETZNER_USER@$HETZNER_HOST" bash -s <<'REMOTE'
+          set -euo pipefail
+          scp -q -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8 /tmp/3dvr-openai-portal-rotate 3dvr-ovh:/tmp/3dvr-openai-portal-rotate
+          ssh -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8 3dvr-ovh 'sudo -n bash -s' <<'OVH'
+          set -euo pipefail
+          install -o root -g root -m 0750 /tmp/3dvr-openai-portal-rotate /usr/local/sbin/3dvr-openai-portal-rotate
+          /usr/local/sbin/3dvr-openai-portal-rotate
+          rm -f /tmp/3dvr-openai-portal-rotate
+          OVH
+          rm -f /tmp/3dvr-openai-portal-rotate
+          REMOTE
+
+      - name: Remove SSH keys
+        if: always()
+        run: rm -f /tmp/3dvr-openai-a /tmp/3dvr-openai-b /tmp/3dvr-openai-c /tmp/3dvr-openai-*.raw
