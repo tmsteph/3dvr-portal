@@ -245,8 +245,7 @@ jobs:
             portal_backend_status)
               ovh 'bash -s' <<'OVH'
           set -euo pipefail
-          port=$(sed -n 's/^PORT=//p' /home/debian/.3dvr/config/portal.env 2>/dev/null | tail -n1)
-          [ -n "$port" ] || port=4320
+          port=4320
 
           payload='{"prompt":"Return exactly 3DVR AI OK","model":"gpt-4o-mini"}'
           local_body=$(mktemp)
