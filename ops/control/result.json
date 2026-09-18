@@ -1,9 +1,10 @@
 {
-  "ok": false,
-  "httpStatus": 500,
-  "error": "OpenAI API key is not configured.",
-  "requestId": "portal-ai-status-20260918-2",
-  "action": "portal_ai_status",
+  "ok": true,
+  "local": {},
+  "public": {},
+  "sameSha": false,
+  "requestId": "portal-backend-status-20260918-1",
+  "action": "portal_backend_status",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-18T22:28:36Z"
+  "checkedAt": "2026-09-18T22:29:40Z"
 }
