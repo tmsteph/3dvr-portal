@@ -1,9 +1,9 @@
 {
-  "ok": false,
-  "httpStatus": 500,
-  "error": "OpenAI API key is not configured.",
-  "requestId": "portal-ai-status-20260918-1",
-  "action": "portal_ai_status",
+  "ok": true,
+  "service": "3dvr-portal.service",
+  "state": "active",
+  "requestId": "portal-restart-20260918-1",
+  "action": "restart",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-18T22:27:41Z"
+  "checkedAt": "2026-09-18T22:28:08Z"
 }
