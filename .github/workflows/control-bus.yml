@@ -35,7 +35,7 @@ jobs:
           service="$(jq -r '.service // empty' ops/control/request.json)"
           test -n "$id"
           case "$action" in
-            status|termux_status|openbao_status|portal_key_status|portal_ai_status|openai_admin_status|openai_admin_handoff) ;;
+            status|termux_status|openbao_status|portal_key_status|portal_ai_status|openai_admin_status|openai_admin_handoff|openai_admin_stage) ;;
             restart)
               case "$service" in
                 3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|openbao.service) ;;
@@ -126,6 +126,25 @@ jobs:
           connected=false
           ss -ltnH | awk '$4 ~ /^(127\.0\.0\.1|\[::1\]):22[0-9][0-9][0-9]$/ {found=1} END {exit !found}' && connected=true || true
           jq -n --argjson connected "$connected" '{ok:true,connected:$connected}'
+          OVH
+              ;;
+            openai_admin_stage)
+              ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          node - <<'NODE'
+          const puppeteer=require('/home/debian/.npm/_npx/81cb1ab08343aa85/node_modules/puppeteer-core/lib/puppeteer/puppeteer-core.js');
+          (async()=>{
+            const browser=await puppeteer.connect({browserURL:'http://127.0.0.1:9444'});
+            const pages=await browser.pages();
+            let page=pages.find(p=>p.url().includes('platform.openai.com')) || pages[pages.length-1];
+            await page.goto('https://platform.openai.com/settings/organization/admin-keys',{waitUntil:'networkidle2',timeout:30000});
+            await new Promise(r=>setTimeout(r,1200));
+            const ok=page.url().includes('/settings/organization/admin-keys');
+            console.log(JSON.stringify({ok,url:page.url(),title:await page.title()}));
+            await browser.disconnect();
+            if(!ok) process.exit(2);
+          })().catch(e=>{console.error(e.message);process.exit(1)});
+          NODE
           OVH
               ;;
             openai_admin_handoff)
