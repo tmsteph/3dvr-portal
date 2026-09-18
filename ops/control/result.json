@@ -1,8 +1,8 @@
 {
-  "ok": false,
-  "error": "control request failed before a sanitized result was produced",
-  "requestId": "openai-admin-status-20260918-1",
+  "ok": true,
+  "openAiAdminKeyConfigured": false,
+  "requestId": "openai-admin-status-20260918-2",
   "action": "openai_admin_status",
-  "workflowOutcome": "failure",
-  "checkedAt": "2026-09-18T21:31:23Z"
+  "workflowOutcome": "success",
+  "checkedAt": "2026-09-18T21:32:21Z"
 }
