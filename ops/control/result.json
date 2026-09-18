@@ -1,9 +1,18 @@
 {
-  "ok": false,
-  "httpStatus": 500,
-  "error": "OpenAI API key is not configured.",
-  "requestId": "portal-ai-status-20260918-3",
-  "action": "portal_ai_status",
+  "ok": true,
+  "port": 4320,
+  "localHealthStatus": 200,
+  "localSha": "4e8b55d78115d75dd973fb29c7b9c5ed424ac755",
+  "localAi": {
+    "httpStatus": 401,
+    "error": "{\n  \"error\": {\n    \"message\": \"You have insufficient permissions for this operation. Missing scopes: api.responses.write. Check that you have the correct role in your organization (Reader, Writer, Owner) and project (Member, Owner), and if you're using a restricted API key, that it has the necessary"
+  },
+  "publicAi": {
+    "httpStatus": 500,
+    "error": "OpenAI API key is not configured."
+  },
+  "requestId": "portal-backend-status-20260918-4",
+  "action": "portal_backend_status",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-18T22:33:23Z"
+  "checkedAt": "2026-09-18T22:34:06Z"
 }
