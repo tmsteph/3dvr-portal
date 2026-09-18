@@ -35,7 +35,7 @@ jobs:
           service="$(jq -r '.service // empty' ops/control/request.json)"
           test -n "$id"
           case "$action" in
-            status|termux_status|openbao_status|portal_key_status|portal_ai_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard) ;;
+            status|termux_status|openbao_status|portal_key_status|portal_env_status|portal_ai_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard) ;;
             restart)
               case "$service" in
                 3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service) ;;
@@ -225,6 +225,19 @@ jobs:
             present=true
           fi
           jq -n --argjson present "$present" '{ok:true,openAiAdminKeyConfigured:$present}'
+          OVH
+              ;;
+            portal_env_status)
+              ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          base=false
+          portal=false
+          broker=false
+          [ -r /home/debian/.3dvr/config/env ] && grep -q '^OPENAI_API_KEY=.' /home/debian/.3dvr/config/env && base=true || true
+          [ -r /home/debian/.3dvr/config/portal.env ] && grep -q '^OPENAI_API_KEY=.' /home/debian/.3dvr/config/portal.env && portal=true || true
+          [ -r /etc/3dvr/secrets-broker/portal.env ] && grep -q '^OPENAI_API_KEY=.' /etc/3dvr/secrets-broker/portal.env && broker=true || true
+          envfiles=$(systemctl show 3dvr-portal.service -p EnvironmentFiles --value | tr '\n' ' ' | head -c 500)
+          jq -n --argjson base "$base" --argjson portal "$portal" --argjson broker "$broker" --arg envfiles "$envfiles"             '{ok:true,baseEnvHasKey:$base,portalEnvHasKey:$portal,brokerEnvHasKey:$broker,environmentFiles:$envfiles}'
           OVH
               ;;
             portal_key_status)
