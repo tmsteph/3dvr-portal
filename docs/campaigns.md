@@ -33,3 +33,5 @@ Discovery guardrails:
 - keep manual paste/CSV import usable when API billing is unavailable.
 
 The endpoint is multiplexed through `/api/openai-site?provider=lead-finder` so it does not add another Vercel serverless function. `OPENAI_API_KEY` funds the search; `OPENAI_LEAD_MODEL` can override the default model.
+
+Lead discovery resolves AI credentials the same way as Operator: direct `OPENAI_API_KEY` first, then the Vercel AI Gateway via `AI_GATEWAY_API_KEY` or `VERCEL_OIDC_TOKEN`. This avoids requiring a duplicate Vercel OpenAI secret when Operator is already using the shared provider path.

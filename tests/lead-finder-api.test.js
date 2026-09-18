@@ -75,12 +75,12 @@ test('lead finder response keeps verified-looking public emails and source URLs 
   assert.equal(result.sources.length, 1);
 });
 
-test('lead finder handler explains when OpenAI is not configured', async () => {
-  const handler = createLeadFinderHandler({ apiKey: '' });
+test('lead finder handler explains when no AI provider is configured', async () => {
+  const handler = createLeadFinderHandler({ apiKey: '', gatewayToken: '' });
   const res = mockResponse();
   await handler({ method: 'POST', body: { description: 'restaurants' } }, res);
   assert.equal(res.statusCode, 503);
-  assert.equal(res.payload.code, 'openai_not_configured');
+  assert.equal(res.payload.code, 'ai_not_configured');
 });
 
 test('lead finder maps OpenAI quota errors to a billing-friendly response', async () => {
@@ -96,4 +96,40 @@ test('lead finder maps OpenAI quota errors to a billing-friendly response', asyn
   await handler({ method: 'POST', body: { description: 'restaurants' } }, res);
   assert.equal(res.statusCode, 402);
   assert.equal(res.payload.code, 'credit_balance_exhausted');
+});
+
+
+test('lead finder falls back to the same Vercel AI Gateway path as Operator', async () => {
+  let requestUrl = '';
+  let authorization = '';
+  let requestBody = null;
+  const handler = createLeadFinderHandler({
+    apiKey: '',
+    gatewayToken: 'gateway-test-token',
+    fetchImpl: async (url, options) => {
+      requestUrl = url;
+      authorization = options.headers.Authorization;
+      requestBody = JSON.parse(options.body);
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          output: [{
+            type: 'message',
+            content: [{
+              type: 'output_text',
+              text: JSON.stringify({ leads: [] }),
+            }],
+          }],
+        }),
+      };
+    },
+  });
+  const res = mockResponse();
+  await handler({ method: 'POST', body: { description: 'restaurants', count: 1 } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(requestUrl, 'https://ai-gateway.vercel.sh/v1/responses');
+  assert.equal(authorization, 'Bearer gateway-test-token');
+  assert.equal(requestBody.model, 'openai/gpt-5.6-luna');
+  assert.equal(res.payload.provider, 'vercel-ai-gateway');
 });
