@@ -2,7 +2,7 @@
 
 const { createHash, randomBytes, timingSafeEqual } = require('node:crypto');
 const { execFile } = require('node:child_process');
-const { appendFile, chmod, mkdir, readFile, writeFile } = require('node:fs/promises');
+const { appendFile, chmod, mkdir, readFile, rename, writeFile } = require('node:fs/promises');
 const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
@@ -17,6 +17,7 @@ const PUBLIC_BASE = (process.env.HANDOFF_PUBLIC_BASE || 'https://portal.3dvr.tec
 const STATIC_DIR = path.resolve(__dirname, '../../../../human-handoff');
 const STATE_DIR = process.env.HANDOFF_STATE_DIR || path.join(os.homedir(), '.local/state/3dvr/human-handoff');
 const SECRET_FILE = process.env.HANDOFF_ADMIN_SECRET_FILE || path.join(os.homedir(), '.config/3dvr/handoff-gateway/admin.secret');
+const HANDOFF_STATE_FILE = path.join(STATE_DIR, 'handoffs.json');
 
 function hashToken(value = '') {
   return createHash('sha256').update(String(value)).digest('hex');
@@ -83,6 +84,43 @@ async function audit(event, handoff) {
   await appendFile(path.join(STATE_DIR, 'audit.jsonl'), `${JSON.stringify(record)}\n`, { mode: 0o600 });
 }
 
+function persistableHandoff(handoff) {
+  return {
+    id: handoff.id,
+    lane: handoff.lane,
+    origin: handoff.origin,
+    serviceName: handoff.serviceName,
+    reason: handoff.reason,
+    state: handoff.state,
+    createdAt: handoff.createdAt,
+    expiresAt: handoff.expiresAt,
+    initialHash: handoff.initialHash,
+    sessionHash: handoff.sessionHash || '',
+    targetId: handoff.targetId || '',
+  };
+}
+
+async function persistHandoffs(handoffs) {
+  await mkdir(STATE_DIR, { recursive: true, mode: 0o700 });
+  const active = [...handoffs.values()]
+    .filter(handoff => ['needs_human', 'human_active'].includes(handoff.state) && Date.now() < handoff.expiresAt)
+    .map(persistableHandoff);
+  const temp = `${HANDOFF_STATE_FILE}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;
+  await writeFile(temp, `${JSON.stringify(active, null, 2)}\n`, { mode: 0o600 });
+  await chmod(temp, 0o600).catch(() => {});
+  await rename(temp, HANDOFF_STATE_FILE);
+}
+
+async function loadPersistedHandoffs() {
+  try {
+    const parsed = JSON.parse(await readFile(HANDOFF_STATE_FILE, 'utf8'));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    if (error?.code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
 async function lease(action, ...args) {
   const result = await execFileAsync('/usr/bin/sudo', ['-n', LEASE_BIN, action, ...args.map(String)], {
     timeout: 8_000,
@@ -113,6 +151,7 @@ class CdpClient {
     this.socket = null;
     this.nextId = 1;
     this.pending = new Map();
+    this.listeners = new Map();
   }
 
   async connect() {
@@ -136,6 +175,13 @@ class CdpClient {
         message = JSON.parse(String(event.data));
       } catch {
         return;
+      }
+      if (message.method && this.listeners.has(message.method)) {
+        for (const listener of this.listeners.get(message.method)) {
+          try {
+            listener(message.params || {});
+          } catch {}
+        }
       }
       if (!message.id || !this.pending.has(message.id)) return;
       const pending = this.pending.get(message.id);
@@ -172,7 +218,17 @@ class CdpClient {
     });
   }
 
+  on(method, listener) {
+    if (!this.listeners.has(method)) this.listeners.set(method, new Set());
+    this.listeners.get(method).add(listener);
+  }
+
+  off(method, listener) {
+    this.listeners.get(method)?.delete(listener);
+  }
+
   close() {
+    this.listeners.clear();
     try {
       this.socket?.close();
     } catch {}
@@ -183,6 +239,75 @@ function createGateway() {
   const handoffs = new Map();
   const initialIndex = new Map();
   const sessionIndex = new Map();
+
+  function initRuntime(handoff) {
+    handoff.latestFrame = null;
+    handoff.frameSeq = 0;
+    handoff.lastFrameAcceptedAt = 0;
+    handoff.frameWaiters = new Set();
+    handoff.screencastHandler = null;
+    handoff.screencastStarted = false;
+    return handoff;
+  }
+
+  function wakeFrameWaiters(handoff) {
+    for (const resolve of handoff.frameWaiters || []) resolve();
+    handoff.frameWaiters?.clear();
+  }
+
+  async function startScreencast(handoff) {
+    if (handoff.screencastStarted) return;
+    if (!handoff.frameWaiters) initRuntime(handoff);
+
+    const handler = params => {
+      if (params.sessionId != null) {
+        handoff.client.send('Page.screencastFrameAck', { sessionId: params.sessionId }).catch(() => {});
+      }
+      if (!params.data) return;
+      handoff.lastFrameAcceptedAt = Date.now();
+      handoff.latestFrame = Buffer.from(params.data, 'base64');
+      handoff.frameSeq += 1;
+      wakeFrameWaiters(handoff);
+    };
+
+    handoff.screencastHandler = handler;
+    handoff.client.on('Page.screencastFrame', handler);
+    await handoff.client.send('Page.startScreencast', {
+      format: 'jpeg',
+      quality: 55,
+      maxWidth: 1280,
+      maxHeight: 900,
+      everyNthFrame: 1,
+    });
+    handoff.screencastStarted = true;
+  }
+
+  async function stopScreencast(handoff) {
+    wakeFrameWaiters(handoff);
+    if (!handoff?.client || !handoff.screencastStarted) return;
+    handoff.screencastStarted = false;
+    if (handoff.screencastHandler) {
+      handoff.client.off('Page.screencastFrame', handoff.screencastHandler);
+      handoff.screencastHandler = null;
+    }
+    await handoff.client.send('Page.stopScreencast').catch(() => {});
+  }
+
+  async function waitForNewFrame(handoff, after, timeoutMs = 1200) {
+    if (handoff.frameSeq > after) return;
+    await new Promise(resolve => {
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        handoff.frameWaiters.delete(done);
+        resolve();
+      };
+      const timer = setTimeout(done, timeoutMs);
+      handoff.frameWaiters.add(done);
+    });
+  }
 
   function activeOrThrow(handoff) {
     if (!handoff) throw Object.assign(new Error('Handoff not found.'), { statusCode: 401 });
@@ -198,12 +323,14 @@ function createGateway() {
     handoff.state = state;
     initialIndex.delete(handoff.initialHash);
     if (handoff.sessionHash) sessionIndex.delete(handoff.sessionHash);
+    await stopScreencast(handoff);
     handoff.client?.close();
     handoff.client = null;
     const token = handoff.leaseToken;
     handoff.leaseToken = null;
     if (token) await lease('release', handoff.lane, token);
     await audit(state, handoff);
+    await persistHandoffs(handoffs);
     return handoff;
   }
 
@@ -228,7 +355,7 @@ function createGateway() {
     }
 
     const initialToken = randomBytes(32).toString('base64url');
-    const handoff = {
+    const handoff = initRuntime({
       id,
       lane,
       origin: new URL(origin).origin,
@@ -242,10 +369,11 @@ function createGateway() {
       leaseToken,
       targetId: target.id,
       client,
-    };
+    });
     handoffs.set(id, handoff);
     initialIndex.set(handoff.initialHash, id);
     await audit('created', handoff);
+    await persistHandoffs(handoffs);
     return {
       id,
       url: `${PUBLIC_BASE}#${initialToken}`,
@@ -280,7 +408,17 @@ function createGateway() {
     handoff.sessionHash = hashToken(sessionToken);
     sessionIndex.set(handoff.sessionHash, handoff.id);
     handoff.state = 'human_active';
+    try {
+      await startScreencast(handoff);
+    } catch (error) {
+      handoff.state = 'needs_human';
+      sessionIndex.delete(handoff.sessionHash);
+      handoff.sessionHash = '';
+      initialIndex.set(handoff.initialHash, handoff.id);
+      throw error;
+    }
     await audit('opened', handoff);
+    await persistHandoffs(handoffs);
     return {
       sessionToken,
       serviceName: handoff.serviceName,
@@ -289,16 +427,24 @@ function createGateway() {
     };
   }
 
-  async function frame(token) {
+  async function frame(token, after = 0) {
     const handoff = activeOrThrow(fromSession(token));
     if (handoff.state !== 'human_active') throw Object.assign(new Error('Handoff is not open.'), { statusCode: 409 });
-    const result = await handoff.client.send('Page.captureScreenshot', {
-      format: 'jpeg',
-      quality: 72,
-      fromSurface: true,
-      captureBeyondViewport: false,
-    });
-    return Buffer.from(result.data, 'base64');
+    if (!handoff.screencastStarted) await startScreencast(handoff);
+    await waitForNewFrame(handoff, Math.max(0, Number(after) || 0));
+
+    if (!handoff.latestFrame) {
+      const result = await handoff.client.send('Page.captureScreenshot', {
+        format: 'jpeg',
+        quality: 58,
+        fromSurface: true,
+        captureBeyondViewport: false,
+      });
+      handoff.latestFrame = Buffer.from(result.data, 'base64');
+      handoff.frameSeq += 1;
+    }
+
+    return { image: handoff.latestFrame, seq: handoff.frameSeq };
   }
 
   async function input(token, action = {}) {
@@ -353,12 +499,58 @@ function createGateway() {
         handoff.state = 'lease_lost';
         initialIndex.delete(handoff.initialHash);
         if (handoff.sessionHash) sessionIndex.delete(handoff.sessionHash);
+        await stopScreencast(handoff).catch(() => {});
         handoff.client?.close();
         handoff.client = null;
         handoff.leaseToken = null;
         await audit('lease_lost', handoff).catch(() => {});
+        await persistHandoffs(handoffs).catch(() => {});
       }
     }
+  }
+
+  async function restore() {
+    const records = await loadPersistedHandoffs();
+    let failures = 0;
+
+    for (const record of records) {
+      if (!record || !['needs_human', 'human_active'].includes(record.state)) continue;
+      if (Date.now() >= Number(record.expiresAt || 0)) continue;
+      if (!LANE_PORTS[record.lane] || !record.origin || !record.id) continue;
+
+      let leaseToken = '';
+      let client = null;
+      try {
+        const target = await selectTarget(record.lane, record.origin);
+        leaseToken = await lease('acquire', record.lane, `human-handoff:${record.id}`, LEASE_TTL_SECONDS);
+        client = new CdpClient(target.webSocketDebuggerUrl);
+        await client.connect();
+
+        const handoff = initRuntime({
+          ...record,
+          targetId: target.id,
+          leaseToken,
+          client,
+        });
+        handoffs.set(handoff.id, handoff);
+        if (handoff.state === 'human_active' && handoff.sessionHash) {
+          sessionIndex.set(handoff.sessionHash, handoff.id);
+          await startScreencast(handoff);
+        } else {
+          handoff.state = 'needs_human';
+          initialIndex.set(handoff.initialHash, handoff.id);
+        }
+        await audit('restored', handoff).catch(() => {});
+      } catch (error) {
+        failures += 1;
+        client?.close();
+        if (leaseToken) await lease('release', record.lane, leaseToken).catch(() => {});
+        console.error(`handoff restore failed for ${record.id}:`, error?.message || error);
+      }
+    }
+
+    if (!failures) await persistHandoffs(handoffs);
+    return { restored: handoffs.size, failures };
   }
 
   function status(id) {
@@ -374,7 +566,7 @@ function createGateway() {
     };
   }
 
-  return { createHandoff, preview, open, frame, input, resolve, cancel, renewActive, status };
+  return { createHandoff, preview, open, frame, input, resolve, cancel, renewActive, restore, status };
 }
 
 function bearer(req) {
@@ -409,6 +601,7 @@ async function serveStatic(req, res) {
 
 async function startServer() {
   const gateway = createGateway();
+  await gateway.restore();
   const adminSecret = await ensureAdminSecret();
   const host = process.env.HANDOFF_BIND || '127.0.0.1';
   const port = Number(process.env.HANDOFF_PORT) || 4312;
@@ -416,7 +609,8 @@ async function startServer() {
   const server = http.createServer(async (req, res) => {
     try {
       if (req.method === 'GET' && await serveStatic(req, res)) return;
-      const pathname = new URL(req.url, 'http://localhost').pathname;
+      const requestUrl = new URL(req.url, 'http://localhost');
+      const pathname = requestUrl.pathname;
 
       if (pathname === '/human-handoff/api/preview' && req.method === 'POST') {
         const body = await readJson(req);
@@ -427,13 +621,14 @@ async function startServer() {
         return json(res, 200, await gateway.open(body.token));
       }
       if (pathname === '/human-handoff/api/frame' && req.method === 'GET') {
-        const image = await gateway.frame(bearer(req));
+        const frame = await gateway.frame(bearer(req), requestUrl.searchParams.get('after'));
         res.writeHead(200, {
           'content-type': 'image/jpeg',
-          'content-length': image.length,
+          'content-length': frame.image.length,
           'cache-control': 'no-store',
+          'x-handoff-frame-seq': String(frame.seq),
         });
-        return res.end(image);
+        return res.end(frame.image);
       }
       if (pathname === '/human-handoff/api/input' && req.method === 'POST') {
         const body = await readJson(req);
@@ -532,6 +727,7 @@ module.exports = {
   createGateway,
   hashToken,
   parseCli,
+  persistableHandoff,
   safeEqual,
   selectTarget,
   targetMatchesOrigin,
