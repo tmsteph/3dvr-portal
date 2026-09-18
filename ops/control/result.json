@@ -1,10 +1,8 @@
 {
-  "ok": true,
-  "handoffId": "HVAHdSJx-_xkEYiB",
-  "handoffUrl": "https://hypothesis-xhtml-bundle-thick.trycloudflare.com/human-handoff/#YTf8Bq0IgEF49bKXx_OG5Ld9Sj-PY709RFCCG3oHDgo",
-  "expiresAt": "2026-09-18T22:37:38.156Z",
-  "requestId": "openai-admin-handoff-20260918-3",
-  "action": "openai_admin_handoff",
-  "workflowOutcome": "success",
-  "checkedAt": "2026-09-18T21:37:38Z"
+  "ok": false,
+  "error": "control request failed before a sanitized result was produced",
+  "requestId": "openai-admin-store-clipboard-20260918-1",
+  "action": "openai_admin_store_clipboard",
+  "workflowOutcome": "failure",
+  "checkedAt": "2026-09-18T21:42:55Z"
 }
