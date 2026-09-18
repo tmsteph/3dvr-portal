@@ -71,13 +71,13 @@ async function main() {
 
   if (!serviceAccount?.id) throw new Error('OpenAI service account id missing');
 
-  if (serviceAccount.role === 'none') {
+  if (serviceAccount.role !== 'owner') {
     serviceAccount = await openai(
       adminKey,
       '/organization/projects/' + PROJECT_ID + '/service_accounts/' + encodeURIComponent(serviceAccount.id),
       {
         method: 'POST',
-        body: { role: 'member' },
+        body: { role: 'owner' },
       },
     );
   }
@@ -86,8 +86,8 @@ async function main() {
     adminKey,
     '/organization/projects/' + PROJECT_ID + '/service_accounts/' + encodeURIComponent(serviceAccount.id),
   );
-  if (!['member', 'owner'].includes(serviceAccount.role)) {
-    throw new Error('OpenAI service account has no usable project role');
+  if (serviceAccount.role !== 'owner') {
+    throw new Error('OpenAI service account owner role was not applied');
   }
 
   const keyName = SERVICE_ACCOUNT_NAME + '-' + new Date().toISOString().replace(/[:.]/g, '-');
