@@ -29,7 +29,7 @@ Resolve, cancel, expiry, or lease loss removes interactive access. The current i
 
 The initial URL contains a random capability in the URL fragment, so it is not sent in ordinary HTTP request lines or referrers. The Portal exchanges it for a new random session capability when the user taps Continue. Only token hashes are retained in gateway memory.
 
-Default lifetime is five minutes. The browser-side session token is kept in session storage only to survive ordinary phone backgrounding/reconnects. Done, cancel, expiry, or service loss invalidates access.
+Default lifetime is one hour. The browser-side session token is kept in session storage only to survive ordinary phone backgrounding/reconnects. Done, cancel, expiry, or service loss invalidates access.
 
 ## Privacy and logging
 
@@ -53,3 +53,7 @@ Current lanes remain:
 ## Next integration
 
 When `detectHumanChallenge()` returns a human challenge during an agent workflow, the caller should create a handoff for that workflow's existing browser lane and target origin, present the short-lived URL to the user, wait for a resolved state, reacquire the writer lease, and continue from the same tab.
+
+## Headed general lane
+
+The `general` lane must run standard headed Chrome under Xvfb rather than `--headless=new`. Human-verification providers can reject a headless browser even when the account owner is genuinely controlling it through Human Handoff. The lane keeps CDP bound to loopback and the same persistent profile, while Xvfb provides a normal browser display environment without exposing a desktop publicly.

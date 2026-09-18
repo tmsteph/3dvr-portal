@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+lane="${1:-}"
+extra_args=()
+headless_args=(--headless=new)
+case "$lane" in
+  general)
+    port=9222
+    profile="/home/debian/.config/google-chrome-for-testing"
+    start_url="about:blank"
+    headless_args=()
+    extra_args+=("--window-size=1280,900")
+    ;;
+  encore)
+    port=9333
+    profile="/home/debian/.config/3dvr/browser-profiles/encore"
+    start_url="https://n21.ultipro.com/"
+    ;;
+  messaging)
+    port=9444
+    profile="/home/debian/.config/3dvr/browser-profiles/messaging"
+    start_url="https://messages.google.com/web/"
+    headless_args=()
+    extra_args+=("--window-size=1280,900")
+    extra_args+=("--disable-blink-features=AutomationControlled")
+    ;;
+  training)
+    port=9555
+    profile="/home/debian/.config/3dvr/browser-profiles/training"
+    start_url="about:blank"
+    ;;
+  *) echo "unknown browser lane: $lane" >&2; exit 64 ;;
+esac
+
+mkdir -p "$profile"
+chmod 700 "$profile"
+chrome="${THREEDVR_CHROME_BIN:-}"
+if [[ -z "$chrome" || ! -x "$chrome" ]]; then
+  chrome="$(find /home/debian/.agent-browser/browsers -mindepth 2 -maxdepth 2 -type f -name chrome -perm -u+x 2>/dev/null | sort -V | tail -1 || true)"
+fi
+if [[ -z "$chrome" || ! -x "$chrome" ]]; then
+  for candidate in google-chrome-stable google-chrome chromium chromium-browser; do
+    if command -v "$candidate" >/dev/null 2>&1; then chrome="$(command -v "$candidate")"; break; fi
+  done
+fi
+if [[ "$lane" == "messaging" || "$lane" == "general" ]] && command -v google-chrome-stable >/dev/null 2>&1; then
+  chrome="$(command -v google-chrome-stable)"
+fi
+
+[[ -n "$chrome" && -x "$chrome" ]] || { echo "Chrome executable not found" >&2; exit 69; }
+
+args=(
+  "${headless_args[@]}"
+  --no-sandbox
+  --disable-dev-shm-usage
+  --no-first-run
+  --no-default-browser-check
+  "${extra_args[@]}"
+  --remote-debugging-address=127.0.0.1
+  --remote-debugging-port="$port"
+  --user-data-dir="$profile"
+  "$start_url"
+)
+
+if [[ "$lane" == "messaging" || "$lane" == "general" ]]; then
+  exec /usr/bin/xvfb-run -a -s "-screen 0 1280x900x24" "$chrome" "${args[@]}"
+else
+  exec "$chrome" "${args[@]}"
+fi

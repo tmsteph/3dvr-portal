@@ -20,6 +20,14 @@ let sessionToken = sessionStorage.getItem('3dvr-handoff-session') || '';
 let polling = false;
 let pointerStart = null;
 let currentFrameUrl = '';
+const activePointers = new Map();
+let pinchActive = false;
+let pinchStartDistance = 0;
+let pinchStartZoom = 1;
+let pinchStartCenter = null;
+let zoom = 1;
+let panX = 0;
+let panY = 0;
 
 history.replaceState(null, '', location.pathname);
 
@@ -105,7 +113,7 @@ async function pollFrame() {
       currentFrameUrl = nextUrl;
     };
     frame.src = nextUrl;
-    sessionStatus.textContent = 'Live · tap, scroll, or use Keyboard';
+    sessionStatus.textContent = 'Live · tap, drag to scroll, pinch to zoom, or use Keyboard';
   } catch (error) {
     sessionStatus.textContent = error.message;
     if (/expired|not active|not open/i.test(error.message)) polling = false;
@@ -130,22 +138,116 @@ async function sendInput(payload) {
   }, true);
 }
 
+function distanceBetweenPointers() {
+  const points = [...activePointers.values()];
+  if (points.length < 2) return 0;
+  return Math.hypot(points[0].clientX - points[1].clientX, points[0].clientY - points[1].clientY);
+}
+
+function centerBetweenPointers() {
+  const points = [...activePointers.values()];
+  if (points.length < 2) return null;
+  return {
+    x: (points[0].clientX + points[1].clientX) / 2,
+    y: (points[0].clientY + points[1].clientY) / 2,
+  };
+}
+
+function applyViewportTransform() {
+  frame.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${zoom})`;
+}
+
 frame.addEventListener('pointerdown', event => {
+  event.preventDefault();
   const point = remotePoint(event);
   if (!point) return;
-  pointerStart = { ...point, clientY: event.clientY };
   frame.setPointerCapture?.(event.pointerId);
+  activePointers.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
+
+  if (activePointers.size === 1) {
+    pointerStart = {
+      ...point,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      panX,
+      panY,
+      moved: false,
+    };
+    return;
+  }
+
+  if (activePointers.size === 2) {
+    pinchActive = true;
+    pointerStart = null;
+    pinchStartDistance = Math.max(1, distanceBetweenPointers());
+    pinchStartZoom = zoom;
+    pinchStartCenter = centerBetweenPointers();
+  }
+});
+
+frame.addEventListener('pointermove', event => {
+  if (!activePointers.has(event.pointerId)) return;
+  event.preventDefault();
+  activePointers.set(event.pointerId, { clientX: event.clientX, clientY: event.clientY });
+
+  if (pinchActive && activePointers.size >= 2) {
+    const nextDistance = distanceBetweenPointers();
+    const nextCenter = centerBetweenPointers();
+    zoom = Math.max(1, Math.min(4, pinchStartZoom * nextDistance / pinchStartDistance));
+    if (nextCenter && pinchStartCenter) {
+      panX += nextCenter.x - pinchStartCenter.x;
+      panY += nextCenter.y - pinchStartCenter.y;
+      pinchStartCenter = nextCenter;
+    }
+    if (zoom === 1) {
+      panX = 0;
+      panY = 0;
+    }
+    applyViewportTransform();
+    sessionStatus.textContent = `Zoom ${Math.round(zoom * 100)}% · pinch to adjust`;
+    return;
+  }
+
+  if (pointerStart && zoom > 1 && activePointers.size === 1) {
+    const dx = event.clientX - pointerStart.clientX;
+    const dy = event.clientY - pointerStart.clientY;
+    if (Math.abs(dx) + Math.abs(dy) > 6) pointerStart.moved = true;
+    panX = pointerStart.panX + dx;
+    panY = pointerStart.panY + dy;
+    applyViewportTransform();
+  }
 });
 
 frame.addEventListener('pointerup', event => {
   const end = remotePoint(event);
+  const wasPinch = pinchActive;
+  activePointers.delete(event.pointerId);
+
+  if (wasPinch) {
+    if (activePointers.size === 0) pinchActive = false;
+    pointerStart = null;
+    return;
+  }
+
   if (!pointerStart || !end) return;
-  const drag = event.clientY - pointerStart.clientY;
-  const payload = Math.abs(drag) < 12
+  const dx = event.clientX - pointerStart.clientX;
+  const dy = event.clientY - pointerStart.clientY;
+  const moved = pointerStart.moved || Math.abs(dx) + Math.abs(dy) >= 12;
+  const payload = !moved
     ? { type: 'click', x: end.x, y: end.y }
-    : { type: 'scroll', x: end.x, y: end.y, deltaY: -drag * 4 };
+    : zoom > 1
+      ? null
+      : { type: 'scroll', x: end.x, y: end.y, deltaY: -dy * 4 };
   pointerStart = null;
-  sendInput(payload).catch(error => { sessionStatus.textContent = error.message; });
+  if (payload) sendInput(payload).catch(error => { sessionStatus.textContent = error.message; });
+});
+
+frame.addEventListener('pointercancel', event => {
+  activePointers.delete(event.pointerId);
+  if (activePointers.size === 0) {
+    pinchActive = false;
+    pointerStart = null;
+  }
 });
 
 keyboardButton.addEventListener('click', () => {
