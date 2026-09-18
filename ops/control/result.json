@@ -1,8 +1,10 @@
 {
-  "ok": false,
-  "error": "control request failed before a sanitized result was produced",
-  "requestId": "portal-backend-status-20260918-3",
-  "action": "portal_backend_status",
-  "workflowOutcome": "failure",
-  "checkedAt": "2026-09-18T22:31:16Z"
+  "ok": true,
+  "service": "3dvr-portal.service",
+  "state": "active",
+  "openAiPromoted": true,
+  "requestId": "portal-promote-secrets-20260918-1",
+  "action": "portal_promote_secrets",
+  "workflowOutcome": "success",
+  "checkedAt": "2026-09-18T22:32:52Z"
 }
