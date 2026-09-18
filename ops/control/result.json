@@ -1,8 +1,9 @@
 {
-  "ok": false,
-  "error": "control request failed before a sanitized result was produced",
-  "requestId": "openai-admin-handoff-20260918-2",
-  "action": "openai_admin_handoff",
-  "workflowOutcome": "failure",
-  "checkedAt": "2026-09-18T21:34:58Z"
+  "ok": true,
+  "url": "https://platform.openai.com/settings/organization/admin-keys",
+  "title": "OpenAI Platform",
+  "requestId": "openai-admin-stage-20260918-1",
+  "action": "openai_admin_stage",
+  "workflowOutcome": "success",
+  "checkedAt": "2026-09-18T21:35:47Z"
 }
