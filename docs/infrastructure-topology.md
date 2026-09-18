@@ -1,6 +1,6 @@
 # 3DVR Infrastructure Topology
 
-Last reviewed: 2026-09-16
+Last reviewed: 2026-09-17
 
 This document is the canonical human-readable inventory for the 3DVR compute mesh. Runtime secrets and private keys must never be stored here.
 
@@ -17,6 +17,14 @@ For ChatGPT sessions acting through connectors, the connector-visible mirror is 
 | Hetzner | `167.233.174.20` | Agent / worker runtime | Dedicated `apps/agent` runtime, Forge worker, background jobs, and Open Runner remote-command ingress |
 
 There is one DigitalOcean droplet in the current account inventory. Do not assume a second DigitalOcean node exists.
+
+### OpenClaw production identity
+
+The production messaging-backed OpenClaw runs on Hetzner under `openclaw-cloud.service` using the **`cloud` profile**. Its live configuration is `/root/.openclaw-cloud/openclaw.json`. The separate `/root/.openclaw/` tree is the default profile and must not be mistaken for the production bot.
+
+As of 2026-09-17, Telegram `@tmstephOpenClawBot` is the connected working transport. Discord support is installed in the production profile but is not yet authenticated/configured, so Telegram must remain enabled until Discord passes an end-to-end probe and message test.
+
+See [`docs/openclaw-runtime-map.md`](./openclaw-runtime-map.md) before any OpenClaw channel, plugin, profile, or gateway change.
 
 ## Agent routing contract
 
