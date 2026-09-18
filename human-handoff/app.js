@@ -18,6 +18,8 @@ const API = '/human-handoff/api';
 const initialToken = decodeURIComponent(location.hash.slice(1));
 let sessionToken = sessionStorage.getItem('3dvr-handoff-session') || '';
 let polling = false;
+let frameLoopRunning = false;
+let frameSeq = 0;
 let pointerStart = null;
 let currentFrameUrl = '';
 const activePointers = new Map();
@@ -99,26 +101,51 @@ function showSession() {
   intro.hidden = true;
   session.hidden = false;
   polling = true;
-  pollFrame();
+  if (!frameLoopRunning) pollFrame();
 }
 
 async function pollFrame() {
-  if (!polling || !sessionToken) return;
-  try {
-    const image = await api('/frame', {}, true);
-    const nextUrl = URL.createObjectURL(image);
-    frame.onload = () => {
-      loading.hidden = true;
-      if (currentFrameUrl) URL.revokeObjectURL(currentFrameUrl);
-      currentFrameUrl = nextUrl;
-    };
-    frame.src = nextUrl;
-    sessionStatus.textContent = 'Live · tap, drag to scroll, pinch to zoom, or use Keyboard';
-  } catch (error) {
-    sessionStatus.textContent = error.message;
-    if (/expired|not active|not open/i.test(error.message)) polling = false;
+  if (frameLoopRunning) return;
+  frameLoopRunning = true;
+
+  while (polling && sessionToken) {
+    try {
+      const response = await fetch(`${API}/frame?after=${frameSeq}`, {
+        headers: { authorization: `Bearer ${sessionToken}` },
+        cache: 'no-store',
+      });
+      const contentType = response.headers.get('content-type') || '';
+      if (!response.ok) {
+        let message = 'Secure handoff failed.';
+        if (contentType.includes('application/json')) {
+          const body = await response.json().catch(() => ({}));
+          message = body.error || message;
+        }
+        throw new Error(message);
+      }
+
+      const nextSeq = Number(response.headers.get('x-handoff-frame-seq'));
+      if (Number.isFinite(nextSeq) && nextSeq > frameSeq) frameSeq = nextSeq;
+      const image = await response.blob();
+      const nextUrl = URL.createObjectURL(image);
+      frame.onload = () => {
+        loading.hidden = true;
+        if (currentFrameUrl) URL.revokeObjectURL(currentFrameUrl);
+        currentFrameUrl = nextUrl;
+      };
+      frame.src = nextUrl;
+      sessionStatus.textContent = 'Live · tap, drag to scroll, pinch to zoom, or use Keyboard';
+    } catch (error) {
+      sessionStatus.textContent = error.message;
+      if (/expired|not active|not open|not found/i.test(error.message)) {
+        polling = false;
+        break;
+      }
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
   }
-  if (polling) setTimeout(pollFrame, 700);
+
+  frameLoopRunning = false;
 }
 
 function remotePoint(event) {
