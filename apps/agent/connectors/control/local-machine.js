@@ -233,6 +233,89 @@ async function runCommand(commandId, {
   };
 }
 
+
+async function cdpCall(wsUrl, method, params = {}) {
+  const ws = new WebSocket(wsUrl);
+  let nextId = 1;
+  const pending = new Map();
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('CDP websocket open timed out')), 5000);
+    ws.addEventListener('open', () => { clearTimeout(timer); resolve(); }, { once: true });
+    ws.addEventListener('error', () => { clearTimeout(timer); reject(new Error('CDP websocket failed')); }, { once: true });
+  });
+  ws.addEventListener('message', (event) => {
+    let message;
+    try { message = JSON.parse(String(event.data || '')); } catch { return; }
+    if (!message.id || !pending.has(message.id)) return;
+    const { resolve, reject } = pending.get(message.id);
+    pending.delete(message.id);
+    if (message.error) reject(new Error(message.error.message || 'CDP command failed'));
+    else resolve(message.result || {});
+  });
+  const send = (name, payload = {}) => new Promise((resolve, reject) => {
+    const id = nextId++;
+    pending.set(id, { resolve, reject });
+    ws.send(JSON.stringify({ id, method: name, params: payload }));
+  });
+  try {
+    return await send(method, params);
+  } finally {
+    try { ws.close(); } catch {}
+  }
+}
+
+async function storeOpenAiAdminFromBrowserClipboard({
+  cdpPort = 9444,
+  secretKey = 'OPENAI_ADMIN_KEY',
+} = {}) {
+  const base = `http://127.0.0.1:${cdpPort}`;
+  const [versionResponse, targetsResponse] = await Promise.all([
+    fetch(`${base}/json/version`),
+    fetch(`${base}/json/list`),
+  ]);
+  if (!versionResponse.ok || !targetsResponse.ok) throw new Error('OpenAI browser CDP is unavailable');
+
+  const version = await versionResponse.json();
+  const targets = await targetsResponse.json();
+  const page = Array.isArray(targets)
+    ? targets.find(item => item?.type === 'page' && String(item?.url || '').startsWith('https://platform.openai.com/'))
+    : null;
+  if (!page?.webSocketDebuggerUrl) throw new Error('No authenticated OpenAI Platform tab is available');
+  if (!version?.webSocketDebuggerUrl) throw new Error('Chrome browser websocket is unavailable');
+
+  await cdpCall(version.webSocketDebuggerUrl, 'Browser.grantPermissions', {
+    origin: 'https://platform.openai.com',
+    permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'],
+  });
+
+  const read = await cdpCall(page.webSocketDebuggerUrl, 'Runtime.evaluate', {
+    expression: 'navigator.clipboard.readText()',
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  let value = read?.result?.value;
+  if (typeof value !== 'string' || !value.trim()) throw new Error('OpenAI browser clipboard is empty');
+  value = value.trim();
+  if (!/^sk-[A-Za-z0-9_-]{20,}$/.test(value)) throw new Error('Clipboard does not contain an OpenAI API credential');
+
+  const { OpenBaoBackend } = require('/opt/3dvr/secrets-broker/openbao.js');
+  const backend = new OpenBaoBackend();
+  backend.create({
+    key: secretKey,
+    value,
+    sourceId: 'openai-admin-bootstrap',
+  });
+
+  await cdpCall(page.webSocketDebuggerUrl, 'Runtime.evaluate', {
+    expression: "navigator.clipboard.writeText('')",
+    awaitPromise: true,
+    returnByValue: true,
+  }).catch(() => {});
+  value = '';
+
+  return { stored: true, key: secretKey, backend: 'openbao', clipboardCleared: true };
+}
+
 module.exports = {
   assertServiceAllowed,
   fileList,
@@ -246,4 +329,5 @@ module.exports = {
   runCommand,
   serviceAction,
   serviceStatus,
+  storeOpenAiAdminFromBrowserClipboard,
 };
