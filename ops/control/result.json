@@ -1,10 +1,9 @@
 {
-  "ok": true,
-  "service": "3dvr-portal.service",
-  "state": "active",
-  "openAiPromoted": true,
-  "requestId": "portal-promote-secrets-20260918-1",
-  "action": "portal_promote_secrets",
+  "ok": false,
+  "httpStatus": 500,
+  "error": "OpenAI API key is not configured.",
+  "requestId": "portal-ai-status-20260918-3",
+  "action": "portal_ai_status",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-18T22:32:52Z"
+  "checkedAt": "2026-09-18T22:33:23Z"
 }
