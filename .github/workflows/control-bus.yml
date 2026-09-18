@@ -35,7 +35,7 @@ jobs:
           service="$(jq -r '.service // empty' ops/control/request.json)"
           test -n "$id"
           case "$action" in
-            status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_ai_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard) ;;
+            status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_promote_secrets|portal_ai_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard) ;;
             restart)
               case "$service" in
                 3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service) ;;
@@ -275,6 +275,12 @@ jobs:
           fi
           state=$(systemctl is-active 3dvr-portal.service || true)
           jq -n --arg state "$state" --argjson configured "$configured" '{ok:($state=="active"),service:"3dvr-portal.service",state:$state,openAiKeyConfigured:$configured}'
+          OVH
+              ;;
+            portal_promote_secrets)
+              ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          sudo -n /usr/local/sbin/3dvr-control-service promote-portal-secrets 3dvr-portal.service
           OVH
               ;;
             portal_ai_status)
