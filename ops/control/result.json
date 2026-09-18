@@ -1,8 +1,9 @@
 {
-  "ok": false,
-  "error": "control request failed before a sanitized result was produced",
-  "requestId": "openai-admin-store-clipboard-20260918-1",
-  "action": "openai_admin_store_clipboard",
-  "workflowOutcome": "failure",
-  "checkedAt": "2026-09-18T21:42:55Z"
+  "ok": true,
+  "service": "3dvr-portal.service",
+  "state": "active",
+  "requestId": "portal-restart-20260918-1",
+  "action": "restart",
+  "workflowOutcome": "success",
+  "checkedAt": "2026-09-18T22:23:14Z"
 }
