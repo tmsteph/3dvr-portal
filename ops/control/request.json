@@ -1,4 +1,5 @@
 {
-  "id": "portal-ai-status-20260918-1",
-  "action": "portal_ai_status"
+  "id": "portal-restart-20260918-1",
+  "action": "restart",
+  "service": "3dvr-portal.service"
 }
