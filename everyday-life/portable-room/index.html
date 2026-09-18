@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portable Room Backpack | 3DVR</title>
+  <meta name="description" content="An open transforming backpack that becomes a standing desk, clothing rack, gear stand, and portable personal infrastructure.">
+  <link rel="stylesheet" href="../../style.css?v=portable-room">
+  <link rel="stylesheet" href="../styles.css?v=20260819">
+  <script defer src="/_vercel/insights/script.js"></script>
+  <style>
+    .portable-page .life-hero { min-height: 58vh; }
+    .portable-page .life-hero h1 { max-width: 12ch; }
+    .portable-page .mode-grid,
+    .portable-page .module-grid,
+    .portable-page .phase-grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-top: 2rem;
+    }
+    .portable-page .mode,
+    .portable-page .module,
+    .portable-page .phase {
+      padding: 1.35rem;
+      border: 1px solid var(--life-line);
+      border-radius: 1rem;
+      background: var(--life-panel);
+    }
+    .portable-page .mode h3,
+    .portable-page .module h3,
+    .portable-page .phase h3 { margin: 0 0 .4rem; }
+    .portable-page .mode p,
+    .portable-page .module p,
+    .portable-page .phase p { margin: 0; color: var(--life-muted); }
+    .portable-page .flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .6rem;
+      margin-top: 1.6rem;
+      font-weight: 800;
+    }
+    .portable-page .flow span {
+      padding: .55rem .8rem;
+      border: 1px solid var(--life-line);
+      border-radius: 999px;
+      background: var(--life-panel);
+    }
+    .portable-page .thesis {
+      background: var(--life-ink);
+      color: #f8f2e5;
+    }
+    .portable-page .thesis p { color: #c8d4c8; max-width: 760px; }
+    @media (max-width: 720px) {
+      .portable-page .mode-grid,
+      .portable-page .module-grid,
+      .portable-page .phase-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body class="everyday-life-page portable-page">
+  <nav class="life-nav" aria-label="Portable room navigation">
+    <a href="../../index.html">3DVR</a>
+    <a href="../">Everyday Life</a>
+    <a href="#modes">Modes</a>
+    <a href="#system">System</a>
+    <a href="#prototype">Prototype</a>
+  </nav>
+
+  <header class="life-hero">
+    <p class="eyebrow">3DVR Open Source Everyday Life · Core Concept</p>
+    <h1>A portable room in backpack form.</h1>
+    <p class="hero-copy">
+      The backpack is not just a container. Its structure becomes the furniture and infrastructure
+      you need when you arrive: standing desk, clothing rack, gear stand, and modular workstation.
+    </p>
+    <div class="hero-actions">
+      <a class="button primary" href="#prototype">Build the first prototype</a>
+      <a class="button" href="../">Back to Everyday Life</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="thesis" aria-labelledby="thesis-title">
+      <p class="eyebrow">Design Thesis</p>
+      <h2 id="thesis-title">Carry the furniture inside the object.</h2>
+      <p>
+        Most bags stop being useful when you arrive. Then the laptop needs a desk, clothing needs a rack,
+        equipment needs a stand, and accessories spread across whatever surface is available. The Portable Room
+        Backpack treats the frame itself as reusable infrastructure.
+      </p>
+      <div class="flow" aria-label="Transformation flow">
+        <span>Carry</span><span>Arrive</span><span>Expand</span><span>Work / Dress / Organize</span><span>Collapse</span><span>Leave</span>
+      </div>
+    </section>
+
+    <section id="modes" aria-labelledby="modes-title">
+      <p class="eyebrow">Core Modes</p>
+      <h2 id="modes-title">One frame, many rooms.</h2>
+      <div class="mode-grid">
+        <article class="mode"><h3>Backpack</h3><p>Carries daily equipment, clothing, computer, tools, food, and personal items.</p></article>
+        <article class="mode"><h3>Standing desk</h3><p>Telescoping structure supports a laptop, keyboard, tablet, or portable display at working height.</p></article>
+        <article class="mode"><h3>Clothing rack</h3><p>Uprights extend above the bag and lock into a crossbar for jackets, work clothes, costumes, or laundry.</p></article>
+        <article class="mode"><h3>Gear stand</h3><p>Mounting points organize headphones, cables, cameras, AV equipment, VR gear, and tools.</p></article>
+        <article class="mode"><h3>Mobile workstation</h3><p>Standard attachment points let work surfaces and accessories snap onto the same structural platform.</p></article>
+        <article class="mode"><h3>Personal basecamp</h3><p>Future fabric, power, lighting, privacy, seating, and shelter modules turn the system into a tiny portable room.</p></article>
+      </div>
+    </section>
+
+    <section id="system" aria-labelledby="system-title">
+      <p class="eyebrow">Mechanical Platform</p>
+      <h2 id="system-title">The frame is the product.</h2>
+      <p class="hero-copy">
+        The bag is one skin around a durable open frame. A practical first architecture uses lightweight telescoping
+        rails, locking hinges, adjustable feet, removable crossbars, and standardized mounting points. Soft goods can
+        change without throwing away the structure.
+      </p>
+      <div class="module-grid">
+        <article class="module"><h3>Work</h3><p>Laptop shelf, keyboard tray, display arm, phone mount, task light.</p></article>
+        <article class="module"><h3>Wardrobe</h3><p>Garment bar, hangers, shoe section, laundry or drying module.</p></article>
+        <article class="module"><h3>Power</h3><p>Battery, charging hub, solar panel, cable routing, removable electronics bay.</p></article>
+        <article class="module"><h3>Media + tools</h3><p>Camera/tripod mount, speakers, VR storage, tool panels, cable hooks.</p></article>
+        <article class="module"><h3>Body support</h3><p>Future leaning support, stool, or compact seat using the same load-bearing structure.</p></article>
+        <article class="module"><h3>Privacy</h3><p>Future fabric panels for a changing enclosure, shade, wind break, or micro-workspace.</p></article>
+      </div>
+    </section>
+
+    <section aria-labelledby="principles-title">
+      <p class="eyebrow">Design Principles</p>
+      <h2 id="principles-title">Open personal infrastructure.</h2>
+      <div class="principle-grid">
+        <article><strong>Transformative</strong><span>Every structural part should do more than one useful job.</span></article>
+        <article><strong>Repairable</strong><span>Fasteners, rails, fabric panels, straps, and modules can be replaced independently.</span></article>
+        <article><strong>Human scale</strong><span>Useful on a sidewalk, backstage, hotel room, train platform, campsite, or small apartment.</span></article>
+        <article><strong>Modular</strong><span>Publish attachment dimensions so other people can design compatible modules.</span></article>
+        <article><strong>Stable first</strong><span>A desk or rack must be mechanically trustworthy before adding clever electronics.</span></article>
+        <article><strong>Open by default</strong><span>CAD, dimensions, materials, load tests, failures, repairs, and variants belong in the public recipe.</span></article>
+      </div>
+    </section>
+
+    <section id="prototype" aria-labelledby="prototype-title">
+      <p class="eyebrow">Prototype Path</p>
+      <h2 id="prototype-title">Start with the transformation that matters.</h2>
+      <div class="phase-grid">
+        <article class="phase"><h3>01 · Frame</h3><p>Build a stable wearable frame with two telescoping uprights and fold-out feet.</p></article>
+        <article class="phase"><h3>02 · Clothing rack</h3><p>Add a removable crossbar and prove that the deployed frame can hold real garments safely.</p></article>
+        <article class="phase"><h3>03 · Standing desk</h3><p>Add an adjustable work surface sized for a laptop and compact keyboard, then test height and stability.</p></article>
+        <article class="phase"><h3>04 · Open interface</h3><p>Define mounting-hole spacing, load targets, replacement parts, and a simple module specification.</p></article>
+      </div>
+    </section>
+
+    <section class="closing" aria-label="Portable room manifesto">
+      <p>Carry less furniture.</p>
+      <p>Own more capability.</p>
+      <p>Repair the structure.</p>
+      <p>Swap the modules.</p>
+      <strong>Take your room with you.</strong>
+    </section>
+  </main>
+
+  <footer>
+    <a href="../">Open Source Everyday Life</a>
+    <a href="https://github.com/tmsteph/3dvr-portal">Source on GitHub</a>
+  </footer>
+
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
