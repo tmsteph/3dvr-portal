@@ -471,7 +471,11 @@ function createGateway() {
     } else {
       throw Object.assign(new Error('Unsupported input action.'), { statusCode: 400 });
     }
-    return { ok: true };
+    const focusState = await handoff.client.send('Runtime.evaluate', {
+      expression: `(() => { const el = document.activeElement; return !!(el && (el.matches('input:not([type=hidden]), textarea, [contenteditable=true]'))); })()`,
+      returnByValue: true,
+    }).catch(() => ({ result: { value: false } }));
+    return { ok: true, editable: Boolean(focusState?.result?.value) };
   }
 
   async function resolve(token) {

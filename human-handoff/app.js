@@ -158,11 +158,19 @@ function remotePoint(event) {
 }
 
 async function sendInput(payload) {
-  await api('/input', {
+  return api('/input', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(payload),
   }, true);
+}
+
+function openLocalKeyboard() {
+  textBar.hidden = false;
+  requestAnimationFrame(() => {
+    textInput.focus({ preventScroll: true });
+    textInput.click();
+  });
 }
 
 function distanceBetweenPointers() {
@@ -266,7 +274,13 @@ frame.addEventListener('pointerup', event => {
       ? null
       : { type: 'scroll', x: end.x, y: end.y, deltaY: -dy * 4 };
   pointerStart = null;
-  if (payload) sendInput(payload).catch(error => { sessionStatus.textContent = error.message; });
+  if (payload) {
+    sendInput(payload)
+      .then(result => {
+        if (result?.editable) openLocalKeyboard();
+      })
+      .catch(error => { sessionStatus.textContent = error.message; });
+  }
 });
 
 frame.addEventListener('pointercancel', event => {
@@ -278,8 +292,8 @@ frame.addEventListener('pointercancel', event => {
 });
 
 keyboardButton.addEventListener('click', () => {
-  textBar.hidden = !textBar.hidden;
-  if (!textBar.hidden) textInput.focus();
+  if (textBar.hidden) openLocalKeyboard();
+  else textBar.hidden = true;
 });
 
 textBar.addEventListener('submit', event => {
