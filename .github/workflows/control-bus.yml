@@ -35,7 +35,7 @@ jobs:
           service="$(jq -r '.service // empty' ops/control/request.json)"
           test -n "$id"
           case "$action" in
-            status|termux_status|openbao_status|portal_key_status|portal_env_status|portal_ai_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard) ;;
+            status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_ai_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard) ;;
             restart)
               case "$service" in
                 3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service) ;;
@@ -240,6 +240,14 @@ jobs:
           [ -r /etc/3dvr/secrets-broker/portal.env ] && grep -q '^OPENAI_API_KEY=.' /etc/3dvr/secrets-broker/portal.env && broker=true || true
           envfiles=$(systemctl show 3dvr-portal.service -p EnvironmentFiles --value | tr '\n' ' ' | head -c 500)
           jq -n --argjson base "$base" --argjson portal "$portal" --argjson portalSecrets "$portal_secrets" --argjson broker "$broker" --arg envfiles "$envfiles"             '{ok:true,baseEnvHasKey:$base,portalEnvHasKey:$portal,portalSecretsEnvHasKey:$portalSecrets,brokerEnvHasKey:$broker,environmentFiles:$envfiles}'
+          OVH
+              ;;
+            portal_backend_status)
+              ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          local_json=$(curl -fsS http://127.0.0.1:3000/__3dvr-health 2>/dev/null || printf '{}')
+          public_json=$(curl -fsS https://portal.3dvr.tech/__3dvr-health 2>/dev/null || printf '{}')
+          jq -n --argjson local "$local_json" --argjson public "$public_json"             '{ok:true,local:$local,public:$public,sameSha:(($local.sha // "") != "" and ($local.sha // "") == ($public.sha // ""))}'
           OVH
               ;;
             portal_key_status)
