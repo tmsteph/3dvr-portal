@@ -13,8 +13,8 @@ Access can change with provider sessions, plugin state, device power, network re
 Use the narrowest durable path that already exists:
 
 1. Native ChatGPT connector/API.
-2. Existing 3DVR service or structured control path.
-3. Persistent authenticated browser lane.
+2. Existing 3DVR service or structured control path — prefer `3dvr-control-mcp`, the 3DVR Control Bus, Open Runner, and the SSH mesh for server/device work.
+3. Persistent authenticated browser lane reached through 3DVR-controlled infrastructure.
 4. 3DVR Companion on the device.
 5. Termux/SSH/device mesh for advanced Linux-side work or recovery.
 6. Human checkpoint only when the provider or OS genuinely requires user presence, MFA, CAPTCHA, pairing, consent, or another owner-only action.
@@ -35,7 +35,7 @@ These should be preferred over browser automation when the required action is su
 - **Stripe** — supported business/payment/product workflows.
 - **DigitalOcean** — supported cloud infrastructure operations.
 - **Vercel** — projects, deployments, logs, domains, and supported configuration/deployment workflows.
-- **Remote Desktop Commander** — authorized remote-computer filesystem/terminal access when the connected machine is online.
+- **Remote Desktop Commander** — compatibility/rescue fallback only. Do not choose it for routine server control when the first-party 3DVR Control Bus, MCP gateway, Open Runner, or SSH mesh can perform the task.
 - **Web research** — public web search and browsing.
 - **ChatGPT automations** — reminders, recurring tasks, and condition watches.
 - **Conversation/Library files** — files attached to ChatGPT or stored in the user's ChatGPT file library when surfaced through the file tools.
@@ -71,6 +71,20 @@ Roaming devices can join through OVH using `3dvr device mesh` and reverse SSH.
 ### Structured control
 
 Where available, prefer the 3DVR MCP/control gateway and Portal/Operator surfaces over arbitrary shell work for repeatable actions.
+
+For ChatGPT-originated server work, the default path is now:
+
+```text
+ChatGPT/GitHub connector
+        -> ops/control/request.json
+        -> 3DVR Control Bus
+        -> Hetzner relay
+        -> 3dvr-ovh SSH
+        -> bounded first-party action
+        -> sanitized ops/control/result.json
+```
+
+`Desktop Commander` must not be treated as the default control plane. Use it only as break-glass compatibility when the first-party route is unhealthy or when a provider browser session cannot yet be reached through first-party tooling.
 
 ## Persistent authenticated browser access
 
