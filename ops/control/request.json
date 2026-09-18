@@ -1,5 +1,4 @@
 {
-  "id": "portal-restart-20260918-1",
-  "action": "restart",
-  "service": "3dvr-portal.service"
+  "id": "portal-key-status-20260918-1",
+  "action": "portal_key_status"
 }
