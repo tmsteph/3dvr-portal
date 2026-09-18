@@ -35,7 +35,7 @@ jobs:
           service="$(jq -r '.service // empty' ops/control/request.json)"
           test -n "$id"
           case "$action" in
-            status|termux_status|openbao_status|portal_key_status|portal_ai_status|openai_admin_status|openai_admin_handoff|openai_admin_stage) ;;
+            status|termux_status|openbao_status|portal_key_status|portal_ai_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard) ;;
             restart)
               case "$service" in
                 3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|openbao.service) ;;
@@ -126,6 +126,53 @@ jobs:
           connected=false
           ss -ltnH | awk '$4 ~ /^(127\.0\.0\.1|\[::1\]):22[0-9][0-9][0-9]$/ {found=1} END {exit !found}' && connected=true || true
           jq -n --argjson connected "$connected" '{ok:true,connected:$connected}'
+          OVH
+              ;;
+            openai_admin_store_clipboard)
+              ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          node - <<'NODE'
+          const puppeteer=require('/home/debian/.npm/_npx/81cb1ab08343aa85/node_modules/puppeteer-core/lib/puppeteer/puppeteer-core.js');
+          (async()=>{
+            const browser=await puppeteer.connect({browserURL:'http://127.0.0.1:9444'});
+            const page=await browser.newPage();
+            await page.goto('https://portal.3dvr.tech/access/',{waitUntil:'networkidle2',timeout:30000});
+            await new Promise(r=>setTimeout(r,1200));
+
+            const open=await page.$('#openSaveSecret');
+            if(!open) throw new Error('Save secret control not found');
+            const disabled=await open.evaluate(el=>el.disabled || el.getAttribute('aria-disabled')==='true');
+            if(disabled) throw new Error('3DVR secret save is not available in this browser session');
+            await open.click();
+
+            await page.waitForSelector('#secretKey',{visible:true,timeout:5000});
+            await page.type('#secretKey','OPENAI_ADMIN_KEY');
+            await page.type('#secretNote','OpenAI organization admin credential for 3DVR control-plane key rotation');
+
+            const value=await page.$('#secretValue');
+            if(!value) throw new Error('Secret value field not found');
+            await value.focus();
+            await page.keyboard.down('Control');
+            await page.keyboard.press('V');
+            await page.keyboard.up('Control');
+
+            const hasValue=await value.evaluate(el=>Boolean(el.value));
+            if(!hasValue) throw new Error('Clipboard paste did not populate the secret field');
+
+            await page.click('#saveSecret');
+            await page.waitForFunction(()=>{
+              const el=document.querySelector('#secretSaveMessage');
+              const text=(el?.textContent||'').trim();
+              return /Saved OPENAI_ADMIN_KEY securely\.|approval|error|failed|not confirm/i.test(text);
+            },{timeout:15000});
+            const message=await page.$eval('#secretSaveMessage',el=>(el.textContent||'').trim());
+            const ok=/Saved OPENAI_ADMIN_KEY securely\./.test(message);
+            console.log(JSON.stringify({ok,storedKey:ok?'OPENAI_ADMIN_KEY':'',message:ok?'stored securely':'secret save did not complete'}));
+            await page.close();
+            await browser.disconnect();
+            if(!ok) process.exit(2);
+          })().catch(e=>{console.error(e.message);process.exit(1)});
+          NODE
           OVH
               ;;
             openai_admin_stage)
