@@ -57,3 +57,12 @@ When `detectHumanChallenge()` returns a human challenge during an agent workflow
 ## Headed general lane
 
 The `general` lane must run standard headed Chrome under Xvfb rather than `--headless=new`. Human-verification providers can reject a headless browser even when the account owner is genuinely controlling it through Human Handoff. The lane keeps CDP bound to loopback and the same persistent profile, while Xvfb provides a normal browser display environment without exposing a desktop publicly.
+
+
+## Restart recovery and low-latency frames
+
+Active handoffs are persisted as lifecycle metadata plus capability-token hashes only. Runtime CDP clients, browser lease credentials, screenshots, page content, passwords, MFA codes, cookies, and other browser secrets are never written into handoff state.
+
+On gateway restart, unexpired handoffs reconnect to the matching existing browser tab, reacquire the same browser-lane lease owner, and rebuild the initial/session token indexes. A phone session can therefore survive a routine gateway restart without changing its capability URL.
+
+For interactive rendering, the gateway uses Chrome's `Page.startScreencast` event stream at JPEG quality 55. The phone long-polls for a frame newer than its last sequence number instead of requesting a fresh `Page.captureScreenshot` on a fixed timer. Synthetic OVH testing measured roughly 10 ms to the first local frame and about 21 ms average from a visible page change to the next local frame; Internet/tunnel latency is additional.
