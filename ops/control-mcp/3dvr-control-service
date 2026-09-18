@@ -4,13 +4,48 @@ set -euo pipefail
 [[ ${EUID:-$(id -u)} -eq 0 ]] || { echo 'root required' >&2; exit 77; }
 action=${1:-}
 service=${2:-}
-[[ "$action" == restart ]] || { echo 'only restart is allowed' >&2; exit 64; }
-case "$service" in
-  3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service)
+
+case "$action" in
+  restart)
+    case "$service" in
+      3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service)
+        exec /usr/bin/systemctl restart "$service"
+        ;;
+      *)
+        echo 'service is not allowlisted' >&2
+        exit 64
+        ;;
+    esac
+    ;;
+  promote-portal-secrets)
+    [[ "$service" == "3dvr-portal.service" ]] || { echo 'service is not allowlisted' >&2; exit 64; }
+    secrets=/home/debian/.3dvr/config/portal-secrets.env
+    runtime=/home/debian/.3dvr/config/portal.env
+    [[ -f "$secrets" ]] || { echo 'portal secret layer missing' >&2; exit 66; }
+    [[ -f "$runtime" ]] || { echo 'portal runtime env missing' >&2; exit 66; }
+
+    tmp=$(mktemp)
+    trap 'rm -f "$tmp"' EXIT
+    cp "$runtime" "$tmp"
+
+    promoted=false
+    for key in OPENAI_API_KEY AI_GATEWAY_API_KEY THREEDVR_CLOUDFLARE_TUNNEL_TOKEN GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET GMAIL_USER GMAIL_APP_PASSWORD; do
+      value=$(sed -n "s/^${key}=//p" "$secrets" | tail -n1)
+      [[ -n "$value" ]] || continue
+      awk -v k="$key" 'index($0,k"=")!=1' "$tmp" > "$tmp.next"
+      mv "$tmp.next" "$tmp"
+      printf '%s=%s\n' "$key" "$value" >> "$tmp"
+      [[ "$key" == "OPENAI_API_KEY" ]] && promoted=true
+      value=''
+    done
+
+    install -o root -g root -m 0600 "$tmp" "$runtime"
+    /usr/bin/systemctl restart 3dvr-portal.service
+    state=$(/usr/bin/systemctl is-active 3dvr-portal.service || true)
+    printf '{"ok":%s,"service":"3dvr-portal.service","state":"%s","openAiPromoted":%s}\n'       "$([[ "$state" == active ]] && echo true || echo false)" "$state" "$promoted"
     ;;
   *)
-    echo 'service is not allowlisted' >&2
+    echo 'unsupported control action' >&2
     exit 64
     ;;
 esac
-exec /usr/bin/systemctl restart "$service"
