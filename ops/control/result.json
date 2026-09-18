@@ -1,8 +1,8 @@
 {
   "ok": false,
   "error": "control request failed before a sanitized result was produced",
-  "requestId": "portal-backend-status-20260918-2",
+  "requestId": "portal-backend-status-20260918-3",
   "action": "portal_backend_status",
   "workflowOutcome": "failure",
-  "checkedAt": "2026-09-18T22:30:32Z"
+  "checkedAt": "2026-09-18T22:31:16Z"
 }
