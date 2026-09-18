@@ -20,6 +20,28 @@ install -o root -g root -m 0644 "$ROOT/apps/agent/connectors/control/local-machi
 install -o root -g root -m 0644 "$ROOT/apps/agent/connectors/audit/log.js" "$DEST/connectors/audit/log.js"
 install -o root -g root -m 0755 "$ROOT/ops/control-mcp/3dvr-control-service" /usr/local/sbin/3dvr-control-service
 
+cat > /usr/local/sbin/3dvr-secret-bootstrap <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ ${EUID:-$(id -u)} -eq 0 ]] || { echo 'root required' >&2; exit 77; }
+key=${1:-}
+[[ "$key" == "OPENAI_ADMIN_KEY" ]] || { echo 'unsupported bootstrap secret' >&2; exit 64; }
+exec /usr/bin/node -e '
+const fs = require("fs");
+const key = process.argv[1];
+let value = fs.readFileSync(0, "utf8").trim();
+if (key !== "OPENAI_ADMIN_KEY") process.exit(64);
+if (!/^sk-[A-Za-z0-9_-]{20,}$/.test(value)) process.exit(65);
+const { OpenBaoBackend } = require("/opt/3dvr/secrets-broker/openbao.js");
+const backend = new OpenBaoBackend();
+backend.create({ key, value, sourceId: "human-handoff-bootstrap" });
+value = "";
+process.stdout.write(JSON.stringify({ ok: true, stored: true, key, backend: "openbao" }) + "\n");
+' "$key"
+EOF
+chown root:root /usr/local/sbin/3dvr-secret-bootstrap
+chmod 0750 /usr/local/sbin/3dvr-secret-bootstrap
+
 cat > "$DEST/package.json" <<'JSON'
 {"private":true,"dependencies":{"@modelcontextprotocol/sdk":"^1.30.0","zod":"^4.6.2"}}
 JSON
@@ -48,6 +70,7 @@ chmod 0755 /usr/local/libexec/3dvr-control-mcp-root
 
 cat > /etc/sudoers.d/3dvr-control-mcp <<'SUDOERS'
 %threedvr-agents ALL=(root) NOPASSWD: /usr/local/libexec/3dvr-control-mcp-root
+%threedvr-agents ALL=(root) NOPASSWD: /usr/local/sbin/3dvr-secret-bootstrap OPENAI_ADMIN_KEY
 SUDOERS
 chmod 0440 /etc/sudoers.d/3dvr-control-mcp
 visudo -cf /etc/sudoers.d/3dvr-control-mcp >/dev/null
