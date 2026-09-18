@@ -248,23 +248,21 @@ jobs:
           port=$(sed -n 's/^PORT=//p' /home/debian/.3dvr/config/portal.env 2>/dev/null | tail -n1)
           [ -n "$port" ] || port=4320
 
-          local_health=$(curl -fsS "http://127.0.0.1:$port/__3dvr-health" 2>/dev/null || printf '{}')
           payload='{"prompt":"Return exactly 3DVR AI OK","model":"gpt-4o-mini"}'
           local_body=$(mktemp)
           public_body=$(mktemp)
-          trap 'rm -f "$local_body" "$public_body"' EXIT
+          health_body=$(mktemp)
+          trap 'rm -f "$local_body" "$public_body" "$health_body"' EXIT
 
+          health_status=$(curl -sS -o "$health_body" -w '%{http_code}' "http://127.0.0.1:$port/__3dvr-health" || true)
           local_status=$(curl -sS -o "$local_body" -w '%{http_code}' -H 'content-type: application/json' --data "$payload" "http://127.0.0.1:$port/api/openai-site" || true)
           public_status=$(curl -sS -o "$public_body" -w '%{http_code}' -H 'content-type: application/json' --data "$payload" https://portal.3dvr.tech/api/openai-site || true)
 
           local_error=$(jq -r '.error // empty' "$local_body" 2>/dev/null | head -c 300 || true)
           public_error=$(jq -r '.error // empty' "$public_body" 2>/dev/null | head -c 300 || true)
-          local_ok=false
-          public_ok=false
-          [ "$local_status" = 200 ] && grep -q '3DVR AI OK' "$local_body" && local_ok=true || true
-          [ "$public_status" = 200 ] && grep -q '3DVR AI OK' "$public_body" && public_ok=true || true
+          local_sha=$(jq -r '.sha // empty' "$health_body" 2>/dev/null | head -c 120 || true)
 
-          jq -n --arg port "$port" --argjson health "$local_health"             --arg localStatus "$local_status" --arg publicStatus "$public_status"             --arg localError "$local_error" --arg publicError "$public_error"             --argjson localOk "$local_ok" --argjson publicOk "$public_ok"             '{ok:true,port:($port|tonumber? // 0),localHealth:$health,localAi:{ok:$localOk,httpStatus:($localStatus|tonumber? // 0),error:$localError},publicAi:{ok:$publicOk,httpStatus:($publicStatus|tonumber? // 0),error:$publicError}}'
+          jq -n --arg port "$port" --arg healthStatus "$health_status" --arg localSha "$local_sha"             --arg localStatus "$local_status" --arg publicStatus "$public_status"             --arg localError "$local_error" --arg publicError "$public_error"             '{ok:true,port:($port|tonumber? // 0),localHealthStatus:($healthStatus|tonumber? // 0),localSha:$localSha,localAi:{httpStatus:($localStatus|tonumber? // 0),error:$localError},publicAi:{httpStatus:($publicStatus|tonumber? // 0),error:$publicError}}'
           OVH
               ;;
             portal_key_status)
