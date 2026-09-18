@@ -128,6 +128,18 @@ jobs:
           jq -n --argjson connected "$connected" '{ok:true,connected:$connected}'
           OVH
               ;;
+            openai_admin_handoff)
+              ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          cd /home/debian/worktrees/human-handoff-live
+          out=$(node apps/agent/thomas-agent/node/human-handoff-gateway.js create             --lane messaging             --origin https://platform.openai.com             --service "OpenAI Admin key bootstrap"             --reason "Create one API Platform organization Admin key for the 3dvr control plane, then return to the agent.")
+          url=$(printf '%s\n' "$out" | sed -n 's/^handoff_url=//p')
+          id=$(printf '%s\n' "$out" | sed -n 's/^handoff_id=//p')
+          expires=$(printf '%s\n' "$out" | sed -n 's/^expires_at=//p')
+          [ -n "$url" ] && [ -n "$id" ]
+          jq -n --arg id "$id" --arg url "$url" --arg expires "$expires" '{ok:true,handoffId:$id,handoffUrl:$url,expiresAt:$expires}'
+          OVH
+              ;;
             openai_admin_status)
               ovh 'bash -s' <<'OVH'
           set -euo pipefail
