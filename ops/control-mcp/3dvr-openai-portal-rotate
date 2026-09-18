@@ -82,6 +82,14 @@ async function main() {
     );
   }
 
+  serviceAccount = await openai(
+    adminKey,
+    '/organization/projects/' + PROJECT_ID + '/service_accounts/' + encodeURIComponent(serviceAccount.id),
+  );
+  if (!['member', 'owner'].includes(serviceAccount.role)) {
+    throw new Error('OpenAI service account has no usable project role');
+  }
+
   const keyName = SERVICE_ACCOUNT_NAME + '-' + new Date().toISOString().replace(/[:.]/g, '-');
   const apiKey = await openai(
     adminKey,
@@ -94,6 +102,28 @@ async function main() {
 
   let portalKey = String(apiKey?.value || '').trim();
   if (!/^sk-[A-Za-z0-9_-]{20,}$/.test(portalKey)) throw new Error('OpenAI portal key missing');
+
+  const direct = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer ' + portalKey,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      input: 'Reply exactly: 3DVR KEY OK',
+      max_output_tokens: 16,
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!direct.ok) {
+    let detail = '';
+    try {
+      const body = await direct.json();
+      detail = String(body?.error?.message || '').slice(0, 300);
+    } catch {}
+    throw new Error('New portal key direct test failed (' + direct.status + '): ' + detail);
+  }
 
   backend.create({
     key: 'OPENAI_API_KEY',
@@ -135,7 +165,10 @@ async function main() {
     projectName: project?.name || '',
     serviceAccountId: serviceAccount.id,
     serviceAccountName: SERVICE_ACCOUNT_NAME,
+    serviceAccountRole: serviceAccount.role,
     apiKeyId: apiKey?.id || '',
+    apiKeyScopes: Array.isArray(apiKey?.scopes) ? apiKey.scopes : [],
+    directKeyTest: true,
     portalService: '3dvr-portal.service',
     smokeTest: true,
   };
