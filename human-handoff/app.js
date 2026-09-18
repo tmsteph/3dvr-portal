@@ -2,9 +2,7 @@ const intro = document.querySelector('#intro');
 const session = document.querySelector('#session');
 const continueButton = document.querySelector('#continue');
 const doneButton = document.querySelector('#done');
-const keyboardButton = document.querySelector('#keyboard');
-const textBar = document.querySelector('#textBar');
-const textInput = document.querySelector('#textInput');
+const keyboardProxy = document.querySelector('#keyboardProxy');
 const frame = document.querySelector('#frame');
 const loading = document.querySelector('#loading');
 const status = document.querySelector('#status');
@@ -30,6 +28,9 @@ let pinchStartCenter = null;
 let zoom = 1;
 let panX = 0;
 let panY = 0;
+let keyboardArmed = false;
+let composing = false;
+let inputQueue = Promise.resolve();
 
 history.replaceState(null, '', location.pathname);
 
@@ -134,7 +135,7 @@ async function pollFrame() {
         currentFrameUrl = nextUrl;
       };
       frame.src = nextUrl;
-      sessionStatus.textContent = 'Live · tap, drag to scroll, pinch to zoom, or use Keyboard';
+      sessionStatus.textContent = 'Live · tap a field and type · drag to scroll · pinch to zoom';
     } catch (error) {
       sessionStatus.textContent = error.message;
       if (/expired|not active|not open|not found/i.test(error.message)) {
@@ -165,12 +166,26 @@ async function sendInput(payload) {
   }, true);
 }
 
-function openLocalKeyboard() {
-  textBar.hidden = false;
-  requestAnimationFrame(() => {
-    textInput.focus({ preventScroll: true });
-    textInput.click();
-  });
+function armKeyboardProxy() {
+  keyboardArmed = true;
+  keyboardProxy.value = '';
+  keyboardProxy.focus({ preventScroll: true });
+}
+
+function releaseKeyboardProxy() {
+  keyboardArmed = false;
+  composing = false;
+  keyboardProxy.value = '';
+  keyboardProxy.blur();
+}
+
+function queueRemoteInput(payload) {
+  inputQueue = inputQueue
+    .then(() => sendInput(payload))
+    .catch(error => {
+      sessionStatus.textContent = error.message;
+    });
+  return inputQueue;
 }
 
 function distanceBetweenPointers() {
@@ -275,11 +290,21 @@ frame.addEventListener('pointerup', event => {
       : { type: 'scroll', x: end.x, y: end.y, deltaY: -dy * 4 };
   pointerStart = null;
   if (payload) {
+    if (payload.type === 'click') armKeyboardProxy();
     sendInput(payload)
       .then(result => {
-        if (result?.editable) openLocalKeyboard();
+        if (payload.type === 'click') {
+          if (result?.editable) {
+            sessionStatus.textContent = 'Typing directly into the remote field';
+          } else {
+            releaseKeyboardProxy();
+          }
+        }
       })
-      .catch(error => { sessionStatus.textContent = error.message; });
+      .catch(error => {
+        if (payload.type === 'click') releaseKeyboardProxy();
+        sessionStatus.textContent = error.message;
+      });
   }
 });
 
@@ -291,23 +316,43 @@ frame.addEventListener('pointercancel', event => {
   }
 });
 
-keyboardButton.addEventListener('click', () => {
-  if (textBar.hidden) openLocalKeyboard();
-  else textBar.hidden = true;
+keyboardProxy.addEventListener('compositionstart', () => {
+  composing = true;
 });
 
-textBar.addEventListener('submit', event => {
-  event.preventDefault();
-  if (!textInput.value) return;
-  const value = textInput.value;
-  textInput.value = '';
-  sendInput({ type: 'text', text: value }).catch(error => { sessionStatus.textContent = error.message; });
+keyboardProxy.addEventListener('compositionend', event => {
+  composing = false;
+  const text = event.data || keyboardProxy.value;
+  keyboardProxy.value = '';
+  if (keyboardArmed && text) queueRemoteInput({ type: 'text', text });
 });
 
-textBar.querySelectorAll('[data-key]').forEach(button => {
-  button.addEventListener('click', () => {
-    sendInput({ type: 'key', key: button.dataset.key }).catch(error => { sessionStatus.textContent = error.message; });
-  });
+keyboardProxy.addEventListener('beforeinput', event => {
+  if (!keyboardArmed || composing) return;
+
+  if (event.inputType === 'deleteContentBackward') {
+    event.preventDefault();
+    queueRemoteInput({ type: 'key', key: 'Backspace' });
+    return;
+  }
+
+  if (event.inputType === 'insertLineBreak') {
+    event.preventDefault();
+    queueRemoteInput({ type: 'key', key: 'Enter' });
+    return;
+  }
+
+  if (event.inputType?.startsWith('insert') && event.data) {
+    event.preventDefault();
+    queueRemoteInput({ type: 'text', text: event.data });
+  }
+});
+
+keyboardProxy.addEventListener('input', () => {
+  if (!keyboardArmed || composing) return;
+  const text = keyboardProxy.value;
+  keyboardProxy.value = '';
+  if (text) queueRemoteInput({ type: 'text', text });
 });
 
 doneButton.addEventListener('click', async () => {
@@ -316,6 +361,7 @@ doneButton.addEventListener('click', async () => {
   try {
     await api('/resolve', { method: 'POST' }, true);
     polling = false;
+    releaseKeyboardProxy();
     sessionToken = '';
     sessionStorage.removeItem('3dvr-handoff-session');
     session.hidden = true;
