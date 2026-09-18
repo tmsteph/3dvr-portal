@@ -3,8 +3,8 @@
   "service": "3dvr-portal.service",
   "state": "active",
   "openAiKeyConfigured": false,
-  "requestId": "portal-key-status-20260918-1",
+  "requestId": "portal-key-status-20260918-2",
   "action": "portal_key_status",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-18T22:23:56Z"
+  "checkedAt": "2026-09-18T22:24:30Z"
 }
