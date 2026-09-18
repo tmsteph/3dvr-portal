@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0d1117">
+  <title>Campaigns · 3DVR Portal</title>
+  <meta name="description" content="Connect Gmail and send respectful, compliant outreach campaigns.">
+  <link rel="icon" href="/brand/portal-mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="/"><img src="/brand/portal-mark.svg" alt=""><span>3DVR Campaigns</span></a>
+      <a class="quiet-link" href="/crm/">CRM</a>
+    </header>
+
+    <section class="hero">
+      <p class="eyebrow">EMAIL OUTREACH</p>
+      <h1>Connect Gmail. Reach people.</h1>
+      <p>Built for photographers, marketers, freelancers, and small businesses. Your Gmail account stays yours.</p>
+    </section>
+
+    <section class="card connection-card">
+      <div>
+        <p class="label">Gmail</p>
+        <strong id="gmailStatus">Not connected</strong>
+        <p class="muted" id="gmailDetail">Connect the Google account you want to send from.</p>
+      </div>
+      <div class="button-row">
+        <button class="button primary" id="connectGmail" type="button">Connect Gmail</button>
+        <button class="button secondary" id="disconnectGmail" type="button" hidden>Disconnect</button>
+      </div>
+    </section>
+
+    <form class="stack" id="campaignForm">
+      <section class="card">
+        <p class="step">1 · CONTACTS</p>
+        <label for="recipients">Recipients</label>
+        <textarea id="recipients" rows="7" placeholder="Jane Doe &lt;jane@example.com&gt;&#10;hello@anotherbusiness.com"></textarea>
+        <div class="inline">
+          <label class="file-button" for="csvFile">Import CSV</label>
+          <input id="csvFile" type="file" accept=".csv,text/csv" hidden>
+          <span class="muted" id="recipientCount">0 valid recipients</span>
+        </div>
+        <label for="contactSource">Where did these contacts come from?</label>
+        <select id="contactSource">
+          <option value="">Choose one…</option>
+          <option>Existing customers or contacts</option>
+          <option>Business contacts I researched individually</option>
+          <option>People who asked to hear from me</option>
+          <option>Event or networking contacts</option>
+          <option>Other legitimate business contacts</option>
+        </select>
+        <label class="check"><input id="sourceAck" type="checkbox"> <span>These are legitimate contacts. I am not uploading a purchased or scraped spam list.</span></label>
+      </section>
+
+      <section class="card">
+        <p class="step">2 · MESSAGE</p>
+        <label for="subject">Subject</label>
+        <input id="subject" maxlength="180" placeholder="Quick photo idea for {{name}}">
+        <label for="message">Email</label>
+        <textarea id="message" rows="10" placeholder="Hey {{first_name}},&#10;&#10;I’m a photographer and marketer..."></textarea>
+        <p class="muted">Personalization: <code>{{first_name}}</code>, <code>{{name}}</code>, <code>{{email}}</code></p>
+      </section>
+
+      <section class="card">
+        <p class="step">3 · SENDER DETAILS</p>
+        <label for="businessName">Business / sender name</label>
+        <input id="businessName" autocomplete="organization" placeholder="Your business name">
+        <label for="postalAddress">Business postal address</label>
+        <input id="postalAddress" autocomplete="street-address" placeholder="Required for commercial email">
+        <details>
+          <summary>Suppression list</summary>
+          <p class="muted">Anyone here will be skipped. Add people who unsubscribe.</p>
+          <textarea id="suppressed" rows="4" placeholder="unsubscribe@example.com"></textarea>
+        </details>
+      </section>
+
+      <section class="card review-card">
+        <div>
+          <p class="step">4 · SEND</p>
+          <strong id="sendSummary">Connect Gmail to begin.</strong>
+          <p class="muted">Beta guardrail: max 25 successful sends per browser/account per day, with spacing between messages.</p>
+        </div>
+        <div class="button-row">
+          <button class="button secondary" id="sendTest" type="button">Send test to myself</button>
+          <button class="button primary" id="sendCampaign" type="submit">Start campaign</button>
+        </div>
+        <div class="progress" id="progress" hidden>
+          <div class="progress-track"><span id="progressBar"></span></div>
+          <p id="progressText">Ready.</p>
+        </div>
+        <div class="notice" id="notice" aria-live="polite" hidden></div>
+      </section>
+    </form>
+
+    <section class="card history-card">
+      <div class="section-head"><div><p class="step">RECENT</p><strong>Campaign history</strong></div><button class="button tiny" id="clearHistory" type="button">Clear</button></div>
+      <div id="history" class="history-empty">No sends from this browser yet.</div>
+    </section>
+
+    <footer>Beta · Gmail sends through Google OAuth · No Gmail password is stored.</footer>
+  </main>
+</body>
+</html>
