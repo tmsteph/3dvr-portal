@@ -1,7 +1,7 @@
 {
   "version": 4,
-  "updatedAt": "2026-09-17T08:45:00-07:00",
-  "updatedLabel": "Sep 17, 2026",
+  "updatedAt": "2026-09-18T08:38:00-07:00",
+  "updatedLabel": "Sep 18, 2026",
   "horizon": "Rolling 90 days",
   "theme": "Protect income. Care for home. Build our way forward.",
   "northStar": "Keep the next few days obvious, the next couple of weeks easy to scan, and the longer direction available without making it dominate daily life.",
@@ -10,28 +10,20 @@
   "workOperatingRule": "Protect booked income, use open blocks for the highest-leverage work, and keep home/family commitments visible as real commitments.",
   "markers": [
     { "label": "Mexico house", "when": "Sep 20–22", "tone": "home" },
-    { "label": "Four-day work run", "when": "Sep 23–26", "tone": "work" }
+    { "label": "Four-day work run", "when": "Sep 23–26", "tone": "work" },
+    { "label": "Schedule conflict", "when": "Sep 25", "tone": "personal" }
   ],
   "today": {
-    "date": "2026-09-17",
-    "dayLabel": "Thursday · Sep 17",
-    "title": "Open day",
-    "when": "Flexible",
-    "category": "open",
-    "categoryLabel": "Open",
-    "sharedDetail": "Best flexible day before two booked work days and the Mexico-house block. Use one focused block for important work, get the house/trip basics ready, and keep meaningful time available for home and family.",
-    "detail": "Use one focused revenue or follow-up block, prepare for the protected home window, then stop before the open day turns into another full shift."
+    "date": "2026-09-18",
+    "dayLabel": "Friday · Sep 18",
+    "title": "Work day",
+    "when": "6 AM–2:30 PM",
+    "category": "work",
+    "categoryLabel": "Work",
+    "sharedDetail": "Booked work through mid-afternoon. Keep the rest of the day light before Saturday morning work and the protected home block.",
+    "detail": "Protect booked income today. After the shift, prioritize recovery and only genuinely time-sensitive follow-up."
   },
   "nextDays": [
-    {
-      "date": "2026-09-18",
-      "title": "Work day",
-      "when": "Fri · 6 AM–2:30 PM",
-      "category": "work",
-      "categoryLabel": "Work",
-      "sharedDetail": "Early work day ending mid-afternoon. Keep the rest of the day relatively light before Saturday work and the Mexico-house block.",
-      "detail": "Protect booked income; avoid filling the afternoon with low-leverage work."
-    },
     {
       "date": "2026-09-19",
       "title": "Morning work",
@@ -49,10 +41,18 @@
       "categoryLabel": "Home",
       "sharedDetail": "Protected household and family time. Handle the important house needs without turning the whole block into chores.",
       "detail": "Keep outside work minimal; prioritize the house, family time, and recovery before the dense work run."
+    },
+    {
+      "date": "2026-09-21",
+      "title": "Mexico house",
+      "when": "Mon · maintenance + family/rest",
+      "category": "home",
+      "categoryLabel": "Home",
+      "sharedDetail": "Keep the protected home block intact. Make progress on the important maintenance while leaving real room for family and rest.",
+      "detail": "Avoid turning the open day into a remote workday; the home block is the commitment."
     }
   ],
   "calendar": [
-    { "date":"2026-09-17", "dayShort":"Thu", "dateShort":"Sep 17", "title":"Open day", "when":"No confirmed booking", "category":"open", "categoryLabel":"Open" },
     { "date":"2026-09-18", "dayShort":"Fri", "dateShort":"Sep 18", "title":"Work day", "when":"6 AM–2:30 PM", "category":"work", "categoryLabel":"Work" },
     { "date":"2026-09-19", "dayShort":"Sat", "dateShort":"Sep 19", "title":"Morning work", "when":"7 AM–12 PM", "category":"work", "categoryLabel":"Work" },
     { "date":"2026-09-20", "dayShort":"Sun", "dateShort":"Sep 20", "title":"Mexico house", "when":"House care + family time", "category":"home", "categoryLabel":"Home" },
@@ -67,7 +67,9 @@
     { "date":"2026-09-29", "dayShort":"Tue", "dateShort":"Sep 29", "title":"Open day", "when":"No confirmed booking", "category":"open", "categoryLabel":"Open" },
     { "date":"2026-09-30", "dayShort":"Wed", "dateShort":"Sep 30", "title":"Open day", "when":"No confirmed booking", "category":"open", "categoryLabel":"Open" },
     { "date":"2026-10-01", "dayShort":"Thu", "dateShort":"Oct 1", "title":"Work day", "when":"10:30 AM–6:30 PM", "category":"work", "categoryLabel":"Work" },
-    { "date":"2026-10-02", "dayShort":"Fri", "dateShort":"Oct 2", "title":"Personal appointment", "when":"10:25–11:25 AM", "category":"personal", "categoryLabel":"Personal" }
+    { "date":"2026-10-02", "dayShort":"Fri", "dateShort":"Oct 2", "title":"Personal appointment", "when":"10:25–11:25 AM", "category":"personal", "categoryLabel":"Personal" },
+    { "date":"2026-10-03", "dayShort":"Sat", "dateShort":"Oct 3", "title":"Open day", "when":"No confirmed booking", "category":"open", "categoryLabel":"Open" },
+    { "date":"2026-10-04", "dayShort":"Sun", "dateShort":"Oct 4", "title":"Work day", "when":"6 AM–2:30 PM", "category":"work", "categoryLabel":"Work" }
   ],
   "next30": [
     {
