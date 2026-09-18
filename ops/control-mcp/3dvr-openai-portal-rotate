@@ -1,0 +1,140 @@
+#!/usr/bin/env node
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const { execFileSync } = require('child_process');
+
+if (process.getuid?.() !== 0) {
+  console.error('root required');
+  process.exit(77);
+}
+
+const PROJECT_ID = 'proj_vEqLewkQ1swh1PoJ4Mh6yVLK';
+const SERVICE_ACCOUNT_NAME = '3dvr-portal-ovh-production';
+const OPENAI_BASE = 'https://api.openai.com/v1';
+
+function upsertEnv(file, key, value) {
+  let text = '';
+  try { text = fs.readFileSync(file, 'utf8'); } catch {}
+  const stat = (() => { try { return fs.statSync(file); } catch { return null; } })();
+  const lines = text.split(/\r?\n/).filter(Boolean).filter(line => !line.startsWith(key + '='));
+  lines.push(key + '=' + value);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const tmp = file + '.tmp.' + process.pid;
+  fs.writeFileSync(tmp, lines.join('\n') + '\n', { mode: stat ? (stat.mode & 0o777) : 0o600 });
+  if (stat) fs.chownSync(tmp, stat.uid, stat.gid);
+  fs.renameSync(tmp, file);
+}
+
+async function openai(adminKey, apiPath, options = {}) {
+  const response = await fetch(OPENAI_BASE + apiPath, {
+    method: options.method || 'GET',
+    headers: {
+      authorization: 'Bearer ' + adminKey,
+      'content-type': 'application/json',
+    },
+    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    signal: AbortSignal.timeout(30000),
+  });
+  const raw = await response.text();
+  let body = {};
+  try { body = raw ? JSON.parse(raw) : {}; } catch {}
+  if (!response.ok) {
+    const detail = body?.error?.message || body?.message || ('OpenAI HTTP ' + response.status);
+    throw new Error(detail);
+  }
+  return body;
+}
+
+async function main() {
+  const { OpenBaoBackend } = require('/opt/3dvr/secrets-broker/openbao.js');
+  const backend = new OpenBaoBackend();
+  let adminKey = backend.get({ key: 'OPENAI_ADMIN_KEY' });
+
+  const project = await openai(adminKey, '/organization/projects/' + PROJECT_ID);
+  if (project?.id !== PROJECT_ID) throw new Error('Unexpected OpenAI project');
+
+  const listed = await openai(adminKey, '/organization/projects/' + PROJECT_ID + '/service_accounts?limit=100');
+  const accounts = Array.isArray(listed?.data) ? listed.data : [];
+  let serviceAccount = accounts.find(item => item?.name === SERVICE_ACCOUNT_NAME);
+
+  if (!serviceAccount) {
+    serviceAccount = await openai(adminKey, '/organization/projects/' + PROJECT_ID + '/service_accounts', {
+      method: 'POST',
+      body: {
+        name: SERVICE_ACCOUNT_NAME,
+        create_service_account_only: true,
+      },
+    });
+  }
+
+  if (!serviceAccount?.id) throw new Error('OpenAI service account id missing');
+
+  const keyName = SERVICE_ACCOUNT_NAME + '-' + new Date().toISOString().replace(/[:.]/g, '-');
+  const apiKey = await openai(
+    adminKey,
+    '/organization/projects/' + PROJECT_ID + '/service_accounts/' + encodeURIComponent(serviceAccount.id) + '/api_keys',
+    {
+      method: 'POST',
+      body: { name: keyName },
+    },
+  );
+
+  let portalKey = String(apiKey?.value || '').trim();
+  if (!/^sk-[A-Za-z0-9_-]{20,}$/.test(portalKey)) throw new Error('OpenAI portal key missing');
+
+  backend.create({
+    key: 'OPENAI_API_KEY',
+    value: portalKey,
+    sourceId: 'openai-service-account:' + serviceAccount.id,
+  });
+
+  for (const file of [
+    '/home/debian/.3dvr/config/portal-secrets.env',
+    '/home/debian/.3dvr/config/portal.env',
+    '/etc/3dvr/secrets-broker/portal.env',
+  ]) {
+    upsertEnv(file, 'OPENAI_API_KEY', portalKey);
+  }
+
+  execFileSync('/usr/bin/systemctl', ['restart', '3dvr-portal.service'], {
+    stdio: 'ignore',
+    timeout: 30000,
+  });
+
+  const health = await fetch('https://portal.3dvr.tech/api/openai-site', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'Create the smallest valid HTML page whose visible text is exactly: 3DVR AI OK',
+      model: 'gpt-4o-mini',
+    }),
+    signal: AbortSignal.timeout(60000),
+  });
+  const raw = await health.text();
+  let result = {};
+  try { result = JSON.parse(raw); } catch {}
+  const passed = health.ok && String(result?.html || '').includes('3DVR AI OK');
+  if (!passed) throw new Error('Portal AI smoke test failed with HTTP ' + health.status);
+
+  const safe = {
+    ok: true,
+    projectId: PROJECT_ID,
+    projectName: project?.name || '',
+    serviceAccountId: serviceAccount.id,
+    serviceAccountName: SERVICE_ACCOUNT_NAME,
+    apiKeyId: apiKey?.id || '',
+    portalService: '3dvr-portal.service',
+    smokeTest: true,
+  };
+
+  adminKey = '';
+  portalKey = '';
+  process.stdout.write(JSON.stringify(safe) + '\n');
+}
+
+main().catch(error => {
+  console.error(JSON.stringify({ ok: false, error: String(error?.message || error).slice(0, 400) }));
+  process.exit(1);
+});
