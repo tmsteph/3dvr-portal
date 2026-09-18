@@ -1,4 +1,5 @@
 {
-  "id": "openai-admin-store-clipboard-20260918-1",
-  "action": "openai_admin_store_clipboard"
+  "id": "portal-restart-20260918-1",
+  "action": "restart",
+  "service": "3dvr-portal.service"
 }
