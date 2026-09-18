@@ -35,6 +35,26 @@
       </div>
     </section>
 
+    <section class="card discover-card">
+      <p class="step">AI LEAD FINDER</p>
+      <h2>Describe who you want to reach.</h2>
+      <p class="muted">We’ll search the public web for matching businesses with a publicly evidenced business email. No guessed email patterns.</p>
+      <form id="leadFinderForm" class="finder-form">
+        <label for="leadDescription">Ideal customer</label>
+        <textarea id="leadDescription" rows="4" placeholder="Independent restaurants that would benefit from better photography and social marketing"></textarea>
+        <div class="finder-grid">
+          <label>Location<input id="leadLocation" value="San Diego, CA" placeholder="San Diego, CA"></label>
+          <label>How many<select id="leadCount"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label>
+        </div>
+        <button class="button primary" id="findLeads" type="submit">Find contacts</button>
+      </form>
+      <div class="notice" id="leadNotice" aria-live="polite" hidden></div>
+      <div id="leadResults" class="lead-results" hidden></div>
+      <div class="button-row" id="leadActions" hidden>
+        <button class="button primary" id="addLeads" type="button">Add selected to campaign</button>
+      </div>
+    </section>
+
     <form class="stack" id="campaignForm">
       <section class="card">
         <p class="step">1 · CONTACTS</p>

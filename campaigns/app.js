@@ -5,7 +5,7 @@ import {
   parseRecipients,
   remainingDailyAllowance,
   validateCampaign,
-} from '../src/campaigns/core.js';
+} from './core.js';
 
 const STORAGE = {
   connection: '3dvr.campaigns.google.connection',
@@ -13,6 +13,7 @@ const STORAGE = {
   history: '3dvr.campaigns.history',
   sent: '3dvr.campaigns.sent-by-day',
   oauth: 'portal.oauth.result',
+  discovered: '3dvr.campaigns.discovered-leads',
 };
 const DAILY_CAP = 25;
 const SEND_DELAY_MS = 1600;
@@ -27,10 +28,14 @@ const elements = {
   sendCampaign: $('sendCampaign'), sendSummary: $('sendSummary'), csvFile: $('csvFile'),
   notice: $('notice'), progress: $('progress'), progressBar: $('progressBar'),
   progressText: $('progressText'), history: $('history'), clearHistory: $('clearHistory'),
+  leadForm: $('leadFinderForm'), leadDescription: $('leadDescription'), leadLocation: $('leadLocation'),
+  leadCount: $('leadCount'), findLeads: $('findLeads'), leadNotice: $('leadNotice'),
+  leadResults: $('leadResults'), leadActions: $('leadActions'), addLeads: $('addLeads'),
 };
 
 let connection = readJson(STORAGE.connection, null);
 let sending = false;
+let discoveredLeads = [];
 
 function readJson(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -41,6 +46,112 @@ function showNotice(message, kind = '') {
   elements.notice.hidden = !message;
   elements.notice.className = `notice ${kind}`.trim();
   elements.notice.textContent = message;
+}
+
+function showLeadNotice(message, kind = '') {
+  elements.leadNotice.hidden = !message;
+  elements.leadNotice.className = `notice ${kind}`.trim();
+  elements.leadNotice.textContent = message;
+}
+
+function renderLeadResults() {
+  elements.leadResults.replaceChildren();
+  elements.leadResults.hidden = discoveredLeads.length === 0;
+  elements.leadActions.hidden = discoveredLeads.length === 0;
+  discoveredLeads.forEach((lead, index) => {
+    const row = document.createElement('label');
+    row.className = 'lead-result';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = true;
+    checkbox.dataset.leadIndex = String(index);
+    const body = document.createElement('span');
+    const name = document.createElement('strong');
+    name.textContent = lead.name || lead.email;
+    const email = document.createElement('span');
+    email.className = 'lead-email';
+    email.textContent = lead.email;
+    const why = document.createElement('small');
+    why.textContent = [lead.location, lead.whyFit].filter(Boolean).join(' · ');
+    const source = document.createElement('a');
+    source.href = lead.sourceUrl;
+    source.target = '_blank';
+    source.rel = 'noopener noreferrer';
+    source.textContent = 'Verify source';
+    source.addEventListener('click', event => event.stopPropagation());
+    body.append(name, email, why, source);
+    row.append(checkbox, body);
+    elements.leadResults.append(row);
+  });
+}
+
+async function findLeads(event) {
+  event.preventDefault();
+  const description = elements.leadDescription.value.trim();
+  if (!description) {
+    showLeadNotice('Describe the kind of customer you want.', 'error');
+    return;
+  }
+
+  discoveredLeads = [];
+  renderLeadResults();
+  showLeadNotice('Searching the public web for verified business emails…');
+  elements.findLeads.disabled = true;
+  const originalLabel = elements.findLeads.textContent;
+  elements.findLeads.textContent = 'Searching…';
+
+  try {
+    const response = await fetch('/api/openai-site?provider=lead-finder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        leadFinder: true,
+        description,
+        location: elements.leadLocation.value.trim(),
+        count: Number(elements.leadCount.value) || 10,
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.ok) {
+      const code = String(payload.code || '').toLowerCase();
+      if (response.status === 402 || /credit|quota|billing|spend/.test(code + ' ' + String(payload.error || ''))) {
+        throw new Error('OpenAI API billing needs credits before automatic lead search can run. Manual paste/CSV still works meanwhile.');
+      }
+      throw new Error(payload.error || 'Lead search failed.');
+    }
+    discoveredLeads = Array.isArray(payload.leads) ? payload.leads : [];
+    writeJson(STORAGE.discovered, { at: Date.now(), query: payload.query, leads: discoveredLeads });
+    renderLeadResults();
+    showLeadNotice(discoveredLeads.length
+      ? `Found ${discoveredLeads.length} contacts with public source evidence. Review them before adding.`
+      : 'No publicly verified business emails were found for that search. Try broadening the description or location.',
+      discoveredLeads.length ? 'success' : '');
+  } catch (error) {
+    showLeadNotice(error.message || 'Lead search failed.', 'error');
+  } finally {
+    elements.findLeads.disabled = false;
+    elements.findLeads.textContent = originalLabel;
+  }
+}
+
+function addSelectedLeads() {
+  const selected = Array.from(elements.leadResults.querySelectorAll('[data-lead-index]:checked'))
+    .map(input => discoveredLeads[Number(input.dataset.leadIndex)])
+    .filter(Boolean);
+  if (!selected.length) {
+    showLeadNotice('Select at least one contact to add.', 'error');
+    return;
+  }
+  const additions = selected.map(lead => lead.name ? `${lead.name} <${lead.email}>` : lead.email);
+  const merged = parseRecipients([elements.recipients.value, ...additions].filter(Boolean).join('\n'));
+  elements.recipients.value = merged.map(recipient => recipient.name
+    ? `${recipient.name} <${recipient.email}>`
+    : recipient.email).join('\n');
+  elements.contactSource.value = 'Business contacts I researched individually';
+  elements.sourceAck.checked = true;
+  writeJson(STORAGE.draft, draftSnapshot());
+  updateSummary();
+  showLeadNotice(`Added ${selected.length} selected contact${selected.length === 1 ? '' : 's'} to the campaign.`, 'success');
 }
 function draftSnapshot() {
   return {
@@ -265,6 +376,8 @@ function importCsv(file) {
   reader.readAsText(file);
 }
 
+elements.leadForm.addEventListener('submit', findLeads);
+elements.addLeads.addEventListener('click', addSelectedLeads);
 elements.connect.addEventListener('click', () => {
   location.href = '/api/oauth/google?action=start&scopeKey=gmail-send&intent=campaigns&returnTo=/campaigns/';
 });

@@ -4,6 +4,7 @@ import { createGuideHandler } from '../src/guide/api.js';
 import { createNextMoveGuidanceHandler } from '../src/next-move/api.js';
 import { createOperatorHandler } from '../src/operator/api.js';
 import { createWorkAgentAiHandler } from '../src/work-agent/ai.js';
+import { createLeadFinderHandler } from '../src/lead-finder/api.js';
 
 export const DEFAULT_MODEL = 'gpt-4.1-mini';
 export const SUPPORTED_SITE_MODELS = Object.freeze([
@@ -469,6 +470,7 @@ export function createOpenAiSiteRouter(options = {}) {
   const nextMoveHandler = createNextMoveGuidanceHandler(options.nextMove || options);
   const operatorHandler = createOperatorHandler(options.operator || options);
   const workAgentHandler = createWorkAgentAiHandler(options.workAgent || options);
+  const leadFinderHandler = createLeadFinderHandler(options.leadFinder || options);
 
   return async function handler(req, res) {
     if (req?.body?.astraCanary === true || req?.query?.provider === 'astra') {
@@ -493,6 +495,10 @@ export function createOpenAiSiteRouter(options = {}) {
 
     if (req?.body?.workAgent === true || req?.query?.provider === 'work-agent') {
       return workAgentHandler(req, res);
+    }
+
+    if (req?.body?.leadFinder === true || req?.query?.provider === 'lead-finder') {
+      return leadFinderHandler(req, res);
     }
 
     return siteHandler(req, res);

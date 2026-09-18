@@ -62,3 +62,23 @@ footer { padding: 24px 3px 0; color: #6e7681; font-size: .78rem; }
   .connection-card .button-row, .review-card .button-row { width: 100%; }
   .connection-card .button, .review-card .button { flex: 1; }
 }
+
+.discover-card h2 { margin: 0 0 6px; font-size: 1.35rem; }
+.finder-form { margin-top: 12px; }
+.finder-grid { display: grid; grid-template-columns: minmax(0, 1fr) 130px; gap: 10px; }
+.finder-grid label { margin-top: 10px !important; }
+.lead-results { display: grid; gap: 9px; margin-top: 14px; }
+.lead-result {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start;
+  padding: 12px; border: 1px solid #30363d; border-radius: 13px; background: #0d1117;
+}
+.lead-result > input { width: 18px; height: 18px; margin-top: 3px; }
+.lead-result > span { min-width: 0; }
+.lead-result strong, .lead-result .lead-email, .lead-result small, .lead-result a { display: block; }
+.lead-result strong { color: #f0f6fc; }
+.lead-result .lead-email { margin-top: 2px; color: #79c0ff; overflow-wrap: anywhere; }
+.lead-result small { margin-top: 5px; color: #8b949e; line-height: 1.4; }
+.lead-result a { width: fit-content; margin-top: 6px; color: #9ecbff; font-size: .8rem; }
+@media (max-width: 620px) {
+  .finder-grid { grid-template-columns: 1fr; }
+}

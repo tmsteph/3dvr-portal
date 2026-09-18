@@ -8,7 +8,7 @@ import {
   parseRecipients,
   remainingDailyAllowance,
   validateCampaign,
-} from '../src/campaigns/core.js';
+} from '../campaigns/core.js';
 
 test('campaign recipient parser deduplicates and preserves display names', () => {
   assert.deepEqual(parseRecipients('Jane Doe <Jane@Example.com>\njane@example.com\nhello@shop.test'), [
@@ -61,7 +61,11 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(html, /Import CSV/);
   assert.match(html, /Suppression list/);
   assert.match(html, /Send test to myself/);
+  assert.match(html, /AI LEAD FINDER/);
+  assert.match(html, /Find contacts/);
   assert.match(js, /scopeKey=gmail-send/);
   assert.match(js, /action=sendmail/);
+  assert.match(js, /provider=lead-finder/);
+  assert.match(js, /addSelectedLeads/);
   assert.match(js, /DAILY_CAP = 25/);
 });
