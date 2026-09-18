@@ -128,6 +128,27 @@ jobs:
           jq -n --argjson connected "$connected" '{ok:true,connected:$connected}'
           OVH
               ;;
+            openai_admin_status)
+              ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          cd /opt/3dvr-portal-production/current
+          present=false
+          if node - <<'NODE' >/dev/null 2>&1
+          const { OpenBaoBackend } = require('./apps/agent/connectors/secrets/openbao');
+          try {
+            const backend = new OpenBaoBackend();
+            const value = backend.get({ key: 'OPENAI_ADMIN_KEY' });
+            process.exit(value ? 0 : 1);
+          } catch {
+            process.exit(1);
+          }
+          NODE
+          then
+            present=true
+          fi
+          jq -n --argjson present "$present" '{ok:true,openAiAdminKeyConfigured:$present}'
+          OVH
+              ;;
             portal_key_status)
               ovh 'bash -s' <<'OVH'
           set -euo pipefail
