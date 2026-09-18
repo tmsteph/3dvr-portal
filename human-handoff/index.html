@@ -30,7 +30,6 @@
           <small id="sessionStatus">Connected to the exact browser tab</small>
         </div>
         <div class="header-actions">
-          <button class="secondary" id="keyboard">Keyboard</button>
           <button id="done">Done — return to agent</button>
         </div>
       </header>
@@ -41,13 +40,15 @@
           <span>Your browser session stays on your agent server.</span>
         </div>
       </div>
-      <form id="textBar" class="text-bar" hidden>
-        <input id="textInput" autocomplete="off" autocapitalize="none" placeholder="Type into the selected field">
-        <button type="submit">Send</button>
-        <button type="button" class="secondary" data-key="Tab">Tab</button>
-        <button type="button" class="secondary" data-key="Enter">Enter</button>
-        <button type="button" class="secondary" data-key="Backspace">⌫</button>
-      </form>
+      <textarea
+        id="keyboardProxy"
+        class="keyboard-proxy"
+        aria-label="Remote keyboard input"
+        autocomplete="off"
+        autocapitalize="none"
+        spellcheck="false"
+        tabindex="-1"
+      ></textarea>
     </section>
   </main>
   <script src="app.js"></script>
