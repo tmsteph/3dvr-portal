@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
   hashToken,
   parseCli,
+  persistableHandoff,
   safeEqual,
   targetMatchesOrigin,
 } = require('../thomas-agent/node/human-handoff-gateway');
@@ -13,6 +14,30 @@ test('handoff tokens are hashed and compared without plaintext persistence helpe
   assert.notEqual(hashToken('alpha'), hashToken('beta'));
   assert.equal(safeEqual('same', 'same'), true);
   assert.equal(safeEqual('same', 'different'), false);
+});
+
+test('persisted handoffs exclude runtime credentials and frame data', () => {
+  const saved = persistableHandoff({
+    id: 'handoff-1',
+    lane: 'general',
+    origin: 'https://example.com',
+    serviceName: 'Example',
+    reason: 'Human step',
+    state: 'human_active',
+    createdAt: 1,
+    expiresAt: 2,
+    initialHash: 'initial-hash',
+    sessionHash: 'session-hash',
+    targetId: 'target-1',
+    leaseToken: 'never-persist-this',
+    client: { connected: true },
+    latestFrame: Buffer.from('private pixels'),
+  });
+  assert.equal(saved.id, 'handoff-1');
+  assert.equal(saved.sessionHash, 'session-hash');
+  assert.equal('leaseToken' in saved, false);
+  assert.equal('client' in saved, false);
+  assert.equal('latestFrame' in saved, false);
 });
 
 test('target matching stays on the requested browser origin', () => {
