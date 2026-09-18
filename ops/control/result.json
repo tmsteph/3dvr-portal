@@ -1,10 +1,8 @@
 {
-  "ok": true,
-  "local": {},
-  "public": {},
-  "sameSha": false,
-  "requestId": "portal-backend-status-20260918-1",
+  "ok": false,
+  "error": "control request failed before a sanitized result was produced",
+  "requestId": "portal-backend-status-20260918-2",
   "action": "portal_backend_status",
-  "workflowOutcome": "success",
-  "checkedAt": "2026-09-18T22:29:40Z"
+  "workflowOutcome": "failure",
+  "checkedAt": "2026-09-18T22:30:32Z"
 }
