@@ -38,7 +38,7 @@ jobs:
             status|termux_status|openbao_status|portal_key_status|portal_ai_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard) ;;
             restart)
               case "$service" in
-                3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|openbao.service) ;;
+                3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service) ;;
                 *) echo 'service is not allowlisted' >&2; exit 64 ;;
               esac
               ;;
@@ -256,14 +256,14 @@ jobs:
               ;;
             restart)
               case "$service" in
-                3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|openbao.service) ;;
+                3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service) ;;
                 *) exit 64 ;;
               esac
               ovh 'bash -s' -- "$service" <<'OVH'
           set -euo pipefail
           service=${1:-}
           case "$service" in
-            3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|openbao.service) ;;
+            3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service) ;;
             *) exit 64 ;;
           esac
           sudo -n /usr/local/sbin/3dvr-control-service restart "$service"
