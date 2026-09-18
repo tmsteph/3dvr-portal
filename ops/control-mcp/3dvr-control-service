@@ -6,7 +6,7 @@ action=${1:-}
 service=${2:-}
 [[ "$action" == restart ]] || { echo 'only restart is allowed' >&2; exit 64; }
 case "$service" in
-  3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|openbao.service)
+  3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service)
     ;;
   *)
     echo 'service is not allowlisted' >&2
