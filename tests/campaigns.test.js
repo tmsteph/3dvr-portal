@@ -74,4 +74,8 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(js, /campaignDraft/);
   assert.match(js, /addSelectedLeads/);
   assert.match(js, /DAILY_CAP = 25/);
+  assert.match(html, /id="leadVaultSyncStatus"/);
+  assert.match(html, /gun\/gun\.js/);
+  assert.match(html, /gun\/sea\.js/);
+  assert.match(js, /createBrowserLeadVaultSync/);
 });

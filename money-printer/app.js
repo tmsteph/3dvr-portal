@@ -40,6 +40,7 @@ import {
 } from '../src/money-printer/opportunityEngine.js';
 import { parseOpportunityCaptureContext } from '../src/money-printer/opportunityLinks.js';
 import { readLeadVault } from '../src/money-printer/leadVault.js';
+import { createBrowserLeadVaultSync } from '../src/money-printer/leadVaultSync.js';
 
 const elements = {
   form: document.getElementById('missionForm'),
@@ -54,6 +55,7 @@ const elements = {
   opportunitySummary: document.getElementById('opportunitySummary'),
   leadVaultSummary: document.getElementById('leadVaultSummary'),
   leadVaultList: document.getElementById('leadVaultList'),
+  leadVaultSyncStatus: document.getElementById('leadVaultSyncStatus'),
   metricsGrid: document.getElementById('metricsGrid'),
   messageReviewQueue: document.getElementById('messageReviewQueue'),
   runtimeStatusGrid: document.getElementById('runtimeStatusGrid'),
@@ -447,6 +449,31 @@ function handleOpportunityAction(action, opportunityId) {
     saveOpportunityEngineState();
     renderOpportunityInbox();
     elements.opportunityCaptureStatus.textContent = 'Opportunity passed and preserved for learning.';
+  }
+}
+
+async function initializeLeadVaultAccountSync() {
+  if (!elements.leadVaultSyncStatus) return;
+
+  elements.leadVaultSyncStatus.textContent = 'Lead Vault: checking secure sync…';
+  try {
+    const accountSync = await createBrowserLeadVaultSync({
+      onRemoteMerge: leads => {
+        renderLeadVault();
+        elements.leadVaultSyncStatus.textContent =
+          `Lead Vault: synced securely · ${leads.length} lead${leads.length === 1 ? '' : 's'}`;
+      }
+    });
+    if (!accountSync.available) {
+      elements.leadVaultSyncStatus.textContent = 'Lead Vault: device only · sign in to sync';
+      return;
+    }
+
+    renderLeadVault();
+    elements.leadVaultSyncStatus.textContent =
+      `Lead Vault: synced securely · ${accountSync.leads.length} lead${accountSync.leads.length === 1 ? '' : 's'}`;
+  } catch (_error) {
+    elements.leadVaultSyncStatus.textContent = 'Lead Vault: saved locally · sync retry needed';
   }
 }
 
@@ -1261,6 +1288,7 @@ async function boot() {
   }
   render();
   initializeOpportunitySync();
+  initializeLeadVaultAccountSync();
   try {
     connectorStatuses = await readConnectorStatuses();
     renderTools();

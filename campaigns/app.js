@@ -15,6 +15,7 @@ import {
   markLeadVaultStatus,
   saveDiscoveredLeads
 } from '../src/money-printer/leadVault.js';
+import { createBrowserLeadVaultSync } from '../src/money-printer/leadVaultSync.js';
 
 const STORAGE = {
   connection: '3dvr.campaigns.google.connection',
@@ -40,12 +41,15 @@ const elements = {
   leadForm: $('leadFinderForm'), leadDescription: $('leadDescription'), leadLocation: $('leadLocation'),
   leadCount: $('leadCount'), findLeads: $('findLeads'), leadNotice: $('leadNotice'),
   leadResults: $('leadResults'), leadActions: $('leadActions'), addLeads: $('addLeads'),
+  leadVaultSyncStatus: $('leadVaultSyncStatus'),
 };
 
 let connection = readJson(STORAGE.connection, null);
 let sending = false;
 let discoveredLeads = [];
 let suggestedCampaign = null;
+let leadVaultAccountSync = null;
+let leadVaultSyncWrites = Promise.resolve();
 
 function readJson(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -62,6 +66,56 @@ function showLeadNotice(message, kind = '') {
   elements.leadNotice.hidden = !message;
   elements.leadNotice.className = `notice ${kind}`.trim();
   elements.leadNotice.textContent = message;
+}
+
+function setLeadVaultSyncStatus(message) {
+  if (elements.leadVaultSyncStatus) {
+    elements.leadVaultSyncStatus.textContent = message;
+  }
+}
+
+async function initializeLeadVaultAccountSync() {
+  setLeadVaultSyncStatus('Lead Vault: checking secure sync…');
+  try {
+    const accountSync = await createBrowserLeadVaultSync({
+      onRemoteMerge: leads => {
+        setLeadVaultSyncStatus(
+          `Lead Vault: synced securely · ${leads.length} lead${leads.length === 1 ? '' : 's'}`
+        );
+      }
+    });
+    if (!accountSync.available) {
+      setLeadVaultSyncStatus('Lead Vault: device only · sign in to sync');
+      return;
+    }
+
+    leadVaultAccountSync = accountSync;
+    setLeadVaultSyncStatus(
+      `Lead Vault: synced securely · ${accountSync.leads.length} lead${accountSync.leads.length === 1 ? '' : 's'}`
+    );
+  } catch (_error) {
+    setLeadVaultSyncStatus('Lead Vault: saved locally · sync retry needed');
+  }
+}
+
+function scheduleLeadVaultSync() {
+  if (!leadVaultAccountSync?.available) return leadVaultSyncWrites;
+
+  setLeadVaultSyncStatus('Lead Vault: syncing securely…');
+  leadVaultSyncWrites = leadVaultSyncWrites
+    .catch(() => undefined)
+    .then(() => leadVaultAccountSync.reconcile())
+    .then(leads => {
+      setLeadVaultSyncStatus(
+        `Lead Vault: synced securely · ${leads.length} lead${leads.length === 1 ? '' : 's'}`
+      );
+      return leads;
+    })
+    .catch(() => {
+      setLeadVaultSyncStatus('Lead Vault: saved locally · sync retry needed');
+      return [];
+    });
+  return leadVaultSyncWrites;
 }
 
 function renderLeadResults() {
@@ -147,6 +201,7 @@ async function findLeads(event) {
       location: payload.query?.location || elements.leadLocation.value.trim(),
       campaignDraft: suggestedCampaign
     });
+    scheduleLeadVaultSync();
     renderLeadResults();
     updateSummary();
     const routeNote = usedFallback ? ' Backup route used.' : '';
@@ -173,6 +228,7 @@ function addSelectedLeads() {
     return;
   }
   selected.forEach(lead => markLeadVaultStatus(lead.email, 'selected'));
+  scheduleLeadVaultSync();
   const additions = selected.map(lead => lead.name ? `${lead.name} <${lead.email}>` : lead.email);
   const merged = parseRecipients([elements.recipients.value, ...additions].filter(Boolean).join('\n'));
   elements.recipients.value = merged.map(recipient => recipient.name
@@ -382,6 +438,7 @@ async function runCampaign(event) {
   }
 
   addHistory({ at: Date.now(), subject: elements.subject.value.trim(), sent, failed, from: connection.email });
+  scheduleLeadVaultSync();
   showNotice(`Campaign finished. ${sent} sent, ${failed} failed.`, failed ? 'error' : 'success');
   sending = false;
   updateConnectionUi();
@@ -464,3 +521,4 @@ restoreDraft();
 consumeOAuthResult();
 renderHistory();
 updateConnectionUi();
+initializeLeadVaultAccountSync();
