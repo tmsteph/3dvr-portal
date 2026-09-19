@@ -1,0 +1,82 @@
+name: Hetzner Disk Maintenance
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '37 */6 * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/ops/hetzner-disk-maintenance.sh'
+      - '.github/workflows/hetzner-disk-maintenance.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  maintain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve Hetzner SSH access
+        id: ssh
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          HOST: 167.233.174.20
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/hz-a
+          write_key "$SSH_B" /tmp/hz-b
+          write_key "$SSH_C" /tmp/hz-c
+          for user in root debian ubuntu tmsteph; do
+            for key in /tmp/hz-a /tmp/hz-b /tmp/hz-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$HOST" true >/dev/null 2>&1; then
+                echo "user=$user" >> "$GITHUB_OUTPUT"
+                echo "key=$key" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+          done
+          exit 1
+
+      - name: Run bounded disk maintenance
+        shell: bash
+        env:
+          HOST: 167.233.174.20
+          USER: ${{ steps.ssh.outputs.user }}
+          KEY: ${{ steps.ssh.outputs.key }}
+        run: |
+          set -euo pipefail
+          opts=(-i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          scp "${opts[@]}" scripts/ops/hetzner-disk-maintenance.sh "$USER@$HOST:/tmp/hetzner-disk-maintenance.sh"
+          if [ "$USER" = root ]; then
+            ssh "${opts[@]}" "$USER@$HOST" 'bash /tmp/hetzner-disk-maintenance.sh; rc=$?; rm -f /tmp/hetzner-disk-maintenance.sh; exit $rc'
+          else
+            ssh "${opts[@]}" "$USER@$HOST" 'sudo -n bash /tmp/hetzner-disk-maintenance.sh; rc=$?; rm -f /tmp/hetzner-disk-maintenance.sh; exit $rc'
+          fi
+
+      - name: Remove SSH keys
+        if: always()
+        run: rm -f /tmp/hz-a /tmp/hz-b /tmp/hz-c /tmp/hz-*.raw
