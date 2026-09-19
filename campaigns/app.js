@@ -538,7 +538,6 @@ function validation(sendable) {
     businessName: elements.businessName.value,
     postalAddress: formattedPostalAddress(),
     recipients: sendable,
-    sourceAcknowledged: true,
   });
 }
 function messageFor(recipient) {
