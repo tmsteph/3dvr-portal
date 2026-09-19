@@ -1,9 +1,44 @@
 {
-  "ok": false,
-  "error": "Both authenticated browser lanes are currently busy. No session was taken over.",
-  "browserLane": "",
-  "requestId": "campaigns-user-acceptance-20260919g",
-  "action": "campaigns_user_acceptance",
+  "ok": true,
+  "lanes": [
+    {
+      "lane": "general",
+      "state": "active",
+      "memoryBytes": 798773248,
+      "lease": "lane=general state=leased owner=human-handoff:dN0e-4TcvgE2VUiB expires=1789860052 remaining=1665s"
+    },
+    {
+      "lane": "identity",
+      "state": "inactive",
+      "memoryBytes": 0,
+      "lease": ""
+    },
+    {
+      "lane": "encore",
+      "state": "active",
+      "memoryBytes": 476188672,
+      "lease": "lane=encore state=free"
+    },
+    {
+      "lane": "messaging",
+      "state": "active",
+      "memoryBytes": 777412608,
+      "lease": "lane=messaging state=free"
+    },
+    {
+      "lane": "training",
+      "state": "inactive",
+      "memoryBytes": 0,
+      "lease": "lane=training state=free"
+    }
+  ],
+  "host": {
+    "memAvailableMb": 3892,
+    "load1": 0.73,
+    "cpus": 4
+  },
+  "requestId": "browser-lane-status-20260919a",
+  "action": "browser_lane_status",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-19T22:51:14Z"
+  "checkedAt": "2026-09-19T22:53:07Z"
 }
