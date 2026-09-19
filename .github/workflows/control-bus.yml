@@ -191,21 +191,48 @@ jobs:
               let url='';
               try{url=page.url();}catch{}
               if(!url.startsWith('https://portal.3dvr.tech/')) continue;
-              const data=await page.evaluate(()=>({
-                url:location.href,
-                signedIn:localStorage.getItem('signedIn')==='true',
-                username:localStorage.getItem('username')||'',
-                alias:localStorage.getItem('alias')||'',
-                hasPubKey:Boolean(localStorage.getItem('userPubKey')),
-                scoreCache:Object.fromEntries(
-                  Object.keys(localStorage)
-                    .filter(key=>key.startsWith('3dvr:score:'))
-                    .map(key=>[key,localStorage.getItem(key)])
-                ),
-                profileScore:document.querySelector('#score')?.textContent?.trim()||'',
-                authBadge:document.querySelector('[data-auth-entry]')?.textContent?.trim()||'',
-                title:document.title||''
-              }));
+              const data=await page.evaluate(async()=>{
+                const alias=localStorage.getItem('alias')||'';
+                const pub=localStorage.getItem('userPubKey')||'';
+                const result={
+                  url:location.href,
+                  signedIn:localStorage.getItem('signedIn')==='true',
+                  username:localStorage.getItem('username')||'',
+                  alias,
+                  hasPubKey:Boolean(pub),
+                  scoreCache:Object.fromEntries(
+                    Object.keys(localStorage)
+                      .filter(key=>key.startsWith('3dvr:score:'))
+                      .map(key=>[key,localStorage.getItem(key)])
+                  ),
+                  profileScore:document.querySelector('#score')?.textContent?.trim()||'',
+                  authBadge:document.querySelector('[data-auth-entry]')?.textContent?.trim()||'',
+                  title:document.title||'',
+                  remoteAliasPoints:null,
+                  remotePubPoints:null
+                };
+                if(typeof Gun!=='function' || !alias) return result;
+                const gun=Gun({
+                  peers:Array.isArray(window.__GUN_PEERS__)&&window.__GUN_PEERS__.length
+                    ? window.__GUN_PEERS__
+                    : ['wss://gun-relay-3dvr.fly.dev/gun'],
+                  localStorage:false
+                });
+                const once=node=>new Promise(resolve=>{
+                  let settled=false;
+                  const done=value=>{if(settled)return;settled=true;resolve(value??null);};
+                  setTimeout(()=>done(null),3500);
+                  try{node.once(done);}catch{done(null);}
+                });
+                const root=gun.get('3dvr-portal');
+                const aliasStats=await once(root.get('userStats').get(alias));
+                const pubStats=pub ? await once(root.get('userStatsByPub').get(pub)) : null;
+                result.remoteAliasPoints=Number.isFinite(Number(aliasStats?.points))
+                  ? Number(aliasStats.points) : null;
+                result.remotePubPoints=Number.isFinite(Number(pubStats?.points))
+                  ? Number(pubStats.points) : null;
+                return result;
+              });
               portalPages.push(data);
             }
             await browser.disconnect();
