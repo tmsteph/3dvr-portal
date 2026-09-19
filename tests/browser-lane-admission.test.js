@@ -34,8 +34,14 @@ test('browser admission blocks when host memory reserve would be violated', () =
   assert.match(result.stderr, /reason=memory/);
 });
 
-test('browser admission blocks too many concurrent browser lanes', () => {
+test('browser admission allows a fourth lane when host resources are healthy', () => {
   const result = runAdmit({ THREEDVR_BROWSER_TEST_ACTIVE: '3' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /max_active=4/);
+});
+
+test('browser admission blocks a fifth concurrent browser lane', () => {
+  const result = runAdmit({ THREEDVR_BROWSER_TEST_ACTIVE: '4' });
   assert.equal(result.status, 75);
   assert.match(result.stderr, /reason=browser-count/);
 });
