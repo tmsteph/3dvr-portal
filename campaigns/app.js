@@ -334,7 +334,6 @@ function addSelectedLeads() {
     ? `${recipient.name} <${recipient.email}>`
     : recipient.email).join('\n');
   elements.contactSource.value = 'Business contacts I researched individually';
-  elements.sourceAck.checked = true;
   writeJson(STORAGE.draft, draftSnapshot());
   const moneyPrinter = queueCampaignLeads({
     leads: selected,
@@ -375,7 +374,7 @@ function consumeOAuthResult() {
     showNotice(result.error || 'Google connection failed.', 'error');
     return;
   }
-  connection = result.connection;
+  connection = { ...result.connection, needsReconnect: false, lastAuthError: '' };
   writeJson(STORAGE.connection, connection);
   if (!elements.businessName.value.trim() && connection.displayName) {
     elements.businessName.value = connection.displayName;
@@ -391,7 +390,24 @@ function connectionHasGmailSendScope(value = connection) {
     || scope.includes('https://www.googleapis.com/auth/gmail.send');
 }
 function connectionReady() {
-  return Boolean(connection?.accessToken && connection?.email && connectionHasGmailSendScope(connection));
+  return Boolean(
+    connection?.accessToken
+    && connection?.email
+    && connectionHasGmailSendScope(connection)
+    && !connection?.needsReconnect
+  );
+}
+
+function markConnectionNeedsReconnect(reason = '') {
+  if (!connection) return;
+  connection = {
+    ...connection,
+    accessToken: '',
+    expiresAt: 0,
+    needsReconnect: true,
+    lastAuthError: String(reason || '').slice(0, 500)
+  };
+  writeJson(STORAGE.connection, connection);
 }
 function updateConnectionUi() {
   const connected = connectionReady();
@@ -407,6 +423,7 @@ function updateConnectionUi() {
       ? 'This saved Google connection is missing verified Gmail send permission.'
       : 'Connect the Google account you want to send from.';
   elements.connect.hidden = connected;
+  elements.connect.textContent = hasIdentity ? 'Reconnect Gmail' : 'Connect Gmail';
   elements.disconnect.hidden = !connected;
   elements.sendTest.disabled = !connected || sending;
   elements.sendCampaign.disabled = !connected || sending;
@@ -448,8 +465,18 @@ async function refreshConnection() {
   return connection;
 }
 async function activeConnection() {
-  if (!connectionReady()) throw new Error('Connect Gmail first.');
-  if (!connection.expiresAt || Date.now() > Number(connection.expiresAt) - 60_000) await refreshConnection();
+  if (!connectionReady()) {
+    throw new Error(connection?.needsReconnect ? 'Reconnect Gmail before sending.' : 'Connect Gmail first.');
+  }
+  if (!connection.expiresAt || Date.now() > Number(connection.expiresAt) - 60_000) {
+    try {
+      await refreshConnection();
+    } catch (error) {
+      markConnectionNeedsReconnect(error.message);
+      updateConnectionUi();
+      throw new Error('Gmail authorization needs to be reconnected. Reconnect Gmail, then send a test message.');
+    }
+  }
   return connection;
 }
 function isGmailAuthFailure(status, message = '') {
@@ -485,12 +512,17 @@ async function gmailSend({ to, subject, text }) {
   }
 
   if (!attempt.response.ok || !attempt.payload.ok) {
+    const authFailure = isGmailAuthFailure(attempt.response.status, message);
+    if (authFailure) {
+      markConnectionNeedsReconnect(message);
+      updateConnectionUi();
+    }
     const error = new Error(
-      isGmailAuthFailure(attempt.response.status, message)
+      authFailure
         ? 'Gmail authorization needs to be reconnected. Reconnect Gmail, then send a test message before starting the campaign.'
         : message
     );
-    error.stopCampaign = isGmailAuthFailure(attempt.response.status, message);
+    error.stopCampaign = authFailure;
     throw error;
   }
   return attempt.payload;
@@ -553,7 +585,9 @@ async function runCampaign(event) {
   showNotice('');
   const { sendable } = currentRecipients();
   const check = validation(sendable);
-  if (!connectionReady()) check.errors.unshift('Connect Gmail first.');
+  if (!connectionReady()) {
+    check.errors.unshift(connection?.needsReconnect ? 'Reconnect Gmail before sending.' : 'Connect Gmail first.');
+  }
   if (!check.ok || !connectionReady()) {
     showNotice(check.errors.join('\n'), 'error');
     return;
@@ -629,7 +663,9 @@ async function sendTest() {
   showNotice('');
   const recipient = { email: connection?.email || '', name: connection?.displayName || 'Test' };
   const check = validation([recipient]);
-  if (!connectionReady()) check.errors.unshift('Connect Gmail first.');
+  if (!connectionReady()) {
+    check.errors.unshift(connection?.needsReconnect ? 'Reconnect Gmail before sending.' : 'Connect Gmail first.');
+  }
   if (!check.ok || !connectionReady()) return showNotice(check.errors.join('\n'), 'error');
   elements.sendTest.disabled = true;
   try {
