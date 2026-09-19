@@ -1,13 +1,9 @@
 {
-  "ok": true,
-  "points": 10338,
-  "localPoints": 10338,
-  "aliasPointsBefore": 10338,
-  "pubPointsBefore": 10338,
-  "aliasPointsAfter": 10338,
-  "pubPointsAfter": 10338,
-  "requestId": "portal-points-reconcile-20260919-2",
-  "action": "portal_points_reconcile",
+  "ok": false,
+  "error": "The general authenticated browser lane is currently busy. No session was taken over.",
+  "browserLane": "general",
+  "requestId": "campaigns-user-acceptance-20260919b",
+  "action": "campaigns_user_acceptance",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-19T21:49:23Z"
+  "checkedAt": "2026-09-19T22:22:17Z"
 }
