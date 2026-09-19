@@ -1,8 +1,16 @@
 {
   "ok": false,
-  "error": "control request failed before a sanitized result was produced",
-  "requestId": "campaigns-acceptance-20260919-1",
-  "action": "campaigns_acceptance",
-  "workflowOutcome": "failure",
-  "checkedAt": "2026-09-19T15:57:39Z"
+  "portal": {},
+  "location": {},
+  "gmail": {},
+  "ui": {},
+  "errors": [
+    {
+      "message": "Portal session is signed out and no saved Portal credentials are available in the persistent browser."
+    }
+  ],
+  "requestId": "campaigns-user-acceptance-20260919-1",
+  "action": "campaigns_user_acceptance",
+  "workflowOutcome": "success",
+  "checkedAt": "2026-09-19T17:49:14Z"
 }
