@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
+import android.os.Bundle
 import android.provider.Settings
 import android.service.voice.VoiceInteractionService
 import android.util.Base64
@@ -24,6 +25,17 @@ class MainActivity : FlutterActivity() {
     private val relaySecretsChannelName = "tech.threedvr.companion/relay_secrets"
     private val bridgePrefs = "companion_local_bridge"
     private val bridgeTokenKey = "bearer_token_v1"
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        handlePresencePairIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handlePresencePairIntent(intent)
+    }
 
     private val knownApps = mapOf(
         "chatgpt" to listOf("com.openai.chatgpt"),
@@ -76,6 +88,10 @@ class MainActivity : FlutterActivity() {
                     "voiceReceipt" -> result.success(CompanionVoiceReceiptStore.snapshot(this))
                     "requestAssistantRole" -> result.success(requestAssistantRole())
                     "requestMicrophonePermission" -> result.success(requestMicrophonePermission())
+                    "requestPresencePermissions" -> result.success(requestPresencePermissions())
+                    "presenceAudioStatus" -> result.success(presenceAudioStatus())
+                    "startPresenceAudio" -> result.success(CompanionAccessibilityService.startPresenceAudio())
+                    "stopPresenceAudio" -> result.success(CompanionAccessibilityService.stopPresenceAudio())
                     "beginVoiceAuthorization" -> result.success(beginVoiceAuthorization(voiceAuthorizationStore))
                     "openVoiceInputSettings" -> {
                         startActivity(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS))
@@ -196,6 +212,41 @@ class MainActivity : FlutterActivity() {
         return true
     }
 
+    private fun hasNotificationPermission(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+    private fun requestPresencePermissions(): Boolean {
+        val permissions = mutableListOf<String>()
+        if (!hasMicrophonePermission()) permissions += Manifest.permission.RECORD_AUDIO
+        if (!hasNotificationPermission() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions += Manifest.permission.POST_NOTIFICATIONS
+        }
+        if (permissions.isNotEmpty()) {
+            requestPermissions(permissions.toTypedArray(), PRESENCE_PERMISSION_REQUEST_CODE)
+        }
+        return true
+    }
+
+    private fun presenceAudioStatus(): Map<String, Any?> {
+        val configured = CompanionPresenceAudioRecorder.configurationStatus(this)
+        val service = CompanionAccessibilityService.presenceStatus()
+        return configured + service + mapOf(
+            "microphoneGranted" to hasMicrophonePermission(),
+            "notificationGranted" to hasNotificationPermission(),
+            "accessibilityEnabled" to isAccessibilityEnabled(),
+        )
+    }
+
+    private fun handlePresencePairIntent(intent: Intent?) {
+        val data = intent?.data ?: return
+        if (data.scheme != "threedvr" || data.host != "presence" || data.path != "/pair") return
+        val server = data.getQueryParameter("server").orEmpty()
+        val upload = data.getQueryParameter("upload").orEmpty()
+        val view = data.getQueryParameter("view").orEmpty()
+        CompanionPresenceAudioRecorder.configure(this, server, upload, view)
+    }
+
     private fun deviceStatus(): Map<String, Any?> {
         val battery = getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
         return mapOf(
@@ -271,5 +322,6 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val ASSISTANT_ROLE_REQUEST_CODE = 38474
         private const val MICROPHONE_PERMISSION_REQUEST_CODE = 38475
+        private const val PRESENCE_PERMISSION_REQUEST_CODE = 38478
     }
 }

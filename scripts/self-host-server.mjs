@@ -7,6 +7,7 @@ import secretsBrokerHandler from '../api/secrets-broker.js';
 import workboardGithubHandler from '../src/workboard/github-feed.js';
 import { createOAuthProviderHandler } from '../src/oauth/provider-api.js';
 import { createOrganismBridgeHandler } from '../src/organism/bridge.js';
+import { createPresenceAudioHandler } from '../src/presence-audio/handler.js';
 
 const PORT = Number(process.env.PORT || 4320);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -17,6 +18,7 @@ const LEGACY_API_ORIGIN = String(process.env.LEGACY_API_ORIGIN || '').replace(/\
 const STANDBY_MODE = /^(1|true|yes|on)$/i.test(String(process.env.PORTAL_STANDBY || '').trim());
 const oauthProviderHandler = createOAuthProviderHandler();
 const organismBridgeHandler = createOrganismBridgeHandler();
+const presenceAudioHandler = createPresenceAudioHandler();
 const SECRETS_BROKER_ALLOWED_ORIGINS = new Set(String(
   process.env.THREEDVR_SECRETS_BROKER_ALLOWED_ORIGINS
     || 'https://portal.3dvr.tech,https://3dvr-portal.vercel.app'
@@ -299,6 +301,14 @@ const server = createServer(async (req, res) => {
         standby: true
       });
     }
+  }
+
+  if (
+    url.pathname.startsWith('/api/presence-audio/') ||
+    url.pathname.startsWith('/3dvr-connect/presence/pair/') ||
+    url.pathname.startsWith('/presence-audio/pair/')
+  ) {
+    return presenceAudioHandler(req, res, url);
   }
 
   if (url.pathname === '/api/openai-site') {
