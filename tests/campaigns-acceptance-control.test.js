@@ -27,6 +27,9 @@ test('Campaigns acceptance uses the leased OVH browser lane and never starts a r
   assert.match(userRunner, /scopeKey=gmail-send/);
   assert.match(userRunner, /settleAfterNavigationAction/);
   assert.match(userRunner, /safeEvaluate/);
+  assert.match(userRunner, /homeBadge/);
+  assert.match(userRunner, /usedTemporarySenderDetails/);
+  assert.match(userRunner, /123 Main St, San Diego, CA 92101/);
   assert.match(userRunner, /execution context was destroyed/);
   assert.match(workflow, /raw\.githubusercontent\.com\/tmsteph\/3dvr-portal\/main\/scripts\/ops\/campaigns-user-acceptance\.cjs/);
   assert.match(userRunner, /campaignsOk/);

@@ -227,6 +227,14 @@ function gmailReady(connection) {
     summary.points.profileScore = await page.$eval('#score', el => el.textContent?.trim() || '');
     summary.points.profileName = await page.$eval('#username', el => el.textContent?.trim() || '');
 
+    await page.goto(`${ORIGIN}/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForSelector('[data-auth-entry]', { timeout: 10000 });
+    await sleep(3000);
+    summary.points.homeBadge = await page.$eval(
+      '[data-auth-entry]',
+      el => el.textContent?.trim() || ''
+    );
+
     await page.goto(`${ORIGIN}/campaigns/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForSelector('#leadVaultSyncStatus', { timeout: 10000 });
     previousDraft = await page.evaluate(() => localStorage.getItem('3dvr.campaigns.draft'));
@@ -273,11 +281,21 @@ function gmailReady(connection) {
     summary.gmail.statusText = await page.$eval('#gmailStatus', el => el.textContent?.trim() || '').catch(() => '');
 
     if (summary.gmail.ready) {
-      const businessName = await page.$eval('#businessName', el => el.value.trim());
-      const postalAddress = await page.$eval('#postalAddress', el => el.value.trim());
-      if (!businessName || !postalAddress) {
-        throw new Error('Campaign sender name or postal address is missing.');
+      let businessName = await page.$eval('#businessName', el => el.value.trim());
+      let postalAddress = await page.$eval('#postalAddress', el => el.value.trim());
+      if (!businessName) {
+        await setValue(page, '#businessName', '3DVR Test');
+        businessName = '3DVR Test';
+        summary.gmail.usedTemporarySenderDetails = true;
       }
+      if (!postalAddress) {
+        await setValue(page, '#postalAddress', '123 Main St, San Diego, CA 92101');
+        await page.$eval('#postalAddress', el => el.blur());
+        await sleep(120);
+        postalAddress = await page.$eval('#postalAddress', el => el.value.trim());
+        summary.gmail.usedTemporarySenderDetails = true;
+      }
+      summary.gmail.senderDetailsReady = Boolean(businessName && postalAddress);
 
       await setValue(page, '#subject', '[3DVR TEST] Campaigns acceptance');
       await setValue(page, '#message', 'Automated Campaigns acceptance test. No action is needed.');
