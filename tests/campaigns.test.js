@@ -86,4 +86,9 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(html, /gun\/gun\.js/);
   assert.match(html, /gun\/sea\.js/);
   assert.match(js, /createBrowserLeadVaultSync/);
+  assert.match(js, /connectionHasGmailSendScope/);
+  assert.match(js, /Gmail authorization needs to be reconnected/);
+  assert.match(js, /No further recipients were attempted/);
+  assert.match(js, /formatPostalAddress/);
+  assert.match(html, /We’ll format spacing, street suffixes, state, and ZIP before sending/);
 });

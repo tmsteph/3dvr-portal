@@ -20,6 +20,10 @@ import {
   resolveBrowserLocation,
   resolveTypedLocation
 } from './location.js';
+import {
+  formatPostalAddress,
+  normalizePostalAddressInput
+} from './address.js';
 
 const STORAGE = {
   connection: '3dvr.campaigns.google.connection',
@@ -379,11 +383,29 @@ function consumeOAuthResult() {
   }
   showNotice(`Connected ${connection.email || 'Google account'}.`, 'success');
 }
-function connectionReady() { return Boolean(connection?.accessToken && connection?.email); }
+function connectionHasGmailSendScope(value = connection) {
+  const scopeKey = String(value?.scopeKey || '').toLowerCase();
+  const scope = String(value?.scope || '').toLowerCase();
+  return scopeKey === 'gmail-send'
+    || scopeKey === 'calendar-gmail-send'
+    || scope.includes('https://www.googleapis.com/auth/gmail.send');
+}
+function connectionReady() {
+  return Boolean(connection?.accessToken && connection?.email && connectionHasGmailSendScope(connection));
+}
 function updateConnectionUi() {
   const connected = connectionReady();
-  elements.status.textContent = connected ? connection.email : 'Not connected';
-  elements.detail.textContent = connected ? 'Google OAuth · Gmail send permission' : 'Connect the Google account you want to send from.';
+  const hasIdentity = Boolean(connection?.accessToken && connection?.email);
+  elements.status.textContent = connected
+    ? connection.email
+    : hasIdentity
+      ? 'Reconnect Gmail'
+      : 'Not connected';
+  elements.detail.textContent = connected
+    ? 'Google OAuth · Gmail send permission verified'
+    : hasIdentity
+      ? 'This saved Google connection is missing verified Gmail send permission.'
+      : 'Connect the Google account you want to send from.';
   elements.connect.hidden = connected;
   elements.disconnect.hidden = !connected;
   elements.sendTest.disabled = !connected || sending;
@@ -430,22 +452,59 @@ async function activeConnection() {
   if (!connection.expiresAt || Date.now() > Number(connection.expiresAt) - 60_000) await refreshConnection();
   return connection;
 }
-async function gmailSend({ to, subject, text }) {
-  const active = await activeConnection();
+function isGmailAuthFailure(status, message = '') {
+  return status === 401
+    || status === 403
+    || /invalid authentication credentials|insufficient authentication scopes|insufficient permission|unauthenticated|invalid_grant|access token|oauth/i.test(String(message || ''));
+}
+
+async function gmailSendAttempt(active, { to, subject, text }) {
   const response = await fetch('/api/oauth/google?action=sendmail', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ accessToken: active.accessToken, to, subject, text }),
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok || !payload.ok) throw new Error(payload.error || 'Gmail send failed.');
-  return payload;
+  return { response, payload };
 }
+
+async function gmailSend({ to, subject, text }) {
+  let active = await activeConnection();
+  let attempt = await gmailSendAttempt(active, { to, subject, text });
+  let message = attempt.payload.error || 'Gmail send failed.';
+
+  if ((!attempt.response.ok || !attempt.payload.ok)
+    && isGmailAuthFailure(attempt.response.status, message)
+    && active.refreshToken) {
+    try {
+      active = await refreshConnection();
+      attempt = await gmailSendAttempt(active, { to, subject, text });
+      message = attempt.payload.error || 'Gmail send failed.';
+    } catch (error) {
+      message = error.message || message;
+    }
+  }
+
+  if (!attempt.response.ok || !attempt.payload.ok) {
+    const error = new Error(
+      isGmailAuthFailure(attempt.response.status, message)
+        ? 'Gmail authorization needs to be reconnected. Reconnect Gmail, then send a test message before starting the campaign.'
+        : message
+    );
+    error.stopCampaign = isGmailAuthFailure(attempt.response.status, message);
+    throw error;
+  }
+  return attempt.payload;
+}
+function formattedPostalAddress() {
+  return formatPostalAddress(elements.postalAddress.value);
+}
+
 function validation(sendable) {
   return validateCampaign({
     subject: elements.subject.value,
     body: elements.message.value,
     businessName: elements.businessName.value,
-    postalAddress: elements.postalAddress.value,
+    postalAddress: formattedPostalAddress(),
     recipients: sendable,
     sourceAcknowledged: elements.sourceAck.checked && Boolean(elements.contactSource.value),
   });
@@ -455,7 +514,7 @@ function messageFor(recipient) {
     body: elements.message.value,
     recipient,
     businessName: elements.businessName.value,
-    postalAddress: elements.postalAddress.value,
+    postalAddress: formattedPostalAddress(),
   });
 }
 function addHistory(entry) {
@@ -507,10 +566,19 @@ async function runCampaign(event) {
   }
   if (!window.confirm(`Send this campaign to ${batch.length} recipient${batch.length === 1 ? '' : 's'} from ${connection.email}?`)) return;
 
+  try {
+    await activeConnection();
+  } catch (error) {
+    showNotice(error.message || 'Reconnect Gmail before sending.', 'error');
+    updateConnectionUi();
+    return;
+  }
+
   sending = true;
   updateConnectionUi();
   let sent = 0;
   let failed = 0;
+  let fatalError = '';
   setProgress(0, batch.length, 'Starting…');
 
   for (let index = 0; index < batch.length; index += 1) {
@@ -527,14 +595,32 @@ async function runCampaign(event) {
       markCampaignLeadStatus(recipient.email, 'send-failed');
       markLeadVaultStatus(recipient.email, 'send-failed');
       console.error(error);
+      if (error.stopCampaign) {
+        fatalError = error.message || 'Gmail authorization failed.';
+      }
     }
-    setProgress(index + 1, batch.length, `Sent ${sent} · Failed ${failed}`);
+    setProgress(index + 1, batch.length, fatalError
+      ? `Stopped after Gmail authorization failed · Sent ${sent} · Failed ${failed}`
+      : `Sent ${sent} · Failed ${failed}`);
+    if (fatalError) break;
     if (index < batch.length - 1) await sleep(SEND_DELAY_MS);
   }
 
-  addHistory({ at: Date.now(), subject: elements.subject.value.trim(), sent, failed, from: connection.email });
+  addHistory({
+    at: Date.now(),
+    subject: elements.subject.value.trim(),
+    sent,
+    failed,
+    from: connection.email,
+    error: fatalError
+  });
   scheduleLeadVaultSync();
-  showNotice(`Campaign finished. ${sent} sent, ${failed} failed.`, failed ? 'error' : 'success');
+  showNotice(
+    fatalError
+      ? `${fatalError} No further recipients were attempted. ${sent} sent before the stop.`
+      : `Campaign finished. ${sent} sent, ${failed} failed.`,
+    failed ? 'error' : 'success'
+  );
   sending = false;
   updateConnectionUi();
 }
@@ -617,12 +703,18 @@ elements.clearHistory.addEventListener('click', () => {
   localStorage.removeItem(STORAGE.history);
   renderHistory();
 });
+elements.postalAddress.addEventListener('blur', () => {
+  normalizePostalAddressInput(elements.postalAddress);
+  writeJson(STORAGE.draft, draftSnapshot());
+});
+
 elements.form.addEventListener('input', () => {
   writeJson(STORAGE.draft, draftSnapshot());
   updateSummary();
 });
 
 restoreDraft();
+if (elements.postalAddress.value) normalizePostalAddressInput(elements.postalAddress);
 consumeOAuthResult();
 renderHistory();
 updateConnectionUi();
