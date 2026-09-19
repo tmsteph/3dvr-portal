@@ -34,23 +34,25 @@ This keeps AI discovery from flooding the CRM or falsely implying a relationship
 
 ## Current persistence
 
-The first implementation stores Lead Vault records in same-origin browser storage under:
+Anonymous use stays zero-setup and device-local under:
 
 `3dvr.moneyPrinter.leadVault.v1`
 
-Campaigns and Money Printer share that store on the same browser. Selected leads also enter the Money Printer message-review queue, and successful/failed sends update lead state.
+When an existing Portal/Gun identity is available, Campaigns and Money Printer automatically reconcile that local vault with the signed-in user's encrypted Gun/SEA node:
 
-## Next persistence layer
+`user → money-printer → lead-vault-v1`
 
-Browser storage is useful for immediate zero-setup use, but it is not the final durable store.
+The payload is encrypted with the signed-in user's SEA keypair before it is written to the relay. The pages merge by normalized email, preserve the furthest lifecycle status, and reconcile live remote updates so another signed-in device can see new leads without turning anonymous data into a shared public graph.
 
-The next storage layer should be signed-in, user-owned, cross-device sync with:
-- one stable lead ID
-- encrypted/private account scope
-- provenance retained with every imported or discovered contact
-- append-only status/event history
+Selected leads also enter the Money Printer message-review queue, and successful/failed sends update lead state.
+
+## Remaining persistence work
+
+Cross-device Lead Vault sync is now implemented. The next durability/privacy work should add:
+- append-only status/event history rather than only current state
 - suppression state preserved across devices
-- export/delete controls
+- explicit export/delete controls
+- recovery/backup semantics for account loss
 - CRM promotion only after a meaningful relationship event
 
-Do not put anonymous visitors' prospects into a shared global 3DVR graph. Anonymous use stays device-local until the user signs in or explicitly exports/promotes the data.
+Do not put anonymous visitors' prospects into a shared global 3DVR graph. Anonymous use remains device-local until the user signs in or explicitly exports/promotes the data.

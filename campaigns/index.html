@@ -8,7 +8,6 @@
   <meta name="description" content="Find likely customers, draft outreach, and start conversations from one simple page.">
   <link rel="icon" href="/brand/portal-mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css">
-  <script type="module" src="./app.js"></script>
 </head>
 <body>
   <main class="shell">
@@ -49,6 +48,7 @@
           </div>
         </details>
       </form>
+      <p class="muted vault-sync-status" id="leadVaultSyncStatus">Lead Vault: saved on this device</p>
       <div class="notice" id="leadNotice" aria-live="polite" hidden></div>
       <div id="leadResults" class="lead-results" hidden></div>
       <div class="button-row" id="leadActions" hidden>
@@ -137,5 +137,9 @@
 
     <footer>Powered by the 3DVR Money Printer review pipeline · Gmail sends through Google OAuth · No Gmail password is stored.</footer>
   </main>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="/gun-init.js"></script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
