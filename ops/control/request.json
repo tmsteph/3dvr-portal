@@ -1,4 +1,4 @@
 {
-  "id": "portal-points-status-remote-20260919-2",
-  "action": "portal_points_status"
+  "id": "portal-points-reconcile-20260919-1",
+  "action": "portal_points_reconcile"
 }
