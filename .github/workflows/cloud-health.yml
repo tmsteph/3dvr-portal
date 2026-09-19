@@ -47,14 +47,59 @@ jobs:
             for user in "$@"; do
               for key in /tmp/h-a /tmp/h-b /tmp/h-c; do
                 [ -f "$key" ] || continue
-                if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host" \
-                  'printf "%s | %s | root-disk=%s\n" "$(hostname)" "$(uptime -p)" "$(df -P / | tail -1 | awk '\''{print $5}'\'')"'; then
+                if metrics="$(ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          mem_total=$(awk '/MemTotal:/ {print $2}' /proc/meminfo)
+          mem_avail=$(awk '/MemAvailable:/ {print $2}' /proc/meminfo)
+          mem_pct=$((mem_avail * 100 / mem_total))
+          swap_total=$(awk '/SwapTotal:/ {print $2}' /proc/meminfo)
+          swap_free=$(awk '/SwapFree:/ {print $2}' /proc/meminfo)
+          if [ "$swap_total" -gt 0 ]; then swap_pct=$(((swap_total - swap_free) * 100 / swap_total)); else swap_pct=0; fi
+          disk_pct=$(df -P / | tail -1 | awk '{gsub(/%/,"",$5); print $5}')
+          load1=$(awk '{print $1}' /proc/loadavg)
+          cpus=$(nproc)
+          printf 'host=%s mem_available_pct=%s swap_used_pct=%s disk_used_pct=%s load1=%s cpus=%s uptime=%q\n' \
+            "$(hostname)" "$mem_pct" "$swap_pct" "$disk_pct" "$load1" "$cpus" "$(uptime -p)"
+          REMOTE
+          )"; then
+                  echo "$name | $metrics"
+                  mem_pct=$(sed -n 's/.*mem_available_pct=\([0-9]*\).*/\1/p' <<<"$metrics")
+                  swap_pct=$(sed -n 's/.*swap_used_pct=\([0-9]*\).*/\1/p' <<<"$metrics")
+                  disk_pct=$(sed -n 's/.*disk_used_pct=\([0-9]*\).*/\1/p' <<<"$metrics")
+                  load1=$(sed -n 's/.*load1=\([^ ]*\).*/\1/p' <<<"$metrics")
+                  cpus=$(sed -n 's/.*cpus=\([0-9]*\).*/\1/p' <<<"$metrics")
+
+                  if [ "$mem_pct" -lt 10 ]; then
+                    echo "::error::$name has only ${mem_pct}% memory available"
+                    return 2
+                  elif [ "$mem_pct" -lt 20 ]; then
+                    echo "::warning::$name memory available is ${mem_pct}%"
+                  fi
+
+                  if [ "$disk_pct" -ge 90 ]; then
+                    echo "::error::$name root disk is ${disk_pct}% full"
+                    return 2
+                  elif [ "$disk_pct" -ge 80 ]; then
+                    echo "::warning::$name root disk is ${disk_pct}% full"
+                  fi
+
+                  if [ "$swap_pct" -ge 90 ]; then
+                    echo "::warning::$name swap usage remains high at ${swap_pct}%"
+                  fi
+
+                  if awk -v load="$load1" -v cpus="$cpus" 'BEGIN { exit !(load > cpus * 2) }'; then
+                    echo "::error::$name load is critical: ${load1} on ${cpus} CPU(s)"
+                    return 2
+                  elif awk -v load="$load1" -v cpus="$cpus" 'BEGIN { exit !(load > cpus) }'; then
+                    echo "::warning::$name load is elevated: ${load1} on ${cpus} CPU(s)"
+                  fi
+
                   echo "$name healthy via $user@$host"
                   return 0
                 fi
               done
             done
-            echo "::error::$name is unreachable over SSH ($host)"
+            echo "::error::$name is unreachable or critically resource constrained ($host)"
             return 1
           }
 
@@ -62,4 +107,17 @@ jobs:
           probe OVH 40.160.137.41 debian root || failures=$((failures+1))
           probe Hetzner 167.233.174.20 root debian ubuntu tmsteph || failures=$((failures+1))
           probe DigitalOcean 167.172.193.194 root debian || failures=$((failures+1))
+
+          echo "=== public edge checks ==="
+          if ! curl -fsS --max-time 15 https://portal.3dvr.tech/__3dvr-health \
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.ok||x.host!=="self")process.exit(1)})'; then
+            echo "::error::Canonical portal health check failed"
+            failures=$((failures+1))
+          fi
+          if ! curl -fsS --max-time 10 http://167.172.193.194/__3dvr-edge-health \
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.ok||x.edge!=="digitalocean")process.exit(1)})'; then
+            echo "::error::DigitalOcean edge health check failed"
+            failures=$((failures+1))
+          fi
+
           [ "$failures" -eq 0 ]
