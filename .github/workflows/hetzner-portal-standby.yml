@@ -1,0 +1,114 @@
+name: Deploy Hetzner Portal Standby
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/self-host-server.mjs'
+      - 'ops/resilience/install-hetzner-portal-standby.sh'
+      - '.github/workflows/hetzner-portal-standby.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar --exclude=.git --exclude=node_modules --exclude='.3dvr' -czf /tmp/3dvr-portal-standby.tar.gz .
+
+      - name: Resolve Hetzner SSH access
+        id: ssh
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          HOST: 167.233.174.20
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/hz-a
+          write_key "$SSH_B" /tmp/hz-b
+          write_key "$SSH_C" /tmp/hz-c
+          for user in root debian ubuntu tmsteph; do
+            for key in /tmp/hz-a /tmp/hz-b /tmp/hz-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$HOST" true >/dev/null 2>&1; then
+                echo "user=$user" >> "$GITHUB_OUTPUT"
+                echo "key=$key" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+          done
+          exit 1
+
+      - name: Deploy standby
+        shell: bash
+        env:
+          HOST: 167.233.174.20
+          USER: ${{ steps.ssh.outputs.user }}
+          KEY: ${{ steps.ssh.outputs.key }}
+          SHA: ${{ github.sha }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          opts=(-i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          scp "${opts[@]}" /tmp/3dvr-portal-standby.tar.gz "$USER@$HOST:/tmp/3dvr-portal-standby.tar.gz"
+          scp "${opts[@]}" ops/resilience/install-hetzner-portal-standby.sh "$USER@$HOST:/tmp/install-hetzner-portal-standby.sh"
+          if [ "$USER" = root ]; then
+            ssh "${opts[@]}" "$USER@$HOST" "bash /tmp/install-hetzner-portal-standby.sh /tmp/3dvr-portal-standby.tar.gz '$SHA' '$REF_NAME'"
+          else
+            ssh "${opts[@]}" "$USER@$HOST" "sudo -n bash /tmp/install-hetzner-portal-standby.sh /tmp/3dvr-portal-standby.tar.gz '$SHA' '$REF_NAME'"
+          fi
+
+      - name: Verify standby from DigitalOcean
+        shell: bash
+        env:
+          HOST: 167.233.174.20
+          USER: ${{ steps.ssh.outputs.user }}
+          KEY: ${{ steps.ssh.outputs.key }}
+        run: |
+          set -euo pipefail
+          opts=(-i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$USER@$HOST" \
+            "ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-do 'curl -fsS --max-time 8 http://127.0.0.1:14322/__3dvr-health'" \
+            > /tmp/standby-health.json
+          node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync("/tmp/standby-health.json","utf8"));if(!x.ok||!x.standby)process.exit(1)'
+
+      - name: Remove temporary files
+        if: always()
+        shell: bash
+        env:
+          HOST: 167.233.174.20
+          USER: ${{ steps.ssh.outputs.user }}
+          KEY: ${{ steps.ssh.outputs.key }}
+        run: |
+          rm -f /tmp/hz-a /tmp/hz-b /tmp/hz-c /tmp/hz-*.raw /tmp/3dvr-portal-standby.tar.gz /tmp/standby-health.json
+          if [ -n "${KEY:-}" ] && [ -f "${KEY:-}" ] && [ -n "${USER:-}" ]; then
+            ssh -i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=6 "$USER@$HOST" \
+              'rm -f /tmp/3dvr-portal-standby.tar.gz /tmp/install-hetzner-portal-standby.sh' || true
+          fi
