@@ -89,7 +89,8 @@ async function proxyToSelfHostedAi(req, res, { origin, fetchImpl = globalThis.fe
     method: req.method || 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-3DVR-Edge': 'vercel-fallback'
+      'X-3DVR-Edge': 'vercel-fallback',
+      'X-Forwarded-For': String(req?.headers?.['x-forwarded-for'] || req?.headers?.['x-real-ip'] || '')
     },
     body: req.method === 'GET' || req.method === 'HEAD'
       ? undefined

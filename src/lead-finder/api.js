@@ -1,9 +1,44 @@
+import { createHash } from 'node:crypto';
+
 const DEFAULT_MODEL = 'gpt-5.6-luna';
 const DEFAULT_GATEWAY_MODEL = 'openai/gpt-5.6-luna';
 const MAX_LEADS = 25;
+const DEFAULT_RATE_LIMIT = 10;
+const DEFAULT_RATE_WINDOW_MS = 60 * 60 * 1000;
 
 function clean(value = '', max = 1000) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+function requestIdentity(req, salt = '3dvr-lead-finder') {
+  const forwarded = String(req?.headers?.['x-forwarded-for'] || '').split(',')[0].trim();
+  const address = forwarded || String(req?.headers?.['x-real-ip'] || req?.socket?.remoteAddress || 'anonymous');
+  return createHash('sha256').update(salt + ':' + address).digest('hex').slice(0, 64);
+}
+
+export function createLeadFinderRateLimiter({
+  limit = DEFAULT_RATE_LIMIT,
+  windowMs = DEFAULT_RATE_WINDOW_MS
+} = {}) {
+  const buckets = new Map();
+
+  return function rateLimit(key, currentTime = Date.now()) {
+    const existing = buckets.get(key);
+    if (!existing || existing.resetAt <= currentTime) {
+      buckets.set(key, { count: 1, resetAt: currentTime + windowMs });
+      return { allowed: true, retryAfter: 0 };
+    }
+
+    if (existing.count >= limit) {
+      return {
+        allowed: false,
+        retryAfter: Math.max(1, Math.ceil((existing.resetAt - currentTime) / 1000))
+      };
+    }
+
+    existing.count += 1;
+    return { allowed: true, retryAfter: 0 };
+  };
 }
 
 function extractResponseText(responseData) {
@@ -156,7 +191,9 @@ export function createLeadFinderHandler({
   gatewayToken = process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN,
   model = process.env.OPENAI_LEAD_MODEL,
   endpoint,
-  fetchImpl = globalThis.fetch
+  fetchImpl = globalThis.fetch,
+  rateLimiter = createLeadFinderRateLimiter(),
+  nowMs = () => Date.now()
 } = {}) {
   return async function leadFinderHandler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -175,6 +212,16 @@ export function createLeadFinderHandler({
     const authorizationToken = apiKey || gatewayToken;
     if (!authorizationToken) {
       return res.status(503).json({ error: 'AI provider is not configured yet.', code: 'ai_not_configured' });
+    }
+
+    const rate = rateLimiter(requestIdentity(req), nowMs());
+    if (!rate.allowed) {
+      res.setHeader('Retry-After', String(rate.retryAfter));
+      return res.status(429).json({
+        error: 'Lead Finder is cooling down for this connection. Try again later.',
+        code: 'lead_search_rate_limited',
+        retryAfter: rate.retryAfter
+      });
     }
 
     try {

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildLeadFinderRequest,
   createLeadFinderHandler,
+  createLeadFinderRateLimiter,
   parseLeadFinderResponse,
 } from '../src/lead-finder/api.js';
 
@@ -140,4 +141,44 @@ test('lead finder falls back to the same Vercel AI Gateway path as Operator', as
   assert.equal(authorization, 'Bearer gateway-test-token');
   assert.equal(requestBody.model, 'openai/gpt-5.6-luna');
   assert.equal(res.payload.provider, 'vercel-ai-gateway');
+});
+
+
+test('lead finder rate limiter blocks repeated searches from the same client', async () => {
+  const rateLimiter = createLeadFinderRateLimiter({ limit: 1, windowMs: 60_000 });
+  const handler = createLeadFinderHandler({
+    apiKey: 'test-key',
+    rateLimiter,
+    nowMs: () => 1_000,
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        output: [{
+          type: 'message',
+          content: [{
+            type: 'output_text',
+            text: JSON.stringify({
+              campaignDraft: { subject: 'Hello {{name}}', body: 'Hi {{name}}, quick question.' },
+              leads: []
+            })
+          }]
+        }]
+      })
+    })
+  });
+  const req = {
+    method: 'POST',
+    headers: { 'x-forwarded-for': '203.0.113.10' },
+    body: { description: 'local service businesses', count: 1 }
+  };
+  const first = mockResponse();
+  await handler(req, first);
+  assert.equal(first.statusCode, 200);
+
+  const second = mockResponse();
+  await handler(req, second);
+  assert.equal(second.statusCode, 429);
+  assert.equal(second.payload.code, 'lead_search_rate_limited');
+  assert.equal(second.headers['Retry-After'], '60');
 });
