@@ -25,6 +25,9 @@ test('Campaigns acceptance uses the leased OVH browser lane and never starts a r
   assert.match(workflow, /3dvr-browser-lease acquire general control-bus-campaigns-user-acceptance/);
   assert.match(userRunner, /#sendTest/);
   assert.match(userRunner, /scopeKey=gmail-send/);
+  assert.match(userRunner, /settleAfterNavigationAction/);
+  assert.match(userRunner, /safeEvaluate/);
+  assert.match(userRunner, /execution context was destroyed/);
   assert.match(workflow, /raw\.githubusercontent\.com\/tmsteph\/3dvr-portal\/main\/scripts\/ops\/campaigns-user-acceptance\.cjs/);
   assert.match(userRunner, /campaignsOk/);
   assert.doesNotMatch(userRunner, /#sourceAck/);
