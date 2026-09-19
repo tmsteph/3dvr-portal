@@ -233,6 +233,16 @@
   ],
   "rewrites": [
     {
+      "source": "/human-handoff/api/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "portal.3dvr.tech"
+        }
+      ],
+      "destination": "https://hypothesis-xhtml-bundle-thick.trycloudflare.com/human-handoff/api/:path*"
+    },
+    {
       "source": "/:path*",
       "has": [
         {
