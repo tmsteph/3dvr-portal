@@ -12,7 +12,9 @@
       },
       "profileScore": "",
       "authBadge": "tmsteph · ⭐ 10338",
-      "title": "3DVR Portal"
+      "title": "3DVR Portal",
+      "remoteAliasPoints": null,
+      "remotePubPoints": null
     },
     {
       "url": "https://portal.3dvr.tech/access/",
@@ -25,11 +27,13 @@
       },
       "profileScore": "",
       "authBadge": "",
-      "title": "Access · 3DVR"
+      "title": "Access · 3DVR",
+      "remoteAliasPoints": null,
+      "remotePubPoints": null
     }
   ],
-  "requestId": "portal-points-status-20260919-1",
+  "requestId": "portal-points-status-remote-20260919-2",
   "action": "portal_points_status",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-19T21:35:15Z"
+  "checkedAt": "2026-09-19T21:37:28Z"
 }
