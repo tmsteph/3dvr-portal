@@ -185,13 +185,19 @@ function requestHostname(req) {
 }
 
 function getRequestOrigin(req) {
-  const forwardedProto = String(req?.headers?.['x-forwarded-proto'] || '').trim();
+  const forwardedProto = String(req?.headers?.['x-forwarded-proto'] || '').trim().toLowerCase();
   const forwardedHost = String(req?.headers?.['x-forwarded-host'] || req?.headers?.host || '').trim();
-  const proto = forwardedProto || 'https';
-  if (!forwardedHost) {
-    return 'https://portal.3dvr.tech';
+  const hostname = forwardedHost.split(':')[0].toLowerCase();
+  const is3dvrHost = hostname === '3dvr.tech' || hostname.endsWith('.3dvr.tech');
+  const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
+
+  if (is3dvrHost) {
+    return `https://${forwardedHost}`;
   }
-  return `${proto}://${forwardedHost}`;
+  if (isLocalHost) {
+    return `${forwardedProto || 'http'}://${forwardedHost}`;
+  }
+  return 'https://portal.3dvr.tech';
 }
 
 function sanitizeReturnOrigin(rawValue = '', requestOrigin = '') {
