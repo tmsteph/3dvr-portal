@@ -22,6 +22,9 @@ test('homepage account entry follows portal auth state', async () => {
   assert.match(app, /:portalPending/);
   assert.match(app, /authEntry\.textContent = `\$\{state\.displayName\} · ⭐ \$\{points\}`/);
   assert.match(app, /ScoreSystem\.getManager/);
+  assert.match(app, /ScoreSystem\.recallUserSession/);
+  assert.match(app, /portalRoot\.get\('userStats'\)\.get\(state\.alias\)/);
+  assert.match(app, /portalRoot\.get\('userStatsByPub'\)\.get\(pub\)/);
   assert.match(app, /scoreManager\.subscribe/);
   assert.match(app, /scoreManager\.whenReady/);
   assert.match(app, /authEntry\.href = '\/sign-in\.html\?redirect=%2F'/);
