@@ -246,7 +246,7 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if [[ "$URL" == https://*.trycloudflare.com ]]; then
+          if [[ "$URL" == https://portal.3dvr.tech || "$URL" == https://*.trycloudflare.com ]]; then
             curl -fsS --retry 10 --retry-delay 2 --retry-all-errors "$URL/__3dvr-health" > /tmp/health.json
             node -e 'const fs=require("node:fs"); const expected=process.argv[1]; const health=JSON.parse(fs.readFileSync("/tmp/health.json","utf8")); if(!health.ok||health.sha!==expected||health.operatorApi!=="native") throw new Error(`self-host health mismatch: ${JSON.stringify(health)}`)' "$SHA"
             curl -fsS --retry 5 --retry-delay 1 "$URL/operator/" > /tmp/operator.html
