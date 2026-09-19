@@ -31,6 +31,27 @@ The initial URL contains a random capability in the URL fragment, so it is not s
 
 Default lifetime is one hour. The browser-side session token is kept in session storage only to survive ordinary phone backgrounding/reconnects. Done, cancel, expiry, or service loss invalidates access.
 
+## Guided step metadata
+
+A handoff may include up to 12 ordered guide steps. Each step contains a short instruction and optional `targetText`. The metadata is persisted with the handoff so reconnects and gateway restarts keep the same guide.
+
+When the phone activates a step, `POST /human-handoff/api/guide` asks the gateway to locate matching visible text in the already-open page and call `scrollIntoView` through CDP. This is navigation assistance only: it never clicks, checks, accepts, submits, or otherwise makes the human decision.
+
+CLI callers can provide steps as JSON:
+
+```bash
+node human-handoff-gateway.js create \
+  --lane general \
+  --origin https://example.com \
+  --service "Example application" \
+  --reason "A few final human approvals are required." \
+  --steps '[{"instruction":"Read the agreement","targetText":"Applicant Agreement"},{"instruction":"Confirm if you agree","targetText":"I acknowledge"},{"instruction":"Submit","targetText":"Submit Application"}]'
+```
+
+## Mobile pan/scroll contract
+
+At zoom 1×, a drag scrolls the remote page. Above 1×, a drag first pans the locally enlarged frame. Once the local pan reaches its vertical boundary, continued drag emits bounded remote wheel events. This preserves pinch zoom while eliminating the dead-end feeling at the edge of the image.
+
 ## Privacy and logging
 
 Do not log capability tokens, screenshots, page contents, passwords, MFA codes, CAPTCHA answers, cookies, or browser storage.
@@ -53,16 +74,3 @@ Current lanes remain:
 ## Next integration
 
 When `detectHumanChallenge()` returns a human challenge during an agent workflow, the caller should create a handoff for that workflow's existing browser lane and target origin, present the short-lived URL to the user, wait for a resolved state, reacquire the writer lease, and continue from the same tab.
-
-## Headed general lane
-
-The `general` lane must run standard headed Chrome under Xvfb rather than `--headless=new`. Human-verification providers can reject a headless browser even when the account owner is genuinely controlling it through Human Handoff. The lane keeps CDP bound to loopback and the same persistent profile, while Xvfb provides a normal browser display environment without exposing a desktop publicly.
-
-
-## Restart recovery and low-latency frames
-
-Active handoffs are persisted as lifecycle metadata plus capability-token hashes only. Runtime CDP clients, browser lease credentials, screenshots, page content, passwords, MFA codes, cookies, and other browser secrets are never written into handoff state.
-
-On gateway restart, unexpired handoffs reconnect to the matching existing browser tab, reacquire the same browser-lane lease owner, and rebuild the initial/session token indexes. A phone session can therefore survive a routine gateway restart without changing its capability URL.
-
-For interactive rendering, the gateway uses Chrome's `Page.startScreencast` event stream at JPEG quality 55. The phone long-polls for a frame newer than its last sequence number instead of requesting a fresh `Page.captureScreenshot` on a fixed timer. Synthetic OVH testing measured roughly 10 ms to the first local frame and about 21 ms average from a visible page change to the next local frame; Internet/tunnel latency is additional.
