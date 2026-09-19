@@ -120,4 +120,16 @@ jobs:
             failures=$((failures+1))
           fi
 
+          if ! curl -fsS --max-time 10 http://167.172.193.194/__3dvr-primary-health \
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.ok||x.operatorApi!=="native")process.exit(1)})'; then
+            echo "::error::OVH primary portal tunnel health failed at the DO edge"
+            failures=$((failures+1))
+          fi
+
+          if ! curl -fsS --max-time 10 http://167.172.193.194/__3dvr-standby-health \
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.ok||x.standby!==true)process.exit(1)})'; then
+            echo "::error::Hetzner standby portal tunnel health failed at the DO edge"
+            failures=$((failures+1))
+          fi
+
           [ "$failures" -eq 0 ]
