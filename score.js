@@ -419,6 +419,10 @@
       this._handleStorage = null;
       this._portalAliasChain = null;
       this._portalPubChain = null;
+      this._portalSnapshots = {
+        alias: { seen: false, points: null },
+        pub: { seen: false, points: null }
+      };
 
       if (!Number.isFinite(this.current)) {
         this.current = 0;
@@ -748,23 +752,68 @@
     _attachPortalRealtime() {
       if (!this.portalRoot) return;
       if (this.state.mode !== 'user') return;
+      const hasPub = Boolean(this._getPubKey());
+      this._portalSnapshots = {
+        alias: { seen: false, points: null },
+        pub: { seen: !hasPub, points: null }
+      };
       this._attachPortalAliasRealtime();
       this._attachPortalPubRealtime();
     }
 
-    _handlePortalValue(value) {
-      const sanitized = sanitizeScore(value);
-      if (sanitized <= 0) {
-        if (sanitized >= this.portalPending) {
-          this._setPortalPending(0);
-        }
+    _recordPortalSnapshot(kind, value) {
+      const numeric = Number(value);
+      this._portalSnapshots[kind] = {
+        seen: true,
+        points: Number.isFinite(numeric) ? sanitizeScore(numeric) : null
+      };
+      this._reconcilePortalSnapshots();
+    }
+
+    _reconcilePortalSnapshots() {
+      const aliasSnapshot = this._portalSnapshots.alias;
+      const pubSnapshot = this._portalSnapshots.pub;
+      if (!aliasSnapshot.seen || !pubSnapshot.seen) return;
+
+      const remoteValues = [aliasSnapshot.points, pubSnapshot.points]
+        .filter(value => Number.isFinite(value));
+      const best = Math.max(this.current, ...remoteValues, 0);
+
+      if (best > this.current) {
+        this._updateCurrent(best, { persist: false });
+        this._sendScoreToNetwork(best);
         return;
       }
+
+      const aliasBehind = aliasSnapshot.points !== best;
+      const pubExpected = Boolean(this._getPubKey());
+      const pubBehind = pubExpected && pubSnapshot.points !== best;
+      if (best > 0 && (aliasBehind || pubBehind)) {
+        this._setPortalPending(Math.max(this.portalPending, best));
+        this._putPortalStats(best);
+      } else if (best >= this.portalPending) {
+        this._setPortalPending(0);
+      }
+    }
+
+    _handlePortalValue(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return;
+      const sanitized = sanitizeScore(numeric);
       const previous = this.current;
+
       if (sanitized > previous) {
         this._updateCurrent(sanitized, { persist: false });
         this._sendScoreToNetwork(sanitized);
+        return;
       }
+
+      if (previous > sanitized && previous > 0) {
+        this._setPortalPending(Math.max(this.portalPending, previous));
+        this._putPortalStats(previous);
+        return;
+      }
+
       if (sanitized >= this.portalPending) {
         this._setPortalPending(0);
       }
@@ -851,10 +900,11 @@
         }
         this._portalAliasChain = chain;
         chain.once(data => {
-          if (data && typeof data.points !== 'undefined') {
-            this._handlePortalValue(data.points);
-            this._markReady();
-          }
+          this._recordPortalSnapshot(
+            'alias',
+            data && typeof data.points !== 'undefined' ? data.points : null
+          );
+          this._markReady();
         });
         chain.on(data => {
           if (data && typeof data.points !== 'undefined') {
@@ -884,10 +934,11 @@
         }
         this._portalPubChain = chain;
         chain.once(data => {
-          if (data && typeof data.points !== 'undefined') {
-            this._handlePortalValue(data.points);
-            this._markReady();
-          }
+          this._recordPortalSnapshot(
+            'pub',
+            data && typeof data.points !== 'undefined' ? data.points : null
+          );
+          this._markReady();
         });
         chain.on(data => {
           if (data && typeof data.points !== 'undefined') {
