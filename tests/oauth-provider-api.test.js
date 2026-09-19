@@ -109,6 +109,32 @@ describe('oauth provider api', () => {
     assert.match(String(res.body), /not configured on this deployment yet/i);
   });
 
+  it('canonicalizes OAuth callbacks to the public portal when an internal IP leaks through proxy headers', async () => {
+    const handler = createOAuthProviderHandler({
+      config: { GOOGLE_OAUTH_CLIENT_ID: 'client.apps.googleusercontent.com', GOOGLE_OAUTH_CLIENT_SECRET: 'secret' },
+    });
+    const res = createMockRes();
+
+    await handler({
+      method: 'GET',
+      headers: {
+        host: '167.172.193.194',
+        'x-forwarded-host': '167.172.193.194',
+        'x-forwarded-proto': 'http',
+      },
+      query: {
+        provider: 'google',
+        action: 'start',
+        scopeKey: 'gmail-send',
+        returnTo: '/campaigns/',
+      },
+    }, res);
+
+    assert.equal(res.statusCode, 302);
+    const location = new URL(res.headers.Location);
+    assert.equal(location.searchParams.get('redirect_uri'), 'https://portal.3dvr.tech/api/oauth/google');
+  });
+
   it('requests event-level Google Calendar access instead of full calendar administration', async () => {
     const handler = createOAuthProviderHandler({
       config: { GOOGLE_OAUTH_CLIENT_ID: 'client.apps.googleusercontent.com', GOOGLE_OAUTH_CLIENT_SECRET: 'secret' },
