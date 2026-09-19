@@ -13,11 +13,15 @@ test('Portal points reconcile is bounded and max-preserving', async () => {
   assert.match(workflow, /userStatsByPub/);
   assert.match(workflow, /userStats/);
   assert.match(workflow, /localPoints/);
-  assert.doesNotMatch(
-    workflow.slice(
-      workflow.indexOf('portal_points_reconcile)'),
-      workflow.indexOf('portal_points_status)')
-    ),
-    /Page\.navigate|page\.goto|\.click\(/
+  const block = workflow.slice(
+    workflow.indexOf('portal_points_reconcile)'),
+    workflow.indexOf('portal_points_status)')
   );
+  assert.match(block, /puppeteer\.connect\(\{ browserURL: 'http:\/\/127\.0\.0\.1:9222' \}\)/);
+  assert.match(block, /await persistent\.disconnect\(\)/);
+  assert.match(block, /puppeteer\.launch/);
+  assert.match(block, /headless: 'new'/);
+  assert.match(block, /userStatsByPub/);
+  assert.doesNotMatch(block, /userDataDir/);
+  assert.doesNotMatch(block, /\.click\(/);
 });

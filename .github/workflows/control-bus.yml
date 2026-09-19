@@ -180,46 +180,30 @@ jobs:
               ovh 'bash -s' <<'OVH'
           set -euo pipefail
           cd /opt/3dvr-portal-production/current
+
           puppeteer_core="$(find /home/debian/.npm/_npx -type f -path '*/puppeteer-core/lib/puppeteer/puppeteer-core.js' -print -quit 2>/dev/null || true)"
           [ -n "$puppeteer_core" ] && [ -f "$puppeteer_core" ]
           export PUPPETEER_CORE_PATH="$puppeteer_core"
 
+          chrome="$(find /home/debian/.agent-browser/browsers -mindepth 2 -maxdepth 2 -type f -name chrome -perm -u+x 2>/dev/null | sort -V | tail -1 || true)"
+          if [ -z "$chrome" ] || [ ! -x "$chrome" ]; then
+            for candidate in google-chrome-stable google-chrome chromium chromium-browser; do
+              if command -v "$candidate" >/dev/null 2>&1; then
+                chrome="$(command -v "$candidate")"
+                break
+              fi
+            done
+          fi
+          [ -n "$chrome" ] && [ -x "$chrome" ]
+          export CHROME_BIN="$chrome"
+
           node - <<'NODE'
           const puppeteer = require(process.env.PUPPETEER_CORE_PATH);
-          const Gun = require('gun');
-
-          const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-          const once = (node, timeoutMs = 5000) => new Promise(resolve => {
-            let settled = false;
-            const finish = value => {
-              if (settled) return;
-              settled = true;
-              resolve(value ?? null);
-            };
-            setTimeout(() => finish(null), timeoutMs);
-            try { node.once(finish); } catch { finish(null); }
-          });
-          const put = (node, value, timeoutMs = 6000) => new Promise((resolve, reject) => {
-            let settled = false;
-            const finish = (error, ack) => {
-              if (settled) return;
-              settled = true;
-              if (error) reject(error);
-              else resolve(ack || {});
-            };
-            setTimeout(() => finish(new Error('Gun write timed out.')), timeoutMs);
-            try {
-              node.put(value, ack => ack?.err
-                ? finish(new Error(String(ack.err)))
-                : finish(null, ack));
-            } catch (error) {
-              finish(error);
-            }
-          });
 
           (async () => {
-            const browser = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9222' });
-            const pages = await browser.pages();
+            // Read identity + local score from the leased browser without navigating or clicking.
+            const persistent = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9222' });
+            const pages = await persistent.pages();
             let identity = null;
 
             for (const page of pages) {
@@ -248,7 +232,7 @@ jobs:
                 break;
               }
             }
-            await browser.disconnect();
+            await persistent.disconnect();
 
             if (!identity) {
               console.log(JSON.stringify({
@@ -259,65 +243,119 @@ jobs:
               return;
             }
 
-            const gun = Gun({
-              peers: ['https://gun-relay-3dvr.fly.dev/gun'],
-              localStorage: false,
-              radisk: false
+            // Use a disposable browser with no profile for the public Gun repair.
+            const repairBrowser = await puppeteer.launch({
+              executablePath: process.env.CHROME_BIN,
+              headless: 'new',
+              args: ['--no-sandbox', '--disable-dev-shm-usage', '--no-first-run']
             });
-            const root = gun.get('3dvr-portal');
-            const aliasNode = root.get('userStats').get(identity.alias);
-            const pubNode = root.get('userStatsByPub').get(identity.pub);
+            const page = await repairBrowser.newPage();
 
-            const [aliasBefore, pubBefore] = await Promise.all([
-              once(aliasNode),
-              once(pubNode)
-            ]);
+            try {
+              await page.goto('https://portal.3dvr.tech/index.html', {
+                waitUntil: 'domcontentloaded',
+                timeout: 30000
+              });
+              await page.waitForFunction(() => typeof window.Gun === 'function', {
+                timeout: 10000
+              });
 
-            const numbers = [
-              identity.localPoints,
-              Number(aliasBefore?.points),
-              Number(pubBefore?.points)
-            ].filter(Number.isFinite).map(value => Math.max(0, Math.round(value)));
-            const best = numbers.length ? Math.max(...numbers) : 0;
+              const result = await page.evaluate(async identity => {
+                const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+                const once = (node, timeoutMs = 5000) => new Promise(resolve => {
+                  let settled = false;
+                  const finish = value => {
+                    if (settled) return;
+                    settled = true;
+                    resolve(value ?? null);
+                  };
+                  setTimeout(() => finish(null), timeoutMs);
+                  try { node.once(finish); } catch { finish(null); }
+                });
+                const put = (node, value, timeoutMs = 6000) => new Promise((resolve, reject) => {
+                  let settled = false;
+                  const finish = (error, ack) => {
+                    if (settled) return;
+                    settled = true;
+                    if (error) reject(error);
+                    else resolve(ack || {});
+                  };
+                  setTimeout(() => finish(new Error('Gun write timed out.')), timeoutMs);
+                  try {
+                    node.put(value, ack => ack?.err
+                      ? finish(new Error(String(ack.err)))
+                      : finish(null, ack));
+                  } catch (error) {
+                    finish(error);
+                  }
+                });
 
-            if (best <= 0) {
-              console.log(JSON.stringify({
-                ok: false,
-                error: 'No positive point total was found to reconcile.'
-              }));
-              process.exitCode = 2;
-              return;
+                const gun = window.Gun({
+                  peers: Array.isArray(window.__GUN_PEERS__) && window.__GUN_PEERS__.length
+                    ? window.__GUN_PEERS__
+                    : ['wss://gun-relay-3dvr.fly.dev/gun'],
+                  localStorage: false,
+                  radisk: false
+                });
+                const root = gun.get('3dvr-portal');
+                const aliasNode = root.get('userStats').get(identity.alias);
+                const pubNode = root.get('userStatsByPub').get(identity.pub);
+
+                const [aliasBefore, pubBefore] = await Promise.all([
+                  once(aliasNode),
+                  once(pubNode)
+                ]);
+
+                const numbers = [
+                  identity.localPoints,
+                  Number(aliasBefore?.points),
+                  Number(pubBefore?.points)
+                ].filter(Number.isFinite).map(value => Math.max(0, Math.round(value)));
+                const best = numbers.length ? Math.max(...numbers) : 0;
+
+                if (best <= 0) {
+                  return {
+                    ok: false,
+                    error: 'No positive point total was found to reconcile.'
+                  };
+                }
+
+                const payload = {
+                  alias: identity.alias,
+                  username: identity.username || identity.alias.replace(/@3dvr$/i, ''),
+                  points: best,
+                  lastUpdated: Date.now()
+                };
+
+                await put(aliasNode, payload);
+                await put(pubNode, { ...payload, pub: identity.pub });
+                await wait(800);
+
+                const [aliasAfter, pubAfter] = await Promise.all([
+                  once(aliasNode, 3500),
+                  once(pubNode, 3500)
+                ]);
+
+                return {
+                  ok: true,
+                  points: best,
+                  localPoints: identity.localPoints,
+                  aliasPointsBefore: Number.isFinite(Number(aliasBefore?.points))
+                    ? Number(aliasBefore.points) : null,
+                  pubPointsBefore: Number.isFinite(Number(pubBefore?.points))
+                    ? Number(pubBefore.points) : null,
+                  aliasPointsAfter: Number.isFinite(Number(aliasAfter?.points))
+                    ? Number(aliasAfter.points) : null,
+                  pubPointsAfter: Number.isFinite(Number(pubAfter?.points))
+                    ? Number(pubAfter.points) : null
+                };
+              }, identity);
+
+              console.log(JSON.stringify(result));
+              if (!result.ok) process.exitCode = 2;
+            } finally {
+              await repairBrowser.close();
             }
-
-            const payload = {
-              alias: identity.alias,
-              username: identity.username || identity.alias.replace(/@3dvr$/i, ''),
-              points: best,
-              lastUpdated: Date.now()
-            };
-
-            await put(aliasNode, payload);
-            await put(pubNode, { ...payload, pub: identity.pub });
-            await wait(600);
-
-            const [aliasAfter, pubAfter] = await Promise.all([
-              once(aliasNode, 3500),
-              once(pubNode, 3500)
-            ]);
-
-            console.log(JSON.stringify({
-              ok: true,
-              points: best,
-              localPoints: identity.localPoints,
-              aliasPointsBefore: Number.isFinite(Number(aliasBefore?.points))
-                ? Number(aliasBefore.points) : null,
-              pubPointsBefore: Number.isFinite(Number(pubBefore?.points))
-                ? Number(pubBefore.points) : null,
-              aliasPointsAfter: Number.isFinite(Number(aliasAfter?.points))
-                ? Number(aliasAfter.points) : null,
-              pubPointsAfter: Number.isFinite(Number(pubAfter?.points))
-                ? Number(pubAfter.points) : null
-            }));
           })().catch(error => {
             console.log(JSON.stringify({ ok: false, error: error.message || 'points-reconcile-failed' }));
             process.exitCode = 1;
