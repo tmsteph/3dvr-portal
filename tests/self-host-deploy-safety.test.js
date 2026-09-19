@@ -58,7 +58,8 @@ test('public tunnel is published only after semantic public readiness', () => {
 });
 
 
-test('external verification avoids curl/grep pipefail false negatives', () => {
+test('external verification accepts the canonical portal route and avoids curl/grep pipefail false negatives', () => {
+  assert.match(workflow, /https:\/\/portal\.3dvr\.tech/);
   assert.match(workflow, /curl -fsS --retry 5 --retry-delay 1 "\$URL\/operator\/" > \/tmp\/operator\.html/);
   assert.match(workflow, /grep -Fq 'Message your operator' \/tmp\/operator\.html/);
   assert.doesNotMatch(workflow, /curl[^\n]+\| grep -Fq 'Message your operator'/);
