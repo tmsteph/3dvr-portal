@@ -1,10 +1,9 @@
 {
   "ok": false,
-  "error": "No safe browser capacity for Campaigns acceptance.",
+  "error": "Both authenticated browser lanes are currently busy. No session was taken over.",
   "browserLane": "",
-  "admission": "browser_admission=blocked lane=identity reason=browser-count mem_available_mb=3846 required_mb=3200 active_browsers=3 max_active=3 load1=0.53 load_limit=5.00",
-  "requestId": "campaigns-user-acceptance-20260919e",
+  "requestId": "campaigns-user-acceptance-20260919f",
   "action": "campaigns_user_acceptance",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-19T22:45:39Z"
+  "checkedAt": "2026-09-19T22:50:50Z"
 }
