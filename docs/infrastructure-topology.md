@@ -167,7 +167,7 @@ The portal/control path must remain usable even when experimental workloads misb
 
 - Caddy and open recovery services receive priority over background work.
 - The OVH portal is reached through the existing reverse SSH tunnel at `127.0.0.1:14320`.
-- Caddy performs active/passive upstream health checks and uses short connection/header timeouts.
+- Caddy performs active/passive upstream health checks. Ordinary APIs keep short connection/header timeouts, while `/api/openai-site` gets a 75-second response-header budget so legitimate AI/web-search latency is not mistaken for backend failure.
 - Page requests fall back to a tiny static 3DVR Safe Mode page if the OVH tunnel/backend fails or returns selected 5xx responses.
 - API requests return a bounded `503` JSON safe-mode response instead of hanging.
 - `GET /__3dvr-edge-health` is served locally by DO and does not depend on OVH.

@@ -60,6 +60,30 @@ cat >/etc/caddy/Caddyfile <<'CADDY'
     }
   }
 
+  @ai_api path /api/openai-site*
+  handle @ai_api {
+    reverse_proxy 127.0.0.1:14320 127.0.0.1:14322 {
+      lb_policy first
+      transport http {
+        dial_timeout 2s
+        response_header_timeout 75s
+      }
+      health_uri /__3dvr-health
+      health_interval 15s
+      health_timeout 3s
+      fail_duration 20s
+      max_fails 1
+      unhealthy_status 5xx
+      unhealthy_latency 75s
+
+      @upstream_error status 500 502 503 504
+      handle_response @upstream_error {
+        header Content-Type application/json
+        respond `{"error":"3DVR backend temporarily unavailable","safeMode":true}` 503
+      }
+    }
+  }
+
   @api path /api/*
   handle @api {
     reverse_proxy 127.0.0.1:14320 127.0.0.1:14322 {
