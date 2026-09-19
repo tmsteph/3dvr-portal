@@ -33,6 +33,17 @@ describe('sign-in page', () => {
     assert.match(html, /embedded:\s*'\$200 Embedded Plan'/);
   });
 
+  it('shows visible progress while password sign-in or account creation is running', async () => {
+    const html = await readFile(signInUrl, 'utf8');
+    assert.match(html, /id="auth-status"/);
+    assert.match(html, /function setAuthStatus\(/);
+    assert.match(html, /function setAuthBusy\(/);
+    assert.match(html, /Connecting to secure account storage/);
+    assert.match(html, /Account created\. Signing you in/);
+    assert.match(html, /Signed in\. Opening the portal/);
+    assert.match(html, /\.primary-button\[disabled\]/);
+  });
+
   it('persists the current portal pub when billing sign-in completes', async () => {
     const html = await readFile(signInUrl, 'utf8');
     assert.match(html, /localStorage\.setItem\('userPubKey', userPub\)/);

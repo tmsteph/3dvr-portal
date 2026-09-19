@@ -71,6 +71,10 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(html, /Existing customers \/ manual list/);
   assert.match(html, /Prepare outreach/);
   assert.match(html, /Location <span class="muted">\(optional\)<\/span>/);
+  assert.match(html, /City, state, or ZIP/);
+  assert.match(html, /id="leadLocationStatus"/);
+  assert.match(html, /id="leadLocationChoices"/);
+  assert.match(html, /OpenStreetMap contributors/);
   assert.doesNotMatch(html, /id="leadLocation" value="San Diego, CA"/);
   assert.match(js, /scopeKey=gmail-send/);
   assert.match(js, /action=sendmail/);
