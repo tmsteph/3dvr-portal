@@ -18,13 +18,17 @@ case "$lane" in
   *) expected_mb="${THREEDVR_BROWSER_ACTION_MB:-768}" ;;
 esac
 
-mem_available_mb="$(awk '/^MemAvailable:/ {printf "%d", $2/1024}' /proc/meminfo)"
-load1="$(awk '{print $1}' /proc/loadavg)"
-cpus="$(nproc)"
-active=0
-for candidate in general identity encore messaging training; do
-  systemctl is-active --quiet "3dvr-browser-lane@${candidate}.service" && active=$((active + 1)) || true
-done
+mem_available_mb="${THREEDVR_BROWSER_TEST_MEM_AVAILABLE_MB:-$(awk '/^MemAvailable:/ {printf "%d", $2/1024}' /proc/meminfo)}"
+load1="${THREEDVR_BROWSER_TEST_LOAD1:-$(awk '{print $1}' /proc/loadavg)}"
+cpus="${THREEDVR_BROWSER_TEST_CPUS:-$(nproc)}"
+if [[ -n "${THREEDVR_BROWSER_TEST_ACTIVE:-}" ]]; then
+  active="$THREEDVR_BROWSER_TEST_ACTIVE"
+else
+  active=0
+  for candidate in general identity encore messaging training; do
+    systemctl is-active --quiet "3dvr-browser-lane@${candidate}.service" && active=$((active + 1)) || true
+  done
+fi
 
 required_mb=$((reserve_mb + expected_mb))
 load_limit="$(awk -v c="$cpus" -v r="$max_load_per_cpu" 'BEGIN {printf "%.2f", c*r}')"
