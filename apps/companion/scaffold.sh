@@ -24,7 +24,7 @@ cp "$BACKUP/analysis_options.yaml" analysis_options.yaml
 
 KOTLIN_DIR="android/app/src/main/kotlin/tech/threedvr/companion"
 mkdir -p "$KOTLIN_DIR" android/app/src/main/res/xml
-for source in MainActivity.kt CompanionAccessibilityService.kt CompanionNotificationListener.kt CompanionKeepAliveService.kt CompanionNativeBridgeServer.kt CompanionStartupReceiver.kt CompanionSelfUpdater.kt CompanionShizuku.kt CompanionRelaySecretStore.kt CompanionRemoteRelayClient.kt CompanionVoiceAuthorizationStore.kt CompanionVoiceReceiptStore.kt CompanionAssistantStateStore.kt CompanionVoiceCommandRouter.kt CompanionVoiceInteractionService.kt CompanionVoiceInteractionSessionService.kt CompanionVoiceInteractionSession.kt; do
+for source in MainActivity.kt CompanionAccessibilityService.kt CompanionPresenceAudioRecorder.kt CompanionNotificationListener.kt CompanionKeepAliveService.kt CompanionNativeBridgeServer.kt CompanionStartupReceiver.kt CompanionSelfUpdater.kt CompanionShizuku.kt CompanionRelaySecretStore.kt CompanionRemoteRelayClient.kt CompanionVoiceAuthorizationStore.kt CompanionVoiceReceiptStore.kt CompanionAssistantStateStore.kt CompanionVoiceCommandRouter.kt CompanionVoiceInteractionService.kt CompanionVoiceInteractionSessionService.kt CompanionVoiceInteractionSession.kt; do
   cp "native-spec/android/$source" "$KOTLIN_DIR/$source"
 done
 cp native-spec/android/companion_accessibility_service.xml android/app/src/main/res/xml/companion_accessibility_service.xml
@@ -66,6 +66,13 @@ if not any(i.find('action') is not None and i.find('action').get(a('name'))=='an
 app=root.find('application')
 if app is None: raise SystemExit('AndroidManifest.xml has no <application>')
 app.set(a('label'),'3DVR Companion'); app.set(a('networkSecurityConfig'),'@xml/companion_network_security_config')
+main_activity=next((n for n in app.findall('activity') if n.get(a('name'))=='.MainActivity'),None)
+if main_activity is None: raise SystemExit('AndroidManifest.xml has no .MainActivity')
+presence=ET.SubElement(main_activity,'intent-filter')
+ET.SubElement(presence,'action',{a('name'):'android.intent.action.VIEW'})
+ET.SubElement(presence,'category',{a('name'):'android.intent.category.DEFAULT'})
+ET.SubElement(presence,'category',{a('name'):'android.intent.category.BROWSABLE'})
+ET.SubElement(presence,'data',{a('scheme'):'threedvr',a('host'):'presence',a('pathPrefix'):'/pair'})
 managed_services={'.CompanionAccessibilityService','.CompanionNotificationListener','.CompanionKeepAliveService','.CompanionVoiceInteractionService','.CompanionVoiceInteractionSessionService'}
 for service in list(app.findall('service')):
     if service.get(a('name')) in managed_services: app.remove(service)
@@ -90,7 +97,7 @@ if strings_path.exists(): st=ET.parse(strings_path); sr=st.getroot()
 else: strings_path.parent.mkdir(parents=True,exist_ok=True); sr=ET.Element('resources'); st=ET.ElementTree(sr)
 for n in list(sr.findall('string')):
     if n.get('name')=='companion_accessibility_description': sr.remove(n)
-e=ET.SubElement(sr,'string',{'name':'companion_accessibility_description'}); e.text='Lets 3DVR Companion inspect and control the screen when you enable full phone control.'; ET.indent(st,space='    '); st.write(strings_path,encoding='utf-8',xml_declaration=True)
+e=ET.SubElement(sr,'string',{'name':'companion_accessibility_description'}); e.text='Lets 3DVR Companion inspect and control the screen, and keep explicitly started Shared Presence ambient audio active during calls.'; ET.indent(st,space='    '); st.write(strings_path,encoding='utf-8',xml_declaration=True)
 gradle_path=Path('android/app/build.gradle.kts'); gradle=gradle_path.read_text()
 if 'isCoreLibraryDesugaringEnabled = true' not in gradle: gradle=gradle.replace('compileOptions {','compileOptions {\n        isCoreLibraryDesugaringEnabled = true',1)
 if 'dev.rikka.shizuku:api:13.1.5' not in gradle: gradle+='''\n\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")\n    implementation("dev.rikka.shizuku:api:13.1.5")\n    implementation("dev.rikka.shizuku:provider:13.1.5")\n}\n'''

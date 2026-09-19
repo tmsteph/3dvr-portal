@@ -83,6 +83,26 @@ class CompanionPlatformBridge {
     return result ?? false;
   }
 
+  Future<bool> requestPresencePermissions() async {
+    final result = await _channel.invokeMethod<bool>('requestPresencePermissions');
+    return result ?? false;
+  }
+
+  Future<Map<String, Object?>> getPresenceAudioStatus() async {
+    final result = await _channel.invokeMapMethod<String, Object?>('presenceAudioStatus');
+    return result ?? const {};
+  }
+
+  Future<Map<String, Object?>> startPresenceAudio() async {
+    final result = await _channel.invokeMapMethod<String, Object?>('startPresenceAudio');
+    return result ?? const {};
+  }
+
+  Future<Map<String, Object?>> stopPresenceAudio() async {
+    final result = await _channel.invokeMapMethod<String, Object?>('stopPresenceAudio');
+    return result ?? const {};
+  }
+
   Future<bool> openVoiceInputSettings() async {
     final result = await _channel.invokeMethod<bool>('openVoiceInputSettings');
     return result ?? false;
