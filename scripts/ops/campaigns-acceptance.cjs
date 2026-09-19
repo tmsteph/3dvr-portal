@@ -6,7 +6,9 @@ if (!puppeteerPath) throw new Error('PUPPETEER_CORE_PATH is required.');
 const puppeteer = require(puppeteerPath);
 
 const ORIGIN = 'https://portal.3dvr.tech';
-const summary = {
+const BROWSER_URL = process.env.BROWSER_URL || 'http://127.0.0.1:9222';
+const BROWSER_LANE = process.env.BROWSER_LANE || 'general';
+const summary = { browserLane: BROWSER_LANE,
   ok: false,
   portal: {},
   leadFlow: {},
@@ -280,7 +282,7 @@ async function runGmailFlow(browser) {
 }
 
 (async () => {
-  const browser = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9222' });
+  const browser = await puppeteer.connect({ browserURL: BROWSER_URL });
   const username = 'e2e-' + Date.now().toString(36) + '-' + crypto.randomBytes(3).toString('hex');
   const password = 'T!' + crypto.randomBytes(18).toString('base64url') + '9a';
 
