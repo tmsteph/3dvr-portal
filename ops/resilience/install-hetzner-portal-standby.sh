@@ -63,18 +63,64 @@ WorkingDirectory=/opt/3dvr-portal-standby/current
 ExecStart=/usr/bin/env node /opt/3dvr-portal-standby/current/scripts/self-host-server.mjs
 Restart=always
 RestartSec=3
-CPUWeight=100
-IOWeight=100
+CPUWeight=500
+IOWeight=500
 CPUQuota=75%
+MemoryLow=128M
 MemoryHigh=384M
 MemoryMax=640M
 MemorySwapMax=256M
 TasksMax=256
-OOMScoreAdjust=300
+OOMScoreAdjust=-300
 
 [Install]
 WantedBy=multi-user.target
 UNIT
+
+# Protect open recovery/control services from worker experiments without
+# turning proprietary desktop control back into a dependency.
+for service in 3dvr-open-runner.service 3dvr-personal-mcp.service 3dvr-server-bridge.service; do
+  if systemctl list-unit-files "$service" --no-legend 2>/dev/null | grep -q .; then
+    install -d -m 0755 "/etc/systemd/system/${service}.d"
+    cat >"/etc/systemd/system/${service}.d/45-3dvr-recovery-plane.conf" <<'UNIT'
+[Service]
+CPUWeight=1000
+IOWeight=1000
+MemoryLow=64M
+OOMScoreAdjust=-700
+UNIT
+  fi
+done
+
+ssh_unit=""
+for candidate in ssh.service sshd.service; do
+  if systemctl list-unit-files "$candidate" --no-legend 2>/dev/null | grep -q .; then
+    ssh_unit="$candidate"
+    break
+  fi
+done
+if [ -n "$ssh_unit" ]; then
+  install -d -m 0755 "/etc/systemd/system/${ssh_unit}.d"
+  cat >"/etc/systemd/system/${ssh_unit}.d/45-3dvr-recovery-plane.conf" <<'UNIT'
+[Service]
+CPUWeight=1000
+IOWeight=1000
+MemoryLow=32M
+OOMScoreAdjust=-900
+UNIT
+fi
+
+if systemctl list-unit-files desktop-commander-remote.service --no-legend 2>/dev/null | grep -q .; then
+  install -d -m 0755 /etc/systemd/system/desktop-commander-remote.service.d
+  cat >/etc/systemd/system/desktop-commander-remote.service.d/45-3dvr-break-glass.conf <<'UNIT'
+[Service]
+CPUWeight=20
+IOWeight=20
+MemoryHigh=192M
+MemoryMax=256M
+OOMScoreAdjust=600
+UNIT
+fi
 
 cat >/etc/systemd/system/3dvr-portal-do-standby-tunnel.service <<'UNIT'
 [Unit]
@@ -99,6 +145,19 @@ WantedBy=multi-user.target
 UNIT
 
 systemctl daemon-reload
+
+for service in 3dvr-open-runner.service 3dvr-personal-mcp.service 3dvr-server-bridge.service; do
+  if systemctl is-active --quiet "$service"; then
+    systemctl set-property --runtime "$service" CPUWeight=1000 IOWeight=1000 MemoryLow=64M >/dev/null 2>&1 || true
+  fi
+done
+if [ -n "${ssh_unit:-}" ] && systemctl is-active --quiet "$ssh_unit"; then
+  systemctl set-property --runtime "$ssh_unit" CPUWeight=1000 IOWeight=1000 MemoryLow=32M >/dev/null 2>&1 || true
+fi
+if systemctl is-active --quiet desktop-commander-remote.service; then
+  systemctl set-property --runtime desktop-commander-remote.service CPUWeight=20 IOWeight=20 MemoryHigh=192M MemoryMax=256M >/dev/null 2>&1 || true
+fi
+
 systemctl enable --now 3dvr-portal-standby.service
 systemctl restart 3dvr-portal-standby.service
 
