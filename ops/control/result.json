@@ -1,9 +1,39 @@
 {
   "ok": false,
-  "error": "The general authenticated browser lane is currently busy. No session was taken over.",
-  "browserLane": "general",
+  "portal": {
+    "signedIn": true,
+    "usernamePresent": true,
+    "hasPubKey": true,
+    "syncStatus": "Lead Vault: checking secure sync…"
+  },
+  "points": {
+    "identity": {
+      "alias": "tmsteph@3dvr",
+      "username": "tmsteph",
+      "hasPubKey": true,
+      "scoreCache": {}
+    },
+    "profileScore": "10338",
+    "profileName": "tmsteph"
+  },
+  "location": {
+    "status": "Using your approximate location: San Diego, California",
+    "leadCount": 5
+  },
+  "gmail": {
+    "hadSavedConnection": false
+  },
+  "ui": {
+    "spamCheckboxPresent": false,
+    "literalNewlineVisible": false
+  },
+  "errors": [
+    {
+      "message": "Execution context was destroyed, most likely because of a navigation."
+    }
+  ],
   "requestId": "campaigns-user-acceptance-live-20260919-1",
   "action": "campaigns_user_acceptance",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-19T18:56:45Z"
+  "checkedAt": "2026-09-19T18:59:10Z"
 }
