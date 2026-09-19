@@ -59,7 +59,9 @@ function isPrivateStaticPath(pathname) {
 
 function applyBaseHeaders(res, pathname = '') {
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  if (pathname.endsWith('service-worker.js') || pathname.endsWith('pwa-install.js')) {
+  if (pathname === '/human-handoff' || pathname.startsWith('/human-handoff/')) {
+    res.setHeader('Cache-Control', 'no-store, max-age=0');
+  } else if (pathname.endsWith('service-worker.js') || pathname.endsWith('pwa-install.js')) {
     res.setHeader('Cache-Control', 'no-cache');
   } else if (/\.(png|jpg|jpeg|gif|svg|webp|woff2?)$/i.test(pathname)) {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
