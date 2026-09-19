@@ -22,6 +22,9 @@ test('Campaigns acceptance uses the leased OVH browser lane and never starts a r
 
   const userRunner = await readFile(new URL('../scripts/ops/campaigns-user-acceptance.cjs', import.meta.url), 'utf8');
   assert.match(workflow, /campaigns_user_acceptance/);
+  assert.match(workflow, /3dvr-browser-admit identity/);
+  assert.match(workflow, /3dvr-browser-lease acquire identity control-bus-campaigns-user-acceptance/);
+  assert.match(workflow, /BROWSER_URL=\"http:\/\/127\.0\.0\.1:\$port\"/);
   assert.match(workflow, /3dvr-browser-lease acquire general control-bus-campaigns-user-acceptance/);
   assert.match(userRunner, /#sendTest/);
   assert.match(userRunner, /scopeKey=gmail-send/);
@@ -39,4 +42,12 @@ test('Campaigns acceptance uses the leased OVH browser lane and never starts a r
   assert.match(workflow, /Campaigns Gmail OAuth/);
   assert.match(workflow, /--origin https:\/\/accounts\.google\.com/);
   assert.match(workflow, /3dvr-browser-lease acquire general control-bus-campaigns-gmail-prep/);
+});
+
+test('Campaigns Gmail handoff can use the independent identity lane', async () => {
+  const workflow = await readFile(new URL('../.github/workflows/control-bus.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /campaigns_gmail_handoff/);
+  assert.match(workflow, /3dvr-browser-lease acquire identity control-bus-campaigns-gmail-prep/);
+  assert.match(workflow, /--lane "\$lane"/);
+  assert.match(workflow, /port="9666"/);
 });
