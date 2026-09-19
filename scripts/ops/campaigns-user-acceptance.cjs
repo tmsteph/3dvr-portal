@@ -9,6 +9,7 @@ const BROWSER_URL = process.env.BROWSER_URL || 'http://127.0.0.1:9222';
 const summary = {
   ok: false,
   portal: {},
+  points: {},
   location: {},
   gmail: {},
   ui: {},
@@ -175,6 +176,25 @@ function gmailReady(connection) {
     await ensurePortalSession(page);
     summary.portal.syncStatus = await page.$eval('#leadVaultSyncStatus', el => el.textContent?.trim() || '').catch(() => '');
 
+    summary.points.identity = await page.evaluate(() => ({
+      alias: localStorage.getItem('alias') || '',
+      username: localStorage.getItem('username') || '',
+      hasPubKey: Boolean(localStorage.getItem('userPubKey')),
+      scoreCache: Object.fromEntries(
+        Object.keys(localStorage)
+          .filter(key => key.startsWith('3dvr:score:'))
+          .map(key => [key, localStorage.getItem(key)])
+      )
+    }));
+
+    await page.goto(`${ORIGIN}/profile.html#profile`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForSelector('#score', { timeout: 10000 });
+    await sleep(3500);
+    summary.points.profileScore = await page.$eval('#score', el => el.textContent?.trim() || '');
+    summary.points.profileName = await page.$eval('#username', el => el.textContent?.trim() || '');
+
+    await page.goto(`${ORIGIN}/campaigns/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForSelector('#leadVaultSyncStatus', { timeout: 10000 });
     previousDraft = await page.evaluate(() => localStorage.getItem('3dvr.campaigns.draft'));
 
     summary.ui.spamCheckboxPresent = await page.evaluate(() => Boolean(document.querySelector('#sourceAck')));
