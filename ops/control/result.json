@@ -1,8 +1,44 @@
 {
-  "ok": false,
-  "error": "control request failed before a sanitized result was produced",
-  "requestId": "",
-  "action": "",
-  "workflowOutcome": "skipped",
-  "checkedAt": "2026-09-19T22:54:39Z"
+  "ok": true,
+  "lanes": [
+    {
+      "lane": "general",
+      "state": "active",
+      "memoryBytes": 800129024,
+      "lease": "lane=general state=leased owner=human-handoff:dN0e-4TcvgE2VUiB expires=1789860052 remaining=1454s"
+    },
+    {
+      "lane": "identity",
+      "state": "inactive",
+      "memoryBytes": 0,
+      "lease": ""
+    },
+    {
+      "lane": "encore",
+      "state": "active",
+      "memoryBytes": 476848128,
+      "lease": "lane=encore state=free"
+    },
+    {
+      "lane": "messaging",
+      "state": "active",
+      "memoryBytes": 781574144,
+      "lease": "lane=messaging state=free"
+    },
+    {
+      "lane": "training",
+      "state": "inactive",
+      "memoryBytes": 0,
+      "lease": "lane=training state=free"
+    }
+  ],
+  "host": {
+    "memAvailableMb": 3889,
+    "load1": 0.07,
+    "cpus": 4
+  },
+  "requestId": "browser-lane-status-20260919b",
+  "action": "browser_lane_status",
+  "workflowOutcome": "success",
+  "checkedAt": "2026-09-19T22:56:38Z"
 }
