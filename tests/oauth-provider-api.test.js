@@ -344,6 +344,39 @@ describe('oauth provider api', () => {
     assert.match(fetchImpl.mock.calls[0].arguments[0], /oauth2\.googleapis\.com\/token/);
   });
 
+  it('preserves Gmail authorization status so Campaigns can stop instead of failing every recipient', async () => {
+    const handler = createOAuthProviderHandler({
+      fetchImpl: mock.fn(async url => {
+        if (String(url).includes('gmail.googleapis.com/gmail/v1/users/me/messages/send')) {
+          return {
+            ok: false,
+            status: 401,
+            async json() {
+              return { error: { message: 'Request had invalid authentication credentials.', status: 'UNAUTHENTICATED' } };
+            },
+          };
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      }),
+    });
+    const res = createMockRes();
+
+    await handler({
+      method: 'POST',
+      query: { provider: 'google' },
+      body: {
+        action: 'sendmail',
+        accessToken: 'expired-token',
+        to: 'person@example.com',
+        subject: 'Hello',
+        text: 'Test',
+      },
+    }, res);
+
+    assert.equal(res.statusCode, 401);
+    assert.match(res.body.error, /invalid authentication credentials/i);
+  });
+
   it('lists Google contacts through the shared provider route', async () => {
     const fetchImpl = mock.fn(async () => ({
       ok: true,

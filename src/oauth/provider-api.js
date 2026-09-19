@@ -660,7 +660,12 @@ function createGoogleProvider(config = process.env) {
         body: JSON.stringify(body),
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error?.message || 'Unable to send Gmail message.');
+      if (!response.ok) {
+        const error = new Error(payload.error?.message || 'Unable to send Gmail message.');
+        error.statusCode = response.status;
+        error.providerCode = normalizeOAuthText(payload.error?.status || payload.error?.code);
+        throw error;
+      }
       return {
         ok: true,
         id: normalizeOAuthText(payload.id),
@@ -1214,7 +1219,12 @@ async function handleSendMail(res, providerName, provider, body, fetchImpl) {
     });
     return res.status(200).json(payload);
   } catch (err) {
-    return jsonError(res, 502, err?.message || `Unable to send ${provider.label} mail.`);
+    const status = Number(err?.statusCode);
+    return jsonError(
+      res,
+      status >= 400 && status < 600 ? status : 502,
+      err?.message || `Unable to send ${provider.label} mail.`
+    );
   }
 }
 
