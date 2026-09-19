@@ -10,7 +10,7 @@ const { promisify } = require('node:util');
 
 const execFileAsync = promisify(execFile);
 const LEASE_BIN = '/usr/local/bin/3dvr-browser-lease';
-const LANE_PORTS = { general: 9222, encore: 9333, messaging: 9444, training: 9555 };
+const LANE_PORTS = { general: 9222, encore: 9333, messaging: 9444, training: 9555, identity: 9666 };
 const TTL_MS = Math.max(60_000, Number(process.env.HANDOFF_TTL_MS) || 3_600_000);
 const LEASE_TTL_SECONDS = Math.ceil(TTL_MS / 1000) + 90;
 const PUBLIC_BASE = (process.env.HANDOFF_PUBLIC_BASE || 'https://portal.3dvr.tech/human-handoff/').replace(/\/+$/, '/');
