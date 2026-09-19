@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildLeadFinderRequest,
+  DEFAULT_DISCOVERY_BRIEF,
   createLeadFinderHandler,
   createLeadFinderRateLimiter,
   parseLeadFinderResponse,
@@ -181,4 +182,41 @@ test('lead finder rate limiter blocks repeated searches from the same client', a
   assert.equal(second.statusCode, 429);
   assert.equal(second.payload.code, 'lead_search_rate_limited');
   assert.equal(second.headers['Retry-After'], '60');
+});
+
+test('lead finder works with a completely blank request by choosing a default brief', async () => {
+  let requestBody = null;
+  const handler = createLeadFinderHandler({
+    apiKey: 'test-key',
+    fetchImpl: async (_url, options) => {
+      requestBody = JSON.parse(options.body);
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          output: [{
+            type: 'message',
+            content: [{
+              type: 'output_text',
+              text: JSON.stringify({
+                campaignDraft: {
+                  subject: 'Quick idea for {{name}}',
+                  body: 'Hi {{name}}, open to a quick idea?'
+                },
+                leads: []
+              })
+            }]
+          }]
+        })
+      };
+    }
+  });
+  const res = mockResponse();
+  await handler({ method: 'POST', headers: {}, body: {} }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.payload.ok, true);
+  assert.equal(res.payload.query.usedDefaultBrief, true);
+  assert.equal(res.payload.query.description, DEFAULT_DISCOVERY_BRIEF);
+  assert.match(requestBody.input, /practical digital service/i);
 });

@@ -1,6 +1,11 @@
 import { createHash } from 'node:crypto';
 
 const DEFAULT_MODEL = 'gpt-5.6-luna';
+export const DEFAULT_DISCOVERY_BRIEF = [
+  'Find actionable small-business prospects with a clear public need that a practical digital service could improve.',
+  'Prefer simple, honest offers that can be fulfilled quickly: website improvements, lead follow-up, workflow automation, photography/video, or similar business support.',
+  'Choose the strongest fit from public evidence instead of inventing a need.'
+].join(' ');
 const DEFAULT_GATEWAY_MODEL = 'openai/gpt-5.6-luna';
 const MAX_LEADS = 25;
 const DEFAULT_RATE_LIMIT = 10;
@@ -70,7 +75,7 @@ function extractSources(responseData) {
 
 export function buildLeadFinderRequest({ description, location = '', count = 10, model = DEFAULT_MODEL } = {}) {
   const limit = Math.min(MAX_LEADS, Math.max(1, Number(count) || 10));
-  const target = clean(description, 1800);
+  const target = clean(description, 1800) || DEFAULT_DISCOVERY_BRIEF;
   const place = clean(location, 300);
 
   return {
@@ -203,11 +208,10 @@ export function createLeadFinderHandler({
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
-    const description = clean(req?.body?.description, 1800);
+    const requestedDescription = clean(req?.body?.description, 1800);
+    const description = requestedDescription || DEFAULT_DISCOVERY_BRIEF;
     const location = clean(req?.body?.location, 300);
     const count = Math.min(MAX_LEADS, Math.max(1, Number(req?.body?.count) || 10));
-
-    if (!description) return res.status(400).json({ error: 'Describe the kind of customer you want.' });
 
     const authorizationToken = apiKey || gatewayToken;
     if (!authorizationToken) {
@@ -254,7 +258,7 @@ export function createLeadFinderHandler({
         ok: true,
         model: effectiveModel,
         provider: useGateway ? 'vercel-ai-gateway' : 'openai',
-        query: { description, location, count },
+        query: { description, location, count, usedDefaultBrief: !requestedDescription },
         leads: result.leads,
         campaignDraft: result.campaignDraft,
         sources: result.sources
