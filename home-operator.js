@@ -49,6 +49,8 @@ function installAccountStatus() {
   let scoreUnsubscribe = null;
   let scoreManager = null;
   let activeAlias = '';
+  let publicAliasChain = null;
+  let publicPubChain = null;
 
   const render = (livePoints = null) => {
     const state = readAccountState();
@@ -67,6 +69,44 @@ function installAccountStatus() {
     authEntry.textContent = 'Sign in';
     authEntry.setAttribute('aria-label', 'Sign in or create an account');
     return state;
+  };
+
+  const detachPublicPoints = () => {
+    for (const chain of [publicAliasChain, publicPubChain]) {
+      if (!chain || typeof chain.off !== 'function') continue;
+      try { chain.off(); } catch {}
+    }
+    publicAliasChain = null;
+    publicPubChain = null;
+  };
+
+  const acceptPublicPoints = data => {
+    const value = Number(data?.points);
+    if (!Number.isFinite(value)) return;
+    render(Math.max(0, Math.round(value)));
+  };
+
+  const subscribePublicPoints = (portalRoot, state) => {
+    detachPublicPoints();
+    if (!portalRoot || !state?.alias) return;
+
+    try {
+      publicAliasChain = portalRoot.get('userStats').get(state.alias);
+      publicAliasChain.once(acceptPublicPoints);
+      publicAliasChain.on(acceptPublicPoints);
+    } catch (error) {
+      console.warn('Homepage alias point sync unavailable.', error);
+    }
+
+    const pub = (localStorage.getItem('userPubKey') || '').trim();
+    if (!pub) return;
+    try {
+      publicPubChain = portalRoot.get('userStatsByPub').get(pub);
+      publicPubChain.once(acceptPublicPoints);
+      publicPubChain.on(acceptPublicPoints);
+    } catch (error) {
+      console.warn('Homepage pubkey point sync unavailable.', error);
+    }
   };
 
   const hydrate = () => {
@@ -95,10 +135,19 @@ function installAccountStatus() {
       { label: 'homepage-score' }
     );
 
+    try {
+      window.ScoreSystem.recallUserSession?.(context.user);
+    } catch (error) {
+      console.warn('Homepage score session recall unavailable.', error);
+    }
+
+    const portalRoot = context.gun.get('3dvr-portal');
+    subscribePublicPoints(portalRoot, state);
+
     scoreManager = window.ScoreSystem.getManager({
       gun: context.gun,
       user: context.user,
-      portalRoot: context.gun.get('3dvr-portal')
+      portalRoot
     });
     activeAlias = normalizedAlias;
     scoreUnsubscribe = scoreManager.subscribe(points => render(points));
