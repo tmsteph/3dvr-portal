@@ -77,6 +77,48 @@ function setSseHeaders(res) {
   res.setHeader('Connection', 'keep-alive');
 }
 
+async function proxyToSelfHostedAi(req, res, { origin, fetchImpl = globalThis.fetch } = {}) {
+  const base = String(origin || '').replace(/\/+$/, '');
+  if (!base) {
+    throw new Error('Self-hosted AI fallback origin is not configured.');
+  }
+
+  const requestPath = String(req?.url || '/api/openai-site');
+  const target = new URL(requestPath, `${base}/`);
+  const response = await fetchImpl(target, {
+    method: req.method || 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-3DVR-Edge': 'vercel-fallback'
+    },
+    body: req.method === 'GET' || req.method === 'HEAD'
+      ? undefined
+      : JSON.stringify(req.body || {})
+  });
+
+  res.status(response.status);
+  const contentType = response.headers.get('content-type');
+  if (contentType) {
+    res.setHeader('Content-Type', contentType);
+  }
+  const cacheControl = response.headers.get('cache-control');
+  if (cacheControl) {
+    res.setHeader('Cache-Control', cacheControl);
+  }
+
+  if (response.body?.getReader) {
+    const reader = response.body.getReader();
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      res.write(Buffer.from(value));
+    }
+    return res.end();
+  }
+
+  return res.send(await response.text());
+}
+
 export function buildPrompt(now = new Date()) {
   const currentDate = resolveDate(now);
   const currentDateLabel = formatIsoDate(currentDate);
@@ -471,8 +513,27 @@ export function createOpenAiSiteRouter(options = {}) {
   const operatorHandler = createOperatorHandler(options.operator || options);
   const workAgentHandler = createWorkAgentAiHandler(options.workAgent || options);
   const leadFinderHandler = createLeadFinderHandler(options.leadFinder || options);
+  const fallbackOrigin = options.selfHostedFallbackOrigin
+    ?? process.env.SELF_HOST_AI_ORIGIN
+    ?? (process.env.VERCEL ? 'http://167.172.193.194' : '');
+  const hasLocalAiCredential = Boolean(
+    options.apiKey
+    || process.env.OPENAI_API_KEY
+    || process.env.AI_GATEWAY_API_KEY
+    || process.env.VERCEL_OIDC_TOKEN
+  );
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
 
   return async function handler(req, res) {
+    if (!hasLocalAiCredential && fallbackOrigin) {
+      try {
+        return await proxyToSelfHostedAi(req, res, { origin: fallbackOrigin, fetchImpl });
+      } catch (error) {
+        return res.status(502).json({
+          error: error?.message || 'Self-hosted AI fallback failed.'
+        });
+      }
+    }
     if (req?.body?.astraCanary === true || req?.query?.provider === 'astra') {
       return astraHandler(req, res);
     }
