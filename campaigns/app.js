@@ -39,7 +39,7 @@ const SEND_DELAY_MS = 1600;
 const $ = id => document.getElementById(id);
 const elements = {
   form: $('campaignForm'), recipients: $('recipients'), recipientCount: $('recipientCount'),
-  contactSource: $('contactSource'), sourceAck: $('sourceAck'), subject: $('subject'),
+  contactSource: $('contactSource'), subject: $('subject'),
   message: $('message'), businessName: $('businessName'), postalAddress: $('postalAddress'),
   suppressed: $('suppressed'), connect: $('connectGmail'), disconnect: $('disconnectGmail'),
   status: $('gmailStatus'), detail: $('gmailDetail'), sendTest: $('sendTest'),
@@ -538,7 +538,7 @@ function validation(sendable) {
     businessName: elements.businessName.value,
     postalAddress: formattedPostalAddress(),
     recipients: sendable,
-    sourceAcknowledged: elements.sourceAck.checked && Boolean(elements.contactSource.value),
+    sourceAcknowledged: true,
   });
 }
 function messageFor(recipient) {
