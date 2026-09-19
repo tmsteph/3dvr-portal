@@ -52,7 +52,7 @@
       <div class="notice" id="leadNotice" aria-live="polite" hidden></div>
       <div id="leadResults" class="lead-results" hidden></div>
       <div class="button-row" id="leadActions" hidden>
-        <button class="button primary" id="addLeads" type="button">Use selected customers</button>
+        <button class="button primary" id="addLeads" type="button">Prepare outreach</button>
       </div>
     </section>
 
@@ -69,29 +69,36 @@
     </section>
 
     <form class="stack" id="campaignForm">
-      <section class="card">
-        <p class="step">1 · CUSTOMERS</p>
-        <label for="recipients">Customers / recipients</label>
-        <textarea id="recipients" rows="7" placeholder="Jane Doe &lt;jane@example.com&gt;&#10;hello@anotherbusiness.com"></textarea>
-        <div class="inline">
-          <label class="file-button" for="csvFile">Import CSV</label>
-          <input id="csvFile" type="file" accept=".csv,text/csv" hidden>
+      <details class="card manual-customers">
+        <summary>
+          <span>
+            <span class="step">OPTIONAL</span>
+            <strong>Existing customers / manual list</strong>
+          </span>
           <span class="muted" id="recipientCount">0 valid recipients</span>
+        </summary>
+        <div class="manual-customers__body">
+          <label for="recipients">Customers / recipients</label>
+          <textarea id="recipients" rows="7" placeholder="Jane Doe &lt;jane@example.com&gt;&#10;hello@anotherbusiness.com"></textarea>
+          <div class="inline">
+            <label class="file-button" for="csvFile">Import CSV</label>
+            <input id="csvFile" type="file" accept=".csv,text/csv" hidden>
+          </div>
+          <label for="contactSource">Where did these contacts come from?</label>
+          <select id="contactSource">
+            <option value="">Choose one…</option>
+            <option>Existing customers or contacts</option>
+            <option>Business contacts I researched individually</option>
+            <option>People who asked to hear from me</option>
+            <option>Event or networking contacts</option>
+            <option>Other legitimate business contacts</option>
+          </select>
+          <label class="check"><input id="sourceAck" type="checkbox"> <span>These are legitimate contacts. I am not uploading a purchased or scraped spam list.</span></label>
         </div>
-        <label for="contactSource">Where did these contacts come from?</label>
-        <select id="contactSource">
-          <option value="">Choose one…</option>
-          <option>Existing customers or contacts</option>
-          <option>Business contacts I researched individually</option>
-          <option>People who asked to hear from me</option>
-          <option>Event or networking contacts</option>
-          <option>Other legitimate business contacts</option>
-        </select>
-        <label class="check"><input id="sourceAck" type="checkbox"> <span>These are legitimate contacts. I am not uploading a purchased or scraped spam list.</span></label>
-      </section>
+      </details>
 
       <section class="card">
-        <p class="step">2 · OUTREACH</p>
+        <p class="step">OUTREACH</p>
         <label for="subject">Subject</label>
         <input id="subject" maxlength="180" placeholder="Quick idea for {{name}}">
         <label for="message">Email</label>
@@ -100,7 +107,7 @@
       </section>
 
       <section class="card">
-        <p class="step">3 · SENDER DETAILS</p>
+        <p class="step">SENDER DETAILS</p>
         <label for="businessName">Business / sender name</label>
         <input id="businessName" autocomplete="organization" placeholder="Your business name">
         <label for="postalAddress">Business postal address</label>
@@ -114,7 +121,7 @@
 
       <section class="card review-card">
         <div>
-          <p class="step">4 · SEND</p>
+          <p class="step">SEND</p>
           <strong id="sendSummary">Connect Gmail to begin.</strong>
           <p class="muted">Beta guardrail: max 25 successful sends per browser/account per day, with spacing between messages.</p>
         </div>

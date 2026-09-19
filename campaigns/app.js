@@ -224,7 +224,7 @@ function addSelectedLeads() {
     .map(input => discoveredLeads[Number(input.dataset.leadIndex)])
     .filter(Boolean);
   if (!selected.length) {
-    showLeadNotice('Select at least one contact to add.', 'error');
+    showLeadNotice('Select at least one lead to prepare outreach.', 'error');
     return;
   }
   selected.forEach(lead => markLeadVaultStatus(lead.email, 'selected'));
@@ -246,7 +246,7 @@ function addSelectedLeads() {
   });
   updateSummary();
   showLeadNotice(
-    `Added ${selected.length} selected customer${selected.length === 1 ? '' : 's'} and queued ${moneyPrinter.queued || selected.length} in Money Printer for review. Your outreach is ready below.`,
+    `Prepared outreach for ${selected.length} selected lead${selected.length === 1 ? '' : 's'} and queued ${moneyPrinter.queued || selected.length} in Money Printer for review.`,
     'success'
   );
   elements.subject?.closest('.card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
