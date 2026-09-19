@@ -7,6 +7,10 @@ A local command-line system for:
 - finding and closing real-world customers
 - resuming small, dependency-aware repository missions
 
+### Governed execution boundary
+
+For a concrete evaluation of using [Runx](https://runx.ai) beneath the existing 3DVR orchestration layer, see [Runx as a governed execution boundary](docs/runx-governed-execution.md). The note focuses on narrowed authority, execution-boundary credentials, and sealed receipts without replacing 3DVR's task routing or user-owned context.
+
 ### Repository missions
 
 The mission runner builds on the existing task-orchestrator and its lease/heartbeat

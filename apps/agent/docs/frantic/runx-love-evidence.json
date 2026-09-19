@@ -1,0 +1,37 @@
+{
+  "summary": "3DVR published an original contributor-facing architecture note explaining where Runx's governed skill runtime, narrowed authority, credential boundary, and sealed receipts could complement the existing 3DVR agent orchestrator without replacing it.",
+  "observations": [
+    {
+      "claim_type": "public_repo_documentation",
+      "public_url": "https://github.com/tmsteph/3dvr-portal/blob/main/apps/agent/docs/runx-governed-execution.md",
+      "runx_link_found": true,
+      "summary": "The public note links to runx.ai and the official runxhq/runx repository and explains Runx as a governed runtime beneath agent orchestration.",
+      "audience": "3DVR contributors and agent-infrastructure developers",
+      "why action is allowed in venue": "This is original technical documentation in the author's own public open-source repository and is directly relevant to the repository's agent architecture."
+    },
+    {
+      "claim_type": "technical_mapping",
+      "public_url": "https://github.com/tmsteph/3dvr-portal/blob/main/apps/agent/docs/runx-governed-execution.md",
+      "runx_link_found": true,
+      "summary": "The note maps SKILL.md, X.yaml, narrowed authority, credential delivery, and sealed receipts to concrete 3DVR orchestration responsibilities.",
+      "audience": "Engineers evaluating governed agent execution",
+      "why action is allowed in venue": "The comparison documents an architecture decision for the same software project rather than posting unrelated promotion in a third-party community."
+    },
+    {
+      "claim_type": "integration_guidance",
+      "public_url": "https://github.com/tmsteph/3dvr-portal/blob/main/apps/agent/docs/runx-governed-execution.md",
+      "runx_link_found": true,
+      "summary": "The note identifies runtime concerns 3DVR should avoid reimplementing and proposes a bounded first experiment using a receipt beside the existing task/event record.",
+      "audience": "Future 3DVR maintainers",
+      "why action is allowed in venue": "The guidance reduces duplicated infrastructure and gives future maintainers a concrete, reversible evaluation path."
+    },
+    {
+      "claim_type": "discoverable_readme_reference",
+      "public_url": "https://github.com/tmsteph/3dvr-portal/blob/main/apps/agent/README.md",
+      "runx_link_found": true,
+      "summary": "The agent README links the Runx architecture note from the public package entry point so the support action is discoverable rather than hidden in an evidence-only file.",
+      "audience": "People browsing the 3DVR agent package",
+      "why action is allowed in venue": "The README belongs to the same public project and the linked note is relevant to its execution and audit architecture."
+    }
+  ]
+}
