@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+lane="${1:-}"
+case "$lane" in
+  identity|encore|training|action-1|action-2|interactive) ;;
+  *) echo "usage: 3dvr-browser-admit <identity|encore|training|action-1|action-2|interactive>" >&2; exit 64 ;;
+esac
+
+reserve_mb="${THREEDVR_BROWSER_HOST_RESERVE_MB:-2048}"
+max_active="${THREEDVR_BROWSER_MAX_ACTIVE:-3}"
+max_load_per_cpu="${THREEDVR_BROWSER_MAX_LOAD_PER_CPU:-1.25}"
+
+case "$lane" in
+  identity) expected_mb="${THREEDVR_BROWSER_IDENTITY_MB:-1152}" ;;
+  encore) expected_mb="${THREEDVR_BROWSER_ENCORE_MB:-1024}" ;;
+  training) expected_mb="${THREEDVR_BROWSER_TRAINING_MB:-896}" ;;
+  *) expected_mb="${THREEDVR_BROWSER_ACTION_MB:-768}" ;;
+esac
+
+mem_available_mb="$(awk '/^MemAvailable:/ {printf "%d", $2/1024}' /proc/meminfo)"
+load1="$(awk '{print $1}' /proc/loadavg)"
+cpus="$(nproc)"
+active=0
+for candidate in general identity encore messaging training; do
+  systemctl is-active --quiet "3dvr-browser-lane@${candidate}.service" && active=$((active + 1)) || true
+done
+
+required_mb=$((reserve_mb + expected_mb))
+load_limit="$(awk -v c="$cpus" -v r="$max_load_per_cpu" 'BEGIN {printf "%.2f", c*r}')"
+
+reason=""
+if (( mem_available_mb < required_mb )); then
+  reason="memory"
+elif (( active >= max_active )); then
+  reason="browser-count"
+elif ! awk -v load="$load1" -v limit="$load_limit" 'BEGIN {exit !(load <= limit)}'; then
+  reason="load"
+fi
+
+if [[ -n "$reason" ]]; then
+  printf 'browser_admission=blocked lane=%s reason=%s mem_available_mb=%s required_mb=%s active_browsers=%s max_active=%s load1=%s load_limit=%s\n'     "$lane" "$reason" "$mem_available_mb" "$required_mb" "$active" "$max_active" "$load1" "$load_limit" >&2
+  exit 75
+fi
+
+printf 'browser_admission=allowed lane=%s mem_available_mb=%s reserve_mb=%s expected_mb=%s active_browsers=%s max_active=%s load1=%s load_limit=%s\n'   "$lane" "$mem_available_mb" "$reserve_mb" "$expected_mb" "$active" "$max_active" "$load1" "$load_limit"
