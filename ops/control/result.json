@@ -16,7 +16,8 @@
       }
     },
     "profileScore": "10338",
-    "profileName": "tmsteph"
+    "profileName": "tmsteph",
+    "homeBadge": "tmsteph · ⭐ 10338"
   },
   "location": {
     "status": "Using your approximate location: San Diego, California",
@@ -28,19 +29,20 @@
     "ready": true,
     "sameAccount": true,
     "scopeKey": "gmail-send",
-    "statusText": "[email]"
+    "statusText": "[email]",
+    "usedTemporarySenderDetails": true,
+    "senderDetailsReady": true,
+    "testResult": "Gmail authorization needs to be reconnected. Reconnect Gmail, then send a test message before starting the campaign."
   },
   "ui": {
     "spamCheckboxPresent": false,
     "literalNewlineVisible": false
   },
-  "errors": [
-    {
-      "message": "Campaign sender name or postal address is missing."
-    }
-  ],
-  "requestId": "campaigns-user-acceptance-live-20260919-1",
+  "errors": [],
+  "portalSignInOk": true,
+  "campaignsOk": false,
+  "requestId": "campaigns-user-acceptance-final-20260919-2",
   "action": "campaigns_user_acceptance",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-19T19:12:04Z"
+  "checkedAt": "2026-09-19T19:28:14Z"
 }
