@@ -11,7 +11,9 @@
       "alias": "tmsteph@3dvr",
       "username": "tmsteph",
       "hasPubKey": true,
-      "scoreCache": {}
+      "scoreCache": {
+        "3dvr:score:user:tmsteph@3dvr": "10338"
+      }
     },
     "profileScore": "10338",
     "profileName": "tmsteph"
@@ -21,7 +23,12 @@
     "leadCount": 5
   },
   "gmail": {
-    "hadSavedConnection": false
+    "hadSavedConnection": false,
+    "oauth": "returned",
+    "ready": true,
+    "sameAccount": true,
+    "scopeKey": "gmail-send",
+    "statusText": "[email]"
   },
   "ui": {
     "spamCheckboxPresent": false,
@@ -29,11 +36,11 @@
   },
   "errors": [
     {
-      "message": "Execution context was destroyed, most likely because of a navigation."
+      "message": "Campaign sender name or postal address is missing."
     }
   ],
   "requestId": "campaigns-user-acceptance-live-20260919-1",
   "action": "campaigns_user_acceptance",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-19T18:59:10Z"
+  "checkedAt": "2026-09-19T19:07:32Z"
 }
