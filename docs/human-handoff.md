@@ -22,6 +22,10 @@ Guide steps are task metadata only. They must never contain passwords, MFA codes
 
 Pinch zoom is local to the phone viewport. One-finger dragging pans the enlarged browser image. When local panning reaches the top or bottom limit, continued dragging turns into remote page scrolling so the user can keep moving naturally without first zooming out. This “pan until edge, then scroll” behavior is the standard mobile interaction for handoffs.
 
+### Controlled form state
+
+For React and other stateful application forms, visible DOM values are not sufficient proof that the site accepted a field value. Prefer native browser interactions (real pointer clicks, keyboard entry, and real autocomplete/option selection) over assigning DOM properties directly. After each critical custom field, verify the site-owned state when possible (for example `aria-pressed`, selected autocomplete option, or checkbox state after a real event). After submission, verify both the network-level submit action and the rendered success state. Never assume that an enabled button or visually filled field means the application was accepted.
+
 ## Security
 
 Handoff URLs are opaque, single-purpose, short-lived and authenticated. Browser/VNC endpoints remain private. A gateway validates the handoff before proxying a specific session. Tokens are hashed at rest, expire automatically, and are revoked on resolution. Record creation/open/resolution/expiry in the audit log without recording passwords, MFA codes, CAPTCHA answers, or page contents. Prefer an authenticated 3DVR account plus a one-time capability token. Rate-limit attempts and never expose raw VNC directly to the public Internet.
