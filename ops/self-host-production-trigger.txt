@@ -1,3 +1,3 @@
-Deploy request: homepage live points + real-user Campaigns acceptance
-Target main: 008b914ec6016e789547914254831b242109ec98
-Reason: hydrate signed-in homepage points and run canonical production Campaigns/Gmail acceptance.
+Deploy request: Campaigns real-user acceptance + points diagnostic
+Commit target: 124990820386e29ec787bfe2cb3aaaf9c227194f
+Reason: Run full production Campaigns and points acceptance against signed-in user session.
