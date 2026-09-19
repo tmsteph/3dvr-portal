@@ -262,9 +262,13 @@ jobs:
             exit 1
           fi
 
-          [[ "$BRIDGE_URL" == https://*.trycloudflare.com ]] || { echo 'Organism bridge URL was not published.' >&2; exit 1; }
-          curl -fsS --retry 8 --retry-delay 2 --retry-all-errors "$BRIDGE_URL/health" > /tmp/organism-bridge-health.json
-          node -e 'const fs=require("node:fs"); const health=JSON.parse(fs.readFileSync("/tmp/organism-bridge-health.json","utf8")); if(!health.ok||health.service!=="3dvr-organism-owner-bridge") throw new Error(`organism bridge health mismatch: ${JSON.stringify(health)}`)'
+          if [[ "$BRIDGE_URL" == https://portal.3dvr.tech || "$BRIDGE_URL" == https://*.trycloudflare.com ]]; then
+            curl -fsS --retry 8 --retry-delay 2 --retry-all-errors "$BRIDGE_URL/health" > /tmp/organism-bridge-health.json
+            node -e 'const fs=require("node:fs"); const health=JSON.parse(fs.readFileSync("/tmp/organism-bridge-health.json","utf8")); if(!health.ok||health.service!=="3dvr-organism-owner-bridge") throw new Error(`organism bridge health mismatch: ${JSON.stringify(health)}`)'
+          else
+            echo 'Organism bridge URL was not published.' >&2
+            exit 1
+          fi
 
       - name: Publish Organism bridge pointer
         if: steps.deploy.outcome == 'success' && steps.verify.outcome == 'success'
@@ -274,7 +278,7 @@ jobs:
           BRIDGE_URL: ${{ steps.deploy.outputs.bridge_url }}
         run: |
           set -euo pipefail
-          [[ "$BRIDGE_URL" == https://*.trycloudflare.com ]]
+          [[ "$BRIDGE_URL" == https://portal.3dvr.tech || "$BRIDGE_URL" == https://*.trycloudflare.com ]]
           payload="$(BRIDGE_URL="$BRIDGE_URL" node -e 'process.stdout.write(JSON.stringify({origin:process.env.BRIDGE_URL,updatedAt:new Date().toISOString()},null,2)+"\n")')"
           content="$(printf '%s' "$payload" | base64 -w0)"
           current_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/runtime/organism-bridge.json?ref=main" --jq .sha 2>/dev/null || true)"
