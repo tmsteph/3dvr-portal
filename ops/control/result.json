@@ -1,48 +1,9 @@
 {
   "ok": false,
-  "portal": {
-    "signedIn": true,
-    "usernamePresent": true,
-    "hasPubKey": true,
-    "syncStatus": "Lead Vault: checking secure sync…"
-  },
-  "points": {
-    "identity": {
-      "alias": "tmsteph@3dvr",
-      "username": "tmsteph",
-      "hasPubKey": true,
-      "scoreCache": {
-        "3dvr:score:user:tmsteph@3dvr": "10338"
-      }
-    },
-    "profileScore": "10338",
-    "profileName": "tmsteph",
-    "homeBadge": "tmsteph · ⭐ 10338"
-  },
-  "location": {
-    "status": "Using your approximate location: San Diego, California",
-    "leadCount": 5
-  },
-  "gmail": {
-    "hadSavedConnection": true,
-    "oauth": "already-ready",
-    "ready": true,
-    "sameAccount": true,
-    "scopeKey": "gmail-send",
-    "statusText": "[email]",
-    "usedTemporarySenderDetails": true,
-    "senderDetailsReady": true,
-    "testResult": "Gmail authorization needs to be reconnected. Reconnect Gmail, then send a test message before starting the campaign."
-  },
-  "ui": {
-    "spamCheckboxPresent": false,
-    "literalNewlineVisible": false
-  },
-  "errors": [],
-  "portalSignInOk": true,
-  "campaignsOk": false,
-  "requestId": "campaigns-user-acceptance-final-20260919-2",
+  "error": "The general authenticated browser lane is currently busy. No session was taken over.",
+  "browserLane": "general",
+  "requestId": "campaigns-user-acceptance-points-20260919-3",
   "action": "campaigns_user_acceptance",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-19T19:28:14Z"
+  "checkedAt": "2026-09-19T21:32:28Z"
 }
