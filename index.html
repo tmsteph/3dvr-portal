@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#07110d" />
+  <title>3DVR Digital Organism — Remember Me</title>
+  <style>
+    :root { color-scheme:dark; --panel:rgba(15,32,24,.82); --panel2:rgba(255,255,255,.045); --text:#edf7ef; --muted:#a7b9ae; --line:rgba(206,255,222,.14); --life:#8ef0ae; --warm:#ead8b4; }
+    *{box-sizing:border-box} body{margin:0;min-height:100vh;font:16px/1.5 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(circle at 50% -10%,#173529 0,#07110d 42%,#030806 100%);color:var(--text)} a{color:inherit}
+    .wrap{width:min(920px,calc(100% - 32px));margin:auto;padding:56px 0 80px}.seed{font-size:42px;filter:drop-shadow(0 0 18px rgba(142,240,174,.25))}h1{font-size:clamp(36px,7vw,72px);line-height:.98;letter-spacing:-.055em;margin:18px 0;max-width:780px}.lead{font-size:clamp(18px,2.5vw,23px);color:var(--muted);max-width:700px;margin:0 0 34px}
+    .status{display:inline-flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--panel);padding:10px 14px;border-radius:999px;font-size:14px;color:var(--muted);backdrop-filter:blur(14px)}.dot{width:9px;height:9px;border-radius:50%;background:var(--life);box-shadow:0 0 18px rgba(142,240,174,.8)}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:42px}.card{border:1px solid var(--line);background:var(--panel);border-radius:20px;padding:20px;min-height:170px;backdrop-filter:blur(14px)}.card strong{display:block;color:var(--warm);font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:18px}.big{font-size:28px;font-weight:700;letter-spacing:-.03em;margin-bottom:7px}.small{color:var(--muted);font-size:14px}.flow{margin:14px 0 0;padding:0;list-style:none;color:var(--muted);font-size:14px}.flow li+li{margin-top:7px}.flow b{color:var(--text)}
+    .privacy{margin-top:16px;padding:18px 20px;border:1px solid var(--line);border-radius:20px;background:var(--panel2);color:var(--muted)}.privacy b{color:var(--life)}.links{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}.button{display:inline-block;text-decoration:none;border:1px solid var(--line);border-radius:12px;padding:10px 14px;background:var(--panel2);font-size:14px}.button.primary{background:var(--life);color:#062111;border-color:transparent;font-weight:700}footer{margin-top:52px;color:#728278;font-size:13px}@media(max-width:720px){.wrap{padding-top:36px}.grid{grid-template-columns:1fr}.card{min-height:0}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="seed">🌱</div>
+    <h1>Your memory should belong to you.</h1>
+    <p class="lead">3DVR Digital Organism is an open-source personal intelligence layer that remembers across conversations while keeping models replaceable.</p>
+    <div class="status" title="The public interface is on Vercel; the memory runtime stays private on OVH."><span class="dot"></span><span>Live · private OVH brain</span></div>
+    <section class="grid">
+      <article class="card"><strong>Now</strong><div class="big">v0.1</div><div class="small">Remember Me</div><ul class="flow"><li>✓ durable memories</li><li>✓ provenance</li><li>✓ correction + forgetting</li><li>✓ retrieval evaluation</li></ul></article>
+      <article class="card"><strong>Brain</strong><div class="big">OVH</div><div class="small">Persistent 3DVR runtime</div><ul class="flow"><li><b>Memory:</b> user-owned</li><li><b>Reasoning:</b> replaceable</li><li><b>Archive:</b> private</li><li><b>Runtime:</b> Portal agent</li></ul></article>
+      <article class="card"><strong>Loop</strong><div class="big">Experience → Learn</div><ul class="flow"><li>capture → remember</li><li>retrieve → reason</li><li>evaluate → improve</li></ul></article>
+    </section>
+    <div class="privacy"><b>Private by design.</b> The public site contains no personal memories. The persistent Organism service runs privately on OVH; authenticated user-facing recall will be added through the Portal rather than exposing the memory service directly.</div>
+    <div class="links"><a class="button primary" href="https://github.com/tmsteph/3dvr-digital-organism">Open source</a><a class="button" href="https://3dvr.tech">3dvr.tech</a></div>
+    <footer>3DVR Digital Organism · user-owned continual intelligence · seed planted 2026</footer>
+  </main>
+</body>
+</html>

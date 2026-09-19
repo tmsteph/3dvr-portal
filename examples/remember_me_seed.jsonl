@@ -1,0 +1,5 @@
+{"kind":"project","subject":"Digital Organism architecture","content":"The 3DVR Digital Organism separates user-owned memory from reasoning model weights.","source_type":"example","source_id":"remember-me-1"}
+{"kind":"milestone","subject":"Digital Organism v0.1","content":"The v0.1 milestone is named Remember Me.","source_type":"example","source_id":"remember-me-2"}
+{"kind":"architecture","subject":"Digital Organism storage","content":"The seed memory layer is local-first and uses Python, SQLite, and JSONL without third-party dependencies.","source_type":"example","source_id":"remember-me-3"}
+{"kind":"architecture","subject":"Digital Organism providers","content":"Reasoning providers are replaceable; the same memory context can be used with local Ollama or an OpenAI-compatible endpoint.","source_type":"example","source_id":"remember-me-4"}
+{"kind":"privacy","subject":"Private conversation history","content":"Real conversation exports belong under data/private and must not be committed to the public repository.","source_type":"example","source_id":"remember-me-5"}

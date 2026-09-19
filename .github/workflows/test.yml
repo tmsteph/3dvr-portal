@@ -1,0 +1,23 @@
+name: organism-self-test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run organism self-evaluation
+        run: python organism.py eval
+      - name: Run unit tests
+        run: python -m unittest -v test_organism.py test_import_chatgpt.py test_providers.py
+      - name: Run Remember Me retrieval scorecard
+        run: |
+          export ORGANISM_DB="$RUNNER_TEMP/remember-me.db"
+          python organism.py ingest examples/remember_me_seed.jsonl
+          python organism.py score evals/remember_me.json --min-score 1.0
