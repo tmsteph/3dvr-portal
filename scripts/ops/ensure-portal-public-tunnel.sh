@@ -110,7 +110,10 @@ start_tunnel() {
   fi
 }
 
-for delay in 0 10 20 40; do
+# Quick Tunnel provisioning can take tens of seconds after a healthy precheck.
+# Give each process time to finish registration instead of repeatedly killing it,
+# which can amplify Cloudflare provisioning/rate-limit pressure.
+for delay in 0 15; do
   remaining="$(seconds_remaining)"
   [ "$remaining" -gt 0 ] || break
   if [ "$delay" -gt 0 ]; then
@@ -118,7 +121,7 @@ for delay in 0 10 20 40; do
     sleep "$delay"
   fi
   start_tunnel
-  for _ in $(seq 1 30); do
+  for _ in $(seq 1 120); do
     [ "$(seconds_remaining)" -gt 0 ] || break
     url="$(read_url)"
     if [ -n "$url" ] && is_running && bridge_is_ready "$url"; then
