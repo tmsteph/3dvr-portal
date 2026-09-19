@@ -35,7 +35,7 @@ jobs:
           service="$(jq -r '.service // empty' ops/control/request.json)"
           test -n "$id"
           case "$action" in
-            status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_promote_secrets|portal_ai_status|portal_points_status|portal_points_reconcile|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard|campaigns_acceptance|campaigns_user_acceptance|campaigns_gmail_handoff) ;;
+            status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_promote_secrets|portal_ai_status|portal_points_status|portal_points_reconcile|browser_lane_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard|campaigns_acceptance|campaigns_user_acceptance|campaigns_gmail_handoff) ;;
             restart)
               case "$service" in
                 3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service) ;;
@@ -107,6 +107,27 @@ jobs:
           ssh_opts=(-o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8)
           ovh() { ssh "${ssh_opts[@]}" 3dvr-ovh "$@"; }
           case "$action" in
+            browser_lane_status)
+              ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          leases="$(sudo -n /usr/local/bin/3dvr-browser-lease status 2>/dev/null || true)"
+          mem_available_mb="$(awk '/^MemAvailable:/ {printf "%d", $2/1024}' /proc/meminfo)"
+          load1="$(awk '{print $1}' /proc/loadavg)"
+          cpus="$(nproc)"
+          rows='[]'
+          for lane in general identity encore messaging training; do
+            unit="3dvr-browser-lane@${lane}.service"
+            state="$(systemctl is-active "$unit" 2>/dev/null || true)"
+            memory="$(systemctl show "$unit" -p MemoryCurrent --value 2>/dev/null || true)"
+            [ -n "$memory" ] || memory=0
+            lease="$(printf '%s\n' "$leases" | grep -m1 "^lane=${lane} " || true)"
+            rows="$(jq -c --arg lane "$lane" --arg state "$state" --arg memory "$memory" --arg lease "$lease" \
+              '. + [{lane:$lane,state:$state,memoryBytes:($memory|tonumber? // 0),lease:$lease}]' <<<"$rows")"
+          done
+          jq -n --argjson lanes "$rows" --arg mem "$mem_available_mb" --arg load "$load1" --arg cpus "$cpus" \
+            '{ok:true,lanes:$lanes,host:{memAvailableMb:($mem|tonumber),load1:($load|tonumber),cpus:($cpus|tonumber)}}'
+          OVH
+              ;;
             status)
               ovh 'bash -s' <<'OVH'
           set -euo pipefail
