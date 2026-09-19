@@ -129,8 +129,9 @@ systemctl enable --now 3dvr-portal-do-standby-tunnel.service
 systemctl restart 3dvr-portal-do-standby-tunnel.service
 
 for _ in $(seq 1 20); do
-  if ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-do \
-    'curl -fsS --max-time 5 http://127.0.0.1:14322/__3dvr-health | grep -q '"'"'"standby":true"'"'"''; then
+  if tunnel_health="$(ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-do \
+    'curl -fsS --max-time 5 http://127.0.0.1:14322/__3dvr-health' 2>/dev/null || true)" \
+    && printf '%s' "$tunnel_health" | grep -q '"standby":true'; then
     echo "hetzner_standby_ready=true"
     exit 0
   fi
