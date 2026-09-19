@@ -1,0 +1,9 @@
+{
+  "name": "remember-me-v0.1",
+  "cases": [
+    {"name":"milestone-name","question":"What is the v0.1 milestone called?","expected_all":["Remember Me"]},
+    {"name":"local-storage","question":"How is the seed memory layer stored?","expected_all":["Python","SQLite","JSONL"]},
+    {"name":"provider-independence","question":"Can the reasoning model be replaced?","expected_any":["Ollama","OpenAI-compatible"]},
+    {"name":"privacy-boundary","question":"Where should real conversation exports be kept?","expected_all":["data/private","must not be committed"]}
+  ]
+}
