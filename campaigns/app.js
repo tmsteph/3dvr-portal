@@ -16,6 +16,10 @@ import {
   saveDiscoveredLeads
 } from '../src/money-printer/leadVault.js';
 import { createBrowserLeadVaultSync } from '../src/money-printer/leadVaultSync.js';
+import {
+  resolveBrowserLocation,
+  resolveTypedLocation
+} from './location.js';
 
 const STORAGE = {
   connection: '3dvr.campaigns.google.connection',
@@ -40,6 +44,7 @@ const elements = {
   progressText: $('progressText'), history: $('history'), clearHistory: $('clearHistory'),
   leadForm: $('leadFinderForm'), leadDescription: $('leadDescription'), leadLocation: $('leadLocation'),
   leadCount: $('leadCount'), findLeads: $('findLeads'), leadNotice: $('leadNotice'),
+  leadLocationStatus: $('leadLocationStatus'), leadLocationChoices: $('leadLocationChoices'),
   leadResults: $('leadResults'), leadActions: $('leadActions'), addLeads: $('addLeads'),
   leadVaultSyncStatus: $('leadVaultSyncStatus'),
 };
@@ -50,6 +55,7 @@ let discoveredLeads = [];
 let suggestedCampaign = null;
 let leadVaultAccountSync = null;
 let leadVaultSyncWrites = Promise.resolve();
+let chosenManualLocation = '';
 
 function readJson(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -118,6 +124,91 @@ function scheduleLeadVaultSync() {
   return leadVaultSyncWrites;
 }
 
+function setLocationStatus(message, kind = '') {
+  if (!elements.leadLocationStatus) return;
+  elements.leadLocationStatus.textContent = message;
+  elements.leadLocationStatus.className = `location-status ${kind}`.trim();
+}
+
+function clearLocationChoices() {
+  if (!elements.leadLocationChoices) return;
+  elements.leadLocationChoices.replaceChildren();
+  elements.leadLocationChoices.hidden = true;
+}
+
+function renderLocationChoices(candidates = []) {
+  clearLocationChoices();
+  if (!elements.leadLocationChoices) return;
+
+  candidates.slice(0, 4).forEach(candidate => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'location-choice';
+    button.textContent = candidate.label;
+    button.addEventListener('click', () => {
+      chosenManualLocation = candidate.label;
+      elements.leadLocation.value = candidate.label;
+      clearLocationChoices();
+      setLocationStatus(`Searching near: ${candidate.label}`, 'verified');
+      elements.leadForm.requestSubmit();
+    });
+    elements.leadLocationChoices.append(button);
+  });
+  elements.leadLocationChoices.hidden = false;
+}
+
+async function resolveSearchLocation() {
+  const typed = elements.leadLocation.value.trim();
+  clearLocationChoices();
+
+  if (typed) {
+    if (chosenManualLocation && typed === chosenManualLocation) {
+      setLocationStatus(`Searching near: ${typed}`, 'verified');
+      return { location: typed, source: 'manual' };
+    }
+
+    setLocationStatus('Checking that location…');
+    const result = await resolveTypedLocation(typed);
+    if (!result.candidates.length) {
+      throw new Error('I could not verify that location. Try City, State or a ZIP code.');
+    }
+    if (result.ambiguous) {
+      renderLocationChoices(result.candidates);
+      setLocationStatus('Which location did you mean? Choose one below.', 'choice');
+      return { needsChoice: true };
+    }
+
+    const candidate = result.candidate;
+    chosenManualLocation = candidate.label;
+    elements.leadLocation.value = candidate.label;
+    setLocationStatus(`Searching near: ${candidate.label}`, 'verified');
+    return { location: candidate.label, source: 'manual', candidate };
+  }
+
+  setLocationStatus('Checking your approximate browser location…');
+  try {
+    const result = await resolveBrowserLocation();
+    if (result.candidate?.label) {
+      setLocationStatus(
+        `Using your approximate location: ${result.candidate.label}`,
+        'verified'
+      );
+      return {
+        location: result.candidate.label,
+        source: 'browser',
+        candidate: result.candidate
+      };
+    }
+  } catch (_error) {
+    // Browser location is optional. Fall through to a broad search.
+  }
+
+  setLocationStatus(
+    'Location unavailable — searching anywhere. Add City, State or ZIP to target an area.'
+  );
+  return { location: '', source: 'broad' };
+}
+
 function renderLeadResults() {
   elements.leadResults.replaceChildren();
   elements.leadResults.hidden = discoveredLeads.length === 0;
@@ -155,19 +246,23 @@ async function findLeads(event) {
 
   discoveredLeads = [];
   renderLeadResults();
-  showLeadNotice('Searching the public web for verified business emails…');
   elements.findLeads.disabled = true;
   const originalLabel = elements.findLeads.textContent;
-  elements.findLeads.textContent = 'Searching…';
 
   try {
+    elements.findLeads.textContent = 'Checking location…';
+    const locationResolution = await resolveSearchLocation();
+    if (locationResolution.needsChoice) return;
+
+    showLeadNotice('Searching the public web for verified business emails…');
+    elements.findLeads.textContent = 'Searching…';
     const { response, payload, usedFallback } = await fetchPortalJson('/api/openai-site?provider=lead-finder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         leadFinder: true,
         description,
-        location: elements.leadLocation.value.trim(),
+        location: locationResolution.location,
         count: Number(elements.leadCount.value) || 10,
       }),
     });
@@ -198,7 +293,7 @@ async function findLeads(event) {
     const vault = saveDiscoveredLeads({
       leads: discoveredLeads,
       offer: payload.query?.description || description,
-      location: payload.query?.location || elements.leadLocation.value.trim(),
+      location: payload.query?.location || locationResolution.location,
       campaignDraft: suggestedCampaign
     });
     scheduleLeadVaultSync();
@@ -488,6 +583,16 @@ document.querySelectorAll('[data-lead-example]').forEach(button => {
     elements.leadDescription.value = button.dataset.leadExample || '';
     elements.leadDescription.focus();
   });
+});
+
+elements.leadLocation.addEventListener('input', () => {
+  chosenManualLocation = '';
+  clearLocationChoices();
+  setLocationStatus(
+    elements.leadLocation.value.trim()
+      ? 'We will verify this place before searching.'
+      : 'Leave blank to use your approximate browser location.'
+  );
 });
 
 elements.leadForm.addEventListener('submit', findLeads);

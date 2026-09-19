@@ -43,9 +43,12 @@
             <button class="example-chip" type="button" data-lead-example="I automate repetitive admin, lead follow-up, and scheduling for small businesses using AI.">AI automation clients</button>
           </div>
           <div class="finder-grid">
-            <label>Location <span class="muted">(optional)</span><input id="leadLocation" placeholder="Anywhere"></label>
+            <label>Location <span class="muted">(optional)</span><input id="leadLocation" placeholder="City, state, or ZIP — leave blank for my location"></label>
             <label>How many<select id="leadCount"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label>
           </div>
+          <p class="location-status" id="leadLocationStatus">Leave blank to use your approximate browser location.</p>
+          <div class="location-choices" id="leadLocationChoices" hidden></div>
+          <p class="location-attribution">Location data © OpenStreetMap contributors</p>
         </details>
       </form>
       <p class="muted vault-sync-status" id="leadVaultSyncStatus">Lead Vault: saved on this device</p>

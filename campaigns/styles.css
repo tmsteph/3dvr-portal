@@ -87,6 +87,16 @@ footer { padding: 24px 3px 0; color: #6e7681; font-size: .78rem; }
 .finder-options > summary { color: #9ecbff; font-size: .86rem; }
 .finder-grid { display: grid; grid-template-columns: minmax(0, 1fr) 130px; gap: 10px; }
 .finder-grid label { margin-top: 10px !important; }
+.location-status { margin: 9px 0 0; color: #8b949e; font-size: .82rem; line-height: 1.4; }
+.location-status.verified { color: #aff5b4; }
+.location-status.choice { color: #ffd580; }
+.location-choices { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
+.location-choice {
+  padding: 8px 10px; border: 1px solid #30363d; border-radius: 999px;
+  background: #0d1117; color: #9ecbff; cursor: pointer; font: inherit; font-size: .8rem; font-weight: 750;
+}
+.location-choice:hover { border-color: #58a6ff; color: #fff; }
+.location-attribution { margin: 8px 0 0; color: #6e7681; font-size: .7rem; }
 .lead-results { display: grid; gap: 9px; margin-top: 14px; }
 .lead-result {
   display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start;

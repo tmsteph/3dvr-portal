@@ -568,3 +568,37 @@ test('self-host AI proxy preserves CORS headers for the Campaigns backup route',
   assert.equal(calls.length, 1);
   assert.equal(calls[0].options.headers['X-Forwarded-For'], '203.0.113.50');
 });
+
+test('shared OpenAI route dispatches location resolution without another Vercel function', async () => {
+  const handler = createOpenAiSiteRouter({
+    apiKey: 'test-key',
+    locationResolve: {
+      throttleImpl: async () => {},
+      fetchImpl: async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ([
+          {
+            lat: '32.7157',
+            lon: '-117.1611',
+            address: {
+              city: 'San Diego',
+              state: 'California',
+              postcode: '92101',
+              country_code: 'us'
+            }
+          }
+        ])
+      })
+    }
+  });
+  const res = createMockRes();
+  await handler({
+    method: 'GET',
+    query: { provider: 'location-resolve', q: 'San Diego, CA' },
+    headers: {}
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.candidates[0].label, 'San Diego, California, 92101');
+});

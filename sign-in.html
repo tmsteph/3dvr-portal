@@ -262,11 +262,17 @@
       transform: none;
     }
 
-    .oauth-status {
+    .oauth-status,
+    .auth-status {
       min-height: 1.1rem;
       font-size: 0.82rem;
       color: rgba(248, 251, 255, 0.72);
       line-height: 1.5;
+    }
+
+    .auth-status {
+      margin: 8px 0 0;
+      text-align: center;
     }
 
     .recovery-panel {
@@ -328,6 +334,13 @@
     .primary-button:hover {
       transform: translateY(-1px);
       box-shadow: 0 12px 30px rgba(240, 199, 94, 0.32);
+    }
+
+    .primary-button[disabled] {
+      opacity: 0.62;
+      cursor: wait;
+      transform: none;
+      box-shadow: none;
     }
 
     .guest-note {
@@ -521,6 +534,7 @@
           <div class="actions">
             <button id="auth-submit" type="submit" class="primary-button">Sign in or sign up</button>
           </div>
+          <p id="auth-status" class="auth-status" role="status" aria-live="polite">Ready.</p>
           <!-- OAuth remains wired for later, but is intentionally hidden until
                the provider flows are ready for reliable sign-in. -->
           <div class="oauth-panel" aria-labelledby="oauth-options-title" hidden>
@@ -899,6 +913,28 @@
       return normalized.includes('@') ? normalized.split('@')[0] : normalized;
     }
 
+    function setAuthStatus(message = '', tone = 'info') {
+      const statusEl = document.getElementById('auth-status');
+      if (!statusEl) return;
+      statusEl.textContent = String(message || '').trim() || 'Ready.';
+      statusEl.style.color = tone === 'error'
+        ? '#ffb4b4'
+        : tone === 'success'
+        ? '#b8f1c5'
+        : 'rgba(248, 251, 255, 0.72)';
+    }
+
+    function setAuthBusy(busy, label = '') {
+      const button = document.getElementById('auth-submit');
+      if (!button) return;
+      button.disabled = Boolean(busy);
+      button.textContent = busy
+        ? (label || 'Working…')
+        : (redirectContext.destination === DEFAULT_POST_SIGN_IN_DESTINATION
+          ? 'Sign in or sign up'
+          : 'Sign in and continue');
+    }
+
     function setOauthStatus(message = '', tone = 'info') {
       const statusEl = document.getElementById('oauth-status');
       if (!statusEl) return;
@@ -1231,9 +1267,12 @@
       }
 
       const alias = username + "@3dvr";
+      setAuthBusy(true, 'Connecting…');
+      setAuthStatus('Connecting to secure account storage…');
       console.log("🛠️ Attempting to authorize user:", alias);
 
       if (gunIsStub) {
+        setAuthStatus('Signed in locally. Opening the portal…', 'success');
         console.warn('Gun.js unavailable; storing credentials locally.');
         finishLogin(username, alias, password, verifiedRecoveryEmail, { isNewAccount: true });
         return;
@@ -1241,6 +1280,8 @@
 
       const relayReady = await waitForGunRelay();
       if (!relayReady) {
+        setAuthBusy(false);
+        setAuthStatus('The secure sync relay is not connected yet. Please try again.', 'error');
         alert('The sync relay is not connected yet. In Brave, turn Shields off for portal.3dvr.tech, then try signing in again.');
         return;
       }
@@ -1250,27 +1291,38 @@
         if (loginAck.err) {
           console.warn("❌ Login failed:", loginAck.err);
           console.log("Login failed. Trying to create a new account...");
+          setAuthBusy(true, 'Checking account…');
+          setAuthStatus('No matching login yet. Checking whether this is a new username…');
           // Attempt to create user
           user.create(alias, password, createAck => {
             if (createAck.err) {
+              setAuthBusy(false);
               if (createAck.err.includes("User already created")) {
+                setAuthStatus('That username exists, but the password did not match.', 'error');
                 alert("⚠️ That username is taken. Please check your password or try logging in.");
                 console.warn("⚠️ User exists, password is likely incorrect.");
               } else {
+                setAuthStatus('Account creation failed. Please try again.', 'error');
                 console.error("❌ Error creating account:", createAck.err);
                 alert("❌ Account creation failed: " + createAck.err);
               }
               return;
             }
             console.log("✅ User created:", alias);
+            setAuthBusy(true, 'Signing in…');
+            setAuthStatus('Account created. Signing you in…');
             // Retry auth after creation
             setTimeout(() => {
               user.auth(alias, password, authAck => {
                 if (authAck.err) {
+                  setAuthBusy(false);
+                  setAuthStatus('The account was created, but sign-in did not finish. Try again.', 'error');
                   console.error("❌ Auth after creation failed:", authAck.err);
                   alert("⚠️ Auth failed after creating account. Please try again.");
                 } else {
                   console.log("✅ Authenticated after account creation.");
+                  setAuthBusy(true, 'Opening…');
+                  setAuthStatus('Signed in. Opening the portal…', 'success');
                   finishLogin(username, alias, password, verifiedRecoveryEmail, { isNewAccount: true });
                 }
               });
@@ -1279,6 +1331,8 @@
 
         } else {
           console.log("✅ Logged in existing user.");
+          setAuthBusy(true, 'Opening…');
+          setAuthStatus('Signed in. Opening the portal…', 'success');
           finishLogin(username, alias, password, verifiedRecoveryEmail, { isNewAccount: false });
         }
       });

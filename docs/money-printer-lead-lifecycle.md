@@ -56,3 +56,14 @@ Cross-device Lead Vault sync is now implemented. The next durability/privacy wor
 - CRM promotion only after a meaningful relationship event
 
 Do not put anonymous visitors' prospects into a shared global 3DVR graph. Anonymous use remains device-local until the user signs in or explicitly exports/promotes the data.
+
+## Location targeting
+
+Campaigns treats location as optional.
+
+- Blank location asks the browser for approximate geolocation. Coordinates are rounded before reverse lookup, then converted to a city/region label for the lead search.
+- Raw browser coordinates are not stored in Lead Vault.
+- A typed city, state, ZIP, or place is resolved before the paid lead search runs.
+- Ambiguous city-only input (for example, `Springfield`) presents location choices instead of silently choosing a state.
+- If browser location is unavailable or denied, Campaigns continues with a broad search and tells the user.
+- The normalized location label is shown before/while searching so the user can see the exact geographic interpretation.
