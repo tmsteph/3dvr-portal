@@ -64,7 +64,11 @@ async function ensurePortalSession(page) {
   }
 
   if (!state.username || !state.password) {
-    throw new Error('Portal session is signed out and no saved Portal credentials are available in the persistent browser.');
+    summary.portal.signedIn = false;
+    summary.portal.usernamePresent = Boolean(state.username);
+    summary.portal.hasPubKey = state.hasPubKey;
+    summary.portal.signInIssue = 'Persistent browser is signed out of the Portal and has no saved Portal credentials.';
+    return false;
   }
 
   await page.goto(`${ORIGIN}/sign-in.html?next=/campaigns/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -78,6 +82,7 @@ async function ensurePortalSession(page) {
   summary.portal.signedIn = await page.evaluate(() => localStorage.getItem('signedIn') === 'true');
   summary.portal.usernamePresent = true;
   summary.portal.hasPubKey = await page.evaluate(() => Boolean(localStorage.getItem('userPubKey')));
+  return summary.portal.signedIn;
 }
 
 async function driveGoogleOAuth(page, targetEmail = '') {
@@ -168,7 +173,7 @@ function gmailReady(connection) {
 
   try {
     await ensurePortalSession(page);
-    summary.portal.syncStatus = await page.$eval('#leadVaultSyncStatus', el => el.textContent?.trim() || '');
+    summary.portal.syncStatus = await page.$eval('#leadVaultSyncStatus', el => el.textContent?.trim() || '').catch(() => '');
 
     previousDraft = await page.evaluate(() => localStorage.getItem('3dvr.campaigns.draft'));
 
@@ -240,15 +245,16 @@ function gmailReady(connection) {
     const locationOk = /san diego/i.test(summary.location.status || '');
     const uiOk = !summary.ui.spamCheckboxPresent && !summary.ui.literalNewlineVisible;
 
-    summary.ok = Boolean(
-      summary.portal.signedIn
-      && locationOk
+    summary.portalSignInOk = Boolean(summary.portal.signedIn);
+    summary.campaignsOk = Boolean(
+      locationOk
       && summary.location.leadCount > 0
       && summary.gmail.ready
       && testSent
       && uiOk
       && summary.errors.length === 0
     );
+    summary.ok = summary.campaignsOk;
   } catch (error) {
     summary.errors.push({ message: error.message || 'acceptance-failed' });
   } finally {
