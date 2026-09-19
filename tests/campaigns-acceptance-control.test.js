@@ -8,6 +8,10 @@ test('Campaigns acceptance uses the leased OVH browser lane and never starts a r
 
   assert.match(workflow, /campaigns_acceptance/);
   assert.match(workflow, /3dvr-browser-lease acquire general control-bus-campaigns-acceptance/);
+  assert.match(workflow, /3dvr-browser-lease acquire training control-bus-campaigns-acceptance/);
+  assert.match(workflow, /3dvr-browser-lane@training\.service/);
+  assert.match(workflow, /SKIP_GMAIL/);
+  assert.match(runner, /SKIP_GMAIL/);
   assert.match(workflow, /3dvr-browser-lease release general/);
   assert.match(runner, /#sendTest/);
   assert.match(runner, /scopeKey=gmail-send/);
