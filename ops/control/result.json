@@ -1,19 +1,9 @@
 {
-  "host": "accounts.google.com",
-  "requestId": "campaigns-gmail-handoff-20260919-1",
-  "action": "campaigns_gmail_handoff",
-  "workflowOutcome": "success",
-  "checkedAt": "2026-09-19T17:57:43Z"
-}
-{
-  "ok": true,
-  "handoffId": "lf-ngXgS7qKlCqES",
-  "handoffUrl": "https://hypothesis-xhtml-bundle-thick.trycloudflare.com/human-handoff/#Q1uUFVYfGBrky7LD_Fmkw0_xG5wrDZEEda99iqoTsP0",
-  "expiresAt": "2026-09-19T18:57:43.491Z",
+  "ok": false,
+  "error": "The general authenticated browser lane is currently busy. No session was taken over.",
   "browserLane": "general",
-  "service": "Campaigns Gmail OAuth",
-  "requestId": "campaigns-gmail-handoff-20260919-1",
-  "action": "campaigns_gmail_handoff",
+  "requestId": "campaigns-user-acceptance-live-20260919-1",
+  "action": "campaigns_user_acceptance",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-19T17:57:43Z"
+  "checkedAt": "2026-09-19T18:53:39Z"
 }
