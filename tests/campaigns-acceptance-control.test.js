@@ -19,4 +19,12 @@ test('Campaigns acceptance uses the leased OVH browser lane and never starts a r
   assert.match(runner, /setGeolocation/);
   assert.doesNotMatch(runner, /#sendCampaign/);
   assert.doesNotMatch(runner, /Start campaign/i);
+
+  const userRunner = await readFile(new URL('../scripts/ops/campaigns-user-acceptance.cjs', import.meta.url), 'utf8');
+  assert.match(workflow, /campaigns_user_acceptance/);
+  assert.match(workflow, /3dvr-browser-lease acquire general control-bus-campaigns-user-acceptance/);
+  assert.match(userRunner, /#sendTest/);
+  assert.match(userRunner, /scopeKey=gmail-send/);
+  assert.doesNotMatch(userRunner, /#sourceAck/);
+  assert.doesNotMatch(userRunner, /#sendCampaign/);
 });
