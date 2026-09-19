@@ -14,3 +14,12 @@ test('production deploy reuses the persistent public tunnel helper', async () =>
   assert.doesNotMatch(deploy, /3dvr-portal-quick-tunnel/);
   assert.doesNotMatch(deploy, /state\/tunnel\.log/);
 });
+
+
+test('persistent tunnel helper avoids rapid Cloudflare restart churn', async () => {
+  const helper = await read('scripts/ops/ensure-portal-public-tunnel.sh');
+
+  assert.match(helper, /for delay in 0 15; do/);
+  assert.match(helper, /for _ in \$\(seq 1 120\); do/);
+  assert.doesNotMatch(helper, /for delay in 0 10 20 40; do/);
+});
