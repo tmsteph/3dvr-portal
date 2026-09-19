@@ -482,6 +482,7 @@ function createGateway() {
     const index = Math.max(0, Math.min(steps.length - 1, Number(requestedIndex) || 0));
     const step = steps[index];
     let found = false;
+    let targetRect = null;
 
     if (step.targetText) {
       const expression = `(() => {
@@ -494,18 +495,25 @@ function createGateway() {
         ));
         const exact = candidates.find(el => textOf(el) === needle);
         const partial = exact || candidates.find(el => textOf(el).includes(needle));
-        if (!partial) return false;
+        if (!partial) return null;
         partial.scrollIntoView({ block: 'center', inline: 'center', behavior: 'auto' });
-        return true;
+        const rect = partial.getBoundingClientRect();
+        return {
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+        };
       })()`;
       const result = await handoff.client.send('Runtime.evaluate', {
         expression,
         returnByValue: true,
-      }).catch(() => ({ result: { value: false } }));
+      }).catch(() => ({ result: { value: null } }));
       found = Boolean(result?.result?.value);
+      if (found) targetRect = result.result.value;
     }
 
-    return { index, total: steps.length, step, found };
+    return { index, total: steps.length, step, found, targetRect };
   }
 
   async function input(token, action = {}) {
@@ -546,10 +554,20 @@ function createGateway() {
       throw Object.assign(new Error('Unsupported input action.'), { statusCode: 400 });
     }
     const focusState = await handoff.client.send('Runtime.evaluate', {
-      expression: `(() => { const el = document.activeElement; return !!(el && (el.matches('input:not([type=hidden]), textarea, [contenteditable=true]'))); })()`,
+      expression: `(() => {
+        const el = document.activeElement;
+        const editable = !!(el && el.matches('input:not([type=hidden]), textarea, [contenteditable=true]'));
+        if (!editable) return { editable: false, rect: null };
+        const rect = el.getBoundingClientRect();
+        return {
+          editable: true,
+          rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+        };
+      })()`,
       returnByValue: true,
-    }).catch(() => ({ result: { value: false } }));
-    return { ok: true, editable: Boolean(focusState?.result?.value) };
+    }).catch(() => ({ result: { value: { editable: false, rect: null } } }));
+    const focus = focusState?.result?.value || {};
+    return { ok: true, editable: Boolean(focus.editable), focusedRect: focus.rect || null };
   }
 
   async function resolve(token) {

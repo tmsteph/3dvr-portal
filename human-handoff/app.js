@@ -6,6 +6,7 @@ const pasteButton = document.querySelector('#paste');
 const backspaceButton = document.querySelector('#backspace');
 const keyboardProxy = document.querySelector('#keyboardProxy');
 const frame = document.querySelector('#frame');
+const feedbackLayer = document.querySelector('#feedbackLayer');
 const loading = document.querySelector('#loading');
 const status = document.querySelector('#status');
 const title = document.querySelector('#title');
@@ -50,6 +51,9 @@ let guideSteps = (() => {
 })();
 let guideIndex = Math.max(0, Number(sessionStorage.getItem('3dvr-handoff-guide-index')) || 0);
 let lastEdgeScrollAt = 0;
+let activeFocusGlow = null;
+let activeFocusRemoteRect = null;
+let feedbackToastTimer = 0;
 
 if (initialToken) {
   continueButton.disabled = false;
@@ -160,7 +164,10 @@ async function focusGuideStep() {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ index: guideIndex }),
     }, true);
-    if (result?.found) resetViewportTransform();
+    if (result?.found) {
+      resetViewportTransform();
+      window.setTimeout(() => showFocusGlow(result.targetRect, { transient: true }), 80);
+    }
   } catch (error) {
     sessionStatus.textContent = error.message;
   }
@@ -233,6 +240,123 @@ function remotePoint(event) {
   };
 }
 
+function feedbackPointFromClient(clientX, clientY) {
+  if (!feedbackLayer) return null;
+  const rect = feedbackLayer.getBoundingClientRect();
+  return {
+    x: Math.max(0, Math.min(rect.width, clientX - rect.left)),
+    y: Math.max(0, Math.min(rect.height, clientY - rect.top)),
+  };
+}
+
+function remoteRectToFeedbackRect(remoteRect) {
+  if (!feedbackLayer || !remoteRect || !frame.naturalWidth || !frame.naturalHeight) return null;
+  const frameRect = frame.getBoundingClientRect();
+  const layerRect = feedbackLayer.getBoundingClientRect();
+  const scaleX = frameRect.width / frame.naturalWidth;
+  const scaleY = frameRect.height / frame.naturalHeight;
+  return {
+    left: frameRect.left - layerRect.left + remoteRect.x * scaleX,
+    top: frameRect.top - layerRect.top + remoteRect.y * scaleY,
+    width: Math.max(18, remoteRect.width * scaleX),
+    height: Math.max(18, remoteRect.height * scaleY),
+  };
+}
+
+function remotePointToFeedbackPoint(x, y) {
+  if (!feedbackLayer || !frame.naturalWidth || !frame.naturalHeight) return null;
+  const frameRect = frame.getBoundingClientRect();
+  const layerRect = feedbackLayer.getBoundingClientRect();
+  return {
+    x: frameRect.left - layerRect.left + (x / frame.naturalWidth) * frameRect.width,
+    y: frameRect.top - layerRect.top + (y / frame.naturalHeight) * frameRect.height,
+  };
+}
+
+function removeFeedbackNode(node, delay = 800) {
+  if (!node) return;
+  window.setTimeout(() => node.remove(), delay);
+}
+
+function showTapFeedback(clientX, clientY, { error = false } = {}) {
+  if (!feedbackLayer) return;
+  const point = feedbackPointFromClient(clientX, clientY);
+  if (!point) return;
+  const ripple = document.createElement('div');
+  ripple.className = `feedback-ripple${error ? ' error' : ''}`;
+  ripple.style.left = `${point.x}px`;
+  ripple.style.top = `${point.y}px`;
+  feedbackLayer.appendChild(ripple);
+  removeFeedbackNode(ripple, 700);
+}
+
+function showScrollFeedback(payload) {
+  if (!feedbackLayer || !payload) return;
+  feedbackLayer.querySelectorAll('.feedback-scroll').forEach(node => node.remove());
+  const point = remotePointToFeedbackPoint(payload.x, payload.y);
+  if (!point) return;
+  const streak = document.createElement('div');
+  streak.className = `feedback-scroll ${payload.deltaY >= 0 ? 'down' : 'up'}`;
+  streak.style.left = `${point.x}px`;
+  streak.style.top = `${point.y}px`;
+  feedbackLayer.appendChild(streak);
+  removeFeedbackNode(streak, 680);
+}
+
+function clearFocusGlow() {
+  activeFocusGlow?.remove();
+  activeFocusGlow = null;
+  activeFocusRemoteRect = null;
+}
+
+function showFocusGlow(remoteRect, { transient = false } = {}) {
+  if (!feedbackLayer) return;
+  const rect = remoteRectToFeedbackRect(remoteRect);
+  if (!rect) return;
+  clearFocusGlow();
+  const glow = document.createElement('div');
+  glow.className = 'feedback-focus';
+  glow.style.left = `${rect.left - 4}px`;
+  glow.style.top = `${rect.top - 4}px`;
+  glow.style.width = `${rect.width + 8}px`;
+  glow.style.height = `${rect.height + 8}px`;
+  feedbackLayer.appendChild(glow);
+  activeFocusGlow = glow;
+  activeFocusRemoteRect = remoteRect;
+  if (transient) {
+    window.setTimeout(() => {
+      if (activeFocusGlow === glow) clearFocusGlow();
+    }, 1400);
+  }
+}
+
+function pulseFocusGlow() {
+  if (!activeFocusGlow) return;
+  activeFocusGlow.classList.remove('typing');
+  void activeFocusGlow.offsetWidth;
+  activeFocusGlow.classList.add('typing');
+  window.setTimeout(() => activeFocusGlow?.classList.remove('typing'), 240);
+}
+
+function showFeedbackToast(text) {
+  if (!feedbackLayer || !text) return;
+  window.clearTimeout(feedbackToastTimer);
+  feedbackLayer.querySelectorAll('.feedback-toast').forEach(node => node.remove());
+  const toast = document.createElement('div');
+  toast.className = 'feedback-toast';
+  toast.textContent = text;
+  feedbackLayer.appendChild(toast);
+  feedbackToastTimer = window.setTimeout(() => toast.remove(), 780);
+}
+
+function showScreenFlash() {
+  if (!feedbackLayer) return;
+  const flash = document.createElement('div');
+  flash.className = 'feedback-screen-flash';
+  feedbackLayer.appendChild(flash);
+  removeFeedbackNode(flash, 650);
+}
+
 async function sendInput(payload) {
   return api('/input', {
     method: 'POST',
@@ -260,13 +384,25 @@ function releaseKeyboardProxy() {
   composing = false;
   keyboardProxy.value = '';
   keyboardProxy.blur();
+  clearFocusGlow();
 }
 
 function queueRemoteInput(payload) {
   inputQueue = inputQueue
-    .then(() => sendInput(payload))
+    .then(async () => {
+      const result = await sendInput(payload);
+      if (payload.type === 'scroll') {
+        clearFocusGlow();
+        showScrollFeedback(payload);
+      } else if (['text', 'key', 'paste'].includes(payload.type)) {
+        pulseFocusGlow();
+      }
+      return result;
+    })
     .catch(error => {
       sessionStatus.textContent = error.message;
+      showFeedbackToast('Input missed');
+      return null;
     });
   return inputQueue;
 }
@@ -373,6 +509,7 @@ frame.addEventListener('pointermove', event => {
       panX = clamped.x;
       panY = clamped.y;
     }
+    clearFocusGlow();
     applyViewportTransform();
     sessionStatus.textContent = `Zoom ${Math.round(zoom * 100)}% · pinch to adjust`;
     return;
@@ -387,6 +524,7 @@ frame.addEventListener('pointermove', event => {
     const clamped = clampPan(rawPanX, rawPanY);
     panX = clamped.x;
     panY = clamped.y;
+    clearFocusGlow();
     applyViewportTransform();
     scrollRemoteAtEdge(event, rawPanY - clamped.y);
   }
@@ -412,21 +550,36 @@ frame.addEventListener('pointerup', event => {
     : zoom > 1
       ? null
       : { type: 'scroll', x: end.x, y: end.y, deltaY: -dy * 4 };
+  const feedbackClientX = event.clientX;
+  const feedbackClientY = event.clientY;
   pointerStart = null;
   if (payload) {
     if (payload.type === 'click') armKeyboardProxy();
     sendInput(payload)
       .then(result => {
-        if (payload.type === 'click') {
-          if (result?.editable) {
-            sessionStatus.textContent = 'Typing directly into the remote field';
-          } else {
-            releaseKeyboardProxy();
-          }
+        if (payload.type === 'scroll') {
+          clearFocusGlow();
+          showScrollFeedback(payload);
+          return;
+        }
+
+        showTapFeedback(feedbackClientX, feedbackClientY);
+        if (result?.editable) {
+          showFocusGlow(result.focusedRect);
+          showFeedbackToast('Field active');
+          sessionStatus.textContent = 'Typing directly into the remote field';
+        } else {
+          clearFocusGlow();
+          releaseKeyboardProxy();
         }
       })
       .catch(error => {
-        if (payload.type === 'click') releaseKeyboardProxy();
+        if (payload.type === 'click') {
+          releaseKeyboardProxy();
+          clearFocusGlow();
+          showTapFeedback(feedbackClientX, feedbackClientY, { error: true });
+          showFeedbackToast('Tap missed');
+        }
         sessionStatus.textContent = error.message;
       });
   }
@@ -546,6 +699,8 @@ guideNext?.addEventListener('click', () => {
     return;
   }
   guide.hidden = true;
+  showScreenFlash();
+  showFeedbackToast('Guided steps complete');
   sessionStatus.textContent = 'Guided steps complete · tap Done after the site confirms success';
 });
 
@@ -570,6 +725,12 @@ doneButton.addEventListener('click', async () => {
     sessionStatus.textContent = error.message;
     doneButton.disabled = false;
   }
+});
+
+window.addEventListener('resize', () => {
+  if (!activeFocusRemoteRect) return;
+  const remoteRect = activeFocusRemoteRect;
+  window.setTimeout(() => showFocusGlow(remoteRect), 60);
 });
 
 continueButton.addEventListener('click', openHandoff);

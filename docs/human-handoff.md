@@ -22,6 +22,12 @@ Guide steps are task metadata only. They must never contain passwords, MFA codes
 
 Pinch zoom is local to the phone viewport. One-finger dragging pans the enlarged browser image. When local panning reaches the top or bottom limit, continued dragging turns into remote page scrolling so the user can keep moving naturally without first zooming out. This “pan until edge, then scroll” behavior is the standard mobile interaction for handoffs.
 
+### Interaction feedback
+
+Every remote action should visibly acknowledge that the command reached the browser. A confirmed tap emits a short blue ripple at the touched point. Confirmed scrolling emits a directional blue chevron trail. When a tap focuses a text input, the gateway returns the real remote element bounds and the phone draws an electric-blue halo around that field; successful text, paste, and key input pulse that halo. Guided targets receive the same temporary spotlight after they are centered.
+
+Feedback lives in a pointer-events-none overlay above the streamed browser image, so it never intercepts input. Failed taps use a brief amber ripple plus a small status pill. Animation must respect `prefers-reduced-motion`, and scroll feedback is coalesced so rapid edge-scrolling does not fill the screen with effects.
+
 ### Controlled form state
 
 For React and other stateful application forms, visible DOM values are not sufficient proof that the site accepted a field value. Prefer native browser interactions (real pointer clicks, keyboard entry, and real autocomplete/option selection) over assigning DOM properties directly. After each critical custom field, verify the site-owned state when possible (for example `aria-pressed`, selected autocomplete option, or checkbox state after a real event). After submission, verify both the network-level submit action and the rendered success state. Never assume that an enabled button or visually filled field means the application was accepted.
