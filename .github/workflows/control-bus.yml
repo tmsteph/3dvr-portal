@@ -138,6 +138,37 @@ jobs:
           jq -n --arg host "$(hostname)" --argjson openbao "$openbao" --argjson broker "$broker" --argjson termux "$termux" '{ok:true,host:$host,openbao:$openbao,broker:$broker,termuxReverseSsh:$termux}'
           OVH
               ;;
+            browser_lanes_status)
+              ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          lease_status="$(sudo -n /usr/local/bin/3dvr-browser-lease status)"
+          mem_total_mb=$(( $(awk '/^MemTotal:/ {print $2}' /proc/meminfo) / 1024 ))
+          mem_available_mb=$(( $(awk '/^MemAvailable:/ {print $2}' /proc/meminfo) / 1024 ))
+          load1="$(awk '{print $1}' /proc/loadavg)"
+          cpus="$(nproc)"
+          active_csv=""
+          for lane in general identity encore messaging training; do
+            if systemctl is-active --quiet "3dvr-browser-lane@${lane}.service"; then
+              active_csv="${active_csv:+$active_csv,}$lane"
+            fi
+          done
+          jq -n \
+            --arg leases "$lease_status" \
+            --argjson memTotal "$mem_total_mb" \
+            --argjson memAvailable "$mem_available_mb" \
+            --arg load1 "$load1" \
+            --argjson cpus "$cpus" \
+            --arg active "$active_csv" \
+            '{
+              ok:true,
+              leases:($leases|split("\n")|map(select(length>0))),
+              memory:{totalMB:$memTotal,availableMB:$memAvailable},
+              load1:($load1|tonumber),
+              cpus:$cpus,
+              activeBrowsers:($active|split(",")|map(select(length>0)))
+            }'
+          OVH
+              ;;
             openbao_status)
               ovh 'curl -fsS http://127.0.0.1:8200/v1/sys/seal-status | jq -c "{initialized,sealed,storage_type,version}"'
               ;;
