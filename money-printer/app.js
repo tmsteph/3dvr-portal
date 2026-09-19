@@ -39,6 +39,7 @@ import {
   writeOpportunityEngineState
 } from '../src/money-printer/opportunityEngine.js';
 import { parseOpportunityCaptureContext } from '../src/money-printer/opportunityLinks.js';
+import { readLeadVault } from '../src/money-printer/leadVault.js';
 
 const elements = {
   form: document.getElementById('missionForm'),
@@ -51,6 +52,8 @@ const elements = {
   opportunityInbox: document.getElementById('opportunityInbox'),
   opportunitySyncStatus: document.getElementById('opportunitySyncStatus'),
   opportunitySummary: document.getElementById('opportunitySummary'),
+  leadVaultSummary: document.getElementById('leadVaultSummary'),
+  leadVaultList: document.getElementById('leadVaultList'),
   metricsGrid: document.getElementById('metricsGrid'),
   messageReviewQueue: document.getElementById('messageReviewQueue'),
   runtimeStatusGrid: document.getElementById('runtimeStatusGrid'),
@@ -445,6 +448,61 @@ function handleOpportunityAction(action, opportunityId) {
     renderOpportunityInbox();
     elements.opportunityCaptureStatus.textContent = 'Opportunity passed and preserved for learning.';
   }
+}
+
+function renderLeadVault() {
+  if (!elements.leadVaultList || !elements.leadVaultSummary) return;
+  const leads = readLeadVault();
+  const counts = leads.reduce((acc, lead) => {
+    const status = lead.status || 'discovered';
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+
+  elements.leadVaultSummary.textContent = leads.length
+    ? `${leads.length} saved · ${counts.selected || 0} selected · ${counts.sent || 0} sent`
+    : 'No discovered leads yet';
+
+  if (!leads.length) {
+    elements.leadVaultList.innerHTML = '<p class="empty-state">Use Campaigns to find verified prospects. They will appear here automatically.</p>';
+    return;
+  }
+
+  const cards = leads.slice(0, 50).map(lead => {
+    const card = document.createElement('article');
+    card.className = 'opportunity-card';
+
+    const top = document.createElement('div');
+    top.className = 'opportunity-card__top';
+    const title = document.createElement('div');
+    title.append(
+      textElement('span', 'mp-card-label', lead.status || 'discovered'),
+      textElement('h3', '', lead.name || lead.email)
+    );
+    top.append(title, textElement('strong', 'opportunity-score', lead.email));
+
+    const details = document.createElement('div');
+    details.className = 'opportunity-details';
+    details.append(
+      textElement('p', '', [lead.location, lead.website].filter(Boolean).join(' · ')),
+      textElement('p', '', lead.whyFit || 'Verified public business contact.'),
+      textElement('p', '', lead.evidence || ''),
+      textElement('p', '', lead.offer ? `Offer: ${lead.offer}` : '')
+    );
+
+    card.append(top, details);
+    if (lead.sourceUrl) {
+      const source = document.createElement('a');
+      source.className = 'mp-button';
+      source.href = lead.sourceUrl;
+      source.target = '_blank';
+      source.rel = 'noopener noreferrer';
+      source.textContent = 'Verify source';
+      card.append(source);
+    }
+    return card;
+  });
+  replaceChildren(elements.leadVaultList, cards);
 }
 
 function renderMetrics() {
@@ -916,6 +974,7 @@ function renderTools() {
 
 function render() {
   renderOpportunityInbox();
+  renderLeadVault();
   renderMetrics();
   renderMessageReviewQueue();
   renderRuntimeStatus();

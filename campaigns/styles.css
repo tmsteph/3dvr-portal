@@ -68,6 +68,9 @@ footer { padding: 24px 3px 0; color: #6e7681; font-size: .78rem; }
 
 .discover-card h2 { margin: 0 0 6px; font-size: 1.35rem; }
 .finder-form { margin-top: 12px; }
+.find-now { width: 100%; min-height: 52px; margin-top: 12px; font-size: 1rem; }
+.finder-options { margin-top: 12px; padding-top: 2px; }
+.finder-options > summary { color: #9ecbff; font-size: .86rem; }
 .finder-grid { display: grid; grid-template-columns: minmax(0, 1fr) 130px; gap: 10px; }
 .finder-grid label { margin-top: 10px !important; }
 .lead-results { display: grid; gap: 9px; margin-top: 14px; }

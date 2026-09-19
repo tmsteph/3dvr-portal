@@ -11,6 +11,10 @@ import {
   markCampaignLeadStatus,
   queueCampaignLeads
 } from '../src/money-printer/campaignBridge.js';
+import {
+  markLeadVaultStatus,
+  saveDiscoveredLeads
+} from '../src/money-printer/leadVault.js';
 
 const STORAGE = {
   connection: '3dvr.campaigns.google.connection',
@@ -94,10 +98,6 @@ function renderLeadResults() {
 async function findLeads(event) {
   event.preventDefault();
   const description = elements.leadDescription.value.trim();
-  if (!description) {
-    showLeadNotice('Describe the kind of customer you want.', 'error');
-    return;
-  }
 
   discoveredLeads = [];
   renderLeadResults();
@@ -141,11 +141,19 @@ async function findLeads(event) {
       leads: discoveredLeads,
       campaignDraft: suggestedCampaign
     });
+    const vault = saveDiscoveredLeads({
+      leads: discoveredLeads,
+      offer: payload.query?.description || description,
+      location: payload.query?.location || elements.leadLocation.value.trim(),
+      campaignDraft: suggestedCampaign
+    });
     renderLeadResults();
     updateSummary();
     const routeNote = usedFallback ? ' Backup route used.' : '';
+    const defaultNote = payload.query?.usedDefaultBrief ? ' I chose a practical offer automatically.' : '';
+    const vaultNote = discoveredLeads.length ? ` Saved in Lead Vault (${vault.total} total).` : '';
     showLeadNotice(discoveredLeads.length
-      ? `Found ${discoveredLeads.length} likely customer${discoveredLeads.length === 1 ? '' : 's'} with public source evidence${suggestedCampaign?.body ? ' and drafted your outreach' : ''}. Review the matches, then use the ones you want.${routeNote}`
+      ? `Found ${discoveredLeads.length} likely customer${discoveredLeads.length === 1 ? '' : 's'} with public source evidence${suggestedCampaign?.body ? ' and drafted your outreach' : ''}.${defaultNote}${vaultNote} Review the matches, then use the ones you want.${routeNote}`
       : `No publicly verified business emails were found for that search. Try broadening the offer, customer type, or location.${routeNote}`,
       discoveredLeads.length ? 'success' : '');
   } catch (error) {
@@ -164,6 +172,7 @@ function addSelectedLeads() {
     showLeadNotice('Select at least one contact to add.', 'error');
     return;
   }
+  selected.forEach(lead => markLeadVaultStatus(lead.email, 'selected'));
   const additions = selected.map(lead => lead.name ? `${lead.name} <${lead.email}>` : lead.email);
   const merged = parseRecipients([elements.recipients.value, ...additions].filter(Boolean).join('\n'));
   elements.recipients.value = merged.map(recipient => recipient.name
@@ -361,9 +370,11 @@ async function runCampaign(event) {
       sent += 1;
       incrementSent();
       markCampaignLeadStatus(recipient.email, 'sent');
+      markLeadVaultStatus(recipient.email, 'sent');
     } catch (error) {
       failed += 1;
       markCampaignLeadStatus(recipient.email, 'send-failed');
+      markLeadVaultStatus(recipient.email, 'send-failed');
       console.error(error);
     }
     setProgress(index + 1, batch.length, `Sent ${sent} · Failed ${failed}`);
