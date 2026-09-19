@@ -32,8 +32,42 @@ async function setValue(page, selector, value) {
   }, String(value ?? ''));
 }
 
+function isNavigationRace(error) {
+  return /execution context was destroyed|cannot find context|most likely because of a navigation/i
+    .test(String(error?.message || error || ''));
+}
+
+async function settleAfterNavigationAction(page, action, timeout = 7000) {
+  const navigation = page.waitForNavigation({
+    waitUntil: 'domcontentloaded',
+    timeout,
+  }).catch(() => null);
+
+  try {
+    const result = await action();
+    await Promise.race([navigation, sleep(1200)]);
+    return result;
+  } catch (error) {
+    if (!isNavigationRace(error)) throw error;
+    await Promise.race([navigation, sleep(1200)]);
+    return true;
+  }
+}
+
+async function safeEvaluate(page, fn, arg) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      return await page.evaluate(fn, arg);
+    } catch (error) {
+      if (!isNavigationRace(error)) throw error;
+      await sleep(400);
+    }
+  }
+  throw new Error('Google OAuth page kept navigating before it could be inspected.');
+}
+
 async function clickText(page, labels) {
-  return page.evaluate(values => {
+  return settleAfterNavigationAction(page, () => page.evaluate(values => {
     const wanted = values.map(value => String(value).toLowerCase());
     const nodes = [...document.querySelectorAll('button,[role="button"],input[type="submit"]')];
     const hit = nodes.find(node => {
@@ -44,7 +78,7 @@ async function clickText(page, labels) {
     if (!hit || hit.disabled) return false;
     hit.click();
     return true;
-  }, labels);
+  }, labels));
 }
 
 async function ensurePortalSession(page) {
@@ -100,7 +134,7 @@ async function driveGoogleOAuth(page, targetEmail = '') {
     }
     if (parsed.hostname !== 'accounts.google.com') return 'unexpected-host';
 
-    const state = await page.evaluate(() => ({
+    const state = await safeEvaluate(page, () => ({
       text: (document.body?.innerText || '').slice(0, 9000),
       passwords: document.querySelectorAll('input[type="password"]').length,
       emails: document.querySelectorAll('input[type="email"]').length,
@@ -114,7 +148,7 @@ async function driveGoogleOAuth(page, targetEmail = '') {
     }
 
     if (state.identifiers.length) {
-      const chosen = await page.evaluate(target => {
+      const chosen = await settleAfterNavigationAction(page, () => safeEvaluate(page, target => {
         const normalized = String(target || '').trim().toLowerCase();
         const rows = [...document.querySelectorAll('[data-identifier]')].filter(el => {
           const rect = el.getBoundingClientRect();
@@ -127,7 +161,7 @@ async function driveGoogleOAuth(page, targetEmail = '') {
         if (!pick) return false;
         pick.click();
         return true;
-      }, targetEmail);
+      }, targetEmail));
       if (chosen) continue;
       return 'account-choice-required';
     }
