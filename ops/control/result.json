@@ -23,8 +23,8 @@
     "leadCount": 5
   },
   "gmail": {
-    "hadSavedConnection": false,
-    "oauth": "returned",
+    "hadSavedConnection": true,
+    "oauth": "already-ready",
     "ready": true,
     "sameAccount": true,
     "scopeKey": "gmail-send",
@@ -42,5 +42,5 @@
   "requestId": "campaigns-user-acceptance-live-20260919-1",
   "action": "campaigns_user_acceptance",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-19T19:07:32Z"
+  "checkedAt": "2026-09-19T19:12:04Z"
 }
