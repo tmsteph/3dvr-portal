@@ -35,6 +35,7 @@ Agents must route work by role, not by whichever host they happen to be running 
   - `/home/debian/.config/3dvr/browser-profiles/encore` — Encore/UltiPro workspace, CDP `9333`
   - `/home/debian/.config/3dvr/browser-profiles/messaging` — WhatsApp + Google Messages, CDP `9444`
   - `/home/debian/.config/3dvr/browser-profiles/training` — Encore training workspace, CDP `9555` when enabled
+  - `/home/debian/.config/3dvr/browser-profiles/identity` — Portal + Google/OAuth identity workspace, CDP `9666` when admitted
 - **Hetzner**: default compute for agents. Run Forge/Operator, code/build/test, scheduled and batch jobs, context routing, organism sync, supervisors, GitHub publishing, and the Open Runner here.
 - **DigitalOcean / `debian-web`**: lightweight fallback only. Keep concurrency low. Its reduced agent runtime may host the lightweight worker, inbox, outreach, heartbeat, health, and emergency control, while context/organism helper work is offloaded. Do not add heavy builds, batch workloads, duplicate helpers, persistent experiments, or new browser/VNC workloads.
 
@@ -248,3 +249,8 @@ OVH currently exposes four persistent browser lanes: general `/home/debian/.conf
 The authenticated Chromium lanes now run directly as host systemd services and browser tooling on OVH connects to their local CDP ports. The former Docker/network-namespace CDP bridge on `19222`–`19555` is retired and disabled; do not recreate it unless the browser lanes move back into an isolated network namespace. Any agent changing page state must still acquire the matching cooperative writer lease through `/usr/local/bin/3dvr-browser-lease`. Only one writer may hold a lane at once; read-only inspection may be concurrent. Expiring leases allow recovery when an agent disappears without restarting or cloning authenticated browser state.
 
 These fixed ports are specific to Thomas's current single-user OVH installation. Multi-user hosting must allocate isolated identity workspaces and resolve logical browser lanes through a session broker with dynamic host/process/port assignment, on-demand Chromium, per-user quotas, and portable managed/self-hosted execution. See [`docs/digital-thomas-operator-runtime.md`](./digital-thomas-operator-runtime.md) for the canonical scale-out contract.
+
+
+### Browser lane admission
+
+Additional/on-demand browser lanes are admitted only when the host has enough headroom. `/usr/local/bin/3dvr-browser-admit` checks available memory, load per CPU, and the number of active browser services before allowing identity/training/Encore lanes to start. The default policy keeps 2 GiB of host memory in reserve, allows at most three active browser lanes, and blocks starts above 1.25 load per CPU. Persistent core lanes remain de-prioritized with cgroup CPU/IO controls so browser work cannot starve production or recovery.
