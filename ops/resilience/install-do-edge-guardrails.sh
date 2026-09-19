@@ -40,6 +40,24 @@ cat >/etc/caddy/Caddyfile <<'CADDY'
     respond `{"ok":true,"edge":"digitalocean","upstreams":["ovh-primary","hetzner-standby"],"safeMode":"static"}` 200
   }
 
+  handle /__3dvr-primary-health {
+    reverse_proxy 127.0.0.1:14320 {
+      transport http {
+        dial_timeout 2s
+        response_header_timeout 5s
+      }
+    }
+  }
+
+  handle /__3dvr-standby-health {
+    reverse_proxy 127.0.0.1:14322 {
+      transport http {
+        dial_timeout 2s
+        response_header_timeout 5s
+      }
+    }
+  }
+
   @api path /api/*
   handle @api {
     reverse_proxy 127.0.0.1:14320 127.0.0.1:14322 {
@@ -91,11 +109,13 @@ cat >/etc/caddy/Caddyfile <<'CADDY'
     @api_error path /api/*
     handle @api_error {
       header Content-Type application/json
+      header Retry-After 30
       respond `{"error":"3DVR backend temporarily unavailable","safeMode":true}` 503
     }
     handle {
-      rewrite /index.html
-      file_server
+      header Content-Type text/html
+      header Retry-After 30
+      respond `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>3DVR Safe Mode</title></head><body style="font-family:system-ui,sans-serif;background:#0d1117;color:#e6edf3;margin:0;min-height:100vh;display:grid;place-items:center;padding:24px"><main style="max-width:620px"><p>3DVR safe mode</p><h1>The portal is recovering.</h1><p>The edge is healthy, but both portal backends are temporarily unavailable. Retry shortly.</p></main></body></html>` 503
     }
   }
 }
@@ -185,7 +205,11 @@ curl -fsS --max-time 5 http://127.0.0.1:14320/__3dvr-health >/tmp/3dvr-ovh-healt
 grep -q '"host":"self"' /tmp/3dvr-ovh-health.json
 curl -fsS --max-time 5 http://127.0.0.1:14322/__3dvr-health >/tmp/3dvr-hetzner-health.json
 grep -q '"standby":true' /tmp/3dvr-hetzner-health.json
-rm -f /tmp/3dvr-edge-health.json /tmp/3dvr-upstream-health.json /tmp/3dvr-ovh-health.json /tmp/3dvr-hetzner-health.json
+curl -fsS --max-time 5 http://127.0.0.1/__3dvr-primary-health >/tmp/3dvr-primary-public.json
+grep -q '"operatorApi":"native"' /tmp/3dvr-primary-public.json
+curl -fsS --max-time 5 http://127.0.0.1/__3dvr-standby-health >/tmp/3dvr-standby-public.json
+grep -q '"standby":true' /tmp/3dvr-standby-public.json
+rm -f /tmp/3dvr-edge-health.json /tmp/3dvr-upstream-health.json /tmp/3dvr-ovh-health.json /tmp/3dvr-hetzner-health.json /tmp/3dvr-primary-public.json /tmp/3dvr-standby-public.json
 
 echo "3dvr_do_edge_hardened=true"
 free -h
