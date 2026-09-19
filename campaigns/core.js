@@ -73,8 +73,7 @@ export function validateCampaign({
   body = '',
   businessName = '',
   postalAddress = '',
-  recipients = [],
-  sourceAcknowledged = false
+  recipients = []
 } = {}) {
   const errors = [];
   if (!String(subject || '').trim()) errors.push('Add a subject.');
@@ -82,7 +81,6 @@ export function validateCampaign({
   if (!String(businessName || '').trim()) errors.push('Add the business or sender name.');
   if (!String(postalAddress || '').trim()) errors.push('Add the business postal address.');
   if (!Array.isArray(recipients) || !recipients.length) errors.push('Add at least one valid recipient.');
-  if (!sourceAcknowledged) errors.push('Confirm that these are legitimate contacts, not a purchased or scraped spam list.');
   return { ok: errors.length === 0, errors };
 }
 
