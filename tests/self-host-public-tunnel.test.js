@@ -22,6 +22,12 @@ test('self-host deploy has a persistent public tunnel recovery path', async () =
   assert.match(ensure, /start_tunnel\(\) \{\s+stop_tunnel/);
   assert.match(ensure, /PORTAL_SELF_HOST_URL/);
   assert.match(ensure, /PORTAL_ORGANISM_BRIDGE_URL/);
+  assert.match(bridge, /THREEDVR_PORTAL_CANONICAL_URL:-https:\/\/portal\.3dvr\.tech/);
+  assert.match(bridge, /3dvr-organism-owner-bridge/);
+  assert.ok(
+    bridge.indexOf('canonical_url=') < bridge.indexOf('ensure-portal-public-tunnel.sh'),
+    'Organism bridge should reuse the canonical portal route before fallback tunneling',
+  );
   assert.match(bridge, /ensure-portal-public-tunnel\.sh/);
   assert.doesNotMatch(bridge, /state\/tunnel\.log/);
 });

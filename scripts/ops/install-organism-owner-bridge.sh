@@ -29,8 +29,15 @@ rm -f /tmp/3dvr-organism-ovh-health.json
 health="$(curl -fsS "http://127.0.0.1:$portal_port/__3dvr-health")"
 printf '%s' "$health" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.ok||x.organismRecall!=="signed-owner")process.exit(1)})'
 
-# Keep one public quick tunnel alive across portal releases. Restarting an
-# account-less tunnel on every deploy causes Cloudflare HTTP 429 rate limits.
+canonical_url="${THREEDVR_PORTAL_CANONICAL_URL:-https://portal.3dvr.tech}"
+canonical_health="$(curl -fsS --max-time 5 "$canonical_url/health" 2>/dev/null || true)"
+if [ -n "$canonical_health" ] && printf '%s' "$canonical_health" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const x=JSON.parse(s);if(!x.ok||x.service!=="3dvr-organism-owner-bridge")process.exit(1)}catch{process.exit(1)}})'; then
+  printf 'PORTAL_ORGANISM_BRIDGE_URL=%s\n' "$canonical_url"
+  exit 0
+fi
+
+# Fall back to one public quick tunnel only when the canonical portal route
+# does not expose the integrated Organism bridge.
 tunnel_output="$(THREEDVR_PORTAL_PRODUCTION_DIR="$portal_base" THREEDVR_PORTAL_PORT="$portal_port" bash "$portal_root/scripts/ops/ensure-portal-public-tunnel.sh")"
 printf '%s\n' "$tunnel_output"
 bridge_url="$(printf '%s\n' "$tunnel_output" | sed -n 's/^PORTAL_ORGANISM_BRIDGE_URL=//p' | tail -n1)"
