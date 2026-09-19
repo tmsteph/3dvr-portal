@@ -86,7 +86,7 @@ test('presence audio supports resumable upload, history, playback and one-time p
   assert.equal(claim.status, 200);
   const claimJson = await claim.json();
   assert.match(claimJson.deepLink, /^threedvr:\/\/presence\/pair\?/);
-  assert.match(claimJson.viewUrl, /\/presence-audio\/#view=/);
+  assert.match(claimJson.viewUrl, /\/3dvr-connect\/presence\/#view=/);
 
   const secondClaim = await fetch(origin + '/api/presence-audio/pair/claim', {
     method: 'POST',

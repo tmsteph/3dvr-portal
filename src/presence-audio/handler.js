@@ -368,7 +368,7 @@ export function createPresenceAudioHandler(options = {}) {
     const deepLink = 'threedvr://presence/pair?server=' + encodeURIComponent(origin)
       + '&upload=' + encodeURIComponent(uploadToken)
       + '&view=' + encodeURIComponent(viewToken);
-    const viewUrl = origin + '/presence-audio/#view=' + encodeURIComponent(viewToken);
+    const viewUrl = origin + '/3dvr-connect/presence/#view=' + encodeURIComponent(viewToken);
     return sendJson(res, 200, { ok: true, deepLink, viewUrl });
   }
 

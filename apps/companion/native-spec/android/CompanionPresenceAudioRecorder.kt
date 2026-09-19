@@ -107,7 +107,7 @@ class CompanionPresenceAudioRecorder(
         return mapOf(
             "paired" to (config != null),
             "server" to config?.server,
-            "viewUrl" to config?.let { "${it.server}/presence-audio/#view=${it.viewToken}" },
+            "viewUrl" to config?.let { "${it.server}/3dvr-connect/presence/#view=${it.viewToken}" },
             "recording" to recording.get(),
             "sessionId" to sessionId,
             "startedAt" to startedAt,
@@ -351,7 +351,7 @@ class CompanionPresenceAudioRecorder(
             return mapOf(
                 "paired" to (config != null),
                 "server" to config?.server,
-                "viewUrl" to config?.let { "${it.server}/presence-audio/#view=${it.viewToken}" },
+                "viewUrl" to config?.let { "${it.server}/3dvr-connect/presence/#view=${it.viewToken}" },
             )
         }
 

@@ -49,6 +49,7 @@ Using Accessibility for this purpose also needs a platform-policy review before 
 - `GET /api/presence-audio/live/:session`
 - `GET /api/presence-audio/sessions`
 - `GET /api/presence-audio/recordings/:session`
-- `GET /presence-audio/`
+- `GET /3dvr-connect/presence/` — canonical 3DVR Connect listener UI
+- `GET /presence-audio/` — compatibility redirect to the Connect listener
 
 Runtime secrets are generated on the self-hosted portal and are never committed.
