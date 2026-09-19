@@ -1,3 +1,3 @@
-Deploy request: homepage points fast hydration + navigation-safe Campaigns OAuth acceptance
-Commit target: 2ea150becabd12a518cc907f95cbf2af0a8148e4
-Reason: Verify 10,338-point homepage display and complete signed-in Gmail test-send acceptance.
+Deploy request: final signed-in Campaigns acceptance runner
+Commit target: 07d2832ce33266dd172647701195e5360eec7dcd
+Reason: Verify homepage 10,338 points display and Gmail test-to-self end to end.
