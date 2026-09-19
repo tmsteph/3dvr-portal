@@ -125,8 +125,10 @@ code="$(curl -sS --max-time 8 -o /tmp/standby-ai.json -w '%{http_code}' \
 grep -q '"standby":true' /tmp/standby-ai.json
 rm -f /tmp/standby-ai.json
 
-systemctl enable --now 3dvr-portal-do-standby-tunnel.service
-systemctl restart 3dvr-portal-do-standby-tunnel.service
+systemctl enable 3dvr-portal-do-standby-tunnel.service
+if ! systemctl is-active --quiet 3dvr-portal-do-standby-tunnel.service; then
+  systemctl start 3dvr-portal-do-standby-tunnel.service
+fi
 
 for _ in $(seq 1 20); do
   if tunnel_health="$(ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-do \
