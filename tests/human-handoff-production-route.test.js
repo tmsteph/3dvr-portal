@@ -8,11 +8,13 @@ const headerValue = (headers, key) => headers.find((header) => header.key === ke
 
 test('Human Handoff is never served from a stale edge cache', async () => {
   const config = JSON.parse(await readProjectFile('vercel.json'));
-  const rule = config.headers?.find((entry) => entry.source === '/human-handoff/:path*');
-  assert.ok(rule);
-  assert.equal(headerValue(rule.headers, 'Cache-Control'), 'no-store, max-age=0');
-  assert.equal(headerValue(rule.headers, 'CDN-Cache-Control'), 'no-store');
-  assert.equal(headerValue(rule.headers, 'Vercel-CDN-Cache-Control'), 'no-store');
+  for (const source of ['/human-handoff', '/human-handoff/', '/human-handoff/:path*']) {
+    const rule = config.headers?.find((entry) => entry.source === source);
+    assert.ok(rule, `missing cache rule for ${source}`);
+    assert.equal(headerValue(rule.headers, 'Cache-Control'), 'no-store, max-age=0');
+    assert.equal(headerValue(rule.headers, 'CDN-Cache-Control'), 'no-store');
+    assert.equal(headerValue(rule.headers, 'Vercel-CDN-Cache-Control'), 'no-store');
+  }
 
   const server = await readProjectFile('scripts/self-host-server.mjs');
   assert.match(server, /pathname === '\/human-handoff'/);
