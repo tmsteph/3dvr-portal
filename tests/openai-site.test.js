@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   buildOpenAiRequest,
   buildPrompt,
+  createOpenAiSiteRouter,
   createSiteGeneratorHandler,
   DEFAULT_MODEL,
   injectLayoutGuardStyles,
@@ -28,6 +29,10 @@ function createMockRes() {
     end(payload) {
       this.ended = true;
       this.body = payload ?? this.body;
+      return this;
+    },
+    send(payload) {
+      this.body = payload;
       return this;
     },
     setHeader(key, value) {
@@ -523,4 +528,43 @@ test('site generator handler streams search status before the final result', asy
       url: 'https://openai.com/'
     }
   ]);
+});
+
+test('self-host AI proxy preserves CORS headers for the Campaigns backup route', async () => {
+  const calls = [];
+  const handler = createOpenAiSiteRouter({
+    apiKey: '',
+    selfHostedFallbackOrigin: 'http://self-host.test',
+    fetchImpl: async (url, options) => {
+      calls.push({ url: String(url), options });
+      const headers = new Map([
+        ['content-type', 'application/json'],
+        ['access-control-allow-origin', '*'],
+        ['access-control-allow-methods', 'POST, OPTIONS'],
+        ['access-control-allow-headers', 'Content-Type']
+      ]);
+      return {
+        status: 200,
+        headers: { get: key => headers.get(String(key).toLowerCase()) || null },
+        body: null,
+        text: async () => JSON.stringify({ ok: true })
+      };
+    }
+  });
+
+  const res = createMockRes();
+  await handler({
+    method: 'POST',
+    url: '/api/openai-site?provider=lead-finder',
+    query: { provider: 'lead-finder' },
+    headers: { 'x-forwarded-for': '203.0.113.50' },
+    body: { leadFinder: true, description: 'local businesses' }
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.headers['access-control-allow-origin'], '*');
+  assert.equal(res.headers['access-control-allow-methods'], 'POST, OPTIONS');
+  assert.equal(res.headers['access-control-allow-headers'], 'Content-Type');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].options.headers['X-Forwarded-For'], '203.0.113.50');
 });

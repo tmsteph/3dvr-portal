@@ -1,3 +1,5 @@
+export const MESSAGE_REVIEW_STORAGE_KEY = '3dvr.moneyPrinter.messageReviewQueue.v1';
+
 export const MESSAGE_RISK_LEVELS = Object.freeze({
   GREEN: 'GREEN',
   YELLOW: 'YELLOW',
