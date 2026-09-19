@@ -37,13 +37,13 @@ test('message personalization and suppression are deterministic', () => {
   assert.match(message, /reply unsubscribe or stop/i);
 });
 
-test('campaign validation requires sender identity, address, recipients, and source acknowledgement', () => {
+test('campaign validation requires sender identity, address, and recipients', () => {
   const invalid = validateCampaign({ subject: 'Hi', body: 'Body', recipients: [{ email: 'x@example.com' }] });
   assert.equal(invalid.ok, false);
   assert.ok(invalid.errors.length >= 3);
   const valid = validateCampaign({
     subject: 'Hi', body: 'Body', businessName: 'Studio', postalAddress: '123 Main St',
-    recipients: [{ email: 'x@example.com' }], sourceAcknowledged: true,
+    recipients: [{ email: 'x@example.com' }],
   });
   assert.equal(valid.ok, true);
 });
@@ -70,7 +70,6 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.doesNotMatch(html, /<details class="card manual-customers"[^>]*\sopen(?:\s|>)/);
   assert.match(html, /Existing customers \/ manual list/);
   assert.match(html, /Prepare outreach/);
-  assert.match(html, /I confirm these are legitimate business contacts/);
   assert.match(html, /Location <span class="muted">\(optional\)<\/span>/);
   assert.match(html, /City, state, or ZIP/);
   assert.match(html, /id="leadLocationStatus"/);
@@ -93,7 +92,8 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(js, /formatPostalAddress/);
   assert.match(js, /markConnectionNeedsReconnect/);
   assert.match(js, /Reconnect Gmail before sending/);
-  assert.doesNotMatch(js, /elements\.sourceAck\.checked = true/);
+  assert.doesNotMatch(html, /id="sourceAck"/);
+  assert.doesNotMatch(js, /sourceAcknowledged/);
   assert.doesNotMatch(html, />\\n\s*<p class="muted">We’ll format spacing/);
   assert.match(html, /We’ll format spacing, street suffixes, state, and ZIP before sending/);
 });
