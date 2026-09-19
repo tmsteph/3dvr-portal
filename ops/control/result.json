@@ -1,8 +1,13 @@
 {
-  "ok": false,
-  "error": "control request failed before a sanitized result was produced",
-  "requestId": "portal-points-reconcile-20260919-1",
+  "ok": true,
+  "points": 10338,
+  "localPoints": 10338,
+  "aliasPointsBefore": 10338,
+  "pubPointsBefore": 10338,
+  "aliasPointsAfter": 10338,
+  "pubPointsAfter": 10338,
+  "requestId": "portal-points-reconcile-20260919-2",
   "action": "portal_points_reconcile",
-  "workflowOutcome": "failure",
-  "checkedAt": "2026-09-19T21:44:49Z"
+  "workflowOutcome": "success",
+  "checkedAt": "2026-09-19T21:49:23Z"
 }
