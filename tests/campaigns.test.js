@@ -70,6 +70,7 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.doesNotMatch(html, /<details class="card manual-customers"[^>]*\sopen(?:\s|>)/);
   assert.match(html, /Existing customers \/ manual list/);
   assert.match(html, /Prepare outreach/);
+  assert.match(html, /I confirm these are legitimate business contacts/);
   assert.match(html, /Location <span class="muted">\(optional\)<\/span>/);
   assert.match(html, /City, state, or ZIP/);
   assert.match(html, /id="leadLocationStatus"/);
@@ -90,5 +91,9 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(js, /Gmail authorization needs to be reconnected/);
   assert.match(js, /No further recipients were attempted/);
   assert.match(js, /formatPostalAddress/);
+  assert.match(js, /markConnectionNeedsReconnect/);
+  assert.match(js, /Reconnect Gmail before sending/);
+  assert.doesNotMatch(js, /elements\.sourceAck\.checked = true/);
+  assert.doesNotMatch(html, />\\n\s*<p class="muted">We’ll format spacing/);
   assert.match(html, /We’ll format spacing, street suffixes, state, and ZIP before sending/);
 });
