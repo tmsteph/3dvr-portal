@@ -1,9 +1,35 @@
 {
-  "ok": false,
-  "error": "The general authenticated browser lane is currently busy. No session was taken over.",
-  "browserLane": "general",
-  "requestId": "campaigns-user-acceptance-points-20260919-3",
-  "action": "campaigns_user_acceptance",
+  "ok": true,
+  "portalPages": [
+    {
+      "url": "https://portal.3dvr.tech/index.html",
+      "signedIn": true,
+      "username": "tmsteph",
+      "alias": "tmsteph@3dvr",
+      "hasPubKey": true,
+      "scoreCache": {
+        "3dvr:score:user:tmsteph@3dvr": "10338"
+      },
+      "profileScore": "",
+      "authBadge": "tmsteph · ⭐ 10338",
+      "title": "3DVR Portal"
+    },
+    {
+      "url": "https://portal.3dvr.tech/access/",
+      "signedIn": true,
+      "username": "tmsteph",
+      "alias": "tmsteph@3dvr",
+      "hasPubKey": true,
+      "scoreCache": {
+        "3dvr:score:user:tmsteph@3dvr": "10338"
+      },
+      "profileScore": "",
+      "authBadge": "",
+      "title": "Access · 3DVR"
+    }
+  ],
+  "requestId": "portal-points-status-20260919-1",
+  "action": "portal_points_status",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-19T21:32:28Z"
+  "checkedAt": "2026-09-19T21:35:15Z"
 }
