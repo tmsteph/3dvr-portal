@@ -516,16 +516,14 @@ export function createOpenAiSiteRouter(options = {}) {
   const fallbackOrigin = options.selfHostedFallbackOrigin
     ?? process.env.SELF_HOST_AI_ORIGIN
     ?? (process.env.VERCEL ? 'http://167.172.193.194' : '');
-  const hasLocalAiCredential = Boolean(
+  const hasLocalOpenAiCredential = Boolean(
     options.apiKey
     || process.env.OPENAI_API_KEY
-    || process.env.AI_GATEWAY_API_KEY
-    || process.env.VERCEL_OIDC_TOKEN
   );
   const fetchImpl = options.fetchImpl || globalThis.fetch;
 
   return async function handler(req, res) {
-    if (!hasLocalAiCredential && fallbackOrigin) {
+    if (!hasLocalOpenAiCredential && fallbackOrigin) {
       try {
         return await proxyToSelfHostedAi(req, res, { origin: fallbackOrigin, fetchImpl });
       } catch (error) {
