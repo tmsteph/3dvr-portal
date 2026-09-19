@@ -1,16 +1,33 @@
 {
   "ok": false,
-  "portal": {},
-  "location": {},
-  "gmail": {},
-  "ui": {},
-  "errors": [
-    {
-      "message": "Portal session is signed out and no saved Portal credentials are available in the persistent browser."
-    }
-  ],
-  "requestId": "campaigns-user-acceptance-20260919-1",
+  "portal": {
+    "signedIn": false,
+    "usernamePresent": false,
+    "hasPubKey": false,
+    "signInIssue": "Persistent browser is signed out of the Portal and has no saved Portal credentials.",
+    "syncStatus": "Lead Vault: checking secure sync…"
+  },
+  "location": {
+    "status": "Using your approximate location: San Diego, California",
+    "leadCount": 5
+  },
+  "gmail": {
+    "hadSavedConnection": false,
+    "oauth": "human-required",
+    "ready": false,
+    "sameAccount": false,
+    "scopeKey": "",
+    "statusText": ""
+  },
+  "ui": {
+    "spamCheckboxPresent": false,
+    "literalNewlineVisible": false
+  },
+  "errors": [],
+  "portalSignInOk": false,
+  "campaignsOk": false,
+  "requestId": "campaigns-user-acceptance-20260919-2",
   "action": "campaigns_user_acceptance",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-19T17:49:14Z"
+  "checkedAt": "2026-09-19T17:53:35Z"
 }
