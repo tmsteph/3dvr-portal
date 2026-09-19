@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - 'ops/resilience/install-ovh-guardrails.sh'
+      - 'ops/browser/3dvr-browser-lane-start'
+      - 'ops/browser/3dvr-browser-admit'
       - '.github/workflows/ovh-resilience.yml'
 
 permissions:
@@ -40,8 +42,14 @@ jobs:
         run: |
           set -euo pipefail
           opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
-          scp "${opts[@]}" ops/resilience/install-ovh-guardrails.sh debian@40.160.137.41:/tmp/install-ovh-guardrails.sh
-          ssh "${opts[@]}" debian@40.160.137.41             'sudo -n bash /tmp/install-ovh-guardrails.sh && rm -f /tmp/install-ovh-guardrails.sh'
+          scp "${opts[@]}"             ops/resilience/install-ovh-guardrails.sh             ops/browser/3dvr-browser-lane-start             ops/browser/3dvr-browser-admit             debian@40.160.137.41:/tmp/
+          ssh "${opts[@]}" debian@40.160.137.41 '
+            set -e
+            sudo -n install -m 0755 /tmp/3dvr-browser-lane-start /usr/local/bin/3dvr-browser-lane-start
+            sudo -n install -m 0755 /tmp/3dvr-browser-admit /usr/local/bin/3dvr-browser-admit
+            sudo -n bash /tmp/install-ovh-guardrails.sh
+            rm -f /tmp/install-ovh-guardrails.sh /tmp/3dvr-browser-lane-start /tmp/3dvr-browser-admit
+          '
 
       - name: Verify public portal remains healthy
         shell: bash
