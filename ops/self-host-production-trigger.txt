@@ -1,17 +1,1 @@
-encore-200-study 2026-09-08T14:59Z
-2026-09-10: provision secrets broker configuration during production deploy
-2026-09-10: require broker provisioning before portal startup
-2026-09-10: restart broker and require live socket after provisioning
-2026-09-10: deploy direct browser-to-OVH secrets broker route
-2026-09-10: deploy scoped secret write support
-2026-09-10: deploy Operator secure secret vault
-2026-09-10: deploy Bitwarden SDK stdin hardening
-2026-09-10: deploy local operator relay token file fallback
-2026-09-10: deploy rotated operator relay token acceptance
-2026-09-10: deploy native self-host reminder email route
-2026-09-10: deploy unified outreach suppression gate
-2026-09-12: deploy pain-first diagnostic sales motion
-2026-09-12: deploy persistent production tunnel fix
-2026-09-14: deploy Recovery Vault passkey and portable ciphertext self-test
-2026-09-17: deploy simplified Booking Assist page without workflow bubbles or arrows
-2026-09-18T22:20: portal persistent secret layer deploy
+campaigns-training-acceptance-20260919-1789836443745
