@@ -3,3 +3,5 @@ Commit target: 07d2832ce33266dd172647701195e5360eec7dcd
 Reason: Verify homepage 10,338 points display and Gmail test-to-self end to end.
 
 2026-09-19 shared-presence-audio
+
+2026-09-19 canonical-route-first-tunnel-fix

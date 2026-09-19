@@ -11,6 +11,13 @@ test('production deploy reuses the persistent public tunnel helper', async () =>
   assert.match(deploy, /THREEDVR_PORTAL_PRODUCTION_DIR="\$base"/);
   assert.match(deploy, /THREEDVR_PORTAL_PORT="\$port"/);
   assert.match(deploy, /Persistent Portal public tunnel/);
+  assert.match(deploy, /THREEDVR_PORTAL_CANONICAL_URL:-https:\/\/portal\.3dvr\.tech/);
+  assert.match(deploy, /Canonical Portal route already serves the deployed release/);
+  assert.ok(
+    deploy.indexOf('public_portal_ready "$canonical_portal_url"') <
+      deploy.indexOf('ensure-portal-public-tunnel.sh'),
+    'canonical public route should be reused before starting a fallback tunnel',
+  );
   assert.doesNotMatch(deploy, /3dvr-portal-quick-tunnel/);
   assert.doesNotMatch(deploy, /state\/tunnel\.log/);
 });
