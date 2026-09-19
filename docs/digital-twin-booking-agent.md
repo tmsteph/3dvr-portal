@@ -45,7 +45,7 @@ OVH resource lanes already separate production, workspace/browser, and dev/AI wo
 
 ### Persistent browser work
 
-Freelancer workspaces already support persistent browser state for systems without useful APIs. The current workforce access stack has verified authenticated paths for IATSE Local 122, Encore UKG/UltiPro, Encore SharePoint, and Lighthouse using persistent OVH browser profiles and a broker-owned credential-fill path.
+Freelancer workspaces already support persistent browser state for systems without useful APIs. The current workforce access stack has verified authenticated paths for IATSE Local 122, Encore UKG/UltiPro, Encore SharePoint, Encore Outlook email, and Lighthouse using persistent OVH browser profiles and a broker-owned credential-fill path. Encore Outlook should be treated as a first-class booking/schedule source because property managers distribute the rolling two-week schedule there as PDF attachments.
 
 ### Device mesh
 
@@ -85,12 +85,12 @@ Connectors collect and act through systems such as:
 
 - SMS / phone messaging
 - WhatsApp
-- Gmail / Outlook
+- Gmail / Outlook, including Encore Outlook through the SharePoint-backed Microsoft 365 session
 - calendars
 - IATSE portals
 - UKG / UltiPro
 - Lighthouse
-- Webclock / TouchBase when time-clock work is explicitly needed
+- Encore Time Management / TouchBase for time-off requests; clock/time-entry actions only when time-clock work is explicitly requested
 - freelance portals
 - staffing portals
 - job boards

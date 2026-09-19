@@ -1,18 +1,20 @@
 # 3DVR Workforce Access Runbook
 
-Updated: 2026-09-15
+Updated: 2026-09-18
 
-This runbook records the working access architecture and recovery procedures for IATSE Local 122, Encore UKG/UltiPro, Encore SharePoint, and Lighthouse. It exists so future agents recover existing access instead of rebuilding it from memory or asking Thomas to sign in again prematurely.
+This runbook records the working access architecture and recovery procedures for IATSE Local 122, Encore UKG/UltiPro, Encore SharePoint, Encore Outlook email, and Lighthouse. It exists so future agents recover existing access instead of rebuilding it from memory or asking Thomas to sign in again prematurely.
 
 ## Current verified state
 
-On 2026-09-15 the following were verified from the canonical OVH browser profiles:
+The following were verified from the canonical OVH browser profiles, with SharePoint/Outlook and UKG time-off re-verified end-to-end on 2026-09-18:
 
 | Service | Verified state | Canonical path |
 | --- | --- | --- |
 | IATSE Local 122 | Authenticated | `https://member.iatse.io/avail` |
 | Encore UKG / UltiPro | Authenticated | `https://n21.ultipro.com/default.aspx` |
-| Encore SharePoint / Connect | Authenticated | `https://psav.sharepoint.com/sites/encore-connect` |
+| Encore SharePoint / Connect | Authenticated | `https://psav.sharepoint.com/SitePages/Home.aspx` or Connect site |
+| Encore Outlook email | Authenticated through same Microsoft session | `https://outlook.office.com/mail/` |
+| Encore Time Off Calendar | Authenticated through UKG Time & Attendance launch | `https://avsgi.ultiprotime.com/ta/top/timeOffCalendar.jsp...` |
 | Lighthouse | Authenticated | `https://lighthouse2.psav.com/flowsheets/...` |
 
 These are session states, not guarantees that providers will never expire cookies or require MFA again. Always verify the live page before reporting authentication.
@@ -33,7 +35,7 @@ Persistent authenticated browser state lives only on OVH. Hetzner is the normal 
 
 | Lane | CDP | Host profile | Purpose |
 | --- | ---: | --- | --- |
-| `general` | `9222` | `/home/debian/.config/google-chrome-for-testing` | IATSE, SharePoint, Lighthouse, general authenticated web work |
+| `general` | `9222` | `/home/debian/.config/google-chrome-for-testing` | IATSE, Encore SharePoint, Encore Outlook, Lighthouse, general authenticated web work |
 | `encore` | `9333` | `/home/debian/.config/3dvr/browser-profiles/encore` | UKG / UltiPro |
 | `messaging` | `9444` | `/home/debian/.config/3dvr/browser-profiles/messaging` | Google Messages / WhatsApp |
 | `training` | `9555` | `/home/debian/.config/3dvr/browser-profiles/training` | Encore training; inactive when last verified |
@@ -98,7 +100,26 @@ The corrected behavior is:
 - Re-run the broker-backed credential login.
 - Report success only after reaching the real authenticated home page.
 
-Do not use TouchBase / `ultiprotime.com` as a substitute for UKG. TouchBase is a time-clock surface. Schedule and request-off work belongs in UKG/UltiPro unless Thomas explicitly asks for time-clock work.
+Do not treat TouchBase / `ultiprotime.com` as a generic time-clock-only dead end. The safe request-off path is launched from authenticated UKG and lands in the Encore Time Management module on `avsgi.ultiprotime.com`. The rule is: **never touch clock-in, clock-out, transfer, or time-entry controls unless Thomas explicitly asks for time-clock work; use only the Time Off Calendar / request-off controls for leave requests.**
+
+### Verified Encore time-off request workflow
+
+Verified end-to-end on 2026-09-18:
+
+1. Use the dedicated `encore` lane on CDP `9333`.
+2. If UKG is logged out or at `PostLogout.aspx`, run `3dvr-browser-login ukg` and verify `https://n21.ultipro.com/default.aspx`.
+3. From UKG, open **Time & Attendance**. This launches the authenticated Encore Time Management module on `https://avsgi.ultiprotime.com/`.
+4. Ignore the default Daily Timesheet / clock controls.
+5. Open **Time Off Calendar**.
+6. Click the target date cell. The modal is **New Time Off**.
+7. Resolve the **Type** field through its legacy lookup widget. For an unpaid/non-paid day off, the verified Encore code is **UNPAID VACATION**.
+8. Confirm the From and To dates are the same target date for a one-day request and leave **Partial Day** unchecked for a full day.
+9. Add a neutral comment if needed; `Unpaid day off.` was accepted on 2026-09-18.
+10. Click **OK** to stage the request. Verify the calendar row shows `UNSUBMITTED <TYPE>` on only the intended date.
+11. Before pressing the calendar-level **Submit** button, enumerate all `UNSUBMITTED` request rows. If any unrelated request is present, stop instead of bundling it accidentally.
+12. Submit only when the intended request is the only unsubmitted item. Verify the target row changes to `PENDING <TYPE>` / Pending Approval.
+
+For the 2026-10-01 test, the staged row was `UNSUBMITTED UNPAID VACATION`; after submission it became `PENDING UNPAID VACATION`. No clock or timesheet controls were touched.
 
 ## Encore SharePoint / Connect
 
@@ -111,6 +132,56 @@ When Microsoft asks for an account, use the corporate **Login ID** from the secu
 If Microsoft Authenticator number matching appears, surface only the ephemeral displayed number to Thomas and wait for approval. Never surface a TOTP, recovery code, push-approval token, or other reusable/authenticating secret. After approval, choose **Stay signed in: Yes** so the persistent `general` profile retains the Microsoft session.
 
 Verify success by reaching the Connect home site and seeing signed-in SharePoint navigation, not merely by observing Microsoft cookies.
+
+## Encore Outlook email
+
+Encore email uses the same Microsoft 365 session as SharePoint and belongs in the **OVH `general` lane on CDP `9222`**.
+
+Canonical mail URL: `https://outlook.office.com/mail/`.
+
+### Account-selection rule
+
+Do not assume the ChatGPT/Microsoft Outlook connector is the Encore mailbox. On 2026-09-18 the connected Outlook connector returned Thomas's personal `outlook.com` / IATSE mailbox, not the Encore work mailbox.
+
+When Thomas asks for **Encore Outlook**, **Encore email**, a message from an Encore manager, or schedule email from the property:
+
+1. Use the OVH `general` lane on CDP `9222`.
+2. Verify `https://psav.sharepoint.com/` is authenticated first. The signed-in SharePoint page should show Thomas's Encore identity.
+3. In the same browser profile, open `https://outlook.office.com/mail/`.
+4. Verify the title/account is the Encore Microsoft 365 mailbox before reading or acting on mail.
+5. If Outlook redirects to Microsoft sign-in, recover the SharePoint session first rather than creating a new profile or asking for credentials prematurely.
+6. If Microsoft requires Authenticator, surface only the provider's ephemeral number-match checkpoint and preserve the resulting session.
+
+### Manchester Grand Hyatt two-week schedule email workflow
+
+Observed schedule-mail pattern for property **9036 – Manchester Grand Hyatt San Diego**:
+
+- Sender: **Steve Habeeb**.
+- Subject pattern: `Schedules for the weeks of <week 1> and <week 2> at the Manchester Grand Hyatt 9036`.
+- The message contains **two weekly schedule PDF attachments**, one for each week.
+- The schedule is described in the email as the **next 2 weeks**.
+- Observed recent cadence is Thursday morning, but treat the actual newest email timestamp as authoritative instead of assuming a fixed publication time.
+- Weekly schedules overlap between releases, so the newer email can revise the nearer week. Steve's email explicitly says to review next week's schedule closely because there may have been changes.
+
+To answer “does the current two-week schedule cover DATE?”:
+
+1. Open Encore Outlook through the authenticated `general` lane.
+2. Search mail for `schedule`.
+3. Select the newest Manchester Grand Hyatt 9036 schedule email from Steve Habeeb.
+4. Read its subject/body and attachment filenames.
+5. Treat the two PDF filenames/week labels as the covered schedule weeks.
+6. Determine whether the requested date falls in either seven-day week.
+7. If the user asks what they are actually scheduled to work that day, open the matching weekly PDF and inspect Thomas's row/assignment; do not infer the shift from the email body alone.
+
+Verified example on 2026-09-18:
+
+- Newest schedule email received: **2026-09-17 10:08 AM**.
+- Subject: **Schedules for the weeks of September 21st and 28th at the Manchester Grand Hyatt 9036**.
+- Attachments:
+  - `GridWeeklySchedule-9036 - Manchester Grand Hyatt San Diego-09212026 (1).pdf`
+  - `GridWeeklySchedule-9036 - Manchester Grand Hyatt San Diego-09282026.pdf`
+- Therefore the release covers **2026-09-21 through 2026-10-04**.
+- **2026-10-01 is covered** by the week-of-2026-09-28 PDF.
 
 ## Lighthouse
 
