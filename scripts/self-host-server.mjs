@@ -14,6 +14,7 @@ const ROOT = resolve(process.env.PORTAL_ROOT || process.cwd());
 const RELEASE_SHA = String(process.env.PORTAL_RELEASE_SHA || '').trim();
 const RELEASE_REF = String(process.env.PORTAL_RELEASE_REF || 'main').trim();
 const LEGACY_API_ORIGIN = String(process.env.LEGACY_API_ORIGIN || '').replace(/\/+$/, '');
+const STANDBY_MODE = /^(1|true|yes|on)$/i.test(String(process.env.PORTAL_STANDBY || '').trim());
 const oauthProviderHandler = createOAuthProviderHandler();
 const organismBridgeHandler = createOrganismBridgeHandler();
 const SECRETS_BROKER_ALLOWED_ORIGINS = new Set(String(
@@ -268,11 +269,36 @@ const server = createServer(async (req, res) => {
   if (handleSecretsBrokerCors(req, res, url.pathname)) return;
 
   if (url.pathname === '/__3dvr-health') {
-    return json(res, 200, { ok: true, host: 'self', sha: RELEASE_SHA, ref: RELEASE_REF, operatorApi: 'native', organismRecall: 'signed-owner' });
+    return json(res, 200, {
+      ok: true,
+      host: 'self',
+      sha: RELEASE_SHA,
+      ref: RELEASE_REF,
+      operatorApi: STANDBY_MODE ? 'standby' : 'native',
+      organismRecall: STANDBY_MODE ? 'standby' : 'signed-owner',
+      standby: STANDBY_MODE
+    });
   }
 
   if (url.pathname === '/health' || url.pathname === '/recall') {
     return runOrganismRecall(req, res, url);
+  }
+
+  if (STANDBY_MODE) {
+    const standbyBlocked = new Set([
+      '/api/openai-site',
+      '/api/calendar/reminder-email',
+      '/api/secrets-broker',
+      '/health',
+      '/recall'
+    ]);
+    if (standbyBlocked.has(url.pathname) || url.pathname.startsWith('/api/oauth/')) {
+      return json(res, 503, {
+        error: '3DVR standby is serving the portal shell while the primary backend recovers.',
+        safeMode: true,
+        standby: true
+      });
+    }
   }
 
   if (url.pathname === '/api/openai-site') {
