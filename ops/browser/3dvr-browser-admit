@@ -8,7 +8,7 @@ case "$lane" in
 esac
 
 reserve_mb="${THREEDVR_BROWSER_HOST_RESERVE_MB:-2048}"
-max_active="${THREEDVR_BROWSER_MAX_ACTIVE:-3}"
+max_active="${THREEDVR_BROWSER_MAX_ACTIVE:-4}"
 max_load_per_cpu="${THREEDVR_BROWSER_MAX_LOAD_PER_CPU:-1.25}"
 
 case "$lane" in
