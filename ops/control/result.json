@@ -1,39 +1,8 @@
 {
-  "ok": true,
-  "portalPages": [
-    {
-      "url": "https://portal.3dvr.tech/index.html",
-      "signedIn": true,
-      "username": "tmsteph",
-      "alias": "tmsteph@3dvr",
-      "hasPubKey": true,
-      "scoreCache": {
-        "3dvr:score:user:tmsteph@3dvr": "10338"
-      },
-      "profileScore": "",
-      "authBadge": "tmsteph · ⭐ 10338",
-      "title": "3DVR Portal",
-      "remoteAliasPoints": null,
-      "remotePubPoints": null
-    },
-    {
-      "url": "https://portal.3dvr.tech/access/",
-      "signedIn": true,
-      "username": "tmsteph",
-      "alias": "tmsteph@3dvr",
-      "hasPubKey": true,
-      "scoreCache": {
-        "3dvr:score:user:tmsteph@3dvr": "10338"
-      },
-      "profileScore": "",
-      "authBadge": "",
-      "title": "Access · 3DVR",
-      "remoteAliasPoints": null,
-      "remotePubPoints": null
-    }
-  ],
-  "requestId": "portal-points-status-remote-20260919-2",
-  "action": "portal_points_status",
-  "workflowOutcome": "success",
-  "checkedAt": "2026-09-19T21:37:28Z"
+  "ok": false,
+  "error": "control request failed before a sanitized result was produced",
+  "requestId": "portal-points-reconcile-20260919-1",
+  "action": "portal_points_reconcile",
+  "workflowOutcome": "failure",
+  "checkedAt": "2026-09-19T21:44:49Z"
 }
