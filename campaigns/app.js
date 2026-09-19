@@ -6,6 +6,11 @@ import {
   remainingDailyAllowance,
   validateCampaign,
 } from './core.js';
+import { fetchPortalJson } from './api.js';
+import {
+  markCampaignLeadStatus,
+  queueCampaignLeads
+} from '../src/money-printer/campaignBridge.js';
 
 const STORAGE = {
   connection: '3dvr.campaigns.google.connection',
@@ -102,7 +107,7 @@ async function findLeads(event) {
   elements.findLeads.textContent = 'Searching…';
 
   try {
-    const response = await fetch('/api/openai-site?provider=lead-finder', {
+    const { response, payload, usedFallback } = await fetchPortalJson('/api/openai-site?provider=lead-finder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -112,7 +117,6 @@ async function findLeads(event) {
         count: Number(elements.leadCount.value) || 10,
       }),
     });
-    const payload = await response.json().catch(() => ({}));
     if (!response.ok || !payload.ok) {
       const code = String(payload.code || '').toLowerCase();
       if (response.status === 402 || /credit|quota|billing|spend/.test(code + ' ' + String(payload.error || ''))) {
@@ -139,9 +143,10 @@ async function findLeads(event) {
     });
     renderLeadResults();
     updateSummary();
+    const routeNote = usedFallback ? ' Backup route used.' : '';
     showLeadNotice(discoveredLeads.length
-      ? `Found ${discoveredLeads.length} likely customer${discoveredLeads.length === 1 ? '' : 's'} with public source evidence${suggestedCampaign?.body ? ' and drafted your outreach' : ''}. Review the matches, then use the ones you want.`
-      : 'No publicly verified business emails were found for that search. Try broadening the offer, customer type, or location.',
+      ? `Found ${discoveredLeads.length} likely customer${discoveredLeads.length === 1 ? '' : 's'} with public source evidence${suggestedCampaign?.body ? ' and drafted your outreach' : ''}. Review the matches, then use the ones you want.${routeNote}`
+      : `No publicly verified business emails were found for that search. Try broadening the offer, customer type, or location.${routeNote}`,
       discoveredLeads.length ? 'success' : '');
   } catch (error) {
     showLeadNotice(error.message || 'Lead search failed.', 'error');
@@ -167,8 +172,18 @@ function addSelectedLeads() {
   elements.contactSource.value = 'Business contacts I researched individually';
   elements.sourceAck.checked = true;
   writeJson(STORAGE.draft, draftSnapshot());
+  const moneyPrinter = queueCampaignLeads({
+    leads: selected,
+    subject: elements.subject.value,
+    body: elements.message.value,
+    offer: elements.leadDescription.value,
+    senderName: elements.businessName.value
+  });
   updateSummary();
-  showLeadNotice(`Added ${selected.length} selected customer${selected.length === 1 ? '' : 's'}. Your outreach is ready to review below.`, 'success');
+  showLeadNotice(
+    `Added ${selected.length} selected customer${selected.length === 1 ? '' : 's'} and queued ${moneyPrinter.queued || selected.length} in Money Printer for review. Your outreach is ready below.`,
+    'success'
+  );
   elements.subject?.closest('.card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function draftSnapshot() {
@@ -345,8 +360,10 @@ async function runCampaign(event) {
       await gmailSend({ to: recipient.email, subject: elements.subject.value.trim(), text: messageFor(recipient) });
       sent += 1;
       incrementSent();
+      markCampaignLeadStatus(recipient.email, 'sent');
     } catch (error) {
       failed += 1;
+      markCampaignLeadStatus(recipient.email, 'send-failed');
       console.error(error);
     }
     setProgress(index + 1, batch.length, `Sent ${sent} · Failed ${failed}`);

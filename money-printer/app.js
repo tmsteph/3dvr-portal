@@ -23,6 +23,7 @@ import {
 import { readConnectorStatuses } from '../src/money-printer/moneyPrinterConnectors.js';
 import { createMoneyPrinterStorage } from '../src/money-printer/moneyPrinterStorage.js';
 import {
+  MESSAGE_REVIEW_STORAGE_KEY,
   createMessageReviewItem,
   seedTrustReviewQueue
 } from '../src/money-printer/messageReview.js';
@@ -69,7 +70,6 @@ const elements = {
 
 const opportunityCaptureContext = parseOpportunityCaptureContext(window.location.search);
 const moneyPrinterStorage = createMoneyPrinterStorage();
-const MESSAGE_REVIEW_STORAGE_KEY = '3dvr.moneyPrinter.messageReviewQueue.v1';
 let connectorStatuses = [];
 let state = moneyPrinterStorage.hydrate();
 let messageReviewQueue = loadMessageReviewQueue();

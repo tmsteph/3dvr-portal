@@ -106,6 +106,15 @@ async function proxyToSelfHostedAi(req, res, { origin, fetchImpl = globalThis.fe
   if (cacheControl) {
     res.setHeader('Cache-Control', cacheControl);
   }
+  for (const header of [
+    'access-control-allow-origin',
+    'access-control-allow-methods',
+    'access-control-allow-headers',
+    'retry-after'
+  ]) {
+    const value = response.headers.get(header);
+    if (value) res.setHeader(header, value);
+  }
 
   if (response.body?.getReader) {
     const reader = response.body.getReader();
