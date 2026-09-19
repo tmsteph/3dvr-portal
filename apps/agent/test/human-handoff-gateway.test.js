@@ -76,3 +76,11 @@ test('CLI parsing keeps handoff creation explicit', () => {
     },
   );
 });
+
+test('identity lane is available for independent OAuth handoffs', () => {
+  const source = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '../thomas-agent/node/human-handoff-gateway.js'),
+    'utf8',
+  );
+  assert.match(source, /identity:\s*9666/);
+});

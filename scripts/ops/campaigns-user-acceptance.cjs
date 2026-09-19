@@ -6,6 +6,7 @@ const puppeteer = require(puppeteerPath);
 
 const ORIGIN = 'https://portal.3dvr.tech';
 const BROWSER_URL = process.env.BROWSER_URL || 'http://127.0.0.1:9222';
+const ALLOW_UNSIGNED_PORTAL = process.env.ALLOW_UNSIGNED_PORTAL === '1';
 const summary = {
   ok: false,
   portal: {},

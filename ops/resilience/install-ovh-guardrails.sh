@@ -157,7 +157,7 @@ for service in openbao.service 3dvr-secrets-broker.service 3dvr-portal.service c
 done
 
 # Apply CPU/IO limits to running browser lanes without restarting their sessions.
-for lane in general encore messaging training; do
+for lane in general identity encore messaging training; do
   unit="3dvr-browser-lane@${lane}.service"
   if systemctl is-active --quiet "$unit"; then
     systemctl set-property --runtime "$unit" CPUWeight=100 IOWeight=100 CPUQuota=75% >/dev/null
