@@ -8,6 +8,7 @@ on:
       - 'ops/resilience/install-ovh-guardrails.sh'
       - 'ops/browser/3dvr-browser-lane-start'
       - 'ops/browser/3dvr-browser-admit'
+      - 'apps/agent/thomas-agent/node/human-handoff-gateway.js'
       - '.github/workflows/ovh-resilience.yml'
 
 permissions:
@@ -42,13 +43,17 @@ jobs:
         run: |
           set -euo pipefail
           opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
-          scp "${opts[@]}"             ops/resilience/install-ovh-guardrails.sh             ops/browser/3dvr-browser-lane-start             ops/browser/3dvr-browser-admit             debian@40.160.137.41:/tmp/
+          scp "${opts[@]}"             ops/resilience/install-ovh-guardrails.sh             ops/browser/3dvr-browser-lane-start             ops/browser/3dvr-browser-admit \
+            apps/agent/thomas-agent/node/human-handoff-gateway.js \
+            debian@40.160.137.41:/tmp/
           ssh "${opts[@]}" debian@40.160.137.41 '
             set -e
             sudo -n install -m 0755 /tmp/3dvr-browser-lane-start /usr/local/bin/3dvr-browser-lane-start
             sudo -n install -m 0755 /tmp/3dvr-browser-admit /usr/local/bin/3dvr-browser-admit
             sudo -n bash /tmp/install-ovh-guardrails.sh
-            rm -f /tmp/install-ovh-guardrails.sh /tmp/3dvr-browser-lane-start /tmp/3dvr-browser-admit
+            sudo -n install -o debian -g debian -m 0644 /tmp/human-handoff-gateway.js /home/debian/worktrees/human-handoff-live/apps/agent/thomas-agent/node/human-handoff-gateway.js
+            sudo -n systemctl restart 3dvr-human-handoff.service
+            rm -f /tmp/install-ovh-guardrails.sh /tmp/3dvr-browser-lane-start /tmp/3dvr-browser-admit /tmp/human-handoff-gateway.js
           '
 
       - name: Verify public portal remains healthy
