@@ -114,6 +114,7 @@ Email aliases:
 3dvr server doctor       test the configured dev server SSH connection
 3dvr sales               summarize, publish, or run the sales loop
 3dvr revenue             market research, A/B experiments, and revenue reports
+3dvr frantic             Frantic runway, board, and guarded shingle control
 3dvr crm sync            write local leads and outreach history to portal CRM
 
 Agent:
@@ -737,6 +738,9 @@ CRM_HELP
     ;;
   revenue|market|experiments)
     exec "$SCRIPT_DIR/ask-revenue" "$@"
+    ;;
+  frantic)
+    exec "$SCRIPT_DIR/ask-frantic" "$@"
     ;;
   meeting)
     case "${1:-}" in
