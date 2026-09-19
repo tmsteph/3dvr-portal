@@ -194,8 +194,11 @@ jobs:
           export PUPPETEER_CORE_PATH="$puppeteer_core"
           export BROWSER_URL="http://127.0.0.1:9222"
 
-          cd /opt/3dvr-portal-production/current
-          node scripts/ops/campaigns-user-acceptance.cjs
+          runner=/tmp/campaigns-user-acceptance.cjs
+          curl -fsSL --retry 3 --retry-delay 1 \
+            https://raw.githubusercontent.com/tmsteph/3dvr-portal/main/scripts/ops/campaigns-user-acceptance.cjs \
+            -o "$runner"
+          node "$runner"
           OVH
               ;;
             openai_admin_store_clipboard)
