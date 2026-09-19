@@ -35,7 +35,7 @@ jobs:
           service="$(jq -r '.service // empty' ops/control/request.json)"
           test -n "$id"
           case "$action" in
-            status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_promote_secrets|portal_ai_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard|campaigns_acceptance) ;;
+            status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_promote_secrets|portal_ai_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard|campaigns_acceptance|campaigns_user_acceptance) ;;
             restart)
               case "$service" in
                 3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service) ;;
@@ -174,6 +174,28 @@ jobs:
 
           cd /opt/3dvr-portal-production/current
           node scripts/ops/campaigns-acceptance.cjs
+          OVH
+              ;;
+            campaigns_user_acceptance)
+              ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          token=""
+          if ! token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general control-bus-campaigns-user-acceptance 1200 2>/dev/null)"; then
+            jq -n '{ok:false,error:"The general authenticated browser lane is currently busy. No session was taken over.",browserLane:"general"}'
+            exit 0
+          fi
+          cleanup() {
+            sudo -n /usr/local/bin/3dvr-browser-lease release general "$token" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT INT TERM
+
+          puppeteer_core="$(find /home/debian/.npm/_npx -type f -path '*/puppeteer-core/lib/puppeteer/puppeteer-core.js' -print -quit 2>/dev/null || true)"
+          [ -n "$puppeteer_core" ] && [ -f "$puppeteer_core" ]
+          export PUPPETEER_CORE_PATH="$puppeteer_core"
+          export BROWSER_URL="http://127.0.0.1:9222"
+
+          cd /opt/3dvr-portal-production/current
+          node scripts/ops/campaigns-user-acceptance.cjs
           OVH
               ;;
             openai_admin_store_clipboard)
