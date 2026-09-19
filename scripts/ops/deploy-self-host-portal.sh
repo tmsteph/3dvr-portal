@@ -354,7 +354,19 @@ public_portal_ready() {
 }
 
 portal_url=''
-if [ -n "${THREEDVR_CLOUDFLARE_TUNNEL_TOKEN:-}" ] && [ "$(id -u)" = 0 ] && command -v systemctl >/dev/null 2>&1; then
+canonical_portal_url="${THREEDVR_PORTAL_CANONICAL_URL:-https://portal.3dvr.tech}"
+for _ in $(seq 1 6); do
+  if public_portal_ready "$canonical_portal_url"; then
+    portal_url="$canonical_portal_url"
+    echo "Canonical Portal route already serves the deployed release: $portal_url"
+    break
+  fi
+  sleep 2
+done
+
+if [ -n "$portal_url" ]; then
+  :
+elif [ -n "${THREEDVR_CLOUDFLARE_TUNNEL_TOKEN:-}" ] && [ "$(id -u)" = 0 ] && command -v systemctl >/dev/null 2>&1; then
   cat > /etc/systemd/system/3dvr-portal-tunnel.service <<EOF
 [Unit]
 Description=3DVR portal Cloudflare tunnel
