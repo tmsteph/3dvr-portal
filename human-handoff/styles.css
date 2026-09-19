@@ -21,12 +21,16 @@ button.secondary{background:#29292e;color:#f7f7f4}
 .session header strong,.session header small{display:block}
 .session header small{color:#999}
 .header-actions{display:flex;gap:8px}
-.header-actions button{min-height:44px;border-radius:14px}
+.header-actions button{min-height:44px;border-radius:14px}.header-actions #backspace,.header-actions #paste{white-space:nowrap}
+.guide{display:flex;gap:12px;align-items:center;padding:10px 12px;border-bottom:1px solid #29292e;background:#141417}
+.guide[hidden]{display:none}
+.guide-copy{min-width:0;flex:1}.guide-copy small,.guide-copy strong{display:block}.guide-copy small{color:#8f8f94;font-size:12px;margin-bottom:2px}.guide-copy strong{font-size:15px;line-height:1.28}
+.guide-actions{display:flex;gap:8px;flex:0 0 auto}.guide-actions button{min-height:42px;border-radius:13px;padding:0 14px}
 .viewport{position:relative;flex:1;min-height:0;display:grid;place-items:center;overflow:hidden;background:#050505;touch-action:none}
 #frame{display:block;max-width:100%;max-height:100%;width:auto;height:auto;user-select:none;-webkit-user-drag:none;touch-action:none;transform-origin:center center;will-change:transform}
 .placeholder{position:absolute;text-align:center;padding:24px;color:#bbb;pointer-events:none}
 .placeholder strong,.placeholder span{display:block}
 .placeholder span{font-size:13px;color:#777;margin-top:8px}
 .keyboard-proxy{position:fixed;left:50%;bottom:max(2px,env(safe-area-inset-bottom));width:2px;height:2px;min-width:0;min-height:0;margin:0;padding:0;border:0;outline:0;opacity:.01;background:transparent;color:transparent;caret-color:transparent;pointer-events:none;transform:translateX(-50%);font-size:16px;resize:none}
-@media(max-width:620px){h1{font-size:31px}.card{padding:24px 20px;border-radius:24px}.session header{align-items:stretch;flex-direction:column}.header-actions{display:grid;grid-template-columns:1fr}}
+@media(max-width:620px){h1{font-size:31px}.card{padding:24px 20px;border-radius:24px}.session header{align-items:stretch;flex-direction:column}.header-actions{display:grid;grid-template-columns:repeat(3,1fr)}.guide{align-items:stretch;flex-direction:column}.guide-actions{display:grid;grid-template-columns:1fr 1fr}.guide-actions button{width:100%}}
 @media(orientation:landscape) and (max-height:600px){main{padding:10px}.card{padding:18px 22px}.eyebrow{margin-top:12px}.meta{margin:14px 0}.session header{flex-direction:row;align-items:center}}

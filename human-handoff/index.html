@@ -30,9 +30,21 @@
           <small id="sessionStatus">Connected to the exact browser tab</small>
         </div>
         <div class="header-actions">
+          <button id="paste" type="button">Paste</button>
+          <button id="backspace" type="button">⌫ Backspace</button>
           <button id="done">Done — return to agent</button>
         </div>
       </header>
+      <section id="guide" class="guide" hidden aria-live="polite">
+        <div class="guide-copy">
+          <small id="guideProgress">Step 1 of 1</small>
+          <strong id="guideInstruction">Complete this step.</strong>
+        </div>
+        <div class="guide-actions">
+          <button id="guideBack" type="button" class="secondary">Back</button>
+          <button id="guideNext" type="button">Next</button>
+        </div>
+      </section>
       <div class="viewport" id="viewport">
         <img id="frame" alt="Live remote browser viewport">
         <div class="placeholder" id="loading">
@@ -51,6 +63,6 @@
       ></textarea>
     </section>
   </main>
-  <script src="app.js"></script>
+  <script src="app.js?v=20260919-guided-edge-pan"></script>
 </body>
 </html>

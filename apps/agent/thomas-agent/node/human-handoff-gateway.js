@@ -37,6 +37,24 @@ function targetMatchesOrigin(targetUrl, requestedOrigin) {
   }
 }
 
+function normalizeGuideSteps(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 12).map((step, index) => {
+    if (typeof step === 'string') {
+      const instruction = step.trim().slice(0, 240);
+      return instruction ? { id: `step-${index + 1}`, instruction, targetText: '' } : null;
+    }
+    if (!step || typeof step !== 'object') return null;
+    const instruction = String(step.instruction || step.label || '').trim().slice(0, 240);
+    if (!instruction) return null;
+    return {
+      id: String(step.id || `step-${index + 1}`).trim().slice(0, 80),
+      instruction,
+      targetText: String(step.targetText || '').trim().slice(0, 240),
+    };
+  }).filter(Boolean);
+}
+
 function json(res, status, body) {
   const data = Buffer.from(JSON.stringify(body));
   res.writeHead(status, {
@@ -91,6 +109,7 @@ function persistableHandoff(handoff) {
     origin: handoff.origin,
     serviceName: handoff.serviceName,
     reason: handoff.reason,
+    guideSteps: normalizeGuideSteps(handoff.guideSteps),
     state: handoff.state,
     createdAt: handoff.createdAt,
     expiresAt: handoff.expiresAt,
@@ -339,6 +358,7 @@ function createGateway() {
     const origin = String(options.origin || '').trim();
     const serviceName = String(options.serviceName || 'Website').trim().slice(0, 80);
     const reason = String(options.reason || 'A human-only step needs your attention.').trim().slice(0, 240);
+    const guideSteps = normalizeGuideSteps(options.guideSteps || options.steps);
     if (!LANE_PORTS[lane]) throw new Error('Unsupported browser lane.');
     if (!/^https?:\/\//i.test(origin)) throw new Error('A valid target origin is required.');
 
@@ -361,6 +381,7 @@ function createGateway() {
       origin: new URL(origin).origin,
       serviceName,
       reason,
+      guideSteps,
       state: 'needs_human',
       createdAt: Date.now(),
       expiresAt: Date.now() + TTL_MS,
@@ -396,6 +417,7 @@ function createGateway() {
     return {
       serviceName: handoff.serviceName,
       reason: handoff.reason,
+      guideSteps: normalizeGuideSteps(handoff.guideSteps),
       expiresAt: new Date(handoff.expiresAt).toISOString(),
     };
   }
@@ -422,6 +444,7 @@ function createGateway() {
       sessionToken,
       serviceName: handoff.serviceName,
       reason: handoff.reason,
+      guideSteps: normalizeGuideSteps(handoff.guideSteps),
       expiresAt: new Date(handoff.expiresAt).toISOString(),
     };
   }
@@ -430,9 +453,13 @@ function createGateway() {
     const handoff = activeOrThrow(fromSession(token));
     if (handoff.state !== 'human_active') throw Object.assign(new Error('Handoff is not open.'), { statusCode: 409 });
     if (!handoff.screencastStarted) await startScreencast(handoff);
-    await waitForNewFrame(handoff, Math.max(0, Number(after) || 0));
+    const requestedAfter = Math.max(0, Number(after) || 0);
+    await waitForNewFrame(handoff, requestedAfter);
 
-    if (!handoff.latestFrame) {
+    // Chrome can stop emitting screencast frames across top-level navigation.
+    // Never serve the cached pre-navigation image forever: if no fresh frame
+    // arrived during the long-poll window, capture the current tab directly.
+    if (!handoff.latestFrame || handoff.frameSeq <= requestedAfter) {
       const result = await handoff.client.send('Page.captureScreenshot', {
         format: 'jpeg',
         quality: 58,
@@ -444,6 +471,41 @@ function createGateway() {
     }
 
     return { image: handoff.latestFrame, seq: handoff.frameSeq };
+  }
+
+  async function guide(token, requestedIndex = 0) {
+    const handoff = activeOrThrow(fromSession(token));
+    if (handoff.state !== 'human_active') throw Object.assign(new Error('Handoff is not open.'), { statusCode: 409 });
+    const steps = normalizeGuideSteps(handoff.guideSteps);
+    if (!steps.length) return { index: 0, total: 0, step: null, found: false };
+
+    const index = Math.max(0, Math.min(steps.length - 1, Number(requestedIndex) || 0));
+    const step = steps[index];
+    let found = false;
+
+    if (step.targetText) {
+      const expression = `(() => {
+        const needle = ${JSON.stringify(step.targetText)}.toLowerCase().replace(/\\s+/g, ' ').trim();
+        const textOf = el => String(
+          el.innerText || el.textContent || el.value || el.getAttribute?.('aria-label') || ''
+        ).toLowerCase().replace(/\\s+/g, ' ').trim();
+        const candidates = Array.from(document.querySelectorAll(
+          'button,a,label,input,textarea,[role=checkbox],[role=radio],[role=button],summary,p,span,div'
+        ));
+        const exact = candidates.find(el => textOf(el) === needle);
+        const partial = exact || candidates.find(el => textOf(el).includes(needle));
+        if (!partial) return false;
+        partial.scrollIntoView({ block: 'center', inline: 'center', behavior: 'auto' });
+        return true;
+      })()`;
+      const result = await handoff.client.send('Runtime.evaluate', {
+        expression,
+        returnByValue: true,
+      }).catch(() => ({ result: { value: false } }));
+      found = Boolean(result?.result?.value);
+    }
+
+    return { index, total: steps.length, step, found };
   }
 
   async function input(token, action = {}) {
@@ -461,12 +523,25 @@ function createGateway() {
       await handoff.client.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x, y, deltaX: 0, deltaY });
     } else if (kind === 'text') {
       await handoff.client.send('Input.insertText', { text: String(action.text || '').slice(0, 1000) });
+    } else if (kind === 'paste') {
+      const control = { key: 'Control', code: 'ControlLeft', windowsVirtualKeyCode: 17, nativeVirtualKeyCode: 17 };
+      const v = { key: 'v', code: 'KeyV', windowsVirtualKeyCode: 86, nativeVirtualKeyCode: 86 };
+      await handoff.client.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...control, modifiers: 2 });
+      await handoff.client.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...v, modifiers: 2 });
+      await handoff.client.send('Input.dispatchKeyEvent', { type: 'keyUp', ...v, modifiers: 2 });
+      await handoff.client.send('Input.dispatchKeyEvent', { type: 'keyUp', ...control, modifiers: 0 });
     } else if (kind === 'key') {
-      const allowed = new Set(['Enter', 'Tab', 'Backspace', 'Escape']);
       const key = String(action.key || '');
-      if (!allowed.has(key)) throw Object.assign(new Error('Unsupported key.'), { statusCode: 400 });
-      await handoff.client.send('Input.dispatchKeyEvent', { type: 'keyDown', key });
-      await handoff.client.send('Input.dispatchKeyEvent', { type: 'keyUp', key });
+      const keySpec = {
+        Enter: { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 },
+        Tab: { key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9 },
+        Backspace: { key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 },
+        Delete: { key: 'Delete', code: 'Delete', windowsVirtualKeyCode: 46, nativeVirtualKeyCode: 46 },
+        Escape: { key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 },
+      }[key];
+      if (!keySpec) throw Object.assign(new Error('Unsupported key.'), { statusCode: 400 });
+      await handoff.client.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...keySpec });
+      await handoff.client.send('Input.dispatchKeyEvent', { type: 'keyUp', ...keySpec });
     } else {
       throw Object.assign(new Error('Unsupported input action.'), { statusCode: 400 });
     }
@@ -569,7 +644,7 @@ function createGateway() {
     };
   }
 
-  return { createHandoff, preview, open, frame, input, resolve, cancel, renewActive, restore, status };
+  return { createHandoff, preview, open, frame, guide, input, resolve, cancel, renewActive, restore, status };
 }
 
 function bearer(req) {
@@ -632,6 +707,10 @@ async function startServer() {
           'x-handoff-frame-seq': String(frame.seq),
         });
         return res.end(frame.image);
+      }
+      if (pathname === '/human-handoff/api/guide' && req.method === 'POST') {
+        const body = await readJson(req);
+        return json(res, 200, await gateway.guide(bearer(req), body.index));
       }
       if (pathname === '/human-handoff/api/input' && req.method === 'POST') {
         const body = await readJson(req);
@@ -701,6 +780,7 @@ async function runCli(argv = process.argv.slice(2)) {
         origin: args.origin,
         serviceName: args.service || 'Website',
         reason: args.reason || 'A human-only step needs your attention.',
+        guideSteps: args.steps ? JSON.parse(args.steps) : [],
       }),
     });
     const body = await response.json();
@@ -729,6 +809,7 @@ module.exports = {
   CdpClient,
   createGateway,
   hashToken,
+  normalizeGuideSteps,
   parseCli,
   persistableHandoff,
   safeEqual,

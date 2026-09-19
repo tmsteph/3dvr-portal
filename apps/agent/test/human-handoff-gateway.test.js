@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const {
   hashToken,
+  normalizeGuideSteps,
   parseCli,
   persistableHandoff,
   safeEqual,
@@ -16,6 +17,19 @@ test('handoff tokens are hashed and compared without plaintext persistence helpe
   assert.equal(safeEqual('same', 'different'), false);
 });
 
+test('guide steps are small, ordered, and sanitized', () => {
+  const steps = normalizeGuideSteps([
+    ' Read the agreement ',
+    { id: 'approve', label: 'Confirm if you agree', targetText: ' I acknowledge ' },
+    {},
+  ]);
+  assert.deepEqual(steps, [
+    { id: 'step-1', instruction: 'Read the agreement', targetText: '' },
+    { id: 'approve', instruction: 'Confirm if you agree', targetText: 'I acknowledge' },
+  ]);
+  assert.equal(normalizeGuideSteps('not-an-array').length, 0);
+});
+
 test('persisted handoffs exclude runtime credentials and frame data', () => {
   const saved = persistableHandoff({
     id: 'handoff-1',
@@ -23,6 +37,7 @@ test('persisted handoffs exclude runtime credentials and frame data', () => {
     origin: 'https://example.com',
     serviceName: 'Example',
     reason: 'Human step',
+    guideSteps: [{ instruction: 'Confirm', targetText: 'I acknowledge' }],
     state: 'human_active',
     createdAt: 1,
     expiresAt: 2,
@@ -35,6 +50,9 @@ test('persisted handoffs exclude runtime credentials and frame data', () => {
   });
   assert.equal(saved.id, 'handoff-1');
   assert.equal(saved.sessionHash, 'session-hash');
+  assert.deepEqual(saved.guideSteps, [
+    { id: 'step-1', instruction: 'Confirm', targetText: 'I acknowledge' },
+  ]);
   assert.equal('leaseToken' in saved, false);
   assert.equal('client' in saved, false);
   assert.equal('latestFrame' in saved, false);
