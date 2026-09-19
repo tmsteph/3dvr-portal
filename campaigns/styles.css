@@ -14,7 +14,10 @@ button, input, textarea, select { font: inherit; }
 .quiet-link { color: #9da7b3; text-decoration: none; font-weight: 700; }
 .hero { padding: 42px 2px 22px; }
 .hero h1 { margin: 5px 0 12px; max-width: 650px; font-size: clamp(2.25rem, 10vw, 4.6rem); line-height: .96; letter-spacing: -.055em; }
-.hero > p:last-child { margin: 0; max-width: 590px; color: #9da7b3; font-size: 1.02rem; line-height: 1.55; }
+.hero > p { margin: 0; max-width: 590px; color: #9da7b3; font-size: 1.02rem; line-height: 1.55; }
+.fast-path { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.fast-path span { display: inline-flex; gap: 7px; align-items: center; padding: 7px 10px; border: 1px solid #30363d; border-radius: 999px; color: #c9d1d9; font-size: .82rem; font-weight: 750; background: rgba(13,17,23,.55); }
+.fast-path b { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #1f6feb; color: #fff; font-size: .72rem; }
 .eyebrow, .step, .label { margin: 0 0 8px; color: #79c0ff; font-size: .76rem; font-weight: 900; letter-spacing: .12em; }
 .stack { display: grid; gap: 12px; }
 .card { padding: 18px; border: 1px solid #30363d; border-radius: 18px; background: rgba(22,27,34,.9); box-shadow: 0 14px 36px rgba(0,0,0,.18); }
@@ -82,3 +85,7 @@ footer { padding: 24px 3px 0; color: #6e7681; font-size: .78rem; }
 @media (max-width: 620px) {
   .finder-grid { grid-template-columns: 1fr; }
 }
+
+.example-row { display: flex; flex-wrap: wrap; gap: 7px; margin: 9px 0 2px; }
+.example-chip { border: 1px solid #30363d; border-radius: 999px; padding: 7px 10px; background: #0d1117; color: #9ecbff; font: inherit; font-size: .78rem; font-weight: 750; cursor: pointer; }
+.example-chip:hover { border-color: #58a6ff; color: #fff; }

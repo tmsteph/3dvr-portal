@@ -50,10 +50,15 @@ export function buildLeadFinderRequest({ description, location = '', count = 10,
       'Do not return private personal information. Public business contact information is acceptable.',
       'If you cannot verify a public email for a candidate, omit that candidate.',
       'Keep whyFit and evidence concise and factual.',
+      'Also draft one concise outreach email for this offer and audience.',
+      'The subject must be under 70 characters. The body must be under 120 words.',
+      'Use {{name}} for the recipient or business name. Do not pretend there is an existing relationship.',
+      'Do not invent results, facts, urgency, discounts, or recipient-specific claims that are not supported by the request.',
+      'End with a low-friction question or invitation to reply. Do not add a legal footer; the app adds sender identity, address, and opt-out language.',
       'Return no more than the requested number of leads.'
     ].join(' '),
     input: [
-      'Ideal customer: ' + target,
+      'Offer and ideal customer: ' + target,
       place ? 'Target geography: ' + place : 'Target geography: any location matching the request.',
       'Find up to ' + limit + ' contacts.'
     ].join('\n'),
@@ -68,8 +73,17 @@ export function buildLeadFinderRequest({ description, location = '', count = 10,
         schema: {
           type: 'object',
           additionalProperties: false,
-          required: ['leads'],
+          required: ['leads', 'campaignDraft'],
           properties: {
+            campaignDraft: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['subject', 'body'],
+              properties: {
+                subject: { type: 'string' },
+                body: { type: 'string' }
+              }
+            },
             leads: {
               type: 'array',
               maxItems: limit,
@@ -111,6 +125,13 @@ function normalizeLead(lead = {}) {
   };
 }
 
+function normalizeCampaignDraft(draft = {}) {
+  return {
+    subject: clean(draft?.subject, 180),
+    body: String(draft?.body || '').trim().slice(0, 4000)
+  };
+}
+
 export function parseLeadFinderResponse(responseData) {
   const raw = extractResponseText(responseData);
   if (!raw) throw new Error('OpenAI returned no lead data.');
@@ -123,7 +144,11 @@ export function parseLeadFinderResponse(responseData) {
     seen.add(lead.email);
     leads.push(lead);
   }
-  return { leads, sources: extractSources(responseData) };
+  return {
+    leads,
+    campaignDraft: normalizeCampaignDraft(parsed?.campaignDraft),
+    sources: extractSources(responseData)
+  };
 }
 
 export function createLeadFinderHandler({
@@ -184,6 +209,7 @@ export function createLeadFinderHandler({
         provider: useGateway ? 'vercel-ai-gateway' : 'openai',
         query: { description, location, count },
         leads: result.leads,
+        campaignDraft: result.campaignDraft,
         sources: result.sources
       });
     } catch (error) {

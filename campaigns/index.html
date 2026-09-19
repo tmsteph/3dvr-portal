@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0d1117">
   <title>Campaigns · 3DVR Portal</title>
-  <meta name="description" content="Connect Gmail and send respectful, compliant outreach campaigns.">
+  <meta name="description" content="Find likely customers, draft outreach, and start conversations from one simple page.">
   <link rel="icon" href="/brand/portal-mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css">
   <script type="module" src="./app.js"></script>
@@ -18,16 +18,46 @@
     </header>
 
     <section class="hero">
-      <p class="eyebrow">EMAIL OUTREACH</p>
-      <h1>Connect Gmail. Reach people.</h1>
-      <p>Built for photographers, marketers, freelancers, and small businesses. Your Gmail account stays yours.</p>
+      <p class="eyebrow">CUSTOMER OUTREACH</p>
+      <h1>Find customers. Start conversations.</h1>
+      <p>Tell us what you sell. AI finds likely customers with public business contact details and drafts the first outreach for you.</p>
+      <div class="fast-path" aria-label="How it works">
+        <span><b>1</b> Describe your offer</span>
+        <span><b>2</b> Find likely customers</span>
+        <span><b>3</b> Review &amp; send</span>
+      </div>
+    </section>
+
+    <section class="card discover-card">
+      <p class="step">AI CUSTOMER FINDER</p>
+      <h2>What are you selling?</h2>
+      <p class="muted">We’ll search the public web for matching businesses with a publicly evidenced business email, then draft a short outreach message. No guessed email patterns.</p>
+      <form id="leadFinderForm" class="finder-form">
+        <label for="leadDescription">Offer + ideal customer</label>
+        <textarea id="leadDescription" rows="4" placeholder="I build $1,200 websites for local cleaning companies that need more booked jobs."></textarea>
+        <div class="example-row" aria-label="Example offers">
+          <button class="example-chip" type="button" data-lead-example="I build fast websites for local service businesses that need more booked jobs.">Website clients</button>
+          <button class="example-chip" type="button" data-lead-example="I provide commercial photography and short-form video for restaurants and hospitality businesses.">Photo / video clients</button>
+          <button class="example-chip" type="button" data-lead-example="I automate repetitive admin, lead follow-up, and scheduling for small businesses using AI.">AI automation clients</button>
+        </div>
+        <div class="finder-grid">
+          <label>Location<input id="leadLocation" value="San Diego, CA" placeholder="San Diego, CA"></label>
+          <label>How many<select id="leadCount"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label>
+        </div>
+        <button class="button primary" id="findLeads" type="submit">Find customers</button>
+      </form>
+      <div class="notice" id="leadNotice" aria-live="polite" hidden></div>
+      <div id="leadResults" class="lead-results" hidden></div>
+      <div class="button-row" id="leadActions" hidden>
+        <button class="button primary" id="addLeads" type="button">Use selected customers</button>
+      </div>
     </section>
 
     <section class="card connection-card">
       <div>
         <p class="label">Gmail</p>
         <strong id="gmailStatus">Not connected</strong>
-        <p class="muted" id="gmailDetail">Connect the Google account you want to send from.</p>
+        <p class="muted" id="gmailDetail">Connect only when you’re ready to send. Your Gmail account stays yours.</p>
       </div>
       <div class="button-row">
         <button class="button primary" id="connectGmail" type="button">Connect Gmail</button>
@@ -35,30 +65,10 @@
       </div>
     </section>
 
-    <section class="card discover-card">
-      <p class="step">AI LEAD FINDER</p>
-      <h2>Describe who you want to reach.</h2>
-      <p class="muted">We’ll search the public web for matching businesses with a publicly evidenced business email. No guessed email patterns.</p>
-      <form id="leadFinderForm" class="finder-form">
-        <label for="leadDescription">Ideal customer</label>
-        <textarea id="leadDescription" rows="4" placeholder="Independent restaurants that would benefit from better photography and social marketing"></textarea>
-        <div class="finder-grid">
-          <label>Location<input id="leadLocation" value="San Diego, CA" placeholder="San Diego, CA"></label>
-          <label>How many<select id="leadCount"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label>
-        </div>
-        <button class="button primary" id="findLeads" type="submit">Find contacts</button>
-      </form>
-      <div class="notice" id="leadNotice" aria-live="polite" hidden></div>
-      <div id="leadResults" class="lead-results" hidden></div>
-      <div class="button-row" id="leadActions" hidden>
-        <button class="button primary" id="addLeads" type="button">Add selected to campaign</button>
-      </div>
-    </section>
-
     <form class="stack" id="campaignForm">
       <section class="card">
-        <p class="step">1 · CONTACTS</p>
-        <label for="recipients">Recipients</label>
+        <p class="step">1 · CUSTOMERS</p>
+        <label for="recipients">Customers / recipients</label>
         <textarea id="recipients" rows="7" placeholder="Jane Doe &lt;jane@example.com&gt;&#10;hello@anotherbusiness.com"></textarea>
         <div class="inline">
           <label class="file-button" for="csvFile">Import CSV</label>
@@ -78,9 +88,9 @@
       </section>
 
       <section class="card">
-        <p class="step">2 · MESSAGE</p>
+        <p class="step">2 · OUTREACH</p>
         <label for="subject">Subject</label>
-        <input id="subject" maxlength="180" placeholder="Quick photo idea for {{name}}">
+        <input id="subject" maxlength="180" placeholder="Quick idea for {{name}}">
         <label for="message">Email</label>
         <textarea id="message" rows="10" placeholder="Hey {{first_name}},&#10;&#10;I’m a photographer and marketer..."></textarea>
         <p class="muted">Personalization: <code>{{first_name}}</code>, <code>{{name}}</code>, <code>{{email}}</code></p>

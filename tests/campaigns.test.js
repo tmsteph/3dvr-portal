@@ -61,11 +61,13 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(html, /Import CSV/);
   assert.match(html, /Suppression list/);
   assert.match(html, /Send test to myself/);
-  assert.match(html, /AI LEAD FINDER/);
-  assert.match(html, /Find contacts/);
+  assert.match(html, /AI CUSTOMER FINDER/);
+  assert.match(html, /Find customers/);
+  assert.match(html, /What are you selling/);
   assert.match(js, /scopeKey=gmail-send/);
   assert.match(js, /action=sendmail/);
   assert.match(js, /provider=lead-finder/);
+  assert.match(js, /campaignDraft/);
   assert.match(js, /addSelectedLeads/);
   assert.match(js, /DAILY_CAP = 25/);
 });

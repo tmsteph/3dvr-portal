@@ -36,6 +36,7 @@ const elements = {
 let connection = readJson(STORAGE.connection, null);
 let sending = false;
 let discoveredLeads = [];
+let suggestedCampaign = null;
 
 function readJson(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -120,11 +121,27 @@ async function findLeads(event) {
       throw new Error(payload.error || 'Lead search failed.');
     }
     discoveredLeads = Array.isArray(payload.leads) ? payload.leads : [];
-    writeJson(STORAGE.discovered, { at: Date.now(), query: payload.query, leads: discoveredLeads });
+    suggestedCampaign = payload.campaignDraft && typeof payload.campaignDraft === 'object'
+      ? payload.campaignDraft
+      : null;
+    if (suggestedCampaign?.subject && !elements.subject.value.trim()) {
+      elements.subject.value = suggestedCampaign.subject;
+    }
+    if (suggestedCampaign?.body && !elements.message.value.trim()) {
+      elements.message.value = suggestedCampaign.body;
+    }
+    writeJson(STORAGE.draft, draftSnapshot());
+    writeJson(STORAGE.discovered, {
+      at: Date.now(),
+      query: payload.query,
+      leads: discoveredLeads,
+      campaignDraft: suggestedCampaign
+    });
     renderLeadResults();
+    updateSummary();
     showLeadNotice(discoveredLeads.length
-      ? `Found ${discoveredLeads.length} contacts with public source evidence. Review them before adding.`
-      : 'No publicly verified business emails were found for that search. Try broadening the description or location.',
+      ? `Found ${discoveredLeads.length} likely customer${discoveredLeads.length === 1 ? '' : 's'} with public source evidence${suggestedCampaign?.body ? ' and drafted your outreach' : ''}. Review the matches, then use the ones you want.`
+      : 'No publicly verified business emails were found for that search. Try broadening the offer, customer type, or location.',
       discoveredLeads.length ? 'success' : '');
   } catch (error) {
     showLeadNotice(error.message || 'Lead search failed.', 'error');
@@ -151,7 +168,8 @@ function addSelectedLeads() {
   elements.sourceAck.checked = true;
   writeJson(STORAGE.draft, draftSnapshot());
   updateSummary();
-  showLeadNotice(`Added ${selected.length} selected contact${selected.length === 1 ? '' : 's'} to the campaign.`, 'success');
+  showLeadNotice(`Added ${selected.length} selected customer${selected.length === 1 ? '' : 's'}. Your outreach is ready to review below.`, 'success');
+  elements.subject?.closest('.card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function draftSnapshot() {
   return {
@@ -180,6 +198,10 @@ function consumeOAuthResult() {
   }
   connection = result.connection;
   writeJson(STORAGE.connection, connection);
+  if (!elements.businessName.value.trim() && connection.displayName) {
+    elements.businessName.value = connection.displayName;
+    writeJson(STORAGE.draft, draftSnapshot());
+  }
   showNotice(`Connected ${connection.email || 'Google account'}.`, 'success');
 }
 function connectionReady() { return Boolean(connection?.accessToken && connection?.email); }
@@ -375,6 +397,13 @@ function importCsv(file) {
   };
   reader.readAsText(file);
 }
+
+document.querySelectorAll('[data-lead-example]').forEach(button => {
+  button.addEventListener('click', () => {
+    elements.leadDescription.value = button.dataset.leadExample || '';
+    elements.leadDescription.focus();
+  });
+});
 
 elements.leadForm.addEventListener('submit', findLeads);
 elements.addLeads.addEventListener('click', addSelectedLeads);

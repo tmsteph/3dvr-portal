@@ -29,7 +29,9 @@ test('lead finder request always requires live web search and structured results
   assert.deepEqual(body.tools, [{ type: 'web_search' }]);
   assert.equal(body.text.format.type, 'json_schema');
   assert.equal(body.text.format.schema.properties.leads.maxItems, 12);
+  assert.equal(body.text.format.schema.properties.campaignDraft.type, 'object');
   assert.match(body.instructions, /Never guess or infer an email address pattern/);
+  assert.match(body.instructions, /draft one concise outreach email/i);
 });
 
 test('lead finder response keeps verified-looking public emails and source URLs only', () => {
@@ -44,6 +46,10 @@ test('lead finder response keeps verified-looking public emails and source URLs 
         content: [{
           type: 'output_text',
           text: JSON.stringify({
+            campaignDraft: {
+              subject: 'Quick idea for {{name}}',
+              body: 'Hi {{name}}, I help local businesses improve how they show up online. Open to a quick idea?'
+            },
             leads: [
               {
                 name: 'Acme',
@@ -72,6 +78,8 @@ test('lead finder response keeps verified-looking public emails and source URLs 
   const result = parseLeadFinderResponse(payload);
   assert.equal(result.leads.length, 1);
   assert.equal(result.leads[0].email, 'hello@acme.test');
+  assert.equal(result.campaignDraft.subject, 'Quick idea for {{name}}');
+  assert.match(result.campaignDraft.body, /Open to a quick idea/);
   assert.equal(result.sources.length, 1);
 });
 
