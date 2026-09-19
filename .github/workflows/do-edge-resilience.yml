@@ -1,0 +1,89 @@
+name: Install DO Edge Guardrails
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/resilience/install-do-edge-guardrails.sh'
+      - '.github/workflows/do-edge-resilience.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve DigitalOcean SSH access
+        id: ssh
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          HOST: 167.172.193.194
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/do-a
+          write_key "$SSH_B" /tmp/do-b
+          write_key "$SSH_C" /tmp/do-c
+          for user in root debian; do
+            for key in /tmp/do-a /tmp/do-b /tmp/do-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$HOST" true >/dev/null 2>&1; then
+                echo "user=$user" >> "$GITHUB_OUTPUT"
+                echo "key=$key" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+          done
+          exit 1
+
+      - name: Install edge guardrails
+        shell: bash
+        env:
+          HOST: 167.172.193.194
+          USER: ${{ steps.ssh.outputs.user }}
+          KEY: ${{ steps.ssh.outputs.key }}
+        run: |
+          set -euo pipefail
+          opts=(-i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          scp "${opts[@]}" ops/resilience/install-do-edge-guardrails.sh "$USER@$HOST:/tmp/install-do-edge-guardrails.sh"
+          if [ "$USER" = root ]; then
+            ssh "${opts[@]}" "$USER@$HOST" 'bash /tmp/install-do-edge-guardrails.sh && rm -f /tmp/install-do-edge-guardrails.sh'
+          else
+            ssh "${opts[@]}" "$USER@$HOST" 'sudo -n bash /tmp/install-do-edge-guardrails.sh && rm -f /tmp/install-do-edge-guardrails.sh'
+          fi
+
+      - name: Verify DO edge externally
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 15 http://167.172.193.194/__3dvr-edge-health > /tmp/edge.json
+          node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync("/tmp/edge.json","utf8"));if(!x.ok||x.edge!=="digitalocean")process.exit(1)'
+          curl -fsS --max-time 20 -H 'Host: portal.3dvr.tech' http://167.172.193.194/__3dvr-health > /tmp/upstream.json
+          node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync("/tmp/upstream.json","utf8"));if(!x.ok||x.host!=="self")process.exit(1)'
+
+      - name: Remove SSH keys
+        if: always()
+        run: rm -f /tmp/do-a /tmp/do-b /tmp/do-c /tmp/do-*.raw /tmp/edge.json /tmp/upstream.json
