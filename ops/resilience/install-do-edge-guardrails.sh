@@ -41,6 +41,7 @@ cat >/etc/caddy/Caddyfile <<'CADDY'
   }
 
   handle /__3dvr-primary-health {
+    rewrite * /__3dvr-health
     reverse_proxy 127.0.0.1:14320 {
       transport http {
         dial_timeout 2s
@@ -50,6 +51,7 @@ cat >/etc/caddy/Caddyfile <<'CADDY'
   }
 
   handle /__3dvr-standby-health {
+    rewrite * /__3dvr-health
     reverse_proxy 127.0.0.1:14322 {
       transport http {
         dial_timeout 2s
