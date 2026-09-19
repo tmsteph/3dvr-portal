@@ -16,15 +16,29 @@ class CompanionAccessibilityService : AccessibilityService() {
             ?: mapOf("available" to false)
 
         fun perform(action: Map<String, Any?>): Boolean = current?.performInternal(action) ?: false
+
+        fun presenceStatus(): Map<String, Any?> = current?.presenceRecorder?.status()
+            ?: mapOf("recording" to false, "accessibilityReady" to false)
+
+        fun startPresenceAudio(): Map<String, Any?> = current?.presenceRecorder?.start()
+            ?: mapOf("ok" to false, "error" to "Enable 3DVR Companion accessibility first.")
+
+        fun stopPresenceAudio(): Map<String, Any?> = current?.presenceRecorder?.stop()
+            ?: mapOf("ok" to true, "recording" to false)
     }
+
+    private var presenceRecorder: CompanionPresenceAudioRecorder? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         current = this
+        presenceRecorder = CompanionPresenceAudioRecorder(this)
         CompanionNativeBridgeServer.ensureStarted(this)
     }
 
     override fun onDestroy() {
+        presenceRecorder?.shutdown()
+        presenceRecorder = null
         if (current === this) current = null
         super.onDestroy()
     }

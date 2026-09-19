@@ -43,9 +43,9 @@ test('Cloudflare tunnel changes happen only after live validation', () => {
 });
 
 
-test('quick tunnel is published only after semantic public readiness', () => {
+test('public tunnel is published only after semantic public readiness', () => {
   const readinessFunction = source.indexOf('public_portal_ready()');
-  const readinessCall = source.indexOf('public_portal_ready "$candidate_url"');
+  const readinessCall = source.indexOf('public_portal_ready "$portal_url"');
   const publishUrl = source.indexOf("printf 'PORTAL_SELF_HOST_URL=%s\\n'");
 
   assert.ok(readinessFunction >= 0, 'public readiness helper must exist');

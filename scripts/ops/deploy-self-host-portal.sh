@@ -34,8 +34,24 @@ portal_secrets_env="$config_dir/portal-secrets.env"
 
 mkdir -p "$releases" "$state" "$config_dir"
 chmod 700 "$config_dir" 2>/dev/null || true
+
+presence_audio_dir="$state/presence-audio"
+mkdir -p "$presence_audio_dir"
+chmod 700 "$presence_audio_dir" 2>/dev/null || true
+touch "$portal_secrets_env"
+chmod 600 "$portal_secrets_env" 2>/dev/null || true
+
+ensure_presence_secret() {
+  local key="$1" bytes="$2"
+  grep -q "^${key}=" "$portal_secrets_env" 2>/dev/null && return 0
+  printf '%s=%s\n' "$key" "$(openssl rand -hex "$bytes")" >> "$portal_secrets_env"
+}
+ensure_presence_secret PRESENCE_AUDIO_UPLOAD_TOKEN 32
+ensure_presence_secret PRESENCE_AUDIO_VIEW_TOKEN 32
+ensure_presence_secret PRESENCE_AUDIO_PAIR_TOKEN 24
 if [ "$(id -u)" = 0 ] && [ "$HOME" = /home/debian ] && id debian >/dev/null 2>&1; then
-  chown debian:debian "$config_dir" 2>/dev/null || true
+  chown debian:debian "$config_dir" "$portal_secrets_env" 2>/dev/null || true
+  chmod 600 "$portal_secrets_env" 2>/dev/null || true
   if [ -f "$common_env" ]; then
     chown debian:debian "$common_env" 2>/dev/null || true
     chmod 600 "$common_env" 2>/dev/null || true
@@ -113,6 +129,7 @@ trap cleanup_candidate EXIT
   export PORTAL_RELEASE_REF="$ref"
   export PORTAL_RELEASE_SHA="$sha"
   export LEGACY_API_ORIGIN=https://3dvr-portal.vercel.app
+  export PRESENCE_AUDIO_DIR="$presence_audio_dir"
   cd "$release"
   exec node scripts/self-host-server.mjs
 ) >"$candidate_log" 2>&1 &
@@ -150,6 +167,7 @@ PORTAL_ROOT=$current
 PORTAL_RELEASE_REF=$ref
 PORTAL_RELEASE_SHA=$sha
 LEGACY_API_ORIGIN=https://3dvr-portal.vercel.app
+PRESENCE_AUDIO_DIR=$presence_audio_dir
 THREEDVR_CONTROL_NODE=${THREEDVR_CONTROL_NODE:-}
 THREEDVR_OUTREACH_SUPPRESSION_ENFORCED=true
 THREEDVR_OUTREACH_REQUIRE_PERSONAL_SENT_CHECK=true

@@ -40,6 +40,7 @@ class _CompanionHomeState extends State<CompanionHome>
   Map<String, Object?> assistantState = const {};
   Map<String, Object?> voiceAuthorizationState = const {};
   Map<String, Object?> voiceReceipt = const {};
+  Map<String, Object?> presenceAudioState = const {};
   bool loading = true;
   bool preparingVoice = false;
   String? bridgeError;
@@ -103,6 +104,7 @@ class _CompanionHomeState extends State<CompanionHome>
         bridge.getCapabilityStatus(),
         if (Platform.isAndroid) bridge.getAssistantStatus() else Future.value(<String, Object?>{}),
         if (Platform.isAndroid) bridge.getVoiceReceipt() else Future.value(<String, Object?>{}),
+        if (Platform.isAndroid) bridge.getPresenceAudioStatus() else Future.value(<String, Object?>{}),
       ]);
       if (!mounted) return;
       setState(() {
@@ -110,6 +112,7 @@ class _CompanionHomeState extends State<CompanionHome>
         permissionState = values[1];
         assistantState = values[2];
         voiceReceipt = values[3];
+        presenceAudioState = values[4];
         loading = false;
       });
     } catch (error) {
@@ -153,6 +156,39 @@ class _CompanionHomeState extends State<CompanionHome>
             ? 'Allow microphone access in the Android prompt.'
             : 'Microphone permission could not be requested.'),
       ),
+    );
+  }
+
+  Future<void> _requestPresencePermissions() async {
+    await bridge.requestPresencePermissions();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Allow microphone and notification access, then return here.')),
+    );
+  }
+
+  Future<void> _togglePresenceAudio() async {
+    final recording = presenceAudioState['recording'] == true;
+    final result = recording
+        ? await bridge.stopPresenceAudio()
+        : await bridge.startPresenceAudio();
+    if (!mounted) return;
+    await refresh();
+    final ok = result['ok'] == true;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${result['error'] ?? 'Shared Presence could not start.'}')),
+      );
+    }
+  }
+
+  Future<void> _copyPresenceLink() async {
+    final value = presenceAudioState['viewUrl']?.toString() ?? '';
+    if (value.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Private listener link copied')),
     );
   }
 
@@ -202,6 +238,11 @@ class _CompanionHomeState extends State<CompanionHome>
     final notificationAccessEnabled = permissionState['notificationAccessEnabled'] == true;
     final microphoneGranted = permissionState['microphoneGranted'] == true;
     final voiceAuthorizationReady = voiceAuthorizationState['ok'] == true;
+    final presencePaired = presenceAudioState['paired'] == true;
+    final presenceRecording = presenceAudioState['recording'] == true;
+    final presenceMicGranted = presenceAudioState['microphoneGranted'] == true;
+    final presenceNotificationGranted = presenceAudioState['notificationGranted'] == true;
+    final presenceReady = presencePaired && accessibilityEnabled && presenceMicGranted && presenceNotificationGranted;
 
     return Scaffold(
       appBar: AppBar(
@@ -286,6 +327,66 @@ class _CompanionHomeState extends State<CompanionHome>
                                 ? 'Select 3DVR Companion as the Android assistant before preparing voice.'
                                 : 'Allow microphone access before preparing voice.',
                       ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(presenceRecording ? Icons.graphic_eq : Icons.hearing),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text('Shared Presence', style: Theme.of(context).textTheme.titleMedium),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('Visible, consent-based ambient audio sharing. The local recording continues if the network drops.'),
+                    const SizedBox(height: 10),
+                    _readinessRow('Paired to private listener', presencePaired),
+                    _readinessRow('Accessibility capture', accessibilityEnabled),
+                    _readinessRow('Microphone permission', presenceMicGranted),
+                    _readinessRow('Visible notification', presenceNotificationGranted),
+                    const SizedBox(height: 12),
+                    if (!presenceMicGranted || !presenceNotificationGranted)
+                      FilledButton.tonalIcon(
+                        onPressed: _requestPresencePermissions,
+                        icon: const Icon(Icons.shield_outlined),
+                        label: const Text('Allow recording permissions'),
+                      ),
+                    if (!accessibilityEnabled) ...[
+                      const SizedBox(height: 8),
+                      FilledButton.tonal(
+                        onPressed: bridge.openAccessibilitySettings,
+                        child: const Text('Enable Accessibility capture'),
+                      ),
+                    ],
+                    if (presencePaired && (presenceReady || presenceRecording)) ...[
+                      const SizedBox(height: 8),
+                      FilledButton.icon(
+                        onPressed: _togglePresenceAudio,
+                        icon: Icon(presenceRecording ? Icons.stop_circle_outlined : Icons.fiber_manual_record),
+                        label: Text(presenceRecording ? 'Stop sharing' : 'Start sharing'),
+                      ),
+                      const SizedBox(height: 8),
+                      Text('Upload: ${presenceAudioState['uploadState'] ?? 'idle'}'),
+                      if ((presenceAudioState['viewUrl']?.toString() ?? '').isNotEmpty)
+                        TextButton.icon(
+                          onPressed: _copyPresenceLink,
+                          icon: const Icon(Icons.link),
+                          label: const Text('Copy private partner link'),
+                        ),
+                    ] else if (!presencePaired) ...[
+                      const SizedBox(height: 8),
+                      const Text('Open the one-time pairing link on this phone to connect Shared Presence.'),
                     ],
                   ],
                 ),
