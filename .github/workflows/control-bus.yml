@@ -435,25 +435,57 @@ jobs:
               ovh 'bash -s' <<'OVH'
           set -euo pipefail
           token=""
-          if ! token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general control-bus-campaigns-user-acceptance 1200 2>/dev/null)"; then
-            jq -n '{ok:false,error:"The general authenticated browser lane is currently busy. No session was taken over.",browserLane:"general"}'
-            exit 0
+          lane=""
+          port=""
+          identity_started=false
+
+          if token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general control-bus-campaigns-user-acceptance 1200 2>/dev/null)"; then
+            lane="general"
+            port="9222"
+            export ALLOW_UNSIGNED_PORTAL=0
+          else
+            if ! sudo -n /usr/local/bin/3dvr-browser-admit identity >/tmp/3dvr-browser-admission 2>&1; then
+              reason="$(tail -1 /tmp/3dvr-browser-admission | head -c 500)"
+              jq -n --arg reason "$reason" '{ok:false,error:"No safe browser capacity for Campaigns acceptance.",browserLane:"",admission:$reason}'
+              exit 0
+            fi
+            if ! token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire identity control-bus-campaigns-user-acceptance 1200 2>/dev/null)"; then
+              jq -n '{ok:false,error:"Both authenticated browser lanes are currently busy. No session was taken over.",browserLane:""}'
+              exit 0
+            fi
+            lane="identity"
+            port="9666"
+            export ALLOW_UNSIGNED_PORTAL=1
+            if ! systemctl is-active --quiet 3dvr-browser-lane@identity.service; then
+              sudo -n systemctl start 3dvr-browser-lane@identity.service
+              identity_started=true
+            fi
+            for _ in $(seq 1 30); do
+              curl -fsS "http://127.0.0.1:$port/json/version" >/dev/null 2>&1 && break
+              sleep 1
+            done
+            curl -fsS "http://127.0.0.1:$port/json/version" >/dev/null
           fi
+
           cleanup() {
-            sudo -n /usr/local/bin/3dvr-browser-lease release general "$token" >/dev/null 2>&1 || true
+            sudo -n /usr/local/bin/3dvr-browser-lease release "$lane" "$token" >/dev/null 2>&1 || true
+            if [ "$identity_started" = true ]; then
+              sudo -n systemctl stop 3dvr-browser-lane@identity.service >/dev/null 2>&1 || true
+            fi
           }
           trap cleanup EXIT INT TERM
 
           puppeteer_core="$(find /home/debian/.npm/_npx -type f -path '*/puppeteer-core/lib/puppeteer/puppeteer-core.js' -print -quit 2>/dev/null || true)"
           [ -n "$puppeteer_core" ] && [ -f "$puppeteer_core" ]
           export PUPPETEER_CORE_PATH="$puppeteer_core"
-          export BROWSER_URL="http://127.0.0.1:9222"
+          export BROWSER_URL="http://127.0.0.1:$port"
 
           runner=/tmp/campaigns-user-acceptance.cjs
           curl -fsSL --retry 3 --retry-delay 1 \
             https://raw.githubusercontent.com/tmsteph/3dvr-portal/main/scripts/ops/campaigns-user-acceptance.cjs \
             -o "$runner"
-          node "$runner"
+          result="$(node "$runner")"
+          jq -c --arg lane "$lane" '. + {browserLane:$lane}' <<<"$result"
           OVH
               ;;
             openai_admin_store_clipboard)
@@ -525,19 +557,43 @@ jobs:
             campaigns_gmail_handoff)
               ovh 'bash -s' <<'OVH'
           set -euo pipefail
+          lane=""
+          port=""
+          prep_token=""
 
-          prep_token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general control-bus-campaigns-gmail-prep 180)"
+          if prep_token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general control-bus-campaigns-gmail-prep 180 2>/dev/null)"; then
+            lane="general"
+            port="9222"
+          else
+            if ! sudo -n /usr/local/bin/3dvr-browser-admit identity >/tmp/3dvr-browser-admission 2>&1; then
+              reason="$(tail -1 /tmp/3dvr-browser-admission | head -c 500)"
+              jq -n --arg reason "$reason" '{ok:false,error:"No safe browser capacity for Gmail OAuth.",admission:$reason}'
+              exit 0
+            fi
+            prep_token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire identity control-bus-campaigns-gmail-prep 180)"
+            lane="identity"
+            port="9666"
+            if ! systemctl is-active --quiet 3dvr-browser-lane@identity.service; then
+              sudo -n systemctl start 3dvr-browser-lane@identity.service
+            fi
+            for _ in $(seq 1 30); do
+              curl -fsS "http://127.0.0.1:$port/json/version" >/dev/null 2>&1 && break
+              sleep 1
+            done
+            curl -fsS "http://127.0.0.1:$port/json/version" >/dev/null
+          fi
+
           prep_cleanup() {
-            sudo -n /usr/local/bin/3dvr-browser-lease release general "$prep_token" >/dev/null 2>&1 || true
+            sudo -n /usr/local/bin/3dvr-browser-lease release "$lane" "$prep_token" >/dev/null 2>&1 || true
           }
           trap prep_cleanup EXIT INT TERM
 
           puppeteer_core="$(find /home/debian/.npm/_npx -type f -path '*/puppeteer-core/lib/puppeteer/puppeteer-core.js' -print -quit 2>/dev/null || true)"
           [ -n "$puppeteer_core" ] && [ -f "$puppeteer_core" ]
-          PUPPETEER_CORE_PATH="$puppeteer_core" node - <<'NODE'
+          PUPPETEER_CORE_PATH="$puppeteer_core" BROWSER_URL="http://127.0.0.1:$port" node - <<'NODE'
           const puppeteer=require(process.env.PUPPETEER_CORE_PATH);
           (async()=>{
-            const browser=await puppeteer.connect({browserURL:'http://127.0.0.1:9222'});
+            const browser=await puppeteer.connect({browserURL:process.env.BROWSER_URL});
             const page=await browser.newPage();
             await page.goto('https://portal.3dvr.tech/api/oauth/google?action=start&scopeKey=gmail-send&intent=campaigns&returnTo=/campaigns/', {
               waitUntil:'domcontentloaded',
@@ -554,7 +610,7 @@ jobs:
 
           cd /home/debian/worktrees/human-handoff-live
           out=$(node apps/agent/thomas-agent/node/human-handoff-gateway.js create \
-            --lane general \
+            --lane "$lane" \
             --origin https://accounts.google.com \
             --service "Campaigns Gmail OAuth" \
             --reason "Choose the Gmail account you want Campaigns to send from, approve Gmail send permission, then tap Done.")
@@ -562,8 +618,8 @@ jobs:
           id=$(printf '%s\n' "$out" | sed -n 's/^handoff_id=//p')
           expires=$(printf '%s\n' "$out" | sed -n 's/^expires_at=//p')
           [ -n "$url" ] && [ -n "$id" ]
-          jq -n --arg id "$id" --arg url "$url" --arg expiresAt "$expires" \
-            '{ok:true,handoffId:$id,handoffUrl:$url,expiresAt:$expiresAt,browserLane:"general",service:"Campaigns Gmail OAuth"}'
+          jq -n --arg id "$id" --arg url "$url" --arg expiresAt "$expires" --arg lane "$lane" \
+            '{ok:true,handoffId:$id,handoffUrl:$url,expiresAt:$expiresAt,browserLane:$lane,service:"Campaigns Gmail OAuth"}'
           OVH
               ;;
             openai_admin_handoff)
