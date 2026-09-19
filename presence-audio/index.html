@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<title>Shared Presence · 3DVR</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#0c0d0f;color:#f6f6f2}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#0c0d0f}
+main{width:min(760px,100%);margin:auto;padding:28px 18px 80px}
+.card{background:#15181a;border:1px solid #29302f;border-radius:20px;padding:18px;margin:14px 0}
+.row{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.dot{width:11px;height:11px;border-radius:50%;background:#707774}.dot.live{background:#78df9c}
+button,input{font:inherit}button{border:0;border-radius:12px;padding:11px 14px;font-weight:700}
+input,audio{width:100%}.small{font-size:.87rem;color:#98a19d}.hidden{display:none!important}
+</style>
+</head>
+<body><main>
+<p class="small">3DVR · Shared Presence</p>
+<h1>Here, with you.</h1>
+<p>Private, explicitly shared ambient audio. The phone keeps a local recording while it streams.</p>
+<section id="authCard" class="card hidden">
+<h2>Listener key</h2><p>Paste the private listener key shared by the phone owner.</p>
+<input id="key" type="password" autocomplete="off" placeholder="Private listener key">
+<p><button id="useKey">Open listener</button></p>
+</section>
+<section id="main" class="hidden">
+<div class="card">
+<div class="row"><div><span id="dot" class="dot"></span> <strong id="headline">Checking…</strong></div><button id="refresh">Refresh</button></div>
+<p id="detail" class="small"></p>
+<audio id="liveAudio" controls playsinline preload="none" class="hidden"></audio>
+<p id="liveHint" class="small"></p>
+</div>
+<div class="card">
+<div class="row"><h2>Past recordings</h2><button id="copy">Copy listener link</button></div>
+<div id="history"><p class="small">Loading…</p></div>
+</div>
+<p class="small">Recording should stay visible and consensual. A data outage may pause live listening while the phone keeps its local master recording.</p>
+</section>
+<script>
+const $=id=>document.getElementById(id);
+const params=new URLSearchParams(location.hash.replace(/^#/,''));
+let token=params.get('view')||'';
+let activeId='';
+function endpoint(path){const u=new URL(path,location.origin);u.searchParams.set('view',token);return u.toString()}
+function fmt(value){if(!value)return '';const d=new Date(value);return Number.isNaN(d.valueOf())?'':d.toLocaleString()}
+function setToken(value){token=(value||'').trim();if(!token)return;history.replaceState(null,'',location.pathname+'#view='+encodeURIComponent(token));boot()}
+$('useKey').onclick=()=>setToken($('key').value);
+$('refresh').onclick=()=>refreshAll();
+$('copy').onclick=async()=>{await navigator.clipboard.writeText(location.href);$('copy').textContent='Copied';setTimeout(()=>$('copy').textContent='Copy listener link',1400)};
+async function loadStatus(){
+  const r=await fetch(endpoint('/api/presence-audio/status'),{cache:'no-store'});
+  if(r.status===401)throw new Error('Private listener key was rejected.');
+  const data=await r.json();if(!r.ok)throw new Error(data.error||'Status unavailable');
+  const current=(data.active||[])[0];
+  if(!current){$('dot').className='dot';$('headline').textContent='Not recording';$('detail').textContent='No live session right now.';$('liveAudio').classList.add('hidden');$('liveHint').textContent='';activeId='';return}
+  $('dot').className='dot live';$('headline').textContent='Recording now';
+  $('detail').textContent='Started '+fmt(current.startedAt)+(current.uploading?' · connected to server':' · reconnecting to server');
+  $('liveHint').textContent='Tap play for the live feed. A reconnect can briefly pause playback.';
+  if(activeId!==current.id){activeId=current.id;$('liveAudio').src=endpoint('/api/presence-audio/live/'+encodeURIComponent(activeId));$('liveAudio').classList.remove('hidden')}
+}
+function setToken(value){token=(value||'').trim();if(!token)return;history.replaceState(null,'',location.pathname+'#view='+encodeURIComponent(token));boot()}
+$('useKey').onclick=()=>setToken($('key').value);
+$('refresh').onclick=()=>refreshAll();
+$('copy').onclick=async()=>{await navigator.clipboard.writeText(location.href);$('copy').textContent='Copied';setTimeout(()=>$('copy').textContent='Copy listener link',1400)};
+async function loadStatus(){
+const r=await fetch(endpoint('/api/presence-audio/status'),{cache:'no-store'});
+if(r.status===401)throw new Error('Private listener key was rejected.');
+const data=await r.json();if(!r.ok)throw new Error(data.error||'Status unavailable');
+const current=(data.active||[])[0];
+if(!current){$('dot').className='dot';$('headline').textContent='Not recording';$('detail').textContent='No live session right now.';$('liveAudio').classList.add('hidden');activeId='';return}
+$('dot').className='dot live';$('headline').textContent='Recording now';
+$('detail').textContent='Started '+fmt(current.startedAt)+(current.uploading?' · connected':' · reconnecting');
+$('liveHint').textContent='Tap play for the live feed. Reconnects can briefly pause playback.';
+if(activeId!==current.id){activeId=current.id;$('liveAudio').src=endpoint('/api/presence-audio/live/'+encodeURIComponent(activeId));$('liveAudio').classList.remove('hidden')}
+}
+async function loadHistory(){
+const r=await fetch(endpoint('/api/presence-audio/sessions'),{cache:'no-store'});const data=await r.json();
+if(!r.ok)throw new Error(data.error||'History unavailable');
+const items=(data.sessions||[]).filter(x=>!x.active&&x.finalizedAt).slice(0,30);
+if(!items.length){$('history').innerHTML='<p class="small">No completed recordings yet.</p>';return}
+$('history').replaceChildren(...items.map(item=>{
+const wrap=document.createElement('div');wrap.style.padding='14px 0';wrap.style.borderTop='1px solid #2b312f';
+const title=document.createElement('strong');title.textContent=fmt(item.startedAt)||item.id;
+const meta=document.createElement('div');meta.className='small';meta.textContent=item.bytes?Math.round(item.bytes/1024/1024*10)/10+' MB':'';
+const audio=document.createElement('audio');audio.controls=true;audio.preload='metadata';audio.src=endpoint('/api/presence-audio/recordings/'+encodeURIComponent(item.id));
+wrap.append(title,meta,audio);return wrap;
+}))
+}
+let timer=null;
+async function refreshAll(){try{await Promise.all([loadStatus(),loadHistory()])}catch(error){$('headline').textContent='Listener unavailable';$('detail').textContent=error.message||String(error)}}
+function boot(){
+if(timer){clearInterval(timer);timer=null}
+if(!token){$('authCard').classList.remove('hidden');$('main').classList.add('hidden');return}
+$('authCard').classList.add('hidden');$('main').classList.remove('hidden');refreshAll();timer=setInterval(loadStatus,5000)
+}
+boot();
+</script></main></body></html>
