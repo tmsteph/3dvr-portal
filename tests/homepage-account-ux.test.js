@@ -11,6 +11,9 @@ test('homepage account entry follows portal auth state', async () => {
   ]);
 
   assert.match(html, /<script src="\/auth-identity\.js" defer><\/script>/);
+  assert.match(html, /gun\/gun\.js/);
+  assert.match(html, /gun\/sea\.js/);
+  assert.match(html, /<script src="\/score\.js"><\/script>/);
   assert.match(html, /data-auth-entry>Sign in<\/a>/);
   assert.match(app, /syncStorageFromSharedIdentity\?\.\(localStorage\)/);
   assert.match(app, /authEntry\.href = '\/profile\.html#profile'/);
@@ -18,6 +21,9 @@ test('homepage account entry follows portal auth state', async () => {
   assert.match(app, /:pending/);
   assert.match(app, /:portalPending/);
   assert.match(app, /authEntry\.textContent = `\$\{state\.displayName\} · ⭐ \$\{points\}`/);
+  assert.match(app, /ScoreSystem\.getManager/);
+  assert.match(app, /scoreManager\.subscribe/);
+  assert.match(app, /scoreManager\.whenReady/);
   assert.match(app, /authEntry\.href = '\/sign-in\.html\?redirect=%2F'/);
   assert.match(app, /authEntry\.textContent = 'Sign in'/);
   assert.match(app, /installOsLauncher/);
