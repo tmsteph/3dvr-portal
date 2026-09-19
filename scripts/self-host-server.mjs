@@ -303,7 +303,11 @@ const server = createServer(async (req, res) => {
     }
   }
 
-  if (url.pathname.startsWith('/api/presence-audio/') || url.pathname.startsWith('/presence-audio/pair/')) {
+  if (
+    url.pathname.startsWith('/api/presence-audio/') ||
+    url.pathname.startsWith('/3dvr-connect/presence/pair/') ||
+    url.pathname.startsWith('/presence-audio/pair/')
+  ) {
     return presenceAudioHandler(req, res, url);
   }
 

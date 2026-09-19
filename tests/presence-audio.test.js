@@ -75,8 +75,12 @@ test('presence audio supports resumable upload, history, playback and one-time p
   assert.equal(recording.status, 206);
   assert.equal(Buffer.from(await recording.arrayBuffer()).toString(), audio.subarray(0, 4).toString());
 
-  const pairPage = await fetch(origin + '/presence-audio/pair/' + pairToken);
+  const pairPage = await fetch(origin + '/3dvr-connect/presence/pair/' + pairToken);
   assert.equal(pairPage.status, 200);
+  assert.match(await pairPage.text(), /Pair Shared Presence/);
+
+  const legacyPairPage = await fetch(origin + '/presence-audio/pair/' + pairToken);
+  assert.equal(legacyPairPage.status, 200);
 
   const claim = await fetch(origin + '/api/presence-audio/pair/claim', {
     method: 'POST',

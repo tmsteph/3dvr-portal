@@ -70,11 +70,11 @@ function pairPage(pairToken) {
     '<!doctype html><meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width,initial-scale=1">',
     '<meta name="referrer" content="no-referrer">',
-    '<title>Pair 3DVR Presence Audio</title>',
+    '<title>Pair Shared Presence · 3DVR Connect</title>',
     '<style>body{font-family:system-ui;max-width:680px;margin:8vh auto;padding:24px;background:#111;color:#eee}',
     'button,a{font:inherit}button{padding:14px 18px;border-radius:12px;border:0;font-weight:700}',
     '.card{background:#1d1d1d;padding:20px;border-radius:16px}.muted{color:#aaa}a{color:#9bc7ff}</style>',
-    '<div class="card"><h1>Pair Presence Audio</h1>',
+    '<div class="card"><h1>Pair Shared Presence</h1>',
     '<p>This enables visible, consent-based ambient audio sharing from your phone.</p>',
     '<button id="pair">Pair this phone</button><p id="status" class="muted"></p><p id="share"></p></div>',
     '<script>const token=' + encoded + ';const b=document.getElementById("pair");',
@@ -374,13 +374,16 @@ export function createPresenceAudioHandler(options = {}) {
 
   async function pair(req, res, url) {
     if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: 'Method Not Allowed' });
-    const token = decodeURIComponent(url.pathname.slice('/presence-audio/pair/'.length));
+    const connectPrefix = '/3dvr-connect/presence/pair/';
+    const legacyPrefix = '/presence-audio/pair/';
+    const prefix = url.pathname.startsWith(connectPrefix) ? connectPrefix : legacyPrefix;
+    const token = decodeURIComponent(url.pathname.slice(prefix.length));
     if (!safeEqual(token, pairToken)) return sendHtml(res, 404, '<h1>Pairing link not found</h1>');
     return sendHtml(res, 200, pairPage(token));
   }
   return async function handlePresenceAudio(req, res, url) {
     const pathname = url.pathname;
-    if (pathname.startsWith('/presence-audio/pair/')) return pair(req, res, url);
+    if (pathname.startsWith('/3dvr-connect/presence/pair/') || pathname.startsWith('/presence-audio/pair/')) return pair(req, res, url);
     if (pathname === '/api/presence-audio/pair/claim') {
       if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'Method Not Allowed' });
       return claimPair(req, res);
