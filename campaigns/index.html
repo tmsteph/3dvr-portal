@@ -96,7 +96,6 @@
             <option>Event or networking contacts</option>
             <option>Other legitimate business contacts</option>
           </select>
-          <label class="check"><input id="sourceAck" type="checkbox"> <span>These are legitimate contacts. I am not uploading a purchased or scraped spam list.</span></label>
         </div>
       </details>
 
@@ -114,7 +113,8 @@
         <label for="businessName">Business / sender name</label>
         <input id="businessName" autocomplete="organization" placeholder="Your business name">
         <label for="postalAddress">Business postal address</label>
-        <input id="postalAddress" autocomplete="street-address" placeholder="123 Main St, San Diego, CA 92101">\n        <p class="muted">We’ll format spacing, street suffixes, state, and ZIP before sending.</p>
+        <input id="postalAddress" autocomplete="street-address" placeholder="123 Main St, San Diego, CA 92101">
+        <p class="muted">We’ll format spacing, street suffixes, state, and ZIP before sending.</p>
         <details>
           <summary>Suppression list</summary>
           <p class="muted">Anyone here will be skipped. Add people who unsubscribe.</p>
@@ -128,6 +128,10 @@
           <strong id="sendSummary">Connect Gmail to begin.</strong>
           <p class="muted">Beta guardrail: max 25 successful sends per browser/account per day, with spacing between messages.</p>
         </div>
+        <label class="check send-ack">
+          <input id="sourceAck" type="checkbox">
+          <span>I confirm these are legitimate business contacts, not a purchased or scraped spam list.</span>
+        </label>
         <div class="button-row">
           <button class="button secondary" id="sendTest" type="button">Send test to myself</button>
           <button class="button primary" id="sendCampaign" type="submit">Start campaign</button>
