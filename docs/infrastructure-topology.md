@@ -253,4 +253,4 @@ These fixed ports are specific to Thomas's current single-user OVH installation.
 
 ### Browser lane admission
 
-Additional/on-demand browser lanes are admitted only when the host has enough headroom. `/usr/local/bin/3dvr-browser-admit` checks available memory, load per CPU, and the number of active browser services before allowing identity/training/Encore lanes to start. The default policy keeps 2 GiB of host memory in reserve, allows at most three active browser lanes, and blocks starts above 1.25 load per CPU. Persistent core lanes remain de-prioritized with cgroup CPU/IO controls so browser work cannot starve production or recovery.
+Additional/on-demand browser lanes are admitted only when the host has enough headroom. `/usr/local/bin/3dvr-browser-admit` checks available memory, load per CPU, and the number of active browser services before allowing identity/training/Encore lanes to start. The default policy keeps 2 GiB of host memory in reserve, allows at most four active browser lanes, and blocks starts above 1.25 load per CPU. Persistent core lanes remain de-prioritized with cgroup CPU/IO controls so browser work cannot starve production or recovery.
