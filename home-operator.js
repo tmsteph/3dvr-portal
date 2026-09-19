@@ -46,24 +46,68 @@ function installAccountStatus() {
   const authEntry = document.querySelector('[data-auth-entry]');
   if (!authEntry) return;
 
-  const render = () => {
+  let scoreUnsubscribe = null;
+  let scoreManager = null;
+  let activeAlias = '';
+
+  const render = (livePoints = null) => {
     const state = readAccountState();
     if (state.signedIn) {
-      const points = readCachedPoints(state);
+      const cached = readCachedPoints(state);
+      const points = Number.isFinite(Number(livePoints))
+        ? Math.max(cached, Math.max(0, Math.round(Number(livePoints))))
+        : cached;
       authEntry.href = '/profile.html#profile';
       authEntry.textContent = `${state.displayName} · ⭐ ${points}`;
       authEntry.setAttribute('aria-label', `Open profile for ${state.displayName}. ${points} points.`);
-      return;
+      return state;
     }
 
     authEntry.href = '/sign-in.html?redirect=%2F';
     authEntry.textContent = 'Sign in';
     authEntry.setAttribute('aria-label', 'Sign in or create an account');
+    return state;
   };
 
-  render();
-  window.addEventListener('storage', render);
-  window.addEventListener('portal-auth:changed', render);
+  const hydrate = () => {
+    const state = render();
+    if (!state.signedIn || !state.alias || !window.ScoreSystem || typeof window.Gun !== 'function') {
+      return;
+    }
+
+    const normalizedAlias = state.alias.toLowerCase();
+    if (scoreManager && activeAlias === normalizedAlias) return;
+
+    if (scoreUnsubscribe) {
+      scoreUnsubscribe();
+      scoreUnsubscribe = null;
+    }
+    if (scoreManager && typeof window.ScoreSystem.resetManager === 'function') {
+      window.ScoreSystem.resetManager();
+    }
+
+    const context = window.ScoreSystem.ensureGun(
+      () => window.Gun({
+        peers: Array.isArray(window.__GUN_PEERS__) && window.__GUN_PEERS__.length
+          ? window.__GUN_PEERS__
+          : ['wss://gun-relay-3dvr.fly.dev/gun']
+      }),
+      { label: 'homepage-score' }
+    );
+
+    scoreManager = window.ScoreSystem.getManager({
+      gun: context.gun,
+      user: context.user,
+      portalRoot: context.gun.get('3dvr-portal')
+    });
+    activeAlias = normalizedAlias;
+    scoreUnsubscribe = scoreManager.subscribe(points => render(points));
+    scoreManager.whenReady().then(points => render(points)).catch(() => {});
+  };
+
+  hydrate();
+  window.addEventListener('storage', hydrate);
+  window.addEventListener('portal-auth:changed', hydrate);
 }
 
 function installOsLauncher() {
