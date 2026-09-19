@@ -25,6 +25,14 @@ case "$lane" in
     extra_args+=("--window-size=1280,900")
     extra_args+=("--disable-blink-features=AutomationControlled")
     ;;
+  identity)
+    port=9666
+    profile="/home/debian/.config/3dvr/browser-profiles/identity"
+    start_url="https://portal.3dvr.tech/sign-in.html"
+    headless_args=()
+    extra_args+=("--window-size=1280,900")
+    extra_args+=("--disable-blink-features=AutomationControlled")
+    ;;
   training)
     port=9555
     profile="/home/debian/.config/3dvr/browser-profiles/training"
@@ -32,6 +40,12 @@ case "$lane" in
     ;;
   *) echo "unknown browser lane: $lane" >&2; exit 64 ;;
 esac
+
+if [[ "$lane" == "identity" || "$lane" == "encore" || "$lane" == "training" ]]; then
+  if command -v /usr/local/bin/3dvr-browser-admit >/dev/null 2>&1; then
+    /usr/local/bin/3dvr-browser-admit "$lane"
+  fi
+fi
 
 mkdir -p "$profile"
 chmod 700 "$profile"
@@ -44,7 +58,7 @@ if [[ -z "$chrome" || ! -x "$chrome" ]]; then
     if command -v "$candidate" >/dev/null 2>&1; then chrome="$(command -v "$candidate")"; break; fi
   done
 fi
-if [[ "$lane" == "messaging" || "$lane" == "general" ]] && command -v google-chrome-stable >/dev/null 2>&1; then
+if [[ "$lane" == "messaging" || "$lane" == "general" || "$lane" == "identity" ]] && command -v google-chrome-stable >/dev/null 2>&1; then
   chrome="$(command -v google-chrome-stable)"
 fi
 
@@ -63,7 +77,7 @@ args=(
   "$start_url"
 )
 
-if [[ "$lane" == "messaging" || "$lane" == "general" ]]; then
+if [[ "$lane" == "messaging" || "$lane" == "general" || "$lane" == "identity" ]]; then
   exec /usr/bin/xvfb-run -a -s "-screen 0 1280x900x24" "$chrome" "${args[@]}"
 else
   exec "$chrome" "${args[@]}"
