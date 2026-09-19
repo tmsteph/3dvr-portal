@@ -37,12 +37,13 @@ cat >/etc/caddy/Caddyfile <<'CADDY'
 
   handle /__3dvr-edge-health {
     header Content-Type application/json
-    respond `{"ok":true,"edge":"digitalocean","upstream":"ovh-reverse-tunnel"}` 200
+    respond `{"ok":true,"edge":"digitalocean","upstreams":["ovh-primary","hetzner-standby"],"safeMode":"static"}` 200
   }
 
   @api path /api/*
   handle @api {
-    reverse_proxy 127.0.0.1:14320 {
+    reverse_proxy 127.0.0.1:14320 127.0.0.1:14322 {
+      lb_policy first
       transport http {
         dial_timeout 2s
         response_header_timeout 15s
@@ -64,7 +65,8 @@ cat >/etc/caddy/Caddyfile <<'CADDY'
   }
 
   handle {
-    reverse_proxy 127.0.0.1:14320 {
+    reverse_proxy 127.0.0.1:14320 127.0.0.1:14322 {
+      lb_policy first
       transport http {
         dial_timeout 2s
         response_header_timeout 15s
@@ -177,7 +179,13 @@ curl -fsS --max-time 5 http://127.0.0.1/__3dvr-edge-health >/tmp/3dvr-edge-healt
 grep -q '"ok":true' /tmp/3dvr-edge-health.json
 curl -fsS --max-time 10 -H 'Host: portal.3dvr.tech' http://127.0.0.1/__3dvr-health >/tmp/3dvr-upstream-health.json
 grep -q '"host":"self"' /tmp/3dvr-upstream-health.json
-rm -f /tmp/3dvr-edge-health.json /tmp/3dvr-upstream-health.json
+
+# Both tunnels must be independently observable before declaring the edge fully redundant.
+curl -fsS --max-time 5 http://127.0.0.1:14320/__3dvr-health >/tmp/3dvr-ovh-health.json
+grep -q '"host":"self"' /tmp/3dvr-ovh-health.json
+curl -fsS --max-time 5 http://127.0.0.1:14322/__3dvr-health >/tmp/3dvr-hetzner-health.json
+grep -q '"standby":true' /tmp/3dvr-hetzner-health.json
+rm -f /tmp/3dvr-edge-health.json /tmp/3dvr-upstream-health.json /tmp/3dvr-ovh-health.json /tmp/3dvr-hetzner-health.json
 
 echo "3dvr_do_edge_hardened=true"
 free -h
