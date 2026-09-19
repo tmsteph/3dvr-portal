@@ -6,7 +6,10 @@ if (!puppeteerPath) throw new Error('PUPPETEER_CORE_PATH is required.');
 const puppeteer = require(puppeteerPath);
 
 const ORIGIN = 'https://portal.3dvr.tech';
-const summary = {
+const BROWSER_URL = process.env.BROWSER_URL || 'http://127.0.0.1:9222';
+const BROWSER_LANE = process.env.BROWSER_LANE || 'general';
+const SKIP_GMAIL = process.env.SKIP_GMAIL === '1';
+const summary = { browserLane: BROWSER_LANE,
   ok: false,
   portal: {},
   leadFlow: {},
@@ -280,7 +283,7 @@ async function runGmailFlow(browser) {
 }
 
 (async () => {
-  const browser = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9222' });
+  const browser = await puppeteer.connect({ browserURL: BROWSER_URL });
   const username = 'e2e-' + Date.now().toString(36) + '-' + crypto.randomBytes(3).toString('hex');
   const password = 'T!' + crypto.randomBytes(18).toString('base64url') + '9a';
 
@@ -299,8 +302,12 @@ async function runGmailFlow(browser) {
       summary.errors.push({ stage: 'second-sign-in', message: error.message });
     }
 
-    try { await runGmailFlow(browser); }
-    catch (error) { summary.errors.push({ stage: 'gmail', message: error.message }); }
+    if (SKIP_GMAIL) {
+      summary.gmail.skipped = 'general-lane-busy';
+    } else {
+      try { await runGmailFlow(browser); }
+      catch (error) { summary.errors.push({ stage: 'gmail', message: error.message }); }
+    }
 
     const browserLocationOk = /san diego/i.test(summary.leadFlow.locationStatus || '');
     const addressOk = summary.leadFlow.formattedAddress === '123 Main St, San Diego, CA 92101';
@@ -309,14 +316,10 @@ async function runGmailFlow(browser) {
       || Number(summary.crossDevice.vaultCount) >= Number(summary.leadFlow.vaultCount);
     const gmailOk = /test sent to/i.test(summary.gmail.testResult || '');
 
-    summary.ok = Boolean(
-      accountOk
-      && browserLocationOk
-      && addressOk
-      && vaultOk
-      && gmailOk
-      && summary.errors.length === 0
-    );
+    summary.portalOk = Boolean(accountOk && browserLocationOk && addressOk && vaultOk);
+    summary.partial = SKIP_GMAIL;
+    summary.ok = Boolean(summary.portalOk && (SKIP_GMAIL || gmailOk) && summary.errors.length === 0);
+    summary.fullOk = Boolean(summary.ok && !SKIP_GMAIL);
     summary.humanRequired = summary.gmail.oauth === 'human-required';
     process.stdout.write(JSON.stringify(summary) + '\n');
   } finally {
