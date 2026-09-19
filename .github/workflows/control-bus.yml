@@ -131,11 +131,42 @@ jobs:
             campaigns_acceptance)
               ovh 'bash -s' <<'OVH'
           set -euo pipefail
-          token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general control-bus-campaigns-acceptance 1200)"
+          lane=""
+          port=""
+          token=""
+          training_started=false
+
+          if token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general control-bus-campaigns-acceptance 1200 2>/dev/null)"; then
+            lane="general"
+            port="9222"
+            export SKIP_GMAIL=0
+          elif token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire training control-bus-campaigns-acceptance 1200 2>/dev/null)"; then
+            lane="training"
+            port="9555"
+            export SKIP_GMAIL=1
+            if ! systemctl is-active --quiet 3dvr-browser-lane@training.service; then
+              sudo -n systemctl start 3dvr-browser-lane@training.service
+              training_started=true
+            fi
+            for _ in $(seq 1 30); do
+              curl -fsS "http://127.0.0.1:$port/json/version" >/dev/null 2>&1 && break
+              sleep 1
+            done
+            curl -fsS "http://127.0.0.1:$port/json/version" >/dev/null
+          else
+            jq -n '{ok:false,error:"No appropriate Campaigns browser lane is currently available.",browserLane:""}'
+            exit 0
+          fi
+
           cleanup() {
-            sudo -n /usr/local/bin/3dvr-browser-lease release general "$token" >/dev/null 2>&1 || true
+            sudo -n /usr/local/bin/3dvr-browser-lease release "$lane" "$token" >/dev/null 2>&1 || true
+            if [ "$training_started" = true ]; then
+              sudo -n systemctl stop 3dvr-browser-lane@training.service >/dev/null 2>&1 || true
+            fi
           }
           trap cleanup EXIT INT TERM
+          export BROWSER_LANE="$lane"
+          export BROWSER_URL="http://127.0.0.1:$port"
 
           puppeteer_core="$(find /home/debian/.npm/_npx -type f -path '*/puppeteer-core/lib/puppeteer/puppeteer-core.js' -print -quit 2>/dev/null || true)"
           [ -n "$puppeteer_core" ] && [ -f "$puppeteer_core" ]
