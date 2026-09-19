@@ -147,6 +147,55 @@ The self-hosted production workflow no longer runs on every push to `main`. It r
 
 Open Runner health should be checked independently of Desktop Commander. At minimum, verify `3dvr-open-runner.service`, GitHub queue access, and direct SSH reachability so failure of one convenience transport cannot masquerade as loss of server control.
 
+## Resource isolation and degraded-mode resilience — 2026-09-18
+
+The portal/control path must remain usable even when experimental workloads misbehave.
+
+### OVH production protection
+
+`ops/resilience/install-ovh-guardrails.sh` installs host-level systemd guardrails:
+
+- `3dvr-production.slice` gives the portal, OpenBao, Secrets Broker, Caddy, and Human Handoff high CPU/IO weight plus protected memory.
+- `3dvr-portal.service` is health-checked once per minute by `3dvr-production-watchdog.timer`; two consecutive local health failures trigger a bounded portal restart.
+- Persistent browser lanes retain their per-lane memory ceilings and also receive lower CPU/IO priority, so browser automation can slow itself down without starving production.
+- `/usr/local/bin/3dvr-experiment` runs ad-hoc experiments in a bounded transient user scope. New experimental compute on OVH should use this wrapper when it cannot be moved to Hetzner.
+- OVH remains the stable portal/control/recovery anchor. Heavy builds, local-model experiments, batch jobs, and general agent compute belong on Hetzner.
+
+### DigitalOcean edge behavior
+
+`ops/resilience/install-do-edge-guardrails.sh` keeps the 1 GiB DigitalOcean node lightweight:
+
+- Caddy and open recovery services receive priority over background work.
+- The OVH portal is reached through the existing reverse SSH tunnel at `127.0.0.1:14320`.
+- Caddy performs active/passive upstream health checks and uses short connection/header timeouts.
+- Page requests fall back to a tiny static 3DVR Safe Mode page if the OVH tunnel/backend fails or returns selected 5xx responses.
+- API requests return a bounded `503` JSON safe-mode response instead of hanging.
+- `GET /__3dvr-edge-health` is served locally by DO and does not depend on OVH.
+- The duplicate `3dvr-worker`/`3dvr-supervisor` tmux sessions are not part of DO's desired workload; Hetzner owns those roles.
+- `desktop-commander-remote.service` is disabled on DO. SSH/Open Runner are the supported recovery paths.
+
+### Hetzner worker protection
+
+Hetzner remains the default agent/worker node. `scripts/ops/hetzner-agent-guardrails.sh` continues to cap worker pane memory/CPU and keep Ollama from auto-starting into a host-global OOM condition.
+
+`scripts/ops/hetzner-disk-maintenance.sh`, scheduled every six hours by `.github/workflows/hetzner-disk-maintenance.yml`, performs disk cleanup only when root usage is at least 80%. It may remove reproducible caches, old temporary diagnostics, and clean+merged worktrees from designated scratch-worktree directories. It must never automatically delete dirty or unmerged work or named durable workspaces.
+
+On 2026-09-18 the first resource-aware cloud-health run detected Hetzner at 100% root-disk usage. Bounded cleanup recovered about 5 GiB while preserving unmerged/dirty work, validating that disk pressure was a real reliability risk rather than a hypothetical one.
+
+### Monitoring
+
+`.github/workflows/cloud-health.yml` now checks each cloud node hourly for:
+
+- SSH reachability,
+- available-memory percentage,
+- swap pressure,
+- root-disk utilization,
+- one-minute load relative to CPU count,
+- canonical public portal health,
+- DigitalOcean edge health.
+
+Critical memory, disk, or load conditions fail the workflow; early pressure produces warnings.
+
 ## Reliability rules
 
 1. **No single undocumented host.** Every persistent service must have an owner node recorded here or in deployment configuration.
@@ -170,7 +219,7 @@ Open Runner health should be checked independently of Desktop Commander. At mini
 - [ ] Decide and document backup/restore policy for DigitalOcean; it currently has no provider snapshots/backups visible in the account inventory.
 - [ ] Inventory persistent services and data directories on OVH, DigitalOcean, and Hetzner.
 - [x] Assign the portal/control plane, workers, and fallback roles to explicit cloud nodes.
-- [ ] Add disk/RAM/load alerts before any node becomes saturated.
+- [x] Add disk/RAM/load alerts before any node becomes saturated.
 - [ ] Finish LicheePi network watchdog/fallback access without making it a cloud dependency.
 - [ ] Document provider-console recovery steps separately from SSH recovery.
 
