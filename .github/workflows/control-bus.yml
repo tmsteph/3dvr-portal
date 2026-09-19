@@ -35,7 +35,7 @@ jobs:
           service="$(jq -r '.service // empty' ops/control/request.json)"
           test -n "$id"
           case "$action" in
-            status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_promote_secrets|portal_ai_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard|campaigns_acceptance|campaigns_user_acceptance) ;;
+            status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_promote_secrets|portal_ai_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard|campaigns_acceptance|campaigns_user_acceptance|campaigns_gmail_handoff) ;;
             restart)
               case "$service" in
                 3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service) ;;
@@ -265,6 +265,50 @@ jobs:
             if(!ok) process.exit(2);
           })().catch(e=>{console.error(e.message);process.exit(1)});
           NODE
+          OVH
+              ;;
+            campaigns_gmail_handoff)
+              ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+
+          prep_token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general control-bus-campaigns-gmail-prep 180)"
+          prep_cleanup() {
+            sudo -n /usr/local/bin/3dvr-browser-lease release general "$prep_token" >/dev/null 2>&1 || true
+          }
+          trap prep_cleanup EXIT INT TERM
+
+          puppeteer_core="$(find /home/debian/.npm/_npx -type f -path '*/puppeteer-core/lib/puppeteer/puppeteer-core.js' -print -quit 2>/dev/null || true)"
+          [ -n "$puppeteer_core" ] && [ -f "$puppeteer_core" ]
+          PUPPETEER_CORE_PATH="$puppeteer_core" node - <<'NODE'
+          const puppeteer=require(process.env.PUPPETEER_CORE_PATH);
+          (async()=>{
+            const browser=await puppeteer.connect({browserURL:'http://127.0.0.1:9222'});
+            const page=await browser.newPage();
+            await page.goto('https://portal.3dvr.tech/api/oauth/google?action=start&scopeKey=gmail-send&intent=campaigns&returnTo=/campaigns/', {
+              waitUntil:'domcontentloaded',
+              timeout:30000
+            });
+            await new Promise(r=>setTimeout(r,1800));
+            process.stdout.write(JSON.stringify({host:new URL(page.url()).hostname})+'\n');
+            await browser.disconnect();
+          })().catch(error=>{console.error(error.message);process.exit(1);});
+          NODE
+
+          prep_cleanup
+          trap - EXIT INT TERM
+
+          cd /home/debian/worktrees/human-handoff-live
+          out=$(node apps/agent/thomas-agent/node/human-handoff-gateway.js create \
+            --lane general \
+            --origin https://accounts.google.com \
+            --service "Campaigns Gmail OAuth" \
+            --reason "Choose the Gmail account you want Campaigns to send from, approve Gmail send permission, then tap Done.")
+          url=$(printf '%s\n' "$out" | sed -n 's/^handoff_url=//p')
+          id=$(printf '%s\n' "$out" | sed -n 's/^handoff_id=//p')
+          expires=$(printf '%s\n' "$out" | sed -n 's/^expires_at=//p')
+          [ -n "$url" ] && [ -n "$id" ]
+          jq -n --arg id "$id" --arg url "$url" --arg expiresAt "$expires" \
+            '{ok:true,handoffId:$id,handoffUrl:$url,expiresAt:$expiresAt,browserLane:"general",service:"Campaigns Gmail OAuth"}'
           OVH
               ;;
             openai_admin_handoff)

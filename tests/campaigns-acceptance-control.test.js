@@ -29,4 +29,8 @@ test('Campaigns acceptance uses the leased OVH browser lane and never starts a r
   assert.match(userRunner, /campaignsOk/);
   assert.doesNotMatch(userRunner, /#sourceAck/);
   assert.doesNotMatch(userRunner, /#sendCampaign/);
+  assert.match(workflow, /campaigns_gmail_handoff/);
+  assert.match(workflow, /Campaigns Gmail OAuth/);
+  assert.match(workflow, /--origin https:\/\/accounts\.google\.com/);
+  assert.match(workflow, /3dvr-browser-lease acquire general control-bus-campaigns-gmail-prep/);
 });
