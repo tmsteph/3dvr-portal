@@ -37,6 +37,21 @@ fi
 
 ln -sfn "$release" "$current"
 
+# Keep the active standby release plus one rollback. Older releases are
+# reproducible from Git and must not slowly consume the worker disk.
+mapfile -t standby_releases < <(
+  find "$releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' 2>/dev/null     | sort -nr | awk '{print $2}'
+)
+rollback_kept=0
+for old_release in "${standby_releases[@]}"; do
+  [ "$old_release" = "$release" ] && continue
+  if [ "$rollback_kept" -lt 1 ]; then
+    rollback_kept=1
+    continue
+  fi
+  rm -rf -- "$old_release"
+done
+
 cat >/etc/3dvr-portal-standby.env <<EOF
 PORT=$port
 HOST=127.0.0.1
