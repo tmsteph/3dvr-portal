@@ -1,33 +1,19 @@
 {
-  "ok": false,
-  "portal": {
-    "signedIn": false,
-    "usernamePresent": false,
-    "hasPubKey": false,
-    "signInIssue": "Persistent browser is signed out of the Portal and has no saved Portal credentials.",
-    "syncStatus": "Lead Vault: checking secure sync…"
-  },
-  "location": {
-    "status": "Using your approximate location: San Diego, California",
-    "leadCount": 5
-  },
-  "gmail": {
-    "hadSavedConnection": false,
-    "oauth": "human-required",
-    "ready": false,
-    "sameAccount": false,
-    "scopeKey": "",
-    "statusText": ""
-  },
-  "ui": {
-    "spamCheckboxPresent": false,
-    "literalNewlineVisible": false
-  },
-  "errors": [],
-  "portalSignInOk": false,
-  "campaignsOk": false,
-  "requestId": "campaigns-user-acceptance-20260919-2",
-  "action": "campaigns_user_acceptance",
+  "host": "accounts.google.com",
+  "requestId": "campaigns-gmail-handoff-20260919-1",
+  "action": "campaigns_gmail_handoff",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-19T17:53:35Z"
+  "checkedAt": "2026-09-19T17:57:43Z"
+}
+{
+  "ok": true,
+  "handoffId": "lf-ngXgS7qKlCqES",
+  "handoffUrl": "https://hypothesis-xhtml-bundle-thick.trycloudflare.com/human-handoff/#Q1uUFVYfGBrky7LD_Fmkw0_xG5wrDZEEda99iqoTsP0",
+  "expiresAt": "2026-09-19T18:57:43.491Z",
+  "browserLane": "general",
+  "service": "Campaigns Gmail OAuth",
+  "requestId": "campaigns-gmail-handoff-20260919-1",
+  "action": "campaigns_gmail_handoff",
+  "workflowOutcome": "success",
+  "checkedAt": "2026-09-19T17:57:43Z"
 }
