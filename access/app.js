@@ -110,7 +110,11 @@ async function resolveBrokerOrigin() {
     const payload = await response.json();
     const parsed = new URL(String(payload?.origin || ''));
     const allowedHost = parsed.protocol === 'https:'
-      && (parsed.hostname.endsWith('.trycloudflare.com') || parsed.hostname === 'control.3dvr.tech');
+      && (
+        parsed.hostname === 'portal.3dvr.tech'
+        || parsed.hostname === 'control.3dvr.tech'
+        || parsed.hostname.endsWith('.trycloudflare.com')
+      );
     if (!allowedHost) throw new Error('OVH control-plane address is invalid.');
     return parsed.origin;
   })().catch(error => {

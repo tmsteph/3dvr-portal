@@ -40,4 +40,5 @@ test('Access exposes owner-side secret request creation', async () => {
   assert.match(html, /id="secretHandoffDialog"/);
   assert.match(app, /createSignedPortalProof\('secret-handoff-owner', 'create'/);
   assert.match(app, /handoffRequestHash/);
+  assert.match(app, /parsed\.hostname === 'portal\.3dvr\.tech'/);
 });
