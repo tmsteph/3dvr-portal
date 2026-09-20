@@ -17,9 +17,7 @@ install -d -o root -g threedvr-agents -m 0770 /var/log/3dvr-control-mcp
 
 install -o root -g root -m 0644 "$ROOT/apps/agent/mcp/local-control.js" "$DEST/mcp/local-control.js"
 install -o root -g root -m 0644 "$ROOT/apps/agent/connectors/control/local-machine.js" "$DEST/connectors/control/local-machine.js"
-install -o root -g root -m 0644 "$ROOT/apps/agent/connectors/control/secure-ops.js" "$DEST/connectors/control/secure-ops.js"
 install -o root -g root -m 0644 "$ROOT/apps/agent/connectors/audit/log.js" "$DEST/connectors/audit/log.js"
-install -o root -g root -m 0644 "$ROOT/ops/control-mcp/secret-stdin.js" /usr/local/libexec/3dvr-secret-stdin.js
 install -o root -g root -m 0755 "$ROOT/ops/control-mcp/3dvr-control-service" /usr/local/sbin/3dvr-control-service
 
 cat > /usr/local/sbin/3dvr-secret-bootstrap <<'EOF'
@@ -48,7 +46,31 @@ cat > /usr/local/sbin/3dvr-secret-store <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 [[ ${EUID:-$(id -u)} -eq 0 ]] || { echo 'root required' >&2; exit 77; }
-exec "$NODE_BIN" /usr/local/libexec/3dvr-secret-stdin.js
+exec "$NODE_BIN" -e '
+const fs = require("fs");
+const text = (value, max = 1000) => String(value == null ? "" : value).trim().slice(0, max);
+let raw = "";
+try {
+  raw = fs.readFileSync(0, "utf8");
+  const payload = JSON.parse(raw || "{}");
+  const key = text(payload.key, 500);
+  let value = typeof payload.value === "string" ? payload.value : "";
+  const sourceId = text(payload.sourceId || "secure-stdin", 500);
+  if (!/^[A-Za-z][A-Za-z0-9_.:/-]{1,127}$/.test(key)) throw new Error("invalid secret key");
+  if (!value || Buffer.byteLength(value, "utf8") > 64 * 1024) throw new Error("invalid secret value");
+  const { OpenBaoBackend } = require("/opt/3dvr/secrets-broker/openbao.js");
+  const backend = new OpenBaoBackend();
+  if (!backend.ready()) throw new Error("OpenBao backend is not configured");
+  const stored = backend.create({ key, value, sourceId });
+  value = "";
+  raw = "";
+  process.stdout.write(JSON.stringify({ ok: true, stored: true, key: stored.key, id: stored.id, backend: stored.backend }) + "\\n");
+} catch (error) {
+  raw = "";
+  process.stderr.write(JSON.stringify({ ok: false, error: text(error?.message || error, 500) }) + "\\n");
+  process.exitCode = 1;
+}
+'
 EOF
 chown root:root /usr/local/sbin/3dvr-secret-store
 chmod 0750 /usr/local/sbin/3dvr-secret-store
