@@ -16,6 +16,18 @@ const secretValue = byId('secretValue');
 const secretNote = byId('secretNote');
 const secretSaveMessage = byId('secretSaveMessage');
 const secretSaveStatus = byId('secretSaveStatus');
+const secretHandoffDialog = byId('secretHandoffDialog');
+const openSecretHandoff = byId('openSecretHandoff');
+const handoffKey = byId('handoffKey');
+const handoffLabel = byId('handoffLabel');
+const handoffRecipient = byId('handoffRecipient');
+const handoffPurpose = byId('handoffPurpose');
+const handoffTtl = byId('handoffTtl');
+const handoffMessage = byId('handoffMessage');
+const handoffResult = byId('handoffResult');
+const handoffLink = byId('handoffLink');
+const createHandoff = byId('createHandoff');
+const copyHandoffLink = byId('copyHandoffLink');
 
 function setPill(id, text, state = 'progress') {
   const element = byId(id);
@@ -124,17 +136,50 @@ async function brokerAction(action, extra = {}, proofExtra = extra) {
   return payload;
 }
 
+async function createSecretHandoff(details) {
+  const ttlMinutes = Math.max(10, Math.min(Number(details.ttlMinutes) || 1440, 10080));
+  const normalized = {
+    key: String(details.key || '').trim(),
+    label: String(details.label || '').trim(),
+    purpose: String(details.purpose || '').trim(),
+    recipient: String(details.recipient || '').trim(),
+    ttlMinutes,
+  };
+  const handoffRequestHash = await sha256(JSON.stringify([
+    normalized.key,
+    normalized.label,
+    normalized.purpose,
+    normalized.recipient,
+    normalized.ttlMinutes,
+  ]));
+  const proof = await createSignedPortalProof('secret-handoff-owner', 'create', { handoffRequestHash });
+  if (!proof) throw new Error('Sign in with your 3DVR owner account to create a secure request.');
+  const brokerOrigin = await resolveBrokerOrigin();
+  const response = await fetch(`${brokerOrigin}/api/secret-handoff`, {
+    method: 'POST',
+    mode: 'cors',
+    credentials: 'omit',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ...proof, action: 'create', ...normalized }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || 'Secure handoff request failed.');
+  return payload;
+}
+
 function renderStatus(status) {
   const bitwarden = (status.backends || []).find(item => item.name === 'bitwarden');
+  const openbao = (status.backends || []).find(item => item.name === 'openbao');
+  const secretsReady = Boolean(openbao?.ready || bitwarden?.ready);
   setPill('controlNodeStatus', status.controlNode === 'ovh' ? 'OVH live' : 'Unexpected', status.controlNode === 'ovh' ? 'ready' : 'waiting');
-  setPill('bitwardenStatus', bitwarden?.ready ? 'Connected' : 'Setup needed', bitwarden?.ready ? 'ready' : 'waiting');
+  setPill('bitwardenStatus', openbao?.ready ? 'OpenBao connected' : bitwarden?.ready ? 'Bitwarden connected' : 'Setup needed', secretsReady ? 'ready' : 'waiting');
   setPill('auditStatus', status.audit?.ok ? 'Verified' : 'Attention', status.audit?.ok ? 'ready' : 'waiting');
   byId('auditDetail').textContent = status.audit?.ok ? `${status.audit.entries || 0} audit events; chain verified.` : 'Audit chain needs attention.';
   const enabledAgents = (status.agents || []).filter(agent => agent.enabled !== false);
   setPill('agentStatus', `${enabledAgents.length} active`, 'ready');
   byId('agentDetail').textContent = `${status.configuredSecrets || 0} secret policies · ${enabledAgents.length} scoped machine identities.`;
-  const connected = Boolean(bitwarden?.ready);
-  byId('next-title').textContent = connected ? 'Bitwarden connected ✅' : 'Create 3DVR machine access';
+  const connected = secretsReady;
+  byId('next-title').textContent = connected ? '3DVR Secrets connected ✓' : 'Create 3DVR machine access';
   byId('brokerDot').className = `status-dot ${connected ? 'ready' : 'attention'}`;
   if (approvalButton) {
     approvalButton.textContent = connected ? 'Connected ✓' : 'Connect Bitwarden';
@@ -145,9 +190,13 @@ function renderStatus(status) {
     openSaveSecret.disabled = !connected;
     openSaveSecret.setAttribute('aria-disabled', connected ? 'false' : 'true');
   }
+  if (openSecretHandoff) {
+    openSecretHandoff.disabled = !connected;
+    openSecretHandoff.setAttribute('aria-disabled', connected ? 'false' : 'true');
+  }
   byId('brokerMessage').textContent = connected
-    ? 'OVH broker is live and Bitwarden machine access is connected. Agents can request scoped access through policy.'
-    : 'OVH broker is live. Bitwarden machine access still needs its one-time private handoff.';
+    ? `OVH broker is live and ${openbao?.ready ? 'OpenBao' : 'Bitwarden'} is connected. Agents can request scoped access through policy.`
+    : 'OVH broker is live. A secrets backend still needs its one-time private setup.';
 }
 
 function renderApprovals(records = []) {
@@ -203,6 +252,60 @@ approvalButton?.addEventListener('click', () => {
 openSaveSecret?.addEventListener('click', () => {
   secretSaveMessage.textContent = '';
   if (typeof saveSecretDialog?.showModal === 'function') saveSecretDialog.showModal();
+});
+
+openSecretHandoff?.addEventListener('click', () => {
+  handoffMessage.textContent = '';
+  handoffResult.hidden = true;
+  handoffLink.value = '';
+  if (!handoffKey.value) handoffKey.value = 'CVW_N8N_API_KEY';
+  if (!handoffLabel.value) handoffLabel.value = 'n8n API key';
+  if (!handoffRecipient.value) handoffRecipient.value = 'Tom';
+  if (!handoffPurpose.value) handoffPurpose.value = 'Connect CVW n8n securely to 3DVR';
+  if (typeof secretHandoffDialog?.showModal === 'function') secretHandoffDialog.showModal();
+});
+
+createHandoff?.addEventListener('click', async () => {
+  const details = {
+    key: handoffKey?.value || '',
+    label: handoffLabel?.value || '',
+    recipient: handoffRecipient?.value || '',
+    purpose: handoffPurpose?.value || '',
+    ttlMinutes: handoffTtl?.value || 1440,
+  };
+  handoffMessage.textContent = '';
+  if (!details.key.trim() || !details.label.trim()) {
+    handoffMessage.textContent = 'Add a destination name and a human-readable label.';
+    return;
+  }
+  createHandoff.disabled = true;
+  try {
+    const result = await createSecretHandoff(details);
+    handoffLink.value = result.shareUrl || '';
+    handoffResult.hidden = !handoffLink.value;
+    handoffMessage.textContent = handoffLink.value
+      ? 'Secure one-time link created. Send the link to the recipient normally.'
+      : 'The request was created but no share link was returned.';
+    byId('handoffCreateStatus').textContent = `Active request for ${details.label.trim()} ✓`;
+  } catch (error) {
+    handoffMessage.textContent = error.message;
+  } finally {
+    createHandoff.disabled = false;
+  }
+});
+
+copyHandoffLink?.addEventListener('click', async () => {
+  const value = handoffLink?.value || '';
+  if (!value) return;
+  try {
+    await navigator.clipboard.writeText(value);
+    handoffMessage.textContent = 'Secure link copied.';
+  } catch {
+    handoffLink.focus();
+    handoffLink.select();
+    document.execCommand('copy');
+    handoffMessage.textContent = 'Secure link copied.';
+  }
 });
 
 saveSecret?.addEventListener('click', async () => {

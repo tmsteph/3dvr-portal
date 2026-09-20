@@ -32,8 +32,8 @@
         <p>OVH is the authority for broker policy, approvals, and audit state.</p>
       </article>
       <article class="card">
-        <div class="card-head"><h2>Bitwarden backend</h2><span class="pill progress" id="bitwardenStatus">Checking…</span></div>
-        <p>Only the broker receives the Bitwarden machine credential. Agents receive bounded access through policy.</p>
+        <div class="card-head"><h2>Secrets backend</h2><span class="pill progress" id="bitwardenStatus">Checking…</span></div>
+        <p>OpenBao is preferred on the control node; Bitwarden remains a compatibility backend. Agents receive bounded access through broker policy.</p>
       </article>
       <article class="card">
         <div class="card-head"><h2>Audit chain</h2><span class="pill progress" id="auditStatus">Checking…</span></div>
@@ -70,12 +70,22 @@
       <div>
         <p class="eyebrow">Owner vault</p>
         <h2 id="secret-vault-title">Save to 3DVR Secrets</h2>
-        <p>Store a credential directly in the 3DVR Agent Bitwarden project through the OVH broker. Values are never echoed back or written to the audit log.</p>
-        <p class="connection-note"><strong>Machine access is not your Password Manager vault.</strong> The machine token only reaches credentials intentionally saved to Bitwarden Secrets Manager. Your Bitwarden master password stays outside the server path.</p>
+        <p>Store a credential through the OVH broker into the configured 3DVR secrets backend. Values are never echoed back or written to the audit log.</p>
+        <p class="connection-note"><strong>Machine access is not your Password Manager vault.</strong> OpenBao is the preferred control-node store; Bitwarden Secrets Manager remains compatible. Personal vault master passwords stay outside the server path.</p>
         <p class="connection-note"><a class="registry-link" href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/bitwarden-machine-access.md">Bitwarden machine access runbook →</a></p>
         <p id="secretSaveStatus" class="muted" aria-live="polite"></p>
       </div>
       <button class="primary" id="openSaveSecret" type="button" disabled>Save secret</button>
+    </section>
+
+    <section class="secret-vault" aria-labelledby="handoff-title">
+      <div>
+        <p class="eyebrow">Guest handoff</p>
+        <h2 id="handoff-title">Request a secret securely</h2>
+        <p>Create a one-time encrypted link for someone like Tom. Their browser encrypts the value before it leaves their device, and 3DVR stores it through the secrets broker.</p>
+        <p id="handoffCreateStatus" class="muted" aria-live="polite"></p>
+      </div>
+      <button class="primary" id="openSecretHandoff" type="button" disabled>Create request</button>
     </section>
 
     <section class="secret-vault" aria-labelledby="recovery-vault-title">
@@ -111,6 +121,26 @@
       </ol>
     </section>
 
+
+    <dialog id="secretHandoffDialog">
+      <form method="dialog">
+        <button class="close" aria-label="Close">×</button>
+        <p class="eyebrow">3DVR Secret Handoff</p>
+        <h2>Create secure request</h2>
+        <p>Generate a one-time link. Send the link normally; the secret itself never needs to enter chat or email.</p>
+        <label class="secret-field" for="handoffKey"><span>Destination name</span><input id="handoffKey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="CVW_N8N_API_KEY"></label>
+        <label class="secret-field" for="handoffLabel"><span>What to send</span><input id="handoffLabel" autocomplete="off" spellcheck="false" placeholder="n8n API key"></label>
+        <label class="secret-field" for="handoffRecipient"><span>Recipient (optional)</span><input id="handoffRecipient" autocomplete="off" spellcheck="false" placeholder="Tom"></label>
+        <label class="secret-field" for="handoffPurpose"><span>Purpose (optional)</span><input id="handoffPurpose" autocomplete="off" spellcheck="false" placeholder="Connect CVW n8n to 3DVR"></label>
+        <label class="secret-field" for="handoffTtl"><span>Expires in minutes</span><input id="handoffTtl" type="number" min="10" max="10080" value="1440"></label>
+        <p id="handoffMessage" class="muted" aria-live="polite"></p>
+        <button class="primary" id="createHandoff" type="button">Create secure link</button>
+        <div id="handoffResult" hidden>
+          <label class="secret-field" for="handoffLink"><span>Share this link</span><input id="handoffLink" readonly autocomplete="off"></label>
+          <button class="ghost" id="copyHandoffLink" type="button">Copy link</button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="saveSecretDialog">
       <form method="dialog">

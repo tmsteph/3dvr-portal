@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#08111f">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>Secure Secret Handoff · 3DVR</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main>
+    <section class="card" id="handoffCard">
+      <div class="brand">3DVR</div>
+      <p class="eyebrow">Secure Secret Handoff</p>
+      <h1 id="title">Opening secure request…</h1>
+      <p class="purpose" id="purpose">Checking the one-time handoff link.</p>
+
+      <div class="trust">
+        <div><span>1</span><p><strong>Encrypted here</strong><small>Your secret is encrypted in this browser before it leaves your device.</small></p></div>
+        <div><span>2</span><p><strong>Stored directly</strong><small>3DVR decrypts it only on the control node and passes it straight into the secrets broker.</small></p></div>        <div><span>3</span><p><strong>One-time handoff</strong><small>The request key is destroyed after a confirmed save.</small></p></div>
+      </div>
+
+      <form id="secretForm" hidden>
+        <label for="secretValue">
+          <span id="secretLabel">Secret value</span>
+          <input id="secretValue" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false" placeholder="Paste secret here">
+        </label>
+        <button id="submitSecret" type="submit">Securely hand off</button>
+      </form>
+
+      <div class="receipt" id="receipt" hidden>
+        <div class="check">✓</div>
+        <h2>Received securely</h2>
+        <p>The encrypted handoff was accepted and the one-time request key was destroyed.</p>
+      </div>
+
+      <p class="status" id="status" aria-live="polite">Connecting to 3DVR…</p>
+      <p class="fineprint" id="expiry"></p>
+    </section>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
