@@ -1,6 +1,6 @@
 # 3DVR Agent Access Map
 
-Last reviewed: 2026-09-16
+Last reviewed: 2026-09-20
 
 This document is the canonical human-readable map of the ways an AI agent can reach 3DVR systems, Thomas's authorized services, and connected devices. It complements `abilities/abilities.json`, which is the machine-readable capability/status registry.
 
@@ -72,19 +72,20 @@ Roaming devices can join through OVH using `3dvr device mesh` and reverse SSH.
 
 Where available, prefer the 3DVR MCP/control gateway and Portal/Operator surfaces over arbitrary shell work for repeatable actions.
 
-For ChatGPT-originated server work, the default path is now:
+For routine server/developer work, the default structured path is now:
 
 ```text
-ChatGPT/GitHub connector
-        -> ops/control/request.json
-        -> 3DVR Control Bus
-        -> Hetzner relay
-        -> 3dvr-ovh SSH
-        -> bounded first-party action
-        -> sanitized ops/control/result.json
+MCP-capable client
+        -> Hetzner 3dvr-control-gateway
+        -> typed MCP tool
+        -> SSH transport
+        -> OVH 3dvr-local-control
+        -> allowlisted system/service/secret/API operation
 ```
 
-`Desktop Commander` must not be treated as the default control plane. Use it only as break-glass compatibility when the first-party route is unhealthy or when a provider browser session cannot yet be reached through first-party tooling.
+The 3DVR Control Bus and Open Runner remain first-party fallbacks when a needed capability has not yet been promoted into MCP. Direct SSH is the deliberate low-level maintenance path.
+
+`Desktop Commander` must not be treated as the default control plane. Use it only for bootstrap, debugging, recovery, or a provider/browser surface that first-party tooling cannot yet reach.
 
 ## Persistent authenticated browser access
 
