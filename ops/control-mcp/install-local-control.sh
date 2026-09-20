@@ -17,7 +17,9 @@ install -d -o root -g threedvr-agents -m 0770 /var/log/3dvr-control-mcp
 
 install -o root -g root -m 0644 "$ROOT/apps/agent/mcp/local-control.js" "$DEST/mcp/local-control.js"
 install -o root -g root -m 0644 "$ROOT/apps/agent/connectors/control/local-machine.js" "$DEST/connectors/control/local-machine.js"
+install -o root -g root -m 0644 "$ROOT/apps/agent/connectors/control/secure-ops.js" "$DEST/connectors/control/secure-ops.js"
 install -o root -g root -m 0644 "$ROOT/apps/agent/connectors/audit/log.js" "$DEST/connectors/audit/log.js"
+install -o root -g root -m 0644 "$ROOT/ops/control-mcp/secret-stdin.js" /usr/local/libexec/3dvr-secret-stdin.js
 install -o root -g root -m 0755 "$ROOT/ops/control-mcp/3dvr-control-service" /usr/local/sbin/3dvr-control-service
 
 cat > /usr/local/sbin/3dvr-secret-bootstrap <<'EOF'
@@ -41,6 +43,15 @@ process.stdout.write(JSON.stringify({ ok: true, stored: true, key, backend: "ope
 EOF
 chown root:root /usr/local/sbin/3dvr-secret-bootstrap
 chmod 0750 /usr/local/sbin/3dvr-secret-bootstrap
+
+cat > /usr/local/sbin/3dvr-secret-store <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+[[ ${EUID:-$(id -u)} -eq 0 ]] || { echo 'root required' >&2; exit 77; }
+exec "$NODE_BIN" /usr/local/libexec/3dvr-secret-stdin.js
+EOF
+chown root:root /usr/local/sbin/3dvr-secret-store
+chmod 0750 /usr/local/sbin/3dvr-secret-store
 
 cat > "$DEST/package.json" <<'JSON'
 {"private":true,"dependencies":{"@modelcontextprotocol/sdk":"^1.30.0","zod":"^4.6.2"}}
@@ -71,6 +82,7 @@ chmod 0755 /usr/local/libexec/3dvr-control-mcp-root
 cat > /etc/sudoers.d/3dvr-control-mcp <<'SUDOERS'
 %threedvr-agents ALL=(root) NOPASSWD: /usr/local/libexec/3dvr-control-mcp-root
 %threedvr-agents ALL=(root) NOPASSWD: /usr/local/sbin/3dvr-secret-bootstrap OPENAI_ADMIN_KEY
+%threedvr-agents ALL=(root) NOPASSWD: /usr/local/sbin/3dvr-secret-store
 SUDOERS
 chmod 0440 /etc/sudoers.d/3dvr-control-mcp
 visudo -cf /etc/sudoers.d/3dvr-control-mcp >/dev/null
