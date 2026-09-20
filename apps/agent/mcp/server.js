@@ -221,6 +221,86 @@ function createGatewayMcpServer(options = {}) {
     auditImpl,
   ));
 
+  if (enablePrivileged) {
+    server.registerTool('secret_status', {
+      title: 'Check secret status',
+      description: 'Check whether a named credential exists in OpenBao without returning its value.',
+      inputSchema: { key: z.string().min(1).max(500) },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    }, async ({ key }) => audited(
+      'secret.status',
+      { target: key },
+      async () => callOvhToolImpl('secret_status', { key }),
+      auditImpl,
+    ));
+
+    server.registerTool('n8n_status', {
+      title: 'Check n8n target',
+      description: 'Verify health and API authorization for a configured n8n target without returning workflow content.',
+      inputSchema: { target: z.string().default('cvw') },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    }, async ({ target }) => audited(
+      'n8n.status',
+      { target },
+      async () => callOvhToolImpl('n8n_status', { target }),
+      auditImpl,
+    ));
+
+    server.registerTool('n8n_workflows', {
+      title: 'List n8n workflows',
+      description: 'Return safe workflow metadata only. Node definitions, credentials, and pinned data are omitted.',
+      inputSchema: {
+        target: z.string().default('cvw'),
+        active: z.boolean().optional(),
+        limit: z.number().int().min(1).max(100).default(25),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    }, async ({ target, active, limit }) => audited(
+      'n8n.workflows',
+      { target },
+      async () => callOvhToolImpl('n8n_workflows', { target, active, limit }),
+      auditImpl,
+    ));
+
+    server.registerTool('n8n_executions', {
+      title: 'List n8n executions',
+      description: 'Return execution metadata only. Execution payloads and node data are omitted.',
+      inputSchema: {
+        target: z.string().default('cvw'),
+        workflow_id: z.string().optional(),
+        status: z.enum(['canceled', 'error', 'running', 'success', 'waiting']).optional(),
+        limit: z.number().int().min(1).max(100).default(25),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    }, async ({ target, workflow_id, status, limit }) => audited(
+      'n8n.executions',
+      { target },
+      async () => callOvhToolImpl('n8n_executions', {
+        target, workflow_id, status, limit,
+      }),
+      auditImpl,
+    ));
+
+    server.registerTool('service_status', {
+      title: 'Read controlled service status',
+      description: 'Read systemd status for one allowlisted 3DVR control service on OVH.',
+      inputSchema: {
+        service: z.enum([
+          '3dvr-personal-mcp.service',
+          '3dvr-secrets-broker.service',
+          '3dvr-self-host-portal.service',
+          'openbao.service',
+        ]),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    }, async ({ service }) => audited(
+      'service.status',
+      { target: service },
+      async () => callOvhToolImpl('service_status', { service }),
+      auditImpl,
+    ));
+  }
+
   server.registerTool('gmail_search', {
     title: 'Search Gmail',
     description: 'Search one explicitly selected Gmail account and return matching message identifiers.',
