@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { createReadStream } from 'node:fs';
 import { access, readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import openAiSiteHandler from '../api/openai-site.js';
@@ -15,6 +16,7 @@ const ROOT = resolve(process.env.PORTAL_ROOT || process.cwd());
 const RELEASE_SHA = String(process.env.PORTAL_RELEASE_SHA || '').trim();
 const RELEASE_REF = String(process.env.PORTAL_RELEASE_REF || 'main').trim();
 const LEGACY_API_ORIGIN = String(process.env.LEGACY_API_ORIGIN || '').replace(/\/+$/, '');
+const COMPANION_APK_PATH = resolve(process.env.COMPANION_APK_PATH || '/home/debian/.3dvr/downloads/3dvr-companion-0.4.100.apk');
 const STANDBY_MODE = /^(1|true|yes|on)$/i.test(String(process.env.PORTAL_STANDBY || '').trim());
 const oauthProviderHandler = createOAuthProviderHandler();
 const organismBridgeHandler = createOrganismBridgeHandler();
@@ -254,6 +256,48 @@ async function proxyLegacyApi(req, res, url) {
   res.end(buffer);
 }
 
+async function serveCompanionApk(req, res) {
+  if (!['GET', 'HEAD'].includes(req.method || '')) {
+    return json(res, 405, { error: 'Method Not Allowed' });
+  }
+  let info;
+  try {
+    info = await stat(COMPANION_APK_PATH);
+  } catch {
+    return json(res, 404, { error: 'Companion APK is not available.' });
+  }
+  const total = info.size;
+  const range = String(req.headers.range || '').trim();
+  res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+  res.setHeader('Content-Disposition', 'attachment; filename="3dvr-companion-0.4.100.apk"');
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  if (!range) {
+    res.statusCode = 200;
+    res.setHeader('Content-Length', String(total));
+    if (req.method === 'HEAD') return res.end();
+    return createReadStream(COMPANION_APK_PATH).pipe(res);
+  }
+  const match = /^bytes=(\d+)-(\d*)$/.exec(range);
+  if (!match) {
+    res.statusCode = 416;
+    res.setHeader('Content-Range', `bytes */${total}`);
+    return res.end();
+  }
+  const start = Number(match[1]);
+  const end = match[2] ? Math.min(Number(match[2]), total - 1) : total - 1;
+  if (start >= total || end < start) {
+    res.statusCode = 416;
+    res.setHeader('Content-Range', `bytes */${total}`);
+    return res.end();
+  }
+  res.statusCode = 206;
+  res.setHeader('Content-Range', `bytes ${start}-${end}/${total}`);
+  res.setHeader('Content-Length', String(end - start + 1));
+  if (req.method === 'HEAD') return res.end();
+  return createReadStream(COMPANION_APK_PATH, { start, end }).pipe(res);
+}
+
 function rewriteForHost(url, host) {
   const hostname = String(host || '').split(':')[0].toLowerCase();
   if (url.pathname === '/api/cache-reset') return '/cache-reset.html';
@@ -282,6 +326,10 @@ const server = createServer(async (req, res) => {
       organismRecall: STANDBY_MODE ? 'standby' : 'signed-owner',
       standby: STANDBY_MODE
     });
+  }
+
+  if (url.pathname === '/downloads/3dvr-companion.apk') {
+    return serveCompanionApk(req, res);
   }
 
   if (url.pathname === '/health' || url.pathname === '/recall') {
