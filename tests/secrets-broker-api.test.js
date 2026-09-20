@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { configureBitwardenMachineAccess, createSecretsBrokerHandler } from '../api/secrets-broker.js';
+import { configureBitwardenMachineAccess, createSecretsBrokerHandler } from '../src/secrets-broker/handler.js';
 import { BUILTIN_OPERATOR_OWNER_BINDINGS } from '../src/operator/developer-access.js';
 
 const OWNER_ALIAS = 'tmsteph@3dvr';

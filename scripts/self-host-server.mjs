@@ -4,7 +4,7 @@ import { access, readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import openAiSiteHandler from '../api/openai-site.js';
 import reminderEmailHandler from '../api/calendar/reminder-email.js';
-import secretsBrokerHandler from '../api/secrets-broker.js';
+import secretsBrokerHandler from '../src/secrets-broker/handler.js';
 import secretHandoffHandler from '../src/secret-handoff/handler.js';
 import workboardGithubHandler from '../src/workboard/github-feed.js';
 import { createOAuthProviderHandler } from '../src/oauth/provider-api.js';
