@@ -234,6 +234,31 @@ function createGatewayMcpServer(options = {}) {
       auditImpl,
     ));
 
+    server.registerTool('secret_handoff', {
+      title: 'Create secure secret handoff',
+      description: 'Create a one-time encrypted browser handoff for a credential. The credential value never passes through the gateway.',
+      inputSchema: {
+        key: z.string().min(1).max(500),
+        label: z.string().min(1).max(200),
+        purpose: z.string().max(1000).default(''),
+        recipient: z.string().max(200).default(''),
+        ttl_minutes: z.number().int().min(10).max(10080).default(1440),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    }, async ({ key, label, purpose, recipient, ttl_minutes }) => audited(
+      'secret.handoff',
+      { target: key },
+      async () => callOvhToolImpl('secret_handoff', {
+        key, label, purpose, recipient, ttl_minutes,
+      }),
+      auditImpl,
+    ));
+
     server.registerTool('n8n_status', {
       title: 'Check n8n target',
       description: 'Verify health and API authorization for a configured n8n target without returning workflow content.',
