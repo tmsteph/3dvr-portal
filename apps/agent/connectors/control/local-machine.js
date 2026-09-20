@@ -373,7 +373,7 @@ function writeHandoffState(config, state) {
   const file = handoffStateFile(config);
   const dir = path.dirname(file);
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-  const temp = \`\${file}.\${process.pid}.\${Date.now()}.tmp\`;
+  const temp = `${file}.${process.pid}.${Date.now()}.tmp`;
   fs.writeFileSync(temp, JSON.stringify(state, null, 2) + '\\n', { encoding: 'utf8', mode: 0o600, flag: 'wx' });
   fs.chmodSync(temp, 0o600);
   fs.renameSync(temp, file);
@@ -399,7 +399,7 @@ async function createSecretHandoff({ key, label, purpose = '', recipient = '', t
   const lifetime = Math.max(10, Math.min(Number(ttlMinutes) || 1440, 10080));
   if (!secretKey || !humanLabel) throw new Error('destination key and label are required');
 
-  const id = \`sh-\${crypto.randomBytes(12).toString('base64url')}\`;
+  const id = `sh-${crypto.randomBytes(12).toString('base64url')}`;
   const token = crypto.randomBytes(32).toString('base64url');
   const keyPair = await crypto.webcrypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
   const publicKey = await crypto.webcrypto.subtle.exportKey('jwk', keyPair.publicKey);
@@ -419,7 +419,7 @@ async function createSecretHandoff({ key, label, purpose = '', recipient = '', t
   const origin = secureText(config.THREEDVR_SECRET_HANDOFF_PUBLIC_ORIGIN || DEFAULT_HANDOFF_ORIGIN, 1000).replace(/\/+$/, '');
   return {
     ok: true, id, key: secretKey, expiresAt,
-    shareUrl: \`\${origin}/secret-handoff/?id=\${encodeURIComponent(id)}#token=\${token}\`,
+    shareUrl: `${origin}/secret-handoff/?id=${encodeURIComponent(id)}#token=${token}`,
     protocol: '3dvr-secret-handoff/1',
   };
 }
@@ -446,16 +446,16 @@ function n8nTargets(config = process.env) {
 function resolveN8nTarget(targetId, config = process.env) {
   const id = secureText(targetId || 'cvw', 100);
   const target = n8nTargets(config)[id];
-  if (!target) throw new Error(\`unknown n8n target: \${id}\`);
-  if (!/^https:\/\//i.test(target.baseUrl || '')) throw new Error(\`n8n target must use HTTPS: \${id}\`);
-  if (!target.secretKey) throw new Error(\`n8n target has no secret key mapping: \${id}\`);
+  if (!target) throw new Error(`unknown n8n target: ${id}`);
+  if (!/^https:\/\//i.test(target.baseUrl || '')) throw new Error(`n8n target must use HTTPS: ${id}`);
+  if (!target.secretKey) throw new Error(`n8n target has no secret key mapping: ${id}`);
   return { id, ...target, baseUrl: target.baseUrl.replace(/\/+$/, '') };
 }
 
 async function n8nReadJson(response) {
   const raw = await response.text();
   if (!raw) return {};
-  try { return JSON.parse(raw); } catch { throw new Error(\`n8n returned non-JSON response (\${response.status})\`); }
+  try { return JSON.parse(raw); } catch { throw new Error(`n8n returned non-JSON response (${response.status})`); }
 }
 
 async function n8nApiRequest(targetId, pathname, options = {}) {
@@ -469,7 +469,7 @@ async function n8nApiRequest(targetId, pathname, options = {}) {
   if (typeof apiKey !== 'string' || !apiKey.trim()) throw new Error('n8n API key is unavailable');
   apiKey = apiKey.trim();
 
-  const url = new URL(pathname, \`\${target.baseUrl}/\`);
+  const url = new URL(pathname, `${target.baseUrl}/`);
   for (const [key, value] of Object.entries(options.query || {})) {
     if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, String(value));
   }
@@ -483,8 +483,8 @@ async function n8nApiRequest(targetId, pathname, options = {}) {
   } finally {
     apiKey = '';
   }
-  if (response.status >= 300 && response.status < 400) throw new Error(\`n8n API redirected unexpectedly (\${response.status})\`);
-  if (!response.ok) throw new Error(\`n8n API request failed (\${response.status})\`);
+  if (response.status >= 300 && response.status < 400) throw new Error(`n8n API redirected unexpectedly (${response.status})`);
+  if (!response.ok) throw new Error(`n8n API request failed (${response.status})`);
   return { target, status: response.status, body: await n8nReadJson(response) };
 }
 
@@ -494,7 +494,7 @@ async function n8nStatus(targetId = 'cvw', options = {}) {
   const target = resolveN8nTarget(targetId, config);
   let health = { ok: false, status: 0 };
   try {
-    const response = await fetchImpl(new URL('/healthz', \`\${target.baseUrl}/\`), { headers: { Accept: 'application/json' }, redirect: 'manual' });
+    const response = await fetchImpl(new URL('/healthz', `${target.baseUrl}/`), { headers: { Accept: 'application/json' }, redirect: 'manual' });
     health = { ok: response.ok, status: response.status };
   } catch {}
   const api = await n8nApiRequest(target.id, '/api/v1/workflows', { ...options, config, fetchImpl, query: { limit: 1, excludePinnedData: true } });
