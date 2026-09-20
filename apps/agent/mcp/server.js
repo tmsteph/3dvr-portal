@@ -8,6 +8,7 @@ const { getAccount, listAccounts } = require('../connectors/accounts/registry');
 const { appendAudit } = require('../connectors/audit/log');
 const { crmConfigured, crmSummary, readCrmContact, searchCrmContacts } = require('../connectors/crm/postgres');
 const { githubOverview } = require('../connectors/control/github');
+const { callOvhTool } = require('../connectors/control/ovh-mcp');
 const { SERVER_TARGETS, serversHealth } = require('../connectors/control/servers');
 const { createDraft, readMessage, searchMessages } = require('../connectors/google/gmail');
 const {
@@ -17,7 +18,7 @@ const {
 } = require('../connectors/google/legacy-imap');
 
 const GATEWAY_NAME = '3dvr-control-gateway';
-const GATEWAY_VERSION = '0.2.0';
+const GATEWAY_VERSION = '0.3.0';
 
 function publicAccount(account) {
   if (!account) return null;
@@ -67,7 +68,9 @@ function createGatewayMcpServer(options = {}) {
   const readCrmContactImpl = options.readCrmContactImpl || readCrmContact;
   const serversHealthImpl = options.serversHealthImpl || serversHealth;
   const githubOverviewImpl = options.githubOverviewImpl || githubOverview;
+  const callOvhToolImpl = options.callOvhToolImpl || callOvhTool;
   const auditImpl = options.auditImpl || appendAudit;
+  const enablePrivileged = options.enablePrivileged ?? process.env.THREEDVR_MCP_ENABLE_PRIVILEGED === 'true';
   const enableDrafts = options.enableDrafts ?? process.env.THREEDVR_MCP_ENABLE_DRAFTS === 'true';
   const legacyConfig = options.legacyConfig || process.env;
   const crmConfig = options.crmConfig || process.env;
@@ -113,12 +116,16 @@ function createGatewayMcpServer(options = {}) {
   }, async () => audited('control.status', {}, async () => ({
     service: GATEWAY_NAME,
     version: GATEWAY_VERSION,
-    mode: enableDrafts ? 'read-mostly-with-opt-in-drafts' : 'read-only',
+    mode: enablePrivileged
+      ? (enableDrafts ? 'scoped-control-with-drafts' : 'scoped-control')
+      : (enableDrafts ? 'read-mostly-with-opt-in-drafts' : 'read-only'),
     capabilities: {
       gmail: true,
       crm: { backend: 'postgres', configured: crmConfiguredImpl(crmConfig) },
       github: true,
       servers: Object.keys(SERVER_TARGETS),
+      privilegedControl: enablePrivileged,
+      n8n: enablePrivileged ? ['cvw'] : [],
     },
   }), auditImpl));
 
