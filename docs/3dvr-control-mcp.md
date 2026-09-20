@@ -2,121 +2,147 @@
 
 ## Status
 
-Implemented v0.3 local control boundary. Network-facing machine mutation is intentionally not part of v0.3.
+Canonical control plane as of 2026-09-20.
+
+- **Hetzner gateway:** `3dvr-control-gateway` v0.3.0, Streamable HTTP MCP on loopback.
+- **OVH privileged boundary:** `3dvr-local-control` v0.6.0, stdio MCP launched on demand.
+- **Transport between them:** ordinary SSH that launches the OVH stdio MCP.
+- **Secrets:** OpenBao on OVH. Secret values are not returned by MCP tools.
+- **Desktop Commander:** bootstrap/debug/break-glass fallback only.
 
 ## Decision
 
-`3dvr-control-mcp` is kernel-adjacent, not kernel-entangled.
+`3dvr-control-mcp` is the first-party canonical developer and operations interface.
 
-The 3DVR kernel defines stable capabilities and policy expectations. The control MCP is a replaceable implementation. This keeps the kernel portable while giving Astra, Codex, CLI clients, and future agents one first-party control interface.
+The 3DVR kernel defines stable capabilities and policy expectations. MCP servers are replaceable adapters around those capabilities. Routine operations should use typed MCP tools before arbitrary shell, browser automation, Termux, or proprietary remote-desktop tooling.
 
 ## Architecture
 
 ```text
-Astra / Codex / MCP client
-          |
-     MCP over stdio
-          |
-  3DVR Local Control MCP
-          |
-   Unix / systemd / files
-
-remote machine: use SSH as the transport that launches stdio MCP
-
-Secrets remain separate:
-OpenBao / OpenBao Agent -> workload
+ChatGPT / Codex / MCP client
+            |
+     Streamable HTTP MCP
+            |
+  3DVR Control Gateway
+       (Hetzner)
+            |
+       MCP over SSH
+            |
+   3DVR Local Control MCP
+          (OVH)
+       /           \
+ systemd/files    OpenBao
+                     |
+                     +--> n8n API key
+                     +--> other runtime secrets
 ```
 
-Desktop Commander and Bitwarden are compatibility tools, not control-plane dependencies.
+The gateway does not receive a general-purpose remote shell. It launches the allowlisted OVH stdio MCP and calls named tools.
 
-## Implemented in v0.3
+## Gateway surface
 
-- `apps/agent/mcp/local-control.js` — standards-based stdio MCP server.
-- `apps/agent/connectors/control/local-machine.js` — reusable host, systemd, filesystem, and approved-command primitives.
-- `apps/agent/test/control-local.test.js` — confinement and default-deny tests.
-- `npm run mcp:local-control` — local entrypoint.
+Default tools remain read-only and include account, Gmail, CRM, GitHub, and server health operations.
 
-The MCP currently exposes read-only tools:
+When `THREEDVR_MCP_ENABLE_PRIVILEGED=true`, the gateway additionally exposes:
 
-- `host_status`
-- `service_status`
-- `file_list`
-- `file_read`
+- `secret_status` — existence check only; never returns secret values.
+- `secret_handoff` — creates a one-time encrypted browser handoff for human-supplied credentials.
+- `n8n_status` — health and API-authorization check.
+- `n8n_workflows` — safe workflow metadata only; omits nodes, credentials, and pinned data.
+- `n8n_executions` — execution metadata with execution data omitted.
+- `service_status` — status for an explicit systemd allowlist.
+- `service_restart` — restart for the same explicit allowlist.
 
-The underlying control module already has guarded mutation primitives (`serviceAction`, `fileWrite`, and policy-id command execution), but v0.3 does not expose them on the network-facing gateway. Mutations default off and require explicit policy.
+The current n8n target registry contains `cvw` and maps its credential to `CVW_N8N_API_KEY` in OpenBao. Additional targets can be supplied through `THREEDVR_N8N_TARGETS_JSON`.
 
-## Remote transport
+## Local OVH surface
 
-Do not invent another session service when SSH already solves authenticated transport.
+The local stdio MCP exposes bounded host/file/service reads plus the n8n and secret-status tools above.
 
-A client that supports command/stdio MCP can launch the server on a remote node with an SSH command equivalent to:
+Mutations are disabled by default. The privileged wrapper enables only the local policy and uses:
 
-```bash
-ssh -T 3dvr-ovh 'cd /path/to/3dvr-portal/apps/agent && npm run mcp:local-control'
-```
+- `THREEDVR_CONTROL_FILE_ROOTS`
+- `THREEDVR_CONTROL_SERVICES`
+- `THREEDVR_CONTROL_SERVICE_HELPER`
+- `THREEDVR_CONNECTOR_AUDIT_FILE`
 
-This keeps authentication, host keys, revocation, and break-glass access in standard SSH rather than a custom browser authorization flow.
-
-## Kernel contract
-
-The kernel capability vocabulary remains broader than the v0.3 exposure:
-
-- `host.status`
-- `host.exec`
-- `service.status`
-- `service.start`
-- `service.stop`
-- `service.restart`
-- `file.read`
-- `file.write`
-- `file.list`
-- `browser.status`
-- `browser.navigate`
-- `secret.get`
-- `secret.put`
-- `secret.list`
-- `secret.delete`
-- `audit.list`
-
-A specific MCP implementation may expose only a safe subset.
-
-## Policy
-
-`THREEDVR_CONTROL_FILE_ROOTS` is a comma-separated allowlist of filesystem roots.
-
-`THREEDVR_CONTROL_SERVICES` is a comma-separated allowlist of systemd services.
-
-`THREEDVR_CONTROL_ENABLE_MUTATIONS` defaults to false.
-
-`THREEDVR_CONTROL_COMMANDS_FILE` points to a JSON map of approved command IDs. Commands are selected by ID; callers do not submit shell strings or executable paths.
+Service changes go through `/usr/local/sbin/3dvr-control-service`; arbitrary systemd units are rejected.
 
 ## Secrets
 
-Do not build custom cryptography or a custom encrypted database.
+OpenBao is the canonical machine-secret store.
 
-OpenBao is the canonical machine-secrets direction. The MCP should be secret-blind by default: secret values should flow from OpenBao/OpenBao Agent directly into workloads, not through an AI transcript. The current `connectors/secrets/openbao.js` is only a backend marker while that runtime integration is provisioned.
+Rules:
 
-Bitwarden can remain a human recovery/password vault during migration, but runtime automation should stop depending on its UI or interactive authorization flow.
+1. Do not put secret values in chat, MCP responses, logs, GitHub, or public registry data.
+2. Do not expose a ChatGPT-facing `secret_store(value)` tool. A plaintext value passed as an MCP argument would defeat the design.
+3. Human-provided credentials should enter through `secret_handoff` / the signed `/access/` UI.
+4. Internal bootstrap/migration code may use the root-only `3dvr-secret-store` stdin helper. It returns only a storage receipt and is not a routine control-plane surface.
+5. Workloads and API adapters resolve secret values locally on OVH and return sanitized results.
+
+Bitwarden remains a recovery/human vault where configured, not the preferred runtime dependency.
+
+## n8n privacy boundary
+
+Tom/CVW workflow data is treated as client-confidential.
+
+The gateway intentionally returns only bounded metadata:
+
+- workflow id/name/active/archive/timestamps/tags;
+- execution id/workflow/status/mode/timestamps/retry metadata.
+
+It does **not** return workflow node definitions, credentials, pinned data, execution payloads, or node data. Any future expansion of client-data access must be explicit and separately reviewed.
+
+## Remote transport
+
+Do not invent another privileged internet-facing daemon when SSH already provides authentication, host keys, revocation, and routing.
+
+The Hetzner connector launches OVH with the equivalent of:
+
+```bash
+ssh -T 3dvr-ovh sudo -n /usr/local/libexec/3dvr-control-mcp-root
+```
+
+and then speaks MCP over that stdio channel.
+
+Plain SSH remains the break-glass path. It is transport/recovery infrastructure, not the routine user-facing API.
 
 ## Security rules
 
-1. Prefer stdio MCP plus SSH over a new privileged internet-facing daemon.
+1. Prefer typed MCP tools over arbitrary shell.
 2. Default deny mutation.
-3. Resolve filesystem paths against explicit roots and real paths.
-4. Allowlist systemd units.
-5. Never accept arbitrary shell strings from an MCP caller.
-6. Keep secret values out of MCP responses and audit logs.
-7. Preserve plain SSH as break-glass access.
+3. Keep privileged execution on OVH.
+4. Allowlist systemd services and filesystem roots.
+5. Never accept arbitrary shell strings from MCP callers.
+6. Keep secret values out of MCP arguments, responses, and audit logs wherever possible.
+7. Use encrypted handoff for human secrets.
+8. Sanitize client-system data before it leaves OVH.
+9. Preserve SSH and Desktop Commander only as recovery/bootstrap paths.
+10. Audit mutations.
 
-## Next milestones
+## Deployment
 
-1. Deploy/configure the local MCP on OVH, Hetzner, and DigitalOcean checkouts.
-2. Add a client profile that launches each node over SSH stdio.
-3. Provision OpenBao separately and migrate runtime secrets out of Bitwarden.
-4. Use OpenBao Agent or narrow workload wrappers for secret injection without returning values to the model.
-5. Promote selected mutation capabilities only after the local policy/helper path is verified.
-6. Retire Desktop Commander as a control-plane dependency.
+- `.github/workflows/control-mcp.yml` deploys the Hetzner gateway.
+- `.github/workflows/local-control-sync.yml` deploys the OVH local MCP.
+- `ops/control-mcp/install-local-control.sh` installs the OVH wrappers, policy helpers, and sudo boundary.
+- `apps/agent/connectors/control/ovh-mcp.js` is the typed gateway-to-OVH MCP bridge.
+
+The gateway is safe-by-default: `THREEDVR_MCP_ENABLE_PRIVILEGED` must be explicitly enabled on the trusted deployment.
+
+## Operator order
+
+For server/developer work:
+
+1. 3DVR Control MCP typed tool.
+2. First-party Control Bus / Open Runner when the MCP does not yet cover the operation.
+3. Direct SSH for deliberate low-level maintenance.
+4. Desktop Commander only for bootstrap, debug, or recovery.
+5. Human checkpoint only when an external provider genuinely requires user presence.
+
+When a fallback is used successfully, promote the repeated operation into a typed MCP capability rather than normalizing the workaround.
 
 ## Principle
 
-The kernel describes what a trusted agent may do. The local Control MCP translates that vocabulary to boring Unix primitives. SSH transports it between machines. OpenBao protects credentials. None of these layers should require a GUI to keep working.
+The kernel describes what a trusted agent may do. MCP translates that vocabulary into narrow tools. SSH transports MCP between trusted machines. OpenBao protects credentials. Portal/Operator provides the human-facing ceremony.
+
+The result should feel like one control plane, not a collection of hacks.
