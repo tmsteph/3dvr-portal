@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import http from 'node:http';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { resolveSeaAuthMaxAgeMs, verifySignedSeaPayload } from '../src/auth/sea.js';
-import { resolveOperatorDeveloperPolicy } from '../src/operator/developer-access.js';
+import { resolveSeaAuthMaxAgeMs, verifySignedSeaPayload } from '../auth/sea.js';
+import { resolveOperatorDeveloperPolicy } from '../operator/developer-access.js';
 
 function normalizeText(value = '', max = 500) {
   return String(value || '').trim().slice(0, max);
