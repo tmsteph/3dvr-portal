@@ -14,15 +14,13 @@ const {
   serviceAction,
   serviceStatus,
   storeOpenAiAdminFromBrowserClipboard,
-} = require('../connectors/control/local-machine');
-const {
   createSecretHandoff,
   n8nExecutions,
   n8nStatus,
   n8nTargets,
   n8nWorkflows,
   secretStatus,
-} = require('../connectors/control/secure-ops');
+} = require('../connectors/control/local-machine');
 
 const server = new McpServer({ name: '3dvr-local-control', version: '0.6.0' });
 const policy = loadPolicy(process.env);
