@@ -306,6 +306,30 @@ function createGatewayMcpServer(options = {}) {
       auditImpl,
     ));
 
+    server.registerTool('service_restart', {
+      title: 'Restart controlled service',
+      description: 'Restart one allowlisted 3DVR service on OVH through the narrow privileged helper.',
+      inputSchema: {
+        service: z.enum([
+          '3dvr-personal-mcp.service',
+          '3dvr-secrets-broker.service',
+          '3dvr-self-host-portal.service',
+          'openbao.service',
+        ]),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    }, async ({ service }) => audited(
+      'service.restart',
+      { target: service },
+      async () => callOvhToolImpl('service_restart', { service }),
+      auditImpl,
+    ));
+
     server.registerTool('service_status', {
       title: 'Read controlled service status',
       description: 'Read systemd status for one allowlisted 3DVR control service on OVH.',
