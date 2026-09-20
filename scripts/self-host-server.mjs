@@ -5,6 +5,7 @@ import { extname, join, normalize, resolve } from 'node:path';
 import openAiSiteHandler from '../api/openai-site.js';
 import reminderEmailHandler from '../api/calendar/reminder-email.js';
 import secretsBrokerHandler from '../api/secrets-broker.js';
+import secretHandoffHandler from '../src/secret-handoff/handler.js';
 import workboardGithubHandler from '../src/workboard/github-feed.js';
 import { createOAuthProviderHandler } from '../src/oauth/provider-api.js';
 import { createOrganismBridgeHandler } from '../src/organism/bridge.js';
@@ -61,7 +62,9 @@ function isPrivateStaticPath(pathname) {
 
 function applyBaseHeaders(res, pathname = '') {
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  if (pathname === '/human-handoff' || pathname.startsWith('/human-handoff/')) {
+  if (pathname === '/human-handoff' || pathname.startsWith('/human-handoff/')
+    || pathname === '/secret-handoff' || pathname.startsWith('/secret-handoff/')
+    || pathname === '/api/secret-handoff') {
     res.setHeader('Cache-Control', 'no-store, max-age=0');
   } else if (pathname.endsWith('service-worker.js') || pathname.endsWith('pwa-install.js')) {
     res.setHeader('Cache-Control', 'no-cache');
@@ -79,7 +82,7 @@ function json(res, statusCode, payload) {
 }
 
 function handleSecretsBrokerCors(req, res, pathname) {
-  if (pathname !== '/api/secrets-broker') return false;
+  if (pathname !== '/api/secrets-broker' && pathname !== '/api/secret-handoff') return false;
   const origin = String(req.headers?.origin || '').trim();
   const allowed = SECRETS_BROKER_ALLOWED_ORIGINS.has(origin);
   if (allowed) {
@@ -192,6 +195,16 @@ async function runSecretsBroker(req, res, url) {
     await secretsBrokerHandler(req, adaptResponse(res));
   } catch (error) {
     if (!res.headersSent) json(res, error?.statusCode || 500, { ok: false, error: error?.message || 'Secrets broker request failed' });
+    else res.destroy(error);
+  }
+}
+
+async function runSecretHandoff(req, res, url) {
+  try {
+    await prepareApiRequest(req, url);
+    await secretHandoffHandler(req, adaptResponse(res));
+  } catch (error) {
+    if (!res.headersSent) json(res, error?.statusCode || 500, { ok: false, error: error?.message || 'Secret handoff request failed' });
     else res.destroy(error);
   }
 }
@@ -341,6 +354,7 @@ const server = createServer(async (req, res) => {
       '/api/openai-site',
       '/api/calendar/reminder-email',
       '/api/secrets-broker',
+      '/api/secret-handoff',
       '/health',
       '/recall'
     ]);
@@ -371,6 +385,10 @@ const server = createServer(async (req, res) => {
 
   if (url.pathname === '/api/secrets-broker') {
     return runSecretsBroker(req, res, url);
+  }
+
+  if (url.pathname === '/api/secret-handoff') {
+    return runSecretHandoff(req, res, url);
   }
 
   if (url.pathname === '/api/workboard/github') {
