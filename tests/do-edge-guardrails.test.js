@@ -9,10 +9,16 @@ test('DigitalOcean edge gives AI requests a longer response budget than ordinary
   );
 
   const aiIndex = script.indexOf('@ai_api path /api/openai-site*');
+  const secretIndex = script.indexOf('@secret_api path /api/secrets-broker /api/secret-handoff');
   const apiIndex = script.indexOf('@api path /api/*');
 
   assert.ok(aiIndex >= 0, 'AI route matcher should exist');
-  assert.ok(apiIndex > aiIndex, 'AI route must be handled before the generic API route');
+  assert.ok(secretIndex > aiIndex, 'secret routes should be handled after the dedicated AI route');
+  assert.ok(apiIndex > secretIndex, 'secret routes must be handled before the generic API route');
+
+  const secretBlock = script.slice(secretIndex, apiIndex);
+  assert.match(secretBlock, /reverse_proxy 127\.0\.0\.1:14320 \{/);
+  assert.doesNotMatch(secretBlock, /14322/);
 
   const aiBlock = script.slice(aiIndex, apiIndex);
   assert.match(aiBlock, /response_header_timeout 75s/);

@@ -84,6 +84,25 @@ cat >/etc/caddy/Caddyfile <<'CADDY'
     }
   }
 
+  # Secret operations are stateful and control-node-bound. Never fail these over
+  # to the Hetzner standby: request state, the broker socket, and OpenBao authority
+  # all live on the OVH primary.
+  @secret_api path /api/secrets-broker /api/secret-handoff
+  handle @secret_api {
+    reverse_proxy 127.0.0.1:14320 {
+      transport http {
+        dial_timeout 2s
+        response_header_timeout 15s
+      }
+
+      @upstream_error status 500 502 503 504
+      handle_response @upstream_error {
+        header Content-Type application/json
+        respond `{"error":"3DVR control node temporarily unavailable","safeMode":true}` 503
+      }
+    }
+  }
+
   @api path /api/*
   handle @api {
     reverse_proxy 127.0.0.1:14320 127.0.0.1:14322 {
