@@ -8,6 +8,7 @@ function parseToolResult(result) {
     ? result.content.find(entry => entry?.type === 'text')
     : null;
   if (!item?.text) throw new Error('OVH control MCP returned no text result');
+  if (result?.isError) throw new Error(String(item.text).slice(0, 1000));
   try { return JSON.parse(item.text); }
   catch { throw new Error('OVH control MCP returned invalid JSON'); }
 }
