@@ -13,7 +13,7 @@ function parseToolResult(result) {
   return JSON.parse(result.content.find((item) => item.type === 'text').text);
 }
 
-async function openTestGateway(t, { enableDrafts = false, legacy = false } = {}) {
+async function openTestGateway(t, { enableDrafts = false, legacy = false, enablePrivileged = false } = {}) {
   const audits = [];
   const account = {
     id: 'acct_google_test', provider: 'google', alias: 'personal',
@@ -22,6 +22,7 @@ async function openTestGateway(t, { enableDrafts = false, legacy = false } = {})
   };
   const gatewayOptions = {
     enableDrafts,
+    enablePrivileged,
     auditImpl: (event) => audits.push(event),
     listAccountsImpl: () => [account],
     getAccountImpl: () => account,
@@ -64,6 +65,13 @@ async function openTestGateway(t, { enableDrafts = false, legacy = false } = {})
       repo: { nameWithOwner: repo },
       openPullRequests: [{ number: 2301, title: 'Control MCP' }],
       limit,
+    }),
+    callOvhToolImpl: async (name, args) => ({
+      source: 'ovh-mcp',
+      name,
+      args,
+      ...(name === 'secret_status' ? { key: args.key, exists: true, backend: 'openbao' } : {}),
+      ...(name === 'n8n_status' ? { api: { ok: true, authorized: true, status: 200 } } : {}),
     }),
   };
   const started = await startHttpServer({
@@ -174,6 +182,33 @@ test('legacy 3dvr Gmail account is discoverable and routed through IMAP read too
   }));
   assert.equal(read.message.source, 'legacy-imap');
   assert.equal(read.message.format, 'metadata');
+});
+
+test('OVH and n8n bridge tools are opt-in and stay scoped', async (t) => {
+  const { client } = await openTestGateway(t, { enablePrivileged: true });
+  const listed = await client.listTools();
+  const names = listed.tools.map(tool => tool.name);
+
+  for (const name of ['secret_status', 'n8n_status', 'n8n_workflows', 'n8n_executions', 'service_status']) {
+    assert.equal(names.includes(name), true);
+    assert.equal(listed.tools.find(tool => tool.name === name).annotations.readOnlyHint, true);
+  }
+
+  const secret = parseToolResult(await client.callTool({
+    name: 'secret_status', arguments: { key: 'CVW_N8N_API_KEY' },
+  }));
+  assert.equal(secret.exists, true);
+  assert.equal(secret.backend, 'openbao');
+
+  const n8n = parseToolResult(await client.callTool({
+    name: 'n8n_status', arguments: { target: 'cvw' },
+  }));
+  assert.equal(n8n.api.authorized, true);
+
+  const status = parseToolResult(await client.callTool({ name: 'control_status', arguments: {} }));
+  assert.equal(status.mode, 'scoped-control');
+  assert.equal(status.capabilities.privilegedControl, true);
+  assert.deepEqual(status.capabilities.n8n, ['cvw']);
 });
 
 test('draft creation is absent by default and opt-in when explicitly enabled', async (t) => {
