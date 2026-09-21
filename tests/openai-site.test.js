@@ -579,7 +579,7 @@ test('lead finder uses its Vercel AI Gateway path before generic self-host fallb
   assert.equal(calls[0].url, 'https://gateway.test/v1/responses');
 });
 
-test('self-host AI proxy preserves CORS headers for the Campaigns backup route', async () => {
+test('generic site route still uses the self-host AI proxy when no local OpenAI key exists', async () => {
   const calls = [];
   const handler = createOpenAiSiteRouter({
     apiKey: '',
@@ -604,10 +604,10 @@ test('self-host AI proxy preserves CORS headers for the Campaigns backup route',
   const res = createMockRes();
   await handler({
     method: 'POST',
-    url: '/api/openai-site?provider=lead-finder',
-    query: { provider: 'lead-finder' },
+    url: '/api/openai-site',
+    query: {},
     headers: { 'x-forwarded-for': '203.0.113.50' },
-    body: { leadFinder: true, description: 'local businesses' }
+    body: { prompt: 'Build a small site' }
   }, res);
 
   assert.equal(res.statusCode, 200);
