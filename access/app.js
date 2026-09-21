@@ -228,10 +228,10 @@ async function loadAccess() {
   refreshButton?.setAttribute('disabled', '');
   const portalSession = await readPortalSession();
   try {
-    const [status, approvals] = await Promise.all([
-      brokerAction('status'),
-      brokerAction('approvals'),
-    ]);
+    // SEA owner proofs share one Gun user session. Create them sequentially so
+    // concurrent recall/auth work cannot invalidate the sibling request.
+    const status = await brokerAction('status');
+    const approvals = await brokerAction('approvals');
     renderStatus(status);
     renderApprovals(approvals.approvals || []);
   } catch (error) {
