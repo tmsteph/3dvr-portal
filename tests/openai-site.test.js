@@ -530,6 +530,55 @@ test('site generator handler streams search status before the final result', asy
   ]);
 });
 
+test('lead finder uses its Vercel AI Gateway path before generic self-host fallback', async () => {
+  const calls = [];
+  const handler = createOpenAiSiteRouter({
+    apiKey: '',
+    selfHostedFallbackOrigin: 'http://self-host.test',
+    leadFinder: {
+      apiKey: '',
+      gatewayToken: 'gateway-test',
+      endpoint: 'https://gateway.test/v1/responses',
+      fetchImpl: async (url, options = {}) => {
+        calls.push({ url: String(url), options });
+        return createOpenAiResponse({
+          output: [
+            {
+              type: 'message',
+              content: [
+                {
+                  type: 'output_text',
+                  text: JSON.stringify({
+                    campaignDraft: {
+                      subject: 'Quick follow-up improvement',
+                      body: 'Hi {{name}}, would it be useful to compare notes on one small follow-up improvement?'
+                    },
+                    leads: []
+                  })
+                }
+              ]
+            }
+          ]
+        });
+      }
+    }
+  });
+
+  const res = createMockRes();
+  await handler({
+    method: 'POST',
+    url: '/api/openai-site?provider=lead-finder',
+    query: { provider: 'lead-finder' },
+    headers: { 'x-forwarded-for': '203.0.113.51' },
+    body: { leadFinder: true, description: 'local businesses', count: 1 }
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.provider, 'vercel-ai-gateway');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, 'https://gateway.test/v1/responses');
+});
+
 test('self-host AI proxy preserves CORS headers for the Campaigns backup route', async () => {
   const calls = [];
   const handler = createOpenAiSiteRouter({
