@@ -130,6 +130,53 @@ function parseJwtPayload(token = '') {
   }
 }
 
+async function verifyGoogleIdToken(token = '', config = process.env, fetchImpl = fetch) {
+  const raw = normalizeOAuthText(token);
+  const segments = raw.split('.');
+  if (segments.length !== 3) return null;
+
+  let header;
+  let claims;
+  try {
+    header = parseJsonSafely(fromBase64Url(segments[0]).toString('utf8'), {}) || {};
+    claims = parseJsonSafely(fromBase64Url(segments[1]).toString('utf8'), {}) || {};
+  } catch (_error) {
+    return null;
+  }
+
+  if (header.alg !== 'RS256' || !header.kid) return null;
+  const expectedAudience = normalizeOAuthText(config?.GOOGLE_OAUTH_CLIENT_ID);
+  const audiences = Array.isArray(claims.aud) ? claims.aud.map(String) : [String(claims.aud || '')];
+  if (expectedAudience && !audiences.includes(expectedAudience)) return null;
+  if (!['accounts.google.com', 'https://accounts.google.com'].includes(String(claims.iss || ''))) return null;
+  if (Number(claims.exp || 0) <= Math.floor(Date.now() / 1000)) return null;
+  const emailVerified = claims.email_verified === true || String(claims.email_verified).toLowerCase() === 'true';
+  const email = normalizeOAuthEmail(claims.email);
+  if (!emailVerified || !email) return null;
+
+  try {
+    const response = await fetchImpl('https://www.googleapis.com/oauth2/v3/certs');
+    const payload = await response.json().catch(() => ({}));
+    const jwk = Array.isArray(payload.keys) ? payload.keys.find(key => key?.kid === header.kid) : null;
+    if (!response.ok || !jwk) return null;
+    const publicKey = crypto.createPublicKey({ key: jwk, format: 'jwk' });
+    const verified = crypto.verify(
+      'RSA-SHA256',
+      Buffer.from(`${segments[0]}.${segments[1]}`),
+      publicKey,
+      fromBase64Url(segments[2]),
+    );
+    if (!verified) return null;
+    return {
+      email,
+      displayName: normalizeOAuthText(claims.name),
+      providerAccountId: normalizeOAuthText(claims.sub),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
 function parseCookieHeader(header = '') {
   return String(header || '')
     .split(';')
@@ -1189,6 +1236,7 @@ async function handleRefreshToken(res, providerName, provider, body, fetchImpl) 
       provider: providerName,
       accessToken,
       refreshToken: normalizeOAuthText(tokens.refresh_token) || refreshToken,
+      idToken: normalizeOAuthText(tokens.id_token),
       scope: normalizeOAuthText(tokens.scope),
       scopeKey,
       expiresAt: expiresIn ? Date.now() + (expiresIn * 1000) : 0,
@@ -1259,6 +1307,9 @@ async function tryConfiguredGmailFallback({
   let identity = null;
   const idToken = normalizeOAuthText(body?.idToken);
   if (idToken) {
+    identity = await verifyGoogleIdToken(idToken, config, fetchImpl);
+  }
+  if (!identity?.email && idToken) {
     try {
       const response = await fetchImpl(
         `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`
