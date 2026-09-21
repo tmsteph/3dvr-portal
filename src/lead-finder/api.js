@@ -249,33 +249,14 @@ function buildGatewayLeadPrompt({ description, location, count }) {
 }
 
 async function runGatewayLeadSearch({ model, description, location, count }) {
-  const [{ gateway, generateText, stepCountIs, Output }, { z }] = await Promise.all([
-    import('ai'),
-    import('zod')
-  ]);
-  const leadSchema = z.object({
-    campaignDraft: z.object({
-      subject: z.string(),
-      body: z.string()
-    }),
-    leads: z.array(z.object({
-      name: z.string(),
-      email: z.string(),
-      website: z.string(),
-      location: z.string(),
-      whyFit: z.string(),
-      evidence: z.string(),
-      sourceUrl: z.string()
-    })).max(count)
-  });
-
-  const result = await generateText({
+  const { gateway, generateText, stepCountIs } = await import('ai');
+  const research = await generateText({
     model: gateway(model),
     instructions: [
-      'You are a careful B2B lead-research assistant for 3DVR Campaigns.',
-      'You must search the live web with tako_search before producing the final answer.',
-      'Use public business contact information only.',
-      'Be concise, factual, and conservative. If you cannot verify a public business email, omit the candidate.'
+      'You are a careful B2B lead researcher.',
+      'You must use tako_search to find public business contact information.',
+      'Search for real businesses and public email addresses relevant to the request.',
+      'Never infer an email pattern. Prefer official business websites and contact pages.'
     ].join(' '),
     prompt: buildGatewayLeadPrompt({ description, location, count }),
     tools: {
@@ -290,21 +271,40 @@ async function runGatewayLeadSearch({ model, description, location, count }) {
         }
       })
     },
-    output: Output.object({
-      name: 'lead_finder_results',
-      schema: leadSchema
-    }),
-    stopWhen: stepCountIs(4),
+    stopWhen: stepCountIs(3),
     maxRetries: 1
   });
 
-  if (!Array.isArray(result.toolResults) || result.toolResults.length === 0) {
+  if (!Array.isArray(research.toolResults) || research.toolResults.length === 0) {
     throw new Error('Lead Finder search tool returned no research results.');
   }
 
+  const sources = extractGatewaySearchSources(research.toolResults);
+  const researchMaterial = JSON.stringify({
+    searchSummary: String(research.text || '').slice(0, 12000),
+    searchResults: research.toolResults
+  }).slice(0, 70000);
+
+  const formatted = await generateText({
+    model: gateway(model),
+    instructions: [
+      'You are a strict JSON formatter for verified B2B lead research.',
+      'Use only the supplied research. Never invent or infer an email address.',
+      'Omit any candidate whose public business email and source URL are not supported by the research.',
+      'Return JSON only, with no markdown fences or commentary.'
+    ].join(' '),
+    prompt: [
+      buildGatewayLeadPrompt({ description, location, count }),
+      '',
+      'Research material:',
+      researchMaterial
+    ].join('\n'),
+    maxRetries: 1
+  });
+
   return normalizeLeadFinderPayload(
-    result.output,
-    extractGatewaySearchSources(result.toolResults)
+    parseJsonObjectText(formatted.text),
+    sources
   );
 }
 
