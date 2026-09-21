@@ -538,6 +538,13 @@ export function createOpenAiSiteRouter(options = {}) {
     // These routes have their own provider/dependency resolution and should not
     // be swallowed by the generic self-host fallback. In particular, Lead
     // Finder can use Vercel AI Gateway even when OPENAI_API_KEY is absent.
+    if (req?.query?.provider === 'location-resolve') {
+      return locationResolveHandler(req, res);
+    }
+
+    if (req?.body?.leadFinder === true || req?.query?.provider === 'lead-finder') {
+      return leadFinderHandler(req, res);
+    }
 
     if (!hasLocalOpenAiCredential && fallbackOrigin) {
       try {
