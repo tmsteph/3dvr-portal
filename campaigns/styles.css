@@ -61,7 +61,18 @@ summary { cursor: pointer; color: #c9d1d9; font-weight: 800; }
 .progress-track { height: 7px; overflow: hidden; border-radius: 999px; background: #21262d; }
 .progress-track span { display: block; width: 0; height: 100%; background: #58a6ff; transition: width .2s ease; }
 .progress p { margin: 7px 0 0; color: #9da7b3; font-size: .86rem; }
-.notice { margin-top: 12px; padding: 12px; border: 1px solid #30363d; border-radius: 12px; color: #c9d1d9; white-space: pre-wrap; }
+.notice {
+  max-width: 100%;
+  min-width: 0;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  color: #c9d1d9;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 .notice.error { border-color: #f85149; color: #ffb4ae; }
 .notice.success { border-color: #2ea043; color: #aff5b4; }
 .history-card { margin-top: 12px; }
@@ -116,3 +127,6 @@ footer { padding: 24px 3px 0; color: #6e7681; font-size: .78rem; }
 .example-row { display: flex; flex-wrap: wrap; gap: 7px; margin: 9px 0 2px; }
 .example-chip { border: 1px solid #30363d; border-radius: 999px; padding: 7px 10px; background: #0d1117; color: #9ecbff; font: inherit; font-size: .78rem; font-weight: 750; cursor: pointer; }
 .example-chip:hover { border-color: #58a6ff; color: #fff; }
+
+.shell, .card, .review-card, .connection-card, .stack { min-width: 0; }
+body { overflow-x: hidden; }
