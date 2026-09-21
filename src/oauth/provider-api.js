@@ -1219,19 +1219,51 @@ async function tryConfiguredGmailFallback({
   // Only the Google account that owns the configured SMTP mailbox may use this
   // fallback. A random Portal user with a valid Google token must never become
   // an unauthenticated relay client.
-  let identity;
-  try {
-    identity = await provider.fetchIdentity({ access_token: accessToken }, fetchImpl);
-  } catch (_error) {
-    return null;
+  let identity = null;
+  const idToken = normalizeOAuthText(body?.idToken);
+  if (idToken) {
+    try {
+      const response = await fetchImpl(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`
+      );
+      const payload = await response.json().catch(() => ({}));
+      const audience = normalizeOAuthText(payload.aud);
+      const expectedAudience = normalizeOAuthText(config?.GOOGLE_OAUTH_CLIENT_ID);
+      const verified = payload.email_verified === true || String(payload.email_verified).toLowerCase() === 'true';
+      if (response.ok && verified && (!expectedAudience || audience === expectedAudience)) {
+        identity = {
+          email: normalizeOAuthEmail(payload.email),
+          displayName: normalizeOAuthText(payload.name),
+        };
+      }
+    } catch (_error) {}
   }
-  const identityEmail = normalizeOAuthEmail(identity?.email);
+  if (!identity?.email) {
+    try {
+      identity = await provider.fetchIdentity({ access_token: accessToken }, fetchImpl);
+    } catch (_error) {}
+  }
+  if (!identity?.email) {
+    try {
+      const response = await fetchImpl(
+        `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (response.ok) {
+        identity = {
+          email: normalizeOAuthEmail(payload.email),
+          displayName: normalizeOAuthText(payload.name),
+        };
+      }
+    } catch (_error) {}
+  }
+  const identityEmail = normalizeOAuthEmail(identity?.email || body?.senderEmail);
   const allowedFallbackEmails = new Set([
     user,
     normalizeOAuthEmail(config?.THREEDVR_CAMPAIGNS_OWNER_EMAIL),
     'tmsteph1290@gmail.com',
   ].filter(Boolean));
-  if (!allowedFallbackEmails.has(identityEmail)) return null;
+  if (!identity?.email || !allowedFallbackEmails.has(identityEmail)) return null;
 
   const recipient = normalizeOAuthEmail(body?.to);
   if (!isEmailAddress(recipient)) throw new Error('A valid recipient email is required.');
