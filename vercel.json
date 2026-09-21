@@ -345,6 +345,51 @@
       "destination": "https://hypothesis-xhtml-bundle-thick.trycloudflare.com/human-handoff/api/:path*"
     },
     {
+      "source": "/api/oauth/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "portal.3dvr.tech"
+        },
+        {
+          "type": "query",
+          "key": "action",
+          "value": "sendmail"
+        }
+      ],
+      "destination": "https://3dvr-portal.vercel.app/api/oauth/:path*"
+    },
+    {
+      "source": "/api/oauth/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "portal.3dvr.tech"
+        },
+        {
+          "type": "query",
+          "key": "action",
+          "value": "refresh"
+        }
+      ],
+      "destination": "https://3dvr-portal.vercel.app/api/oauth/:path*"
+    },
+    {
+      "source": "/api/oauth/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "portal.3dvr.tech"
+        },
+        {
+          "type": "query",
+          "key": "action",
+          "value": "maildiagnostics"
+        }
+      ],
+      "destination": "https://3dvr-portal.vercel.app/api/oauth/:path*"
+    },
+    {
       "source": "/:path*",
       "has": [
         {
