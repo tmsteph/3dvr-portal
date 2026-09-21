@@ -480,9 +480,11 @@ async function activeConnection() {
   return connection;
 }
 function isGmailAuthFailure(status, message = '') {
-  return status === 401
-    || status === 403
-    || /invalid authentication credentials|insufficient authentication scopes|insufficient permission|unauthenticated|invalid_grant|access token|oauth/i.test(String(message || ''));
+  const text = String(message || '');
+  if (status === 401) return true;
+  if (/invalid authentication credentials|unauthenticated|invalid_grant|token.*expired|token.*revoked/i.test(text)) return true;
+  if (status === 403 && /insufficient authentication scopes|insufficient permission/i.test(text)) return true;
+  return false;
 }
 
 async function gmailSendAttempt(active, { to, subject, text }) {
