@@ -1225,7 +1225,13 @@ async function tryConfiguredGmailFallback({
   } catch (_error) {
     return null;
   }
-  if (normalizeOAuthEmail(identity?.email) !== user) return null;
+  const identityEmail = normalizeOAuthEmail(identity?.email);
+  const allowedFallbackEmails = new Set([
+    user,
+    normalizeOAuthEmail(config?.THREEDVR_CAMPAIGNS_OWNER_EMAIL),
+    'tmsteph1290@gmail.com',
+  ].filter(Boolean));
+  if (!allowedFallbackEmails.has(identityEmail)) return null;
 
   const recipient = normalizeOAuthEmail(body?.to);
   if (!isEmailAddress(recipient)) throw new Error('A valid recipient email is required.');
