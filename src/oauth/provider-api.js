@@ -1383,6 +1383,28 @@ async function handleSendMail(res, providerName, provider, body, fetchImpl, conf
   }
   const accessToken = normalizeOAuthText(body.accessToken);
   if (!accessToken) return jsonError(res, 400, 'Access token is required.');
+
+  // For the authorized 3DVR owner account, prefer the configured Gmail SMTP
+  // transport. This avoids depending on the Gmail API being enabled in the
+  // Google Cloud project while still requiring a cryptographically verified
+  // Google identity token.
+  if (providerName === 'google' && normalizeOAuthText(body?.idToken)) {
+    try {
+      const preferredFallback = await tryConfiguredGmailFallback({
+        providerName,
+        provider,
+        accessToken,
+        body,
+        config,
+        fetchImpl,
+        mailTransport,
+      });
+      if (preferredFallback) return res.status(200).json(preferredFallback);
+    } catch (fallbackError) {
+      return jsonError(res, 502, fallbackError?.message || 'Unable to use configured Gmail transport.');
+    }
+  }
+
   try {
     const payload = await provider.sendMail(accessToken, fetchImpl, {
       to: body.to,
