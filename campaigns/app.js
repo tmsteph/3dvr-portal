@@ -69,7 +69,25 @@ function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 function showNotice(message, kind = '') {
   elements.notice.hidden = !message;
   elements.notice.className = `notice ${kind}`.trim();
-  elements.notice.textContent = message;
+  elements.notice.replaceChildren();
+
+  const text = String(message || '');
+  const gmailDisabled = text.match(/Gmail API has not been used in project\s+(\d+)\s+before or it is disabled/i);
+  if (gmailDisabled) {
+    const project = gmailDisabled[1];
+    const copy = document.createElement('span');
+    copy.textContent = 'Gmail API is disabled for this Google Cloud project.';
+    const link = document.createElement('a');
+    link.className = 'notice-action';
+    link.href = `https://console.cloud.google.com/apis/library/gmail.googleapis.com?project=${encodeURIComponent(project)}`;
+    link.target = '_blank';
+    link.rel = 'noreferrer noopener';
+    link.textContent = 'Enable Gmail API';
+    elements.notice.append(copy, link);
+    return;
+  }
+
+  elements.notice.textContent = text;
 }
 
 function showLeadNotice(message, kind = '') {
