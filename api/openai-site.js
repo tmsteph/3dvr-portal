@@ -535,6 +535,10 @@ export function createOpenAiSiteRouter(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
 
   return async function handler(req, res) {
+    // These routes have their own provider/dependency resolution and should not
+    // be swallowed by the generic self-host fallback. In particular, Lead
+    // Finder can use Vercel AI Gateway even when OPENAI_API_KEY is absent.
+
     if (!hasLocalOpenAiCredential && fallbackOrigin) {
       try {
         return await proxyToSelfHostedAi(req, res, { origin: fallbackOrigin, fetchImpl });
