@@ -955,6 +955,43 @@ async function handleConfig(req, res, providerName, provider) {
   return res.status(200).json(buildPublicProviderConfig(providerName, provider));
 }
 
+async function handleMailDiagnostics(res, providerName, config) {
+  if (providerName !== 'google') {
+    return jsonError(res, 400, 'Mail diagnostics are only available for Google.');
+  }
+  const user = normalizeOAuthEmail(config?.GMAIL_USER);
+  const pass = normalizeOAuthText(config?.GMAIL_APP_PASSWORD);
+  if (!user || !pass) {
+    return res.status(200).json({
+      ok: false,
+      smtpConfigured: false,
+      smtpVerified: false,
+      reason: 'gmail_smtp_not_configured',
+    });
+  }
+  const transport = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass },
+  });
+  try {
+    await transport.verify();
+    if (typeof transport.close === 'function') transport.close();
+    return res.status(200).json({
+      ok: true,
+      smtpConfigured: true,
+      smtpVerified: true,
+    });
+  } catch (error) {
+    if (typeof transport.close === 'function') transport.close();
+    return res.status(200).json({
+      ok: false,
+      smtpConfigured: true,
+      smtpVerified: false,
+      reason: normalizeOAuthText(error?.code || error?.responseCode || 'smtp_verify_failed'),
+    });
+  }
+}
+
 async function handleStart(req, res, providerName, provider) {
   const returnPath = sanitizeReturnPath(Array.isArray(req?.query?.returnTo) ? req.query.returnTo[0] : req?.query?.returnTo);
   const intent = normalizeIntent(Array.isArray(req?.query?.intent) ? req.query.intent[0] : req?.query?.intent);
@@ -1357,6 +1394,10 @@ export function createOAuthProviderHandler({ config = process.env, fetchImpl = f
 
     if (req.method === 'GET' && action === 'config') {
       return handleConfig(req, res, providerName, provider);
+    }
+
+    if (req.method === 'GET' && action === 'maildiagnostics') {
+      return handleMailDiagnostics(res, providerName, config);
     }
 
     if (req.method === 'GET' && action === 'start') {
