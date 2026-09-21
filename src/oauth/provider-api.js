@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import nodemailer from 'nodemailer';
 import {
   buildOAuthFallbackAlias,
   normalizeOAuthEmail,
@@ -1201,7 +1202,56 @@ async function handleListMail(res, providerName, provider, body, fetchImpl) {
   }
 }
 
-async function handleSendMail(res, providerName, provider, body, fetchImpl) {
+async function tryConfiguredGmailFallback({
+  providerName,
+  provider,
+  accessToken,
+  body,
+  config,
+  fetchImpl,
+  mailTransport,
+} = {}) {
+  if (providerName !== 'google') return null;
+  const user = normalizeOAuthEmail(config?.GMAIL_USER);
+  const pass = normalizeOAuthText(config?.GMAIL_APP_PASSWORD);
+  if (!user || !pass) return null;
+
+  // Only the Google account that owns the configured SMTP mailbox may use this
+  // fallback. A random Portal user with a valid Google token must never become
+  // an unauthenticated relay client.
+  let identity;
+  try {
+    identity = await provider.fetchIdentity({ access_token: accessToken }, fetchImpl);
+  } catch (_error) {
+    return null;
+  }
+  if (normalizeOAuthEmail(identity?.email) !== user) return null;
+
+  const recipient = normalizeOAuthEmail(body?.to);
+  if (!isEmailAddress(recipient)) throw new Error('A valid recipient email is required.');
+  const subject = safeMailHeader(body?.subject || '(no subject)', 240);
+  const text = String(body?.text || '').slice(0, 20000);
+  const transport = mailTransport || nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass },
+  });
+  const info = await transport.sendMail({
+    from: `"${safeMailHeader(identity?.displayName || '3DVR', 120)}" <${user}>`,
+    to: recipient,
+    subject,
+    text,
+    inReplyTo: safeMailHeader(body?.inReplyTo, 300) || undefined,
+    references: safeMailHeader(body?.references, 600) || undefined,
+  });
+  return {
+    ok: true,
+    id: normalizeOAuthText(info?.messageId) || 'smtp-fallback',
+    threadId: normalizeOAuthText(body?.threadId),
+    transport: 'gmail-smtp-fallback',
+  };
+}
+
+async function handleSendMail(res, providerName, provider, body, fetchImpl, config, mailTransport) {
   if (!provider.supports.mail || typeof provider.sendMail !== 'function') {
     return jsonError(res, 400, `${provider.label} mail sending is not available in this portal yet.`);
   }
@@ -1220,6 +1270,22 @@ async function handleSendMail(res, providerName, provider, body, fetchImpl) {
     return res.status(200).json(payload);
   } catch (err) {
     const status = Number(err?.statusCode);
+    if (status === 403) {
+      try {
+        const fallback = await tryConfiguredGmailFallback({
+          providerName,
+          provider,
+          accessToken,
+          body,
+          config,
+          fetchImpl,
+          mailTransport,
+        });
+        if (fallback) return res.status(200).json(fallback);
+      } catch (fallbackError) {
+        return jsonError(res, 502, fallbackError?.message || 'Unable to use configured Gmail fallback.');
+      }
+    }
     return jsonError(
       res,
       status >= 400 && status < 600 ? status : 502,
@@ -1228,7 +1294,7 @@ async function handleSendMail(res, providerName, provider, body, fetchImpl) {
   }
 }
 
-export function createOAuthProviderHandler({ config = process.env, fetchImpl = fetch } = {}) {
+export function createOAuthProviderHandler({ config = process.env, fetchImpl = fetch, mailTransport = null } = {}) {
   const providers = createProviders(config);
 
   return async function handler(req, res) {
@@ -1276,7 +1342,7 @@ export function createOAuthProviderHandler({ config = process.env, fetchImpl = f
     }
 
     if (req.method === 'POST' && action === 'sendmail') {
-      return handleSendMail(res, providerName, provider, body, fetchImpl);
+      return handleSendMail(res, providerName, provider, body, fetchImpl, config, mailTransport);
     }
 
     return jsonError(res, 405, 'Method Not Allowed.');
