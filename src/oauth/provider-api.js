@@ -1374,6 +1374,9 @@ async function tryConfiguredGmailFallback({
     id: normalizeOAuthText(info?.messageId) || 'smtp-fallback',
     threadId: normalizeOAuthText(body?.threadId),
     transport: 'gmail-smtp-fallback',
+    senderEmail: user,
+    connectedEmail: identityEmail,
+    sentFolderAccount: user,
   };
 }
 
@@ -1384,26 +1387,10 @@ async function handleSendMail(res, providerName, provider, body, fetchImpl, conf
   const accessToken = normalizeOAuthText(body.accessToken);
   if (!accessToken) return jsonError(res, 400, 'Access token is required.');
 
-  // For the authorized 3DVR owner account, prefer the configured Gmail SMTP
-  // transport. This avoids depending on the Gmail API being enabled in the
-  // Google Cloud project while still requiring a cryptographically verified
-  // Google identity token.
-  if (providerName === 'google' && normalizeOAuthText(body?.idToken)) {
-    try {
-      const preferredFallback = await tryConfiguredGmailFallback({
-        providerName,
-        provider,
-        accessToken,
-        body,
-        config,
-        fetchImpl,
-        mailTransport,
-      });
-      if (preferredFallback) return res.status(200).json(preferredFallback);
-    } catch (fallbackError) {
-      return jsonError(res, 502, fallbackError?.message || 'Unable to use configured Gmail transport.');
-    }
-  }
+  // Prefer the connected account's Gmail API. Only use the configured SMTP
+  // mailbox when Google rejects the API request (for example, while the Gmail
+  // API is disabled for the OAuth project). This keeps the sender identity and
+  // Gmail Sent folder aligned whenever the API is available.
 
   try {
     const payload = await provider.sendMail(accessToken, fetchImpl, {

@@ -2,6 +2,7 @@ import {
   campaignDayKey,
   composeMessage,
   filterSuppressed,
+  personalize,
   parseRecipients,
   remainingDailyAllowance,
   validateCampaign,
@@ -436,7 +437,7 @@ function updateConnectionUi() {
       ? 'Reconnect Gmail'
       : 'Not connected';
   elements.detail.textContent = connected
-    ? 'Google OAuth · Gmail send permission verified'
+    ? 'Google OAuth · Gmail send permission verified · 3DVR Gmail may be used only as backup'
     : hasIdentity
       ? 'This saved Google connection is missing verified Gmail send permission.'
       : 'Connect the Google account you want to send from.';
@@ -586,6 +587,9 @@ function validation(sendable) {
     recipients: sendable,
   });
 }
+function subjectFor(recipient) {
+  return personalize(elements.subject.value.trim(), recipient).trim();
+}
 function messageFor(recipient) {
   return composeMessage({
     body: elements.message.value,
@@ -614,7 +618,7 @@ function renderHistory() {
     const title = document.createElement('strong');
     title.textContent = item.subject || '(no subject)';
     const detail = document.createElement('span');
-    detail.textContent = `${item.sent || 0} sent · ${item.failed || 0} failed · ${new Date(item.at).toLocaleString()}`;
+    detail.textContent = `${item.sent || 0} sent · ${item.failed || 0} failed · via ${item.from || 'unknown sender'} · ${new Date(item.at).toLocaleString()}`;
     row.append(title, detail);
     return row;
   }));
@@ -643,7 +647,7 @@ async function runCampaign(event) {
     showNotice('Daily beta send limit reached for this browser/account.', 'error');
     return;
   }
-  if (!window.confirm(`Send this campaign to ${batch.length} recipient${batch.length === 1 ? '' : 's'} from ${connection.email}?`)) return;
+  if (!window.confirm(`Send this campaign to ${batch.length} recipient${batch.length === 1 ? '' : 's'} using Gmail connection ${connection.email}?`)) return;
 
   try {
     await activeConnection();
@@ -658,13 +662,21 @@ async function runCampaign(event) {
   let sent = 0;
   let failed = 0;
   let fatalError = '';
+  let backupSender = '';
   setProgress(0, batch.length, 'Starting…');
 
   for (let index = 0; index < batch.length; index += 1) {
     const recipient = batch[index];
     setProgress(index, batch.length, `Sending ${index + 1} of ${batch.length} to ${recipient.email}…`);
     try {
-      await gmailSend({ to: recipient.email, subject: elements.subject.value.trim(), text: messageFor(recipient) });
+      const sendResult = await gmailSend({
+        to: recipient.email,
+        subject: subjectFor(recipient),
+        text: messageFor(recipient)
+      });
+      if (sendResult?.transport === 'gmail-smtp-fallback') {
+        backupSender = sendResult.senderEmail || sendResult.sentFolderAccount || backupSender;
+      }
       sent += 1;
       incrementSent();
       markCampaignLeadStatus(recipient.email, 'sent');
@@ -690,14 +702,18 @@ async function runCampaign(event) {
     subject: elements.subject.value.trim(),
     sent,
     failed,
-    from: connection.email,
+    from: backupSender || connection.email,
+    connectedAs: connection.email,
+    transport: backupSender ? 'gmail-smtp-fallback' : 'gmail-api',
     error: fatalError
   });
   scheduleLeadVaultSync();
   showNotice(
     fatalError
       ? `${fatalError} No further recipients were attempted. ${sent} sent before the stop.`
-      : `Campaign finished. ${sent} sent, ${failed} failed.`,
+      : backupSender
+        ? `Campaign finished. ${sent} sent, ${failed} failed. Backup sender: ${backupSender}; those messages are stored in that account’s Sent folder.`
+        : `Campaign finished. ${sent} sent, ${failed} failed from ${connection.email}.`,
     failed ? 'error' : 'success'
   );
   sending = false;
@@ -714,8 +730,17 @@ async function sendTest() {
   if (!check.ok || !connectionReady()) return showNotice(check.errors.join('\n'), 'error');
   elements.sendTest.disabled = true;
   try {
-    await gmailSend({ to: recipient.email, subject: `[TEST] ${elements.subject.value.trim()}`, text: messageFor(recipient) });
-    showNotice(`Test sent to ${recipient.email}.`, 'success');
+    const sendResult = await gmailSend({
+      to: recipient.email,
+      subject: `[TEST] ${subjectFor(recipient)}`,
+      text: messageFor(recipient)
+    });
+    showNotice(
+      sendResult?.transport === 'gmail-smtp-fallback'
+        ? `Test sent to ${recipient.email} via backup sender ${sendResult.senderEmail || sendResult.sentFolderAccount || '3DVR Gmail'}. Check that account’s Sent folder.`
+        : `Test sent to ${recipient.email} from ${connection.email}.`,
+      'success'
+    );
   } catch (error) {
     showNotice(error.message || 'Test send failed.', 'error');
   } finally {

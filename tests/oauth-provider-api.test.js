@@ -377,6 +377,120 @@ describe('oauth provider api', () => {
     assert.match(res.body.error, /invalid authentication credentials/i);
   });
 
+  it('prefers the connected Gmail API over configured SMTP', async () => {
+    const sentViaSmtp = [];
+    const fetchImpl = mock.fn(async url => {
+      if (String(url).includes('gmail.googleapis.com/gmail/v1/users/me/messages/send')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return { id: 'gmail-message-1', threadId: 'gmail-thread-1' };
+          },
+        };
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    const handler = createOAuthProviderHandler({
+      config: {
+        GMAIL_USER: '3dvr.tech@gmail.com',
+        GMAIL_APP_PASSWORD: 'app-password',
+      },
+      fetchImpl,
+      mailTransport: {
+        async sendMail(payload) {
+          sentViaSmtp.push(payload);
+          return { messageId: 'smtp-message-1' };
+        },
+      },
+    });
+    const res = createMockRes();
+
+    await handler({
+      method: 'POST',
+      query: { provider: 'google' },
+      body: {
+        action: 'sendmail',
+        accessToken: 'working-token',
+        idToken: 'identity-token',
+        senderEmail: 'tmsteph1290@gmail.com',
+        to: 'person@example.com',
+        subject: 'Hello',
+        text: 'Test',
+      },
+    }, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.id, 'gmail-message-1');
+    assert.equal(sentViaSmtp.length, 0);
+    assert.match(fetchImpl.mock.calls[0].arguments[0], /gmail\.googleapis\.com/);
+  });
+
+  it('reports the real SMTP sender and Sent-folder account when Gmail API falls back', async () => {
+    const sentViaSmtp = [];
+    const fetchImpl = mock.fn(async url => {
+      if (String(url).includes('gmail.googleapis.com/gmail/v1/users/me/messages/send')) {
+        return {
+          ok: false,
+          status: 403,
+          async json() {
+            return { error: { message: 'Gmail API disabled', status: 'PERMISSION_DENIED' } };
+          },
+        };
+      }
+      if (String(url).includes('openidconnect.googleapis.com/v1/userinfo')) {
+        return {
+          ok: true,
+          status: 200,
+          async json() {
+            return {
+              email: 'tmsteph1290@gmail.com',
+              email_verified: true,
+              name: 'Thomas Stephens',
+            };
+          },
+        };
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    const handler = createOAuthProviderHandler({
+      config: {
+        GMAIL_USER: '3dvr.tech@gmail.com',
+        GMAIL_APP_PASSWORD: 'app-password',
+        THREEDVR_CAMPAIGNS_OWNER_EMAIL: 'tmsteph1290@gmail.com',
+      },
+      fetchImpl,
+      mailTransport: {
+        async sendMail(payload) {
+          sentViaSmtp.push(payload);
+          return { messageId: 'smtp-message-1' };
+        },
+      },
+    });
+    const res = createMockRes();
+
+    await handler({
+      method: 'POST',
+      query: { provider: 'google' },
+      body: {
+        action: 'sendmail',
+        accessToken: 'working-token',
+        senderEmail: 'tmsteph1290@gmail.com',
+        to: 'person@example.com',
+        subject: 'Hello',
+        text: 'Test',
+      },
+    }, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.transport, 'gmail-smtp-fallback');
+    assert.equal(res.body.senderEmail, '3dvr.tech@gmail.com');
+    assert.equal(res.body.connectedEmail, 'tmsteph1290@gmail.com');
+    assert.equal(res.body.sentFolderAccount, '3dvr.tech@gmail.com');
+    assert.equal(sentViaSmtp.length, 1);
+    assert.match(sentViaSmtp[0].from, /3dvr\.tech@gmail\.com/);
+  });
+
   it('lists Google contacts through the shared provider route', async () => {
     const fetchImpl = mock.fn(async () => ({
       ok: true,

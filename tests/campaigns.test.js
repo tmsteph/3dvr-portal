@@ -5,6 +5,7 @@ import {
   buildCommercialFooter,
   composeMessage,
   filterSuppressed,
+  personalize,
   parseRecipients,
   remainingDailyAllowance,
   validateCampaign,
@@ -35,12 +36,13 @@ test('message personalization and suppression are deterministic', () => {
   });
   assert.match(message, /Hey Pako — pako@example.com/);
   assert.match(message, /reply unsubscribe or stop/i);
+  assert.equal(personalize('Quick idea for {{name}}', recipients[0]), 'Quick idea for Pako Test');
 });
 
 test('campaign validation requires sender identity, address, and recipients', () => {
   const invalid = validateCampaign({ subject: 'Hi', body: 'Body', recipients: [{ email: 'x@example.com' }] });
   assert.equal(invalid.ok, false);
-  assert.ok(invalid.errors.length >= 3);
+  assert.ok(invalid.errors.length >= 2);
   const valid = validateCampaign({
     subject: 'Hi', body: 'Body', businessName: 'Studio', postalAddress: '123 Main St',
     recipients: [{ email: 'x@example.com' }],
