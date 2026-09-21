@@ -249,7 +249,26 @@ function buildGatewayLeadPrompt({ description, location, count }) {
 }
 
 async function runGatewayLeadSearch({ model, description, location, count }) {
-  const { gateway, generateText, stepCountIs } = await import('ai');
+  const [{ gateway, generateText, stepCountIs, Output }, { z }] = await Promise.all([
+    import('ai'),
+    import('zod')
+  ]);
+  const leadSchema = z.object({
+    campaignDraft: z.object({
+      subject: z.string(),
+      body: z.string()
+    }),
+    leads: z.array(z.object({
+      name: z.string(),
+      email: z.string(),
+      website: z.string(),
+      location: z.string(),
+      whyFit: z.string(),
+      evidence: z.string(),
+      sourceUrl: z.string()
+    })).max(count)
+  });
+
   const result = await generateText({
     model: gateway(model),
     instructions: [
@@ -271,7 +290,11 @@ async function runGatewayLeadSearch({ model, description, location, count }) {
         }
       })
     },
-    stopWhen: stepCountIs(3),
+    output: Output.object({
+      name: 'lead_finder_results',
+      schema: leadSchema
+    }),
+    stopWhen: stepCountIs(4),
     maxRetries: 1
   });
 
@@ -280,7 +303,7 @@ async function runGatewayLeadSearch({ model, description, location, count }) {
   }
 
   return normalizeLeadFinderPayload(
-    parseJsonObjectText(result.text),
+    result.output,
     extractGatewaySearchSources(result.toolResults)
   );
 }
