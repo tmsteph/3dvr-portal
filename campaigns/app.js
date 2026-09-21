@@ -509,7 +509,14 @@ function isGmailAuthFailure(status, message = '') {
 async function gmailSendAttempt(active, { to, subject, text }) {
   const response = await fetch('/api/oauth/google?action=sendmail', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accessToken: active.accessToken, to, subject, text }),
+    body: JSON.stringify({
+      accessToken: active.accessToken,
+      idToken: active.idToken || '',
+      senderEmail: active.email || '',
+      to,
+      subject,
+      text
+    }),
   });
   const payload = await response.json().catch(() => ({}));
   return { response, payload };
