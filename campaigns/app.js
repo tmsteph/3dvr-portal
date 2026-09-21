@@ -460,10 +460,29 @@ async function refreshConnection() {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || !payload.accessToken) throw new Error(payload.error || 'Unable to refresh Gmail connection.');
-  connection = { ...connection, ...payload, email: connection.email };
+  connection = {
+    ...connection,
+    ...payload,
+    email: connection.email,
+    needsReconnect: false,
+    lastAuthError: ''
+  };
   writeJson(STORAGE.connection, connection);
   return connection;
 }
+async function recoverSavedConnection() {
+  if (connectionReady() || !connection?.refreshToken || !connection?.email) return false;
+  try {
+    await refreshConnection();
+    showNotice(`Restored Gmail connection for ${connection.email}.`, 'success');
+    return true;
+  } catch (_error) {
+    return false;
+  } finally {
+    updateConnectionUi();
+  }
+}
+
 async function activeConnection() {
   if (!connectionReady()) {
     throw new Error(connection?.needsReconnect ? 'Reconnect Gmail before sending.' : 'Connect Gmail first.');
@@ -755,4 +774,5 @@ if (elements.postalAddress.value) normalizePostalAddressInput(elements.postalAdd
 consumeOAuthResult();
 renderHistory();
 updateConnectionUi();
+recoverSavedConnection();
 initializeLeadVaultAccountSync();
