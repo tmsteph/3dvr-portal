@@ -109,39 +109,28 @@ test('lead finder maps OpenAI quota errors to a billing-friendly response', asyn
 });
 
 
-test('lead finder falls back to the same Vercel AI Gateway path as Operator', async () => {
-  let requestUrl = '';
-  let authorization = '';
-  let requestBody = null;
+test('lead finder uses a free Gateway model with provider-independent search', async () => {
+  let gatewayRequest = null;
   const handler = createLeadFinderHandler({
     apiKey: '',
     gatewayToken: 'gateway-test-token',
-    fetchImpl: async (url, options) => {
-      requestUrl = url;
-      authorization = options.headers.Authorization;
-      requestBody = JSON.parse(options.body);
+    gatewaySearchImpl: async request => {
+      gatewayRequest = request;
       return {
-        ok: true,
-        status: 200,
-        json: async () => ({
-          output: [{
-            type: 'message',
-            content: [{
-              type: 'output_text',
-              text: JSON.stringify({ leads: [] }),
-            }],
-          }],
-        }),
+        leads: [],
+        campaignDraft: { subject: 'Quick idea', body: 'Hi {{name}}, open to a quick idea?' },
+        sources: [{ title: 'Example', url: 'https://example.test' }]
       };
     },
   });
   const res = mockResponse();
   await handler({ method: 'POST', body: { description: 'restaurants', count: 1 } }, res);
   assert.equal(res.statusCode, 200);
-  assert.equal(requestUrl, 'https://ai-gateway.vercel.sh/v1/responses');
-  assert.equal(authorization, 'Bearer gateway-test-token');
-  assert.equal(requestBody.model, 'openai/gpt-5.6-luna');
-  assert.equal(res.payload.provider, 'vercel-ai-gateway');
+  assert.equal(gatewayRequest.model, 'inclusionai/ling-3.0-flash-vl-free');
+  assert.equal(gatewayRequest.description, 'restaurants');
+  assert.equal(gatewayRequest.count, 1);
+  assert.equal(res.payload.provider, 'vercel-ai-gateway+tako');
+  assert.equal(res.payload.sources.length, 1);
 });
 
 

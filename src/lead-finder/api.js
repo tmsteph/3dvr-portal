@@ -6,7 +6,7 @@ export const DEFAULT_DISCOVERY_BRIEF = [
   'Prefer simple, honest offers that can be fulfilled quickly: website improvements, lead follow-up, workflow automation, photography/video, or similar business support.',
   'Choose the strongest fit from public evidence instead of inventing a need.'
 ].join(' ');
-const DEFAULT_GATEWAY_MODEL = 'openai/gpt-5.6-luna';
+const DEFAULT_GATEWAY_MODEL = 'inclusionai/ling-3.0-flash-vl-free';
 const MAX_LEADS = 25;
 const DEFAULT_RATE_LIMIT = 10;
 const DEFAULT_RATE_WINDOW_MS = 60 * 60 * 1000;
@@ -172,10 +172,7 @@ function normalizeCampaignDraft(draft = {}) {
   };
 }
 
-export function parseLeadFinderResponse(responseData) {
-  const raw = extractResponseText(responseData);
-  if (!raw) throw new Error('OpenAI returned no lead data.');
-  const parsed = JSON.parse(raw);
+function normalizeLeadFinderPayload(parsed = {}, sources = []) {
   const seen = new Set();
   const leads = [];
   for (const item of Array.isArray(parsed?.leads) ? parsed.leads : []) {
@@ -187,16 +184,121 @@ export function parseLeadFinderResponse(responseData) {
   return {
     leads,
     campaignDraft: normalizeCampaignDraft(parsed?.campaignDraft),
-    sources: extractSources(responseData)
+    sources
   };
+}
+
+function parseJsonObjectText(value = '') {
+  let text = String(value || '').trim();
+  if (!text) throw new Error('AI provider returned no lead data.');
+
+  const fenced = text.match(/^\`\`\`(?:json)?\s*([\s\S]*?)\s*\`\`\`$/i);
+  if (fenced) text = fenced[1].trim();
+
+  try {
+    return JSON.parse(text);
+  } catch (_error) {
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      return JSON.parse(text.slice(start, end + 1));
+    }
+    throw new Error('AI provider returned invalid lead JSON.');
+  }
+}
+
+function extractGatewaySearchSources(toolResults = []) {
+  const seen = new Set();
+  const sources = [];
+  const add = (title, url) => {
+    const cleanUrl = clean(url, 2000);
+    if (!/^https?:\/\//i.test(cleanUrl) || seen.has(cleanUrl)) return;
+    seen.add(cleanUrl);
+    sources.push({ title: clean(title || cleanUrl, 300), url: cleanUrl });
+  };
+
+  for (const result of Array.isArray(toolResults) ? toolResults : []) {
+    const output = result?.output || result?.result || {};
+    for (const item of Array.isArray(output?.web_results) ? output.web_results : []) {
+      add(item?.title || item?.source_name, item?.url);
+    }
+    for (const card of Array.isArray(output?.cards) ? output.cards : []) {
+      add(card?.title || card?.description, card?.webpage_url || card?.content?.url);
+      for (const source of Array.isArray(card?.sources) ? card.sources : []) {
+        add(source?.source_name || card?.title, source?.url);
+      }
+    }
+  }
+  return sources;
+}
+
+function buildGatewayLeadPrompt({ description, location, count }) {
+  return [
+    'Research B2B prospects using tako_search before answering.',
+    'Only include a lead when public search results substantiate a real public business email and sourceUrl points to that public source.',
+    'Never infer an email pattern and never invent a person, business, email, website, claim, or source.',
+    'Prefer official business websites and official contact pages.',
+    'Return ONLY JSON with campaignDraft and leads. Each lead needs name, email, website, location, whyFit, evidence, and sourceUrl.',
+    'The campaign subject must be under 70 characters and the body under 120 words.',
+    'Use {{name}} for the recipient or business name. Do not claim an existing relationship.',
+    'End the outreach draft with a low-friction question. Do not add a legal footer.',
+    'Offer and ideal customer: ' + description,
+    location ? 'Target geography: ' + location : 'Target geography: any location matching the request.',
+    'Find up to ' + count + ' contacts.'
+  ].join('\n');
+}
+
+async function runGatewayLeadSearch({ model, description, location, count }) {
+  const { gateway, generateText, stepCountIs } = await import('ai');
+  const result = await generateText({
+    model: gateway(model),
+    instructions: [
+      'You are a careful B2B lead-research assistant for 3DVR Campaigns.',
+      'You must search the live web with tako_search before producing the final answer.',
+      'Use public business contact information only.',
+      'Be concise, factual, and conservative. If you cannot verify a public business email, omit the candidate.'
+    ].join(' '),
+    prompt: buildGatewayLeadPrompt({ description, location, count }),
+    tools: {
+      tako_search: gateway.tools.takoSearch({
+        effort: 'fast',
+        sources: {
+          web: {
+            count: Math.min(20, Math.max(5, count * 2)),
+            highlights: true,
+            snippetMaxChars: 3000
+          }
+        }
+      })
+    },
+    stopWhen: stepCountIs(3),
+    maxRetries: 1
+  });
+
+  if (!Array.isArray(result.toolResults) || result.toolResults.length === 0) {
+    throw new Error('Lead Finder search tool returned no research results.');
+  }
+
+  return normalizeLeadFinderPayload(
+    parseJsonObjectText(result.text),
+    extractGatewaySearchSources(result.toolResults)
+  );
+}
+
+export function parseLeadFinderResponse(responseData) {
+  const raw = extractResponseText(responseData);
+  if (!raw) throw new Error('OpenAI returned no lead data.');
+  return normalizeLeadFinderPayload(JSON.parse(raw), extractSources(responseData));
 }
 
 export function createLeadFinderHandler({
   apiKey = process.env.OPENAI_API_KEY,
   gatewayToken = process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN,
   model = process.env.OPENAI_LEAD_MODEL,
+  gatewayModel = process.env.AI_GATEWAY_LEAD_MODEL,
   endpoint,
   fetchImpl = globalThis.fetch,
+  gatewaySearchImpl = runGatewayLeadSearch,
   rateLimiter = createLeadFinderRateLimiter(),
   nowMs = () => Date.now()
 } = {}) {
@@ -230,41 +332,55 @@ export function createLeadFinderHandler({
 
     try {
       const useGateway = !apiKey && Boolean(gatewayToken);
-      const effectiveModel = model || (useGateway ? DEFAULT_GATEWAY_MODEL : DEFAULT_MODEL);
-      const requestEndpoint = endpoint || (useGateway
-        ? 'https://ai-gateway.vercel.sh/v1/responses'
-        : 'https://api.openai.com/v1/responses');
-      const requestBody = buildLeadFinderRequest({ description, location, count, model: effectiveModel });
-      const response = await fetchImpl(requestEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + authorizationToken },
-        body: JSON.stringify(requestBody)
-      });
+      const effectiveModel = useGateway
+        ? (gatewayModel || DEFAULT_GATEWAY_MODEL)
+        : (model || DEFAULT_MODEL);
 
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        const code = clean(payload?.error?.code || payload?.error?.type, 120);
-        const message = clean(payload?.error?.message, 1000) || 'OpenAI lead search failed.';
-        const status = response.status === 429 ? 402 : response.status;
-        return res.status(status).json({
-          error: message,
-          code: code || (response.status === 429 ? 'openai_quota' : 'openai_error')
+      let result;
+      if (useGateway) {
+        result = await gatewaySearchImpl({
+          model: effectiveModel,
+          description,
+          location,
+          count
         });
+      } else {
+        const requestEndpoint = endpoint || 'https://api.openai.com/v1/responses';
+        const requestBody = buildLeadFinderRequest({ description, location, count, model: effectiveModel });
+        const response = await fetchImpl(requestEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + authorizationToken },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          const code = clean(payload?.error?.code || payload?.error?.type, 120);
+          const message = clean(payload?.error?.message, 1000) || 'OpenAI lead search failed.';
+          const status = response.status === 429 ? 402 : response.status;
+          return res.status(status).json({
+            error: message,
+            code: code || (response.status === 429 ? 'openai_quota' : 'openai_error')
+          });
+        }
+
+        result = parseLeadFinderResponse(await response.json());
       }
 
-      const responseData = await response.json();
-      const result = parseLeadFinderResponse(responseData);
       return res.status(200).json({
         ok: true,
         model: effectiveModel,
-        provider: useGateway ? 'vercel-ai-gateway' : 'openai',
+        provider: useGateway ? 'vercel-ai-gateway+tako' : 'openai',
         query: { description, location, count, usedDefaultBrief: !requestedDescription },
         leads: result.leads,
         campaignDraft: result.campaignDraft,
         sources: result.sources
       });
     } catch (error) {
-      return res.status(500).json({ error: error?.message || 'Lead search failed.' });
+      const status = Number(error?.statusCode || error?.status) || 500;
+      return res.status(status >= 400 && status < 600 ? status : 500).json({
+        error: error?.message || 'Lead search failed.'
+      });
     }
   };
 }

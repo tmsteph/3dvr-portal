@@ -538,28 +538,16 @@ test('lead finder uses its Vercel AI Gateway path before generic self-host fallb
     leadFinder: {
       apiKey: '',
       gatewayToken: 'gateway-test',
-      endpoint: 'https://gateway.test/v1/responses',
-      fetchImpl: async (url, options = {}) => {
-        calls.push({ url: String(url), options });
-        return createOpenAiResponse({
-          output: [
-            {
-              type: 'message',
-              content: [
-                {
-                  type: 'output_text',
-                  text: JSON.stringify({
-                    campaignDraft: {
-                      subject: 'Quick follow-up improvement',
-                      body: 'Hi {{name}}, would it be useful to compare notes on one small follow-up improvement?'
-                    },
-                    leads: []
-                  })
-                }
-              ]
-            }
-          ]
-        });
+      gatewaySearchImpl: async request => {
+        calls.push(request);
+        return {
+          campaignDraft: {
+            subject: 'Quick follow-up improvement',
+            body: 'Hi {{name}}, would it be useful to compare notes on one small follow-up improvement?'
+          },
+          leads: [],
+          sources: []
+        };
       }
     }
   });
@@ -574,9 +562,9 @@ test('lead finder uses its Vercel AI Gateway path before generic self-host fallb
   }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.equal(res.body.provider, 'vercel-ai-gateway');
+  assert.equal(res.body.provider, 'vercel-ai-gateway+tako');
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].url, 'https://gateway.test/v1/responses');
+  assert.equal(calls[0].model, 'inclusionai/ling-3.0-flash-vl-free');
 });
 
 test('generic site route still uses the self-host AI proxy when no local OpenAI key exists', async () => {
