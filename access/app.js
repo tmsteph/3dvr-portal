@@ -293,8 +293,13 @@ function renderStatus(status) {
     openSecretHandoff.disabled = !connected;
     openSecretHandoff.setAttribute('aria-disabled', connected ? 'false' : 'true');
   }
+  const google = status.googleOAuth || {};
+  const googleSummary = [
+    `3DVR Google: ${google['3dvr']?.connected ? 'connected ✓' : 'not connected'}`,
+    `tmsteph Google: ${google.tmsteph?.connected ? 'connected ✓' : 'not connected'}`,
+  ].join(' · ');
   byId('brokerMessage').textContent = connected
-    ? `OVH broker is live and ${openbao?.ready ? 'OpenBao' : 'Bitwarden'} is connected. Agents can request scoped access through policy.`
+    ? `OVH broker is live and ${openbao?.ready ? 'OpenBao' : 'Bitwarden'} is connected. ${googleSummary}`
     : 'OVH broker is live. A secrets backend still needs its one-time private setup.';
 }
 
