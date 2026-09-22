@@ -26,6 +26,17 @@ test('vault lookup strongly prefers the exact provider host', () => {
 });
 
 
+test('Portal login matches the Bitwarden item even when its URI has no scheme', () => {
+  const index = {
+    items: [
+      { key: 'VAULT_ITEM__LOGIN__PORTAL__CCC', type: 'login', name: 'portal.3dvr.tech', uris: ['portal.3dvr.tech'] },
+    ],
+  };
+  const match = chooseVaultItem(index, SITE_CONFIG.portal);
+  assert.equal(match?.key, 'VAULT_ITEM__LOGIN__PORTAL__CCC');
+  assert.equal(scoreVaultItem(match, SITE_CONFIG.portal) >= 100, true);
+});
+
 test('Lighthouse can reuse the Encore/UKG identity without reusing its password', () => {
   const index = {
     items: [
@@ -63,7 +74,7 @@ test('browser login route is local-only and precedes bearer-authenticated broker
 
 test('browser login is restricted to named sites and never returns credentials', () => {
   const source = fs.readFileSync(path.join(root, 'apps/agent/thomas-agent/node/browser-login.js'), 'utf8');
-  assert.deepEqual(Object.keys(SITE_CONFIG).sort(), ['iatse', 'lighthouse', 'ukg']);
+  assert.deepEqual(Object.keys(SITE_CONFIG).sort(), ['iatse', 'lighthouse', 'portal', 'ukg']);
   assert.match(source, /unsupported_site/);
   assert.match(source, /never|credential/i);
   assert.doesNotMatch(source, /body:\s*\{[^}]*password\s*:/);
