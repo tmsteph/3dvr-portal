@@ -1,7 +1,7 @@
 {
   "version": 4,
-  "updatedAt": "2026-09-21T08:38:00-07:00",
-  "updatedLabel": "Sep 21, 2026",
+  "updatedAt": "2026-09-22T08:39:00-07:00",
+  "updatedLabel": "Sep 22, 2026",
   "horizon": "Rolling 90 days",
   "theme": "Protect income. Care for home. Build our way forward.",
   "northStar": "Keep the next few days obvious, the next couple of weeks easy to scan, and the longer direction available without making it dominate daily life.",
@@ -9,28 +9,27 @@
   "operatingRule": "Today first. Then the next few days. Protect recovery and home time before filling open space with more work.",
   "workOperatingRule": "Protect booked income, use open blocks for the highest-leverage work, and keep home/family commitments visible as real commitments.",
   "markers": [
-    { "label": "Mexico house", "when": "Through Sep 22", "tone": "home" },
+    { "label": "Mexico house", "when": "Return today", "tone": "home" },
     { "label": "Four-day work run", "when": "Sep 23–26", "tone": "work" },
     { "label": "Schedule conflict", "when": "Sep 25", "tone": "personal" },
     { "label": "Family event after work", "when": "Sep 26", "tone": "home" }
   ],
   "today": {
-    "date": "2026-09-21",
-    "dayLabel": "Monday · Sep 21",
-    "title": "Home day + personal appointment",
-    "when": "Protected home block · afternoon appointment",
+    "date": "2026-09-22",
+    "dayLabel": "Tuesday · Sep 22",
+    "title": "Mexico house / return + reset",
+    "when": "Protected home block · return day",
     "category": "home",
     "categoryLabel": "Home",
-    "sharedDetail": "Keep the protected home block intact around one personal appointment. Leave real room for family, rest, and the important house needs.",
-    "detail": "Avoid turning the open day into a remote workday; the home block remains the main commitment."
+    "sharedDetail": "Finish the protected house block, travel back, and keep enough buffer to reset before four consecutive work days.",
+    "detail": "Protect the return and reset buffer. Avoid unnecessary business pushes before Wednesday's work run."
   },
   "nextDays": [
-    { "date": "2026-09-22", "title": "Mexico house / return", "when": "Tue · return + reset", "category": "home", "categoryLabel": "Home", "sharedDetail": "Finish the house block and return with enough buffer to reset before four consecutive work days.", "detail": "Protect the reset buffer; avoid unnecessary business pushes before Wednesday's work run." },
     { "date": "2026-09-23", "title": "Work day", "when": "Wed · 9 AM–5:30 PM", "category": "work", "categoryLabel": "Work", "sharedDetail": "First day of a four-day work run. Keep the evening simple and protect recovery.", "detail": "Protect booked income and keep outside work asynchronous." },
-    { "date": "2026-09-24", "title": "Work day", "when": "Thu · 7 AM–5 PM", "category": "work", "categoryLabel": "Work", "sharedDetail": "Long work day. Keep the evening mostly clear before another early start Friday.", "detail": "Treat this as an earn-and-recover day." }
+    { "date": "2026-09-24", "title": "Work day", "when": "Thu · 7 AM–5 PM", "category": "work", "categoryLabel": "Work", "sharedDetail": "Long work day. Keep the evening mostly clear before another early start Friday.", "detail": "Treat this as an earn-and-recover day." },
+    { "date": "2026-09-25", "title": "Work day + personal appointment", "when": "Fri · 7 AM–5 PM work · appointment overlaps", "category": "personal", "categoryLabel": "Attention", "sharedDetail": "A personal appointment overlaps the booked work day. This still needs to be reconciled before Friday.", "detail": "Resolve the calendar collision while protecting both the personal commitment and dependable income as much as possible." }
   ],
   "calendar": [
-    { "date":"2026-09-21", "dayShort":"Mon", "dateShort":"Sep 21", "title":"Home day + personal appointment", "when":"Protected home block · afternoon appointment", "category":"home", "categoryLabel":"Home" },
     { "date":"2026-09-22", "dayShort":"Tue", "dateShort":"Sep 22", "title":"Mexico house / return", "when":"Return + reset", "category":"home", "categoryLabel":"Home" },
     { "date":"2026-09-23", "dayShort":"Wed", "dateShort":"Sep 23", "title":"Work day", "when":"9 AM–5:30 PM", "category":"work", "categoryLabel":"Work" },
     { "date":"2026-09-24", "dayShort":"Thu", "dateShort":"Sep 24", "title":"Work day", "when":"7 AM–5 PM", "category":"work", "categoryLabel":"Work" },
@@ -45,10 +44,11 @@
     { "date":"2026-10-03", "dayShort":"Sat", "dateShort":"Oct 3", "title":"Open day", "when":"No confirmed booking", "category":"open", "categoryLabel":"Open" },
     { "date":"2026-10-04", "dayShort":"Sun", "dateShort":"Oct 4", "title":"Work day", "when":"6 AM–2:30 PM", "category":"work", "categoryLabel":"Work" },
     { "date":"2026-10-05", "dayShort":"Mon", "dateShort":"Oct 5", "title":"Open day", "when":"No confirmed booking", "category":"open", "categoryLabel":"Open" },
-    { "date":"2026-10-06", "dayShort":"Tue", "dateShort":"Oct 6", "title":"Open day", "when":"No confirmed booking", "category":"open", "categoryLabel":"Open" }
+    { "date":"2026-10-06", "dayShort":"Tue", "dateShort":"Oct 6", "title":"Open day", "when":"No confirmed booking", "category":"open", "categoryLabel":"Open" },
+    { "date":"2026-10-07", "dayShort":"Wed", "dateShort":"Oct 7", "title":"Open day", "when":"No confirmed booking", "category":"open", "categoryLabel":"Open" }
   ],
   "next30": [
-    { "title": "Protect the home-to-work transition", "label": "Sep 21–26", "category": "life", "categoryLabel": "Life", "sharedDetail": "The protected house block runs directly into four consecutive work days. Keep Tuesday's return/reset buffer intact and expect lower spare energy through Saturday.", "detail": "Do not schedule unnecessary business pushes during the protected home block or four-day work run; let automation and asynchronous work carry routine activity." },
+    { "title": "Protect the home-to-work transition", "label": "Sep 22–26", "category": "life", "categoryLabel": "Life", "sharedDetail": "The house block ends today and runs directly into four consecutive work days. Keep today's return/reset buffer intact and expect lower spare energy through Saturday.", "detail": "Do not schedule unnecessary business pushes during the return/reset day or four-day work run; let automation and asynchronous work carry routine activity." },
     { "title": "Resolve one calendar collision", "label": "Sep 25", "category": "personal", "categoryLabel": "Attention", "sharedDetail": "A personal appointment currently overlaps a booked work day. This needs to be reconciled before Friday so the week stays predictable.", "detail": "Confirm whether the work schedule can accommodate the personal appointment or whether one commitment needs adjustment." },
     { "title": "Protect recovery after the work run", "label": "Sep 27 → early Oct", "category": "life", "categoryLabel": "Life", "sharedDetail": "After the dense work run and family event, several days are open before the next booked work day. Keep some of that opening for recovery and family instead of automatically filling it.", "detail": "Balance recovery and home time with better-work hunting, active paid work, and one bounded 3DVR reliability push." },
     { "title": "Make income less fragile", "label": "By mid-Oct", "category": "money", "categoryLabel": "Money", "sharedDetail": "Keep dependable work while building at least one more repeatable source of income.", "detail": "Pursue another paying client or recurring opportunity and higher-value freelance work." }
