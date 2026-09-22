@@ -199,7 +199,20 @@ export function createSecretsBrokerHandler(options = {}) {
       const value = typeof body.value === 'string' ? body.value : '';
       const note = normalizeText(body.note, 1000);
       if (!key || !value) return res.status(400).json({ ok: false, error: 'Name and value are required.' });
-      request = { method: 'POST', path: '/v1/store', payload: { secret: 'bitwarden.writer', capability: 'secret.write', scope: 'secrets:3dvr-agent', purpose: 'Owner saved a value from 3DVR Operator', key, value, note } };
+      const googleOAuthSecret = /^GOOGLE_OAUTH_[A-Z0-9_.:-]+$/.test(key);
+      request = {
+        method: 'POST',
+        path: '/v1/store',
+        payload: {
+          secret: googleOAuthSecret ? 'openbao.writer' : 'bitwarden.writer',
+          capability: 'secret.write',
+          scope: 'secrets:3dvr-agent',
+          purpose: googleOAuthSecret ? 'Owner connected a Google account from 3DVR Access' : 'Owner saved a value from 3DVR Operator',
+          key,
+          value,
+          note,
+        },
+      };
     } else {
       const approvalId = normalizeText(body.approvalId, 200);
       if (!/^apr-[a-z0-9-]{10,}$/i.test(approvalId)) return res.status(400).json({ ok: false, error: 'A valid approval id is required.' });
