@@ -8,10 +8,17 @@
 body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 50% 0%, rgba(31,111,235,.16), transparent 32rem), #0d1117; }
 button, input, textarea, select { font: inherit; }
 .shell { width: min(100%, 760px); margin: 0 auto; padding: 18px 16px 48px; }
-.topbar { min-height: 48px; display: flex; align-items: center; gap: 12px; }
+.topbar { min-height: 48px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
 .brand { margin-right: auto; display: inline-flex; gap: 9px; align-items: center; color: inherit; text-decoration: none; font-weight: 850; }
 .brand img { width: 28px; height: 28px; }
+.topbar-links { display: flex; align-items: center; gap: 12px; }
 .quiet-link { color: #9da7b3; text-decoration: none; font-weight: 700; }
+.account-link {
+  min-height: 38px; padding: 7px 11px; border: 1px solid #30363d; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center; background: rgba(22,27,34,.88);
+  color: #e6edf3; text-decoration: none; font-size: .84rem; font-weight: 800; white-space: nowrap;
+}
+.account-link:hover, .account-link:focus-visible { border-color: #58a6ff; outline: none; }
 .hero { padding: 42px 2px 22px; }
 .hero h1 { margin: 5px 0 12px; max-width: 650px; font-size: clamp(2.25rem, 10vw, 4.6rem); line-height: .96; letter-spacing: -.055em; }
 .hero > p { margin: 0; max-width: 590px; color: #9da7b3; font-size: 1.02rem; line-height: 1.55; }
@@ -83,6 +90,8 @@ summary { cursor: pointer; color: #c9d1d9; font-weight: 800; }
 .history-empty { margin-top: 12px; color: #8b949e; }
 footer { padding: 24px 3px 0; color: #6e7681; font-size: .78rem; }
 @media (max-width: 620px) {
+  .topbar-links { order: 3; width: 100%; }
+  .account-link { margin-left: auto; }
   .hero { padding-top: 28px; }
   .manual-customers > summary { align-items: flex-start; }
   .manual-customers > summary .muted { white-space: normal; text-align: right; }
