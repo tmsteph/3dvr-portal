@@ -5,7 +5,7 @@
     "visits": 0,
     "signups": 0,
     "qualified_leads": 0,
-    "outreach_sent": 0,
+    "outreach_sent": 3,
     "qualified_replies": 0,
     "calls_booked": 0,
     "customers": 0,
@@ -58,10 +58,24 @@
       "score": 0.125
     }
   ],
-  "outcomes": [],
+  "outcomes": [
+    {
+      "observed_at": "2026-09-22T07:21:00Z",
+      "experiment_id": "market-customer-intake-automation-for-owner-led-service-busin",
+      "experiment_run_id": "outreach-probe-20260922-01",
+      "market": "San Diego owner-led home service businesses",
+      "offer": "$200 flat lead follow-up pilot",
+      "prospects_contacted": 3,
+      "qualified_replies": 0,
+      "customers": 0,
+      "revenue_cents": 0,
+      "evidence": "Verified Gmail SENT messages to three unrelated public business contacts.",
+      "status": "awaiting-response"
+    }
+  ],
   "decision": {
     "experiment_id": "market-customer-intake-automation-for-owner-led-service-busin",
-    "reason": "Executed one bounded GREEN action: prepare-validation-brief."
+    "reason": "Live evidence probe started: 3 unrelated prospects received the same $200 lead-follow-up pilot offer. Hold offer and price constant until response evidence arrives."
   },
   "guardrails": {
     "auto_execute": [
@@ -126,6 +140,13 @@
       "action": "prepare-validation-brief",
       "artifact_path": "docs/money-printer-experiments/market-customer-intake-automation-for-owner-led-service-busin.md",
       "executed_at": "2026-07-12T17:28:02.917Z"
+    },
+    {
+      "execution_key": "outreach-probe-20260922-01",
+      "experiment_id": "market-customer-intake-automation-for-owner-led-service-busin",
+      "action": "send-three-prospect-email-probe",
+      "executed_at": "2026-09-22T07:21:00Z",
+      "evidence_source": "gmail-sent"
     }
   ]
 }
