@@ -158,21 +158,12 @@ export function killOrScaleExperiment(state = {}) {
 }
 
 export function applyExperimentStatus(experiment = {}, nextStatus = 'Idea') {
-  const traction = { ...(experiment.traction || {}) };
-  if (nextStatus === 'Researching') traction.leads_found = Math.max(Number(traction.leads_found || 0), 15);
-  if (nextStatus === 'Validating') {
-    traction.leads_found = Math.max(Number(traction.leads_found || 0), 25);
-    traction.messages_drafted = Math.max(Number(traction.messages_drafted || 0), 25);
-  }
-  if (nextStatus === 'Launched') {
-    traction.messages_sent = Math.max(Number(traction.messages_sent || 0), 25);
-    traction.replies = Math.max(Number(traction.replies || 0), 3);
-  }
-  if (nextStatus === 'Revenue' || nextStatus === 'Scaling') {
-    traction.replies = Math.max(Number(traction.replies || 0), 5);
-    traction.calls_booked = Math.max(Number(traction.calls_booked || 0), 2);
-    traction.revenue = Math.max(Number(traction.revenue || 0), 300);
-  }
-
-  return { ...experiment, status: nextStatus, traction };
+  // Workflow state is not evidence. A status transition must never fabricate
+  // leads, replies, calls, messages, or revenue. Traction changes only when
+  // measured observations are imported through the evidence/measurement path.
+  return {
+    ...experiment,
+    status: nextStatus,
+    traction: { ...(experiment.traction || {}) }
+  };
 }
