@@ -10,6 +10,7 @@ import {
   summarizePortfolio
 } from '../src/money-printer/moneyPrinterExperiments.js';
 import {
+  buildMetrics,
   refreshMoneyPrinterState,
   updateExperimentStatusInState
 } from '../src/money-printer/moneyPrinterCore.js';
@@ -89,4 +90,28 @@ test('Money Printer refresh persists capsule allocation and killed capsules cann
   assert.equal(killed.capsule.status, 'killed');
   assert.equal(promoted.capsule.status, 'active');
   assert.equal(afterKill.portfolioSummary.activeCapsules, 1);
+});
+
+
+test('workflow status and idea generation never fabricate business traction', () => {
+  const experiment = promoteIdeaToExperiment(idea('evidence-only', 90));
+  const initialTraction = { ...experiment.traction };
+  const state = refreshMoneyPrinterState({
+    experiments: [experiment],
+    ideas: [idea('generated-idea', 80)]
+  });
+
+  const launched = updateExperimentStatusInState(state, experiment.id, 'Launched');
+  const launchedExperiment = launched.experiments.find(item => item.id === experiment.id);
+  assert.deepEqual(launchedExperiment.traction, initialTraction);
+
+  const revenueStatus = updateExperimentStatusInState(launched, experiment.id, 'Revenue');
+  const revenueExperiment = revenueStatus.experiments.find(item => item.id === experiment.id);
+  assert.deepEqual(revenueExperiment.traction, initialTraction);
+
+  const metrics = buildMetrics(revenueStatus);
+  assert.equal(metrics.leadsFound, 0);
+  assert.equal(metrics.replies, 0);
+  assert.equal(metrics.callsBooked, 0);
+  assert.equal(metrics.revenueTracked, 0);
 });
