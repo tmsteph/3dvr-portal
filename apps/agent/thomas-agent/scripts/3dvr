@@ -452,28 +452,25 @@ auth_login() {
       ;;
   esac
 
-  url="${PORTAL_URL%/}/api/oauth/$provider?action=start&intent=cli&scopeKey=$scope_key"
-  [ -n "$alias_hint" ] && url="$url&aliasHint=$alias_hint"
-  url="$url&returnTo=/profile.html%23profile-oauth"
+  if [ "$provider" = "google" ]; then
+    url="${PORTAL_URL%/}/api/oauth/$provider?action=start&intent=vault&scopeKey=$scope_key"
+    [ -n "$alias_hint" ] && url="$url&aliasHint=$alias_hint"
+    url="$url&returnTo=%2Faccess%2F%3FoauthImport%3D$alias"
+  else
+    url="${PORTAL_URL%/}/api/oauth/$provider?action=start&intent=cli&scopeKey=$scope_key&returnTo=%2Fprofile.html%23profile-oauth"
+  fi
 
   echo "Opening $target OAuth in the portal."
   echo
   if [ "$provider" = "google" ]; then
     echo "Requesting Google control for Gmail, Calendar, Contacts, and Drive."
+    echo "After Google approval, 3DVR will validate the account and store durable access in OpenBao automatically."
   else
     echo "Requesting Microsoft mail access."
+    echo "After approving access, follow the CLI import instructions shown in the portal."
   fi
   echo
-  echo "After approving access:"
-  echo "1. Copy the JSON shown by the portal."
-  if [ -n "$alias" ]; then
-    echo "2. Run: 3dvr auth import $alias"
-  else
-    echo "2. Run: 3dvr auth import"
-  fi
-  echo "3. Paste the JSON and press Ctrl-D."
-  echo
-  echo "Credentials are stored in the encrypted multi-account vault."
+  echo "No Google token needs to be copied into chat or a terminal."
   open_url "$url"
 }
 
