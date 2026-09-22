@@ -6,12 +6,31 @@ const {
   loadGoogleCredential,
   saveGoogleCredential,
 } = require('./oauth-vault');
+const { OpenBaoBackend } = require('../secrets/openbao');
+
+const GOOGLE_BOOTSTRAP_SECRETS = Object.freeze({
+  '3dvr': { key: 'GOOGLE_OAUTH_3DVR', email: '3dvr.tech@gmail.com' },
+  'tmsteph': { key: 'GOOGLE_OAUTH_TMSTEPH', email: 'tmsteph1290@gmail.com' },
+});
 
 const DEFAULT_PORTAL_URL = 'https://portal.3dvr.tech';
 const TOKEN_REFRESH_SKEW_MS = 5 * 60 * 1000;
 
 function normalizeText(value) {
   return String(value || '').trim();
+}
+
+function normalizeEmail(value) {
+  return normalizeText(value).toLowerCase();
+}
+
+function resolveOpenBao(options = {}) {
+  const backend = options.openBaoBackend || new OpenBaoBackend();
+  try {
+    return backend.ready() ? backend : null;
+  } catch {
+    return null;
+  }
 }
 
 function refreshEndpoint() {
@@ -34,6 +53,7 @@ function registerGoogleAccount(input, options = {}) {
   const credentialRef = saveGoogleCredential(pending.id, input, {
     filePath: options.vaultFilePath,
     keyMaterial: options.keyMaterial,
+    openBaoBackend: options.openBaoBackend,
   });
 
   return upsertAccount({
@@ -43,11 +63,51 @@ function registerGoogleAccount(input, options = {}) {
   }, { filePath: options.registryFilePath });
 }
 
+function bootstrapGoogleAccount(identifier, options = {}) {
+  const alias = normalizeText(identifier).toLowerCase();
+  const expected = GOOGLE_BOOTSTRAP_SECRETS[alias];
+  if (!expected) return null;
+  const openbao = resolveOpenBao(options);
+  if (!openbao) return null;
+
+  try {
+    const payload = JSON.parse(openbao.get({ key: expected.key }));
+    const email = normalizeEmail(payload.email);
+    if (email !== expected.email) {
+      throw new Error(`Google bootstrap identity mismatch for ${alias}`);
+    }
+    return registerGoogleAccount({
+      ...payload,
+      alias,
+      email,
+      scopes: normalizeText(payload.scope).split(/\s+/).filter(Boolean),
+    }, options);
+  } catch (error) {
+    if (options.strictBootstrap) throw error;
+    return null;
+  }
+}
+
 function resolveGoogleAccount(identifier, options = {}) {
-  const account = getAccount(identifier, {
-    provider: 'google',
-    filePath: options.registryFilePath,
-  });
+  let account = null;
+  let lookupError = null;
+  try {
+    account = getAccount(identifier, {
+      provider: 'google',
+      filePath: options.registryFilePath,
+    });
+  } catch (error) {
+    lookupError = error;
+  }
+
+  if (!account || !account.credentialRef) {
+    const bootstrapped = bootstrapGoogleAccount(identifier, options);
+    if (bootstrapped) account = bootstrapped;
+  }
+
+  if (!account) {
+    throw lookupError || new Error(`Google connector account not found: ${identifier}`);
+  }
   if (!account.credentialRef) {
     throw new Error(`Google account has no credential reference: ${account.id}`);
   }
@@ -59,6 +119,7 @@ function loadGoogleAccountCredential(identifier, options = {}) {
   const credential = loadGoogleCredential(account.credentialRef, {
     filePath: options.vaultFilePath,
     keyMaterial: options.keyMaterial,
+    openBaoBackend: options.openBaoBackend,
   });
   return { account, credential };
 }
@@ -92,6 +153,7 @@ async function refreshGoogleCredential(account, credential, options = {}) {
   saveGoogleCredential(account.id, updated, {
     filePath: options.vaultFilePath,
     keyMaterial: options.keyMaterial,
+    openBaoBackend: options.openBaoBackend,
   });
   return updated;
 }
@@ -113,6 +175,7 @@ async function getGoogleAccessToken(identifier, options = {}) {
 }
 
 module.exports = {
+  bootstrapGoogleAccount,
   getGoogleAccessToken,
   loadGoogleAccountCredential,
   refreshGoogleCredential,
