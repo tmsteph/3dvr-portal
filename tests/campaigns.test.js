@@ -70,6 +70,7 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.doesNotMatch(html, /Contact &amp; follow up/);
   assert.match(html, /What do you sell\?/);
   assert.match(html, /Tune the search/);
+  assert.match(html, /Marketing clients/);
   assert.ok(
     html.indexOf('class="example-row"') < html.indexOf('<details class="finder-options">'),
     'example offer hints should stay visible outside Tune the search'
