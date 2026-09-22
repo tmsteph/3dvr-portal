@@ -4,6 +4,16 @@ const http = require('node:http');
 const { matchScope } = require('./secrets-broker');
 
 const SITE_CONFIG = Object.freeze({
+  portal: {
+    lane: 'general',
+    port: 9222,
+    startUrl: 'https://portal.3dvr.tech/sign-in.html?redirect=%2Fcampaigns%2F',
+    hosts: ['portal.3dvr.tech'],
+    vaultTerms: ['portal.3dvr.tech', '3dvr portal'],
+    usernameSelectors: ['input[name="username"]', 'input[autocomplete="username"]'],
+    passwordSelectors: ['input[name="password"]', 'input[type="password"]'],
+    submitText: ['sign in and continue', 'sign in'],
+  },
   iatse: {
     lane: 'general',
     port: 9222,
@@ -51,8 +61,12 @@ function safeJson(value) {
 }
 
 function hostFromUri(value = '') {
-  try { return new URL(String(value)).hostname.toLowerCase(); }
-  catch { return ''; }
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const absolute = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
+    return new URL(absolute).hostname.toLowerCase();
+  } catch { return ''; }
 }
 
 function scoreVaultItem(item = {}, config = {}) {
@@ -236,10 +250,15 @@ function pageHost(state) {
 
 function classifyState(site, config, state) {
   const text = String(state?.text || '');
-  if (HUMAN_CHALLENGE.test(text)) return { status: 'human_required', reason: 'provider-verification' };
-  if (LOGIN_ERROR.test(text)) return { status: 'login_failed', reason: 'provider-rejected-login' };
   const host = pageHost(state);
   if (!config.hosts.includes(host)) return { status: 'human_required', reason: 'external-sso' };
+  if (site === 'portal') {
+    if (!/sign-in\.html/i.test(String(state?.url || '')) && !state.passwordCount) return { status: 'authenticated' };
+    if (LOGIN_ERROR.test(text)) return { status: 'login_failed', reason: 'provider-rejected-login' };
+    return { status: 'login_required' };
+  }
+  if (HUMAN_CHALLENGE.test(text)) return { status: 'human_required', reason: 'provider-verification' };
+  if (LOGIN_ERROR.test(text)) return { status: 'login_failed', reason: 'provider-rejected-login' };
   if (site === 'iatse' && /dashboard/i.test(text) && !state.passwordCount) return { status: 'authenticated' };
   if (site === 'ukg' && /postlogout\.aspx/i.test(String(state?.url || ''))) return { status: 'login_required', reason: 'session-expired' };
   if (site === 'ukg' && !/login\.aspx/i.test(String(state?.url || '')) && !state.passwordCount) return { status: 'authenticated' };
@@ -314,7 +333,7 @@ async function runLogin(broker, agent, site) {
     if (!await clickSubmit(session, config.submitText)) {
       return { status: 424, body: { ok: false, site, status: 'form_changed', reason: 'submit-control-missing' } };
     }
-    await new Promise(resolve => setTimeout(resolve, 1600));
+    await new Promise(resolve => setTimeout(resolve, site === 'portal' ? 3000 : 1600));
     state = await pageState(session);
     classification = classifyState(site, config, state);
 
