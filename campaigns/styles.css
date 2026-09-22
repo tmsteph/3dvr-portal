@@ -100,7 +100,7 @@ footer { padding: 24px 3px 0; color: #6e7681; font-size: .78rem; }
   .connection-card .button, .review-card .button { flex: 1; }
 }
 
-.discover-card h2 { margin: 0 0 6px; font-size: 1.35rem; }
+.discover-card h1 { margin: 0 0 6px; font-size: 1.55rem; }
 .finder-form { margin-top: 12px; }
 .find-now { width: 100%; min-height: 52px; margin-top: 12px; font-size: 1rem; }
 .finder-options { margin-top: 12px; padding-top: 2px; }

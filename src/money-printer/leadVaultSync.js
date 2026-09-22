@@ -149,6 +149,40 @@ export function waitForLeadVaultAuth(user, timeoutMs = 2200) {
   });
 }
 
+export function authenticateLeadVaultUserFromStorage(
+  user,
+  storage = globalThis.localStorage,
+  timeoutMs = 2200
+) {
+  if (user?.is?.pub) return Promise.resolve(true);
+  if (!storage || typeof storage.getItem !== 'function' || typeof user?.auth !== 'function') {
+    return Promise.resolve(false);
+  }
+
+  const signedIn = storage.getItem('signedIn') === 'true';
+  const alias = String(storage.getItem('alias') || '').trim();
+  const password = String(storage.getItem('password') || '');
+  if (!signedIn || !alias || !password) return Promise.resolve(false);
+
+  return new Promise(resolve => {
+    let settled = false;
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    function finish(value) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(Boolean(value && user?.is?.pub));
+    }
+    try {
+      user.auth(alias, password, acknowledgement => {
+        finish(!acknowledgement?.err);
+      });
+    } catch {
+      finish(false);
+    }
+  });
+}
+
 export async function createBrowserLeadVaultSync({
   GunImpl = globalThis.Gun,
   SEA = globalThis.SEA || globalThis.Gun?.SEA,
@@ -167,11 +201,24 @@ export async function createBrowserLeadVaultSync({
       : ['wss://gun-relay-3dvr.fly.dev/gun']
   );
   const user = gun.user();
-  const authenticated = await waitForLeadVaultAuth(user, authTimeoutMs);
+  let authenticated = await waitForLeadVaultAuth(user, authTimeoutMs);
+  if (!authenticated) {
+    authenticated = await authenticateLeadVaultUserFromStorage(
+      user,
+      storage,
+      authTimeoutMs
+    );
+  }
   const sync = createLeadVaultSync({ user, SEA });
 
   if (!authenticated || !sync.available) {
-    return { available: false, reason: 'sign-in-required', user, sync };
+    const portalSignedIn = storage.getItem('signedIn') === 'true';
+    return {
+      available: false,
+      reason: portalSignedIn ? 'account-sync-unavailable' : 'sign-in-required',
+      user,
+      sync
+    };
   }
 
   async function reconcile() {

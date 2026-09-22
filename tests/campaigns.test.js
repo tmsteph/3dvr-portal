@@ -65,7 +65,9 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(html, /Send test to myself/);
   assert.match(html, /AI CUSTOMER FINDER/);
   assert.match(html, /Find customers/);
-  assert.match(html, /Nothing is required/);
+  assert.doesNotMatch(html, /Nothing is required/);
+  assert.doesNotMatch(html, /Review the evidence/);
+  assert.doesNotMatch(html, /Contact &amp; follow up/);
   assert.match(html, /What do you sell\?/);
   assert.match(html, /Tune the search/);
   assert.match(html, /<details class="card manual-customers">/);

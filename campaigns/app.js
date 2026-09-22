@@ -114,7 +114,12 @@ async function initializeLeadVaultAccountSync() {
       }
     });
     if (!accountSync.available) {
-      setLeadVaultSyncStatus('Lead Vault: device only · sign in to sync');
+      const portalSignedIn = localStorage.getItem('signedIn') === 'true';
+      setLeadVaultSyncStatus(
+        portalSignedIn
+          ? 'Lead Vault: local · account sync unavailable'
+          : 'Lead Vault: local · sign in to sync'
+      );
       return;
     }
 
