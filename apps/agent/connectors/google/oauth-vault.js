@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { OpenBaoBackend } = require('../secrets/openbao');
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -22,6 +23,15 @@ function masterKeyMaterial(explicit) {
 
 function deriveKey(keyMaterial) {
   return crypto.createHash('sha256').update(masterKeyMaterial(keyMaterial), 'utf8').digest();
+}
+
+function resolveOpenBao(explicit) {
+  const backend = explicit || new OpenBaoBackend();
+  try {
+    return backend.ready() ? backend : null;
+  } catch {
+    return null;
+  }
 }
 
 function readStore(filePath = defaultVaultPath()) {
@@ -106,9 +116,19 @@ function normalizeCredential(input = {}) {
   };
 }
 
-function saveGoogleCredential(accountId, input, { filePath, keyMaterial } = {}) {
+function saveGoogleCredential(accountId, input, { filePath, keyMaterial, openBaoBackend } = {}) {
   const ref = credentialRef(accountId);
   const credential = normalizeCredential(input);
+  const openbao = resolveOpenBao(openBaoBackend);
+  if (openbao) {
+    openbao.create({
+      key: ref,
+      value: JSON.stringify(credential),
+      sourceId: 'google-oauth-vault',
+    });
+    return ref;
+  }
+
   const store = readStore(filePath);
   store.secrets[ref] = {
     ...encrypt(credential, ref, keyMaterial),
@@ -118,10 +138,22 @@ function saveGoogleCredential(accountId, input, { filePath, keyMaterial } = {}) 
   return ref;
 }
 
-function loadGoogleCredential(refOrAccountId, { filePath, keyMaterial } = {}) {
+function loadGoogleCredential(refOrAccountId, { filePath, keyMaterial, openBaoBackend } = {}) {
   const ref = normalizeText(refOrAccountId).startsWith('google-oauth:')
     ? normalizeText(refOrAccountId)
     : credentialRef(refOrAccountId);
+  const openbao = resolveOpenBao(openBaoBackend);
+  if (openbao) {
+    try {
+      return normalizeCredential(JSON.parse(openbao.get({ key: ref })));
+    } catch (openBaoError) {
+      const store = readStore(filePath);
+      const record = store.secrets[ref];
+      if (!record) throw openBaoError;
+      return normalizeCredential(decrypt(record, ref, keyMaterial));
+    }
+  }
+
   const store = readStore(filePath);
   const record = store.secrets[ref];
   if (!record) throw new Error(`Google OAuth credential not found: ${ref}`);
