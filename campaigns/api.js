@@ -41,7 +41,7 @@ export async function fetchPortalJson(path, options = {}, {
     try {
       const response = await fetchImpl(url, options);
       const payload = await response.json().catch(() => ({}));
-      const retryable = [502, 503, 504].includes(response.status);
+      const retryable = [500, 502, 503, 504].includes(response.status);
 
       if (retryable && index < candidates.length - 1) {
         lastError = new Error(
