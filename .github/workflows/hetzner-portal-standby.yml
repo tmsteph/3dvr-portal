@@ -2,22 +2,22 @@ name: Deploy Hetzner Portal Standby
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'scripts/self-host-server.mjs'
-      - 'ops/resilience/install-hetzner-portal-standby.sh'
-      - '.github/workflows/hetzner-portal-standby.yml'
+  workflow_run:
+    workflows: ['3DVR Self-Hosted Production']
+    types: [completed]
 
 permissions:
   contents: read
 
 jobs:
   deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Build source archive
         shell: bash
@@ -72,8 +72,8 @@ jobs:
           HOST: 167.233.174.20
           USER: ${{ steps.ssh.outputs.user }}
           KEY: ${{ steps.ssh.outputs.key }}
-          SHA: ${{ github.sha }}
-          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          REF_NAME: ${{ github.event.workflow_run.head_branch || github.ref_name }}
         run: |
           set -euo pipefail
           opts=(-i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
