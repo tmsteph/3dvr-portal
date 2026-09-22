@@ -35,7 +35,7 @@ jobs:
           service="$(jq -r '.service // empty' ops/control/request.json)"
           test -n "$id"
           case "$action" in
-            status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_promote_secrets|portal_ai_status|portal_points_status|portal_points_reconcile|browser_lane_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard|campaigns_acceptance|campaigns_user_acceptance|campaigns_gmail_handoff|ukg_login) ;;
+            status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_promote_secrets|portal_ai_status|portal_points_status|portal_points_reconcile|browser_lane_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard|campaigns_acceptance|campaigns_user_acceptance|campaigns_gmail_handoff|ukg_login|ukg_timeoff_status) ;;
             restart)
               case "$service" in
                 3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service) ;;
@@ -191,6 +191,48 @@ jobs:
           body="$(curl -sS --unix-socket /run/3dvr-secrets-broker/broker.sock             -H 'content-type: application/json'             -X POST             --data '{"site":"ukg"}'             http://localhost/v1/browser-login)"
           jq -e . <<<"$body" >/dev/null
           jq -c '. + {browserLane:"encore"}' <<<"$body"
+          OVH
+              ;;
+            ukg_timeoff_status)
+              ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          token=""
+          cleanup() {
+            [ -n "$token" ] && sudo -n /usr/local/bin/3dvr-browser-lease release encore "$token" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT INT TERM
+          token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire encore control-bus-ukg-timeoff-status 300)"
+          puppeteer_core="$(find /home/debian/.npm/_npx -type f -path '*/puppeteer-core/lib/puppeteer/puppeteer-core.js' -print -quit 2>/dev/null || true)"
+          [ -n "$puppeteer_core" ] && [ -f "$puppeteer_core" ]
+          PUPPETEER_CORE_PATH="$puppeteer_core" node - <<'NODE'
+          const puppeteer=require(process.env.PUPPETEER_CORE_PATH);
+          (async()=>{
+            const browser=await puppeteer.connect({browserURL:'http://127.0.0.1:9333'});
+            const pages=await browser.pages();
+            const page=pages.find(p=>/n21\.ultipro\.com/.test(p.url()) && !/PostLogout/i.test(p.url())) || pages.find(p=>/n21\.ultipro\.com/.test(p.url()));
+            if(!page) throw new Error('UKG page not found');
+            const frames=page.frames();
+            const found=[];
+            for(const frame of frames){
+              let data=null;
+              try{
+                data=await frame.evaluate(()=>{
+                  const re=/(time\s*off|vacation|unpaid|request|pto|leave)/i;
+                  const text=(document.body?.innerText||'').split(/\n+/).map(x=>x.trim()).filter(Boolean);
+                  const matches=text.filter(x=>re.test(x)).slice(0,40);
+                  const links=[...document.querySelectorAll('a')].map(a=>({
+                    text:(a.innerText||a.textContent||'').trim().replace(/\s+/g,' ').slice(0,160),
+                    href:a.href||''
+                  })).filter(x=>re.test(x.text)||re.test(x.href)).slice(0,40);
+                  return {url:location.href,title:document.title,matches,links};
+                });
+              }catch{}
+              if(data && (data.matches.length||data.links.length)) found.push(data);
+            }
+            console.log(JSON.stringify({ok:true,pageUrl:page.url(),frames:found}));
+            await browser.disconnect();
+          })().catch(e=>{console.log(JSON.stringify({ok:false,error:e.message}));process.exitCode=1});
+          NODE
           OVH
               ;;
             openbao_status)
