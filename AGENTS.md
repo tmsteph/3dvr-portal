@@ -86,12 +86,14 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
   - Resolve conflicts, run focused tests, push `HEAD:BRANCH_NAME`, then retry `gh pr merge`.
 
 ## Cloud Server Routing
-- Treat `docs/infrastructure-topology.md` as the canonical server-role map. The three VPSes are not interchangeable.
+- Treat `docs/infrastructure-topology.md` as the canonical server-role and capacity map. The three VPSes are not interchangeable.
+- Current static capacity is **OVH: 4 vCPU / ~8 GiB**, **Hetzner: 2 vCPU / ~4 GiB**, **DigitalOcean: 1 vCPU / ~1 GiB**. Do not infer compute capacity from role names.
+- Before a build, browser batch, model job, large indexing run, or other substantial ad-hoc compute, run `scripts/ops/cloud-capacity-report.sh` and route based on live headroom.
 - ChatGPT connector sessions use the Google Drive mirror `ChatGPT/3DVR Agent Server Routing Policy`; retrieve it before infrastructure/browser work when the routing policy is not already in context, and keep it synchronized with the canonical topology file.
-- **OVH (`3dvr-ovh`)** is the control/recovery anchor and the home of persistent authenticated browser state. Reuse existing browser profiles and the canonical browser controller; do not launch competing profile writers.
-- **Hetzner (`3dvr-hetzner`)** is the default agent/worker and GitHub publishing node. Put code/build/test work, Forge/Operator jobs, scheduled/batch agents, context routing, organism sync, and supervisors here.
-- **DigitalOcean / `debian-web` (`3dvr-do`)** is a 1 GB lightweight fallback. Keep concurrency low; do not add heavy builds, batch workers, duplicate helper brains, persistent experiments, or new browser/VNC workloads.
-- Route work through the SSH mesh rather than duplicating a service on the node where an agent happened to start. If the intended node is unavailable, report the blocker instead of silently overloading DigitalOcean.
+- **OVH (`3dvr-ovh`)** is the largest node, production/control/recovery anchor, and home of persistent authenticated browser state. Preserve roughly 2 GiB of available memory for production/recovery. When spare capacity is genuinely healthy, bounded ad-hoc compute may run through `/usr/local/bin/3dvr-experiment`.
+- **Hetzner (`3dvr-hetzner`)** is the default **service home** for agent/worker processes and GitHub publishing, not the unconditional heavy-compute node. Keep Forge/Operator workers, scheduled agents, context routing, organism sync, supervisors, and Open Runner here; admit burst compute only when its live capacity is healthy.
+- **DigitalOcean / `debian-web` (`3dvr-do`)** is a ~1 GB emergency/lightweight fallback. Keep concurrency low; do not add heavy builds, batch workers, duplicate helper brains, persistent experiments, or new browser/VNC workloads.
+- Route work through the SSH mesh rather than duplicating a service on the node where an agent happened to start. If no node has safe headroom, queue or postpone the work instead of overloading a server.
 - Preserve authenticated sessions and credentials in place. Never print, log, or copy secrets between servers merely to make routing convenient.
 
 ## Deployment Topology
