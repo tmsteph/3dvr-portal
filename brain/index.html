@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0a0d12">
+  <title>3DVR Brain</title>
+  <meta name="description" content="A local-first, open-source Markdown brain. Your files stay yours.">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">3DVR</a>
+    <div>
+      <strong>Brain</strong>
+      <span class="muted">open knowledge workspace</span>
+    </div>
+    <button id="open-vault" class="primary">Open vault</button>
+  </header>
+
+  <main class="workspace">
+    <aside class="sidebar">
+      <label class="search">
+        <span>Search</span>
+        <input id="search" type="search" placeholder="Find anything…" autocomplete="off">
+      </label>
+      <div class="sidebar-actions">
+        <button id="new-note" disabled>New note</button>
+      </div>
+      <nav id="note-list" class="note-list" aria-label="Notes"></nav>
+    </aside>
+
+    <section class="editor-pane">
+      <div class="editor-toolbar">
+        <div>
+          <p class="eyebrow">Local Markdown</p>
+          <div id="note-path" class="note-path">Open a vault to begin</div>
+        </div>
+        <button id="save-note" class="primary" disabled>Save</button>
+      </div>
+      <textarea id="editor" spellcheck="true" disabled aria-label="Markdown editor"></textarea>
+      <footer id="status" class="status">Nothing leaves your device.</footer>
+    </section>
+
+    <aside class="context-pane">
+      <section>
+        <p class="eyebrow">Links</p>
+        <div id="links" class="relation-list">None yet</div>
+      </section>
+      <section>
+        <p class="eyebrow">Backlinks</p>
+        <div id="backlinks" class="relation-list">None yet</div>
+      </section>
+      <section class="principle">
+        <p class="eyebrow">Principle</p>
+        <strong>Your brain belongs to you.</strong>
+        <p>The source of truth is ordinary Markdown. This interface is replaceable.</p>
+      </section>
+    </aside>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
