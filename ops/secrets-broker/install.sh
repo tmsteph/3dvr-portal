@@ -166,4 +166,24 @@ for _ in $(seq 1 50); do
 done
 [[ -S /run/3dvr-secrets-broker/broker.sock ]] || { echo "Secrets broker socket did not become ready." >&2; exit 1; }
 systemctl --no-pager --full status 3dvr-secrets-broker.service | sed -n '1,16p'
+
+node - "$ROOT" <<'NODE' || true
+const root = process.argv[2];
+const { OpenBaoBackend } = require(root + '/apps/agent/connectors/secrets/openbao');
+const expected = {
+  '3dvr': { key: 'GOOGLE_OAUTH_3DVR', email: '3dvr.tech@gmail.com' },
+  'tmsteph': { key: 'GOOGLE_OAUTH_TMSTEPH', email: 'tmsteph1290@gmail.com' },
+};
+const backend = new OpenBaoBackend();
+for (const [alias, target] of Object.entries(expected)) {
+  let connected = false;
+  try {
+    const parsed = JSON.parse(backend.get({ key: target.key }));
+    connected = String(parsed.email || '').trim().toLowerCase() === target.email
+      && Boolean(String(parsed.refreshToken || '').trim());
+  } catch {}
+  console.log(`Google OAuth ${alias}: ${connected ? 'connected' : 'not connected'}`);
+}
+NODE
+
 echo "3DVR Secrets Broker installed. Trusted local browser login: 3dvr-browser-login iatse|ukg|lighthouse"
