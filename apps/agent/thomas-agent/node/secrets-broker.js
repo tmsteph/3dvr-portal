@@ -644,6 +644,24 @@ class SecretsBroker {
       scopes: normalizeList(record.scopes),
     }));
     const audit = this.audit.verify();
+    const googleOAuth = {};
+    const googleExpected = {
+      '3dvr': { key: 'GOOGLE_OAUTH_3DVR', email: '3dvr.tech@gmail.com' },
+      'tmsteph': { key: 'GOOGLE_OAUTH_TMSTEPH', email: 'tmsteph1290@gmail.com' },
+    };
+    const openbao = this.backends.openbao;
+    for (const [alias, expected] of Object.entries(googleExpected)) {
+      let connected = false;
+      let email = '';
+      if (openbao?.ready?.()) {
+        try {
+          const parsed = JSON.parse(openbao.get({ key: expected.key }));
+          email = normalizeText(parsed?.email, 320).toLowerCase();
+          connected = email === expected.email && Boolean(normalizeText(parsed?.refreshToken, 10000));
+        } catch {}
+      }
+      googleOAuth[alias] = { connected, email: connected ? email : '' };
+    }
     return {
       status: 200,
       body: {
@@ -655,6 +673,7 @@ class SecretsBroker {
         pendingApprovals: approvals.filter(item => item.status === 'pending').length,
         backends,
         agents,
+        googleOAuth,
         audit: { ok: audit.ok, entries: audit.count, reason: audit.reason || null },
       },
     };
