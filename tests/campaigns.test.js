@@ -80,6 +80,7 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.doesNotMatch(html, /id="leadLocation" value="San Diego, CA"/);
   assert.match(js, /scopeKey=gmail-send/);
   assert.match(js, /action=sendmail/);
+  assert.match(js, /allowSmtpFallback:\s*false/);
   assert.match(js, /provider=lead-finder/);
   assert.match(js, /campaignDraft/);
   assert.match(js, /addSelectedLeads/);
