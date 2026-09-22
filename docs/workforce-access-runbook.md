@@ -35,7 +35,7 @@ Persistent authenticated browser state lives only on OVH. Hetzner is the normal 
 
 | Lane | CDP | Host profile | Purpose |
 | --- | ---: | --- | --- |
-| `general` | `9222` | `/home/debian/.config/google-chrome-for-testing` | IATSE, Encore SharePoint, Encore Outlook, Lighthouse, general authenticated web work |
+| `general` | `9222` | `/home/debian/.config/google-chrome-for-testing` | 3DVR Portal, IATSE, Encore SharePoint, Encore Outlook, Lighthouse, general authenticated web work |
 | `encore` | `9333` | `/home/debian/.config/3dvr/browser-profiles/encore` | UKG / UltiPro |
 | `messaging` | `9444` | `/home/debian/.config/3dvr/browser-profiles/messaging` | Google Messages / WhatsApp |
 | `training` | `9555` | `/home/debian/.config/3dvr/browser-profiles/training` | Encore training; inactive when last verified |
@@ -48,15 +48,17 @@ A reachable CDP port is only process health. It is not proof that the provider s
 
 The 3DVR Secrets Broker runs on OVH as `3dvr-secrets-broker.service` under the restricted `threedvr-secrets` identity and listens on its local Unix socket. Routine browser logins use the local-only browser-login action; secret values are never returned to the calling shell.
 
-The installed first-class command is:
+The installed first-class commands are:
 
 ```text
+3dvr-browser-login portal
 3dvr-browser-login iatse
 3dvr-browser-login ukg
 3dvr-browser-login lighthouse
 3dvr-lighthouse-schedule 2026-09-21
-3dvr-browser-login lighthouse
 ```
+
+The Portal owner-login procedure is documented canonically in `docs/access-continuity.md`; it shares the same broker and persistent OVH browser infrastructure.
 
 The Bitwarden Secrets Manager read path uses the native Bitwarden SDK. Do not grant the broker Docker access merely because `/usr/local/bin/bws` is implemented as a Docker wrapper. Docker membership would unnecessarily widen the broker's privileges.
 
@@ -306,8 +308,10 @@ Then verify the provider page itself. Do not stop at process health.
 For supported automated logins:
 
 ```sh
+3dvr-browser-login portal
 3dvr-browser-login iatse
 3dvr-browser-login ukg
+3dvr-browser-login lighthouse
 ```
 
 The command response must be treated as a hint and followed by a page-level verification of the expected authenticated route/content. This rule exists because the UKG PostLogout false positive proved that URL classifiers can be wrong.
@@ -320,6 +324,7 @@ The command response must be treated as a hint and followed by a page-level veri
 | CDP HTTP works but protocol calls time out | Treat Chrome target as stale; restart the same managed lane/profile and re-test |
 | Secrets broker down | Recover `3dvr-secrets-broker.service` before touching provider sessions |
 | Bitwarden read fails | Check native SDK/environment/config; do not grant Docker group access |
+| Portal shows sign-in | Run `3dvr-browser-login portal`; verify the signed-in Portal route and owner UI in the same `general` profile |
 | IATSE shows login | Run broker-backed IATSE login; verify `/avail` |
 | UKG shows Login.aspx | Run broker-backed UKG login; verify `/default.aspx` |
 | UKG shows PostLogout/sessiontimeout | Treat as logged out, return to login, authenticate, verify dashboard |
