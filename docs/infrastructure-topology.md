@@ -1,6 +1,6 @@
 # 3DVR Infrastructure Topology
 
-Last reviewed: 2026-09-17
+Last reviewed: 2026-09-22
 
 This document is the canonical human-readable inventory for the 3DVR compute mesh. Runtime secrets and private keys must never be stored here.
 
@@ -10,13 +10,27 @@ For ChatGPT sessions acting through connectors, the connector-visible mirror is 
 
 ## Cloud nodes
 
-| Node | Address | Primary role | Current implementation |
-| --- | --- | --- | --- |
-| OVH | `40.160.137.41` | Primary portal / control + recovery anchor | Stable self-hosted portal/control plane plus rendezvous for roaming devices and recovery |
-| DigitalOcean | `167.172.193.194` | Emergency fallback / lightweight control | Debian 13 `debian-web`; 1 vCPU, 1 GB RAM, 25 GB disk; keep production and heavy workers off this node |
-| Hetzner | `167.233.174.20` | Agent / worker runtime | Dedicated `apps/agent` runtime, Forge worker, background jobs, and Open Runner remote-command ingress |
+| Node | Address | Capacity | Primary role | Current implementation |
+| --- | --- | --- | --- | --- |
+| OVH | `40.160.137.41` | 4 vCPU, ~7.6 GiB RAM, 74 GiB root disk | Primary portal / control + recovery anchor | Stable self-hosted portal/control plane plus rendezvous for roaming devices and recovery |
+| Hetzner | `167.233.174.20` | 2 vCPU, ~3.7 GiB RAM, 38 GiB root disk | Persistent agent / worker services | Dedicated `apps/agent` runtime, Forge worker, background jobs, standby portal, and Open Runner ingress |
+| DigitalOcean | `167.172.193.194` | 1 vCPU, ~0.94 GiB RAM, 25 GiB root disk | Emergency fallback / lightweight control | Debian 13 `debian-web`; keep production and heavy workers off this node |
 
 There is one DigitalOcean droplet in the current account inventory. Do not assume a second DigitalOcean node exists.
+
+### Capacity snapshot — 2026-09-22 07:18 UTC
+
+This is a point-in-time operating snapshot, not a permanent scheduling decision:
+
+| Node | Available RAM | Swap | Root disk | Load average (1m / 5m / 15m) | Interpretation |
+| --- | ---: | ---: | ---: | --- | --- |
+| OVH | ~3.5 GiB of 7.6 GiB | 3.35 / 4.0 GiB used | 71% | 1.13 / 0.99 / 1.00 | Has the most current headroom, but production reserve must remain protected. |
+| Hetzner | ~1.7 GiB of 3.7 GiB | 2.0 / 2.0 GiB used | 79% | 23.48 / 24.10 / 20.53 | Under severe memory/cgroup pressure; do not route new heavy work here until pressure clears. |
+| DigitalOcean | ~179 MiB of 967 MiB | 333 / 1023 MiB used | 65% | 2.73 / 1.76 / 1.46 | Resource constrained; emergency/lightweight duties only. |
+
+The Hetzner high load in this snapshot was dominated by stale processes blocked in memory-cgroup pressure rather than sustained CPU consumption. Capacity must therefore be measured live before placing substantial work.
+
+Run `scripts/ops/cloud-capacity-report.sh` from a cloud node with the SSH mesh before assigning a build, browser batch, model job, large indexing run, or other resource-heavy task.
 
 ### OpenClaw production identity
 
@@ -28,15 +42,17 @@ See [`docs/openclaw-runtime-map.md`](./openclaw-runtime-map.md) before any OpenC
 
 ## Agent routing contract
 
-Agents must route work by role, not by whichever host they happen to be running on:
+Agents must route work by **role and live capacity**, not by whichever host they happen to be running on and not by a static assumption that Hetzner is the "big worker."
 
-- **OVH**: control/recovery, portal/control-plane operations, and persistent authenticated browser state. The canonical host browser controller is `portal-live`; guards prevent a second controller from taking over the same state. Reuse the existing profiles rather than launching fresh Chromium state:
+Before substantial ad-hoc compute, run `scripts/ops/cloud-capacity-report.sh`. Static capacity is OVH > Hetzner > DigitalOcean. Persistent service placement remains role-based, while burst compute follows live headroom without violating production reserves.
+
+- **OVH**: largest node and the control/recovery/production anchor. It may absorb bounded compute when live headroom is healthy, but keep at least ~2 GiB available for production/recovery and use `/usr/local/bin/3dvr-experiment` for ad-hoc work. The canonical host browser controller is `portal-live`; guards prevent a second controller from taking over the same state. Reuse the existing profiles rather than launching fresh Chromium state:
   - `/home/debian/.config/google-chrome-for-testing` — general authenticated workspace, CDP `9222`
   - `/home/debian/.config/3dvr/browser-profiles/encore` — Encore/UltiPro workspace, CDP `9333`
   - `/home/debian/.config/3dvr/browser-profiles/messaging` — WhatsApp + Google Messages, CDP `9444`
   - `/home/debian/.config/3dvr/browser-profiles/training` — Encore training workspace, CDP `9555` when enabled
   - `/home/debian/.config/3dvr/browser-profiles/identity` — Portal + Google/OAuth identity workspace, CDP `9666` when admitted
-- **Hetzner**: default compute for agents. Run Forge/Operator, code/build/test, scheduled and batch jobs, context routing, organism sync, supervisors, GitHub publishing, and the Open Runner here.
+- **Hetzner**: default home for persistent agent/worker services such as Forge/Operator workers, scheduled agents, context routing, organism sync, supervisors, GitHub publishing, and Open Runner. It is only 2 vCPU / ~4 GiB RAM, so do not blindly send builds, browser farms, local-model work, or other heavy bursts here. Admit burst work only when the live capacity report is healthy.
 - **DigitalOcean / `debian-web`**: lightweight fallback only. Keep concurrency low. Its reduced agent runtime may host the lightweight worker, inbox, outreach, heartbeat, health, and emergency control, while context/organism helper work is offloaded. Do not add heavy builds, batch workloads, duplicate helpers, persistent experiments, or new browser/VNC workloads.
 
 Use the SSH aliases `3dvr-ovh`, `3dvr-hetzner`, and `3dvr-do` to route work. If the correct node is unavailable, surface the blocker rather than silently duplicating a service elsewhere. Preserve browser/login state and never move credentials by printing or logging secrets.
@@ -103,7 +119,7 @@ Do not diagnose a missing reverse listener as a key-approval problem when outbou
 
 ### OVH — primary portal/control and recovery anchor
 
-Keep OVH boring and dependable. It is the primary self-hosted portal/control node and the recovery anchor. Production releases are explicit rather than tied to every commit, and experimental workers stay off this host.
+Keep OVH boring and dependable. It is the primary self-hosted portal/control node, the recovery anchor, and the largest current VPS. Production releases are explicit rather than tied to every commit. Bounded non-production work may use spare OVH capacity only after a live headroom check and only through the existing resource-isolation controls; production/recovery reserve takes priority.
 
 Recommended durable services:
 
@@ -136,7 +152,7 @@ Avoid background workers and repeated production builds on this 1 GB node.
 
 ### Hetzner — agent/worker node
 
-Keep the separately deployed `apps/agent` runtime here. Hetzner is the default home for the Operator/Forge worker, campaign workers, batch processing, scheduled agents, Open Runner, and other workloads that should not destabilize the portal/control endpoint.
+Keep the separately deployed `apps/agent` runtime here. Hetzner is the default **service home** for the Operator/Forge worker, campaign workers, scheduled agents, Open Runner, and similar background services. It is not the largest machine and must not be treated as the unconditional destination for heavy compute. Builds, browser batches, indexing, or model work require a live capacity check first; move, bound, queue, or postpone them when Hetzner is pressured.
 
 ## Release behavior
 
@@ -160,7 +176,7 @@ The portal/control path must remain usable even when experimental workloads misb
 - `3dvr-portal.service` is health-checked once per minute by `3dvr-production-watchdog.timer`; two consecutive local health failures trigger a bounded portal restart.
 - Persistent browser lanes retain their per-lane memory ceilings and also receive lower CPU/IO priority, so browser automation can slow itself down without starving production.
 - `/usr/local/bin/3dvr-experiment` runs ad-hoc experiments in a bounded transient user scope. New experimental compute on OVH should use this wrapper when it cannot be moved to Hetzner.
-- OVH remains the stable portal/control/recovery anchor. Heavy builds, local-model experiments, batch jobs, and general agent compute belong on Hetzner.
+- OVH remains the stable portal/control/recovery anchor. Prefer Hetzner for background worker services when it has headroom, but route burst compute by live capacity. If OVH has safe spare capacity, run bounded work through `/usr/local/bin/3dvr-experiment`; otherwise queue or postpone it rather than overloading either host.
 
 ### DigitalOcean edge behavior
 
@@ -177,7 +193,7 @@ The portal/control path must remain usable even when experimental workloads misb
 
 ### Hetzner worker protection
 
-Hetzner remains the default agent/worker node. `scripts/ops/hetzner-agent-guardrails.sh` continues to cap worker pane memory/CPU and keep Ollama from auto-starting into a host-global OOM condition.
+Hetzner remains the default home for agent/worker services, but its 2 vCPU / ~4 GiB footprint is smaller than OVH. `scripts/ops/hetzner-agent-guardrails.sh` continues to cap worker pane memory/CPU and keep Ollama from auto-starting into a host-global OOM condition. New burst workloads must pass a live capacity check instead of assuming the worker role implies spare capacity.
 
 `scripts/ops/hetzner-disk-maintenance.sh`, scheduled every six hours by `.github/workflows/hetzner-disk-maintenance.yml`, performs disk cleanup only when root usage is at least 80%. It may remove reproducible caches, old temporary diagnostics, and clean+merged worktrees from designated scratch-worktree directories. It must never automatically delete dirty or unmerged work or named durable workspaces.
 
