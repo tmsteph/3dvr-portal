@@ -32,6 +32,7 @@ install -m 0644 "$SOURCE/bitwarden-sdk-create.js" "$OPT/bitwarden-sdk-create.js"
 install -m 0644 "$SOURCE/bitwarden-sdk-upsert.js" "$OPT/bitwarden-sdk-upsert.js"
 install -m 0755 "$ROOT/scripts/ops/import-bitwarden-export-to-secrets-manager.mjs" "$OPT/import-bitwarden-export-to-secrets-manager.mjs"
 install -m 0755 "$ROOT/scripts/ops/3dvr-browser-login.mjs" /usr/local/bin/3dvr-browser-login
+install -m 0755 "$ROOT/scripts/ops/3dvr-lighthouse-schedule.cjs" /usr/local/bin/3dvr-lighthouse-schedule
 if ! node -e "require.resolve('@bitwarden/sdk-napi', { paths: ['$OPT'] })" >/dev/null 2>&1; then
   npm install --omit=dev --no-audit --no-fund --prefix "$OPT" @bitwarden/sdk-napi@1.0.0 >/dev/null
 fi
@@ -186,4 +187,4 @@ for (const [alias, target] of Object.entries(expected)) {
 }
 NODE
 
-echo "3DVR Secrets Broker installed. Trusted local browser login: 3dvr-browser-login iatse|ukg|lighthouse"
+echo "3DVR Secrets Broker installed. Browser login: 3dvr-browser-login iatse|ukg|lighthouse; Lighthouse schedule: 3dvr-lighthouse-schedule [YYYY-MM-DD] [location-id]"

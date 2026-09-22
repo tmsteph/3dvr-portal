@@ -183,6 +183,31 @@ async function listPages(port) {
   return Array.isArray(pages) ? pages.filter(page => page?.type === 'page') : [];
 }
 
+function lighthouseIdentityFromTargets(targets = []) {
+  for (const target of Array.isArray(targets) ? targets : []) {
+    try {
+      const url = new URL(String(target?.url || ''));
+      if (url.hostname !== 'webshell.suite.office.com') continue;
+      if (!url.pathname.includes('/iframe/TokenFactoryIframe')) continue;
+      const upn = normalizeText(url.searchParams.get('upn'));
+      if (upn && upn.includes('@')) return upn;
+    } catch {}
+  }
+  return '';
+}
+
+async function lighthouseIdentityFromSharePoint(port) {
+  let targets = await httpJson(port, '/json/list');
+  let identity = lighthouseIdentityFromTargets(targets);
+  if (identity) return identity;
+
+  await httpJson(port, `/json/new?${encodeURIComponent('https://psav.sharepoint.com/')}`, 'PUT');
+  await new Promise(resolve => setTimeout(resolve, 2500));
+  targets = await httpJson(port, '/json/list');
+  identity = lighthouseIdentityFromTargets(targets);
+  return identity;
+}
+
 function pageMatches(page, config) {
   try {
     const host = new URL(String(page?.url || '')).hostname.toLowerCase();
@@ -223,6 +248,7 @@ async function setInput(session, selectors, value) {
     input.focus();
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.dispatchEvent(new Event('blur', { bubbles: true }));
     return true;
   })()`;
   return Boolean(await evaluate(session, expression));
@@ -320,8 +346,18 @@ async function runLogin(broker, agent, site) {
       classification = classifyState(site, config, state);
     }
 
-    const credentials = credentialsFor(broker, agent, site, config);
-    const usernameSet = await setInput(session, config.usernameSelectors, credentials.username);
+    let credentials = { username: '', password: '' };
+    let username = '';
+    if (site === 'lighthouse') {
+      username = await lighthouseIdentityFromSharePoint(config.port);
+      if (!username) {
+        return { status: 409, body: { ok: false, site, status: 'human_required', reason: 'sharepoint-session-required' } };
+      }
+    } else {
+      credentials = credentialsFor(broker, agent, site, config);
+      username = credentials.username;
+    }
+    const usernameSet = await setInput(session, config.usernameSelectors, username);
     if (!usernameSet) return { status: 424, body: { ok: false, site, status: 'form_changed', reason: 'username-field-missing' } };
 
     let passwordSet = false;
@@ -372,6 +408,7 @@ module.exports = {
   SITE_CONFIG,
   browserLogin,
   chooseVaultItem,
+  lighthouseIdentityFromTargets,
   extractLogin,
   scoreVaultItem,
 };

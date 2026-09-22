@@ -8,6 +8,7 @@ const {
   SITE_CONFIG,
   chooseVaultItem,
   extractLogin,
+  lighthouseIdentityFromTargets,
   scoreVaultItem,
 } = require('../apps/agent/thomas-agent/node/browser-login');
 
@@ -37,7 +38,7 @@ test('Portal login matches the Bitwarden item even when its URI has no scheme', 
   assert.equal(scoreVaultItem(match, SITE_CONFIG.portal) >= 100, true);
 });
 
-test('Lighthouse can reuse the Encore/UKG identity without reusing its password', () => {
+test('Lighthouse never reuses a provider password after the identity step', () => {
   const index = {
     items: [
       { key: 'VAULT_ITEM__LOGIN__UKG__BBB', type: 'login', name: 'UKG Pro', uris: ['https://n21.ultipro.com/Login.aspx'] },
@@ -46,6 +47,22 @@ test('Lighthouse can reuse the Encore/UKG identity without reusing its password'
   const match = chooseVaultItem(index, SITE_CONFIG.lighthouse);
   assert.equal(match?.key, 'VAULT_ITEM__LOGIN__UKG__BBB');
   assert.equal(SITE_CONFIG.lighthouse.allowPasswordAfterEmail, false);
+  const source = fs.readFileSync(path.join(root, 'apps/agent/thomas-agent/node/browser-login.js'), 'utf8');
+  assert.match(source, /sharepoint-session-required/);
+  assert.match(source, /lighthouseIdentityFromSharePoint/);
+});
+
+test('Lighthouse prefers the active SharePoint Microsoft identity', () => {
+  const identity = lighthouseIdentityFromTargets([
+    { type: 'page', url: 'https://psav.sharepoint.com/SitePages/Home.aspx' },
+    { type: 'iframe', url: 'https://webshell.suite.office.com/iframe/TokenFactoryIframe?origin=https%3A%2F%2Fpsav.sharepoint.com&upn=worker%40example.test' },
+  ]);
+  assert.equal(identity, 'worker@example.test');
+});
+
+test('Lighthouse input handling triggers blur so Angular enables Continue', () => {
+  const source = fs.readFileSync(path.join(root, 'apps/agent/thomas-agent/node/browser-login.js'), 'utf8');
+  assert.match(source, /new Event\('blur', \{ bubbles: true \}\)/);
 });
 
 test('Portal sign-in recovery text is not treated as provider verification', () => {
