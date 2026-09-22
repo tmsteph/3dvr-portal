@@ -53,5 +53,8 @@ jobs:
       - name: Run autonomous dollar challenge tests
         run: node --test tests/challenge-api.test.js
 
+      - name: Run Campaigns Gmail sender regression tests
+        run: node --test tests/campaigns.test.js tests/oauth-provider-api.test.js
+
       - name: Run Playwright checks
         run: npm run playwright:verify:linux
