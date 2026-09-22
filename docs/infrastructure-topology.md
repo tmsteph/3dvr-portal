@@ -84,7 +84,8 @@ GitHub is the current queue transport, not the architecture itself. If GitHub is
 
 - **LicheePi 4A** — RISC-V Debian/upstream test node and future AV-network edge/output node. Treat network recovery and fallback access as unfinished infrastructure work.
 - **Termux phone** — roaming mobile mesh endpoint / thin client. It may expose a loopback-only reverse SSH tunnel through OVH when enrolled with `3dvr device mesh`.
-- **Laptop** — thin-client/operator environment. Source, development services, agents, queues, and durable state should remain server-first whenever practical.
+- **Sony Debian laptop (`DebianLaptop`)** — physical operator/recovery node added 2026-09-22. Debian root lives on the LVM volume `/dev/mapper/DebianLaptop--vg-root`; an ext filesystem inconsistency was repaired manually during recovery. Keep it server-first as an operator/thin-client machine. Mesh enrollment, stable SSH identity, and control-registry registration are pending until the machine boots cleanly.
+- **Laptop** — generic thin-client/operator role for other laptops. Source, development services, agents, queues, and durable state should remain server-first whenever practical.
 
 ## SSH mesh
 
