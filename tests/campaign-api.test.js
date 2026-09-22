@@ -33,7 +33,7 @@ test('Campaigns retries the Vercel route after a network failure', async () => {
   assert.equal(result.payload.ok, true);
 });
 
-test('Campaigns retries 503 but does not bypass a 429 limit', async () => {
+test('Campaigns retries transient 500/503 responses but does not bypass a 429 limit', async () => {
   const calls = [];
   const retry = await fetchPortalJson('/api/test', {}, {
     currentOrigin: 'https://portal.3dvr.tech',
@@ -45,6 +45,20 @@ test('Campaigns retries 503 but does not bypass a 429 limit', async () => {
     }
   });
   assert.equal(retry.usedFallback, true);
+
+  const serverErrorCalls = [];
+  const serverErrorRetry = await fetchPortalJson('/api/test', {}, {
+    currentOrigin: 'https://portal.3dvr.tech',
+    fetchImpl: async url => {
+      serverErrorCalls.push(url);
+      return serverErrorCalls.length === 1
+        ? { status: 500, ok: false, json: async () => ({ error: 'temporary lead-finder failure' }) }
+        : { status: 200, ok: true, json: async () => ({ ok: true }) };
+    }
+  });
+  assert.equal(serverErrorCalls.length, 2);
+  assert.equal(serverErrorRetry.usedFallback, true);
+  assert.equal(serverErrorRetry.payload.ok, true);
 
   const limitedCalls = [];
   const limited = await fetchPortalJson('/api/test', {}, {
