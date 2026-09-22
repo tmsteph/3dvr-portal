@@ -1,0 +1,118 @@
+name: Refresh DigitalOcean Portal Fallback
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ['3DVR Self-Hosted Production']
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+
+      - name: Build fallback bundle off-node
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --omit=dev
+          tar --exclude=.git --exclude='.3dvr' -czf /tmp/3dvr-portal-do-fallback.tar.gz .
+
+      - name: Resolve DigitalOcean SSH access
+        id: ssh
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+          HOST: 167.172.193.194
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/do-a
+          write_key "$SSH_B" /tmp/do-b
+          write_key "$SSH_C" /tmp/do-c
+          for user in root debian; do
+            for key in /tmp/do-a /tmp/do-b /tmp/do-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$HOST" true >/dev/null 2>&1; then
+                echo "user=$user" >> "$GITHUB_OUTPUT"
+                echo "key=$key" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+          done
+          exit 1
+
+      - name: Refresh local fallback
+        shell: bash
+        env:
+          HOST: 167.172.193.194
+          USER: ${{ steps.ssh.outputs.user }}
+          KEY: ${{ steps.ssh.outputs.key }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          REF_NAME: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+        run: |
+          set -euo pipefail
+          opts=(-i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          scp "${opts[@]}" /tmp/3dvr-portal-do-fallback.tar.gz "$USER@$HOST:/tmp/3dvr-portal-do-fallback.tar.gz"
+          scp "${opts[@]}" ops/resilience/install-do-local-portal-fallback.sh "$USER@$HOST:/tmp/install-do-local-portal-fallback.sh"
+          if [ "$USER" = root ]; then
+            ssh "${opts[@]}" "$USER@$HOST" "bash /tmp/install-do-local-portal-fallback.sh /tmp/3dvr-portal-do-fallback.tar.gz '$SHA' '$REF_NAME'"
+          else
+            ssh "${opts[@]}" "$USER@$HOST" "sudo -n bash /tmp/install-do-local-portal-fallback.sh /tmp/3dvr-portal-do-fallback.tar.gz '$SHA' '$REF_NAME'"
+          fi
+
+      - name: Verify edge-local fallback
+        shell: bash
+        env:
+          HOST: 167.172.193.194
+          USER: ${{ steps.ssh.outputs.user }}
+          KEY: ${{ steps.ssh.outputs.key }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          opts=(-i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$USER@$HOST" "curl -fsS --max-time 8 http://127.0.0.1/__3dvr-local-health" > /tmp/do-local-health.json
+          node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("/tmp/do-local-health.json","utf8")); if(!x.ok||x.sha!==process.argv[1]||x.operatorApi!=="native") process.exit(1)' "$SHA"
+
+      - name: Remove temporary files
+        if: always()
+        shell: bash
+        env:
+          HOST: 167.172.193.194
+          USER: ${{ steps.ssh.outputs.user }}
+          KEY: ${{ steps.ssh.outputs.key }}
+        run: |
+          rm -f /tmp/do-a /tmp/do-b /tmp/do-c /tmp/do-*.raw /tmp/3dvr-portal-do-fallback.tar.gz /tmp/do-local-health.json
+          if [ -n "${KEY:-}" ] && [ -f "${KEY:-}" ] && [ -n "${USER:-}" ]; then
+            ssh -i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=6 "$USER@$HOST" 'rm -f /tmp/3dvr-portal-do-fallback.tar.gz /tmp/install-do-local-portal-fallback.sh' || true
+          fi
