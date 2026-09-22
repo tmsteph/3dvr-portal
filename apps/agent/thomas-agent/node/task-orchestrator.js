@@ -177,11 +177,12 @@ function pickBackend(options, classification, capabilities) {
 function serverRoutingInstruction(hostName = os.hostname()) {
   return [
     `Current execution host: ${hostName}.`,
-    'Use the 3DVR cloud nodes by role; do not treat them as interchangeable compute.',
-    '- OVH (3dvr-ovh): control/recovery anchor and home of persistent authenticated browser sessions. Attach to the existing browser profiles and canonical portal-live controller; never start a second agent-browser controller or a duplicate profile writer.',
-    '- Hetzner (3dvr-hetzner): default agent/worker and publishing node. Put Forge/Operator work, code/build/test jobs, scheduled or batch agents, context routing, organism sync, supervisors, and GitHub publishing here.',
+    'Use the 3DVR cloud nodes by role and live capacity; do not treat role names as a proxy for machine size.',
+    'Static capacity: OVH = 4 vCPU / ~8 GiB RAM, Hetzner = 2 vCPU / ~4 GiB RAM, DigitalOcean = 1 vCPU / ~1 GiB RAM.',
+    '- OVH (3dvr-ovh): largest node; production/control/recovery anchor and home of persistent authenticated browser sessions. Keep roughly 2 GiB of memory available for production/recovery. Attach to existing browser profiles and the canonical portal-live controller; never start a second agent-browser controller or duplicate profile writer.',
+    '- Hetzner (3dvr-hetzner): default home for persistent agent/worker services and publishing, not the unconditional heavy-compute node. Keep Forge/Operator workers, scheduled agents, context routing, organism sync, supervisors, Open Runner, and GitHub publishing here.',
     '- DigitalOcean / debian-web (3dvr-do): lightweight emergency fallback. Keep concurrency low. Lightweight worker, inbox, outreach, heartbeat, health, and emergency control are acceptable; do not add heavy builds, batch jobs, duplicate context/organism helpers, persistent experiments, or new browser/VNC workloads.',
-    'Route work over the cloud SSH mesh to the appropriate node instead of duplicating services. If the correct node is unavailable, fail safe and report the blocker rather than overloading DigitalOcean or spawning a competing browser controller.',
+    'Before builds, browser batches, model jobs, large indexing runs, or other burst compute, check live CPU load, available memory, swap pressure, and disk. Route burst work to safe headroom; if no node qualifies, queue or postpone it instead of overloading a server.',
     'Preserve existing authenticated sessions. Never print, log, or copy credentials/secrets between hosts just to make routing easier.',
   ].join('\n');
 }
