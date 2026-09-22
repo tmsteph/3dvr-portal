@@ -183,6 +183,24 @@ async function listPages(port) {
   return Array.isArray(pages) ? pages.filter(page => page?.type === 'page') : [];
 }
 
+function lighthouseIdentityFromTargets(targets = []) {
+  for (const target of Array.isArray(targets) ? targets : []) {
+    try {
+      const url = new URL(String(target?.url || ''));
+      if (url.hostname !== 'webshell.suite.office.com') continue;
+      if (!url.pathname.includes('/iframe/TokenFactoryIframe')) continue;
+      const upn = normalizeText(url.searchParams.get('upn'));
+      if (upn && upn.includes('@')) return upn;
+    } catch {}
+  }
+  return '';
+}
+
+async function lighthouseIdentityFromSharePoint(port) {
+  const targets = await httpJson(port, '/json/list');
+  return lighthouseIdentityFromTargets(targets);
+}
+
 function pageMatches(page, config) {
   try {
     const host = new URL(String(page?.url || '')).hostname.toLowerCase();
@@ -223,6 +241,7 @@ async function setInput(session, selectors, value) {
     input.focus();
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.dispatchEvent(new Event('blur', { bubbles: true }));
     return true;
   })()`;
   return Boolean(await evaluate(session, expression));
@@ -317,7 +336,14 @@ async function runLogin(broker, agent, site) {
     }
 
     const credentials = credentialsFor(broker, agent, site, config);
-    const usernameSet = await setInput(session, config.usernameSelectors, credentials.username);
+    const sharePointIdentity = site === 'lighthouse'
+      ? await lighthouseIdentityFromSharePoint(config.port)
+      : '';
+    const username = sharePointIdentity || credentials.username;
+    if (site === 'lighthouse' && !username.includes('@')) {
+      return { status: 409, body: { ok: false, site, status: 'human_required', reason: 'sharepoint-session-required' } };
+    }
+    const usernameSet = await setInput(session, config.usernameSelectors, username);
     if (!usernameSet) return { status: 424, body: { ok: false, site, status: 'form_changed', reason: 'username-field-missing' } };
 
     let passwordSet = false;
@@ -368,6 +394,7 @@ module.exports = {
   SITE_CONFIG,
   browserLogin,
   chooseVaultItem,
+  lighthouseIdentityFromTargets,
   extractLogin,
   scoreVaultItem,
 };
