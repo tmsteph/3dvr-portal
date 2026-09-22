@@ -1,6 +1,6 @@
 # 3DVR Workforce Access Runbook
 
-Updated: 2026-09-18
+Updated: 2026-09-22
 
 This runbook records the working access architecture and recovery procedures for IATSE Local 122, Encore UKG/UltiPro, Encore SharePoint, Encore Outlook email, and Lighthouse. It exists so future agents recover existing access instead of rebuilding it from memory or asking Thomas to sign in again prematurely.
 
@@ -15,7 +15,7 @@ The following were verified from the canonical OVH browser profiles, with ShareP
 | Encore SharePoint / Connect | Authenticated | `https://psav.sharepoint.com/SitePages/Home.aspx` or Connect site |
 | Encore Outlook email | Authenticated through same Microsoft session | `https://outlook.office.com/mail/` |
 | Encore Time Off Calendar | Authenticated through UKG Time & Attendance launch | `https://avsgi.ultiprotime.com/ta/top/timeOffCalendar.jsp...` |
-| Lighthouse | Authenticated | `https://lighthouse2.psav.com/flowsheets/...` |
+| Lighthouse | Authenticated; My Schedule verified | `https://lighthouse2.psav.com/schedule/loc/9036/asOf/YYYY-MM-DD` |
 
 These are session states, not guarantees that providers will never expire cookies or require MFA again. Always verify the live page before reporting authentication.
 
@@ -53,6 +53,8 @@ The installed first-class command is:
 ```text
 3dvr-browser-login iatse
 3dvr-browser-login ukg
+3dvr-browser-login lighthouse
+3dvr-lighthouse-schedule 2026-09-21
 3dvr-browser-login lighthouse
 ```
 
@@ -197,6 +199,33 @@ Procedure:
 6. Allow the OAuth callback to return to Lighthouse and give the Angular app time to consume the callback.
 7. Verify an authenticated Lighthouse route such as `/flowsheets/loc/.../asOf/...` and confirm live flowsheet content is visible.
 
+### Lighthouse My Schedule — source of truth
+
+For Thomas's actual Encore work schedule, use **My Schedule**, not the flowsheet event list and not a previously copied calendar event.
+
+Canonical route for Manchester Grand Hyatt 9036:
+
+```text
+https://lighthouse2.psav.com/schedule/loc/9036/asOf/YYYY-MM-DD
+```
+
+The installed reader is:
+
+```sh
+3dvr-browser-login lighthouse
+3dvr-lighthouse-schedule 2026-09-21
+```
+
+The reader uses the authenticated OVH `general` browser lane on CDP `9222`, opens the requested schedule week, selects the signed-in employee's **My Schedule** row, maps the seven timeline columns to their displayed dates, and returns only safe schedule fields: date, shift title/time/role, notes, publication status, and scheduled-hours summary. It never returns browser cookies, access tokens, or the Microsoft identity used during SSO.
+
+Treat live Lighthouse My Schedule as authoritative when it disagrees with a copied Google Calendar event or older email/PDF schedule. After every successful refresh, reconcile the working calendar: update changed Encore shifts, add newly published shifts, and remove stale Encore-only events that Lighthouse no longer shows. Do not touch unrelated personal appointments while reconciling.
+
+The reader and the SharePoint-first login path were verified live on 2026-09-22.
+
+### Assistant/server route
+
+Persistent browser state remains on OVH. From Hetzner, use the `3dvr-ovh` SSH alias. On the current `tmsteph` desktop, the existing `debian-web` alias lands on Hetzner; from there, hop to `3dvr-ovh`. Do not mistake that desktop alias for the DigitalOcean node. The browser itself stays on OVH; the intermediate host is only the control path.
+
 ### Why SharePoint first matters
 
 Direct Lighthouse login exposed two identity quirks:
@@ -206,7 +235,7 @@ Direct Lighthouse login exposed two identity quirks:
 
 SharePoint is already the normal human entry point and establishes the correct Encore tenant session. Once that session was established on 2026-09-15, Lighthouse successfully consumed an SSO auth code and loaded the flowsheet dashboard.
 
-The current `3dvr-browser-login lighthouse` runner contains identity fallback logic but does not yet encode the complete SharePoint-first choreography. Treat SharePoint-first as the canonical recovery path until that sequence is folded into the runner and covered by an end-to-end test.
+The `3dvr-browser-login lighthouse` runner now treats the active SharePoint Microsoft session as the Lighthouse identity source. It reads the corporate UPN only inside the local browser process, never emits it, opens SharePoint first when that identity is absent, and returns `human_required: sharepoint-session-required` instead of guessing with a UKG-style username. The Lighthouse email form also receives the `blur` event required by its current Angular validation before **Continue** is clicked.
 
 ## Failure history and permanent fixes
 
@@ -317,8 +346,7 @@ The trusted-owner model should reduce unnecessary approval prompts for ordinary 
 
 ## Remaining engineering work
 
-- Fold the proven **SharePoint-first → Microsoft SSO → Lighthouse** sequence into `3dvr-browser-login lighthouse`.
-- Add an end-to-end Lighthouse test that recognizes Microsoft MFA as `human_required`, resumes after approval, and verifies a flowsheet route.
+- Add an end-to-end Lighthouse test that recognizes Microsoft MFA as `human_required`, resumes after approval, and verifies both an authenticated Lighthouse route and My Schedule extraction.
 - Extend persistent-access health to distinguish UKG `Login.aspx`, `PostLogout.aspx`, and `/default.aspx` rather than only checking for a tab.
 - Extend health to verify SharePoint signed-in state because it is now a dependency/recovery bootstrap for Lighthouse.
 - Keep the `training` lane intentionally inactive unless a training workflow needs it; do not treat inactivity alone as an outage.
