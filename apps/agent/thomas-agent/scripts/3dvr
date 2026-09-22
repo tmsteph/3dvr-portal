@@ -427,27 +427,52 @@ send_inbox_test() {
 }
 
 auth_login() {
-  provider="${1:-google}"
-  case "$provider" in
-    email|mail|gmail) provider="google" ;;
-    outlook|office365|m365) provider="microsoft" ;;
-  esac
-  case "$provider" in
-    google|microsoft) ;;
-    *) echo "Use: 3dvr auth login google|microsoft"; exit 1 ;;
+  target="${1:-3dvr}"
+  provider="google"
+  alias=""
+  alias_hint=""
+  scope_key="control"
+
+  case "$target" in
+    tmsteph)
+      alias="tmsteph"
+      alias_hint="tmsteph1290@gmail.com"
+      ;;
+    3dvr|google|email|mail|gmail)
+      alias="3dvr"
+      alias_hint="3dvr.tech@gmail.com"
+      ;;
+    microsoft|outlook|office365|m365)
+      provider="microsoft"
+      scope_key="mail"
+      ;;
+    *)
+      echo "Use: 3dvr auth login tmsteph|3dvr|microsoft"
+      exit 1
+      ;;
   esac
 
-  url="${PORTAL_URL%/}/api/oauth/$provider?action=start&intent=cli&scopeKey=mail&returnTo=/profile.html#profile-oauth"
-  echo "Opening $provider OAuth in the portal."
+  url="${PORTAL_URL%/}/api/oauth/$provider?action=start&intent=cli&scopeKey=$scope_key&returnTo=/profile.html#profile-oauth"
+  [ -n "$alias_hint" ] && url="$url&aliasHint=$alias_hint"
+
+  echo "Opening $target OAuth in the portal."
   echo
-  echo "Portal OAuth is one supported setup. Legacy Gmail app-password mail is also supported."
+  if [ "$provider" = "google" ]; then
+    echo "Requesting Google control for Gmail, Calendar, Contacts, and Drive."
+  else
+    echo "Requesting Microsoft mail access."
+  fi
   echo
   echo "After approving access:"
   echo "1. Copy the JSON shown by the portal."
-  echo "2. Run: 3dvr auth import"
+  if [ -n "$alias" ]; then
+    echo "2. Run: 3dvr auth import $alias"
+  else
+    echo "2. Run: 3dvr auth import"
+  fi
   echo "3. Paste the JSON and press Ctrl-D."
   echo
-  echo "If the portal says OAuth is not configured, production needs the provider env vars first."
+  echo "Credentials are stored in the encrypted multi-account vault."
   open_url "$url"
 }
 
