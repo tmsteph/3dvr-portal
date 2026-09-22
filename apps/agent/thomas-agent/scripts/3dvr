@@ -452,8 +452,9 @@ auth_login() {
       ;;
   esac
 
-  url="${PORTAL_URL%/}/api/oauth/$provider?action=start&intent=cli&scopeKey=$scope_key&returnTo=/profile.html#profile-oauth"
+  url="${PORTAL_URL%/}/api/oauth/$provider?action=start&intent=cli&scopeKey=$scope_key"
   [ -n "$alias_hint" ] && url="$url&aliasHint=$alias_hint"
+  url="$url&returnTo=/profile.html%23profile-oauth"
 
   echo "Opening $target OAuth in the portal."
   echo
