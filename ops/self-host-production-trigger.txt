@@ -19,3 +19,5 @@ Reason: Verify homepage 10,338 points display and Gmail test-to-self end to end.
 2026-09-20 access-owner-proof-race-fix
 
 2026-09-21 google-oauth-openbao-routing
+
+2026-09-21 google-oauth-bitwarden-to-openbao-migration
