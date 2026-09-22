@@ -163,6 +163,74 @@ test('live remote Lead Vault updates reconcile into an open signed-in device', a
   accountSync.unsubscribe();
 });
 
+
+test('Lead Vault restores a stored 3DVR account before falling back to local-only mode', async () => {
+  const storage = memoryStorage([]);
+  storage.setItem('signedIn', 'true');
+  storage.setItem('alias', 'thomas@3dvr');
+  storage.setItem('password', 'secret');
+
+  const node = {
+    get() { return node; },
+    once(callback) { callback(null); },
+    put(_value, callback) { callback?.({ ok: 1 }); },
+    on() { return node; },
+    off() {}
+  };
+  const user = {
+    is: null,
+    _: {},
+    get() { return node; },
+    recall() {},
+    auth(alias, password, callback) {
+      assert.equal(alias, 'thomas@3dvr');
+      assert.equal(password, 'secret');
+      user.is = { pub: 'pub-restored' };
+      user._.sea = { priv: 'private-restored' };
+      callback({ ok: 1 });
+    }
+  };
+  const GunImpl = () => ({ user: () => user });
+  const SEA = {
+    async encrypt(value) { return 'enc:' + value; },
+    async decrypt(value) {
+      return String(value || '').startsWith('enc:')
+        ? String(value).slice(4)
+        : null;
+    }
+  };
+
+  const accountSync = await createBrowserLeadVaultSync({
+    GunImpl,
+    SEA,
+    storage,
+    authTimeoutMs: 5
+  });
+
+  assert.equal(accountSync.available, true);
+  accountSync.unsubscribe();
+});
+
+test('signed-in OAuth-only sessions are not mislabeled as signed out', async () => {
+  const storage = memoryStorage([]);
+  storage.setItem('signedIn', 'true');
+  storage.setItem('alias', 'oauth@example.test');
+  storage.setItem('authMethod', 'oauth');
+
+  const user = { is: null, _: {}, get() {}, recall() {} };
+  const GunImpl = () => ({ user: () => user });
+
+  const accountSync = await createBrowserLeadVaultSync({
+    GunImpl,
+    SEA: {},
+    storage,
+    authTimeoutMs: 1
+  });
+
+  assert.equal(accountSync.available, false);
+  assert.equal(accountSync.reason, 'account-sync-unavailable');
+});
+
 test('low-level Lead Vault sync is unavailable without an authenticated user', () => {
   const sync = createLeadVaultSync({
     user: { is: null, _: {}, get() {} },
