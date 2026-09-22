@@ -427,8 +427,8 @@ function buildCallbackResultPage(result = {}, returnPath = DEFAULT_RETURN_PATH, 
       : '<p style="margin:0 0 12px;line-height:1.6;">Your OAuth result is being stored in this browser and you will be redirected automatically.</p><p style="margin:0;"><a href=' + redirectTarget + '>Continue manually</a></p>'}
   </div>
   <script>
+    const oauthResult = ${serialized};
     try {
-      const oauthResult = ${serialized};
       localStorage.setItem('portal.oauth.result', JSON.stringify(oauthResult));
       const textarea = document.getElementById('oauth-result');
       if (textarea) {
