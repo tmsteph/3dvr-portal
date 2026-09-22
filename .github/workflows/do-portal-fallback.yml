@@ -1,4 +1,4 @@
-name: Deploy Hetzner Portal Standby
+name: Refresh DigitalOcean Portal Fallback
 
 on:
   workflow_dispatch:
@@ -19,20 +19,26 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Build source archive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+
+      - name: Build fallback bundle off-node
         shell: bash
         run: |
           set -euo pipefail
-          tar --exclude=.git --exclude=node_modules --exclude='.3dvr' -czf /tmp/3dvr-portal-standby.tar.gz .
+          npm ci --omit=dev
+          tar --exclude=.git --exclude='.3dvr' -czf /tmp/3dvr-portal-do-fallback.tar.gz .
 
-      - name: Resolve Hetzner SSH access
+      - name: Resolve DigitalOcean SSH access
         id: ssh
         shell: bash
         env:
           SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
           SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
           SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
-          HOST: 167.233.174.20
+          HOST: 167.172.193.194
         run: |
           set -euo pipefail
           umask 077
@@ -51,11 +57,11 @@ jobs:
             chmod 600 "$dest"
             rm -f "$dest.raw"
           }
-          write_key "$SSH_A" /tmp/hz-a
-          write_key "$SSH_B" /tmp/hz-b
-          write_key "$SSH_C" /tmp/hz-c
-          for user in root debian ubuntu tmsteph; do
-            for key in /tmp/hz-a /tmp/hz-b /tmp/hz-c; do
+          write_key "$SSH_A" /tmp/do-a
+          write_key "$SSH_B" /tmp/do-b
+          write_key "$SSH_C" /tmp/do-c
+          for user in root debian; do
+            for key in /tmp/do-a /tmp/do-b /tmp/do-c; do
               [ -f "$key" ] || continue
               if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$HOST" true >/dev/null 2>&1; then
                 echo "user=$user" >> "$GITHUB_OUTPUT"
@@ -66,10 +72,10 @@ jobs:
           done
           exit 1
 
-      - name: Deploy standby
+      - name: Refresh local fallback
         shell: bash
         env:
-          HOST: 167.233.174.20
+          HOST: 167.172.193.194
           USER: ${{ steps.ssh.outputs.user }}
           KEY: ${{ steps.ssh.outputs.key }}
           SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
@@ -77,38 +83,36 @@ jobs:
         run: |
           set -euo pipefail
           opts=(-i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
-          scp "${opts[@]}" /tmp/3dvr-portal-standby.tar.gz "$USER@$HOST:/tmp/3dvr-portal-standby.tar.gz"
-          scp "${opts[@]}" ops/resilience/install-hetzner-portal-standby.sh "$USER@$HOST:/tmp/install-hetzner-portal-standby.sh"
+          scp "${opts[@]}" /tmp/3dvr-portal-do-fallback.tar.gz "$USER@$HOST:/tmp/3dvr-portal-do-fallback.tar.gz"
+          scp "${opts[@]}" ops/resilience/install-do-local-portal-fallback.sh "$USER@$HOST:/tmp/install-do-local-portal-fallback.sh"
           if [ "$USER" = root ]; then
-            ssh "${opts[@]}" "$USER@$HOST" "bash /tmp/install-hetzner-portal-standby.sh /tmp/3dvr-portal-standby.tar.gz '$SHA' '$REF_NAME'"
+            ssh "${opts[@]}" "$USER@$HOST" "bash /tmp/install-do-local-portal-fallback.sh /tmp/3dvr-portal-do-fallback.tar.gz '$SHA' '$REF_NAME'"
           else
-            ssh "${opts[@]}" "$USER@$HOST" "sudo -n bash /tmp/install-hetzner-portal-standby.sh /tmp/3dvr-portal-standby.tar.gz '$SHA' '$REF_NAME'"
+            ssh "${opts[@]}" "$USER@$HOST" "sudo -n bash /tmp/install-do-local-portal-fallback.sh /tmp/3dvr-portal-do-fallback.tar.gz '$SHA' '$REF_NAME'"
           fi
 
-      - name: Verify standby from DigitalOcean
+      - name: Verify edge-local fallback
         shell: bash
         env:
-          HOST: 167.233.174.20
+          HOST: 167.172.193.194
           USER: ${{ steps.ssh.outputs.user }}
           KEY: ${{ steps.ssh.outputs.key }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           set -euo pipefail
           opts=(-i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
-          ssh "${opts[@]}" "$USER@$HOST" \
-            "ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-do 'curl -fsS --max-time 8 http://127.0.0.1:14322/__3dvr-health'" \
-            > /tmp/standby-health.json
-          node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync("/tmp/standby-health.json","utf8"));if(!x.ok||!x.standby)process.exit(1)'
+          ssh "${opts[@]}" "$USER@$HOST" "curl -fsS --max-time 8 http://127.0.0.1/__3dvr-local-health" > /tmp/do-local-health.json
+          node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("/tmp/do-local-health.json","utf8")); if(!x.ok||x.sha!==process.argv[1]||x.operatorApi!=="native") process.exit(1)' "$SHA"
 
       - name: Remove temporary files
         if: always()
         shell: bash
         env:
-          HOST: 167.233.174.20
+          HOST: 167.172.193.194
           USER: ${{ steps.ssh.outputs.user }}
           KEY: ${{ steps.ssh.outputs.key }}
         run: |
-          rm -f /tmp/hz-a /tmp/hz-b /tmp/hz-c /tmp/hz-*.raw /tmp/3dvr-portal-standby.tar.gz /tmp/standby-health.json
+          rm -f /tmp/do-a /tmp/do-b /tmp/do-c /tmp/do-*.raw /tmp/3dvr-portal-do-fallback.tar.gz /tmp/do-local-health.json
           if [ -n "${KEY:-}" ] && [ -f "${KEY:-}" ] && [ -n "${USER:-}" ]; then
-            ssh -i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=6 "$USER@$HOST" \
-              'rm -f /tmp/3dvr-portal-standby.tar.gz /tmp/install-hetzner-portal-standby.sh' || true
+            ssh -i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=6 "$USER@$HOST" 'rm -f /tmp/3dvr-portal-do-fallback.tar.gz /tmp/install-do-local-portal-fallback.sh' || true
           fi
