@@ -72,6 +72,41 @@ if [[ ! -f "$AGENTS" ]]; then
   chmod 0640 "$AGENTS"
 fi
 
+# One-time compatibility migration: earlier Access-page saves used the Bitwarden
+# writer before Google OAuth was assigned its dedicated OpenBao route.
+if [[ -f "$ETC/bitwarden.env" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$ETC/bitwarden.env"
+  set +a
+  node - "$ROOT" <<'NODE' || true
+const root = process.argv[2];
+const { BitwardenSecretsManagerBackend } = require(root + '/apps/agent/thomas-agent/node/secrets-broker');
+const { OpenBaoBackend } = require(root + '/apps/agent/connectors/secrets/openbao');
+const expected = {
+  GOOGLE_OAUTH_3DVR: '3dvr.tech@gmail.com',
+  GOOGLE_OAUTH_TMSTEPH: 'tmsteph1290@gmail.com',
+};
+const bitwarden = new BitwardenSecretsManagerBackend({ projectName: '3dvr Agent' });
+const openbao = new OpenBaoBackend();
+if (!bitwarden.ready() || !openbao.ready()) process.exit(0);
+for (const [key, email] of Object.entries(expected)) {
+  try {
+    const value = bitwarden.get({ projectName: '3dvr Agent', key });
+    const parsed = JSON.parse(value);
+    if (String(parsed.email || '').trim().toLowerCase() !== email || !String(parsed.refreshToken || '').trim()) {
+      console.log('Google OAuth migration skipped invalid record:', key);
+      continue;
+    }
+    openbao.create({ key, value, sourceId: 'google-oauth-bitwarden-migration' });
+    console.log('Google OAuth migrated to OpenBao:', key);
+  } catch {
+    console.log('Google OAuth migration source not found:', key);
+  }
+}
+NODE
+fi
+
 ADMIN=(node "$OPT/secrets-broker-admin.js")
 if [[ ! -f "$PORTAL_TOKEN" ]]; then
   "${ADMIN[@]}" provision portal-owner-ui --registry "$AGENTS" --token-file "$PORTAL_TOKEN" --capabilities broker.admin --scopes 'broker:*' --label '3DVR owner portal' >/dev/null
