@@ -1,11 +1,28 @@
 {
   "ok": true,
-  "site": "ukg",
-  "status": "authenticated",
-  "url": "https://n21.ultipro.com/default.aspx",
-  "browserLane": "encore",
-  "requestId": "ukg-login-verify-20260922T0714Z",
-  "action": "ukg_login",
+  "found": false,
+  "baseUrl": "https://n21.ultipro.com/default.aspx",
+  "navigation": [
+    {
+      "i": 6,
+      "tag": "A",
+      "text": "Inbox",
+      "href": "https://n21.ultipro.com/Home.aspx#",
+      "onclick": "recentlyVisitedSelect('/pages/VIEW/EeRequestInbox.aspx?USParams=PK=CORE!MenuID=74!PageRerId=74!ParentRerId=73&skipInboxBetaRedir=1','74','74','74', false, false, 'Inbox', true)"
+    }
+  ],
+  "visited": [
+    {
+      "label": "Inbox",
+      "url": "https://n21.ultipro.com/Home.aspx#",
+      "matches": []
+    }
+  ],
+  "relevant": [
+    "Sys.WebForms.PageRequestManager._initialize('scm', 'form1', [], [], [], 90, '');"
+  ],
+  "requestId": "ukg-timeoff-status-20260922T0720Z",
+  "action": "ukg_timeoff_status",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-22T07:08:43Z"
+  "checkedAt": "2026-09-22T07:20:40Z"
 }
