@@ -12,6 +12,29 @@ Money Printer now treats business-building as a measured learning loop rather th
 6. Persist the observation, including cycles where nothing happened.
 7. Adapt one variable after repeated stalls.
 
+
+## Evidence hierarchy
+
+Business beliefs are hypotheses. The system should prefer evidence in roughly this order:
+
+1. **Cleared customer payment and retained revenue** — strongest demand evidence.
+2. **Observed customer behavior** — use, repeat use, referrals, renewal, churn, completed checkout.
+3. **Cost and delivery evidence** — actual labor, infrastructure spend, refunds, support burden, gross margin.
+4. **Concrete commitment** — signed pilot, booked call, deposit, purchase order, explicit introduction.
+5. **Observed market response** — qualified replies, conversion rates, objections, abandonment.
+6. **Stated preference** — interviews, surveys, compliments, feature requests.
+7. **Internal judgment** — founder intuition, model scores, generated ideas, forecasts.
+
+Lower levels may suggest what to test. They must never be promoted into higher-level evidence without an observed event.
+
+**Workflow state is not evidence.** Moving an experiment to `Launched`, `Revenue`, or `Scaling` must not create leads, replies, calls, messages, or revenue. Dashboards report measured traction only.
+
+## Decision discipline
+
+Each experiment needs a falsifiable hypothesis, one primary metric, a defined observation window, a cost ceiling, and a pre-written continue/change/stop rule. Prefer the smallest test that can change a decision.
+
+Do not scale because an idea scores well. Scale after independent demand appears repeatedly and the measured economics support delivering more of it.
+
 The daemon writes this memory to `docs/money-printer-learning-ledger.json`. When `MONEY_PRINTER_EVIDENCE_DIR` is configured, it imports the existing market/autopilot/outbound evidence bundle. Without that directory it still records a wake observation, so repeated no-signal cycles are visible instead of forgotten.
 
 ## Revenue provenance
