@@ -76,6 +76,7 @@ describe('oauth provider api', () => {
         contacts: true,
         calendar: true,
         mail: true,
+        drive: true,
       },
     });
   });
@@ -152,6 +153,36 @@ describe('oauth provider api', () => {
     const scopes = location.searchParams.get('scope') || '';
     assert.match(scopes, /https:\/\/www\.googleapis\.com\/auth\/calendar\.events/);
     assert.doesNotMatch(scopes, /https:\/\/www\.googleapis\.com\/auth\/calendar(?:\s|$)/);
+  });
+
+  it('requests the explicit Google control scope set and account hint', async () => {
+    const handler = createOAuthProviderHandler({
+      config: { GOOGLE_OAUTH_CLIENT_ID: 'client.apps.googleusercontent.com', GOOGLE_OAUTH_CLIENT_SECRET: 'secret' },
+    });
+    const res = createMockRes();
+
+    await handler({
+      method: 'GET',
+      headers: { host: 'portal.3dvr.tech', 'x-forwarded-proto': 'https' },
+      query: {
+        provider: 'google',
+        action: 'start',
+        scopeKey: 'control',
+        aliasHint: '3dvr.tech@gmail.com',
+        returnTo: '/profile.html#profile-oauth',
+      },
+    }, res);
+
+    assert.equal(res.statusCode, 302);
+    const location = new URL(res.headers.Location);
+    const scopes = location.searchParams.get('scope') || '';
+    assert.match(scopes, /https:\/\/www\.googleapis\.com\/auth\/gmail\.modify/);
+    assert.match(scopes, /https:\/\/www\.googleapis\.com\/auth\/gmail\.settings\.basic/);
+    assert.match(scopes, /https:\/\/www\.googleapis\.com\/auth\/calendar(?:\s|$)/);
+    assert.match(scopes, /https:\/\/www\.googleapis\.com\/auth\/contacts(?:\s|$)/);
+    assert.match(scopes, /https:\/\/www\.googleapis\.com\/auth\/drive(?:\s|$)/);
+    assert.equal(location.searchParams.get('login_hint'), '3dvr.tech@gmail.com');
+    assert.equal(location.searchParams.get('prompt'), 'consent select_account');
   });
 
   it('hands standalone Calendar OAuth back across 3dvr subdomains without losing the flow', async () => {
