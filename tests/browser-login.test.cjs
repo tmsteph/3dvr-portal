@@ -48,6 +48,12 @@ test('Lighthouse can reuse the Encore/UKG identity without reusing its password'
   assert.equal(SITE_CONFIG.lighthouse.allowPasswordAfterEmail, false);
 });
 
+test('Portal sign-in recovery text is not treated as provider verification', () => {
+  const source = fs.readFileSync(path.join(root, 'apps/agent/thomas-agent/node/browser-login.js'), 'utf8');
+  assert.match(source, /site === 'portal'/);
+  assert.match(source, /return \{ status: 'login_required' \};/);
+});
+
 test('UKG logout page is never classified as authenticated', () => {
   const source = fs.readFileSync(path.join(root, 'apps/agent/thomas-agent/node/browser-login.js'), 'utf8');
   assert.match(source, /postlogout\\.aspx/i);
