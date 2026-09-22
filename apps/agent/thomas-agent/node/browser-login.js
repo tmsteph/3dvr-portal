@@ -4,6 +4,16 @@ const http = require('node:http');
 const { matchScope } = require('./secrets-broker');
 
 const SITE_CONFIG = Object.freeze({
+  portal: {
+    lane: 'general',
+    port: 9222,
+    startUrl: 'https://portal.3dvr.tech/sign-in.html?redirect=%2Fcampaigns%2F',
+    hosts: ['portal.3dvr.tech'],
+    vaultTerms: ['portal.3dvr.tech', '3dvr portal'],
+    usernameSelectors: ['input[name="username"]', 'input[autocomplete="username"]'],
+    passwordSelectors: ['input[name="password"]', 'input[type="password"]'],
+    submitText: ['sign in and continue', 'sign in'],
+  },
   iatse: {
     lane: 'general',
     port: 9222,
@@ -51,8 +61,12 @@ function safeJson(value) {
 }
 
 function hostFromUri(value = '') {
-  try { return new URL(String(value)).hostname.toLowerCase(); }
-  catch { return ''; }
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const absolute = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
+    return new URL(absolute).hostname.toLowerCase();
+  } catch { return ''; }
 }
 
 function scoreVaultItem(item = {}, config = {}) {
@@ -240,6 +254,7 @@ function classifyState(site, config, state) {
   if (LOGIN_ERROR.test(text)) return { status: 'login_failed', reason: 'provider-rejected-login' };
   const host = pageHost(state);
   if (!config.hosts.includes(host)) return { status: 'human_required', reason: 'external-sso' };
+  if (site === 'portal' && !/sign-in\.html/i.test(String(state?.url || '')) && !state.passwordCount) return { status: 'authenticated' };
   if (site === 'iatse' && /dashboard/i.test(text) && !state.passwordCount) return { status: 'authenticated' };
   if (site === 'ukg' && /postlogout\.aspx/i.test(String(state?.url || ''))) return { status: 'login_required', reason: 'session-expired' };
   if (site === 'ukg' && !/login\.aspx/i.test(String(state?.url || '')) && !state.passwordCount) return { status: 'authenticated' };
