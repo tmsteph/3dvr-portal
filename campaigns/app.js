@@ -60,6 +60,9 @@ let discoveredLeads = [];
 let suggestedCampaign = null;
 let leadVaultAccountSync = null;
 let leadVaultSyncWrites = Promise.resolve();
+let leadVaultSyncRetryTimer = null;
+let leadVaultSyncRetryAttempt = 0;
+let leadVaultSyncInitializing = false;
 let chosenManualLocation = '';
 
 function readJson(key, fallback) {
@@ -103,7 +106,27 @@ function setLeadVaultSyncStatus(message) {
   }
 }
 
+function canRestoreLeadVaultAccount() {
+  return localStorage.getItem('signedIn') === 'true'
+    && Boolean(String(localStorage.getItem('alias') || '').trim())
+    && Boolean(localStorage.getItem('password'));
+}
+
+function scheduleLeadVaultInitializationRetry() {
+  if (leadVaultSyncRetryTimer) return true;
+  const delay = Math.min(30000, 1500 * (2 ** Math.min(leadVaultSyncRetryAttempt, 4)));
+  leadVaultSyncRetryAttempt += 1;
+  setLeadVaultSyncStatus('Lead Vault: reconnecting secure sync…');
+  leadVaultSyncRetryTimer = window.setTimeout(() => {
+    leadVaultSyncRetryTimer = null;
+    initializeLeadVaultAccountSync();
+  }, delay);
+  return true;
+}
+
 async function initializeLeadVaultAccountSync() {
+  if (leadVaultSyncInitializing || leadVaultAccountSync?.available) return;
+  leadVaultSyncInitializing = true;
   setLeadVaultSyncStatus('Lead Vault: checking secure sync…');
   try {
     const accountSync = await createBrowserLeadVaultSync({
@@ -115,20 +138,35 @@ async function initializeLeadVaultAccountSync() {
     });
     if (!accountSync.available) {
       const portalSignedIn = localStorage.getItem('signedIn') === 'true';
+      if (portalSignedIn && canRestoreLeadVaultAccount()) {
+        scheduleLeadVaultInitializationRetry();
+        return;
+      }
       setLeadVaultSyncStatus(
         portalSignedIn
-          ? 'Lead Vault: local · account sync unavailable'
+          ? 'Lead Vault: signed in · secure sync unavailable'
           : 'Lead Vault: local · sign in to sync'
       );
       return;
     }
 
     leadVaultAccountSync = accountSync;
+    leadVaultSyncRetryAttempt = 0;
+    if (leadVaultSyncRetryTimer) {
+      clearTimeout(leadVaultSyncRetryTimer);
+      leadVaultSyncRetryTimer = null;
+    }
     setLeadVaultSyncStatus(
       `Lead Vault: synced securely · ${accountSync.leads.length} lead${accountSync.leads.length === 1 ? '' : 's'}`
     );
   } catch (_error) {
-    setLeadVaultSyncStatus('Lead Vault: saved locally · sync retry needed');
+    if (localStorage.getItem('signedIn') === 'true') {
+      scheduleLeadVaultInitializationRetry();
+    } else {
+      setLeadVaultSyncStatus('Lead Vault: saved locally');
+    }
+  } finally {
+    leadVaultSyncInitializing = false;
   }
 }
 
@@ -832,3 +870,8 @@ renderHistory();
 updateConnectionUi();
 recoverSavedConnection();
 initializeLeadVaultAccountSync();
+window.addEventListener('online', () => {
+  if (!leadVaultAccountSync?.available && localStorage.getItem('signedIn') === 'true') {
+    initializeLeadVaultAccountSync();
+  }
+});
