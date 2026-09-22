@@ -1420,7 +1420,7 @@ async function handleSendMail(res, providerName, provider, body, fetchImpl, conf
     return res.status(200).json(payload);
   } catch (err) {
     const status = Number(err?.statusCode);
-    if (status === 403) {
+    if (status === 403 && body.allowSmtpFallback !== false) {
       try {
         const fallback = await tryConfiguredGmailFallback({
           providerName,

@@ -457,6 +457,54 @@ describe('oauth provider api', () => {
     assert.match(fetchImpl.mock.calls[0].arguments[0], /gmail\.googleapis\.com/);
   });
 
+  it('does not use SMTP fallback when the caller disables it', async () => {
+    const sentViaSmtp = [];
+    const fetchImpl = mock.fn(async url => {
+      if (String(url).includes('gmail.googleapis.com/gmail/v1/users/me/messages/send')) {
+        return {
+          ok: false,
+          status: 403,
+          async json() {
+            return { error: { message: 'Gmail API disabled', status: 'PERMISSION_DENIED' } };
+          },
+        };
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    const handler = createOAuthProviderHandler({
+      config: {
+        GMAIL_USER: '3dvr.tech@gmail.com',
+        GMAIL_APP_PASSWORD: 'app-password',
+      },
+      fetchImpl,
+      mailTransport: {
+        async sendMail(payload) {
+          sentViaSmtp.push(payload);
+          return { messageId: 'smtp-message-1' };
+        },
+      },
+    });
+    const res = createMockRes();
+
+    await handler({
+      method: 'POST',
+      query: { provider: 'google' },
+      body: {
+        action: 'sendmail',
+        accessToken: 'working-token',
+        senderEmail: 'tmsteph1290@gmail.com',
+        allowSmtpFallback: false,
+        to: 'person@example.com',
+        subject: 'Hello',
+        text: 'Test',
+      },
+    }, res);
+
+    assert.equal(res.statusCode, 403);
+    assert.match(res.body.error, /Gmail API disabled/i);
+    assert.equal(sentViaSmtp.length, 0);
+  });
+
   it('reports the real SMTP sender and Sent-folder account when Gmail API falls back', async () => {
     const sentViaSmtp = [];
     const fetchImpl = mock.fn(async url => {
