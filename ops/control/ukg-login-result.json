@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "site": "ukg",
+  "status": "authenticated",
+  "url": "https://n21.ultipro.com/default.aspx",
+  "browserLane": "encore",
+  "requestId": "ukg-login-20260922T0705Z",
+  "workflowOutcome": "success",
+  "checkedAt": "2026-09-22T07:03:53Z"
+}
