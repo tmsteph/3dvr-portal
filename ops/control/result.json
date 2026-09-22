@@ -1,9 +1,11 @@
 {
-  "ok": false,
-  "error": "Both authenticated browser lanes are currently busy. No session was taken over.",
-  "browserLane": "",
-  "requestId": "campaigns-user-acceptance-20260919g",
-  "action": "campaigns_user_acceptance",
+  "ok": true,
+  "site": "ukg",
+  "status": "authenticated",
+  "url": "https://n21.ultipro.com/default.aspx",
+  "browserLane": "encore",
+  "requestId": "ukg-login-20260922T0708Z",
+  "action": "ukg_login",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-19T22:57:58Z"
+  "checkedAt": "2026-09-22T07:05:14Z"
 }
