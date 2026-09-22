@@ -211,6 +211,54 @@ test('Lead Vault restores a stored 3DVR account before falling back to local-onl
   accountSync.unsubscribe();
 });
 
+test('stored 3DVR auth can finish after the short recall window on slow mobile connections', async () => {
+  const storage = memoryStorage([]);
+  storage.setItem('signedIn', 'true');
+  storage.setItem('alias', 'thomas@3dvr');
+  storage.setItem('password', 'secret');
+
+  const node = {
+    get() { return node; },
+    once(callback) { callback(null); },
+    put(_value, callback) { callback?.({ ok: 1 }); },
+    on() { return node; },
+    off() {}
+  };
+  const user = {
+    is: null,
+    _: {},
+    get() { return node; },
+    recall() {},
+    auth(_alias, _password, callback) {
+      setTimeout(() => {
+        user.is = { pub: 'pub-late' };
+        user._.sea = { priv: 'private-late' };
+        callback({ ok: 1 });
+      }, 15);
+    }
+  };
+  const GunImpl = () => ({ user: () => user });
+  const SEA = {
+    async encrypt(value) { return 'enc:' + value; },
+    async decrypt(value) {
+      return String(value || '').startsWith('enc:')
+        ? String(value).slice(4)
+        : null;
+    }
+  };
+
+  const accountSync = await createBrowserLeadVaultSync({
+    GunImpl,
+    SEA,
+    storage,
+    authTimeoutMs: 5,
+    credentialAuthTimeoutMs: 50
+  });
+
+  assert.equal(accountSync.available, true);
+  accountSync.unsubscribe();
+});
+
 test('signed-in OAuth-only sessions are not mislabeled as signed out', async () => {
   const storage = memoryStorage([]);
   storage.setItem('signedIn', 'true');
