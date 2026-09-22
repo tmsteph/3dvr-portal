@@ -1,0 +1,253 @@
+:root {
+  color-scheme: dark;
+  --bg: #0a0d12;
+  --panel: #11161e;
+  --panel-2: #171e28;
+  --line: #263142;
+  --text: #f3f6fb;
+  --muted: #9aa8ba;
+  --accent: #8db7ff;
+  --radius: 14px;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--text);
+  color: var(--bg);
+  border-color: transparent;
+  font-weight: 700;
+}
+
+.topbar {
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(10, 13, 18, 0.94);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  color: var(--text);
+  font-weight: 900;
+  text-decoration: none;
+  letter-spacing: 0.06em;
+}
+
+.muted,
+.status {
+  color: var(--muted);
+}
+
+.topbar .muted {
+  display: block;
+  font-size: 0.78rem;
+}
+
+.workspace {
+  min-height: calc(100vh - 64px);
+  display: grid;
+  grid-template-columns: minmax(220px, 0.85fr) minmax(0, 2.4fr) minmax(220px, 0.9fr);
+}
+
+.sidebar,
+.context-pane,
+.editor-pane {
+  min-width: 0;
+}
+
+.sidebar,
+.context-pane {
+  background: var(--panel);
+  padding: 14px;
+}
+
+.sidebar {
+  border-right: 1px solid var(--line);
+}
+
+.context-pane {
+  border-left: 1px solid var(--line);
+}
+
+.search span,
+.eyebrow {
+  display: block;
+  margin: 0 0 0.45rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.search input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.72rem;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.sidebar-actions {
+  margin: 10px 0;
+}
+
+.note-list,
+.relation-list {
+  display: grid;
+  gap: 6px;
+}
+
+.note-link {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border-color: transparent;
+}
+
+.note-link:hover,
+.note-link.active {
+  background: var(--panel-2);
+  border-color: var(--line);
+}
+
+.editor-pane {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: calc(100vh - 64px);
+}
+
+.editor-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.note-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#editor {
+  width: 100%;
+  min-height: 50vh;
+  resize: none;
+  border: 0;
+  outline: 0;
+  padding: clamp(18px, 3vw, 42px);
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.status {
+  padding: 10px 16px;
+  border-top: 1px solid var(--line);
+  font-size: 0.78rem;
+}
+
+.context-pane section + section {
+  margin-top: 24px;
+}
+
+.missing-link {
+  color: var(--muted);
+  padding: 0.45rem 0.2rem;
+}
+
+.principle {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: var(--panel-2);
+}
+
+.principle p:last-child {
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 0;
+}
+
+@media (max-width: 860px) {
+  .workspace {
+    grid-template-columns: minmax(180px, 34vw) 1fr;
+  }
+
+  .context-pane {
+    display: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .topbar {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .topbar .muted {
+    display: none;
+  }
+
+  .workspace {
+    display: block;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    max-height: 34vh;
+    overflow: auto;
+  }
+
+  .note-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .editor-pane {
+    min-height: 66vh;
+  }
+
+  #editor {
+    min-height: 52vh;
+  }
+}
