@@ -1,6 +1,11 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const {
+  getGoogleAccessToken,
+  loadGoogleAccountCredential,
+  registerGoogleAccount,
+} = require('../../connectors/google/oauth');
 
 const DEFAULT_PORTAL_URL = 'https://portal.3dvr.tech';
 const TOKEN_REFRESH_SKEW_MS = 5 * 60 * 1000;
@@ -20,6 +25,18 @@ function normalizeProvider(value) {
   if (provider === 'gmail') return 'google';
   if (provider === 'outlook' || provider === 'office365' || provider === 'm365') return 'microsoft';
   return provider || 'google';
+}
+
+function defaultGoogleAlias() {
+  return normalizeText(process.env.THREEDVR_GOOGLE_ACCOUNT || '3dvr').toLowerCase() || '3dvr';
+}
+
+function googleAliasFromEmail(value) {
+  const email = normalizeEmail(value);
+  if (email === 'tmsteph1290@gmail.com') return 'tmsteph';
+  if (email === '3dvr.tech@gmail.com') return '3dvr';
+  const local = email.split('@')[0] || '';
+  return local.replace(/[^a-z0-9._-]/gi, '-').toLowerCase() || defaultGoogleAlias();
 }
 
 function oauthFilePath() {
@@ -80,23 +97,57 @@ function normalizeConnection(connection = {}) {
     linkedAt: Math.max(0, Number(connection.linkedAt || connection.linked_at) || Date.now()),
     updatedAt: Date.now(),
     source: normalizeText(connection.source || 'oauth'),
+    accountAlias: normalizeText(connection.accountAlias || connection.account_alias).toLowerCase(),
   };
 }
 
-function loadOAuthConnection(provider = 'google') {
-  const store = loadStore();
+function loadSecureGoogleConnection(alias = defaultGoogleAlias()) {
+  try {
+    const { account, credential } = loadGoogleAccountCredential(alias);
+    return normalizeConnection({
+      ...credential,
+      provider: 'google',
+      email: account.email,
+      accountAlias: account.alias,
+      source: 'oauth-vault',
+    });
+  } catch (_err) {
+    return null;
+  }
+}
+
+function loadOAuthConnection(provider = 'google', options = {}) {
   const normalizedProvider = normalizeProvider(provider);
+  if (normalizedProvider === 'google') {
+    const secure = loadSecureGoogleConnection(options.alias || defaultGoogleAlias());
+    if (secure) return secure;
+  }
+  const store = loadStore();
   const connection = store.connections[normalizedProvider];
   return connection ? normalizeConnection(connection) : null;
 }
 
-function saveOAuthConnection(connection) {
+function saveOAuthConnection(connection, options = {}) {
   const normalized = normalizeConnection(connection);
   if (!normalized.provider) {
     throw new Error('OAuth provider is required.');
   }
   if (!normalized.refreshToken) {
     throw new Error('OAuth refresh token is required.');
+  }
+  if (normalized.provider === 'google') {
+    const alias = normalizeText(options.alias || normalized.accountAlias || googleAliasFromEmail(normalized.email)).toLowerCase();
+    const account = registerGoogleAccount({
+      ...normalized,
+      alias,
+      scopes: normalizeText(normalized.scope).split(/\s+/).filter(Boolean),
+    });
+    return normalizeConnection({
+      ...normalized,
+      email: account.email,
+      accountAlias: account.alias,
+      source: 'oauth-vault',
+    });
   }
   const store = loadStore();
   store.connections[normalized.provider] = normalized;
@@ -120,6 +171,11 @@ function refreshEndpoint(provider) {
 
 async function refreshOAuthAccessToken(connection, { fetchImpl = fetch } = {}) {
   const current = normalizeConnection(connection);
+  if (current.provider === 'google' && current.accountAlias) {
+    await getGoogleAccessToken(current.accountAlias, { fetchImpl });
+    const refreshed = loadSecureGoogleConnection(current.accountAlias);
+    if (refreshed) return refreshed;
+  }
   if (!current.refreshToken) {
     throw new Error(`No ${current.provider} OAuth refresh token is saved. Run 3dvr auth login ${current.provider}.`);
   }
@@ -153,9 +209,24 @@ async function refreshOAuthAccessToken(connection, { fetchImpl = fetch } = {}) {
 }
 
 async function getOAuthAccessToken(provider = 'google', options = {}) {
-  const connection = loadOAuthConnection(provider);
+  const normalizedProvider = normalizeProvider(provider);
+  const alias = normalizedProvider === 'google' ? (options.alias || defaultGoogleAlias()) : '';
+  if (normalizedProvider === 'google') {
+    const secure = loadSecureGoogleConnection(alias);
+    if (secure) {
+      const resolved = await getGoogleAccessToken(alias, options);
+      return normalizeConnection({
+        ...secure,
+        accessToken: resolved.accessToken,
+        email: resolved.account.email,
+        accountAlias: resolved.account.alias,
+        source: 'oauth-vault',
+      });
+    }
+  }
+  const connection = loadOAuthConnection(normalizedProvider, { alias });
   if (!connection) {
-    throw new Error(`No ${normalizeProvider(provider)} OAuth connection is saved. Run 3dvr auth login ${normalizeProvider(provider)}.`);
+    throw new Error(`No ${normalizedProvider} OAuth connection is saved. Run 3dvr auth login ${normalizedProvider}.`);
   }
   if (connection.accessToken && (!connection.expiresAt || connection.expiresAt > Date.now() + TOKEN_REFRESH_SKEW_MS)) {
     return connection;
@@ -163,17 +234,21 @@ async function getOAuthAccessToken(provider = 'google', options = {}) {
   return refreshOAuthAccessToken(connection, options);
 }
 
-function extractConnection(input) {
+function extractConnection(input, options = {}) {
   const parsed = typeof input === 'string' ? JSON.parse(input) : input;
   const connection = parsed?.connection || parsed;
   if (!connection || typeof connection !== 'object') {
     throw new Error('OAuth import must be a JSON object from the portal callback.');
   }
-  return saveOAuthConnection(connection);
+  return saveOAuthConnection({
+    ...connection,
+    email: connection.email || parsed?.identity?.email,
+    displayName: connection.displayName || parsed?.identity?.displayName,
+  }, options);
 }
 
-function connectionStatus(provider = 'google') {
-  const connection = loadOAuthConnection(provider);
+function connectionStatus(provider = 'google', options = {}) {
+  const connection = loadOAuthConnection(provider, options);
   if (!connection) {
     return {
       provider: normalizeProvider(provider),
@@ -184,6 +259,7 @@ function connectionStatus(provider = 'google') {
   return {
     provider: connection.provider,
     configured: true,
+    accountAlias: connection.accountAlias || '',
     email: connection.email || '',
     displayName: connection.displayName || '',
     scopeKey: connection.scopeKey || '',
@@ -222,6 +298,7 @@ function printStatus(status) {
   }
 
   console.log('Status: connected');
+  if (status.accountAlias) console.log(`Account: ${status.accountAlias}`);
   if (status.email) console.log(`Email: ${status.email}`);
   if (status.displayName) console.log(`Name: ${status.displayName}`);
   if (status.scopeKey) console.log(`Scope: ${status.scopeKey}`);
@@ -234,44 +311,64 @@ function printStatus(status) {
   console.log('Tokens are stored locally and are not printed here.');
 }
 
+function parseAuthTarget(value = 'google') {
+  const target = normalizeText(value).toLowerCase();
+  if (target === 'tmsteph' || target === '3dvr') {
+    return { provider: 'google', alias: target };
+  }
+  const provider = normalizeProvider(target || 'google');
+  return {
+    provider,
+    alias: provider === 'google' ? defaultGoogleAlias() : '',
+  };
+}
+
 async function cli(argv) {
   const command = normalizeText(argv[2] || 'status').toLowerCase();
-  const provider = normalizeProvider(argv[3] || 'google');
 
   if (command === 'status') {
-    printStatus(connectionStatus(provider));
+    const target = parseAuthTarget(argv[3] || 'google');
+    printStatus(connectionStatus(target.provider, { alias: target.alias }));
     return;
   }
 
   if (command === 'import') {
-    const filePath = normalizeText(argv[3]);
+    const possibleAlias = normalizeText(argv[3]).toLowerCase();
+    const hasAlias = possibleAlias === 'tmsteph' || possibleAlias === '3dvr';
+    const filePath = normalizeText(hasAlias ? argv[4] : argv[3]);
     const raw = filePath ? fs.readFileSync(filePath, 'utf8') : readStdin();
-    const saved = extractConnection(raw);
-    console.log(`Imported ${saved.provider} email connection${saved.email ? ` for ${saved.email}` : ''}.`);
+    const saved = extractConnection(raw, { alias: hasAlias ? possibleAlias : '' });
+    console.log(`Imported ${saved.provider} connection${saved.accountAlias ? ` as ${saved.accountAlias}` : ''}${saved.email ? ` for ${saved.email}` : ''}.`);
     console.log('');
     console.log('Next step:');
-    console.log('  3dvr email status');
+    console.log(`  3dvr auth status ${saved.accountAlias || saved.provider}`);
     console.log('  3dvr inbox check');
     console.log('');
-    console.log('Portal OAuth is used when no Gmail app password is configured.');
+    console.log('OAuth credentials are stored in the encrypted connector vault.');
     return;
   }
 
   if (command === 'refresh') {
-    const refreshed = await refreshOAuthAccessToken(loadOAuthConnection(provider) || { provider });
-    console.log(`Refreshed ${refreshed.provider} email access${refreshed.email ? ` for ${refreshed.email}` : ''}.`);
-    console.log('Access token updated locally. Token value was not printed.');
+    const target = parseAuthTarget(argv[3] || 'google');
+    const current = loadOAuthConnection(target.provider, { alias: target.alias }) || {
+      provider: target.provider,
+      accountAlias: target.alias,
+    };
+    const refreshed = await refreshOAuthAccessToken(current);
+    console.log(`Refreshed ${refreshed.provider} access${refreshed.accountAlias ? ` for ${refreshed.accountAlias}` : ''}${refreshed.email ? ` (${refreshed.email})` : ''}.`);
+    console.log('Access token updated securely. Token value was not printed.');
     return;
   }
 
   if (command === 'logout' || command === 'remove') {
-    removeOAuthConnection(provider);
-    console.log(`Removed ${provider} email connection.`);
-    console.log(`Run \`3dvr auth login ${provider}\` to connect it again.`);
+    const target = parseAuthTarget(argv[3] || 'google');
+    removeOAuthConnection(target.provider);
+    console.log(`Removed legacy ${target.provider} connection state.`);
+    console.log('Encrypted multi-account credentials are intentionally left intact.');
     return;
   }
 
-  console.error('Usage: 3dvr auth status|import [file]|refresh [provider]|logout [provider]');
+  console.error('Usage: 3dvr auth status [tmsteph|3dvr|google|microsoft] | import [tmsteph|3dvr] [file] | refresh [tmsteph|3dvr|google|microsoft]');
   process.exit(1);
 }
 
