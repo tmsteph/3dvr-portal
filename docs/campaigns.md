@@ -6,6 +6,7 @@
 
 - A user connects their own Google account through the portal OAuth flow.
 - The existing `gmail-send` scope key requests Gmail send permission without Gmail read permission.
+- Campaign sends fail closed if the connected Gmail API cannot send; Campaigns never silently switches to the configured 3DVR SMTP mailbox.
 - Contacts can be pasted or imported from a basic CSV.
 - Messages support `{{first_name}}`, `{{name}}`, and `{{email}}` personalization.
 - Commercial sends require a sender/business name, postal address, legitimate-contact acknowledgement, and append a plain-language opt-out footer.
