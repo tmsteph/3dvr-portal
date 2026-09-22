@@ -1,5 +1,18 @@
 import { createSignedPortalProof } from '/operator/forge.js';
 
+const GOOGLE_OAUTH_IMPORTS = Object.freeze({
+  '3dvr': {
+    email: '3dvr.tech@gmail.com',
+    key: 'GOOGLE_OAUTH_3DVR',
+    label: '3DVR Google OAuth',
+  },
+  'tmsteph': {
+    email: 'tmsteph1290@gmail.com',
+    key: 'GOOGLE_OAUTH_TMSTEPH',
+    label: 'tmsteph Google OAuth',
+  },
+});
+
 const byId = id => document.getElementById(id);
 const approvalDialog = byId('approvalDialog');
 const approvalButton = byId('bitwardenApproval');
@@ -138,6 +151,88 @@ async function brokerAction(action, extra = {}, proofExtra = extra) {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error || payload.reason || 'Secrets broker request failed.');
   return payload;
+}
+
+function oauthImportAlias() {
+  try {
+    const alias = new URL(globalThis.location.href).searchParams.get('oauthImport') || '';
+    return GOOGLE_OAUTH_IMPORTS[alias] ? alias : '';
+  } catch {
+    return '';
+  }
+}
+
+function clearOAuthImportUrl() {
+  try {
+    const url = new URL(globalThis.location.href);
+    url.searchParams.delete('oauthImport');
+    history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+  } catch {}
+}
+
+async function importPendingGoogleOAuth() {
+  const alias = oauthImportAlias();
+  if (!alias) return { handled: false };
+
+  let result = null;
+  try {
+    result = JSON.parse(localStorage.getItem('portal.oauth.result') || 'null');
+  } catch {}
+  if (!result) {
+    throw new Error('Google approval result was not found. Start the connection again.');
+  }
+  if (!result.ok || String(result.provider || '').toLowerCase() !== 'google') {
+    throw new Error(result.error || 'Google did not complete the connection.');
+  }
+
+  const expected = GOOGLE_OAUTH_IMPORTS[alias];
+  const connection = result.connection && typeof result.connection === 'object' ? result.connection : {};
+  const identity = result.identity && typeof result.identity === 'object' ? result.identity : {};
+  const email = String(connection.email || identity.email || '').trim().toLowerCase();
+  if (email !== expected.email) {
+    throw new Error(`Wrong Google account. Expected ${expected.email}, received ${email || 'an unknown account'}.`);
+  }
+
+  const refreshToken = String(connection.refreshToken || connection.refresh_token || '').trim();
+  if (!refreshToken) {
+    throw new Error('Google did not return durable access. Reconnect and approve the requested access.');
+  }
+
+  const durable = {
+    provider: 'google',
+    alias,
+    email,
+    displayName: String(connection.displayName || identity.displayName || '').trim(),
+    refreshToken,
+    scope: String(connection.scope || '').trim(),
+    scopeKey: String(connection.scopeKey || 'control').trim().toLowerCase(),
+    linkedAt: Number(connection.linkedAt) || Date.now(),
+  };
+  const value = JSON.stringify(durable);
+  const secretValueHash = await sha256(value);
+  const saved = await brokerAction(
+    'store-secret',
+    {
+      key: expected.key,
+      value,
+      note: `${expected.label}; durable refresh credential only`,
+    },
+    {
+      secretKey: expected.key,
+      secretValueHash,
+    },
+  );
+  if (!saved?.ok || saved?.decision !== 'allowed' || !saved?.stored?.id) {
+    throw new Error(saved?.decision === 'approval_required'
+      ? 'Google access is ready but the secure vault save still needs owner approval.'
+      : 'Google access is ready but OpenBao did not confirm the secure save.');
+  }
+
+  localStorage.removeItem('portal.oauth.result');
+  clearOAuthImportUrl();
+  const message = byId('brokerMessage');
+  if (message) message.textContent = `${expected.label} connected securely ✓`;
+  return { handled: true, alias, email };
 }
 
 async function createSecretHandoff(details) {
@@ -388,4 +483,12 @@ approvalList?.addEventListener('click', async event => {
   }
 });
 
-Promise.allSettled([loadAccess(), loadConnectionRegistry()]);
+(async () => {
+  try {
+    await importPendingGoogleOAuth();
+  } catch (error) {
+    const message = byId('brokerMessage');
+    if (message) message.textContent = error.message;
+  }
+  await Promise.allSettled([loadAccess(), loadConnectionRegistry()]);
+})();
