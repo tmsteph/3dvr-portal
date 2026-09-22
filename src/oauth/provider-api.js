@@ -481,8 +481,9 @@ function createGoogleProvider(config = process.env) {
       contacts: true,
       calendar: true,
       mail: true,
+      drive: true,
     },
-    buildAuthorizationUrl({ state, verifier, scopeKey, redirectUri }) {
+    buildAuthorizationUrl({ state, verifier, scopeKey, redirectUri, aliasHint }) {
       const scopes = new Set(['openid', 'email', 'profile']);
       if (scopeKey === 'contacts' || scopeKey === 'contacts-calendar') {
         scopes.add('https://www.googleapis.com/auth/contacts.readonly');
@@ -497,6 +498,13 @@ function createGoogleProvider(config = process.env) {
       if (scopeKey === 'gmail-send' || scopeKey === 'calendar-gmail-send') {
         scopes.add('https://www.googleapis.com/auth/gmail.send');
       }
+      if (scopeKey === 'control' || scopeKey === 'google-control') {
+        scopes.add('https://www.googleapis.com/auth/gmail.modify');
+        scopes.add('https://www.googleapis.com/auth/gmail.settings.basic');
+        scopes.add('https://www.googleapis.com/auth/calendar');
+        scopes.add('https://www.googleapis.com/auth/contacts');
+        scopes.add('https://www.googleapis.com/auth/drive');
+      }
       const params = new URLSearchParams({
         client_id: config.GOOGLE_OAUTH_CLIENT_ID,
         redirect_uri: redirectUri,
@@ -508,8 +516,11 @@ function createGoogleProvider(config = process.env) {
         state,
         scope: Array.from(scopes).join(' '),
       });
+      if (aliasHint) {
+        params.set('login_hint', aliasHint);
+      }
       if (scopeKey !== 'identity') {
-        params.set('prompt', 'consent');
+        params.set('prompt', 'consent select_account');
       } else {
         params.set('prompt', 'select_account');
       }
@@ -973,6 +984,9 @@ function isScopeSupported(provider, scopeKey = 'identity') {
   if (normalized === 'contacts-calendar') return Boolean(provider.supports.contacts && provider.supports.calendar);
   if (normalized === 'gmail-send') return Boolean(provider.supports.mail);
   if (normalized === 'calendar-gmail-send') return Boolean(provider.supports.calendar && provider.supports.mail);
+  if (normalized === 'control' || normalized === 'google-control') {
+    return Boolean(provider.supports.contacts && provider.supports.calendar && provider.supports.mail && provider.supports.drive);
+  }
   if (normalized === 'mail' || normalized === 'gmail' || normalized === 'outlook') return Boolean(provider.supports.mail);
   return false;
 }
@@ -1103,6 +1117,7 @@ async function handleStart(req, res, providerName, provider) {
     nonce,
     scopeKey,
     redirectUri,
+    aliasHint,
   });
   res.statusCode = 302;
   res.setHeader('Location', url);
