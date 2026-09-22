@@ -181,16 +181,15 @@ export function buildMetrics(state = {}) {
     revenue: 0
   });
 
-  const generatedSeed = ideas.length ? ideas.length * 5 : 0;
   return {
     ideasGenerated: ideas.length,
     experimentsActive: experiments.filter(item => item.capsule?.status === 'active').length,
     experimentsResearching: experiments.filter(item => item.capsule?.status === 'research').length,
     experimentsQueued: experiments.filter(item => item.capsule?.status === 'queued').length,
     offersLaunched: experiments.filter(item => ['Launched', 'Revenue', 'Scaling'].includes(item.status)).length,
-    leadsFound: tractionTotals.leadsFound + generatedSeed,
-    replies: tractionTotals.replies + (ideas.length ? 2 : 0),
-    callsBooked: tractionTotals.callsBooked + (ideas.length ? 1 : 0),
+    leadsFound: tractionTotals.leadsFound,
+    replies: tractionTotals.replies,
+    callsBooked: tractionTotals.callsBooked,
     revenueTracked: tractionTotals.revenue,
     weakSignalsFound: Array.isArray(state.weakSignals) ? state.weakSignals.length : 0,
     nextBestMoneyAction: getNextBestMoneyAction(state)
