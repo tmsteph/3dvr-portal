@@ -197,8 +197,15 @@ function lighthouseIdentityFromTargets(targets = []) {
 }
 
 async function lighthouseIdentityFromSharePoint(port) {
-  const targets = await httpJson(port, '/json/list');
-  return lighthouseIdentityFromTargets(targets);
+  let targets = await httpJson(port, '/json/list');
+  let identity = lighthouseIdentityFromTargets(targets);
+  if (identity) return identity;
+
+  await httpJson(port, `/json/new?${encodeURIComponent('https://psav.sharepoint.com/')}`, 'PUT');
+  await new Promise(resolve => setTimeout(resolve, 2500));
+  targets = await httpJson(port, '/json/list');
+  identity = lighthouseIdentityFromTargets(targets);
+  return identity;
 }
 
 function pageMatches(page, config) {
@@ -335,13 +342,16 @@ async function runLogin(broker, agent, site) {
       classification = classifyState(site, config, state);
     }
 
-    const credentials = credentialsFor(broker, agent, site, config);
-    const sharePointIdentity = site === 'lighthouse'
-      ? await lighthouseIdentityFromSharePoint(config.port)
-      : '';
-    const username = sharePointIdentity || credentials.username;
-    if (site === 'lighthouse' && !username.includes('@')) {
-      return { status: 409, body: { ok: false, site, status: 'human_required', reason: 'sharepoint-session-required' } };
+    let credentials = { username: '', password: '' };
+    let username = '';
+    if (site === 'lighthouse') {
+      username = await lighthouseIdentityFromSharePoint(config.port);
+      if (!username) {
+        return { status: 409, body: { ok: false, site, status: 'human_required', reason: 'sharepoint-session-required' } };
+      }
+    } else {
+      credentials = credentialsFor(broker, agent, site, config);
+      username = credentials.username;
     }
     const usernameSet = await setInput(session, config.usernameSelectors, username);
     if (!usernameSet) return { status: 424, body: { ok: false, site, status: 'form_changed', reason: 'username-field-missing' } };
