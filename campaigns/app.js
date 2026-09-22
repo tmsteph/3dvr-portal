@@ -437,7 +437,7 @@ function updateConnectionUi() {
       ? 'Reconnect Gmail'
       : 'Not connected';
   elements.detail.textContent = connected
-    ? 'Google OAuth · Gmail send permission verified · 3DVR Gmail may be used only as backup'
+    ? 'Google OAuth · Gmail send permission verified · connected Gmail only'
     : hasIdentity
       ? 'This saved Google connection is missing verified Gmail send permission.'
       : 'Connect the Google account you want to send from.';
@@ -532,6 +532,7 @@ async function gmailSendAttempt(active, { to, subject, text }) {
       accessToken: active.accessToken,
       idToken: active.idToken || '',
       senderEmail: active.email || '',
+      allowSmtpFallback: false,
       to,
       subject,
       text
