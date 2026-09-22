@@ -153,6 +153,17 @@ async function brokerAction(action, extra = {}, proofExtra = extra) {
   return payload;
 }
 
+function canonicalGoogleEmail(value) {
+  const email = String(value || '').trim().toLowerCase();
+  const at = email.lastIndexOf('@');
+  if (at <= 0) return email;
+  let local = email.slice(0, at);
+  let domain = email.slice(at + 1);
+  if (domain === 'googlemail.com') domain = 'gmail.com';
+  if (domain === 'gmail.com') local = local.replace(/\./g, '');
+  return `${local}@${domain}`;
+}
+
 function oauthImportAlias() {
   try {
     const alias = new URL(globalThis.location.href).searchParams.get('oauthImport') || '';
@@ -189,7 +200,7 @@ async function importPendingGoogleOAuth() {
   const connection = result.connection && typeof result.connection === 'object' ? result.connection : {};
   const identity = result.identity && typeof result.identity === 'object' ? result.identity : {};
   const email = String(connection.email || identity.email || '').trim().toLowerCase();
-  if (email !== expected.email) {
+  if (canonicalGoogleEmail(email) !== canonicalGoogleEmail(expected.email)) {
     throw new Error(`Wrong Google account. Expected ${expected.email}, received ${email || 'an unknown account'}.`);
   }
 
@@ -201,7 +212,7 @@ async function importPendingGoogleOAuth() {
   const durable = {
     provider: 'google',
     alias,
-    email,
+    email: expected.email,
     displayName: String(connection.displayName || identity.displayName || '').trim(),
     refreshToken,
     scope: String(connection.scope || '').trim(),
