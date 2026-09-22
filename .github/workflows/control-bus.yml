@@ -35,7 +35,7 @@ jobs:
           service="$(jq -r '.service // empty' ops/control/request.json)"
           test -n "$id"
           case "$action" in
-            status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_promote_secrets|portal_ai_status|portal_points_status|portal_points_reconcile|browser_lane_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard|campaigns_acceptance|campaigns_user_acceptance|campaigns_gmail_handoff|ukg_login) ;;
+            status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_promote_secrets|portal_ai_status|portal_points_status|portal_points_reconcile|browser_lane_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard|campaigns_acceptance|campaigns_user_acceptance|campaigns_gmail_handoff|ukg_login|ukg_timeoff_status) ;;
             restart)
               case "$service" in
                 3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service) ;;
@@ -191,6 +191,132 @@ jobs:
           body="$(curl -sS --unix-socket /run/3dvr-secrets-broker/broker.sock             -H 'content-type: application/json'             -X POST             --data '{"site":"ukg"}'             http://localhost/v1/browser-login)"
           jq -e . <<<"$body" >/dev/null
           jq -c '. + {browserLane:"encore"}' <<<"$body"
+          OVH
+              ;;
+            ukg_timeoff_status)
+              ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          token=""
+          cleanup() {
+            [ -n "$token" ] && sudo -n /usr/local/bin/3dvr-browser-lease release encore "$token" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT INT TERM
+
+          token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire encore control-bus-ukg-timeoff-status 300)"
+          puppeteer_core="$(find /home/debian/.npm/_npx -type f -path '*/puppeteer-core/lib/puppeteer/puppeteer-core.js' -print -quit 2>/dev/null || true)"
+          [ -n "$puppeteer_core" ] && [ -f "$puppeteer_core" ]
+
+          PUPPETEER_CORE_PATH="$puppeteer_core" node - <<'NODE'
+          const puppeteer=require(process.env.PUPPETEER_CORE_PATH);
+          const dateRe=/(10\/0?1\/2026|10\/0?1\/26|Oct(?:ober)?\s+1,?\s+2026|2026-10-01)/i;
+          const statusRe=/(approved|pending|denied|rejected|cancelled|canceled|submitted|unpaid|vacation|time off|request)/i;
+          const navRe=/(time\s*off|vacation|leave|pto|request|myself|time\s*management)/i;
+
+          async function snapshot(frame){
+            try{
+              return await frame.evaluate(({dateSource,statusSource,navSource})=>{
+                const dateRe=new RegExp(dateSource,'i');
+                const statusRe=new RegExp(statusSource,'i');
+                const navRe=new RegExp(navSource,'i');
+                const text=(document.body?.innerText||'').replace(/\r/g,'');
+                const lines=text.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+                const dated=[];
+                for(let i=0;i<lines.length;i++){
+                  if(dateRe.test(lines[i])){
+                    dated.push(lines.slice(Math.max(0,i-4),Math.min(lines.length,i+8)).join(' | ').slice(0,1800));
+                  }
+                }
+                const relevant=lines.filter(x=>statusRe.test(x)).slice(0,120);
+                const controls=[...document.querySelectorAll('a,button,input[type="button"],input[type="submit"]')].map((el,i)=>({
+                  i,
+                  tag:el.tagName,
+                  text:(el.innerText||el.textContent||el.value||'').trim().replace(/\s+/g,' ').slice(0,180),
+                  href:el.href||'',
+                  onclick:el.getAttribute('onclick')||''
+                })).filter(x=>navRe.test(x.text)||navRe.test(x.href)||navRe.test(x.onclick)).slice(0,120);
+                return {url:location.href,title:document.title,dated,relevant,controls};
+              },{dateSource:dateRe.source,statusSource:statusRe.source,navSource:navRe.source});
+            }catch{return null}
+          }
+
+          (async()=>{
+            const browser=await puppeteer.connect({browserURL:'http://127.0.0.1:9333'});
+            const pages=await browser.pages();
+            const base=pages.find(p=>/n21\.ultipro\.com/.test(p.url()) && !/PostLogout/i.test(p.url()));
+            if(!base) throw new Error('Authenticated UKG page not found');
+
+            const inspected=[];
+            for(const frame of base.frames()){
+              const s=await snapshot(frame);
+              if(s) inspected.push(s);
+            }
+
+            const directMatches=inspected.flatMap(x=>x.dated.map(d=>({url:x.url,title:x.title,context:d})));
+            if(directMatches.length){
+              console.log(JSON.stringify({ok:true,found:true,direct:true,matches:directMatches.slice(0,20)}));
+              await browser.disconnect();
+              return;
+            }
+
+            const candidates=[];
+            for(const snap of inspected){
+              for(const ctl of snap.controls||[]){
+                if(!ctl.href || /^javascript:/i.test(ctl.href)) continue;
+                try{
+                  const u=new URL(ctl.href,snap.url);
+                  if(u.hostname==='n21.ultipro.com' && !/PostLogout/i.test(u.pathname)){
+                    candidates.push({text:ctl.text,url:u.href});
+                  }
+                }catch{}
+              }
+            }
+
+            const uniq=[];
+            const seen=new Set();
+            for(const x of candidates){
+              if(!seen.has(x.url)){seen.add(x.url);uniq.push(x)}
+            }
+
+            const visited=[];
+            for(const cand of uniq.slice(0,12)){
+              const p=await browser.newPage();
+              try{
+                await p.goto(cand.url,{waitUntil:'domcontentloaded',timeout:30000});
+                await new Promise(r=>setTimeout(r,1200));
+                const snaps=[];
+                for(const frame of p.frames()){
+                  const s=await snapshot(frame);
+                  if(s) snaps.push(s);
+                }
+                const matches=snaps.flatMap(x=>x.dated.map(d=>({url:x.url,title:x.title,context:d})));
+                visited.push({label:cand.text,url:p.url(),matches});
+                if(matches.length){
+                  console.log(JSON.stringify({ok:true,found:true,direct:false,matchedNavigation:cand.text,matches:matches.slice(0,20)}));
+                  await p.close();
+                  await browser.disconnect();
+                  return;
+                }
+              }catch(e){
+                visited.push({label:cand.text,url:cand.url,error:String(e.message||e).slice(0,180)});
+              }finally{
+                try{await p.close()}catch{}
+              }
+            }
+
+            console.log(JSON.stringify({
+              ok:true,
+              found:false,
+              baseUrl:base.url(),
+              navigation:inspected.flatMap(x=>x.controls||[]).slice(0,80),
+              visited:visited.slice(0,20),
+              relevant:inspected.flatMap(x=>x.relevant||[]).slice(0,100)
+            }));
+            await browser.disconnect();
+          })().catch(e=>{
+            console.log(JSON.stringify({ok:false,error:String(e.message||e).slice(0,300)}));
+            process.exitCode=1;
+          });
+          NODE
           OVH
               ;;
             openbao_status)
