@@ -37,7 +37,7 @@ cat >/etc/caddy/Caddyfile <<'CADDY'
 
   handle /__3dvr-edge-health {
     header Content-Type application/json
-    respond `{"ok":true,"edge":"digitalocean","upstreams":["ovh-primary","hetzner-standby"],"safeMode":"static"}` 200
+    respond `{"ok":true,"edge":"digitalocean","upstreams":["ovh-primary","hetzner-standby","digitalocean-local"],"safeMode":"static"}` 200
   }
 
   handle /__3dvr-primary-health {
@@ -60,9 +60,19 @@ cat >/etc/caddy/Caddyfile <<'CADDY'
     }
   }
 
+  handle /__3dvr-local-health {
+    rewrite * /__3dvr-health
+    reverse_proxy 127.0.0.1:4320 {
+      transport http {
+        dial_timeout 2s
+        response_header_timeout 5s
+      }
+    }
+  }
+
   @ai_api path /api/openai-site*
   handle @ai_api {
-    reverse_proxy 127.0.0.1:14320 127.0.0.1:14322 {
+    reverse_proxy 127.0.0.1:14320 127.0.0.1:14322 127.0.0.1:4320 {
       lb_policy first
       transport http {
         dial_timeout 2s
@@ -105,7 +115,7 @@ cat >/etc/caddy/Caddyfile <<'CADDY'
 
   @api path /api/*
   handle @api {
-    reverse_proxy 127.0.0.1:14320 127.0.0.1:14322 {
+    reverse_proxy 127.0.0.1:14320 127.0.0.1:14322 127.0.0.1:4320 {
       lb_policy first
       transport http {
         dial_timeout 2s
@@ -128,7 +138,7 @@ cat >/etc/caddy/Caddyfile <<'CADDY'
   }
 
   handle {
-    reverse_proxy 127.0.0.1:14320 127.0.0.1:14322 {
+    reverse_proxy 127.0.0.1:14320 127.0.0.1:14322 127.0.0.1:4320 {
       lb_policy first
       transport http {
         dial_timeout 2s
@@ -250,11 +260,15 @@ curl -fsS --max-time 5 http://127.0.0.1:14320/__3dvr-health >/tmp/3dvr-ovh-healt
 grep -q '"host":"self"' /tmp/3dvr-ovh-health.json
 curl -fsS --max-time 5 http://127.0.0.1:14322/__3dvr-health >/tmp/3dvr-hetzner-health.json
 grep -q '"standby":true' /tmp/3dvr-hetzner-health.json
+curl -fsS --max-time 5 http://127.0.0.1:4320/__3dvr-health >/tmp/3dvr-do-local-health.json
+grep -q '"operatorApi":"native"' /tmp/3dvr-do-local-health.json
 curl -fsS --max-time 5 http://127.0.0.1/__3dvr-primary-health >/tmp/3dvr-primary-public.json
 grep -q '"operatorApi":"native"' /tmp/3dvr-primary-public.json
 curl -fsS --max-time 5 http://127.0.0.1/__3dvr-standby-health >/tmp/3dvr-standby-public.json
 grep -q '"standby":true' /tmp/3dvr-standby-public.json
-rm -f /tmp/3dvr-edge-health.json /tmp/3dvr-upstream-health.json /tmp/3dvr-ovh-health.json /tmp/3dvr-hetzner-health.json /tmp/3dvr-primary-public.json /tmp/3dvr-standby-public.json
+curl -fsS --max-time 5 http://127.0.0.1/__3dvr-local-health >/tmp/3dvr-local-public.json
+grep -q '"operatorApi":"native"' /tmp/3dvr-local-public.json
+rm -f /tmp/3dvr-edge-health.json /tmp/3dvr-upstream-health.json /tmp/3dvr-ovh-health.json /tmp/3dvr-hetzner-health.json /tmp/3dvr-do-local-health.json /tmp/3dvr-primary-public.json /tmp/3dvr-standby-public.json /tmp/3dvr-local-public.json
 
 echo "3dvr_do_edge_hardened=true"
 free -h
