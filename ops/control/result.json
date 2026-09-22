@@ -4,8 +4,8 @@
   "status": "authenticated",
   "url": "https://n21.ultipro.com/default.aspx",
   "browserLane": "encore",
-  "requestId": "ukg-login-20260922T0708Z",
+  "requestId": "ukg-login-verify-20260922T0714Z",
   "action": "ukg_login",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-22T07:05:14Z"
+  "checkedAt": "2026-09-22T07:08:43Z"
 }
