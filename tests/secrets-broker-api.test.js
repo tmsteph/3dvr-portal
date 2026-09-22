@@ -161,6 +161,23 @@ test('owner-signed Operator save maps to the scoped broker write endpoint', asyn
   assert.equal(brokerCall.payload.value, value);
 });
 
+test('Google OAuth saves route to the OpenBao writer', async () => {
+  const value = JSON.stringify({ email: '3dvr.tech@gmail.com', refreshToken: 'refresh-token-fixture' });
+  const key = 'GOOGLE_OAUTH_3DVR';
+  let brokerCall;
+  const handler = createSecretsBrokerHandler({
+    config: {},
+    verify: verification({ action: 'store-secret', secretKey: key, secretValueHash: createHash('sha256').update(value).digest('hex') }),
+    brokerRequest: async input => { brokerCall = input; return { status: 201, body: { ok: true, stored: { id: 'created-openbao', key } } }; },
+  });
+  const res = response();
+  await handler(request({ action: 'store-secret', key, value, note: 'google oauth' }), res);
+  assert.equal(res.statusCode, 201);
+  assert.equal(brokerCall.payload.secret, 'openbao.writer');
+  assert.equal(brokerCall.payload.capability, 'secret.write');
+  assert.equal(brokerCall.payload.scope, 'secrets:3dvr-agent');
+});
+
 test('Operator save proof is bound to key and value hash', async () => {
   const handler = createSecretsBrokerHandler({
     config: {},
