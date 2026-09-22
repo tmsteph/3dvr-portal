@@ -70,6 +70,10 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.doesNotMatch(html, /Contact &amp; follow up/);
   assert.match(html, /What do you sell\?/);
   assert.match(html, /Tune the search/);
+  assert.ok(
+    html.indexOf('class="example-row"') < html.indexOf('<details class="finder-options">'),
+    'example offer hints should stay visible outside Tune the search'
+  );
   assert.match(html, /<details class="card manual-customers">/);
   assert.doesNotMatch(html, /<details class="card manual-customers"[^>]*\sopen(?:\s|>)/);
   assert.match(html, /Existing customers \/ manual list/);
