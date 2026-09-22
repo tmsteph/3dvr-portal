@@ -1,0 +1,141 @@
+name: UKG Login Recovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/control/ukg-login-request.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: 3dvr-ukg-login
+  cancel-in-progress: true
+
+env:
+  HETZNER_HOST: 167.233.174.20
+
+jobs:
+  login:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate request
+        id: request
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s ops/control/ukg-login-request.json
+          id="$(jq -r '.id // empty' ops/control/ukg-login-request.json)"
+          test -n "$id"
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve Hetzner SSH access
+        id: ssh
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/3dvr-control-a
+          write_key "$SSH_B" /tmp/3dvr-control-b
+          write_key "$SSH_C" /tmp/3dvr-control-c
+          for user in root debian ubuntu tmsteph; do
+            for key in /tmp/3dvr-control-a /tmp/3dvr-control-b /tmp/3dvr-control-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$HETZNER_HOST" true >/dev/null 2>&1; then
+                echo "user=$user" >> "$GITHUB_OUTPUT"
+                echo "key=$key" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+          done
+          echo 'No configured SSH key can reach Hetzner.' >&2
+          exit 1
+
+      - name: Sign in to UKG on the Encore browser lane
+        id: login
+        shell: bash
+        env:
+          HETZNER_USER: ${{ steps.ssh.outputs.user }}
+          HETZNER_KEY: ${{ steps.ssh.outputs.key }}
+        run: |
+          set -euo pipefail
+          opts=(-i "$HETZNER_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$HETZNER_USER@$HETZNER_HOST" bash -s > /tmp/ukg-login-result.json <<'REMOTE'
+          set -euo pipefail
+          ssh_opts=(-o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8)
+          ssh "${ssh_opts[@]}" 3dvr-ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          token=""
+          started=false
+          cleanup() {
+            [ -n "$token" ] && sudo -n /usr/local/bin/3dvr-browser-lease release encore "$token" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT INT TERM
+
+          token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire encore github-ukg-login 300)"
+          if ! systemctl is-active --quiet 3dvr-browser-lane@encore.service; then
+            sudo -n systemctl start 3dvr-browser-lane@encore.service
+            started=true
+          fi
+          for _ in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:9333/json/version >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:9333/json/version >/dev/null
+
+          body="$(curl -sS --unix-socket /run/3dvr-secrets-broker/broker.sock             -H 'content-type: application/json'             -X POST             --data '{"site":"ukg"}'             http://localhost/v1/browser-login)"
+          jq -e . <<<"$body" >/dev/null
+          jq -c '. + {browserLane:"encore"}' <<<"$body"
+          OVH
+          REMOTE
+          jq -e . /tmp/ukg-login-result.json >/dev/null
+
+      - name: Persist sanitized result
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUEST_ID: ${{ steps.request.outputs.id }}
+          LOGIN_OUTCOME: ${{ steps.login.outcome }}
+        run: |
+          set -euo pipefail
+          if [ -s /tmp/ukg-login-result.json ] && jq -e . /tmp/ukg-login-result.json >/dev/null 2>&1; then
+            cp /tmp/ukg-login-result.json /tmp/result-body.json
+          else
+            printf '%s\n' '{"ok":false,"status":"error","reason":"ukg-login-workflow-failed"}' >/tmp/result-body.json
+          fi
+          jq --arg id "$REQUEST_ID" --arg outcome "$LOGIN_OUTCOME" --arg checkedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)"             '. + {requestId:$id,workflowOutcome:$outcome,checkedAt:$checkedAt}'             /tmp/result-body.json > /tmp/result.json
+          content="$(base64 -w0 /tmp/result.json)"
+          url="https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/control/ukg-login-result.json"
+          sha="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$url" 2>/dev/null | jq -r '.sha // empty' || true)"
+          jq -n --arg message "Record UKG login result $REQUEST_ID" --arg content "$content" --arg sha "$sha"             '{message:$message,content:$content,branch:"main"} + (if $sha=="" then {} else {sha:$sha} end)' >/tmp/payload.json
+          curl -fsS -X PUT -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28'             "$url" --data-binary @/tmp/payload.json >/dev/null
+
+      - name: Remove SSH keys
+        if: always()
+        shell: bash
+        run: rm -f /tmp/3dvr-control-a /tmp/3dvr-control-b /tmp/3dvr-control-c /tmp/3dvr-control-*.raw
