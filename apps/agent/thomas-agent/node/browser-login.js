@@ -276,11 +276,15 @@ function pageHost(state) {
 
 function classifyState(site, config, state) {
   const text = String(state?.text || '');
-  if (HUMAN_CHALLENGE.test(text)) return { status: 'human_required', reason: 'provider-verification' };
-  if (LOGIN_ERROR.test(text)) return { status: 'login_failed', reason: 'provider-rejected-login' };
   const host = pageHost(state);
   if (!config.hosts.includes(host)) return { status: 'human_required', reason: 'external-sso' };
-  if (site === 'portal' && !/sign-in\.html/i.test(String(state?.url || '')) && !state.passwordCount) return { status: 'authenticated' };
+  if (site === 'portal') {
+    if (!/sign-in\.html/i.test(String(state?.url || '')) && !state.passwordCount) return { status: 'authenticated' };
+    if (LOGIN_ERROR.test(text)) return { status: 'login_failed', reason: 'provider-rejected-login' };
+    return { status: 'login_required' };
+  }
+  if (HUMAN_CHALLENGE.test(text)) return { status: 'human_required', reason: 'provider-verification' };
+  if (LOGIN_ERROR.test(text)) return { status: 'login_failed', reason: 'provider-rejected-login' };
   if (site === 'iatse' && /dashboard/i.test(text) && !state.passwordCount) return { status: 'authenticated' };
   if (site === 'ukg' && /postlogout\.aspx/i.test(String(state?.url || ''))) return { status: 'login_required', reason: 'session-expired' };
   if (site === 'ukg' && !/login\.aspx/i.test(String(state?.url || '')) && !state.passwordCount) return { status: 'authenticated' };
@@ -365,7 +369,7 @@ async function runLogin(broker, agent, site) {
     if (!await clickSubmit(session, config.submitText)) {
       return { status: 424, body: { ok: false, site, status: 'form_changed', reason: 'submit-control-missing' } };
     }
-    await new Promise(resolve => setTimeout(resolve, 1600));
+    await new Promise(resolve => setTimeout(resolve, site === 'portal' ? 3000 : 1600));
     state = await pageState(session);
     classification = classifyState(site, config, state);
 
