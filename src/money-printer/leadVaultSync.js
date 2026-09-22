@@ -20,7 +20,7 @@ function once(node, timeoutMs = 3000) {
   });
 }
 
-function put(node, value, timeoutMs = 4000) {
+function put(node, value, timeoutMs = 8000) {
   return new Promise((resolve, reject) => {
     let settled = false;
     const timer = setTimeout(
@@ -189,6 +189,7 @@ export async function createBrowserLeadVaultSync({
   peers = globalThis.__GUN_PEERS__,
   storage = globalThis.localStorage,
   authTimeoutMs = 2200,
+  credentialAuthTimeoutMs = Math.max(authTimeoutMs, 8000),
   onRemoteMerge = null
 } = {}) {
   if (typeof GunImpl !== 'function' || !storage) {
@@ -206,7 +207,7 @@ export async function createBrowserLeadVaultSync({
     authenticated = await authenticateLeadVaultUserFromStorage(
       user,
       storage,
-      authTimeoutMs
+      credentialAuthTimeoutMs
     );
   }
   const sync = createLeadVaultSync({ user, SEA });
