@@ -38,7 +38,7 @@ test('Portal login matches the Bitwarden item even when its URI has no scheme', 
   assert.equal(scoreVaultItem(match, SITE_CONFIG.portal) >= 100, true);
 });
 
-test('Lighthouse can reuse the Encore/UKG identity without reusing its password', () => {
+test('Lighthouse never reuses a provider password after the identity step', () => {
   const index = {
     items: [
       { key: 'VAULT_ITEM__LOGIN__UKG__BBB', type: 'login', name: 'UKG Pro', uris: ['https://n21.ultipro.com/Login.aspx'] },
@@ -47,6 +47,9 @@ test('Lighthouse can reuse the Encore/UKG identity without reusing its password'
   const match = chooseVaultItem(index, SITE_CONFIG.lighthouse);
   assert.equal(match?.key, 'VAULT_ITEM__LOGIN__UKG__BBB');
   assert.equal(SITE_CONFIG.lighthouse.allowPasswordAfterEmail, false);
+  const source = fs.readFileSync(path.join(root, 'apps/agent/thomas-agent/node/browser-login.js'), 'utf8');
+  assert.match(source, /sharepoint-session-required/);
+  assert.match(source, /lighthouseIdentityFromSharePoint/);
 });
 
 test('Lighthouse prefers the active SharePoint Microsoft identity', () => {
