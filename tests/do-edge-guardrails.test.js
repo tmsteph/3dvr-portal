@@ -28,5 +28,5 @@ test('DigitalOcean edge gives AI requests a longer response budget than ordinary
   const genericBlock = script.slice(apiIndex);
   assert.match(genericBlock, /response_header_timeout 15s/);
   assert.match(genericBlock, /reverse_proxy 127\\.0\\.0\\.1:14320 127\\.0\\.0\\.1:14322 127\\.0\\.0\\.1:4320 \\{/);
-  assert.match(script, /handle \\/__3dvr-local-health/);
+  assert.ok(script.includes('handle /__3dvr-local-health'));
 });
