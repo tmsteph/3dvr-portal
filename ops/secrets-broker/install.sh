@@ -187,4 +187,4 @@ for (const [alias, target] of Object.entries(expected)) {
 }
 NODE
 
-echo "3DVR Secrets Broker installed. Browser login: 3dvr-browser-login iatse|ukg|lighthouse; Lighthouse schedule: 3dvr-lighthouse-schedule [YYYY-MM-DD] [location-id]"
+echo "3DVR Secrets Broker installed. Browser login: 3dvr-browser-login portal|iatse|ukg|lighthouse; Lighthouse schedule: 3dvr-lighthouse-schedule [YYYY-MM-DD] [location-id]"

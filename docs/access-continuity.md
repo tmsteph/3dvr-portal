@@ -1,6 +1,6 @@
 # 3DVR Access Continuity
 
-Last reviewed: 2026-09-16
+Last reviewed: 2026-09-22
 
 This is the canonical policy for keeping Thomas's connected systems usable across chats, agents, server restarts, browser restarts, and device reconnects. The default is persistence and recovery, not repeated manual login.
 
@@ -30,12 +30,34 @@ OVH holds authenticated browser state. Reuse the existing profiles and never cre
 
 | Lane | Purpose | CDP | Profile |
 | --- | --- | ---: | --- |
-| `general` | IATSE, SharePoint, Lighthouse, general authenticated web work | `9222` | `/home/debian/.config/google-chrome-for-testing` |
+| `general` | 3DVR Portal, IATSE, SharePoint, Lighthouse, general authenticated web work | `9222` | `/home/debian/.config/google-chrome-for-testing` |
 | `encore` | Encore / UKG / UltiPro work | `9333` | `/home/debian/.config/3dvr/browser-profiles/encore` |
 | `messaging` | WhatsApp + Google Messages / SMS | `9444` | `/home/debian/.config/3dvr/browser-profiles/messaging` |
 | `training` | Encore University / training | `9555` | `/home/debian/.config/3dvr/browser-profiles/training` |
 
 Browser tooling on OVH connects directly to these local CDP ports. The former Docker/network-namespace CDP bridge is retired and disabled. Any state-changing automation must still hold the matching `/usr/local/bin/3dvr-browser-lease` writer lease. Read-only inspection may be concurrent.
+
+#### 3DVR Portal owner login
+
+The canonical automated owner-login path for `portal.3dvr.tech` is the OVH `general` lane on CDP `9222`. Do not create a disposable browser profile or ask Thomas for the Portal password.
+
+Run on OVH:
+
+```sh
+3dvr-browser-login portal
+```
+
+From the normal Hetzner agent/worker node:
+
+```sh
+ssh 3dvr-ovh '3dvr-browser-login portal'
+```
+
+The command acquires the `general` browser writer lease, calls the local Unix-socket Secrets Broker, resolves the Portal login from the Bitwarden password-manager mirror, fills the production sign-in form, and returns only safe status/destination information. Credentials and cookies must never be printed or copied between hosts.
+
+A successful command is only the first check. Verify the actual signed-in Portal page in the same OVH profile. For Campaigns, confirm the account chip shows the owner session and inspect `#leadVaultSyncStatus`; a healthy signed-in state should report secure sync rather than a local-only fallback. If the page is stale after a deploy, reload/navigate the existing tab in the same profile instead of opening a replacement identity.
+
+Live verification on 2026-09-22 reached `https://portal.3dvr.tech/campaigns/` as the signed-in owner, with Gmail connected and Lead Vault reporting secure sync.
 
 ### 3. 3DVR Companion device access
 
