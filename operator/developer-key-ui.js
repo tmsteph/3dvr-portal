@@ -39,7 +39,9 @@ export function revealDeveloperKeyButton({
     return existing;
   }
 
-  const anchor = documentObj.querySelector('#homeOperatorStatus')
+  const headerActions = documentObj.querySelector('.header-actions');
+  const anchor = headerActions
+    || documentObj.querySelector('#homeOperatorStatus')
     || documentObj.querySelector('#operator-status')
     || documentObj.querySelector('#homeOperatorResult')
     || documentObj.querySelector('#operator-form');
@@ -47,16 +49,28 @@ export function revealDeveloperKeyButton({
 
   const button = documentObj.createElement('button');
   button.type = 'button';
+  button.className = 'developer-key-button';
   button.dataset.operatorDeveloperKey = pub;
-  button.textContent = 'Copy developer key';
+  button.textContent = 'Dev key';
   button.setAttribute('aria-label', 'Copy public developer key for approval');
-  button.style.marginLeft = '8px';
+  button.setAttribute('title', 'Copy developer key');
+  button.style.display = 'inline-flex';
+  button.style.alignItems = 'center';
+  button.style.justifyContent = 'center';
+  button.style.width = 'auto';
+  button.style.height = 'auto';
+  button.style.minHeight = '0';
+  button.style.marginLeft = headerActions ? '0' : '6px';
   button.style.border = '1px solid currentColor';
   button.style.borderRadius = '999px';
-  button.style.padding = '4px 9px';
+  button.style.padding = '3px 7px';
   button.style.background = 'transparent';
   button.style.color = 'inherit';
   button.style.font = 'inherit';
+  button.style.fontSize = '.72rem';
+  button.style.fontWeight = '700';
+  button.style.lineHeight = '1.2';
+  button.style.opacity = '.72';
   button.style.cursor = 'pointer';
 
   button.addEventListener('click', async () => {
@@ -76,10 +90,14 @@ export function revealDeveloperKeyButton({
     }
 
     const prior = button.textContent;
-    button.textContent = copied ? 'Developer key copied' : 'Copy developer key';
+    button.textContent = copied ? 'Copied' : 'Dev key';
     if (copied) setTimeout(() => { button.textContent = prior; }, 1800);
   });
 
-  anchor.insertAdjacentElement?.('afterend', button);
+  if (headerActions?.appendChild) {
+    headerActions.appendChild(button);
+  } else {
+    anchor.insertAdjacentElement?.('afterend', button);
+  }
   return button;
 }
