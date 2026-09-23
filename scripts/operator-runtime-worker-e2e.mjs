@@ -2,7 +2,10 @@ import Gun from 'gun';
 
 import { buildOperatorDelegatedTask } from '../operator/delegate-task.js';
 
-const relay = process.env.THREEDVR_GUN_RELAY || 'https://gun-relay-3dvr.fly.dev/gun';
+const peers = String(process.env.THREEDVR_GUN_PEERS || process.env.THREEDVR_GUN_RELAY || 'wss://gun-relay-3dvr.fly.dev/gun,https://gun-relay-3dvr.fly.dev/gun')
+  .split(',')
+  .map(value => value.trim())
+  .filter(Boolean);
 const ownerAlias = process.env.THREEDVR_AGENT_OWNER_ALIAS || '3dvr-managed';
 const maxWaitMs = Number(process.env.OPERATOR_RUNTIME_E2E_TIMEOUT_MS || 240000);
 const pollMs = 2000;
@@ -23,7 +26,7 @@ const built = buildOperatorDelegatedTask({
 });
 
 const gun = Gun({
-  peers: [relay],
+  peers,
   radisk: false,
   localStorage: false
 });
@@ -34,19 +37,22 @@ const queue = gun
   .get('taskQueue');
 
 function put(node, value) {
-  return new Promise((resolve, reject) => {
+  return new Promise(resolve => {
     let settled = false;
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
-      reject(new Error('Gun write timeout'));
+      resolve({ acknowledged: false, timedOut: true });
     }, writeTimeoutMs);
     node.put(value, ack => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      if (ack?.err) reject(new Error(String(ack.err)));
-      else resolve(ack || {});
+      resolve({
+        acknowledged: !ack?.err,
+        error: ack?.err ? String(ack.err) : '',
+        ack: ack || {}
+      });
     });
   });
 }
@@ -70,15 +76,19 @@ function once(node) {
 
 async function main() {
   console.log(`E2E_TASK_ID=${taskId}`);
-  console.log(`E2E_RELAY=${relay}`);
+  console.log(`E2E_PEERS=${peers.join(',')}`);
   console.log(`E2E_OWNER=${ownerAlias}`);
 
-  await Promise.all([
+  gun.on('hi', peer => console.log(`E2E_PEER_HI=${peer?.url || peer || 'unknown'}`));
+  gun.on('bye', peer => console.log(`E2E_PEER_BYE=${peer?.url || peer || 'unknown'}`));
+
+  const writes = await Promise.all([
     put(queue.get('tasks').get(taskId), built.record),
     put(queue.get('latest').get(taskId), built.summary),
     put(queue.get('runtime').get(taskId), built.runtime)
   ]);
-  console.log('E2E_ENQUEUED=true');
+  console.log(`E2E_WRITE_RESULTS=${JSON.stringify(writes)}`);
+  console.log('E2E_ENQUEUE_ATTEMPTED=true');
 
   const transitions = [];
   const deadline = Date.now() + maxWaitMs;
