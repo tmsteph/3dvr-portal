@@ -90,11 +90,13 @@ export function buildLeadFinderRequest({ description, location = '', count = 10,
       'Do not return private personal information. Public business contact information is acceptable.',
       'If you cannot verify a public email for a candidate, omit that candidate.',
       'Keep whyFit and evidence concise and factual.',
-      'Also draft one concise outreach email for this offer and audience.',
-      'The subject must be under 70 characters. The body must be under 120 words.',
-      'Use {{name}} for the recipient or business name. Do not pretend there is an existing relationship.',
-      'Do not invent results, facts, urgency, discounts, or recipient-specific claims that are not supported by the request.',
-      'End with a low-friction question or invitation to reply. Do not add a legal footer; the app adds sender identity, address, and opt-out language.',
+      'The primary goal is to earn a human reply, not make a sale or book a meeting.',
+      'Draft one evidence-backed outreach email for each lead plus one generic fallback campaign draft.',
+      'Each lead-specific subject must be under 60 characters and each body should be 3-4 short sentences, preferably under 80 words.',
+      'Lead with one concrete observation supported by that lead’s public evidence, then ask one easy-to-answer question.',
+      'Do not mention price, a pilot, a meeting, a demo, a call, or a list of capabilities in the first email.',
+      'Do not pretend there is an existing relationship. Do not invent results, facts, urgency, discounts, or claims that are not supported by the source.',
+      'The final sentence should be a single low-friction question designed to make replying easy. Do not add a legal footer; the app adds sender identity, address, and opt-out language.'
       'Return no more than the requested number of leads.'
     ].join(' '),
     input: [
@@ -130,7 +132,7 @@ export function buildLeadFinderRequest({ description, location = '', count = 10,
               items: {
                 type: 'object',
                 additionalProperties: false,
-                required: ['name', 'email', 'website', 'location', 'whyFit', 'evidence', 'sourceUrl'],
+                required: ['name', 'email', 'website', 'location', 'whyFit', 'evidence', 'sourceUrl', 'draftSubject', 'draftBody'],
                 properties: {
                   name: { type: 'string' },
                   email: { type: 'string' },
@@ -138,7 +140,9 @@ export function buildLeadFinderRequest({ description, location = '', count = 10,
                   location: { type: 'string' },
                   whyFit: { type: 'string' },
                   evidence: { type: 'string' },
-                  sourceUrl: { type: 'string' }
+                  sourceUrl: { type: 'string' },
+                  draftSubject: { type: 'string' },
+                  draftBody: { type: 'string' }
                 }
               }
             }
@@ -161,7 +165,9 @@ function normalizeLead(lead = {}) {
     location: clean(lead.location, 300),
     whyFit: clean(lead.whyFit, 900),
     evidence: clean(lead.evidence, 900),
-    sourceUrl
+    sourceUrl,
+    draftSubject: clean(lead.draftSubject, 180),
+    draftBody: String(lead.draftBody || '').trim().slice(0, 4000)
   };
 }
 
@@ -238,10 +244,11 @@ function buildGatewayLeadPrompt({ description, location, count }) {
     'Only include a lead when public search results substantiate a real public business email and sourceUrl points to that public source.',
     'Never infer an email pattern and never invent a person, business, email, website, claim, or source.',
     'Prefer official business websites and official contact pages.',
-    'Return ONLY JSON with campaignDraft and leads. Each lead needs name, email, website, location, whyFit, evidence, and sourceUrl.',
-    'The campaign subject must be under 70 characters and the body under 120 words.',
-    'Use {{name}} for the recipient or business name. Do not claim an existing relationship.',
-    'End the outreach draft with a low-friction question. Do not add a legal footer.',
+    'Return ONLY JSON with campaignDraft and leads. Each lead needs name, email, website, location, whyFit, evidence, sourceUrl, draftSubject, and draftBody.',
+    'The goal is a human reply, not a sale. Each lead-specific email should be 3-4 short sentences and preferably under 80 words.',
+    'Use one factual observation supported by that lead’s evidence and end with one easy-to-answer question.',
+    'Do not mention price, a pilot, a meeting, a demo, a call, or a list of capabilities in the first email.',
+    'Do not claim an existing relationship. Do not add a legal footer.',
     'Offer and ideal customer: ' + description,
     location ? 'Target geography: ' + location : 'Target geography: any location matching the request.',
     'Find up to ' + count + ' contacts.'
