@@ -35,6 +35,7 @@ const STORAGE = {
   sentEvents: '3dvr.campaigns.sent-events',
   oauth: 'portal.oauth.result',
   discovered: '3dvr.campaigns.discovered-leads',
+  inboxProcessed: '3dvr.campaigns.inbox-processed',
 };
 const DAILY_CAP = 25;
 const SEND_DELAY_MS = 1600;
@@ -460,7 +461,7 @@ function restoreDraft() {
 }
 function consumeOAuthResult() {
   const result = readJson(STORAGE.oauth, null);
-  if (!result || result.provider !== 'google' || result.scopeKey !== 'gmail-send') return;
+  if (!result || result.provider !== 'google' || !['gmail-send', 'mail', 'gmail'].includes(result.scopeKey)) return;
   localStorage.removeItem(STORAGE.oauth);
   if (!result.ok || !result.connection?.accessToken) {
     showNotice(result.error || 'Google connection failed.', 'error');
@@ -478,8 +479,18 @@ function connectionHasGmailSendScope(value = connection) {
   const scopeKey = String(value?.scopeKey || '').toLowerCase();
   const scope = String(value?.scope || '').toLowerCase();
   return scopeKey === 'gmail-send'
+    || scopeKey === 'mail'
+    || scopeKey === 'gmail'
     || scopeKey === 'calendar-gmail-send'
     || scope.includes('https://www.googleapis.com/auth/gmail.send');
+}
+function connectionHasGmailReadScope(value = connection) {
+  const scopeKey = String(value?.scopeKey || '').toLowerCase();
+  const scope = String(value?.scope || '').toLowerCase();
+  return scopeKey === 'mail'
+    || scopeKey === 'gmail'
+    || scope.includes('https://www.googleapis.com/auth/gmail.readonly')
+    || scope.includes('https://www.googleapis.com/auth/gmail.modify');
 }
 function connectionReady() {
   return Boolean(
@@ -510,7 +521,7 @@ function updateConnectionUi() {
       ? 'Reconnect Gmail'
       : 'Not connected';
   elements.detail.textContent = connected
-    ? 'Google OAuth · Gmail send permission verified · connected Gmail only'
+    ? (connectionHasGmailReadScope() ? 'Google OAuth · send + reply watch enabled' : 'Google OAuth · send enabled · reconnect once to watch replies')
     : hasIdentity
       ? 'This saved Google connection is missing verified Gmail send permission.'
       : 'Connect the Google account you want to send from.';
@@ -522,7 +533,7 @@ function updateConnectionUi() {
   setIntegrationPill(
     elements.integrationGmail,
     connected ? 'ok' : hasIdentity ? 'warn' : 'off',
-    connected ? 'Gmail · connected' : hasIdentity ? 'Gmail · reconnect' : 'Gmail · off'
+    connected ? (connectionHasGmailReadScope() ? 'Gmail · send + watch' : 'Gmail · send only') : hasIdentity ? 'Gmail · reconnect' : 'Gmail · off'
   );
   updateSummary();
 }
@@ -578,7 +589,7 @@ async function refreshConnection() {
   if (!connection?.refreshToken) throw new Error('Reconnect Gmail to refresh this session.');
   const response = await fetch('/api/oauth/google?action=refresh', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken: connection.refreshToken, scopeKey: 'gmail-send' }),
+    body: JSON.stringify({ refreshToken: connection.refreshToken, scopeKey: connectionHasGmailReadScope() ? 'mail' : 'gmail-send' }),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || !payload.accessToken) throw new Error(payload.error || 'Unable to refresh Gmail connection.');
@@ -708,6 +719,104 @@ function addHistory(entry) {
   writeJson(STORAGE.history, history.slice(0, 60));
   renderHistory();
 }
+function extractEmailAddress(value = '') {
+  const text = String(value || '').trim().toLowerCase();
+  const bracket = text.match(/<([^<>\s]+@[^<>\s]+)>/);
+  if (bracket) return bracket[1];
+  const match = text.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
+  return match ? match[0].toLowerCase() : '';
+}
+
+function classifyCampaignInboxMessage(message = {}, leadEmails = new Set()) {
+  const fromEmail = extractEmailAddress(message.from);
+  const subject = String(message.subject || '');
+  const text = [message.text, message.snippet, subject, message.from].filter(Boolean).join('\n');
+  const lower = text.toLowerCase();
+
+  if (/mailer-daemon|postmaster|delivery status notification|undeliver|delivery failure|delivery delayed|\bbounce\b/i.test(lower)) {
+    const matches = [...leadEmails].filter(email => lower.includes(email));
+    return matches.map(email => ({ email, eventType: 'bounced' }));
+  }
+
+  if (!leadEmails.has(fromEmail)) return [];
+
+  if (/\b(unsubscribe|remove me|do not contact|don't contact|dont contact|stop emailing|no more emails|no thanks|not interested)\b/i.test(lower)) {
+    return [{ email: fromEmail, eventType: 'suppressed' }];
+  }
+
+  return [{ email: fromEmail, eventType: 'replied' }];
+}
+
+async function listCampaignMail(query, limit = 25) {
+  const active = await activeConnection();
+  if (!connectionHasGmailReadScope(active)) throw new Error('Reconnect Gmail once to enable reply watching.');
+  const { response, payload } = await fetchPortalJson('/api/oauth/google?action=listmail', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      accessToken: active.accessToken,
+      query,
+      limit
+    })
+  });
+  if (!response.ok) throw new Error(payload.error || 'Unable to read Gmail for campaign replies.');
+  return Array.isArray(payload.messages) ? payload.messages : [];
+}
+
+async function syncCampaignInbox() {
+  if (!connectionReady() || !connectionHasGmailReadScope()) return { checked: 0, matched: 0 };
+  const sentLeads = readLeadVault().filter(lead => ['sent', 'replied', 'bounced', 'suppressed'].includes(String(lead?.status || '')));
+  const leadEmails = new Set(sentLeads.map(lead => String(lead.email || '').trim().toLowerCase()).filter(Boolean));
+  if (!leadEmails.size) return { checked: 0, matched: 0 };
+
+  const processed = new Set(readJson(STORAGE.inboxProcessed, []));
+  const messages = await listCampaignMail('newer_than:30d -in:sent', 25);
+  let matched = 0;
+
+  for (const message of messages) {
+    const messageId = String(message.id || '').trim();
+    if (!messageId || processed.has(messageId)) continue;
+    const events = classifyCampaignInboxMessage(message, leadEmails);
+    if (!events.length) continue;
+
+    for (const event of events) {
+      markLeadVaultStatus(event.email, event.eventType);
+      markCampaignLeadStatus(event.email, event.eventType);
+      try {
+        if (!campaignCrmBridge?.available) initializeCampaignCrmBridge();
+        await campaignCrmBridge?.recordInboxEvent?.({
+          email: event.email,
+          eventType: event.eventType,
+          subject: message.subject || '',
+          messageId,
+          occurredAt: message.internalDate ? new Date(Number(message.internalDate)) : new Date(message.date || Date.now())
+        });
+      } catch (error) {
+        console.error('Campaign inbox CRM sync failed', error);
+      }
+      matched += 1;
+    }
+    processed.add(messageId);
+  }
+
+  writeJson(STORAGE.inboxProcessed, [...processed].slice(-500));
+  if (matched) scheduleLeadVaultSync();
+  return { checked: messages.length, matched };
+}
+
+async function startCampaignInboxWatch() {
+  if (!connectionReady() || !connectionHasGmailReadScope()) return;
+  try {
+    await syncCampaignInbox();
+  } catch (error) {
+    console.warn('Campaign inbox watch failed', error);
+  }
+  window.setInterval(() => {
+    if (document.visibilityState === 'hidden') return;
+    syncCampaignInbox().catch(error => console.warn('Campaign inbox watch failed', error));
+  }, 5 * 60 * 1000);
+}
+
 function renderHistory() {
   const history = readJson(STORAGE.history, []);
   if (!history.length) {
@@ -937,7 +1046,7 @@ elements.leadLocation.addEventListener('input', () => {
 elements.leadForm.addEventListener('submit', findLeads);
 elements.addLeads.addEventListener('click', addSelectedLeads);
 elements.connect.addEventListener('click', () => {
-  location.href = '/api/oauth/google?action=start&scopeKey=gmail-send&intent=campaigns&returnTo=/campaigns/';
+  location.href = '/api/oauth/google?action=start&scopeKey=mail&intent=campaigns&returnTo=/campaigns/';
 });
 elements.disconnect.addEventListener('click', () => {
   localStorage.removeItem(STORAGE.connection);
@@ -975,6 +1084,7 @@ initializeCampaignCrmBridge();
 updateConnectionUi();
 recoverSavedConnection();
 initializeLeadVaultAccountSync();
+startCampaignInboxWatch();
 window.addEventListener('online', () => {
   if (!leadVaultAccountSync?.available && localStorage.getItem('signedIn') === 'true') {
     initializeLeadVaultAccountSync();
