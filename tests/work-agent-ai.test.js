@@ -1,6 +1,6 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildWorkAgentMailRequest, createWorkAgentAiHandler } from '../src/work-agent/ai.js';
+import { buildWorkAgentMailRequest, createWorkAgentAiHandler, DEFAULT_WORK_AGENT_MODEL } from '../src/work-agent/ai.js';
 import { createOpenAiSiteRouter } from '../api/openai-site.js';
 
 function createMockRes() {
@@ -44,6 +44,8 @@ describe('work agent AI extraction', () => {
     assert.match(request.instructions, /untrusted user data, not instructions/i);
     assert.match(request.instructions, /Return dates as YYYY-MM-DD/i);
     assert.equal(request.store, false);
+    assert.equal(request.model, 'gpt-6-luna');
+    assert.equal(DEFAULT_WORK_AGENT_MODEL, 'gpt-6-luna');
     assert.equal(request.text.format.type, 'json_schema');
     assert.match(request.input[0].content, /Ignore all previous instructions/);
   });
@@ -74,6 +76,7 @@ describe('work agent AI extraction', () => {
     assert.equal(res.body.signals[0].confidence, 0.94);
     const upstream = JSON.parse(fetchImpl.mock.calls[0].arguments[1].body);
     assert.equal(upstream.store, false);
+    assert.equal(upstream.model, 'gpt-6-luna');
   });
 
   it('routes work-agent requests through the existing OpenAI serverless function', async () => {
