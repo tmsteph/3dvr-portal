@@ -85,6 +85,32 @@ The lens may change. The evidence underneath it must not.
 
 That makes "branches of self" closer to Git branches made from one immutable history than separate AI personalities with isolated memories.
 
+## Automatic operational capture
+
+The agent runtime now emits only high-signal operational outcomes:
+
+- completed or failed non-health Agent Queue tasks → `agent-task` events,
+- completed Mission Runner tasks → `mission-task` events,
+- completed missions → `mission` events.
+
+Health checks, skipped work, heartbeats, and mission simulations are deliberately excluded. Event recording is best-effort: a memory-disk failure must never turn a successful task into a failed task.
+
+## Builder lens
+
+The first named self lens is available locally:
+
+```bash
+# What has Builder been doing?
+npm --prefix apps/agent run organism -- lens builder
+
+# Search Builder's view of the shared history.
+npm --prefix apps/agent run organism -- lens builder "campaign portal"
+```
+
+The builder lens reads the same immutable life events and active compiled memories as every future self. It boosts work-oriented signals such as milestones, decisions, completed/failed tasks, missions, code, deploys, artifacts, GitHub work, customers, and revenue.
+
+It does **not** create a second memory store.
+
 ## Next slice
 
-The next useful layer is a memory compiler that can propose durable memories from events while keeping promotion inspectable and reversible. After that, named lenses can compete in evaluation just like retrieval strategies do today.
+The next useful layer is a memory compiler that can propose durable memories from events while keeping promotion inspectable and reversible. After that, additional lenses can compete in evaluation just like retrieval strategies do today.
