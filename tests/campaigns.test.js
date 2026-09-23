@@ -60,6 +60,10 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   const html = await readFile(new URL('../campaigns/index.html', import.meta.url), 'utf8');
   const js = await readFile(new URL('../campaigns/app.js', import.meta.url), 'utf8');
   assert.match(html, /3DVR Campaigns/);
+  assert.match(html, /id="integrationGmail"/);
+  assert.match(html, /id="integrationLeadVault"/);
+  assert.match(html, /id="integrationMoneyPrinter"/);
+  assert.match(html, /id="integrationCrm"/);
   assert.match(html, /Import CSV/);
   assert.match(html, /Suppression list/);
   assert.match(html, /Send test to myself/);
@@ -96,6 +100,9 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(html, /gun\/gun\.js/);
   assert.match(html, /gun\/sea\.js/);
   assert.match(js, /createBrowserLeadVaultSync/);
+  assert.match(js, /createBrowserCampaignCrmBridge/);
+  assert.match(js, /campaignCrmBridge\.recordSend/);
+  assert.match(js, /CRM · synced/);
   assert.match(js, /reconnecting secure sync/);
   assert.match(js, /addEventListener\('online'/);
   assert.match(js, /connectionHasGmailSendScope/);
