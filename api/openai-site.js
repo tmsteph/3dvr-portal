@@ -548,6 +548,13 @@ export function createOpenAiSiteRouter(options = {}) {
       return leadFinderHandler(req, res);
     }
 
+    // Operator owns its provider resolution, structured actions, and streaming
+    // transport. Route it natively before the generic self-host fallback so
+    // production does not collapse streamed replies into one legacy JSON blob.
+    if (req?.body?.operator === true || req?.query?.provider === 'operator') {
+      return operatorHandler(req, res);
+    }
+
     if (!hasLocalOpenAiCredential && fallbackOrigin) {
       try {
         return await proxyToSelfHostedAi(req, res, { origin: fallbackOrigin, fetchImpl });
@@ -571,10 +578,6 @@ export function createOpenAiSiteRouter(options = {}) {
 
     if (req?.body?.nextMove === true || req?.query?.provider === 'next-move') {
       return nextMoveHandler(req, res);
-    }
-
-    if (req?.body?.operator === true || req?.query?.provider === 'operator') {
-      return operatorHandler(req, res);
     }
 
     if (req?.body?.workAgent === true || req?.query?.provider === 'work-agent') {
