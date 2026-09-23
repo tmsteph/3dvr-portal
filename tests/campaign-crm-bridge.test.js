@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  buildCampaignCrmInboxTouch,
+  buildCampaignCrmInboxUpdate,
   buildCampaignCrmRecord,
   buildCampaignCrmTouch,
   campaignCrmRecordId,
@@ -64,4 +66,42 @@ test('Campaign CRM touch uses the shared outreach-sent shape', () => {
   assert.equal(touch.gmailMessageId, 'gmail-123');
   assert.equal(touch.senderEmail, 'sender@example.com');
   assert.match(touch.note, /Quick idea/);
+});
+
+test('Campaign CRM inbox update moves replies into discovery without losing fields', () => {
+  const update = buildCampaignCrmInboxUpdate({
+    existing: {
+      id: 'crm-existing',
+      email: 'lead@example.com',
+      status: 'Prospect',
+      warmth: 'cold',
+      activityCount: 1,
+      notes: 'keep me',
+    },
+    eventType: 'replied',
+    subject: 'Re: Quick idea',
+    messageId: 'reply-1',
+    occurredAt: new Date('2026-09-23T05:00:00Z'),
+  });
+
+  assert.equal(update.status, 'Warm - Discovery');
+  assert.equal(update.warmth, 'warm');
+  assert.equal(update.activityCount, 2);
+  assert.equal(update.replyCount, 1);
+  assert.equal(update.notes, 'keep me');
+  assert.match(update.lastSignal, /replied: Re: Quick idea/);
+});
+
+test('Campaign CRM inbox touch classifies opt-outs as not a fit', () => {
+  const touch = buildCampaignCrmInboxTouch({
+    record: { id: 'crm-existing', email: 'lead@example.com', status: 'Lost' },
+    eventType: 'suppressed',
+    subject: 'Re: Quick idea',
+    messageId: 'stop-1',
+    occurredAt: new Date('2026-09-23T05:01:00Z'),
+  });
+
+  assert.equal(touch.touchType, 'not-a-fit');
+  assert.equal(touch.touchTypeLabel, 'Not a fit');
+  assert.equal(touch.gmailMessageId, 'stop-1');
 });
