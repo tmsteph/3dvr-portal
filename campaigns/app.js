@@ -354,8 +354,9 @@ function renderLeadResults() {
     const row = document.createElement('label');
     row.className = 'lead-result';
     const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.checked = true;
+    checkbox.type = 'radio';
+    checkbox.name = 'lead-pick';
+    checkbox.checked = index === 0;
     checkbox.dataset.leadIndex = String(index);
     const body = document.createElement('span');
     const name = document.createElement('strong');
@@ -461,6 +462,9 @@ function addSelectedLeads() {
   }
   selected.forEach(lead => markLeadVaultStatus(lead.email, 'selected'));
   scheduleLeadVaultSync();
+  const primaryLead = selected[0];
+  if (primaryLead?.draftSubject) elements.subject.value = primaryLead.draftSubject;
+  if (primaryLead?.draftBody) elements.message.value = primaryLead.draftBody;
   const additions = selected.map(lead => lead.name ? `${lead.name} <${lead.email}>` : lead.email);
   const merged = parseRecipients([elements.recipients.value, ...additions].filter(Boolean).join('\n'));
   elements.recipients.value = merged.map(recipient => recipient.name
@@ -620,9 +624,13 @@ function incrementSent() {
 function updateSummary() {
   const { all, sendable, suppressedCount } = currentRecipients();
   const allowance = remainingDailyAllowance(sentToday(), DAILY_CAP);
+  const vault = readLeadVault();
+  const tracked = vault.filter(lead => lead?.sentAt);
+  const replies = tracked.filter(lead => ['replied', 'customer'].includes(String(lead?.status || ''))).length;
+  const bounces = tracked.filter(lead => String(lead?.status || '') === 'bounced').length;
   elements.recipientCount.textContent = `${all.length} valid · ${sendable.length} sendable${suppressedCount ? ` · ${suppressedCount} suppressed` : ''}`;
   elements.sendSummary.textContent = connectionReady()
-    ? `${Math.min(sendable.length, allowance)} ready now · ${allowance} slots left in rolling 24h`
+    ? `${Math.min(sendable.length, allowance)} ready · ${tracked.length} sent · ${replies} replies · ${bounces} bounces · ${allowance} slots left`
     : 'Connect Gmail to begin.';
 }
 async function refreshConnection() {
