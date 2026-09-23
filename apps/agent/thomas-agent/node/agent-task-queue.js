@@ -240,6 +240,8 @@ function buildTaskArgs(record = {}, workerOptions = {}) {
   if (record.repo || workerOptions.repo) args.push('--repo', record.repo || workerOptions.repo);
   if (record.model || workerOptions.model) args.push('--model', record.model || workerOptions.model);
   if (record.thinking || workerOptions.thinking) args.push('--thinking', record.thinking || workerOptions.thinking);
+  const maxRuntimeMs = parseInteger(record.maxRuntimeMs || workerOptions.maxRuntimeMs, 0);
+  if (maxRuntimeMs > 0) args.push('--timeout-ms', String(maxRuntimeMs));
   if (record.unsafe || workerOptions.unsafe) args.push('--unsafe');
   args.push(record.task);
   return args;
