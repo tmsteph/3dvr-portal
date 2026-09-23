@@ -2,10 +2,6 @@ name: Migrate Portal Edge to DigitalOcean
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/migrate-portal-do-edge.yml'
 
 permissions:
   contents: read
@@ -112,7 +108,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ssh -i /tmp/ovh-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 "$OVH_USER@$OVH_HOST"             "npx --yes vercel@59.11.7 dns update '$PORTAL_DNS_RECORD_ID' --scope 3dvr --type A --value '$DO_HOST' --ttl 60 --comment 'DigitalOcean resilient edge for self-hosted 3DVR Portal' --non-interactive"
+          current="$(dig +short @ns1.vercel-dns.com portal.3dvr.tech A | tail -n1 || true)"
+          if [ "$current" = "$DO_HOST" ]; then
+            echo "portal.3dvr.tech already points at DigitalOcean."
+            exit 0
+          fi
+          echo "Live DNS still requires Vercel's interactive confirmation." >&2
+          echo "Run on an authenticated terminal:" >&2
+          echo "vercel dns update $PORTAL_DNS_RECORD_ID --scope 3dvr --type A --value $DO_HOST --ttl 60 --comment 'DigitalOcean resilient edge for self-hosted 3DVR Portal'" >&2
+          exit 2
 
       - name: Confirm authoritative DNS cutover
         shell: bash
