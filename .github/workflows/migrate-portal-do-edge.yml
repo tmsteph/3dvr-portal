@@ -16,8 +16,9 @@ concurrency:
 
 env:
   DO_HOST: 167.172.193.194
+  OVH_HOST: 40.160.137.41
+  OVH_USER: debian
   PORTAL_DNS_RECORD_ID: rec_938a6d34779611712104b9c3
-  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
 jobs:
   migrate:
@@ -27,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Resolve DigitalOcean SSH access
+      - name: Resolve SSH access
         id: ssh
         shell: bash
         env:
@@ -52,27 +53,37 @@ jobs:
             chmod 600 "$dest"
             rm -f "$dest.raw"
           }
-          write_key "$SSH_A" /tmp/do-a
-          write_key "$SSH_B" /tmp/do-b
-          write_key "$SSH_C" /tmp/do-c
+          write_key "$SSH_A" /tmp/key-a
+          write_key "$SSH_B" /tmp/key-b
+          write_key "$SSH_C" /tmp/key-c
+
           for user in root debian; do
-            for key in /tmp/do-a /tmp/do-b /tmp/do-c; do
+            for key in /tmp/key-a /tmp/key-b /tmp/key-c; do
               [ -f "$key" ] || continue
               if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$DO_HOST" true >/dev/null 2>&1; then
                 cp "$key" /tmp/do-key
                 chmod 600 /tmp/do-key
-                echo "user=$user" >> "$GITHUB_OUTPUT"
-                exit 0
+                echo "do_user=$user" >> "$GITHUB_OUTPUT"
+                break 2
               fi
             done
           done
-          echo 'No DigitalOcean SSH key worked.' >&2
-          exit 1
+          [ -f /tmp/do-key ] || { echo 'No DigitalOcean SSH key worked.' >&2; exit 1; }
+
+          for key in /tmp/key-a /tmp/key-b /tmp/key-c; do
+            [ -f "$key" ] || continue
+            if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$OVH_USER@$OVH_HOST" true >/dev/null 2>&1; then
+              cp "$key" /tmp/ovh-key
+              chmod 600 /tmp/ovh-key
+              break
+            fi
+          done
+          [ -f /tmp/ovh-key ] || { echo 'No OVH SSH key worked.' >&2; exit 1; }
 
       - name: Stage resilient DigitalOcean HTTP edge
         shell: bash
         env:
-          USER: ${{ steps.ssh.outputs.user }}
+          USER: ${{ steps.ssh.outputs.do_user }}
         run: |
           set -euo pipefail
           opts=(-i /tmp/do-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
@@ -101,8 +112,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [ -n "$VERCEL_TOKEN" ]
-          npx --yes vercel@59.11.7 dns update "$PORTAL_DNS_RECORD_ID" --scope 3dvr --type A --value "$DO_HOST" --ttl 60 --comment 'DigitalOcean resilient edge for self-hosted 3DVR Portal' --non-interactive --token "$VERCEL_TOKEN"
+          ssh -i /tmp/ovh-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 "$OVH_USER@$OVH_HOST"             "npx --yes vercel@59.11.7 dns update '$PORTAL_DNS_RECORD_ID' --scope 3dvr --type A --value '$DO_HOST' --ttl 60 --comment 'DigitalOcean resilient edge for self-hosted 3DVR Portal' --non-interactive"
 
       - name: Confirm authoritative DNS cutover
         shell: bash
@@ -119,7 +129,7 @@ jobs:
       - name: Enable automatic HTTPS on DigitalOcean
         shell: bash
         env:
-          USER: ${{ steps.ssh.outputs.user }}
+          USER: ${{ steps.ssh.outputs.do_user }}
         run: |
           set -euo pipefail
           opts=(-i /tmp/do-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
@@ -149,8 +159,8 @@ jobs:
         if: failure() && steps.dns.outcome == 'success'
         shell: bash
         run: |
-          npx --yes vercel@59.11.7 dns update "$PORTAL_DNS_RECORD_ID" --scope 3dvr --type CNAME --value cname.vercel-dns.com --ttl 60 --comment 'Automatic rollback to Vercel backup' --non-interactive --token "$VERCEL_TOKEN" || true
+          ssh -i /tmp/ovh-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 "$OVH_USER@$OVH_HOST"             "npx --yes vercel@59.11.7 dns update '$PORTAL_DNS_RECORD_ID' --scope 3dvr --type CNAME --value cname.vercel-dns.com --ttl 60 --comment 'Automatic rollback to Vercel backup' --non-interactive" || true
 
       - name: Cleanup
         if: always()
-        run: rm -f /tmp/do-key /tmp/do-a /tmp/do-b /tmp/do-c /tmp/do-*.raw /tmp/edge.json /tmp/upstream.json /tmp/direct-health.json /tmp/canonical-health.json
+        run: rm -f /tmp/do-key /tmp/ovh-key /tmp/key-a /tmp/key-b /tmp/key-c /tmp/*.raw /tmp/edge.json /tmp/upstream.json /tmp/direct-health.json /tmp/canonical-health.json
