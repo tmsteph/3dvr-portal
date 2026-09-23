@@ -713,6 +713,13 @@ async function runCampaign(event) {
     const recipient = batch[index];
     setProgress(index, batch.length, `Sending ${index + 1} of ${batch.length} to ${recipient.email}…`);
     try {
+      queueCampaignLeads({
+        leads: [recipient],
+        subject: subjectFor(recipient),
+        body: elements.message.value,
+        offer: elements.leadDescription.value,
+        senderName: elements.businessName.value
+      });
       const sendResult = await gmailSend({
         to: recipient.email,
         subject: subjectFor(recipient),
