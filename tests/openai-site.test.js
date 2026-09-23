@@ -569,50 +569,38 @@ test('lead finder uses its Vercel AI Gateway path before generic self-host fallb
   assert.equal(calls[0].model, 'inclusionai/ling-3.0-flash-vl-free');
 });
 
-test('operator streaming bypasses the generic self-host fallback', async () => {
-  let fallbackCalls = 0;
-  let operatorUrl = '';
-  const final = {
-    reply: 'Streaming works.',
-    suggestions: ['Keep testing'],
-    action: {
-      type: 'none',
-      title: '',
-      text: '',
-      business: '',
-      location: '',
-      url: '',
-      repo: ''
-    }
-  };
-  const raw = JSON.stringify(final);
+test('operator streaming uses self-host fallback and preserves SSE', async () => {
+  const calls = [];
   const handler = createOpenAiSiteRouter({
     apiKey: '',
     selfHostedFallbackOrigin: 'http://self-host.test',
-    fetchImpl: async () => {
-      fallbackCalls += 1;
-      throw new Error('generic fallback should not run for Operator');
-    },
-    operator: {
-      apiKey: '',
-      gatewayToken: 'gateway-test',
-      fetchImpl: async (url, options = {}) => {
-        operatorUrl = String(url);
-        const request = JSON.parse(options.body || '{}');
-        assert.equal(request.stream, true);
-        return createSseResponse([
-          `event: response.output_text.delta\ndata: ${JSON.stringify({ type: 'response.output_text.delta', delta: raw })}\n\n`,
-          `event: response.completed\ndata: ${JSON.stringify({
-            type: 'response.completed',
-            response: {
-              output: [{
-                type: 'message',
-                content: [{ type: 'output_text', text: raw }]
-              }]
-            }
-          })}\n\n`
-        ]);
-      }
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url: String(url), options });
+      const body = JSON.parse(options.body || '{}');
+      assert.equal(body.stream, true);
+      return {
+        status: 200,
+        headers: {
+          get: key => ({
+            'content-type': 'text/event-stream; charset=utf-8',
+            'cache-control': 'no-cache, no-transform',
+            'access-control-allow-origin': '*',
+            'access-control-allow-methods': 'POST, OPTIONS',
+            'access-control-allow-headers': 'Content-Type'
+          }[String(key).toLowerCase()] || null)
+        },
+        body: new ReadableStream({
+          start(controller) {
+            const encoder = new TextEncoder();
+            controller.enqueue(encoder.encode('event: status\ndata: {"message":"Operator is thinking…"}\n\n'));
+            controller.enqueue(encoder.encode('event: reply_delta\ndata: {"delta":"Hello "}\n\n'));
+            controller.enqueue(encoder.encode('event: reply_delta\ndata: {"delta":"world"}\n\n'));
+            controller.enqueue(encoder.encode('event: result\ndata: {"reply":"Hello world","suggestions":[],"action":{"type":"none"}}\n\n'));
+            controller.close();
+          }
+        }),
+        text: async () => ''
+      };
     }
   });
 
@@ -621,18 +609,18 @@ test('operator streaming bypasses the generic self-host fallback', async () => {
     method: 'POST',
     url: '/api/openai-site?provider=operator',
     query: { provider: 'operator' },
-    headers: { host: 'portal.test' },
+    headers: { 'x-forwarded-for': '203.0.113.52' },
     body: { prompt: 'Test streaming.', stream: true }
   }, res);
 
-  const events = parseSsePayload(res.body);
-  assert.equal(fallbackCalls, 0);
-  assert.equal(operatorUrl, 'https://ai-gateway.vercel.sh/v1/responses');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, 'http://self-host.test/api/openai-site?provider=operator');
   assert.match(res.headers['Content-Type'], /text\/event-stream/);
-  assert.equal(events[0].event, 'status');
-  assert.equal(events.at(-1).event, 'result');
-  assert.equal(events.at(-1).data.reply, 'Streaming works.');
+  assert.match(res.body, /event: reply_delta/);
+  assert.match(res.body, /"delta":"Hello "/);
+  assert.match(res.body, /event: result/);
 });
+
 
 test('generic site route still uses the self-host AI proxy when no local OpenAI key exists', async () => {
   const calls = [];

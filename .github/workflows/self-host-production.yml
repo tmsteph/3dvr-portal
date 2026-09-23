@@ -215,6 +215,12 @@ jobs:
           fi
           git -C "$source_repo" fetch --prune origin main
           git -C "$source_repo" cat-file -e "$DEPLOY_SHA^{commit}"
+          if ! git -C "$source_repo" diff --quiet || ! git -C "$source_repo" diff --cached --quiet; then
+            echo 'Discarding local changes from the dedicated deployment checkout:'
+            git -C "$source_repo" status --short || true
+          fi
+          git -C "$source_repo" reset --hard
+          git -C "$source_repo" clean -fd
           git -C "$source_repo" checkout --detach "$DEPLOY_SHA"
 
           config_dir="$HOME/.3dvr/config"
