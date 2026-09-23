@@ -96,7 +96,7 @@ export function buildLeadFinderRequest({ description, location = '', count = 10,
       'Lead with one concrete observation supported by that lead’s public evidence, then ask one easy-to-answer question.',
       'Do not mention price, a pilot, a meeting, a demo, a call, or a list of capabilities in the first email.',
       'Do not pretend there is an existing relationship. Do not invent results, facts, urgency, discounts, or claims that are not supported by the source.',
-      'The final sentence should be a single low-friction question designed to make replying easy. Do not add a legal footer; the app adds sender identity, address, and opt-out language.'
+      'The final sentence should be a single low-friction question designed to make replying easy. Do not add a legal footer; the app adds sender identity, address, and opt-out language.',
       'Return no more than the requested number of leads.'
     ].join(' '),
     input: [
