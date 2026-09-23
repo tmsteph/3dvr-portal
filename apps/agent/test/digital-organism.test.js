@@ -10,13 +10,77 @@ const {
   correct,
   forget,
   importContextSessions,
+  loadLifeEvents,
+  promoteLifeEvent,
   recall,
+  recordLifeEvent,
   remember,
+  timeline,
 } = require('../thomas-agent/node/digital-organism');
 
 async function tempStateDir() {
   return fs.mkdtemp(path.join(os.tmpdir(), '3dvr-organism-'));
 }
+
+
+
+test('records immutable life events separately from compiled memory', async (t) => {
+  const stateDir = await tempStateDir();
+  t.after(() => fs.rm(stateDir, { recursive: true, force: true }));
+
+  const event = await recordLifeEvent('Shipped the first life-event stream for the Digital Organism.', {
+    stateDir,
+    kind: 'milestone',
+    actor: 'owner',
+    tags: 'organism,history',
+    sourceType: 'conversation',
+    sourceId: 'chat-life-stream',
+    occurredAt: '2026-09-22T21:30:00.000Z',
+  });
+
+  assert.match(event.id, /^evt_/);
+  assert.equal(event.kind, 'milestone');
+  assert.deepEqual(event.tags, ['organism', 'history']);
+
+  const events = await loadLifeEvents({ stateDir });
+  assert.equal(events.length, 1);
+  assert.equal(events[0].sourceId, 'chat-life-stream');
+
+  const hits = await timeline('organism history', { stateDir });
+  assert.equal(hits[0].event.id, event.id);
+
+  await assert.rejects(
+    fs.readFile(path.join(stateDir, 'memories.jsonl'), 'utf8'),
+    error => error.code === 'ENOENT',
+  );
+});
+
+test('promotes a life event into memory with stable provenance exactly once', async (t) => {
+  const stateDir = await tempStateDir();
+  t.after(() => fs.rm(stateDir, { recursive: true, force: true }));
+
+  const event = await recordLifeEvent('Framework is the practical reference laptop for Open Personal Computing.', {
+    stateDir,
+    kind: 'decision',
+    tags: 'hardware,open-personal-computing',
+  });
+  const memory = await promoteLifeEvent(event.id, {
+    stateDir,
+    subject: 'hardware',
+  });
+
+  assert.equal(memory.sourceType, 'life-event');
+  assert.equal(memory.sourceId, event.id);
+  assert.equal(memory.content, event.content);
+
+  const hits = await recall('Framework reference laptop', { stateDir });
+  assert.equal(hits[0].memory.id, memory.id);
+
+  await assert.rejects(
+    promoteLifeEvent(event.id, { stateDir }),
+    /already promoted/,
+  );
+});
 
 test('remembers, retrieves, and exposes provenance locally', async (t) => {
   const stateDir = await tempStateDir();
