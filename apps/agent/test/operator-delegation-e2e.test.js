@@ -108,6 +108,6 @@ test('Operator delegated task reaches the real worker state machine and stores i
   assert.equal(finalTask.resultSummary, marker);
 
   const runtime = rootNode.store.get(`${ownerAlias}/taskQueue/runtime/${built.record.id}`);
-  assert.equal(runtime.state, 'queued');
+  assert.equal(runtime.runtimeState, 'queued');
   assert.equal(runtime.workerLane, 'general');
 });
