@@ -160,12 +160,17 @@ test('runWorkerOnce claims and executes queued tasks through injected hooks', as
     requiredCapabilities: 'openai',
     force: true,
   });
+  const lifeEvents = [];
   const results = await runWorkerOnce({
     rootNode,
     ownerAlias: 'tenant-a',
     deviceId: 'do-worker',
     workerCapabilities: 'node,openai,codex',
     force: true,
+    recordLifeEventImpl: async (content, eventOptions) => {
+      lifeEvents.push({ content, eventOptions });
+      return { id: 'evt-test' };
+    },
     runAgentTaskImpl: async () => ({
       ok: true,
       backend: 'openai',
@@ -177,6 +182,10 @@ test('runWorkerOnce claims and executes queued tasks through injected hooks', as
   assert.equal(results.length, 1);
   assert.equal(completed.status, 'completed');
   assert.match(completed.resultSummary, /summary/);
+  assert.equal(lifeEvents.length, 1);
+  assert.match(lifeEvents[0].content, /Agent task completed: Summarize leads/);
+  assert.equal(lifeEvents[0].eventOptions.kind, 'task.completed');
+  assert.equal(lifeEvents[0].eventOptions.sourceId, 'task-3');
 });
 
 test('health task completes without invoking a model or shell executor', async () => {
@@ -190,6 +199,7 @@ test('health task completes without invoking a model or shell executor', async (
     force: true,
   });
   let externalExecutions = 0;
+  const lifeEvents = [];
 
   const results = await runWorkerOnce({
     rootNode,
@@ -197,6 +207,10 @@ test('health task completes without invoking a model or shell executor', async (
     deviceId: 'do-worker',
     workerCapabilities: 'node,codex',
     force: true,
+    recordLifeEventImpl: async (content, eventOptions) => {
+      lifeEvents.push({ content, eventOptions });
+      return { id: 'evt-health' };
+    },
     runAgentTaskImpl: async () => {
       externalExecutions += 1;
       throw new Error('health backend must not invoke task orchestrator');
@@ -209,6 +223,7 @@ test('health task completes without invoking a model or shell executor', async (
   assert.equal(results[0].result.backend, 'health');
   assert.equal(completed.status, 'completed');
   assert.match(completed.resultSummary, /3dvr-worker-ok/);
+  assert.equal(lifeEvents.length, 0);
 });
 
 test('worker skips tasks that need approval or unsupported capabilities', async () => {

@@ -296,6 +296,27 @@ function canWorkerRunTask(record = {}, options = {}) {
   return { ok: true, profile };
 }
 
+async function recordTaskLifeEvent(record, options = {}) {
+  if (!record || !['completed', 'failed'].includes(record.status)) return null;
+  if (normalizeText(record.backend).toLowerCase() === 'health') return null;
+  const recordLifeEventImpl = options.recordLifeEventImpl || require('./digital-organism').recordLifeEvent;
+  const tags = ['builder', 'agent-task', normalizeText(record.backend).toLowerCase()]
+    .filter(Boolean);
+  if (record.repo) tags.push('code');
+  try {
+    return await recordLifeEventImpl(`Agent task ${record.status}: ${record.task}`, {
+      kind: `task.${record.status}`,
+      actor: 'agent',
+      tags,
+      sourceType: 'agent-task',
+      sourceId: record.id,
+      occurredAt: record.completedAt || record.updatedAt,
+    });
+  } catch {
+    return null;
+  }
+}
+
 async function runQueuedTask(record, options = {}) {
   const runnable = canWorkerRunTask(record, options);
   if (!runnable.ok) {
@@ -366,21 +387,23 @@ async function runQueuedTask(record, options = {}) {
       result = await runAgentTaskImpl(buildTaskArgs(claimed, options), options.hooks || {});
     }
     const summary = summarizeTaskResult(result);
-    await finishClaimedTask(claimed, {
+    const terminal = await finishClaimedTask(claimed, {
       status: result.ok ? 'completed' : result.skipped ? 'skipped' : 'failed',
       completedAt: nowIso(),
       resultSummary: summary,
       error: result.ok ? '' : summary,
     }, options);
+    await recordTaskLifeEvent(terminal, options);
     return result;
   } catch (error) {
     const message = error.message || String(error);
-    await finishClaimedTask(claimed, {
+    const terminal = await finishClaimedTask(claimed, {
       status: 'failed',
       completedAt: nowIso(),
       error: message,
       resultSummary: message,
     }, options);
+    await recordTaskLifeEvent(terminal, options);
     return { ok: false, error: message };
   } finally {
     if (renewalTimer) clearInterval(renewalTimer);
@@ -612,6 +635,7 @@ module.exports = {
   parseArgs,
   publicTask,
   readTask,
+  recordTaskLifeEvent,
   requiredWorkerCapabilities,
   runQueuedTask,
   runWorkerLoop,

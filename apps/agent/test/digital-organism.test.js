@@ -10,6 +10,7 @@ const {
   correct,
   forget,
   importContextSessions,
+  lens,
   loadLifeEvents,
   promoteLifeEvent,
   recall,
@@ -80,6 +81,40 @@ test('promotes a life event into memory with stable provenance exactly once', as
     promoteLifeEvent(event.id, { stateDir }),
     /already promoted/,
   );
+});
+
+
+test('builder lens emphasizes shipped work across events and compiled memory', async (t) => {
+  const stateDir = await tempStateDir();
+  t.after(() => fs.rm(stateDir, { recursive: true, force: true }));
+
+  await recordLifeEvent('Merged the portal authentication fix.', {
+    stateDir,
+    kind: 'milestone',
+    tags: ['builder', 'portal', 'github'],
+    sourceType: 'agent-task',
+    sourceId: 'task-ship',
+  });
+  await recordLifeEvent('Watched the sunset at the beach.', {
+    stateDir,
+    kind: 'observation',
+    tags: ['personal'],
+  });
+  await remember('Customer wants a simpler campaign sign-in flow.', {
+    stateDir,
+    kind: 'decision',
+    subject: 'campaigns',
+    sourceType: 'conversation',
+    sourceId: 'chat-campaigns',
+  });
+
+  const hits = await lens('builder', '', { stateDir, limit: 10 });
+  assert.equal(hits.some(hit => /portal authentication fix/.test(hit.item.content)), true);
+  assert.equal(hits.some(hit => /campaign sign-in flow/.test(hit.item.content)), true);
+  assert.equal(hits.some(hit => /sunset at the beach/.test(hit.item.content)), false);
+
+  const searched = await lens('builder', 'campaign', { stateDir });
+  assert.match(searched[0].item.content, /campaign sign-in flow/);
 });
 
 test('remembers, retrieves, and exposes provenance locally', async (t) => {
