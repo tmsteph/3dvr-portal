@@ -89,7 +89,7 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(html, /id="leadLocationChoices"/);
   assert.match(html, /OpenStreetMap contributors/);
   assert.doesNotMatch(html, /id="leadLocation" value="San Diego, CA"/);
-  assert.match(js, /scopeKey=gmail-send/);
+  assert.match(js, /scopeKey=mail/);
   assert.match(js, /action=sendmail/);
   assert.match(js, /allowSmtpFallback:\s*false/);
   assert.match(js, /provider=lead-finder/);
@@ -102,6 +102,10 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(js, /createBrowserLeadVaultSync/);
   assert.match(js, /createBrowserCampaignCrmBridge/);
   assert.match(js, /campaignCrmBridge\.recordSend/);
+  assert.match(js, /campaignCrmBridge\?\.recordInboxEvent/);
+  assert.match(js, /syncCampaignInbox/);
+  assert.match(js, /action=listmail/);
+  assert.match(js, /Gmail · send \+ watch/);
   assert.match(js, /CRM · synced/);
   assert.match(js, /reconnecting secure sync/);
   assert.match(js, /addEventListener\('online'/);
