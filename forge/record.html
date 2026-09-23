@@ -35,8 +35,8 @@
 <body>
   <main class="record-shell">
     <nav class="record-nav" aria-label="Forge item navigation">
-      <a href="/forge/">← Forge</a>
-      <a href="/operator/">Operator</a>
+      <a href="/operator/" data-return-operator>← Operator</a>
+      <a href="/forge/" data-forge-home>Forge</a>
       <a href="/">Portal</a>
     </nav>
 
@@ -72,6 +72,7 @@
     </article>
   </main>
 
+  <script type="module" src="return-to-operator.js"></script>
   <script type="module" src="record.js"></script>
   <script defer src="/issue-launcher.js"></script>
 </body>
