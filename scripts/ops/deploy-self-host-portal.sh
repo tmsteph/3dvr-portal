@@ -405,10 +405,17 @@ set +a
 
 public_portal_ready() {
   local url="$1"
-  local health operator_html options private_status
+  local health operator_html options private_status homepage_hash expected_homepage_hash
   health="$(curl -fsS --max-time 5 "$url/__3dvr-health" 2>/dev/null || true)"
   [ -n "$health" ] || return 1
   printf '%s' "$health" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const x=JSON.parse(s);if(!x.ok||x.sha!==process.argv[1]||x.operatorApi!=="native")process.exit(1)}catch{process.exit(1)}})' "$sha" || return 1
+
+  # Health can be routed to self-host while the public root is still an older
+  # Vercel/static release. Verify the actual homepage artifact, not just API health.
+  homepage_hash="$(curl -fsS --max-time 5 "$url/" 2>/dev/null | sha256sum | awk '{print $1}' || true)"
+  expected_homepage_hash="$(sha256sum "$current/index.html" | awk '{print $1}')"
+  [ -n "$homepage_hash" ] && [ "$homepage_hash" = "$expected_homepage_hash" ] || return 1
+
   operator_html="$(curl -fsS --max-time 5 "$url/operator/" 2>/dev/null || true)"
   [[ "$operator_html" == *'Message your operator'* ]] || return 1
   options="$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}' -X OPTIONS "$url/api/openai-site?provider=operator" 2>/dev/null || true)"
