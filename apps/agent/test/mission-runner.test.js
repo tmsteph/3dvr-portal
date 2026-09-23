@@ -11,7 +11,7 @@ const { redact, workerResult } = require('../thomas-agent/node/mission-evidence'
 const { assertAllowedFiles } = require('../thomas-agent/node/mission-git');
 const { approve, createApproval, matchesApproval } = require('../thomas-agent/node/mission-approvals');
 const { compareBaseline } = require('../thomas-agent/node/mission-baseline');
-const { loadMission, parseArgs, runMission } = require('../thomas-agent/node/mission-runner');
+const { loadMission, parseArgs, recordMissionLifeEvent, runMission } = require('../thomas-agent/node/mission-runner');
 
 async function temp() { return fs.mkdtemp(path.join(os.tmpdir(), '3dvr-mission-')); }
 
@@ -68,6 +68,40 @@ test('baseline helper compares the same command without mislabeling a feature fa
   const feature = await temp(); const baseline = await temp();
   const result = await compareBaseline({ command: ['node', '-e', 'process.exit(1)'], featureCwd: feature, baselineCwd: baseline });
   assert.equal(result.classification, 'baseline_or_environment');
+});
+
+
+test('mission milestones publish builder life events but simulations stay quiet', async () => {
+  const events = [];
+  const recordLifeEventImpl = async (content, options) => {
+    events.push({ content, options });
+    return { id: 'evt-mission' };
+  };
+  const mission = { missionId: 'build-the-future' };
+  const task = { id: 'ship-organism', backend: 'codex' };
+
+  await recordMissionLifeEvent(
+    mission,
+    task,
+    'task.completed',
+    'Mission build-the-future completed task ship-organism.',
+    { recordLifeEventImpl },
+  );
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].options.kind, 'task.completed');
+  assert.equal(events[0].options.sourceType, 'mission-task');
+  assert.equal(events[0].options.sourceId, 'build-the-future:ship-organism');
+  assert.equal(events[0].options.tags.includes('builder'), true);
+
+  await recordMissionLifeEvent(
+    mission,
+    task,
+    'task.completed',
+    'Simulated completion.',
+    { recordLifeEventImpl, simulate: true },
+  );
+  assert.equal(events.length, 1);
 });
 
 test('simulation persists state, events, and readable status, then stops at merge approval', async () => {
