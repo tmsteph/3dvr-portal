@@ -100,12 +100,14 @@
         placeholder="Example: Make the hero bolder, add testimonials, and simplify the pricing section.">
       <label for="builder-model">Model</label>
       <select id="builder-model">
-        <option value="gpt-4o-mini">GPT-4o mini - fastest</option>
-        <option value="gpt-4.1-mini" selected>GPT-4.1 mini - balanced default</option>
-        <option value="gpt-5.4-mini">GPT-5.4 mini - newer small model</option>
-        <option value="gpt-5.4">GPT-5.4 - latest</option>
+        <option value="gpt-6-luna" selected>GPT-6 Luna - efficient default</option>
+        <option value="gpt-6-sol">GPT-6 Sol - deeper work</option>
+        <option value="gpt-4o-mini">GPT-4o mini - legacy fast</option>
+        <option value="gpt-4.1-mini">GPT-4.1 mini - legacy balanced</option>
+        <option value="gpt-5.4-mini">GPT-5.4 mini - legacy small</option>
+        <option value="gpt-5.4">GPT-5.4 - legacy full</option>
       </select>
-      <p class="meta">GPT-4.1 mini stays the default. GPT-5.4 options can take longer but may design better.</p>
+      <p class="meta">Luna is the default for low-cost everyday generation. Choose Sol when a page needs deeper reasoning.</p>
 
       <div class="button-row">
         <button id="generate" class="primary">Draft Website</button>
