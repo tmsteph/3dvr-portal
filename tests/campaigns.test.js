@@ -67,8 +67,8 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(html, /Import CSV/);
   assert.match(html, /Suppression list/);
   assert.match(html, /Send test to myself/);
-  assert.match(html, /AI CUSTOMER FINDER/);
-  assert.match(html, /Find customers/);
+  assert.match(html, /REPLY-FIRST OUTREACH/);
+  assert.match(html, /Start a conversation/);
   assert.doesNotMatch(html, /Nothing is required/);
   assert.doesNotMatch(html, /Review the evidence/);
   assert.doesNotMatch(html, /Contact &amp; follow up/);
@@ -82,7 +82,7 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(html, /<details class="card manual-customers">/);
   assert.doesNotMatch(html, /<details class="card manual-customers"[^>]*\sopen(?:\s|>)/);
   assert.match(html, /Existing customers \/ manual list/);
-  assert.match(html, /Prepare outreach/);
+  assert.match(html, /Prepare one message/);
   assert.match(html, /Location <span class="muted">\(optional\)<\/span>/);
   assert.match(html, /City, state, or ZIP/);
   assert.match(html, /id="leadLocationStatus"/);
@@ -95,6 +95,8 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(js, /provider=lead-finder/);
   assert.match(js, /campaignDraft/);
   assert.match(js, /addSelectedLeads/);
+  assert.match(js, /draftSubject/);
+  assert.match(js, /draftBody/);
   assert.match(js, /DAILY_CAP = 25/);
   assert.match(html, /id="leadVaultSyncStatus"/);
   assert.match(html, /gun\/gun\.js/);
