@@ -131,6 +131,137 @@ async function readUpstreamError(response) {
   }
 }
 
+function setOperatorStreamHeaders(res) {
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+}
+
+function writeOperatorStreamEvent(res, event, payload) {
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+function createOperatorUpstreamParser(onEvent) {
+  let buffer = '';
+
+  const consume = block => {
+    const lines = String(block || '').replace(/\r/g, '').split('\n');
+    let event = 'message';
+    const data = [];
+
+    for (const line of lines) {
+      if (!line || line.startsWith(':')) continue;
+      if (line.startsWith('event:')) {
+        event = line.slice(6).trim() || 'message';
+        continue;
+      }
+      if (line.startsWith('data:')) data.push(line.slice(5).trimStart());
+    }
+
+    const raw = data.join('\n');
+    if (!raw || raw === '[DONE]') return;
+
+    let parsed = raw;
+    try { parsed = JSON.parse(raw); } catch {}
+    onEvent({ event, data: parsed });
+  };
+
+  return {
+    push(chunk) {
+      buffer += String(chunk || '').replace(/\r\n/g, '\n').replace(/\r/g, '');
+      let split = buffer.indexOf('\n\n');
+      while (split >= 0) {
+        consume(buffer.slice(0, split));
+        buffer = buffer.slice(split + 2);
+        split = buffer.indexOf('\n\n');
+      }
+    },
+    flush() {
+      if (buffer.trim()) consume(buffer);
+      buffer = '';
+    }
+  };
+}
+
+async function consumeOperatorUpstreamStream(stream, onEvent) {
+  if (!stream?.getReader) throw new Error('The upstream model did not provide a readable stream.');
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  const parser = createOperatorUpstreamParser(onEvent);
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    parser.push(decoder.decode(value, { stream: true }));
+  }
+
+  parser.push(decoder.decode());
+  parser.flush();
+}
+
+export function extractOperatorReplyPrefix(raw = '') {
+  const source = String(raw || '');
+  const keyIndex = source.indexOf('"reply"');
+  if (keyIndex < 0) return '';
+
+  const colonIndex = source.indexOf(':', keyIndex + 7);
+  if (colonIndex < 0) return '';
+
+  let index = colonIndex + 1;
+  while (/\s/.test(source[index] || '')) index += 1;
+  if (source[index] !== '"') return '';
+  index += 1;
+
+  let output = '';
+  while (index < source.length) {
+    const char = source[index];
+    if (char === '"') return output;
+
+    if (char !== '\\') {
+      output += char;
+      index += 1;
+      continue;
+    }
+
+    if (index + 1 >= source.length) break;
+    const escape = source[index + 1];
+    const simple = {
+      '"': '"',
+      '\\': '\\',
+      '/': '/',
+      b: '\b',
+      f: '\f',
+      n: '\n',
+      r: '\r',
+      t: '\t'
+    };
+
+    if (escape === 'u') {
+      const hex = source.slice(index + 2, index + 6);
+      if (hex.length < 4 || !/^[0-9a-f]{4}$/i.test(hex)) break;
+      output += String.fromCharCode(parseInt(hex, 16));
+      index += 6;
+      continue;
+    }
+
+    if (!(escape in simple)) break;
+    output += simple[escape];
+    index += 2;
+  }
+
+  return output;
+}
+
+function operatorDeveloperAccessPayload(developerAccess = {}) {
+  return {
+    authenticated: developerAccess.authenticated,
+    approved: developerAccess.approved,
+    role: developerAccess.role,
+    permissions: developerAccess.permissions
+  };
+}
+
 export function buildOperatorRequest({ prompt, images = [], history = [], portalContext = null, developerAccess = null, model = DEFAULT_OPERATOR_MODEL }) {
   const messages = (Array.isArray(history) ? history : []).slice(-10).map(item => ({
     role: item?.role === 'assistant' ? 'assistant' : 'user', content: clean(item?.content, 1200)
@@ -289,28 +420,100 @@ export function createOperatorHandler(options = {}) {
         images: req.body?.images,
         useGateway
       });
-      const response = await fetchImpl(requestEndpoint, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authorizationToken}` },
-        body: JSON.stringify(buildOperatorRequest({
-          prompt,
-          images: req.body?.images,
-          history: req.body?.history,
-          portalContext: req.body?.portalContext,
-          developerAccess,
-          model
-        }))
+      const wantsStream = req.body?.stream === true;
+      const requestBody = buildOperatorRequest({
+        prompt,
+        images: req.body?.images,
+        history: req.body?.history,
+        portalContext: req.body?.portalContext,
+        developerAccess,
+        model
       });
-      if (!response.ok) return res.status(response.status).json({ error: await readUpstreamError(response) });
+      if (wantsStream) requestBody.stream = true;
+
+      const response = await fetchImpl(requestEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authorizationToken}` },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const message = await readUpstreamError(response);
+        return res.status(response.status).json({ error: message });
+      }
+
+      if (wantsStream) {
+        setOperatorStreamHeaders(res);
+        res.flushHeaders?.();
+        writeOperatorStreamEvent(res, 'status', { message: 'Operator is thinking…' });
+        let raw = '';
+        let streamedReply = '';
+        let upstreamError = '';
+
+        try {
+          await consumeOperatorUpstreamStream(response.body, ({ event, data }) => {
+            const type = data?.type || event;
+
+            if (type === 'response.output_text.delta') {
+              const delta = typeof data?.delta === 'string' ? data.delta : '';
+              if (!delta) return;
+              raw += delta;
+              const reply = extractOperatorReplyPrefix(raw);
+              if (reply.startsWith(streamedReply) && reply.length > streamedReply.length) {
+                writeOperatorStreamEvent(res, 'reply_delta', {
+                  delta: reply.slice(streamedReply.length)
+                });
+                streamedReply = reply;
+              }
+              return;
+            }
+
+            if (type === 'response.output_text.done' && typeof data?.text === 'string') {
+              raw = data.text;
+              return;
+            }
+
+            if (type === 'response.completed') {
+              const completedRaw = outputText(data?.response || {});
+              if (completedRaw) raw = completedRaw;
+              return;
+            }
+
+            if (type === 'response.failed' || type === 'error') {
+              upstreamError = data?.response?.error?.message
+                || data?.error?.message
+                || data?.message
+                || 'The operator stream failed.';
+            }
+          });
+
+          if (upstreamError) throw new Error(upstreamError);
+          if (!raw) throw new Error('The operator returned an empty response.');
+
+          const result = reconcileOperatorCodeAction(
+            normalizeOperatorResult(JSON.parse(raw)),
+            developerAccess,
+            prompt
+          );
+
+          writeOperatorStreamEvent(res, 'result', {
+            ...result,
+            developerAccess: operatorDeveloperAccessPayload(developerAccess)
+          });
+        } catch (error) {
+          writeOperatorStreamEvent(res, 'error', {
+            message: error?.message || 'The operator stream failed.'
+          });
+        }
+
+        return res.end();
+      }
+
       const raw = outputText(await response.json());
       const result = reconcileOperatorCodeAction(normalizeOperatorResult(JSON.parse(raw)), developerAccess, prompt);
       return res.status(200).json({
         ...result,
-        developerAccess: {
-          authenticated: developerAccess.authenticated,
-          approved: developerAccess.approved,
-          role: developerAccess.role,
-          permissions: developerAccess.permissions
-        }
+        developerAccess: operatorDeveloperAccessPayload(developerAccess)
       });
     } catch (error) { return res.status(500).json({ error: error.message || 'The operator could not respond.' }); }
   };

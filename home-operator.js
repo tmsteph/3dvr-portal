@@ -1,6 +1,7 @@
 import { runOperatorAction } from './operator/actions.js';
 import { collectPortalContext } from './operator/portal-context.js';
 import { createOperatorDeveloperProof } from './operator/forge.js';
+import { fetchOperatorStream } from './operator/stream.js';
 
 function aliasToDisplay(alias) {
   const normalized = typeof alias === 'string' ? alias.trim() : '';
@@ -447,11 +448,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
       .filter(Boolean)
   });
 
-  const requestOperator = payload => fetch('/api/openai-site?provider=operator', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
+  const requestOperator = (payload, handlers = {}) => fetchOperatorStream(payload, handlers);
 
   const setBusy = busy => {
     submit.disabled = busy;
@@ -503,9 +500,20 @@ if (form && input && submit && status && result && reply && followUps && actionL
       ]);
       portalContext.page = collectPageContext();
 
-      const response = await requestOperator({ prompt, history: prior, portalContext, developerAuth });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Operator request failed.');
+      let streamedReply = '';
+      const data = await requestOperator(
+        { prompt, history: prior, portalContext, developerAuth },
+        {
+          onStatus: message => {
+            status.textContent = message;
+          },
+          onReplyDelta: delta => {
+            streamedReply += delta;
+            renderResponse({ message: streamedReply });
+            status.textContent = 'Operator is responding…';
+          }
+        }
+      );
 
       let outcome = null;
       if (data.action?.type && data.action.type !== 'none') {

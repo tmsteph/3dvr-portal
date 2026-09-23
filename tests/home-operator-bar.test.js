@@ -24,7 +24,9 @@ test('homepage Operator sends the signed developer proof used by full Operator',
   assert.match(client, /createOperatorDeveloperProof/);
   assert.match(client, /const \[portalContext, developerAuth\] = await Promise\.all/);
   assert.match(client, /createOperatorDeveloperProof\(\)/);
-  assert.match(client, /requestOperator\(\{ prompt, history: prior, portalContext, developerAuth \}\)/);
+  assert.match(client, /fetchOperatorStream/);
+  assert.match(client, /onReplyDelta/);
+  assert.match(client, /streamedReply \+= delta/);
   assert.match(client, /runOperatorAction\(data\.action, \{ developerAccess: data\.developerAccess \}\)/);
 });
 
