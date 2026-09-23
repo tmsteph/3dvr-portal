@@ -101,6 +101,7 @@ export function buildOperatorDelegatedTask(action = {}, options = {}) {
     riskClass: 'draft',
     approvalStatus: 'not_required',
     requiredCapabilities: 'auto',
+    maxRuntimeMs: 120_000,
     requestedBy: 'portal-operator',
     workerLane: 'general'
   });

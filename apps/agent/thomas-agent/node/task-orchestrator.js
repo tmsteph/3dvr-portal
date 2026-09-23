@@ -126,9 +126,9 @@ function classifyTask(task) {
   const text = normalizeText(task);
   const requestedActions = riskScanText(text);
   return {
-    kind: CODE_PATTERN.test(text) ? 'code' : SALES_PATTERN.test(text) ? 'sales' : 'general',
+    kind: CODE_PATTERN.test(requestedActions) ? 'code' : SALES_PATTERN.test(requestedActions) ? 'sales' : 'general',
     highRisk: HIGH_RISK_PATTERN.test(requestedActions),
-    needsTools: /\b(browser|website|gmail|calendar|file|terminal|shell|server|digital ocean|vps|deploy|repo|github)\b/i.test(text),
+    needsTools: /\b(browser|website|gmail|calendar|file|terminal|shell|server|digital ocean|vps|deploy|repo|github)\b/i.test(requestedActions),
   };
 }
 

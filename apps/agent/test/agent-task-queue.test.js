@@ -87,12 +87,17 @@ test('enqueueFlushMs keeps in-memory tests instant and gives relay writes a grac
   assert.equal(enqueueFlushMs({ enqueueFlushMs: 750 }), 750);
 });
 
-test('buildTaskArgs includes execute and only passes unsafe when requested', () => {
+test('buildTaskArgs includes execute, task runtime bounds, and only passes unsafe when requested', () => {
   assert.deepEqual(buildTaskArgs({
     task: 'Fix tests',
     backend: 'codex',
     unsafe: false,
   }), ['--backend', 'codex', '--execute', '--no-print-prompt', 'Fix tests']);
+  assert.deepEqual(buildTaskArgs({
+    task: 'Summarize safely',
+    backend: 'auto',
+    maxRuntimeMs: 120000,
+  }), ['--backend', 'auto', '--execute', '--no-print-prompt', '--timeout-ms', '120000', 'Summarize safely']);
   assert.deepEqual(buildTaskArgs({
     task: 'Deploy',
     backend: 'shell',

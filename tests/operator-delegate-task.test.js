@@ -39,6 +39,7 @@ test('delegated tasks enter the shared runtime as low-risk draft work', () => {
   assert.equal(built.record.backend, 'auto');
   assert.equal(built.record.riskClass, 'draft');
   assert.equal(built.record.approvalStatus, 'not_required');
+  assert.equal(built.record.maxRuntimeMs, 120_000);
   assert.equal(built.record.runtimeWorkflow, 'operator-delegated-task');
   assert.equal(built.record.workerLane, 'general');
   assert.match(built.record.task, /Do not send messages, spend money/);
