@@ -812,7 +812,6 @@ async function startCampaignInboxWatch() {
     console.warn('Campaign inbox watch failed', error);
   }
   window.setInterval(() => {
-    if (document.visibilityState === 'hidden') return;
     syncCampaignInbox().catch(error => console.warn('Campaign inbox watch failed', error));
   }, 5 * 60 * 1000);
 }
