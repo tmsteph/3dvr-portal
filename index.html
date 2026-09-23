@@ -139,7 +139,11 @@
       padding: 42px 0 80px;
     }
 
-    .home { width: 100%; }
+    .home {
+      width: 100%;
+      max-width: 640px;
+      margin: 0 auto;
+    }
 
     .home-mark {
       width: 72px;
@@ -158,10 +162,11 @@
     }
 
     h1 {
-      margin: 0;
-      font-size: clamp(2rem, 9vw, 4.5rem);
-      line-height: 0.98;
-      letter-spacing: -0.055em;
+      margin: 0 0 22px;
+      font-size: clamp(2rem, 7vw, 3.35rem);
+      line-height: 1;
+      letter-spacing: -0.05em;
+      text-align: center;
     }
 
     .operator-link.operator-bar {
@@ -220,8 +225,6 @@
     .operator-bar button:focus-visible { background: #388bfd; outline: none; }
     .operator-bar button:disabled { opacity: 0.55; cursor: progress; }
 
-    .operator-hint { margin: 9px 4px 0; color: #8b949e; font-size: 0.84rem; line-height: 1.45; }
-    .operator-hint strong { color: #c9d1d9; }
     .operator-status { margin: 8px 4px 0; color: #6e7681; font-size: 0.78rem; }
     .operator-status:empty { display: none; }
 
