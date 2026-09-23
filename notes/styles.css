@@ -1,19 +1,29 @@
 :root {
-  --notes-bg: #f6f4ee;
-  --notes-panel: #fffdf8;
-  --notes-panel-strong: #ffffff;
-  --notes-line: #ded9ce;
-  --notes-ink: #232a27;
-  --notes-muted: #6f756f;
-  --notes-soft: #ebe7dc;
-  --notes-accent: #2f6f58;
-  --notes-accent-strong: #1f513f;
-  --notes-warn: #8f5a17;
+  color-scheme: dark;
+  --notes-bg: #101613;
+  --notes-panel: #151d19;
+  --notes-panel-strong: #1a2420;
+  --notes-line: #2b3932;
+  --notes-ink: #e5ece8;
+  --notes-muted: #95a39b;
+  --notes-soft: #202b26;
+  --notes-accent: #5c9f83;
+  --notes-accent-strong: #72b698;
+  --notes-warn: #d7aa62;
 }
 
 body.notes-page {
+  --bg-panel: var(--notes-panel-strong);
+  --text-primary: var(--notes-ink);
+  --text-muted: var(--notes-muted);
+  --accent: var(--notes-accent);
   background: var(--notes-bg);
   color: var(--notes-ink);
+}
+
+body.notes-page .install-banner {
+  border-color: var(--notes-line);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.24);
 }
 
 body.notes-page .notes-shell {
@@ -21,14 +31,14 @@ body.notes-page .notes-shell {
 }
 
 body.notes-page .notes-sidebar {
-  background: #efebe2;
+  background: #131c18;
   border-right-color: var(--notes-line);
 }
 
 body.notes-page .notes-editor {
   min-width: 0;
   background:
-    linear-gradient(180deg, rgba(255, 253, 248, 0.94), rgba(246, 244, 238, 0.96)),
+    linear-gradient(180deg, rgba(20, 29, 25, 0.97), rgba(14, 20, 17, 0.99)),
     var(--notes-bg);
 }
 
@@ -61,7 +71,7 @@ body.notes-page .notes-actionbar {
   gap: 16px;
   min-height: 64px;
   padding: 12px 24px;
-  background: rgba(255, 253, 248, 0.92);
+  background: rgba(18, 26, 22, 0.94);
   border-bottom: 1px solid var(--notes-line);
   backdrop-filter: blur(14px);
 }
@@ -108,7 +118,7 @@ body.notes-page .notes-save-status {
   border: 1px solid var(--notes-line);
   border-radius: 8px;
   color: var(--notes-muted);
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(28, 39, 34, 0.82);
   font-size: 0.78rem;
   font-weight: 700;
 }
@@ -116,7 +126,7 @@ body.notes-page .notes-save-status {
 body.notes-page .notes-sync-status[data-state="offline"] {
   color: var(--notes-warn);
   border-color: rgba(143, 90, 23, 0.28);
-  background: rgba(255, 247, 229, 0.88);
+  background: rgba(73, 52, 24, 0.48);
 }
 
 body.notes-page .primary-button,
@@ -131,7 +141,7 @@ body.notes-page .secondary-button {
 
 body.notes-page .primary-button {
   background: var(--notes-accent);
-  color: #ffffff;
+  color: #f4faf7;
 }
 
 body.notes-page .primary-button:hover {
@@ -139,7 +149,7 @@ body.notes-page .primary-button:hover {
 }
 
 body.notes-page .secondary-button {
-  background: #ffffff;
+  background: var(--notes-panel-strong);
   color: var(--notes-ink);
   border-color: var(--notes-line);
   cursor: pointer;
@@ -168,8 +178,8 @@ body.notes-page .folder-name {
 
 body.notes-page .folder-item.active,
 body.notes-page .note-item.active {
-  background: #dfece4;
-  box-shadow: inset 0 0 0 1px rgba(47, 111, 88, 0.24);
+  background: #22342c;
+  box-shadow: inset 0 0 0 1px rgba(92, 159, 131, 0.34);
 }
 
 body.notes-page .editor-wrapper {
@@ -213,8 +223,8 @@ body.notes-page .empty-state {
   padding: 34px;
   border: 1px solid var(--notes-line);
   border-radius: 8px;
-  background: rgba(255, 253, 248, 0.82);
-  box-shadow: 0 18px 60px rgba(39, 33, 23, 0.08);
+  background: rgba(21, 29, 25, 0.9);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
 }
 
 body.notes-page .empty-state h2 {
@@ -242,7 +252,7 @@ body.notes-page .quick-capture {
   gap: 16px;
   padding: 14px 24px;
   border-bottom: 1px solid var(--notes-line);
-  background: rgba(246, 244, 238, 0.86);
+  background: rgba(17, 24, 20, 0.9);
 }
 
 body.notes-page .quick-capture__copy {
@@ -276,8 +286,9 @@ body.notes-page .quick-capture__form input {
   padding: 8px 12px;
   border: 1px solid var(--notes-line);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--notes-panel-strong);
   color: var(--notes-ink);
+  caret-color: var(--notes-accent-strong);
   font: inherit;
 }
 
@@ -291,6 +302,94 @@ body.notes-page .editor-wrapper {
   flex: 1;
   min-height: 0;
   height: auto;
+}
+
+body.notes-page .workspace-label,
+body.notes-page .note-item-meta,
+body.notes-page .note-meta,
+body.notes-page .slash-hint,
+body.notes-page .slash-option-description,
+body.notes-page .notes-list.empty::before {
+  color: var(--notes-muted);
+}
+
+body.notes-page .workspace-title,
+body.notes-page .section-heading,
+body.notes-page .note-item-title,
+body.notes-page .folder-name,
+body.notes-page .note-content,
+body.notes-page .slash-option-label {
+  color: var(--notes-ink);
+}
+
+body.notes-page .sidebar-input,
+body.notes-page .sidebar-toggle,
+body.notes-page .secondary-button,
+body.notes-page .note-toolbar,
+body.notes-page .slash-menu {
+  background: var(--notes-panel-strong);
+  color: var(--notes-ink);
+  border-color: var(--notes-line);
+}
+
+body.notes-page .sidebar-input::placeholder,
+body.notes-page .quick-capture__form input::placeholder,
+body.notes-page .note-title:empty::before,
+body.notes-page .note-content:empty::before {
+  color: #718078;
+}
+
+body.notes-page .sidebar-input:focus {
+  outline: 2px solid rgba(92, 159, 131, 0.22);
+  border-color: var(--notes-accent);
+}
+
+body.notes-page .icon-button,
+body.notes-page .icon-button.subtle {
+  color: var(--notes-muted);
+}
+
+body.notes-page .icon-button:hover,
+body.notes-page .folder-item:hover,
+body.notes-page .note-item:hover,
+body.notes-page .secondary-button:hover {
+  background: var(--notes-soft);
+}
+
+body.notes-page .primary-button[disabled] {
+  background: #26312c;
+  color: #66736c;
+}
+
+body.notes-page .note-toolbar {
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+}
+
+body.notes-page .note-toolbar .toolbar-divider,
+body.notes-page .note-content .note-divider,
+body.notes-page .note-content hr {
+  background: var(--notes-line);
+}
+
+body.notes-page .note-content blockquote {
+  border-left-color: var(--notes-accent);
+  color: #b5c1ba;
+}
+
+body.notes-page .note-content figure.note-image-block figcaption {
+  color: var(--notes-muted);
+}
+
+body.notes-page .slash-menu {
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.34);
+}
+
+body.notes-page #slash-options li.active {
+  background: #22342c;
+}
+
+body.notes-page #slash-options li.empty {
+  color: var(--notes-muted);
 }
 
 @media (max-width: 900px) {
