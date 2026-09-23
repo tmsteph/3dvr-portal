@@ -55,31 +55,38 @@ jobs:
           set -euo pipefail
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
-          cd "$tmp"
-          npx --yes vercel@59.11.7 link --yes --project 3dvr-portal --scope 3dvr >/dev/null
-          npx --yes vercel@59.11.7 env pull "$tmp/production.env" --yes --environment=production --scope 3dvr >/dev/null
           target="$HOME/.3dvr/config/portal-secrets.env"
           mkdir -p "$(dirname "$target")"
           chmod 700 "$(dirname "$target")"
           touch "$target"
           chmod 600 "$target"
-          next="$(mktemp)"
-          cp "$target" "$next"
-          count=0
-          while IFS= read -r line; do
-            [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || continue
-            key="${line%%=*}"
-            case "$key" in
-              VERCEL_*|CI) continue ;;
-            esac
-            grep -v "^${key}=" "$next" > "${next}.filtered" || true
-            mv "${next}.filtered" "$next"
-            printf '%s\n' "$line" >> "$next"
-            count=$((count + 1))
-          done < "$tmp/production.env"
-          mv "$next" "$target"
-          chmod 600 "$target"
-          echo "Migrated $count production environment keys without printing secret values."
+          total=0
+          for scope in tmstephs-projects 3dvr; do
+            work="$tmp/$scope"
+            mkdir -p "$work"
+            cd "$work"
+            npx --yes vercel@59.11.7 link --yes --project 3dvr-portal --scope "$scope" >/dev/null
+            npx --yes vercel@59.11.7 env pull "$work/production.env" --yes --environment=production --scope "$scope" >/dev/null
+            next="$(mktemp)"
+            cp "$target" "$next"
+            count=0
+            while IFS= read -r line; do
+              [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || continue
+              key="${line%%=*}"
+              case "$key" in
+                VERCEL_*|CI) continue ;;
+              esac
+              grep -v "^${key}=" "$next" > "${next}.filtered" || true
+              mv "${next}.filtered" "$next"
+              printf '%s\n' "$line" >> "$next"
+              count=$((count + 1))
+            done < "$work/production.env"
+            mv "$next" "$target"
+            chmod 600 "$target"
+            total=$((total + count))
+            echo "Migrated $count production environment keys from $scope without printing secret values."
+          done
+          echo "Merged $total Vercel production environment entries into self-host secrets."
           sudo -n systemctl restart 3dvr-portal.service
           sleep 2
           curl -fsS http://127.0.0.1:4320/api/trial | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);console.log(JSON.stringify({stripeConfigured:x.stripeConfigured,priceConfigured:x.priceConfigured,mailConfigured:x.mailConfigured}))})'
