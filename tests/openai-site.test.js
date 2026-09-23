@@ -569,6 +569,58 @@ test('lead finder uses its Vercel AI Gateway path before generic self-host fallb
   assert.equal(calls[0].model, 'inclusionai/ling-3.0-flash-vl-free');
 });
 
+test('self-host route dispatches Operator after the fallback check when a local OpenAI key exists', async () => {
+  const final = {
+    reply: 'Operator stream works.',
+    suggestions: ['Keep testing'],
+    action: {
+      type: 'none',
+      title: '',
+      text: '',
+      business: '',
+      location: '',
+      url: '',
+      repo: ''
+    }
+  };
+  const raw = JSON.stringify(final);
+  let requestBody = null;
+
+  const handler = createOpenAiSiteRouter({
+    apiKey: 'sk-test',
+    fetchImpl: async (_url, options = {}) => {
+      requestBody = JSON.parse(options.body || '{}');
+      return createSseResponse([
+        `event: response.output_text.delta\ndata: ${JSON.stringify({ type: 'response.output_text.delta', delta: raw })}\n\n`,
+        `event: response.completed\ndata: ${JSON.stringify({
+          type: 'response.completed',
+          response: {
+            output: [{
+              type: 'message',
+              content: [{ type: 'output_text', text: raw }]
+            }]
+          }
+        })}\n\n`
+      ]);
+    }
+  });
+
+  const res = createStreamingRes();
+  await handler({
+    method: 'POST',
+    url: '/api/openai-site?provider=operator',
+    query: { provider: 'operator' },
+    headers: { host: 'self-host.test' },
+    body: { operator: true, prompt: 'Test Operator.', stream: true }
+  }, res);
+
+  const events = parseSsePayload(res.body);
+  assert.equal(requestBody.stream, true);
+  assert.equal(events[0].event, 'status');
+  assert.equal(events.at(-1).event, 'result');
+  assert.equal(events.at(-1).data.reply, 'Operator stream works.');
+});
+
 test('operator streaming uses self-host fallback and preserves SSE', async () => {
   const calls = [];
   const handler = createOpenAiSiteRouter({
