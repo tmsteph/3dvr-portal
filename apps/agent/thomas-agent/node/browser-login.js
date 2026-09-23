@@ -232,7 +232,8 @@ async function pageState(session) {
     text: (document.body?.innerText || '').slice(0, 5000),
     passwordCount: document.querySelectorAll('input[type="password"]').length,
     emailCount: document.querySelectorAll('input[type="email"]').length,
-    visibleInputCount: [...document.querySelectorAll('input')].filter(i => i.type !== 'hidden' && !i.disabled).length
+    visibleInputCount: [...document.querySelectorAll('input')].filter(i => i.type !== 'hidden' && !i.disabled).length,
+    portalSignedIn: localStorage.getItem('signedIn') === 'true'
   }))()`);
 }
 
@@ -279,7 +280,9 @@ function classifyState(site, config, state) {
   const host = pageHost(state);
   if (!config.hosts.includes(host)) return { status: 'human_required', reason: 'external-sso' };
   if (site === 'portal') {
-    if (!/sign-in\.html/i.test(String(state?.url || '')) && !state.passwordCount) return { status: 'authenticated' };
+    if (state?.portalSignedIn && !/sign-in\.html/i.test(String(state?.url || '')) && !state.passwordCount) {
+      return { status: 'authenticated' };
+    }
     if (LOGIN_ERROR.test(text)) return { status: 'login_failed', reason: 'provider-rejected-login' };
     return { status: 'login_required' };
   }
@@ -338,6 +341,13 @@ async function runLogin(broker, agent, site) {
     let state = await pageState(session);
     let classification = classifyState(site, config, state);
     if (classification.status === 'authenticated') return { status: 200, body: { ok: true, site, ...classification, url: state.url } };
+
+    if (site === 'portal' && !/sign-in\.html/i.test(String(state?.url || ''))) {
+      await session.call('Page.navigate', { url: config.startUrl });
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      state = await pageState(session);
+      classification = classifyState(site, config, state);
+    }
 
     if (site === 'ukg' && /postlogout\.aspx/i.test(String(state?.url || ''))) {
       await session.call('Page.navigate', { url: config.startUrl });
