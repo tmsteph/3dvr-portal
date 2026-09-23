@@ -569,6 +569,71 @@ test('lead finder uses its Vercel AI Gateway path before generic self-host fallb
   assert.equal(calls[0].model, 'inclusionai/ling-3.0-flash-vl-free');
 });
 
+test('operator streaming bypasses the generic self-host fallback', async () => {
+  let fallbackCalls = 0;
+  let operatorUrl = '';
+  const final = {
+    reply: 'Streaming works.',
+    suggestions: ['Keep testing'],
+    action: {
+      type: 'none',
+      title: '',
+      text: '',
+      business: '',
+      location: '',
+      url: '',
+      repo: ''
+    }
+  };
+  const raw = JSON.stringify(final);
+  const handler = createOpenAiSiteRouter({
+    apiKey: '',
+    selfHostedFallbackOrigin: 'http://self-host.test',
+    fetchImpl: async () => {
+      fallbackCalls += 1;
+      throw new Error('generic fallback should not run for Operator');
+    },
+    operator: {
+      apiKey: '',
+      gatewayToken: 'gateway-test',
+      fetchImpl: async (url, options = {}) => {
+        operatorUrl = String(url);
+        const request = JSON.parse(options.body || '{}');
+        assert.equal(request.stream, true);
+        return createSseResponse([
+          `event: response.output_text.delta\ndata: ${JSON.stringify({ type: 'response.output_text.delta', delta: raw })}\n\n`,
+          `event: response.completed\ndata: ${JSON.stringify({
+            type: 'response.completed',
+            response: {
+              output: [{
+                type: 'message',
+                content: [{ type: 'output_text', text: raw }]
+              }]
+            }
+          })}\n\n`
+        ]);
+      }
+    }
+  });
+
+  const res = createStreamingRes();
+  await handler({
+    method: 'POST',
+    url: '/api/openai-site?provider=operator',
+    query: { provider: 'operator' },
+    headers: { host: 'portal.test' },
+    body: { prompt: 'Test streaming.', stream: true }
+  }, res);
+
+  const events = parseSsePayload(res.body);
+  assert.equal(fallbackCalls, 0);
+  assert.equal(operatorUrl, 'https://ai-gateway.vercel.sh/v1/responses');
+  assert.match(res.headers['Content-Type'], /text\/event-stream/);
+  assert.equal(events[0].event, 'status');
+  assert.equal(events.at(-1).event, 'result');
+  assert.equal(events.at(-1).data.reply, 'Streaming works.');
+});
+
 test('generic site route still uses the self-host AI proxy when no local OpenAI key exists', async () => {
   const calls = [];
   const handler = createOpenAiSiteRouter({
