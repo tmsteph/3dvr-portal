@@ -6,16 +6,6 @@
       "main": false
     }
   },
-  "crons": [
-    {
-      "path": "/api/growth/homepage-hero-cron",
-      "schedule": "43 2 * * *"
-    },
-    {
-      "path": "/api/money/autopilot-cron",
-      "schedule": "17 16 * * 1-5"
-    }
-  ],
   "headers": [
     {
       "source": "/",
@@ -388,16 +378,6 @@
         }
       ],
       "destination": "https://3dvr-portal.vercel.app/api/oauth/:path*"
-    },
-    {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "portal.3dvr.tech"
-        }
-      ],
-      "destination": "http://167.172.193.194/:path*"
     },
     {
       "source": "/api/money/autopilot-cron",
