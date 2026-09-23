@@ -96,6 +96,12 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - Route work through the SSH mesh rather than duplicating a service on the node where an agent happened to start. If no node has safe headroom, queue or postpone the work instead of overloading a server.
 - Preserve authenticated sessions and credentials in place. Never print, log, or copy secrets between servers merely to make routing convenient.
 
+## Production Verification Rule
+- Never declare `portal.3dvr.tech` current from `/__3dvr-health` alone. Vercel DNS/routing can serve a fresh self-host health/API response while `/` still serves stale Vercel HTML.
+- For any public Portal release, verify the actual root document matches the release artifact (the self-host deploy script hashes `/` against the deployed `index.html`).
+- If Vercel fallback is required, deploy only from a clean snapshot of `main`; never from a dirty service checkout.
+- Read `docs/VERCEL-PRODUCTION.md` before changing production routing, DNS, or release behavior.
+
 ## Deployment Topology
 - The repository is an asymmetric monorepo: the Vercel portal remains at the root, the separately deployed Hetzner agent lives in `apps/agent`, and other runtime/platform packages can keep their own deployment boundaries inside the same repository.
 - Keep `apps/agent` excluded from Vercel output. Agent changes use their own dependency install, test workflow, environment, and worker cutover.
