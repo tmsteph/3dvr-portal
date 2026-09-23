@@ -87,10 +87,10 @@ jobs:
                     echo "::warning::$name swap usage remains high at ${swap_pct}%"
                   fi
 
-                  if awk -v load="$load1" -v cpus="$cpus" 'BEGIN { exit !(load > cpus * 2) }'; then
+                  if awk -v load_value="$load1" -v cpu_count="$cpus" 'BEGIN { exit !(load_value > cpu_count * 2) }'; then
                     echo "::error::$name load is critical: ${load1} on ${cpus} CPU(s)"
                     return 2
-                  elif awk -v load="$load1" -v cpus="$cpus" 'BEGIN { exit !(load > cpus) }'; then
+                  elif awk -v load_value="$load1" -v cpu_count="$cpus" 'BEGIN { exit !(load_value > cpu_count) }'; then
                     echo "::warning::$name load is elevated: ${load1} on ${cpus} CPU(s)"
                   fi
 
