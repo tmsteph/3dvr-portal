@@ -43,6 +43,12 @@ Events record remembers, corrections, forgetting, and explicit retrieval approva
 
 This is deliberately simple. Encryption, richer indexing, cross-node sync, and semantic retrieval can be added after the recall/evaluation loop proves useful.
 
+## Life event stream
+
+The organism now separates immutable experience from compiled memory. Raw owner events are appended to `events.jsonl`; only deliberate promotion turns an event into active memory with a stable `life-event:<event-id>` provenance edge.
+
+See [`life-event-stream.md`](life-event-stream.md) for the event schema, CLI, and the design for future/past/builder/father/dreamer **self lenses** over one shared history.
+
 ## Commands
 
 From the monorepo root:
