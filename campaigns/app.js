@@ -13,6 +13,7 @@ import {
 } from '../src/money-printer/campaignBridge.js';
 import {
   markLeadVaultStatus,
+  readLeadVault,
   saveDiscoveredLeads
 } from '../src/money-printer/leadVault.js';
 import { createBrowserLeadVaultSync } from '../src/money-printer/leadVaultSync.js';
@@ -134,6 +135,7 @@ async function initializeLeadVaultAccountSync() {
         setLeadVaultSyncStatus(
           `Lead Vault: synced securely · ${leads.length} lead${leads.length === 1 ? '' : 's'}`
         );
+        updateSummary();
       }
     });
     if (!accountSync.available) {
@@ -516,8 +518,15 @@ function recentSendEvents(now = Date.now()) {
   writeJson(STORAGE.sentEvents, recent);
   return recent;
 }
+function recentSyncedSendCount(now = Date.now()) {
+  const cutoff = now - (24 * 60 * 60 * 1000);
+  return readLeadVault().filter(lead => {
+    const sentAt = Date.parse(String(lead?.sentAt || ''));
+    return Number.isFinite(sentAt) && sentAt >= cutoff && sentAt <= now + 60_000;
+  }).length;
+}
 function sentToday() {
-  return recentSendEvents().length;
+  return Math.max(recentSendEvents().length, recentSyncedSendCount());
 }
 function incrementSent() {
   const events = recentSendEvents();
@@ -732,6 +741,14 @@ async function runCampaign(event) {
     const recipient = batch[index];
     setProgress(index, batch.length, `Sending ${index + 1} of ${batch.length} to ${recipient.email}…`);
     try {
+      saveDiscoveredLeads({
+        leads: [recipient],
+        offer: elements.leadDescription.value,
+        campaignDraft: {
+          subject: subjectFor(recipient),
+          body: elements.message.value
+        }
+      });
       queueCampaignLeads({
         leads: [recipient],
         subject: subjectFor(recipient),
