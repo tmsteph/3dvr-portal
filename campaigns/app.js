@@ -11,6 +11,7 @@ import {
   markCampaignLeadStatus,
   queueCampaignLeads
 } from '../src/money-printer/campaignBridge.js';
+import { createBrowserCampaignCrmBridge } from '../src/money-printer/campaignCrmBridge.js';
 import {
   markLeadVaultStatus,
   readLeadVault,
@@ -53,6 +54,8 @@ const elements = {
   leadLocationStatus: $('leadLocationStatus'), leadLocationChoices: $('leadLocationChoices'),
   leadResults: $('leadResults'), leadActions: $('leadActions'), addLeads: $('addLeads'),
   leadVaultSyncStatus: $('leadVaultSyncStatus'),
+  integrationGmail: $('integrationGmail'), integrationLeadVault: $('integrationLeadVault'),
+  integrationMoneyPrinter: $('integrationMoneyPrinter'), integrationCrm: $('integrationCrm'),
 };
 
 let connection = readJson(STORAGE.connection, null);
@@ -64,6 +67,7 @@ let leadVaultSyncWrites = Promise.resolve();
 let leadVaultSyncRetryTimer = null;
 let leadVaultSyncRetryAttempt = 0;
 let leadVaultSyncInitializing = false;
+let campaignCrmBridge = null;
 let chosenManualLocation = '';
 
 function readJson(key, fallback) {
@@ -101,9 +105,33 @@ function showLeadNotice(message, kind = '') {
   elements.leadNotice.textContent = message;
 }
 
+function setIntegrationPill(element, state, label) {
+  if (!element) return;
+  element.dataset.state = state;
+  element.textContent = label;
+}
+
+function initializeCampaignCrmBridge() {
+  campaignCrmBridge = createBrowserCampaignCrmBridge();
+  setIntegrationPill(
+    elements.integrationCrm,
+    campaignCrmBridge?.available ? 'ok' : 'warn',
+    campaignCrmBridge?.available ? 'CRM · ready' : 'CRM · unavailable'
+  );
+  return campaignCrmBridge;
+}
+
 function setLeadVaultSyncStatus(message) {
   if (elements.leadVaultSyncStatus) {
     elements.leadVaultSyncStatus.textContent = message;
+  }
+  const text = String(message || '');
+  if (/synced securely/i.test(text)) {
+    setIntegrationPill(elements.integrationLeadVault, 'ok', 'Lead Vault · synced');
+  } else if (/checking|syncing|reconnecting/i.test(text)) {
+    setIntegrationPill(elements.integrationLeadVault, 'pending', 'Lead Vault · syncing');
+  } else {
+    setIntegrationPill(elements.integrationLeadVault, 'warn', 'Lead Vault · local');
   }
 }
 
@@ -491,6 +519,11 @@ function updateConnectionUi() {
   elements.disconnect.hidden = !connected;
   elements.sendTest.disabled = !connected || sending;
   elements.sendCampaign.disabled = !connected || sending;
+  setIntegrationPill(
+    elements.integrationGmail,
+    connected ? 'ok' : hasIdentity ? 'warn' : 'off',
+    connected ? 'Gmail · connected' : hasIdentity ? 'Gmail · reconnect' : 'Gmail · off'
+  );
   updateSummary();
 }
 function currentRecipients() {
@@ -769,6 +802,23 @@ async function runCampaign(event) {
       incrementSent();
       markCampaignLeadStatus(recipient.email, 'sent');
       markLeadVaultStatus(recipient.email, 'sent');
+
+      try {
+        if (!campaignCrmBridge?.available) initializeCampaignCrmBridge();
+        if (!campaignCrmBridge?.available) throw new Error('crm-bridge-unavailable');
+        await campaignCrmBridge.recordSend({
+          recipient,
+          subject: subjectFor(recipient),
+          offer: elements.leadDescription.value,
+          senderEmail: sendResult?.senderEmail || connection.email,
+          gmailMessageId: sendResult?.id || sendResult?.messageId || sendResult?.gmailMessageId || '',
+          sentAt: new Date()
+        });
+        setIntegrationPill(elements.integrationCrm, 'ok', 'CRM · synced');
+      } catch (crmError) {
+        console.error('Campaign CRM sync failed', crmError);
+        setIntegrationPill(elements.integrationCrm, 'warn', 'CRM · retry needed');
+      }
     } catch (error) {
       failed += 1;
       markCampaignLeadStatus(recipient.email, 'send-failed');
@@ -920,6 +970,8 @@ restoreDraft();
 if (elements.postalAddress.value) normalizePostalAddressInput(elements.postalAddress);
 consumeOAuthResult();
 renderHistory();
+setIntegrationPill(elements.integrationMoneyPrinter, 'ok', 'Money Printer · ready');
+initializeCampaignCrmBridge();
 updateConnectionUi();
 recoverSavedConnection();
 initializeLeadVaultAccountSync();
