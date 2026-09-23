@@ -100,6 +100,8 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(html, /gun\/gun\.js/);
   assert.match(html, /gun\/sea\.js/);
   assert.match(js, /createBrowserLeadVaultSync/);
+  assert.match(js, /createBrowserCampaignHistorySync/);
+  assert.match(js, /scheduleCampaignHistorySync/);
   assert.match(js, /createBrowserCampaignCrmBridge/);
   assert.match(js, /campaignCrmBridge\.recordSend/);
   assert.match(js, /campaignCrmBridge\?\.recordInboxEvent/);
