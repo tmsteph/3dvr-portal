@@ -33,7 +33,9 @@ test('lead finder request always requires live web search and structured results
   assert.equal(body.text.format.schema.properties.leads.maxItems, 12);
   assert.equal(body.text.format.schema.properties.campaignDraft.type, 'object');
   assert.match(body.instructions, /Never guess or infer an email address pattern/);
-  assert.match(body.instructions, /draft one concise outreach email/i);
+  assert.match(body.instructions, /primary goal is to earn a human reply/i);
+  assert.match(body.instructions, /evidence-backed outreach email for each lead/i);
+  assert.deepEqual(body.text.format.schema.properties.leads.items.required.slice(-2), ['draftSubject', 'draftBody']);
 });
 
 test('lead finder response keeps verified-looking public emails and source URLs only', () => {
@@ -61,6 +63,8 @@ test('lead finder response keeps verified-looking public emails and source URLs 
                 whyFit: 'Independent restaurant.',
                 evidence: 'Email appears on public contact page.',
                 sourceUrl: 'https://acme.test/contact',
+                draftSubject: 'Question about Acme inquiries',
+                draftBody: 'Hi Acme team, I noticed your contact page routes inquiries by email. I had one small idea for making those easier to sort. Open to hearing it?',
               },
               {
                 name: 'Bad',
@@ -70,6 +74,8 @@ test('lead finder response keeps verified-looking public emails and source URLs 
                 whyFit: '',
                 evidence: '',
                 sourceUrl: 'https://bad.test',
+                draftSubject: '',
+                draftBody: '',
               },
             ],
           }),
@@ -80,6 +86,8 @@ test('lead finder response keeps verified-looking public emails and source URLs 
   const result = parseLeadFinderResponse(payload);
   assert.equal(result.leads.length, 1);
   assert.equal(result.leads[0].email, 'hello@acme.test');
+  assert.equal(result.leads[0].draftSubject, 'Question about Acme inquiries');
+  assert.match(result.leads[0].draftBody, /Open to hearing it/);
   assert.equal(result.campaignDraft.subject, 'Quick idea for {{name}}');
   assert.match(result.campaignDraft.body, /Open to a quick idea/);
   assert.equal(result.sources.length, 1);
