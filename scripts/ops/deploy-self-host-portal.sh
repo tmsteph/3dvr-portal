@@ -128,7 +128,6 @@ trap cleanup_candidate EXIT
   export PORTAL_ROOT="$release"
   export PORTAL_RELEASE_REF="$ref"
   export PORTAL_RELEASE_SHA="$sha"
-  export LEGACY_API_ORIGIN=https://3dvr-portal.vercel.app
   export PRESENCE_AUDIO_DIR="$presence_audio_dir"
   cd "$release"
   exec node scripts/self-host-server.mjs
@@ -166,7 +165,6 @@ HOST=127.0.0.1
 PORTAL_ROOT=$current
 PORTAL_RELEASE_REF=$ref
 PORTAL_RELEASE_SHA=$sha
-LEGACY_API_ORIGIN=https://3dvr-portal.vercel.app
 PRESENCE_AUDIO_DIR=$presence_audio_dir
 THREEDVR_CONTROL_NODE=${THREEDVR_CONTROL_NODE:-}
 THREEDVR_OUTREACH_SUPPRESSION_ENFORCED=true
@@ -232,6 +230,69 @@ EOF
   systemctl restart 3dvr-portal.service
 }
 
+install_systemd_crons() {
+  [ "$(id -u)" = 0 ] || return 0
+  command -v systemctl >/dev/null 2>&1 || return 0
+
+  cat > /etc/systemd/system/3dvr-growth-homepage-cron.service <<EOF
+[Unit]
+Description=3DVR homepage growth cron
+After=3dvr-portal.service
+Requires=3dvr-portal.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-$common_env
+EnvironmentFile=$portal_env
+EnvironmentFile=-$portal_secrets_env
+EnvironmentFile=-/etc/3dvr/secrets-broker/portal.env
+ExecStart=/bin/sh -lc 'token="${CRON_SECRET:-${GROWTH_HOMEPAGE_CRON_SECRET:-}}"; [ -n "$token" ] || exit 0; exec /usr/bin/curl -fsS --max-time 180 -H "Authorization: Bearer $token" "http://127.0.0.1:${PORT:-4320}/api/growth/homepage-hero-cron"'
+EOF
+
+  cat > /etc/systemd/system/3dvr-growth-homepage-cron.timer <<'EOF'
+[Unit]
+Description=Run 3DVR homepage growth cron daily
+
+[Timer]
+OnCalendar=*-*-* 02:43:00 UTC
+Persistent=true
+RandomizedDelaySec=30
+
+[Install]
+WantedBy=timers.target
+EOF
+
+  cat > /etc/systemd/system/3dvr-money-autopilot-cron.service <<EOF
+[Unit]
+Description=3DVR money autopilot cron
+After=3dvr-portal.service
+Requires=3dvr-portal.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-$common_env
+EnvironmentFile=$portal_env
+EnvironmentFile=-$portal_secrets_env
+EnvironmentFile=-/etc/3dvr/secrets-broker/portal.env
+ExecStart=/bin/sh -lc 'token="${MONEY_AUTOPILOT_TOKEN:-}"; [ -n "$token" ] || exit 0; exec /usr/bin/curl -fsS --max-time 900 -H "Authorization: Bearer $token" "http://127.0.0.1:${PORT:-4320}/api/money/autopilot-cron"'
+EOF
+
+  cat > /etc/systemd/system/3dvr-money-autopilot-cron.timer <<'EOF'
+[Unit]
+Description=Run 3DVR money autopilot cron on weekdays
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 16:17:00 UTC
+Persistent=true
+RandomizedDelaySec=30
+
+[Install]
+WantedBy=timers.target
+EOF
+
+  systemctl daemon-reload
+  systemctl enable --now 3dvr-growth-homepage-cron.timer 3dvr-money-autopilot-cron.timer
+}
 start_with_tmux() {
   local session=3dvr-portal-production
   local log="$state/server.log"
@@ -297,6 +358,7 @@ rollback_live() {
 
 if start_with_systemd; then
   live_backend=systemd
+  install_systemd_crons
 else
   start_with_tmux
   live_backend=tmux
