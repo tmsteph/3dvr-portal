@@ -19,6 +19,11 @@ import {
 } from '../src/money-printer/leadVault.js';
 import { createBrowserLeadVaultSync } from '../src/money-printer/leadVaultSync.js';
 import {
+  createBrowserCampaignHistorySync,
+  readCampaignHistory,
+  writeCampaignHistory
+} from '../src/money-printer/campaignHistorySync.js';
+import {
   resolveBrowserLocation,
   resolveTypedLocation
 } from './location.js';
@@ -69,6 +74,8 @@ let leadVaultSyncRetryTimer = null;
 let leadVaultSyncRetryAttempt = 0;
 let leadVaultSyncInitializing = false;
 let campaignCrmBridge = null;
+let campaignHistoryAccountSync = null;
+let campaignHistorySyncWrites = Promise.resolve();
 let chosenManualLocation = '';
 
 function readJson(key, fallback) {
@@ -219,6 +226,39 @@ function scheduleLeadVaultSync() {
       return [];
     });
   return leadVaultSyncWrites;
+}
+
+async function initializeCampaignHistorySync() {
+  if (campaignHistoryAccountSync?.available) return campaignHistoryAccountSync;
+  try {
+    const accountSync = await createBrowserCampaignHistorySync({
+      onRemoteMerge: () => renderHistory()
+    });
+    if (!accountSync.available) return accountSync;
+    campaignHistoryAccountSync = accountSync;
+    renderHistory();
+    return accountSync;
+  } catch (error) {
+    console.warn('Campaign history sync unavailable', error);
+    return { available: false, reason: 'sync-error' };
+  }
+}
+
+function scheduleCampaignHistorySync() {
+  if (!campaignHistoryAccountSync?.available) return campaignHistorySyncWrites;
+  campaignHistorySyncWrites = campaignHistorySyncWrites
+    .catch(() => undefined)
+    .then(() => campaignHistoryAccountSync.reconcile())
+    .then(history => {
+      writeCampaignHistory(history);
+      renderHistory();
+      return history;
+    })
+    .catch(error => {
+      console.warn('Campaign history sync failed', error);
+      return [];
+    });
+  return campaignHistorySyncWrites;
 }
 
 function setLocationStatus(message, kind = '') {
@@ -546,7 +586,7 @@ function recentSendEvents(now = Date.now()) {
   const cutoff = now - (24 * 60 * 60 * 1000);
   let events = readJson(STORAGE.sentEvents, []);
   if (!Array.isArray(events) || !events.length) {
-    const history = readJson(STORAGE.history, []);
+    const history = readCampaignHistory();
     events = history.flatMap(item => {
       const at = Number(item?.at || 0);
       const count = Math.max(0, Number(item?.sent || 0));
@@ -714,10 +754,11 @@ function messageFor(recipient) {
   });
 }
 function addHistory(entry) {
-  const history = readJson(STORAGE.history, []);
+  const history = readCampaignHistory();
   history.unshift(entry);
-  writeJson(STORAGE.history, history.slice(0, 60));
+  writeCampaignHistory(history.slice(0, 60));
   renderHistory();
+  scheduleCampaignHistorySync();
 }
 function extractEmailAddress(value = '') {
   const text = String(value || '').trim().toLowerCase();
@@ -1082,10 +1123,12 @@ setIntegrationPill(elements.integrationMoneyPrinter, 'ok', 'Money Printer · rea
 initializeCampaignCrmBridge();
 updateConnectionUi();
 recoverSavedConnection();
-initializeLeadVaultAccountSync();
+initializeLeadVaultAccountSync().finally(() => initializeCampaignHistorySync());
 startCampaignInboxWatch();
 window.addEventListener('online', () => {
   if (!leadVaultAccountSync?.available && localStorage.getItem('signedIn') === 'true') {
-    initializeLeadVaultAccountSync();
+    initializeLeadVaultAccountSync().finally(() => initializeCampaignHistorySync());
+  } else if (!campaignHistoryAccountSync?.available && localStorage.getItem('signedIn') === 'true') {
+    initializeCampaignHistorySync();
   }
 });
