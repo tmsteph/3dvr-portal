@@ -92,12 +92,14 @@ try {
   const pageTitle = await page.title();
   const heading = (await page.locator('#home-title').innerText()).trim();
   const operatorLink = page.locator('.operator-link');
+  const spinner = page.locator('[data-spinner-nav-toggle]');
   const coreActions = page.locator('.action-card');
 
   assert.equal(pageTitle, '3DVR Portal');
   assert.equal(heading, 'What do you want to do?');
   assert.equal(await operatorLink.count(), 1);
-  assert.equal(await coreActions.count(), 4);
+  assert.equal(await spinner.count(), 1);
+  assert.equal(await coreActions.count(), 0);
 
   console.log(`Playwright smoke check passed in ${browserTarget.displayName} at ${baseUrl}`);
 } finally {
