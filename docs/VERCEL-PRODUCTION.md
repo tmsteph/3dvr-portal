@@ -17,6 +17,23 @@ A production verification must check both:
 
 `scripts/ops/deploy-self-host-portal.sh` now enforces this by hashing the public homepage and comparing it with the release's `index.html`. If those differ, the canonical route is not considered current.
 
+## Definition of “live”
+
+Do not say a Portal release is **live** because a deploy job succeeded, because the health endpoint reports a new SHA, or because one backend server has the new files.
+
+For `portal.3dvr.tech`, “live” means the public URL a normal visitor opens is serving the intended homepage artifact **and** the runtime health path is healthy.
+
+The release check therefore has two independent proofs:
+
+- **Root proof:** fetch `https://portal.3dvr.tech/` without a cache-busting query and compare its SHA-256 with the checked-out release's `index.html`.
+- **Runtime proof:** fetch `/__3dvr-health` and require `ok: true` plus `operatorApi: "native"`. When validating a self-host deploy, also require the expected release SHA.
+
+If the runtime proof passes but the root proof fails, classify the release as **split-brain / stale-root**, not successful. The usual cause is that the health/API route reached self-host while Vercel still served an older static root.
+
+Provider headers are diagnostic evidence, not release proof. Record them when debugging routing, but the body artifact is the source of truth for what Thomas actually sees.
+
+The Vercel fallback workflow now performs the root artifact comparison itself and fails if the public homepage does not converge to the checked-out release. This prevents a weak marker-only check from declaring a stale homepage current.
+
 ## Current lanes
 
 - Canonical Vercel project: team `team_xxJGO7S7h1ZP4BHidYV0CX9Z`, project `prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch`.

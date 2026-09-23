@@ -77,6 +77,33 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --location --retry 12 --retry-delay 5 --retry-all-errors 'https://portal.3dvr.tech/' --output /tmp/live-portal-home.html
+
+          # A healthy API does not prove the public root is current. Vercel can
+          # serve stale HTML while /__3dvr-health reaches the self-hosted lane.
+          expected_hash="$(sha256sum index.html | awk '{print $1}')"
+          live_hash=""
+
+          for attempt in $(seq 1 12); do
+            curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors \
+              'https://portal.3dvr.tech/' --output /tmp/live-portal-home.html
+            live_hash="$(sha256sum /tmp/live-portal-home.html | awk '{print $1}')"
+            if [ "$live_hash" = "$expected_hash" ]; then
+              break
+            fi
+            echo "Canonical root is not current yet (attempt $attempt/12): expected $expected_hash, got $live_hash"
+            sleep 5
+          done
+
+          if [ "$live_hash" != "$expected_hash" ]; then
+            echo "::error::portal.3dvr.tech is serving a different homepage artifact than this release."
+            exit 1
+          fi
+
           grep -q 'data-portal-swirl-logo' /tmp/live-portal-home.html
           grep -q 'id="homeOperatorForm"' /tmp/live-portal-home.html
+
+          curl --fail --silent --show-error --location --retry 5 --retry-delay 2 --retry-all-errors \
+            'https://portal.3dvr.tech/__3dvr-health' --output /tmp/live-portal-health.json
+          node -e 'const fs=require("node:fs"); const h=JSON.parse(fs.readFileSync("/tmp/live-portal-health.json","utf8")); if(!h.ok||h.operatorApi!=="native") throw new Error(`canonical health mismatch: ${JSON.stringify(h)}`);'
+
+          echo "Canonical root matches release artifact: $expected_hash"
