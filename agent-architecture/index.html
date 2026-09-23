@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>3DVR Agent Architecture</title>
-  <meta name="description" content="The 3DVR founder-to-worker agent architecture: one orchestrator, focused managers, disposable workers, shared memory, and verifiable outcomes.">
+  <title>3DVR Agent + Intelligence Architecture</title>
+  <meta name="description" content="3DVR's user-owned agent architecture: own the memory, tools, identity, and history; route interchangeable models as rented intelligence.">
   <style>
     :root {
       color-scheme: dark;
@@ -16,17 +16,33 @@
     body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #18241d 0, #0c100e 42%); }
     main { width: min(920px, calc(100% - 32px)); margin: 0 auto; padding: 40px 0 72px; }
     a { color: #b8efc7; }
+    code { color: #d7f6df; }
     .eyebrow { margin: 0 0 8px; color: #8fa99a; font-size: .8rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
     h1 { margin: 0; font-size: clamp(2.2rem, 8vw, 4.8rem); line-height: .95; letter-spacing: -.04em; }
-    .lead { max-width: 700px; margin: 18px 0 30px; color: #c7d0ca; font-size: clamp(1rem, 3vw, 1.25rem); line-height: 1.55; }
+    .lead { max-width: 740px; margin: 18px 0 30px; color: #c7d0ca; font-size: clamp(1rem, 3vw, 1.25rem); line-height: 1.55; }
+    .section-title { margin: 44px 0 8px; font-size: clamp(1.55rem, 4vw, 2.25rem); letter-spacing: -.03em; }
+    .section-lead { max-width: 740px; margin: 0 0 18px; color: #aebbb2; line-height: 1.55; }
     .stack { display: grid; gap: 12px; }
     .card { border: 1px solid #2c3a31; border-radius: 18px; background: rgba(19, 27, 22, .86); padding: 18px; }
     .card strong { display: block; font-size: 1.05rem; }
     .card p { margin: 6px 0 0; color: #b9c4bc; line-height: 1.45; }
     .arrow { text-align: center; color: #6e8a78; font-size: 1.5rem; line-height: 1; }
-    .managers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .managers, .providers, .owned-grid { display: grid; gap: 10px; }
+    .managers { grid-template-columns: repeat(4, 1fr); }
+    .providers { grid-template-columns: repeat(4, 1fr); }
+    .owned-grid { grid-template-columns: repeat(2, 1fr); margin-top: 12px; }
     .manager { min-height: 118px; }
     .worker { text-align: center; border-style: dashed; }
+    .principle {
+      border: 1px solid #41624c;
+      background: linear-gradient(135deg, rgba(36, 70, 47, .75), rgba(17, 28, 21, .9));
+      text-align: center;
+      padding: 24px;
+    }
+    .principle strong { font-size: clamp(1.35rem, 4vw, 2rem); }
+    .principle p { max-width: 660px; margin: 10px auto 0; }
+    .boundary { border-color: #4f7a5b; }
+    .router { text-align: center; }
     .meta { margin-top: 34px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     h2 { margin: 0 0 8px; font-size: 1rem; }
     ul { margin: 8px 0 0; padding-left: 20px; color: #bcc8c0; line-height: 1.55; }
@@ -34,7 +50,7 @@
     footer { margin-top: 30px; color: #839088; font-size: .9rem; }
     @media (max-width: 720px) {
       main { padding-top: 26px; }
-      .managers, .meta { grid-template-columns: 1fr; }
+      .managers, .providers, .owned-grid, .meta { grid-template-columns: 1fr; }
       .manager { min-height: 0; }
     }
   </style>
@@ -43,7 +59,7 @@
   <main>
     <p class="eyebrow">3DVR · Agent System</p>
     <h1>One brain.<br>Many hands.</h1>
-    <p class="lead">Thomas steers one persistent founder agent from phone, laptop, or voice. It delegates focused work to managers, which spin up disposable workers in isolated worktrees and return verified results.</p>
+    <p class="lead">Thomas steers one persistent founder agent from phone, laptop, or voice. It delegates focused work to managers, which spin up disposable workers and return verified results.</p>
 
     <section class="stack" aria-label="Agent hierarchy">
       <article class="card">
@@ -53,7 +69,7 @@
       <div class="arrow" aria-hidden="true">↓</div>
       <article class="card">
         <strong>Founder / Orchestrator</strong>
-        <p>Reads the root <code>AGENTS.md</code> and portable control-plane context. Breaks goals into outcomes, delegates, reconciles results, and keeps the overall thread coherent.</p>
+        <p>Reads portable context, breaks goals into outcomes, delegates, reconciles results, and keeps the overall thread coherent.</p>
       </article>
       <div class="arrow" aria-hidden="true">↓</div>
       <div class="managers">
@@ -65,12 +81,67 @@
       <div class="arrow" aria-hidden="true">↓</div>
       <article class="card worker">
         <strong>Disposable workers</strong>
-        <p>Short-lived Codex sessions/worktrees with narrow scope. They code, research, test, or operate; managers keep the durable context.</p>
+        <p>Short-lived sessions with narrow scope. They code, research, test, or operate; the owned system keeps durable context.</p>
       </article>
       <div class="arrow" aria-hidden="true">↓</div>
       <article class="card">
         <strong>Shared source of truth</strong>
-        <p><code>tmsteph/3dvr-portal</code> + <code>ops/control-plane</code> + GitHub history. Finished work is tested, documented, merged, and available to the next device or agent.</p>
+        <p><code>tmsteph/3dvr-portal</code> + control-plane context + Digital Organism + GitHub history. Finished work is tested, documented, merged, and available to the next device or agent.</p>
+      </article>
+    </section>
+
+    <h2 class="section-title">Own the system. Rent intelligence.</h2>
+    <p class="section-lead">The model should not be the computer, the memory, or the identity. 3DVR owns those layers. Models are interchangeable compute that the system calls only when reasoning is useful.</p>
+
+    <section class="stack" aria-label="Intelligence architecture">
+      <article class="card principle">
+        <strong>Our life does not live inside a model provider.</strong>
+        <p>Conversations, memory, files, permissions, tools, automations, audit history, and agent state stay in user-controlled infrastructure.</p>
+      </article>
+      <div class="arrow" aria-hidden="true">↓</div>
+      <article class="card">
+        <strong>Phone · Laptop · Voice · Browser · VR</strong>
+        <p>Any interface can enter the same personal computing system.</p>
+      </article>
+      <div class="arrow" aria-hidden="true">↓</div>
+      <article class="card boundary">
+        <strong>3DVR Personal AI · owned core</strong>
+        <div class="owned-grid">
+          <div><strong>Identity + permissions</strong><p>Who is acting and what they are allowed to do.</p></div>
+          <div><strong>Memory + knowledge</strong><p>Digital Organism, notes, files, provenance, corrections.</p></div>
+          <div><strong>Tools + agents</strong><p>Portal, MCP, APIs, browsers, devices, automations.</p></div>
+          <div><strong>History + audit</strong><p>Events, actions, costs, outcomes, and recoverable state.</p></div>
+        </div>
+      </article>
+      <div class="arrow" aria-hidden="true">↓</div>
+      <article class="card router">
+        <strong>3DVR Intelligence Gateway</strong>
+        <p>One provider-neutral interface for routing, permissions, cost tracking, retries, fallbacks, and model selection.</p>
+      </article>
+      <div class="arrow" aria-hidden="true">↓</div>
+      <div class="providers">
+        <article class="card"><strong>No LLM</strong><p>Database lookups, schedules, deterministic workflows.</p></article>
+        <article class="card"><strong>Local / open</strong><p>Private, repetitive, or offline-friendly work.</p></article>
+        <article class="card"><strong>Low-cost API</strong><p>Routine conversation, extraction, routing, summaries.</p></article>
+        <article class="card"><strong>Frontier API</strong><p>Difficult coding, planning, synthesis, and reasoning.</p></article>
+      </div>
+    </section>
+
+    <section class="meta">
+      <article class="card">
+        <h2>Architecture rules</h2>
+        <ul>
+          <li>Provider threads are never the canonical memory.</li>
+          <li>Use the cheapest capable reasoning path.</li>
+          <li>Keep provider adapters swappable.</li>
+          <li>Log model, cost, latency, and outcome.</li>
+          <li>Escalate capability only when the task needs it.</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h2>Implementation direction</h2>
+        <p class="status">Digital Organism becomes the persistent intelligence layer.</p>
+        <p>The gateway sits between 3DVR Agent and model providers. ChatGPT can remain a useful interface, but the architecture must not depend on ChatGPT being the permanent home of context.</p>
       </article>
     </section>
 
@@ -79,21 +150,21 @@
         <h2>Already implemented</h2>
         <ul>
           <li>Canonical portal monorepo</li>
-          <li>Root and nested <code>AGENTS.md</code> guidance</li>
           <li>Portable control-plane memory</li>
-          <li>Agent package on separate runtime</li>
+          <li>Digital Organism research/runtime</li>
+          <li>Agent package on a separate runtime</li>
           <li>Worktree + PR discipline</li>
         </ul>
       </article>
       <article class="card">
-        <h2>Next step</h2>
-        <p class="status">Use the manager posture files under <code>ops/control-plane/roles/</code>.</p>
-        <p>When the founder agent receives a broad goal, route it to the smallest manager set possible, then delegate execution to disposable workers.</p>
+        <h2>Next build</h2>
+        <p class="status">Make the intelligence gateway a first-class 3DVR service.</p>
+        <p>Define a small provider-neutral request/response contract, then route existing agent model calls through it without moving canonical memory into any provider.</p>
       </article>
     </section>
 
     <footer>
-      <a href="/guides/ai-automation/">AI automation starter guide</a> · <a href="/astra/">Astra canary</a> · <a href="/">Portal home</a>
+      <a href="/digital-organism/">Digital Organism</a> · <a href="/3dvr-os/">3DVR OS</a> · <a href="/guides/ai-automation/">AI automation guide</a> · <a href="/">Portal home</a>
     </footer>
   </main>
 </body>
