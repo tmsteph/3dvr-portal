@@ -96,7 +96,7 @@ test('home Operator conversation appears in Past conversations', { timeout: 45_0
   }
 });
 
-test('portal spinner opens menu on normal spins and only activates after an intentional hold', { timeout: 45_000 }, async () => {
+test('calm homepage keeps Operator primary and secondary tools tucked away', { timeout: 45_000 }, async () => {
   const browser = await chromium.launch({ headless: true });
 
   try {
@@ -108,66 +108,25 @@ test('portal spinner opens menu on normal spins and only activates after an inte
     });
 
     await page.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
-    let spinner = page.locator('[data-spinner-nav-toggle]');
-    await spinner.waitFor();
-    let box = await spinner.boundingBox();
-    assert.ok(box, 'spinner should have a pointer target');
 
-    let centerX = box.x + box.width / 2;
-    let centerY = box.y + box.height / 2;
-    await page.mouse.move(centerX, centerY);
-    await page.mouse.down();
-    await page.mouse.move(centerX + 62, centerY, { steps: 6 });
+    await page.getByRole('heading', { name: 'What do you want to do?' }).waitFor();
+    await page.locator('#homeOperatorForm').waitFor();
 
-    let workTarget = page.locator('.spinner-nav__item--work');
-    assert.equal(await workTarget.getAttribute('data-spinner-selected'), 'true');
-    assert.equal(await spinner.getAttribute('aria-label'), 'Work selected. Release for menu, or hold to open.');
+    assert.equal(await page.locator('[data-spinner-nav-toggle]').count(), 0);
+    assert.equal(await page.locator('.action-card').count(), 0);
 
-    await page.mouse.up();
-    await page.waitForTimeout(160);
-    assert.equal(new URL(page.url()).pathname, '/');
-    assert.equal(await page.locator('[data-spinner-nav]').getAttribute('data-open'), 'true');
+    const quickLinks = page.locator('.quick-links');
+    await quickLinks.getByRole('link', { name: 'Today' }).waitFor();
+    await quickLinks.getByRole('link', { name: 'Work' }).waitFor();
+    await quickLinks.getByRole('link', { name: 'Build' }).waitFor();
 
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    spinner = page.locator('[data-spinner-nav-toggle]');
-    box = await spinner.boundingBox();
-    assert.ok(box, 'spinner should still be available for a hold gesture');
-    centerX = box.x + box.width / 2;
-    centerY = box.y + box.height / 2;
+    const menu = page.locator('details.menu');
+    assert.equal(await menu.getAttribute('open'), null, 'secondary navigation should start collapsed');
 
-    await page.mouse.move(centerX, centerY);
-    await page.mouse.down();
-    await page.mouse.move(centerX + 70, centerY, { steps: 6 });
-    workTarget = page.locator('.spinner-nav__item--work');
-    await page.waitForFunction(() => document.querySelector('.spinner-nav__item--work')?.dataset.spinnerArmed === 'true');
-    assert.equal(await spinner.getAttribute('aria-label'), 'Release to open Work.');
-    await page.mouse.up();
-    await page.waitForURL(url => new URL(url).pathname === '/growth-desk/');
-
-    await page.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
-    spinner = page.locator('[data-spinner-nav-toggle]');
-    box = await spinner.boundingBox();
-    assert.ok(box, 'spinner should still be available after navigation');
-    centerX = box.x + box.width / 2;
-    centerY = box.y + box.height / 2;
-
-    await page.mouse.move(centerX, centerY);
-    await page.mouse.down();
-    await page.mouse.move(centerX + 24, centerY, { steps: 3 });
-    await page.mouse.up();
-    await page.waitForTimeout(120);
-    assert.equal(new URL(page.url()).pathname, '/');
-    assert.equal(await page.locator('[data-spinner-nav]').getAttribute('data-open'), 'true');
-
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    spinner = page.locator('[data-spinner-nav-toggle]');
-    box = await spinner.boundingBox();
-    assert.ok(box, 'spinner should remain tappable');
-    centerX = box.x + box.width / 2;
-    centerY = box.y + box.height / 2;
-    await page.mouse.click(centerX, centerY);
-    await page.waitForFunction(() => document.querySelector('[data-spinner-nav]')?.dataset.open === 'true');
-    assert.equal(await spinner.getAttribute('aria-expanded'), 'true');
+    await quickLinks.getByRole('button', { name: 'Apps' }).click();
+    await page.getByRole('searchbox', { name: 'Search portal apps' }).waitFor();
+    await page.getByRole('button', { name: 'Close' }).click();
+    assert.equal(await page.locator('#appsDialog').getAttribute('open'), null);
   } finally {
     await browser.close();
   }
