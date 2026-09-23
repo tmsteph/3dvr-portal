@@ -573,6 +573,10 @@ export function createOpenAiSiteRouter(options = {}) {
       return nextMoveHandler(req, res);
     }
 
+    if (req?.body?.operator === true || req?.query?.provider === 'operator') {
+      return operatorHandler(req, res);
+    }
+
     if (req?.body?.workAgent === true || req?.query?.provider === 'work-agent') {
       return workAgentHandler(req, res);
     }
