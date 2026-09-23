@@ -29,6 +29,7 @@ function statePaths(options = {}) {
   return {
     stateDir,
     memoryLog: path.join(stateDir, 'memories.jsonl'),
+    eventLog: path.join(stateDir, 'events.jsonl'),
   };
 }
 
@@ -37,6 +38,34 @@ async function appendEvent(event, options = {}) {
   await fs.mkdir(stateDir, { recursive: true });
   await fs.appendFile(memoryLog, `${JSON.stringify(event)}\n`, 'utf8');
   return event;
+}
+
+async function appendLifeEvent(event, options = {}) {
+  const { stateDir, eventLog } = statePaths(options);
+  await fs.mkdir(stateDir, { recursive: true });
+  await fs.appendFile(eventLog, `${JSON.stringify(event)}\n`, 'utf8');
+  return event;
+}
+
+async function loadLifeEvents(options = {}) {
+  const { eventLog } = statePaths(options);
+  let raw;
+  try {
+    raw = await fs.readFile(eventLog, 'utf8');
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
+  return raw
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line, index) => {
+      try {
+        return JSON.parse(line);
+      } catch (error) {
+        throw new Error(`Invalid life event at line ${index + 1}: ${error.message}`);
+      }
+    });
 }
 
 async function loadEvents(options = {}) {
@@ -105,6 +134,72 @@ function makeMemory(content, options = {}) {
     confidence: Number.isFinite(options.confidence) ? options.confidence : 1,
     importance: Number.isFinite(options.importance) ? options.importance : 0.5,
   };
+}
+
+function makeLifeEvent(content, options = {}) {
+  const text = normalizeText(content);
+  if (!text) throw new Error('Life event content is required.');
+  const tags = Array.isArray(options.tags)
+    ? options.tags.map(normalizeText).filter(Boolean)
+    : normalizeText(options.tags).split(',').map(normalizeText).filter(Boolean);
+  return {
+    id: options.id || `evt_${crypto.randomBytes(6).toString('hex')}`,
+    kind: normalizeText(options.kind) || 'observation',
+    actor: normalizeText(options.actor) || 'owner',
+    content: text,
+    tags,
+    sourceType: normalizeText(options.sourceType) || 'manual',
+    sourceId: normalizeText(options.sourceId),
+    occurredAt: options.occurredAt || options.createdAt || nowIso(options.now || Date.now()),
+    recordedAt: nowIso(options.now || Date.now()),
+  };
+}
+
+async function recordLifeEvent(content, options = {}) {
+  const event = makeLifeEvent(content, options);
+  await appendLifeEvent(event, options);
+  return event;
+}
+
+async function timeline(query = '', options = {}) {
+  const queryTokens = tokens(query);
+  const limit = Math.max(1, Number.parseInt(options.limit || '10', 10) || 10);
+  const events = await loadLifeEvents(options);
+  return events
+    .map(event => {
+      const haystack = tokens(`${event.kind} ${event.actor} ${event.content} ${(event.tags || []).join(' ')}`);
+      const overlap = [...queryTokens].filter(token => haystack.has(token)).length;
+      const union = new Set([...queryTokens, ...haystack]).size || 1;
+      const score = queryTokens.size ? overlap / union : 1;
+      return { score, overlap, event };
+    })
+    .filter(hit => queryTokens.size === 0 || hit.overlap > 0)
+    .sort((a, b) => b.score - a.score || String(b.event.occurredAt).localeCompare(String(a.event.occurredAt)))
+    .slice(0, limit);
+}
+
+async function promoteLifeEvent(eventId, options = {}) {
+  const id = normalizeText(eventId);
+  if (!id) throw new Error('Life event id is required.');
+  const event = (await loadLifeEvents(options)).find(item => item.id === id);
+  if (!event) throw new Error(`Life event not found: ${id}`);
+
+  const provenance = sourceKey('life-event', id);
+  const history = await loadEvents(options);
+  if (historicalSourceKeys(history).has(provenance)) {
+    throw new Error(`Life event already promoted: ${id}`);
+  }
+
+  return remember(event.content, {
+    ...options,
+    kind: normalizeText(options.kind) || event.kind || 'event',
+    subject: normalizeText(options.subject) || event.kind || 'event',
+    sourceType: 'life-event',
+    sourceId: id,
+    createdAt: event.occurredAt,
+    confidence: Number.isFinite(options.confidence) ? options.confidence : 1,
+    importance: Number.isFinite(options.importance) ? options.importance : 0.6,
+  });
 }
 
 async function remember(content, options = {}) {
@@ -354,6 +449,9 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--subject') options.subject = argv[++index] || '';
     else if (arg === '--source-type') options.sourceType = argv[++index] || '';
     else if (arg === '--source-id') options.sourceId = argv[++index] || '';
+    else if (arg === '--actor') options.actor = argv[++index] || '';
+    else if (arg === '--tags') options.tags = argv[++index] || '';
+    else if (arg === '--occurred-at') options.occurredAt = argv[++index] || '';
     else if (arg === '--provider') options.provider = argv[++index] || '';
     else if (arg === '--url') options.url = argv[++index] || '';
     else if (arg === '--model') options.model = argv[++index] || '';
@@ -368,11 +466,28 @@ function parseArgs(argv = process.argv.slice(2)) {
 }
 
 function usage() {
-  console.log(`3DVR Digital Organism\n\nUsage:\n  organism remember [options] "memory"\n  organism recall [--limit 5] "query"\n  organism context "question"\n  organism import-context [--owner OWNER] [--json]\n  organism ask --provider llama|compatible [--url URL] [--model MODEL] "question"\n  organism forget MEMORY_ID\n  organism correct MEMORY_ID "replacement memory"\n  organism eval\n\nPrivacy rule:\n  recall/context/import-context are local memory operations. ask never chooses a model provider implicitly.`);
+  console.log(`3DVR Digital Organism\n\nUsage:\n  organism event [--kind observation] [--actor owner] [--tags tag1,tag2] "what happened"\n  organism timeline [--limit 10] ["query"]\n  organism promote [--kind fact] [--subject SUBJECT] EVENT_ID\n  organism remember [options] "memory"\n  organism recall [--limit 5] "query"\n  organism context "question"\n  organism import-context [--owner OWNER] [--json]\n  organism ask --provider llama|compatible [--url URL] [--model MODEL] "question"\n  organism forget MEMORY_ID\n  organism correct MEMORY_ID "replacement memory"\n  organism eval\n\nPrivacy rule:\n  event/timeline/promote/recall/context/import-context are local operations. ask never chooses a model provider implicitly.`);
 }
 
 async function cli(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
+  if (options.command === 'event') {
+    const event = await recordLifeEvent(options.text, options);
+    console.log(options.json ? JSON.stringify(event, null, 2) : event.id);
+    return 0;
+  }
+  if (options.command === 'timeline') {
+    const hits = await timeline(options.text, options);
+    console.log(options.json
+      ? JSON.stringify(hits, null, 2)
+      : hits.map(hit => `${hit.event.occurredAt}\t${hit.event.id}\t[${hit.event.kind}] ${hit.event.content}`).join('\n'));
+    return 0;
+  }
+  if (options.command === 'promote') {
+    const memory = await promoteLifeEvent(options.text, options);
+    console.log(options.json ? JSON.stringify(memory, null, 2) : memory.id);
+    return 0;
+  }
   if (options.command === 'remember') {
     const memory = await remember(options.text, options);
     console.log(options.json ? JSON.stringify(memory, null, 2) : memory.id);
@@ -423,6 +538,7 @@ async function cli(argv = process.argv.slice(2)) {
 module.exports = {
   ask,
   appendEvent,
+  appendLifeEvent,
   buildContext,
   contextSessionContent,
   correct,
@@ -431,8 +547,12 @@ module.exports = {
   importContextHq,
   importContextSessions,
   loadEvents,
+  loadLifeEvents,
+  makeLifeEvent,
   makeMemory,
+  promoteLifeEvent,
   recall,
+  recordLifeEvent,
   remember,
   renderContext,
   replayMemories,
@@ -442,6 +562,7 @@ module.exports = {
   selfEval,
   sourceKey,
   statePaths,
+  timeline,
   tokens,
 };
 
