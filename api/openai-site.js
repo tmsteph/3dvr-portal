@@ -7,8 +7,10 @@ import { createWorkAgentAiHandler } from '../src/work-agent/ai.js';
 import { createLeadFinderHandler } from '../src/lead-finder/api.js';
 import { createLocationResolveHandler } from '../src/location-resolve/api.js';
 
-export const DEFAULT_MODEL = 'gpt-4.1-mini';
+export const DEFAULT_MODEL = 'gpt-6-luna';
 export const SUPPORTED_SITE_MODELS = Object.freeze([
+  'gpt-6-luna',
+  'gpt-6-sol',
   'gpt-4o-mini',
   'gpt-4.1-mini',
   'gpt-5.4-mini',
@@ -53,8 +55,8 @@ function formatIsoDate(value) {
   return resolveDate(value).toISOString().slice(0, 10);
 }
 
-function isGpt5FamilyModel(model) {
-  return /^gpt-5([.-]|$)/.test(String(model || '').trim());
+function isReasoningFamilyModel(model) {
+  return /^gpt-(?:5|6)([.-]|$)/.test(String(model || '').trim());
 }
 
 function normalizeRequestedModel(value) {
@@ -378,7 +380,7 @@ export function buildOpenAiRequest({ model, prompt, now = new Date(), stream = f
     }
   };
 
-  if (!isGpt5FamilyModel(model)) {
+  if (!isReasoningFamilyModel(model)) {
     requestBody.temperature = 0.35;
   }
 

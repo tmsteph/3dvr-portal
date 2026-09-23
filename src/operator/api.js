@@ -9,8 +9,32 @@ import {
   normalizeOperatorDraftAwareness
 } from './draft-awareness.js';
 
-export const DEFAULT_OPERATOR_MODEL = 'gpt-5.4-mini';
-export const DEFAULT_OPERATOR_GATEWAY_MODEL = 'openai/gpt-5.4-mini';
+export const DEFAULT_OPERATOR_MODEL = 'gpt-6-luna';
+export const DEFAULT_OPERATOR_GATEWAY_MODEL = 'openai/gpt-6-luna';
+export const DEFAULT_OPERATOR_ESCALATION_MODEL = 'gpt-6-sol';
+export const DEFAULT_OPERATOR_ESCALATION_GATEWAY_MODEL = 'openai/gpt-6-sol';
+
+const OPERATOR_ESCALATION_PATTERN = /\b(?:architect|architecture|debug|root cause|refactor|migration|security|threat model|investigate|analy[sz]e|strategy|multi[- ]step|implement|code review|complex|research|compare|optimi[sz]e)\b/i;
+
+export function shouldEscalateOperatorPrompt(prompt = '', { images = [] } = {}) {
+  const text = clean(prompt, 4000);
+  if (text.length >= 1200) return true;
+
+  const connectorCount = (text.match(/\b(?:and|then|also|plus|after that)\b/gi) || []).length;
+  const visiblyComplex = OPERATOR_ESCALATION_PATTERN.test(text);
+  const imageDebugging = Array.isArray(images)
+    && images.length > 0
+    && /\b(?:debug|diagnose|inspect|analy[sz]e|fix|broken|error)\b/i.test(text);
+
+  return imageDebugging || (visiblyComplex && (text.length >= 280 || connectorCount >= 2));
+}
+
+export function selectOperatorModel({ prompt = '', images = [], useGateway = false } = {}) {
+  if (shouldEscalateOperatorPrompt(prompt, { images })) {
+    return useGateway ? DEFAULT_OPERATOR_ESCALATION_GATEWAY_MODEL : DEFAULT_OPERATOR_ESCALATION_MODEL;
+  }
+  return useGateway ? DEFAULT_OPERATOR_GATEWAY_MODEL : DEFAULT_OPERATOR_MODEL;
+}
 
 const RESPONSE_SCHEMA = {
   name: 'portal_operator_response', strict: true,
@@ -259,7 +283,12 @@ export function createOperatorHandler(options = {}) {
         config: options.config || process.env,
         expectedOrigin: requestOrigin(req)
       });
-      const model = options.model || process.env.OPENAI_OPERATOR_MODEL || (useGateway ? DEFAULT_OPERATOR_GATEWAY_MODEL : DEFAULT_OPERATOR_MODEL);
+      const configuredModel = options.model || process.env.OPENAI_OPERATOR_MODEL;
+      const model = configuredModel || selectOperatorModel({
+        prompt,
+        images: req.body?.images,
+        useGateway
+      });
       const response = await fetchImpl(requestEndpoint, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authorizationToken}` },
         body: JSON.stringify(buildOperatorRequest({

@@ -156,7 +156,7 @@ test('shouldForceWebSearch detects time-sensitive factual prompts', () => {
   assert.equal(shouldForceWebSearch('Build a retro portfolio with a bold hero.'), false);
 });
 
-test('buildOpenAiRequest lets the model decide whether to use live search', () => {
+test('buildOpenAiRequest uses the GPT-6 Luna default without legacy temperature tuning', () => {
   const request = buildOpenAiRequest({
     model: DEFAULT_MODEL,
     prompt: 'Build a VR portal landing page.',
@@ -167,7 +167,7 @@ test('buildOpenAiRequest lets the model decide whether to use live search', () =
   assert.equal(request.text.format.type, 'json_schema');
   assert.match(request.instructions, /Today is 2026-03-09\./);
   assert.equal(request.tool_choice, 'auto');
-  assert.equal(request.temperature, 0.35);
+  assert.equal('temperature' in request, false);
   assert.deepEqual(request.tools, [{ type: 'web_search' }]);
   assert.deepEqual(request.include, ['web_search_call.action.sources']);
 });
@@ -199,8 +199,10 @@ test('buildOpenAiRequest omits temperature for gpt-5 family builder models', () 
 });
 
 test('supported site models include the picker options', () => {
-  assert.equal(DEFAULT_MODEL, 'gpt-4.1-mini');
+  assert.equal(DEFAULT_MODEL, 'gpt-6-luna');
   assert.deepEqual(SUPPORTED_SITE_MODELS, [
+    'gpt-6-luna',
+    'gpt-6-sol',
     'gpt-4o-mini',
     'gpt-4.1-mini',
     'gpt-5.4-mini',

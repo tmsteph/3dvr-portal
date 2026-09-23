@@ -1,7 +1,7 @@
 const clean = (value, max = 3000) => String(value || '').trim().slice(0, max);
 
-export const DEFAULT_WORK_AGENT_MODEL = 'gpt-5.4-mini';
-export const DEFAULT_WORK_AGENT_GATEWAY_MODEL = 'openai/gpt-5.4-mini';
+export const DEFAULT_WORK_AGENT_MODEL = 'gpt-6-luna';
+export const DEFAULT_WORK_AGENT_GATEWAY_MODEL = 'openai/gpt-6-luna';
 
 const SIGNAL_SCHEMA = {
   name: 'work_agent_mail_signals',
