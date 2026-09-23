@@ -1,2 +1,2 @@
-2026-09-12T22:53:30-07:00
-Reason: issue a new Hetzner Desktop Commander one-time authorization code after the previous code expired; keep the live bridge steady after issuance.
+2026-09-23T01:10:00-07:00
+Reason: live Operator runtime E2E left a low-risk delegated task queued without a worker claim; refresh the guarded Hetzner managed worker before rerunning the end-to-end probe.
