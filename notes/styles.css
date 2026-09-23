@@ -236,6 +236,63 @@ body.notes-page .empty-state__actions {
   margin-top: 20px;
 }
 
+body.notes-page .quick-capture {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--notes-line);
+  background: rgba(246, 244, 238, 0.86);
+}
+
+body.notes-page .quick-capture__copy {
+  display: grid;
+  min-width: 180px;
+  gap: 2px;
+}
+
+body.notes-page .quick-capture__copy span {
+  color: var(--notes-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+body.notes-page .quick-capture__copy strong {
+  font-size: 0.92rem;
+}
+
+body.notes-page .quick-capture__form {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+}
+
+body.notes-page .quick-capture__form input {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--notes-line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--notes-ink);
+  font: inherit;
+}
+
+body.notes-page .quick-capture__form input:focus {
+  outline: none;
+  border-color: var(--notes-accent);
+  box-shadow: 0 0 0 3px rgba(47, 111, 88, 0.12);
+}
+
+body.notes-page .editor-wrapper {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+
 @media (max-width: 900px) {
   body.notes-page .sidebar-toggle {
     display: none;
@@ -250,6 +307,21 @@ body.notes-page .empty-state__actions {
 
   body.notes-page .notes-actionbar__actions {
     justify-content: flex-start;
+    width: 100%;
+  }
+
+  body.notes-page .quick-capture {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 16px;
+  }
+
+  body.notes-page .quick-capture__copy {
+    min-width: 0;
+  }
+
+  body.notes-page .quick-capture__form {
     width: 100%;
   }
 

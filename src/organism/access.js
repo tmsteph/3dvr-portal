@@ -110,6 +110,52 @@ export async function resolveOrganismAccess(payload = {}, options = {}) {
   };
 }
 
+export async function resolveOrganismRememberAccess(payload = {}, options = {}) {
+  const checked = await verifyOwnerPayload(payload, options, {
+    missing: 'Sign in before saving a durable memory.',
+    expired: 'Memory save proof expired. Capture the note again.'
+  });
+  if (!checked.ok) return checked;
+
+  const { auth } = checked;
+  const verified = auth.verified || {};
+  const content = normalizeText(payload.content, 4000);
+  const subject = normalizeText(payload.subject, 300);
+  const kind = normalizeText(payload.kind, 80) || 'note';
+  const sourceId = normalizeText(payload.sourceId, 300);
+  const requestId = normalizeText(payload.requestId, 160);
+
+  if (auth.identity.action !== 'remember') {
+    return { ok: false, status: 403, reason: 'Memory proof did not authorize saving.' };
+  }
+  if (!content || content !== normalizeText(verified.content, 4000)) {
+    return { ok: false, status: 403, reason: 'Memory content did not match the signed request.' };
+  }
+  if (subject !== normalizeText(verified.subject, 300)) {
+    return { ok: false, status: 403, reason: 'Memory subject did not match the signed request.' };
+  }
+  if (kind !== (normalizeText(verified.kind, 80) || 'note')) {
+    return { ok: false, status: 403, reason: 'Memory kind did not match the signed request.' };
+  }
+  if (!sourceId || sourceId !== normalizeText(verified.sourceId, 300)) {
+    return { ok: false, status: 403, reason: 'Memory source id did not match the signed request.' };
+  }
+  if (!requestId || requestId !== normalizeText(verified.requestId, 160)) {
+    return { ok: false, status: 403, reason: 'Request id did not match the signed memory request.' };
+  }
+
+  return {
+    ok: true,
+    status: 200,
+    content,
+    subject,
+    kind,
+    sourceId,
+    requestId,
+    identity: auth.identity
+  };
+}
+
 export async function resolveOrganismFeedbackAccess(payload = {}, options = {}) {
   const checked = await verifyOwnerPayload(payload, options, {
     missing: 'Sign in before rating a memory.',

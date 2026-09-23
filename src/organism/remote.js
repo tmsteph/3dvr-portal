@@ -53,6 +53,28 @@ export async function recallFromOvh(query, options = {}) {
   return parsed.context;
 }
 
+export async function rememberOnOvh(content, options = {}) {
+  const text = normalizeText(content, 4000);
+  const subject = normalizeText(options.subject, 300);
+  const kind = normalizeText(options.kind, 80) || 'note';
+  const sourceId = normalizeText(options.sourceId, 300);
+  if (!text) throw new Error('Memory content is required.');
+  if (!sourceId) throw new Error('Memory source id is required.');
+
+  const encoded = value => Buffer.from(value, 'utf8').toString('base64url');
+  const parsed = await runBridge([
+    'remember',
+    encoded(text),
+    encoded(subject),
+    encoded(kind),
+    encoded(sourceId)
+  ], options);
+  if (!parsed?.ok || !parsed.memory?.id || parsed.memory.sourceId !== sourceId) {
+    throw new Error(parsed?.error || 'OVH Digital Organism remember failed.');
+  }
+  return parsed.memory;
+}
+
 async function retrievalFeedbackOnOvh(query, memoryId, outcome, options = {}) {
   const text = normalizeText(query, 2000);
   const id = normalizeText(memoryId, 300);

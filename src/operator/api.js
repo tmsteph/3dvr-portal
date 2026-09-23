@@ -377,7 +377,7 @@ export function createOperatorHandler(options = {}) {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
-    if (req.body?.organismRecall === true) return organismRelay(req, res);
+    if (req.body?.organismRecall === true || req.body?.organismRemember === true) return organismRelay(req, res);
     const requestApiKey = clean(req.body?.apiKey, 300);
     const authorizationToken = apiKey || gatewayToken || requestApiKey;
     if (!authorizationToken) return res.status(503).json({ error: 'The operator is temporarily unavailable.' });

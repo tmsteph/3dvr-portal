@@ -1,5 +1,6 @@
 const {
   loadEvents,
+  remember,
   renderContext,
   replayMemories,
 } = require('./digital-organism');
@@ -9,12 +10,21 @@ const {
   recordRetrievalFeedback,
 } = require('./retrieval-lab');
 
-function decodeQuery(encoded = '') {
+function decodeText(encoded = '', { label = 'Value', max = 4000, required = true } = {}) {
   const value = String(encoded || '').trim();
-  if (!value || !/^[A-Za-z0-9_-]+$/.test(value)) throw new Error('Invalid encoded question.');
+  if ((!value && required) || (value && !/^[A-Za-z0-9_-]+$/.test(value))) {
+    throw new Error(`Invalid encoded ${label.toLowerCase()}.`);
+  }
+  if (!value) return '';
   const text = Buffer.from(value, 'base64url').toString('utf8').trim();
-  if (!text || text.length > 2000) throw new Error('Question must be between 1 and 2000 characters.');
+  if ((required && !text) || text.length > max) {
+    throw new Error(`${label} must be between ${required ? 1 : 0} and ${max} characters.`);
+  }
   return text;
+}
+
+function decodeQuery(encoded = '') {
+  return decodeText(encoded, { label: 'Question', max: 2000 });
 }
 
 function normalizeMemoryId(value = '') {
@@ -51,6 +61,22 @@ async function main(argv = process.argv.slice(2)) {
       strategy,
     };
     process.stdout.write(JSON.stringify({ ok: true, context }));
+    return;
+  }
+
+  if (command === 'remember') {
+    const content = decodeText(argv[1], { label: 'Memory content', max: 4000 });
+    const subject = decodeText(argv[2], { label: 'Memory subject', max: 300, required: false });
+    const kind = decodeText(argv[3], { label: 'Memory kind', max: 80, required: false }) || 'note';
+    const sourceId = decodeText(argv[4], { label: 'Memory source id', max: 300 });
+    const memory = await remember(content, {
+      subject,
+      kind,
+      sourceType: 'portal-master-notes',
+      sourceId,
+      importance: 0.7
+    });
+    process.stdout.write(JSON.stringify({ ok: true, memory }));
     return;
   }
 

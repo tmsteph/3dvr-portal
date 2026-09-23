@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>📝 3DVR Notes</title>
+  <title>🧠 Master Notes | 3DVR</title>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="/gun-init.js"></script>
   <script src="/auth-identity.js"></script>
@@ -22,7 +22,7 @@
     <div>
       <a href="../index.html">🏠 Home</a>
       <a href="/tasks/">✅ Tasks</a>
-      <a href="./" class="active">📝 Notes</a>
+      <a href="./" class="active">🧠 Master Notes</a>
       <a href="/chat/">💬 Chat</a>
       <a href="../profile.html">👤 Profile</a>
     </div>
@@ -31,7 +31,7 @@
 
   <div class="install-banner" data-install-banner hidden>
     <div class="install-banner__text">
-      <p class="install-banner__title">Install Notes</p>
+      <p class="install-banner__title">Install Master Notes</p>
       <p class="install-banner__meta">Access your shared notes offline with a single tap.</p>
     </div>
     <button type="button" class="install-banner__action" data-install-button>Install app</button>
@@ -41,8 +41,8 @@
     <aside id="notes-sidebar" class="notes-sidebar" aria-label="Workspace navigation">
       <div class="workspace-header">
         <div>
-          <div class="workspace-label">Workspace</div>
-          <div class="workspace-title">3DVR Notes</div>
+          <div class="workspace-label">Your knowledge</div>
+          <div class="workspace-title">Master Notes</div>
         </div>
       </div>
 
@@ -71,7 +71,7 @@
       <button id="sidebar-toggle" class="sidebar-toggle icon-button" type="button" aria-label="Show workspace" aria-controls="notes-sidebar" aria-expanded="false">☰</button>
       <div class="notes-actionbar" aria-label="Notes workspace status">
         <div class="notes-context">
-          <span id="active-space-label" class="notes-context__space">Quick Notes</span>
+          <span id="active-space-label" class="notes-context__space">Inbox</span>
           <strong id="active-note-label" class="notes-context__note">No page selected</strong>
         </div>
         <div class="notes-actionbar__actions">
@@ -81,9 +81,22 @@
           <button id="actionbar-new-note" class="primary-button" type="button">New page</button>
         </div>
       </div>
+
+      <section class="quick-capture" aria-label="Quick capture">
+        <div class="quick-capture__copy">
+          <span>Inbox</span>
+          <strong>Drop it here. Organize later.</strong>
+        </div>
+        <form id="quick-capture-form" class="quick-capture__form">
+          <label class="sr-only" for="quick-capture-input">Quick note</label>
+          <input id="quick-capture-input" type="text" maxlength="500" autocomplete="off" placeholder="Thought, idea, decision, person, task…">
+          <button class="primary-button" type="submit">Capture</button>
+        </form>
+      </section>
+
       <div id="empty-state" class="empty-state">
-        <h2>Capture the next useful thought</h2>
-        <p>Open an existing page from the sidebar or start a fresh page in Quick Notes.</p>
+        <h2>Your brain can stay messy.</h2>
+        <p>Capture first. Keep the durable version here and organize it when it matters.</p>
         <div class="empty-state__actions">
           <button id="empty-new-note" class="primary-button" type="button">New page</button>
           <button id="empty-open-sidebar" class="secondary-button" type="button">Browse spaces</button>
@@ -356,6 +369,52 @@
       return `note_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
     }
 
+    function escapeHtml(value = '') {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function captureTitle(value = '') {
+      const firstLine = String(value).split(/\r?\n/)[0].replace(/\s+/g, ' ').trim();
+      if (!firstLine) return 'Inbox note';
+      return firstLine.length > 64 ? `${firstLine.slice(0, 61)}…` : firstLine;
+    }
+
+    async function rememberDurableCapture(content, { title, noteId } = {}) {
+      if (localStorage.getItem('signedIn') !== 'true') return null;
+      const { createOrganismRememberProof } = await import('/operator/forge.js');
+      const requestId = globalThis.crypto?.randomUUID?.()
+        || `remember-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const proof = await createOrganismRememberProof(content, {
+        subject: title,
+        kind: 'note',
+        sourceId: noteId,
+        requestId
+      });
+      const response = await fetch('/api/openai-site?provider=operator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organismRemember: true,
+          ...proof,
+          content,
+          subject: title,
+          kind: 'note',
+          sourceId: noteId,
+          requestId
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || 'Durable memory sync failed.');
+      }
+      return data.memory || null;
+    }
+
     function putToSources(sources, id, data, { onPrimaryAck } = {}) {
       forEachSource(sources, (source, index) => {
         const ref = source.get(id);
@@ -428,12 +487,24 @@
     const sidebarBackdropEl = document.getElementById('mobile-sidebar-backdrop');
     const notesSidebarEl = document.getElementById('notes-sidebar');
     const navbarEl = document.querySelector('.navbar');
+    const quickCaptureForm = document.getElementById('quick-capture-form');
+    const quickCaptureInput = document.getElementById('quick-capture-input');
     const rootEl = document.documentElement;
     const bodyEl = document.body;
     const defaultEmptyMessage = emptyStateEl.innerHTML;
     const MOBILE_BREAKPOINT = 900;
-    const DEFAULT_FOLDER_NAME = 'Quick Notes';
-    const DEFAULT_FOLDER_ID = 'default-quick-notes';
+    const DEFAULT_FOLDER_NAME = 'Inbox';
+    const DEFAULT_FOLDER_ID = 'master-inbox';
+    const MASTER_SPACES = [
+      { id: 'master-inbox', name: 'Inbox' },
+      { id: 'master-now', name: 'Now' },
+      { id: 'master-projects', name: 'Projects' },
+      { id: 'master-ideas', name: 'Ideas' },
+      { id: 'master-decisions', name: 'Decisions' },
+      { id: 'master-people', name: 'People & commitments' },
+      { id: 'master-reference', name: 'Reference' },
+      { id: 'master-someday', name: 'Someday / Maybe' }
+    ];
 
     let currentFolder = null;
     let currentNoteId = null;
@@ -732,6 +803,20 @@
     if (pendingFolderSnapshots === 0) {
       maybeSeedDefaultFolder();
     }
+    setTimeout(ensureMasterSpaces, 1100);
+
+    function ensureMasterSpaces() {
+      MASTER_SPACES.forEach((space) => {
+        const normalizedName = normalizeFolderName(space.name);
+        if (!findFolderByNormalizedName(normalizedName)) {
+          createFolder(space.name, space.id);
+        }
+      });
+      const inboxId = findFolderByNormalizedName(normalizeFolderName(DEFAULT_FOLDER_NAME)) || DEFAULT_FOLDER_ID;
+      if (!currentFolder && folderCache.has(inboxId)) {
+        selectFolder(inboxId);
+      }
+    }
 
     function seedDefaultFolder() {
       if (defaultFolderSeeded) {
@@ -917,6 +1002,64 @@
           }
           setSaveStatus('Page created');
         }
+      });
+    }
+
+    function captureQuickNote(value) {
+      const text = String(value || '').trim();
+      if (!text) return;
+
+      ensureMasterSpaces();
+      const inboxId = findFolderByNormalizedName(normalizeFolderName(DEFAULT_FOLDER_NAME)) || DEFAULT_FOLDER_ID;
+      if (!folderCache.has(inboxId)) {
+        createFolder(DEFAULT_FOLDER_NAME, inboxId);
+      }
+
+      const id = generateId();
+      const now = Date.now();
+      const payload = {
+        title: captureTitle(text),
+        folder: inboxId,
+        content: `<p>${escapeHtml(text).replace(/\r?\n/g, '<br>')}</p>`,
+        createdAt: now,
+        updatedAt: now,
+        capturedFrom: 'portal-master-notes'
+      };
+      const optimisticNote = { ...payload, id };
+      noteSourceRefs.set(id, primaryNoteSource);
+      noteCache.set(id, optimisticNote);
+      ensureNoteListItem(id, optimisticNote);
+      selectFolder(inboxId);
+      openNote(id);
+      putToSources(noteSources, id, payload, {
+        onPrimaryAck: (ack) => {
+          if (ack && ack.err) {
+            console.error('Failed to capture inbox note', ack.err);
+            setSaveStatus(gunContext.isStub ? 'Offline draft' : 'Sync unavailable');
+            return;
+          }
+          setSaveStatus('Captured to Inbox');
+        }
+      });
+      setSaveStatus(gunContext.isStub ? 'Offline draft' : 'Captured to Inbox');
+
+      rememberDurableCapture(text, { title: payload.title, noteId: id })
+        .then((memory) => {
+          if (memory?.id) setSaveStatus('Captured • durable memory saved');
+        })
+        .catch((error) => {
+          console.warn('Durable memory mirror unavailable', error);
+          setSaveStatus('Captured • memory sync pending');
+        });
+    }
+
+    if (quickCaptureForm && quickCaptureInput) {
+      quickCaptureForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const value = quickCaptureInput.value;
+        if (!value.trim()) return;
+        captureQuickNote(value);
+        quickCaptureInput.value = '';
       });
     }
 
