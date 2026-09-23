@@ -52,6 +52,14 @@ test('classifyTask keeps mixed or conditional side-effect instructions high risk
   assert.equal(mixed.highRisk, true);
 });
 
+test('classifyTask ignores prohibited capabilities when choosing a backend lane', () => {
+  const harmless = classifyTask('Return the health marker. Do not change files or use the terminal.');
+
+  assert.equal(harmless.kind, 'general');
+  assert.equal(harmless.highRisk, false);
+  assert.equal(harmless.needsTools, false);
+});
+
 test('commandExists preserves the worker PATH instead of launching a login shell', async () => {
   let invocation = null;
   const found = await commandExists('codex', (command, args, callback) => {
