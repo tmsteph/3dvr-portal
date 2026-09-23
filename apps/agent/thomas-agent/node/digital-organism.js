@@ -7,6 +7,15 @@ const DEFAULT_HOME = process.env.THREEDVR_HOME || path.join(os.homedir(), '.3dvr
 const DEFAULT_STATE_DIR = process.env.THREEDVR_ORGANISM_DIR || path.join(DEFAULT_HOME, 'state', 'organism');
 const DEFAULT_LLAMA_URL = process.env.THREEDVR_YOLO_SERVER_URL || 'http://127.0.0.1:8080';
 
+const BUILTIN_LENSES = {
+  builder: {
+    description: 'Work, shipping, technical decisions, blockers, artifacts, customers, and revenue.',
+    tags: ['builder', 'code', 'deploy', 'task', 'mission', 'artifact', 'github', 'portal', 'revenue', 'customer', 'client', 'open-source'],
+    kinds: ['milestone', 'decision', 'task.completed', 'task.failed', 'mission.completed', 'deploy', 'release', 'artifact', 'blocker'],
+    keywords: ['build', 'built', 'ship', 'shipped', 'fix', 'fixed', 'merge', 'merged', 'deploy', 'deployed', 'implement', 'implemented', 'complete', 'completed', 'blocker', 'failed', 'commit', 'pull', 'request', 'test', 'release', 'revenue', 'customer', 'client'],
+  },
+};
+
 function nowIso(now = Date.now()) {
   return new Date(now).toISOString();
 }
@@ -175,6 +184,81 @@ async function timeline(query = '', options = {}) {
     })
     .filter(hit => queryTokens.size === 0 || hit.overlap > 0)
     .sort((a, b) => b.score - a.score || String(b.event.occurredAt).localeCompare(String(a.event.occurredAt)))
+    .slice(0, limit);
+}
+
+function lensProfile(name) {
+  const key = normalizeText(name).toLowerCase();
+  const profile = BUILTIN_LENSES[key];
+  if (!profile) throw new Error(`Unknown lens: ${key || '(empty)'}`);
+  return { name: key, ...profile };
+}
+
+function scoreLensItem(profile, item, queryTokens) {
+  const itemTokens = tokens([
+    item.kind,
+    item.actor,
+    item.subject,
+    item.content,
+    item.sourceType,
+    ...(item.tags || []),
+  ].filter(Boolean).join(' '));
+  const queryOverlap = [...queryTokens].filter(token => itemTokens.has(token)).length;
+  const queryUnion = new Set([...queryTokens, ...itemTokens]).size || 1;
+  const lexical = queryTokens.size ? queryOverlap / queryUnion : 0;
+
+  const profileTokens = new Set(profile.keywords);
+  const keywordOverlap = [...profileTokens].filter(token => itemTokens.has(token)).length;
+  const tagOverlap = (item.tags || []).filter(tag => profile.tags.includes(normalizeText(tag).toLowerCase())).length;
+  const kindMatch = profile.kinds.includes(normalizeText(item.kind).toLowerCase()) ? 1 : 0;
+  const profileScore = Math.min(1, kindMatch * 0.45 + tagOverlap * 0.20 + keywordOverlap * 0.06);
+
+  return {
+    score: lexical * 0.70 + profileScore * 0.30,
+    queryOverlap,
+    profileScore,
+  };
+}
+
+async function lens(name, query = '', options = {}) {
+  const profile = lensProfile(name);
+  const queryTokens = tokens(query);
+  const limit = Math.max(1, Number.parseInt(options.limit || '10', 10) || 10);
+  const [lifeEvents, memoryEvents] = await Promise.all([
+    loadLifeEvents(options),
+    loadEvents(options),
+  ]);
+  const items = [
+    ...lifeEvents.map(event => ({
+      entryType: 'event',
+      id: event.id,
+      kind: event.kind,
+      actor: event.actor,
+      content: event.content,
+      tags: event.tags || [],
+      sourceType: event.sourceType,
+      sourceId: event.sourceId,
+      occurredAt: event.occurredAt,
+      raw: event,
+    })),
+    ...replayMemories(memoryEvents).map(memory => ({
+      entryType: 'memory',
+      id: memory.id,
+      kind: memory.kind,
+      subject: memory.subject,
+      content: memory.content,
+      tags: [],
+      sourceType: memory.sourceType,
+      sourceId: memory.sourceId,
+      occurredAt: memory.createdAt,
+      raw: memory,
+    })),
+  ];
+
+  return items
+    .map(item => ({ ...scoreLensItem(profile, item, queryTokens), item }))
+    .filter(hit => queryTokens.size ? hit.queryOverlap > 0 : hit.profileScore > 0)
+    .sort((a, b) => b.score - a.score || String(b.item.occurredAt || '').localeCompare(String(a.item.occurredAt || '')))
     .slice(0, limit);
 }
 
@@ -461,12 +545,15 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--json') options.json = true;
     else positional.push(arg);
   }
+  if (options.command === 'lens') {
+    options.lensName = positional.shift() || '';
+  }
   options.text = positional.join(' ');
   return options;
 }
 
 function usage() {
-  console.log(`3DVR Digital Organism\n\nUsage:\n  organism event [--kind observation] [--actor owner] [--tags tag1,tag2] "what happened"\n  organism timeline [--limit 10] ["query"]\n  organism promote [--kind fact] [--subject SUBJECT] EVENT_ID\n  organism remember [options] "memory"\n  organism recall [--limit 5] "query"\n  organism context "question"\n  organism import-context [--owner OWNER] [--json]\n  organism ask --provider llama|compatible [--url URL] [--model MODEL] "question"\n  organism forget MEMORY_ID\n  organism correct MEMORY_ID "replacement memory"\n  organism eval\n\nPrivacy rule:\n  event/timeline/promote/recall/context/import-context are local operations. ask never chooses a model provider implicitly.`);
+  console.log(`3DVR Digital Organism\n\nUsage:\n  organism event [--kind observation] [--actor owner] [--tags tag1,tag2] "what happened"\n  organism timeline [--limit 10] ["query"]\n  organism lens builder [--limit 10] ["query"]\n  organism promote [--kind fact] [--subject SUBJECT] EVENT_ID\n  organism remember [options] "memory"\n  organism recall [--limit 5] "query"\n  organism context "question"\n  organism import-context [--owner OWNER] [--json]\n  organism ask --provider llama|compatible [--url URL] [--model MODEL] "question"\n  organism forget MEMORY_ID\n  organism correct MEMORY_ID "replacement memory"\n  organism eval\n\nPrivacy rule:\n  event/timeline/promote/recall/context/import-context are local operations. ask never chooses a model provider implicitly.`);
 }
 
 async function cli(argv = process.argv.slice(2)) {
@@ -481,6 +568,13 @@ async function cli(argv = process.argv.slice(2)) {
     console.log(options.json
       ? JSON.stringify(hits, null, 2)
       : hits.map(hit => `${hit.event.occurredAt}\t${hit.event.id}\t[${hit.event.kind}] ${hit.event.content}`).join('\n'));
+    return 0;
+  }
+  if (options.command === 'lens') {
+    const hits = await lens(options.lensName, options.text, options);
+    console.log(options.json
+      ? JSON.stringify(hits, null, 2)
+      : hits.map(hit => `${hit.score.toFixed(3)}\t${hit.item.entryType}\t${hit.item.id}\t[${hit.item.kind}] ${hit.item.content}`).join('\n'));
     return 0;
   }
   if (options.command === 'promote') {
@@ -548,6 +642,8 @@ module.exports = {
   importContextSessions,
   loadEvents,
   loadLifeEvents,
+  lens,
+  lensProfile,
   makeLifeEvent,
   makeMemory,
   promoteLifeEvent,
