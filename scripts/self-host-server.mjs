@@ -3,7 +3,15 @@ import { createReadStream } from 'node:fs';
 import { access, readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import openAiSiteHandler from '../api/openai-site.js';
+import calendarProviderHandler from '../api/calendar/[provider].js';
 import reminderEmailHandler from '../api/calendar/reminder-email.js';
+import githubPublishHandler from '../api/github-publish.js';
+import growthHomepageHeroCronHandler from '../api/growth/homepage-hero-cron.js';
+import moneyLoopHandler from '../api/money/loop.js';
+import sessionHandler from '../api/session.js';
+import stripeDashboardHandler from '../api/stripe/[route].js';
+import trialHandler from '../api/trial.js';
+import stripeWebhookHandler from '../api/webhooks/stripe.js';
 import secretsBrokerHandler from '../src/secrets-broker/handler.js';
 import secretHandoffHandler from '../src/secret-handoff/handler.js';
 import workboardGithubHandler from '../src/workboard/github-feed.js';
@@ -164,7 +172,40 @@ function adaptResponse(res) {
     res.end(JSON.stringify(payload));
     return res;
   };
+  res.send = payload => {
+    if (Buffer.isBuffer(payload) || typeof payload === 'string') res.end(payload);
+    else res.json(payload);
+    return res;
+  };
   return res;
+}
+
+async function runJsonApiHandler(handler, req, res, url, {
+  query = {},
+  errorMessage = 'API request failed'
+} = {}) {
+  try {
+    if (req.method !== 'OPTIONS') await prepareApiRequest(req, url);
+    else { req.body = {}; req.query = Object.fromEntries(url.searchParams.entries()); }
+    req.query = { ...(req.query || {}), ...query };
+    await handler(req, adaptResponse(res));
+  } catch (error) {
+    if (!res.headersSent) json(res, error?.statusCode || 500, { error: error?.message || errorMessage });
+    else res.destroy(error);
+  }
+}
+
+async function runRawApiHandler(handler, req, res, url, {
+  query = {},
+  errorMessage = 'API request failed'
+} = {}) {
+  try {
+    req.query = { ...Object.fromEntries(url.searchParams.entries()), ...query };
+    await handler(req, adaptResponse(res));
+  } catch (error) {
+    if (!res.headersSent) json(res, error?.statusCode || 500, { error: error?.message || errorMessage });
+    else res.destroy(error);
+  }
 }
 
 async function runOpenAiSite(req, res, url) {
@@ -380,7 +421,7 @@ const server = createServer(async (req, res) => {
     return runOpenAiSite(req, res, url);
   }
 
-  if (url.pathname === '/api/calendar/reminder-email') {
+  if (url.pathname === '/api/calendar/reminder-email' || url.pathname === '/api/account-recovery-email') {
     return runReminderEmail(req, res, url);
   }
 
@@ -396,8 +437,58 @@ const server = createServer(async (req, res) => {
     return runWorkboardGithub(req, res, url);
   }
 
+  if (url.pathname === '/api/session') {
+    return runJsonApiHandler(sessionHandler, req, res, url, { errorMessage: 'Session API request failed' });
+  }
+
+  if (url.pathname === '/api/crm-check') {
+    return runJsonApiHandler(sessionHandler, req, res, url, { query: { route: 'crm-check' }, errorMessage: 'CRM check failed' });
+  }
+
+  if (url.pathname === '/api/av-freelance-kit') {
+    return runJsonApiHandler(sessionHandler, req, res, url, { query: { route: 'av-freelance-kit' }, errorMessage: 'AV freelance kit failed' });
+  }
+
+  if (url.pathname === '/api/trial') {
+    return runJsonApiHandler(trialHandler, req, res, url, { errorMessage: 'Trial API request failed' });
+  }
+
+  if (url.pathname === '/api/github-publish') {
+    return runJsonApiHandler(githubPublishHandler, req, res, url, { errorMessage: 'GitHub publish request failed' });
+  }
+
+  if (url.pathname === '/api/vercel-deploy') {
+    return runJsonApiHandler(githubPublishHandler, req, res, url, { query: { provider: 'vercel' }, errorMessage: 'Vercel fallback deploy request failed' });
+  }
+
+  if (url.pathname === '/api/growth/homepage-hero-cron') {
+    return runJsonApiHandler(growthHomepageHeroCronHandler, req, res, url, { errorMessage: 'Growth cron request failed' });
+  }
+
+  if (url.pathname === '/api/money/loop') {
+    return runJsonApiHandler(moneyLoopHandler, req, res, url, { errorMessage: 'Money loop request failed' });
+  }
+
+  if (url.pathname === '/api/money/autopilot-cron') {
+    return runJsonApiHandler(moneyLoopHandler, req, res, url, { query: { route: 'autopilot-cron' }, errorMessage: 'Money autopilot cron failed' });
+  }
+
+  if (url.pathname.startsWith('/api/calendar/')) {
+    const provider = decodeURIComponent(url.pathname.split('/').filter(Boolean).at(-1) || '');
+    return runJsonApiHandler(calendarProviderHandler, req, res, url, { query: { provider }, errorMessage: 'Calendar provider request failed' });
+  }
+
   if (url.pathname.startsWith('/api/oauth/')) {
     return runOAuthProvider(req, res, url);
+  }
+
+  if (url.pathname.startsWith('/api/stripe/')) {
+    const route = decodeURIComponent(url.pathname.split('/').filter(Boolean).at(-1) || '');
+    return runJsonApiHandler(stripeDashboardHandler, req, res, url, { query: { route }, errorMessage: 'Stripe API request failed' });
+  }
+
+  if (url.pathname === '/api/webhooks/stripe' || url.pathname === '/webhooks/stripe') {
+    return runRawApiHandler(stripeWebhookHandler, req, res, url, { errorMessage: 'Stripe webhook failed' });
   }
 
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/webhooks/')) {
