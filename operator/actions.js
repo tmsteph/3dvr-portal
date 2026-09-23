@@ -67,6 +67,10 @@ export async function runOperatorAction(action = {}, context = {}) {
     revealDeveloperKeyButton();
     return outcome;
   }
+  if (action.type === 'delegate_task') {
+    const { queueOperatorTask } = await import('./delegate-task.js');
+    return queueOperatorTask(action);
+  }
   if (action.type === 'request_code_change') {
     const prepared = ownerGithubAction(action, context.developerAccess);
     const { queueCodeChange } = await import('./forge.js');

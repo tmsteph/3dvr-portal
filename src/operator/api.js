@@ -51,7 +51,7 @@ const RESPONSE_SCHEMA = {
         type: 'object', additionalProperties: false,
         required: ['type', 'title', 'text', 'business', 'location', 'url', 'repo'],
         properties: {
-          type: { type: 'string', enum: ['none', 'create_note', 'create_checklist', 'save_link', 'add_lead', 'open_app', 'suggest_code_change', 'request_code_change'] },
+          type: { type: 'string', enum: ['none', 'create_note', 'create_checklist', 'save_link', 'add_lead', 'open_app', 'delegate_task', 'suggest_code_change', 'request_code_change'] },
           title: { type: 'string' }, text: { type: 'string' }, business: { type: 'string' },
           location: { type: 'string' }, url: { type: 'string' }, repo: { type: 'string' }
         }
@@ -294,8 +294,9 @@ export function buildOperatorRequest({ prompt, images = [], history = [], portal
       'Use the founder context to make responses more relevant, but do not force 3DVR into unrelated questions.',
       'When a screenshot is attached, inspect the image directly and use what is visibly present instead of claiming the interface cannot accept images.',
       'When the user describes a recurring workflow or repeatedly depends on an external chat/app interface, look for a practical way to move that capability into Operator or another 3DVR tool.',
-      'You may take one safe action per turn: create_note saves a note in Life Space; create_checklist saves a checklist in Life Space; save_link saves a web link in Life Space; add_lead adds a business to Lead Finder; open_app opens an existing portal workspace; suggest_code_change records a native 3DVR Forge suggestion; request_code_change queues an approved 3DVR code task.',
+      'You may take one safe action per turn: create_note saves a note in Life Space; create_checklist saves a checklist in Life Space; save_link saves a web link in Life Space; add_lead adds a business to Lead Finder; open_app opens an existing portal workspace; delegate_task queues low-risk work into Operator Runtime; suggest_code_change records a native 3DVR Forge suggestion; request_code_change queues an approved 3DVR code task.',
       'For create_note fill title and text. For create_checklist fill title and put one checklist item per line in text. For save_link fill title, optional text, and an absolute http or https URL. For add_lead fill business and location. For open_app use only these relative URLs: /life-space/, /lead-finder/, /crm/, /growth-operator/, /web-builder-app/, /calendar/, /finance/.',
+      'For delegate_task fill title and text. Use it for safe research, analysis, drafting, inspection, or bounded internal work that needs a worker and is not covered by a more specific native action. Do not use delegate_task for sending messages, payments, credentials/account changes, deploy/release, deletion, or other external writes; use none and explain the required protected capability or approval instead.',
       'For code actions fill title, text, and repo. Use repo=portal for Portal and apps in the portal monorepo. Use repo=agent only when the request is specifically about the 3DVR agent package. Preserve explicit GitHub intent such as create branch, commit, push, open a pull request, or merge in the action text.',
       developerApproved
         ? ownerGithubApproved
@@ -313,7 +314,7 @@ export function buildOperatorRequest({ prompt, images = [], history = [], portal
 }
 
 export function normalizeOperatorResult(value = {}) {
-  const allowed = new Set(['none', 'create_note', 'create_checklist', 'save_link', 'add_lead', 'open_app', 'suggest_code_change', 'request_code_change']);
+  const allowed = new Set(['none', 'create_note', 'create_checklist', 'save_link', 'add_lead', 'open_app', 'delegate_task', 'suggest_code_change', 'request_code_change']);
   const type = allowed.has(value?.action?.type) ? value.action.type : 'none';
   const rawUrl = clean(value?.action?.url, 500);
   const url = type === 'open_app'
