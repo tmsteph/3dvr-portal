@@ -29,6 +29,8 @@ test('full Operator exposes a mobile screenshot attachment control', async () =>
   const page = await read('operator/index.html');
 
   assert.match(app, /installOperatorAttachments/);
+  assert.match(app, /readOperatorStream/);
+  assert.match(app, /onReplyDelta/);
   assert.match(app, /images,history:prior/);
   assert.match(attachments, /Attach screenshot/);
   assert.match(attachments, /image\/png,image\/jpeg,image\/webp,image\/gif/);
