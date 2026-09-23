@@ -1,0 +1,90 @@
+name: Migrate Vercel Runtime Env to Self Host
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      OVH_HOST: 40.160.137.41
+      OVH_USER: debian
+    steps:
+      - name: Resolve OVH SSH key
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          for n in A B C; do
+            raw_var="SSH_$n"
+            raw="${!raw_var:-}"
+            [ -n "$raw" ] || continue
+            dest="/tmp/key-$n"
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              continue
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+            if ssh -i "$dest" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$OVH_USER@$OVH_HOST" true >/dev/null 2>&1; then
+              cp "$dest" /tmp/ovh-key
+              chmod 600 /tmp/ovh-key
+              exit 0
+            fi
+          done
+          exit 1
+
+      - name: Pull production env and merge into self-host secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i /tmp/ovh-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$OVH_USER@$OVH_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          cd "$tmp"
+          npx --yes vercel@59.11.7 link --yes --project 3dvr-portal --scope 3dvr >/dev/null
+          npx --yes vercel@59.11.7 env pull "$tmp/production.env" --yes --environment=production --scope 3dvr >/dev/null
+          target="$HOME/.3dvr/config/portal-secrets.env"
+          mkdir -p "$(dirname "$target")"
+          chmod 700 "$(dirname "$target")"
+          touch "$target"
+          chmod 600 "$target"
+          next="$(mktemp)"
+          cp "$target" "$next"
+          count=0
+          while IFS= read -r line; do
+            [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || continue
+            key="${line%%=*}"
+            case "$key" in
+              VERCEL_*|CI) continue ;;
+            esac
+            grep -v "^${key}=" "$next" > "${next}.filtered" || true
+            mv "${next}.filtered" "$next"
+            printf '%s\n' "$line" >> "$next"
+            count=$((count + 1))
+          done < "$tmp/production.env"
+          mv "$next" "$target"
+          chmod 600 "$target"
+          echo "Migrated $count production environment keys without printing secret values."
+          sudo -n systemctl restart 3dvr-portal.service
+          sleep 2
+          curl -fsS http://127.0.0.1:4320/api/trial | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);console.log(JSON.stringify({stripeConfigured:x.stripeConfigured,priceConfigured:x.priceConfigured,mailConfigured:x.mailConfigured}))})'
+          REMOTE
+
+      - name: Cleanup
+        if: always()
+        run: rm -f /tmp/ovh-key /tmp/key-A /tmp/key-B /tmp/key-C /tmp/*.raw
