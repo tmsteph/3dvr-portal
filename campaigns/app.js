@@ -1,5 +1,4 @@
 import {
-  campaignDayKey,
   composeMessage,
   filterSuppressed,
   personalize,
@@ -31,6 +30,7 @@ const STORAGE = {
   draft: '3dvr.campaigns.draft',
   history: '3dvr.campaigns.history',
   sent: '3dvr.campaigns.sent-by-day',
+  sentEvents: '3dvr.campaigns.sent-events',
   oauth: 'portal.oauth.result',
   discovered: '3dvr.campaigns.discovered-leads',
 };
@@ -496,22 +496,40 @@ function currentRecipients() {
   const suppressed = parseRecipients(elements.suppressed.value).map(item => item.email);
   return { all, sendable: filterSuppressed(all, suppressed), suppressedCount: all.length - filterSuppressed(all, suppressed).length };
 }
+function recentSendEvents(now = Date.now()) {
+  const cutoff = now - (24 * 60 * 60 * 1000);
+  let events = readJson(STORAGE.sentEvents, []);
+  if (!Array.isArray(events) || !events.length) {
+    const history = readJson(STORAGE.history, []);
+    events = history.flatMap(item => {
+      const at = Number(item?.at || 0);
+      const count = Math.max(0, Number(item?.sent || 0));
+      return Number.isFinite(at) && at >= cutoff
+        ? Array.from({ length: count }, () => at)
+        : [];
+    });
+  }
+  const recent = events
+    .map(Number)
+    .filter(timestamp => Number.isFinite(timestamp) && timestamp >= cutoff && timestamp <= now + 60_000)
+    .slice(-100);
+  writeJson(STORAGE.sentEvents, recent);
+  return recent;
+}
 function sentToday() {
-  const sent = readJson(STORAGE.sent, {});
-  return Number(sent[campaignDayKey()] || 0);
+  return recentSendEvents().length;
 }
 function incrementSent() {
-  const sent = readJson(STORAGE.sent, {});
-  const key = campaignDayKey();
-  sent[key] = Number(sent[key] || 0) + 1;
-  writeJson(STORAGE.sent, sent);
+  const events = recentSendEvents();
+  events.push(Date.now());
+  writeJson(STORAGE.sentEvents, events.slice(-100));
 }
 function updateSummary() {
   const { all, sendable, suppressedCount } = currentRecipients();
   const allowance = remainingDailyAllowance(sentToday(), DAILY_CAP);
   elements.recipientCount.textContent = `${all.length} valid · ${sendable.length} sendable${suppressedCount ? ` · ${suppressedCount} suppressed` : ''}`;
   elements.sendSummary.textContent = connectionReady()
-    ? `${Math.min(sendable.length, allowance)} ready now · ${allowance} daily slots left`
+    ? `${Math.min(sendable.length, allowance)} ready now · ${allowance} slots left in rolling 24h`
     : 'Connect Gmail to begin.';
 }
 async function refreshConnection() {
@@ -707,6 +725,7 @@ async function runCampaign(event) {
   let failed = 0;
   let fatalError = '';
   let backupSender = '';
+  const sentEmails = new Set();
   setProgress(0, batch.length, 'Starting…');
 
   for (let index = 0; index < batch.length; index += 1) {
@@ -729,6 +748,7 @@ async function runCampaign(event) {
         backupSender = sendResult.senderEmail || sendResult.sentFolderAccount || backupSender;
       }
       sent += 1;
+      sentEmails.add(recipient.email);
       incrementSent();
       markCampaignLeadStatus(recipient.email, 'sent');
       markLeadVaultStatus(recipient.email, 'sent');
@@ -746,6 +766,15 @@ async function runCampaign(event) {
       : `Sent ${sent} · Failed ${failed}`);
     if (fatalError) break;
     if (index < batch.length - 1) await sleep(SEND_DELAY_MS);
+  }
+
+  if (sentEmails.size) {
+    const remaining = parseRecipients(elements.recipients.value)
+      .filter(recipient => !sentEmails.has(recipient.email));
+    elements.recipients.value = remaining.map(recipient => recipient.name
+      ? `${recipient.name} <${recipient.email}>`
+      : recipient.email).join('\n');
+    writeJson(STORAGE.draft, draftSnapshot());
   }
 
   addHistory({
