@@ -83,18 +83,47 @@ async function ensureWorktree(mission, options) {
 async function persist(mission, state, options) { const events = await readEvents(mission.missionId, options.stateRoot); await saveState(state, options.stateRoot); await writeStatus(mission, state, events, options.stateRoot); return events; }
 async function record(mission, state, options, taskId, type, summary, evidence = {}) { await appendEvent({ missionId: mission.missionId, taskId, source: 'mission-runner', type, severity: 'info', summary, evidence }, options.stateRoot); return persist(mission, state, options); }
 
+async function recordMissionLifeEvent(mission, task, kind, content, options = {}) {
+  if (options.simulate) return null;
+  const recordLifeEventImpl = options.recordLifeEventImpl || require('./digital-organism').recordLifeEvent;
+  const tags = ['builder', 'mission', mission.missionId, task?.backend].filter(Boolean);
+  try {
+    return await recordLifeEventImpl(content, {
+      kind,
+      actor: 'agent',
+      tags,
+      sourceType: task ? 'mission-task' : 'mission',
+      sourceId: task ? `${mission.missionId}:${task.id}` : mission.missionId,
+    });
+  } catch {
+    return null;
+  }
+}
+
 async function completeTask(mission, state, task, options, evidence) {
   state.state = 'running';
   await transition(state, task.id, 'running', { summary: `${task.id} started.` }, options.stateRoot);
   await transition(state, task.id, 'validating', { summary: `${task.id} checks are running.` }, options.stateRoot);
   state.tasks[task.id].evidence = workerResult({ taskId: task.id, status: 'completed', ...evidence });
   await transition(state, task.id, 'completed', { summary: evidence.summary || `${task.id} completed.`, evidence: state.tasks[task.id].evidence }, options.stateRoot);
+  await recordMissionLifeEvent(
+    mission,
+    task,
+    'task.completed',
+    `Mission ${mission.missionId} completed task ${task.id}: ${task.objective || evidence.summary || task.id}`,
+    options,
+  );
   state.state = 'ready'; state.currentTaskId = null; await persist(mission, state, options);
 }
 
 async function runOne(mission, state, options, hooks = {}) {
   const selection = plan(mission, state); const task = selection.task;
-  if (selection.complete) { state.state = 'completed'; await record(mission, state, options, null, 'mission.completed', 'Mission completed.', {}); return { status: 'completed' }; }
+  if (selection.complete) {
+    state.state = 'completed';
+    await record(mission, state, options, null, 'mission.completed', 'Mission completed.', {});
+    await recordMissionLifeEvent(mission, null, 'mission.completed', `Mission completed: ${mission.missionId}`, options);
+    return { status: 'completed' };
+  }
   if (!task) { state.state = 'blocked'; state.blockers = selection.blocked.map(item => `${item.id} depends on a failed or cancelled task`); await record(mission, state, options, null, 'mission.blocked', 'Mission is blocked by unresolved dependencies.', { blockers: state.blockers }); return { status: 'blocked', blockers: state.blockers }; }
   state.currentTaskId = task.id;
   if (!options.execute) { state.state = 'ready'; state.tasks[task.id].state = 'ready'; await record(mission, state, options, task.id, 'task.ready', `Next unblocked task: ${task.id}. Inspect-only mode did not execute it.`, { taskId: task.id }); return { status: 'ready', taskId: task.id, checks: task.commands }; }
@@ -151,4 +180,4 @@ async function runMission(argv = process.argv.slice(2), hooks = {}) {
 
 if (require.main === module) runMission().then(result => { if (process.argv.includes('--json')) console.log(JSON.stringify(result, null, 2)); else console.log(typeof result === 'string' ? result : `${String(result.status || 'done').toUpperCase()}${result.taskId ? `: ${result.taskId}` : ''}`); }).catch(error => { console.error(error.message || error); process.exitCode = 1; });
 
-module.exports = { commandText, loadMission, parseArgs, runCommand, runMission };
+module.exports = { commandText, loadMission, parseArgs, recordMissionLifeEvent, runCommand, runMission };
