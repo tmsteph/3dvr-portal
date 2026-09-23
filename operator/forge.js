@@ -312,6 +312,27 @@ export async function createOrganismRecallProof(query, options = {}) {
   return { ...proof, query: text, requestId, limit };
 }
 
+export async function createOrganismRememberProof(content, options = {}) {
+  const signedIn = globalThis.localStorage?.getItem?.('signedIn') === 'true';
+  if (!signedIn) throw new Error('Sign in with your 3DVR account before saving durable memory.');
+  const text = normalizeText(content, 4000);
+  const subject = normalizeText(options.subject, 300);
+  const kind = normalizeText(options.kind, 80) || 'note';
+  const sourceId = normalizeText(options.sourceId, 300);
+  if (!text) throw new Error('Memory content is required.');
+  if (!sourceId) throw new Error('A source id is required for durable memory.');
+  const requestId = normalizeText(options.requestId || makeId('organism-remember'), 160);
+  const proof = await signedPortalProof('digital-organism', 'remember', {
+    content: text,
+    subject,
+    kind,
+    sourceId,
+    requestId
+  });
+  if (!proof) throw new Error('Refresh your 3DVR sign-in before saving durable memory.');
+  return { ...proof, content: text, subject, kind, sourceId, requestId };
+}
+
 export async function createOrganismFeedbackProof(query, memoryId, options = {}) {
   const signedIn = globalThis.localStorage?.getItem?.('signedIn') === 'true';
   if (!signedIn) throw new Error('Sign in with your 3DVR account before rating a memory.');

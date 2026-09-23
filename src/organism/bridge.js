@@ -1,11 +1,13 @@
 import {
   resolveOrganismAccess,
-  resolveOrganismFeedbackAccess
+  resolveOrganismFeedbackAccess,
+  resolveOrganismRememberAccess
 } from './access.js';
 import {
   approveRetrievalOnOvh,
   recallFromOvh,
-  rejectRetrievalOnOvh
+  rejectRetrievalOnOvh,
+  rememberOnOvh
 } from './remote.js';
 
 function sendJson(res, status, payload) {
@@ -39,7 +41,9 @@ async function readJson(req, maxBytes = 96 * 1024) {
 export function createOrganismBridgeHandler(options = {}) {
   const accessImpl = options.accessImpl || resolveOrganismAccess;
   const feedbackAccessImpl = options.feedbackAccessImpl || resolveOrganismFeedbackAccess;
+  const rememberAccessImpl = options.rememberAccessImpl || resolveOrganismRememberAccess;
   const recallImpl = options.recallImpl || recallFromOvh;
+  const rememberImpl = options.rememberImpl || rememberOnOvh;
   const approveImpl = options.approveImpl || approveRetrievalOnOvh;
   const rejectImpl = options.rejectImpl || rejectRetrievalOnOvh;
 
@@ -56,7 +60,7 @@ export function createOrganismBridgeHandler(options = {}) {
       });
     }
 
-    if (method !== 'POST' || !['/recall', '/feedback'].includes(pathname)) {
+    if (method !== 'POST' || !['/recall', '/feedback', '/remember'].includes(pathname)) {
       return sendJson(res, 404, { ok: false, error: 'Not found.' });
     }
 
@@ -92,6 +96,34 @@ export function createOrganismBridgeHandler(options = {}) {
         return sendJson(res, 502, {
           ok: false,
           error: 'The private Digital Organism could not record this feedback.'
+        });
+      }
+    }
+
+    if (pathname === '/remember' || payload.organismRemember === true) {
+      const access = await rememberAccessImpl(payload, options);
+      if (!access.ok) {
+        return sendJson(res, access.status || 403, { ok: false, error: access.reason || 'Unauthorized.' });
+      }
+      try {
+        const memory = await rememberImpl(access.content, {
+          subject: access.subject,
+          kind: access.kind,
+          sourceId: access.sourceId,
+          sshHost: options.sshHost,
+          remoteScript: options.remoteScript,
+          timeoutMs: options.timeoutMs
+        });
+        return sendJson(res, 200, {
+          ok: true,
+          requestId: access.requestId,
+          memory
+        });
+      } catch (error) {
+        console.error('Digital Organism bridge remember failed:', error?.message || error);
+        return sendJson(res, 502, {
+          ok: false,
+          error: 'The private Digital Organism could not save this memory.'
         });
       }
     }
