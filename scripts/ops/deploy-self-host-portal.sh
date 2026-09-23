@@ -358,10 +358,12 @@ rollback_live() {
 
 if start_with_systemd; then
   live_backend=systemd
-  install_systemd_crons
 else
   start_with_tmux
   live_backend=tmux
+fi
+if [ "$live_backend" = systemd ]; then
+  install_systemd_crons
 fi
 
 live_url="http://127.0.0.1:$port"
