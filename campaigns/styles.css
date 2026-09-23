@@ -12,6 +12,16 @@ button, input, textarea, select { font: inherit; }
 .brand { margin-right: auto; display: inline-flex; gap: 9px; align-items: center; color: inherit; text-decoration: none; font-weight: 850; }
 .brand img { width: 28px; height: 28px; }
 .topbar-links { display: flex; align-items: center; gap: 12px; }
+.integration-strip { display: flex; flex-wrap: wrap; gap: 7px; margin: 6px 0 12px; }
+.integration-pill {
+  min-height: 30px; display: inline-flex; align-items: center; padding: 5px 9px;
+  border: 1px solid #30363d; border-radius: 999px; background: rgba(13,17,23,.72);
+  color: #8b949e; font-size: .74rem; font-weight: 800; white-space: nowrap;
+}
+.integration-pill[data-state="ok"] { border-color: rgba(46,160,67,.7); color: #aff5b4; }
+.integration-pill[data-state="warn"] { border-color: rgba(210,153,34,.7); color: #ffd580; }
+.integration-pill[data-state="pending"] { border-color: rgba(88,166,255,.55); color: #9ecbff; }
+.integration-pill[data-state="off"] { opacity: .72; }
 .quiet-link { color: #9da7b3; text-decoration: none; font-weight: 700; }
 .account-link {
   min-height: 38px; padding: 7px 11px; border: 1px solid #30363d; border-radius: 999px;
