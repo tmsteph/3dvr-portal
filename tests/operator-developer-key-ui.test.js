@@ -79,6 +79,17 @@ test('a downgraded code suggestion offers the signed-in developer key for approv
   assert.match(actions, /revealDeveloperKeyButton\(\)/);
 });
 
+test('developer key control stays secondary instead of taking over the composer', async () => {
+  const ui = await readFile(new URL('../operator/developer-key-ui.js', import.meta.url), 'utf8');
+
+  assert.match(ui, /querySelector\('\.header-actions'\)/);
+  assert.match(ui, /button\.className = 'developer-key-button'/);
+  assert.match(ui, /button\.textContent = 'Dev key'/);
+  assert.match(ui, /button\.style\.fontSize = '\.72rem'/);
+  assert.match(ui, /headerActions\.appendChild\(button\)/);
+  assert.doesNotMatch(ui, /button\.textContent = 'Copy developer key'/);
+});
+
 test('developer key copy reads the refreshed button key instead of a stale closure', async () => {
   const ui = await readFile(new URL('../operator/developer-key-ui.js', import.meta.url), 'utf8');
 
