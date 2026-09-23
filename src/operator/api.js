@@ -431,12 +431,6 @@ export function createOperatorHandler(options = {}) {
       });
       if (wantsStream) requestBody.stream = true;
 
-      if (wantsStream) {
-        setOperatorStreamHeaders(res);
-        res.flushHeaders?.();
-        writeOperatorStreamEvent(res, 'status', { message: 'Operator is thinking…' });
-      }
-
       const response = await fetchImpl(requestEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authorizationToken}` },
@@ -445,14 +439,13 @@ export function createOperatorHandler(options = {}) {
 
       if (!response.ok) {
         const message = await readUpstreamError(response);
-        if (wantsStream) {
-          writeOperatorStreamEvent(res, 'error', { message });
-          return res.end();
-        }
         return res.status(response.status).json({ error: message });
       }
 
       if (wantsStream) {
+        setOperatorStreamHeaders(res);
+        res.flushHeaders?.();
+        writeOperatorStreamEvent(res, 'status', { message: 'Operator is thinking…' });
         let raw = '';
         let streamedReply = '';
         let upstreamError = '';
