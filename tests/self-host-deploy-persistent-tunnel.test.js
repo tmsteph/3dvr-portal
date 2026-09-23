@@ -13,6 +13,9 @@ test('production deploy reuses the persistent public tunnel helper', async () =>
   assert.match(deploy, /Persistent Portal public tunnel/);
   assert.match(deploy, /THREEDVR_PORTAL_CANONICAL_URL:-https:\/\/portal\.3dvr\.tech/);
   assert.match(deploy, /Canonical Portal route already serves the deployed release/);
+  assert.match(deploy, /homepage_hash=.*curl -fsS --max-time 5 "\$url\/"[\s\S]*sha256sum/);
+  assert.match(deploy, /expected_homepage_hash=.*sha256sum "\$current\/index\.html"/);
+  assert.match(deploy, /Health can be routed to self-host while the public root is still an older/);
   assert.ok(
     deploy.indexOf('public_portal_ready "$canonical_portal_url"') <
       deploy.indexOf('ensure-portal-public-tunnel.sh'),

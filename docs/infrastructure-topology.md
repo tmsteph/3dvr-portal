@@ -1,6 +1,6 @@
 # 3DVR Infrastructure Topology
 
-Last reviewed: 2026-09-22
+Last reviewed: 2026-09-23
 
 This document is the canonical human-readable inventory for the 3DVR compute mesh. Runtime secrets and private keys must never be stored here.
 
@@ -158,6 +158,8 @@ Keep the separately deployed `apps/agent` runtime here. Hetzner is the default *
 ## Release behavior
 
 The self-hosted production workflow no longer runs on every push to `main`. It runs only when manually dispatched or when `ops/self-host-production-trigger.txt` is updated. Normal development and rapid commits therefore cannot repeatedly cancel or interrupt the production deployment.
+
+As of 2026-09-23, `portal.3dvr.tech` DNS is still hosted by Vercel. The public hostname can therefore be split between a Vercel-served root document and self-hosted health/API traffic. A successful `/__3dvr-health` response is not enough to prove that the homepage is current. Production verification must compare the public root artifact with the release being deployed. See `docs/VERCEL-PRODUCTION.md`.
 
 ## Health monitoring
 
