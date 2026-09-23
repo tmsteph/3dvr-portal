@@ -23,8 +23,10 @@ export function leadVaultStatusRank(status = '') {
     selected: 1,
     'send-failed': 2,
     sent: 3,
+    bounced: 4,
     replied: 4,
-    customer: 5
+    suppressed: 5,
+    customer: 6
   }[clean(status)] ?? 0;
 }
 
