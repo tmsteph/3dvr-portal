@@ -16,6 +16,7 @@ const FEATURED = [
   { title: 'Labs', href: '/labs/', description: 'Experimental computing, artificial life, and research prototypes', aliases: 'experiments research life lab digital organism noteverse calendar future weird science' },
   { title: 'Life Lab', href: '/life-lab/', description: 'Evolving 3D organisms with live selection data', aliases: 'artificial life evolution genes lineage science 3d simulation' },
   { title: 'Digital Organism', href: '/digital-organism/', description: 'User-owned memory and continual intelligence research', aliases: 'memory ai agent context continual intelligence research' },
+  { title: 'Agent Architecture', href: '/agent-architecture/', description: 'Own the system, rent intelligence', aliases: 'ai architecture intelligence gateway model router digital organism personal ai' },
   { title: '13-Month Calendar', href: '/calendar/13/', description: 'A 13 × 28 calendar experiment', aliases: 'calendar time experiment 13 month fixed year' },
   { title: 'Workboard', href: '/workboard/', description: 'Projects, issues, and agent work', aliases: 'projects tasks issues agents jira kanban' },
   { title: 'Meditation', href: '/meditation/', description: 'Relax and explore', aliases: 'relax breathing calm mindfulness trip' },
