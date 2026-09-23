@@ -1,0 +1,156 @@
+name: Migrate Portal Edge to DigitalOcean
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/migrate-portal-do-edge.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migrate-portal-do-edge
+  cancel-in-progress: false
+
+env:
+  DO_HOST: 167.172.193.194
+  PORTAL_DNS_RECORD_ID: rec_938a6d34779611712104b9c3
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+jobs:
+  migrate:
+    if: github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'Migrate portal edge from Vercel to DigitalOcean'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve DigitalOcean SSH access
+        id: ssh
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/do-a
+          write_key "$SSH_B" /tmp/do-b
+          write_key "$SSH_C" /tmp/do-c
+          for user in root debian; do
+            for key in /tmp/do-a /tmp/do-b /tmp/do-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$DO_HOST" true >/dev/null 2>&1; then
+                cp "$key" /tmp/do-key
+                chmod 600 /tmp/do-key
+                echo "user=$user" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+          done
+          echo 'No DigitalOcean SSH key worked.' >&2
+          exit 1
+
+      - name: Stage resilient DigitalOcean HTTP edge
+        shell: bash
+        env:
+          USER: ${{ steps.ssh.outputs.user }}
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/do-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          scp "${opts[@]}" ops/resilience/install-do-edge-guardrails.sh "$USER@$DO_HOST:/tmp/install-do-edge-guardrails.sh"
+          if [ "$USER" = root ]; then prefix=""; else prefix="sudo -n"; fi
+          ssh "${opts[@]}" "$USER@$DO_HOST" "$prefix bash /tmp/install-do-edge-guardrails.sh"
+          ssh "${opts[@]}" "$USER@$DO_HOST" "$prefix bash -s" <<'REMOTE'
+          set -euo pipefail
+          if command -v ufw >/dev/null 2>&1 && sudo ufw status | grep -Fq 'Status: active'; then
+            sudo ufw allow 80/tcp
+            sudo ufw allow 443/tcp
+          fi
+          REMOTE
+
+      - name: Prove DigitalOcean HTTP edge externally
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 15 http://$DO_HOST/__3dvr-edge-health > /tmp/edge.json
+          node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync("/tmp/edge.json","utf8"));if(!x.ok||x.edge!=="digitalocean")process.exit(1)'
+          curl -fsS --max-time 20 -H 'Host: portal.3dvr.tech' http://$DO_HOST/__3dvr-health > /tmp/upstream.json
+          node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync("/tmp/upstream.json","utf8"));if(!x.ok||x.host!=="self"||x.operatorApi!=="native")process.exit(1)'
+
+      - name: Point canonical portal DNS at DigitalOcean
+        id: dns
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ -n "$VERCEL_TOKEN" ]
+          npx --yes vercel@59.11.7 dns update "$PORTAL_DNS_RECORD_ID" --scope 3dvr --type A --value "$DO_HOST" --ttl 60 --comment 'DigitalOcean resilient edge for self-hosted 3DVR Portal' --non-interactive --token "$VERCEL_TOKEN"
+
+      - name: Confirm authoritative DNS cutover
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            answer="$(dig +short @ns1.vercel-dns.com portal.3dvr.tech A | tail -n1 || true)"
+            echo "authoritative portal A: ${answer:-pending}"
+            [ "$answer" = "$DO_HOST" ] && exit 0
+            sleep 2
+          done
+          exit 1
+
+      - name: Enable automatic HTTPS on DigitalOcean
+        shell: bash
+        env:
+          USER: ${{ steps.ssh.outputs.user }}
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/do-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          if [ "$USER" = root ]; then prefix=""; else prefix="sudo -n"; fi
+          ssh "${opts[@]}" "$USER@$DO_HOST" "$prefix bash -s" <<'REMOTE'
+          set -euo pipefail
+          sed -i '0,/^:80 {/s//portal.3dvr.tech {/' /etc/caddy/Caddyfile
+          caddy validate --config /etc/caddy/Caddyfile
+          systemctl restart caddy
+          REMOTE
+
+      - name: Verify direct and canonical HTTPS
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 15 --resolve "portal.3dvr.tech:443:$DO_HOST" https://portal.3dvr.tech/__3dvr-health > /tmp/direct-health.json; then
+              node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync("/tmp/direct-health.json","utf8"));if(!x.ok||x.host!=="self"||x.operatorApi!=="native")process.exit(1)'
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS --retry 12 --retry-delay 3 --retry-all-errors --max-time 20 https://portal.3dvr.tech/__3dvr-health > /tmp/canonical-health.json
+          node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync("/tmp/canonical-health.json","utf8"));if(!x.ok||x.host!=="self"||x.operatorApi!=="native")process.exit(1)'
+
+      - name: Roll DNS back to Vercel on cutover failure
+        if: failure() && steps.dns.outcome == 'success'
+        shell: bash
+        run: |
+          npx --yes vercel@59.11.7 dns update "$PORTAL_DNS_RECORD_ID" --scope 3dvr --type CNAME --value cname.vercel-dns.com --ttl 60 --comment 'Automatic rollback to Vercel backup' --non-interactive --token "$VERCEL_TOKEN" || true
+
+      - name: Cleanup
+        if: always()
+        run: rm -f /tmp/do-key /tmp/do-a /tmp/do-b /tmp/do-c /tmp/do-*.raw /tmp/edge.json /tmp/upstream.json /tmp/direct-health.json /tmp/canonical-health.json
