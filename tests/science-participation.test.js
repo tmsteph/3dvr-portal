@@ -5,8 +5,13 @@ import { readFile } from 'node:fs/promises';
 import { buildProtocol } from '../science/experiment-builder.js';
 
 test('Science Lab teaches participatory science and replication', async () => {
-  const page = await readFile(new URL('../science/index.html', import.meta.url), 'utf8');
+  const [page, portal] = await Promise.all([
+    readFile(new URL('../science/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../index.html', import.meta.url), 'utf8')
+  ]);
 
+  assert.match(portal, /href="\/science\/"/);
+  assert.match(portal, />Science Lab</);
   assert.match(page, /Everyone can do science\./);
   assert.match(page, /Observe<\/span>/i);
   assert.match(page, /Replicate<\/span>/i);
