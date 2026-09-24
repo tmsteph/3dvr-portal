@@ -151,6 +151,25 @@ export function saveDiscoveredLeads({
       whyFit: clean(lead?.whyFit) || previous?.whyFit || '',
       evidence: clean(lead?.evidence) || previous?.evidence || '',
       sourceUrl: clean(lead?.sourceUrl) || previous?.sourceUrl || '',
+      profileSummary: clean(lead?.profileSummary) || previous?.profileSummary || '',
+      capabilities: Array.isArray(lead?.capabilities)
+        ? lead.capabilities.map(clean).filter(Boolean).slice(0, 8)
+        : (previous?.capabilities || []),
+      needs: Array.isArray(lead?.needs)
+        ? lead.needs.slice(0, 6).map(item => ({
+            need: clean(item?.need),
+            evidence: clean(item?.evidence),
+            confidence: Math.max(0, Math.min(1, Number(item?.confidence) || 0)),
+            kind: item?.kind === 'observed' ? 'observed' : 'inferred'
+          })).filter(item => item.need && item.evidence)
+        : (previous?.needs || []),
+      recommendedAction: clean(lead?.recommendedAction) || previous?.recommendedAction || '',
+      solutionRoute: ['3dvr', 'partner', 'either', 'unknown'].includes(clean(lead?.solutionRoute))
+        ? clean(lead?.solutionRoute)
+        : (previous?.solutionRoute || 'unknown'),
+      analysisConfidence: Number.isFinite(Number(lead?.analysisConfidence))
+        ? Math.max(0, Math.min(1, Number(lead.analysisConfidence)))
+        : (previous?.analysisConfidence || 0),
       offer: clean(offer) || previous?.offer || '',
       draftSubject: clean(campaignDraft?.subject) || previous?.draftSubject || '',
       draftBody: clean(campaignDraft?.body) || previous?.draftBody || '',
