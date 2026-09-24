@@ -36,17 +36,27 @@ async function boot(){
 boot().catch(()=>status.textContent='offline');
 
 
+async function dropSnapshot(){
+  const stamp=Date.now();
+  const urls=[
+    '/drop/index.html?watch='+stamp,
+    '/drop/main.js?watch='+stamp,
+    '/drop/styles.css?watch='+stamp
+  ];
+  const parts=await Promise.all(urls.map(async url=>{
+    const res=await fetch(url,{cache:'no-store'});
+    if(!res.ok)throw new Error('watch fetch failed');
+    return res.text();
+  }));
+  return parts.join('\n---3DVR-DROP-ASSET---\n');
+}
 async function watchDeployment(){
   let current='';
-  try{
-    const first=await fetch('/api/drop-version',{cache:'no-store'});
-    current=(await first.json()).sha||'';
-  }catch{return}
+  try{current=await dropSnapshot()}catch{return}
   setInterval(async()=>{
     try{
-      const res=await fetch('/api/drop-version?ts='+Date.now(),{cache:'no-store'});
-      const next=(await res.json()).sha||'';
-      if(!next||next===current)return;
+      const next=await dropSnapshot();
+      if(next===current)return;
       if(input?.value?.trim()){
         status.textContent='update ready';
         return;
