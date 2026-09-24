@@ -210,6 +210,18 @@ echo OTA_LOCAL_PYCURL_READY</pre>
       <p class="meta">Verified by dry-run: upgrade path 12 is available for this device. This command downloads and applies OTA-12, then reboots the phone.</p>
     </section>
 
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">Android layer</p>
+          <h2>Initialize Waydroid</h2>
+        </div>
+        <button class="copy" data-copy-target="waydroidInitText">Copy</button>
+      </div>
+      <pre id="waydroidInitText">sudo waydroid init -s VANILLA</pre>
+      <p class="meta">Creates the Android container using Waydroid's supported vanilla LineageOS image. Android app data will live under your large /home partition.</p>
+    </section>
+
     <section id="signedInApp" hidden>
       <form id="dropForm" class="card composer">
         <label for="dropInput">New drop</label>
