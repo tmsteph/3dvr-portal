@@ -15,9 +15,27 @@ A Lead Vault record keeps:
 - website and location
 - why the prospect matches
 - source evidence and source URL
+- a lightweight business profile summary and publicly evidenced capabilities
+- ranked business needs, each marked observed or inferred with supporting evidence and confidence
+- the smallest recommended next action and a solution route: 3DVR, partner, either, or unknown
+- overall analysis confidence
 - the offer and outreach draft used at discovery time
 - first-seen and last-seen timestamps
 - lifecycle status
+
+## Business intelligence layer
+
+Lead discovery is also business research. Every discovered business should gradually become a reusable profile, not a disposable email address.
+
+The system keeps three classes of information separate:
+
+1. **Facts** — public business details and capabilities supported by a source.
+2. **Needs** — observed problems or cautious inferred opportunities. Inferred needs must never be presented as facts.
+3. **Actions** — the smallest useful next step, plus whether 3DVR could supply it, a partner may be a better fit, either could work, or the route is still unknown.
+
+Campaigns can aggregate the structured needs from the current search into a **Need Radar**. Repeated needs are an early market signal: they can influence outreach, reveal referral opportunities, or become candidates for a reusable 3DVR product or service.
+
+The longer-term Business Graph should connect businesses to capabilities, needs, suppliers, outcomes, and corrections while preserving evidence and provenance. Public facts may be broadly reusable; private account data and anonymous users' local prospect data must not be promoted into a shared graph without explicit permission.
 
 Records deduplicate by normalized business email.
 
