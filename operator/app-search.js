@@ -14,6 +14,7 @@ const FEATURED = [
   { title: 'Noteverse', href: '/noteverse/', description: 'Explore Life Space notes in a living 3D constellation', aliases: '3d notes spatial ideas constellation life space productivity' },
   { title: 'Driftspace', href: '/driftspace/', description: 'Fly through Life Space as a momentum-driven 3D world', aliases: '3d flight game spatial movement gates starfox tribes mario racing life space' },
   { title: 'Labs', href: '/labs/', description: 'Experimental computing, artificial life, and research prototypes', aliases: 'experiments research life lab digital organism noteverse calendar future weird science' },
+  { title: 'Science Lab', href: '/science/', description: 'Create reproducible experiments and replicate other people\'s results', aliases: 'science experiment hypothesis evidence verification replication citizen participatory method protocol' },
   { title: 'Life Lab', href: '/life-lab/', description: 'Evolving 3D organisms with live selection data', aliases: 'artificial life evolution genes lineage science 3d simulation' },
   { title: 'Digital Organism', href: '/digital-organism/', description: 'User-owned memory and continual intelligence research', aliases: 'memory ai agent context continual intelligence research' },
   { title: 'Agent Architecture', href: '/agent-architecture/', description: 'Own the system, rent intelligence', aliases: 'ai architecture intelligence gateway model router digital organism personal ai' },

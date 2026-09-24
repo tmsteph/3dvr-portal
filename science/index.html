@@ -30,20 +30,74 @@
       </nav>
 
       <section class="hero" aria-labelledby="science-hero-title">
-        <p class="hero__eyebrow">Applied research</p>
-        <h1 class="hero__title" id="science-hero-title">Run experiments and turn signals into 3DVR tools</h1>
+        <p class="hero__eyebrow">Participatory science</p>
+        <h1 class="hero__title" id="science-hero-title">Everyone can do science.</h1>
         <p class="hero__lede">
-          Design evidence loops, sync sensor telemetry through shared Gun relays, and export simulation-ready playbooks so
-          every experiment moves the portal forward.
+          Science is not a collection of answers. It is a habit: observe, question, predict, test, record, share,
+          replicate, and improve. Turn everyday curiosity into experiments other people can actually verify.
         </p>
         <div class="hero__actions">
-          <a class="button button--primary" href="/research/">Read working papers</a>
-          <a class="button" href="/notes/">Log an experiment</a>
-          <a class="button" href="/tasks.html">Assign reviewers</a>
-          <div class="hero__meta" aria-label="Key lab routes">
-            <span class="badge">Gun data: science.labs</span>
-            <span class="badge">VR ready exports</span>
+          <a class="button button--primary" href="#experiment-builder">Start an experiment</a>
+          <a class="button" href="/research/">Browse research</a>
+          <a class="button" href="/notes/">Publish observations</a>
+          <div class="hero__meta" aria-label="Science lab principles">
+            <span class="badge">Evidence &gt; authority</span>
+            <span class="badge">Replication welcome</span>
           </div>
+        </div>
+      </section>
+
+      <section class="panel participation-panel" id="experiment-builder" aria-labelledby="experiment-builder-title">
+        <div class="section-heading">
+          <p class="hero__eyebrow">The everyday science loop</p>
+          <h2 id="experiment-builder-title">Turn a question into something another person can repeat</h2>
+          <p>Small, safe experiments count. Gardening, cooking, software, learning, materials, electronics, and local observations are all fair game.</p>
+        </div>
+
+        <div class="science-loop" role="list" aria-label="Eight-step science loop">
+          <span role="listitem"><strong>1</strong> Observe</span>
+          <span role="listitem"><strong>2</strong> Question</span>
+          <span role="listitem"><strong>3</strong> Predict</span>
+          <span role="listitem"><strong>4</strong> Test</span>
+          <span role="listitem"><strong>5</strong> Record</span>
+          <span role="listitem"><strong>6</strong> Share</span>
+          <span role="listitem"><strong>7</strong> Replicate</span>
+          <span role="listitem"><strong>8</strong> Improve</span>
+        </div>
+
+        <div class="builder-layout">
+          <form class="experiment-form" id="experiment-form">
+            <label><span>Experiment name</span><input name="title" autocomplete="off" placeholder="Does morning light change basil growth?"></label>
+            <label><span>Question / observation</span><textarea name="question" rows="3" placeholder="What did you notice, and what do you want to learn?"></textarea></label>
+            <label><span>Hypothesis</span><textarea name="hypothesis" rows="3" placeholder="If I change X, then Y will happen because…"></textarea></label>
+            <label><span>What will you change?</span><input name="test" autocomplete="off" placeholder="The independent variable"></label>
+            <label><span>What will you measure?</span><input name="measurement" autocomplete="off" placeholder="The outcome and how you will record it"></label>
+            <label><span>What stays the same?</span><input name="controls" autocomplete="off" placeholder="Controls: time, equipment, environment…"></label>
+            <label><span>What result would change your mind?</span><textarea name="disconfirm" rows="2" placeholder="Write down a result that would count against your hypothesis."></textarea></label>
+            <label class="field-short"><span>Target replications</span><input name="replications" type="number" min="1" max="1000" value="3"></label>
+            <div class="form-actions">
+              <button class="button button--primary" type="submit">Build protocol</button>
+              <button class="button" type="button" id="clear-experiment">Clear</button>
+            </div>
+            <p class="form-note">Drafts stay on this device until you choose to publish them. Keep experiments safe, ethical, and consensual.</p>
+          </form>
+
+          <aside class="protocol-card" aria-labelledby="protocol-title">
+            <div class="protocol-card__header">
+              <div>
+                <p class="hero__eyebrow">Reproducible by default</p>
+                <h3 id="protocol-title">Protocol preview</h3>
+              </div>
+              <button class="button" type="button" id="copy-protocol" disabled>Copy</button>
+            </div>
+            <pre id="protocol-output" aria-live="polite">Fill in the experiment and build a protocol. The goal is not to sound scientific; the goal is to make the test repeatable.</pre>
+            <p class="protocol-status" id="protocol-status" role="status"></p>
+          </aside>
+        </div>
+
+        <div class="replication-callout">
+          <strong>Replication is the superpower.</strong>
+          <span>Publish the method, observations, raw measurements, uncertainty, and failures. Invite someone else to try it. A result becomes more useful when other people can challenge it.</span>
         </div>
       </section>
 
@@ -183,6 +237,7 @@
         Keep experiments synced in Gun, keep exports VR-ready, and keep the portal evolving together.
       </footer>
     </main>
+    <script type="module" src="./experiment-builder.js"></script>
     <script defer src="/issue-launcher.js"></script>
   </body>
 </html>
