@@ -57,6 +57,22 @@ wget -qO- --post-data="key=$K" https://portal.3dvr.tech/api/ut-pair</pre>
     <section class="card">
       <div class="card-head">
         <div>
+          <p class="eyebrow">Repair phone SSH</p>
+          <h2>Generate host keys + restart SSH</h2>
+        </div>
+        <button class="copy" data-copy-target="repairText">Copy</button>
+      </div>
+      <pre id="repairText">sudo ssh-keygen -A
+sudo service ssh restart || true
+sudo systemctl restart ssh.socket
+systemctl --user restart 3dvr-reverse-tunnel.service
+systemctl --user status --no-pager 3dvr-reverse-tunnel.service</pre>
+      <p class="meta">Use this if the reverse tunnel is up but connections through it close before the SSH banner appears.</p>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <div>
           <p class="eyebrow">Make it permanent</p>
           <h2>Keep the tunnel alive automatically</h2>
         </div>
