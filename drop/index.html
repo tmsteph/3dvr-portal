@@ -222,6 +222,51 @@ echo OTA_LOCAL_PYCURL_READY</pre>
       <p class="meta">Creates the Android container using Waydroid's supported vanilla LineageOS image. Android app data will live under your large /home partition.</p>
     </section>
 
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">One-time admin setup</p>
+          <h2>Grant 3DVR limited sudo</h2>
+        </div>
+        <button class="copy" data-copy-target="limitedSudoText">Copy</button>
+      </div>
+      <pre id="limitedSudoText">sudo sh -c '
+set -e
+mount -o remount,rw /
+cat &gt; /usr/local/sbin/3dvr-admin &lt;&lt;"EOF"
+#!/bin/sh
+set -eu
+case "${1:-}" in
+  waydroid-init)
+    exec /usr/bin/waydroid init -s VANILLA
+    ;;
+  waydroid-container-start)
+    exec /usr/bin/systemctl start waydroid-container.service
+    ;;
+  waydroid-container-stop)
+    exec /usr/bin/systemctl stop waydroid-container.service
+    ;;
+  enable-linger)
+    exec /usr/bin/loginctl enable-linger phablet
+    ;;
+  *)
+    echo "Allowed: waydroid-init | waydroid-container-start | waydroid-container-stop | enable-linger" >&2
+    exit 64
+    ;;
+esac
+EOF
+chmod 0755 /usr/local/sbin/3dvr-admin
+chown root:root /usr/local/sbin/3dvr-admin
+printf "%s\n" "phablet ALL=(root) NOPASSWD: /usr/local/sbin/3dvr-admin" &gt; /etc/sudoers.d/3dvr-admin
+chmod 0440 /etc/sudoers.d/3dvr-admin
+visudo -cf /etc/sudoers.d/3dvr-admin
+mount -o remount,ro /
+'
+sudo -n /usr/local/sbin/3dvr-admin enable-linger
+echo 3DVR_LIMITED_SUDO_READY</pre>
+      <p class="meta">Installs a root-owned whitelist helper. It does not store your password and does not grant arbitrary root shell access.</p>
+    </section>
+
     <section id="signedInApp" hidden>
       <form id="dropForm" class="card composer">
         <label for="dropInput">New drop</label>
