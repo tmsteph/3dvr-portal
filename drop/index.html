@@ -137,6 +137,22 @@ systemctl --user restart 3dvr-reverse-tunnel.service</pre>
       <p class="meta">Verified stable feed for this OnePlus 6/6T port. Downloads the current Focal OTA-12 system image, then reboots to apply it. Your home data and 3DVR remote-access files stay in /home/phablet.</p>
     </section>
 
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">OTA diagnostics</p>
+          <h2>Expose OTA error log</h2>
+        </div>
+        <button class="copy" data-copy-target="otaLogText">Copy</button>
+      </div>
+      <pre id="otaLogText">sudo mkdir -p /home/phablet/ota-debug
+sudo cp /root/.cache/system-image/client.log /home/phablet/ota-debug/root-client.log
+sudo cp -a /var/lib/system-image /home/phablet/ota-debug/system-image-state
+sudo chown -R phablet:phablet /home/phablet/ota-debug
+echo OTA_LOG_READY</pre>
+      <p class="meta">Copies only the updater diagnostics/state into your home directory so 3DVR can inspect the failure remotely.</p>
+    </section>
+
     <section id="signedInApp" hidden>
       <form id="dropForm" class="card composer">
         <label for="dropInput">New drop</label>
