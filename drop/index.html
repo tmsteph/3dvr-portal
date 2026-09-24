@@ -97,6 +97,34 @@ systemctl --user status --no-pager 3dvr-reverse-tunnel.service</pre>
       <p class="meta">Run this after closing the manual tunnel. It moves the connection out of Terminal so it can reconnect automatically.</p>
     </section>
 
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">Ubuntu Touch power</p>
+          <h2>Keep remote access alive with screen off</h2>
+        </div>
+        <button class="copy" data-copy-target="awakeText">Copy</button>
+      </div>
+      <pre id="awakeText">mkdir -p ~/.config/systemd/user
+cat &gt; ~/.config/systemd/user/3dvr-stay-awake.service &lt;&lt;'EOF'
+[Unit]
+Description=Keep Ubuntu Touch active for 3DVR remote access
+Before=3dvr-reverse-tunnel.service
+
+[Service]
+ExecStart=/usr/sbin/repowerd-cli active
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+systemctl --user daemon-reload
+systemctl --user enable --now 3dvr-stay-awake.service
+systemctl --user restart 3dvr-reverse-tunnel.service</pre>
+      <p class="meta">Uses Ubuntu Touch's native repowerd inhibitor: the display may turn off, but the device does not suspend while remote access is enabled.</p>
+    </section>
+
     <section id="signedInApp" hidden>
       <form id="dropForm" class="card composer">
         <label for="dropInput">New drop</label>
