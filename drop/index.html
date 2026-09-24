@@ -125,6 +125,18 @@ systemctl --user restart 3dvr-reverse-tunnel.service</pre>
       <p class="meta">Uses Ubuntu Touch's native repowerd inhibitor: the display may turn off, but the device does not suspend while remote access is enabled.</p>
     </section>
 
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">Daily-driver upgrade</p>
+          <h2>Upgrade Ubuntu Touch to OTA-12</h2>
+        </div>
+        <button class="copy" data-copy-target="otaText">Copy</button>
+      </div>
+      <pre id="otaText">sudo system-image-cli --switch 20.04/arm64/android9plus/stable</pre>
+      <p class="meta">Verified stable feed for this OnePlus 6/6T port. Downloads the current Focal OTA-12 system image, then reboots to apply it. Your home data and 3DVR remote-access files stay in /home/phablet.</p>
+    </section>
+
     <section id="signedInApp" hidden>
       <form id="dropForm" class="card composer">
         <label for="dropInput">New drop</label>
