@@ -34,3 +34,26 @@ async function boot(){
   });
 }
 boot().catch(()=>status.textContent='offline');
+
+
+async function watchDeployment(){
+  let current='';
+  try{
+    const first=await fetch('/api/drop-version',{cache:'no-store'});
+    current=(await first.json()).sha||'';
+  }catch{return}
+  setInterval(async()=>{
+    try{
+      const res=await fetch('/api/drop-version?ts='+Date.now(),{cache:'no-store'});
+      const next=(await res.json()).sha||'';
+      if(!next||next===current)return;
+      if(input?.value?.trim()){
+        status.textContent='update ready';
+        return;
+      }
+      status.textContent='updating…';
+      location.reload();
+    }catch{}
+  },10000);
+}
+watchDeployment();
