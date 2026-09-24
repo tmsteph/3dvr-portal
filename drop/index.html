@@ -198,6 +198,18 @@ echo OTA_LOCAL_PYCURL_READY</pre>
       <p class="meta">Uses the PyCURL module unpacked into /home/phablet, bypassing the broken Lomiri downloader without modifying the read-only system image. Dry-run only.</p>
     </section>
 
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">OTA-12 ready</p>
+          <h2>Install OTA-12 with local PyCURL</h2>
+        </div>
+        <button class="copy" data-copy-target="otaInstallLocalCurl">Copy</button>
+      </div>
+      <pre id="otaInstallLocalCurl">sudo sh -c 'PYTHONPATH=/home/phablet/3dvr-local/pycurl-root/usr/lib/python3/dist-packages SYSTEMIMAGE_PYCURL=1 system-image-cli --switch 20.04/arm64/android9plus/stable'</pre>
+      <p class="meta">Verified by dry-run: upgrade path 12 is available for this device. This command downloads and applies OTA-12, then reboots the phone.</p>
+    </section>
+
     <section id="signedInApp" hidden>
       <form id="dropForm" class="card composer">
         <label for="dropInput">New drop</label>
