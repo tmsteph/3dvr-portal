@@ -978,8 +978,15 @@ async function runCampaign(event) {
       try {
         if (!campaignCrmBridge?.available) initializeCampaignCrmBridge();
         if (!campaignCrmBridge?.available) throw new Error('crm-bridge-unavailable');
+        const vaultLead = readLeadVault().find(
+          lead => String(lead?.email || '').trim().toLowerCase() === String(recipient.email || '').trim().toLowerCase()
+        ) || {};
         await campaignCrmBridge.recordSend({
-          recipient,
+          recipient: {
+            ...vaultLead,
+            ...recipient,
+            name: recipient.name || vaultLead.name || recipient.email
+          },
           subject: subjectFor(recipient),
           offer: elements.leadDescription.value,
           senderEmail: sendResult?.senderEmail || connection.email,
