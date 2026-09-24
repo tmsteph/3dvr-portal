@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#07110d">
+  <title>Business Graph · 3DVR</title>
+  <meta name="description" content="3DVR Business Graph: map what businesses can do, what they need, and connect the two with evidence-backed intelligence.">
+  <link rel="icon" href="/brand/portal-mark.svg" type="image/svg+xml">
+  <style>
+    :root{
+      --bg:#07110d;--panel:#0d1d16;--soft:#13271d;--text:#f5f1df;--muted:#c7bea5;
+      --green:#7bd88f;--gold:#f0c96b;--blue:#86c9ff;--line:rgba(255,255,255,.1);
+      --max:1120px;--radius:26px
+    }
+    *{box-sizing:border-box} html{scroll-behavior:smooth}
+    body{margin:0;background:
+      radial-gradient(circle at 15% 5%,rgba(123,216,143,.13),transparent 28rem),
+      radial-gradient(circle at 90% 18%,rgba(134,201,255,.11),transparent 26rem),
+      var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,sans-serif;line-height:1.55}
+    a{color:inherit;text-decoration:none}.wrap{width:min(var(--max),calc(100% - 32px));margin:auto}
+    header{position:sticky;top:0;z-index:10;background:rgba(7,17,13,.82);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
+    nav{min-height:66px;display:flex;align-items:center;justify-content:space-between;gap:18px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:850;letter-spacing:-.03em}.brand img{width:34px;height:34px}
+    .navlinks{display:flex;gap:16px;color:var(--muted);font-size:.94rem}
+    .hero{padding:86px 0 60px;display:grid;grid-template-columns:1.08fr .92fr;gap:34px;align-items:center}
+    .eyebrow{color:var(--gold);font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-size:.78rem}
+    h1{font-size:clamp(3rem,8vw,6rem);line-height:.93;letter-spacing:-.075em;margin:12px 0 20px}
+    h2{font-size:clamp(2rem,5vw,3.4rem);line-height:1;letter-spacing:-.055em;margin:0 0 12px}
+    h3{margin:0 0 8px;letter-spacing:-.025em}.lead,.section-copy,.card p,.card li{color:var(--muted)}
+    .lead{font-size:clamp(1.08rem,2vw,1.28rem);max-width:700px}
+    .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}.btn{padding:12px 16px;border-radius:999px;border:1px solid var(--line);font-weight:800}
+    .btn.primary{background:var(--gold);color:#07110d;border-color:transparent}
+    .graph-card{background:linear-gradient(160deg,rgba(255,255,255,.1),rgba(255,255,255,.035));border:1px solid var(--line);border-radius:var(--radius);padding:24px;box-shadow:0 24px 70px rgba(0,0,0,.28)}
+    .node{padding:14px 16px;border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,.05);margin:10px 0}
+    .node strong{color:var(--green)}.arrow{text-align:center;color:var(--muted);font-weight:800}
+    section{padding:58px 0}.grid{display:grid;gap:16px}.three{grid-template-columns:repeat(3,1fr)}.two{grid-template-columns:repeat(2,1fr)}
+    .card{background:rgba(255,255,255,.055);border:1px solid var(--line);border-radius:var(--radius);padding:22px}
+    .kicker{color:var(--blue);font-size:.8rem;font-weight:850;text-transform:uppercase;letter-spacing:.08em}
+    .flow{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}.step{min-height:150px;padding:17px;border:1px solid var(--line);border-radius:20px;background:rgba(255,255,255,.045)}
+    .step b{display:block;color:var(--gold);font-size:.78rem;margin-bottom:8px}.step span{color:var(--muted);font-size:.92rem}
+    .rule{display:flex;gap:12px;align-items:flex-start}.badge{flex:0 0 auto;width:34px;height:34px;border-radius:12px;display:grid;place-items:center;background:var(--soft);color:var(--green);font-weight:900}
+    .quote{font-size:clamp(1.5rem,4vw,3rem);font-weight:850;line-height:1.1;letter-spacing:-.045em;padding:34px;border-radius:var(--radius);background:linear-gradient(135deg,rgba(123,216,143,.12),rgba(240,201,107,.11));border:1px solid rgba(240,201,107,.18)}
+    .status{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}.pill{padding:8px 11px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--muted);font-size:.9rem}
+    footer{padding:40px 0 60px;color:var(--muted);border-top:1px solid var(--line)}
+    @media(max-width:850px){.hero,.three,.two,.flow{grid-template-columns:1fr}.navlinks{display:none}.hero{padding-top:56px}}
+  </style>
+</head>
+<body>
+<header>
+  <nav class="wrap">
+    <a class="brand" href="/"><img src="/brand/portal-mark.svg" alt=""><span>3DVR Business Graph</span></a>
+    <div class="navlinks">
+      <a href="#model">Model</a><a href="#pipeline">Pipeline</a><a href="#rules">Rules</a><a href="#roadmap">Roadmap</a>
+      <a href="/campaigns/">Campaigns</a>
+    </div>
+  </nav>
+</header>
+<main>
+  <section class="hero wrap">
+    <div>
+      <div class="eyebrow">Economic coordination layer</div>
+      <h1>Map what people can do. Map what they need.</h1>
+      <p class="lead">The Business Graph is 3DVR’s direction for turning outreach into useful economic intelligence: build evidence-backed profiles, discover needs and capabilities, connect businesses that can help each other, and learn from the outcome.</p>
+      <div class="actions">
+        <a class="btn primary" href="/campaigns/">Use it in Campaigns</a>
+        <a class="btn" href="#model">See the model</a>
+        <a class="btn" href="/human-scale-economics/">Why this matters</a>
+      </div>
+    </div>
+    <aside class="graph-card" aria-label="Business graph flow">
+      <div class="node"><strong>Business A</strong><br>Needs booking automation</div>
+      <div class="arrow">↓ match need to capability ↓</div>
+      <div class="node"><strong>Business B</strong><br>Provides booking automation + CRM integration</div>
+      <div class="arrow">↓ outcome becomes evidence ↓</div>
+      <div class="node"><strong>Graph learns</strong><br>Which capabilities actually solve which needs</div>
+    </aside>
+  </section>
+
+  <section id="model" class="wrap">
+    <div class="eyebrow">Core model</div>
+    <h2>Businesses are more than leads.</h2>
+    <p class="section-copy">Each business can be a customer, supplier, collaborator, referrer, or all four. A useful profile grows over time instead of disappearing after one campaign.</p>
+    <div class="grid three">
+      <article class="card"><div class="kicker">Facts</div><h3>Identity + capabilities</h3><p>Public business facts, services, skills, equipment, infrastructure, locations, and contact paths—with sources.</p></article>
+      <article class="card"><div class="kicker">Needs</div><h3>Observed + inferred</h3><p>Visible problems and cautious hypotheses stay separate. Every inferred need carries evidence and confidence.</p></article>
+      <article class="card"><div class="kicker">Edges</div><h3>Connections + outcomes</h3><p>Need → provider, customer → supplier, referral → result. The graph gets better when we learn what actually worked.</p></article>
+    </div>
+  </section>
+
+  <section id="pipeline" class="wrap">
+    <div class="eyebrow">Working pipeline</div>
+    <h2>Research becomes reusable intelligence.</h2>
+    <div class="flow">
+      <div class="step"><b>01</b><h3>Discover</h3><span>Find real businesses and public evidence.</span></div>
+      <div class="step"><b>02</b><h3>Profile</h3><span>Capture capabilities, needs, evidence, and confidence.</span></div>
+      <div class="step"><b>03</b><h3>Analyze</h3><span>Need Radar finds repeated patterns across businesses.</span></div>
+      <div class="step"><b>04</b><h3>Match</h3><span>Compare needs with 3DVR or outside supplier capabilities.</span></div>
+      <div class="step"><b>05</b><h3>Act</h3><span>Prepare a small useful next step or introduction.</span></div>
+      <div class="step"><b>06</b><h3>Learn</h3><span>Record replies, corrections, outcomes, and successful matches.</span></div>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <div class="quote">The question changes from “Who can we sell to?” to “What does this business need, and who is best positioned to help?”</div>
+  </section>
+
+  <section id="rules" class="wrap">
+    <div class="eyebrow">Decision rules</div>
+    <h2>Supply, connect, build, or learn.</h2>
+    <div class="grid two">
+      <article class="card">
+        <div class="rule"><div class="badge">1</div><div><h3>Connect existing capability first</h3><p>If another business already solves the need well, surface the match rather than rebuilding everything inside 3DVR.</p></div></div>
+        <div class="rule"><div class="badge">2</div><div><h3>Use 3DVR when it fits</h3><p>If we already have a strong capability, offer the smallest useful intervention instead of a giant proposal.</p></div></div>
+      </article>
+      <article class="card">
+        <div class="rule"><div class="badge">3</div><div><h3>Build from repeated unmet demand</h3><p>Repeated needs with weak supplier coverage are product signals for reusable services, software, or open-source tools.</p></div></div>
+        <div class="rule"><div class="badge">4</div><div><h3>Learn when evidence is weak</h3><p>Do not convert speculation into a sales claim. Gather better evidence or ask a simple question first.</p></div></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <div class="eyebrow">Trust model</div>
+    <h2>Useful without becoming a dossier machine.</h2>
+    <div class="grid three">
+      <article class="card"><h3>Evidence stays attached</h3><p>Facts and need hypotheses retain provenance so someone can inspect why the system believes them.</p></article>
+      <article class="card"><h3>Private stays private</h3><p>CRM notes, messages, account data, and anonymous local prospect data do not become a public graph by default.</p></article>
+      <article class="card"><h3>Businesses can correct us</h3><p>The long-term system should let organizations claim, enrich, correct, or remove appropriate public profile data.</p></article>
+    </div>
+  </section>
+
+  <section id="roadmap" class="wrap">
+    <div class="eyebrow">Current direction</div>
+    <h2>We already started.</h2>
+    <p class="section-copy">Campaigns now produces structured business intelligence, Lead Vault preserves it, CRM carries it forward, and Need Radar summarizes repeated demand. The next layer is capability matching and outcome learning.</p>
+    <div class="status">
+      <span class="pill">Business profiles ✓</span>
+      <span class="pill">Needs + confidence ✓</span>
+      <span class="pill">Need Radar ✓</span>
+      <span class="pill">CRM propagation ✓</span>
+      <span class="pill">Capability matching →</span>
+      <span class="pill">Durable graph edges →</span>
+      <span class="pill">Outcome learning →</span>
+      <span class="pill">Business claim/correction →</span>
+    </div>
+  </section>
+</main>
+<footer>
+  <div class="wrap">3DVR Business Graph · part of the broader <a href="/human-scale-economics/"><strong>Human-Scale Economics</strong></a> direction.</div>
+</footer>
+<script defer src="/issue-launcher.js"></script>
+</body>
+</html>
