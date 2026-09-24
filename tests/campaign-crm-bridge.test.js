@@ -18,7 +18,21 @@ test('Campaign CRM bridge creates stable email-derived IDs', () => {
 test('Campaign CRM bridge preserves existing CRM fields while logging outreach', () => {
   const sentAt = new Date('2026-09-23T04:39:10.000Z');
   const record = buildCampaignCrmRecord({
-    recipient: { name: 'El Indio', email: 'elindio@example.com' },
+    recipient: {
+      name: 'El Indio',
+      email: 'elindio@example.com',
+      profileSummary: 'Local restaurant with catering service.',
+      capabilities: ['Catering', 'Takeout'],
+      needs: [{
+        need: 'Clearer catering inquiry path',
+        evidence: 'Public catering page points visitors to a generic contact path.',
+        confidence: 0.86,
+        kind: 'inferred'
+      }],
+      recommendedAction: 'Offer a focused catering inquiry flow.',
+      solutionRoute: 'either',
+      analysisConfidence: 0.81
+    },
     existing: {
       id: 'crm-existing',
       email: 'elindio@example.com',
@@ -41,6 +55,15 @@ test('Campaign CRM bridge preserves existing CRM fields while logging outreach',
   assert.match(record.tags, /source\/campaigns/);
   assert.equal(record.lastContacted, sentAt.toISOString());
   assert.match(record.lastSignal, /Small catering inquiry idea/);
+  assert.equal(record.businessProfile, 'Local restaurant with catering service.');
+  assert.match(record.businessCapabilities, /Catering/);
+  assert.equal(record.primaryBusinessNeed, 'Clearer catering inquiry path');
+  assert.equal(record.primaryBusinessNeedConfidence, 0.86);
+  assert.equal(record.primaryBusinessNeedKind, 'inferred');
+  assert.equal(record.recommendedAction, 'Offer a focused catering inquiry flow.');
+  assert.equal(record.solutionRoute, 'either');
+  assert.equal(record.analysisConfidence, 0.81);
+  assert.match(record.businessNeedsJson, /catering inquiry path/i);
 });
 
 test('Campaign CRM touch uses the shared outreach-sent shape', () => {
