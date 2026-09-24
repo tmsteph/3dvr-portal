@@ -24,7 +24,18 @@ test('Lead Vault saves verified discovery details and deduplicates by email', ()
     location: 'San Diego',
     whyFit: 'Needs a clearer booking path.',
     evidence: 'Public site has no booking CTA.',
-    sourceUrl: 'https://acme.test/contact'
+    sourceUrl: 'https://acme.test/contact',
+    profileSummary: 'Local cleaning company serving San Diego.',
+    capabilities: ['Residential cleaning', 'Commercial cleaning'],
+    needs: [{
+      need: 'Clearer online booking path',
+      evidence: 'Public site has no booking CTA.',
+      confidence: 0.88,
+      kind: 'observed'
+    }],
+    recommendedAction: 'Offer a small booking-flow improvement.',
+    solutionRoute: '3dvr',
+    analysisConfidence: 0.84
   };
 
   const first = saveDiscoveredLeads({
@@ -48,6 +59,13 @@ test('Lead Vault saves verified discovery details and deduplicates by email', ()
   assert.equal(saved.whyFit, 'Updated fit.');
   assert.equal(saved.offer, 'Website conversion help');
   assert.equal(saved.draftSubject, 'Quick idea');
+  assert.equal(saved.profileSummary, 'Local cleaning company serving San Diego.');
+  assert.deepEqual(saved.capabilities, ['Residential cleaning', 'Commercial cleaning']);
+  assert.equal(saved.needs[0].need, 'Clearer online booking path');
+  assert.equal(saved.needs[0].kind, 'observed');
+  assert.equal(saved.recommendedAction, 'Offer a small booking-flow improvement.');
+  assert.equal(saved.solutionRoute, '3dvr');
+  assert.equal(saved.analysisConfidence, 0.84);
 });
 
 test('Lead Vault advances status without downgrading a contacted lead', () => {
