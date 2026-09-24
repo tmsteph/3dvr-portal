@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#07111f" />
+  <title>3DVR Drop</title>
+  <link rel="stylesheet" href="../styles/global.css" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="../gun-init.js"></script>
+  <script src="../auth-identity.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="top">
+      <div><a href="../index.html" class="brand">3DVR</a><span class="sub">Drop</span></div>
+      <span id="status" class="status">ready</span>
+    </header>
+
+    <section class="hero">
+      <p class="eyebrow">Cross-device handoff</p>
+      <h1>Copy here. Pick up anywhere.</h1>
+      <p>Commands, links, notes, and tiny handoffs without logging into the same chat on every device.</p>
+    </section>
+
+    <section class="card" id="bootstrapCard">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">Built-in</p>
+          <h2>Ubuntu Touch SSH bootstrap</h2>
+        </div>
+        <button class="copy" data-copy-target="bootstrapText">Copy</button>
+      </div>
+      <pre id="bootstrapText">mkdir -p ~/.ssh && chmod 700 ~/.ssh
+curl -fsSL https://raw.githubusercontent.com/tmsteph/hello-world/master/keys/openclaw_control_ed25519.pub >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+sudo systemctl start ssh.socket
+ssh-keygen -q -t ed25519 -N '' -f ~/.ssh/utunnel
+cat ~/.ssh/utunnel.pub</pre>
+    </section>
+
+    <section id="signedInApp" hidden>
+      <form id="dropForm" class="card composer">
+        <label for="dropInput">New drop</label>
+        <textarea id="dropInput" rows="5" placeholder="Paste a command, link, note, or handoff…"></textarea>
+        <button type="submit">Save to my Drop</button>
+      </form>
+
+      <section class="stack">
+        <div class="section-head"><h2>Recent drops</h2><span id="syncState">syncing…</span></div>
+        <div id="dropList"></div>
+      </section>
+    </section>
+
+    <section id="authGate" class="card auth">
+      <h2>Make it personal</h2>
+      <p>Sign in once to sync your own encrypted drops across devices.</p>
+      <a href="../sign-in.html?next=%2Fdrop%2F" class="button-link">Sign in to 3DVR</a>
+    </section>
+  </main>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
