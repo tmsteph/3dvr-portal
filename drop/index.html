@@ -50,8 +50,35 @@ wget -qO- --post-data="key=$K" https://portal.3dvr.tech/api/ut-pair</pre>
         </div>
         <button class="copy" data-copy-target="tunnelText">Copy</button>
       </div>
-      <pre id="tunnelText">ssh -i ~/.ssh/utunnel -o ExitOnForwardFailure=yes -N -R 127.0.0.1:2206:127.0.0.1:22 root@167.233.174.20</pre>
+      <pre id="tunnelText">ssh -i ~/.ssh/utunnel -o BatchMode=yes -o IdentitiesOnly=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -N -R 127.0.0.1:2206:127.0.0.1:22 root@167.233.174.20</pre>
       <p class="meta">This keeps a connection open from the OnePlus to Hetzner and maps Hetzner port 2206 back to the phone's SSH port 22.</p>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">Make it permanent</p>
+          <h2>Keep the tunnel alive automatically</h2>
+        </div>
+        <button class="copy" data-copy-target="serviceText">Copy</button>
+      </div>
+      <pre id="serviceText">mkdir -p ~/.config/systemd/user
+cat &gt; ~/.config/systemd/user/3dvr-reverse-tunnel.service &lt;&lt;'EOF'
+[Unit]
+Description=3DVR reverse SSH tunnel
+
+[Service]
+ExecStart=/usr/bin/ssh -i %h/.ssh/utunnel -o BatchMode=yes -o IdentitiesOnly=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o StrictHostKeyChecking=yes -N -R 127.0.0.1:2206:127.0.0.1:22 root@167.233.174.20
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+EOF
+systemctl --user daemon-reload
+systemctl --user enable --now 3dvr-reverse-tunnel.service
+systemctl --user status --no-pager 3dvr-reverse-tunnel.service</pre>
+      <p class="meta">Run this after closing the manual tunnel. It moves the connection out of Terminal so it can reconnect automatically.</p>
     </section>
 
     <section id="signedInApp" hidden>
