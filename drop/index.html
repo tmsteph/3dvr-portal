@@ -153,6 +153,21 @@ echo OTA_LOG_READY</pre>
       <p class="meta">Copies only the updater diagnostics/state into your home directory so 3DVR can inspect the failure remotely.</p>
     </section>
 
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">OTA diagnostics</p>
+          <h2>Capture OTA failure safely</h2>
+        </div>
+        <button class="copy" data-copy-target="otaDryRunText">Copy</button>
+      </div>
+      <pre id="otaDryRunText">mkdir -p ~/ota-debug
+sudo sh -c 'system-image-cli -n -v --switch 20.04/arm64/android9plus/stable &gt; /home/phablet/ota-debug/ota-dry-run.log 2&gt;&amp;1'
+sudo chown phablet:phablet ~/ota-debug/ota-dry-run.log
+echo OTA_DRY_RUN_READY</pre>
+      <p class="meta">Runs the updater as root in dry-run mode, captures the exact failure to your home directory, and does not reboot or apply the update.</p>
+    </section>
+
     <section id="signedInApp" hidden>
       <form id="dropForm" class="card composer">
         <label for="dropInput">New drop</label>
