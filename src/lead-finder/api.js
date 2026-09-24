@@ -90,6 +90,9 @@ export function buildLeadFinderRequest({ description, location = '', count = 10,
       'Do not return private personal information. Public business contact information is acceptable.',
       'If you cannot verify a public email for a candidate, omit that candidate.',
       'Keep whyFit and evidence concise and factual.',
+      'Build a lightweight business intelligence profile for every lead. profileSummary and capabilities must be factual and supported by public evidence.',
+      'Needs may include cautious hypotheses, but every need must include evidence, a confidence score from 0 to 1, and kind observed or inferred. Never present an inferred need as a fact.',
+      'recommendedAction should be the smallest useful next step justified by the strongest need. solutionRoute must be one of 3dvr, partner, either, or unknown; use unknown when the evidence is insufficient.',
       'The primary goal is to earn a human reply, not make a sale or book a meeting.',
       'Draft one evidence-backed outreach email for each lead plus one generic fallback campaign draft.',
       'Each lead-specific subject must be under 60 characters and each body should be 3-4 short sentences, preferably under 80 words.',
@@ -132,7 +135,7 @@ export function buildLeadFinderRequest({ description, location = '', count = 10,
               items: {
                 type: 'object',
                 additionalProperties: false,
-                required: ['name', 'email', 'website', 'location', 'whyFit', 'evidence', 'sourceUrl', 'draftSubject', 'draftBody'],
+                required: ['name', 'email', 'website', 'location', 'whyFit', 'evidence', 'sourceUrl', 'profileSummary', 'capabilities', 'needs', 'recommendedAction', 'solutionRoute', 'analysisConfidence', 'draftSubject', 'draftBody'],
                 properties: {
                   name: { type: 'string' },
                   email: { type: 'string' },
@@ -141,6 +144,30 @@ export function buildLeadFinderRequest({ description, location = '', count = 10,
                   whyFit: { type: 'string' },
                   evidence: { type: 'string' },
                   sourceUrl: { type: 'string' },
+                  profileSummary: { type: 'string' },
+                  capabilities: {
+                    type: 'array',
+                    maxItems: 8,
+                    items: { type: 'string' }
+                  },
+                  needs: {
+                    type: 'array',
+                    maxItems: 6,
+                    items: {
+                      type: 'object',
+                      additionalProperties: false,
+                      required: ['need', 'evidence', 'confidence', 'kind'],
+                      properties: {
+                        need: { type: 'string' },
+                        evidence: { type: 'string' },
+                        confidence: { type: 'number', minimum: 0, maximum: 1 },
+                        kind: { type: 'string', enum: ['observed', 'inferred'] }
+                      }
+                    }
+                  },
+                  recommendedAction: { type: 'string' },
+                  solutionRoute: { type: 'string', enum: ['3dvr', 'partner', 'either', 'unknown'] },
+                  analysisConfidence: { type: 'number', minimum: 0, maximum: 1 },
                   draftSubject: { type: 'string' },
                   draftBody: { type: 'string' }
                 }
@@ -166,6 +193,25 @@ function normalizeLead(lead = {}) {
     whyFit: clean(lead.whyFit, 900),
     evidence: clean(lead.evidence, 900),
     sourceUrl,
+    profileSummary: clean(lead.profileSummary, 1200),
+    capabilities: (Array.isArray(lead.capabilities) ? lead.capabilities : [])
+      .map(value => clean(value, 240))
+      .filter(Boolean)
+      .slice(0, 8),
+    needs: (Array.isArray(lead.needs) ? lead.needs : [])
+      .map(item => ({
+        need: clean(item?.need, 320),
+        evidence: clean(item?.evidence, 900),
+        confidence: Math.max(0, Math.min(1, Number(item?.confidence) || 0)),
+        kind: item?.kind === 'observed' ? 'observed' : 'inferred'
+      }))
+      .filter(item => item.need && item.evidence)
+      .slice(0, 6),
+    recommendedAction: clean(lead.recommendedAction, 700),
+    solutionRoute: ['3dvr', 'partner', 'either', 'unknown'].includes(clean(lead.solutionRoute))
+      ? clean(lead.solutionRoute)
+      : 'unknown',
+    analysisConfidence: Math.max(0, Math.min(1, Number(lead.analysisConfidence) || 0)),
     draftSubject: clean(lead.draftSubject, 180),
     draftBody: String(lead.draftBody || '').trim().slice(0, 4000)
   };
@@ -244,7 +290,9 @@ function buildGatewayLeadPrompt({ description, location, count }) {
     'Only include a lead when public search results substantiate a real public business email and sourceUrl points to that public source.',
     'Never infer an email pattern and never invent a person, business, email, website, claim, or source.',
     'Prefer official business websites and official contact pages.',
-    'Return ONLY JSON with campaignDraft and leads. Each lead needs name, email, website, location, whyFit, evidence, sourceUrl, draftSubject, and draftBody.',
+    'Return ONLY JSON with campaignDraft and leads. Each lead needs name, email, website, location, whyFit, evidence, sourceUrl, profileSummary, capabilities, needs, recommendedAction, solutionRoute, analysisConfidence, draftSubject, and draftBody.',
+    'profileSummary and capabilities must be public facts. needs is an array of {need,evidence,confidence,kind}; kind is observed or inferred and confidence is 0 to 1. Never turn a hypothesis into a fact.',
+    'recommendedAction is the smallest useful next step. solutionRoute is 3dvr, partner, either, or unknown; prefer unknown when uncertain.',
     'The goal is a human reply, not a sale. Each lead-specific email should be 3-4 short sentences and preferably under 80 words.',
     'Use one factual observation supported by that lead’s evidence and end with one easy-to-answer question.',
     'Do not mention price, a pilot, a meeting, a demo, a call, or a list of capabilities in the first email.',
