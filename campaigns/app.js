@@ -17,7 +17,7 @@ import {
   readLeadVault,
   saveDiscoveredLeads
 } from '../src/money-printer/leadVault.js';
-import { summarizeBusinessNeeds } from '../src/money-printer/businessIntelligence.js';
+import { matchBusinessesToEachOther, summarizeBusinessNeeds } from '../src/money-printer/businessIntelligence.js';
 import { createBrowserLeadVaultSync } from '../src/money-printer/leadVaultSync.js';
 import {
   createBrowserCampaignHistorySync,
@@ -351,6 +351,9 @@ function renderLeadResults() {
   elements.leadResults.replaceChildren();
   elements.leadResults.hidden = discoveredLeads.length === 0;
   elements.leadActions.hidden = discoveredLeads.length === 0;
+  const graphMatches = new Map(
+    matchBusinessesToEachOther(discoveredLeads).map(item => [item.business, item])
+  );
   discoveredLeads.forEach((lead, index) => {
     const row = document.createElement('label');
     row.className = 'lead-result';
@@ -370,10 +373,15 @@ function renderLeadResults() {
     const insight = document.createElement('small');
     const topNeed = Array.isArray(lead.needs) ? lead.needs[0] : null;
     const confidence = topNeed?.confidence ? `${Math.round(Number(topNeed.confidence) * 100)}% confidence` : '';
+    const graphMatch = graphMatches.get(lead.name || lead.email);
+    const supplierMatch = graphMatch?.matches
+      ?.flatMap(item => item.matches || [])
+      ?.sort((a, b) => b.score - a.score)?.[0];
     insight.textContent = [
       topNeed?.need ? `Need: ${topNeed.need}` : '',
       confidence,
-      lead.recommendedAction ? `Next: ${lead.recommendedAction}` : ''
+      lead.recommendedAction ? `Next: ${lead.recommendedAction}` : '',
+      supplierMatch ? `Possible supplier: ${supplierMatch.providerName} · ${supplierMatch.capability}` : ''
     ].filter(Boolean).join(' · ');
     const source = document.createElement('a');
     source.href = lead.sourceUrl;
