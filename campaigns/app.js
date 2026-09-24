@@ -17,6 +17,7 @@ import {
   readLeadVault,
   saveDiscoveredLeads
 } from '../src/money-printer/leadVault.js';
+import { summarizeBusinessNeeds } from '../src/money-printer/businessIntelligence.js';
 import { createBrowserLeadVaultSync } from '../src/money-printer/leadVaultSync.js';
 import {
   createBrowserCampaignHistorySync,
@@ -366,13 +367,23 @@ function renderLeadResults() {
     email.textContent = lead.email;
     const why = document.createElement('small');
     why.textContent = [lead.location, lead.whyFit].filter(Boolean).join(' · ');
+    const insight = document.createElement('small');
+    const topNeed = Array.isArray(lead.needs) ? lead.needs[0] : null;
+    const confidence = topNeed?.confidence ? `${Math.round(Number(topNeed.confidence) * 100)}% confidence` : '';
+    insight.textContent = [
+      topNeed?.need ? `Need: ${topNeed.need}` : '',
+      confidence,
+      lead.recommendedAction ? `Next: ${lead.recommendedAction}` : ''
+    ].filter(Boolean).join(' · ');
     const source = document.createElement('a');
     source.href = lead.sourceUrl;
     source.target = '_blank';
     source.rel = 'noopener noreferrer';
     source.textContent = 'Verify source';
     source.addEventListener('click', event => event.stopPropagation());
-    body.append(name, email, why, source);
+    body.append(name, email, why);
+    if (insight.textContent) body.append(insight);
+    body.append(source);
     row.append(checkbox, body);
     elements.leadResults.append(row);
   });
@@ -440,8 +451,12 @@ async function findLeads(event) {
     const routeNote = usedFallback ? ' Backup route used.' : '';
     const defaultNote = payload.query?.usedDefaultBrief ? ' I chose a practical offer automatically.' : '';
     const vaultNote = discoveredLeads.length ? ` Saved in Lead Vault (${vault.total} total).` : '';
+    const needRadar = summarizeBusinessNeeds(discoveredLeads).slice(0, 2);
+    const radarNote = needRadar.length
+      ? ` Need radar: ${needRadar.map(item => `${item.need} (${item.count} lead${item.count === 1 ? '' : 's'}, ${Math.round(item.averageConfidence * 100)}% avg confidence)`).join('; ')}.`
+      : '';
     showLeadNotice(discoveredLeads.length
-      ? `Found ${discoveredLeads.length} likely customer${discoveredLeads.length === 1 ? '' : 's'} with public source evidence${suggestedCampaign?.body ? ' and drafted your outreach' : ''}.${defaultNote}${vaultNote} Review the matches, then use the ones you want.${routeNote}`
+      ? `Found ${discoveredLeads.length} likely customer${discoveredLeads.length === 1 ? '' : 's'} with public source evidence${suggestedCampaign?.body ? ' and drafted your outreach' : ''}.${defaultNote}${vaultNote}${radarNote} Review the matches, then use the ones you want.${routeNote}`
       : `No publicly verified business emails were found for that search. Try broadening the offer, customer type, or location.${routeNote}`,
       discoveredLeads.length ? 'success' : '');
   } catch (error) {
