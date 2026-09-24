@@ -226,13 +226,14 @@ echo OTA_LOCAL_PYCURL_READY</pre>
       <div class="card-head">
         <div>
           <p class="eyebrow">One-time admin setup</p>
-          <h2>Grant 3DVR limited sudo</h2>
+          <h2>Repair limited sudo + initialize Waydroid</h2>
         </div>
         <button class="copy" data-copy-target="limitedSudoText">Copy</button>
       </div>
       <pre id="limitedSudoText">sudo sh -c '
-set -e
+set -eu
 mount -o remount,rw /
+mkdir -p /usr/local/sbin /etc/sudoers.d
 cat &gt; /usr/local/sbin/3dvr-admin &lt;&lt;"EOF"
 #!/bin/sh
 set -eu
@@ -246,11 +247,17 @@ case "${1:-}" in
   waydroid-container-stop)
     exec /usr/bin/systemctl stop waydroid-container.service
     ;;
+  waydroid-container-restart)
+    exec /usr/bin/systemctl restart waydroid-container.service
+    ;;
   enable-linger)
     exec /usr/bin/loginctl enable-linger phablet
     ;;
+  ota-stable)
+    exec env PYTHONPATH=/home/phablet/3dvr-local/pycurl-root/usr/lib/python3/dist-packages SYSTEMIMAGE_PYCURL=1 /usr/bin/system-image-cli --switch 20.04/arm64/android9plus/stable
+    ;;
   *)
-    echo "Allowed: waydroid-init | waydroid-container-start | waydroid-container-stop | enable-linger" >&2
+    echo "Allowed: waydroid-init | waydroid-container-start | waydroid-container-stop | waydroid-container-restart | enable-linger | ota-stable" >&2
     exit 64
     ;;
 esac
@@ -259,12 +266,16 @@ chmod 0755 /usr/local/sbin/3dvr-admin
 chown root:root /usr/local/sbin/3dvr-admin
 printf "%s\n" "phablet ALL=(root) NOPASSWD: /usr/local/sbin/3dvr-admin" &gt; /etc/sudoers.d/3dvr-admin
 chmod 0440 /etc/sudoers.d/3dvr-admin
-visudo -cf /etc/sudoers.d/3dvr-admin
+if ! grep -Eq "^[#@]includedir[[:space:]]+/etc/sudoers.d" /etc/sudoers; then
+  printf "\n#includedir /etc/sudoers.d\n" &gt;&gt; /etc/sudoers
+fi
+visudo -cf /etc/sudoers
 mount -o remount,ro /
 '
 sudo -n /usr/local/sbin/3dvr-admin enable-linger
-echo 3DVR_LIMITED_SUDO_READY</pre>
-      <p class="meta">Installs a root-owned whitelist helper. It does not store your password and does not grant arbitrary root shell access.</p>
+echo 3DVR_LIMITED_SUDO_READY
+sudo -n /usr/local/sbin/3dvr-admin waydroid-init</pre>
+      <p class="meta">One password entry installs a root-owned whitelist helper, validates sudoers, enables boot persistence, then initializes Waydroid. No password is stored and arbitrary root shells remain blocked.</p>
     </section>
 
     <section id="signedInApp" hidden>
