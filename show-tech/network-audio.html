@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Open Network Audio | Show-Tech | 3DVR</title>
+  <meta name="description" content="A standards-based path toward open, interoperable professional network audio for 3DVR Show-Tech.">
+  <style>
+    :root{color-scheme:dark;--bg:#0d1117;--panel:#161b22;--text:#e6edf3;--muted:#9da7b3;--line:#30363d;--link:#58a6ff}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.65}
+    main{width:min(860px,100%);margin:auto;padding:28px 18px 64px}.nav{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:42px}.nav a,a{color:var(--link)}
+    .eyebrow{color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:.78rem}h1{font-size:clamp(2.3rem,8vw,4.4rem);line-height:1.02;margin:.3rem 0 1rem}h2{margin-top:0}
+    .lead{font-size:1.18rem;max-width:720px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:30px 0}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px}.card p,.card li{color:var(--muted)}
+    .stack{display:grid;gap:10px;margin:18px 0}.stack div{border:1px solid var(--line);border-radius:12px;padding:14px}.stack strong{display:block}
+    .callout{border-left:3px solid var(--link);padding:4px 0 4px 16px;margin:26px 0;color:var(--muted)}code{background:#0b0f14;border:1px solid var(--line);padding:.1rem .35rem;border-radius:6px}
+    @media(max-width:620px){.grid{grid-template-columns:1fr}}
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+<main>
+  <nav class="nav"><a href="./">← Show-Tech</a><a href="../">3DVR Portal</a><a href="https://github.com/tmsteph/3dvr-portal/tree/main/show-tech">Source</a></nav>
+
+  <p class="eyebrow">Research direction · September 2026</p>
+  <h1>Open network audio</h1>
+  <p class="lead">Dante proves how useful networked professional audio can be, but the core Dante ecosystem is proprietary. Show-Tech can pursue a more open path: standards-based audio transport underneath a simple, open control and patching experience.</p>
+
+  <div class="callout"><strong>The goal is not “copy Dante.”</strong> The goal is to make ordinary Linux computers and open hardware useful as interoperable professional audio nodes without requiring one vendor to own the whole system.</div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Dante</h2>
+      <p>Excellent commercial ecosystem and workflow. Audinate software contains open-source components, but Dante's core technology and products are proprietary/licensed.</p>
+    </section>
+    <section class="card">
+      <h2>AES67</h2>
+      <p>An AES interoperability standard for high-performance audio over IP. It defines common behavior around synchronization, transport, encoding, streaming, session description, and connection management.</p>
+    </section>
+    <section class="card">
+      <h2>PipeWire</h2>
+      <p>Linux already has useful building blocks. PipeWire includes RTP modules with AES67-aware options, making it a natural bridge between desktop/pro-audio applications and network streams.</p>
+    </section>
+    <section class="card">
+      <h2>Open Linux implementations</h2>
+      <p>Projects such as <code>aes67-linux-daemon</code> already combine PTP synchronization, RTP streams, discovery, REST control, and a web interface on Linux.</p>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>How it could fit Show-Tech</h2>
+    <div class="stack">
+      <div><strong>1. Show-Tech control plane</strong><span>Friendly discovery, device identity, capabilities, patching, cueing, health, and permissions.</span></div>
+      <div><strong>2. PipeWire / ALSA audio graph</strong><span>Local applications, microphones, interfaces, speakers, buses, and software endpoints.</span></div>
+      <div><strong>3. AES67 / RTP media transport</strong><span>Standards-based PCM audio streams across the network.</span></div>
+      <div><strong>4. PTP clock synchronization</strong><span>Shared network time so samples arrive and play in sync.</span></div>
+      <div><strong>5. Interoperability adapters</strong><span>Dante AES67 devices, RAVENNA/AES67 systems, and later other transports can appear as ports in the same Show-Tech patchbay.</span></div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <h2>What AES67 does not give us</h2>
+      <ul>
+        <li>A polished Dante Controller-style UX</li>
+        <li>One universal discovery/control workflow</li>
+        <li>Automatic network configuration</li>
+        <li>A guarantee every vendor exposes every feature</li>
+      </ul>
+      <p>That missing human layer is exactly where Show-Tech can add value.</p>
+    </section>
+    <section class="card">
+      <h2>The hard engineering</h2>
+      <ul>
+        <li>PTP reliability and clock selection</li>
+        <li>Multicast and IGMP-aware network setup</li>
+        <li>Low-latency scheduling and buffering</li>
+        <li>Discovery/session management</li>
+        <li>Simple recovery when a node disappears</li>
+      </ul>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Smallest useful experiment</h2>
+    <ol>
+      <li>Run two Linux machines on wired Ethernet.</li>
+      <li>Expose one stereo source and one stereo sink through PipeWire/ALSA.</li>
+      <li>Transport 48 kHz PCM over AES67-compatible RTP with PTP synchronization.</li>
+      <li>Make the stream appear as a normal Show-Tech input/output.</li>
+      <li>Add a Dante device with AES67 enabled and test cross-vendor audio.</li>
+      <li>Measure latency, clock stability, packet loss, recovery, and setup complexity.</li>
+    </ol>
+    <p>If that works reliably, we have the beginning of an open professional audio fabric rather than just another remote-control feature.</p>
+  </section>
+
+  <section class="card" style="margin-top:14px">
+    <h2>References</h2>
+    <p><a href="https://aes.org/publications/standards-store/?id=96">AES67 — Audio Engineering Society</a><br>
+    <a href="https://support.getdante.com/hc/en-gb/articles/5508253040927-AES67-Interoperability">Dante AES67 interoperability — Audinate</a><br>
+    <a href="https://www.audinate.com/legal/software-licensing/">Audinate software licensing</a><br>
+    <a href="https://pipewire.pages.freedesktop.org/pipewire/page_module_rtp_sink.html">PipeWire RTP sink</a><br>
+    <a href="https://github.com/bondagit/aes67-linux-daemon">AES67 Linux Daemon</a></p>
+  </section>
+</main>
+<script defer src="/issue-launcher.js"></script>
+</body>
+</html>
