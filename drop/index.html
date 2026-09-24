@@ -183,6 +183,21 @@ echo OTA_PYCURL_TEST_READY</pre>
       <p class="meta">Forces the updater's built-in PyCURL backend, bypassing the broken Lomiri Download Manager. Dry-run only: no reboot and no update is applied.</p>
     </section>
 
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">OTA fix</p>
+          <h2>Test OTA with local PyCURL</h2>
+        </div>
+        <button class="copy" data-copy-target="otaLocalCurlTest">Copy</button>
+      </div>
+      <pre id="otaLocalCurlTest">mkdir -p ~/ota-debug
+sudo sh -c 'PYTHONPATH=/home/phablet/3dvr-local/pycurl-root/usr/lib/python3/dist-packages SYSTEMIMAGE_PYCURL=1 system-image-cli -n -v --switch 20.04/arm64/android9plus/stable &gt; /home/phablet/ota-debug/ota-local-pycurl-dry-run.log 2&gt;&amp;1'
+sudo chown phablet:phablet ~/ota-debug/ota-local-pycurl-dry-run.log
+echo OTA_LOCAL_PYCURL_READY</pre>
+      <p class="meta">Uses the PyCURL module unpacked into /home/phablet, bypassing the broken Lomiri downloader without modifying the read-only system image. Dry-run only.</p>
+    </section>
+
     <section id="signedInApp" hidden>
       <form id="dropForm" class="card composer">
         <label for="dropInput">New drop</label>
