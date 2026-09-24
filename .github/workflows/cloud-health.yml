@@ -109,9 +109,10 @@ jobs:
           probe DigitalOcean 167.172.193.194 root debian || failures=$((failures+1))
 
           echo "=== public edge checks ==="
-          if ! curl -fsS --max-time 15 https://portal.3dvr.tech/__3dvr-health \
-            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.ok||x.host!=="self")process.exit(1)})'; then
-            echo "::error::Canonical portal health check failed"
+          # portal.3dvr.tech root is the Vercel production lane. Do not require
+          # the self-host-only /__3dvr-health route to exist on that edge.
+          if ! curl -fsS --max-time 15 https://portal.3dvr.tech/ >/dev/null; then
+            echo "::error::Vercel production root check failed"
             failures=$((failures+1))
           fi
           if ! curl -fsS --max-time 10 http://167.172.193.194/__3dvr-edge-health \
