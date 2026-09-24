@@ -42,6 +42,18 @@ K="$(base64 ~/.ssh/utunnel.pub | tr -d '\n')"
 wget -qO- --post-data="key=$K" https://portal.3dvr.tech/api/ut-pair</pre>
     </section>
 
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <p class="eyebrow">Next step</p>
+          <h2>Open reverse SSH tunnel</h2>
+        </div>
+        <button class="copy" data-copy-target="tunnelText">Copy</button>
+      </div>
+      <pre id="tunnelText">ssh -i ~/.ssh/utunnel -N -R 127.0.0.1:2206:localhost:22 root@167.233.174.20</pre>
+      <p class="meta">This keeps a connection open from the OnePlus to Hetzner and maps Hetzner port 2206 back to the phone's SSH port 22.</p>
+    </section>
+
     <section id="signedInApp" hidden>
       <form id="dropForm" class="card composer">
         <label for="dropInput">New drop</label>
