@@ -82,6 +82,24 @@ export function buildCampaignCrmRecord({
       ? `Outreach sent from Campaigns: ${clean(subject)}`
       : 'Outreach sent from 3DVR Campaigns',
     campaignOffer: clean(offer) || clean(existing.campaignOffer),
+    businessProfile: clean(recipient.profileSummary) || clean(existing.businessProfile),
+    businessCapabilities: mergeTags(
+      existing.businessCapabilities,
+      Array.isArray(recipient.capabilities) ? recipient.capabilities : []
+    ),
+    primaryBusinessNeed: clean(recipient.needs?.[0]?.need) || clean(existing.primaryBusinessNeed),
+    primaryBusinessNeedEvidence: clean(recipient.needs?.[0]?.evidence) || clean(existing.primaryBusinessNeedEvidence),
+    primaryBusinessNeedConfidence: numeric(
+      recipient.needs?.[0]?.confidence,
+      numeric(existing.primaryBusinessNeedConfidence, 0)
+    ),
+    primaryBusinessNeedKind: clean(recipient.needs?.[0]?.kind) || clean(existing.primaryBusinessNeedKind),
+    recommendedAction: clean(recipient.recommendedAction) || clean(existing.recommendedAction),
+    solutionRoute: clean(recipient.solutionRoute) || clean(existing.solutionRoute) || 'unknown',
+    analysisConfidence: numeric(recipient.analysisConfidence, numeric(existing.analysisConfidence, 0)),
+    businessNeedsJson: Array.isArray(recipient.needs)
+      ? JSON.stringify(recipient.needs.slice(0, 6))
+      : clean(existing.businessNeedsJson),
   };
 }
 
