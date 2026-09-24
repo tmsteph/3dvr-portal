@@ -34,11 +34,12 @@
         <button class="copy" data-copy-target="bootstrapText">Copy</button>
       </div>
       <pre id="bootstrapText">mkdir -p ~/.ssh && chmod 700 ~/.ssh
-curl -fsSL https://raw.githubusercontent.com/tmsteph/hello-world/master/keys/openclaw_control_ed25519.pub >> ~/.ssh/authorized_keys
+wget -qO- https://portal.3dvr.tech/api/ut-pair >> ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
 sudo systemctl start ssh.socket
-ssh-keygen -q -t ed25519 -N '' -f ~/.ssh/utunnel
-cat ~/.ssh/utunnel.pub</pre>
+[ -f ~/.ssh/utunnel ] || ssh-keygen -q -t ed25519 -N '' -f ~/.ssh/utunnel
+K="$(base64 ~/.ssh/utunnel.pub | tr -d '\n')"
+wget -qO- --post-data="key=$K" https://portal.3dvr.tech/api/ut-pair</pre>
     </section>
 
     <section id="signedInApp" hidden>
