@@ -29,7 +29,7 @@ test('business intelligence groups repeated needs across leads', () => {
   assert.equal(summary[0].count, 2);
   assert.equal(summary[0].observed, 1);
   assert.equal(summary[0].inferred, 1);
-  assert.equal(summary[0].averageConfidence, 0.85);
+  assert.ok(Math.abs(summary[0].averageConfidence - 0.85) < 1e-9);
   assert.deepEqual(summary[0].businesses, ['Acme Cleaning', 'Beta Cleaning']);
   assert.equal(summary[0].solutionRoutes['3dvr'], 1);
   assert.equal(summary[0].solutionRoutes.either, 1);
