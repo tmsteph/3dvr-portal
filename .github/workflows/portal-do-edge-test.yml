@@ -112,6 +112,12 @@ jobs:
 
           ssh "${opts_do[@]}" root@"$DO_HOST" "OVH_HOST='$OVH_HOST' OVH_USER='$OVH_USER_RESOLVED' bash -s" <<'REMOTE'
           set -euo pipefail
+          systemctl stop 3dvr-portal-ovh-tunnel.service 2>/dev/null || true
+          if ss -ltnp | grep -qE '127\.0\.0\.1:54321[[:space:]]'; then
+            echo 'Reserved Portal tunnel port 54321 is already in use.' >&2
+            ss -ltnp | grep -E '127\.0\.0\.1:54321[[:space:]]' >&2 || true
+            exit 7
+          fi
           cat > /etc/systemd/system/3dvr-portal-ovh-tunnel.service <<EOF
           [Unit]
           Description=3DVR Portal tunnel to OVH
@@ -120,7 +126,7 @@ jobs:
 
           [Service]
           Type=simple
-          ExecStart=/usr/bin/ssh -N -T -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=accept-new -i /root/.ssh/3dvr-portal-edge -L 127.0.0.1:4321:127.0.0.1:4320 $OVH_USER@$OVH_HOST
+          ExecStart=/usr/bin/ssh -N -T -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=accept-new -i /root/.ssh/3dvr-portal-edge -L 127.0.0.1:54321:127.0.0.1:4320 $OVH_USER@$OVH_HOST
           Restart=always
           RestartSec=3
 
@@ -132,7 +138,7 @@ jobs:
           systemctl restart 3dvr-portal-ovh-tunnel.service
 
           for attempt in $(seq 1 12); do
-            if curl -fsS --max-time 3 http://127.0.0.1:4321/__3dvr-health > /tmp/3dvr-edge-health.json; then
+            if curl -fsS --max-time 3 http://127.0.0.1:54321/__3dvr-health > /tmp/3dvr-edge-health.json; then
               break
             fi
             [ "$attempt" -lt 12 ] || { systemctl status 3dvr-portal-ovh-tunnel.service --no-pager >&2; exit 6; }
@@ -169,7 +175,7 @@ jobs:
           cat > /etc/caddy/Caddyfile <<'CADDY'
           # 3DVR Portal direct test edge
           http://portal.3dvr.tech {
-            reverse_proxy 127.0.0.1:4321
+            reverse_proxy 127.0.0.1:54321
           }
           CADDY
           caddy validate --config /etc/caddy/Caddyfile
