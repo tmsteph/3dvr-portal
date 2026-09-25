@@ -37,6 +37,8 @@ test('homepage busy state lives in the Operator input instead of the status line
 
   assert.match(client, /input\.placeholder = busy \? 'Operator is working on this page…' : idlePlaceholder/);
   assert.match(client, /setBusy\(true\);\n\s*status\.textContent = '';/);
+  assert.match(client, /operator-mini-portal-spin/);
+  assert.match(client, /rotate\(-360deg\)/);
   assert.doesNotMatch(client, /status\.textContent = 'Operator is working on this page…'/);
   assert.match(actions, /import '\.\/home-busy-state\.js';/);
   assert.match(busyUi, /input\.value = BUSY_TEXT/);

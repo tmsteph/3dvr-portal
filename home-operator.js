@@ -353,7 +353,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
       }
 
       @keyframes operator-mini-portal-spin {
-        to { transform: scale(1) rotate(360deg); }
+        to { transform: scale(1) rotate(-360deg); }
       }
 
       @keyframes operator-mini-portal-pulse {
