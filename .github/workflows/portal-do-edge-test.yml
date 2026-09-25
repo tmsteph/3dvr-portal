@@ -119,9 +119,11 @@ jobs:
           )"
           [[ "$pubkey" == ssh-ed25519\ * ]] || { echo 'Dedicated edge public key was not created.' >&2; exit 5; }
 
-          printf '%s\n' "$pubkey" | ssh "${opts_ovh[@]}" "$OVH_USER_RESOLVED@$OVH_HOST" "DO_HOST='$DO_HOST' bash -s" <<'REMOTE'
+          pubkey_b64="$(printf '%s' "$pubkey" | base64 -w0)"
+          ssh "${opts_ovh[@]}" "$OVH_USER_RESOLVED@$OVH_HOST" "DO_HOST='$DO_HOST' PUBKEY_B64='$pubkey_b64' bash -s" <<'REMOTE'
           set -euo pipefail
-          read -r pubkey
+          pubkey="$(printf '%s' "$PUBKEY_B64" | base64 -d)"
+          [[ "$pubkey" == ssh-ed25519\ *3dvr-portal-edge ]] || { echo 'Invalid dedicated edge public key.' >&2; exit 9; }
           install -d -m 700 "$HOME/.ssh"
           touch "$HOME/.ssh/authorized_keys"
           chmod 600 "$HOME/.ssh/authorized_keys"
@@ -130,6 +132,13 @@ jobs:
           printf 'from="%s",no-agent-forwarding,no-X11-forwarding,no-pty,no-user-rc,permitopen="127.0.0.1:4320" %s\n' "$DO_HOST" "$pubkey" >> "$HOME/.ssh/authorized_keys.next"
           mv "$HOME/.ssh/authorized_keys.next" "$HOME/.ssh/authorized_keys"
           chmod 600 "$HOME/.ssh/authorized_keys"
+
+          # This one edge is intentionally persistent. Exempt only its fixed
+          # public IP from OpenSSH's automatic per-source penalty bucket; the
+          # dedicated key remains source-bound and permitopen-restricted above.
+          printf 'PerSourcePenaltyExemptList %s\n' "$DO_HOST" | sudo tee /etc/ssh/sshd_config.d/60-3dvr-portal-edge.conf >/dev/null
+          sudo sshd -t
+          sudo systemctl reload ssh.service 2>/dev/null || sudo systemctl reload sshd.service
           REMOTE
 
           ssh "${opts_do[@]}" root@"$DO_HOST" "OVH_HOST='$OVH_HOST' OVH_USER='$OVH_USER_RESOLVED' bash -s" <<'REMOTE'
@@ -150,7 +159,7 @@ jobs:
           Type=simple
           ExecStart=/usr/bin/ssh -N -T -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=accept-new -i /root/.ssh/3dvr-portal-edge -L 127.0.0.1:54321:127.0.0.1:4320 $OVH_USER@$OVH_HOST
           Restart=always
-          RestartSec=3
+          RestartSec=10
 
           [Install]
           WantedBy=multi-user.target
