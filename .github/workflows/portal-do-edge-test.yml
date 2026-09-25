@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: portal-do-edge-test
+  cancel-in-progress: true
+
 env:
   OVH_HOST: 40.160.137.41
   OVH_USER: debian
@@ -144,7 +148,7 @@ jobs:
             [ "$attempt" -lt 12 ] || {
               systemctl status 3dvr-portal-ovh-tunnel.service --no-pager >&2 || true
               journalctl -u 3dvr-portal-ovh-tunnel.service -n 80 --no-pager >&2 || true
-              ssh -vv -N -T -o BatchMode=yes -o ConnectTimeout=8 -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=accept-new -i /root/.ssh/3dvr-portal-edge -L 127.0.0.1:54322:127.0.0.1:4320 "$OVH_USER@$OVH_HOST" 2>&1 | tail -n 80 >&2 || true
+              timeout 12s ssh -vv -N -T -o BatchMode=yes -o ConnectTimeout=8 -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=accept-new -i /root/.ssh/3dvr-portal-edge -L 127.0.0.1:54322:127.0.0.1:4320 "$OVH_USER@$OVH_HOST" 2>&1 | tail -n 80 >&2 || true
               exit 6
             }
             sleep 1
