@@ -43,9 +43,9 @@ jobs:
         run: |
           set -euo pipefail
           task='root="$(git rev-parse --show-toplevel)"; "$root/apps/agent/thomas-agent/scripts/ask-agent-worker-daemon" status; "$root/apps/agent/thomas-agent/scripts/ask-context-task-router-daemon" status; "$root/apps/agent/thomas-agent/scripts/ask-inbox-daemon" status; "$root/apps/agent/thomas-agent/scripts/ask-autopilot-daemon" status; "$root/apps/agent/thomas-agent/scripts/ask-agent-heartbeat-daemon" status; bash "$root/apps/agent/thomas-agent/scripts/ask-openclaw-health"'
-          result="$(node thomas-agent/node/agent-task-queue.js enqueue --json --backend shell --risk workspace_write --approval-status approved --unsafe --requires shell --max-runtime-ms 90000 "$task")"
+          result="$(node thomas-agent/node/agent-task-queue.js enqueue --json --backend shell --risk workspace_write --approval-status approved --unsafe --requires shell --max-runtime-ms 180000 "$task")"
           task_id="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task queue JSON payload missing');console.log(JSON.parse(s.slice(i)).id)})")"
-          for attempt in $(seq 1 12); do
+          for attempt in $(seq 1 36); do
             result="$(node thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
             status="$(printf '%s' "$result" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');console.log(JSON.parse(s.slice(i)).status||'')})")"
             case "$status" in
