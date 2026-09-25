@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: portal-direct-funnel-test
+  cancel-in-progress: true
+
 env:
   OVH_HOST: 40.160.137.41
   OVH_USER: debian
@@ -45,7 +49,11 @@ jobs:
           set -euo pipefail
           curl -fsS http://127.0.0.1:4320/__3dvr-health             | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.ok||x.operatorApi!=="native")process.exit(1)})'
           command -v tailscale >/dev/null
-          sudo tailscale funnel --bg --yes --https=443 4320
+          if ! timeout 20s sudo tailscale funnel --bg --yes --https=443 4320; then
+            echo 'Tailscale Funnel could not be enabled non-interactively.' >&2
+            sudo tailscale funnel status || true
+            exit 6
+          fi
           dns="$(sudo tailscale status --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);const d=String(x?.Self?.DNSName||"").replace(/\.$/,"");if(!d)process.exit(1);process.stdout.write(d)})')"
           printf 'FUNNEL_URL=https://%s\n' "$dns"
           sudo tailscale funnel status
