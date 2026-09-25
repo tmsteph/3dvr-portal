@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Device Privilege Handoff | 3DVR Portal</title>
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/styles/guides.css">
+  <script src="/auth-identity.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="guide-page">
+  <div class="guide-shell">
+    <div class="guide-header">
+      <div class="guide-eyebrow">Device Access</div>
+      <h1 class="guide-title">Approve scoped admin access</h1>
+      <p class="guide-description">
+        Bootstrap a root-owned, allowlisted helper once. After approval, the agent can perform only the listed admin actions without asking you to retype sudo commands.
+      </p>
+    </div>
+
+    <section class="guide-section">
+      <h2>Current target</h2>
+      <div class="status-block">
+        <strong>OnePlus 6T · Ubuntu Touch</strong>
+        <p class="field-note">Role: experimental future daily driver. Samsung Fold remains the stable current phone.</p>
+      </div>
+    </section>
+
+    <section class="guide-section">
+      <h2>What this grants</h2>
+      <ul class="guide-list">
+        <li>Switch Waydroid between VANILLA and GAPPS images.</li>
+        <li>Upgrade Waydroid.</li>
+        <li>Start, stop, or restart the Waydroid container.</li>
+        <li>Enable linger for the phablet user.</li>
+        <li>Switch Ubuntu Touch to the stable OTA channel.</li>
+      </ul>
+      <p class="field-note"><strong>Not granted:</strong> arbitrary root shell, package installation, file deletion, or unrestricted sudo.</p>
+    </section>
+
+    <section class="guide-section">
+      <h2>One-time approval</h2>
+      <p class="field-note">The helper is already staged on the OnePlus at <span class="inline-code">~/3dvr-admin.new</span>.</p>
+      <div class="status-block">
+        <pre id="bootstrap-command">sudo install -m 0755 ~/3dvr-admin.new /usr/local/sbin/3dvr-admin</pre>
+      </div>
+      <div class="actions-row" style="margin-top: 12px;">
+        <button class="primary-button" type="button" id="copy-bootstrap">Copy approval command</button>
+      </div>
+      <p class="field-note">Expected helper SHA-256: <span class="inline-code">f54454db63fe2ff4dd4a374344b4b2deaf2933697f261a04262afe55b4cfe467</span></p>
+    </section>
+
+    <section class="guide-section">
+      <h2>After approval</h2>
+      <div class="status-block">
+        <pre>sudo -n /usr/local/sbin/3dvr-admin waydroid-init-gapps
+sudo -n /usr/local/sbin/3dvr-admin waydroid-upgrade
+sudo -n /usr/local/sbin/3dvr-admin waydroid-container-restart</pre>
+      </div>
+      <p class="field-note">These are examples of the fixed allowlist. The agent cannot pass arbitrary shell commands through this helper.</p>
+    </section>
+
+    <section class="guide-section">
+      <h2>Revoke</h2>
+      <p class="field-note">To remove passwordless access later, remove the sudoers rule locally:</p>
+      <div class="status-block">
+        <pre id="revoke-command">sudo rm /etc/sudoers.d/3dvr-admin</pre>
+      </div>
+      <div class="actions-row" style="margin-top: 12px;">
+        <button class="muted-button" type="button" id="copy-revoke">Copy revoke command</button>
+      </div>
+    </section>
+
+    <div class="guide-nav" aria-label="Quick navigation">
+      <a href="./index.html">Back to guides</a>
+      <a href="/access/">Access registry</a>
+      <a href="/abilities/">Abilities</a>
+      <a href="/index.html">Return to Portal</a>
+    </div>
+  </div>
+
+  <script>
+    async function copyFrom(id, button) {
+      const target = document.getElementById(id);
+      await navigator.clipboard.writeText(target.textContent.trim());
+      const original = button.textContent;
+      button.textContent = 'Copied';
+      setTimeout(() => { button.textContent = original; }, 900);
+    }
+
+    document.getElementById('copy-bootstrap').addEventListener('click', event =>
+      copyFrom('bootstrap-command', event.currentTarget));
+    document.getElementById('copy-revoke').addEventListener('click', event =>
+      copyFrom('revoke-command', event.currentTarget));
+  </script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
+
