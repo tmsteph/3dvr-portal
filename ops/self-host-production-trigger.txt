@@ -33,3 +33,5 @@ Reason: Verify homepage 10,338 points display and Gmail test-to-self end to end.
 2026-09-21 verify-both-google-oauth-identities
 
 2026-09-23 calm-homepage-keep-spinner
+
+2026-09-25 vercel-boundary-self-host-redeploy
