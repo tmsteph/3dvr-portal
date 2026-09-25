@@ -2,6 +2,7 @@ import { runOperatorAction } from './operator/actions.js';
 import { collectPortalContext } from './operator/portal-context.js';
 import { createOperatorDeveloperProof } from './operator/forge.js';
 import { fetchOperatorStream } from './operator/stream.js';
+import { operatorHandoffUrl } from './operator/handoff.js';
 
 function aliasToDisplay(alias) {
   const normalized = typeof alias === 'string' ? alias.trim() : '';
@@ -298,6 +299,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
     localStorage.setItem(conversationStoreKey, JSON.stringify(store));
     if (conversationStoreKey !== BASE_KEY) localStorage.removeItem(BASE_KEY);
     localStorage.removeItem(LEGACY_KEY);
+    refreshOperatorNavigation();
   };
 
   const installSubmitLoader = () => {
@@ -428,7 +430,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
     nav.className = 'home-operator-links';
     nav.setAttribute('aria-label', 'Operator navigation');
     nav.innerHTML = `
-      <a href="/operator/">Open full Operator</a>
+      <a id="homeOperatorFull" href="/operator/">Open full Operator</a>
       <a href="/operator/?history=1">Past conversations</a>
     `;
     form.insertAdjacentElement('afterend', nav);
@@ -436,6 +438,19 @@ if (form && input && submit && status && result && reply && followUps && actionL
 
   installSubmitLoader();
   installOperatorNavigation();
+
+  const refreshOperatorNavigation = () => {
+    const fullOperator = document.querySelector('#homeOperatorFull');
+    if (!fullOperator) return;
+    fullOperator.href = operatorHandoffUrl({
+      conversation: homeConversationId,
+      path: window.location.pathname,
+      title: document.title,
+      heading: document.querySelector('#home-title')?.textContent?.trim() || ''
+    });
+  };
+
+  refreshOperatorNavigation();
 
   const collectPageContext = () => ({
     path: window.location.pathname,
