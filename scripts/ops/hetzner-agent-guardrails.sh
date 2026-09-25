@@ -147,7 +147,36 @@ TasksMax=320
 OOMPolicy=stop
 EOF
 
+# A Sep 25 incident was caused by an orphaned agent-browser Chromium GPU child
+# inside Desktop Commander's cgroup consuming ~142% CPU. Desktop Commander is a
+# recovery path, so bound its entire child tree tightly enough that a wedged
+# browser cannot starve sshd or the worker host.
+mkdir -p /etc/systemd/system/desktop-commander-remote.service.d
+cat >/etc/systemd/system/desktop-commander-remote.service.d/zz-3dvr-browser-containment.conf <<'EOF'
+[Service]
+CPUQuota=100%
+MemorySwapMax=192M
+TasksMax=256
+KillMode=control-group
+EOF
+
+# Keep the whole recovery lane from filling swap or consuming both Hetzner CPUs.
+mkdir -p /etc/systemd/system/3dvr-recovery.slice.d
+cat >/etc/systemd/system/3dvr-recovery.slice.d/zz-3dvr-containment.conf <<'EOF'
+[Slice]
+CPUQuota=100%
+MemorySwapMax=256M
+EOF
+
 systemctl daemon-reload
+if systemctl is-active --quiet desktop-commander-remote.service; then
+  systemctl set-property --runtime desktop-commander-remote.service \
+    CPUQuota=100% MemorySwapMax=192M TasksMax=256 >/dev/null
+fi
+if systemctl is-active --quiet 3dvr-recovery.slice; then
+  systemctl set-property --runtime 3dvr-recovery.slice \
+    CPUQuota=100% MemorySwapMax=256M >/dev/null
+fi
 systemctl disable --now ollama.service >/dev/null 2>&1 || true
 systemctl enable 3dvr-agent-stack.service
 systemctl restart systemd-journald || true
