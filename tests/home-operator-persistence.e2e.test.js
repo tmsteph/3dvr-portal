@@ -84,7 +84,16 @@ test('home Operator conversation appears in Past conversations', { timeout: 45_0
     assert.equal(saved.conversations[0].messages[1].content, responseText);
     assert.equal(saved.activeId, saved.conversations[0].id);
 
-    await page.goto(`${baseUrl}/operator/`, { waitUntil: 'domcontentloaded' });
+    const fullOperatorHref = await page.getByRole('link', { name: 'Open full Operator' }).getAttribute('href');
+    const fullOperatorUrl = new URL(fullOperatorHref, baseUrl);
+    assert.equal(fullOperatorUrl.searchParams.get('conversation'), saved.activeId);
+    assert.equal(fullOperatorUrl.searchParams.get('from'), '/');
+
+    await page.getByRole('link', { name: 'Open full Operator' }).click();
+    await page.waitForURL(url => new URL(url).pathname === '/operator/');
+    await page.locator('#operator-context').waitFor();
+    assert.equal(await page.locator('#operator-context-link').getAttribute('href'), '/');
+
     await page.getByRole('button', { name: 'Past conversations' }).click();
     const savedConversation = page.locator(`\[data-conversation-id="${saved.conversations[0].id}"\]`);
     await savedConversation.waitFor();

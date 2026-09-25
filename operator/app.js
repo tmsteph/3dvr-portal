@@ -6,6 +6,7 @@ import { readDefaultSecret } from '../web-builder-app/defaults.js';
 import { createOperatorSync, mergeOperatorStores } from './sync.js';
 import { readOperatorStream } from './stream.js';
 import { forgeUrlWithReturn, requestedOperatorConversation } from './forge-roundtrip.js';
+import { handoffPageContext, readOperatorHandoff } from './handoff.js';
 
 const form=document.querySelector('#operator-form'), input=document.querySelector('#operator-input'), log=document.querySelector('#operator-log'), status=document.querySelector('#operator-status'), syncStatus=document.querySelector('#operator-sync'), latest=document.querySelector('#operator-latest'), historyPanel=document.querySelector('#conversation-history'), historyList=document.querySelector('#history-list'), historyEmpty=document.querySelector('#history-empty'), showHistory=document.querySelector('#show-history');
 window.AuthIdentity?.syncStorageFromSharedIdentity?.(localStorage);
@@ -25,6 +26,20 @@ try {
   }
 } catch {}
 const requestedConversation=requestedOperatorConversation(window.location.search);
+const handoff=readOperatorHandoff(window.location.search);
+const pageContext=handoffPageContext(handoff,{
+  path:window.location.pathname,
+  title:document.title,
+  heading:document.querySelector('.welcome h1')?.textContent||'',
+  area:'operator'
+});
+const contextPanel=document.querySelector('#operator-context');
+const contextLink=document.querySelector('#operator-context-link');
+if(handoff.path&&contextPanel&&contextLink){
+  contextLink.href=handoff.path;
+  contextLink.textContent=handoff.heading||handoff.title||handoff.path;
+  contextPanel.hidden=false;
+}
 if(requestedConversation&&store.conversations.some(item=>item.id===requestedConversation)) store.activeId=requestedConversation;
 function activeConversation(){let conversation=store.conversations.find(item=>item.id===store.activeId);if(!conversation){conversation={id:store.activeId,createdAt:now(),updatedAt:now(),messages:[]};store.conversations.push(conversation)}return conversation}
 let history=activeConversation().messages;
@@ -53,7 +68,7 @@ async function requestOperator(payload,handlers={}){
   return readOperatorStream(response,handlers);
 }
 form.addEventListener('submit',async event=>{event.preventDefault();const prompt=input.value.trim();const images=attachments.getPayload();if(!prompt&&!images.length)return;const prior=history.map(({role,content})=>({role,content}));const historyPrompt=images.length?`${prompt}${prompt?'\n\n':''}[Attached screenshot: ${images[0].name}]`:prompt;history.push({role:'user',content:historyPrompt});input.value='';save();const streamingMessage={role:'assistant',content:''};history.push(streamingMessage);render({forceLatest:true});status.textContent='Connecting…';form.querySelector('button[type="submit"]').disabled=true;
-try{const [portalContext,developerAuth]=await Promise.all([collectPortalContext(),createOperatorDeveloperProof()]);const data=await requestOperator({prompt:prompt||'Please analyze the attached screenshot.',images,history:prior,portalContext,developerAuth},{onStatus:message=>{status.textContent=message},onReplyDelta:delta=>{streamingMessage.content+=delta;render({forceLatest:true});status.textContent='Operator is responding…'}});let outcome=null;if(data.action?.type!=='none')outcome=await runOperatorAction(data.action,{developerAccess:data.developerAccess});const lifeSpaceActions=new Set(['create_note','create_checklist','save_link']);streamingMessage.content=[data.reply,outcome?.message].filter(Boolean).join('\n\n');streamingMessage.suggestions=Array.isArray(data.suggestions)?data.suggestions:[];streamingMessage.actionUrl=forgeUrlWithReturn(outcome?.url||'',store.activeId);streamingMessage.actionLabel=lifeSpaceActions.has(data.action?.type)?'Life Space':data.action?.type==='add_lead'?'Lead Finder':'workspace';attachments.clear();save();status.textContent='Ready';}catch(error){streamingMessage.content=streamingMessage.content?`${streamingMessage.content}\n\nI could not finish that: ${error.message}`:`I could not finish that: ${error.message}`;save();status.textContent='Try again';}finally{form.querySelector('button[type="submit"]').disabled=false;input.focus()}});
+try{const [portalContext,developerAuth]=await Promise.all([collectPortalContext(),createOperatorDeveloperProof()]);portalContext.page=pageContext;const data=await requestOperator({prompt:prompt||'Please analyze the attached screenshot.',images,history:prior,portalContext,developerAuth},{onStatus:message=>{status.textContent=message},onReplyDelta:delta=>{streamingMessage.content+=delta;render({forceLatest:true});status.textContent='Operator is responding…'}});let outcome=null;if(data.action?.type!=='none')outcome=await runOperatorAction(data.action,{developerAccess:data.developerAccess});const lifeSpaceActions=new Set(['create_note','create_checklist','save_link']);streamingMessage.content=[data.reply,outcome?.message].filter(Boolean).join('\n\n');streamingMessage.suggestions=Array.isArray(data.suggestions)?data.suggestions:[];streamingMessage.actionUrl=forgeUrlWithReturn(outcome?.url||'',store.activeId);streamingMessage.actionLabel=lifeSpaceActions.has(data.action?.type)?'Life Space':data.action?.type==='add_lead'?'Lead Finder':'workspace';attachments.clear();save();status.textContent='Ready';}catch(error){streamingMessage.content=streamingMessage.content?`${streamingMessage.content}\n\nI could not finish that: ${error.message}`:`I could not finish that: ${error.message}`;save();status.textContent='Try again';}finally{form.querySelector('button[type="submit"]').disabled=false;input.focus()}});
 input.addEventListener('keydown',event=>{if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();form.requestSubmit()}});
 document.querySelector('.quick-prompts').addEventListener('click',event=>{const button=event.target.closest('[data-prompt]');if(!button)return;input.value=button.dataset.prompt;form.requestSubmit()});
 log.addEventListener('click',event=>{const button=event.target.closest('[data-suggestion]');if(!button)return;input.value=button.dataset.suggestion;form.requestSubmit()});
