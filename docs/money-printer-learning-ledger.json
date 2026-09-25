@@ -5,11 +5,21 @@
     "visits": 0,
     "signups": 0,
     "qualified_leads": 0,
-    "outreach_sent": 3,
+    "outreach_sent": 0,
     "qualified_replies": 0,
     "calls_booked": 0,
     "customers": 0,
-    "revenue_cents": 0
+    "revenue_cents": 0,
+    "stripe_attributed_checkouts": 0,
+    "stripe_attributed_revenue_cents": 0,
+    "stripe_mrr_cents": 0,
+    "founder_customers": 0,
+    "friend_customers": 0,
+    "stranger_customers": 0,
+    "founder_revenue_cents": 0,
+    "friend_revenue_cents": 0,
+    "stranger_revenue_cents": 0,
+    "agent_cost_cents": 0
   },
   "backlog": [
     {
@@ -47,6 +57,18 @@
       "score": 0.375
     },
     {
+      "id": "market-proposal-follow-up-automation-for-freelancers-and-crea",
+      "title": "Proposal Follow Up automation for freelancers and creators with fragmented client operations",
+      "hypothesis": "freelancers and creators with fragmented client operations teams repeatedly lose time on proposal follow up and need a faster process.",
+      "metric": "qualified_replies",
+      "confidence": 0.56,
+      "effort": 2,
+      "risk": "GREEN",
+      "status": "prepared",
+      "evidence_run_id": "market-pulse-20260925050428",
+      "score": 0.28
+    },
+    {
       "id": "free-page-proof-test",
       "title": "Test one proof-focused Free Page message",
       "hypothesis": "Concrete proof will convert more qualified visitors than broad claims.",
@@ -71,11 +93,59 @@
       "revenue_cents": 0,
       "evidence": "Verified Gmail SENT messages to three unrelated public business contacts.",
       "status": "awaiting-response"
+    },
+    {
+      "observed_at": "2026-09-25T05:04:28.904Z",
+      "experiment_id": "market-customer-intake-automation-for-owner-led-service-busin",
+      "source": "github-actions-evidence",
+      "signals": {
+        "visits": 0,
+        "signups": 0,
+        "qualified_leads": 0,
+        "outreach_sent": 0,
+        "qualified_replies": 0,
+        "calls_booked": 0,
+        "customers": 0,
+        "revenue_cents": 0,
+        "stripe_attributed_checkouts": 0,
+        "stripe_attributed_revenue_cents": 0,
+        "stripe_mrr_cents": 0,
+        "founder_customers": 0,
+        "friend_customers": 0,
+        "stranger_customers": 0,
+        "founder_revenue_cents": 0,
+        "friend_revenue_cents": 0,
+        "stranger_revenue_cents": 0,
+        "agent_cost_cents": 0
+      },
+      "delta": {
+        "visits": 0,
+        "signups": 0,
+        "qualified_leads": 0,
+        "outreach_sent": -3,
+        "qualified_replies": 0,
+        "calls_booked": 0,
+        "customers": 0,
+        "revenue_cents": 0,
+        "stripe_attributed_checkouts": 0,
+        "stripe_attributed_revenue_cents": 0,
+        "stripe_mrr_cents": 0,
+        "founder_customers": 0,
+        "friend_customers": 0,
+        "stranger_customers": 0,
+        "founder_revenue_cents": 0,
+        "friend_revenue_cents": 0,
+        "stranger_revenue_cents": 0,
+        "agent_cost_cents": 0
+      },
+      "milestone": "pre-revenue",
+      "stalled_cycles": 1,
+      "note": ""
     }
   ],
   "decision": {
-    "experiment_id": "market-customer-intake-automation-for-owner-led-service-busin",
-    "reason": "Live evidence probe started: 3 unrelated prospects received the same $200 lead-follow-up pilot offer. Hold offer and price constant until response evidence arrives."
+    "experiment_id": "market-proposal-follow-up-automation-for-freelancers-and-crea",
+    "reason": "Executed one bounded GREEN action: prepare-validation-brief."
   },
   "guardrails": {
     "auto_execute": [
@@ -93,44 +163,63 @@
     ]
   },
   "research": {
-    "latest_run_id": "market-pulse-20260712172802",
-    "observed_at": "2026-07-12T17:28:02.917Z",
-    "fingerprint": "fnv1a-ae33b7d5",
-    "market": "owner-led service businesses that need clearer lead follow-up",
-    "signals_analyzed": 11,
-    "fit_score": 82,
-    "verdict": "strong signal",
+    "latest_run_id": "market-pulse-20260925050428",
+    "observed_at": "2026-09-25T05:04:28.904Z",
+    "fingerprint": "fnv1a-a4d9b381",
+    "market": "freelancers and creators with fragmented client operations",
+    "search_mode": "portfolio",
+    "signals_analyzed": 12,
+    "fit_score": 56,
+    "verdict": "needs replies",
     "strongest_channel": "Hacker News",
     "opportunity": {
-      "title": "Customer Intake automation for owner-led service businesses that need clearer lead follow-up",
-      "problem": "owner-led service businesses that need clearer lead follow-up teams repeatedly lose time on customer intake and need a faster process.",
-      "score": 80.9
+      "title": "Proposal Follow Up automation for freelancers and creators with fragmented client operations",
+      "problem": "freelancers and creators with fragmented client operations teams repeatedly lose time on proposal follow up and need a faster process.",
+      "score": 53.1,
+      "marketScore": 49.7,
+      "profitScore": 51.7,
+      "alignmentScore": 50,
+      "fulfillmentScore": 68
     },
-    "next_action": "Run the top social probe and collect reaction snapshots before packaging the offer.",
+    "opportunity_scores": {
+      "overall": 53.1,
+      "profit": 51.7,
+      "alignment": 50,
+      "fulfillment": 68
+    },
+    "next_action": "Broaden keyword search and ask lower-friction social questions before building.",
     "warnings": [
       "Reddit r/freelance unavailable (HTTP 403)"
     ]
   },
   "sources": {
     "analytics": {
-      "available": false,
-      "run_id": "money-20260712171841-v58z41",
-      "reason": "GA4 credentials or session count unavailable"
+      "available": true,
+      "run_id": "money-20260924203104-7cspda",
+      "reason": "gun-first-party session count imported"
     },
     "outbound": {
       "available": true,
-      "run_id": "money-20260712174048-m51r2m",
+      "run_id": "money-20260830222335-mglepn",
       "queue_size": 4
     },
     "revenue": {
       "available": true,
       "rows": 4,
-      "reason": "outbound outcome tracker imported"
+      "stripe_attributed_checkouts": 0,
+      "stripe_attributed_revenue_cents": 0,
+      "provenance_rows": {
+        "founder": 0,
+        "friend": 0,
+        "stranger": 0,
+        "unattributed": 0
+      },
+      "reason": "outbound outcome tracker imported with explicit revenue provenance when supplied"
     },
     "research": {
       "available": true,
-      "run_id": "market-pulse-20260712172802",
-      "signals_analyzed": 11
+      "run_id": "market-pulse-20260925050428",
+      "signals_analyzed": 12
     }
   },
   "executions": [
@@ -147,6 +236,35 @@
       "action": "send-three-prospect-email-probe",
       "executed_at": "2026-09-22T07:21:00Z",
       "evidence_source": "gmail-sent"
+    },
+    {
+      "execution_key": "market-proposal-follow-up-automation-for-freelancers-and-crea:fnv1a-a4d9b381",
+      "experiment_id": "market-proposal-follow-up-automation-for-freelancers-and-crea",
+      "action": "prepare-validation-brief",
+      "artifact_path": "docs/money-printer-experiments/market-proposal-follow-up-automation-for-freelancers-and-crea.md",
+      "executed_at": "2026-09-25T05:04:28.904Z"
     }
-  ]
+  ],
+  "progress": {
+    "milestone": "pre-revenue",
+    "stranger_customers": 0,
+    "stranger_customer_goal": 10,
+    "stranger_customers_remaining": 10,
+    "stalled_cycles": 1,
+    "economics": {
+      "revenue_cents": 0,
+      "agent_cost_cents": 0,
+      "net_cents": 0,
+      "costs_measured": false,
+      "self_sustaining": false,
+      "weekly_budget_cents": 15000,
+      "budget_remaining_cents": 15000,
+      "budget_exhausted": false
+    },
+    "autonomy": {
+      "level": 0,
+      "label": "observe",
+      "rule": "Research, measure, and create internal artifacts only."
+    }
+  }
 }
