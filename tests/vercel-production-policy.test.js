@@ -4,12 +4,10 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('Vercel Git temporarily opens main for the controlled production release', async () => {
+test('Vercel Git deployments stay disabled by default', async () => {
   const config = JSON.parse(await read('vercel.json'));
   assert.deepEqual(config.git?.deploymentEnabled, {
     '**': false,
-    main: true,
-    'preview-pr-*': true,
   });
   assert.equal(config.ignoreCommand, undefined);
 });

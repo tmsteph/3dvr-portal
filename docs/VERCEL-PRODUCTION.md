@@ -1,8 +1,8 @@
-# Canonical Portal production and Vercel fallback
+# Self-hosted Portal production and limited Vercel fallback
 
 As of 2026-09-23, `portal.3dvr.tech` DNS is still hosted by Vercel and the public root can therefore be served by Vercel even while health/API routes reach the self-hosted 3DVR edge. Treat those as separate facts.
 
-The intended direction is self-host-first with Vercel retained as a controlled fallback. Until DNS is migrated, a self-host deploy does **not** by itself prove that the public homepage changed.
+The intended steady state is self-host-first. Vercel is retained only for the serverless API routes that still need it and as a controlled emergency static fallback. Until DNS is migrated, a self-host deploy does **not** by itself prove that the public homepage changed.
 
 ## The split-brain failure we must not repeat
 
@@ -36,10 +36,11 @@ The Vercel fallback workflow now performs the root artifact comparison itself an
 
 ## Current lanes
 
-- Canonical Vercel project: team `team_xxJGO7S7h1ZP4BHidYV0CX9Z`, project `prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch`.
+- Canonical Vercel API/fallback project: team `team_xxJGO7S7h1ZP4BHidYV0CX9Z`, project `prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch`.
+- The similarly named `3dvr`-team Portal project is not a production dependency and should not receive automatic Git deployments.
 - Self-host release target: OVH first, with the 3DVR edge/fallback mesh in front of it.
 - Self-host production is explicit: manually dispatch it or update `ops/self-host-production-trigger.txt`.
-- Vercel Git production builds are intentionally disabled by default to reduce quota churn.
+- Vercel Git deployments are disabled for every branch. Portal releases do not ride ordinary Git pushes.
 - `.github/workflows/vercel-production-prebuilt.yml` is a manual/triggered fallback and requires `VERCEL_TOKEN` to perform a Vercel deployment.
 - If that GitHub token is unavailable, an already-authenticated Vercel CLI may be used from a **clean snapshot of `main`**. Never deploy from a dirty service checkout.
 
