@@ -264,24 +264,24 @@
       cursor: pointer;
       opacity: 0;
       pointer-events: none;
-      transform: scale(0.72);
+      transform: translate(-50%, -50%) scale(0.72);
       transition: opacity 170ms ease, transform 220ms cubic-bezier(.2,.8,.2,1), border-color 170ms ease, background 170ms ease;
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
     }
 
     .spinner-nav__item:hover,
     .spinner-nav__item:focus-visible { border-color: #79c0ff; background: #13253b; outline: none; }
-    .spinner-nav__item--day { top: 3px; left: 50%; transform: translate(-50%, 32px) scale(0.72); }
-    .spinner-nav__item--work { top: 50%; right: 0; transform: translate(-34px, -50%) scale(0.72); }
-    .spinner-nav__item--build { bottom: 3px; left: 50%; transform: translate(-50%, -32px) scale(0.72); }
-    .spinner-nav__item--apps { top: 50%; left: 0; transform: translate(34px, -50%) scale(0.72); }
-    .spinner-stage[data-open="true"] .spinner-nav__item { opacity: 1; pointer-events: auto; }
-    .spinner-stage[data-open="true"] .spinner-nav__item--day { transform: translate(-50%, 0) scale(1); }
-    .spinner-stage[data-open="true"] .spinner-nav__item--work { transform: translate(0, -50%) scale(1); }
-    .spinner-stage[data-open="true"] .spinner-nav__item--build { transform: translate(-50%, 0) scale(1); }
-    .spinner-stage[data-open="true"] .spinner-nav__item--apps { transform: translate(0, -50%) scale(1); }
-
-    .spinner-hint { margin: -8px 0 22px; color: #6e7681; font-size: 0.74rem; text-align: center; }
+    .spinner-nav__item--day { --spinner-x: 50%; --spinner-y: 4%; }
+    .spinner-nav__item--work { --spinner-x: 90%; --spinner-y: 28%; }
+    .spinner-nav__item--build { --spinner-x: 90%; --spinner-y: 72%; }
+    .spinner-nav__item--games { --spinner-x: 50%; --spinner-y: 96%; }
+    .spinner-nav__item--leads { --spinner-x: 10%; --spinner-y: 72%; }
+    .spinner-nav__item--apps { --spinner-x: 10%; --spinner-y: 28%; }
+    .spinner-stage[data-open="true"] .spinner-nav__item {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translate(-50%, -50%) scale(1);
+    }
 
     @keyframes spinner-breathe {
       0%, 100% { opacity: 0.68; filter: blur(14px); }
@@ -497,6 +497,8 @@
             <a class="spinner-nav__item spinner-nav__item--day" href="/life/">Day</a>
             <a class="spinner-nav__item spinner-nav__item--work" href="/growth-desk/">Work</a>
             <a class="spinner-nav__item spinner-nav__item--build" href="/forge/">Build</a>
+            <a class="spinner-nav__item spinner-nav__item--games" href="/games.html">Games</a>
+            <a class="spinner-nav__item spinner-nav__item--leads" href="/lead-finder/">Lead Finder</a>
             <button class="spinner-nav__item spinner-nav__item--apps" type="button" data-spinner-open-apps>Apps</button>
           </nav>
           <div
@@ -507,7 +509,7 @@
             tabindex="0"
             aria-expanded="false"
             aria-controls="spinnerNav"
-            aria-label="Interactive 3DVR portal spinner. Tap to open quick navigation. Drag to spin and tilt."
+            aria-label="Interactive 3DVR portal spinner. Hold to open quick navigation. Drag to spin and tilt."
           >
             <canvas class="portal-swirl-logo__canvas" data-portal-swirl-canvas></canvas>
             <span class="portal-swirl-logo__fallback" aria-hidden="true">
@@ -516,8 +518,6 @@
             </span>
           </div>
         </div>
-        <p class="spinner-hint">Tap for shortcuts</p>
-
         <h1 id="home-title">What do you want to do?</h1>
         <form class="operator-link operator-bar" id="homeOperatorForm" aria-label="Ask or navigate with Operator">
           <span class="operator-bar__label" aria-hidden="true">Operator</span>
@@ -590,6 +590,8 @@
       const spinnerStage = spinner?.closest('[data-spinner-nav]');
       const spinnerApps = document.querySelector('[data-spinner-open-apps]');
       let spinnerPointer = null;
+      let spinnerHoldTimer = null;
+      const spinnerHoldDelay = 560;
 
       const setSpinnerNav = open => {
         if (!spinner || !spinnerStage) return;
@@ -611,22 +613,44 @@
       document.querySelectorAll('[data-open-apps]').forEach(button => button.addEventListener('click', openApps));
       spinnerApps?.addEventListener('click', openApps);
 
+      const clearSpinnerHold = () => {
+        if (spinnerHoldTimer) window.clearTimeout(spinnerHoldTimer);
+        spinnerHoldTimer = null;
+      };
+
       spinner?.addEventListener('pointerdown', event => {
-        spinnerPointer = { x: event.clientX, y: event.clientY, startedAt: window.performance?.now?.() ?? Date.now() };
+        clearSpinnerHold();
+        spinnerPointer = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+        spinnerHoldTimer = window.setTimeout(() => {
+          if (!spinnerPointer || spinnerPointer.pointerId !== event.pointerId) return;
+          toggleSpinnerNav();
+          spinnerPointer = null;
+          spinnerHoldTimer = null;
+        }, spinnerHoldDelay);
+      });
+
+      spinner?.addEventListener('pointermove', event => {
+        if (!spinnerPointer || spinnerPointer.pointerId !== event.pointerId) return;
+        const distance = Math.hypot(event.clientX - spinnerPointer.x, event.clientY - spinnerPointer.y);
+        if (distance > 10) {
+          clearSpinnerHold();
+          spinnerPointer = null;
+        }
       });
 
       spinner?.addEventListener('pointerup', event => {
-        if (!spinnerPointer) return;
-        const now = window.performance?.now?.() ?? Date.now();
-        const distance = Math.hypot(event.clientX - spinnerPointer.x, event.clientY - spinnerPointer.y);
-        const duration = now - spinnerPointer.startedAt;
+        if (spinnerPointer?.pointerId !== event.pointerId) return;
+        clearSpinnerHold();
         spinnerPointer = null;
-        if (distance <= 10 && duration <= 340) toggleSpinnerNav();
       });
 
-      spinner?.addEventListener('pointercancel', () => { spinnerPointer = null; });
+      spinner?.addEventListener('pointercancel', () => {
+        clearSpinnerHold();
+        spinnerPointer = null;
+      });
+      spinner?.addEventListener('contextmenu', event => event.preventDefault());
       spinner?.addEventListener('keydown', event => {
-        if (event.key === 'Enter') {
+        if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           toggleSpinnerNav();
         }
