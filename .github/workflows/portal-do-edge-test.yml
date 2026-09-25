@@ -195,9 +195,9 @@ jobs:
           set -euo pipefail
           echo '=== Caddy state ==='
           systemctl is-active caddy 2>/dev/null || true
-          echo '=== Caddy site/import directives ==='
+          echo '=== Caddy config (sensitive-looking lines redacted) ==='
           if [ -f /etc/caddy/Caddyfile ]; then
-            grep -nE '^[[:space:]]*(https?://|:|[A-Za-z0-9*_.-]+\.[A-Za-z]{2,}|import[[:space:]])' /etc/caddy/Caddyfile || true
+            awk 'BEGIN{IGNORECASE=1} /token|secret|password|authorization|basicauth|api[_-]?key/ {print NR ": [REDACTED]"; next} {print NR ":" $0}' /etc/caddy/Caddyfile
           fi
           echo '=== Caddy config paths ==='
           find /etc/caddy -maxdepth 2 -type f -printf '%p\n' 2>/dev/null | sort
