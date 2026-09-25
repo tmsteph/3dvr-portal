@@ -28,6 +28,17 @@ test('operator handoff round-trips conversation and page context', () => {
   });
 });
 
+test('operator handoff rejects external source paths', () => {
+  assert.equal(
+    readOperatorHandoff('?from=javascript%3Aalert%281%29&title=Bad').path,
+    ''
+  );
+  assert.equal(
+    readOperatorHandoff('?from=%2F%2Fevil.example%2F&title=Bad').path,
+    ''
+  );
+});
+
 test('operator handoff omits empty values and keeps operator fallback context', () => {
   assert.equal(operatorHandoffUrl(), '/operator/');
 
