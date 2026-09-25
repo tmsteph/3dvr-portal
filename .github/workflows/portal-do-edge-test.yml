@@ -141,7 +141,12 @@ jobs:
             if curl -fsS --max-time 3 http://127.0.0.1:54321/__3dvr-health > /tmp/3dvr-edge-health.json; then
               break
             fi
-            [ "$attempt" -lt 12 ] || { systemctl status 3dvr-portal-ovh-tunnel.service --no-pager >&2; exit 6; }
+            [ "$attempt" -lt 12 ] || {
+              systemctl status 3dvr-portal-ovh-tunnel.service --no-pager >&2 || true
+              journalctl -u 3dvr-portal-ovh-tunnel.service -n 80 --no-pager >&2 || true
+              ssh -vv -N -T -o BatchMode=yes -o ConnectTimeout=8 -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=accept-new -i /root/.ssh/3dvr-portal-edge -L 127.0.0.1:54322:127.0.0.1:4320 "$OVH_USER@$OVH_HOST" 2>&1 | tail -n 80 >&2 || true
+              exit 6
+            }
             sleep 1
           done
           node -e 'const fs=require("node:fs");const h=JSON.parse(fs.readFileSync("/tmp/3dvr-edge-health.json","utf8"));if(!h.ok||h.operatorApi!=="native")process.exit(1)'
@@ -174,7 +179,7 @@ jobs:
           fi
           cat > /etc/caddy/Caddyfile <<'CADDY'
           # 3DVR Portal direct test edge
-          http://portal.3dvr.tech {
+          http://portal.3dvr.tech, http://167.172.193.194 {
             reverse_proxy 127.0.0.1:54321
           }
           CADDY
