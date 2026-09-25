@@ -1,0 +1,66 @@
+name: Apply Hetzner Browser Containment
+
+on:
+  push:
+    branches:
+      - ops/hetzner-recovery-20260925
+    paths:
+      - .github/workflows/hetzner-apply-browser-containment.yml
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Reach OVH recovery anchor and apply Hetzner guardrails
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest";
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :;
+            else rm -f "$dest" "$dest.raw"; return 0; fi
+            chmod 600 "$dest"; rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/a
+          write_key "$SSH_B" /tmp/b
+          write_key "$SSH_C" /tmp/c
+          conn=""
+          for user in debian root; do
+            for key in /tmp/a /tmp/b /tmp/c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@40.160.137.41" true >/dev/null 2>&1; then
+                conn="$user|$key"; break 2
+              fi
+            done
+          done
+          [ -n "$conn" ]
+          user="${conn%%|*}"; key="${conn#*|}"
+          ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@40.160.137.41" 'ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-hetzner bash -s' <<'HETZ'
+          set -euo pipefail
+          cd /root/.3dvr/managed-worker
+          git diff --quiet
+          git diff --cached --quiet
+          git fetch origin main
+          git checkout main
+          git pull --ff-only origin main
+          bash scripts/ops/hetzner-agent-guardrails.sh
+          echo '=== containment verification ==='
+          systemctl show desktop-commander-remote.service -p ActiveState -p CPUQuotaPerSecUSec -p MemoryHigh -p MemoryMax -p MemorySwapMax -p TasksCurrent -p TasksMax
+          systemctl show 3dvr-recovery.slice -p CPUQuotaPerSecUSec -p MemoryHigh -p MemoryMax -p MemorySwapMax -p TasksCurrent -p TasksMax
+          pgrep -af 'agent-browser-chrome|chromium.*headless' || true
+          uptime
+          free -h
+          HETZ
+          rm -f /tmp/a /tmp/b /tmp/c /tmp/*.raw
