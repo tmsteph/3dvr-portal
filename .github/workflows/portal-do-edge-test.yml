@@ -77,6 +77,24 @@ jobs:
           echo "ovh_user=$ovh_user" >> "$GITHUB_OUTPUT"
           echo "do_user=$do_user" >> "$GITHUB_OUTPUT"
 
+      - name: Inspect OVH SSH gate
+        shell: bash
+        env:
+          OVH_USER_RESOLVED: ${{ steps.keys.outputs.ovh_user }}
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/ovh-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$OVH_USER_RESOLVED@$OVH_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          echo '=== sshd policy directives ==='
+          sudo grep -RniE 'RefuseConnection|AllowUsers|DenyUsers|AllowGroups|DenyGroups|Match|MaxStartups|PerSource|AllowTcpForwarding|PermitOpen' /etc/ssh 2>/dev/null || true
+          echo '=== tcp wrappers ==='
+          sudo sed -n '1,160p' /etc/hosts.allow 2>/dev/null || true
+          sudo sed -n '1,160p' /etc/hosts.deny 2>/dev/null || true
+          echo '=== effective defaults ==='
+          sudo sshd -T 2>/dev/null | grep -Ei 'allowtcpforwarding|permitopen|maxstartups|persource|maxsessions|passwordauthentication|pubkeyauthentication' || true
+          REMOTE
+
       - name: Create restricted DigitalOcean to OVH tunnel
         id: tunnel
         shell: bash
