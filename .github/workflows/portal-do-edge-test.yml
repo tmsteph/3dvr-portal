@@ -213,13 +213,17 @@ jobs:
           ssh "${opts[@]}" "$DO_USER_RESOLVED@$DO_HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
           if ss -ltnp | grep -qE '[:.]80[[:space:]]'; then
-            if systemctl is-active --quiet caddy 2>/dev/null && grep -Fq '3DVR Portal direct test edge' /etc/caddy/Caddyfile 2>/dev/null; then
-              :
-            else
-              echo 'Port 80 is already in use on the DigitalOcean edge; refusing to overwrite it.' >&2
-              ss -ltnp | grep -E '[:.]80[[:space:]]' >&2 || true
-              exit 8
+            if systemctl is-active --quiet caddy 2>/dev/null && grep -Fq 'X-3DVR-Edge digitalocean' /etc/caddy/Caddyfile 2>/dev/null; then
+              echo 'Reusing existing 3DVR DigitalOcean edge.'
+              curl -fsS --max-time 8 http://127.0.0.1/__3dvr-primary-health >/tmp/3dvr-existing-primary.json
+              node -e 'const fs=require("node:fs");const h=JSON.parse(fs.readFileSync("/tmp/3dvr-existing-primary.json","utf8"));if(!h.ok||h.operatorApi!=="native")process.exit(1)'
+              curl -fsS --max-time 8 http://127.0.0.1/operator/handoff.js | grep -Fq 'operatorHandoffUrl'
+              rm -f /tmp/3dvr-existing-primary.json
+              exit 0
             fi
+            echo 'Port 80 is already in use by an unknown service; refusing to overwrite it.' >&2
+            ss -ltnp | grep -E '[:.]80[[:space:]]' >&2 || true
+            exit 8
           fi
 
           apt-get update -qq
@@ -245,10 +249,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl -fsS --max-time 12 -H 'Host: portal.3dvr.tech' "http://$DO_HOST/__3dvr-health" > /tmp/public-health.json
+          curl -fsS --max-time 12 "http://$DO_HOST/__3dvr-health" > /tmp/public-health.json
           node -e 'const fs=require("node:fs");const h=JSON.parse(fs.readFileSync("/tmp/public-health.json","utf8"));if(!h.ok||h.operatorApi!=="native")process.exit(1)'
-          curl -fsS --max-time 12 -H 'Host: portal.3dvr.tech' "http://$DO_HOST/operator/" | grep -Fq 'Message your operator'
-          curl -fsS --max-time 12 -H 'Host: portal.3dvr.tech' "http://$DO_HOST/operator/handoff.js" | grep -Fq 'operatorHandoffUrl'
+          curl -fsS --max-time 12 "http://$DO_HOST/operator/" | grep -Fq 'Message your operator'
+          curl -fsS --max-time 12 "http://$DO_HOST/operator/handoff.js" | grep -Fq 'operatorHandoffUrl'
           echo "Direct test URL: http://$DO_HOST/"
           echo "### Direct Portal test" >> "$GITHUB_STEP_SUMMARY"
           echo "http://$DO_HOST/" >> "$GITHUB_STEP_SUMMARY"
