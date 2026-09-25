@@ -2,6 +2,10 @@ name: Migrate Portal Edge to DigitalOcean
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/migrate-portal-do-edge.yml'
 
 permissions:
   contents: read
@@ -76,6 +80,34 @@ jobs:
           done
           [ -f /tmp/ovh-key ] || { echo 'No OVH SSH key worked.' >&2; exit 1; }
 
+      - name: Preserve Vercel as legacy API fallback on OVH
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/ovh-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          env_file="$HOME/.3dvr/config/portal.env"
+          mkdir -p "$(dirname "$env_file")"
+          touch "$env_file"
+          if grep -q '^LEGACY_API_ORIGIN=' "$env_file"; then
+            sed -i 's#^LEGACY_API_ORIGIN=.*#LEGACY_API_ORIGIN=https://3dvr-portal.vercel.app#' "$env_file"
+          else
+            printf '%s\n' 'LEGACY_API_ORIGIN=https://3dvr-portal.vercel.app' >> "$env_file"
+          fi
+          chmod 600 "$env_file"
+          sudo systemctl restart 3dvr-portal.service
+          for attempt in $(seq 1 20); do
+            if curl -fsS --max-time 5 http://127.0.0.1:4320/__3dvr-health >/tmp/portal-health.json; then
+              node -e 'const fs=require("fs");const x=JSON.parse(fs.readFileSync("/tmp/portal-health.json","utf8"));if(!x.ok||x.host!=="self"||x.operatorApi!=="native")process.exit(1)'
+              rm -f /tmp/portal-health.json
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+          REMOTE
+
       - name: Stage resilient DigitalOcean HTTP edge
         shell: bash
         env:
@@ -113,10 +145,9 @@ jobs:
             echo "portal.3dvr.tech already points at DigitalOcean."
             exit 0
           fi
-          echo "Live DNS still requires Vercel's interactive confirmation." >&2
-          echo "Run on an authenticated terminal:" >&2
-          echo "vercel dns update $PORTAL_DNS_RECORD_ID --scope 3dvr --type A --value $DO_HOST --ttl 60 --comment 'DigitalOcean resilient edge for self-hosted 3DVR Portal'" >&2
-          exit 2
+          opts=(-i /tmp/ovh-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" \
+            "npx --yes vercel@59.11.7 dns update '$PORTAL_DNS_RECORD_ID' --scope 3dvr --type A --value '$DO_HOST' --ttl 60 --comment 'DigitalOcean resilient edge for self-hosted 3DVR Portal' --non-interactive"
 
       - name: Confirm authoritative DNS cutover
         shell: bash
