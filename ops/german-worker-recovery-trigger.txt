@@ -1,2 +1,2 @@
-2026-09-25T22:05:00Z
-Reason: recover Hetzner after host-global OOM/resource exhaustion. Probe managed and legacy queues, restore the bounded worker stack if reachable, and verify OpenClaw health. Do not restart Ollama; existing resilience policy keeps it disabled and bounded.
+2026-09-25T22:26:00Z
+Reason: post-recovery end-to-end verification. Confirm the managed Hetzner queue, worker daemons, heartbeat, and production OpenClaw cloud-profile health after containing runaway agent-browser Chromium children.
