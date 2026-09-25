@@ -184,6 +184,25 @@ jobs:
           rm -f /tmp/3dvr-edge-health.json
           REMOTE
 
+      - name: Inspect existing DigitalOcean Caddy edge
+        shell: bash
+        env:
+          DO_USER_RESOLVED: ${{ steps.keys.outputs.do_user }}
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/do-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$DO_USER_RESOLVED@$DO_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          echo '=== Caddy state ==='
+          systemctl is-active caddy 2>/dev/null || true
+          echo '=== Caddy site/import directives ==='
+          if [ -f /etc/caddy/Caddyfile ]; then
+            grep -nE '^[[:space:]]*(https?://|:|[A-Za-z0-9*_.-]+\.[A-Za-z]{2,}|import[[:space:]])' /etc/caddy/Caddyfile || true
+          fi
+          echo '=== Caddy config paths ==='
+          find /etc/caddy -maxdepth 2 -type f -printf '%p\n' 2>/dev/null | sort
+          REMOTE
+
       - name: Stage guarded DigitalOcean HTTP edge
         shell: bash
         env:
