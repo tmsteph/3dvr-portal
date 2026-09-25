@@ -1,0 +1,102 @@
+name: Verify Hetzner Runtime Recovery
+
+on:
+  push:
+    branches:
+      - ops/hetzner-recovery-20260925
+    paths:
+      - .github/workflows/hetzner-runtime-verify.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify and repair runtime through OVH
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest";
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :;
+            else rm -f "$dest" "$dest.raw"; return 0; fi
+            chmod 600 "$dest"; rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/a
+          write_key "$SSH_B" /tmp/b
+          write_key "$SSH_C" /tmp/c
+          conn=""
+          for user in debian root; do
+            for key in /tmp/a /tmp/b /tmp/c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@40.160.137.41" true >/dev/null 2>&1; then
+                conn="$user|$key"; break 2
+              fi
+            done
+          done
+          [ -n "$conn" ]
+          user="${conn%%|*}"; key="${conn#*|}"
+          ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@40.160.137.41" 'ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-hetzner bash -s' <<'HETZ'
+          set -euo pipefail
+          root=/root/.3dvr/managed-worker
+          agent="$root/apps/agent/thomas-agent"
+          echo '=== PRE ==='
+          uptime
+          free -h
+          systemctl is-active openclaw-cloud.service
+          tmux ls 2>/dev/null || true
+
+          echo '=== HEARTBEAT ==='
+          if ! tmux has-session -t 3dvr-heartbeat 2>/dev/null; then
+            timeout 8 "$agent/scripts/ask-agent-heartbeat-daemon" start || true
+          fi
+          if ! tmux has-session -t 3dvr-heartbeat 2>/dev/null; then
+            log="$agent/state/agent-heartbeat.log"
+            tmux new-session -d -s 3dvr-heartbeat "cd '$agent' && while true; do '$agent/scripts/ask-agent-heartbeat' >>'$log' 2>&1; sleep 60; done"
+          fi
+          tmux has-session -t 3dvr-heartbeat
+          echo 'heartbeat_session=running'
+
+          echo '=== OPENCLAW TRANSPORT ==='
+          timeout 15 openclaw gateway status --require-rpc --json >/tmp/oc-gateway.json
+          timeout 20 openclaw channels status --probe --json >/tmp/oc-channels.json
+          python3 - <<'PY'
+          import json
+          for name in ('gateway','channels'):
+              p=f'/tmp/oc-{name}.json'
+              try:
+                  d=json.load(open(p))
+                  print(name, 'ok', d.get('ok', d.get('status','unknown')))
+              except Exception as e:
+                  print(name, 'parse_error', e)
+          PY
+
+          echo '=== WORKER STATUS ==='
+          "$agent/scripts/ask-agent-worker-daemon" status | head -20
+          "$agent/scripts/ask-context-task-router-daemon" status | head -8
+          "$agent/scripts/ask-inbox-daemon" status | head -8
+          "$agent/scripts/ask-autopilot-daemon" status | head -8
+          echo '=== BROWSER LEAK CHECK ==='
+          if pgrep -af 'agent-browser-linux|agent-browser-chrome|chromium.*headless' | grep -v -E 'pgrep|bash -s'; then
+            echo 'unexpected_agent_browser_processes=true'
+            exit 7
+          else
+            echo 'unexpected_agent_browser_processes=false'
+          fi
+          echo '=== FINAL ==='
+          uptime
+          free -h
+          systemctl show desktop-commander-remote.service -p ActiveState -p CPUQuotaPerSecUSec -p MemorySwapMax -p TasksCurrent -p TasksMax
+          HETZ
+          rm -f /tmp/a /tmp/b /tmp/c /tmp/*.raw
