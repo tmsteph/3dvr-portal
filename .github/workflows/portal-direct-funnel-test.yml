@@ -1,0 +1,82 @@
+name: Portal Direct Funnel Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/portal-direct-funnel-test.yml'
+
+permissions:
+  contents: read
+
+env:
+  OVH_HOST: 40.160.137.41
+  OVH_USER: debian
+
+jobs:
+  funnel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Resolve OVH SSH key
+        shell: bash
+        env:
+          RAW_KEY: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "$RAW_KEY" ]
+          umask 077
+          printf '%s\n' "$RAW_KEY" > /tmp/key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/key.raw; then
+            cp /tmp/key.raw /tmp/key
+          else
+            base64 -d /tmp/key.raw > /tmp/key
+          fi
+          chmod 600 /tmp/key
+          rm -f /tmp/key.raw
+
+      - name: Publish Portal through Tailscale Funnel
+        id: funnel
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          output="$(ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          curl -fsS http://127.0.0.1:4320/__3dvr-health             | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.ok||x.operatorApi!=="native")process.exit(1)})'
+          command -v tailscale >/dev/null
+          sudo tailscale funnel --bg --yes --https=443 4320
+          dns="$(sudo tailscale status --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);const d=String(x?.Self?.DNSName||"").replace(/\.$/,"");if(!d)process.exit(1);process.stdout.write(d)})')"
+          printf 'FUNNEL_URL=https://%s\n' "$dns"
+          sudo tailscale funnel status
+          REMOTE
+          )"
+          printf '%s\n' "$output"
+          url="$(printf '%s\n' "$output" | sed -n 's/^FUNNEL_URL=//p' | tail -n1)"
+          [ -n "$url" ]
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Verify direct Portal from outside OVH
+        shell: bash
+        env:
+          URL: ${{ steps.funnel.outputs.url }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 12); do
+            if curl -fsS --max-time 12 --retry 1 "$URL/__3dvr-health" > /tmp/health.json; then
+              if node -e 'const fs=require("node:fs");const h=JSON.parse(fs.readFileSync("/tmp/health.json","utf8"));if(!h.ok||h.operatorApi!=="native")process.exit(1)'; then
+                break
+              fi
+            fi
+            [ "$attempt" -lt 12 ] || exit 1
+            sleep 2
+          done
+          curl -fsS --max-time 12 "$URL/operator/" | grep -Fq 'Message your operator'
+          curl -fsS --max-time 12 "$URL/operator/handoff.js" | grep -Fq 'operatorHandoffUrl'
+          echo "Direct self-hosted Portal: $URL"
+          echo "### Direct self-hosted Portal" >> "$GITHUB_STEP_SUMMARY"
+          echo "$URL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f /tmp/key /tmp/key.raw /tmp/health.json
