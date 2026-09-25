@@ -1,0 +1,152 @@
+name: Portal Direct DigitalOcean Edge Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/portal-do-edge-test.yml'
+
+permissions:
+  contents: read
+
+env:
+  OVH_HOST: 40.160.137.41
+  OVH_USER: debian
+  DO_HOST: 167.172.193.194
+
+jobs:
+  edge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Resolve SSH keys
+        id: keys
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/key-a
+          write_key "$SSH_B" /tmp/key-b
+          write_key "$SSH_C" /tmp/key-c
+
+          pick() {
+            local host="$1"; shift
+            local user key
+            for user in "$@"; do
+              for key in /tmp/key-a /tmp/key-b /tmp/key-c; do
+                [ -f "$key" ] || continue
+                if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host" true >/dev/null 2>&1; then
+                  printf '%s|%s\n' "$user" "$key"
+                  return 0
+                fi
+              done
+            done
+            return 1
+          }
+
+          ovh="$(pick "$OVH_HOST" debian root)"
+          do_conn="$(pick "$DO_HOST" root debian)"
+          IFS='|' read -r ovh_user ovh_key <<< "$ovh"
+          IFS='|' read -r do_user do_key <<< "$do_conn"
+          cp "$ovh_key" /tmp/ovh-key
+          cp "$do_key" /tmp/do-key
+          chmod 600 /tmp/ovh-key /tmp/do-key
+          echo "ovh_user=$ovh_user" >> "$GITHUB_OUTPUT"
+          echo "do_user=$do_user" >> "$GITHUB_OUTPUT"
+
+      - name: Verify private OVH route from DigitalOcean
+        id: private
+        shell: bash
+        env:
+          OVH_USER_RESOLVED: ${{ steps.keys.outputs.ovh_user }}
+          DO_USER_RESOLVED: ${{ steps.keys.outputs.do_user }}
+        run: |
+          set -euo pipefail
+          opts_ovh=(-i /tmp/ovh-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          opts_do=(-i /tmp/do-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ovh_ts="$(ssh "${opts_ovh[@]}" "$OVH_USER_RESOLVED@$OVH_HOST" "tailscale ip -4 | head -1")"
+          [[ "$ovh_ts" =~ ^100\. ]] || { echo "OVH Tailscale address unavailable" >&2; exit 4; }
+          ssh "${opts_do[@]}" "$DO_USER_RESOLVED@$DO_HOST" "curl -fsS --max-time 8 http://$ovh_ts:4320/__3dvr-health" > /tmp/private-health.json
+          node -e 'const fs=require("node:fs");const h=JSON.parse(fs.readFileSync("/tmp/private-health.json","utf8"));if(!h.ok||h.operatorApi!=="native")process.exit(1)'
+          echo "ovh_ts=$ovh_ts" >> "$GITHUB_OUTPUT"
+
+      - name: Stage guarded DigitalOcean HTTP edge
+        shell: bash
+        env:
+          DO_USER_RESOLVED: ${{ steps.keys.outputs.do_user }}
+          OVH_TS: ${{ steps.private.outputs.ovh_ts }}
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/do-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$DO_USER_RESOLVED@$DO_HOST" "OVH_TS='$OVH_TS' bash -s" <<'REMOTE'
+          set -euo pipefail
+          prefix=''
+          if [ "$(id -u)" != 0 ]; then prefix='sudo -n'; fi
+
+          if $prefix ss -ltnp | grep -qE '[:.]80[[:space:]]'; then
+            echo 'Port 80 is already in use on the DigitalOcean edge; refusing to overwrite it.' >&2
+            $prefix ss -ltnp | grep -E '[:.]80[[:space:]]' >&2 || true
+            exit 8
+          fi
+
+          $prefix apt-get update -qq
+          $prefix DEBIAN_FRONTEND=noninteractive apt-get install -y socat
+          if command -v ufw >/dev/null 2>&1 && $prefix ufw status | grep -Fq 'Status: active'; then
+            $prefix ufw allow 80/tcp
+          fi
+
+          $prefix tee /etc/systemd/system/3dvr-portal-edge-test.service >/dev/null <<EOF
+          [Unit]
+          Description=3DVR Portal direct test edge
+          After=network-online.target tailscaled.service
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/bin/socat TCP-LISTEN:80,reuseaddr,fork TCP:$OVH_TS:4320
+          Restart=always
+          RestartSec=2
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          $prefix systemctl daemon-reload
+          $prefix systemctl enable --now 3dvr-portal-edge-test.service
+          $prefix systemctl restart 3dvr-portal-edge-test.service
+          $prefix systemctl is-active --quiet 3dvr-portal-edge-test.service
+          REMOTE
+
+      - name: Verify direct Portal from public internet
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 12 -H 'Host: portal.3dvr.tech' "http://$DO_HOST/__3dvr-health" > /tmp/public-health.json
+          node -e 'const fs=require("node:fs");const h=JSON.parse(fs.readFileSync("/tmp/public-health.json","utf8"));if(!h.ok||h.operatorApi!=="native")process.exit(1)'
+          curl -fsS --max-time 12 -H 'Host: portal.3dvr.tech' "http://$DO_HOST/operator/" | grep -Fq 'Message your operator'
+          curl -fsS --max-time 12 -H 'Host: portal.3dvr.tech' "http://$DO_HOST/operator/handoff.js" | grep -Fq 'operatorHandoffUrl'
+          echo "Direct test URL: http://$DO_HOST/"
+          echo "### Direct Portal test" >> "$GITHUB_STEP_SUMMARY"
+          echo "http://$DO_HOST/" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove SSH keys
+        if: always()
+        run: rm -f /tmp/key-a /tmp/key-b /tmp/key-c /tmp/ovh-key /tmp/do-key /tmp/private-health.json /tmp/public-health.json
