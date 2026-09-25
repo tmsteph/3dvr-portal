@@ -73,66 +73,111 @@ jobs:
           echo "ovh_user=$ovh_user" >> "$GITHUB_OUTPUT"
           echo "do_user=$do_user" >> "$GITHUB_OUTPUT"
 
-      - name: Verify private OVH route from DigitalOcean
-        id: private
+      - name: Create restricted DigitalOcean to OVH tunnel
+        id: tunnel
         shell: bash
         env:
           OVH_USER_RESOLVED: ${{ steps.keys.outputs.ovh_user }}
           DO_USER_RESOLVED: ${{ steps.keys.outputs.do_user }}
         run: |
           set -euo pipefail
+          [ "$DO_USER_RESOLVED" = root ] || { echo 'DigitalOcean edge currently expects root SSH for the dedicated tunnel service.' >&2; exit 4; }
           opts_ovh=(-i /tmp/ovh-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
           opts_do=(-i /tmp/do-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
-          ovh_ts="$(ssh "${opts_ovh[@]}" "$OVH_USER_RESOLVED@$OVH_HOST" "tailscale ip -4 | head -1")"
-          [[ "$ovh_ts" =~ ^100\. ]] || { echo "OVH Tailscale address unavailable" >&2; exit 4; }
-          ssh "${opts_do[@]}" "$DO_USER_RESOLVED@$DO_HOST" "curl -fsS --max-time 8 http://$ovh_ts:4320/__3dvr-health" > /tmp/private-health.json
-          node -e 'const fs=require("node:fs");const h=JSON.parse(fs.readFileSync("/tmp/private-health.json","utf8"));if(!h.ok||h.operatorApi!=="native")process.exit(1)'
-          echo "ovh_ts=$ovh_ts" >> "$GITHUB_OUTPUT"
+
+          pubkey="$(ssh "${opts_do[@]}" root@"$DO_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          install -d -m 700 /root/.ssh
+          if [ ! -f /root/.ssh/3dvr-portal-edge ]; then
+            ssh-keygen -q -t ed25519 -N '' -C 3dvr-portal-edge -f /root/.ssh/3dvr-portal-edge
+            chmod 600 /root/.ssh/3dvr-portal-edge
+          fi
+          cat /root/.ssh/3dvr-portal-edge.pub
+          REMOTE
+          )"
+          [[ "$pubkey" == ssh-ed25519\ * ]] || { echo 'Dedicated edge public key was not created.' >&2; exit 5; }
+
+          printf '%s\n' "$pubkey" | ssh "${opts_ovh[@]}" "$OVH_USER_RESOLVED@$OVH_HOST" "DO_HOST='$DO_HOST' bash -s" <<'REMOTE'
+          set -euo pipefail
+          read -r pubkey
+          install -d -m 700 "$HOME/.ssh"
+          touch "$HOME/.ssh/authorized_keys"
+          chmod 600 "$HOME/.ssh/authorized_keys"
+          marker='3dvr-portal-edge'
+          grep -v "$marker" "$HOME/.ssh/authorized_keys" > "$HOME/.ssh/authorized_keys.next" || true
+          printf 'from="%s",no-agent-forwarding,no-X11-forwarding,no-pty,no-user-rc,permitopen="127.0.0.1:4320" %s\n' "$DO_HOST" "$pubkey" >> "$HOME/.ssh/authorized_keys.next"
+          mv "$HOME/.ssh/authorized_keys.next" "$HOME/.ssh/authorized_keys"
+          chmod 600 "$HOME/.ssh/authorized_keys"
+          REMOTE
+
+          ssh "${opts_do[@]}" root@"$DO_HOST" "OVH_HOST='$OVH_HOST' OVH_USER='$OVH_USER_RESOLVED' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cat > /etc/systemd/system/3dvr-portal-ovh-tunnel.service <<EOF
+          [Unit]
+          Description=3DVR Portal tunnel to OVH
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/bin/ssh -N -T -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=accept-new -i /root/.ssh/3dvr-portal-edge -L 127.0.0.1:4321:127.0.0.1:4320 $OVH_USER@$OVH_HOST
+          Restart=always
+          RestartSec=3
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          systemctl daemon-reload
+          systemctl enable --now 3dvr-portal-ovh-tunnel.service
+          systemctl restart 3dvr-portal-ovh-tunnel.service
+
+          for attempt in $(seq 1 12); do
+            if curl -fsS --max-time 3 http://127.0.0.1:4321/__3dvr-health > /tmp/3dvr-edge-health.json; then
+              break
+            fi
+            [ "$attempt" -lt 12 ] || { systemctl status 3dvr-portal-ovh-tunnel.service --no-pager >&2; exit 6; }
+            sleep 1
+          done
+          node -e 'const fs=require("node:fs");const h=JSON.parse(fs.readFileSync("/tmp/3dvr-edge-health.json","utf8"));if(!h.ok||h.operatorApi!=="native")process.exit(1)'
+          rm -f /tmp/3dvr-edge-health.json
+          REMOTE
 
       - name: Stage guarded DigitalOcean HTTP edge
         shell: bash
         env:
           DO_USER_RESOLVED: ${{ steps.keys.outputs.do_user }}
-          OVH_TS: ${{ steps.private.outputs.ovh_ts }}
         run: |
           set -euo pipefail
           opts=(-i /tmp/do-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
-          ssh "${opts[@]}" "$DO_USER_RESOLVED@$DO_HOST" "OVH_TS='$OVH_TS' bash -s" <<'REMOTE'
+          ssh "${opts[@]}" "$DO_USER_RESOLVED@$DO_HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
-          prefix=''
-          if [ "$(id -u)" != 0 ]; then prefix='sudo -n'; fi
-
-          if $prefix ss -ltnp | grep -qE '[:.]80[[:space:]]'; then
-            echo 'Port 80 is already in use on the DigitalOcean edge; refusing to overwrite it.' >&2
-            $prefix ss -ltnp | grep -E '[:.]80[[:space:]]' >&2 || true
-            exit 8
+          if ss -ltnp | grep -qE '[:.]80[[:space:]]'; then
+            if systemctl is-active --quiet caddy 2>/dev/null && grep -Fq '3DVR Portal direct test edge' /etc/caddy/Caddyfile 2>/dev/null; then
+              :
+            else
+              echo 'Port 80 is already in use on the DigitalOcean edge; refusing to overwrite it.' >&2
+              ss -ltnp | grep -E '[:.]80[[:space:]]' >&2 || true
+              exit 8
+            fi
           fi
 
-          $prefix apt-get update -qq
-          $prefix DEBIAN_FRONTEND=noninteractive apt-get install -y socat
-          if command -v ufw >/dev/null 2>&1 && $prefix ufw status | grep -Fq 'Status: active'; then
-            $prefix ufw allow 80/tcp
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y caddy
+          if command -v ufw >/dev/null 2>&1 && ufw status | grep -Fq 'Status: active'; then
+            ufw allow 80/tcp
           fi
-
-          $prefix tee /etc/systemd/system/3dvr-portal-edge-test.service >/dev/null <<EOF
-          [Unit]
-          Description=3DVR Portal direct test edge
-          After=network-online.target tailscaled.service
-          Wants=network-online.target
-
-          [Service]
-          Type=simple
-          ExecStart=/usr/bin/socat TCP-LISTEN:80,reuseaddr,fork TCP:$OVH_TS:4320
-          Restart=always
-          RestartSec=2
-
-          [Install]
-          WantedBy=multi-user.target
-          EOF
-          $prefix systemctl daemon-reload
-          $prefix systemctl enable --now 3dvr-portal-edge-test.service
-          $prefix systemctl restart 3dvr-portal-edge-test.service
-          $prefix systemctl is-active --quiet 3dvr-portal-edge-test.service
+          cat > /etc/caddy/Caddyfile <<'CADDY'
+          # 3DVR Portal direct test edge
+          http://portal.3dvr.tech {
+            reverse_proxy 127.0.0.1:4321
+          }
+          CADDY
+          caddy validate --config /etc/caddy/Caddyfile
+          systemctl enable --now caddy
+          systemctl restart caddy
+          curl -fsS -H 'Host: portal.3dvr.tech' http://127.0.0.1/__3dvr-health >/tmp/3dvr-public-edge-health.json
+          node -e 'const fs=require("node:fs");const h=JSON.parse(fs.readFileSync("/tmp/3dvr-public-edge-health.json","utf8"));if(!h.ok||h.operatorApi!=="native")process.exit(1)'
+          rm -f /tmp/3dvr-public-edge-health.json
           REMOTE
 
       - name: Verify direct Portal from public internet
