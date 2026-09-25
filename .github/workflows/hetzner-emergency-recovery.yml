@@ -1,0 +1,190 @@
+name: Emergency Hetzner Recovery 2026-09-25
+
+on:
+  push:
+    branches:
+      - ops/hetzner-recovery-20260925
+    paths:
+      - .github/workflows/hetzner-emergency-recovery.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  OVH_HOST: 40.160.137.41
+  DO_HOST: 167.172.193.194
+  HETZNER_HOST: 167.233.174.20
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare bootstrap keys
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/recovery-a
+          write_key "$SSH_B" /tmp/recovery-b
+          write_key "$SSH_C" /tmp/recovery-c
+
+      - name: Resolve recovery anchors
+        id: anchors
+        shell: bash
+        run: |
+          set -euo pipefail
+          pick() {
+            local host="$1"; shift
+            local user key
+            for user in "$@"; do
+              for key in /tmp/recovery-a /tmp/recovery-b /tmp/recovery-c; do
+                [ -f "$key" ] || continue
+                if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host" true >/dev/null 2>&1; then
+                  printf '%s|%s\n' "$user" "$key"
+                  return 0
+                fi
+              done
+            done
+            return 1
+          }
+          ovh="$(pick "$OVH_HOST" debian root || true)"
+          do_conn="$(pick "$DO_HOST" root debian || true)"
+          echo "ovh=$ovh" >> "$GITHUB_OUTPUT"
+          echo "do=$do_conn" >> "$GITHUB_OUTPUT"
+          [ -n "$ovh" ] || [ -n "$do_conn" ]
+
+      - name: Diagnose from independent anchors
+        shell: bash
+        env:
+          OVH_CONN: ${{ steps.anchors.outputs.ovh }}
+          DO_CONN: ${{ steps.anchors.outputs.do }}
+        run: |
+          set -u
+          probe_anchor() {
+            local label="$1" host="$2" conn="$3"
+            [ -n "$conn" ] || { echo "$label unavailable"; return 0; }
+            local user="${conn%%|*}" key="${conn#*|}"
+            echo "=== $label ==="
+            ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host" 'bash -s' <<'REMOTE'
+          set -u
+          hostname
+          uptime
+          free -h
+          echo "public Hetzner tcp/22:"
+          timeout 5 bash -lc '</dev/tcp/167.233.174.20/22' && echo open || echo closed
+          echo "mesh alias:"
+          ssh -o BatchMode=yes -o ConnectTimeout=6 3dvr-hetzner 'hostname; uptime' || true
+          REMOTE
+          }
+          probe_anchor OVH "$OVH_HOST" "$OVH_CONN"
+          probe_anchor DigitalOcean "$DO_HOST" "$DO_CONN"
+          if [ -n "$DO_CONN" ]; then
+            user="${DO_CONN%%|*}"; key="${DO_CONN#*|}"
+            echo "=== DigitalOcean local Hetzner standby tunnel ==="
+            ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@$DO_HOST"               'curl -sS --max-time 5 http://127.0.0.1:14322/__3dvr-health || true; echo; ss -ltnp | grep 14322 || true'
+          fi
+
+      - name: Attempt bounded repair through surviving mesh
+        id: repair
+        shell: bash
+        env:
+          OVH_CONN: ${{ steps.anchors.outputs.ovh }}
+          DO_CONN: ${{ steps.anchors.outputs.do }}
+        run: |
+          set -euo pipefail
+          repair_payload="$(base64 -w0 <<'HETZ'
+          set -euo pipefail
+          echo "=== pre-repair ==="
+          hostname
+          uptime
+          free -h
+          swapon --show || true
+          df -h /
+          systemctl disable --now ollama.service >/dev/null 2>&1 || true
+          systemctl restart ssh.service 2>/dev/null || systemctl restart sshd.service 2>/dev/null || true
+          guard=/root/.3dvr/managed-worker/scripts/ops/hetzner-agent-guardrails.sh
+          if [ -f "$guard" ]; then
+            bash "$guard" || true
+          else
+            systemctl restart 3dvr-agent-stack.service 2>/dev/null || true
+          fi
+          systemctl restart desktop-commander-remote.service 2>/dev/null || true
+          echo "=== post-repair ==="
+          uptime
+          free -h
+          systemctl is-active ssh.service 2>/dev/null || systemctl is-active sshd.service 2>/dev/null || true
+          systemctl is-enabled ollama.service 2>/dev/null || true
+          systemctl is-active ollama.service 2>/dev/null || true
+          systemctl is-active 3dvr-agent-stack.service 2>/dev/null || true
+          systemctl is-active desktop-commander-remote.service 2>/dev/null || true
+          ss -ltnp | grep ':22 ' || true
+          HETZ
+          )"
+          try_anchor() {
+            local label="$1" host="$2" conn="$3"
+            [ -n "$conn" ] || return 1
+            local user="${conn%%|*}" key="${conn#*|}"
+            echo "Trying repair through $label"
+            if ! ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host"               "ssh -o BatchMode=yes -o ConnectTimeout=6 3dvr-hetzner true" >/dev/null 2>&1; then
+              return 1
+            fi
+            ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host"               "PAYLOAD='$repair_payload' bash -s" <<'ANCHOR'
+          set -euo pipefail
+          if ssh -o BatchMode=yes -o ConnectTimeout=6 3dvr-hetzner 'test "$(id -u)" -eq 0'; then
+            printf '%s' "$PAYLOAD" | base64 -d | ssh -o BatchMode=yes -o ConnectTimeout=6 3dvr-hetzner 'bash -s'
+          else
+            printf '%s' "$PAYLOAD" | base64 -d | ssh -o BatchMode=yes -o ConnectTimeout=6 3dvr-hetzner 'sudo -n bash -s'
+          fi
+          ANCHOR
+            return 0
+          }
+          if try_anchor OVH "$OVH_HOST" "$OVH_CONN"; then
+            echo "path=ovh" >> "$GITHUB_OUTPUT"
+          elif try_anchor DigitalOcean "$DO_HOST" "$DO_CONN"; then
+            echo "path=do" >> "$GITHUB_OUTPUT"
+          else
+            echo "No cloud-mesh SSH path into Hetzner survived." >&2
+            exit 2
+          fi
+
+      - name: Verify public SSH returns
+        if: steps.repair.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 12); do
+            if timeout 3 bash -lc '</dev/tcp/167.233.174.20/22' 2>/dev/null; then
+              echo "Hetzner public SSH is accepting connections again."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Hetzner repair ran but public SSH did not return." >&2
+          exit 1
+
+      - name: Remove bootstrap keys
+        if: always()
+        run: rm -f /tmp/recovery-a /tmp/recovery-b /tmp/recovery-c /tmp/recovery-*.raw
