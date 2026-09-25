@@ -64,3 +64,8 @@ test('external verification accepts the canonical portal route and avoids curl/g
   assert.match(workflow, /grep -Fq 'Message your operator' \/tmp\/operator\.html/);
   assert.doesNotMatch(workflow, /curl[^\n]+\| grep -Fq 'Message your operator'/);
 });
+
+
+test('self-host keeps Vercel only as a legacy API fallback', () => {
+  assert.match(source, /LEGACY_API_ORIGIN=\$\{LEGACY_API_ORIGIN:-https:\/\/3dvr-portal\.vercel\.app\}/);
+});
