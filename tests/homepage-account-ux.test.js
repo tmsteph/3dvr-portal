@@ -33,16 +33,18 @@ test('homepage account entry follows portal auth state', async () => {
   assert.doesNotMatch(app, /signInLink\.hidden/);
 });
 
-test('homepage keeps the first screen concise and action-oriented', async () => {
+test('homepage keeps the first screen concise and makes spinner navigation deliberate', async () => {
   const html = await read('index.html');
 
-  assert.match(html, /Tap for shortcuts/);
   assert.match(html, /What do you want to do\?/);
-  assert.match(html, /Ask Operator, or choose a starting point\./);
-  assert.match(html, /Turn what matters into one clear next step\./);
-  assert.match(html, /Use a skill to find work and reach out\./);
-  assert.match(html, /Turn an idea into something real\./);
-  assert.match(html, /Apps, calendar, CRM, projects, and more\./);
+  assert.match(html, /Hold to open quick navigation/);
+  assert.doesNotMatch(html, /Tap for shortcuts/);
+  assert.match(html, /spinner-nav__item--games" href="\/games\.html">Games<\/a>/);
+  assert.match(html, /spinner-nav__item--leads" href="\/lead-finder\/">Lead Finder<\/a>/);
+  assert.match(html, /const spinnerHoldDelay = 560/);
+  assert.match(html, /spinner\?\.addEventListener\('pointermove'/);
+  assert.match(html, /if \(distance > 10\)/);
+  assert.doesNotMatch(html, /duration <= 340/);
   assert.doesNotMatch(html, /Operator sees this page plus available/);
   assert.doesNotMatch(html, /<p class="eyebrow">3DVR Portal<\/p>/);
 });
