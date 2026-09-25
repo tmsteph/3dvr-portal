@@ -13,6 +13,7 @@ test('full Operator shows the same portal-style busy feedback as the homepage', 
   assert.match(busyUi, /operator-submit__portal/);
   assert.match(busyUi, /portal-logo\.svg/);
   assert.match(busyUi, /operator-full-portal-spin/);
+  assert.match(busyUi, /rotate\(-360deg\)/);
   assert.match(busyUi, /const busy = submit\.disabled/);
   assert.match(busyUi, /form\.setAttribute\('aria-busy', String\(busy\)\)/);
   assert.match(busyUi, /busy \? 'Operator is working' : 'Send to Operator'/);

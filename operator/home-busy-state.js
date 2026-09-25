@@ -94,7 +94,7 @@ function installFullOperatorBusyIndicator() {
       }
 
       @keyframes operator-full-portal-spin {
-        to { transform: scale(1) rotate(360deg); }
+        to { transform: scale(1) rotate(-360deg); }
       }
 
       @keyframes operator-full-portal-pulse {
