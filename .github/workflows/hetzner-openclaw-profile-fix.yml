@@ -1,0 +1,91 @@
+name: Apply and Verify OpenClaw Profile Fix
+
+on:
+  push:
+    branches:
+      - ops/hetzner-recovery-20260925
+    paths:
+      - .github/workflows/hetzner-openclaw-profile-fix.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Apply main and verify production OpenClaw
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest";
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :;
+            else rm -f "$dest" "$dest.raw"; return 0; fi
+            chmod 600 "$dest"; rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/a
+          write_key "$SSH_B" /tmp/b
+          write_key "$SSH_C" /tmp/c
+          conn=""
+          for user in debian root; do
+            for key in /tmp/a /tmp/b /tmp/c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@40.160.137.41" true >/dev/null 2>&1; then
+                conn="$user|$key"; break 2
+              fi
+            done
+          done
+          [ -n "$conn" ]
+          user="${conn%%|*}"; key="${conn#*|}"
+          ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@40.160.137.41" 'ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-hetzner bash -s' <<'HETZ'
+          set -euo pipefail
+          root=/root/.3dvr/managed-worker
+          agent="$root/apps/agent/thomas-agent"
+          cd "$root"
+          git diff --quiet
+          git diff --cached --quiet
+          git fetch origin main
+          git checkout main
+          git pull --ff-only origin main
+
+          echo '=== PRODUCTION PROFILE ==='
+          systemctl is-active openclaw-cloud.service
+          systemctl cat openclaw-cloud.service --no-pager | grep -E -- '--profile[ =]+cloud|OPENCLAW_PROFILE=cloud' || true
+
+          echo '=== HEARTBEAT ==='
+          tmux has-session -t 3dvr-heartbeat
+          timeout 20 "$agent/scripts/ask-agent-heartbeat-daemon" run-now >/tmp/hb.txt 2>&1
+          echo heartbeat_run_now=ok
+
+          echo '=== OPENCLAW HEALTH ==='
+          timeout 120 bash "$agent/scripts/ask-openclaw-health"
+
+          echo '=== WORKERS ==='
+          "$agent/scripts/ask-agent-worker-daemon" status | head -12
+          "$agent/scripts/ask-context-task-router-daemon" status | head -5
+          "$agent/scripts/ask-inbox-daemon" status | head -5
+          "$agent/scripts/ask-autopilot-daemon" status | head -5
+
+          echo '=== NO LEAK ==='
+          if ps -eo pid=,args= | grep -E 'agent-browser-linux|agent-browser-chrome|chromium.*--headless' | grep -v -E 'grep -E|bash -s'; then
+            exit 7
+          fi
+
+          echo '=== FINAL HOST ==='
+          uptime
+          free -h
+          swapon --show
+          df -h /
+          systemctl show desktop-commander-remote.service -p ActiveState -p CPUQuotaPerSecUSec -p MemoryCurrent -p MemorySwapCurrent -p MemorySwapMax -p TasksCurrent -p TasksMax
+          HETZ
+          rm -f /tmp/a /tmp/b /tmp/c /tmp/*.raw
