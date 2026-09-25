@@ -97,10 +97,28 @@ export function summarizeCalendar(value, now = new Date()) {
   };
 }
 
+export function summarizeCapabilities(value) {
+  const capabilities = Array.isArray(value?.capabilities) ? value.capabilities : [];
+  const visible = capabilities
+    .filter(item => item?.showInAccess === true || item?.category === 'Code & infrastructure')
+    .slice(0, 32)
+    .map(item => compactRecord(item, [
+      'id', 'name', 'category', 'status', 'permission', 'access',
+      'operatorRule', 'healthCheck', 'fallback', 'verified'
+    ]));
+
+  return {
+    available: Boolean(value && Array.isArray(value.capabilities)),
+    count: capabilities.length,
+    capabilities: visible
+  };
+}
+
 export async function collectPortalContext({
   storage = globalThis.localStorage,
   openDb = openDatabase,
   load = loadState,
+  fetchImpl = globalThis.fetch,
   now = () => new Date()
 } = {}) {
   let lifeSpaceState = null;
@@ -115,11 +133,20 @@ export async function collectPortalContext({
   const leads = parseJson(storage?.getItem?.(LEADS_KEY));
   const crm = parseJson(storage?.getItem?.(CRM_KEY));
   const calendar = parseJson(storage?.getItem?.(CALENDAR_KEY));
+  let abilities = null;
+  try {
+    const response = await fetchImpl?.('/abilities/abilities.json', {
+      cache: 'no-store',
+      credentials: 'same-origin'
+    });
+    if (response?.ok) abilities = await response.json();
+  } catch {}
   const capturedAt = now();
 
   return {
-    version: 1,
+    version: 2,
     capturedAt: capturedAt instanceof Date && !Number.isNaN(capturedAt.getTime()) ? capturedAt.toISOString() : new Date().toISOString(),
+    capabilities: summarizeCapabilities(abilities),
     apps: {
       lifeSpace: summarizeLifeSpaceState(lifeSpaceState),
       leadFinder: summarizeLeadFinder(leads),
