@@ -177,3 +177,4 @@ jobs:
         run: rm -f /tmp/key /tmp/key.raw /tmp/precutover-health.json /tmp/postcutover-health.json
 # cutover trigger 2026-09-18
 # cutover trigger 2026-09-25 self-host-first boundary
+# cutover trigger 2026-09-25 portal frontend to OVH for live testing
