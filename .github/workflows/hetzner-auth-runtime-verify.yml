@@ -1,0 +1,94 @@
+name: Verify Hetzner Authenticated Runtime
+
+on:
+  push:
+    branches:
+      - ops/hetzner-recovery-20260925
+    paths:
+      - .github/workflows/hetzner-auth-runtime-verify.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify authenticated runtime through OVH
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest";
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :;
+            else rm -f "$dest" "$dest.raw"; return 0; fi
+            chmod 600 "$dest"; rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/a
+          write_key "$SSH_B" /tmp/b
+          write_key "$SSH_C" /tmp/c
+          conn=""
+          for user in debian root; do
+            for key in /tmp/a /tmp/b /tmp/c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@40.160.137.41" true >/dev/null 2>&1; then
+                conn="$user|$key"; break 2
+              fi
+            done
+          done
+          [ -n "$conn" ]
+          user="${conn%%|*}"; key="${conn#*|}"
+          ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@40.160.137.41" 'ssh -o BatchMode=yes -o ConnectTimeout=8 3dvr-hetzner bash -s' <<'HETZ'
+          set -euo pipefail
+          root=/root/.3dvr/managed-worker
+          agent="$root/apps/agent/thomas-agent"
+          export HOME=/root
+          export THREEDVR_CONFIG_FILE=/root/.3dvr/config/env
+          if [ -f "$THREEDVR_CONFIG_FILE" ]; then
+            set -a
+            . "$THREEDVR_CONFIG_FILE"
+            set +a
+          fi
+
+          echo '=== HEARTBEAT ==='
+          tmux has-session -t 3dvr-heartbeat
+          timeout 20 "$agent/scripts/ask-agent-heartbeat-daemon" run-now >/tmp/heartbeat-now.txt 2>&1 || {
+            tail -30 /tmp/heartbeat-now.txt
+            exit 4
+          }
+          echo 'heartbeat_run_now=ok'
+          tail -8 "$agent/state/agent-heartbeat.log" 2>/dev/null || true
+
+          echo '=== OPENCLAW AUTHENTICATED TRANSPORT ==='
+          timeout 20 openclaw gateway status --require-rpc --json >/tmp/oc-gateway.json
+          timeout 25 openclaw channels status --probe --json >/tmp/oc-channels.json
+          echo 'gateway_rpc=ok'
+          echo 'channel_probe=ok'
+
+          echo '=== SERVICE CHECK ==='
+          systemctl is-active openclaw-cloud.service
+          systemctl is-active desktop-commander-remote.service
+          systemctl is-active ssh.service 2>/dev/null || systemctl is-active sshd.service
+          echo '=== BROWSER LEAK CHECK ==='
+          if ps -eo pid=,args= | grep -E 'agent-browser-linux|agent-browser-chrome|chromium.*--headless' | grep -v -E 'grep -E|bash -s'; then
+            echo 'unexpected_agent_browser_processes=true'
+            exit 7
+          fi
+          echo 'unexpected_agent_browser_processes=false'
+
+          echo '=== FINAL ==='
+          uptime
+          free -h
+          swapon --show
+          systemctl show desktop-commander-remote.service -p ActiveState -p CPUQuotaPerSecUSec -p MemoryCurrent -p MemorySwapCurrent -p MemorySwapMax -p TasksCurrent -p TasksMax
+          HETZ
+          rm -f /tmp/a /tmp/b /tmp/c /tmp/*.raw
