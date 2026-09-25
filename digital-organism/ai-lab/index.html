@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI Lab | 3DVR</title>
+  <meta name="description" content="3DVR AI Lab measures whether persistent personal AI can remember, act, recover, and respect user control.">
+  <style>
+    :root{color-scheme:dark;--bg:#0d1117;--panel:#161b22;--text:#e6edf3;--muted:#9da7b3;--line:#30363d;--link:#58a6ff;--good:#3fb950}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.6}
+    main{width:min(920px,100%);margin:auto;padding:28px 18px 64px}.nav{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:42px}.nav a,a{color:var(--link)}
+    .eyebrow{color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:.78rem}h1{font-size:clamp(2.4rem,8vw,4.8rem);line-height:1;margin:.3rem 0 1rem}.lead{font-size:1.18rem;max-width:720px}
+    .status{display:inline-flex;gap:9px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:8px 12px;margin:10px 0 28px;color:var(--muted)}.dot{width:9px;height:9px;border-radius:50%;background:var(--good)}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px}.card p{color:var(--muted);margin-bottom:0}.big{font-size:2rem;font-weight:800}
+    .loop{margin-top:18px}.loop ol{padding-left:1.2rem;color:var(--muted)}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}.button{display:inline-block;padding:11px 16px;border:1px solid var(--line);border-radius:10px;text-decoration:none;font-weight:700}.button.primary{background:var(--link);color:#07111f;border-color:var(--link)}
+    @media(max-width:620px){.grid{grid-template-columns:1fr}}
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+<main>
+  <nav class="nav"><a href="../../">3DVR Portal</a><a href="../">Digital Organism</a><a href="../../operator/">Operator</a></nav>
+  <p class="eyebrow">3DVR continual intelligence</p>
+  <h1>AI Lab</h1>
+  <p class="lead">Build better AI by measuring the behaviors that matter in real life: memory, action, recovery, privacy, continuity, and user control.</p>
+  <div class="status"><span class="dot"></span><span>Experiment 001 · Agent Benchmark v0.1</span></div>
+
+  <section class="grid">
+    <article class="card"><div class="big">20</div><h2>Real tasks</h2><p>Frozen tasks based on actual personal-agent work, not trivia or synthetic chat puzzles.</p></article>
+    <article class="card"><div class="big">8</div><h2>Capability areas</h2><p>Memory, reasoning, permissions, tools, continuity, reliability, architecture, and self-evaluation.</p></article>
+    <article class="card"><h2>Blocked is visible</h2><p>Missing access does not disappear from the score. A capability gap stays measurable until it is solved.</p></article>
+    <article class="card"><h2>Provider independent</h2><p>The same benchmark can follow the system across hosted models, open weights, local inference, and future hardware.</p></article>
+  </section>
+
+  <section class="card loop">
+    <h2>The research loop</h2>
+    <ol>
+      <li>Run the agent on real benchmark tasks.</li>
+      <li>Capture failures with evidence.</li>
+      <li>Turn failures into tests and system improvements.</li>
+      <li>Re-run the frozen benchmark.</li>
+      <li>Promote changes only when reliability improves without unacceptable regressions.</li>
+    </ol>
+    <div class="actions">
+      <a class="button primary" href="https://github.com/tmsteph/3dvr-portal/blob/main/digital-organism/runtime/evals/agent_tasks_v0_1.json">Open benchmark</a>
+      <a class="button" href="https://github.com/tmsteph/3dvr-portal/blob/main/digital-organism/runtime/ai_lab.py">Open runner</a>
+    </div>
+  </section>
+</main>
+<script defer src="/issue-launcher.js"></script>
+</body>
+</html>
