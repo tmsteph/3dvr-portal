@@ -59,6 +59,11 @@ jobs:
           ssh_opts=(-o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8)
           ssh "${ssh_opts[@]}" 3dvr-ovh 'bash -s' <<'OVH'
           set -u
+          sudo -n systemctl restart 3dvr-browser-lane@general.service
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            curl -fsS --max-time 2 http://127.0.0.1:9222/json/version >/dev/null 2>&1 && break
+            sleep 2
+          done
           probe=/tmp/browser-url-probe.cjs
           curl -fsSL --retry 3 --retry-delay 1             https://raw.githubusercontent.com/tmsteph/3dvr-portal/main/scripts/ops/browser-url-probe.cjs             -o "$probe"
           token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general manual-lighthouse-schedule-inspect 120 2>/dev/null || true)"
