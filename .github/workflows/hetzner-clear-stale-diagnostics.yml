@@ -1,0 +1,80 @@
+name: Clear Hetzner Stale Diagnostics
+
+on:
+  push:
+    branches:
+      - ops/hetzner-recovery-20260925
+    paths:
+      - .github/workflows/hetzner-clear-stale-diagnostics.yml
+
+permissions:
+  contents: read
+
+jobs:
+  clear:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Clear stale diagnostics and verify load
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest";
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :;
+            else rm -f "$dest" "$dest.raw"; return 0; fi
+            chmod 600 "$dest"; rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/a
+          write_key "$SSH_B" /tmp/b
+          write_key "$SSH_C" /tmp/c
+          found=""
+          for user in root debian ubuntu tmsteph; do
+            for key in /tmp/a /tmp/b /tmp/c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@167.233.174.20" true >/dev/null 2>&1; then
+                found="$user|$key"; break 2
+              fi
+            done
+          done
+          [ -n "$found" ]
+          user="${found%%|*}"; key="${found#*|}"
+          ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@167.233.174.20" 'bash -s' <<'HETZ'
+          set -euo pipefail
+          echo '=== BEFORE ==='
+          uptime
+          ps -eo stat,pid,ppid,etimes,comm,args | awk '$1 ~ /^D/ {print}' || true
+
+          # Previous recovery/verification calls left children under the
+          # Desktop Commander control cgroup. Restarting this one service is
+          # intentionally bounded by KillMode=control-group and leaves SSH,
+          # OpenClaw and the worker tmux stack untouched.
+          systemctl restart desktop-commander-remote.service
+
+          # Remove stale journal readers from prior diagnostics if any escaped
+          # the control cgroup. Only match the exact OpenClaw diagnostic reads.
+          while read -r pid age; do
+            [ -n "$pid" ] || continue
+            if [ "$age" -gt 300 ]; then kill "$pid" 2>/dev/null || true; fi
+          done < <(ps -eo pid=,etimes=,args= | awk '/journalctl -u openclaw-cloud\.service --since 2026-09-25 22:16:30 UTC/ {print $1, $2}')
+
+          sleep 20
+          echo '=== AFTER ==='
+          uptime
+          free -h
+          echo '=== D STATE ==='
+          ps -eo stat,pid,ppid,%cpu,%mem,wchan:40,etimes,comm,args | awk '$1 ~ /^D/ {print}' || true
+          echo '=== TOP CPU ==='
+          ps -eo stat,pid,ppid,%cpu,%mem,rss,etimes,comm,args --sort=-%cpu | head -25
+          echo '=== CONTROL ==='
+          systemctl show desktop-commander-remote.service -p ActiveState -p MemoryCurrent -p MemorySwapCurrent -p CPUQuotaPerSecUSec -p TasksCurrent -p TasksMax
+          HETZ
+          rm -f /tmp/a /tmp/b /tmp/c /tmp/*.raw
