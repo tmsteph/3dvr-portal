@@ -1,0 +1,76 @@
+name: Inspect Hetzner Live Pressure
+
+on:
+  push:
+    branches:
+      - ops/hetzner-recovery-20260925
+    paths:
+      - .github/workflows/hetzner-live-pressure.yml
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Inspect Hetzner through bootstrap SSH
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then cp "$dest.raw" "$dest";
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then :;
+            else rm -f "$dest" "$dest.raw"; return 0; fi
+            chmod 600 "$dest"; rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/a
+          write_key "$SSH_B" /tmp/b
+          write_key "$SSH_C" /tmp/c
+          found=""
+          for user in root debian ubuntu tmsteph; do
+            for key in /tmp/a /tmp/b /tmp/c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@167.233.174.20" true >/dev/null 2>&1; then
+                found="$user|$key"; break 2
+              fi
+            done
+          done
+          [ -n "$found" ]
+          user="${found%%|*}"; key="${found#*|}"
+          ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@167.233.174.20" 'bash -s' <<'HETZ'
+          set -u
+          echo '=== HEALTH ==='
+          date -u
+          uptime
+          free -h
+          swapon --show
+          df -h /
+          echo '=== TOP CPU ==='
+          ps -eo stat,pid,ppid,%cpu,%mem,rss,etimes,comm,args --sort=-%cpu | head -50
+          echo '=== D STATE ==='
+          ps -eo stat,pid,ppid,%cpu,%mem,wchan:40,etimes,comm,args | awk '$1 ~ /^D/ {print}'
+          echo '=== CGROUP TOP ==='
+          systemd-cgtop -b -n 1 --depth=6 | head -80 || true
+          echo '=== BROWSERS ==='
+          pgrep -af 'agent-browser|agent-browser-chrome|chromium.*headless' || true
+          echo '=== TMUX ==='
+          tmux ls || true
+          echo '=== UNITS ==='
+          for u in desktop-commander-remote.service openclaw-cloud.service remote-desktop-vnc.service 3dvr-agent-stack.service ollama.service; do
+            echo "---$u---"
+            systemctl show "$u" -p ActiveState -p SubState -p MemoryCurrent -p MemoryPeak -p MemorySwapCurrent -p MemorySwapPeak -p CPUUsageNSec -p CPUQuotaPerSecUSec -p TasksCurrent -p TasksMax 2>/dev/null || true
+          done
+          echo '=== RECENT ERRORS ==='
+          journalctl --since '-45 min' --no-pager -p warning..alert | tail -120 || true
+          HETZ
+          rm -f /tmp/a /tmp/b /tmp/c /tmp/*.raw
