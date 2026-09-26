@@ -205,6 +205,13 @@ if (documentRef) {
 
       clearArmTimer();
       setArmed(false);
+      if (event.pointerId != null && spinner.setPointerCapture) {
+        try {
+          spinner.setPointerCapture(event.pointerId);
+        } catch {
+          // Pointer capture is a resilience aid; the gesture can still proceed without it.
+        }
+      }
       gesture = {
         pointerId: event.pointerId,
         startX: event.clientX,
@@ -260,6 +267,17 @@ if (documentRef) {
 
       const activeGesture = gesture;
       const endedAt = now();
+      if (
+        activeGesture.pointerId != null
+        && spinner.releasePointerCapture
+        && spinner.hasPointerCapture?.(activeGesture.pointerId)
+      ) {
+        try {
+          spinner.releasePointerCapture(activeGesture.pointerId);
+        } catch {
+          // Capture may already have been released by the browser.
+        }
+      }
       const dx = Number(event?.clientX ?? activeGesture.startX) - activeGesture.startX;
       const dy = Number(event?.clientY ?? activeGesture.startY) - activeGesture.startY;
       const releaseSelection = cancelled ? '' : selectSpinnerDirection(dx, dy);
