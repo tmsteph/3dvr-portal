@@ -1,1 +1,46 @@
-{"ok":false,"error":"workforce probe failed before a sanitized result was produced"}
+{
+  "ok": true,
+  "checkedAt": "2026-09-26T23:22:10Z",
+  "lighthouseLogin": {
+    "label": "lighthouse_login",
+    "status": "failed",
+    "exitCode": 20,
+    "output": "{\"ok\":false,\"site\":\"lighthouse\",\"status\":\"human_required\",\"reason\":\"sharepoint-session-required\"}"
+  },
+  "iatseLogin": {
+    "label": "iatse_login",
+    "status": "failed",
+    "exitCode": 1,
+    "output": "{\"ok\":false,\"site\":\"iatse\",\"status\":\"form_changed\",\"reason\":\"password-field-missing\"}"
+  },
+  "schedules": [
+    {
+      "asOf": "2026-09-26",
+      "status": "failed",
+      "exitCode": 1,
+      "output": "{\"ok\":false,\"error\":\"lighthouse-schedule-resource-missing\"}"
+    },
+    {
+      "asOf": "2026-10-03",
+      "status": "failed",
+      "exitCode": 1,
+      "output": "{\"ok\":false,\"error\":\"lighthouse-schedule-resource-missing\"}"
+    },
+    {
+      "asOf": "2026-10-10",
+      "status": "failed",
+      "exitCode": 1,
+      "output": "{\"ok\":false,\"error\":\"lighthouse-schedule-resource-missing\"}"
+    },
+    {
+      "asOf": "2026-10-17",
+      "status": "failed",
+      "exitCode": 124,
+      "output": ""
+    }
+  ],
+  "iatse": {
+    "ok": false,
+    "error": "general-lane-busy"
+  }
+}
