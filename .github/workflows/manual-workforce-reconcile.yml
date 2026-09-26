@@ -64,11 +64,11 @@ jobs:
             curl -fsS --max-time 2 http://127.0.0.1:9222/json/version >/dev/null 2>&1 && break
             sleep 2
           done
-          probe=/tmp/browser-url-probe.cjs
-          curl -fsSL --retry 3 --retry-delay 1             https://raw.githubusercontent.com/tmsteph/3dvr-portal/main/scripts/ops/browser-url-probe.cjs             -o "$probe"
+          probe=/tmp/lighthouse-diagnostics.cjs
+          curl -fsSL --retry 3 --retry-delay 1             https://raw.githubusercontent.com/tmsteph/3dvr-portal/main/scripts/ops/lighthouse-diagnostics.cjs             -o "$probe"
           token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general manual-lighthouse-schedule-inspect 120 2>/dev/null || true)"
           if [ -n "$token" ]; then
-            page="$(timeout 40s node "$probe" https://lighthouse2.psav.com/schedule/loc/9036/asOf/2026-09-21 2>&1 || true)"
+            page="$(timeout 45s node "$probe" https://lighthouse2.psav.com/schedule/loc/9036/asOf/2026-09-21 2>&1 || true)"
             sudo -n /usr/local/bin/3dvr-browser-lease release general "$token" >/dev/null 2>&1 || true
           else
             page='{"ok":false,"error":"general-lane-busy"}'
