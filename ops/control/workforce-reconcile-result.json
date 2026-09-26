@@ -1,22 +1,2134 @@
 {
   "ok": true,
-  "checkedAt": "2026-09-26T23:36:26Z",
+  "checkedAt": "2026-09-26T23:37:55Z",
   "page": {
     "ok": true,
     "url": "https://lighthouse2.psav.com/schedule/loc/9036/asOf/2026-09-21",
     "title": "Lighthouse",
-    "body": "9036-Manchester Grand Hyatt San Diego 1000",
-    "controls": [
+    "body": "9036-Manchester Grand Hyatt San Diego 5 1000 Schedule My Schedule Team Schedule Available Shifts Employees Mon Sep 21, 2026 Monday, September 21, 2026 Tue Sep 22, 2026 Tuesday, September 22, 2026 Wed Sep 23, 2026 Wednesday, September 23, 2026 Thu Sep 24, 2026 Thursday, September 24, 2026 Fri Sep 25, 2026 Friday, September 25, 2026 Sat Sep 26, 2026 Saturday, September 26, 2026 Sun Sep 27, 2026 Sunday, September 27, 2026 Stephens,Thomas M Scheduled Hours: 41 9036 08:00am-05:00pm-Set/Strike SJCOE BK#26407931 P 07:30am-04:15pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P 07:30am-01:45pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P 06:00am-05:00pm-Liaison MAINSTAGE - APPFOLIO FUTURE CONFERENCE BK#31917819 P 09:00am-05:00pm-Set/Strike CSM MEETINGS (32ND FLOOR) - APPFOLIO FUTURE CONFERENCE BK#31917819 P",
+    "resources": [
+      "https://lighthouse2.psav.com/polyfills.04555936e707d52c.js",
+      "https://lighthouse2.psav.com/main.43eef5542277792b.js",
+      "https://lighthouse2.psav.com/styles.97746c0feeec0628.css",
+      "https://lighthouse2.psav.com/polyfills.04555936e707d52c.js",
+      "https://lighthouse2.psav.com/main.43eef5542277792b.js",
+      "https://lighthouse2.psav.com/manifest.webmanifest",
+      "https://lighthouse2.psav.com/1635.00ab4918fb0e9851.js",
+      "https://lighthouse2.psav.com/6977.2b1ef0b269331717.js",
+      "https://lighthouse2.psav.com/2356.f9bea36a8e01fcde.js",
+      "https://lighthouse2.psav.com/4087.10c4b286e383c9f8.js",
+      "https://lighthouse2.psav.com/7037.1daf3a04b03ea0b1.js",
+      "https://lighthouse2.psav.com/7705.c334480ce950e349.js",
+      "https://lighthouse2.psav.com/177.96154411b349a454.js",
+      "https://lighthouse2.psav.com/common.6b592291d7390797.js",
+      "https://lighthouse2.psav.com/7336.bd07ea7b0a14d33a.js",
+      "https://lighthouse2.psav.com/8617.5e498595e9c6a375.js",
+      "https://lighthouse2.psav.com/9969.6f0804d8c73a20a7.js",
+      "https://lighthouse2.psav.com/1626.e7e9a03bad3c39ec.js",
+      "https://lighthouse2.psav.com/345.be281737a2c7677d.js",
+      "https://lighthouse2.psav.com/8008.2bcfed6425004c21.js",
+      "https://lighthouse2.psav.com/9650.d7cc5bda3bb4e9bc.js",
+      "https://lighthouse2.psav.com/3.dd2c6a25f3ace19b.js",
+      "https://lighthouse2.psav.com/9417.806a59a55c9218e3.js",
+      "https://lighthouse2.psav.com/3719.7fa80bcbd9abb3d3.js",
+      "https://lighthouse2.psav.com/8834.bdec5c05c0d19d77.js",
+      "https://lighthouse2.psav.com/9079.e9a7350f4a4b3343.js",
+      "https://lighthouse2.psav.com/6939.5e784aa816e65dc6.js",
+      "https://lighthouse2.psav.com/5478.e6b6943225015754.js",
+      "https://lighthouse2.psav.com/7987.526c0139de394dcc.js",
+      "https://lighthouse2.psav.com/2529.6d215cec0312a072.js",
+      "https://lighthouse2.psav.com/4006.75f8e21af6117320.js",
+      "https://lighthouse2.psav.com/9213.92cbfd852b9c54c9.js",
+      "https://lighthouse2.psav.com/3955.b3960cb84b5cbbb2.js",
+      "https://lighthouse2.psav.com/7374.7065c6e4862a5251.js",
+      "https://lighthouse2.psav.com/1186.44d0cd27554d3e77.js",
+      "https://lighthouse2.psav.com/9310.0026520e794cd3a6.js",
+      "https://lighthouse2.psav.com/3427.14cf194eadb28d89.js",
+      "https://lighthouse2.psav.com/7901.a16f8a190cfd8ce8.js",
+      "https://lighthouse2.psav.com/5084.462f773dd2288616.js",
+      "https://lighthouse2.psav.com/4724.c499e7018c09a594.js",
+      "https://lighthouse2.psav.com/5113.1448b8a0275585a2.js",
+      "https://lighthouse2.psav.com/8256.d35138bbca82ede9.js",
+      "https://lighthouse2.psav.com/9181.2e4bed0e0e4ef755.js",
+      "https://lighthouse2.psav.com/1969.e6cd9659f54961b9.js",
+      "https://lighthouse2.psav.com/3378.e3d089cbd8c2aa20.js",
+      "https://lighthouse2.psav.com/6181.af750770a27bf625.js",
+      "https://lighthouse2.psav.com/4056.cfd7857465a66b94.js",
+      "https://lighthouse2.psav.com/9604.5b35cfe8fa215ff8.js",
+      "https://lighthouse2.psav.com/8719.072a2854fa6a3816.js",
+      "https://lighthouse2.psav.com/850.eb067d068f9cc6e8.js",
+      "https://lighthouse2.psav.com/3513.b2d96a23bc181475.js",
+      "https://lighthouse2.psav.com/4823.b87844a79d2bce5c.js",
+      "https://lighthouse2.psav.com/5416.eb17191d1c3a614d.js",
+      "https://lighthouse2.psav.com/1631.e8ddd80c2bdfb4cf.js",
+      "https://lighthouse2.psav.com/9253.d00fb42626c224b4.js",
+      "https://lighthouse2.psav.com/2789.848277d84b558603.js",
+      "https://lighthouse2.psav.com/8396.4eac47b227244878.js",
+      "https://lighthouse2.psav.com/943.9f36b2ba640567d9.js",
+      "https://lighthouse2.psav.com/2170.6de772875eb284f6.js",
+      "https://lighthouse2.psav.com/5705.0dbb4651903437d3.js",
+      "https://lighthouse2.psav.com/8086.ffceace585b07837.js",
+      "https://lighthouse2.psav.com/2893.65e72232ab2f3bbc.js",
+      "https://lighthouse2.psav.com/6471.0d4ec237d2cce33b.js",
+      "https://lighthouse2.psav.com/2765.5febcb4e0573cdf3.js",
+      "https://lighthouse2.psav.com/4315.fccc4af9b53e595d.js",
+      "https://lighthouse2.psav.com/5610.e9bf864e0c06a654.js",
+      "https://lighthouse2.psav.com/4170.d9236ccede94b52e.js",
+      "https://lighthouse2.psav.com/7634.ca6ba030560accb9.js",
+      "https://lighthouse2.psav.com/8558.50c3cbbe03995bdc.js",
+      "https://lighthouse2.psav.com/9608.4ab0b0b7e0b0ea59.js",
+      "https://lighthouse2.psav.com/1369.3242878c61df62ce.js",
+      "https://lighthouse2.psav.com/5764.e1028387c43ecd87.js",
+      "https://lighthouse2.psav.com/618.e6c745f4294f0c29.js",
+      "https://lighthouse2.psav.com/450.640da8081c10dee9.js",
+      "https://lighthouse2.psav.com/4511.c00139def97f169f.js",
+      "https://lighthouse2.psav.com/2756.b6ce4f336b94d24f.js",
+      "https://lighthouse2.psav.com/9427.64d1caa7b08f73bb.js",
+      "https://lighthouse2.psav.com/4962.4371298e51616bbc.js",
+      "https://lighthouse2.psav.com/9859.a5e4c709092e0379.js",
+      "https://lighthouse2.psav.com/assets/wasm/index.js",
+      "https://lighthouse2.psav.com/6850.9a54baf5cc315483.js",
+      "https://lighthouse2.psav.com/5571.78126e64749e1d01.js",
+      "https://lighthouse2.psav.com/8724.a1d126dc9e037e6c.js",
+      "https://lighthouse2.psav.com/assets/wasm/ngx-scanner-qrcode.wasm",
+      "https://lighthouse2.psav.com/favicon.ico",
+      "https://lighthouse2.psav.com/assets/icons/icon-144x144.png",
+      "https://api-cus.psav.com/lighthouse-api/production/api/users/user",
+      "https://fonts.googleapis.com/css2?family=Source+Sans+Pro:ital@1&display=swap",
+      "https://api-cus.psav.com/lighthouse-api/production/api/notifications/negotiate?notificationHub=general",
+      "https://api-cus.psav.com/lighthouse-api/production/api/users/user/locations",
+      "https://api-cus.psav.com/lighthouse-api/production/api/schedules/openshift/Date/2026-09-21T00%3A00%3A00.000Z",
+      "https://api-cus.psav.com/lighthouse-api/production/api/schedules/schedule/employee/week/2026-09-21T00%3A00%3A00.000Z",
+      "https://api.knock.app/v1/users/Thomas.Stephens@psav.com/feeds/8c49c7fd-7c64-4cda-be80-9157d86b2002?archived=include",
+      "https://lighthouse2.psav.com/assets/images/lighthouse-splash.webp",
+      "https://lighthouse2.psav.com/assets/images/lighthouse-mobile-splash.webp",
+      "https://lighthouse2.psav.com/assets/images/encore-lighthouse-stacked.svg",
+      "https://lighthouse2.psav.com/assets/images/encore_icon.svg",
+      "https://lighthouse2.psav.com/assets/images/encore-lighthouse-white.svg",
+      "https://lighthouse2.psav.com/8304.1ee2914695a4f1d3.js",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/g6kO1weuEi9QDLWlsp8lCuY4QYg@NwQOM9Oww3YEWNpcLRS2wxxF1iE/2gqH32jbn7-T9VClKRrutWqOHKg/bKwAhvajR4Nhtg1t8dOsiUV2Vt4.dom.jsonp?sha256=swMqtxlwC7lR2HNvQJcFkwZeX54EXZ31FugYLucFGEI",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/EbbdofHrT8ZYg0p8596RBW02OfY@NwQOM9Oww3YEWNpcLRS2wxxF1iE/aw3ehiwXEE2Z9nCJo2_rAimBEd0/boL8YrHNKBt7Esdn-C3nVAKlwrA.dom.jsonp?sha256=X_zLPoIhXzcERaQ-hP4ewPss8a2zpevYAZ6oGVDtD1o",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/tYOHpRzeNK5Y90NY77NTMEG3mMM@NwQOM9Oww3YEWNpcLRS2wxxF1iE/p2b77Hy6XpNREg4-ZsCl5q8ZBcI/cwiiaE2xhEbC_OO7hfgtVOJWmsk.dom.jsonp?sha256=GaiQD_JdQiUm4V2LJyA7v11ZME2j8jzG6ImZ31hoCK0",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/5vocbAXAByzArT5JA125cc6pr_Q@NwQOM9Oww3YEWNpcLRS2wxxF1iE/WOHOCPtQtdnzk2ZfqCaH7PsUcWs/Ro6F6SO55aD24SX1pcVOdTk2cDE.dom.jsonp?sha256=S4Qecorcb1AyvB54bZyfVj3q3aLUC3BYCmFGZaUx89o",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/b_j9nJHqZkEURWw0X8Ig-2JUGFA@NwQOM9Oww3YEWNpcLRS2wxxF1iE/Fwq_ZeLsSjJ9pp11VBzdsJXJDnw/1Edq-4ghMDa2aImimgCkTRA65j4.dom.jsonp?sha256=JWMsTGrqnOk5Qly1kwLF-Zh2HuwKVcno9mxZE2Rx2_Q",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/iuJfODAQI9JtDBPp-C6T-BdLC7Q@NwQOM9Oww3YEWNpcLRS2wxxF1iE/6QhlFQ0Dxt-0l6Dld5PcHWs9W3I/2MAyC5qZy4pkX2WYKgEFUVEr2n4.dom.jsonp?sha256=ocB0VNS_DF4NMyUgUsRMM66OAVP_SFuXJJB0YwXuLM8",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/iuJfODAQI9JtDBPp-C6T-BdLC7Q@NwQOM9Oww3YEWNpcLRS2wxxF1iE/6QhlFQ0Dxt-0l6Dld5PcHWs9W3I/_QDB_WLTgJ6dyZxPPxTriOnruDY.guide.js?sha256=Uvhwlz5MQrd9siPgCrnJOvX_WybYm5guYRbjf-bLYGo",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/iuJfODAQI9JtDBPp-C6T-BdLC7Q@NwQOM9Oww3YEWNpcLRS2wxxF1iE/6QhlFQ0Dxt-0l6Dld5PcHWs9W3I/-U_u5AbFSEHHAjgscdh1hRnGSAA.guide.css?sha256=c10jCSV3tRnnNkUPTtWglMT9N2dndHUUODNW7CSjvUQ",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/P6i-jC50JVHueJ8meoParSAsfQA@NwQOM9Oww3YEWNpcLRS2wxxF1iE/Ff5UnuOPMtrCSvpPf-PsYWdgUgU/IcdRMSnVycZefbxC47PuBvRJseU.dom.jsonp?sha256=uEapjRS0mZuUfrh4MApSo_h0izHf4QI6c02-aM8w2OQ",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/-h7zoL0_aEUAXJcXDPvp6anjs50/EIJD7k_wtkwZ63IWcUfsYKtxP0k/SBPUAQszl1A1e6jQDGtceNQByMY.dom.jsonp?sha256=gXOA9FdQZPXQlnf2vVySP3lF3P0skrdS-citxfAK1is",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/0EN8d7ecHwnakP_WU0RgrVnZb3E/GJRM4sGzhdKJXaxUqjq1S3pe34M/UME5Y8pdAPffdCyocqOSC4ZDl8g.dom.jsonp?sha256=ZeKi1tSYe0ywIKeFcm-mubXJrPA9Q4VgXB6tPoBTO20",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/qeRTiwhwogoJEkYvREIv9LqcVVI/kByCmz7r3VgADJiBmS1zh8E4xeA/2De1K-4-ycPw5pVkiPFNLaK9cRI.dom.jsonp?sha256=VlvHiNgP0rUS3SJujLXwbszJ7TZZtB8OH1TmpTsHRvY",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/1PC1xomqjZAnXSztkms00hMp6YA/bDcJ4v6YRd9GUd3MwLOANCsn4Qk/_kmJCCIcyvmZro2DkPNhfOPCjV4.dom.jsonp?sha256=ALBCPshssg_FCmV1h4wAhomlv3G_JVy8SqAUqI-sFEI",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/UfErt7zeHk50B3jOrkKhqRCtdVA/XySmXE9c78drTwYYjluTnBjWjyo/M5G_ZwxGivqnAA4Uqv3CPwOvb0E.dom.jsonp?sha256=O8BnnGTbew7XMXZcmwHhg8J5SLL3Vk05suJAR4MtG_M",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/ZxNSaff8F4PRXOVlgIkEAtpXlvE/UktASNvAVEKIbRCAwDn9UmExJvQ/VSk3J1RA8LkIpFjdztGdNRKLldY.dom.jsonp?sha256=gNJpjhk74NzeW7I4kRCqcVQUSO8AFw9k_g_B-TO8gVE",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/56a3b4yNAZjph6kel6CJ7ypJWHA/BmWZ1CIEzcD2m4RRnebn1yYzpOo/Wfhe6APXG2_BRNdURiQGKkHJcYM.dom.jsonp?sha256=-A4Jh5C0fHvEkjwnUNRItBdD8icvAFrQp7fEMRTgTC0",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/j41vG655Y2xUmtqyHhhAgfXa8wU/N3Gge-sykBaxM7-pwh_L3-Edp4E/iPJDZ2FgwfnX_MVi8a6VqfUf01o.dom.jsonp?sha256=NC_t2397SIxjOqq-2076PgS6NmMxGq32YJ3bm8SpU6o",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/9BRpMBYKAEyE1YGKhzELnxqayXw/v3DyxHckT4PeS1VptNzAMEx8aEM/TwK5MZw1MWAFeAW19xMUMx1z9Sg.dom.jsonp?sha256=8BUqiyOzYZPD_35OEKA5Ot8dJd0iaEfGBKcJwpNEHQc",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/zAnjKnHPEUL5ugfRbQgUMtBoTmI/ZSdfXWIse9IwT4X5_wwAvFrVSxY/p3dskPvl50VTx4rMsgIjDl6_39s.dom.jsonp?sha256=9sfvUihrfyapc4-7yV2arvt4iEp9bRHihdbRmLoSioY",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/V6zbnTwLN3ZiofFRg3jTy002xJA/gLpvJvMaT259Ceg8uexIkyxTSy0/69RbRRmr3tdsnsSmIPKgZC3jGYg.dom.jsonp?sha256=rsB5wigoizyBbJGP_YtQhR3hTrz-9GvrTR05wy6G4EI",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/8YzbgxXlRmKq67EsyTv8WeovqCQ/nhc20amF0Fg8DjTRS-mvDlKPAlI/8_GxuElDPaCnXd_WD1CwVQLdYq4.dom.jsonp?sha256=GPEkbiYHHHtLhZzT3ECt7nhLKgpfi8dV17AOkFmMrHA",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/E3Th7VZ0qH3gTksT2Loy4isiV4E/JxKeyJaPy-2Cmz7VX7dVFupiSkc/TybR5Z97Pm6_msAiyUJqgjz_J84.dom.jsonp?sha256=hjFsK4-O4dJ5_zxXP687MCZ8oBMuFQO9JJ8l1Kh3XRE",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/KwK5B4oXe_n8rxwEo8FKalvQ_bc/RIpQQ8vQyMwUHRveQ1SYzzb6y5U/pjDLfbN9KY60uAPdhWpvIWBqKoQ.dom.jsonp?sha256=QSZXrDu1T2cxyQTmwGhw6qo1TgODyeAd2VqH6xqjaic",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/K291HQbNYPzsw5SmKv_nQeITe-c/oiR3Z6FVqLuiuh5rZe5xKhHBHhA/erO5rAk5RuH8_aM7HA4rFTLKFag.dom.jsonp?sha256=1VMMehoEebf1h1nVJY1zxSrRJf4YGmeQye2w5JkjKE4",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/KQ95CE49D-_NbFhkwA4YdmxEL8Q/zXYgz0N_W7vi8XMgc3JDhhzi2nY/qtvnMAAtcnPibj8qxKpf4z-cUNA.dom.jsonp?sha256=TYj8Qt3Fj5bNJoocxAQZ3Ymn4_KhI-sQg3O77a29n2c",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/o8BCjnqit1NyHn9ZIInY9jn_6jM/2kZTb7rdQqLJBoOtd0fWRnVtw5c/fvjA1UfUQdWetwmznLIH_OdgYLI.dom.jsonp?sha256=vef1dMHzzdmR7emgy42NpF3SdjdY-tumiOwiZ8XgmGc",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/0wWHv3-1o-yeDWoalBhuCl5QF3U/ce8wHT8m1_PwAeHW3Y6qUEnsP2o/qHVlWOZ7zWlMquE6ggleeNQTjUM.dom.jsonp?sha256=r8IVthvS7VXAzNi_CaHV0zYpALly_W2dz9Gobd48fS4",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/RGgJO64VQi3jFQL95ioTwLe9gfU/VN2H0Z7ROUd9_tHKbh1fgyoZPmg/ry9wkWTY4YM6hl2-I4ObXdwW1i4.dom.jsonp?sha256=A33Ba22wgqyc-j1UIZG6cV33_p6nvx-YpG9JcpZq9xg",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/M8pDdn6yTmlIkLSEdAWdDb34o_g/PVLwZDI_qAn1oz2UdMtOP9WBSsQ/8xl_t3tSX6_18BPskEhk9QmO2RU.dom.jsonp?sha256=McuU2Czlm0MyDZPy9qPDQfSX_FQSrwRvFfPycbZv_FY",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/NwQOM9Oww3YEWNpcLRS2wxxF1iE/EszgJ0i1seyiv_mS5jZjjVJYT6s/tQ5rLypY1h_-I7hXmgfEd3FxCT4.dom.jsonp?sha256=qt9KLOFb5kM_pvlOKydhiQkf0qq3rFQ1ccjNtitL0SI",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/bPZ2vg3z5JGyn4WqZshJ4ZYn3HY/M_gx464ihauACeU7yEAAGACbolI/cawNNW8W0bQO8vh95HM_lbksi84.dom.jsonp?sha256=PCymy6Nq9mUVwRWrMTYftR7F_Q_AqmL6-e91bYqYv-k",
+      "https://pendo-static-5402136856821760.storage.googleapis.com/guide-content/bMj97qGc2mUfUSt08ncDF6poguQ/TwHx5B1o_1Chl3jGB8OL1vlVKjo/jq2PAKomhkU_EnZF3in8fLn3V_o.dom.jsonp?sha256=NhEO0TJjw2Qj-zwW2MpdAFc2C1YeC9m0RlY6RU1TDWA"
+    ],
+    "interesting": [
+      {
+        "tag": "STYLE",
+        "id": "pendo-resource-center-bubble-animation",
+        "cls": "",
+        "text": "@keyframes pulse { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.6) } } .pendo-resource-center-badge-notification-bubble::before { content: \"\"; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgb(232, 38, 42); border-radius: 100%; z-index: -1; animation: pulse 2s infinite; will-change: transform; }",
+        "attrs": {
+          "id": "pendo-resource-center-bubble-animation"
+        }
+      },
+      {
+        "tag": "APP-REFRESH",
+        "id": "",
+        "cls": "",
+        "text": "9036-Manchester Grand Hyatt San Diego5 1000 MenuTSHi, Thomas thomas.stephens@encoreglobal.comMy ProfileLocation ProfileTech Reports DashboardLog Out Schedule September 2026 Scheduled hours: 41 September 2026 My Schedule Team Schedule Available Shifts EmployeesMon Sep 21, 2026Monday, September 21, 2026Tue Sep 22, 2026Tuesday, September 22, 2026Wed Sep 23, 2026Wednesday, September 23, 2026Thu Sep 24, 2026Thursday, September 24, 2026Fri Sep 25, 2026Friday, September 25, 2026Sat Sep 26, 2026Saturday",
+        "attrs": {
+          "_nghost-ng-c2569816985": ""
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "",
+        "text": "9036-Manchester Grand Hyatt San Diego5 1000 MenuTSHi, Thomas thomas.stephens@encoreglobal.comMy ProfileLocation ProfileTech Reports DashboardLog Out Schedule September 2026 Scheduled hours: 41 September 2026 My Schedule Team Schedule Available Shifts EmployeesMon Sep 21, 2026Monday, September 21, 2026Tue Sep 22, 2026Tuesday, September 22, 2026Wed Sep 23, 2026Wednesday, September 23, 2026Thu Sep 24, 2026Thursday, September 24, 2026Fri Sep 25, 2026Friday, September 25, 2026Sat Sep 26, 2026Saturday",
+        "attrs": {
+          "_ngcontent-ng-c2569816985": ""
+        }
+      },
+      {
+        "tag": "APP-HEADER",
+        "id": "",
+        "cls": "",
+        "text": "9036-Manchester Grand Hyatt San Diego5 1000 MenuTSHi, Thomas thomas.stephens@encoreglobal.comMy ProfileLocation ProfileTech Reports DashboardLog Out",
+        "attrs": {
+          "_nghost-ng-c3314155211": ""
+        }
+      },
+      {
+        "tag": "HEADER",
+        "id": "",
+        "cls": "shadow-lg relative dark:bg-dark-grey z-[2]",
+        "text": "9036-Manchester Grand Hyatt San Diego5 1000 MenuTSHi, Thomas thomas.stephens@encoreglobal.comMy ProfileLocation ProfileTech Reports DashboardLog Out",
+        "attrs": {
+          "_ngcontent-ng-c3314155211": "",
+          "class": "shadow-lg relative dark:bg-dark-grey z-[2]"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mx-auto px-3",
+        "text": "9036-Manchester Grand Hyatt San Diego5 1000 MenuTSHi, Thomas thomas.stephens@encoreglobal.comMy ProfileLocation ProfileTech Reports DashboardLog Out",
+        "attrs": {
+          "_ngcontent-ng-c3314155211": "",
+          "class": "mx-auto px-3"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "relative flex justify-between items-center h-16",
+        "text": "9036-Manchester Grand Hyatt San Diego5 1000 MenuTSHi, Thomas thomas.stephens@encoreglobal.comMy ProfileLocation ProfileTech Reports DashboardLog Out",
+        "attrs": {
+          "_ngcontent-ng-c3314155211": "",
+          "class": "relative flex justify-between items-center h-16"
+        }
+      },
       {
         "tag": "A",
-        "type": "",
-        "text": "",
         "id": "",
-        "name": "",
-        "aria": "",
-        "href": "https://lighthouse2.psav.com/",
-        "disabled": false
+        "cls": "e2e_header_logo",
+        "text": "",
+        "attrs": {
+          "_ngcontent-ng-c3314155211": "",
+          "class": "e2e_header_logo",
+          "href": "/"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex items-centers inset-y-0 right-0 items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0 e2e_header_location",
+        "text": "9036-Manchester Grand Hyatt San Diego5 1000 MenuTSHi, Thomas thomas.stephens@encoreglobal.comMy ProfileLocation ProfileTech Reports DashboardLog Out",
+        "attrs": {
+          "_ngcontent-ng-c3314155211": "",
+          "class": "flex items-centers inset-y-0 right-0 items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0 e2e_header_location"
+        }
+      },
+      {
+        "tag": "APP-KNOCK-NOTIFICATIONS",
+        "id": "",
+        "cls": "z-90",
+        "text": "5 1000",
+        "attrs": {
+          "_ngcontent-ng-c3314155211": "",
+          "class": "z-90",
+          "_nghost-ng-c2188929441": ""
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex flex-row",
+        "text": "5 1000",
+        "attrs": {
+          "_ngcontent-ng-c2188929441": "",
+          "class": "flex flex-row"
+        }
+      },
+      {
+        "tag": "ICON",
+        "id": "",
+        "cls": "bg-white dark:bg-darker-grey rounded-lg text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer e2e_resource_center",
+        "text": "5",
+        "attrs": {
+          "_ngcontent-ng-c2188929441": "",
+          "name": "star_line",
+          "class": "bg-white dark:bg-darker-grey rounded-lg text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer e2e_resource_center",
+          "_nghost-ng-c1024628905": "",
+          "style": "height: 32px; width: 32px;"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": " pendo-resource-center-badge-notification-bubble",
+        "text": "5",
+        "attrs": {
+          "class": " pendo-resource-center-badge-notification-bubble",
+          "style": "position: absolute; border-radius: 20px; line-height: 0px; height: 26px; box-sizing: content-box; background-color: rgb(232, 38, 42); width: 28px; top: -13px; left: -14px;"
+        }
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "cls": "ml-1 relative inline-block e2e_notifications",
+        "text": "1000",
+        "attrs": {
+          "_ngcontent-ng-c2188929441": "",
+          "class": "ml-1 relative inline-block e2e_notifications"
+        }
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "cls": "absolute top-0 right-0 px-[3px] py-[1px] text-xxs leading-none font-bold text-white transform bg-encore-secondary-red rounded-full e2e_notifications_count",
+        "text": "1000",
+        "attrs": {
+          "_ngcontent-ng-c2188929441": "",
+          "class": "absolute top-0 right-0 px-[3px] py-[1px] text-xxs leading-none font-bold text-white transform bg-encore-secondary-red rounded-full e2e_notifications_count"
+        }
+      },
+      {
+        "tag": "ICON",
+        "id": "",
+        "cls": "bg-white dark:bg-darker-grey rounded-lg text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer e2e_side_menu_icon",
+        "text": "",
+        "attrs": {
+          "name": "menu_line",
+          "class": "bg-white dark:bg-darker-grey rounded-lg text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer e2e_side_menu_icon",
+          "_nghost-ng-c1024628905": "",
+          "style": "height: 32px; width: 32px;"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "w-full h-full fixed inset-0 z-20 cm-side-menu-toggle invisible",
+        "text": "MenuTSHi, Thomas thomas.stephens@encoreglobal.comMy ProfileLocation ProfileTech Reports DashboardLog Out",
+        "attrs": {
+          "class": "w-full h-full fixed inset-0 z-20 cm-side-menu-toggle invisible",
+          "style": "pointer-events: none;"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "w-full h-full duration-500 ease-out transition-all inset-0 absolute bg-gray-900 e2e_side_menu_toggle opacity-0",
+        "text": "",
+        "attrs": {
+          "class": "w-full h-full duration-500 ease-out transition-all inset-0 absolute bg-gray-900 e2e_side_menu_toggle opacity-0"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex-shrink-0 h-16 w-16 mb-1 e2e_side_menu_profile",
+        "text": "TS",
+        "attrs": {
+          "class": "flex-shrink-0 h-16 w-16 mb-1 e2e_side_menu_profile"
+        }
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "cls": "text-xl e2e_side_menu_name",
+        "text": "Hi, Thomas",
+        "attrs": {
+          "class": "text-xl e2e_side_menu_name"
+        }
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "cls": "text-sm e2e_side_menu_email",
+        "text": "thomas.stephens@encoreglobal.com",
+        "attrs": {
+          "class": "text-sm e2e_side_menu_email"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex items-center gap-x-2 cursor-pointer e2e_side_menu_link_profile",
+        "text": "My Profile",
+        "attrs": {
+          "class": "flex items-center gap-x-2 cursor-pointer e2e_side_menu_link_profile"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex items-center gap-x-2 cursor-pointer e2e_side_menu_link_location",
+        "text": "Location Profile",
+        "attrs": {
+          "class": "flex items-center gap-x-2 cursor-pointer e2e_side_menu_link_location"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex items-center gap-x-2 cursor-pointer e2e_side_menu_link_location",
+        "text": "Tech Reports",
+        "attrs": {
+          "class": "flex items-center gap-x-2 cursor-pointer e2e_side_menu_link_location"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex items-center gap-x-2 cursor-pointer e2e_side_menu_link_location",
+        "text": "Dashboard",
+        "attrs": {
+          "class": "flex items-center gap-x-2 cursor-pointer e2e_side_menu_link_location"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex items-center gap-x-2 cursor-pointer e2e_side_menu_link_log_out",
+        "text": "Log Out",
+        "attrs": {
+          "class": "flex items-center gap-x-2 cursor-pointer e2e_side_menu_link_log_out"
+        }
+      },
+      {
+        "tag": "APP-SCHEDULE",
+        "id": "",
+        "cls": "",
+        "text": "Schedule September 2026 Scheduled hours: 41 September 2026 My Schedule Team Schedule Available Shifts EmployeesMon Sep 21, 2026Monday, September 21, 2026Tue Sep 22, 2026Tuesday, September 22, 2026Wed Sep 23, 2026Wednesday, September 23, 2026Thu Sep 24, 2026Thursday, September 24, 2026Fri Sep 25, 2026Friday, September 25, 2026Sat Sep 26, 2026Saturday, September 26, 2026Sun Sep 27, 2026Sunday, September 27, 2026 Stephens,Thomas M Scheduled Hours: 41 9036 08:00am-05:00pm-Set/Strike SJCOE BK#2640793",
+        "attrs": {
+          "_nghost-ng-c4223882479": ""
+        }
+      },
+      {
+        "tag": "MBSC-EVENTCALENDAR",
+        "id": "",
+        "cls": "bg-lighthouse-grey dark:bg-darker-grey z-0 e2e_schedule_calendar",
+        "text": "Schedule September 2026 Scheduled hours: 41 September 2026 My Schedule Team Schedule Available Shifts EmployeesMon Sep 21, 2026Monday, September 21, 2026Tue Sep 22, 2026Tuesday, September 22, 2026Wed Sep 23, 2026Wednesday, September 23, 2026Thu Sep 24, 2026Thursday, September 24, 2026Fri Sep 25, 2026Friday, September 25, 2026Sat Sep 26, 2026Saturday, September 26, 2026Sun Sep 27, 2026Sunday, September 27, 2026 Stephens,Thomas M Scheduled Hours: 41 9036 08:00am-05:00pm-Set/Strike SJCOE BK#2640793",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "class": "bg-lighthouse-grey dark:bg-darker-grey z-0 e2e_schedule_calendar"
+        }
+      },
+      {
+        "tag": "MBSC-CALENDAR-VIEW",
+        "id": "",
+        "cls": "bg-lighthouse-grey dark:bg-darker-grey e2e_schedule_calendar mbsc-calendar mbsc-calendar-height-sm mbsc-eventcalendar mbsc-flex-col mbsc-font mbsc-ltr mbsc-material mbsc-material-dark z-0 mbsc-calendar-width-md mbsc-eventcalendar-timeline",
+        "text": "Schedule September 2026 Scheduled hours: 41 September 2026 My Schedule Team Schedule Available Shifts EmployeesMon Sep 21, 2026Monday, September 21, 2026Tue Sep 22, 2026Tuesday, September 22, 2026Wed Sep 23, 2026Wednesday, September 23, 2026Thu Sep 24, 2026Thursday, September 24, 2026Fri Sep 25, 2026Friday, September 25, 2026Sat Sep 26, 2026Saturday, September 26, 2026Sun Sep 27, 2026Sunday, September 27, 2026 Stephens,Thomas M Scheduled Hours: 41 9036 08:00am-05:00pm-Set/Strike SJCOE BK#2640793",
+        "attrs": {
+          "selectview": "page",
+          "class": "bg-lighthouse-grey dark:bg-darker-grey e2e_schedule_calendar mbsc-calendar mbsc-calendar-height-sm mbsc-eventcalendar mbsc-flex-col mbsc-font mbsc-ltr mbsc-material mbsc-material-dark z-0 mbsc-calendar-width-md mbsc-even",
+          "style": "height: 748px;"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-calendar-wrapper mbsc-calendar-wrapper-fixed mbsc-flex-col mbsc-flex-none mbsc-material mbsc-material-dark",
+        "text": "Schedule September 2026 Scheduled hours: 41 September 2026 My Schedule Team Schedule Available Shifts",
+        "attrs": {
+          "class": "mbsc-calendar-wrapper mbsc-calendar-wrapper-fixed mbsc-flex-col mbsc-flex-none mbsc-material mbsc-material-dark"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-calendar-header mbsc-material mbsc-material-dark",
+        "text": "Schedule September 2026 Scheduled hours: 41 September 2026 My Schedule Team Schedule Available Shifts",
+        "attrs": {
+          "class": "mbsc-calendar-header mbsc-material mbsc-material-dark"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-calendar-controls mbsc-flex mbsc-material mbsc-material-dark ng-star-inserted",
+        "text": "Schedule September 2026 Scheduled hours: 41 September 2026 My Schedule Team Schedule Available Shifts",
+        "attrs": {
+          "class": "mbsc-calendar-controls mbsc-flex mbsc-material mbsc-material-dark ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "text-xl font-semibold pl-1 text-gray-700 dark:text-gray-300 e2e_page_header_schedule",
+        "text": "Schedule",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "translate": "",
+          "class": "text-xl font-semibold pl-1 text-gray-700 dark:text-gray-300 e2e_page_header_schedule"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "text-xs font-semibold flex xlg:hidden items-center justify-end e2e_schedule_hours",
+        "text": "Scheduled hours: 41",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "class": "text-xs font-semibold flex xlg:hidden items-center justify-end e2e_schedule_hours"
+        }
+      },
+      {
+        "tag": "ICON",
+        "id": "",
+        "cls": "cursor-pointer bg-white dark:bg-gray-400 rounded-md shadow hover:shadow-xl hover:bg-gray-50 dark:hover:bg-gray-300 ml-2 xlg:ml-0 mr-1 xlg:mr-4 e2e_schedule_previous",
+        "text": "",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "name": "arrow_line",
+          "class": "cursor-pointer bg-white dark:bg-gray-400 rounded-md shadow hover:shadow-xl hover:bg-gray-50 dark:hover:bg-gray-300 ml-2 xlg:ml-0 mr-1 xlg:mr-4 e2e_schedule_previous",
+          "_nghost-ng-c1024628905": "",
+          "style": "height: 32px; width: 32px;"
+        }
+      },
+      {
+        "tag": "ICON",
+        "id": "",
+        "cls": "cursor-pointer rotate-180 bg-white dark:bg-gray-400 rounded-md shadow hover:shadow-xl hover:bg-gray-50 dark:hover:bg-gray-300 mr-0 xlg:mr-2 e2e_schedule_next",
+        "text": "",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "name": "arrow_line",
+          "class": "cursor-pointer rotate-180 bg-white dark:bg-gray-400 rounded-md shadow hover:shadow-xl hover:bg-gray-50 dark:hover:bg-gray-300 mr-0 xlg:mr-2 e2e_schedule_next",
+          "_nghost-ng-c1024628905": "",
+          "style": "height: 32px; width: 32px;"
+        }
+      },
+      {
+        "tag": "MAT-BUTTON-TOGGLE",
+        "id": "mat-button-toggle-2",
+        "cls": "mat-button-toggle e2e_schedule_my_schedule_button mat-button-toggle-appearance-standard ng-star-inserted mat-button-toggle-checked",
+        "text": "My Schedule",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "role": "presentation",
+          "translate": "",
+          "class": "mat-button-toggle e2e_schedule_my_schedule_button mat-button-toggle-appearance-standard ng-star-inserted mat-button-toggle-checked",
+          "id": "mat-button-toggle-2"
+        }
+      },
+      {
+        "tag": "MAT-BUTTON-TOGGLE",
+        "id": "mat-button-toggle-3",
+        "cls": "mat-button-toggle e2e_schedule_team_schedule_button mat-button-toggle-appearance-standard ng-star-inserted",
+        "text": "Team Schedule",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "role": "presentation",
+          "translate": "",
+          "class": "mat-button-toggle e2e_schedule_team_schedule_button mat-button-toggle-appearance-standard ng-star-inserted",
+          "id": "mat-button-toggle-3"
+        }
+      },
+      {
+        "tag": "APP-FILTER",
+        "id": "",
+        "cls": "ml-4 z-10 e2e_schedule_filters",
+        "text": "",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "class": "ml-4 z-10 e2e_schedule_filters"
+        }
+      },
+      {
+        "tag": "ICON",
+        "id": "",
+        "cls": "cursor-pointer bg-white dark:bg-gray-400 rounded-md shadow hover:shadow-xl hover:bg-gray-50 dark:hover:bg-gray-300 ml-2 xlg:ml-0 mr-1 xlg:mr-4 e2e_schedule_previous",
+        "text": "",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "name": "arrow_line",
+          "class": "cursor-pointer bg-white dark:bg-gray-400 rounded-md shadow hover:shadow-xl hover:bg-gray-50 dark:hover:bg-gray-300 ml-2 xlg:ml-0 mr-1 xlg:mr-4 e2e_schedule_previous",
+          "_nghost-ng-c1024628905": "",
+          "style": "height: 32px; width: 32px;"
+        }
+      },
+      {
+        "tag": "ICON",
+        "id": "",
+        "cls": "cursor-pointer rotate-180 bg-white dark:bg-gray-400 rounded-md shadow hover:shadow-xl hover:bg-gray-50 dark:hover:bg-gray-300 mr-0 xlg:mr-2 e2e_schedule_next",
+        "text": "",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "name": "arrow_line",
+          "class": "cursor-pointer rotate-180 bg-white dark:bg-gray-400 rounded-md shadow hover:shadow-xl hover:bg-gray-50 dark:hover:bg-gray-300 mr-0 xlg:mr-2 e2e_schedule_next",
+          "_nghost-ng-c1024628905": "",
+          "style": "height: 32px; width: 32px;"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-calendar-body mbsc-flex-1-1 mbsc-flex-col mbsc-material mbsc-material-dark",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-calendar-body mbsc-flex-1-1 mbsc-flex-col mbsc-material mbsc-material-dark"
+        }
+      },
+      {
+        "tag": "MBSC-TIMELINE",
+        "id": "",
+        "cls": "mbsc-flex-1-1 mbsc-flex-col mbsc-has-sticky mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline ng-star-inserted",
+        "text": "EmployeesMon Sep 21, 2026Monday, September 21, 2026Tue Sep 22, 2026Tuesday, September 22, 2026Wed Sep 23, 2026Wednesday, September 23, 2026Thu Sep 24, 2026Thursday, September 24, 2026Fri Sep 25, 2026Friday, September 25, 2026Sat Sep 26, 2026Saturday, September 26, 2026Sun Sep 27, 2026Sunday, September 27, 2026 Stephens,Thomas M Scheduled Hours: 41 9036 08:00am-05:00pm-Set/Strike SJCOE BK#26407931 P 07:30am-04:15pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P 07:30am-01:45pm-Audio Eng F",
+        "attrs": {
+          "class": "mbsc-flex-1-1 mbsc-flex-col mbsc-has-sticky mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-material mbsc-material-dark mbsc-timeline-header-sticky",
+        "text": "Employees",
+        "attrs": {
+          "class": "mbsc-flex mbsc-material mbsc-material-dark mbsc-timeline-header-sticky"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-resource-col mbsc-timeline-resource-header-cont ng-star-inserted",
+        "text": "Employees",
+        "attrs": {
+          "class": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-resource-col mbsc-timeline-resource-header-cont ng-star-inserted",
+          "style": "height: 26px;"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-timeline-resource-header",
+        "text": "Employees",
+        "attrs": {
+          "class": "mbsc-timeline-resource-header"
+        }
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "cls": "font-semibold leading-none e2e_schedule_employees_title",
+        "text": "Employees",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "translate": "",
+          "class": "font-semibold leading-none e2e_schedule_employees_title"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-1 ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex-1-1 ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-1 mbsc-flex-col mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-grid-scroll",
+        "text": "Mon Sep 21, 2026Monday, September 21, 2026Tue Sep 22, 2026Tuesday, September 22, 2026Wed Sep 23, 2026Wednesday, September 23, 2026Thu Sep 24, 2026Thursday, September 24, 2026Fri Sep 25, 2026Friday, September 25, 2026Sat Sep 26, 2026Saturday, September 26, 2026Sun Sep 27, 2026Sunday, September 27, 2026 Stephens,Thomas M Scheduled Hours: 41 9036 08:00am-05:00pm-Set/Strike SJCOE BK#26407931 P 07:30am-04:15pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P 07:30am-01:45pm-Audio Eng FOH A1 BRI",
+        "attrs": {
+          "class": "mbsc-flex-1-1 mbsc-flex-col mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-grid-scroll"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-none",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex-none"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header",
+        "text": "Mon Sep 21, 2026Monday, September 21, 2026Tue Sep 22, 2026Tuesday, September 22, 2026Wed Sep 23, 2026Wednesday, September 23, 2026Thu Sep 24, 2026Thursday, September 24, 2026Fri Sep 25, 2026Friday, September 25, 2026Sat Sep 26, 2026Saturday, September 26, 2026Sun Sep 27, 2026Sunday, September 27, 2026",
+        "attrs": {
+          "class": "mbsc-flex mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-resource-col mbsc-timeline-resource-header-cont ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-resource-col mbsc-timeline-resource-header-cont ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-0 mbsc-material mbsc-material-dark mbsc-timeline-header-bg",
+        "text": "Mon Sep 21, 2026Monday, September 21, 2026Tue Sep 22, 2026Tuesday, September 22, 2026Wed Sep 23, 2026Wednesday, September 23, 2026Thu Sep 24, 2026Thursday, September 24, 2026Fri Sep 25, 2026Friday, September 25, 2026Sat Sep 26, 2026Saturday, September 26, 2026Sun Sep 27, 2026Sunday, September 27, 2026",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-0 mbsc-material mbsc-material-dark mbsc-timeline-header-bg"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-timeline-time-indicator-cont",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-timeline-time-indicator-cont",
+          "style": "height: 666px;"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-none",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex-none",
+          "style": "width: 0px;"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-1",
+        "text": "Mon Sep 21, 2026Monday, September 21, 2026Tue Sep 22, 2026Tuesday, September 22, 2026Wed Sep 23, 2026Wednesday, September 23, 2026Thu Sep 24, 2026Thursday, September 24, 2026Fri Sep 25, 2026Friday, September 25, 2026Sat Sep 26, 2026Saturday, September 26, 2026Sun Sep 27, 2026Sunday, September 27, 2026",
+        "attrs": {
+          "class": "mbsc-flex-1-1"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex ng-star-inserted",
+        "text": "Mon Sep 21, 2026Monday, September 21, 2026Tue Sep 22, 2026Tuesday, September 22, 2026Wed Sep 23, 2026Wednesday, September 23, 2026Thu Sep 24, 2026Thursday, September 24, 2026Fri Sep 25, 2026Friday, September 25, 2026Sat Sep 26, 2026Saturday, September 26, 2026Sun Sep 27, 2026Sunday, September 27, 2026",
+        "attrs": {
+          "class": "mbsc-flex ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted",
+        "text": "Mon Sep 21, 2026Monday, September 21, 2026",
+        "attrs": {
+          "class": "mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-date ng-star-inserted",
+        "text": "Mon Sep 21, 2026Monday, September 21, 2026",
+        "attrs": {
+          "class": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-date ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-material mbsc-material-dark mbsc-timeline-header-date-text ng-star-inserted",
+        "text": "Mon Sep 21, 2026",
+        "attrs": {
+          "aria-hidden": "true",
+          "class": "mbsc-material mbsc-material-dark mbsc-timeline-header-date-text ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-hidden-content ng-star-inserted",
+        "text": "Monday, September 21, 2026",
+        "attrs": {
+          "class": "mbsc-hidden-content ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex",
+        "text": "",
+        "attrs": {
+          "aria-hidden": "true",
+          "class": "mbsc-flex"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-column mbsc-timeline-no-height ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-column mbsc-timeline-no-height ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted",
+        "text": "Tue Sep 22, 2026Tuesday, September 22, 2026",
+        "attrs": {
+          "class": "mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-date ng-star-inserted",
+        "text": "Tue Sep 22, 2026Tuesday, September 22, 2026",
+        "attrs": {
+          "class": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-date ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-material mbsc-material-dark mbsc-timeline-header-date-text ng-star-inserted",
+        "text": "Tue Sep 22, 2026",
+        "attrs": {
+          "aria-hidden": "true",
+          "class": "mbsc-material mbsc-material-dark mbsc-timeline-header-date-text ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-hidden-content ng-star-inserted",
+        "text": "Tuesday, September 22, 2026",
+        "attrs": {
+          "class": "mbsc-hidden-content ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex",
+        "text": "",
+        "attrs": {
+          "aria-hidden": "true",
+          "class": "mbsc-flex"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-column mbsc-timeline-no-height ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-column mbsc-timeline-no-height ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted",
+        "text": "Wed Sep 23, 2026Wednesday, September 23, 2026",
+        "attrs": {
+          "class": "mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-date ng-star-inserted",
+        "text": "Wed Sep 23, 2026Wednesday, September 23, 2026",
+        "attrs": {
+          "class": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-date ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-material mbsc-material-dark mbsc-timeline-header-date-text ng-star-inserted",
+        "text": "Wed Sep 23, 2026",
+        "attrs": {
+          "aria-hidden": "true",
+          "class": "mbsc-material mbsc-material-dark mbsc-timeline-header-date-text ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-hidden-content ng-star-inserted",
+        "text": "Wednesday, September 23, 2026",
+        "attrs": {
+          "class": "mbsc-hidden-content ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex",
+        "text": "",
+        "attrs": {
+          "aria-hidden": "true",
+          "class": "mbsc-flex"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-column mbsc-timeline-no-height ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-column mbsc-timeline-no-height ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted",
+        "text": "Thu Sep 24, 2026Thursday, September 24, 2026",
+        "attrs": {
+          "class": "mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-date ng-star-inserted",
+        "text": "Thu Sep 24, 2026Thursday, September 24, 2026",
+        "attrs": {
+          "class": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-date ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-material mbsc-material-dark mbsc-timeline-header-date-text ng-star-inserted",
+        "text": "Thu Sep 24, 2026",
+        "attrs": {
+          "aria-hidden": "true",
+          "class": "mbsc-material mbsc-material-dark mbsc-timeline-header-date-text ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-hidden-content ng-star-inserted",
+        "text": "Thursday, September 24, 2026",
+        "attrs": {
+          "class": "mbsc-hidden-content ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex",
+        "text": "",
+        "attrs": {
+          "aria-hidden": "true",
+          "class": "mbsc-flex"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-column mbsc-timeline-no-height ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-column mbsc-timeline-no-height ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted",
+        "text": "Fri Sep 25, 2026Friday, September 25, 2026",
+        "attrs": {
+          "class": "mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-date ng-star-inserted",
+        "text": "Fri Sep 25, 2026Friday, September 25, 2026",
+        "attrs": {
+          "class": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-date ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-material mbsc-material-dark mbsc-timeline-header-date-text ng-star-inserted",
+        "text": "Fri Sep 25, 2026",
+        "attrs": {
+          "aria-hidden": "true",
+          "class": "mbsc-material mbsc-material-dark mbsc-timeline-header-date-text ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-hidden-content ng-star-inserted",
+        "text": "Friday, September 25, 2026",
+        "attrs": {
+          "class": "mbsc-hidden-content ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex",
+        "text": "",
+        "attrs": {
+          "aria-hidden": "true",
+          "class": "mbsc-flex"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-column mbsc-timeline-no-height ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-column mbsc-timeline-no-height ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted",
+        "text": "Sat Sep 26, 2026Saturday, September 26, 2026",
+        "attrs": {
+          "class": "mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-date ng-star-inserted",
+        "text": "Sat Sep 26, 2026Saturday, September 26, 2026",
+        "attrs": {
+          "class": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-date ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-material mbsc-material-dark mbsc-timeline-header-active mbsc-timeline-header-date-text ng-star-inserted",
+        "text": "Sat Sep 26, 2026",
+        "attrs": {
+          "aria-hidden": "true",
+          "class": "mbsc-material mbsc-material-dark mbsc-timeline-header-active mbsc-timeline-header-date-text ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-hidden-content ng-star-inserted",
+        "text": "Saturday, September 26, 2026",
+        "attrs": {
+          "class": "mbsc-hidden-content ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex",
+        "text": "",
+        "attrs": {
+          "aria-hidden": "true",
+          "class": "mbsc-flex"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-column mbsc-timeline-no-height ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-column mbsc-timeline-no-height ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted",
+        "text": "Sun Sep 27, 2026Sunday, September 27, 2026",
+        "attrs": {
+          "class": "mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-date ng-star-inserted",
+        "text": "Sun Sep 27, 2026Sunday, September 27, 2026",
+        "attrs": {
+          "class": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-date ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-material mbsc-material-dark mbsc-timeline-header-date-text ng-star-inserted",
+        "text": "Sun Sep 27, 2026",
+        "attrs": {
+          "aria-hidden": "true",
+          "class": "mbsc-material mbsc-material-dark mbsc-timeline-header-date-text ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-hidden-content ng-star-inserted",
+        "text": "Sunday, September 27, 2026",
+        "attrs": {
+          "class": "mbsc-hidden-content ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex",
+        "text": "",
+        "attrs": {
+          "aria-hidden": "true",
+          "class": "mbsc-flex"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-column mbsc-timeline-no-height ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-header-column mbsc-timeline-no-height ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-1",
+        "text": "Stephens,Thomas M Scheduled Hours: 41 9036 08:00am-05:00pm-Set/Strike SJCOE BK#26407931 P 07:30am-04:15pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P 07:30am-01:45pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P 06:00am-05:00pm-Liaison MAINSTAGE - APPFOLIO FUTURE CONFERENCE BK#31917819 P 09:00am-05:00pm-Set/Strike CSM MEETINGS (32ND FLOOR) - APPFOLIO FUTURE CONFERENCE BK#31917819 P",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-1"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-1",
+        "text": "Stephens,Thomas M Scheduled Hours: 41 9036 08:00am-05:00pm-Set/Strike SJCOE BK#26407931 P 07:30am-04:15pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P 07:30am-01:45pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P 06:00am-05:00pm-Liaison MAINSTAGE - APPFOLIO FUTURE CONFERENCE BK#31917819 P 09:00am-05:00pm-Set/Strike CSM MEETINGS (32ND FLOOR) - APPFOLIO FUTURE CONFERENCE BK#31917819 P",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-1"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-col mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-resource-col mbsc-timeline-resources ng-star-inserted",
+        "text": "Stephens,Thomas M Scheduled Hours: 41 9036",
+        "attrs": {
+          "class": "mbsc-flex-col mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-resource-col mbsc-timeline-resources ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-none",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex-none"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-1 mbsc-flex-col mbsc-material mbsc-material-dark mbsc-timeline-resource-bg",
+        "text": "Stephens,Thomas M Scheduled Hours: 41 9036",
+        "attrs": {
+          "class": "mbsc-flex-1-1 mbsc-flex-col mbsc-material mbsc-material-dark mbsc-timeline-resource-bg"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-none",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex-none",
+          "style": "height: 0px;"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-resource mbsc-timeline-row ng-star-inserted",
+        "text": "Stephens,Thomas M Scheduled Hours: 41 9036",
+        "attrs": {
+          "class": "mbsc-flex-1-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-resource mbsc-timeline-row ng-star-inserted",
+          "style": "padding-left: 0em; min-height: 84px;"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-timeline-resource-title",
+        "text": "Stephens,Thomas M Scheduled Hours: 41 9036",
+        "attrs": {
+          "class": "mbsc-timeline-resource-title"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "text-gray-900 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-400 e2e_schedule_resource_name",
+        "text": "Stephens,Thomas M",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "class": "text-gray-900 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-400 e2e_schedule_resource_name"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "text-gray-400 flex-shrink-0 e2e_schedule_resource_emp_type_code",
+        "text": "",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "class": "text-gray-400 flex-shrink-0 e2e_schedule_resource_emp_type_code"
+        }
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "cls": "text-gray-500 dark:text-gray-300 text-xxs e2e_schedule_resource_hours ng-star-inserted",
+        "text": "Scheduled Hours: 41",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "class": "text-gray-500 dark:text-gray-300 text-xxs e2e_schedule_resource_hours ng-star-inserted"
+        }
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "cls": "text-gray-500 dark:text-gray-300 text-xxs e2e_schedule_resource_title",
+        "text": "",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "class": "text-gray-500 dark:text-gray-300 text-xxs e2e_schedule_resource_title"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex items-center flex-shrink-0 e2e_schedule_resource_location ng-star-inserted",
+        "text": "9036",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "class": "flex items-center flex-shrink-0 e2e_schedule_resource_location ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-none",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex-none"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-timeline-hidden",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-timeline-hidden"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-material mbsc-material-dark mbsc-timeline-day mbsc-timeline-empty-day",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-material mbsc-material-dark mbsc-timeline-day mbsc-timeline-empty-day"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-material mbsc-material-dark mbsc-timeline-column mbsc-timeline-empty-column",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-material mbsc-material-dark mbsc-timeline-column mbsc-timeline-empty-column"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-material mbsc-material-dark mbsc-timeline-empty-row mbsc-timeline-row",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-material mbsc-material-dark mbsc-timeline-empty-row mbsc-timeline-row"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-material mbsc-material-dark mbsc-timeline-empty-parent mbsc-timeline-parent mbsc-timeline-row",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-material mbsc-material-dark mbsc-timeline-empty-parent mbsc-timeline-parent mbsc-timeline-row"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-material mbsc-material-dark mbsc-timeline-row-gutter",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-material mbsc-material-dark mbsc-timeline-row-gutter"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-0 mbsc-flex-col mbsc-timeline-grid",
+        "text": "08:00am-05:00pm-Set/Strike SJCOE BK#26407931 P 07:30am-04:15pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P 07:30am-01:45pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P 06:00am-05:00pm-Liaison MAINSTAGE - APPFOLIO FUTURE CONFERENCE BK#31917819 P 09:00am-05:00pm-Set/Strike CSM MEETINGS (32ND FLOOR) - APPFOLIO FUTURE CONFERENCE BK#31917819 P",
+        "attrs": {
+          "class": "mbsc-flex-1-0 mbsc-flex-col mbsc-timeline-grid"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-none",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex-none",
+          "style": "height: 0px;"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-0 mbsc-material mbsc-material-dark mbsc-timeline-row ng-star-inserted",
+        "text": "08:00am-05:00pm-Set/Strike SJCOE BK#26407931 P 07:30am-04:15pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P 07:30am-01:45pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P 06:00am-05:00pm-Liaison MAINSTAGE - APPFOLIO FUTURE CONFERENCE BK#31917819 P 09:00am-05:00pm-Set/Strike CSM MEETINGS (32ND FLOOR) - APPFOLIO FUTURE CONFERENCE BK#31917819 P",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-0 mbsc-material mbsc-material-dark mbsc-timeline-row ng-star-inserted",
+          "style": "min-height: 84px;"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-timeline-events ng-star-inserted",
+        "text": "08:00am-05:00pm-Set/Strike SJCOE BK#26407931 P 07:30am-04:15pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P 07:30am-01:45pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P 06:00am-05:00pm-Liaison MAINSTAGE - APPFOLIO FUTURE CONFERENCE BK#31917819 P 09:00am-05:00pm-Set/Strike CSM MEETINGS (32ND FLOOR) - APPFOLIO FUTURE CONFERENCE BK#31917819 P",
+        "attrs": {
+          "class": "mbsc-timeline-events ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-timeline-events-track ng-star-inserted",
+        "text": "08:00am-05:00pm-Set/Strike SJCOE BK#26407931 P 07:30am-04:15pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P 07:30am-01:45pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P 06:00am-05:00pm-Liaison MAINSTAGE - APPFOLIO FUTURE CONFERENCE BK#31917819 P 09:00am-05:00pm-Set/Strike CSM MEETINGS (32ND FLOOR) - APPFOLIO FUTURE CONFERENCE BK#31917819 P",
+        "attrs": {
+          "class": "mbsc-timeline-events-track ng-star-inserted"
+        }
+      },
+      {
+        "tag": "MBSC-SCHEDULE-EVENT",
+        "id": "",
+        "cls": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-readonly-event mbsc-schedule-event mbsc-schedule-event-all-day mbsc-schedule-event-custom mbsc-timeline-event mbsc-timeline-event-end mbsc-timeline-event-listing mbsc-timeline-event-start ng-star-inserted",
+        "text": "08:00am-05:00pm-Set/Strike SJCOE BK#26407931 P",
+        "attrs": {
+          "data-id": "",
+          "data-key": "070374_mbsc-def_all_",
+          "tabindex": "0",
+          "title": "Stephens,Thomas M, 8:00 AM - 5:00 PM",
+          "class": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-readonly-event mbsc-schedule-event mbsc-schedule-event-all-day mbsc-schedule-event-custom mbsc-timeline-event mbsc-timeline-event-end mbsc-timeline-event-listing mbsc-timeli",
+          "style": "color: rgb(224, 111, 67); left: 28.5714%; top: 0px; width: 14.2857%;"
+        }
+      },
+      {
+        "tag": "APP-EVENT-CARD",
+        "id": "",
+        "cls": "ng-star-inserted",
+        "text": "08:00am-05:00pm-Set/Strike SJCOE BK#26407931 P",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "class": "ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex flex-col space-y-1 justify-between truncate rounded-md xl:px-0.5 2xl:px-1 py-[6px] text-xxs xl:text-xs mt-1 xl:mx-0.5 2xl:mx-1 border-[1px] border-gray-300 e2e_schedule_event_card",
+        "text": "08:00am-05:00pm-Set/Strike SJCOE BK#26407931 P",
+        "attrs": {
+          "class": "flex flex-col space-y-1 justify-between truncate rounded-md xl:px-0.5 2xl:px-1 py-[6px] text-xxs xl:text-xs mt-1 xl:mx-0.5 2xl:mx-1 border-[1px] border-gray-300 e2e_schedule_event_card",
+          "style": "background-color: rgb(224, 111, 67); color: rgb(0, 0, 0);"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "text-xs truncate e2e_schedule_event_card_title",
+        "text": "08:00am-05:00pm-Set/Strike",
+        "attrs": {
+          "class": "text-xs truncate e2e_schedule_event_card_title"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "text-xs truncate e2e_schedule_event_card_client_or_notes",
+        "text": "SJCOE BK#26407931",
+        "attrs": {
+          "class": "text-xs truncate e2e_schedule_event_card_client_or_notes"
+        }
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "cls": "h-4 w-4 flex justify-center items-center leading-none text-xs text-white rounded mt-1 e2e_schedule_event_card_status bg-green-600",
+        "text": "P",
+        "attrs": {
+          "class": "h-4 w-4 flex justify-center items-center leading-none text-xs text-white rounded mt-1 e2e_schedule_event_card_status bg-green-600",
+          "title": "Published"
+        }
+      },
+      {
+        "tag": "MBSC-SCHEDULE-EVENT",
+        "id": "",
+        "cls": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-readonly-event mbsc-schedule-event mbsc-schedule-event-all-day mbsc-schedule-event-custom mbsc-timeline-event mbsc-timeline-event-end mbsc-timeline-event-listing mbsc-timeline-event-start ng-star-inserted",
+        "text": "07:30am-04:15pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P",
+        "attrs": {
+          "data-id": "",
+          "data-key": "070374_mbsc-def_all_",
+          "tabindex": "0",
+          "title": "Stephens,Thomas M, 7:30 AM - 4:15 PM",
+          "class": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-readonly-event mbsc-schedule-event mbsc-schedule-event-all-day mbsc-schedule-event-custom mbsc-timeline-event mbsc-timeline-event-end mbsc-timeline-event-listing mbsc-timeli",
+          "style": "color: rgb(52, 155, 61); left: 42.8571%; top: 0px; width: 14.2857%;"
+        }
+      },
+      {
+        "tag": "APP-EVENT-CARD",
+        "id": "",
+        "cls": "ng-star-inserted",
+        "text": "07:30am-04:15pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "class": "ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex flex-col space-y-1 justify-between truncate rounded-md xl:px-0.5 2xl:px-1 py-[6px] text-xxs xl:text-xs mt-1 xl:mx-0.5 2xl:mx-1 border-[1px] border-gray-300 e2e_schedule_event_card",
+        "text": "07:30am-04:15pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P",
+        "attrs": {
+          "class": "flex flex-col space-y-1 justify-between truncate rounded-md xl:px-0.5 2xl:px-1 py-[6px] text-xxs xl:text-xs mt-1 xl:mx-0.5 2xl:mx-1 border-[1px] border-gray-300 e2e_schedule_event_card",
+          "style": "background-color: rgb(52, 155, 61); color: rgb(255, 255, 255);"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "text-xs truncate e2e_schedule_event_card_title",
+        "text": "07:30am-04:15pm-Audio Eng FOH A1",
+        "attrs": {
+          "class": "text-xs truncate e2e_schedule_event_card_title"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "text-xs truncate e2e_schedule_event_card_client_or_notes",
+        "text": "BRIDGING THE GAPS GU - BK# 35654593",
+        "attrs": {
+          "class": "text-xs truncate e2e_schedule_event_card_client_or_notes"
+        }
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "cls": "h-4 w-4 flex justify-center items-center leading-none text-xs text-white rounded mt-1 e2e_schedule_event_card_status bg-green-600",
+        "text": "P",
+        "attrs": {
+          "class": "h-4 w-4 flex justify-center items-center leading-none text-xs text-white rounded mt-1 e2e_schedule_event_card_status bg-green-600",
+          "title": "Published"
+        }
+      },
+      {
+        "tag": "MBSC-SCHEDULE-EVENT",
+        "id": "",
+        "cls": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-readonly-event mbsc-schedule-event mbsc-schedule-event-all-day mbsc-schedule-event-custom mbsc-timeline-event mbsc-timeline-event-end mbsc-timeline-event-listing mbsc-timeline-event-start ng-star-inserted",
+        "text": "07:30am-01:45pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P",
+        "attrs": {
+          "data-id": "",
+          "data-key": "070374_mbsc-def_all_",
+          "tabindex": "0",
+          "title": "Stephens,Thomas M, 7:30 AM - 1:45 PM",
+          "class": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-readonly-event mbsc-schedule-event mbsc-schedule-event-all-day mbsc-schedule-event-custom mbsc-timeline-event mbsc-timeline-event-end mbsc-timeline-event-listing mbsc-timeli",
+          "style": "color: rgb(52, 155, 61); left: 57.1429%; top: 0px; width: 14.2857%;"
+        }
+      },
+      {
+        "tag": "APP-EVENT-CARD",
+        "id": "",
+        "cls": "ng-star-inserted",
+        "text": "07:30am-01:45pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "class": "ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex flex-col space-y-1 justify-between truncate rounded-md xl:px-0.5 2xl:px-1 py-[6px] text-xxs xl:text-xs mt-1 xl:mx-0.5 2xl:mx-1 border-[1px] border-gray-300 e2e_schedule_event_card",
+        "text": "07:30am-01:45pm-Audio Eng FOH A1 BRIDGING THE GAPS GU - BK# 35654593 P",
+        "attrs": {
+          "class": "flex flex-col space-y-1 justify-between truncate rounded-md xl:px-0.5 2xl:px-1 py-[6px] text-xxs xl:text-xs mt-1 xl:mx-0.5 2xl:mx-1 border-[1px] border-gray-300 e2e_schedule_event_card",
+          "style": "background-color: rgb(52, 155, 61); color: rgb(255, 255, 255);"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "text-xs truncate e2e_schedule_event_card_title",
+        "text": "07:30am-01:45pm-Audio Eng FOH A1",
+        "attrs": {
+          "class": "text-xs truncate e2e_schedule_event_card_title"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "text-xs truncate e2e_schedule_event_card_client_or_notes",
+        "text": "BRIDGING THE GAPS GU - BK# 35654593",
+        "attrs": {
+          "class": "text-xs truncate e2e_schedule_event_card_client_or_notes"
+        }
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "cls": "h-4 w-4 flex justify-center items-center leading-none text-xs text-white rounded mt-1 e2e_schedule_event_card_status bg-green-600",
+        "text": "P",
+        "attrs": {
+          "class": "h-4 w-4 flex justify-center items-center leading-none text-xs text-white rounded mt-1 e2e_schedule_event_card_status bg-green-600",
+          "title": "Published"
+        }
+      },
+      {
+        "tag": "MBSC-SCHEDULE-EVENT",
+        "id": "",
+        "cls": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-readonly-event mbsc-schedule-event mbsc-schedule-event-all-day mbsc-schedule-event-custom mbsc-timeline-event mbsc-timeline-event-end mbsc-timeline-event-listing mbsc-timeline-event-start ng-star-inserted",
+        "text": "06:00am-05:00pm-Liaison MAINSTAGE - APPFOLIO FUTURE CONFERENCE BK#31917819 P",
+        "attrs": {
+          "data-id": "",
+          "data-key": "070374_mbsc-def_all_",
+          "tabindex": "0",
+          "title": "Stephens,Thomas M, 6:00 AM - 5:00 PM",
+          "class": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-readonly-event mbsc-schedule-event mbsc-schedule-event-all-day mbsc-schedule-event-custom mbsc-timeline-event mbsc-timeline-event-end mbsc-timeline-event-listing mbsc-timeli",
+          "style": "color: rgb(196, 195, 45); left: 71.4286%; top: 0px; width: 14.2857%;"
+        }
+      },
+      {
+        "tag": "APP-EVENT-CARD",
+        "id": "",
+        "cls": "ng-star-inserted",
+        "text": "06:00am-05:00pm-Liaison MAINSTAGE - APPFOLIO FUTURE CONFERENCE BK#31917819 P",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "class": "ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex flex-col space-y-1 justify-between truncate rounded-md xl:px-0.5 2xl:px-1 py-[6px] text-xxs xl:text-xs mt-1 xl:mx-0.5 2xl:mx-1 border-[1px] border-gray-300 e2e_schedule_event_card",
+        "text": "06:00am-05:00pm-Liaison MAINSTAGE - APPFOLIO FUTURE CONFERENCE BK#31917819 P",
+        "attrs": {
+          "class": "flex flex-col space-y-1 justify-between truncate rounded-md xl:px-0.5 2xl:px-1 py-[6px] text-xxs xl:text-xs mt-1 xl:mx-0.5 2xl:mx-1 border-[1px] border-gray-300 e2e_schedule_event_card",
+          "style": "background-color: rgb(196, 195, 45); color: rgb(0, 0, 0);"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "text-xs truncate e2e_schedule_event_card_title",
+        "text": "06:00am-05:00pm-Liaison",
+        "attrs": {
+          "class": "text-xs truncate e2e_schedule_event_card_title"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "text-xs truncate e2e_schedule_event_card_client_or_notes",
+        "text": "MAINSTAGE - APPFOLIO FUTURE CONFERENCE BK#31917819",
+        "attrs": {
+          "class": "text-xs truncate e2e_schedule_event_card_client_or_notes"
+        }
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "cls": "h-4 w-4 flex justify-center items-center leading-none text-xs text-white rounded mt-1 e2e_schedule_event_card_status bg-green-600",
+        "text": "P",
+        "attrs": {
+          "class": "h-4 w-4 flex justify-center items-center leading-none text-xs text-white rounded mt-1 e2e_schedule_event_card_status bg-green-600",
+          "title": "Published"
+        }
+      },
+      {
+        "tag": "MBSC-SCHEDULE-EVENT",
+        "id": "",
+        "cls": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-readonly-event mbsc-schedule-event mbsc-schedule-event-all-day mbsc-schedule-event-custom mbsc-timeline-event mbsc-timeline-event-end mbsc-timeline-event-listing mbsc-timeline-event-start ng-star-inserted",
+        "text": "09:00am-05:00pm-Set/Strike CSM MEETINGS (32ND FLOOR) - APPFOLIO FUTURE CONFERENCE BK#31917819 P",
+        "attrs": {
+          "data-id": "",
+          "data-key": "070374_mbsc-def_all_",
+          "tabindex": "0",
+          "title": "Stephens,Thomas M, 9:00 AM - 5:00 PM",
+          "class": "mbsc-ltr mbsc-material mbsc-material-dark mbsc-readonly-event mbsc-schedule-event mbsc-schedule-event-all-day mbsc-schedule-event-custom mbsc-timeline-event mbsc-timeline-event-end mbsc-timeline-event-listing mbsc-timeli",
+          "style": "color: rgb(212, 125, 48); left: 85.7143%; top: 0px; width: 14.2857%;"
+        }
+      },
+      {
+        "tag": "APP-EVENT-CARD",
+        "id": "",
+        "cls": "ng-star-inserted",
+        "text": "09:00am-05:00pm-Set/Strike CSM MEETINGS (32ND FLOOR) - APPFOLIO FUTURE CONFERENCE BK#31917819 P",
+        "attrs": {
+          "_ngcontent-ng-c4223882479": "",
+          "class": "ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex flex-col space-y-1 justify-between truncate rounded-md xl:px-0.5 2xl:px-1 py-[6px] text-xxs xl:text-xs mt-1 xl:mx-0.5 2xl:mx-1 border-[1px] border-gray-300 e2e_schedule_event_card",
+        "text": "09:00am-05:00pm-Set/Strike CSM MEETINGS (32ND FLOOR) - APPFOLIO FUTURE CONFERENCE BK#31917819 P",
+        "attrs": {
+          "class": "flex flex-col space-y-1 justify-between truncate rounded-md xl:px-0.5 2xl:px-1 py-[6px] text-xxs xl:text-xs mt-1 xl:mx-0.5 2xl:mx-1 border-[1px] border-gray-300 e2e_schedule_event_card",
+          "style": "background-color: rgb(212, 125, 48); color: rgb(0, 0, 0);"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "text-xs truncate e2e_schedule_event_card_title",
+        "text": "09:00am-05:00pm-Set/Strike",
+        "attrs": {
+          "class": "text-xs truncate e2e_schedule_event_card_title"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "text-xs truncate e2e_schedule_event_card_client_or_notes",
+        "text": "CSM MEETINGS (32ND FLOOR) - APPFOLIO FUTURE CONFERENCE BK#31917819",
+        "attrs": {
+          "class": "text-xs truncate e2e_schedule_event_card_client_or_notes"
+        }
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "cls": "h-4 w-4 flex justify-center items-center leading-none text-xs text-white rounded mt-1 e2e_schedule_event_card_status bg-green-600",
+        "text": "P",
+        "attrs": {
+          "class": "h-4 w-4 flex justify-center items-center leading-none text-xs text-white rounded mt-1 e2e_schedule_event_card_status bg-green-600",
+          "title": "Published"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-none",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex-none",
+          "style": "width: 0px;"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-1 ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-1 ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-column ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-column ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-1 ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-1 ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-column ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-column ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-1 ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-1 ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-column ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-column ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-1 ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-1 ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-column ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-column ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-1 ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-1 ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-column ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-column ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-1 ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-1 ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-column ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-column ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-0-0 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-day ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex mbsc-flex-1-1 ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex mbsc-flex-1-1 ng-star-inserted"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-column ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "class": "mbsc-flex-1-1 mbsc-ltr mbsc-material mbsc-material-dark mbsc-timeline-column ng-star-inserted"
+        }
+      },
+      {
+        "tag": "MBSC-POPUP",
+        "id": "",
+        "cls": "",
+        "text": "",
+        "attrs": {
+          "display": "anchored",
+          "maxheight": "24em"
+        }
+      },
+      {
+        "tag": "MBSC-POPUP",
+        "id": "",
+        "cls": "mbsc-calendar-popup ng-star-inserted",
+        "text": "",
+        "attrs": {
+          "display": "anchored",
+          "class": "mbsc-calendar-popup ng-star-inserted"
+        }
+      },
+      {
+        "tag": "APP-NAVIGATION-ITEM",
+        "id": "",
+        "cls": "e2e_navigation_item",
+        "text": "Flowsheet",
+        "attrs": {
+          "class": "e2e_navigation_item"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex flex-col items-center justify-center e2e_navigation_item_link relative cursor-pointer text-gray-500 dark:text-gray-300",
+        "text": "Flowsheet",
+        "attrs": {
+          "routerlinkactive": "",
+          "class": "flex flex-col items-center justify-center e2e_navigation_item_link relative cursor-pointer text-gray-500 dark:text-gray-300",
+          "tabindex": "0",
+          "data-route": "flowsheets"
+        }
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "cls": "text-xs text-center w-[80px] e2e_navigation_item_title",
+        "text": "Flowsheet",
+        "attrs": {
+          "class": "text-xs text-center w-[80px] e2e_navigation_item_title"
+        }
+      },
+      {
+        "tag": "APP-NAVIGATION-ITEM",
+        "id": "",
+        "cls": "e2e_navigation_item",
+        "text": "Schedule",
+        "attrs": {
+          "class": "e2e_navigation_item"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex flex-col items-center justify-center e2e_navigation_item_link relative text-purple-500",
+        "text": "Schedule",
+        "attrs": {
+          "routerlinkactive": "",
+          "class": "flex flex-col items-center justify-center e2e_navigation_item_link relative text-purple-500",
+          "tabindex": "0",
+          "data-route": "schedule"
+        }
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "cls": "text-xs text-center w-[80px] e2e_navigation_item_title",
+        "text": "Schedule",
+        "attrs": {
+          "class": "text-xs text-center w-[80px] e2e_navigation_item_title"
+        }
+      },
+      {
+        "tag": "APP-NAVIGATION-ITEM",
+        "id": "",
+        "cls": "e2e_navigation_item",
+        "text": "Customers",
+        "attrs": {
+          "class": "e2e_navigation_item"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex flex-col items-center justify-center e2e_navigation_item_link relative cursor-pointer text-gray-500 dark:text-gray-300",
+        "text": "Customers",
+        "attrs": {
+          "routerlinkactive": "",
+          "class": "flex flex-col items-center justify-center e2e_navigation_item_link relative cursor-pointer text-gray-500 dark:text-gray-300",
+          "tabindex": "0",
+          "data-route": "customers"
+        }
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "cls": "text-xs text-center w-[80px] e2e_navigation_item_title",
+        "text": "Customers",
+        "attrs": {
+          "class": "text-xs text-center w-[80px] e2e_navigation_item_title"
+        }
+      },
+      {
+        "tag": "APP-NAVIGATION-ITEM",
+        "id": "",
+        "cls": "e2e_navigation_item",
+        "text": "Tech Reports",
+        "attrs": {
+          "class": "e2e_navigation_item"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex flex-col items-center justify-center e2e_navigation_item_link relative cursor-pointer text-gray-500 dark:text-gray-300",
+        "text": "Tech Reports",
+        "attrs": {
+          "routerlinkactive": "",
+          "class": "flex flex-col items-center justify-center e2e_navigation_item_link relative cursor-pointer text-gray-500 dark:text-gray-300",
+          "tabindex": "0",
+          "data-route": "tech-reports"
+        }
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "cls": "text-xs text-center w-[80px] e2e_navigation_item_title",
+        "text": "Tech Reports",
+        "attrs": {
+          "class": "text-xs text-center w-[80px] e2e_navigation_item_title"
+        }
+      },
+      {
+        "tag": "APP-NAVIGATION-ITEM",
+        "id": "",
+        "cls": "e2e_navigation_item",
+        "text": "Agendas",
+        "attrs": {
+          "class": "e2e_navigation_item"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex flex-col items-center justify-center e2e_navigation_item_link relative cursor-pointer text-gray-500 dark:text-gray-300",
+        "text": "Agendas",
+        "attrs": {
+          "routerlinkactive": "",
+          "class": "flex flex-col items-center justify-center e2e_navigation_item_link relative cursor-pointer text-gray-500 dark:text-gray-300",
+          "tabindex": "0",
+          "data-route": "productions"
+        }
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "cls": "text-xs text-center w-[80px] e2e_navigation_item_title",
+        "text": "Agendas",
+        "attrs": {
+          "class": "text-xs text-center w-[80px] e2e_navigation_item_title"
+        }
+      },
+      {
+        "tag": "APP-MOBILE-NAVIGATION-ITEM",
+        "id": "",
+        "cls": "e2e_navigation_item",
+        "text": "",
+        "attrs": {
+          "class": "e2e_navigation_item"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex flex-col items-center justify-center e2e_navigation_item_link relative cursor-pointer text-gray-500 dark:text-gray-300",
+        "text": "",
+        "attrs": {
+          "routerlinkactive": "",
+          "class": "flex flex-col items-center justify-center e2e_navigation_item_link relative cursor-pointer text-gray-500 dark:text-gray-300",
+          "tabindex": "0",
+          "data-route": "productions"
+        }
+      },
+      {
+        "tag": "APP-MOBILE-NAVIGATION-ITEM",
+        "id": "",
+        "cls": "e2e_navigation_item",
+        "text": "",
+        "attrs": {
+          "class": "e2e_navigation_item"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex flex-col items-center justify-center e2e_navigation_item_link relative cursor-pointer text-gray-500 dark:text-gray-300",
+        "text": "",
+        "attrs": {
+          "routerlinkactive": "",
+          "class": "flex flex-col items-center justify-center e2e_navigation_item_link relative cursor-pointer text-gray-500 dark:text-gray-300",
+          "tabindex": "0",
+          "data-route": "flowsheets"
+        }
+      },
+      {
+        "tag": "APP-MOBILE-NAVIGATION-ITEM",
+        "id": "",
+        "cls": "e2e_navigation_item",
+        "text": "",
+        "attrs": {
+          "class": "e2e_navigation_item"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex flex-col items-center justify-center e2e_navigation_item_link relative text-purple-500",
+        "text": "",
+        "attrs": {
+          "routerlinkactive": "",
+          "class": "flex flex-col items-center justify-center e2e_navigation_item_link relative text-purple-500",
+          "tabindex": "0",
+          "data-route": "schedule"
+        }
+      },
+      {
+        "tag": "APP-MOBILE-NAVIGATION-ITEM",
+        "id": "",
+        "cls": "e2e_navigation_item",
+        "text": "",
+        "attrs": {
+          "class": "e2e_navigation_item"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex flex-col items-center justify-center e2e_navigation_item_link relative cursor-pointer text-gray-500 dark:text-gray-300",
+        "text": "",
+        "attrs": {
+          "routerlinkactive": "",
+          "class": "flex flex-col items-center justify-center e2e_navigation_item_link relative cursor-pointer text-gray-500 dark:text-gray-300",
+          "tabindex": "0",
+          "data-route": "customers"
+        }
+      },
+      {
+        "tag": "APP-MOBILE-NAVIGATION-ITEM",
+        "id": "",
+        "cls": "e2e_navigation_item",
+        "text": "",
+        "attrs": {
+          "class": "e2e_navigation_item"
+        }
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "cls": "flex flex-col items-center justify-center e2e_navigation_item_link relative cursor-pointer text-gray-500 dark:text-gray-300",
+        "text": "",
+        "attrs": {
+          "routerlinkactive": "",
+          "class": "flex flex-col items-center justify-center e2e_navigation_item_link relative cursor-pointer text-gray-500 dark:text-gray-300",
+          "tabindex": "0",
+          "data-route": "chat"
+        }
       }
-    ]
+    ],
+    "storageKeys": {
+      "182ace6b-96c7-40f5-9d7e-0d0f701fe1cd-b2c_1_signupandsingin_production.eb25a174-6d85-487d-adc0-24ee992135c3-guest.encoreglobal.com-accesstoken-bc3bf9de-fa52-4471-bdbc-52228aed95cf-b2c_1_signupandsingin_production-https://guest.encoreglobal.com/arms-api-production/api_read--": "[present]",
+      "182ace6b-96c7-40f5-9d7e-0d0f701fe1cd-b2c_1_signupandsingin_production.eb25a174-6d85-487d-adc0-24ee992135c3-guest.encoreglobal.com-idtoken-bc3bf9de-fa52-4471-bdbc-52228aed95cf-b2c_1_signupandsingin_production---": "[present]",
+      "182ace6b-96c7-40f5-9d7e-0d0f701fe1cd-b2c_1_signupandsingin_production.eb25a174-6d85-487d-adc0-24ee992135c3-guest.encoreglobal.com-refreshtoken-bc3bf9de-fa52-4471-bdbc-52228aed95cf----": "[present]",
+      "_pendo_guides_blocked.27bb06e4-61a1-4107-55df-5c090762b97e": "[present]",
+      "schedule-filter-state": "[present]",
+      "msal.token.keys.bc3bf9de-fa52-4471-bdbc-52228aed95cf": "[present]",
+      "schedule-sort-filters-state": "[present]",
+      "locale": "[present]"
+    }
   }
 }
