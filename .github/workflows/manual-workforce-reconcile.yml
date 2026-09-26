@@ -19,7 +19,7 @@ env:
 jobs:
   reconcile:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
 
@@ -47,7 +47,7 @@ jobs:
           done
           exit 1
 
-      - name: Inspect Lighthouse My Schedule DOM
+      - name: Read Lighthouse schedule API
         shell: bash
         env:
           HETZNER_USER: ${{ steps.ssh.outputs.user }}
@@ -64,19 +64,23 @@ jobs:
             curl -fsS --max-time 2 http://127.0.0.1:9222/json/version >/dev/null 2>&1 && break
             sleep 2
           done
-          probe=/tmp/lighthouse-diagnostics.cjs
-          curl -fsSL --retry 3 --retry-delay 1             https://raw.githubusercontent.com/tmsteph/3dvr-portal/main/scripts/ops/lighthouse-diagnostics.cjs             -o "$probe"
-          token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general manual-lighthouse-schedule-inspect 120 2>/dev/null || true)"
+
+          reader=/tmp/lighthouse-api-reader.cjs
+          curl -fsSL --retry 3 --retry-delay 1             https://raw.githubusercontent.com/tmsteph/3dvr-portal/main/scripts/ops/lighthouse-api-reader.cjs             -o "$reader"
+
+          token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general manual-lighthouse-api-read 240 2>/dev/null || true)"
           if [ -n "$token" ]; then
-            page="$(timeout 45s node "$probe" https://lighthouse2.psav.com/schedule/loc/9036/asOf/2026-09-21 2>&1 || true)"
+            result="$(timeout 150s node "$reader"               2026-09-21 2026-09-28 2026-10-05 2026-10-12 2026-10-19 2026-10-26 2>&1 || true)"
             sudo -n /usr/local/bin/3dvr-browser-lease release general "$token" >/dev/null 2>&1 || true
           else
-            page='{"ok":false,"error":"general-lane-busy"}'
+            result='{"ok":false,"error":"general-lane-busy"}'
           fi
-          if ! jq -e . >/dev/null 2>&1 <<<"$page"; then
-            page="$(jq -n --arg raw "$(printf '%s' "$page" | head -c 12000)"               '{ok:false,error:"schedule-probe-invalid-json",output:$raw}')"
+
+          if jq -e . >/dev/null 2>&1 <<<"$result"; then
+            printf '%s\n' "$result"
+          else
+            jq -n --arg raw "$(printf '%s' "$result" | head -c 6000)"               '{ok:false,error:"Lighthouse API reader invalid JSON",output:$raw}'
           fi
-          jq -n --arg checkedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson page "$page"             '{ok:true,checkedAt:$checkedAt,page:$page}'
           OVH
           REMOTE
           jq -e . /tmp/workforce-result.json >/dev/null
@@ -91,14 +95,14 @@ jobs:
           if [ -s /tmp/workforce-result.json ] && jq -e . /tmp/workforce-result.json >/dev/null 2>&1; then
             cp /tmp/workforce-result.json /tmp/result.json
           else
-            printf '%s\n' '{"ok":false,"error":"schedule DOM inspection failed"}' > /tmp/result.json
+            printf '%s\n' '{"ok":false,"error":"Lighthouse API read failed"}' > /tmp/result.json
           fi
           url="https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/control/workforce-reconcile-result.json"
           sha="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$url" 2>/dev/null | jq -r '.sha // empty' || true)"
           RESULT_SHA="$sha" python3 - <<'PY' > /tmp/payload.json
           import base64, json, os
           content = base64.b64encode(open('/tmp/result.json','rb').read()).decode()
-          payload = {"message":"Record Lighthouse schedule DOM inspection","content":content,"branch":"main"}
+          payload = {"message":"Record Lighthouse API schedule read","content":content,"branch":"main"}
           sha = os.environ.get("RESULT_SHA","").strip()
           if sha:
               payload["sha"] = sha
