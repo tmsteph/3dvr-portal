@@ -462,6 +462,7 @@
   <script src="/gun-init.js"></script>
   <script src="/score.js"></script>
   <script src="/portal-swirl-logo.js" defer></script>
+  <script type="module" src="/spinner-direction.js"></script>
   <script type="module" src="/home-operator.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -644,6 +645,7 @@
         if (spinnerPointer?.pointerId !== event.pointerId) return;
         clearSpinnerHold();
         spinnerPointer = null;
+        toggleSpinnerNav();
       });
 
       spinner?.addEventListener('pointercancel', () => {
