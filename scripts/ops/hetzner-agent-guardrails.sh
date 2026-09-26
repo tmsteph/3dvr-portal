@@ -93,6 +93,34 @@ exit 1
 EOF
 chmod 755 /usr/local/sbin/3dvr-apply-tmux-guards
 
+# Individual tmux workers can be repaired by the supervisor without restarting
+# the whole stack. Their replacement tmux scopes are transient and start with
+# default cgroup limits, so refresh the pane guardrails continuously.
+cat >/etc/systemd/system/3dvr-tmux-guard-refresh.service <<'EOF'
+[Unit]
+Description=Reapply 3DVR tmux pane resource guardrails
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/3dvr-apply-tmux-guards
+EOF
+
+cat >/etc/systemd/system/3dvr-tmux-guard-refresh.timer <<'EOF'
+[Unit]
+Description=Continuously reapply 3DVR tmux pane resource guardrails
+
+[Timer]
+OnBootSec=20s
+OnUnitActiveSec=30s
+AccuracySec=5s
+Unit=3dvr-tmux-guard-refresh.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
 cat >/etc/systemd/system/3dvr-agent-stack.service <<EOF
 [Unit]
 Description=3DVR managed agent stack with pane-level resource guardrails
@@ -178,6 +206,7 @@ if systemctl is-active --quiet 3dvr-recovery.slice; then
     CPUQuota=100% MemorySwapMax=256M >/dev/null
 fi
 systemctl disable --now ollama.service >/dev/null 2>&1 || true
+systemctl enable --now 3dvr-tmux-guard-refresh.timer
 systemctl enable 3dvr-agent-stack.service
 systemctl restart systemd-journald || true
 journalctl --vacuum-size=300M >/dev/null 2>&1 || true
