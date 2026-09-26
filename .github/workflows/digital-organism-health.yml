@@ -1,0 +1,86 @@
+name: Digital Organism Health
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/digital-organism-health.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: digital-organism-health
+  cancel-in-progress: true
+
+env:
+  OVH_HOST: 40.160.137.41
+  OVH_USER: debian
+  ORGANISM_PORT: 4311
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Resolve SSH key
+        shell: bash
+        env:
+          RAW_KEY: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "$RAW_KEY" ]
+          umask 077
+          printf '%s\n' "$RAW_KEY" > /tmp/key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/key.raw; then
+            cp /tmp/key.raw /tmp/key
+          else
+            base64 -d /tmp/key.raw > /tmp/key
+          fi
+          chmod 600 /tmp/key
+          rm -f /tmp/key.raw
+
+      - name: Verify live private Organism
+        shell: bash
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" "ORGANISM_PORT='$ORGANISM_PORT' bash -s" <<'REMOTE'
+          set -euo pipefail
+          repo="$HOME/services/3dvr-portal-organism"
+          node_bin="$(command -v node)"
+          test -n "$node_bin"
+          test -d "$repo/.git"
+
+          systemctl is-active --quiet 3dvr-organism.service
+          systemctl is-active --quiet 3dvr-organism-replica.timer
+
+          replica_result="$(systemctl show 3dvr-organism-replica.service -p Result --value)"
+          test "$replica_result" = "success"
+
+          curl --fail --silent --show-error "http://127.0.0.1:$ORGANISM_PORT/health" >/tmp/3dvr-organism-health.json
+          "$node_bin" -e '
+            const fs = require("node:fs");
+            const x = JSON.parse(fs.readFileSync("/tmp/3dvr-organism-health.json", "utf8"));
+            if (!x.ok || x.service !== "3dvr-digital-organism") process.exit(1);
+            if (!Number.isInteger(x.activeMemories) || x.activeMemories < 0) process.exit(1);
+            if (!Number.isInteger(x.events) || x.events < 0) process.exit(1);
+            console.log(JSON.stringify({ok:true,service:x.service,activeMemories:x.activeMemories,events:x.events,checkedAt:x.checkedAt}));
+          '
+
+          "$node_bin" "$repo/apps/agent/thomas-agent/node/digital-organism-bridge.js" health >/tmp/3dvr-organism-bridge-health.json
+          "$node_bin" -e '
+            const fs = require("node:fs");
+            const x = JSON.parse(fs.readFileSync("/tmp/3dvr-organism-bridge-health.json", "utf8"));
+            if (!x.ok || x.service !== "3dvr-digital-organism-private") process.exit(1);
+            if (!Number.isInteger(x.activeMemories) || !Number.isInteger(x.events)) process.exit(1);
+            console.log(JSON.stringify({ok:true,bridge:x.service,activeMemories:x.activeMemories,events:x.events}));
+          '
+          REMOTE
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f /tmp/key /tmp/key.raw
