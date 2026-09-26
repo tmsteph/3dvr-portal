@@ -1,6 +1,6 @@
 {
-  "id": "ukg-timeoff-status-20260922T0720Z",
-  "action": "ukg_timeoff_status",
+  "id": "browser-lane-status-20260926T2318Z",
+  "action": "browser_lane_status",
   "service": "",
-  "requestedAt": "2026-09-22T07:20:00Z"
+  "requestedAt": "2026-09-26T23:18:00Z"
 }
