@@ -79,6 +79,38 @@ jobs:
             if (!Number.isInteger(x.activeMemories) || !Number.isInteger(x.events)) process.exit(1);
             console.log(JSON.stringify({ok:true,bridge:x.service,activeMemories:x.activeMemories,events:x.events}));
           '
+
+          # Prove the full memory lifecycle against disposable state. This must never
+          # mutate or print owner memory.
+          tmp_state="$(mktemp -d)"
+          trap 'rm -rf "$tmp_state"' EXIT
+          THREEDVR_ORGANISM_DIR="$tmp_state" "$node_bin" - "$repo/apps/agent/thomas-agent/node/digital-organism.js" <<'NODE'
+          const assert = require('node:assert/strict');
+          const organism = require(process.argv[2]);
+
+          (async () => {
+            const seed = await organism.remember('synthetic health probe alpha', {
+              kind: 'health-probe',
+              subject: 'synthetic lifecycle',
+              sourceType: 'health-check',
+              sourceId: 'synthetic-v1'
+            });
+            const firstHits = await organism.recall('health probe alpha', { limit: 5 });
+            assert(firstHits.some(hit => hit.memory.id === seed.id));
+
+            const replacement = await organism.correct(seed.id, 'synthetic health probe beta');
+            const active = organism.replayMemories(await organism.loadEvents());
+            assert(!active.some(memory => memory.id === seed.id));
+            assert(active.some(memory => memory.id === replacement.id && memory.content.includes('beta')));
+
+            const secondHits = await organism.recall('health probe beta', { limit: 5 });
+            assert(secondHits.some(hit => hit.memory.id === replacement.id));
+            process.stdout.write(JSON.stringify({ ok: true, lifecycle: 'remember-retrieve-correct-retrieve' }) + '\n');
+          })().catch(error => {
+            console.error(error?.message || error);
+            process.exit(1);
+          });
+          NODE
           REMOTE
 
       - name: Remove SSH key
