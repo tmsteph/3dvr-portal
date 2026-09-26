@@ -1,8 +1,22 @@
 {
   "ok": true,
-  "checkedAt": "2026-09-26T23:34:40Z",
+  "checkedAt": "2026-09-26T23:35:32Z",
   "page": {
-    "ok": false,
-    "error": "cdp-http-timeout"
+    "ok": true,
+    "url": "https://lighthouse2.psav.com/schedule/loc/9036/asOf/2026-09-21",
+    "title": "Lighthouse",
+    "body": "9036-Manchester Grand Hyatt San Diego",
+    "controls": [
+      {
+        "tag": "A",
+        "type": "",
+        "text": "",
+        "id": "",
+        "name": "",
+        "aria": "",
+        "href": "https://lighthouse2.psav.com/",
+        "disabled": false
+      }
+    ]
   }
 }
