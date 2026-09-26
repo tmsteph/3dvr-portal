@@ -2065,7 +2065,10 @@ async function callProvider(provider, payload) {
 
 function isProviderAuthorizationError(error) {
   const status = Number(error?.status) || 0;
-  return status === 401 || status === 403;
+  // A 401 means the access token is no longer usable. A 403 can also mean
+  // quota, scope, policy, or resource permission problems, so keep the saved
+  // refresh token instead of forcing the user through OAuth again.
+  return status === 401;
 }
 
 function getSelectedProvider() {

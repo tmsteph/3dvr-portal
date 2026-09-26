@@ -151,12 +151,13 @@ test('calendar OAuth returns to the standalone origin and stores the result ther
   assert.match(js, /popup: true/);
 });
 
-test('calendar invalidates stale provider auth instead of claiming it is connected', async () => {
+test('calendar only invalidates provider auth on 401 and preserves connections on 403', async () => {
   const js = await readFile(new URL('../calendar/calendar.js', import.meta.url), 'utf8');
 
   assert.match(js, /error\.status = response\.status/);
   assert.match(js, /function isProviderAuthorizationError\(error\)/);
-  assert.match(js, /status === 401 \|\| status === 403/);
+  assert.match(js, /return status === 401;/);
+  assert.doesNotMatch(js, /status === 401 \|\| status === 403/);
   assert.match(js, /function invalidateProviderConnection\(provider, message = ''\)/);
   assert.match(js, /needs to be reconnected before calendar events can sync/);
 });
