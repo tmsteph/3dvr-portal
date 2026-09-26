@@ -1,28 +1,44 @@
 {
   "ok": true,
-  "found": false,
-  "baseUrl": "https://n21.ultipro.com/default.aspx",
-  "navigation": [
+  "lanes": [
     {
-      "i": 6,
-      "tag": "A",
-      "text": "Inbox",
-      "href": "https://n21.ultipro.com/Home.aspx#",
-      "onclick": "recentlyVisitedSelect('/pages/VIEW/EeRequestInbox.aspx?USParams=PK=CORE!MenuID=74!PageRerId=74!ParentRerId=73&skipInboxBetaRedir=1','74','74','74', false, false, 'Inbox', true)"
+      "lane": "general",
+      "state": "active",
+      "memoryBytes": 820969472,
+      "lease": "lane=general state=leased owner=manual-workforce-probe expires=1790465184 remaining=547s"
+    },
+    {
+      "lane": "identity",
+      "state": "inactive",
+      "memoryBytes": 0,
+      "lease": ""
+    },
+    {
+      "lane": "encore",
+      "state": "active",
+      "memoryBytes": 475131904,
+      "lease": "lane=encore state=free"
+    },
+    {
+      "lane": "messaging",
+      "state": "active",
+      "memoryBytes": 591138816,
+      "lease": "lane=messaging state=free"
+    },
+    {
+      "lane": "training",
+      "state": "inactive",
+      "memoryBytes": 0,
+      "lease": "lane=training state=free"
     }
   ],
-  "visited": [
-    {
-      "label": "Inbox",
-      "url": "https://n21.ultipro.com/Home.aspx#",
-      "matches": []
-    }
-  ],
-  "relevant": [
-    "Sys.WebForms.PageRequestManager._initialize('scm', 'form1', [], [], [], 90, '');"
-  ],
-  "requestId": "ukg-timeoff-status-20260922T0720Z",
-  "action": "ukg_timeoff_status",
+  "host": {
+    "memAvailableMb": 2742,
+    "load1": 4.63,
+    "cpus": 4
+  },
+  "requestId": "browser-lane-status-20260926T2318Z",
+  "action": "browser_lane_status",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-22T07:20:40Z"
+  "checkedAt": "2026-09-26T23:17:18Z"
 }
