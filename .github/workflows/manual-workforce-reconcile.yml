@@ -61,7 +61,7 @@ jobs:
           done
           exit 1
 
-      - name: Inspect live workforce browser state
+      - name: Recover SharePoint and test Lighthouse
         shell: bash
         env:
           HETZNER_USER: ${{ steps.ssh.outputs.user }}
@@ -74,17 +74,38 @@ jobs:
           ssh_opts=(-o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8)
           ssh "${ssh_opts[@]}" 3dvr-ovh 'bash -s' <<'OVH'
           set -u
-          targets="$(curl -fsS --max-time 5 http://127.0.0.1:9222/json/list 2>/dev/null || printf '[]')"
-          safe_targets="$(jq -c '[.[] | select(.type=="page") | {title:(.title//""),url:(.url//"")}]' <<<"$targets" 2>/dev/null || printf '[]')"
+          probe=/tmp/browser-url-probe.cjs
+          curl -fsSL --retry 3 --retry-delay 1             https://raw.githubusercontent.com/tmsteph/3dvr-portal/main/scripts/ops/browser-url-probe.cjs             -o "$probe"
 
-          probe=/tmp/iatse-availability-probe.cjs
-          curl -fsSL --retry 3 --retry-delay 1             https://raw.githubusercontent.com/tmsteph/3dvr-portal/main/scripts/ops/iatse-availability-probe.cjs             -o "$probe"
-          iatse="$(timeout 35s node "$probe" 2>&1 || true)"
-          if ! jq -e . >/dev/null 2>&1 <<<"$iatse"; then
-            iatse="$(jq -n --arg raw "$(printf '%s' "$iatse" | head -c 3000)"               '{ok:false,error:"iatse-probe-invalid-json",output:$raw}')"
+          token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general manual-sharepoint-recover 180 2>/dev/null || true)"
+          if [ -n "$token" ]; then
+            sharepoint="$(timeout 35s node "$probe" https://psav.sharepoint.com/ 2>&1 || true)"
+            sudo -n /usr/local/bin/3dvr-browser-lease release general "$token" >/dev/null 2>&1 || true
+          else
+            sharepoint='{"ok":false,"error":"general-lane-busy"}'
+          fi
+          if ! jq -e . >/dev/null 2>&1 <<<"$sharepoint"; then
+            sharepoint="$(jq -n --arg raw "$(printf '%s' "$sharepoint" | head -c 5000)"               '{ok:false,error:"sharepoint-probe-invalid-json",output:$raw}')"
           fi
 
-          jq -n             --arg checkedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)"             --argjson targets "$safe_targets"             --argjson iatse "$iatse"             '{ok:true,checkedAt:$checkedAt,targets:$targets,iatse:$iatse}'
+          tmp="$(mktemp)"
+          timeout 55s 3dvr-browser-login lighthouse >"$tmp" 2>&1
+          code=$?
+          lighthouse_login="$(jq -n --arg code "$code" --arg output "$(head -c 3500 "$tmp")"             '{exitCode:($code|tonumber),output:$output}')"
+          rm -f "$tmp"
+
+          tmp="$(mktemp)"
+          timeout 40s 3dvr-lighthouse-schedule 2026-09-26 >"$tmp" 2>&1
+          code=$?
+          out="$(cat "$tmp")"
+          if [ "$code" -eq 0 ] && jq -e . >/dev/null 2>&1 <<<"$out"; then
+            schedule="$(jq -n --argjson data "$out" '{status:"success",data:$data}')"
+          else
+            schedule="$(jq -n --arg code "$code" --arg output "$(head -c 3500 "$tmp")"               '{status:"failed",exitCode:($code|tonumber),output:$output}')"
+          fi
+          rm -f "$tmp"
+
+          jq -n             --arg checkedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)"             --argjson sharepoint "$sharepoint"             --argjson lighthouseLogin "$lighthouse_login"             --argjson schedule "$schedule"             '{ok:true,checkedAt:$checkedAt,sharepoint:$sharepoint,lighthouseLogin:$lighthouseLogin,schedule:$schedule}'
           OVH
           REMOTE
           jq -e . /tmp/workforce-result.json >/dev/null
@@ -99,21 +120,20 @@ jobs:
           if [ -s /tmp/workforce-result.json ] && jq -e . /tmp/workforce-result.json >/dev/null 2>&1; then
             cp /tmp/workforce-result.json /tmp/result.json
           else
-            printf '%s\n' '{"ok":false,"error":"workforce inspection failed"}' > /tmp/result.json
+            printf '%s\n' '{"ok":false,"error":"workforce recovery failed"}' > /tmp/result.json
           fi
           url="https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/control/workforce-reconcile-result.json"
           sha="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$url" 2>/dev/null | jq -r '.sha // empty' || true)"
           RESULT_SHA="$sha" python3 - <<'PY' > /tmp/payload.json
           import base64, json, os
           content = base64.b64encode(open('/tmp/result.json','rb').read()).decode()
-          payload = {"message":"Record workforce browser inspection","content":content,"branch":"main"}
+          payload = {"message":"Record workforce recovery result","content":content,"branch":"main"}
           sha = os.environ.get("RESULT_SHA","").strip()
           if sha:
               payload["sha"] = sha
           print(json.dumps(payload))
           PY
-          curl -fsS -X PUT -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' "$url" --data-binary @/tmp/payload.json >/dev/null
+          curl -fsS -X PUT -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json'             -H 'X-GitHub-Api-Version: 2022-11-28' "$url" --data-binary @/tmp/payload.json >/dev/null
 
       - name: Remove SSH keys
         if: always()
