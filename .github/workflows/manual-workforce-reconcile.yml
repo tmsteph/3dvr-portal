@@ -71,78 +71,109 @@ jobs:
           set -euo pipefail
           opts=(-i "$HETZNER_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
           ssh "${opts[@]}" "$HETZNER_USER@$HETZNER_HOST" bash -s > /tmp/workforce-result.json <<'REMOTE'
-          set -euo pipefail
+          set -u
           ssh_opts=(-o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8)
-          ovh() { ssh "${ssh_opts[@]}" 3dvr-ovh "$@"; }
-          ovh 'bash -s' <<'OVH'
-          set -euo pipefail
-          cd /opt/3dvr-portal-production/current
+          ssh "${ssh_opts[@]}" 3dvr-ovh 'bash -s' <<'OVH'
+          set -u
+          cd /opt/3dvr-portal-production/current || exit 1
 
-          lh_login="$(3dvr-browser-login lighthouse 2>&1 || true)"
-          ia_login="$(3dvr-browser-login iatse 2>&1 || true)"
+          safe_run() {
+            local label="$1"; shift
+            local tmp
+            tmp="$(mktemp)"
+            if timeout 55s "$@" >"$tmp" 2>&1; then
+              jq -n --arg label "$label" --arg status success --arg output "$(head -c 2500 "$tmp")" '{label:$label,status:$status,output:$output}'
+            else
+              code=$?
+              jq -n --arg label "$label" --arg status failed --arg code "$code" --arg output "$(head -c 2500 "$tmp")" '{label:$label,status:$status,exitCode:($code|tonumber),output:$output}'
+            fi
+            rm -f "$tmp"
+          }
+
+          lh_login="$(safe_run lighthouse_login 3dvr-browser-login lighthouse)"
+          ia_login="$(safe_run iatse_login 3dvr-browser-login iatse)"
 
           schedules='[]'
           for d in 2026-09-26 2026-10-03 2026-10-10 2026-10-17; do
-            out="$(3dvr-lighthouse-schedule "$d" 2>/dev/null || true)"
-            if jq -e . >/dev/null 2>&1 <<<"$out"; then
-              schedules="$(jq -c --arg d "$d" --argjson x "$out" '. + [{asOf:$d,data:$x}]' <<<"$schedules")"
+            tmp="$(mktemp)"
+            if timeout 35s 3dvr-lighthouse-schedule "$d" >"$tmp" 2>&1; then
+              out="$(cat "$tmp")"
+              if jq -e . >/dev/null 2>&1 <<<"$out"; then
+                schedules="$(jq -c --arg d "$d" --argjson x "$out" '. + [{asOf:$d,status:"success",data:$x}]' <<<"$schedules")"
+              else
+                schedules="$(jq -c --arg d "$d" --arg raw "$(head -c 2500 "$tmp")" '. + [{asOf:$d,status:"invalid_json",output:$raw}]' <<<"$schedules")"
+              fi
             else
-              schedules="$(jq -c --arg d "$d" --arg raw "$(printf '%s' "$out" | head -c 500)" '. + [{asOf:$d,error:$raw}]' <<<"$schedules")"
+              code=$?
+              schedules="$(jq -c --arg d "$d" --arg code "$code" --arg raw "$(head -c 2500 "$tmp")" '. + [{asOf:$d,status:"failed",exitCode:($code|tonumber),output:$raw}]' <<<"$schedules")"
             fi
+            rm -f "$tmp"
           done
 
-          token=""
-          cleanup() {
-            [ -n "$token" ] && sudo -n /usr/local/bin/3dvr-browser-lease release general "$token" >/dev/null 2>&1 || true
-          }
-          trap cleanup EXIT INT TERM
-          token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general manual-workforce-probe 600)"
+          targets="$(curl -fsS --max-time 5 http://127.0.0.1:9222/json/list 2>/dev/null || printf '[]')"
+          ws="$(jq -r '[.[] | select(.type=="page" and (.url|test("member\\.iatse\\.io")))][0].webSocketDebuggerUrl // empty' <<<"$targets" 2>/dev/null || true)"
+          iatse='{"status":"target_missing"}'
+          if [ -n "$ws" ]; then
+            iatse="$(WS_URL="$ws" timeout 25s node - <<'NODE' 2>/dev/null || true
+const url = process.env.WS_URL;
+let ws, nextId = 1;
+const pending = new Map();
+function call(method, params={}) {
+  return new Promise((resolve,reject)=>{
+    const id=nextId++;
+    const timer=setTimeout(()=>{pending.delete(id);reject(new Error('cdp-timeout'))},8000);
+    pending.set(id,msg=>{clearTimeout(timer);resolve(msg)});
+    ws.send(JSON.stringify({id,method,params}));
+  });
+}
+(async()=>{
+  ws=new WebSocket(url);
+  await new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>reject(new Error('ws-timeout')),8000);
+    ws.onopen=()=>{clearTimeout(timer);resolve()};
+    ws.onerror=e=>{clearTimeout(timer);reject(e)};
+  });
+  ws.onmessage=event=>{
+    let msg; try{msg=JSON.parse(String(event.data||''))}catch{return}
+    const done=pending.get(msg.id); if(done){pending.delete(msg.id);done(msg)}
+  };
+  const expression = `(() => {
+    const clean = s => (s || '').replace(/\\s+/g,' ').trim();
+    const body = clean(document.body?.innerText || '').slice(0,24000);
+    const controls = [...document.querySelectorAll('button,a,input,select,option,[role="button"],[role="checkbox"],[role="radio"],[role="combobox"]')]
+      .map((el,i)=>({
+        i,
+        tag:el.tagName,
+        type:el.getAttribute('type')||'',
+        role:el.getAttribute('role')||'',
+        text:clean(el.innerText||el.textContent||el.value||el.getAttribute('aria-label')||'').slice(0,260),
+        name:el.getAttribute('name')||'',
+        id:el.id||'',
+        cls:String(el.className||'').slice(0,260),
+        value:el.value||el.getAttribute('value')||'',
+        checked:!!el.checked,
+        disabled:!!el.disabled,
+        href:el.href||'',
+        title:el.getAttribute('title')||'',
+        aria:el.getAttribute('aria-label')||'',
+        parent:clean(el.parentElement?.innerText||'').slice(0,400)
+      }))
+      .filter(x=>x.text||x.name||x.id||x.value||x.href||x.title||x.aria);
+    return {status:'success',url:location.href,title:document.title,body,controls:controls.slice(0,700)};
+  })()`;
+  const msg=await call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});
+  if(msg.result?.exceptionDetails) throw new Error('browser-evaluation-failed');
+  process.stdout.write(JSON.stringify(msg.result?.result?.value || {status:'empty'}));
+  try{ws.close()}catch{}
+})().catch(e=>process.stdout.write(JSON.stringify({status:'failed',error:String(e.message||e)})));
+NODE
+)"
+            if ! jq -e . >/dev/null 2>&1 <<<"$iatse"; then
+              iatse="$(jq -n --arg raw "$(printf '%s' "$iatse" | head -c 2500)" '{status:"invalid_json",output:$raw}')"
+            fi
+          fi
 
-          puppeteer_core="$(find /home/debian/.npm/_npx -type f -path '*/puppeteer-core/lib/puppeteer/puppeteer-core.js' -print -quit 2>/dev/null || true)"
-          [ -n "$puppeteer_core" ] && [ -f "$puppeteer_core" ]
-
-          iatse="$(PUPPETEER_CORE_PATH="$puppeteer_core" node - <<'NODE'
-          const puppeteer=require(process.env.PUPPETEER_CORE_PATH);
-          (async()=>{
-            const browser=await puppeteer.connect({browserURL:'http://127.0.0.1:9222'});
-            let pages=await browser.pages();
-            let page=pages.find(p=>/member\.iatse\.io\/avail/.test(p.url())) || pages.find(p=>/member\.iatse\.io/.test(p.url()));
-            if(!page) page=await browser.newPage();
-            if(!/member\.iatse\.io\/avail/.test(page.url())){
-              await page.goto('https://member.iatse.io/avail',{waitUntil:'domcontentloaded',timeout:30000});
-              await new Promise(r=>setTimeout(r,1800));
-            }
-            const data=await page.evaluate(()=>{
-              const clean=s=>(s||'').replace(/\s+/g,' ').trim();
-              const body=clean(document.body?.innerText||'').slice(0,18000);
-              const controls=[...document.querySelectorAll('button,a,input,select,[role="button"],[role="checkbox"],[role="radio"]')]
-                .map((el,i)=>({
-                  i,
-                  tag:el.tagName,
-                  type:el.getAttribute('type')||'',
-                  role:el.getAttribute('role')||'',
-                  text:clean(el.innerText||el.textContent||el.value||el.getAttribute('aria-label')||'').slice(0,240),
-                  name:el.getAttribute('name')||'',
-                  id:el.id||'',
-                  cls:String(el.className||'').slice(0,240),
-                  value:el.value||el.getAttribute('value')||'',
-                  checked:!!el.checked,
-                  disabled:!!el.disabled,
-                  href:el.href||'',
-                  title:el.getAttribute('title')||'',
-                  aria:el.getAttribute('aria-label')||'',
-                  data:[...el.attributes].filter(a=>a.name.startsWith('data-')).reduce((o,a)=>(o[a.name]=a.value,o),{})
-                }))
-                .filter(x=>x.text||x.name||x.id||x.value||x.href||x.title||x.aria);
-              return {url:location.href,title:document.title,body,controls:controls.slice(0,500)};
-            });
-            await browser.disconnect();
-            process.stdout.write(JSON.stringify(data));
-          })().catch(e=>{process.stdout.write(JSON.stringify({error:String(e.message||e)}));process.exitCode=1});
-          NODE
-          )"
-
-          jq -n             --arg checkedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)"             --arg lighthouseLogin "$(printf '%s' "$lh_login" | head -c 1200)"             --arg iatseLogin "$(printf '%s' "$ia_login" | head -c 1200)"             --argjson schedules "$schedules"             --argjson iatse "$iatse"             '{ok:true,checkedAt:$checkedAt,lighthouseLogin:$lighthouseLogin,iatseLogin:$iatseLogin,schedules:$schedules,iatse:$iatse}'
+          jq -n             --arg checkedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)"             --argjson lighthouseLogin "$lh_login"             --argjson iatseLogin "$ia_login"             --argjson schedules "$schedules"             --argjson iatse "$iatse"             '{ok:true,checkedAt:$checkedAt,lighthouseLogin:$lighthouseLogin,iatseLogin:$iatseLogin,schedules:$schedules,iatse:$iatse}'
           OVH
           REMOTE
           jq -e . /tmp/workforce-result.json >/dev/null
