@@ -1,11 +1,11 @@
 {
   "ok": true,
-  "checkedAt": "2026-09-26T23:35:32Z",
+  "checkedAt": "2026-09-26T23:36:26Z",
   "page": {
     "ok": true,
     "url": "https://lighthouse2.psav.com/schedule/loc/9036/asOf/2026-09-21",
     "title": "Lighthouse",
-    "body": "9036-Manchester Grand Hyatt San Diego",
+    "body": "9036-Manchester Grand Hyatt San Diego 1000",
     "controls": [
       {
         "tag": "A",
