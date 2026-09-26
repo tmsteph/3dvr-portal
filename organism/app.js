@@ -9,6 +9,28 @@ const button = document.getElementById('askButton');
 const state = document.getElementById('state');
 const results = document.getElementById('results');
 const identity = document.getElementById('identity');
+const serviceStatus = document.getElementById('serviceStatus');
+
+function setServiceStatus(message, tone = '') {
+  if (!serviceStatus) return;
+  serviceStatus.textContent = message;
+  serviceStatus.classList.remove('ok', 'warn');
+  if (tone) serviceStatus.classList.add(tone);
+}
+
+async function refreshServiceStatus() {
+  setServiceStatus('Checking memory mesh…');
+  try {
+    const response = await fetch('/__3dvr-health', { cache: 'no-store' });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok || data.organismRecall !== 'signed-owner') {
+      throw new Error('Organism bridge is not ready.');
+    }
+    setServiceStatus('Memory bridge ready', 'ok');
+  } catch {
+    setServiceStatus('Memory bridge unverified', 'warn');
+  }
+}
 
 function signedInIdentity() {
   const signedIn = globalThis.localStorage?.getItem?.('signedIn') === 'true';
@@ -164,4 +186,5 @@ form.addEventListener('submit', async event => {
   }
 });
 
+refreshServiceStatus();
 refreshIdentity();
