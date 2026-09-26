@@ -54,14 +54,14 @@ class Cdp {
 }
 (async()=>{
   const created=await httpJson('/json/new?'+encodeURIComponent(targetUrl),'PUT');
-  await sleep(3500);
+  await sleep(10000);
   const targets=await httpJson('/json/list');
   let target=targets.find(t=>t.id===created.id)
     || targets.find(t=>t.type==='page' && String(t.url||'').startsWith(new URL(targetUrl).origin));
   if(!target?.webSocketDebuggerUrl) throw new Error('target-unavailable');
   const cdp=await new Cdp(target.webSocketDebuggerUrl).connect();
   try{
-    await sleep(1000);
+    await sleep(2500);
     const result=await cdp.eval(`(() => {
       const clean=s=>(s||'').replace(/\\s+/g,' ').trim();
       const redact=s=>clean(s)
