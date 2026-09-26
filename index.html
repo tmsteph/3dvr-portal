@@ -645,6 +645,7 @@
         if (spinnerPointer?.pointerId !== event.pointerId) return;
         clearSpinnerHold();
         spinnerPointer = null;
+        toggleSpinnerNav();
       });
 
       spinner?.addEventListener('pointercancel', () => {
