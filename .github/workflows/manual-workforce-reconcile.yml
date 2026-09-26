@@ -19,7 +19,7 @@ env:
 jobs:
   reconcile:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -47,7 +47,7 @@ jobs:
           done
           exit 1
 
-      - name: Inspect Lighthouse login
+      - name: Read Lighthouse My Schedule
         shell: bash
         env:
           HETZNER_USER: ${{ steps.ssh.outputs.user }}
@@ -59,24 +59,20 @@ jobs:
           ssh_opts=(-o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8)
           ssh "${ssh_opts[@]}" 3dvr-ovh 'bash -s' <<'OVH'
           set -u
-          sudo -n systemctl restart 3dvr-browser-lane@general.service
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            curl -fsS --max-time 2 http://127.0.0.1:9222/json/version >/dev/null 2>&1 && break
-            sleep 2
+          schedules='[]'
+          for d in 2026-09-21 2026-09-28 2026-10-05 2026-10-12 2026-10-19 2026-10-26; do
+            tmp="$(mktemp)"
+            timeout 40s 3dvr-lighthouse-schedule "$d" >"$tmp" 2>&1
+            code=$?
+            out="$(cat "$tmp")"
+            if [ "$code" -eq 0 ] && jq -e . >/dev/null 2>&1 <<<"$out"; then
+              schedules="$(jq -c --arg d "$d" --argjson x "$out"                 '. + [{asOf:$d,status:"success",data:$x}]' <<<"$schedules")"
+            else
+              schedules="$(jq -c --arg d "$d" --arg code "$code" --arg raw "$(head -c 2500 "$tmp")"                 '. + [{asOf:$d,status:"failed",exitCode:($code|tonumber),output:$raw}]' <<<"$schedules")"
+            fi
+            rm -f "$tmp"
           done
-          probe=/tmp/browser-url-probe.cjs
-          curl -fsSL --retry 3 --retry-delay 1             https://raw.githubusercontent.com/tmsteph/3dvr-portal/main/scripts/ops/browser-url-probe.cjs             -o "$probe"
-          token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general manual-lighthouse-inspect 120 2>/dev/null || true)"
-          if [ -n "$token" ]; then
-            lighthouse="$(timeout 35s node "$probe" https://lighthouse2.psav.com/login 2>&1 || true)"
-            sudo -n /usr/local/bin/3dvr-browser-lease release general "$token" >/dev/null 2>&1 || true
-          else
-            lighthouse='{"ok":false,"error":"general-lane-busy"}'
-          fi
-          if ! jq -e . >/dev/null 2>&1 <<<"$lighthouse"; then
-            lighthouse="$(jq -n --arg raw "$(printf '%s' "$lighthouse" | head -c 7000)"               '{ok:false,error:"lighthouse-probe-invalid-json",output:$raw}')"
-          fi
-          jq -n --arg checkedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson lighthouse "$lighthouse"             '{ok:true,checkedAt:$checkedAt,lighthouse:$lighthouse}'
+          jq -n --arg checkedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson schedules "$schedules"             '{ok:true,checkedAt:$checkedAt,schedules:$schedules}'
           OVH
           REMOTE
           jq -e . /tmp/workforce-result.json >/dev/null
@@ -91,14 +87,14 @@ jobs:
           if [ -s /tmp/workforce-result.json ] && jq -e . /tmp/workforce-result.json >/dev/null 2>&1; then
             cp /tmp/workforce-result.json /tmp/result.json
           else
-            printf '%s\n' '{"ok":false,"error":"lighthouse inspection failed"}' > /tmp/result.json
+            printf '%s\n' '{"ok":false,"error":"Lighthouse schedule read failed"}' > /tmp/result.json
           fi
           url="https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/control/workforce-reconcile-result.json"
           sha="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$url" 2>/dev/null | jq -r '.sha // empty' || true)"
           RESULT_SHA="$sha" python3 - <<'PY' > /tmp/payload.json
           import base64, json, os
           content = base64.b64encode(open('/tmp/result.json','rb').read()).decode()
-          payload = {"message":"Record Lighthouse login inspection","content":content,"branch":"main"}
+          payload = {"message":"Record Lighthouse schedule read","content":content,"branch":"main"}
           sha = os.environ.get("RESULT_SHA","").strip()
           if sha:
               payload["sha"] = sha
