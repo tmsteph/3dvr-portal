@@ -101,11 +101,19 @@ jobs:
           else
             printf '%s\n' '{"ok":false,"error":"workforce inspection failed"}' > /tmp/result.json
           fi
-          content="$(base64 -w0 /tmp/result.json)"
           url="https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/control/workforce-reconcile-result.json"
           sha="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$url" 2>/dev/null | jq -r '.sha // empty' || true)"
-          jq -n --arg message "Record workforce browser inspection" --arg content "$content" --arg sha "$sha"             '{message:$message,content:$content,branch:"main"} + (if $sha=="" then {} else {sha:$sha} end)' > /tmp/payload.json
-          curl -fsS -X PUT -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json'             -H 'X-GitHub-Api-Version: 2022-11-28' "$url" --data-binary @/tmp/payload.json >/dev/null
+          RESULT_SHA="$sha" python3 - <<'PY' > /tmp/payload.json
+          import base64, json, os
+          content = base64.b64encode(open('/tmp/result.json','rb').read()).decode()
+          payload = {"message":"Record workforce browser inspection","content":content,"branch":"main"}
+          sha = os.environ.get("RESULT_SHA","").strip()
+          if sha:
+              payload["sha"] = sha
+          print(json.dumps(payload))
+          PY
+          curl -fsS -X PUT -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' "$url" --data-binary @/tmp/payload.json >/dev/null
 
       - name: Remove SSH keys
         if: always()
