@@ -1,42 +1,8 @@
 {
   "ok": true,
-  "checkedAt": "2026-09-26T23:32:48Z",
-  "schedules": [
-    {
-      "asOf": "2026-09-21",
-      "status": "failed",
-      "exitCode": 1,
-      "output": "{\"ok\":false,\"error\":\"lighthouse-schedule-resource-missing\"}"
-    },
-    {
-      "asOf": "2026-09-28",
-      "status": "failed",
-      "exitCode": 1,
-      "output": "{\"ok\":false,\"error\":\"lighthouse-schedule-resource-missing\"}"
-    },
-    {
-      "asOf": "2026-10-05",
-      "status": "failed",
-      "exitCode": 1,
-      "output": "{\"ok\":false,\"error\":\"lighthouse-schedule-resource-missing\"}"
-    },
-    {
-      "asOf": "2026-10-12",
-      "status": "failed",
-      "exitCode": 1,
-      "output": "{\"ok\":false,\"error\":\"lighthouse-schedule-resource-missing\"}"
-    },
-    {
-      "asOf": "2026-10-19",
-      "status": "failed",
-      "exitCode": 1,
-      "output": "{\"ok\":false,\"error\":\"lighthouse-schedule-resource-missing\"}"
-    },
-    {
-      "asOf": "2026-10-26",
-      "status": "failed",
-      "exitCode": 1,
-      "output": "{\"ok\":false,\"error\":\"lighthouse-schedule-resource-missing\"}"
-    }
-  ]
+  "checkedAt": "2026-09-26T23:34:40Z",
+  "page": {
+    "ok": false,
+    "error": "cdp-http-timeout"
+  }
 }
