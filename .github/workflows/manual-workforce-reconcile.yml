@@ -1,0 +1,170 @@
+name: Manual Workforce Reconcile
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/control/workforce-reconcile-request.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: workforce-reconcile
+  cancel-in-progress: true
+
+env:
+  HETZNER_HOST: 167.233.174.20
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve Hetzner SSH access
+        id: ssh
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"; return 0
+            fi
+            chmod 600 "$dest"; rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/3dvr-a
+          write_key "$SSH_B" /tmp/3dvr-b
+          write_key "$SSH_C" /tmp/3dvr-c
+          for user in root debian ubuntu tmsteph; do
+            for key in /tmp/3dvr-a /tmp/3dvr-b /tmp/3dvr-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$HETZNER_HOST" true >/dev/null 2>&1; then
+                echo "user=$user" >> "$GITHUB_OUTPUT"
+                echo "key=$key" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+          done
+          echo 'No configured SSH key can reach Hetzner.' >&2
+          exit 1
+
+      - name: Probe Lighthouse and IATSE
+        shell: bash
+        env:
+          HETZNER_USER: ${{ steps.ssh.outputs.user }}
+          HETZNER_KEY: ${{ steps.ssh.outputs.key }}
+        run: |
+          set -euo pipefail
+          opts=(-i "$HETZNER_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$HETZNER_USER@$HETZNER_HOST" bash -s > /tmp/workforce-result.json <<'REMOTE'
+          set -euo pipefail
+          ssh_opts=(-o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8)
+          ovh() { ssh "${ssh_opts[@]}" 3dvr-ovh "$@"; }
+          ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          cd /opt/3dvr-portal-production/current
+
+          lh_login="$(3dvr-browser-login lighthouse 2>&1 || true)"
+          ia_login="$(3dvr-browser-login iatse 2>&1 || true)"
+
+          schedules='[]'
+          for d in 2026-09-26 2026-10-03 2026-10-10 2026-10-17; do
+            out="$(3dvr-lighthouse-schedule "$d" 2>/dev/null || true)"
+            if jq -e . >/dev/null 2>&1 <<<"$out"; then
+              schedules="$(jq -c --arg d "$d" --argjson x "$out" '. + [{asOf:$d,data:$x}]' <<<"$schedules")"
+            else
+              schedules="$(jq -c --arg d "$d" --arg raw "$(printf '%s' "$out" | head -c 500)" '. + [{asOf:$d,error:$raw}]' <<<"$schedules")"
+            fi
+          done
+
+          token=""
+          cleanup() {
+            [ -n "$token" ] && sudo -n /usr/local/bin/3dvr-browser-lease release general "$token" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT INT TERM
+          token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general manual-workforce-probe 600)"
+
+          puppeteer_core="$(find /home/debian/.npm/_npx -type f -path '*/puppeteer-core/lib/puppeteer/puppeteer-core.js' -print -quit 2>/dev/null || true)"
+          [ -n "$puppeteer_core" ] && [ -f "$puppeteer_core" ]
+
+          iatse="$(PUPPETEER_CORE_PATH="$puppeteer_core" node - <<'NODE'
+          const puppeteer=require(process.env.PUPPETEER_CORE_PATH);
+          (async()=>{
+            const browser=await puppeteer.connect({browserURL:'http://127.0.0.1:9222'});
+            let pages=await browser.pages();
+            let page=pages.find(p=>/member\.iatse\.io\/avail/.test(p.url())) || pages.find(p=>/member\.iatse\.io/.test(p.url()));
+            if(!page) page=await browser.newPage();
+            if(!/member\.iatse\.io\/avail/.test(page.url())){
+              await page.goto('https://member.iatse.io/avail',{waitUntil:'domcontentloaded',timeout:30000});
+              await new Promise(r=>setTimeout(r,1800));
+            }
+            const data=await page.evaluate(()=>{
+              const clean=s=>(s||'').replace(/\s+/g,' ').trim();
+              const body=clean(document.body?.innerText||'').slice(0,18000);
+              const controls=[...document.querySelectorAll('button,a,input,select,[role="button"],[role="checkbox"],[role="radio"]')]
+                .map((el,i)=>({
+                  i,
+                  tag:el.tagName,
+                  type:el.getAttribute('type')||'',
+                  role:el.getAttribute('role')||'',
+                  text:clean(el.innerText||el.textContent||el.value||el.getAttribute('aria-label')||'').slice(0,240),
+                  name:el.getAttribute('name')||'',
+                  id:el.id||'',
+                  cls:String(el.className||'').slice(0,240),
+                  value:el.value||el.getAttribute('value')||'',
+                  checked:!!el.checked,
+                  disabled:!!el.disabled,
+                  href:el.href||'',
+                  title:el.getAttribute('title')||'',
+                  aria:el.getAttribute('aria-label')||'',
+                  data:[...el.attributes].filter(a=>a.name.startsWith('data-')).reduce((o,a)=>(o[a.name]=a.value,o),{})
+                }))
+                .filter(x=>x.text||x.name||x.id||x.value||x.href||x.title||x.aria);
+              return {url:location.href,title:document.title,body,controls:controls.slice(0,500)};
+            });
+            await browser.disconnect();
+            process.stdout.write(JSON.stringify(data));
+          })().catch(e=>{process.stdout.write(JSON.stringify({error:String(e.message||e)}));process.exitCode=1});
+          NODE
+          )"
+
+          jq -n             --arg checkedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)"             --arg lighthouseLogin "$(printf '%s' "$lh_login" | head -c 1200)"             --arg iatseLogin "$(printf '%s' "$ia_login" | head -c 1200)"             --argjson schedules "$schedules"             --argjson iatse "$iatse"             '{ok:true,checkedAt:$checkedAt,lighthouseLogin:$lighthouseLogin,iatseLogin:$iatseLogin,schedules:$schedules,iatse:$iatse}'
+          OVH
+          REMOTE
+          jq -e . /tmp/workforce-result.json >/dev/null
+
+      - name: Persist sanitized result
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ -s /tmp/workforce-result.json ] && jq -e . /tmp/workforce-result.json >/dev/null 2>&1; then
+            cp /tmp/workforce-result.json /tmp/result.json
+          else
+            printf '%s\n' '{"ok":false,"error":"workforce probe failed before a sanitized result was produced"}' > /tmp/result.json
+          fi
+          content="$(base64 -w0 /tmp/result.json)"
+          url="https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/control/workforce-reconcile-result.json"
+          sha="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$url" 2>/dev/null | jq -r '.sha // empty' || true)"
+          jq -n --arg message "Record manual workforce reconciliation result" --arg content "$content" --arg sha "$sha"             '{message:$message,content:$content,branch:"main"} + (if $sha=="" then {} else {sha:$sha} end)' > /tmp/payload.json
+          curl -fsS -X PUT -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "$url" --data-binary @/tmp/payload.json >/dev/null
+
+      - name: Remove SSH keys
+        if: always()
+        run: rm -f /tmp/3dvr-a /tmp/3dvr-b /tmp/3dvr-c /tmp/3dvr-*.raw
