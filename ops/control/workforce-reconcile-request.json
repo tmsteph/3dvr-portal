@@ -1,5 +1,5 @@
 {
-  "id": "manual-lighthouse-schedule-dom-20260927T0000Z",
-  "mode": "schedule_dom_wait",
-  "requestedAt": "2026-09-27T00:00:00Z"
+  "id": "manual-lighthouse-api-diag-20260927T0003Z",
+  "mode": "api_diag",
+  "requestedAt": "2026-09-27T00:03:00Z"
 }
