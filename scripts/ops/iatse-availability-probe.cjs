@@ -90,7 +90,7 @@ class Cdp {
   try {
     const result = await cdp.evaluate(`(() => {
       const clean = s => (s || '').replace(/\\s+/g, ' ').trim();
-      const body = clean(document.body?.innerText || '').slice(0, 30000);
+      const body = clean(document.body?.innerText || '').slice(0, 12000);
       const controls = [...document.querySelectorAll(
         'button,a,input,select,option,[role="button"],[role="checkbox"],[role="radio"],[role="combobox"]'
       )].map((el, i) => ({
@@ -108,16 +108,21 @@ class Cdp {
         href: el.href || '',
         title: el.getAttribute('title') || '',
         aria: el.getAttribute('aria-label') || '',
-        parent: clean(el.parentElement?.innerText || '').slice(0, 500),
-        grandparent: clean(el.parentElement?.parentElement?.innerText || '').slice(0, 700),
+        parent: clean(el.parentElement?.innerText || '').slice(0, 260),
       })).filter(x => x.text || x.name || x.id || x.value || x.href || x.title || x.aria);
+
+      const useful = controls.filter(x => {
+        const hay = [x.text,x.name,x.id,x.value,x.title,x.aria,x.parent].join(' ');
+        return /all day|already booked|not available|choose|available|availability|save|submit|calendar|date|day|september|october|november/i.test(hay)
+          || x.tag === 'SELECT' || x.tag === 'INPUT';
+      });
 
       return {
         ok: true,
         url: location.href,
         title: document.title,
         body,
-        controls: controls.slice(0, 900),
+        controls: useful.slice(0, 100),
       };
     })()`);
 
