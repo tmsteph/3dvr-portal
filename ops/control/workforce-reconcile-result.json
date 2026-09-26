@@ -1,8 +1,32 @@
 {
   "ok": true,
-  "checkedAt": "2026-09-26T23:29:35Z",
+  "checkedAt": "2026-09-26T23:30:51Z",
   "lighthouse": {
-    "ok": false,
-    "error": "cdp-http-timeout"
+    "ok": true,
+    "url": "https://lighthouse2.psav.com/flowsheets/loc/9036/asOf/2026-09-26",
+    "title": "Lighthouse",
+    "body": "9036-Manchester Grand Hyatt San Diego Flowsheets SEPTEMBER 2026 21 M 22 T 23 W 24 T 25 F 26 S 27 S Search Rooms Transfers Transfer Manifest",
+    "controls": [
+      {
+        "tag": "A",
+        "type": "",
+        "text": "",
+        "id": "",
+        "name": "",
+        "aria": "",
+        "href": "https://lighthouse2.psav.com/",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "type": "text",
+        "text": "",
+        "id": "",
+        "name": "search-field",
+        "aria": "",
+        "href": "",
+        "disabled": false
+      }
+    ]
   }
 }
