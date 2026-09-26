@@ -19,7 +19,7 @@ env:
 jobs:
   reconcile:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
 
@@ -42,11 +42,9 @@ jobs:
             elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
               :
             else
-              rm -f "$dest" "$dest.raw"
-              return 0
+              rm -f "$dest" "$dest.raw"; return 0
             fi
-            chmod 600 "$dest"
-            rm -f "$dest.raw"
+            chmod 600 "$dest"; rm -f "$dest.raw"
           }
           write_key "$SSH_A" /tmp/3dvr-a
           write_key "$SSH_B" /tmp/3dvr-b
@@ -61,10 +59,9 @@ jobs:
               fi
             done
           done
-          echo 'No configured SSH key can reach Hetzner.' >&2
           exit 1
 
-      - name: Probe Lighthouse and IATSE
+      - name: Inspect live workforce browser state
         shell: bash
         env:
           HETZNER_USER: ${{ steps.ssh.outputs.user }}
@@ -77,56 +74,17 @@ jobs:
           ssh_opts=(-o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8)
           ssh "${ssh_opts[@]}" 3dvr-ovh 'bash -s' <<'OVH'
           set -u
-          cd /opt/3dvr-portal-production/current || exit 1
-
-          run_capture() {
-            label="$1"
-            shift
-            tmp="$(mktemp)"
-            timeout 55s "$@" >"$tmp" 2>&1
-            code=$?
-            if [ "$code" -eq 0 ]; then
-              jq -n --arg label "$label" --arg output "$(head -c 2400 "$tmp")"                 '{label:$label,status:"success",output:$output}'
-            else
-              jq -n --arg label "$label" --arg code "$code" --arg output "$(head -c 2400 "$tmp")"                 '{label:$label,status:"failed",exitCode:($code|tonumber),output:$output}'
-            fi
-            rm -f "$tmp"
-            return 0
-          }
-
-          lh_login="$(run_capture lighthouse_login 3dvr-browser-login lighthouse)"
-          ia_login="$(run_capture iatse_login 3dvr-browser-login iatse)"
-
-          schedules='[]'
-          for d in 2026-09-26 2026-10-03 2026-10-10 2026-10-17; do
-            tmp="$(mktemp)"
-            timeout 40s 3dvr-lighthouse-schedule "$d" >"$tmp" 2>&1
-            code=$?
-            out="$(cat "$tmp")"
-            if [ "$code" -eq 0 ] && jq -e . >/dev/null 2>&1 <<<"$out"; then
-              schedules="$(jq -c --arg d "$d" --argjson x "$out"                 '. + [{asOf:$d,status:"success",data:$x}]' <<<"$schedules")"
-            else
-              schedules="$(jq -c --arg d "$d" --arg code "$code" --arg raw "$(head -c 2400 "$tmp")"                 '. + [{asOf:$d,status:"failed",exitCode:($code|tonumber),output:$raw}]' <<<"$schedules")"
-            fi
-            rm -f "$tmp"
-          done
+          targets="$(curl -fsS --max-time 5 http://127.0.0.1:9222/json/list 2>/dev/null || printf '[]')"
+          safe_targets="$(jq -c '[.[] | select(.type=="page") | {title:(.title//""),url:(.url//"")}]' <<<"$targets" 2>/dev/null || printf '[]')"
 
           probe=/tmp/iatse-availability-probe.cjs
           curl -fsSL --retry 3 --retry-delay 1             https://raw.githubusercontent.com/tmsteph/3dvr-portal/main/scripts/ops/iatse-availability-probe.cjs             -o "$probe"
-
-          token=""
-          token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general manual-workforce-probe 180 2>/dev/null || true)"
-          if [ -n "$token" ]; then
-            iatse="$(timeout 35s node "$probe" 2>&1 || true)"
-            sudo -n /usr/local/bin/3dvr-browser-lease release general "$token" >/dev/null 2>&1 || true
-          else
-            iatse='{"ok":false,"error":"general-lane-busy"}'
-          fi
+          iatse="$(timeout 35s node "$probe" 2>&1 || true)"
           if ! jq -e . >/dev/null 2>&1 <<<"$iatse"; then
-            iatse="$(jq -n --arg raw "$(printf '%s' "$iatse" | head -c 2400)"               '{ok:false,error:"iatse-probe-invalid-json",output:$raw}')"
+            iatse="$(jq -n --arg raw "$(printf '%s' "$iatse" | head -c 3000)"               '{ok:false,error:"iatse-probe-invalid-json",output:$raw}')"
           fi
 
-          jq -n             --arg checkedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)"             --argjson lighthouseLogin "$lh_login"             --argjson iatseLogin "$ia_login"             --argjson schedules "$schedules"             --argjson iatse "$iatse"             '{ok:true,checkedAt:$checkedAt,lighthouseLogin:$lighthouseLogin,iatseLogin:$iatseLogin,schedules:$schedules,iatse:$iatse}'
+          jq -n             --arg checkedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)"             --argjson targets "$safe_targets"             --argjson iatse "$iatse"             '{ok:true,checkedAt:$checkedAt,targets:$targets,iatse:$iatse}'
           OVH
           REMOTE
           jq -e . /tmp/workforce-result.json >/dev/null
@@ -141,12 +99,12 @@ jobs:
           if [ -s /tmp/workforce-result.json ] && jq -e . /tmp/workforce-result.json >/dev/null 2>&1; then
             cp /tmp/workforce-result.json /tmp/result.json
           else
-            printf '%s\n' '{"ok":false,"error":"workforce probe failed before a sanitized result was produced"}' > /tmp/result.json
+            printf '%s\n' '{"ok":false,"error":"workforce inspection failed"}' > /tmp/result.json
           fi
           content="$(base64 -w0 /tmp/result.json)"
           url="https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/control/workforce-reconcile-result.json"
           sha="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$url" 2>/dev/null | jq -r '.sha // empty' || true)"
-          jq -n --arg message "Record manual workforce reconciliation result" --arg content "$content" --arg sha "$sha"             '{message:$message,content:$content,branch:"main"} + (if $sha=="" then {} else {sha:$sha} end)' > /tmp/payload.json
+          jq -n --arg message "Record workforce browser inspection" --arg content "$content" --arg sha "$sha"             '{message:$message,content:$content,branch:"main"} + (if $sha=="" then {} else {sha:$sha} end)' > /tmp/payload.json
           curl -fsS -X PUT -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json'             -H 'X-GitHub-Api-Version: 2022-11-28' "$url" --data-binary @/tmp/payload.json >/dev/null
 
       - name: Remove SSH keys
