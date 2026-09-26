@@ -117,18 +117,18 @@ if (documentRef) {
         background: linear-gradient(180deg, rgba(15, 76, 92, 0.98), rgba(13, 45, 63, 0.98));
         color: #f0fdfa;
         box-shadow:
-          0 0 0 2px rgba(125, 211, 252, 0.14),
-          0 0 22px rgba(45, 212, 191, 0.24),
-          0 14px 34px rgba(0, 0, 0, 0.34);
+          0 0 0 2px rgba(125, 211, 252, 0.1),
+          0 0 16px rgba(45, 212, 191, 0.14),
+          0 12px 28px rgba(0, 0, 0, 0.3);
       }
 
       .spinner-nav__item[data-spinner-armed="true"] {
         border-color: #fcd34d;
         background: linear-gradient(180deg, rgba(14, 116, 144, 0.98), rgba(15, 76, 92, 0.98));
         box-shadow:
-          0 0 0 3px rgba(252, 211, 77, 0.18),
-          0 0 34px rgba(45, 212, 191, 0.42),
-          0 14px 34px rgba(0, 0, 0, 0.34);
+          0 0 0 2px rgba(252, 211, 77, 0.12),
+          0 0 22px rgba(45, 212, 191, 0.24),
+          0 12px 28px rgba(0, 0, 0, 0.3);
       }
     `;
     documentRef.head.appendChild(style);
