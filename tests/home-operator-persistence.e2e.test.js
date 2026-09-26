@@ -148,22 +148,7 @@ test('portal spinner opens menu on normal spins and only activates after an inte
     await page.mouse.down();
     await page.mouse.move(centerX + 70, centerY, { steps: 6 });
     workTarget = page.locator('.spinner-nav__item--work');
-    await page.waitForTimeout(900);
-    const holdDebug = await page.evaluate(() => {
-      const stage = document.querySelector('[data-spinner-nav]');
-      const spinnerNode = document.querySelector('[data-spinner-nav-toggle]');
-      const workNode = document.querySelector('.spinner-nav__item--work');
-      return {
-        stage: { ...stage?.dataset },
-        spinnerLabel: spinnerNode?.getAttribute('aria-label') || '',
-        spinnerExpanded: spinnerNode?.getAttribute('aria-expanded') || '',
-        workSelected: workNode?.getAttribute('data-spinner-selected') || '',
-        workArmed: workNode?.getAttribute('data-spinner-armed') || '',
-        logo: window.__portalSwirlLogo?.getState?.() || null
-      };
-    });
-    console.log('SPINNER_HOLD_DEBUG', JSON.stringify(holdDebug));
-    assert.equal(holdDebug.workArmed, 'true', `hold state: ${JSON.stringify(holdDebug)}`);
+    await page.waitForFunction(() => document.querySelector('.spinner-nav__item--work')?.dataset.spinnerArmed === 'true');
     assert.equal(await spinner.getAttribute('aria-label'), 'Release to open Work.');
     await page.mouse.up();
     await page.waitForURL(url => new URL(url).pathname === '/growth-desk/');
