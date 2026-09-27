@@ -38,3 +38,21 @@ test('Workboard GitHub feed uses the shared session function', async () => {
     destination: '/api/session?route=workboard-github'
   });
 });
+
+
+test('Portal health and Organism bridge use the durable DigitalOcean edge', async () => {
+  const vercelConfig = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
+  const expected = new Map([
+    ['/__3dvr-health', 'http://167.172.193.194/__3dvr-health'],
+    ['/health', 'http://167.172.193.194/health']
+  ]);
+
+  for (const [source, destination] of expected) {
+    const rewrite = vercelConfig.rewrites.find(item => (
+      item.source === source
+      && item.has?.some(condition => condition.type === 'host' && condition.value === 'portal.3dvr.tech')
+    ));
+    assert.ok(rewrite, `missing Portal edge rewrite for ${source}`);
+    assert.equal(rewrite.destination, destination);
+  }
+});
