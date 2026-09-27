@@ -1,0 +1,52 @@
+{
+  "localDate": "2026-09-27",
+  "timezone": "America/Los_Angeles",
+  "lighthouse": {
+    "checkedAt": "2026-09-27T15:42:24.548Z",
+    "source": "authenticated OVH general browser lane (CDP 9222) via Lighthouse week API",
+    "weeksChecked": [
+      "2026-09-21",
+      "2026-09-28",
+      "2026-10-05",
+      "2026-10-12",
+      "2026-10-19",
+      "2026-10-26"
+    ]
+  },
+  "iatse": {
+    "outcome": "changed",
+    "changedDates": [
+      {
+        "date": "2026-10-28",
+        "from": "Not Specified",
+        "to": "Booked"
+      }
+    ],
+    "persistedAfterReload": true,
+    "deferredDates": [
+      {
+        "date": "2026-10-29",
+        "reason": "outside current IATSE rendered availability window"
+      },
+      {
+        "date": "2026-10-30",
+        "reason": "outside current IATSE rendered availability window"
+      },
+      {
+        "date": "2026-10-31",
+        "reason": "outside current IATSE rendered availability window; planned rest day"
+      },
+      {
+        "date": "2026-11-01",
+        "reason": "outside current IATSE rendered availability window; planned rest day"
+      }
+    ]
+  },
+  "diagnostics": {
+    "ovhReachableViaSshMesh": true,
+    "generalLaneRunning": true,
+    "secretsBrokerActive": true,
+    "desktopCommanderState": "device ping succeeds but command/file operations report Not connected",
+    "iatseRenderedWindow": "2026-09-26 through 2026-10-28"
+  }
+}
