@@ -312,13 +312,14 @@ if (form && input && submit && status && result && reply && followUps && actionL
         display: grid;
         place-items: center;
         overflow: hidden;
+        transition: background-color 480ms ease, box-shadow 480ms ease;
       }
 
       #homeOperatorSubmit .operator-submit__arrow,
       #homeOperatorSubmit .operator-submit__portal {
         grid-area: 1 / 1;
         pointer-events: none;
-        transition: opacity 160ms ease, transform 180ms ease;
+        transition: opacity 320ms ease, transform 420ms cubic-bezier(.22,.8,.24,1);
       }
 
       #homeOperatorSubmit .operator-submit__arrow {
@@ -330,12 +331,13 @@ if (form && input && submit && status && result && reply && followUps && actionL
         height: 30px;
         border-radius: 50%;
         opacity: 0;
-        transform: scale(0.68) rotate(-35deg);
-        filter: drop-shadow(0 0 6px rgba(103, 232, 249, 0.42));
+        transform: scale(0.82);
+        filter: drop-shadow(0 0 4px rgba(103, 232, 249, 0.24));
       }
 
       #homeOperatorSubmit[data-busy="true"] {
-        background: #0f766e;
+        background: #126b68;
+        box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.08);
       }
 
       #homeOperatorSubmit[data-busy="true"]:disabled {
@@ -345,32 +347,35 @@ if (form && input && submit && status && result && reply && followUps && actionL
 
       #homeOperatorSubmit[data-busy="true"] .operator-submit__arrow {
         opacity: 0;
-        transform: scale(0.45) rotate(90deg);
+        transform: scale(0.72);
       }
 
       #homeOperatorSubmit[data-busy="true"] .operator-submit__portal {
-        opacity: 1;
+        opacity: 0.94;
         transform: scale(1);
-        animation: operator-mini-portal-spin 900ms linear infinite, operator-mini-portal-pulse 760ms ease-in-out infinite alternate;
+        animation: operator-mini-portal-breathe 2400ms ease-in-out infinite;
       }
 
-      @keyframes operator-mini-portal-spin {
-        to { transform: scale(1) rotate(-360deg); }
-      }
-
-      @keyframes operator-mini-portal-pulse {
-        from { filter: drop-shadow(0 0 3px rgba(103, 232, 249, 0.28)); }
-        to { filter: drop-shadow(0 0 9px rgba(103, 232, 249, 0.72)); }
+      @keyframes operator-mini-portal-breathe {
+        0%, 100% {
+          transform: translateY(1px) scale(0.94);
+          filter: drop-shadow(0 0 3px rgba(103, 232, 249, 0.22));
+        }
+        50% {
+          transform: translateY(-1px) scale(1.04);
+          filter: drop-shadow(0 0 8px rgba(103, 232, 249, 0.5));
+        }
       }
 
       @media (prefers-reduced-motion: reduce) {
+        #homeOperatorSubmit,
         #homeOperatorSubmit .operator-submit__arrow,
         #homeOperatorSubmit .operator-submit__portal {
           transition: none;
         }
 
         #homeOperatorSubmit[data-busy="true"] .operator-submit__portal {
-          animation: operator-mini-portal-pulse 1100ms ease-in-out infinite alternate;
+          animation: none;
         }
       }
     `;
@@ -474,13 +479,50 @@ if (form && input && submit && status && result && reply && followUps && actionL
     form.setAttribute('aria-busy', String(busy));
   };
 
-  const renderResponse = ({ message, suggestions = [], url = '', label = 'Open workspace' }) => {
-    reply.textContent = message;
+  let replyPaintTimer = 0;
+  let pendingReplyText = '';
+
+  const paintReply = () => {
+    replyPaintTimer = 0;
+    reply.textContent = pendingReplyText;
+  };
+
+  const queueReplyPaint = message => {
+    pendingReplyText = message;
+    if (replyPaintTimer) return;
+    replyPaintTimer = window.setTimeout(paintReply, 90);
+  };
+
+  const flushReplyPaint = message => {
+    pendingReplyText = message;
+    if (replyPaintTimer) {
+      window.clearTimeout(replyPaintTimer);
+      replyPaintTimer = 0;
+    }
+    paintReply();
+  };
+
+  const beginResponse = () => {
+    if (replyPaintTimer) {
+      window.clearTimeout(replyPaintTimer);
+      replyPaintTimer = 0;
+    }
+    pendingReplyText = '';
+    reply.textContent = '';
     followUps.replaceChildren();
-    suggestions.slice(0, 3).forEach(suggestion => {
+    actionLink.hidden = true;
+    result.dataset.streaming = 'true';
+    result.hidden = false;
+  };
+
+  const renderResponse = ({ message, suggestions = [], url = '', label = 'Open workspace' }) => {
+    flushReplyPaint(message);
+    followUps.replaceChildren();
+    suggestions.slice(0, 3).forEach((suggestion, index) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'operator-follow-up';
+      button.style.setProperty('--suggestion-index', index);
       button.textContent = suggestion;
       button.addEventListener('click', () => {
         input.value = suggestion;
@@ -493,6 +535,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
       actionLink.href = url;
       actionLink.textContent = `${label} →`;
     }
+    result.dataset.streaming = 'false';
     result.hidden = false;
   };
 
@@ -507,6 +550,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
     input.value = '';
     setBusy(true);
     status.textContent = '';
+    beginResponse();
 
     try {
       const [portalContext, developerAuth] = await Promise.all([
@@ -524,7 +568,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
           },
           onReplyDelta: delta => {
             streamedReply += delta;
-            renderResponse({ message: streamedReply });
+            queueReplyPaint(streamedReply);
             status.textContent = 'Operator is responding…';
           }
         }
