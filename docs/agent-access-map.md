@@ -58,6 +58,22 @@ ChatGPT/GitHub connector
 
 This is independent of proprietary remote-desktop tooling and is the preferred escape hatch when direct connector actions are insufficient.
 
+### Verified recovery path — 2026-09-26 Pacific
+
+At 19:49 Pacific (2026-09-27 02:49 UTC), a read-only health command submitted through the private Open Runner queue executed successfully on Hetzner. Desktop Commander reported Hetzner offline; OVH was listed online but command attempts returned “Not connected.” These transport results did not establish that either server was down.
+
+When the typed Control MCP tools are absent from a chat and Desktop Commander cannot execute:
+
+1. Read the [Open Runner runbook](../apps/agent/docs/open-remote-runner.md).
+2. Verify the documented queue repository remains private and accessible.
+3. Submit a bounded, read-only health command to the `hetzner` device using the documented JSON issue format.
+4. Allow the normal 20-second polling interval, then inspect the claim and execution-result comments. Require successful command output; queue acceptance alone is not proof of server health.
+5. Use the existing SSH mesh for further authorized checks. Keep credentials out of commands and output; do not restart services or recreate authenticated profiles merely to test access.
+
+The successful check showed Open Runner, OpenClaw, and the local Desktop Commander service running, while `3dvr-control-gateway.service` reported inactive/dead. Hetzner had 1,786 MiB available memory, 1,294 MiB swap used, 78% root-disk usage (8 GiB available), and load averages 3.09 / 3.39 / 3.82 on two vCPUs. Memory pressure was high (`some avg10=96.52`, `full avg10=60.45`); available RAM alone must not be treated as healthy capacity.
+
+This was an access-path verification, not a service repair. Gateway state, Desktop Commander connectivity, and memory-pressure causes still require diagnosis. Browser authentication, n8n, and other downstream services were not verified by this command. The private audit record is terminal-bridge issue #413.
+
 ### SSH mesh
 
 Known cloud aliases:
