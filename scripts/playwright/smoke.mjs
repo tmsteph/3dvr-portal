@@ -94,12 +94,18 @@ try {
   const operatorLink = page.locator('.operator-link');
   const spinner = page.locator('[data-spinner-nav-toggle]');
   const coreActions = page.locator('.action-card');
+  const responseAboveComposer = await page.evaluate(() => {
+    const response = document.querySelector('#homeOperatorResult');
+    const composer = document.querySelector('#homeOperatorForm');
+    return Boolean(response && composer && (response.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING));
+  });
 
   assert.equal(pageTitle, '3DVR Portal');
   assert.equal(heading, 'What do you want to do?');
   assert.equal(await operatorLink.count(), 1);
   assert.equal(await spinner.count(), 1);
   assert.equal(await coreActions.count(), 0);
+  assert.equal(responseAboveComposer, true, 'Homepage Operator response must appear above the composer');
 
   console.log(`Playwright smoke check passed in ${browserTarget.displayName} at ${baseUrl}`);
 } finally {
