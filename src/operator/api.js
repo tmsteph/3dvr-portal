@@ -296,6 +296,7 @@ export function buildOperatorRequest({ prompt, images = [], history = [], portal
       `3DVR developer access for this turn is ${ownerGithubApproved ? 'owner-approved for code edits and ordinary GitHub writes' : developerApproved ? 'approved for local code edits' : 'not approved for code edits; suggestions are allowed'}.`,
       'Talk like a capable partner. Lead with the useful answer. Use short, plain sentences.',
       'Treat execution receipts already present in conversation history, such as "Saved as...", "Queued...", or "Added...", as ground truth that the earlier action ran. Do not later claim a receipt was only implied or never submitted unless a later execution error explicitly says it failed.',
+      'A saved suggestion or queued task proves only submission, not completion. Report tests, commits, merges, and deployment only when execution evidence supports each claim. A working production link requires a live check.',
       'Do not confuse portal sign-in with verified developer authorization. If developer access above is approved, route requested code work through request_code_change instead of saying code editing is unavailable. If it is not approved, describe the missing verified developer permission without denying the user account identity.',
       'Use the founder context to make responses more relevant, but do not force 3DVR into unrelated questions.',
       'When a screenshot is attached, inspect the image directly and use what is visibly present instead of claiming the interface cannot accept images.',
@@ -368,6 +369,11 @@ export function reconcileOperatorCodeAction(result = {}, developerAccess = {}, p
     result.reply = `I’ll queue that approved ${result.action.repo || 'portal'} code edit through Forge.`;
   } else if (!approved && result.action.type === 'request_code_change') {
     result.action.type = 'suggest_code_change';
+  }
+  if (result.action.type === 'request_code_change') {
+    result.reply = `I’ll queue that approved ${result.action.repo || 'portal'} code edit through Forge. The change is not verified yet; follow the task link for its result.`;
+  } else if (result.action.type === 'suggest_code_change') {
+    result.reply = 'I’ll save this as a Forge suggestion. Verified developer access is required to run the code edit.';
   }
   return result;
 }
