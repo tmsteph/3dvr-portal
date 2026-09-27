@@ -23,6 +23,11 @@ test('operator escalates clearly complex work to GPT-6 Sol', () => {
   assert.equal(selectOperatorModel({ prompt }), 'gpt-6-sol');
 });
 
+test('operator escalates short implementation requests to GPT-6 Sol', () => {
+  assert.equal(shouldEscalateOperatorPrompt('Can we fix it?'), true);
+  assert.equal(selectOperatorModel({ prompt: 'Can we fix it?' }), 'gpt-6-sol');
+});
+
 test('operator uses gateway-qualified GPT-6 model ids when routed through AI Gateway', () => {
   const prompt = 'Debug this broken interface screenshot and identify the root cause.';
   assert.equal(
