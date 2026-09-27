@@ -57,6 +57,11 @@
   "implementation": {
     "mergedPr": 2793,
     "mergeCommit": "cd16494a69cdb00ccc828230dda67d410883e85f",
-    "iatseSetterBehavior": "future dates outside rendered window are deferred, not failures; in-window mismatches remain errors"
+    "iatseSetterBehavior": "future dates outside rendered window are deferred, not failures; in-window mismatches remain errors",
+    "resiliencePr": 2793,
+    "resilienceMergeCommit": "cd16494a69cdb00ccc828230dda67d410883e85f",
+    "manualReconcilePr": 2794,
+    "manualReconcileMergeCommit": "196ad9f3dad08e4151cecfc15419147c67ff77e3",
+    "emergencyWorkflowBehavior": "requires explicit desired date→availability payload and restarts the general lane only when CDP is unhealthy"
   }
 }
