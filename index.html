@@ -134,6 +134,7 @@
 
     main {
       flex: 1;
+      min-height: 0;
       display: flex;
       align-items: center;
       padding: 28px 0 56px;
@@ -358,30 +359,55 @@
 
     .operator-hint { margin: 9px 4px 0; color: #8b949e; font-size: 0.84rem; line-height: 1.45; }
     .operator-hint strong { color: #c9d1d9; }
-    .operator-status { margin: 8px 4px 0; color: #6e7681; font-size: 0.78rem; }
-    .operator-status:empty { display: none; }
+    .operator-status {
+      min-height: 1.2em;
+      margin: 8px 4px 0;
+      color: #6e7681;
+      font-size: 0.78rem;
+      line-height: 1.2;
+    }
+    .operator-status:empty { visibility: hidden; }
 
     .operator-result {
+      min-height: 0;
       margin: 0 0 10px;
       padding: 15px 16px;
       border: 1px solid #30363d;
       border-radius: 15px;
       background: rgba(22, 27, 34, 0.92);
       box-shadow: 0 12px 34px rgba(0, 0, 0, 0.18);
-      overflow: hidden;
+      overflow: hidden auto;
+      overflow-anchor: none;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
     }
 
     .operator-result[hidden] { display: none; }
     .operator-result:not([hidden]) { animation: operator-result-arrive 460ms cubic-bezier(.22,.8,.24,1) both; }
-    .operator-result__head { display: flex; align-items: center; gap: 12px; }
+    .operator-result__head {
+      position: sticky;
+      top: -15px;
+      z-index: 2;
+      margin: -15px -16px 0;
+      padding: 13px 16px 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(22, 27, 34, 0.96);
+      border-bottom: 1px solid rgba(48, 54, 61, 0.66);
+      backdrop-filter: blur(10px);
+    }
     .operator-result__head strong { margin-right: auto; color: #79c0ff; }
     .operator-result__head a { color: #8b949e; font-size: 0.78rem; text-decoration: none; }
     .operator-result__head a:hover { color: #c9d1d9; }
     .operator-result p {
       min-height: 1.45em;
-      margin: 11px 0 0;
+      margin: 13px 0 0;
       white-space: pre-wrap;
+      overflow-wrap: anywhere;
       color: #d7dee7;
+      font-size: clamp(0.98rem, 2.8vw, 1.05rem);
+      line-height: 1.62;
       transition: color 380ms ease;
     }
     .operator-result[data-streaming="true"] p { color: #cbd5df; }
@@ -477,6 +503,62 @@
     .apps-empty { padding: 28px 16px; color: #8b949e; text-align: center; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
+    body[data-home-chat-active="true"] {
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    body[data-home-chat-active="true"] .shell {
+      height: 100dvh;
+      min-height: 0;
+      padding-bottom: max(10px, env(safe-area-inset-bottom));
+      overflow: hidden;
+    }
+
+    body[data-home-chat-active="true"] main {
+      flex: 1;
+      min-height: 0;
+      align-items: stretch;
+      padding: 12px 0 0;
+      overflow: hidden;
+    }
+
+    body[data-home-chat-active="true"] .home {
+      min-height: 0;
+      max-width: 720px;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto auto;
+      align-content: stretch;
+    }
+
+    body[data-home-chat-active="true"] .spinner-stage,
+    body[data-home-chat-active="true"] #home-title,
+    body[data-home-chat-active="true"] footer,
+    body[data-home-chat-active="true"] .home-operator-links {
+      display: none;
+    }
+
+    body[data-home-chat-active="true"] .operator-result {
+      min-height: 0;
+      max-height: none;
+      margin-bottom: 10px;
+      border-radius: 18px;
+      box-shadow: none;
+    }
+
+    body[data-home-chat-active="true"] .operator-link.operator-bar {
+      position: relative;
+      z-index: 4;
+      flex: 0 0 auto;
+      box-shadow:
+        0 12px 35px rgba(0, 0, 0, 0.28),
+        0 0 0 1px rgba(88, 166, 255, 0.03);
+    }
+
+    body[data-home-chat-active="true"] .operator-status {
+      margin-bottom: 0;
+    }
+
     @media (max-width: 580px) {
       .topbar { gap: 7px; }
       .brand span { display: none; }
@@ -492,6 +574,20 @@
         overflow-y: auto;
       }
       main { align-items: flex-start; padding-top: 16px; }
+      body[data-home-chat-active="true"] main { padding-top: 8px; }
+      body[data-home-chat-active="true"] .shell {
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+      body[data-home-chat-active="true"] .operator-result {
+        border-radius: 14px;
+        padding: 13px 14px;
+      }
+      body[data-home-chat-active="true"] .operator-result__head {
+        top: -13px;
+        margin: -13px -14px 0;
+        padding: 12px 14px 9px;
+      }
       .spinner-stage { width: min(292px, 86vw); height: min(292px, 86vw); }
       .portal-swirl-logo { width: clamp(11rem, 56vw, 13.5rem); }
       .spinner-nav__item { min-width: 58px; min-height: 40px; padding-inline: 11px; font-size: 0.88rem; }
@@ -580,7 +676,7 @@
         <section class="operator-result" id="homeOperatorResult" aria-live="polite" hidden>
           <div class="operator-result__head">
             <strong>Operator</strong>
-            <a href="/operator/">Open full chat</a>
+            <a id="homeOperatorFullInline" href="/operator/">Open full Operator</a>
           </div>
           <p id="homeOperatorReply"></p>
           <div class="operator-follow-ups" id="homeOperatorFollowUps" aria-label="Suggested next steps"></div>
