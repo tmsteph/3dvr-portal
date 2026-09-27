@@ -16,6 +16,9 @@
       --energy:0;
       --camera:0;
       --motion:0;
+      --look-yaw:0;
+      --look-pitch:0;
+      --look-roll:0;
       background:#04080c;
       color:#eef7f7;
     }
@@ -39,10 +42,14 @@
       min-height:100vh;
       transform-style:preserve-3d;
       transform:
-        rotateX(calc(var(--y) * -2.4deg))
-        rotateY(calc(var(--x) * 3.2deg))
-        translateZ(calc(var(--depth) * 20px));
-      transition:transform 120ms ease-out;
+        rotateX(calc(var(--look-pitch) * -0.45deg))
+        rotateY(calc(var(--look-yaw) * 0.45deg))
+        rotateZ(calc(var(--look-roll) * 0.06deg))
+        rotateX(calc(var(--y) * -6deg))
+        rotateY(calc(var(--x) * 8deg))
+        translateZ(calc(var(--depth) * 42px));
+      transform-origin:50% 50% -320px;
+      transition:transform 55ms linear;
       will-change:transform;
     }
     .grid{
@@ -58,7 +65,7 @@
       background-size:46px 46px;
       mask-image:linear-gradient(to bottom,transparent 5%,#000 38%,#000 74%,transparent 100%);
     }
-    .stars{position:absolute;inset:0;z-index:-4;background-image:radial-gradient(circle,rgba(255,255,255,.48) 0 1px,transparent 1.5px);background-size:68px 68px;opacity:.13;transform:translate3d(calc(var(--x)*-8px),calc(var(--y)*-8px),-100px)}
+    .stars{position:absolute;inset:-18%;z-index:-4;background-image:radial-gradient(circle,rgba(255,255,255,.48) 0 1px,transparent 1.5px);background-size:68px 68px;opacity:.16;transform:translate3d(calc((var(--x) * -28px) + (var(--look-yaw) * -1.7px)),calc((var(--y) * -24px) + (var(--look-pitch) * 1.35px)),-160px) scale(1.18)}
     .glow{
       position:absolute;
       left:50%;top:46%;
@@ -84,7 +91,7 @@
     .brand{font-weight:900;letter-spacing:.08em;text-transform:uppercase}
     .mode{margin-left:auto;color:#88a3a8;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase}
     .hero{flex:1;display:grid;place-items:center;text-align:center;padding:7vh 0 2vh}
-    .hero-inner{max-width:760px;transform:translate3d(calc(var(--x)*10px),calc(var(--y)*8px),70px)}
+    .hero-inner{max-width:760px;transform:translate3d(calc((var(--x)*18px) + (var(--look-yaw)*.22px)),calc((var(--y)*14px) + (var(--look-pitch)*.18px)),90px)}
     .eyebrow{margin:0 0 14px;color:#82d9d2;font-size:.8rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
     h1{margin:0;font-size:clamp(3rem,9vw,7rem);line-height:.88;letter-spacing:-.065em}
     h1 span{display:block;color:#f0c85d;font-size:.46em;letter-spacing:.02em;margin-top:.25em}
@@ -182,8 +189,8 @@
             <p class="eyebrow">The interface notices you</p>
             <h1>Move through it.<span>Every input bends the space.</span></h1>
             <p class="lead">
-              Keys, pointer movement, touch, clicks, scrolling, and focus already animate the HUD.
-              Hardware sensors are separate, optional permissions.
+              Keys, pointer movement, touch, clicks, scrolling, and focus animate the HUD.
+              On supported phones, turning and tilting the device now steers the space automatically; browsers that require permission will ask after a tap.
             </p>
             <div class="signal" aria-live="polite">
               <span class="dot"></span>
@@ -200,11 +207,11 @@
           </article>
 
           <article class="panel">
-            <h2>Device motion</h2>
-            <p>Uses motion/orientation sensors when your browser and hardware expose them.</p>
-            <div class="status" id="motionStatus" data-on="false">Off</div>
+            <h2>Device look + motion</h2>
+            <p>Turn the phone to look left/right, tilt to look up/down, and move it for depth/energy. Starts automatically when the browser allows it.</p>
+            <div class="status" id="motionStatus" data-on="false">Starting…</div>
             <div class="actions">
-              <button class="btn" id="motionButton" type="button">Enable motion</button>
+              <button class="btn" id="motionButton" type="button">Enable / recenter</button>
             </div>
           </article>
 
@@ -222,10 +229,10 @@
         <details>
           <summary>Privacy, permissions & what is actually sensed</summary>
           <div class="privacy">
-            <p><strong>Default:</strong> no camera and no hardware motion permission are requested automatically.</p>
+            <p><strong>Default:</strong> device motion/orientation starts automatically when the browser exposes sensors without a prompt. Camera never starts automatically.</p>
             <ul>
               <li><strong>Basic interaction</strong> only observes events already delivered to this page.</li>
-              <li><strong>Device motion</strong> is enabled only after you press the button. Some browsers show an OS/browser permission prompt.</li>
+              <li><strong>Device look + motion</strong> attaches automatically where allowed. Browsers such as iOS Safari that require an explicit permission gesture still need one tap.</li>
               <li><strong>Camera motion</strong> is enabled only after you press the button. Video is processed locally at low resolution for frame-to-frame motion energy; frames are not uploaded or stored.</li>
               <li><strong>Audio is never requested.</strong></li>
               <li>Closing/reloading the page stops the active camera stream. You can also stop it here at any time.</li>
@@ -271,6 +278,8 @@
       let cameraTimer = null;
       let previousFrame = null;
       let motionListening = false;
+      let motionSeen = false;
+      let orientationBaseline = null;
 
       const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
@@ -341,32 +350,103 @@
         lastSignal.textContent = document.hidden ? 'HUD paused in the background' : 'HUD visible again';
       });
 
+      const angleDelta = (value, origin) => ((value - origin + 540) % 360) - 180;
+
       function onOrientation(e) {
-        const gamma = Number.isFinite(e.gamma) ? e.gamma : 0;
+        const alpha = Number.isFinite(e.alpha) ? e.alpha : 0;
         const beta = Number.isFinite(e.beta) ? e.beta : 0;
-        const x = clamp(gamma / 35, -1, 1);
-        const y = clamp((beta - 45) / 45, -1, 1);
+        const gamma = Number.isFinite(e.gamma) ? e.gamma : 0;
+
+        if (!orientationBaseline) orientationBaseline = { alpha, beta, gamma };
+
+        const yaw = clamp(angleDelta(alpha, orientationBaseline.alpha), -110, 110);
+        const pitch = clamp(beta - orientationBaseline.beta, -65, 65);
+        const roll = clamp(gamma - orientationBaseline.gamma, -45, 45);
+        const x = clamp(yaw / 70, -1, 1);
+        const y = clamp(pitch / 45, -1, 1);
+
+        setVar('--look-yaw', yaw.toFixed(2));
+        setVar('--look-pitch', pitch.toFixed(2));
+        setVar('--look-roll', roll.toFixed(2));
         setVar('--x', x.toFixed(3));
         setVar('--y', y.toFixed(3));
-        setVar('--motion', clamp((Math.abs(x) + Math.abs(y)) / 2, 0, 1).toFixed(3));
-        readoutMotion.textContent = Math.round(gamma) + '° / ' + Math.round(beta) + '°';
-        lastSignal.textContent = 'Device orientation shifting the HUD';
-        energy = clamp(energy + .02, 0, 1);
+        setVar('--motion', clamp((Math.abs(x) + Math.abs(y) + Math.abs(roll) / 45) / 3, 0, 1).toFixed(3));
+
+        motionSeen = true;
+        motionStatus.dataset.on = 'true';
+        motionStatus.textContent = 'On · turn phone to look';
+        motionButton.textContent = 'Recenter view';
+        readoutMotion.textContent = 'yaw ' + Math.round(yaw) + '° · pitch ' + Math.round(pitch) + '°';
+        lastSignal.textContent = 'Phone orientation steering the space';
+        energy = clamp(energy + .025, 0, 1);
       }
 
       function onDeviceMotion(e) {
-        const a = e.accelerationIncludingGravity || e.acceleration;
-        if (!a) return;
-        const magnitude = Math.sqrt((a.x || 0) ** 2 + (a.y || 0) ** 2 + (a.z || 0) ** 2);
-        const normalized = clamp(Math.abs(magnitude - 9.8) / 7, 0, 1);
+        const gravity = e.accelerationIncludingGravity || e.acceleration;
+        if (!gravity) return;
+        const magnitude = Math.sqrt((gravity.x || 0) ** 2 + (gravity.y || 0) ** 2 + (gravity.z || 0) ** 2);
+        const normalized = clamp(Math.abs(magnitude - 9.8) / 5, 0, 1);
         setVar('--motion', normalized.toFixed(3));
-        if (normalized > .12) {
-          energy = clamp(energy + normalized * .08, 0, 1);
-          lastSignal.textContent = 'Device movement detected';
+
+        const linear = e.acceleration;
+        if (linear && Number.isFinite(linear.z)) {
+          depth = clamp(depth - linear.z * .018, -1, 1);
+          setVar('--depth', depth.toFixed(3));
+        }
+
+        if (normalized > .08) {
+          energy = clamp(energy + normalized * .12, 0, 1);
+          lastSignal.textContent = 'Device movement pushing through depth';
         }
       }
 
+      function attachMotionListeners() {
+        if (motionListening) return;
+        addEventListener('deviceorientation', onOrientation, { passive: true });
+        addEventListener('devicemotion', onDeviceMotion, { passive: true });
+        motionListening = true;
+      }
+
+      function markMotionListening(label = 'Listening for phone sensors…') {
+        motionStatus.dataset.on = 'true';
+        motionStatus.textContent = label;
+        motionButton.textContent = 'Recenter view';
+      }
+
+      function autoEnableMotion() {
+        const hasOrientation = typeof DeviceOrientationEvent !== 'undefined';
+        const hasMotion = typeof DeviceMotionEvent !== 'undefined';
+        if (!hasOrientation && !hasMotion) {
+          motionStatus.dataset.on = 'false';
+          motionStatus.textContent = 'Unavailable';
+          motionButton.disabled = true;
+          return;
+        }
+
+        const needsGesture =
+          (hasOrientation && typeof DeviceOrientationEvent.requestPermission === 'function') ||
+          (hasMotion && typeof DeviceMotionEvent.requestPermission === 'function');
+
+        if (needsGesture) {
+          motionStatus.dataset.on = 'false';
+          motionStatus.textContent = 'Tap once for sensor permission';
+          motionButton.textContent = 'Enable phone look';
+          return;
+        }
+
+        attachMotionListeners();
+        markMotionListening('On automatically · move phone');
+      }
+
       async function requestMotionPermission() {
+        if (motionListening) {
+          orientationBaseline = null;
+          setVar('--look-yaw', '0');
+          setVar('--look-pitch', '0');
+          setVar('--look-roll', '0');
+          note('View recentered · hold phone naturally', .3);
+          return;
+        }
         try {
           const orientationRequest = typeof DeviceOrientationEvent !== 'undefined' &&
             typeof DeviceOrientationEvent.requestPermission === 'function'
@@ -380,16 +460,10 @@
           const [orientationPermission, motionPermission] = await Promise.all([orientationRequest, motionRequest]);
           if (orientationPermission !== 'granted' || motionPermission !== 'granted') throw new Error('Permission not granted');
 
-          if (!motionListening) {
-            addEventListener('deviceorientation', onOrientation, { passive: true });
-            addEventListener('devicemotion', onDeviceMotion, { passive: true });
-            motionListening = true;
-          }
-          motionStatus.dataset.on = 'true';
-          motionStatus.textContent = 'On';
-          motionButton.textContent = 'Motion enabled';
-          motionButton.disabled = true;
-          note('Device motion enabled', .45);
+          attachMotionListeners();
+          orientationBaseline = null;
+          markMotionListening('On · move phone to begin');
+          note('Phone look enabled · turn to look around', .45);
         } catch (error) {
           motionStatus.dataset.on = 'false';
           motionStatus.textContent = 'Not enabled';
@@ -470,6 +544,7 @@
       }
 
       motionButton.addEventListener('click', requestMotionPermission);
+      autoEnableMotion();
       cameraButton.addEventListener('click', enableCamera);
       stopCameraButton.addEventListener('click', stopCamera);
       addEventListener('pagehide', stopCamera);
@@ -480,6 +555,10 @@
         last = now;
         energy *= Math.pow(.92, dt);
         cameraEnergy *= Math.pow(.985, dt);
+        if (motionListening && motionSeen) {
+          depth *= Math.pow(.992, dt);
+          setVar('--depth', depth.toFixed(3));
+        }
         setVar('--energy', energy.toFixed(3));
         if (!stream) setVar('--camera', cameraEnergy.toFixed(3));
         requestAnimationFrame(animate);
