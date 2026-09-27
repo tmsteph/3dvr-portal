@@ -195,6 +195,9 @@ for key in OPENAI_API_KEY AI_GATEWAY_API_KEY THREEDVR_CLOUDFLARE_TUNNEL_TOKEN GO
 done
 mv "$portal_env.tmp" "$portal_env"
 chmod 600 "$portal_env"
+if [ "$(id -u)" = 0 ] && [ "$HOME" = /home/debian ] && id debian >/dev/null 2>&1; then
+  chown debian:debian "$portal_env" 2>/dev/null || true
+fi
 
 if [ "$(id -u)" = 0 ] && [ -f "$current/ops/secrets-broker/install.sh" ]; then
   bash "$current/ops/secrets-broker/install.sh"
