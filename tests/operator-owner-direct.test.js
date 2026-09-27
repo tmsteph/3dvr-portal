@@ -40,3 +40,12 @@ test('Operator page mounts portal feedback after the main app', () => {
   const footer = source.indexOf('<footer aria-label="Portal feedback"></footer>');
   assert.ok(mainEnd >= 0 && footer > mainEnd);
 });
+
+
+test('Operator keeps the chat shell visually quiet', () => {
+  const html = read('operator/index.html');
+  const styles = read('operator/styles.css');
+  assert.doesNotMatch(html, /YOUR OPERATOR|What do you want to do\?|Ask anything, or open a 3DVR app\./);
+  assert.match(html, /aria-label="Operator shortcuts"/);
+  assert.match(styles, /#operator-status\{position:absolute;width:1px;height:1px/);
+});
