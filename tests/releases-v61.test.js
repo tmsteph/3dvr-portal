@@ -5,12 +5,12 @@ import { readFile } from 'node:fs/promises';
 const releasesDir = new URL('../releases/', import.meta.url);
 
 describe('release v0.0.61', () => {
-  it('publishes v0.0.61 with the weekly cadence, app explanations, and useful links', async () => {
+  it('keeps v0.0.61 in the weekly cadence with app explanations and useful links', async () => {
     const index = await readFile(new URL('index.html', releasesDir), 'utf8');
     const previous = await readFile(new URL('v0.0.60.html', releasesDir), 'utf8');
     const release = await readFile(new URL('v0.0.61.html', releasesDir), 'utf8');
 
-    assert.match(index, /<h2>Latest Release<\/h2>[\s\S]*href="v0\.0\.61\.html">v0\.0\.61/);
+    assert.match(index, /href="v0\.0\.61\.html">v0\.0\.61/);
     assert.match(index, /<h2>Release History<\/h2>[\s\S]*href="v0\.0\.61\.html">v0\.0\.61[\s\S]*href="v0\.0\.60\.html">v0\.0\.60/);
     assert.match(previous, /href="v0\.0\.61\.html">Next release<\/a>/);
     assert.match(release, /<h1>Release v0\.0\.61<\/h1>/);
@@ -23,6 +23,7 @@ describe('release v0.0.61', () => {
     assert.match(release, /Public release:<\/strong> Monday, September 7, 2026/);
     assert.doesNotMatch(release, /Release Candidate/);
     assert.match(release, /href="v0\.0\.60\.html">Previous release<\/a>/);
+    assert.match(release, /href="v0\.0\.62\.html">Next release<\/a>/);
 
     assert.match(release, /href="\.\.\/operator\/">Operator<\/a>/);
     assert.match(release, /href="\.\.\/digital-organism\/">Digital Organism<\/a>/);
@@ -55,7 +56,7 @@ describe('release v0.0.61', () => {
     const showTech = await readFile(new URL('../show-tech/index.html', releasesDir), 'utf8');
 
     assert.match(organism, /<h1>Digital Organism<\/h1>/);
-    assert.match(organism, /github\.com\/tmsteph\/3dvr-digital-organism/);
+    assert.match(organism, /github\.com\/tmsteph\/3dvr-portal\/tree\/main\/digital-organism\/runtime/);
     assert.match(agent, /<h1>3DVR Agent<\/h1>/);
     assert.match(agent, /github\.com\/tmsteph\/3dvr-portal\/tree\/main\/apps\/agent/);
     assert.match(showTech, /<h1>Show-Tech<\/h1>/);
