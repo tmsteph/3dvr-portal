@@ -576,6 +576,34 @@
       margin-bottom: 0;
     }
 
+    @media (max-height: 520px) {
+      body[data-home-chat-active="true"] .shell {
+        padding-top: 8px;
+        padding-bottom: max(6px, env(safe-area-inset-bottom));
+      }
+
+      body[data-home-chat-active="true"] main {
+        padding-top: 4px;
+      }
+
+      body[data-home-chat-active="true"] .spinner-stage {
+        width: min(96px, 26vw, 22dvh);
+        height: min(96px, 26vw, 22dvh);
+        margin-bottom: 2px;
+      }
+
+      body[data-home-chat-active="true"] .portal-swirl-logo {
+        width: min(72px, 20vw, 17dvh);
+      }
+
+      body[data-home-chat-active="true"] .spinner-nav__item {
+        min-width: 44px;
+        min-height: 30px;
+        padding: 5px 8px;
+        font-size: 0.7rem;
+      }
+    }
+
     @media (max-width: 580px) {
       .topbar { gap: 7px; }
       .brand span { display: none; }
