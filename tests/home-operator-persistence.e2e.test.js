@@ -140,7 +140,9 @@ test('home Operator contains long replies without jumping the page', { timeout: 
       const root = document.scrollingElement;
       const result = document.querySelector('#homeOperatorResult');
       const form = document.querySelector('#homeOperatorForm');
+      const spinner = document.querySelector('.spinner-stage');
       const formRect = form.getBoundingClientRect();
+      const spinnerRect = spinner.getBoundingClientRect();
 
       return {
         chatActive: document.body.dataset.homeChatActive,
@@ -151,6 +153,8 @@ test('home Operator contains long replies without jumping the page', { timeout: 
         resultScrollHeight: result.scrollHeight,
         formTop: formRect.top,
         formBottom: formRect.bottom,
+        spinnerDisplay: getComputedStyle(spinner).display,
+        spinnerHeight: spinnerRect.height,
         activeElementId: document.activeElement?.id || '',
         horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1
       };
@@ -158,6 +162,8 @@ test('home Operator contains long replies without jumping the page', { timeout: 
 
     assert.equal(metrics.chatActive, 'true');
     assert.equal(metrics.horizontalOverflow, false);
+    assert.notEqual(metrics.spinnerDisplay, 'none', 'the portal spinner should remain visible in chat mode');
+    assert.ok(metrics.spinnerHeight >= 100, 'the portal spinner should remain a useful visual anchor in chat mode');
     assert.ok(metrics.pageScrollTop <= 1, 'long replies should not move the document scroll position');
     assert.ok(
       metrics.pageScrollHeight <= metrics.viewportHeight + 2,
