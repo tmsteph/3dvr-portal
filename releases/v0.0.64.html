@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Release v0.0.64 Candidate (Week of September 21, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #8b5cf6; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-nav { display: flex; justify-content: space-between; gap: 16px; margin: 20px 0 40px; }
+    .release-nav a { text-decoration: none; font-weight: 600; }
+    li + li { margin-top: 12px; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a href="v0.0.63.html">Previous release</a>
+    <span>Current candidate</span>
+  </nav>
+
+  <h1>Release v0.0.64 Candidate</h1>
+  <div class="tag">Week of September 21, 2026</div>
+
+  <div class="section">
+    <h2>Release cadence</h2>
+    <p>
+      This page records the current weekly candidate. Development remains continuous; the candidate becomes the stable public milestone
+      after the weekend validation window closes.
+    </p>
+    <ul>
+      <li><strong>Internal snapshot:</strong> Thursday, September 24, 2026</li>
+      <li><strong>Testing and fixes:</strong> Friday, September 25 through Sunday, September 27, 2026</li>
+      <li><strong>Stable public milestone target:</strong> Monday, September 28, 2026</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>The story this week</h2>
+    <p>
+      v0.0.64 is the week the Portal started feeling more like one persistent interface around memory, Operator, infrastructure,
+      and everyday work instead of a collection of separate experiments.
+    </p>
+    <ul>
+      <li>
+        <strong>Personal knowledge became first-class.</strong> <a href="../brain/">3DVR Brain</a> introduced a local-first Markdown workspace,
+        Master Notes added a conversation-friendly memory flow, and the user-owned intelligence architecture gained an immutable life-event stream
+        plus automated builder history. See <a href="https://github.com/tmsteph/3dvr-portal/pull/2669">#2669</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2701">#2701</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2693">#2693</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2694">#2694</a>.
+      </li>
+      <li>
+        <strong>Operator became the persistent Portal shell.</strong> Model routing gained Luna with Sol escalation, replies stream on both
+        the homepage and full app, delegated tasks can round-trip through the managed worker, and the chat surface was repeatedly simplified
+        to feel calmer and more contained. See <a href="https://github.com/tmsteph/3dvr-portal/pull/2695">#2695</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2697">#2697</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2708">#2708</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2753">#2753</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2792">#2792</a>.
+      </li>
+      <li>
+        <strong>The homepage interaction got calmer and easier to use.</strong> The spinner kept its playful 3D role while navigation,
+        glare, hold gestures, six-way selection, response ordering, long-response scrolling, and loading motion all received focused passes.
+        See <a href="https://github.com/tmsteph/3dvr-portal/pull/2716">#2716</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2759">#2759</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2777">#2777</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2779">#2779</a>.
+      </li>
+      <li>
+        <strong>Production routing became more explicit and recoverable.</strong> Capacity-aware routing, a DigitalOcean fallback,
+        production backup syncing, split-brain guards, an explicit Vercel fallback trigger, durable health routing, and browser-runtime sync
+        reduce the chance that one stale edge or worker looks like the whole system. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2672">#2672</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2687">#2687</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2721">#2721</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2775">#2775</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2795">#2795</a>.
+      </li>
+      <li>
+        <strong>Customer and workforce automation got sturdier.</strong> Campaigns gained sender-identity fixes and self-healing Lead Vault sync,
+        while Lighthouse/IATSE scheduling gained durable access, rolling-window reconciliation, and fail-closed manual writes.
+        See <a href="https://github.com/tmsteph/3dvr-portal/pull/2671">#2671</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2685">#2685</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2682">#2682</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2793">#2793</a>.
+      </li>
+      <li>
+        <strong>New experiments stayed connected to the larger system.</strong> Science Lab became replication-first, AI Lab gained a real-world
+        agent benchmark, and the ambient <a href="../3dvr-hud/">3DVR HUD</a> experiment made ordinary device interaction part of the visual space
+        while keeping motion and camera signals optional. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2734">#2734</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2749">#2749</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2778">#2778</a>.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Weekend validation focus</h2>
+    <ul>
+      <li>Keep Operator responses visually stable on long mobile conversations.</li>
+      <li>Verify the explicit production fallback path without reintroducing split-brain routing.</li>
+      <li>Confirm browser admission, runtime sync, and scheduling writes continue to fail closed.</li>
+      <li>Exercise Brain, Master Notes, and Digital Organism flows without leaking private context into public surfaces.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>In short</h2>
+    <p>
+      v0.0.64 is the active candidate for the week of September 21. The stable public milestone is targeted for Monday,
+      September 28 after the current weekend validation window closes.
+    </p>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">&copy; 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3dvr Portal - Release v0.0.63 (Week of September 14, 2026)</title>
+  <style>
+    body { margin: 0 auto; font-family: Arial, Helvetica, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.65; padding: 20px; max-width: 920px; }
+    h1, h2 { color: #58a6ff; }
+    a { color: #58a6ff; }
+    .section { margin: 30px 0; padding: 20px; background: #161b22; border-radius: 10px; border: 1px solid #30363d; }
+    .tag { background: #1f6feb; padding: 4px 10px; border-radius: 6px; display: inline-block; font-size: 14px; margin-bottom: 20px; }
+    .release-nav { display: flex; justify-content: space-between; gap: 16px; margin: 20px 0 40px; }
+    .release-nav a { text-decoration: none; font-weight: 600; }
+    li + li { margin-top: 12px; }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <p><a href="index.html">Back to releases</a></p>
+  <nav class="release-nav" aria-label="Release navigation">
+    <a href="v0.0.62.html">Previous release</a>
+    <a href="v0.0.64.html">Next release candidate</a>
+  </nav>
+
+  <h1>Release v0.0.63</h1>
+  <div class="tag">Week of September 14, 2026</div>
+
+  <div class="section">
+    <h2>Release cadence</h2>
+    <p>
+      3DVR keeps integrating useful changes into <code>main</code> throughout the week. The weekly release is the shared checkpoint:
+      Thursday captures the internal snapshot, the weekend absorbs testing and fixes, and Monday records the stable public milestone.
+    </p>
+    <ul>
+      <li><strong>Internal snapshot:</strong> Thursday, September 17, 2026</li>
+      <li><strong>Testing and fixes:</strong> Friday, September 18 through Sunday, September 20, 2026</li>
+      <li><strong>Stable public milestone:</strong> Monday, September 21, 2026</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>The story this week</h2>
+    <p>
+      v0.0.63 turns the Portal into more of an operating system for people and small organizations: coordination, private alignment,
+      safer access, customer finding, and bounded money experiments all became more concrete.
+    </p>
+    <ul>
+      <li>
+        <strong>Assembly became a real coordination workspace.</strong> The Business Kernel framing grew into initiatives, teams,
+        decisions, needs and offers, outcome receipts, portable snapshots, a Now / Next / Waiting view, and bounded authorization.
+        See <a href="https://github.com/tmsteph/3dvr-portal/pull/2406">#2406</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2414">#2414</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2430">#2430</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2441">#2441</a>.
+      </li>
+      <li>
+        <strong>The Opportunity Engine learned to connect purpose with revenue.</strong> Private alignment signals began influencing
+        Opportunity Inbox scoring and Venture Capsules, while Stripe revenue attribution and the Boring Money lane made outcomes easier
+        to measure. See <a href="https://github.com/tmsteph/3dvr-portal/pull/2443">#2443</a>–<a href="https://github.com/tmsteph/3dvr-portal/pull/2453">#2453</a>
+        and <a href="https://github.com/tmsteph/3dvr-portal/pull/2466">#2466</a>.
+      </li>
+      <li>
+        <strong>Persistent access became more recoverable.</strong> Local MCP v0.3, broker-owned browser login, Bitwarden-backed credential
+        reads, workforce recovery runbooks, and the open remote command runner reduced dependence on one laptop or one fragile session.
+        See <a href="https://github.com/tmsteph/3dvr-portal/pull/2468">#2468</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2471">#2471</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2475">#2475</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2491">#2491</a>.
+      </li>
+      <li>
+        <strong>Human Handoff became phone-first.</strong> Remote tasks can pause for a person, reconnect safely, open the phone keyboard,
+        and resume without pretending a human challenge can be automated away. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2524">#2524</a> and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2529">#2529</a>–<a href="https://github.com/tmsteph/3dvr-portal/pull/2536">#2536</a>.
+      </li>
+      <li>
+        <strong>Campaigns moved toward a zero-input customer finder.</strong> Gmail sending, AI lead discovery, customer-first defaults,
+        Lead Vault sync, and real-user acceptance work connected outreach more directly to Money Printer. See
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2530">#2530</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2532">#2532</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2546">#2546</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2550">#2550</a>.
+      </li>
+      <li>
+        <strong>Recovery and memory stayed user-owned.</strong> Recovery Vault proved a passkey-derived encryption path and portable
+        ciphertext self-test, while Digital Organism moved into the Portal monorepo as the durable intelligence layer.
+        See <a href="https://github.com/tmsteph/3dvr-portal/pull/2429">#2429</a>,
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2431">#2431</a>, and
+        <a href="https://github.com/tmsteph/3dvr-portal/pull/2562">#2562</a>.
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>What we validated</h2>
+    <ul>
+      <li>Assembly state remains portable and bounded instead of becoming a second hidden database.</li>
+      <li>Browser and credential recovery paths fail safely and preserve human approval boundaries.</li>
+      <li>Campaigns can discover, store, and exercise customer outreach flows without requiring repeated manual setup.</li>
+      <li>Money experiments retain measurable attribution instead of treating activity itself as success.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>In short</h2>
+    <p>
+      v0.0.63 is the stable milestone for the week of September 14. The Portal is increasingly able to coordinate people,
+      recover its own access, find real opportunities, and preserve private user-owned context without turning autonomy into opacity.
+    </p>
+  </div>
+
+  <p style="margin-top: 40px; opacity: 0.6;">&copy; 2026 3dvr.tech - Open source for everyone.</p>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
