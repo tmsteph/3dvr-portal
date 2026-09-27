@@ -11,3 +11,4 @@
 2026-09-27 homepage-chat-ux-pass PR #2792 canonical fallback
 2026-09-27 durable-health-edge-routing PR #2795
 2026-09-27 release-hub-catch-up v0.0.63 stable + v0.0.64 candidate
+2026-09-27 economics-from-first-principles PR #2801
