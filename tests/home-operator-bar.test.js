@@ -22,7 +22,7 @@ test('homepage Operator sends the signed developer proof used by full Operator',
   const client = await read('home-operator.js');
 
   assert.match(client, /createOperatorDeveloperProof/);
-  assert.match(client, /const \[portalContext, developerAuth\] = await Promise\.all/);
+  assert.match(client, /const \[portalContext, developerAuth, memoryContext\] = await Promise\.all/);
   assert.match(client, /createOperatorDeveloperProof\(\)/);
   assert.match(client, /fetchOperatorStream/);
   assert.match(client, /onReplyDelta/);
@@ -44,6 +44,8 @@ test('homepage busy state is calm and streaming does not rebuild the response ca
   assert.match(client, /queueReplyPaint\(streamedReply\)/);
   assert.doesNotMatch(client, /renderResponse\(\{ message: streamedReply \}\)/);
   assert.match(homepage, /\.operator-follow-ups \{[\s\S]*?min-height: 38px;[\s\S]*?flex-wrap: nowrap;/);
+  assert.match(homepage, /\.operator-follow-ups:empty \{ display: none; \}/);
+  assert.match(homepage, /body\[data-home-chat-active="true"\] \.operator-result \{[\s\S]*?max-height: min\(48dvh, 32rem\);[\s\S]*?align-self: start;/);
   assert.match(actions, /import '\.\/home-busy-state\.js';/);
   assert.match(busyUi, /const BUSY_TEXT = 'Operator is working on this page…'/);
   assert.match(busyUi, /form\.getAttribute\('aria-busy'\) === 'true'/);
