@@ -420,7 +420,7 @@ async function runAgentTask(argv = process.argv.slice(2), hooks = {}) {
   const id = taskId(options.task);
 
   if (backend === 'none') {
-    throw new Error('No executor available. Install codex/openclaw/claude or set OPENAI_API_KEY/ANTHROPIC_API_KEY.');
+    throw new Error('No executor available. Install codex/openclaw/claude, set OPENAI_API_KEY/ANTHROPIC_API_KEY, or select --backend gemini-api with GEMINI_API_KEY.');
   }
   if (!memoryExecutionAllowed(options)) {
     return printAndReturn({
