@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3DVR Open Vehicle | Open, Repairable Transportation</title>
+  <meta name="description" content="3DVR Open Vehicle is a research path toward open, repairable, user-owned transportation: hardware, software, diagnostics, documentation, and local computing.">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-mark.svg">
+  <link rel="stylesheet" href="../styles.css?v=20260927a">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <nav class="site-nav" aria-label="3DVR Open Vehicle navigation">
+    <a class="brand" href="/compute/">
+      <img src="/brand/portal-mark.svg" alt="">
+      <span>3DVR Open Vehicle</span>
+    </a>
+    <div class="nav-links">
+      <a href="/compute/">Compute</a>
+      <a href="/compute/laptop/">Laptop</a>
+      <a href="/compute/risc-v/">RISC-V</a>
+      <a href="/supply-chain/">Supply Chain</a>
+    </div>
+    <a class="button" href="mailto:3dvr.tech@gmail.com?subject=3DVR%20Open%20Vehicle">Join</a>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">3DVR Compute · Open mobility</p>
+        <span class="status">Research direction · build in public</span>
+        <h1>A vehicle you can understand and keep.</h1>
+        <p class="lede">
+          Open hardware, open software, open diagnostics, repairable parts, local computing, and documentation that belongs to the owner.
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="#first-build">Start with the dev kit</a>
+          <a class="button" href="/supply-chain/">Trace the supply chain</a>
+        </div>
+      </div>
+
+      <div class="device-stage" role="img" aria-label="Concept architecture for a modular open vehicle">
+        <div class="flow">
+          <div class="flow-item"><strong>Mechanical</strong><span>Chassis, brakes, suspension, body.</span></div>
+          <div class="flow-item"><strong>Energy</strong><span>Battery, BMS, charger, motor.</span></div>
+          <div class="flow-item"><strong>Network</strong><span>Isolated buses, diagnostics, logs.</span></div>
+          <div class="flow-item"><strong>Compute</strong><span>Linux now, more open hardware over time.</span></div>
+        </div>
+      </div>
+    </header>
+
+    <section class="principles" aria-label="Open Vehicle principles">
+      <div class="principle"><strong>User-owned</strong><span>Your logs, diagnostics, configuration, and service data.</span></div>
+      <div class="principle"><strong>Repairable</strong><span>Standard parts, replaceable modules, ordinary tools.</span></div>
+      <div class="principle"><strong>Open by default</strong><span>Publish interfaces, software, CAD, schematics, and manuals where possible.</span></div>
+      <div class="principle"><strong>Offline-capable</strong><span>Core operation should not depend on a vendor cloud.</span></div>
+    </section>
+
+    <section class="section" aria-labelledby="architecture-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Architecture</p>
+          <h2 id="architecture-title">Open the whole stack, layer by layer.</h2>
+        </div>
+        <p>The vehicle is both a physical machine and a computing system. The project treats both as things an owner should be able to inspect, repair, and improve.</p>
+      </div>
+
+      <div class="stack">
+        <article class="stack-card">
+          <span class="tag">Physical</span>
+          <h3>Mechanical platform</h3>
+          <p>Chassis, suspension, steering, braking, body, mounting standards, and service access with CAD and a real bill of materials.</p>
+        </article>
+        <article class="stack-card">
+          <span class="tag">Power</span>
+          <h3>Energy + propulsion</h3>
+          <p>Document battery modules, BMS, charger, inverter, motor, thermal systems, interfaces, and high-voltage boundaries.</p>
+        </article>
+        <article class="stack-card">
+          <span class="tag">Network</span>
+          <h3>Vehicle communication</h3>
+          <p>Isolated CAN or equivalent networks, gateways, open diagnostics, logging, simulation, and replayable test data.</p>
+        </article>
+        <article class="stack-card">
+          <span class="tag">Compute</span>
+          <h3>Open cockpit</h3>
+          <p>Linux-based navigation, cameras, media, owner-controlled connectivity, local storage, and a 3DVR HUD without mandatory cloud dependence.</p>
+        </article>
+        <article class="stack-card">
+          <span class="tag">Hardware</span>
+          <h3>Modular computer</h3>
+          <p>Replaceable compute rather than a disposable dashboard, with a long-term RISC-V path where the hardware is ready for the role.</p>
+        </article>
+        <article class="stack-card">
+          <span class="tag">Owner layer</span>
+          <h3>3DVR</h3>
+          <p>Maintenance knowledge, trip tools, local AI, automation, and personal context controlled by the person using the vehicle.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="roadmap-title">
+      <div class="product-panel">
+        <div>
+          <p class="eyebrow">Roadmap</p>
+          <h2 id="roadmap-title">Retrofit first. Full platform later.</h2>
+          <p>
+            We can learn on ordinary vehicles without pretending we are ready to redesign every safety-critical system. Each stage should produce useful open artifacts for the next.
+          </p>
+        </div>
+        <div class="flow" aria-label="Open Vehicle roadmap">
+          <div class="flow-item"><strong>1 · Cockpit</strong><span>Linux, sensors, GPS, cameras, read-only OBD-II/CAN.</span></div>
+          <div class="flow-item"><strong>2 · Lab</strong><span>Simulation, replayable buses, bench rigs, hardware-in-the-loop.</span></div>
+          <div class="flow-item"><strong>3 · Prototype EV</strong><span>Documented donor components and modular vehicle management.</span></div>
+          <div class="flow-item"><strong>4 · Physical platform</strong><span>Open CAD, BOM, wiring, fabrication, and service documentation.</span></div>
+          <div class="flow-item"><strong>5 · Open compute</strong><span>Push more of the stack toward auditable Linux and open silicon.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="first-build" aria-labelledby="first-build-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">First practical milestone</p>
+          <h2 id="first-build-title">Open Vehicle Dev Kit</h2>
+        </div>
+        <p>Start with something useful, reversible, and testable on an existing car.</p>
+      </div>
+
+      <div class="stack">
+        <article class="stack-card"><h3>Read-only vehicle data</h3><p>An isolated OBD-II/CAN interface for diagnostics and recording without issuing control commands.</p></article>
+        <article class="stack-card"><h3>Local computer</h3><p>Linux or RISC-V compute with GPS, IMU, local storage, and optional cameras.</p></article>
+        <article class="stack-card"><h3>Open dashboard</h3><p>A calm owner-controlled display for trips, diagnostics, maintenance, navigation experiments, and the future 3DVR HUD.</p></article>
+        <article class="stack-card"><h3>Reproducible data</h3><p>Sanitized recorded bus data and simulation fixtures so most development can happen away from a moving vehicle.</p></article>
+      </div>
+    </section>
+
+    <aside class="heritage" aria-label="Open Vehicle safety boundary">
+      <strong>Safety boundary: read before building.</strong>
+      <p>
+        Early work in a road vehicle stays read-only or non-critical. Steering, braking, propulsion, restraints, high-voltage battery controls, and other safety-critical functions require appropriate engineering analysis, fault handling, testing, and regulatory review before real-world deployment. Active-control experiments belong first in simulation, bench rigs, RC-scale platforms, or isolated test vehicles.
+      </p>
+    </aside>
+
+    <section class="section" aria-labelledby="references-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Open ecosystem</p>
+          <h2 id="references-title">Build on work that already exists.</h2>
+        </div>
+        <p>These are references to learn from, not dependencies. Reuse proven open work where it fits and document the closed boundaries honestly.</p>
+      </div>
+
+      <div class="stack">
+        <article class="stack-card">
+          <h3>Open Vehicle Control System</h3>
+          <p>Open vehicle embedded hardware/software and a useful reference architecture for modular vehicle management.</p>
+          <a href="https://github.com/open-vehicle-control-system/ovcs">Explore OVCS →</a>
+        </article>
+        <article class="stack-card">
+          <h3>Automotive Grade Linux</h3>
+          <p>A Linux Foundation ecosystem developing open software platforms for automotive applications.</p>
+          <a href="https://www.automotivelinux.org/">Explore AGL →</a>
+        </article>
+        <article class="stack-card">
+          <h3>TABBY EVO</h3>
+          <p>Open Motors' modular EV platform provides a physical open-vehicle reference with published design material.</p>
+          <a href="https://www.openmotors.co/evplatform/">Explore TABBY EVO →</a>
+        </article>
+        <article class="stack-card">
+          <h3>RIGOLETTO</h3>
+          <p>European research developing a RISC-V automotive hardware platform for software-defined vehicles.</p>
+          <a href="https://rigoletto-project.eu/">Explore RIGOLETTO →</a>
+        </article>
+      </div>
+    </section>
+
+    <section class="callout" aria-labelledby="join-title">
+      <div>
+        <p class="eyebrow">Open transportation</p>
+        <h2 id="join-title">Make transportation owner-controlled again.</h2>
+        <p>Mechanics, EV builders, Linux developers, embedded engineers, CAD designers, repair technicians, and documentation people all have a place in this project.</p>
+      </div>
+      <a class="button" href="mailto:3dvr.tech@gmail.com?subject=Help%20build%203DVR%20Open%20Vehicle">Help build it</a>
+    </section>
+  </main>
+
+  <footer>
+    <strong>3DVR Open Vehicle</strong>
+    <a href="/compute/">Compute</a>
+    <a href="/compute/laptop/">Laptop</a>
+    <a href="/compute/risc-v/">RISC-V</a>
+    <a href="/supply-chain/">Supply Chain</a>
+    <a href="mailto:3dvr.tech@gmail.com">3dvr.tech@gmail.com</a>
+  </footer>
+
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
