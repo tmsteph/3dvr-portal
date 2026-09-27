@@ -28,6 +28,7 @@ const FEATURED = [
   { title: '3DVR Girl', href: '/3dvr-girl/', description: '3DVR character universe', aliases: 'characters kayla story universe' },
   { title: '3DVR Desktop', href: '/3dvr-desktop/', description: 'Web-native desktop environment', aliases: 'desktop os apps launcher computer' },
   { title: '3DVR OS', href: '/3dvr-os/', description: 'Open personal computing', aliases: 'operating system linux open computing' },
+  { title: 'Open Personal Computing', href: '/compute/vision/', description: 'Now, next, and long-term roadmap', aliases: 'roadmap vision framework fairphone repairable modular linux risc-v open hardware computing' },
   { title: '3DVR Open Vehicle', href: '/compute/vehicle/', description: 'Open, repairable, user-owned transportation', aliases: 'vehicle car ev mobility automotive open source repair obd can bus' },
   { title: 'AV Operator', href: '/av-operator/', description: 'Tools for audiovisual work', aliases: 'audio video av show event work' },
   { title: 'Business Sites', href: '/business-sites/', description: 'Build and manage business websites', aliases: 'website web builder business' },

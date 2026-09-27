@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open Personal Computing | 3DVR</title>
+  <meta name="description" content="The public 3DVR roadmap for open personal computing: practical repairable hardware now, owner-controlled systems next, and increasingly open hardware all the way down.">
+  <link rel="canonical" href="https://portal.3dvr.tech/compute/vision/">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-mark.svg">
+  <link rel="stylesheet" href="../styles.css?v=20260927a">
+  <script defer src="/_vercel/insights/script.js"></script>
+  <style>
+    .vision-hero {
+      padding: 76px 0 48px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, .72fr);
+      gap: 48px;
+      align-items: end;
+    }
+    .vision-hero h1 { max-width: 9ch; }
+    .roadmap-summary {
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(255,255,255,.58);
+      box-shadow: var(--shadow);
+    }
+    .roadmap-summary ol { margin: 0; padding: 0; list-style: none; }
+    .roadmap-summary li {
+      padding: 14px 0;
+      display: grid;
+      grid-template-columns: 5.2rem 1fr;
+      gap: 12px;
+      border-top: 1px solid var(--line);
+    }
+    .roadmap-summary li:first-child { border-top: 0; padding-top: 0; }
+    .roadmap-summary li:last-child { padding-bottom: 0; }
+    .roadmap-summary strong { color: var(--teal-dark); }
+    .roadmap-summary span { color: var(--muted); line-height: 1.45; }
+    .stage-grid { display: grid; gap: 14px; }
+    .stage {
+      padding: 28px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(255,255,255,.58);
+    }
+    .stage-head {
+      display: grid;
+      grid-template-columns: 8rem 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+    .stage-label {
+      color: var(--teal);
+      font-weight: 880;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      font-size: .76rem;
+    }
+    .stage h2 { margin-bottom: 10px; font-size: clamp(1.9rem, 4vw, 3.2rem); }
+    .stage p { max-width: 52rem; margin: 0; color: var(--muted); line-height: 1.62; }
+    .stage .stack { margin-top: 24px; }
+    .commitments { margin-top: 24px; }
+    .commitments .stack-card { min-height: 150px; }
+    .reference-note {
+      margin-top: 18px;
+      padding: 16px 18px;
+      border-left: 3px solid var(--teal);
+      background: rgba(220,235,234,.36);
+      color: #435354;
+      line-height: 1.55;
+    }
+    .reference-note strong { color: var(--teal-dark); }
+    @media (max-width: 880px) {
+      .vision-hero { grid-template-columns: 1fr; padding-top: 48px; }
+      .stage-head { grid-template-columns: 1fr; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="site-nav" aria-label="Open Personal Computing navigation">
+    <a class="brand" href="/compute/">
+      <img src="/brand/portal-mark.svg" alt="">
+      <span>3DVR Compute</span>
+    </a>
+    <div class="nav-links">
+      <a href="/compute/">Compute</a>
+      <a href="/compute/laptop/">Laptop</a>
+      <a href="/compute/risc-v/">RISC-V</a>
+      <a href="/3dvr-os/">3DVR OS</a>
+      <a href="/supply-chain/">Supply Chain</a>
+    </div>
+    <a class="button" href="/">Portal</a>
+  </nav>
+
+  <main>
+    <header class="vision-hero">
+      <div>
+        <p class="eyebrow">Open Personal Computing</p>
+        <span class="status">Public direction · evolving in the open</span>
+        <h1>Own the machine. Keep the future.</h1>
+        <p class="lede">
+          The destination is personal computing you can repair, understand, move between devices, and increasingly build from open parts.
+          We do not need a secret product calendar to be clear about the direction.
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="#now">Start with now</a>
+          <a class="button" href="/compute/">Explore 3DVR Compute</a>
+        </div>
+      </div>
+
+      <aside class="roadmap-summary" aria-label="Roadmap summary">
+        <ol>
+          <li><strong>Now</strong><span>Use repairable, Linux-friendly hardware and open software that already works.</span></li>
+          <li><strong>Next</strong><span>Standardize the owner-controlled layer: identity, memory, agents, interfaces, modules, and repair docs.</span></li>
+          <li><strong>Later</strong><span>Push openness down into compute boards, RISC-V, acceleration, manufacturing, and supply chains.</span></li>
+          <li><strong>Long-term</strong><span>Make the personal computer a commons: understandable, forkable, repairable, and durable across generations.</span></li>
+        </ol>
+      </aside>
+    </header>
+
+    <section class="principles" aria-label="Open Personal Computing principles">
+      <div class="principle"><strong>Direction over secrecy</strong><span>Publish where we are going even when dates are unknown.</span></div>
+      <div class="principle"><strong>Compatibility over churn</strong><span>Keep useful parts working across generations whenever practical.</span></div>
+      <div class="principle"><strong>Ownership over lock-in</strong><span>Your data, tools, identity, memory, and machines should remain yours.</span></div>
+      <div class="principle"><strong>Working systems first</strong><span>Prototype with available hardware instead of waiting for perfect openness.</span></div>
+    </section>
+
+    <div class="stage-grid">
+      <section class="stage" id="now">
+        <div class="stage-head">
+          <div class="stage-label">Now</div>
+          <div>
+            <h2>Use the best practical pieces.</h2>
+            <p>
+              Open Personal Computing starts with real machines people can use today. Framework is a practical laptop benchmark because the platform is modular and repairable.
+              Repairable Android phones such as Fairphone are a useful phone benchmark. Linux, 3DVR Portal, 3DVR OS, servers, and RISC-V development boards let us build the software and operating model before every hardware layer is open.
+            </p>
+          </div>
+        </div>
+        <div class="stack">
+          <article class="stack-card"><span class="tag">Reference</span><h3>Framework-class laptop</h3><p>Modular, upgradeable hardware as the practical baseline for a computer meant to last.</p></article>
+          <article class="stack-card"><span class="tag">Reference</span><h3>Repairable phone</h3><p>Android compatibility, replaceable parts, long support, and a path toward more user control.</p></article>
+          <article class="stack-card"><span class="tag">Software</span><h3>Linux + 3DVR</h3><p>Portal, 3DVR OS, personal AI, local tools, and server-first services form the owner-controlled layer now.</p></article>
+        </div>
+        <div class="reference-note"><strong>Reference platforms, not dependencies.</strong> We should be able to move between vendors as better repairable or more open hardware appears.</div>
+      </section>
+
+      <section class="stage">
+        <div class="stage-head">
+          <div class="stage-label">Next</div>
+          <div>
+            <h2>Make the owner-controlled layer coherent.</h2>
+            <p>
+              The next milestone is less about inventing a processor and more about making the whole personal system portable:
+              one identity, one knowledge layer, durable personal AI, documented interfaces, replaceable hardware modules, open repair information, and software that works without requiring a proprietary cloud.
+            </p>
+          </div>
+        </div>
+        <div class="stack">
+          <article class="stack-card"><span class="tag">Hardware</span><h3>3DVR Laptop</h3><p>A long-lived shell with replaceable compute, storage, I/O, battery, display, and input wherever practical.</p></article>
+          <article class="stack-card"><span class="tag">Interface</span><h3>Open modules</h3><p>Publish physical and software interfaces so parts can be substituted instead of forcing full-device replacement.</p></article>
+          <article class="stack-card"><span class="tag">Intelligence</span><h3>User-owned agent layer</h3><p>Memory, permissions, automation, and model routing should survive changes in device or AI provider.</p></article>
+        </div>
+      </section>
+
+      <section class="stage">
+        <div class="stage-head">
+          <div class="stage-label">Later</div>
+          <div>
+            <h2>Open the stack downward.</h2>
+            <p>
+              Once the surrounding system works, replace opaque pieces deliberately. RISC-V and FPGA prototypes provide a path toward compute we can inspect.
+              Reproducible boards, open accelerators, documented firmware, repairable enclosures, and transparent sourcing move the project from “open software on good hardware” toward genuinely open personal computers.
+            </p>
+          </div>
+        </div>
+        <div class="stack">
+          <article class="stack-card"><span class="tag">Compute</span><h3>RISC-V + FPGA</h3><p>Prove small open systems before taking on custom silicon.</p></article>
+          <article class="stack-card"><span class="tag">Fabrication</span><h3>Reproducible hardware</h3><p>Schematics, CAD, BOMs, test fixtures, firmware, and assembly knowledge that others can actually use.</p></article>
+          <article class="stack-card"><span class="tag">Supply</span><h3>Fewer black boxes</h3><p>Trace materials and components, document closed dependencies, and steadily develop alternatives.</p></article>
+        </div>
+      </section>
+
+      <section class="stage">
+        <div class="stage-head">
+          <div class="stage-label">Long-term</div>
+          <div>
+            <h2>A computing commons.</h2>
+            <p>
+              Laptop, phone, desktop, wearable, server, vehicle, and future interfaces become different forms of the same user-owned computing system.
+              Hardware generations can change without erasing the person's software, knowledge, relationships, or ability to work. The goal is not one perfect 3DVR device. It is an ecosystem people can understand, repair, improve, and fork.
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="section commitments" aria-labelledby="commitments-title">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">What we can promise now</p>
+          <h2 id="commitments-title">Commitments, not vaporware.</h2>
+        </div>
+        <p>Exact products will change. These principles should be harder to change than a product name or processor choice.</p>
+      </div>
+      <div class="stack">
+        <article class="stack-card"><h3>Publish the interfaces</h3><p>Document APIs, protocols, mechanical assumptions, repair paths, and compatibility boundaries wherever licensing permits.</p></article>
+        <article class="stack-card"><h3>Preserve compatibility</h3><p>Prefer adapters and upgrade paths over needless breakage. A new generation should not automatically make the last one trash.</p></article>
+        <article class="stack-card"><h3>Keep Linux first-class</h3><p>Favor upstream-friendly drivers, ordinary tooling, documented boot paths, and systems users can administer themselves.</p></article>
+        <article class="stack-card"><h3>Let people leave</h3><p>Data, memory, identity, and workflows should be exportable. Open Personal Computing should not become another lock-in strategy.</p></article>
+        <article class="stack-card"><h3>Repair before replace</h3><p>Use replaceable batteries, storage, I/O, input, compute, and displays wherever the design can reasonably support them.</p></article>
+        <article class="stack-card"><h3>Show the direction</h3><p>Keep this roadmap public and update it as experiments succeed, fail, or reveal a better route.</p></article>
+      </div>
+    </section>
+
+    <section class="callout" aria-labelledby="build-title">
+      <div>
+        <p class="eyebrow">Build in public</p>
+        <h2 id="build-title">The roadmap is part of the product.</h2>
+        <p>People should be able to see what exists, what comes next, and what the project is ultimately trying to make possible.</p>
+      </div>
+      <a class="button" href="/compute/">Explore the hardware work</a>
+    </section>
+  </main>
+
+  <footer>
+    <strong>Open Personal Computing</strong>
+    <a href="/compute/">Compute</a>
+    <a href="/compute/laptop/">Laptop</a>
+    <a href="/compute/risc-v/">RISC-V</a>
+    <a href="/3dvr-os/">3DVR OS</a>
+    <a href="/supply-chain/">Supply Chain</a>
+    <a href="/">Portal</a>
+  </footer>
+
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
