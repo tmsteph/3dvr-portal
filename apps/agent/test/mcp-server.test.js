@@ -209,10 +209,14 @@ test('OVH and n8n bridge tools are opt-in and stay scoped', async (t) => {
   const listed = await client.listTools();
   const names = listed.tools.map(tool => tool.name);
 
-  for (const name of ['organism_remember', 'secret_status', 'n8n_status', 'n8n_workflows', 'n8n_executions', 'service_status']) {
+  for (const name of ['secret_status', 'n8n_status', 'n8n_workflows', 'n8n_executions', 'service_status']) {
     assert.equal(names.includes(name), true);
     assert.equal(listed.tools.find(tool => tool.name === name).annotations.readOnlyHint, true);
   }
+  const rememberTool = listed.tools.find(tool => tool.name === 'organism_remember');
+  assert.equal(Boolean(rememberTool), true);
+  assert.equal(rememberTool.annotations.readOnlyHint, false);
+  assert.equal(rememberTool.annotations.destructiveHint, false);
 
   const remembered = parseToolResult(await client.callTool({
     name: 'organism_remember',
