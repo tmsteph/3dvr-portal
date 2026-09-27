@@ -33,6 +33,22 @@ test('operator collects a compact snapshot of portal workspaces', async () => {
     storage,
     openDb: async () => db,
     load: async () => lifeSpace,
+    fetchImpl: async url => ({
+      ok: url === '/abilities/abilities.json',
+      json: async () => ({
+        capabilities: [
+          {
+            id: 'remote-linux',
+            name: 'Remote Linux computer control',
+            category: 'Code & infrastructure',
+            status: 'working',
+            permission: 'Automatic within authorized systems',
+            access: '3DVR Control MCP + SSH mesh',
+            showInAccess: true
+          }
+        ]
+      })
+    }),
     now: () => new Date('2026-08-21T20:00:00.000Z')
   });
 
@@ -42,6 +58,9 @@ test('operator collects a compact snapshot of portal workspaces', async () => {
   assert.equal(snapshot.apps.crm.records[0].nextBestAction, 'Send proposal');
   assert.equal('email' in snapshot.apps.crm.records[0], false);
   assert.equal(snapshot.apps.calendar.upcoming[0].title, 'Client call');
+  assert.equal(snapshot.version, 2);
+  assert.equal(snapshot.capabilities.available, true);
+  assert.equal(snapshot.capabilities.capabilities[0].id, 'remote-linux');
 });
 
 test('portal snapshot is explicitly treated as data instead of instructions', () => {
