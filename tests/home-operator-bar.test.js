@@ -30,19 +30,22 @@ test('homepage Operator sends the signed developer proof used by full Operator',
   assert.match(client, /runOperatorAction\(data\.action, \{ developerAccess: data\.developerAccess \}\)/);
 });
 
-test('homepage busy state lives in the Operator input instead of the status line', async () => {
+test('homepage busy state is calm and streaming does not rebuild the response card', async () => {
+  const homepage = await read('index.html');
   const client = await read('home-operator.js');
   const actions = await read('operator/actions.js');
   const busyUi = await read('operator/home-busy-state.js');
 
   assert.match(client, /input\.placeholder = busy \? 'Operator is working on this page…' : idlePlaceholder/);
-  assert.match(client, /setBusy\(true\);\n\s*status\.textContent = '';/);
-  assert.match(client, /operator-mini-portal-spin/);
-  assert.match(client, /rotate\(-360deg\)/);
-  assert.doesNotMatch(client, /status\.textContent = 'Operator is working on this page…'/);
+  assert.match(client, /setBusy\(true\);\n\s*status\.textContent = '';\n\s*beginResponse\(\);/);
+  assert.match(client, /operator-mini-portal-breathe/);
+  assert.doesNotMatch(client, /operator-mini-portal-spin/);
+  assert.doesNotMatch(client, /rotate\(-360deg\)/);
+  assert.match(client, /queueReplyPaint\(streamedReply\)/);
+  assert.doesNotMatch(client, /renderResponse\(\{ message: streamedReply \}\)/);
+  assert.match(homepage, /\.operator-follow-ups \{[\s\S]*?min-height: 38px;[\s\S]*?flex-wrap: nowrap;/);
   assert.match(actions, /import '\.\/home-busy-state\.js';/);
-  assert.match(busyUi, /input\.value = BUSY_TEXT/);
   assert.match(busyUi, /const BUSY_TEXT = 'Operator is working on this page…'/);
   assert.match(busyUi, /form\.getAttribute\('aria-busy'\) === 'true'/);
-  assert.match(busyUi, /input\.value = '';/);
+  assert.doesNotMatch(busyUi, /input\.value = BUSY_TEXT/);
 });
