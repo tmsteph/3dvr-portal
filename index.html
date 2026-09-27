@@ -136,16 +136,16 @@
       flex: 1;
       display: flex;
       align-items: center;
-      padding: 42px 0 80px;
+      padding: 28px 0 56px;
     }
 
     .home { width: 100%; max-width: 640px; margin: 0 auto; }
 
     .spinner-stage {
       position: relative;
-      width: min(270px, 80vw);
-      height: min(270px, 80vw);
-      margin: 0 auto 8px;
+      width: min(320px, 88vw);
+      height: min(320px, 88vw);
+      margin: 0 auto;
       display: grid;
       place-items: center;
       isolation: isolate;
@@ -188,7 +188,7 @@
       z-index: 2;
       display: grid;
       place-items: center;
-      width: clamp(8.1rem, 33vw, 10.2rem);
+      width: clamp(11.5rem, 44vw, 15rem);
       aspect-ratio: 1;
       border-radius: 50%;
       cursor: grab;
@@ -273,12 +273,12 @@
 
     .spinner-nav__item:hover,
     .spinner-nav__item:focus-visible { border-color: #79c0ff; background: #13253b; outline: none; }
-    .spinner-nav__item--day { --spinner-x: 50%; --spinner-y: 4%; }
-    .spinner-nav__item--work { --spinner-x: 90%; --spinner-y: 28%; }
-    .spinner-nav__item--build { --spinner-x: 90%; --spinner-y: 72%; }
-    .spinner-nav__item--games { --spinner-x: 50%; --spinner-y: 96%; }
-    .spinner-nav__item--leads { --spinner-x: 10%; --spinner-y: 72%; }
-    .spinner-nav__item--apps { --spinner-x: 10%; --spinner-y: 28%; }
+    .spinner-nav__item--day { --spinner-x: 50%; --spinner-y: 2%; }
+    .spinner-nav__item--work { --spinner-x: 96%; --spinner-y: 28%; }
+    .spinner-nav__item--build { --spinner-x: 96%; --spinner-y: 72%; }
+    .spinner-nav__item--games { --spinner-x: 50%; --spinner-y: 98%; }
+    .spinner-nav__item--leads { --spinner-x: 4%; --spinner-y: 72%; }
+    .spinner-nav__item--apps { --spinner-x: 4%; --spinner-y: 28%; }
     .spinner-stage[data-open="true"] .spinner-nav__item {
       opacity: 1;
       pointer-events: auto;
@@ -441,8 +441,9 @@
         max-height: calc(100dvh - 86px);
         overflow-y: auto;
       }
-      main { align-items: flex-start; padding-top: 30px; }
-      .spinner-stage { width: min(248px, 78vw); height: min(248px, 78vw); }
+      main { align-items: flex-start; padding-top: 16px; }
+      .spinner-stage { width: min(292px, 86vw); height: min(292px, 86vw); }
+      .portal-swirl-logo { width: clamp(11rem, 56vw, 13.5rem); }
       .spinner-nav__item { min-width: 58px; min-height: 40px; padding-inline: 11px; font-size: 0.88rem; }
       .operator-bar__label { display: none; }
       .apps-list { grid-template-columns: 1fr; }
