@@ -17,9 +17,6 @@ concurrency:
 env:
   VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z
   VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch
-  VERCEL_SCOPE: tmstephs-projects
-  VERCEL_PROJECT: 3dvr-portal
-  PORTAL_DOMAIN: portal.3dvr.tech
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
 jobs:
@@ -112,9 +109,6 @@ jobs:
 
           export VERCEL_ORG_ID="team_xxJGO7S7h1ZP4BHidYV0CX9Z"
           export VERCEL_PROJECT_ID="prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch"
-          VERCEL_SCOPE="tmstephs-projects"
-          VERCEL_PROJECT="3dvr-portal"
-          PORTAL_DOMAIN="portal.3dvr.tech"
           if command -v vercel >/dev/null 2>&1; then
             vercel_cmd=(vercel)
           else
@@ -122,13 +116,9 @@ jobs:
           fi
 
           "${vercel_cmd[@]}" pull --yes --environment=production
-          "${vercel_cmd[@]}" domains add "$PORTAL_DOMAIN" \
-            --scope "$VERCEL_SCOPE" --force
           "${vercel_cmd[@]}" build --prod
           deploy_url="$("${vercel_cmd[@]}" deploy --prebuilt --prod --yes)"
-          "${vercel_cmd[@]}" alias set "$deploy_url" "$PORTAL_DOMAIN" \
-            --scope "$VERCEL_SCOPE"
-          echo "Production deployment created and aliased: $deploy_url -> https://$PORTAL_DOMAIN"
+          echo "Production deployment created: $deploy_url"
           REMOTE
 
           rm -f /tmp/vercel-a /tmp/vercel-b /tmp/vercel-c
@@ -141,12 +131,6 @@ jobs:
         if: ${{ steps.vercel-creds.outputs.enabled == 'true' }}
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
 
-      - name: Attach canonical Portal domain
-        if: ${{ steps.vercel-creds.outputs.enabled == 'true' }}
-        run: |
-          vercel domains add "$PORTAL_DOMAIN" \
-            --scope "$VERCEL_SCOPE" --force --token="$VERCEL_TOKEN"
-
       - name: Build production artifact
         if: ${{ steps.vercel-creds.outputs.enabled == 'true' }}
         run: vercel build --prod --token="$VERCEL_TOKEN"
@@ -157,8 +141,6 @@ jobs:
         shell: bash
         run: |
           DEPLOY_URL="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" --yes)"
-          vercel alias set "$DEPLOY_URL" "$PORTAL_DOMAIN" \
-            --scope "$VERCEL_SCOPE" --token="$VERCEL_TOKEN"
           echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
           echo "Production URL: $DEPLOY_URL"
 
