@@ -66,8 +66,8 @@ function installFullOperatorBusyIndicator() {
       }
 
       #operator-form .operator-submit__portal {
-        width: 28px;
-        height: 28px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
         opacity: 0;
         transform: scale(0.82);
