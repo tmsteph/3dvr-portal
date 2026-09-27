@@ -23,6 +23,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate reconcile request
+        id: request
+        shell: bash
+        run: |
+          set -euo pipefail
+          request=ops/control/workforce-reconcile-request.json
+          jq -e '
+            .mode == "iatse_apply"
+            and (.desired | type == "object")
+            and ((.desired | length) > 0)
+            and ([.desired | keys[] | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$")] | all)
+            and ([.desired[] | IN("All Day","Evenings","Afternoons","Mornings","Not Available","Booked")] | all)
+          ' "$request" >/dev/null
+          desired="$(jq -c '.desired' "$request")"
+          echo "desired_b64=$(printf '%s' "$desired" | base64 -w0)" >> "$GITHUB_OUTPUT"
+
       - name: Resolve Hetzner SSH access
         id: ssh
         shell: bash
@@ -51,59 +67,33 @@ jobs:
         shell: bash
         env:
           HETZNER_USER: ${{ steps.ssh.outputs.user }}
+          DESIRED_B64: ${{ steps.request.outputs.desired_b64 }}
         run: |
           set -euo pipefail
           opts=(-i /tmp/3dvr-a -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
-          ssh "${opts[@]}" "$HETZNER_USER@$HETZNER_HOST" bash -s > /tmp/workforce-result.json <<'REMOTE'
-          set -u
+          ssh "${opts[@]}" "$HETZNER_USER@$HETZNER_HOST" "DESIRED_B64='$DESIRED_B64' bash -s" > /tmp/workforce-result.json <<'REMOTE'
+          set -eu
           ssh_opts=(-o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8)
-          ssh "${ssh_opts[@]}" 3dvr-ovh 'bash -s' <<'OVH'
-          set -u
-          sudo -n systemctl restart 3dvr-browser-lane@general.service
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            curl -fsS --max-time 2 http://127.0.0.1:9222/json/version >/dev/null 2>&1 && break
-            sleep 2
-          done
+          ssh "${ssh_opts[@]}" 3dvr-ovh "DESIRED_B64='$DESIRED_B64' bash -s" <<'OVH'
+          set -eu
+          desired="$(printf '%s' "$DESIRED_B64" | base64 -d)"
+
+          if ! curl -fsS --max-time 2 http://127.0.0.1:9222/json/version >/dev/null 2>&1; then
+            sudo -n systemctl restart 3dvr-browser-lane@general.service
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              curl -fsS --max-time 2 http://127.0.0.1:9222/json/version >/dev/null 2>&1 && break
+              sleep 2
+            done
+          fi
+          if ! curl -fsS --max-time 2 http://127.0.0.1:9222/json/version >/dev/null 2>&1; then
+            printf '%s\n' '{"ok":false,"error":"general-lane-cdp-unavailable"}'
+            exit 0
+          fi
 
           setter=/tmp/iatse-availability-set.cjs
           curl -fsSL --retry 3 --retry-delay 1 \
             https://raw.githubusercontent.com/tmsteph/3dvr-portal/main/scripts/ops/iatse-availability-set.cjs \
             -o "$setter"
-
-          desired='{
-            "2026-09-26":"Booked",
-            "2026-09-27":"Booked",
-            "2026-09-28":"Booked",
-            "2026-09-29":"Booked",
-            "2026-09-30":"Booked",
-            "2026-10-01":"Not Available",
-            "2026-10-02":"Not Available",
-            "2026-10-03":"All Day",
-            "2026-10-04":"All Day",
-            "2026-10-05":"Booked",
-            "2026-10-06":"Booked",
-            "2026-10-07":"Booked",
-            "2026-10-08":"Booked",
-            "2026-10-09":"Booked",
-            "2026-10-10":"Not Available",
-            "2026-10-11":"Not Available",
-            "2026-10-12":"Not Available",
-            "2026-10-13":"Booked",
-            "2026-10-14":"Booked",
-            "2026-10-15":"Booked",
-            "2026-10-16":"Booked",
-            "2026-10-17":"Not Available",
-            "2026-10-18":"Booked",
-            "2026-10-19":"Booked",
-            "2026-10-20":"Booked",
-            "2026-10-21":"Booked",
-            "2026-10-22":"Not Available",
-            "2026-10-23":"Not Available",
-            "2026-10-24":"All Day",
-            "2026-10-25":"All Day",
-            "2026-10-26":"Booked",
-            "2026-10-27":"All Day"
-          }'
 
           token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general manual-iatse-reconcile 180 2>/dev/null || true)"
           if [ -n "$token" ]; then
