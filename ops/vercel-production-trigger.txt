@@ -7,3 +7,4 @@
 2026-09-26 ambient-hud-test-route #2778
 
 2026-09-27 operator-evidence-receipts PR #2784 public assets
+2026-09-27 homepage-operator-response-above-composer PR #2791
