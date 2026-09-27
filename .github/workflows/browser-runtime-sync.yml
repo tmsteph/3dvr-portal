@@ -1,0 +1,111 @@
+name: Sync OVH Browser Runtime
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/browser-runtime-sync.yml'
+      - 'ops/browser/3dvr-browser-admit'
+      - 'ops/browser/3dvr-browser-lane-start'
+      - 'scripts/ops/browser-lane-lease.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  HETZNER_HOST: 167.233.174.20
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate browser runtime scripts
+        run: |
+          set -euo pipefail
+          bash -n ops/browser/3dvr-browser-admit
+          bash -n ops/browser/3dvr-browser-lane-start
+          bash -n scripts/ops/browser-lane-lease.sh
+          node --test tests/browser-lane-admission.test.js tests/browser-lane-lease.test.js
+
+      - name: Resolve Hetzner SSH access
+        id: ssh
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+          write_key "$SSH_A" /tmp/browser-sync-a
+          write_key "$SSH_B" /tmp/browser-sync-b
+          write_key "$SSH_C" /tmp/browser-sync-c
+          for user in root debian ubuntu tmsteph; do
+            for key in /tmp/browser-sync-a /tmp/browser-sync-b /tmp/browser-sync-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$HETZNER_HOST" true >/dev/null 2>&1; then
+                echo "user=$user" >> "$GITHUB_OUTPUT"
+                echo "key=$key" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+          done
+          exit 1
+
+      - name: Install browser runtime on OVH
+        shell: bash
+        env:
+          HETZNER_USER: ${{ steps.ssh.outputs.user }}
+          HETZNER_KEY: ${{ steps.ssh.outputs.key }}
+        run: |
+          set -euo pipefail
+          admit_b64="$(base64 -w0 ops/browser/3dvr-browser-admit)"
+          start_b64="$(base64 -w0 ops/browser/3dvr-browser-lane-start)"
+          lease_b64="$(base64 -w0 scripts/ops/browser-lane-lease.sh)"
+          ssh -i "$HETZNER_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 "$HETZNER_USER@$HETZNER_HOST" bash -s -- "$admit_b64" "$start_b64" "$lease_b64" <<'REMOTE'
+          set -euo pipefail
+          admit_b64=$1
+          start_b64=$2
+          lease_b64=$3
+          ssh -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8 3dvr-ovh 'sudo -n bash -s' -- "$admit_b64" "$start_b64" "$lease_b64" <<'OVH'
+          set -euo pipefail
+          admit_b64=$1
+          start_b64=$2
+          lease_b64=$3
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          printf '%s' "$admit_b64" | base64 -d > "$tmpdir/admit"
+          printf '%s' "$start_b64" | base64 -d > "$tmpdir/start"
+          printf '%s' "$lease_b64" | base64 -d > "$tmpdir/lease"
+          bash -n "$tmpdir/admit"
+          bash -n "$tmpdir/start"
+          bash -n "$tmpdir/lease"
+          install -o root -g root -m 0755 "$tmpdir/admit" /usr/local/bin/3dvr-browser-admit
+          install -o root -g root -m 0755 "$tmpdir/start" /usr/local/bin/3dvr-browser-lane-start
+          install -o root -g root -m 0755 "$tmpdir/lease" /usr/local/bin/3dvr-browser-lease
+          /usr/local/bin/3dvr-browser-admit identity
+          OVH
+          REMOTE
+
+      - name: Remove SSH keys
+        if: always()
+        run: rm -f /tmp/browser-sync-a /tmp/browser-sync-b /tmp/browser-sync-c /tmp/browser-sync-*.raw
