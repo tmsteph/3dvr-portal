@@ -5,3 +5,5 @@
 2026-09-26T17:45:00-07:00 calm-operator-motion domain-reattach retry #2777
 2026-09-26T17:48:00-07:00 calm-operator-motion domain-reattach retry-2 #2777
 2026-09-26 ambient-hud-test-route #2778
+
+2026-09-27 operator-evidence-receipts PR #2784 public assets
