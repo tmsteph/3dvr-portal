@@ -4,13 +4,34 @@ const DEFAULT_HOLD_TO_ACTIVATE_MS = 650;
 const DEFAULT_STRONG_FLICK_DISTANCE = 150;
 const DEFAULT_STRONG_FLICK_MAX_MS = 190;
 const DEFAULT_STRONG_FLICK_SPEED = 0.9;
+const SQRT_THREE_OVER_TWO = Math.sqrt(3) / 2;
+const SPINNER_DIRECTION_VECTORS = Object.freeze([
+  ['day', 0, -1],
+  ['work', SQRT_THREE_OVER_TWO, -0.5],
+  ['build', SQRT_THREE_OVER_TWO, 0.5],
+  ['games', 0, 1],
+  ['apps', -SQRT_THREE_OVER_TWO, -0.5],
+  ['leads', -SQRT_THREE_OVER_TWO, 0.5]
+]);
 
 export function selectSpinnerDirection(dx, dy, minimumDistance = DEFAULT_SELECT_DISTANCE) {
   const distance = Math.hypot(dx, dy);
   if (distance < minimumDistance) return '';
 
-  if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? 'work' : 'apps';
-  return dy > 0 ? 'build' : 'day';
+  const unitX = dx / distance;
+  const unitY = dy / distance;
+  let selected = '';
+  let bestScore = -Infinity;
+
+  for (const [name, x, y] of SPINNER_DIRECTION_VECTORS) {
+    const score = (unitX * x) + (unitY * y);
+    if (score > bestScore) {
+      bestScore = score;
+      selected = name;
+    }
+  }
+
+  return selected;
 }
 
 export function classifySpinnerRelease({
@@ -68,12 +89,16 @@ if (documentRef) {
       day: stage.querySelector('.spinner-nav__item--day'),
       work: stage.querySelector('.spinner-nav__item--work'),
       build: stage.querySelector('.spinner-nav__item--build'),
+      games: stage.querySelector('.spinner-nav__item--games'),
+      leads: stage.querySelector('.spinner-nav__item--leads'),
       apps: stage.querySelector('.spinner-nav__item--apps')
     };
     const labels = {
       day: 'Day',
       work: 'Work',
       build: 'Build',
+      games: 'Games',
+      leads: 'Lead Finder',
       apps: 'Apps'
     };
 
@@ -110,6 +135,11 @@ if (documentRef) {
 
       .spinner-stage[data-spin-selecting="true"] .spinner-nav__item--apps {
         transform: translate(0, -50%) scale(1);
+      }
+
+      .spinner-stage[data-spin-selecting="true"] .spinner-nav__item--games,
+      .spinner-stage[data-spin-selecting="true"] .spinner-nav__item--leads {
+        transform: translate(-50%, -50%) scale(1);
       }
 
       .spinner-nav__item[data-spinner-selected="true"] {
