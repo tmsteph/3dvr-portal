@@ -225,6 +225,19 @@ if (form && input && submit && status && result && reply && followUps && actionL
     || `conversation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const now = () => new Date().toISOString();
   const idlePlaceholder = input.getAttribute('placeholder') || 'Ask Operator…';
+  const finePointer = window.matchMedia?.('(hover: hover) and (pointer: fine)');
+
+  const activateChatMode = () => {
+    document.body.dataset.homeChatActive = 'true';
+  };
+
+  const focusComposerWithoutScroll = () => {
+    try {
+      input.focus({ preventScroll: true });
+    } catch {
+      input.focus();
+    }
+  };
 
   let history = [];
   let homeConversationId = '';
@@ -503,6 +516,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
   };
 
   const beginResponse = () => {
+    activateChatMode();
     if (replyPaintTimer) {
       window.clearTimeout(replyPaintTimer);
       replyPaintTimer = 0;
@@ -511,6 +525,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
     reply.textContent = '';
     followUps.replaceChildren();
     actionLink.hidden = true;
+    result.scrollTop = 0;
     result.dataset.streaming = 'true';
     result.hidden = false;
   };
@@ -545,6 +560,11 @@ if (form && input && submit && status && result && reply && followUps && actionL
     if (!prompt) return;
 
     const prior = history.slice(-12);
+    const shouldRestoreComposerFocus = Boolean(
+      finePointer?.matches
+      && window.innerWidth > 580
+      && form.contains(document.activeElement)
+    );
     history.push({ role: 'user', content: prompt });
     persistHistory();
     input.value = '';
@@ -604,7 +624,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
         url: outcome?.url || '',
         label
       });
-      status.textContent = 'Operator is ready.';
+      status.textContent = '';
     } catch (error) {
       const message = `I could not finish that: ${error.message}`;
       history.push({ role: 'assistant', content: message });
@@ -613,7 +633,9 @@ if (form && input && submit && status && result && reply && followUps && actionL
       status.textContent = 'Operator needs another try.';
     } finally {
       setBusy(false);
-      input.focus();
+      if (shouldRestoreComposerFocus && document.visibilityState === 'visible') {
+        focusComposerWithoutScroll();
+      }
     }
   });
 }
