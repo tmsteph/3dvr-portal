@@ -5,6 +5,7 @@ const {
   backendCommand,
   buildPrompt,
   callClaude,
+  callGemini,
   callOpenAI,
   classifyTask,
   commandExists,
@@ -76,13 +77,21 @@ test('pickBackend prefers codex for code and openclaw for tool-heavy general wor
   assert.equal(pickBackend(
     { backend: 'auto' },
     classifyTask('Fix the JavaScript tests'),
-    { codex: true, openclaw: true, claudeCli: false, claudeApi: false, openaiApi: true },
+    { codex: true, openclaw: true, claudeCli: false, claudeApi: false, openaiApi: true, geminiApi: true },
   ), 'codex');
   assert.equal(pickBackend(
     { backend: 'auto' },
     classifyTask('Use the browser and calendar to prepare my day'),
-    { codex: true, openclaw: true, claudeCli: false, claudeApi: false, openaiApi: true },
+    { codex: true, openclaw: true, claudeCli: false, claudeApi: false, openaiApi: true, geminiApi: true },
   ), 'openclaw');
+});
+
+test('Gemini backend is explicit and does not silently change auto routing', () => {
+  const capabilities = { codex: false, openclaw: false, claudeCli: false, claudeApi: false, openaiApi: false, geminiApi: true };
+
+  assert.equal(pickBackend({ backend: 'auto' }, classifyTask('Summarize this'), capabilities), 'none');
+  assert.equal(pickBackend({ backend: 'gemini' }, classifyTask('Summarize this'), capabilities), 'gemini-api');
+  assert.equal(pickBackend({ backend: 'gemini-api' }, classifyTask('Summarize this'), capabilities), 'gemini-api');
 });
 
 test('unsafe high-risk prompt carries caller approval instead of asking again', () => {
@@ -244,5 +253,24 @@ test('Claude backend sends the expected Messages request shape', async () => {
   assert.equal(captured.url, 'https://api.anthropic.com/v1/messages');
   assert.equal(captured.request.headers['anthropic-version'], '2023-06-01');
   assert.equal(JSON.parse(captured.request.body).model, 'claude-test');
+  assert.equal(result.stdout, 'world');
+});
+
+test('Gemini backend sends the OpenAI-compatible Gemini request shape', async () => {
+  let captured;
+  const result = await callGemini('hello', { model: 'gemini-test' }, {
+    env: { GEMINI_API_KEY: 'key' },
+    fetchImpl: async (url, request) => {
+      captured = { url, request };
+      return {
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: 'world' } }] }),
+      };
+    },
+  });
+
+  assert.equal(captured.url, 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
+  assert.equal(captured.request.headers.Authorization, 'Bearer key');
+  assert.equal(JSON.parse(captured.request.body).model, 'gemini-test');
   assert.equal(result.stdout, 'world');
 });
