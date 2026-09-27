@@ -250,7 +250,7 @@ EnvironmentFile=-$common_env
 EnvironmentFile=$portal_env
 EnvironmentFile=-$portal_secrets_env
 EnvironmentFile=-/etc/3dvr/secrets-broker/portal.env
-ExecStart=/bin/sh -lc 'token="\${CRON_SECRET:-\${GROWTH_HOMEPAGE_CRON_SECRET:-}}"; [ -n "\$token" ] || exit 0; exec /usr/bin/curl -fsS --max-time 180 -H "Authorization: Bearer \$token" "http://127.0.0.1:\${PORT:-4320}/api/growth/homepage-hero-cron"'
+ExecStart=/bin/sh -lc 'enabled="\$(echo "\${GROWTH_HOMEPAGE_CRON_ENABLED:-false}" | tr "[:upper:]" "[:lower:]")"; case "\$enabled" in 1|true|yes|on) ;; *) exit 0 ;; esac; token="\${CRON_SECRET:-\${GROWTH_HOMEPAGE_CRON_SECRET:-}}"; [ -n "\$token" ] || exit 0; exec /usr/bin/curl -fsS --max-time 180 -H "Authorization: Bearer \$token" "http://127.0.0.1:\${PORT:-4320}/api/growth/homepage-hero-cron"'
 EOF
 
   cat > /etc/systemd/system/3dvr-growth-homepage-cron.timer <<'EOF'
