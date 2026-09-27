@@ -2,3 +2,4 @@
 2026-09-26T16:22:00-07:00 spinner-navigation-repair canonical fallback
 2026-09-26T16:24:30-07:00 retry via authenticated Hetzner worker
 2026-09-26T17:38:00-07:00 calm-operator-motion #2777
+2026-09-26T17:45:00-07:00 calm-operator-motion domain-reattach retry #2777
