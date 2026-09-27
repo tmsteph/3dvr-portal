@@ -458,13 +458,19 @@ if (form && input && submit && status && result && reply && followUps && actionL
   installOperatorNavigation();
 
   const refreshOperatorNavigation = () => {
-    const fullOperator = document.querySelector('#homeOperatorFull');
-    if (!fullOperator) return;
-    fullOperator.href = operatorHandoffUrl({
+    const fullOperatorLinks = [
+      document.querySelector('#homeOperatorFull'),
+      document.querySelector('#homeOperatorFullInline')
+    ].filter(Boolean);
+    if (!fullOperatorLinks.length) return;
+    const href = operatorHandoffUrl({
       conversation: homeConversationId,
       path: window.location.pathname,
       title: document.title,
       heading: document.querySelector('#home-title')?.textContent?.trim() || ''
+    });
+    fullOperatorLinks.forEach(link => {
+      link.href = href;
     });
   };
 
