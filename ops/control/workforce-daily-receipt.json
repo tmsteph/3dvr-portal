@@ -46,7 +46,17 @@
     "ovhReachableViaSshMesh": true,
     "generalLaneRunning": true,
     "secretsBrokerActive": true,
-    "desktopCommanderState": "device ping succeeds but command/file operations report Not connected",
+    "desktopCommanderState": "recovered after restarting desktop-commander-remote.service; direct OVH command execution verified",
     "iatseRenderedWindow": "2026-09-26 through 2026-10-28"
+  },
+  "automation": {
+    "dailySyncEnabled": true,
+    "automationId": "6a9f3945809c8191af45fa6e7087e9e0",
+    "behavior": "idempotent daily Lighthouse API read + verified IATSE write/defer + durable receipt"
+  },
+  "implementation": {
+    "mergedPr": 2793,
+    "mergeCommit": "cd16494a69cdb00ccc828230dda67d410883e85f",
+    "iatseSetterBehavior": "future dates outside rendered window are deferred, not failures; in-window mismatches remain errors"
   }
 }
