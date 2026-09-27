@@ -75,15 +75,13 @@ export async function runOperatorAction(action = {}, context = {}) {
     const prepared = ownerGithubAction(action, context.developerAccess);
     const { queueCodeChange } = await import('./forge.js');
     const forgeOutcome = await queueCodeChange(prepared.action);
-    const { waitForForgeEdit } = await import('./forge-status.js');
+    const { waitForForgeEdit, forgeEditReceipt } = await import('./forge-status.js');
     const result = await waitForForgeEdit(forgeOutcome.url, { timeoutMs: 5_000 });
     const status = String(result?.status || '').toLowerCase();
     if (status === 'completed') {
       return {
         ...forgeOutcome,
-        message: prepared.isOwner
-          ? 'Done. I applied the code change and completed the signed GitHub write.'
-          : 'Done. I applied the approved code change.'
+        message: forgeEditReceipt(result)
       };
     }
     if (['failed','rejected','approval_required'].includes(status)) {
@@ -91,7 +89,7 @@ export async function runOperatorAction(action = {}, context = {}) {
     }
     return {
       ...forgeOutcome,
-      message:'Started. Forge is working on the code change in the background.'
+      message: forgeEditReceipt(result)
     };
   }
   if (action.type === 'open_app' && action.url) return { message:'Ready to open.', url:action.url };

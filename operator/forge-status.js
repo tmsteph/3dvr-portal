@@ -43,7 +43,7 @@ export async function waitForForgeEdit(value, options = {}) {
     const timer = setTimeout(() => finish({
       ...(latest || {}),
       id,
-      status: normalizeText(latest?.status) || 'running',
+      status: normalizeText(latest?.status) || 'queued',
       timedOut: true
     }), timeoutMs);
 
@@ -54,4 +54,17 @@ export async function waitForForgeEdit(value, options = {}) {
       if (TERMINAL_STATUSES.has(status)) finish(data);
     });
   });
+}
+
+// A worker's terminal status is not evidence of a merge or live deployment.
+export function forgeEditReceipt(record = {}) {
+  const status = normalizeText(record.status).toLowerCase();
+  if (status === 'completed') {
+    const summary = normalizeText(record.resultSummary);
+    return summary
+      ? `Forge reports the task completed. Result: ${summary}`
+      : 'Forge reports the task completed, but returned no verification summary. Open the task to review before treating the fix as verified.';
+  }
+  if (status === 'running') return 'Forge is working on the code change. Verification is pending.';
+  return 'The code change is queued. Execution and verification are pending.';
 }

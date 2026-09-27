@@ -392,6 +392,7 @@ export async function queueCodeChange(action = {}) {
     `Operator code request: ${requestedChange}`,
     'Make the smallest useful change in the working repository and run focused tests.',
     'Use an isolated branch or worktree when practical.',
+    'Return a result summary with what changed, the exact checks run and their outcomes, any remaining blocker, and available commit or pull request links. Distinguish local changes, published commits, merged code, and live deployment. Claim a working live link only after checking that URL; do not deploy without authorization.',
     githubWriteRequested
       ? 'The signed request includes GitHub write intent. Preserve exactly the requested repository workflow.'
       : 'Keep repository changes local for review unless the signed request explicitly authorized a GitHub write.'

@@ -56,3 +56,22 @@ test('ordinary update questions are not mistaken for code edits', () => {
   }, { approved: true, role: 'owner' }, prompt);
   assert.equal(result.action.type, 'none');
 });
+
+test('a model-selected edit cannot announce success before execution', () => {
+  const result = reconcileOperatorCodeAction({
+    reply: 'Fixed, tested, merged and deployed!',
+    action: { type: 'request_code_change', repo: 'portal', text: 'Fix spinner selection.' }
+  }, { approved: true, role: 'owner' });
+  assert.match(result.reply, /not verified yet/);
+  assert.doesNotMatch(result.reply, /merged|deployed/);
+});
+
+test('a downgraded edit explains suggestion status instead of claiming execution', () => {
+  const result = reconcileOperatorCodeAction({
+    reply: 'Done, fixed it.',
+    action: { type: 'request_code_change', repo: 'portal', text: 'Fix spinner selection.' }
+  }, { approved: false });
+  assert.equal(result.action.type, 'suggest_code_change');
+  assert.match(result.reply, /suggestion/);
+  assert.doesNotMatch(result.reply, /Done|fixed/);
+});
