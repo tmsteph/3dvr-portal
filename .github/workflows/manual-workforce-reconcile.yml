@@ -34,7 +34,7 @@ jobs:
             and (.desired | type == "object")
             and ((.desired | length) > 0)
             and ([.desired | keys[] | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$")] | all)
-            and ([.desired[] | IN("All Day","Evenings","Afternoons","Mornings","Not Available","Booked")] | all)
+            and ([.desired[] | . as $value | ["All Day","Evenings","Afternoons","Mornings","Not Available","Booked"] | index($value) != null] | all)
           ' "$request" >/dev/null
           desired="$(jq -c '.desired' "$request")"
           echo "desired_b64=$(printf '%s' "$desired" | base64 -w0)" >> "$GITHUB_OUTPUT"
