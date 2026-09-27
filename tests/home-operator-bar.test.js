@@ -15,7 +15,7 @@ test('homepage embeds a context-aware Operator bar', async () => {
   assert.match(client, /collectPortalContext/);
   assert.match(client, /portalContext\.page = collectPageContext\(\)/);
   assert.match(client, /runOperatorAction/);
-  assert.match(client, /provider=operator/);
+  assert.match(client, /const requestOperator = .*fetchOperatorStream/);
 });
 
 test('homepage Operator sends the signed developer proof used by full Operator', async () => {
