@@ -180,6 +180,70 @@ test('home Operator contains long replies without jumping the page', { timeout: 
   }
 });
 
+test('home Operator keeps reply space readable in short landscape chat', { timeout: 45_000 }, async () => {
+  const browser = await chromium.launch({ headless: true });
+
+  try {
+    const page = await browser.newPage({ viewport: { width: 844, height: 390 } });
+    const responseText = Array.from(
+      { length: 60 },
+      (_, index) => `Landscape response line ${index + 1}: the spinner should stay visible without swallowing the reply.`
+    ).join('\n');
+
+    await page.route('**/*', route => {
+      const url = new URL(route.request().url());
+      if (url.hostname !== '127.0.0.1') return route.abort('blockedbyclient');
+      return route.continue();
+    });
+    await page.route('**/api/openai-site?provider=operator', async route => {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          reply: responseText,
+          suggestions: ['Keep going'],
+          action: { type: 'none' }
+        })
+      });
+    });
+
+    await page.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
+    await page.locator('#homeOperatorInput').fill('Keep the portal visible while we talk.');
+    await page.getByRole('button', { name: 'Send to Operator' }).click();
+    await page.getByText('Landscape response line 60:', { exact: false }).waitFor();
+
+    const metrics = await page.evaluate(() => {
+      const root = document.scrollingElement;
+      const result = document.querySelector('#homeOperatorResult');
+      const form = document.querySelector('#homeOperatorForm');
+      const spinner = document.querySelector('.spinner-stage');
+      const formRect = form.getBoundingClientRect();
+      const spinnerRect = spinner.getBoundingClientRect();
+
+      return {
+        pageScrollHeight: root.scrollHeight,
+        viewportHeight: window.innerHeight,
+        resultClientHeight: result.clientHeight,
+        resultScrollHeight: result.scrollHeight,
+        formTop: formRect.top,
+        formBottom: formRect.bottom,
+        spinnerDisplay: getComputedStyle(spinner).display,
+        spinnerHeight: spinnerRect.height,
+        horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1
+      };
+    });
+
+    assert.equal(metrics.horizontalOverflow, false);
+    assert.notEqual(metrics.spinnerDisplay, 'none', 'the portal spinner should stay visible in landscape chat');
+    assert.ok(metrics.spinnerHeight >= 64 && metrics.spinnerHeight <= 100, 'short viewports should compact the spinner');
+    assert.ok(metrics.resultClientHeight >= 96, 'the reply should retain useful reading space');
+    assert.ok(metrics.resultScrollHeight > metrics.resultClientHeight, 'long replies should scroll inside the result panel');
+    assert.ok(metrics.formTop >= 0 && metrics.formBottom <= metrics.viewportHeight + 1, 'composer should remain visible');
+    assert.ok(metrics.pageScrollHeight <= metrics.viewportHeight + 2, 'chat should remain contained to the viewport');
+  } finally {
+    await browser.close();
+  }
+});
+
 test('portal spinner opens menu on normal spins and only activates after an intentional hold', { timeout: 45_000 }, async () => {
   const browser = await chromium.launch({ headless: true });
 
