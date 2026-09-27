@@ -57,3 +57,46 @@ header>a{font-size:.86rem;letter-spacing:.08em}
 #operator-form .operator-live-awareness{width:1.8rem;min-width:1.8rem;height:1.8rem;padding:0;justify-content:center;border-color:transparent;background:transparent}
 #operator-form .operator-live-awareness>span:last-child{display:none}
 #operator-form .operator-live-awareness__dot{width:8px;height:8px}
+
+
+/* Calm streaming: update one message in place and keep the suggestion rail stable. */
+.message.assistant.is-streaming{border-color:#2a4059;transition:border-color .45s ease}
+.message.assistant.is-streaming p:empty::after{
+  content:'•••';
+  display:inline-block;
+  letter-spacing:.34em;
+  opacity:.42;
+  animation:operator-stream-breathe 1.9s ease-in-out infinite
+}
+.follow-ups{
+  min-height:2.45rem;
+  display:flex;
+  flex-wrap:nowrap;
+  align-items:flex-start;
+  gap:.45rem;
+  overflow-x:auto;
+  overscroll-behavior-inline:contain;
+  scrollbar-width:none
+}
+.follow-ups::-webkit-scrollbar{display:none}
+.follow-ups button{
+  width:auto;
+  flex:0 0 auto;
+  max-width:min(30rem,76vw);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  opacity:0;
+  transform:translateY(5px);
+  animation:operator-suggestion-arrive .44s cubic-bezier(.22,.8,.24,1) forwards;
+  animation-delay:calc(var(--suggestion-index,0) * 70ms)
+}
+@keyframes operator-stream-breathe{
+  0%,100%{opacity:.25;transform:translateY(1px)}
+  50%{opacity:.58;transform:translateY(-1px)}
+}
+@keyframes operator-suggestion-arrive{to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){
+  .message.assistant.is-streaming p:empty::after,
+  .follow-ups button{animation:none;opacity:1;transform:none}
+}

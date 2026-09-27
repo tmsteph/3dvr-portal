@@ -368,16 +368,43 @@
       border-radius: 15px;
       background: rgba(22, 27, 34, 0.92);
       box-shadow: 0 12px 34px rgba(0, 0, 0, 0.18);
+      overflow: hidden;
     }
 
     .operator-result[hidden] { display: none; }
+    .operator-result:not([hidden]) { animation: operator-result-arrive 460ms cubic-bezier(.22,.8,.24,1) both; }
     .operator-result__head { display: flex; align-items: center; gap: 12px; }
     .operator-result__head strong { margin-right: auto; color: #79c0ff; }
     .operator-result__head a { color: #8b949e; font-size: 0.78rem; text-decoration: none; }
     .operator-result__head a:hover { color: #c9d1d9; }
-    .operator-result p { margin: 11px 0 0; white-space: pre-wrap; color: #d7dee7; }
+    .operator-result p {
+      min-height: 1.45em;
+      margin: 11px 0 0;
+      white-space: pre-wrap;
+      color: #d7dee7;
+      transition: color 380ms ease;
+    }
+    .operator-result[data-streaming="true"] p { color: #cbd5df; }
+    .operator-result[data-streaming="true"] p:empty::after {
+      content: '•••';
+      display: inline-block;
+      letter-spacing: 0.34em;
+      opacity: 0.45;
+      animation: operator-wait-breathe 1900ms ease-in-out infinite;
+    }
 
-    .operator-follow-ups { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 7px; }
+    .operator-follow-ups {
+      min-height: 38px;
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: flex-start;
+      gap: 7px;
+      overflow-x: auto;
+      overscroll-behavior-inline: contain;
+      scrollbar-width: none;
+    }
+    .operator-follow-ups::-webkit-scrollbar { display: none; }
     .operator-follow-up,
     .operator-result__action {
       min-height: 38px;
@@ -389,12 +416,35 @@
       text-decoration: none;
       cursor: pointer;
     }
+    .operator-follow-up {
+      flex: 0 0 auto;
+      max-width: min(30rem, 78vw);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateY(5px);
+      animation: operator-follow-up-arrive 440ms cubic-bezier(.22,.8,.24,1) forwards;
+      animation-delay: calc(var(--suggestion-index, 0) * 70ms);
+    }
     .operator-follow-up:hover,
     .operator-follow-up:focus-visible,
     .operator-result__action:hover,
     .operator-result__action:focus-visible { border-color: #58a6ff; outline: none; }
     .operator-result__action { display: inline-flex; margin-top: 12px; color: #79c0ff; font-weight: 750; }
     .operator-result__action[hidden] { display: none; }
+
+    @keyframes operator-result-arrive {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes operator-follow-up-arrive {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes operator-wait-breathe {
+      0%, 100% { opacity: 0.28; transform: translateY(1px); }
+      50% { opacity: 0.58; transform: translateY(-1px); }
+    }
 
 
     footer { padding-top: 12px; color: #6e7681; font-size: 0.82rem; }
@@ -454,7 +504,10 @@
       .spinner-stage::after,
       .portal-swirl-logo__canvas,
       .spinner-nav__item { transition: none; }
-      .spinner-stage::before { animation: none; }
+      .spinner-stage::before,
+      .operator-result:not([hidden]),
+      .operator-result[data-streaming="true"] p:empty::after,
+      .operator-follow-up { animation: none; }
     }
   </style>
   <script src="/auth-identity.js" defer></script>

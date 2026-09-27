@@ -15,13 +15,11 @@ function installHomeOperatorBusyText() {
 
     if (busy) {
       input.dataset.operatorBusyText = 'true';
-      input.value = BUSY_TEXT;
       input.setAttribute('aria-label', BUSY_TEXT.replace(/…$/, ''));
       return;
     }
 
     if (input.dataset.operatorBusyText === 'true') {
-      input.value = '';
       delete input.dataset.operatorBusyText;
       input.setAttribute('aria-label', IDLE_LABEL);
     }
@@ -60,7 +58,7 @@ function installFullOperatorBusyIndicator() {
       #operator-form .operator-submit__portal {
         grid-area: 1 / 1;
         pointer-events: none;
-        transition: opacity 160ms ease, transform 180ms ease;
+        transition: opacity 320ms ease, transform 420ms cubic-bezier(.22,.8,.24,1);
       }
 
       #operator-form .operator-submit__arrow {
@@ -68,12 +66,12 @@ function installFullOperatorBusyIndicator() {
       }
 
       #operator-form .operator-submit__portal {
-        width: 28px;
-        height: 28px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
         opacity: 0;
-        transform: scale(0.68) rotate(-35deg);
-        filter: drop-shadow(0 0 6px rgba(121, 237, 207, 0.42));
+        transform: scale(0.82);
+        filter: drop-shadow(0 0 4px rgba(121, 237, 207, 0.24));
       }
 
       #operator-form button[data-busy="true"]:disabled {
@@ -83,23 +81,24 @@ function installFullOperatorBusyIndicator() {
 
       #operator-form button[data-busy="true"] .operator-submit__arrow {
         opacity: 0;
-        transform: scale(0.45) rotate(90deg);
+        transform: scale(0.72);
       }
 
       #operator-form button[data-busy="true"] .operator-submit__portal {
-        opacity: 1;
+        opacity: 0.94;
         transform: scale(1);
-        animation: operator-full-portal-spin 900ms linear infinite,
-          operator-full-portal-pulse 760ms ease-in-out infinite alternate;
+        animation: operator-full-portal-breathe 2400ms ease-in-out infinite;
       }
 
-      @keyframes operator-full-portal-spin {
-        to { transform: scale(1) rotate(-360deg); }
-      }
-
-      @keyframes operator-full-portal-pulse {
-        from { filter: drop-shadow(0 0 3px rgba(121, 237, 207, 0.28)); }
-        to { filter: drop-shadow(0 0 9px rgba(121, 237, 207, 0.72)); }
+      @keyframes operator-full-portal-breathe {
+        0%, 100% {
+          transform: translateY(1px) scale(0.94);
+          filter: drop-shadow(0 0 3px rgba(121, 237, 207, 0.22));
+        }
+        50% {
+          transform: translateY(-1px) scale(1.04);
+          filter: drop-shadow(0 0 8px rgba(121, 237, 207, 0.5));
+        }
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -109,7 +108,7 @@ function installFullOperatorBusyIndicator() {
         }
 
         #operator-form button[data-busy="true"] .operator-submit__portal {
-          animation: operator-full-portal-pulse 1100ms ease-in-out infinite alternate;
+          animation: none;
         }
       }
     `;
