@@ -13,3 +13,4 @@
 2026-09-27 release-hub-catch-up v0.0.63 stable + v0.0.64 candidate
 2026-09-27 economics-from-first-principles PR #2801
 2026-09-27 open-vehicle-portal PR #2803 canonical fallback
+2026-09-27 homepage-inline-spinner-chat PR #2812 canonical fallback
