@@ -105,6 +105,75 @@ test('home Operator conversation appears in Past conversations', { timeout: 45_0
   }
 });
 
+test('home Operator contains long replies without jumping the page', { timeout: 45_000 }, async () => {
+  const browser = await chromium.launch({ headless: true });
+
+  try {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const responseText = Array.from(
+      { length: 60 },
+      (_, index) => `Long response line ${index + 1}: keep this readable without moving the whole page.`
+    ).join('\n');
+
+    await page.route('**/*', route => {
+      const url = new URL(route.request().url());
+      if (url.hostname !== '127.0.0.1') return route.abort('blockedbyclient');
+      return route.continue();
+    });
+    await page.route('**/api/openai-site?provider=operator', async route => {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          reply: responseText,
+          suggestions: ['Keep going'],
+          action: { type: 'none' }
+        })
+      });
+    });
+
+    await page.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
+    await page.locator('#homeOperatorInput').fill('Give me a long answer without moving the page.');
+    await page.getByRole('button', { name: 'Send to Operator' }).click();
+    await page.getByText('Long response line 60:', { exact: false }).waitFor();
+
+    const metrics = await page.evaluate(() => {
+      const root = document.scrollingElement;
+      const result = document.querySelector('#homeOperatorResult');
+      const form = document.querySelector('#homeOperatorForm');
+      const formRect = form.getBoundingClientRect();
+
+      return {
+        chatActive: document.body.dataset.homeChatActive,
+        pageScrollTop: root.scrollTop,
+        pageScrollHeight: root.scrollHeight,
+        viewportHeight: window.innerHeight,
+        resultClientHeight: result.clientHeight,
+        resultScrollHeight: result.scrollHeight,
+        formTop: formRect.top,
+        formBottom: formRect.bottom,
+        activeElementId: document.activeElement?.id || '',
+        horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1
+      };
+    });
+
+    assert.equal(metrics.chatActive, 'true');
+    assert.equal(metrics.horizontalOverflow, false);
+    assert.ok(metrics.pageScrollTop <= 1, 'long replies should not move the document scroll position');
+    assert.ok(
+      metrics.pageScrollHeight <= metrics.viewportHeight + 2,
+      'chat mode should stay within the viewport instead of growing the document'
+    );
+    assert.ok(
+      metrics.resultScrollHeight > metrics.resultClientHeight,
+      'the response panel should own overflow for long replies'
+    );
+    assert.ok(metrics.formTop >= 0 && metrics.formBottom <= metrics.viewportHeight + 1, 'composer should remain visible');
+    assert.notEqual(metrics.activeElementId, 'homeOperatorInput', 'mobile should not reopen or steal focus into the composer');
+  } finally {
+    await browser.close();
+  }
+});
+
 test('portal spinner opens menu on normal spins and only activates after an intentional hold', { timeout: 45_000 }, async () => {
   const browser = await chromium.launch({ headless: true });
 
