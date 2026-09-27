@@ -324,6 +324,26 @@
   ],
   "rewrites": [
     {
+      "source": "/__3dvr-health",
+      "has": [
+        {
+          "type": "host",
+          "value": "portal.3dvr.tech"
+        }
+      ],
+      "destination": "http://167.172.193.194/__3dvr-health"
+    },
+    {
+      "source": "/health",
+      "has": [
+        {
+          "type": "host",
+          "value": "portal.3dvr.tech"
+        }
+      ],
+      "destination": "http://167.172.193.194/health"
+    },
+    {
       "source": "/human-handoff/api/:path*",
       "has": [
         {
