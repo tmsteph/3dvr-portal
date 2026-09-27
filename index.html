@@ -430,6 +430,7 @@
       overscroll-behavior-inline: contain;
       scrollbar-width: none;
     }
+    .operator-follow-ups:empty { display: none; }
     .operator-follow-ups::-webkit-scrollbar { display: none; }
     .operator-follow-up,
     .operator-result__action {
@@ -557,8 +558,9 @@
 
     body[data-home-chat-active="true"] .operator-result {
       min-height: 0;
-      max-height: none;
+      max-height: min(48dvh, 32rem);
       margin-bottom: 10px;
+      align-self: start;
       border-radius: 18px;
       box-shadow: none;
     }
