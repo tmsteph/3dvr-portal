@@ -237,6 +237,7 @@ The daily reconciliation path was re-verified on **2026-09-27**.
 - IATSE availability is a **rolling rendered window**, not an unlimited future calendar. On 2026-09-27 the page rendered 33 dates, 2026-09-26 through 2026-10-28. A desired date beyond the current rendered window is **deferred**, not a failed sync; a later daily run should pick it up when the portal exposes it.
 - A missing or wrong date **inside** the rendered window is still a real mismatch and must not be silently deferred.
 - Keep the latest sanitized daily receipt at `ops/control/workforce-daily-receipt.json` with local date, Lighthouse refresh timestamp/source, write/no-op outcome, changed/deferred dates, rendered window, and post-reload persistence verification.
+- The emergency `.github/workflows/manual-workforce-reconcile.yml` path is request-driven and fail-closed. `ops/control/workforce-reconcile-request.json` must explicitly contain `mode: "iatse_apply"` and a non-empty `desired` date→availability object. Never reintroduce a hard-coded availability snapshot into the workflow.
 - Treat IATSE `Already Booked` / internal value `Booked` as a conflict marker, not proof of a union-dispatched job. Verify Job History, Lighthouse, calendar, or another authoritative source before describing the booking source.
 - For Encore work within 14 days, block genuine conflicts normally. Beyond 14 days, isolated one- or two-shift Encore weeks may remain open for higher-value work, while denser weeks or runs of 3+ consecutive Encore work days should be protected.
 
