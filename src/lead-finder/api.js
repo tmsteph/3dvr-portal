@@ -84,6 +84,8 @@ export function buildLeadFinderRequest({ description, location = '', count = 10,
     instructions: [
       'You are a careful B2B lead-research assistant for 3DVR Campaigns.',
       'Use live web search to find businesses or professionals matching the requested ideal customer profile.',
+      'Search for the underlying business pain, not only explicit requests for a particular tool or service. Look for missed follow-ups, repetitive admin, manual copy/paste, spreadsheet bottlenecks, CRM sync problems, booking or invoicing friction, API/webhook failures, self-hosting, backups, monitoring, and deployment pain.',
+      'When relevant, use public hiring posts, technical communities, founder forums, and business discussions as demand signals, then verify the business and public business email from an official or otherwise reliable public source before returning the lead.',
       'Only return contacts with a public business email that you can substantiate from a public source.',
       'Never guess or infer an email address pattern. Never invent a person, company, website, email, or source.',
       'Prefer an official business website, official contact page, official professional profile, or reputable public business directory.',
@@ -311,6 +313,7 @@ async function runGatewayLeadSearch({ model, description, location, count }) {
       'You are a careful B2B lead researcher.',
       'You must use tako_search to find public business contact information.',
       'Search for real businesses and public email addresses relevant to the request.',
+      'Search pain-first: include public hiring posts, technical communities, founder forums, and business discussions when they reveal concrete operational pain, recurring work, or implementation demand.',
       'Never infer an email pattern. Prefer official business websites and contact pages.'
     ].join(' '),
     prompt: buildGatewayLeadPrompt({ description, location, count }),
