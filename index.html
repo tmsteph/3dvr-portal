@@ -527,15 +527,32 @@
       min-height: 0;
       max-width: 720px;
       display: grid;
-      grid-template-rows: minmax(0, 1fr) auto auto;
+      grid-template-rows: auto minmax(0, 1fr) auto auto;
       align-content: stretch;
     }
 
-    body[data-home-chat-active="true"] .spinner-stage,
     body[data-home-chat-active="true"] #home-title,
     body[data-home-chat-active="true"] footer,
     body[data-home-chat-active="true"] .home-operator-links {
       display: none;
+    }
+
+    body[data-home-chat-active="true"] .spinner-stage {
+      width: min(152px, 38vw);
+      height: min(152px, 38vw);
+      margin: 0 auto 6px;
+      z-index: 5;
+    }
+
+    body[data-home-chat-active="true"] .portal-swirl-logo {
+      width: min(118px, 30vw);
+    }
+
+    body[data-home-chat-active="true"] .spinner-nav__item {
+      min-width: 52px;
+      min-height: 36px;
+      padding: 7px 10px;
+      font-size: 0.78rem;
     }
 
     body[data-home-chat-active="true"] .operator-result {
