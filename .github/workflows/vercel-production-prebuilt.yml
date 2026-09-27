@@ -122,7 +122,7 @@ jobs:
           fi
 
           "${vercel_cmd[@]}" pull --yes --environment=production
-          "${vercel_cmd[@]}" domains add "$PORTAL_DOMAIN" "$VERCEL_PROJECT" \
+          "${vercel_cmd[@]}" domains add "$PORTAL_DOMAIN" \
             --scope "$VERCEL_SCOPE" --force
           "${vercel_cmd[@]}" build --prod
           deploy_url="$("${vercel_cmd[@]}" deploy --prebuilt --prod --yes)"
@@ -144,7 +144,7 @@ jobs:
       - name: Attach canonical Portal domain
         if: ${{ steps.vercel-creds.outputs.enabled == 'true' }}
         run: |
-          vercel domains add "$PORTAL_DOMAIN" "$VERCEL_PROJECT" \
+          vercel domains add "$PORTAL_DOMAIN" \
             --scope "$VERCEL_SCOPE" --force --token="$VERCEL_TOKEN"
 
       - name: Build production artifact
