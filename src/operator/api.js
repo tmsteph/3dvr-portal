@@ -15,6 +15,7 @@ export const DEFAULT_OPERATOR_ESCALATION_MODEL = 'gpt-6-sol';
 export const DEFAULT_OPERATOR_ESCALATION_GATEWAY_MODEL = 'openai/gpt-6-sol';
 
 const OPERATOR_ESCALATION_PATTERN = /\b(?:architect|architecture|debug|root cause|refactor|migration|security|threat model|investigate|analy[sz]e|strategy|multi[- ]step|implement|code review|complex|research|compare|optimi[sz]e)\b/i;
+const OPERATOR_DIRECT_FIX_PATTERN = /\b(?:fix|debug|implement|refactor|edit|repair|code review)\b/i;
 
 export function shouldEscalateOperatorPrompt(prompt = '', { images = [] } = {}) {
   const text = clean(prompt, 4000);
@@ -22,11 +23,12 @@ export function shouldEscalateOperatorPrompt(prompt = '', { images = [] } = {}) 
 
   const connectorCount = (text.match(/\b(?:and|then|also|plus|after that)\b/gi) || []).length;
   const visiblyComplex = OPERATOR_ESCALATION_PATTERN.test(text);
+  const directImplementation = OPERATOR_DIRECT_FIX_PATTERN.test(text);
   const imageDebugging = Array.isArray(images)
     && images.length > 0
     && /\b(?:debug|diagnose|inspect|analy[sz]e|fix|broken|error)\b/i.test(text);
 
-  return imageDebugging || (visiblyComplex && (text.length >= 280 || connectorCount >= 2));
+  return imageDebugging || directImplementation || (visiblyComplex && (text.length >= 280 || connectorCount >= 2));
 }
 
 export function selectOperatorModel({ prompt = '', images = [], useGateway = false } = {}) {
@@ -291,6 +293,8 @@ export function buildOperatorRequest({ prompt, images = [], history = [], portal
       buildPortalSnapshotInstruction(portalContext),
       `3DVR developer access for this turn is ${ownerGithubApproved ? 'owner-approved for code edits and ordinary GitHub writes' : developerApproved ? 'approved for local code edits' : 'not approved for code edits; suggestions are allowed'}.`,
       'Talk like a capable partner. Lead with the useful answer. Use short, plain sentences.',
+      'Treat execution receipts already present in conversation history, such as "Saved as...", "Queued...", or "Added...", as ground truth that the earlier action ran. Do not later claim a receipt was only implied or never submitted unless a later execution error explicitly says it failed.',
+      'Do not confuse portal sign-in with verified developer authorization. If developer access above is approved, route requested code work through request_code_change instead of saying code editing is unavailable. If it is not approved, describe the missing verified developer permission without denying the user account identity.',
       'Use the founder context to make responses more relevant, but do not force 3DVR into unrelated questions.',
       'When a screenshot is attached, inspect the image directly and use what is visibly present instead of claiming the interface cannot accept images.',
       'When the user describes a recurring workflow or repeatedly depends on an external chat/app interface, look for a practical way to move that capability into Operator or another 3DVR tool.',
