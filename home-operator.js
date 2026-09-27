@@ -3,6 +3,7 @@ import { collectPortalContext } from './operator/portal-context.js';
 import { createOperatorDeveloperProof } from './operator/forge.js';
 import { fetchOperatorStream } from './operator/stream.js';
 import { operatorHandoffUrl } from './operator/handoff.js';
+import { recallOperatorMemoryBestEffort, rememberOperatorTurnBestEffort } from './operator/organism-chat-bridge.js';
 
 function aliasToDisplay(alias) {
   const normalized = typeof alias === 'string' ? alias.trim() : '';
@@ -579,15 +580,16 @@ if (form && input && submit && status && result && reply && followUps && actionL
     beginResponse();
 
     try {
-      const [portalContext, developerAuth] = await Promise.all([
+      const [portalContext, developerAuth, memoryContext] = await Promise.all([
         collectPortalContext(),
-        createOperatorDeveloperProof()
+        createOperatorDeveloperProof(),
+        recallOperatorMemoryBestEffort(prompt)
       ]);
       portalContext.page = collectPageContext();
 
       let streamedReply = '';
       const data = await requestOperator(
-        { prompt, history: prior, portalContext, developerAuth },
+        { prompt, history: prior, portalContext, developerAuth, memoryContext },
         {
           onStatus: message => {
             status.textContent = message;
@@ -623,6 +625,12 @@ if (form && input && submit && status && result && reply && followUps && actionL
         actionLabel: storedActionLabel
       });
       persistHistory();
+      void rememberOperatorTurnBestEffort({
+        conversationId: homeConversationId,
+        prompt,
+        reply: message,
+        subject: '3DVR Operator home conversation'
+      });
 
       renderResponse({
         message,
