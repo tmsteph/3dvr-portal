@@ -15,3 +15,4 @@
 2026-09-27 open-vehicle-portal PR #2803 canonical fallback
 2026-09-27 homepage-inline-spinner-chat PR #2812 canonical fallback
 2026-09-27 open-personal-computing-roadmap PR #2813 canonical fallback
+2026-09-27 ambient-hud-phone-lookaround PR #2814
