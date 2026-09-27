@@ -38,7 +38,7 @@ if (( mem_available_mb < required_mb )); then
   reason="memory"
 elif (( active >= max_active )); then
   reason="browser-count"
-elif ! awk -v load="$load1" -v limit="$load_limit" 'BEGIN {exit !(load <= limit)}'; then
+elif ! awk -v current_load="$load1" -v limit="$load_limit" 'BEGIN {exit !(current_load <= limit)}'; then
   reason="load"
 fi
 
