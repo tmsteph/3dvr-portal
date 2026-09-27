@@ -1,6 +1,6 @@
 # 3DVR Workforce Access Runbook
 
-Updated: 2026-09-22
+Updated: 2026-09-27
 
 This runbook records the working access architecture and recovery procedures for IATSE Local 122, Encore UKG/UltiPro, Encore SharePoint, Encore Outlook email, and Lighthouse. It exists so future agents recover existing access instead of rebuilding it from memory or asking Thomas to sign in again prematurely.
 
@@ -228,6 +228,29 @@ The reader and the SharePoint-first login path were verified live on 2026-09-22.
 
 Persistent browser state remains on OVH. From Hetzner, use the `3dvr-ovh` SSH alias. On the current `tmsteph` desktop, the existing `debian-web` alias lands on Hetzner; from there, hop to `3dvr-ovh`. Do not mistake that desktop alias for the DigitalOcean node. The browser itself stays on OVH; the intermediate host is only the control path.
 
+### Daily Lighthouse → IATSE reconciliation
+
+The daily reconciliation path was re-verified on **2026-09-27**.
+
+- Read Lighthouse through the authenticated OVH `general` lane and the week API captured by `scripts/ops/lighthouse-api-reader.cjs`; do not fall back to brittle visual DOM scraping when the API path is healthy.
+- Run IATSE writes through `scripts/ops/iatse-availability-set.cjs` while holding the `general` writer lease. The setter reloads the page and verifies the written values persisted.
+- IATSE availability is a **rolling rendered window**, not an unlimited future calendar. On 2026-09-27 the page rendered 33 dates, 2026-09-26 through 2026-10-28. A desired date beyond the current rendered window is **deferred**, not a failed sync; a later daily run should pick it up when the portal exposes it.
+- A missing or wrong date **inside** the rendered window is still a real mismatch and must not be silently deferred.
+- Keep the latest sanitized daily receipt at `ops/control/workforce-daily-receipt.json` with local date, Lighthouse refresh timestamp/source, write/no-op outcome, changed/deferred dates, rendered window, and post-reload persistence verification.
+- Treat IATSE `Already Booked` / internal value `Booked` as a conflict marker, not proof of a union-dispatched job. Verify Job History, Lighthouse, calendar, or another authoritative source before describing the booking source.
+- For Encore work within 14 days, block genuine conflicts normally. Beyond 14 days, isolated one- or two-shift Encore weeks may remain open for higher-value work, while denser weeks or runs of 3+ consecutive Encore work days should be protected.
+
+### Control-path truth and false outage prevention
+
+On **2026-09-27**, Desktop Commander could ping OVH but command/file actions returned `Not connected`. OVH itself was healthy: Hetzner reached `3dvr-ovh` through the SSH mesh, `3dvr-secrets-broker.service` was active, Chrome CDP `9222` was running, and the authenticated Lighthouse API returned HTTP 200 schedule data. Restarting only `desktop-commander-remote.service` restored direct Desktop Commander commands without restarting OVH or any browser profile.
+
+Operational rule:
+
+1. `Not connected` from Desktop Commander is a transport/control-agent failure, **not evidence that OVH is down**.
+2. Before declaring a host outage, use an independent path: Hetzner/Open Runner → `ssh 3dvr-ovh` and verify hostname, critical services, and CDP health.
+3. If OVH is healthy and only Desktop Commander is wedged, restart only `desktop-commander-remote.service`; do not reboot the server or recreate browser profiles.
+4. Do not rely on a local portal clone being current. For workforce ops, fetch the canonical small scripts from GitHub `main` into `/tmp` when the local clone is absent or stale, then execute them against the persistent OVH browser lane.
+5. Preserve the existing browser profile and writer-lease rules throughout recovery.
 ### Why SharePoint first matters
 
 Direct Lighthouse login exposed two identity quirks:

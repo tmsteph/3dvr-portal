@@ -1,6 +1,6 @@
 # 3DVR Agent Access Map
 
-Last reviewed: 2026-09-20
+Last reviewed: 2026-09-27
 
 This document is the canonical human-readable map of the ways an AI agent can reach 3DVR systems, Thomas's authorized services, and connected devices. It complements `abilities/abilities.json`, which is the machine-readable capability/status registry.
 
@@ -72,7 +72,9 @@ When the typed Control MCP tools are absent from a chat and Desktop Commander ca
 
 The successful check showed Open Runner, OpenClaw, and the local Desktop Commander service running, while `3dvr-control-gateway.service` reported inactive/dead. Hetzner had 1,786 MiB available memory, 1,294 MiB swap used, 78% root-disk usage (8 GiB available), and load averages 3.09 / 3.39 / 3.82 on two vCPUs. Memory pressure was high (`some avg10=96.52`, `full avg10=60.45`); available RAM alone must not be treated as healthy capacity.
 
-This was an access-path verification, not a service repair. Gateway state, Desktop Commander connectivity, and memory-pressure causes still require diagnosis. Browser authentication, n8n, and other downstream services were not verified by this command. The private audit record is terminal-bridge issue #413.
+This was an access-path verification, not a service repair. Gateway state, Desktop Commander connectivity, and memory-pressure causes still require diagnosis. Browser authentication, n8n, and other downstream services were not verified by this command.
+
+Follow-up on 2026-09-27: the same OVH device could still answer Desktop Commander pings while command/file actions returned `Not connected`. Hetzner → `ssh 3dvr-ovh` independently proved OVH, the secrets broker, and browser lane healthy. Restarting only `desktop-commander-remote.service` restored direct Desktop Commander command execution. Therefore, a Desktop Commander transport error must never be promoted to a server-down conclusion until the SSH/Open Runner path also fails. The private audit record is terminal-bridge issue #413.
 
 ### SSH mesh
 

@@ -4,6 +4,37 @@ const http = require('node:http');
 const desired = JSON.parse(process.env.IATSE_DESIRED || '{}');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+function renderedWindowFor(renderedDates = []) {
+  const dates = [...new Set(
+    renderedDates.filter(date => /^\d{4}-\d{2}-\d{2}$/.test(String(date)))
+  )].sort();
+  return dates.length ? { start: dates[0], end: dates[dates.length - 1] } : null;
+}
+
+function classifyAvailabilityResult(desiredState = {}, values = {}, renderedDates = []) {
+  const renderedWindow = renderedWindowFor(renderedDates);
+  const deferred = [];
+  const mismatches = [];
+
+  for (const [date, want] of Object.entries(desiredState)) {
+    const actual = Object.prototype.hasOwnProperty.call(values, date) ? values[date] : null;
+    if (actual === want) continue;
+
+    const outsideRenderedWindow = Boolean(
+      renderedWindow && (date < renderedWindow.start || date > renderedWindow.end)
+    );
+    if (actual == null && outsideRenderedWindow) {
+      deferred.push({ date, want, reason: 'outside-rendered-window' });
+      continue;
+    }
+    mismatches.push({ date, want, actual });
+  }
+
+  return { renderedWindow, deferred, mismatches };
+}
+
+module.exports = { classifyAvailabilityResult, renderedWindowFor };
+
 function httpJson(path, method='GET') {
   return new Promise((resolve,reject)=>{
     const req=http.request({host:'127.0.0.1',port:9222,path,method},res=>{
@@ -51,6 +82,7 @@ class Cdp {
   close(){try{this.ws?.close()}catch{}}
 }
 
+if (require.main === module) {
 (async()=>{
   let targets=await httpJson('/json/list');
   let target=targets.find(t=>t.type==='page' && /member\.iatse\.io\/avail/.test(String(t.url||'')));
@@ -71,7 +103,10 @@ class Cdp {
         const el=document.getElementById('avail_'+date+' 00:00:00');
         out[date]=el?el.value:null;
       }
-      return {url:location.href,authenticated:/Logout/.test(document.body?.innerText||''),values:out};
+      const renderedDates=[...document.querySelectorAll('select[id^="avail_"]')]
+        .map(el => String(el.id || '').match(/^avail_(\\d{4}-\\d{2}-\\d{2}) /)?.[1])
+        .filter(Boolean);
+      return {url:location.href,authenticated:/Logout/.test(document.body?.innerText||''),values:out,renderedDates};
     })()`);
     if(!before?.authenticated) throw new Error('iatse-session-not-authenticated');
 
@@ -103,24 +138,32 @@ class Cdp {
         const el=document.getElementById('avail_'+date+' 00:00:00');
         out[date]=el?el.value:null;
       }
-      return {url:location.href,authenticated:/Logout/.test(document.body?.innerText||''),values:out};
+      const renderedDates=[...document.querySelectorAll('select[id^="avail_"]')]
+        .map(el => String(el.id || '').match(/^avail_(\\d{4}-\\d{2}-\\d{2}) /)?.[1])
+        .filter(Boolean);
+      return {url:location.href,authenticated:/Logout/.test(document.body?.innerText||''),values:out,renderedDates};
     })()`);
 
-    const mismatches=[];
-    for(const [date,want] of Object.entries(desired)){
-      if(after?.values?.[date]!==want) mismatches.push({date,want,actual:after?.values?.[date]??null});
-    }
+    const classified=classifyAvailabilityResult(desired, after?.values || {}, after?.renderedDates || []);
+    const outcome=changed.changes.length
+      ? (classified.deferred.length ? 'changed-with-deferred' : 'changed')
+      : (classified.deferred.length ? 'deferred' : 'noop');
+
     process.stdout.write(JSON.stringify({
-      ok:mismatches.length===0,
+      ok:classified.mismatches.length===0,
+      outcome,
       checkedAt:new Date().toISOString(),
+      renderedWindow:classified.renderedWindow,
       before:before.values,
       changes:changed.changes,
       missing:changed.missing,
+      deferred:classified.deferred,
       after:after.values,
-      mismatches
+      mismatches:classified.mismatches
     }));
   } finally { cdp.close(); }
 })().catch(e=>{
   process.stdout.write(JSON.stringify({ok:false,error:String(e.message||e)}));
   process.exitCode=1;
 });
+}
