@@ -66,6 +66,20 @@ async function openTestGateway(t, { enableDrafts = false, legacy = false, enable
       openPullRequests: [{ number: 2301, title: 'Control MCP' }],
       limit,
     }),
+    organismRecallImpl: async (query, { limit }) => ({
+      question: query,
+      strategy: 'test',
+      hits: [{ memory: { id: 'memory-1', content: 'Shared Operator memory' }, score: 1 }],
+      text: `Relevant memory for ${query}`,
+      limit,
+    }),
+    organismRememberImpl: async (content, options) => ({
+      id: 'memory-written',
+      content,
+      subject: options.subject,
+      kind: options.kind,
+      sourceId: options.sourceId,
+    }),
     callOvhToolImpl: async (name, args) => ({
       source: 'ovh-mcp',
       name,
@@ -97,7 +111,7 @@ test('MCP gateway exposes the read-only 3DVR control surface by default', async 
 
   assert.deepEqual([...byName.keys()].sort(), [
     'accounts_get', 'accounts_list', 'control_status', 'crm_read', 'crm_search',
-    'crm_summary', 'github_overview', 'gmail_read', 'gmail_search', 'servers_health',
+    'crm_summary', 'github_overview', 'gmail_read', 'gmail_search', 'organism_recall', 'servers_health',
   ]);
   for (const tool of byName.values()) assert.equal(tool.annotations.readOnlyHint, true);
 
@@ -132,6 +146,12 @@ test('CRM, server, and GitHub control tools stay read-only and scoped', async (t
   }));
   assert.equal(crmRead.contact.contactId, 'contact-1');
   assert.equal(crmRead.activities[0].activityLimit, 3);
+
+  const memory = parseToolResult(await client.callTool({
+    name: 'organism_recall', arguments: { query: 'What was Operator doing?', limit: 4 },
+  }));
+  assert.equal(memory.question, 'What was Operator doing?');
+  assert.match(memory.text, /Relevant memory/);
 
   const health = parseToolResult(await client.callTool({
     name: 'servers_health', arguments: { servers: ['hetzner', 'ovh'] },
@@ -193,6 +213,22 @@ test('OVH and n8n bridge tools are opt-in and stay scoped', async (t) => {
     assert.equal(names.includes(name), true);
     assert.equal(listed.tools.find(tool => tool.name === name).annotations.readOnlyHint, true);
   }
+  const rememberTool = listed.tools.find(tool => tool.name === 'organism_remember');
+  assert.equal(Boolean(rememberTool), true);
+  assert.equal(rememberTool.annotations.readOnlyHint, false);
+  assert.equal(rememberTool.annotations.destructiveHint, false);
+
+  const remembered = parseToolResult(await client.callTool({
+    name: 'organism_remember',
+    arguments: {
+      content: 'A useful shared fact',
+      subject: 'Operator',
+      kind: 'conversation',
+      source_id: 'chatgpt:test-turn',
+    },
+  }));
+  assert.equal(remembered.sourceId, 'chatgpt:test-turn');
+  assert.equal(remembered.kind, 'conversation');
 
   const secret = parseToolResult(await client.callTool({
     name: 'secret_status', arguments: { key: 'CVW_N8N_API_KEY' },

@@ -57,4 +57,5 @@ fi
 # is slow, while a compatibility lane continues to run Forge normally.
 if [ "${1:-}" = "run-once" ] && ! [[ "${THREEDVR_AGENT_SKIP_FORGE:-0}" =~ ^(1|true|yes|on)$ ]]; then
   "$NODE_BIN" "$ROOT/node/operator-forge-worker.js" run-once
+  "$NODE_BIN" "$ROOT/node/operator-server-control-worker.js" run-once
 fi

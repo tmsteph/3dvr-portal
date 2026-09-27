@@ -69,6 +69,14 @@ function createGatewayMcpServer(options = {}) {
   const serversHealthImpl = options.serversHealthImpl || serversHealth;
   const githubOverviewImpl = options.githubOverviewImpl || githubOverview;
   const callOvhToolImpl = options.callOvhToolImpl || callOvhTool;
+  const organismRecallImpl = options.organismRecallImpl || (async (query, recallOptions = {}) => {
+    const module = await import('../../../src/organism/remote.js');
+    return module.recallFromOvh(query, recallOptions);
+  });
+  const organismRememberImpl = options.organismRememberImpl || (async (content, rememberOptions = {}) => {
+    const module = await import('../../../src/organism/remote.js');
+    return module.rememberOnOvh(content, rememberOptions);
+  });
   const auditImpl = options.auditImpl || appendAudit;
   const enablePrivileged = options.enablePrivileged ?? process.env.THREEDVR_MCP_ENABLE_PRIVILEGED === 'true';
   const enableDrafts = options.enableDrafts ?? process.env.THREEDVR_MCP_ENABLE_DRAFTS === 'true';
@@ -123,6 +131,7 @@ function createGatewayMcpServer(options = {}) {
       gmail: true,
       crm: { backend: 'postgres', configured: crmConfiguredImpl(crmConfig) },
       github: true,
+      organism: true,
       servers: Object.keys(SERVER_TARGETS),
       privilegedControl: enablePrivileged,
       n8n: enablePrivileged ? ['cvw'] : [],
@@ -192,6 +201,21 @@ function createGatewayMcpServer(options = {}) {
     auditImpl,
   ));
 
+  server.registerTool('organism_recall', {
+    title: 'Recall 3DVR memory',
+    description: 'Recall relevant user-owned context from the private 3DVR Digital Organism.',
+    inputSchema: {
+      query: z.string().min(1).max(2000),
+      limit: z.number().int().min(1).max(10).default(6),
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  }, async ({ query, limit }) => audited(
+    'organism.recall',
+    {},
+    async () => organismRecallImpl(query, { limit }),
+    auditImpl,
+  ));
+
   server.registerTool('servers_health', {
     title: 'Check 3DVR servers',
     description: 'Check read-only health metadata for the known 3DVR server mesh.',
@@ -222,6 +246,30 @@ function createGatewayMcpServer(options = {}) {
   ));
 
   if (enablePrivileged) {
+    server.registerTool('organism_remember', {
+      title: 'Remember 3DVR context',
+      description: 'Save one durable user-owned memory into the private 3DVR Digital Organism.',
+      inputSchema: {
+        content: z.string().min(1).max(4000),
+        subject: z.string().max(300).default(''),
+        kind: z.string().max(80).default('note'),
+        source_id: z.string().min(1).max(300),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    }, async ({ content, subject, kind, source_id }) => audited(
+      'organism.remember',
+      { target: source_id },
+      async () => organismRememberImpl(content, {
+        subject, kind, sourceId: source_id,
+      }),
+      auditImpl,
+    ));
+
     server.registerTool('secret_status', {
       title: 'Check secret status',
       description: 'Check whether a named credential exists in OpenBao without returning its value.',
