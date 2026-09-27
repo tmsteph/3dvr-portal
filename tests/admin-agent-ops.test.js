@@ -80,7 +80,13 @@ test('admin portal exposes an agent operations control surface', async () => {
   assert.match(html, /id="agent-runs-counts"/);
   assert.match(html, /id="agent-runs-routes"/);
   assert.match(html, /id="agent-runs-combo"/);
+  assert.match(html, /id="agent-runs-openai-spend"/);
+  assert.match(html, /id="agent-runs-openai-guard"/);
+  assert.match(html, /id="agent-runs-codex"/);
   assert.match(html, /id="agent-runs-list"/);
+  assert.match(html, /function formatOpenAiSpend\(costs = \{\}\)/);
+  assert.match(html, /function formatOpenAiGuard\(costs = \{\}\)/);
+  assert.match(html, /function formatCodexLane\(codex = \{\}\)/);
   assert.match(html, /portal-agent-ops-config/);
   assert.match(html, /portalRoot\.get\('agentOps'\)/);
   assert.match(html, /MANAGED_AGENT_OWNER_ALIAS = '3dvr-managed'/);

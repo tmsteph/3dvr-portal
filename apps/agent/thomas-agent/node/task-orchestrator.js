@@ -4,6 +4,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { claimLease, markHandled, releaseLease, writeHeartbeat } = require('./agent-ops');
 const { buildContext } = require('./digital-organism');
+const { assertOpenAiSpendAllowed } = require('./openai-spend-guard');
 
 const DEFAULT_REPO = process.env.THREEDVR_AGENT_TASK_REPO || path.resolve(__dirname, '..', '..');
 const DEFAULT_TIMEOUT_MS = parseInteger(process.env.THREEDVR_AGENT_TASK_TIMEOUT_MS, 10 * 60 * 1000);
@@ -297,6 +298,7 @@ async function runProcess(commandSpec, options, spawnImpl = spawn) {
 
 async function callOpenAI(prompt, options, { fetchImpl = fetch, env = process.env } = {}) {
   if (!env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not set');
+  await assertOpenAiSpendAllowed({ env, fetchImpl });
   const model = options.model || DEFAULT_OPENAI_MODEL;
   const body = { model, input: prompt };
   const response = await fetchImpl('https://api.openai.com/v1/responses', {

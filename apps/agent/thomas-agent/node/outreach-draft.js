@@ -3,6 +3,7 @@ const os = require('os');
 const path = require('path');
 const { finalizeCommercialOutreach } = require('./outreach-compliance');
 const { loadReadyDraft } = require('./outreach-draft-queue');
+const { assertOpenAiSpendAllowed } = require('./openai-spend-guard');
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -369,6 +370,7 @@ async function buildLlmOutreachDraft(lead = {}, { fetchImpl = fetch } = {}) {
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is not set.');
   }
+  await assertOpenAiSpendAllowed({ env: process.env, fetchImpl });
 
   const response = await fetchImpl('https://api.openai.com/v1/chat/completions', {
     method: 'POST',

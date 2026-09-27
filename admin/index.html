@@ -768,6 +768,18 @@
             <span class="agent-runtime-label">Active combo</span>
             <div id="agent-runs-combo" class="agent-runtime-value">--</div>
           </div>
+          <div class="agent-runtime-item">
+            <span class="agent-runtime-label">OpenAI API spend</span>
+            <div id="agent-runs-openai-spend" class="agent-runtime-value">--</div>
+          </div>
+          <div class="agent-runtime-item">
+            <span class="agent-runtime-label">API guard</span>
+            <div id="agent-runs-openai-guard" class="agent-runtime-value">--</div>
+          </div>
+          <div class="agent-runtime-item">
+            <span class="agent-runtime-label">Codex lane</span>
+            <div id="agent-runs-codex" class="agent-runtime-value">--</div>
+          </div>
         </div>
         <div id="agent-runs-list" class="list" aria-live="polite" style="margin-top: 14px;">
           <div class="empty-state">Waiting for autopilot run history...</div>
@@ -1065,6 +1077,9 @@
   const agentRunsCounts = document.getElementById('agent-runs-counts');
   const agentRunsRoutes = document.getElementById('agent-runs-routes');
   const agentRunsCombo = document.getElementById('agent-runs-combo');
+  const agentRunsOpenAiSpend = document.getElementById('agent-runs-openai-spend');
+  const agentRunsOpenAiGuard = document.getElementById('agent-runs-openai-guard');
+  const agentRunsCodex = document.getElementById('agent-runs-codex');
   const agentRunsList = document.getElementById('agent-runs-list');
   const agentActionButtons = Array.from(document.querySelectorAll('[data-agent-action]'));
   const leaderboardEl = document.getElementById('leaderboard');
@@ -1334,6 +1349,25 @@
     return [location, category].filter(Boolean).join(' / ');
   }
 
+  function formatOpenAiSpend(costs = {}) {
+    if (!costs || !costs.available) return costs?.reason ? `Unavailable: ${costs.reason}` : '--';
+    const total = Number(costs.totalUsd || 0);
+    const days = Number(costs.days || 1);
+    return `$${total.toFixed(2)} / ${days}d`;
+  }
+
+  function formatOpenAiGuard(costs = {}) {
+    if (!Number.isFinite(Number(costs?.limitUsd))) return 'Not enforced';
+    const limit = Number(costs.limitUsd);
+    return costs.limitExceeded ? `STOP · $${limit.toFixed(2)} limit reached` : `$${limit.toFixed(2)} ceiling`;
+  }
+
+  function formatCodexLane(codex = {}) {
+    if (!codex || codex.mode === 'off') return 'Probe off';
+    if (codex.ok) return codex.accountType ? `${codex.accountType} · ready` : 'Ready';
+    return codex.reason ? `Issue: ${codex.reason}` : 'Unavailable';
+  }
+
   function formatAutopilotRunSummary(run = {}) {
     const ranAt = run.ranAt || run.timestamp || run.createdAt || '';
     const counts = summarizeCounts(run.counts || {});
@@ -1369,6 +1403,9 @@
     if (agentRunsCounts) agentRunsCounts.innerText = state.counts ? summarizeCounts(state.counts) : '--';
     if (agentRunsRoutes) agentRunsRoutes.innerText = state.routeCounts ? summarizeRoutes(state.routeCounts) : '--';
     if (agentRunsCombo) agentRunsCombo.innerText = state.combo ? formatAutopilotCombo(state.combo) : '--';
+    if (agentRunsOpenAiSpend) agentRunsOpenAiSpend.innerText = formatOpenAiSpend(state.openAiCosts || {});
+    if (agentRunsOpenAiGuard) agentRunsOpenAiGuard.innerText = formatOpenAiGuard(state.openAiCosts || {});
+    if (agentRunsCodex) agentRunsCodex.innerText = formatCodexLane(state.codex || {});
 
     if (!runs.length) {
       agentRunsList.innerHTML = '<div class="empty-state">Waiting for autopilot run history...</div>';

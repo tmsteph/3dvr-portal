@@ -9,6 +9,7 @@ const { appendContactFooter, buildContactFooter } = require('./contact-footer');
 const { appendOutreachLog, readOutreachLog } = require('./outreach-log');
 const { buildPersonalizedPreviewUrl } = require('./outreach-draft-queue');
 const { acquireEmailSend, markEmailSent, markEmailUncertain } = require('./email-idempotency');
+const { assertOpenAiSpendAllowed } = require('./openai-spend-guard');
 const {
   claimLease,
   isHandled,
@@ -1365,6 +1366,7 @@ async function callOpenAIChatCompletion(messages, { fetchImpl = fetch } = {}) {
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is not set.');
   }
+  await assertOpenAiSpendAllowed({ env: process.env, fetchImpl });
   const response = await fetchImpl('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {

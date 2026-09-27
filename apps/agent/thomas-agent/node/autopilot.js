@@ -77,7 +77,7 @@ const DEFAULT_PORTAL_EMAIL_TOKEN = normalizeText(
   || process.env.AGENT_OPERATOR_EMAIL_TOKEN
   || readOptionalFile(DEFAULT_TOKEN_FILE)
 );
-const DEFAULT_OPENAI_COST_LIMIT_USD = parseNumber(process.env.THREEDVR_AUTOPILOT_OPENAI_COST_LIMIT_USD, null);
+const DEFAULT_OPENAI_COST_LIMIT_USD = parseNumber(process.env.THREEDVR_OPENAI_COST_LIMIT_USD || process.env.THREEDVR_AUTOPILOT_OPENAI_COST_LIMIT_USD, null);
 const DEFAULT_OPENAI_COST_WINDOW_DAYS = parseInteger(process.env.THREEDVR_AUTOPILOT_OPENAI_COST_WINDOW_DAYS, 1);
 const DEFAULT_CODEX_PROBE = String(process.env.THREEDVR_AUTOPILOT_CODEX_PROBE || 'auth').trim().toLowerCase();
 const DEFAULT_CODEX_REPO = process.env.THREEDVR_AUTOPILOT_CODEX_REPO || path.join(os.homedir(), '3dvr-agent');
@@ -173,7 +173,7 @@ Environment:
   THREEDVR_AUTOPILOT_EMAIL_ENDPOINT      portal email relay endpoint
   THREEDVR_AUTOPILOT_EMAIL_TOKEN         shared token for portal email relay
   THREEDVR_AUTOPILOT_EMAIL_TOKEN_FILE    optional file path for shared relay token
-  THREEDVR_AUTOPILOT_OPENAI_COST_LIMIT_USD optional daily spend ceiling
+  THREEDVR_OPENAI_COST_LIMIT_USD           shared OpenAI API spend ceiling (legacy autopilot variable also supported)
   THREEDVR_AUTOPILOT_CODEX_PROBE         auth | codex | off
   OPENAI_ADMIN_KEY                       required for OpenAI costs checks
   GMAIL_USER / GMAIL_APP_PASSWORD        optional fallback for direct email alerts`);

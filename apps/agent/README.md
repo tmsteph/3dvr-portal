@@ -769,12 +769,14 @@ If you keep the shared token in a private file, `ask-autopilot` will read it aut
 ~/.3dvr-agent-operator-email-token
 ```
 
-Optional spend guard:
+OpenAI API spend guard (Codex/ChatGPT subscription calls do not use this budget):
 
 ```sh
 export OPENAI_ADMIN_KEY="org_admin_key"
-export THREEDVR_AUTOPILOT_OPENAI_COST_LIMIT_USD=5
+export THREEDVR_OPENAI_COST_LIMIT_USD=5
 ```
+
+When a ceiling is configured, background agent OpenAI API calls fail closed before inference if current organization spend cannot be verified or the ceiling has been reached. `THREEDVR_AUTOPILOT_OPENAI_COST_LIMIT_USD` remains supported as a legacy alias.
 
 Optional Codex probe modes:
 
