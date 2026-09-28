@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://3dvr.tech/schemas/ephemeral-gpu-job-v1.json",
+  "title": "3DVR Ephemeral GPU Job v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "task",
+    "prompt",
+    "inputs",
+    "budget",
+    "toolPolicy"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "task": {
+      "type": "string",
+      "enum": [
+        "media",
+        "image_generate",
+        "image_edit",
+        "video_generate",
+        "video_edit",
+        "transcribe",
+        "text"
+      ]
+    },
+    "prompt": {
+      "type": "string",
+      "maxLength": 12000
+    },
+    "inputs": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "url",
+          "mime",
+          "name"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "mime": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "modelHint": {
+      "type": "string"
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxJobUsd",
+        "maxRuntimeMs"
+      ],
+      "properties": {
+        "maxJobUsd": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "maxRuntimeMs": {
+          "type": "integer",
+          "minimum": 1000
+        }
+      }
+    },
+    "toolPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "tools"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "none",
+            "allowlist"
+          ]
+        },
+        "tools": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

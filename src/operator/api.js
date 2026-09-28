@@ -8,6 +8,16 @@ import {
   DEFAULT_OPERATOR_DRAFT_MODEL,
   normalizeOperatorDraftAwareness
 } from './draft-awareness.js';
+import {
+  getEphemeralComputeConfig,
+  invokeEphemeralText,
+  planEphemeralCompute,
+  publicEphemeralComputeReceipt
+} from './ephemeral-compute.js';
+import {
+  getEphemeralMediaConfig,
+  submitEphemeralMediaJob
+} from './ephemeral-media.js';
 
 export const DEFAULT_OPERATOR_MODEL = 'gpt-6-luna';
 export const DEFAULT_OPERATOR_GATEWAY_MODEL = 'openai/gpt-6-luna';
@@ -397,10 +407,13 @@ export function reconcileOperatorCodeAction(result = {}, developerAccess = {}, p
 }
 
 export function createOperatorHandler(options = {}) {
+  const runtimeConfig = options.config || process.env;
   const apiKey = options.apiKey ?? process.env.OPENAI_API_KEY;
   const gatewayToken = options.gatewayToken ?? process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN;
   const endpoint = options.endpoint || (gatewayToken ? 'https://ai-gateway.vercel.sh/v1/responses' : 'https://api.openai.com/v1/responses');
   const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const ephemeralConfig = getEphemeralComputeConfig(runtimeConfig);
+  const ephemeralMediaConfig = getEphemeralMediaConfig(runtimeConfig);
   const organismRelay = createOrganismVercelRelay({ ...(options.organism || {}), fetchImpl });
   return async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -411,14 +424,45 @@ export function createOperatorHandler(options = {}) {
     if (req.body?.organismRecall === true || req.body?.organismRemember === true) return organismRelay(req, res);
     const requestApiKey = clean(req.body?.apiKey, 300);
     const authorizationToken = apiKey || gatewayToken || requestApiKey;
-    if (!authorizationToken) return res.status(503).json({ error: 'The operator is temporarily unavailable.' });
+    if (!authorizationToken && !ephemeralConfig.enabled) return res.status(503).json({ error: 'The operator is temporarily unavailable.' });
     const prompt = clean(req.body?.prompt, 2000);
     if (!prompt) return res.status(400).json({ error: 'Tell the operator what you need.' });
     try {
+      if (req.body?.ephemeralMedia === true) {
+        if (req.body?.confirmPaidCompute !== true) {
+          return res.status(409).json({
+            error: 'Ephemeral media compute requires explicit paid-compute confirmation.',
+            compute: {
+              lane: 'ephemeral-media',
+              enabled: ephemeralMediaConfig.enabled,
+              provider: ephemeralMediaConfig.provider,
+              maxJobUsd: ephemeralMediaConfig.maxJobUsd,
+              maxRuntimeMs: ephemeralMediaConfig.maxRuntimeMs
+            }
+          });
+        }
+        if (!ephemeralMediaConfig.enabled) {
+          return res.status(503).json({ error: 'Ephemeral media compute is not configured.' });
+        }
+        const media = await submitEphemeralMediaJob({
+          prompt,
+          inputs: req.body?.mediaInputs,
+          task: req.body?.mediaTask,
+          modelHint: req.body?.modelHint,
+          toolPolicy: req.body?.toolPolicy,
+          config: ephemeralMediaConfig,
+          fetchImpl
+        });
+        return res.status(202).json({
+          ok: true,
+          compute: { lane: 'ephemeral-media', ...media }
+        });
+      }
       const useGateway = !apiKey && Boolean(gatewayToken);
       const requestEndpoint = useGateway ? endpoint : 'https://api.openai.com/v1/responses';
 
       if (req.body?.draft === true) {
+        if (!authorizationToken) return res.status(503).json({ error: 'Draft awareness requires the normal hosted model path.' });
         const draftModel = options.draftModel
           || process.env.OPENAI_OPERATOR_DRAFT_MODEL
           || (useGateway ? DEFAULT_OPERATOR_DRAFT_GATEWAY_MODEL : DEFAULT_OPERATOR_DRAFT_MODEL);
@@ -442,16 +486,79 @@ export function createOperatorHandler(options = {}) {
 
       const developerAuth = req.body?.developerAuth || req.body?.portalContext?.developerAuth || {};
       const developerAccess = await resolveOperatorDeveloperAccess(developerAuth, {
-        config: options.config || process.env,
+        config: runtimeConfig,
         expectedOrigin: requestOrigin(req)
       });
+      const wantsStream = req.body?.stream === true;
+      const ephemeralPlan = planEphemeralCompute({
+        prompt,
+        mode: req.body?.computeMode,
+        images: req.body?.images,
+        config: ephemeralConfig
+      });
+
+      if (ephemeralPlan.useEphemeral) {
+        const privateContext = ephemeralConfig.includeContext
+          ? [
+              buildOperatorOwnerContext(),
+              buildPortalSnapshotInstruction(req.body?.portalContext),
+              buildOperatorMemoryInstruction(req.body?.memoryContext)
+            ]
+          : ['Do not assume access to private Portal or Digital Organism data beyond the conversation text sent in this request.'];
+        const ephemeralSystem = [
+          'You are the 3DVR Operator open-model compute lane, used when the user wants a user-controlled model instead of the normal hosted model.',
+          'Answer the request directly and clearly.',
+          'This first compute lane has no external tools attached. Never claim to have sent messages, changed files, controlled servers, spent money, or taken other external actions.',
+          ...privateContext
+        ].join(' ');
+
+        try {
+          const ephemeral = await invokeEphemeralText({
+            prompt,
+            history: req.body?.history,
+            system: ephemeralSystem,
+            config: ephemeralConfig,
+            plan: ephemeralPlan,
+            fetchImpl
+          });
+          const result = {
+            reply: clean(ephemeral.text, 1600) || 'The open-model worker returned an empty response.',
+            suggestions: [],
+            action: {
+              type: 'none', title: '', text: '', business: '', location: '', url: '', repo: '',
+              server: '', operation: '', service: ''
+            },
+            compute: publicEphemeralComputeReceipt(ephemeralPlan),
+            developerAccess: operatorDeveloperAccessPayload(developerAccess)
+          };
+
+          if (wantsStream) {
+            setOperatorStreamHeaders(res);
+            res.flushHeaders?.();
+            writeOperatorStreamEvent(res, 'status', { message: 'Using open GPU compute…' });
+            writeOperatorStreamEvent(res, 'reply_delta', { delta: result.reply });
+            writeOperatorStreamEvent(res, 'result', result);
+            return res.end();
+          }
+
+          return res.status(200).json(result);
+        } catch (error) {
+          if (ephemeralPlan.explicit) {
+            return res.status(502).json({
+              error: error?.message || 'The ephemeral compute worker could not respond.',
+              compute: publicEphemeralComputeReceipt(ephemeralPlan)
+            });
+          }
+        }
+      }
+
+      if (!authorizationToken) return res.status(503).json({ error: 'The normal hosted model path is temporarily unavailable.' });
       const configuredModel = options.model || process.env.OPENAI_OPERATOR_MODEL;
       const model = configuredModel || selectOperatorModel({
         prompt,
         images: req.body?.images,
         useGateway
       });
-      const wantsStream = req.body?.stream === true;
       const requestBody = buildOperatorRequest({
         prompt,
         images: req.body?.images,
