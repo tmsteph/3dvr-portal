@@ -20,3 +20,4 @@
 2026-09-28T08:28:00-07:00 spatial-portal experiment PR #2830
 2026-09-28T08:44:00-07:00 spatial-natural-controls PR #2833
 2026-09-28T10:12:00-07:00 living-world PR #2841 canonical fallback
+2026-09-28 living-world-pointer-lock PR #2842 canonical fallback
