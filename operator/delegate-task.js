@@ -110,7 +110,7 @@ export function watchOperatorTask(taskId, options = {}) {
     .get('agentOps')
     .get(MANAGED_AGENT_OWNER_ALIAS)
     .get('taskQueue')
-    .get('latest')
+    .get('tasks')
     .get(id);
   let stopped = false;
   const stop = () => {
