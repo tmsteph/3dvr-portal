@@ -86,6 +86,7 @@ async function openTestGateway(t, { enableDrafts = false, legacy = false, enable
       args,
       ...(name === 'secret_status' ? { key: args.key, exists: true, backend: 'openbao' } : {}),
       ...(name === 'n8n_status' ? { api: { ok: true, authorized: true, status: 200 } } : {}),
+      ...(name === 'n8n_watchdog' ? { baseline: { actualTotalWorkflows: 29, actualActiveWorkflows: 18 }, findings: [] } : {}),
     }),
   };
   const started = await startHttpServer({
@@ -209,7 +210,7 @@ test('OVH and n8n bridge tools are opt-in and stay scoped', async (t) => {
   const listed = await client.listTools();
   const names = listed.tools.map(tool => tool.name);
 
-  for (const name of ['secret_status', 'n8n_status', 'n8n_workflows', 'n8n_executions', 'service_status']) {
+  for (const name of ['secret_status', 'n8n_status', 'n8n_watchdog', 'n8n_workflows', 'n8n_executions', 'service_status']) {
     assert.equal(names.includes(name), true);
     assert.equal(listed.tools.find(tool => tool.name === name).annotations.readOnlyHint, true);
   }
@@ -240,6 +241,12 @@ test('OVH and n8n bridge tools are opt-in and stay scoped', async (t) => {
     name: 'n8n_status', arguments: { target: 'cvw' },
   }));
   assert.equal(n8n.api.authorized, true);
+
+  const watchdog = parseToolResult(await client.callTool({
+    name: 'n8n_watchdog', arguments: { target: 'cvw' },
+  }));
+  assert.equal(watchdog.baseline.actualTotalWorkflows, 29);
+  assert.deepEqual(watchdog.findings, []);
 
   const status = parseToolResult(await client.callTool({ name: 'control_status', arguments: {} }));
   assert.equal(status.mode, 'scoped-control');

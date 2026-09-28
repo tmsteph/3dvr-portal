@@ -8,6 +8,7 @@ const { execFile } = require('child_process');
 const { promisify } = require('util');
 
 const run = promisify(execFile);
+const { CVW_WATCHDOG_POLICY, evaluateN8nWatchdog } = require('./n8n-watchdog');
 
 function csv(value, fallback = []) {
   const source = value === undefined || value === null || value === '' ? fallback : String(value).split(',');
@@ -552,6 +553,23 @@ async function n8nExecutions({ target = 'cvw', workflowId, status, limit = 25 } 
   return { target: { id: result.target.id, label: result.target.label }, executions: rows.map(safeN8nExecution), nextCursor: secureText(result.body?.nextCursor, 1000) || null };
 }
 
+async function n8nWatchdog({ target = 'cvw' } = {}, options = {}) {
+  const workflowsResult = await n8nWorkflows({ target, limit: 100 }, options);
+  const executionsByWorkflow = {};
+  for (const rule of CVW_WATCHDOG_POLICY.workflows.filter((row) => row.mode === 'scheduled')) {
+    const workflow = workflowsResult.workflows.find((row) => row.name === rule.name);
+    if (!workflow) continue;
+    const result = await n8nExecutions({ target, workflowId: workflow.id, limit: 10 }, options);
+    executionsByWorkflow[workflow.id] = result.executions;
+  }
+  return evaluateN8nWatchdog({
+    workflows: workflowsResult.workflows,
+    executionsByWorkflow,
+    now: options.now || new Date(),
+    policy: { ...CVW_WATCHDOG_POLICY, target },
+  });
+}
+
 module.exports = {
   assertServiceAllowed,
   fileList,
@@ -571,6 +589,7 @@ module.exports = {
   n8nExecutions,
   n8nStatus,
   n8nTargets,
+  n8nWatchdog,
   n8nWorkflows,
   resolveN8nTarget,
   secretStatus,

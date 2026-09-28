@@ -18,6 +18,7 @@ const {
   n8nExecutions,
   n8nStatus,
   n8nTargets,
+  n8nWatchdog,
   n8nWorkflows,
   secretStatus,
 } = require('../connectors/control/local-machine');
@@ -97,6 +98,13 @@ server.registerTool('n8n_status', {
   inputSchema: { target: z.string().default('cvw') },
   annotations: { readOnlyHint: true, openWorldHint: true },
 }, async ({ target }) => output(await n8nStatus(target)));
+
+server.registerTool('n8n_watchdog', {
+  title: 'Check n8n watchdog',
+  description: 'Evaluate metadata-only workflow health for a configured n8n target. No execution payloads or client data are returned.',
+  inputSchema: { target: z.string().default('cvw') },
+  annotations: { readOnlyHint: true, openWorldHint: true },
+}, async ({ target }) => output(await n8nWatchdog({ target })));
 
 server.registerTool('n8n_workflows', {
   title: 'List n8n workflows',
