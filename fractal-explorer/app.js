@@ -345,7 +345,8 @@ function onPointerMove(event) {
   if (!state.dragging) return;
   const dx = event.clientX - state.pointerX;
   const dy = event.clientY - state.pointerY;
-  state.yaw = state.startYaw - dx * 0.006;
+  const grabWorld = event.pointerType === 'touch' || event.pointerType === 'pen';
+  state.yaw = state.startYaw + dx * 0.006 * (grabWorld ? 1 : -1);
   state.pitch = state.startPitch + dy * 0.0045;
   updateCameraUniforms();
   writeUrlSoon();

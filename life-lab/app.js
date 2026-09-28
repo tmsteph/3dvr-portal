@@ -842,7 +842,8 @@ renderer.domElement.addEventListener('pointermove', (event) => {
     return;
   }
 
-  cameraYaw -= dx * 0.006;
+  const grabWorld = event.pointerType === 'touch' || event.pointerType === 'pen';
+  cameraYaw += dx * 0.006 * (grabWorld ? 1 : -1);
   cameraPitch = clamp(cameraPitch + dy * 0.005, -1.1, 1.1);
 });
 

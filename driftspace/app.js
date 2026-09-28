@@ -528,9 +528,11 @@ canvas.addEventListener('pointermove', event => {
   const dx = next.x - previous.x;
   const dy = next.y - previous.y;
   dragTravel += Math.hypot(dx, dy);
-  yaw -= dx * 0.0042;
-  pitch = THREE.MathUtils.clamp(pitch - dy * 0.0038, -1.18, 1.18);
-  roll = THREE.MathUtils.lerp(roll, THREE.MathUtils.clamp(-dx * 0.012, -0.42, 0.42), 0.35);
+  const grabWorld = event.pointerType === 'touch' || event.pointerType === 'pen';
+  const dragDirection = grabWorld ? 1 : -1;
+  yaw += dx * 0.0042 * dragDirection;
+  pitch = THREE.MathUtils.clamp(pitch + dy * 0.0038 * dragDirection, -1.18, 1.18);
+  roll = THREE.MathUtils.lerp(roll, THREE.MathUtils.clamp(dx * 0.012 * dragDirection, -0.42, 0.42), 0.35);
 });
 
 function releasePointer(event) {

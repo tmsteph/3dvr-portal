@@ -1094,7 +1094,7 @@
       const dy = event.clientY - touchLook.y;
       touchLook.x = event.clientX;
       touchLook.y = event.clientY;
-      lookBy(dx, dy, TOUCH_LOOK_SENSITIVITY);
+      lookBy(dx, -dy, TOUCH_LOOK_SENSITIVITY);
     }
   }
 

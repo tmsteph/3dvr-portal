@@ -3000,8 +3000,8 @@
     const dy = event.clientY - lastLookY;
     lastLookX = event.clientX;
     lastLookY = event.clientY;
-    yaw -= dx * 0.0032;
-    pitch -= dy * 0.0026;
+    yaw += dx * 0.0032;
+    pitch += dy * 0.0026;
     pitch = Math.max(-pitchLimit, Math.min(pitchLimit, pitch));
   });
 

@@ -724,8 +724,9 @@ canvas.addEventListener('pointermove', event => {
   gestureTravel += Math.hypot(dx, dy);
   if (gestureTravel > 5) moved = true;
   if (flightMode) {
+    const grabWorld = event.pointerType === 'touch' || event.pointerType === 'pen';
     yaw += dx * 0.0045;
-    pitch -= dy * 0.0045;
+    pitch += dy * 0.0045 * (grabWorld ? 1 : -1);
     updateCamera();
   } else if (event.shiftKey && event.pointerType !== 'touch') lookCamera(dx, dy);
   else {

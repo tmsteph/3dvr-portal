@@ -118,9 +118,9 @@
     const camera = new THREE.PerspectiveCamera(63,innerWidth/innerHeight,.05,220);
     camera.position.set(0,2.35,13);
 
-    const renderer = new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+    const renderer = new THREE.WebGLRenderer({canvas,antialias:!mobile,powerPreference:'high-performance'});
     renderer.setSize(innerWidth,innerHeight,false);
-    renderer.setPixelRatio(Math.min(devicePixelRatio || 1,mobile ? 1.45 : 1.8));
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1,mobile ? 1.15 : 1.8));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.08;
@@ -259,7 +259,7 @@
         }
       }
     }
-    addBambooCluster(-19,4,9);addBambooCluster(20,-14,8);addBambooCluster(13,15,7);
+    addBambooCluster(-19,4,mobile?5:9);addBambooCluster(20,-14,mobile?5:8);addBambooCluster(13,15,mobile?4:7);
 
     // Lanterns
     const lanterns=[];
@@ -295,7 +295,7 @@
     [[4.6,-4.7,.8],[8.3,-7.1,.9],[9.4,-4.6,.7],[6.8,-8.2,.75]].forEach(v=>addLotus(...v));
 
     // Fireflies
-    const fireflyCount=mobile?90:160;
+    const fireflyCount=mobile?55:160;
     const fireflyPos=new Float32Array(fireflyCount*3);
     const fireflyBase=new Float32Array(fireflyCount*3);
     const fireflyPhase=new Float32Array(fireflyCount);
@@ -354,8 +354,8 @@
       if(!lastTouch||e.touches.length!==1) return;
       const t=e.touches[0],dx=t.clientX-lastTouch.x,dy=t.clientY-lastTouch.y;
       if(t.clientX>innerWidth*.36){
-        yaw-=dx*.0034;
-        pitch=clamp(pitch-dy*.0028,-.82,.6);
+        yaw+=dx*.0034;
+        pitch=clamp(pitch+dy*.0028,-.82,.6);
       }
       lastTouch={x:t.clientX,y:t.clientY};
     },{passive:true});
@@ -506,7 +506,7 @@
     addEventListener('resize',()=>{
       camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
       renderer.setSize(innerWidth,innerHeight,false);
-      renderer.setPixelRatio(Math.min(devicePixelRatio||1,matchMedia('(pointer:coarse)').matches?1.45:1.8));
+      renderer.setPixelRatio(Math.min(devicePixelRatio||1,matchMedia('(pointer:coarse)').matches?1.15:1.8));
     });
   </script>
 </body>

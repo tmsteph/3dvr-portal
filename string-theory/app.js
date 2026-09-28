@@ -364,7 +364,8 @@ function onPointerMove(event) {
   if (!state.dragging) return;
   const dx = (event.clientX - state.pointerX) / Math.max(window.innerWidth, 1);
   const dy = (event.clientY - state.pointerY) / Math.max(window.innerHeight, 1);
-  state.yaw = state.startYaw - dx * Math.PI * 1.6;
+  const grabWorld = event.pointerType === 'touch' || event.pointerType === 'pen';
+  state.yaw = state.startYaw + dx * Math.PI * 1.6 * (grabWorld ? 1 : -1);
   state.pitch = THREE.MathUtils.clamp(state.startPitch + dy * Math.PI, -1.1, 1.1);
   updateCamera();
 }
