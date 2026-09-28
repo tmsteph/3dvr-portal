@@ -17,3 +17,4 @@
 2026-09-27 open-personal-computing-roadmap PR #2813 canonical fallback
 2026-09-27 ambient-hud-phone-lookaround PR #2814
 2026-09-28 operator-continuous-assistant
+2026-09-28T08:28:00-07:00 spatial-portal experiment PR #2830
