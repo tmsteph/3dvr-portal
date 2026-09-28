@@ -14,6 +14,16 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - Prefer finishing, connecting, measuring, and simplifying existing paths over adding another disconnected surface.
 - Do not cripple the open product merely to manufacture an upgrade path. Paid work should save time, reduce complexity, add capacity, or provide accountable service.
 
+### Founder Mode
+- Learn by building: prefer the smallest real experiment, shipped improvement, or customer result that teaches us something useful.
+- Compress time with leverage: use AI, automation, agents, delegation, open source, and infrastructure before extending the human workday.
+- Build systems once: when work repeats, turn it into a reusable workflow, capability, template, or tool if that actually reduces future effort.
+- Stay close to real demand and revenue; solve concrete problems first, then productize what repeats.
+- Leave compounding assets behind: code, docs, data, relationships, audience, infrastructure, and reusable knowledge.
+- Protect the human: health, family, freedom, movement, attention, curiosity, and purpose are architectural constraints.
+- Prefer asymmetric bets with bounded downside, useful learning, and scalable upside.
+- When the queue grows, improve the machine that can do the work instead of asking the human to carry more of it.
+
 ## Canonical Monorepo Rule
 - `tmsteph/3dvr-portal` is the default home for active 3DVR product, platform, and research development.
 - New capability does not automatically mean a new app, package, service, or repository. Extend an existing Portal flow or subsystem when that is simpler.
