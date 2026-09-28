@@ -62,7 +62,7 @@ function recentVisibleHistory() {
     .slice(-6)
     .map(article => ({
       role: article.classList.contains('assistant') ? 'assistant' : 'user',
-      content: article.querySelector('p')?.textContent?.trim() || ''
+      content: article.querySelector('.message-content')?.textContent?.trim() || ''
     }))
     .filter(item => item.content);
 

@@ -400,18 +400,53 @@
     .operator-result__head strong { margin-right: auto; color: #79c0ff; }
     .operator-result__head a { color: #8b949e; font-size: 0.78rem; text-decoration: none; }
     .operator-result__head a:hover { color: #c9d1d9; }
-    .operator-result p {
+    #homeOperatorReply {
       min-height: 1.45em;
       margin: 13px 0 0;
-      white-space: pre-wrap;
       overflow-wrap: anywhere;
       color: #d7dee7;
       font-size: clamp(0.98rem, 2.8vw, 1.05rem);
       line-height: 1.62;
       transition: color 380ms ease;
     }
-    .operator-result[data-streaming="true"] p { color: #cbd5df; }
-    .operator-result[data-streaming="true"] p:empty::after {
+    #homeOperatorReply > :first-child { margin-top: 0; }
+    #homeOperatorReply > :last-child { margin-bottom: 0; }
+    #homeOperatorReply p,
+    #homeOperatorReply ul,
+    #homeOperatorReply ol,
+    #homeOperatorReply blockquote,
+    #homeOperatorReply pre { margin: 0.72em 0; }
+    #homeOperatorReply ul,
+    #homeOperatorReply ol { padding-left: 1.4rem; }
+    #homeOperatorReply blockquote {
+      padding-left: 0.9rem;
+      border-left: 3px solid #30363d;
+      color: #cbd5df;
+    }
+    #homeOperatorReply code {
+      padding: 0.12em 0.3em;
+      border-radius: 6px;
+      background: #0d1117;
+      font: 0.92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    #homeOperatorReply pre {
+      max-width: 100%;
+      padding: 0.8rem;
+      overflow: auto;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      background: #0d1117;
+    }
+    #homeOperatorReply pre code { padding: 0; background: transparent; }
+    #homeOperatorReply a { color: #79c0ff; }
+    #homeOperatorReply h1,
+    #homeOperatorReply h2,
+    #homeOperatorReply h3 { margin: 0.9em 0 0.45em; line-height: 1.25; }
+    #homeOperatorReply h1 { font-size: 1.3em; text-align: left; letter-spacing: 0; }
+    #homeOperatorReply h2 { font-size: 1.18em; }
+    #homeOperatorReply h3 { font-size: 1.08em; }
+    .operator-result[data-streaming="true"] #homeOperatorReply { color: #cbd5df; }
+    .operator-result[data-streaming="true"] #homeOperatorReply:empty::after {
       content: '•••';
       display: inline-block;
       letter-spacing: 0.34em;
@@ -716,7 +751,7 @@
       .spinner-nav__item { transition: none; }
       .spinner-stage::before,
       .operator-result:not([hidden]),
-      .operator-result[data-streaming="true"] p:empty::after,
+      .operator-result[data-streaming="true"] #homeOperatorReply:empty::after,
       .operator-follow-up { animation: none; }
     }
   </style>
@@ -792,7 +827,7 @@
             <strong>Operator</strong>
             <a id="homeOperatorFullInline" href="/operator/">Open full Operator</a>
           </div>
-          <p id="homeOperatorReply"></p>
+          <div id="homeOperatorReply" class="operator-markdown"></div>
           <div class="operator-follow-ups" id="homeOperatorFollowUps" aria-label="Suggested next steps"></div>
           <a class="operator-result__action" id="homeOperatorAction" href="/" hidden>Open workspace →</a>
         </section>
