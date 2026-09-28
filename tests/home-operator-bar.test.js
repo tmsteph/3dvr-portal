@@ -44,7 +44,9 @@ test('homepage busy state is calm and streaming does not rebuild the response ca
   assert.doesNotMatch(client, /rotate\(-360deg\)/);
   assert.match(client, /queueReplyPaint\(streamedReply\)/);
   assert.doesNotMatch(client, /renderResponse\(\{ message: streamedReply \}\)/);
-  assert.match(homepage, /\.operator-follow-ups \{[\s\S]*?min-height: 38px;[\s\S]*?flex-wrap: nowrap;/);
+  assert.match(homepage, /\.operator-follow-ups \{[\s\S]*?display: grid;[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/);
+  assert.match(homepage, /\.operator-follow-up \{[\s\S]*?width: 100%;[\s\S]*?white-space: normal;[\s\S]*?overflow-wrap: anywhere;/);
+  assert.doesNotMatch(homepage, /\.operator-follow-ups \{[\s\S]*?overflow-x: auto/);
   assert.match(homepage, /\.operator-follow-ups:empty \{ display: none; \}/);
   assert.match(homepage, /body\[data-home-chat-active="true"\] \.operator-result \{[\s\S]*?max-height: min\(48dvh, 32rem\);[\s\S]*?align-self: start;/);
   assert.match(actions, /import '\.\/home-busy-state\.js';/);
