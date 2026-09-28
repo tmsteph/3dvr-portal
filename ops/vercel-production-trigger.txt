@@ -26,3 +26,4 @@
 2026-09-28 living-world-path-run PR #2845 canonical fallback
 2026-09-28 living-world-path-startup-fix PR #2846 canonical fallback
 2026-09-28 living-world-smooth-controls PR #2847 canonical fallback
+2026-09-28 meditation-garden-fallback
