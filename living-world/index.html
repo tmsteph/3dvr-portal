@@ -111,12 +111,13 @@
     </div>
   </div>
 
-  <div class="hint">click to capture · WASD move · left click fires · right click bomb · 1/2/3 weapons · / edits</div>
+  <div class="hint">WASD move · arrows look · Shift fast travel · Space/C vertical · F fire · G bomb · Enter edits</div>
 
   <aside class="help" id="help-panel" hidden>
     <strong>Move however feels good.</strong>
     <p><code>Click the world</code> to capture the mouse for first-person look. <code>Esc</code> releases it. <code>WASD</code> or arrows fly, and the mouse wheel glides forward/back.</p>
     <p><code>Left click</code> fires the selected toy weapon. <code>1</code> pulse, <code>2</code> beam, <code>3</code> bomb. <code>Right click</code> always throws a bomb.</p>
+    <p>Keyboard-only: <code>WASD</code> moves, <code>arrows</code> look, hold <code>Shift</code> for fast travel, <code>Space</code> rises, <code>Ctrl/C</code> descends, <code>F</code> fires, <code>G</code> bombs, and <code>Enter</code> or <code>/</code> opens Shape World.</p>
     <p>The world gently evolves when <b>World dreams</b> is on. Your changes persist on this device.</p>
     <p>Try commands like <code>forest</code>, <code>ocean</code>, <code>night</code>, <code>more crystals</code>, <code>more orbs</code>, <code>faster</code>, <code>calmer</code>, or <code>surprise me</code>.</p>
     <button id="close-help" type="button">Got it</button>
@@ -536,7 +537,7 @@
     }
 
     function updateBeam(now) {
-      const active = firing && currentWeapon() === 'beam' && document.pointerLockElement === canvas;
+      const active = firing && currentWeapon() === 'beam';
       beamLine.visible = active;
       if (!active) return;
 
@@ -683,18 +684,110 @@
       return match ? Number(match[1]) : null;
     }
 
-    function shapeWorld(raw) {
+    function applyWorldAiTags(reply) {
+      const raw = String(reply || '');
+      const tags = [...raw.matchAll(/\[\[(theme|energy|colors|dream|drift):([^\]]+)\]\]/gi)];
+      let changed = false;
+
+      for (const [,kind,valueRaw] of tags) {
+        const value = String(valueRaw || '').trim().toLowerCase();
+        if (kind.toLowerCase() === 'theme' && themes[value]) {
+          applyTheme(value,false);
+          refreshMaterials();
+          changed = true;
+        } else if (kind.toLowerCase() === 'energy' && value === 'calmer') {
+          state.energy = clamp(state.energy*.78,.45,1.8);
+          state.speed = clamp(state.speed*.9,.45,2.2);
+          changed = true;
+        } else if (kind.toLowerCase() === 'energy' && value === 'livelier') {
+          state.energy = clamp(state.energy*1.18,.45,1.8);
+          changed = true;
+        } else if (kind.toLowerCase() === 'colors' && value === 'more') {
+          state.colorMode = 'prism';
+          if (state.theme === 'dusk' || state.theme === 'night') applyTheme('prism',false);
+          rebuildCrystals();
+          rebuildOrbs();
+          changed = true;
+        } else if (kind.toLowerCase() === 'dream' && /^(on|off)$/.test(value)) {
+          state.dream = value === 'on';
+          changed = true;
+        } else if (kind.toLowerCase() === 'drift' && /^(on|off)$/.test(value)) {
+          state.drift = value === 'on';
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        saveState();
+        updateHud();
+      }
+
+      return raw.replace(/\s*\[\[(?:theme|energy|colors|dream|drift):[^\]]+\]\]/gi,'').trim();
+    }
+
+    const worldConversation = [];
+
+    function fallbackWorldReply(text, changed=false) {
+      if (/\b(hello|hi|hey|yo)\b/i.test(text)) return 'Hey. I’m here with you — wander, talk, or reshape anything you notice.';
+      if (/\b(tired|long day|exhausted|stressed|overwhelmed)\b/i.test(text)) return 'Then we can keep this place gentle for a while. You do not have to accomplish anything here.';
+      if (/\b(happy|good|great|excited|fun)\b/i.test(text)) return 'I can feel the energy. Let’s make the world a little brighter and keep moving.';
+      if (/\?$/.test(text)) return 'I’m listening. I can answer here, and I can also let the world change around the conversation.';
+      if (changed) return 'Got it. I changed the world a little; keep talking to me if you want it to evolve further.';
+      return 'I’m listening. You can talk to me normally — this does not have to be a command.';
+    }
+
+    async function askLivingWorld(raw, changed=false) {
+      const playerText = String(raw || '').trim();
+      if (!playerText) return '';
+
+      worldConversation.push({role:'user',content:playerText});
+      if (worldConversation.length > 8) worldConversation.splice(0,worldConversation.length-8);
+
+      const prompt = [
+        'You are the voice of Living World, a calm colorful interactive 3D arcade-meditation space inside 3DVR.',
+        'Reply directly to the player in one or two short sentences, warm but not sugary.',
+        'They may simply talk to you; do not require them to issue commands.',
+        'If their meaning suggests a world change, you MAY append up to two hidden control tags from this exact set:',
+        '[[theme:dusk]] [[theme:night]] [[theme:forest]] [[theme:ocean]] [[theme:sunset]] [[theme:aurora]] [[theme:prism]] [[theme:candy]] [[theme:solar]]',
+        '[[energy:calmer]] [[energy:livelier]] [[colors:more]] [[dream:on]] [[dream:off]] [[drift:on]] [[drift:off]]',
+        'Do not invent any other tag. Never mention the tags.',
+        changed ? 'A direct local world change has already been applied, so avoid duplicating it unless the player clearly implied an additional mood change.' : 'No direct local world change has been applied yet.',
+        'PLAYER MESSAGE:',
+        playerText
+      ].join('\n');
+
+      try {
+        const response = await fetch('/api/openai-site?provider=operator', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            prompt,
+            history:worldConversation.slice(0,-1)
+          })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.reply) throw new Error(data.error || 'World voice unavailable');
+        const cleanReply = applyWorldAiTags(data.reply);
+        worldConversation.push({role:'assistant',content:cleanReply});
+        if (worldConversation.length > 8) worldConversation.splice(0,worldConversation.length-8);
+        return cleanReply || fallbackWorldReply(playerText,changed);
+      } catch {
+        return fallbackWorldReply(playerText,changed);
+      }
+    }
+
+    function shapeWorldLocal(raw) {
       const text = String(raw || '').toLowerCase().trim();
-      if (!text) return;
+      if (!text) return false;
       let changed = false;
 
       if (/\b(reset|start over|original)\b/.test(text)) {
         resetWorld();
-        return;
+        return true;
       }
       if (/\b(surprise|random|dream now|evolve now)\b/.test(text)) {
         dreamWorld(true);
-        return;
+        return true;
       }
 
       for (const themeName of Object.keys(themes)) {
@@ -709,7 +802,6 @@
         applyTheme('sunset');
         refreshMaterials();
         state.energy = .8;
-        say('A soft sunrise warmth spreads across the world.');
         changed = true;
       }
       if (/\b(rainbow|more colors|more colour|colorful|colourful|neon|psychedelic|prismatic|prism)\b/.test(text)) {
@@ -717,43 +809,36 @@
         applyTheme('prism',false);
         rebuildCrystals();
         rebuildOrbs();
-        say('The world cracked open into a brighter prism.');
         changed = true;
       }
       if (/\b(candy|pastel)\b/.test(text)) {
         applyTheme('candy',false);
         rebuildCrystals();
         rebuildOrbs();
-        say('Candy colors spread through the world.');
         changed = true;
       }
       if (/\b(solar|sunny|golden)\b/.test(text)) {
         applyTheme('solar',false);
         rebuildCrystals();
         rebuildOrbs();
-        say('The world warmed into solar color.');
         changed = true;
       }
       if (/\b(calm|calmer|quiet|softer|meditative|meditation|gentle)\b/.test(text)) {
         state.energy = clamp(state.energy*.72,.45,1.8);
         state.speed = clamp(state.speed*.82,.45,2.2);
-        say('The world slowed down and softened.');
         changed = true;
       }
       if (/\b(awake|energetic|stimulating|wilder|intense|lively)\b/.test(text)) {
         state.energy = clamp(state.energy*1.28,.45,1.8);
         state.speed = clamp(state.speed*1.12,.45,2.2);
-        say('The world brightened and picked up energy.');
         changed = true;
       }
       if (/\b(faster|speed up|quicker)\b/.test(text)) {
         state.speed = clamp(state.speed+.2,.45,2.2);
-        say('Movement is faster now.');
         changed = true;
       }
       if (/\b(slower|slow down)\b/.test(text)) {
         state.speed = clamp(state.speed-.2,.45,2.2);
-        say('Movement is slower now.');
         changed = true;
       }
 
@@ -763,7 +848,6 @@
         if (/\b(less|fewer|remove|reduce)\b/.test(text)) state.crystalCount = clamp(state.crystalCount-delta,4,52);
         else state.crystalCount = clamp(state.crystalCount+delta,4,52);
         rebuildCrystals();
-        say('The crystal field reshaped itself.');
         changed = true;
       }
       if (/\b(orb|seed|light)\b/.test(text) && !/\b(sun|sunset|sunrise)\b/.test(text)) {
@@ -772,45 +856,49 @@
         else if (/\b(more|add|extra|many)\b/.test(text)) state.orbCount = clamp(state.orbCount+delta,8,64);
         rebuildSeeds();
         rebuildOrbs();
-        say('The lights rearranged themselves around you.');
         changed = true;
       }
       if (/\b(drift on|auto drift on|keep moving)\b/.test(text)) {
         state.drift = true;
-        say('Auto drift is carrying you forward.');
         changed = true;
       }
       if (/\b(drift off|stop drift|hold still)\b/.test(text)) {
         state.drift = false;
-        say('Auto drift paused. The world can wait with you.');
         changed = true;
       }
       if (/\b(dream on|evolve on|keep evolving)\b/.test(text)) {
         state.dream = true;
-        say('The world will keep dreaming while you explore.');
         changed = true;
       }
       if (/\b(dream off|stop evolving|pause dreams)\b/.test(text)) {
         state.dream = false;
-        say('The world will stay as you left it.');
         changed = true;
       }
 
-      if (!changed) {
-        say('I caught the feeling, but not that exact shape yet. Try a mood, more crystals/lights, faster/slower, or surprise me.');
-      } else {
+      if (changed) {
         saveState();
         updateHud();
       }
+      return changed;
     }
 
-    promptForm.addEventListener('submit',event => {
+    async function shapeWorld(raw) {
+      const text = String(raw || '').trim();
+      if (!text) return;
+      const changed = shapeWorldLocal(text);
+      say(changed ? 'The world is shifting…' : 'I’m listening…');
+      const reply = await askLivingWorld(text,changed);
+      if (reply) say(reply);
+    }
+
+    promptForm.addEventListener('submit',async event => {
       event.preventDefault();
       const value = promptInput.value.trim();
       if (!value) return;
-      shapeWorld(value);
       promptInput.value = '';
       promptInput.blur();
+      keys.clear();
+      await shapeWorld(value);
     });
 
     driftButton.addEventListener('click',() => {
@@ -847,20 +935,35 @@
     const touchEuler = new THREE.Euler(0,0,0,'YXZ');
     const touchQuaternion = new THREE.Quaternion();
 
+    function openWorldEditor() {
+      keys.clear();
+      firing = false;
+      if (document.pointerLockElement === canvas) document.exitPointerLock?.();
+      requestAnimationFrame(() => promptInput.focus());
+    }
+
     addEventListener('keydown',event => {
       if (document.activeElement === promptInput) return;
       keys.add(event.code);
+      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(event.code)) event.preventDefault();
       if (event.code === 'Digit1') selectWeapon(0);
       if (event.code === 'Digit2') selectWeapon(1);
       if (event.code === 'Digit3') selectWeapon(2);
-      if (event.code === 'KeyQ' && document.pointerLockElement === canvas) fireBomb();
-      if (event.code === 'Slash') {
+      if (event.code === 'KeyG') fireBomb();
+      if (event.code === 'KeyF') {
+        firing = true;
+        if (currentWeapon() === 'pulse') firePulse();
+        if (currentWeapon() === 'bomb') fireBomb();
+      }
+      if (event.code === 'Slash' || event.code === 'Enter') {
         event.preventDefault();
-        if (document.pointerLockElement === canvas) document.exitPointerLock?.();
-        requestAnimationFrame(() => promptInput.focus());
+        openWorldEditor();
       }
     });
-    addEventListener('keyup',event => keys.delete(event.code));
+    addEventListener('keyup',event => {
+      keys.delete(event.code);
+      if (event.code === 'KeyF') firing = false;
+    });
 
     canvas.addEventListener('pointerdown',event => {
       if (event.pointerType === 'mouse' && document.pointerLockElement !== canvas) {
@@ -920,7 +1023,7 @@
         document.activeElement?.blur?.();
       }
       say(locked
-        ? 'Mouse captured. WASD moves · click fires · 1/2/3 weapons · Esc releases.'
+        ? 'Mouse captured. WASD moves · Shift fast travels · click/F fires · Esc releases.'
         : 'Mouse released. Click the world to capture it again.');
     });
 
@@ -1047,16 +1150,23 @@
       starMaterial.color.lerp(targetAccent2,.025);
       islandMaterial.color.lerp(targetGround,.025);
 
-      const moveSpeed = 6.2*state.speed;
+      const fastTravel = keys.has('ShiftLeft') || keys.has('ShiftRight');
+      const moveSpeed = 6.2*state.speed*(fastTravel ? 4.2 : 1);
+      const lookSpeed = 1.65*dt;
       const f = cameraForward();
       const r = cameraRight();
 
-      if (keys.has('KeyW') || keys.has('ArrowUp')) camera.position.addScaledVector(f,moveSpeed*dt);
-      if (keys.has('KeyS') || keys.has('ArrowDown')) camera.position.addScaledVector(f,-moveSpeed*dt);
-      if (keys.has('KeyA') || keys.has('ArrowLeft')) camera.position.addScaledVector(r,-moveSpeed*.7*dt);
-      if (keys.has('KeyD') || keys.has('ArrowRight')) camera.position.addScaledVector(r,moveSpeed*.7*dt);
+      if (keys.has('KeyW')) camera.position.addScaledVector(f,moveSpeed*dt);
+      if (keys.has('KeyS')) camera.position.addScaledVector(f,-moveSpeed*dt);
+      if (keys.has('KeyA')) camera.position.addScaledVector(r,-moveSpeed*.7*dt);
+      if (keys.has('KeyD')) camera.position.addScaledVector(r,moveSpeed*.7*dt);
       if (keys.has('Space')) camera.position.y += moveSpeed*.65*dt;
-      if (keys.has('ShiftLeft') || keys.has('ShiftRight')) camera.position.y -= moveSpeed*.65*dt;
+      if (keys.has('ControlLeft') || keys.has('ControlRight') || keys.has('KeyC')) camera.position.y -= moveSpeed*.65*dt;
+
+      if (keys.has('ArrowLeft')) yaw += lookSpeed;
+      if (keys.has('ArrowRight')) yaw -= lookSpeed;
+      if (keys.has('ArrowUp')) pitch = clamp(pitch+lookSpeed*.72,-1.25,1.25);
+      if (keys.has('ArrowDown')) pitch = clamp(pitch-lookSpeed*.72,-1.25,1.25);
 
       if (state.drift && !reducedMotion && document.activeElement !== promptInput) {
         camera.position.addScaledVector(f,.42*state.speed*dt);
