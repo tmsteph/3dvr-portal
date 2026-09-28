@@ -14,6 +14,10 @@ test('Living World ships as an in-portal evolving 3D experience', async () => {
   assert.match(page, /dreamWorld\(false\)/);
   assert.match(page, /deviceorientation/);
   assert.match(page, /localStorage\.setItem\(STORAGE_KEY/);
+  assert.match(page, /portal:issue-launcher\" content=\"off/);
+  assert.match(page, /requestPointerLock/);
+  assert.match(page, /pointerlockchange/);
+  assert.match(page, /document\.exitPointerLock/);
 });
 
 test('Living World is discoverable from Labs and Operator search', async () => {
