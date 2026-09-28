@@ -50,7 +50,9 @@ test('both Operator surfaces keep delegated progress in the conversation', async
   const home = await read('home-operator.js');
   const full = await read('operator/app.js');
   const actions = await read('operator/actions.js');
+  const delegated = await read('operator/delegate-task.js');
 
+  assert.match(delegated, /\.get\('tasks'\)\s*\.get\(id\)/);
   assert.match(home, /watchOperatorActionOutcome/);
   assert.match(home, /assistantEntry\.content = liveMessage/);
   assert.match(full, /watchOperatorActionOutcome/);
