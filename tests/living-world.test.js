@@ -30,6 +30,19 @@ test('Living World ships as an in-portal evolving 3D experience', async () => {
   assert.match(page, /prism:\{bg:/);
   assert.match(page, /candy:\{bg:/);
   assert.match(page, /solar:\{bg:/);
+  assert.match(page, /askLivingWorld/);
+  assert.match(page, /provider=operator/);
+  assert.match(page, /applyWorldAiTags/);
+  assert.match(page, /You can talk to me normally/);
+  assert.match(page, /fastTravel/);
+  assert.match(page, /ShiftLeft/);
+  assert.match(page, /ControlLeft/);
+  assert.match(page, /KeyC/);
+  assert.match(page, /KeyF/);
+  assert.match(page, /KeyG/);
+  assert.match(page, /ArrowLeft/);
+  assert.match(page, /openWorldEditor/);
+  assert.match(page, /event\.code === 'Slash' \|\| event\.code === 'Enter'/);
 });
 
 test('Living World is discoverable from Labs and Operator search', async () => {
