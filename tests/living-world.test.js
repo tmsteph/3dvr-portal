@@ -52,6 +52,9 @@ test('Living World ships as an in-portal evolving 3D experience', async () => {
   assert.match(page, /World mode/);
   assert.match(page, /const game = \{/);
   assert.match(page, /function buildGamePath/);
+  assert.match(page, /applyQuaternion\(camera\.quaternion\)/);
+  assert.doesNotMatch(page.slice(page.indexOf('function gamePointSequence'), page.indexOf('function updateGateMaterials')), /const baseYaw = yaw/);
+  assert.match(page, /TubeGeometry\(game\.curve,Math\.max\(96,points\.length\*26\),\.18,8,false\)/);
   assert.match(page, /function updateGame/);
   assert.match(page, /Path Run/);
   assert.match(page, /new THREE\.TubeGeometry/);
