@@ -2,6 +2,8 @@
 
 The Money Printer Executive Agent is the model-independent CEO/COO layer for 3DVR. Its job is not to answer every prompt or maximize activity. It keeps a durable direction, applies founder taste, remembers decisions, and chooses the next bounded action.
 
+Its default constitution now runs in **Founder Mode**: learn by building, compress time with leverage, turn repetition into systems, stay close to real demand and revenue, accumulate compounding assets, protect the human, prefer bounded asymmetric bets, and improve the machine instead of growing the human task queue. See `docs/founder-mode.md`.
+
 ## Durable state
 
 `npm run money-printer -- init` creates private runtime state under `.money-printer/executive/`:
