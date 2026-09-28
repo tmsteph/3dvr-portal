@@ -35,6 +35,8 @@ test('Living World ships as an in-portal evolving 3D experience', async () => {
   assert.match(page, /applyWorldAiTags/);
   assert.match(page, /You can talk to me normally/);
   assert.match(page, /fastTravel/);
+  assert.match(page, /thrustSpeed/);
+  assert.match(page, /if \(fastTravel\) camera\.position\.addScaledVector\(f,thrustSpeed\*dt\)/);
   assert.match(page, /ShiftLeft/);
   assert.match(page, /ControlLeft/);
   assert.match(page, /KeyC/);
@@ -43,6 +45,20 @@ test('Living World ships as an in-portal evolving 3D experience', async () => {
   assert.match(page, /ArrowLeft/);
   assert.match(page, /openWorldEditor/);
   assert.match(page, /event\.code === 'Slash' \|\| event\.code === 'Enter'/);
+  assert.match(page, /function enterTextMode/);
+  assert.match(page, /function enterWorldMode/);
+  assert.match(page, /event\.code === 'Escape'/);
+  assert.match(page, /Text mode/);
+  assert.match(page, /World mode/);
+  assert.match(page, /const game = \{/);
+  assert.match(page, /function buildGamePath/);
+  assert.match(page, /function updateGame/);
+  assert.match(page, /Path Run/);
+  assert.match(page, /new THREE\.TubeGeometry/);
+  assert.match(page, /gameTarget/);
+  assert.match(page, /stage-status/);
+  assert.match(page, /gate-status/);
+  assert.match(page, /score-status/);
 });
 
 test('Living World is discoverable from Labs and Operator search', async () => {
