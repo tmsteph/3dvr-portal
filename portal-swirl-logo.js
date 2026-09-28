@@ -159,15 +159,6 @@
     }
     context.restore();
 
-    const gloss = context.createLinearGradient(0, 0, size, size);
-    gloss.addColorStop(0.1, 'rgba(255,255,255,0)');
-    gloss.addColorStop(0.35, 'rgba(255,255,255,0.14)');
-    gloss.addColorStop(0.46, 'rgba(255,255,255,0.32)');
-    gloss.addColorStop(0.58, 'rgba(255,255,255,0.06)');
-    gloss.addColorStop(0.76, 'rgba(255,255,255,0)');
-    context.fillStyle = gloss;
-    context.fillRect(0, 0, size, size);
-
     context.beginPath();
     context.arc(center, center, radius * 0.96, 0, TAU);
     context.strokeStyle = '#d9ffff';
@@ -1061,10 +1052,6 @@
         const warmRim = new THREE.DirectionalLight(0xf0c34f, 0.52);
         warmRim.position.set(2.2, -2.8, -2.6);
         scene.add(warmRim);
-
-        const sparkle = new THREE.PointLight(0xc8ffff, 0.44, 7);
-        sparkle.position.set(-1.1, 1.6, 3.4);
-        scene.add(sparkle);
 
         state.renderer = renderer;
         state.scene = scene;

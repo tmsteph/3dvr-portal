@@ -16,3 +16,10 @@ test('homepage restores the interactive portal spinner as navigation', async () 
   assert.match(homepage, /data-spinner-open-apps[^>]*>Apps<\/button>/);
   assert.match(homepage, /aria-expanded="false"/);
 });
+
+test('portal spinner avoids the baked-in glare hotspot', async () => {
+  const logo = await read('portal-swirl-logo.js');
+
+  assert.doesNotMatch(logo, /const gloss = context\.createLinearGradient/);
+  assert.doesNotMatch(logo, /new THREE\.PointLight\(/);
+});
