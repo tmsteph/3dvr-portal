@@ -56,6 +56,15 @@ jobs:
           opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
           ssh "${opts[@]}" root@$WORKER_HOST 'bash -s' <<'REMOTE'
           set -euo pipefail
+          npx_bin="$(command -v npx)"
+          [ -n "$npx_bin" ] || { echo 'npx is unavailable on Hetzner.' >&2; exit 1; }
+          install -d -m 0755 /etc/systemd/system/desktop-commander-remote.service.d
+          cat >/etc/systemd/system/desktop-commander-remote.service.d/98-3dvr-version-pin.conf <<UNIT
+          [Service]
+          ExecStart=
+          ExecStart=$npx_bin -y @wonderwhy-er/desktop-commander@0.2.51 remote
+          UNIT
+          systemctl daemon-reload
           systemctl reset-failed desktop-commander-remote.service || true
           systemctl restart desktop-commander-remote.service
           sleep 6
