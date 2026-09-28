@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#030711">
+  <meta name="color-scheme" content="dark">
+  <title>3DVR Spatial Portal</title>
+  <meta name="description" content="Experimental spatial portal for moving through 3DVR as a real Three.js world.">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-mark.svg">
+  <style>
+    :root{
+      color-scheme:dark;
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:#030711;
+      color:#f2fbff;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#030711}
+    button,a{font:inherit}
+    #world{display:block;width:100%;height:100%;touch-action:none}
+    .hud{position:fixed;inset:0;pointer-events:none;z-index:5;padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));display:flex;flex-direction:column}
+    .top{display:flex;align-items:flex-start;gap:10px}
+    .brand{display:flex;align-items:center;gap:9px;text-decoration:none;color:inherit;font-weight:900;letter-spacing:.05em;pointer-events:auto}
+    .brand img{width:28px;height:28px}
+    .status{margin-left:auto;max-width:min(62vw,440px);padding:9px 12px;border:1px solid rgba(134,214,225,.22);border-radius:999px;background:rgba(3,9,18,.68);backdrop-filter:blur(12px);color:#a9c6cf;font-size:.78rem;text-align:right}
+    .center{flex:1;display:grid;place-items:center}
+    .reticle{position:relative;width:22px;height:22px;border:1px solid rgba(179,247,255,.52);border-radius:50%;box-shadow:0 0 22px rgba(85,227,218,.18)}
+    .reticle::before,.reticle::after{content:"";position:absolute;background:rgba(179,247,255,.48)}
+    .reticle::before{width:7px;height:1px;transform:translate(-4px,10px)}
+    .reticle::after{width:1px;height:7px;transform:translate(10px,7px)}
+    .bottom{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}
+    .nearest{max-width:520px;padding:14px 15px;border:1px solid rgba(134,214,225,.22);border-radius:18px;background:rgba(3,9,18,.72);backdrop-filter:blur(14px)}
+    .nearest small{display:block;color:#7da6b2;text-transform:uppercase;letter-spacing:.12em;font-size:.68rem;font-weight:900}
+    .nearest strong{display:block;margin-top:3px;font-size:1.05rem}
+    .nearest span{display:block;margin-top:4px;color:#9db7bf;font-size:.8rem}
+    .controls{pointer-events:auto;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .btn{min-height:44px;padding:9px 13px;border:1px solid rgba(126,199,194,.28);border-radius:12px;background:rgba(12,31,42,.82);color:#eaffff;font-weight:850;cursor:pointer;text-decoration:none}
+    .btn:hover,.btn:focus-visible{outline:none;border-color:#62e4dc}
+    .btn.primary{background:rgba(25,89,94,.88)}
+    .btn[data-active="true"]{border-color:#62e4dc;box-shadow:0 0 22px rgba(85,227,218,.12)}
+    .label-layer{position:fixed;inset:0;z-index:4;pointer-events:none;overflow:hidden}
+    .portal-label{position:absolute;transform:translate(-50%,-50%);min-width:120px;padding:7px 9px;border-radius:11px;border:1px solid rgba(146,220,231,.18);background:rgba(4,10,18,.62);backdrop-filter:blur(8px);text-align:center;color:#dffcff;font-size:.75rem;font-weight:850;letter-spacing:.02em;pointer-events:auto;text-decoration:none;transition:opacity .12s linear,transform .12s linear}
+    .portal-label span{display:block;margin-top:2px;color:#7fa2ad;font-size:.63rem;font-weight:700}
+    .portal-label[data-nearest="true"]{border-color:rgba(107,237,226,.66);transform:translate(-50%,-50%) scale(1.07)}
+    .hint{position:fixed;left:50%;top:max(64px,calc(env(safe-area-inset-top) + 58px));transform:translateX(-50%);z-index:6;pointer-events:none;color:#7d9ba5;font-size:.72rem;text-align:center;white-space:nowrap}
+    @media(max-width:720px){
+      .status{max-width:66vw;font-size:.69rem}
+      .bottom{grid-template-columns:1fr}
+      .controls{justify-content:stretch}
+      .controls .btn{flex:1 1 0}
+      .nearest{max-width:none}
+      .hint{display:none}
+    }
+    @media(prefers-reduced-motion:reduce){.reticle{box-shadow:none}.portal-label{transition:none}}
+  </style>
+</head>
+<body>
+  <canvas id="world" aria-label="3DVR spatial portal experiment"></canvas>
+  <div class="label-layer" id="labels"></div>
+
+  <div class="hud">
+    <div class="top">
+      <a class="brand" href="/"><img src="/brand/portal-mark.svg" alt=""><span>3DVR Spatial</span></a>
+      <div class="status" id="status">Loading world…</div>
+    </div>
+    <div class="center"><div class="reticle" aria-hidden="true"></div></div>
+    <div class="bottom">
+      <div class="nearest">
+        <small>Nearest portal</small>
+        <strong id="nearestName">Finding signal…</strong>
+        <span id="nearestMeta">Move through the space. Nothing here replaces the normal portal.</span>
+      </div>
+      <div class="controls">
+        <button class="btn" id="motionButton" type="button">Phone look</button>
+        <button class="btn" id="backButton" type="button">Back</button>
+        <button class="btn primary" id="thrustButton" type="button">Thrust</button>
+        <button class="btn" id="enterButton" type="button">Enter</button>
+      </div>
+    </div>
+  </div>
+  <div class="hint">WASD / arrows · drag to look · wheel to move · turn your phone · tap a portal label</div>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.176.0/build/three.module.js';
+
+    const canvas = document.getElementById('world');
+    const labelsLayer = document.getElementById('labels');
+    const statusEl = document.getElementById('status');
+    const nearestName = document.getElementById('nearestName');
+    const nearestMeta = document.getElementById('nearestMeta');
+    const motionButton = document.getElementById('motionButton');
+    const thrustButton = document.getElementById('thrustButton');
+    const backButton = document.getElementById('backButton');
+    const enterButton = document.getElementById('enterButton');
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x030711);
+    scene.fog = new THREE.FogExp2(0x030711, 0.0085);
+
+    const camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.08, 900);
+    camera.position.set(0, 2.1, 20);
+
+    const renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.8));
+    renderer.setSize(innerWidth, innerHeight, false);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    scene.add(new THREE.AmbientLight(0x7ab7c5, 0.55));
+    const key = new THREE.PointLight(0x66fff0, 11, 90, 2);
+    key.position.set(0, 8, 10);
+    scene.add(key);
+
+    const portals = [
+      {name:'Portal Home', path:'/', pos:[0,0,0], note:'Return to the normal portal interface.', color:0x67e8f9},
+      {name:'Launch Room', path:'/launch-room/', pos:[-18,4,-26], note:'Turn purpose into a movement brief.', color:0xf5c85b},
+      {name:'Noteverse', path:'/noteverse/', pos:[19,-2,-34], note:'Move through your notes and ideas.', color:0x88f0b5},
+      {name:'VR Portal', path:'/vr-portal/', pos:[-8,9,-58], note:'Experimental portals and spatial computing.', color:0xb99cff},
+      {name:'Ambient HUD', path:'/3dvr-hud/', pos:[25,8,-70], note:'Sensor-driven ambient interface experiment.', color:0xff8dd0}
+    ];
+
+    const portalGroup = new THREE.Group();
+    scene.add(portalGroup);
+    const portalMeshes = [];
+
+    const ringGeo = new THREE.TorusGeometry(3.15, 0.12, 12, 72);
+    const innerGeo = new THREE.RingGeometry(2.25, 2.75, 64);
+    const coreGeo = new THREE.IcosahedronGeometry(0.44, 2);
+
+    portals.forEach((p, i) => {
+      const group = new THREE.Group();
+      group.position.set(...p.pos);
+
+      const ring = new THREE.Mesh(ringGeo, new THREE.MeshStandardMaterial({
+        color:p.color, emissive:p.color, emissiveIntensity:1.4, metalness:0.3, roughness:0.34
+      }));
+      group.add(ring);
+
+      const inner = new THREE.Mesh(innerGeo, new THREE.MeshBasicMaterial({
+        color:p.color, transparent:true, opacity:0.08, side:THREE.DoubleSide, depthWrite:false
+      }));
+      group.add(inner);
+
+      const core = new THREE.Mesh(coreGeo, new THREE.MeshStandardMaterial({
+        color:0xffffff, emissive:p.color, emissiveIntensity:2.2, roughness:0.18
+      }));
+      group.add(core);
+
+      const halo = new THREE.PointLight(p.color, 9, 25, 2.1);
+      group.add(halo);
+
+      group.userData.portal = p;
+      portalGroup.add(group);
+      portalMeshes.push(group);
+
+      const label = document.createElement('a');
+      label.className = 'portal-label';
+      label.href = p.path;
+      label.innerHTML = p.name + '<span>' + p.note + '</span>';
+      label.dataset.index = i;
+      labelsLayer.appendChild(label);
+      p.label = label;
+      p.object = group;
+    });
+
+    const starsGeo = new THREE.BufferGeometry();
+    const starCount = innerWidth < 700 ? 900 : 1600;
+    const positions = new Float32Array(starCount * 3);
+    for (let i=0;i<starCount;i++) {
+      const r = 90 + Math.random() * 340;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      positions[i*3] = r * Math.sin(phi) * Math.cos(theta);
+      positions[i*3+1] = r * Math.cos(phi) * 0.7;
+      positions[i*3+2] = r * Math.sin(phi) * Math.sin(theta) - 80;
+    }
+    starsGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const stars = new THREE.Points(starsGeo, new THREE.PointsMaterial({
+      color:0xbfeaff, size:0.28, transparent:true, opacity:0.66, sizeAttenuation:true
+    }));
+    scene.add(stars);
+
+    const pathMat = new THREE.LineBasicMaterial({color:0x315866, transparent:true, opacity:0.38});
+    for (let i=0;i<portals.length-1;i++) {
+      const pts = [
+        new THREE.Vector3(...portals[i].pos),
+        new THREE.Vector3(...portals[i+1].pos)
+      ];
+      scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), pathMat));
+    }
+
+    const keys = new Set();
+    let yaw = 0;
+    let pitch = -0.04;
+    let dragging = false;
+    let dragX = 0;
+    let dragY = 0;
+    let thrustHeld = false;
+    let backHeld = false;
+    let phoneLook = false;
+    let orientationBaseline = null;
+    let orientationYaw = 0;
+    let orientationPitch = 0;
+    let nearest = null;
+
+    const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
+    const angleDelta = (value, origin) => ((value - origin + 540) % 360) - 180;
+
+    function forwardVector() {
+      const v = new THREE.Vector3(0,0,-1);
+      v.applyQuaternion(camera.quaternion);
+      return v.normalize();
+    }
+
+    function rightVector() {
+      const v = new THREE.Vector3(1,0,0);
+      v.applyQuaternion(camera.quaternion);
+      return v.normalize();
+    }
+
+    function onOrientation(e) {
+      if (!phoneLook) return;
+      const alpha = Number.isFinite(e.alpha) ? e.alpha : 0;
+      const beta = Number.isFinite(e.beta) ? e.beta : 0;
+      const gamma = Number.isFinite(e.gamma) ? e.gamma : 0;
+      if (!orientationBaseline) orientationBaseline = {alpha,beta,gamma};
+      orientationYaw = THREE.MathUtils.degToRad(clamp(angleDelta(alpha, orientationBaseline.alpha), -120, 120));
+      orientationPitch = THREE.MathUtils.degToRad(clamp(beta - orientationBaseline.beta, -70, 70));
+      statusEl.textContent = 'Phone look active · move physically to look around';
+    }
+
+    async function enablePhoneLook() {
+      try {
+        if (typeof DeviceOrientationEvent === 'undefined') throw new Error('No orientation sensor');
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+          const state = await DeviceOrientationEvent.requestPermission();
+          if (state !== 'granted') throw new Error('Permission denied');
+        }
+        phoneLook = true;
+        orientationBaseline = null;
+        addEventListener('deviceorientation', onOrientation, {passive:true});
+        motionButton.dataset.active = 'true';
+        motionButton.textContent = 'Recenter';
+        statusEl.textContent = 'Phone look ready';
+      } catch (error) {
+        statusEl.textContent = 'Phone orientation is unavailable or not enabled';
+      }
+    }
+
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission !== 'function') {
+      phoneLook = true;
+      addEventListener('deviceorientation', onOrientation, {passive:true});
+      motionButton.dataset.active = 'true';
+      motionButton.textContent = 'Recenter';
+      statusEl.textContent = 'Phone look auto-enabled';
+    } else {
+      statusEl.textContent = 'World ready · move, drag, or enable phone look';
+    }
+
+    motionButton.addEventListener('click', () => {
+      if (phoneLook) {
+        orientationBaseline = null;
+        orientationYaw = 0;
+        orientationPitch = 0;
+        statusEl.textContent = 'View recentered';
+      } else {
+        enablePhoneLook();
+      }
+    });
+
+    addEventListener('keydown', e => {
+      keys.add(e.code);
+      if (e.code === 'Enter' && nearest) location.href = nearest.path;
+    });
+    addEventListener('keyup', e => keys.delete(e.code));
+
+    canvas.addEventListener('pointerdown', e => {
+      dragging = true;
+      dragX = e.clientX;
+      dragY = e.clientY;
+      canvas.setPointerCapture?.(e.pointerId);
+    });
+    canvas.addEventListener('pointerup', () => dragging = false);
+    canvas.addEventListener('pointercancel', () => dragging = false);
+    canvas.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      const dx = e.clientX - dragX;
+      const dy = e.clientY - dragY;
+      dragX = e.clientX;
+      dragY = e.clientY;
+      yaw -= dx * 0.0042;
+      pitch = clamp(pitch - dy * 0.0035, -1.22, 1.22);
+      orientationBaseline = null;
+    });
+    canvas.addEventListener('wheel', e => {
+      camera.position.addScaledVector(forwardVector(), -Math.sign(e.deltaY) * 1.45);
+    }, {passive:true});
+
+    function hold(button, setter) {
+      button.addEventListener('pointerdown', e => { e.preventDefault(); setter(true); button.setPointerCapture?.(e.pointerId); });
+      button.addEventListener('pointerup', () => setter(false));
+      button.addEventListener('pointercancel', () => setter(false));
+      button.addEventListener('pointerleave', () => setter(false));
+    }
+    hold(thrustButton, value => thrustHeld = value);
+    hold(backButton, value => backHeld = value);
+
+    enterButton.addEventListener('click', () => {
+      if (nearest) location.href = nearest.path;
+    });
+
+    const projected = new THREE.Vector3();
+    function updateLabels() {
+      let closest = null;
+      let closestDistance = Infinity;
+      const w = innerWidth;
+      const h = innerHeight;
+
+      portals.forEach((p, i) => {
+        projected.set(...p.pos).project(camera);
+        const visible = projected.z > -1 && projected.z < 1 && Math.abs(projected.x) < 1.25 && Math.abs(projected.y) < 1.25;
+        const x = (projected.x * 0.5 + 0.5) * w;
+        const y = (-projected.y * 0.5 + 0.5) * h;
+        p.label.style.left = x + 'px';
+        p.label.style.top = y + 'px';
+        p.label.style.opacity = visible ? '1' : '0';
+        p.label.style.pointerEvents = visible ? 'auto' : 'none';
+
+        const d = camera.position.distanceTo(p.object.position);
+        if (d < closestDistance) {
+          closestDistance = d;
+          closest = p;
+        }
+        p.object.rotation.z += 0.0012 + i * 0.00018;
+        p.object.children[0].rotation.z += 0.002 + i * 0.0002;
+      });
+
+      if (closest) {
+        nearest = closest;
+        nearestName.textContent = closest.name;
+        nearestMeta.textContent = closest.note + ' · ' + closestDistance.toFixed(1) + ' units away';
+        enterButton.textContent = closestDistance < 8 ? 'Enter portal' : 'Go to nearest';
+        portals.forEach(p => p.label.dataset.nearest = String(p === closest));
+      }
+    }
+
+    const clock = new THREE.Clock();
+    function animate() {
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const move = (keys.has('ShiftLeft') || keys.has('ShiftRight')) ? 14 : 7.2;
+      const forward = forwardVector();
+      const right = rightVector();
+
+      if (keys.has('KeyW') || keys.has('ArrowUp') || thrustHeld) camera.position.addScaledVector(forward, move * dt);
+      if (keys.has('KeyS') || keys.has('ArrowDown') || backHeld) camera.position.addScaledVector(forward, -move * dt);
+      if (keys.has('KeyA') || keys.has('ArrowLeft')) camera.position.addScaledVector(right, -move * 0.72 * dt);
+      if (keys.has('KeyD') || keys.has('ArrowRight')) camera.position.addScaledVector(right, move * 0.72 * dt);
+
+      const effectiveYaw = yaw - orientationYaw;
+      const effectivePitch = clamp(pitch - orientationPitch * 0.7, -1.28, 1.28);
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = effectiveYaw;
+      camera.rotation.x = effectivePitch;
+
+      stars.rotation.y += dt * 0.006;
+      portalGroup.children.forEach((portal, i) => {
+        portal.position.y = portals[i].pos[1] + Math.sin(performance.now() * 0.0007 + i) * 0.35;
+      });
+
+      updateLabels();
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+
+    addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.8));
+      renderer.setSize(innerWidth, innerHeight, false);
+    });
+
+    animate();
+  </script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
