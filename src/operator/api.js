@@ -14,6 +14,10 @@ import {
   planEphemeralCompute,
   publicEphemeralComputeReceipt
 } from './ephemeral-compute.js';
+import {
+  getEphemeralMediaConfig,
+  submitEphemeralMediaJob
+} from './ephemeral-media.js';
 
 export const DEFAULT_OPERATOR_MODEL = 'gpt-6-luna';
 export const DEFAULT_OPERATOR_GATEWAY_MODEL = 'openai/gpt-6-luna';
@@ -409,6 +413,7 @@ export function createOperatorHandler(options = {}) {
   const endpoint = options.endpoint || (gatewayToken ? 'https://ai-gateway.vercel.sh/v1/responses' : 'https://api.openai.com/v1/responses');
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const ephemeralConfig = getEphemeralComputeConfig(runtimeConfig);
+  const ephemeralMediaConfig = getEphemeralMediaConfig(runtimeConfig);
   const organismRelay = createOrganismVercelRelay({ ...(options.organism || {}), fetchImpl });
   return async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -423,6 +428,36 @@ export function createOperatorHandler(options = {}) {
     const prompt = clean(req.body?.prompt, 2000);
     if (!prompt) return res.status(400).json({ error: 'Tell the operator what you need.' });
     try {
+      if (req.body?.ephemeralMedia === true) {
+        if (req.body?.confirmPaidCompute !== true) {
+          return res.status(409).json({
+            error: 'Ephemeral media compute requires explicit paid-compute confirmation.',
+            compute: {
+              lane: 'ephemeral-media',
+              enabled: ephemeralMediaConfig.enabled,
+              provider: ephemeralMediaConfig.provider,
+              maxJobUsd: ephemeralMediaConfig.maxJobUsd,
+              maxRuntimeMs: ephemeralMediaConfig.maxRuntimeMs
+            }
+          });
+        }
+        if (!ephemeralMediaConfig.enabled) {
+          return res.status(503).json({ error: 'Ephemeral media compute is not configured.' });
+        }
+        const media = await submitEphemeralMediaJob({
+          prompt,
+          inputs: req.body?.mediaInputs,
+          task: req.body?.mediaTask,
+          modelHint: req.body?.modelHint,
+          toolPolicy: req.body?.toolPolicy,
+          config: ephemeralMediaConfig,
+          fetchImpl
+        });
+        return res.status(202).json({
+          ok: true,
+          compute: { lane: 'ephemeral-media', ...media }
+        });
+      }
       const useGateway = !apiKey && Boolean(gatewayToken);
       const requestEndpoint = useGateway ? endpoint : 'https://api.openai.com/v1/responses';
 
