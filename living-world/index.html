@@ -114,13 +114,13 @@
     </div>
   </div>
 
-  <div class="hint">follow the glowing path · WASD move · Shift fast travel · F fire · Esc toggles world/text</div>
+  <div class="hint">follow the glowing path · WASD move · hold Shift to thrust forward · F fire · Esc toggles world/text</div>
 
   <aside class="help" id="help-panel" hidden>
     <strong>Move however feels good.</strong>
     <p><code>Click the world</code> to capture the mouse for first-person look. <code>Esc</code> releases it. <code>WASD</code> or arrows fly, and the mouse wheel glides forward/back.</p>
     <p><code>Left click</code> fires the selected toy weapon. <code>1</code> pulse, <code>2</code> beam, <code>3</code> bomb. <code>Right click</code> always throws a bomb.</p>
-    <p>Keyboard-only: <code>WASD</code> moves, <code>arrows</code> look, hold <code>Shift</code> for fast travel, <code>Space</code> rises, <code>Ctrl/C</code> descends, <code>F</code> fires, <code>G</code> bombs, and <code>Esc</code> toggles between the world and Shape World.</p>
+    <p>Keyboard-only: <code>WASD</code> moves, <code>arrows</code> look, hold <code>Shift</code> to thrust forward, <code>Space</code> rises, <code>Ctrl/C</code> descends, <code>F</code> fires, <code>G</code> bombs, and <code>Esc</code> toggles between the world and Shape World.</p>
     <p><b>Path Run:</b> follow the glowing ribbon through gates in order. Shoot the floating prism targets for bonus points. Clear the final gate to grow a new stage from your current position.</p>
     <p>The world gently evolves when <b>World dreams</b> is on. Your changes persist on this device.</p>
     <p>Try commands like <code>forest</code>, <code>ocean</code>, <code>night</code>, <code>more crystals</code>, <code>more orbs</code>, <code>faster</code>, <code>calmer</code>, or <code>surprise me</code>.</p>
@@ -1395,7 +1395,8 @@
       islandMaterial.color.lerp(targetGround,.025);
 
       const fastTravel = keys.has('ShiftLeft') || keys.has('ShiftRight');
-      const moveSpeed = 6.2*state.speed*(fastTravel ? 4.2 : 1);
+      const moveSpeed = 6.2*state.speed;
+      const thrustSpeed = 21*state.speed;
       const lookSpeed = 1.65*dt;
       const f = cameraForward();
       const r = cameraRight();
@@ -1406,6 +1407,7 @@
       if (keys.has('KeyD')) camera.position.addScaledVector(r,moveSpeed*.7*dt);
       if (keys.has('Space')) camera.position.y += moveSpeed*.65*dt;
       if (keys.has('ControlLeft') || keys.has('ControlRight') || keys.has('KeyC')) camera.position.y -= moveSpeed*.65*dt;
+      if (fastTravel) camera.position.addScaledVector(f,thrustSpeed*dt);
 
       if (keys.has('ArrowLeft')) yaw += lookSpeed;
       if (keys.has('ArrowRight')) yaw -= lookSpeed;
