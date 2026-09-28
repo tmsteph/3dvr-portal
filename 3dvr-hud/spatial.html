@@ -25,7 +25,7 @@
     .brand img{width:28px;height:28px}
     .status{margin-left:auto;max-width:min(62vw,440px);padding:9px 12px;border:1px solid rgba(134,214,225,.22);border-radius:999px;background:rgba(3,9,18,.68);backdrop-filter:blur(12px);color:#a9c6cf;font-size:.78rem;text-align:right}
     .center{flex:1;display:grid;place-items:center}
-    .reticle{width:22px;height:22px;border:1px solid rgba(179,247,255,.52);border-radius:50%;box-shadow:0 0 22px rgba(85,227,218,.18)}
+    .reticle{position:relative;width:22px;height:22px;border:1px solid rgba(179,247,255,.52);border-radius:50%;box-shadow:0 0 22px rgba(85,227,218,.18)}
     .reticle::before,.reticle::after{content:"";position:absolute;background:rgba(179,247,255,.48)}
     .reticle::before{width:7px;height:1px;transform:translate(-4px,10px)}
     .reticle::after{width:1px;height:7px;transform:translate(10px,7px)}
@@ -134,7 +134,6 @@
       const ring = new THREE.Mesh(ringGeo, new THREE.MeshStandardMaterial({
         color:p.color, emissive:p.color, emissiveIntensity:1.4, metalness:0.3, roughness:0.34
       }));
-      ring.rotation.x = Math.PI / 2;
       group.add(ring);
 
       const inner = new THREE.Mesh(innerGeo, new THREE.MeshBasicMaterial({
