@@ -88,6 +88,9 @@
         <span class="pill">dream <strong id="dream-status">on</strong></span>
         <span class="pill">speed <strong id="speed-status">1.0×</strong></span>
         <span class="pill">weapon <strong id="weapon-status">pulse</strong></span>
+        <span class="pill">stage <strong id="stage-status">1</strong></span>
+        <span class="pill">gate <strong id="gate-status">0/0</strong></span>
+        <span class="pill">score <strong id="score-status">0</strong></span>
       </div>
     </div>
 
@@ -98,7 +101,7 @@
     <div class="dock">
       <div class="world-message" id="world-message">The world is awake. Drift, explore, or tell it what you want.</div>
       <form class="composer" id="world-form">
-        <input id="world-prompt" autocomplete="off" maxlength="180" aria-label="Tell the world how to change" placeholder="Try: more crystals · sunset · calmer · surprise me">
+        <input id="world-prompt" autocomplete="off" maxlength="180" aria-label="Talk to or reshape the world" placeholder="Talk to the world, or ask it to change…">
         <button type="submit">Shape world</button>
       </form>
       <div class="controls" aria-label="World controls">
@@ -111,13 +114,14 @@
     </div>
   </div>
 
-  <div class="hint">WASD move · arrows look · Shift fast travel · Space/C vertical · F fire · G bomb · Enter edits</div>
+  <div class="hint">follow the glowing path · WASD move · Shift fast travel · F fire · Esc toggles world/text</div>
 
   <aside class="help" id="help-panel" hidden>
     <strong>Move however feels good.</strong>
     <p><code>Click the world</code> to capture the mouse for first-person look. <code>Esc</code> releases it. <code>WASD</code> or arrows fly, and the mouse wheel glides forward/back.</p>
     <p><code>Left click</code> fires the selected toy weapon. <code>1</code> pulse, <code>2</code> beam, <code>3</code> bomb. <code>Right click</code> always throws a bomb.</p>
-    <p>Keyboard-only: <code>WASD</code> moves, <code>arrows</code> look, hold <code>Shift</code> for fast travel, <code>Space</code> rises, <code>Ctrl/C</code> descends, <code>F</code> fires, <code>G</code> bombs, and <code>Enter</code> or <code>/</code> opens Shape World.</p>
+    <p>Keyboard-only: <code>WASD</code> moves, <code>arrows</code> look, hold <code>Shift</code> for fast travel, <code>Space</code> rises, <code>Ctrl/C</code> descends, <code>F</code> fires, <code>G</code> bombs, and <code>Esc</code> toggles between the world and Shape World.</p>
+    <p><b>Path Run:</b> follow the glowing ribbon through gates in order. Shoot the floating prism targets for bonus points. Clear the final gate to grow a new stage from your current position.</p>
     <p>The world gently evolves when <b>World dreams</b> is on. Your changes persist on this device.</p>
     <p>Try commands like <code>forest</code>, <code>ocean</code>, <code>night</code>, <code>more crystals</code>, <code>more orbs</code>, <code>faster</code>, <code>calmer</code>, or <code>surprise me</code>.</p>
     <button id="close-help" type="button">Got it</button>
@@ -136,6 +140,9 @@
     const dreamStatusEl = document.getElementById('dream-status');
     const speedStatusEl = document.getElementById('speed-status');
     const weaponStatusEl = document.getElementById('weapon-status');
+    const stageStatusEl = document.getElementById('stage-status');
+    const gateStatusEl = document.getElementById('gate-status');
+    const scoreStatusEl = document.getElementById('score-status');
     const reticle = document.getElementById('reticle');
     const driftButton = document.getElementById('drift-button');
     const dreamButton = document.getElementById('dream-button');
@@ -160,7 +167,10 @@
       drift:true,
       dream:true,
       collected:0,
-      colorMode:'prism'
+      colorMode:'prism',
+      gameStage:1,
+      gameScore:0,
+      gameBest:0
     };
 
     let state = {...defaults};
@@ -174,6 +184,9 @@
     state.crystalCount = clamp(Math.round(Number(state.crystalCount) || defaults.crystalCount),4,52);
     state.orbCount = clamp(Math.round(Number(state.orbCount) || defaults.orbCount),8,64);
     state.collected = Math.max(0,Math.round(Number(state.collected) || 0));
+    state.gameStage = Math.max(1,Math.round(Number(state.gameStage) || 1));
+    state.gameScore = Math.max(0,Math.round(Number(state.gameScore) || 0));
+    state.gameBest = Math.max(0,Math.round(Number(state.gameBest) || 0));
 
     const themes = {
       dusk:{bg:0x09131c,fog:0x09131c,sky:0x8196c4,ground:0x18302f,accent:0x8ce6d4,accent2:0xd2a6ff,sun:0xffc788},
@@ -219,7 +232,10 @@
     const archGroup = new THREE.Group();
     const projectileGroup = new THREE.Group();
     const effectGroup = new THREE.Group();
-    worldRoot.add(crystalGroup,seedGroup,orbGroup,archGroup,projectileGroup,effectGroup);
+    const pathGroup = new THREE.Group();
+    const gateGroup = new THREE.Group();
+    const targetGroup = new THREE.Group();
+    worldRoot.add(crystalGroup,seedGroup,orbGroup,archGroup,projectileGroup,effectGroup,pathGroup,gateGroup,targetGroup);
 
     const starGeometry = new THREE.BufferGeometry();
     const starCount = innerWidth < 700 ? 850 : 1450;
@@ -385,6 +401,196 @@
       archGroup.add(arch);
     });
 
+    const game = {
+      curve:null,
+      pathMesh:null,
+      gates:[],
+      targets:[],
+      nextGate:0,
+      stageStartedAt:performance.now()
+    };
+
+    const gateGeometry = new THREE.TorusGeometry(3.2,.16,12,64);
+    const targetGeometry = new THREE.IcosahedronGeometry(.72,1);
+    const markerGeometry = new THREE.SphereGeometry(.14,8,8);
+    const pathUp = new THREE.Vector3(0,0,1);
+
+    function clearGameGroup(group,{disposeGeometry=false}={}) {
+      while (group.children.length) {
+        const child = group.children.pop();
+        child.material?.dispose?.();
+        if (disposeGeometry) child.geometry?.dispose?.();
+      }
+    }
+
+    function gamePointSequence(stage,origin) {
+      const points = [origin.clone()];
+      const baseYaw = yaw;
+      const forwardFlat = new THREE.Vector3(-Math.sin(baseYaw),0,-Math.cos(baseYaw)).normalize();
+      const rightFlat = new THREE.Vector3().crossVectors(forwardFlat,new THREE.Vector3(0,1,0)).normalize();
+      const count = Math.min(7 + Math.floor(stage/2),11);
+      for (let i=1;i<=count;i++) {
+        const distance = i*(13 + Math.min(stage,6)*.8);
+        const sway = Math.sin(i*1.28 + stage*.73)*(7 + stage*.7);
+        const rise = Math.sin(i*.82 + stage)*3 + ((i%3)-1)*1.4;
+        points.push(origin.clone()
+          .addScaledVector(forwardFlat,distance)
+          .addScaledVector(rightFlat,sway)
+          .add(new THREE.Vector3(0,rise,0)));
+      }
+      return points;
+    }
+
+    function updateGateMaterials() {
+      game.gates.forEach((gate,index) => {
+        const active = index === game.nextGate;
+        const complete = index < game.nextGate;
+        gate.material.opacity = active ? .96 : (complete ? .15 : .34);
+        gate.material.emissiveIntensity = active ? 4.3 : (complete ? .2 : 1.2);
+        gate.scale.setScalar(active ? 1.08 : 1);
+      });
+    }
+
+    function buildGamePath(stage=state.gameStage,origin=camera.position.clone()) {
+      clearGameGroup(pathGroup,{disposeGeometry:true});
+      clearGameGroup(gateGroup);
+      clearGameGroup(targetGroup);
+      game.gates = [];
+      game.targets = [];
+      game.nextGate = 0;
+      game.stageStartedAt = performance.now();
+
+      const points = gamePointSequence(stage,origin);
+      game.curve = new THREE.CatmullRomCurve3(points,false,'catmullrom',.35);
+
+      const pathMaterial = new THREE.MeshBasicMaterial({
+        color:vividColor(stage%vividPalette.length),
+        transparent:true,
+        opacity:.5,
+        blending:THREE.AdditiveBlending,
+        depthWrite:false
+      });
+      game.pathMesh = new THREE.Mesh(
+        new THREE.TubeGeometry(game.curve,Math.max(80,points.length*22),.085,6,false),
+        pathMaterial
+      );
+      pathGroup.add(game.pathMesh);
+
+      for (let i=0;i<=80;i++) {
+        const t=i/80;
+        const marker = new THREE.Mesh(markerGeometry,new THREE.MeshBasicMaterial({
+          color:vividColor((i+stage)%vividPalette.length),
+          transparent:true,
+          opacity:i%4===0 ? .72 : .28,
+          blending:THREE.AdditiveBlending,
+          depthWrite:false
+        }));
+        marker.position.copy(game.curve.getPoint(t));
+        marker.scale.setScalar(i%4===0 ? 1.45 : .78);
+        pathGroup.add(marker);
+      }
+
+      for (let i=1;i<points.length;i++) {
+        const t=i/(points.length-1);
+        const position=game.curve.getPoint(t);
+        const tangent=game.curve.getTangent(t).normalize();
+        const material=new THREE.MeshStandardMaterial({
+          color:vividColor((i+stage)%vividPalette.length),
+          emissive:vividColor((i+stage+2)%vividPalette.length),
+          emissiveIntensity:1.2,
+          roughness:.18,
+          metalness:.25,
+          transparent:true,
+          opacity:.34
+        });
+        const gate=new THREE.Mesh(gateGeometry,material);
+        gate.position.copy(position);
+        gate.quaternion.setFromUnitVectors(pathUp,tangent);
+        gate.userData.index=i-1;
+        gateGroup.add(gate);
+        game.gates.push(gate);
+
+        if (i < points.length-1) {
+          const targetMaterial=new THREE.MeshStandardMaterial({
+            color:vividColor((i+3*stage)%vividPalette.length),
+            emissive:vividColor((i+3*stage+1)%vividPalette.length),
+            emissiveIntensity:3.4,
+            roughness:.1,
+            metalness:.3
+          });
+          const target=new THREE.Mesh(targetGeometry,targetMaterial);
+          const side=new THREE.Vector3().crossVectors(tangent,new THREE.Vector3(0,1,0)).normalize();
+          const offset=(i%2===0 ? 1 : -1)*(3.6 + (i%3)*1.1);
+          target.position.copy(position).addScaledVector(side,offset).add(new THREE.Vector3(0,1.2+(i%2)*1.4,0));
+          target.userData.gameTarget=true;
+          target.userData.active=true;
+          target.userData.value=45 + stage*5;
+          target.userData.phase=i*.83;
+          targetGroup.add(target);
+          game.targets.push(target);
+        }
+      }
+
+      updateGateMaterials();
+      updateHud();
+      say('Path Run stage ' + stage + ': follow the glowing ribbon through ' + game.gates.length + ' gates.');
+    }
+
+    function scoreGame(points,label='') {
+      state.gameScore += Math.max(0,Math.round(points));
+      state.gameBest = Math.max(state.gameBest,state.gameScore);
+      saveState();
+      updateHud();
+      if (label) showToast(label + ' +' + Math.round(points));
+    }
+
+    function hitGameTarget(target,point=target.position) {
+      if (!target?.userData?.active) return false;
+      target.userData.active=false;
+      target.visible=false;
+      makeExplosion(point,1.8,Math.floor(Math.random()*vividPalette.length));
+      scoreGame(target.userData.value || 50,'target');
+      return true;
+    }
+
+    function updateGame(now,dt) {
+      if (game.pathMesh) {
+        game.pathMesh.material.color.copy(vividColor(Math.floor(now/650)%vividPalette.length));
+        game.pathMesh.material.opacity=.34 + Math.sin(now*.0013)*.12;
+      }
+
+      game.targets.forEach((target,index) => {
+        if (!target.visible) return;
+        target.rotation.x += dt*(.45+(index%3)*.08);
+        target.rotation.y += dt*(.7+(index%4)*.09);
+        const base=target.userData.baseY ?? target.position.y;
+        if (target.userData.baseY == null) target.userData.baseY=base;
+        target.position.y=target.userData.baseY+Math.sin(now*.0018+target.userData.phase)*.5;
+      });
+
+      const gate=game.gates[game.nextGate];
+      if (!gate) return;
+      gate.rotation.z += dt*.38;
+      if (camera.position.distanceToSquared(gate.position) < 18) {
+        game.nextGate += 1;
+        scoreGame(100 + state.gameStage*20,'gate');
+        makeExplosion(gate.position,2.5,game.nextGate+state.gameStage);
+        updateGateMaterials();
+
+        if (game.nextGate >= game.gates.length) {
+          const stageBonus=350 + state.gameStage*75;
+          scoreGame(stageBonus,'stage clear');
+          state.gameStage += 1;
+          saveState();
+          updateHud();
+          const nextOrigin=camera.position.clone();
+          setTimeout(() => buildGamePath(state.gameStage,nextOrigin),250);
+        } else {
+          say('Gate ' + game.nextGate + '/' + game.gates.length + '. Keep following the ribbon.');
+        }
+      }
+    }
+
     const weaponModes = ['pulse','beam','bomb'];
     let weaponIndex = 0;
     let firing = false;
@@ -416,6 +622,9 @@
     function selectWeapon(index, announce=true) {
       weaponIndex = (index + weaponModes.length) % weaponModes.length;
       weaponStatusEl.textContent = currentWeapon();
+      stageStatusEl.textContent = String(state.gameStage);
+      gateStatusEl.textContent = game.gates.length ? Math.min(game.nextGate,game.gates.length) + '/' + game.gates.length : '0/0';
+      scoreStatusEl.textContent = String(state.gameScore);
       if (announce) say('Weapon: ' + currentWeapon() + '.');
     }
 
@@ -450,12 +659,15 @@
 
     function hitAt(position, radius=1.2) {
       let hit = false;
-      for (const object of [...seedGroup.children,...crystalGroup.children]) {
-        if (object.position.distanceTo(position) <= radius) {
+      for (const object of [...targetGroup.children,...seedGroup.children,...crystalGroup.children]) {
+        if (!object.visible || object.position.distanceTo(position) > radius) continue;
+        if (object.userData?.gameTarget) {
+          hitGameTarget(object,object.position);
+        } else {
           makeExplosion(object.position,1.15,Math.floor(Math.random()*vividPalette.length));
           respawnHitObject(object);
-          hit = true;
         }
+        hit = true;
       }
       return hit;
     }
@@ -551,10 +763,13 @@
       beamHitAt = now + 90;
       raycaster.set(start,direction);
       raycaster.far = 35;
-      const hits = raycaster.intersectObjects([...seedGroup.children,...crystalGroup.children],false);
+      const hits = raycaster.intersectObjects([...targetGroup.children,...seedGroup.children,...crystalGroup.children].filter(object => object.visible),false);
       if (hits[0]) {
-        makeExplosion(hits[0].point,.8,Math.floor(now/140)%vividPalette.length);
-        respawnHitObject(hits[0].object);
+        if (hits[0].object.userData?.gameTarget) hitGameTarget(hits[0].object,hits[0].point);
+        else {
+          makeExplosion(hits[0].point,.8,Math.floor(now/140)%vividPalette.length);
+          respawnHitObject(hits[0].object);
+        }
       }
     }
 
@@ -562,6 +777,7 @@
     rebuildSeeds();
     rebuildOrbs();
     selectWeapon(0,false);
+    buildGamePath(state.gameStage,camera.position.clone());
 
     const targetBg = new THREE.Color(themes[state.theme].bg);
     const targetFog = new THREE.Color(themes[state.theme].fog);
@@ -874,6 +1090,10 @@
         state.dream = false;
         changed = true;
       }
+      if (/\b(new path|new course|restart game|restart run|reset path)\b/.test(text)) {
+        buildGamePath(state.gameStage,camera.position.clone());
+        changed = true;
+      }
 
       if (changed) {
         saveState();
@@ -896,9 +1116,9 @@
       const value = promptInput.value.trim();
       if (!value) return;
       promptInput.value = '';
-      promptInput.blur();
       keys.clear();
       await shapeWorld(value);
+      requestAnimationFrame(() => promptInput.focus());
     });
 
     driftButton.addEventListener('click',() => {
@@ -935,12 +1155,35 @@
     const touchEuler = new THREE.Euler(0,0,0,'YXZ');
     const touchQuaternion = new THREE.Quaternion();
 
-    function openWorldEditor() {
+    function enterTextMode() {
       keys.clear();
       firing = false;
       if (document.pointerLockElement === canvas) document.exitPointerLock?.();
-      requestAnimationFrame(() => promptInput.focus());
+      requestAnimationFrame(() => {
+        promptInput.focus();
+        promptInput.setSelectionRange?.(promptInput.value.length,promptInput.value.length);
+      });
     }
+
+    function enterWorldMode() {
+      keys.clear();
+      firing = false;
+      promptInput.blur();
+      document.activeElement?.blur?.();
+      canvas.requestPointerLock?.();
+    }
+
+    function openWorldEditor() {
+      enterTextMode();
+    }
+
+    promptInput.addEventListener('keydown',event => {
+      if (event.code === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        enterWorldMode();
+      }
+    });
 
     addEventListener('keydown',event => {
       if (document.activeElement === promptInput) return;
@@ -1021,10 +1264,11 @@
       if (locked) {
         promptInput.blur();
         document.activeElement?.blur?.();
+        say('World mode · WASD moves · Shift boosts · click/F fires · Esc opens text.');
+      } else {
+        requestAnimationFrame(() => promptInput.focus());
+        say('Text mode · talk or reshape the world · Esc returns to world control.');
       }
-      say(locked
-        ? 'Mouse captured. WASD moves · Shift fast travels · click/F fires · Esc releases.'
-        : 'Mouse released. Click the world to capture it again.');
     });
 
     const forward = new THREE.Vector3();
@@ -1205,6 +1449,7 @@
       if (firing && currentWeapon() === 'pulse') firePulse(now);
       updateBeam(now);
       updateProjectiles(dt);
+      updateGame(now,dt);
       collectSeeds(now);
 
       if (breathing) {
