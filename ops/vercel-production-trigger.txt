@@ -22,3 +22,4 @@
 2026-09-28T10:12:00-07:00 living-world PR #2841 canonical fallback
 2026-09-28 living-world-pointer-lock PR #2842 canonical fallback
 2026-09-28 living-world-weapons-colors-focus PR #2843 canonical fallback
+2026-09-28 living-world-smart-keyboard PR #2844 canonical fallback
