@@ -76,6 +76,24 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
+    // Local-only existence probe. The broker listens on a group-restricted Unix socket,
+    // and this route never returns secret values or metadata beyond presence.
+    if (req.method === 'POST' && url.pathname === '/v1/exists') {
+      const payload = await body(req, 8 * 1024);
+      const key = String(payload.key || '').trim();
+      if (!/^[A-Za-z0-9_.:-]{1,200}$/.test(key)) {
+        return json(res, 400, { ok: false, reason: 'invalid-secret-key' });
+      }
+      let exists = false;
+      try {
+        const value = broker.backends.openbao.get({ key });
+        exists = typeof value === 'string' && value.length > 0;
+      } catch (error) {
+        if (!/(?:404|not found|missing|secret value is missing)/i.test(String(error?.message || error || ''))) throw error;
+      }
+      return json(res, 200, { ok: true, exists });
+    }
+
     // Browser login is intentionally local-only: this server listens on a Unix socket,
     // the route accepts only a fixed site key, and it never returns credential values.
     if (req.method === 'POST' && url.pathname === '/v1/browser-login') {
