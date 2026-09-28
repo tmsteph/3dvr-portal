@@ -23,7 +23,10 @@ test('initializes a persistent 3DVR executive constitution', async () => {
     const profile = JSON.parse(await readFile(paths.executivePath, 'utf8'));
 
     assert.equal(profile.name, '3DVR Executive Constitution');
+    assert.equal(profile.modeName, 'Founder Mode');
     assert.match(profile.currentDirection, /useful enough to run real work/i);
+    assert.equal(profile.operatingPrinciples.some(item => /learn by building/i.test(item)), true);
+    assert.equal(profile.operatingPrinciples.some(item => /protect the human/i.test(item)), true);
     assert.equal(profile.taste.some(item => /glanceable/i.test(item)), true);
     assert.equal(profile.antiPatterns.some(item => /activity.*progress/i.test(item)), true);
     assert.equal(profile.authority.red.includes('Never execute unattended'), true);
@@ -64,6 +67,8 @@ test('founder feedback and executive decisions persist and enter model context',
     assert.equal(payload.executiveProfile.currentDirection, profile.currentDirection);
     assert.match(payload.executiveFeedback[0].text, /one obvious action/i);
     assert.match(payload.executiveDecisions[0].decision, /Polish the existing CRM/i);
+    assert.match(formatExecutiveProfile(loaded.executiveProfile), /Mode: Founder Mode/);
+    assert.match(formatExecutiveProfile(loaded.executiveProfile), /Founder Mode operating principles:/);
     assert.match(formatExecutiveProfile(loaded.executiveProfile), /Current direction: Make the CRM obvious/);
   } finally {
     await rm(root, { recursive: true, force: true });
