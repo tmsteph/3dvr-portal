@@ -18,3 +18,4 @@
 2026-09-27 ambient-hud-phone-lookaround PR #2814
 2026-09-28 operator-continuous-assistant
 2026-09-28T08:28:00-07:00 spatial-portal experiment PR #2830
+2026-09-28T08:44:00-07:00 spatial-natural-controls PR #2833
