@@ -425,8 +425,10 @@
 
     function gamePointSequence(stage,origin) {
       const points = [origin.clone()];
-      const baseYaw = yaw;
-      const forwardFlat = new THREE.Vector3(-Math.sin(baseYaw),0,-Math.cos(baseYaw)).normalize();
+      const forwardFlat = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+      forwardFlat.y = 0;
+      if (forwardFlat.lengthSq() < .0001) forwardFlat.set(0,0,-1);
+      forwardFlat.normalize();
       const rightFlat = new THREE.Vector3().crossVectors(forwardFlat,new THREE.Vector3(0,1,0)).normalize();
       const count = Math.min(7 + Math.floor(stage/2),11);
       for (let i=1;i<=count;i++) {
@@ -447,7 +449,7 @@
         const complete = index < game.nextGate;
         gate.material.opacity = active ? .96 : (complete ? .15 : .34);
         gate.material.emissiveIntensity = active ? 4.3 : (complete ? .2 : 1.2);
-        gate.scale.setScalar(active ? 1.08 : 1);
+        gate.scale.setScalar(active ? 1.2 : 1.04);
       });
     }
 
@@ -466,12 +468,12 @@
       const pathMaterial = new THREE.MeshBasicMaterial({
         color:vividColor(stage%vividPalette.length),
         transparent:true,
-        opacity:.5,
+        opacity:.78,
         blending:THREE.AdditiveBlending,
         depthWrite:false
       });
       game.pathMesh = new THREE.Mesh(
-        new THREE.TubeGeometry(game.curve,Math.max(80,points.length*22),.085,6,false),
+        new THREE.TubeGeometry(game.curve,Math.max(96,points.length*26),.18,8,false),
         pathMaterial
       );
       pathGroup.add(game.pathMesh);
@@ -486,7 +488,7 @@
           depthWrite:false
         }));
         marker.position.copy(game.curve.getPoint(t));
-        marker.scale.setScalar(i%4===0 ? 1.45 : .78);
+        marker.scale.setScalar(i%4===0 ? 2.35 : 1.2);
         pathGroup.add(marker);
       }
 
@@ -556,7 +558,7 @@
     function updateGame(now,dt) {
       if (game.pathMesh) {
         game.pathMesh.material.color.copy(vividColor(Math.floor(now/650)%vividPalette.length));
-        game.pathMesh.material.opacity=.34 + Math.sin(now*.0013)*.12;
+        game.pathMesh.material.opacity=.62 + Math.sin(now*.0013)*.16;
       }
 
       game.targets.forEach((target,index) => {
