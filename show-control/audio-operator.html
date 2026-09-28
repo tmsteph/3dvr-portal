@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0d1117">
+  <title>Audio Operator Lab | 3DVR Open Show Control</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background:#0d1117; color:#e6edf3; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:radial-gradient(circle at 50% 0, rgba(88,166,255,.14), transparent 34rem), #0d1117; }
+    a { color:inherit; }
+    main { width:min(1180px, calc(100% - 1.5rem)); margin:auto; padding:1rem 0 4rem; }
+    nav { display:flex; gap:.75rem; align-items:center; padding:.8rem 0; }
+    nav a { text-decoration:none; font-weight:800; }
+    h1 { font-size:clamp(2.4rem, 7vw, 5.2rem); letter-spacing:-.04em; line-height:1; margin:2.6rem 0 1rem; }
+    h2 { margin:0 0 .8rem; }
+    p { color:#9da7b3; max-width:70ch; }
+    .eyebrow { color:#67e8f9; font-size:.78rem; font-weight:900; text-transform:uppercase; letter-spacing:.12em; }
+    .status { display:inline-flex; gap:.5rem; align-items:center; border:1px solid #2f6f46; background:#10261a; color:#7ee787; border-radius:999px; padding:.45rem .7rem; font-weight:850; }
+    .toolbar { display:flex; flex-wrap:wrap; gap:.7rem; margin:1.4rem 0 2rem; }
+    button { border:1px solid #30363d; background:#161b22; color:#e6edf3; border-radius:999px; padding:.7rem 1rem; font:inherit; font-weight:800; cursor:pointer; }
+    button:hover { border-color:#58a6ff; }
+    .layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(260px,.38fr); gap:1rem; align-items:start; }
+    .panel { border:1px solid #30363d; background:rgba(22,27,34,.88); border-radius:20px; padding:1rem; }
+    .channels { display:grid; grid-template-columns:repeat(6,minmax(105px,1fr)); gap:.65rem; }
+    .channel { border:1px solid #30363d; background:#0d1117; border-radius:14px; padding:.8rem; min-width:0; }
+    .channel strong { display:block; min-height:2.5rem; }
+    .meter { height:7rem; margin:.7rem 0; display:flex; align-items:flex-end; border:1px solid #30363d; border-radius:8px; padding:3px; background:#070a0e; }
+    .meter span { display:block; width:100%; min-height:2px; border-radius:5px; background:linear-gradient(0deg,#238636 0 70%,#d29922 70% 90%,#f85149 90%); transition:height .18s linear; }
+    input[type="range"] { width:100%; }
+    .readout { color:#9da7b3; font:700 .8rem ui-monospace, monospace; text-align:center; }
+    .mute { width:100%; margin-top:.55rem; border-radius:8px; }
+    .mute.active { border-color:#f85149; background:#5a1f1f; }
+    pre { min-height:18rem; max-height:32rem; overflow:auto; white-space:pre-wrap; background:#090d12; border:1px solid #30363d; border-radius:14px; padding:1rem; color:#c9d1d9; }
+    .rule { padding:.8rem; border:1px solid #30363d; border-radius:12px; margin:.55rem 0; background:#0d1117; }
+    .rule strong { color:#e6edf3; }
+    .blocked { color:#f85149; }
+    .confirm { color:#d29922; }
+    .ready { color:#7ee787; }
+    @media(max-width:980px){ .layout{grid-template-columns:1fr;} .channels{grid-template-columns:repeat(3,minmax(100px,1fr));} }
+    @media(max-width:560px){ .channels{grid-template-columns:repeat(2,minmax(100px,1fr));} h1{margin-top:2rem;} }
+  </style>
+</head>
+<body>
+  <main>
+    <nav><a href="./">← Open Show Control</a><span>Audio Operator 0.1</span></nav>
+    <p class="eyebrow">Hardware-safe prototype</p>
+    <h1>AI hands on the console — behind a safety gate.</h1>
+    <p>The operator works through a normalized mixer model. Real mixer protocols become adapters behind the same commands. This lab is intentionally simulation-only: no hardware writes leave the browser.</p>
+    <div class="toolbar">
+      <span class="status">● SIMULATION · NO HARDWARE WRITES</span>
+      <button id="speechTrim">Trim speech −3 dB</button>
+      <button id="mutePlayback">Mute playback</button>
+      <button id="sceneRecall">Try scene recall</button>
+      <button id="reset">Reset</button>
+    </div>
+
+    <div class="layout">
+      <section class="panel">
+        <p class="eyebrow">Normalized mixer</p>
+        <h2>FOH demo surface</h2>
+        <div class="channels" id="channels"></div>
+      </section>
+
+      <aside class="panel">
+        <p class="eyebrow">Safety policy</p>
+        <h2>Operator guardrails</h2>
+        <div class="rule"><strong class="ready">Ready</strong><p>Small fader moves and ordinary mutes can execute.</p></div>
+        <div class="rule"><strong class="confirm">Confirm</strong><p>Large fader jumps and protected-channel mutes require human approval.</p></div>
+        <div class="rule"><strong class="blocked">Blocked</strong><p>Scene recall and preamp gain start disabled until a real deployment opts in.</p></div>
+        <p class="eyebrow">Event log</p>
+        <pre id="log" aria-live="polite"></pre>
+      </aside>
+    </div>
+  </main>
+  <script type="module" src="./audio-operator.js"></script>
+</body>
+</html>
