@@ -18,6 +18,18 @@ test('Living World ships as an in-portal evolving 3D experience', async () => {
   assert.match(page, /requestPointerLock/);
   assert.match(page, /pointerlockchange/);
   assert.match(page, /document\.exitPointerLock/);
+  assert.match(page, /promptInput\.blur\(\)/);
+  assert.match(page, /const weaponModes = \['pulse','beam','bomb'\]/);
+  assert.match(page, /function firePulse/);
+  assert.match(page, /function fireBomb/);
+  assert.match(page, /function updateBeam/);
+  assert.match(page, /Digit1/);
+  assert.match(page, /Digit2/);
+  assert.match(page, /Digit3/);
+  assert.match(page, /rainbow\|more colors/);
+  assert.match(page, /prism:\{bg:/);
+  assert.match(page, /candy:\{bg:/);
+  assert.match(page, /solar:\{bg:/);
 });
 
 test('Living World is discoverable from Labs and Operator search', async () => {
