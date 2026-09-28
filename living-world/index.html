@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#081018">
   <meta name="color-scheme" content="dark">
+  <meta name="portal:issue-launcher" content="off">
   <title>Living World · 3DVR</title>
   <meta name="description" content="A calm, game-like 3D world inside 3DVR that evolves while you explore and can be reshaped from an in-world text box.">
   <link rel="icon" type="image/svg+xml" href="/brand/portal-mark.svg">
@@ -109,11 +110,11 @@
     </div>
   </div>
 
-  <div class="hint">WASD / arrows move · drag to look · wheel glides · collect the floating light seeds</div>
+  <div class="hint">click world to capture mouse · WASD / arrows move · Esc releases · / edits world</div>
 
   <aside class="help" id="help-panel" hidden>
     <strong>Move however feels good.</strong>
-    <p><code>WASD</code> or arrows fly. Drag the world to look around. Mouse wheel glides forward/back.</p>
+    <p><code>Click the world</code> to capture the mouse for first-person look. <code>Esc</code> releases it. <code>WASD</code> or arrows fly, and the mouse wheel glides forward/back.</p>
     <p>The world gently evolves when <b>World dreams</b> is on. Your changes persist on this device.</p>
     <p>Try commands like <code>forest</code>, <code>ocean</code>, <code>night</code>, <code>more crystals</code>, <code>more orbs</code>, <code>faster</code>, <code>calmer</code>, or <code>surprise me</code>.</p>
     <button id="close-help" type="button">Got it</button>
@@ -625,12 +626,19 @@
       keys.add(event.code);
       if (event.code === 'Slash') {
         event.preventDefault();
-        promptInput.focus();
+        if (document.pointerLockElement === canvas) document.exitPointerLock?.();
+        requestAnimationFrame(() => promptInput.focus());
       }
     });
     addEventListener('keyup',event => keys.delete(event.code));
 
     canvas.addEventListener('pointerdown',event => {
+      if (event.pointerType === 'mouse' && document.pointerLockElement !== canvas) {
+        event.preventDefault();
+        canvas.requestPointerLock?.();
+        return;
+      }
+      if (document.pointerLockElement === canvas) return;
       dragging = true;
       lastX = event.clientX;
       lastY = event.clientY;
@@ -639,7 +647,7 @@
     canvas.addEventListener('pointerup',() => { dragging = false; });
     canvas.addEventListener('pointercancel',() => { dragging = false; });
     canvas.addEventListener('pointermove',event => {
-      if (!dragging) return;
+      if (!dragging || document.pointerLockElement === canvas) return;
       const dx = event.clientX-lastX;
       const dy = event.clientY-lastY;
       lastX = event.clientX;
@@ -648,6 +656,20 @@
       const direction = grabWorld ? 1 : -1;
       yaw += dx*.0041*direction;
       pitch = clamp(pitch+dy*.0034*direction,-1.25,1.25);
+    });
+
+    document.addEventListener('mousemove',event => {
+      if (document.pointerLockElement !== canvas) return;
+      yaw -= event.movementX*.0022;
+      pitch = clamp(pitch-event.movementY*.002, -1.25, 1.25);
+    });
+    document.addEventListener('pointerlockchange',() => {
+      const locked = document.pointerLockElement === canvas;
+      document.body.dataset.pointerLocked = String(locked);
+      dragging = false;
+      say(locked
+        ? 'Mouse captured. Look freely · WASD moves · Esc releases.'
+        : 'Mouse released. Click the world to capture it again.');
     });
 
     const forward = new THREE.Vector3();
