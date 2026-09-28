@@ -1149,6 +1149,14 @@
     closeHelpButton.addEventListener('click',() => { helpPanel.hidden = true; });
 
     const keys = new Set();
+    const controlMotion = {
+      forward:0,
+      strafe:0,
+      vertical:0,
+      thrust:0,
+      lookYaw:0,
+      lookPitch:0
+    };
     let yaw = 0;
     let pitch = -.05;
     let dragging = false;
@@ -1157,8 +1165,25 @@
     const touchEuler = new THREE.Euler(0,0,0,'YXZ');
     const touchQuaternion = new THREE.Quaternion();
 
+    function smoothControl(current,target,dt,accel=7,release=10) {
+      const rate = Math.abs(target) > Math.abs(current) ? accel : release;
+      const blend = 1 - Math.exp(-rate*dt);
+      const next = THREE.MathUtils.lerp(current,target,blend);
+      return Math.abs(next) < .0008 && target === 0 ? 0 : next;
+    }
+
+    function resetControlMotion() {
+      controlMotion.forward = 0;
+      controlMotion.strafe = 0;
+      controlMotion.vertical = 0;
+      controlMotion.thrust = 0;
+      controlMotion.lookYaw = 0;
+      controlMotion.lookPitch = 0;
+    }
+
     function enterTextMode() {
       keys.clear();
+      resetControlMotion();
       firing = false;
       if (document.pointerLockElement === canvas) document.exitPointerLock?.();
       requestAnimationFrame(() => {
@@ -1169,6 +1194,7 @@
 
     function enterWorldMode() {
       keys.clear();
+      resetControlMotion();
       firing = false;
       promptInput.blur();
       document.activeElement?.blur?.();
@@ -1263,6 +1289,7 @@
       dragging = false;
       firing = false;
       keys.clear();
+      resetControlMotion();
       if (locked) {
         promptInput.blur();
         document.activeElement?.blur?.();
@@ -1399,22 +1426,30 @@
       const fastTravel = keys.has('ShiftLeft') || keys.has('ShiftRight');
       const moveSpeed = 6.2*state.speed;
       const thrustSpeed = 21*state.speed;
-      const lookSpeed = 1.65*dt;
       const f = cameraForward();
       const r = cameraRight();
 
-      if (keys.has('KeyW')) camera.position.addScaledVector(f,moveSpeed*dt);
-      if (keys.has('KeyS')) camera.position.addScaledVector(f,-moveSpeed*dt);
-      if (keys.has('KeyA')) camera.position.addScaledVector(r,-moveSpeed*.7*dt);
-      if (keys.has('KeyD')) camera.position.addScaledVector(r,moveSpeed*.7*dt);
-      if (keys.has('Space')) camera.position.y += moveSpeed*.65*dt;
-      if (keys.has('ControlLeft') || keys.has('ControlRight') || keys.has('KeyC')) camera.position.y -= moveSpeed*.65*dt;
-      if (fastTravel) camera.position.addScaledVector(f,thrustSpeed*dt);
+      const forwardTarget = (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0);
+      const strafeTarget = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
+      const verticalTarget = (keys.has('Space') ? 1 : 0) - ((keys.has('ControlLeft') || keys.has('ControlRight') || keys.has('KeyC')) ? 1 : 0);
+      const thrustTarget = fastTravel ? 1 : 0;
+      const lookYawTarget = (keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0);
+      const lookPitchTarget = (keys.has('ArrowUp') ? 1 : 0) - (keys.has('ArrowDown') ? 1 : 0);
 
-      if (keys.has('ArrowLeft')) yaw += lookSpeed;
-      if (keys.has('ArrowRight')) yaw -= lookSpeed;
-      if (keys.has('ArrowUp')) pitch = clamp(pitch+lookSpeed*.72,-1.25,1.25);
-      if (keys.has('ArrowDown')) pitch = clamp(pitch-lookSpeed*.72,-1.25,1.25);
+      controlMotion.forward = smoothControl(controlMotion.forward,forwardTarget,dt,7.5,10);
+      controlMotion.strafe = smoothControl(controlMotion.strafe,strafeTarget,dt,7.5,10);
+      controlMotion.vertical = smoothControl(controlMotion.vertical,verticalTarget,dt,7.5,10);
+      controlMotion.thrust = smoothControl(controlMotion.thrust,thrustTarget,dt,4.5,6.5);
+      controlMotion.lookYaw = smoothControl(controlMotion.lookYaw,lookYawTarget,dt,6,9);
+      controlMotion.lookPitch = smoothControl(controlMotion.lookPitch,lookPitchTarget,dt,6,9);
+
+      camera.position.addScaledVector(f,controlMotion.forward*moveSpeed*dt);
+      camera.position.addScaledVector(r,controlMotion.strafe*moveSpeed*.7*dt);
+      camera.position.y += controlMotion.vertical*moveSpeed*.65*dt;
+      camera.position.addScaledVector(f,controlMotion.thrust*thrustSpeed*dt);
+
+      yaw += controlMotion.lookYaw*1.65*dt;
+      pitch = clamp(pitch+controlMotion.lookPitch*1.18*dt,-1.25,1.25);
 
       if (state.drift && !reducedMotion && document.activeElement !== promptInput) {
         camera.position.addScaledVector(f,.42*state.speed*dt);
