@@ -139,6 +139,7 @@ export async function queueOperatorTask(action = {}) {
 
   return {
     taskId: built.record.id,
+    estimateMs: Number(built.record.maxRuntimeMs || 120_000),
     message: pendingSync
       ? 'Queued the task locally. Operator Runtime will sync it when the relay reconnects.'
       : 'Delegated to Operator Runtime.',

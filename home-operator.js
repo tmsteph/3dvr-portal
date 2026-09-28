@@ -199,6 +199,13 @@ function installLabsLauncher() {
   }
 }
 
+async function createDeveloperProofWithRetry() {
+  const first = await createOperatorDeveloperProof();
+  if (first) return first;
+  await new Promise(resolve => setTimeout(resolve, 1400));
+  return createOperatorDeveloperProof();
+}
+
 installAccountStatus();
 installOsLauncher();
 installLabsLauncher();
@@ -582,7 +589,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
     try {
       const [portalContext, developerAuth, memoryContext] = await Promise.all([
         collectPortalContext(),
-        createOperatorDeveloperProof(),
+        createDeveloperProofWithRetry(),
         recallOperatorMemoryBestEffort(prompt)
       ]);
       portalContext.page = collectPageContext();
@@ -604,7 +611,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
 
       let outcome = null;
       if (data.action?.type && data.action.type !== 'none') {
-        outcome = await runOperatorAction(data.action, { developerAccess: data.developerAccess });
+        outcome = await runOperatorAction(data.action, { developerAccess: data.developerAccess, onStatus: message => { status.textContent = message; queueReplyPaint([data.reply || streamedReply, message].filter(Boolean).join('\n\n')); } });
       }
 
       const message = [data.reply, outcome?.message].filter(Boolean).join('\n\n');

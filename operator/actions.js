@@ -68,19 +68,31 @@ export async function runOperatorAction(action = {}, context = {}) {
     return outcome;
   }
   if (action.type === 'delegate_task') {
+    context.onStatus?.('Delegating to Operator Runtime…');
     const { queueOperatorTask } = await import('./delegate-task.js');
-    return queueOperatorTask(action);
+    const outcome = await queueOperatorTask(action);
+    const estimateMinutes = Math.max(1, Math.ceil(Number(outcome.estimateMs || 0) / 60_000));
+    context.onStatus?.(`Delegated · rough runtime budget ~${estimateMinutes}m`);
+    return { ...outcome, message: `${outcome.message} Rough runtime budget: ~${estimateMinutes}m.` };
   }
   if (action.type === 'server_control') {
+    context.onStatus?.('Queueing the server request…');
     const { queueServerControl } = await import('./server-control.js');
-    return queueServerControl(action);
+    const outcome = await queueServerControl(action);
+    context.onStatus?.('Server request queued · waiting for the control worker');
+    return outcome;
   }
   if (action.type === 'request_code_change') {
+    context.onStatus?.('Queueing the approved code edit…');
     const prepared = ownerGithubAction(action, context.developerAccess);
     const { queueCodeChange } = await import('./forge.js');
     const forgeOutcome = await queueCodeChange(prepared.action);
-    const { waitForForgeEdit, forgeEditReceipt } = await import('./forge-status.js');
-    const result = await waitForForgeEdit(forgeOutcome.url, { timeoutMs: 5_000 });
+    const { waitForForgeEdit, forgeEditProgress, forgeEditReceipt } = await import('./forge-status.js');
+    context.onStatus?.('Code edit queued · waiting for Forge');
+    const result = await waitForForgeEdit(forgeOutcome.url, {
+      timeoutMs: 12_000,
+      onUpdate: record => context.onStatus?.(forgeEditProgress(record))
+    });
     const status = String(result?.status || '').toLowerCase();
     if (status === 'completed') {
       return {
@@ -93,7 +105,7 @@ export async function runOperatorAction(action = {}, context = {}) {
     }
     return {
       ...forgeOutcome,
-      message: forgeEditReceipt(result)
+      message: `${forgeEditReceipt(result)} ${forgeEditProgress(result)}`.trim()
     };
   }
   if (action.type === 'open_app' && action.url) return { message:'Ready to open.', url:action.url };

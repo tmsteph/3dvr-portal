@@ -29,6 +29,7 @@ export async function waitForForgeEdit(value, options = {}) {
   const gun = globalThis.Gun({ peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
   const node = gun.get(FORGE_ROOT).get('forge').get('editRequests').get(id);
   const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : DEFAULT_TIMEOUT_MS;
+  const onUpdate = typeof options.onUpdate === 'function' ? options.onUpdate : () => {};
 
   return new Promise((resolve) => {
     let latest = null;
@@ -50,10 +51,24 @@ export async function waitForForgeEdit(value, options = {}) {
     node.on((data) => {
       if (!data || typeof data !== 'object') return;
       latest = data;
+      onUpdate(data);
       const status = normalizeText(data.status).toLowerCase();
       if (TERMINAL_STATUSES.has(status)) finish(data);
     });
   });
+}
+
+export function forgeEditProgress(record = {}) {
+  const status = normalizeText(record.status).toLowerCase() || 'queued';
+  const started = Date.parse(record.startedAt || record.createdAt || '');
+  const elapsedMs = Number.isFinite(started) ? Math.max(0, Date.now() - started) : 0;
+  const elapsed = elapsedMs >= 60_000
+    ? `${Math.floor(elapsedMs / 60_000)}m ${Math.floor((elapsedMs % 60_000) / 1000)}s`
+    : `${Math.floor(elapsedMs / 1000)}s`;
+  if (status === 'completed') return `Code task complete · ${elapsed}`;
+  if (status === 'running') return `Forge is editing/testing · ${elapsed} elapsed`;
+  if (['failed', 'rejected', 'approval_required'].includes(status)) return `Forge stopped: ${status.replace('_', ' ')}`;
+  return `Code task queued · ${elapsed} elapsed`;
 }
 
 // A worker's terminal status is not evidence of a merge or live deployment.

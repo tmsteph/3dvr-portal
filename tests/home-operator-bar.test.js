@@ -23,11 +23,12 @@ test('homepage Operator sends the signed developer proof used by full Operator',
 
   assert.match(client, /createOperatorDeveloperProof/);
   assert.match(client, /const \[portalContext, developerAuth, memoryContext\] = await Promise\.all/);
-  assert.match(client, /createOperatorDeveloperProof\(\)/);
+  assert.match(client, /createDeveloperProofWithRetry\(\)/);
+  assert.match(client, /setTimeout\(resolve, 1400\)/);
   assert.match(client, /fetchOperatorStream/);
   assert.match(client, /onReplyDelta/);
   assert.match(client, /streamedReply \+= delta/);
-  assert.match(client, /runOperatorAction\(data\.action, \{ developerAccess: data\.developerAccess \}\)/);
+  assert.match(client, /onStatus: message/);
 });
 
 test('homepage busy state is calm and streaming does not rebuild the response card', async () => {
