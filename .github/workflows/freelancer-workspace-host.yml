@@ -93,6 +93,7 @@ jobs:
           node_major="$($node_bin -p 'Number(process.versions.node.split(".")[0])')"
           [ "$node_major" -ge 22 ] || { echo "Node 22+ is required; found $($node_bin --version)." >&2; exit 1; }
           echo "HOST_NODE=$($node_bin --version)"
+          node_dir="$(dirname "$node_bin")"
           "$node_bin" --check "$repo/apps/agent/thomas-agent/node/freelancer-workspace-runtime.js"
           "$node_bin" --check "$repo/apps/agent/thomas-agent/node/freelancer-workspace.js"
           PATH="$(dirname "$node_bin"):$PATH" FREELANCER_WORKSPACE_ROOT="$HOME/.3dvr/freelancer-workspaces" \
@@ -113,7 +114,7 @@ jobs:
           Group=debian
           WorkingDirectory=/home/debian
           Environment=HOME=/home/debian
-          Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          Environment=PATH=$node_dir:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
           ExecStart=$npx_bin -y @wonderwhy-er/desktop-commander@0.2.51 remote
           Restart=on-failure
           RestartSec=10
@@ -130,6 +131,7 @@ jobs:
           sudo install -d -m 0755 /etc/systemd/system/desktop-commander-remote.service.d
           sudo tee /etc/systemd/system/desktop-commander-remote.service.d/98-3dvr-version-pin.conf >/dev/null <<DROPIN
           [Service]
+          Environment=PATH=$node_dir:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
           ExecStartPre=
           ExecStart=
           ExecStart=$npx_bin -y @wonderwhy-er/desktop-commander@0.2.51 remote
@@ -147,11 +149,24 @@ jobs:
             -p RefuseManualStart -p RefuseManualStop -p StartLimitIntervalUSec -p StartLimitBurst -p FragmentPath -p DropInPaths || true
           sudo systemctl reset-failed desktop-commander-remote.service || true
           sudo systemctl enable desktop-commander-remote.service
+          dc_started="$(date '+%Y-%m-%d %H:%M:%S')"
           sudo systemctl restart desktop-commander-remote.service
-          sleep 4
+          dc_ready=0
+          for attempt in $(seq 1 20); do
+            dc_logs="$(sudo journalctl -u desktop-commander-remote.service --since "$dc_started" --no-pager || true)"
+            if grep -q 'Device ready' <<<"$dc_logs"; then
+              dc_ready=1
+              break
+            fi
+            if grep -q 'Device startup failed' <<<"$dc_logs"; then
+              break
+            fi
+            sleep 2
+          done
           echo '=== desktop commander ==='
           sudo systemctl --no-pager --full status desktop-commander-remote.service || true
-          sudo journalctl -u desktop-commander-remote.service -n 60 --no-pager || true
+          sudo journalctl -u desktop-commander-remote.service --since "$dc_started" --no-pager | tail -120 || true
+          [ "$dc_ready" -eq 1 ] || { echo 'Desktop Commander did not reach Device ready.' >&2; exit 1; }
 
           if command -v docker >/dev/null 2>&1 && docker version >/dev/null 2>&1; then
             echo 'WORKSPACE_DOCKER_READY=1'
