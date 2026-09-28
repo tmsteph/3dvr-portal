@@ -114,7 +114,7 @@ jobs:
           WorkingDirectory=/home/debian
           Environment=HOME=/home/debian
           Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-          ExecStart=$npx_bin -y @wonderwhy-er/desktop-commander@latest remote
+          ExecStart=$npx_bin -y @wonderwhy-er/desktop-commander@0.2.51 remote
           Restart=on-failure
           RestartSec=10
           KillSignal=SIGINT
