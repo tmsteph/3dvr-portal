@@ -407,7 +407,9 @@
       gates:[],
       targets:[],
       nextGate:0,
-      stageStartedAt:performance.now()
+      stageStartedAt:performance.now(),
+      trackName:'Glide',
+      difficulty:1
     };
 
     const gateGeometry = new THREE.TorusGeometry(3.2,.16,12,64);
@@ -423,18 +425,63 @@
       }
     }
 
+    function trackProfile(stage) {
+      const cycle = (stage - 1) % 5;
+      const lap = Math.floor((stage - 1) / 5);
+      const difficulty = Math.min(9,1 + Math.floor((stage - 1) / 2));
+      const profiles = [
+        {name:'Glide',sway:5.4,rise:2.4,harmonic:.18,twist:0,gateScale:1.12,passRadius:4.15},
+        {name:'Slalom',sway:8.6,rise:3.2,harmonic:.34,twist:0,gateScale:1.03,passRadius:3.85},
+        {name:'Skyline',sway:7.2,rise:7.2,harmonic:.28,twist:.12,gateScale:.97,passRadius:3.6},
+        {name:'Corkscrew',sway:9.4,rise:6.8,harmonic:.4,twist:.58,gateScale:.9,passRadius:3.35},
+        {name:'Gauntlet',sway:11.2,rise:8.2,harmonic:.58,twist:.26,gateScale:.84,passRadius:3.1}
+      ];
+      const base = profiles[cycle];
+      const pressure = 1 + Math.min(stage - 1,18)*.045;
+      return {
+        ...base,
+        difficulty,
+        count:Math.min(8 + Math.floor(stage*.7),15),
+        step:13.5 + Math.min(stage,10)*.42,
+        sway:base.sway*pressure,
+        rise:base.rise*(1 + Math.min(stage - 1,14)*.035),
+        gateScale:Math.max(.68,base.gateScale-lap*.055),
+        passRadius:Math.max(2.45,base.passRadius-lap*.16)
+      };
+    }
+
     function gamePointSequence(stage,origin) {
+      const profile = trackProfile(stage);
       const points = [origin.clone()];
       const forwardFlat = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
       forwardFlat.y = 0;
       if (forwardFlat.lengthSq() < .0001) forwardFlat.set(0,0,-1);
       forwardFlat.normalize();
       const rightFlat = new THREE.Vector3().crossVectors(forwardFlat,new THREE.Vector3(0,1,0)).normalize();
-      const count = Math.min(7 + Math.floor(stage/2),11);
-      for (let i=1;i<=count;i++) {
-        const distance = i*(13 + Math.min(stage,6)*.8);
-        const sway = Math.sin(i*1.28 + stage*.73)*(7 + stage*.7);
-        const rise = Math.sin(i*.82 + stage)*3 + ((i%3)-1)*1.4;
+
+      for (let i=1;i<=profile.count;i++) {
+        const distance = i*profile.step;
+        const phase = i*1.17 + stage*.61;
+        const harmonicSway = Math.sin(phase*2.08 + stage*.13)*profile.sway*profile.harmonic;
+        const harmonicRise = Math.sin(i*1.53 + stage*.37)*profile.rise*profile.harmonic*.52;
+        let sway = Math.sin(phase)*profile.sway + harmonicSway;
+        let rise = Math.sin(i*.79 + stage*.72)*profile.rise + harmonicRise;
+
+        if (profile.name === 'Skyline') {
+          rise += Math.sin(i*.43 + stage)*profile.rise*.62;
+        }
+        if (profile.twist) {
+          const twist = i*profile.twist + stage*.19;
+          const twistedSway = sway*Math.cos(twist) - rise*Math.sin(twist)*.48;
+          const twistedRise = rise*Math.cos(twist) + sway*Math.sin(twist)*.58;
+          sway = twistedSway;
+          rise = twistedRise;
+        }
+        if (profile.name === 'Gauntlet') {
+          sway += (i%2===0 ? 1 : -1)*profile.sway*.24;
+          rise += ((i%3)-1)*profile.rise*.24;
+        }
+
         points.push(origin.clone()
           .addScaledVector(forwardFlat,distance)
           .addScaledVector(rightFlat,sway)
@@ -449,7 +496,8 @@
         const complete = index < game.nextGate;
         gate.material.opacity = active ? .96 : (complete ? .15 : .34);
         gate.material.emissiveIntensity = active ? 4.3 : (complete ? .2 : 1.2);
-        gate.scale.setScalar(active ? 1.2 : 1.04);
+        const baseScale = gate.userData.baseScale || 1;
+        gate.scale.setScalar(baseScale*(active ? 1.12 : 1));
       });
     }
 
@@ -462,6 +510,9 @@
       game.nextGate = 0;
       game.stageStartedAt = performance.now();
 
+      const profile = trackProfile(stage);
+      game.trackName = profile.name;
+      game.difficulty = profile.difficulty;
       const points = gamePointSequence(stage,origin);
       game.curve = new THREE.CatmullRomCurve3(points,false,'catmullrom',.35);
 
@@ -509,6 +560,9 @@
         gate.position.copy(position);
         gate.quaternion.setFromUnitVectors(pathUp,tangent);
         gate.userData.index=i-1;
+        gate.userData.basePosition=position.clone();
+        gate.userData.baseScale=profile.gateScale*(i%2===0 ? .95 : 1);
+        gate.userData.passRadius=profile.passRadius;
         gateGroup.add(gate);
         game.gates.push(gate);
 
@@ -535,7 +589,7 @@
 
       updateGateMaterials();
       updateHud();
-      say('Path Run stage ' + stage + ': follow the glowing ribbon through ' + game.gates.length + ' gates.');
+      say('Path Run stage ' + stage + ' · ' + game.trackName + ': ' + game.gates.length + ' gates. The course gets tighter as you advance.');
     }
 
     function scoreGame(points,label='') {
@@ -570,10 +624,23 @@
         target.position.y=target.userData.baseY+Math.sin(now*.0018+target.userData.phase)*.5;
       });
 
+      game.gates.forEach((trackGate,index) => {
+        if (!trackGate.userData.basePosition) return;
+        trackGate.position.copy(trackGate.userData.basePosition);
+        if (game.difficulty >= 3 && index >= game.nextGate) {
+          const wobble = Math.min(1.35,(game.difficulty-2)*.2);
+          trackGate.position.y += Math.sin(now*.0011+index*.91)*wobble;
+          if (game.difficulty >= 5) {
+            trackGate.position.x += Math.sin(now*.00083+index*1.37)*wobble*.55;
+          }
+        }
+      });
+
       const gate=game.gates[game.nextGate];
       if (!gate) return;
-      gate.rotation.z += dt*.38;
-      if (camera.position.distanceToSquared(gate.position) < 18) {
+      gate.rotation.z += dt*(.38 + game.difficulty*.035);
+      const passRadius = gate.userData.passRadius || 4.2;
+      if (camera.position.distanceToSquared(gate.position) < passRadius*passRadius) {
         game.nextGate += 1;
         scoreGame(100 + state.gameStage*20,'gate');
         makeExplosion(gate.position,2.5,game.nextGate+state.gameStage);
@@ -1157,8 +1224,13 @@
       lookYaw:0,
       lookPitch:0
     };
+    const shipVelocity = new THREE.Vector3();
+    const shipAcceleration = new THREE.Vector3();
+    const shipInput = new THREE.Vector3();
     let yaw = 0;
     let pitch = -.05;
+    let previousYaw = yaw;
+    let shipBank = 0;
     let dragging = false;
     let lastX = 0;
     let lastY = 0;
@@ -1179,6 +1251,10 @@
       controlMotion.thrust = 0;
       controlMotion.lookYaw = 0;
       controlMotion.lookPitch = 0;
+      shipVelocity.set(0,0,0);
+      shipAcceleration.set(0,0,0);
+      shipBank = 0;
+      previousYaw = yaw;
     }
 
     function enterTextMode() {
@@ -1424,8 +1500,8 @@
       islandMaterial.color.lerp(targetGround,.025);
 
       const fastTravel = keys.has('ShiftLeft') || keys.has('ShiftRight');
-      const moveSpeed = 6.2*state.speed;
-      const thrustSpeed = 21*state.speed;
+      const moveAccel = 17.5*state.speed;
+      const thrustAccel = 34*state.speed;
       const f = cameraForward();
       const r = cameraRight();
 
@@ -1443,20 +1519,41 @@
       controlMotion.lookYaw = smoothControl(controlMotion.lookYaw,lookYawTarget,dt,6,9);
       controlMotion.lookPitch = smoothControl(controlMotion.lookPitch,lookPitchTarget,dt,6,9);
 
-      camera.position.addScaledVector(f,controlMotion.forward*moveSpeed*dt);
-      camera.position.addScaledVector(r,controlMotion.strafe*moveSpeed*.7*dt);
-      camera.position.y += controlMotion.vertical*moveSpeed*.65*dt;
-      camera.position.addScaledVector(f,controlMotion.thrust*thrustSpeed*dt);
+      shipInput.set(0,0,0)
+        .addScaledVector(f,controlMotion.forward)
+        .addScaledVector(r,controlMotion.strafe*.78);
+      shipInput.y += controlMotion.vertical*.72;
+
+      shipAcceleration.set(0,0,0)
+        .addScaledVector(shipInput,moveAccel)
+        .addScaledVector(f,controlMotion.thrust*thrustAccel);
+      shipVelocity.addScaledVector(shipAcceleration,dt);
+
+      const hasFlightInput = Math.abs(controlMotion.forward) + Math.abs(controlMotion.strafe) +
+        Math.abs(controlMotion.vertical) + Math.abs(controlMotion.thrust) > .04;
+      const dragRate = hasFlightInput ? .34 : .82;
+      shipVelocity.multiplyScalar(Math.exp(-dragRate*dt));
+      const maxShipSpeed = (fastTravel ? 30 : 13.5)*state.speed;
+      if (shipVelocity.lengthSq() > maxShipSpeed*maxShipSpeed) shipVelocity.setLength(maxShipSpeed);
+      camera.position.addScaledVector(shipVelocity,dt);
 
       yaw += controlMotion.lookYaw*1.65*dt;
       pitch = clamp(pitch+controlMotion.lookPitch*1.18*dt,-1.25,1.25);
 
       if (state.drift && !reducedMotion && document.activeElement !== promptInput) {
-        camera.position.addScaledVector(f,.42*state.speed*dt);
+        shipVelocity.addScaledVector(f,.18*state.speed*dt);
         yaw += Math.sin(now*.00016)*.00006*state.energy;
       }
 
-      touchEuler.set(pitch,yaw,0,'YXZ');
+      const yawDelta = Math.atan2(Math.sin(yaw-previousYaw),Math.cos(yaw-previousYaw));
+      const yawRate = yawDelta/Math.max(dt,.001);
+      previousYaw = yaw;
+      const lateralVelocity = shipVelocity.dot(r);
+      const bankTarget = reducedMotion ? 0 : clamp(yawRate*.055-lateralVelocity*.012,-.24,.24);
+      const bankBlend = 1-Math.exp(-(Math.abs(bankTarget)>Math.abs(shipBank) ? 5.2 : 3.4)*dt);
+      shipBank = THREE.MathUtils.lerp(shipBank,bankTarget,bankBlend);
+
+      touchEuler.set(pitch,yaw,shipBank,'YXZ');
       touchQuaternion.setFromEuler(touchEuler);
       if (phoneLook && orientationBaseline) {
         deviceRelative.slerp(deviceTarget,.2);
