@@ -42,7 +42,7 @@
     .message strong{color:#f7fff8}
     .hint{color:#adc0b1;font-size:.67rem;margin-top:5px}
     .touch-pad{pointer-events:auto;display:none;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(2,44px);gap:5px;opacity:.7}
-    .touch-pad button{border:1px solid rgba(230,255,234,.13);border-radius:13px;background:rgba(6,20,13,.48);color:#effaf1;font-size:1rem;backdrop-filter:blur(9px)}
+    .touch-pad button{border:1px solid rgba(230,255,234,.13);border-radius:13px;background:rgba(6,20,13,.48);color:#effaf1;font-size:1rem;backdrop-filter:blur(9px);touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
     .touch-pad .up{grid-column:2}.touch-pad .left{grid-column:1}.touch-pad .down{grid-column:2}.touch-pad .right{grid-column:3}
     .enter-note{position:fixed;left:50%;top:50%;z-index:6;transform:translate(-50%,-50%);pointer-events:none;padding:10px 14px;border-radius:999px;background:rgba(5,18,12,.68);border:1px solid rgba(229,255,233,.18);backdrop-filter:blur(12px);color:#edf7ef;font-size:.75rem;opacity:0;transition:opacity .25s ease}
     .enter-note[data-show="true"]{opacity:1}
