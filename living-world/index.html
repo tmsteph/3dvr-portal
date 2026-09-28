@@ -87,6 +87,7 @@
         <span class="pill">mood <strong id="mood">dusk</strong></span>
         <span class="pill">dream <strong id="dream-status">on</strong></span>
         <span class="pill">speed <strong id="speed-status">1.0×</strong></span>
+        <span class="pill">weapon <strong id="weapon-status">pulse</strong></span>
       </div>
     </div>
 
@@ -110,11 +111,12 @@
     </div>
   </div>
 
-  <div class="hint">click world to capture mouse · WASD / arrows move · Esc releases · / edits world</div>
+  <div class="hint">click to capture · WASD move · left click fires · right click bomb · 1/2/3 weapons · / edits</div>
 
   <aside class="help" id="help-panel" hidden>
     <strong>Move however feels good.</strong>
     <p><code>Click the world</code> to capture the mouse for first-person look. <code>Esc</code> releases it. <code>WASD</code> or arrows fly, and the mouse wheel glides forward/back.</p>
+    <p><code>Left click</code> fires the selected toy weapon. <code>1</code> pulse, <code>2</code> beam, <code>3</code> bomb. <code>Right click</code> always throws a bomb.</p>
     <p>The world gently evolves when <b>World dreams</b> is on. Your changes persist on this device.</p>
     <p>Try commands like <code>forest</code>, <code>ocean</code>, <code>night</code>, <code>more crystals</code>, <code>more orbs</code>, <code>faster</code>, <code>calmer</code>, or <code>surprise me</code>.</p>
     <button id="close-help" type="button">Got it</button>
@@ -132,6 +134,7 @@
     const moodEl = document.getElementById('mood');
     const dreamStatusEl = document.getElementById('dream-status');
     const speedStatusEl = document.getElementById('speed-status');
+    const weaponStatusEl = document.getElementById('weapon-status');
     const reticle = document.getElementById('reticle');
     const driftButton = document.getElementById('drift-button');
     const dreamButton = document.getElementById('dream-button');
@@ -155,7 +158,8 @@
       orbCount:24,
       drift:true,
       dream:true,
-      collected:0
+      collected:0,
+      colorMode:'prism'
     };
 
     let state = {...defaults};
@@ -176,7 +180,10 @@
       forest:{bg:0x07100c,fog:0x07100c,sky:0x6a927d,ground:0x173126,accent:0x8be8ad,accent2:0xe7d690,sun:0xe7efb7},
       ocean:{bg:0x03141b,fog:0x03141b,sky:0x679eb4,ground:0x123442,accent:0x7de8e2,accent2:0x8ab9ff,sun:0xc5fff5},
       sunset:{bg:0x1b0d17,fog:0x1b0d17,sky:0xba7388,ground:0x352329,accent:0xffc59c,accent2:0xd9a3ff,sun:0xffc27c},
-      aurora:{bg:0x061016,fog:0x061016,sky:0x6a7ea6,ground:0x162c34,accent:0x78f4c6,accent2:0x8cbcff,sun:0xdbfff4}
+      aurora:{bg:0x061016,fog:0x061016,sky:0x6a7ea6,ground:0x162c34,accent:0x78f4c6,accent2:0x8cbcff,sun:0xdbfff4},
+      prism:{bg:0x090918,fog:0x090918,sky:0x7d70c8,ground:0x202049,accent:0x63f4ff,accent2:0xff67d8,sun:0xffe66d},
+      candy:{bg:0x160b1f,fog:0x160b1f,sky:0xd586c7,ground:0x42234b,accent:0x72f4d2,accent2:0xff7eb6,sun:0xffd37a},
+      solar:{bg:0x1b0d07,fog:0x1b0d07,sky:0xd47d57,ground:0x4a261b,accent:0xffe05f,accent2:0xff5c8a,sun:0xfff1a8}
     };
     if (!themes[state.theme]) state.theme = 'dusk';
 
@@ -209,7 +216,9 @@
     const seedGroup = new THREE.Group();
     const orbGroup = new THREE.Group();
     const archGroup = new THREE.Group();
-    worldRoot.add(crystalGroup,seedGroup,orbGroup,archGroup);
+    const projectileGroup = new THREE.Group();
+    const effectGroup = new THREE.Group();
+    worldRoot.add(crystalGroup,seedGroup,orbGroup,archGroup,projectileGroup,effectGroup);
 
     const starGeometry = new THREE.BufferGeometry();
     const starCount = innerWidth < 700 ? 850 : 1450;
@@ -284,10 +293,22 @@
       );
     }
 
+    const vividPalette = [0x63f4ff,0xff67d8,0xffe66d,0x8cff77,0x9d7bff,0xff8a5c,0x6effc8];
+
+    function vividColor(index=0, offset=0) {
+      return new THREE.Color(vividPalette[(index + offset) % vividPalette.length]);
+    }
+
     function rebuildCrystals() {
+      crystalGroup.children.forEach(mesh => mesh.material?.dispose?.());
       clearGroup(crystalGroup);
       for (let i=0;i<state.crystalCount;i++) {
-        const mesh = new THREE.Mesh(crystalGeometry,crystalMaterial);
+        const material = crystalMaterial.clone();
+        const color = vividColor(i, Math.floor(Math.random()*vividPalette.length));
+        material.color.copy(color);
+        material.emissive.copy(color);
+        material.emissiveIntensity = 1.35;
+        const mesh = new THREE.Mesh(crystalGeometry,material);
         const p = randomWorldPosition(8,62);
         mesh.position.copy(p);
         const scale = randomRange(.5,2.15);
@@ -325,10 +346,13 @@
     const orbGeometry = new THREE.TorusGeometry(2.1,.045,8,56);
     const orbMaterial = new THREE.MeshBasicMaterial({color:themes[state.theme].accent2,transparent:true,opacity:.3});
     function rebuildOrbs() {
+      orbGroup.children.forEach(mesh => mesh.material?.dispose?.());
       clearGroup(orbGroup);
       const count = Math.max(5,Math.round(state.orbCount*.34));
       for (let i=0;i<count;i++) {
-        const ring = new THREE.Mesh(orbGeometry,orbMaterial);
+        const ringMaterial = orbMaterial.clone();
+        ringMaterial.color.copy(vividColor(i,2));
+        const ring = new THREE.Mesh(orbGeometry,ringMaterial);
         ring.position.copy(randomWorldPosition(12,64));
         ring.scale.setScalar(randomRange(.6,1.7));
         ring.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,Math.random()*Math.PI);
@@ -360,9 +384,183 @@
       archGroup.add(arch);
     });
 
+    const weaponModes = ['pulse','beam','bomb'];
+    let weaponIndex = 0;
+    let firing = false;
+    let nextPulseAt = 0;
+    let nextBombAt = 0;
+    let beamHitAt = 0;
+    const projectiles = [];
+    const effects = [];
+    const raycaster = new THREE.Raycaster();
+
+    const beamGeometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0,0,0),
+      new THREE.Vector3(0,0,-1)
+    ]);
+    const beamMaterial = new THREE.LineBasicMaterial({
+      color:0x70f8ff,
+      transparent:true,
+      opacity:.9,
+      blending:THREE.AdditiveBlending
+    });
+    const beamLine = new THREE.Line(beamGeometry,beamMaterial);
+    beamLine.visible = false;
+    scene.add(beamLine);
+
+    function currentWeapon() {
+      return weaponModes[weaponIndex];
+    }
+
+    function selectWeapon(index, announce=true) {
+      weaponIndex = (index + weaponModes.length) % weaponModes.length;
+      weaponStatusEl.textContent = currentWeapon();
+      if (announce) say('Weapon: ' + currentWeapon() + '.');
+    }
+
+    function makeExplosion(position, scale=1, colorIndex=0) {
+      const material = new THREE.MeshBasicMaterial({
+        color:vividColor(colorIndex),
+        transparent:true,
+        opacity:.9,
+        blending:THREE.AdditiveBlending,
+        depthWrite:false
+      });
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(.42,12,10),material);
+      mesh.position.copy(position);
+      mesh.scale.setScalar(scale);
+      effectGroup.add(mesh);
+      effects.push({mesh,age:0,life:.48,scale});
+    }
+
+    function respawnHitObject(object) {
+      if (object.parent === seedGroup) {
+        state.collected += 1;
+        seedCountEl.textContent = String(state.collected);
+        placeSeed(object);
+        saveState();
+        return;
+      }
+      if (object.parent === crystalGroup) {
+        object.position.copy(randomWorldPosition(9,64));
+        object.position.y = randomRange(-2,15);
+      }
+    }
+
+    function hitAt(position, radius=1.2) {
+      let hit = false;
+      for (const object of [...seedGroup.children,...crystalGroup.children]) {
+        if (object.position.distanceTo(position) <= radius) {
+          makeExplosion(object.position,1.15,Math.floor(Math.random()*vividPalette.length));
+          respawnHitObject(object);
+          hit = true;
+        }
+      }
+      return hit;
+    }
+
+    function spawnProjectile(kind='pulse') {
+      const direction = cameraForward().clone();
+      const origin = camera.position.clone().addScaledVector(direction,1.15);
+      const isBomb = kind === 'bomb';
+      const color = isBomb ? vividColor(2) : vividColor(Math.floor(Math.random()*vividPalette.length));
+      const material = new THREE.MeshStandardMaterial({
+        color,
+        emissive:color,
+        emissiveIntensity:isBomb ? 3.2 : 4.4,
+        roughness:.08
+      });
+      const geometry = new THREE.SphereGeometry(isBomb ? .34 : .12,isBomb ? 16 : 10,isBomb ? 12 : 8);
+      const mesh = new THREE.Mesh(geometry,material);
+      mesh.position.copy(origin);
+      projectileGroup.add(mesh);
+      projectiles.push({
+        mesh,
+        kind,
+        velocity:direction.multiplyScalar(isBomb ? 10 : 34),
+        age:0,
+        life:isBomb ? 2.2 : 2.7
+      });
+      if (!isBomb) makeExplosion(origin,.32,Math.floor(Math.random()*vividPalette.length));
+    }
+
+    function firePulse(now=performance.now()) {
+      if (now < nextPulseAt) return;
+      nextPulseAt = now + 115;
+      spawnProjectile('pulse');
+    }
+
+    function fireBomb(now=performance.now()) {
+      if (now < nextBombAt) return;
+      nextBombAt = now + 620;
+      spawnProjectile('bomb');
+    }
+
+    function updateProjectiles(dt) {
+      for (let i=projectiles.length-1;i>=0;i--) {
+        const shot = projectiles[i];
+        shot.age += dt;
+        shot.mesh.position.addScaledVector(shot.velocity,dt);
+        const radius = shot.kind === 'bomb' ? .9 : .45;
+        const didHit = hitAt(shot.mesh.position,radius);
+        if (shot.kind === 'bomb' && (didHit || shot.age > shot.life)) {
+          makeExplosion(shot.mesh.position,3.8,2);
+          hitAt(shot.mesh.position,5.5);
+          projectileGroup.remove(shot.mesh);
+          shot.mesh.geometry.dispose();
+          shot.mesh.material.dispose();
+          projectiles.splice(i,1);
+          continue;
+        }
+        if (shot.kind !== 'bomb' && (didHit || shot.age > shot.life)) {
+          projectileGroup.remove(shot.mesh);
+          shot.mesh.geometry.dispose();
+          shot.mesh.material.dispose();
+          projectiles.splice(i,1);
+        }
+      }
+
+      for (let i=effects.length-1;i>=0;i--) {
+        const effect = effects[i];
+        effect.age += dt;
+        const p = effect.age/effect.life;
+        effect.mesh.scale.setScalar(effect.scale*(1+p*4));
+        effect.mesh.material.opacity = Math.max(0,1-p);
+        if (p >= 1) {
+          effectGroup.remove(effect.mesh);
+          effect.mesh.geometry.dispose();
+          effect.mesh.material.dispose();
+          effects.splice(i,1);
+        }
+      }
+    }
+
+    function updateBeam(now) {
+      const active = firing && currentWeapon() === 'beam' && document.pointerLockElement === canvas;
+      beamLine.visible = active;
+      if (!active) return;
+
+      const direction = cameraForward().clone();
+      const start = camera.position.clone().addScaledVector(direction,.8);
+      const end = start.clone().addScaledVector(direction,35);
+      beamLine.geometry.setFromPoints([start,end]);
+      beamMaterial.color.copy(vividColor(Math.floor(now/180)%vividPalette.length));
+
+      if (now < beamHitAt) return;
+      beamHitAt = now + 90;
+      raycaster.set(start,direction);
+      raycaster.far = 35;
+      const hits = raycaster.intersectObjects([...seedGroup.children,...crystalGroup.children],false);
+      if (hits[0]) {
+        makeExplosion(hits[0].point,.8,Math.floor(now/140)%vividPalette.length);
+        respawnHitObject(hits[0].object);
+      }
+    }
+
     rebuildCrystals();
     rebuildSeeds();
     rebuildOrbs();
+    selectWeapon(0,false);
 
     const targetBg = new THREE.Color(themes[state.theme].bg);
     const targetFog = new THREE.Color(themes[state.theme].fog);
@@ -381,6 +579,7 @@
       moodEl.textContent = state.theme;
       dreamStatusEl.textContent = state.dream ? 'on' : 'off';
       speedStatusEl.textContent = state.speed.toFixed(1) + '×';
+      weaponStatusEl.textContent = currentWeapon();
       driftButton.dataset.active = String(state.drift);
       dreamButton.dataset.active = String(state.dream);
       dreamButton.textContent = state.dream ? 'World dreams' : 'Dreams paused';
@@ -411,6 +610,11 @@
       targetAccent2.setHex(t.accent2);
       targetSun.setHex(t.sun);
       if (announce) say('The world settles into ' + name + '.');
+      if (name === 'prism' || name === 'candy' || name === 'solar') {
+        state.colorMode = 'prism';
+        rebuildCrystals();
+        rebuildOrbs();
+      }
       saveState();
       updateHud();
       return true;
@@ -506,6 +710,28 @@
         refreshMaterials();
         state.energy = .8;
         say('A soft sunrise warmth spreads across the world.');
+        changed = true;
+      }
+      if (/\b(rainbow|more colors|more colour|colorful|colourful|neon|psychedelic|prismatic|prism)\b/.test(text)) {
+        state.colorMode = 'prism';
+        applyTheme('prism',false);
+        rebuildCrystals();
+        rebuildOrbs();
+        say('The world cracked open into a brighter prism.');
+        changed = true;
+      }
+      if (/\b(candy|pastel)\b/.test(text)) {
+        applyTheme('candy',false);
+        rebuildCrystals();
+        rebuildOrbs();
+        say('Candy colors spread through the world.');
+        changed = true;
+      }
+      if (/\b(solar|sunny|golden)\b/.test(text)) {
+        applyTheme('solar',false);
+        rebuildCrystals();
+        rebuildOrbs();
+        say('The world warmed into solar color.');
         changed = true;
       }
       if (/\b(calm|calmer|quiet|softer|meditative|meditation|gentle)\b/.test(text)) {
@@ -624,6 +850,10 @@
     addEventListener('keydown',event => {
       if (document.activeElement === promptInput) return;
       keys.add(event.code);
+      if (event.code === 'Digit1') selectWeapon(0);
+      if (event.code === 'Digit2') selectWeapon(1);
+      if (event.code === 'Digit3') selectWeapon(2);
+      if (event.code === 'KeyQ' && document.pointerLockElement === canvas) fireBomb();
       if (event.code === 'Slash') {
         event.preventDefault();
         if (document.pointerLockElement === canvas) document.exitPointerLock?.();
@@ -635,7 +865,19 @@
     canvas.addEventListener('pointerdown',event => {
       if (event.pointerType === 'mouse' && document.pointerLockElement !== canvas) {
         event.preventDefault();
+        promptInput.blur();
+        document.activeElement?.blur?.();
         canvas.requestPointerLock?.();
+        return;
+      }
+      if (document.pointerLockElement === canvas && event.pointerType === 'mouse') {
+        event.preventDefault();
+        if (event.button === 2) fireBomb();
+        else if (event.button === 0) {
+          firing = true;
+          if (currentWeapon() === 'pulse') firePulse();
+          if (currentWeapon() === 'bomb') fireBomb();
+        }
         return;
       }
       if (document.pointerLockElement === canvas) return;
@@ -644,7 +886,11 @@
       lastY = event.clientY;
       canvas.setPointerCapture?.(event.pointerId);
     });
-    canvas.addEventListener('pointerup',() => { dragging = false; });
+    canvas.addEventListener('pointerup',event => {
+      dragging = false;
+      if (event.button === 0) firing = false;
+    });
+    canvas.addEventListener('contextmenu',event => event.preventDefault());
     canvas.addEventListener('pointercancel',() => { dragging = false; });
     canvas.addEventListener('pointermove',event => {
       if (!dragging || document.pointerLockElement === canvas) return;
@@ -667,8 +913,14 @@
       const locked = document.pointerLockElement === canvas;
       document.body.dataset.pointerLocked = String(locked);
       dragging = false;
+      firing = false;
+      keys.clear();
+      if (locked) {
+        promptInput.blur();
+        document.activeElement?.blur?.();
+      }
       say(locked
-        ? 'Mouse captured. Look freely · WASD moves · Esc releases.'
+        ? 'Mouse captured. WASD moves · click fires · 1/2/3 weapons · Esc releases.'
         : 'Mouse released. Click the world to capture it again.');
     });
 
@@ -840,6 +1092,9 @@
       wanderLight.position.x = Math.sin(now*.00035)*13;
       wanderLight.position.z = -15 + Math.cos(now*.00029)*20;
 
+      if (firing && currentWeapon() === 'pulse') firePulse(now);
+      updateBeam(now);
+      updateProjectiles(dt);
       collectSeeds(now);
 
       if (breathing) {
