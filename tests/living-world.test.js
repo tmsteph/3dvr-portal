@@ -35,7 +35,7 @@ test('Living World ships as an in-portal evolving 3D experience', async () => {
   assert.match(page, /applyWorldAiTags/);
   assert.match(page, /You can talk to me normally/);
   assert.match(page, /fastTravel/);
-  assert.match(page, /thrustSpeed/);
+  assert.match(page, /thrustAccel/);
   assert.match(page, /const controlMotion = \{/);
   assert.match(page, /function smoothControl/);
   assert.match(page, /Math\.exp\(-rate\*dt\)/);
@@ -43,7 +43,11 @@ test('Living World ships as an in-portal evolving 3D experience', async () => {
   assert.match(page, /controlMotion\.lookPitch = smoothControl/);
   assert.match(page, /controlMotion\.thrust = smoothControl/);
   assert.match(page, /resetControlMotion/);
-  assert.match(page, /if \(fastTravel\) camera\.position\.addScaledVector\(f,thrustSpeed\*dt\)/);
+  assert.match(page, /const shipVelocity = new THREE\.Vector3/);
+  assert.match(page, /const shipAcceleration = new THREE\.Vector3/);
+  assert.match(page, /shipVelocity\.addScaledVector\(shipAcceleration,dt\)/);
+  assert.match(page, /Math\.exp\(-dragRate\*dt\)/);
+  assert.match(page, /maxShipSpeed/);
   assert.match(page, /ShiftLeft/);
   assert.match(page, /ControlLeft/);
   assert.match(page, /KeyC/);
@@ -59,6 +63,14 @@ test('Living World ships as an in-portal evolving 3D experience', async () => {
   assert.match(page, /World mode/);
   assert.match(page, /const game = \{/);
   assert.match(page, /function buildGamePath/);
+  assert.match(page, /function trackProfile/);
+  assert.match(page, /Glide/);
+  assert.match(page, /Slalom/);
+  assert.match(page, /Skyline/);
+  assert.match(page, /Corkscrew/);
+  assert.match(page, /Gauntlet/);
+  assert.match(page, /passRadius/);
+  assert.match(page, /game\.difficulty >= 3/);
   assert.match(page, /applyQuaternion\(camera\.quaternion\)/);
   assert.doesNotMatch(page.slice(page.indexOf('function gamePointSequence'), page.indexOf('function updateGateMaterials')), /const baseYaw = yaw/);
   assert.match(page, /TubeGeometry\(game\.curve,Math\.max\(96,points\.length\*26\),\.18,8,false\)/);
