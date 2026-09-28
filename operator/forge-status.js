@@ -6,6 +6,10 @@ const DEFAULT_PEERS = [
 ];
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'rejected', 'approval_required']);
 
+export function isForgeEditTerminal(record = {}) {
+  return TERMINAL_STATUSES.has(normalizeText(record.status).toLowerCase());
+}
+
 function normalizeText(value = '') {
   return String(value || '').trim();
 }
@@ -19,6 +23,29 @@ export function forgeEditId(value = '') {
   } catch {
     return '';
   }
+}
+
+export function watchForgeEdit(value, options = {}) {
+  const id = forgeEditId(value);
+  if (!id || typeof globalThis.Gun !== 'function') return () => {};
+  const gun = globalThis.Gun({ peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
+  const node = gun.get(FORGE_ROOT).get('forge').get('editRequests').get(id);
+  const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : DEFAULT_TIMEOUT_MS;
+  const onUpdate = typeof options.onUpdate === 'function' ? options.onUpdate : () => {};
+  let stopped = false;
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    globalThis.clearTimeout?.(timer);
+    try { node.off(); } catch {}
+  };
+  const timer = globalThis.setTimeout?.(() => stop(), timeoutMs);
+  node.on(record => {
+    if (stopped || !record || typeof record !== 'object') return;
+    onUpdate(record);
+    if (isForgeEditTerminal(record)) stop();
+  });
+  return stop;
 }
 
 export async function waitForForgeEdit(value, options = {}) {
