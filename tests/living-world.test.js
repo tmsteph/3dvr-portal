@@ -36,6 +36,13 @@ test('Living World ships as an in-portal evolving 3D experience', async () => {
   assert.match(page, /You can talk to me normally/);
   assert.match(page, /fastTravel/);
   assert.match(page, /thrustSpeed/);
+  assert.match(page, /const controlMotion = \{/);
+  assert.match(page, /function smoothControl/);
+  assert.match(page, /Math\.exp\(-rate\*dt\)/);
+  assert.match(page, /controlMotion\.lookYaw = smoothControl/);
+  assert.match(page, /controlMotion\.lookPitch = smoothControl/);
+  assert.match(page, /controlMotion\.thrust = smoothControl/);
+  assert.match(page, /resetControlMotion/);
   assert.match(page, /if \(fastTravel\) camera\.position\.addScaledVector\(f,thrustSpeed\*dt\)/);
   assert.match(page, /ShiftLeft/);
   assert.match(page, /ControlLeft/);
