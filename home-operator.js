@@ -4,6 +4,7 @@ import { createOperatorDeveloperProof } from './operator/forge.js';
 import { fetchOperatorStream } from './operator/stream.js';
 import { operatorHandoffUrl } from './operator/handoff.js';
 import { recallOperatorMemoryBestEffort, rememberOperatorTurnBestEffort } from './operator/organism-chat-bridge.js';
+import { paintOperatorMarkdown } from './operator/markdown.js';
 
 function aliasToDisplay(alias) {
   const normalized = typeof alias === 'string' ? alias.trim() : '';
@@ -523,7 +524,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
 
   const paintReply = () => {
     replyPaintTimer = 0;
-    reply.textContent = pendingReplyText;
+    paintOperatorMarkdown(reply, pendingReplyText);
     window.requestAnimationFrame(syncChatLayout);
   };
 

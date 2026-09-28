@@ -8,6 +8,7 @@ import { readOperatorStream } from './stream.js';
 import { forgeUrlWithReturn, requestedOperatorConversation } from './forge-roundtrip.js';
 import { handoffPageContext, readOperatorHandoff } from './handoff.js';
 import { recallOperatorMemoryBestEffort, rememberOperatorTurnBestEffort } from './organism-chat-bridge.js';
+import { paintOperatorMarkdown } from './markdown.js';
 
 const form=document.querySelector('#operator-form'), input=document.querySelector('#operator-input'), log=document.querySelector('#operator-log'), status=document.querySelector('#operator-status'), syncStatus=document.querySelector('#operator-sync'), latest=document.querySelector('#operator-latest'), historyPanel=document.querySelector('#conversation-history'), historyList=document.querySelector('#history-list'), historyEmpty=document.querySelector('#history-empty'), showHistory=document.querySelector('#show-history');
 window.AuthIdentity?.syncStorageFromSharedIdentity?.(localStorage);
@@ -57,7 +58,13 @@ function conversationTitle(conversation){const first=conversation.messages.find(
 function renderHistory(){const saved=store.conversations.filter(item=>item.messages.length).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));historyEmpty.hidden=Boolean(saved.length);if(!saved.length&&historySyncComplete)historyEmpty.textContent=accountSync.isReady()?'No saved conversations yet.':'No conversations saved here yet. Sign in to sync across devices.';historyList.innerHTML=saved.map(item=>`<button type="button" data-conversation-id="${escape(item.id)}" ${item.id===store.activeId?'aria-current="page"':''}><strong>${escape(conversationTitle(item))}</strong><span>${escape(new Date(item.updatedAt).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))}</span></button>`).join('')}
 function render({forceLatest=false}={}) {
   const shouldFollow=forceLatest||atLatest();
-  log.innerHTML=history.map((item,index)=>`<article class="message ${item.role}${item.streaming?' is-streaming':''}"><span>${item.role==='user'?'You':'Operator'}</span><p>${escape(item.content)}</p>${item.actionUrl?`<a href="${escape(item.actionUrl)}">Open ${escape(item.actionLabel||'workspace')} →</a>`:''}${item.role==='assistant'&&index===history.length-1?`<div class="follow-ups" aria-label="Suggested next steps">${(item.suggestions||[]).map((suggestion,suggestionIndex)=>`<button type="button" data-suggestion="${escape(suggestion)}" style="--suggestion-index:${suggestionIndex}">${escape(suggestion)}</button>`).join('')}</div>`:''}</article>`).join('');
+  log.innerHTML=history.map((item,index)=>`<article class="message ${item.role}${item.streaming?' is-streaming':''}"><span>${item.role==='user'?'You':'Operator'}</span><div class="message-content" data-message-index="${index}"></div>${item.actionUrl?`<a class="message-action" href="${escape(item.actionUrl)}">Open ${escape(item.actionLabel||'workspace')} →</a>`:''}${item.role==='assistant'&&index===history.length-1?`<div class="follow-ups" aria-label="Suggested next steps">${(item.suggestions||[]).map((suggestion,suggestionIndex)=>`<button type="button" data-suggestion="${escape(suggestion)}" style="--suggestion-index:${suggestionIndex}">${escape(suggestion)}</button>`).join('')}</div>`:''}</article>`).join('');
+  log.querySelectorAll('[data-message-index]').forEach(node=>{
+    const item=history[Number(node.dataset.messageIndex)];
+    if(!item)return;
+    if(item.role==='assistant')paintOperatorMarkdown(node,item.content);
+    else node.textContent=item.content;
+  });
   renderHistory();
   shouldFollow?followLatest():updateLatest();
 }
@@ -68,10 +75,10 @@ function paintStreamingMessage(message){
   streamingPaintTimer=0;
   const messages=log.querySelectorAll('.message.assistant');
   const article=messages[messages.length-1];
-  const paragraph=article?.querySelector('p');
-  if(!paragraph)return;
+  const content=article?.querySelector('.message-content');
+  if(!content)return;
   const shouldFollow=atLatest();
-  paragraph.textContent=message.content;
+  paintOperatorMarkdown(content,message.content);
   if(shouldFollow)requestAnimationFrame(()=>scrollLatest());
 }
 function queueStreamingPaint(message){
