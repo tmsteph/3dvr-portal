@@ -1,0 +1,861 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#081018">
+  <meta name="color-scheme" content="dark">
+  <title>Living World · 3DVR</title>
+  <meta name="description" content="A calm, game-like 3D world inside 3DVR that evolves while you explore and can be reshaped from an in-world text box.">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-mark.svg">
+  <style>
+    :root{
+      color-scheme:dark;
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:#081018;
+      color:#f5fbff;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#081018}
+    button,input,a{font:inherit}
+    button,input{-webkit-tap-highlight-color:transparent}
+    #world{display:block;width:100%;height:100%;touch-action:none}
+    .hud{position:fixed;inset:0;z-index:5;pointer-events:none;padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));display:flex;flex-direction:column;gap:12px}
+    .top{display:flex;align-items:flex-start;gap:10px;min-width:0}
+    .brand{pointer-events:auto;display:inline-flex;align-items:center;gap:9px;color:inherit;text-decoration:none;font-weight:900;letter-spacing:.04em}
+    .brand img{width:28px;height:28px}
+    .title-wrap{display:flex;flex-direction:column;gap:1px}
+    .title-wrap small{color:#8ca7b4;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}
+    .stats{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px;max-width:min(66vw,560px)}
+    .pill{padding:8px 10px;border:1px solid rgba(177,224,229,.18);border-radius:999px;background:rgba(5,12,19,.62);backdrop-filter:blur(12px);color:#afc4cc;font-size:.72rem;white-space:nowrap}
+    .pill strong{color:#f6ffff}
+    .center{flex:1;display:grid;place-items:center}
+    .reticle{position:relative;width:24px;height:24px;border:1px solid rgba(213,248,248,.5);border-radius:50%;box-shadow:0 0 24px rgba(157,229,220,.13);transition:transform .35s ease,border-color .35s ease}
+    .reticle::before,.reticle::after{content:"";position:absolute;left:50%;top:50%;background:rgba(221,251,250,.52);transform:translate(-50%,-50%)}
+    .reticle::before{width:8px;height:1px}.reticle::after{width:1px;height:8px}
+    .reticle[data-breath="inhale"]{transform:scale(1.55);border-color:rgba(218,255,246,.82)}
+    .reticle[data-breath="exhale"]{transform:scale(.82)}
+    .dock{pointer-events:auto;align-self:center;width:min(760px,100%);display:grid;gap:8px}
+    .world-message{justify-self:center;max-width:min(620px,92vw);padding:8px 11px;border:1px solid rgba(177,224,229,.14);border-radius:999px;background:rgba(5,12,19,.58);backdrop-filter:blur(12px);color:#9db6bf;font-size:.74rem;text-align:center;transition:opacity .3s ease}
+    .composer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:8px;border:1px solid rgba(177,224,229,.2);border-radius:17px;background:rgba(5,12,19,.78);backdrop-filter:blur(16px)}
+    .composer input{min-width:0;min-height:44px;border:0;outline:0;border-radius:12px;background:transparent;color:#f5fbff;padding:9px 10px;font-size:16px}
+    .composer input::placeholder{color:#728d98}
+    .composer button,.control{min-height:44px;border:1px solid rgba(177,224,229,.22);border-radius:12px;background:rgba(21,42,52,.84);color:#f4ffff;font-weight:850;cursor:pointer;padding:9px 13px}
+    .composer button:hover,.composer button:focus-visible,.control:hover,.control:focus-visible{outline:none;border-color:#9de8dd}
+    .composer button{background:rgba(41,91,86,.88)}
+    .controls{pointer-events:auto;display:flex;flex-wrap:wrap;justify-content:center;gap:7px}
+    .control{font-size:.72rem;color:#d7e8ec;background:rgba(7,16,24,.7);backdrop-filter:blur(10px)}
+    .control[data-active="true"]{border-color:rgba(157,232,221,.8);background:rgba(30,83,78,.76)}
+    .hint{position:fixed;left:50%;top:max(64px,calc(env(safe-area-inset-top) + 58px));z-index:4;transform:translateX(-50%);max-width:90vw;color:#75919c;font-size:.68rem;white-space:nowrap;pointer-events:none}
+    .help{position:fixed;right:max(14px,env(safe-area-inset-right));top:max(72px,calc(env(safe-area-inset-top) + 68px));z-index:6;width:min(310px,calc(100vw - 28px));padding:13px;border:1px solid rgba(177,224,229,.18);border-radius:16px;background:rgba(5,12,19,.9);backdrop-filter:blur(16px);color:#a9c0c8;font-size:.78rem;line-height:1.45;pointer-events:auto}
+    .help[hidden]{display:none}
+    .help strong{display:block;color:#f4ffff;margin-bottom:6px}
+    .help p{margin:6px 0}
+    .help code{color:#dffcf6}
+    .help button{margin-top:8px;min-height:40px;border:1px solid rgba(177,224,229,.18);border-radius:10px;background:rgba(20,37,47,.9);color:#eefcff;cursor:pointer;padding:7px 10px}
+    .toast{position:fixed;left:50%;top:50%;z-index:7;transform:translate(-50%,-50%);padding:10px 14px;border:1px solid rgba(205,255,242,.3);border-radius:999px;background:rgba(5,14,18,.84);color:#f3fffc;font-weight:850;opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease}
+    .toast[data-show="true"]{opacity:1;transform:translate(-50%,-50%) scale(1.04)}
+    @media(max-width:720px){
+      .title-wrap small,.hint{display:none}
+      .stats{max-width:58vw}
+      .pill:nth-child(n+3){display:none}
+      .dock{width:100%}
+      .composer{grid-template-columns:1fr}
+      .composer button{width:100%}
+      .controls{justify-content:stretch}
+      .control{flex:1 1 30%}
+      .world-message{font-size:.68rem}
+    }
+    @media(prefers-reduced-motion:reduce){
+      .reticle,.toast{transition:none}
+    }
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <canvas id="world" aria-label="Interactive 3D living world"></canvas>
+
+  <div class="hud">
+    <div class="top">
+      <a class="brand" href="/" aria-label="3DVR Portal home">
+        <img src="/brand/portal-mark.svg" alt="">
+        <span class="title-wrap"><span>Living World</span><small>3DVR ambient playground</small></span>
+      </a>
+      <div class="stats" aria-live="polite">
+        <span class="pill">light seeds <strong id="seed-count">0</strong></span>
+        <span class="pill">mood <strong id="mood">dusk</strong></span>
+        <span class="pill">dream <strong id="dream-status">on</strong></span>
+        <span class="pill">speed <strong id="speed-status">1.0×</strong></span>
+      </div>
+    </div>
+
+    <div class="center">
+      <div class="reticle" id="reticle" aria-hidden="true"></div>
+    </div>
+
+    <div class="dock">
+      <div class="world-message" id="world-message">The world is awake. Drift, explore, or tell it what you want.</div>
+      <form class="composer" id="world-form">
+        <input id="world-prompt" autocomplete="off" maxlength="180" aria-label="Tell the world how to change" placeholder="Try: more crystals · sunset · calmer · surprise me">
+        <button type="submit">Shape world</button>
+      </form>
+      <div class="controls" aria-label="World controls">
+        <button class="control" id="drift-button" type="button" data-active="true">Auto drift</button>
+        <button class="control" id="dream-button" type="button" data-active="true">World dreams</button>
+        <button class="control" id="breath-button" type="button">Breathe</button>
+        <button class="control" id="phone-button" type="button">Phone look</button>
+        <button class="control" id="help-button" type="button">How to move</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="hint">WASD / arrows move · drag to look · wheel glides · collect the floating light seeds</div>
+
+  <aside class="help" id="help-panel" hidden>
+    <strong>Move however feels good.</strong>
+    <p><code>WASD</code> or arrows fly. Drag the world to look around. Mouse wheel glides forward/back.</p>
+    <p>The world gently evolves when <b>World dreams</b> is on. Your changes persist on this device.</p>
+    <p>Try commands like <code>forest</code>, <code>ocean</code>, <code>night</code>, <code>more crystals</code>, <code>more orbs</code>, <code>faster</code>, <code>calmer</code>, or <code>surprise me</code>.</p>
+    <button id="close-help" type="button">Got it</button>
+  </aside>
+  <div class="toast" id="toast" aria-live="polite"></div>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.176.0/build/three.module.js';
+
+    const canvas = document.getElementById('world');
+    const promptForm = document.getElementById('world-form');
+    const promptInput = document.getElementById('world-prompt');
+    const messageEl = document.getElementById('world-message');
+    const seedCountEl = document.getElementById('seed-count');
+    const moodEl = document.getElementById('mood');
+    const dreamStatusEl = document.getElementById('dream-status');
+    const speedStatusEl = document.getElementById('speed-status');
+    const reticle = document.getElementById('reticle');
+    const driftButton = document.getElementById('drift-button');
+    const dreamButton = document.getElementById('dream-button');
+    const breathButton = document.getElementById('breath-button');
+    const phoneButton = document.getElementById('phone-button');
+    const helpButton = document.getElementById('help-button');
+    const helpPanel = document.getElementById('help-panel');
+    const closeHelpButton = document.getElementById('close-help');
+    const toast = document.getElementById('toast');
+
+    const STORAGE_KEY = '3dvr-living-world-v1';
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const clamp = (n,min,max) => Math.max(min,Math.min(max,n));
+    const randomRange = (min,max) => min + Math.random() * (max-min);
+
+    const defaults = {
+      theme:'dusk',
+      energy:1,
+      speed:1,
+      crystalCount:18,
+      orbCount:24,
+      drift:true,
+      dream:true,
+      collected:0
+    };
+
+    let state = {...defaults};
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+      if (saved && typeof saved === 'object') state = {...defaults,...saved};
+    } catch {}
+
+    state.energy = clamp(Number(state.energy) || 1,.45,1.8);
+    state.speed = clamp(Number(state.speed) || 1,.45,2.2);
+    state.crystalCount = clamp(Math.round(Number(state.crystalCount) || defaults.crystalCount),4,52);
+    state.orbCount = clamp(Math.round(Number(state.orbCount) || defaults.orbCount),8,64);
+    state.collected = Math.max(0,Math.round(Number(state.collected) || 0));
+
+    const themes = {
+      dusk:{bg:0x09131c,fog:0x09131c,sky:0x8196c4,ground:0x18302f,accent:0x8ce6d4,accent2:0xd2a6ff,sun:0xffc788},
+      night:{bg:0x02050d,fog:0x02050d,sky:0x556a9e,ground:0x111c29,accent:0x7fe8ff,accent2:0x9f8cff,sun:0xa9c8ff},
+      forest:{bg:0x07100c,fog:0x07100c,sky:0x6a927d,ground:0x173126,accent:0x8be8ad,accent2:0xe7d690,sun:0xe7efb7},
+      ocean:{bg:0x03141b,fog:0x03141b,sky:0x679eb4,ground:0x123442,accent:0x7de8e2,accent2:0x8ab9ff,sun:0xc5fff5},
+      sunset:{bg:0x1b0d17,fog:0x1b0d17,sky:0xba7388,ground:0x352329,accent:0xffc59c,accent2:0xd9a3ff,sun:0xffc27c},
+      aurora:{bg:0x061016,fog:0x061016,sky:0x6a7ea6,ground:0x162c34,accent:0x78f4c6,accent2:0x8cbcff,sun:0xdbfff4}
+    };
+    if (!themes[state.theme]) state.theme = 'dusk';
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(themes[state.theme].bg);
+    scene.fog = new THREE.FogExp2(themes[state.theme].fog,0.011);
+
+    const camera = new THREE.PerspectiveCamera(64,innerWidth/innerHeight,.07,700);
+    camera.position.set(0,4.3,18);
+
+    const renderer = new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+    renderer.setSize(innerWidth,innerHeight,false);
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1,1.7));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+
+    const hemi = new THREE.HemisphereLight(themes[state.theme].sky,themes[state.theme].ground,1.45);
+    scene.add(hemi);
+    const sun = new THREE.DirectionalLight(themes[state.theme].sun,2.3);
+    sun.position.set(-8,14,8);
+    scene.add(sun);
+    const wanderLight = new THREE.PointLight(themes[state.theme].accent,18,60,2);
+    wanderLight.position.set(0,5,4);
+    scene.add(wanderLight);
+
+    const worldRoot = new THREE.Group();
+    scene.add(worldRoot);
+    const crystalGroup = new THREE.Group();
+    const seedGroup = new THREE.Group();
+    const orbGroup = new THREE.Group();
+    const archGroup = new THREE.Group();
+    worldRoot.add(crystalGroup,seedGroup,orbGroup,archGroup);
+
+    const starGeometry = new THREE.BufferGeometry();
+    const starCount = innerWidth < 700 ? 850 : 1450;
+    const starPositions = new Float32Array(starCount * 3);
+    for (let i=0;i<starCount;i++) {
+      const r = randomRange(65,280);
+      const theta = Math.random()*Math.PI*2;
+      const y = randomRange(-70,100);
+      starPositions[i*3] = Math.cos(theta)*r;
+      starPositions[i*3+1] = y;
+      starPositions[i*3+2] = Math.sin(theta)*r-60;
+    }
+    starGeometry.setAttribute('position',new THREE.BufferAttribute(starPositions,3));
+    const starMaterial = new THREE.PointsMaterial({color:themes[state.theme].accent2,size:.32,transparent:true,opacity:.64,sizeAttenuation:true});
+    const stars = new THREE.Points(starGeometry,starMaterial);
+    scene.add(stars);
+
+    const floorRingMaterial = new THREE.MeshBasicMaterial({color:themes[state.theme].accent,transparent:true,opacity:.09,side:THREE.DoubleSide,depthWrite:false});
+    const floorRings = new THREE.Group();
+    for (let i=0;i<9;i++) {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(5+i*8,5.045+i*8,96),floorRingMaterial);
+      ring.rotation.x = -Math.PI/2;
+      ring.position.y = -5.5;
+      ring.position.z = -30;
+      floorRings.add(ring);
+    }
+    scene.add(floorRings);
+
+    const islandMaterial = new THREE.MeshStandardMaterial({color:themes[state.theme].ground,roughness:.88,metalness:.02,flatShading:true});
+    const islandGeometry = new THREE.IcosahedronGeometry(7,2);
+    const islands = [];
+    const islandSpots = [
+      [-12,-3,-16,1.0,.42,.85],
+      [11,-5,-32,1.3,.48,1.05],
+      [-3,4,-50,.78,.3,.72],
+      [19,5,-66,.88,.33,.82],
+      [-22,2,-72,.95,.36,.9]
+    ];
+    islandSpots.forEach((spot,index) => {
+      const mesh = new THREE.Mesh(islandGeometry,islandMaterial);
+      mesh.position.set(spot[0],spot[1],spot[2]);
+      mesh.scale.set(spot[3],spot[4],spot[5]);
+      mesh.rotation.set(randomRange(-.15,.15),randomRange(0,Math.PI),randomRange(-.12,.12));
+      mesh.userData.baseY = mesh.position.y;
+      mesh.userData.phase = index*.9;
+      worldRoot.add(mesh);
+      islands.push(mesh);
+    });
+
+    const crystalMaterial = new THREE.MeshStandardMaterial({
+      color:themes[state.theme].accent,
+      emissive:themes[state.theme].accent,
+      emissiveIntensity:1.15,
+      roughness:.24,
+      metalness:.25,
+      transparent:true,
+      opacity:.88
+    });
+    const crystalGeometry = new THREE.OctahedronGeometry(.8,0);
+
+    function clearGroup(group) {
+      while (group.children.length) group.remove(group.children[group.children.length-1]);
+    }
+
+    function randomWorldPosition(radiusMin=10,radiusMax=70) {
+      const angle = Math.random()*Math.PI*2;
+      const r = randomRange(radiusMin,radiusMax);
+      return new THREE.Vector3(
+        Math.cos(angle)*r,
+        randomRange(-3,14),
+        -18 + Math.sin(angle)*r - randomRange(0,40)
+      );
+    }
+
+    function rebuildCrystals() {
+      clearGroup(crystalGroup);
+      for (let i=0;i<state.crystalCount;i++) {
+        const mesh = new THREE.Mesh(crystalGeometry,crystalMaterial);
+        const p = randomWorldPosition(8,62);
+        mesh.position.copy(p);
+        const scale = randomRange(.5,2.15);
+        mesh.scale.set(scale*.52,scale*randomRange(1.2,2.7),scale*.52);
+        mesh.rotation.set(randomRange(-.2,.2),Math.random()*Math.PI,randomRange(-.2,.2));
+        mesh.userData.phase = Math.random()*Math.PI*2;
+        crystalGroup.add(mesh);
+      }
+    }
+
+    const seedGeometry = new THREE.SphereGeometry(.28,14,14);
+    const seedMaterial = new THREE.MeshStandardMaterial({
+      color:0xffffff,
+      emissive:themes[state.theme].accent,
+      emissiveIntensity:4,
+      roughness:.08
+    });
+
+    function placeSeed(mesh) {
+      mesh.position.copy(randomWorldPosition(6,56));
+      mesh.position.y = randomRange(-1,16);
+      mesh.userData.baseY = mesh.position.y;
+      mesh.userData.phase = Math.random()*Math.PI*2;
+    }
+
+    function rebuildSeeds() {
+      clearGroup(seedGroup);
+      for (let i=0;i<state.orbCount;i++) {
+        const mesh = new THREE.Mesh(seedGeometry,seedMaterial);
+        placeSeed(mesh);
+        seedGroup.add(mesh);
+      }
+    }
+
+    const orbGeometry = new THREE.TorusGeometry(2.1,.045,8,56);
+    const orbMaterial = new THREE.MeshBasicMaterial({color:themes[state.theme].accent2,transparent:true,opacity:.3});
+    function rebuildOrbs() {
+      clearGroup(orbGroup);
+      const count = Math.max(5,Math.round(state.orbCount*.34));
+      for (let i=0;i<count;i++) {
+        const ring = new THREE.Mesh(orbGeometry,orbMaterial);
+        ring.position.copy(randomWorldPosition(12,64));
+        ring.scale.setScalar(randomRange(.6,1.7));
+        ring.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,Math.random()*Math.PI);
+        ring.userData.phase = Math.random()*Math.PI*2;
+        orbGroup.add(ring);
+      }
+    }
+
+    const archGeometry = new THREE.TorusGeometry(4.8,.12,10,72,Math.PI);
+    const archMaterial = new THREE.MeshStandardMaterial({
+      color:themes[state.theme].accent2,
+      emissive:themes[state.theme].accent2,
+      emissiveIntensity:1.1,
+      roughness:.3,
+      metalness:.3,
+      transparent:true,
+      opacity:.7
+    });
+    [
+      [0,1,-20,0],
+      [-18,5,-44,.7],
+      [16,4,-55,-.55],
+      [2,9,-78,.2]
+    ].forEach((p,index) => {
+      const arch = new THREE.Mesh(archGeometry,archMaterial);
+      arch.position.set(p[0],p[1],p[2]);
+      arch.rotation.set(0,p[3],0);
+      arch.userData.phase = index*.9;
+      archGroup.add(arch);
+    });
+
+    rebuildCrystals();
+    rebuildSeeds();
+    rebuildOrbs();
+
+    const targetBg = new THREE.Color(themes[state.theme].bg);
+    const targetFog = new THREE.Color(themes[state.theme].fog);
+    const targetSky = new THREE.Color(themes[state.theme].sky);
+    const targetGround = new THREE.Color(themes[state.theme].ground);
+    const targetAccent = new THREE.Color(themes[state.theme].accent);
+    const targetAccent2 = new THREE.Color(themes[state.theme].accent2);
+    const targetSun = new THREE.Color(themes[state.theme].sun);
+
+    function saveState() {
+      try { localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); } catch {}
+    }
+
+    function updateHud() {
+      seedCountEl.textContent = String(state.collected);
+      moodEl.textContent = state.theme;
+      dreamStatusEl.textContent = state.dream ? 'on' : 'off';
+      speedStatusEl.textContent = state.speed.toFixed(1) + '×';
+      driftButton.dataset.active = String(state.drift);
+      dreamButton.dataset.active = String(state.dream);
+      dreamButton.textContent = state.dream ? 'World dreams' : 'Dreams paused';
+      driftButton.textContent = state.drift ? 'Auto drift' : 'Drift paused';
+    }
+
+    function say(text) {
+      messageEl.textContent = text;
+    }
+
+    let toastTimer = 0;
+    function showToast(text) {
+      toast.textContent = text;
+      toast.dataset.show = 'true';
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toast.dataset.show = 'false'; },1200);
+    }
+
+    function applyTheme(name,announce=true) {
+      if (!themes[name]) return false;
+      state.theme = name;
+      const t = themes[name];
+      targetBg.setHex(t.bg);
+      targetFog.setHex(t.fog);
+      targetSky.setHex(t.sky);
+      targetGround.setHex(t.ground);
+      targetAccent.setHex(t.accent);
+      targetAccent2.setHex(t.accent2);
+      targetSun.setHex(t.sun);
+      if (announce) say('The world settles into ' + name + '.');
+      saveState();
+      updateHud();
+      return true;
+    }
+
+    function refreshMaterials() {
+      crystalMaterial.color.copy(targetAccent);
+      crystalMaterial.emissive.copy(targetAccent);
+      seedMaterial.emissive.copy(targetAccent);
+      orbMaterial.color.copy(targetAccent2);
+      archMaterial.color.copy(targetAccent2);
+      archMaterial.emissive.copy(targetAccent2);
+      floorRingMaterial.color.copy(targetAccent);
+      starMaterial.color.copy(targetAccent2);
+      islandMaterial.color.copy(targetGround);
+    }
+
+    const dreamEvents = [
+      () => {
+        state.crystalCount = clamp(state.crystalCount + 2,4,52);
+        rebuildCrystals();
+        return 'A few new crystals unfolded in the distance.';
+      },
+      () => {
+        state.orbCount = clamp(state.orbCount + 2,8,64);
+        rebuildSeeds();
+        rebuildOrbs();
+        return 'New light seeds drifted into the world.';
+      },
+      () => {
+        state.energy = clamp(state.energy + randomRange(-.08,.1),.55,1.55);
+        return state.energy > 1 ? 'The world became a little more awake.' : 'The world softened its pulse.';
+      },
+      () => {
+        const choices = Object.keys(themes).filter(name => name !== state.theme);
+        const next = choices[Math.floor(Math.random()*choices.length)];
+        applyTheme(next,false);
+        refreshMaterials();
+        return 'The sky dreamed itself toward ' + next + '.';
+      }
+    ];
+
+    function dreamWorld(force=false) {
+      const pool = force ? dreamEvents : dreamEvents.slice(0,3);
+      const event = pool[Math.floor(Math.random()*pool.length)];
+      const text = event();
+      say(text);
+      saveState();
+      updateHud();
+    }
+
+    function resetWorld() {
+      state = {...defaults,collected:state.collected};
+      applyTheme('dusk',false);
+      rebuildCrystals();
+      rebuildSeeds();
+      rebuildOrbs();
+      refreshMaterials();
+      saveState();
+      updateHud();
+      say('The world returned to its original shape.');
+    }
+
+    function parseNumberWords(text) {
+      const match = text.match(/\b(\d{1,2})\b/);
+      return match ? Number(match[1]) : null;
+    }
+
+    function shapeWorld(raw) {
+      const text = String(raw || '').toLowerCase().trim();
+      if (!text) return;
+      let changed = false;
+
+      if (/\b(reset|start over|original)\b/.test(text)) {
+        resetWorld();
+        return;
+      }
+      if (/\b(surprise|random|dream now|evolve now)\b/.test(text)) {
+        dreamWorld(true);
+        return;
+      }
+
+      for (const themeName of Object.keys(themes)) {
+        if (text.includes(themeName)) {
+          applyTheme(themeName);
+          refreshMaterials();
+          changed = true;
+          break;
+        }
+      }
+      if (text.includes('sunrise')) {
+        applyTheme('sunset');
+        refreshMaterials();
+        state.energy = .8;
+        say('A soft sunrise warmth spreads across the world.');
+        changed = true;
+      }
+      if (/\b(calm|calmer|quiet|softer|meditative|meditation|gentle)\b/.test(text)) {
+        state.energy = clamp(state.energy*.72,.45,1.8);
+        state.speed = clamp(state.speed*.82,.45,2.2);
+        say('The world slowed down and softened.');
+        changed = true;
+      }
+      if (/\b(awake|energetic|stimulating|wilder|intense|lively)\b/.test(text)) {
+        state.energy = clamp(state.energy*1.28,.45,1.8);
+        state.speed = clamp(state.speed*1.12,.45,2.2);
+        say('The world brightened and picked up energy.');
+        changed = true;
+      }
+      if (/\b(faster|speed up|quicker)\b/.test(text)) {
+        state.speed = clamp(state.speed+.2,.45,2.2);
+        say('Movement is faster now.');
+        changed = true;
+      }
+      if (/\b(slower|slow down)\b/.test(text)) {
+        state.speed = clamp(state.speed-.2,.45,2.2);
+        say('Movement is slower now.');
+        changed = true;
+      }
+
+      const requested = parseNumberWords(text);
+      if (text.includes('crystal')) {
+        const delta = requested || 6;
+        if (/\b(less|fewer|remove|reduce)\b/.test(text)) state.crystalCount = clamp(state.crystalCount-delta,4,52);
+        else state.crystalCount = clamp(state.crystalCount+delta,4,52);
+        rebuildCrystals();
+        say('The crystal field reshaped itself.');
+        changed = true;
+      }
+      if (/\b(orb|seed|light)\b/.test(text) && !/\b(sun|sunset|sunrise)\b/.test(text)) {
+        const delta = requested || 5;
+        if (/\b(less|fewer|remove|reduce)\b/.test(text)) state.orbCount = clamp(state.orbCount-delta,8,64);
+        else if (/\b(more|add|extra|many)\b/.test(text)) state.orbCount = clamp(state.orbCount+delta,8,64);
+        rebuildSeeds();
+        rebuildOrbs();
+        say('The lights rearranged themselves around you.');
+        changed = true;
+      }
+      if (/\b(drift on|auto drift on|keep moving)\b/.test(text)) {
+        state.drift = true;
+        say('Auto drift is carrying you forward.');
+        changed = true;
+      }
+      if (/\b(drift off|stop drift|hold still)\b/.test(text)) {
+        state.drift = false;
+        say('Auto drift paused. The world can wait with you.');
+        changed = true;
+      }
+      if (/\b(dream on|evolve on|keep evolving)\b/.test(text)) {
+        state.dream = true;
+        say('The world will keep dreaming while you explore.');
+        changed = true;
+      }
+      if (/\b(dream off|stop evolving|pause dreams)\b/.test(text)) {
+        state.dream = false;
+        say('The world will stay as you left it.');
+        changed = true;
+      }
+
+      if (!changed) {
+        say('I caught the feeling, but not that exact shape yet. Try a mood, more crystals/lights, faster/slower, or surprise me.');
+      } else {
+        saveState();
+        updateHud();
+      }
+    }
+
+    promptForm.addEventListener('submit',event => {
+      event.preventDefault();
+      const value = promptInput.value.trim();
+      if (!value) return;
+      shapeWorld(value);
+      promptInput.value = '';
+      promptInput.blur();
+    });
+
+    driftButton.addEventListener('click',() => {
+      state.drift = !state.drift;
+      say(state.drift ? 'Auto drift resumed.' : 'Auto drift paused.');
+      saveState();
+      updateHud();
+    });
+    dreamButton.addEventListener('click',() => {
+      state.dream = !state.dream;
+      say(state.dream ? 'The world is dreaming again.' : 'The world will hold this shape.');
+      saveState();
+      updateHud();
+    });
+
+    let breathing = false;
+    breathButton.addEventListener('click',() => {
+      breathing = !breathing;
+      breathButton.dataset.active = String(breathing);
+      breathButton.textContent = breathing ? 'Breathing with you' : 'Breathe';
+      say(breathing ? 'Follow the small ring: inhale as it opens, exhale as it closes.' : 'Breathing guide paused.');
+      reticle.removeAttribute('data-breath');
+    });
+
+    helpButton.addEventListener('click',() => { helpPanel.hidden = !helpPanel.hidden; });
+    closeHelpButton.addEventListener('click',() => { helpPanel.hidden = true; });
+
+    const keys = new Set();
+    let yaw = 0;
+    let pitch = -.05;
+    let dragging = false;
+    let lastX = 0;
+    let lastY = 0;
+    const touchEuler = new THREE.Euler(0,0,0,'YXZ');
+    const touchQuaternion = new THREE.Quaternion();
+
+    addEventListener('keydown',event => {
+      if (document.activeElement === promptInput) return;
+      keys.add(event.code);
+      if (event.code === 'Slash') {
+        event.preventDefault();
+        promptInput.focus();
+      }
+    });
+    addEventListener('keyup',event => keys.delete(event.code));
+
+    canvas.addEventListener('pointerdown',event => {
+      dragging = true;
+      lastX = event.clientX;
+      lastY = event.clientY;
+      canvas.setPointerCapture?.(event.pointerId);
+    });
+    canvas.addEventListener('pointerup',() => { dragging = false; });
+    canvas.addEventListener('pointercancel',() => { dragging = false; });
+    canvas.addEventListener('pointermove',event => {
+      if (!dragging) return;
+      const dx = event.clientX-lastX;
+      const dy = event.clientY-lastY;
+      lastX = event.clientX;
+      lastY = event.clientY;
+      const grabWorld = event.pointerType === 'touch' || event.pointerType === 'pen';
+      const direction = grabWorld ? 1 : -1;
+      yaw += dx*.0041*direction;
+      pitch = clamp(pitch+dy*.0034*direction,-1.25,1.25);
+    });
+
+    const forward = new THREE.Vector3();
+    const right = new THREE.Vector3();
+    function cameraForward() {
+      return forward.set(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+    }
+    function cameraRight() {
+      return right.set(1,0,0).applyQuaternion(camera.quaternion).normalize();
+    }
+    canvas.addEventListener('wheel',event => {
+      camera.position.addScaledVector(cameraForward(),-Math.sign(event.deltaY)*1.5*state.speed);
+    },{passive:true});
+
+    let phoneLook = false;
+    let orientationBaseline = null;
+    let screenOrientation = 0;
+    const deviceEuler = new THREE.Euler();
+    const deviceQuaternion = new THREE.Quaternion();
+    const deviceRelative = new THREE.Quaternion();
+    const deviceTarget = new THREE.Quaternion();
+    const deviceAxisZ = new THREE.Vector3(0,0,1);
+    const deviceScreenFix = new THREE.Quaternion();
+    const deviceCameraFix = new THREE.Quaternion(-Math.sqrt(.5),0,0,Math.sqrt(.5));
+
+    function updateScreenOrientation() {
+      const angle = Number.isFinite(screen.orientation?.angle) ? screen.orientation.angle : (window.orientation || 0);
+      screenOrientation = THREE.MathUtils.degToRad(angle || 0);
+      orientationBaseline = null;
+    }
+
+    function deviceCameraQuaternion(event,target) {
+      const alpha = THREE.MathUtils.degToRad(Number.isFinite(event.alpha) ? event.alpha : 0);
+      const beta = THREE.MathUtils.degToRad(Number.isFinite(event.beta) ? event.beta : 0);
+      const gamma = THREE.MathUtils.degToRad(Number.isFinite(event.gamma) ? event.gamma : 0);
+      deviceEuler.set(beta,alpha,-gamma,'YXZ');
+      target.setFromEuler(deviceEuler);
+      target.multiply(deviceCameraFix);
+      target.multiply(deviceScreenFix.setFromAxisAngle(deviceAxisZ,-screenOrientation));
+      return target;
+    }
+
+    function onOrientation(event) {
+      if (!phoneLook) return;
+      deviceCameraQuaternion(event,deviceQuaternion);
+      if (!orientationBaseline) {
+        orientationBaseline = deviceQuaternion.clone();
+        deviceRelative.identity();
+        deviceTarget.identity();
+      } else {
+        deviceTarget.copy(orientationBaseline).invert().multiply(deviceQuaternion).normalize();
+      }
+    }
+
+    async function enablePhoneLook() {
+      try {
+        if (typeof DeviceOrientationEvent === 'undefined') throw new Error('No orientation sensor');
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+          const state = await DeviceOrientationEvent.requestPermission();
+          if (state !== 'granted') throw new Error('Permission denied');
+        }
+        phoneLook = true;
+        orientationBaseline = null;
+        updateScreenOrientation();
+        addEventListener('deviceorientation',onOrientation,{passive:true});
+        phoneButton.dataset.active = 'true';
+        phoneButton.textContent = 'Recenter phone';
+        say('Phone look is active. Move the phone like a window into the world.');
+      } catch {
+        say('Phone orientation is unavailable here, but drag-look still works.');
+      }
+    }
+
+    updateScreenOrientation();
+    addEventListener('orientationchange',updateScreenOrientation,{passive:true});
+    screen.orientation?.addEventListener?.('change',updateScreenOrientation);
+    phoneButton.addEventListener('click',() => {
+      if (phoneLook) {
+        orientationBaseline = null;
+        deviceRelative.identity();
+        deviceTarget.identity();
+        say('Phone view recentered.');
+      } else {
+        enablePhoneLook();
+      }
+    });
+
+    let lastDreamAt = performance.now();
+    let lastBreathPhase = '';
+    const clock = new THREE.Clock();
+
+    function collectSeeds(now) {
+      seedGroup.children.forEach(seed => {
+        seed.position.y = seed.userData.baseY + Math.sin(now*.0015+seed.userData.phase)*.55;
+        seed.rotation.y += .008*state.energy;
+        if (camera.position.distanceToSquared(seed.position) < 2.2) {
+          state.collected += 1;
+          placeSeed(seed);
+          showToast('+ light seed');
+          seedCountEl.textContent = String(state.collected);
+          saveState();
+        }
+      });
+    }
+
+    function animate() {
+      const dt = Math.min(clock.getDelta(),.05);
+      const now = performance.now();
+
+      scene.background.lerp(targetBg,.018);
+      scene.fog.color.lerp(targetFog,.018);
+      hemi.color.lerp(targetSky,.018);
+      hemi.groundColor.lerp(targetGround,.018);
+      sun.color.lerp(targetSun,.018);
+      wanderLight.color.lerp(targetAccent,.018);
+      crystalMaterial.color.lerp(targetAccent,.025);
+      crystalMaterial.emissive.lerp(targetAccent,.025);
+      seedMaterial.emissive.lerp(targetAccent,.025);
+      orbMaterial.color.lerp(targetAccent2,.025);
+      archMaterial.color.lerp(targetAccent2,.025);
+      archMaterial.emissive.lerp(targetAccent2,.025);
+      floorRingMaterial.color.lerp(targetAccent,.025);
+      starMaterial.color.lerp(targetAccent2,.025);
+      islandMaterial.color.lerp(targetGround,.025);
+
+      const moveSpeed = 6.2*state.speed;
+      const f = cameraForward();
+      const r = cameraRight();
+
+      if (keys.has('KeyW') || keys.has('ArrowUp')) camera.position.addScaledVector(f,moveSpeed*dt);
+      if (keys.has('KeyS') || keys.has('ArrowDown')) camera.position.addScaledVector(f,-moveSpeed*dt);
+      if (keys.has('KeyA') || keys.has('ArrowLeft')) camera.position.addScaledVector(r,-moveSpeed*.7*dt);
+      if (keys.has('KeyD') || keys.has('ArrowRight')) camera.position.addScaledVector(r,moveSpeed*.7*dt);
+      if (keys.has('Space')) camera.position.y += moveSpeed*.65*dt;
+      if (keys.has('ShiftLeft') || keys.has('ShiftRight')) camera.position.y -= moveSpeed*.65*dt;
+
+      if (state.drift && !reducedMotion && document.activeElement !== promptInput) {
+        camera.position.addScaledVector(f,.42*state.speed*dt);
+        yaw += Math.sin(now*.00016)*.00006*state.energy;
+      }
+
+      touchEuler.set(pitch,yaw,0,'YXZ');
+      touchQuaternion.setFromEuler(touchEuler);
+      if (phoneLook && orientationBaseline) {
+        deviceRelative.slerp(deviceTarget,.2);
+        camera.quaternion.copy(touchQuaternion).multiply(deviceRelative).normalize();
+      } else {
+        camera.quaternion.copy(touchQuaternion);
+      }
+
+      stars.rotation.y += dt*.004*state.energy;
+      floorRings.rotation.z += dt*.008*state.energy;
+      crystalGroup.children.forEach((mesh,index) => {
+        mesh.rotation.y += dt*(.05+(index%5)*.007)*state.energy;
+        mesh.position.y += Math.sin(now*.001+mesh.userData.phase)*.0009*state.energy;
+      });
+      orbGroup.children.forEach((ring,index) => {
+        ring.rotation.x += dt*.03*state.energy;
+        ring.rotation.z += dt*(.02+(index%3)*.01)*state.energy;
+      });
+      archGroup.children.forEach((arch,index) => {
+        arch.rotation.z = Math.sin(now*.00022+arch.userData.phase)*.07;
+        arch.material.opacity = .48 + Math.sin(now*.0008+index)*.16;
+      });
+      islands.forEach(island => {
+        island.position.y = island.userData.baseY + Math.sin(now*.00035+island.userData.phase)*.38*state.energy;
+      });
+      wanderLight.position.x = Math.sin(now*.00035)*13;
+      wanderLight.position.z = -15 + Math.cos(now*.00029)*20;
+
+      collectSeeds(now);
+
+      if (breathing) {
+        const phase = ((now/5000)%1);
+        const inhale = phase < .46;
+        const label = inhale ? 'inhale' : 'exhale';
+        reticle.dataset.breath = label;
+        if (label !== lastBreathPhase) {
+          lastBreathPhase = label;
+          say(inhale ? 'Inhale gently.' : 'Exhale and let your shoulders drop.');
+        }
+      }
+
+      if (state.dream && now-lastDreamAt > 62000) {
+        lastDreamAt = now;
+        dreamWorld(false);
+      }
+
+      renderer.render(scene,camera);
+      requestAnimationFrame(animate);
+    }
+
+    addEventListener('resize',() => {
+      camera.aspect = innerWidth/innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth,innerHeight,false);
+      renderer.setPixelRatio(Math.min(devicePixelRatio || 1,1.7));
+    });
+
+    updateHud();
+    refreshMaterials();
+    if (reducedMotion) {
+      state.drift = false;
+      updateHud();
+      say('Reduced-motion mode detected. Auto drift is paused, but the world is still explorable.');
+    }
+    animate();
+  </script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
