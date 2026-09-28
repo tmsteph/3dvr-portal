@@ -50,30 +50,61 @@ jobs:
           echo 'No configured SSH key can reach Hetzner as root.' >&2
           exit 1
 
-      - name: Restart bridge and print fresh auth code
+      - name: Restart bridge and verify Remote MCP readiness
+        id: recover
         shell: bash
         run: |
           set -euo pipefail
           opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
           ssh "${opts[@]}" root@$WORKER_HOST 'bash -s' <<'REMOTE'
           set -euo pipefail
+          cfg="$HOME/.3dvr/config/env"
+          node_bin=''
+          if [ -f "$cfg" ]; then
+            candidate="$(sed -n 's/^export THREEDVR_NODE_BIN=//p; s/^THREEDVR_NODE_BIN=//p' "$cfg" | tail -n 1 | tr -d "'\"")"
+            [ -x "$candidate" ] && node_bin="$candidate"
+          fi
+          for candidate in "$node_bin" /root/.openclaw/tools/node/bin/node /opt/node-v22/bin/node "$(command -v node 2>/dev/null || true)"; do
+            [ -n "$candidate" ] && [ -x "$candidate" ] || continue
+            if "$candidate" -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a>22 || (a===22 && b>=13) ? 0 : 1)' >/dev/null 2>&1; then
+              node_bin="$candidate"
+              break
+            fi
+          done
+          [ -x "$node_bin" ] || { echo 'Node >=22.13 is required for Desktop Commander 0.2.51.' >&2; exit 1; }
+          node_dir="$(dirname "$node_bin")"
+          echo "DESKTOP_COMMANDER_NODE=$("$node_bin" --version) ($node_bin)"
           npx_bin="$(command -v npx)"
           [ -n "$npx_bin" ] || { echo 'npx is unavailable on Hetzner.' >&2; exit 1; }
           install -d -m 0755 /etc/systemd/system/desktop-commander-remote.service.d
           cat >/etc/systemd/system/desktop-commander-remote.service.d/98-3dvr-version-pin.conf <<UNIT
           [Service]
+          Environment=PATH=$node_dir:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
           ExecStartPre=
           ExecStart=
           ExecStart=$npx_bin -y @wonderwhy-er/desktop-commander@0.2.51 remote
           UNIT
           systemctl daemon-reload
           systemctl reset-failed desktop-commander-remote.service || true
+          dc_started="$(date '+%Y-%m-%d %H:%M:%S')"
           systemctl restart desktop-commander-remote.service
-          sleep 6
+          dc_ready=0
+          for attempt in $(seq 1 20); do
+            dc_logs="$(journalctl -u desktop-commander-remote.service --since "$dc_started" --no-pager || true)"
+            if grep -q 'Device ready' <<<"$dc_logs"; then
+              dc_ready=1
+              break
+            fi
+            if grep -q 'Device startup failed' <<<"$dc_logs"; then
+              break
+            fi
+            sleep 2
+          done
           echo '=== desktop commander status ==='
           systemctl --no-pager --full status desktop-commander-remote.service || true
           echo '=== latest authorization block ==='
-          journalctl -u desktop-commander-remote.service --since '-2 minutes' --no-pager | tail -80
+          journalctl -u desktop-commander-remote.service --since "$dc_started" --no-pager | tail -120 || true
+          [ "$dc_ready" -eq 1 ] || { echo 'Desktop Commander did not reach Device ready.' >&2; exit 1; }
           REMOTE
 
       - name: Publish Hetzner bridge status
@@ -81,7 +112,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const ok = '${{ job.status }}' === 'success';
+            const ok = '${{ steps.recover.outcome }}' === 'success';
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
