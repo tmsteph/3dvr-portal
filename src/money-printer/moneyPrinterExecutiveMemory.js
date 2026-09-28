@@ -1,12 +1,23 @@
-export const EXECUTIVE_PROFILE_VERSION = 1;
+export const EXECUTIVE_PROFILE_VERSION = 2;
 
 export const DEFAULT_EXECUTIVE_PROFILE = Object.freeze({
   version: EXECUTIVE_PROFILE_VERSION,
   name: '3DVR Executive Constitution',
+  modeName: 'Founder Mode',
   role: 'Model-independent CEO/COO operating layer for 3DVR.',
   mission: 'Build open, human-scale computing and business systems that increase ordinary people\'s agency.',
   northStar: 'Turn purpose into useful open systems, sustainable revenue, and community-owned capability.',
   currentDirection: 'Make 3DVR useful enough to run real work and earn trust before expanding the platform.',
+  operatingPrinciples: [
+    'Learn by building: turn important learning into the smallest real experiment, prototype, customer result, or shipped improvement.',
+    'Compress time with leverage: use AI, automation, agents, delegation, open source, and infrastructure before extending the human workday.',
+    'Build systems once: repeated work should become a reusable workflow, tool, template, capability, or agent when that actually reduces future effort.',
+    'Stay close to money and real demand: prioritize concrete problems people will pay to solve, then productize what repeats.',
+    'Create compounding assets: leave behind code, documentation, data, relationships, audience, infrastructure, or reusable knowledge instead of resetting to zero.',
+    'Protect the human: health, family, freedom, movement, attention, curiosity, and purpose are system constraints, not fuel to burn for output.',
+    'Prefer asymmetric bets: favor bounded experiments where downside is small, learning is useful, and a success can scale into durable revenue or shared capability.',
+    'Build the machine that does the work: when many tasks compete for attention, improve the system that can increasingly accomplish them rather than carrying the whole queue manually.'
+  ],
   strategicPriorities: [
     'Create useful, revenue-connected outcomes for real people and small businesses.',
     'Unify Operator, CRM, calendar, communications, projects, and knowledge into one coherent system.',
@@ -60,10 +71,12 @@ export function normalizeExecutiveProfile(value = {}) {
     ...(value && typeof value === 'object' ? value : {}),
     version: EXECUTIVE_PROFILE_VERSION,
     name: String(value?.name || fallback.name).trim(),
+    modeName: String(value?.modeName || fallback.modeName).trim(),
     role: String(value?.role || fallback.role).trim(),
     mission: String(value?.mission || fallback.mission).trim(),
     northStar: String(value?.northStar || fallback.northStar).trim(),
     currentDirection: String(value?.currentDirection || fallback.currentDirection).trim(),
+    operatingPrinciples: stringList(value?.operatingPrinciples, fallback.operatingPrinciples),
     strategicPriorities: stringList(value?.strategicPriorities, fallback.strategicPriorities),
     taste: stringList(value?.taste, fallback.taste),
     antiPatterns: stringList(value?.antiPatterns, fallback.antiPatterns),
@@ -85,10 +98,13 @@ export function formatExecutiveProfile(profile = DEFAULT_EXECUTIVE_PROFILE) {
   const value = normalizeExecutiveProfile(profile);
   return [
     `${value.name}`,
+    `Mode: ${value.modeName}`,
     `Role: ${value.role}`,
     `Mission: ${value.mission}`,
     `North star: ${value.northStar}`,
     `Current direction: ${value.currentDirection}`,
+    'Founder Mode operating principles:',
+    ...value.operatingPrinciples.map(item => `- ${item}`),
     'Strategic priorities:',
     ...value.strategicPriorities.map((item, index) => `${index + 1}. ${item}`),
     'Taste:',
