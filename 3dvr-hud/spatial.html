@@ -79,7 +79,7 @@
       </div>
     </div>
   </div>
-  <div class="hint">WASD / arrows · drag to look · wheel to move · turn your phone · tap a portal label</div>
+  <div class="hint">WASD / arrows · touch: drag the world · mouse: look directly · phone: move like a window</div>
 
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.176.0/build/three.module.js';
@@ -199,12 +199,37 @@
     let backHeld = false;
     let phoneLook = false;
     let orientationBaseline = null;
-    let orientationYaw = 0;
-    let orientationPitch = 0;
     let nearest = null;
 
     const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
-    const angleDelta = (value, origin) => ((value - origin + 540) % 360) - 180;
+    const touchEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+    const touchQuaternion = new THREE.Quaternion();
+    const deviceEuler = new THREE.Euler();
+    const deviceQuaternion = new THREE.Quaternion();
+    const deviceRelative = new THREE.Quaternion();
+    const deviceTarget = new THREE.Quaternion();
+    const deviceAxisZ = new THREE.Vector3(0, 0, 1);
+    const deviceScreenFix = new THREE.Quaternion();
+    const deviceCameraFix = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
+    let screenOrientation = 0;
+
+    function updateScreenOrientation() {
+      const angle = Number.isFinite(screen.orientation?.angle) ? screen.orientation.angle : (window.orientation || 0);
+      screenOrientation = THREE.MathUtils.degToRad(angle || 0);
+      orientationBaseline = null;
+    }
+
+    function deviceCameraQuaternion(event, target) {
+      const alpha = THREE.MathUtils.degToRad(Number.isFinite(event.alpha) ? event.alpha : 0);
+      const beta = THREE.MathUtils.degToRad(Number.isFinite(event.beta) ? event.beta : 0);
+      const gamma = THREE.MathUtils.degToRad(Number.isFinite(event.gamma) ? event.gamma : 0);
+
+      deviceEuler.set(beta, alpha, -gamma, 'YXZ');
+      target.setFromEuler(deviceEuler);
+      target.multiply(deviceCameraFix);
+      target.multiply(deviceScreenFix.setFromAxisAngle(deviceAxisZ, -screenOrientation));
+      return target;
+    }
 
     function forwardVector() {
       const v = new THREE.Vector3(0,0,-1);
@@ -220,13 +245,15 @@
 
     function onOrientation(e) {
       if (!phoneLook) return;
-      const alpha = Number.isFinite(e.alpha) ? e.alpha : 0;
-      const beta = Number.isFinite(e.beta) ? e.beta : 0;
-      const gamma = Number.isFinite(e.gamma) ? e.gamma : 0;
-      if (!orientationBaseline) orientationBaseline = {alpha,beta,gamma};
-      orientationYaw = THREE.MathUtils.degToRad(clamp(angleDelta(alpha, orientationBaseline.alpha), -120, 120));
-      orientationPitch = THREE.MathUtils.degToRad(clamp(beta - orientationBaseline.beta, -70, 70));
-      statusEl.textContent = 'Phone look active · move physically to look around';
+      deviceCameraQuaternion(e, deviceQuaternion);
+      if (!orientationBaseline) {
+        orientationBaseline = deviceQuaternion.clone();
+        deviceRelative.identity();
+        deviceTarget.identity();
+      } else {
+        deviceTarget.copy(orientationBaseline).invert().multiply(deviceQuaternion).normalize();
+      }
+      statusEl.textContent = 'Phone look active · move the phone like a window';
     }
 
     async function enablePhoneLook() {
@@ -238,31 +265,38 @@
         }
         phoneLook = true;
         orientationBaseline = null;
+        deviceRelative.identity();
+        deviceTarget.identity();
+        updateScreenOrientation();
         addEventListener('deviceorientation', onOrientation, {passive:true});
         motionButton.dataset.active = 'true';
         motionButton.textContent = 'Recenter';
-        statusEl.textContent = 'Phone look ready';
+        statusEl.textContent = 'Phone look ready · move the phone like a window';
       } catch (error) {
         statusEl.textContent = 'Phone orientation is unavailable or not enabled';
       }
     }
+
+    updateScreenOrientation();
+    addEventListener('orientationchange', updateScreenOrientation, {passive:true});
+    screen.orientation?.addEventListener?.('change', updateScreenOrientation);
 
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission !== 'function') {
       phoneLook = true;
       addEventListener('deviceorientation', onOrientation, {passive:true});
       motionButton.dataset.active = 'true';
       motionButton.textContent = 'Recenter';
-      statusEl.textContent = 'Phone look auto-enabled';
+      statusEl.textContent = 'Phone look auto-enabled · move the phone like a window';
     } else {
-      statusEl.textContent = 'World ready · move, drag, or enable phone look';
+      statusEl.textContent = 'World ready · drag the world, or enable phone look';
     }
 
     motionButton.addEventListener('click', () => {
       if (phoneLook) {
         orientationBaseline = null;
-        orientationYaw = 0;
-        orientationPitch = 0;
-        statusEl.textContent = 'View recentered';
+        deviceRelative.identity();
+        deviceTarget.identity();
+        statusEl.textContent = 'View recentered · hold the phone naturally';
       } else {
         enablePhoneLook();
       }
@@ -288,9 +322,10 @@
       const dy = e.clientY - dragY;
       dragX = e.clientX;
       dragY = e.clientY;
-      yaw -= dx * 0.0042;
-      pitch = clamp(pitch - dy * 0.0035, -1.22, 1.22);
-      orientationBaseline = null;
+      const grabWorld = e.pointerType === 'touch' || e.pointerType === 'pen';
+      const direction = grabWorld ? 1 : -1;
+      yaw += dx * 0.0042 * direction;
+      pitch = clamp(pitch + dy * 0.0035 * direction, -1.22, 1.22);
     });
     canvas.addEventListener('wheel', e => {
       camera.position.addScaledVector(forwardVector(), -Math.sign(e.deltaY) * 1.45);
@@ -356,11 +391,15 @@
       if (keys.has('KeyA') || keys.has('ArrowLeft')) camera.position.addScaledVector(right, -move * 0.72 * dt);
       if (keys.has('KeyD') || keys.has('ArrowRight')) camera.position.addScaledVector(right, move * 0.72 * dt);
 
-      const effectiveYaw = yaw - orientationYaw;
-      const effectivePitch = clamp(pitch - orientationPitch * 0.7, -1.28, 1.28);
-      camera.rotation.order = 'YXZ';
-      camera.rotation.y = effectiveYaw;
-      camera.rotation.x = effectivePitch;
+      touchEuler.set(pitch, yaw, 0, 'YXZ');
+      touchQuaternion.setFromEuler(touchEuler);
+
+      if (phoneLook && orientationBaseline) {
+        deviceRelative.slerp(deviceTarget, 0.22);
+        camera.quaternion.copy(touchQuaternion).multiply(deviceRelative).normalize();
+      } else {
+        camera.quaternion.copy(touchQuaternion);
+      }
 
       stars.rotation.y += dt * 0.006;
       portalGroup.children.forEach((portal, i) => {
