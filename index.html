@@ -597,6 +597,49 @@
       margin-bottom: 0;
     }
 
+    @media (min-width: 860px) and (min-height: 600px) {
+      body[data-home-chat-active="true"][data-home-chat-long="true"] .shell {
+        width: min(100%, 980px);
+      }
+
+      body[data-home-chat-active="true"][data-home-chat-long="true"] .home {
+        max-width: 940px;
+        grid-template-columns: 152px minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) auto auto;
+        column-gap: 20px;
+      }
+
+      body[data-home-chat-active="true"][data-home-chat-long="true"] .spinner-stage {
+        grid-column: 1;
+        grid-row: 1 / 4;
+        align-self: start;
+        width: 132px;
+        height: 132px;
+        margin: 8px auto 0;
+      }
+
+      body[data-home-chat-active="true"][data-home-chat-long="true"] .portal-swirl-logo {
+        width: 104px;
+      }
+
+      body[data-home-chat-active="true"][data-home-chat-long="true"] .operator-result {
+        grid-column: 2;
+        grid-row: 1;
+        align-self: stretch;
+        max-height: none;
+      }
+
+      body[data-home-chat-active="true"][data-home-chat-long="true"] .operator-link.operator-bar {
+        grid-column: 2;
+        grid-row: 2;
+      }
+
+      body[data-home-chat-active="true"][data-home-chat-long="true"] .operator-status {
+        grid-column: 2;
+        grid-row: 3;
+      }
+    }
+
     @media (max-height: 520px) {
       body[data-home-chat-active="true"] .shell {
         padding-top: 8px;

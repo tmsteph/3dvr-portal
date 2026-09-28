@@ -54,3 +54,15 @@ test('homepage busy state is calm and streaming does not rebuild the response ca
   assert.match(busyUi, /form\.getAttribute\('aria-busy'\) === 'true'/);
   assert.doesNotMatch(busyUi, /input\.value = BUSY_TEXT/);
 });
+
+test('long desktop Operator replies dock the portal spinner beside the conversation', async () => {
+  const homepage = await read('index.html');
+  const client = await read('home-operator.js');
+
+  assert.match(homepage, /@media \(min-width: 860px\) and \(min-height: 600px\)/);
+  assert.match(homepage, /body\[data-home-chat-active="true"\]\[data-home-chat-long="true"\] \.home \{[\s\S]*?grid-template-columns: 152px minmax\(0, 1fr\)/);
+  assert.match(homepage, /body\[data-home-chat-active="true"\]\[data-home-chat-long="true"\] \.spinner-stage \{[\s\S]*?grid-column: 1;[\s\S]*?grid-row: 1 \/ 4;/);
+  assert.match(client, /result\.scrollHeight >= 280/);
+  assert.match(client, /document\.body\.dataset\.homeChatLong = canDockSpinner \? 'true' : 'false'/);
+  assert.match(client, /requestAnimationFrame\(syncChatLayout\)/);
+});

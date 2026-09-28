@@ -234,9 +234,21 @@ if (form && input && submit && status && result && reply && followUps && actionL
   const now = () => new Date().toISOString();
   const idlePlaceholder = input.getAttribute('placeholder') || 'Ask Operator…';
   const finePointer = window.matchMedia?.('(hover: hover) and (pointer: fine)');
+  const roomyChatLayout = window.matchMedia?.('(min-width: 860px) and (min-height: 600px)');
+
+  const syncChatLayout = () => {
+    const canDockSpinner = Boolean(
+      document.body.dataset.homeChatActive === 'true'
+      && roomyChatLayout?.matches
+      && !result.hidden
+      && result.scrollHeight >= 280
+    );
+    document.body.dataset.homeChatLong = canDockSpinner ? 'true' : 'false';
+  };
 
   const activateChatMode = () => {
     document.body.dataset.homeChatActive = 'true';
+    syncChatLayout();
   };
 
   const focusComposerWithoutScroll = () => {
@@ -512,6 +524,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
   const paintReply = () => {
     replyPaintTimer = 0;
     reply.textContent = pendingReplyText;
+    window.requestAnimationFrame(syncChatLayout);
   };
 
   const queueReplyPaint = message => {
@@ -566,7 +579,11 @@ if (form && input && submit && status && result && reply && followUps && actionL
     }
     result.dataset.streaming = 'false';
     result.hidden = false;
+    window.requestAnimationFrame(syncChatLayout);
   };
+
+  roomyChatLayout?.addEventListener?.('change', syncChatLayout);
+  window.addEventListener('resize', syncChatLayout, { passive: true });
 
   form.addEventListener('submit', async event => {
     event.preventDefault();
