@@ -35,6 +35,66 @@ function forgeFailureMessage(record = {}) {
   return String(record.error || record.resultSummary || '').trim() || 'The code edit did not complete.';
 }
 
+export async function watchOperatorActionOutcome(outcome = {}, handlers = {}) {
+  const background = outcome?.backgroundTask;
+  if (!background?.kind) return () => {};
+  const onStatus = typeof handlers.onStatus === 'function' ? handlers.onStatus : () => {};
+  const onUpdate = typeof handlers.onUpdate === 'function' ? handlers.onUpdate : () => {};
+
+  if (background.kind === 'operator_runtime') {
+    const runtime = await import('./delegate-task.js');
+    return runtime.watchOperatorTask(background.id, {
+      onUpdate: record => {
+        const terminal = runtime.isOperatorTaskTerminal(record);
+        const progress = runtime.operatorTaskProgress(record, background.estimateMs);
+        onStatus(progress);
+        onUpdate({
+          terminal,
+          status: String(record.status || 'queued'),
+          message: terminal ? runtime.operatorTaskReceipt(record) : progress,
+          record
+        });
+      }
+    });
+  }
+
+  if (background.kind === 'server_control') {
+    const server = await import('./server-control.js');
+    return server.watchServerControlRequest(background.id, {
+      onUpdate: record => {
+        const terminal = server.isServerControlTerminal(record);
+        const progress = server.serverControlProgress(record);
+        onStatus(progress);
+        onUpdate({
+          terminal,
+          status: String(record.status || 'queued'),
+          message: terminal ? server.serverControlReceipt(record) : progress,
+          record
+        });
+      }
+    });
+  }
+
+  if (background.kind === 'forge') {
+    const forge = await import('./forge-status.js');
+    return forge.watchForgeEdit(background.value, {
+      onUpdate: record => {
+        const terminal = forge.isForgeEditTerminal(record);
+        const progress = forge.forgeEditProgress(record);
+        onStatus(progress);
+        onUpdate({
+          terminal,
+          status: String(record.status || 'queued'),
+          message: terminal ? forge.forgeEditReceipt(record) : progress,
+          record
+        });
+      }
+    });
+  }
+
+  return () => {};
+}
+
 export async function runOperatorAction(action = {}, context = {}) {
   if (action.type === 'create_note') {
     await saveLifeSpaceItem({ id:`note-${crypto.randomUUID()}`, type:'note', title:action.title || 'New thought', text:action.text || '' });
@@ -71,16 +131,24 @@ export async function runOperatorAction(action = {}, context = {}) {
     context.onStatus?.('Delegating to Operator Runtime…');
     const { queueOperatorTask } = await import('./delegate-task.js');
     const outcome = await queueOperatorTask(action);
-    const estimateMinutes = Math.max(1, Math.ceil(Number(outcome.estimateMs || 0) / 60_000));
-    context.onStatus?.(`Delegated · rough runtime budget ~${estimateMinutes}m`);
-    return { ...outcome, message: `${outcome.message} Rough runtime budget: ~${estimateMinutes}m.` };
+    const estimateMinutes = Math.max(1, Math.ceil(Number(outcome.estimateMs || 120_000) / 60_000));
+    context.onStatus?.(`Queued · runtime budget ≤${estimateMinutes}m`);
+    return {
+      ...outcome,
+      message: `${outcome.message} Runtime budget ≤${estimateMinutes}m. I’ll keep this chat updated.`,
+      backgroundTask: { kind:'operator_runtime', id:outcome.taskId, estimateMs:outcome.estimateMs || 120_000 }
+    };
   }
   if (action.type === 'server_control') {
     context.onStatus?.('Queueing the server request…');
     const { queueServerControl } = await import('./server-control.js');
     const outcome = await queueServerControl(action);
     context.onStatus?.('Server request queued · waiting for the control worker');
-    return outcome;
+    return {
+      ...outcome,
+      message: `${outcome.message} I’ll keep this chat updated.`,
+      backgroundTask: { kind:'server_control', id:outcome.requestId }
+    };
   }
   if (action.type === 'request_code_change') {
     context.onStatus?.('Queueing the approved code edit…');
@@ -105,7 +173,8 @@ export async function runOperatorAction(action = {}, context = {}) {
     }
     return {
       ...forgeOutcome,
-      message: `${forgeEditReceipt(result)} ${forgeEditProgress(result)}`.trim()
+      message: `${forgeEditReceipt(result)} ${forgeEditProgress(result)} I’ll keep this chat updated.`.trim(),
+      backgroundTask: { kind:'forge', value:forgeOutcome.url }
     };
   }
   if (action.type === 'open_app' && action.url) return { message:'Ready to open.', url:action.url };

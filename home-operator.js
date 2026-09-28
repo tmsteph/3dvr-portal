@@ -1,4 +1,4 @@
-import { runOperatorAction } from './operator/actions.js';
+import { runOperatorAction, watchOperatorActionOutcome } from './operator/actions.js';
 import { collectPortalContext } from './operator/portal-context.js';
 import { createOperatorDeveloperProof } from './operator/forge.js';
 import { fetchOperatorStream } from './operator/stream.js';
@@ -624,13 +624,14 @@ if (form && input && submit && status && result && reply && followUps && actionL
           : 'workspace';
       const label = storedActionLabel === 'workspace' ? 'Open workspace' : `Open ${storedActionLabel}`;
 
-      history.push({
+      const assistantEntry = {
         role: 'assistant',
         content: message,
         suggestions,
         actionUrl: outcome?.url || '',
         actionLabel: storedActionLabel
-      });
+      };
+      history.push(assistantEntry);
       persistHistory();
       void rememberOperatorTurnBestEffort({
         conversationId: homeConversationId,
@@ -645,7 +646,35 @@ if (form && input && submit && status && result && reply && followUps && actionL
         url: outcome?.url || '',
         label
       });
-      status.textContent = '';
+
+      if (outcome?.backgroundTask) {
+        status.textContent = 'Tracking delegated work…';
+        void watchOperatorActionOutcome(outcome, {
+          onStatus: liveStatus => {
+            if (history[history.length - 1] === assistantEntry) status.textContent = liveStatus;
+          },
+          onUpdate: update => {
+            const liveMessage = [data.reply || streamedReply, update.message].filter(Boolean).join('\n\n');
+            assistantEntry.content = liveMessage;
+            persistHistory();
+            if (history[history.length - 1] === assistantEntry) flushReplyPaint(liveMessage);
+            if (update.terminal) {
+              void rememberOperatorTurnBestEffort({
+                conversationId: homeConversationId,
+                prompt,
+                reply: liveMessage,
+                subject: '3DVR Operator home conversation'
+              });
+            }
+          }
+        }).catch(() => {
+          if (history[history.length - 1] === assistantEntry) {
+            status.textContent = 'Task is still queued. Open the task if you need deeper detail.';
+          }
+        });
+      } else {
+        status.textContent = '';
+      }
     } catch (error) {
       const message = `I could not finish that: ${error.message}`;
       history.push({ role: 'assistant', content: message });

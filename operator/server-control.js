@@ -6,6 +6,8 @@ const DEFAULT_PEERS = [
   'wss://gun-relay-3dvr.fly.dev/gun'
 ];
 const WRITE_TIMEOUT_MS = 8000;
+const SERVER_WATCH_TIMEOUT_MS = 2 * 60 * 1000;
+const TERMINAL_SERVER_STATUSES = new Set(['completed', 'failed', 'rejected']);
 const SERVICES = new Set([
   '3dvr-personal-mcp.service',
   '3dvr-secrets-broker.service',
@@ -19,6 +21,32 @@ function clean(value = '', max = 4000) {
 
 function makeId() {
   return `server-control-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
+}
+
+function serverStatus(record = {}) {
+  return clean(record.status, 80).toLowerCase() || 'queued';
+}
+
+export function isServerControlTerminal(record = {}) {
+  return TERMINAL_SERVER_STATUSES.has(serverStatus(record));
+}
+
+export function serverControlProgress(record = {}) {
+  const status = serverStatus(record);
+  if (status === 'completed') return 'Server request complete';
+  if (status === 'running') return 'Server request running';
+  if (status === 'failed') return 'Server request failed';
+  if (status === 'rejected') return 'Server request rejected';
+  return 'Server request queued · waiting for control worker';
+}
+
+export function serverControlReceipt(record = {}) {
+  const status = serverStatus(record);
+  const summary = clean(record.resultSummary || record.error, 2000);
+  if (status === 'completed') return summary ? `Server request complete. Result: ${summary}` : 'Server request complete.';
+  if (status === 'failed') return summary ? `Server request failed: ${summary}` : 'Server request failed.';
+  if (status === 'rejected') return summary ? `Server request rejected: ${summary}` : 'Server request rejected.';
+  return serverControlProgress(record);
 }
 
 function encodeProof(value = '') {
@@ -48,6 +76,29 @@ function putGun(node, value) {
       else resolve(ack || {});
     });
   });
+}
+
+export function watchServerControlRequest(requestId, options = {}) {
+  const id = clean(requestId, 240);
+  if (!id || typeof globalThis.Gun !== 'function') return () => {};
+  const onUpdate = typeof options.onUpdate === 'function' ? options.onUpdate : () => {};
+  const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : SERVER_WATCH_TIMEOUT_MS;
+  const gun = globalThis.Gun({ peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
+  const node = gun.get(ROOT_KEY).get('control').get('serverRequests').get(id);
+  let stopped = false;
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    globalThis.clearTimeout?.(timer);
+    try { node.off(); } catch {}
+  };
+  const timer = globalThis.setTimeout?.(() => stop(), timeoutMs);
+  node.on(record => {
+    if (stopped || !record || typeof record !== 'object') return;
+    onUpdate(record);
+    if (isServerControlTerminal(record)) stop();
+  });
+  return stop;
 }
 
 export function normalizeServerControlAction(action = {}) {
@@ -100,6 +151,7 @@ export async function queueServerControl(action = {}) {
   );
 
   return {
+    requestId: id,
     message: result?.pendingSync
       ? 'Queued the signed server request locally. It will run when the control worker reconnects.'
       : operationMessage(request),
