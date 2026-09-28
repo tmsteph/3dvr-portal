@@ -46,6 +46,11 @@ test('Living World ships as an in-portal evolving 3D experience', async () => {
   assert.match(page, /const shipVelocity = new THREE\.Vector3/);
   assert.match(page, /const shipAcceleration = new THREE\.Vector3/);
   assert.match(page, /shipVelocity\.addScaledVector\(shipAcceleration,dt\)/);
+  assert.match(page, /let shipBank = 0/);
+  assert.match(page, /const yawRate = yawDelta\/Math\.max\(dt,\.001\)/);
+  assert.match(page, /const lateralVelocity = shipVelocity\.dot\(r\)/);
+  assert.match(page, /bankTarget/);
+  assert.match(page, /touchEuler\.set\(pitch,yaw,shipBank,'YXZ'\)/);
   assert.match(page, /Math\.exp\(-dragRate\*dt\)/);
   assert.match(page, /maxShipSpeed/);
   assert.match(page, /ShiftLeft/);
