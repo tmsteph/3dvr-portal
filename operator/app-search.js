@@ -22,6 +22,7 @@ const FEATURED = [
   { title: '13-Month Calendar', href: '/calendar/13/', description: 'A 13 × 28 calendar experiment', aliases: 'calendar time experiment 13 month fixed year' },
   { title: 'Workboard', href: '/workboard/', description: 'Projects, issues, and agent work', aliases: 'projects tasks issues agents jira kanban' },
   { title: 'Meditation', href: '/meditation/', description: 'Relax and explore', aliases: 'relax breathing calm mindfulness trip' },
+  { title: 'Meditation Garden', href: '/meditation-garden/', description: 'Walk or drift through a quiet interactive Three.js garden', aliases: 'threejs 3d zen garden calm pond bamboo breathing relax mindfulness ambient' },
   { title: 'Body Mode', href: '/body-mode/', description: 'Physical reset and body tools', aliases: 'stretch posture movement wellness' },
   { title: 'Intention Lab', href: '/intention-lab/', description: 'Intentions and direction', aliases: 'manifest goals intention purpose' },
   { title: 'Inner Alignment', href: '/inner-alignment/', description: 'Reflection and alignment', aliases: 'alignment reflection purpose' },
