@@ -1229,6 +1229,8 @@
     const shipInput = new THREE.Vector3();
     let yaw = 0;
     let pitch = -.05;
+    let previousYaw = yaw;
+    let shipBank = 0;
     let dragging = false;
     let lastX = 0;
     let lastY = 0;
@@ -1251,6 +1253,8 @@
       controlMotion.lookPitch = 0;
       shipVelocity.set(0,0,0);
       shipAcceleration.set(0,0,0);
+      shipBank = 0;
+      previousYaw = yaw;
     }
 
     function enterTextMode() {
@@ -1541,7 +1545,15 @@
         yaw += Math.sin(now*.00016)*.00006*state.energy;
       }
 
-      touchEuler.set(pitch,yaw,0,'YXZ');
+      const yawDelta = Math.atan2(Math.sin(yaw-previousYaw),Math.cos(yaw-previousYaw));
+      const yawRate = yawDelta/Math.max(dt,.001);
+      previousYaw = yaw;
+      const lateralVelocity = shipVelocity.dot(r);
+      const bankTarget = reducedMotion ? 0 : clamp(yawRate*.055-lateralVelocity*.012,-.24,.24);
+      const bankBlend = 1-Math.exp(-(Math.abs(bankTarget)>Math.abs(shipBank) ? 5.2 : 3.4)*dt);
+      shipBank = THREE.MathUtils.lerp(shipBank,bankTarget,bankBlend);
+
+      touchEuler.set(pitch,yaw,shipBank,'YXZ');
       touchQuaternion.setFromEuler(touchEuler);
       if (phoneLook && orientationBaseline) {
         deviceRelative.slerp(deviceTarget,.2);
