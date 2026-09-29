@@ -113,7 +113,7 @@
     </div>
 
     <div class="dock">
-      <div class="world-message" id="world-message">Fly the glowing line. It will gently pull you back when you get close.</div>
+      <div class="world-message" id="world-message">Relax and steer. Prism Wing cruises forward slowly on its own; hold Shift when you want full speed.</div>
       <form class="composer" id="world-form">
         <input id="world-prompt" autocomplete="off" maxlength="180" aria-label="Talk to or reshape the world" placeholder="Talk to the world, or ask it to change…">
         <button type="submit">Shape world</button>
@@ -129,14 +129,14 @@
     </div>
   </div>
 
-  <div class="hint">follow the glowing line · WASD fly · Shift boost · X brake · F fire · Esc releases mouse</div>
+  <div class="hint">slow auto-cruise · gentle WASD · hold Shift for full speed · X brake · F fire · Esc releases mouse</div>
 
   <aside class="help" id="help-panel" hidden>
     <strong>Fly first. Everything else is optional.</strong>
     <p><code>Click the world</code> to capture the mouse for first-person look. <code>Esc</code> releases it. <code>WASD</code> or arrows fly, and the mouse wheel glides forward/back.</p>
     <p><code>Left click</code> fires the selected toy weapon. <code>1</code> pulse, <code>2</code> beam, <code>3</code> bomb. <code>Right click</code> always throws a bomb.</p>
-    <p>Keyboard-only: <code>WASD</code> flies, <code>arrows</code> look, hold <code>Shift</code> for boost, <code>Space</code> rises, <code>Ctrl/C</code> descends, <code>X</code> brakes, <code>F</code> fires, <code>G</code> bombs, and <code>Esc</code> releases mouse capture.</p>
-    <p><b>Flight:</b> there is one handling model now. Nothing moves you forward automatically. Hold <code>W</code> when you want thrust, use <code>Shift</code> to boost, and <code>X</code> to brake.</p>
+    <p>Keyboard-only: Prism Wing gently cruises forward without input. <code>WASD</code> makes small course corrections, <code>arrows</code> look, hold <code>Shift</code> for full speed, <code>Space</code> rises, <code>Ctrl/C</code> descends, <code>X</code> brakes, <code>F</code> fires, <code>G</code> bombs, and <code>Esc</code> releases mouse capture.</p>
+    <p><b>Flight:</b> the ship always makes slow, steady forward progress. WASD is intentionally gentle for lining up the glowing path. Hold <code>Shift</code> to ramp up to full flight speed, and use <code>X</code> to brake.</p>
     <p><b>Flight line:</b> get near the glowing ribbon and it gently attracts you toward the center instead of punishing small mistakes. Stay nearby for flow points, hit the wide gates, and shoot prism targets for bonuses.</p>
     <p>The world gently evolves when <b>World dreams</b> is on. Your changes persist on this device.</p>
     <p>Try commands like <code>forest</code>, <code>ocean</code>, <code>night</code>, <code>more crystals</code>, <code>more orbs</code>, <code>faster</code>, <code>calmer</code>, or <code>surprise me</code>.</p>
@@ -453,7 +453,7 @@
     const flowAccentColor = new THREE.Color();
 
     const movementModes = [
-      {id:'flight',label:'Flight',accel:18,max:30,drag:.95,strafe:.72,vertical:.92,boost:38,auto:0}
+      {id:'flight',label:'Flight',accel:12,max:30,cruiseMax:10,drag:1.05,strafe:.55,vertical:.65,boost:32,auto:4,inputScale:.38}
     ];
     game.modeIndex = 0;
 
@@ -1675,15 +1675,15 @@
       const skiSteer = flow.id === 'ski' ? controlMotion.strafe*.34 : 0;
       yaw -= (raceSteer*1.45 + skiSteer*.7)*dt;
       motionDesired.set(0,0,0)
-        .addScaledVector(f,controlMotion.forward + (flow.auto/Math.max(flow.max,1)))
-        .addScaledVector(r,controlMotion.strafe*flow.strafe)
-        .addScaledVector(motionUp,controlMotion.vertical*flow.vertical);
+        .addScaledVector(f,controlMotion.forward*flow.inputScale + (flow.auto/Math.max(flow.max,1)))
+        .addScaledVector(r,controlMotion.strafe*flow.strafe*flow.inputScale)
+        .addScaledVector(motionUp,controlMotion.vertical*flow.vertical*flow.inputScale);
       if (motionDesired.lengthSq() > 1) motionDesired.normalize();
       motionVelocity.addScaledVector(motionDesired,flow.accel*state.speed*dt);
       motionVelocity.addScaledVector(f,controlMotion.thrust*flow.boost*state.speed*dt);
 
       const hasInput = Math.abs(controlMotion.forward)+Math.abs(controlMotion.strafe)+Math.abs(controlMotion.vertical)+controlMotion.thrust > .03;
-      const drag = flow.drag*(hasInput ? .28 : 1);
+      const drag = flow.drag*(hasInput ? .72 : 1);
       motionVelocity.multiplyScalar(Math.exp(-drag*dt));
       if (controlMotion.brake > .01) motionVelocity.multiplyScalar(Math.exp(-9*controlMotion.brake*dt));
 
@@ -1696,7 +1696,7 @@
         }
       }
 
-      const maxMomentum = flow.max*state.speed*(fastTravel ? 1.32 : 1);
+      const maxMomentum = (fastTravel ? flow.max : flow.cruiseMax)*state.speed;
       if (motionVelocity.length() > maxMomentum) motionVelocity.setLength(maxMomentum);
       camera.position.addScaledVector(motionVelocity,dt);
       momentumStatusEl.textContent = motionVelocity.length().toFixed(1);
