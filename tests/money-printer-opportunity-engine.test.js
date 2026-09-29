@@ -210,3 +210,87 @@ describe('Money Printer Opportunity Engine', () => {
     assert.equal(repeated.state.signals.length, 1);
   });
 });
+
+  it('deduplicates the same source record across acquisition paths', () => {
+    const first = ingestOpportunity({}, {
+      sourceLabel: 'Crew Portal',
+      externalId: 'CALL-4242',
+      acquisitionMode: 'api',
+      need: 'A1 call',
+      buyerWords: 'Need an A1 tomorrow.'
+    }, NOW);
+    const repeated = ingestOpportunity(first.state, {
+      sourceLabel: 'Crew Portal',
+      externalId: 'CALL-4242',
+      acquisitionMode: 'manual-forward',
+      need: 'A1 call',
+      buyerWords: 'Need an A1 tomorrow.'
+    }, NOW);
+
+    assert.equal(repeated.created, false);
+    assert.equal(repeated.state.opportunities.length, 1);
+    assert.equal(opportunitySignalFingerprint({
+      sourceLabel: 'Crew Portal',
+      externalId: 'CALL-4242',
+      acquisitionMode: 'api'
+    }), 'crew portal:call-4242');
+  });
+
+  it('hard availability conflicts remove executable priority', () => {
+    const conflict = createOpportunityCluster({
+      id: 'conflict',
+      status: 'new',
+      need: 'High-value A1 call',
+      buyerWords: 'Confirmed A1 call with strong day rate.',
+      urgency: 'immediate',
+      confidence: 95,
+      policyStatus: 'first-party',
+      estimatedValueMin: 750,
+      fitScore: 95,
+      fulfillmentScore: 95,
+      availability: 'conflict'
+    }, NOW);
+    const clear = createOpportunityCluster({
+      id: 'clear',
+      status: 'new',
+      need: 'Available A2 call',
+      buyerWords: 'Confirmed A2 call with good day rate.',
+      urgency: 'high',
+      confidence: 90,
+      policyStatus: 'first-party',
+      estimatedValueMin: 500,
+      fitScore: 82,
+      fulfillmentScore: 90,
+      availability: 'clear'
+    }, NOW);
+
+    assert.equal(conflict.priorityScore, 0);
+    assert.equal(conflict.hardAvailabilityConflict, true);
+    assert.equal(clear.hardAvailabilityConflict, false);
+    assert.deepEqual(sortOpportunityClusters([conflict, clear], NOW).map(item => item.id), ['clear', 'conflict']);
+  });
+
+  it('expired new work sorts behind live response-ready work', () => {
+    const expired = createOpportunityCluster({
+      id: 'expired',
+      status: 'new',
+      need: 'Old call',
+      buyerWords: 'Need someone urgently.',
+      urgency: 'immediate',
+      confidence: 95,
+      expiresAt: '2026-07-31T12:00:00Z'
+    }, NOW);
+    const live = createOpportunityCluster({
+      id: 'live',
+      status: 'response-ready',
+      need: 'Live call',
+      buyerWords: 'Need someone tomorrow.',
+      urgency: 'high',
+      confidence: 90,
+      expiresAt: '2026-08-02T12:00:00Z'
+    }, NOW);
+
+    assert.equal(expired.expired, true);
+    assert.equal(live.expired, false);
+    assert.deepEqual(sortOpportunityClusters([expired, live], NOW).map(item => item.id), ['live', 'expired']);
+  });
