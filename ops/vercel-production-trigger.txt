@@ -34,3 +34,4 @@ Living World track flow rewards: 2026-09-29
 2026-09-29 3dvr-desktop universal-layer architecture
 2026-09-29 private-knowledge owner-only PR #2872 canonical production
 2026-09-29 private-knowledge durable-edge-route PR #2873 canonical production
+2026-09-29 private-knowledge internal-bridge PR #2875 canonical production
