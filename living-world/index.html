@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#081018">
   <meta name="color-scheme" content="dark">
   <meta name="portal:issue-launcher" content="off">
-  <title>Living World · 3DVR</title>
-  <meta name="description" content="A calm, game-like 3D world inside 3DVR that evolves while you explore and can be reshaped from an in-world text box.">
+  <title>Prism Wing · 3DVR</title>
+  <meta name="description" content="Prism Wing is a fast, forgiving 3DVR flight run: follow glowing lanes, hit gates, boost, and shoot targets.">
   <link rel="icon" type="image/svg+xml" href="/brand/portal-mark.svg">
   <style>
     :root{
@@ -83,14 +83,14 @@
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
-  <canvas id="world" aria-label="Interactive 3D living world"></canvas>
+  <canvas id="world" aria-label="Interactive 3D Prism Wing flight game"></canvas>
   <div class="flow-wash" id="flow-wash" aria-hidden="true"></div>
 
   <div class="hud">
     <div class="top">
       <a class="brand" href="/" aria-label="3DVR Portal home">
         <img src="/brand/portal-mark.svg" alt="">
-        <span class="title-wrap"><span>Living World</span><small>3DVR momentum playground</small></span>
+        <span class="title-wrap"><span>Prism Wing</span><small>3DVR arcade flight</small></span>
       </a>
       <div class="stats" aria-live="polite">
         <a class="pill" href="/games.html" aria-label="Back to 3DVR Game Hub">Game Hub</a>
@@ -113,31 +113,31 @@
     </div>
 
     <div class="dock">
-      <div class="world-message" id="world-message">The world is awake. Drift, explore, or tell it what you want.</div>
+      <div class="world-message" id="world-message">Fly the glowing line. It will gently pull you back when you get close.</div>
       <form class="composer" id="world-form">
         <input id="world-prompt" autocomplete="off" maxlength="180" aria-label="Talk to or reshape the world" placeholder="Talk to the world, or ask it to change…">
         <button type="submit">Shape world</button>
       </form>
       <div class="controls" aria-label="World controls">
-        <button class="control" id="mode-button" type="button">Mode: Adventure</button>
-        <button class="control" id="drift-button" type="button" data-active="true">Auto drift</button>
-        <button class="control" id="dream-button" type="button" data-active="true">World dreams</button>
-        <button class="control" id="breath-button" type="button">Breathe</button>
-        <button class="control" id="phone-button" type="button">Phone look</button>
-        <button class="control" id="help-button" type="button">How to move</button>
+        <button class="control" id="mode-button" type="button" hidden>Mode: Flight</button>
+        <button class="control" id="drift-button" type="button" data-active="false" hidden>Auto drift</button>
+        <button class="control" id="dream-button" type="button" data-active="true" hidden>World dreams</button>
+        <button class="control" id="breath-button" type="button" hidden>Breathe</button>
+        <button class="control" id="phone-button" type="button" hidden>Phone look</button>
+        <button class="control" id="help-button" type="button">How to fly</button>
       </div>
     </div>
   </div>
 
-  <div class="hint">follow the glowing path · WASD move · Shift boost · Tab changes mode · X brake · F fire</div>
+  <div class="hint">follow the glowing line · WASD fly · Shift boost · X brake · F fire · Esc releases mouse</div>
 
   <aside class="help" id="help-panel" hidden>
-    <strong>Move however feels good.</strong>
+    <strong>Fly first. Everything else is optional.</strong>
     <p><code>Click the world</code> to capture the mouse for first-person look. <code>Esc</code> releases it. <code>WASD</code> or arrows fly, and the mouse wheel glides forward/back.</p>
     <p><code>Left click</code> fires the selected toy weapon. <code>1</code> pulse, <code>2</code> beam, <code>3</code> bomb. <code>Right click</code> always throws a bomb.</p>
-    <p>Keyboard-only: <code>WASD</code> moves, <code>arrows</code> look, hold <code>Shift</code> for boost/jet thrust, <code>Space</code> rises, <code>Ctrl/C</code> descends, <code>X</code> brakes, <code>Tab</code> cycles movement modes, <code>F</code> fires, <code>G</code> bombs, and <code>Esc</code> toggles world/text.</p>
-    <p><b>Movement modes:</b> stages rotate through Adventure, Ski, Race, Flight, and Arena handling. Velocity carries between inputs, so turning, braking, boosting, and lining up gates all matter. Bright boost gates add a burst of momentum.</p>
-    <p><b>Path Run:</b> stay close to the glowing ribbon to continuously earn flow points and build up to a 4× flow multiplier. As you converge on the track, the whole world becomes brighter, more colorful, and more energized. Pass gates in order and shoot the floating prism targets for bonus points.</p>
+    <p>Keyboard-only: <code>WASD</code> flies, <code>arrows</code> look, hold <code>Shift</code> for boost, <code>Space</code> rises, <code>Ctrl/C</code> descends, <code>X</code> brakes, <code>F</code> fires, <code>G</code> bombs, and <code>Esc</code> releases mouse capture.</p>
+    <p><b>Flight:</b> there is one handling model now. Nothing moves you forward automatically. Hold <code>W</code> when you want thrust, use <code>Shift</code> to boost, and <code>X</code> to brake.</p>
+    <p><b>Flight line:</b> get near the glowing ribbon and it gently attracts you toward the center instead of punishing small mistakes. Stay nearby for flow points, hit the wide gates, and shoot prism targets for bonuses.</p>
     <p>The world gently evolves when <b>World dreams</b> is on. Your changes persist on this device.</p>
     <p>Try commands like <code>forest</code>, <code>ocean</code>, <code>night</code>, <code>more crystals</code>, <code>more orbs</code>, <code>faster</code>, <code>calmer</code>, or <code>surprise me</code>.</p>
     <button id="close-help" type="button">Got it</button>
@@ -185,7 +185,7 @@
       speed:1,
       crystalCount:18,
       orbCount:24,
-      drift:true,
+      drift:false,
       dream:true,
       collected:0,
       colorMode:'prism',
@@ -208,6 +208,7 @@
     state.gameStage = Math.max(1,Math.round(Number(state.gameStage) || 1));
     state.gameScore = Math.max(0,Math.round(Number(state.gameScore) || 0));
     state.gameBest = Math.max(0,Math.round(Number(state.gameBest) || 0));
+    state.drift = false;
 
     const themes = {
       dusk:{bg:0x09131c,fog:0x09131c,sky:0x8196c4,ground:0x18302f,accent:0x8ce6d4,accent2:0xd2a6ff,sun:0xffc788},
@@ -436,7 +437,7 @@
       lastFlowSaveAt:performance.now()
     };
 
-    const gateGeometry = new THREE.TorusGeometry(3.2,.16,12,64);
+    const gateGeometry = new THREE.TorusGeometry(4.2,.2,12,64);
     const targetGeometry = new THREE.IcosahedronGeometry(.72,1);
     const markerGeometry = new THREE.SphereGeometry(.14,8,8);
     const pathUp = new THREE.Vector3(0,0,1);
@@ -452,13 +453,9 @@
     const flowAccentColor = new THREE.Color();
 
     const movementModes = [
-      {id:'adventure',label:'Adventure',accel:20,max:14,drag:4.6,strafe:.82,vertical:.65,boost:22,auto:0},
-      {id:'ski',label:'Ski',accel:11,max:28,drag:.72,strafe:.42,vertical:.48,boost:34,auto:2.2},
-      {id:'race',label:'Race',accel:18,max:34,drag:1.15,strafe:.08,vertical:.18,boost:44,auto:7.5},
-      {id:'flight',label:'Flight',accel:15,max:30,drag:.8,strafe:.72,vertical:.92,boost:38,auto:8.5},
-      {id:'arena',label:'Arena',accel:28,max:18,drag:5.2,strafe:1,vertical:.58,boost:20,auto:0}
+      {id:'flight',label:'Flight',accel:18,max:30,drag:.95,strafe:.72,vertical:.92,boost:38,auto:0}
     ];
-    game.modeIndex = (Math.max(1,state.gameStage)-1)%movementModes.length;
+    game.modeIndex = 0;
 
     function currentMovementMode() {
       return movementModes[game.modeIndex] || movementModes[0];
@@ -513,15 +510,31 @@
       return points;
     }
 
-    function nearestPathDistance(position) {
-      if (!game.curve) return Infinity;
+    function nearestPathSample(position,samples=72) {
+      if (!game.curve) return null;
       let nearestSq = Infinity;
-      const samples = 72;
+      let nearestT = 0;
+      let nearestPoint = null;
       for (let i=0;i<=samples;i++) {
-        const point = game.curve.getPoint(i/samples);
-        nearestSq = Math.min(nearestSq,position.distanceToSquared(point));
+        const t = i/samples;
+        const point = game.curve.getPoint(t);
+        const distanceSq = position.distanceToSquared(point);
+        if (distanceSq < nearestSq) {
+          nearestSq = distanceSq;
+          nearestT = t;
+          nearestPoint = point;
+        }
       }
-      return Math.sqrt(nearestSq);
+      return {
+        distance:Math.sqrt(nearestSq),
+        point:nearestPoint,
+        tangent:game.curve.getTangent(nearestT).normalize(),
+        t:nearestT
+      };
+    }
+
+    function nearestPathDistance(position) {
+      return nearestPathSample(position)?.distance ?? Infinity;
     }
 
     function updateGateMaterials() {
@@ -550,7 +563,7 @@
       game.lastFlowSaveAt = performance.now();
       flowStatusEl.textContent = 'find track';
       reticle.dataset.flow = '';
-      game.modeIndex = (Math.max(1,stage)-1)%movementModes.length;
+      game.modeIndex = 0;
       setMovementMode(game.modeIndex,false);
 
       const points = gamePointSequence(stage,origin);
@@ -564,7 +577,7 @@
         depthWrite:false
       });
       game.pathMesh = new THREE.Mesh(
-        new THREE.TubeGeometry(game.curve,Math.max(96,points.length*26),.18,8,false),
+        new THREE.TubeGeometry(game.curve,Math.max(96,points.length*26),.3,8,false),
         pathMaterial
       );
       pathGroup.add(game.pathMesh);
@@ -631,7 +644,7 @@
 
       updateGateMaterials();
       updateHud();
-      say(currentMovementMode().label + ' stage ' + stage + ': carry your momentum through ' + game.gates.length + ' gates.');
+      say('Stage ' + stage + ': follow the glowing line through ' + game.gates.length + ' forgiving gates.');
     }
 
     function scoreGame(points,label='') {
@@ -701,7 +714,7 @@
       if (!game.curve) return;
 
       const distance = nearestPathDistance(camera.position);
-      const proximity = clamp(1-distance/9,0,1);
+      const proximity = clamp(1-distance/12,0,1);
       game.flowProximity = proximity;
 
       if (proximity > .18) {
@@ -769,7 +782,7 @@
       const gate=game.gates[game.nextGate];
       if (!gate) return;
       gate.rotation.z += dt*.38;
-      if (camera.position.distanceToSquared(gate.position) < 18) {
+      if (camera.position.distanceToSquared(gate.position) < 36) {
         game.nextGate += 1;
         scoreGame(100 + state.gameStage*20,'gate');
         makeExplosion(gate.position,2.5,game.nextGate+state.gameStage);
@@ -997,15 +1010,15 @@
       dreamStatusEl.textContent = state.dream ? 'on' : 'off';
       speedStatusEl.textContent = state.speed.toFixed(1) + '×';
       modeStatusEl.textContent = currentMovementMode().label.toLowerCase();
-      modeButton.textContent = 'Mode: ' + currentMovementMode().label;
+      if (modeButton) modeButton.textContent = 'Mode: ' + currentMovementMode().label;
       weaponStatusEl.textContent = currentWeapon();
       stageStatusEl.textContent = String(state.gameStage);
       gateStatusEl.textContent = game.gates.length ? Math.min(game.nextGate,game.gates.length) + '/' + game.gates.length : '0/0';
       scoreStatusEl.textContent = String(state.gameScore);
-      driftButton.dataset.active = String(state.drift);
+      if (driftButton) driftButton.dataset.active = String(state.drift);
       dreamButton.dataset.active = String(state.dream);
       dreamButton.textContent = state.dream ? 'World dreams' : 'Dreams paused';
-      driftButton.textContent = state.drift ? 'Auto drift' : 'Drift paused';
+      if (driftButton) driftButton.textContent = state.drift ? 'Auto drift' : 'Drift paused';
     }
 
     function say(text) {
@@ -1434,10 +1447,6 @@
       if (event.code === 'Digit1') selectWeapon(0);
       if (event.code === 'Digit2') selectWeapon(1);
       if (event.code === 'Digit3') selectWeapon(2);
-      if (event.code === 'Tab') {
-        event.preventDefault();
-        cycleMovementMode(event.shiftKey ? -1 : 1);
-      }
       if (event.code === 'KeyG') fireBomb();
       if (event.code === 'KeyF') {
         firing = true;
@@ -1678,6 +1687,15 @@
       motionVelocity.multiplyScalar(Math.exp(-drag*dt));
       if (controlMotion.brake > .01) motionVelocity.multiplyScalar(Math.exp(-9*controlMotion.brake*dt));
 
+      const trackSample = nearestPathSample(camera.position,48);
+      if (trackSample && trackSample.distance < 12 && trackSample.distance > .15) {
+        const magnet = clamp(1-trackSample.distance/12,0,1);
+        const pull = trackSample.point.clone().sub(camera.position);
+        if (pull.lengthSq() > .0001) {
+          motionVelocity.addScaledVector(pull.normalize(),(5 + magnet*7)*magnet*dt);
+        }
+      }
+
       const maxMomentum = flow.max*state.speed*(fastTravel ? 1.32 : 1);
       if (motionVelocity.length() > maxMomentum) motionVelocity.setLength(maxMomentum);
       camera.position.addScaledVector(motionVelocity,dt);
@@ -1685,11 +1703,6 @@
 
       yaw += controlMotion.lookYaw*1.65*dt;
       pitch = clamp(pitch+controlMotion.lookPitch*1.18*dt,-1.25,1.25);
-
-      if (state.drift && !reducedMotion && document.activeElement !== promptInput) {
-        motionVelocity.addScaledVector(f,.18*state.speed*dt);
-        yaw += Math.sin(now*.00016)*.00006*state.energy;
-      }
 
       touchEuler.set(pitch,yaw,0,'YXZ');
       touchQuaternion.setFromEuler(touchEuler);
