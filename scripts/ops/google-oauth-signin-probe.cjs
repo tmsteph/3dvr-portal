@@ -57,10 +57,11 @@ async function clickText(page, labels) {
 
     for (let step = 0; step < 14; step += 1) {
       await sleep(900);
-      const url = page.url();
-      const parsed = new URL(url);
+      try {
+        const url = page.url();
+        const parsed = new URL(url);
 
-      if (parsed.hostname === 'accounts.google.com') {
+        if (parsed.hostname === 'accounts.google.com') {
         result.sawGoogle = true;
         const state = await page.evaluate(() => {
           const text = (document.body?.innerText || '').slice(0, 12000);
@@ -119,8 +120,16 @@ async function clickText(page, labels) {
         break;
       }
 
-      result.state = 'unexpected_host';
-      break;
+        result.state = 'unexpected_host';
+        break;
+      } catch (error) {
+        const message = String(error?.message || error);
+        if (/Execution context was destroyed|Cannot find context|Target closed/i.test(message)) {
+          result.state = 'navigating';
+          continue;
+        }
+        throw error;
+      }
     }
 
     process.stdout.write(JSON.stringify(result) + '\n');
