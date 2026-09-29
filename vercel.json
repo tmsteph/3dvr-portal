@@ -344,7 +344,7 @@
       "destination": "http://167.172.193.194/health"
     },
     {
-      "source": "/knowledge",
+      "source": "/__3dvr-private-knowledge",
       "has": [
         {
           "type": "host",

@@ -148,7 +148,7 @@ test('Vercel relay sends private knowledge requests to the knowledge bridge path
     method: 'POST',
     body: { privateKnowledge: true, requestId: 'knowledge-3' }
   }, res);
-  assert.equal(requestedUrl, 'https://bridge.example/knowledge');
+  assert.equal(requestedUrl, 'https://bridge.example/__3dvr-private-knowledge');
   assert.equal(res.statusCode, 200);
   assert.equal(res.payload.ok, true);
 });

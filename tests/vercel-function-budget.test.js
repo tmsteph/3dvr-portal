@@ -45,7 +45,7 @@ test('Portal health and Organism bridge use the durable DigitalOcean edge', asyn
   const expected = new Map([
     ['/__3dvr-health', 'http://167.172.193.194/__3dvr-health'],
     ['/health', 'http://167.172.193.194/health'],
-    ['/knowledge', 'http://167.172.193.194/knowledge']
+    ['/__3dvr-private-knowledge', 'http://167.172.193.194/knowledge']
   ]);
 
   for (const [source, destination] of expected) {
