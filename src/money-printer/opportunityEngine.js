@@ -58,7 +58,56 @@ function makeId(prefix = 'record') {
 }
 
 function normalizeFingerprintPart(value) {
-  return text(value).toLowerCase().replace(/\s+/g, ' ');
+  return text(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function opportunityDateToken(input = {}) {
+  const direct = text(input.startDate || input.date || input.deadline);
+  const haystack = [direct, input.title, input.need, input.buyerWords, input.evidence]
+    .map(value => text(value))
+    .filter(Boolean)
+    .join(' ');
+
+  const iso = haystack.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
+
+  const named = haystack.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(20\d{2}))?/i);
+  if (!named) return '';
+  const monthMap = {
+    jan: '01', january: '01', feb: '02', february: '02', mar: '03', march: '03',
+    apr: '04', april: '04', may: '05', jun: '06', june: '06', jul: '07', july: '07',
+    aug: '08', august: '08', sep: '09', sept: '09', september: '09',
+    oct: '10', october: '10', nov: '11', november: '11', dec: '12', december: '12'
+  };
+  const month = monthMap[named[1].toLowerCase().replace('.', '')];
+  const day = named[2].padStart(2, '0');
+  return named[3] ? `${named[3]}-${month}-${day}` : `${month}-${day}`;
+}
+
+export function opportunityCanonicalFingerprint(input = {}) {
+  const explicit = normalizeFingerprintPart(
+    input.canonicalOpportunityId || input.canonicalId || input.opportunityKey
+  );
+  if (explicit) return `canonical:${explicit}`;
+
+  const role = normalizeFingerprintPart(input.role || input.title || input.need);
+  const location = normalizeFingerprintPart(input.location);
+  const date = opportunityDateToken(input);
+  const organization = normalizeFingerprintPart(
+    input.organizationId || input.companyId || input.company || input.organization || input.client
+  );
+
+  if (organization && role && date) {
+    return ['job', organization, role, location, date].join('|');
+  }
+
+  // Source-independent clustering without an organization is deliberately
+  // conservative: require a specific role/title, location, and date.
+  if (role.length >= 10 && location && date) {
+    return ['job', role, location, date].join('|');
+  }
+
+  return '';
 }
 
 export function normalizeOpportunityLinks(input = {}) {
@@ -106,6 +155,7 @@ export function createDemandSignal(input = {}, now = new Date()) {
     sourceUrl: text(input.sourceUrl),
     externalId: text(input.externalId || input.sourceId),
     sourceFingerprint: text(input.sourceFingerprint) || opportunitySignalFingerprint(input),
+    canonicalFingerprint: text(input.canonicalFingerprint) || opportunityCanonicalFingerprint(input),
     acquisitionMode: text(input.acquisitionMode, 'manual-forward'),
     policyStatus: text(input.policyStatus, 'human-provided'),
     contactPermission: text(input.contactPermission, 'review-required'),
@@ -242,6 +292,9 @@ export function createOpportunityCluster(input = {}, now = new Date()) {
     schemaVersion: OPPORTUNITY_ENGINE_SCHEMA_VERSION,
     id: text(input.id) || makeId('opportunity'),
     title: text(input.title || input.need, primary.need),
+    canonicalFingerprint: text(input.canonicalFingerprint)
+      || opportunityCanonicalFingerprint(input)
+      || primary.canonicalFingerprint,
     status: text(input.status, 'new'),
     twinId: text(input.twinId || input.twin_id || input.ownerId, 'thomas-legacy'),
     owner: text(input.owner, 'Thomas'),
@@ -307,7 +360,49 @@ export function ingestOpportunity(state = {}, input = {}, now = new Date()) {
   if (duplicate) {
     return { state: current, created: false, duplicateSignalId: duplicate.id };
   }
-  return { state: addOpportunity(current, { ...input, sourceFingerprint: fingerprint }, now), created: true };
+
+  const canonicalFingerprint = opportunityCanonicalFingerprint(input);
+  const existing = canonicalFingerprint
+    ? current.opportunities.find(opportunity => opportunity.canonicalFingerprint === canonicalFingerprint)
+    : null;
+
+  if (existing) {
+    const signal = createDemandSignal({
+      ...input,
+      sourceFingerprint: fingerprint,
+      canonicalFingerprint
+    }, now);
+    const opportunities = current.opportunities.map(opportunity => {
+      if (opportunity.id !== existing.id) return opportunity;
+      return createOpportunityCluster({
+        ...opportunity,
+        canonicalFingerprint,
+        signals: [...(opportunity.signals || []), signal],
+        updatedAt: now.toISOString()
+      }, now);
+    });
+    return {
+      state: {
+        ...current,
+        signals: [signal, ...current.signals],
+        opportunities,
+        updatedAt: now.toISOString()
+      },
+      created: false,
+      clustered: true,
+      opportunityId: existing.id,
+      signalId: signal.id
+    };
+  }
+
+  return {
+    state: addOpportunity(current, {
+      ...input,
+      sourceFingerprint: fingerprint,
+      canonicalFingerprint
+    }, now),
+    created: true
+  };
 }
 
 export function updateOpportunity(state = {}, opportunityId, patch = {}, now = new Date()) {
