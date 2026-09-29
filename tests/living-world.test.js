@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('Prism Wing ships as a focused manual arcade flight experience', async () => {
+test('Prism Wing ships as a focused gentle-cruise arcade flight experience', async () => {
   const page = await read('living-world/index.html');
 
   assert.match(page, /Prism Wing · 3DVR/);
@@ -52,7 +52,14 @@ test('Prism Wing ships as a focused manual arcade flight experience', async () =
   assert.match(page, /motionVelocity\.setLength\(maxMomentum\)/);
   assert.match(page, /gate\.userData\.boost/);
   assert.doesNotMatch(page, /event\.code === 'Tab'/);
-  assert.match(page, /auto:0/);
+  assert.match(page, /auto:4/);
+  assert.match(page, /cruiseMax:10/);
+  assert.match(page, /inputScale:\.38/);
+  assert.match(page, /controlMotion\.forward\*flow\.inputScale/);
+  assert.match(page, /const drag = flow\.drag\*\(hasInput \? \.72 : 1\)/);
+  assert.match(page, /fastTravel \? flow\.max : flow\.cruiseMax/);
+  assert.match(page, /slow, steady forward progress/);
+  assert.match(page, /hold <code>Shift<\/code> to ramp up to full flight speed/);
   assert.match(page, /keys\.has\('KeyX'\)/);
   assert.match(page, /id="mode-button"[^>]*hidden/);
   assert.match(page, /id="mode-status"/);
