@@ -57,6 +57,7 @@ describe('work agent AI extraction', () => {
         intent: 'availability_request',
         dates: ['2026-09-03', 'bad-date'],
         rate: 600,
+        rateUnit: 'day',
         role: 'A1',
         venue: 'Convention Center',
         callTime: '07:00',
@@ -73,6 +74,7 @@ describe('work agent AI extraction', () => {
     assert.equal(res.statusCode, 200);
     assert.deepEqual(res.body.signals[0].dates, ['2026-09-03']);
     assert.equal(res.body.signals[0].rate, 600);
+    assert.equal(res.body.signals[0].rateUnit, 'day');
     assert.equal(res.body.signals[0].role, 'A1');
     assert.equal(res.body.signals[0].distanceMiles, 42);
     assert.equal(res.body.signals[0].confidence, 0.94);
@@ -84,7 +86,7 @@ describe('work agent AI extraction', () => {
   it('routes work-agent requests through the existing OpenAI serverless function', async () => {
     const fetchImpl = mock.fn(async () => aiResponse({
       signals: [{
-        id: 'm2', intent: 'booking', dates: ['2026-09-05'], rate: null,
+        id: 'm2', intent: 'booking', dates: ['2026-09-05'], rate: null, rateUnit: 'unknown',
         role: 'A2', venue: '', callTime: '14:00', distanceMiles: null, summary: 'A2 booking.', confidence: 0.9,
       }],
     }));
@@ -105,3 +107,29 @@ describe('work agent AI extraction', () => {
     assert.equal(res.body.signals[0].callTime, '14:00');
   });
 });
+
+
+  it('preserves explicit hourly compensation without treating it as a day rate', async () => {
+    const fetchImpl = mock.fn(async () => aiResponse({
+      signals: [{
+        id: 'hourly',
+        intent: 'rate_offer',
+        dates: ['2026-09-10'],
+        rate: 55,
+        rateUnit: 'hour',
+        role: 'Camera',
+        venue: 'Convention Center',
+        callTime: '08:00',
+        distanceMiles: null,
+        summary: 'Camera call offered at $55 per hour.',
+        confidence: 0.95,
+      }],
+    }));
+    const handler = createWorkAgentAiHandler({ apiKey: 'test-key', fetchImpl });
+    const res = createMockRes();
+
+    await handler({ method: 'POST', body: { messages: [{ id: 'hourly', text: '$55/hr camera call' }] } }, res);
+
+    assert.equal(res.body.signals[0].rate, 55);
+    assert.equal(res.body.signals[0].rateUnit, 'hour');
+  });
