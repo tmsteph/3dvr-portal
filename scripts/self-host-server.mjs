@@ -386,7 +386,7 @@ const server = createServer(async (req, res) => {
     return serveCompanionApk(req, res);
   }
 
-  if (url.pathname === '/health' || url.pathname === '/recall' || url.pathname === '/remember' || url.pathname === '/knowledge') {
+  if (url.pathname === '/health' || url.pathname === '/recall' || url.pathname === '/remember' || url.pathname === '/knowledge' || url.pathname === '/__3dvr-private-knowledge') {
     return runOrganismRecall(req, res, url);
   }
 
@@ -399,7 +399,8 @@ const server = createServer(async (req, res) => {
       '/health',
       '/recall',
       '/remember',
-      '/knowledge'
+      '/knowledge',
+      '/__3dvr-private-knowledge'
     ]);
     if (standbyBlocked.has(url.pathname) || url.pathname.startsWith('/api/oauth/')) {
       return json(res, 503, {
