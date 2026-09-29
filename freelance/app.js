@@ -10,6 +10,8 @@ import {
   normalizeFreelanceOpportunity,
 } from '../src/freelance-opportunity-pipeline.js';
 import { createFreelanceStateEntry } from '../src/freelance-state.js';
+import { evaluateOpportunityAvailability } from '../src/av-booking-availability.js';
+import { buildWorkSchedulePlan } from '../src/work-schedule-coordinator.js';
 
 const gun = Gun(window.__GUN_PEERS__ || [
   'wss://relay.3dvr.tech/gun',
@@ -17,6 +19,8 @@ const gun = Gun(window.__GUN_PEERS__ || [
 ]);
 const crmRecords = gun.get('3dvr-crm');
 const gigRecords = gun.get('3dvr-freelance-gigs');
+const protectedRecords = gun.get('3dvr-schedule-protected');
+const encoreRecords = gun.get('3dvr-encore-shifts');
 const opportunityOwnerKey = resolveOpportunityOwnerKey();
 const opportunityRecords = gun.get('3dvr-freelance-opportunities').get(opportunityOwnerKey);
 const stateRecords = gun.get('3dvr-freelance-state').get(opportunityOwnerKey);
@@ -24,6 +28,8 @@ const stateRecords = gun.get('3dvr-freelance-state').get(opportunityOwnerKey);
 const state = {
   clients: Object.create(null),
   gigs: Object.create(null),
+  protected: Object.create(null),
+  encore: Object.create(null),
   opportunities: Object.create(null),
   renderTimer: null,
 };
@@ -49,6 +55,8 @@ const els = {
   opportunityTitle: document.getElementById('opportunityTitle'),
   opportunityLocation: document.getElementById('opportunityLocation'),
   opportunityCompensation: document.getElementById('opportunityCompensation'),
+  opportunityStart: document.getElementById('opportunityStart'),
+  opportunityEnd: document.getElementById('opportunityEnd'),
   opportunityStatus: document.getElementById('opportunityStatus'),
   opportunityFitScore: document.getElementById('opportunityFitScore'),
   opportunityAvailability: document.getElementById('opportunityAvailability'),
@@ -178,12 +186,36 @@ function setSynced() {
   els.syncState.classList.add('live');
 }
 
+function currentSchedulePlan() {
+  const start = dateKey();
+  return buildWorkSchedulePlan({
+    gigs: Object.values(state.gigs).map(gig => ({ ...gig, source: gig.source || 'freelance' })),
+    encoreShifts: Object.values(state.encore),
+    protectedCommitments: Object.values(state.protected),
+    horizonStart: start,
+    horizonEnd: addDays(90),
+    minimumRestDays: 2,
+  });
+}
+
 function getDashboard() {
   const dashboard = buildFreelancerDashboard({
     clients: Object.values(state.clients),
     gigs: Object.values(state.gigs),
   });
-  dashboard.opportunities = buildOpportunityPipeline(Object.values(state.opportunities));
+  const schedulePlan = currentSchedulePlan();
+  const opportunities = Object.values(state.opportunities).map(opportunity => {
+    const assessment = evaluateOpportunityAvailability(opportunity, schedulePlan);
+    if (assessment.availability === 'unknown') return opportunity;
+    return {
+      ...opportunity,
+      availability: assessment.availability,
+      availabilityDerived: true,
+      availabilityReason: assessment.reasons.join(' · '),
+    };
+  });
+  dashboard.opportunities = buildOpportunityPipeline(opportunities);
+  dashboard.schedulePlan = schedulePlan;
   return dashboard;
 }
 
@@ -273,13 +305,23 @@ function renderOpportunities(dashboard) {
   }
 
   els.opportunityList.innerHTML = opportunities.map(opportunity => {
-    const availability = opportunity.availability === 'clear'
-      ? 'Calendar clear'
-      : opportunity.availability === 'conflict' ? 'Calendar conflict' : 'Calendar unchecked';
+    const availabilityLabels = {
+      clear: 'Calendar clear',
+      soft: 'Soft / replaceable Encore day',
+      blocked: 'Protected / unavailable',
+      conflict: 'Calendar conflict',
+      unknown: 'Calendar unchecked',
+    };
+    const availability = availabilityLabels[opportunity.availability] || availabilityLabels.unknown;
+    const opportunityDate = opportunity.startsAt
+      ? prettyDate(String(opportunity.startsAt).slice(0, 10))
+      : '';
     const nextStatus = getNextOpportunityStatus(opportunity);
     const nextAction = nextStatus === 'Applied' ? 'Apply'
       : nextStatus === 'Interview' ? 'Interview'
         : nextStatus === 'Offered' ? 'Offer' : nextStatus === 'Booked' ? 'Book' : '';
+    const scheduleBlocksAction = ['blocked', 'conflict'].includes(opportunity.availability)
+      && ['Applied', 'Booked'].includes(nextStatus);
     return `
       <article class="gig-row opportunity-row">
         <div class="gig-date">
@@ -288,14 +330,15 @@ function renderOpportunities(dashboard) {
         </div>
         <div>
           <h3>${safe(opportunity.title)}${opportunity.company ? ` · ${safe(opportunity.company)}` : ''}</h3>
-          <p>${safe([opportunity.location, opportunity.compensation, availability].filter(Boolean).join(' · '))}</p>
+          <p>${safe([opportunityDate, opportunity.location, opportunity.compensation, availability].filter(Boolean).join(' · '))}</p>
+          ${opportunity.availabilityDerived && opportunity.availabilityReason ? `<p class="opportunity-requirements">Schedule: ${safe(opportunity.availabilityReason)}</p>` : ''}
           ${opportunity.priorityReasons?.length ? `<p class="opportunity-requirements">Why now: ${safe(opportunity.priorityReasons.join(' · '))}</p>` : ''}
           ${opportunity.duplicateCount > 1 ? `<p class="opportunity-requirements">${safe(opportunity.duplicateCount)} matching source records merged in this view.</p>` : ''}
           ${opportunity.requirements ? `<p class="opportunity-requirements">${safe(opportunity.requirements)}</p>` : ''}
         </div>
         <div class="card-actions">
           ${safeHttpUrl(opportunity.sourceUrl) ? `<a class="mini-button" href="${safeHttpUrl(opportunity.sourceUrl)}" target="_blank" rel="noreferrer">Listing</a>` : ''}
-          ${nextAction ? `<button class="mini-button good" type="button" data-opportunity-action="advance" data-opportunity-id="${safeAttr(opportunity.id)}">${safe(nextAction)}</button>` : ''}
+          ${scheduleBlocksAction ? '<a class="mini-button" href="/freelance/schedule.html">Review schedule</a>' : nextAction ? `<button class="mini-button good" type="button" data-opportunity-action="advance" data-opportunity-id="${safeAttr(opportunity.id)}">${safe(nextAction)}</button>` : ''}
           <button class="mini-button" type="button" data-opportunity-action="pass" data-opportunity-id="${safeAttr(opportunity.id)}">Pass</button>
         </div>
       </article>
@@ -455,6 +498,8 @@ function handleOpportunitySubmit(event) {
     title: els.opportunityTitle.value.trim(),
     location: els.opportunityLocation.value.trim(),
     compensation: els.opportunityCompensation.value.trim(),
+    startsAt: els.opportunityStart.value,
+    endsAt: els.opportunityEnd.value || els.opportunityStart.value,
     status,
     fitScore: Number(els.opportunityFitScore.value || 0),
     availability: els.opportunityAvailability.value,
@@ -692,6 +737,18 @@ gigRecords.map().on((data, key) => {
   state.gigs[gig.id] = gig;
   scheduleRender();
 });
+
+function bindScheduleCollection(root, target) {
+  root.map().on((record, key) => {
+    if (!key) return;
+    if (!record) delete target[key];
+    else target[key] = { ...record, id: record.id || key };
+    scheduleRender();
+  });
+}
+
+bindScheduleCollection(protectedRecords, state.protected);
+bindScheduleCollection(encoreRecords, state.encore);
 
 document.addEventListener('click', handleActionClick);
 els.opportunityForm.addEventListener('submit', handleOpportunitySubmit);
