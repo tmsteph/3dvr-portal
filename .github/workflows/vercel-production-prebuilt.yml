@@ -116,6 +116,10 @@ jobs:
           fi
 
           "${vercel_cmd[@]}" pull --yes --environment=production
+          "${vercel_cmd[@]}" domains add games.3dvr.tech 3dvr-portal --yes >/tmp/games-domain.txt 2>&1 || {
+            cat /tmp/games-domain.txt
+            "${vercel_cmd[@]}" domains inspect games.3dvr.tech >/dev/null
+          }
           "${vercel_cmd[@]}" build --prod
           deploy_url="$("${vercel_cmd[@]}" deploy --prebuilt --prod --yes)"
           echo "Production deployment created: $deploy_url"
@@ -130,6 +134,15 @@ jobs:
       - name: Pull production environment
         if: ${{ steps.vercel-creds.outputs.enabled == 'true' }}
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Ensure games subdomain
+        if: ${{ steps.vercel-creds.outputs.enabled == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! vercel domains add games.3dvr.tech 3dvr-portal --token="$VERCEL_TOKEN" --scope=tmstephs-projects --yes; then
+            vercel domains inspect games.3dvr.tech --token="$VERCEL_TOKEN" --scope=tmstephs-projects >/dev/null
+          fi
 
       - name: Build production artifact
         if: ${{ steps.vercel-creds.outputs.enabled == 'true' }}
