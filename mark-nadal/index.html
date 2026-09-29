@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#07110d" />
+  <title>Mark Nadal Tracker · 3DVR</title>
+  <style>
+    :root{color-scheme:dark;--bg:#06100c;--panel:rgba(15,34,25,.9);--text:#eef7f0;--muted:#9dafaa;--line:rgba(210,255,224,.15);--life:#8ef0ae;--warn:#f2cf87}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -10%,#173529,#07110d 44%,#030806);color:var(--text);font:16px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    a{color:inherit}.shell{width:min(980px,calc(100% - 24px));margin:auto;padding:26px 0 64px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center}.top a{text-decoration:none;color:var(--muted)}
+    h1{font-size:clamp(34px,7vw,58px);letter-spacing:-.045em;line-height:1;margin:38px 0 12px}.lead{max-width:740px;color:var(--muted);margin:0 0 28px}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{border:1px solid var(--line);border-radius:20px;background:var(--panel);padding:20px}.card.wide{grid-column:1/-1}
+    .eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 7px}.card h2{margin:0 0 8px;letter-spacing:-.025em}.card p{color:var(--muted)}code{background:rgba(255,255,255,.07);border-radius:6px;padding:.12em .38em}
+    .status{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:5px 9px;font-size:12px;color:var(--muted);margin-bottom:13px}.status.ready{color:var(--life)}.status.waiting{color:var(--warn)}
+    button,.button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 15px;border-radius:12px;border:1px solid var(--line);background:rgba(142,240,174,.12);color:var(--text);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}
+    button:hover,.button:hover{background:rgba(142,240,174,.2)}button:disabled{opacity:.55;cursor:default}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}.muted{color:var(--muted)}.small{font-size:13px}.message{min-height:24px;margin-top:12px;color:var(--muted)}
+    .facts{display:grid;gap:8px;margin-top:14px}.fact{display:grid;grid-template-columns:110px 1fr;gap:10px;border-top:1px solid var(--line);padding-top:8px}.fact b{font-size:13px}.fact span{color:var(--muted);overflow-wrap:anywhere}
+    @media(max-width:720px){.grid{grid-template-columns:1fr}.card.wide{grid-column:auto}.top{align-items:flex-start;flex-direction:column-reverse}.fact{grid-template-columns:1fr;gap:2px}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="top">
+      <div><a href="/">← Portal</a> · <a href="/knowledge/">Private Knowledge</a></div>
+      <span class="status" id="ownerStatus">Checking 3DVR sign-in…</span>
+    </div>
+    <h1>Mark Nadal Tracker</h1>
+    <p class="lead">Keep up with GUN, Code from Phone, and SecureRender without living in X. Credentials stay in your OVH vault; the portal is only the control surface.</p>
+
+    <section class="grid">
+      <article class="card">
+        <p class="eyebrow">Public conversation</p>
+        <span class="status waiting" id="gunStatus">Connection needed</span>
+        <h2>GUN / GunJS</h2>
+        <p>The public Gitter room now runs on Matrix. Connect once through Gitter's GitHub SSO, then the OVH tracker can read new messages without you opening Gitter.</p>
+        <div class="facts">
+          <div class="fact"><b>Room</b><span><code>#amark_gun:gitter.im</code></span></div>
+          <div class="fact"><b>Room ID</b><span><code>!apmkrFyPwFRRvQgtEw:gitter.im</code></span></div>
+          <div class="fact"><b>Storage</b><span>OpenBao on OVH</span></div>
+        </div>
+        <div class="actions"><button id="connectGun" type="button">Connect GUN chat</button></div>
+        <div class="message" id="gunMessage"></div>
+      </article>
+
+      <article class="card">
+        <p class="eyebrow">Private conversation</p>
+        <span class="status waiting">Recover existing access</span>
+        <h2>Code from Phone / SecureRender</h2>
+        <p>Your X account should already contain access to this private group. We only need the current room/invite once; ongoing tracking should not depend on X.</p>
+        <div class="facts">
+          <div class="fact"><b>Recovery</b><span>Existing X membership first</span></div>
+          <div class="fact"><b>Fallback</b><span>Mark on WhatsApp, only with your approval</span></div>
+          <div class="fact"><b>Tracker</b><span>Ready to add after the room platform/ID is recovered</span></div>
+        </div>
+      </article>
+
+      <article class="card wide">
+        <p class="eyebrow">Owned tracking</p>
+        <h2>What happens after connection</h2>
+        <p>OVH checks the connected room periodically, stores only the recent conversation history and cursor in your private 3DVR knowledge area, and gives the Operator a stable source to summarize. The Matrix access token is not stored in Vercel or ChatGPT.</p>
+        <div class="actions">
+          <a class="button" href="/knowledge/#mark-nadal%2Fgun-chat">Open tracked GUN chat</a>
+          <a class="button" href="/knowledge/#people%2Fmark-nadal">Open Mark notes</a>
+        </div>
+        <p class="small muted">The tracker is intentionally low-noise. It records deltas; summaries and alerts can be layered on top without duplicating the source history.</p>
+      </article>
+    </section>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
