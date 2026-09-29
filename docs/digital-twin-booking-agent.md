@@ -1,6 +1,6 @@
 # 3DVR Digital Twin / Booking Agent
 
-Updated: 2026-09-15
+Updated: 2026-09-29
 
 ## Purpose
 
@@ -284,6 +284,43 @@ A simple model:
 - **Pro:** more concurrency, more persistent browser lanes, faster opportunity monitoring, and premium support.
 
 The important distinction is that customers pay 3DVR for convenience, reliability, orchestration, and service—not for being locked away from their own data or runtime.
+
+## Customer-owned runtime and company-failure mode
+
+The managed product must not make 3DVR a single point of failure.
+
+For customer deployments, the customer's own machine or VPS should remain capable of running the essential automation stack without the 3DVR company, domain, hosted portal, or control plane being available.
+
+The intended split is:
+
+- **Customer runtime = source of truth and fallback.** Local agent, workflow state, configs, logs, approvals, exports, and a minimal local dashboard remain usable on infrastructure the customer controls.
+- **3DVR Portal = optional convenience and intelligence layer.** The hosted Portal adds the easier interface, remote visibility, cross-device coordination, AI reasoning, updates, and managed support.
+- **Open protocol between them.** The local runtime should expose a documented authenticated interface so the hosted Portal can be replaced by another client.
+- **Graceful disconnection.** If 3DVR is unreachable, existing customer workflows continue running according to their last approved policy. Remote-only features degrade cleanly instead of stopping the customer's business.
+- **No hostage data.** The customer can export durable state, configuration, audit history, and non-secret metadata in documented formats.
+- **Replaceable secrets and identity.** Secrets stay in a customer-controlled or replaceable store and are referenced by aliases. Losing access to a 3DVR account must not destroy the underlying system.
+- **Local emergency control.** A simple localhost/LAN dashboard and CLI should support health checks, pause/resume, approval review, backup/export, restore, and removal of the 3DVR connection.
+- **Uninstall is a supported path.** A customer should be able to remove 3DVR-managed connectivity while leaving their own workflows and data intact.
+
+This is both a trust feature and an architectural constraint: customers pay 3DVR for convenience, maintenance, intelligence, and support, not for dependency on 3DVR's continued existence.
+
+### Managed-customer deployment shape
+
+```text
+Customer
+   |
+   +--> local/customer-owned dashboard + CLI
+   |          |
+   |          +--> local agent / workflows / state
+   |
+   +--> portal.3dvr.tech (optional)
+              |
+              +--> authenticated control/observation channel
+                         |
+                         +--> local agent / workflows / state
+```
+
+The local side must remain useful when the optional Portal path is unavailable.
 
 ## Migration path from today's Thomas system
 
