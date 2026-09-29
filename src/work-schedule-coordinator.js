@@ -197,18 +197,26 @@ export function buildWorkSchedulePlan({
     softWeeklyMaxDays: softEncoreWeeklyMaxDays,
   });
 
-  const protectedDates = new Set();
+  const protectedBusyDates = new Set();
+  const protectedRestDates = new Set();
   protectedCommitments.forEach(commitment => {
-    if (commitment.countsAsRestDay !== true) return;
     enumerateDateRange(commitment.startDate || commitment.date, commitment.endDate || commitment.startDate || commitment.date)
       .forEach(date => {
-        if (date >= start && date <= end) protectedDates.add(date);
+        if (date < start || date > end) return;
+        protectedBusyDates.add(date);
+        if (commitment.countsAsRestDay === true) protectedRestDates.add(date);
       });
   });
 
   // Distant Encore onesies/twosies stay real work commitments for rest planning,
   // but they do not close IATSE/freelance availability until they enter the hard window.
-  const workDates = new Set([...outsideDates.keys(), ...allEncoreDates.keys()]);
+  // Personal commitments also occupy the day, but only explicit rest commitments
+  // satisfy the recovery quota.
+  const workDates = new Set([
+    ...outsideDates.keys(),
+    ...allEncoreDates.keys(),
+    ...protectedBusyDates,
+  ]);
   const conflictDates = new Set([
     ...[...outsideDates.entries()].filter(([, gigsForDate]) => gigsForDate.length > 1).map(([date]) => date),
     ...[...allEncoreDates.entries()].filter(([, shiftsForDate]) => shiftsForDate.length > 1).map(([date]) => date),
@@ -241,7 +249,7 @@ export function buildWorkSchedulePlan({
     restDays.push(...chooseRestDaysForWeek({
       dates: weekDates,
       workDates,
-      protectedDates,
+      protectedDates: protectedRestDates,
       minimumRestDays,
     }));
   });
@@ -250,7 +258,7 @@ export function buildWorkSchedulePlan({
   const iatseAvailability = {};
   dates.forEach(date => {
     if (outsideDates.has(date) || encoreDates.has(date)) iatseAvailability[date] = 'Booked';
-    else if (restDaySet.has(date) || protectedDates.has(date)) iatseAvailability[date] = 'Not Available';
+    else if (restDaySet.has(date) || protectedBusyDates.has(date)) iatseAvailability[date] = 'Not Available';
     else iatseAvailability[date] = 'All Day';
   });
 
