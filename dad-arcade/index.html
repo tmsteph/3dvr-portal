@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#050607">
+  <meta name="portal:issue-launcher" content="off">
+  <title>Dad's Arcade · 3DVR</title>
+  <meta name="description" content="A small 3DVR arcade inspired by the games Thomas's dad loved: Asteroids, Centipede, and eventually pinball.">
+  <style>
+    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#050607;color:#f5f7f5}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:
+      radial-gradient(circle at 20% 0%,rgba(85,255,167,.09),transparent 34rem),
+      radial-gradient(circle at 85% 20%,rgba(130,146,255,.08),transparent 30rem),
+      #050607}
+    a{color:inherit}
+    main{width:min(1040px,100%);margin:auto;padding:24px 18px 76px}
+    nav{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:54px}
+    nav a{color:#a8b1ad;text-decoration:none}
+    nav a:hover,nav a:focus-visible{color:#fff;outline:none}
+    .eyebrow{margin:0 0 10px;color:#95f9ba;font-size:.78rem;font-weight:850;letter-spacing:.11em;text-transform:uppercase}
+    h1{margin:0;font-size:clamp(3rem,11vw,7rem);line-height:.86;letter-spacing:-.065em}
+    .lead{max-width:720px;margin:22px 0 44px;color:#adb6b1;font-size:clamp(1.05rem,3vw,1.28rem);line-height:1.55}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .card{position:relative;min-height:260px;padding:22px;display:flex;flex-direction:column;justify-content:space-between;border:1px solid rgba(255,255,255,.12);border-radius:22px;background:rgba(14,16,15,.86);text-decoration:none;overflow:hidden;transition:.18s ease}
+    .card::after{content:"";position:absolute;inset:auto -18% -45% 35%;height:190px;border:1px solid rgba(255,255,255,.07);border-radius:50%;transform:rotate(-12deg)}
+    .card:hover,.card:focus-visible{border-color:#95f9ba;transform:translateY(-2px);outline:none}
+    .card small{color:#95f9ba;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+    .card h2{margin:8px 0 10px;font-size:clamp(1.8rem,5vw,2.6rem);letter-spacing:-.045em}
+    .card p{max-width:34rem;margin:0;color:#aab2ae;line-height:1.5}
+    .arrow{position:relative;z-index:1;margin-top:32px;color:#f5fff8;font-weight:850}
+    .pinball{grid-column:1/-1;min-height:190px;background:linear-gradient(135deg,rgba(18,21,19,.95),rgba(11,13,12,.95))}
+    .pinball .status{display:inline-flex;margin-top:14px;padding:6px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.13);color:#c5ccc8;font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+    .note{margin-top:40px;padding-top:26px;border-top:1px solid rgba(255,255,255,.09);color:#8e9893;line-height:1.55}
+    @media(max-width:680px){nav{margin-bottom:38px}.grid{grid-template-columns:1fr}.pinball{grid-column:auto}.card{min-height:220px}}
+  </style>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <main>
+    <nav aria-label="Dad's Arcade navigation"><a href="../">← Portal</a><a href="../labs/">Labs</a></nav>
+    <p class="eyebrow">3DVR · family arcade</p>
+    <h1>Dad's<br>Arcade</h1>
+    <p class="lead">A small corner of 3DVR for the games your dad loved. The goal is not to clone old cabinets pixel-for-pixel; it is to preserve the feel: immediate controls, escalating pressure, one more try.</p>
+
+    <section class="grid" aria-label="Arcade games">
+      <a class="card" href="./asteroids/">
+        <div><small>Playable now · v0.1</small><h2>Asteroids</h2><p>Momentum, wraparound space, splitting rocks, and clean vector fire. Keyboard and touch controls included.</p></div>
+        <span class="arrow">Launch Asteroids →</span>
+      </a>
+      <a class="card" href="./centipede/">
+        <div><small>Playable now · v0.1</small><h2>Centipede</h2><p>Fast lateral defense, mushrooms, segmented enemies, and waves that keep pushing downward.</p></div>
+        <span class="arrow">Launch Centipede →</span>
+      </a>
+      <article class="card pinball">
+        <div><small>Next experiment</small><h2>Pinball Workshop</h2><p>Since real pinball is part of the story too, the next step can be a physics-first table with flippers, bumpers, ramps, multiball, and a table editor. We can decide whether it belongs here after the first playable prototype.</p><span class="status">Not linked yet</span></div>
+      </article>
+    </section>
+
+    <p class="note">Both games share the same small 3DVR arcade-input layer so keyboard, touch buttons, pointer movement, pause/restart behavior, and future gamepad support can evolve once instead of being rewritten per game.</p>
+  </main>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
