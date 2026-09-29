@@ -199,7 +199,7 @@ export function buildWorkSchedulePlan({
 
   const protectedDates = new Set();
   protectedCommitments.forEach(commitment => {
-    if (commitment.countsAsRestDay === false) return;
+    if (commitment.countsAsRestDay !== true) return;
     enumerateDateRange(commitment.startDate || commitment.date, commitment.endDate || commitment.startDate || commitment.date)
       .forEach(date => {
         if (date >= start && date <= end) protectedDates.add(date);
