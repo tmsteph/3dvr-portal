@@ -65,7 +65,7 @@ export function createOrganismBridgeHandler(options = {}) {
       });
     }
 
-    if (method !== 'POST' || !['/recall', '/feedback', '/remember', '/knowledge'].includes(pathname)) {
+    if (method !== 'POST' || !['/recall', '/feedback', '/remember', '/knowledge', '/__3dvr-private-knowledge'].includes(pathname)) {
       return sendJson(res, 404, { ok: false, error: 'Not found.' });
     }
 
@@ -76,7 +76,7 @@ export function createOrganismBridgeHandler(options = {}) {
       return sendJson(res, 400, { ok: false, error: 'Invalid JSON request.' });
     }
 
-    if (pathname === '/knowledge' || payload.privateKnowledge === true) {
+    if (pathname === '/knowledge' || pathname === '/__3dvr-private-knowledge' || payload.privateKnowledge === true) {
       const access = await knowledgeAccessImpl(payload, options);
       if (!access.ok) {
         return sendJson(res, access.status || 403, { ok: false, error: access.reason || 'Unauthorized.' });
