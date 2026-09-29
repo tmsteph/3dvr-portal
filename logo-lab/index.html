@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-variant="original">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>3DVR Logo Lab</title>
-  <meta name="description" content="Interactive 3DVR logo playground inspired by the original hand-drawn multicolor mark.">
-  <meta name="theme-color" content="#090d18">
+  <meta name="description" content="Three interactive 3D treatments of the original hand-drawn 3DVR logo.">
+  <meta name="theme-color" content="#070b13">
   <link rel="stylesheet" href="style.css">
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
@@ -15,16 +15,31 @@
       <a class="back" href="/">← Portal</a>
       <div class="title-wrap">
         <p class="eyebrow">3DVR · Logo Lab</p>
-        <h1>Touch the logo.</h1>
+        <h1>Three takes on the original.</h1>
       </div>
       <button id="resetButton" class="ghost" type="button">Reset</button>
     </header>
+
+    <section class="variant-picker" aria-label="Logo treatment">
+      <button class="variant-card active" type="button" data-variant="original" aria-pressed="true">
+        <strong>Original</strong>
+        <span>Closest to the hand-drawn mark</span>
+      </button>
+      <button class="variant-card" type="button" data-variant="modern" aria-pressed="false">
+        <strong>Modern 3D</strong>
+        <span>Same identity, polished depth</span>
+      </button>
+      <button class="variant-card" type="button" data-variant="n64" aria-pressed="false">
+        <strong>N64</strong>
+        <span>Chunkier, springier, arcade energy</span>
+      </button>
+    </section>
 
     <section class="stage" aria-label="Interactive 3D 3DVR logo">
       <canvas id="logoCanvas"></canvas>
       <div class="aurora" aria-hidden="true"></div>
       <div class="instructions">
-        <strong>Drag</strong> to orbit · <strong>scroll/pinch</strong> to zoom · <strong>tap</strong> for a burst
+        <strong>Drag</strong> to orbit · <strong>scroll</strong> to zoom · <strong>release</strong> for a burst
       </div>
       <div class="wordmark" aria-hidden="true">
         <span>Productions</span>
@@ -46,14 +61,13 @@
         <input id="depthRange" type="range" min="0.25" max="1.8" value="1" step="0.05">
       </label>
       <button id="burstButton" type="button">✦ Burst</button>
-      <button id="paletteButton" type="button">◌ Palette</button>
     </section>
 
     <details class="legacy">
-      <summary>Legacy reference</summary>
+      <summary>Original logo reference</summary>
       <div class="legacy-grid">
         <div>
-          <p>The archived 3DVR React site used this image as its main hero logo and paired the site with the handwritten Kalam font.</p>
+          <p>All three treatments now trace the archived mark: gray ski-goggle outline, red 3, yellow D, blue V, and magenta R. No glasses arms or white letter.</p>
           <a href="https://github.com/tmsteph/3DVR-Website/blob/main/3dvr-react-app/src/3DVR.png" target="_blank" rel="noopener noreferrer">Open original in GitHub ↗</a>
         </div>
         <div class="legacy-image-wrap">
