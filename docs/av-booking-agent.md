@@ -280,3 +280,21 @@ Regression tests cover canonical-URL dedupe, preserving newer workflow state, ke
 - partial or contradictory venue/date information from email, portal, and calendar sources;
 - approval boundaries when a known contact is involved;
 - crash/retry behavior so an application or reply is never sent twice.
+
+
+## Schedule-derived opportunity availability — 2026-09-29
+
+The Opportunity Inbox now composes the existing Schedule Coordinator instead of maintaining a second calendar flag. Dated opportunities can be classified from the same booked gigs, Encore shifts, protected commitments, and rest-day rules used by the freelancer schedule.
+
+Availability has four meaningful states:
+
+- **clear** — no known schedule constraint;
+- **soft** — worth pursuing, but the date carries a replaceable constraint such as distant sparse Encore work or a planner-selected rest day;
+- **blocked** — an explicit protected commitment makes the date unavailable;
+- **conflict** — existing booked work or an unresolved schedule conflict occupies the date.
+
+Undated opportunities remain **unknown** rather than being guessed.
+
+The inbox may still pursue a soft opportunity, but it does not jump directly from an offer to Booked without schedule review. Apply and Book are also gated on blocked/conflicting dates. Explicit personal commitments remain hard blocks. Planner-selected rest days are not treated as immovable because they can shift, but the two-real-days-off rule remains part of the scheduling model and must be revalidated before booking.
+
+This closes an important simulation failure: “calendar unavailable” no longer conflates a hard commitment, a movable rest day, and distant Encore fallback work.
