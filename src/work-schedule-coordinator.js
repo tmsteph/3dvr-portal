@@ -376,6 +376,11 @@ export function buildWorkSchedulePlan({
     actions: uniqueBy(actions, action => action.id),
     conflicts,
     iatseAvailability,
+    protectedDates: [...protectedBusyDates].sort(),
+    protectedRestDates: [...protectedRestDates].sort(),
+    plannerRestDays: uniqueBy(restDays, value => value)
+      .filter(date => !protectedRestDates.has(date))
+      .sort(),
     softEncoreDates: [...softEncoreDates.keys()].sort(),
     metrics: {
       outsideBookedDays: outsideDates.size,
