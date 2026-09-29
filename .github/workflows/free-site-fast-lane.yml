@@ -19,7 +19,7 @@ permissions:
 
 concurrency:
   group: free-site-fulfillment
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   fulfill:
