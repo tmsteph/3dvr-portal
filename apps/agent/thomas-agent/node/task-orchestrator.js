@@ -10,6 +10,7 @@ const DEFAULT_REPO = process.env.THREEDVR_AGENT_TASK_REPO || path.resolve(__dirn
 const DEFAULT_TIMEOUT_MS = parseInteger(process.env.THREEDVR_AGENT_TASK_TIMEOUT_MS, 10 * 60 * 1000);
 const DEFAULT_OPENAI_MODEL = process.env.THREEDVR_AGENT_TASK_OPENAI_MODEL || process.env.OPENAI_MODEL || 'gpt-5';
 const DEFAULT_CLAUDE_MODEL = process.env.THREEDVR_AGENT_TASK_CLAUDE_MODEL || process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514';
+const DEFAULT_GEMINI_MODEL = process.env.THREEDVR_AGENT_TASK_GEMINI_MODEL || process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 const DEFAULT_THINKING = process.env.THREEDVR_AGENT_TASK_THINKING || 'high';
 const DEFAULT_MEMORY_LIMIT = parseInteger(process.env.THREEDVR_AGENT_TASK_MEMORY_LIMIT, 5);
 const HIGH_RISK_PATTERN = /\b(send|email|dm|sms|post|publish|deploy|merge|push|delete|remove|rm\s+-rf|reset\s+--hard|payment|charge|refund|purchase|buy|invoice|stripe|bank|payroll|credential|secret|token|password)\b/i;
@@ -27,7 +28,7 @@ function normalizeText(value) {
 
 function usage() {
   console.log(`Usage:
-  agent-task [--backend auto|codex|openclaw|claude|claude-cli|claude-api|openai|shell] [--memory] [--execute] [--unsafe] "task"
+  agent-task [--backend auto|codex|openclaw|claude|claude-cli|claude-api|openai|gemini|gemini-api|shell] [--memory] [--execute] [--unsafe] "task"
   agent-task --backend codex --memory --execute "Fix failing tests and open a PR"
   agent-task --backend openclaw --execute "Research this inbox request and draft the next step"
   agent-task --backend shell --execute --unsafe "npm test"
@@ -42,8 +43,10 @@ Defaults:
 Environment:
   OPENAI_API_KEY                         enables the OpenAI Responses backend
   ANTHROPIC_API_KEY                      enables the Claude Messages backend
+  GEMINI_API_KEY                         enables the Gemini OpenAI-compatible backend (explicit selection only)
   THREEDVR_AGENT_TASK_OPENAI_MODEL       default ${DEFAULT_OPENAI_MODEL}
   THREEDVR_AGENT_TASK_CLAUDE_MODEL       default ${DEFAULT_CLAUDE_MODEL}
+  THREEDVR_AGENT_TASK_GEMINI_MODEL       default ${DEFAULT_GEMINI_MODEL}
   THREEDVR_AGENT_TASK_BACKEND            default auto
   THREEDVR_AGENT_TASK_MEMORY_LIMIT       default ${DEFAULT_MEMORY_LIMIT}
   THREEDVR_AGENT_TASK_TIMEOUT_MS         default ${DEFAULT_TIMEOUT_MS}`);
@@ -157,19 +160,23 @@ async function detectCapabilities({ env = process.env, commandExistsImpl = comma
     claudeCli,
     openaiApi: Boolean(env.OPENAI_API_KEY),
     claudeApi: Boolean(env.ANTHROPIC_API_KEY),
+    geminiApi: Boolean(env.GEMINI_API_KEY),
   };
 }
 
 function pickBackend(options, classification, capabilities) {
   const requested = normalizeText(options.backend || 'auto').toLowerCase();
   if (requested && requested !== 'auto') {
-    return requested === 'claude' ? (capabilities.claudeCli ? 'claude-cli' : 'claude-api') : requested;
+    if (requested === 'claude') return capabilities.claudeCli ? 'claude-cli' : 'claude-api';
+    if (requested === 'gemini') return 'gemini-api';
+    return requested;
   }
   if (classification.kind === 'code' && capabilities.codex) return 'codex';
   if (classification.needsTools && capabilities.openclaw) return 'openclaw';
   if (capabilities.claudeCli) return 'claude-cli';
   if (capabilities.claudeApi) return 'claude-api';
   if (capabilities.openaiApi) return 'openai';
+  // Keep Gemini opt-in until provider-specific spend controls and eval gates exist.
   if (capabilities.openclaw) return 'openclaw';
   if (capabilities.codex) return 'codex';
   return 'none';
@@ -361,6 +368,33 @@ async function callClaude(prompt, options, { fetchImpl = fetch, env = process.en
   };
 }
 
+async function callGemini(prompt, options, { fetchImpl = fetch, env = process.env } = {}) {
+  if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not set');
+  const model = options.model || DEFAULT_GEMINI_MODEL;
+  const body = {
+    model,
+    messages: [{ role: 'user', content: prompt }],
+  };
+  const response = await fetchImpl('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${env.GEMINI_API_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || `Gemini request failed: ${response.status}`);
+  }
+  return {
+    ok: true,
+    model,
+    stdout: String(payload?.choices?.[0]?.message?.content || '').trim(),
+    raw: payload,
+  };
+}
+
 function taskId(task) {
   return crypto.createHash('sha256').update(normalizeText(task)).digest('hex').slice(0, 24);
 }
@@ -386,7 +420,7 @@ async function runAgentTask(argv = process.argv.slice(2), hooks = {}) {
   const id = taskId(options.task);
 
   if (backend === 'none') {
-    throw new Error('No executor available. Install codex/openclaw/claude or set OPENAI_API_KEY/ANTHROPIC_API_KEY.');
+    throw new Error('No executor available. Install codex/openclaw/claude, set OPENAI_API_KEY/ANTHROPIC_API_KEY, or select --backend gemini-api with GEMINI_API_KEY.');
   }
   if (!memoryExecutionAllowed(options)) {
     return printAndReturn({
@@ -466,6 +500,9 @@ async function runAgentTask(argv = process.argv.slice(2), hooks = {}) {
     } else if (backend === 'claude-api') {
       result = await callClaude(prompt, options, hooks);
       if (result.stdout) console.log(result.stdout);
+    } else if (backend === 'gemini-api') {
+      result = await callGemini(prompt, options, hooks);
+      if (result.stdout) console.log(result.stdout);
     } else {
       result = await runProcess(commandSpec, options, hooks.spawnImpl || spawn);
     }
@@ -481,6 +518,7 @@ async function runAgentTask(argv = process.argv.slice(2), hooks = {}) {
 function apiDescription(backend, options) {
   if (backend === 'openai') return `POST https://api.openai.com/v1/responses model=${options.model || DEFAULT_OPENAI_MODEL}`;
   if (backend === 'claude-api') return `POST https://api.anthropic.com/v1/messages model=${options.model || DEFAULT_CLAUDE_MODEL}`;
+  if (backend === 'gemini-api') return `POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions model=${options.model || DEFAULT_GEMINI_MODEL}`;
   return backend;
 }
 
@@ -539,6 +577,7 @@ module.exports = {
   describeCommand,
   callOpenAI,
   callClaude,
+  callGemini,
   taskId,
   runAgentTask,
 };
