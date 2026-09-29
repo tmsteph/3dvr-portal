@@ -229,7 +229,7 @@ if (form && mailtoLink && handoffCopy) {
         sideEffects,
         new Promise(resolve => setTimeout(resolve, 800))
       ]);
-      handoffCopy.textContent = 'Request received. The automated build queue will publish the site and email you the live link.';
+      handoffCopy.textContent = 'Request received. Check your email for confirmation now. We’ll email you again when the live site is ready.';
       if (submitButton) submitButton.textContent = 'Request received';
       form.reset();
     } catch (error) {
