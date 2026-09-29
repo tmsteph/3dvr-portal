@@ -239,8 +239,13 @@ function mergePullRequest(prUrl, cwd) {
 
 function deployWebProduction(webDir) {
   if (!VERCEL_TOKEN) {
-    console.log('[free-site-worker] Vercel token unavailable; waiting for external 3dvr-web deployment.');
-    return { skipped: true };
+    run('gh', [
+      'workflow', 'run', 'vercel-web-production.yml',
+      '--repo', 'tmsteph/3dvr-portal',
+      '--ref', 'main',
+    ], { cwd: webDir });
+    console.log('[free-site-worker] dispatched authenticated 3dvr-web production deploy fallback.');
+    return { dispatched: true };
   }
 
   const env = {
