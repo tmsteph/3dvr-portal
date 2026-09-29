@@ -453,6 +453,16 @@
       "has": [
         {
           "type": "host",
+          "value": "games.3dvr.tech"
+        }
+      ],
+      "destination": "/games.html"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
           "value": "purpose.3dvr.tech"
         }
       ],
