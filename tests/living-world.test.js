@@ -73,6 +73,10 @@ test('Living World ships as an in-portal evolving 3D experience', async () => {
   assert.match(page, /function nearestPathDistance/);
   assert.match(page, /function updateTrackFlow/);
   assert.match(page, /flowMultiplier/);
+  assert.match(page, /function updateWorldFlowVisuals/);
+  assert.match(page, /toneMappingExposure = 1\.05 \+ intensity/);
+  assert.match(page, /flow-wash/);
+  assert.match(page, /data-flow-state/);
   assert.match(page, /stay close to the glowing ribbon/);
 });
 
