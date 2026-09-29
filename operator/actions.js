@@ -4,6 +4,7 @@ import './forge-link-label.js';
 import { revealDeveloperKeyButton } from './developer-key-ui.js';
 import { openDatabase, loadState, saveState } from '../life-space/storage.js';
 import { normalizeProspect } from '../lead-finder/core.js';
+import { persistBackgroundActionUpdate, persistQueuedOperatorAction } from './action-receipts.js';
 
 const LEADS_KEY = '3dvr.leadFinder.prospects.v1';
 const GITHUB_WRITE_PATTERN = /\b(push|merge|pull request|open a pr|create a pr|commit(?: to github)?|github branch|push to github)\b/i;
@@ -40,6 +41,10 @@ export async function watchOperatorActionOutcome(outcome = {}, handlers = {}) {
   if (!background?.kind) return () => {};
   const onStatus = typeof handlers.onStatus === 'function' ? handlers.onStatus : () => {};
   const onUpdate = typeof handlers.onUpdate === 'function' ? handlers.onUpdate : () => {};
+  const publishUpdate = update => {
+    persistBackgroundActionUpdate(background, update);
+    onUpdate(update);
+  };
 
   if (background.kind === 'operator_runtime') {
     const runtime = await import('./delegate-task.js');
@@ -48,7 +53,7 @@ export async function watchOperatorActionOutcome(outcome = {}, handlers = {}) {
         const terminal = runtime.isOperatorTaskTerminal(record);
         const progress = runtime.operatorTaskProgress(record, background.estimateMs);
         onStatus(progress);
-        onUpdate({
+        publishUpdate({
           terminal,
           status: String(record.status || 'queued'),
           message: terminal ? runtime.operatorTaskReceipt(record) : progress,
@@ -65,7 +70,7 @@ export async function watchOperatorActionOutcome(outcome = {}, handlers = {}) {
         const terminal = server.isServerControlTerminal(record);
         const progress = server.serverControlProgress(record);
         onStatus(progress);
-        onUpdate({
+        publishUpdate({
           terminal,
           status: String(record.status || 'queued'),
           message: terminal ? server.serverControlReceipt(record) : progress,
@@ -82,7 +87,7 @@ export async function watchOperatorActionOutcome(outcome = {}, handlers = {}) {
         const terminal = forge.isForgeEditTerminal(record);
         const progress = forge.forgeEditProgress(record);
         onStatus(progress);
-        onUpdate({
+        publishUpdate({
           terminal,
           status: String(record.status || 'queued'),
           message: terminal ? forge.forgeEditReceipt(record) : progress,
@@ -133,22 +138,26 @@ export async function runOperatorAction(action = {}, context = {}) {
     const outcome = await queueOperatorTask(action);
     const estimateMinutes = Math.max(1, Math.ceil(Number(outcome.estimateMs || 120_000) / 60_000));
     context.onStatus?.(`Queued · runtime budget ≤${estimateMinutes}m`);
-    return {
+    const queued = {
       ...outcome,
       message: `${outcome.message} Runtime budget ≤${estimateMinutes}m. I’ll keep this chat updated.`,
       backgroundTask: { kind:'operator_runtime', id:outcome.taskId, estimateMs:outcome.estimateMs || 120_000 }
     };
+    persistQueuedOperatorAction(action, queued);
+    return queued;
   }
   if (action.type === 'server_control') {
     context.onStatus?.('Queueing the server request…');
     const { queueServerControl } = await import('./server-control.js');
     const outcome = await queueServerControl(action);
     context.onStatus?.('Server request queued · waiting for the control worker');
-    return {
+    const queued = {
       ...outcome,
       message: `${outcome.message} I’ll keep this chat updated.`,
       backgroundTask: { kind:'server_control', id:outcome.requestId }
     };
+    persistQueuedOperatorAction(action, queued);
+    return queued;
   }
   if (action.type === 'request_code_change') {
     context.onStatus?.('Queueing the approved code edit…');
@@ -163,19 +172,31 @@ export async function runOperatorAction(action = {}, context = {}) {
     });
     const status = String(result?.status || '').toLowerCase();
     if (status === 'completed') {
+      persistBackgroundActionUpdate(
+        { kind:'forge', value:forgeOutcome.url },
+        { terminal:true, status, message:forgeEditReceipt(result), record:result },
+        action
+      );
       return {
         ...forgeOutcome,
         message: forgeEditReceipt(result)
       };
     }
     if (['failed','rejected','approval_required'].includes(status)) {
+      persistBackgroundActionUpdate(
+        { kind:'forge', value:forgeOutcome.url },
+        { terminal:true, status, message:forgeFailureMessage(result), record:result },
+        action
+      );
       throw new Error(forgeFailureMessage(result));
     }
-    return {
+    const queued = {
       ...forgeOutcome,
       message: `${forgeEditReceipt(result)} ${forgeEditProgress(result)} I’ll keep this chat updated.`.trim(),
       backgroundTask: { kind:'forge', value:forgeOutcome.url }
     };
+    persistQueuedOperatorAction(action, queued);
+    return queued;
   }
   if (action.type === 'open_app' && action.url) return { message:'Ready to open.', url:action.url };
   return null;
