@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { runAutopilotCycle } from '../../src/money/autopilot.js';
+import { createActionReceipt } from '../../src/operator-runtime/action-receipt.js';
 
 function parseArgs(argv = []) {
   const args = {
@@ -39,12 +40,34 @@ async function main() {
     dryRun: args.dryRun ? ['true', '1', 'yes'].includes(String(args.dryRun).toLowerCase()) : undefined
   });
 
+  const receipt = createActionReceipt({
+    actionId: result.runId,
+    kind: 'revenue_cycle',
+    source: 'money-autopilot',
+    title: 'Money autopilot cycle',
+    intent: 'Analyze revenue signals and advance the strongest validated offer.',
+    domain: 'revenue',
+    workflow: 'money-autopilot',
+    status: 'succeeded',
+    verificationStatus: 'pending',
+    resultSummary: `Analyzed ${result.signalsAnalyzed} signals. Top opportunity: ${result.topOpportunity?.title || 'none'}. Publish: ${result.publish.published ? 'published' : result.publish.reason || 'not published'}.`,
+    createdAt: result.generatedAt,
+    updatedAt: new Date().toISOString(),
+    metadata: {
+      topOpportunityId: result.topOpportunity?.id || '',
+      checkoutConfigured: Boolean(result.monetization?.checkoutConfigured),
+      publishAttempted: Boolean(result.publish?.attempted),
+      published: Boolean(result.publish?.published)
+    }
+  });
+
   console.log(`Autopilot run: ${result.runId}`);
   console.log(`Generated: ${result.generatedAt}`);
   console.log(`Signals analyzed: ${result.signalsAnalyzed}`);
   console.log(`Top opportunity: ${result.topOpportunity?.title || 'none'}`);
   console.log(`Publish attempted: ${result.publish.attempted ? 'yes' : 'no'}`);
   console.log(`Publish status: ${result.publish.published ? 'published' : result.publish.reason || 'not published'}`);
+  console.log(`Action receipt: ${receipt.id} · verification ${receipt.verificationStatus}`);
 
   if (result.warnings.length) {
     console.log('Warnings:');
@@ -52,7 +75,7 @@ async function main() {
   }
 
   if (args.out) {
-    const outputPath = await writeOutput(args.out, result);
+    const outputPath = await writeOutput(args.out, { ...result, actionReceipt: receipt });
     console.log(`Saved autopilot artifact to ${outputPath}`);
   }
 }
