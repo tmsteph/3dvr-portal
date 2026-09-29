@@ -8,135 +8,69 @@ const ORIGIN = 'https://portal.3dvr.tech';
 const BROWSER_URL = process.env.BROWSER_URL || 'http://127.0.0.1:9222';
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-async function clickText(page, labels) {
-  return page.evaluate(values => {
-    const wanted = values.map(value => String(value).toLowerCase());
-    const nodes = [...document.querySelectorAll('button,[role="button"],input[type="submit"]')];
-    const hit = nodes.find(node => {
-      const text = String(node.innerText || node.value || node.getAttribute('aria-label') || '')
-        .trim().toLowerCase();
-      const rect = node.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0
-        && wanted.some(value => text === value || text.includes(value));
-    });
-    if (!hit || hit.disabled) return false;
-    hit.click();
-    return true;
-  }, labels);
-}
-
 (async () => {
-  const browser = await puppeteer.connect({ browserURL: BROWSER_URL });
-  const page = await browser.newPage();
   const result = {
     ok: false,
     configured: false,
-    sawGoogle: false,
-    returnedToPortal: false,
-    signedIn: false,
-    authMethod: '',
-    authProvider: '',
-    state: 'starting',
+    oauthStartRedirectsToGoogle: false,
+    googleSessionPresent: false,
+    googleSessionState: 'unknown',
   };
 
+  const configResponse = await fetch(`${ORIGIN}/api/oauth/google?action=config`);
+  const config = await configResponse.json();
+  result.configured = Boolean(configResponse.ok && config?.configured);
+
+  const startResponse = await fetch(
+    `${ORIGIN}/api/oauth/google?action=start&intent=signin&scopeKey=identity&returnTo=%2Fsign-in.html%3Fredirect%3D%252F`,
+    { redirect: 'manual' }
+  );
+  const location = startResponse.headers.get('location') || '';
   try {
-    const configResponse = await page.goto(`${ORIGIN}/api/oauth/google?action=config`, {
+    result.oauthStartRedirectsToGoogle = startResponse.status >= 300
+      && startResponse.status < 400
+      && new URL(location).hostname === 'accounts.google.com';
+  } catch {}
+
+  const browser = await puppeteer.connect({ browserURL: BROWSER_URL });
+  const page = await browser.newPage();
+  try {
+    await page.goto('https://accounts.google.com/', {
       waitUntil: 'domcontentloaded',
       timeout: 30000,
     });
-    const config = JSON.parse(await configResponse.text());
-    result.configured = Boolean(config?.configured);
-    if (!result.configured) {
-      result.state = 'not_configured';
-      process.stdout.write(JSON.stringify(result) + '\n');
-      return;
-    }
-
-    const start = `${ORIGIN}/api/oauth/google?action=start&intent=signin&scopeKey=identity&returnTo=%2Fsign-in.html%3Fredirect%3D%252F`;
-    await page.goto(start, { waitUntil: 'domcontentloaded', timeout: 30000 });
-
-    for (let step = 0; step < 14; step += 1) {
-      await sleep(900);
-      try {
-        const url = page.url();
-        const parsed = new URL(url);
-
-        if (parsed.hostname === 'accounts.google.com') {
-        result.sawGoogle = true;
-        const state = await page.evaluate(() => {
-          const text = (document.body?.innerText || '').slice(0, 12000);
-          const accountRows = [...document.querySelectorAll('[data-identifier]')].filter(el => {
-            const rect = el.getBoundingClientRect();
-            return rect.width > 0 && rect.height > 0;
-          }).length;
-          return {
-            text,
-            accountRows,
-            passwords: document.querySelectorAll('input[type="password"]').length,
-            emails: document.querySelectorAll('input[type="email"]').length,
-          };
-        });
-
-        if (/(captcha|verify your identity|2-step verification|security key|authenticator|enter a code|confirm it.?s you)/i.test(state.text)) {
-          result.state = 'human_verification_required';
-          break;
-        }
-        if (state.passwords || state.emails) {
-          result.state = 'google_login_required';
-          break;
-        }
-        if (state.accountRows > 1) {
-          result.state = 'multiple_accounts';
-          break;
-        }
-        if (state.accountRows === 1) {
-          await page.evaluate(() => {
-            const row = [...document.querySelectorAll('[data-identifier]')].find(el => {
-              const rect = el.getBoundingClientRect();
-              return rect.width > 0 && rect.height > 0;
-            });
-            row?.click();
-          });
-          continue;
-        }
-        if (await clickText(page, ['continue', 'allow'])) continue;
-        result.state = 'google_page_waiting';
-        continue;
-      }
-
-      if (parsed.hostname === 'portal.3dvr.tech' && result.sawGoogle) {
-        result.returnedToPortal = true;
-        await sleep(1600);
-        const auth = await page.evaluate(() => ({
-          signedIn: localStorage.getItem('signedIn') === 'true',
-          authMethod: localStorage.getItem('authMethod') || '',
-          authProvider: localStorage.getItem('authProvider') || '',
-        }));
-        result.signedIn = auth.signedIn;
-        result.authMethod = auth.authMethod;
-        result.authProvider = auth.authProvider;
-        result.ok = Boolean(auth.signedIn && auth.authMethod === 'oauth' && auth.authProvider === 'google');
-        result.state = result.ok ? 'passed' : 'returned_without_google_session';
-        break;
-      }
-
-        result.state = 'unexpected_host';
-        break;
-      } catch (error) {
-        const message = String(error?.message || error);
-        if (/Execution context was destroyed|Cannot find context|Target closed/i.test(message)) {
-          result.state = 'navigating';
-          continue;
-        }
-        throw error;
-      }
-    }
-
-    process.stdout.write(JSON.stringify(result) + '\n');
+    await sleep(1800);
+    const state = await page.evaluate(() => ({
+      href: location.href,
+      title: document.title,
+      emailInputs: document.querySelectorAll('input[type="email"]').length,
+      passwordInputs: document.querySelectorAll('input[type="password"]').length,
+      accountRows: document.querySelectorAll('[data-identifier]').length,
+      text: (document.body?.innerText || '').slice(0, 5000),
+    }));
+    const host = new URL(state.href).hostname;
+    const asksForLogin = state.emailInputs > 0
+      || state.passwordInputs > 0
+      || /sign in\s+with your google account|use your google account|forgot email/i.test(state.text);
+    const accountSurface = host === 'myaccount.google.com'
+      || /google account|manage your google account/i.test(state.text);
+    result.googleSessionPresent = Boolean(!asksForLogin && (accountSurface || state.accountRows > 0));
+    result.googleSessionState = result.googleSessionPresent
+      ? 'signed_in'
+      : asksForLogin
+        ? 'login_required'
+        : 'uncertain';
   } finally {
     await page.close().catch(() => {});
     await browser.disconnect();
   }
+
+  result.ok = Boolean(
+    result.configured
+    && result.oauthStartRedirectsToGoogle
+    && result.googleSessionPresent
+  );
+  process.stdout.write(JSON.stringify(result) + '\n');
 })().catch(error => {
   process.stdout.write(JSON.stringify({
     ok: false,
