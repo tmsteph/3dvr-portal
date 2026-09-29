@@ -90,7 +90,7 @@ jobs:
               for key in /tmp/vercel-a /tmp/vercel-b /tmp/vercel-c; do
                 [ -f "$key" ] || continue
                 if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host" \
-                  'avail_kb="$(df -Pk /var/tmp 2>/dev/null | awk "NR==2 {print \\$4}")"; [ "${avail_kb:-0}" -ge 2097152 ] || exit 2; set -a; [ -r "$HOME/.config/3dvr/money-printer.env" ] && . "$HOME/.config/3dvr/money-printer.env"; set +a; if [ -n "${VERCEL_TOKEN:-}" ] && curl -fsS -H "Authorization: Bearer $VERCEL_TOKEN" https://api.vercel.com/v2/user >/dev/null 2>&1; then exit 0; fi; if command -v vercel >/dev/null 2>&1; then vercel whoami >/dev/null 2>&1; else npx --yes vercel@latest whoami >/dev/null 2>&1; fi' >/dev/null 2>&1; then
+                  'set -a; [ -r "$HOME/.config/3dvr/money-printer.env" ] && . "$HOME/.config/3dvr/money-printer.env"; set +a; if [ -n "${VERCEL_TOKEN:-}" ] && curl -fsS -H "Authorization: Bearer $VERCEL_TOKEN" https://api.vercel.com/v2/user >/dev/null 2>&1; then exit 0; fi; if command -v vercel >/dev/null 2>&1; then vercel whoami >/dev/null 2>&1; else npx --yes vercel@latest whoami >/dev/null 2>&1; fi' >/dev/null 2>&1; then
                   connection="$host|$user|$key"
                   break 3
                 fi

@@ -3,3 +3,4 @@ spinner centering deploy via disk-aware fallback
 2026-09-29T21:48:00Z logo-lab v-r refinement retry after worker tmp fix
 2026-09-29T21:50:00Z logo-lab retry after deploy filesystem probe fix
 2026-09-29T21:52:00Z logo-lab retry via var-tmp worker scratch
+2026-09-29T21:54:00Z logo-lab retry with credential-first worker selection
