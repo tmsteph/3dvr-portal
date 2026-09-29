@@ -94,7 +94,7 @@
       </a>
       <div class="stats" aria-live="polite">
         <a class="pill" href="/games.html" aria-label="Back to 3DVR Game Hub">Game Hub</a>
-        <span class="pill">mode <strong id="mode-status">adventure</strong></span>
+        <span class="pill">mode <strong id="mode-status">flight</strong></span>
         <span class="pill">momentum <strong id="momentum-status">0</strong></span>
         <span class="pill">stage <strong id="stage-status">1</strong></span>
         <span class="pill">gate <strong id="gate-status">0/0</strong></span>
@@ -113,7 +113,7 @@
     </div>
 
     <div class="dock">
-      <div class="world-message" id="world-message">Relax and steer. Prism Wing cruises forward slowly on its own; hold Shift when you want full speed.</div>
+      <div class="world-message" id="world-message">Relax and steer. Prism Wing follows the course at a steady cruise; WASD nudges your position and Shift opens full speed.</div>
       <form class="composer" id="world-form">
         <input id="world-prompt" autocomplete="off" maxlength="180" aria-label="Talk to or reshape the world" placeholder="Talk to the world, or ask it to change…">
         <button type="submit">Shape world</button>
@@ -129,14 +129,14 @@
     </div>
   </div>
 
-  <div class="hint">slow auto-cruise · gentle WASD · hold Shift for full speed · Space brake · F fire · Esc releases mouse</div>
+  <div class="hint">steady rail cruise · WASD position · Shift full speed · Space brake · F fire · Esc releases mouse</div>
 
   <aside class="help" id="help-panel" hidden>
     <strong>Fly first. Everything else is optional.</strong>
-    <p><code>Click the world</code> to capture the mouse for first-person look. <code>Esc</code> releases it. <code>WASD</code> or arrows fly, and the mouse wheel glides forward/back.</p>
+    <p><code>Click the world</code> to capture the mouse for first-person look. <code>Esc</code> releases it. The course carries you forward; <code>WASD</code> nudges your position while mouse/arrows aim.</p>
     <p><code>Left click</code> fires the selected toy weapon. <code>1</code> pulse, <code>2</code> beam, <code>3</code> bomb. <code>Right click</code> always throws a bomb.</p>
-    <p>Keyboard-only: Prism Wing gently cruises forward without input. <code>WASD</code> makes small course corrections, <code>arrows</code> look, hold <code>Shift</code> for full speed, <code>Space</code> brakes, <code>E</code> rises, <code>Ctrl/C</code> descends, <code>X</code> is an alternate brake, <code>F</code> fires, <code>G</code> bombs, and <code>Esc</code> releases mouse capture.</p>
-    <p><b>Flight:</b> the ship always makes slow, steady forward progress. WASD is intentionally gentle for lining up the glowing path. Hold <code>Shift</code> to ramp up to full flight speed, and hold <code>Space</code> to brake. <code>X</code> still works as a secondary brake.</p>
+    <p>Keyboard-only: Prism Wing follows the course without input. <code>W/S</code> gently move up/down, <code>A/D</code> gently move left/right, <code>arrows</code> look, hold <code>Shift</code> for full speed, <code>Space</code> brakes, <code>E</code> also rises, <code>Ctrl/C</code> also descends, <code>X</code> is an alternate brake, <code>F</code> fires, <code>G</code> bombs, and <code>Esc</code> releases mouse capture.</p>
+    <p><b>Flight:</b> forward motion follows the course instead of your camera aim, so looking around no longer throws the ship off-line. WASD is a gentle positional nudge; hold <code>Shift</code> to ramp to full flight speed, and hold <code>Space</code> to brake. <code>X</code> still works as a secondary brake.</p>
     <p><b>Flight line:</b> get near the glowing ribbon and it gently attracts you toward the center instead of punishing small mistakes. Stay nearby for flow points, hit the wide gates, and shoot prism targets for bonuses.</p>
     <p>The world gently evolves when <b>World dreams</b> is on. Your changes persist on this device.</p>
     <p>Try commands like <code>forest</code>, <code>ocean</code>, <code>night</code>, <code>more crystals</code>, <code>more orbs</code>, <code>faster</code>, <code>calmer</code>, or <code>surprise me</code>.</p>
@@ -453,7 +453,7 @@
     const flowAccentColor = new THREE.Color();
 
     const movementModes = [
-      {id:'flight',label:'Flight',accel:12,max:30,cruiseMax:10,drag:1.05,strafe:.55,vertical:.65,boost:32,auto:4,inputScale:.38}
+      {id:'flight',label:'Flight',cruiseSpeed:6.5,fullSpeed:22,strafeSpeed:3.8,verticalSpeed:3.5,response:3,magnetRange:14,magnetStrength:.38}
     ];
     game.modeIndex = 0;
 
@@ -1390,6 +1390,9 @@
     const motionVelocity = new THREE.Vector3();
     const motionDesired = new THREE.Vector3();
     const motionUp = new THREE.Vector3(0,1,0);
+    const flightForward = new THREE.Vector3(0,0,-1);
+    const flightRight = new THREE.Vector3(1,0,0);
+    const trackPull = new THREE.Vector3();
 
     function smoothControl(current,target,dt,accel=7,release=10) {
       const rate = Math.abs(target) > Math.abs(current) ? accel : release;
@@ -1397,6 +1400,24 @@
       const next = THREE.MathUtils.lerp(current,target,blend);
       return Math.abs(next) < .0008 && target === 0 ? 0 : next;
     }
+
+    window.__prismWingDebug = {
+      getState() {
+        const track = nearestPathSample(camera.position,72);
+        return {
+          position:{x:camera.position.x,y:camera.position.y,z:camera.position.z},
+          velocity:{x:motionVelocity.x,y:motionVelocity.y,z:motionVelocity.z},
+          speed:motionVelocity.length(),
+          trackDistance:track?.distance ?? null,
+          trackT:track?.t ?? null,
+          thrust:controlMotion.thrust,
+          strafe:controlMotion.strafe,
+          vertical:controlMotion.vertical,
+          yaw,
+          pitch
+        };
+      }
+    };
 
     function resetControlMotion() {
       controlMotion.forward = 0;
@@ -1536,8 +1557,8 @@
       return right.set(1,0,0).applyQuaternion(camera.quaternion).normalize();
     }
     canvas.addEventListener('wheel',event => {
-      camera.position.addScaledVector(cameraForward(),-Math.sign(event.deltaY)*1.5*state.speed);
-    },{passive:true});
+      event.preventDefault();
+    },{passive:false});
 
     let phoneLook = false;
     let orientationBaseline = null;
@@ -1652,52 +1673,53 @@
 
       const fastTravel = keys.has('ShiftLeft') || keys.has('ShiftRight');
       const flow = currentMovementMode();
-      const f = cameraForward();
-      const r = cameraRight();
 
-      const forwardTarget = (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0);
       const strafeTarget = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
-      const verticalTarget = (keys.has('KeyE') ? 1 : 0) - ((keys.has('ControlLeft') || keys.has('ControlRight') || keys.has('KeyC')) ? 1 : 0);
+      const verticalTarget = clamp(
+        (keys.has('KeyW') ? 1 : 0) + (keys.has('KeyE') ? 1 : 0)
+        - (keys.has('KeyS') ? 1 : 0)
+        - ((keys.has('ControlLeft') || keys.has('ControlRight') || keys.has('KeyC')) ? 1 : 0),
+        -1,
+        1
+      );
       const thrustTarget = fastTravel ? 1 : 0;
       const brakeTarget = (keys.has('Space') || keys.has('KeyX')) ? 1 : 0;
       const lookYawTarget = (keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0);
       const lookPitchTarget = (keys.has('ArrowUp') ? 1 : 0) - (keys.has('ArrowDown') ? 1 : 0);
 
-      controlMotion.forward = smoothControl(controlMotion.forward,forwardTarget,dt,5.5,7);
-      controlMotion.strafe = smoothControl(controlMotion.strafe,strafeTarget,dt,6,8);
-      controlMotion.vertical = smoothControl(controlMotion.vertical,verticalTarget,dt,6,8);
-      controlMotion.thrust = smoothControl(controlMotion.thrust,thrustTarget,dt,3.8,5.5);
-      controlMotion.brake = smoothControl(controlMotion.brake,brakeTarget,dt,10,8);
+      controlMotion.forward = smoothControl(controlMotion.forward,0,dt,5,7);
+      controlMotion.strafe = smoothControl(controlMotion.strafe,strafeTarget,dt,4.2,6.2);
+      controlMotion.vertical = smoothControl(controlMotion.vertical,verticalTarget,dt,4.2,6.2);
+      controlMotion.thrust = smoothControl(controlMotion.thrust,thrustTarget,dt,2.5,3.6);
+      controlMotion.brake = smoothControl(controlMotion.brake,brakeTarget,dt,8,7);
       controlMotion.lookYaw = smoothControl(controlMotion.lookYaw,lookYawTarget,dt,6,9);
       controlMotion.lookPitch = smoothControl(controlMotion.lookPitch,lookPitchTarget,dt,6,9);
 
-      const raceSteer = flow.id === 'race' ? controlMotion.strafe : 0;
-      const skiSteer = flow.id === 'ski' ? controlMotion.strafe*.34 : 0;
-      yaw -= (raceSteer*1.45 + skiSteer*.7)*dt;
-      motionDesired.set(0,0,0)
-        .addScaledVector(f,controlMotion.forward*flow.inputScale + (flow.auto/Math.max(flow.max,1)))
-        .addScaledVector(r,controlMotion.strafe*flow.strafe*flow.inputScale)
-        .addScaledVector(motionUp,controlMotion.vertical*flow.vertical*flow.inputScale);
-      if (motionDesired.lengthSq() > 1) motionDesired.normalize();
-      motionVelocity.addScaledVector(motionDesired,flow.accel*state.speed*dt);
-      motionVelocity.addScaledVector(f,controlMotion.thrust*flow.boost*state.speed*dt);
+      const trackSample = nearestPathSample(camera.position,72);
+      if (trackSample?.tangent) flightForward.copy(trackSample.tangent).normalize();
+      else flightForward.copy(cameraForward());
 
-      const hasInput = Math.abs(controlMotion.forward)+Math.abs(controlMotion.strafe)+Math.abs(controlMotion.vertical)+controlMotion.thrust > .03;
-      const drag = flow.drag*(hasInput ? .72 : 1);
-      motionVelocity.multiplyScalar(Math.exp(-drag*dt));
-      if (controlMotion.brake > .01) motionVelocity.multiplyScalar(Math.exp(-9*controlMotion.brake*dt));
+      flightRight.crossVectors(flightForward,motionUp);
+      if (flightRight.lengthSq() < .0001) flightRight.set(1,0,0);
+      else flightRight.normalize();
 
-      const trackSample = nearestPathSample(camera.position,48);
-      if (trackSample && trackSample.distance < 12 && trackSample.distance > .15) {
-        const magnet = clamp(1-trackSample.distance/12,0,1);
-        const pull = trackSample.point.clone().sub(camera.position);
-        if (pull.lengthSq() > .0001) {
-          motionVelocity.addScaledVector(pull.normalize(),(5 + magnet*7)*magnet*dt);
-        }
+      const forwardSpeed = THREE.MathUtils.lerp(flow.cruiseSpeed,flow.fullSpeed,controlMotion.thrust)
+        * state.speed
+        * (1-controlMotion.brake*.9);
+
+      motionDesired.copy(flightForward).multiplyScalar(forwardSpeed)
+        .addScaledVector(flightRight,controlMotion.strafe*flow.strafeSpeed*state.speed)
+        .addScaledVector(motionUp,controlMotion.vertical*flow.verticalSpeed*state.speed);
+
+      if (trackSample && trackSample.distance < flow.magnetRange && trackSample.distance > .15) {
+        const magnet = clamp(1-trackSample.distance/flow.magnetRange,0,1);
+        trackPull.copy(trackSample.point).sub(camera.position);
+        trackPull.addScaledVector(flightForward,-trackPull.dot(flightForward));
+        motionDesired.addScaledVector(trackPull,flow.magnetStrength*magnet);
       }
 
-      const maxMomentum = (fastTravel ? flow.max : flow.cruiseMax)*state.speed;
-      if (motionVelocity.length() > maxMomentum) motionVelocity.setLength(maxMomentum);
+      const velocityBlend = 1-Math.exp(-flow.response*dt);
+      motionVelocity.lerp(motionDesired,velocityBlend);
       camera.position.addScaledVector(motionVelocity,dt);
       momentumStatusEl.textContent = motionVelocity.length().toFixed(1);
 
