@@ -10,6 +10,7 @@ import {
   opportunityCanonicalFingerprint,
   opportunitySignalFingerprint,
   readOpportunityEngineState,
+  selectPrimaryOpportunitySignal,
   sortOpportunityClusters,
   updateOpportunity,
   writeOpportunityEngineState
@@ -427,4 +428,42 @@ it('keeps canonical lifecycle synchronized when engine status changes', () => {
 
   state = updateOpportunity(state, id, { status: 'won' }, NOW);
   assert.equal(state.opportunities[0].canonicalStatus, 'booked');
+});
+
+
+it('uses the strongest clustered source for scoring without losing weaker provenance', () => {
+  const first = ingestOpportunity({}, {
+    twinId: 'thomas',
+    sourceLabel: 'Job scraper',
+    externalId: 'scrape-1',
+    need: 'A1 - San Diego - Oct 12',
+    buyerWords: 'A1 needed Oct 12',
+    location: 'San Diego, CA',
+    confidence: 35,
+  }, NOW);
+  const before = first.state.opportunities[0];
+
+  const enriched = ingestOpportunity(first.state, {
+    twinId: 'thomas',
+    sourceLabel: 'Production company',
+    sourceUrl: 'https://example.com/jobs/a1',
+    externalId: 'company-88',
+    need: 'A1 - San Diego - Oct 12',
+    buyerWords: 'Experienced A1 needed for confirmed corporate show on Oct 12. Day rate is approved.',
+    location: 'San Diego, CA',
+    confidence: 95,
+    policyStatus: 'first-party',
+    estimatedValueMin: 700,
+    estimatedValueMax: 700,
+  }, NOW);
+
+  const opportunity = enriched.state.opportunities[0];
+  const primary = selectPrimaryOpportunitySignal(opportunity.signals);
+
+  assert.equal(enriched.clustered, true);
+  assert.equal(opportunity.signals.length, 2);
+  assert.equal(primary.sourceLabel, 'Production company');
+  assert.equal(opportunity.primarySignalId, primary.id);
+  assert.ok(opportunity.priorityScore > before.priorityScore);
+  assert.ok(opportunity.profitScore > before.profitScore);
 });
