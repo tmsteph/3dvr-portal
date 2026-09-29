@@ -327,3 +327,24 @@ It is complete enough for real use when:
 - Device mesh — portable/roaming execution nodes.
 
 This document should evolve with the implementation. New provider quirks, portability assumptions, multi-user boundaries, or managed-service constraints should be updated here in the same changes that introduce them.
+
+
+## Unified Portal control surface — 2026-09-29
+
+The first general-user Digital Twin surface now lives at `/digital-twin/`.
+
+It intentionally composes existing 3DVR systems rather than creating a parallel agent stack:
+
+- **Digital Twin dashboard** is the simple home/control surface.
+- **Operator** remains the conversational brain and permissioned action router.
+- **Work Agent** remains the deeper freelance, availability, application, and booking workspace.
+- **Access** remains the connector, credential, and capability surface.
+- **Plan / Calendar** remain the source of scheduling constraints and commitments.
+- **Finance** remains the money/accounting surface.
+- **Workboard** remains the visible task/activity/evidence layer.
+
+The dashboard can hand a natural-language request into Operator through a same-origin session handoff, preserving the normal Operator context, memory, permissions, and audit path. It also introduces per-twin autonomy preferences for work, scheduling, communications, account setup, money movement, and computing/media tasks.
+
+The product rule is now: **one person-facing twin, many replaceable tools underneath it.** Account creation and login automation can handle routine navigation and form work, but authentication, identity verification, terms, payments, unusual commitments, and other consequential checkpoints remain explicit human handoffs unless a narrower standing policy authorizes them.
+
+These preferences are browser-local in the first implementation. Moving them into durable `twin_id`-scoped state is the next persistence step.
