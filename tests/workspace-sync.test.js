@@ -34,20 +34,22 @@ test('relay timeout never auto-saves empty startup state', async () => {
   assert.doesNotMatch(timeoutBlock, /\bsave\s*\(/, 'timeout must not overwrite unknown remote state');
 });
 
-test('Vercel production remains an explicit manual fallback', async () => {
+test('Vercel production remains an explicit controlled fallback', async () => {
   const workflow = await read('.github/workflows/vercel-production-prebuilt.yml');
   const vercelConfig = JSON.parse(await read('vercel.json'));
 
   assert.deepEqual(vercelConfig.git?.deploymentEnabled, { '**': false });
   assert.equal(vercelConfig.ignoreCommand, undefined);
   assert.match(workflow, /workflow_dispatch:/);
-  assert.doesNotMatch(workflow, /^\s*push:/m);
+  assert.match(workflow, /^\s*push:/m);
+  assert.match(workflow, /branches:\s*\[main\]/);
+  assert.match(workflow, /ops\/vercel-production-trigger\.txt/);
   assert.doesNotMatch(workflow, /^\s*pull_request:/m);
   assert.match(workflow, /VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z/);
   assert.match(workflow, /VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch/);
   assert.match(workflow, /Enforce Vercel Hobby function budget/);
   assert.match(workflow, /Detect direct Vercel credentials/);
-  assert.match(workflow, /skipping the optional Vercel fallback deployment/);
+  assert.match(workflow, /trying protected credentials on the 3DVR server workers/);
   assert.match(workflow, /vercel deploy --prebuilt --prod/);
   assert.match(workflow, /https:\/\/portal\.3dvr\.tech\//);
   assert.doesNotMatch(workflow, /German worker/i);

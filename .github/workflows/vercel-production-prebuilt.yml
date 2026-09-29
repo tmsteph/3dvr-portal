@@ -84,14 +84,22 @@ jobs:
           write_key "$SSH_C" /tmp/vercel-c
 
           connection=''
+          user_auth_probe='set -a; [ -r "$HOME/.config/3dvr/money-printer.env" ] && . "$HOME/.config/3dvr/money-printer.env"; set +a; if [ -n "${VERCEL_TOKEN:-}" ] && curl -fsS -H "Authorization: Bearer $VERCEL_TOKEN" https://api.vercel.com/v2/user >/dev/null 2>&1; then exit 0; fi; if command -v vercel >/dev/null 2>&1; then vercel whoami >/dev/null 2>&1; else npx --yes vercel@latest whoami >/dev/null 2>&1; fi'
+          printf -v root_auth_probe 'sudo -n env HOME=/root bash -lc %q' "$user_auth_probe"
+
           # Prefer OVH, our primary control/recovery node, then fall back to Hetzner.
+          # A server may keep deployment credentials under root even when SSH access
+          # intentionally lands on an unprivileged sudo-capable account.
           for host in 40.160.137.41 167.233.174.20; do
             for user in debian root ubuntu tmsteph; do
               for key in /tmp/vercel-a /tmp/vercel-b /tmp/vercel-c; do
                 [ -f "$key" ] || continue
-                if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host" \
-                  'set -a; [ -r "$HOME/.config/3dvr/money-printer.env" ] && . "$HOME/.config/3dvr/money-printer.env"; set +a; if [ -n "${VERCEL_TOKEN:-}" ] && curl -fsS -H "Authorization: Bearer $VERCEL_TOKEN" https://api.vercel.com/v2/user >/dev/null 2>&1; then exit 0; fi; if command -v vercel >/dev/null 2>&1; then vercel whoami >/dev/null 2>&1; else npx --yes vercel@latest whoami >/dev/null 2>&1; fi' >/dev/null 2>&1; then
-                  connection="$host|$user|$key"
+                if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host" "$user_auth_probe" >/dev/null 2>&1; then
+                  connection="$host|$user|$key|user"
+                  break 3
+                fi
+                if [ "$user" != root ] && ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host" "$root_auth_probe" >/dev/null 2>&1; then
+                  connection="$host|$user|$key|root"
                   break 3
                 fi
               done
@@ -99,11 +107,17 @@ jobs:
           done
 
           [ -n "$connection" ] || { echo "::error::No 3DVR server worker has a valid stored Vercel token or authenticated CLI session."; exit 1; }
-          IFS='|' read -r host user key <<< "$connection"
-          echo "Using authenticated Vercel worker: $user@$host"
+          IFS='|' read -r host user key auth_home <<< "$connection"
+          echo "Using authenticated Vercel worker: $user@$host (credential home: $auth_home)"
+
+          if [ "$auth_home" = root ] && [ "$user" != root ]; then
+            remote_command="sudo -n env HOME=/root GITHUB_REPOSITORY='$GITHUB_REPOSITORY' DEPLOY_SHA='$DEPLOY_SHA' bash -s"
+          else
+            remote_command="GITHUB_REPOSITORY='$GITHUB_REPOSITORY' DEPLOY_SHA='$DEPLOY_SHA' bash -s"
+          fi
 
           ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@$host" \
-            "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' DEPLOY_SHA='$DEPLOY_SHA' bash -s" <<'REMOTE'
+            "$remote_command" <<'REMOTE'
           set -euo pipefail
           deploy_root="/var/tmp/3dvr-vercel-deploy-${USER:-worker}"
           mkdir -p "$deploy_root"
