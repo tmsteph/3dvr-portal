@@ -116,9 +116,9 @@ jobs:
           fi
 
           "${vercel_cmd[@]}" pull --yes --environment=production
-          "${vercel_cmd[@]}" domains add games.3dvr.tech prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch --scope=tmstephs-projects >/tmp/games-domain.txt 2>&1 || {
+          "${vercel_cmd[@]}" domains add games.3dvr.tech prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch --scope=tmstephs-projects --force >/tmp/games-domain.txt 2>&1 || {
             cat /tmp/games-domain.txt
-            "${vercel_cmd[@]}" domains inspect games.3dvr.tech >/dev/null
+            "${vercel_cmd[@]}" domains inspect games.3dvr.tech --scope=tmstephs-projects >/dev/null
           }
           "${vercel_cmd[@]}" build --prod
           deploy_url="$("${vercel_cmd[@]}" deploy --prebuilt --prod --yes)"
@@ -140,7 +140,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if ! vercel domains add games.3dvr.tech prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch --token="$VERCEL_TOKEN" --scope=tmstephs-projects; then
+          if ! vercel domains add games.3dvr.tech prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch --token="$VERCEL_TOKEN" --scope=tmstephs-projects --force; then
             vercel domains inspect games.3dvr.tech --token="$VERCEL_TOKEN" --scope=tmstephs-projects >/dev/null
           fi
 
