@@ -129,13 +129,13 @@
     </div>
   </div>
 
-  <div class="hint">slow auto-cruise · gentle WASD · hold Shift for full speed · Space brake · F fire · Esc releases mouse</div>
+  <div class="hint">slow auto-cruise · gentle WASD · Shift boost · Space brake · Q/E barrel roll · Esc releases mouse</div>
 
   <aside class="help" id="help-panel" hidden>
     <strong>Fly first. Everything else is optional.</strong>
     <p><code>Click the world</code> to capture the mouse for first-person look. <code>Esc</code> releases it. <code>WASD</code> or arrows fly, and the mouse wheel glides forward/back.</p>
     <p><code>Left click</code> fires the selected toy weapon. <code>1</code> pulse, <code>2</code> beam, <code>3</code> bomb. <code>Right click</code> always throws a bomb.</p>
-    <p>Keyboard-only: Prism Wing gently cruises forward without input. <code>WASD</code> makes small course corrections, <code>arrows</code> look, hold <code>Shift</code> for full speed, <code>Space</code> brakes, <code>E</code> rises, <code>Ctrl/C</code> descends, <code>X</code> is an alternate brake, <code>F</code> fires, <code>G</code> bombs, and <code>Esc</code> releases mouse capture.</p>
+    <p>Keyboard-only: Prism Wing gently cruises forward without input. <code>WASD</code> makes small course corrections, <code>arrows</code> look, hold <code>Shift</code> for full speed, <code>Space</code> brakes, <code>Q/E</code> barrel-roll left/right, <code>R</code> rises, <code>Ctrl/C</code> descends, <code>X</code> is an alternate brake, <code>F</code> fires, <code>G</code> bombs, and <code>Esc</code> releases mouse capture.</p>
     <p><b>Flight:</b> the ship always makes slow, steady forward progress. WASD is intentionally gentle for lining up the glowing path. Hold <code>Shift</code> to ramp up to full flight speed, and hold <code>Space</code> to brake. <code>X</code> still works as a secondary brake.</p>
     <p><b>Flight line:</b> get near the glowing ribbon and it gently attracts you toward the center instead of punishing small mistakes. Stay nearby for flow points, hit the wide gates, and shoot prism targets for bonuses.</p>
     <p>The world gently evolves when <b>World dreams</b> is on. Your changes persist on this device.</p>
@@ -1382,6 +1382,9 @@
     };
     let yaw = 0;
     let pitch = -.05;
+    let barrelRollStart = -Infinity;
+    let barrelRollDirection = 0;
+    const barrelRollDuration = 520;
     let dragging = false;
     let lastX = 0;
     let lastY = 0;
@@ -1396,6 +1399,24 @@
       const blend = 1 - Math.exp(-rate*dt);
       const next = THREE.MathUtils.lerp(current,target,blend);
       return Math.abs(next) < .0008 && target === 0 ? 0 : next;
+    }
+
+    function triggerBarrelRoll(direction) {
+      const now = performance.now();
+      if (now-barrelRollStart < barrelRollDuration) return;
+      barrelRollDirection = direction < 0 ? -1 : 1;
+      barrelRollStart = now;
+    }
+
+    function barrelRollAngle(now) {
+      if (!barrelRollDirection) return 0;
+      const t = clamp((now-barrelRollStart)/barrelRollDuration,0,1);
+      if (t >= 1) {
+        barrelRollDirection = 0;
+        return 0;
+      }
+      const eased = t < .5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
+      return barrelRollDirection*Math.PI*2*eased;
     }
 
     function resetControlMotion() {
@@ -1447,6 +1468,8 @@
       if (event.code === 'Digit1') selectWeapon(0);
       if (event.code === 'Digit2') selectWeapon(1);
       if (event.code === 'Digit3') selectWeapon(2);
+      if (!event.repeat && event.code === 'KeyQ') triggerBarrelRoll(-1);
+      if (!event.repeat && event.code === 'KeyE') triggerBarrelRoll(1);
       if (event.code === 'KeyG') fireBomb();
       if (event.code === 'KeyF') {
         firing = true;
@@ -1657,7 +1680,7 @@
 
       const forwardTarget = (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0);
       const strafeTarget = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
-      const verticalTarget = (keys.has('KeyE') ? 1 : 0) - ((keys.has('ControlLeft') || keys.has('ControlRight') || keys.has('KeyC')) ? 1 : 0);
+      const verticalTarget = (keys.has('KeyR') ? 1 : 0) - ((keys.has('ControlLeft') || keys.has('ControlRight') || keys.has('KeyC')) ? 1 : 0);
       const thrustTarget = fastTravel ? 1 : 0;
       const brakeTarget = (keys.has('Space') || keys.has('KeyX')) ? 1 : 0;
       const lookYawTarget = (keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0);
@@ -1704,7 +1727,7 @@
       yaw += controlMotion.lookYaw*1.65*dt;
       pitch = clamp(pitch+controlMotion.lookPitch*1.18*dt,-1.25,1.25);
 
-      touchEuler.set(pitch,yaw,0,'YXZ');
+      touchEuler.set(pitch,yaw,barrelRollAngle(now),'YXZ');
       touchQuaternion.setFromEuler(touchEuler);
       if (phoneLook && orientationBaseline) {
         deviceRelative.slerp(deviceTarget,.2);
