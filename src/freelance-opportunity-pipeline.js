@@ -1,3 +1,5 @@
+import { opportunityLifecycleView, projectOpportunityStatus, toCanonicalOpportunityStatus } from './opportunity-lifecycle.js';
+
 export const FREELANCE_OPPORTUNITY_STATUSES = Object.freeze([
   'Found',
   'Ready',
@@ -9,21 +11,22 @@ export const FREELANCE_OPPORTUNITY_STATUSES = Object.freeze([
   'Rejected',
 ]);
 
-const CLOSED_STATUSES = new Set(['passed', 'rejected']);
-const NEXT_STATUS = Object.freeze({
-  found: 'Applied',
-  ready: 'Applied',
-  applied: 'Interview',
-  interview: 'Offered',
-  offered: 'Booked',
+const NEXT_CANONICAL_STATUS = Object.freeze({
+  discovered: 'contacted',
+  ready: 'contacted',
+  contacted: 'conversation',
+  conversation: 'offered',
+  offered: 'booked',
+  'booking-pending': 'booked',
 });
 
 const STAGE_PRIORITY = new Map([
   ['offered', 70],
-  ['interview', 60],
+  ['booking-pending', 70],
+  ['conversation', 60],
   ['ready', 50],
-  ['found', 40],
-  ['applied', 30],
+  ['discovered', 40],
+  ['contacted', 30],
   ['booked', 20],
 ]);
 
@@ -32,6 +35,11 @@ function text(value) {
 }
 export function normalizeFreelanceOpportunity(record = {}) {
   const score = Number(record.fitScore);
+  const status = text(record.status) || 'Found';
+  const canonicalStatus = opportunityLifecycleView({
+    status,
+    canonicalStatus: record.canonicalStatus,
+  }, 'freelance').canonicalStatus;
   return {
     ...record,
     id: text(record.id),
@@ -40,7 +48,8 @@ export function normalizeFreelanceOpportunity(record = {}) {
     location: text(record.location),
     sourceUrl: text(record.sourceUrl),
     compensation: text(record.compensation),
-    status: text(record.status) || 'Found',
+    status,
+    canonicalStatus,
     fitScore: Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0,
     availability: text(record.availability) || 'unknown',
     requirements: text(record.requirements),
@@ -52,12 +61,11 @@ export function normalizeFreelanceOpportunity(record = {}) {
 }
 
 export function isOpportunityOpen(record = {}) {
-  const status = text(record.status).toLowerCase();
-  return !CLOSED_STATUSES.has(status);
+  return opportunityLifecycleView(record, 'freelance').isOpen;
 }
 export function getOpportunityPriority(record = {}) {
   const opportunity = normalizeFreelanceOpportunity(record);
-  const stage = STAGE_PRIORITY.get(opportunity.status.toLowerCase()) || 0;
+  const stage = STAGE_PRIORITY.get(opportunity.canonicalStatus) || 0;
   const availabilityBoost = opportunity.availability === 'clear' ? 12 : 0;
   const conflictPenalty = opportunity.availability === 'conflict' ? 80 : 0;
   return opportunity.fitScore + stage + availabilityBoost - conflictPenalty;
@@ -70,10 +78,10 @@ export function buildOpportunityPipeline(opportunities = []) {
     .sort((a, b) => getOpportunityPriority(b) - getOpportunityPriority(a));
 
   const open = all.filter(isOpportunityOpen);
-  const ready = open.filter(item => ['found', 'ready'].includes(item.status.toLowerCase()));
-  const applied = open.filter(item => item.status.toLowerCase() === 'applied');
-  const conversations = open.filter(item => ['interview', 'offered'].includes(item.status.toLowerCase()));
-  const booked = all.filter(item => item.status.toLowerCase() === 'booked');
+  const ready = open.filter(item => ['discovered', 'ready'].includes(item.canonicalStatus));
+  const applied = open.filter(item => item.canonicalStatus === 'contacted');
+  const conversations = open.filter(item => ['conversation', 'offered', 'booking-pending'].includes(item.canonicalStatus));
+  const booked = all.filter(item => item.canonicalStatus === 'booked');
 
   return {
     all,
@@ -93,6 +101,9 @@ export function buildOpportunityPipeline(opportunities = []) {
 }
 
 export function getNextOpportunityStatus(record = {}) {
-  const status = text(record.status).toLowerCase();
-  return NEXT_STATUS[status] || '';
+  const current = record.canonicalStatus
+    ? toCanonicalOpportunityStatus(record.canonicalStatus)
+    : toCanonicalOpportunityStatus(record.status, 'freelance');
+  const next = NEXT_CANONICAL_STATUS[current];
+  return next ? projectOpportunityStatus(next, 'freelance') : '';
 }
