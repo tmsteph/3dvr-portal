@@ -55,10 +55,10 @@ test('Prism Wing ships as a focused gentle-cruise arcade flight experience', asy
   assert.match(page, /fullSpeed:22/);
   assert.match(page, /boostSpeed:9/);
   assert.match(page, /gateBoostSpeed:7/);
-  assert.match(page, /strafeSpeed:4\.2/);
-  assert.match(page, /verticalSpeed:3\.8/);
-  assert.match(page, /throttleUp:\.82/);
-  assert.match(page, /throttleDown:1\.35/);
+  assert.match(page, /strafeSpeed:4\.5/);
+  assert.match(page, /verticalSpeed:5/);
+  assert.match(page, /throttleUp:1\.15/);
+  assert.match(page, /throttleDown:1\.7/);
   assert.match(page, /trackSample\?\.tangent/);
   assert.match(page, /flightForward\.copy\(trackSample\.tangent\)/);
   assert.match(page, /flightThrottle \+ accelerate\*flow\.throttleUp\*dt - brakeKey\*flow\.throttleDown\*dt/);
