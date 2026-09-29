@@ -58,6 +58,10 @@ function makeId(prefix = 'record') {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function resolveTwinId(input = {}) {
+  return text(input.twinId || input.twin_id || input.ownerId, 'thomas-legacy');
+}
+
 function normalizeFingerprintPart(value) {
   return text(value).toLowerCase().replace(/\s+/g, ' ');
 }
@@ -154,6 +158,8 @@ export function createDemandSignal(input = {}, now = new Date()) {
   return {
     schemaVersion: OPPORTUNITY_ENGINE_SCHEMA_VERSION,
     id: text(input.id) || makeId('signal'),
+    twinId: resolveTwinId(input),
+    scopeStatus: text(input.twinId || input.twin_id || input.ownerId) ? 'scoped' : 'legacy-default',
     need: text(input.need, 'Unspecified need'),
     buyerWords: text(input.buyerWords || input.evidence),
     sourceLabel: text(input.sourceLabel || input.source, 'Manual forward'),
@@ -304,7 +310,7 @@ export function createOpportunityCluster(input = {}, now = new Date()) {
     canonicalStatus: text(input.canonicalStatus)
       ? toCanonicalOpportunityStatus(input.canonicalStatus)
       : toCanonicalOpportunityStatus(input.status || 'new', 'engine'),
-    twinId: text(input.twinId || input.twin_id || input.ownerId, 'thomas-legacy'),
+    twinId: resolveTwinId(input),
     owner: text(input.owner, 'Thomas'),
     scopeStatus: text(input.twinId || input.twin_id || input.ownerId) ? 'scoped' : 'legacy-default',
     expectedOutcome: text(input.expectedOutcome),
@@ -364,14 +370,21 @@ export function addOpportunity(state = {}, input = {}, now = new Date()) {
 export function ingestOpportunity(state = {}, input = {}, now = new Date()) {
   const current = createOpportunityEngineState(state, now);
   const fingerprint = opportunitySignalFingerprint(input);
-  const duplicate = current.signals.find(signal => signal.sourceFingerprint === fingerprint);
+  const incomingTwinId = resolveTwinId(input);
+  const duplicate = current.signals.find(signal => (
+    signal.twinId === incomingTwinId
+    && signal.sourceFingerprint === fingerprint
+  ));
   if (duplicate) {
     return { state: current, created: false, duplicateSignalId: duplicate.id };
   }
 
   const canonicalFingerprint = opportunityCanonicalFingerprint(input);
   const existing = canonicalFingerprint
-    ? current.opportunities.find(opportunity => opportunity.canonicalFingerprint === canonicalFingerprint)
+    ? current.opportunities.find(opportunity => (
+      opportunity.twinId === incomingTwinId
+      && opportunity.canonicalFingerprint === canonicalFingerprint
+    ))
     : null;
 
   if (existing) {
