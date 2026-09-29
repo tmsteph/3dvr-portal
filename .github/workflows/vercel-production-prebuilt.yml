@@ -105,7 +105,9 @@ jobs:
           ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@$host" \
             "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' DEPLOY_SHA='$DEPLOY_SHA' bash -s" <<'REMOTE'
           set -euo pipefail
-          work="$(mktemp -d)"
+          deploy_root="${HOME:-/var/tmp}/.cache/3dvr-vercel-deploy"
+          mkdir -p "$deploy_root"
+          work="$(mktemp -d "$deploy_root/work.XXXXXX")"
           trap 'rm -rf "$work"' EXIT
           git clone --quiet --depth=1 --filter=blob:none "https://github.com/$GITHUB_REPOSITORY.git" "$work/repo"
           git -C "$work/repo" checkout --quiet --detach "$DEPLOY_SHA"
