@@ -4,10 +4,10 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('Living World ships as an in-portal evolving 3D experience', async () => {
+test('Prism Wing ships as a focused manual arcade flight experience', async () => {
   const page = await read('living-world/index.html');
 
-  assert.match(page, /Living World · 3DVR/);
+  assert.match(page, /Prism Wing · 3DVR/);
   assert.match(page, /three@0\.176\.0\/build\/three\.module\.js/);
   assert.match(page, /id="world-prompt"/);
   assert.match(page, /World dreams/);
@@ -42,19 +42,19 @@ test('Living World ships as an in-portal evolving 3D experience', async () => {
   assert.match(page, /controlMotion\.lookPitch = smoothControl/);
   assert.match(page, /controlMotion\.thrust = smoothControl/);
   assert.match(page, /const movementModes = \[/);
-  assert.match(page, /id:'adventure'/);
-  assert.match(page, /id:'ski'/);
-  assert.match(page, /id:'race'/);
   assert.match(page, /id:'flight'/);
-  assert.match(page, /id:'arena'/);
+  assert.doesNotMatch(page, /id:'adventure'/);
+  assert.doesNotMatch(page, /id:'ski'/);
+  assert.doesNotMatch(page, /id:'race'/);
+  assert.doesNotMatch(page, /id:'arena'/);
   assert.match(page, /const motionVelocity = new THREE\.Vector3/);
   assert.match(page, /motionVelocity\.multiplyScalar\(Math\.exp\(-drag\*dt\)\)/);
   assert.match(page, /motionVelocity\.setLength\(maxMomentum\)/);
   assert.match(page, /gate\.userData\.boost/);
-  assert.match(page, /cycleMovementMode/);
-  assert.match(page, /event\.code === 'Tab'/);
+  assert.doesNotMatch(page, /event\.code === 'Tab'/);
+  assert.match(page, /auto:0/);
   assert.match(page, /keys\.has\('KeyX'\)/);
-  assert.match(page, /id="mode-button"/);
+  assert.match(page, /id="mode-button"[^>]*hidden/);
   assert.match(page, /id="mode-status"/);
   assert.match(page, /resetControlMotion/);
   assert.match(page, /ShiftLeft/);
@@ -74,31 +74,53 @@ test('Living World ships as an in-portal evolving 3D experience', async () => {
   assert.match(page, /function buildGamePath/);
   assert.match(page, /applyQuaternion\(camera\.quaternion\)/);
   assert.doesNotMatch(page.slice(page.indexOf('function gamePointSequence'), page.indexOf('function updateGateMaterials')), /const baseYaw = yaw/);
-  assert.match(page, /TubeGeometry\(game\.curve,Math\.max\(96,points\.length\*26\),\.18,8,false\)/);
+  assert.match(page, /TubeGeometry\(game\.curve,Math\.max\(96,points\.length\*26\),\.3,8,false\)/);
   assert.match(page, /function updateGame/);
-  assert.match(page, /Path Run/);
+  assert.match(page, /Flight line/);
   assert.match(page, /new THREE\.TubeGeometry/);
   assert.match(page, /gameTarget/);
   assert.match(page, /stage-status/);
   assert.match(page, /gate-status/);
   assert.match(page, /score-status/);
   assert.match(page, /flow-status/);
-  assert.match(page, /function nearestPathDistance/);
+  assert.match(page, /function nearestPathSample/);
+  assert.match(page, /trackSample\.distance < 12/);
+  assert.match(page, /motionVelocity\.addScaledVector\(pull\.normalize\(\)/);
   assert.match(page, /function updateTrackFlow/);
   assert.match(page, /flowMultiplier/);
   assert.match(page, /function updateWorldFlowVisuals/);
   assert.match(page, /toneMappingExposure = 1\.05 \+ intensity/);
   assert.match(page, /flow-wash/);
   assert.match(page, /data-flow-state/);
-  assert.match(page, /stay close to the glowing ribbon/);
+  assert.match(page, /gently attracts you toward the center/);
 });
 
-test('Living World is discoverable from Labs and Operator search', async () => {
+test('Prism Wing and split game prototypes are discoverable', async () => {
   const [labs, search] = await Promise.all([
     read('labs/index.html'),
     read('operator/app-search.js')
   ]);
 
   assert.match(labs, /href="\.\.\/living-world\/"/);
-  assert.match(search, /title: 'Living World', href: '\/living-world\/'/);
+  assert.match(search, /title: 'Prism Wing', href: '\/living-world\/'/);
+  assert.match(search, /title: '3DVR Adventure', href: '\/open-world\/'/);
+  assert.match(search, /title: 'Prism Racer', href: '\/prism-racer\/'/);
+});
+
+
+test('Game Hub exposes separate flight, open-world, and racing experiences', async () => {
+  const [hub, adventure, racer] = await Promise.all([
+    read('games.html'),
+    read('open-world/index.html'),
+    read('prism-racer/index.html')
+  ]);
+  assert.match(hub, /Prism Wing/);
+  assert.match(hub, /3DVR Adventure/);
+  assert.match(hub, /Prism Racer/);
+  assert.match(adventure, /WASD move/);
+  assert.match(adventure, /Space jump/);
+  assert.match(adventure, /stars <b id="stars">0\/8/);
+  assert.match(racer, /W throttle/);
+  assert.match(racer, /Shift boost/);
+  assert.match(racer, /magnetic road/);
 });
