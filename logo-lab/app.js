@@ -57,18 +57,19 @@ const variants = {
   },
   modern: {
     label: 'Modern 3D',
-    radius: 0.082,
-    radialSegments: 12,
-    emissive: 0.20,
-    roughness: 0.24,
-    metalness: 0.035,
-    clearcoat: 0.92,
-    clearcoatRoughness: 0.10,
-    zJitter: 0.022,
-    float: 0.025,
-    spring: 0.08,
-    visorOpacity: 0.10,
-    lightBoost: 1
+    radius: 0.070,
+    radialSegments: 10,
+    emissive: 0.16,
+    roughness: 0.27,
+    metalness: 0.02,
+    clearcoat: 0.90,
+    clearcoatRoughness: 0.12,
+    zJitter: 0.010,
+    float: 0.017,
+    spring: 0.055,
+    visorOpacity: 0.07,
+    lightBoost: 0.96,
+    strokeFlatten: 0.44
   },
   n64: {
     label: 'N64',
@@ -90,7 +91,7 @@ const variants = {
 const logoGroup = new THREE.Group();
 root.add(logoGroup);
 
-let currentVariant = 'original';
+let currentVariant = 'modern';
 let materialRecords = [];
 let animatedMeshes = [];
 let burstParticles = [];
@@ -111,13 +112,15 @@ let burstScale = 1;
 
 const paths = {
   goggles: [
-    [-4.42, .54, 0], [-4.36, .72, 0], [-4.18, .82, 0], [-3.78, .85, 0],
-    [-3.25, .85, 0], [-2.70, .84, 0], [-2.15, .84, 0], [-1.88, .76, 0],
-    [-1.76, .59, 0], [-1.75, .26, 0], [-1.75, -.12, 0], [-1.84, -.35, 0],
-    [-2.05, -.50, 0], [-2.35, -.56, 0], [-2.63, -.50, 0], [-2.86, -.32, 0],
-    [-3.08, -.06, 0], [-3.23, .06, 0], [-3.34, .05, 0], [-3.48, -.10, 0],
-    [-3.68, -.34, 0], [-3.90, -.49, 0], [-4.15, -.52, 0], [-4.36, -.43, 0],
-    [-4.48, -.27, 0], [-4.52, -.06, 0], [-4.51, .29, 0], [-4.48, .46, 0]
+    [-4.46, .42, 0], [-4.43, .58, 0], [-4.34, .70, 0], [-4.18, .79, 0],
+    [-3.94, .84, 0], [-3.62, .86, 0], [-3.24, .86, 0], [-2.82, .86, 0],
+    [-2.39, .86, 0], [-2.08, .81, 0], [-1.88, .71, 0], [-1.79, .55, 0],
+    [-1.76, .31, 0], [-1.76, .02, 0], [-1.79, -.23, 0], [-1.89, -.39, 0],
+    [-2.07, -.50, 0], [-2.31, -.55, 0], [-2.56, -.52, 0], [-2.76, -.42, 0],
+    [-2.92, -.27, 0], [-3.05, -.10, 0], [-3.15, .00, 0], [-3.25, .00, 0],
+    [-3.37, -.11, 0], [-3.51, -.28, 0], [-3.69, -.43, 0], [-3.90, -.51, 0],
+    [-4.12, -.52, 0], [-4.31, -.45, 0], [-4.43, -.31, 0], [-4.49, -.12, 0],
+    [-4.50, .10, 0], [-4.49, .28, 0]
   ],
   three: [
     [-1.58, .72, 0], [-1.30, .64, 0], [-1.02, .62, 0], [-.72, .68, 0],
@@ -197,8 +200,8 @@ function addTube(points, color, radius, config, options = {}) {
   const curve = new THREE.CatmullRomCurve3(
     points.map((p, i) => pointWithDepth(p, i, config)),
     Boolean(options.closed),
-    'catmullrom',
-    0.34
+    options.curveType || 'catmullrom',
+    options.tension ?? 0.34
   );
   const geometry = new THREE.TubeGeometry(
     curve,
@@ -208,6 +211,9 @@ function addTube(points, color, radius, config, options = {}) {
     Boolean(options.closed)
   );
   const mesh = new THREE.Mesh(geometry, makeMaterial(color, config, options.glowMultiplier ?? 1));
+  if (currentVariant === 'modern' && options.writing) {
+    mesh.scale.z = config.strokeFlatten ?? 0.44;
+  }
   mesh.userData.basePosition = mesh.position.clone();
   mesh.userData.floatPhase = animatedMeshes.length * 0.67;
   animatedMeshes.push(mesh);
@@ -244,13 +250,17 @@ function buildLogo() {
   const config = variants[currentVariant];
 
   addVisor(config);
-  addTube(paths.goggles, COLORS.goggle, config.radius * .92, config, { closed: true, glowMultiplier: .42 });
-  addTube(paths.three, COLORS.red, config.radius, config);
-  addTube(paths.d, COLORS.yellow, config.radius, config, { closed: true });
-  addTube(paths.v, COLORS.blue, config.radius, config);
-  addTube(paths.rStem, COLORS.magenta, config.radius, config);
-  addTube(paths.rLoop, COLORS.magenta, config.radius, config);
-  addTube(paths.rLeg, COLORS.magenta, config.radius, config);
+  addTube(paths.goggles, COLORS.goggle, config.radius * .90, config, {
+    closed: true,
+    glowMultiplier: .34,
+    curveType: 'centripetal'
+  });
+  addTube(paths.three, COLORS.red, config.radius, config, { writing: true });
+  addTube(paths.d, COLORS.yellow, config.radius, config, { closed: true, writing: true, curveType: 'centripetal' });
+  addTube(paths.v, COLORS.blue, config.radius, config, { writing: true });
+  addTube(paths.rStem, COLORS.magenta, config.radius, config, { writing: true });
+  addTube(paths.rLoop, COLORS.magenta, config.radius, config, { writing: true });
+  addTube(paths.rLeg, COLORS.magenta, config.radius, config, { writing: true });
 
   rimBlue.intensity = 10 * config.lightBoost;
   rimPink.intensity = 9 * config.lightBoost;
@@ -416,7 +426,7 @@ function animate() {
   root.rotation.y += (targetRotY - root.rotation.y) * .055;
 
   if (autoMotion && !dragging) {
-    root.rotation.z = Math.sin(t * .43) * config.spring * .10;
+    root.rotation.z = Math.sin(t * .43) * config.spring * (currentVariant === 'modern' ? .055 : .10);
     root.position.z = Math.sin(t * .72) * config.float * depthScale;
   } else {
     root.rotation.z *= .92;
@@ -427,7 +437,10 @@ function animate() {
       mesh.position.z *= .90;
       return;
     }
-    const strength = currentVariant === 'original' ? .002 : config.float;
+    const strength =
+      currentVariant === 'original' ? .002 :
+      currentVariant === 'modern' ? config.float * .72 :
+      config.float;
     mesh.position.z = Math.sin(t * (1.05 + config.spring) + mesh.userData.floatPhase) * strength * depthScale;
     if (currentVariant === 'n64') {
       mesh.rotation.z = Math.sin(t * 1.35 + index * .72) * .006;
