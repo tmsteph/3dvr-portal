@@ -363,3 +363,22 @@ it('does not cross-source cluster vague jobs without enough identity anchors', (
   assert.equal(second.created, true);
   assert.equal(second.state.opportunities.length, 2);
 });
+
+
+it('Opportunity Engine exposes canonical lifecycle state without changing legacy status', () => {
+  const contacted = createOpportunityCluster({
+    id: 'contacted',
+    status: 'contacted',
+    need: 'A1 call'
+  }, NOW);
+  const won = createOpportunityCluster({
+    id: 'won',
+    status: 'won',
+    need: 'Booked show'
+  }, NOW);
+
+  assert.equal(contacted.status, 'contacted');
+  assert.equal(contacted.canonicalStatus, 'contacted');
+  assert.equal(won.status, 'won');
+  assert.equal(won.canonicalStatus, 'booked');
+});
