@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07111f">
+  <title>3DVR Spinner</title>
+  <meta name="description" content="A full-screen playground for the 3DVR portal spinner.">
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #07111f;
+      color: #eefcff;
+      --pointer-x: 50%;
+      --pointer-y: 50%;
+      --play-scale: 1;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(34, 211, 238, 0.13), transparent 25rem),
+        radial-gradient(circle at 50% 45%, rgba(240, 202, 99, 0.08), transparent 30rem),
+        #07111f;
+      transition: background 180ms ease;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      width: min(88vw, 54rem);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      transition: transform 420ms cubic-bezier(.16,1,.3,1), opacity 260ms ease, border-color 260ms ease;
+    }
+
+    body::before {
+      border: 1px solid rgba(121, 237, 244, 0.12);
+      box-shadow:
+        0 0 8rem rgba(34, 211, 238, 0.05),
+        inset 0 0 8rem rgba(240, 202, 99, 0.035);
+    }
+
+    body::after {
+      width: min(66vw, 39rem);
+      border: 1px dashed rgba(240, 202, 99, 0.12);
+      transform: translate(-50%, -50%) rotate(-18deg);
+    }
+
+    body[data-hyper="true"]::before {
+      transform: translate(-50%, -50%) scale(1.13) rotate(12deg);
+      border-color: rgba(121, 237, 244, 0.32);
+      opacity: 1;
+    }
+
+    body[data-hyper="true"]::after {
+      transform: translate(-50%, -50%) rotate(28deg) scale(1.18);
+      border-color: rgba(240, 202, 99, 0.34);
+    }
+
+    .topbar {
+      position: fixed;
+      z-index: 20;
+      inset: max(12px, env(safe-area-inset-top)) 14px auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    .topbar a,
+    .topbar button {
+      min-height: 42px;
+      padding: 9px 13px;
+      border: 1px solid rgba(121, 237, 244, 0.16);
+      border-radius: 999px;
+      background: rgba(7, 17, 31, 0.64);
+      color: #dffcff;
+      text-decoration: none;
+      font: inherit;
+      font-weight: 750;
+      backdrop-filter: blur(14px);
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    .topbar a:hover,
+    .topbar button:hover,
+    .topbar a:focus-visible,
+    .topbar button:focus-visible {
+      border-color: rgba(121, 237, 244, 0.54);
+      outline: none;
+    }
+
+    main {
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: 5rem 1rem;
+      perspective: 900px;
+    }
+
+    .play-stage {
+      position: relative;
+      width: min(78vw, 44rem);
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      transform: scale(var(--play-scale));
+      transition: transform 220ms cubic-bezier(.16,1,.3,1);
+      isolation: isolate;
+    }
+
+    .play-stage::before {
+      content: "";
+      position: absolute;
+      inset: 8%;
+      z-index: -2;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle, rgba(244, 194, 71, 0.12), rgba(34, 211, 238, 0.1) 34%, rgba(20, 184, 166, 0.05) 58%, transparent 76%);
+      filter: blur(20px);
+      transform: scale(1.08);
+      opacity: 0.78;
+      animation: breathe 3.2s ease-in-out infinite;
+    }
+
+    body[data-hyper="true"] .play-stage::before {
+      animation-duration: 1.2s;
+      opacity: 1;
+      transform: scale(1.22);
+    }
+
+    .portal-swirl-logo {
+      position: relative;
+      width: min(72vw, 40rem);
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+      filter:
+        drop-shadow(0 28px 48px rgba(0, 0, 0, 0.42))
+        drop-shadow(0 0 28px rgba(34, 211, 238, 0.09));
+    }
+
+    .portal-swirl-logo:active { cursor: grabbing; }
+    .portal-swirl-logo:focus-visible { outline: 3px solid rgba(121, 237, 244, 0.48); outline-offset: 10px; }
+
+    .portal-swirl-logo__canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      opacity: 0;
+      transition: opacity 220ms ease;
+    }
+
+    .portal-swirl-logo[data-logo-ready="true"] .portal-swirl-logo__canvas { opacity: 1; }
+
+    .portal-swirl-logo__fallback {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-content: center;
+      border: 8px solid #d8aa3e;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 36% 28%, rgba(224, 255, 255, 0.96), rgba(62, 207, 214, 0.78) 18%, rgba(13, 112, 116, 0.84) 48%, #07111f 78%);
+      text-align: center;
+      font-weight: 900;
+      line-height: 0.9;
+      box-shadow: inset 0 0 0 5px rgba(255, 240, 176, 0.28), inset 0 0 55px rgba(2, 6, 23, 0.55);
+    }
+
+    .portal-swirl-logo__fallback span:first-child { font-size: clamp(2rem, 8vw, 5rem); }
+    .portal-swirl-logo__fallback span:last-child { margin-top: 0.5rem; color: #f0ca63; font-size: clamp(1rem, 3vw, 2.1rem); letter-spacing: 0.08em; }
+    .portal-swirl-logo[data-logo-ready="true"] .portal-swirl-logo__fallback { opacity: 0; pointer-events: none; }
+
+    .hint {
+      position: fixed;
+      z-index: 10;
+      left: 50%;
+      bottom: max(16px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      width: min(92vw, 44rem);
+      color: rgba(220, 246, 250, 0.55);
+      font-size: 0.83rem;
+      text-align: center;
+      letter-spacing: 0.02em;
+      pointer-events: none;
+    }
+
+    .hint strong { color: rgba(240, 202, 99, 0.84); }
+
+    .pulse {
+      position: fixed;
+      z-index: 0;
+      width: 1rem;
+      height: 1rem;
+      margin: -0.5rem;
+      border: 1px solid rgba(121, 237, 244, 0.52);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: pulse 760ms cubic-bezier(.16,1,.3,1) forwards;
+    }
+
+    @keyframes breathe {
+      0%, 100% { transform: scale(1.02); opacity: 0.58; }
+      50% { transform: scale(1.17); opacity: 0.92; }
+    }
+
+    @keyframes pulse {
+      from { transform: scale(0.4); opacity: 0.9; }
+      to { transform: scale(18); opacity: 0; }
+    }
+
+    @media (max-width: 640px) {
+      .play-stage { width: min(92vw, 32rem); }
+      .portal-swirl-logo { width: min(86vw, 29rem); }
+      .topbar { inset-inline: 10px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .play-stage,
+      body::before,
+      body::after,
+      .portal-swirl-logo__canvas { transition: none; }
+      .play-stage::before { animation: none; }
+    }
+  </style>
+  <script src="/portal-swirl-logo.js" defer></script>
+</head>
+<body data-hyper="false">
+  <div class="topbar">
+    <a href="/" aria-label="Back to 3DVR Portal">← Portal</a>
+    <button id="resetPlay" type="button">Reset</button>
+  </div>
+
+  <main>
+    <section class="play-stage" id="playStage" aria-label="3DVR spinner playground">
+      <div
+        class="portal-swirl-logo"
+        data-portal-swirl-logo
+        role="application"
+        tabindex="0"
+        aria-label="Large interactive 3DVR portal spinner. Drag, flick, tap, hold, use arrow keys, scroll to resize, or double click for hyper mode."
+      >
+        <canvas class="portal-swirl-logo__canvas" data-portal-swirl-canvas aria-hidden="true"></canvas>
+        <span class="portal-swirl-logo__fallback" aria-hidden="true">
+          <span>3dvr</span>
+          <span>portal</span>
+        </span>
+      </div>
+    </section>
+  </main>
+
+  <p class="hint" id="playHint"><strong>Play with it.</strong> Drag · flick · tap · hold · arrows · wheel · double-click</p>
+
+  <script>
+    (() => {
+      const body = document.body;
+      const stage = document.getElementById('playStage');
+      const reset = document.getElementById('resetPlay');
+      const hint = document.getElementById('playHint');
+      const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let scale = 1;
+      let energy = 0;
+      let hintTimer = 0;
+
+      const setHint = (message) => {
+        hint.innerHTML = message;
+        clearTimeout(hintTimer);
+        hintTimer = setTimeout(() => {
+          hint.innerHTML = '<strong>Play with it.</strong> Drag · flick · tap · hold · arrows · wheel · double-click';
+        }, 1600);
+      };
+
+      const addPulse = (x, y) => {
+        if (reduceMotion) return;
+        const pulse = document.createElement('span');
+        pulse.className = 'pulse';
+        pulse.style.left = x + 'px';
+        pulse.style.top = y + 'px';
+        document.body.appendChild(pulse);
+        setTimeout(() => pulse.remove(), 820);
+      };
+
+      const wake = (amount = 1) => {
+        energy = Math.min(12, energy + amount);
+        if (energy >= 8) body.dataset.hyper = 'true';
+        if (energy >= 11) setHint('<strong>Wild.</strong> Keep going.');
+        else if (energy >= 6) setHint('<strong>Charged.</strong> Double-click for hyper mode.');
+        else if (energy >= 3) setHint('<strong>Awake.</strong> Try repeated flicks.');
+      };
+
+      document.addEventListener('pointermove', (event) => {
+        document.documentElement.style.setProperty('--pointer-x', (event.clientX / innerWidth * 100).toFixed(1) + '%');
+        document.documentElement.style.setProperty('--pointer-y', (event.clientY / innerHeight * 100).toFixed(1) + '%');
+      }, { passive: true });
+
+      stage.addEventListener('pointerup', (event) => {
+        wake(1);
+        addPulse(event.clientX, event.clientY);
+      });
+
+      stage.addEventListener('dblclick', (event) => {
+        body.dataset.hyper = body.dataset.hyper === 'true' ? 'false' : 'true';
+        wake(2);
+        addPulse(event.clientX, event.clientY);
+        setHint(body.dataset.hyper === 'true' ? '<strong>Hyper mode.</strong>' : '<strong>Calm mode.</strong>');
+        event.preventDefault();
+      });
+
+      addEventListener('wheel', (event) => {
+        if (Math.abs(event.deltaY) < 1) return;
+        scale = Math.max(0.72, Math.min(1.24, scale + (event.deltaY < 0 ? 0.055 : -0.055)));
+        document.documentElement.style.setProperty('--play-scale', scale.toFixed(3));
+        wake(0.5);
+        event.preventDefault();
+      }, { passive: false });
+
+      reset.addEventListener('click', () => {
+        energy = 0;
+        scale = 1;
+        body.dataset.hyper = 'false';
+        document.documentElement.style.setProperty('--play-scale', '1');
+        setHint('<strong>Reset.</strong> Make it weird again.');
+      });
+    })();
+  </script>
+</body>
+</html>
