@@ -1,5 +1,6 @@
 import { evaluatePositiveSum } from '../kernel/positiveSum.js';
 import { normalizeOpportunitySearchMode } from '../money/scoring.js';
+import { toCanonicalOpportunityStatus } from '../opportunity-lifecycle.js';
 
 // Browser- and Node-safe Opportunity Engine records.
 // External source connectors may add DemandSignals later, but every signal must
@@ -300,6 +301,9 @@ export function createOpportunityCluster(input = {}, now = new Date()) {
       || opportunityCanonicalFingerprint(input)
       || primary.canonicalFingerprint,
     status: text(input.status, 'new'),
+    canonicalStatus: text(input.canonicalStatus)
+      ? toCanonicalOpportunityStatus(input.canonicalStatus)
+      : toCanonicalOpportunityStatus(input.status || 'new', 'engine'),
     twinId: text(input.twinId || input.twin_id || input.ownerId, 'thomas-legacy'),
     owner: text(input.owner, 'Thomas'),
     scopeStatus: text(input.twinId || input.twin_id || input.ownerId) ? 'scoped' : 'legacy-default',
