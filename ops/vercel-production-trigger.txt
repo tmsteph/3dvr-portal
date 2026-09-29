@@ -37,3 +37,4 @@ Living World track flow rewards: 2026-09-29
 2026-09-29 private-knowledge internal-bridge PR #2875 canonical production
 2026-09-29 AV booking agent integration pass canonical production
 2026-09-29 digital-twin-dashboard PR #2876 canonical production
+2026-09-29 operator-spinner-history-action-receipts production catch-up
