@@ -17,7 +17,7 @@ const SIGNAL_SCHEMA = {
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['id', 'intent', 'dates', 'rate', 'role', 'venue', 'callTime', 'distanceMiles', 'summary', 'confidence'],
+          required: ['id', 'intent', 'dates', 'rate', 'rateUnit', 'role', 'venue', 'callTime', 'distanceMiles', 'summary', 'confidence'],
           properties: {
             id: { type: 'string' },
             intent: {
@@ -30,6 +30,7 @@ const SIGNAL_SCHEMA = {
               items: { type: 'string' }
             },
             rate: { type: ['number', 'null'] },
+            rateUnit: { type: 'string', enum: ['day', 'hour', 'project', 'unknown'] },
             role: { type: 'string' },
             venue: { type: 'string' },
             callTime: { type: 'string' },
@@ -68,6 +69,9 @@ function normalizeDate(value = '') {
 function normalizeSignal(signal = {}) {
   const rate = signal.rate === null || signal.rate === undefined ? null : Number(signal.rate);
   const confidence = Number(signal.confidence);
+  const rateUnit = ['day', 'hour', 'project', 'unknown'].includes(signal.rateUnit)
+    ? signal.rateUnit
+    : 'unknown';
   const distanceMiles = signal.distanceMiles === null || signal.distanceMiles === undefined
     ? null
     : Number(signal.distanceMiles);
@@ -77,6 +81,7 @@ function normalizeSignal(signal = {}) {
     intent: allowed.has(signal.intent) ? signal.intent : 'work_message',
     dates: Array.from(new Set((Array.isArray(signal.dates) ? signal.dates : []).map(normalizeDate).filter(Boolean))).slice(0, 8),
     rate: Number.isFinite(rate) && rate >= 0 && rate <= 100000 ? rate : null,
+    rateUnit,
     role: clean(signal.role, 160),
     venue: clean(signal.venue, 220),
     callTime: clean(signal.callTime, 80),
@@ -109,7 +114,7 @@ export function buildWorkAgentMailRequest({ messages = [], currentDate = new Dat
       'For each message, identify whether it is about freelance work, an availability request, a booking, a rate offer, or a schedule change.',
       'Extract only dates that the message actually associates with the work. Return dates as YYYY-MM-DD.',
       'Resolve month/day without a year to the most plausible nearby future date using the email timestamp and today. Do not invent a date when ambiguous.',
-      'Rate means the offered or stated day rate in USD only. Leave it null if the message only contains unrelated dollar amounts or an hourly rate.',
+      'Extract the offered or stated work rate in USD when it is clearly a day rate, hourly rate, or fixed project rate. Set rateUnit to day, hour, or project. Leave rate null and rateUnit unknown for unrelated dollar amounts or ambiguous compensation.',
       'Extract a concise role, venue, and call time only when present. Do not infer facts not present in the message.',
       'distanceMiles is only for an explicit travel distance stated in the message (for example, "40 miles away"). Never estimate distance from a venue name or address; otherwise return null.',
       'Summary should be one short factual sentence useful to the worker.',
