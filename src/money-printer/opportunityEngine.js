@@ -81,7 +81,12 @@ export function normalizeOpportunityLinks(input = {}) {
 export function opportunitySignalFingerprint(input = {}) {
   const explicitId = normalizeFingerprintPart(input.externalId || input.sourceId);
   if (explicitId) {
-    return [normalizeFingerprintPart(input.acquisitionMode), explicitId].join(':');
+    // A source record stays the same record even when it reaches us through a
+    // different transport (API, forwarded message, browser import, etc.).
+    const sourceIdentity = normalizeFingerprintPart(
+      input.sourceLabel || input.source || input.acquisitionMode
+    );
+    return [sourceIdentity, explicitId].join(':');
   }
   return [
     normalizeFingerprintPart(input.sourceLabel || input.source),
@@ -105,6 +110,7 @@ export function createDemandSignal(input = {}, now = new Date()) {
     policyStatus: text(input.policyStatus, 'human-provided'),
     contactPermission: text(input.contactPermission, 'review-required'),
     location: text(input.location, 'Location unknown'),
+    availability: text(input.availability, 'unknown').toLowerCase(),
     deadline: text(input.deadline),
     urgency: text(input.urgency, 'medium').toLowerCase(),
     estimatedValueMin: Math.max(0, number(input.estimatedValueMin)),
@@ -136,7 +142,11 @@ export function scoreOpportunityDimensions(cluster = {}, now = new Date()) {
   const marginRaw = Math.min(12, margin / 25);
   const expiresAt = Date.parse(primary.expiresAt);
   const expired = Number.isFinite(expiresAt) && expiresAt < now.getTime();
-  const actionabilityScore = expired ? 0 : clampScore(urgencyRaw + confidenceRaw + evidenceRaw + permissionRaw + marginRaw, 0);
+  const availability = text(cluster.availability || primary.availability, 'unknown').toLowerCase();
+  const hardAvailabilityConflict = ['conflict', 'blocked', 'unavailable'].includes(availability);
+  const actionabilityScore = (expired || hardAvailabilityConflict)
+    ? 0
+    : clampScore(urgencyRaw + confidenceRaw + evidenceRaw + permissionRaw + marginRaw, 0);
   const marginRatioScore = valueFloor > 0 ? clampScore((margin / valueFloor) * 100, 0) : 0;
   const urgencyScore = clampScore((urgencyRaw / URGENCY_WEIGHTS.immediate) * 100, 50);
   const evidenceScore = text(primary.buyerWords).length >= 12 ? 100 : 30;
@@ -172,7 +182,7 @@ export function scoreOpportunityDimensions(cluster = {}, now = new Date()) {
     portfolio: { actionability: 0.4, profit: 0.3, alignment: 0.15, fulfillment: 0.15 }
   };
   const blend = blends[searchMode];
-  const economicPriorityScore = expired ? 0 : clampScore(
+  const economicPriorityScore = (expired || hardAvailabilityConflict) ? 0 : clampScore(
     actionabilityScore * blend.actionability
       + profitScore * blend.profit
       + alignmentScore * blend.alignment
@@ -187,16 +197,22 @@ export function scoreOpportunityDimensions(cluster = {}, now = new Date()) {
     economicPriorityScore * 0.65 + opportunityScore * 0.35,
     0
   );
-  const priorityScore = positiveSum.positiveSumEligible ? blendedPriorityScore : 0;
+  const priorityScore = (positiveSum.positiveSumEligible && !hardAvailabilityConflict)
+    ? blendedPriorityScore
+    : 0;
   const experimentRecommended = Boolean(
     positiveSum.positiveSumEligible
       && !expired
+      && !hardAvailabilityConflict
       && priorityScore >= 60
       && demandScore >= 55
   );
 
   return {
     searchMode,
+    availability,
+    hardAvailabilityConflict,
+    expired,
     actionabilityScore,
     profitScore,
     alignmentScore,
@@ -229,6 +245,7 @@ export function createOpportunityCluster(input = {}, now = new Date()) {
     status: text(input.status, 'new'),
     owner: text(input.owner, 'Thomas'),
     expectedOutcome: text(input.expectedOutcome),
+    availability: text(input.availability, primary.availability || 'unknown').toLowerCase(),
     searchMode: normalizeOpportunitySearchMode(input.searchMode || primary.searchMode),
     alignmentScore: clampScore(
       input.alignmentScore ?? input.fitScore ?? primary.alignmentScore ?? primary.fitScore,
@@ -317,6 +334,7 @@ export function sortOpportunityClusters(opportunities = [], now = new Date()) {
     .map(opportunity => createOpportunityCluster(opportunity, now))
     .sort((left, right) => {
       if (left.positiveSumEligible !== right.positiveSumEligible) return left.positiveSumEligible ? -1 : 1;
+      if (left.expired !== right.expired) return left.expired ? 1 : -1;
       const leftStatus = statusOrder[left.status] ?? 3;
       const rightStatus = statusOrder[right.status] ?? 3;
       if (leftStatus !== rightStatus) return leftStatus - rightStatus;
