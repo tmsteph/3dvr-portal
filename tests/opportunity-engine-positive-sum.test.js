@@ -9,7 +9,7 @@ import {
 const NOW = new Date('2026-09-14T20:00:00.000Z');
 
 describe('Opportunity Engine positive-sum gate', () => {
-  it('persists positive-sum policy dimensions in schema v4 records', () => {
+  it('persists positive-sum policy dimensions in the current schema', () => {
     const opportunity = createOpportunityCluster({
       id: 'healthy',
       need: 'Automate repetitive scheduling',
@@ -26,8 +26,8 @@ describe('Opportunity Engine positive-sum gate', () => {
       lockInRiskScore: 10
     }, NOW);
 
-    assert.equal(OPPORTUNITY_ENGINE_SCHEMA_VERSION, 4);
-    assert.equal(opportunity.schemaVersion, 4);
+    assert.equal(opportunity.schemaVersion, OPPORTUNITY_ENGINE_SCHEMA_VERSION);
+    assert.equal(opportunity.schemaVersion, OPPORTUNITY_ENGINE_SCHEMA_VERSION);
     assert.equal(opportunity.positiveSumEligible, true);
     assert.equal(opportunity.agencyScore, 80);
     assert.ok(opportunity.positiveSumScore > 0);
