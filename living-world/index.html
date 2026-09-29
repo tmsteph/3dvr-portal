@@ -34,6 +34,8 @@
     .reticle{position:relative;width:24px;height:24px;border:1px solid rgba(213,248,248,.5);border-radius:50%;box-shadow:0 0 24px rgba(157,229,220,.13);transition:transform .35s ease,border-color .35s ease}
     .reticle::before,.reticle::after{content:"";position:absolute;left:50%;top:50%;background:rgba(221,251,250,.52);transform:translate(-50%,-50%)}
     .reticle::before{width:8px;height:1px}.reticle::after{width:1px;height:8px}
+    .reticle[data-flow="warm"]{border-color:rgba(120,244,226,.9);box-shadow:0 0 30px rgba(99,244,255,.34),inset 0 0 14px rgba(99,244,255,.14)}
+    .reticle[data-flow="hot"]{transform:scale(1.16);border-color:rgba(255,255,255,.96);box-shadow:0 0 42px rgba(99,244,255,.64),0 0 76px rgba(255,103,216,.26),inset 0 0 18px rgba(255,255,255,.2)}
     .reticle[data-breath="inhale"]{transform:scale(1.55);border-color:rgba(218,255,246,.82)}
     .reticle[data-breath="exhale"]{transform:scale(.82)}
     .dock{pointer-events:auto;align-self:center;width:min(760px,100%);display:grid;gap:8px}
@@ -91,6 +93,7 @@
         <span class="pill">stage <strong id="stage-status">1</strong></span>
         <span class="pill">gate <strong id="gate-status">0/0</strong></span>
         <span class="pill">score <strong id="score-status">0</strong></span>
+        <span class="pill">flow <strong id="flow-status">off track</strong></span>
       </div>
     </div>
 
@@ -121,7 +124,7 @@
     <p><code>Click the world</code> to capture the mouse for first-person look. <code>Esc</code> releases it. <code>WASD</code> or arrows fly, and the mouse wheel glides forward/back.</p>
     <p><code>Left click</code> fires the selected toy weapon. <code>1</code> pulse, <code>2</code> beam, <code>3</code> bomb. <code>Right click</code> always throws a bomb.</p>
     <p>Keyboard-only: <code>WASD</code> moves, <code>arrows</code> look, hold <code>Shift</code> to thrust forward, <code>Space</code> rises, <code>Ctrl/C</code> descends, <code>F</code> fires, <code>G</code> bombs, and <code>Esc</code> toggles between the world and Shape World.</p>
-    <p><b>Path Run:</b> follow the glowing ribbon through gates in order. Shoot the floating prism targets for bonus points. Clear the final gate to grow a new stage from your current position.</p>
+    <p><b>Path Run:</b> stay close to the glowing ribbon to continuously earn flow points and build up to a 4× flow multiplier. The path and reticle brighten as you center yourself. Pass gates in order and shoot the floating prism targets for bonus points.</p>
     <p>The world gently evolves when <b>World dreams</b> is on. Your changes persist on this device.</p>
     <p>Try commands like <code>forest</code>, <code>ocean</code>, <code>night</code>, <code>more crystals</code>, <code>more orbs</code>, <code>faster</code>, <code>calmer</code>, or <code>surprise me</code>.</p>
     <button id="close-help" type="button">Got it</button>
@@ -143,6 +146,7 @@
     const stageStatusEl = document.getElementById('stage-status');
     const gateStatusEl = document.getElementById('gate-status');
     const scoreStatusEl = document.getElementById('score-status');
+    const flowStatusEl = document.getElementById('flow-status');
     const reticle = document.getElementById('reticle');
     const driftButton = document.getElementById('drift-button');
     const dreamButton = document.getElementById('dream-button');
@@ -407,13 +411,20 @@
       gates:[],
       targets:[],
       nextGate:0,
-      stageStartedAt:performance.now()
+      stageStartedAt:performance.now(),
+      flowProximity:0,
+      flowStreak:0,
+      flowMultiplier:1,
+      flowBank:0,
+      lastFlowSaveAt:performance.now()
     };
 
     const gateGeometry = new THREE.TorusGeometry(3.2,.16,12,64);
     const targetGeometry = new THREE.IcosahedronGeometry(.72,1);
     const markerGeometry = new THREE.SphereGeometry(.14,8,8);
     const pathUp = new THREE.Vector3(0,0,1);
+    const flowWhite = new THREE.Color(0xffffff);
+    const flowColor = new THREE.Color();
 
     function clearGameGroup(group,{disposeGeometry=false}={}) {
       while (group.children.length) {
@@ -443,6 +454,17 @@
       return points;
     }
 
+    function nearestPathDistance(position) {
+      if (!game.curve) return Infinity;
+      let nearestSq = Infinity;
+      const samples = 72;
+      for (let i=0;i<=samples;i++) {
+        const point = game.curve.getPoint(i/samples);
+        nearestSq = Math.min(nearestSq,position.distanceToSquared(point));
+      }
+      return Math.sqrt(nearestSq);
+    }
+
     function updateGateMaterials() {
       game.gates.forEach((gate,index) => {
         const active = index === game.nextGate;
@@ -461,6 +483,13 @@
       game.targets = [];
       game.nextGate = 0;
       game.stageStartedAt = performance.now();
+      game.flowProximity = 0;
+      game.flowStreak = 0;
+      game.flowMultiplier = 1;
+      game.flowBank = 0;
+      game.lastFlowSaveAt = performance.now();
+      flowStatusEl.textContent = 'find track';
+      reticle.dataset.flow = '';
 
       const points = gamePointSequence(stage,origin);
       game.curve = new THREE.CatmullRomCurve3(points,false,'catmullrom',.35);
@@ -555,11 +584,62 @@
       return true;
     }
 
-    function updateGame(now,dt) {
-      if (game.pathMesh) {
-        game.pathMesh.material.color.copy(vividColor(Math.floor(now/650)%vividPalette.length));
-        game.pathMesh.material.opacity=.62 + Math.sin(now*.0013)*.16;
+    function updateTrackFlow(now,dt) {
+      if (!game.curve) return;
+
+      const distance = nearestPathDistance(camera.position);
+      const proximity = clamp(1-distance/9,0,1);
+      game.flowProximity = proximity;
+
+      if (proximity > .18) {
+        game.flowStreak = proximity > .55
+          ? game.flowStreak + dt
+          : Math.max(0,game.flowStreak-dt*.65);
+      } else {
+        game.flowStreak = Math.max(0,game.flowStreak-dt*2.4);
       }
+
+      const multiplier = proximity > .18 ? 1 + Math.min(3,Math.floor(game.flowStreak/4)) : 1;
+      if (multiplier > game.flowMultiplier) showToast('flow ×' + multiplier);
+      game.flowMultiplier = multiplier;
+
+      if (proximity > .18) {
+        game.flowBank += (2 + proximity*8) * multiplier * dt;
+        if (game.flowBank >= 1) {
+          const earned = Math.floor(game.flowBank);
+          game.flowBank -= earned;
+          state.gameScore += earned;
+          state.gameBest = Math.max(state.gameBest,state.gameScore);
+          scoreStatusEl.textContent = String(state.gameScore);
+        }
+        if (now-game.lastFlowSaveAt > 3000) {
+          game.lastFlowSaveAt = now;
+          saveState();
+        }
+      }
+
+      const flowState = proximity > .72 ? 'hot' : (proximity > .3 ? 'warm' : '');
+      reticle.dataset.flow = flowState;
+      flowStatusEl.textContent = proximity > .18
+        ? Math.round(proximity*100) + '% · ' + multiplier + '×'
+        : 'off track';
+
+      if (game.pathMesh) {
+        flowColor.copy(vividColor(Math.floor(now/650)%vividPalette.length));
+        flowColor.lerp(flowWhite,proximity*.58);
+        game.pathMesh.material.color.copy(flowColor);
+        game.pathMesh.material.opacity = .3 + proximity*.58 + Math.sin(now*.0013)*(.04 + proximity*.08);
+      }
+
+      pathGroup.children.forEach((marker,index) => {
+        if (marker === game.pathMesh) return;
+        const pulse = .5 + .5*Math.sin(now*.004-index*.18);
+        marker.material.opacity = clamp(.16 + proximity*(.32 + pulse*.3),.14,.92);
+      });
+    }
+
+    function updateGame(now,dt) {
+      updateTrackFlow(now,dt);
 
       game.targets.forEach((target,index) => {
         if (!target.visible) return;
