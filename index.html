@@ -368,6 +368,27 @@
     }
     .operator-status:empty { visibility: hidden; }
 
+    .home-twin-link {
+      margin-top: 8px;
+      padding: 11px 13px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border: 1px solid rgba(88, 166, 255, 0.2);
+      border-radius: 14px;
+      background: rgba(22, 27, 34, 0.6);
+      color: #c9d1d9;
+      text-decoration: none;
+    }
+
+    .home-twin-link:hover,
+    .home-twin-link:focus-visible { border-color: rgba(121, 192, 255, 0.62); background: rgba(19, 37, 59, 0.72); outline: none; }
+    .home-twin-link strong,
+    .home-twin-link small { display: block; }
+    .home-twin-link strong { color: #f0f6fc; font-size: 0.92rem; }
+    .home-twin-link small { margin-top: 2px; color: #8b949e; font-size: 0.78rem; }
+
     .operator-result {
       min-height: 0;
       margin: 0 0 10px;
@@ -588,7 +609,8 @@
 
     body[data-home-chat-active="true"] #home-title,
     body[data-home-chat-active="true"] footer,
-    body[data-home-chat-active="true"] .home-operator-links {
+    body[data-home-chat-active="true"] .home-operator-links,
+    body[data-home-chat-active="true"] .home-twin-link {
       display: none;
     }
 
@@ -778,6 +800,7 @@
         <nav class="menu-panel" aria-label="Portal menu">
           <a href="https://3dvr.tech/">3dvr.tech ↗</a>
           <a href="/operator/">Operator</a>
+          <a href="/digital-twin/">Digital Twin</a>
           <a href="/home/">Apps &amp; workspace</a>
           <a href="/calendar/">Calendar</a>
           <a href="/crm/">CRM</a>
@@ -838,6 +861,10 @@
           <button id="homeOperatorSubmit" type="submit" aria-label="Send to Operator">→</button>
         </form>
         <p class="operator-status" id="homeOperatorStatus" aria-live="polite"></p>
+        <a class="home-twin-link" href="/digital-twin/" aria-label="Manage your Digital Twin and booking agent">
+          <span><strong>Digital Twin</strong><small>Booking agent · schedule · access · autonomy</small></span>
+          <span aria-hidden="true">Manage →</span>
+        </a>
 
       </section>
     </main>
@@ -853,6 +880,7 @@
     </div>
     <div class="apps-list" id="appsList">
       <a class="app-link" href="/operator/" data-app="operator assistant agent chat"><strong>Operator</strong><span>Full conversation and history.</span></a>
+      <a class="app-link" href="/digital-twin/" data-app="digital twin booking agent work schedule accounts access autonomy personal ai"><strong>Digital Twin</strong><span>Manage your booking agent, schedule, access, and autonomy.</span></a>
       <a class="app-link" href="/notes/" data-app="master notes notes knowledge memory inbox ideas decisions reference"><strong>Master Notes</strong><span>Capture first. Keep the durable version organized.</span></a>
       <a class="app-link" href="/science/" data-app="science experiments hypothesis evidence replication verification citizen participatory"><strong>Science Lab</strong><span>Turn curiosity into reproducible experiments.</span></a>
       <a class="app-link" href="/life/" data-app="life daily direction plan today"><strong>Daily Direction</strong><span>Plan the next useful step.</span></a>
