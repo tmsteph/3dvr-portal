@@ -127,8 +127,12 @@ test('Game Hub exposes separate flight, open-world, and racing experiences', asy
   assert.match(hub, /3DVR Adventure/);
   assert.match(hub, /Prism Racer/);
   assert.match(adventure, /WASD move/);
-  assert.match(adventure, /Space jump/);
+  assert.match(adventure, /Space\/click jump \+ hold jetpack/);
   assert.match(adventure, /stars <b id="stars">0\/8/);
+  assert.match(adventure, /id="jet">100%/);
+  assert.match(adventure, /pointerJet/);
+  assert.match(adventure, /jetFuel=Math\.max\(0,jetFuel-\.46\*dt\)/);
+  assert.match(adventure, /vy=Math\.min\(10\.8,vy\+34\*dt\)/);
   assert.match(racer, /W throttle/);
   assert.match(racer, /Shift boost/);
   assert.match(racer, /magnetic road/);
