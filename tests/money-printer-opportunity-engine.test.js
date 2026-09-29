@@ -7,6 +7,7 @@ import {
   createOpportunityCluster,
   createOpportunityEngineState,
   ingestOpportunity,
+  opportunityCanonicalFingerprint,
   opportunitySignalFingerprint,
   readOpportunityEngineState,
   sortOpportunityClusters,
@@ -314,3 +315,51 @@ describe('Money Printer Opportunity Engine', () => {
     assert.equal(mark.scopeStatus, 'scoped');
     assert.equal(mark.owner, 'Mark Wells');
   });
+
+
+it('clusters the same syndicated job across sources while preserving both evidence signals', () => {
+  const first = ingestOpportunity({}, {
+    sourceLabel: 'Indeed',
+    externalId: 'indeed-123',
+    need: 'Videographer - San Diego Convention Center - Oct 4',
+    buyerWords: 'Videographer needed Oct 4 in San Diego',
+    location: 'San Diego, CA'
+  }, NOW);
+  const second = ingestOpportunity(first.state, {
+    sourceLabel: 'Company careers',
+    externalId: 'careers-987',
+    need: 'Videographer - San Diego Convention Center - Oct 4',
+    buyerWords: 'Videographer needed Oct 4 in San Diego',
+    location: 'San Diego, CA'
+  }, NOW);
+
+  assert.equal(first.created, true);
+  assert.equal(second.created, false);
+  assert.equal(second.clustered, true);
+  assert.equal(second.state.opportunities.length, 1);
+  assert.equal(second.state.signals.length, 2);
+  assert.equal(second.state.opportunities[0].signals.length, 2);
+  assert.equal(
+    opportunityCanonicalFingerprint({
+      need: 'Videographer - San Diego Convention Center - Oct 4',
+      location: 'San Diego, CA'
+    }),
+    'job|videographer san diego convention center oct 4|san diego ca|10-04'
+  );
+});
+
+it('does not cross-source cluster vague jobs without enough identity anchors', () => {
+  const first = ingestOpportunity({}, {
+    sourceLabel: 'Board A',
+    need: 'A1 needed',
+    buyerWords: 'Need an A1 soon.'
+  }, NOW);
+  const second = ingestOpportunity(first.state, {
+    sourceLabel: 'Board B',
+    need: 'A1 needed',
+    buyerWords: 'Need an A1 soon.'
+  }, NOW);
+
+  assert.equal(second.created, true);
+  assert.equal(second.state.opportunities.length, 2);
+});
