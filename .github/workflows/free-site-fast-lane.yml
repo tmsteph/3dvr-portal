@@ -1,5 +1,7 @@
 name: Free Site Fast Lane
 
+# Keep push-trigger support so fulfillment can be nudged safely when needed.
+
 on:
   schedule:
     - cron: '*/5 * * * *'
