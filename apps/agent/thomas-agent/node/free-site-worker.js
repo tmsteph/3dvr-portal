@@ -416,17 +416,17 @@ async function processRequest({ request, state, mailAuth }) {
     return completeExisting({ state, key, mailAuth, request, siteUrl: existingState.siteUrl });
   }
   if (existingState?.status === 'publishing' && existingState.siteUrl) {
-    if (!(await verifyLive(existingState.siteUrl))) {
-      const { tempRoot, webDir } = cloneWebRepo();
-      try {
-        if (existingState.prUrl) {
-          mergePullRequest(existingState.prUrl, webDir);
-        }
-        deployWebProduction(webDir);
-      } finally {
-        fs.rmSync(tempRoot, { recursive: true, force: true });
+    const { tempRoot, webDir } = cloneWebRepo();
+    try {
+      if (existingState.prUrl) {
+        mergePullRequest(existingState.prUrl, webDir);
       }
-      if (!(await verifyLive(existingState.siteUrl))) return { pending: true, siteUrl: existingState.siteUrl };
+      deployWebProduction(webDir);
+    } finally {
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
+    if (!(await verifyLive(existingState.siteUrl))) {
+      return { pending: true, siteUrl: existingState.siteUrl };
     }
     await sendLiveReply(mailAuth, request, existingState.siteUrl);
     await markSeen(mailAuth, request.uid);
