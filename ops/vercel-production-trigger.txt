@@ -53,3 +53,4 @@ free-site-flow-copy 2026-09-29T20:49:00Z de32b2ed
 2026-09-29 games.3dvr.tech custom-domain route
 2026-09-29T21:25:00Z logo-lab modern-refined canonical production
 2026-09-29 games.3dvr.tech attach canonical project
+2026-09-29 games.3dvr.tech force canonical attachment
