@@ -344,6 +344,16 @@
       "destination": "http://167.172.193.194/health"
     },
     {
+      "source": "/knowledge",
+      "has": [
+        {
+          "type": "host",
+          "value": "portal.3dvr.tech"
+        }
+      ],
+      "destination": "http://167.172.193.194/knowledge"
+    },
+    {
       "source": "/human-handoff/api/:path*",
       "has": [
         {
