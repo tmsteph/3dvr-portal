@@ -46,3 +46,4 @@ free-site-confirmation 2026-09-29T20:38:00.000Z ea2d98d0
 2026-09-29T20:43:30Z what-is-3dvr mission page canonical production
 2026-09-29T20:44:30Z logo-lab three-original-variants canonical production
 free-site-flow-copy 2026-09-29T20:49:00Z de32b2ed
+2026-09-29 Mark Nadal GUN tracker PR #2891 canonical production
