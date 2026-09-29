@@ -294,3 +294,23 @@ describe('Money Printer Opportunity Engine', () => {
     assert.equal(live.expired, false);
     assert.deepEqual(sortOpportunityClusters([expired, live], NOW).map(item => item.id), ['live', 'expired']);
   });
+
+
+  it('keeps legacy Thomas scope explicit and supports isolated twin ids', () => {
+    const legacy = createOpportunityCluster({
+      id: 'legacy',
+      need: 'Legacy Thomas opportunity'
+    }, NOW);
+    const mark = createOpportunityCluster({
+      id: 'mark',
+      twinId: 'mark-wells',
+      owner: 'Mark Wells',
+      need: 'Mark opportunity'
+    }, NOW);
+
+    assert.equal(legacy.twinId, 'thomas-legacy');
+    assert.equal(legacy.scopeStatus, 'legacy-default');
+    assert.equal(mark.twinId, 'mark-wells');
+    assert.equal(mark.scopeStatus, 'scoped');
+    assert.equal(mark.owner, 'Mark Wells');
+  });
