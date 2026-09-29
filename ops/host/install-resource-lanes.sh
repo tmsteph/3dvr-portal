@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# This script is also a deliberate recovery trigger for the OVH control agent workflow.
 set -euo pipefail
 
 if [ "$(id -u)" -ne 0 ]; then
