@@ -2,6 +2,62 @@ const $ = (id) => document.getElementById(id);
 let currentPlan = null;
 let currentView = 'shared';
 let currentHorizon = 'week';
+const PLAN_TIME_ZONE = 'America/Los_Angeles';
+
+function dateIdInPlanTimeZone(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: PLAN_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${byType.year}-${byType.month}-${byType.day}`;
+}
+
+function dayLabelForDate(dateId) {
+  if (!dateId) return '';
+  const date = new Date(`${dateId}T12:00:00Z`);
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'UTC',
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  }).format(date).replace(',', ' ·');
+}
+
+function rollingCalendar(items = []) {
+  const todayId = dateIdInPlanTimeZone();
+  const todayIndex = items.findIndex((item) => item.date === todayId);
+  if (todayIndex >= 0) return items.slice(todayIndex);
+  return items.filter((item) => !item.date || item.date >= todayId);
+}
+
+function resolvedToday(plan = {}) {
+  const todayId = dateIdInPlanTimeZone();
+  if (plan.today?.date === todayId) return plan.today;
+
+  const calendarToday = (plan.calendar || []).find((item) => item.date === todayId);
+  if (calendarToday) {
+    return {
+      ...calendarToday,
+      dayLabel: dayLabelForDate(todayId),
+      sharedDetail: calendarToday.sharedDetail || calendarToday.detail || '',
+      detail: calendarToday.detail || calendarToday.sharedDetail || '',
+    };
+  }
+
+  return {
+    date: todayId,
+    dayLabel: dayLabelForDate(todayId),
+    title: 'Open day',
+    when: 'No plan entry yet',
+    category: 'open',
+    categoryLabel: 'Open',
+    sharedDetail: '',
+    detail: '',
+  };
+}
 
 function text(id, value = '') {
   const el = $(id);
@@ -73,7 +129,7 @@ function renderOverview(items = []) {
     const row = document.createElement('article');
     row.className = 'calendar-row';
     row.dataset.category = item.category || 'plan';
-    if (index === 0) row.classList.add('is-today');
+    if (item.date === dateIdInPlanTimeZone()) row.classList.add('is-today');
     const date = document.createElement('div');
     date.className = 'calendar-date';
     const day = document.createElement('strong');
@@ -106,9 +162,10 @@ function renderPlan() {
   if (!currentPlan) return;
   const plan = currentPlan;
   renderMarkers(plan.markers || []);
-  renderToday(plan.today || {});
-  renderCards('next-days-list', plan.nextDays || []);
-  renderOverview(plan.calendar || []);
+  const calendar = rollingCalendar(plan.calendar || []);
+  renderToday(resolvedToday(plan));
+  renderCards('next-days-list', calendar.slice(1, 4));
+  renderOverview(calendar);
   renderCards('month-list', plan.next30 || []);
   renderCards('quarter-list', plan.next90 || []);
   text('operating-rule', currentView === 'shared' ? plan.operatingRule : (plan.workOperatingRule || plan.operatingRule));
@@ -132,7 +189,7 @@ function setHorizon(horizon) {
     button.classList.toggle('active', active);
     button.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
-  renderOverview(currentPlan?.calendar || []);
+  renderOverview(rollingCalendar(currentPlan?.calendar || []));
 }
 
 document.querySelectorAll('.view-button').forEach((button) => {
