@@ -2,77 +2,129 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>3DVR Digital Twin / Booking Agent</title>
-  <meta name="description" content="A portable, open personal booking agent that helps people find, win, schedule, and manage better-paying work.">
-  <style>
-    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background:#0d1117; color:#f0f6fc; }
-    * { box-sizing:border-box; }
-    body { margin:0; }
-    main { width:min(920px, calc(100% - 32px)); margin:0 auto; padding:56px 0 80px; }
-    a { color:#7dd3fc; }
-    .eyebrow { letter-spacing:.08em; text-transform:uppercase; color:#8b949e; font-size:.8rem; }
-    h1 { font-size:clamp(2.3rem, 7vw, 5rem); line-height:.95; margin:.35rem 0 1rem; }
-    h2 { margin-top:2.5rem; }
-    p, li { line-height:1.6; color:#c9d1d9; }
-    .hero { padding:28px; border:1px solid #30363d; border-radius:22px; background:#161b22; }
-    .principle { font-size:1.2rem; color:#fff; border-left:4px solid #7dd3fc; padding-left:16px; }
-    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-top:18px; }
-    .card { border:1px solid #30363d; border-radius:16px; padding:18px; background:#0d1117; }
-    .card h3 { margin-top:0; }
-    .links { display:flex; flex-wrap:wrap; gap:12px; margin-top:24px; }
-    .button { display:inline-block; padding:10px 14px; border:1px solid #30363d; border-radius:12px; text-decoration:none; background:#21262d; }
-    code { background:#21262d; padding:.15em .35em; border-radius:6px; }
-  </style>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>3DVR Digital Twin</title>
+  <meta name="description" content="Your personal 3DVR Digital Twin: one place to talk, find work, manage schedules, connect accounts, track money, and automate routine computing.">
+  <meta name="theme-color" content="#07111f">
+  <link rel="stylesheet" href="/styles/global.css">
+  <link rel="stylesheet" href="/digital-twin/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="/auth-identity.js"></script>
+  <script defer src="/digital-twin/app.js"></script>
+  <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
-<main>
-  <section class="hero">
-    <div class="eyebrow">3DVR • Personal computing</div>
-    <h1>Digital Twin<br>Booking Agent</h1>
-    <p>One portable personal operating layer that turns messages, job portals, schedules, contacts, and opportunities into better-paid work.</p>
-    <p class="principle"><strong>The twin belongs to the person, not to a server, cloud vendor, or AI provider.</strong></p>
-    <div class="links">
-      <a class="button" href="/freelance/">Freelancer Desk</a>
-      <a class="button" href="/workboard/">Workboard</a>
-      <a class="button" href="/access/">Access</a>
-    </div>
-  </section>
+  <main class="shell">
+    <header class="topbar">
+      <a href="/" class="brand">3DVR</a>
+      <nav aria-label="Digital Twin navigation">
+        <a href="/workboard/">Activity</a>
+        <a href="/access/">Access</a>
+        <a href="/operator/">Operator</a>
+      </nav>
+    </header>
 
-  <h2>What it does</h2>
-  <div class="grid">
-    <article class="card"><h3>Find</h3><p>Watch job boards, staffing systems, messages, email, referrals, and freelance portals for opportunities.</p></article>
-    <article class="card"><h3>Decide</h3><p>Normalize opportunities and prioritize them by pay, fit, urgency, effort, schedule, reliability, and learning value.</p></article>
-    <article class="card"><h3>Act</h3><p>Apply, follow up, maintain availability, protect bookings, and escalate only decisions that genuinely need the person.</p></article>
-    <article class="card"><h3>Remember</h3><p>Record every action, outcome, booking, contact, and next step so any compatible AI can continue the work.</p></article>
-  </div>
+    <section class="hero">
+      <p class="eyebrow">3DVR Personal AI</p>
+      <div class="hero-row">
+        <div>
+          <h1>Your Digital Twin</h1>
+          <p class="lede">Tell it what you want. Your twin can coordinate work, schedules, accounts, messages, money, software, and connected devices through one permissioned interface.</p>
+        </div>
+        <span id="twin-mode" class="status-pill">Local mode</span>
+      </div>
 
-  <h2>Swarm execution</h2>
-  <p>The Digital Twin can operate as a swarm of small, specialized AI workers coordinated through the existing durable queue. Instead of one giant agent doing everything, a coordinator can delegate work to Scouts, Booking Agents, Sales workers, Builders, Ops workers, Researchers, Archivists, and Treasurer/Supervisor functions.</p>
-  <p>Workers get only the capabilities needed for the task, run in parallel when resources are healthy, and stay queued when CPU, RAM, browser lanes, or API limits are tight. Routine work should use the cheapest adequate model or deterministic code; stronger models are reserved for work that actually needs them.</p>
-  <p class="principle"><strong>Many minds, one owner.</strong> The swarm may plan and execute in parallel, but the person's goals, identity, data, permissions, and durable memory remain anchored to the Digital Twin.</p>
+      <form id="twin-chat-form" class="chat-box">
+        <label for="twin-chat">What should your twin handle?</label>
+        <div class="composer">
+          <textarea id="twin-chat" rows="2" placeholder="Find me good AV calls next week, keep my calendar clear, and only ask me when a commitment needs approval."></textarea>
+          <button type="submit" aria-label="Send to Digital Twin">→</button>
+        </div>
+        <p class="micro">Uses the same Operator conversation, permissions, memory, and audit path as the rest of 3DVR.</p>
+      </form>
 
-  <h2>Portable by design</h2>
-  <p>If the cloud server disappears or becomes unaffordable, the person should be able to restore the same twin on a normal Linux laptop and continue. State, policies, opportunities, contacts, task history, connector configuration, and private encrypted data must be exportable. Secrets stay behind logical aliases so they can be reconnected without being baked into backups.</p>
-  <p>The target recovery experience is deliberately simple: <code>clone → install → restore → doctor → start</code>.</p>
+      <div class="quick-actions" aria-label="Quick Digital Twin commands">
+        <button data-command="Find worthwhile freelance work that fits my schedule and standing rules. Show me what needs my approval.">Find work</button>
+        <button data-command="Review my schedule, protect conflicts and rest, and tell me what needs attention.">Manage schedule</button>
+        <button data-command="Help me create or connect the accounts I need. Handle what you safely can and stop for authentication, terms, payment, or other consequential approvals.">Set up accounts</button>
+        <button data-command="Review my current work and money systems and show me the most useful next action.">Money + admin</button>
+      </div>
+    </section>
 
-  <h2>Built for more than Thomas</h2>
-  <p>Thomas is the first deployment, not a hard-coded product assumption. Every durable record should belong to a stable twin/owner identity, with isolated queues, browser workspaces, connector configuration, policies, audit history, and learning memory.</p>
+    <section class="summary-grid" aria-label="Digital Twin status">
+      <article><span>Identity</span><strong id="identity-status">Checking…</strong><small id="identity-detail">Personal state stays scoped to this twin.</small></article>
+      <article><span>Work</span><strong>Booking agent ready</strong><small>Opportunities, availability, applications, follow-up.</small></article>
+      <article><span>Control</span><strong>Permissioned</strong><small>Routine actions can run; meaningful commitments still follow your rules.</small></article>
+      <article><span>History</span><strong>Auditable</strong><small>Tasks and outcomes stay visible instead of disappearing into automation.</small></article>
+    </section>
 
-  <h2>Two ways to run it</h2>
-  <div class="grid">
-    <article class="card"><h3>Free + self-hosted</h3><p>Run the open-source worker, SQLite state, browser automation, backup/restore tools, and Portal interface on your own laptop or server. Bring your own AI provider when needed.</p></article>
-    <article class="card"><h3>3DVR managed</h3><p>Pay a small recurring fee and 3DVR provisions, updates, backs up, and monitors an isolated personal worker environment with controlled browser and compute capacity.</p></article>
-  </div>
+    <section class="panel">
+      <div class="section-heading"><div>
+        <p class="eyebrow">One dashboard, deeper tools when needed</p>
+        <h2>What your twin can manage</h2>
+      </div></div>
+      <div class="capability-grid">
+        <a class="capability" href="/work-agent/"><span>💼</span><div><strong>Freelance work</strong><small>Find, evaluate, reply, apply, book, and maintain availability.</small></div></a>
+        <a class="capability" href="/plan/"><span>🗓️</span><div><strong>Schedule</strong><small>Coordinate commitments, openings, travel, rest, and follow-ups.</small></div></a>
+        <a class="capability" href="/access/"><span>🔑</span><div><strong>Accounts + access</strong><small>Create, connect, and maintain services with human checkpoints where required.</small></div></a>
+        <a class="capability" href="/finance/"><span>◫</span><div><strong>Money + accounting</strong><small>Bring revenue, payments, expenses, and business admin into the same operating loop.</small></div></a>
+        <a class="capability" href="/contacts/"><span>◎</span><div><strong>People + messages</strong><small>Keep relationships, outreach, replies, and context organized.</small></div></a>
+        <button class="capability action-card" data-command="Help me automate a repeatable computer task. Use my connected tools and devices when permitted, and keep an audit trail."><span>⚙</span><div><strong>Software + devices</strong><small>Delegate browser, server, file, coding, and future media automation through Operator.</small></div></button>
+      </div>
+    </section>
 
-  <h2>Current foundation</h2>
-  <p>This is not a blank-slate concept. The Portal already has durable SQLite agent execution, Workboard runtime state, Freelancer scheduling and booking policy, isolated persistent browser workspaces, OVH resource lanes, a roaming device mesh, Opportunity Inbox / Money Printer intelligence, and verified workforce access paths for IATSE, UKG/UltiPro, Encore SharePoint, and Lighthouse.</p>
+    <section class="panel autonomy-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Per-person policy</p>
+          <h2>How much should it do for you?</h2>
+          <p>These preferences belong to this twin. Mark, Thomas, and future users can choose different levels without forking the system.</p>
+        </div>
+        <button id="save-policy" class="secondary" type="button">Save</button>
+      </div>
+      <div class="policy-grid">
+        <label>Work discovery + applications
+          <select data-policy="work"><option value="ask">Suggest only</option><option value="rules" selected>Act inside my rules</option><option value="proactive">Be proactive; escalate exceptions</option></select>
+        </label>
+        <label>Scheduling
+          <select data-policy="schedule"><option value="ask">Suggest only</option><option value="rules" selected>Act inside my rules</option><option value="proactive">Protect and optimize proactively</option></select>
+        </label>
+        <label>Messages + outreach
+          <select data-policy="communications"><option value="ask" selected>Draft first</option><option value="rules">Send routine messages inside rules</option><option value="proactive">Proactive inside approved relationships</option></select>
+        </label>
+        <label>Account creation + login
+          <select data-policy="accounts"><option value="ask" selected>Ask at checkpoints</option><option value="rules">Handle routine setup; ask for auth/terms</option></select>
+        </label>
+        <label>Money movement
+          <select data-policy="money"><option value="ask" selected>Always ask first</option><option value="rules">Allow explicit standing rules</option></select>
+        </label>
+        <label>Files, software + media
+          <select data-policy="computing"><option value="ask">Suggest first</option><option value="rules" selected>Act on my workspace when reversible</option><option value="proactive">Keep routine systems working proactively</option></select>
+        </label>
+      </div>
+      <p id="policy-status" class="micro" aria-live="polite"></p>
+    </section>
 
-  <h2>Next build</h2>
-  <p>Unify those pieces around a stable <code>twin_id</code>, connector registry, normalized Opportunity Inbox, resource-aware queue admission, first-class activity ledger, portable export/restore tooling, and explicit swarm worker roles/capabilities. Then prove the design with a second real person before scaling the managed service.</p>
+    <section class="panel needs-panel">
+      <div class="section-heading"><div>
+        <p class="eyebrow">Human checkpoints</p>
+        <h2>Needs me</h2>
+        <p>The goal is not more notifications. This is the short list of decisions automation should not silently make.</p>
+      </div></div>
+      <div class="needs-list">
+        <article><strong>Authentication + identity</strong><small>2FA, CAPTCHAs, identity verification, and provider security prompts.</small></article>
+        <article><strong>Meaningful commitments</strong><small>New contracts, unusual schedule conflicts, travel commitments, or terms outside standing policy.</small></article>
+        <article><strong>Money + irreversible actions</strong><small>Payments, transfers, destructive changes, and anything outside explicit authority.</small></article>
+      </div>
+    </section>
 
-  <p><a href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/digital-twin-booking-agent.md">Read the canonical Digital Twin architecture →</a></p>
-  <p><a href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/digital-twin-swarm.md">Read the swarm execution model →</a></p>
-</main>
+    <footer>
+      <p><strong>Many tools, one person-owned twin.</strong> Infrastructure and AI providers are replaceable; identity, policy, memory, and audit history belong to the user.</p>
+      <div><a href="/workboard/">See activity</a><a href="/abilities/">Capabilities</a><a href="https://github.com/tmsteph/3dvr-portal/blob/main/docs/digital-twin-booking-agent.md">Architecture</a></div>
+    </footer>
+  </main>
+  <script defer src="/issue-launcher.js"></script>
 </body>
 </html>
