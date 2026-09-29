@@ -5,3 +5,4 @@ release digital twin and av source health 2026-09-29T14:50-07:00
 2026-09-29 prism-wing-playtested-rail PR #2917
 2026-09-29 adventure-facing-mouse PR #2920
 2026-09-29 prism-wing-ws-throttle-gate3 PR #2919
+2026-09-29 prism-racer-driving-feel PR #2923
