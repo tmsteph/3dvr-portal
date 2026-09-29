@@ -1,0 +1,31 @@
+name: Prism Wing Playtest
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'living-world/**'
+      - 'tests/prism-wing.e2e.test.js'
+      - '.github/workflows/prism-wing-playtest.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'living-world/**'
+      - 'tests/prism-wing.e2e.test.js'
+      - '.github/workflows/prism-wing-playtest.yml'
+  workflow_dispatch:
+
+jobs:
+  movement:
+    name: Fly Prism Wing in Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Playtest movement controls
+        run: PLAYWRIGHT_BROWSER=chrome node --test tests/prism-wing.e2e.test.js
