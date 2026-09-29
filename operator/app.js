@@ -113,6 +113,8 @@ historyList.onclick=event=>{const button=event.target.closest('[data-conversatio
 log.addEventListener('scroll',updateLatest,{passive:true});
 latest.onclick=()=>scrollLatest('smooth');
 window.addEventListener('pageshow',()=>{atLatest()?followLatest():updateLatest()});
+function consumeOperatorPrefill(){let value=null;try{value=JSON.parse(sessionStorage.getItem(OPERATOR_PREFILL_KEY)||'null')}catch{}sessionStorage.removeItem(OPERATOR_PREFILL_KEY);const prompt=String(value?.prompt||'').trim().slice(0,4000);if(!prompt)return false;input.value=prompt;if(value?.submit===true)requestAnimationFrame(()=>form.requestSubmit());return true}
 render({forceLatest:true});
-if(new URLSearchParams(window.location.search).get('history')==='1') openHistory(); else input.focus();
+const prefilled=consumeOperatorPrefill();
+if(new URLSearchParams(window.location.search).get('history')==='1') openHistory(); else if(!prefilled) input.focus();
 void syncHistory();
