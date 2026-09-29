@@ -19,8 +19,10 @@ test('opportunity normalization clamps fit score and preserves workflow fields',
 
   assert.equal(opportunity.fitScore, 100);
   assert.equal(opportunity.status, 'Found');
+  assert.equal(opportunity.canonicalStatus, 'discovered');
   assert.equal(opportunity.availability, 'clear');
 });
+
 test('pipeline separates ready, applied, conversations, and booked work', () => {
   const pipeline = buildOpportunityPipeline([
     { id: 'ready', title: 'A1', status: 'Ready', fitScore: 92 },
@@ -47,4 +49,16 @@ test('opportunity progression reaches booked from an offer', () => {
   assert.equal(getNextOpportunityStatus({ status: 'Found' }), 'Applied');
   assert.equal(getNextOpportunityStatus({ status: 'Offered' }), 'Booked');
   assert.equal(getNextOpportunityStatus({ status: 'Booked' }), '');
+});
+
+test('canonical lifecycle state can bridge into the freelancer pipeline', () => {
+  const pipeline = buildOpportunityPipeline([
+    { id: 'agent-sent', title: 'A1', status: 'legacy-unknown', canonicalStatus: 'contacted', fitScore: 80 },
+    { id: 'agent-pending', title: 'V1', status: 'legacy-unknown', canonicalStatus: 'booking-pending', fitScore: 85 },
+    { id: 'engine-won', title: 'Camera', status: 'legacy-unknown', canonicalStatus: 'booked', fitScore: 90 },
+  ]);
+
+  assert.deepEqual(pipeline.applied.map(item => item.id), ['agent-sent']);
+  assert.deepEqual(pipeline.conversations.map(item => item.id), ['agent-pending']);
+  assert.deepEqual(pipeline.booked.map(item => item.id), ['engine-won']);
 });
