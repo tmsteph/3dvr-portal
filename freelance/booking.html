@@ -90,6 +90,8 @@
         <label><span>Status</span><input id="sourceStatus" placeholder="Active, Applied, Research…" /></label>
         <label><span>Login</span><input id="sourceLogin" placeholder="Ready, Verify, N/A" /></label>
         <label><span>Onboarding</span><input id="sourceOnboarding" /></label>
+        <label><span>Monitoring</span><select id="sourceMonitoring"><option value="manual">Manual</option><option value="connector">Connector heartbeat</option></select></label>
+        <label><span>Expected check cadence</span><select id="sourceCadence"><option value="60">Hourly</option><option value="1440">Daily</option><option value="4320">Every 3 days</option><option value="10080">Weekly</option></select></label>
         <label><span>Rate</span><input id="sourceRate" placeholder="$600/day" /></label>
         <label><span>Priority</span><input id="sourcePriority" type="number" min="1" max="999" /></label>
         <label><span>Portal / company URL</span><input id="sourceUrl" type="url" /></label>
