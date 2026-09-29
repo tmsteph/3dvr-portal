@@ -89,18 +89,20 @@
     <div class="top">
       <a class="brand" href="/" aria-label="3DVR Portal home">
         <img src="/brand/portal-mark.svg" alt="">
-        <span class="title-wrap"><span>Living World</span><small>3DVR ambient playground</small></span>
+        <span class="title-wrap"><span>Living World</span><small>3DVR momentum playground</small></span>
       </a>
       <div class="stats" aria-live="polite">
-        <span class="pill">light seeds <strong id="seed-count">0</strong></span>
-        <span class="pill">mood <strong id="mood">dusk</strong></span>
-        <span class="pill">dream <strong id="dream-status">on</strong></span>
-        <span class="pill">speed <strong id="speed-status">1.0×</strong></span>
-        <span class="pill">weapon <strong id="weapon-status">pulse</strong></span>
+        <span class="pill">mode <strong id="mode-status">adventure</strong></span>
+        <span class="pill">momentum <strong id="momentum-status">0</strong></span>
         <span class="pill">stage <strong id="stage-status">1</strong></span>
         <span class="pill">gate <strong id="gate-status">0/0</strong></span>
         <span class="pill">score <strong id="score-status">0</strong></span>
         <span class="pill">flow <strong id="flow-status">off track</strong></span>
+        <span class="pill">weapon <strong id="weapon-status">pulse</strong></span>
+        <span class="pill">light seeds <strong id="seed-count">0</strong></span>
+        <span class="pill">mood <strong id="mood">dusk</strong></span>
+        <span class="pill">dream <strong id="dream-status">on</strong></span>
+        <span class="pill">speed <strong id="speed-status">1.0×</strong></span>
       </div>
     </div>
 
@@ -115,6 +117,7 @@
         <button type="submit">Shape world</button>
       </form>
       <div class="controls" aria-label="World controls">
+        <button class="control" id="mode-button" type="button">Mode: Adventure</button>
         <button class="control" id="drift-button" type="button" data-active="true">Auto drift</button>
         <button class="control" id="dream-button" type="button" data-active="true">World dreams</button>
         <button class="control" id="breath-button" type="button">Breathe</button>
@@ -124,13 +127,14 @@
     </div>
   </div>
 
-  <div class="hint">follow the glowing path · WASD move · hold Shift to thrust forward · F fire · Esc toggles world/text</div>
+  <div class="hint">follow the glowing path · WASD move · Shift boost · Tab changes mode · X brake · F fire</div>
 
   <aside class="help" id="help-panel" hidden>
     <strong>Move however feels good.</strong>
     <p><code>Click the world</code> to capture the mouse for first-person look. <code>Esc</code> releases it. <code>WASD</code> or arrows fly, and the mouse wheel glides forward/back.</p>
     <p><code>Left click</code> fires the selected toy weapon. <code>1</code> pulse, <code>2</code> beam, <code>3</code> bomb. <code>Right click</code> always throws a bomb.</p>
-    <p>Keyboard-only: <code>WASD</code> moves, <code>arrows</code> look, hold <code>Shift</code> to thrust forward, <code>Space</code> rises, <code>Ctrl/C</code> descends, <code>F</code> fires, <code>G</code> bombs, and <code>Esc</code> toggles between the world and Shape World.</p>
+    <p>Keyboard-only: <code>WASD</code> moves, <code>arrows</code> look, hold <code>Shift</code> for boost/jet thrust, <code>Space</code> rises, <code>Ctrl/C</code> descends, <code>X</code> brakes, <code>Tab</code> cycles movement modes, <code>F</code> fires, <code>G</code> bombs, and <code>Esc</code> toggles world/text.</p>
+    <p><b>Movement modes:</b> stages rotate through Adventure, Ski, Race, Flight, and Arena handling. Velocity carries between inputs, so turning, braking, boosting, and lining up gates all matter. Bright boost gates add a burst of momentum.</p>
     <p><b>Path Run:</b> stay close to the glowing ribbon to continuously earn flow points and build up to a 4× flow multiplier. As you converge on the track, the whole world becomes brighter, more colorful, and more energized. Pass gates in order and shoot the floating prism targets for bonus points.</p>
     <p>The world gently evolves when <b>World dreams</b> is on. Your changes persist on this device.</p>
     <p>Try commands like <code>forest</code>, <code>ocean</code>, <code>night</code>, <code>more crystals</code>, <code>more orbs</code>, <code>faster</code>, <code>calmer</code>, or <code>surprise me</code>.</p>
@@ -149,12 +153,15 @@
     const moodEl = document.getElementById('mood');
     const dreamStatusEl = document.getElementById('dream-status');
     const speedStatusEl = document.getElementById('speed-status');
+    const modeStatusEl = document.getElementById('mode-status');
+    const momentumStatusEl = document.getElementById('momentum-status');
     const weaponStatusEl = document.getElementById('weapon-status');
     const stageStatusEl = document.getElementById('stage-status');
     const gateStatusEl = document.getElementById('gate-status');
     const scoreStatusEl = document.getElementById('score-status');
     const flowStatusEl = document.getElementById('flow-status');
     const reticle = document.getElementById('reticle');
+    const modeButton = document.getElementById('mode-button');
     const driftButton = document.getElementById('drift-button');
     const dreamButton = document.getElementById('dream-button');
     const breathButton = document.getElementById('breath-button');
@@ -442,6 +449,35 @@
     const flowSunColor = new THREE.Color();
     const flowAccentColor = new THREE.Color();
 
+    const movementModes = [
+      {id:'adventure',label:'Adventure',accel:20,max:14,drag:4.6,strafe:.82,vertical:.65,boost:22,auto:0},
+      {id:'ski',label:'Ski',accel:11,max:28,drag:.72,strafe:.42,vertical:.48,boost:34,auto:2.2},
+      {id:'race',label:'Race',accel:18,max:34,drag:1.15,strafe:.08,vertical:.18,boost:44,auto:7.5},
+      {id:'flight',label:'Flight',accel:15,max:30,drag:.8,strafe:.72,vertical:.92,boost:38,auto:8.5},
+      {id:'arena',label:'Arena',accel:28,max:18,drag:5.2,strafe:1,vertical:.58,boost:20,auto:0}
+    ];
+    game.modeIndex = (Math.max(1,state.gameStage)-1)%movementModes.length;
+
+    function currentMovementMode() {
+      return movementModes[game.modeIndex] || movementModes[0];
+    }
+
+    function setMovementMode(index,announce=true) {
+      game.modeIndex = (index + movementModes.length)%movementModes.length;
+      const mode = currentMovementMode();
+      if (modeStatusEl) modeStatusEl.textContent = mode.label.toLowerCase();
+      if (modeButton) modeButton.textContent = 'Mode: ' + mode.label;
+      if (announce) {
+        say(mode.label + ' mode · momentum stays alive between inputs.');
+        showToast(mode.label + ' mode');
+      }
+      return mode;
+    }
+
+    function cycleMovementMode(direction=1) {
+      return setMovementMode(game.modeIndex + direction,true);
+    }
+
     function clearGameGroup(group,{disposeGeometry=false}={}) {
       while (group.children.length) {
         const child = group.children.pop();
@@ -457,11 +493,16 @@
       if (forwardFlat.lengthSq() < .0001) forwardFlat.set(0,0,-1);
       forwardFlat.normalize();
       const rightFlat = new THREE.Vector3().crossVectors(forwardFlat,new THREE.Vector3(0,1,0)).normalize();
-      const count = Math.min(7 + Math.floor(stage/2),11);
+      const mode = currentMovementMode().id;
+      const countBase = mode === 'arena' ? 6 : (mode === 'race' ? 10 : 8);
+      const count = Math.min(countBase + Math.floor(stage/3),12);
       for (let i=1;i<=count;i++) {
-        const distance = i*(13 + Math.min(stage,6)*.8);
-        const sway = Math.sin(i*1.28 + stage*.73)*(7 + stage*.7);
-        const rise = Math.sin(i*.82 + stage)*3 + ((i%3)-1)*1.4;
+        const spacing = mode === 'race' ? 18 : (mode === 'flight' ? 17 : (mode === 'ski' ? 16 : 13));
+        const distance = i*(spacing + Math.min(stage,6)*.75);
+        const swayScale = mode === 'race' ? 12 : (mode === 'arena' ? 5 : 8);
+        const sway = Math.sin(i*1.28 + stage*.73)*(swayScale + stage*.55);
+        const riseScale = mode === 'flight' ? 7 : (mode === 'ski' ? 4.5 : (mode === 'race' ? 1.4 : 3));
+        const rise = Math.sin(i*.82 + stage)*riseScale + ((i%3)-1)*(mode === 'flight' ? 2.1 : 1.2);
         points.push(origin.clone()
           .addScaledVector(forwardFlat,distance)
           .addScaledVector(rightFlat,sway)
@@ -486,8 +527,9 @@
         const active = index === game.nextGate;
         const complete = index < game.nextGate;
         gate.material.opacity = active ? .96 : (complete ? .15 : .34);
-        gate.material.emissiveIntensity = active ? 4.3 : (complete ? .2 : 1.2);
-        gate.scale.setScalar(active ? 1.2 : 1.04);
+        const boost = Boolean(gate.userData.boost);
+        gate.material.emissiveIntensity = active ? (boost ? 6.2 : 4.3) : (complete ? .2 : (boost ? 2.8 : 1.2));
+        gate.scale.setScalar(active ? (boost ? 1.34 : 1.2) : (boost ? 1.13 : 1.04));
       });
     }
 
@@ -506,6 +548,8 @@
       game.lastFlowSaveAt = performance.now();
       flowStatusEl.textContent = 'find track';
       reticle.dataset.flow = '';
+      game.modeIndex = (Math.max(1,stage)-1)%movementModes.length;
+      setMovementMode(game.modeIndex,false);
 
       const points = gamePointSequence(stage,origin);
       game.curve = new THREE.CatmullRomCurve3(points,false,'catmullrom',.35);
@@ -554,6 +598,11 @@
         gate.position.copy(position);
         gate.quaternion.setFromUnitVectors(pathUp,tangent);
         gate.userData.index=i-1;
+        gate.userData.boost = i%3 === 0;
+        if (gate.userData.boost) {
+          gate.material.emissiveIntensity = 3.2;
+          gate.scale.setScalar(1.12);
+        }
         gateGroup.add(gate);
         game.gates.push(gate);
 
@@ -580,7 +629,7 @@
 
       updateGateMaterials();
       updateHud();
-      say('Path Run stage ' + stage + ': follow the glowing ribbon through ' + game.gates.length + ' gates.');
+      say(currentMovementMode().label + ' stage ' + stage + ': carry your momentum through ' + game.gates.length + ' gates.');
     }
 
     function scoreGame(points,label='') {
@@ -722,6 +771,11 @@
         game.nextGate += 1;
         scoreGame(100 + state.gameStage*20,'gate');
         makeExplosion(gate.position,2.5,game.nextGate+state.gameStage);
+        if (gate.userData.boost && typeof motionVelocity !== 'undefined') {
+          motionVelocity.addScaledVector(cameraForward(),8 + currentMovementMode().boost*.22);
+          scoreGame(60,'boost');
+          showToast('BOOST');
+        }
         updateGateMaterials();
 
         if (game.nextGate >= game.gates.length) {
@@ -769,9 +823,6 @@
     function selectWeapon(index, announce=true) {
       weaponIndex = (index + weaponModes.length) % weaponModes.length;
       weaponStatusEl.textContent = currentWeapon();
-      stageStatusEl.textContent = String(state.gameStage);
-      gateStatusEl.textContent = game.gates.length ? Math.min(game.nextGate,game.gates.length) + '/' + game.gates.length : '0/0';
-      scoreStatusEl.textContent = String(state.gameScore);
       if (announce) say('Weapon: ' + currentWeapon() + '.');
     }
 
@@ -943,7 +994,12 @@
       moodEl.textContent = state.theme;
       dreamStatusEl.textContent = state.dream ? 'on' : 'off';
       speedStatusEl.textContent = state.speed.toFixed(1) + '×';
+      modeStatusEl.textContent = currentMovementMode().label.toLowerCase();
+      modeButton.textContent = 'Mode: ' + currentMovementMode().label;
       weaponStatusEl.textContent = currentWeapon();
+      stageStatusEl.textContent = String(state.gameStage);
+      gateStatusEl.textContent = game.gates.length ? Math.min(game.nextGate,game.gates.length) + '/' + game.gates.length : '0/0';
+      scoreStatusEl.textContent = String(state.gameScore);
       driftButton.dataset.active = String(state.drift);
       dreamButton.dataset.active = String(state.dream);
       dreamButton.textContent = state.dream ? 'World dreams' : 'Dreams paused';
@@ -1241,6 +1297,11 @@
         buildGamePath(state.gameStage,camera.position.clone());
         changed = true;
       }
+      const requestedMode = movementModes.findIndex(flow => new RegExp('\\b' + flow.id + '(?: mode| flow)?\\b').test(text));
+      if (requestedMode >= 0) {
+        setMovementMode(requestedMode,true);
+        changed = true;
+      }
 
       if (changed) {
         saveState();
@@ -1268,6 +1329,7 @@
       requestAnimationFrame(() => promptInput.focus());
     });
 
+    modeButton.addEventListener('click',() => cycleMovementMode(1));
     driftButton.addEventListener('click',() => {
       state.drift = !state.drift;
       say(state.drift ? 'Auto drift resumed.' : 'Auto drift paused.');
@@ -1300,7 +1362,8 @@
       vertical:0,
       thrust:0,
       lookYaw:0,
-      lookPitch:0
+      lookPitch:0,
+      brake:0
     };
     let yaw = 0;
     let pitch = -.05;
@@ -1309,6 +1372,9 @@
     let lastY = 0;
     const touchEuler = new THREE.Euler(0,0,0,'YXZ');
     const touchQuaternion = new THREE.Quaternion();
+    const motionVelocity = new THREE.Vector3();
+    const motionDesired = new THREE.Vector3();
+    const motionUp = new THREE.Vector3(0,1,0);
 
     function smoothControl(current,target,dt,accel=7,release=10) {
       const rate = Math.abs(target) > Math.abs(current) ? accel : release;
@@ -1324,6 +1390,7 @@
       controlMotion.thrust = 0;
       controlMotion.lookYaw = 0;
       controlMotion.lookPitch = 0;
+      controlMotion.brake = 0;
     }
 
     function enterTextMode() {
@@ -1365,6 +1432,10 @@
       if (event.code === 'Digit1') selectWeapon(0);
       if (event.code === 'Digit2') selectWeapon(1);
       if (event.code === 'Digit3') selectWeapon(2);
+      if (event.code === 'Tab') {
+        event.preventDefault();
+        cycleMovementMode(event.shiftKey ? -1 : 1);
+      }
       if (event.code === 'KeyG') fireBomb();
       if (event.code === 'KeyF') {
         firing = true;
@@ -1569,8 +1640,7 @@
       islandMaterial.color.lerp(targetGround,.025);
 
       const fastTravel = keys.has('ShiftLeft') || keys.has('ShiftRight');
-      const moveSpeed = 6.2*state.speed;
-      const thrustSpeed = 21*state.speed;
+      const flow = currentMovementMode();
       const f = cameraForward();
       const r = cameraRight();
 
@@ -1578,26 +1648,44 @@
       const strafeTarget = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
       const verticalTarget = (keys.has('Space') ? 1 : 0) - ((keys.has('ControlLeft') || keys.has('ControlRight') || keys.has('KeyC')) ? 1 : 0);
       const thrustTarget = fastTravel ? 1 : 0;
+      const brakeTarget = keys.has('KeyX') ? 1 : 0;
       const lookYawTarget = (keys.has('ArrowLeft') ? 1 : 0) - (keys.has('ArrowRight') ? 1 : 0);
       const lookPitchTarget = (keys.has('ArrowUp') ? 1 : 0) - (keys.has('ArrowDown') ? 1 : 0);
 
-      controlMotion.forward = smoothControl(controlMotion.forward,forwardTarget,dt,7.5,10);
-      controlMotion.strafe = smoothControl(controlMotion.strafe,strafeTarget,dt,7.5,10);
-      controlMotion.vertical = smoothControl(controlMotion.vertical,verticalTarget,dt,7.5,10);
-      controlMotion.thrust = smoothControl(controlMotion.thrust,thrustTarget,dt,4.5,6.5);
+      controlMotion.forward = smoothControl(controlMotion.forward,forwardTarget,dt,5.5,7);
+      controlMotion.strafe = smoothControl(controlMotion.strafe,strafeTarget,dt,6,8);
+      controlMotion.vertical = smoothControl(controlMotion.vertical,verticalTarget,dt,6,8);
+      controlMotion.thrust = smoothControl(controlMotion.thrust,thrustTarget,dt,3.8,5.5);
+      controlMotion.brake = smoothControl(controlMotion.brake,brakeTarget,dt,10,8);
       controlMotion.lookYaw = smoothControl(controlMotion.lookYaw,lookYawTarget,dt,6,9);
       controlMotion.lookPitch = smoothControl(controlMotion.lookPitch,lookPitchTarget,dt,6,9);
 
-      camera.position.addScaledVector(f,controlMotion.forward*moveSpeed*dt);
-      camera.position.addScaledVector(r,controlMotion.strafe*moveSpeed*.7*dt);
-      camera.position.y += controlMotion.vertical*moveSpeed*.65*dt;
-      camera.position.addScaledVector(f,controlMotion.thrust*thrustSpeed*dt);
+      const raceSteer = flow.id === 'race' ? controlMotion.strafe : 0;
+      const skiSteer = flow.id === 'ski' ? controlMotion.strafe*.34 : 0;
+      yaw -= (raceSteer*1.45 + skiSteer*.7)*dt;
+      motionDesired.set(0,0,0)
+        .addScaledVector(f,controlMotion.forward + (flow.auto/Math.max(flow.max,1)))
+        .addScaledVector(r,controlMotion.strafe*flow.strafe)
+        .addScaledVector(motionUp,controlMotion.vertical*flow.vertical);
+      if (motionDesired.lengthSq() > 1) motionDesired.normalize();
+      motionVelocity.addScaledVector(motionDesired,flow.accel*state.speed*dt);
+      motionVelocity.addScaledVector(f,controlMotion.thrust*flow.boost*state.speed*dt);
+
+      const hasInput = Math.abs(controlMotion.forward)+Math.abs(controlMotion.strafe)+Math.abs(controlMotion.vertical)+controlMotion.thrust > .03;
+      const drag = flow.drag*(hasInput ? .28 : 1);
+      motionVelocity.multiplyScalar(Math.exp(-drag*dt));
+      if (controlMotion.brake > .01) motionVelocity.multiplyScalar(Math.exp(-9*controlMotion.brake*dt));
+
+      const maxMomentum = flow.max*state.speed*(fastTravel ? 1.32 : 1);
+      if (motionVelocity.length() > maxMomentum) motionVelocity.setLength(maxMomentum);
+      camera.position.addScaledVector(motionVelocity,dt);
+      momentumStatusEl.textContent = motionVelocity.length().toFixed(1);
 
       yaw += controlMotion.lookYaw*1.65*dt;
       pitch = clamp(pitch+controlMotion.lookPitch*1.18*dt,-1.25,1.25);
 
       if (state.drift && !reducedMotion && document.activeElement !== promptInput) {
-        camera.position.addScaledVector(f,.42*state.speed*dt);
+        motionVelocity.addScaledVector(f,.18*state.speed*dt);
         yaw += Math.sin(now*.00016)*.00006*state.energy;
       }
 
