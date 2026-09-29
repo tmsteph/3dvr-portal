@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   SCHEDULE_ACTION_TYPES,
   buildWorkSchedulePlan,
+  normalizeDateKey,
 } from '../src/work-schedule-coordinator.js';
 
 test('confirmed outside work with an approved rate creates an Encore time-off action and marks IATSE booked', () => {
@@ -129,4 +130,27 @@ test('distant dense Encore weeks remain blocked', () => {
   assert.equal(plan.iatseAvailability['2026-09-29'], 'Booked');
   assert.equal(plan.iatseAvailability['2026-09-30'], 'Booked');
   assert.deepEqual(plan.softEncoreDates, []);
+});
+
+
+test('two outside bookings on the same date are surfaced instead of overwritten', () => {
+  const plan = buildWorkSchedulePlan({
+    horizonStart: '2026-10-05',
+    horizonEnd: '2026-10-11',
+    gigs: [
+      { id: 'freelance-a1', title: 'A1 - Client A', date: '2026-10-07', source: 'freelance', status: 'Booked' },
+      { id: 'iatse-v1', title: 'V1 - IATSE', date: '2026-10-07', source: 'iatse', status: 'Booked' },
+    ],
+  });
+
+  assert.equal(plan.conflicts.length, 1);
+  assert.deepEqual(plan.conflicts[0].types, ['outside-vs-outside']);
+  assert.deepEqual(plan.conflicts[0].outsideGigs.map(gig => gig.id), ['freelance-a1', 'iatse-v1']);
+  assert.equal(plan.metrics.outsideBookedDays, 1);
+});
+
+test('ISO timestamps preserve their stated local calendar date', () => {
+  assert.equal(normalizeDateKey('2026-10-07T23:30:00-07:00'), '2026-10-07');
+  assert.equal(normalizeDateKey('2026-10-07T00:30:00+09:00'), '2026-10-07');
+  assert.equal(normalizeDateKey('2026-02-30T10:00:00-08:00'), '');
 });
