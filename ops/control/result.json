@@ -4,25 +4,25 @@
     {
       "lane": "general",
       "state": "active",
-      "memoryBytes": 377630720,
-      "lease": "lane=general state=leased owner=lighthouse-schedule-1417378 expires=1790465009 remaining=11s"
+      "memoryBytes": 783990784,
+      "lease": "lane=general state=free"
     },
     {
       "lane": "identity",
       "state": "inactive",
       "memoryBytes": 0,
-      "lease": ""
+      "lease": "lane=identity state=free"
     },
     {
       "lane": "encore",
       "state": "active",
-      "memoryBytes": 475906048,
+      "memoryBytes": 528924672,
       "lease": "lane=encore state=free"
     },
     {
       "lane": "messaging",
       "state": "active",
-      "memoryBytes": 611102720,
+      "memoryBytes": 540602368,
       "lease": "lane=messaging state=free"
     },
     {
@@ -33,12 +33,12 @@
     }
   ],
   "host": {
-    "memAvailableMb": 3239,
-    "load1": 3.73,
+    "memAvailableMb": 2559,
+    "load1": 10.19,
     "cpus": 4
   },
-  "requestId": "browser-lane-status-20260926T2327Z",
+  "requestId": "google-oauth-server-check-20260929",
   "action": "browser_lane_status",
   "workflowOutcome": "success",
-  "checkedAt": "2026-09-26T23:23:18Z"
+  "checkedAt": "2026-09-29T18:57:55Z"
 }
