@@ -15,12 +15,19 @@ export const FREELANCE_PAYMENT_STATUSES = Object.freeze([
   'Paid',
 ]);
 
+function isValidDateKey(value = '') {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T12:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
 export function normalizeDateKey(value = '') {
   const raw = String(value || '').trim();
   if (!raw) return '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const prefixedDate = raw.match(/^(\d{4}-\d{2}-\d{2})(?:$|[T\s])/);
+  if (prefixedDate) return isValidDateKey(prefixedDate[1]) ? prefixedDate[1] : '';
   const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return raw;
+  if (Number.isNaN(parsed.getTime())) return '';
   return parsed.toISOString().slice(0, 10);
 }
 
