@@ -1,0 +1,12 @@
+[Unit]
+Description=Poll Mark Nadal / GUN Matrix chat for 3DVR
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=10min
+RandomizedDelaySec=45s
+Persistent=true
+Unit=3dvr-mark-chat-tracker.service
+
+[Install]
+WantedBy=timers.target
