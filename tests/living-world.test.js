@@ -144,6 +144,11 @@ test('Game Hub exposes separate flight, open-world, and racing experiences', asy
   assert.match(adventure, /vy=Math\.min\(10\.8,vy\+34\*dt\)/);
   assert.match(adventure, /player\.rotation\.y=Math\.atan2\(velocity\.x,velocity\.z\)\+Math\.PI/);
   assert.match(adventure, /camPitch=THREE\.MathUtils\.clamp\(camPitch\+e\.movementY\*\.0019,-\.1,\.9\)/);
+  assert.match(adventure, /const MANTLE_MAX_HEIGHT=3\.4/);
+  assert.match(adventure, /function startMantle\(platform,now\)/);
+  assert.match(adventure, /function updateMantle\(now\)/);
+  assert.match(adventure, /arc=Math\.sin\(Math\.PI\*t\)\*\.28/);
+  assert.match(adventure, /climb<=MANTLE_MAX_HEIGHT/);
   assert.match(racer, /W throttle/);
   assert.match(racer, /Shift boost/);
   assert.match(racer, /magnetic road/);
