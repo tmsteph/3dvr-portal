@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#07110d" />
+  <title>Private Knowledge · 3DVR</title>
+  <style>
+    :root{color-scheme:dark;--bg:#06100c;--panel:rgba(16,35,26,.88);--panel2:rgba(255,255,255,.035);--text:#edf7ef;--muted:#9eb1a5;--line:rgba(211,255,224,.15);--life:#8ef0ae;--warn:#efca84}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -10%,#173529,#07110d 42%,#030806);color:var(--text);font:16px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    a{color:inherit}.shell{width:min(1120px,calc(100% - 24px));margin:auto;padding:26px 0 64px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:26px}.links{display:flex;gap:14px;flex-wrap:wrap}.links a{text-decoration:none;color:var(--muted)}.pill{border:1px solid var(--line);border-radius:999px;padding:7px 10px;color:var(--muted);font-size:13px}.pill.ok{color:var(--life)}.pill.warn{color:var(--warn)}
+    h1{font-size:clamp(32px,7vw,58px);letter-spacing:-.045em;line-height:1;margin:8px 0}.lead{color:var(--muted);max-width:720px;margin:0 0 24px}.grid{display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);gap:14px}.panel{border:1px solid var(--line);border-radius:20px;background:var(--panel);backdrop-filter:blur(14px);overflow:hidden}.sidebar{padding:12px}.side-title{padding:8px 10px;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}.notes{display:grid;gap:5px}.note-button{width:100%;border:0;border-radius:11px;background:transparent;color:var(--text);padding:10px;text-align:left;font:inherit;cursor:pointer}.note-button:hover,.note-button.active{background:rgba(142,240,174,.1)}.note-button small{display:block;color:var(--muted);margin-top:2px}.content-head{padding:16px 20px;border-bottom:1px solid var(--line)}.path{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);overflow-wrap:anywhere}.document{padding:20px;min-height:360px}.document h1,.document h2,.document h3{letter-spacing:-.02em;line-height:1.2;margin:1.4em 0 .5em}.document h1{font-size:2rem}.document h2{font-size:1.45rem}.document h3{font-size:1.15rem}.document p{margin:.75em 0}.document ul,.document ol{padding-left:1.4rem}.document code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(255,255,255,.07);padding:.1em .35em;border-radius:5px}.document pre{overflow:auto;background:#020705;border:1px solid var(--line);border-radius:12px;padding:13px}.document pre code{background:none;padding:0}.empty{color:var(--muted);padding:20px}.privacy{color:var(--muted);font-size:13px;margin-top:16px}.privacy b{color:var(--life)}
+    @media(max-width:760px){.grid{grid-template-columns:1fr}.sidebar{max-height:220px;overflow:auto}.document{padding:16px}.top{align-items:flex-start;flex-direction:column-reverse}}
+  </style>
+</head><body>
+  <main class="shell">
+    <div class="top">
+      <div class="links"><a href="/">← Portal</a><a href="/organism/">Memory</a><a href="/digital-organism/">Digital Organism</a></div>
+      <span class="pill" id="identity">Checking sign-in…</span>
+    </div>
+    <h1>Private Knowledge</h1>
+    <p class="lead">Your readable notes stay on your own OVH storage. This page only requests a note after your browser signs an owner-only access proof.</p>
+    <div class="grid">
+      <aside class="panel sidebar">
+        <div class="side-title">Notes</div>
+        <div class="notes" id="notes"></div>
+      </aside>
+      <section class="panel">
+        <div class="content-head">
+          <strong id="noteTitle">Select a note</strong>
+          <div class="path" id="noteMeta">Private OVH Markdown</div>
+        </div>
+        <article class="document" id="document"><div class="empty">Loading private knowledge…</div></article>
+      </section>
+    </div>
+    <div class="privacy"><b>Owner-only.</b> Content is not bundled into the public portal or stored in Vercel. The public portal acts as a signed interface to your private OVH knowledge directory.</div>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -312,6 +312,30 @@ export async function createOrganismRecallProof(query, options = {}) {
   return { ...proof, query: text, requestId, limit };
 }
 
+
+export async function createPrivateKnowledgeListProof(options = {}) {
+  const signedIn = globalThis.localStorage?.getItem?.('signedIn') === 'true';
+  if (!signedIn) throw new Error('Sign in with your 3DVR account before opening private knowledge.');
+  const requestId = normalizeText(options.requestId || makeId('knowledge-list'), 160);
+  const proof = await signedPortalProof('digital-organism', 'knowledge-list', { requestId });
+  if (!proof) throw new Error('Refresh your 3DVR sign-in before opening private knowledge.');
+  return { ...proof, requestId };
+}
+
+export async function createPrivateKnowledgeReadProof(note, options = {}) {
+  const signedIn = globalThis.localStorage?.getItem?.('signedIn') === 'true';
+  if (!signedIn) throw new Error('Sign in with your 3DVR account before opening private knowledge.');
+  const path = normalizeText(note, 300);
+  if (!path) throw new Error('A private knowledge note path is required.');
+  const requestId = normalizeText(options.requestId || makeId('knowledge-read'), 160);
+  const proof = await signedPortalProof('digital-organism', 'knowledge-read', {
+    note: path,
+    requestId
+  });
+  if (!proof) throw new Error('Refresh your 3DVR sign-in before opening private knowledge.');
+  return { ...proof, note: path, requestId };
+}
+
 export async function createOrganismRememberProof(content, options = {}) {
   const signedIn = globalThis.localStorage?.getItem?.('signedIn') === 'true';
   if (!signedIn) throw new Error('Sign in with your 3DVR account before saving durable memory.');

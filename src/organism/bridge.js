@@ -1,7 +1,8 @@
 import {
   resolveOrganismAccess,
   resolveOrganismFeedbackAccess,
-  resolveOrganismRememberAccess
+  resolveOrganismRememberAccess,
+  resolvePrivateKnowledgeAccess
 } from './access.js';
 import {
   approveRetrievalOnOvh,
@@ -9,6 +10,7 @@ import {
   rejectRetrievalOnOvh,
   rememberOnOvh
 } from './remote.js';
+import { listPrivateKnowledge, readPrivateKnowledge } from './knowledge.js';
 
 function sendJson(res, status, payload) {
   const body = JSON.stringify(payload);
@@ -46,6 +48,9 @@ export function createOrganismBridgeHandler(options = {}) {
   const rememberImpl = options.rememberImpl || rememberOnOvh;
   const approveImpl = options.approveImpl || approveRetrievalOnOvh;
   const rejectImpl = options.rejectImpl || rejectRetrievalOnOvh;
+  const knowledgeAccessImpl = options.knowledgeAccessImpl || resolvePrivateKnowledgeAccess;
+  const knowledgeListImpl = options.knowledgeListImpl || listPrivateKnowledge;
+  const knowledgeReadImpl = options.knowledgeReadImpl || readPrivateKnowledge;
 
   return async function organismBridgeHandler(req, res) {
     const method = String(req.method || 'GET').toUpperCase();
@@ -60,7 +65,7 @@ export function createOrganismBridgeHandler(options = {}) {
       });
     }
 
-    if (method !== 'POST' || !['/recall', '/feedback', '/remember'].includes(pathname)) {
+    if (method !== 'POST' || !['/recall', '/feedback', '/remember', '/knowledge'].includes(pathname)) {
       return sendJson(res, 404, { ok: false, error: 'Not found.' });
     }
 
@@ -69,6 +74,31 @@ export function createOrganismBridgeHandler(options = {}) {
       payload = await readJson(req);
     } catch {
       return sendJson(res, 400, { ok: false, error: 'Invalid JSON request.' });
+    }
+
+    if (pathname === '/knowledge' || payload.privateKnowledge === true) {
+      const access = await knowledgeAccessImpl(payload, options);
+      if (!access.ok) {
+        return sendJson(res, access.status || 403, { ok: false, error: access.reason || 'Unauthorized.' });
+      }
+      try {
+        const result = access.mode === 'list'
+          ? await knowledgeListImpl({ config: options.config, root: options.knowledgeRoot })
+          : await knowledgeReadImpl(access.note, { config: options.config, root: options.knowledgeRoot });
+        return sendJson(res, 200, {
+          ok: true,
+          requestId: access.requestId,
+          mode: access.mode,
+          ...result
+        });
+      } catch (error) {
+        const status = Number(error?.statusCode) || (error?.code === 'ENOENT' ? 404 : 500);
+        console.error('Private knowledge bridge failed:', error?.message || error);
+        return sendJson(res, status, {
+          ok: false,
+          error: status === 404 ? 'Knowledge note not found.' : 'Private knowledge could not be read.'
+        });
+      }
     }
 
     const isFeedback = pathname === '/feedback' || payload.organismFeedback === true;
