@@ -20,7 +20,7 @@ export function normalizeDateKey(value = '') {
   // Preserve the calendar date carried by ISO-like local timestamps instead of
   // converting through UTC, which can move late-night work into the next day.
   const prefixedDate = raw.match(/^(\d{4}-\d{2}-\d{2})(?:$|[T\s])/);
-  if (prefixedDate && isValidDateKey(prefixedDate[1])) return prefixedDate[1];
+  if (prefixedDate) return isValidDateKey(prefixedDate[1]) ? prefixedDate[1] : '';
 
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return '';
