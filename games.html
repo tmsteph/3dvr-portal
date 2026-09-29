@@ -183,6 +183,16 @@ h1 {
   --icon-bg: linear-gradient(135deg, #164e63, #7e22ce);
 }
 
+.game-card.adventure {
+  --card-glow: linear-gradient(135deg, rgba(93, 220, 120, 0.42), rgba(255, 214, 89, 0.36));
+  --icon-bg: linear-gradient(135deg, #2e8b57, #f0b429);
+}
+
+.game-card.racer {
+  --card-glow: linear-gradient(135deg, rgba(255, 56, 109, 0.42), rgba(101, 231, 255, 0.38));
+  --icon-bg: linear-gradient(135deg, #c2185b, #1565c0);
+}
+
 .game-card.dad-arcade {
   --card-glow: linear-gradient(135deg, rgba(149, 249, 186, 0.4), rgba(130, 146, 255, 0.34));
   --icon-bg: linear-gradient(135deg, #052e16, #3730a3);
@@ -222,8 +232,30 @@ h1 {
         <path d="M22 52c14-5 23-17 27-34 4 17 13 29 27 34-14 5-23 17-27 27-4-10-13-22-27-27z" fill="#fff" opacity="0.72"/>
       </svg>
     </span>
-    <span class="game-title">Living World</span>
-    <p class="game-blurb">Explore an evolving 3D playground where movement, flow, and the world react to you.</p>
+    <span class="game-title">Prism Wing</span>
+    <p class="game-blurb">Arcade flight through a glowing, forgiving path with boost gates and prism targets.</p>
+  </a>
+  <a class="game-card adventure" href="/open-world/">
+    <span class="game-icon" aria-hidden="true">
+      <svg viewBox="0 0 96 96" role="img">
+        <circle cx="48" cy="52" r="30" fill="currentColor"/>
+        <path d="M27 58c8-11 18-17 30-19 5 7 10 13 18 18-10 12-21 18-34 18-6-5-11-10-14-17z" fill="#fff" opacity=".5"/>
+        <path d="M48 14l5 11 12 2-9 8 3 12-11-6-11 6 3-12-9-8 12-2 5-11z" fill="#fff" opacity=".9"/>
+      </svg>
+    </span>
+    <span class="game-title">3DVR Adventure</span>
+    <p class="game-blurb">Open-world third-person platforming: run, jump, explore, and collect stars.</p>
+  </a>
+  <a class="game-card racer" href="/prism-racer/">
+    <span class="game-icon" aria-hidden="true">
+      <svg viewBox="0 0 96 96" role="img">
+        <path d="M18 62h60l-8-22-16-9H37l-13 9-6 22z" fill="currentColor"/>
+        <circle cx="30" cy="66" r="10" fill="#111827"/><circle cx="66" cy="66" r="10" fill="#111827"/>
+        <path d="M35 39h24l7 10H28l7-10z" fill="#fff" opacity=".7"/>
+      </svg>
+    </span>
+    <span class="game-title">Prism Racer</span>
+    <p class="game-blurb">Fast three-lap arcade racing with boost, handbrake, and a gently magnetic road.</p>
   </a>
   <a class="game-card dad-arcade" href="/dad-arcade/">
     <span class="game-icon" aria-hidden="true">
