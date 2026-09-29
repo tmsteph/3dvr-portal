@@ -21,19 +21,19 @@ const key = new THREE.PointLight(0xffffff, 22, 22, 1.8);
 key.position.set(2.8, 4.5, 6);
 scene.add(key);
 
-const rimA = new THREE.PointLight(0x49ddff, 14, 18, 2);
+const rimA = new THREE.PointLight(0x4285f4, 15, 18, 2);
 rimA.position.set(-5, -1.5, 3);
 scene.add(rimA);
 
-const rimB = new THREE.PointLight(0xff5fb3, 13, 18, 2);
+const rimB = new THREE.PointLight(0xea4335, 14, 18, 2);
 rimB.position.set(5, 0.5, 1);
 scene.add(rimB);
 
 const palettes = [
-  ['#55e6ff', '#a77cff', '#ff6c9e', '#ffd166', '#66f0c8'],
-  ['#80ffdb', '#64a8ff', '#b68cff', '#ff7eb6', '#ffe169'],
-  ['#ff7a7a', '#ffbc5b', '#fff173', '#55e6d0', '#5aa8ff'],
-  ['#f7f8ff', '#7ee9ff', '#8a9cff', '#cb87ff', '#ff8fcb']
+  ['#4285F4', '#EA4335', '#FBBC05', '#34A853', '#FFFFFF'],
+  ['#F25022', '#7FBA00', '#00A4EF', '#FFB900', '#FFFFFF'],
+  ['#E52521', '#049CD8', '#FBD000', '#43B047', '#FFFFFF'],
+  ['#FF3B30', '#0078D4', '#FFD60A', '#34C759', '#FFFFFF']
 ];
 
 let paletteIndex = 0;
@@ -42,6 +42,7 @@ let autoMotion = true;
 let glowEnabled = true;
 let dragging = false;
 let dragMoved = false;
+let dragDistance = 0;
 let lastX = 0;
 let lastY = 0;
 let targetRotX = -0.05;
@@ -98,43 +99,110 @@ function addStroke(points, color, radius = 0.11) {
   return mesh;
 }
 
-function addLegacyGoggles() {
+function addSkiGoggles() {
   const g = new THREE.Group();
-  g.position.set(-3.45, 0.1, 0.12);
+  g.position.set(-3.48, 0.08, 0.18);
+  g.rotation.z = -0.055;
 
-  const left = circleStroke(-0.43, 0, 0.5, palettes[0][0], .08, .095);
-  const right = circleStroke(0.63, 0.01, 0.5, palettes[0][2], .08, .095);
-  g.add(left, right);
+  const palette = palettes[paletteIndex];
 
-  const bridge = tube([
-    [-0.02, 0.06, .09],
-    [0.06, 0.16, .13],
-    [0.18, 0.18, .14],
-    [0.27, 0.08, .10]
-  ], palettes[0][1], .075);
-  g.add(bridge);
+  const outer = new THREE.Shape();
+  outer.moveTo(-1.22, 0.12);
+  outer.bezierCurveTo(-1.17, 0.72, -0.78, 0.92, -0.26, 0.91);
+  outer.lineTo(0.58, 0.91);
+  outer.bezierCurveTo(1.10, 0.91, 1.43, 0.68, 1.48, 0.12);
+  outer.bezierCurveTo(1.42, -0.55, 1.04, -0.78, 0.50, -0.77);
+  outer.lineTo(-0.27, -0.77);
+  outer.bezierCurveTo(-0.80, -0.77, -1.17, -0.53, -1.22, 0.12);
 
-  const leftArm = tube([[-0.92, .11, .04], [-1.22, .24, -.04], [-1.47, .14, -.15]], palettes[0][3], .055);
-  const rightArm = tube([[1.13, .12, .04], [1.41, .25, -.04], [1.62, .13, -.15]], palettes[0][4], .055);
-  g.add(leftArm, rightArm);
+  const inner = new THREE.Path();
+  inner.moveTo(-0.90, 0.10);
+  inner.bezierCurveTo(-0.86, 0.45, -0.62, 0.58, -0.24, 0.57);
+  inner.lineTo(0.52, 0.57);
+  inner.bezierCurveTo(0.89, 0.57, 1.10, 0.43, 1.14, 0.09);
+  inner.bezierCurveTo(1.09, -0.29, 0.86, -0.43, 0.49, -0.43);
+  inner.lineTo(-0.23, -0.43);
+  inner.bezierCurveTo(-0.62, -0.43, -0.86, -0.29, -0.90, 0.10);
+  outer.holes.push(inner);
 
-  const lensMaterialA = new THREE.MeshPhysicalMaterial({
-    color: 0x43ddff,
+  const frameGeo = new THREE.ExtrudeGeometry(outer, {
+    depth: 0.30,
+    bevelEnabled: true,
+    bevelSegments: 5,
+    steps: 1,
+    bevelSize: 0.075,
+    bevelThickness: 0.06
+  });
+  const frame = new THREE.Mesh(frameGeo, makeMaterial(palette[2], 0.20));
+  frame.position.z = -0.14;
+  frame.scale.setScalar(0.64);
+  g.add(frame);
+
+  const visorShape = new THREE.Shape();
+  visorShape.moveTo(-0.88, 0.08);
+  visorShape.bezierCurveTo(-0.84, 0.41, -0.61, 0.52, -0.22, 0.51);
+  visorShape.lineTo(0.50, 0.51);
+  visorShape.bezierCurveTo(0.87, 0.51, 1.05, 0.39, 1.08, 0.08);
+  visorShape.bezierCurveTo(1.03, -0.23, 0.82, -0.35, 0.47, -0.35);
+  visorShape.lineTo(-0.21, -0.35);
+  visorShape.bezierCurveTo(-0.58, -0.35, -0.83, -0.22, -0.88, 0.08);
+
+  const visorGeo = new THREE.ExtrudeGeometry(visorShape, {
+    depth: 0.11,
+    bevelEnabled: true,
+    bevelSegments: 4,
+    steps: 1,
+    bevelSize: 0.035,
+    bevelThickness: 0.025
+  });
+  const visorMat = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(palette[0]),
+    emissive: new THREE.Color(palette[0]),
+    emissiveIntensity: 0.10,
     transparent: true,
-    opacity: .18,
-    roughness: .08,
-    transmission: .2,
-    thickness: .15,
+    opacity: 0.84,
+    transmission: 0.18,
+    roughness: 0.08,
+    metalness: 0.06,
+    clearcoat: 1,
+    clearcoatRoughness: 0.06
+  });
+  const visor = new THREE.Mesh(visorGeo, visorMat);
+  visor.position.z = 0.10;
+  visor.scale.setScalar(0.64);
+  g.add(visor);
+
+  const brow = tube([
+    [-0.78, 0.44, 0.23],
+    [-0.28, 0.56, 0.27],
+    [0.32, 0.55, 0.27],
+    [0.82, 0.42, 0.22]
+  ], palette[1], 0.065);
+  brow.scale.setScalar(0.80);
+  brow.position.set(0.08, 0.08, 0.06);
+  g.add(brow);
+
+  const strapGeo = new THREE.BoxGeometry(0.68, 0.20, 0.11);
+  const strapMat = makeMaterial(palette[3], 0.10);
+  const leftStrap = new THREE.Mesh(strapGeo, strapMat);
+  leftStrap.position.set(-0.91, 0.03, -0.02);
+  leftStrap.rotation.z = 0.12;
+  const rightStrap = leftStrap.clone();
+  rightStrap.position.set(1.14, 0.03, -0.02);
+  rightStrap.rotation.z = -0.12;
+  g.add(leftStrap, rightStrap);
+
+  const shineGeo = new THREE.PlaneGeometry(0.88, 0.12);
+  const shineMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.26,
     side: THREE.DoubleSide
   });
-  const lensMaterialB = lensMaterialA.clone();
-  lensMaterialB.color.set(0xff67b1);
-  const lensGeometry = new THREE.CircleGeometry(.41, 48);
-  const lensA = new THREE.Mesh(lensGeometry, lensMaterialA);
-  const lensB = new THREE.Mesh(lensGeometry, lensMaterialB);
-  lensA.position.set(-.43, 0, .06);
-  lensB.position.set(.63, .01, .06);
-  g.add(lensA, lensB);
+  const shine = new THREE.Mesh(shineGeo, shineMat);
+  shine.position.set(0.12, 0.20, 0.23);
+  shine.rotation.z = -0.10;
+  g.add(shine);
 
   root.add(g);
 }
@@ -191,21 +259,22 @@ function addSparkField() {
   scene.add(new THREE.Points(geometry, mat));
 }
 
-function makeBurst() {
+function makeBurst(multiplier = 1) {
   const palette = palettes[paletteIndex];
-  for (let i = 0; i < 34; i++) {
+  for (let i = 0; i < Math.floor(34 * multiplier); i++) {
     const geometry = new THREE.SphereGeometry(.035 + Math.random() * .045, 8, 8);
     const mat = new THREE.MeshBasicMaterial({ color: palette[i % palette.length], transparent: true, opacity: 1 });
     const p = new THREE.Mesh(geometry, mat);
     p.position.set((Math.random() - .5) * .5, (Math.random() - .5) * .35, .4);
     const angle = Math.random() * Math.PI * 2;
-    const speed = .035 + Math.random() * .065;
-    p.userData.v = new THREE.Vector3(Math.cos(angle) * speed, Math.sin(angle) * speed, (Math.random() - .35) * .04);
+    const speed = (.035 + Math.random() * .065) * multiplier;
+    p.userData.v = new THREE.Vector3(Math.cos(angle) * speed, Math.sin(angle) * speed, (Math.random() - .35) * .04 * multiplier);
     p.userData.life = 1;
     scene.add(p);
     burstParticles.push(p);
   }
-  root.scale.set(1.06, 1.06, 1.06);
+  const pop = 1.06 + (multiplier - 1) * 0.05;
+  root.scale.set(pop, pop, pop);
 }
 
 function applyPalette() {
@@ -228,7 +297,7 @@ function resize() {
   root.position.y = mobile ? .35 : .25;
 }
 
-addLegacyGoggles();
+addSkiGoggles();
 buildLetters();
 addSparkField();
 resize();
@@ -238,6 +307,7 @@ window.addEventListener('resize', resize);
 canvas.addEventListener('pointerdown', (event) => {
   dragging = true;
   dragMoved = false;
+  dragDistance = 0;
   lastX = event.clientX;
   lastY = event.clientY;
   canvas.setPointerCapture?.(event.pointerId);
@@ -251,6 +321,7 @@ canvas.addEventListener('pointermove', (event) => {
   if (dragging) {
     const dx = event.clientX - lastX;
     const dy = event.clientY - lastY;
+    dragDistance += Math.hypot(dx, dy);
     if (Math.abs(dx) + Math.abs(dy) > 2) dragMoved = true;
     targetRotY += dx * .008;
     targetRotX += dy * .006;
@@ -264,7 +335,12 @@ canvas.addEventListener('pointermove', (event) => {
 
 canvas.addEventListener('pointerup', (event) => {
   dragging = false;
-  if (!dragMoved) makeBurst();
+  if (dragMoved) {
+    const intensity = THREE.MathUtils.clamp(1 + dragDistance / 120, 1.25, 2.4);
+    makeBurst(intensity);
+  } else {
+    makeBurst(1);
+  }
   canvas.releasePointerCapture?.(event.pointerId);
 });
 
