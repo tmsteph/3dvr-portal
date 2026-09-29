@@ -5,6 +5,7 @@ const {
   buildFilter,
   eventsFromSync,
   renderTranscript,
+  fitTranscript,
   DEFAULTS,
 } = await import('../scripts/ops/mark-chat-tracker.mjs');
 
@@ -56,4 +57,17 @@ test('Mark tracker renders a private rolling transcript without credentials', ()
   assert.match(text, /@amark:gitter\.im/);
   assert.match(text, /hello/);
   assert.doesNotMatch(text, /accessToken|refreshToken/);
+});
+
+test('Mark tracker trims retained messages to fit the private knowledge byte budget', () => {
+  const messages = Array.from({ length: 80 }, (_, i) => ({
+    id: `$${i}`,
+    sender: '@amark:gitter.im',
+    ts: 1_790_000_000_000 + i,
+    body: 'x'.repeat(4000),
+  }));
+  const kept = fitTranscript(messages, { maxNoteBytes: 32 * 1024, maxMessages: 80 });
+  const text = renderTranscript({ messages: kept, updatedAt: '2026-09-29T00:00:00.000Z' });
+  assert.ok(kept.length < messages.length);
+  assert.ok(Buffer.byteLength(text, 'utf8') <= 32 * 1024);
 });
