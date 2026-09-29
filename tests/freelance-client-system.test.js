@@ -70,3 +70,28 @@ test('gig normalization keeps end date aligned with a single-day gig', () => {
   assert.equal(gig.endDate, '2026-09-01');
   assert.equal(gig.status, 'Booked');
 });
+
+
+test('gig normalization preserves valid call and wrap times', () => {
+  const gig = normalizeFreelanceGig({
+    id: 'timed-gig',
+    date: '2026-10-07',
+    startTime: '8:05',
+    endTime: '17:30',
+  });
+
+  assert.equal(gig.startTime, '08:05');
+  assert.equal(gig.endTime, '17:30');
+});
+
+test('gig normalization rejects malformed times instead of guessing', () => {
+  const gig = normalizeFreelanceGig({
+    id: 'bad-time',
+    date: '2026-10-07',
+    startTime: '25:00',
+    endTime: 'later',
+  });
+
+  assert.equal(gig.startTime, '');
+  assert.equal(gig.endTime, '');
+});
