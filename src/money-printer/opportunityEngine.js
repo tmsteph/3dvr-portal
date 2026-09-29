@@ -188,9 +188,37 @@ export function createDemandSignal(input = {}, now = new Date()) {
   };
 }
 
+
+function demandSignalQuality(signal = {}) {
+  const evidenceLength = text(signal.buyerWords).length;
+  const policyBonus = ['approved-api', 'first-party', 'human-provided', 'explicit-consent']
+    .includes(text(signal.policyStatus)) ? 5 : 0;
+  return number(signal.confidence, 50)
+    + Math.min(20, evidenceLength / 8)
+    + (number(signal.estimatedValueMin) > 0 ? 10 : 0)
+    + (text(signal.externalId) ? 5 : 0)
+    + (text(signal.sourceUrl) ? 3 : 0)
+    + (text(signal.deadline || signal.expiresAt) ? 3 : 0)
+    + policyBonus;
+}
+
+export function selectPrimaryOpportunitySignal(signals = []) {
+  const candidates = Array.isArray(signals) ? signals.filter(Boolean) : [];
+  if (!candidates.length) return null;
+  return candidates.reduce((best, candidate) => {
+    const bestQuality = demandSignalQuality(best);
+    const candidateQuality = demandSignalQuality(candidate);
+    if (candidateQuality > bestQuality) return candidate;
+    if (candidateQuality < bestQuality) return best;
+    const bestUpdated = Date.parse(best.updatedAt || best.createdAt) || 0;
+    const candidateUpdated = Date.parse(candidate.updatedAt || candidate.createdAt) || 0;
+    return candidateUpdated > bestUpdated ? candidate : best;
+  });
+}
+
 export function scoreOpportunityDimensions(cluster = {}, now = new Date()) {
   const signals = Array.isArray(cluster.signals) ? cluster.signals : [];
-  const primary = signals[0] || cluster;
+  const primary = selectPrimaryOpportunitySignal(signals) || cluster;
   const searchMode = normalizeOpportunitySearchMode(cluster.searchMode || primary.searchMode);
   const positiveSum = evaluatePositiveSum(cluster);
   const urgencyRaw = URGENCY_WEIGHTS[text(primary.urgency, 'medium').toLowerCase()] || URGENCY_WEIGHTS.medium;
@@ -297,7 +325,7 @@ export function scoreOpportunityCluster(cluster = {}, now = new Date()) {
 export function createOpportunityCluster(input = {}, now = new Date()) {
   const signals = (Array.isArray(input.signals) && input.signals.length ? input.signals : [input])
     .map(signal => createDemandSignal(signal, now));
-  const primary = signals[0];
+  const primary = selectPrimaryOpportunitySignal(signals) || signals[0];
   const policy = evaluatePositiveSum(input);
   const cluster = {
     schemaVersion: OPPORTUNITY_ENGINE_SCHEMA_VERSION,
@@ -306,6 +334,7 @@ export function createOpportunityCluster(input = {}, now = new Date()) {
     canonicalFingerprint: text(input.canonicalFingerprint)
       || opportunityCanonicalFingerprint(input)
       || primary.canonicalFingerprint,
+    primarySignalId: text(primary.id),
     status: text(input.status, 'new'),
     canonicalStatus: toCanonicalOpportunityStatus(
       input.status || input.canonicalStatus || 'new',
