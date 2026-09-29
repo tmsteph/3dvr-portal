@@ -98,3 +98,43 @@ test('missing monitored workflow is a high-severity finding', () => {
   assert.equal(missing.severity, 'high');
   assert.equal(missing.workflow, 'Intake');
 });
+
+
+test('manual and retry runs do not mask a stale schedule', () => {
+  const result = evaluateN8nWatchdog({
+    workflows: workflows(),
+    executionsByWorkflow: {
+      1: [
+        { id: 'scheduled-old', workflowId: '1', status: 'success', mode: 'trigger', startedAt: '2026-09-25T10:00:00Z', stoppedAt: '2026-09-25T10:01:00Z' },
+        { id: 'manual-new', workflowId: '1', status: 'success', mode: 'manual', startedAt: '2026-09-28T11:30:00Z', stoppedAt: '2026-09-28T11:31:00Z' },
+        { id: 'retry-new', workflowId: '1', status: 'success', mode: 'retry', startedAt: '2026-09-28T11:40:00Z', stoppedAt: '2026-09-28T11:41:00Z' },
+      ],
+    },
+    now: new Date('2026-09-28T12:00:00Z'),
+    policy,
+  });
+
+  const stale = result.findings.find((row) => row.code === 'scheduled-stale');
+  assert.equal(Boolean(stale), true);
+  assert.equal(stale.latestExecution.id, 'scheduled-old');
+});
+
+test('schedule freshness is measured from invocation start, not recent completion', () => {
+  const result = evaluateN8nWatchdog({
+    workflows: workflows(),
+    executionsByWorkflow: {
+      1: [{
+        id: 'hung-run',
+        workflowId: '1',
+        status: 'success',
+        mode: 'trigger',
+        startedAt: '2026-09-25T10:00:00Z',
+        stoppedAt: '2026-09-28T11:59:00Z',
+      }],
+    },
+    now: new Date('2026-09-28T12:00:00Z'),
+    policy,
+  });
+
+  assert.equal(result.findings.some((row) => row.code === 'scheduled-stale'), true);
+});
