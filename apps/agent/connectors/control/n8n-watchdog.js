@@ -24,10 +24,14 @@ function timestamp(value) {
 
 function latestExecution(rows = []) {
   return [...rows].sort((a, b) => {
-    const aTime = timestamp(a.stoppedAt) ?? timestamp(a.startedAt) ?? 0;
-    const bTime = timestamp(b.stoppedAt) ?? timestamp(b.startedAt) ?? 0;
+    const aTime = timestamp(a.startedAt) ?? 0;
+    const bTime = timestamp(b.startedAt) ?? 0;
     return bTime - aTime;
   })[0] || null;
+}
+
+function automaticScheduledExecutions(rows = []) {
+  return rows.filter((row) => !['manual', 'retry'].includes(String(row?.mode || '').toLowerCase()));
 }
 
 function finding(severity, code, message, extra = {}) {
@@ -84,14 +88,14 @@ function evaluateN8nWatchdog({
     };
 
     if (rule.mode === 'scheduled') {
-      const rows = executionsByWorkflow[workflow.id] || [];
+      const rows = automaticScheduledExecutions(executionsByWorkflow[workflow.id] || []);
       const latest = latestExecution(rows);
       entry.latestExecution = latest;
       if (!latest) {
         findings.push(finding('high', 'scheduled-no-executions',
           `No recent execution metadata for scheduled workflow: ${rule.name}`, entry));
       } else {
-        const lastMs = timestamp(latest.stoppedAt) ?? timestamp(latest.startedAt);
+        const lastMs = timestamp(latest.startedAt);
         const ageHours = lastMs == null ? null : (nowMs - lastMs) / 3_600_000;
         entry.ageHours = ageHours;
         if (ageHours == null || ageHours > rule.maxSilenceHours) {
@@ -139,6 +143,7 @@ function evaluateN8nWatchdog({
 
 module.exports = {
   CVW_WATCHDOG_POLICY,
+  automaticScheduledExecutions,
   evaluateN8nWatchdog,
   latestExecution,
 };
