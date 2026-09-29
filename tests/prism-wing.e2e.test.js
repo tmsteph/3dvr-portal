@@ -50,7 +50,7 @@ async function openWing(browser) {
   );
   await page.goto(`${baseUrl}/living-world/`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => Boolean(window.__prismWingDebug?.getState), null, { timeout: 15_000 });
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(300);
   return page;
 }
 
@@ -62,85 +62,129 @@ function distance(a,b) {
   return Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
 }
 
-test('Prism Wing idle cruise is steady and stays near the rail', { timeout: 45_000 }, async () => {
+test('Prism Wing does not auto-fly and W accelerates', { timeout: 45_000 }, async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
     const page = await openWing(browser);
     const start = await state(page);
-    await page.waitForTimeout(1800);
-    const end = await state(page);
+    await page.waitForTimeout(900);
+    const idle = await state(page);
 
-    assert.ok(distance(start.position,end.position) > 5, 'idle flight should make visible forward progress');
-    assert.ok(end.speed >= 5 && end.speed <= 8.5, `idle cruise should settle near cruise speed, got ${end.speed}`);
-    assert.ok(end.trackDistance < 4, `idle flight should remain near the course, got distance ${end.trackDistance}`);
+    assert.ok(distance(start.position,idle.position) < .75, 'idle ship should not auto-fly');
+    assert.ok(idle.speed < .75, `idle ship should remain nearly stopped, got ${idle.speed}`);
+    assert.ok(idle.throttle < .03, `idle throttle should stay at zero, got ${idle.throttle}`);
+
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(1200);
+    await page.keyboard.up('KeyW');
+    const accelerated = await state(page);
+
+    assert.ok(accelerated.throttle > .7, `W should raise throttle, got ${accelerated.throttle}`);
+    assert.ok(accelerated.speed > 9, `W should create clear forward speed, got ${accelerated.speed}`);
+    assert.ok(accelerated.finitePosition && accelerated.finiteVelocity);
   } finally {
     await browser.close();
   }
 });
 
-test('Prism Wing WASD nudges position instead of changing forward throttle', { timeout: 45_000 }, async () => {
-  const browser = await chromium.launch({ channel: 'chrome', headless: true });
-  try {
-    const rightPage = await openWing(browser);
-    const rightStart = await state(rightPage);
-    await rightPage.keyboard.down('KeyD');
-    await rightPage.waitForTimeout(900);
-    await rightPage.keyboard.up('KeyD');
-    const rightEnd = await state(rightPage);
-    assert.ok(Math.abs(rightEnd.position.x-rightStart.position.x) > .6, 'D should gently move the ship sideways');
-    assert.ok(rightEnd.speed < 10, 'normal steering should not become a throttle boost');
-    await rightPage.close();
-
-    const upPage = await openWing(browser);
-    const upStart = await state(upPage);
-    await upPage.keyboard.down('KeyW');
-    await upPage.waitForTimeout(900);
-    await upPage.keyboard.up('KeyW');
-    const upEnd = await state(upPage);
-    assert.ok(upEnd.position.y-upStart.position.y > .5, 'W should gently lift the ship');
-    assert.ok(upEnd.speed < 10, 'vertical steering should preserve calm cruise speed');
-  } finally {
-    await browser.close();
-  }
-});
-
-test('Prism Wing Shift opens full speed and Space brakes', { timeout: 45_000 }, async () => {
+test('Prism Wing S decelerates and brakes', { timeout: 45_000 }, async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
     const page = await openWing(browser);
-    await page.waitForTimeout(900);
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(1200);
+    await page.keyboard.up('KeyW');
+    const fast = await state(page);
+
+    await page.keyboard.down('KeyS');
+    await page.waitForTimeout(850);
+    const braking = await state(page);
+    await page.keyboard.up('KeyS');
+
+    assert.ok(braking.throttle < fast.throttle * .35, `S should lower throttle: ${fast.throttle} -> ${braking.throttle}`);
+    assert.ok(braking.speed < fast.speed * .55, `S should brake actual speed: ${fast.speed} -> ${braking.speed}`);
+    assert.ok(braking.finitePosition && braking.finiteVelocity);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('Prism Wing A/D strafe and R/Ctrl control vertical position', { timeout: 45_000 }, async () => {
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  try {
+    const page = await openWing(browser);
+    const start = await state(page);
+
+    await page.keyboard.down('KeyD');
+    await page.waitForTimeout(750);
+    await page.keyboard.up('KeyD');
+    const strafed = await state(page);
+    assert.ok(Math.abs(strafed.position.x-start.position.x) > .45, 'D should move the ship sideways');
+
+    await page.keyboard.down('KeyR');
+    await page.waitForTimeout(700);
+    await page.keyboard.up('KeyR');
+    const risen = await state(page);
+    assert.ok(risen.position.y-strafed.position.y > .35, 'R should move the ship upward');
+
+    await page.keyboard.down('ControlLeft');
+    await page.waitForTimeout(700);
+    await page.keyboard.up('ControlLeft');
+    const lowered = await state(page);
+    assert.ok(lowered.position.y < risen.position.y-.25, 'Ctrl should move the ship downward');
+  } finally {
+    await browser.close();
+  }
+});
+
+test('Prism Wing Shift boosts without changing camera-look steering', { timeout: 45_000 }, async () => {
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  try {
+    const page = await openWing(browser);
+    await page.keyboard.down('KeyW');
+    await page.waitForTimeout(950);
+    await page.keyboard.up('KeyW');
     const cruise = await state(page);
 
     await page.keyboard.down('ShiftLeft');
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(700);
     const boosted = await state(page);
     await page.keyboard.up('ShiftLeft');
+    assert.ok(boosted.speed > cruise.speed + 3, `Shift should boost: ${cruise.speed} -> ${boosted.speed}`);
 
-    assert.ok(boosted.speed > cruise.speed * 2, `Shift should clearly exceed cruise: ${cruise.speed} -> ${boosted.speed}`);
-    assert.ok(boosted.speed <= 24, `full speed should stay controlled, got ${boosted.speed}`);
-
-    await page.keyboard.down('Space');
-    await page.waitForTimeout(700);
-    const braked = await state(page);
-    await page.keyboard.up('Space');
-    assert.ok(braked.speed < boosted.speed * .55, `Space should brake strongly: ${boosted.speed} -> ${braked.speed}`);
+    await page.keyboard.down('ArrowRight');
+    await page.waitForTimeout(900);
+    await page.keyboard.up('ArrowRight');
+    await page.waitForTimeout(250);
+    const afterLook = await state(page);
+    assert.ok(Math.abs(afterLook.yaw) > .4, 'playtest should actually turn the camera');
+    assert.ok(afterLook.trackDistance < 5, `looking around should not throw flight off-course, got ${afterLook.trackDistance}`);
   } finally {
     await browser.close();
   }
 });
 
-test('Prism Wing looking around does not steer the ship off the rail', { timeout: 45_000 }, async () => {
+test('Prism Wing remains finite and visible after the third boost gate', { timeout: 45_000 }, async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
     const page = await openWing(browser);
-    await page.keyboard.down('ArrowRight');
-    await page.waitForTimeout(1200);
-    await page.keyboard.up('ArrowRight');
-    await page.waitForTimeout(500);
-    const afterLook = await state(page);
 
-    assert.ok(Math.abs(afterLook.yaw) > .5, 'playtest should actually turn the camera');
-    assert.ok(afterLook.trackDistance < 4.5, `camera aim should not drag flight off-course, got distance ${afterLook.trackDistance}`);
+    for (let gate = 1; gate <= 3; gate += 1) {
+      const moved = await page.evaluate(() => window.__prismWingDebug.passNextGate());
+      assert.equal(moved, true, `gate ${gate} should exist`);
+      await page.waitForTimeout(180);
+      const current = await state(page);
+      assert.equal(current.nextGate, gate, `gate ${gate} should register`);
+      assert.ok(current.finitePosition, `camera position must remain finite after gate ${gate}`);
+      assert.ok(current.finiteVelocity, `velocity must remain finite after gate ${gate}`);
+      assert.ok(current.pathChildren > 10, 'glowing path should still exist');
+      assert.ok(current.gateChildren >= current.gateCount, 'gate meshes should still exist');
+      assert.ok(current.targetChildren > 0, 'targets should still exist');
+    }
+
+    const afterThird = await state(page);
+    assert.ok(Number.isFinite(afterThird.speed), 'third gate boost must not corrupt speed');
+    assert.ok(afterThird.speed < 40, `third gate boost should stay controlled, got ${afterThird.speed}`);
   } finally {
     await browser.close();
   }
