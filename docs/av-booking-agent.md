@@ -257,3 +257,26 @@ Build or refine the **Opportunity Inbox** as a unified view over the existing Wo
 The first technical milestone is not “new feature count.” It is:
 
 > One real AV opportunity can enter through an existing source, appear once in the Opportunity Inbox, show the correct availability/conflict and fit information, move through response/booking state, and remain traceable back to its source and activity history.
+
+
+## Simulation hardening — 2026-09-29
+
+The first failure-mode pass found two weaknesses that should be fixed before adding more discovery sources:
+
+1. **Duplicate source records can overwhelm the inbox.** The same call may arrive from repeated scraping, forwarded messages, tracking URLs, or multiple connector runs. The shared Freelancer opportunity pipeline now derives a stable dedupe key from provider/external ID when available, otherwise a canonical listing URL, and only falls back to a role/company/date shape when it has enough evidence to avoid collapsing unrelated calls.
+2. **A ranking without reasons is not trustworthy enough to drive action.** The pipeline now exposes the fit, workflow-stage, and availability components behind its priority score so the UI can answer “why now?” instead of showing an unexplained ordering.
+
+The first implementation intentionally deduplicates **the unified view**, not by destructively deleting source records. Source-specific provenance stays available while the user sees one actionable opportunity. A later persistence pass can consolidate records only after connector provenance and activity-ledger rules are fully wired.
+
+Regression tests cover canonical-URL dedupe, preserving newer workflow state, keeping same-role calls on different dates separate, and explainable priority reasons.
+
+### Next hardening cases
+
+- conflicting availability sources: confirmed booking vs tentative calendar vs stale employer schedule;
+- source health: distinguish “no new work” from “connector failed”;
+- stale calls and expired application deadlines;
+- repeated applications to the same external opportunity;
+- rate parsing across hourly, day-rate, flat-show, and union-call formats;
+- partial or contradictory venue/date information from email, portal, and calendar sources;
+- approval boundaries when a known contact is involved;
+- crash/retry behavior so an application or reply is never sent twice.

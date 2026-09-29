@@ -289,6 +289,8 @@ function renderOpportunities(dashboard) {
         <div>
           <h3>${safe(opportunity.title)}${opportunity.company ? ` · ${safe(opportunity.company)}` : ''}</h3>
           <p>${safe([opportunity.location, opportunity.compensation, availability].filter(Boolean).join(' · '))}</p>
+          ${opportunity.priorityReasons?.length ? `<p class="opportunity-requirements">Why now: ${safe(opportunity.priorityReasons.join(' · '))}</p>` : ''}
+          ${opportunity.duplicateCount > 1 ? `<p class="opportunity-requirements">${safe(opportunity.duplicateCount)} matching source records merged in this view.</p>` : ''}
           ${opportunity.requirements ? `<p class="opportunity-requirements">${safe(opportunity.requirements)}</p>` : ''}
         </div>
         <div class="card-actions">

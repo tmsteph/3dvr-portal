@@ -3,8 +3,11 @@ import assert from 'node:assert/strict';
 
 import {
   buildOpportunityPipeline,
+  dedupeFreelanceOpportunities,
   getNextOpportunityStatus,
+  getOpportunityDedupeKey,
   getOpportunityPriority,
+  getOpportunityPriorityBreakdown,
   normalizeFreelanceOpportunity,
 } from '../src/freelance-opportunity-pipeline.js';
 
@@ -61,4 +64,73 @@ test('canonical lifecycle state can bridge into the freelancer pipeline', () => 
   assert.deepEqual(pipeline.applied.map(item => item.id), ['agent-sent']);
   assert.deepEqual(pipeline.conversations.map(item => item.id), ['agent-pending']);
   assert.deepEqual(pipeline.booked.map(item => item.id), ['engine-won']);
+});
+
+
+test('duplicate listings collapse by canonical source URL without losing newer state', () => {
+  const pipeline = buildOpportunityPipeline([
+    {
+      id: 'listing-a', title: 'A1', company: 'Production Co', status: 'Found', fitScore: 88,
+      sourceUrl: 'https://jobs.example/call/123?ref=crew&utm_source=first', requirements: 'Dante',
+      updatedAt: '2026-09-29T10:00:00Z',
+    },
+    {
+      id: 'listing-b', title: 'A1', company: 'Production Co', status: 'Applied', fitScore: 90,
+      sourceUrl: 'https://jobs.example/call/123?utm_source=second&ref=crew',
+      updatedAt: '2026-09-29T11:00:00Z',
+    },
+  ]);
+
+  assert.equal(pipeline.all.length, 1);
+  assert.equal(pipeline.all[0].id, 'listing-b');
+  assert.equal(pipeline.all[0].status, 'Applied');
+  assert.equal(pipeline.all[0].requirements, 'Dante');
+  assert.equal(pipeline.all[0].duplicateCount, 2);
+  assert.deepEqual(new Set(pipeline.all[0].duplicateIds), new Set(['listing-a', 'listing-b']));
+});
+
+test('fallback dedupe keeps same role on different dates as separate opportunities', () => {
+  const unique = dedupeFreelanceOpportunities([
+    { id: 'day-1', title: 'Camera', company: 'Crew Co', startsAt: '2026-10-01T08:00:00-07:00' },
+    { id: 'day-2', title: 'Camera', company: 'Crew Co', startsAt: '2026-10-02T08:00:00-07:00' },
+  ]);
+
+  assert.equal(unique.length, 2);
+  assert.notEqual(getOpportunityDedupeKey(unique[0]), getOpportunityDedupeKey(unique[1]));
+});
+
+test('priority breakdown explains why an opportunity is ranked where it is', () => {
+  const priority = getOpportunityPriorityBreakdown({ status: 'Ready', fitScore: 80, availability: 'clear' });
+  assert.equal(priority.score, getOpportunityPriority({ status: 'Ready', fitScore: 80, availability: 'clear' }));
+  assert.deepEqual(priority.reasons, ['80% fit', 'ready to act', 'calendar clear']);
+});
+
+
+test('a later source refresh cannot regress an already-contacted opportunity', () => {
+  const pipeline = buildOpportunityPipeline([
+    {
+      id: 'applied-first',
+      title: 'V1',
+      company: 'Production Co',
+      status: 'Applied',
+      fitScore: 85,
+      sourceUrl: 'https://jobs.example/call/456',
+      appliedAt: '2026-09-29T10:00:00Z',
+      updatedAt: '2026-09-29T10:00:00Z',
+    },
+    {
+      id: 'rediscovered-later',
+      title: 'V1',
+      company: 'Production Co',
+      status: 'Found',
+      fitScore: 87,
+      sourceUrl: 'https://jobs.example/call/456?utm_source=refresh',
+      updatedAt: '2026-09-29T12:00:00Z',
+    },
+  ]);
+
+  assert.equal(pipeline.all.length, 1);
+  assert.equal(pipeline.all[0].status, 'Applied');
+  assert.equal(pipeline.all[0].canonicalStatus, 'contacted');
+  assert.equal(pipeline.all[0].appliedAt, '2026-09-29T10:00:00Z');
 });
