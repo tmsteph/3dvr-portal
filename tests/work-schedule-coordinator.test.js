@@ -176,3 +176,45 @@ test('ordinary protected appointments do not silently satisfy the rest-day quota
   assert.equal(plan.restDays.includes('2026-10-06'), false);
   assert.equal(plan.restDays.includes('2026-10-11'), true);
 });
+
+
+test('same-day timed gigs do not conflict when their intervals do not overlap', () => {
+  const plan = buildWorkSchedulePlan({
+    horizonStart: '2026-10-05',
+    horizonEnd: '2026-10-11',
+    gigs: [
+      { id: 'camera-am', date: '2026-10-07', status: 'Booked', startTime: '08:00', endTime: '12:00' },
+      { id: 'loadout-pm', date: '2026-10-07', status: 'Booked', startTime: '18:00', endTime: '22:00' },
+    ],
+  });
+
+  assert.equal(plan.conflicts.length, 0);
+  assert.equal(plan.iatseAvailability['2026-10-07'], 'Booked');
+});
+
+test('same-day timed gigs still conflict when their intervals overlap', () => {
+  const plan = buildWorkSchedulePlan({
+    horizonStart: '2026-10-05',
+    horizonEnd: '2026-10-11',
+    gigs: [
+      { id: 'camera', date: '2026-10-07', status: 'Booked', startTime: '08:00', endTime: '14:00' },
+      { id: 'a2', date: '2026-10-07', status: 'Booked', startTime: '13:00', endTime: '18:00' },
+    ],
+  });
+
+  assert.equal(plan.conflicts.length, 1);
+  assert.deepEqual(plan.conflicts[0].types, ['outside-vs-outside']);
+});
+
+test('missing time stays conservative when two commitments share a date', () => {
+  const plan = buildWorkSchedulePlan({
+    horizonStart: '2026-10-05',
+    horizonEnd: '2026-10-11',
+    gigs: [
+      { id: 'known-time', date: '2026-10-07', status: 'Booked', startTime: '08:00', endTime: '12:00' },
+      { id: 'unknown-time', date: '2026-10-07', status: 'Booked' },
+    ],
+  });
+
+  assert.equal(plan.conflicts.length, 1);
+});
