@@ -122,7 +122,7 @@ addEventListener('pointerup',e=>{if(e.button===0)pointerJet=false;});
 addEventListener('pointercancel',()=>{pointerJet=false;});
 document.addEventListener('mousemove',e=>{
   if(document.pointerLockElement!==canvas)return;
-  camYaw-=e.movementX*.0024; camPitch=THREE.MathUtils.clamp(camPitch-e.movementY*.0019,-.1,.9);
+  camYaw-=e.movementX*.0024; camPitch=THREE.MathUtils.clamp(camPitch+e.movementY*.0019,-.1,.9);
 });
 canvas.addEventListener('wheel',e=>{camDist=THREE.MathUtils.clamp(camDist+Math.sign(e.deltaY)*.65,4.4,13.5)},{passive:true});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
@@ -140,7 +140,7 @@ function update(){
   const run=keys.has('ShiftLeft')||keys.has('ShiftRight'), max=run?11:6.8, accel=onGround?16:7;
   velocity.x=THREE.MathUtils.damp(velocity.x,desired.x*max,accel,dt);
   velocity.z=THREE.MathUtils.damp(velocity.z,desired.z*max,accel,dt);
-  if(desired.lengthSq()>.01) player.rotation.y=Math.atan2(velocity.x,velocity.z);
+  if(desired.lengthSq()>.01) player.rotation.y=Math.atan2(velocity.x,velocity.z)+Math.PI;
   player.position.x+=velocity.x*dt; player.position.z+=velocity.z*dt;
 
   const jetting=!onGround&&(keys.has('Space')||pointerJet)&&jetFuel>0;
