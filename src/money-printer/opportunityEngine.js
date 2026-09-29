@@ -6,7 +6,7 @@ import { toCanonicalOpportunityStatus } from '../opportunity-lifecycle.js';
 // External source connectors may add DemandSignals later, but every signal must
 // retain its provenance and policy state before it can become actionable.
 
-export const OPPORTUNITY_ENGINE_SCHEMA_VERSION = 5;
+export const OPPORTUNITY_ENGINE_SCHEMA_VERSION = 6;
 export const OPPORTUNITY_ENGINE_STORAGE_KEY = '3dvr.money-printer.opportunity-engine.v1';
 
 const URGENCY_WEIGHTS = {
@@ -34,6 +34,29 @@ function geometricMeanScore(values = []) {
   if (!normalized.length || normalized.some(value => value === 0)) return 0;
   const product = normalized.reduce((total, value) => total * value, 1);
   return clampScore(Math.pow(product, 1 / normalized.length) * 100, 0);
+}
+
+const SCORE_OVERRIDE_FIELDS = Object.freeze([
+  'profitScore',
+  'alignmentScore',
+  'fulfillmentScore',
+  'fitScore',
+  'demandScore',
+  'effortScore',
+  'revenueScore',
+]);
+
+function normalizeScoreOverrides(input = {}) {
+  const stored = input.scoreOverrides && typeof input.scoreOverrides === 'object'
+    ? input.scoreOverrides
+    : null;
+  const source = stored || (input.scoreCalculated === true ? {} : input);
+  const overrides = {};
+  SCORE_OVERRIDE_FIELDS.forEach(field => {
+    const value = Number(source[field]);
+    if (Number.isFinite(value)) overrides[field] = clampScore(value);
+  });
+  return overrides;
 }
 
 function list(value) {
@@ -219,6 +242,7 @@ export function selectPrimaryOpportunitySignal(signals = []) {
 export function scoreOpportunityDimensions(cluster = {}, now = new Date()) {
   const signals = Array.isArray(cluster.signals) ? cluster.signals : [];
   const primary = selectPrimaryOpportunitySignal(signals) || cluster;
+  const scoreOverrides = normalizeScoreOverrides(cluster);
   const searchMode = normalizeOpportunitySearchMode(cluster.searchMode || primary.searchMode);
   const positiveSum = evaluatePositiveSum(cluster);
   const urgencyRaw = URGENCY_WEIGHTS[text(primary.urgency, 'medium').toLowerCase()] || URGENCY_WEIGHTS.medium;
@@ -245,24 +269,27 @@ export function scoreOpportunityDimensions(cluster = {}, now = new Date()) {
       + evidenceScore * 0.25,
     0
   );
-  const demandScore = clampScore(cluster.demandScore ?? primary.demandScore, inferredDemandScore);
-  const explicitProfit = Number(cluster.profitScore ?? primary.profitScore);
+  const demandScore = clampScore(scoreOverrides.demandScore ?? primary.demandScore, inferredDemandScore);
+  const explicitProfit = Number(scoreOverrides.profitScore ?? primary.profitScore);
   const profitScore = Number.isFinite(explicitProfit)
     ? clampScore(explicitProfit)
     : clampScore(marginRatioScore * 0.55 + number(primary.confidence, 50) * 0.25 + urgencyScore * 0.2);
   const alignmentScore = clampScore(
-    cluster.alignmentScore ?? cluster.fitScore ?? primary.alignmentScore ?? primary.fitScore,
+    scoreOverrides.alignmentScore ?? scoreOverrides.fitScore ?? primary.alignmentScore ?? primary.fitScore,
     50
   );
   const fulfillmentFallback = list(primary.skills).length ? 70 : 55;
-  const fulfillmentScore = clampScore(cluster.fulfillmentScore ?? primary.fulfillmentScore, fulfillmentFallback);
+  const fulfillmentScore = clampScore(
+    scoreOverrides.fulfillmentScore ?? primary.fulfillmentScore,
+    fulfillmentFallback
+  );
 
   // Kernel-facing names make the ranking model understandable across products:
   // fit = mission/person alignment, demand = evidence of buyer need,
   // effort = execution efficiency (higher means easier), revenue = economic upside.
-  const fitScore = clampScore(cluster.fitScore ?? primary.fitScore, alignmentScore);
-  const effortScore = clampScore(cluster.effortScore ?? primary.effortScore, fulfillmentScore);
-  const revenueScore = clampScore(cluster.revenueScore ?? primary.revenueScore, profitScore);
+  const fitScore = clampScore(scoreOverrides.fitScore ?? primary.fitScore, alignmentScore);
+  const effortScore = clampScore(scoreOverrides.effortScore ?? primary.effortScore, fulfillmentScore);
+  const revenueScore = clampScore(scoreOverrides.revenueScore ?? primary.revenueScore, profitScore);
   const opportunityScore = geometricMeanScore([fitScore, demandScore, effortScore, revenueScore]);
 
   const blends = {
@@ -327,8 +354,11 @@ export function createOpportunityCluster(input = {}, now = new Date()) {
     .map(signal => createDemandSignal(signal, now));
   const primary = selectPrimaryOpportunitySignal(signals) || signals[0];
   const policy = evaluatePositiveSum(input);
+  const scoreOverrides = normalizeScoreOverrides(input);
   const cluster = {
     schemaVersion: OPPORTUNITY_ENGINE_SCHEMA_VERSION,
+    scoreCalculated: true,
+    scoreOverrides,
     id: text(input.id) || makeId('opportunity'),
     title: text(input.title || input.need, primary.need),
     canonicalFingerprint: text(input.canonicalFingerprint)
