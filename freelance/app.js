@@ -320,8 +320,10 @@ function renderOpportunities(dashboard) {
     const nextAction = nextStatus === 'Applied' ? 'Apply'
       : nextStatus === 'Interview' ? 'Interview'
         : nextStatus === 'Offered' ? 'Offer' : nextStatus === 'Booked' ? 'Book' : '';
-    const scheduleBlocksAction = ['blocked', 'conflict'].includes(opportunity.availability)
-      && ['Applied', 'Booked'].includes(nextStatus);
+    const scheduleBlocksAction = (
+      ['blocked', 'conflict'].includes(opportunity.availability)
+      && ['Applied', 'Booked'].includes(nextStatus)
+    ) || (opportunity.availability === 'soft' && nextStatus === 'Booked');
     return `
       <article class="gig-row opportunity-row">
         <div class="gig-date">
