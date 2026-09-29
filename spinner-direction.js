@@ -4,6 +4,9 @@ const DEFAULT_HOLD_TO_ACTIVATE_MS = 650;
 const DEFAULT_STRONG_FLICK_DISTANCE = 150;
 const DEFAULT_STRONG_FLICK_MAX_MS = 190;
 const DEFAULT_STRONG_FLICK_SPEED = 0.9;
+const SPINNER_PLAYGROUND_INTERACTIONS_REQUIRED = 6;
+const SPINNER_PLAYGROUND_WINDOW_MS = 9000;
+const SPINNER_PLAYGROUND_ROUTE = '/spinner/';
 const SQRT_THREE_OVER_TWO = Math.sqrt(3) / 2;
 const SPINNER_DIRECTION_VECTORS = Object.freeze([
   ['day', 0, -1],
@@ -106,14 +109,55 @@ if (documentRef) {
     let currentSelection = '';
     let armed = false;
     let armTimer = 0;
+    let playgroundInteractions = [];
+    let playgroundTransitioning = false;
 
     const now = () => globalThis.performance?.now?.() ?? Date.now();
+
+    const registerPlaygroundInteraction = cancelled => {
+      if (
+        cancelled
+        || playgroundTransitioning
+        || globalThis.location?.pathname !== '/'
+      ) return false;
+
+      const timestamp = now();
+      playgroundInteractions = playgroundInteractions
+        .filter(value => timestamp - value <= SPINNER_PLAYGROUND_WINDOW_MS);
+      playgroundInteractions.push(timestamp);
+      stage.dataset.spinnerPlaygroundProgress = String(playgroundInteractions.length);
+
+      if (playgroundInteractions.length < SPINNER_PLAYGROUND_INTERACTIONS_REQUIRED) {
+        if (playgroundInteractions.length >= 3) stage.dataset.spinnerAwakening = 'true';
+        return false;
+      }
+
+      playgroundTransitioning = true;
+      stage.dataset.spinnerAwakening = 'true';
+      spinner.setAttribute('aria-label', 'Opening the full-screen spinner playground.');
+      globalThis.setTimeout(() => {
+        if (globalThis.location) globalThis.location.href = SPINNER_PLAYGROUND_ROUTE;
+      }, 120);
+      return true;
+    };
 
     const style = documentRef.createElement('style');
     style.dataset.spinnerDirectionStyles = 'true';
     style.textContent = `
       .spinner-stage[data-spin-selecting="true"]::before {
         transform: scale(1.7);
+      }
+
+      .spinner-stage[data-spinner-awakening="true"]::before {
+        transform: scale(1.48);
+        opacity: 0.9;
+        filter: blur(13px);
+      }
+
+      .spinner-stage[data-spinner-awakening="true"]::after {
+        opacity: 0.96;
+        transform: rotate(34deg) scale(1.16);
+        border-color: rgba(121, 237, 244, 0.2);
       }
 
       .spinner-stage[data-spin-selecting="true"] .spinner-nav__item {
@@ -305,11 +349,18 @@ if (documentRef) {
         selectionHeldMs,
         cancelled
       });
+      const openPlayground = registerPlaygroundInteraction(cancelled);
 
       gesture = null;
       clearArmTimer();
       stage.dataset.spinSelecting = 'false';
       setArmed(false);
+
+      if (openPlayground) {
+        setOpen(false);
+        setSelection('');
+        return;
+      }
 
       if (result.action === 'activate' && result.selection) {
         setOpen(true);
