@@ -1,44 +1,9 @@
 {
-  "ok": true,
-  "lanes": [
-    {
-      "lane": "general",
-      "state": "active",
-      "memoryBytes": 783990784,
-      "lease": "lane=general state=free"
-    },
-    {
-      "lane": "identity",
-      "state": "inactive",
-      "memoryBytes": 0,
-      "lease": "lane=identity state=free"
-    },
-    {
-      "lane": "encore",
-      "state": "active",
-      "memoryBytes": 528924672,
-      "lease": "lane=encore state=free"
-    },
-    {
-      "lane": "messaging",
-      "state": "active",
-      "memoryBytes": 540602368,
-      "lease": "lane=messaging state=free"
-    },
-    {
-      "lane": "training",
-      "state": "inactive",
-      "memoryBytes": 0,
-      "lease": "lane=training state=free"
-    }
-  ],
-  "host": {
-    "memAvailableMb": 2559,
-    "load1": 10.19,
-    "cpus": 4
-  },
-  "requestId": "google-oauth-server-check-20260929",
-  "action": "browser_lane_status",
-  "workflowOutcome": "success",
-  "checkedAt": "2026-09-29T18:57:55Z"
+  "ok": false,
+  "state": "probe_error",
+  "error": "Execution context was destroyed, most likely because of a navigation.",
+  "requestId": "google-oauth-e2e-20260929",
+  "action": "google_oauth_status",
+  "workflowOutcome": "failure",
+  "checkedAt": "2026-09-29T19:01:33Z"
 }
