@@ -95,3 +95,24 @@ test('gig normalization rejects malformed times instead of guessing', () => {
   assert.equal(gig.startTime, '');
   assert.equal(gig.endTime, '');
 });
+
+
+test('freelancer dates preserve the stated local calendar day', () => {
+  const gig = normalizeFreelanceGig({
+    id: 'late-gig',
+    startDate: '2026-10-07T23:30:00-07:00',
+    endDate: '2026-10-07T23:59:00-07:00',
+  });
+
+  assert.equal(gig.startDate, '2026-10-07');
+  assert.equal(gig.endDate, '2026-10-07');
+});
+
+test('freelancer dates reject impossible ISO-like dates', () => {
+  const gig = normalizeFreelanceGig({
+    id: 'invalid-date',
+    startDate: '2026-02-30T10:00:00-08:00',
+  });
+
+  assert.equal(gig.startDate, '');
+});
