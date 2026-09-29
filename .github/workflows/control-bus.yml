@@ -35,7 +35,7 @@ jobs:
           service="$(jq -r '.service // empty' ops/control/request.json)"
           test -n "$id"
           case "$action" in
-            status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_promote_secrets|portal_ai_status|portal_points_status|portal_points_reconcile|browser_lane_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard|campaigns_acceptance|campaigns_user_acceptance|campaigns_gmail_handoff|ukg_login|ukg_timeoff_status) ;;
+            status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_promote_secrets|portal_ai_status|portal_points_status|portal_points_reconcile|browser_lane_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard|campaigns_acceptance|campaigns_user_acceptance|campaigns_gmail_handoff|google_oauth_status|ukg_login|ukg_timeoff_status) ;;
             restart)
               case "$service" in
                 3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service) ;;
@@ -754,6 +754,39 @@ jobs:
             if(!ok) process.exit(2);
           })().catch(e=>{console.error(e.message);process.exit(1)});
           NODE
+          OVH
+              ;;
+            google_oauth_status)
+              ovh 'bash -s' <<'OVH'
+          set -euo pipefail
+          token=""
+          cleanup() {
+            [ -n "$token" ] && sudo -n /usr/local/bin/3dvr-browser-lease release general "$token" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT INT TERM
+
+          token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general control-bus-google-oauth-status 180 2>/dev/null || true)"
+          if [ -z "$token" ]; then
+            jq -n '{ok:false,state:"browser_lane_busy"}'
+            exit 0
+          fi
+          if ! systemctl is-active --quiet 3dvr-browser-lane@general.service; then
+            sudo -n systemctl start 3dvr-browser-lane@general.service
+          fi
+          for _ in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:9222/json/version >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:9222/json/version >/dev/null
+
+          puppeteer_core="$(find /home/debian/.npm/_npx -type f -path '*/puppeteer-core/lib/puppeteer/puppeteer-core.js' -print -quit 2>/dev/null || true)"
+          [ -n "$puppeteer_core" ] && [ -f "$puppeteer_core" ]
+
+          runner=/tmp/google-oauth-signin-probe.cjs
+          curl -fsSL --retry 3 --retry-delay 1 \
+            https://raw.githubusercontent.com/tmsteph/3dvr-portal/main/scripts/ops/google-oauth-signin-probe.cjs \
+            -o "$runner"
+          PUPPETEER_CORE_PATH="$puppeteer_core" BROWSER_URL="http://127.0.0.1:9222" node "$runner"
           OVH
               ;;
             campaigns_gmail_handoff)
