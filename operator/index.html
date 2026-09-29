@@ -13,6 +13,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="/gun-init.js"></script>
   <script src="/auth-identity.js"></script>
+  <script src="/portal-swirl-logo.js" defer></script>
   <script type="module" src="app.js"></script>
   <script type="module" src="app-search.js"></script>
   <script type="module" src="live-awareness.js"></script>
@@ -22,7 +23,13 @@
 <body>
   <main>
     <header>
-      <a href="/">3DVR</a>
+      <div class="operator-brand">
+        <div class="operator-mini-spinner" data-portal-swirl-logo tabindex="0" role="img" aria-label="Interactive 3DVR portal spinner">
+          <canvas class="operator-mini-spinner__canvas" data-portal-swirl-canvas aria-hidden="true"></canvas>
+          <span class="operator-mini-spinner__fallback" aria-hidden="true"></span>
+        </div>
+        <a href="/">3DVR</a>
+      </div>
       <div class="header-actions">
         <a class="workboard-link" href="/plan/">Plan</a>
         <button id="show-history" type="button" aria-label="Past conversations" aria-expanded="false" aria-controls="conversation-history">History</button>
