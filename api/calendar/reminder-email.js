@@ -1036,7 +1036,31 @@ export function createFreeSiteRequestEmailHandler(options = {}) {
         subject: `Free 3DVR website request — ${name}`,
         text
       });
-      return res.status(200).json({ success: true, mode: 'free-site-request' });
+
+      const confirmationText = [
+        `We got your request for ${name}.`,
+        '',
+        '3DVR is building your free one-page site now.',
+        'We will email you again when the live site is ready.',
+        '',
+        'If you need to add or correct anything, just reply to this email.',
+        '',
+        '— 3DVR'
+      ].join('\\n');
+
+      await transport.sendMail({
+        from: `"3DVR Free Site" <${inbox}>`,
+        to: email,
+        replyTo: inbox,
+        subject: `We’re building your 3DVR site — ${name}`,
+        text: confirmationText
+      });
+
+      return res.status(200).json({
+        success: true,
+        mode: 'free-site-request',
+        confirmationSent: true
+      });
     } catch (error) {
       return res.status(500).json({ error: error.message || 'Unable to queue the free-site request.' });
     }
