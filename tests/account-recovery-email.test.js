@@ -328,7 +328,7 @@ describe('account recovery email api', () => {
     assert.match(res.body.error, /not configured on this deployment/i);
   });
 
-  it('accepts a public free-site request only into the configured 3DVR inbox', async () => {
+  it('queues a public free-site request and immediately confirms it to the requester', async () => {
     const mail = createMailTransport();
     const handler = createUnifiedEmailHandler({
       config: baseConfig,
@@ -352,14 +352,24 @@ describe('account recovery email api', () => {
 
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.mode, 'free-site-request');
-    assert.equal(mail.sendMail.mock.calls.length, 1);
-    const sent = mail.sendMail.mock.calls[0].arguments[0];
-    assert.deepEqual(sent.to, ['bot@example.com']);
-    assert.equal(sent.replyTo, 'rosa@example.com');
-    assert.equal(sent.subject, 'Free 3DVR website request — Rosa Garden Care');
-    assert.match(sent.text, /Name\/business: Rosa Garden Care/);
-    assert.match(sent.text, /Best email for the live link: rosa@example\.com/);
-    assert.match(sent.text, /build the smallest useful version and email me the live URL/i);
+    assert.equal(res.body.confirmationSent, true);
+    assert.equal(mail.sendMail.mock.calls.length, 2);
+
+    const intake = mail.sendMail.mock.calls[0].arguments[0];
+    assert.deepEqual(intake.to, ['bot@example.com']);
+    assert.equal(intake.replyTo, 'rosa@example.com');
+    assert.equal(intake.subject, 'Free 3DVR website request — Rosa Garden Care');
+    assert.match(intake.text, /Name\/business: Rosa Garden Care/);
+    assert.match(intake.text, /Best email for the live link: rosa@example\.com/);
+    assert.match(intake.text, /build the smallest useful version and email me the live URL/i);
+
+    const confirmation = mail.sendMail.mock.calls[1].arguments[0];
+    assert.equal(confirmation.to, 'rosa@example.com');
+    assert.equal(confirmation.replyTo, 'bot@example.com');
+    assert.equal(confirmation.subject, 'We’re building your 3DVR site — Rosa Garden Care');
+    assert.match(confirmation.text, /We got your request for Rosa Garden Care/);
+    assert.match(confirmation.text, /building your free one-page site now/i);
+    assert.match(confirmation.text, /email you again when the live site is ready/i);
   });
 
   it('rejects invalid free-site request fields before sending mail', async () => {
