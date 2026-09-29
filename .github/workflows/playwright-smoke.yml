@@ -42,7 +42,7 @@ jobs:
         run: node --test tests/workboard-*.test.js
 
       - name: Run freelancer scheduling regression tests
-        run: node --test tests/freelance-client-system.test.js tests/work-schedule-coordinator.test.js tests/iatse-availability-set.test.js tests/manual-workforce-reconcile-workflow.test.js
+        run: node --test tests/freelance-client-system.test.js tests/freelance-opportunity-pipeline.test.js tests/work-schedule-coordinator.test.js tests/iatse-availability-set.test.js tests/manual-workforce-reconcile-workflow.test.js
 
       - name: Enforce Vercel Hobby function budget
         run: node --test tests/vercel-function-budget.test.js
