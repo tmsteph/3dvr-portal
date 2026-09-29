@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3DVR Desktop Layer | Universal Computing</title>
+  <meta name="description" content="A portable 3DVR experience and policy layer across GNOME, XFCE, mobile Linux, minimal Wayland systems, and XR.">
+  <style>
+    :root {
+      --bg: #071018;
+      --surface: #101c28;
+      --surface-2: #152536;
+      --text: #edf7ff;
+      --muted: #aabaca;
+      --accent: #66e6c4;
+      --accent-2: #7db5ff;
+      --border: rgba(255,255,255,.12);
+      --max: 980px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 0%, rgba(102,230,196,.13), transparent 28rem),
+        radial-gradient(circle at 90% 20%, rgba(125,181,255,.12), transparent 30rem),
+        var(--bg);
+      line-height: 1.65;
+    }
+    a { color: inherit; }
+    .wrap { width: min(var(--max), calc(100% - 32px)); margin: 0 auto; }
+    header { padding: 28px 0 72px; }
+    nav { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+    nav a { color: var(--muted); text-decoration: none; font-weight: 700; }
+    .brand { color: var(--text); }
+    .hero { padding-top: 72px; max-width: 820px; }
+    .eyebrow { color: var(--accent); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: .78rem; }
+    h1 { font-size: clamp(2.6rem, 9vw, 5.8rem); line-height: .95; letter-spacing: -.06em; margin: 14px 0 24px; }
+    h2 { margin: 0 0 16px; font-size: clamp(1.6rem, 4vw, 2.3rem); }
+    h3 { margin: 0 0 8px; color: var(--accent); }
+    p { margin: 0 0 18px; }
+    .lead { color: var(--muted); font-size: clamp(1.05rem, 2.5vw, 1.3rem); max-width: 760px; }
+    main { padding-bottom: 72px; }
+    section { margin: 56px 0; }
+    .card, .stack {
+      background: linear-gradient(145deg, rgba(255,255,255,.07), rgba(255,255,255,.035));
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 22px;
+    }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .muted { color: var(--muted); }
+    .stack { display: grid; gap: 8px; }
+    .layer { padding: 12px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); }
+    .layer strong { color: var(--accent); }
+    ul { padding-left: 1.2rem; margin: 10px 0 0; }
+    li { margin: 8px 0; }
+    code { color: var(--accent); }
+    .principle {
+      border-left: 3px solid var(--accent);
+      padding: 18px 20px;
+      background: rgba(102,230,196,.07);
+      border-radius: 0 16px 16px 0;
+      font-size: 1.08rem;
+    }
+    .roadmap { display: grid; gap: 12px; counter-reset: phase; }
+    .phase { display: grid; grid-template-columns: 42px 1fr; gap: 14px; align-items: start; }
+    .phase::before {
+      counter-increment: phase;
+      content: counter(phase);
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #061411;
+      font-weight: 900;
+    }
+    footer { border-top: 1px solid var(--border); color: var(--muted); padding: 28px 0 48px; }
+    @media (max-width: 700px) {
+      .grid { grid-template-columns: 1fr; }
+      .hero { padding-top: 52px; }
+      header { padding-bottom: 48px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <nav>
+        <a class="brand" href="/">3DVR</a>
+        <a href="/3dvr-desktop/">← 3DVR Desktop</a>
+      </nav>
+      <div class="hero">
+        <div class="eyebrow">Architecture note · living document</div>
+        <h1>3DVR Desktop Layer</h1>
+        <p class="lead">
+          One computing experience across powerful desktops, lightweight machines, phones, and XR—
+          without requiring every device to run the same desktop environment.
+        </p>
+      </div>
+    </div>
+  </header>
+  <main class="wrap">
+    <section>
+      <h2>The idea</h2>
+      <p>
+        3DVR should not depend on GNOME, XFCE, Phosh, or any single shell. Those environments can provide
+        windows, input, displays, power management, and hardware integration while 3DVR provides the experience
+        people actually recognize: identity, apps, agent behavior, device policy, sync, and consistent interaction.
+      </p>
+      <div class="principle">
+        <strong>Core rule:</strong> desktop environments are replaceable system surfaces. 3DVR owns the portable
+        user experience and the policy that makes the machine behave intelligently.
+      </div>
+    </section>
+
+    <section>
+      <h2>Layered architecture</h2>
+      <div class="stack" aria-label="3DVR layered architecture">
+        <div class="layer"><strong>3DVR experience</strong> · launcher, portal, apps, worlds, identity, preferences</div>
+        <div class="layer"><strong>3DVR intelligence & policy</strong> · agent, automation, device routing, sync, permissions</div>
+        <div class="layer"><strong>Environment adapter</strong> · GNOME, XFCE, KDE, Phosh, Labwc/Wayfire, XR shell</div>
+        <div class="layer"><strong>Linux platform</strong> · Wayland, PipeWire, systemd, NetworkManager, kernel, drivers</div>
+        <div class="layer"><strong>Hardware</strong> · laptops, phones, RISC-V boards, desktops, headsets, displays</div>
+      </div>
+    </section>
+    <section>
+      <h2>Example targets</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>Laptop / workstation</h3>
+          <p class="muted">Debian → GNOME → 3DVR</p>
+          <p>Use the mature desktop for demanding work while 3DVR supplies consistent policy and services.</p>
+        </article>
+        <article class="card">
+          <h3>Lightweight / RISC-V</h3>
+          <p class="muted">Debian → XFCE or Labwc → 3DVR</p>
+          <p>Keep memory and GPU overhead low without creating a second product experience.</p>
+        </article>
+        <article class="card">
+          <h3>Phone / tablet</h3>
+          <p class="muted">Linux → Phosh or another mobile shell → 3DVR</p>
+          <p>Reuse the same identity, apps, agent, sync, and policies with touch-first presentation.</p>
+        </article>
+        <article class="card">
+          <h3>XR / spatial</h3>
+          <p class="muted">Linux or browser runtime → 3DVR spatial shell</p>
+          <p>Use the same core services while three-dimensional interfaces become the primary surface.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>What 3DVR should own</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Experience</h3>
+          <ul>
+            <li>Identity and account context</li>
+            <li>Launcher, search, apps, and project context</li>
+            <li>Notifications and attention policy</li>
+            <li>Shared preferences across devices</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Intelligence</h3>
+          <ul>
+            <li>Personal agent and automation</li>
+            <li>Hardware-aware defaults and routing</li>
+            <li>Permission and approval boundaries</li>
+            <li>Portable state, sync, and recovery</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+    <section>
+      <h2>Why a layer before a fork</h2>
+      <p>
+        Forking a full desktop environment makes 3DVR responsible for years of compositor, accessibility,
+        input, graphics, and hardware maintenance immediately. A portable layer lets us improve the user
+        experience now, upstream fixes where possible, and only replace components when we have a clear reason.
+      </p>
+      <p>
+        This also keeps 3DVR usable on machines where GNOME is too heavy. The system can scale down without
+        throwing away the agent, apps, account, or product philosophy.
+      </p>
+    </section>
+
+    <section>
+      <h2>A small example: audio policy</h2>
+      <p>
+        A desktop may expose every audio route correctly and still leave the user managing implementation details.
+        3DVR can add a simple human rule on top: prefer a plugged-in headset, then an external display, then built-in
+        speakers. The operating system still handles PipeWire and drivers; 3DVR supplies the policy.
+      </p>
+      <div class="card">
+        <strong>This is the pattern:</strong>
+        <p class="muted">
+          keep mature Linux infrastructure underneath; add small, understandable policy services above it;
+          move functionality into 3DVR only when doing so produces a clearer universal experience.
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Migration path</h2>
+      <div class="roadmap">
+        <div class="phase"><div><strong>Portable policy layer.</strong> Solve recurring device and UX friction with small services and shared preferences.</div></div>
+        <div class="phase"><div><strong>Environment adapters.</strong> Give GNOME, XFCE, mobile shells, and lightweight Wayland systems a common 3DVR contract.</div></div>
+        <div class="phase"><div><strong>Shared shell surfaces.</strong> Own more of launcher, quick settings, notifications, workspace context, and app presentation.</div></div>
+        <div class="phase"><div><strong>Minimal 3DVR shell.</strong> Run directly on a lightweight compositor where existing desktop environments add little value.</div></div>
+        <div class="phase"><div><strong>Native universal shell.</strong> If the earlier layers prove the need, 3DVR can eventually own the full experience without being trapped by one desktop lineage.</div></div>
+      </div>
+    </section>
+    <section>
+      <h2>Design constraints</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Portable</h3>
+          <p>Do not make core 3DVR services depend on one compositor, toolkit, CPU architecture, or vendor cloud.</p>
+        </div>
+        <div class="card">
+          <h3>Upstream-friendly</h3>
+          <p>Fix Linux components upstream when the problem belongs upstream. Keep 3DVR policy focused on product behavior.</p>
+        </div>
+        <div class="card">
+          <h3>Human first</h3>
+          <p>Expose choices when they matter. Automate routine hardware decisions when a safe preference is already known.</p>
+        </div>
+        <div class="card">
+          <h3>Progressive</h3>
+          <p>Start on mature desktops, scale down to tiny systems, and earn the right to replace deeper layers over time.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Related experiments</h2>
+      <p class="muted">
+        This architecture connects existing 3DVR work on
+        <a href="/local-models-on-phones/">phones</a>,
+        <a href="/personal-debian-server/">personal Linux infrastructure</a>,
+        <a href="/xr-motion-lab/">XR interaction</a>, and the
+        <a href="/roadmap/">broader roadmap</a>.
+      </p>
+    </section>
+  </main>
+  <footer>
+    <div class="wrap">3DVR · Build the future · Architecture note, September 2026</div>
+  </footer>
+</body>
+</html>
