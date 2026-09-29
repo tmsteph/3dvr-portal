@@ -58,6 +58,10 @@ function makeId(prefix = 'record') {
 }
 
 function normalizeFingerprintPart(value) {
+  return text(value).toLowerCase().replace(/\s+/g, ' ');
+}
+
+function normalizeCanonicalPart(value) {
   return text(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
@@ -85,15 +89,15 @@ function opportunityDateToken(input = {}) {
 }
 
 export function opportunityCanonicalFingerprint(input = {}) {
-  const explicit = normalizeFingerprintPart(
+  const explicit = normalizeCanonicalPart(
     input.canonicalOpportunityId || input.canonicalId || input.opportunityKey
   );
   if (explicit) return `canonical:${explicit}`;
 
-  const role = normalizeFingerprintPart(input.role || input.title || input.need);
-  const location = normalizeFingerprintPart(input.location);
+  const role = normalizeCanonicalPart(input.role || input.title || input.need);
+  const location = normalizeCanonicalPart(input.location);
   const date = opportunityDateToken(input);
-  const organization = normalizeFingerprintPart(
+  const organization = normalizeCanonicalPart(
     input.organizationId || input.companyId || input.company || input.organization || input.client
   );
 
