@@ -212,10 +212,12 @@ export function buildWorkSchedulePlan({
   // but they do not close IATSE/freelance availability until they enter the hard window.
   // Personal commitments also occupy the day, but only explicit rest commitments
   // satisfy the recovery quota.
+  const protectedNonRestDates = [...protectedBusyDates]
+    .filter(date => !protectedRestDates.has(date));
   const workDates = new Set([
     ...outsideDates.keys(),
     ...allEncoreDates.keys(),
-    ...protectedBusyDates,
+    ...protectedNonRestDates,
   ]);
   const conflictDates = new Set([
     ...[...outsideDates.entries()].filter(([, gigsForDate]) => gigsForDate.length > 1).map(([date]) => date),
