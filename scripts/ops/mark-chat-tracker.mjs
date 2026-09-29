@@ -12,6 +12,7 @@ export const DEFAULTS = Object.freeze({
   stateFile: '/var/lib/3dvr-mark-chat-tracker/state.json',
   noteFile: '/home/debian/.local/share/3dvr/knowledge/mark-nadal/gun-chat.md',
   maxMessages: 300,
+  maxNoteBytes: 112 * 1024,
 });
 
 function clean(value, max = 4000) {
@@ -83,6 +84,23 @@ export function renderTranscript({ messages = [], roomAlias = DEFAULTS.roomAlias
     sections.length ? sections.join('\n\n') : 'No messages have been captured yet.',
     '',
   ].join('\n');
+}
+
+export function fitTranscript(messages, options = {}) {
+  const maxBytes = Number(options.maxNoteBytes) || DEFAULTS.maxNoteBytes;
+  const ordered = [...messages].sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  let kept = ordered.slice(0, Number(options.maxMessages) || DEFAULTS.maxMessages);
+  while (kept.length > 1) {
+    const rendered = renderTranscript({
+      messages: kept,
+      roomAlias: options.roomAlias || DEFAULTS.roomAlias,
+      roomId: options.roomId || DEFAULTS.roomId,
+      updatedAt: options.updatedAt,
+    });
+    if (Buffer.byteLength(rendered, 'utf8') <= maxBytes) return kept;
+    kept.pop();
+  }
+  return kept;
 }
 
 async function requestJson(url, { method = 'GET', token = '', body, timeoutMs = 15000 } = {}) {
@@ -184,11 +202,15 @@ async function run(options = {}) {
   const prior = Array.isArray(state.messages) ? state.messages : [];
   const byId = new Map(prior.map(item => [item.id, item]));
   for (const event of incoming) byId.set(event.id, event);
-  const messages = [...byId.values()]
-    .sort((a, b) => (b.ts || 0) - (a.ts || 0))
-    .slice(0, config.maxMessages);
-
   const updatedAt = new Date().toISOString();
+  const messages = fitTranscript([...byId.values()], {
+    maxMessages: config.maxMessages,
+    maxNoteBytes: config.maxNoteBytes,
+    roomAlias: config.roomAlias,
+    roomId,
+    updatedAt,
+  });
+
   const nextState = {
     roomId,
     roomAlias: config.roomAlias,
