@@ -41,7 +41,7 @@ export function createOrganismVercelRelay(options = {}) {
     const timer = setTimeout(() => controller.abort(), options.timeoutMs || 20000);
     try {
       const bridgePath = payload.privateKnowledge === true
-        ? '/knowledge'
+        ? '/__3dvr-private-knowledge'
         : payload.organismRemember === true ? '/remember' : '/recall';
       const upstream = await fetchImpl(`${bridgeOrigin}${bridgePath}`, {
         method: 'POST',
