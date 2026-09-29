@@ -319,6 +319,18 @@ function createGatewayMcpServer(options = {}) {
       auditImpl,
     ));
 
+    server.registerTool('n8n_watchdog', {
+      title: 'Check n8n watchdog',
+      description: 'Evaluate metadata-only workflow health. No execution payloads or client data are returned.',
+      inputSchema: { target: z.string().default('cvw') },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    }, async ({ target }) => audited(
+      'n8n.watchdog',
+      { target },
+      async () => callOvhToolImpl('n8n_watchdog', { target }),
+      auditImpl,
+    ));
+
     server.registerTool('n8n_workflows', {
       title: 'List n8n workflows',
       description: 'Return safe workflow metadata only. Node definitions, credentials, and pinned data are omitted.',
