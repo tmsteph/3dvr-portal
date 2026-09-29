@@ -38,7 +38,7 @@ test('protected personal dates block booking without pretending they are another
 
   assert.equal(result.availability, 'blocked');
   assert.equal(result.hardBlock, true);
-  assert.match(result.reasons[0], /protected or unavailable/);
+  assert.match(result.reasons[0], /protected commitment/);
 });
 
 test('distant sparse Encore dates stay visible as soft instead of hard conflicts', () => {
@@ -73,4 +73,18 @@ test('undated opportunities stay unknown instead of guessing', () => {
   const result = evaluateOpportunityAvailability({ title: 'A1' }, {});
   assert.equal(result.availability, 'unknown');
   assert.equal(result.hardBlock, false);
+});
+
+
+test('planner-selected rest days are soft because the rest block may move', () => {
+  const plan = buildWorkSchedulePlan({
+    horizonStart: '2026-10-01',
+    horizonEnd: '2026-10-07',
+  });
+  assert.ok(plan.plannerRestDays.includes('2026-10-01'));
+
+  const result = evaluateOpportunityAvailability({ startsAt: '2026-10-01' }, plan);
+  assert.equal(result.availability, 'soft');
+  assert.equal(result.hardBlock, false);
+  assert.match(result.reasons[0], /two days off remain/);
 });
