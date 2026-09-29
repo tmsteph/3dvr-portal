@@ -1,9 +1,9 @@
 {
   "ok": false,
   "state": "probe_error",
-  "error": "Execution context was destroyed, most likely because of a navigation.",
-  "requestId": "google-oauth-e2e-retry-20260929",
+  "error": "net::ERR_INSUFFICIENT_RESOURCES at https://portal.3dvr.tech/api/oauth/google?action=start&intent=signin&scopeKey=identity&returnTo=%2Fsign-in.html%3Fredirect%3D%252F",
+  "requestId": "google-oauth-safe-check-20260929",
   "action": "google_oauth_status",
   "workflowOutcome": "failure",
-  "checkedAt": "2026-09-29T19:02:57Z"
+  "checkedAt": "2026-09-29T19:04:28Z"
 }
