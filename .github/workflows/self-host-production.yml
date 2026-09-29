@@ -43,6 +43,8 @@ jobs:
           node --check scripts/organism-bridge-server.mjs
           bash -n scripts/ops/deploy-self-host-portal.sh
           bash -n scripts/ops/install-organism-owner-bridge.sh
+          bash -n scripts/ops/install-mark-chat-tracker.sh
+          node --check scripts/ops/mark-chat-tracker.mjs
           node --test tests/operator-developer-access.test.js tests/organism-access.test.js tests/self-host-deploy-persistent-tunnel.test.js
 
       - name: Resolve OVH-first portal credentials
@@ -234,6 +236,9 @@ jobs:
 
           bash "$source_repo/scripts/ops/deploy-self-host-portal.sh" "$source_repo" main "$DEPLOY_SHA" 4320
           bash "$source_repo/scripts/ops/install-organism-owner-bridge.sh"
+          if [ "${THREEDVR_CONTROL_NODE:-}" = ovh ]; then
+            bash "$source_repo/scripts/ops/install-mark-chat-tracker.sh" "$source_repo"
+          fi
           echo 'Forge/agent workers are intentionally kept off the production portal host.'
           REMOTE
           )"
