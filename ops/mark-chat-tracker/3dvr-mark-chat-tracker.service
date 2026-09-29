@@ -1,0 +1,19 @@
+[Unit]
+Description=3DVR Mark Nadal Matrix chat tracker
+After=network-online.target openbao.service
+Wants=network-online.target openbao.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/node /opt/3dvr/mark-chat-tracker/tracker.mjs
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadOnlyPaths=/opt/3dvr/secrets-broker /etc/3dvr/openbao
+ReadWritePaths=/var/lib/3dvr-mark-chat-tracker /home/debian/.local/share/3dvr/knowledge/mark-nadal
+RestrictSUIDSGID=true
+LockPersonality=true
