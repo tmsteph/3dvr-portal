@@ -178,6 +178,22 @@ test('Google OAuth saves route to the OpenBao writer', async () => {
   assert.equal(brokerCall.payload.scope, 'secrets:3dvr-agent');
 });
 
+test('Matrix credentials save to the OpenBao writer', async () => {
+  const value = JSON.stringify({ homeserver: 'https://gitter.ems.host', accessToken: 'matrix-fixture' });
+  const key = 'MATRIX_GITTER_TMSTEPH';
+  let brokerCall;
+  const handler = createSecretsBrokerHandler({
+    config: {},
+    verify: verification({ action: 'store-secret', secretKey: key, secretValueHash: createHash('sha256').update(value).digest('hex') }),
+    brokerRequest: async input => { brokerCall = input; return { status: 201, body: { ok: true, stored: { id: 'created-matrix', key } } }; },
+  });
+  const res = response();
+  await handler(request({ action: 'store-secret', key, value, note: 'matrix oauth' }), res);
+  assert.equal(res.statusCode, 201);
+  assert.equal(brokerCall.payload.secret, 'openbao.writer');
+  assert.match(brokerCall.payload.purpose, /Matrix account/);
+});
+
 test('Operator save proof is bound to key and value hash', async () => {
   const handler = createSecretsBrokerHandler({
     config: {},
