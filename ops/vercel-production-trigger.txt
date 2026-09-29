@@ -30,3 +30,4 @@
 2026-09-28 meditation-garden-no-select
 Living World track flow rewards: 2026-09-29
 2026-09-29 living-world-vivid-global-flow
+2026-09-29 dad-arcade PR #2864 canonical production

@@ -53,3 +53,4 @@ Reason: Verify homepage 10,338 points display and Gmail test-to-self end to end.
 2026-09-28T08:44:00-07:00 spatial-natural-controls PR #2833
 2026-09-28 meditation-garden\n2026-09-28 mobile-drag-and-garden-smoothing\n
 2026-09-28 meditation-garden-no-select
+2026-09-29 dad-arcade PR #2864 canonical production
