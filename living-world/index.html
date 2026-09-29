@@ -58,6 +58,12 @@
     .help button{margin-top:8px;min-height:40px;border:1px solid rgba(177,224,229,.18);border-radius:10px;background:rgba(20,37,47,.9);color:#eefcff;cursor:pointer;padding:7px 10px}
     .toast{position:fixed;left:50%;top:50%;z-index:7;transform:translate(-50%,-50%);padding:10px 14px;border:1px solid rgba(205,255,242,.3);border-radius:999px;background:rgba(5,14,18,.84);color:#f3fffc;font-weight:850;opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease}
     .toast[data-show="true"]{opacity:1;transform:translate(-50%,-50%) scale(1.04)}
+    .flow-wash{position:fixed;inset:-12%;z-index:3;pointer-events:none;opacity:0;mix-blend-mode:screen;background:radial-gradient(circle at 50% 48%,rgba(255,255,255,.95) 0%,rgba(99,244,255,.58) 24%,rgba(255,103,216,.32) 52%,transparent 76%);transition:opacity .12s linear;filter:saturate(1.35)}
+    .flow-wash::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,transparent 36%,rgba(99,244,255,.32) 68%,rgba(255,103,216,.18) 86%,transparent 100%)}
+    body[data-flow-state="warm"] .flow-wash{opacity:var(--flow-wash-opacity,.12)}
+    body[data-flow-state="hot"] .flow-wash{opacity:var(--flow-wash-opacity,.28)}
+    body[data-flow-state="perfect"] .flow-wash{opacity:var(--flow-wash-opacity,.42)}
+    @media(prefers-reduced-motion:reduce){.flow-wash{transition:none}}
     @media(max-width:720px){
       .title-wrap small,.hint{display:none}
       .stats{max-width:58vw}
@@ -77,6 +83,7 @@
 </head>
 <body>
   <canvas id="world" aria-label="Interactive 3D living world"></canvas>
+  <div class="flow-wash" id="flow-wash" aria-hidden="true"></div>
 
   <div class="hud">
     <div class="top">
@@ -124,7 +131,7 @@
     <p><code>Click the world</code> to capture the mouse for first-person look. <code>Esc</code> releases it. <code>WASD</code> or arrows fly, and the mouse wheel glides forward/back.</p>
     <p><code>Left click</code> fires the selected toy weapon. <code>1</code> pulse, <code>2</code> beam, <code>3</code> bomb. <code>Right click</code> always throws a bomb.</p>
     <p>Keyboard-only: <code>WASD</code> moves, <code>arrows</code> look, hold <code>Shift</code> to thrust forward, <code>Space</code> rises, <code>Ctrl/C</code> descends, <code>F</code> fires, <code>G</code> bombs, and <code>Esc</code> toggles between the world and Shape World.</p>
-    <p><b>Path Run:</b> stay close to the glowing ribbon to continuously earn flow points and build up to a 4× flow multiplier. The path and reticle brighten as you center yourself. Pass gates in order and shoot the floating prism targets for bonus points.</p>
+    <p><b>Path Run:</b> stay close to the glowing ribbon to continuously earn flow points and build up to a 4× flow multiplier. As you converge on the track, the whole world becomes brighter, more colorful, and more energized. Pass gates in order and shoot the floating prism targets for bonus points.</p>
     <p>The world gently evolves when <b>World dreams</b> is on. Your changes persist on this device.</p>
     <p>Try commands like <code>forest</code>, <code>ocean</code>, <code>night</code>, <code>more crystals</code>, <code>more orbs</code>, <code>faster</code>, <code>calmer</code>, or <code>surprise me</code>.</p>
     <button id="close-help" type="button">Got it</button>
@@ -156,6 +163,7 @@
     const helpPanel = document.getElementById('help-panel');
     const closeHelpButton = document.getElementById('close-help');
     const toast = document.getElementById('toast');
+    const flowWash = document.getElementById('flow-wash');
 
     const STORAGE_KEY = '3dvr-living-world-v1';
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -425,6 +433,14 @@
     const pathUp = new THREE.Vector3(0,0,1);
     const flowWhite = new THREE.Color(0xffffff);
     const flowColor = new THREE.Color();
+    const flowHueA = new THREE.Color();
+    const flowHueB = new THREE.Color();
+    const flowSceneColor = new THREE.Color();
+    const flowFogColor = new THREE.Color();
+    const flowSkyColor = new THREE.Color();
+    const flowGroundColor = new THREE.Color();
+    const flowSunColor = new THREE.Color();
+    const flowAccentColor = new THREE.Color();
 
     function clearGameGroup(group,{disposeGeometry=false}={}) {
       while (group.children.length) {
@@ -584,6 +600,52 @@
       return true;
     }
 
+    function updateWorldFlowVisuals(now,proximity) {
+      const intensity = clamp(proximity,0,1);
+      const center = clamp((intensity-.35)/.65,0,1);
+      const pulse = reducedMotion ? .5 : (.5 + .5*Math.sin(now*.0042));
+      const glow = center * (.58 + pulse*.42);
+      const hueIndex = Math.floor(now/520)%vividPalette.length;
+      flowHueA.copy(vividColor(hueIndex));
+      flowHueB.copy(vividColor(hueIndex+2));
+      const hueBlend = reducedMotion ? .5 : (.5 + .5*Math.sin(now*.0017));
+      flowAccentColor.copy(flowHueA).lerp(flowHueB,hueBlend);
+
+      flowSceneColor.copy(targetBg).lerp(flowAccentColor,.2*intensity + .38*glow);
+      flowSceneColor.lerp(flowWhite,.08*glow);
+      flowFogColor.copy(targetFog).lerp(flowAccentColor,.13*intensity + .22*glow);
+      flowSkyColor.copy(targetSky).lerp(flowAccentColor,.18*intensity + .3*glow);
+      flowGroundColor.copy(targetGround).lerp(flowAccentColor,.12*intensity + .2*glow);
+      flowSunColor.copy(targetSun).lerp(flowWhite,.2*intensity + .5*glow);
+
+      scene.background.lerp(flowSceneColor,.16);
+      scene.fog.color.lerp(flowFogColor,.12);
+      hemi.color.lerp(flowSkyColor,.14);
+      hemi.groundColor.lerp(flowGroundColor,.12);
+      sun.color.lerp(flowSunColor,.16);
+      wanderLight.color.lerp(flowAccentColor,.2);
+
+      renderer.toneMappingExposure = 1.05 + intensity*.28 + glow*.92;
+      hemi.intensity = 1.45 + intensity*.55 + glow*1.35;
+      sun.intensity = 2.3 + intensity*1.2 + glow*3.2;
+      wanderLight.intensity = 18 + intensity*16 + glow*34;
+
+      crystalGroup.children.forEach(mesh => {
+        if (mesh.material) mesh.material.emissiveIntensity = 1.35 + intensity*1.8 + glow*3.2;
+      });
+      seedMaterial.emissiveIntensity = 4 + intensity*2.6 + glow*5.4;
+      archMaterial.emissiveIntensity = 1.1 + intensity*1.6 + glow*3.4;
+      starMaterial.opacity = clamp(.52 + intensity*.22 + glow*.25,.5,1);
+      starMaterial.size = .32 + intensity*.08 + glow*.16;
+      floorRingMaterial.opacity = .09 + intensity*.08 + glow*.18;
+
+      const stateName = intensity > .9 ? 'perfect' : (intensity > .62 ? 'hot' : (intensity > .2 ? 'warm' : ''));
+      document.body.dataset.flowState = stateName;
+      const washOpacity = clamp(.03 + intensity*.12 + glow*.34,0,.48);
+      document.body.style.setProperty('--flow-wash-opacity',washOpacity.toFixed(3));
+      flowWash.style.transform = reducedMotion ? 'none' : `scale(${1 + glow*.035}) rotate(${Math.sin(now*.0012)*1.2}deg)`;
+    }
+
     function updateTrackFlow(now,dt) {
       if (!game.curve) return;
 
@@ -618,23 +680,26 @@
         }
       }
 
-      const flowState = proximity > .72 ? 'hot' : (proximity > .3 ? 'warm' : '');
+      const flowState = proximity > .9 ? 'hot' : (proximity > .52 ? 'warm' : '');
       reticle.dataset.flow = flowState;
       flowStatusEl.textContent = proximity > .18
         ? Math.round(proximity*100) + '% · ' + multiplier + '×'
         : 'off track';
+      updateWorldFlowVisuals(now,proximity);
 
       if (game.pathMesh) {
-        flowColor.copy(vividColor(Math.floor(now/650)%vividPalette.length));
-        flowColor.lerp(flowWhite,proximity*.58);
+        const pathPulse = reducedMotion ? .5 : (.5 + .5*Math.sin(now*.005));
+        flowColor.copy(vividColor(Math.floor(now/420)%vividPalette.length));
+        flowColor.lerp(flowWhite,proximity*(.55 + pathPulse*.35));
         game.pathMesh.material.color.copy(flowColor);
-        game.pathMesh.material.opacity = .3 + proximity*.58 + Math.sin(now*.0013)*(.04 + proximity*.08);
+        game.pathMesh.material.opacity = clamp(.26 + proximity*.54 + pathPulse*proximity*.2,.22,1);
       }
 
       pathGroup.children.forEach((marker,index) => {
         if (marker === game.pathMesh) return;
-        const pulse = .5 + .5*Math.sin(now*.004-index*.18);
-        marker.material.opacity = clamp(.16 + proximity*(.32 + pulse*.3),.14,.92);
+        const pulse = reducedMotion ? .5 : (.5 + .5*Math.sin(now*.006-index*.18));
+        marker.material.opacity = clamp(.12 + proximity*(.42 + pulse*.44),.1,1);
+        marker.scale.setScalar((index%4===0 ? 2.35 : 1.2) * (1 + proximity*(.16 + pulse*.18)));
       });
     }
 
