@@ -70,9 +70,65 @@ function normalizeWorkRecord(record = {}, fallbackSource = 'freelance') {
     title: String(record.title || record.summary || '').trim(),
     startDate,
     endDate: endDate || startDate,
+    startTime: String(record.startTime || record.callTime || '').trim(),
+    endTime: String(record.endTime || '').trim(),
     source: String(record.source || record.workSource || fallbackSource).trim().toLowerCase() || fallbackSource,
     status: String(record.status || 'Booked').trim() || 'Booked',
   };
+}
+
+
+function parseTimeMinutes(value = '') {
+  const raw = String(value || '').trim().toLowerCase();
+  if (!raw) return null;
+
+  const twentyFour = /^(\d{1,2}):(\d{2})$/.exec(raw);
+  if (twentyFour) {
+    const hour = Number(twentyFour[1]);
+    const minute = Number(twentyFour[2]);
+    if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) return hour * 60 + minute;
+    return null;
+  }
+
+  const twelve = /^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/.exec(raw);
+  if (!twelve) return null;
+  let hour = Number(twelve[1]);
+  const minute = Number(twelve[2] || 0);
+  if (hour < 1 || hour > 12 || minute < 0 || minute > 59) return null;
+  if (hour === 12) hour = 0;
+  if (twelve[3] === 'pm') hour += 12;
+  return hour * 60 + minute;
+}
+
+function recordTimeRange(record = {}, date = '') {
+  if (!record.startDate || !record.endDate || record.startDate !== record.endDate || record.startDate !== date) {
+    return null;
+  }
+  const start = parseTimeMinutes(record.startTime);
+  const end = parseTimeMinutes(record.endTime);
+  if (start === null || end === null || end <= start) return null;
+  return { start, end };
+}
+
+function recordsOverlapOnDate(left = {}, right = {}, date = '') {
+  const leftRange = recordTimeRange(left, date);
+  const rightRange = recordTimeRange(right, date);
+  // Missing/ambiguous time stays conservative: same-day commitments conflict.
+  if (!leftRange || !rightRange) return true;
+  return leftRange.start < rightRange.end && rightRange.start < leftRange.end;
+}
+
+function hasInternalOverlap(records = [], date = '') {
+  for (let left = 0; left < records.length; left += 1) {
+    for (let right = left + 1; right < records.length; right += 1) {
+      if (recordsOverlapOnDate(records[left], records[right], date)) return true;
+    }
+  }
+  return false;
+}
+
+function hasCrossOverlap(leftRecords = [], rightRecords = [], date = '') {
+  return leftRecords.some(left => rightRecords.some(right => recordsOverlapOnDate(left, right, date)));
 }
 
 function isBookedWork(record = {}) {
@@ -219,19 +275,19 @@ export function buildWorkSchedulePlan({
     ...allEncoreDates.keys(),
     ...protectedNonRestDates,
   ]);
-  const conflictDates = new Set([
-    ...[...outsideDates.entries()].filter(([, gigsForDate]) => gigsForDate.length > 1).map(([date]) => date),
-    ...[...allEncoreDates.entries()].filter(([, shiftsForDate]) => shiftsForDate.length > 1).map(([date]) => date),
-    ...[...outsideDates.keys()].filter(date => allEncoreDates.has(date)),
+  const possibleConflictDates = new Set([
+    ...outsideDates.keys(),
+    ...allEncoreDates.keys(),
   ]);
-  const conflicts = [...conflictDates].sort().map(date => {
+  const conflicts = [...possibleConflictDates].sort().flatMap(date => {
     const outsideGigs = outsideDates.get(date) || [];
     const encoreShiftsForDate = allEncoreDates.get(date) || [];
     const types = [];
-    if (outsideGigs.length > 1) types.push('outside-vs-outside');
-    if (encoreShiftsForDate.length > 1) types.push('encore-vs-encore');
-    if (outsideGigs.length && encoreShiftsForDate.length) types.push('outside-vs-encore');
-    return {
+    if (hasInternalOverlap(outsideGigs, date)) types.push('outside-vs-outside');
+    if (hasInternalOverlap(encoreShiftsForDate, date)) types.push('encore-vs-encore');
+    if (hasCrossOverlap(outsideGigs, encoreShiftsForDate, date)) types.push('outside-vs-encore');
+    if (!types.length) return [];
+    return [{
       date,
       types,
       outsideGigs,
@@ -240,7 +296,7 @@ export function buildWorkSchedulePlan({
       outsideGig: outsideGigs[0] || null,
       encoreShift: encoreShiftsForDate[0] || null,
       severity: 'high',
-    };
+    }];
   });
 
   const restDays = [];
