@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>3DVR Logo Lab</title>
+  <meta name="description" content="Interactive 3DVR logo playground inspired by the original hand-drawn multicolor mark.">
+  <meta name="theme-color" content="#090d18">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <a class="back" href="/">← Portal</a>
+      <div class="title-wrap">
+        <p class="eyebrow">3DVR · Logo Lab</p>
+        <h1>Touch the logo.</h1>
+      </div>
+      <button id="resetButton" class="ghost" type="button">Reset</button>
+    </header>
+
+    <section class="stage" aria-label="Interactive 3D 3DVR logo">
+      <canvas id="logoCanvas"></canvas>
+      <div class="aurora" aria-hidden="true"></div>
+      <div class="instructions">
+        <strong>Drag</strong> to orbit · <strong>scroll/pinch</strong> to zoom · <strong>tap</strong> for a burst
+      </div>
+      <div class="wordmark" aria-hidden="true">
+        <span>Productions</span>
+        <small>Build The Future</small>
+      </div>
+    </section>
+
+    <section class="controls" aria-label="Logo controls">
+      <label>
+        <span>Motion</span>
+        <input id="motionToggle" type="checkbox" checked>
+      </label>
+      <label>
+        <span>Glow</span>
+        <input id="glowToggle" type="checkbox" checked>
+      </label>
+      <label class="range">
+        <span>Depth</span>
+        <input id="depthRange" type="range" min="0.25" max="1.8" value="1" step="0.05">
+      </label>
+      <button id="burstButton" type="button">✦ Burst</button>
+      <button id="paletteButton" type="button">◌ Palette</button>
+    </section>
+
+    <details class="legacy">
+      <summary>Legacy reference</summary>
+      <div class="legacy-grid">
+        <div>
+          <p>The archived 3DVR React site used this image as its main hero logo and paired the site with the handwritten Kalam font.</p>
+          <a href="https://github.com/tmsteph/3DVR-Website/blob/main/3dvr-react-app/src/3DVR.png" target="_blank" rel="noopener noreferrer">Open original in GitHub ↗</a>
+        </div>
+        <div class="legacy-image-wrap">
+          <img
+            src="https://raw.githubusercontent.com/tmsteph/3DVR-Website/main/3dvr-react-app/src/3DVR.png"
+            alt="Original archived 3DVR logo"
+            loading="lazy">
+        </div>
+      </div>
+    </details>
+  </main>
+
+  <script type="module" src="app.js"></script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
