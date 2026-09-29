@@ -554,19 +554,23 @@ async function n8nExecutions({ target = 'cvw', workflowId, status, limit = 25 } 
 }
 
 async function n8nWatchdog({ target = 'cvw' } = {}, options = {}) {
-  const workflowsResult = await n8nWorkflows({ target, limit: 100 }, options);
+  const targetId = secureText(target || 'cvw', 100);
+  if (targetId !== CVW_WATCHDOG_POLICY.target) {
+    throw new Error(`n8n watchdog policy is not configured for target: ${targetId}`);
+  }
+  const workflowsResult = await n8nWorkflows({ target: targetId, limit: 100 }, options);
   const executionsByWorkflow = {};
   for (const rule of CVW_WATCHDOG_POLICY.workflows.filter((row) => row.mode === 'scheduled')) {
     const workflow = workflowsResult.workflows.find((row) => row.name === rule.name);
     if (!workflow) continue;
-    const result = await n8nExecutions({ target, workflowId: workflow.id, limit: 10 }, options);
+    const result = await n8nExecutions({ target: targetId, workflowId: workflow.id, limit: 10 }, options);
     executionsByWorkflow[workflow.id] = result.executions;
   }
   return evaluateN8nWatchdog({
     workflows: workflowsResult.workflows,
     executionsByWorkflow,
     now: options.now || new Date(),
-    policy: { ...CVW_WATCHDOG_POLICY, target },
+    policy: CVW_WATCHDOG_POLICY,
   });
 }
 
