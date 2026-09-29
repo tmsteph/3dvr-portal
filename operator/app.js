@@ -12,7 +12,7 @@ import { paintOperatorMarkdown } from './markdown.js';
 
 const form=document.querySelector('#operator-form'), input=document.querySelector('#operator-input'), log=document.querySelector('#operator-log'), status=document.querySelector('#operator-status'), syncStatus=document.querySelector('#operator-sync'), latest=document.querySelector('#operator-latest'), historyPanel=document.querySelector('#conversation-history'), historyList=document.querySelector('#history-list'), historyEmpty=document.querySelector('#history-empty'), showHistory=document.querySelector('#show-history');
 window.AuthIdentity?.syncStorageFromSharedIdentity?.(localStorage);
-const LEGACY_KEY='3dvr.operator.history.v1', BASE_KEY='3dvr.operator.conversations.v2';
+const LEGACY_KEY='3dvr.operator.history.v1', BASE_KEY='3dvr.operator.conversations.v2';\nconst OPERATOR_PREFILL_KEY='3dvr.operator.prefill.v1';
 const identity=window.AuthIdentity?.readSharedIdentity?.()||{};
 const accountKey=localStorage.getItem('signedIn')==='true'?String(localStorage.getItem('userPubKey')||identity.alias||localStorage.getItem('alias')||'').trim().toLowerCase():'';
 const KEY=accountKey?`${BASE_KEY}.account.${encodeURIComponent(accountKey)}`:BASE_KEY;
@@ -113,6 +113,8 @@ historyList.onclick=event=>{const button=event.target.closest('[data-conversatio
 log.addEventListener('scroll',updateLatest,{passive:true});
 latest.onclick=()=>scrollLatest('smooth');
 window.addEventListener('pageshow',()=>{atLatest()?followLatest():updateLatest()});
+function consumeOperatorPrefill(){let value=null;try{value=JSON.parse(sessionStorage.getItem(OPERATOR_PREFILL_KEY)||'null')}catch{}sessionStorage.removeItem(OPERATOR_PREFILL_KEY);const prompt=String(value?.prompt||'').trim().slice(0,4000);if(!prompt)return false;input.value=prompt;if(value?.submit===true)requestAnimationFrame(()=>form.requestSubmit());return true}
 render({forceLatest:true});
-if(new URLSearchParams(window.location.search).get('history')==='1') openHistory(); else input.focus();
+const prefilled=consumeOperatorPrefill();
+if(new URLSearchParams(window.location.search).get('history')==='1') openHistory(); else if(!prefilled) input.focus();
 void syncHistory();
