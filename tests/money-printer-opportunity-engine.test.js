@@ -382,3 +382,34 @@ it('Opportunity Engine exposes canonical lifecycle state without changing legacy
   assert.equal(won.status, 'won');
   assert.equal(won.canonicalStatus, 'booked');
 });
+
+
+it('does not dedupe or cluster the same job across different twins', () => {
+  const thomas = ingestOpportunity({}, {
+    twinId: 'thomas',
+    owner: 'Thomas',
+    sourceLabel: 'Crew Portal',
+    externalId: 'CALL-9',
+    need: 'A1 - Oct 10',
+    location: 'San Diego, CA'
+  }, NOW);
+  const mark = ingestOpportunity(thomas.state, {
+    twinId: 'mark-wells',
+    owner: 'Mark Wells',
+    sourceLabel: 'Crew Portal',
+    externalId: 'CALL-9',
+    need: 'A1 - Oct 10',
+    location: 'San Diego, CA'
+  }, NOW);
+
+  assert.equal(mark.created, true);
+  assert.equal(mark.state.opportunities.length, 2);
+  assert.deepEqual(
+    new Set(mark.state.opportunities.map(item => item.twinId)),
+    new Set(['thomas', 'mark-wells'])
+  );
+  assert.deepEqual(
+    new Set(mark.state.signals.map(item => item.twinId)),
+    new Set(['thomas', 'mark-wells'])
+  );
+});
