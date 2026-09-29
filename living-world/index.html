@@ -29,6 +29,7 @@
     .title-wrap small{color:#8ca7b4;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}
     .stats{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px;max-width:min(66vw,560px)}
     .pill{padding:8px 10px;border:1px solid rgba(177,224,229,.18);border-radius:999px;background:rgba(5,12,19,.62);backdrop-filter:blur(12px);color:#afc4cc;font-size:.72rem;white-space:nowrap}
+    a.pill{text-decoration:none;pointer-events:auto}
     .pill strong{color:#f6ffff}
     .center{flex:1;display:grid;place-items:center}
     .reticle{position:relative;width:24px;height:24px;border:1px solid rgba(213,248,248,.5);border-radius:50%;box-shadow:0 0 24px rgba(157,229,220,.13);transition:transform .35s ease,border-color .35s ease}
@@ -92,6 +93,7 @@
         <span class="title-wrap"><span>Living World</span><small>3DVR momentum playground</small></span>
       </a>
       <div class="stats" aria-live="polite">
+        <a class="pill" href="/games.html" aria-label="Back to 3DVR Game Hub">Game Hub</a>
         <span class="pill">mode <strong id="mode-status">adventure</strong></span>
         <span class="pill">momentum <strong id="momentum-status">0</strong></span>
         <span class="pill">stage <strong id="stage-status">1</strong></span>
