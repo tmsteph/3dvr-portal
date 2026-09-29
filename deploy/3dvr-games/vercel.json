@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "https://portal.3dvr.tech/games.html"
+    },
+    {
+      "source": "/:path*",
+      "destination": "https://portal.3dvr.tech/:path*"
+    }
+  ]
+}
