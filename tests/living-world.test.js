@@ -60,7 +60,9 @@ test('Prism Wing ships as a focused gentle-cruise arcade flight experience', asy
   assert.match(page, /fastTravel \? flow\.max : flow\.cruiseMax/);
   assert.match(page, /slow, steady forward progress/);
   assert.match(page, /hold <code>Shift<\/code> to ramp up to full flight speed/);
-  assert.match(page, /keys\.has\('KeyX'\)/);
+  assert.match(page, /const brakeTarget = \(keys\.has\('Space'\) \|\| keys\.has\('KeyX'\)\) \? 1 : 0/);
+  assert.match(page, /keys\.has\('KeyE'\)/);
+  assert.match(page, /<code>Space<\/code> to brake/);
   assert.match(page, /id="mode-button"[^>]*hidden/);
   assert.match(page, /id="mode-status"/);
   assert.match(page, /resetControlMotion/);
