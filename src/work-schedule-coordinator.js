@@ -7,10 +7,21 @@ export const SCHEDULE_ACTION_TYPES = Object.freeze({
   RESOLVE_CONFLICT: 'resolve-conflict',
 });
 
+function isValidDateKey(value = '') {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T12:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
 export function normalizeDateKey(value = '') {
   const raw = String(value || '').trim();
   if (!raw) return '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+  // Preserve the calendar date carried by ISO-like local timestamps instead of
+  // converting through UTC, which can move late-night work into the next day.
+  const prefixedDate = raw.match(/^(\d{4}-\d{2}-\d{2})(?:$|[T\s])/);
+  if (prefixedDate && isValidDateKey(prefixedDate[1])) return prefixedDate[1];
+
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return '';
   return parsed.toISOString().slice(0, 10);
@@ -160,17 +171,23 @@ export function buildWorkSchedulePlan({
   const bookedOutside = normalizedGigs.filter(record => isBookedWork(record) && isOutsideWork(record));
   const bookedEncore = normalizedEncore.filter(isBookedWork);
 
+  const addRecordByDate = (map, date, record) => {
+    const records = map.get(date) || [];
+    records.push(record);
+    map.set(date, records);
+  };
+
   const outsideDates = new Map();
   bookedOutside.forEach(gig => {
     enumerateDateRange(gig.startDate, gig.endDate).forEach(date => {
-      if (date >= start && date <= end) outsideDates.set(date, gig);
+      if (date >= start && date <= end) addRecordByDate(outsideDates, date, gig);
     });
   });
 
   const allEncoreDates = new Map();
   bookedEncore.forEach(shift => {
     enumerateDateRange(shift.startDate, shift.endDate).forEach(date => {
-      if (date >= start && date <= end) allEncoreDates.set(date, shift);
+      if (date >= start && date <= end) addRecordByDate(allEncoreDates, date, shift);
     });
   });
   const { blocking: encoreDates, soft: softEncoreDates } = splitEncoreAvailabilityDates({
@@ -192,14 +209,29 @@ export function buildWorkSchedulePlan({
   // Distant Encore onesies/twosies stay real work commitments for rest planning,
   // but they do not close IATSE/freelance availability until they enter the hard window.
   const workDates = new Set([...outsideDates.keys(), ...allEncoreDates.keys()]);
-  const conflicts = [...outsideDates.keys()]
-    .filter(date => allEncoreDates.has(date))
-    .map(date => ({
+  const conflictDates = new Set([
+    ...[...outsideDates.entries()].filter(([, gigsForDate]) => gigsForDate.length > 1).map(([date]) => date),
+    ...[...allEncoreDates.entries()].filter(([, shiftsForDate]) => shiftsForDate.length > 1).map(([date]) => date),
+    ...[...outsideDates.keys()].filter(date => allEncoreDates.has(date)),
+  ]);
+  const conflicts = [...conflictDates].sort().map(date => {
+    const outsideGigs = outsideDates.get(date) || [];
+    const encoreShiftsForDate = allEncoreDates.get(date) || [];
+    const types = [];
+    if (outsideGigs.length > 1) types.push('outside-vs-outside');
+    if (encoreShiftsForDate.length > 1) types.push('encore-vs-encore');
+    if (outsideGigs.length && encoreShiftsForDate.length) types.push('outside-vs-encore');
+    return {
       date,
-      outsideGig: outsideDates.get(date),
-      encoreShift: allEncoreDates.get(date),
+      types,
+      outsideGigs,
+      encoreShifts: encoreShiftsForDate,
+      // Preserve legacy single-record fields for existing consumers.
+      outsideGig: outsideGigs[0] || null,
+      encoreShift: encoreShiftsForDate[0] || null,
       severity: 'high',
-    }));
+    };
+  });
 
   const restDays = [];
   const weekStarts = uniqueBy(dates.map(startOfWeekKey), value => value);
@@ -223,7 +255,9 @@ export function buildWorkSchedulePlan({
   });
 
   const encoreTimeOffDates = new Map(
-    [...outsideDates.entries()].filter(([, gig]) => isEncoreTimeOffEligible(gig)),
+    [...outsideDates.entries()]
+      .map(([date, gigsForDate]) => [date, gigsForDate.find(isEncoreTimeOffEligible)])
+      .filter(([, gig]) => Boolean(gig)),
   );
 
   const actions = [];
