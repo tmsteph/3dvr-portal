@@ -217,9 +217,13 @@ export function isOpportunityOpen(record = {}) {
 export function getOpportunityPriorityBreakdown(record = {}) {
   const opportunity = normalizeFreelanceOpportunity(record);
   const stage = STAGE_PRIORITY.get(opportunity.canonicalStatus) || 0;
-  const availabilityBoost = opportunity.availability === 'clear' ? 12 : 0;
-  const conflictPenalty = opportunity.availability === 'conflict' ? 80 : 0;
-  const score = opportunity.fitScore + stage + availabilityBoost - conflictPenalty;
+  const availabilityBoost = opportunity.availability === 'clear'
+    ? 12
+    : opportunity.availability === 'soft' ? 6 : 0;
+  const availabilityPenalty = opportunity.availability === 'conflict'
+    ? 100
+    : opportunity.availability === 'blocked' ? 80 : 0;
+  const score = opportunity.fitScore + stage + availabilityBoost - availabilityPenalty;
   const reasons = [`${opportunity.fitScore}% fit`];
 
   if (stage) reasons.push(
@@ -235,15 +239,19 @@ export function getOpportunityPriorityBreakdown(record = {}) {
               ? 'already contacted'
               : opportunity.canonicalStatus,
   );
-  if (availabilityBoost) reasons.push('calendar clear');
-  if (conflictPenalty) reasons.push('calendar conflict');
+  if (opportunity.availability === 'clear') reasons.push('calendar clear');
+  if (opportunity.availability === 'soft') reasons.push('calendar soft/replaceable');
+  if (opportunity.availability === 'blocked') reasons.push('protected/unavailable');
+  if (opportunity.availability === 'conflict') reasons.push('calendar conflict');
 
   return {
     score,
     fitScore: opportunity.fitScore,
     stage,
     availabilityBoost,
-    conflictPenalty,
+    availabilityPenalty,
+    conflictPenalty: opportunity.availability === 'conflict' ? availabilityPenalty : 0,
+    hardAvailabilityBlock: ['blocked', 'conflict'].includes(opportunity.availability),
     reasons,
   };
 }
