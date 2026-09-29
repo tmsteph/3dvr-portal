@@ -63,7 +63,7 @@ function distance(a,b) {
 }
 
 test('Prism Wing idle cruise is steady and stays near the rail', { timeout: 45_000 }, async () => {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
     const page = await openWing(browser);
     const start = await state(page);
@@ -79,7 +79,7 @@ test('Prism Wing idle cruise is steady and stays near the rail', { timeout: 45_0
 });
 
 test('Prism Wing WASD nudges position instead of changing forward throttle', { timeout: 45_000 }, async () => {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
     const rightPage = await openWing(browser);
     const rightStart = await state(rightPage);
@@ -105,7 +105,7 @@ test('Prism Wing WASD nudges position instead of changing forward throttle', { t
 });
 
 test('Prism Wing Shift opens full speed and Space brakes', { timeout: 45_000 }, async () => {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
     const page = await openWing(browser);
     await page.waitForTimeout(900);
@@ -130,7 +130,7 @@ test('Prism Wing Shift opens full speed and Space brakes', { timeout: 45_000 }, 
 });
 
 test('Prism Wing looking around does not steer the ship off the rail', { timeout: 45_000 }, async () => {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
     const page = await openWing(browser);
     await page.keyboard.down('ArrowRight');
