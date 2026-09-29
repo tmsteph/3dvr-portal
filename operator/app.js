@@ -12,7 +12,8 @@ import { paintOperatorMarkdown } from './markdown.js';
 
 const form=document.querySelector('#operator-form'), input=document.querySelector('#operator-input'), log=document.querySelector('#operator-log'), status=document.querySelector('#operator-status'), syncStatus=document.querySelector('#operator-sync'), latest=document.querySelector('#operator-latest'), historyPanel=document.querySelector('#conversation-history'), historyList=document.querySelector('#history-list'), historyEmpty=document.querySelector('#history-empty'), showHistory=document.querySelector('#show-history');
 window.AuthIdentity?.syncStorageFromSharedIdentity?.(localStorage);
-const LEGACY_KEY='3dvr.operator.history.v1', BASE_KEY='3dvr.operator.conversations.v2';\nconst OPERATOR_PREFILL_KEY='3dvr.operator.prefill.v1';
+const LEGACY_KEY='3dvr.operator.history.v1', BASE_KEY='3dvr.operator.conversations.v2';
+const OPERATOR_PREFILL_KEY='3dvr.operator.prefill.v1';
 const identity=window.AuthIdentity?.readSharedIdentity?.()||{};
 const accountKey=localStorage.getItem('signedIn')==='true'?String(localStorage.getItem('userPubKey')||identity.alias||localStorage.getItem('alias')||'').trim().toLowerCase():'';
 const KEY=accountKey?`${BASE_KEY}.account.${encodeURIComponent(accountKey)}`:BASE_KEY;
