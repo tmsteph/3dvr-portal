@@ -307,9 +307,10 @@ export function createOpportunityCluster(input = {}, now = new Date()) {
       || opportunityCanonicalFingerprint(input)
       || primary.canonicalFingerprint,
     status: text(input.status, 'new'),
-    canonicalStatus: text(input.canonicalStatus)
-      ? toCanonicalOpportunityStatus(input.canonicalStatus)
-      : toCanonicalOpportunityStatus(input.status || 'new', 'engine'),
+    canonicalStatus: toCanonicalOpportunityStatus(
+      input.status || input.canonicalStatus || 'new',
+      'engine'
+    ),
     twinId: resolveTwinId(input),
     owner: text(input.owner, 'Thomas'),
     scopeStatus: text(input.twinId || input.twin_id || input.ownerId) ? 'scoped' : 'legacy-default',
