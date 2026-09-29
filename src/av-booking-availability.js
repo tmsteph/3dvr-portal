@@ -26,6 +26,8 @@ function opportunityDates(record = {}) {
 function classifyDate(date, plan = {}) {
   const status = plan.iatseAvailability?.[date];
   const softEncore = new Set(plan.softEncoreDates || []);
+  const protectedDates = new Set(plan.protectedDates || []);
+  const plannerRestDays = new Set(plan.plannerRestDays || []);
   const scheduleConflict = (plan.conflicts || []).find(conflict => conflict.date === date);
 
   if (scheduleConflict) {
@@ -42,11 +44,25 @@ function classifyDate(date, plan = {}) {
       reason: `${date}: existing booked work`,
     };
   }
+  if (status === 'Not Available' && protectedDates.has(date)) {
+    return {
+      date,
+      availability: OPPORTUNITY_AVAILABILITY.BLOCKED,
+      reason: `${date}: protected commitment`,
+    };
+  }
+  if (status === 'Not Available' && plannerRestDays.has(date)) {
+    return {
+      date,
+      availability: OPPORTUNITY_AVAILABILITY.SOFT,
+      reason: `${date}: planner rest day can move only if two days off remain`,
+    };
+  }
   if (status === 'Not Available') {
     return {
       date,
       availability: OPPORTUNITY_AVAILABILITY.BLOCKED,
-      reason: `${date}: protected or unavailable`,
+      reason: `${date}: unavailable`,
     };
   }
   if (status === 'All Day' && softEncore.has(date)) {
