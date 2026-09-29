@@ -156,6 +156,38 @@ export async function resolveOrganismRememberAccess(payload = {}, options = {}) 
   };
 }
 
+
+export async function resolvePrivateKnowledgeAccess(payload = {}, options = {}) {
+  const checked = await verifyOwnerPayload(payload, options, {
+    missing: 'Sign in to open private knowledge.',
+    expired: 'Private knowledge proof expired. Try again.'
+  });
+  if (!checked.ok) return checked;
+
+  const { auth } = checked;
+  const verified = auth.verified || {};
+  const requestId = normalizeText(payload.requestId, 160);
+  const note = normalizeText(payload.note, 300);
+  const action = auth.identity.action;
+
+  if (!['knowledge-list', 'knowledge-read'].includes(action)) {
+    return { ok: false, status: 403, reason: 'Proof did not authorize private knowledge access.' };
+  }
+  if (!requestId || requestId !== normalizeText(verified.requestId, 160)) {
+    return { ok: false, status: 403, reason: 'Request id did not match the signed knowledge request.' };
+  }
+  if (action === 'knowledge-list') {
+    if (note || normalizeText(verified.note, 300)) {
+      return { ok: false, status: 403, reason: 'Knowledge list proof included an unexpected note path.' };
+    }
+    return { ok: true, status: 200, mode: 'list', requestId, identity: auth.identity };
+  }
+  if (!note || note !== normalizeText(verified.note, 300)) {
+    return { ok: false, status: 403, reason: 'Knowledge note did not match the signed request.' };
+  }
+  return { ok: true, status: 200, mode: 'read', note, requestId, identity: auth.identity };
+}
+
 export async function resolveOrganismFeedbackAccess(payload = {}, options = {}) {
   const checked = await verifyOwnerPayload(payload, options, {
     missing: 'Sign in before rating a memory.',

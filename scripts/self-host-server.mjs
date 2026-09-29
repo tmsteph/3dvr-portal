@@ -386,7 +386,7 @@ const server = createServer(async (req, res) => {
     return serveCompanionApk(req, res);
   }
 
-  if (url.pathname === '/health' || url.pathname === '/recall' || url.pathname === '/remember') {
+  if (url.pathname === '/health' || url.pathname === '/recall' || url.pathname === '/remember' || url.pathname === '/knowledge') {
     return runOrganismRecall(req, res, url);
   }
 
@@ -398,7 +398,8 @@ const server = createServer(async (req, res) => {
       '/api/secret-handoff',
       '/health',
       '/recall',
-      '/remember'
+      '/remember',
+      '/knowledge'
     ]);
     if (standbyBlocked.has(url.pathname) || url.pathname.startsWith('/api/oauth/')) {
       return json(res, 503, {

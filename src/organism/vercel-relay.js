@@ -40,7 +40,9 @@ export function createOrganismVercelRelay(options = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), options.timeoutMs || 20000);
     try {
-      const bridgePath = payload.organismRemember === true ? '/remember' : '/recall';
+      const bridgePath = payload.privateKnowledge === true
+        ? '/knowledge'
+        : payload.organismRemember === true ? '/remember' : '/recall';
       const upstream = await fetchImpl(`${bridgeOrigin}${bridgePath}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
