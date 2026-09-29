@@ -200,14 +200,20 @@ export function createSecretsBrokerHandler(options = {}) {
       const note = normalizeText(body.note, 1000);
       if (!key || !value) return res.status(400).json({ ok: false, error: 'Name and value are required.' });
       const googleOAuthSecret = /^GOOGLE_OAUTH_[A-Z0-9_.:-]+$/.test(key);
+      const matrixSecret = /^MATRIX_[A-Z0-9_.:-]+$/.test(key);
+      const openBaoSecret = googleOAuthSecret || matrixSecret;
       request = {
         method: 'POST',
         path: '/v1/store',
         payload: {
-          secret: googleOAuthSecret ? 'openbao.writer' : 'bitwarden.writer',
+          secret: openBaoSecret ? 'openbao.writer' : 'bitwarden.writer',
           capability: 'secret.write',
           scope: 'secrets:3dvr-agent',
-          purpose: googleOAuthSecret ? 'Owner connected a Google account from 3DVR Access' : 'Owner saved a value from 3DVR Operator',
+          purpose: googleOAuthSecret
+            ? 'Owner connected a Google account from 3DVR Access'
+            : matrixSecret
+              ? 'Owner connected a Matrix account from 3DVR Portal'
+              : 'Owner saved a value from 3DVR Operator',
           key,
           value,
           note,
