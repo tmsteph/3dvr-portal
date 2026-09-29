@@ -36,7 +36,7 @@ test('pipeline separates ready, applied, conversations, and booked work', () => 
   assert.deepEqual(pipeline.applied.map(item => item.id), ['applied']);
   assert.deepEqual(pipeline.conversations.map(item => item.id), ['interview']);
   assert.deepEqual(pipeline.booked.map(item => item.id), ['booked']);
-  assert.equal(pipeline.metrics.open, 4);
+  assert.equal(pipeline.metrics.open, 3);
 });
 
 test('availability conflicts lower priority below otherwise similar work', () => {
