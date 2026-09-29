@@ -60,6 +60,7 @@ describe('work agent AI extraction', () => {
         role: 'A1',
         venue: 'Convention Center',
         callTime: '07:00',
+        distanceMiles: 42,
         summary: 'Producer asks about an A1 call on September 3.',
         confidence: 0.94,
       }],
@@ -73,6 +74,7 @@ describe('work agent AI extraction', () => {
     assert.deepEqual(res.body.signals[0].dates, ['2026-09-03']);
     assert.equal(res.body.signals[0].rate, 600);
     assert.equal(res.body.signals[0].role, 'A1');
+    assert.equal(res.body.signals[0].distanceMiles, 42);
     assert.equal(res.body.signals[0].confidence, 0.94);
     const upstream = JSON.parse(fetchImpl.mock.calls[0].arguments[1].body);
     assert.equal(upstream.store, false);
@@ -83,7 +85,7 @@ describe('work agent AI extraction', () => {
     const fetchImpl = mock.fn(async () => aiResponse({
       signals: [{
         id: 'm2', intent: 'booking', dates: ['2026-09-05'], rate: null,
-        role: 'A2', venue: '', callTime: '14:00', summary: 'A2 booking.', confidence: 0.9,
+        role: 'A2', venue: '', callTime: '14:00', distanceMiles: null, summary: 'A2 booking.', confidence: 0.9,
       }],
     }));
     const handler = createOpenAiSiteRouter({
