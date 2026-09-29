@@ -62,7 +62,7 @@ export const FREELANCE_BOOKING_POLICY = Object.freeze([
 ]);
 
 export const DEFAULT_FREELANCE_SOURCES = Object.freeze([
-  { id: 'iatse-122', priority: 1, name: 'IATSE Local 122', kind: 'Union', status: 'Active', login: 'Ready', onboarding: 'Active', rate: 'Union / call rate', lastAction: 'Availability portal connected', nextAction: 'Sync availability every 3 days', url: 'https://member.iatse.io/avail' },
+  { id: 'iatse-122', priority: 1, name: 'IATSE Local 122', kind: 'Union', status: 'Active', login: 'Ready', onboarding: 'Active', monitoring: 'connector', checkCadenceMinutes: 4320, rate: 'Union / call rate', lastAction: 'Availability portal connected', nextAction: 'Sync availability every 3 days', url: 'https://member.iatse.io/avail' },
   { id: 'avlancer', priority: 2, name: 'AVLancer', kind: 'Staffing portal', status: 'Verify', login: 'Verify', onboarding: 'Verify', rate: '', lastAction: 'Signup work started', nextAction: 'Confirm account and finish roster profile' },
   { id: 'lasso-crew', priority: 3, name: 'Lasso Crew', kind: 'Staffing portal', status: 'Verify', login: 'Verify', onboarding: 'Verify', rate: '', lastAction: 'Application automation used', nextAction: 'Confirm roster status and available calls' },
   { id: 'turnkey', priority: 4, name: 'TurnKey', kind: 'Production company', status: 'Applied', login: 'N/A', onboarding: 'Applied', rate: '', lastAction: 'Application submitted', nextAction: 'Follow up and watch for crew calls' },
@@ -78,7 +78,7 @@ export const DEFAULT_FREELANCE_SOURCES = Object.freeze([
   { id: 'sd-showdown', priority: 14, name: 'SD Showdown', kind: 'Production company', status: 'Verify', login: 'N/A', onboarding: 'Reconnect', rate: '', lastAction: 'Ownership changed', nextAction: 'Find current contact and roster path' },
   { id: 'nationwide', priority: 15, name: 'Nationwide', kind: 'Staffing / production', status: 'Research', login: 'Verify', onboarding: 'Research', rate: '', lastAction: '', nextAction: 'Confirm portal / crew onboarding path' },
   { id: 'old-globe', priority: 16, name: 'The Old Globe', kind: 'Direct employer', status: 'Watch', login: 'N/A', onboarding: 'Opportunity watch', rate: '', lastAction: '', nextAction: 'Watch technical production openings' },
-  { id: 'encore', priority: 99, name: 'Encore', kind: 'Fallback employer', status: 'Fallback', login: 'Ready', onboarding: 'Active', rate: '~$34/hr baseline', lastAction: 'Lighthouse connected', nextAction: 'Keep as stability floor; do not let distant onesies block better work', url: 'https://lighthouse2.psav.com/' },
+  { id: 'encore', priority: 99, name: 'Encore', kind: 'Fallback employer', status: 'Fallback', login: 'Ready', onboarding: 'Active', monitoring: 'connector', checkCadenceMinutes: 4320, rate: '~$34/hr baseline', lastAction: 'Lighthouse connected', nextAction: 'Keep as stability floor; do not let distant onesies block better work', url: 'https://lighthouse2.psav.com/' },
 ]);
 
 export function normalizeFreelanceSource(record = {}) {
@@ -90,6 +90,16 @@ export function normalizeFreelanceSource(record = {}) {
     status: String(record.status || 'Research').trim() || 'Research',
     login: String(record.login || 'Verify').trim() || 'Verify',
     onboarding: String(record.onboarding || 'Research').trim() || 'Research',
+    monitoring: String(record.monitoring || 'manual').trim().toLowerCase() || 'manual',
+    checkCadenceMinutes: Number.isFinite(Number(record.checkCadenceMinutes))
+      ? Math.max(1, Number(record.checkCadenceMinutes))
+      : 1440,
+    lastCheckedAt: String(record.lastCheckedAt || '').trim(),
+    lastSuccessAt: String(record.lastSuccessAt || '').trim(),
+    lastFailureAt: String(record.lastFailureAt || '').trim(),
+    lastResult: String(record.lastResult || '').trim().toLowerCase(),
+    lastOpportunityCount: Math.max(0, Number(record.lastOpportunityCount) || 0),
+    lastError: String(record.lastError || '').trim(),
     rate: String(record.rate || '').trim(),
     lastAction: String(record.lastAction || '').trim(),
     nextAction: String(record.nextAction || '').trim(),
