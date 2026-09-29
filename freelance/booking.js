@@ -195,7 +195,9 @@ sourceRecords.map().on((data, key) => {
   }
   const record = normalizeFreelanceSource({ ...data, id: data.id || key });
   if (!record.id || !record.name) return;
-  overrides[record.id] = record;
+  // Keep the raw override shape so newly added baseline fields (such as
+  // connector monitoring) are not erased by older persisted records.
+  overrides[record.id] = { ...data, id: data.id || key };
   renderSources();
 });
 
