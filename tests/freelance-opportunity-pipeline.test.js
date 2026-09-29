@@ -134,3 +134,23 @@ test('a later source refresh cannot regress an already-contacted opportunity', (
   assert.equal(pipeline.all[0].canonicalStatus, 'contacted');
   assert.equal(pipeline.all[0].appliedAt, '2026-09-29T10:00:00Z');
 });
+
+
+test('soft schedule dates remain actionable but rank below fully clear dates', () => {
+  const clear = getOpportunityPriorityBreakdown({ status: 'Ready', fitScore: 80, availability: 'clear' });
+  const soft = getOpportunityPriorityBreakdown({ status: 'Ready', fitScore: 80, availability: 'soft' });
+
+  assert.ok(clear.score > soft.score);
+  assert.equal(soft.hardAvailabilityBlock, false);
+  assert.ok(soft.reasons.includes('calendar soft/replaceable'));
+});
+
+test('protected schedule dates are a hard availability block', () => {
+  const blocked = getOpportunityPriorityBreakdown({ status: 'Ready', fitScore: 80, availability: 'blocked' });
+  const conflict = getOpportunityPriorityBreakdown({ status: 'Ready', fitScore: 80, availability: 'conflict' });
+
+  assert.equal(blocked.hardAvailabilityBlock, true);
+  assert.equal(conflict.hardAvailabilityBlock, true);
+  assert.ok(blocked.reasons.includes('protected/unavailable'));
+  assert.ok(conflict.reasons.includes('calendar conflict'));
+});

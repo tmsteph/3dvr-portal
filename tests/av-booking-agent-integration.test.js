@@ -6,6 +6,7 @@ import {
   updateOpportunity,
 } from '../src/money-printer/opportunityEngine.js';
 import { buildWorkSchedulePlan } from '../src/work-schedule-coordinator.js';
+import { evaluateOpportunityAvailability } from '../src/av-booking-availability.js';
 import {
   normalizeFreelanceOpportunity,
   getOpportunityPriority,
@@ -62,10 +63,14 @@ test('AV booking flow composes ingestion, twin isolation, scheduling, ranking, a
   assert.equal(schedule.iatseAvailability['2026-10-04'], 'Booked');
 
   const thomasOpportunity = mark.state.opportunities.find(item => item.twinId === 'thomas');
+  const scheduleAssessment = evaluateOpportunityAvailability({ startsAt: '2026-10-04' }, schedule);
+  assert.equal(scheduleAssessment.availability, 'conflict');
+  assert.equal(scheduleAssessment.hardBlock, true);
+
   const conflictedState = updateOpportunity(
     mark.state,
     thomasOpportunity.id,
-    { availability: 'conflict', status: 'response-ready' },
+    { availability: scheduleAssessment.availability, status: 'response-ready' },
     NOW,
   );
   const conflicted = conflictedState.opportunities.find(item => item.id === thomasOpportunity.id);

@@ -143,9 +143,11 @@
         <label><span>Role *</span><input id="opportunityTitle" required /></label>
         <label><span>Location</span><input id="opportunityLocation" /></label>
         <label><span>Compensation</span><input id="opportunityCompensation" placeholder="$600/day or $95k" /></label>
+        <label><span>Start / work date</span><input id="opportunityStart" type="date" /></label>
+        <label><span>End date</span><input id="opportunityEnd" type="date" /></label>
         <label><span>Status</span><select id="opportunityStatus"><option>Found</option><option>Ready</option><option>Applied</option><option>Interview</option><option>Offered</option><option>Booked</option><option>Passed</option><option>Rejected</option></select></label>
         <label><span>Fit score</span><input id="opportunityFitScore" type="number" min="0" max="100" value="70" /></label>
-        <label><span>Calendar</span><select id="opportunityAvailability"><option value="unknown">Not checked</option><option value="clear">Clear</option><option value="conflict">Conflict</option></select></label>
+        <label><span>Calendar fallback</span><select id="opportunityAvailability"><option value="unknown">Auto / not checked</option><option value="clear">Clear</option><option value="soft">Soft / replaceable</option><option value="blocked">Protected</option><option value="conflict">Conflict</option></select></label>
         <label><span>Source URL</span><input id="opportunitySourceUrl" type="url" /></label>
         <label class="wide"><span>Requirements / blockers</span><input id="opportunityRequirements" placeholder="Clearance, certification, travel…" /></label>
         <label class="wide"><span>Notes</span><textarea id="opportunityNotes" rows="4"></textarea></label>
