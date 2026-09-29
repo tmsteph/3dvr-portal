@@ -413,3 +413,18 @@ it('does not dedupe or cluster the same job across different twins', () => {
     new Set(['thomas', 'mark-wells'])
   );
 });
+
+
+it('keeps canonical lifecycle synchronized when engine status changes', () => {
+  let state = ingestOpportunity({}, {
+    twinId: 'thomas',
+    need: 'A1 call'
+  }, NOW).state;
+  const id = state.opportunities[0].id;
+
+  state = updateOpportunity(state, id, { status: 'response-ready' }, NOW);
+  assert.equal(state.opportunities[0].canonicalStatus, 'ready');
+
+  state = updateOpportunity(state, id, { status: 'won' }, NOW);
+  assert.equal(state.opportunities[0].canonicalStatus, 'booked');
+});
