@@ -1,0 +1,56 @@
+name: 3DVR Web Production Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/vercel-web-production.yml'
+      - 'ops/vercel-web-production-trigger.txt'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: 3dvr-web-production
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z
+  VERCEL_PROJECT_ID: prj_zDwTJEFSq8X16qyXULAJLW4mCawr
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout 3dvr-web main
+        uses: actions/checkout@v4
+        with:
+          repository: tmsteph/3dvr-web
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel
+
+      - name: Pull production environment
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Build production artifact
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy production artifact
+        run: vercel deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN"
+
+      - name: Verify public site
+        run: |
+          curl --fail --silent --show-error --location --retry 8 --retry-delay 3 --retry-all-errors \
+            'https://3dvr.tech/' --output /tmp/3dvr-home.html
+          grep -qi '<html' /tmp/3dvr-home.html
+          echo '3dvr.tech is responding after production deploy.'
