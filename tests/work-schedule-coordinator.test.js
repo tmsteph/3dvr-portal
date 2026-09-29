@@ -154,3 +154,25 @@ test('ISO timestamps preserve their stated local calendar date', () => {
   assert.equal(normalizeDateKey('2026-10-07T00:30:00+09:00'), '2026-10-07');
   assert.equal(normalizeDateKey('2026-02-30T10:00:00-08:00'), '');
 });
+
+
+test('ordinary protected appointments do not silently satisfy the rest-day quota', () => {
+  const plan = buildWorkSchedulePlan({
+    horizonStart: '2026-10-05',
+    horizonEnd: '2026-10-11',
+    minimumRestDays: 2,
+    gigs: [
+      { id: 'm', date: '2026-10-05', status: 'Booked' },
+      { id: 'w', date: '2026-10-07', status: 'Booked' },
+      { id: 'th', date: '2026-10-08', status: 'Booked' },
+      { id: 'f', date: '2026-10-09', status: 'Booked' },
+      { id: 'sa', date: '2026-10-10', status: 'Booked' },
+    ],
+    protectedCommitments: [
+      { id: 'appointment', date: '2026-10-06', title: 'Personal appointment' },
+    ],
+  });
+
+  assert.equal(plan.restDays.includes('2026-10-06'), false);
+  assert.equal(plan.restDays.includes('2026-10-11'), true);
+});
