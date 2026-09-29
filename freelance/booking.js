@@ -3,6 +3,7 @@ import {
   mergeFreelanceSources,
   normalizeFreelanceSource,
 } from '../src/freelance-booking-policy.js';
+import { evaluateFreelanceSourceHealth } from '../src/freelance-source-health.js';
 
 const gun = Gun(window.__GUN_PEERS__ || [
   'wss://relay.3dvr.tech/gun',
@@ -28,6 +29,8 @@ const els = {
   sourceStatus: document.getElementById('sourceStatus'),
   sourceLogin: document.getElementById('sourceLogin'),
   sourceOnboarding: document.getElementById('sourceOnboarding'),
+  sourceMonitoring: document.getElementById('sourceMonitoring'),
+  sourceCadence: document.getElementById('sourceCadence'),
   sourceRate: document.getElementById('sourceRate'),
   sourcePriority: document.getElementById('sourcePriority'),
   sourceUrl: document.getElementById('sourceUrl'),
@@ -101,6 +104,8 @@ function renderSources() {
   els.showAllButton.textContent = showAllSources ? 'Show priority 8' : `Show all ${sources.length}`;
   els.sourceList.innerHTML = visibleSources.map(source => {
     const url = safeHttpUrl(source.url);
+    const health = evaluateFreelanceSourceHealth(source);
+    const healthTone = health.health === 'healthy' ? 'active' : '';
     return `
       <article class="source-row">
         <div class="source-main">
@@ -111,10 +116,12 @@ function renderSources() {
           <span class="chip ${statusTone(source.status)}">${safe(source.status)}</span>
           <span class="chip ${statusTone(source.login)}">Login: ${safe(source.login)}</span>
           <span class="chip">${safe(source.onboarding)}</span>
+          <span class="chip ${healthTone}" title="${safeAttr(health.detail)}">${safe(health.label)}</span>
         </div>
         <div class="source-rate ${source.rate ? '' : 'muted'}">${safe(source.rate || 'Rate TBD')}</div>
         <div class="source-actions-copy">
           <p><strong>Last:</strong> ${safe(source.lastAction || 'Nothing logged')}</p>
+          <p><strong>Source health:</strong> ${safe(health.detail)}</p>
           <p><strong>Next:</strong> ${safe(source.nextAction || 'Decide next action')}</p>
         </div>
         <div class="source-buttons">
@@ -137,6 +144,8 @@ function openSourceDialog(source = {}) {
   els.sourceStatus.value = normalized.status;
   els.sourceLogin.value = normalized.login;
   els.sourceOnboarding.value = normalized.onboarding;
+  els.sourceMonitoring.value = normalized.monitoring;
+  els.sourceCadence.value = String(normalized.checkCadenceMinutes || 1440);
   els.sourceRate.value = normalized.rate;
   els.sourcePriority.value = String(normalized.priority || 50);
   els.sourceUrl.value = normalized.url;
@@ -152,13 +161,18 @@ function closeSourceDialog() {
 function handleSourceSubmit(event) {
   event.preventDefault();
   const id = els.sourceId.value || makeId();
+  const existing = mergeFreelanceSources(Object.values(overrides))
+    .find(source => source.id === id) || {};
   const record = normalizeFreelanceSource({
+    ...existing,
     id,
     name: els.sourceName.value,
     kind: els.sourceKind.value,
     status: els.sourceStatus.value,
     login: els.sourceLogin.value,
     onboarding: els.sourceOnboarding.value,
+    monitoring: els.sourceMonitoring.value,
+    checkCadenceMinutes: els.sourceCadence.value,
     rate: els.sourceRate.value,
     priority: els.sourcePriority.value,
     url: els.sourceUrl.value,
