@@ -69,6 +69,11 @@ test('Living World ships as an in-portal evolving 3D experience', async () => {
   assert.match(page, /stage-status/);
   assert.match(page, /gate-status/);
   assert.match(page, /score-status/);
+  assert.match(page, /flow-status/);
+  assert.match(page, /function nearestPathDistance/);
+  assert.match(page, /function updateTrackFlow/);
+  assert.match(page, /flowMultiplier/);
+  assert.match(page, /stay close to the glowing ribbon/);
 });
 
 test('Living World is discoverable from Labs and Operator search', async () => {
