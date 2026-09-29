@@ -22,9 +22,9 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
   <div class="top">
     <a class="back" href="/games.html">← Games</a>
     <div class="title">3DVR Adventure</div>
-    <div class="stats"><span class="pill">stars <b id="stars">0/8</b></span><span class="pill">speed <b id="speed">0</b></span></div>
+    <div class="stats"><span class="pill">stars <b id="stars">0/8</b></span><span class="pill">speed <b id="speed">0</b></span><span class="pill">jet <b id="jet">100%</b></span></div>
   </div>
-  <div class="hint">WASD move · Shift run · Space jump · arrows/mouse look · wheel zoom · Esc releases mouse</div>
+  <div class="hint">WASD move · Shift run · Space/click jump + hold jetpack · arrows/mouse look · wheel zoom · Esc releases mouse</div>
 </div>
 <div class="toast" id="toast"></div>
 <script type="module">
@@ -74,7 +74,16 @@ body.position.y=1.25; body.castShadow=true;
 const cap=new THREE.Mesh(new THREE.SphereGeometry(.48,16,12),new THREE.MeshStandardMaterial({color:0xf5c89a,roughness:.72}));
 cap.position.y=2.45; cap.castShadow=true;
 const pack=new THREE.Mesh(new THREE.BoxGeometry(.9,.75,.45),new THREE.MeshStandardMaterial({color:0x2869d8,roughness:.6}));
-pack.position.set(0,1.35,.58); player.add(body,cap,pack); scene.add(player);
+pack.position.set(0,1.35,.58);
+const jetFlames=[];
+[-.23,.23].forEach(x=>{
+  const flame=new THREE.Mesh(
+    new THREE.ConeGeometry(.14,.72,8),
+    new THREE.MeshBasicMaterial({color:0xffb52e,transparent:true,opacity:.92})
+  );
+  flame.rotation.z=Math.PI; flame.position.set(x,.64,.62); flame.visible=false; player.add(flame); jetFlames.push(flame);
+});
+player.add(body,cap,pack); scene.add(player);
 player.position.set(0,0,13);
 
 const stars=[], starGeo=new THREE.OctahedronGeometry(.62,0);
@@ -84,22 +93,33 @@ const starMat=new THREE.MeshStandardMaterial({color:0xffe34c,emissive:0xff9b17,e
 });
 
 const keys=new Set(); let camYaw=0,camPitch=.34,camDist=8.8;
-let vy=0,onGround=false, collected=0, toastTimer=0;
+let vy=0,onGround=false, collected=0, toastTimer=0, pointerJet=false, jetFuel=1;
 const velocity=new THREE.Vector3(), desired=new THREE.Vector3(), forward=new THREE.Vector3(), right=new THREE.Vector3();
-const starsEl=document.getElementById('stars'), speedEl=document.getElementById('speed'), toast=document.getElementById('toast');
+const starsEl=document.getElementById('stars'), speedEl=document.getElementById('speed'), jetEl=document.getElementById('jet'), toast=document.getElementById('toast');
 function say(t){toast.textContent=t;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),1100)}
 function groundHeightAt(x,z){
   let h=0;
   for(const p of platforms) if(Math.abs(x-p.mesh.position.x)<=p.hx+.45 && Math.abs(z-p.mesh.position.z)<=p.hz+.45) h=Math.max(h,p.top);
   return h;
 }
+function jump(){
+  if(!onGround)return;
+  vy=9.8; onGround=false;
+}
 addEventListener('keydown',e=>{
   keys.add(e.code);
   if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
-  if(e.code==='Space'&&onGround){vy=9.8;onGround=false;}
+  if(e.code==='Space'&&!e.repeat)jump();
 });
 addEventListener('keyup',e=>keys.delete(e.code));
-canvas.addEventListener('pointerdown',()=>canvas.requestPointerLock?.());
+addEventListener('blur',()=>{keys.clear();pointerJet=false;});
+canvas.addEventListener('pointerdown',e=>{
+  if(e.button!==0)return;
+  pointerJet=true; jump();
+  if(e.pointerType==='mouse') canvas.requestPointerLock?.();
+});
+addEventListener('pointerup',e=>{if(e.button===0)pointerJet=false;});
+addEventListener('pointercancel',()=>{pointerJet=false;});
 document.addEventListener('mousemove',e=>{
   if(document.pointerLockElement!==canvas)return;
   camYaw-=e.movementX*.0024; camPitch=THREE.MathUtils.clamp(camPitch-e.movementY*.0019,-.1,.9);
@@ -123,6 +143,17 @@ function update(){
   if(desired.lengthSq()>.01) player.rotation.y=Math.atan2(velocity.x,velocity.z);
   player.position.x+=velocity.x*dt; player.position.z+=velocity.z*dt;
 
+  const jetting=!onGround&&(keys.has('Space')||pointerJet)&&jetFuel>0;
+  if(jetting){
+    jetFuel=Math.max(0,jetFuel-.46*dt);
+    vy=Math.min(10.8,vy+34*dt);
+  } else if(onGround) {
+    jetFuel=Math.min(1,jetFuel+.62*dt);
+  }
+  jetFlames.forEach((flame,i)=>{
+    flame.visible=jetting;
+    if(jetting) flame.scale.y=.82+Math.sin(now*.032+i*1.9)*.18;
+  });
   vy-=24*dt; player.position.y+=vy*dt;
   const floor=groundHeightAt(player.position.x,player.position.z);
   if(player.position.y<=floor){player.position.y=floor;vy=Math.max(0,vy);onGround=true}else onGround=false;
@@ -138,10 +169,11 @@ function update(){
   const offset=new THREE.Vector3(Math.sin(camYaw)*Math.cos(camPitch),Math.sin(camPitch),Math.cos(camYaw)*Math.cos(camPitch)).multiplyScalar(camDist);
   camera.position.lerp(target.clone().add(offset),1-Math.exp(-8*dt)); camera.lookAt(target);
   speedEl.textContent=Math.hypot(velocity.x,velocity.z).toFixed(1);
+  jetEl.textContent=Math.round(jetFuel*100)+'%';
   renderer.render(scene,camera); requestAnimationFrame(update);
 }
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight,false);renderer.setPixelRatio(Math.min(devicePixelRatio,1.7))});
-say('Explore. Jump. Find the eight stars.'); update();
+say('Explore. Jump. Hold Space or click for jetpack.'); update();
 </script>
 </body>
 </html>
