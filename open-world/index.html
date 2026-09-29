@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#6ec7ff">
+<title>3DVR Adventure · Open World</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Inter,system-ui,sans-serif;background:#77cfff;color:#fff}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+.hud{position:fixed;inset:0;pointer-events:none;padding:14px;display:flex;flex-direction:column;gap:10px}
+.top{display:flex;gap:8px;align-items:center}.pill,.back{pointer-events:auto;background:#17223bd9;border:1px solid #ffffff38;border-radius:999px;padding:8px 11px;color:#fff;text-decoration:none;font-weight:800;font-size:.78rem;backdrop-filter:blur(10px)}
+.stats{margin-left:auto;display:flex;gap:7px}.hint{margin-top:auto;align-self:center;background:#17223bd9;border:1px solid #ffffff38;border-radius:999px;padding:9px 13px;font-size:.75rem;backdrop-filter:blur(10px)}
+.title{font-weight:950;letter-spacing:.03em;text-shadow:0 2px 12px #0008}.toast{position:fixed;left:50%;top:20%;transform:translateX(-50%);background:#17223be8;border:1px solid #ffffff55;border-radius:999px;padding:10px 14px;font-weight:900;opacity:0;transition:.18s;pointer-events:none}.toast.show{opacity:1}
+@media(max-width:640px){.hint{font-size:.65rem}.stats .pill:nth-child(2){display:none}}
+</style>
+<script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+<canvas id="game" aria-label="3DVR open world platform adventure"></canvas>
+<div class="hud">
+  <div class="top">
+    <a class="back" href="/games.html">← Games</a>
+    <div class="title">3DVR Adventure</div>
+    <div class="stats"><span class="pill">stars <b id="stars">0/8</b></span><span class="pill">speed <b id="speed">0</b></span></div>
+  </div>
+  <div class="hint">WASD move · Shift run · Space jump · arrows/mouse look · wheel zoom · Esc releases mouse</div>
+</div>
+<div class="toast" id="toast"></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.176.0/build/three.module.js';
+
+const canvas=document.getElementById('game');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.7)); renderer.setSize(innerWidth,innerHeight,false);
+renderer.shadowMap.enabled=true; renderer.outputColorSpace=THREE.SRGBColorSpace;
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x78ceff); scene.fog=new THREE.Fog(0x78ceff,48,145);
+const camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,.1,300);
+const hemi=new THREE.HemisphereLight(0xdff7ff,0x31502a,2.1); scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xfff2c9,3.4); sun.position.set(-24,42,18); sun.castShadow=true; scene.add(sun);
+
+const ground=new THREE.Mesh(new THREE.CylinderGeometry(58,65,4,64),new THREE.MeshStandardMaterial({color:0x63aa50,roughness:.92}));
+ground.position.y=-2; ground.receiveShadow=true; scene.add(ground);
+const water=new THREE.Mesh(new THREE.CircleGeometry(145,64),new THREE.MeshStandardMaterial({color:0x2a84bd,roughness:.28,metalness:.05}));
+water.rotation.x=-Math.PI/2; water.position.y=-4.05; scene.add(water);
+
+const platforms=[];
+function addPlatform(x,y,z,sx,sy,sz,color=0xb98a5f){
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),new THREE.MeshStandardMaterial({color,roughness:.85}));
+  mesh.position.set(x,y,z); mesh.castShadow=mesh.receiveShadow=true; scene.add(mesh);
+  platforms.push({mesh,top:y+sy/2,hx:sx/2,hz:sz/2}); return mesh;
+}
+addPlatform(9,1.5,-8,8,3,8,0xd19b61);
+addPlatform(17,4.5,-15,7,2.5,7,0xd19b61);
+addPlatform(-14,2.5,-17,10,5,9,0xa76d4b);
+addPlatform(-24,5.8,-26,8,3,8,0xa76d4b);
+addPlatform(0,4,-31,12,2.2,6,0xc88954);
+addPlatform(24,2.2,18,10,4.4,10,0xb67a50);
+addPlatform(-22,1.2,20,11,2.4,8,0xb67a50);
+
+const treeMat=new THREE.MeshStandardMaterial({color:0x2d7f42,roughness:.9});
+const trunkMat=new THREE.MeshStandardMaterial({color:0x795332,roughness:1});
+for(let i=0;i<36;i++){
+  const a=Math.random()*Math.PI*2,r=15+Math.random()*39;
+  const x=Math.cos(a)*r,z=Math.sin(a)*r;
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.35,.55,3.2,7),trunkMat); trunk.position.set(x,1.6,z);
+  const crown=new THREE.Mesh(new THREE.ConeGeometry(2.2+Math.random(),5+Math.random()*2,8),treeMat); crown.position.set(x,5,z);
+  trunk.castShadow=crown.castShadow=true; scene.add(trunk,crown);
+}
+
+const player=new THREE.Group();
+const body=new THREE.Mesh(new THREE.CapsuleGeometry(.65,1.2,6,10),new THREE.MeshStandardMaterial({color:0xf44336,roughness:.55}));
+body.position.y=1.25; body.castShadow=true;
+const cap=new THREE.Mesh(new THREE.SphereGeometry(.48,16,12),new THREE.MeshStandardMaterial({color:0xf5c89a,roughness:.72}));
+cap.position.y=2.45; cap.castShadow=true;
+const pack=new THREE.Mesh(new THREE.BoxGeometry(.9,.75,.45),new THREE.MeshStandardMaterial({color:0x2869d8,roughness:.6}));
+pack.position.set(0,1.35,.58); player.add(body,cap,pack); scene.add(player);
+player.position.set(0,0,13);
+
+const stars=[], starGeo=new THREE.OctahedronGeometry(.62,0);
+const starMat=new THREE.MeshStandardMaterial({color:0xffe34c,emissive:0xff9b17,emissiveIntensity:2.2,roughness:.22});
+[[8,4.2,-8],[17,7.2,-15],[-14,6.4,-17],[-24,9,-26],[0,6.5,-31],[24,5.2,18],[-22,3.6,20],[0,.9,-5]].forEach((p,i)=>{
+  const s=new THREE.Mesh(starGeo,starMat.clone()); s.position.set(...p); s.userData.phase=i*.8; scene.add(s); stars.push(s);
+});
+
+const keys=new Set(); let camYaw=0,camPitch=.34,camDist=8.8;
+let vy=0,onGround=false, collected=0, toastTimer=0;
+const velocity=new THREE.Vector3(), desired=new THREE.Vector3(), forward=new THREE.Vector3(), right=new THREE.Vector3();
+const starsEl=document.getElementById('stars'), speedEl=document.getElementById('speed'), toast=document.getElementById('toast');
+function say(t){toast.textContent=t;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),1100)}
+function groundHeightAt(x,z){
+  let h=0;
+  for(const p of platforms) if(Math.abs(x-p.mesh.position.x)<=p.hx+.45 && Math.abs(z-p.mesh.position.z)<=p.hz+.45) h=Math.max(h,p.top);
+  return h;
+}
+addEventListener('keydown',e=>{
+  keys.add(e.code);
+  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+  if(e.code==='Space'&&onGround){vy=9.8;onGround=false;}
+});
+addEventListener('keyup',e=>keys.delete(e.code));
+canvas.addEventListener('pointerdown',()=>canvas.requestPointerLock?.());
+document.addEventListener('mousemove',e=>{
+  if(document.pointerLockElement!==canvas)return;
+  camYaw-=e.movementX*.0024; camPitch=THREE.MathUtils.clamp(camPitch-e.movementY*.0019,-.1,.9);
+});
+canvas.addEventListener('wheel',e=>{camDist=THREE.MathUtils.clamp(camDist+Math.sign(e.deltaY)*.65,4.4,13.5)},{passive:true});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+
+const clock=new THREE.Clock();
+function update(){
+  const dt=Math.min(clock.getDelta(),.05), now=performance.now();
+  camYaw += ((keys.has('ArrowLeft')?1:0)-(keys.has('ArrowRight')?1:0))*1.45*dt;
+  camPitch=THREE.MathUtils.clamp(camPitch+((keys.has('ArrowDown')?1:0)-(keys.has('ArrowUp')?1:0))*1.05*dt,-.1,.9);
+
+  forward.set(-Math.sin(camYaw),0,-Math.cos(camYaw)); right.set(Math.cos(camYaw),0,-Math.sin(camYaw));
+  const f=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0), s=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0);
+  desired.set(0,0,0).addScaledVector(forward,f).addScaledVector(right,s);
+  if(desired.lengthSq()>1)desired.normalize();
+  const run=keys.has('ShiftLeft')||keys.has('ShiftRight'), max=run?11:6.8, accel=onGround?16:7;
+  velocity.x=THREE.MathUtils.damp(velocity.x,desired.x*max,accel,dt);
+  velocity.z=THREE.MathUtils.damp(velocity.z,desired.z*max,accel,dt);
+  if(desired.lengthSq()>.01) player.rotation.y=Math.atan2(velocity.x,velocity.z);
+  player.position.x+=velocity.x*dt; player.position.z+=velocity.z*dt;
+
+  vy-=24*dt; player.position.y+=vy*dt;
+  const floor=groundHeightAt(player.position.x,player.position.z);
+  if(player.position.y<=floor){player.position.y=floor;vy=Math.max(0,vy);onGround=true}else onGround=false;
+  const radial=Math.hypot(player.position.x,player.position.z);
+  if(radial>61){player.position.x*=60/radial;player.position.z*=60/radial;velocity.multiplyScalar(.35)}
+
+  stars.forEach(st=>{
+    if(!st.visible)return; st.rotation.y+=dt*1.8; st.position.y+=Math.sin(now*.003+st.userData.phase)*.002;
+    if(st.position.distanceTo(player.position)<1.7){st.visible=false;collected++;starsEl.textContent=collected+'/8';say(collected===8?'All stars! Explore anywhere.':'Star '+collected+'/8');}
+  });
+
+  const target=player.position.clone().add(new THREE.Vector3(0,1.7,0));
+  const offset=new THREE.Vector3(Math.sin(camYaw)*Math.cos(camPitch),Math.sin(camPitch),Math.cos(camYaw)*Math.cos(camPitch)).multiplyScalar(camDist);
+  camera.position.lerp(target.clone().add(offset),1-Math.exp(-8*dt)); camera.lookAt(target);
+  speedEl.textContent=Math.hypot(velocity.x,velocity.z).toFixed(1);
+  renderer.render(scene,camera); requestAnimationFrame(update);
+}
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight,false);renderer.setPixelRatio(Math.min(devicePixelRatio,1.7))});
+say('Explore. Jump. Find the eight stars.'); update();
+</script>
+</body>
+</html>
