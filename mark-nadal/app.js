@@ -146,17 +146,13 @@ async function completeSso() {
   const accessToken = String(login.access_token || '');
   if (!accessToken) throw new Error('Matrix login returned no durable access token.');
 
-  let roomId = KNOWN_ROOM_ID;
-  try {
-    const joined = await matrixJson(`/_matrix/client/v3/join/${encodeURIComponent(ROOM_ALIAS)}`, {
-      method: 'POST',
-      token: accessToken,
-      body: {},
-    });
-    roomId = String(joined.room_id || roomId);
-  } catch (error) {
-    if (error?.status !== 403) throw error;
-  }
+  const joined = await matrixJson(`/_matrix/client/v3/join/${encodeURIComponent(ROOM_ALIAS)}`, {
+    method: 'POST',
+    token: accessToken,
+    body: {},
+  });
+  const roomId = String(joined.room_id || '');
+  if (!roomId) throw new Error('Gitter did not confirm that this account joined the GUN room.');
 
   const durable = JSON.stringify({
     provider: 'matrix',
