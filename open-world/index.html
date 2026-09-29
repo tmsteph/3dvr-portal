@@ -93,14 +93,46 @@ const starMat=new THREE.MeshStandardMaterial({color:0xffe34c,emissive:0xff9b17,e
 });
 
 const keys=new Set(); let camYaw=0,camPitch=.34,camDist=8.8;
-let vy=0,onGround=false, collected=0, toastTimer=0, pointerJet=false, jetFuel=1;
+let vy=0,onGround=false, collected=0, toastTimer=0, pointerJet=false, jetFuel=1, mantle=null;
+const MANTLE_MAX_HEIGHT=3.4;
 const velocity=new THREE.Vector3(), desired=new THREE.Vector3(), forward=new THREE.Vector3(), right=new THREE.Vector3();
 const starsEl=document.getElementById('stars'), speedEl=document.getElementById('speed'), jetEl=document.getElementById('jet'), toast=document.getElementById('toast');
 function say(t){toast.textContent=t;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),1100)}
-function groundHeightAt(x,z){
-  let h=0;
-  for(const p of platforms) if(Math.abs(x-p.mesh.position.x)<=p.hx+.45 && Math.abs(z-p.mesh.position.z)<=p.hz+.45) h=Math.max(h,p.top);
-  return h;
+function platformAt(x,z){
+  let best=null;
+  for(const p of platforms){
+    if(Math.abs(x-p.mesh.position.x)<=p.hx+.45 && Math.abs(z-p.mesh.position.z)<=p.hz+.45 && (!best||p.top>best.top)) best=p;
+  }
+  return best;
+}
+function startMantle(platform,now){
+  const inset=.72, move=desired.lengthSq()>.01?desired.clone().normalize():new THREE.Vector3();
+  const minX=platform.mesh.position.x-platform.hx+inset, maxX=platform.mesh.position.x+platform.hx-inset;
+  const minZ=platform.mesh.position.z-platform.hz+inset, maxZ=platform.mesh.position.z+platform.hz-inset;
+  mantle={
+    startX:player.position.x,startY:player.position.y,startZ:player.position.z,
+    targetX:THREE.MathUtils.clamp(player.position.x+move.x*.8,minX,maxX),
+    targetY:platform.top,
+    targetZ:THREE.MathUtils.clamp(player.position.z+move.z*.8,minZ,maxZ),
+    start:now,
+    duration:300+Math.min(160,Math.max(0,platform.top-player.position.y)*45)
+  };
+  vy=0; velocity.multiplyScalar(.18); onGround=false;
+  jetFlames.forEach(flame=>flame.visible=false);
+}
+function updateMantle(now){
+  if(!mantle)return false;
+  const t=THREE.MathUtils.clamp((now-mantle.start)/mantle.duration,0,1);
+  const ease=t*t*(3-2*t), arc=Math.sin(Math.PI*t)*.28;
+  player.position.x=THREE.MathUtils.lerp(mantle.startX,mantle.targetX,ease);
+  player.position.y=THREE.MathUtils.lerp(mantle.startY,mantle.targetY,ease)+arc;
+  player.position.z=THREE.MathUtils.lerp(mantle.startZ,mantle.targetZ,ease);
+  player.rotation.x=Math.sin(Math.PI*t)*.2;
+  if(t>=1){
+    player.position.set(mantle.targetX,mantle.targetY,mantle.targetZ);
+    player.rotation.x=0; mantle=null; onGround=true; vy=0;
+  }
+  return true;
 }
 function jump(){
   if(!onGround)return;
@@ -133,32 +165,54 @@ function update(){
   camYaw += ((keys.has('ArrowLeft')?1:0)-(keys.has('ArrowRight')?1:0))*1.45*dt;
   camPitch=THREE.MathUtils.clamp(camPitch+((keys.has('ArrowDown')?1:0)-(keys.has('ArrowUp')?1:0))*1.05*dt,-.1,.9);
 
-  forward.set(-Math.sin(camYaw),0,-Math.cos(camYaw)); right.set(Math.cos(camYaw),0,-Math.sin(camYaw));
-  const f=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0), s=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0);
-  desired.set(0,0,0).addScaledVector(forward,f).addScaledVector(right,s);
-  if(desired.lengthSq()>1)desired.normalize();
-  const run=keys.has('ShiftLeft')||keys.has('ShiftRight'), max=run?11:6.8, accel=onGround?16:7;
-  velocity.x=THREE.MathUtils.damp(velocity.x,desired.x*max,accel,dt);
-  velocity.z=THREE.MathUtils.damp(velocity.z,desired.z*max,accel,dt);
-  if(desired.lengthSq()>.01) player.rotation.y=Math.atan2(velocity.x,velocity.z)+Math.PI;
-  player.position.x+=velocity.x*dt; player.position.z+=velocity.z*dt;
+  const mantling=updateMantle(now);
+  if(!mantling){
+    forward.set(-Math.sin(camYaw),0,-Math.cos(camYaw)); right.set(Math.cos(camYaw),0,-Math.sin(camYaw));
+    const f=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0), s=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0);
+    desired.set(0,0,0).addScaledVector(forward,f).addScaledVector(right,s);
+    if(desired.lengthSq()>1)desired.normalize();
+    const run=keys.has('ShiftLeft')||keys.has('ShiftRight'), max=run?11:6.8, accel=onGround?16:7;
+    velocity.x=THREE.MathUtils.damp(velocity.x,desired.x*max,accel,dt);
+    velocity.z=THREE.MathUtils.damp(velocity.z,desired.z*max,accel,dt);
+    if(desired.lengthSq()>.01) player.rotation.y=Math.atan2(velocity.x,velocity.z)+Math.PI;
+    const previousX=player.position.x, previousY=player.position.y, previousZ=player.position.z;
+    player.position.x+=velocity.x*dt; player.position.z+=velocity.z*dt;
 
-  const jetting=!onGround&&(keys.has('Space')||pointerJet)&&jetFuel>0;
-  if(jetting){
-    jetFuel=Math.max(0,jetFuel-.46*dt);
-    vy=Math.min(10.8,vy+34*dt);
-  } else if(onGround) {
-    jetFuel=Math.min(1,jetFuel+.62*dt);
+    const jetting=!onGround&&(keys.has('Space')||pointerJet)&&jetFuel>0;
+    if(jetting){
+      jetFuel=Math.max(0,jetFuel-.46*dt);
+      vy=Math.min(10.8,vy+34*dt);
+    } else if(onGround) {
+      jetFuel=Math.min(1,jetFuel+.62*dt);
+    }
+    jetFlames.forEach((flame,i)=>{
+      flame.visible=jetting;
+      if(jetting) flame.scale.y=.82+Math.sin(now*.032+i*1.9)*.18;
+    });
+    vy-=24*dt; player.position.y+=vy*dt;
+
+    const support=platformAt(player.position.x,player.position.z), floor=support?.top??0;
+    if(player.position.y<=floor){
+      if(support && previousY<floor-.05){
+        const climb=floor-previousY;
+        if(climb<=MANTLE_MAX_HEIGHT && desired.lengthSq()>.01){
+          player.position.y=previousY;
+          startMantle(support,now);
+        }else{
+          player.position.x=previousX; player.position.z=previousZ;
+          velocity.x*=.25; velocity.z*=.25;
+          if(player.position.y<=0){player.position.y=0;vy=Math.max(0,vy);onGround=true}
+        }
+      }else{
+        player.position.y=floor; vy=Math.max(0,vy); onGround=true;
+      }
+    }else onGround=false;
+
+    const radial=Math.hypot(player.position.x,player.position.z);
+    if(radial>61){player.position.x*=60/radial;player.position.z*=60/radial;velocity.multiplyScalar(.35)}
+  }else{
+    jetFlames.forEach(flame=>flame.visible=false);
   }
-  jetFlames.forEach((flame,i)=>{
-    flame.visible=jetting;
-    if(jetting) flame.scale.y=.82+Math.sin(now*.032+i*1.9)*.18;
-  });
-  vy-=24*dt; player.position.y+=vy*dt;
-  const floor=groundHeightAt(player.position.x,player.position.z);
-  if(player.position.y<=floor){player.position.y=floor;vy=Math.max(0,vy);onGround=true}else onGround=false;
-  const radial=Math.hypot(player.position.x,player.position.z);
-  if(radial>61){player.position.x*=60/radial;player.position.z*=60/radial;velocity.multiplyScalar(.35)}
 
   stars.forEach(st=>{
     if(!st.visible)return; st.rotation.y+=dt*1.8; st.position.y+=Math.sin(now*.003+st.userData.phase)*.002;
