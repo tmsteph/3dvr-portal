@@ -74,6 +74,8 @@ const els = {
   gigTitle: document.getElementById('gigTitle'),
   gigStart: document.getElementById('gigStart'),
   gigEnd: document.getElementById('gigEnd'),
+  gigStartTime: document.getElementById('gigStartTime'),
+  gigEndTime: document.getElementById('gigEndTime'),
   gigRole: document.getElementById('gigRole'),
   gigRate: document.getElementById('gigRate'),
   gigVenue: document.getElementById('gigVenue'),
@@ -156,6 +158,15 @@ function prettyDate(value) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+function gigTimeLabel(gig = {}) {
+  const start = String(gig.startTime || '').trim();
+  const end = String(gig.endTime || '').trim();
+  if (start && end) return `${start}–${end}`;
+  if (start) return `Call ${start}`;
+  if (end) return `Wrap ${end}`;
+  return '';
+}
+
 function scheduleRender() {
   clearTimeout(state.renderTimer);
   state.renderTimer = setTimeout(render, 35);
@@ -220,7 +231,7 @@ function renderToday(dashboard) {
       <article class="action-card">
         <div>
           <h3>${safe(gig.title || gig.role || 'Booked gig')}</h3>
-          <p class="due">${safe(prettyDate(gig.startDate))} · ${safe(clientNameForGig(gig, dashboard))}</p>
+          <p class="due">${safe([prettyDate(gig.startDate), gigTimeLabel(gig), clientNameForGig(gig, dashboard)].filter(Boolean).join(' · '))}</p>
           <p>${safe([gig.role, gig.venue, gig.rate].filter(Boolean).join(' · ') || 'Confirm call details before show day.')}</p>
         </div>
         <div class="card-actions">
@@ -354,7 +365,7 @@ function renderGigs(dashboard) {
     <article class="gig-row">
       <div class="gig-date">
         <strong>${safe(prettyDate(gig.startDate))}</strong>
-        <span>${safe(gig.status)}</span>
+        <span>${safe(gigTimeLabel(gig) || gig.status)}</span>
       </div>
       <div>
         <h3>${safe(gig.title || gig.role || 'Freelance gig')}</h3>
@@ -514,6 +525,8 @@ function handleGigSubmit(event) {
     title: els.gigTitle.value.trim(),
     startDate,
     endDate: els.gigEnd.value || startDate,
+    startTime: els.gigStartTime.value,
+    endTime: els.gigEndTime.value,
     role: els.gigRole.value.trim(),
     rate: els.gigRate.value.trim(),
     venue: els.gigVenue.value.trim(),
@@ -530,7 +543,7 @@ function handleGigSubmit(event) {
     'gig',
     id,
     `${record.status} gig: ${record.title}`,
-    [record.clientName, record.role, record.rate, record.venue].filter(Boolean).join(' · '),
+    [record.clientName, gigTimeLabel(record), record.role, record.rate, record.venue].filter(Boolean).join(' · '),
   );
   if (client && ['Booked', 'Completed'].includes(record.status)) {
     crmRecords.get(client.id).put({
