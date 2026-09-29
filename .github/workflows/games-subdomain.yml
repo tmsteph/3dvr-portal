@@ -1,0 +1,110 @@
+name: Games Subdomain
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/3dvr-games/**'
+      - '.github/workflows/games-subdomain.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: games-subdomain
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy games.3dvr.tech
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy through authenticated Hetzner worker
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+
+          write_key() {
+            local raw="$1" dest="$2"
+            [ -n "$raw" ] || return 0
+            printf '%s\n' "$raw" > "$dest.raw"
+            if grep -q 'BEGIN .*PRIVATE KEY' "$dest.raw"; then
+              cp "$dest.raw" "$dest"
+            elif base64 -d "$dest.raw" > "$dest" 2>/dev/null && grep -q 'BEGIN .*PRIVATE KEY' "$dest"; then
+              :
+            else
+              rm -f "$dest" "$dest.raw"
+              return 0
+            fi
+            chmod 600 "$dest"
+            rm -f "$dest.raw"
+          }
+
+          write_key "$SSH_A" /tmp/games-a
+          write_key "$SSH_B" /tmp/games-b
+          write_key "$SSH_C" /tmp/games-c
+
+          connection=''
+          for user in root debian ubuntu tmsteph; do
+            for key in /tmp/games-a /tmp/games-b /tmp/games-c; do
+              [ -f "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@167.233.174.20" \
+                'if command -v vercel >/dev/null 2>&1; then vercel whoami >/dev/null 2>&1; else npx --yes vercel@latest whoami >/dev/null 2>&1; fi' >/dev/null 2>&1; then
+                connection="$user|$key"
+                break 2
+              fi
+            done
+          done
+
+          [ -n "$connection" ] || { echo "::error::No authenticated Vercel worker available."; exit 1; }
+          IFS='|' read -r user key <<< "$connection"
+
+          ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@167.233.174.20" \
+            "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' DEPLOY_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
+          set -euo pipefail
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+          git clone --quiet "https://github.com/$GITHUB_REPOSITORY.git" "$work/repo"
+          git -C "$work/repo" checkout --quiet --detach "$DEPLOY_SHA"
+          cd "$work/repo/deploy/3dvr-games"
+
+          if command -v vercel >/dev/null 2>&1; then
+            vercel_cmd=(vercel)
+          else
+            vercel_cmd=(npx --yes vercel@latest)
+          fi
+
+          if ! "${vercel_cmd[@]}" project inspect 3dvr-games --scope=3dvr >/dev/null 2>&1; then
+            "${vercel_cmd[@]}" project add 3dvr-games --scope=3dvr
+          fi
+
+          "${vercel_cmd[@]}" link --yes --project=3dvr-games --scope=3dvr
+          "${vercel_cmd[@]}" domains add games.3dvr.tech --scope=3dvr --force || \
+            "${vercel_cmd[@]}" domains inspect games.3dvr.tech --scope=3dvr >/dev/null
+          "${vercel_cmd[@]}" deploy --prod --yes --scope=3dvr
+          REMOTE
+
+          rm -f /tmp/games-a /tmp/games-b /tmp/games-c
+
+      - name: Verify games subdomain
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 12); do
+            if curl --fail --silent --show-error --location https://games.3dvr.tech/ | grep -q '3DVR - Game Hub'; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::games.3dvr.tech did not serve the Game Hub."
+          exit 1
