@@ -298,3 +298,20 @@ Undated opportunities remain **unknown** rather than being guessed.
 The inbox may still pursue a soft opportunity, but it does not jump directly from an offer to Booked without schedule review. Apply and Book are also gated on blocked/conflicting dates. Explicit personal commitments remain hard blocks. Planner-selected rest days are not treated as immovable because they can shift, but the two-real-days-off rule remains part of the scheduling model and must be revalidated before booking.
 
 This closes an important simulation failure: “calendar unavailable” no longer conflates a hard commitment, a movable rest day, and distant Encore fallback work.
+
+
+## Source-health distinction — 2026-09-29
+
+The work-source roster now has a connector heartbeat model so the booking agent can distinguish **“checked successfully and found nothing”** from **“the source failed or went stale.”**
+
+Connector-backed sources can record:
+
+- expected check cadence;
+- last check, success, and failure timestamps;
+- last result: opportunities, empty, or error;
+- number of opportunities found;
+- last connector error.
+
+Health is derived as **healthy**, **stale**, **error**, or **not checked**. Manual sources remain manual and do not generate false stale alarms. A successful zero-result scan is explicitly healthy (“Healthy · 0 found”) rather than being treated as missing data.
+
+IATSE Local 122 and Encore/Lighthouse are marked as connector-backed roster sources with the existing three-day reconciliation cadence. Their health will remain “Not checked” until the actual connector runner writes a heartbeat, which is preferable to pretending the integration is healthy.
