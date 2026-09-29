@@ -335,19 +335,78 @@
     return 'work_message';
   }
 
-  function conflictForDates(dates) {
-    const hardDates = new Set([
-      ...state.daysOff.map(item => item.date),
-      ...state.calendarEvents.map(item => item.date),
-    ]);
-    return dates.find(key => hardDates.has(key)) || '';
+  function parseClockMinutes(value = '') {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) return null;
+    const twentyFour = /^(\d{1,2}):(\d{2})$/.exec(raw);
+    if (twentyFour) {
+      const hour = Number(twentyFour[1]);
+      const minute = Number(twentyFour[2]);
+      return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59 ? hour * 60 + minute : null;
+    }
+    const twelve = /^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/.exec(raw);
+    if (!twelve) return null;
+    let hour = Number(twelve[1]);
+    const minute = Number(twelve[2] || 0);
+    if (hour < 1 || hour > 12 || minute < 0 || minute > 59) return null;
+    if (hour === 12) hour = 0;
+    if (twelve[3] === 'pm') hour += 12;
+    return hour * 60 + minute;
+  }
+
+  function calendarEventRange(event, date) {
+    if (!event?.start || !event?.end || /^\d{4}-\d{2}-\d{2}$/.test(event.start)) return null;
+    const start = new Date(event.start);
+    const end = new Date(event.end);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || dateKey(start) !== date) return null;
+    const startMinutes = start.getHours() * 60 + start.getMinutes();
+    let endMinutes = end.getHours() * 60 + end.getMinutes();
+    if (dateKey(end) !== date) endMinutes += 24 * 60;
+    if (endMinutes <= startMinutes) return null;
+    return { start: startMinutes, end: endMinutes };
+  }
+
+  function conflictForSignal(signal = {}) {
+    const dates = Array.isArray(signal.dates) ? signal.dates : [];
+    const protectedDates = new Set(state.daysOff.map(item => item.date));
+    const callStart = parseClockMinutes(signal.callTime);
+    const durationMinutes = Math.max(1, Number(state.rules.dayLength) || 10) * 60;
+
+    for (const date of dates) {
+      if (protectedDates.has(date)) return date;
+      const events = allHardEvents().filter(item => item.date === date);
+      if (!events.length) continue;
+      if (callStart === null) return date;
+
+      const callEnd = callStart + durationMinutes;
+      for (const event of events) {
+        const range = calendarEventRange(event, date);
+        if (!range) return date;
+        if (callStart < range.end && range.start < callEnd) return date;
+      }
+    }
+    return '';
+  }
+
+  function travelDecision(signal = {}) {
+    const distance = Number(signal.distanceMiles);
+    const radius = Number(state.rules.travelRadius);
+    if (!Number.isFinite(distance) || distance < 0 || !Number.isFinite(radius) || radius <= 0) return null;
+    if (distance <= radius) return null;
+    return {
+      code: 'travel',
+      label: `Outside ${radius}-mile travel radius · ${Math.round(distance)} mi`,
+      tone: 'warn',
+    };
   }
 
   function recommendationFor(signal) {
-    const conflict = conflictForDates(signal.dates || []);
+    const conflict = conflictForSignal(signal);
+    const travel = travelDecision(signal);
     const minimum = Number(state.rules.minimumRate) || 0;
     const target = Number(state.rules.targetRate) || minimum;
     if (conflict) return { code: 'unavailable', label: `Unavailable · conflict ${formatShortDate(conflict)}`, tone: 'bad' };
+    if (travel) return travel;
     if (signal.rate && minimum && signal.rate < minimum) return { code: 'decline', label: `Below $${minimum} minimum`, tone: 'bad' };
     if (signal.rate && target && signal.rate < target) return { code: 'negotiate', label: `Negotiate toward $${target}`, tone: 'warn' };
     if (signal.rate && target && signal.rate >= target) return { code: 'good', label: `Rate meets target · $${signal.rate}`, tone: 'good' };
@@ -372,6 +431,9 @@
 
     if (recommendation.code === 'unavailable') {
       return `${prefix} I’m not available${dates ? ` on ${dates}` : ' for that date'}. Please keep me in mind for another call.`;
+    }
+    if (recommendation.code === 'travel') {
+      return `${prefix} I’m interested, but that location is outside my normal ${Number(state.rules.travelRadius) || 0}-mile travel radius. If travel time or expenses are covered, send the details and I can take another look.`;
     }
     if (recommendation.code === 'decline') {
       return `${prefix} My minimum for this type of call is $${minimum}/day for up to ${hours} hours. If the budget can get there, I’d be glad to take another look.`;
@@ -411,6 +473,9 @@
       role: useAi ? String(aiSignal.role || '') : '',
       venue: useAi ? String(aiSignal.venue || '') : '',
       callTime: useAi ? String(aiSignal.callTime || '') : '',
+      distanceMiles: useAi && aiSignal.distanceMiles !== null && aiSignal.distanceMiles !== undefined
+        ? Number(aiSignal.distanceMiles)
+        : null,
       aiConfidence: useAi ? aiConfidence : 0,
       confirmed: false,
       dismissed: false,
@@ -514,6 +579,7 @@
         id: `mail:${signal.id}:${key}`,
         date: key,
         title: signal.subject,
+        callTime: signal.callTime || '',
         source: 'email-confirmed',
       })));
   }
