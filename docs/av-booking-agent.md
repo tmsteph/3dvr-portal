@@ -6,6 +6,26 @@ A focused 3DVR Agent for freelance audiovisual workers.
 
 The first job is not “general AI.” The first job is to remove the repetitive work around finding and organizing freelance calls.
 
+## Important: this is not greenfield
+
+The portal already has most of the required pieces. The AV Booking Agent should be a **composition and integration layer**, not a parallel implementation.
+
+Existing building blocks to reuse:
+
+- `docs/digital-twin-booking-agent.md` — already defines the portable booking-agent architecture, normalized opportunity model, connector strategy, approval model, queue priorities, activity ledger, and multi-user direction.
+- `/work-agent/` + `work-agent/README.md` — already defines the AV-first worker-owned agent, worker profile/rate rules, Google mail/calendar connections, availability normalization, outreach state machine, approval gates, and owner-scoped data shape.
+- `/av-freelance/` — already provides the AV-specific public product surface, worker/company opportunity intake, rate calculator, and links into Job Tracker and Work Agent.
+- `/job-tracker/` — existing application/opportunity/follow-up tracking surface.
+- `/freelance/` — Freelancer Desk, schedule coordinator, workspace, and booking policy.
+- `/freelance/booking.html` — existing booking rules, source roster, rates, login state, and next actions.
+- `docs/workforce-access-runbook.md` — existing Encore/IATSE/Lighthouse availability reconciliation and conflict rules.
+- `/crm/` + agent CRM connectors — existing contact, relationship, activity, and follow-up primitives.
+- `docs/opportunity-kernel.md` + Money Printer — existing scoring, evidence, economics, confidence, risk, and opportunity-learning primitives.
+- `apps/agent/thomas-agent/node/outreach-draft-queue.js` — already contains an AV job-search mode.
+- existing Gmail/Outlook/Calendar/browser/session infrastructure — reuse these connectors rather than adding another messaging or calendar stack.
+
+The immediate engineering task is therefore to make these pieces feel like **one product**.
+
 ## Problem validation
 
 Three immediate signals:
@@ -14,15 +34,17 @@ Three immediate signals:
 2. A coworker is manually searching for videographer jobs while on shift.
 3. Mark Wells has expressed interest in an AI assistant that can organize freelance calls and audiovisual work.
 
-This is enough to justify a narrow MVP before attempting a broad assistant product.
+This is enough to justify tightening the existing AV/booking-agent work into a usable product.
 
 ## Core promise
 
 **Your freelance work, organized automatically.**
 
-The agent should continuously turn scattered job opportunities into a short, useful queue:
+The user-facing loop is:
 
-**Find → Normalize → Score → Organize → Respond → Calendar → Follow up**
+**Find → Normalize → Score → Organize → Respond → Calendar → Follow up → Get paid**
+
+Internally, each step should call existing 3DVR capabilities wherever possible.
 
 ## MVP user
 
@@ -37,59 +59,36 @@ Freelance and mixed-employment AV workers, including:
 - general AV technicians
 - stagehands and related event-production freelancers
 
-## MVP workflow
+## Integration map
 
-### 1. Find
+### Find
 
-Collect opportunities from sources the worker already uses:
+Reuse the Digital Twin connector model, Thomas Agent job-search/outreach code, Gmail/Outlook readers, browser workers, freelance portals, staffing portals, IATSE, public job sources, referrals, and direct-client intake.
 
-- job boards
-- freelance marketplaces
-- union / dispatch calls
-- email
-- text / messaging channels
-- company portals
-- referrals and direct clients
+### Normalize
 
-The system should prefer reusable connectors and browser automation over source-specific one-off scripts.
+Use the normalized opportunity contract already defined by the Digital Twin / Booking Agent. Do not invent a second opportunity schema unless an existing field is genuinely missing.
 
-### 2. Normalize
+### Score
 
-Convert every opportunity into one common record:
-
-- role
-- company / client
-- event
-- date and time
-- location
-- rate
-- estimated hours
-- required skills
-- source
-- response deadline
-- contact
-- status
-- notes
-
-### 3. Score
-
-Score against the worker's profile:
+Compose existing Opportunity Kernel / Money Printer scoring with worker-specific booking factors:
 
 - skill fit
 - availability
-- travel distance
+- travel
 - rate
-- schedule conflicts
-- preferred companies
-- relationship / repeat-client value
-- career value
-- confidence in the extracted information
+- conflict risk
+- relationship value
+- urgency
+- confidence
 
-The score should be explainable, not a black box.
+Keep scores explainable and separately inspectable.
 
-### 4. Organize
+### Organize
 
-Show a very small action queue:
+The Opportunity Inbox becomes the thin shared UI over existing state.
+
+Suggested user-facing states:
 
 - **Act now**
 - **Worth considering**
@@ -97,46 +96,35 @@ Show a very small action queue:
 - **Booked**
 - **Passed**
 
-The default mobile view should answer: “What should I deal with next?”
+Map these onto existing job-tracker / outreach / booking states rather than creating another hidden state machine.
 
-### 5. Respond
+### Respond
 
-Generate the reply, application, or availability response.
+Reuse Work Agent / Thomas Agent drafting, approval, and transport layers.
 
-Autonomy rule:
+Default approval rule remains conservative for known contacts unless the user grants standing permission.
 
-- fresh public leads can be handled with higher automation when the user has enabled it
-- known personal/professional contacts require approval before sending unless the user has explicitly granted a narrower standing permission
+### Calendar / availability
 
-### 6. Calendar
+Reuse Freelancer Desk, Google Calendar, Encore, IATSE, Lighthouse, and workforce reconciliation logic.
 
-Before committing:
+Do not create a separate availability database that can drift from the existing normalized availability blocks.
 
-- check existing work
-- detect overlaps
-- include commute / travel buffer
-- tentatively hold opportunities when useful
-- convert holds to confirmed bookings when accepted
+### Follow up / relationships
 
-### 7. Follow up
+Reuse CRM contact/activity primitives and existing outreach state.
 
-Track:
+### Money
 
-- unanswered applications
-- tentative holds
-- confirmations
-- call sheets / event details
-- payment status
-- invoices
-- repeat-client follow-up
+Reuse existing revenue / invoice / payment primitives where applicable. The booking agent should eventually answer not just “Did I book it?” but “Was I paid?”
 
 ## First pilots
 
 ### Thomas
 
-Use the full workflow against his current AV job search and freelance pipeline.
+Use the real existing AV search and booking infrastructure as the first integrated test environment.
 
-Success metric: the agent surfaces useful work Thomas would otherwise have had to search for manually and keeps the opportunity state current.
+Success metric: the agent surfaces useful work Thomas would otherwise have had to search for manually and keeps the opportunity state current without duplicating records across tools.
 
 ### Mark Wells
 
@@ -150,105 +138,104 @@ Do not contact or enroll Mark without Thomas approving the outreach.
 
 The observed pain is manual videographer-job searching.
 
-Use this as a benchmark: the product should reduce a session of repetitive manual searching to a short ranked feed.
+Use this as a benchmark: the product should reduce a repetitive manual search session to a short ranked feed with clear next actions.
 
 ## UX
 
 Mobile-first.
 
-Home screen should be closer to:
+The default screen should answer:
 
-> 3 good calls need your attention.
-
-than:
-
-> Welcome to your AI-powered audiovisual workforce optimization dashboard.
+> What work needs my attention right now?
 
 Each opportunity should expose:
 
 - role
-- date
+- date/time
 - location
-- money
-- fit
-- conflict
+- rate/value
+- fit reason
+- conflict state
+- source
 - next action
 
-Everything else is secondary.
+Advanced CRM, infrastructure, connector, and queue details stay behind secondary surfaces.
 
-## Architecture
+## Architecture rule
 
-Reuse the existing 3DVR Agent / portal capability layer.
+**Integrate before inventing.**
 
-Suggested primitives:
+Before adding a new model, store, queue, connector, contact record, opportunity record, scoring layer, calendar representation, or workflow state:
 
-- worker profile
-- source connector
-- opportunity
-- availability block
-- application / response
-- booking
-- contact
-- invoice / payment state
-- audit log
+1. search the existing portal/runtime for an equivalent primitive;
+2. extend the canonical primitive if needed;
+3. add an adapter if two legacy shapes need bridging;
+4. create something new only when neither option is sufficient.
 
-Avoid embedding business logic in individual scraping integrations.
-
-Each source should feed the same opportunity schema.
+This AV vertical should become a proof that the broader 3DVR capability platform can be assembled into a coherent product.
 
 ## MVP phases
 
-### Phase 0 — Thomas as test user
+### Phase 0 — Integration audit
 
-- one unified opportunity feed
-- manual + automated opportunity import
-- availability conflict checking
-- simple scoring
-- response drafting
-- status tracking
+- identify canonical opportunity schema
+- identify canonical availability schema
+- map Job Tracker states to Work Agent / booking states
+- identify existing AV discovery sources
+- identify which data currently lives in local storage, GunJS, SQLite, Postgres, or external providers
+- eliminate obvious duplicate representations
 
-### Phase 1 — Useful automation
+### Phase 1 — Unified Opportunity Inbox
+
+- render existing opportunities from canonical sources
+- surface conflicts from existing availability logic
+- surface scoring reasons from existing scoring primitives
+- provide one primary action per opportunity
+- link through to existing response/booking/contact flows
+
+### Phase 2 — Useful automation
 
 - recurring source checks
 - deduplication
 - alerts for high-fit calls
+- response drafting
 - calendar holds
 - follow-up reminders
-- reusable worker profile
+- outcome learning
 
-### Phase 2 — Mark pilot
+### Phase 3 — Mark pilot
 
-- separate user profile
+- separate user/twin profile
 - separate source permissions
 - incoming freelance-call organization
 - mobile-first daily queue
-- feedback on what he would pay for
+- feedback on repeated usefulness and willingness to pay
 
-### Phase 3 — Product
+### Phase 4 — Product
 
 - simple onboarding
-- source connection
-- freelancer profile
-- booking-agent dashboard
-- paid plan / managed service
+- managed connector setup
+- reliable background worker
+- portable/self-hosted path
+- paid managed-service tier
 - AV-company / crew-coordinator features later
 
 ## Business model hypothesis
 
-Start as a managed service, not pure SaaS.
+Start as a managed service around open, portable infrastructure rather than pure SaaS.
 
-Possible early pricing to test:
+Test:
 
-- free / low-cost pilot
-- monthly booking-agent subscription
-- higher tier for active source monitoring and assisted applications
-- optional percentage / fixed fee for directly sourced work only if users clearly prefer that model
+- free/self-hosted core
+- low-cost pilot
+- monthly managed booking-agent subscription
+- higher tier for active monitoring, persistent browser connectors, and assisted applications
 
 Do not optimize pricing before validating repeated usage.
 
 ## Success metrics
 
-The MVP is working when it measurably improves at least one of:
+The integrated product is working when it measurably improves at least one of:
 
 - opportunities found
 - response speed
@@ -256,28 +243,17 @@ The MVP is working when it measurably improves at least one of:
 - hours of manual searching avoided
 - missed calls prevented
 - schedule conflicts prevented
+- duplicate admin eliminated
 - money collected faster
 
-The strongest metric is **additional booked work per user**.
+The strongest metric is **additional booked work per user with less administrative effort**.
 
 ## Immediate build target
 
-Build one screen in the portal that can represent the entire loop:
+Do **not** build a new standalone booking-agent backend.
 
-**Opportunity Inbox**
+Build or refine the **Opportunity Inbox** as a unified view over the existing Work Agent, Job Tracker, booking/availability, CRM, and Opportunity Kernel primitives.
 
-Each row/card:
+The first technical milestone is not “new feature count.” It is:
 
-- job
-- date/time
-- location
-- rate
-- match score + reason
-- conflict state
-- source
-- status
-- primary action
-
-Do not start by building a large CRM.
-
-The opportunity inbox is the product wedge.
+> One real AV opportunity can enter through an existing source, appear once in the Opportunity Inbox, show the correct availability/conflict and fit information, move through response/booking state, and remain traceable back to its source and activity history.
