@@ -175,6 +175,18 @@ test('developer proof is stripped from the model-visible portal snapshot', () =>
   assert.equal(instruction.includes('"crm"'), true);
 });
 
+test('operator normalizer allows the Digital Twin management app', () => {
+  const result = normalizeOperatorResult({
+    action: {
+      type: 'open_app',
+      url: '/digital-twin/',
+    },
+  });
+
+  assert.equal(result.action.type, 'open_app');
+  assert.equal(result.action.url, '/digital-twin/');
+});
+
 test('operator normalizer accepts forge actions and constrains repo aliases', () => {
   const valid = normalizeOperatorResult({
     reply: 'I can make that edit.',
