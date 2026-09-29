@@ -23,6 +23,9 @@ const LOOKBACK_HOURS = Math.max(1, parseInteger(process.env.THREEDVR_FREE_SITE_L
 const MAX_PER_RUN = Math.max(1, parseInteger(process.env.THREEDVR_FREE_SITE_MAX_PER_RUN, 3));
 const VERIFY_ATTEMPTS = Math.max(1, parseInteger(process.env.THREEDVR_FREE_SITE_VERIFY_ATTEMPTS, 36));
 const VERIFY_DELAY_MS = Math.max(1000, parseInteger(process.env.THREEDVR_FREE_SITE_VERIFY_DELAY_MS, 5000));
+const VERCEL_TOKEN = String(process.env.VERCEL_TOKEN || '').trim();
+const VERCEL_ORG_ID = String(process.env.THREEDVR_FREE_SITE_VERCEL_ORG_ID || 'team_xxJGO7S7h1ZP4BHidYV0CX9Z').trim();
+const VERCEL_PROJECT_ID = String(process.env.THREEDVR_FREE_SITE_VERCEL_PROJECT_ID || 'prj_zDwTJEFSq8X16qyXULAJLW4mCawr').trim();
 
 function parseInteger(value, fallback) {
   const parsed = Number.parseInt(String(value || ''), 10);
@@ -203,7 +206,7 @@ function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: options.cwd,
     encoding: 'utf8',
-    env: process.env,
+    env: options.env || process.env,
     maxBuffer: 4 * 1024 * 1024,
   });
   if (result.status !== 0) {
@@ -232,6 +235,30 @@ function mergePullRequest(prUrl, cwd) {
     sleepSync(2000);
   }
   throw new Error(`Free-site PR did not become mergeable: ${prUrl}`);
+}
+
+function deployWebProduction(webDir) {
+  if (!VERCEL_TOKEN) {
+    console.log('[free-site-worker] Vercel token unavailable; waiting for external 3dvr-web deployment.');
+    return { skipped: true };
+  }
+
+  const env = {
+    ...process.env,
+    VERCEL_ORG_ID,
+    VERCEL_PROJECT_ID,
+  };
+  const vercel = ['--yes', 'vercel@latest'];
+
+  run('npx', [...vercel, 'pull', '--yes', '--environment=production', '--token', VERCEL_TOKEN], { cwd: webDir, env });
+  run('npx', [...vercel, 'build', '--prod', '--token', VERCEL_TOKEN], { cwd: webDir, env });
+  const deploymentUrl = run(
+    'npx',
+    [...vercel, 'deploy', '--prebuilt', '--prod', '--yes', '--token', VERCEL_TOKEN],
+    { cwd: webDir, env }
+  );
+  console.log(`[free-site-worker] deployed 3dvr-web production: ${deploymentUrl}`);
+  return { deployed: true, deploymentUrl };
 }
 
 function buildFallbackHtml({ title, body, contactEmail }) {
@@ -390,13 +417,14 @@ async function processRequest({ request, state, mailAuth }) {
   }
   if (existingState?.status === 'publishing' && existingState.siteUrl) {
     if (!(await verifyLive(existingState.siteUrl))) {
-      if (existingState.prUrl) {
-        const { tempRoot, webDir } = cloneWebRepo();
-        try {
+      const { tempRoot, webDir } = cloneWebRepo();
+      try {
+        if (existingState.prUrl) {
           mergePullRequest(existingState.prUrl, webDir);
-        } finally {
-          fs.rmSync(tempRoot, { recursive: true, force: true });
         }
+        deployWebProduction(webDir);
+      } finally {
+        fs.rmSync(tempRoot, { recursive: true, force: true });
       }
       if (!(await verifyLive(existingState.siteUrl))) return { pending: true, siteUrl: existingState.siteUrl };
     }
@@ -421,6 +449,7 @@ async function processRequest({ request, state, mailAuth }) {
           handledAt: new Date().toISOString(),
         };
         saveState(state);
+        deployWebProduction(webDir);
         return completeExisting({ state, key, mailAuth, request, siteUrl: `${PUBLIC_BASE}/${slug}/` });
       }
       slug = `${slug}-${shortHash(`${request.from}:${key}`)}`;
@@ -456,6 +485,7 @@ async function processRequest({ request, state, mailAuth }) {
     saveState(state);
 
     mergePullRequest(prUrl, webDir);
+    deployWebProduction(webDir);
 
     if (!(await verifyLive(siteUrl))) {
       console.log(`[free-site-worker] published pending: ${siteUrl}`);
