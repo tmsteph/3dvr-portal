@@ -112,26 +112,31 @@ test('Prism Wing S decelerates and brakes', { timeout: 45_000 }, async () => {
 test('Prism Wing A/D strafe and R/Ctrl control vertical position', { timeout: 45_000 }, async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
-    const page = await openWing(browser);
-    const start = await state(page);
+    const strafePage = await openWing(browser);
+    const strafeStart = await state(strafePage);
+    await strafePage.keyboard.down('KeyD');
+    await strafePage.waitForTimeout(750);
+    await strafePage.keyboard.up('KeyD');
+    const strafed = await state(strafePage);
+    assert.ok(Math.abs(strafed.position.x-strafeStart.position.x) > .45, 'D should move the ship sideways');
+    await strafePage.close();
 
-    await page.keyboard.down('KeyD');
-    await page.waitForTimeout(750);
-    await page.keyboard.up('KeyD');
-    const strafed = await state(page);
-    assert.ok(Math.abs(strafed.position.x-start.position.x) > .45, 'D should move the ship sideways');
+    const risePage = await openWing(browser);
+    const riseStart = await state(risePage);
+    await risePage.keyboard.down('KeyR');
+    await risePage.waitForTimeout(700);
+    await risePage.keyboard.up('KeyR');
+    const risen = await state(risePage);
+    assert.ok(risen.position.y-riseStart.position.y > .35, 'R should move the ship upward');
+    await risePage.close();
 
-    await page.keyboard.down('KeyR');
-    await page.waitForTimeout(700);
-    await page.keyboard.up('KeyR');
-    const risen = await state(page);
-    assert.ok(risen.position.y-strafed.position.y > .35, 'R should move the ship upward');
-
-    await page.keyboard.down('ControlLeft');
-    await page.waitForTimeout(700);
-    await page.keyboard.up('ControlLeft');
-    const lowered = await state(page);
-    assert.ok(lowered.position.y < risen.position.y-.25, 'Ctrl should move the ship downward');
+    const downPage = await openWing(browser);
+    const downStart = await state(downPage);
+    await downPage.keyboard.down('Control');
+    await downPage.waitForTimeout(700);
+    await downPage.keyboard.up('Control');
+    const lowered = await state(downPage);
+    assert.ok(lowered.position.y < downStart.position.y-.35, 'Ctrl should move the ship downward');
   } finally {
     await browser.close();
   }
