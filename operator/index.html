@@ -33,6 +33,7 @@
       <div class="header-actions">
         <a class="workboard-link" href="/plan/">Plan</a>
         <button id="show-history" type="button" aria-label="Past conversations" aria-expanded="false" aria-controls="conversation-history">History</button>
+        <button id="show-tree" type="button" aria-label="Conversation tree" aria-expanded="false" aria-controls="conversation-tree">Tree</button>
         <button id="clear-chat" type="button" aria-label="New conversation" title="New conversation">＋</button>
       </div>
     </header>
@@ -45,6 +46,11 @@
       <small id="operator-sync" role="status">Checking history…</small>
       <p id="history-empty">Loading conversations…</p>
       <nav id="history-list" aria-label="Saved conversations"></nav>
+    </aside>
+    <aside id="conversation-tree" hidden aria-label="Conversation tree">
+      <div><div><small>Current conversation</small><h2>Branches</h2></div><button id="close-tree" type="button" aria-label="Close conversation tree">×</button></div>
+      <p>Pick any point to revisit it, then continue or branch from there.</p>
+      <nav id="conversation-tree-list" aria-label="Conversation branch tree"></nav>
     </aside>
     <section id="operator-log" aria-live="polite" aria-relevant="additions"></section>
     <button id="operator-latest" type="button" hidden aria-label="Jump to the latest message">↓ Latest message</button>
