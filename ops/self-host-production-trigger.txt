@@ -8,3 +8,4 @@ release digital twin and av source health 2026-09-29T14:50-07:00
 2026-09-29 prism-racer-driving-feel PR #2923
 2026-09-30 operator-conversation-branches PR #2934 + hardening PR #2935
 2026-09-30 operator cross-device sync + self-host verification
+2026-09-30 deploy Operator Gun session restore for cross-device verification
