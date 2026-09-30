@@ -1,3 +1,5 @@
+import { ensureConversationTree } from './conversation-tree.js';
+
 const SYNC_NODE='operator-v01';
 
 const delay=(windowObj,ms)=>new Promise(resolve=>windowObj.setTimeout(resolve,ms));
@@ -7,11 +9,30 @@ const timestamp=value=>Number.isFinite(Date.parse(value||''))?Date.parse(value):
 
 export function mergeOperatorStores(localStore={},remoteStore={}){
   const byId=new Map();
-  for(const conversation of [...(remoteStore.conversations||[]),...(localStore.conversations||[])]){
-    if(!conversation?.id||!Array.isArray(conversation.messages))continue;
-    const current=byId.get(conversation.id);
-    if(!current||timestamp(conversation.updatedAt)>=timestamp(current.updatedAt))byId.set(conversation.id,conversation);
-  }
+  const mergeConversation=(incoming)=>{
+    if(!incoming?.id||!Array.isArray(incoming.messages))return;
+    ensureConversationTree(incoming);
+    const current=byId.get(incoming.id);
+    if(!current){byId.set(incoming.id,incoming);return}
+    ensureConversationTree(current);
+    const incomingIsNewer=timestamp(incoming.updatedAt)>=timestamp(current.updatedAt);
+    const nodeMap=new Map(current.messages.map(node=>[node.id,node]));
+    for(const node of incoming.messages){
+      const existing=nodeMap.get(node.id);
+      if(!existing||incomingIsNewer)nodeMap.set(node.id,node);
+    }
+    const preferred=incomingIsNewer?incoming:current;
+    byId.set(incoming.id,{
+      ...current,
+      ...incoming,
+      createdAt:current.createdAt||incoming.createdAt,
+      updatedAt:timestamp(incoming.updatedAt)>=timestamp(current.updatedAt)?incoming.updatedAt:current.updatedAt,
+      activeLeafId:preferred.activeLeafId,
+      messages:[...nodeMap.values()].sort((a,b)=>(a.order??0)-(b.order??0))
+    });
+  };
+  for(const conversation of remoteStore.conversations||[])mergeConversation(structuredClone(conversation));
+  for(const conversation of localStore.conversations||[])mergeConversation(structuredClone(conversation));
   const requestedActive=localStore.activeId||remoteStore.activeId;
   const localActiveId=localStore.activeId||'';
   let conversations=[...byId.values()]
