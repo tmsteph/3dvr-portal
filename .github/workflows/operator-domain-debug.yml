@@ -1,0 +1,19 @@
+name: Debug Operator HTTPS
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/operator-domain-debug.yml']
+permissions: {contents: read}
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve key
+        env: { RAW_KEY: "${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}" }
+        run: |
+          umask 077; printf '%s\n' "$RAW_KEY" >/tmp/key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/key.raw; then cp /tmp/key.raw /tmp/key; else base64 -d /tmp/key.raw >/tmp/key; fi
+          chmod 600 /tmp/key
+      - name: Inspect Caddy TLS
+        run: |
+          ssh -i /tmp/key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new debian@40.160.137.41 'sudo systemctl status caddy --no-pager; sudo journalctl -u caddy -n 80 --no-pager; sudo ss -ltnp | grep -E ":(80|443)[[:space:]]"; curl -vk --resolve operator.3dvr.tech:443:127.0.0.1 https://operator.3dvr.tech/operator/ -o /dev/null'
