@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
   <title>3DVR Operator</title>
   <meta name="theme-color" content="#07101c">
+  <script>
+    if (location.hostname === 'operator.3dvr.tech') {
+      const target = new URL('/operator/', 'https://portal.3dvr.tech');
+      target.search = location.search;
+      target.hash = location.hash;
+      location.replace(target.toString());
+    }
+  </script>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="mobile-header-fix.css">
   <link rel="stylesheet" href="app-search.css">
