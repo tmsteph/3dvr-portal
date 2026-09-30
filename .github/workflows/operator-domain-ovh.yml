@@ -63,19 +63,7 @@ jobs:
 
           operator.3dvr.tech {
             encode zstd gzip
-            @operator_assets path /styles.css /mobile-header-fix.css /app-search.css /focus.css /app.js /app-search.js /live-awareness.js /secrets.js /teach-handoff.js
-            handle @operator_assets {
-              rewrite * /operator{uri}
-              reverse_proxy 127.0.0.1:4320
-            }
-            @operator_root path /
-            handle @operator_root {
-              rewrite * /operator/
-              reverse_proxy 127.0.0.1:4320
-            }
-            handle {
-              reverse_proxy 127.0.0.1:4320
-            }
+            redir https://portal.3dvr.tech/operator{uri} 302
           }
           CADDY
           sudo caddy validate --config /etc/caddy/Caddyfile
@@ -86,9 +74,9 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error --max-time 15 \
+            if test "$(curl --silent --show-error --output /dev/null --write-out '%{redirect_url}' \
               --resolve "operator.3dvr.tech:443:$OVH_HOST" \
-              https://operator.3dvr.tech/ | grep -Fq '<title>3DVR Operator</title>'; then
+              https://operator.3dvr.tech/)" = "https://portal.3dvr.tech/operator/"; then
               curl --fail --silent --show-error --max-time 15 \
                 --resolve "operator.3dvr.tech:443:$OVH_HOST" \
                 https://operator.3dvr.tech/__3dvr-health
@@ -101,11 +89,8 @@ jobs:
       - name: Verify public Operator
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --max-time 15 https://operator.3dvr.tech/ \
-            | grep -F '<title>3DVR Operator</title>'
-          test "$(curl --silent --show-error --output /dev/null --write-out '%{url_effective}' https://operator.3dvr.tech/)" = "https://operator.3dvr.tech/"
-          test "$(curl --fail --silent --show-error --output /dev/null --write-out '%{http_code}' https://operator.3dvr.tech/styles.css)" = "200"
-          test "$(curl --fail --silent --show-error --output /dev/null --write-out '%{http_code}' https://operator.3dvr.tech/app.js)" = "200"
+          test "$(curl --silent --show-error --output /dev/null --write-out '%{redirect_url}' https://operator.3dvr.tech/)" = "https://portal.3dvr.tech/operator/"
+          curl --fail --silent --show-error --max-time 15 https://portal.3dvr.tech/operator/ | grep -F '<title>3DVR Operator</title>'
 
       - name: Remove SSH key
         if: always()
