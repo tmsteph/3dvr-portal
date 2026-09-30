@@ -114,6 +114,9 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(js, /campaignCrmBridge\.recordSend/);
   assert.match(js, /campaignCrmBridge\?\.recordInboxEvent/);
   assert.match(js, /syncCampaignInbox/);
+  assert.match(js, /inferCampaignProfileFromInbox/);
+  assert.match(js, /autoStartLeadDiscoveryFromInbox/);
+  assert.match(js, /inferBusinessProfile:\s*true/);
   assert.match(js, /action=listmail/);
   assert.match(js, /Gmail · send \+ watch/);
   assert.match(js, /CRM · synced/);
