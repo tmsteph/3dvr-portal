@@ -67,8 +67,14 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(html, /Import CSV/);
   assert.match(html, /Suppression list/);
   assert.match(html, /Send test to myself/);
-  assert.match(html, /REPLY-FIRST OUTREACH/);
-  assert.match(html, /Start a conversation/);
+  assert.match(html, /STEP 1/);
+  assert.match(html, /Connect Gmail/);
+  assert.match(html, /STEP 2 · REPLY-FIRST OUTREACH/);
+  assert.match(html, /Find customers/);
+  assert.ok(
+    html.indexOf('class="card connection-card"') < html.indexOf('class="card discover-card"'),
+    'Gmail connection should be the first Campaigns onboarding step'
+  );
   assert.doesNotMatch(html, /Nothing is required/);
   assert.doesNotMatch(html, /Review the evidence/);
   assert.doesNotMatch(html, /Contact &amp; follow up/);
