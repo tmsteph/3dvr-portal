@@ -30,9 +30,9 @@ export function installOperatorAttachments({ form, input, onStatus } = {}) {
   const attach = document.createElement('button');
   attach.type = 'button';
   attach.className = 'operator-attach';
-  attach.textContent = '＋';
-  attach.setAttribute('aria-label', 'Attach screenshot');
-  attach.setAttribute('title', 'Attach screenshot');
+  attach.textContent = '📎';
+  attach.setAttribute('aria-label', 'Attach image');
+  attach.setAttribute('title', 'Attach image');
 
   const tray = document.createElement('div');
   tray.className = 'operator-attachment-tray';
