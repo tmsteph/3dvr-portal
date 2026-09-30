@@ -281,6 +281,29 @@ jobs:
             exit 1
           fi
 
+      - name: Install Playwright for Operator acceptance
+        if: steps.deploy.outcome == 'success' && steps.verify.outcome == 'success'
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run Operator production acceptance
+        if: steps.deploy.outcome == 'success' && steps.verify.outcome == 'success'
+        env:
+          PORTAL_E2E_URL: https://portal.3dvr.tech
+          PORTAL_E2E_MODE: bootstrap
+          PORTAL_E2E_ALIAS: ${{ secrets.PORTAL_E2E_ALIAS }}
+          PORTAL_E2E_PASSWORD: ${{ secrets.PORTAL_E2E_PASSWORD }}
+        run: node scripts/operator-portal-e2e.mjs
+
+      - name: Upload Operator acceptance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: operator-self-host-production-e2e
+          path: e2e-artifacts
+          if-no-files-found: ignore
+
       - name: Publish Organism bridge pointer
         if: steps.deploy.outcome == 'success' && steps.verify.outcome == 'success'
         shell: bash
