@@ -48,14 +48,33 @@ jobs:
           PREVIEW_BRANCH: preview-pr-${{ github.event.pull_request.number }}
         run: git push --force origin "HEAD:refs/heads/${PREVIEW_BRANCH}"
 
-      - name: Publish preview URL
+      - name: Deploy preview explicitly
+        id: deploy
         env:
-          PREVIEW_URL: https://3dvr-portal-git-preview-pr-${{ github.event.pull_request.number }}-tmstephs-projects.vercel.app
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_xxJGO7S7h1ZP4BHidYV0CX9Z
+          VERCEL_PROJECT_ID: prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch
+        shell: bash
         run: |
+          set -euo pipefail
+          [ -n "$VERCEL_TOKEN" ] || { echo "::error::VERCEL_TOKEN is required because automatic Vercel Git deployments are disabled."; exit 1; }
+          npm install --global vercel
+          vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+          vercel build --token="$VERCEL_TOKEN"
+          preview_url="$(vercel deploy --prebuilt --yes --token="$VERCEL_TOKEN")"
+          echo "url=$preview_url" >> "$GITHUB_OUTPUT"
+
+      - name: Verify and publish preview URL
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 6 --retry-delay 3 "$PREVIEW_URL/campaigns/" >/tmp/campaigns-preview.html
+          grep -q 'Connect Gmail' /tmp/campaigns-preview.html
           echo "### Vercel preview" >> "$GITHUB_STEP_SUMMARY"
-          echo "$PREVIEW_URL" >> "$GITHUB_STEP_SUMMARY"
-          echo "This URL updates automatically while the \`vercel-preview\` label is present." >> "$GITHUB_STEP_SUMMARY"
-          echo "::notice title=Vercel preview::$PREVIEW_URL"
+          echo "$PREVIEW_URL/campaigns/" >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Verified Campaigns preview::$PREVIEW_URL/campaigns/"
 
   cleanup-preview-branch:
     name: Remove preview branch
