@@ -33,7 +33,9 @@ jobs:
           ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
           echo '=== operator DNS ==='
-          npx --yes vercel@59.11.7 dns ls 3dvr.tech --scope 3dvr | grep -i operator || true
+          npx --yes vercel@59.11.7 dns ls 3dvr.tech --scope 3dvr || true
+          echo '=== operator DNS page 2 ==='
+          npx --yes vercel@59.11.7 dns ls 3dvr.tech --scope 3dvr --next 1749600258460 || true
           echo '=== Caddy ==='
           sudo cat /etc/caddy/Caddyfile
           echo '=== Operator local ==='
