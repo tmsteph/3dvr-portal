@@ -9,13 +9,16 @@ const timestamp=value=>Number.isFinite(Date.parse(value||''))?Date.parse(value):
 
 export function mergeOperatorStores(localStore={},remoteStore={}){
   const byId=new Map();
-  const mergeConversation=(incoming)=>{
+  const isTree=conversation=>conversation.messages.every(node=>node?.id&&Object.prototype.hasOwnProperty.call(node,'parentId'));
+  const mergeConversation=incoming=>{
     if(!incoming?.id||!Array.isArray(incoming.messages))return;
-    ensureConversationTree(incoming);
     const current=byId.get(incoming.id);
     if(!current){byId.set(incoming.id,incoming);return}
-    ensureConversationTree(current);
     const incomingIsNewer=timestamp(incoming.updatedAt)>=timestamp(current.updatedAt);
+    if(!isTree(current)||!isTree(incoming)){
+      byId.set(incoming.id,incomingIsNewer?incoming:current);
+      return;
+    }
     const nodeMap=new Map(current.messages.map(node=>[node.id,node]));
     for(const node of incoming.messages){
       const existing=nodeMap.get(node.id);
@@ -26,13 +29,14 @@ export function mergeOperatorStores(localStore={},remoteStore={}){
       ...current,
       ...incoming,
       createdAt:current.createdAt||incoming.createdAt,
-      updatedAt:timestamp(incoming.updatedAt)>=timestamp(current.updatedAt)?incoming.updatedAt:current.updatedAt,
+      updatedAt:incomingIsNewer?incoming.updatedAt:current.updatedAt,
       activeLeafId:preferred.activeLeafId,
       messages:[...nodeMap.values()].sort((a,b)=>(a.order??0)-(b.order??0))
     });
   };
   for(const conversation of remoteStore.conversations||[])mergeConversation(structuredClone(conversation));
   for(const conversation of localStore.conversations||[])mergeConversation(structuredClone(conversation));
+  for(const conversation of byId.values())ensureConversationTree(conversation);
   const requestedActive=localStore.activeId||remoteStore.activeId;
   const localActiveId=localStore.activeId||'';
   let conversations=[...byId.values()]
