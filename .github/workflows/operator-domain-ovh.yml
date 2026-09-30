@@ -63,9 +63,15 @@ jobs:
 
           operator.3dvr.tech {
             encode zstd gzip
-            @operator_root path /
-            rewrite @operator_root /operator/
-            reverse_proxy 127.0.0.1:4320
+            handle_path /operator/* {
+              reverse_proxy 127.0.0.1:4320
+            }
+            handle {
+              uri path_regexp ^/(styles\.css|mobile-header-fix\.css|app-search\.css|focus\.css|app\.js|app-search\.js|live-awareness\.js|secrets\.js|teach-handoff\.js)$ /operator/{re.path.1}
+              @operator_root path /
+              rewrite @operator_root /operator/
+              reverse_proxy 127.0.0.1:4320
+            }
           }
           CADDY
           sudo caddy validate --config /etc/caddy/Caddyfile
@@ -94,6 +100,8 @@ jobs:
           curl --fail --silent --show-error --max-time 15 https://operator.3dvr.tech/ \
             | grep -F '<title>3DVR Operator</title>'
           test "$(curl --silent --show-error --output /dev/null --write-out '%{url_effective}' https://operator.3dvr.tech/)" = "https://operator.3dvr.tech/"
+          curl --fail --silent --show-error https://operator.3dvr.tech/styles.css | grep -Fq '.operator'
+          curl --fail --silent --show-error https://operator.3dvr.tech/app.js | grep -Fq 'operator'
 
       - name: Remove SSH key
         if: always()
