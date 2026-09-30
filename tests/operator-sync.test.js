@@ -41,3 +41,17 @@ test('operator account sync encrypts account history before writing it',async()=
   assert.match(written.ciphertext,/Private memory/);
   assert.equal(statuses.at(-1),'Synced to your account');
 });
+
+
+test('operator account sync merges branch nodes created on different devices',()=>{
+  const sharedRoot={id:'root',parentId:null,role:'user',content:'Start',order:0};
+  const sharedReply={id:'reply',parentId:'root',role:'assistant',content:'Answer',order:1};
+  const localBranch={id:'local-branch',parentId:'reply',role:'user',content:'Local path',order:2};
+  const remoteBranch={id:'remote-branch',parentId:'reply',role:'user',content:'Remote path',order:2};
+  const local={activeId:'shared',conversations:[{id:'shared',createdAt:'2026-09-30T10:00:00Z',updatedAt:'2026-09-30T10:02:00Z',activeLeafId:'local-branch',messages:[sharedRoot,sharedReply,localBranch]}]};
+  const remote={activeId:'shared',conversations:[{id:'shared',createdAt:'2026-09-30T10:00:00Z',updatedAt:'2026-09-30T10:01:00Z',activeLeafId:'remote-branch',messages:[sharedRoot,sharedReply,remoteBranch]}]};
+  const merged=mergeOperatorStores(local,remote);
+  const conversation=merged.conversations[0];
+  assert.equal(conversation.activeLeafId,'local-branch');
+  assert.deepEqual(new Set(conversation.messages.map(node=>node.id)),new Set(['root','reply','local-branch','remote-branch']));
+});
