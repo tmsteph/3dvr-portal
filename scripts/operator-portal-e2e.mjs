@@ -88,6 +88,85 @@ async function signInOrCreate() {
   return identity;
 }
 
+
+async function signInFreshPage(targetPage) {
+  const signInUrl = `${baseUrl}/sign-in.html?redirect=${encodeURIComponent('/operator/')}`;
+  await targetPage.goto(signInUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+  await targetPage.locator('#username').fill(alias);
+  await targetPage.locator('#password').fill(password);
+  await targetPage.locator('#auth-submit').click();
+  await targetPage.waitForURL(url => {
+    const path = new URL(url).pathname.replace(/index\.html$/, '');
+    return path === '/operator/' || path === '/operator';
+  }, { timeout: 90_000 });
+  await targetPage.locator('#operator-input').waitFor({ state: 'visible', timeout: 30_000 });
+}
+
+async function runCrossDeviceSyncAcceptance() {
+  await page.waitForFunction(() => {
+    const text = document.querySelector('#operator-sync')?.textContent || '';
+    return /Account sync ready|Synced to your account/.test(text);
+  }, null, { timeout: 15_000 });
+
+  const token = `cross-device-${Date.now()}`;
+  const fixtureId = `e2e-${token}`;
+
+  const saved = await page.evaluate(async ({ token, fixtureId }) => {
+    const prefix = '3dvr.operator.conversations.v2.account.';
+    const key = Object.keys(localStorage).find(item => item.startsWith(prefix));
+    if (!key) throw new Error('Signed-in Operator conversation key was not found.');
+    const store = JSON.parse(localStorage.getItem(key) || '{"activeId":"","conversations":[]}');
+    const updatedAt = new Date().toISOString();
+    store.conversations = Array.isArray(store.conversations) ? store.conversations : [];
+    store.conversations = store.conversations.filter(item => item?.id !== fixtureId);
+    store.conversations.unshift({
+      id: fixtureId,
+      createdAt: updatedAt,
+      updatedAt,
+      messages: [{ role: 'user', content: token }]
+    });
+    store.activeId = fixtureId;
+    localStorage.setItem(key, JSON.stringify(store));
+    const { createOperatorSync } = await import('/operator/sync.js');
+    const sync = createOperatorSync({ windowObj: window });
+    return sync.save(store);
+  }, { token, fixtureId });
+
+  if (!saved) throw new Error('Device A could not save the cross-device sync fixture.');
+  log('E2E_CROSS_DEVICE_WRITTEN', token);
+
+  const secondContext = await browser.newContext({
+    viewport: { width: 412, height: 915 },
+    userAgent: '3DVR-Operator-E2E/1.0 Device-B'
+  });
+  const secondPage = await secondContext.newPage();
+
+  try {
+    await signInFreshPage(secondPage);
+    await secondPage.locator('#show-history').click();
+    await secondPage.waitForFunction(expected => {
+      return [...document.querySelectorAll('#history-list button')]
+        .some(button => button.textContent?.includes(expected));
+    }, token, { timeout: 30_000 });
+    log('E2E_CROSS_DEVICE_PASS', token);
+
+    await secondPage.evaluate(async fixtureId => {
+      const prefix = '3dvr.operator.conversations.v2.account.';
+      const key = Object.keys(localStorage).find(item => item.startsWith(prefix));
+      if (!key) return;
+      const store = JSON.parse(localStorage.getItem(key) || '{"activeId":"","conversations":[]}');
+      store.conversations = (store.conversations || []).filter(item => item?.id !== fixtureId);
+      if (store.activeId === fixtureId) store.activeId = store.conversations[0]?.id || '';
+      localStorage.setItem(key, JSON.stringify(store));
+      const { createOperatorSync } = await import('/operator/sync.js');
+      const sync = createOperatorSync({ windowObj: window });
+      await sync.save(store);
+    }, fixtureId);
+  } finally {
+    await secondContext.close();
+  }
+}
+
 async function assertMobileLayout() {
   const layout = await page.evaluate(() => {
     const form = document.querySelector('#operator-form')?.getBoundingClientRect();
@@ -248,6 +327,7 @@ try {
   }
   await signInOrCreate();
   await saveArtifacts('signed-in-operator');
+  await runCrossDeviceSyncAcceptance();
   await runScreenshotAcceptance();
   if (mode.startsWith('edit')) {
     await runEditAcceptance();
