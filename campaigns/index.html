@@ -28,9 +28,23 @@
       <span class="integration-pill" id="integrationCrm" data-state="pending">CRM · checking</span>
     </section>
 
+    <section class="card connection-card">
+      <div>
+        <p class="step">STEP 1</p>
+        <p class="label">Connect Gmail</p>
+        <strong id="gmailStatus">Not connected</strong>
+        <p class="muted" id="gmailDetail">Connect once so Campaigns can send from your account and watch for replies. Your Gmail account stays yours.</p>
+      </div>
+      <div class="button-row">
+        <button class="button primary" id="connectGmail" type="button">Connect Gmail</button>
+        <button class="button secondary" id="disconnectGmail" type="button" hidden>Disconnect</button>
+      </div>
+    </section>
+
+
     <section class="card discover-card">
-      <p class="step">REPLY-FIRST OUTREACH</p>
-      <h1>Start a conversation</h1>
+      <p class="step">STEP 2 · REPLY-FIRST OUTREACH</p>
+      <h1>Find customers</h1>
       <form id="leadFinderForm" class="finder-form">
         <div class="example-row" aria-label="Example offers">
           <button class="example-chip" type="button" data-lead-example="I build fast websites for local service businesses that need more booked jobs.">Website clients</button>
@@ -57,18 +71,6 @@
       <div id="leadResults" class="lead-results" hidden></div>
       <div class="button-row" id="leadActions" hidden>
         <button class="button primary" id="addLeads" type="button">Prepare one message</button>
-      </div>
-    </section>
-
-    <section class="card connection-card">
-      <div>
-        <p class="label">Gmail</p>
-        <strong id="gmailStatus">Not connected</strong>
-        <p class="muted" id="gmailDetail">Connect only when you’re ready to send. Your Gmail account stays yours.</p>
-      </div>
-      <div class="button-row">
-        <button class="button primary" id="connectGmail" type="button">Connect Gmail</button>
-        <button class="button secondary" id="disconnectGmail" type="button" hidden>Disconnect</button>
       </div>
     </section>
 
