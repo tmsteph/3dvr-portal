@@ -64,7 +64,7 @@ jobs:
           operator.3dvr.tech {
             encode zstd gzip
             @operator_root path /
-            redir @operator_root /operator/ 302
+            rewrite @operator_root /operator/
             reverse_proxy 127.0.0.1:4320
           }
           CADDY
@@ -78,7 +78,7 @@ jobs:
           for attempt in $(seq 1 30); do
             if curl --fail --silent --show-error --max-time 15 \
               --resolve "operator.3dvr.tech:443:$OVH_HOST" \
-              https://operator.3dvr.tech/operator/ | grep -Fq '<title>3DVR Operator</title>'; then
+              https://operator.3dvr.tech/ | grep -Fq '<title>3DVR Operator</title>'; then
               curl --fail --silent --show-error --max-time 15 \
                 --resolve "operator.3dvr.tech:443:$OVH_HOST" \
                 https://operator.3dvr.tech/__3dvr-health
@@ -91,8 +91,9 @@ jobs:
       - name: Verify public Operator
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --max-time 15 https://operator.3dvr.tech/operator/ \
+          curl --fail --silent --show-error --max-time 15 https://operator.3dvr.tech/ \
             | grep -F '<title>3DVR Operator</title>'
+          test "$(curl --silent --show-error --output /dev/null --write-out '%{url_effective}' https://operator.3dvr.tech/)" = "https://operator.3dvr.tech/"
 
       - name: Remove SSH key
         if: always()
