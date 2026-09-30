@@ -61,3 +61,16 @@
 .tree-node span{color:var(--mint);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em}
 .tree-node strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.78rem}
 @media(max-width:600px){.message-branch-tools{gap:.35rem}.message-branch-tools>button{padding:.3rem .45rem}.tree-node{width:calc(100% - min(calc(var(--tree-depth) * .7rem),5rem));margin-left:min(calc(var(--tree-depth) * .7rem),5rem)}}
+
+/* Empty conversations give the Portal room to breathe; it yields to the chat as soon as messages exist. */
+.operator-empty-portal{flex:1;min-height:0;display:grid;place-items:center;pointer-events:none;overflow:hidden;transition:opacity .28s ease,transform .42s cubic-bezier(.2,.8,.2,1)}
+.operator-empty-portal__spinner{position:relative;display:grid;place-items:center;width:clamp(150px,28vw,230px);height:clamp(150px,28vw,230px);border-radius:50%;filter:drop-shadow(0 20px 38px #0009);animation:operator-empty-breathe 5s ease-in-out infinite}
+.operator-empty-portal__canvas{display:block;width:100%;height:100%;border-radius:50%;opacity:0;transition:opacity .3s ease}
+.operator-empty-portal__spinner[data-logo-ready="true"] .operator-empty-portal__canvas{opacity:1}
+.operator-empty-portal__fallback{position:absolute;inset:12%;border:3px solid #d8aa3e;border-radius:50%;background:radial-gradient(circle at 36% 28%,#e0ffff 0 8%,#3ecfd6 20%,#0d7074 50%,#07111f 78%);box-shadow:inset 0 0 0 2px #fff0b052,0 0 42px #22d3ee28;transition:opacity .3s ease}
+.operator-empty-portal__spinner[data-logo-ready="true"] .operator-empty-portal__fallback{opacity:0}
+#operator-log:not(:empty)~.operator-empty-portal{display:none}
+#operator-log:empty~.welcome{flex:0 0 auto;padding:0 1rem 1.2rem}
+@keyframes operator-empty-breathe{0%,100%{transform:scale(.98)}50%{transform:scale(1.035)}}
+@media(max-width:600px){.operator-empty-portal__spinner{width:clamp(132px,42vw,190px);height:clamp(132px,42vw,190px)}#operator-log:empty~.welcome{padding:0 .25rem .7rem}}
+@media(prefers-reduced-motion:reduce){.operator-empty-portal__spinner{animation:none}}
