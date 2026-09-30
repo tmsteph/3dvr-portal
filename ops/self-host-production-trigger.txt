@@ -10,3 +10,4 @@ release digital twin and av source health 2026-09-29T14:50-07:00
 2026-09-30 operator cross-device sync + self-host verification
 2026-09-30 deploy Operator Gun session restore for cross-device verification
 2026-09-30 deploy Operator reliable screenshot vision routing and acceptance cleanup
+2026-09-30 deploy distinct Operator attachment icon
