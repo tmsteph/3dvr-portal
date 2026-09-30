@@ -35,3 +35,11 @@ test('operator uses gateway-qualified GPT-6 model ids when routed through AI Gat
     DEFAULT_OPERATOR_ESCALATION_GATEWAY_MODEL
   );
 });
+
+
+test('operator routes every screenshot turn to GPT-6 Sol for reliable vision', () => {
+  const images = [{ dataUrl: 'data:image/png;base64,a' }];
+  assert.equal(shouldEscalateOperatorPrompt('Read the code in this screenshot.', { images }), true);
+  assert.equal(selectOperatorModel({ prompt: 'Read the code in this screenshot.', images }), DEFAULT_OPERATOR_ESCALATION_MODEL);
+  assert.equal(selectOperatorModel({ prompt: 'What is this?', images, useGateway: true }), DEFAULT_OPERATOR_ESCALATION_GATEWAY_MODEL);
+});
