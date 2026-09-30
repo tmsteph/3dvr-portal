@@ -43,6 +43,7 @@ const STORAGE = {
   discovered: '3dvr.campaigns.discovered-leads',
   inboxProcessed: '3dvr.campaigns.inbox-processed',
   inferredProfile: '3dvr.campaigns.inferred-profile',
+  autoDiscovery: '3dvr.campaigns.auto-discovery',
 };
 const DAILY_CAP = 25;
 const SEND_DELAY_MS = 1600;
@@ -871,9 +872,9 @@ async function inferCampaignProfileFromInbox() {
   return profile;
 }
 
-async function autoStartLeadDiscoveryFromInbox() {
+async function autoStartLeadDiscoveryFromInbox({ force = false } = {}) {
   if (!connectionReady() || !connectionHasGmailReadScope()) return;
-  if (elements.leadDescription.value.trim()) return;
+  if (!force && elements.leadDescription.value.trim()) return;
   try {
     const profile = await inferCampaignProfileFromInbox();
     if (!profile?.description) return;
@@ -888,6 +889,22 @@ async function autoStartLeadDiscoveryFromInbox() {
     console.warn('Automatic Gmail business-profile inference failed', error);
     showLeadNotice('I could not confidently infer the business from Gmail. You can describe what you sell below.', 'error');
   }
+}
+
+function startAutomaticProspectDiscovery() {
+  if (!connectionReady() || !connectionHasGmailReadScope()) return;
+  const state = readJson(STORAGE.autoDiscovery, {});
+  const run = async () => {
+    const latest = readJson(STORAGE.autoDiscovery, {});
+    const lastRunAt = Number(latest.lastRunAt || 0);
+    if (Date.now() - lastRunAt < 24 * 60 * 60 * 1000) return;
+    writeJson(STORAGE.autoDiscovery, { ...latest, lastRunAt: Date.now() });
+    await autoStartLeadDiscoveryFromInbox({ force: true });
+  };
+  run().catch(error => console.warn('Automatic prospect discovery failed', error));
+  window.setInterval(() => {
+    run().catch(error => console.warn('Automatic prospect discovery failed', error));
+  }, 60 * 60 * 1000);
 }
 
 async function syncCampaignInbox() {
@@ -1219,6 +1236,7 @@ recoverSavedConnection();
 initializeLeadVaultAccountSync().finally(() => initializeCampaignHistorySync());
 startCampaignInboxWatch();
 autoStartLeadDiscoveryFromInbox();
+startAutomaticProspectDiscovery();
 window.addEventListener('online', () => {
   if (!leadVaultAccountSync?.available && localStorage.getItem('signedIn') === 'true') {
     initializeLeadVaultAccountSync().finally(() => initializeCampaignHistorySync());
