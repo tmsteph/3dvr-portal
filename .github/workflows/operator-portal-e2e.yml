@@ -1,6 +1,16 @@
 name: Operator portal E2E
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/operator-portal-e2e.yml'
+      - 'ops/operator-e2e-trigger.txt'
+      - 'scripts/operator-portal-e2e.mjs'
+      - 'operator/**'
+      - 'sign-in.html'
+      - 'auth-identity.js'
+      - 'src/operator/**'
   workflow_dispatch:
     inputs:
       mode:
