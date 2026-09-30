@@ -63,6 +63,18 @@ export function createOperatorSync({windowObj=window,onStatus=()=>{}}={}){
       const user=gun.user();
       user.recall?.({sessionStorage:true,localStorage:true});
       for(let attempt=0;attempt<12&&!user.is;attempt+=1)await delay(windowObj,150);
+      if(!user.is?.pub){
+        const alias=windowObj.localStorage?.getItem('alias')?.trim();
+        const password=windowObj.localStorage?.getItem('password')||'';
+        if(alias&&password&&typeof user.auth==='function'){
+          await new Promise(resolve=>{
+            let settled=false;
+            const finish=()=>{if(settled)return;settled=true;resolve()};
+            try{user.auth(alias,password,finish)}catch{finish()}
+            windowObj.setTimeout(finish,5000);
+          });
+        }
+      }
       secret=user?._?.sea||null;
       if(!user.is?.pub||!secret||typeof windowObj.SEA.encrypt!=='function'||typeof windowObj.SEA.decrypt!=='function'){
         onStatus('Saved on this device · Sign in to sync');
