@@ -1,0 +1,44 @@
+name: Inspect Operator DNS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/operator-domain-ovh.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      OVH_HOST: 40.160.137.41
+      OVH_USER: debian
+    steps:
+      - name: Resolve OVH SSH key
+        env:
+          RAW_KEY: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s\n' "$RAW_KEY" > /tmp/key.raw
+          if grep -q 'BEGIN .*PRIVATE KEY' /tmp/key.raw; then cp /tmp/key.raw /tmp/key; else base64 -d /tmp/key.raw > /tmp/key; fi
+          chmod 600 /tmp/key
+      - name: Inspect Operator DNS and OVH route
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          echo '=== operator DNS ==='
+          npx --yes vercel@59.11.7 dns ls 3dvr.tech --scope 3dvr | grep -i operator || true
+          echo '=== Caddy ==='
+          sudo cat /etc/caddy/Caddyfile
+          echo '=== Operator local ==='
+          curl --fail --silent --show-error http://127.0.0.1:4320/operator/ | head -c 300
+          REMOTE
+      - name: Remove SSH key
+        if: always()
+        run: rm -f /tmp/key /tmp/key.raw
