@@ -40,3 +40,24 @@
 .operator-mini-spinner__fallback{position:absolute;inset:5px;border:2px solid #d8aa3e;border-radius:50%;background:radial-gradient(circle at 36% 28%,#e0ffff 0 8%,#3ecfd6 20%,#0d7074 50%,#07111f 78%);box-shadow:inset 0 0 0 2px #fff0b052,0 0 10px #22d3ee18;transition:opacity 180ms ease}
 .operator-mini-spinner[data-logo-ready="true"] .operator-mini-spinner__fallback{opacity:0}
 @media(max-width:600px){.operator-mini-spinner{width:38px;height:38px;flex-basis:38px}.operator-brand{gap:.35rem}}
+
+
+/* Conversation branching */
+.message-branch-tools{display:flex;align-items:center;justify-content:space-between;gap:.55rem;margin-top:.7rem;padding-top:.55rem;border-top:1px solid #22334a88}
+.message-branch-tools>button,.message-branch-tools span button{padding:.34rem .5rem;border-radius:9px;background:#0b1b2b;color:var(--muted);font-size:.7rem}
+.message-branch-tools>button:hover,.message-branch-tools>button:focus-visible,.message-branch-tools span button:hover,.message-branch-tools span button:focus-visible{border-color:var(--mint);color:var(--text);outline:none}
+.message-branch-tools span{display:flex;align-items:center;gap:.28rem}
+.message-branch-tools small{min-width:2.5rem;text-align:center;font-size:.68rem}
+#conversation-tree{position:fixed;z-index:11;inset:0 0 0 auto;width:min(520px,100%);padding:1rem;background:#0a1625;box-shadow:-20px 0 60px #000a;overflow:auto}
+#conversation-tree[hidden]{display:none}
+#conversation-tree>div{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+#conversation-tree h2{margin:.15rem 0 .4rem}
+#conversation-tree>p{color:var(--muted);margin:.2rem 0 1rem}
+#conversation-tree-list{display:grid;gap:.35rem}
+.tree-node{position:relative;display:grid;gap:.12rem;width:calc(100% - min(calc(var(--tree-depth) * 1rem),8rem));margin-left:min(calc(var(--tree-depth) * 1rem),8rem);padding:.65rem .75rem;text-align:left;background:#102238}
+.tree-node::before{content:"";position:absolute;left:-.55rem;top:50%;width:.45rem;border-top:1px solid #35506a}
+.tree-node[data-active-path="true"]{border-color:#4f8e86;background:#112d38}
+.tree-node[aria-current="true"]{border-color:var(--mint);box-shadow:0 0 0 1px #79edcf33}
+.tree-node span{color:var(--mint);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em}
+.tree-node strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.78rem}
+@media(max-width:600px){.message-branch-tools{gap:.35rem}.message-branch-tools>button{padding:.3rem .45rem}.tree-node{width:calc(100% - min(calc(var(--tree-depth) * .7rem),5rem));margin-left:min(calc(var(--tree-depth) * .7rem),5rem)}}
