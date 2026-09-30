@@ -34,11 +34,9 @@ export function shouldEscalateOperatorPrompt(prompt = '', { images = [] } = {}) 
   const connectorCount = (text.match(/\b(?:and|then|also|plus|after that)\b/gi) || []).length;
   const visiblyComplex = OPERATOR_ESCALATION_PATTERN.test(text);
   const directImplementation = OPERATOR_DIRECT_FIX_PATTERN.test(text);
-  const imageDebugging = Array.isArray(images)
-    && images.length > 0
-    && /\b(?:debug|diagnose|inspect|analy[sz]e|fix|broken|error)\b/i.test(text);
+  const hasImages = Array.isArray(images) && images.length > 0;
 
-  return imageDebugging || directImplementation || (visiblyComplex && (text.length >= 280 || connectorCount >= 2));
+  return hasImages || directImplementation || (visiblyComplex && (text.length >= 280 || connectorCount >= 2));
 }
 
 export function selectOperatorModel({ prompt = '', images = [], useGateway = false } = {}) {
