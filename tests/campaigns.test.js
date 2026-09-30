@@ -116,6 +116,8 @@ test('campaign page exposes Gmail OAuth, CSV import, suppression, and test send 
   assert.match(js, /syncCampaignInbox/);
   assert.match(js, /inferCampaignProfileFromInbox/);
   assert.match(js, /autoStartLeadDiscoveryFromInbox/);
+  assert.match(js, /startAutomaticProspectDiscovery/);
+  assert.match(js, /24 \* 60 \* 60 \* 1000/);
   assert.match(js, /inferBusinessProfile:\s*true/);
   assert.match(js, /action=listmail/);
   assert.match(js, /Gmail · send \+ watch/);
