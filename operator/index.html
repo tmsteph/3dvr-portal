@@ -53,6 +53,12 @@
       <nav id="conversation-tree-list" aria-label="Conversation branch tree"></nav>
     </aside>
     <section id="operator-log" aria-live="polite" aria-relevant="additions"></section>
+    <div class="operator-empty-portal" aria-hidden="true">
+      <div class="operator-empty-portal__spinner" data-portal-swirl-logo>
+        <canvas class="operator-empty-portal__canvas" data-portal-swirl-canvas></canvas>
+        <span class="operator-empty-portal__fallback"></span>
+      </div>
+    </div>
     <button id="operator-latest" type="button" hidden aria-label="Jump to the latest message">↓ Latest message</button>
     <section class="welcome" aria-label="Operator shortcuts">
       <div class="quick-prompts" aria-label="Things to try">
