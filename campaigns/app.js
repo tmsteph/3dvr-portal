@@ -891,6 +891,7 @@ async function autoStartLeadDiscoveryFromInbox({ force = false } = {}) {
   }
 }
 
+// Replenish researched prospects while Campaigns is open; a server worker can take over this cadence later.
 function startAutomaticProspectDiscovery() {
   if (!connectionReady() || !connectionHasGmailReadScope()) return;
   const state = readJson(STORAGE.autoDiscovery, {});
