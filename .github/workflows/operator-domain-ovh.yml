@@ -63,13 +63,17 @@ jobs:
 
           operator.3dvr.tech {
             encode zstd gzip
-            handle_path /operator/* {
+            @operator_assets path /styles.css /mobile-header-fix.css /app-search.css /focus.css /app.js /app-search.js /live-awareness.js /secrets.js /teach-handoff.js
+            handle @operator_assets {
+              rewrite * /operator{uri}
+              reverse_proxy 127.0.0.1:4320
+            }
+            @operator_root path /
+            handle @operator_root {
+              rewrite * /operator/
               reverse_proxy 127.0.0.1:4320
             }
             handle {
-              uri path_regexp ^/(styles\.css|mobile-header-fix\.css|app-search\.css|focus\.css|app\.js|app-search\.js|live-awareness\.js|secrets\.js|teach-handoff\.js)$ /operator/{re.path.1}
-              @operator_root path /
-              rewrite @operator_root /operator/
               reverse_proxy 127.0.0.1:4320
             }
           }
@@ -100,8 +104,8 @@ jobs:
           curl --fail --silent --show-error --max-time 15 https://operator.3dvr.tech/ \
             | grep -F '<title>3DVR Operator</title>'
           test "$(curl --silent --show-error --output /dev/null --write-out '%{url_effective}' https://operator.3dvr.tech/)" = "https://operator.3dvr.tech/"
-          curl --fail --silent --show-error https://operator.3dvr.tech/styles.css | grep -Fq '.operator'
-          curl --fail --silent --show-error https://operator.3dvr.tech/app.js | grep -Fq 'operator'
+          test "$(curl --fail --silent --show-error --output /dev/null --write-out '%{http_code}' https://operator.3dvr.tech/styles.css)" = "200"
+          test "$(curl --fail --silent --show-error --output /dev/null --write-out '%{http_code}' https://operator.3dvr.tech/app.js)" = "200"
 
       - name: Remove SSH key
         if: always()
