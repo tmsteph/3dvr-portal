@@ -16,4 +16,4 @@ jobs:
           chmod 600 /tmp/key
       - name: Inspect Caddy TLS
         run: |
-          ssh -i /tmp/key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new debian@40.160.137.41 'sudo ufw status verbose || true; echo ===NFT===; sudo nft list ruleset || true; echo ===IPTABLES===; sudo iptables -S || true; echo ===LISTEN===; sudo ss -ltnp | grep -E ":(80|443)[[:space:]]" || true'
+          ssh -i /tmp/key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new debian@40.160.137.41 'sudo ufw allow 80/tcp; sudo ufw allow 443/tcp; sudo ufw status verbose; sudo systemctl restart caddy; sleep 3; sudo ss -ltnp | grep -E ":(80|443)[[:space:]]"'
