@@ -123,10 +123,11 @@ async function runCrossDeviceSyncAcceptance() {
   const fixtureId = `e2e-${token}`;
 
   const saved = await page.evaluate(async ({ token, fixtureId }) => {
-    const prefix = '3dvr.operator.conversations.v2.account.';
-    const key = Object.keys(localStorage).find(item => item.startsWith(prefix));
-    if (!key) throw new Error('Signed-in Operator conversation key was not found.');
-    const store = JSON.parse(localStorage.getItem(key) || '{"activeId":"","conversations":[]}');
+    const baseKey = '3dvr.operator.conversations.v2';
+    const accountKey = String(localStorage.getItem('userPubKey') || localStorage.getItem('alias') || '').trim().toLowerCase();
+    if (!accountKey) throw new Error('Signed-in Operator account identity was not found.');
+    const key = `${baseKey}.account.${encodeURIComponent(accountKey)}`;
+    const store = JSON.parse(localStorage.getItem(key) || localStorage.getItem(baseKey) || '{"activeId":"","conversations":[]}');
     const updatedAt = new Date().toISOString();
     store.conversations = Array.isArray(store.conversations) ? store.conversations : [];
     store.conversations = store.conversations.filter(item => item?.id !== fixtureId);
@@ -162,10 +163,11 @@ async function runCrossDeviceSyncAcceptance() {
     log('E2E_CROSS_DEVICE_PASS', token);
 
     await secondPage.evaluate(async fixtureId => {
-      const prefix = '3dvr.operator.conversations.v2.account.';
-      const key = Object.keys(localStorage).find(item => item.startsWith(prefix));
-      if (!key) return;
-      const store = JSON.parse(localStorage.getItem(key) || '{"activeId":"","conversations":[]}');
+      const baseKey = '3dvr.operator.conversations.v2';
+      const accountKey = String(localStorage.getItem('userPubKey') || localStorage.getItem('alias') || '').trim().toLowerCase();
+      if (!accountKey) return;
+      const key = `${baseKey}.account.${encodeURIComponent(accountKey)}`;
+      const store = JSON.parse(localStorage.getItem(key) || localStorage.getItem(baseKey) || '{"activeId":"","conversations":[]}');
       store.conversations = (store.conversations || []).filter(item => item?.id !== fixtureId);
       if (store.activeId === fixtureId) store.activeId = store.conversations[0]?.id || '';
       localStorage.setItem(key, JSON.stringify(store));
