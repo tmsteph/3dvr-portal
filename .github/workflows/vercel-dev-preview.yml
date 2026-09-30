@@ -9,7 +9,7 @@ on:
       - reopened
       - closed
 
-# Preview deployments stay opt-in so routine agent/docs/backend PR churn does not
+# Preview deployments stay opt-in and are deployed explicitly because Vercel Git deploys are disabled, so routine agent/docs/backend PR churn does not
 # consume the Vercel Hobby deployment quota. Add the `vercel-preview` label and
 # this workflow mirrors the PR head to preview-pr-<number>. Vercel's normal Git
 # integration deploys only those bridge branches, so no VERCEL_TOKEN is needed.
