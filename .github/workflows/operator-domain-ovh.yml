@@ -1,4 +1,4 @@
-name: Inspect Operator DNS
+name: Publish Operator Domain on OVH
 
 on:
   push:
@@ -9,10 +9,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: operator-domain-ovh
+  cancel-in-progress: false
+
 jobs:
-  inspect:
+  publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     env:
       OVH_HOST: 40.160.137.41
       OVH_USER: debian
@@ -26,21 +30,70 @@ jobs:
           printf '%s\n' "$RAW_KEY" > /tmp/key.raw
           if grep -q 'BEGIN .*PRIVATE KEY' /tmp/key.raw; then cp /tmp/key.raw /tmp/key; else base64 -d /tmp/key.raw > /tmp/key; fi
           chmod 600 /tmp/key
-      - name: Inspect Operator DNS and OVH route
+
+      - name: Add explicit Operator DNS record
+        run: |
+          set -euo pipefail
+          opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
+          ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" \
+            "npx --yes vercel@59.11.7 dns add 3dvr.tech operator A '$OVH_HOST' --scope 3dvr --non-interactive"
+
+      - name: Confirm authoritative DNS
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            answer="$(dig +short @ns1.vercel-dns.com operator.3dvr.tech A | tail -n1 || true)"
+            echo "authoritative operator A: ${answer:-pending}"
+            if [ "$answer" = "$OVH_HOST" ]; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Publish Operator through Caddy
         run: |
           set -euo pipefail
           opts=(-i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
           ssh "${opts[@]}" "$OVH_USER@$OVH_HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
-          echo '=== operator DNS ==='
-          npx --yes vercel@59.11.7 dns ls 3dvr.tech --scope 3dvr || true
-          echo '=== operator DNS page 2 ==='
-          npx --yes vercel@59.11.7 dns ls 3dvr.tech --scope 3dvr --next 1749600258460 || true
-          echo '=== Caddy ==='
-          sudo cat /etc/caddy/Caddyfile
-          echo '=== Operator local ==='
-          curl --fail --silent --show-error http://127.0.0.1:4320/operator/ | head -c 300
+          curl --fail --silent --show-error http://127.0.0.1:4320/operator/ | grep -F '<title>3DVR Operator</title>'
+          sudo tee /etc/caddy/Caddyfile >/dev/null <<'CADDY'
+          http://portal.3dvr.tech {
+            reverse_proxy 127.0.0.1:4320
+          }
+
+          operator.3dvr.tech {
+            encode zstd gzip
+            @operator_root path /
+            redir @operator_root /operator/ 302
+            reverse_proxy 127.0.0.1:4320
+          }
+          CADDY
+          sudo caddy validate --config /etc/caddy/Caddyfile
+          sudo systemctl restart caddy
           REMOTE
+
+      - name: Verify Operator HTTPS on OVH
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error --max-time 15 \
+              --resolve "operator.3dvr.tech:443:$OVH_HOST" \
+              https://operator.3dvr.tech/operator/ | grep -Fq '<title>3DVR Operator</title>'; then
+              curl --fail --silent --show-error --max-time 15 \
+                --resolve "operator.3dvr.tech:443:$OVH_HOST" \
+                https://operator.3dvr.tech/__3dvr-health
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Verify public Operator
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 15 https://operator.3dvr.tech/operator/ \
+            | grep -F '<title>3DVR Operator</title>'
+
       - name: Remove SSH key
         if: always()
         run: rm -f /tmp/key /tmp/key.raw
