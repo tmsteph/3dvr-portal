@@ -42,6 +42,7 @@ const STORAGE = {
   oauth: 'portal.oauth.result',
   discovered: '3dvr.campaigns.discovered-leads',
   inboxProcessed: '3dvr.campaigns.inbox-processed',
+  inferredProfile: '3dvr.campaigns.inferred-profile',
 };
 const DAILY_CAP = 25;
 const SEND_DELAY_MS = 1600;
@@ -835,6 +836,60 @@ async function listCampaignMail(query, limit = 25) {
   return Array.isArray(payload.messages) ? payload.messages : [];
 }
 
+async function inferCampaignProfileFromInbox() {
+  if (!connectionReady() || !connectionHasGmailReadScope()) return null;
+  const cached = readJson(STORAGE.inferredProfile, null);
+  if (cached?.description && Date.now() - Number(cached.at || 0) < 7 * 24 * 60 * 60 * 1000) {
+    return cached;
+  }
+
+  showLeadNotice('Learning what this business does from recent Gmail…');
+  const messages = await listCampaignMail('newer_than:180d', 50);
+  const mailboxContext = messages.slice(0, 50).map(message => ({
+    from: String(message.from || '').slice(0, 240),
+    to: String(message.to || '').slice(0, 240),
+    subject: String(message.subject || '').slice(0, 300),
+    snippet: String(message.snippet || message.text || '').replace(/\s+/g, ' ').slice(0, 700)
+  }));
+
+  if (!mailboxContext.length) return null;
+  const { response, payload } = await fetchPortalJson('/api/openai-site?provider=lead-finder', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      leadFinder: true,
+      inferBusinessProfile: true,
+      mailboxContext
+    })
+  });
+  if (!response.ok || !payload.ok || !payload.profile?.description) {
+    throw new Error(payload.error || 'Could not infer a customer profile from Gmail.');
+  }
+
+  const profile = { ...payload.profile, at: Date.now() };
+  writeJson(STORAGE.inferredProfile, profile);
+  return profile;
+}
+
+async function autoStartLeadDiscoveryFromInbox() {
+  if (!connectionReady() || !connectionHasGmailReadScope()) return;
+  if (elements.leadDescription.value.trim()) return;
+  try {
+    const profile = await inferCampaignProfileFromInbox();
+    if (!profile?.description) return;
+    elements.leadDescription.value = profile.description;
+    if (!elements.businessName.value.trim() && profile.businessName) {
+      elements.businessName.value = profile.businessName;
+    }
+    writeJson(STORAGE.draft, draftSnapshot());
+    showLeadNotice('Gmail gave us enough context. Finding likely customers now…', 'success');
+    elements.leadForm.requestSubmit();
+  } catch (error) {
+    console.warn('Automatic Gmail business-profile inference failed', error);
+    showLeadNotice('I could not confidently infer the business from Gmail. You can describe what you sell below.', 'error');
+  }
+}
+
 async function syncCampaignInbox() {
   if (!connectionReady() || !connectionHasGmailReadScope()) return { checked: 0, matched: 0 };
   const sentLeads = readLeadVault().filter(lead => ['sent', 'replied', 'bounced', 'suppressed'].includes(String(lead?.status || '')));
@@ -1163,6 +1218,7 @@ updateConnectionUi();
 recoverSavedConnection();
 initializeLeadVaultAccountSync().finally(() => initializeCampaignHistorySync());
 startCampaignInboxWatch();
+autoStartLeadDiscoveryFromInbox();
 window.addEventListener('online', () => {
   if (!leadVaultAccountSync?.available && localStorage.getItem('signedIn') === 'true') {
     initializeLeadVaultAccountSync().finally(() => initializeCampaignHistorySync());
