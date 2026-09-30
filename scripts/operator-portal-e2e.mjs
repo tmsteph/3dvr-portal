@@ -103,10 +103,21 @@ async function signInFreshPage(targetPage) {
 }
 
 async function runCrossDeviceSyncAcceptance() {
-  await page.waitForFunction(() => {
-    const text = document.querySelector('#operator-sync')?.textContent || '';
-    return /Account sync ready|Synced to your account/.test(text);
-  }, null, { timeout: 15_000 });
+  const syncProbe = await page.evaluate(async () => {
+    const { createOperatorSync } = await import('/operator/sync.js');
+    const sync = createOperatorSync({ windowObj: window });
+    const ready = await sync.ready;
+    return {
+      ready,
+      label: document.querySelector('#operator-sync')?.textContent || '',
+      signedIn: localStorage.getItem('signedIn'),
+      pub: localStorage.getItem('userPubKey')
+    };
+  });
+  log('E2E_SYNC_PROBE', JSON.stringify(syncProbe));
+  if (!syncProbe.ready) {
+    throw new Error(`Operator account sync did not initialize: ${JSON.stringify(syncProbe)}`);
+  }
 
   const token = `cross-device-${Date.now()}`;
   const fixtureId = `e2e-${token}`;
