@@ -8,6 +8,7 @@ const {
 } = require('./operator-forge-auth');
 
 const DEFAULT_MAX_AGE_MS = 10 * 60 * 1000;
+const SERVER_CONTROL_OWNER_ALIAS = 'tmsteph@3dvr';
 const ALLOWED_SERVERS = new Set(['ovh', 'hetzner', 'digitalocean']);
 const ALLOWED_OPERATIONS = new Set(['health', 'service_status', 'service_restart']);
 const ALLOWED_SERVICES = new Set([
@@ -71,8 +72,12 @@ async function exportedAuthorize(record = {}, options = {}) {
   if (text(verified.service) !== service) return { ok: false, reason: 'server-control service mismatch' };
 
   const policy = resolvePolicy(options.env || process.env);
-  const owner = policy.ownerPubs.has(authPub) || policy.ownerBindings.get(alias(verified.alias)) === authPub;
-  if (!owner) return { ok: false, reason: '3DVR owner authorization is required for server control' };
+  const controlAlias = alias(verified.alias);
+  const canonicalOwnerPub = policy.ownerBindings.get(SERVER_CONTROL_OWNER_ALIAS);
+  const directOwner = controlAlias === SERVER_CONTROL_OWNER_ALIAS
+    && Boolean(canonicalOwnerPub)
+    && canonicalOwnerPub === authPub;
+  if (!directOwner) return { ok: false, reason: 'Direct server control is restricted to the tmsteph owner identity' };
 
   if (!ALLOWED_SERVERS.has(server)) return { ok: false, reason: 'server is not allowlisted' };
   if (!ALLOWED_OPERATIONS.has(operation)) return { ok: false, reason: 'operation is not allowlisted' };
@@ -97,4 +102,5 @@ module.exports = {
   ALLOWED_SERVERS,
   ALLOWED_OPERATIONS,
   ALLOWED_SERVICES,
+  SERVER_CONTROL_OWNER_ALIAS,
 };
