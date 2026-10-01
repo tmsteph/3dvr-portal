@@ -158,7 +158,11 @@ jobs:
 
           (async () => {
             const client = new Client({ name: '3dvr-deploy-smoke', version: '1.0.0' });
-            const transport = new StreamableHTTPClientTransport(new URL('http://127.0.0.1:8788/mcp'));
+            const token = process.env.THREEDVR_MCP_AUTH_TOKEN || '';
+          const transport = new StreamableHTTPClientTransport(
+            new URL('http://127.0.0.1:8788/mcp'),
+            token ? { requestInit: { headers: { Authorization: `Bearer ${token}` } } } : {},
+          );
             await client.connect(transport);
             try {
               const listed = await client.listTools();
