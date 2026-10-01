@@ -79,6 +79,7 @@ function createGatewayMcpServer(options = {}) {
   });
   const auditImpl = options.auditImpl || appendAudit;
   const enablePrivileged = options.enablePrivileged ?? process.env.THREEDVR_MCP_ENABLE_PRIVILEGED === 'true';
+  const ownerAuthorized = options.ownerAuthorized === true;
   const enableDrafts = options.enableDrafts ?? process.env.THREEDVR_MCP_ENABLE_DRAFTS === 'true';
   const legacyConfig = options.legacyConfig || process.env;
   const crmConfig = options.crmConfig || process.env;
@@ -133,7 +134,8 @@ function createGatewayMcpServer(options = {}) {
       github: true,
       organism: true,
       servers: Object.keys(SERVER_TARGETS),
-      privilegedControl: enablePrivileged,
+      privilegedControl: enablePrivileged && ownerAuthorized,
+      ownerAuthorized,
       n8n: enablePrivileged ? ['cvw'] : [],
     },
   }), auditImpl));
@@ -245,7 +247,7 @@ function createGatewayMcpServer(options = {}) {
     auditImpl,
   ));
 
-  if (enablePrivileged) {
+  if (enablePrivileged && ownerAuthorized) {
     server.registerTool('organism_remember', {
       title: 'Remember 3DVR context',
       description: 'Save one durable user-owned memory into the private 3DVR Digital Organism.',
@@ -528,6 +530,7 @@ function createHttpApp(options = {}) {
   const app = createMcpExpressApp();
   const authToken = options.authToken ?? process.env.THREEDVR_MCP_AUTH_TOKEN ?? '';
   const gatewayOptions = options.gatewayOptions || {};
+  const ownerToken = options.ownerToken ?? process.env.THREEDVR_MCP_OWNER_TOKEN ?? '';
 
   app.get('/healthz', (_req, res) => {
     res.json({ ok: true, service: GATEWAY_NAME, version: GATEWAY_VERSION });
@@ -543,7 +546,10 @@ function createHttpApp(options = {}) {
       }
     }
 
-    const server = createGatewayMcpServer(gatewayOptions);
+    const ownerHeader = String(req.headers['x-3dvr-owner-authorization'] || '');
+    const ownerCandidate = ownerHeader.startsWith('Bearer ') ? ownerHeader.slice(7) : '';
+    const ownerAuthorized = Boolean(ownerToken) && safeTokenEqual(ownerToken, ownerCandidate);
+    const server = createGatewayMcpServer({ ...gatewayOptions, ownerAuthorized });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     try {
       await server.connect(transport);
@@ -584,7 +590,7 @@ async function startHttpServer(options = {}) {
     throw new Error('THREEDVR_MCP_AUTH_TOKEN is required when binding outside loopback.');
   }
 
-  const app = createHttpApp({ ...options, authToken });
+  const app = createHttpApp({ ...options, authToken, ownerToken: options.ownerToken });
   const httpServer = await new Promise((resolve, reject) => {
     const listener = app.listen(port, host, () => resolve(listener));
     listener.on('error', reject);
