@@ -148,6 +148,7 @@ jobs:
           "$node_bin" -e 'const fs=require("fs"); const h=JSON.parse(fs.readFileSync("/tmp/3dvr-mcp-health.json","utf8")); if(!h.ok||h.service!=="3dvr-control-gateway") process.exit(1); console.log(JSON.stringify(h))'
 
           cd "$repo/apps/agent"
+          export THREEDVR_MCP_AUTH_TOKEN="$(sed -n 's/^export THREEDVR_MCP_AUTH_TOKEN=//p; s/^THREEDVR_MCP_AUTH_TOKEN=//p' "$cfg" | tail -n 1 | tr -d '\\\"\047')"
           "$node_bin" <<'NODE'
           const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
           const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js');
