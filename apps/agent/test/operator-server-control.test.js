@@ -15,7 +15,7 @@ function record(overrides = {}) {
     operation: 'service_restart',
     service: '3dvr-personal-mcp.service',
     requestedBy: 'portal-operator',
-    authPub: 'owner-pub',
+    authPub: 'tmsteph-pub',
     authProof: 'proof',
     ...overrides,
   };
@@ -25,8 +25,8 @@ function verified(overrides = {}) {
   return {
     scope: 'operator-server-control',
     action: 'queue-server-control',
-    pub: 'owner-pub',
-    alias: 'owner@3dvr',
+    pub: 'tmsteph-pub',
+    alias: 'tmsteph@3dvr',
     iat: 1000,
     requestId: 'server-control-1',
     server: 'ovh',
@@ -39,7 +39,7 @@ function verified(overrides = {}) {
 test('server control accepts only exact signed owner requests', async () => {
   const auth = await authorizePortalServerControl(record(), {
     now: 2000,
-    env: { THREEDVR_OPERATOR_OWNER_PUBS: 'owner-pub' },
+    env: { THREEDVR_OPERATOR_OWNER_BINDINGS: JSON.stringify({ 'tmsteph@3dvr': 'tmsteph-pub' }) },
     verifyImpl: async () => verified(),
   });
   assert.equal(auth.ok, true);
@@ -48,7 +48,7 @@ test('server control accepts only exact signed owner requests', async () => {
 
   const changed = await authorizePortalServerControl(record({ service: 'openbao.service' }), {
     now: 2000,
-    env: { THREEDVR_OPERATOR_OWNER_PUBS: 'owner-pub' },
+    env: { THREEDVR_OPERATOR_OWNER_BINDINGS: JSON.stringify({ 'tmsteph@3dvr': 'tmsteph-pub' }) },
     verifyImpl: async () => verified(),
   });
   assert.equal(changed.ok, false);
@@ -68,7 +68,7 @@ test('server control rejects non-owner and non-allowlisted service actions', asy
     service: 'ssh.service',
   }), {
     now: 2000,
-    env: { THREEDVR_OPERATOR_OWNER_PUBS: 'owner-pub' },
+    env: { THREEDVR_OPERATOR_OWNER_BINDINGS: JSON.stringify({ 'tmsteph@3dvr': 'tmsteph-pub' }) },
     verifyImpl: async () => verified({ service: 'ssh.service' }),
   });
   assert.equal(arbitrary.ok, false);
@@ -97,4 +97,15 @@ test('server control worker routes health and service operations only through ty
     args: { service: 'openbao.service' },
   });
   assert.equal(restart.activeState, 'active');
+});
+
+
+test('server control rejects another configured owner identity', async () => {
+  const auth = await authorizePortalServerControl(record({ authPub: 'other-owner-pub' }), {
+    now: 2000,
+    env: { THREEDVR_OPERATOR_OWNER_BINDINGS: JSON.stringify({ 'tmsteph@3dvr': 'tmsteph-pub', 'other@3dvr': 'other-owner-pub' }) },
+    verifyImpl: async () => verified({ pub: 'other-owner-pub', alias: 'other@3dvr' }),
+  });
+  assert.equal(auth.ok, false);
+  assert.match(auth.reason, /tmsteph owner identity/);
 });
