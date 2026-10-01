@@ -6,6 +6,41 @@ action=${1:-}
 service=${2:-}
 
 case "$action" in
+  portal-status)
+    health=$(/usr/bin/curl -fsS --max-time 5 http://127.0.0.1:4320/__3dvr-health 2>/dev/null || true)
+    state=$(/usr/bin/systemctl is-active 3dvr-portal.service 2>/dev/null || true)
+    printf '{"ok":%s,"service":"3dvr-portal.service","state":"%s","health":%s}\n' "$([[ "$state" == active && -n "$health" ]] && echo true || echo false)" "$state" "${health:-null}"
+    ;;
+  portal-logs)
+    lines=${2:-100}
+    [[ "$lines" =~ ^[0-9]+$ ]] && (( lines >= 1 && lines <= 500 )) || { echo 'invalid log line count' >&2; exit 64; }
+    /usr/bin/journalctl -u 3dvr-portal.service -n "$lines" --no-pager -o short-iso
+    ;;
+  portal-deploy|portal-rollback)
+    repo=/home/debian/.3dvr/self-host-portal-source
+    state_dir=/var/lib/3dvr/control-workspace
+    previous_file="$state_dir/portal-previous-sha"
+    current_file="$state_dir/portal-current-sha"
+    mkdir -p "$state_dir"
+    if [[ "$action" == portal-deploy ]]; then
+      sha=${2:-}
+      [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo 'full commit SHA required' >&2; exit 64; }
+    else
+      [[ -s "$previous_file" ]] || { echo 'no previous Portal release recorded' >&2; exit 66; }
+      sha=$(cat "$previous_file")
+      [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo 'recorded rollback SHA is invalid' >&2; exit 66; }
+    fi
+    [[ -d "$repo/.git" ]] || { echo 'dedicated Portal deployment checkout missing' >&2; exit 66; }
+    /usr/bin/git -C "$repo" fetch --prune origin main >/dev/null
+    /usr/bin/git -C "$repo" cat-file -e "$sha^{commit}"
+    current=$(/usr/bin/curl -fsS --max-time 5 http://127.0.0.1:4320/__3dvr-health 2>/dev/null | /usr/bin/node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).sha||"")}catch{}})' || true)
+    if [[ "$action" == portal-deploy && "$current" =~ ^[0-9a-f]{40}$ && "$current" != "$sha" ]]; then printf '%s\n' "$current" > "$previous_file"; fi
+    HOME=/home/debian THREEDVR_CONTROL_NODE=ovh /usr/bin/bash "$repo/scripts/ops/deploy-self-host-portal.sh" "$repo" main "$sha" 4320 >/tmp/3dvr-control-portal-deploy.log 2>&1 || { tail -n 120 /tmp/3dvr-control-portal-deploy.log >&2; exit 1; }
+    printf '%s\n' "$sha" > "$current_file"
+    health=$(/usr/bin/curl -fsS --max-time 10 http://127.0.0.1:4320/__3dvr-health)
+    if [[ "$action" == portal-rollback && "$current" =~ ^[0-9a-f]{40}$ && "$current" != "$sha" ]]; then printf '%s\n' "$current" > "$previous_file"; fi
+    printf '{"ok":true,"action":"%s","sha":"%s","health":%s}\n' "$action" "$sha" "$health"
+    ;;
   restart)
     case "$service" in
       3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service)
