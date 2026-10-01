@@ -632,7 +632,7 @@ if (form && input && submit && status && result && reply && followUps && actionL
         outcome = await runOperatorAction(data.action, { developerAccess: data.developerAccess, onStatus: message => { status.textContent = message; queueReplyPaint([data.reply || streamedReply, message].filter(Boolean).join('\n\n')); } });
       }
 
-      const message = [data.reply, outcome?.message].filter(Boolean).join('\n\n');
+      const message = [data.reply || streamedReply, outcome?.message].filter(Boolean).join('\n\n');
       const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
       const lifeSpaceActions = new Set(['create_note', 'create_checklist', 'save_link']);
       const storedActionLabel = lifeSpaceActions.has(data.action?.type)
