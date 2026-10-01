@@ -11,6 +11,7 @@ const {
   fileWrite,
   hostStatus,
   loadPolicy,
+  portalOperation,
   serviceAction,
   serviceStatus,
   storeOpenAiAdminFromBrowserClipboard,
@@ -56,6 +57,20 @@ server.registerTool('control_status', {
   maxWriteBytes: policy.maxWriteBytes,
   n8nTargets: Object.keys(n8nTargets(process.env)),
 }));
+
+server.registerTool('portal_status', {
+  title: 'Portal production status',
+  description: 'Read the live OVH Portal release SHA and service health.',
+  inputSchema: {},
+  annotations: { readOnlyHint: true, openWorldHint: false },
+}, async () => output(await portalOperation('status', {}, { policy })));
+
+server.registerTool('portal_logs', {
+  title: 'Portal production logs',
+  description: 'Read a bounded tail of the Portal systemd journal.',
+  inputSchema: { lines: z.number().int().min(1).max(500).default(100) },
+  annotations: { readOnlyHint: true, openWorldHint: false },
+}, async ({ lines }) => output(await portalOperation('logs', { lines }, { policy })));
 
 server.registerTool('host_status', {
   title: 'Host status',
@@ -148,6 +163,20 @@ if (policy.enableMutations) {
     key,
     () => createSecretHandoff({ key, label, purpose, recipient, ttlMinutes: ttl_minutes }),
   ));
+
+  server.registerTool('portal_deploy', {
+    title: 'Deploy Portal commit',
+    description: 'Deploy one exact 40-character git commit SHA to OVH production using the existing candidate validation and automatic rollback path.',
+    inputSchema: { sha: z.string().regex(/^[0-9a-fA-F]{40}$/) },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  }, async ({ sha }) => auditedMutation('portal.deploy', sha, () => portalOperation('deploy', { sha }, { policy })));
+
+  server.registerTool('portal_rollback', {
+    title: 'Rollback Portal',
+    description: 'Redeploy the previously recorded healthy Portal commit.',
+    inputSchema: {},
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  }, async () => auditedMutation('portal.rollback', 'previous-release', () => portalOperation('rollback', {}, { policy })));
 
   server.registerTool('service_restart', {
     title: 'Restart controlled service',
