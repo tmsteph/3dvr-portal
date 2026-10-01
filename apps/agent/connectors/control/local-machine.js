@@ -125,6 +125,29 @@ async function serviceStatus(service, { policy = loadPolicy(), runImpl = run } =
   };
 }
 
+async function portalOperation(action, args = {}, { policy = loadPolicy(), runImpl = run } = {}) {
+  if (!policy.enableMutations && action !== 'status' && action !== 'logs') throw new Error('mutating control capabilities are disabled');
+  const operation = String(action || '').trim().toLowerCase();
+  const argv = ['portal-' + operation];
+  if (operation === 'deploy') {
+    const sha = String(args.sha || '').trim().toLowerCase();
+    if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error('portal deploy requires a full 40-character commit SHA');
+    argv.push(sha);
+  } else if (operation === 'logs') {
+    const lines = Math.max(1, Math.min(Number(args.lines) || 100, 500));
+    argv.push(String(lines));
+  } else if (!['status', 'rollback'].includes(operation)) {
+    throw new Error('unsupported portal operation: ' + operation);
+  }
+  const { stdout } = await runImpl(policy.serviceHelper, argv, {
+    timeout: operation === 'deploy' || operation === 'rollback' ? 300_000 : 30_000,
+    maxBuffer: 1_000_000,
+    env: process.env,
+  });
+  const text = String(stdout || '').trim();
+  try { return JSON.parse(text); } catch { return { ok: true, output: text.slice(0, 200_000) }; }
+}
+
 async function serviceAction(service, action, { policy = loadPolicy(), runImpl = run } = {}) {
   if (!policy.enableMutations) throw new Error('mutating control capabilities are disabled');
   const name = assertServiceAllowed(service, policy);
@@ -579,6 +602,7 @@ module.exports = {
   loadCommands,
   loadPolicy,
   parseSystemctlShow,
+  portalOperation,
   resolveAllowedPath,
   runCommand,
   serviceAction,
