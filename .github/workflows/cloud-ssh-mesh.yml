@@ -1,4 +1,5 @@
 name: Bootstrap 3DVR Cloud SSH Mesh
+# Recovery trigger: verify existing server-first SSH mesh
 
 on:
   push:
