@@ -206,6 +206,7 @@ if systemctl is-active --quiet 3dvr-recovery.slice; then
     CPUQuota=100% MemorySwapMax=256M >/dev/null
 fi
 systemctl disable --now ollama.service >/dev/null 2>&1 || true
+systemctl daemon-reload
 systemctl enable --now 3dvr-tmux-guard-refresh.timer
 systemctl enable --now 3dvr-operator-server-control.timer
 systemctl enable 3dvr-agent-stack.service
