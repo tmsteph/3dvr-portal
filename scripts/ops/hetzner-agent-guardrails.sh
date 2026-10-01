@@ -208,7 +208,6 @@ fi
 systemctl disable --now ollama.service >/dev/null 2>&1 || true
 systemctl daemon-reload
 systemctl enable --now 3dvr-tmux-guard-refresh.timer
-systemctl enable --now 3dvr-operator-server-control.timer
 systemctl enable 3dvr-agent-stack.service
 
 # Consume signed Operator server-control requests on the managed server-first host.
@@ -252,6 +251,8 @@ Persistent=true
 WantedBy=timers.target
 EOF
 
+systemctl daemon-reload
+systemctl enable --now 3dvr-operator-server-control.timer
 systemctl restart systemd-journald || true
 journalctl --vacuum-size=300M >/dev/null 2>&1 || true
 apt-get clean >/dev/null 2>&1 || true
