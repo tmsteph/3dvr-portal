@@ -1,4 +1,5 @@
 name: Deploy 3DVR Control MCP
+# Recovery verification: redeploy and smoke-test the canonical server control gateway
 
 on:
   push:
