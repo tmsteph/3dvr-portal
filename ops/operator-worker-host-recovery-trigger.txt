@@ -3,3 +3,5 @@ Reason: live Operator runtime E2E left a low-risk delegated task queued without 
 Operator server-control durable worker install verification: 2026-10-01
 
 Retry durable server-control worker after systemd reload fix.
+
+Retry after placing daemon-reload after server-control unit creation.
