@@ -207,7 +207,50 @@ if systemctl is-active --quiet 3dvr-recovery.slice; then
 fi
 systemctl disable --now ollama.service >/dev/null 2>&1 || true
 systemctl enable --now 3dvr-tmux-guard-refresh.timer
+systemctl enable --now 3dvr-operator-server-control.timer
 systemctl enable 3dvr-agent-stack.service
+
+# Consume signed Operator server-control requests on the managed server-first host.
+# Authorization is re-verified by the worker; only the canonical tmsteph owner
+# identity can execute the narrow allowlisted server operations.
+cat >/etc/systemd/system/3dvr-operator-server-control.service <<EOF
+[Unit]
+Description=3DVR Operator signed server-control queue consumer
+After=network-online.target 3dvr-agent-stack.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=$agent_root
+Environment=HOME=/root
+EnvironmentFile=-/root/.3dvr/config/env
+ExecStart=/usr/bin/node $agent_root/thomas-agent/node/operator-server-control-worker.js run-once --json
+Nice=10
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/root/.3dvr /tmp
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat >/etc/systemd/system/3dvr-operator-server-control.timer <<'EOF'
+[Unit]
+Description=Poll signed 3DVR Operator server-control queue
+
+[Timer]
+OnBootSec=20s
+OnUnitActiveSec=15s
+AccuracySec=3s
+Unit=3dvr-operator-server-control.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
 systemctl restart systemd-journald || true
 journalctl --vacuum-size=300M >/dev/null 2>&1 || true
 apt-get clean >/dev/null 2>&1 || true
