@@ -366,6 +366,34 @@ function createGatewayMcpServer(options = {}) {
       auditImpl,
     ));
 
+    server.registerTool('portal_status', {
+      title: 'Read Portal production status',
+      description: 'Read the live OVH Portal release and health through the privileged local control boundary.',
+      inputSchema: {},
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    }, async () => audited('portal.status', {}, async () => callOvhToolImpl('portal_status', {}), auditImpl));
+
+    server.registerTool('portal_logs', {
+      title: 'Read Portal production logs',
+      description: 'Read a bounded tail of the OVH Portal service journal.',
+      inputSchema: { lines: z.number().int().min(1).max(500).default(100) },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    }, async ({ lines }) => audited('portal.logs', {}, async () => callOvhToolImpl('portal_logs', { lines }), auditImpl));
+
+    server.registerTool('portal_deploy', {
+      title: 'Deploy Portal commit',
+      description: 'Deploy one exact full git commit SHA to OVH production through candidate validation and automatic failure rollback.',
+      inputSchema: { sha: z.string().regex(/^[0-9a-fA-F]{40}$/) },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    }, async ({ sha }) => audited('portal.deploy', { target: sha }, async () => callOvhToolImpl('portal_deploy', { sha }, { timeoutMs: 120000 }), auditImpl));
+
+    server.registerTool('portal_rollback', {
+      title: 'Rollback Portal',
+      description: 'Redeploy the previously recorded healthy OVH Portal release.',
+      inputSchema: {},
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    }, async () => audited('portal.rollback', {}, async () => callOvhToolImpl('portal_rollback', {}, { timeoutMs: 120000 }), auditImpl));
+
     server.registerTool('service_restart', {
       title: 'Restart controlled service',
       description: 'Restart one allowlisted 3DVR service on OVH through the narrow privileged helper.',
