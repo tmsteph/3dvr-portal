@@ -52,6 +52,9 @@ When `THREEDVR_MCP_ENABLE_PRIVILEGED=true`, the gateway additionally exposes:
 - `n8n_executions` — execution metadata with execution data omitted.
 - `service_status` — status for an explicit systemd allowlist.
 - `service_restart` — restart for the same explicit allowlist.
+- `portal_status` / `portal_logs` — bounded production inspection.
+- `portal_deploy` — deploy one exact full Git commit SHA through candidate validation.
+- `portal_rollback` — redeploy the previously recorded healthy release.
 
 The current n8n target registry contains `cvw` and maps its credential to `CVW_N8N_API_KEY` in OpenBao. Additional targets can be supplied through `THREEDVR_N8N_TARGETS_JSON`.
 
@@ -119,6 +122,8 @@ Plain SSH remains the break-glass path. It is transport/recovery infrastructure,
 8. Sanitize client-system data before it leaves OVH.
 9. Preserve SSH and Desktop Commander only as recovery/bootstrap paths.
 10. Audit mutations.
+11. Portal deploys accept immutable full commit SHAs only; never refs or shell fragments.
+12. Keep rollback state inside the privileged OVH boundary.
 
 ## Deployment
 
