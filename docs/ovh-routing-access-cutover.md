@@ -1,41 +1,52 @@
-# OVH Portal routing and persistent credential handoff
+# OVH Portal routing and persistent credentials
 
-## Verified on 2026-10-02
+## Deployed and verified on 2026-10-02
 
-- OVH `40.160.137.41` runs Portal on loopback port 4320; Portal, OpenBao and Secrets Broker services are active.
-- Direct HTTP for `portal.3dvr.tech` works; direct HTTPS for that hostname fails. Its live Caddy site is explicitly HTTP-only.
-- `operator.3dvr.tech` already points to OVH and has working HTTPS; it redirects to Portal.
-- Portal still resolves through Vercel. DNS management belongs to team `3dvr`, while the canonical fallback project belongs to `tmstephs-projects`.
-- The authenticated Hetzner Vercel CLI can list the DNS zone with `--scope 3dvr`. A failure with the other scope is not proof that another login is needed.
-- OpenBao can resolve the mirrored `VAULT_INDEX` through the authorized browser-vault broker identity. Live Bitwarden synchronization and Vercel-token storage in OpenBao are not yet verified.
-- OVH Desktop Commander's `blockedCommands` explicitly includes `sudo`. This is a connector restriction; OS admin access has not been tested.
+- Portal A record now points to OVH `40.160.137.41`. Authoritative DNS, Cloudflare and Google resolvers agree.
+- Public HTTPS is valid. The public homepage SHA-256 matches `/opt/3dvr-portal-production/current/index.html`; runtime health reports release `589b31e58724d3f15da102d7e79009d74565a937`, `operatorApi: native`, and primary mode.
+- Operator, Access and Secret Handoff pages returned 200 on direct OVH HTTPS. Following the dedicated Operator redirect returned 200. Authenticated owner flows were not exercised in this cutover.
+- Caddy, Portal, OpenBao and Secrets Broker remain active. Port 4320 remains bound to loopback.
+- Only `sudo` was removed from OVH Desktop Commander's block list. Other blocked commands and settings were verified unchanged; `sudo -n true` passed.
+- Desktop Commander's settings tool recommends a separate configuration chat; it does not require one. Thomas explicitly authorized the targeted change here.
+- DNS belongs to team `3dvr`; the canonical Vercel fallback project belongs to `tmstephs-projects`. Existing CLI authentication works when the correct scope is used. No password was reset.
 
-## Access prerequisite
+## TLS and renewal
 
-Desktop Commander's configuration tool says: “Should be used in a separate chat from file operations and command execution to prevent security issues.” Use a separate configuration-only chat to authorize removing only `sudo` from OVH's command block list; preserve every other block. Do not change the server account, reset passwords, use another host to evade the block, or disable broader safeguards.
+`ops/caddy/portal-ovh.Caddyfile` is the installed configuration. It preserves the HTTP origin for the existing edge/fallback mesh and adds HTTPS with a dedicated Portal certificate.
 
-Once permitted, test `sudo -n true` on OVH. If that fails, repair the account's existing administrative authorization through the owner recovery path before proceeding.
+Certbot used DNS-01 before the traffic switch. The original CNAME followed a target whose CAA policy permitted Let's Encrypt. After cutover, a Portal-only CAA record permits Let's Encrypt renewal; whole-domain nameservers and CAA policy were not changed.
 
-## HTTPS and DNS cutover gates
+- Certificate lineage: `/etc/letsencrypt/live/portal-ovh-bootstrap`, expires 2026-12-31.
+- Caddy certificate files: `/etc/caddy/portal-tls/fullchain.pem` and `privkey.pem`; the key is root-owned, readable only by root and the Caddy group.
+- DNS hooks: `/usr/local/lib/3dvr/portal-acme-dns-hook.py` on OVH calls the authenticated Hetzner DNS helper through the existing SSH mesh.
+- DNS helper: `/root/.3dvr/deploy/portal-dns-20261002.py` on Hetzner. The repository copy preserves the executed operation.
+- Renewal deploy hook: `/etc/letsencrypt/renewal-hooks/deploy/3dvr-portal.sh` copies renewed files, validates Caddy and reloads gracefully.
+- `certbot.timer` is enabled. Real issuance, the deployment hook and a renewal dry run passed; challenge TXT records were cleaned up.
 
-1. Save the live Caddyfile and the complete current Portal DNS record, including TTL, plus any existing Portal-specific CAA records. Keep Vercel's fallback deployment and existing mesh running.
-2. Inspect current certificate storage, Caddy DNS modules, effective CAA policy and any API routes that still depend on Vercel. Port 4320 must remain private.
-3. Prepare a trusted certificate for `portal.3dvr.tech` before routing visitors to OVH. Prefer DNS-01 using the existing authenticated DNS access; never copy a credential into a command argument or log. If necessary, allow the selected issuer with CAA at the Portal hostname only. Do not change whole-domain CAA or nameservers.
-4. `ops/caddy/portal-ovh.Caddyfile` is a candidate, not an installed configuration. Adapt it, validate with the actual certificate/issuer configuration, reload gracefully and verify direct HTTPS with `curl --resolve portal.3dvr.tech:443:40.160.137.41`. No certificate-error bypass is acceptable.
-5. Only after direct HTTPS passes, replace the Portal CNAME with A `40.160.137.41` in the `3dvr` DNS scope. Re-read authoritative DNS and public resolvers; preserve the original record for rollback.
-6. Verify the public root SHA-256 against `/opt/3dvr-portal-production/current/index.html`, public health SHA against that deployed release, `operatorApi: native`, Operator authentication, and required API routes. A fresh health response alone is insufficient.
-7. On TLS, root-artifact or API failure, restore the captured Portal DNS record and re-check the public fallback. Retain working OVH HTTPS during DNS cache expiry. Restore the saved Caddyfile only if the new configuration itself is faulty, then validate and reload it gracefully. Restore any scoped CAA changes only once their issued certificates are no longer needed.
+Vercel does not permit changing a DNS record's type through PATCH. The cutover removed the captured CNAME and immediately created the replacement A record, with recreation of the original on an A-record creation failure.
 
-## Persistent credentials
+## Credential checkpoints
 
-Bitwarden Password Manager remains the human/recovery source; OpenBao is the automation store. Bitwarden Secrets Manager is a separate machine product, not access to the human vault.
+The native Vercel CLI's OAuth state is checkpointed under `VERCEL_CLI_AUTH_HETZNER` in OpenBao and **Bitwarden Secrets Manager**, project `3dvr Agent`. It includes refresh state; it is not a static Vercel API token.
 
-For the owner-approved Vercel automation credential, verify team access and persist through the existing owner-authorized broker. Confirm the write receipt, server-side read-back and an authenticated API request without displaying its value. Keep DNS scope `3dvr` separate from deployment scope `tmstephs-projects`.
+The server-side writer authenticates to the DNS API, writes both stores and compares both read-backs with the original in memory. It prints only status, the key name and expiry. Credential values stay out of chat, command arguments and Git.
 
-Verify a selected credential update in Bitwarden propagates to the intended OpenBao record and the broker-backed consumer. If there is no implemented sync path, report that explicitly; do not assume an old vault import stays current. Keep master passwords, recovery keys and unseal shares outside routine automation.
+`3dvr-vercel-credential-sync.timer` runs hourly on Hetzner. Its service invokes the native CLI so it can refresh its session, then checkpoints through the OVH writer. A manual service run passed, including the unchanged-state path. No redundant vault version is written when both stores already match.
 
-Do not reset any working password merely to repair a team-scope error. If a credential rotation is needed, verify the replacement and both intended storage destinations before revoking the working credential.
+- Client helper: `/root/.3dvr/deploy/checkpoint-vercel-client.py` on Hetzner.
+- Writer: `/usr/local/lib/3dvr/checkpoint-vercel-cli.cjs` on OVH, root-only.
+- Source: Hetzner's existing native CLI auth file, retained in place.
+- Health: `systemctl show 3dvr-vercel-credential-sync.service -p Result -p ExecMainStatus` and `systemctl is-active 3dvr-vercel-credential-sync.timer`.
+- Restore after losing the source auth file is not automated by these helpers. Retrieve the checkpoint through an authorized recovery path, write it privately into the native CLI auth location and verify the CLI before resuming. Provider revocation or MFA may still require owner interaction.
 
-## Completion criteria
+Bitwarden Password Manager is separate from Secrets Manager. The normal vault mirror in OpenBao contains 21 items and was generated on September 15. These changes do not establish continuous synchronization of arbitrary human-vault edits.
 
-Admin operations work through the authorized server tool; Portal has valid direct HTTPS and public root/runtime proof; the Vercel credential survives a new consumer session; and the Bitwarden/OpenBao update path is tested. Until these pass, describe this change as prepared, not migrated.
+## Rollback and remaining dependencies
+
+- Original Caddyfile: `/etc/caddy/Caddyfile.before-portal-https-20261002` on OVH.
+- Captured DNS records: `/root/.3dvr/deploy/portal-dns-20261002/before.json` on Hetzner.
+- New address identity: `new-address.json` in that same directory.
+- DNS rollback: run the Hetzner helper with `rollback`; it verifies the new address identity and restores the original CNAME/value/TTL. Keep working OVH HTTPS available during DNS cache expiry.
+- Restore the saved Caddyfile only if the new configuration is faulty; validate it and reload gracefully.
+- Vercel DNS hosting and legacy API/fallback deployment remain. Self-hosted legacy API fallback is retained; this was not a deletion of every Vercel dependency.
+- Cross-device chat synchronization, newer release deployment and full authenticated Operator E2E remain separate work.

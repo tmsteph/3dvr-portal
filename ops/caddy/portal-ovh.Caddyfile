@@ -1,10 +1,11 @@
-# Candidate for OVH after access and certificate preflight.
+# OVH Portal HTTPS; Certbot renews the certificate through DNS-01.
 # Preserve the HTTP origin used by the existing fallback mesh.
 http://portal.3dvr.tech {
   reverse_proxy 127.0.0.1:4320
 }
 
 https://portal.3dvr.tech {
+  tls /etc/caddy/portal-tls/fullchain.pem /etc/caddy/portal-tls/privkey.pem
   encode zstd gzip
   reverse_proxy 127.0.0.1:4320
 }
