@@ -101,20 +101,20 @@ function closeHistory(){historyPanel.hidden=true;showHistory.setAttribute('aria-
 function openHistory(){historyPanel.hidden=false;showHistory.setAttribute('aria-expanded','true');closeTree();void syncHistory();historyList.querySelector('[aria-current="page"]')?.focus()||document.querySelector('#close-history').focus()}
 function closeTree(){if(!treePanel)return;treePanel.hidden=true;showTree?.setAttribute('aria-expanded','false')}
 function openTree(){if(!treePanel)return;treePanel.hidden=false;showTree?.setAttribute('aria-expanded','true');closeHistory();renderTree();treeList.querySelector('[aria-current="true"]')?.focus()||document.querySelector('#close-tree')?.focus()}
-asyncfunctioncreateDeveloperProofWithRetry(){
-constdelays=[0,700,1600];
-letlastError=null;
-for(constdelayofdelays){
-if(delay)awaitnewPromise(resolve=>setTimeout(resolve,delay));
-try{
-constproof=awaitcreateOperatorDeveloperProof();
-if(proof)returnproof;
-}catch(error){
-lastError=error;
-}
-}
-if(lastError)throwlastError;
-returnnull;
+async function createDeveloperProofWithRetry() {
+  const delays = [0, 700, 1600];
+  let lastError = null;
+  for (const delay of delays) {
+    if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+    try {
+      const proof = await createOperatorDeveloperProof();
+      if (proof) return proof;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (lastError) throw lastError;
+  return null;
 }
 async function requestOperator(payload,handlers={}){
   const send=body=>fetch('/api/openai-site?provider=operator',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,stream:true})});
