@@ -6,13 +6,13 @@ export function ensureConversationTree(conversation,{makeId=fallbackId,now=fallb
   let parentId=null;
   conversation.messages=conversation.messages.map((message,index)=>{
     const id=message.id||makeId();
-    const node={
-      ...message,
+    // Keep live message references stable while replies and task updates arrive.
+    const node=Object.assign(message,{
       id,
       parentId:Object.prototype.hasOwnProperty.call(message,'parentId')?message.parentId:parentId,
       createdAt:message.createdAt||conversation.createdAt||now(),
       order:Number.isFinite(message.order)?message.order:index
-    };
+    });
     parentId=id;
     return node;
   });

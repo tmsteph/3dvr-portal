@@ -1,3 +1,4 @@
+import { isPrivateStaticPath } from './self-host-static-policy.mjs';
 import { createServer } from 'node:http';
 import { createReadStream } from 'node:fs';
 import { access, readFile, stat } from 'node:fs/promises';
@@ -55,18 +56,6 @@ const MIME_TYPES = new Map([
   ['.txt', 'text/plain; charset=utf-8']
 ]);
 
-const PRIVATE_PREFIXES = [
-  '/.github/', '/api/', '/src/', '/scripts/', '/tests/', '/ops/', '/node_modules/', '/apps/agent/'
-];
-const PRIVATE_ROOT_FILES = new Set([
-  '/package.json', '/package-lock.json', '/vercel.json', '/AGENTS.md', '/.gitignore'
-]);
-
-function isPrivateStaticPath(pathname) {
-  const clean = String(pathname || '/');
-  return PRIVATE_ROOT_FILES.has(clean)
-    || PRIVATE_PREFIXES.some(prefix => clean === prefix.slice(0, -1) || clean.startsWith(prefix));
-}
 
 function applyBaseHeaders(res, pathname = '') {
   res.setHeader('X-Content-Type-Options', 'nosniff');

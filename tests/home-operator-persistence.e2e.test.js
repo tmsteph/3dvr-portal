@@ -91,7 +91,7 @@ test('home Operator conversation appears in Past conversations', { timeout: 45_0
 
     await page.getByRole('link', { name: 'Open full Operator' }).click();
     await page.waitForURL(url => new URL(url).pathname === '/operator/');
-    await page.locator('#operator-context').waitFor();
+    await page.locator('#operator-context').waitFor({ state: 'visible' });
     assert.equal(await page.locator('#operator-context-link').getAttribute('href'), '/');
     await page.locator('#operator-log').getByText(prompt).waitFor();
     await page.locator('#operator-log').getByText(responseText).waitFor();

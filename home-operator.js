@@ -201,10 +201,19 @@ function installLabsLauncher() {
 }
 
 async function createDeveloperProofWithRetry() {
-  const first = await createOperatorDeveloperProof();
-  if (first) return first;
-  await new Promise(resolve => setTimeout(resolve, 1400));
-  return createOperatorDeveloperProof();
+  const delays = [0, 700, 1600];
+  let lastError = null;
+  for (const delay of delays) {
+    if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+    try {
+      const proof = await createOperatorDeveloperProof();
+      if (proof) return proof;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (lastError) throw lastError;
+  return null;
 }
 
 installAccountStatus();

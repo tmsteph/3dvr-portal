@@ -54,3 +54,18 @@ test('switching to a sibling can follow that branch to its deepest descendant',(
   selectConversationNode(conversation,first.id,{followDescendants:true});
   assert.equal(activeConversationPath(conversation).at(-1).content,'first leaf');
 });
+
+test('streamed replies remain in history after rendering and branch traversal',()=>{
+  const conversation={messages:[]};
+  appendConversationNode(conversation,{role:'user',content:'hello'});
+  const reply=appendConversationNode(conversation,{role:'assistant',content:'',streaming:true});
+  activeConversationPath(conversation);
+  conversationSiblings(conversation,reply.id);
+  ensureConversationTree(conversation);
+  reply.content+='Live reply';
+  delete reply.streaming;
+  assert.equal(activeConversationPath(conversation).at(-1).content,'Live reply');
+  const saved=JSON.parse(JSON.stringify(conversation));
+  assert.equal(saved.messages.at(-1).content,'Live reply');
+  assert.equal(saved.messages.at(-1).streaming,undefined);
+});
