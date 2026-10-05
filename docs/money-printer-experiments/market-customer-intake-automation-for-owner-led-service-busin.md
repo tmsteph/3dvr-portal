@@ -11,7 +11,7 @@ owner-led service businesses that need clearer lead follow-up teams repeatedly l
 - Fit score: 82/100
 - Verdict: strong signal
 - Strongest channel: Hacker News
-- Evidence run: market-pulse-20260712172802
+- Evidence run: market-pulse-20260816164433
 
 ## Bounded next experiment
 
