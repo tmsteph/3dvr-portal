@@ -213,6 +213,10 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - Lanes are `general` (9222), `encore` (9333), `messaging` (9444), and `training` (9555). Never drive one lane from two agents at once.
 - If a lane is leased by another writer, use another appropriate lane or stop instead of taking over the profile.
 
+## SEA Proof Verification On Self-host
+- Gun's server entrypoint installs a key-sorting `JSON.stringifyAsync`; browser SEA signatures use native JSON key order. Preserve the signed message bytes when verifying rather than changing global serializers or weakening identity checks.
+- Run `node --test tests/self-host-sea-runtime.test.js` for auth-runtime changes. A proof signed and verified in one process can hide server/browser serialization differences.
+
 ## Browser Modules On Self-host
 - Operator browser imports include shared pure models under `src/`. Keep the exact public-module list in `scripts/self-host-static-policy.mjs` synchronized with those imports; never expose the entire server source tree.
 - Run `node --test tests/operator-public-modules.test.js` when changing Operator imports or the static policy. HTTP 200 for the page shell does not prove its module graph initialized.
