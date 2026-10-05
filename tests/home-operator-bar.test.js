@@ -24,7 +24,8 @@ test('homepage Operator sends the signed developer proof used by full Operator',
   assert.match(client, /createOperatorDeveloperProof/);
   assert.match(client, /const \[portalContext, developerAuth, memoryContext\] = await Promise\.all/);
   assert.match(client, /createDeveloperProofWithRetry\(\)/);
-  assert.match(client, /setTimeout\(resolve, 1400\)/);
+  assert.match(client, /const delays = \[0, 700, 1600\]/);
+  assert.match(client, /if \(lastError\) throw lastError/);
   assert.match(client, /fetchOperatorStream/);
   assert.match(client, /onReplyDelta/);
   assert.match(client, /streamedReply \+= delta/);

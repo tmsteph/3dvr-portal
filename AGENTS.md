@@ -212,3 +212,7 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - Keep the returned lease credential private, renew it for long tasks, and release it when the write sequence is complete. Read-only CDP inspection may remain concurrent.
 - Lanes are `general` (9222), `encore` (9333), `messaging` (9444), and `training` (9555). Never drive one lane from two agents at once.
 - If a lane is leased by another writer, use another appropriate lane or stop instead of taking over the profile.
+
+## Browser Modules On Self-host
+- Operator browser imports include shared pure models under `src/`. Keep the exact public-module list in `scripts/self-host-static-policy.mjs` synchronized with those imports; never expose the entire server source tree.
+- Run `node --test tests/operator-public-modules.test.js` when changing Operator imports or the static policy. HTTP 200 for the page shell does not prove its module graph initialized.
