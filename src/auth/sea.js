@@ -126,7 +126,14 @@ export async function verifySignedSeaPayload(payload = {}, options = {}) {
 
   let verified;
   try {
-    verified = await SEA.verify(authProof, authPub);
+    // Gun's server runtime replaces JSON.stringifyAsync with a key-sorting
+    // serializer. Browser proofs use native JSON insertion order; pass their
+    // message as a string so SEA hashes those exact bytes in either runtime.
+    const envelope = JSON.parse(authProof.startsWith('SEA{') ? authProof.slice(3) : authProof);
+    const proof = envelope && typeof envelope.m === 'object' && envelope.m !== null
+      ? { ...envelope, m: JSON.stringify(envelope.m) }
+      : envelope;
+    verified = await SEA.verify(proof, authPub);
   } catch (_error) {
     return {
       ok: false,
