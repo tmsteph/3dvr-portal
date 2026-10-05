@@ -281,7 +281,8 @@ function operatorDeveloperAccessPayload(developerAccess = {}) {
     authenticated: developerAccess.authenticated,
     approved: developerAccess.approved,
     role: developerAccess.role,
-    permissions: developerAccess.permissions
+    permissions: developerAccess.permissions,
+    reason: developerAccess.reason || ''
   };
 }
 
