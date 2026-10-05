@@ -120,3 +120,15 @@ test('Operator API emits reply deltas before the final structured result', async
   assert.match(res.body, /event: result/);
   assert.match(res.body, /"reply":"Hello world"/);
 });
+
+test('Operator returns a safe reason when the developer proof is rejected', async () => {
+  const handler = createOperatorHandler({
+    apiKey: 'test-key',
+    fetchImpl: async () => ({ ok: true, json: async () => ({ output: [{ content: [{ type: 'output_text', text: JSON.stringify({ reply: 'OK', action: { type: 'none' } }) }] }] }) })
+  });
+  const res = { setHeader() {}, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
+  await handler({ method: 'POST', headers: {}, body: { prompt: 'Read only.' } }, res);
+  assert.equal(res.body.developerAccess.authenticated, false);
+  assert.match(res.body.developerAccess.reason, /Sign in/);
+  assert.equal(res.body.developerAccess.authProof, undefined);
+});
