@@ -196,3 +196,5 @@ window.addEventListener('operator:browse-apps',()=>{
   panel.hidden=false;
   list.querySelector('a')?.focus();
 });
+
+document.querySelector('#app-search-close')?.addEventListener('click',()=>{hideResults();input.focus()});
