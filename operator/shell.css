@@ -1,0 +1,134 @@
+/* Operator is the persistent shell. Linked apps open here instead of replacing it. */
+#operator-workspace{
+  flex:1.35;
+  min-height:18rem;
+  display:flex;
+  flex-direction:column;
+  margin:.3rem 0 .65rem;
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:#081522;
+  box-shadow:0 18px 50px #0008;
+}
+#operator-workspace[hidden]{display:none}
+.operator-workspace__bar{
+  flex:none;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.8rem;
+  padding:.55rem .7rem;
+  border-bottom:1px solid var(--line);
+  background:#0d1928;
+}
+.operator-workspace__identity{
+  display:grid;
+  min-width:0;
+  gap:.05rem;
+}
+.operator-workspace__identity small{
+  color:var(--mint);
+  font-size:.62rem;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+#operator-workspace-title{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:.83rem;
+}
+.operator-workspace__actions{
+  display:flex;
+  flex:none;
+  align-items:center;
+  gap:.4rem;
+}
+.operator-workspace__actions a,
+.operator-workspace__actions button{
+  display:inline-flex;
+  align-items:center;
+  min-height:2rem;
+  padding:.35rem .55rem;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#102238;
+  color:var(--text);
+  font-size:.72rem;
+  font-weight:800;
+  text-decoration:none;
+}
+.operator-workspace__actions a:hover,
+.operator-workspace__actions a:focus-visible,
+.operator-workspace__actions button:hover,
+.operator-workspace__actions button:focus-visible{
+  border-color:var(--mint);
+  outline:none;
+}
+#operator-workspace-frame{
+  width:100%;
+  min-height:0;
+  flex:1;
+  border:0;
+  background:#fff;
+}
+.message-focus-nav{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:.35rem;
+  margin:-.15rem 0 .5rem;
+}
+.message-focus-nav button{
+  min-width:2rem;
+  padding:.28rem .45rem;
+  border-radius:9px;
+  background:#0b1b2b;
+  color:var(--muted);
+  font-size:.75rem;
+}
+.message-focus-nav button:hover,
+.message-focus-nav button:focus-visible{
+  border-color:var(--mint);
+  color:var(--text);
+  outline:none;
+}
+.message-focus-nav button:disabled{opacity:.35;cursor:default}
+.message-focus-nav small{
+  min-width:3.4rem;
+  text-align:center;
+  font-size:.68rem;
+}
+main.workspace-open #operator-log{
+  flex:.55;
+  min-height:7rem;
+}
+main.workspace-open .message{
+  max-width:94%;
+}
+.message .message-action{
+  text-decoration:none;
+}
+@media(max-width:600px){
+  #operator-workspace{
+    min-height:15rem;
+    margin:.15rem 0 .35rem;
+    border-radius:14px;
+  }
+  .operator-workspace__bar{
+    padding:.45rem .5rem;
+  }
+  .operator-workspace__actions a{
+    font-size:0;
+  }
+  .operator-workspace__actions a::after{
+    content:"↗";
+    font-size:.8rem;
+  }
+  main.workspace-open #operator-log{
+    flex:0 1 24dvh;
+    min-height:5.2rem;
+  }
+}
