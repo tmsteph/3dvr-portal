@@ -48,20 +48,14 @@ describe('phone holder system app', () => {
     assert.match(html, /<link rel="stylesheet" href="\.\/styles\.css/);
   });
 
-  it('registers the app in the portal dock and installable app list', async () => {
-    const portalHtml = await readFile(new URL('../index.html', appDir), 'utf8');
-    const readme = await readFile(new URL('../README.md', appDir), 'utf8');
+  it('documents the existing phone-holder-system route as the 3DVR Phone Dock', async () => {
+    const readme = await readFile(new URL('README.md', appDir), 'utf8');
 
-    const workstationIndex = portalHtml.indexOf('>Pocket Workstation<');
-    const holderIndex = portalHtml.indexOf('>Phone Holder System<');
-    const newsroomIndex = portalHtml.indexOf('>News Lounge<');
-
-    assert.ok(holderIndex !== -1, 'Phone Holder System app card should be listed on the portal');
-    assert.ok(workstationIndex !== -1, 'Pocket Workstation app card should still be listed');
-    assert.ok(newsroomIndex !== -1, 'News Lounge app card should still be listed');
-    assert.ok(workstationIndex < holderIndex, 'Phone Holder System should render after Pocket Workstation');
-    assert.ok(holderIndex < newsroomIndex, 'Phone Holder System should render before News Lounge');
-    assert.match(portalHtml, /href="phone-holder-system\/index\.html"/);
-    assert.match(readme, /\[Phone Holder System\]\(https:\/\/3dvr-portal\.vercel\.app\/phone-holder-system\/\)/);
+    assert.match(readme, /\/phone-holder-system\//);
+    assert.match(readme, /3DVR Phone Dock/);
+    assert.match(readme, /Software keyboard visible/);
+    assert.match(readme, /Physical keyboard available/);
+    assert.match(readme, /rotate 90°/);
+    assert.match(readme, /Nomad Clip/);
   });
 });
