@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="mobile-header-fix.css">
   <link rel="stylesheet" href="app-search.css">
   <link rel="stylesheet" href="focus.css">
+  <link rel="stylesheet" href="shell.css">
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="/gun-init.js"></script>
@@ -24,6 +25,7 @@
   <script src="/portal-swirl-logo.js" defer></script>
   <script type="module" src="app.js"></script>
   <script type="module" src="app-search.js"></script>
+  <script type="module" src="shell.js"></script>
   <script type="module" src="live-awareness.js"></script>
   <script type="module" src="secrets.js"></script>
   <script defer src="/_vercel/insights/script.js"></script>
@@ -68,6 +70,25 @@
       </div>
     </div>
     <button id="operator-latest" type="button" hidden aria-label="Jump to the latest message">↓ Latest message</button>
+    <section id="operator-workspace" hidden aria-label="Embedded app workspace">
+      <div class="operator-workspace__bar">
+        <div class="operator-workspace__identity">
+          <small>Inside Operator</small>
+          <strong id="operator-workspace-title">Workspace</strong>
+        </div>
+        <div class="operator-workspace__actions">
+          <a id="operator-workspace-external" data-operator-external="true" href="/" target="_blank" rel="noopener noreferrer">Open separately</a>
+          <button id="operator-workspace-close" type="button" aria-label="Close embedded workspace">×</button>
+        </div>
+      </div>
+      <iframe
+        id="operator-workspace-frame"
+        title="Operator embedded workspace"
+        src="about:blank"
+        sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts allow-downloads"
+        allow="camera; microphone; geolocation; clipboard-read; clipboard-write"
+      ></iframe>
+    </section>
     <section class="welcome" aria-label="Operator shortcuts">
       <div class="quick-prompts" aria-label="Things to try">
         <button type="button" data-prompt="Help me plan my day and choose the most important next step.">Plan my day</button>
