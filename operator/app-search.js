@@ -187,3 +187,12 @@ list.addEventListener('keydown', event => {
 });
 
 window.addEventListener('pageshow', refresh);
+
+// Browse without replacing a draft or opening the portal homepage in a frame.
+window.addEventListener('operator:browse-apps',()=>{
+  const items=FEATURED.filter(item=>!['/','/operator/'].includes(item.href));
+  count.textContent='Choose an app';
+  list.innerHTML=items.map(item=>`<a class="app-search-result" href="${item.href}"><span class="app-search-icon" aria-hidden="true">↗</span><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.description)}</small></span></a>`).join('');
+  panel.hidden=false;
+  list.querySelector('a')?.focus();
+});
