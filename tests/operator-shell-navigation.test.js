@@ -5,7 +5,8 @@ import {
   embeddableWorkspaceHref,
   focusedMessage,
   isOperatorHistoryState,
-  operatorHistoryState
+  operatorHistoryState,
+  operatorShellDestination
 } from '../operator/shell-navigation.js';
 
 const messages=[
@@ -44,4 +45,16 @@ test('workspace URLs allow web views and reject non-web protocols',()=>{
   );
   assert.equal(embeddableWorkspaceHref('javascript:alert(1)'), '');
   assert.equal(embeddableWorkspaceHref('mailto:test@example.com'), '');
+});
+
+test('portal home and Operator aliases stay in the parent shell',()=>{
+  for(const href of ['/','/index.html','https://portal.3dvr.tech/?source=chat']){
+    assert.equal(operatorShellDestination(href),'apps');
+  }
+  for(const href of ['/operator/','/operator/index.html?history=1','https://operator.3dvr.tech/']){
+    assert.equal(operatorShellDestination(href),'chat');
+  }
+  for(const href of ['/calendar/','https://example.com/','javascript:alert(1)']){
+    assert.equal(operatorShellDestination(href),'');
+  }
 });

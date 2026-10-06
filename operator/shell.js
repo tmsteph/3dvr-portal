@@ -1,4 +1,4 @@
-import { adjacentMessageId, embeddableWorkspaceHref, isOperatorHistoryState, operatorHistoryState } from './shell-navigation.js';
+import { adjacentMessageId, embeddableWorkspaceHref, isOperatorHistoryState, operatorHistoryState, operatorShellDestination } from './shell-navigation.js';
 
 const log=document.querySelector('#operator-log');
 const form=document.querySelector('#operator-form');
@@ -109,10 +109,11 @@ function workspaceLabel(href,label){
 function openWorkspace(href,{label='',push=true}={}){
   const resolved=embeddableWorkspaceHref(href,window.location.href);
   if(!resolved)return false;
-  const url=new URL(resolved);
-  const operatorPath=window.location.pathname.replace(/\/+$/,'');
-  if(url.origin===window.location.origin&&url.pathname.replace(/\/+$/,'')===operatorPath){
+  const destination=operatorShellDestination(resolved,window.location.href);
+  if(destination){
     closeWorkspace({push});
+    if(destination==='apps')window.dispatchEvent(new Event('operator:browse-apps'));
+    else document.querySelector('#operator-input')?.focus();
     return true;
   }
 
@@ -219,6 +220,33 @@ latestButton.addEventListener('click',event=>{
 },true);
 
 workspaceClose.addEventListener('click',()=>closeWorkspace());
+
+// Keep navigation from same-origin app content in the one parent shell.
+workspaceFrame.addEventListener('load',()=>{
+  let doc;
+  try{
+    doc=workspaceFrame.contentDocument;
+    if(!doc)return;
+    const href=workspaceFrame.contentWindow.location.href;
+    if(href==='about:blank')return;
+    if(operatorShellDestination(href,window.location.href)){
+      openWorkspace(href);
+      return;
+    }
+  }catch{return}
+  const style=doc.createElement('style');
+  style.textContent='.topbar,.portal-header,.portal-nav,[data-operator-entry],#homeOperatorForm,#homeOperatorResult{display:none!important}';
+  doc.head?.append(style);
+  doc.addEventListener('click',event=>{
+    if(event.defaultPrevented||event.button>0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+    const anchor=event.target.closest('a[href]');
+    if(!anchor||anchor.hasAttribute('download')||anchor.dataset.operatorExternal==='true')return;
+    const href=embeddableWorkspaceHref(anchor.getAttribute('href'),doc.baseURI);
+    if(!href)return;
+    event.preventDefault();
+    openWorkspace(href,{label:anchor.textContent});
+  },true);
+});
 
 document.addEventListener('click',event=>{
   if(event.defaultPrevented||event.button>0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;

@@ -135,3 +135,5 @@ main.workspace-open .message{
 
 main.workspace-open .welcome{display:none}
 main.workspace-open #operator-latest{display:none}
+
+main.workspace-open .operator-empty-portal{display:none!important}
