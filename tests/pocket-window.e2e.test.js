@@ -41,6 +41,8 @@ test('desktop, portrait and landscape render and support dramatic input without 
     await page.goto(origin+'/pocket-window/?v=extreme');
     await page.waitForFunction(()=>document.querySelector('canvas').width>0 && document.querySelector('canvas').getBoundingClientRect().width===innerWidth);
     await page.screenshot({path:artifacts+'/'+name+'-center.png'});
+    const controls=await page.locator('nav').boundingBox();
+    assert.ok(controls.x>=0&&controls.x+controls.width<=width+1&&controls.height<=50,'primary controls fit without wrapping');
     const initial=await signature(page);
     assert.equal(await page.locator('#still').isChecked(),true);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth&&document.documentElement.scrollHeight<=innerHeight),true);
