@@ -38,12 +38,11 @@
           <canvas class="operator-mini-spinner__canvas" data-portal-swirl-canvas aria-hidden="true"></canvas>
           <span class="operator-mini-spinner__fallback" aria-hidden="true"></span>
         </div>
-        <a href="/">3DVR</a>
+        <a href="/" aria-label="Operator apps">Operator</a>
       </div>
       <div class="header-actions">
-        <a class="workboard-link" href="/plan/">Plan</a>
-        <button id="show-history" type="button" aria-label="Past conversations" aria-expanded="false" aria-controls="conversation-history">History</button>
-        <button id="show-tree" type="button" aria-label="Conversation tree" aria-expanded="false" aria-controls="conversation-tree">Tree</button>
+        <button id="show-history" type="button" aria-label="Past conversations" aria-expanded="false" aria-controls="conversation-history">Chats</button>
+        <button id="show-tree" type="button" aria-label="Conversation tree" aria-expanded="false" aria-controls="conversation-tree">Branches</button>
         <button id="clear-chat" type="button" aria-label="New conversation" title="New conversation">＋</button>
       </div>
     </header>
@@ -63,17 +62,24 @@
       <nav id="conversation-tree-list" aria-label="Conversation branch tree"></nav>
     </aside>
     <section id="operator-log" aria-live="polite" aria-relevant="additions"></section>
-    <div class="operator-empty-portal" aria-hidden="true">
-      <div class="operator-empty-portal__spinner" data-portal-swirl-logo>
-        <canvas class="operator-empty-portal__canvas" data-portal-swirl-canvas></canvas>
-        <span class="operator-empty-portal__fallback"></span>
+    <section class="operator-empty-portal" aria-label="Start with Operator">
+      <div class="operator-start">
+        <p class="operator-eyebrow">YOUR EVERYDAY WORKSPACE</p>
+        <h1>What’s on your mind?</h1>
+        <p class="operator-start__description">Bring an idea, make a plan, or pick up where you left off.</p>
+        <nav class="operator-start__tools" aria-label="Your tools">
+          <a href="/plan/"><span aria-hidden="true">☀</span> Today</a>
+          <a href="/life-space/"><span aria-hidden="true">✎</span> Notes</a>
+          <a href="/calendar/"><span aria-hidden="true">▦</span> Calendar</a>
+          <a href="/workboard/"><span aria-hidden="true">✓</span> Work</a>
+        </nav>
       </div>
-    </div>
+    </section>
     <button id="operator-latest" type="button" hidden aria-label="Jump to the latest message">↓ Latest message</button>
     <section id="operator-workspace" hidden aria-label="Embedded app workspace">
       <div class="operator-workspace__bar">
         <div class="operator-workspace__identity">
-          <small>Inside Operator</small>
+          <small>Workspace</small>
           <strong id="operator-workspace-title">Workspace</strong>
         </div>
         <div class="operator-workspace__actions">
@@ -90,20 +96,21 @@
       ></iframe>
     </section>
     <section class="welcome" aria-label="Operator shortcuts">
+      <p class="operator-shortcut-label">A place to start</p>
       <div class="quick-prompts" aria-label="Things to try">
         <button type="button" data-prompt="Help me plan my day and choose the most important next step.">Plan my day</button>
-        <button type="button" data-prompt="Help me capture and organize an idea I have.">Organize an idea</button>
-        <button type="button" data-prompt="Help me find the best next opportunity to make money.">Find opportunities</button>
+        <button type="button" data-prompt="Help me capture and organize an idea I have.">Capture an idea</button>
+        <button type="button" data-prompt="Help me choose the most useful next step for my work or business.">Choose my next step</button>
         <button type="button" data-prompt="Turn what I need to do into a clear checklist.">Make a checklist</button>
       </div>
     </section>
     <section id="app-search-results" hidden aria-label="3DVR app search results">
-      <div class="app-search-heading"><strong>3DVR apps</strong><small id="app-search-count"></small></div>
+      <div class="app-search-heading"><strong>Your tools</strong><small id="app-search-count"></small><button id="app-search-close" type="button" aria-label="Close tools">×</button></div>
       <nav id="app-search-list" aria-label="Matching 3DVR apps and pages"></nav>
     </section>
     <form id="operator-form">
       <label for="operator-input">Message your operator or search 3DVR</label>
-      <textarea id="operator-input" rows="2" placeholder="Ask Operator…" aria-describedby="operator-status"></textarea>
+      <textarea id="operator-input" rows="2" placeholder="Ask, think out loud, or tell me what you need…" aria-describedby="operator-status"></textarea>
       <div><span><small id="operator-status" role="status">Ready</small></span><div class="operator-actions"><button id="save-secret" type="button" aria-label="Save a secret" title="Save a secret">🔐</button><button type="submit" aria-label="Send to Operator" title="Send">→</button></div></div>
     </form>
       <dialog id="secret-dialog">
