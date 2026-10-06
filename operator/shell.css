@@ -132,3 +132,6 @@ main.workspace-open .message{
     min-height:5.2rem;
   }
 }
+
+main.workspace-open .welcome{display:none}
+main.workspace-open #operator-latest{display:none}
