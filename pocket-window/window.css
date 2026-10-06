@@ -1,0 +1,27 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #16152e; color: #fff5ed; font-family: system-ui, sans-serif; }
+[hidden] { display: none !important; }
+#world { position: fixed; inset: 0; width: 100%; height: 100%; touch-action: none; outline-offset: -4px; }
+header { position: fixed; top: max(22px, env(safe-area-inset-top)); left: 24px; pointer-events: none; text-shadow: 0 2px 12px #17112e; transition: opacity 1s; }
+.brand { font-size: 10px; letter-spacing: .24em; font-weight: 700; }
+.brand span { color: #ffcaaa; }
+.world-name { display: block; margin-top: 6px; font-size: 17px; font-weight: 550; }
+#hint { position: fixed; bottom: 14%; left: 10%; width: 80%; text-align: center; font-size: clamp(15px, 2vw, 21px); font-weight: 650; text-shadow: 0 2px 16px #141023; pointer-events: none; transition: opacity 1s; }
+#hint small { display: block; margin-top: 9px; font-size: 12px; font-weight: 400; color: #f8d9e8; }
+body.exploring #hint { opacity: 0; }
+body.exploring header { opacity: .4; }
+nav { position: fixed; bottom: max(22px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
+button { min-height: 44px; border: 1px solid #f9ccff55; border-radius: 24px; padding: 10px 17px; background: #221e3ddd; color: #fff5ed; font: inherit; font-size: 13px; cursor: pointer; backdrop-filter: blur(12px); }
+button:hover, button:focus-visible { background: #51426a; }
+button.on { border-color: #c8ffe1; color: #c8ffe1; }
+nav button { transition: background .3s; }
+#panel { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(78px, calc(env(safe-area-inset-bottom) + 64px)); width: min(340px, calc(100% - 32px)); max-height: 70dvh; overflow: auto; padding: 22px; border: 1px solid #ffd6f455; border-radius: 24px; background: #211d38f5; box-shadow: 0 20px 80px #05041188; }
+h1 { font-size: 18px; margin: 0; }
+p, .help { font-size: 12px; line-height: 1.5; color: #d9c7e5; }
+#panel button { margin: 4px 3px 5px 0; }
+label { display: block; margin-top: 16px; font-size: 13px; }
+input[type=range] { display: block; width: 100%; margin-top: 12px; accent-color: #ffcaaa; }
+input[type=checkbox] { accent-color: #ffcaaa; }
+#fallback { position: fixed; top: 40%; padding: 24px; }
+@media (max-height: 450px) { #hint { bottom: 19%; } header { top: 12px; } .world-name { font-size: 13px; } nav { bottom: 12px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
