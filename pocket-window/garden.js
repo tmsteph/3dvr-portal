@@ -6,10 +6,12 @@ export function createGarden(canvas) {
   let width = 1, height = 1;
   function resize() {
     width = innerWidth; height = innerHeight;
-    const dpr = Math.min(devicePixelRatio || 1, 2);
+    // Keep the spatial scene responsive on phones and large software-rendered screens.
+    // HUD text stays at native CSS resolution.
+    const dpr = Math.min(devicePixelRatio || 1, 1.25, Math.sqrt(1000000 / (width * height)));
     canvas.width = Math.round(width * dpr);
     canvas.height = Math.round(height * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setTransform(canvas.width / width, 0, 0, canvas.height / height, 0, 0);
   }
   resize();
   addEventListener('resize', resize);
@@ -42,6 +44,11 @@ export function createGarden(canvas) {
     const ellipse = (x, y, rx, ry, color) => {
       ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
     };
+    function halo(color, radius = 2) {
+      const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+      glow.addColorStop(0, color); glow.addColorStop(1, color + '00');
+      ctx.fillStyle = glow; ctx.fillRect(-radius, -radius, radius * 2, radius * 2);
+    }
     // Low-poly ellipsoids give Moonbun real volume when the viewer peeks sideways.
     function ellipsoid(cx, cy, cz, rx, ry, rz, pink = false) {
       const rows = 8, columns = 16;
@@ -69,18 +76,18 @@ export function createGarden(canvas) {
     }
     for (let x = -7; x <= 7; x += .7) polygon([{x,y:-1.19,z:-.8},{x:x+.012,y:-1.19,z:-.8},{x:x+.012,y:-1.19,z:26},{x,y:-1.19,z:26}], '#b7ead633');
     stars.forEach((s, i) => sprite(s.x + Math.sin(time * .4 + i) * .13, s.y, s.z, s.radius, () => {
-      ctx.shadowColor = '#ffe4ac'; ctx.shadowBlur = 12; ellipse(0,0,1,1,'#ffeac5');
+      halo('#ffe4ac', 2.5); ellipse(0,0,1,1,'#ffeac5');
     }));
     // The moon doorway beyond the garden.
     sprite(0, .6, 13, 1.5, () => {
-      ctx.shadowColor = '#ffdcbd'; ctx.shadowBlur = 55;
+      halo('#ffdcbd', 1.6);
       ellipse(0,0,1,1,'#ffd8b5'); ellipse(.35,-.14,.8,.8,'#51466d');
     });
     // Lanterns float at independent distances.
     for (let i = 0; i < 10; i++) {
       const z = i * 1.15 + .25;
       sprite((i % 2 ? 1 : -1) * (.8 + i * .05), .55 + Math.sin(time + i) * .09, z, .13, () => {
-        ctx.shadowColor = '#ffb9d1'; ctx.shadowBlur = 24;
+        halo('#ffb9d1', 1.9);
         ellipse(0,0,.75,1,'#ffd4be'); ellipse(0,-.95,.32,.12,'#fff3cb');
         ctx.strokeStyle='#edacbe'; ctx.lineWidth=.06; ctx.beginPath(); ctx.moveTo(0,-1.05); ctx.lineTo(0,-1.6); ctx.stroke();
       });
@@ -106,8 +113,8 @@ export function createGarden(canvas) {
     // Peek around the near pillars to discover two tiny star friends.
     for (const side of [-1,1]) sprite(side * .93, -.18, 2.6, .18, () => {
       ctx.beginPath(); for(let i=0;i<10;i++){const a=i*Math.PI/5-Math.PI/2,r=i%2?.46:1;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}ctx.closePath();
-      ctx.fillStyle='#ffe6a8';ctx.shadowColor='#ffd280';ctx.shadowBlur=20;ctx.fill();
-      ctx.shadowBlur=0;ellipse(-.22,0,.055,.08,'#604761');ellipse(.22,0,.055,.08,'#604761');
+      ctx.fillStyle='#ffe6a8';ctx.fill();
+      ellipse(-.22,0,.055,.08,'#604761');ellipse(.22,0,.055,.08,'#604761');
     });
     // Opaque foreground posts create unmistakable occlusion, unlike overlay parallax.
     const edge = Math.min(width / height, 1.5) * .9;
@@ -115,13 +122,13 @@ export function createGarden(canvas) {
       const x=side*edge, z=-.68;
       polygon([{x:x-.065,y:-1.5,z},{x:x-.065,y:1.7,z},{x:x+.065,y:1.7,z},{x:x+.065,y:-1.5,z}], '#393656', '#ad8fb688', 2);
       polygon([{x:x-.065,y:1.7,z},{x:x+.065,y:1.7,z},{x:x+.065,y:1.7,z:.6},{x:x-.065,y:1.7,z:.6}], '#897393');
-      sprite(x,.85,z-.02,.12,()=>{ctx.shadowColor='#f6c5e0';ctx.shadowBlur=20;ellipse(0,0,.55,1,'#facbe0');});
+      sprite(x,.85,z-.02,.12,()=>{halo('#f6c5e0', 1.4);ellipse(0,0,.55,1,'#facbe0');});
     }
     for (let i=0;i<8;i++) {
       const side=i%2?1:-1, z=i<2?-.9:1+i*.9;
       sprite(side*(i<2?edge*.9:1.25),i<2?-.62:-.9,z,i<2?.23:.22,()=>{
-        ellipse(0,.37,.2,.54,'#f8e6cc');ctx.shadowColor='#c4a6ff';ctx.shadowBlur=18;
-        ellipse(0,-.05,1,.52,i%3?'#d4a6f3':'#ffb5ce');ctx.shadowBlur=0;
+        ellipse(0,.37,.2,.54,'#f8e6cc');
+        ellipse(0,-.05,1,.52,i%3?'#d4a6f3':'#ffb5ce');
         ellipse(-.42,-.17,.12,.075,'#fff0df');ellipse(.24,-.28,.14,.08,'#fff0df');
       });
     }
@@ -129,7 +136,7 @@ export function createGarden(canvas) {
     for(let i=0;i<12;i++) {
       const z=.3+Math.sin(time*.38+i)*1.05;
       sprite(Math.sin(i*31.7)*1.25,Math.cos(i*7.8)*.9+Math.sin(time*.6+i)*.06,z,.024,()=>{
-        ctx.shadowColor='#b6ffe6';ctx.shadowBlur=18;ellipse(0,0,1,1,'#b6ffe6');
+        halo('#b6ffe6', 2.7);ellipse(0,0,1,1,'#b6ffe6');
       });
     }
     commands.sort((a,b)=>b.z-a.z).forEach(c=>c.draw());

@@ -41,6 +41,7 @@ Live baseline was release `ef2e0ca90ea90b6e7f1f650eb8ea1029ad752c2d` (PR #3017).
 - Visually reviewed center, lean and close-up screenshots. Foreground moves oppositely to the distant scene and exposes hidden stars.
 - Real CDP touch gestures exercise one-finger drag and two-finger pinch.
 - Verified no overflow, panel placement, keyboard, exact settled recenter, reduced-motion behavior, denial fallback, camera track shutdown, gyro recenter and no external/upload requests.
+- Replaced costly blur shadows with radial glows and bounded rendering to one million pixels (HUD remains native). Cloud Chromium with deviceScaleFactor=2 measured 16.7 ms median frame interval at portrait and desktop; p95 was 33.3 ms. This is a cloud measurement, not a phone benchmark.
 - Tests use a synthetic camera and orientation samples. Actual iOS/Android sensors, camera face quality, Safari and physical-device performance still need hardware validation; Thomas's devices were not used.
 
 ## Production and rollback

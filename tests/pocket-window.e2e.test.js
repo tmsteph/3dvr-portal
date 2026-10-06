@@ -39,7 +39,7 @@ test('desktop, portrait and landscape render and support dramatic input without 
     page.on('pageerror',e=>errors.push(e.message));
     page.on('request',r=>{if(!r.url().startsWith(origin))external.push(r.url());});
     await page.goto(origin+'/pocket-window/?v=extreme');
-    await page.waitForFunction(()=>document.querySelector('canvas').width===innerWidth);
+    await page.waitForFunction(()=>document.querySelector('canvas').width>0 && document.querySelector('canvas').getBoundingClientRect().width===innerWidth);
     await page.screenshot({path:artifacts+'/'+name+'-center.png'});
     const initial=await signature(page);
     assert.equal(await page.locator('#still').isChecked(),true);
