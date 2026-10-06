@@ -50,7 +50,7 @@ test('desktop, portrait and landscape render and support dramatic input without 
       await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:width*.5,y:height*.5,id:1}]});
       await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:width*.85,y:height*.4,id:1}]});
       await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-    }else await page.mouse.move(width*.85,height*.4);
+    }else {await page.mouse.move(width*.5,height*.5);await page.mouse.down();await page.mouse.move(width*.85,height*.4);await page.mouse.up();}
     await settled(page);assert.notEqual(await signature(page),initial,'drag/mouse changes the projected world');
     await page.screenshot({path:artifacts+'/'+name+'-lean.png'});
     await page.keyboard.press('Escape');await settled(page);
@@ -87,7 +87,7 @@ test('camera denial and tilt denial preserve touch fallback',{timeout:15000},asy
   await page.locator('#motion').click();
   assert.match(await page.locator('#status').textContent(),/permission declined/);
   await page.keyboard.press('Escape');
-  const initial=await signature(page);await page.mouse.move(100,100);await settled(page);
+  const initial=await signature(page);await page.mouse.move(600,350);await page.mouse.down();await page.mouse.move(100,100);await page.mouse.up();await settled(page);
   assert.notEqual(await signature(page),initial);await page.close();
 });
 
@@ -110,4 +110,44 @@ test('local camera can stop, tilt centers against actual device readings',{timeo
   await page.evaluate(()=>window.dispatchEvent(new DeviceOrientationEvent('deviceorientation',{gamma:32,beta:70})));
   await settled(page);assert.equal(await signature(page),centered,'center survives the next identical gyro event');
   assert.equal(uploads,0);await context.close();
+});
+
+test('touch is relative, reversed, cumulative and does not snap during pinch',{timeout:20000},async()=>{
+  const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
+  const page=await context.newPage();
+  await page.goto(origin+'/pocket-window/');
+  const cdp=await context.newCDPSession(page);
+  const touch=(type,points)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points});
+  const finger=(x,id=1)=>({x,y:410,id});
+  const initial=await signature(page);
+  await touch('touchStart',[finger(40)]);await settled(page);
+  assert.equal(await signature(page),initial,'touchdown near the edge must not move the camera');
+  await touch('touchMove',[finger(85)]);await touch('touchEnd',[]);await settled(page);
+  const first=await signature(page);
+  assert.notEqual(first,initial);
+  const bunnyX=await page.evaluate(()=>{
+    const c=document.querySelector('canvas'),ctx=c.getContext('2d'),d=ctx.getImageData(0,0,c.width,c.height).data;
+    let sum=0,count=0;
+    for(let y=Math.floor(c.height*.4);y<c.height*.62;y++)for(let x=0;x<c.width;x++){
+      const i=(y*c.width+x)*4;
+      if(d[i]>d[i+1]*1.25&&d[i]>d[i+2]*1.06&&d[i]>130){sum+=x;count++;}
+    }
+    return sum/count;
+  });
+  assert.ok(bunnyX<180,'swiping right moves the background bunny left');
+  await touch('touchStart',[finger(240)]);await settled(page);
+  assert.equal(await signature(page),first,'new drag keeps the existing camera position');
+  await touch('touchMove',[finger(285)]);await touch('touchEnd',[]);await settled(page);
+  assert.notEqual(await signature(page),first,'successive drags accumulate');
+  await page.keyboard.press('Escape');await settled(page);
+  await touch('touchStart',[finger(240)]);await touch('touchMove',[finger(285)]);await touch('touchEnd',[]);await settled(page);
+  assert.equal(await signature(page),first,'same drag delta at a different screen location produces the same pose');
+  await touch('touchStart',[finger(100)]);await touch('touchStart',[finger(100),finger(220,2)]);await settled(page);
+  assert.equal(await signature(page),first,'adding a second finger does not recenter or pan');
+  await touch('touchMove',[finger(70),finger(250,2)]);await settled(page);
+  const pinched=await signature(page);
+  assert.notEqual(pinched,first,'pinch still changes depth');
+  await touch('touchEnd',[finger(70)]);await touch('touchMove',[finger(70)]);await settled(page);
+  assert.equal(await signature(page),pinched,'returning from pinch to drag does not snap');
+  await touch('touchEnd',[]);await context.close();
 });

@@ -15,13 +15,13 @@
   <div id="hint">A little world. A very deep rabbit hole.<small>Drag to peek · pinch or scroll to move closer</small></div>
   <nav aria-label="Window controls">
     <button id="center" title="Recenter (Escape)">◎ Center</button>
+    <button id="motion">Enable Tilt</button>
     <button id="settings" aria-expanded="false" aria-controls="panel">✦ Magic</button>
   </nav>
   <section id="panel" hidden aria-label="Optional enhancements">
-    <h1>Make the window follow you</h1>
-    <p>It already works with your finger. Add tilt or local camera tracking.</p>
-    <button id="cam">Enable Camera</button>
-    <button id="motion">Enable Motion</button>
+    <h1>A window that moves with you</h1>
+    <p>Tilt or drag to explore. Camera tracking is experimental and may feel less steady.</p>
+    <button id="cam">Try Camera (experimental)</button>
     <button id="fullscreen">Full screen</button>
     <label>Depth magic <input id="intensity" type="range" min="0.3" max="1.5" step="0.1" value="1.2"></label>
     <label><input id="still" type="checkbox"> Still world / reduced motion</label>
@@ -29,6 +29,6 @@
     <p class="help">Arrows: peek · + / −: closer · Escape: center. Pinch with two fingers for depth.</p>
   </section>
   <video id="video" autoplay muted playsinline hidden></video>
-  <script type="module" src="./window.js"></script>
+  <script type="module" src="./window.js?v=relative-touch-1"></script>
 </body>
 </html>

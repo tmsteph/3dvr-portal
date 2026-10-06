@@ -19,7 +19,7 @@ The browser tests need the repository's installed Playwright Chromium runtime. O
 
 ## Controls
 
-Drag or move the mouse to lean. Two-finger pinch, scroll or +/- moves closer/back. Arrow keys look around. Center / Escape resets the head reference, pointer depth and actual device orientation reference. Magic opens the optional controls. Center remains visible.
+Drag with touch or mouse to look around. Gestures are relative to the current camera offset; touching a different screen region never assigns a new pose. Swipe right looks right (background moves left). Two-finger pinch, scroll or +/- moves closer/back. Arrow keys look around. Center / Escape resets the head reference, pointer depth and actual device orientation reference. Enable Tilt is a primary control. Magic opens the optional controls; camera tracking is marked experimental. Center remains visible.
 
 Reduced-motion preferences disable the automatic opening lean and animated world. Manual input remains available; the intensity slider offers a gentler experience. Fullscreen is progressively enhanced.
 
@@ -49,3 +49,7 @@ Live baseline was release `ef2e0ca90ea90b6e7f1f650eb8ea1029ad752c2d` (PR #3017).
 Update `ops/self-host-production-trigger.txt` in the PR. On merge, the repository's self-host production workflow deploys its exact `github.sha`, validates a candidate before switching, and retains prior release directories. Check `/__3dvr-health` against the workflow SHA, then browser-test the public route and module responses. A merge alone is not release verification.
 
 Previous production release for rollback: `ef2e0ca90ea90b6e7f1f650eb8ea1029ad752c2d`. Use the existing exact-SHA deployment script with that commit from the dedicated production checkout if a rollback is required.
+
+## Touch feedback pass — 2026-10-06
+
+Relative accumulated dragging replaces absolute screen mapping. Direction reversed from the first Moonbun release. Pinch entry and return to one finger reanchor without panning or snapping. Camera start/stop rebases only head input, preserving drag and tilt. Six focused tests pass, including CDP touch regressions at different gesture origins. Previous live SHA for this pass: `f4b8de08a5980c6f3c11289d68015d75f38a694a`.

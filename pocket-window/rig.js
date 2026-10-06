@@ -24,6 +24,7 @@ export function createRig() {
   const eye = { x: 0, y: 0, distance: 2.7 };
   return {
     inputs, eye,
+    centerHead() { origin = { ...inputs.head }; },
     center() {
       origin = { ...inputs.head };
       Object.assign(inputs.pointer, { x: 0, y: 0, z: 0 });

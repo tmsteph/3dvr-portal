@@ -15,3 +15,4 @@ release digital twin and av source health 2026-09-29T14:50-07:00
 2026-09-30 deploy centered Operator empty-state portal
 2026-10-02 publish digital twin open package, secure access, and reliability documents
 2026-10-06 Pocket Window Moonbun Garden: off-axis projection, local sensors, mobile play-tested
+2026-10-06 Pocket Window relative reversed touch and tilt-first controls
