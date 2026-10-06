@@ -1,4 +1,4 @@
-import { clamp, createRig } from './rig.js';
+import { clamp, createRig } from './rig.js?v=relative-touch-1';
 import { createGarden } from './garden.js';
 
 const $ = id => document.getElementById(id);
@@ -9,18 +9,20 @@ $('still').checked = reduced.matches;
 const status = message => { $('status').textContent = message; };
 let active = false, last = performance.now(), time = 0;
 function explore() { active = true; document.body.classList.add('exploring'); }
-function point(x, y) {
-  pointer.x = clamp((x / innerWidth - .5) * 2, -1, 1);
-  pointer.y = clamp((.5 - y / innerHeight) * 2, -1, 1);
-  explore();
-}
 const touches = new Map();
-let pinchStart = null, pinchDepth = 0;
+let dragStart = null, pinchStart = null, pinchDepth = 0;
+function anchorDrag() {
+  const finger = [...touches.values()][0];
+  dragStart = finger ? { ...finger, viewX: pointer.x, viewY: pointer.y } : null;
+}
 canvas.addEventListener('pointerdown', e => {
   canvas.focus({ preventScroll: true });
   canvas.setPointerCapture(e.pointerId);
   touches.set(e.pointerId, { x:e.clientX, y:e.clientY });
-  point(e.clientX, e.clientY);
+  explore();
+  // Touch never assigns a camera pose from an absolute screen location.
+  // A new gesture starts from the existing camera offset, including prior drags.
+  if (touches.size === 1) anchorDrag();
   if (touches.size === 2) { pinchStart = pinchDistance(); pinchDepth = pointer.z; }
 });
 function pinchDistance() {
@@ -28,11 +30,21 @@ function pinchDistance() {
   return Math.hypot(a.x-b.x,a.y-b.y);
 }
 canvas.addEventListener('pointermove', e => {
-  if (touches.has(e.pointerId)) touches.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if (touches.size === 2 && pinchStart) pointer.z = clamp(pinchDepth + (pinchDistance()-pinchStart)/180, -1.7, 1);
-  else if (e.pointerType === 'mouse' || touches.has(e.pointerId)) point(e.clientX,e.clientY);
+  if (!touches.has(e.pointerId)) return;
+  touches.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if (touches.size === 2 && pinchStart) {
+    pointer.z = clamp(pinchDepth + (pinchDistance()-pinchStart)/180, -1.7, 1);
+  } else if (touches.size === 1 && dragStart) {
+    // Swipe right looks right (background travels left), like a spatial camera.
+    pointer.x = clamp(dragStart.viewX - (e.clientX-dragStart.x)/innerWidth*2, -1, 1);
+    pointer.y = clamp(dragStart.viewY + (e.clientY-dragStart.y)/innerHeight*2, -1, 1);
+  }
 });
-function release(e) { touches.delete(e.pointerId); pinchStart=null; }
+function release(e) {
+  touches.delete(e.pointerId); pinchStart=null;
+  // Two fingers back to one starts a fresh drag without snapping the camera.
+  anchorDrag();
+}
 canvas.addEventListener('pointerup',release);
 canvas.addEventListener('pointercancel',release);
 canvas.addEventListener('lostpointercapture',release);
@@ -42,7 +54,7 @@ canvas.addEventListener('wheel', e => {
 },{passive:false});
 let motionBase=null, motionLatest=null, motionEnabled=false, motionTimer;
 function recenter() {
-  rig.center(); motionBase=motionLatest ? {...motionLatest}:null;
+  rig.center(); anchorDrag(); motionBase=motionLatest ? {...motionLatest}:null;
   explore(); status('Centered. Lean, drag or pinch to peek again.');
 }
 $('center').onclick=recenter;
@@ -73,7 +85,7 @@ $('fullscreen').onclick=async()=>{
 $('motion').onclick=async()=>{
   if(motionEnabled) {
     motionEnabled=false;motionBase=null;Object.assign(motion,{x:0,y:0});
-    $('motion').textContent='Enable Motion';$('motion').classList.remove('on');clearTimeout(motionTimer);
+    $('motion').textContent='Enable Tilt';$('motion').classList.remove('on');clearTimeout(motionTimer);
     status('Tilt off. Touch and camera still work.');return;
   }
   try {
@@ -83,7 +95,7 @@ $('motion').onclick=async()=>{
       if(permission!=='granted')throw new Error('denied');
     }
     motionEnabled=true;motionBase=null;
-    $('motion').textContent='Disable Motion';$('motion').classList.add('on');
+    $('motion').textContent='Disable Tilt';$('motion').classList.add('on');
     status('Waiting for tilt. Hold the device comfortably; first reading becomes center.');
     motionTimer=setTimeout(()=>{
       if(motionEnabled&&!motionBase)status('No tilt readings yet. Drag or pinch still works.');
@@ -111,8 +123,8 @@ function stopCamera() {
   cameraGeneration++;cancelAnimationFrame(trackingFrame);
   stream?.getTracks().forEach(track=>track.stop());
   stream=null;video.srcObject=null;previous=null;detector=null;
-  Object.assign(head,{x:0,y:0,z:0});rig.center();
-  $('cam').textContent='Enable Camera';$('cam').classList.remove('on');
+  Object.assign(head,{x:0,y:0,z:0});rig.centerHead();
+  $('cam').textContent='Try Camera (experimental)';$('cam').classList.remove('on');
 }
 $('cam').onclick=async()=>{
   if(cameraBusy)return;
@@ -144,7 +156,7 @@ $('cam').onclick=async()=>{
               head.x=(.5-(b.x+b.width/2)/video.videoWidth)*4.8;
               head.y=(.5-(b.y+b.height/2)/video.videoHeight)*3.6;
               head.z=clamp(b.width/video.videoWidth-.28,-.2,.35)*4;
-              if(firstFace){rig.center();firstFace=false;}
+              if(firstFace){rig.centerHead();firstFace=false;}
             }
           }else if(visionContext&&video.readyState>=2) {
             visionContext.drawImage(video,0,0,40,30);

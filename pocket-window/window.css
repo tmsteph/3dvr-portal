@@ -10,11 +10,11 @@ header { position: fixed; top: max(22px, env(safe-area-inset-top)); left: 24px; 
 #hint small { display: block; margin-top: 9px; font-size: 12px; font-weight: 400; color: #f8d9e8; }
 body.exploring #hint { opacity: 0; }
 body.exploring header { opacity: .4; }
-nav { position: fixed; bottom: max(22px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
+nav { width: max-content; max-width: calc(100% - 24px); position: fixed; bottom: max(22px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
 button { min-height: 44px; border: 1px solid #f9ccff55; border-radius: 24px; padding: 10px 17px; background: #221e3ddd; color: #fff5ed; font: inherit; font-size: 13px; cursor: pointer; backdrop-filter: blur(12px); }
 button:hover, button:focus-visible { background: #51426a; }
 button.on { border-color: #c8ffe1; color: #c8ffe1; }
-nav button { transition: background .3s; }
+nav button { white-space: nowrap; padding-inline: 13px; transition: background .3s; }
 #panel { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(78px, calc(env(safe-area-inset-bottom) + 64px)); width: min(340px, calc(100% - 32px)); max-height: 70dvh; overflow: auto; padding: 22px; border: 1px solid #ffd6f455; border-radius: 24px; background: #211d38f5; box-shadow: 0 20px 80px #05041188; }
 h1 { font-size: 18px; margin: 0; }
 p, .help { font-size: 12px; line-height: 1.5; color: #d9c7e5; }
