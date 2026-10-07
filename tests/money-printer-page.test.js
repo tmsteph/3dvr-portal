@@ -99,7 +99,9 @@ describe('money-printer MVP', () => {
 
     const prompts = await readFile(new URL('moneyPrinterPrompts.js', srcDir), 'utf8');
     assert.match(prompts, /persistent 3DVR executive/);
-    assert.match(prompts, /service-first, software-later/);
+    assert.match(prompts, /agent-executable, self-serve, or automatically fulfilled/);
+    assert.match(prompts, /automated or agent-fulfilled delivery path/);
+    assert.match(prompts, /Do not make Thomas interviews, calls, manual concierge work/);
 
     const connector = await readFile(new URL('moneyPrinterConnectors.js', srcDir), 'utf8');
     assert.match(connector, /class AgentToolConnector/);
