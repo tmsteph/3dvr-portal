@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="title desc">
+<title id="title">3DVR modular wearable phone system</title>
+<desc id="desc">A central quick-release phone cradle connects to belt, chest, head, desk and keyboard modules.</desc>
+<defs><linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#f5f1e8"/><stop offset="1" stop-color="#e2dbce"/></linearGradient></defs>
+<rect width="1200" height="620" rx="40" fill="url(#bg)"/>
+<text x="54" y="70" fill="#1c252a" font-family="Inter,Arial,sans-serif" font-size="34" font-weight="850">One cradle. Many postures.</text>
+<text x="54" y="108" fill="#697378" font-family="Inter,Arial,sans-serif" font-size="20">A shared 3DVR quick-release interface turns the phone into a wearable, handheld, desk or VR computer.</text>
+<g transform="translate(468 158)">
+  <rect width="264" height="364" rx="38" fill="#10171b" stroke="#53656e" stroke-width="6"/>
+  <rect x="22" y="29" width="220" height="294" rx="27" fill="#315f7e"/>
+  <circle cx="209" cy="61" r="12" fill="#091014" stroke="#8ba0aa" stroke-width="3"/>
+  <rect x="-31" y="94" width="34" height="170" rx="14" fill="#26343c" stroke="#6d7f88" stroke-width="4"/>
+  <rect x="261" y="94" width="34" height="170" rx="14" fill="#26343c" stroke="#6d7f88" stroke-width="4"/>
+  <circle cx="132" cy="344" r="12" fill="#6fd6ff"/>
+</g>
+<g font-family="Inter,Arial,sans-serif" font-weight="800" fill="#1f282d" font-size="18">
+  <text x="80" y="220">BELT</text><text x="83" y="438">CHEST</text><text x="1000" y="220">HEAD / VR</text><text x="982" y="438">DESK + KEYS</text>
+</g>
+<g fill="none" stroke="#a96639" stroke-width="5" stroke-linecap="round">
+  <path d="M448 256 C342 224 265 220 170 220"/>
+  <path d="M448 405 C338 430 262 438 170 438"/>
+  <path d="M752 256 C858 224 935 220 1030 220"/>
+  <path d="M752 405 C862 430 938 438 1030 438"/>
+</g>
+<g transform="translate(88 247)">
+  <rect width="146" height="86" rx="22" fill="#151d22" stroke="#667881" stroke-width="4"/>
+  <path d="M116 10 h66 v66 h-66" fill="none" stroke="#53646d" stroke-width="18"/>
+</g>
+<g transform="translate(84 458)">
+  <path d="M22 0 C58 58 90 58 126 0" fill="none" stroke="#1e272c" stroke-width="18" stroke-linecap="round"/>
+  <rect x="41" y="43" width="68" height="44" rx="12" fill="#1c252a" stroke="#667881" stroke-width="4"/>
+</g>
+<g transform="translate(958 244)">
+  <path d="M0 44 C65 -4 144 -4 198 44" fill="none" stroke="#1d272d" stroke-width="18" stroke-linecap="round"/>
+  <rect x="58" y="34" width="115" height="64" rx="16" fill="#141c21" stroke="#667881" stroke-width="4"/>
+</g>
+<g transform="translate(948 464)">
+  <rect x="0" y="0" width="188" height="18" rx="9" fill="#29343a"/>
+  <path d="M35 18 l28 58 h62 l28 -58" fill="#1d272c" stroke="#667881" stroke-width="4"/>
+  <g fill="#7d8b91"><rect x="48" y="32" width="18" height="12" rx="3"/><rect x="72" y="32" width="18" height="12" rx="3"/><rect x="96" y="32" width="18" height="12" rx="3"/><rect x="120" y="32" width="18" height="12" rx="3"/></g>
+</g>
+<text x="600" y="569" text-anchor="middle" fill="#315f7e" font-family="Inter,Arial,sans-serif" font-size="18" font-weight="800">Magnetic alignment + mechanical safety catch + rotation</text>
+</svg>
