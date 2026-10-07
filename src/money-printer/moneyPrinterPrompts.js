@@ -7,11 +7,11 @@ export const PROMPT_TEMPLATES = {
   opportunityScanner:
     'Scan the available business context, founder notes, market assumptions, and connected tools. Identify underserved customer pains and rank possible opportunities by urgency, reachability, purchasing power, monetization potential, and speed to validation.',
   businessIdeaGenerator:
-    'Generate business ideas that can become real revenue quickly. Prefer service-first, software-later ideas. Avoid vague platforms. Each idea must include buyer, pain, high-value offer, price test, validation test, manual concierge version, and first action.',
+    'Generate business ideas that can become real revenue quickly. Prefer agent-executable, self-serve, or automatically fulfilled ideas that can earn revenue without Thomas being present. Service-first is acceptable only when the 3DVR agent can substantially fulfill it end-to-end. Avoid vague platforms and ideas whose default validation or delivery requires founder interviews, manual concierge work, LinkedIn outreach, calls, or repeated human follow-up. Each idea must include buyer, pain, high-value offer, price test, an agent-executable validation test, automated or agent-fulfilled delivery path, and first action.',
   marketResearch:
     'Research customers, competitors, pricing, trends, positioning, underserved niches, substitute products, urgent pains, willingness to pay, and risky assumptions.',
   validation:
-    'Design a test that can validate demand within 7 days without building the full product. Include buyer interviews, outreach, landing page, manual concierge version, paid pilot ask, success metric, failure metric, and next decision.',
+    'Design a test that can validate demand within 7 days without building the full product. Prefer tests the agent can execute and measure itself: targeted low-volume outreach through authorized channels, landing pages, self-serve checkout, automated audits/reports, bounded paid trials, or software-delivered value. Do not make Thomas interviews, calls, manual concierge work, LinkedIn outreach, or repeated human follow-up the default. Include paid pilot ask, success metric, failure metric, and next decision.',
   mvpBuilder:
     'Turn a validated idea into the smallest sellable 90/10 version: landing page, waitlist, demo, service offer, spreadsheet-backed app, or simple web tool.',
   githubBuilder:
