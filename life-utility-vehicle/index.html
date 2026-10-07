@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3DVR Life Utility Vehicle | 3DVR Portal</title>
+  <meta
+    name="description"
+    content="A 3DVR research concept for an open, modular Life Utility Vehicle where the phone is the cockpit, Operator is the interface, and physical modules adapt the machine to daily life."
+  >
+  <link rel="stylesheet" href="../style.css?v=life-utility-vehicle">
+  <link rel="stylesheet" href="./styles.css?v=20261006">
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="luv-page">
+  <nav class="luv-nav" aria-label="Life Utility Vehicle navigation">
+    <a href="../index.html">Portal</a>
+    <a href="../phone-holder-system/">Phone Dock</a>
+    <a href="#idea">Idea</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#modes">Modes</a>
+    <a href="#build">Build path</a>
+  </nav>
+
+  <header class="hero" id="idea">
+    <section class="hero-copy" aria-labelledby="luv-title">
+      <p class="eyebrow">3DVR Research · Open mobility</p>
+      <h1 id="luv-title">The computer around you becomes the vehicle around you.</h1>
+      <p class="lede">
+        Start with the phone you already own. Add a durable physical platform around it.
+        Let software define the interface and let swappable hardware define the job.
+      </p>
+      <div class="hero-actions">
+        <a class="action primary" href="#architecture">See the architecture</a>
+        <a class="action" href="#modes">Try the modes</a>
+      </div>
+      <div class="hero-principles" aria-label="Concept principles">
+        <span>Phone as cockpit</span>
+        <span>Operator as interface</span>
+        <span>Open modules</span>
+        <span>Repairable core</span>
+      </div>
+    </section>
+
+    <section class="vehicle-stage" aria-label="Abstract 3DVR Life Utility Vehicle diagram">
+      <div class="vehicle" data-mode="commuter">
+        <div class="windscreen"></div>
+        <div class="cockpit">
+          <span class="phone">3DVR</span>
+        </div>
+        <div class="spine">
+          <span class="spine-label">open utility spine</span>
+        </div>
+        <div class="module-bay">
+          <strong class="module-title">Everyday bay</strong>
+          <small class="module-detail">bag · groceries · tools</small>
+        </div>
+        <div class="seat"></div>
+        <div class="rear-rack"></div>
+        <div class="wheel wheel-front"><span></span></div>
+        <div class="wheel wheel-rear"><span></span></div>
+        <div class="ground-line"></div>
+      </div>
+      <p class="stage-note">
+        Concept sketch, not a production vehicle. The geometry is deliberately generic: the important part is the architecture.
+      </p>
+    </section>
+  </header>
+
+  <main>
+    <section class="inspiration" aria-labelledby="inspiration-title">
+      <div>
+        <p class="eyebrow">The spark</p>
+        <h2 id="inspiration-title">ANY Mobility's LUV1 makes the pattern obvious.</h2>
+      </div>
+      <div class="inspiration-copy">
+        <p>
+          The LUV1 explores a useful middle ground between scooter, motorcycle, and cargo vehicle:
+          a compact electric platform with a large central storage bay and configurations for different jobs.
+        </p>
+        <p>
+          3DVR's research question is broader: <strong>what happens when the same modularity extends into the
+          computing system, controls, software, ownership, repair, and community ecosystem?</strong>
+        </p>
+        <div class="source-links">
+          <a href="https://www.rideany.com/" rel="noreferrer">ANY Mobility</a>
+          <a href="https://www.visordown.com/news/any-mobility-luv1-electric-cargo-bike-revealed" rel="noreferrer">LUV1 reference</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="architecture" id="architecture" aria-labelledby="architecture-title">
+      <div class="section-intro">
+        <p class="eyebrow">One architecture, many scales</p>
+        <h2 id="architecture-title">Phone Dock → wearable → workstation → vehicle.</h2>
+        <p>
+          The same design language scales outward. Keep the expensive intelligence portable;
+          let the surrounding object specialize for ergonomics, power, storage, movement, and safety.
+        </p>
+      </div>
+
+      <div class="architecture-grid">
+        <article>
+          <span class="number">01</span>
+          <h3>Phone</h3>
+          <p>Screen, cameras, sensors, identity, cellular link, local compute, and personal data stay with you.</p>
+        </article>
+        <article>
+          <span class="number">02</span>
+          <h3>Operator</h3>
+          <p>Navigation, communication, vehicle state, planning, media, work, and connected services share one conversational interface.</p>
+        </article>
+        <article>
+          <span class="number">03</span>
+          <h3>Utility spine</h3>
+          <p>A long-lived structural layer carries power, controls, mounting points, storage interfaces, and standardized expansion.</p>
+        </article>
+        <article>
+          <span class="number">04</span>
+          <h3>Modules</h3>
+          <p>Cargo, weather shell, passenger, tool, battery, camera, compute, audio, and accessibility modules attach without redefining the whole machine.</p>
+        </article>
+      </div>
+
+      <div class="stack">
+        <div><strong>Human</strong><span>purpose · comfort · control</span></div>
+        <div><strong>Operator</strong><span>software-defined experience</span></div>
+        <div><strong>Phone</strong><span>portable intelligence</span></div>
+        <div><strong>Dock / control bus</strong><span>input · power · connectivity</span></div>
+        <div><strong>Vehicle platform</strong><span>motion · structure · safety</span></div>
+        <div><strong>Modules</strong><span>the job changes, not the whole machine</span></div>
+      </div>
+    </section>
+
+    <section class="modes" id="modes" aria-labelledby="modes-title">
+      <div class="section-intro">
+        <p class="eyebrow">Software-defined physical modes</p>
+        <h2 id="modes-title">One machine can wake up as a different tool.</h2>
+        <p>Select a mode to change the concept bay and see how the same core could serve different routines.</p>
+      </div>
+
+      <div class="mode-console">
+        <div class="mode-buttons" role="group" aria-label="Vehicle concept modes">
+          <button type="button" class="mode-button is-active" data-mode="commuter">Commuter</button>
+          <button type="button" class="mode-button" data-mode="cargo">Cargo</button>
+          <button type="button" class="mode-button" data-mode="family">Family</button>
+          <button type="button" class="mode-button" data-mode="field">Field lab</button>
+        </div>
+        <div class="mode-readout" aria-live="polite">
+          <p class="mode-kicker">Current configuration</p>
+          <h3 class="mode-heading">Commuter</h3>
+          <p class="mode-description">
+            Small daily loads, weather protection, secure storage, charging, and a calm phone-first cockpit.
+          </p>
+          <div class="mode-tags">
+            <span>weather shell</span>
+            <span>daily storage</span>
+            <span>phone cockpit</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="operator-panel" aria-labelledby="operator-title">
+      <div class="operator-copy">
+        <p class="eyebrow">The dashboard disappears into Operator</p>
+        <h2 id="operator-title">Don't bolt another giant proprietary tablet to the machine.</h2>
+        <p>
+          Dock the phone and the vehicle becomes another surface for Operator. Ask for directions,
+          check range, manage a delivery list, pull up a camera, message a collaborator, or switch
+          the machine into work mode without learning a separate infotainment system.
+        </p>
+        <a class="text-link" href="../phone-holder-system/">See the 3DVR Phone Dock →</a>
+      </div>
+      <div class="operator-screen" aria-label="Concept Operator vehicle interface">
+        <div class="operator-top">
+          <strong>Operator</strong>
+          <span>Vehicle · ready</span>
+        </div>
+        <div class="operator-dialogue">
+          <p>Take me home, but stop for groceries on the way.</p>
+          <div>
+            Route adjusted. The rear bay is in commuter mode and has room for two grocery bags.
+          </div>
+        </div>
+        <div class="operator-stats">
+          <span><strong>72%</strong> energy</span>
+          <span><strong>18 min</strong> home</span>
+          <span><strong>locked</strong> cargo</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="principles" aria-labelledby="principles-title">
+      <div class="section-intro">
+        <p class="eyebrow">3DVR interpretation</p>
+        <h2 id="principles-title">Build a platform people can keep.</h2>
+      </div>
+      <div class="principle-grid">
+        <article>
+          <h3>Open interfaces</h3>
+          <p>Publish mechanical mounting standards, data interfaces, and reference modules so third parties can build useful additions.</p>
+        </article>
+        <article>
+          <h3>Repair over replacement</h3>
+          <p>Separate wear parts, batteries, controls, compute, and body modules so one failure does not condemn the whole machine.</p>
+        </article>
+        <article>
+          <h3>Local-first intelligence</h3>
+          <p>Keep camera and sensor processing local when practical. Cloud services should add capability, not become the ignition key.</p>
+        </article>
+        <article>
+          <h3>Human approval</h3>
+          <p>Operator can assist and automate low-risk routines while consequential driving and physical actions remain under explicit human control.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="build" id="build" aria-labelledby="build-title">
+      <div class="section-intro">
+        <p class="eyebrow">Research path</p>
+        <h2 id="build-title">Prototype the system before pretending to be an automaker.</h2>
+      </div>
+      <ol class="build-steps">
+        <li>
+          <span>1</span>
+          <div><strong>Phone cockpit prototype</strong><p>Extend the existing Phone Dock into a handlebar/vehicle-safe mounting and control experiment.</p></div>
+        </li>
+        <li>
+          <span>2</span>
+          <div><strong>Operator mobility mode</strong><p>Create a large, glanceable, voice-friendly interface for navigation, state, comms, and cargo workflows.</p></div>
+        </li>
+        <li>
+          <span>3</span>
+          <div><strong>Utility module standard</strong><p>Define a small open mechanical/electrical interface and prove it on a cart, bicycle, scooter, or stationary test rig.</p></div>
+        </li>
+        <li>
+          <span>4</span>
+          <div><strong>Community hardware experiments</strong><p>Publish dimensions, adapters, and lessons so practical modules can emerge before a full vehicle exists.</p></div>
+        </li>
+        <li>
+          <span>5</span>
+          <div><strong>Vehicle partnership</strong><p>If the architecture proves useful, integrate with an existing mobility platform rather than rebuilding every regulated subsystem from scratch.</p></div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="research-note" aria-labelledby="research-note-title">
+      <p class="eyebrow">Research note · October 2026</p>
+      <h2 id="research-note-title">Inspired by a real product, intentionally not a clone.</h2>
+      <p>
+        ANY Mobility calls the LUV1 a Life Utility Vehicle. Public reporting describes a 120 L central cargo bay,
+        removable batteries, phone-based vehicle information, and multiple use configurations, with production
+        currently targeted for 2027. 3DVR is using that work as evidence for a broader modular-computing pattern,
+        not as a specification to copy.
+      </p>
+      <p class="disclaimer">3DVR is not affiliated with ANY Mobility. This page is independent design research.</p>
+    </section>
+  </main>
+
+  <footer class="luv-footer">
+    <p>Build the future from parts people already understand — then make the combination feel magical.</p>
+  </footer>
+
+  <script>
+    (() => {
+      const vehicle = document.querySelector('.vehicle');
+      const buttons = Array.from(document.querySelectorAll('.mode-button'));
+      const heading = document.querySelector('.mode-heading');
+      const description = document.querySelector('.mode-description');
+      const tags = document.querySelector('.mode-tags');
+      const moduleTitle = document.querySelector('.module-title');
+      const moduleDetail = document.querySelector('.module-detail');
+      if (!vehicle || !heading || !description || !tags || !moduleTitle || !moduleDetail) return;
+
+      const modes = {
+        commuter: {
+          heading: 'Commuter',
+          description: 'Small daily loads, weather protection, secure storage, charging, and a calm phone-first cockpit.',
+          tags: ['weather shell', 'daily storage', 'phone cockpit'],
+          moduleTitle: 'Everyday bay',
+          moduleDetail: 'bag · groceries · tools'
+        },
+        cargo: {
+          heading: 'Cargo',
+          description: 'Trade passenger comfort for a lockable, partitioned utility bay sized around real work rather than styling.',
+          tags: ['lockable cargo', 'tie-down rail', 'fleet mode'],
+          moduleTitle: 'Cargo bay',
+          moduleDetail: 'cases · parcels · AV gear'
+        },
+        family: {
+          heading: 'Family',
+          description: 'Add protected passenger and storage modules while keeping the phone, identity, and software experience unchanged.',
+          tags: ['passenger module', 'weather cover', 'shared profiles'],
+          moduleTitle: 'Family module',
+          moduleDetail: 'passenger · bags · safety'
+        },
+        field: {
+          heading: 'Field lab',
+          description: 'Turn the platform into a mobile workstation for cameras, networking, power, tools, sensors, and remote collaboration.',
+          tags: ['power rail', 'camera mast', 'compute dock'],
+          moduleTitle: 'Field lab',
+          moduleDetail: 'power · compute · instruments'
+        }
+      };
+
+      const render = (modeName) => {
+        const mode = modes[modeName] || modes.commuter;
+        vehicle.dataset.mode = modeName;
+        heading.textContent = mode.heading;
+        description.textContent = mode.description;
+        moduleTitle.textContent = mode.moduleTitle;
+        moduleDetail.textContent = mode.moduleDetail;
+        tags.innerHTML = mode.tags.map((tag) => `<span>${tag}</span>`).join('');
+        buttons.forEach((button) => {
+          const active = button.dataset.mode === modeName;
+          button.classList.toggle('is-active', active);
+          button.setAttribute('aria-pressed', String(active));
+        });
+      };
+
+      buttons.forEach((button) => {
+        button.addEventListener('click', () => render(button.dataset.mode || 'commuter'));
+      });
+
+      render('commuter');
+    })();
+  </script>
+  <script defer src="/issue-launcher.js"></script>
+</body>
+</html>
