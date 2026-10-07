@@ -1,3 +1,5 @@
+import { createOperatorSync, mergeOperatorStores } from './operator/sync.js';
+import { ensureConversationTree } from './operator/conversation-tree.js';
 import { runOperatorAction, watchOperatorActionOutcome } from './operator/actions.js';
 import { collectPortalContext } from './operator/portal-context.js';
 import { createOperatorDeveloperProof } from './operator/forge.js';
@@ -309,6 +311,25 @@ if (form && input && submit && status && result && reply && followUps && actionL
     return store;
   };
 
+  const accountSync = createOperatorSync({ windowObj: window });
+  let homeSyncPromise = null;
+  const syncHomeHistory = () => {
+    if (homeSyncPromise) return homeSyncPromise;
+    homeSyncPromise = (async () => {
+      const remote = await accountSync.load(readConversationStore());
+      const merged = mergeOperatorStores(readConversationStore(), remote || {});
+      localStorage.setItem(conversationStoreKey, JSON.stringify(merged));
+      if (merged.conversations.length) await accountSync.save(merged);
+    })().catch(() => {}).finally(() => { homeSyncPromise = null; });
+    return homeSyncPromise;
+  };
+  window.addEventListener('focus', () => { void syncHomeHistory(); });
+  window.addEventListener('online', () => { void syncHomeHistory(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'hidden') void syncHomeHistory();
+  });
+  void syncHomeHistory();
+
   const persistHistory = () => {
     if (!history.length) return;
 
@@ -331,18 +352,20 @@ if (form && input && submit && status && result && reply && followUps && actionL
       store.conversations.push(conversation);
     }
 
-    conversation.messages = history.slice(-40);
+    conversation.messages = history.slice();
+    ensureConversationTree(conversation);
+    conversation.activeLeafId = conversation.messages.at(-1)?.id || null;
     conversation.updatedAt = updatedAt;
     store.activeId = homeConversationId;
     store.conversations = store.conversations
       .filter(item => Array.isArray(item.messages) && item.messages.length)
-      .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
-      .slice(0, 50);
+      .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
 
     localStorage.setItem(conversationStoreKey, JSON.stringify(store));
     if (conversationStoreKey !== BASE_KEY) localStorage.removeItem(BASE_KEY);
     localStorage.removeItem(LEGACY_KEY);
     refreshOperatorNavigation();
+    void accountSync.save(store);
   };
 
   const installSubmitLoader = () => {

@@ -146,6 +146,12 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - Existing Gun-backed apps remain supported. When working in one, use explicit node paths (for example `gun.get('namespace').get('resource')`) and keep coordination logic testable.
 - When caching authoritative data locally, define the synchronization boundary clearly rather than silently creating a second source of truth.
 
+### Operator conversation history
+- Homepage and dedicated Operator must both publish their account-scoped caches through `operator/sync.js`.
+- Read the legacy encrypted `user.get('operator-v01').get('conversations')` snapshot for migration; write encrypted snapshots to `user.get('operator-v01').get('device-history').get(writerId)`. Separate browser writers prevent whole-history overwrites across devices.
+- Merge all snapshots and branch nodes; do not truncate stored conversations or messages during sync. A Gun acknowledgement does not prove another browser has downloaded history.
+- Verify changes with `node --test tests/operator-sync.test.js tests/operator-conversation-tree.test.js` and `node --test tests/operator-device-sync.e2e.test.js`. The latter uses two isolated browsers and a disposable local Gun relay, including homepage submission and a fresh-browser restore. Existing device-local history is recovered when that device next loads the updated page; preserve its browser storage.
+
 ## Design & UX
 - Build mobile-first layouts that adapt gracefully to all screen sizes, including ultra-wide and VR displays.
 - Use semantic HTML, accessible labels, and keyboard-friendly interactions.
