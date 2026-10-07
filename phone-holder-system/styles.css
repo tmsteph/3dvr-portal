@@ -160,6 +160,7 @@ h3 {
 .orientation-panel,
 .system-panel,
 .modes-panel,
+.wearable-panel,
 .prototype-panel,
 .legacy-panel,
 .build-path {
@@ -389,6 +390,7 @@ main {
 .orientation-panel,
 .system-panel,
 .modes-panel,
+.wearable-panel,
 .prototype-panel,
 .legacy-panel,
 .build-path {
@@ -474,7 +476,7 @@ main {
 
 .mode-strip {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: .7rem;
 }
 
@@ -484,6 +486,78 @@ main {
 }
 
 .mode-strip span { color: var(--holder-muted); font-size: .9rem; }
+
+.concept-hero {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--holder-line);
+  border-radius: 14px;
+  background: #f0ece4;
+}
+
+.concept-hero img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.concept-hero figcaption {
+  padding: .85rem 1rem;
+  border-top: 1px solid var(--holder-line);
+  color: var(--holder-muted);
+  font-size: .88rem;
+}
+
+.wearable-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .85rem;
+}
+
+.wearable-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--holder-line);
+  border-radius: 12px;
+  background: #fbfaf7;
+}
+
+.wearable-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 8 / 5.2;
+  object-fit: cover;
+  background: #ece8df;
+}
+
+.wearable-card > div {
+  padding: 1rem;
+}
+
+.wearable-card .mode-mark {
+  margin-bottom: .6rem;
+}
+
+.wearable-card p {
+  margin: 0;
+  color: var(--holder-muted);
+}
+
+.wearable-safety {
+  display: grid;
+  grid-template-columns: minmax(180px, .32fr) 1fr;
+  gap: .85rem;
+  align-items: start;
+  padding: 1rem;
+  border-radius: 12px;
+  background: var(--holder-charcoal);
+  color: #fff;
+}
+
+.wearable-safety span {
+  color: rgba(255,255,255,.74);
+}
 
 .prototype-panel {
   grid-template-columns: minmax(0, .9fr) minmax(320px, 1.1fr);
@@ -554,6 +628,10 @@ main {
 
   .product-stage { min-height: 580px; }
 
+  .wearable-gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .orientation-grid,
   .module-grid,
   .mode-strip {
@@ -603,12 +681,14 @@ main {
 
   .orientation-grid,
   .module-grid,
-  .mode-strip {
+  .mode-strip,
+  .wearable-gallery {
     grid-template-columns: 1fr;
   }
 
   .design-rule,
-  .feature-list div {
+  .feature-list div,
+  .wearable-safety {
     grid-template-columns: 1fr;
   }
 }
