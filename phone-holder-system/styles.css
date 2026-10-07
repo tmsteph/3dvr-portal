@@ -167,7 +167,8 @@ h3 {
 .wearable-panel,
 .prototype-panel,
 .legacy-panel,
-.build-path {
+.build-path,
+.open-phone-panel {
   border: 1px solid var(--holder-line);
   border-radius: 14px;
   background: var(--holder-panel);
@@ -397,7 +398,8 @@ main {
 .wearable-panel,
 .prototype-panel,
 .legacy-panel,
-.build-path {
+.build-path,
+.open-phone-panel {
   display: grid;
   gap: 1.25rem;
   padding: clamp(1rem, 3vw, 2rem);
@@ -711,4 +713,60 @@ main {
   }
 
   .keyboard-toggle { grid-column: 1 / -1; }
+}
+
+
+/* Open Phone roadmap */
+.evolution-path {
+  display: grid;
+  grid-template-columns: repeat(9, auto);
+  gap: .55rem;
+  align-items: stretch;
+  overflow-x: auto;
+  padding-bottom: .35rem;
+}
+.evolution-path article {
+  min-width: 155px;
+  display: grid;
+  gap: .35rem;
+  padding: 1rem;
+  border: 1px solid var(--holder-line);
+  border-radius: 12px;
+  background: #fbfaf7;
+}
+.evolution-path article span {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--holder-charcoal);
+  color: white;
+  font-weight: 900;
+}
+.evolution-path article small { color: var(--holder-muted); line-height: 1.35; }
+.evolution-path > b { align-self: center; color: var(--holder-copper); font-size: 1.5rem; }
+.prototype-zero {
+  display: grid;
+  grid-template-columns: minmax(220px,.7fr) minmax(0,1.3fr);
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: #ece8df;
+}
+.prototype-zero > div:first-child p:last-child { color: var(--holder-muted); }
+.prototype-zero-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .6rem; }
+.prototype-zero-grid article {
+  display: grid;
+  gap: .3rem;
+  padding: .85rem;
+  border: 1px solid var(--holder-line);
+  border-radius: 10px;
+  background: var(--holder-panel);
+}
+.prototype-zero-grid strong { color: var(--holder-blue); }
+.prototype-zero-grid span { color: var(--holder-muted); font-size: .9rem; }
+@media (max-width: 760px) {
+  .prototype-zero { grid-template-columns: 1fr; }
+  .prototype-zero-grid { grid-template-columns: 1fr; }
 }
