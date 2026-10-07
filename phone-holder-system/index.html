@@ -20,6 +20,7 @@
     <a href="#modes">Modes</a>
     <a href="#wearable">Wearable</a>
     <a href="#prototype">Prototype</a>
+    <a href="#open-phone">Open Phone</a>
     <a href="#path">Build path</a>
     <a href="../life-utility-vehicle/">Vehicle</a>
   </nav>
@@ -37,6 +38,7 @@
         <a class="action primary" href="#wearable">See wearable modes</a>
         <a class="action" href="#orientation">Try orientation</a>
         <a class="action" href="#path">Prototype it</a>
+        <a class="action" href="#open-phone">Open Phone roadmap</a>
         <a class="action" href="../life-utility-vehicle/">Scale it up → vehicle</a>
       </div>
       <div class="hero-principles" aria-label="Phone dock principles">
@@ -267,6 +269,47 @@
         <div><strong>Keyboard bay</strong><span>Use an existing Bluetooth/USB keyboard first; custom split keys later.</span></div>
         <div><strong>Fold-out stand</strong><span>Handheld hardware becomes a stable desk workstation.</span></div>
         <div><strong>USB-C pass-through</strong><span>Preserve charging/data from the beginning.</span></div>
+      </div>
+    </section>
+
+    <section class="open-phone-panel" id="open-phone" aria-labelledby="open-phone-title">
+      <div class="section-intro">
+        <p class="eyebrow">3DVR Open Phone</p>
+        <h2 id="open-phone-title">Replace the black box one layer at a time.</h2>
+        <p>
+          We do not need to manufacture a smartphone on day one. The dock becomes a bridge from the phone you already own
+          to a fully open personal computer: useful at every stage, increasingly repairable, and progressively less dependent on closed hardware.
+        </p>
+      </div>
+      <div class="evolution-path" aria-label="Open Phone evolution">
+        <article><span>0</span><strong>Existing phone</strong><small>Screen · cameras · sensors · cellular · compute</small></article>
+        <b>→</b>
+        <article><span>1</span><strong>3DVR Dock</strong><small>Mounts · keyboard · pointer · controls · USB-C</small></article>
+        <b>→</b>
+        <article><span>2</span><strong>Linux companion</strong><small>Open compute module joins the phone</small></article>
+        <b>→</b>
+        <article><span>3</span><strong>Modular handheld</strong><small>Display · modem · battery · cameras become modules</small></article>
+        <b>→</b>
+        <article><span>4</span><strong>Open phone</strong><small>Purpose-built, documented, repairable personal computer</small></article>
+      </div>
+      <div class="prototype-zero">
+        <div>
+          <p class="eyebrow">Prototype 0</p>
+          <h3>Build the smallest thing that teaches us the most.</h3>
+          <p>No custom PCB yet. Prove the physical system and the phone-to-Linux relationship with commodity hardware first.</p>
+        </div>
+        <div class="prototype-zero-grid">
+          <article><strong>Mechanical</strong><span>Existing adjustable phone clamp, foam/cardboard or printed frame, 90° rotation, quick-release spine, positive safety catch, fold-out stand.</span></article>
+          <article><strong>Input</strong><span>Compact Bluetooth/USB keyboard plus a small pointer. Keep game/spatial controls optional until the ergonomics tell us where they belong.</span></article>
+          <article><strong>I/O</strong><span>USB-C hub with power pass-through. Preserve charging and expose USB, storage, networking, and display-out without designing electronics.</span></article>
+          <article><strong>Compute experiment</strong><span>Detachable Linux SBC/compute module powered separately at first. Connect it to the phone through the simplest reliable network/display path.</span></article>
+          <article><strong>Software</strong><span>Operator is the common shell. Test browser, terminal, remote desktop, files, camera handoff, and continuity between phone and Linux.</span></article>
+          <article><strong>Pass/fail</strong><span>Can one person carry it, dock it, type comfortably, move between portrait/landscape, and use Linux without the prototype feeling like a science project?</span></article>
+        </div>
+      </div>
+      <div class="design-rule">
+        <strong>Gate before custom electronics</strong>
+        <span>Only design a carrier PCB after the mechanical dock, input layout, USB-C topology, and Linux companion workflow survive real daily use.</span>
       </div>
     </section>
 
