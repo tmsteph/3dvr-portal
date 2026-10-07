@@ -59,3 +59,52 @@ The Vercel fallback workflow now performs the root artifact comparison itself an
 When a direct CLI fallback is necessary, export a clean archive/snapshot of `origin/main` into a temporary directory and deploy that directory. Do not run `vercel --prod` from a dirty Hetzner/OVH working tree.
 
 After deployment, verify both the public homepage and health endpoint again, then remove the temporary snapshot.
+
+
+## 2026-10-07 incident: Vercel was current, Caddy/self-host was stale
+
+A Phone Dock change exposed a second split-brain shape:
+
+- the GitHub commit was merged;
+- a Vercel production deployment was `READY` and its deployment URL served the new Phone Dock HTML/CSS;
+- `portal.3dvr.tech` still returned `Server: Caddy`;
+- Caddy proxied the canonical site to `127.0.0.1:4320`;
+- `/opt/3dvr-portal-production/current` and `/__3dvr-health.sha` were still pinned to an older commit.
+
+The fix was to deploy the exact intended `origin/main` SHA through
+`scripts/ops/deploy-self-host-portal.sh`, which uses immutable release
+directories and candidate/rollback validation. Do **not** manually repoint
+`/opt/3dvr-portal-production/current` and do not assume a Vercel `READY`
+deployment changes the canonical domain.
+
+### Canonical-path release rule
+
+Before declaring any Portal page live:
+
+1. Fetch `https://portal.3dvr.tech/__3dvr-health` and require its `sha` to equal the intended release.
+2. Inspect the canonical response's `Server` header so we know which serving lane is actually answering.
+3. Fetch the **specific changed page**, not only `/`, and verify a release-specific marker (changed text, asset URL, stylesheet cache key, etc.).
+4. Fetch changed CSS/JS assets directly and verify the expected content when the bug involves an asset.
+5. Render the canonical URL in a headless browser at a representative desktop/mobile viewport for visual changes.
+6. Only then call the change live.
+
+For the 2026-10-07 Phone Dock incident, the decisive checks were:
+
+```sh
+curl -fsS https://portal.3dvr.tech/__3dvr-health
+curl -fsSI https://portal.3dvr.tech/phone-holder-system/
+curl -fsS https://portal.3dvr.tech/phone-holder-system/ | grep '20261007-navfix2'
+```
+
+If Vercel is current but the canonical hostname says `Server: Caddy` and
+`/__3dvr-health.sha` is old, deploy the self-host lane. A Vercel redeploy is
+not the fix.
+
+### Asset cache rule
+
+When changing CSS/JS referenced with a manual `?v=` query string, change the
+version in the referring HTML in the same release. A successful source change
+with an unchanged cache key can leave browsers/proxies serving old assets.
+
+Prefer content-hashed assets when the page is moved into a build pipeline that
+supports them.
