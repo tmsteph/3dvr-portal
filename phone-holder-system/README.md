@@ -54,3 +54,11 @@ Start mechanically before building custom electronics:
 6. Publish printable parts, dimensions, firmware, and electronics as open hardware.
 
 The page includes an interactive orientation mockup plus vector concept art for the modular mount, belt clip, neck/chest harness, and head/VR modes.
+
+## Open Phone direction
+
+The Phone Dock is now also the first stage of the **3DVR Open Phone** program. Instead of attempting a custom smartphone all at once, the project progressively replaces closed layers while keeping every stage useful:
+
+**existing phone → modular dock → Linux companion compute → modular handheld → open phone**
+
+See [OPEN-PHONE.md](./OPEN-PHONE.md) for the architecture, staged milestones, and first experiments.
