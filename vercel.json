@@ -324,6 +324,14 @@
   ],
   "rewrites": [
     {
+      "source": "/neuro-racer",
+      "destination": "/neuro-racer.html"
+    },
+    {
+      "source": "/neuro-racer/",
+      "destination": "/neuro-racer.html"
+    },
+    {
       "source": "/__3dvr-health",
       "has": [
         {
