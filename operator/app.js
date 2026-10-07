@@ -75,7 +75,7 @@ function render({forceLatest=false}={}) {
   renderTree();
   shouldFollow?followLatest():updateLatest();
 }
-function save({renderPage=true}={}){const conversation=activeConversation();conversation.updatedAt=now();store.conversations=store.conversations.filter(item=>item.messages.length||item.id===store.activeId).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0,50);localStorage.setItem(KEY,JSON.stringify(store));if(KEY!==BASE_KEY)localStorage.removeItem(BASE_KEY);localStorage.removeItem(LEGACY_KEY);if(renderPage)render();accountSync.save(store)}
+function save({renderPage=true}={}){const conversation=activeConversation();conversation.updatedAt=now();store.conversations=store.conversations.filter(item=>item.messages.length||item.id===store.activeId).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));localStorage.setItem(KEY,JSON.stringify(store));if(KEY!==BASE_KEY)localStorage.removeItem(BASE_KEY);localStorage.removeItem(LEGACY_KEY);if(renderPage)render();accountSync.save(store)}
 
 let streamingPaintTimer=0;
 function paintStreamingMessage(message){
@@ -96,7 +96,12 @@ function flushStreamingPaint(message){
   if(streamingPaintTimer){window.clearTimeout(streamingPaintTimer);streamingPaintTimer=0}
   paintStreamingMessage(message);
 }
-async function syncHistory(){if(historySyncPromise)return historySyncPromise;if(!store.conversations.some(item=>item.messages.length)){historyEmpty.hidden=false;historyEmpty.textContent='Loading conversations…'}historySyncPromise=(async()=>{const remoteStore=await accountSync.load(store);if(remoteStore){while(operatorBusy())await new Promise(resolve=>setTimeout(resolve,100));store=mergeOperatorStores(store,remoteStore);if(requestedConversation&&store.conversations.some(item=>item.id===requestedConversation))store.activeId=requestedConversation;refreshHistory();localStorage.setItem(KEY,JSON.stringify(store));render({forceLatest:store.activeId===requestedConversation});void accountSync.save(store)}historySyncComplete=true;renderHistory();return remoteStore})().finally(()=>{historySyncPromise=null});return historySyncPromise}
+async function syncHistory(){if(historySyncPromise)return historySyncPromise;if(!store.conversations.some(item=>item.messages.length)){historyEmpty.hidden=false;historyEmpty.textContent='Loading conversations…'}historySyncPromise=(async()=>{const remoteStore=await accountSync.load(store);if(remoteStore){while(operatorBusy())await new Promise(resolve=>setTimeout(resolve,100));store=mergeOperatorStores(store,remoteStore);if(requestedConversation&&store.conversations.some(item=>item.id===requestedConversation))store.activeId=requestedConversation;refreshHistory();localStorage.setItem(KEY,JSON.stringify(store));render({forceLatest:store.activeId===requestedConversation});void accountSync.save(store)}if(!remoteStore&&accountSync.isReady())void accountSync.save(store);historySyncComplete=true;renderHistory();return remoteStore})().finally(()=>{historySyncPromise=null});return historySyncPromise}
+function refreshAccountHistory(){if(!operatorBusy()&&document.visibilityState!=='hidden')void syncHistory()}
+window.addEventListener('focus',refreshAccountHistory);
+window.addEventListener('online',refreshAccountHistory);
+document.addEventListener('visibilitychange',refreshAccountHistory);
+window.setInterval(refreshAccountHistory,30000);
 function closeHistory(){historyPanel.hidden=true;showHistory.setAttribute('aria-expanded','false')}
 function openHistory(){historyPanel.hidden=false;showHistory.setAttribute('aria-expanded','true');closeTree();void syncHistory();historyList.querySelector('[aria-current="page"]')?.focus()||document.querySelector('#close-history').focus()}
 function closeTree(){if(!treePanel)return;treePanel.hidden=true;showTree?.setAttribute('aria-expanded','false')}
