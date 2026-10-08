@@ -8,13 +8,22 @@ const event = (id: string, kind: CreditEvent['kind'], actor: string, amountMinor
 
 describe('UCN reducer', () => {
   it('tracks accepted partial and full settlement', () => {
-    const events = [event('a', 'accepted', 'bob'), event('b', 'settled', 'bob', 2500), event('c', 'settled', 'bob', 7500), event('d', 'closed', 'bob')];
+    const events = [event('issue', 'issued', 'alice'), event('a', 'accepted', 'bob'), event('b', 'settled', 'bob', 2500), event('c', 'settled', 'bob', 7500), event('d', 'closed', 'bob')];
     assert.deepEqual(reduceObligation(obligation, events), { status: 'closed', outstandingMinor: 0, settledMinor: 10000 });
   });
-  it('rejects overpayment', () => assert.throws(() => reduceObligation(obligation, [event('a', 'accepted', 'bob'), event('b', 'settled', 'bob', 10001)])));
-  it('rejects duplicate IDs', () => assert.throws(() => reduceObligation(obligation, [event('a', 'accepted', 'bob'), event('a', 'settled', 'bob', 10)])));
-  it('rejects unauthorized acceptance', () => assert.throws(() => reduceObligation(obligation, [event('a', 'accepted', 'alice')])));
-  it('rejects unaccepted settlement', () => assert.throws(() => reduceObligation(obligation, [event('a', 'settled', 'bob', 10)])));
+  it('requires exactly one issuance event', () => {
+    assert.throws(() => reduceObligation(obligation, [event('a', 'accepted', 'bob')]));
+    assert.throws(() => reduceObligation(obligation, [event('issue', 'issued', 'alice'), event('issue2', 'issued', 'alice')]));
+    assert.throws(() => reduceObligation(obligation, []));
+  });
+  it('rejects out-of-order timestamps', () => {
+    const late = { ...event('issue', 'issued', 'alice'), timestamp: '2026-10-09T00:00:00Z' };
+    assert.throws(() => reduceObligation(obligation, [late, event('a', 'accepted', 'bob')]));
+  });
+  it('rejects overpayment', () => assert.throws(() => reduceObligation(obligation, [event('issue', 'issued', 'alice'), event('a', 'accepted', 'bob'), event('b', 'settled', 'bob', 10001)])));
+  it('rejects duplicate IDs', () => assert.throws(() => reduceObligation(obligation, [event('issue', 'issued', 'alice'), event('a', 'accepted', 'bob'), event('a', 'settled', 'bob', 10)])));
+  it('rejects unauthorized acceptance', () => assert.throws(() => reduceObligation(obligation, [event('issue', 'issued', 'alice'), event('a', 'accepted', 'alice')])));
+  it('rejects unaccepted settlement', () => assert.throws(() => reduceObligation(obligation, [event('issue', 'issued', 'alice'), event('a', 'settled', 'bob', 10)])));
 });
 describe('UCN signatures', () => {
   it('verifies a signed event and rejects tampering and wrong identity', async () => {
