@@ -1,0 +1,90 @@
+[
+  {
+    "id": "complexity",
+    "title": "Algorithms & complexity",
+    "concept": "An algorithm is a sequence of steps. Big-O describes how its resource use grows with input size; it does not predict exact milliseconds. Linear search checks entries one by one. Binary search repeatedly halves a sorted search space.",
+    "learn": "Trace linear and binary search on eight sorted numbers. Explain why binary search requires ordering.",
+    "build": "Write both searches against synthetic Portal records. Count comparisons for 10, 100, and 1,000 entries, including a missing result.",
+    "explain": "Why can a fast algorithm still feel slow? Separate algorithm cost from network latency and rendering.",
+    "connection": "Portal search and contact lookup",
+    "resource": "https://cs50.harvard.edu/x/",
+    "label": "CS50: algorithms"
+  },
+  {
+    "id": "structures",
+    "title": "Data structures",
+    "concept": "Arrays hold ordered entries. Maps associate keys with values. Stacks remove the newest item first; queues remove the oldest. A graph models relationships, while a tree has a hierarchy. Choose a structure around the operations you need.",
+    "learn": "Sketch an array, map, queue, and conversation tree. Trace one insert and one lookup in each.",
+    "build": "Build a tiny in-memory job queue and a map of jobs by ID. Add three jobs, process them in order, and reject a duplicate ID.",
+    "explain": "Which operations become simpler with a map? What ordering or memory tradeoff do you accept?",
+    "connection": "Operator conversation branches and job queues",
+    "resource": "https://github.com/jwasham/coding-interview-university",
+    "label": "Coding Interview University"
+  },
+  {
+    "id": "databases",
+    "title": "Databases & durable state",
+    "concept": "A database schema defines records and relationships. Constraints protect invariants. A transaction groups changes that must succeed together. An index helps some reads while adding write and storage cost. A browser cache and a durable server record have different responsibilities.",
+    "learn": "Draw contacts, projects, and tasks with primary and foreign keys. Describe one invariant for each.",
+    "build": "Use a disposable database with synthetic contacts and tasks. Add a unique constraint, a transaction, and an index; compare query plans before and after.",
+    "explain": "What happens if two workers update the same task? Explain the source of truth and how you prevent a lost update.",
+    "connection": "Lead funnel and durable Operator tasks",
+    "resource": "https://teachyourselfcs.com/",
+    "label": "Teach Yourself CS: databases"
+  },
+  {
+    "id": "networking",
+    "title": "Networking & APIs",
+    "concept": "DNS maps names to addresses. TCP provides a reliable byte stream; TLS protects communication. HTTP defines requests and responses. A timeout means the caller did not get an answer in time; it does not prove the server did nothing.",
+    "learn": "Draw the path from a phone request through DNS, TLS, the reverse proxy, API, and database.",
+    "build": "Make a local mock API with a delayed response. Add a timeout and an idempotency key, then show that retrying the same operation creates one record.",
+    "explain": "How do authentication and authorization differ? Why can blindly retrying a POST duplicate work?",
+    "connection": "Portal APIs and automation integrations",
+    "resource": "https://teachyourselfcs.com/",
+    "label": "Teach Yourself CS: networking"
+  },
+  {
+    "id": "systems",
+    "title": "Operating systems & memory",
+    "concept": "A process owns an execution environment and virtual address space. Threads share process memory. The operating system schedules work and mediates files, sockets, and devices. A memory leak retains objects that are no longer useful.",
+    "learn": "Identify the Portal process, its listening socket, and its service supervisor using read-only commands on an authorized development server.",
+    "build": "Write a bounded worker that processes a small synthetic queue. Observe memory before and after; stop it cleanly and document how its supervisor would restart it.",
+    "explain": "Why does a process crash differ from a host outage? Explain how a runaway worker affects other services.",
+    "connection": "Self-hosted Portal and isolated workers",
+    "resource": "https://teachyourselfcs.com/",
+    "label": "Teach Yourself CS: operating systems"
+  },
+  {
+    "id": "reliability",
+    "title": "Concurrency & reliability",
+    "concept": "Concurrent tasks can race when they read and update shared state. Locks and transactions can coordinate access. Distributed messages may arrive twice or out of order. Idempotency makes repeating an operation safe for its intended effect.",
+    "learn": "Trace two workers claiming the same job. Mark the exact point where both could think they own it.",
+    "build": "Simulate duplicate delivery, a worker crash, and a stale lease with fake jobs. Show one durable outcome and a clear failure receipt for each case.",
+    "explain": "Which operations are safe to retry? What evidence distinguishes success, failure, and an unknown outcome?",
+    "connection": "Automation monitoring and single-writer jobs",
+    "resource": "https://teachyourselfcs.com/",
+    "label": "Teach Yourself CS: distributed systems"
+  },
+  {
+    "id": "languages",
+    "title": "Languages & computer architecture",
+    "concept": "Source code is parsed into structure before it is interpreted or compiled. A CPU executes instructions that operate on registers and memory. An instruction set defines the machine operations; it is distinct from a programming language.",
+    "learn": "Tokenize a tiny expression such as 2 + 3 * 4. Draw its syntax tree and explain precedence.",
+    "build": "Create a small arithmetic interpreter without eval. Support numbers, addition, and multiplication; reject invalid input and test precedence.",
+    "explain": "Where do parsing, compilation, and execution happen? Explain one reason a language runtime needs memory management.",
+    "connection": "Custom languages and open computing",
+    "resource": "https://teachyourselfcs.com/",
+    "label": "Teach Yourself CS: architecture and languages"
+  },
+  {
+    "id": "ship",
+    "title": "Ship & explain a real improvement",
+    "concept": "Engineering connects a correct implementation to a useful outcome. A small change is easier to assess when it has a clear problem, evidence, failure behavior, and rollback. Knowing why a design works helps you maintain AI-assisted code.",
+    "learn": "Pick one Portal bottleneck or reliability issue. Write a concrete before/after behavior and choose a measurable result.",
+    "build": "Ship one reviewed improvement through a scoped PR. Include a meaningful check, rollout evidence, and a rollback path. Use approved environments and synthetic data while developing.",
+    "explain": "Explain the design unaided in five minutes. State its complexity, data ownership, failure modes, and one tradeoff.",
+    "connection": "A reusable 3DVR portfolio result",
+    "resource": "https://github.com/jwasham/coding-interview-university",
+    "label": "Optional interview practice"
+  }
+]
