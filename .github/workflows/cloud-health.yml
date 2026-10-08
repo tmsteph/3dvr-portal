@@ -3,7 +3,7 @@ name: 3DVR Cloud Health
 on:
   workflow_dispatch:
   schedule:
-    - cron: '17 * * * *'
+    - cron: '*/15 * * * *'
 
 permissions:
   contents: read
@@ -49,6 +49,12 @@ jobs:
                 [ -f "$key" ] || continue
                 if metrics="$(ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host" 'bash -s' <<'REMOTE'
           set -euo pipefail
+          if [ -f /usr/local/sbin/3dvr-cloud-reliability-health ]; then
+            python3 /usr/local/sbin/3dvr-cloud-reliability-health >&2
+          else
+            echo "missing independent reliability probe" >&2
+            exit 1
+          fi
           mem_total=$(awk '/MemTotal:/ {print $2}' /proc/meminfo)
           mem_avail=$(awk '/MemAvailable:/ {print $2}' /proc/meminfo)
           mem_pct=$((mem_avail * 100 / mem_total))
@@ -109,12 +115,17 @@ jobs:
           probe DigitalOcean 167.172.193.194 root debian || failures=$((failures+1))
 
           echo "=== public edge checks ==="
-          # portal.3dvr.tech root is the Vercel production lane. Do not require
-          # the self-host-only /__3dvr-health route to exist on that edge.
+          # Canonical production is self-hosted; check the document and health separately.
           if ! curl -fsS --max-time 15 https://portal.3dvr.tech/ >/dev/null; then
-            echo "::error::Vercel production root check failed"
+            echo "::error::Self-hosted Portal root check failed"
             failures=$((failures+1))
           fi
+          if ! curl -fsS --max-time 10 https://portal.3dvr.tech/__3dvr-health \
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.ok||x.host!=="self")process.exit(1)})'; then
+            echo "::error::Canonical self-hosted Portal health failed"
+            failures=$((failures+1))
+          fi
+
           if ! curl -fsS --max-time 10 http://167.172.193.194/__3dvr-edge-health \
             | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.ok||x.edge!=="digitalocean")process.exit(1)})'; then
             echo "::error::DigitalOcean edge health check failed"
@@ -133,4 +144,9 @@ jobs:
             failures=$((failures+1))
           fi
 
+          if ! curl -fsS --max-time 10 http://167.172.193.194/__3dvr-local-health \
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.ok||x.operatorApi!=="native")process.exit(1)})'; then
+            echo "::error::DigitalOcean local fallback health failed"
+            failures=$((failures+1))
+          fi
           [ "$failures" -eq 0 ]
