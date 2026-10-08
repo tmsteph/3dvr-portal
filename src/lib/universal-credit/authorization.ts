@@ -2,7 +2,7 @@
  * This module verifies identity-to-key binding but does not replace a trusted registry.
  */
 import type { CreditEvent, Obligation } from './protocol';
-import { verifyEvent, type SignedEvent } from './signatures';
+import { verifyEvent, type SignedEvent } from './signatures.ts';
 
 export type IdentityBinding = Readonly<{
   actor: string;
