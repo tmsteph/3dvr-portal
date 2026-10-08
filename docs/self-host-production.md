@@ -51,3 +51,16 @@ hosted assets does not mean the Portal HTTP release itself is unhealthy.
 After canonical validation, retain the six newest immutable SHA releases plus
 current and previous releases. State, secrets, non-SHA directories, and symlinks
 are excluded from pruning. Old commits can be rebuilt through the same pipeline.
+
+## Browser acceptance
+
+The Actions Ubuntu runner's existing Chrome is used through
+PORTAL_E2E_EXECUTABLE_PATH; browser setup is bounded to three minutes.
+Do not run an unbounded apt/browser dependency reinstall for every main merge.
+
+Needle's browser assets are pinned together to upstream commit
+2ae11323dc000f5e70c49f7403efa6af12ba9e67. Needle 3 text completion is
+needle_complete(input, 0, 0, max_new_tokens, output, output_capacity);
+the old four-argument API loads the model but fails inference.
+The upstream wasm/needle.h header is the ABI authority.
+\nThe navigation router resets turn history and reserves 128 generation tokens\nso schemas and output fit its small context. WASM buffers are freed on errors too.\n\nDecode the null-terminated output buffer with UTF8ToString. The completion\nreturn value is not the JSON byte length; slicing at it truncates valid JSON.\n
