@@ -1,0 +1,16 @@
+[Unit]
+Description=Back up private automation funnel
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/3dvr-portal-production/current
+ExecStart=/usr/bin/python3 scripts/growth/backup-automation-funnel.py
+Environment=AUTOMATION_FUNNEL_DB=/opt/3dvr-portal-production/state/automation-funnel/leads.sqlite
+UMask=0077
+TimeoutStartSec=60
+MemoryMax=128M
+CPUQuota=30%
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/3dvr-portal-production/state/automation-funnel
+ProtectHome=true
+PrivateTmp=true

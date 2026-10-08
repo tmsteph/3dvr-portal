@@ -1,0 +1,8 @@
+[Unit]
+Description=Daily private automation funnel backup
+[Timer]
+OnCalendar=*-*-* 08:10:00 America/Los_Angeles
+Persistent=true
+Unit=3dvr-automation-funnel-backup.service
+[Install]
+WantedBy=timers.target

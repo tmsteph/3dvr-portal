@@ -1,0 +1,19 @@
+[Unit]
+Description=Collect public automation buyer requests
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/3dvr-portal-production/current
+ExecStart=/usr/bin/node scripts/growth/collect-automation-buyers.mjs
+Environment=AUTOMATION_FUNNEL_DB=/opt/3dvr-portal-production/state/automation-funnel/leads.sqlite
+UMask=0077
+TimeoutStartSec=45
+MemoryMax=192M
+CPUQuota=30%
+Nice=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/3dvr-portal-production/state/automation-funnel
+ProtectHome=true
+PrivateTmp=true

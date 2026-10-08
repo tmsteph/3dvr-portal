@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Automation pipeline | 3DVR</title><link rel="stylesheet" href="/automation-help/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script><script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="/gun-init.js"></script><script type="module" src="funnel.js"></script>
+</head>
+<body>
+  <header><a href="/operator/">Operator</a><a href="/automation-help/">Public intake page</a></header>
+  <main>
+    <span class="eyebrow">3DVR GROWTH</span><h1 style="font-size:2.5rem">Automation pipeline</h1>
+    <p>Prioritize active demand, budget, and authority. Review replies here before sending them through the buyer’s requested channel.</p>
+    <p id="status" role="status" class="status" aria-live="polite">Checking your sign-in…</p>
+    <a id="signin" href="/auth/sign-in.html" hidden>Sign in to your owner account</a>
+    <section id="workspace" hidden>
+      <div class="toolbar"><button id="refresh">Refresh</button><button id="discover" class="secondary">Collect hiring requests</button><button id="export" class="secondary">Export pipeline</button></div>
+      <section class="metrics" id="metrics" aria-label="Pipeline totals"></section>
+      <div class="toolbar"><input id="search" aria-label="Search leads" placeholder="Search business, problem, tools…"><select id="filter" aria-label="Filter leads"><option value="all">All leads</option><option value="ready">Qualified</option><option value="due">Follow-up due</option><option value="inbound">Inbound inquiries</option></select></div>
+      <details class="panel"><summary>Add a buyer request</summary>
+        <form id="create">
+          <div class="grid"><label>Business or buyer request<input name="business" required maxlength="500"></label><label>Buyer name<input name="name" maxlength="200"></label></div>
+          <label>Automation problem<textarea name="problem" required maxlength="3000"></textarea></label>
+          <label>Public source link<input name="sourceUrl" type="url" maxlength="500"></label>
+          <label>Evidence<textarea name="evidence" maxlength="3000"></textarea></label>
+          <button>Add for review</button>
+        </form>
+      </details>
+      <section id="leads" class="leads" aria-label="Leads" style="margin-top:20px"></section>
+    </section>
+  </main>
+</body>
+</html>
