@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Read-only host checks for process stalls, restart loops, and owned-runner liveness."""
 import json
+import urllib.request
 import os
 import subprocess
 import time
@@ -23,6 +24,20 @@ def check_host():
     else:
         units += ["3dvr-open-runner.service", "3dvr-portal.service"]
         peers = ["3dvr-ovh", "3dvr-hetzner"]
+    endpoints = {
+        "vps-2b6a0420": [(4320, "operatorApi", "native")],
+        "hetzner-openclaw": [(4322, "standby", True)],
+        "debian-web": [(4320, "operatorApi", "native"), (14320, "operatorApi", "native"),
+                       (14322, "standby", True)],
+    }
+    for port, field, expected in endpoints.get(hostname, []):
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/__3dvr-health", timeout=3) as response:
+                payload = json.load(response)
+            if payload.get("ok") is not True or payload.get(field) != expected:
+                problems.append(f"portal_health_invalid:{port}")
+        except (OSError, ValueError):
+            problems.append(f"portal_health_failed:{port}")
     for unit in units:
         result = subprocess.run(["systemctl", "show", unit, "-p", "ActiveState", "-p", "NRestarts"],
                                 capture_output=True, text=True, timeout=5)

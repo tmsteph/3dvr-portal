@@ -47,6 +47,25 @@ class JobSafetyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             runner.job_profile("hetzner", {"priority": "recovery", "memory_mib": 2048})
 
+
+    def test_output_capture_is_bounded(self):
+        result = runner.run(["python3", "-c", "print('x' * 10000)"], output_limit=100)
+        self.assertEqual(0, result.returncode)
+        self.assertLess(len(result.stdout), 150)
+        self.assertIn("truncated", result.stdout)
+
+    def test_low_headroom_leaves_issue_unclaimed(self):
+        from unittest.mock import patch
+        config = {"device_id": "hetzner", "queue_repo": "test/queue", "allowed_authors": ["tmsteph"]}
+        issue = {"number": 1, "author": {"login": "tmsteph"},
+                 "body": '{"action":"shell","device":"hetzner","command":"echo no"}'}
+        with patch.object(runner, "already_claimed", return_value=False), \
+             patch.object(runner, "admission_reason", return_value="low headroom"), \
+             patch.object(runner, "gh") as gh, patch.object(runner, "execute_job") as execute:
+            runner.process(config, issue)
+            gh.assert_not_called()
+            execute.assert_not_called()
+
     @unittest.skipUnless(Path("/run/systemd/system").exists() and os.geteuid() == 0, "systemd integration")
     def test_scope_cleans_child_that_detaches(self):
         with tempfile.TemporaryDirectory() as directory:
