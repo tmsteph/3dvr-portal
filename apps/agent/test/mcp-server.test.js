@@ -13,7 +13,7 @@ function parseToolResult(result) {
   return JSON.parse(result.content.find((item) => item.type === 'text').text);
 }
 
-async function openTestGateway(t, { enableDrafts = false, legacy = false, enablePrivileged = false } = {}) {
+async function openTestGateway(t, { enableDrafts = false, legacy = false, enablePrivileged = false, ownerAuthorized = false } = {}) {
   const audits = [];
   const account = {
     id: 'acct_google_test', provider: 'google', alias: 'personal',
@@ -90,12 +90,15 @@ async function openTestGateway(t, { enableDrafts = false, legacy = false, enable
     }),
   };
   const started = await startHttpServer({
-    port: 0, authToken: 'test-token', gatewayOptions,
+    port: 0, authToken: 'test-token', ownerToken: 'test-owner-token', gatewayOptions,
   });
   const client = new Client({ name: '3dvr-test-client', version: '1.0.0' });
   const transport = new StreamableHTTPClientTransport(
     new URL(`http://127.0.0.1:${started.port}/mcp`),
-    { requestInit: { headers: { Authorization: 'Bearer test-token' } } },
+    { requestInit: { headers: {
+      Authorization: 'Bearer test-token',
+      ...(ownerAuthorized ? { 'x-3dvr-owner-authorization': 'Bearer test-owner-token' } : {}),
+    } } },
   );
   await client.connect(transport);
   t.after(async () => {
@@ -205,8 +208,19 @@ test('legacy 3dvr Gmail account is discoverable and routed through IMAP read too
   assert.equal(read.message.format, 'metadata');
 });
 
-test('OVH and n8n bridge tools are opt-in and stay scoped', async (t) => {
+test('privileged configuration alone does not grant owner tools', async (t) => {
   const { client } = await openTestGateway(t, { enablePrivileged: true });
+  const listed = await client.listTools();
+  assert.equal(listed.tools.some((tool) => tool.name === 'secret_status'), false);
+  assert.equal(listed.tools.some((tool) => tool.name === 'n8n_status'), false);
+  const status = parseToolResult(await client.callTool({ name: 'control_status', arguments: {} }));
+  assert.equal(status.capabilities.ownerAuthorized, false);
+  assert.equal(status.capabilities.privilegedControl, false);
+  assert.deepEqual(status.capabilities.n8n, []);
+});
+
+test('OVH and n8n bridge tools are opt-in and stay scoped', async (t) => {
+  const { client } = await openTestGateway(t, { enablePrivileged: true, ownerAuthorized: true });
   const listed = await client.listTools();
   const names = listed.tools.map(tool => tool.name);
 
