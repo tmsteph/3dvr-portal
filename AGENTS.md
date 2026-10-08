@@ -233,3 +233,9 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 ## Browser Modules On Self-host
 - Operator browser imports include shared pure models under `src/`. Keep the exact public-module list in `scripts/self-host-static-policy.mjs` synchronized with those imports; never expose the entire server source tree.
 - Run `node --test tests/operator-public-modules.test.js` when changing Operator imports or the static policy. HTTP 200 for the page shell does not prove its module graph initialized.
+
+## Automation buyer funnel
+- Private inquiry records live in the server SQLite funnel queue, never public Gun nodes. Preserve AUTOMATION_FUNNEL_DB outside releases.
+- Signed owner proofs must bind action, data and a single-use request id; do not authorize from a cosmetic identity cookie.
+- Discovery creates research records with unconfirmed budget/authority. Paid stages are bookkeeping requiring a verified payment reference, not payment confirmation from Stripe.
+- Run node --test tests/automation-funnel.test.js and verify the mobile intake/API together.

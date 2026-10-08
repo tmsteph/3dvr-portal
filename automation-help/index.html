@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Finish your business automation | 3DVR</title>
+  <meta name="description" content="Already building with n8n, APIs or AI? Get a scoped review and practical help making your business workflows dependable.">
+  <link rel="stylesheet" href="styles.css"><script src="app.js" defer></script>
+</head>
+<body>
+  <header><a href="/">3DVR</a><a href="mailto:3dvr.tech@gmail.com">Contact Thomas</a></header>
+  <main class="layout">
+    <section>
+      <span class="eyebrow">BUSINESS AUTOMATION</span>
+      <h1>You started it.<br>Let’s get it working.</h1>
+      <p>Already building with n8n, APIs or AI? We help finish stuck workflows, fix unreliable integrations, and make failures visible.</p>
+      <div class="offer"><strong>One workflow. A clear next step.</strong><p>A $200 diagnostic, capped at two hours: findings, risks, success criteria, and a separate implementation quote.</p></div>
+      <p>Tell us what should happen and what is getting in the way. We’ll confirm fit and scope before sending an invoice.</p>
+      <p class="small">Repairs and builds are quoted separately, starting at $600. Your diagnostic is a review; implementation depends on what we find.</p>
+    </section>
+    <section class="panel" aria-labelledby="intake-title">
+      <h2 id="intake-title">What do you want to automate?</h2>
+      <form id="intake">
+        <div class="grid"><label>Your name<input name="name" autocomplete="name" maxlength="200" required></label><label>Business<input name="business" autocomplete="organization" maxlength="500" required></label></div>
+        <label>Email<input name="email" type="email" autocomplete="email" maxlength="250" required></label>
+        <label>What should happen, and what happens today?<textarea name="problem" maxlength="3000" required></textarea></label>
+        <label>What does this cost in time, errors, or missed business?<textarea name="impact" maxlength="3000"></textarea></label>
+        <label>Which tools are involved?<input name="stack" placeholder="n8n, Gmail, a CRM, your own server…" maxlength="500"></label>
+        <div class="grid">
+          <label>Approved budget<select name="budget" required><option value="">Choose a range</option><option value="under-200">Under $200</option><option value="200-599">$200–$599</option><option value="600-1499">$600–$1,499</option><option value="1500-plus">$1,500+</option><option value="undecided">Still deciding</option></select></label>
+          <label>Can you approve the project?<select name="authority" required><option value="">Choose one</option><option value="yes">Yes, I approve the budget</option><option value="involved">I help make the decision</option><option value="no">Someone else approves it</option></select></label>
+        </div>
+        <label>When do you want to start?<select name="timeline"><option value="this-month">This month</option><option value="later">Later</option><option value="undecided">Still deciding</option></select></label>
+        <label class="trap" aria-hidden="true">Leave this empty<input name="websiteTrap" tabindex="-1" autocomplete="off"></label>
+        <label class="check"><input type="checkbox" name="consent" required><span>3DVR may reply about this inquiry. This does not subscribe me to marketing.</span></label>
+        <p class="small">Your inquiry is stored privately for 3DVR to review. Please don’t include passwords or client documents. Email us to request removal.</p>
+        <button type="submit">Send inquiry</button>
+      </form>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+  <footer>3DVR · Practical automation help, nationwide.</footer>
+</body>
+</html>

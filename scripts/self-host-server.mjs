@@ -20,6 +20,9 @@ import { createOAuthProviderHandler } from '../src/oauth/provider-api.js';
 import { createOrganismBridgeHandler } from '../src/organism/bridge.js';
 import { createPresenceAudioHandler } from '../src/presence-audio/handler.js';
 
+import { createFunnelHandler } from '../src/automation-funnel/handler.js';
+const funnelHandler = createFunnelHandler();
+
 const PORT = Number(process.env.PORT || 4320);
 const HOST = process.env.HOST || '127.0.0.1';
 const ROOT = resolve(process.env.PORTAL_ROOT || process.cwd());
@@ -406,6 +409,11 @@ const server = createServer(async (req, res) => {
     url.pathname.startsWith('/presence-audio/pair/')
   ) {
     return presenceAudioHandler(req, res, url);
+  }
+
+  if (url.pathname === '/api/automation-funnel') {
+    if (STANDBY_MODE) return json(res, 503, { error: 'Primary funnel is unavailable.' });
+    return runJsonApiHandler(funnelHandler, req, res, url, { errorMessage: 'Funnel request failed' });
   }
 
   if (url.pathname === '/api/openai-site') {
