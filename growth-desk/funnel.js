@@ -10,7 +10,9 @@ async function api(action, data = {}) {
   const requestId = crypto.randomUUID();
   const proof = await createSignedPortalProof('automation-funnel', action, { requestId, data: JSON.stringify(data) });
   if (!proof) {
-    const error = new Error('Your Portal signing session could not be restored. Open sign-in to recover it.');
+    const error = new Error(window.localStorage.getItem('signedIn') === 'true'
+      ? 'You are signed in, but the secure account connection is unavailable. Retry here, or reconnect your account and return to this pipeline.'
+      : 'Sign in to open your private pipeline. You will return here afterward.');
     error.loginNeeded = true;
     throw error;
   }
@@ -69,10 +71,27 @@ async function load() {
   records = result.leads;
   $('#workspace').hidden = false;
   $('#signin').hidden = true;
+  $('#recovery').hidden = true;
   render();
   message('Pipeline loaded. Changes are saved to the server.');
 }
-function run(action) { return action().catch(error => { message(error.message, true); $('#signin').hidden = !error.loginNeeded; }); }
+let loading = false;
+async function run(action) {
+  if (loading) return;
+  loading = true;
+  $('#retry').disabled = true;
+  try { await action(); }
+  catch (error) {
+    message(error.message, true);
+    $('#recovery').hidden = false;
+    $('#signin').hidden = !error.loginNeeded;
+    $('#signin').textContent = window.localStorage.getItem('signedIn') === 'true' ? 'Reconnect your account' : 'Sign in and return here';
+  } finally {
+    loading = false;
+    $('#retry').disabled = false;
+  }
+}
+$('#retry').onclick = () => { message('Reconnecting your secure account…'); run(load); };
 $('#refresh').onclick = () => run(load);
 $('#search').oninput = render;
 $('#filter').onchange = render;

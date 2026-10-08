@@ -239,3 +239,9 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - Signed owner proofs must bind action, data and a single-use request id; do not authorize from a cosmetic identity cookie.
 - Discovery creates research records with unconfirmed budget/authority. Paid stages are bookkeeping requiring a verified payment reference, not payment confirmation from Stripe.
 - Run node --test tests/automation-funnel.test.js and verify the mobile intake/API together.
+
+### Funnel sign-in recovery
+- Test the actual sign-in form and return navigation, not only a pre-seeded SEA pair.
+- Recovery links must carry a same-origin return destination through legacy redirects. Set Gun session recall before sign-in so successful auth can be reused after navigation.
+- A recalled pair may report its public key as its alias; verify the bound public key and signature rather than rejecting that display alias.
+- Slow relay recovery must leave an in-place retry and distinguish signed-in connection trouble from missing login.

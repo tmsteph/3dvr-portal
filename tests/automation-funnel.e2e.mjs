@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';
@@ -102,8 +102,9 @@ try {
     await context.addInitScript(() => { window.__DISABLE_GUN_DEFAULT_PEERS__ = true; });
     const setup = await context.newPage();
     await setup.goto(origin + '/growth-desk/funnel.html');
-    await setup.evaluate(async () => {
-      const alias = 'funnel-fresh-tab-' + crypto.randomUUID();
+    const login = await setup.evaluate(async () => {
+      const username = 'funnel-fresh-tab-' + crypto.randomUUID();
+      const alias = username + '@3dvr';
       const password = 'Disposable-test-password';
       const gun = Gun({ peers: [] });
       const user = gun.user();
@@ -113,10 +114,26 @@ try {
       localStorage.setItem('password', password);
       localStorage.setItem('signedIn', 'true');
       localStorage.setItem('userPubKey', user.is.pub);
+      return { username, password };
     });
     await setup.waitForTimeout(1500); // Allow Gun's local graph writer to flush.
     await setup.close();
     const fresh = await context.newPage();
+    // Simulate a slow successful relay auth acknowledgement beyond the old 2.6s cutoff.
+    await fresh.route('**/operator/forge.js', async route => {
+      const source = readFileSync(new URL('../operator/forge.js', import.meta.url), 'utf8');
+      const delay = `const originalAuth = Gun.User.prototype.auth;
+Gun.User.prototype.auth = function(...args) {
+  const index = args.findIndex(arg => typeof arg === 'function');
+  if (index >= 0) {
+    const callback = args[index];
+    args[index] = ack => setTimeout(() => callback(ack), 3500);
+  }
+  return originalAuth.apply(this, args);
+};
+`;
+      await route.fulfill({ body: delay + source, contentType: 'text/javascript' });
+    });
     const ownerDenied = fresh.waitForResponse(response => response.url().endsWith('/api/automation-funnel') && response.status() === 403);
     await fresh.goto(origin + '/growth-desk/funnel.html');
     assert.equal(await fresh.evaluate(() => sessionStorage.getItem('pair')), null);
@@ -124,13 +141,48 @@ try {
     await fresh.waitForFunction(() => document.querySelector('#status').classList.contains('error'));
     assert.equal(await fresh.locator('#signin').isVisible(), false);
     assert.equal(await fresh.locator('#workspace').isVisible(), false);
+    await fresh.close();
+    // Exercise the real legacy redirect, form submission, and return navigation.
+    const signin = await context.newPage();
+    await signin.goto(origin + '/auth/sign-in.html?redirect=%2Fgrowth-desk%2Ffunnel.html');
+    await signin.waitForURL('**/sign-in.html?redirect=*');
+    assert.equal(await signin.evaluate(() => postSignInDestination), '/growth-desk/funnel.html');
+    // The disposable test account is already in the local Gun graph; no external relay is required.
+    await signin.evaluate(() => { gunRelayConnected = true; });
+    await signin.getByLabel('Username', { exact: true }).fill(login.username);
+    await signin.getByLabel('Password', { exact: true }).fill(login.password);
+    await signin.getByRole('button', { name: 'Sign in and continue', exact: true }).click();
+    await signin.waitForURL('**/growth-desk/funnel.html', { timeout: 20000 });
+    assert.equal(await signin.evaluate(() => Boolean(JSON.parse(sessionStorage.getItem('pair') || 'null')?.priv)), true);
+    await signin.waitForFunction(() => document.querySelector('#status').classList.contains('error'));
+    assert.equal(await signin.locator('#signin').isVisible(), false);
     await context.close();
+
+    const unavailable = await browser.newPage();
+    await unavailable.route('https://cdn.jsdelivr.net/npm/gun/**', async route => {
+      const path = '/opt/3dvr-portal-production/current/node_modules/gun/' + (route.request().url().endsWith('sea.js') ? 'sea.js' : 'gun.js');
+      await route.fulfill({ path, contentType: 'text/javascript' });
+    });
+    await unavailable.addInitScript(() => {
+      window.__DISABLE_GUN_DEFAULT_PEERS__ = true;
+      localStorage.setItem('signedIn', 'true');
+      localStorage.setItem('alias', 'unavailable@3dvr');
+    });
+    await unavailable.goto(origin + '/growth-desk/funnel.html');
+    await unavailable.locator('#retry:not([disabled])').waitFor();
+    await unavailable.waitForFunction(() => !document.querySelector('#recovery').hidden);
+    assert.match(await unavailable.locator('#status').innerText(), /You are signed in/);
+    assert.equal(await unavailable.locator('#signin').getAttribute('href'), '/sign-in.html?redirect=%2Fgrowth-desk%2Ffunnel.html');
+    await unavailable.getByRole('button', { name: 'Retry connection' }).click();
+    await unavailable.locator('#retry:not([disabled])').waitFor();
+    assert.equal(new URL(unavailable.url()).pathname, '/growth-desk/funnel.html');
+    await unavailable.close();
     await page.close(); await admin.close();
   } finally { await browser.close(); }
   // Independent reopened connection proves persistence beyond handler memory.
   const reopened = openFunnelStore(join(temp, 'state', 'leads.sqlite'));
   assert.equal(reopened.list().length, 2); reopened.close();
-  console.log(JSON.stringify({ ok: true, checks: 'HTTP, signed owner/non-owner, intake, updates, conflict, draft, private paths, durable reopen, mobile form and owner pipeline', screenshots: temp }));
+  console.log(JSON.stringify({ ok: true, checks: 'HTTP, signed owner/non-owner, intake, updates, conflict, draft, private paths, durable reopen, mobile form, owner pipeline, delayed login recovery, actual sign-in return, remembered pair, in-place retry', screenshots: temp }));
 } finally {
   child.kill('SIGTERM');
 }

@@ -705,6 +705,8 @@
     );
     const gun = gunContext.gun;
     const user = gunContext.user;
+    // Remember the verified signing session for the page we return to.
+    user.recall?.({ sessionStorage: true });
     const portalRoot = gun && typeof gun.get === 'function' ? gun.get('3dvr-portal') : createLocalGunNodeStub();
     const gunIsStub = !!gunContext.isStub;
     const recoveryVerificationState = {

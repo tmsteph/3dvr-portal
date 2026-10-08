@@ -1,6 +1,6 @@
 const FORGE_ROOT = '3dvr-portal';
 const PROOF_WAIT_MS = 900;
-const AUTH_WAIT_MS = 2600;
+const AUTH_WAIT_MS = 12000;
 const WRITE_TIMEOUT_MS = 8000;
 const GITHUB_WRITE_PATTERN = /\b(push|merge|pull request|open a pr|create a pr|commit(?: to github)?|github branch|push to github)\b/i;
 const DEFAULT_PEERS = [
@@ -141,7 +141,9 @@ export function developerIdentityMatches({
   const seenAlias = normalizeText(actualAlias, 200).toLowerCase();
   const seenPub = normalizeText(actualPub, 500);
   if (!seenPub) return false;
-  if (wantedPub && wantedPub !== seenPub) return false;
+  // Gun pair recall uses the public key as its alias. A bound key is the
+  // authoritative identity; comparing that alias would discard a valid session.
+  if (wantedPub) return wantedPub === seenPub;
   if (wantedAlias && seenAlias && wantedAlias !== seenAlias) return false;
   if (!wantedPub && wantedAlias && !seenAlias) return false;
   return true;
