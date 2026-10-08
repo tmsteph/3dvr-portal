@@ -659,6 +659,17 @@ function backfillPendingAutoReplies(state, leadMap) {
   }
 }
 
+function pickInboxAlertCandidates(messages, leadMap, state) {
+  const triage = classifyInboxMessages(messages, leadMap);
+  // Other unread mail remains visible in triage; it is not a prospect reply.
+  // Delivery failures use the separate lead-matched bounce alert below.
+  return [
+    ...triage.replyCandidates.map(({ message }) => message),
+    ...triage.publicAgentCandidates,
+    ...triage.freeDesignCandidates,
+  ].filter((message) => !state.seen[message.messageId]);
+}
+
 function buildAlert(messages) {
   const newest = messages[0];
   const summary = messages.length === 1
@@ -2074,7 +2085,7 @@ async function main() {
 
   printInboxTriage(unread, contactedLeadMap);
 
-  const fresh = unread.filter((message) => !state.seen[message.messageId]);
+  const fresh = pickInboxAlertCandidates(unread, contactedLeadMap, state);
   if (fresh.length) {
     const alert = buildAlert(fresh);
     if (options.dryRun) {
@@ -2229,6 +2240,7 @@ module.exports = {
   buildReplyDraft,
   chooseReplyLines,
   classifyInboxMessages,
+  pickInboxAlertCandidates,
   buildInboxTriage,
   printInboxTriage,
   detectReplyIntent,

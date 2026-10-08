@@ -74,6 +74,7 @@ Outreach aliases:
 3dvr outreach form        same as 3dvr lead form
 
 Inbox:
+3dvr mail accounts|search|read    read-only named-mailbox connector
 3dvr inbox check         check unread/replies
 3dvr inbox watch         run inbox monitor once with reply previews
 3dvr inbox reply         preview inbox replies
@@ -874,6 +875,9 @@ INBOX
       test|send-test) send_inbox_test ;;
       *) usage; exit 1 ;;
     esac
+    ;;
+  mail)
+    exec "$SCRIPT_DIR/ask-mail" "$@"
     ;;
   auth)
     sub="${1:-status}"
