@@ -70,7 +70,7 @@ async function signInOrCreate() {
     return path === '/operator/' || path === '/operator';
   }, { timeout: 90_000 });
   await page.locator('#operator-input').waitFor({ state: 'visible', timeout: 30_000 });
-  await page.locator('.operator-attach').waitFor({ state: 'visible', timeout: 30_000 });
+  await page.locator('#operator-form button[type="submit"]').waitFor({ state: 'visible', timeout: 30_000 });
 
   const identity = await page.evaluate(() => ({
     signedIn: localStorage.getItem('signedIn'),
