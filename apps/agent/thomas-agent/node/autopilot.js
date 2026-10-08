@@ -853,7 +853,8 @@ function buildEmail(summary, actions) {
 }
 
 function isBusinessHoursDeferral(reason) {
-  return normalizeText(reason).toLowerCase().startsWith('outside business hours');
+  const normalized = normalizeText(reason).toLowerCase();
+  return normalized.startsWith('outside business hours') || normalized.startsWith('quiet hours');
 }
 
 function shouldSendEmail({ actions, state, dryRun, noEmail, sendBlockedReason = '' }) {
@@ -1399,6 +1400,7 @@ module.exports = {
   formatRouteCounts,
   gunSafe,
   isFreshDiscoveryLead,
+  shouldSendEmail,
   normalizeCrawlSource,
   needsEnrichment,
   pickAutoSendLeads,
