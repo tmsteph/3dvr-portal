@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Portal imports node:sqlite at startup; never silently launch the system Node 20.
+portal_node_bin=""
+for candidate in "${THREEDVR_PORTAL_NODE:-}" /opt/node-v22/bin/node /usr/local/bin/node "$(command -v node || true)"; do
+  [ -n "$candidate" ] && [ -x "$candidate" ] || continue
+  if "$candidate" --input-type=module -e 'await import("node:sqlite")' >/dev/null 2>&1; then
+    portal_node_bin="$candidate"
+    break
+  fi
+done
+[ -n "$portal_node_bin" ] || { echo "Portal requires a Node runtime with node:sqlite support." >&2; exit 2; }
+
 [[ ${EUID:-$(id -u)} -eq 0 ]] || { echo "root required" >&2; exit 77; }
 
 archive="${1:-/tmp/3dvr-portal-do-fallback.tar.gz}"
@@ -47,7 +58,7 @@ upsert_env PORTAL_RELEASE_SHA "$sha"
 upsert_env LEGACY_API_ORIGIN https://3dvr-portal.vercel.app
 
 if ! systemctl list-unit-files 3dvr-portal.service --no-legend 2>/dev/null | grep -q .; then
-  cat >/etc/systemd/system/3dvr-portal.service <<'UNIT'
+  cat >/etc/systemd/system/3dvr-portal.service <<UNIT
 [Unit]
 Description=3DVR self-hosted portal
 After=network-online.target
@@ -58,7 +69,7 @@ Type=simple
 WorkingDirectory=/opt/3dvr-portal-production/current
 EnvironmentFile=-/root/.3dvr/config/env
 EnvironmentFile=/root/.3dvr/config/portal.env
-ExecStart=/usr/bin/env node /opt/3dvr-portal-production/current/scripts/self-host-server.mjs
+ExecStart=$portal_node_bin /opt/3dvr-portal-production/current/scripts/self-host-server.mjs
 Restart=always
 RestartSec=3
 
@@ -66,6 +77,14 @@ RestartSec=3
 WantedBy=multi-user.target
 UNIT
 fi
+
+# Existing fallback units need the same validated runtime as new installations.
+install -d -m 0755 /etc/systemd/system/3dvr-portal.service.d
+cat >/etc/systemd/system/3dvr-portal.service.d/99-3dvr-node-runtime.conf <<UNIT
+[Service]
+ExecStart=
+ExecStart=$portal_node_bin /opt/3dvr-portal-production/current/scripts/self-host-server.mjs
+UNIT
 
 systemctl daemon-reload
 systemctl enable --now 3dvr-portal.service
