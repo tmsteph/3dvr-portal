@@ -98,3 +98,17 @@ test('developer key copy reads the refreshed button key instead of a stale closu
   assert.match(ui, /writeText\(currentPub\)/);
   assert.doesNotMatch(ui, /writeText\(pub\)/);
 });
+
+test('pair recall can use its public key as alias when the stored key matches', () => {
+  assert.equal(developerIdentityMatches({
+    expectedAlias: 'tmsteph@3dvr', expectedPub: 'current-pub',
+    actualAlias: 'current-pub', actualPub: 'current-pub'
+  }), true);
+  assert.equal(developerIdentityMatches({
+    expectedAlias: 'tmsteph@3dvr', expectedPub: 'current-pub',
+    actualAlias: 'tmsteph@3dvr', actualPub: 'other-pub'
+  }), false);
+  assert.equal(developerIdentityMatches({
+    expectedAlias: 'tmsteph@3dvr', actualAlias: 'other@3dvr', actualPub: 'other-pub'
+  }), false);
+});

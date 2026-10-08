@@ -1,3 +1,7 @@
+> Current production (2026-10-07): Portal is self-hosted on OVH and every main merge
+> enters the serialized deployment workflow. See [the current runbook](self-host-production.md).
+> Historical DNS/Vercel descriptions below explain past incidents.
+
 # Self-hosted Portal production and limited Vercel fallback
 
 As of 2026-09-23, `portal.3dvr.tech` DNS is still hosted by Vercel and the public root can therefore be served by Vercel even while health/API routes reach the self-hosted 3DVR edge. Treat those as separate facts.
@@ -39,7 +43,7 @@ The Vercel fallback workflow now performs the root artifact comparison itself an
 - Canonical Vercel API/fallback project: team `team_xxJGO7S7h1ZP4BHidYV0CX9Z`, project `prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch`.
 - The similarly named `3dvr`-team Portal project is not a production dependency and should not receive automatic Git deployments.
 - Self-host release target: OVH first, with the 3DVR edge/fallback mesh in front of it.
-- Self-host production is explicit: manually dispatch it or update `ops/self-host-production-trigger.txt`.
+- Self-host production follows every main push; manual main dispatch remains available.
 - Vercel Git deployments are disabled for every branch. Portal releases do not ride ordinary Git pushes.
 - `.github/workflows/vercel-production-prebuilt.yml` is a manual/triggered fallback and requires `VERCEL_TOKEN` to perform a Vercel deployment.
 - If that GitHub token is unavailable, an already-authenticated Vercel CLI may be used from a **clean snapshot of `main`**. Never deploy from a dirty service checkout.
@@ -59,3 +63,52 @@ The Vercel fallback workflow now performs the root artifact comparison itself an
 When a direct CLI fallback is necessary, export a clean archive/snapshot of `origin/main` into a temporary directory and deploy that directory. Do not run `vercel --prod` from a dirty Hetzner/OVH working tree.
 
 After deployment, verify both the public homepage and health endpoint again, then remove the temporary snapshot.
+
+
+## 2026-10-07 incident: Vercel was current, Caddy/self-host was stale
+
+A Phone Dock change exposed a second split-brain shape:
+
+- the GitHub commit was merged;
+- a Vercel production deployment was `READY` and its deployment URL served the new Phone Dock HTML/CSS;
+- `portal.3dvr.tech` still returned `Server: Caddy`;
+- Caddy proxied the canonical site to `127.0.0.1:4320`;
+- `/opt/3dvr-portal-production/current` and `/__3dvr-health.sha` were still pinned to an older commit.
+
+The fix was to deploy the exact intended `origin/main` SHA through
+`scripts/ops/deploy-self-host-portal.sh`, which uses immutable release
+directories and candidate/rollback validation. Do **not** manually repoint
+`/opt/3dvr-portal-production/current` and do not assume a Vercel `READY`
+deployment changes the canonical domain.
+
+### Canonical-path release rule
+
+Before declaring any Portal page live:
+
+1. Fetch `https://portal.3dvr.tech/__3dvr-health` and require its `sha` to equal the intended release.
+2. Inspect the canonical response's `Server` header so we know which serving lane is actually answering.
+3. Fetch the **specific changed page**, not only `/`, and verify a release-specific marker (changed text, asset URL, stylesheet cache key, etc.).
+4. Fetch changed CSS/JS assets directly and verify the expected content when the bug involves an asset.
+5. Render the canonical URL in a headless browser at a representative desktop/mobile viewport for visual changes.
+6. Only then call the change live.
+
+For the 2026-10-07 Phone Dock incident, the decisive checks were:
+
+```sh
+curl -fsS https://portal.3dvr.tech/__3dvr-health
+curl -fsSI https://portal.3dvr.tech/phone-holder-system/
+curl -fsS https://portal.3dvr.tech/phone-holder-system/ | grep '20261007-navfix2'
+```
+
+If Vercel is current but the canonical hostname says `Server: Caddy` and
+`/__3dvr-health.sha` is old, deploy the self-host lane. A Vercel redeploy is
+not the fix.
+
+### Asset cache rule
+
+When changing CSS/JS referenced with a manual `?v=` query string, change the
+version in the referring HTML in the same release. A successful source change
+with an unchanged cache key can leave browsers/proxies serving old assets.
+
+Prefer content-hashed assets when the page is moved into a build pipeline that
+supports them.

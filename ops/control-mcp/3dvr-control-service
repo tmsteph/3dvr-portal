@@ -31,11 +31,17 @@ case "$action" in
       [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo 'recorded rollback SHA is invalid' >&2; exit 66; }
     fi
     [[ -d "$repo/.git" ]] || { echo 'dedicated Portal deployment checkout missing' >&2; exit 66; }
-    /usr/bin/git -C "$repo" fetch --prune origin main >/dev/null
-    /usr/bin/git -C "$repo" cat-file -e "$sha^{commit}"
+    install -d -m 755 /opt/3dvr-portal-production/state
+    exec 8>/opt/3dvr-portal-production/state/source.lock
+    flock -w 900 8
+    /usr/sbin/runuser -u debian -- /usr/bin/git -C "$repo" fetch --prune origin main >/dev/null
+    /usr/sbin/runuser -u debian -- /usr/bin/git -C "$repo" cat-file -e "$sha^{commit}"
     current=$(/usr/bin/curl -fsS --max-time 5 http://127.0.0.1:4320/__3dvr-health 2>/dev/null | /usr/bin/node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).sha||"")}catch{}})' || true)
     if [[ "$action" == portal-deploy && "$current" =~ ^[0-9a-f]{40}$ && "$current" != "$sha" ]]; then printf '%s\n' "$current" > "$previous_file"; fi
-    HOME=/home/debian THREEDVR_CONTROL_NODE=ovh /usr/bin/bash "$repo/scripts/ops/deploy-self-host-portal.sh" "$repo" main "$sha" 4320 >/tmp/3dvr-control-portal-deploy.log 2>&1 || { tail -n 120 /tmp/3dvr-control-portal-deploy.log >&2; exit 1; }
+    deploy_script=$(mktemp)
+    trap 'rm -f "$deploy_script"' EXIT
+    /usr/sbin/runuser -u debian -- /usr/bin/git -C "$repo" show "$sha:scripts/ops/deploy-self-host-portal.sh" > "$deploy_script"
+    HOME=/home/debian THREEDVR_CONTROL_NODE=ovh /usr/bin/bash "$deploy_script" "$repo" main "$sha" 4320 >/tmp/3dvr-control-portal-deploy.log 2>&1 || { tail -n 120 /tmp/3dvr-control-portal-deploy.log >&2; exit 1; }
     printf '%s\n' "$sha" > "$current_file"
     health=$(/usr/bin/curl -fsS --max-time 10 http://127.0.0.1:4320/__3dvr-health)
     if [[ "$action" == portal-rollback && "$current" =~ ^[0-9a-f]{40}$ && "$current" != "$sha" ]]; then printf '%s\n' "$current" > "$previous_file"; fi

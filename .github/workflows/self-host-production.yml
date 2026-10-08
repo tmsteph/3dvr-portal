@@ -4,12 +4,9 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths:
-      - '.github/workflows/self-host-production.yml'
-      - 'ops/self-host-production-trigger.txt'
 
 permissions:
-  contents: write
+  contents: read
   statuses: write
 
 concurrency:
@@ -18,16 +15,18 @@ concurrency:
 
 env:
   PRIMARY_HOST: 40.160.137.41
-  FALLBACK_HOST: 167.172.193.194
 
 jobs:
   deploy:
     name: Deploy portal to OVH-first 3DVR production
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -42,10 +41,11 @@ jobs:
           node --check scripts/self-host-server.mjs
           node --check scripts/organism-bridge-server.mjs
           bash -n scripts/ops/deploy-self-host-portal.sh
+          bash -n ops/control-mcp/3dvr-control-service
           bash -n scripts/ops/install-organism-owner-bridge.sh
           bash -n scripts/ops/install-mark-chat-tracker.sh
           node --check scripts/ops/mark-chat-tracker.mjs
-          node --test tests/operator-developer-access.test.js tests/organism-access.test.js tests/self-host-deploy-persistent-tunnel.test.js
+          node --test tests/operator-developer-access.test.js tests/organism-access.test.js tests/self-host-deploy-persistent-tunnel.test.js tests/self-host-deploy-safety.test.js tests/self-host-pipeline.test.js tests/self-host-transaction.test.js tests/needle-edge-browser.test.js
 
       - name: Resolve OVH-first portal credentials
         id: resolve
@@ -91,14 +91,9 @@ jobs:
             return 1
           }
 
-          connection="$(pick "$PRIMARY_HOST" debian root || true)"
+          connection="$(pick "$PRIMARY_HOST" debian || true)"
           role=primary
-          if [ -z "$connection" ]; then
-            echo 'OVH primary is unavailable; trying DigitalOcean emergency fallback.' >&2
-            connection="$(pick "$FALLBACK_HOST" root debian || true)"
-            role=fallback
-          fi
-          [ -n "$connection" ] || { echo 'Neither OVH nor DigitalOcean is reachable with configured SSH keys.' >&2; exit 1; }
+          [ -n "$connection" ] || { echo 'OVH production is unreachable; refusing another host.' >&2; exit 1; }
 
           IFS='|' read -r host user key <<< "$connection"
           if [ "$user" != root ]; then
@@ -205,17 +200,32 @@ jobs:
             remote_home="/home/$TARGET_USER"
             prefix="sudo -n env HOME=$remote_home"
           fi
+          source_user="$TARGET_USER"
+          if [ "$TARGET_USER" = root ]; then source_user=debian; remote_home=/home/debian; prefix="env HOME=$remote_home"; fi
           control_node=""
           if [ "$TARGET_ROLE" = primary ]; then control_node=ovh; fi
-          output="$(ssh "${opts[@]}" "$TARGET_USER@$TARGET" "$prefix GITHUB_REPOSITORY='$GITHUB_REPOSITORY' DEPLOY_SHA='$DEPLOY_SHA' THREEDVR_CONTROL_NODE='$control_node' bash -s" <<'REMOTE'
+          output="$(ssh "${opts[@]}" "$TARGET_USER@$TARGET" "$prefix GITHUB_REPOSITORY='$GITHUB_REPOSITORY' DEPLOY_SHA='$DEPLOY_SHA' SOURCE_USER='$source_user' THREEDVR_CONTROL_NODE='$control_node' bash -s" <<'REMOTE'
           set -euo pipefail
           source_repo="$HOME/.3dvr/self-host-portal-source"
-          mkdir -p "$HOME/.3dvr"
-          if [ ! -d "$source_repo/.git" ]; then
-            rm -rf "$source_repo"
-            git clone "https://github.com/$GITHUB_REPOSITORY.git" "$source_repo"
+          install -d -m 755 /opt/3dvr-portal-production/state
+          exec 8>/opt/3dvr-portal-production/state/source.lock
+          flock -w 900 8
+          # Git metadata belongs to the source account; root installs releases.
+          [ "$HOME" = "/home/$SOURCE_USER" ]
+          [ ! -L "$source_repo" ] && [ ! -L "$source_repo/.git" ]
+          install -d -o "$SOURCE_USER" -g "$SOURCE_USER" -m 700 "$HOME/.3dvr"
+          if [ -d "$source_repo" ]; then
+            chown -R --no-dereference "$SOURCE_USER:$SOURCE_USER" "$source_repo"
+          else
+            runuser -u "$SOURCE_USER" -- git clone "https://github.com/$GITHUB_REPOSITORY.git" "$source_repo"
           fi
+          git() { runuser -u "$SOURCE_USER" -- /usr/bin/git "$@"; }
           git -C "$source_repo" fetch --prune origin main
+          latest="$(git -C "$source_repo" rev-parse origin/main)"
+          if [ "$latest" != "$DEPLOY_SHA" ]; then
+            echo "Superseded deployment: $DEPLOY_SHA; main is $latest."
+            exit 0
+          fi
           git -C "$source_repo" cat-file -e "$DEPLOY_SHA^{commit}"
           if ! git -C "$source_repo" diff --quiet || ! git -C "$source_repo" diff --cached --quiet; then
             echo 'Discarding local changes from the dedicated deployment checkout:'
@@ -234,6 +244,7 @@ jobs:
             set +a
           fi
 
+          install -o root -g root -m 0755 "$source_repo/ops/control-mcp/3dvr-control-service" /usr/local/sbin/3dvr-control-service
           bash "$source_repo/scripts/ops/deploy-self-host-portal.sh" "$source_repo" main "$DEPLOY_SHA" 4320
           bash "$source_repo/scripts/ops/install-organism-owner-bridge.sh"
           if [ "${THREEDVR_CONTROL_NODE:-}" = ovh ]; then
@@ -243,12 +254,17 @@ jobs:
           REMOTE
           )"
           printf '%s\n' "$output"
+          if [[ "$output" == *'Superseded deployment:'* ]]; then
+            echo 'superseded=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           url="$(printf '%s\n' "$output" | sed -n 's/^PORTAL_SELF_HOST_URL=//p' | tail -n1)"
           bridge_url="$(printf '%s\n' "$output" | sed -n 's/^PORTAL_ORGANISM_BRIDGE_URL=//p' | tail -n1)"
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "bridge_url=$bridge_url" >> "$GITHUB_OUTPUT"
 
       - name: Verify self-host from outside server
+        if: steps.deploy.outputs.superseded != 'true'
         id: verify
         shell: bash
         env:
@@ -257,11 +273,16 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if [[ "$URL" == https://portal.3dvr.tech || "$URL" == https://*.trycloudflare.com ]]; then
+          [ "$URL" = https://portal.3dvr.tech ]
+          if [[ "$URL" == https://portal.3dvr.tech ]]; then
             curl -fsS --retry 10 --retry-delay 2 --retry-all-errors "$URL/__3dvr-health" > /tmp/health.json
             node -e 'const fs=require("node:fs"); const expected=process.argv[1]; const health=JSON.parse(fs.readFileSync("/tmp/health.json","utf8")); if(!health.ok||health.sha!==expected||health.operatorApi!=="native") throw new Error(`self-host health mismatch: ${JSON.stringify(health)}`)' "$SHA"
             curl -fsS --retry 5 --retry-delay 1 "$URL/operator/" > /tmp/operator.html
             grep -Fq 'Message your operator' /tmp/operator.html
+            curl -fsS --retry 5 --retry-delay 1 "$URL/" > /tmp/homepage.html
+            cmp index.html /tmp/homepage.html
+            curl -fsS --retry 5 --retry-delay 1 "$URL/needle-edge/" > /tmp/needle.html
+            cmp needle-edge/index.html /tmp/needle.html
             options="$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$URL/api/openai-site?provider=operator")"
             [ "$options" = 200 ]
             private_status="$(curl -sS -o /dev/null -w '%{http_code}' "$URL/package.json")"
@@ -281,14 +302,17 @@ jobs:
             exit 1
           fi
 
-      - name: Install Playwright for Operator acceptance
-        if: steps.deploy.outcome == 'success' && steps.verify.outcome == 'success'
+      - name: Setup Playwright with preinstalled Chrome
+        timeout-minutes: 3
+        if: steps.deploy.outcome == 'success' && steps.verify.outcome == 'success' && steps.deploy.outputs.superseded != 'true'
         run: |
           npm install --no-save playwright@1.55.0
-          npx playwright install --with-deps chromium
+          chrome="$(command -v google-chrome || command -v chromium || true)"
+          [ -n "$chrome" ] || { echo 'Runner Chrome is unavailable.' >&2; exit 1; }
+          echo "PORTAL_E2E_EXECUTABLE_PATH=$chrome" >> "$GITHUB_ENV"
 
       - name: Run Operator production acceptance
-        if: steps.deploy.outcome == 'success' && steps.verify.outcome == 'success'
+        if: steps.deploy.outcome == 'success' && steps.verify.outcome == 'success' && steps.deploy.outputs.superseded != 'true'
         env:
           PORTAL_E2E_URL: https://portal.3dvr.tech
           PORTAL_E2E_MODE: bootstrap
@@ -304,24 +328,8 @@ jobs:
           path: e2e-artifacts
           if-no-files-found: ignore
 
-      - name: Publish Organism bridge pointer
-        if: steps.deploy.outcome == 'success' && steps.verify.outcome == 'success'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRIDGE_URL: ${{ steps.deploy.outputs.bridge_url }}
-        run: |
-          set -euo pipefail
-          [[ "$BRIDGE_URL" == https://portal.3dvr.tech || "$BRIDGE_URL" == https://*.trycloudflare.com ]]
-          payload="$(BRIDGE_URL="$BRIDGE_URL" node -e 'process.stdout.write(JSON.stringify({origin:process.env.BRIDGE_URL,updatedAt:new Date().toISOString()},null,2)+"\n")')"
-          content="$(printf '%s' "$payload" | base64 -w0)"
-          current_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/runtime/organism-bridge.json?ref=main" --jq .sha 2>/dev/null || true)"
-          args=(--method PUT "repos/$GITHUB_REPOSITORY/contents/runtime/organism-bridge.json" -f message='Update live Organism bridge pointer' -f "content=$content" -f branch=main)
-          if [ -n "$current_sha" ]; then args+=(-f "sha=$current_sha"); fi
-          gh api "${args[@]}" >/dev/null
-
       - name: Publish self-host status
-        if: always()
+        if: always() && steps.deploy.outputs.superseded != 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -329,17 +337,21 @@ jobs:
           VERIFY_OUTCOME: ${{ steps.verify.outcome }}
           URL: ${{ steps.deploy.outputs.url }}
           ROLE: ${{ steps.resolve.outputs.role }}
+          JOB_STATUS: ${{ job.status }}
         run: |
           set -euo pipefail
           state=failure
           description="3DVR self-host production deploy failed ($ROLE)"
           target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          if [ "$DEPLOY_OUTCOME" = success ] && [ "$VERIFY_OUTCOME" = success ]; then
+          if [ "$JOB_STATUS" = success ] && [ "$DEPLOY_OUTCOME" = success ] && [ "$VERIFY_OUTCOME" = success ]; then
             state=success
             description="3DVR portal and Organism bridge deployed ($ROLE)"
             if [[ "$URL" == https://* ]]; then target_url="$URL"; fi
           fi
           payload="$(STATE="$state" DESCRIPTION="$description" TARGET_URL="$target_url" node -e 'process.stdout.write(JSON.stringify({state:process.env.STATE,context:"3DVR Self Host Production",description:process.env.DESCRIPTION,target_url:process.env.TARGET_URL}))')"
           curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -d "$payload"
-          rm -f /tmp/3dvr-key /tmp/health.json /tmp/operator.html /tmp/organism-bridge-health.json
           [ "$state" = success ]
+
+      - name: Remove temporary deployment credentials
+        if: always()
+        run: rm -f /tmp/3dvr-key /tmp/prod-{a,b,c} /tmp/health.json /tmp/operator.html /tmp/organism-bridge-health.json

@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily automation buyer discovery
+[Timer]
+OnCalendar=*-*-* 08:00:00 America/Los_Angeles
+Persistent=true
+RandomizedDelaySec=120
+Unit=3dvr-automation-buyers.service
+[Install]
+WantedBy=timers.target

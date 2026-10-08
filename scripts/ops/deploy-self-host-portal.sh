@@ -11,12 +11,19 @@ if [ -z "$repo" ] || [ ! -d "$repo/.git" ]; then
   exit 2
 fi
 
-if [ -z "$sha" ]; then
-  sha="$(git -C "$repo" rev-parse "$ref")"
-fi
-
-git -C "$repo" fetch --force origin "$ref"
-git -C "$repo" cat-file -e "$sha^{commit}"
+# Keep privileged installation from making source Git metadata root-owned.
+source_owner="$(stat -c %U "$repo")"
+git_repo() {
+  if [ "$(id -u)" = 0 ] && [ "$source_owner" != root ]; then
+    runuser -u "$source_owner" -- /usr/bin/git -C "$repo" "$@"
+  else
+    /usr/bin/git -C "$repo" "$@"
+  fi
+}
+if [ -z "$sha" ]; then sha="$(git_repo rev-parse "$ref")"; fi
+[[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo 'Release requires a full commit SHA.' >&2; exit 2; }
+git_repo fetch --force origin "$ref"
+git_repo cat-file -e "$sha^{commit}"
 
 if [ "$(id -u)" = 0 ]; then
   base="${THREEDVR_PORTAL_PRODUCTION_DIR:-/opt/3dvr-portal-production}"
@@ -33,6 +40,9 @@ portal_env="$config_dir/portal.env"
 portal_secrets_env="$config_dir/portal-secrets.env"
 
 mkdir -p "$releases" "$state" "$config_dir"
+# Serialize workflow, control-plane, and manual releases on the host.
+exec 9>"$state/deploy.lock"
+flock -w 900 9 || { echo 'Another deployment owns the release lock.' >&2; exit 3; }
 chmod 700 "$config_dir" 2>/dev/null || true
 
 presence_audio_dir="$state/presence-audio"
@@ -62,7 +72,7 @@ if [ ! -d "$release" ]; then
   tmp="$releases/.tmp-$sha-$$"
   rm -rf "$tmp"
   mkdir -p "$tmp"
-  git -C "$repo" archive "$sha" | tar -x -C "$tmp"
+  git_repo archive "$sha" | tar -x -C "$tmp"
   npm --prefix "$tmp" ci --omit=dev
   mv "$tmp" "$release"
 fi
@@ -100,6 +110,41 @@ validate_workboard() {
   return 0
 }
 
+validate_critical_routes() {
+  local base_url="$1" html actual expected status
+  html="$(curl -fsS --max-time 10 "$base_url/operator/")" || return 1
+  [[ "$html" == *'Message your operator'* ]] || return 1
+  actual="$(curl -fsS --max-time 10 "$base_url/" | sha256sum | awk '{print $1}')" || return 1
+  expected="$(sha256sum "$release/index.html" | awk '{print $1}')"
+  [ "$actual" = "$expected" ] || return 1
+  if [ -f "$release/needle-edge/index.html" ]; then
+    actual="$(curl -fsS --max-time 10 "$base_url/needle-edge/" | sha256sum | awk '{print $1}')" || return 1
+    expected="$(sha256sum "$release/needle-edge/index.html" | awk '{print $1}')"
+    [ "$actual" = "$expected" ] || return 1
+  fi
+  status="$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' "$base_url/package.json")" || return 1
+  [ "$status" = 404 ]
+}
+
+atomic_current() {
+  ln -s "$1" "$base/.current-$$"
+  mv -Tf "$base/.current-$$" "$current"
+}
+
+prune_releases() {
+  local path name count=0
+  while IFS= read -r path; do
+    name="$(basename "$path")"
+    [[ "$name" =~ ^[0-9a-f]{40}$ ]] || continue
+    count=$((count + 1))
+    [ "$count" -le 6 ] && continue
+    [ "$path" = "$release" ] && continue
+    [ "$path" = "$previous_release" ] && continue
+    # Only reproducible immutable SHA releases; never state/config or symlinks.
+    rm -rf -- "$path"
+  done < <(find "$releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -nr | cut -d' ' -f2-)
+}
+
 candidate_port="${THREEDVR_PORTAL_CANDIDATE_PORT:-$((port + 1000))}"
 if ! [[ "$candidate_port" =~ ^[0-9]+$ ]] || [ "$candidate_port" -lt 1 ] || [ "$candidate_port" -gt 65535 ] || [ "$candidate_port" -eq "$port" ]; then
   echo "Invalid candidate port: $candidate_port" >&2
@@ -130,7 +175,7 @@ trap cleanup_candidate EXIT
   export PORTAL_RELEASE_SHA="$sha"
   export PRESENCE_AUDIO_DIR="$presence_audio_dir"
   cd "$release"
-  exec node scripts/self-host-server.mjs
+  exec node scripts/self-host-server.mjs 9>&-
 ) >"$candidate_log" 2>&1 &
 candidate_pid=$!
 
@@ -145,6 +190,10 @@ if ! validate_workboard "$candidate_url"; then
   tail -n 100 "$candidate_log" >&2 2>/dev/null || true
   exit 4
 fi
+if ! validate_critical_routes "$candidate_url"; then
+  echo 'Candidate critical routes failed; production is untouched.' >&2
+  exit 4
+fi
 cleanup_candidate
 trap - EXIT
 
@@ -155,55 +204,6 @@ if [ -f "$portal_env" ]; then
   cp "$portal_env" "$previous_env"
   chmod 600 "$previous_env"
   had_previous_env=true
-fi
-
-ln -sfn "$release" "$current"
-
-cat > "$portal_env.tmp" <<EOF
-PORT=$port
-HOST=127.0.0.1
-PORTAL_ROOT=$current
-PORTAL_RELEASE_REF=$ref
-PORTAL_RELEASE_SHA=$sha
-PRESENCE_AUDIO_DIR=$presence_audio_dir
-THREEDVR_CONTROL_NODE=${THREEDVR_CONTROL_NODE:-}
-LEGACY_API_ORIGIN=${LEGACY_API_ORIGIN:-https://3dvr-portal.vercel.app}
-THREEDVR_OUTREACH_SUPPRESSION_ENFORCED=true
-THREEDVR_OUTREACH_REQUIRE_PERSONAL_SENT_CHECK=true
-THREEDVR_PERSONAL_SENT_CHECK_MAX_AGE_HOURS=24
-EOF
-
-# Preserve private runtime values already provisioned by an operator or workflow.
-# Never overwrite them with empty values and never print them.
-for key in OPENAI_API_KEY AI_GATEWAY_API_KEY THREEDVR_CLOUDFLARE_TUNNEL_TOKEN GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET GMAIL_USER GMAIL_APP_PASSWORD; do
-  value="${!key:-}"
-  # The persistent private layer is the source of truth for provisioned secrets.
-  # Prefer it over an older rendered portal.env so deploys cannot silently drop
-  # credentials when the GitHub secret is intentionally absent.
-  if [ -z "$value" ] && [ -f "$portal_secrets_env" ]; then
-    value="$(sed -n "s/^${key}=//p" "$portal_secrets_env" | tail -n1)"
-  fi
-  if [ -z "$value" ] && [ "$had_previous_env" = true ]; then
-    value="$(sed -n "s/^${key}=//p" "$previous_env" | tail -n1)"
-  fi
-  if [ -z "$value" ] && [ -f "$common_env" ]; then
-    value="$(sed -n "s/^${key}=//p" "$common_env" | tail -n1)"
-  fi
-  if [ -n "$value" ]; then
-    printf '%s=%s\n' "$key" "$value" >> "$portal_env.tmp"
-  fi
-done
-mv "$portal_env.tmp" "$portal_env"
-chmod 600 "$portal_env"
-if [ "$(id -u)" = 0 ] && [ "$HOME" = /home/debian ] && id debian >/dev/null 2>&1; then
-  chown debian:debian "$portal_env" 2>/dev/null || true
-fi
-
-if [ "$(id -u)" = 0 ] && [ -f "$current/ops/secrets-broker/install.sh" ]; then
-  bash "$current/ops/secrets-broker/install.sh"
-  for required in policy.json agents.json bitwarden.env portal.env portal.token; do
-    [ -f "/etc/3dvr/secrets-broker/$required" ] || { echo "Secrets broker provisioning did not create $required" >&2; exit 6; }
-  done
 fi
 
 start_with_systemd() {
@@ -338,10 +338,12 @@ restart_live_service() {
 }
 
 rollback_live() {
+  [ "$promoted" = true ] || return 0
+  promoted=false
   echo 'Rolling back the failed 3DVR portal release.' >&2
   set +e
   if [ -n "$previous_release" ] && [ -d "$previous_release" ]; then
-    ln -sfn "$previous_release" "$current"
+    atomic_current "$previous_release"
     if [ "$had_previous_env" = true ]; then
       cp "$previous_env" "$portal_env"
       chmod 600 "$portal_env"
@@ -360,6 +362,74 @@ rollback_live() {
   set -e
 }
 
+promoted=false
+validated=false
+finish_deploy() {
+  local status=$?
+  trap - EXIT INT TERM
+  cleanup_candidate
+  if [ "$promoted" = true ] && [ "$validated" != true ]; then
+    rollback_live
+    [ "$status" != 0 ] || status=4
+  fi
+  rm -f "$previous_env" "$base/.current-$$"
+  exit "$status"
+}
+trap finish_deploy EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+if [ "$(id -u)" = 0 ] && command -v systemctl >/dev/null 2>&1; then live_backend=systemd; fi
+
+promoted=true
+atomic_current "$release"
+
+cat > "$portal_env.tmp" <<EOF
+PORT=$port
+HOST=127.0.0.1
+PORTAL_ROOT=$current
+PORTAL_RELEASE_REF=$ref
+PORTAL_RELEASE_SHA=$sha
+PRESENCE_AUDIO_DIR=$presence_audio_dir
+THREEDVR_CONTROL_NODE=${THREEDVR_CONTROL_NODE:-}
+LEGACY_API_ORIGIN=${LEGACY_API_ORIGIN:-https://3dvr-portal.vercel.app}
+THREEDVR_OUTREACH_SUPPRESSION_ENFORCED=true
+THREEDVR_OUTREACH_REQUIRE_PERSONAL_SENT_CHECK=true
+THREEDVR_PERSONAL_SENT_CHECK_MAX_AGE_HOURS=24
+EOF
+
+# Preserve private runtime values already provisioned by an operator or workflow.
+# Never overwrite them with empty values and never print them.
+for key in OPENAI_API_KEY AI_GATEWAY_API_KEY THREEDVR_CLOUDFLARE_TUNNEL_TOKEN GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET GMAIL_USER GMAIL_APP_PASSWORD; do
+  value="${!key:-}"
+  # The persistent private layer is the source of truth for provisioned secrets.
+  # Prefer it over an older rendered portal.env so deploys cannot silently drop
+  # credentials when the GitHub secret is intentionally absent.
+  if [ -z "$value" ] && [ -f "$portal_secrets_env" ]; then
+    value="$(sed -n "s/^${key}=//p" "$portal_secrets_env" | tail -n1)"
+  fi
+  if [ -z "$value" ] && [ "$had_previous_env" = true ]; then
+    value="$(sed -n "s/^${key}=//p" "$previous_env" | tail -n1)"
+  fi
+  if [ -z "$value" ] && [ -f "$common_env" ]; then
+    value="$(sed -n "s/^${key}=//p" "$common_env" | tail -n1)"
+  fi
+  if [ -n "$value" ]; then
+    printf '%s=%s\n' "$key" "$value" >> "$portal_env.tmp"
+  fi
+done
+mv "$portal_env.tmp" "$portal_env"
+chmod 600 "$portal_env"
+if [ "$(id -u)" = 0 ] && [ "$HOME" = /home/debian ] && id debian >/dev/null 2>&1; then
+  chown debian:debian "$portal_env" 2>/dev/null || true
+fi
+
+if [ "$(id -u)" = 0 ] && [ -f "$current/ops/secrets-broker/install.sh" ]; then
+  bash "$current/ops/secrets-broker/install.sh"
+  for required in policy.json agents.json bitwarden.env portal.env portal.token; do
+    [ -f "/etc/3dvr/secrets-broker/$required" ] || { echo "Secrets broker provisioning did not create $required" >&2; exit 6; }
+  done
+fi
+
 if start_with_systemd; then
   live_backend=systemd
 else
@@ -376,17 +446,18 @@ if ! wait_for_release "$live_url" "$sha"; then
   systemctl status 3dvr-portal.service --no-pager 2>/dev/null || true
   [ -f "$state/server.log" ] && tail -n 100 "$state/server.log" >&2 || true
   rollback_live
-  rm -f "$previous_env"
   exit 4
 fi
 
 if ! validate_workboard "$live_url"; then
   echo 'Live 3DVR portal release failed Workboard validation.' >&2
   rollback_live
-  rm -f "$previous_env"
   exit 4
 fi
-rm -f "$previous_env"
+if ! validate_critical_routes "$live_url"; then
+  echo 'Live critical-route validation failed.' >&2
+  exit 4
+fi
 
 cloudflared="$(command -v cloudflared || true)"
 if [ -z "$cloudflared" ]; then
@@ -475,6 +546,15 @@ else
     exit 5
   fi
 fi
+
+# A temporary tunnel does not prove canonical production is current.
+if ! public_portal_ready "$canonical_portal_url" || ! validate_critical_routes "$canonical_portal_url"; then
+  echo 'Canonical validation failed; restoring previous release.' >&2
+  exit 5
+fi
+portal_url="$canonical_portal_url"
+validated=true
+if ! prune_releases; then echo "Release retention failed; verified production remains active." >&2; fi
 
 printf 'PORTAL_SELF_HOST_SHA=%s\n' "$sha"
 printf 'PORTAL_SELF_HOST_PORT=%s\n' "$port"

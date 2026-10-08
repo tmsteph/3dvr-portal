@@ -4,6 +4,7 @@ const list = document.querySelector('#app-search-list');
 const count = document.querySelector('#app-search-count');
 
 const FEATURED = [
+  { title: 'Automation pipeline', href: '/growth-desk/funnel.html', description: 'Private buyer qualification, paid diagnostics and follow-ups', aliases: 'funnel leads toms automation buyers budget pipeline' },
   { title: '3DVR Portal', href: '/', description: 'Home and app launcher', aliases: 'home dashboard portal apps' },
   { title: 'Operator', href: '/operator/', description: 'AI operator for 3DVR', aliases: 'assistant ai chat agent' },
   { title: '3DVR Teach', href: '/teach/', description: 'Turn demonstrations into reusable agent skills', aliases: 'teach show me how record workflow skill training demonstration' },

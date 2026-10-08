@@ -112,6 +112,13 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - If Vercel fallback is required, deploy only from a clean snapshot of `main`; never from a dirty service checkout.
 - Read `docs/VERCEL-PRODUCTION.md` before changing production routing, DNS, or release behavior.
 
+## Self-hosted production
+- Every main push enters the serialized OVH release workflow.
+- Read docs/self-host-production.md for source ownership and rollback behavior.
+- Vercel is not canonical production; historical topology notes below do not change this.
+- Git metadata stays owned by the source account; never relax permissions to deploy.
+- Verify canonical root and changed page artifacts against the exact release SHA.
+
 ## Deployment Topology
 - The repository is an asymmetric monorepo: the Vercel portal remains at the root, the separately deployed Hetzner agent lives in `apps/agent`, and other runtime/platform packages can keep their own deployment boundaries inside the same repository.
 - Keep `apps/agent` excluded from Vercel output. Agent changes use their own dependency install, test workflow, environment, and worker cutover.
@@ -145,6 +152,12 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - Use **device-local storage** for drafts, caches, UI state, and experiences that are intentionally local; sensitive guest life data may remain device-local until encrypted, owner-scoped sync is implemented and approved.
 - Existing Gun-backed apps remain supported. When working in one, use explicit node paths (for example `gun.get('namespace').get('resource')`) and keep coordination logic testable.
 - When caching authoritative data locally, define the synchronization boundary clearly rather than silently creating a second source of truth.
+
+### Operator conversation history
+- Homepage and dedicated Operator must both publish their account-scoped caches through `operator/sync.js`.
+- Read the legacy encrypted `user.get('operator-v01').get('conversations')` snapshot for migration; write encrypted snapshots to `user.get('operator-v01').get('device-history').get(writerId)`. Separate browser writers prevent whole-history overwrites across devices.
+- Merge all snapshots and branch nodes; do not truncate stored conversations or messages during sync. A Gun acknowledgement does not prove another browser has downloaded history.
+- Verify changes with `node --test tests/operator-sync.test.js tests/operator-conversation-tree.test.js` and `node --test tests/operator-device-sync.e2e.test.js`. The latter uses two isolated browsers and a disposable local Gun relay, including homepage submission and a fresh-browser restore. Existing device-local history is recovered when that device next loads the updated page; preserve its browser storage.
 
 ## Design & UX
 - Build mobile-first layouts that adapt gracefully to all screen sizes, including ultra-wide and VR displays.
@@ -220,3 +233,15 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 ## Browser Modules On Self-host
 - Operator browser imports include shared pure models under `src/`. Keep the exact public-module list in `scripts/self-host-static-policy.mjs` synchronized with those imports; never expose the entire server source tree.
 - Run `node --test tests/operator-public-modules.test.js` when changing Operator imports or the static policy. HTTP 200 for the page shell does not prove its module graph initialized.
+
+## Automation buyer funnel
+- Private inquiry records live in the server SQLite funnel queue, never public Gun nodes. Preserve AUTOMATION_FUNNEL_DB outside releases.
+- Signed owner proofs must bind action, data and a single-use request id; do not authorize from a cosmetic identity cookie.
+- Discovery creates research records with unconfirmed budget/authority. Paid stages are bookkeeping requiring a verified payment reference, not payment confirmation from Stripe.
+- Run node --test tests/automation-funnel.test.js and verify the mobile intake/API together.
+
+### Funnel sign-in recovery
+- Test the actual sign-in form and return navigation, not only a pre-seeded SEA pair.
+- Recovery links must carry a same-origin return destination through legacy redirects. Set Gun session recall before sign-in so successful auth can be reused after navigation.
+- A recalled pair may report its public key as its alias; verify the bound public key and signature rather than rejecting that display alias.
+- Slow relay recovery must leave an in-place retry and distinguish signed-in connection trouble from missing login.

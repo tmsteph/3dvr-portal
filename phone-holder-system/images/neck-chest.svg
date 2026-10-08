@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" role="img" aria-labelledby="title desc">
+<title id="title">3DVR neck and chest wearable concept</title>
+<desc id="desc">A phone cradle suspended from a neck and chest harness, held high and stabilized for glanceable hands-free use.</desc>
+<defs><linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#f0ece3"/><stop offset="1" stop-color="#dcd4c7"/></linearGradient></defs>
+<rect width="800" height="520" rx="36" fill="url(#bg)"/>
+<text x="48" y="62" fill="#1b2429" font-family="Inter,Arial,sans-serif" font-size="30" font-weight="800">Neck / chest mode</text>
+<text x="48" y="96" fill="#6c7477" font-family="Inter,Arial,sans-serif" font-size="18">Hands-free viewing without turning the phone into a swinging lanyard</text>
+<circle cx="400" cy="165" r="70" fill="#d0a783"/>
+<path d="M245 500 C250 340 296 274 400 274 C504 274 550 340 555 500" fill="#8d9494"/>
+<path d="M330 112 C286 184 284 272 328 370" fill="none" stroke="#20272b" stroke-width="24" stroke-linecap="round"/>
+<path d="M470 112 C514 184 516 272 472 370" fill="none" stroke="#20272b" stroke-width="24" stroke-linecap="round"/>
+<path d="M325 355 C350 387 450 387 475 355" fill="none" stroke="#222b30" stroke-width="22" stroke-linecap="round"/>
+<g transform="translate(300 284)">
+  <rect x="0" y="0" width="200" height="122" rx="24" fill="#10171b" stroke="#52636c" stroke-width="5"/>
+  <rect x="15" y="15" width="170" height="92" rx="16" fill="#25465a"/>
+  <rect x="-26" y="24" width="30" height="72" rx="10" fill="#26353d" stroke="#667982" stroke-width="4"/>
+  <rect x="196" y="24" width="30" height="72" rx="10" fill="#26353d" stroke="#667982" stroke-width="4"/>
+</g>
+<path d="M274 330 C230 346 207 372 194 420" fill="none" stroke="#aa6635" stroke-width="5" stroke-dasharray="10 9"/>
+<path d="M526 330 C570 346 593 372 606 420" fill="none" stroke="#aa6635" stroke-width="5" stroke-dasharray="10 9"/>
+<text x="80" y="430" fill="#7d3f2a" font-family="Inter,Arial,sans-serif" font-size="18" font-weight="800">Stabilizer straps</text>
+<text x="80" y="456" fill="#6c7477" font-family="Inter,Arial,sans-serif" font-size="16">Keep the display from bouncing during a walk</text>
+<text x="572" y="176" fill="#315f7e" font-family="Inter,Arial,sans-serif" font-size="18" font-weight="800">High position</text>
+<text x="572" y="202" fill="#6c7477" font-family="Inter,Arial,sans-serif" font-size="16">Glance down, not all the way to your waist</text>
+</svg>

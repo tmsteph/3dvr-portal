@@ -120,7 +120,7 @@ Do not diagnose a missing reverse listener as a key-approval problem when outbou
 
 ### OVH — primary portal/control and recovery anchor
 
-Keep OVH boring and dependable. It is the primary self-hosted portal/control node, the recovery anchor, and the largest current VPS. Production releases are explicit rather than tied to every commit. Bounded non-production work may use spare OVH capacity only after a live headroom check and only through the existing resource-isolation controls; production/recovery reserve takes priority.
+Keep OVH boring and dependable. It is the primary self-hosted portal/control node, the recovery anchor, and the largest current VPS. Production follows serialized, validated pushes to main. Bounded non-production work may use spare OVH capacity only after a live headroom check and only through the existing resource-isolation controls; production/recovery reserve takes priority.
 
 Recommended durable services:
 
@@ -157,9 +157,11 @@ Keep the separately deployed `apps/agent` runtime here. Hetzner is the default *
 
 ## Release behavior
 
-The self-hosted production workflow no longer runs on every push to `main`. It runs only when manually dispatched or when `ops/self-host-production-trigger.txt` is updated. Normal development and rapid commits therefore cannot repeatedly cancel or interrupt the production deployment.
-
-As of 2026-09-23, `portal.3dvr.tech` DNS is still hosted by Vercel. The public hostname can therefore be split between a Vercel-served root document and self-hosted health/API traffic. A successful `/__3dvr-health` response is not enough to prove that the homepage is current. Production verification must compare the public root artifact with the release being deployed. See `docs/VERCEL-PRODUCTION.md`.
+Every push to main triggers the serialized OVH workflow. It pins the event SHA,
+skips superseded queued SHAs, validates a candidate, atomically promotes it, and
+rolls back on canonical verification failure.
+See [the deployment runbook](self-host-production.md).
+Vercel is not the canonical Portal deployment target.
 
 ## Health monitoring
 
@@ -225,7 +227,7 @@ Critical memory, disk, or load conditions fail the workflow; early pressure prod
 5. **Keep durable state backed up.** Repository state belongs in Git. Databases, queues, credentials, and non-reproducible user data require an explicit backup/restore path.
 6. **Servers first; devices roam.** Phones and laptops may disappear from the network without breaking company automation.
 7. **Edge nodes are optional capacity.** LicheePi outages must not prevent cloud automation from operating.
-8. **Production is release-driven.** A burst of commits must not become a burst of live server restarts.
+8. **Production follows validated main.** Serialize releases, skip superseded queued SHAs, and never cancel an in-flight promotion.
 9. **No proprietary control dependency.** Paid or hosted remote-control tools may improve convenience but must never be the only path to administer, repair, or migrate 3DVR infrastructure.
 10. **Transports are replaceable.** GitHub currently transports Open Runner tasks, but direct SSH and provider-console recovery remain independent paths and the runner must be portable to another queue.
 

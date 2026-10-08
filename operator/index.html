@@ -108,7 +108,7 @@
       <div class="app-search-heading"><strong>Your tools</strong><small id="app-search-count"></small><button id="app-search-close" type="button" aria-label="Close tools">×</button></div>
       <nav id="app-search-list" aria-label="Matching 3DVR apps and pages"></nav>
     </section>
-    <form id="operator-form">
+    <form id="operator-form"><div class="operator-mode-control" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0"><label for="operator-mode" style="margin:0">Collaboration</label><select id="operator-mode" aria-describedby="operator-mode-help" style="background:#121f30;color:#edf4ff;border:1px solid #526778;border-radius:8px;padding:8px"><option value="together">Build Together</option><option value="learn">Learn</option><option value="autopilot">Autopilot</option></select><small id="operator-mode-help" style="color:#a7b9c7">Co-design and review each step.</small></div>
       <label for="operator-input">Message your operator or search 3DVR</label>
       <textarea id="operator-input" rows="2" placeholder="Ask, think out loud, or tell me what you need…" aria-describedby="operator-status"></textarea>
       <div><span><small id="operator-status" role="status">Ready</small></span><div class="operator-actions"><button id="save-secret" type="button" aria-label="Save a secret" title="Save a secret">🔐</button><button type="submit" aria-label="Send to Operator" title="Send">→</button></div></div>

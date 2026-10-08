@@ -16,7 +16,7 @@ function log(label, value = '') {
   console.log(`${label}${value === '' ? '' : `=${value}`}`);
 }
 
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, ...(process.env.PORTAL_E2E_EXECUTABLE_PATH ? { executablePath: process.env.PORTAL_E2E_EXECUTABLE_PATH } : {}) });
 const context = await browser.newContext({
   viewport: { width: 390, height: 844 },
   userAgent: '3DVR-Operator-E2E/1.0 Playwright'

@@ -6,10 +6,10 @@
   <title>3DVR Phone Dock | 3DVR Portal</title>
   <meta
     name="description"
-    content="The 3DVR Phone Dock turns an existing phone into a modular handheld, pocket workstation, desk dock, and big-screen computer with real physical controls."
+    content="The 3DVR Phone Dock turns an existing phone into a modular handheld, belt-worn, chest-worn, head-mounted, desk, and big-screen computer with real physical controls."
   >
   <link rel="stylesheet" href="../style.css?v=phone-holder-system">
-  <link rel="stylesheet" href="./styles.css?v=20261006">
+  <link rel="stylesheet" href="./styles.css?v=20261007-navfix2">
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body class="phone-holder-page">
@@ -18,25 +18,33 @@
     <a href="#orientation">Orientation</a>
     <a href="#controls">Controls</a>
     <a href="#modes">Modes</a>
+    <a href="#wearable">Wearable</a>
     <a href="#prototype">Prototype</a>
-    <a href="#path">Build path</a>\n    <a href="../life-utility-vehicle/">Vehicle</a>
+    <a href="#open-phone">Open Phone</a>
+    <a href="#path">Build path</a>
+    <a href="../life-utility-vehicle/">Vehicle</a>
   </nav>
 
   <header class="hero-shell">
     <section class="hero-copy" aria-labelledby="phone-holder-title">
       <p class="eyebrow">3DVR Phone Dock · Nomad Clip evolution</p>
-      <h1 id="phone-holder-title">Your phone. Real controls.</h1>
+      <h1 id="phone-holder-title">Your phone. Real controls. Anywhere.</h1>
       <p>
-        A universal holder, dock, keyboard, and input system built around the phone you already own.
-        The phone stays the screen, camera, sensors, cellular link, and compute node. 3DVR adds the
-        ergonomics, physical controls, docking, and expansion around it.
+        A universal cradle, dock, keyboard, input, and wearable system built around the phone you already own.
+        The phone stays the screen, camera, sensors, cellular link, and compute node. 3DVR adds the ergonomics,
+        physical controls, quick-release mounting, docking, and expansion around it.
       </p>
       <div class="hero-actions" aria-label="Primary actions">
-        <a class="action primary" href="#orientation">See the core interaction</a>
-        <a class="action" href="#path">Prototype it</a>\n        <a class="action" href="../life-utility-vehicle/">Scale it up → vehicle</a>
+        <a class="action primary" href="#wearable">See wearable modes</a>
+        <a class="action" href="#orientation">Try orientation</a>
+        <a class="action" href="#path">Prototype it</a>
+        <a class="action" href="#open-phone">Open Phone roadmap</a>
+        <a class="action" href="../life-utility-vehicle/">Scale it up → vehicle</a>
       </div>
       <div class="hero-principles" aria-label="Phone dock principles">
         <span>Orientation-adaptive</span>
+        <span>One quick-release interface</span>
+        <span>Belt → chest → head → desk</span>
         <span>Physical keyboard optional</span>
         <span>USB-C first</span>
         <span>Modular + repairable</span>
@@ -174,13 +182,71 @@
       <div class="section-intro">
         <p class="eyebrow">Modes</p>
         <h2 id="modes-title">One object, several computing postures.</h2>
+        <p>The same phone and cradle should move through the day with you instead of making you carry a different device for every posture.</p>
       </div>
       <div class="mode-strip">
         <article><strong>Handheld</strong><span>Phone + controls + optional keyboard.</span></article>
+        <article><strong>Belt clip</strong><span>Secure low-profile carry with one-hand quick release.</span></article>
+        <article><strong>Neck / chest</strong><span>High, stabilized hands-free screen for standing or seated use.</span></article>
+        <article><strong>Head / VR</strong><span>Flip between immersive viewing and a lower floating-screen position.</span></article>
+        <article><strong>Transit</strong><span>Personal theater or terminal with headphones and lap input.</span></article>
         <article><strong>Desk dock</strong><span>Kickstand, external keyboard, mouse, charging.</span></article>
         <article><strong>Big screen</strong><span>USB-C display-out to monitor, TV, projector, or glasses.</span></article>
         <article><strong>Travel</strong><span>Compact protective frame that becomes the workstation when opened.</span></article>
-        <article><strong>Wearable</strong><span>Waist, strap, or chest dock when the display moves to AR glasses.</span></article>
+      </div>
+    </section>
+
+    <section class="wearable-panel" id="wearable" aria-labelledby="wearable-title">
+      <div class="section-intro">
+        <p class="eyebrow">Wearable system</p>
+        <h2 id="wearable-title">One cradle. Many postures.</h2>
+        <p>
+          The key hardware is not the belt clip or the headset by itself. It is a shared 3DVR mounting interface:
+          magnetic alignment for fast docking, a mechanical safety catch for real-world movement, and rotation so
+          the phone can move between belt, chest, head, desk, keyboard, tripod, bike, and future mounts.
+        </p>
+      </div>
+
+      <figure class="concept-hero">
+        <img src="./images/modular-system.svg" alt="Diagram of one 3DVR phone cradle connecting to belt, chest, head and desk modules">
+        <figcaption>The cradle is the standard. Everything around it becomes replaceable, printable, repairable hardware.</figcaption>
+      </figure>
+
+      <div class="wearable-gallery">
+        <article class="wearable-card">
+          <img src="./images/belt-clip.svg" alt="3DVR belt clip mode concept">
+          <div>
+            <span class="mode-mark">Carry</span>
+            <h3>Belt clip</h3>
+            <p>Low-profile, secure, reversible screen direction, with a tactile release you can operate one-handed.</p>
+          </div>
+        </article>
+
+        <article class="wearable-card">
+          <img src="./images/neck-chest.svg" alt="3DVR neck and chest wearable mode concept">
+          <div>
+            <span class="mode-mark">Hands free</span>
+            <h3>Neck / chest</h3>
+            <p>Keep the screen high enough to glance at, then use a second stabilizer point so it does not swing like a normal lanyard.</p>
+          </div>
+        </article>
+
+        <article class="wearable-card">
+          <img src="./images/head-vr.svg" alt="3DVR head and VR mode concept">
+          <div>
+            <span class="mode-mark">Spatial</span>
+            <h3>Head / VR</h3>
+            <p>A balanced headband can move from full VR to a flip-down personal screen. Battery or counterweight can shift mass away from the face.</p>
+          </div>
+        </article>
+      </div>
+
+      <div class="wearable-safety">
+        <strong>Walking mode ≠ blind VR.</strong>
+        <span>
+          While moving through public space, the design should preserve situational awareness: audio first, short glanceable information,
+          peripheral vision, quick flip-up, and no opaque full-screen mode while actively walking or crossing streets.
+        </span>
       </div>
     </section>
 
@@ -190,16 +256,60 @@
         <h2 id="prototype-title">Mechanical first.</h2>
         <p>
           The first useful version does not need custom electronics. It needs to prove rotation, grip,
-          keyboard position, phone compatibility, balance, and the transition between handheld and desk use.
+          phone compatibility, balance, quick release, retention, keyboard position, and the transitions
+          between handheld, belt, chest, head, and desk use.
         </p>
       </div>
       <div class="feature-list" aria-label="Prototype feature list">
         <div><strong>Adjustable clamp</strong><span>Fits common phones with or without a slim case.</span></div>
         <div><strong>90° rotation</strong><span>Portrait ↔ landscape without removing the phone.</span></div>
+        <div><strong>Quick-release spine</strong><span>One shared mechanical interface for belt, body, head, desk, tripod, and future mounts.</span></div>
+        <div><strong>Safety catch</strong><span>Magnetic alignment can guide docking, but movement modes need a positive mechanical lock or tether.</span></div>
         <div><strong>Stationary grip</strong><span>The phone rotates; the control surfaces do not have to.</span></div>
         <div><strong>Keyboard bay</strong><span>Use an existing Bluetooth/USB keyboard first; custom split keys later.</span></div>
         <div><strong>Fold-out stand</strong><span>Handheld hardware becomes a stable desk workstation.</span></div>
         <div><strong>USB-C pass-through</strong><span>Preserve charging/data from the beginning.</span></div>
+      </div>
+    </section>
+
+    <section class="open-phone-panel" id="open-phone" aria-labelledby="open-phone-title">
+      <div class="section-intro">
+        <p class="eyebrow">3DVR Open Phone</p>
+        <h2 id="open-phone-title">Replace the black box one layer at a time.</h2>
+        <p>
+          We do not need to manufacture a smartphone on day one. The dock becomes a bridge from the phone you already own
+          to a fully open personal computer: useful at every stage, increasingly repairable, and progressively less dependent on closed hardware.
+        </p>
+      </div>
+      <div class="evolution-path" aria-label="Open Phone evolution">
+        <article><span>0</span><strong>Existing phone</strong><small>Screen · cameras · sensors · cellular · compute</small></article>
+        <b>→</b>
+        <article><span>1</span><strong>3DVR Dock</strong><small>Mounts · keyboard · pointer · controls · USB-C</small></article>
+        <b>→</b>
+        <article><span>2</span><strong>Linux companion</strong><small>Open compute module joins the phone</small></article>
+        <b>→</b>
+        <article><span>3</span><strong>Modular handheld</strong><small>Display · modem · battery · cameras become modules</small></article>
+        <b>→</b>
+        <article><span>4</span><strong>Open phone</strong><small>Purpose-built, documented, repairable personal computer</small></article>
+      </div>
+      <div class="prototype-zero">
+        <div>
+          <p class="eyebrow">Prototype 0</p>
+          <h3>Build the smallest thing that teaches us the most.</h3>
+          <p>No custom PCB yet. Prove the physical system and the phone-to-Linux relationship with commodity hardware first.</p>
+        </div>
+        <div class="prototype-zero-grid">
+          <article><strong>Mechanical</strong><span>Existing adjustable phone clamp, foam/cardboard or printed frame, 90° rotation, quick-release spine, positive safety catch, fold-out stand.</span></article>
+          <article><strong>Input</strong><span>Compact Bluetooth/USB keyboard plus a small pointer. Keep game/spatial controls optional until the ergonomics tell us where they belong.</span></article>
+          <article><strong>I/O</strong><span>USB-C hub with power pass-through. Preserve charging and expose USB, storage, networking, and display-out without designing electronics.</span></article>
+          <article><strong>Compute experiment</strong><span>Detachable Linux SBC/compute module powered separately at first. Connect it to the phone through the simplest reliable network/display path.</span></article>
+          <article><strong>Software</strong><span>Operator is the common shell. Test browser, terminal, remote desktop, files, camera handoff, and continuity between phone and Linux.</span></article>
+          <article><strong>Pass/fail</strong><span>Can one person carry it, dock it, type comfortably, move between portrait/landscape, and use Linux without the prototype feeling like a science project?</span></article>
+        </div>
+      </div>
+      <div class="design-rule">
+        <strong>Gate before custom electronics</strong>
+        <span>Only design a carrier PCB after the mechanical dock, input layout, USB-C topology, and Linux companion workflow survive real daily use.</span>
       </div>
     </section>
 
@@ -213,7 +323,7 @@
         </p>
       </div>
       <div class="legacy-tags" aria-label="Nomad Clip ideas retained">
-        <span>Grip</span><span>Stand</span><span>Tripod</span><span>Extender</span><span>Body clip</span><span>Lap mode</span><span>AR glasses routing</span><span>Natural materials</span>
+        <span>Grip</span><span>Stand</span><span>Tripod</span><span>Extender</span><span>Belt clip</span><span>Chest harness</span><span>Head mount</span><span>Lap mode</span><span>AR glasses routing</span><span>Natural materials</span>
       </div>
     </section>
 
@@ -233,26 +343,33 @@
         <li>
           <span>2</span>
           <div>
-            <strong>3D-printed adjustable frame</strong>
-            <p>Add quick release, rubber padding, a fold-out stand, shoulder-button geometry, and 1/4"-20 mounting points.</p>
+            <strong>3D-printed cradle + shared quick release</strong>
+            <p>Prototype the actual interface once, then build simple belt, chest, desk, and head adapters around that same geometry.</p>
           </div>
         </li>
         <li>
           <span>3</span>
+          <div>
+            <strong>Wearability tests</strong>
+            <p>Measure bounce, neck load, head balance, one-hand removal, safety retention, flip-up speed, and comfort during a real walk or transit ride.</p>
+          </div>
+        </li>
+        <li>
+          <span>4</span>
           <div>
             <strong>Off-the-shelf keyboard + pointer</strong>
             <p>Integrate a small Bluetooth/USB keyboard and trackpoint, trackball, or thumb pointer before designing custom PCBs.</p>
           </div>
         </li>
         <li>
-          <span>4</span>
+          <span>5</span>
           <div>
             <strong>3DVR modular input rail</strong>
             <p>Standardize swappable keyboard, gamepad, trackpad, macro, battery, storage, and compute modules.</p>
           </div>
         </li>
         <li>
-          <span>5</span>
+          <span>6</span>
           <div>
             <strong>Open hardware release</strong>
             <p>Publish printable parts, dimensions, electronics, firmware, and lessons learned so the dock can outlive any single phone.</p>
@@ -263,7 +380,7 @@
   </main>
 
   <footer class="phone-holder-footer">
-    <p>Your phone. Real controls. Modular future. Built for open, repairable, human-centered computing.</p>
+    <p>Your phone. Real controls. Wear it, dock it, carry it. Built for open, repairable, human-centered computing.</p>
   </footer>
 
   <script>
