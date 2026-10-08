@@ -1,3 +1,7 @@
+> Current production (2026-10-07): Portal is self-hosted on OVH and every main merge
+> enters the serialized deployment workflow. See [the current runbook](self-host-production.md).
+> Historical DNS/Vercel descriptions below explain past incidents.
+
 # Self-hosted Portal production and limited Vercel fallback
 
 As of 2026-09-23, `portal.3dvr.tech` DNS is still hosted by Vercel and the public root can therefore be served by Vercel even while health/API routes reach the self-hosted 3DVR edge. Treat those as separate facts.
@@ -39,7 +43,7 @@ The Vercel fallback workflow now performs the root artifact comparison itself an
 - Canonical Vercel API/fallback project: team `team_xxJGO7S7h1ZP4BHidYV0CX9Z`, project `prj_rAhxzdSdrK9MwKjUMeAXGxk8z8Ch`.
 - The similarly named `3dvr`-team Portal project is not a production dependency and should not receive automatic Git deployments.
 - Self-host release target: OVH first, with the 3DVR edge/fallback mesh in front of it.
-- Self-host production is explicit: manually dispatch it or update `ops/self-host-production-trigger.txt`.
+- Self-host production follows every main push; manual main dispatch remains available.
 - Vercel Git deployments are disabled for every branch. Portal releases do not ride ordinary Git pushes.
 - `.github/workflows/vercel-production-prebuilt.yml` is a manual/triggered fallback and requires `VERCEL_TOKEN` to perform a Vercel deployment.
 - If that GitHub token is unavailable, an already-authenticated Vercel CLI may be used from a **clean snapshot of `main`**. Never deploy from a dirty service checkout.

@@ -14,7 +14,7 @@ const workflow = await readFile(
 test('self-host deploy validates the candidate before switching current', () => {
   const candidateHealth = source.indexOf('wait_for_release "$candidate_url" "$sha"');
   const candidateWorkboard = source.indexOf('validate_workboard "$candidate_url"');
-  const switchCurrent = source.indexOf('ln -sfn "$release" "$current"');
+  const switchCurrent = source.indexOf('atomic_current "$release"');
 
   assert.ok(candidateHealth >= 0, 'candidate health check must exist');
   assert.ok(candidateWorkboard > candidateHealth, 'candidate Workboard check must follow health');
