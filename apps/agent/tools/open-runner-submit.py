@@ -17,6 +17,8 @@ def main() -> int:
     parser.add_argument('command', nargs=argparse.REMAINDER)
     parser.add_argument('--queue', default=DEFAULT_QUEUE)
     parser.add_argument('--timeout', type=int, default=1200)
+    parser.add_argument('--priority', choices=['normal', 'recovery'], default='normal')
+    parser.add_argument('--memory-mib', type=int)
     args = parser.parse_args()
 
     command = ' '.join(args.command).strip()
@@ -29,8 +31,11 @@ def main() -> int:
         'action': 'shell' if args.target == 'hetzner' else 'mesh-shell',
         'device': 'hetzner',
         'command': command,
-        'timeout': max(1, min(args.timeout, 7200)),
+        'timeout': max(1, min(args.timeout, 1800)),
     }
+    task['priority'] = args.priority
+    if args.memory_mib is not None:
+        task['memory_mib'] = args.memory_mib
     if args.target != 'hetzner':
         task['target'] = args.target
 
