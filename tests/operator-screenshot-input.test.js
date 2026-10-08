@@ -35,5 +35,10 @@ test('full Operator exposes a mobile screenshot attachment control', async () =>
   assert.match(attachments, /Attach screenshot/);
   assert.match(attachments, /image\/png,image\/jpeg,image\/webp,image\/gif/);
   assert.match(attachments, /operator-attachment-preview/);
+  // The collaboration selector precedes the composer in the same form.
+  assert.match(page, /class="operator-mode-control"/);
+  assert.match(attachments, /form\.querySelector\('\.operator-actions'\)/);
+  assert.match(attachments, /const row = actions\?\.parentElement/);
+  assert.doesNotMatch(attachments, /form\.querySelector\(':scope > div'\)/);
   assert.doesNotMatch(page, /operator-input[^>]+required/);
 });
