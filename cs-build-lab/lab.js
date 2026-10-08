@@ -1,7 +1,9 @@
+import { createLabAccountSync } from './account-sync.js';
 const KEY = '3dvr.cs-build-lab.v1';
 const phases = ['learn', 'build', 'explain'];
 const $ = id => document.getElementById(id);
 let modules = [];
+let accountSync;
 let state = { version: 1, modules: {} };
 try {
   const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
@@ -10,6 +12,8 @@ try {
   $('storage-status').textContent = 'Saved progress could not be read. You can still study and export this session.';
 }
 function save() {
+  if (accountSync?.available) { accountSync.save(state); return; }
+  if (accountSync?.pub) return;
   try { localStorage.setItem(KEY, JSON.stringify(state)); }
   catch { $('storage-status').textContent = 'Browser storage is unavailable. Export progress before leaving this page.'; }
 }
@@ -72,6 +76,8 @@ function render() {
       const input = document.createElement('input');
       input.type = 'checkbox';
       input.checked = e.steps[phase] === true;
+      input.dataset.module = m.id;
+      input.dataset.phase = phase;
       input.setAttribute('aria-label', m.title + ': ' + phase);
       const text = document.createElement('span');
       const strong = document.createElement('strong');
@@ -80,6 +86,7 @@ function render() {
       label.append(input, text);
       step.append(label);
       input.addEventListener('change', () => {
+        const e = entry(m.id);
         e.steps[phase] = input.checked;
         e.completedAt = phases.every(p => e.steps[p]) ? (e.completedAt || new Date().toISOString()) : null;
         save();
@@ -98,7 +105,7 @@ function render() {
     notes.id = label.htmlFor;
     notes.value = typeof e.notes === 'string' ? e.notes : '';
     notes.maxLength = 20000;
-    notes.addEventListener('input', () => { e.notes = notes.value; save(); });
+    notes.addEventListener('input', () => { entry(m.id).notes = notes.value; save(); });
     const review = document.createElement('p');
     review.className = 'review';
     review.dataset.review = m.id;
@@ -108,6 +115,38 @@ function render() {
   });
   update();
 }
+function guestState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+    return saved?.version === 1 && saved.modules ? saved : { version: 1, modules: {} };
+  } catch { return { version: 1, modules: {} }; }
+}
+function connectAccount() {
+  accountSync?.stop();
+  accountSync = createLabAccountSync({
+    windowObj: window,
+    ids: modules.map(m => m.id),
+    getGuestState: guestState,
+    onStatus: message => {
+      $('storage-status').textContent = message;
+      $('signin').hidden = !/Sign in|Sign-in|Account changed/i.test(message);
+    },
+    onState: incoming => {
+      state = incoming;
+      for (const m of modules) {
+        const e = entry(m.id);
+        for (const phase of phases) {
+          const input = document.querySelector('[data-module="' + m.id + '"][data-phase="' + phase + '"]');
+          if (input) input.checked = e.steps[phase] === true;
+        }
+        const notes = $('notes-' + m.id);
+        if (notes && document.activeElement !== notes) notes.value = e.notes;
+      }
+      update();
+    }
+  });
+}
+$('retry-sync').addEventListener('click', connectAccount);
 $('minutes').addEventListener('change', update);
 $('next-link').addEventListener('click', () => {
   const target = document.querySelector($('next-link').getAttribute('href'));
@@ -171,6 +210,7 @@ try {
   if (!response.ok) throw new Error('Curriculum unavailable');
   modules = await response.json();
   render();
+  connectAccount();
 } catch {
   $('today-title').textContent = 'Learning plan unavailable';
   $('load-error').textContent = 'Reload to try again. Your saved progress remains in this browser.';

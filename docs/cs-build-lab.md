@@ -7,9 +7,23 @@ The default cadence is three 30-minute sessions per week; modules are not deadli
 The interactive search demo counts comparisons for the final element of a sorted
 list, not wall-clock speed.
 
-Progress and notes are intentionally browser-local under 3dvr.cs-build-lab.v1.
-There is no account sync or external transmission. JSON export/import moves
-progress between devices; imports merge completed steps and preserve existing notes.
+Signed-in progress and notes sync through GunJS:
+user.get('education').get('cs-build-lab-v2').get('devices').get(writerId).
+Each tab uses its own encrypted snapshot. Snapshots merge registers per module
+and field by logical timestamp and writer ID, preserving changes to different
+checkpoints and modules. Explicit unchecks and empty notes sync too; concurrent
+edits to the same note use the newest register. A write acknowledgement is not
+proof of delivery to another browser.
+
+SEA encrypts snapshots to the authenticated account key. Session recall and
+stored-credential recovery verify the expected public key/alias before writes.
+Account cache keys include the authenticated public key. Account changes detach
+listeners and hide the prior account view. The old guest cache migrates once to
+its first account and remains as a backup; it never migrates to another account.
+Signed-out progress stays device-local. Failed writes keep the account cache and
+retry. JSON import/export remains a backup and transfer option. No automatic
+redirect on recovery failure: retry and a sign-in link return to this exact route.
+
 Finish a module to display review dates at 1, 7, and 30 days. Dates are guidance,
 not scheduled notifications. Completion is self-reported, not AI certification.
 

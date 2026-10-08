@@ -7,6 +7,10 @@
   <meta name="description" content="Learn computer science by building useful 3DVR projects, one short session at a time.">
   <title>CS Build Lab | 3DVR Portal</title>
   <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="/auth-identity.js"></script>
   <script type="module" src="./lab.js"></script>
 </head>
 <body>
@@ -18,8 +22,8 @@
       <div><p class="eyebrow">YOUR NEXT SESSION</p><h2 id="today-title">Loading your plan…</h2><p id="next-task"></p><a id="next-link" class="button" href="#modules">Open module</a></div>
       <div class="pace"><label for="minutes">Time available</label><select id="minutes"><option value="15">15 minutes</option><option value="30" selected>30 minutes</option><option value="60">60 minutes</option></select><p id="session-plan"></p><label for="progress">Your progress <span id="count">0 / 24 steps</span></label><progress id="progress" max="24" value="0"></progress></div>
     </section>
-    <p id="storage-status" role="status">Progress and notes stay in this browser. Export a backup to move them to another device.</p>
-    <div class="tools"><button id="export" type="button">Export progress</button><label for="import">Import progress</label><input id="import" type="file" accept=".json,application/json"><span id="transfer-status" role="status"></span></div>
+    <p id="storage-status" role="status">Checking account sync… Your device copy stays available offline.</p>
+    <div class="tools"><button id="retry-sync" type="button">Retry account sync</button><a id="signin" href="/sign-in.html?redirect=%2Fcs-build-lab%2F" hidden>Sign in to sync</a><button id="export" type="button">Export progress</button><label for="import">Import progress</label><input id="import" type="file" accept=".json,application/json"><span id="transfer-status" role="status"></span></div>
     <section aria-labelledby="path-title"><h2 id="path-title">Your learning path</h2><p>Each module has a short explanation, a practice task, and a project outcome. Mark a step when you can demonstrate it. Module numbers are a sequence, not deadlines.</p><div id="modules"><p id="load-error" role="status"></p></div></section>
     <section class="sandbox" aria-labelledby="sandbox-title"><p class="eyebrow">TRY A CONCEPT NOW</p><h2 id="sandbox-title">How much work does search take?</h2><p>Search for the last number in a sorted list. Compare actual checks in these two algorithms, rather than wall-clock speed.</p><label for="size">List size <output id="size-value">100</output></label><input id="size" type="range" min="1" max="1000" value="100"><div class="comparison"><div><h3>Linear search</h3><strong id="linear"></strong><p>Check each entry until the target appears.</p></div><div><h3>Binary search</h3><strong id="binary"></strong><p>Check the midpoint, then halve the remaining range.</p></div></div><p>Binary search needs sorted data. Maintaining that order has a cost. Try sizes 1, 100, and 1,000.</p></section>
     <section class="rhythm"><h2>Keep the learning useful</h2><p><strong>Learn:</strong> read one explanation. <strong>Build:</strong> write and test a small example. <strong>Explain:</strong> close your tools and describe why it works.</p><p>Ask AI for a hint, a counterexample, or a review after your attempt. Keep the understanding yours. Revisit finished modules after 1, 7, and 30 days; review dates appear in each module.</p><p>Use mock data and development environments for practice. A lesson does not authorize changes to a client system.</p></section>
