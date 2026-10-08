@@ -62,7 +62,7 @@ test('server control rejects non-owner and non-allowlisted service actions', asy
     verifyImpl: async () => verified({ alias: 'someone@3dvr' }),
   });
   assert.equal(nonOwner.ok, false);
-  assert.match(nonOwner.reason, /owner authorization/);
+  assert.match(nonOwner.reason, /restricted to the tmsteph owner identity/);
 
   const arbitrary = await authorizePortalServerControl(record({
     service: 'ssh.service',
