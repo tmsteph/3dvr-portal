@@ -75,7 +75,9 @@ test('Prism Wing does not auto-fly and W accelerates', { timeout: 45_000 }, asyn
     assert.ok(idle.throttle < .03, `idle throttle should stay at zero, got ${idle.throttle}`);
 
     await page.keyboard.down('KeyW');
-    await page.waitForTimeout(1200);
+    // CI runners may advance the simulation more slowly than wall-clock time.
+    // Wait for the actual throttle milestone while W remains pressed.
+    await page.waitForFunction(() => window.__prismWingDebug.getState().throttle > .7, null, { timeout: 8_000 });
     await page.keyboard.up('KeyW');
     const accelerated = await state(page);
 
