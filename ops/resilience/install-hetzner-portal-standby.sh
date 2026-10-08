@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Portal imports node:sqlite at startup; never silently launch the system Node 20.
+portal_node_bin=""
+for candidate in "${THREEDVR_PORTAL_NODE:-}" /opt/node-v22/bin/node /usr/local/bin/node "$(command -v node || true)"; do
+  [ -n "$candidate" ] && [ -x "$candidate" ] || continue
+  if "$candidate" --input-type=module -e 'await import("node:sqlite")' >/dev/null 2>&1; then
+    portal_node_bin="$candidate"
+    break
+  fi
+done
+[ -n "$portal_node_bin" ] || { echo "Portal requires a Node runtime with node:sqlite support." >&2; exit 2; }
+
 [[ ${EUID:-$(id -u)} -eq 0 ]] || { echo "root required" >&2; exit 77; }
 
 archive="${1:-/tmp/3dvr-portal-standby.tar.gz}"
@@ -65,7 +76,7 @@ THREEDVR_OUTREACH_REQUIRE_PERSONAL_SENT_CHECK=true
 EOF
 chmod 600 /etc/3dvr-portal-standby.env
 
-cat >/etc/systemd/system/3dvr-portal-standby.service <<'UNIT'
+cat >/etc/systemd/system/3dvr-portal-standby.service <<UNIT
 [Unit]
 Description=3DVR warm standby portal
 After=network-online.target
@@ -75,7 +86,7 @@ Wants=network-online.target
 Type=simple
 EnvironmentFile=/etc/3dvr-portal-standby.env
 WorkingDirectory=/opt/3dvr-portal-standby/current
-ExecStart=/usr/bin/env node /opt/3dvr-portal-standby/current/scripts/self-host-server.mjs
+ExecStart=$portal_node_bin /opt/3dvr-portal-standby/current/scripts/self-host-server.mjs
 Restart=always
 RestartSec=3
 CPUWeight=500
