@@ -45,7 +45,19 @@ export function personalizeOpportunityEngineState(state = {}, profile = {}, now 
 
   return createOpportunityEngineState({
     signals: current.signals,
-    opportunities: current.opportunities.map(opportunity => applyAlignmentProfile(opportunity, normalizedProfile)),
+    opportunities: current.opportunities.map(opportunity => {
+      const aligned = applyAlignmentProfile(opportunity, normalizedProfile);
+      // Computed records use scoreOverrides as the source of truth when re-normalized.
+      // Preserve private alignment during the next ranking pass without storing profile keywords.
+      return {
+        ...aligned,
+        scoreOverrides: {
+          ...opportunity.scoreOverrides,
+          alignmentScore: aligned.alignmentScore,
+          fitScore: aligned.alignmentScore
+        }
+      };
+    }),
     updatedAt: current.updatedAt
   }, now);
 }
