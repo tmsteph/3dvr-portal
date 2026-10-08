@@ -45,7 +45,7 @@ jobs:
           bash -n scripts/ops/install-organism-owner-bridge.sh
           bash -n scripts/ops/install-mark-chat-tracker.sh
           node --check scripts/ops/mark-chat-tracker.mjs
-          node --test tests/operator-developer-access.test.js tests/organism-access.test.js tests/self-host-deploy-persistent-tunnel.test.js tests/self-host-deploy-safety.test.js tests/self-host-pipeline.test.js tests/self-host-transaction.test.js
+          node --test tests/operator-developer-access.test.js tests/organism-access.test.js tests/self-host-deploy-persistent-tunnel.test.js tests/self-host-deploy-safety.test.js tests/self-host-pipeline.test.js tests/self-host-transaction.test.js tests/needle-edge-browser.test.js
 
       - name: Resolve OVH-first portal credentials
         id: resolve
@@ -302,11 +302,14 @@ jobs:
             exit 1
           fi
 
-      - name: Install Playwright for Operator acceptance
+      - name: Setup Playwright with preinstalled Chrome
+        timeout-minutes: 3
         if: steps.deploy.outcome == 'success' && steps.verify.outcome == 'success' && steps.deploy.outputs.superseded != 'true'
         run: |
           npm install --no-save playwright@1.55.0
-          npx playwright install --with-deps chromium
+          chrome="$(command -v google-chrome || command -v chromium || true)"
+          [ -n "$chrome" ] || { echo 'Runner Chrome is unavailable.' >&2; exit 1; }
+          echo "PORTAL_E2E_EXECUTABLE_PATH=$chrome" >> "$GITHUB_ENV"
 
       - name: Run Operator production acceptance
         if: steps.deploy.outcome == 'success' && steps.verify.outcome == 'success' && steps.deploy.outputs.superseded != 'true'
