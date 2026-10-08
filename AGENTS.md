@@ -112,6 +112,13 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - If Vercel fallback is required, deploy only from a clean snapshot of `main`; never from a dirty service checkout.
 - Read `docs/VERCEL-PRODUCTION.md` before changing production routing, DNS, or release behavior.
 
+## Self-hosted production
+- Every main push enters the serialized OVH release workflow.
+- Read docs/self-host-production.md for source ownership and rollback behavior.
+- Vercel is not canonical production; historical topology notes below do not change this.
+- Git metadata stays owned by the source account; never relax permissions to deploy.
+- Verify canonical root and changed page artifacts against the exact release SHA.
+
 ## Deployment Topology
 - The repository is an asymmetric monorepo: the Vercel portal remains at the root, the separately deployed Hetzner agent lives in `apps/agent`, and other runtime/platform packages can keep their own deployment boundaries inside the same repository.
 - Keep `apps/agent` excluded from Vercel output. Agent changes use their own dependency install, test workflow, environment, and worker cutover.
