@@ -81,6 +81,8 @@ try {
     await admin.addInitScript(testPair => {
       sessionStorage.setItem('pair', JSON.stringify(testPair));
       sessionStorage.setItem('recall', 'true');
+      localStorage.setItem('signedIn', 'true');
+      localStorage.setItem('userPubKey', testPair.pub);
       window.__DISABLE_GUN_DEFAULT_PEERS__ = true;
     }, pair);
     await admin.goto(origin + '/growth-desk/funnel.html');
@@ -90,6 +92,39 @@ try {
     await admin.locator('.draft-button').first().click();
     await admin.locator('.draft:not([hidden])').waitFor();
     await admin.screenshot({ path: temp + '/pipeline-mobile.png', fullPage: true });
+    // A fresh tab has no recalled pair: recover the real Portal alias/password
+    // from the shared Gun account graph, then prove identity to the server.
+    const context = await browser.newContext();
+    await context.route('https://cdn.jsdelivr.net/npm/gun/**', async route => {
+      const path = '/opt/3dvr-portal-production/current/node_modules/gun/' + (route.request().url().endsWith('sea.js') ? 'sea.js' : 'gun.js');
+      await route.fulfill({ path, contentType: 'text/javascript' });
+    });
+    await context.addInitScript(() => { window.__DISABLE_GUN_DEFAULT_PEERS__ = true; });
+    const setup = await context.newPage();
+    await setup.goto(origin + '/growth-desk/funnel.html');
+    await setup.evaluate(async () => {
+      const alias = 'funnel-fresh-tab-' + crypto.randomUUID();
+      const password = 'Disposable-test-password';
+      const gun = Gun({ peers: [] });
+      const user = gun.user();
+      await new Promise((resolve, reject) => user.create(alias, password, ack => ack.err ? reject(new Error(ack.err)) : resolve(ack)));
+      await new Promise((resolve, reject) => user.auth(alias, password, ack => ack.err ? reject(new Error(ack.err)) : resolve(ack)));
+      localStorage.setItem('alias', alias);
+      localStorage.setItem('password', password);
+      localStorage.setItem('signedIn', 'true');
+      localStorage.setItem('userPubKey', user.is.pub);
+    });
+    await setup.waitForTimeout(1500); // Allow Gun's local graph writer to flush.
+    await setup.close();
+    const fresh = await context.newPage();
+    const ownerDenied = fresh.waitForResponse(response => response.url().endsWith('/api/automation-funnel') && response.status() === 403);
+    await fresh.goto(origin + '/growth-desk/funnel.html');
+    assert.equal(await fresh.evaluate(() => sessionStorage.getItem('pair')), null);
+    await ownerDenied;
+    await fresh.waitForFunction(() => document.querySelector('#status').classList.contains('error'));
+    assert.equal(await fresh.locator('#signin').isVisible(), false);
+    assert.equal(await fresh.locator('#workspace').isVisible(), false);
+    await context.close();
     await page.close(); await admin.close();
   } finally { await browser.close(); }
   // Independent reopened connection proves persistence beyond handler memory.
