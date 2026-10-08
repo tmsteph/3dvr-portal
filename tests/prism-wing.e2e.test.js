@@ -76,8 +76,9 @@ test('Prism Wing does not auto-fly and W accelerates', { timeout: 45_000 }, asyn
 
     await page.keyboard.down('KeyW');
     await page.waitForTimeout(1200);
-    await page.keyboard.up('KeyW');
+    // Capture acceleration before releasing W; throttle can decay on keyup.
     const accelerated = await state(page);
+    await page.keyboard.up('KeyW');
 
     assert.ok(accelerated.throttle > .7, `W should raise throttle, got ${accelerated.throttle}`);
     assert.ok(accelerated.speed > 9, `W should create clear forward speed, got ${accelerated.speed}`);
