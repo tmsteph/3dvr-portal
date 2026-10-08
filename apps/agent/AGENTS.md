@@ -54,3 +54,8 @@
   - `HOME=/data/data/com.termux/files/home /data/data/com.termux/files/usr/bin/gh pr create --repo OWNER/REPO --base main --head BRANCH_NAME --title "..." --body "..."`
   - `HOME=/data/data/com.termux/files/home /data/data/com.termux/files/usr/bin/gh pr merge PR_NUMBER --repo OWNER/REPO --merge --auto --delete-branch=false`
 - If GitHub reports conflicts, do not force-push over the remote branch. Use a temporary worktree, merge `origin/main`, resolve conflicts, run focused tests, push the resolved branch, then merge the PR.
+
+## Business Mail Recovery
+- For `3dvr.tech@gmail.com`, use the existing authenticated gateway with account alias `3dvr`; see `docs/business-mail-access.md`. `3dvr-mail` on OVH forwards to Hetzner without moving credentials.
+- Quiet-hours deferrals are expected scheduling states, never stuck-campaign alerts. Keep unrelated unread mail in triage instead of labeling it a prospect reply.
+- MCP privileged-tool tests must supply the configured owner credential through the HTTP header; a feature flag alone is not authorization.

@@ -136,7 +136,7 @@ function createGatewayMcpServer(options = {}) {
       servers: Object.keys(SERVER_TARGETS),
       privilegedControl: enablePrivileged && ownerAuthorized,
       ownerAuthorized,
-      n8n: enablePrivileged ? ['cvw'] : [],
+      n8n: enablePrivileged && ownerAuthorized ? ['cvw'] : [],
     },
   }), auditImpl));
 
