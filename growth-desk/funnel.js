@@ -1,20 +1,22 @@
+import { createSignedPortalProof } from '/operator/forge.js';
+
 const $ = selector => document.querySelector(selector);
-const gun = window.Gun?.({ peers: window.__GUN_PEERS__, localStorage: false });
-const user = gun?.user();
-user?.recall({ sessionStorage: true });
+window.AuthIdentity?.syncStorageFromSharedIdentity?.(window.localStorage);
 const stages = ['discovered', 'qualified', 'contacted', 'replied', 'diagnostic-paid', 'proposal', 'project-paid', 'accepted', 'support', 'lost', 'deferred', 'do-not-contact'];
 let records = [];
 const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 function message(value, error = false) { $('#status').textContent = value; $('#status').className = 'status' + (error ? ' error' : ''); }
 async function api(action, data = {}) {
-  const pair = user?._?.sea;
-  const pub = user?.is?.pub || pair?.pub;
-  if (!pub || !pair) throw new Error('Sign in to your 3DVR owner account, then refresh.');
   const requestId = crypto.randomUUID();
-  const proof = { scope: 'automation-funnel', pub, alias: user.is?.alias || '', origin: location.origin, iat: Date.now(), action, requestId, data: JSON.stringify(data) };
-  const authProof = await window.Gun.SEA.sign(proof, pair);
+  const proof = await createSignedPortalProof('automation-funnel', action, { requestId, data: JSON.stringify(data) });
+  if (!proof) {
+    const error = new Error('Your Portal signing session could not be restored. Open sign-in to recover it.');
+    error.loginNeeded = true;
+    throw error;
+  }
+  const { authPub, authProof } = proof;
   const response = await fetch('/api/automation-funnel', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, data, requestId, authPub: pub, authProof: typeof authProof === 'string' ? authProof : JSON.stringify(authProof) }), signal: AbortSignal.timeout(25000) });
+    body: JSON.stringify({ action, data, requestId, authPub, authProof: typeof authProof === 'string' ? authProof : JSON.stringify(authProof) }), signal: AbortSignal.timeout(25000) });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'Pipeline request failed.');
   return result;
@@ -70,7 +72,7 @@ async function load() {
   render();
   message('Pipeline loaded. Changes are saved to the server.');
 }
-function run(action) { return action().catch(error => { message(error.message, true); if (!user?.is?.pub) $('#signin').hidden = false; }); }
+function run(action) { return action().catch(error => { message(error.message, true); $('#signin').hidden = !error.loginNeeded; }); }
 $('#refresh').onclick = () => run(load);
 $('#search').oninput = render;
 $('#filter').onchange = render;
@@ -101,5 +103,4 @@ $('#export').onclick = () => {
   const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), leads: records }, null, 2)], { type: 'application/json' });
   const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = '3dvr-automation-pipeline.json'; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 };
-setTimeout(() => run(load), 700);
-gun?.on('auth', () => run(load));
+run(load);
