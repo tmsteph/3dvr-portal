@@ -32,7 +32,7 @@ test('full Operator exposes a mobile screenshot attachment control', async () =>
   assert.match(app, /readOperatorStream/);
   assert.match(app, /onReplyDelta/);
   assert.match(app, /images,history:prior/);
-  assert.match(attachments, /Attach screenshot/);
+  assert.match(attachments, /attach\.setAttribute\('aria-label', 'Attach image'\)/);
   assert.match(attachments, /image\/png,image\/jpeg,image\/webp,image\/gif/);
   assert.match(attachments, /operator-attachment-preview/);
   // The collaboration selector precedes the composer in the same form.
