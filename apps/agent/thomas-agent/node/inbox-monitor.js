@@ -247,6 +247,10 @@ function parseArgs(argv) {
   return options;
 }
 
+function shouldApplyInboxSideEffects(options) {
+  return !options.dryRun;
+}
+
 function formatAddress(address) {
   if (!address) return '';
   const name = normalizeText(address.name);
@@ -2041,7 +2045,7 @@ async function main() {
   }
 
   const state = loadState();
-  await writeAgentOpsHeartbeat('inbox-monitor', {
+  if (shouldApplyInboxSideEffects(options)) await writeAgentOpsHeartbeat('inbox-monitor', {
     status: 'running',
     metadata: {
       mailbox: DEFAULT_MAILBOX,
@@ -2062,7 +2066,7 @@ async function main() {
       freeDesign,
       publicAgent: !lead && !freeDesign && isPublicAgentMessage(message),
     });
-    if (lead && !options.dryRun) {
+    if (lead && shouldApplyInboxSideEffects(options)) {
       const feedback = recordLeadReplyFeedback(message, lead, state);
       if (feedback.recorded) {
         console.log(`Recorded campaign reply feedback for ${lead.name || message.from}.`);
@@ -2074,7 +2078,7 @@ async function main() {
   if (!unread.length) {
     console.log('No unread inbox messages.');
     state.messages = pruneObjectEntries(state.messages, 500);
-    saveState(state);
+    if (shouldApplyInboxSideEffects(options)) saveState(state);
     return;
   }
 
@@ -2212,7 +2216,9 @@ async function main() {
     }
   }
 
-  const bounceResult = await handleBounceMessages(unread, state);
+  const bounceResult = shouldApplyInboxSideEffects(options)
+    ? await handleBounceMessages(unread, state)
+    : null;
   if (bounceResult?.ok) {
     console.log(`Alerted ${bounceResult.to} about delivery failure(s).`);
   } else if (bounceResult) {
@@ -2221,10 +2227,11 @@ async function main() {
 
   state.seen = pruneObjectEntries(state.seen, 500);
   state.messages = pruneObjectEntries(state.messages, 500);
-  saveState(state);
+  if (shouldApplyInboxSideEffects(options)) saveState(state);
 }
 
 module.exports = {
+  shouldApplyInboxSideEffects,
   buildReplyHeadline,
   buildBounceAlert,
   buildReplySubject,
