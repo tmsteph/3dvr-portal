@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "3DVR Universal Brain",
+  "version": "0.1.0",
+  "description": "Export browser history locally for Universal Brain.",
+  "permissions": [
+    "history",
+    "downloads"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
