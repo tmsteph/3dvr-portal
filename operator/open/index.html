@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3DVR Operator — Your AI. Your workspace. Your control.</title>
+  <meta name="description" content="An open-source AI workspace for people who build. Try Operator, explore the source, and help shape an assistant that works on infrastructure you control.">
+  <meta name="theme-color" content="#0c1514">
+  <link rel="canonical" href="https://portal.3dvr.tech/operator/open/">
+  <meta property="og:title" content="3DVR Operator — Your AI. Your workspace. Your control.">
+  <meta property="og:description" content="Try the open-source workspace. Help build the always-on assistant.">
+  <meta property="og:url" content="https://portal.3dvr.tech/operator/open/">
+  <meta property="og:type" content="website">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header><a class="brand" href="/">3DVR <span>OPERATOR</span></a><nav aria-label="Main"><a href="#build">Build with us</a><a class="small-button" href="/operator/">Open Operator ↗</a></nav></header>
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow"><span class="dot"></span> OPEN SOURCE · EARLY BUILD</p>
+        <h1>Your AI.<br>Your workspace.<br><em>Your control.</em></h1>
+        <p class="intro">Bring an idea. Move it forward. We’re building an assistant you can use from your phone, run on your own server, and make your own.</p>
+        <div class="actions"><a class="button" href="/operator/">Try Operator →</a><a class="text-link" href="https://github.com/tmsteph/3dvr-portal">Explore the source ↗</a></div>
+        <p class="fine">Public workspace available now. Always-on personal agents are the next milestone. Connected actions depend on access and configuration.</p>
+      </div>
+      <aside class="workspace" aria-label="Example of the next milestone">
+        <div class="window-bar"><span>YOUR NEXT MORNING</span><span>Illustrative goal</span></div>
+        <p class="request">“Move my project forward while I’m away.”</p>
+        <ol class="timeline"><li><span>01</span><div><strong>Pick one useful outcome</strong><p>A clear goal, a budget, and tools you allow.</p></div></li><li><span>02</span><div><strong>Let your server carry it</strong><p>Work continues after you close your phone.</p></div></li><li><span>03</span><div><strong>Return to something real</strong><p>A result, what was checked, cost, and decisions for you.</p></div></li></ol>
+        <div class="milestone">Next proof: one complete overnight project loop.</div>
+      </aside>
+    </section>
+    <section class="try" aria-labelledby="try-title">
+      <div><p class="eyebrow">START SMALL. MAKE IT USEFUL.</p><h2 id="try-title">Give it a real starting point.</h2><p>Choose a starter. Your message opens in Operator for you to review and send.</p></div>
+      <div class="starters"><a href="/operator/" data-starter="project"><strong>Shape a project</strong><span>Turn a rough idea into a first useful experiment. →</span></a><a href="/operator/" data-starter="workflow"><strong>Untangle a workflow</strong><span>Find the next step in an automation that is stuck. →</span></a><a href="/operator/" data-starter="contribute"><strong>Build the open assistant</strong><span>Choose a small contribution to the next milestone. →</span></a></div>
+    </section>
+    <section class="principles" aria-labelledby="principles-title">
+      <p class="eyebrow">THE DIRECTION</p><h2 id="principles-title">An assistant worth owning.</h2>
+      <div class="columns"><article><span>01 / OPEN</span><h3>Inspect it. Change it. Share it.</h3><p>The Portal source is available under GPLv3. We build in the existing open repository, with issues and changes visible.</p></article><article><span>02 / PORTABLE</span><h3>Your phone is the front door.</h3><p>Our goal is durable work on your infrastructure, with portable memory and a choice of models. You choose where your work lives.</p></article><article><span>03 / ACCOUNTABLE</span><h3>See what happened.</h3><p>The next milestone includes clear job status, spending bounds, checks, and a useful handoff when your decision is needed.</p></article></div>
+    </section>
+    <section id="build" class="build" aria-labelledby="build-title">
+      <div><p class="eyebrow">EARLY TESTERS + CONTRIBUTORS</p><h2 id="build-title">Bring one task.<br>Help make it real.</h2><p>Already running a server, building automations, or wishing your assistant could finish the job? Tell us what you would trust it to do.</p><a class="text-link" href="https://github.com/tmsteph/3dvr-portal/issues/new?title=Operator%20early%20tester%20or%20contribution">Join the public build on GitHub ↗</a><p class="fine">GitHub posts are public. Keep private details in email.</p></div>
+      <form id="interest">
+        <label for="role">I’d like to<select id="role" name="role"><option>Test Operator on a real task</option><option>Contribute code or design</option><option>Explore a self-hosted setup</option></select></label>
+        <label for="goal">What would you like it to do?<textarea id="goal" name="goal" maxlength="2000" rows="4" placeholder="One useful task, and what a good result looks like…" required></textarea></label>
+        <button class="button" type="submit">Introduce yourself by email →</button>
+        <p class="fine">Opens your email app to 3dvr.tech@gmail.com. You review and send it. No mailing-list signup or payment.</p>
+        <p id="interest-status" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+    <section class="share"><div><h2>Know someone building their own future?</h2><p>Invite them to help build the open assistant.</p></div><button id="share" class="small-button" type="button">Share Operator ↗</button><p id="share-status" role="status" aria-live="polite"></p></section>
+  </main>
+  <footer><span>3DVR · Build The Future</span><div><a href="/operator/">Workspace</a><a href="https://github.com/tmsteph/3dvr-portal/tree/main/operator">Source</a><a href="mailto:3dvr.tech@gmail.com">Contact Thomas</a></div></footer>
+</body>
+</html>
