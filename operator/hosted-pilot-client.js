@@ -3,7 +3,7 @@
 export function createHostedPilotClient({ sign, fetchImpl = fetch, endpoint = '/api/hosted-operator' }) {
   if (typeof sign !== 'function') throw new TypeError('sign_required');
   async function request(action, fields) {
-    const proof = await sign('hosted-operator-task', action);
+    const proof = await sign('hosted-operator-task', action, fields);
     if (!proof?.authProof || !proof?.authPub) throw new Error('sign_in_required');
     const response = await fetchImpl(endpoint, {
       method: 'POST', credentials: 'same-origin',
