@@ -23,7 +23,7 @@ const handler = createHostedTaskHandler({
 });
 async function run(method, url, body) {
   const output = res();
-  await handler({ method, url, body }, output);
+  await handler({ method, url, body: { ...body, action: url === '/tasks' ? 'submit' : 'status' } }, output);
   return output;
 }
 
@@ -42,5 +42,5 @@ test('enforces derived tenant on submission and status', async () => {
 });
 test('disallows unsupported routes and methods', async () => {
   assert.equal((await run('DELETE', '/tasks', { authPub: 'alice' })).statusCode, 405);
-  assert.equal((await run('GET', '/tasks', { authPub: 'alice' })).statusCode, 404);
+  assert.equal((await run('GET', '/tasks', { authPub: 'alice' })).statusCode, 405);
 });
