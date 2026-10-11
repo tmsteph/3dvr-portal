@@ -20,8 +20,9 @@ test('durable submit, tenant ownership, claim and restart recovery', async () =>
     const restarted = new HostedTaskStore(path);
     assert.equal(await restarted.recoverExpired(Date.now() + 1000), 1);
     assert.equal((await restarted.get('pilot-a', first.task.id)).status, 'queued');
-    await restarted.claim(first.task.id);
-    assert.equal(await restarted.complete(first.task.id, 'read-only report'), true);
+    const second = await restarted.claim(first.task.id);
+    assert.equal(await restarted.complete(first.task.id, 'stale', running.leaseToken), false);
+    assert.equal(await restarted.complete(first.task.id, 'read-only report', second.leaseToken), true);
     assert.equal((await store.get('pilot-a', first.task.id)).result, 'read-only report');
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
