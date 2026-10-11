@@ -26,8 +26,7 @@ export function createHostedTaskHandler({ store, origin, verify = async (...args
         ? { id: result.task.id, status: result.task.status, duplicate: result.duplicate }
         : { error: result.reason });
     }
-    const match = req.method === 'GET' && /^\/tasks\/[a-f0-9-]{36}$/.exec(url.pathname);
-    if (match) {
+    const match = req.method === 'POST' && url.pathname === '/tasks/status' &&\n      typeof body.taskId === 'string' && /^[a-f0-9-]{36}$/.test(body.taskId);\n    if (match) {
       const task = await store.get(tenantId, body.taskId);
       return task ? send(200, {
         id: task.id, status: task.status, result: task.result || null,
