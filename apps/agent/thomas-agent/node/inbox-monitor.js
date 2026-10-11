@@ -1792,7 +1792,7 @@ async function sendCoordinatedReply(kind, message, sendImpl) {
   }
 }
 
-async function handleBounceMessages(messages, state) {
+async function handleBounceMessages(messages, state, { dryRun = false } = {}) {
   const leadMap = loadLeadMap();
   const bounceMessages = messages.filter(looksLikeBounce);
   const failures = [];
@@ -1804,7 +1804,7 @@ async function handleBounceMessages(messages, state) {
     if (!matchedEmails.length) continue;
 
     for (const email of matchedEmails) {
-      if (updateLeadStatusByEmail(LEADS_FILE, email, 'failed')) {
+      if (dryRun || updateLeadStatusByEmail(LEADS_FILE, email, 'failed')) {
         failures.push(email);
       }
     }
@@ -1815,6 +1815,7 @@ async function handleBounceMessages(messages, state) {
   }
 
   const alert = buildBounceAlert(bounceMessages[0], failures);
+  if (dryRun) return { ok: true, preview: true, alert };
   return sendPortalAlert(alert);
 }
 
@@ -2216,10 +2217,11 @@ async function main() {
     }
   }
 
-  const bounceResult = shouldApplyInboxSideEffects(options)
-    ? await handleBounceMessages(unread, state)
-    : null;
-  if (bounceResult?.ok) {
+  const bounceResult = await handleBounceMessages(unread, state, { dryRun: options.dryRun });
+  if (bounceResult?.preview) {
+    console.log('\nDry run bounce alert preview:\n');
+    console.log(bounceResult.alert.text);
+  } else if (bounceResult?.ok) {
     console.log(`Alerted ${bounceResult.to} about delivery failure(s).`);
   } else if (bounceResult) {
     console.warn(`Delivery failure alert skipped: ${bounceResult.reason || 'unknown error'}`);
