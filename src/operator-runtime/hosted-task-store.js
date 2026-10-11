@@ -54,18 +54,20 @@ export class HostedTaskStore {
       if (!task || task.status !== 'queued') return null;
       task.status = 'running';
       task.attempts += 1;
+      task.leaseToken = randomUUID();
       task.leaseUntil = new Date(Date.now() + leaseMs).toISOString();
       task.updatedAt = new Date().toISOString();
       return { ...task };
     });
   }
-  async complete(id, result) {
+  async complete(id, result, leaseToken) {
     return this.transact(tasks => {
       const task = tasks.find(item => item.id === id);
-      if (!task || task.status !== 'running') return false;
+      if (!task || task.status !== 'running' || !leaseToken || task.leaseToken !== leaseToken || Date.parse(task.leaseUntil) <= Date.now()) return false;
       task.status = 'completed';
       task.result = String(result).slice(0, 4000);
       task.leaseUntil = null;
+      task.leaseToken = null;
       task.updatedAt = new Date().toISOString();
       return true;
     });
@@ -77,6 +79,7 @@ export class HostedTaskStore {
         if (task.status === 'running' && Date.parse(task.leaseUntil) <= now) {
           task.status = task.attempts >= 3 ? 'failed' : 'queued';
           task.leaseUntil = null;
+          task.leaseToken = null;
           task.updatedAt = new Date(now).toISOString();
           recovered++;
         }
