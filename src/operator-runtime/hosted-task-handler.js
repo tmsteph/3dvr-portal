@@ -16,7 +16,8 @@ export function createHostedTaskHandler({ store, origin, verify = async (...args
     const proof = await verify(body, { scope: 'hosted-operator-task', expectedOrigin: origin });
     if (!proof.ok || !proof.identity?.pub) return send(401, { error: 'unauthorized' });
     const tenantId = 'sea:' + proof.identity.pub;
-    // Signed POST requests carry fresh SEA proofs; GET request bodies are unreliable.\n    // Never accept tenant identity from input.
+    // Signed POST requests carry fresh SEA proofs; GET request bodies are unreliable.
+    // Never accept tenant identity from input.
     const url = new URL(req.url || '/', origin);
     if (req.method === 'POST' && url.pathname === '/tasks') {
       const result = await store.submit(tenantId, {
@@ -26,7 +27,9 @@ export function createHostedTaskHandler({ store, origin, verify = async (...args
         ? { id: result.task.id, status: result.task.status, duplicate: result.duplicate }
         : { error: result.reason });
     }
-    const match = req.method === 'POST' && url.pathname === '/tasks/status' &&\n      typeof body.taskId === 'string' && /^[a-f0-9-]{36}$/.test(body.taskId);\n    if (match) {
+    const match = req.method === 'POST' && url.pathname === '/tasks/status' &&
+      typeof body.taskId === 'string' && /^[a-f0-9-]{36}$/.test(body.taskId);
+    if (match) {
       const task = await store.get(tenantId, body.taskId);
       return task ? send(200, {
         id: task.id, status: task.status, result: task.result || null,
