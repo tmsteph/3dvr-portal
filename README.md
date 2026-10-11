@@ -8,6 +8,12 @@
 
 **https://portal.3dvr.tech**
 
+## Open Operator
+
+[Try the workspace](https://portal.3dvr.tech/operator/) · [Meet Operator and join the build](https://portal.3dvr.tech/operator/open/)
+
+We are building toward a reliable assistant that continues work on your server after you close your phone. See [the launch and next milestone](docs/operator-open-launch.md).
+
 ## Canonical monorepo
 
 `tmsteph/3dvr-portal` is the default home for active 3DVR product, platform, and research development.
