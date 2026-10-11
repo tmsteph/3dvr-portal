@@ -7,7 +7,7 @@ export async function runHostedTaskOnce(store, id, options = {}) {
   if (!task) return { claimed: false };
   try {
     const result = await executeRepoStatus(task, options);
-    const saved = await store.complete(id, result);
+    const saved = await store.complete(id, result, task.leaseToken);
     return { claimed: true, completed: saved, taskId: id };
   } catch (error) {
     // Leave the lease for controlled retry/recovery; never expose upstream details.
