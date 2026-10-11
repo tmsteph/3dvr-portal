@@ -16,7 +16,7 @@ export function createHostedTaskHandler({ store, origin, verify = verifySignedSe
     const proof = await verify(body, { scope: 'hosted-operator-task', expectedOrigin: origin });
     if (!proof.ok || !proof.identity?.pub) return send(401, { error: 'unauthorized' });
     const tenantId = 'sea:' + proof.identity.pub;
-    // Only POST /tasks and GET /tasks/:id; never accept tenant identity from input.
+    // Signed POST requests carry fresh SEA proofs; GET request bodies are unreliable.\n    // Never accept tenant identity from input.
     const url = new URL(req.url || '/', origin);
     if (req.method === 'POST' && url.pathname === '/tasks') {
       const result = await store.submit(tenantId, {
@@ -28,7 +28,7 @@ export function createHostedTaskHandler({ store, origin, verify = verifySignedSe
     }
     const match = req.method === 'GET' && /^\/tasks\/[a-f0-9-]{36}$/.exec(url.pathname);
     if (match) {
-      const task = await store.get(tenantId, url.pathname.slice(7));
+      const task = await store.get(tenantId, body.taskId);
       return task ? send(200, {
         id: task.id, status: task.status, result: task.result || null,
         createdAt: task.createdAt, updatedAt: task.updatedAt
