@@ -46,3 +46,32 @@ test('source discovery rejects sellers and stale posts; never guesses budget', (
 test('suppressed leads cannot get a reply draft', () => {
   assert.throws(() => draftReply({ ...base, stage: 'do-not-contact' }), /not available/);
 });
+
+test('Operator pilot signup needs no business or budget and cannot activate paid service', () => {
+  const lead = normalizeLead({ ...base, business: '', inquiryType: 'operator-pilot', stage: 'project-paid', revenue: 999 }, { inbound: true });
+  assert.equal(lead.business, 'Operator pilot');
+  assert.equal(lead.inquiryType, 'operator-pilot');
+  assert.equal(lead.stage, 'discovered');
+  assert.equal(lead.qualified, false);
+  assert.equal(lead.revenue, 0);
+  assert.equal(lead.budget, 'undecided');
+  assert.match(lead.nextAction, /pilot fit/);
+  assert.doesNotMatch(draftReply(lead).body, /\$200|diagnostic/);
+  assert.throws(() => normalizeLead({ ...base, inquiryType: 'operator-pilot', consent: false }, { inbound: true }), /agree/);
+});
+test('Operator interests remain private and separate from matching automation inquiries', async () => {
+  const store = openFunnelStore(':memory:');
+  const automation = normalizeLead({ ...base, business: 'Operator pilot' }, { inbound: true });
+  const pilot = normalizeLead({ ...base, business: 'Operator pilot', inquiryType: 'operator-pilot' }, { inbound: true });
+  store.insert(automation);
+  const saved = store.insert(pilot);
+  assert.equal(saved.duplicate, false);
+  assert.equal(store.insert(pilot).duplicate, true);
+  const handler = createFunnelHandler({ store });
+  const res = response();
+  await handler({ method: 'POST', body: { lead: { ...base, inquiryType: 'operator-pilot' } }, headers: {}, socket: { remoteAddress: '127.0.0.1' } }, res);
+  assert.equal(res.code, 201);
+  assert.deepEqual(Object.keys(res.data).sort(), ['ok', 'receipt']);
+  assert.equal(store.list().find(item => item.id === res.data.receipt).inquiryType, 'operator-pilot');
+  store.close();
+});
