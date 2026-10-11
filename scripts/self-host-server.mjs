@@ -10,6 +10,7 @@ import githubPublishHandler from '../api/github-publish.js';
 import growthHomepageHeroCronHandler from '../api/growth/homepage-hero-cron.js';
 import moneyLoopHandler from '../api/money/loop.js';
 import sessionHandler from '../api/session.js';
+import hostedOperatorHandler from '../api/hosted-operator.js';
 import stripeDashboardHandler from '../api/stripe/[route].js';
 import trialHandler from '../api/trial.js';
 import stripeWebhookHandler from '../api/webhooks/stripe.js';
@@ -434,6 +435,11 @@ const server = createServer(async (req, res) => {
 
   if (url.pathname === '/api/workboard/github') {
     return runWorkboardGithub(req, res, url);
+  }
+
+  if (url.pathname === '/api/hosted-operator') {
+    if (STANDBY_MODE) return json(res, 503, { error: 'pilot_unavailable' });
+    return runJsonApiHandler(hostedOperatorHandler, req, res, url, { errorMessage: 'Hosted pilot request failed' });
   }
 
   if (url.pathname === '/api/session') {
