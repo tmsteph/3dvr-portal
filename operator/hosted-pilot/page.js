@@ -9,7 +9,7 @@ const client = createHostedPilotClient({ sign: createSignedPortalProof });
 
 function show(message, data = '') {
   status.textContent = message;
-  result.textContent = data;
+  result.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
 }
 async function refresh(taskId) {
   const task = await client.status(taskId);
