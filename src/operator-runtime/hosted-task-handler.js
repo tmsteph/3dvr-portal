@@ -16,6 +16,12 @@ export function createHostedTaskHandler({ store, origin, verify = async (...args
     const proof = await verify(body, { scope: 'hosted-operator-task', expectedOrigin: origin });
     if (!proof.ok || !proof.identity?.pub) return send(401, { error: 'unauthorized' });
     const tenantId = 'sea:' + proof.identity.pub;
+    const expectedAction = body.action === 'submit' ? 'submit' : body.action === 'status' ? 'status' : '';
+    if (!expectedAction || proof.identity.action !== expectedAction) return send(401, { error: 'unauthorized' });
+    const signed = proof.verified || {};
+    const signedFields = expectedAction === 'submit'
+      ? ['kind', 'repository', 'idempotencyKey'] : ['taskId'];
+    if (signedFields.some(key => signed[key] !== body[key])) return send(401, { error: 'unauthorized' });
     // Signed POST requests carry fresh SEA proofs; GET request bodies are unreliable.
     // Never accept tenant identity from input.
     const url = new URL(req.url || '/', origin);
