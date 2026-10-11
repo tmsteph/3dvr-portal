@@ -3,7 +3,7 @@ const KEY = /^[a-zA-Z0-9_-]{8,128}$/;
 const MAX_ACTIVE = 2;
 
 export function admitHostedTask({ tenantId, request, existing = [], limits = {} }) {
-  if (typeof tenantId !== 'string' || !/^[a-zA-Z0-9:_-]{1,256}$/.test(tenantId)) {
+  if (typeof tenantId !== 'string' || !/^[a-zA-Z0-9:._-]{1,256}$/.test(tenantId)) {
     return { ok: false, reason: 'unauthenticated' };
   }
   if (!request || request.kind !== 'repo-status' || !REPO.test(request.repository || '') ||
