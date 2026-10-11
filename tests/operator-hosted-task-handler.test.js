@@ -44,3 +44,13 @@ test('disallows unsupported routes and methods', async () => {
   assert.equal((await run('DELETE', '/tasks', { authPub: 'alice' })).statusCode, 405);
   assert.equal((await run('GET', '/tasks', { authPub: 'alice' })).statusCode, 404);
 });
+
+test('rejects changed signed repository', async () => {
+  const guarded = createHostedTaskHandler({ store, origin: 'https://portal.3dvr.tech',
+    verify: async () => ({ ok: true, identity: { pub: 'alice', action: 'submit' },
+      verified: { kind: 'repo-status', repository: 'owner/original', idempotencyKey: 'signed-key-123' } }) });
+  const output = res();
+  await guarded({ method: 'POST', url: '/tasks', body: { action: 'submit',
+    kind: 'repo-status', repository: 'owner/changed', idempotencyKey: 'signed-key-123' } }, output);
+  assert.equal(output.statusCode, 401);
+});
