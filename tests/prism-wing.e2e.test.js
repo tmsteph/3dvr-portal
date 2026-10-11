@@ -154,13 +154,13 @@ test('Prism Wing Shift boosts without changing camera-look steering', { timeout:
     const cruise = await state(page);
 
     await page.keyboard.down('ShiftLeft');
-    await page.waitForTimeout(700);
+    await page.waitForFunction(minSpeed => window.__prismWingDebug.getState().speed > minSpeed, cruise.speed + 3, { timeout: 10_000 });
     const boosted = await state(page);
     await page.keyboard.up('ShiftLeft');
     assert.ok(boosted.speed > cruise.speed + 3, `Shift should boost: ${cruise.speed} -> ${boosted.speed}`);
 
     await page.keyboard.down('ArrowRight');
-    await page.waitForTimeout(900);
+    await page.waitForFunction(() => Math.abs(window.__prismWingDebug.getState().yaw) > .4, null, { timeout: 10_000 });
     await page.keyboard.up('ArrowRight');
     await page.waitForTimeout(250);
     const afterLook = await state(page);
