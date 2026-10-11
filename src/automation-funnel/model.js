@@ -15,9 +15,12 @@ export function scoreLead(lead) {
 }
 export function normalizeLead(input, { inbound = false } = {}) {
   const lead = {};
+  lead.inquiryType = input.inquiryType === 'operator-pilot' ? 'operator-pilot' : 'automation';
+  const operatorPilot = lead.inquiryType === 'operator-pilot';
   for (const key of ['name', 'business', 'email', 'problem', 'impact', 'stack', 'sourceUrl', 'evidence', 'nextAction', 'nextDate', 'notes', 'paymentReference']) {
     lead[key] = clean(input[key], ['problem', 'impact', 'evidence', 'notes'].includes(key) ? 3000 : 500);
   }
+  if (operatorPilot && !lead.business) lead.business = 'Operator pilot';
   lead.email = lead.email.toLowerCase();
   if (lead.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) throw new Error('Enter a valid email address.');
   if (lead.sourceUrl && !/^https?:\/\//i.test(lead.sourceUrl)) throw new Error('Source must be an http or https link.');
@@ -35,9 +38,10 @@ export function normalizeLead(input, { inbound = false } = {}) {
   if (!Number.isFinite(lead.revenue) || !Number.isFinite(lead.hours)) throw new Error('Enter valid revenue and hours.');
   if (inbound) {
     if (!lead.name || !lead.business || !lead.email || !lead.problem || !lead.consent) throw new Error('Complete the required fields and agree to a reply about your inquiry.');
-    lead.nextAction = 'Review inquiry and confirm scope for a $200 diagnostic.';
+    lead.nextAction = operatorPilot ? 'Review Operator request and confirm pilot fit, availability and terms.' : 'Review inquiry and confirm scope for a $200 diagnostic.';
     lead.nextDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-    lead.evidence = 'Buyer submitted an automation inquiry. Budget, authority and timeline are self-reported.';
+    lead.evidence = operatorPilot ? 'Visitor requested Operator early access; no agent, subscription or payment is activated.' : 'Buyer submitted an automation inquiry. Budget, authority and timeline are self-reported.';
+    if (operatorPilot) { lead.budget = 'undecided'; lead.authority = 'no'; lead.timeline = 'undecided'; }
     lead.notes = '';
     lead.paymentReference = '';
     lead.revenue = 0;
@@ -53,6 +57,13 @@ export function normalizeLead(input, { inbound = false } = {}) {
 export function draftReply(lead) {
   if (['do-not-contact', 'lost'].includes(lead.stage)) throw new Error('This lead is not available for outreach.');
   const name = clean(lead.name, 100) || 'there';
+  if (lead.inquiryType === 'operator-pilot') {
+    return {
+      subject: 'Your Operator early-access request',
+      body: 'Hi ' + name + ',\n\nThanks for your interest in Operator. Your request is: ' + clean(lead.problem, 240) + '.\n\nWe’ll confirm supported tasks, availability, usage limits and pricing before starting. What would a useful first result look like for you?\n\nThomas Stephens\n3DVR · 3dvr.tech@gmail.com'
+    };
+  }
+
   return {
     subject: 'Help with your automation workflow',
     body: 'Hi ' + name + ',\n\n' +

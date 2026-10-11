@@ -12,7 +12,7 @@
 
 [Try the workspace](https://portal.3dvr.tech/operator/) · [Meet Operator and join the build](https://portal.3dvr.tech/operator/open/)
 
-We are building toward a reliable assistant that continues work on your server after you close your phone. See [the launch and next milestone](docs/operator-open-launch.md).
+We host your agent so you can get things done without setting up a server. Personal hosted agents are in pilot development; builders can contribute or run the open project themselves. See [the launch and next milestone](docs/operator-open-launch.md).
 
 ## Canonical monorepo
 

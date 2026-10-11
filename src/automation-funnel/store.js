@@ -24,7 +24,7 @@ export function openFunnelStore(path = process.env.AUTOMATION_FUNNEL_DB || '/opt
   if (path !== ':memory:') chmodSync(path, 0o600);
   const row = r => r ? { ...JSON.parse(r.payload), id: r.id, version: r.version, createdAt: r.created_at, updatedAt: r.updated_at } : null;
   const identity = lead => createHash('sha256').update(
-    lead.origin === 'inbound' ? 'inbound:' + lead.email + ':' + lead.business.toLowerCase() + ':' + lead.problem.toLowerCase()
+    lead.origin === 'inbound' ? (lead.inquiryType === 'operator-pilot' ? 'operator-pilot:' : 'inbound:') + lead.email + ':' + lead.business.toLowerCase() + ':' + lead.problem.toLowerCase()
       : lead.sourceUrl || 'manual:' + lead.business.toLowerCase() + ':' + lead.email
   ).digest('hex');
   return {
