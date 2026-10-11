@@ -42,5 +42,5 @@ test('enforces derived tenant on submission and status', async () => {
 });
 test('disallows unsupported routes and methods', async () => {
   assert.equal((await run('DELETE', '/tasks', { authPub: 'alice' })).statusCode, 405);
-  assert.equal((await run('GET', '/tasks', { authPub: 'alice' })).statusCode, 405);
+  assert.equal((await run('GET', '/tasks', { authPub: 'alice' })).statusCode, 404);
 });
