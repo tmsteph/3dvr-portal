@@ -1,8 +1,8 @@
-import { verifySignedSeaPayload } from '../auth/sea.js';
+// Load SEA only when the production verifier is needed.
 
 // Explicit opt-in pilot handler; do not mount until a trusted server-side
 // origin and persistent private store are configured.
-export function createHostedTaskHandler({ store, origin, verify = verifySignedSeaPayload, limits = { maxActive: 2 } }) {
+export function createHostedTaskHandler({ store, origin, verify = async (...args) => { const { verifySignedSeaPayload } = await import('../auth/sea.js'); return verifySignedSeaPayload(...args); }, limits = { maxActive: 2 } }) {
   if (!store || !origin || !/^https:\/\//.test(origin)) throw new Error('pilot_not_configured');
   return async function handle(req, res) {
     const send = (status, payload) => {
