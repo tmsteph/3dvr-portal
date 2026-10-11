@@ -3,7 +3,7 @@ const KEY = /^[a-zA-Z0-9_-]{8,128}$/;
 const MAX_ACTIVE = 2;
 
 export function admitHostedTask({ tenantId, request, existing = [], limits = {} }) {
-  if (typeof tenantId !== 'string' || !/^[a-zA-Z0-9:_-]{1,128}$/.test(tenantId)) {
+  if (typeof tenantId !== 'string' || !/^[a-zA-Z0-9:_-]{1,256}$/.test(tenantId)) {
     return { ok: false, reason: 'unauthenticated' };
   }
   if (!request || request.kind !== 'repo-status' || !REPO.test(request.repository || '') ||
@@ -12,7 +12,12 @@ export function admitHostedTask({ tenantId, request, existing = [], limits = {} 
   }
   const owned = existing.filter(item => item.tenantId === tenantId);
   const prior = owned.find(item => item.idempotencyKey === request.idempotencyKey);
-  if (prior) return { ok: true, duplicate: true, task: prior };
+  if (prior) {
+    if (prior.kind !== request.kind || prior.repository !== request.repository) {
+      return { ok: false, reason: 'idempotency_conflict' };
+    }
+    return { ok: true, duplicate: true, task: prior };
+  }
   const active = owned.filter(item => ['queued', 'running', 'waiting_approval'].includes(item.status)).length;
   const cap = Number.isSafeInteger(limits.maxActive) && limits.maxActive >= 0
     ? Math.min(limits.maxActive, MAX_ACTIVE) : MAX_ACTIVE;
