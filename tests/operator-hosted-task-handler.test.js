@@ -19,7 +19,7 @@ const store = {
 };
 const handler = createHostedTaskHandler({
   store, origin: 'https://portal.3dvr.tech',
-  verify: async body => ({ ok: Boolean(body.authPub), identity: { pub: body.authPub } })
+  verify: async body => ({ ok: Boolean(body.authPub), identity: { pub: body.authPub, action: body.action }, verified: body })
 });
 async function run(method, url, body) {
   const output = res();
