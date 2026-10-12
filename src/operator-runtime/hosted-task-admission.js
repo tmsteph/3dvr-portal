@@ -22,8 +22,8 @@ export function admitHostedTask({ tenantId, request, existing = [], limits = {} 
   const cap = Number.isSafeInteger(limits.maxActive) && limits.maxActive >= 0
     ? Math.min(limits.maxActive, MAX_ACTIVE) : MAX_ACTIVE;
   if (active >= cap) return { ok: false, reason: 'concurrency_limit' };
-  if (limits.remainingCents !== undefined &&
-      (!Number.isSafeInteger(limits.remainingCents) || limits.remainingCents <= 0)) {
+  // Missing, malformed, and exhausted budgets must not authorize new work.
+  if (!Number.isSafeInteger(limits.remainingCents) || limits.remainingCents <= 0) {
     return { ok: false, reason: 'budget_exhausted' };
   }
   return { ok: true, duplicate: false, task: {

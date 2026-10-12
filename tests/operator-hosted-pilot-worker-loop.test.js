@@ -12,7 +12,7 @@ test('bounded worker drains queued tasks with persisted results', async () => {
     const store = new HostedTaskStore(join(dir, 'tasks.json'));
     const created = await store.submit('sea:abc123', {
       kind: 'repo-status', repository: 'tmsteph/3dvr-portal', idempotencyKey: 'worker-loop-123'
-    });
+    }, { remainingCents: 1 });
     assert.equal(created.ok, true);
     const output = await runPilotWorkerOnce({
       store, options: { fetchImpl: async () => ({

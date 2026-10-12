@@ -1,5 +1,5 @@
-import { HostedTaskStore } from '../src/operator-runtime/hosted-task-store.js';
-import { createHostedTaskHandler } from '../src/operator-runtime/hosted-task-handler.js';
+import { HostedTaskStore } from './hosted-task-store.js';
+import { createHostedTaskHandler } from './hosted-task-handler.js';
 
 export default async function handler(req, res) {
   const send = (status, error) => {

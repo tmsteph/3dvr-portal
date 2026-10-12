@@ -10,7 +10,7 @@ import githubPublishHandler from '../api/github-publish.js';
 import growthHomepageHeroCronHandler from '../api/growth/homepage-hero-cron.js';
 import moneyLoopHandler from '../api/money/loop.js';
 import sessionHandler from '../api/session.js';
-import hostedOperatorHandler from '../api/hosted-operator.js';
+import hostedOperatorHandler from '../src/operator-runtime/hosted-operator-api.js';
 import stripeDashboardHandler from '../api/stripe/[route].js';
 import trialHandler from '../api/trial.js';
 import stripeWebhookHandler from '../api/webhooks/stripe.js';

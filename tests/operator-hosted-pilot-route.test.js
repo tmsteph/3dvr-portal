@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import handler from '../api/hosted-operator.js';
+import handler from '../src/operator-runtime/hosted-operator-api.js';
 
 test('hosted API stays off by default', async () => {
   const prior = process.env.HOSTED_OPERATOR_PILOT_ENABLED;

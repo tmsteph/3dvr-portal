@@ -5,7 +5,7 @@ import { admitHostedTask } from '../src/operator-runtime/hosted-task-admission.j
 test('accepts dotted SEA identity and rejects conflicting idempotency reuse', () => {
   const tenantId = 'sea:abc123.DEF456_-';
   const request = { kind: 'repo-status', repository: 'tmsteph/3dvr-portal', idempotencyKey: 'same-key-123' };
-  const first = admitHostedTask({ tenantId, request });
+  const first = admitHostedTask({ tenantId, request, limits: { remainingCents: 1 } });
   assert.equal(first.ok, true);
   const existing = [{ ...first.task, id: 'one' }];
   assert.equal(admitHostedTask({ tenantId, request, existing }).duplicate, true);
