@@ -4,7 +4,13 @@ export const PACKET_VERSION = 1;
 const allowedClasses = new Set(['public', 'internal', 'restricted']);
 const allowedWorkers = new Set(['ovh', 'hetzner', 'cloud']);
 const isString = value => typeof value === 'string' && value.trim().length > 0;
-const safePath = value => isString(value) && !value.includes('..') && !value.includes('\0');
+// Scope allowed paths to normalized, relative repository locations.
+// A path allowlist must not grant access to absolute filesystem paths.
+const safePath = value => isString(value) && value === value.trim() &&
+  !/[\\\x00-\x1f\x7f]/.test(value) &&
+  !value.startsWith('/') && !value.startsWith('~') &&
+  !/^[a-zA-Z]:/.test(value) &&
+  value.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..');
 export function validateTaskPacket(packet) {
   const errors = [];
   if (!packet || typeof packet !== 'object' || Array.isArray(packet)) return { ok: false, errors: ['packet must be an object'] };
