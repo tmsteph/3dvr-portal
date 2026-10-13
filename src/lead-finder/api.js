@@ -372,6 +372,61 @@ export function parseLeadFinderResponse(responseData) {
   return normalizeLeadFinderPayload(JSON.parse(raw), extractSources(responseData));
 }
 
+
+function normalizeMailboxContext(value) {
+  return (Array.isArray(value) ? value : []).slice(0, 50).map(message => ({
+    from: clean(message?.from, 240),
+    to: clean(message?.to, 240),
+    subject: clean(message?.subject, 300),
+    snippet: clean(message?.snippet, 700)
+  })).filter(message => message.from || message.to || message.subject || message.snippet);
+}
+
+export function buildMailboxProfileRequest(mailboxContext = [], model = DEFAULT_MODEL) {
+  const messages = normalizeMailboxContext(mailboxContext);
+  return {
+    model,
+    store: false,
+    instructions: [
+      'Infer a concise business profile from recent mailbox metadata and snippets supplied by the account owner.',
+      'Use only the supplied mailbox context. Do not invent facts.',
+      'Ignore newsletters, receipts, automated notifications, spam, and unrelated personal mail when possible.',
+      'Focus on repeated customer conversations, services sold, project language, business identity, and the kinds of customers already interacting with the sender.',
+      'The description will be used as an ideal-customer brief for B2B prospect research, so describe what the business appears to sell and who is most likely to buy it.',
+      'If evidence is weak, keep the description broad and confidence low.'
+    ].join(' '),
+    input: JSON.stringify(messages),
+    text: {
+      format: {
+        type: 'json_schema',
+        name: 'mailbox_business_profile',
+        strict: true,
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['businessName', 'description', 'confidence'],
+          properties: {
+            businessName: { type: 'string' },
+            description: { type: 'string' },
+            confidence: { type: 'number', minimum: 0, maximum: 1 }
+          }
+        }
+      }
+    }
+  };
+}
+
+function parseMailboxProfileResponse(responseData) {
+  const raw = extractResponseText(responseData);
+  if (!raw) throw new Error('AI provider returned no business profile.');
+  const parsed = JSON.parse(raw);
+  return {
+    businessName: clean(parsed?.businessName, 240),
+    description: clean(parsed?.description, 1800),
+    confidence: Math.max(0, Math.min(1, Number(parsed?.confidence) || 0))
+  };
+}
+
 export function createLeadFinderHandler({
   apiKey = process.env.OPENAI_API_KEY,
   gatewayToken = process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_OIDC_TOKEN,
@@ -390,6 +445,34 @@ export function createLeadFinderHandler({
 
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+
+    const inferBusinessProfile = req?.body?.inferBusinessProfile === true;
+    const mailboxContext = normalizeMailboxContext(req?.body?.mailboxContext);
+
+    if (inferBusinessProfile) {
+      if (!apiKey) {
+        return res.status(503).json({ error: 'Mailbox profile inference requires the configured OpenAI provider.', code: 'profile_ai_not_configured' });
+      }
+      if (!mailboxContext.length) {
+        return res.status(400).json({ error: 'Mailbox context is required.', code: 'mailbox_context_required' });
+      }
+      try {
+        const effectiveModel = model || DEFAULT_MODEL;
+        const requestEndpoint = endpoint || 'https://api.openai.com/v1/responses';
+        const response = await fetchImpl(requestEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + apiKey },
+          body: JSON.stringify(buildMailboxProfileRequest(mailboxContext, effectiveModel))
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          return res.status(response.status).json({ error: clean(payload?.error?.message, 1000) || 'Business profile inference failed.' });
+        }
+        return res.status(200).json({ ok: true, profile: parseMailboxProfileResponse(await response.json()) });
+      } catch (error) {
+        return res.status(500).json({ error: error?.message || 'Business profile inference failed.' });
+      }
+    }
 
     const requestedDescription = clean(req?.body?.description, 1800);
     const description = requestedDescription || DEFAULT_DISCOVERY_BRIEF;
