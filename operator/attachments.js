@@ -16,9 +16,10 @@ export function installOperatorAttachments({ form, input, onStatus } = {}) {
   }
 
   let current = null;
-  const row = form.querySelector(':scope > div');
-  const actions = row?.querySelector('.operator-actions');
-  const submit = actions?.querySelector('button[type="submit"]') || row?.querySelector('button[type="submit"]');
+  // Select the actual composer, not the first div (collaboration mode comes first).
+  const actions = form.querySelector('.operator-actions');
+  const row = actions?.parentElement;
+  const submit = actions?.querySelector('button[type="submit"]');
   if (!row || !submit) return { getPayload: () => [], clear: () => {} };
 
   const fileInput = document.createElement('input');

@@ -68,7 +68,7 @@ async function signInOrCreate() {
   await page.waitForURL(url => {
     const path = new URL(url).pathname.replace(/index\.html$/, '');
     return path === '/operator/' || path === '/operator';
-  }, { timeout: 90_000 });
+  }, { waitUntil: 'domcontentloaded', timeout: 90_000 });
   await page.locator('#operator-input').waitFor({ state: 'visible', timeout: 30_000 });
   await page.locator('#operator-form button[type="submit"]').waitFor({ state: 'visible', timeout: 30_000 });
 
@@ -95,10 +95,18 @@ async function signInFreshPage(targetPage) {
   await targetPage.locator('#username').fill(alias);
   await targetPage.locator('#password').fill(password);
   await targetPage.locator('#auth-submit').click();
-  await targetPage.waitForURL(url => {
-    const path = new URL(url).pathname.replace(/index\.html$/, '');
-    return path === '/operator/' || path === '/operator';
-  }, { timeout: 90_000 });
+  try {
+    await targetPage.waitForURL(url => {
+      const path = new URL(url).pathname.replace(/index\.html$/, '');
+      return path === '/operator/' || path === '/operator';
+    }, { waitUntil: 'domcontentloaded', timeout: 90_000 });
+  } catch (error) {
+    // Record navigation progress without exporting credentials or page contents.
+    log('E2E_FRESH_SIGN_IN_PATH', new URL(targetPage.url()).pathname);
+    log('E2E_FRESH_SIGN_IN_READY_STATE', await targetPage.evaluate(() => document.readyState).catch(() => 'unavailable'));
+    await targetPage.screenshot({ path: `${artifactDir}/fresh-sign-in-failure.png`, fullPage: true }).catch(() => {});
+    throw error;
+  }
   await targetPage.locator('#operator-input').waitFor({ state: 'visible', timeout: 30_000 });
 }
 

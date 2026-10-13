@@ -44,10 +44,9 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Verify the PR checkout with isolated local servers
         if: github.event_name == 'pull_request'
-        run: >-
-          node --test --test-concurrency=1
-          tests/home-operator-persistence.e2e.test.js
-          tests/operator-device-sync.e2e.test.js
+        run: |
+          node --test --test-concurrency=1 tests/home-operator-persistence.e2e.test.js tests/operator-device-sync.e2e.test.js
+          node scripts/operator-attachment-branch-e2e.mjs
       - name: Run production acceptance test
         if: github.event_name == 'workflow_dispatch'
         env:
