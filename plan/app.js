@@ -28,8 +28,6 @@ function dayLabelForDate(dateId) {
 
 function rollingCalendar(items = []) {
   const todayId = dateIdInPlanTimeZone();
-  const todayIndex = items.findIndex((item) => item.date === todayId);
-  if (todayIndex >= 0) return items.slice(todayIndex);
   return items.filter((item) => item.date && item.date >= todayId).sort((a, b) => a.date.localeCompare(b.date));
 }
 
@@ -100,7 +98,9 @@ function renderCards(targetId, items = []) {
 
 function renderMarkers(items = []) {
   const target = $('marker-list');
-  target.replaceChildren(...items.map((item) => {
+  const todayId = dateIdInPlanTimeZone();
+  const upcoming = items.filter((item) => item.endDate && item.endDate >= todayId);
+  target.replaceChildren(...upcoming.map((item) => {
     const span = document.createElement('span');
     span.className = `ticker-item ticker-item--${item.tone || 'default'}`;
     const label = document.createElement('strong');
@@ -166,7 +166,7 @@ function renderPlan() {
   renderToday(resolvedToday(plan));
   renderCards('next-days-list', calendar.filter((item) => item.date !== dateIdInPlanTimeZone()).slice(0, 3));
   renderOverview(calendar);
-  renderCards('month-list', plan.next30 || []);
+  renderCards('month-list', (plan.next30 || []).filter((item) => !item.endDate || item.endDate >= dateIdInPlanTimeZone()));
   renderCards('quarter-list', plan.next90 || []);
   text('operating-rule', currentView === 'shared' ? plan.operatingRule : (plan.workOperatingRule || plan.operatingRule));
 }
