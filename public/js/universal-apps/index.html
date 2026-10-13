@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>3DVR Notes — Universal Apps</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#101520;color:#f3f6ff}
+body{margin:0;max-width:780px;padding:24px 16px 70px;margin-inline:auto}header{display:flex;justify-content:space-between;align-items:center;gap:16px}
+h1{font-size:1.5rem}button,input,textarea{font:inherit}button{background:#5076ec;border:0;border-radius:9px;color:white;padding:11px 16px;cursor:pointer}
+button:disabled{opacity:.5}input,textarea{box-sizing:border-box;width:100%;background:#1c2536;color:inherit;border:1px solid #44506a;border-radius:9px;padding:12px}
+textarea{min-height:220px;resize:vertical}main{display:grid;gap:14px}#notes{display:flex;flex-wrap:wrap;gap:8px}
+#notes button{background:#263248}#notes button[aria-current=true]{outline:2px solid #a8c2ff}
+small{color:#a9b8d3}label{display:grid;gap:6px}#status{margin:8px 0 18px}
+</style></head><body>
+<header><h1>3DVR Notes</h1><button id="new">New note</button></header>
+<p id="status" role="status">Opening local storage…</p>
+<nav id="notes" aria-label="Saved notes"></nav>
+<main><label>Title<input id="title" maxlength="200" autocomplete="off"></label>
+<label>Note<textarea id="body" placeholder="Write something…"></textarea></label>
+<button id="save" disabled>Save offline</button>
+<small>Local-only preview. Notes stay in this browser until private server sync is implemented. Clearing browser data may delete them.</small></main>
+<script type="module">
+import {openNotesDatabase,saveLocalNote,listLocalNotes,listPendingMutations} from "./notes-store.js";
+const $=id=>document.getElementById(id);let db,currentId=null;
+function status(message){$("status").textContent=message}
+async function render(){
+ const notes=await listLocalNotes(db);$("notes").replaceChildren();
+ for(const note of notes){const button=document.createElement("button");button.textContent=note.title||"Untitled";
+ button.setAttribute("aria-current",String(note.id===currentId));button.onclick=()=>select(note);$("notes").append(button)}
+ const pending=await listPendingMutations(db);status(`Stored on this device · ${pending.length} changes awaiting sync`);
+}
+function select(note){currentId=note.id;$("title").value=note.title;$("body").value=note.body;render().catch(showError)}
+function showError(error){status("Storage error: "+error.message)}
+$("new").onclick=()=>{currentId=null;$("title").value="";$("body").value="";$("title").focus()};
+$("save").onclick=async()=>{try{const note=await saveLocalNote(db,{id:currentId||undefined,title:$("title").value,body:$("body").value});currentId=note.id;await render()}catch(error){showError(error)}};
+try{db=await openNotesDatabase();$("save").disabled=false;await render()}catch(error){showError(error)}
+</script></body></html>
