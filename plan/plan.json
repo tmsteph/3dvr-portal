@@ -9,10 +9,30 @@
   "operatingRule": "Today first. Then the next few days. Protect recovery and home time before filling open space with more work.",
   "workOperatingRule": "Protect booked income, use open blocks for the highest-leverage work, and keep home/family commitments visible as real commitments.",
   "markers": [
-    { "label": "Dense work run", "when": "Through Oct 1", "tone": "work" },
-    { "label": "Personal appointment", "when": "Sep 25 after work", "tone": "personal" },
-    { "label": "Family event after work", "when": "Sep 26", "tone": "home" },
-    { "label": "Recovery window", "when": "Oct 2–4", "tone": "home" }
+    {
+      "label": "Dense work run",
+      "when": "Through Oct 1",
+      "tone": "work",
+      "endDate": "2026-10-01"
+    },
+    {
+      "label": "Personal appointment",
+      "when": "Sep 25 after work",
+      "tone": "personal",
+      "endDate": "2026-09-25"
+    },
+    {
+      "label": "Family event after work",
+      "when": "Sep 26",
+      "tone": "home",
+      "endDate": "2026-09-26"
+    },
+    {
+      "label": "Recovery window",
+      "when": "Oct 2–4",
+      "tone": "home",
+      "endDate": "2026-10-04"
+    }
   ],
   "today": {
     "date": "2026-09-24",
@@ -25,39 +45,229 @@
     "detail": "Protect booked income and keep outside work asynchronous after the shift."
   },
   "nextDays": [
-    { "date": "2026-09-25", "title": "Work day + personal appointment", "when": "Fri · 7:30 AM–1:45 PM · appointment at 3 PM", "category": "personal", "categoryLabel": "Personal", "sharedDetail": "Work ends before the personal appointment. Keep the transition buffer protected.", "detail": "Leave enough travel/reset time between commitments." },
-    { "date": "2026-09-26", "title": "Work day + family event", "when": "Sat · 6 AM–5 PM · family event afterward", "category": "work", "categoryLabel": "Work", "sharedDetail": "Long work day followed by a family commitment. Expect very little spare energy.", "detail": "Protect the family event and avoid adding business work afterward." },
-    { "date": "2026-09-27", "title": "Work day", "when": "Sun · 9 AM–5 PM", "category": "work", "categoryLabel": "Work", "sharedDetail": "Another booked day. Keep the evening light before Monday's long shift.", "detail": "Stay in earn-and-recover mode." }
+    {
+      "date": "2026-09-25",
+      "title": "Work day + personal appointment",
+      "when": "Fri · 7:30 AM–1:45 PM · appointment at 3 PM",
+      "category": "personal",
+      "categoryLabel": "Personal",
+      "sharedDetail": "Work ends before the personal appointment. Keep the transition buffer protected.",
+      "detail": "Leave enough travel/reset time between commitments."
+    },
+    {
+      "date": "2026-09-26",
+      "title": "Work day + family event",
+      "when": "Sat · 6 AM–5 PM · family event afterward",
+      "category": "work",
+      "categoryLabel": "Work",
+      "sharedDetail": "Long work day followed by a family commitment. Expect very little spare energy.",
+      "detail": "Protect the family event and avoid adding business work afterward."
+    },
+    {
+      "date": "2026-09-27",
+      "title": "Work day",
+      "when": "Sun · 9 AM–5 PM",
+      "category": "work",
+      "categoryLabel": "Work",
+      "sharedDetail": "Another booked day. Keep the evening light before Monday's long shift.",
+      "detail": "Stay in earn-and-recover mode."
+    }
   ],
   "calendar": [
-    { "date":"2026-09-24", "dayShort":"Thu", "dateShort":"Sep 24", "title":"Work day", "when":"7:30 AM–4:15 PM", "category":"work", "categoryLabel":"Work" },
-    { "date":"2026-09-25", "dayShort":"Fri", "dateShort":"Sep 25", "title":"Work day + personal appointment", "when":"7:30 AM–1:45 PM · appointment 3 PM", "category":"personal", "categoryLabel":"Personal" },
-    { "date":"2026-09-26", "dayShort":"Sat", "dateShort":"Sep 26", "title":"Work day + family event", "when":"6 AM–5 PM · family event afterward", "category":"work", "categoryLabel":"Work" },
-    { "date":"2026-09-27", "dayShort":"Sun", "dateShort":"Sep 27", "title":"Work day", "when":"9 AM–5 PM", "category":"work", "categoryLabel":"Work" },
-    { "date":"2026-09-28", "dayShort":"Mon", "dateShort":"Sep 28", "title":"Work day", "when":"8 AM–6 PM", "category":"work", "categoryLabel":"Work" },
-    { "date":"2026-09-29", "dayShort":"Tue", "dateShort":"Sep 29", "title":"Work day + personal appointment", "when":"9 AM–5 PM · appointment 7 PM", "category":"work", "categoryLabel":"Work" },
-    { "date":"2026-09-30", "dayShort":"Wed", "dateShort":"Sep 30", "title":"Work day", "when":"9 AM–5 PM", "category":"work", "categoryLabel":"Work" },
-    { "date":"2026-10-01", "dayShort":"Thu", "dateShort":"Oct 1", "title":"Work day", "when":"10:30 AM–6:30 PM", "category":"work", "categoryLabel":"Work" },
-    { "date":"2026-10-02", "dayShort":"Fri", "dateShort":"Oct 2", "title":"Personal appointments / recovery", "when":"Late morning + afternoon", "category":"personal", "categoryLabel":"Personal" },
-    { "date":"2026-10-03", "dayShort":"Sat", "dateShort":"Oct 3", "title":"Open / recovery day", "when":"No confirmed booking", "category":"open", "categoryLabel":"Open" },
-    { "date":"2026-10-04", "dayShort":"Sun", "dateShort":"Oct 4", "title":"Open / family day", "when":"No confirmed booking", "category":"open", "categoryLabel":"Open" },
-    { "date":"2026-10-05", "dayShort":"Mon", "dateShort":"Oct 5", "title":"Open day", "when":"No confirmed booking", "category":"open", "categoryLabel":"Open" },
-    { "date":"2026-10-06", "dayShort":"Tue", "dateShort":"Oct 6", "title":"Open day", "when":"No confirmed booking", "category":"open", "categoryLabel":"Open" },
-    { "date":"2026-10-07", "dayShort":"Wed", "dateShort":"Oct 7", "title":"Open day", "when":"No confirmed booking", "category":"open", "categoryLabel":"Open" },
-    { "date":"2026-10-08", "dayShort":"Thu", "dateShort":"Oct 8", "title":"Open day", "when":"No confirmed booking", "category":"open", "categoryLabel":"Open" }
+    {
+      "date": "2026-09-24",
+      "dayShort": "Thu",
+      "dateShort": "Sep 24",
+      "title": "Work day",
+      "when": "7:30 AM–4:15 PM",
+      "category": "work",
+      "categoryLabel": "Work"
+    },
+    {
+      "date": "2026-09-25",
+      "dayShort": "Fri",
+      "dateShort": "Sep 25",
+      "title": "Work day + personal appointment",
+      "when": "7:30 AM–1:45 PM · appointment 3 PM",
+      "category": "personal",
+      "categoryLabel": "Personal"
+    },
+    {
+      "date": "2026-09-26",
+      "dayShort": "Sat",
+      "dateShort": "Sep 26",
+      "title": "Work day + family event",
+      "when": "6 AM–5 PM · family event afterward",
+      "category": "work",
+      "categoryLabel": "Work"
+    },
+    {
+      "date": "2026-09-27",
+      "dayShort": "Sun",
+      "dateShort": "Sep 27",
+      "title": "Work day",
+      "when": "9 AM–5 PM",
+      "category": "work",
+      "categoryLabel": "Work"
+    },
+    {
+      "date": "2026-09-28",
+      "dayShort": "Mon",
+      "dateShort": "Sep 28",
+      "title": "Work day",
+      "when": "8 AM–6 PM",
+      "category": "work",
+      "categoryLabel": "Work"
+    },
+    {
+      "date": "2026-09-29",
+      "dayShort": "Tue",
+      "dateShort": "Sep 29",
+      "title": "Work day + personal appointment",
+      "when": "9 AM–5 PM · appointment 7 PM",
+      "category": "work",
+      "categoryLabel": "Work"
+    },
+    {
+      "date": "2026-09-30",
+      "dayShort": "Wed",
+      "dateShort": "Sep 30",
+      "title": "Work day",
+      "when": "9 AM–5 PM",
+      "category": "work",
+      "categoryLabel": "Work"
+    },
+    {
+      "date": "2026-10-01",
+      "dayShort": "Thu",
+      "dateShort": "Oct 1",
+      "title": "Work day",
+      "when": "10:30 AM–6:30 PM",
+      "category": "work",
+      "categoryLabel": "Work"
+    },
+    {
+      "date": "2026-10-02",
+      "dayShort": "Fri",
+      "dateShort": "Oct 2",
+      "title": "Personal appointments / recovery",
+      "when": "Late morning + afternoon",
+      "category": "personal",
+      "categoryLabel": "Personal"
+    },
+    {
+      "date": "2026-10-03",
+      "dayShort": "Sat",
+      "dateShort": "Oct 3",
+      "title": "Open / recovery day",
+      "when": "No confirmed booking",
+      "category": "open",
+      "categoryLabel": "Open"
+    },
+    {
+      "date": "2026-10-04",
+      "dayShort": "Sun",
+      "dateShort": "Oct 4",
+      "title": "Open / family day",
+      "when": "No confirmed booking",
+      "category": "open",
+      "categoryLabel": "Open"
+    },
+    {
+      "date": "2026-10-05",
+      "dayShort": "Mon",
+      "dateShort": "Oct 5",
+      "title": "Open day",
+      "when": "No confirmed booking",
+      "category": "open",
+      "categoryLabel": "Open"
+    },
+    {
+      "date": "2026-10-06",
+      "dayShort": "Tue",
+      "dateShort": "Oct 6",
+      "title": "Open day",
+      "when": "No confirmed booking",
+      "category": "open",
+      "categoryLabel": "Open"
+    },
+    {
+      "date": "2026-10-07",
+      "dayShort": "Wed",
+      "dateShort": "Oct 7",
+      "title": "Open day",
+      "when": "No confirmed booking",
+      "category": "open",
+      "categoryLabel": "Open"
+    },
+    {
+      "date": "2026-10-08",
+      "dayShort": "Thu",
+      "dateShort": "Oct 8",
+      "title": "Open day",
+      "when": "No confirmed booking",
+      "category": "open",
+      "categoryLabel": "Open"
+    }
   ],
   "next30": [
-    { "title": "Protect energy through the dense work run", "label": "Sep 24–Oct 1", "category": "life", "categoryLabel": "Life", "sharedDetail": "The calendar stays heavily booked through Oct 1. Keep evenings light, protect sleep and family time, and avoid turning every gap into more work.", "detail": "Let automation and asynchronous systems carry routine business activity while booked work protects income." },
-    { "title": "Protect the first open stretch", "label": "Oct 2–4", "category": "life", "categoryLabel": "Life", "sharedDetail": "After the dense work run, keep the first open stretch intentionally lighter and available for personal commitments, home, family, and recovery.", "detail": "Only add bounded high-leverage work after recovery needs are covered." },
-    { "title": "Make income less fragile", "label": "By mid-Oct", "category": "money", "categoryLabel": "Money", "sharedDetail": "Keep dependable work while building at least one more repeatable source of income.", "detail": "Pursue another paying client or recurring opportunity and higher-value freelance work." }
+    {
+      "title": "Protect energy through the dense work run",
+      "label": "Sep 24–Oct 1",
+      "category": "life",
+      "categoryLabel": "Life",
+      "sharedDetail": "The calendar stays heavily booked through Oct 1. Keep evenings light, protect sleep and family time, and avoid turning every gap into more work.",
+      "detail": "Let automation and asynchronous systems carry routine business activity while booked work protects income.",
+      "endDate": "2026-10-01"
+    },
+    {
+      "title": "Protect the first open stretch",
+      "label": "Oct 2–4",
+      "category": "life",
+      "categoryLabel": "Life",
+      "sharedDetail": "After the dense work run, keep the first open stretch intentionally lighter and available for personal commitments, home, family, and recovery.",
+      "detail": "Only add bounded high-leverage work after recovery needs are covered.",
+      "endDate": "2026-10-04"
+    },
+    {
+      "title": "Make income less fragile",
+      "label": "By mid-Oct",
+      "category": "money",
+      "categoryLabel": "Money",
+      "sharedDetail": "Keep dependable work while building at least one more repeatable source of income.",
+      "detail": "Pursue another paying client or recurring opportunity and higher-value freelance work."
+    }
   ],
   "next90": [
-    { "title": "More control over the schedule", "label": "October", "category": "life", "categoryLabel": "Life", "sharedDetail": "Create fewer chaotic weeks and more choice over which work Thomas says yes to.", "detail": "Replace weaker work selectively while keeping the financial floor intact." },
-    { "title": "More predictable independent income", "label": "November–December", "category": "money", "categoryLabel": "Money", "sharedDetail": "Shift some income toward recurring work so every month does not start from zero.", "detail": "Scale the service/channel that actually produces legitimate revenue with low support burden." }
+    {
+      "title": "More control over the schedule",
+      "label": "October",
+      "category": "life",
+      "categoryLabel": "Life",
+      "sharedDetail": "Create fewer chaotic weeks and more choice over which work Thomas says yes to.",
+      "detail": "Replace weaker work selectively while keeping the financial floor intact."
+    },
+    {
+      "title": "More predictable independent income",
+      "label": "November–December",
+      "category": "money",
+      "categoryLabel": "Money",
+      "sharedDetail": "Shift some income toward recurring work so every month does not start from zero.",
+      "detail": "Scale the service/channel that actually produces legitimate revenue with low support burden."
+    }
   ],
   "milestones": [
-    { "target": "2 days", "label": "rest/family time protected in a normal week when possible" },
-    { "target": "1+", "label": "additional paying client or repeat engagement" },
-    { "target": "Less chaos", "label": "fewer surprises and less reconstructing plans from messages" }
+    {
+      "target": "2 days",
+      "label": "rest/family time protected in a normal week when possible"
+    },
+    {
+      "target": "1+",
+      "label": "additional paying client or repeat engagement"
+    },
+    {
+      "target": "Less chaos",
+      "label": "fewer surprises and less reconstructing plans from messages"
+    }
   ]
 }
