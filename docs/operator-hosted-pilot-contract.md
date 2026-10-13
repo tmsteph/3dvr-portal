@@ -12,7 +12,20 @@ An authenticated pilot user submits a **read-only repository status report** fro
 - All endpoints derive tenant identity from verified session, never request body.
 
 ## Task state
-queued -> running -> completed | failed | waiting_approval | cancelled.
+Required transitions:
+- queued -> running | cancelled
+- running -> completed | failed | waiting_human | cancelled
+- waiting_human -> queued | cancelled after an explicit human decision
+
+Use `waiting_human` when representing an approval checkpoint in the shared work-item runtime.
+The hosted receipt's `completed` status maps to shared work-item `done`. A mission adapter must
+map an approval checkpoint to its existing `awaiting_approval` state; do not introduce
+`waiting_approval` as another runtime spelling.
+
+These are required contract transitions, not a claim that every transition is implemented.
+The current read-only pilot implements queued, running, completed and failed tasks. Cancellation,
+approval checkpoints and their integration tests remain release gates. Until cancellation exists,
+do not enable the pilot for public users.
 Persist every transition with tenant ID, attempt count, timestamps, worker lease, idempotency key, bounded output, and measured usage. Expired leases return to queue only if retry is safe. No automatic retry of external side effects.
 
 ## Security gate
