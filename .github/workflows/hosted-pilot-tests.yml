@@ -6,6 +6,8 @@ on:
       - 'src/operator-runtime/hosted-*.js'
       - 'scripts/hosted-operator-*.mjs'
       - 'tests/operator-hosted*.test.js'
+      - 'tests/hosted-pilot-sea.test.js'
+      - 'src/auth/sea.js'
       - '.github/workflows/hosted-pilot-tests.yml'
   workflow_dispatch:
 
@@ -34,3 +36,17 @@ jobs:
           node-version: '20'
       - name: Verify disabled pilot does not load unsupported SQLite runtime
         run: node --test tests/operator-hosted-pilot-route.test.js
+
+  signed-identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Test real signed API access and persisted private results
+        run: node --test tests/hosted-pilot-sea.test.js
