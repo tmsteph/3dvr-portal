@@ -96,7 +96,7 @@ async function getGunContext({ loadRuntime = true } = {}) {
   if (!hasRuntime) await ensureGunRuntime();
   if (gunInstance && gunUser) return { gun: gunInstance, user: gunUser };
   if (typeof globalThis.Gun !== 'function') return null;
-  gunInstance = globalThis.Gun({ peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
+  gunInstance = globalThis.Gun({ localStorage: false, peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
   gunUser = gunInstance.user();
   try {
     gunUser.recall({ sessionStorage: true, localStorage: true });

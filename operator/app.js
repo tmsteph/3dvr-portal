@@ -56,7 +56,7 @@ if(requestedConversation&&store.conversations.some(item=>item.id===requestedConv
 function activeConversation(){let conversation=store.conversations.find(item=>item.id===store.activeId);if(!conversation){conversation={id:store.activeId,createdAt:now(),updatedAt:now(),messages:[]};store.conversations.push(conversation)}ensureConversationTree(conversation,{makeId,now});return conversation}
 function refreshHistory(){history=activeConversationPath(activeConversation());return history}
 let history=activeConversationPath(activeConversation());
-let openaiKey='';const gun=window.Gun?window.Gun({peers:window.__GUN_PEERS__||undefined}):null;gun?.get('3dvr-portal')?.get('ai-workbench')?.get('defaults')?.on(data=>{openaiKey=readDefaultSecret(data,'openai')||openaiKey});
+let openaiKey='';const gun=window.Gun?window.Gun({localStorage:false,peers:window.__GUN_PEERS__||undefined}):null;gun?.get('3dvr-portal')?.get('ai-workbench')?.get('defaults')?.on(data=>{openaiKey=readDefaultSecret(data,'openai')||openaiKey});
 const accountSync=createOperatorSync({windowObj:window,onStatus:message=>{syncStatus.textContent=message}});
 let historySyncPromise=null,historySyncComplete=false;
 const attachments=installOperatorAttachments({form,input,onStatus:message=>{status.textContent=message}});

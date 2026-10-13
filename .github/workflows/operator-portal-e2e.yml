@@ -18,6 +18,11 @@ on:
       - 'operator/**'
       - 'sign-in.html'
       - 'auth-identity.js'
+      - 'home-operator.js'
+      - 'gun-init.js'
+      - 'tests/home-operator-persistence.e2e.test.js'
+      - 'tests/operator-device-sync.e2e.test.js'
+      - '.github/workflows/operator-portal-e2e.yml'
       - 'src/operator/**'
       - 'api/openai-site.js'
 
@@ -28,11 +33,6 @@ jobs:
   portal-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      PORTAL_E2E_URL: https://portal.3dvr.tech
-      PORTAL_E2E_MODE: ${{ inputs.mode || 'bootstrap' }}
-      PORTAL_E2E_ALIAS: ${{ secrets.PORTAL_E2E_ALIAS }}
-      PORTAL_E2E_PASSWORD: ${{ secrets.PORTAL_E2E_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -42,7 +42,19 @@ jobs:
         run: |
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
-      - name: Run portal acceptance test
+      - name: Verify the PR checkout with isolated local servers
+        if: github.event_name == 'pull_request'
+        run: >-
+          node --test --test-concurrency=1
+          tests/home-operator-persistence.e2e.test.js
+          tests/operator-device-sync.e2e.test.js
+      - name: Run production acceptance test
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          PORTAL_E2E_URL: https://portal.3dvr.tech
+          PORTAL_E2E_MODE: ${{ inputs.mode || 'bootstrap' }}
+          PORTAL_E2E_ALIAS: ${{ secrets.PORTAL_E2E_ALIAS }}
+          PORTAL_E2E_PASSWORD: ${{ secrets.PORTAL_E2E_PASSWORD }}
         run: node scripts/operator-portal-e2e.mjs
       - name: Upload browser artifacts
         if: always()

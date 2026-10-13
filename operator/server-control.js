@@ -83,7 +83,7 @@ export function watchServerControlRequest(requestId, options = {}) {
   if (!id || typeof globalThis.Gun !== 'function') return () => {};
   const onUpdate = typeof options.onUpdate === 'function' ? options.onUpdate : () => {};
   const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : SERVER_WATCH_TIMEOUT_MS;
-  const gun = globalThis.Gun({ peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
+  const gun = globalThis.Gun({ localStorage: false, peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
   const node = gun.get(ROOT_KEY).get('control').get('serverRequests').get(id);
   let stopped = false;
   const stop = () => {
@@ -144,7 +144,7 @@ export async function queueServerControl(action = {}) {
     error: ''
   };
 
-  const gun = globalThis.Gun({ peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
+  const gun = globalThis.Gun({ localStorage: false, peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
   const result = await putGun(
     gun.get(ROOT_KEY).get('control').get('serverRequests').get(id),
     record

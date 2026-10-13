@@ -28,7 +28,7 @@ export function forgeEditId(value = '') {
 export function watchForgeEdit(value, options = {}) {
   const id = forgeEditId(value);
   if (!id || typeof globalThis.Gun !== 'function') return () => {};
-  const gun = globalThis.Gun({ peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
+  const gun = globalThis.Gun({ localStorage: false, peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
   const node = gun.get(FORGE_ROOT).get('forge').get('editRequests').get(id);
   const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : DEFAULT_TIMEOUT_MS;
   const onUpdate = typeof options.onUpdate === 'function' ? options.onUpdate : () => {};
@@ -53,7 +53,7 @@ export async function waitForForgeEdit(value, options = {}) {
   if (!id) throw new Error('The Operator edit did not return a Forge task id.');
   if (typeof globalThis.Gun !== 'function') throw new Error('3DVR Forge status is unavailable in this browser.');
 
-  const gun = globalThis.Gun({ peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
+  const gun = globalThis.Gun({ localStorage: false, peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
   const node = gun.get(FORGE_ROOT).get('forge').get('editRequests').get(id);
   const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : DEFAULT_TIMEOUT_MS;
   const onUpdate = typeof options.onUpdate === 'function' ? options.onUpdate : () => {};
