@@ -10,10 +10,11 @@ test('durable submit, tenant ownership, claim and restart recovery', async () =>
   try {
     const path = join(dir, 'tasks.json');
     const store = new HostedTaskStore(path);
+    await store.setBudget('pilot-a', 1);
     const request = { kind: 'repo-status', repository: 'tmsteph/3dvr-portal', idempotencyKey: 'durable-test-123' };
-    const first = await store.submit('pilot-a', request, { remainingCents: 1 });
+    const first = await store.submit('pilot-a', request, { reservationCents: 1 });
     assert.equal(first.ok, true);
-    assert.equal((await store.submit('pilot-a', request, { remainingCents: 1 })).duplicate, true);
+    assert.equal((await store.submit('pilot-a', request, { reservationCents: 1 })).duplicate, true);
     assert.equal(await store.get('pilot-b', first.task.id), null);
     const running = await store.claim(first.task.id, 1);
     assert.equal(running.status, 'running');

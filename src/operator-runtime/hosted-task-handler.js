@@ -39,7 +39,7 @@ export function createHostedTaskHandler({ store, origin, verify = async (...args
       const task = await store.get(tenantId, body.taskId);
       return task ? send(200, {
         id: task.id, status: task.status, result: task.result || null,
-        createdAt: task.createdAt, updatedAt: task.updatedAt
+        createdAt: task.createdAt, updatedAt: task.updatedAt, usage: task.usage || null
       }) : send(404, { error: 'not_found' });
     }
     return send(404, { error: 'not_found' });

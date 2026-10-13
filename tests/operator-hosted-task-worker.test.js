@@ -11,8 +11,9 @@ test('submitted job executes and result survives reopening store', async () => {
   try {
     const path = join(dir, 'tasks.json');
     const store = new HostedTaskStore(path);
+    await store.setBudget('pilot-a', 10);
     const request = { kind: 'repo-status', repository: 'tmsteph/3dvr-portal', idempotencyKey: 'worker-test-123' };
-    const { task } = await store.submit('pilot-a', request, { remainingCents: 10 });
+    const { task } = await store.submit('pilot-a', request, { reservationCents: 10 });
     const outcome = await runHostedTaskOnce(store, task.id, {
       fetchImpl: async () => ({ ok: true, json: async () => ({
         full_name: 'tmsteph/3dvr-portal', default_branch: 'main', open_issues_count: 5
