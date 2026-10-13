@@ -18,6 +18,7 @@ export function createHostedPilotClient({ sign, fetchImpl = fetch, endpoint = '/
     submit(repository, idempotencyKey) {
       return request('submit', { kind: 'repo-status', repository, idempotencyKey });
     },
-    status(taskId) { return request('status', { taskId }); }
+    status(taskId) { return request('status', { taskId }); },
+    cancel(taskId) { return request('cancel', { taskId }); }
   };
 }

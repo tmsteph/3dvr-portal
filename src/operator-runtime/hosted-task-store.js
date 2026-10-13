@@ -101,6 +101,26 @@ export class HostedTaskStore {
       return taskVisibleToTenant(task, tenantId) ? task : null;
     });
   }
+  async cancel(tenantId, id) {
+    return this.transaction(db => {
+      const row = db.prepare('SELECT body FROM tasks WHERE id=? AND tenant=?').get(id, tenantId);
+      const task = row ? JSON.parse(row.body) : null;
+      if (!taskVisibleToTenant(task, tenantId)) return { ok: false, reason: 'not_found' };
+      if (task.status === 'cancelled') return { ok: true, task, duplicate: true };
+      if (!['queued', 'running'].includes(task.status)) return { ok: false, reason: 'task_terminal' };
+      // Recovered queued tasks may already have incurred cost on an earlier attempt.
+      if (task.status === 'queued' && task.attempts === 0 && task.accountingState === 'reserved') {
+        db.prepare('UPDATE budgets SET reserved=reserved-? WHERE tenant=?').run(task.reservationCents, tenantId);
+        task.accountingState = 'released_unstarted';
+      }
+      task.status = 'cancelled';
+      task.leaseUntil = null;
+      task.leaseToken = null;
+      task.updatedAt = new Date().toISOString();
+      this.save(db, task);
+      return { ok: true, task, duplicate: false };
+    });
+  }
   async claim(id, leaseMs = 60_000) {
     if (!Number.isSafeInteger(leaseMs) || leaseMs < 1 || leaseMs > 60_000) throw new Error('invalid_lease');
     return this.transaction(db => {

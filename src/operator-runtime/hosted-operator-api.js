@@ -21,7 +21,7 @@ export default async function handler(req, res) {
   if (body.action === 'submit' && (!Number.isSafeInteger(reservationCents) || reservationCents < 1)) {
     return send(503, 'budget_not_configured');
   }
-  const path = body.action === 'submit' ? '/tasks' : body.action === 'status' ? '/tasks/status' : '';
+  const path = body.action === 'submit' ? '/tasks' : body.action === 'status' ? '/tasks/status' : body.action === 'cancel' ? '/tasks/cancel' : '';
   if (!path) return send(400, 'invalid_action');
   try {
     // Node 20 fallback can boot while the Node 22+ pilot remains disabled.

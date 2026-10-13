@@ -16,7 +16,7 @@ export function createHostedTaskHandler({ store, origin, verify = async (...args
     const proof = await verify(body, { scope: 'hosted-operator-task', expectedOrigin: origin });
     if (!proof.ok || !proof.identity?.pub) return send(401, { error: 'unauthorized' });
     const tenantId = 'sea:' + proof.identity.pub;
-    const expectedAction = body.action === 'submit' ? 'submit' : body.action === 'status' ? 'status' : '';
+    const expectedAction = body.action === 'submit' ? 'submit' : body.action === 'status' ? 'status' : body.action === 'cancel' ? 'cancel' : '';
     if (!expectedAction || proof.identity.action !== expectedAction) return send(401, { error: 'unauthorized' });
     const signed = proof.verified || {};
     const signedFields = expectedAction === 'submit'
@@ -25,7 +25,7 @@ export function createHostedTaskHandler({ store, origin, verify = async (...args
     // Signed POST requests carry fresh SEA proofs; GET request bodies are unreliable.
     // Never accept tenant identity from input.
     const url = new URL(req.url || '/', origin);
-    if (req.method === 'POST' && url.pathname === '/tasks') {
+    if (req.method === 'POST' && url.pathname === '/tasks' && expectedAction === 'submit') {
       const result = await store.submit(tenantId, {
         kind: body.kind, repository: body.repository, idempotencyKey: body.idempotencyKey
       }, limits);
@@ -33,7 +33,7 @@ export function createHostedTaskHandler({ store, origin, verify = async (...args
         ? { id: result.task.id, status: result.task.status, duplicate: result.duplicate }
         : { error: result.reason });
     }
-    const match = req.method === 'POST' && url.pathname === '/tasks/status' &&
+    const match = req.method === 'POST' && url.pathname === '/tasks/status' && expectedAction === 'status' &&
       typeof body.taskId === 'string' && /^[a-f0-9-]{36}$/.test(body.taskId);
     if (match) {
       const task = await store.get(tenantId, body.taskId);
@@ -41,6 +41,13 @@ export function createHostedTaskHandler({ store, origin, verify = async (...args
         id: task.id, status: task.status, result: task.result || null,
         createdAt: task.createdAt, updatedAt: task.updatedAt, usage: task.usage || null
       }) : send(404, { error: 'not_found' });
+    }
+    if (req.method === 'POST' && url.pathname === '/tasks/cancel' && expectedAction === 'cancel' &&
+        typeof body.taskId === 'string' && /^[a-f0-9-]{36}$/.test(body.taskId)) {
+      const outcome = await store.cancel(tenantId, body.taskId);
+      return outcome.ok
+        ? send(200, { id: outcome.task.id, status: outcome.task.status, duplicate: outcome.duplicate })
+        : send(outcome.reason === 'not_found' ? 404 : 409, { error: outcome.reason });
     }
     return send(404, { error: 'not_found' });
   };
