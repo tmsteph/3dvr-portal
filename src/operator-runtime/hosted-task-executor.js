@@ -1,6 +1,6 @@
 // Read-only first pilot executor. The caller must enforce authenticated ownership,
 // task admission and a dedicated restricted worker context.
-export async function executeRepoStatus(task, { fetchImpl = fetch, timeoutMs = 10_000 } = {}) {
+export async function executeRepoStatus(task, { fetchImpl = fetch, timeoutMs = 10_000, signal } = {}) {
   if (!task || task.kind !== 'repo-status' ||
       !/^[a-zA-Z0-9_.-]{1,100}\/[a-zA-Z0-9_.-]{1,100}$/.test(task.repository || '') ||
       task.repository.includes('..') || task.status !== 'running') {
@@ -14,7 +14,7 @@ export async function executeRepoStatus(task, { fetchImpl = fetch, timeoutMs = 1
     {
       method: 'GET',
       headers: { Accept: 'application/vnd.github+json', 'User-Agent': '3dvr-operator-pilot' },
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
       redirect: 'error'
     }
   );
