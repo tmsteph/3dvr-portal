@@ -781,7 +781,7 @@
           <a href="https://3dvr.tech/">3dvr.tech ↗</a>
           <a href="/operator/">Operator</a>
           <a href="/digital-twin/">Digital Twin</a>
-          <button type="button" data-open-apps>All apps</button>
+          <a href="#appsDialog" data-open-apps>All apps</a>
           <a href="/home/">Apps &amp; workspace</a>
           <a href="/calendar/">Calendar</a>
           <a href="/crm/">CRM</a>
@@ -919,7 +919,7 @@
         window.setTimeout(() => search.focus(), 0);
       };
 
-      document.querySelectorAll('[data-open-apps]').forEach(button => button.addEventListener('click', openApps));
+      document.querySelectorAll('[data-open-apps]').forEach(link => link.addEventListener('click', event => { event.preventDefault(); openApps(); }));
       spinnerApps?.addEventListener('click', openApps);
 
       const clearSpinnerHold = () => {
