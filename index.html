@@ -193,7 +193,7 @@
               <a href="life/index.html" class="cta primary">Take one small step</a>
               <a href="forge/" class="cta ghost">I have an idea</a>
               <a href="start/#paid-lanes" class="cta ghost">I need help building</a>
-              <a href="#app-hub-title" class="cta ghost" data-app-search-trigger>Browse apps</a>
+              <a href="#all-apps" class="cta ghost">All apps</a>
             </div>
             <div class="workspace-strip" aria-label="Featured games">
               <span class="workspace-strip__label">Featured games</span>
@@ -3389,8 +3389,11 @@
 
     const initialSearchValue = searchInput?.value ?? '';
     setViewMode('workshop');
-    setActiveAppLane('simple');
+    setActiveAppLane(window.location.hash === '#all-apps' ? 'all' : 'simple');
     updateAppFilter(initialSearchValue);
+    if (window.location.hash === '#all-apps') {
+      window.requestAnimationFrame(() => appHub?.scrollIntoView({ block: 'start' }));
+    }
     renderOwnedAppList();
     applyAutoIdentityHints();
     updatePortalAuthEntryLinks();
