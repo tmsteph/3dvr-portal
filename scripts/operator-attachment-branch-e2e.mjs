@@ -9,6 +9,7 @@ const form = markup.match(/<form id="operator-form">[\s\S]*?<\/form>/)?.[0];
 assert.ok(form, 'Operator form is present in branch HTML');
 assert.match(form, /class="operator-mode-control"/);
 const moduleSource = await readFile('operator/attachments.js', 'utf8');
+const busySource = await readFile('operator/home-busy-state.js', 'utf8');
 const browser = await chromium.launch({ headless: true });
 try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -20,16 +21,25 @@ try {
     if (path === '/operator/attachments.js') {
       return route.fulfill({ status: 200, contentType: 'text/javascript', body: moduleSource });
     }
+    if (path === '/operator/home-busy-state.js') {
+      return route.fulfill({ status: 200, contentType: 'text/javascript', body: busySource });
+    }
     return route.abort();
   });
   await page.goto('http://localhost:43911/');
   await page.evaluate(async () => {
+    await import('/operator/home-busy-state.js');
     const { installOperatorAttachments } = await import('/operator/attachments.js');
     window.__attachment = installOperatorAttachments({
       form: document.querySelector('#operator-form'),
       input: document.querySelector('#operator-input')
     });
   });
+  await page.evaluate(() => { document.querySelector('button[type="submit"]').disabled = true; });
+  await page.waitForFunction(() => document.querySelector('#operator-form').getAttribute('aria-busy') === 'true');
+  assert.equal(await page.locator('.operator-submit__portal').isVisible(), true);
+  await page.evaluate(() => { document.querySelector('button[type="submit"]').disabled = false; });
+  await page.waitForFunction(() => document.querySelector('#operator-form').getAttribute('aria-busy') === 'false');
   const attach = page.locator('#operator-form .operator-attach');
   const fileInput = page.locator('#operator-form input[type="file"]');
   assert.equal(await attach.count(), 1, 'attachment control is installed');
