@@ -64,6 +64,7 @@ function createNavbar() {
   ensureHomepageSearchShortcuts();
   hideUnreadyHomepageSections();
   document.querySelectorAll('.floating-identity').forEach(existingNav => {
+    existingNav._menuAbort?.abort();
     existingNav.remove();
   });
 
@@ -78,14 +79,17 @@ function createNavbar() {
   }
 
   const nav = document.createElement('div');
+  nav._menuAbort = new AbortController();
   nav.className = 'floating-identity';
   nav.setAttribute('aria-label', 'Account status');
 
-  const stats = document.createElement('a');
+  const stats = document.createElement('button');
+  stats.type = 'button';
   stats.className = 'floating-identity__stats';
-  stats.href = 'profile.html#profile';
-  stats.setAttribute('aria-label', 'View your profile details');
-  stats.title = 'Go to your profile';
+  stats.setAttribute('aria-label', 'Open account menu');
+  stats.setAttribute('aria-haspopup', 'true');
+  stats.setAttribute('aria-expanded', 'false');
+  stats.title = 'Account menu';
 
   const usernameSpan = document.createElement('span');
   usernameSpan.className = 'floating-identity__label';
@@ -130,8 +134,64 @@ function createNavbar() {
     window.location.href = 'index.html';
   });
 
+  const menu = document.createElement('div');
+  menu.className = 'floating-identity__menu';
+  menu.id = 'floatingAccountMenu';
+  menu.hidden = true;
+  menu.setAttribute('role', 'menu');
+  const menuStatus = document.createElement('div');
+  menuStatus.className = 'floating-identity__menu-status';
+  menuStatus.setAttribute('role', 'status');
+  const menuLinks = [
+    ['View profile', '/profile.html#profile'],
+    ['Score & progress', '/score-rewards/'],
+    ['Settings', '/profile.html#settings'],
+    ['All apps', '/#appSearch']
+  ];
+  menu.appendChild(menuStatus);
+  menuLinks.forEach(([label, href]) => {
+    const link = document.createElement('a');
+    link.href = href;
+    link.textContent = label;
+    link.setAttribute('role', 'menuitem');
+    menu.appendChild(link);
+  });
+  button.setAttribute('role', 'menuitem');
+  menu.appendChild(button);
   nav.appendChild(stats);
-  nav.appendChild(button);
+  nav.appendChild(menu);
+  const setMenuOpen = open => {
+    menu.hidden = !open;
+    stats.setAttribute('aria-expanded', String(open));
+    if (open) menuStatus.textContent = usernameSpan.textContent + ' · ' + scoreSpan.textContent;
+  };
+  stats.addEventListener('click', () => setMenuOpen(menu.hidden));
+  document.addEventListener('pointerdown', event => {
+    if (nav.isConnected && !nav.contains(event.target)) setMenuOpen(false);
+  }, { signal: (() => {
+    // Listeners are tied to this navbar instance and cleaned up on rebuild.
+    return nav._menuAbort.signal;
+  })() });
+  nav.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !menu.hidden) {
+      setMenuOpen(false);
+      stats.focus();
+    }
+  });
+  if (!document.getElementById('floatingAccountMenuStyles')) {
+    const style = document.createElement('style');
+    style.id = 'floatingAccountMenuStyles';
+    style.textContent = `
+      .floating-identity { position: relative; }
+      .floating-identity__stats { cursor: pointer; font: inherit; }
+      .floating-identity__menu[hidden] { display: none !important; }
+      .floating-identity__menu { position: absolute; z-index: 1000; right: 0; top: calc(100% + 8px); min-width: 220px; max-width: min(320px, 90vw); padding: 10px; border: 1px solid rgba(140,160,190,.35); border-radius: 14px; background: #152032; color: #fff; box-shadow: 0 12px 32px #0006; display: grid; gap: 3px; }
+      .floating-identity__menu-status { padding: 9px 11px; opacity: .8; font-size: .9rem; border-bottom: 1px solid #ffffff25; overflow-wrap: anywhere; }
+      .floating-identity__menu a, .floating-identity__menu .floating-identity__button { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 11px 12px; border-radius: 8px; color: inherit; text-decoration: none; background: transparent; border: 0; font: inherit; cursor: pointer; }
+      .floating-identity__menu a:hover, .floating-identity__menu a:focus-visible, .floating-identity__menu button:hover, .floating-identity__menu button:focus-visible { background: #ffffff20; outline-offset: 2px; }
+    `;
+    document.head.appendChild(style);
+  }
 
   const topButtons = document.querySelector('.top-buttons');
   const landingHeader = document.querySelector('.landing-header');
@@ -153,9 +213,8 @@ function createNavbar() {
   let aliasDisplay = aliasToDisplay(localStorage.getItem('alias'));
 
   if (isGuest) {
-    stats.href = 'profile.html#profile';
-    stats.setAttribute('aria-label', 'View your guest profile details');
-    stats.title = 'View your guest profile';
+    stats.setAttribute('aria-label', 'Open guest account menu');
+    stats.title = 'Guest account menu';
     button.innerText = 'Sign in';
     button.setAttribute('aria-label', 'Sign in or create an account');
   }
