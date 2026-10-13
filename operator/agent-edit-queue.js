@@ -51,7 +51,7 @@ export async function queueOperatorAgentEdit(action = {}) {
   if (!requestedChange) throw new Error('A code change request is required.');
   if (typeof globalThis.Gun !== 'function') throw new Error('Gun is unavailable.');
 
-  const gun = globalThis.Gun({ peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
+  const gun = globalThis.Gun({ localStorage: false, peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
   const taskQueue = gun
     .get(ROOT_KEY)
     .get('agentOps')

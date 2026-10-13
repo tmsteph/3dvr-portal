@@ -74,7 +74,7 @@ export function persistOperatorActionReceipt(input = {}) {
 
   try {
     if (typeof globalThis.Gun === 'function') {
-      const gun = globalThis.Gun({ peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
+      const gun = globalThis.Gun({ localStorage: false, peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
       gun.get(ROOT_KEY)
         .get('operator')
         .get('receipts')

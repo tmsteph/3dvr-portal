@@ -134,6 +134,7 @@ function installAccountStatus() {
 
     const context = window.ScoreSystem.ensureGun(
       () => window.Gun({
+        localStorage: false,
         peers: Array.isArray(window.__GUN_PEERS__) && window.__GUN_PEERS__.length
           ? window.__GUN_PEERS__
           : ['wss://gun-relay-3dvr.fly.dev/gun']

@@ -74,7 +74,7 @@ export function createOperatorSync({windowObj=window,onStatus=()=>{}}={}){
     if(typeof windowObj.Gun!=='function'||!windowObj.SEA)return false;
     try{
       windowObj.AuthIdentity?.syncStorageFromSharedIdentity?.(windowObj.localStorage);
-      const gun=windowObj.Gun({peers:windowObj.__GUN_PEERS__||[]});
+      const gun=windowObj.Gun({localStorage:false,peers:windowObj.__GUN_PEERS__||[]});
       const user=gun.user();
       user.recall?.({sessionStorage:true,localStorage:true});
       for(let attempt=0;attempt<12&&!user.is;attempt+=1)await delay(windowObj,150);

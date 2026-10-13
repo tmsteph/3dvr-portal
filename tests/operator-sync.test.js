@@ -115,3 +115,26 @@ test('operator account sync merges branch nodes created on different devices',()
   assert.equal(conversation.activeLeafId,'local-branch');
   assert.deepEqual(new Set(conversation.messages.map(node=>node.id)),new Set(['root','reply','local-branch','remote-branch']));
 });
+
+
+test('account sync still saves when the browser Gun graph cache has exhausted its quota', async () => {
+  const account = sharedAccount();
+  const windowObj = account.windowFor('quota-device');
+  const createGun = windowObj.Gun;
+  let options;
+  windowObj.Gun = supplied => {
+    options = supplied;
+    if (supplied.localStorage !== false) throw new Error('localStorage max!');
+    return createGun();
+  };
+  windowObj.localStorage.setItem = () => { throw new Error('QuotaExceededError'); };
+  windowObj.localStorage.removeItem = () => { throw new Error('Existing history must be preserved'); };
+  const sync = createOperatorSync({ windowObj });
+  assert.equal(await sync.ready, true);
+  assert.equal(await sync.save({ activeId: 'quota-chat', conversations: [
+    conversation('quota-chat', '2026-10-13T18:00:00Z', 'Keep this conversation')
+  ] }), true);
+  assert.equal(options.localStorage, false);
+  assert.match(account.records.get('operator-v01/device-history/quota-device').ciphertext,
+    /Keep this conversation/);
+});
