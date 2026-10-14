@@ -188,25 +188,97 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
   });
 }
 
+// Goal checkpoints share the task row and its worker claim. These helpers are
+// opt-in; existing single-action tasks retain their lifecycle.
+function mutateTaskGoal(id, claimToken, expectedRevision, update, options = {}) {
+  if (!options.ownerAlias || !claimToken) throw new Error('owner and claim required');
+  const now = options.now ?? Date.now();
+  return withDatabase(options, (db) => {
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      const row = db.prepare(`
+        SELECT record_json FROM tasks
+        WHERE owner_alias = ? AND id = ? AND status = 'running'
+          AND claim_token = ? AND claim_expires_at > ?
+      `).get(ownerAlias(options), String(id), claimToken, now);
+      if (!row) throw new Error('active task claim required');
+      const record = JSON.parse(row.record_json);
+      const revision = record.goal?.revision ?? null;
+      if (revision !== expectedRevision) throw new Error('goal revision conflict');
+      const goal = update(record.goal);
+      const updated = { ...record, goal, updatedAt: new Date(now).toISOString() };
+      db.prepare(`
+        UPDATE tasks SET record_json = ?, updated_at = ?
+        WHERE owner_alias = ? AND id = ?
+      `).run(JSON.stringify(updated), updated.updatedAt, ownerAlias(options), String(id));
+      db.exec('COMMIT');
+      return goal;
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+  });
+}
+
+function initializeTaskGoal(id, claimToken, definition, options = {}) {
+  const { createGoal } = require('./muse-goal-state');
+  if (!definition.acceptanceChecks?.length) throw new Error('acceptance checks required');
+  return mutateTaskGoal(id, claimToken, null,
+    () => createGoal({ ...definition, id: String(id), now: new Date(options.now ?? Date.now()).toISOString() }), options);
+}
+
+function transitionTaskGoal(id, claimToken, expectedRevision, event, options = {}) {
+  const { transition } = require('./muse-goal-state');
+  return mutateTaskGoal(id, claimToken, expectedRevision,
+    goal => transition(goal, event, new Date(options.now ?? Date.now()).toISOString()), options);
+}
+
 function finishTask(id, claimToken, record, options = {}) {
   return withDatabase(options, (db) => {
-    const result = db.prepare(`
-      UPDATE tasks SET status = ?, updated_at = ?, record_json = ?,
-        claim_token = NULL, claim_expires_at = NULL
-      WHERE owner_alias = ? AND id = ? AND claim_token = ? AND status = 'running'
-    `).run(
-      String(record.status),
-      String(record.updatedAt),
-      JSON.stringify(record),
-      ownerAlias(options),
-      String(id),
-      claimToken,
-    );
-    return result.changes === 1;
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      const stored = db.prepare('SELECT record_json, claim_expires_at FROM tasks WHERE owner_alias = ? AND id = ? AND claim_token = ? AND status = ?')
+        .get(ownerAlias(options), String(id), claimToken, 'running');
+      const goal = stored ? JSON.parse(stored.record_json).goal : null;
+      if (goal) {
+        if (stored.claim_expires_at <= (options.now ?? Date.now())) {
+          db.exec('ROLLBACK');
+          return false;
+        }
+        if (['completed', 'complete', 'done', 'success', 'succeeded'].includes(record.status) && goal.status !== 'complete') {
+          db.exec('ROLLBACK');
+          return false;
+        }
+        const storedRecord = JSON.parse(stored.record_json);
+        const candidates = [record.updatedAt, storedRecord.updatedAt, new Date(options.now ?? Date.now()).toISOString()];
+        const updatedAt = candidates.filter(value => Number.isFinite(Date.parse(value)))
+          .reduce((latest, value) => Date.parse(value) > Date.parse(latest) ? value : latest);
+        record = { ...record, goal, updatedAt };
+      }
+      const result = db.prepare(`
+        UPDATE tasks SET status = ?, updated_at = ?, record_json = ?,
+          claim_token = NULL, claim_expires_at = NULL
+        WHERE owner_alias = ? AND id = ? AND claim_token = ? AND status = 'running'
+      `).run(
+        String(record.status),
+        String(record.updatedAt),
+        JSON.stringify(record),
+        ownerAlias(options),
+        String(id),
+        claimToken,
+      );
+      db.exec('COMMIT');
+      return result.changes === 1;
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
   });
 }
 
 module.exports = {
+  initializeTaskGoal,
+  transitionTaskGoal,
   claimTask,
   createClaimRenewer,
   databasePath,
