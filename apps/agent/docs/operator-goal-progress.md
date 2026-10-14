@@ -53,3 +53,8 @@ node --test apps/agent/test/operator-goal-progress.test.js apps/agent/thomas-age
 The focused tests exercise a new process reopening the same database, expired
 claim takeover, stale worker snapshots, failed/missing verification, revision
 conflicts, owner isolation, pause/resume, cancellation, and legacy compatibility.
+
+Hosted activation additionally requires a private tenant-enforcing API/store.
+The owner-alias SQLite sidecar and shared Gun mirror are transitional and do
+not establish hosted customer privacy. Disable shared mirroring of private goal
+records and verify cross-tenant read/write isolation before activation.

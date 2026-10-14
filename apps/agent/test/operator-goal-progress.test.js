@@ -103,3 +103,16 @@ test('expired claim cannot finalize even a fully verified goal', t => {
     { id: 'task', status: 'completed', updatedAt: 'now' }, { ...options, now: 2000 }), false);
   assert.equal(store.readTask('task', options).status, 'running');
 });
+
+test('stale completion cannot roll task timestamps behind the checkpoint', t => {
+  let { options, goal } = fixture(t);
+  const stale = store.readTask('task', options);
+  options = { ...options, now: 1500 };
+  goal = advance(options, goal, { type: 'start' });
+  goal = advance(options, goal, { type: 'complete_step', evidence: 'receipt' });
+  goal = advance(options, goal, { type: 'verify_check', checkId: 'health', passed: true, evidence: 'ok' });
+  goal = advance(options, goal, { type: 'complete_goal' });
+  assert.equal(store.finishTask('task', 'claim-a', { ...stale, status: 'completed' },
+    { ...options, now: 1600 }), true);
+  assert.equal(store.readTask('task', options).updatedAt, new Date(1600).toISOString());
+});
