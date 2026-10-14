@@ -12,7 +12,7 @@ The ambition is broad problem solving. Completion always means a specific verifi
 ## Reuse the system we have
 
 - Operator remains the user interface, including progress, connection requests, results, and cancellation.
-- Extend the existing Hosted Operator tenant task store, worker, and result view. Do not add a second queue or restart quarantined jobs to run this pilot.
+- Extend the existing Operator worker and result view. Hosted customer activation requires a private tenant-enforcing API/store first; the current owner-alias SQLite sidecar and shared Gun queue are transitional and do not establish hosted tenant isolation. Do not add a second queue or restart quarantined jobs to run this pilot.
 - `apps/agent/thomas-agent/node/muse-goal-state.js` already models steps, evidence, pause/resume, and approval. It is a pure model, not a durable executor. Its final-step transition currently establishes step completion, so whole-goal verification needs a separate runtime gate.
 - `abilities/abilities.json` is the seed registry. A listed ability is a candidate, not proof of live authentication or permission.
 - Follow `docs/agent-access-map.md`: native connector when suitable; typed Control MCP for routine server work; Control Bus/Open Runner fallback; direct SSH for deliberate maintenance. Desktop Commander remains recovery only.
@@ -31,7 +31,7 @@ The ambition is broad problem solving. Completion always means a specific verifi
 
 ## Durable goal record
 
-Persist in the existing tenant-scoped server store:
+For the single-owner opt-in checkpoint slice, persist in the existing owner-scoped SQLite task row without activating hosted customer work. For hosted users, persist only behind a verified private tenant-enforcing API/store. Enforce authenticated tenant ownership on every read/write, prohibit enumeration across tenants, and disable shared Gun mirroring for private goals and receipts before activation:
 
 | Field | Purpose |
 | --- | --- |
@@ -98,7 +98,7 @@ This first scenario proves authorized fallback and verification. A second scenar
 
 ## Implementation sequence and required checks
 
-1. Add assessment, budgets, checkpoint, and verification gate to the existing durable task model. Test restart recovery, concurrent leases, cancellation, budget exhaustion and false completion.
+1. Add assessment, budgets, checkpoint, and verification gate to the existing durable task model. Before hosted activation, add the private tenant-enforcing API/store and ensure terminal mirroring cannot publish private goal data. Test restart recovery, concurrent leases, cancellation, budget exhaustion and false completion.
 2. Add registry resolution and read-only adapter probes. Test unavailable transport, stale health, revoked access, and denial preserved across fallbacks.
 3. Add checkpointed planner/executor/verifier coordination on the existing worker. Test repeated no-progress, uncertain write reconciliation and tenant isolation.
 4. Run the real health-report goal with unavailable transport injected at the adapter boundary. Save private receipts and a sanitized acceptance summary.
