@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101827"><title>3DVR · Statistics</title><link rel="stylesheet" href="../styles/global.css">
+<style>
+:root{color-scheme:dark}body{margin:0;background:#101827;color:#eaf2ff;font:16px system-ui,sans-serif}.wrap{max-width:1050px;margin:auto;padding:24px}a{color:#8cddff}header{display:flex;justify-content:space-between;gap:12px;align-items:center}h1{font-size:clamp(2rem,5vw,3.5rem);margin-bottom:0}.muted{color:#adbacd}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin:26px 0}.metric,section{border:1px solid #34445b;border-radius:16px;background:#19263a;padding:20px}.metric strong{display:block;font-size:2.2rem;margin:10px 0}.metric small{color:#adbacd}section{margin:16px 0}button{background:#266c96;color:white;border:0;border-radius:10px;padding:12px 16px;cursor:pointer}button:focus-visible,a:focus-visible{outline:3px solid #8cddff}ul{line-height:1.9}.status{font-size:.9rem}</style></head>
+<body><main class="wrap"><header><a href="/">← Portal</a><a href="https://github.com/tmsteph/3dvr-portal/issues/3223">Development issue</a></header>
+<h1>Portal statistics</h1><p class="muted">Live development signals, with transparent sources and timestamps.</p><button id="refresh" type="button">Refresh metrics</button><p id="status" class="status" role="status" aria-live="polite">Loading…</p>
+<div class="grid" id="metrics">
+<div class="metric"><span>Open issues</span><strong id="issues">—</strong><small>Excludes pull requests</small></div>
+<div class="metric"><span>Closed issues</span><strong id="closed">—</strong><small>All-time</small></div>
+<div class="metric"><span>Open pull requests</span><strong id="prs">—</strong><small>Awaiting merge or closure</small></div>
+<div class="metric"><span>Repository stars</span><strong id="stars">—</strong><small>GitHub public count</small></div></div>
+<section><h2>Development</h2><p>Source: <a href="https://github.com/tmsteph/3dvr-portal">tmsteph/3dvr-portal</a>. Counts are from GitHub's repository and search APIs, not issue numbering.</p><p id="updated" class="muted">Not yet refreshed.</p></section>
+<section><h2>Upcoming integrations</h2><ul><li>Infrastructure uptime and deployment status — not connected</li><li>Operator activity and AI costs — not connected</li><li>Visitors and app usage — not connected</li><li>Clients, leads and revenue — not connected (requires authorization)</li></ul></section></main>
+<script>
+const repo='tmsteph/3dvr-portal',api='https://api.github.com';
+const el=id=>document.getElementById(id);
+async function json(path){const response=await fetch(api+path,{headers:{Accept:'application/vnd.github+json'}});if(!response.ok)throw Error('GitHub API '+response.status);return response.json()}
+async function refresh(){
+el('refresh').disabled=true;el('status').textContent='Fetching GitHub metrics…';
+try{
+const [info,open,closed,prs]=await Promise.all([
+json('/repos/'+repo),
+json('/search/issues?q='+encodeURIComponent('repo:'+repo+' is:issue is:open')+'&per_page=1'),
+json('/search/issues?q='+encodeURIComponent('repo:'+repo+' is:issue is:closed')+'&per_page=1'),
+json('/search/issues?q='+encodeURIComponent('repo:'+repo+' is:pr is:open')+'&per_page=1')
+]);
+el('issues').textContent=open.total_count.toLocaleString();el('closed').textContent=closed.total_count.toLocaleString();el('prs').textContent=prs.total_count.toLocaleString();el('stars').textContent=info.stargazers_count.toLocaleString();
+el('updated').textContent='Updated '+new Date().toLocaleString()+' · GitHub API (search counts may be capped at 1,000).';
+el('status').textContent='Metrics loaded.';
+}catch(error){el('status').textContent='Metrics unavailable: '+error.message+'. Try again later. Previous values, if any, may be stale.'}
+finally{el('refresh').disabled=false}
+}
+el('refresh').addEventListener('click',refresh);refresh();
+</script></body></html>
