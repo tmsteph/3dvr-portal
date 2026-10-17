@@ -1,0 +1,32 @@
+name: Little Fish checks
+
+on:
+  pull_request:
+    paths:
+      - 'little-fish/**'
+      - 'tests/little-fish.e2e.test.js'
+      - '.github/workflows/little-fish.yml'
+  workflow_dispatch:
+
+jobs:
+  play:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node --test tests/little-fish.e2e.test.js
+      - name: Capture laptop animation
+        run: npm run visual:capture -- --url /little-fish/ --duration 3s --interval 1s --width 1440 --height 900 --output .tmp/little-fish/laptop
+      - name: Capture phone animation
+        run: npm run visual:capture -- --url /little-fish/ --duration 3s --interval 1s --width 390 --height 844 --output .tmp/little-fish/phone
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: little-fish-visuals
+          path: .tmp/little-fish/
