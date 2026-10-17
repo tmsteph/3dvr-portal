@@ -34,14 +34,22 @@ export function reduceObligation(o: Obligation, events: readonly CreditEvent[]):
   validateObligation(o);
   let status: State['status'] = 'issued';
   let settledMinor = 0;
+  let issued = false;
+  let previousTime = Date.parse(o.createdAt);
   const ids = new Set<string>();
   for (const e of events) {
     if (!e.id || ids.has(e.id)) throw new Error('Duplicate/invalid event ID');
     ids.add(e.id);
     if (e.obligationId !== o.id || !Number.isFinite(Date.parse(e.timestamp))) throw new Error('Invalid event');
+    const eventTime = Date.parse(e.timestamp);
+    if (eventTime < previousTime) throw new Error('Events must be chronologically ordered');
+    previousTime = eventTime;
+    if (!issued && e.kind !== 'issued') throw new Error('Issuance required before other events');
+    if (e.kind !== 'settled' && e.amountMinor !== undefined) throw new Error('Unexpected event amount');
     switch (e.kind) {
       case 'issued':
-        if (status !== 'issued' || e.actor !== o.issuer || settledMinor !== 0) throw new Error('Invalid issue');
+        if (issued || status !== 'issued' || e.actor !== o.issuer || settledMinor !== 0) throw new Error('Invalid issue');
+        issued = true;
         break;
       case 'accepted':
         if (status !== 'issued' || e.actor !== o.creditor) throw new Error('Invalid acceptance');
@@ -58,5 +66,6 @@ export function reduceObligation(o: Obligation, events: readonly CreditEvent[]):
       default: throw new Error('Unknown event');
     }
   }
+  if (!issued) throw new Error('Missing issuance event');
   return { status, outstandingMinor: o.amountMinor - settledMinor, settledMinor };
 }
