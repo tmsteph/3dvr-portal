@@ -1,0 +1,24 @@
+name: Hosted OpenClaw static checks
+on:
+  pull_request:
+    paths:
+      - 'ops/hosted-openclaw/**'
+      - '.github/workflows/hosted-openclaw-static.yml'
+  push:
+    paths:
+      - 'ops/hosted-openclaw/**'
+      - '.github/workflows/hosted-openclaw-static.yml'
+  workflow_dispatch:
+jobs:
+  guardrails:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate static container restrictions
+        run: python3 ops/hosted-openclaw/validate.py
+      - name: Validate Compose syntax with placeholder digest
+        env:
+          OPENCLAW_IMAGE: ghcr.io/openclaw/openclaw@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        run: docker compose -f ops/hosted-openclaw/compose.yaml config --quiet
