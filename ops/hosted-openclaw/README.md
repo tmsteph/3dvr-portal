@@ -26,3 +26,13 @@ Community self-hosting remains free; 3DVR subscriptions pay for managed hosting,
 
 ## Known limitation
 Docker is not a strong boundary for arbitrary untrusted shell execution; use microVMs or dedicated VMs before exposing that capability.
+
+## Upstream verification (2026-10-18)
+Official Docker documentation: https://docs.openclaw.ai/docker and https://docs.openclaw.ai/install/docker-vm-runtime
+- Official prebuilt image registry: `ghcr.io/openclaw/openclaw`; pin a reviewed immutable digest for real deployments.
+- Documented container state directory: `/home/node/.openclaw`; image runs as node UID 1000 in the maintained Docker flow.
+- Gateway liveness: `GET /healthz` on port 18789; default Docker setup uses `gateway.bind=lan` and token authentication.
+- Use the upstream onboarding/bootstrap commands rather than guessing environment-only configuration. Persistent config may contain plaintext OAuth tokens; backups must be protected as credentials.
+- A 6 GB RAM minimum is documented for **building** from source; official prebuilt images avoid that build requirement.
+- Our reference is intentionally network-isolated and therefore **cannot complete model requests**. The official Compose installation is the baseline for a functioning local smoke test, while 3DVR's hardened tenant network/proxy requires separate implementation.
+- Do not claim this manifest was runtime-tested; run `python3 validate.py` for static guardrails and perform real Docker tests on an authorized isolated worker only after capacity checks.
