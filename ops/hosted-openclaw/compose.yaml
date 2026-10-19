@@ -1,0 +1,27 @@
+# Internal single-tenant reference ONLY; not a production multi-tenant orchestrator.
+# Pin OPENCLAW_IMAGE to a reviewed immutable image digest before deployment.
+services:
+  openclaw:
+    image: ${OPENCLAW_IMAGE:?Set reviewed OpenClaw image digest}
+    user: "1000:1000"
+    init: true
+    restart: "no"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 768m
+    cpus: 0.5
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=64m,uid=1000,gid=1000
+    volumes:
+      - ./data:/home/node/.openclaw:rw
+    networks:
+      - private
+    # Gateway arguments, auth and healthchecks must be verified against pinned upstream version.
+    # No published ports, host mounts, Docker socket or privileged mode.
+networks:
+  private:
+    internal: true
