@@ -247,6 +247,10 @@ function parseArgs(argv) {
   return options;
 }
 
+function shouldApplyInboxSideEffects(options) {
+  return !options.dryRun;
+}
+
 function formatAddress(address) {
   if (!address) return '';
   const name = normalizeText(address.name);
@@ -1788,7 +1792,7 @@ async function sendCoordinatedReply(kind, message, sendImpl) {
   }
 }
 
-async function handleBounceMessages(messages, state) {
+async function handleBounceMessages(messages, state, { dryRun = false } = {}) {
   const leadMap = loadLeadMap();
   const bounceMessages = messages.filter(looksLikeBounce);
   const failures = [];
@@ -1800,7 +1804,7 @@ async function handleBounceMessages(messages, state) {
     if (!matchedEmails.length) continue;
 
     for (const email of matchedEmails) {
-      if (updateLeadStatusByEmail(LEADS_FILE, email, 'failed')) {
+      if (dryRun || updateLeadStatusByEmail(LEADS_FILE, email, 'failed')) {
         failures.push(email);
       }
     }
@@ -1811,6 +1815,7 @@ async function handleBounceMessages(messages, state) {
   }
 
   const alert = buildBounceAlert(bounceMessages[0], failures);
+  if (dryRun) return { ok: true, preview: true, alert };
   return sendPortalAlert(alert);
 }
 
@@ -2041,7 +2046,7 @@ async function main() {
   }
 
   const state = loadState();
-  await writeAgentOpsHeartbeat('inbox-monitor', {
+  if (shouldApplyInboxSideEffects(options)) await writeAgentOpsHeartbeat('inbox-monitor', {
     status: 'running',
     metadata: {
       mailbox: DEFAULT_MAILBOX,
@@ -2062,7 +2067,7 @@ async function main() {
       freeDesign,
       publicAgent: !lead && !freeDesign && isPublicAgentMessage(message),
     });
-    if (lead && !options.dryRun) {
+    if (lead && shouldApplyInboxSideEffects(options)) {
       const feedback = recordLeadReplyFeedback(message, lead, state);
       if (feedback.recorded) {
         console.log(`Recorded campaign reply feedback for ${lead.name || message.from}.`);
@@ -2074,7 +2079,7 @@ async function main() {
   if (!unread.length) {
     console.log('No unread inbox messages.');
     state.messages = pruneObjectEntries(state.messages, 500);
-    saveState(state);
+    if (shouldApplyInboxSideEffects(options)) saveState(state);
     return;
   }
 
@@ -2212,8 +2217,11 @@ async function main() {
     }
   }
 
-  const bounceResult = await handleBounceMessages(unread, state);
-  if (bounceResult?.ok) {
+  const bounceResult = await handleBounceMessages(unread, state, { dryRun: options.dryRun });
+  if (bounceResult?.preview) {
+    console.log('\nDry run bounce alert preview:\n');
+    console.log(bounceResult.alert.text);
+  } else if (bounceResult?.ok) {
     console.log(`Alerted ${bounceResult.to} about delivery failure(s).`);
   } else if (bounceResult) {
     console.warn(`Delivery failure alert skipped: ${bounceResult.reason || 'unknown error'}`);
@@ -2221,10 +2229,11 @@ async function main() {
 
   state.seen = pruneObjectEntries(state.seen, 500);
   state.messages = pruneObjectEntries(state.messages, 500);
-  saveState(state);
+  if (shouldApplyInboxSideEffects(options)) saveState(state);
 }
 
 module.exports = {
+  shouldApplyInboxSideEffects,
   buildReplyHeadline,
   buildBounceAlert,
   buildReplySubject,
