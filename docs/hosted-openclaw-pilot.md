@@ -48,3 +48,20 @@ Public signup, unlimited inference, arbitrary shell/host access, marketplace, co
 
 ## Next implementation task
 Wire the existing Hosted Operator pilot's provisioner and task-store to the above lifecycle, reusing its worker and lock-recovery tests. Do not create a parallel orchestrator.
+
+## Open-core and subscription policy (decision)
+- **Free and open source:** publish the complete self-hostable customer runtime, Portal onboarding integration, deployment manifests, export/import tooling, and documentation under compatible open-source licenses. Check upstream OpenClaw license and third-party notices before redistribution.
+- **Paid managed service:** charge for hosting, isolation infrastructure, maintenance, monitoring, backups, support and convenience, not artificially locked agent capabilities. No subscription required to run the open-source edition.
+- **Portability:** user owns their data; provide documented export/import of configuration, conversation history and user files, excluding provider-owned secrets; support bring-your-own model/API keys.
+- **Initial pricing hypotheses, not promises:** Community $0 self-hosted (user pays own compute/model costs); Cloud $10–$20/month plus metered AI usage; Pro $30–$50/month plus metered AI usage. Validate capacity, margins and support costs before publishing prices.
+- **No hidden subsidy:** require spend ceilings, clear usage display and opt-in overages. Never imply free unlimited inference or infrastructure.
+- **Shared-host safety:** begin with a dedicated nonprivileged Docker container per tenant, constrained CPU/memory/pids, read-only root where feasible, per-tenant persistent volume, network egress controls and no privileged mounts. Docker shares the host kernel; do **not** allow arbitrary customer shell or untrusted code execution on shared hosts without stronger isolation (microVM or dedicated VM).
+- **MVP delivery:** implement an auditable Docker Compose self-host reference first, then reuse its tenant runtime image in the Hosted Operator provisioning flow. Add automated security/isolation tests before inviting external customers.
+- **Open governance:** public docs, issues and contribution guide; avoid proprietary dependencies in the self-host path. Publish clear service terms and privacy/retention policies for paid hosting.
+
+## Immediate acceptance checks
+- [ ] Community user can self-host without a 3DVR account or paid license.
+- [ ] Cloud tenant can provision/stop/export without exposing host or neighbor secrets.
+- [ ] Paid cancellation preserves a documented export path and deletion policy.
+- [ ] Billing and metering clearly separate subscription from model-provider charges.
+- [ ] Docker deployment is reproducible, resource-limited, and passes cross-tenant isolation tests.
