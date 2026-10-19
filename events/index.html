@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>3DVR Events — Plaza Preview</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b1220;color:#f8fafc;font:16px system-ui,sans-serif;overflow:hidden}canvas{display:block}header{position:absolute;top:16px;left:16px;z-index:2;background:#101b30dd;padding:14px 18px;border:1px solid #ffffff30;border-radius:16px;max-width:min(360px,calc(100vw - 32px))}h1{font-size:19px;margin:0 0 5px}p{margin:4px 0;font-size:13px;color:#cbd5e1}button,a{font:inherit}button{background:#244d79;border:1px solid #ffffff55;border-radius:10px;color:white;padding:9px 12px;cursor:pointer}button:focus-visible,a:focus-visible{outline:3px solid #ffdc86}#toolbar{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:3}#details{position:absolute;right:16px;bottom:90px;z-index:3;background:#0c182eea;border:1px solid #ffffff44;border-radius:16px;padding:18px;max-width:300px}#details[hidden],#fallback[hidden]{display:none}#details a{color:#ffdc86}#fallback{position:absolute;inset:0;background:#0b1220;z-index:5;padding:40px;overflow:auto}#fallback a{color:#ffdc86}#status{position:absolute;top:12px;right:16px;color:#cbd5e1;font-size:12px;z-index:2}@media(max-width:600px){header{top:8px;left:8px;padding:10px}#toolbar{bottom:12px}#details{bottom:75px;right:8px;left:8px;max-width:none}}
+</style>
+</head>
+<body>
+<header><h1>✦ 3DVR Events</h1><p>Explore the plaza · Tap a booth to visit</p><p>Drag to orbit · Scroll to zoom · Arrow keys to rotate</p></header>
+<div id="status" role="status" aria-live="polite">Loading plaza…</div>
+<main id="world" aria-label="Interactive 3D event plaza"></main>
+<nav id="toolbar" aria-label="Plaza controls"><button id="left" aria-label="Rotate left">←</button><button id="home">Reset view</button><button id="right" aria-label="Rotate right">→</button><button id="list">Booth list</button></nav>
+<section id="details" hidden aria-live="polite"><h2 id="boothTitle"></h2><p id="boothText"></p><p><a id="boothLink" href="#" target="_blank" rel="noopener noreferrer">Visit booth ↗</a></p><button id="close">Close</button></section>
+<section id="fallback" hidden><h1>3DVR Events · Exhibitors</h1><p>The 3D view is unavailable. Explore booths using these links:</p><ul id="fallbackList"></ul></section>
+<script type="module">
+const booths=[
+ {name:'3DVR Studio',desc:'Open-source immersive experiences and technology.',url:'https://3dvr.tech',color:0x39c6ca,x:-9,z:-2},
+ {name:'Creator Hall',desc:'Discover creative collaborations and virtual showcases.',url:'https://tmsteph.com',color:0xf2b66d,x:9,z:-2},
+ {name:'Event Stage',desc:'Meet in the plaza for live sessions and presentations.',url:'https://3dvr.tech',color:0xb69af2,x:0,z:-11}
+];
+const fallback=document.querySelector('#fallback'), list=document.querySelector('#fallbackList');
+for(const b of booths){const li=document.createElement('li'),a=document.createElement('a');a.href=b.url;a.textContent=b.name+' — '+b.desc;a.target='_blank';a.rel='noopener noreferrer';li.append(a);list.append(li)}
+function select(b){document.querySelector('#boothTitle').textContent=b.name;document.querySelector('#boothText').textContent=b.desc;document.querySelector('#boothLink').href=b.url;document.querySelector('#details').hidden=false}
+document.querySelector('#close').onclick=()=>document.querySelector('#details').hidden=true;
+document.querySelector('#list').onclick=()=>{fallback.hidden=!fallback.hidden};
+try{
+ const THREE=await import('https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js');
+ const scene=new THREE.Scene();scene.background=new THREE.Color(0x101c32);scene.fog=new THREE.Fog(0x101c32,28,75);
+ const camera=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.1,120);
+ const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'low-power'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;document.querySelector('#world').append(renderer.domElement);
+ scene.add(new THREE.HemisphereLight(0xbcdcff,0x263d30,2.2));const sun=new THREE.DirectionalLight(0xffebc2,2.4);sun.position.set(10,22,8);scene.add(sun);
+ const ground=new THREE.Mesh(new THREE.PlaneGeometry(120,120),new THREE.MeshStandardMaterial({color:0x243b37}));ground.rotation.x=-Math.PI/2;scene.add(ground);
+ function cube(w,h,d,color,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color,roughness:.8}));m.position.set(x,y,z);scene.add(m);return m}
+ cube(28,.22,26,0x64748b,0,-.05,-3);cube(6,.3,6,0xdec89b,0,.12,3);
+ const fountain=new THREE.Mesh(new THREE.CylinderGeometry(2,2,.5,24),new THREE.MeshStandardMaterial({color:0x71a8b6,metalness:.2}));fountain.position.set(0,.35,3);scene.add(fountain);
+ const interactive=[];
+ booths.forEach(b=>{const booth=cube(5,3.4,4,b.color,b.x,1.7,b.z);interactive.push({mesh:booth,booth:b});cube(5.4,.35,4.4,0xf1e4cf,b.x,3.6,b.z);cube(2.5,2.1,.12,0x12263b,b.x,1.25,b.z+2.06);const sign=cube(3.6,.55,.15,0x14263e,b.x,3,b.z+2.1);interactive.push({mesh:sign,booth:b})});
+ for(let i=0;i<12;i++){const angle=i*Math.PI/6;const x=Math.cos(angle)*23,z=Math.sin(angle)*23;const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.25,.38,3,7),new THREE.MeshStandardMaterial({color:0x795b40}));trunk.position.set(x,1.5,z);scene.add(trunk);const leaves=new THREE.Mesh(new THREE.ConeGeometry(1.8,4.5,8),new THREE.MeshStandardMaterial({color:0x367d67}));leaves.position.set(x,5,z);scene.add(leaves)}
+ let theta=0.45,phi=.88,dist=29;const target=new THREE.Vector3(0,1,-3);
+ function updateCamera(){phi=THREE.MathUtils.clamp(phi,.25,1.45);dist=THREE.MathUtils.clamp(dist,12,48);camera.position.set(target.x+dist*Math.sin(phi)*Math.sin(theta),target.y+dist*Math.cos(phi),target.z+dist*Math.sin(phi)*Math.cos(theta));camera.lookAt(target)}
+ updateCamera();
+ let down=null,moved=false;const el=renderer.domElement;
+ el.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY};moved=false;el.setPointerCapture(e.pointerId)});
+ el.addEventListener('pointermove',e=>{if(!down)return;const dx=e.clientX-down.x,dy=e.clientY-down.y;if(Math.abs(dx)+Math.abs(dy)>3)moved=true;theta-=dx*.007;phi-=dy*.007;down={x:e.clientX,y:e.clientY};updateCamera()});
+ const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
+ el.addEventListener('pointerup',e=>{if(!moved){const rect=el.getBoundingClientRect();mouse.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);ray.setFromCamera(mouse,camera);const hit=ray.intersectObjects(interactive.map(i=>i.mesh))[0];if(hit){const entry=interactive.find(i=>i.mesh===hit.object);if(entry)select(entry.booth)}}down=null});
+ el.addEventListener('wheel',e=>{e.preventDefault();dist+=e.deltaY*.02;updateCamera()},{passive:false});
+ document.querySelector('#left').onclick=()=>{theta-=.3;updateCamera()};document.querySelector('#right').onclick=()=>{theta+=.3;updateCamera()};document.querySelector('#home').onclick=()=>{theta=.45;phi=.88;dist=29;updateCamera()};
+ window.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){theta+=e.key==='ArrowLeft'?.15:-.15;updateCamera()}});
+ window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+ document.querySelector('#status').textContent='Plaza preview · 3 destinations';
+ let active=true;document.addEventListener('visibilitychange',()=>active=!document.hidden);
+ renderer.setAnimationLoop(()=>{if(active)renderer.render(scene,camera)});
+}catch(err){document.querySelector('#status').textContent='2D booth directory';fallback.hidden=false;console.error('3D plaza unavailable',err)}
+</script>
+</body></html>
