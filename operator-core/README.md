@@ -51,6 +51,29 @@ npm run demo   # golden path + fail-closed tests, 12 checks
 6. An approval for action A can't be reused to authorize action B.
 7. Every job's audit chain verifies end-to-end — tampering is detectable.
 
+## Gate 1, Step 1 — model router (`operator-core/src/model/`)
+
+A model layer that plugs into `OperatorCore.proposeActions`: providers return
+raw text, the router parses and **validates every proposal against the devices
+and capabilities the planner was actually given**, and only validated typed
+proposals reach the core — where policy still decides. Hallucinated
+capabilities, unknown devices, non-JSON output, and empty plans all fail
+closed; an optional fallback provider is tried before giving up.
+
+Providers: any OpenAI-compatible API (API-first), Ollama (local), and a fake
+provider for tests. Config is server-side env only (`OPERATOR_MODEL_PROVIDER`,
+`OPERATOR_MODEL_NAME`, `OPERATOR_MODEL_BASE_URL`, `OPERATOR_MODEL_API_KEY`,
+`OPERATOR_MODEL_FALLBACK`) — see `src/model/config.ts`. Keys are never logged
+or committed; in production they are delivered via the secrets broker.
+
+**Production note:** nothing in the Portal imports this package yet. The
+production Operator (`operator/`), the Hetzner agent (`apps/agent/`), and
+`operator-runtime/` do not reference `operator-core/` — wiring it in is a
+later, separate gate (Gate 1 Steps 2 and 5), not part of Step 1.
+
+Run the tests: `npm test` in `operator-core/` (Gate 0 demo plus the router
+suite in `src/model/router.test.ts`).
+
 ## Prototype notes
 
 - Envelope signing is HMAC-SHA256 today, keyed by `OPERATOR_CORE_SECRET`
