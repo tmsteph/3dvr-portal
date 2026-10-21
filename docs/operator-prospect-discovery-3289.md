@@ -25,3 +25,25 @@ The following are **source-verified job signals**, not confirmed qualified leads
 5. Log discovery time, source, and next action; do not auto-send.
 
 Existing code: `scripts/growth/collect-automation-buyers.mjs`, `docs/automation-funnel.md`, `growth-desk/funnel.js`, and `src/lead-finder/api.js`. Reuse these, not a new CRM.
+
+## Individual source verification (2026-10-20)
+
+These source URLs were checked at topic level. They remain **unconfirmed open opportunities**; no contact has been made, no CRM import has been performed, and no budget or authority has been inferred.
+
+| Prospect / buyer signal | Original post | Why it fits | Next step |
+|---|---|---|---|
+| technaros, small AI consulting firm | https://community.n8n.io/t/seeking-a-reliable-n8n-developer-for-ongoing-project-based-work-build-maintain/296828 | Contracts for tested, documented n8n workflows in staging; recurring relationship possible | Check latest replies and confirm open before a helpful DM |
+| Emma_Clark, growing internal automation team | https://community.n8n.io/t/looking-to-hire-n8n-developers-for-ongoing-automation-projects-what-should-i-look-for/294759 | CRM sync, lead routing, error handling and workflow architecture | Answer her vetting question substantively, not a hard pitch |
+| Jyotirmoy_Das, freelancer/automation builder search | https://community.n8n.io/t/looking-for-an-n8n-freelancer-automation-builder/316359 | API, WhatsApp and LLM workflows; paid trial possible | Verify open, gather portfolio examples before DM |
+| Nico_RevOps, sales tech agency | https://community.n8n.io/t/hiring-sales-tech-automation-specialist-ongoing-remote-work-crm-databases/300286 | CRM, databases, webhooks and ongoing maintenance | Check current status and time commitment |
+| Nikolaos_Zissidis, e-commerce video automation | https://community.n8n.io/t/hiring-n8n-automation-specialist-paid-long-term-remote-e-commerce-shopify/284836 | Video/audio domain knowledge plus n8n, AI APIs | Check whether project still open |
+
+### Drafts for approval (do not send)
+
+**technaros**: “Hi, I saw your post about staging-first n8n delivery. I work on self-hosted automation and reliability, and I appreciate the separation of test credentials from production. Are you still looking for someone to take on a bounded, documented workflow project? Happy to share a relevant example.”
+
+**Emma_Clark**: “For n8n vetting, I'd look for a candidate who can demonstrate retries, idempotency, failure alerts, and a staging-to-production handoff—not just screenshots of successful runs. I'm building those practices into my own automation work. Which part of your CRM and lead-routing stack is causing the most trouble?”
+
+**Jyotirmoy_Das**: “Hi, I saw your n8n builder search. My background combines API integrations, self-hosted infrastructure, and AI workflows. Are you still evaluating people for the small paid test? I can share a specific example and discuss a tightly scoped deliverable.”
+
+Do not imply these messages have been delivered. Verify availability, deduplicate against private records, then request approval before sending.
