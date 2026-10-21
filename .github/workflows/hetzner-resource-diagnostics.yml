@@ -1,0 +1,47 @@
+name: Hetzner resource diagnostics
+on:
+  push:
+    branches: [feat/openclaw-memory-admission-3253]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Inspect memory disk and container footprint
+        shell: bash
+        env:
+          SSH_KEY: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$SSH_KEY"
+          printf '%s\n' "$SSH_KEY" > /tmp/key
+          if ! grep -q 'BEGIN .*PRIVATE KEY' /tmp/key; then
+            base64 -d /tmp/key > /tmp/key.decoded
+            mv /tmp/key.decoded /tmp/key
+          fi
+          chmod 600 /tmp/key
+          ssh -i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 root@167.233.174.20 'bash -s' <<'REMOTE'
+          set -u
+          echo '=== memory ==='
+          free -h
+          echo '=== largest processes (command names only) ==='
+          ps -eo pid,comm,rss,%mem,%cpu --sort=-rss | head -18
+          echo '=== disk filesystem ==='
+          df -hT /
+          echo '=== root directory sizes ==='
+          du -x -h -d 1 / 2>/dev/null | sort -h | tail -15
+          echo '=== var directory sizes ==='
+          du -x -h -d 1 /var 2>/dev/null | sort -h | tail -12
+          echo '=== home directory sizes ==='
+          du -x -h -d 1 /home 2>/dev/null | sort -h | tail -12
+          echo '=== docker disk usage ==='
+          if command -v docker >/dev/null; then docker system df || true; docker stats --no-stream --format 'name={{.Name}} mem={{.MemUsage}} cpu={{.CPUPerc}}' 2>/dev/null | head -25 || true; fi
+          echo '=== system journal disk ==='
+          journalctl --disk-usage 2>/dev/null || true
+          echo '=== load ==='
+          uptime
+          REMOTE
