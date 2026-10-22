@@ -26,24 +26,42 @@ function showAccount(identity) {
     const username = localStorage.getItem('username') || shared.username || alias.split('@')[0];
     account.textContent = signedIn ? username || 'Account' : 'Sign in';
     account.href = signedIn ? '/profile.html#profile' : '/auth/sign-in.html?returnTo=%2Fhelm%2F';
-    account.title = signedIn ? 'Signed in · connect to verify agent access' : 'Sign in to use Helm';
+    account.title = signedIn ? 'Signed in · checking agent access automatically' : 'Sign in to use Helm';
   } catch { account.textContent = 'Sign in'; }
 }
 showAccount();
-window.addEventListener('storage', () => { verifiedAccount = false; showAccount(); });
-window.addEventListener('focus', () => showAccount());
+window.addEventListener('storage', () => {
+  verifiedAccount = false;
+  connected = false;
+  showAccount();
+  updateControls();
+  void checkConnection({ automatic: true });
+});
+window.addEventListener('focus', () => {
+  showAccount();
+  if (!connected) void checkConnection({ automatic: true });
+});
+window.addEventListener('online', () => { if (!connected) void checkConnection({ automatic: true }); });
+window.addEventListener('offline', () => {
+  connected = false;
+  $('connection').textContent = 'Offline · reconnecting when your network returns';
+  $('dot').classList.remove('connected');
+  updateControls();
+});
 
 function updateControls() {
   $('send').disabled = busy || !connected;
   $('new-chat').disabled = busy;
   $('connect').disabled = busy;
+  $('connect').hidden = connected;
+  $('connect').textContent = busy ? 'Checking…' : 'Retry connection';
 }
 
 async function request(action, message = '') {
   const requestId = crypto.randomUUID();
   const payload = { requestId, sessionId, ...(action === 'chat' ? { message } : {}) };
   const proof = await createSignedPortalProof('openclaw-helm', action, payload);
-  if (!proof) throw new Error('Sign in with your owner account, then connect again.');
+  if (!proof) throw new Error('Sign in with your owner account, then retry.');
   const response = await fetch('/api/openclaw', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...payload, action, ...proof }),
@@ -73,7 +91,13 @@ function addMessage(role, text) {
   article.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-$('connect').addEventListener('click', async () => {
+async function checkConnection({ automatic = false } = {}) {
+  if (busy) return;
+  if (automatic && localStorage.getItem('signedIn') !== 'true') {
+    $('connection').textContent = 'Sign in to use your agent';
+    $('activity').textContent = 'Sign in with your account above. Helm connects automatically.';
+    return;
+  }
   busy = true;
   updateControls();
   $('connection').textContent = 'Checking…';
@@ -91,7 +115,8 @@ $('connect').addEventListener('click', async () => {
       ? 'Your account is verified. The agent connection needs attention; try checking again.'
       : 'Check your account above, then try connecting again.';
   } finally { busy = false; updateControls(); }
-});
+}
+$('connect').addEventListener('click', () => checkConnection());
 
 $('chat-form').addEventListener('submit', async event => {
   event.preventDefault();
@@ -125,3 +150,4 @@ for (const button of document.querySelectorAll('[data-prompt]')) {
   button.addEventListener('click', () => { $('message').value = button.dataset.prompt; $('message').focus(); });
 }
 updateControls();
+void checkConnection({ automatic: true });
