@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createOpenClawHandler } from '../src/openclaw/handler.js';
+import { createOpenClawHandler, openClawSshCommand } from '../src/openclaw/handler.js';
 import { verifySignedSeaPayload } from '../src/auth/sea.js';
 const { default: SEA } = await import('gun/sea.js');
 
@@ -94,4 +94,20 @@ test('only tmsteph account key can chat or check status, even with other Portal 
     assert.equal((await call(handler, await sign({ action }))).statusCode, 200);
   }
   assert.equal(runs, 2);
+});
+
+
+test('root service drops to the existing mesh user; non-root keeps its own identity', () => {
+  assert.deepEqual(openClawSshCommand({}, 0), { command: '/usr/sbin/runuser', prefix: ['-u', 'debian', '--', 'ssh'] });
+  assert.deepEqual(openClawSshCommand({}, 1000), { command: 'ssh', prefix: [] });
+  assert.throws(() => openClawSshCommand({ THREEDVR_OPENCLAW_SSH_USER: '-bad' }, 0));
+});
+
+test('verified owner is distinguished from a failed agent transport', async t => {
+  const { config, sign } = await setup(t);
+  const handler = createOpenClawHandler({ config, run: async () => { throw new Error('ssh unavailable'); } });
+  const response = await call(handler, await sign({ action: 'status' }));
+  assert.equal(response.statusCode, 503);
+  assert.deepEqual(response.body.identity, { verified: true, username: 'tmsteph', alias: 'tmsteph@3dvr' });
+  assert.equal((await call(handler, await sign({ action: 'status' }, await SEA.pair()))).body.identity, undefined);
 });

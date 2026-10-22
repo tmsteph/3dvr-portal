@@ -23,6 +23,9 @@ https://docs.openclaw.ai/gateway/openai-http-api
 
 - Deploy the normal self-hosted Portal release; no separate Sites/Vercel project.
 - Verify the Portal service account can SSH to `3dvr-hetzner` with BatchMode.
+- Root service execution drops to the existing `debian` SSH mesh identity via
+  `runuser`. Non-root execution retains its own identity. Optional
+  `THREEDVR_OPENCLAW_SSH_USER` selects another existing unprivileged mesh user.
 - Optional `THREEDVR_OPENCLAW_SSH_HOST` selects an existing mesh alias.
 - Set `THREEDVR_HELM_STATE_DIR` to a private directory outside immutable releases,
   owned by the Portal service account; default `/var/lib/3dvr-helm` works when the
@@ -69,3 +72,17 @@ A working HTTP shell/channel probe is not proof of a completed model turn.
 Publication was blocked by automatic approval review, so this is local source,
 not a deployed or end-to-end verified release. Browser QA was blocked because the
 managed preview requires port 4173 while the existing dev script binds port 3000.
+
+## Mobile connection repair — 2026-10-22
+
+The interactive SSH test originally ran as `debian`, while the Portal systemd
+service runs as root with no HOME. Root could not resolve `3dvr-hetzner`; running
+SSH as the existing `debian` mesh user succeeded. Helm now uses that same identity
+without copying keys. Status responses separately confirm verified account
+identity even when the agent transport fails. Mobile connection controls move
+above the composer, metadata collapses, the hero shrinks, and the sticky header
+shows the current Portal username using the homepage identity source.
+
+Mobile visual QA: the 390px preview showed no page overflow (scroll width and
+viewport both 390px), with connection controls above chat and the composer in
+view. A 320px iframe render timed out; that width is not claimed as verified.

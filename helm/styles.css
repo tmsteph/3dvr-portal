@@ -454,3 +454,166 @@ dd {
     font-size:9px;
   }
 }
+
+/* Account stays visible while scrolling a small phone screen. */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg);
+  gap: 16px;
+}
+.account {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--accent);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 9px 13px;
+}
+.agent-title {
+  margin-right: auto;
+}
+.connection-info summary {
+  cursor: pointer;
+  padding: 12px 0;
+}
+.connection-info dl {
+  margin: 8px 0 20px;
+}
+@media (max-width: 850px) {
+  .sidebar {
+    padding: 10px 14px;
+    gap: 6px;
+  }
+  .brand {
+    font-size: 20px;
+  }
+  .mark {
+    font-size: 25px;
+  }
+  nav a {
+    min-height: 36px;
+    padding: 6px;
+  }
+  header {
+    height: auto;
+    min-height: 66px;
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  .account {
+    font-size: 12px;
+    max-width: 110px;
+    padding: 8px 10px;
+  }
+  .agent-title .eyebrow, h1 .badge {
+    display: none;
+  }
+  h1 {
+    margin: 0;
+    font-size: 16px;
+  }
+  .quiet {
+    font-size: 11px;
+    padding: 9px;
+    min-height: 38px;
+  }
+  .content {
+    min-height: 0;
+  }
+  .details {
+    grid-row: 1;
+    padding: 10px 14px 12px;
+    border-top: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .section-heading h2 {
+    margin: 0;
+    font-size: 12px;
+  }
+  #connection {
+    margin: 7px 0;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  #connect {
+    padding: 9px 12px;
+    min-height: 38px;
+  }
+  .connection-info {
+    font-size: 11px;
+  }
+  .connection-info summary {
+    padding: 6px 0;
+  }
+  .detail-note, .telegram {
+    display: none;
+  }
+  .conversation {
+    grid-row: 2;
+    padding: 16px 14px;
+  }
+  .welcome {
+    margin: 0;
+    padding: 0 0 18px;
+  }
+  .orbit, .welcome .eyebrow {
+    display: none;
+  }
+  .welcome h2 {
+    font-size: 27px;
+    line-height: 1.15;
+    margin: 8px 0;
+    max-width: 340px;
+  }
+  .welcome > p:not(.eyebrow) {
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 7px 0;
+  }
+  .suggestions {
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .suggestions button {
+    padding: 11px;
+    min-height: 40px;
+    font-size: 11px;
+  }
+  .suggestions span {
+    margin-left: 3px;
+  }
+  #messages:empty {
+    padding: 0;
+  }
+  form {
+    padding: 11px;
+    border-radius: 12px;
+  }
+  textarea {
+    font-size: 16px;
+    min-height: 48px;
+  }
+  #activity {
+    margin: 8px 0;
+  }
+}
+@media (max-width: 850px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+  .sidebar, nav, .details, .agent-title {
+    min-width: 0;
+  }
+  .content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .suggestions button {
+    min-width: 0;
+  }
+}
