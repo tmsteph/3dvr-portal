@@ -86,3 +86,9 @@ shows the current Portal username using the homepage identity source.
 Mobile visual QA: the 390px preview showed no page overflow (scroll width and
 viewport both 390px), with connection controls above chat and the composer in
 view. A 320px iframe render timed out; that width is not claimed as verified.
+
+Helm now checks the signed-in owner's agent connection on page load and retries
+when connectivity returns or an unconnected tab regains focus. Opening Helm only
+checks status; it never sends a chat message or starts model inference. The retry
+button is hidden after a successful connection. Signed-out visitors see sign-in
+instructions without issuing agent requests.
