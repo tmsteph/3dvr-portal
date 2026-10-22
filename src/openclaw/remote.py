@@ -4,6 +4,7 @@ import fcntl
 import json
 from pathlib import Path
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -28,6 +29,8 @@ def main():
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         return {'ok': False, 'error': 'OpenClaw is handling another Helm message. Wait before sending.'}
+    if request.get('expiresAt') is not None and time.time() * 1000 >= request['expiresAt']:
+        return {'ok': False, 'stale': True, 'error': 'Message expired before dispatch. Kept in history.'}
     token = gateway.get('auth', {}).get('token', '')
     if not isinstance(token, str) or not token:
         return {'ok': False, 'error': 'Gateway authentication needs server-side setup.'}

@@ -294,6 +294,48 @@ export async function createSignedPortalProof(scope, action, extra = {}) {
   return signedPortalProof(scope, action, extra);
 }
 
+// Private per-message Helm records share Portal's existing authenticated Gun session.
+export async function openHelmMessageStore({ onRecord, onSync = () => {} } = {}) {
+  const context = await getGunContext();
+  const pair = context && await ensurePortalSea(context.user);
+  if (!pair?.pub) throw new Error('Sign in to save queued messages.');
+  const pub = pair.pub;
+  const root = context.user.get('helm-v1').get('messages');
+  const cacheKey = `3dvr.helm.encrypted-messages.${pub}`;
+  let cache = {};
+  try { cache = JSON.parse(globalThis.localStorage.getItem(cacheKey) || '{}'); } catch {}
+  const decode = async (value, id) => {
+    if (!value?.ciphertext) return;
+    try {
+      const decoded = await globalThis.Gun.SEA.decrypt(value.ciphertext, pair);
+      const record = typeof decoded === 'string' ? JSON.parse(decoded) : decoded;
+      if (`${record?.id}:${record?.status}` !== id) return;
+      onRecord?.(record);
+    } catch {}
+  };
+  for (const [id, value] of Object.entries(cache)) await decode(value, id);
+  const stream = root.map();
+  stream.on((value, id) => { void decode(value, id); });
+  return {
+    pub,
+    async save(record) {
+      if (context.user.is?.pub !== pub) throw new Error('Account changed. Sign in before saving.');
+      const ciphertext = await globalThis.Gun.SEA.encrypt(JSON.stringify(record), pair);
+      if (!ciphertext) throw new Error('Message encryption failed.');
+      const value = { ciphertext, updatedAt: record.updatedAt };
+      // Encrypted device cache makes a peer outage survivable without publishing plaintext.
+      const recordKey = `${record.id}:${record.status}`;
+      const next = { ...cache, [recordKey]: value };
+      globalThis.localStorage.setItem(cacheKey, JSON.stringify(next));
+      cache = next;
+      // Separate state nodes keep a late queued writer from overwriting completion history.
+      root.get(recordKey).put(value, ack => onSync(ack && !ack.err ? 'Saved here · account sync active' : 'Saved here · account sync pending'));
+      return true;
+    },
+    close() { stream.off(); }
+  };
+}
+
 export async function createOperatorDeveloperProof() {
   return createSignedPortalProof('operator-developer-access', 'operator-chat');
 }

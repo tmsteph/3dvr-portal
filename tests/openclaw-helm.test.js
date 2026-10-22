@@ -111,3 +111,22 @@ test('verified owner is distinguished from a failed agent transport', async t =>
   assert.deepEqual(response.body.identity, { verified: true, username: 'tmsteph', alias: 'tmsteph@3dvr' });
   assert.equal((await call(handler, await sign({ action: 'status' }, await SEA.pair()))).body.identity, undefined);
 });
+
+test('server rejects stale or tampered queue expiry before invoking the agent', async t => {
+  const { config, sign } = await setup(t);
+  const now = Date.now();
+  let runs = 0;
+  const handler = createOpenClawHandler({ config, now: () => now,
+    run: async () => { runs++; return { ok: true, reply: 'Done' }; } });
+  const expired = await sign({ createdAt: now - 600001, expiresAt: now - 1 });
+  const result = await call(handler, expired);
+  assert.equal(result.statusCode, 410);
+  assert.equal(result.body.stale, true);
+  assert.equal(runs, 0);
+  assert.equal((await call(handler, { ...expired, expiresAt: now + 600000 })).statusCode, 403);
+  const stripped = { ...expired }; delete stripped.createdAt; delete stripped.expiresAt;
+  assert.equal((await call(handler, stripped)).statusCode, 403);
+  assert.equal((await call(handler, await sign({ createdAt: now, expiresAt: now + 600001 }))).statusCode, 400);
+  assert.equal((await call(handler, await sign({ createdAt: now, expiresAt: now + 600000 }))).statusCode, 200);
+  assert.equal(runs, 1);
+});

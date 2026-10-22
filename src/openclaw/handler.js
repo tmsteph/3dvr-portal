@@ -78,7 +78,7 @@ export function createOpenClawHandler(options = {}) {
     if (req.method !== 'POST') return json(res, 405, { error: 'Use a signed POST request.' });
     let body;
     try { body = await readBody(req); } catch { return json(res, 400, { error: 'Invalid or oversized request.' }); }
-    const { action, requestId, sessionId, message } = body;
+    const { action, requestId, sessionId, message, createdAt, expiresAt } = body;
     if (!['status', 'chat'].includes(action) || !ID.test(requestId || '') || !ID.test(sessionId || '')
       || (action === 'chat' && (typeof message !== 'string' || !message.trim() || message.length > 6000))) {
       return json(res, 400, { error: 'Invalid Helm request.' });
@@ -99,8 +99,21 @@ export function createOpenClawHandler(options = {}) {
       || (action === 'chat' && signed.message !== message)) {
       return json(res, 403, { error: 'Request does not match its signature.' });
     }
+    const queued = [createdAt, expiresAt, signed.createdAt, signed.expiresAt].some(value => value !== undefined);
+    if (action === 'chat' && queued) {
+      if (createdAt !== signed.createdAt || expiresAt !== signed.expiresAt) {
+        return json(res, 403, { error: 'Queue expiry does not match its signature.' });
+      }
+      const now = options.now ? options.now() : Date.now();
+      if (!Number.isSafeInteger(createdAt) || !Number.isSafeInteger(expiresAt)
+        || expiresAt <= createdAt || expiresAt - createdAt > 10 * 60 * 1000 || createdAt > now + 60000) {
+        return json(res, 400, { error: 'Invalid queued-message expiry.' });
+      }
+      if (now >= expiresAt) return json(res, 410, { ok: false, stale: true, error: 'Message expired. Kept in history without sending.' });
+    }
     const owner = digest(auth.identity.pub);
-    const request = { action, session: `helm-${owner.slice(0, 24)}-${sessionId}`, message };
+    const request = { action, session: `helm-${owner.slice(0, 24)}-${sessionId}`, message,
+      ...(action === 'chat' && queued ? { expiresAt } : {}) };
     if (action === 'status') {
       const identity = { verified: true, username: 'tmsteph', alias: 'tmsteph@3dvr' };
       try { return json(res, 200, { ...await run(request), identity }); }
