@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+  <meta name="theme-color" content="#101819">
+  <title>Helm · 3DVR</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="/gun-init.js"></script>
+  <script src="/auth-identity.js"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div class="workspace">
+    <aside class="sidebar">
+      <a class="brand" href="/helm/" aria-label="Helm home"><span class="mark">✳</span> helm <small>by 3DVR</small></a>
+      <p class="eyebrow">YOUR WORKSPACE</p>
+      <nav aria-label="Workspace">
+        <a class="selected" href="/helm/">◉ <span>OpenClaw</span><small>01</small></a>
+        <a href="/operator/">↗ <span>Operator</span></a>
+        <a href="/tasks/">☷ <span>Tasks</span></a>
+        <a href="/workboard/">▦ <span>Workboard</span></a>
+        <a href="/">⌂ <span>All apps</span></a>
+      </nav>
+      <div class="sidebar-note"><span class="eyebrow">ONE PLACE TO STEER</span><p>Your agent, connected to the tools you already use.</p><a href="/auth/sign-in.html?returnTo=%2Fhelm%2F">Account & sign in ↗</a></div>
+    </aside>
+    <main>
+      <header><div><span class="eyebrow">PERSONAL AGENT</span><h1>OpenClaw <span class="badge">Private · tmsteph</span></h1></div><button id="new-chat" class="quiet" type="button">＋ New chat</button></header>
+      <div class="content">
+        <section class="conversation" aria-label="OpenClaw conversation">
+          <div class="welcome" id="welcome"><span class="orbit" aria-hidden="true">✳</span><p class="eyebrow">A CLEARER COURSE</p><h2>What shall we<br>move forward?</h2><p>Your private OpenClaw workspace.<br>Keep the work in view.</p>
+            <div class="suggestions"><button type="button" data-prompt="Tell me what you can help me do today. Do not start tasks yet.">Explore what’s possible <span>↗</span></button><button type="button" data-prompt="Summarize your current runtime status. Do not run or resume queued tasks.">Check the agent <span>↗</span></button></div>
+          </div>
+          <div id="messages" role="log" aria-live="polite" aria-relevant="additions"></div>
+          <div class="composer-wrap"><form id="chat-form"><label class="sr-only" for="message">Message OpenClaw</label><textarea id="message" rows="2" maxlength="6000" placeholder="Give your agent a direction…" required></textarea><div class="composer-footer"><span>✳ OpenClaw <small>· private cloud profile</small></span><button id="send" type="submit">Send ↑</button></div></form><p id="activity" role="status">Connect to check your agent before sending.</p><small class="history-note">This prototype keeps the visible transcript in this tab. OpenClaw retains its session on the server.</small></div>
+        </section>
+        <aside class="details" aria-label="Connection details"><div class="section-heading"><h2>Agent connection</h2><span class="dot" id="dot"></span></div><p id="connection" role="status">Not checked</p><dl><div><dt>Runtime</dt><dd>OpenClaw</dd></div><div><dt>Home</dt><dd>Hetzner</dd></div><div><dt>Profile</dt><dd>cloud</dd></div><div><dt>Transport</dt><dd>Private SSH bridge</dd></div></dl><button id="connect" type="button">Connect / check status ↗</button><div class="detail-note"><span class="eyebrow">KEEP YOUR BEARINGS</span><p>A reachable gateway and a completed task are different things. Helm shows a reply only when OpenClaw returns one.</p><a href="/operator/">Continue in Operator →</a></div><a class="telegram" href="https://t.me/tmstephOpenClawBot" target="_blank" rel="noopener noreferrer">Open existing Telegram chat ↗</a></aside>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

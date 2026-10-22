@@ -20,6 +20,9 @@ import { createOAuthProviderHandler } from '../src/oauth/provider-api.js';
 import { createOrganismBridgeHandler } from '../src/organism/bridge.js';
 import { createPresenceAudioHandler } from '../src/presence-audio/handler.js';
 
+import { createOpenClawHandler } from '../src/openclaw/handler.js';
+const openClawHandler = createOpenClawHandler();
+
 import { createFunnelHandler } from '../src/automation-funnel/handler.js';
 const funnelHandler = createFunnelHandler();
 
@@ -409,6 +412,11 @@ const server = createServer(async (req, res) => {
     url.pathname.startsWith('/presence-audio/pair/')
   ) {
     return presenceAudioHandler(req, res, url);
+  }
+
+  if (url.pathname === '/api/openclaw') {
+    if (STANDBY_MODE) return json(res, 503, { error: 'Primary OpenClaw bridge is unavailable.' });
+    return runJsonApiHandler(openClawHandler, req, res, url, { errorMessage: 'OpenClaw request failed' });
   }
 
   if (url.pathname === '/api/automation-funnel') {
