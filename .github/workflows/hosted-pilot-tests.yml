@@ -1,0 +1,36 @@
+name: Hosted Operator pilot accounting
+
+on:
+  pull_request:
+    paths:
+      - 'src/operator-runtime/hosted-*.js'
+      - 'scripts/hosted-operator-*.mjs'
+      - 'tests/operator-hosted*.test.js'
+      - '.github/workflows/hosted-pilot-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  spending-and-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test accounting, identity, concurrent writers and killed writer recovery
+        run: node --test --test-concurrency=1 tests/operator-hosted*.test.js
+
+  disabled-fallback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify disabled pilot does not load unsupported SQLite runtime
+        run: node --test tests/operator-hosted-pilot-route.test.js
