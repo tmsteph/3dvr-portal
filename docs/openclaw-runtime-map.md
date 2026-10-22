@@ -85,3 +85,23 @@ If a future session asks “where is our OpenClaw?”:
 5. Treat any other OpenClaw directory/config as non-canonical until a running service proves otherwise.
 
 If the service or host role changes, update this document and `docs/infrastructure-topology.md` in the same change.
+
+## Helm integration and recovery — 2026-10-22
+
+The Hetzner `cloud` gateway returned HTTP 200 and the channel probe reported
+Telegram connected/working after the earlier controlled restart. This does not
+prove an agent turn completed. `TasksCurrent` reached `TasksMax=160`, later 147;
+root disk was 90% full. Native Codex children contributed substantial thread
+usage. Preserve task and memory admission controls while diagnosing this.
+
+The existing gateway now has
+`gateway.http.endpoints.chatCompletions.enabled=true`, with a server-local
+configuration backup. Binding remains loopback and auth remains token-based; an
+unauthenticated chat POST returned 401. Never expose port 18789 publicly for Helm.
+
+Helm's Portal source lives at `helm/` and `src/openclaw/`; see
+[`helm/README.md`](../helm/README.md) for deployment prerequisites and prototype
+limits. Publication and live Portal-to-OpenClaw verification are still pending.
+The authenticated smoke check in private terminal-bridge issue #692 was initially
+deferred by memory admission, then ran and timed out after 85 seconds without a
+model reply. OVH → Hetzner SSH passed. Full chat recovery remains unverified.
