@@ -602,3 +602,18 @@ header {
     margin: 8px 0;
   }
 }
+@media (max-width: 850px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+  .sidebar, nav, .details, .agent-title {
+    min-width: 0;
+  }
+  .content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .suggestions button {
+    min-width: 0;
+  }
+}

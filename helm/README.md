@@ -82,3 +82,7 @@ without copying keys. Status responses separately confirm verified account
 identity even when the agent transport fails. Mobile connection controls move
 above the composer, metadata collapses, the hero shrinks, and the sticky header
 shows the current Portal username using the homepage identity source.
+
+Mobile visual QA: the 390px preview showed no page overflow (scroll width and
+viewport both 390px), with connection controls above chat and the composer in
+view. A 320px iframe render timed out; that width is not claimed as verified.
