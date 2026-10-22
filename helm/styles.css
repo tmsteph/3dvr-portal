@@ -617,3 +617,39 @@ header {
     min-width: 0;
   }
 }
+#history {
+  padding: 18px;
+  border-bottom: 1px solid var(--line);
+  max-height: 50dvh;
+  overflow-y: auto;
+}
+#history > p, #queue-summary {
+  font-size: 12px;
+  color: var(--muted);
+}
+#history-list {
+  display: grid;
+  gap: 12px;
+}
+.message small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+}
+.message button {
+  display: block;
+  margin-top: 10px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+.saved-reply {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  color: var(--text);
+}
+@media (max-width: 450px) {
+  header { flex-wrap: wrap; gap: 7px; }
+  .account { max-width: 100px; }
+  .quiet { font-size: 10px; padding: 7px; }
+  #queue-summary { line-height: 1.5; }
+}

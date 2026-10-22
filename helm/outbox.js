@@ -1,0 +1,78 @@
+export const MESSAGE_TTL_MS = 10 * 60 * 1000;
+const ID = /^[a-zA-Z0-9_-]{12,100}$/;
+const RANK = { queued: 1, sending: 2, uncertain: 3, stale: 4, cancelled: 4, completed: 5 };
+
+export function validMessage(record) {
+  return record && ID.test(record.id || '') && ID.test(record.sessionId || '')
+    && typeof record.text === 'string' && record.text.trim() && record.text.length <= 6000
+    && Number.isSafeInteger(record.createdAt) && Number.isSafeInteger(record.expiresAt)
+    && record.expiresAt > record.createdAt && record.expiresAt - record.createdAt <= MESSAGE_TTL_MS
+    && Number.isSafeInteger(record.updatedAt) && record.updatedAt >= record.createdAt
+    && Object.hasOwn(RANK, record.status);
+}
+
+export function createOutbox({ save, send, isReady, onChange = () => {}, now = Date.now }) {
+  const records = new Map();
+  let draining = false;
+  const snapshot = () => [...records.values()].sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
+  const changed = () => onChange(snapshot());
+  const commit = async record => {
+    await save(record);
+    records.set(record.id, record);
+    changed();
+    return record;
+  };
+  return {
+    snapshot,
+    merge(record) {
+      if (!validMessage(record)) return;
+      const current = records.get(record.id);
+      // Terminal history never becomes a queued command again after a late Gun snapshot.
+      if (current && (RANK[current.status] > RANK[record.status]
+        || (RANK[current.status] === RANK[record.status] && current.updatedAt >= record.updatedAt))) return;
+      records.set(record.id, record);
+      changed();
+    },
+    async enqueue({ id, sessionId, text }) {
+      const createdAt = now();
+      const record = { id, sessionId, text, createdAt, expiresAt: createdAt + MESSAGE_TTL_MS,
+        updatedAt: createdAt, status: 'queued' };
+      if (!validMessage(record)) throw new Error('Invalid message.');
+      return commit(record);
+    },
+    async expire() {
+      for (const record of snapshot()) {
+        if (record.status === 'queued' && now() >= record.expiresAt) {
+          await commit({ ...record, status: 'stale', updatedAt: now(), note: 'Expired · kept in history, not sent' });
+        }
+      }
+    },
+    async cancel(id) {
+      const record = records.get(id);
+      if (record?.status === 'queued') await commit({ ...record, status: 'cancelled', updatedAt: now(), note: 'Cancelled before sending' });
+    },
+    async drain() {
+      if (draining) return;
+      draining = true;
+      try {
+        await this.expire();
+        while (isReady()) {
+          const queued = snapshot().find(record => record.status === 'queued');
+          if (!queued) break;
+          if (now() >= queued.expiresAt) { await this.expire(); continue; }
+          const active = await commit({ ...queued, status: 'sending', updatedAt: now() });
+          // Save the fixed request id before dispatch. A restored sending record is never replayed.
+          try {
+            const result = await send(active);
+            await commit({ ...active, status: 'completed', updatedAt: now(), reply: result.reply });
+          } catch (error) {
+            await commit({ ...active, status: error.stale ? 'stale' : 'uncertain', updatedAt: now(),
+              note: error.stale ? 'Expired · kept in history, not sent' : `${error.message} Check before resending.` });
+            break;
+          }
+          await this.expire();
+        }
+      } finally { draining = false; }
+    }
+  };
+}

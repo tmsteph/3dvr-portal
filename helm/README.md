@@ -41,12 +41,14 @@ agent replies and need the same retention and backup care as conversation data.
 
 ## Prototype boundaries
 
-The visible transcript is held in the current tab only; OpenClaw stores its own
-session under a stable owner/conversation key. New chat selects a new key without
-deleting prior sessions. Reload currently starts a new visible chat. Operator's
+Messages and replies are encrypted in the owner GunJS graph and in an encrypted
+device cache. Reload restores the tab session and saved messages. OpenClaw keeps
+its own server session under the owner/conversation key. New chat selects a new
+key without deleting saved history. Operator's
 existing conversation sync is unchanged. Live token streaming, job receipts,
-file browsing, cross-device transcript restore and stop/cancel are follow-up work.
-No automatic retries or queue draining occur. Opening Helm does not start work.
+file browsing and cancellation of already-dispatched turns are follow-up work.
+Uncertain deliveries are never automatically replayed. Opening Helm checks
+status and drains fresh queued messages only; stale messages move to history.
 
 ## Verification
 
@@ -92,3 +94,26 @@ when connectivity returns or an unconnected tab regains focus. Opening Helm only
 checks status; it never sends a chat message or starts model inference. The retry
 button is hidden after a successful connection. Signed-out visitors see sign-in
 instructions without issuing agent requests.
+
+## Encrypted message outbox
+
+You can submit while the agent starts, is disconnected, or is answering a prior
+message. Portal identity must still be available to encrypt and durably save it;
+the composer retains the draft until that save succeeds. Private Gun path:
+`user.get('helm-v1').get('messages').get(messageId + ':' + status)`. Each state
+contains only ciphertext and an update timestamp. Independent state nodes prevent
+a late queued write from replacing completed history. The encrypted local cache
+is scoped by account public key; it never stores a plaintext prompt or reply.
+
+The browser sends queued messages sequentially using their original message and
+session IDs. Existing server receipts prevent duplicate execution from two tabs.
+Queued records expire 10 minutes after creation, including time spent offline or
+closed. Both the signed API and the SSH-side dispatch enforce expiry. Expired,
+cancelled and uncertain messages stay in History; Use as new message prepares a
+new draft and never sends by itself. A restored sending record is not replayed.
+
+Dispatch currently runs while Helm is open, including reconnect/focus recovery.
+Closing all Helm tabs preserves encrypted records but does not run a background
+server worker. Reopening restores fresh queued work or archives expired work.
+No server copy of the account's decryption/signing keys is introduced. A Gun
+acknowledgement is not proof another device has downloaded the record.
