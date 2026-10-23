@@ -111,6 +111,7 @@ async function request(action, record) {
     ? { requestId: record.id, sessionId: record.sessionId, message: record.text, createdAt: record.createdAt, expiresAt: record.expiresAt }
     : { requestId: crypto.randomUUID(), sessionId };
   const proof = await createSignedPortalProof('openclaw-helm', action, payload);
+  if (requestEpoch !== epoch) throw new Error('Account changed.');
   if (!proof) throw new Error('Sign in with your owner account, then retry.');
   const response = await fetch('/api/openclaw', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -202,6 +203,7 @@ async function drain() {
 
 async function checkConnection({ automatic = false } = {}) {
   if (busy) return;
+  const connectionEpoch = epoch;
   if (automatic && !signedIn()) {
     $('connection').textContent = 'Sign in to use your agent';
     $('activity').textContent = 'Sign in with your account above. Helm connects automatically.';
@@ -212,18 +214,22 @@ async function checkConnection({ automatic = false } = {}) {
   $('connection').textContent = 'Checking…';
   try {
     await ensureMessages();
+    if (connectionEpoch !== epoch) return;
     const result = await request('status');
     connected = result.gateway === 'reachable' && result.chatEnabled;
     $('connection').textContent = connected ? 'Gateway reachable · chat enabled' : 'Gateway reachable · chat setup needed';
     $('dot').classList.toggle('connected', connected);
     $('activity').textContent = connected ? 'Ready. Saved messages send automatically.' : 'You can queue a message while the agent starts.';
   } catch (error) {
+    if (connectionEpoch !== epoch) return;
     connected = false;
     $('connection').textContent = error.message;
     $('dot').classList.remove('connected');
     $('activity').textContent = 'You can save a message now. It stays queued until the agent is ready.';
-  } finally { busy = false; updateControls(); }
-  await drain();
+  } finally {
+    if (connectionEpoch === epoch) { busy = false; updateControls(); }
+  }
+  if (connectionEpoch === epoch) await drain();
 }
 
 $('connect').addEventListener('click', () => checkConnection());
