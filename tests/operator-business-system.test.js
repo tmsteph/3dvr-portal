@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -276,4 +277,13 @@ test('revenue transitions reject receipts from the wrong event class', () => {
     evidence: { type: 'reply', id: 'provider-reply-1' }
   });
   assert.equal(revenueStage(replied), 'proposal');
+});
+
+test('Growth Desk and Growth Operator never advertise automatic outbound sends', () => {
+  const desk = readFileSync(new URL('../growth-desk/index.html', import.meta.url), 'utf8');
+  const growth = readFileSync(new URL('../growth-operator/index.html', import.meta.url), 'utf8');
+  assert.match(desk, /Every outbound message needs explicit human approval/);
+  assert.match(growth, /each external message requires explicit human approval/);
+  assert.doesNotMatch(desk, /Fresh direct-email leads can run|fresh-lead email can continue automatically/);
+  assert.doesNotMatch(growth, /Most routine direct-email work is handled automatically|Routine sends are automatic/);
 });
