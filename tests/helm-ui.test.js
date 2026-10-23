@@ -16,7 +16,7 @@ function screen(result, status = 200, signedIn = true, gate) {
   const storage = new Map([['signedIn', signedIn ? 'true' : 'false'], ['alias', 'tmsteph@3dvr'], ['username', 'tmsteph']]);
   const makeElement = () => ({ dataset: {}, value: '', children: [], classList: { toggle() {}, remove() {} },
     append(...items) { this.children.push(...items); }, replaceChildren(...items) { this.children = items; },
-    addEventListener() {}, setAttribute() {}, focus() {} });
+    addEventListener(event, fn) { this.events ||= {}; this.events[event] = fn; }, setAttribute() {}, focus() {} });
   const element = id => {
     if (!elements.has(id)) elements.set(id, { ...makeElement(),
       addEventListener(event, fn) { events.set(`${id}:${event}`, fn); } });
@@ -32,10 +32,12 @@ function screen(result, status = 200, signedIn = true, gate) {
     fetch: async (_url, options) => {
       const payload = JSON.parse(options.body); requests.push(payload);
       if (payload.action === 'status' && gate) await gate;
-      return { ok: status === 200, status, json: async () => result };
+      const reply = typeof result === 'function' ? result(payload) : { status, body: result };
+      return { ok: reply.status === 200, status: reply.status, json: async () => reply.body };
     }
   });
   return { element, saved, requests, ready: flush(),
+    newChat: () => events.get('new-chat:click')(),
     submit: async text => { element('message').value = text; await events.get('chat-form:submit')({ preventDefault() {} }); } };
 }
 
@@ -73,4 +75,27 @@ test('signed-out visitors cannot submit or send automatic agent requests', async
   assert.equal(ui.requests.length, 0);
   assert.equal(ui.saved.length, 0);
   assert.equal(ui.element('send').disabled, true);
+});
+
+test('queued messages from an earlier conversation remain cancellable in history', async () => {
+  const ui = screen({ ok: false, error: 'Offline' }, 503);
+  await ui.ready;
+  await ui.submit('Do not lose my cancel button');
+  ui.newChat();
+  const card = ui.element('history-list').children[0];
+  const cancel = card.children.find(child => child?.textContent === 'Cancel');
+  assert.ok(cancel);
+  cancel.events.click();
+  await flush();
+  assert.equal(ui.saved.at(-1).status, 'cancelled');
+});
+
+test('HTTP busy rejection stays retryable while unknown delivery stays uncertain', async () => {
+  const ui = screen(payload => payload.action === 'status'
+    ? { status: 200, body: { ok: true, gateway: 'reachable', chatEnabled: true } }
+    : { status: 429, body: { error: 'Agent busy' } });
+  await ui.ready;
+  await ui.submit('Wait for the busy agent');
+  assert.equal(ui.saved.at(-1).status, 'deferred');
+  assert.equal(ui.element('queue-summary').textContent.startsWith('1 queued'), true);
 });

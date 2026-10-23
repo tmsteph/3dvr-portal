@@ -117,3 +117,15 @@ Closing all Helm tabs preserves encrypted records but does not run a background
 server worker. Reopening restores fresh queued work or archives expired work.
 No server copy of the account's decryption/signing keys is introduced. A Gun
 acknowledgement is not proof another device has downloaded the record.
+
+## Queue recovery repair
+
+A definite HTTP 429 rejection remains queued as `deferred` and retries with its
+original request ID until expiry. Transport failures remain uncertain and never
+replay automatically. History retains Cancel for pending work in earlier chats.
+New encrypted device-cache writes use separate message/state keys, preserving
+other tabs' records during relay outages; legacy snapshots still load.
+
+Validation: `node --test tests/helm-outbox.test.js tests/helm-ui.test.js tests/helm-gun-store.test.js tests/openclaw-helm.test.js tests/operator-public-modules.test.js tests/self-host-sea-runtime.test.js`.
+Live agent throughput and cross-device cancellation races require separate
+verification; these repairs do not establish recovery of the model runtime.

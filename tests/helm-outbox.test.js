@@ -78,3 +78,40 @@ test('cancelled messages stay in history and storage failure never dispatches', 
   await assert.rejects(box.enqueue(first), /Storage full/);
   assert.equal(box.snapshot().length, 0);
 });
+
+test('busy rejection survives reload and retries with the original id', async () => {
+  const states = [];
+  let attempts = 0;
+  const send = async record => {
+    assert.equal(record.id, first.id);
+    if (++attempts === 1) throw Object.assign(new Error('Busy'), { retryable: true });
+    return { reply: 'Done' };
+  };
+  const make = () => createOutbox({ now: () => 1000000, isReady: () => true,
+    save: async record => states.push(record), send });
+  const box = make();
+  await box.enqueue(first);
+  await box.drain();
+  assert.equal(box.snapshot()[0].status, 'deferred');
+  const restored = make();
+  for (const state of [...states].reverse()) restored.merge(state);
+  assert.equal(restored.snapshot()[0].status, 'deferred');
+  await restored.drain();
+  assert.equal(attempts, 2);
+  assert.equal(restored.snapshot()[0].status, 'completed');
+});
+
+test('busy messages can expire or be cancelled without retrying', async () => {
+  let clock = 1000000;
+  const box = createOutbox({ now: () => clock, isReady: () => true, save: async () => {},
+    send: async () => { throw Object.assign(new Error('Busy'), { retryable: true }); } });
+  await box.enqueue(first);
+  await box.drain();
+  await box.cancel(first.id);
+  assert.equal(box.snapshot()[0].status, 'cancelled');
+  await box.enqueue({ ...first, id: 'message-23456789' });
+  await box.drain();
+  clock += MESSAGE_TTL_MS;
+  await box.drain();
+  assert.equal(box.snapshot()[1].status, 'stale');
+});
