@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
   <title>3DVR Operator</title>
   <meta name="theme-color" content="#07101c">
+  <link rel="manifest" href="/operator/operator.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Operator">
+  <link rel="stylesheet" href="/crm/install-banner.css">
   <script>
     if (location.hostname === 'operator.3dvr.tech') {
       const target = new URL('/operator/', 'https://portal.3dvr.tech');
@@ -129,6 +135,15 @@
       </form>
     </dialog>
   </main>
+  <aside class="install-banner install-banner--bottom is-hidden" data-install-banner data-install-dismiss-key="operator-install-dismissed" hidden aria-label="Install Operator">
+    <div class="install-banner__text">
+      <p class="install-banner__title">Operator, one tap away</p>
+      <p class="install-banner__meta">Install on your device for its own app window and home screen icon.</p>
+    </div>
+    <button class="install-banner__action" type="button" data-install-button>Install Operator</button>
+    <button class="install-banner__dismiss" type="button" data-install-dismiss aria-label="Dismiss install suggestion">×</button>
+  </aside>
+  <script src="/crm/pwa-install.js" data-sw-url="/operator/service-worker.js" data-sw-scope="/operator/" defer></script>
   <footer aria-label="Portal feedback"></footer>
   <script src="teach-handoff.js"></script>
   <script defer src="/issue-launcher.js"></script>
