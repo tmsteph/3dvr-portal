@@ -47,10 +47,35 @@ function makeOutbox() {
     async send(record) {
       busy = true;
       updateControls();
-      $('activity').textContent = 'Sending saved message to OpenClaw…';
-      try { return await request('chat', record); }
-      catch (error) { connected = false; throw error; }
-      finally { busy = false; updateControls(); }
+      const started = Date.now();
+      const showWaiting = () => {
+        if (currentEpoch !== epoch) return;
+        $('connection').textContent = 'Waiting for agent reply';
+        $('activity').textContent = `Waiting for agent reply · ${Math.floor((Date.now() - started) / 1000)}s elapsed`;
+      };
+      showWaiting();
+      const progress = setInterval(showWaiting, 1000);
+      try {
+        const result = await request('chat', record);
+        if (currentEpoch === epoch) {
+          $('connection').textContent = 'Agent replied';
+          $('activity').textContent = `Reply received after ${Math.floor((Date.now() - started) / 1000)}s.`;
+        }
+        return result;
+      } catch (error) {
+        if (currentEpoch === epoch) {
+          connected = false;
+          $('dot').classList.remove('connected');
+          $('connection').textContent = error.retryable ? 'Agent busy' : error.stale ? 'Message expired' : 'Reply not confirmed';
+          $('activity').textContent = error.retryable
+            ? 'Agent busy. Your saved message will retry until it expires.'
+            : `${error.message} Check History before sending again.`;
+        }
+        throw error;
+      } finally {
+        clearInterval(progress);
+        if (currentEpoch === epoch) { busy = false; updateControls(); }
+      }
     },
     isReady: () => currentEpoch === epoch && connected && !busy && signedIn(),
     onChange: () => { if (currentEpoch === epoch) renderMessages(); }
