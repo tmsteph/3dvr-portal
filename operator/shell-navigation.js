@@ -44,7 +44,7 @@ export function operatorShellDestination(href,base='https://portal.3dvr.tech/ope
     const owned=url.origin===parent.origin||['portal.3dvr.tech','operator.3dvr.tech'].includes(url.hostname);
     if(!owned)return '';
     const path=url.pathname.replace(/\/+$/,'')||'/';
-    if(url.hostname==='operator.3dvr.tech'||path==='/operator'||path==='/operator/index.html')return 'chat';
+    if(path==='/operator'||path==='/operator/index.html'||(url.hostname==='operator.3dvr.tech'&&(path==='/'||path==='/index.html')))return 'chat';
     return path==='/'||path==='/index.html'?'apps':'';
   }catch{return ''}
 }
