@@ -127,3 +127,24 @@ test('signed-out visitor cannot open account store using a cached username', asy
   t.after(() => { globalThis.localStorage = original; });
   await assert.rejects(openCellAccount(), /Sign in/);
 });
+
+test('account unlock accepts a verified recalled key and rejects a spoofed cached account key', async t => {
+  const originalGun = globalThis.Gun;
+  const originalStorage = globalThis.localStorage;
+  t.after(() => { globalThis.Gun = originalGun; globalThis.localStorage = originalStorage; });
+  const pair = await SEA.pair();
+  const storage = memoryStorage();
+  storage.setItem('userPubKey', pair.pub);
+  const user = {
+    is: { pub: pair.pub, alias: pair.pub }, _: { sea: pair }, recall() {},
+    leave() { this.is = null; this._.sea = null; }
+  };
+  const Gun = () => ({ user: () => user });
+  Gun.SEA = SEA;
+  globalThis.Gun = Gun;
+  globalThis.localStorage = storage;
+  const { openCellAccount: unlock } = await import('../operator/forge.js?cell-private-auth-test');
+  assert.equal((await unlock()).pair.pub, pair.pub);
+  storage.setItem('userPubKey', (await SEA.pair()).pub);
+  await assert.rejects(unlock(), /Sign in again/);
+});
