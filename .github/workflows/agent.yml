@@ -28,14 +28,6 @@ jobs:
           node-version: 22.22.0
           cache: npm
           cache-dependency-path: apps/agent/package-lock.json
-      # Temporary diagnostic: resolve vulnerable transitive dependencies in the
-      # disposable PR runner only. Do not mask the separate blocking audit.
-      - name: Inspect npm security lockfile candidates (temporary)
-        if: github.event_name == 'pull_request'
-        run: |
-          npm audit fix --package-lock-only --ignore-scripts
-          node -e "const p=require('./package-lock.json').packages; for(const n of ['hono','ip-address']) console.log('SECURITY_LOCK_CANDIDATE '+JSON.stringify({name:n,...p['node_modules/'+n]}))"
-          git restore package-lock.json
       - run: npm ci
       # Always run regressions even when the separate security gate fails.
       # Keep npm audit blocking; do not silently waive vulnerabilities.
