@@ -130,8 +130,10 @@ export function advanceRevenueLead(item, event, options = {}) {
   if (RECEIPT_EVENTS.has(event) && !hasReceipt(options.evidence)) {
     throw new TypeError(`${event} requires a typed external receipt reference (type and id)`);
   }
-  if (SEND_EVENTS.has(event) && !hasApprovedCheckpoint(options.humanCheckpoint ?? item.humanCheckpoint)) {
-    throw new TypeError(`${event} requires a traceable approved human checkpoint`);
+  const sendCheckpoint = options.humanCheckpoint ?? item.humanCheckpoint;
+  if (SEND_EVENTS.has(event) && (!hasApprovedCheckpoint(sendCheckpoint) ||
+      sendCheckpoint.id === item.metadata?.lastOutboundApprovalId)) {
+    throw new TypeError(`${event} requires a fresh traceable approved human checkpoint`);
   }
   if (event === 'payment_received' &&
       (options.evidence.type !== 'payment' || !Number.isFinite(options.result?.amount) || options.result.amount <= 0)) {
@@ -150,6 +152,7 @@ export function advanceRevenueLead(item, event, options = {}) {
     metadata: {
       stage: nextStage,
       lastEvent: event,
+      ...(SEND_EVENTS.has(event) ? { lastOutboundApprovalId: sendCheckpoint.id } : {}),
       nextFollowUpAt: options.nextFollowUpAt ?? item.metadata?.nextFollowUpAt ?? null,
       lastTransitionAt: options.now || new Date().toISOString()
     }
