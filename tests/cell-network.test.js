@@ -23,6 +23,9 @@ async function createApp({ pendingSync = false, locked = false } = {}) {
     console: { warn() {} }, URL, URLSearchParams,
     crypto: { randomUUID: () => `cell-${++nextId}` },
     cellIdentity: () => identity,
+    openCellInvitations: async () => ({
+      close() {}, memberCode: async () => 'test-code', publishCell: async () => {}, retryPending: async () => {}
+    }),
     openPrivateCellStore: async ({ onCell }) => {
       if (locked) throw new Error('Sign in to open your private Cells.');
       listener = onCell;
@@ -37,7 +40,7 @@ async function createApp({ pendingSync = false, locked = false } = {}) {
       };
     },
     window: {
-      location: { search: '?cell=legacy', href: 'https://portal.3dvr.tech/cell/?cell=legacy' },
+      location: { hash: '', search: '?cell=legacy', href: 'https://portal.3dvr.tech/cell/?cell=legacy' },
       localStorage: { getItem: () => 'tmsteph' }, addEventListener() {},
       requestAnimationFrame: callback => frames.push(callback)
     },
@@ -45,7 +48,7 @@ async function createApp({ pendingSync = false, locked = false } = {}) {
     setInterval() {},
     history: { replaceState(_state, _title, href) { context.window.location.href = href; } }
   });
-  const source = readFileSync(new URL('../cell/app.js', import.meta.url), 'utf8').replace(/^import .*;\n/, '');
+  const source = readFileSync(new URL('../cell/app.js', import.meta.url), 'utf8').replace(/^import .*;\n/gm, '');
   vm.runInContext(source, context);
   await new Promise(resolve => setImmediate(resolve));
   return {

@@ -8,7 +8,7 @@ export function cellIdentity(storage = globalThis.localStorage) {
 
 export async function openPrivateCellStore({
   onCell = () => {}, getAccount = openCellAccount,
-  storage = globalThis.localStorage, timeoutMs = 5000
+  storage = globalThis.localStorage, timeoutMs = 5000, namespace = 'cell-v1'
 } = {}) {
   const identity = cellIdentity(storage);
   const { user, pair, sea } = await getAccount();
@@ -20,9 +20,10 @@ export async function openPrivateCellStore({
   let retrying = null;
   const newest = new Map();
   const pending = new Map();
-  const prefix = `3dvr.cell.private.${pub}.`;
+  const prefix = namespace === 'cell-v1'
+    ? `3dvr.cell.private.${pub}.` : `3dvr.cell.${namespace}.${pub}.`;
   // Immutable encrypted revisions let offline retries coexist with newer device edits.
-  const root = user.get('cell-v1').get('cells');
+  const root = user.get(namespace).get('cells');
   const current = () => !closed && user.is?.pub === pub && cellIdentity(storage) === identity;
   const requireCurrent = () => {
     if (!current()) throw new Error('Account changed. Reopen your private Cells.');

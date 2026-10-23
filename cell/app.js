@@ -1,4 +1,5 @@
 import { openPrivateCellStore, cellIdentity } from './private-store.js';
+import { openCellInvitations } from './invitations.js';
 
 function escapeHtml(value) {
   return String(value == null ? '' : value)
@@ -67,6 +68,13 @@ const elements = {
   cellSaveStatus: document.getElementById('cellSaveStatus'),
   accountStatus: document.getElementById('cellAccountStatus'),
   retry: document.getElementById('cellRetry'),
+  memberCode: document.getElementById('cellMemberCode'),
+  inviteCode: document.getElementById('cellInviteCode'),
+  inviteButton: document.getElementById('cellInviteButton'),
+  inviteLink: document.getElementById('cellInviteLink'),
+  inviteAccept: document.getElementById('cellInviteAccept'),
+  members: document.getElementById('cellMembers'),
+  sharingStatus: document.getElementById('cellSharingStatus'),
 };
 
 const state = {
@@ -78,6 +86,9 @@ const state = {
 };
 
 let privateStore = null;
+let invitations = null;
+let sharingBusy = false;
+const cellMembers = new Map();
 let accountEpoch = 0;
 let saving = false;
 let formRevision = 0;
@@ -90,6 +101,8 @@ function normalizeCell(value, id) {
   const pillars = normalizeList(Array.isArray(record.pillars) ? record.pillars.join(',') : record.pillars);
   return {
     id: String(record.id || id || '').trim(),
+    readOnly: Boolean(record.readOnly),
+    ownerPub: String(record.ownerPub || ''),
     name: String(record.name || 'Untitled Cell').trim(),
     focus: String(record.focus || 'Cross-line organization').trim(),
     size: String(record.size || '3–15 people').trim(),
@@ -117,7 +130,8 @@ function syncPreviewFromForm() {
 function syncSubmitLabel() {
   if (!elements.submit) return;
   elements.submit.textContent = saving ? 'Saving…' : elements.cellId.value ? 'Update private Cell' : 'Save private Cell';
-  elements.submit.disabled = !privateStore || saving;
+  elements.submit.disabled = !privateStore || saving || Boolean(getSelectedCell()?.readOnly);
+  elements.inviteButton.disabled = !invitations || sharingBusy || !getSelectedCell() || Boolean(getSelectedCell()?.readOnly);
 }
 
 function populateForm(cell) {
@@ -142,7 +156,8 @@ function updateMetaPanel() {
   elements.lastSavedAt.textContent = state.lastSavedAt ? formatStamp(state.lastSavedAt) : '—';
   const selected = getSelectedCell();
   elements.activeCellLabel.textContent = selected ? selected.name : 'None';
-  elements.linkedAppCount.textContent = 'Owner only';
+  elements.linkedAppCount.textContent = selected?.readOnly ? 'Read-only member' : 'Owner';
+  renderMembers();
 }
 
 function renderCellList() {
@@ -187,7 +202,7 @@ function renderCellList() {
           <span class="cell-pill">Updated ${escapeHtml(formatStamp(cell.updatedAt || cell.createdAt))}</span>
         </div>
         <div class="app-link-row">
-          <span class="cell-pill">Private · only your account</span>
+          <span class="cell-pill">${cell.readOnly ? 'Private · read-only member' : 'Private · owner'}</span>
         </div>
       </article>
     `;
@@ -212,6 +227,7 @@ function selectCell(cellId, { focusForm = false } = {}) {
   const id = String(cellId || '').trim();
   if (!id) return;
   formRevision += 1;
+  elements.inviteLink.value = '';
   state.selectedCellId = id;
   const cell = state.cells[id];
   if (cell) {
@@ -255,7 +271,7 @@ function buildCellRecord(existing = {}) {
 
 async function saveCell(event) {
   event.preventDefault();
-  if (!privateStore || saving) return;
+  if (!privateStore || saving || getSelectedCell()?.readOnly) return;
   const store = privateStore;
   const epoch = accountEpoch;
   const originalId = elements.cellId.value;
@@ -274,6 +290,9 @@ async function saveCell(event) {
       elements.cellId.value = record.id;
     }
     state.lastSavedAt = record.updatedAt;
+    if (invitations) void invitations.publishCell(record).catch(error => {
+      if (epoch === accountEpoch) elements.sharingStatus.textContent = `Cell saved; member updates pending: ${error.message}`;
+    });
     elements.cellSaveStatus.textContent = result.pendingSync
       ? 'Saved encrypted in this browser. Account sync is pending.'
       : 'Private Cell saved encrypted. Availability on other devices is not verified.';
@@ -286,6 +305,8 @@ async function saveCell(event) {
 }
 
 function resetCellForm() {
+  elements.inviteLink.value = '';
+  elements.inviteCode.value = '';
   formRevision += 1;
   state.selectedCellId = '';
   state.pendingFocusSelection = '';
@@ -330,6 +351,13 @@ function hydrateSelectedCellFromQuery() {
 async function connectPrivateCells() {
   const epoch = ++accountEpoch;
   privateStore?.close();
+  invitations?.close();
+  invitations = null;
+  sharingBusy = false;
+  cellMembers.clear();
+  elements.memberCode.value = '';
+  elements.inviteLink.value = '';
+  elements.sharingStatus.textContent = '';
   privateStore = null;
   saving = false;
   state.cells = Object.create(null);
@@ -346,6 +374,7 @@ async function connectPrivateCells() {
       onCell(record, id) {
         if (epoch !== accountEpoch || cellIdentity() !== identity) return;
         state.cells[id] = normalizeCell(record, id);
+        if (invitations) void invitations.publishCell(record).catch(() => {});
         if (record.updatedAt > state.lastSavedAt) state.lastSavedAt = record.updatedAt;
         renderState();
         hydrateSelectedCellFromQuery();
@@ -354,7 +383,32 @@ async function connectPrivateCells() {
     if (epoch !== accountEpoch || cellIdentity() !== identity) { store.close(); return; }
     privateStore = store;
     elements.syncStatus.textContent = 'Encrypted · sync unverified';
-    elements.accountStatus.textContent = 'Private workspace unlocked · only your account can read these Cells.';
+    elements.accountStatus.textContent = 'Private workspace unlocked. You control invitations to each Cell.';
+    try {
+      const sharing = await openCellInvitations({
+        onMembers(cellId, grants) {
+          if (epoch !== accountEpoch || cellIdentity() !== identity) return;
+          cellMembers.set(cellId, grants); renderState();
+          const cell = state.cells[cellId];
+          if (cell && invitations) void invitations.publishCell(cell).catch(() => {});
+        },
+        onSharedCell(record, key) {
+          if (epoch !== accountEpoch || cellIdentity() !== identity) return;
+          if (record) state.cells[key] = normalizeCell({...record, id:key}, key);
+          else {
+            delete state.cells[key];
+            if (state.selectedCellId === key) resetCellForm();
+          }
+          renderState();
+        }
+      });
+      if (epoch !== accountEpoch || cellIdentity() !== identity) { sharing.close(); return; }
+      invitations = sharing;
+      elements.memberCode.value = await sharing.memberCode();
+      for (const cell of Object.values(state.cells)) if (!cell.readOnly) void sharing.publishCell(cell).catch(() => {});
+    } catch (error) {
+      if (epoch === accountEpoch) elements.sharingStatus.textContent = `Invitations unavailable: ${error.message}`;
+    }
   } catch (error) {
     if (epoch !== accountEpoch) return;
     elements.syncStatus.textContent = 'Locked';
@@ -362,6 +416,34 @@ async function connectPrivateCells() {
   }
   syncSubmitLabel();
   renderState();
+}
+
+function renderMembers() {
+  const cell = getSelectedCell();
+  const grants = cellMembers.get(cell?.id) || [];
+  elements.members.innerHTML = grants.map(grant => `
+    <li>${escapeHtml(grant.recipientPub.slice(0, 12))}… · ${grant.revoked ? 'revoked' : 'read-only invitation'}
+      ${grant.revoked ? '' : `<button type="button" class="secondary" data-copy-invite="${escapeHtml(grant.id)}">Show link</button>
+      <button type="button" class="secondary" data-revoke-invite="${escapeHtml(grant.id)}">Revoke</button>`}
+    </li>`).join('');
+}
+
+async function sharingAction(action) {
+  if (!invitations || sharingBusy) return;
+  const epoch = accountEpoch;
+  sharingBusy = true; syncSubmitLabel();
+  elements.sharingStatus.textContent = 'Working on the encrypted invitation…';
+  try {
+    const result = await action(invitations);
+    if (epoch !== accountEpoch) return;
+    elements.sharingStatus.textContent = result?.pendingSync
+      ? 'Invitation saved encrypted here. Sync is pending; keep Cell open to retry.'
+      : 'Done. Account sync is not proof the other person has received it.';
+  } catch (error) {
+    if (epoch === accountEpoch) elements.sharingStatus.textContent = error.message;
+  } finally {
+    if (epoch === accountEpoch) { sharingBusy = false; syncSubmitLabel(); }
+  }
 }
 
 function checkAccount() {
@@ -375,8 +457,47 @@ elements.cellList.addEventListener('click', handleSelectedCellClick);
 elements.cellSearch.addEventListener('input', renderState);
 elements.retry.addEventListener('click', () => { void connectPrivateCells(); });
 window.addEventListener('storage', checkAccount);
-window.addEventListener('focus', () => { checkAccount(); void privateStore?.retryPending(); });
-window.addEventListener('online', () => { void privateStore?.retryPending(); });
-setInterval(() => { void privateStore?.retryPending(); }, 30000);
+window.addEventListener('focus', () => { checkAccount(); void privateStore?.retryPending(); void invitations?.retryPending().catch(() => {}); });
+window.addEventListener('online', () => { void privateStore?.retryPending(); void invitations?.retryPending().catch(() => {}); });
+setInterval(() => { void privateStore?.retryPending(); void invitations?.retryPending().catch(() => {}); }, 30000);
 setInterval(checkAccount, 1000);
 void connectPrivateCells();
+
+elements.inviteButton.addEventListener('click', () => {
+  const cell = getSelectedCell();
+  if (!cell || cell.readOnly) return;
+  const epoch = accountEpoch;
+  void sharingAction(async service => {
+    const result = await service.invite(cell, elements.inviteCode.value.trim(), window.location.href);
+    if (epoch === accountEpoch && getSelectedCell()?.id === cell.id) elements.inviteLink.value = result.url;
+    return result;
+  });
+});
+elements.inviteAccept.addEventListener('click', () => {
+  void sharingAction(service => service.accept(window.location.href));
+});
+function updateInviteLocation() {
+  elements.inviteAccept.hidden = !new URLSearchParams(window.location.hash.slice(1)).has('invite');
+  document.getElementById('cellSignIn').href = '/auth/sign-in.html?redirect=' + encodeURIComponent('/cell/' + window.location.hash);
+}
+window.addEventListener('hashchange', updateInviteLocation);
+updateInviteLocation();
+elements.members.addEventListener('click', event => {
+  const copy = event.target.closest('[data-copy-invite]');
+  const revoke = event.target.closest('[data-revoke-invite]');
+  if (copy && invitations) elements.inviteLink.value = invitations.link(copy.getAttribute('data-copy-invite'), window.location.href);
+  if (revoke) void sharingAction(service => service.revoke(revoke.getAttribute('data-revoke-invite')));
+});
+
+async function copyInvitationField(field) {
+  if (!field.value) { elements.sharingStatus.textContent = 'Unlock your account or create an invitation first.'; return; }
+  try {
+    await navigator.clipboard.writeText(field.value);
+    elements.sharingStatus.textContent = 'Copied. Share it with the intended person.';
+  } catch {
+    field.focus(); field.select();
+    elements.sharingStatus.textContent = 'Select and copy the highlighted text.';
+  }
+}
+document.getElementById('copyMemberCode').addEventListener('click', () => { void copyInvitationField(elements.memberCode); });
+document.getElementById('copyInvitation').addEventListener('click', () => { void copyInvitationField(elements.inviteLink); });

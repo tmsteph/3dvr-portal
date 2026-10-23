@@ -738,7 +738,7 @@
         <div class="preview-card">
           <h3>Portal directions</h3>
           <p>
-            This version keeps Cell descriptions private to your account. Member invitations and shared group access are planned.
+            Invite approved Portal accounts to read a Cell. Only the owner can edit it or manage invitations.
           </p>
         </div>
       </aside>
@@ -749,7 +749,7 @@
         <div class="cell-card__header">
           <div>
             <h2 style="margin-bottom: 6px;">My private Cells</h2>
-            <p style="margin-bottom: 0;">Your new Cells are encrypted and visible only to your signed-in account. Existing public registry entries remain public and are not loaded here. Invitations and shared member access are not available yet.</p>
+            <p style="margin-bottom: 0;">Your Cells are encrypted. You can invite specific Portal accounts for read-only access and future updates. Existing public registry entries remain public and are not loaded here.</p>
           </div>
           <span class="status-chip"><span>Sync</span><strong id="syncStatus">Connecting…</strong></span>
         </div>
@@ -770,11 +770,26 @@
         <h2>Your private workspace</h2>
         <p id="cellAccountStatus" role="status" aria-live="polite">Sign in to unlock your private Cells.</p>
         <div class="hero-actions">
-          <a class="button primary" href="/auth/sign-in.html?redirect=%2Fcell%2F">Sign in with Portal username</a>
+          <a id="cellSignIn" class="button primary" href="/auth/sign-in.html?redirect=%2Fcell%2F">Sign in with Portal username</a>
           <button class="secondary" type="button" id="cellRetry">Retry unlock</button>
         </div>
         <p>Private Cells require a Portal username and password. OAuth-only accounts need an encryption-key link before they can unlock this workspace. Group names, purposes, and pillars are not published to the old registry.</p>
-        <p>Connected apps have their own access rules. Private Cell details stay here until shared access is implemented.</p>
+        <p>Connected apps have their own access rules. Cell invitations do not grant access to Contacts, CRM, Finance, or Chat.</p>
+        <h3>Invite an approved account</h3>
+        <p>Select one of your saved Cells, ask the person for their account code, and verify its key with them. Invitations grant read-only access.</p>
+        <label for="cellMemberCode">Your account code (give this to a Cell owner)</label>
+        <textarea id="cellMemberCode" readonly rows="3"></textarea>
+        <button type="button" class="secondary" id="copyMemberCode">Copy account code</button>
+        <label for="cellInviteCode">Member’s account code</label>
+        <textarea id="cellInviteCode" rows="3" placeholder="Paste the member’s account code"></textarea>
+        <button type="button" class="primary" id="cellInviteButton" disabled>Create invitation</button>
+        <label for="cellInviteLink">Invitation link (share it with that person)</label>
+        <textarea id="cellInviteLink" readonly rows="3"></textarea>
+        <button type="button" class="secondary" id="copyInvitation">Copy invitation link</button>
+        <button type="button" class="primary" id="cellInviteAccept" hidden>Accept this invitation</button>
+        <p id="cellSharingStatus" role="status" aria-live="polite"></p>
+        <ul id="cellMembers"></ul>
+        <p>Links work only for the invited account key. Revoking stops future updates; it cannot erase information someone already received.</p>
       </div>
     </section>
 
