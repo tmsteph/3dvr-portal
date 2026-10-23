@@ -44,6 +44,7 @@ function screen(result, status = 200, signedIn = true, gate) {
   return { element, saved, requests, ready: flush(),
     activeProgress: () => [...intervals.values()].filter(item => item.delay === 1000).length,
     advance: ms => { clock += ms; for (const item of intervals.values()) if (item.delay === 1000) item.fn(); },
+    changeAccount: () => events.get('window:storage')({ key: 'userPubKey' }),
     newChat: () => events.get('new-chat:click')(),
     submit: async text => { element('message').value = text; await events.get('chat-form:submit')({ preventDefault() {} }); } };
 }
@@ -139,5 +140,33 @@ test('unconfirmed delivery stops progress and directs the user to history withou
   assert.match(ui.element('activity').textContent, /Check History before sending again/);
   assert.equal(ui.saved.at(-1).status, 'uncertain');
   assert.equal(ui.requests.filter(item => item.action === 'chat').length, 1);
+  assert.equal(ui.activeProgress(), 0);
+});
+
+test('account changes reconnect while an old chat is pending and ignore its late result', async () => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  let turns = 0;
+  const ui = screen(async payload => {
+    if (payload.action === 'status') return { status: 200, body: { ok: true, gateway: 'reachable', chatEnabled: true } };
+    if (++turns === 1) {
+      await gate;
+      return { status: 200, body: { ok: true, reply: 'Old account reply', identity: { verified: true, username: 'old-account' } } };
+    }
+    return { status: 200, body: { ok: true, reply: 'New account reply' } };
+  });
+  await ui.ready;
+  const oldSubmission = ui.submit('Old account diagnostic');
+  await flush();
+  ui.changeAccount();
+  await flush(); await flush();
+  assert.equal(ui.requests.filter(item => item.action === 'status').length, 2);
+  await ui.submit('New account diagnostic');
+  assert.equal(ui.element('connection').textContent, 'Agent replied');
+  const activity = ui.element('activity').textContent;
+  release(); await oldSubmission;
+  assert.equal(ui.element('connection').textContent, 'Agent replied');
+  assert.equal(ui.element('activity').textContent, activity);
+  assert.notEqual(ui.element('account').textContent, '✓ old-account');
   assert.equal(ui.activeProgress(), 0);
 });
