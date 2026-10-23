@@ -77,7 +77,7 @@ test('OpenBao helper preserves a bounded failure stage without exposing secret n
       },
     });
     assert.throws(() => backend.get({ key: 'MATRIX_GITTER_TMSTEPH' }), error => {
-      assert.match(error.message, /OpenBao request failed \\(404\\) \\[stage=kv_read\\]/);
+      assert.equal(error.message, 'OpenBao request failed (404) [stage=kv_read]');
       assert.equal(error.message.includes('MATRIX_GITTER_TMSTEPH'), false);
       return true;
     });
