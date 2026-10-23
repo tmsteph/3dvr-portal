@@ -104,12 +104,39 @@ export function createRevenueLeadWorkItem(input = {}) {
   });
 }
 
+// These are records of externally observable events, not intentions or drafts.
+// A structured receipt reference is necessary but does not replace provider read-back.
+const RECEIPT_EVENTS = new Set(['outreach_sent', 'follow_up_sent', 'proposal_sent', 'reply_received', 'payment_received']);
+const SEND_EVENTS = new Set(['outreach_sent', 'follow_up_sent', 'proposal_sent']);
+
+function hasReceipt(evidence) {
+  return evidence && typeof evidence === 'object' && !Array.isArray(evidence)
+    && typeof evidence.type === 'string' && Boolean(evidence.type.trim())
+    && typeof evidence.id === 'string' && Boolean(evidence.id.trim());
+}
+
+function hasApprovedCheckpoint(checkpoint) {
+  return checkpoint && typeof checkpoint === 'object' && checkpoint.status === 'approved'
+    && typeof checkpoint.id === 'string' && Boolean(checkpoint.id.trim());
+}
+
 export function advanceRevenueLead(item, event, options = {}) {
   const stage = item?.metadata?.stage;
   if (!REVENUE_STAGES.includes(stage)) throw new TypeError(`unknown revenue stage: ${stage || 'missing'}`);
 
   const transition = TRANSITIONS[stage]?.[event];
   if (!transition) throw new TypeError(`event ${event} is not valid from revenue stage ${stage}`);
+
+  if (RECEIPT_EVENTS.has(event) && !hasReceipt(options.evidence)) {
+    throw new TypeError(`${event} requires a typed external receipt reference (type and id)`);
+  }
+  if (SEND_EVENTS.has(event) && !hasApprovedCheckpoint(options.humanCheckpoint ?? item.humanCheckpoint)) {
+    throw new TypeError(`${event} requires a traceable approved human checkpoint`);
+  }
+  if (event === 'payment_received' &&
+      (options.evidence.type !== 'payment' || !Number.isFinite(options.result?.amount) || options.result.amount <= 0)) {
+    throw new TypeError('payment_received requires a payment receipt and positive numeric amount');
+  }
 
   const [nextStage, nextState] = transition;
   const evidence = [...(item.evidence || [])];
