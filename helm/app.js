@@ -102,6 +102,8 @@ async function request(action, record) {
   if (!response.ok || !result.ok) {
     const error = new Error(result.error || 'OpenClaw is unavailable.');
     error.stale = result.stale === true;
+    // This endpoint rejects 429 before creating a receipt or invoking the agent.
+    error.retryable = response.status === 429;
     throw error;
   }
   return result;
@@ -122,7 +124,7 @@ function messageCard(record, history = false) {
   article.className = 'message user';
   const label = document.createElement('span');
   label.className = 'label';
-  const names = { queued: 'Queued · waiting for agent', sending: 'Delivery pending · will not resend',
+  const names = { queued: 'Queued · waiting for agent', deferred: 'Queued · agent busy', sending: 'Delivery pending · will not resend',
     completed: 'Sent', stale: 'History · expired without sending', uncertain: 'History · check delivery before resending', cancelled: 'History · cancelled' };
   label.textContent = names[record.status];
   article.append(label, document.createTextNode(record.text));
@@ -137,7 +139,7 @@ function messageCard(record, history = false) {
     note.textContent = record.note;
     article.append(note);
   }
-  if (record.status === 'queued' && !history) {
+  if (['queued', 'deferred'].includes(record.status)) {
     const cancel = document.createElement('button');
     cancel.type = 'button'; cancel.textContent = 'Cancel';
     cancel.addEventListener('click', () => { void outbox.cancel(record.id).catch(showStorageError); });
@@ -159,7 +161,7 @@ function renderMessages() {
   $('welcome').hidden = active.length > 0;
   $('history-list').replaceChildren(...records.map(record => messageCard(record, true)));
   $('show-history').textContent = records.length ? `History (${records.length})` : 'History';
-  const pending = records.filter(record => record.status === 'queued').length;
+  const pending = records.filter(record => ['queued', 'deferred'].includes(record.status)).length;
   $('queue-summary').textContent = pending ? `${pending} queued · sends when ready · expires after 10 minutes` : '';
 }
 
@@ -248,7 +250,7 @@ window.addEventListener('offline', () => {
 setInterval(() => {
   if (!signedIn()) return;
   void outbox.expire().catch(showStorageError);
-  if (outbox.snapshot().some(record => record.status === 'queued')) {
+  if (outbox.snapshot().some(record => ['queued', 'deferred'].includes(record.status))) {
     if (!connected) void checkConnection({ automatic: true });
     else void drain();
   }
