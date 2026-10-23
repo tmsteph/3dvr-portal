@@ -1,0 +1,24 @@
+name: Operator E2E ACK Unit Tests
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/operator-runtime-worker-e2e.mjs'
+      - 'tests/operator-runtime-worker-e2e-ack.test.mjs'
+      - '.github/workflows/operator-e2e-ack-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check scripts/operator-runtime-worker-e2e.mjs
+      - run: node --test tests/operator-runtime-worker-e2e-ack.test.mjs
