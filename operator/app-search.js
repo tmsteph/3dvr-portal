@@ -200,3 +200,13 @@ window.addEventListener('operator:browse-apps',()=>{
 });
 
 document.querySelector('#app-search-close')?.addEventListener('click',()=>{hideResults();input.focus()});
+
+// Exact launcher commands bypass chat submission; other messages remain unchanged.
+const helmCommands = new Set(['helm', 'open helm', 'go to helm', 'launch helm', 'start helm']);
+const operatorForm = input.closest('form');
+operatorForm?.addEventListener('submit', event => {
+  if (!helmCommands.has(normalize(input.value))) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  window.location.assign('/helm/');
+}, true);
