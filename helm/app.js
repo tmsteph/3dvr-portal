@@ -47,10 +47,35 @@ function makeOutbox() {
     async send(record) {
       busy = true;
       updateControls();
-      $('activity').textContent = 'Sending saved message to OpenClaw…';
-      try { return await request('chat', record); }
-      catch (error) { connected = false; throw error; }
-      finally { busy = false; updateControls(); }
+      const started = Date.now();
+      const showWaiting = () => {
+        if (currentEpoch !== epoch) return;
+        $('connection').textContent = 'Waiting for agent reply';
+        $('activity').textContent = `Waiting for agent reply · ${Math.floor((Date.now() - started) / 1000)}s elapsed`;
+      };
+      showWaiting();
+      const progress = setInterval(showWaiting, 1000);
+      try {
+        const result = await request('chat', record);
+        if (currentEpoch === epoch) {
+          $('connection').textContent = 'Agent replied';
+          $('activity').textContent = `Reply received after ${Math.floor((Date.now() - started) / 1000)}s.`;
+        }
+        return result;
+      } catch (error) {
+        if (currentEpoch === epoch) {
+          connected = false;
+          $('dot').classList.remove('connected');
+          $('connection').textContent = error.retryable ? 'Agent busy' : error.stale ? 'Message expired' : 'Reply not confirmed';
+          $('activity').textContent = error.retryable
+            ? 'Agent busy. Your saved message will retry until it expires.'
+            : `${error.message} Check History before sending again.`;
+        }
+        throw error;
+      } finally {
+        clearInterval(progress);
+        if (currentEpoch === epoch) { busy = false; updateControls(); }
+      }
     },
     isReady: () => currentEpoch === epoch && connected && !busy && signedIn(),
     onChange: () => { if (currentEpoch === epoch) renderMessages(); }
@@ -81,10 +106,12 @@ function showAccount(identity) {
   } catch { account.textContent = 'Sign in'; }
 }
 async function request(action, record) {
+  const requestEpoch = epoch;
   const payload = record
     ? { requestId: record.id, sessionId: record.sessionId, message: record.text, createdAt: record.createdAt, expiresAt: record.expiresAt }
     : { requestId: crypto.randomUUID(), sessionId };
   const proof = await createSignedPortalProof('openclaw-helm', action, payload);
+  if (requestEpoch !== epoch) throw new Error('Account changed.');
   if (!proof) throw new Error('Sign in with your owner account, then retry.');
   const response = await fetch('/api/openclaw', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -92,6 +119,7 @@ async function request(action, record) {
     signal: AbortSignal.timeout(110000)
   });
   const result = await response.json();
+  if (requestEpoch !== epoch) throw new Error('Account changed.');
   if (result.identity?.verified) showAccount(result.identity);
   if (response.status === 401) {
     verifiedAccount = false;
@@ -168,12 +196,14 @@ function renderMessages() {
 function showStorageError(error) { $('activity').textContent = `Could not save the message: ${error.message} Your text stays in the composer.`; }
 
 async function drain() {
+  const drainEpoch = epoch;
   try { await outbox.drain(); }
-  catch (error) { $('activity').textContent = `Queue paused: ${error.message}`; }
+  catch (error) { if (drainEpoch === epoch) $('activity').textContent = `Queue paused: ${error.message}`; }
 }
 
 async function checkConnection({ automatic = false } = {}) {
   if (busy) return;
+  const connectionEpoch = epoch;
   if (automatic && !signedIn()) {
     $('connection').textContent = 'Sign in to use your agent';
     $('activity').textContent = 'Sign in with your account above. Helm connects automatically.';
@@ -184,18 +214,22 @@ async function checkConnection({ automatic = false } = {}) {
   $('connection').textContent = 'Checking…';
   try {
     await ensureMessages();
+    if (connectionEpoch !== epoch) return;
     const result = await request('status');
     connected = result.gateway === 'reachable' && result.chatEnabled;
     $('connection').textContent = connected ? 'Gateway reachable · chat enabled' : 'Gateway reachable · chat setup needed';
     $('dot').classList.toggle('connected', connected);
     $('activity').textContent = connected ? 'Ready. Saved messages send automatically.' : 'You can queue a message while the agent starts.';
   } catch (error) {
+    if (connectionEpoch !== epoch) return;
     connected = false;
     $('connection').textContent = error.message;
     $('dot').classList.remove('connected');
     $('activity').textContent = 'You can save a message now. It stays queued until the agent is ready.';
-  } finally { busy = false; updateControls(); }
-  await drain();
+  } finally {
+    if (connectionEpoch === epoch) { busy = false; updateControls(); }
+  }
+  if (connectionEpoch === epoch) await drain();
 }
 
 $('connect').addEventListener('click', () => checkConnection());
@@ -231,6 +265,7 @@ for (const button of document.querySelectorAll('[data-prompt]')) {
 window.addEventListener('storage', event => {
   if (!['signedIn', 'alias', 'userPubKey'].includes(event.key)) return;
   epoch += 1; store?.close(); store = null; storePromise = null;
+  busy = false;
   connected = false; verifiedAccount = false; outbox = makeOutbox();
   showAccount(); renderMessages(); updateControls();
   void checkConnection({ automatic: true });
