@@ -250,3 +250,30 @@ test('revenue events reject a previously recorded provider receipt', () => {
     evidence: { ...priorPayment }, result: { amount: 200 }
   }), /cannot reuse an existing external receipt/);
 });
+
+
+test('revenue transitions reject receipts from the wrong event class', () => {
+  const outreach = createRevenueLeadWorkItem({ id: 'typed-send', stage: 'outreach' });
+  for (const type of ['reply', 'payment', 'unknown']) {
+    assert.throws(() => advanceRevenueLead(outreach, 'outreach_sent', {
+      evidence: { type, id: 'cross-class-send' },
+      humanCheckpoint: { status: 'approved', id: 'send-approved' }
+    }), /outbound message receipt type/);
+  }
+  const sent = advanceRevenueLead(outreach, 'outreach_sent', {
+    evidence: { type: 'email', id: 'provider-email-1' },
+    humanCheckpoint: { status: 'approved', id: 'send-approved' }
+  });
+  assert.equal(revenueStage(sent), 'waiting_reply');
+
+  const waiting = createRevenueLeadWorkItem({ id: 'typed-reply', stage: 'waiting_reply' });
+  for (const type of ['email', 'payment', 'unknown']) {
+    assert.throws(() => advanceRevenueLead(waiting, 'reply_received', {
+      evidence: { type, id: 'cross-class-reply' }
+    }), /inbound reply receipt type/);
+  }
+  const replied = advanceRevenueLead(waiting, 'reply_received', {
+    evidence: { type: 'reply', id: 'provider-reply-1' }
+  });
+  assert.equal(revenueStage(replied), 'proposal');
+});
