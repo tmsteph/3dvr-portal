@@ -48,6 +48,24 @@ test('missing timestamps and sensitive approval remain review-only', () => {
   assert.deepEqual(report.queuedReviews[0].flags, ['stale_or_unknown_age', 'risk_not_allowed', 'approval_block']);
 });
 
+test('missing worker capabilities never default to an apparently eligible queue', () => {
+  const task = { id: 'fresh', status: 'queued', backend: 'codex', task: 'read-only local check',
+    createdAt: '2026-10-23T09:00:00Z', riskClass: 'read_only' };
+  const report = summarizeQueue([task], { THREEDVR_AGENT_WORKER_RISK_CLASSES: 'read_only' }, now);
+  assert.equal(report.workerCapabilitiesConfigured, false);
+  assert.ok(report.queuedReviews[0].flags.includes('worker_capabilities_unverified'));
+  assert.ok(!report.queuedReviews[0].flags.includes('metadata_eligible_not_authorized'));
+  assert.ok(!report.queuedReviews[0].flags.includes('missing_capability'));
+});
+
+test('explicit worker capability configuration retains normal eligibility classification', () => {
+  const task = { id: 'fresh', status: 'queued', backend: 'codex', task: 'read-only local check',
+    createdAt: '2026-10-23T09:00:00Z', riskClass: 'read_only' };
+  const report = summarizeQueue([task], env, now);
+  assert.equal(report.workerCapabilitiesConfigured, true);
+  assert.deepEqual(report.queuedReviews[0].flags, ['metadata_eligible_not_authorized']);
+});
+
 test('SQLite audit refuses implicit owner or non-SQLite mode before opening a database', () => {
   assert.throws(() => auditManagedSqlite({ THREEDVR_AGENT_QUEUE_STORE: 'sqlite' }), /Explicit managed SQLite/);
   assert.throws(() => auditManagedSqlite({ THREEDVR_AGENT_QUEUE_STORE: 'gun', THREEDVR_AGENT_OWNER_ALIAS: '3dvr-managed' }), /Explicit managed SQLite/);
