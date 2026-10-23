@@ -49,7 +49,8 @@ test('stores only ciphertext under owner graph, restores owner cache, rejects an
   const seen = [];
   const store = await openPrivateCellStore({ ...f, onCell: value => seen.push(value) });
   await store.save(f.record);
-  assert.deepEqual(f.writes[0].path, ['cell-v1', 'cells', f.record.id]);
+  assert.deepEqual(f.writes[0].path.slice(0, 2), ['cell-v1', 'cells']);
+  assert.ok(f.writes[0].path[2].startsWith(`${f.record.id}:`));
   assert.deepEqual(Object.keys(f.writes[0].value), ['ciphertext']);
   const serialized = JSON.stringify([...f.storage.data, ...f.writes]);
   assert.equal(serialized.includes(f.record.name), false);
@@ -87,13 +88,14 @@ test('ignores foreign, stale and late closed-store deliveries', async () => {
   const seen = [];
   const store = await openPrivateCellStore({ ...f, onCell: record => seen.push(record) });
   await store.save(f.record);
-  const envelope = async record => ({ ciphertext: await SEA.encrypt(JSON.stringify(record), f.pair) });
-  f.deliver(await envelope({ ...f.record, ownerPub: 'outsider' }), f.record.id);
-  f.deliver(await envelope({ ...f.record, ownerPub: f.pair.pub, updatedAt: '2020-01-01T00:00:00.000Z' }), f.record.id);
+  const revision = f.writes[0].path[2];
+  const envelope = async record => ({ ciphertext: await SEA.encrypt(JSON.stringify({...record, revision}), f.pair) });
+  f.deliver(await envelope({ ...f.record, ownerPub: 'outsider' }), revision);
+  f.deliver(await envelope({ ...f.record, ownerPub: f.pair.pub, updatedAt: '2020-01-01T00:00:00.000Z' }), revision);
   await flush();
   assert.equal(seen.length, 1);
   store.close();
-  f.deliver(f.writes[0].value, f.record.id);
+  f.deliver(f.writes[0].value, revision);
   await flush();
   assert.equal(seen.length, 1);
   assert.equal(f.stopped, true);
@@ -104,7 +106,7 @@ test('no relay acknowledgement retains encrypted local data and reports sync pen
   f.ack(null);
   const store = await openPrivateCellStore({ ...f, timeoutMs: 10 });
   assert.equal((await store.save(f.record)).pendingSync, true);
-  assert.ok(f.storage.getItem(`3dvr.cell.private.${f.pair.pub}.${f.record.id}`));
+  assert.ok(f.storage.getItem(`3dvr.cell.private.${f.pair.pub}.${f.writes[0].path[2]}`));
   store.close();
 });
 
@@ -147,4 +149,33 @@ test('account unlock accepts a verified recalled key and rejects a spoofed cache
   assert.equal((await unlock()).pair.pub, pair.pub);
   storage.setItem('userPubKey', (await SEA.pair()).pub);
   await assert.rejects(unlock(), /Sign in again/);
+});
+
+test('reopens pending ciphertext and retries immutable revisions without replacing a newer edit', async () => {
+  const f = await setup();
+  f.ack({err: 'relay unavailable'});
+  const store = await openPrivateCellStore(f);
+  assert.equal((await store.save(f.record)).pendingSync, true);
+  const oldRevision = f.writes[0].path[2];
+  f.ack({ok: 1});
+  await store.save({...f.record, name: 'Newer edit', updatedAt: '2026-10-24T01:00:00.000Z'});
+  const newRevision = f.writes[1].path[2];
+  store.close();
+  const seen = [];
+  const restored = await openPrivateCellStore({...f, onCell: value => seen.push(value)});
+  await restored.retryPending();
+  assert.equal(f.writes[2].path[2], oldRevision);
+  assert.notEqual(oldRevision, newRevision);
+  assert.equal(seen.at(-1).name, 'Newer edit');
+  assert.equal(JSON.parse(f.storage.getItem(`3dvr.cell.private.${f.pair.pub}.${oldRevision}`)).pendingSync, false);
+  restored.close();
+});
+
+test('OAuth-only sessions get explicit Portal-key guidance without creating an unbacked key', async t => {
+  const original = globalThis.localStorage;
+  const storage = memoryStorage();
+  storage.setItem('authMethod', 'oauth');
+  globalThis.localStorage = storage;
+  t.after(() => { globalThis.localStorage = original; });
+  await assert.rejects(openCellAccount(), /Portal username and password/);
 });

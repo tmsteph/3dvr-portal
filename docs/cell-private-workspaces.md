@@ -1,15 +1,18 @@
 # Private Cell workspaces
 
-The Cell page now creates account-private descriptions. Sign in through the existing
-Portal sign-in flow, then open `/cell/`. The page uses Portal's verified SEA session
+The Cell page now creates account-private descriptions. Sign in with a Portal username
+and password, then open `/cell/`. OAuth-only accounts are explicitly blocked with
+key-setup guidance; they are not provisioned ephemeral, device-only encryption keys. The page uses Portal's verified SEA session
 recovery rather than a cached username as permission. New accounts can create many
 Cells with suggested sizes of 3, 10, or 15 people.
 
 Cell records (including names, purposes, pillars, and timestamps) are encrypted with
 the owner's SEA pair before persistence. The signed owner graph is
-`user.get('cell-v1').get('cells').get(opaqueId)`. Each envelope contains ciphertext
-only. The browser keeps one encrypted cache entry per account and Cell for relay
-outages. No new keys, credentials, or plaintext descriptions are stored by Cell.
+`user.get('cell-v1').get('cells').get(opaqueRevisionId)`. Each envelope contains ciphertext
+only. The browser keeps encrypted cache entries per account and revision for relay
+outages. Pending ciphertext retries on reopen, network recovery, focus, and periodically
+while the page is open. Immutable revision paths prevent a late retry from overwriting
+a newer device edit. No new keys, credentials, or plaintext descriptions are stored by Cell.
 A local save or relay acknowledgement does not prove a second device restored it.
 
 Changing accounts/signing out clears the displayed records, search, form, and preview,

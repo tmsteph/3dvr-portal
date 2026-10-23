@@ -227,6 +227,9 @@ async function ensurePortalSea(user) {
 // Cell reuses Portal session recovery and key verification; cached display names are not authority.
 export async function openCellAccount() {
   if (!readStoredPortalIdentity()) throw new Error('Sign in to open your private Cells.');
+  if (globalThis.localStorage?.getItem('authMethod') === 'oauth' && !readStoredPortalIdentity()?.expectedPub) {
+    throw new Error('Private Cells require a Portal username and password. OAuth-only sign-in has no encryption key yet.');
+  }
   const context = await getGunContext();
   const pair = context && await ensurePortalSea(context.user);
   if (!pair?.pub || context.user.is?.pub !== pair.pub) {
