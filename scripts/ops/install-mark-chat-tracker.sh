@@ -12,5 +12,9 @@ install -o root -g root -m 0644 "$ROOT/ops/mark-chat-tracker/3dvr-mark-chat-trac
 
 systemctl daemon-reload
 systemctl enable --now 3dvr-mark-chat-tracker.timer
-systemctl start 3dvr-mark-chat-tracker.service || true
+if ! systemctl start 3dvr-mark-chat-tracker.service; then
+  echo '::warning::Optional 3dvr-mark-chat-tracker.service failed; inspect its journal on the authorized OVH host.' >&2
+  systemctl show 3dvr-mark-chat-tracker.service --no-pager \
+    --property=ActiveState,SubState,Result,ExecMainCode,ExecMainStatus >&2 || true
+fi
 systemctl --no-pager --full status 3dvr-mark-chat-tracker.timer | sed -n '1,24p'
