@@ -170,3 +170,27 @@ test('account changes reconnect while an old chat is pending and ignore its late
   assert.notEqual(ui.element('account').textContent, '✓ old-account');
   assert.equal(ui.activeProgress(), 0);
 });
+
+test('an obsolete connection check cannot disconnect the new account or stop its queue', async () => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  let checks = 0;
+  const ui = screen(async payload => {
+    if (payload.action === 'status') {
+      if (++checks === 1) await gate;
+      return { status: 200, body: { ok: true, gateway: 'reachable', chatEnabled: true } };
+    }
+    return { status: 200, body: { ok: true, reply: 'Current account reply' } };
+  });
+  await ui.ready;
+  ui.changeAccount();
+  await flush(); await flush();
+  const connection = ui.element('connection').textContent;
+  const activity = ui.element('activity').textContent;
+  release(); await flush(); await flush();
+  assert.equal(ui.element('connection').textContent, connection);
+  assert.equal(ui.element('activity').textContent, activity);
+  await ui.submit('Current account diagnostic');
+  assert.equal(ui.saved.at(-1).status, 'completed');
+  assert.equal(ui.element('connection').textContent, 'Agent replied');
+});
