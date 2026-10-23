@@ -50,7 +50,9 @@ jobs:
                 if metrics="$(ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user@$host" 'bash -s' <<'REMOTE'
           set -euo pipefail
           if [ -f /usr/local/sbin/3dvr-cloud-reliability-health ]; then
-            python3 /usr/local/sbin/3dvr-cloud-reliability-health >&2
+            # The probe must not consume the remaining bash -s script over SSH.
+            # Its JSON result goes to stderr; metrics are emitted on stdout below.
+            python3 /usr/local/sbin/3dvr-cloud-reliability-health </dev/null >&2
           else
             echo "missing independent reliability probe" >&2
             exit 1
@@ -74,6 +76,18 @@ jobs:
                   disk_pct=$(sed -n 's/.*disk_used_pct=\([0-9]*\).*/\1/p' <<<"$metrics")
                   load1=$(sed -n 's/.*load1=\([^ ]*\).*/\1/p' <<<"$metrics")
                   cpus=$(sed -n 's/.*cpus=\([0-9]*\).*/\1/p' <<<"$metrics")
+
+                  # A successful SSH exit with absent metrics must never count as healthy.
+                  if [[ ! "$mem_pct" =~ ^[0-9]+$ || ! "$swap_pct" =~ ^[0-9]+$ \
+                     || ! "$disk_pct" =~ ^[0-9]+$ || ! "$cpus" =~ ^[1-9][0-9]*$ \
+                     || ! "$load1" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+                    echo "::error::$name returned missing or malformed resource metrics"
+                    return 2
+                  fi
+                  if (( 10#$mem_pct > 100 || 10#$swap_pct > 100 || 10#$disk_pct > 100 )); then
+                    echo "::error::$name returned out-of-range resource metrics"
+                    return 2
+                  fi
 
                   if [ "$mem_pct" -lt 10 ]; then
                     echo "::error::$name has only ${mem_pct}% memory available"
