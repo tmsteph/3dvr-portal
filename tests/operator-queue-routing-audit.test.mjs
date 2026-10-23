@@ -42,3 +42,30 @@ test('disabled GUN synchronization is flagged without touching tasks', () => {
   const result = inspectRouting({ THREEDVR_AGENT_QUEUE_GUN_SYNC: 'false' }, noDb);
   assert.equal(result.gunSyncExplicitlyDisabled, true);
 });
+
+test('read-only audit identifies stale capability mismatch without changing configuration', () => {
+  const env = {
+    THREEDVR_AGENT_OWNER_ALIAS: '3dvr-managed',
+    THREEDVR_AGENT_QUEUE_STORE: 'sqlite',
+    THREEDVR_AGENT_WORKER_CAPABILITIES: 'codex,node,static-hosting',
+    THREEDVR_OPERATOR_AUDIT_REQUIRED_CAPABILITIES: 'auto,shell,auto',
+  };
+  const snapshot = structuredClone(env);
+  const result = inspectRouting(env, noDb);
+  assert.equal(result.browserWorkerOwnerMatch, true);
+  assert.equal(result.workerCapabilitiesConfigured, true);
+  assert.equal(result.requiredCapabilitiesAudited, 3);
+  assert.deepEqual(result.missingRequiredCapabilities, ['auto', 'shell']);
+  assert.ok(result.warnings.some(warning => warning.includes('Do not enable stale tasks')));
+  assert.deepEqual(env, snapshot);
+});
+
+test('configured matching capabilities do not trigger mismatch warning', () => {
+  const result = inspectRouting({
+    THREEDVR_AGENT_OWNER_ALIAS: '3dvr-managed',
+    THREEDVR_AGENT_WORKER_CAPABILITIES: 'auto,shell,node',
+    THREEDVR_OPERATOR_AUDIT_REQUIRED_CAPABILITIES: 'auto,shell',
+  }, noDb);
+  assert.deepEqual(result.missingRequiredCapabilities, []);
+  assert.deepEqual(result.warnings, []);
+});
