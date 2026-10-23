@@ -44,6 +44,37 @@ test('CRM projection turns a successful payment receipt into a paid-customer act
   assert.match(record.nextBestAction, /Do not schedule a sales follow-up because payment occurred\.$/i);
 });
 
+test('CRM refuses paid status for ordinary transitions with payment-shaped metadata', () => {
+  const prospect = { name: 'Example', contact: 'info@example.test', source_url: '', state: 'replied', campaign_id: '', created_at: '2026-01-01T00:00:00Z' };
+  const payload = { payment: { amount_cents: 2000, currency: 'usd', plan: 'starter', payment_intent_id: 'pi_example' } };
+  const record = recordFor(prospect, {
+    id: 'ordinary-transition', type: 'state_transition', payload_json: JSON.stringify(payload)
+  }, '2026-01-02T00:00:00Z');
+  assert.equal(record.status, 'Warm - Discovery');
+  assert.equal(record.lastPaymentAmountCents, undefined);
+  assert.doesNotMatch(record.lastSignal, /Successful payment/);
+});
+
+test('CRM refuses payment success without a positive settled amount and provider receipt', () => {
+  const prospect = { name: 'Example', contact: 'info@example.test', source_url: '', state: 'replied', campaign_id: '', created_at: '2026-01-01T00:00:00Z' };
+  const scenarios = [
+    { amount_cents: 2000, plan: 'starter' },
+    { amount_cents: 0, payment_intent_id: 'pi_example' },
+    { amount_cents: -100, payment_intent_id: 'pi_example' },
+    { amount_cents: 2000.5, payment_intent_id: 'pi_example' },
+    { amount_cents: 2000, payment_intent_id: 'pi_example', status: 'pending' },
+    { amount_cents: 2000, payment_intent_id: 'pi_example', status: 'failed' },
+    { plan: 'starter', subscription_id: 'sub_example' }
+  ];
+  for (const [index, payment] of scenarios.entries()) {
+    const record = recordFor(prospect, {
+      id: `invalid-payment-${index}`, type: 'payment_succeeded', payload_json: JSON.stringify({ payment })
+    }, '2026-01-02T00:00:00Z');
+    assert.equal(record.status, 'Warm - Discovery', `scenario ${index}`);
+    assert.equal(record.lastPaymentAmountCents, undefined, `scenario ${index}`);
+  }
+});
+
 test('remote projection roots do not initialize a local radata store', () => {
   const source = fs.readFileSync(require.resolve('../thomas-agent/node/revenue-crm-projection'), 'utf8');
   assert.match(source, /axe:\s*false/);
