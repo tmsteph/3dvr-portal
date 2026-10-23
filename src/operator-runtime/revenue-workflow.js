@@ -130,6 +130,12 @@ export function advanceRevenueLead(item, event, options = {}) {
   if (RECEIPT_EVENTS.has(event) && !hasReceipt(options.evidence)) {
     throw new TypeError(`${event} requires a typed external receipt reference (type and id)`);
   }
+  // Reusing the same provider event for another stage is not new execution
+  // evidence. This protects per-lead history; provider read-back is still required.
+  if (RECEIPT_EVENTS.has(event) && (item.evidence || []).some(receipt =>
+    receipt?.type === options.evidence.type && receipt?.id === options.evidence.id)) {
+    throw new TypeError(`${event} cannot reuse an existing external receipt`);
+  }
   const sendCheckpoint = options.humanCheckpoint ?? item.humanCheckpoint;
   // Check the entire per-lead history, not only the most recent send. A -> B -> A
   // must not permit reuse of approval A for a third external message.
