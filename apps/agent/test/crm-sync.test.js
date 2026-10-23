@@ -243,3 +243,23 @@ test('normalizeEmail strips mailto and rejects non-email contacts', () => {
   assert.equal(normalizeEmail('mailto:Owner@Example.com'), 'owner@example.com');
   assert.equal(normalizeEmail('https://example.com/contact'), '');
 });
+
+test('writeCrmSync rejects missing or negative Gun acknowledgments', async () => {
+  const ackRoot = ack => ({
+    get() { return { put(_payload, cb) { cb(ack); } }; }
+  });
+  const payload = {
+    records: [{ id: 'synthetic-record' }],
+    touches: [{ id: 'synthetic-touch' }]
+  };
+  for (const ack of [undefined, null, { ok: false }, { err: 'synthetic rejection' }]) {
+    const result = await writeCrmSync(payload, {
+      crmRoot: ackRoot(ack),
+      touchRoot: ackRoot(ack),
+      timeoutMs: 100
+    });
+    assert.equal(result.records, 0);
+    assert.equal(result.touches, 0);
+    assert.equal(result.errors.length, 2);
+  }
+});
