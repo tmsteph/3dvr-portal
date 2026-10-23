@@ -38,3 +38,20 @@ test('no undeployed main timestamp commit or hidden acceptance failure', () => {
   assert.match(workflow, /if \[ "\$JOB_STATUS" = success \]/);
   assert.match(workflow, /Remove temporary deployment credentials\s+if: always\(\)/);
 });
+
+test('tracker OpenBao helper is atomically installed and verified before service startup', async () => {
+  const trackerInstall = await readFile(
+    new URL('../scripts/ops/install-mark-chat-tracker.sh', import.meta.url),
+    'utf8'
+  );
+  assert.match(workflow, /bash "\$source_repo\/scripts\/ops\/install-mark-chat-tracker\.sh" "\$source_repo"/);
+  assert.match(trackerInstall, /source_openbao_helper="\$ROOT\/apps\/agent\/connectors\/secrets\/openbao\.js"/);
+  assert.match(trackerInstall, /installed_openbao_helper="\/opt\/3dvr\/secrets-broker\/openbao\.js"/);
+  assert.match(trackerInstall, /\[ -L "\$installed_openbao_helper" \]/);
+  assert.match(trackerInstall, /mktemp \/opt\/3dvr\/secrets-broker\/\.openbao\.js\./);
+  assert.match(trackerInstall, /mv -Tf "\$helper_tmp" "\$installed_openbao_helper"/);
+  const parity = trackerInstall.lastIndexOf('cmp -s "$source_openbao_helper" "$installed_openbao_helper"');
+  const start = trackerInstall.indexOf('systemctl start 3dvr-mark-chat-tracker.service');
+  assert.ok(parity >= 0 && start > parity, 'exact source/runtime parity must precede service start');
+  assert.doesNotMatch(trackerInstall, /systemctl restart (?:openbao|3dvr-secrets-broker)/);
+});
