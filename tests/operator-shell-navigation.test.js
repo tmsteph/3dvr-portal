@@ -58,3 +58,14 @@ test('portal home and Operator aliases stay in the parent shell',()=>{
     assert.equal(operatorShellDestination(href),'');
   }
 });
+
+
+test('Operator subdomain keeps app links distinct from the parent chat',()=>{
+  const base='https://operator.3dvr.tech/operator/';
+  for(const href of ['/calendar/','/helm/','/life-space/']){
+    assert.equal(operatorShellDestination(href,base),'');
+  }
+  assert.equal(operatorShellDestination('/',base),'chat');
+  assert.equal(operatorShellDestination('/operator/',base),'chat');
+  assert.equal(operatorShellDestination('https://portal.3dvr.tech/',base),'apps');
+});
