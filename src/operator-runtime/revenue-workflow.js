@@ -131,8 +131,15 @@ export function advanceRevenueLead(item, event, options = {}) {
     throw new TypeError(`${event} requires a typed external receipt reference (type and id)`);
   }
   const sendCheckpoint = options.humanCheckpoint ?? item.humanCheckpoint;
-  if (SEND_EVENTS.has(event) && (!hasApprovedCheckpoint(sendCheckpoint) ||
-      sendCheckpoint.id === item.metadata?.lastOutboundApprovalId)) {
+  // Check the entire per-lead history, not only the most recent send. A -> B -> A
+  // must not permit reuse of approval A for a third external message.
+  const usedApprovalIds = item.metadata?.usedOutboundApprovalIds;
+  if (SEND_EVENTS.has(event) && (
+      (usedApprovalIds !== undefined && (!Array.isArray(usedApprovalIds) ||
+        usedApprovalIds.some(id => typeof id !== 'string' || !id.trim()))) ||
+      !hasApprovedCheckpoint(sendCheckpoint) ||
+      sendCheckpoint.id === item.metadata?.lastOutboundApprovalId ||
+      (Array.isArray(usedApprovalIds) && usedApprovalIds.includes(sendCheckpoint.id)))) {
     throw new TypeError(`${event} requires a fresh traceable approved human checkpoint`);
   }
   if (event === 'payment_received' &&
@@ -152,7 +159,11 @@ export function advanceRevenueLead(item, event, options = {}) {
     metadata: {
       stage: nextStage,
       lastEvent: event,
-      ...(SEND_EVENTS.has(event) ? { lastOutboundApprovalId: sendCheckpoint.id } : {}),
+      ...(SEND_EVENTS.has(event) ? {
+        lastOutboundApprovalId: sendCheckpoint.id,
+        usedOutboundApprovalIds: [...new Set([...(Array.isArray(usedApprovalIds) ? usedApprovalIds : []),
+          item.metadata?.lastOutboundApprovalId, sendCheckpoint.id].filter(Boolean))]
+      } : {}),
       nextFollowUpAt: options.nextFollowUpAt ?? item.metadata?.nextFollowUpAt ?? null,
       lastTransitionAt: options.now || new Date().toISOString()
     }
