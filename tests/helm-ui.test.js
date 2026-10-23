@@ -13,6 +13,9 @@ function screen(result, status = 200, signedIn = true, gate) {
   const events = new Map();
   const saved = [];
   const requests = [];
+  const intervals = new Map();
+  let clock = Date.now();
+  class Clock extends Date { static now() { return clock; } }
   const storage = new Map([['signedIn', signedIn ? 'true' : 'false'], ['alias', 'tmsteph@3dvr'], ['username', 'tmsteph']]);
   const makeElement = () => ({ dataset: {}, value: '', children: [], classList: { toggle() {}, remove() {} },
     append(...items) { this.children.push(...items); }, replaceChildren(...items) { this.children = items; },
@@ -26,17 +29,21 @@ function screen(result, status = 200, signedIn = true, gate) {
     document: { getElementById: element, querySelectorAll: () => [], createElement: makeElement, createTextNode: text => text },
     window: { addEventListener(event, fn) { events.set(`window:${event}`, fn); } },
     localStorage: { getItem: key => storage.get(key) }, crypto: { randomUUID }, AbortSignal,
-    setInterval: () => 1, createOutbox,
+    Date: Clock,
+    setInterval: (fn, delay) => { const id = Symbol(); intervals.set(id, { fn, delay }); return id; },
+    clearInterval: id => intervals.delete(id), createOutbox,
     openHelmMessageStore: async () => ({ save: async record => saved.push(structuredClone(record)), close() {} }),
     createSignedPortalProof: async () => ({ authProof: 'signed' }),
     fetch: async (_url, options) => {
       const payload = JSON.parse(options.body); requests.push(payload);
       if (payload.action === 'status' && gate) await gate;
-      const reply = typeof result === 'function' ? result(payload) : { status, body: result };
+      const reply = await (typeof result === 'function' ? result(payload) : { status, body: result });
       return { ok: reply.status === 200, status: reply.status, json: async () => reply.body };
     }
   });
   return { element, saved, requests, ready: flush(),
+    activeProgress: () => [...intervals.values()].filter(item => item.delay === 1000).length,
+    advance: ms => { clock += ms; for (const item of intervals.values()) if (item.delay === 1000) item.fn(); },
     newChat: () => events.get('new-chat:click')(),
     submit: async text => { element('message').value = text; await events.get('chat-form:submit')({ preventDefault() {} }); } };
 }
@@ -98,4 +105,39 @@ test('HTTP busy rejection stays retryable while unknown delivery stays uncertain
   await ui.submit('Wait for the busy agent');
   assert.equal(ui.saved.at(-1).status, 'deferred');
   assert.equal(ui.element('queue-summary').textContent.startsWith('1 queued'), true);
+});
+
+test('slow chat shows elapsed progress and replaces it with a returned reply', async () => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const ui = screen(async payload => {
+    if (payload.action === 'status') return { status: 200, body: { ok: true, gateway: 'reachable', chatEnabled: true } };
+    await gate;
+    return { status: 200, body: { ok: true, reply: 'Done' } };
+  });
+  await ui.ready;
+  const submitted = ui.submit('Harmless diagnostic');
+  await flush();
+  assert.equal(ui.element('connection').textContent, 'Waiting for agent reply');
+  ui.advance(55000);
+  assert.match(ui.element('activity').textContent, /55s elapsed/);
+  assert.equal(ui.activeProgress(), 1);
+  release(); await submitted;
+  assert.equal(ui.element('connection').textContent, 'Agent replied');
+  assert.equal(ui.element('activity').textContent, 'Reply received after 55s.');
+  assert.equal(ui.saved.at(-1).status, 'completed');
+  assert.equal(ui.activeProgress(), 0);
+});
+
+test('unconfirmed delivery stops progress and directs the user to history without replay', async () => {
+  const ui = screen(payload => payload.action === 'status'
+    ? { status: 200, body: { ok: true, gateway: 'reachable', chatEnabled: true } }
+    : { status: 503, body: { ok: false, error: 'Connection interrupted.' } });
+  await ui.ready;
+  await ui.submit('Do not replay');
+  assert.equal(ui.element('connection').textContent, 'Reply not confirmed');
+  assert.match(ui.element('activity').textContent, /Check History before sending again/);
+  assert.equal(ui.saved.at(-1).status, 'uncertain');
+  assert.equal(ui.requests.filter(item => item.action === 'chat').length, 1);
+  assert.equal(ui.activeProgress(), 0);
 });
