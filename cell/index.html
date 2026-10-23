@@ -738,7 +738,7 @@
         <div class="preview-card">
           <h3>Portal directions</h3>
           <p>
-            Next version ideas: member roster, shared needs board, opportunity pipeline, notes, map, chat, and links to project apps across the portal.
+            This version keeps Cell descriptions private to your account. Member invitations and shared group access are planned.
           </p>
         </div>
       </aside>
@@ -748,42 +748,33 @@
       <div class="card panel">
         <div class="cell-card__header">
           <div>
-            <h2 style="margin-bottom: 6px;">Live Cell registry</h2>
-            <p style="margin-bottom: 0;">Manage your growing network here. This is a shared public registry: save group descriptions only; keep private member details out.</p>
+            <h2 style="margin-bottom: 6px;">My private Cells</h2>
+            <p style="margin-bottom: 0;">Your new Cells are encrypted and visible only to your signed-in account. Existing public registry entries remain public and are not loaded here. Invitations and shared member access are not available yet.</p>
           </div>
           <span class="status-chip"><span>Sync</span><strong id="syncStatus">Connecting…</strong></span>
         </div>
         <div class="status-grid" aria-label="Cell sync stats">
           <div class="status-chip"><span>Saved cells</span><strong id="cellCount">0</strong></div>
           <div class="status-chip"><span>Selected cell</span><strong id="activeCellLabel">None</strong></div>
-          <div class="status-chip"><span>Linked apps</span><strong id="linkedAppCount">5</strong></div>
+          <div class="status-chip"><span>Access</span><strong id="linkedAppCount">Owner only</strong></div>
           <div class="status-chip"><span>Last save</span><strong id="lastSavedAt">—</strong></div>
         </div>
         <label for="cellSearch">Find a Cell</label>
         <input id="cellSearch" type="search" placeholder="Search by name, focus, or purpose" />
         <p id="cellSearchStatus" role="status" aria-live="polite"></p>
         <div id="cellList" class="cell-list"></div>
-        <p id="cellEmpty" class="footer-note" style="padding: 12px 0 0; text-align:left;">No cells have been saved yet. Create one above to start your network.</p>
+        <p id="cellEmpty" class="footer-note" style="padding: 12px 0 0; text-align:left;">No private Cells loaded yet. Sign in and create one to start your network.</p>
       </div>
 
       <div class="card panel">
-        <h2>Connected apps</h2>
-        <p>
-          Every Cell can fan out into the rest of the portal. The links below carry the active `cellId` into the shared tools.
-        </p>
-        <div class="app-link-row" style="margin-bottom: 14px;">
-          <a class="app-link" data-cell-app="contacts" href="../contacts/index.html">Contacts</a>
-          <a class="app-link" data-cell-app="crm" href="../crm/index.html">CRM</a>
-          <a class="app-link" data-cell-app="finance" href="../finance/index.html">Finance</a>
-          <a class="app-link" data-cell-app="chat" href="../chat/">Chat</a>
-          <a class="app-link" data-cell-app="billing" href="../billing/index.html">Billing</a>
+        <h2>Your private workspace</h2>
+        <p id="cellAccountStatus" role="status" aria-live="polite">Sign in to unlock your private Cells.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="/auth/sign-in.html?redirect=%2Fcell%2F">Sign in with Portal username</a>
+          <button class="secondary" type="button" id="cellRetry">Retry unlock</button>
         </div>
-        <div class="preview-card">
-          <h3>How it flows</h3>
-          <p style="margin-bottom: 0;">
-            Save a Cell here, open it in CRM to work the relationship graph, open Contacts to organize people around it, or open Finance to keep the group’s costs and reimbursements aligned.
-          </p>
-        </div>
+        <p>Private Cells require a Portal username and password. OAuth-only accounts need an encryption-key link before they can unlock this workspace. Group names, purposes, and pillars are not published to the old registry.</p>
+        <p>Connected apps have their own access rules. Private Cell details stay here until shared access is implemented.</p>
       </div>
     </section>
 
@@ -792,7 +783,7 @@
     </div>
   </main>
 
-  <script src="./app.js"></script>
+  <script type="module" src="./app.js"></script>
 
   <script>
     const form = document.getElementById('cellForm');
