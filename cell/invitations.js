@@ -30,6 +30,7 @@ export async function openCellInvitations({
   let journal;
   const metadataInbox = [];
   let queue = Promise.resolve();
+  let retrying = null;
   const grants = new Map();
   const memberships = new Map();
   const streams = new Map();
@@ -157,10 +158,20 @@ export async function openCellInvitations({
     showMembers(record.cellId);
     return publishGrant(record);
   }
-  const retryPending = () => enqueue(async () => {
-    await journal.retryPending();
-    for (const grant of grants.values()) if (grant.pendingSync) await publishGrant(grant);
-  });
+  function retryPending() {
+    if (!current()) return Promise.resolve();
+    if (retrying) return retrying;
+    retrying = (async () => {
+      await journal.retryPending();
+      const pending = [...grants.values()].filter(grant => grant.pendingSync);
+      // Background relay timeouts must not block owner invitation/revocation controls.
+      for (let index = 0; index < pending.length && current(); index += 4) {
+        await Promise.all(pending.slice(index, index + 4).map(grant =>
+          grants.get(grant.id)?.eventId === grant.eventId ? publishGrant(grant) : undefined));
+      }
+    })().finally(() => { retrying = null; });
+    return retrying;
+  }
   void retryPending().catch(() => {});
   return {
     async memberCode() {

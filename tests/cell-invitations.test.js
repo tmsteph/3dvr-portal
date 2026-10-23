@@ -10,6 +10,7 @@ function network() {
   const streams = new Set();
   const writes = [];
   let online = true;
+  let acknowledgeShares = true;
   function node(owner, path = [], writer = '') {
     const prefix = `${owner}/${path.join('/')}`;
     return {
@@ -22,7 +23,7 @@ function network() {
           const parent = prefix.slice(0, prefix.lastIndexOf('/'));
           if (stream.prefix === parent) stream.callback(structuredClone(value), path.at(-1));
         }
-        ack?.({ok:1});
+        if (acknowledgeShares || !prefix.includes('/shares/')) ack?.({ok:1});
       },
       map() {
         let subscription;
@@ -42,6 +43,7 @@ function network() {
   }
   return {
     values, writes, online(value) { online = value; },
+    acknowledgeShares(value) { acknowledgeShares = value; },
     async account() {
       const pair = await SEA.pair();
       const data = new Map([['signedIn','true'],['userPubKey',pair.pub],['alias','test-account']]);
@@ -150,5 +152,23 @@ test('account change during invitation encryption prevents shared writes', async
     change=true;
     await assert.rejects(host.invite(cell,await guest.memberCode(),'https://portal.test/cell/'),/Account changed/);
     assert.equal(net.writes.filter(x=>x.path.includes('/shares/')).length,0);
+  } finally {host.close();guest.close();}
+});
+
+test('background share retries do not delay recording owner revocation intent', async () => {
+  const net = network();
+  const owner = await net.account();
+  const member = await net.account();
+  const host = await openCellInvitations({...owner.options,timeoutMs:150});
+  const guest = await openCellInvitations(member.options);
+  try {
+    net.acknowledgeShares(false);
+    await host.invite(cell,await guest.memberCode(),'https://portal.test/cell/');
+    const grant = owner.members.get(cell.id)[0];
+    const retry = host.retryPending();
+    const revoke = host.revoke(grant.id);
+    await flush();
+    assert.equal(owner.members.get(cell.id)[0].revoked,true);
+    await Promise.all([retry,revoke]);
   } finally {host.close();guest.close();}
 });
