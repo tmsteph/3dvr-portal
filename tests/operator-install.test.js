@@ -4,18 +4,19 @@ import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 
 const source = await readFile(new URL('../operator/install.js', import.meta.url), 'utf8');
-function setup(installed = false) {
+function setup(installed = false, hostname = 'operator.3dvr.tech') {
   const events = {};
   let click;
   let dialogs = 0;
+  let destination = null;
   const button = { parentElement: { hidden: false }, disabled: false, addEventListener(type, handler) { click = handler; } };
   const help = { showModal() { dialogs++; } };
   vm.runInNewContext(source, {
     document: { getElementById: (id) => id === 'operator-install' ? button : help },
     navigator: {},
-    window: { matchMedia: () => ({ matches: installed, addEventListener() {} }), addEventListener: (type, handler) => { events[type] = handler; } }
+    window: { location: { hostname, assign: (url) => { destination = url; } }, matchMedia: () => ({ matches: installed, addEventListener() {} }), addEventListener: (type, handler) => { events[type] = handler; } }
   });
-  return { events, button, click: () => click(), dialogs: () => dialogs };
+  return { events, button, click: () => click(), dialogs: () => dialogs, destination: () => destination };
 }
 
 test('Install stays available without a browser install event and opens instructions repeatedly', async () => {
@@ -50,4 +51,12 @@ test('installed apps hide the install entry', () => {
   const ui = setup();
   ui.events.appinstalled();
   assert.equal(ui.button.parentElement.hidden, true);
+});
+
+
+test('Portal install button opens the independent Operator origin', async () => {
+  const ui = setup(false, 'portal.3dvr.tech');
+  await ui.click();
+  assert.equal(ui.destination(), 'https://operator.3dvr.tech/operator/');
+  assert.equal(ui.dialogs(), 0);
 });

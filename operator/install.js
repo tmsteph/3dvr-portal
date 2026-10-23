@@ -19,6 +19,10 @@
     button.parentElement.hidden = true;
   });
   button.addEventListener('click', async () => {
+    if (window.location.hostname === 'portal.3dvr.tech') {
+      window.location.assign('https://operator.3dvr.tech/operator/');
+      return;
+    }
     const prompt = installPrompt;
     installPrompt = null;
     if (!prompt) {
