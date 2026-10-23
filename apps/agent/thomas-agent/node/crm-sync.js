@@ -384,7 +384,9 @@ function putGun(node, payload, timeoutMs = DEFAULT_WRITE_TIMEOUT_MS) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      resolve(ack || { ok: true });
+      // An absent or negative Gun ACK is not proof that a CRM write landed.
+      // Keep the write retryable instead of reporting a fabricated success.
+      resolve(ack && !ack.err && ack.ok ? ack : { err: ack?.err || 'crm sync write missing positive acknowledgment' });
     });
   });
 }
