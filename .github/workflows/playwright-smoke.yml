@@ -35,6 +35,9 @@ jobs:
       - name: Run Operator business system regression tests
         run: node --test tests/operator-business-system.test.js tests/operator-runtime-resources.test.js tests/growth-desk.test.js
 
+      - name: Enforce no-send legacy outbound policy
+        run: node --test tests/money-outbound-autopilot.test.js
+
       - name: Run browser lane regression tests
         run: node --test tests/browser-lane-lease.test.js
 
