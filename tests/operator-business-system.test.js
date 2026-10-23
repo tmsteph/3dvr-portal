@@ -115,18 +115,25 @@ test('revenue workflow carries a lead from research to verified payment', () => 
   assert.equal(revenueStage(item), 'qualify');
   item = advanceRevenueLead(item, 'qualified', { now: '2026-09-12T18:02:00.000Z' });
   assert.equal(revenueStage(item), 'outreach');
-  item = advanceRevenueLead(item, 'outreach_sent', { now: '2026-09-12T18:03:00.000Z', evidence: { type: 'email', id: 'msg-1' } });
+  assert.throws(() => advanceRevenueLead(item, 'outreach_sent', { evidence: { type: 'email', id: 'msg-1' } }), /approved human checkpoint/);
+  item = advanceRevenueLead(item, 'outreach_sent', {
+    now: '2026-09-12T18:03:00.000Z',
+    humanCheckpoint: { status: 'approved', id: 'approval-1' },
+    evidence: { type: 'email', id: 'msg-1' }
+  });
   assert.equal(revenueStage(item), 'waiting_reply');
   assert.equal(item.state, 'waiting_external');
-  item = advanceRevenueLead(item, 'reply_received', { now: '2026-09-12T18:04:00.000Z' });
+  item = advanceRevenueLead(item, 'reply_received', { now: '2026-09-12T18:04:00.000Z', evidence: { type: 'reply', id: 'reply-1' } });
   assert.equal(revenueStage(item), 'proposal');
-  item = advanceRevenueLead(item, 'proposal_sent', { now: '2026-09-12T18:05:00.000Z' });
+  item = advanceRevenueLead(item, 'proposal_sent', { now: '2026-09-12T18:05:00.000Z', evidence: { type: 'email', id: 'proposal-1' } });
   assert.equal(revenueStage(item), 'payment');
-  item = advanceRevenueLead(item, 'payment_received', { now: '2026-09-12T18:06:00.000Z', result: { amount: 1200 } });
+  item = advanceRevenueLead(item, 'payment_received', {
+    now: '2026-09-12T18:06:00.000Z', result: { amount: 1200 }, evidence: { type: 'payment', id: 'payment-1' }
+  });
   assert.equal(revenueStage(item), 'won');
   assert.equal(item.state, 'done');
   assert.equal(item.result.amount, 1200);
-  assert.equal(item.evidence.length, 1);
+  assert.equal(item.evidence.length, 4);
 });
 
 test('business team keeps one manager plus bounded functional roles', () => {
@@ -138,4 +145,39 @@ test('business team keeps one manager plus bounded functional roles', () => {
     'operations',
     'engineering'
   ]);
+});
+
+
+test('revenue events cannot assert sends, replies, or payments without receipts and approval', () => {
+  const outreach = createRevenueLeadWorkItem({ id: 'outreach-1', stage: 'outreach' });
+  assert.throws(() => advanceRevenueLead(outreach, 'outreach_sent'), /external receipt/);
+  assert.throws(() => advanceRevenueLead(outreach, 'outreach_sent', {
+    evidence: { type: 'email', id: 'msg-1' }, humanCheckpoint: { status: 'approved' }
+  }), /approved human checkpoint/);
+  const waiting = createRevenueLeadWorkItem({ id: 'waiting-1', stage: 'waiting_reply' });
+  assert.throws(() => advanceRevenueLead(waiting, 'reply_received'), /external receipt/);
+  const followUp = createRevenueLeadWorkItem({ id: 'follow-1', stage: 'follow_up' });
+  assert.throws(() => advanceRevenueLead(followUp, 'follow_up_sent', {
+    evidence: { type: 'email', id: 'msg-2' }
+  }), /approved human checkpoint/);
+  const proposal = createRevenueLeadWorkItem({ id: 'proposal-1', stage: 'proposal' });
+  assert.throws(() => advanceRevenueLead(proposal, 'proposal_sent', {
+    evidence: { type: 'email', id: 'msg-3' }
+  }), /approved human checkpoint/);
+  const payment = createRevenueLeadWorkItem({ id: 'payment-1', stage: 'payment' });
+  assert.throws(() => advanceRevenueLead(payment, 'payment_received', { result: { amount: 100 } }), /external receipt/);
+  assert.throws(() => advanceRevenueLead(payment, 'payment_received', {
+    result: { amount: 100 }, evidence: { type: 'email', id: 'msg-4' }
+  }), /payment receipt/);
+  assert.throws(() => advanceRevenueLead(payment, 'payment_received', {
+    result: { amount: 0 }, evidence: { type: 'payment', id: 'pay-1' }
+  }), /positive numeric amount/);
+  assert.throws(() => advanceRevenueLead(payment, 'payment_received', {
+    result: { amount: '100' }, evidence: { type: 'payment', id: 'pay-1' }
+  }), /positive numeric amount/);
+  const won = advanceRevenueLead(payment, 'payment_received', {
+    result: { amount: 100 }, evidence: { type: 'payment', id: 'pay-1' }
+  });
+  assert.equal(revenueStage(won), 'won');
+  assert.equal(won.evidence[0].id, 'pay-1');
 });
