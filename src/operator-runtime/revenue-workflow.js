@@ -108,6 +108,10 @@ export function createRevenueLeadWorkItem(input = {}) {
 // A structured receipt reference is necessary but does not replace provider read-back.
 const RECEIPT_EVENTS = new Set(['outreach_sent', 'follow_up_sent', 'proposal_sent', 'reply_received', 'payment_received']);
 const SEND_EVENTS = new Set(['outreach_sent', 'follow_up_sent', 'proposal_sent']);
+// A receipt from a different kind of event cannot establish that a message
+// was sent or that a reply arrived. Provider verification remains mandatory.
+const SEND_RECEIPT_TYPES = new Set(['email', 'sms', 'whatsapp', 'message']);
+const REPLY_RECEIPT_TYPES = new Set(['reply', 'email_reply', 'sms_reply', 'whatsapp_reply']);
 
 function hasReceipt(evidence) {
   return evidence && typeof evidence === 'object' && !Array.isArray(evidence)
@@ -129,6 +133,12 @@ export function advanceRevenueLead(item, event, options = {}) {
 
   if (RECEIPT_EVENTS.has(event) && !hasReceipt(options.evidence)) {
     throw new TypeError(`${event} requires a typed external receipt reference (type and id)`);
+  }
+  if (SEND_EVENTS.has(event) && !SEND_RECEIPT_TYPES.has(options.evidence.type)) {
+    throw new TypeError(`${event} requires an outbound message receipt type`);
+  }
+  if (event === 'reply_received' && !REPLY_RECEIPT_TYPES.has(options.evidence.type)) {
+    throw new TypeError('reply_received requires an inbound reply receipt type');
   }
   // Reusing the same provider event for another stage is not new execution
   // evidence. This protects per-lead history; provider read-back is still required.
