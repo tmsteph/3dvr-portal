@@ -252,7 +252,7 @@ test('writeCrmSync rejects missing or negative Gun acknowledgments', async () =>
     records: [{ id: 'synthetic-record' }],
     touches: [{ id: 'synthetic-touch' }]
   };
-  for (const ack of [undefined, null, { ok: false }, { err: 'synthetic rejection' }]) {
+  for (const ack of [undefined, null, { ok: false }, { ok: 0 }, { ok: -1 }, { ok: 'yes' }, { err: 'synthetic rejection' }]) {
     const result = await writeCrmSync(payload, {
       crmRoot: ackRoot(ack),
       touchRoot: ackRoot(ack),
