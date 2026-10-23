@@ -56,5 +56,11 @@ jobs:
       - name: Run Campaigns Gmail sender regression tests
         run: node --test tests/campaigns.test.js tests/oauth-provider-api.test.js
 
+      - name: Run Cell privacy regression tests
+        run: node --test tests/cell-private-store.test.js tests/cell-network.test.js tests/cell-cross-app.test.js
+
       - name: Run Playwright checks
         run: npm run playwright:verify:linux
+
+      - name: Run private Cell mobile browser check
+        run: node --test tests/cell-private.e2e.test.js
