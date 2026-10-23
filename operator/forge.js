@@ -235,7 +235,7 @@ export async function openCellAccount() {
   if (!pair?.pub || context.user.is?.pub !== pair.pub) {
     throw new Error('Sign in again to unlock your private Cells.');
   }
-  return { user: context.user, pair, sea: globalThis.Gun.SEA };
+  return { gun: context.gun, user: context.user, pair, sea: globalThis.Gun.SEA };
 }
 
 function writeGun(node, value) {

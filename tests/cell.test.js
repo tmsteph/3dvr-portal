@@ -43,7 +43,7 @@ describe('cell hub', () => {
     const store = await readFile(new URL('private-store.js', baseDir), 'utf8');
     assert.match(js, /openPrivateCellStore/);
     assert.doesNotMatch(js, /get\('cellHub'\)|get\('activity'\)|get\('meta'\)/);
-    assert.match(store, /user.get\('cell-v1'\).get\('cells'\)/);
+    assert.match(store, /user.get\(namespace\).get\('cells'\)/);
     assert.match(store, /sea.encrypt/);
     assert.match(store, /sea.decrypt/);
   });
