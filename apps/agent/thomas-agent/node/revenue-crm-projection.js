@@ -50,14 +50,27 @@ function paymentReceiptFor(event = {}) {
   };
 }
 
-function recordFor(prospect, event, now) {
-  const paymentReceipt = paymentReceiptFor(event);
+// Project the latest structurally valid payment at or before this event. A
+// later CRM sync must not erase an earlier payment simply because the new
+// ledger event is a note/state change. Never peek at future payment events.
+function latestPaymentEventThrough(db, prospectId, eventId) {
+  const rows = db.prepare(`SELECT * FROM revenue_events
+    WHERE prospect_id = ? AND type = 'payment_succeeded'
+      AND rowid <= (SELECT rowid FROM revenue_events WHERE id = ?)
+    ORDER BY rowid DESC`).all(prospectId, eventId);
+  return rows.find(row => paymentReceiptFor(row)) || null;
+}
+
+function recordFor(prospect, event, now, paymentEvent = event) {
+  const paymentReceipt = paymentReceiptFor(paymentEvent || {});
   const crmStatus = paymentReceipt ? 'Paid Customer' : ({
     prospect: 'Lead', verified: 'Lead', drafted: 'Lead', eligible: 'Lead',
     sent: 'Warm - Waiting', replied: 'Warm - Discovery', bounced: 'Lost',
     failed: 'Lost', suppressed: 'Closed',
   }[prospect.state] || 'Lead');
-  const nextBestAction = paymentReceipt
+  const nextBestAction = ['suppressed', 'bounced'].includes(prospect.state)
+    ? 'Do not contact.'
+    : paymentReceipt
     ? 'Activate the customer, deliver value, and capture proof/outcome. Do not schedule a sales follow-up because payment occurred.'
     : ({
       sent: 'Wait for reply or a genuinely new material reason to contact. Do not schedule an automatic sales follow-up.',
@@ -124,7 +137,8 @@ async function projectPendingCrm(db, options = {}) {
     try {
       if (!(prospect && event)) throw new Error('Projection references missing canonical data');
       const now = new Date().toISOString();
-      const response = await write({ records: [recordFor(prospect, event, now)], touches: [touchFor(prospect, event, now)] }, writeOptions);
+      const paymentEvent = latestPaymentEventThrough(db, prospect.id, event.id);
+      const response = await write({ records: [recordFor(prospect, event, now, paymentEvent)], touches: [touchFor(prospect, event, now)] }, writeOptions);
       if (response?.errors?.length) throw new Error(response.errors.join('; '));
       finishProjection(db, { id: row.id, status: 'succeeded' });
       result.succeeded += 1;
