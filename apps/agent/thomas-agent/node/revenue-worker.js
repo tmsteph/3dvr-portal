@@ -1,12 +1,7 @@
 const fs = require('node:fs');
-const { execFile } = require('node:child_process');
-const { promisify } = require('node:util');
-const { acknowledgedDeliveryCount, createProspect, getProspect, openLedger, startRun, finishRun, transitionProspect } = require('./revenue-ledger');
-const { deliverProspect } = require('./revenue-delivery');
+const { createProspect, getProspect, openLedger, startRun, finishRun, transitionProspect } = require('./revenue-ledger');
 const { consumeInboxState } = require('./revenue-inbox-consumer');
 const { projectPendingCrm } = require('./revenue-crm-projection');
-
-const execFileAsync = promisify(execFile);
 
 function releaseSha() {
   return String(process.env.THREEDVR_RELEASE_SHA || 'unknown').trim();
@@ -57,45 +52,19 @@ function prepareCandidate(db, candidate) {
   return { prospect: getProspect(db, prospect.id), eligible: prospect.state === 'eligible' };
 }
 
-async function sendCandidate(candidate) {
-  const script = require.resolve('./send-outreach-email');
-  const contact = String(candidate.contact).replace(/^mailto:/i, '');
-  const result = await execFileAsync(process.execPath, [
-    script, '--to', contact, '--subject', candidate.subject, '--text', candidate.body,
-  ], { timeout: Number.parseInt(process.env.THREEDVR_REVENUE_SEND_TIMEOUT_MS || '30000', 10) });
-  return { acknowledged: true, messageId: '', transport: 'portal', stdout: result.stdout };
+// Legacy autonomous revenue delivery has no independently authenticated,
+// single-use human approval bound to the recipient and message body.
+// It must not be re-enabled by an environment flag or injected sender.
+async function sendCandidate() {
+  throw new Error('Outbound delivery disabled until authenticated per-message approval and delivery verification exist');
 }
 
-async function deliverCandidate(db, options = {}) {
-  if (!enabled(process.env.THREEDVR_REVENUE_DELIVERY_ENABLED)) {
-    return { attempted: 0, sends: 0, disabled: true };
-  }
-  const candidate = loadCandidate();
-  if (!candidate) return { attempted: 0, sends: 0, reason: 'no candidate' };
-  const startOfUtcDay = new Date();
-  startOfUtcDay.setUTCHours(0, 0, 0, 0);
-  const dailyLimit = Number.parseInt(process.env.THREEDVR_REVENUE_DAILY_SEND_LIMIT || '1', 10);
-  const campaignLimit = Number.parseInt(process.env.THREEDVR_REVENUE_CAMPAIGN_SEND_LIMIT || '10', 10);
-  const dailySent = acknowledgedDeliveryCount(db, { since: startOfUtcDay.toISOString() });
-  const campaignSent = acknowledgedDeliveryCount(db, { since: '1970-01-01T00:00:00.000Z', campaignId: candidate.campaignId || 'market-research' });
-  if (dailySent >= dailyLimit || campaignSent >= campaignLimit) {
-    return { attempted: 0, sends: 0, reason: 'quota exhausted', dailySent, dailyLimit, campaignSent, campaignLimit };
-  }
-  const prepared = prepareCandidate(db, candidate);
-  if (!prepared.eligible) {
-    return { attempted: 0, sends: 0, reason: prepared.reason || 'candidate not eligible', prospectId: prepared.prospect.id };
-  }
-  const result = await deliverProspect(
-    db,
-    { prospectId: prepared.prospect.id, attemptId: candidate.attemptId },
-    () => (options.send || sendCandidate)(candidate),
-  );
+async function deliverCandidate() {
   return {
-    attempted: 1,
-    sends: result.prospect.state === 'sent' && !result.replayed ? 1 : 0,
-    prospectId: prepared.prospect.id,
-    state: result.prospect.state,
-    error: result.error || '',
+    attempted: 0,
+    sends: 0,
+    disabled: true,
+    reason: 'outbound delivery disabled pending authenticated per-message human approval'
   };
 }
 
