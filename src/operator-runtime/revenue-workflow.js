@@ -65,7 +65,9 @@ export function getOutboundDecision({
     return { decision: 'defer', reason: 'Fresh-lead email should wait for the 08:00–18:00 local business window.' };
   }
 
-  return { decision: 'auto', reason: 'Fresh direct-email lead is inside the approved business window.' };
+  // Sending is an identity-bound side effect. A campaign/time window is not
+  // a per-message human approval receipt, so never authorize it here.
+  return { decision: 'approval', reason: 'Every outbound message requires a human approval checkpoint before sending.' };
 }
 
 export function createRevenueLeadWorkItem(input = {}) {
