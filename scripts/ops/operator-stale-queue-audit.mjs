@@ -13,11 +13,14 @@ const fingerprint = record => hash(String(record.backend || '').toLowerCase() + 
 const bump = (object, key) => { object[key] = (object[key] || 0) + 1; };
 
 export function summarizeQueue(records, env = {}, now = Date.now()) {
-  const caps = new Set(csv(env.THREEDVR_AGENT_WORKER_CAPABILITIES || 'node,auto,codex,openai,claude,openclaw,shell'));
+  // Missing service configuration is unknown, never evidence of worker eligibility.
+  const workerCapabilitiesConfigured = Boolean(String(env.THREEDVR_AGENT_WORKER_CAPABILITIES || '').trim());
+  const caps = new Set(csv(env.THREEDVR_AGENT_WORKER_CAPABILITIES));
   const allowedRisks = new Set(csv(env.THREEDVR_AGENT_WORKER_RISK_CLASSES || 'read_only,draft,workspace_write'));
   const completed = new Set(records.filter(r => r.status === 'completed').map(fingerprint));
   const summary = {
     mode: 'read_only_metadata_review_not_execution_authorization',
+    workerCapabilitiesConfigured,
     total: records.length, statusCounts: {}, queuedAgeBuckets: {},
     queuedCapabilities: {}, queuedRisks: {}, queuedApprovals: {},
     reviewFlags: {}, queuedReviews: []
@@ -39,7 +42,8 @@ export function summarizeQueue(records, env = {}, now = Date.now()) {
     bump(summary.queuedApprovals, approval);
     const flags = [];
     if (days === null || days > 7) flags.push('stale_or_unknown_age');
-    if (missing.length) flags.push('missing_capability');
+    if (!workerCapabilitiesConfigured) flags.push('worker_capabilities_unverified');
+    else if (missing.length) flags.push('missing_capability');
     if (!allowedRisks.has(risk)) flags.push('risk_not_allowed');
     if (['required', 'pending', 'rejected', 'denied'].includes(approval)) flags.push('approval_block');
     if (record.unsafe) flags.push('unsafe_flag');
