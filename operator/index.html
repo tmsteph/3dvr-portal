@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Operator">
-  <link rel="stylesheet" href="/crm/install-banner.css">
+  <link rel="stylesheet" href="/operator/install.css">
   <script>
     if (location.hostname === 'operator.3dvr.tech') {
       const target = new URL('/operator/', 'https://portal.3dvr.tech');
@@ -54,6 +54,9 @@
         <button id="clear-chat" type="button" aria-label="New conversation" title="New conversation">＋</button>
       </div>
     </header>
+    <div class="operator-install-entry">
+      <button id="operator-install" type="button">Install Operator</button>
+    </div>
     <section id="operator-context" hidden aria-label="Active Portal context">
       <small>Continuing from</small>
       <a id="operator-context-link" href="/"></a>
@@ -135,15 +138,15 @@
       </form>
     </dialog>
   </main>
-  <aside class="install-banner install-banner--bottom is-hidden" data-install-banner data-install-dismiss-key="operator-install-dismissed" hidden aria-label="Install Operator">
-    <div class="install-banner__text">
-      <p class="install-banner__title">Operator, one tap away</p>
-      <p class="install-banner__meta">Install on your device for its own app window and home screen icon.</p>
-    </div>
-    <button class="install-banner__action" type="button" data-install-button>Install Operator</button>
-    <button class="install-banner__dismiss" type="button" data-install-dismiss aria-label="Dismiss install suggestion">×</button>
-  </aside>
-  <script src="/crm/pwa-install.js" data-sw-url="/operator/service-worker.js" data-sw-scope="/operator/" defer></script>
+  <dialog id="operator-install-help" aria-labelledby="operator-install-title">
+    <h2 id="operator-install-title">Install Operator</h2>
+    <p>On Android in Brave or Chrome, open the browser’s <strong>⋮ menu</strong> and choose <strong>Add to Home screen</strong> or <strong>Install app</strong>.</p>
+    <p>On iPhone or iPad, open this page in Safari, tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.</p>
+    <p>On desktop in Chrome or Edge, use the install icon in the address bar or the browser’s app menu.</p>
+    <p>If your browser only offers a shortcut, try Chrome for app installation.</p>
+    <form method="dialog"><button type="submit">Got it</button></form>
+  </dialog>
+  <script src="/operator/install.js" defer></script>
   <footer aria-label="Portal feedback"></footer>
   <script src="teach-handoff.js"></script>
   <script defer src="/issue-launcher.js"></script>
