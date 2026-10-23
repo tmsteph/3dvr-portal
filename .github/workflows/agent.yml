@@ -32,6 +32,13 @@ jobs:
       # Always run regressions even when the separate security gate fails.
       # Keep npm audit blocking; do not silently waive vulnerabilities.
       - run: npm test
+      # TEMPORARY PR-only metadata diagnostic; intentionally fails, then remove.
+      - name: Print patched lockfile metadata for new advisories
+        if: github.event_name == 'pull_request'
+        run: |
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund fast-uri@3.1.9 nodemailer@10.2.0
+          node -e "const p=require('./package-lock.json').packages; for(const n of ['fast-uri','nodemailer']) console.log('PATCHED_PACKAGE_METADATA '+n+' '+JSON.stringify(p['node_modules/'+n]));"
+          exit 1
       - run: npm audit --omit=dev
 
   deploy-digitalocean-worker:
