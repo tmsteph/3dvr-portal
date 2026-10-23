@@ -33,10 +33,10 @@ function paymentReceiptFor(event = {}) {
   const hasRecurring = Number.isSafeInteger(recurringCents) && recurringCents >= 0;
   const providerReceiptId = String(payment.payment_intent_id || payment.paymentIntentId || payment.invoice_id || payment.invoiceId || payment.charge_id || payment.chargeId || '').trim();
   const paymentStatus = String(payment.status || payment.payment_status || '').trim().toLowerCase();
-  // A plan/subscription, zero-value checkout, or pending payment is not proof
-  // that money settled. This is only a structural guard: upstream must verify
-  // the provider event and payment state before recording payment_succeeded.
-  if (!hasAmount || !providerReceiptId || (paymentStatus && !['paid', 'succeeded'].includes(paymentStatus))) return null;
+  // A plan/subscription, zero-value checkout, or absent/pending payment status
+  // is not proof of settlement. Require explicit paid/succeeded state, while
+  // upstream still must authenticate the provider event before recording it.
+  if (!hasAmount || !providerReceiptId || !['paid', 'succeeded'].includes(paymentStatus)) return null;
   return {
     amountCents: hasAmount ? amountCents : null,
     amount: hasAmount ? `${currency} ${(amountCents / 100).toFixed(2)}` : '',
