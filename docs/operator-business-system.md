@@ -61,6 +61,8 @@ A human checkpoint pauses that work item only. Other unrelated workers should co
 
 This policy function returns `approval` for eligible outbound; it does not yet implement a durable per-message approval receipt or delivery read-back. Downstream senders must fail closed until those are implemented and verified.
 
+The revenue stage machine also rejects `outreach_sent`, `follow_up_sent`, and `proposal_sent` without a traceable approved human checkpoint (`status: approved`, nonempty `id`) and typed external receipt reference (`type`, `id`). `reply_received` requires a receipt reference; `payment_received` requires a payment receipt reference plus a positive numeric amount. **These are structural guards, not proof of provider authenticity**: the identity lane must independently validate approval provenance, delivery status, and payment settlement before persisting these transitions. A synthetic test or caller-supplied receipt must never be reported as an actual send or sale.
+
 ## Runtime contracts
 
 `src/operator-runtime/work-item.js` implements the common minimum work-item shape already defined by the canonical runtime document: identity, intent, domain, priority, state, risk, owner, dependencies, capabilities, leases/checkpoints, timestamps, evidence, result, and workflow metadata.
