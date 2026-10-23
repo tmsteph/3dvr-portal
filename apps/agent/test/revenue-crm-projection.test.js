@@ -31,7 +31,7 @@ test('CRM projection preserves the legacy stable record identity while waiting q
 test('CRM projection turns a successful payment receipt into a paid-customer activation record', () => {
   const record = recordFor(
     { id: 'esai', name: 'Esai', contact: 'mailto:gamboaesai@gmail.com', source_url: '', state: 'replied', campaign_id: '', created_at: '2026-08-01T00:00:00Z' },
-    { id: 'payment-event', type: 'payment_succeeded', created_at: '2026-08-13T20:00:00Z', payload_json: JSON.stringify({ payment: { amount_cents: 2000, currency: 'usd', paid_at: '2026-08-13T20:00:00Z', recurring_cents: 2000, plan: 'starter', payment_intent_id: 'pi_example', subscription_id: 'sub_example' } }) },
+    { id: 'payment-event', type: 'payment_succeeded', created_at: '2026-08-13T20:00:00Z', payload_json: JSON.stringify({ payment: { amount_cents: 2000, currency: 'usd', paid_at: '2026-08-13T20:00:00Z', recurring_cents: 2000, plan: 'starter', payment_intent_id: 'pi_example', subscription_id: 'sub_example', status: 'succeeded' } }) },
     '2026-08-15T00:00:00Z'
   );
   assert.equal(record.status, 'Paid Customer');
@@ -59,6 +59,10 @@ test('CRM refuses payment success without a positive settled amount and provider
   const prospect = { name: 'Example', contact: 'info@example.test', source_url: '', state: 'replied', campaign_id: '', created_at: '2026-01-01T00:00:00Z' };
   const scenarios = [
     { amount_cents: 2000, plan: 'starter' },
+    { amount_cents: 2000, payment_intent_id: 'pi_example' }, // absent status must fail closed
+    { amount_cents: 2000, payment_intent_id: 'pi_example', status: '' },
+    { amount_cents: 2000, payment_intent_id: 'pi_example', status: 'processing' },
+    { amount_cents: 2000, payment_intent_id: 'pi_example', status: 'refunded' },
     { amount_cents: 0, payment_intent_id: 'pi_example' },
     { amount_cents: -100, payment_intent_id: 'pi_example' },
     { amount_cents: 2000.5, payment_intent_id: 'pi_example' },
@@ -72,6 +76,17 @@ test('CRM refuses payment success without a positive settled amount and provider
     }, '2026-01-02T00:00:00Z');
     assert.equal(record.status, 'Warm - Discovery', `scenario ${index}`);
     assert.equal(record.lastPaymentAmountCents, undefined, `scenario ${index}`);
+  }
+});
+
+test('CRM accepts explicit paid payment status only with positive amount and provider reference', () => {
+  const prospect = { name: 'Example', contact: 'info@example.test', source_url: '', state: 'replied', campaign_id: '', created_at: '2026-01-01T00:00:00Z' };
+  for (const status of ['paid', 'succeeded', 'PAID']) {
+    const record = recordFor(prospect, {
+      id: 'valid-payment-' + status, type: 'payment_succeeded',
+      payload_json: JSON.stringify({ payment: { amount_cents: 2000, payment_intent_id: 'pi_example', status } })
+    }, '2026-01-02T00:00:00Z');
+    assert.equal(record.status, 'Paid Customer', status);
   }
 });
 
