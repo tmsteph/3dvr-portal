@@ -164,10 +164,44 @@ async function runCrossDeviceSyncAcceptance() {
   try {
     await signInFreshPage(secondPage);
     await secondPage.locator('#show-history').click();
-    await secondPage.waitForFunction(expected => {
-      return [...document.querySelectorAll('#history-list button')]
-        .some(button => button.textContent?.includes(expected));
-    }, token, { timeout: 30_000 });
+    try {
+      await secondPage.waitForFunction(expected => {
+        return [...document.querySelectorAll('#history-list button')]
+          .some(button => button.textContent?.includes(expected));
+      }, token, { timeout: 30_000 });
+    } catch (error) {
+      // Diagnostic only: distinguish identity, relay visibility, local cache and UI rendering.
+      // Read the synthetic fixture; never log conversation text, aliases or credentials.
+      const diagnostic = await secondPage.evaluate(async ({ expected, expectedPub }) => {
+        const pub = String(localStorage.getItem('userPubKey') || '').trim();
+        const key = `3dvr.operator.conversations.v2.account.${encodeURIComponent(pub.toLowerCase())}`;
+        let localStore = null;
+        try { localStore = JSON.parse(localStorage.getItem(key) || 'null'); } catch {}
+        const containsFixture = store => Boolean(store?.conversations?.some(conversation =>
+          conversation.messages?.some(message => String(message.content || '').includes(expected))));
+        const { createOperatorSync } = await import('/operator/sync.js');
+        const sync = createOperatorSync({ windowObj: window });
+        const syncReady = await sync.ready;
+        const remoteStore = syncReady ? await sync.load({ activeId: '', conversations: [] }) : null;
+        return {
+          signedIn: localStorage.getItem('signedIn') === 'true',
+          sameAccount: Boolean(pub) && pub === expectedPub,
+          syncReady,
+          localFixturePresent: containsFixture(localStore),
+          remoteFixturePresent: containsFixture(remoteStore),
+          remoteConversationCount: remoteStore?.conversations?.length || 0,
+          historyFixturePresent: [...document.querySelectorAll('#history-list button')]
+            .some(button => button.textContent?.includes(expected)),
+          historyPanelVisible: document.querySelector('#conversation-history')?.hidden === false,
+          historyButtonCount: document.querySelectorAll('#history-list button').length,
+          syncLabel: document.querySelector('#operator-sync')?.textContent || ''
+        };
+      }, { expected: token, expectedPub: syncProbe.pub }).catch(diagnosticError => ({
+        diagnosticError: diagnosticError.message
+      }));
+      log('E2E_DEVICE_B_SYNC_DIAGNOSTIC', JSON.stringify(diagnostic));
+      throw error;
+    }
     log('E2E_CROSS_DEVICE_PASS', token);
 
     await secondPage.evaluate(async fixtureId => {
