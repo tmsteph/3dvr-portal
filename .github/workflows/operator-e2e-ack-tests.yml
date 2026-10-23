@@ -7,6 +7,8 @@ on:
       - 'scripts/ops/operator-queue-routing-audit.mjs'
       - 'tests/operator-runtime-worker-e2e-ack.test.mjs'
       - 'tests/operator-queue-routing-audit.test.mjs'
+      - 'scripts/ops/operator-stale-queue-audit.mjs'
+      - 'tests/operator-stale-queue-audit.test.mjs'
       - '.github/workflows/operator-e2e-ack-tests.yml'
   workflow_dispatch:
 
@@ -24,4 +26,5 @@ jobs:
           node-version: '22'
       - run: node --check scripts/operator-runtime-worker-e2e.mjs
       - run: node --check scripts/ops/operator-queue-routing-audit.mjs
-      - run: node --test tests/operator-runtime-worker-e2e-ack.test.mjs tests/operator-queue-routing-audit.test.mjs
+      - run: node --check scripts/ops/operator-stale-queue-audit.mjs
+      - run: node --test tests/operator-runtime-worker-e2e-ack.test.mjs tests/operator-queue-routing-audit.test.mjs tests/operator-stale-queue-audit.test.mjs
