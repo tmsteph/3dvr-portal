@@ -8,6 +8,7 @@ const flush = () => new Promise(resolve => setTimeout(resolve, 35));
 function network() {
   const values = new Map();
   const streams = new Set();
+  const mapChains = new Map();
   const writes = [];
   let online = true;
   let acknowledgeShares = true;
@@ -21,23 +22,25 @@ function network() {
         values.set(prefix, structuredClone(value)); writes.push({path:prefix, value:structuredClone(value)});
         for (const stream of streams) {
           const parent = prefix.slice(0, prefix.lastIndexOf('/'));
-          if (stream.prefix === parent) stream.callback(structuredClone(value), path.at(-1));
+          if (stream.prefix === parent) stream.callback(structuredClone(value), path.at(-1), undefined, {off:()=>streams.delete(stream)});
         }
         if (acknowledgeShares || !prefix.includes('/shares/')) ack?.({ok:1});
       },
       map() {
-        let subscription;
-        return {
+        if (mapChains.has(prefix)) return mapChains.get(prefix);
+        const chain = {
           on(callback) {
-            subscription = {prefix, callback}; streams.add(subscription);
+            const subscription = {prefix, callback}; streams.add(subscription);
             for (const [key, value] of values) {
               if (key.startsWith(prefix + '/') && !key.slice(prefix.length + 1).includes('/')) {
-                callback(structuredClone(value), key.slice(prefix.length + 1));
+                callback(structuredClone(value), key.slice(prefix.length + 1), undefined, {off:()=>streams.delete(subscription)});
               }
             }
           },
-          off() { streams.delete(subscription); }
+          off() { for (const subscription of streams) if (subscription.prefix === prefix) streams.delete(subscription); }
         };
+        mapChains.set(prefix,chain);
+        return chain;
       }
     };
   }
@@ -77,6 +80,7 @@ test('recipient-bound invitation grants live read-only access and revocation sto
     assert.equal(invite.pendingSync, false);
     await assert.rejects(other.accept(invite.url), /another account/);
     await guest.accept(invite.url);
+    await guest.accept(invite.url); // A temporary read must not detach the existing live map listener.
     assert.equal([...member.shared.values()][0].name, cell.name);
     assert.equal([...member.shared.values()][0].readOnly, true);
     await assert.rejects(guest.invite({...cell,readOnly:true}, await other.memberCode(), invite.url), /Only the Cell owner/);

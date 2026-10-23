@@ -29,7 +29,7 @@ export async function openCellAccount() {
             try {
               const query = new URLSearchParams({owner,path:JSON.stringify(path)});
               const data = await (await fetch('/__cell-test-graph?'+query)).json();
-              if (active) for (const [key,value] of data) callback(value,key);
+              if (active) for (const [key,value] of data) callback(value,key,undefined,{off(){active=false;clearTimeout(timer);}});
             } catch {}
             if (active) timer = setTimeout(poll,80);
           };

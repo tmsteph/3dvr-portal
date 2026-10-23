@@ -71,12 +71,22 @@ export async function openCellInvitations({
     }
     onSharedCell({ ...payload.cell, ownerPub: ref.ownerPub, readOnly: true }, sharedId(ref));
   }
+  function watchShares(ref, listener) {
+    // Gun caches map chains. Dispose only this listener's events, never the shared chain.
+    const chain = gun.user(ref.ownerPub).get('cell-v1').get('shares').get(ref.grantId).map();
+    const events = new Set();
+    let active = true;
+    chain.on((envelope, eventId, _message, event) => {
+      if (event?.off) events.add(event);
+      if (!active) { event?.off?.(); return; }
+      listener(envelope, eventId);
+    });
+    return {off() { active = false; for (const event of events) event.off(); }};
+  }
   function subscribe(ref) {
     const key = sharedId(ref);
     if (streams.has(key) || revoked.has(key) || !current()) return;
-    const stream = gun.user(ref.ownerPub).get('cell-v1').get('shares').get(ref.grantId).map();
-    streams.set(key, stream);
-    stream.on((envelope, eventId) => {
+    const stream = watchShares(ref, (envelope, eventId) => {
       void (async () => {
         if (revoked.has(key)) return;
         const { payload, signed } = await verifiedEvent(ref, envelope, eventId);
@@ -89,6 +99,7 @@ export async function openCellInvitations({
           eventId, updatedAt: stamp() });
       })().catch(() => {});
     });
+    streams.set(key, stream);
   }
   async function receiveMetadata(record) {
     if (!current()) return;
@@ -217,12 +228,12 @@ export async function openCellInvitations({
       return enqueue(async () => {
         const ref = invitationReference(link);
         if (ref.recipientPub !== pair.pub) throw new Error('This invitation belongs to another account.');
-        const stream = gun.user(ref.ownerPub).get('cell-v1').get('shares').get(ref.grantId).map();
+        let stream;
         const candidates = [];
         let latestError;
         await new Promise(resolve => {
-          const timer = setTimeout(() => { stream.off(); resolve(); }, timeoutMs);
-          stream.on((envelope, eventId) => {
+          const timer = setTimeout(() => { stream?.off(); resolve(); }, timeoutMs);
+          stream = watchShares(ref, (envelope, eventId) => {
             const candidate = verifiedEvent(ref, envelope, eventId)
               .catch(error => { latestError = error; return null; });
             candidates.push(candidate);
