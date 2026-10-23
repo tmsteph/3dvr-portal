@@ -263,3 +263,19 @@ test('writeCrmSync rejects missing or negative Gun acknowledgments', async () =>
     assert.equal(result.errors.length, 2);
   }
 });
+
+test('legacy closed lead does not invent a won deal, customer, or paid outcome', () => {
+  const record = buildCrmRecord({
+    name: 'Synthetic closed lead',
+    link: 'https://example.test',
+    contact: 'mailto:closed@example.test',
+    status: 'closed',
+    date: '2026-10-23'
+  }, { now: '2026-10-23T12:00:00.000Z' });
+  assert.equal(record.status, 'Closed');
+  assert.equal(record.warmth, '');
+  assert.equal(record.pilotStatus, '');
+  assert.match(record.nextBestAction, /do not contact/i);
+  assert.match(record.nextBestAction, /verify the outcome and payment/i);
+  assert.doesNotMatch(record.status, /won|paid|customer/i);
+});
