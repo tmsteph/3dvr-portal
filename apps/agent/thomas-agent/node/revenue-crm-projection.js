@@ -19,6 +19,9 @@ function remoteProjectionRoots() {
 }
 
 function paymentReceiptFor(event = {}) {
+  // Ordinary ledger transitions may carry payment-shaped metadata; only a
+  // specifically recorded payment success event can affect paid CRM status.
+  if (event.type !== 'payment_succeeded') return null;
   let payload = {};
   try { payload = JSON.parse(event.payload_json || '{}'); } catch {}
   const payment = payload.payment && typeof payload.payment === 'object' ? payload.payment : payload;
@@ -26,9 +29,14 @@ function paymentReceiptFor(event = {}) {
   const currency = String(payment.currency || 'usd').trim().toUpperCase();
   const paidAt = String(payment.paid_at || payment.paidAt || payment.created_at || event.created_at || '').trim();
   const recurringCents = Number(payment.recurring_cents ?? payment.recurringCents ?? payment.plan_amount_cents);
-  const hasAmount = Number.isFinite(amountCents) && amountCents >= 0;
-  const hasRecurring = Number.isFinite(recurringCents) && recurringCents >= 0;
-  if (!hasAmount && !payment.payment_intent_id && !payment.subscription_id && !payment.plan) return null;
+  const hasAmount = Number.isSafeInteger(amountCents) && amountCents > 0;
+  const hasRecurring = Number.isSafeInteger(recurringCents) && recurringCents >= 0;
+  const providerReceiptId = String(payment.payment_intent_id || payment.paymentIntentId || payment.invoice_id || payment.invoiceId || payment.charge_id || payment.chargeId || '').trim();
+  const paymentStatus = String(payment.status || payment.payment_status || '').trim().toLowerCase();
+  // A plan/subscription, zero-value checkout, or pending payment is not proof
+  // that money settled. This is only a structural guard: upstream must verify
+  // the provider event and payment state before recording payment_succeeded.
+  if (!hasAmount || !providerReceiptId || (paymentStatus && !['paid', 'succeeded'].includes(paymentStatus))) return null;
   return {
     amountCents: hasAmount ? amountCents : null,
     amount: hasAmount ? `${currency} ${(amountCents / 100).toFixed(2)}` : '',
