@@ -90,6 +90,72 @@ test('CRM accepts explicit paid payment status only with positive amount and pro
   }
 });
 
+test('CRM retains an earlier valid payment through later nonpayment events without future leakage', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-paid-history-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const prospect = createProspect(db, { name: 'Synthetic buyer', contact: 'buyer@example.test' }).prospect;
+    const before = transitionProspect(db, {
+      prospectId: prospect.id, toState: 'verified', idempotencyKey: 'history-before'
+    }).event;
+    const paid = transitionProspect(db, {
+      prospectId: prospect.id, toState: 'drafted', idempotencyKey: 'history-paid',
+      type: 'payment_succeeded', payload: { payment: {
+        amount_cents: 3500, currency: 'usd', payment_intent_id: 'pi_synthetic',
+        status: 'succeeded'
+      } }
+    }).event;
+    const after = transitionProspect(db, {
+      prospectId: prospect.id, toState: 'eligible', idempotencyKey: 'history-after'
+    }).event;
+    const invalidLater = transitionProspect(db, {
+      prospectId: prospect.id, toState: 'sent', idempotencyKey: 'history-invalid',
+      type: 'payment_succeeded', payload: { payment: {
+        amount_cents: 10000, payment_intent_id: 'pi_unsettled', status: 'pending'
+      } }
+    }).event;
+    const records = [];
+    const result = await projectPendingCrm(db, {
+      write: async payload => { records.push(...payload.records); return { errors: [] }; }
+    });
+    assert.equal(result.succeeded, 4);
+    assert.equal(result.failed, 0);
+    const byEvent = new Map(records.map(record => [record.canonicalEventId, record]));
+    assert.notEqual(byEvent.get(before.id).status, 'Paid Customer');
+    for (const event of [paid, after, invalidLater]) {
+      assert.equal(byEvent.get(event.id).status, 'Paid Customer');
+      assert.equal(byEvent.get(event.id).lastPaymentAmountCents, 3500);
+      assert.equal(byEvent.get(event.id).stripePaymentIntentId, 'pi_synthetic');
+    }
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('paid CRM record honors a later do-not-contact state', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-paid-optout-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const prospect = createProspect(db, { name: 'Synthetic opt-out', contact: 'optout@example.test' }).prospect;
+    transitionProspect(db, {
+      prospectId: prospect.id, toState: 'verified', idempotencyKey: 'optout-paid',
+      type: 'payment_succeeded', payload: { payment: {
+        amount_cents: 1000, payment_intent_id: 'pi_optout', status: 'succeeded'
+      } }
+    });
+    transitionProspect(db, {
+      prospectId: prospect.id, toState: 'suppressed', idempotencyKey: 'optout-suppressed'
+    });
+    const records = [];
+    const result = await projectPendingCrm(db, {
+      write: async payload => { records.push(...payload.records); return { errors: [] }; }
+    });
+    assert.equal(result.succeeded, 2);
+    const latest = records.find(record => record.canonicalState === 'suppressed' && record.canonicalEventId);
+    assert.ok(latest);
+    assert.equal(latest.nextBestAction, 'Do not contact.');
+    assert.equal(latest.status, 'Paid Customer');
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
 test('remote projection roots do not initialize a local radata store', () => {
   const source = fs.readFileSync(require.resolve('../thomas-agent/node/revenue-crm-projection'), 'utf8');
   assert.match(source, /axe:\s*false/);
