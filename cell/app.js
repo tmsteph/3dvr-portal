@@ -468,7 +468,7 @@ function saveCell(event) {
       elements.cellSaveStatus.textContent = 'Cell was not saved. Check your connection and try again.';
       return;
     }
-    elements.cellSaveStatus.textContent = 'Cell saved to the shared registry.';
+    elements.cellSaveStatus.textContent = 'Cell saved. Availability on other devices is not verified.';
     state.cells[record.id] = normalizeCell(record, record.id);
     state.selectedCellId = record.id;
     elements.cellId.value = record.id;

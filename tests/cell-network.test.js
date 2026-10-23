@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-function createApp() {
+function createApp({ ackOk = 1 } = {}) {
   const nodes = new Map();
   const writes = new Map();
   const frames = [];
@@ -29,7 +29,7 @@ function createApp() {
           assert.ok(Object.values(value).every(field => field === null || ['string', 'number', 'boolean'].includes(typeof field)));
         }
         writes.set(path, structuredClone(value));
-        callback?.({ ok: 1 });
+        callback?.({ ok: ackOk });
       },
       map() { return { on() {} }; },
       once() {}
@@ -101,4 +101,14 @@ it('New Cell clears both deep-link aliases and pending selection; failed saves r
   app.render();
   assert.equal(app.run('Object.keys(state.cells).length'), 0);
   assert.match(app.element('cellSaveStatus').textContent, /not saved/);
+});
+
+it('a local-only Gun acknowledgement does not claim cross-device synchronization', () => {
+  const app = createApp({ ackOk: 0 });
+  app.run('resetCellForm()');
+  app.run('saveCell({ preventDefault() {} })');
+  app.render();
+  assert.equal(app.element('cellCount').textContent, '1');
+  assert.match(app.element('cellSaveStatus').textContent, /other devices is not verified/);
+  assert.doesNotMatch(app.element('cellSaveStatus').textContent, /saved to the shared/);
 });
