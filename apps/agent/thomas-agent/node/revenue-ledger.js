@@ -204,7 +204,12 @@ function findProspectByContact(db, contact) {
 }
 
 function pendingProjections(db, limit = 100) {
-  return db.prepare("SELECT * FROM projection_outbox WHERE status IN ('pending','failed') ORDER BY created_at, id LIMIT ?")
+  // Timestamps may be identical and UUID order is not event order. A later
+  // CRM projection must not overwrite an earlier event before it is handled.
+  return db.prepare(`SELECT o.* FROM projection_outbox o
+    JOIN revenue_events e ON e.id = o.event_id
+    WHERE o.status IN ('pending','failed')
+    ORDER BY e.rowid ASC, o.rowid ASC LIMIT ?`)
     .all(Math.max(1, Number(limit) || 100));
 }
 
