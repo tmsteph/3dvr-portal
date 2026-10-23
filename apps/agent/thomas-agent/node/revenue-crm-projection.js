@@ -62,13 +62,16 @@ function latestPaymentEventThrough(db, prospectId, eventId) {
 }
 
 function recordFor(prospect, event, now, paymentEvent = event) {
+  // Outbox entries represent historical transitions. Using the prospect's
+  // latest state here leaks future activity into older projection records.
+  const canonicalState = event.to_state || prospect.state;
   const paymentReceipt = paymentReceiptFor(paymentEvent || {});
   const crmStatus = paymentReceipt ? 'Paid Customer' : ({
     prospect: 'Lead', verified: 'Lead', drafted: 'Lead', eligible: 'Lead',
     sent: 'Warm - Waiting', replied: 'Warm - Discovery', bounced: 'Lost',
     failed: 'Lost', suppressed: 'Closed',
-  }[prospect.state] || 'Lead');
-  const nextBestAction = ['suppressed', 'bounced'].includes(prospect.state)
+  }[canonicalState] || 'Lead');
+  const nextBestAction = ['suppressed', 'bounced'].includes(canonicalState)
     ? 'Do not contact.'
     : paymentReceipt
     ? 'Activate the customer, deliver value, and capture proof/outcome. Do not schedule a sales follow-up because payment occurred.'
@@ -77,7 +80,7 @@ function recordFor(prospect, event, now, paymentEvent = event) {
       replied: 'Continue discovery from the customer reply.',
       bounced: 'Do not contact.',
       suppressed: 'Do not contact.',
-    }[prospect.state] || 'Follow the canonical revenue state machine.');
+    }[canonicalState] || 'Follow the canonical revenue state machine.');
   const paymentSignal = paymentReceipt
     ? `Successful payment${paymentReceipt.amount ? `: ${paymentReceipt.amount}` : ''}${paymentReceipt.plan ? ` (${paymentReceipt.plan})` : ''}`
     : '';
@@ -88,10 +91,10 @@ function recordFor(prospect, event, now, paymentEvent = event) {
     company: prospect.name,
     email: /@/.test(prospect.contact) ? prospect.contact.replace(/^mailto:/i, '') : '',
     status: crmStatus,
-    canonicalState: prospect.state,
+    canonicalState,
     source: '3dvr-revenue-ledger',
     campaignId: prospect.campaign_id,
-    lastSignal: paymentSignal || `Canonical revenue state: ${prospect.state}`,
+    lastSignal: paymentSignal || `Canonical revenue state: ${canonicalState}`,
     nextBestAction,
     created: prospect.created_at,
     updated: now,
@@ -130,8 +133,16 @@ async function projectPendingCrm(db, options = {}) {
   const write = options.write || writeCrmSync;
   const writeOptions = options.writeOptions || (options.write ? {} : remoteProjectionRoots());
   const rows = pendingProjections(db, options.limit || 100);
-  const result = { attempted: rows.length, succeeded: 0, failed: 0, errors: [] };
+  const result = { attempted: 0, succeeded: 0, failed: 0, blocked: 0, errors: [] };
+  // A failed earlier projection must block later events for the same lead.
+  // Leave them pending for the next run rather than regressing CRM state.
+  const blockedProspects = new Set();
   for (const row of rows) {
+    if (blockedProspects.has(row.prospect_id)) {
+      result.blocked += 1;
+      continue;
+    }
+    result.attempted += 1;
     const prospect = getProspect(db, row.prospect_id);
     const event = db.prepare('SELECT * FROM revenue_events WHERE id = ?').get(row.event_id);
     try {
@@ -143,6 +154,7 @@ async function projectPendingCrm(db, options = {}) {
       finishProjection(db, { id: row.id, status: 'succeeded' });
       result.succeeded += 1;
     } catch (error) {
+      blockedProspects.add(row.prospect_id);
       const message = String(error?.message || error);
       finishProjection(db, { id: row.id, status: 'failed', error: message });
       result.failed += 1;
