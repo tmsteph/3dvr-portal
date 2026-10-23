@@ -150,7 +150,13 @@ async function projectPendingCrm(db, options = {}) {
       const now = new Date().toISOString();
       const paymentEvent = latestPaymentEventThrough(db, prospect.id, event.id);
       const response = await write({ records: [recordFor(prospect, event, now, paymentEvent)], touches: [touchFor(prospect, event, now)] }, writeOptions);
-      if (response?.errors?.length) throw new Error(response.errors.join('; '));
+      if (!response || !Array.isArray(response.errors)) throw new Error('CRM writer returned no verifiable result');
+      if (response.errors.length) throw new Error(response.errors.join('; '));
+      // One record and one touch are required for each projection. An empty,
+      // partial, or undefined writer response must remain retryable.
+      if (response.records !== 1 || response.touches !== 1) {
+        throw new Error(`CRM writer did not acknowledge both writes (records=${response.records}, touches=${response.touches})`);
+      }
       finishProjection(db, { id: row.id, status: 'succeeded' });
       result.succeeded += 1;
     } catch (error) {
