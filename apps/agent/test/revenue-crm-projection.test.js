@@ -156,6 +156,68 @@ test('paid CRM record honors a later do-not-contact state', async () => {
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
+test('CRM outbox follows ledger event order despite colliding timestamps and reversed IDs', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-order-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const prospect = createProspect(db, { name: 'Synthetic order', contact: 'order@example.test' }).prospect;
+    const first = transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'order-first' }).event;
+    const second = transitionProspect(db, { prospectId: prospect.id, toState: 'eligible', idempotencyKey: 'order-second' }).event;
+    db.prepare('UPDATE projection_outbox SET created_at = ?').run('2026-01-01T00:00:00.000Z');
+    db.prepare('UPDATE projection_outbox SET id = ? WHERE event_id = ?').run('z-first', first.id);
+    db.prepare('UPDATE projection_outbox SET id = ? WHERE event_id = ?').run('a-second', second.id);
+    assert.deepEqual(pendingProjections(db).map(row => row.event_id), [first.id, second.id]);
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('CRM projection uses each event state, not a later prospect state', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-historical-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const prospect = createProspect(db, { name: 'Synthetic history', contact: 'history@example.test' }).prospect;
+    transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'historical-verified' });
+    transitionProspect(db, { prospectId: prospect.id, toState: 'eligible', idempotencyKey: 'historical-eligible' });
+    transitionProspect(db, { prospectId: prospect.id, toState: 'sent', idempotencyKey: 'historical-sent' });
+    const records = [];
+    const result = await projectPendingCrm(db, { write: async payload => {
+      records.push(...payload.records);
+      return { errors: [] };
+    } });
+    assert.equal(result.succeeded, 3);
+    assert.deepEqual(records.map(record => record.canonicalState), ['verified', 'eligible', 'sent']);
+    assert.deepEqual(records.map(record => record.status), ['Lead', 'Lead', 'Warm - Waiting']);
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('CRM projection does not advance one prospect past a failed earlier event', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-failure-barrier-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const prospect = createProspect(db, { name: 'Synthetic retry', contact: 'retry@example.test' }).prospect;
+    transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'barrier-first' });
+    transitionProspect(db, { prospectId: prospect.id, toState: 'eligible', idempotencyKey: 'barrier-second' });
+    let writes = 0;
+    const first = await projectPendingCrm(db, { write: async () => {
+      writes += 1;
+      return { errors: ['synthetic timeout'] };
+    } });
+    assert.equal(first.failed, 1);
+    assert.equal(first.attempted, 1);
+    assert.equal(first.blocked, 1);
+    assert.equal(writes, 1);
+    assert.equal(pendingProjections(db).length, 2);
+    const states = [];
+    const retried = await projectPendingCrm(db, { write: async payload => {
+      states.push(payload.records[0].canonicalState);
+      return { errors: [] };
+    } });
+    assert.equal(retried.failed, 0);
+    assert.equal(retried.succeeded, 2);
+    assert.deepEqual(states, ['verified', 'eligible']);
+    assert.equal(pendingProjections(db).length, 0);
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
 test('remote projection roots do not initialize a local radata store', () => {
   const source = fs.readFileSync(require.resolve('../thomas-agent/node/revenue-crm-projection'), 'utf8');
   assert.match(source, /axe:\s*false/);
