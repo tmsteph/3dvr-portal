@@ -106,6 +106,7 @@ function showAccount(identity) {
   } catch { account.textContent = 'Sign in'; }
 }
 async function request(action, record) {
+  const requestEpoch = epoch;
   const payload = record
     ? { requestId: record.id, sessionId: record.sessionId, message: record.text, createdAt: record.createdAt, expiresAt: record.expiresAt }
     : { requestId: crypto.randomUUID(), sessionId };
@@ -117,6 +118,7 @@ async function request(action, record) {
     signal: AbortSignal.timeout(110000)
   });
   const result = await response.json();
+  if (requestEpoch !== epoch) throw new Error('Account changed.');
   if (result.identity?.verified) showAccount(result.identity);
   if (response.status === 401) {
     verifiedAccount = false;
@@ -193,8 +195,9 @@ function renderMessages() {
 function showStorageError(error) { $('activity').textContent = `Could not save the message: ${error.message} Your text stays in the composer.`; }
 
 async function drain() {
+  const drainEpoch = epoch;
   try { await outbox.drain(); }
-  catch (error) { $('activity').textContent = `Queue paused: ${error.message}`; }
+  catch (error) { if (drainEpoch === epoch) $('activity').textContent = `Queue paused: ${error.message}`; }
 }
 
 async function checkConnection({ automatic = false } = {}) {
@@ -256,6 +259,7 @@ for (const button of document.querySelectorAll('[data-prompt]')) {
 window.addEventListener('storage', event => {
   if (!['signedIn', 'alias', 'userPubKey'].includes(event.key)) return;
   epoch += 1; store?.close(); store = null; storePromise = null;
+  busy = false;
   connected = false; verifiedAccount = false; outbox = makeOutbox();
   showAccount(); renderMessages(); updateControls();
   void checkConnection({ automatic: true });
