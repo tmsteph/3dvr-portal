@@ -217,3 +217,36 @@ test('outbound approvals cannot be reused after an intervening approval', () => 
     humanCheckpoint: { status: 'approved', id: 'approval-D' }
   }), /fresh traceable approved human checkpoint/);
 });
+
+
+test('revenue events reject a previously recorded provider receipt', () => {
+  const priorEmail = { type: 'email', id: 'provider-message-1' };
+  const followUp = createRevenueLeadWorkItem({
+    id: 'receipt-replay-send', stage: 'follow_up', evidence: [priorEmail]
+  });
+  assert.throws(() => advanceRevenueLead(followUp, 'follow_up_sent', {
+    evidence: { ...priorEmail },
+    humanCheckpoint: { status: 'approved', id: 'fresh-approval' }
+  }), /cannot reuse an existing external receipt/);
+  const freshSend = advanceRevenueLead(followUp, 'follow_up_sent', {
+    evidence: { type: 'email', id: 'provider-message-2' },
+    humanCheckpoint: { status: 'approved', id: 'fresh-approval' }
+  });
+  assert.equal(freshSend.evidence.length, 2);
+
+  const priorReply = { type: 'reply', id: 'provider-reply-1' };
+  const waiting = createRevenueLeadWorkItem({
+    id: 'receipt-replay-reply', stage: 'waiting_reply', evidence: [priorReply]
+  });
+  assert.throws(() => advanceRevenueLead(waiting, 'reply_received', {
+    evidence: { ...priorReply }
+  }), /cannot reuse an existing external receipt/);
+
+  const priorPayment = { type: 'payment', id: 'provider-payment-1' };
+  const payment = createRevenueLeadWorkItem({
+    id: 'receipt-replay-payment', stage: 'payment', evidence: [priorPayment]
+  });
+  assert.throws(() => advanceRevenueLead(payment, 'payment_received', {
+    evidence: { ...priorPayment }, result: { amount: 200 }
+  }), /cannot reuse an existing external receipt/);
+});
