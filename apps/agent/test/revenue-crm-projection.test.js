@@ -116,7 +116,7 @@ test('CRM retains an earlier valid payment through later nonpayment events witho
     }).event;
     const records = [];
     const result = await projectPendingCrm(db, {
-      write: async payload => { records.push(...payload.records); return { errors: [] }; }
+      write: async payload => { records.push(...payload.records); return { records: payload.records.length, touches: payload.touches.length, errors: [] }; }
     });
     assert.equal(result.succeeded, 4);
     assert.equal(result.failed, 0);
@@ -146,7 +146,7 @@ test('paid CRM record honors a later do-not-contact state', async () => {
     });
     const records = [];
     const result = await projectPendingCrm(db, {
-      write: async payload => { records.push(...payload.records); return { errors: [] }; }
+      write: async payload => { records.push(...payload.records); return { records: payload.records.length, touches: payload.touches.length, errors: [] }; }
     });
     assert.equal(result.succeeded, 2);
     const latest = records.find(record => record.canonicalState === 'suppressed' && record.canonicalEventId);
@@ -181,7 +181,7 @@ test('CRM projection uses each event state, not a later prospect state', async (
     const records = [];
     const result = await projectPendingCrm(db, { write: async payload => {
       records.push(...payload.records);
-      return { errors: [] };
+      return { records: payload.records.length, touches: payload.touches.length, errors: [] };
     } });
     assert.equal(result.succeeded, 3);
     assert.deepEqual(records.map(record => record.canonicalState), ['verified', 'eligible', 'sent']);
@@ -209,7 +209,7 @@ test('CRM projection does not advance one prospect past a failed earlier event',
     const states = [];
     const retried = await projectPendingCrm(db, { write: async payload => {
       states.push(payload.records[0].canonicalState);
-      return { errors: [] };
+      return { records: payload.records.length, touches: payload.touches.length, errors: [] };
     } });
     assert.equal(retried.failed, 0);
     assert.equal(retried.succeeded, 2);
@@ -224,4 +224,31 @@ test('remote projection roots do not initialize a local radata store', () => {
   assert.match(source, /rad:\s*false/);
   assert.match(source, /radisk:\s*false/);
   assert.match(source, /stats:\s*false/);
+});
+
+test('CRM outbox does not claim success without both explicit write acknowledgments', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-ack-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const prospect = createProspect(db, { name: 'Synthetic ACK', contact: 'ack@example.test' }).prospect;
+    transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'ack-first' });
+    const unconfirmed = [
+      undefined,
+      { errors: [] },
+      { records: 1, touches: 0, errors: [] },
+      { records: 0, touches: 1, errors: [] },
+    ];
+    for (const response of unconfirmed) {
+      const result = await projectPendingCrm(db, { write: async () => response });
+      assert.equal(result.succeeded, 0);
+      assert.equal(result.failed, 1);
+      assert.equal(pendingProjections(db).length, 1, 'unacknowledged projection must remain retryable');
+    }
+    const confirmed = await projectPendingCrm(db, {
+      write: async payload => ({ records: payload.records.length, touches: payload.touches.length, errors: [] })
+    });
+    assert.equal(confirmed.succeeded, 1);
+    assert.equal(confirmed.failed, 0);
+    assert.equal(pendingProjections(db).length, 0);
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
