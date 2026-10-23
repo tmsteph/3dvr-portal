@@ -51,13 +51,15 @@ The system should automate routine, low-risk work while keeping identity-sensiti
 
 Current outbound rule:
 
-- Fresh direct-email leads may send autonomously during the local 08:00–18:00 business window when campaign caps/policy allow it.
-- Known contacts require a human send checkpoint.
+- All external outreach (including fresh direct email) requires per-message human approval before sending. A business-hours window or campaign cap never substitutes for approval.
+- Known contacts also require a human send checkpoint.
 - Unknown relationships are classified before autonomous outreach.
-- Non-email outbound remains approval-gated until that channel has its own proven policy.
+- Non-email outbound is also approval-gated.
 - Signatures, payments, account/security changes, and other sensitive identity actions remain human-checkpoint work.
 
 A human checkpoint pauses that work item only. Other unrelated workers should continue.
+
+This policy function returns `approval` for eligible outbound; it does not yet implement a durable per-message approval receipt or delivery read-back. Downstream senders must fail closed until those are implemented and verified.
 
 ## Runtime contracts
 
