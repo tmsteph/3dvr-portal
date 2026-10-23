@@ -148,14 +148,15 @@ function statusForLead(lead) {
   if (status === 'contacted') return 'Warm - Follow-up';
   if (status === 'replied') return 'Warm - Discovery';
   if (status === 'nurture') return 'Warm - Awareness';
-  if (status === 'closed') return 'Won';
+  if (status === 'closed') return 'Closed';
   if (status === 'failed') return 'Lost';
   return 'Lead';
 }
 
 function warmthForLead(lead) {
   const status = normalizeLower(lead.status);
-  if (status === 'replied' || status === 'closed') return 'hot';
+  if (status === 'replied') return 'hot';
+  if (status === 'closed') return '';
   if (status === 'contacted' || status === 'nurture') return 'warm';
   return 'cold';
 }
@@ -167,6 +168,7 @@ function nextActionForLead(lead) {
   if (status === 'nurture') return 'Revisit later with a more specific reason to reach out.';
   if (status === 'contacted') return 'Wait for a reply; stay quiet unless there is a new material reason to reach out.';
   if (status === 'replied') return 'Reply with one clear next step and log the outcome.';
+  if (status === 'closed') return 'Closed legacy lead: do not contact. Verify the outcome and payment independently before marking Won or Customer.';
   if (action === 'email') return 'Review and send one short opener if this lead is still a fit.';
   if (action === 'form') return 'Review the contact form manually before submitting one concise opener.';
   if (action === 'open') return 'Inspect the website and look for a better contact path.';
@@ -221,7 +223,7 @@ function buildCrmRecord(lead, options = {}) {
       : route === 'form'
         ? 'Contact form route available.'
         : 'Needs a better verified contact route.',
-    pilotStatus: status === 'closed' ? 'Customer' : status === 'contacted' ? 'Warm' : 'Watching',
+    pilotStatus: status === 'closed' ? '' : status === 'contacted' ? 'Warm' : 'Watching',
     offerAmount: '$20/month launch/support or $50/month Builder when active operations are involved',
     lastSignal: [
       `Agent lead status: ${status}.`,
