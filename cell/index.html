@@ -372,6 +372,8 @@
       background: rgba(255,255,255,0.025);
       border-radius: 18px;
       padding: 14px 16px;
+      min-width: 0;
+      overflow-wrap: anywhere;
       display: grid;
       gap: 10px;
     }
@@ -386,6 +388,7 @@
       align-items: flex-start;
       justify-content: space-between;
       gap: 12px;
+      flex-wrap: wrap;
     }
 
     .cell-card__title {
@@ -566,8 +569,8 @@
         </div>
         <div class="hero-grid">
           <div class="hero-stat">
-            <strong>3–12</strong>
-            <span>ideal members per unit</span>
+            <strong>3–15</strong>
+            <span>people per small group</span>
           </div>
           <div class="hero-stat">
             <strong>4</strong>
@@ -575,7 +578,7 @@
           </div>
           <div class="hero-stat">
             <strong>∞</strong>
-            <span>networked expansion</span>
+            <span>groups across the network</span>
           </div>
         </div>
       </div>
@@ -663,7 +666,7 @@
       <div id="builder" class="card form-wrap">
         <h2>Cell Builder</h2>
         <p>
-          Sketch your first unit. This can later connect to portal accounts, private rooms, member lists, notes, payments, or project pages.
+          Start with 3 people, grow toward 10 or 15, and create more Cells as your network grows. You can organize 10, 15, or more groups; there is no fixed group limit.
         </p>
         <form id="cellForm" class="form-grid">
           <input id="cellId" name="cellId" type="hidden" value="" />
@@ -683,7 +686,13 @@
           </div>
           <div>
             <label for="size">Target size</label>
-            <input id="size" name="size" type="text" placeholder="3–12 people" value="6 people" />
+            <input id="size" name="size" type="text" list="cellSizes" placeholder="3–15 people" value="3 people" />
+            <datalist id="cellSizes">
+              <option value="3 people"></option>
+              <option value="10 people"></option>
+              <option value="15 people"></option>
+              <option value="3–15 people"></option>
+            </datalist>
           </div>
           <div>
             <label for="rhythm">Meeting rhythm</label>
@@ -699,8 +708,9 @@
           </div>
           <div class="full" style="display:flex; gap:12px; flex-wrap:wrap; margin-top: 4px;">
             <button type="submit" class="primary">Save Cell</button>
-            <button type="button" class="secondary" id="resetBtn">Reset</button>
+            <button type="button" class="secondary" id="resetBtn">New Cell</button>
           </div>
+          <p id="cellSaveStatus" class="full" role="status" aria-live="polite"></p>
         </form>
       </div>
 
@@ -721,7 +731,7 @@
           <h3>Operational Snapshot</h3>
           <div class="meta">
             <div class="meta-item"><span>Focus</span><strong id="previewFocus">Cross-line organization</strong></div>
-            <div class="meta-item"><span>Size</span><strong id="previewSize">6 people</strong></div>
+            <div class="meta-item"><span>Size</span><strong id="previewSize">3 people</strong></div>
             <div class="meta-item"><span>Rhythm</span><strong id="previewRhythm">Weekly</strong></div>
           </div>
         </div>
@@ -739,7 +749,7 @@
         <div class="cell-card__header">
           <div>
             <h2 style="margin-bottom: 6px;">Live Cell registry</h2>
-            <p style="margin-bottom: 0;">Cells sync through Gun under `3dvr-portal/cellHub/cells` so the portal can reuse the same workspace graph everywhere.</p>
+            <p style="margin-bottom: 0;">Manage your growing network here. This is a shared public registry: save group descriptions only; keep private member details out.</p>
           </div>
           <span class="status-chip"><span>Sync</span><strong id="syncStatus">Connecting…</strong></span>
         </div>
@@ -749,8 +759,11 @@
           <div class="status-chip"><span>Linked apps</span><strong id="linkedAppCount">5</strong></div>
           <div class="status-chip"><span>Last save</span><strong id="lastSavedAt">—</strong></div>
         </div>
+        <label for="cellSearch">Find a Cell</label>
+        <input id="cellSearch" type="search" placeholder="Search by name, focus, or purpose" />
+        <p id="cellSearchStatus" role="status" aria-live="polite"></p>
         <div id="cellList" class="cell-list"></div>
-        <p id="cellEmpty" class="footer-note" style="padding: 12px 0 0; text-align:left;">No cells have been saved yet. Create one above to seed the shared graph.</p>
+        <p id="cellEmpty" class="footer-note" style="padding: 12px 0 0; text-align:left;">No cells have been saved yet. Create one above to start your network.</p>
       </div>
 
       <div class="card panel">
@@ -788,7 +801,7 @@
     const defaults = {
       cellName: '3dvr Builder Cell',
       focus: 'Cross-line organization',
-      size: '6 people',
+      size: '3 people',
       rhythm: 'Weekly',
       purpose: 'Support workers, builders, and friends across different lines of life while sharing opportunities, organizing action, and helping each other make progress.',
       pillars: 'support, leads, projects, coordination'

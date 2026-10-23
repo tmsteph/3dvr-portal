@@ -219,6 +219,9 @@ const elements = {
   lastSavedAt: document.getElementById('lastSavedAt'),
   cellList: document.getElementById('cellList'),
   cellEmpty: document.getElementById('cellEmpty'),
+  cellSearch: document.getElementById('cellSearch'),
+  cellSearchStatus: document.getElementById('cellSearchStatus'),
+  cellSaveStatus: document.getElementById('cellSaveStatus'),
   appLinks: Array.from(document.querySelectorAll('[data-cell-app]')),
 };
 
@@ -262,7 +265,7 @@ function normalizeCell(value, id) {
     id: String(record.id || id || '').trim(),
     name: String(record.name || 'Untitled Cell').trim(),
     focus: String(record.focus || 'Cross-line organization').trim(),
-    size: String(record.size || '3-12 people').trim(),
+    size: String(record.size || '3–15 people').trim(),
     rhythm: String(record.rhythm || 'Weekly').trim(),
     purpose: String(record.purpose || '').trim(),
     pillars,
@@ -303,7 +306,7 @@ function populateForm(cell) {
   elements.cellId.value = data.id || '';
   elements.cellName.value = data.name || defaults.cellName || '3dvr Builder Cell';
   elements.focus.value = data.focus || defaults.focus || 'Cross-line organization';
-  elements.size.value = data.size || defaults.size || '6 people';
+  elements.size.value = data.size || defaults.size || '3 people';
   elements.rhythm.value = data.rhythm || defaults.rhythm || 'Weekly';
   elements.purpose.value = data.purpose || defaults.purpose || '';
   elements.pillars.value = data.pillars && data.pillars.length
@@ -324,8 +327,11 @@ function updateMetaPanel() {
 }
 
 function renderCellList() {
+  const query = elements.cellSearch.value.trim().toLocaleLowerCase();
   const cells = Object.values(state.cells)
     .filter(cell => cell && cell.id)
+    .filter(cell => !query || [cell.name, cell.focus, cell.purpose, ...cell.pillars]
+      .some(value => value.toLocaleLowerCase().includes(query)))
     .sort((a, b) => {
       const aStamp = a.updatedAt || a.createdAt || '';
       const bStamp = b.updatedAt || b.createdAt || '';
@@ -335,7 +341,10 @@ function renderCellList() {
       return a.name.localeCompare(b.name);
     });
 
-  elements.cellEmpty.hidden = cells.length > 0;
+  elements.cellEmpty.hidden = Object.keys(state.cells).length > 0;
+  elements.cellSearchStatus.textContent = query
+    ? `${cells.length} matching Cells`
+    : `${cells.length} Cells · no fixed group limit`;
   elements.cellList.innerHTML = cells.map(cell => {
     const active = cell.id === state.selectedCellId ? ' is-active' : '';
     const appLinks = cell.linkedApps.map(appKey => {
@@ -345,7 +354,7 @@ function renderCellList() {
     }).join('');
     const pillars = cell.pillars.slice(0, 5).map(pillar => `<span class="cell-pill">${escapeHtml(pillar)}</span>`).join('');
     const ownerLabel = cell.owner ? `Owner: ${cell.owner}` : 'Owner: Guest';
-    const memberLabel = cell.memberCount ? `${cell.memberCount} member target` : cell.size;
+    const memberLabel = `${cell.size} target`;
     return `
       <article class="cell-card${active}" data-cell-id="${escapeHtml(cell.id)}">
         <div class="cell-card__header">
@@ -410,7 +419,7 @@ function buildCellRecord(existing = {}) {
   const id = String(elements.cellId.value || existing.id || generateId()).trim();
   const now = new Date().toISOString();
   const pillars = normalizeList(elements.pillars.value);
-  const size = String(elements.size.value || existing.size || '3-12 people').trim();
+  const size = String(elements.size.value || existing.size || '3–15 people').trim();
   const record = {
     id,
     name: String(elements.cellName.value || existing.name || 'Untitled Cell').trim(),
@@ -418,8 +427,9 @@ function buildCellRecord(existing = {}) {
     size,
     rhythm: String(elements.rhythm.value || existing.rhythm || 'Weekly').trim(),
     purpose: String(elements.purpose.value || existing.purpose || '').trim(),
-    pillars,
-    linkedApps: DEFAULT_APP_LINKS.map(item => item.key),
+    // Gun records accept scalar fields; normalizeCell restores these lists for the UI.
+    pillars: pillars.join(', '),
+    linkedApps: DEFAULT_APP_LINKS.map(item => item.key).join(', '),
     owner: existing.owner || (readStoredValue('username') || readStoredValue('alias') || 'Guest').trim(),
     createdAt: existing.createdAt || now,
     updatedAt: now,
@@ -445,17 +455,20 @@ function logCellActivity(record, isNew = false) {
 
 function saveCell(event) {
   event.preventDefault();
-  const existing = getSelectedCell() || {};
+  const existing = state.cells[elements.cellId.value] || {};
   const record = buildCellRecord(existing);
   const isNew = !state.cells[record.id];
   if (!record.name) {
     record.name = 'Untitled Cell';
   }
+  elements.cellSaveStatus.textContent = 'Saving Cell…';
   cellsRoot.get(record.id).put(record, ack => {
     if (ack && ack.err) {
       console.warn('Unable to save cell to Gun', ack.err);
+      elements.cellSaveStatus.textContent = 'Cell was not saved. Check your connection and try again.';
       return;
     }
+    elements.cellSaveStatus.textContent = 'Cell saved. Availability on other devices is not verified.';
     state.cells[record.id] = normalizeCell(record, record.id);
     state.selectedCellId = record.id;
     elements.cellId.value = record.id;
@@ -471,11 +484,13 @@ function saveCell(event) {
 
 function resetCellForm() {
   state.selectedCellId = '';
+  state.pendingFocusSelection = '';
+  elements.cellSaveStatus.textContent = '';
   elements.cellId.value = '';
   const defaults = window.__cellDefaults || {};
   elements.cellName.value = defaults.cellName || '3dvr Builder Cell';
   elements.focus.value = defaults.focus || 'Cross-line organization';
-  elements.size.value = defaults.size || '6 people';
+  elements.size.value = defaults.size || '3 people';
   elements.rhythm.value = defaults.rhythm || 'Weekly';
   elements.purpose.value = defaults.purpose || '';
   elements.pillars.value = defaults.pillars || 'support, leads, projects, coordination';
@@ -484,6 +499,7 @@ function resetCellForm() {
   setAppLinks('');
   const url = new URL(window.location.href);
   url.searchParams.delete('cellId');
+  url.searchParams.delete('cell');
   history.replaceState({}, '', url.toString());
   renderState();
 }
@@ -543,6 +559,7 @@ elements.form.addEventListener('input', () => {
   syncSubmitLabel();
 });
 elements.cellList.addEventListener('click', handleSelectedCellClick);
+elements.cellSearch.addEventListener('input', renderState);
 elements.appLinks.forEach(link => {
   link.href = resolveAppLink(link.getAttribute('data-cell-app') || '', state.selectedCellId);
 });
