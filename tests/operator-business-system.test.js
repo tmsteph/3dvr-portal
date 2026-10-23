@@ -125,7 +125,13 @@ test('revenue workflow carries a lead from research to verified payment', () => 
   assert.equal(item.state, 'waiting_external');
   item = advanceRevenueLead(item, 'reply_received', { now: '2026-09-12T18:04:00.000Z', evidence: { type: 'reply', id: 'reply-1' } });
   assert.equal(revenueStage(item), 'proposal');
-  item = advanceRevenueLead(item, 'proposal_sent', { now: '2026-09-12T18:05:00.000Z', evidence: { type: 'email', id: 'proposal-1' } });
+  assert.throws(() => advanceRevenueLead(item, 'proposal_sent', {
+    evidence: { type: 'email', id: 'proposal-1' }
+  }), /fresh traceable approved human checkpoint/);
+  item = advanceRevenueLead(item, 'proposal_sent', {
+    now: '2026-09-12T18:05:00.000Z', evidence: { type: 'email', id: 'proposal-1' },
+    humanCheckpoint: { status: 'approved', id: 'approval-2' }
+  });
   assert.equal(revenueStage(item), 'payment');
   item = advanceRevenueLead(item, 'payment_received', {
     now: '2026-09-12T18:06:00.000Z', result: { amount: 1200 }, evidence: { type: 'payment', id: 'payment-1' }
@@ -134,6 +140,7 @@ test('revenue workflow carries a lead from research to verified payment', () => 
   assert.equal(item.state, 'done');
   assert.equal(item.result.amount, 1200);
   assert.equal(item.evidence.length, 4);
+  assert.equal(item.metadata.lastOutboundApprovalId, 'approval-2');
 });
 
 test('business team keeps one manager plus bounded functional roles', () => {
