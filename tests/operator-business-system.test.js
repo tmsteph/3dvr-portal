@@ -188,3 +188,32 @@ test('revenue events cannot assert sends, replies, or payments without receipts 
   assert.equal(revenueStage(won), 'won');
   assert.equal(won.evidence[0].id, 'pay-1');
 });
+
+
+test('outbound approvals cannot be reused after an intervening approval', () => {
+  const item = createRevenueLeadWorkItem({
+    id: 'approval-history-1', stage: 'follow_up',
+    metadata: {
+      lastOutboundApprovalId: 'approval-B',
+      usedOutboundApprovalIds: ['approval-A', 'approval-B']
+    }
+  });
+  assert.throws(() => advanceRevenueLead(item, 'follow_up_sent', {
+    evidence: { type: 'email', id: 'message-C' },
+    humanCheckpoint: { status: 'approved', id: 'approval-A' }
+  }), /fresh traceable approved human checkpoint/);
+  const sent = advanceRevenueLead(item, 'follow_up_sent', {
+    evidence: { type: 'email', id: 'message-C' },
+    humanCheckpoint: { status: 'approved', id: 'approval-C' }
+  });
+  assert.deepEqual(sent.metadata.usedOutboundApprovalIds, ['approval-A', 'approval-B', 'approval-C']);
+  assert.equal(sent.metadata.lastOutboundApprovalId, 'approval-C');
+  const malformed = createRevenueLeadWorkItem({
+    id: 'approval-history-2', stage: 'outreach',
+    metadata: { usedOutboundApprovalIds: 'not-an-audit-list' }
+  });
+  assert.throws(() => advanceRevenueLead(malformed, 'outreach_sent', {
+    evidence: { type: 'email', id: 'message-D' },
+    humanCheckpoint: { status: 'approved', id: 'approval-D' }
+  }), /fresh traceable approved human checkpoint/);
+});
