@@ -151,7 +151,7 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
     db.exec('BEGIN IMMEDIATE');
     try {
       const row = db.prepare(`
-        SELECT record_json, source, claim_expires_at FROM tasks
+        SELECT record_json, source FROM tasks
         WHERE owner_alias = ? AND id = ?
           AND status = 'queued'
       `).get(ownerAlias(options), String(id));
