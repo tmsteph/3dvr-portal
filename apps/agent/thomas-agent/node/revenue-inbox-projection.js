@@ -4,9 +4,22 @@ function text(value) { return String(value || '').trim(); }
 function lower(value) { return text(value).toLowerCase(); }
 
 function inboxState(message = {}) {
-  const haystack = `${message.from || ''} ${message.subject || ''} ${message.preview || ''}`.toLowerCase();
-  if (/unsubscribe|remove me|do not contact|don'?t contact|\bstop\b/.test(haystack)) return 'suppressed';
-  if (/mailer-daemon|postmaster|delivery status notification|undeliver|delivery failure|\bbounce/.test(haystack)) return 'bounced';
+  const sender = lower(message.from);
+  const subject = lower(message.subject);
+  const preview = lower(message.preview);
+  // A delivery failure can quote the original message's unsubscribe footer.
+  // It must be recorded as a bounce, not mistaken for the recipient opting out.
+  if (/mailer-daemon|postmaster/.test(sender) ||
+      /delivery status notification|undeliver|delivery failure|\bbounce\b/.test(subject)) {
+    return 'bounced';
+  }
+  // "Can you stop by?" is a reply, not consent to suppress a contact.
+  // Recognize standalone STOP and explicit opt-out requests, not any "stop".
+  const content = `${subject}\n${preview}`;
+  if (/unsubscribe|remove me|do not contact|don'?t contact|opt[ -]?out|stop (?:emailing|contacting|messaging|sending)/.test(content) ||
+      /^stop[.!]?$/.test(preview || subject)) {
+    return 'suppressed';
+  }
   return 'replied';
 }
 
