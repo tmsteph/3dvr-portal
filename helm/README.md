@@ -160,7 +160,8 @@ No fallback silently changes engines after dispatch.
 The same signed API, SSH mesh, bounded JSONL/SSE bridge and durable Portal receipts
 launch `src/openclaw/native.py` on Hetzner. It reuses the installed Codex app-server
 executable and existing `/root/.codex` ChatGPT login in place. No API key billing,
-new listener/service, copied credentials or OpenClaw restart is needed. Python
+new listener/service, copied credentials or OpenClaw restart is needed. The
+installed managed package can also be found while its gateway is stopped. Python
 3.11+ is required (`tomllib`). Native status reports local installation/login
 configuration only; a completed chat turn establishes working authentication.
 

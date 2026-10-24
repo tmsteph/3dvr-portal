@@ -111,6 +111,17 @@ class NativeTests(unittest.TestCase):
                 self.assertIn('shell_tool', args)
                 self.assertEqual((home / 'config.toml').read_text(), source)
 
+    def test_installed_binary_remains_discoverable_without_a_running_gateway(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = Path(directory) / 'codex'
+            executable.write_text('#!/bin/sh\n')
+            executable.chmod(0o700)
+            def installed(path, pattern):
+                return [] if str(path) == '/proc' else [executable]
+            with patch.object(native.shutil, 'which', return_value=None), \
+                 patch.object(native.Path, 'glob', autospec=True, side_effect=installed):
+                self.assertEqual(native.find_binary(), str(executable))
+
     def test_status_never_starts_inference_and_expiry_prevents_dispatch(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)

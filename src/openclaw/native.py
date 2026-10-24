@@ -32,9 +32,15 @@ def find_binary():
         except OSError:
             continue
     binary = shutil.which('codex')
-    if not binary:
-        raise RuntimeError('Codex is not installed')
-    return binary
+    if binary:
+        return binary
+    # A stopped OpenClaw gateway must not hide its still-installed Codex package.
+    installed = Path('/root/.openclaw-cloud/npm/projects').glob(
+        '*/node_modules/@openai/codex-linux-x64/vendor/*/bin/codex')
+    candidates = [path for path in installed if path.is_file() and os.access(path, os.X_OK)]
+    if candidates:
+        return str(max(candidates, key=lambda path: path.stat().st_mtime))
+    raise RuntimeError('Codex is not installed')
 
 
 def command(binary):
