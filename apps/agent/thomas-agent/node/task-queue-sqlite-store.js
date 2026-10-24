@@ -59,13 +59,14 @@ function parseRecord(row) {
 
 function writeTask(record, options = {}) {
   return withDatabase(options, (db) => {
-    db.prepare(`
+    const result = db.prepare(`
       INSERT INTO tasks (owner_alias, id, status, updated_at, record_json, source)
       VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(owner_alias, id) DO UPDATE SET
         status = excluded.status,
         updated_at = excluded.updated_at,
         record_json = excluded.record_json
+      WHERE tasks.status != 'running'
     `).run(
       ownerAlias(options),
       String(record.id),
@@ -74,6 +75,9 @@ function writeTask(record, options = {}) {
       JSON.stringify(record),
       options.queueSource || 'sqlite',
     );
+    // Only a claim-holder may finish running work. A second enqueue/update
+    // with the same ID must never erase a running claim, even after expiry.
+    if (result.changes !== 1) throw new Error('active task claim required for update');
     return record;
   });
 }
