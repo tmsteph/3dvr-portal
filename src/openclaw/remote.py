@@ -12,13 +12,14 @@ import urllib.request
 def read_stream(response, on_delta):
     parts = []
     received = 0
+    content_bytes = 0
     done = False
     while True:
-        line = response.readline(128001)
+        line = response.readline(1024 * 1024 + 1)
         if not line:
             break
         received += len(line)
-        if received > 128000:
+        if len(line) > 1024 * 1024 or received > 32 * 1024 * 1024:
             raise ValueError('response limit')
         if not line.startswith(b'data:'):
             continue
@@ -32,6 +33,9 @@ def read_stream(response, on_delta):
         for choice in event.get('choices', []):
             text = choice.get('delta', {}).get('content', '')
             if isinstance(text, str) and text:
+                content_bytes += len(text.encode('utf-8'))
+                if content_bytes > 120000:
+                    raise ValueError('reply limit')
                 parts.append(text)
                 on_delta(text)
     if not done:
