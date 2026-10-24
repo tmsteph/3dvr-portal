@@ -73,24 +73,40 @@ async function run(triggerId = process.env.THREEDVR_TRIGGER_ID || `manual:${Date
   try {
     const started = startRun(db, { triggerId, releaseSha: releaseSha() });
     if (started.replayed) return { ...started.run, replayed: true };
-    const inbox = consumeInboxState(db, process.env.THREEDVR_INBOX_STATE_FILE);
-    const delivery = await deliverCandidate(db, options);
-    const crm = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_CRM_PROJECTION_ENABLED || ''))
-      ? await projectPendingCrm(db, options.crm || {})
-      : { attempted: 0, succeeded: 0, failed: 0, disabled: true };
-    const failed = inbox.errors.length || crm.failed || delivery.error;
-    const finished = finishRun(db, {
-      runId: started.run.id,
-      status: failed ? 'failed' : 'succeeded',
-      summary: {
-        mode: delivery.disabled ? 'no-send-canary' : 'bounded-delivery',
-        sends: delivery.sends,
-        delivery,
-        inbox,
-        crm,
-      },
-    });
-    return { ...finished, replayed: false };
+    try {
+      const inbox = consumeInboxState(db, process.env.THREEDVR_INBOX_STATE_FILE);
+      const delivery = await deliverCandidate(db, options);
+      const crm = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_CRM_PROJECTION_ENABLED || ''))
+        ? await projectPendingCrm(db, options.crm || {})
+        : { attempted: 0, succeeded: 0, failed: 0, disabled: true };
+      const failed = inbox.errors.length || crm.failed || delivery.error;
+      const finished = finishRun(db, {
+        runId: started.run.id,
+        status: failed ? 'failed' : 'succeeded',
+        summary: {
+          mode: delivery.disabled ? 'no-send-canary' : 'bounded-delivery',
+          sends: delivery.sends,
+          delivery,
+          inbox,
+          crm,
+        },
+      });
+      return { ...finished, replayed: false };
+    } catch (error) {
+      // A malformed inbox file or failed CRM writer must not strand a run in
+      // 'running' forever. Preserve the original error without storing its
+      // potentially sensitive message in the durable run summary.
+      try {
+        finishRun(db, {
+          runId: started.run.id,
+          status: 'failed',
+          summary: { mode: 'no-send-canary', sends: 0, failedPhase: 'revenue_run', errorType: String(error?.name || 'Error') },
+        });
+      } catch {
+        // Do not mask the original failure if the run was already finalized.
+      }
+      throw error;
+    }
   } finally {
     db.close();
   }
