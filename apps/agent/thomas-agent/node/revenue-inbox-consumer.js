@@ -15,7 +15,14 @@ function consumeInboxState(db, filePath) {
       ? message.bounceEmails
       : [state === 'bounced'
         ? message.prospectEmail || message.recipient || message.originalRecipient || message.fromEmail
-        : message.fromEmail || message.prospectEmail || message.recipient || message.originalRecipient];
+        : message.fromEmail];
+    // Do not silently drop an ambiguous reply/opt-out: surface a reviewable
+    // error while leaving all prospect records unchanged.
+    if (state !== 'bounced' && !message.fromEmail) {
+      result.scanned += 1;
+      result.errors.push(`${messageId}: inbound sender missing; manual review required`);
+      continue;
+    }
     for (const contact of contacts.filter(Boolean)) {
       result.scanned += 1;
       try {
