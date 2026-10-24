@@ -9,6 +9,7 @@ main > header > .header-actions {
   justify-content: flex-end;
 }
 .operator-account { min-width: 0; max-width: 55vw; }
+.operator-account > a { display: inline-flex; align-items: center; min-height: 44px; }
 .operator-account .floating-identity__stats {
   display: flex;
   align-items: center;

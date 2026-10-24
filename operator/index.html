@@ -17,6 +17,9 @@
   <link rel="stylesheet" href="focus.css">
   <link rel="stylesheet" href="shell.css">
   <link rel="stylesheet" href="account.css">
+  <style>
+    .operator-boot-loading{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:#07101c;color:#9db0c5;font:600 1rem/1.45 Inter,system-ui,sans-serif;letter-spacing:.02em}
+  </style>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="/gun-init.js"></script>
@@ -33,6 +36,7 @@
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
+  <div class="operator-boot-loading" id="operator-boot-loading" role="status">Loading Operator…</div>
   <main>
     <header>
       <div class="operator-brand">
