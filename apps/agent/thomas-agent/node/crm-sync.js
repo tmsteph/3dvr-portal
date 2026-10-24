@@ -99,7 +99,20 @@ function contactIdentity(value = {}) {
 }
 
 function contactsMatch(left = {}, right = {}) {
-  if (contactIdentity(left) === contactIdentity(right)) return true;
+  const leftEmail = normalizeEmail(left.contact || left.email);
+  const rightEmail = normalizeEmail(right.contact || right.email);
+  // A matching display name never overrides two different verified addresses.
+  if (leftEmail && rightEmail) return leftEmail === rightEmail;
+
+  const leftSite = normalizeLower(left.link || left.site);
+  const rightSite = normalizeLower(right.link || right.site);
+  if (leftSite && rightSite) return leftSite === rightSite;
+
+  // Name-only matching is a legacy fallback, not proof that two independently
+  // identified contacts are the same person or business.
+  const leftIdentified = Boolean(leftEmail || leftSite || normalizeText(left.contact));
+  const rightIdentified = Boolean(rightEmail || rightSite || normalizeText(right.contact));
+  if (leftIdentified && rightIdentified) return false;
   const leftName = normalizeLower(left.name);
   const rightName = normalizeLower(right.name);
   return Boolean(leftName && rightName && leftName === rightName);
@@ -334,25 +347,25 @@ function buildCrmSyncPayload({
   const qualifiedLeads = [...leads, ...outreachOnlyLeads]
     .filter((lead) => shouldSyncLeadToCrm(lead, { includeAll }));
   const selectedLeads = limit > 0 ? qualifiedLeads.slice(0, limit) : qualifiedLeads;
-  const records = selectedLeads.map((lead) => buildCrmRecord(mergeOutreachIntoLead(lead, outreach), { now }));
-  const byIdentity = new Map();
-  const byName = new Map();
-  const byId = new Map();
-  selectedLeads.forEach((lead, index) => {
-    byIdentity.set(contactIdentity(lead), { lead, record: records[index] });
-    if (normalizeLower(lead.name)) byName.set(normalizeLower(lead.name), { lead, record: records[index] });
-    byId.set(records[index].id, { lead, record: records[index] });
-  });
-
-  const touches = records.map((record) => buildLeadTouch(byId.get(record.id).lead, record, { now }));
+  // Resolve each outreach event to exactly one lead before updating status,
+  // follow-ups, or touch history. Ambiguous name-only events remain unmatched.
+  const matchedOutreach = selectedLeads.map(() => []);
   for (const entry of outreach) {
-    const match = byIdentity.get(contactIdentity(entry)) || byName.get(normalizeLower(entry.name));
-    if (!match) continue;
-    touches.push(buildOutreachTouch(entry, match.record, { now }));
+    const matches = selectedLeads.flatMap((lead, index) => contactsMatch(lead, entry) ? [index] : []);
+    if (matches.length === 1) matchedOutreach[matches[0]].push(entry);
   }
 
-  for (const record of records) {
-    const entries = outreach.filter(entry => contactsMatch(entry, record));
+  const records = selectedLeads.map((lead, index) =>
+    buildCrmRecord(mergeOutreachIntoLead(lead, matchedOutreach[index]), { now }));
+  const touches = records.map((record, index) => buildLeadTouch(selectedLeads[index], record, { now }));
+  records.forEach((record, index) => {
+    for (const entry of matchedOutreach[index]) {
+      touches.push(buildOutreachTouch(entry, record, { now }));
+    }
+  });
+
+  records.forEach((record, index) => {
+    const entries = matchedOutreach[index];
     const successful = entries.filter(entry => ['sent', 'submitted'].includes(normalizeLower(entry.status)));
     const replies = entries.filter(entry => normalizeLower(entry.status) === 'replied');
     const latest = entries.slice().sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || ''))).pop();
@@ -368,7 +381,7 @@ function buildCrmSyncPayload({
     record.lastDeliveryStatus = normalizeText(latest.deliveryStatus || latest.status);
     record.nextFollowUp = normalizeText(latest.nextFollowUp) || record.nextFollowUp;
     record.updated = now;
-  }
+  });
 
   return { records, touches };
 }
