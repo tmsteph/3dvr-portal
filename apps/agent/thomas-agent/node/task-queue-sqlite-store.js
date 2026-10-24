@@ -91,7 +91,8 @@ function importTask(record, options = {}) {
         source = 'gun',
         claim_token = NULL,
         claim_expires_at = NULL
-      WHERE (tasks.claim_token IS NULL OR tasks.claim_expires_at <= ?)
+      WHERE tasks.status != 'running'
+        AND (tasks.claim_token IS NULL OR tasks.claim_expires_at <= ?)
         AND excluded.updated_at > tasks.updated_at
     `).run(
       ownerAlias(options),
