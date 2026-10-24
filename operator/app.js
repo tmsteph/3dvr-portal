@@ -78,7 +78,7 @@ function render({forceLatest=false}={}) {
   log.querySelectorAll('[data-message-index]').forEach(node=>{
     const item=history[Number(node.dataset.messageIndex)];
     if(!item)return;
-    if(item.role==='assistant')paintOperatorMarkdown(node,item.content);
+    if(item.role==='assistant'){paintOperatorMarkdown(node,item.content);if(item.streaming&&!item.content&&thinkingTimer)paintThinking(node);}
     else node.textContent=item.content;
   });
   renderHistory();
@@ -96,6 +96,7 @@ function paintStreamingMessage(message){
   if(!content)return;
   const shouldFollow=atLatest();
   paintOperatorMarkdown(content,message.content);
+  if(message.streaming&&!message.content&&thinkingTimer)paintThinking(content);
   if(shouldFollow)requestAnimationFrame(()=>scrollLatest());
 }
 function queueStreamingPaint(message){
@@ -106,6 +107,30 @@ function flushStreamingPaint(message){
   if(streamingPaintTimer){window.clearTimeout(streamingPaintTimer);streamingPaintTimer=0}
   paintStreamingMessage(message);
 }
+// While a reply is still empty, the streaming bubble shows a live thinking
+// indicator instead of a blank message. The label progresses with elapsed
+// time, and the first streamed content replaces it (paintStreamingMessage
+// repaints the whole message content). The timer gate keeps a stale
+// streaming message restored from storage from looking alive.
+const THINKING_STAGES=[[0,'Connecting…'],[4000,'Thinking…'],[15000,'Still working…']];
+let thinkingTimer=0,thinkingStartedAt=0;
+function thinkingLabel(){const elapsed=Date.now()-thinkingStartedAt;let label=THINKING_STAGES[0][1];for(const [at,text] of THINKING_STAGES)if(elapsed>=at)label=text;return label}
+function paintThinking(content){
+  const note=document.createElement('p');
+  note.className='operator-thinking';
+  note.setAttribute('role','status');
+  const label=document.createElement('span');
+  label.className='operator-thinking__label';
+  label.textContent=thinkingLabel();
+  const dots=document.createElement('span');
+  dots.className='operator-thinking__dots';
+  dots.setAttribute('aria-hidden','true');
+  dots.textContent='•••';
+  note.append(label,dots);
+  content.replaceChildren(note);
+}
+function startThinking(){thinkingStartedAt=Date.now();window.clearInterval(thinkingTimer);thinkingTimer=window.setInterval(()=>{const label=log.querySelector('.message.assistant.is-streaming .operator-thinking__label');if(label)label.textContent=thinkingLabel()},1000)}
+function stopThinking(){window.clearInterval(thinkingTimer);thinkingTimer=0}
 async function syncHistory(){if(historySyncPromise)return historySyncPromise;if(!store.conversations.some(item=>item.messages.length)){historyEmpty.hidden=false;historyEmpty.textContent='Loading conversations…'}historySyncPromise=(async()=>{const remoteStore=await accountSync.load(store);if(remoteStore){while(operatorBusy())await new Promise(resolve=>setTimeout(resolve,100));store=mergeOperatorStores(store,remoteStore);if(requestedConversation&&store.conversations.some(item=>item.id===requestedConversation))store.activeId=requestedConversation;refreshHistory();localStorage.setItem(KEY,JSON.stringify(store));render({forceLatest:store.activeId===requestedConversation});void accountSync.save(store)}if(!remoteStore&&accountSync.isReady())void accountSync.save(store);historySyncComplete=true;renderHistory();return remoteStore})().finally(()=>{historySyncPromise=null});return historySyncPromise}
 function refreshAccountHistory(){if(!operatorBusy()&&document.visibilityState!=='hidden')void syncHistory()}
 window.addEventListener('focus',refreshAccountHistory);
@@ -139,9 +164,9 @@ async function requestOperator(payload,handlers={}){
   if(response.status===503&&openaiKey) response=await send({...payload,apiKey:openaiKey});
   return readOperatorStream(response,handlers);
 }
-form.addEventListener('submit',async event=>{event.preventDefault();const prompt=input.value.trim();const images=attachments.getPayload();if(!prompt&&!images.length)return;const prior=history.map(({role,content})=>({role,content}));const historyPrompt=images.length?`${prompt}${prompt?'\n\n':''}[Attached screenshot: ${images[0].name}]`:prompt;appendConversationNode(activeConversation(),{role:'user',content:historyPrompt},{makeId,now});refreshHistory();input.value='';save({renderPage:false});const streamingMessage=appendConversationNode(activeConversation(),{role:'assistant',content:'',streaming:true},{makeId,now});refreshHistory();render({forceLatest:true});status.textContent='Connecting…';form.querySelector('button[type="submit"]').disabled=true;
+form.addEventListener('submit',async event=>{event.preventDefault();const prompt=input.value.trim();const images=attachments.getPayload();if(!prompt&&!images.length)return;const prior=history.map(({role,content})=>({role,content}));const historyPrompt=images.length?`${prompt}${prompt?'\n\n':''}[Attached screenshot: ${images[0].name}]`:prompt;appendConversationNode(activeConversation(),{role:'user',content:historyPrompt},{makeId,now});refreshHistory();input.value='';save({renderPage:false});const streamingMessage=appendConversationNode(activeConversation(),{role:'assistant',content:'',streaming:true},{makeId,now});refreshHistory();startThinking();render({forceLatest:true});status.textContent='Connecting…';form.querySelector('button[type="submit"]').disabled=true;
 try{const [portalContext,developerAuth,memoryContext]=await Promise.all([collectPortalContext(),createDeveloperProofWithRetry(),recallOperatorMemoryBestEffort(prompt||'Please analyze the attached screenshot.')]);portalContext.page=pageContext;const data=await requestOperator({prompt:prompt||'Please analyze the attached screenshot.',images,history:prior,portalContext,developerAuth,memoryContext,collaborationMode:modeSelect.value,collaborationGuidance:MODE_INSTRUCTIONS[modeSelect.value]},{onStatus:message=>{status.textContent=message},onReplyDelta:delta=>{streamingMessage.content+=delta;queueStreamingPaint(streamingMessage);status.textContent='Operator is responding…'}});let outcome=null;if(data.action?.type!=='none')outcome=await runOperatorAction(data.action,{developerAccess:data.developerAccess,onStatus:message=>{status.textContent=message}});const lifeSpaceActions=new Set(['create_note','create_checklist','save_link']);streamingMessage.content=[data.reply || streamingMessage.content,outcome?.message].filter(Boolean).join('\n\n');streamingMessage.suggestions=Array.isArray(data.suggestions)?data.suggestions:[];streamingMessage.actionUrl=forgeUrlWithReturn(outcome?.url||'',store.activeId);streamingMessage.actionLabel=lifeSpaceActions.has(data.action?.type)?'Life Space':data.action?.type==='add_lead'?'Lead Finder':'workspace';delete streamingMessage.streaming;flushStreamingPaint(streamingMessage);attachments.clear();save();void rememberOperatorTurnBestEffort({conversationId:store.activeId,prompt:historyPrompt,reply:streamingMessage.content,subject:conversationTitle(activeConversation())});
-if(outcome?.backgroundTask){status.textContent='Tracking delegated work…';void watchOperatorActionOutcome(outcome,{onStatus:message=>{if(history[history.length-1]===streamingMessage)status.textContent=message},onUpdate:update=>{streamingMessage.content=[data.reply,update.message].filter(Boolean).join('\n\n');if(history[history.length-1]===streamingMessage)flushStreamingPaint(streamingMessage);save({renderPage:false});if(update.terminal)void rememberOperatorTurnBestEffort({conversationId:store.activeId,prompt:historyPrompt,reply:streamingMessage.content,subject:conversationTitle(activeConversation())})}}).catch(()=>{if(history[history.length-1]===streamingMessage)status.textContent='Task is still queued. Open the task if you need deeper detail.'})}else{status.textContent='Ready'}}catch(error){streamingMessage.content=streamingMessage.content?`${streamingMessage.content}\n\nI could not finish that: ${error.message}`:`I could not finish that: ${error.message}`;delete streamingMessage.streaming;flushStreamingPaint(streamingMessage);save();status.textContent='Try again';}finally{form.querySelector('button[type="submit"]').disabled=false;input.focus()}});
+if(outcome?.backgroundTask){status.textContent='Tracking delegated work…';void watchOperatorActionOutcome(outcome,{onStatus:message=>{if(history[history.length-1]===streamingMessage)status.textContent=message},onUpdate:update=>{streamingMessage.content=[data.reply,update.message].filter(Boolean).join('\n\n');if(history[history.length-1]===streamingMessage)flushStreamingPaint(streamingMessage);save({renderPage:false});if(update.terminal)void rememberOperatorTurnBestEffort({conversationId:store.activeId,prompt:historyPrompt,reply:streamingMessage.content,subject:conversationTitle(activeConversation())})}}).catch(()=>{if(history[history.length-1]===streamingMessage)status.textContent='Task is still queued. Open the task if you need deeper detail.'})}else{status.textContent='Ready'}}catch(error){streamingMessage.content=streamingMessage.content?`${streamingMessage.content}\n\nI could not finish that: ${error.message}`:`I could not finish that: ${error.message}`;delete streamingMessage.streaming;flushStreamingPaint(streamingMessage);save();status.textContent='Try again';}finally{stopThinking();form.querySelector('button[type="submit"]').disabled=false;input.focus()}});
 input.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();if(!operatorBusy())form.requestSubmit()}});
 document.querySelector('.quick-prompts').addEventListener('click',event=>{const button=event.target.closest('[data-prompt]');if(!button)return;input.value=button.dataset.prompt;form.requestSubmit()});
 log.addEventListener('click',event=>{const suggestion=event.target.closest('[data-suggestion]');if(suggestion){input.value=suggestion.dataset.suggestion;form.requestSubmit();return}const branch=event.target.closest('[data-branch-from]');if(branch){if(operatorBusy()){status.textContent='Finish the current reply before switching branches';return}selectConversationNode(activeConversation(),branch.dataset.branchFrom);refreshHistory();save();status.textContent='Branch point selected · your next message starts a new branch';input.focus();return}const switcher=event.target.closest('[data-switch-node]');if(switcher?.dataset.switchNode){if(operatorBusy()){status.textContent='Finish the current reply before switching branches';return}selectConversationNode(activeConversation(),switcher.dataset.switchNode,{followDescendants:true});refreshHistory();save();status.textContent='Switched branch';}});

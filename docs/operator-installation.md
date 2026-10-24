@@ -3,7 +3,7 @@
 Install the independent app at https://operator.3dvr.tech/operator/.
 The subdomain root redirects to that path on the same origin. Its manifest identity
 and scope are `/operator/`, isolated from the Portal origin's root-scoped installed app.
-The Portal's Install Operator button opens the independent origin.
+The Portal's Install Operator button uses the browser's install prompt when offered. Otherwise it explains how to install the Portal page, and links honestly to the independent origin instead of moving the user there silently.
 
 The same OVH application serves both hosts, including native APIs and sign-in;
 no additional server or frontend fork is needed. Root-relative assets and API

@@ -54,9 +54,14 @@ test('installed apps hide the install entry', () => {
 });
 
 
-test('Portal install button opens the independent Operator origin', async () => {
+test('Portal install button uses the browser prompt or instructions, never a silent origin change', async () => {
   const ui = setup(false, 'portal.3dvr.tech');
   await ui.click();
-  assert.equal(ui.destination(), 'https://operator.3dvr.tech/operator/');
-  assert.equal(ui.dialogs(), 0);
+  assert.equal(ui.destination(), null);
+  assert.equal(ui.dialogs(), 1);
+  let prompts = 0;
+  ui.events.beforeinstallprompt({ preventDefault() {}, prompt: async () => { prompts++; }, userChoice: Promise.resolve({ outcome: 'accepted' }) });
+  await ui.click();
+  assert.equal(prompts, 1);
+  assert.equal(ui.destination(), null);
 });
