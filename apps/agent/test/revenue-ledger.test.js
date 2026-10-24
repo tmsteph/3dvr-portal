@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createProspect, finishProjection, importProspectState, openLedger, pendingProjections, reserveDeliveryAttempt, startRun, finishRun, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
+const { createProspect, findProspectByContact, finishProjection, importProspectState, openLedger, pendingProjections, reserveDeliveryAttempt, startRun, finishRun, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
 
 function withLedger(fn) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-ledger-'));
@@ -20,6 +20,28 @@ test('ledger deduplicates prospects and idempotent transitions', () => withLedge
   const replay = transitionProspect(db, { prospectId: first.prospect.id, toState: 'verified', idempotencyKey: 'verify:acme' });
   assert.equal(verified.prospect.state, 'verified');
   assert.equal(replay.replayed, true);
+}));
+
+test('email identity deduplicates mailto, bare address, and case variants', () => withLedger((db) => {
+  const first = createProspect(db, { name: 'Example', contact: 'mailto:HELLO@EXAMPLE.test' });
+  const second = createProspect(db, { name: 'Example again', contact: 'hello@example.test' });
+  assert.equal(first.created, true);
+  assert.equal(second.created, false);
+  assert.equal(second.prospect.id, first.prospect.id);
+  assert.equal(findProspectByContact(db, 'mailto:hello@example.test').id, first.prospect.id);
+  assert.equal(findProspectByContact(db, 'HELLO@EXAMPLE.TEST').id, first.prospect.id);
+  assert.equal(db.prepare('SELECT COUNT(*) AS total FROM prospects').get().total, 1);
+}));
+
+test('email identity reuses historical mailto keys without migrating records', () => withLedger((db) => {
+  const old = createProspect(db, { name: 'Legacy', contact: 'mailto:legacy@example.test' }).prospect;
+  db.prepare('UPDATE prospects SET contact_key = ? WHERE id = ?')
+    .run('contact:mailto:legacy@example.test', old.id);
+  const replay = createProspect(db, { name: 'Legacy again', contact: 'LEGACY@EXAMPLE.TEST' });
+  assert.equal(replay.created, false);
+  assert.equal(replay.prospect.id, old.id);
+  assert.equal(findProspectByContact(db, 'mailto:legacy@example.test').id, old.id);
+  assert.equal(db.prepare('SELECT COUNT(*) AS total FROM prospects').get().total, 1);
 }));
 
 test('state transitions atomically queue idempotent CRM projections', () => withLedger((db) => {
