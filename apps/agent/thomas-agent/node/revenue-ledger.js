@@ -94,7 +94,14 @@ function reserveDeliveryAttempt(db, { attemptId, prospectId } = {}) {
   const prospect = normalize(prospectId);
   if (!key || !prospect) throw new Error('attemptId and prospectId are required');
   const existing = db.prepare('SELECT * FROM delivery_attempts WHERE attempt_key = ?').get(key);
-  if (existing) return { attempt: existing, replayed: true };
+  if (existing) {
+    // A delivery attempt key belongs to exactly one prospect. Reusing it for
+    // another recipient must never return a misleading acknowledged receipt.
+    if (existing.prospect_id !== prospect) {
+      throw new Error('Delivery attempt key collision: existing attempt belongs to another prospect');
+    }
+    return { attempt: existing, replayed: true };
+  }
   const now = new Date().toISOString();
   const attempt = {
     id: randomUUID(), attempt_key: key, prospect_id: prospect, status: 'in_flight',
