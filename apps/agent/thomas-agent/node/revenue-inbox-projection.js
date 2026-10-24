@@ -24,12 +24,16 @@ function inboxState(message = {}) {
 }
 
 function projectInboxMessage(db, message = {}) {
-  const contact = lower(message.prospectEmail || message.recipient || message.originalRecipient || message.fromEmail);
+  const state = inboxState(message);
+  // Recipient/prospect hints can be stale on an ordinary inbound reply.
+  // Only delivery failures should prefer the original outbound recipient.
+  const contact = lower(state === 'bounced'
+    ? message.prospectEmail || message.recipient || message.originalRecipient || message.fromEmail
+    : message.fromEmail || message.prospectEmail || message.recipient || message.originalRecipient);
   const messageId = text(message.messageId || message.uid);
   if (!contact || !messageId) throw new Error('Inbox projection requires contact and messageId');
   const prospect = findProspectByContact(db, contact);
-  if (!prospect) return { matched: false, state: inboxState(message) };
-  const state = inboxState(message);
+  if (!prospect) return { matched: false, state };
   if (prospect.state === state || prospect.state === 'suppressed') return { matched: true, replayed: true, prospect };
   if (!['sent', 'replied'].includes(prospect.state) && state !== 'suppressed') {
     throw new Error(`Inbox event ${state} is invalid for ${prospect.state} prospect`);
