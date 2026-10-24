@@ -175,3 +175,47 @@ test('standalone STOP and explicit opt-outs remain suppressed; delivery failures
   assert.equal(inboxState({ from: 'unsubscribe@vendor.test', subject: 'Re: meeting',
     preview: 'Please stop by Tuesday.' }), 'replied');
 });
+
+
+test('inbound sender takes precedence over stale recipient and prospect hints for replies and opt-outs', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-sender-precedence-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const contacts = ['reply@test.example', 'optout@test.example', 'stale@test.example'];
+    const prospects = contacts.map((contact, index) => {
+      const prospect = createProspect(db, { name: `Synthetic ${index}`, contact }).prospect;
+      for (const state of ['verified', 'eligible', 'sent']) {
+        transitionProspect(db, {
+          prospectId: prospect.id, toState: state,
+          idempotencyKey: `sender-precedence:${index}:${state}`,
+        });
+      }
+      return prospect;
+    });
+    const filePath = path.join(tmp, 'inbox-state.json');
+    fs.writeFileSync(filePath, JSON.stringify({ messages: {
+      'reply-with-stale-hints': {
+        fromEmail: contacts[0], prospectEmail: contacts[2], recipient: contacts[2],
+        subject: 'Re: proposal', preview: 'Can we discuss the integration?',
+      },
+      'optout-with-stale-hints': {
+        fromEmail: contacts[1], prospectEmail: contacts[2], recipient: contacts[2],
+        subject: 'Re: proposal', preview: 'Please stop emailing me.',
+      },
+    } }));
+    assert.deepEqual(consumeInboxState(db, filePath),
+      { scanned: 2, matched: 2, unmatched: 0, errors: [] });
+    assert.equal(db.prepare('SELECT state FROM prospects WHERE id = ?').get(prospects[0].id).state, 'replied');
+    assert.equal(db.prepare('SELECT state FROM prospects WHERE id = ?').get(prospects[1].id).state, 'suppressed');
+    assert.equal(db.prepare('SELECT state FROM prospects WHERE id = ?').get(prospects[2].id).state, 'sent');
+    // Direct projection calls must obey the same identity precedence.
+    assert.equal(projectInboxMessage(db, {
+      fromEmail: contacts[0], prospectEmail: contacts[2],
+      messageId: 'direct-reply', subject: 'Re: proposal',
+    }).prospect.id, prospects[0].id);
+    assert.deepEqual(consumeInboxState(db, filePath),
+      { scanned: 2, matched: 2, unmatched: 0, errors: [] });
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type = 'inbox_suppressed'").get().n, 1);
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type = 'inbox_replied'").get().n, 1);
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
