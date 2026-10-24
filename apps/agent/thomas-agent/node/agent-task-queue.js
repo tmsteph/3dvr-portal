@@ -310,6 +310,19 @@ function canWorkerRunTask(record = {}, options = {}) {
     };
   }
 
+  // A plain "approved" string is supplied by the task producer and is not
+  // an authenticated, message/task-bound human approval receipt. Until the
+  // approval verifier exists, high-risk work must remain blocked even if a
+  // producer (or imported record) labels it approved. Do not invent a
+  // worker-local override: that would recreate the same bypass.
+  if (APPROVAL_REQUIRED_RISKS.has(riskClass)) {
+    return {
+      ok: false,
+      reason: `authenticated human approval verification unavailable for ${riskClass}`,
+      profile,
+    };
+  }
+
   return { ok: true, profile };
 }
 
