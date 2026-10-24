@@ -148,12 +148,32 @@ function shellQuote(value) {
   return `'${String(value).replace(/'/g, `'\\''`)}'`;
 }
 
-async function detectCapabilities({ env = process.env, commandExistsImpl = commandExists } = {}) {
-  const [codex, openclaw, claudeCli] = await Promise.all([
+// A binary on PATH is not an executable capability if its auth is missing.
+// Probe only the current worker process context; never print the CLI output
+// (which may include account metadata) or attempt login/credential changes.
+function codexLoginHealthy(execFileImpl = execFile) {
+  return new Promise((resolve) => {
+    execFileImpl('codex', ['login', 'status'], { timeout: 5000, maxBuffer: 64 * 1024 }, (error) => {
+      resolve(!error);
+    });
+  });
+}
+
+async function detectCapabilities({
+  env = process.env,
+  commandExistsImpl = commandExists,
+  codexLoginHealthyImpl = codexLoginHealthy,
+} = {}) {
+  const [codexInstalled, openclaw, claudeCli] = await Promise.all([
     commandExistsImpl('codex'),
     commandExistsImpl('openclaw'),
     commandExistsImpl('claude'),
   ]);
+  // Fail closed for auto-routing if the login probe errors, times out, or
+  // returns nonzero. This is a local preflight, not proof a live exec succeeds.
+  const codex = codexInstalled && await Promise.resolve()
+    .then(() => codexLoginHealthyImpl())
+    .catch(() => false);
   return {
     codex,
     openclaw,
@@ -567,6 +587,7 @@ module.exports = {
   parseArgs,
   classifyTask,
   commandExists,
+  codexLoginHealthy,
   detectCapabilities,
   pickBackend,
   buildPrompt,
