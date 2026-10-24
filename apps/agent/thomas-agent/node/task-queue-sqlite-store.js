@@ -165,6 +165,13 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
         return null;
       }
       const record = JSON.parse(row.record_json);
+      // Authorization must be checked against the row inside the same
+      // transaction as the claim. A worker's earlier queue snapshot can be
+      // stale if approval, risk, or required capabilities changed.
+      if (typeof options.authorizeTask === 'function' && !options.authorizeTask(record)) {
+        db.exec('ROLLBACK');
+        return null;
+      }
       const updated = {
         ...record,
         status: 'running',
