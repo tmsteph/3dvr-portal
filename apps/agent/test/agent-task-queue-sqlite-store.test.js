@@ -114,7 +114,7 @@ test('long SQLite work renews an expired initial claim against a competing worke
   assert.equal((await readTask('slow-task', options)).status, 'completed');
 });
 
-test('an expired claim is recovered after a worker process restart', async (t) => {
+test('an expired running claim requires review instead of automatic replay', async (t) => {
   const now = Date.now();
   const options = await queueOptions(t, {
     rootNode: fakeRoot(),
@@ -122,7 +122,7 @@ test('an expired claim is recovered after a worker process restart', async (t) =
     deviceId: 'replacement-worker',
     now: now + 100,
   });
-  await enqueueTask('recover me', {
+  await enqueueTask('potentially side-effectful work', {
     ...options,
     now,
     id: 'restart-task',
@@ -132,16 +132,22 @@ test('an expired claim is recovered after a worker process restart', async (t) =
   assert.ok(sqliteQueue.claimTask('restart-task', 'dead-process-token', 'dead-worker', now + 10, now, options));
 
   let executions = 0;
-  await runWorkerOnce({
+  const results = await runWorkerOnce({
     ...options,
     runAgentTaskImpl: async () => {
       executions += 1;
-      return { ok: true, result: { stdout: 'recovered' } };
+      return { ok: true, result: { stdout: 'should not execute' } };
     },
   });
 
-  assert.equal(executions, 1);
-  assert.equal((await readTask('restart-task', options)).status, 'completed');
+  assert.equal(executions, 0, 'no automatic replay after a worker crash');
+  assert.equal(results.length, 0);
+  assert.equal((await readTask('restart-task', options)).status, 'running');
+  assert.equal(
+    sqliteQueue.claimTask('restart-task', 'replacement-token', 'replacement-worker', now + 200, now + 100, options),
+    null,
+    'direct SQLite claim also fails closed on an expired running lease',
+  );
 });
 
 test('SQLite worker imports legacy GUN tasks and mirrors completion', async (t) => {
