@@ -77,3 +77,41 @@ test('one multi-recipient bounce updates each prospect without cross-contact ide
     assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type = 'inbox_bounced'").get().n, 2);
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
+
+test('recipient-only delivery failures are consumed and block unsafe follow-ups', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-recipient-only-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const contacts = ['recipient@test.example', 'original@test.example'];
+    for (const [index, contact] of contacts.entries()) {
+      const prospect = createProspect(db, { name: `Synthetic ${index}`, contact }).prospect;
+      for (const [state, suffix] of [['verified', 'v'], ['eligible', 'e'], ['sent', 's']]) {
+        transitionProspect(db, {
+          prospectId: prospect.id, toState: state,
+          idempotencyKey: `recipient-only:${index}:${suffix}`
+        });
+      }
+    }
+    const filePath = path.join(tmp, 'inbox-state.json');
+    fs.writeFileSync(filePath, JSON.stringify({ messages: {
+      'delivery-recipient': {
+        recipient: contacts[0], from: 'mailer-daemon',
+        subject: 'Delivery Status Notification (Failure)'
+      },
+      'delivery-original-recipient': {
+        originalRecipient: contacts[1], from: 'mailer-daemon',
+        subject: 'Delivery Status Notification (Failure)'
+      }
+    } }));
+    assert.deepEqual(consumeInboxState(db, filePath),
+      { scanned: 2, matched: 2, unmatched: 0, errors: [] });
+    for (const contact of contacts) {
+      assert.equal(db.prepare('SELECT state FROM prospects WHERE contact_key = ?')
+        .get(`contact:${contact}`).state, 'bounced');
+    }
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type = 'inbox_bounced'").get().n, 2);
+    assert.deepEqual(consumeInboxState(db, filePath),
+      { scanned: 2, matched: 2, unmatched: 0, errors: [] });
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type = 'inbox_bounced'").get().n, 2);
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
