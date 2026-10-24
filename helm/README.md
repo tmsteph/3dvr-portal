@@ -129,3 +129,20 @@ other tabs' records during relay outages; legacy snapshots still load.
 Validation: `node --test tests/helm-outbox.test.js tests/helm-ui.test.js tests/helm-gun-store.test.js tests/openclaw-helm.test.js tests/operator-public-modules.test.js tests/self-host-sea-runtime.test.js`.
 Live agent throughput and cross-device cancellation races require separate
 verification; these repairs do not establish recovery of the model runtime.
+
+## Live reply delivery
+
+Helm chat requests negotiate `Accept: text/event-stream`. The same signed owner
+payload, durable request receipt, queue expiry, and SSH identity remain in use.
+The fixed Python bridge requests OpenClaw SSE and forwards bounded JSONL fragments;
+the Portal emits private SSE delta events as they arrive. JSON clients remain
+supported.
+
+Partial text is displayed as an unconfirmed reply while the saved message remains
+`sending`. Only a final result written to the durable server receipt can complete
+the message. A broken stream becomes uncertain history without automatic replay.
+Account changes suppress late fragments. Gateway credentials never enter the
+browser or SSE events. Chat startup/inference timeouts are unchanged.
+
+Focused verification adds `tests/helm-stream.test.js` to the existing Helm suite.
+Streaming reduces the wait to see text; it does not itself shorten model inference.
