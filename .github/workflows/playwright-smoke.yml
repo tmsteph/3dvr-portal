@@ -14,7 +14,9 @@ on:
 jobs:
   smoke:
     name: Run Workboard unit + Playwright E2E + smoke tests
-    runs-on: ubuntu-latest
+    # Playwright 1.56.1 does not ship Chromium for Ubuntu 26.04 yet.
+    # Pin a supported runner instead of depending on ubuntu-latest drift.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Checkout repository
@@ -34,6 +36,9 @@ jobs:
 
       - name: Run Operator business system regression tests
         run: node --test tests/operator-business-system.test.js tests/operator-runtime-resources.test.js tests/growth-desk.test.js
+
+      - name: Enforce no-send legacy outbound policy
+        run: node --test tests/money-outbound-autopilot.test.js
 
       - name: Run browser lane regression tests
         run: node --test tests/browser-lane-lease.test.js
@@ -56,5 +61,11 @@ jobs:
       - name: Run Campaigns Gmail sender regression tests
         run: node --test tests/campaigns.test.js tests/oauth-provider-api.test.js
 
+      - name: Run Cell privacy regression tests
+        run: node --test tests/cell-private-store.test.js tests/cell-network.test.js tests/cell-cross-app.test.js tests/cell-invitations.test.js
+
       - name: Run Playwright checks
         run: npm run playwright:verify:linux
+
+      - name: Run private Cell mobile browser check
+        run: node --test tests/cell-private.e2e.test.js

@@ -37,8 +37,14 @@ case "${1:-status}" in
   status)
     if command -v codex >/dev/null 2>&1; then
       echo "codex path: $(command -v codex)"
-      codex --version || true
-      codex login status || true
+      if ! codex --version; then
+        echo "Codex version check failed in this execution context." >&2
+        exit 1
+      fi
+      if ! codex login status; then
+        echo "Codex login status failed in this execution context; inspect the worker account before retrying tasks." >&2
+        exit 1
+      fi
     else
       echo "codex path: missing"
       echo "Install with: ask-agent-codex install"

@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
+const { isDeepStrictEqual } = require('node:util');
 const { DatabaseSync } = require('node:sqlite');
 
 const STATES = new Set(['prospect', 'verified', 'drafted', 'eligible', 'sent', 'bounced', 'replied', 'suppressed', 'failed']);
@@ -93,7 +94,14 @@ function reserveDeliveryAttempt(db, { attemptId, prospectId } = {}) {
   const prospect = normalize(prospectId);
   if (!key || !prospect) throw new Error('attemptId and prospectId are required');
   const existing = db.prepare('SELECT * FROM delivery_attempts WHERE attempt_key = ?').get(key);
-  if (existing) return { attempt: existing, replayed: true };
+  if (existing) {
+    // A delivery attempt key belongs to exactly one prospect. Reusing it for
+    // another recipient must never return a misleading acknowledged receipt.
+    if (existing.prospect_id !== prospect) {
+      throw new Error('Delivery attempt key collision: existing attempt belongs to another prospect');
+    }
+    return { attempt: existing, replayed: true };
+  }
   const now = new Date().toISOString();
   const attempt = {
     id: randomUUID(), attempt_key: key, prospect_id: prospect, status: 'in_flight',
@@ -129,6 +137,9 @@ function acknowledgedDeliveryCount(db, { since = '', campaignId = '' } = {}) {
 
 function contactKey({ contact, sourceUrl, name } = {}) {
   const contactValue = normalize(contact).toLowerCase();
+  // Canonicalize mailto: emails without losing support for historical keys.
+  const email = contactValue.replace(/^mailto:/, '');
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return `contact:${email}`;
   if (contactValue) return `contact:${contactValue}`;
   return `source:${normalize(sourceUrl).toLowerCase()}|name:${normalize(name).toLowerCase()}`;
 }
@@ -140,7 +151,9 @@ function getProspect(db, id) {
 function createProspect(db, input = {}) {
   const now = new Date().toISOString();
   const key = contactKey(input);
-  const existing = db.prepare('SELECT * FROM prospects WHERE contact_key = ?').get(key);
+  // Reuse legacy mailto: records as well as canonical email records.
+  const existing = (normalize(input.contact) ? findProspectByContact(db, input.contact) : null)
+    || db.prepare('SELECT * FROM prospects WHERE contact_key = ?').get(key);
   if (existing) return { prospect: existing, created: false };
   const prospect = {
     id: normalize(input.id) || randomUUID(), contact_key: key, name: normalize(input.name) || 'Unknown',
@@ -152,18 +165,35 @@ function createProspect(db, input = {}) {
   return { prospect, created: true };
 }
 
+// An idempotency key identifies one exact ledger event, not merely a matching
+// string. Never return a different prospect's receipt as a successful replay.
+function replayLedgerEvent(db, { idempotencyKey, prospectId, toState, type, payload }) {
+  const replay = db.prepare('SELECT * FROM revenue_events WHERE idempotency_key = ?').get(idempotencyKey);
+  if (!replay) return null;
+  let storedPayload;
+  try { storedPayload = JSON.parse(replay.payload_json); }
+  catch { throw new Error('Idempotency key collision: stored event payload is invalid'); }
+  if (replay.prospect_id !== prospectId || replay.to_state !== toState ||
+      replay.type !== type || !isDeepStrictEqual(storedPayload, payload)) {
+    throw new Error('Idempotency key collision: existing event differs from requested prospect, state, type, or payload');
+  }
+  return replay;
+}
+
 function transitionProspect(db, input = {}) {
   const id = normalize(input.prospectId);
   const toState = normalize(input.toState);
   const idempotencyKey = normalize(input.idempotencyKey);
   if (!id || !STATES.has(toState) || !idempotencyKey) throw new Error('prospectId, valid toState, and idempotencyKey are required');
-  const replay = db.prepare('SELECT * FROM revenue_events WHERE idempotency_key = ?').get(idempotencyKey);
+  const type = normalize(input.type) || 'state_transition';
+  const payload = input.payload || {};
+  const replay = replayLedgerEvent(db, { idempotencyKey, prospectId: id, toState, type, payload });
   if (replay) return { event: replay, replayed: true, prospect: getProspect(db, id) };
   const prospect = getProspect(db, id);
   if (!prospect) throw new Error(`Unknown prospect: ${id}`);
   if (!TRANSITIONS[prospect.state].has(toState)) throw new Error(`Invalid transition: ${prospect.state} -> ${toState}`);
   const now = new Date().toISOString();
-  const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type: normalize(input.type) || 'state_transition', from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(input.payload || {}), created_at: now };
+  const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type, from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(payload), created_at: now };
   db.exec('BEGIN IMMEDIATE');
   try {
     db.prepare('UPDATE prospects SET state = ?, updated_at = ? WHERE id = ?').run(toState, now, id);
@@ -197,14 +227,24 @@ function finishRun(db, { runId, status, summary } = {}) {
 
 function findProspectByContact(db, contact) {
   const value = normalize(contact);
-  const keys = [contactKey({ contact: value })];
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) keys.push(contactKey({ contact: `mailto:${value}` }));
-  if (/^mailto:/i.test(value)) keys.push(contactKey({ contact: value.replace(/^mailto:/i, '') }));
-  return db.prepare(`SELECT * FROM prospects WHERE contact_key IN (${keys.map(() => '?').join(',')}) LIMIT 1`).get(...new Set(keys)) || null;
+  if (!value) return null;
+  const canonicalKey = contactKey({ contact: value });
+  const keys = [canonicalKey];
+  // Existing databases can still contain the pre-canonicalization mailto: key.
+  if (/^contact:[^\s@]+@[^\s@]+\.[^\s@]+$/.test(canonicalKey)) {
+    keys.push(`contact:mailto:${canonicalKey.slice('contact:'.length)}`);
+  }
+  return db.prepare(`SELECT * FROM prospects WHERE contact_key IN (${keys.map(() => '?').join(',')})
+    ORDER BY CASE WHEN contact_key = ? THEN 0 ELSE 1 END LIMIT 1`).get(...keys, canonicalKey) || null;
 }
 
 function pendingProjections(db, limit = 100) {
-  return db.prepare("SELECT * FROM projection_outbox WHERE status IN ('pending','failed') ORDER BY created_at, id LIMIT ?")
+  // Timestamps may be identical and UUID order is not event order. A later
+  // CRM projection must not overwrite an earlier event before it is handled.
+  return db.prepare(`SELECT o.* FROM projection_outbox o
+    JOIN revenue_events e ON e.id = o.event_id
+    WHERE o.status IN ('pending','failed')
+    ORDER BY e.rowid ASC, o.rowid ASC LIMIT ?`)
     .all(Math.max(1, Number(limit) || 100));
 }
 
@@ -224,14 +264,15 @@ function importProspectState(db, input = {}) {
   const toState = normalize(input.toState);
   const idempotencyKey = normalize(input.idempotencyKey);
   if (!id || !STATES.has(toState) || !idempotencyKey) throw new Error('prospectId, valid toState, and idempotencyKey are required');
-  const replay = db.prepare('SELECT * FROM revenue_events WHERE idempotency_key = ?').get(idempotencyKey);
+  const payload = input.payload || {};
+  const replay = replayLedgerEvent(db, { idempotencyKey, prospectId: id, toState, type: 'legacy_import', payload });
   if (replay) return { event: replay, replayed: true, prospect: getProspect(db, id) };
   const prospect = getProspect(db, id);
   if (!prospect) throw new Error(`Unknown prospect: ${id}`);
   if (prospect.state !== 'prospect' && prospect.state !== toState) throw new Error(`Cannot import ${toState} over existing ${prospect.state} state`);
   if (prospect.state === toState) return { event: null, replayed: true, prospect };
   const now = new Date().toISOString();
-  const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type: 'legacy_import', from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(input.payload || {}), created_at: now };
+  const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type: 'legacy_import', from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(payload), created_at: now };
   db.exec('BEGIN IMMEDIATE');
   try {
     db.prepare('UPDATE prospects SET state = ?, updated_at = ? WHERE id = ?').run(toState, now, id);
