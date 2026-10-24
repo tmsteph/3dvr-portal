@@ -146,3 +146,41 @@ browser or SSE events. Chat startup/inference timeouts are unchanged.
 
 Focused verification adds `tests/helm-stream.test.js` to the existing Helm suite.
 Streaming reduces the wait to see text; it does not itself shorten model inference.
+
+## Optional native Codex chat pilot
+
+Select **Native Codex · pilot** in Helm's Engine menu. OpenClaw remains the default
+and keeps its tool integrations. Switching engines starts a new conversation;
+History preserves old replies. A tab reload restores its selected engine and session.
+Queued records retain their original engine, and only the selected engine's queue
+drains. Legacy records and signed clients without an engine remain OpenClaw.
+The engine is included in the owner signature and native receipt fingerprint.
+No fallback silently changes engines after dispatch.
+
+The same signed API, SSH mesh, bounded JSONL/SSE bridge and durable Portal receipts
+launch `src/openclaw/native.py` on Hetzner. It reuses the installed Codex app-server
+executable and existing `/root/.codex` ChatGPT login in place. No API key billing,
+new listener/service, copied credentials or OpenClaw restart is needed. The
+installed managed package can also be found while its gateway is stopped. Python
+3.11+ is required (`tomllib`). Native status reports local installation/login
+configuration only; a completed chat turn establishes working authentication.
+
+This pilot provides conversation and code advice, without tool execution. Shell
+and web search are disabled, existing MCP servers are disabled for this child
+process, and its sandbox is read-only. Interactive/tool requests fail closed. It
+uses `gpt-6.1-sol` at medium effort. Operator/Forge task execution is unchanged.
+
+Native thread mappings and a global chat lock live under `/root/.codex/helm/`,
+with private file permissions. The server derives the conversation key from the
+verified account and session; browsers cannot supply Codex thread IDs. Thread
+resume persists context across separate SSH processes. A pending marker is saved
+before turn dispatch and cleared only after native completion. An uncertain turn
+blocks further continuation of that native conversation; use New chat after
+checking History. Never delete pending receipts or markers to retry automatically.
+Treat native rollouts and thread mappings as private conversation data in backups.
+
+Verification: add `tests/helm-native.test.js` to the Helm suite. Manually switch
+engines, send a harmless prompt, reload and verify recall; confirm queued messages
+never change engine, unknown users remain denied, and partial replies require a
+final receipt. Timings depend on backend load; the initial three-prompt benchmark
+is evidence of lower overhead, not a promise of latency or coding-tool parity.

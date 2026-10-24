@@ -4,6 +4,7 @@ const RANK = { queued: 1, deferred: 2, sending: 2, uncertain: 3, stale: 4, cance
 
 export function validMessage(record) {
   return record && ID.test(record.id || '') && ID.test(record.sessionId || '')
+    && ['openclaw', 'codex'].includes(record.engine ?? 'openclaw')
     && typeof record.text === 'string' && record.text.trim() && record.text.length <= 6000
     && Number.isSafeInteger(record.createdAt) && Number.isSafeInteger(record.expiresAt)
     && record.expiresAt > record.createdAt && record.expiresAt - record.createdAt <= MESSAGE_TTL_MS
@@ -11,7 +12,7 @@ export function validMessage(record) {
     && Object.hasOwn(RANK, record.status);
 }
 
-export function createOutbox({ save, send, isReady, onChange = () => {}, now = Date.now }) {
+export function createOutbox({ save, send, isReady, onChange = () => {}, canSend = () => true, now = Date.now }) {
   const records = new Map();
   let draining = false;
   const snapshot = () => [...records.values()].sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
@@ -33,9 +34,9 @@ export function createOutbox({ save, send, isReady, onChange = () => {}, now = D
       records.set(record.id, record);
       changed();
     },
-    async enqueue({ id, sessionId, text }) {
+    async enqueue({ id, sessionId, text, engine = 'openclaw' }) {
       const createdAt = now();
-      const record = { id, sessionId, text, createdAt, expiresAt: createdAt + MESSAGE_TTL_MS,
+      const record = { id, sessionId, text, engine, createdAt, expiresAt: createdAt + MESSAGE_TTL_MS,
         updatedAt: createdAt, status: 'queued' };
       if (!validMessage(record)) throw new Error('Invalid message.');
       return commit(record);
@@ -57,7 +58,7 @@ export function createOutbox({ save, send, isReady, onChange = () => {}, now = D
       try {
         await this.expire();
         while (isReady()) {
-          const queued = snapshot().find(record => ['queued', 'deferred'].includes(record.status));
+          const queued = snapshot().find(record => ['queued', 'deferred'].includes(record.status) && canSend(record));
           if (!queued) break;
           if (now() >= queued.expiresAt) { await this.expire(); continue; }
           const active = await commit({ ...queued, status: 'sending', updatedAt: Math.max(now(), queued.updatedAt + 1) });

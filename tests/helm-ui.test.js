@@ -9,7 +9,7 @@ import { readHelmResponse } from '../helm/stream.js';
 const source = (await readFile(new URL('../helm/app.js', import.meta.url), 'utf8')).replace(/^import .*;\n/gm, '');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
-function screen(result, status = 200, signedIn = true, gate) {
+function screen(result, status = 200, signedIn = true, gate, sessions = new Map()) {
   const elements = new Map();
   const events = new Map();
   const saved = [];
@@ -31,6 +31,7 @@ function screen(result, status = 200, signedIn = true, gate) {
     window: { addEventListener(event, fn) { events.set(`window:${event}`, fn); } },
     localStorage: { getItem: key => storage.get(key) }, crypto: { randomUUID }, AbortSignal,
     Date: Clock,
+    sessionStorage: { getItem: key => sessions.get(key), setItem: (key, value) => sessions.set(key, value) },
     setInterval: (fn, delay) => { const id = Symbol(); intervals.set(id, { fn, delay }); return id; },
     clearInterval: id => intervals.delete(id), createOutbox, readHelmResponse,
     openHelmMessageStore: async () => ({ save: async record => saved.push(structuredClone(record)), close() {} }),
@@ -43,11 +44,12 @@ function screen(result, status = 200, signedIn = true, gate) {
       return { ok: reply.status === 200, status: reply.status, json: async () => reply.body };
     }
   });
-  return { element, saved, requests, ready: flush(),
+  return { element, saved, requests, sessions, ready: flush(),
     activeProgress: () => [...intervals.values()].filter(item => item.delay === 1000).length,
     advance: ms => { clock += ms; for (const item of intervals.values()) if (item.delay === 1000) item.fn(); },
     changeAccount: () => events.get('window:storage')({ key: 'userPubKey' }),
     newChat: () => events.get('new-chat:click')(),
+    changeEngine: value => { element('engine').value = value; events.get('engine:change')(); },
     submit: async text => { element('message').value = text; await events.get('chat-form:submit')({ preventDefault() {} }); } };
 }
 
@@ -230,4 +232,50 @@ test('an interrupted partial reply stays uncertain without a second dispatch', a
   await ui.submit('Never replay this');
   assert.equal(ui.saved.at(-1).status, 'uncertain');
   assert.equal(ui.requests.filter(item => item.action === 'chat').length, 1);
+});
+
+test('native engine is saved and signed with messages, while switching starts a separate chat', async () => {
+  const ui = screen({ ok: true, gateway: 'reachable', chatEnabled: true, reply: 'Done' });
+  await ui.ready;
+  await ui.submit('Claw conversation');
+  const first = ui.requests.find(item => item.action === 'chat');
+  assert.equal(first.engine, 'openclaw');
+  ui.changeEngine('codex'); await flush(); await flush();
+  assert.match(ui.element('engine-note').textContent, /chat and code advice/);
+  await ui.submit('Native conversation');
+  const last = ui.requests.filter(item => item.action === 'chat').at(-1);
+  assert.equal(last.engine, 'codex');
+  assert.notEqual(first.sessionId, last.sessionId);
+  assert.equal(ui.saved.at(-1).engine, 'codex');
+});
+
+test('engine cannot change during an in-flight turn', async () => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const ui = screen(async payload => {
+    if (payload.action === 'chat') await gate;
+    return { status: 200, body: { ok: true, gateway: 'reachable', chatEnabled: true, reply: 'Done' } };
+  });
+  await ui.ready;
+  const sending = ui.submit('Keep engine stable'); await flush();
+  assert.equal(ui.element('engine').disabled, true);
+  ui.changeEngine('codex');
+  assert.equal(ui.element('engine').value, 'openclaw');
+  release(); await sending;
+  assert.equal(ui.element('engine').disabled, false);
+});
+
+test('reload restores native engine and its conversation session', async () => {
+  const result = { ok: true, gateway: 'reachable', chatEnabled: true, reply: 'Done' };
+  const first = screen(result); await first.ready;
+  first.changeEngine('codex'); await flush(); await flush();
+  await first.submit('Remember this conversation');
+  const original = first.requests.filter(item => item.action === 'chat').at(-1);
+  const reloaded = screen(result, 200, true, undefined, first.sessions); await reloaded.ready;
+  assert.equal(reloaded.element('engine').value, 'codex');
+  assert.equal(reloaded.requests[0].engine, 'codex');
+  await reloaded.submit('Continue');
+  const continued = reloaded.requests.find(item => item.action === 'chat');
+  assert.equal(continued.sessionId, original.sessionId);
+  assert.equal(continued.engine, 'codex');
 });

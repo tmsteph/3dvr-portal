@@ -115,3 +115,18 @@ test('busy messages can expire or be cancelled without retrying', async () => {
   await box.drain();
   assert.equal(box.snapshot()[1].status, 'stale');
 });
+
+test('switching engines never retargets queued records, including legacy records', async () => {
+  let engine = 'openclaw';
+  const sent = [];
+  const queue = createOutbox({ save: async () => {}, send: async record => {
+    sent.push(record); return { reply: 'Done' };
+  }, isReady: () => true, canSend: record => (record.engine ?? 'openclaw') === engine });
+  await queue.enqueue({ id: 'native-message-123', sessionId: 'native-session-123', engine: 'codex', text: 'Native only' });
+  await queue.enqueue({ id: 'claw-message-12345', sessionId: 'claw-session-12345', text: 'Existing route' });
+  await queue.drain();
+  assert.deepEqual(sent.map(record => record.engine), ['openclaw']);
+  assert.equal(queue.snapshot().find(record => record.engine === 'codex').status, 'queued');
+  engine = 'codex'; await queue.drain();
+  assert.deepEqual(sent.map(record => record.engine), ['openclaw', 'codex']);
+});

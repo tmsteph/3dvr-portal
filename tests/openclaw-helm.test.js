@@ -217,3 +217,52 @@ test('SSH JSONL decoder handles fragmented UTF-8 and requires an authoritative f
   interrupted.emit('close', 0);
   await assert.rejects(failed, /transport/);
 });
+
+test('engine selection is signed; legacy proofs stay OpenClaw and receipts cannot cross engines', async t => {
+  const { config, sign } = await setup(t);
+  const requests = [];
+  const handler = createOpenClawHandler({ config, run: async request => {
+    requests.push(request); return { ok: true, reply: 'Done' };
+  } });
+  const legacy = await sign();
+  assert.equal((await call(handler, { ...legacy, engine: 'codex' })).statusCode, 403);
+  const native = await sign({ engine: 'codex' });
+  const stripped = { ...native }; delete stripped.engine;
+  assert.equal((await call(handler, stripped)).statusCode, 403);
+  assert.equal((await call(handler, await sign({ engine: 'unknown' }))).statusCode, 400);
+  assert.equal(requests.length, 0);
+  assert.equal((await call(handler, native)).statusCode, 200);
+  assert.equal(requests[0].engine, 'codex');
+  assert.match(requests[0].session, /^helm-[a-f0-9]{24}-session-/);
+  assert.equal((await call(handler, legacy)).statusCode, 409);
+  assert.equal(requests.length, 1);
+  assert.equal((await call(handler, await sign({ requestId: 'legacy-123456789' }))).statusCode, 200);
+  assert.equal(requests[1].engine, undefined);
+});
+
+test('native status and chat retain the same owner boundary and cannot choose backend thread IDs', async t => {
+  const { config, sign } = await setup(t);
+  const requests = [];
+  const handler = createOpenClawHandler({ config, run: async request => {
+    requests.push(request); return { ok: true, reply: 'Done' };
+  } });
+  for (const action of ['status', 'chat']) {
+    assert.equal((await call(handler, await sign({ action, engine: 'codex' }, await SEA.pair()))).statusCode, 403);
+  }
+  assert.equal(requests.length, 0);
+  assert.equal((await call(handler, await sign({ engine: 'codex', threadId: 'foreign-thread' }))).statusCode, 200);
+  assert.equal(requests[0].threadId, undefined);
+});
+
+test('native SSH transport uses only the native script and binds engine in encoded request', async () => {
+  const child = Object.assign(new EventEmitter(), { stdout: new PassThrough(), stderr: new PassThrough(), stdin: new PassThrough(), kill() {} });
+  let args;
+  const task = runOpenClaw({ action: 'chat', engine: 'codex', message: 'Hi' }, { uid: 1000,
+    spawn: (_command, values) => { args = values; return child; } });
+  const script = await new Promise(resolve => child.stdin.once('data', chunk => resolve(chunk.toString())));
+  assert.ok(script.includes('class Client:'));
+  assert.equal(script.includes('gateway.get('), false);
+  assert.equal(JSON.parse(Buffer.from(args.at(-1), 'base64url')).engine, 'codex');
+  child.stdout.write('{"ok":true,"reply":"Done"}\n'); child.emit('close', 0);
+  assert.equal((await task).reply, 'Done');
+});
