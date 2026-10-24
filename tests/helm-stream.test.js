@@ -33,6 +33,14 @@ parts=[]
 wire=b': keepalive\\n\\ndata: {"choices":[{"delta":{"content":"Hello"}}]}\\n\\ndata: [DONE]\\n\\n'
 assert read(io.BytesIO(wire),parts.append)=='Hello'
 assert parts==['Hello']
+chunk=json.dumps({'id':'chatcmpl-fixture','object':'chat.completion.chunk','created':1,'model':'openclaw','choices':[{'index':0,'delta':{'content':'word '},'finish_reason':None}]}).encode()
+long_wire=(b'data: '+chunk+b'\\n\\n')*700+b'data: [DONE]\\n\\n'
+assert len(long_wire)>128000
+assert read(io.BytesIO(long_wire),lambda x:None)=='word '*700
+huge=json.dumps({'choices':[{'delta':{'content':'x'*120001}}]}).encode()
+try:read(io.BytesIO(b'data: '+huge+b'\\n\\ndata: [DONE]\\n\\n'),lambda x:None)
+except ValueError:pass
+else:raise AssertionError('accepted oversized reply')
 for wire in [b'data: {"choices":[{"delta":{"content":"Partial"}}]}\\n\\n',
              b'data: {"error":{"message":"fail"}}\\n\\n', b'x'*128001]:
  try:read(io.BytesIO(wire),lambda x:None)
