@@ -351,9 +351,14 @@ async function runQueuedTask(record, options = {}) {
       runnable.profile.workerId,
       now + (options.leaseTtlMs || DEFAULT_LEASE_TTL_MS),
       now,
-      options,
+      {
+        ...options,
+        // A queue snapshot can become stale between readTask and claimTask.
+        // Validate the latest SQLite row within its atomic claim transaction.
+        authorizeTask: current => canWorkerRunTask(current, options).ok,
+      },
     );
-    if (!claimed) return { ok: false, skipped: true, reason: 'claimed by another worker' };
+    if (!claimed) return { ok: false, skipped: true, reason: 'claim unavailable or task no longer authorized' };
     claimed.workerCapabilities = normalizeCsv(runnable.profile.capabilities);
   } else {
     lease = await claimLease(`remote-task:${record.id}`, {
