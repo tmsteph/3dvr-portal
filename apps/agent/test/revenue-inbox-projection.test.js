@@ -219,3 +219,43 @@ test('inbound sender takes precedence over stale recipient and prospect hints fo
     assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type = 'inbox_replied'").get().n, 1);
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
+
+test('missing inbound sender never reassigns a reply or opt-out using stale recipient hints', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-missing-sender-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const prospect = createProspect(db, { name: 'Unrelated', contact: 'unrelated@test.example' }).prospect;
+    for (const state of ['verified', 'eligible', 'sent']) {
+      transitionProspect(db, { prospectId: prospect.id, toState: state, idempotencyKey: `missing-sender:${state}` });
+    }
+    const filePath = path.join(tmp, 'inbox-state.json');
+    fs.writeFileSync(filePath, JSON.stringify({ messages: {
+      'reply-no-sender': {
+        prospectEmail: 'unrelated@test.example', recipient: 'unrelated@test.example',
+        subject: 'Re: scheduling', preview: 'Can we meet on Tuesday?'
+      },
+      'optout-no-sender': {
+        prospectEmail: 'unrelated@test.example', originalRecipient: 'unrelated@test.example',
+        subject: 'Re: scheduling', preview: 'Please unsubscribe me.'
+      }
+    } }));
+    const result = consumeInboxState(db, filePath);
+    assert.equal(result.scanned, 2);
+    assert.equal(result.matched, 0);
+    assert.equal(result.errors.length, 2);
+    assert.ok(result.errors.every(error => /sender missing; manual review required/.test(error)));
+    assert.equal(db.prepare('SELECT state FROM prospects WHERE id = ?').get(prospect.id).state, 'sent');
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type LIKE 'inbox_%'").get().n, 0);
+    assert.throws(() => projectInboxMessage(db, {
+      prospectEmail: 'unrelated@test.example', messageId: 'direct-no-sender',
+      subject: 'Re: scheduling'
+    }), /requires contact and messageId/);
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('bounce classification recognizes a mailer-daemon in fromEmail without a display sender', () => {
+  assert.equal(inboxState({
+    fromEmail: 'mailer-daemon@example.test', subject: 'Re: proposal',
+    preview: 'Delivery could not be completed.'
+  }), 'bounced');
+});
