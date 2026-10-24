@@ -339,11 +339,18 @@ function buildCrmSyncPayload({
   limit = 0,
   includeAll = false,
 } = {}) {
-  const outreachOnlyLeads = outreach
-    .filter(entry => normalizeText(entry.name) || normalizeText(entry.contact))
-    .filter(entry => normalizeText(entry.contact) || normalizeText(entry.site))
-    .filter(entry => !leads.some(lead => contactsMatch(lead, entry)))
-    .map(leadFromOutreachEntry);
+  const outreachOnlyLeads = [];
+  for (const entry of outreach) {
+    if (!normalizeText(entry.name) && !normalizeText(entry.contact)) continue;
+    if (!normalizeText(entry.contact) && !normalizeText(entry.site)) continue;
+    if (leads.some(lead => contactsMatch(lead, entry))) continue;
+    const candidate = leadFromOutreachEntry(entry);
+    // Multiple log events for one previously unseen contact must create one
+    // CRM record, otherwise unique event attribution becomes ambiguous.
+    if (!outreachOnlyLeads.some(lead => contactsMatch(lead, candidate))) {
+      outreachOnlyLeads.push(candidate);
+    }
+  }
   const qualifiedLeads = [...leads, ...outreachOnlyLeads]
     .filter((lead) => shouldSyncLeadToCrm(lead, { includeAll }));
   const selectedLeads = limit > 0 ? qualifiedLeads.slice(0, limit) : qualifiedLeads;
