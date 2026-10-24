@@ -8,7 +8,7 @@ function consumeInboxState(db, filePath) {
   for (const [messageId, message] of Object.entries(state.messages || {})) {
     const contacts = Array.isArray(message.bounceEmails) && message.bounceEmails.length
       ? message.bounceEmails
-      : [message.prospectEmail || message.fromEmail];
+      : [message.prospectEmail || message.recipient || message.originalRecipient || message.fromEmail];
     for (const contact of contacts.filter(Boolean)) {
       result.scanned += 1;
       try {
