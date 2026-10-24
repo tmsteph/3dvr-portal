@@ -137,6 +137,9 @@ function acknowledgedDeliveryCount(db, { since = '', campaignId = '' } = {}) {
 
 function contactKey({ contact, sourceUrl, name } = {}) {
   const contactValue = normalize(contact).toLowerCase();
+  // Canonicalize mailto: emails without losing support for historical keys.
+  const email = contactValue.replace(/^mailto:/, '');
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return `contact:${email}`;
   if (contactValue) return `contact:${contactValue}`;
   return `source:${normalize(sourceUrl).toLowerCase()}|name:${normalize(name).toLowerCase()}`;
 }
@@ -148,7 +151,9 @@ function getProspect(db, id) {
 function createProspect(db, input = {}) {
   const now = new Date().toISOString();
   const key = contactKey(input);
-  const existing = db.prepare('SELECT * FROM prospects WHERE contact_key = ?').get(key);
+  // Reuse legacy mailto: records as well as canonical email records.
+  const existing = (normalize(input.contact) ? findProspectByContact(db, input.contact) : null)
+    || db.prepare('SELECT * FROM prospects WHERE contact_key = ?').get(key);
   if (existing) return { prospect: existing, created: false };
   const prospect = {
     id: normalize(input.id) || randomUUID(), contact_key: key, name: normalize(input.name) || 'Unknown',
@@ -222,10 +227,15 @@ function finishRun(db, { runId, status, summary } = {}) {
 
 function findProspectByContact(db, contact) {
   const value = normalize(contact);
-  const keys = [contactKey({ contact: value })];
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) keys.push(contactKey({ contact: `mailto:${value}` }));
-  if (/^mailto:/i.test(value)) keys.push(contactKey({ contact: value.replace(/^mailto:/i, '') }));
-  return db.prepare(`SELECT * FROM prospects WHERE contact_key IN (${keys.map(() => '?').join(',')}) LIMIT 1`).get(...new Set(keys)) || null;
+  if (!value) return null;
+  const canonicalKey = contactKey({ contact: value });
+  const keys = [canonicalKey];
+  // Existing databases can still contain the pre-canonicalization mailto: key.
+  if (/^contact:[^\s@]+@[^\s@]+\.[^\s@]+$/.test(canonicalKey)) {
+    keys.push(`contact:mailto:${canonicalKey.slice('contact:'.length)}`);
+  }
+  return db.prepare(`SELECT * FROM prospects WHERE contact_key IN (${keys.map(() => '?').join(',')})
+    ORDER BY CASE WHEN contact_key = ? THEN 0 ELSE 1 END LIMIT 1`).get(...keys, canonicalKey) || null;
 }
 
 function pendingProjections(db, limit = 100) {
