@@ -9,10 +9,13 @@ function consumeInboxState(db, filePath) {
     // A bounce's multi-recipient hints are not identities for ordinary replies
     // or opt-outs. Otherwise an unrelated reply carrying stale bounceEmails
     // could advance the wrong prospect's CRM state.
-    const contacts = inboxState(message) === 'bounced' &&
+    const state = inboxState(message);
+    const contacts = state === 'bounced' &&
       Array.isArray(message.bounceEmails) && message.bounceEmails.length
       ? message.bounceEmails
-      : [message.prospectEmail || message.recipient || message.originalRecipient || message.fromEmail];
+      : [state === 'bounced'
+        ? message.prospectEmail || message.recipient || message.originalRecipient || message.fromEmail
+        : message.fromEmail || message.prospectEmail || message.recipient || message.originalRecipient];
     for (const contact of contacts.filter(Boolean)) {
       result.scanned += 1;
       try {
