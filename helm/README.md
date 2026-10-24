@@ -45,8 +45,8 @@ Messages and replies are encrypted in the owner GunJS graph and in an encrypted
 device cache. Reload restores the tab session and saved messages. OpenClaw keeps
 its own server session under the owner/conversation key. New chat selects a new
 key without deleting saved history. Operator's
-existing conversation sync is unchanged. Live token streaming, job receipts,
-file browsing and cancellation of already-dispatched turns are follow-up work.
+existing conversation sync is unchanged. Job browsing, file browsing, and cancellation of already-dispatched turns remain
+follow-up work.
 Uncertain deliveries are never automatically replayed. Opening Helm checks
 status and drains fresh queued messages only; stale messages move to history.
 
