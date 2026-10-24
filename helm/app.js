@@ -3,9 +3,10 @@ import { createOutbox } from './outbox.js';
 import { readHelmResponse } from './stream.js';
 
 const $ = id => document.getElementById(id);
-const sessionKey = `3dvr.helm.session.${localStorage.getItem('userPubKey') || localStorage.getItem('alias') || 'guest'}`;
+let sessionKey = `3dvr.helm.session.${localStorage.getItem('userPubKey') || localStorage.getItem('alias') || 'guest'}`;
 let sessionId = globalThis.sessionStorage?.getItem(sessionKey) || crypto.randomUUID();
 globalThis.sessionStorage?.setItem(sessionKey, sessionId);
+let engine = globalThis.sessionStorage?.getItem(`${sessionKey}.engine`) === 'codex' ? 'codex' : 'openclaw';
 let busy = false;
 let saving = false;
 let connected = false;
@@ -86,6 +87,7 @@ function makeOutbox() {
         if (currentEpoch === epoch) { liveReply = null; busy = false; updateControls(); }
       }
     },
+    canSend: record => (record.engine ?? 'openclaw') === engine,
     isReady: () => currentEpoch === epoch && connected && !busy && signedIn(),
     onChange: () => { if (currentEpoch === epoch) renderMessages(); }
   });
@@ -117,8 +119,8 @@ function showAccount(identity) {
 async function request(action, record, onDelta) {
   const requestEpoch = epoch;
   const payload = record
-    ? { requestId: record.id, sessionId: record.sessionId, message: record.text, createdAt: record.createdAt, expiresAt: record.expiresAt }
-    : { requestId: crypto.randomUUID(), sessionId };
+    ? { requestId: record.id, sessionId: record.sessionId, message: record.text, createdAt: record.createdAt, expiresAt: record.expiresAt, engine: record.engine ?? 'openclaw' }
+    : { requestId: crypto.randomUUID(), sessionId, engine };
   const proof = await createSignedPortalProof('openclaw-helm', action, payload);
   if (requestEpoch !== epoch) throw new Error('Account changed.');
   if (!proof) throw new Error('Sign in with your owner account, then retry.');
@@ -139,7 +141,7 @@ async function request(action, record, onDelta) {
     $('account').href = '/auth/sign-in.html?returnTo=%2Fhelm%2F';
   }
   if (!response.ok || !result.ok) {
-    const error = new Error(result.error || 'OpenClaw is unavailable.');
+    const error = new Error(result.error || 'The selected engine is unavailable.');
     error.stale = result.stale === true;
     // This endpoint rejects 429 before creating a receipt or invoking the agent.
     error.retryable = response.status === 429;
@@ -154,6 +156,7 @@ function updateControls() {
   $('send').textContent = connected && !busy ? 'Send ↑' : 'Queue ↑';
   $('new-chat').disabled = saving;
   $('connect').disabled = busy;
+  $('engine').disabled = busy || saving;
   $('connect').hidden = connected;
   $('connect').textContent = busy ? 'Checking…' : 'Retry connection';
 }
@@ -165,7 +168,7 @@ function messageCard(record, history = false) {
   label.className = 'label';
   const names = { queued: 'Queued · waiting for agent', deferred: 'Queued · agent busy', sending: 'Delivery pending · will not resend',
     completed: 'Sent', stale: 'History · expired without sending', uncertain: 'History · check delivery before resending', cancelled: 'History · cancelled' };
-  label.textContent = names[record.status];
+  label.textContent = `${(record.engine ?? 'openclaw') === 'codex' ? 'Codex' : 'OpenClaw'} · ${names[record.status]}`;
   article.append(label, document.createTextNode(record.text));
   const partial = liveReply?.id === record.id && record.status === 'sending' ? liveReply.text : '';
   if (record.reply || partial) {
@@ -197,7 +200,7 @@ function messageCard(record, history = false) {
 
 function renderMessages() {
   const records = outbox.snapshot();
-  const active = records.filter(record => record.sessionId === sessionId && !['stale', 'uncertain', 'cancelled'].includes(record.status));
+  const active = records.filter(record => record.sessionId === sessionId && (record.engine ?? 'openclaw') === engine && !['stale', 'uncertain', 'cancelled'].includes(record.status));
   $('messages').replaceChildren(...active.map(record => messageCard(record)));
   $('welcome').hidden = active.length > 0;
   $('history-list').replaceChildren(...records.map(record => messageCard(record, true)));
@@ -230,7 +233,7 @@ async function checkConnection({ automatic = false } = {}) {
     if (connectionEpoch !== epoch) return;
     const result = await request('status');
     connected = result.gateway === 'reachable' && result.chatEnabled;
-    $('connection').textContent = connected ? 'Gateway reachable · chat enabled' : 'Gateway reachable · chat setup needed';
+    $('connection').textContent = connected ? `${engine === 'codex' ? 'Codex' : 'OpenClaw'} ready` : 'Agent reachable · chat setup needed';
     $('dot').classList.toggle('connected', connected);
     $('activity').textContent = connected ? 'Ready. Saved messages send automatically.' : 'You can queue a message while the agent starts.';
   } catch (error) {
@@ -245,6 +248,26 @@ async function checkConnection({ automatic = false } = {}) {
   if (connectionEpoch === epoch) await drain();
 }
 
+function showEngine() {
+  $('engine').value = engine;
+  $('engine-note').textContent = engine === 'codex'
+    ? 'Native Codex pilot · chat and code advice. OpenClaw integrations are available through OpenClaw.'
+    : 'OpenClaw · your existing tools and integrations.';
+}
+showEngine();
+$('engine').addEventListener('change', () => {
+  if (busy || saving || !['openclaw', 'codex'].includes($('engine').value)) { $('engine').value = engine; return; }
+  engine = $('engine').value;
+  globalThis.sessionStorage?.setItem(`${sessionKey}.engine`, engine);
+  // A new conversation prevents an engine switch from implying shared server history.
+  sessionId = crypto.randomUUID();
+  globalThis.sessionStorage?.setItem(sessionKey, sessionId);
+  connected = false;
+  $('dot').classList.remove('connected');
+  showEngine();
+  renderMessages(); updateControls();
+  void checkConnection({ automatic: true });
+});
 $('connect').addEventListener('click', () => checkConnection());
 $('chat-form').addEventListener('submit', async event => {
   event.preventDefault();
@@ -254,7 +277,7 @@ $('chat-form').addEventListener('submit', async event => {
   updateControls();
   $('activity').textContent = 'Saving your message…';
   try {
-    await outbox.enqueue({ id: crypto.randomUUID(), sessionId, text });
+    await outbox.enqueue({ id: crypto.randomUUID(), sessionId, text, engine });
     if ($('message').value.trim() === text) $('message').value = '';
     $('queue-storage').textContent = 'Saved encrypted here · syncing with your GunJS account';
     $('activity').textContent = connected ? 'Saved. Sending when the agent is free.' : 'Saved. It will send when the agent is ready.';
@@ -277,7 +300,14 @@ for (const button of document.querySelectorAll('[data-prompt]')) {
 }
 window.addEventListener('storage', event => {
   if (!['signedIn', 'alias', 'userPubKey'].includes(event.key)) return;
-  epoch += 1; store?.close(); store = null; storePromise = null;
+  epoch += 1;
+  sessionKey = `3dvr.helm.session.${localStorage.getItem('userPubKey') || localStorage.getItem('alias') || 'guest'}`;
+  sessionId = crypto.randomUUID();
+  engine = 'openclaw';
+  globalThis.sessionStorage?.setItem(`${sessionKey}.engine`, engine);
+  showEngine();
+  globalThis.sessionStorage?.setItem(sessionKey, sessionId);
+  store?.close(); store = null; storePromise = null;
   busy = false; liveReply = null;
   connected = false; verifiedAccount = false; outbox = makeOutbox();
   showAccount(); renderMessages(); updateControls();

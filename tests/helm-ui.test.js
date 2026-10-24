@@ -48,6 +48,7 @@ function screen(result, status = 200, signedIn = true, gate) {
     advance: ms => { clock += ms; for (const item of intervals.values()) if (item.delay === 1000) item.fn(); },
     changeAccount: () => events.get('window:storage')({ key: 'userPubKey' }),
     newChat: () => events.get('new-chat:click')(),
+    changeEngine: value => { element('engine').value = value; events.get('engine:change')(); },
     submit: async text => { element('message').value = text; await events.get('chat-form:submit')({ preventDefault() {} }); } };
 }
 
@@ -230,4 +231,35 @@ test('an interrupted partial reply stays uncertain without a second dispatch', a
   await ui.submit('Never replay this');
   assert.equal(ui.saved.at(-1).status, 'uncertain');
   assert.equal(ui.requests.filter(item => item.action === 'chat').length, 1);
+});
+
+test('native engine is saved and signed with messages, while switching starts a separate chat', async () => {
+  const ui = screen({ ok: true, gateway: 'reachable', chatEnabled: true, reply: 'Done' });
+  await ui.ready;
+  await ui.submit('Claw conversation');
+  const first = ui.requests.find(item => item.action === 'chat');
+  assert.equal(first.engine, 'openclaw');
+  ui.changeEngine('codex'); await flush(); await flush();
+  assert.match(ui.element('engine-note').textContent, /chat and code advice/);
+  await ui.submit('Native conversation');
+  const last = ui.requests.filter(item => item.action === 'chat').at(-1);
+  assert.equal(last.engine, 'codex');
+  assert.notEqual(first.sessionId, last.sessionId);
+  assert.equal(ui.saved.at(-1).engine, 'codex');
+});
+
+test('engine cannot change during an in-flight turn', async () => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const ui = screen(async payload => {
+    if (payload.action === 'chat') await gate;
+    return { status: 200, body: { ok: true, gateway: 'reachable', chatEnabled: true, reply: 'Done' } };
+  });
+  await ui.ready;
+  const sending = ui.submit('Keep engine stable'); await flush();
+  assert.equal(ui.element('engine').disabled, true);
+  ui.changeEngine('codex');
+  assert.equal(ui.element('engine').value, 'openclaw');
+  release(); await sending;
+  assert.equal(ui.element('engine').disabled, false);
 });

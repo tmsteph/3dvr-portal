@@ -41,7 +41,7 @@ export function openClawSshCommand(config = process.env, uid = process.getuid?.(
 
 export async function runOpenClaw(request, options = {}) {
   const config = options.config || process.env;
-  const script = await readFile(new URL('./remote.py', import.meta.url), 'utf8');
+  const script = await readFile(new URL(request.engine === 'codex' ? './native.py' : './remote.py', import.meta.url), 'utf8');
   const encoded = Buffer.from(JSON.stringify({ ...request, stream: Boolean(options.onDelta) })).toString('base64url');
   const host = config.THREEDVR_OPENCLAW_SSH_HOST || '3dvr-hetzner';
   // Only fixed code and base64url data cross the SSH shell; credentials stay on Hetzner.
@@ -102,7 +102,8 @@ export function createOpenClawHandler(options = {}) {
     let body;
     try { body = await readBody(req); } catch { return json(res, 400, { error: 'Invalid or oversized request.' }); }
     const { action, requestId, sessionId, message, createdAt, expiresAt } = body;
-    if (!['status', 'chat'].includes(action) || !ID.test(requestId || '') || !ID.test(sessionId || '')
+    const engine = body.engine ?? 'openclaw';
+    if (!['openclaw', 'codex'].includes(engine) || !['status', 'chat'].includes(action) || !ID.test(requestId || '') || !ID.test(sessionId || '')
       || (action === 'chat' && (typeof message !== 'string' || !message.trim() || message.length > 6000))) {
       return json(res, 400, { error: 'Invalid Helm request.' });
     }
@@ -110,15 +111,16 @@ export function createOpenClawHandler(options = {}) {
     const allowed = (config.THREEDVR_HELM_ALLOWED_ORIGINS || 'https://portal.3dvr.tech').split(',');
     if (!allowed.includes(origin)) return json(res, 403, { error: 'Portal origin is not allowed.' });
     const auth = await verify(body, { scope: 'openclaw-helm', expectedOrigin: origin, maxAgeMs: 120000 });
-    if (!auth.ok) return json(res, 401, { error: 'Sign in to connect Helm to OpenClaw.' });
+    if (!auth.ok) return json(res, 401, { error: 'Sign in to connect Helm to your agent.' });
     const policy = resolveOperatorDeveloperPolicy(config);
     // Helm is Thomas's personal workspace, independent of broader Portal owner/admin grants.
     const helmOwnerPub = policy.ownerBindings.get('tmsteph@3dvr');
     if (!helmOwnerPub || auth.identity.pub !== helmOwnerPub) {
-      return json(res, 403, { error: 'This OpenClaw workspace is private to tmsteph.' });
+      return json(res, 403, { error: 'This Helm workspace is private to tmsteph.' });
     }
     const signed = auth.verified;
     if (auth.identity.action !== action || signed.requestId !== requestId || signed.sessionId !== sessionId
+      || (signed.engine ?? 'openclaw') !== engine
       || (action === 'chat' && signed.message !== message)) {
       return json(res, 403, { error: 'Request does not match its signature.' });
     }
@@ -135,12 +137,12 @@ export function createOpenClawHandler(options = {}) {
       if (now >= expiresAt) return json(res, 410, { ok: false, stale: true, error: 'Message expired. Kept in history without sending.' });
     }
     const owner = digest(auth.identity.pub);
-    const request = { action, session: `helm-${owner.slice(0, 24)}-${sessionId}`, message,
+    const request = { action, ...(engine === 'codex' ? { engine } : {}), session: `helm-${owner.slice(0, 24)}-${sessionId}`, message,
       ...(action === 'chat' && queued ? { expiresAt } : {}) };
     if (action === 'status') {
       const identity = { verified: true, username: 'tmsteph', alias: 'tmsteph@3dvr' };
       try { return json(res, 200, { ...await run(request), identity }); }
-      catch { return json(res, 503, { ok: false, identity, error: 'Account verified, but the OpenClaw connection is unavailable. Try checking again.' }); }
+      catch { return json(res, 503, { ok: false, identity, error: 'Account verified, but the selected engine is unavailable. Try checking again.' }); }
     }
     // Delivery format does not change the signed task or its receipt fingerprint.
     const wantsStream = String(req.headers?.accept || '').includes('text/event-stream');
@@ -164,7 +166,7 @@ export function createOpenClawHandler(options = {}) {
       event('result', result);
       res.end();
     };
-    if (chatBusy) return json(res, 429, { error: 'OpenClaw is handling a Helm message. Wait for its result.' });
+    if (chatBusy) return json(res, 429, { error: 'Helm is handling a message. Wait for its result.' });
     chatBusy = true;
     let receipt;
     const fingerprint = digest(JSON.stringify(request));
@@ -177,7 +179,7 @@ export function createOpenClawHandler(options = {}) {
         if (error.code !== 'EEXIST') throw error;
         const prior = JSON.parse(await readFile(receipt, 'utf8'));
         if (prior.fingerprint !== fingerprint) return json(res, 409, { error: 'Request id already used for another message.' });
-        if (prior.pending) return json(res, 409, { error: 'Delivery is uncertain. Check OpenClaw before sending this message again.' });
+        if (prior.pending) return json(res, 409, { error: 'Delivery is uncertain. Check History before sending this message again.' });
         return finish(200, prior.result);
       }
       if (wantsStream) beginStream();
@@ -185,7 +187,7 @@ export function createOpenClawHandler(options = {}) {
       await writeFile(receipt, JSON.stringify({ fingerprint, result }), { mode: 0o600 });
       return finish(result.ok ? 200 : 503, result);
     } catch {
-      const result = { ok: false, error: 'Connection interrupted. Delivery is uncertain; check OpenClaw before resending.' };
+      const result = { ok: false, error: 'Connection interrupted. Delivery is uncertain; check History before resending.' };
       return streaming ? finish(503, result) : json(res, 503, result);
     } finally { chatBusy = false; }
   };
