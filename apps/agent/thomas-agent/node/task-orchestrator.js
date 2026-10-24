@@ -493,6 +493,23 @@ async function runAgentTask(argv = process.argv.slice(2), hooks = {}) {
     });
   }
 
+  // Explicit --backend codex must not bypass the same worker-local auth
+  // preflight used by auto routing. Keep dry-run inspection available, but
+  // do not start a doomed Codex process or claim a task lease on failure.
+  // A successful login status is still not proof a real Codex exec will work.
+  if (backend === 'codex' && !capabilities.codex) {
+    return printAndReturn({
+      ok: false,
+      skipped: true,
+      reason: 'Codex CLI missing or login status failed in this worker execution context; no task was started',
+      backend,
+      classification,
+      prompt,
+      memoryContext,
+      options,
+    });
+  }
+
   await writeHeartbeat('task-orchestrator', {
     status: 'running',
     metadata: { backend, kind: classification.kind, taskId: id, memoryCount: memoryContext?.hits?.length || 0 },
