@@ -88,8 +88,11 @@ function makeTaskId(task, now = Date.now()) {
 }
 
 function normalizeRiskClass(value) {
-  const risk = normalizeText(value).toLowerCase() || 'draft';
-  return VALID_RISK_CLASSES.has(risk) ? risk : 'draft';
+  const risk = normalizeText(value).toLowerCase();
+  // Missing risk preserves the historical draft default. An explicitly
+  // unknown risk must never silently downgrade to draft and bypass approval.
+  if (!risk) return 'draft';
+  return VALID_RISK_CLASSES.has(risk) ? risk : 'external_write';
 }
 
 function defaultApprovalStatus(record = {}) {
