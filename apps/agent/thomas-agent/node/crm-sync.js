@@ -364,7 +364,7 @@ function buildCrmSyncPayload({
     }
   });
 
-  records.forEach((record, index) => {
+  for (const [index, record] of records.entries()) {
     const entries = matchedOutreach[index];
     const successful = entries.filter(entry => ['sent', 'submitted'].includes(normalizeLower(entry.status)));
     const replies = entries.filter(entry => normalizeLower(entry.status) === 'replied');
@@ -381,7 +381,7 @@ function buildCrmSyncPayload({
     record.lastDeliveryStatus = normalizeText(latest.deliveryStatus || latest.status);
     record.nextFollowUp = normalizeText(latest.nextFollowUp) || record.nextFollowUp;
     record.updated = now;
-  });
+  }
 
   return { records, touches };
 }
