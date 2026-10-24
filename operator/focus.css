@@ -68,6 +68,10 @@ header>a{font-size:.86rem;letter-spacing:.08em}
   opacity:.42;
   animation:operator-stream-breathe 1.9s ease-in-out infinite
 }
+/* The empty streaming bubble shows a live thinking indicator (the painter
+   renders no empty <p>, so the p:empty rule above can never fire alone). */
+.message.assistant.is-streaming .operator-thinking{display:flex;gap:.45em;align-items:baseline;margin:0;color:var(--muted)}
+.message.assistant.is-streaming .operator-thinking__dots{letter-spacing:.34em;opacity:.42;animation:operator-stream-breathe 1.9s ease-in-out infinite}
 .follow-ups{
   min-height:2.45rem;
   display:flex;
@@ -94,6 +98,7 @@ header>a{font-size:.86rem;letter-spacing:.08em}
 @keyframes operator-suggestion-arrive{to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){
   .message.assistant.is-streaming p:empty::after,
+  .message.assistant.is-streaming .operator-thinking__dots,
   .follow-ups button{animation:none;opacity:1;transform:none}
 }
 

@@ -18,11 +18,10 @@
     installPrompt = null;
     button.parentElement.hidden = true;
   });
+  // The install prompt (or, failing that, the install instructions) is the
+  // same on every origin that serves this page. Clicking Install never
+  // silently moves the user to another origin.
   button.addEventListener('click', async () => {
-    if (window.location.hostname === 'portal.3dvr.tech') {
-      window.location.assign('https://operator.3dvr.tech/operator/');
-      return;
-    }
     const prompt = installPrompt;
     installPrompt = null;
     if (!prompt) {
