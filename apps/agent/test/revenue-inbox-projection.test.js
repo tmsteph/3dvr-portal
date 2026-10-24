@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createProspect, openLedger, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
-const { projectInboxMessage } = require('../thomas-agent/node/revenue-inbox-projection');
+const { inboxState, projectInboxMessage } = require('../thomas-agent/node/revenue-inbox-projection');
 const { consumeInboxState } = require('../thomas-agent/node/revenue-inbox-consumer');
 
 test('inbox message-id projection is replay-safe for replies and bounces', () => {
@@ -147,4 +147,31 @@ test('ordinary replies cannot use unrelated bounce recipient hints to advance an
       { scanned: 1, matched: 1, unmatched: 0, errors: [] });
     assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type = 'inbox_replied'").get().n, 1);
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('ordinary scheduling replies mentioning stop do not suppress the prospect', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-stop-by-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const prospect = createProspect(db, { name: 'Scheduling reply', contact: 'scheduler@test.example' }).prospect;
+    for (const state of ['verified', 'eligible', 'sent']) {
+      transitionProspect(db, { prospectId: prospect.id, toState: state, idempotencyKey: `stop-by:${state}` });
+    }
+    const reply = projectInboxMessage(db, {
+      fromEmail: 'scheduler@test.example', messageId: 'stop-by-reply',
+      subject: 'Re: integration call', preview: 'Can you stop by Tuesday to discuss the API?',
+    });
+    assert.equal(reply.prospect.state, 'replied');
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type = 'inbox_suppressed'").get().n, 0);
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('standalone STOP and explicit opt-outs remain suppressed; delivery failures take precedence', () => {
+  assert.equal(inboxState({ subject: 'Re: meeting', preview: 'STOP' }), 'suppressed');
+  assert.equal(inboxState({ subject: 'Re: meeting', preview: 'Please stop emailing me.' }), 'suppressed');
+  assert.equal(inboxState({ subject: 'Unsubscribe me' }), 'suppressed');
+  assert.equal(inboxState({ from: 'mailer-daemon', subject: 'Delivery Status Notification (Failure)',
+    preview: 'Original message footer: unsubscribe or stop' }), 'bounced');
+  assert.equal(inboxState({ from: 'unsubscribe@vendor.test', subject: 'Re: meeting',
+    preview: 'Please stop by Tuesday.' }), 'replied');
 });
