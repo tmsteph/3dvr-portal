@@ -1,12 +1,46 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { summarizeQueue, auditManagedSqlite } from '../scripts/ops/operator-stale-queue-audit.mjs';
+import { DatabaseSync } from 'node:sqlite';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const now = Date.parse('2026-10-23T10:00:00Z');
 const env = {
   THREEDVR_AGENT_WORKER_CAPABILITIES: 'codex,node,static-hosting',
   THREEDVR_AGENT_WORKER_RISK_CLASSES: 'read_only,draft,workspace_write'
 };
+
+
+test('read-only audit classifies stored running leases without leaking identifiers', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), '3dvr-lease-audit-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dbPath = join(dir, 'queue.sqlite');
+  const db = new DatabaseSync(dbPath);
+  db.exec('CREATE TABLE tasks (owner_alias TEXT, status TEXT, record_json TEXT, claim_expires_at INTEGER)');
+  const insert = db.prepare('INSERT INTO tasks VALUES (?, ?, ?, ?)');
+  const current = Date.now();
+  for (const [id, lease, owner] of [
+    ['private-expired', current - 10000, 'test-owner'],
+    ['private-active', current + 600000, 'test-owner'],
+    ['private-unknown', null, 'test-owner'],
+    ['private-other-owner', current - 10000, 'another-owner'],
+  ]) {
+    insert.run(owner, 'running', JSON.stringify({ id, status: 'running', task: 'private task text' }), lease);
+  }
+  db.close();
+  const report = auditManagedSqlite({
+    THREEDVR_AGENT_QUEUE_STORE: 'sqlite',
+    THREEDVR_AGENT_OWNER_ALIAS: 'test-owner',
+    THREEDVR_AGENT_QUEUE_DB: dbPath,
+  });
+  assert.equal(report.total, 3);
+  assert.equal(report.statusCounts.running, 3);
+  assert.deepEqual(report.runningClaims, { active: 1, expired: 1, unknown: 1 });
+  assert.equal(JSON.stringify(report).includes('private-'), false);
+  assert.equal(JSON.stringify(report).includes('private task text'), false);
+});
 
 test('old unsafe shell task is review-only even with historical approval', () => {
   const task = {
