@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { createProspect, openLedger, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
 const { projectInboxMessage } = require('../thomas-agent/node/revenue-inbox-projection');
+const { consumeInboxState } = require('../thomas-agent/node/revenue-inbox-consumer');
 
 test('inbox message-id projection is replay-safe for replies and bounces', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-ledger-'));
@@ -37,5 +38,42 @@ test('inbox projection bridges legacy mailto contact identities', () => {
     transitionProspect(db, { prospectId: prospect.id, toState: 'sent', idempotencyKey: 'ls' });
     const result = projectInboxMessage(db, { prospectEmail: 'legacy@test.example', messageId: 'legacy-bounce', subject: 'Delivery failure' });
     assert.equal(result.prospect.state, 'bounced');
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+
+test('one multi-recipient bounce updates each prospect without cross-contact idempotency collisions', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-multi-bounce-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const contacts = ['first@test.example', 'second@test.example'];
+    for (const [index, contact] of contacts.entries()) {
+      const prospect = createProspect(db, { name: `Synthetic ${index}`, contact }).prospect;
+      for (const [state, suffix] of [['verified', 'verified'], ['eligible', 'eligible'], ['sent', 'sent']]) {
+        transitionProspect(db, {
+          prospectId: prospect.id, toState: state,
+          idempotencyKey: `multi-bounce:${index}:${suffix}`
+        });
+      }
+    }
+    const filePath = path.join(tmp, 'inbox-state.json');
+    fs.writeFileSync(filePath, JSON.stringify({ messages: {
+      'shared-provider-message-id': {
+        from: 'mailer-daemon',
+        subject: 'Delivery Status Notification (Failure)',
+        bounceEmails: contacts
+      }
+    } }));
+    const first = consumeInboxState(db, filePath);
+    assert.deepEqual(first, { scanned: 2, matched: 2, unmatched: 0, errors: [] });
+    for (const contact of contacts) {
+      assert.equal(db.prepare('SELECT state FROM prospects WHERE contact_key = ?')
+        .get(`contact:${contact}`).state, 'bounced');
+    }
+    const count = db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type = 'inbox_bounced'").get().n;
+    assert.equal(count, 2);
+    const replay = consumeInboxState(db, filePath);
+    assert.deepEqual(replay, { scanned: 2, matched: 2, unmatched: 0, errors: [] });
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type = 'inbox_bounced'").get().n, 2);
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
