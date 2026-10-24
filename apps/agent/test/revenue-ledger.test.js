@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createProspect, finishProjection, importProspectState, openLedger, pendingProjections, startRun, finishRun, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
+const { createProspect, finishProjection, importProspectState, openLedger, pendingProjections, reserveDeliveryAttempt, startRun, finishRun, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
 
 function withLedger(fn) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-ledger-'));
@@ -78,4 +78,20 @@ test('legacy import idempotency never returns a different prospect event', () =>
   assert.throws(() => importProspectState(db, { ...request, payload: { source: 'legacy', row: 2 } }), /Idempotency key collision/);
   assert.equal(db.prepare('SELECT state FROM prospects WHERE id = ?').get(b.id).state, 'prospect');
   assert.equal(pendingProjections(db).length, 1);
+}));
+
+
+test('delivery attempt idempotency cannot reuse another prospect\'s receipt', () => withLedger((db) => {
+  const a = createProspect(db, { name: 'Delivery A', contact: 'delivery-a@example.test' }).prospect;
+  const b = createProspect(db, { name: 'Delivery B', contact: 'delivery-b@example.test' }).prospect;
+  const original = reserveDeliveryAttempt(db, { attemptId: 'synthetic:delivery-key', prospectId: a.id });
+  assert.equal(original.replayed, false);
+  const replay = reserveDeliveryAttempt(db, { attemptId: 'synthetic:delivery-key', prospectId: a.id });
+  assert.equal(replay.replayed, true);
+  assert.equal(replay.attempt.id, original.attempt.id);
+  assert.throws(() => reserveDeliveryAttempt(db, {
+    attemptId: 'synthetic:delivery-key', prospectId: b.id,
+  }), /Delivery attempt key collision/);
+  assert.equal(db.prepare('SELECT COUNT(*) AS total FROM delivery_attempts').get().total, 1);
+  assert.equal(db.prepare('SELECT prospect_id FROM delivery_attempts WHERE attempt_key = ?').get('synthetic:delivery-key').prospect_id, a.id);
 }));
