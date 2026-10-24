@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
+const { isDeepStrictEqual } = require('node:util');
 const { DatabaseSync } = require('node:sqlite');
 
 const STATES = new Set(['prospect', 'verified', 'drafted', 'eligible', 'sent', 'bounced', 'replied', 'suppressed', 'failed']);
@@ -152,18 +153,35 @@ function createProspect(db, input = {}) {
   return { prospect, created: true };
 }
 
+// An idempotency key identifies one exact ledger event, not merely a matching
+// string. Never return a different prospect's receipt as a successful replay.
+function replayLedgerEvent(db, { idempotencyKey, prospectId, toState, type, payload }) {
+  const replay = db.prepare('SELECT * FROM revenue_events WHERE idempotency_key = ?').get(idempotencyKey);
+  if (!replay) return null;
+  let storedPayload;
+  try { storedPayload = JSON.parse(replay.payload_json); }
+  catch { throw new Error('Idempotency key collision: stored event payload is invalid'); }
+  if (replay.prospect_id !== prospectId || replay.to_state !== toState ||
+      replay.type !== type || !isDeepStrictEqual(storedPayload, payload)) {
+    throw new Error('Idempotency key collision: existing event differs from requested prospect, state, type, or payload');
+  }
+  return replay;
+}
+
 function transitionProspect(db, input = {}) {
   const id = normalize(input.prospectId);
   const toState = normalize(input.toState);
   const idempotencyKey = normalize(input.idempotencyKey);
   if (!id || !STATES.has(toState) || !idempotencyKey) throw new Error('prospectId, valid toState, and idempotencyKey are required');
-  const replay = db.prepare('SELECT * FROM revenue_events WHERE idempotency_key = ?').get(idempotencyKey);
+  const type = normalize(input.type) || 'state_transition';
+  const payload = input.payload || {};
+  const replay = replayLedgerEvent(db, { idempotencyKey, prospectId: id, toState, type, payload });
   if (replay) return { event: replay, replayed: true, prospect: getProspect(db, id) };
   const prospect = getProspect(db, id);
   if (!prospect) throw new Error(`Unknown prospect: ${id}`);
   if (!TRANSITIONS[prospect.state].has(toState)) throw new Error(`Invalid transition: ${prospect.state} -> ${toState}`);
   const now = new Date().toISOString();
-  const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type: normalize(input.type) || 'state_transition', from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(input.payload || {}), created_at: now };
+  const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type, from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(payload), created_at: now };
   db.exec('BEGIN IMMEDIATE');
   try {
     db.prepare('UPDATE prospects SET state = ?, updated_at = ? WHERE id = ?').run(toState, now, id);
@@ -229,14 +247,15 @@ function importProspectState(db, input = {}) {
   const toState = normalize(input.toState);
   const idempotencyKey = normalize(input.idempotencyKey);
   if (!id || !STATES.has(toState) || !idempotencyKey) throw new Error('prospectId, valid toState, and idempotencyKey are required');
-  const replay = db.prepare('SELECT * FROM revenue_events WHERE idempotency_key = ?').get(idempotencyKey);
+  const payload = input.payload || {};
+  const replay = replayLedgerEvent(db, { idempotencyKey, prospectId: id, toState, type: 'legacy_import', payload });
   if (replay) return { event: replay, replayed: true, prospect: getProspect(db, id) };
   const prospect = getProspect(db, id);
   if (!prospect) throw new Error(`Unknown prospect: ${id}`);
   if (prospect.state !== 'prospect' && prospect.state !== toState) throw new Error(`Cannot import ${toState} over existing ${prospect.state} state`);
   if (prospect.state === toState) return { event: null, replayed: true, prospect };
   const now = new Date().toISOString();
-  const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type: 'legacy_import', from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(input.payload || {}), created_at: now };
+  const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type: 'legacy_import', from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(payload), created_at: now };
   db.exec('BEGIN IMMEDIATE');
   try {
     db.prepare('UPDATE prospects SET state = ?, updated_at = ? WHERE id = ?').run(toState, now, id);
