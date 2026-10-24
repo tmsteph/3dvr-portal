@@ -153,6 +153,24 @@ test('buildCrmSyncPayload deduplicates a lead and its outreach by email', () => 
   assert.equal(payload.touches.find(touch => touch.source === '3dvr-agent/outreach-log').touchType, 'reply-received');
 });
 
+test('CRM consolidates multiple outreach-only events into one contact and retains their history', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [],
+    outreach: [
+      { name: 'New Automation Buyer', contact: 'mailto:owner@buyer.example', status: 'sent', timestamp: '2026-10-23T10:00:00.000Z' },
+      { name: 'New Automation Buyer', contact: 'mailto:owner@buyer.example', status: 'replied', timestamp: '2026-10-24T10:00:00.000Z' },
+    ],
+    now: '2026-10-24T12:00:00.000Z',
+  });
+
+  assert.equal(payload.records.length, 1);
+  assert.equal(payload.records[0].email, 'owner@buyer.example');
+  assert.equal(payload.records[0].status, 'Warm - Discovery');
+  assert.equal(payload.records[0].replyCount, 1);
+  assert.equal(payload.touches.length, 3);
+  assert.equal(payload.touches.filter(touch => touch.source === '3dvr-agent/outreach-log').length, 2);
+});
+
 test('CRM never attributes a reply by shared name when contact identities differ or are ambiguous', () => {
   const payload = buildCrmSyncPayload({
     leads: [
