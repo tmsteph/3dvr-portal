@@ -21,12 +21,21 @@ export function summarizeQueue(records, env = {}, now = Date.now()) {
   const summary = {
     mode: 'read_only_metadata_review_not_execution_authorization',
     workerCapabilitiesConfigured,
-    total: records.length, statusCounts: {}, queuedAgeBuckets: {},
+    total: records.length, statusCounts: {}, runningClaims: { active: 0, expired: 0, unknown: 0 }, queuedAgeBuckets: {},
     queuedCapabilities: {}, queuedRisks: {}, queuedApprovals: {},
     reviewFlags: {}, queuedReviews: []
   };
   for (const record of records) {
     bump(summary.statusCounts, record.status || 'unknown');
+    if (record.status === 'running') {
+      // Running claims must never be treated as replayable queued work. Only
+      // aggregate lease state is reported; no claim tokens or task IDs.
+      const expiry = record.claimExpiresAt == null ? NaN : Number(record.claimExpiresAt);
+      const leaseState = !Number.isFinite(expiry) || expiry <= 0 ? 'unknown'
+        : expiry <= now ? 'expired' : 'active';
+      bump(summary.runningClaims, leaseState);
+      continue;
+    }
     if (record.status !== 'queued') continue;
     const created = Date.parse(record.createdAt || record.updatedAt || '');
     const days = Number.isFinite(created) && created <= now ? (now - created) / 86400000 : null;
@@ -73,9 +82,11 @@ export function auditManagedSqlite(env = process.env) {
   const path = env.THREEDVR_AGENT_QUEUE_DB || join(homedir(), '.3dvr', 'task-queue.sqlite');
   const db = new DatabaseSync(path, { readOnly: true });
   try {
-    const rows = db.prepare('SELECT status, record_json FROM tasks WHERE owner_alias = ?')
+    const rows = db.prepare('SELECT status, record_json, claim_expires_at FROM tasks WHERE owner_alias = ?')
       .all(env.THREEDVR_AGENT_OWNER_ALIAS);
-    return summarizeQueue(rows.map(row => ({ ...JSON.parse(row.record_json), status: row.status })), env);
+    return summarizeQueue(rows.map(row => ({
+      ...JSON.parse(row.record_json), status: row.status, claimExpiresAt: row.claim_expires_at
+    })), env);
   } finally {
     db.close();
   }
