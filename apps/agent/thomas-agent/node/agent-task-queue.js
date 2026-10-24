@@ -494,7 +494,6 @@ async function runWorkerOnce(options = {}) {
   await syncTerminalResults(options);
   await importLegacyGunTasks(options);
   const tasks = await listTasks(options);
-  const now = options.now || Date.now();
   // An expired running lease is not proof the task is safe to execute twice.
   const queued = tasks
     .filter(task => task.status === 'queued')
