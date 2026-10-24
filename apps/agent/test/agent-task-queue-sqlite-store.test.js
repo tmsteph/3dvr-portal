@@ -150,6 +150,47 @@ test('an expired running claim requires review instead of automatic replay', asy
   );
 });
 
+test('newer GUN import cannot revive an expired running task', async (t) => {
+  const now = Date.now();
+  const options = await queueOptions(t, {
+    rootNode: fakeRoot(),
+    workerCapabilities: 'openai',
+    deviceId: 'replacement-worker',
+    now: now + 200,
+  });
+  await enqueueTask('side effects may already have happened', {
+    ...options, id: 'expired-import-task', backend: 'openai', now,
+  });
+  assert.ok(sqliteQueue.claimTask(
+    'expired-import-task', 'original-claim', 'original-worker', now + 10, now, options,
+  ));
+
+  // A newer GUN mirror could previously overwrite the expired running row
+  // with queued state, bypassing the fail-closed worker claim restriction.
+  const imported = sqliteQueue.importTask({
+    id: 'expired-import-task',
+    status: 'queued',
+    task: 'same work, later GUN update',
+    backend: 'openai',
+    updatedAt: new Date(now + 100).toISOString(),
+  }, { ...options, now: now + 200 });
+  assert.equal(imported, false, 'expired running work must remain review-only');
+
+  const preserved = await readTask('expired-import-task', options);
+  assert.equal(preserved.status, 'running');
+  assert.equal(preserved.workerDeviceId, 'original-worker');
+  let executions = 0;
+  const results = await runWorkerOnce({
+    ...options,
+    runAgentTaskImpl: async () => {
+      executions += 1;
+      return { ok: true, result: { stdout: 'must not replay' } };
+    },
+  });
+  assert.equal(executions, 0);
+  assert.equal(results.length, 0);
+});
+
 test('SQLite worker imports legacy GUN tasks and mirrors completion', async (t) => {
   const rootNode = fakeRoot();
   const gunOptions = { rootNode, ownerAlias: 'tenant/sqlite:exact', force: true };
