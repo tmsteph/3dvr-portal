@@ -274,3 +274,32 @@ test('Gemini backend sends the OpenAI-compatible Gemini request shape', async ()
   assert.equal(JSON.parse(captured.request.body).model, 'gemini-test');
   assert.equal(result.stdout, 'world');
 });
+
+test('--no-print-prompt never prints task text through the dispatch command or JSON dry-run', async () => {
+  const sentinel = 'PRIVATE_PROMPT_SENTINEL_73bd9';
+  const originalLog = console.log;
+  const lines = [];
+  console.log = (...parts) => lines.push(parts.join(' '));
+  try {
+    const human = await runAgentTask(
+      ['--backend', 'codex', '--no-print-prompt', sentinel],
+      { capabilities: { codex: true } },
+    );
+    assert.equal(human.dryRun, true);
+    assert.match(lines.join('\n'), /dispatch: codex \(prompt omitted\)/);
+    assert.doesNotMatch(lines.join('\n'), /PRIVATE_PROMPT_SENTINEL_73bd9/);
+
+    lines.length = 0;
+    const json = await runAgentTask(
+      ['--backend', 'codex', '--json', '--no-print-prompt', sentinel],
+      { capabilities: { codex: true } },
+    );
+    assert.equal(json.dryRun, true);
+    const parsed = JSON.parse(lines.join('\n'));
+    assert.equal(Object.hasOwn(parsed, 'prompt'), false);
+    assert.equal(Object.hasOwn(parsed, 'command'), false);
+    assert.doesNotMatch(lines.join('\n'), /PRIVATE_PROMPT_SENTINEL_73bd9/);
+  } finally {
+    console.log = originalLog;
+  }
+});
