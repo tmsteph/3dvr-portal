@@ -140,6 +140,31 @@ test('worker never executes denied, pending, or unapproved high-risk tasks', () 
   assert.equal(canWorkerRunTask({ backend: 'codex', riskClass: 'read_only', approvalStatus: 'not_required' }, worker).ok, true);
 });
 
+test('unknown explicit risk labels fail closed instead of becoming unapproved drafts', async () => {
+  const rootNode = fakeRoot();
+  const record = await enqueueTask('Unknown risk label', {
+    rootNode,
+    ownerAlias: 'tenant-a',
+    id: 'unknown-risk',
+    backend: 'codex',
+    riskClass: 'external-write',
+    force: true,
+  });
+  assert.equal(record.riskClass, 'external_write');
+  assert.equal(record.approvalStatus, 'required');
+  const worker = {
+    workerCapabilities: 'node,codex',
+    workerRiskClasses: 'read_only,draft,workspace_write,external_write',
+  };
+  assert.equal(canWorkerRunTask(record, worker).ok, false);
+  // Legacy/imported records must also be checked at execution time.
+  assert.equal(canWorkerRunTask({
+    backend: 'codex',
+    riskClass: 'unrecognized-side-effect',
+    approvalStatus: 'not_required',
+  }, worker).ok, false);
+});
+
 test('health backend is intrinsic and does not require shell or model capability', () => {
   assert.deepEqual(requiredWorkerCapabilities({ backend: 'health' }), []);
   assert.equal(canWorkerRunTask({
