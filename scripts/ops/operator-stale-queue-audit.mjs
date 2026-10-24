@@ -45,7 +45,12 @@ export function summarizeQueue(records, env = {}, now = Date.now()) {
     if (!workerCapabilitiesConfigured) flags.push('worker_capabilities_unverified');
     else if (missing.length) flags.push('missing_capability');
     if (!allowedRisks.has(risk)) flags.push('risk_not_allowed');
-    if (['required', 'pending', 'rejected', 'denied'].includes(approval)) flags.push('approval_block');
+    // Match the live worker approval gate. Imported/expired approvals must
+    // not appear metadata-eligible, and high-risk tasks need explicit approval.
+    const approvalValue = String(record.approvalStatus || '').trim().toLowerCase();
+    const approvalRequired = ['external_write', 'money', 'credential'].includes(risk);
+    if ((approvalValue && !['approved', 'not_required'].includes(approvalValue))
+      || (approvalRequired && approvalValue !== 'approved')) flags.push('approval_block');
     if (record.unsafe) flags.push('unsafe_flag');
     if (completed.has(fingerprint(record))) flags.push('possible_prior_completion');
     if (['auto', 'shell'].includes(backend)) flags.push('requires_intent_review');
