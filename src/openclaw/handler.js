@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
+import { StringDecoder } from 'node:string_decoder';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { verifySignedSeaPayload } from '../auth/sea.js';
@@ -41,7 +42,7 @@ export function openClawSshCommand(config = process.env, uid = process.getuid?.(
 export async function runOpenClaw(request, options = {}) {
   const config = options.config || process.env;
   const script = await readFile(new URL('./remote.py', import.meta.url), 'utf8');
-  const encoded = Buffer.from(JSON.stringify(request)).toString('base64url');
+  const encoded = Buffer.from(JSON.stringify({ ...request, stream: Boolean(options.onDelta) })).toString('base64url');
   const host = config.THREEDVR_OPENCLAW_SSH_HOST || '3dvr-hetzner';
   // Only fixed code and base64url data cross the SSH shell; credentials stay on Hetzner.
   return new Promise((resolve, reject) => {
@@ -49,18 +50,40 @@ export async function runOpenClaw(request, options = {}) {
     const child = (options.spawn || spawn)(command, [...prefix, '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', host,
       'python3', '-', encoded], { stdio: ['pipe', 'pipe', 'pipe'] });
     let output = '';
+    let received = 0;
+    let result;
+    let invalid = false;
+    const decoder = new StringDecoder('utf8');
+    const consume = line => {
+      if (!line.trim()) return;
+      const data = JSON.parse(line);
+      if (result !== undefined) throw new Error('extra output');
+      if (data.type === 'delta' && typeof data.text === 'string') options.onDelta?.(data.text);
+      else if (typeof data.ok === 'boolean') result = data;
+      else throw new Error('invalid output');
+    };
     const timer = setTimeout(() => { child.kill('SIGTERM'); reject(new Error('timeout')); }, 100000);
     child.stdout.on('data', chunk => {
-      output += chunk;
-      if (output.length > 160000) child.kill('SIGTERM');
+      try {
+        received += Buffer.byteLength(chunk);
+        if (received > 8 * 1024 * 1024) throw new Error('output limit');
+        output += decoder.write(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        let end;
+        while ((end = output.indexOf('\n')) >= 0) {
+          consume(output.slice(0, end));
+          output = output.slice(end + 1);
+        }
+      } catch { invalid = true; child.kill('SIGTERM'); }
     });
     child.stderr.on('data', () => {});
     child.on('error', error => { clearTimeout(timer); reject(error); });
     child.on('close', code => {
       clearTimeout(timer);
       try {
-        if (code !== 0) throw new Error('transport');
-        resolve(JSON.parse(output));
+        if (code !== 0 || invalid) throw new Error('transport');
+        consume(output + decoder.end());
+        if (!result) throw new Error('missing result');
+        resolve(result);
       } catch { reject(new Error('transport')); }
     });
     child.stdin.on('error', () => {});
@@ -71,7 +94,7 @@ export async function runOpenClaw(request, options = {}) {
 export function createOpenClawHandler(options = {}) {
   const config = options.config || process.env;
   const verify = options.verify || verifySignedSeaPayload;
-  const run = options.run || (request => runOpenClaw(request, options));
+  const run = options.run || ((request, runOptions) => runOpenClaw(request, { ...options, ...runOptions }));
   const stateDir = resolve(config.THREEDVR_HELM_STATE_DIR || '/var/lib/3dvr-helm');
   let chatBusy = false;
   return async (req, res) => {
@@ -119,6 +142,28 @@ export function createOpenClawHandler(options = {}) {
       try { return json(res, 200, { ...await run(request), identity }); }
       catch { return json(res, 503, { ok: false, identity, error: 'Account verified, but the OpenClaw connection is unavailable. Try checking again.' }); }
     }
+    // Delivery format does not change the signed task or its receipt fingerprint.
+    const wantsStream = String(req.headers?.accept || '').includes('text/event-stream');
+    let streaming = false;
+    const beginStream = () => {
+      if (streaming) return;
+      streaming = true;
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('Cache-Control', 'private, no-store, no-transform');
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.flushHeaders?.();
+    };
+    const event = (name, data) => {
+      if (res.destroyed || res.writableEnded) return;
+      try { res.write(`event: ${name}\ndata: ${JSON.stringify(data)}\n\n`); } catch {}
+    };
+    const finish = (status, result) => {
+      if (!wantsStream) return json(res, status, result);
+      beginStream();
+      event('result', result);
+      res.end();
+    };
     if (chatBusy) return json(res, 429, { error: 'OpenClaw is handling a Helm message. Wait for its result.' });
     chatBusy = true;
     let receipt;
@@ -133,13 +178,15 @@ export function createOpenClawHandler(options = {}) {
         const prior = JSON.parse(await readFile(receipt, 'utf8'));
         if (prior.fingerprint !== fingerprint) return json(res, 409, { error: 'Request id already used for another message.' });
         if (prior.pending) return json(res, 409, { error: 'Delivery is uncertain. Check OpenClaw before sending this message again.' });
-        return json(res, 200, prior.result);
+        return finish(200, prior.result);
       }
-      const result = await run(request);
+      if (wantsStream) beginStream();
+      const result = await run(request, wantsStream ? { onDelta: text => event('delta', { text }) } : {});
       await writeFile(receipt, JSON.stringify({ fingerprint, result }), { mode: 0o600 });
-      return json(res, result.ok ? 200 : 503, result);
+      return finish(result.ok ? 200 : 503, result);
     } catch {
-      return json(res, 503, { ok: false, error: 'Connection interrupted. Delivery is uncertain; check OpenClaw before resending.' });
+      const result = { ok: false, error: 'Connection interrupted. Delivery is uncertain; check OpenClaw before resending.' };
+      return streaming ? finish(503, result) : json(res, 503, result);
     } finally { chatBusy = false; }
   };
 }

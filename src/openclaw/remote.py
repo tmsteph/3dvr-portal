@@ -9,6 +9,40 @@ import urllib.error
 import urllib.request
 
 
+def read_stream(response, on_delta):
+    parts = []
+    received = 0
+    content_bytes = 0
+    done = False
+    while True:
+        line = response.readline(1024 * 1024 + 1)
+        if not line:
+            break
+        received += len(line)
+        if len(line) > 1024 * 1024 or received > 32 * 1024 * 1024:
+            raise ValueError('response limit')
+        if not line.startswith(b'data:'):
+            continue
+        raw = line[5:].strip()
+        if raw == b'[DONE]':
+            done = True
+            break
+        event = json.loads(raw)
+        if event.get('error'):
+            raise ValueError('upstream error')
+        for choice in event.get('choices', []):
+            text = choice.get('delta', {}).get('content', '')
+            if isinstance(text, str) and text:
+                content_bytes += len(text.encode('utf-8'))
+                if content_bytes > 120000:
+                    raise ValueError('reply limit')
+                parts.append(text)
+                on_delta(text)
+    if not done:
+        raise ValueError('incomplete stream')
+    return ''.join(parts)
+
+
 def main():
     raw = sys.argv[1]
     request = json.loads(base64.urlsafe_b64decode(raw + '=' * (-len(raw) % 4)))
@@ -34,19 +68,24 @@ def main():
     token = gateway.get('auth', {}).get('token', '')
     if not isinstance(token, str) or not token:
         return {'ok': False, 'error': 'Gateway authentication needs server-side setup.'}
-    body = json.dumps({'model': 'openclaw:main', 'user': request['session'], 'stream': False,
+    body = json.dumps({'model': 'openclaw:main', 'user': request['session'], 'stream': bool(request.get('stream')),
                        'messages': [{'role': 'user', 'content': request['message']}]}).encode()
     headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token}
     req = urllib.request.Request(base + '/v1/chat/completions', data=body, headers=headers)
     with urllib.request.urlopen(req, timeout=85) as response:
-        data = json.loads(response.read(128000))
-    reply = data['choices'][0]['message']['content']
+        if request.get('stream'):
+            reply = read_stream(response, lambda text: print(
+                json.dumps({'type': 'delta', 'text': text}), flush=True))
+        else:
+            data = json.loads(response.read(128000))
+            reply = data['choices'][0]['message']['content']
     if not isinstance(reply, str) or not reply.strip():
         return {'ok': False, 'error': 'OpenClaw returned an empty response. Check its session before resending.'}
     return {'ok': True, 'reply': reply, 'engine': 'OpenClaw', 'session': request['session']}
 
 
-try:
-    print(json.dumps(main()))
-except Exception:
-    print(json.dumps({'ok': False, 'error': 'OpenClaw did not complete this request. Check its session before resending.'}))
+if __name__ == '__main__':
+    try:
+        print(json.dumps(main()), flush=True)
+    except Exception:
+        print(json.dumps({'ok': False, 'error': 'OpenClaw did not complete this request. Check its session before resending.'}), flush=True)

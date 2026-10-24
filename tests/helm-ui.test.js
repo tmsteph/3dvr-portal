@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
 import { randomUUID } from 'node:crypto';
 import { createOutbox } from '../helm/outbox.js';
+import { readHelmResponse } from '../helm/stream.js';
 
 const source = (await readFile(new URL('../helm/app.js', import.meta.url), 'utf8')).replace(/^import .*;\n/gm, '');
 const flush = () => new Promise(resolve => setImmediate(resolve));
@@ -31,13 +32,14 @@ function screen(result, status = 200, signedIn = true, gate) {
     localStorage: { getItem: key => storage.get(key) }, crypto: { randomUUID }, AbortSignal,
     Date: Clock,
     setInterval: (fn, delay) => { const id = Symbol(); intervals.set(id, { fn, delay }); return id; },
-    clearInterval: id => intervals.delete(id), createOutbox,
+    clearInterval: id => intervals.delete(id), createOutbox, readHelmResponse,
     openHelmMessageStore: async () => ({ save: async record => saved.push(structuredClone(record)), close() {} }),
     createSignedPortalProof: async () => ({ authProof: 'signed' }),
     fetch: async (_url, options) => {
       const payload = JSON.parse(options.body); requests.push(payload);
       if (payload.action === 'status' && gate) await gate;
       const reply = await (typeof result === 'function' ? result(payload) : { status, body: result });
+      if (reply.response) return reply.response;
       return { ok: reply.status === 200, status: reply.status, json: async () => reply.body };
     }
   });
@@ -193,4 +195,39 @@ test('an obsolete connection check cannot disconnect the new account or stop its
   await ui.submit('Current account diagnostic');
   assert.equal(ui.saved.at(-1).status, 'completed');
   assert.equal(ui.element('connection').textContent, 'Agent replied');
+});
+
+test('streamed text appears while delivery is pending and completes only with the final result', async () => {
+  let controller;
+  const response = new Response(new ReadableStream({ start(value) { controller = value; } }),
+    { headers: { 'Content-Type': 'text/event-stream' } });
+  const ui = screen(payload => payload.action === 'status'
+    ? { status: 200, body: { ok: true, gateway: 'reachable', chatEnabled: true } }
+    : { response });
+  await ui.ready;
+  const sending = ui.submit('Stream diagnostic');
+  await flush();
+  controller.enqueue(new TextEncoder().encode('event: delta\ndata: {"text":"Early reply"}\n\n'));
+  await flush();
+  assert.equal(ui.saved.at(-1).status, 'sending');
+  assert.equal(ui.element('connection').textContent, 'Receiving agent reply');
+  const card = ui.element('messages').children[0];
+  assert.ok(card.children.some(item => item?.textContent === 'Early reply'));
+  controller.enqueue(new TextEncoder().encode('event: result\ndata: {"ok":true,"reply":"Final reply"}\n\n'));
+  controller.close();
+  await sending;
+  assert.equal(ui.saved.at(-1).status, 'completed');
+  assert.equal(ui.saved.at(-1).reply, 'Final reply');
+});
+
+test('an interrupted partial reply stays uncertain without a second dispatch', async () => {
+  const response = new Response('event: delta\ndata: {"text":"Partial"}\n\n',
+    { headers: { 'Content-Type': 'text/event-stream' } });
+  const ui = screen(payload => payload.action === 'status'
+    ? { status: 200, body: { ok: true, gateway: 'reachable', chatEnabled: true } }
+    : { response });
+  await ui.ready;
+  await ui.submit('Never replay this');
+  assert.equal(ui.saved.at(-1).status, 'uncertain');
+  assert.equal(ui.requests.filter(item => item.action === 'chat').length, 1);
 });
