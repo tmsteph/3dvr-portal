@@ -153,6 +153,32 @@ test('buildCrmSyncPayload deduplicates a lead and its outreach by email', () => 
   assert.equal(payload.touches.find(touch => touch.source === '3dvr-agent/outreach-log').touchType, 'reply-received');
 });
 
+test('CRM never attributes a reply by shared name when contact identities differ or are ambiguous', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [
+      { name: 'Shared Business Name', link: 'https://first.example', contact: 'mailto:first@first.example', status: 'new' },
+      { name: 'Shared Business Name', link: 'https://second.example', contact: 'mailto:second@second.example', status: 'new' },
+    ],
+    outreach: [
+      { name: 'Shared Business Name', contact: 'mailto:first@first.example', status: 'replied', timestamp: '2026-10-24T10:00:00.000Z' },
+      { name: 'Shared Business Name', status: 'replied', timestamp: '2026-10-24T11:00:00.000Z', body: 'Unattributed reply' },
+    ],
+    now: '2026-10-24T12:00:00.000Z',
+  });
+
+  assert.equal(payload.records.length, 2);
+  const first = payload.records.find(record => record.email === 'first@first.example');
+  const second = payload.records.find(record => record.email === 'second@second.example');
+  assert.equal(first.status, 'Warm - Discovery');
+  assert.equal(first.replyCount, 1);
+  assert.equal(second.status, 'Lead');
+  assert.equal(second.replyCount, undefined);
+  assert.equal(payload.touches.length, 3);
+  const reply = payload.touches.find(touch => touch.touchType === 'reply-received');
+  assert.equal(reply.recordId, first.id);
+  assert.ok(!payload.touches.some(touch => touch.message === 'Unattributed reply'));
+});
+
 test('shouldSyncLeadToCrm keeps the default CRM import focused on useful leads', () => {
   assert.equal(shouldSyncLeadToCrm({
     name: 'Starbucks',
