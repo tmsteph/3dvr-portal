@@ -27,7 +27,7 @@ export async function readHelmResponse(response, onDelta = () => {}) {
       const { value, done } = await reader.read();
       if (done) break;
       bytes += value.byteLength;
-      if (bytes > 400000) throw new Error('Reply stream exceeded its limit.');
+      if (bytes > 8 * 1024 * 1024) throw new Error('Reply stream exceeded its limit.');
       pending += decoder.decode(value, { stream: true }).replace(/\r/g, '');
       let boundary;
       while ((boundary = pending.indexOf('\n\n')) >= 0) {
