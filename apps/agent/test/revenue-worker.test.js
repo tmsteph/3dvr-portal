@@ -124,3 +124,42 @@ test('forged approval fields in candidate do not bypass no-send policy', async (
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('malformed inbox leaves a durable failed run instead of an orphaned running run', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-inbox-failure-'));
+  const priorLedger = process.env.THREEDVR_REVENUE_LEDGER_FILE;
+  const priorInbox = process.env.THREEDVR_INBOX_STATE_FILE;
+  const priorProjection = process.env.THREEDVR_CRM_PROJECTION_ENABLED;
+  const ledger = path.join(tmp, 'ledger.sqlite');
+  process.env.THREEDVR_REVENUE_LEDGER_FILE = ledger;
+  process.env.THREEDVR_INBOX_STATE_FILE = path.join(tmp, 'invalid-inbox.json');
+  delete process.env.THREEDVR_CRM_PROJECTION_ENABLED;
+  fs.writeFileSync(process.env.THREEDVR_INBOX_STATE_FILE, '{ invalid json');
+  try {
+    await assert.rejects(run('invalid-inbox-canary'), SyntaxError);
+    const db = openLedger({ filePath: ledger });
+    try {
+      const stored = db.prepare('SELECT * FROM revenue_runs WHERE trigger_id = ?').get('invalid-inbox-canary');
+      assert.equal(stored.status, 'failed');
+      assert.ok(stored.finished_at);
+      const summary = JSON.parse(stored.summary_json);
+      assert.equal(summary.mode, 'no-send-canary');
+      assert.equal(summary.sends, 0);
+      assert.equal(summary.failedPhase, 'revenue_run');
+      assert.equal(summary.errorType, 'SyntaxError');
+      assert.equal(db.prepare('SELECT count(*) AS n FROM delivery_attempts').get().n, 0);
+    } finally { db.close(); }
+    const replay = await run('invalid-inbox-canary');
+    assert.equal(replay.replayed, true);
+    assert.equal(replay.status, 'failed');
+  } finally {
+    for (const [key, value] of [
+      ['THREEDVR_REVENUE_LEDGER_FILE', priorLedger],
+      ['THREEDVR_INBOX_STATE_FILE', priorInbox],
+      ['THREEDVR_CRM_PROJECTION_ENABLED', priorProjection],
+    ]) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
