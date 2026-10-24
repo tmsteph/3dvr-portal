@@ -16,10 +16,14 @@
   <link rel="stylesheet" href="app-search.css">
   <link rel="stylesheet" href="focus.css">
   <link rel="stylesheet" href="shell.css">
+  <link rel="stylesheet" href="account.css">
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="/gun-init.js"></script>
   <script src="/auth-identity.js"></script>
+  <script src="/score.js"></script>
+  <script src="account.js" defer></script>
+  <script src="/navbar.js" defer></script>
   <script src="/portal-swirl-logo.js" defer></script>
   <script type="module" src="app.js"></script>
   <script type="module" src="app-search.js"></script>
@@ -37,6 +41,9 @@
           <span class="operator-mini-spinner__fallback" aria-hidden="true"></span>
         </div>
         <a href="/" aria-label="Operator apps">Operator</a>
+      </div>
+      <div class="operator-account" data-account-navbar data-sign-out-href="/operator/">
+        <a href="/sign-in.html?redirect=%2Foperator%2F" data-operator-external="true">Sign in</a>
       </div>
       <div class="header-actions">
         <a href="/helm/" aria-label="Helm OpenClaw workspace">Helm</a>

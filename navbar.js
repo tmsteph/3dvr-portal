@@ -106,7 +106,7 @@ function createNavbar() {
   button.innerText = 'Sign Out';
 
   button.addEventListener('click', () => {
-    if (isGuest) {
+    if (!isSignedIn) {
       window.location.href = currentSignInHref();
       return;
     }
@@ -131,7 +131,7 @@ function createNavbar() {
     localStorage.removeItem('userId');
     localStorage.removeItem('userPubKey');
     clearSharedIdentityCookie();
-    window.location.href = 'index.html';
+    window.location.href = document.querySelector('[data-account-navbar]')?.dataset.signOutHref || 'index.html';
   });
 
   const menu = document.createElement('div');
@@ -197,7 +197,10 @@ function createNavbar() {
   const landingHeader = document.querySelector('.landing-header');
   const landingShell = document.querySelector('.landing-shell');
 
-  if (topButtons) {
+  const accountMount = document.querySelector('[data-account-navbar]');
+  if (accountMount) {
+    accountMount.replaceChildren(nav);
+  } else if (topButtons) {
     topButtons.insertAdjacentElement('afterend', nav);
   } else if (landingHeader) {
     landingHeader.insertAdjacentElement('afterend', nav);
@@ -212,7 +215,7 @@ function createNavbar() {
   let latestDisplayName = '';
   let aliasDisplay = aliasToDisplay(localStorage.getItem('alias'));
 
-  if (isGuest) {
+  if (!isSignedIn) {
     stats.setAttribute('aria-label', 'Open guest account menu');
     stats.title = 'Guest account menu';
     button.innerText = 'Sign in';
@@ -311,7 +314,7 @@ function createNavbar() {
       updateNameDisplay();
     });
   } else {
-    usernameSpan.innerText = '👤 Guest';
+    usernameSpan.innerText = 'Sign in';
     scoreSpan.innerText = '⭐ 0';
   }
 }
