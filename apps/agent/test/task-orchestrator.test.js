@@ -124,6 +124,30 @@ test('Codex auth preflight fails closed on errors and never probes a missing bin
   assert.equal(ready.codex, true);
 });
 
+test('explicit Codex execution fails closed when worker auth preflight failed', async () => {
+  let spawnCalls = 0;
+  const result = await runAgentTask(['--backend', 'codex', '--execute', 'Inspect a local source file'], {
+    capabilities: { codex: false, openclaw: true },
+    spawnImpl: () => { spawnCalls += 1; throw new Error('Codex should never be spawned'); },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.skipped, true);
+  assert.equal(result.backend, 'codex');
+  assert.match(result.reason, /login status failed/i);
+  assert.equal(spawnCalls, 0);
+});
+
+test('explicit Codex dry-run remains inspectable without auth or execution', async () => {
+  const result = await runAgentTask(['--backend', 'codex', 'Inspect a local source file'], {
+    capabilities: { codex: false },
+    spawnImpl: () => { throw new Error('dry-run should not spawn'); },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.dryRun, true);
+  assert.equal(result.backend, 'codex');
+  assert.match(result.command, /^codex 'exec'/);
+});
+
 test('pickBackend prefers codex for code and openclaw for tool-heavy general work', () => {
   assert.equal(pickBackend(
     { backend: 'auto' },
