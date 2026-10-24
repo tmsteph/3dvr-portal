@@ -1,142 +1,5 @@
-'use strict';
-
-function createLocalGunSubscriptionStub() {
-  return {
-    off() {}
-  };
-}
-
-function createLocalGunNodeStub() {
-  const node = {
-    __isGunStub: true,
-    get() {
-      return createLocalGunNodeStub();
-    },
-    put(_value, callback) {
-      if (typeof callback === 'function') {
-        setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
-      }
-      return node;
-    },
-    once(callback) {
-      if (typeof callback === 'function') {
-        setTimeout(() => callback(undefined), 0);
-      }
-      return node;
-    },
-    map() {
-      return {
-        __isGunStub: true,
-        on() {
-          return createLocalGunSubscriptionStub();
-        }
-      };
-    },
-    on() {
-      return createLocalGunSubscriptionStub();
-    },
-    off() {}
-  };
-  return node;
-}
-
-function createLocalGunUserStub() {
-  const node = createLocalGunNodeStub();
-  return {
-    ...node,
-    is: null,
-    _: {},
-    recall() {},
-    auth(_alias, _password, callback) {
-      if (typeof callback === 'function') {
-        setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
-      }
-    },
-    leave() {},
-    create(_alias, _password, callback) {
-      if (typeof callback === 'function') {
-        setTimeout(() => callback({ err: 'gun-unavailable' }), 0);
-      }
-    }
-  };
-}
-
-function createGunStub() {
-  return {
-    __isGunStub: true,
-    get() {
-      return createLocalGunNodeStub();
-    },
-    user() {
-      return createLocalGunUserStub();
-    }
-  };
-}
-
-function ensureGunContext(factory, label) {
-  const ensureGun = window.ScoreSystem && typeof window.ScoreSystem.ensureGun === 'function'
-    ? window.ScoreSystem.ensureGun.bind(window.ScoreSystem)
-    : null;
-  if (ensureGun) {
-    return ensureGun(factory, { label });
-  }
-
-  let instance = null;
-  if (typeof factory === 'function') {
-    try {
-      instance = factory();
-    } catch (err) {
-      console.warn(`Failed to initialize ${label || 'gun'} instance`, err);
-    }
-  }
-
-  if (instance) {
-    const resolvedUser = typeof instance.user === 'function'
-      ? instance.user()
-      : createLocalGunUserStub();
-    return {
-      gun: instance,
-      user: resolvedUser,
-      isStub: !!instance.__isGunStub
-    };
-  }
-
-  const stub = createGunStub();
-  return {
-    gun: stub,
-    user: stub.user(),
-    isStub: true
-  };
-}
-
-function createCellGun() {
-  if (typeof Gun !== 'function') {
-    return null;
-  }
-
-  const peers = window.__GUN_PEERS__ || [
-    'wss://relay.3dvr.tech/gun',
-    'wss://gun-relay-3dvr.fly.dev/gun'
-  ];
-
-  try {
-    return Gun({ peers });
-  } catch (err) {
-    const message = err && err.message ? err.message : String(err);
-    if (/storage|quota|blocked|third-party/i.test(message)) {
-      console.warn('Retrying Gun init for Cell without localStorage (likely blocked cookies)', err);
-      try {
-        return Gun({ peers, radisk: false, localStorage: false });
-      } catch (fallbackErr) {
-        console.warn('Cell Gun fallback init failed', fallbackErr);
-      }
-    } else {
-      console.warn('Cell Gun init failed unexpectedly', err);
-    }
-  }
-
-  return null;
-}
+import { openPrivateCellStore, cellIdentity } from './private-store.js';
+import { openCellInvitations } from './invitations.js';
 
 function escapeHtml(value) {
   return String(value == null ? '' : value)
@@ -180,25 +43,6 @@ function readStoredValue(key) {
   }
 }
 
-const gunContext = ensureGunContext(createCellGun, 'cell');
-const gun = gunContext.gun;
-const user = gunContext.user;
-const portalRoot = gun && typeof gun.get === 'function'
-  ? gun.get('3dvr-portal')
-  : createLocalGunNodeStub();
-const cellHubRoot = portalRoot && typeof portalRoot.get === 'function'
-  ? portalRoot.get('cellHub')
-  : createLocalGunNodeStub();
-const cellsRoot = cellHubRoot && typeof cellHubRoot.get === 'function'
-  ? cellHubRoot.get('cells')
-  : createLocalGunNodeStub();
-const activityRoot = cellHubRoot && typeof cellHubRoot.get === 'function'
-  ? cellHubRoot.get('activity')
-  : createLocalGunNodeStub();
-const metaRoot = cellHubRoot && typeof cellHubRoot.get === 'function'
-  ? cellHubRoot.get('meta')
-  : createLocalGunNodeStub();
-
 const params = new URLSearchParams(window.location.search);
 const requestedCellId = (params.get('cellId') || params.get('cell') || '').trim();
 
@@ -219,16 +63,19 @@ const elements = {
   lastSavedAt: document.getElementById('lastSavedAt'),
   cellList: document.getElementById('cellList'),
   cellEmpty: document.getElementById('cellEmpty'),
-  appLinks: Array.from(document.querySelectorAll('[data-cell-app]')),
+  cellSearch: document.getElementById('cellSearch'),
+  cellSearchStatus: document.getElementById('cellSearchStatus'),
+  cellSaveStatus: document.getElementById('cellSaveStatus'),
+  accountStatus: document.getElementById('cellAccountStatus'),
+  retry: document.getElementById('cellRetry'),
+  memberCode: document.getElementById('cellMemberCode'),
+  inviteCode: document.getElementById('cellInviteCode'),
+  inviteButton: document.getElementById('cellInviteButton'),
+  inviteLink: document.getElementById('cellInviteLink'),
+  inviteAccept: document.getElementById('cellInviteAccept'),
+  members: document.getElementById('cellMembers'),
+  sharingStatus: document.getElementById('cellSharingStatus'),
 };
-
-const DEFAULT_APP_LINKS = [
-  { key: 'contacts', label: 'Contacts', href: '../contacts/index.html' },
-  { key: 'crm', label: 'CRM', href: '../crm/index.html' },
-  { key: 'finance', label: 'Finance', href: '../finance/index.html' },
-  { key: 'chat', label: 'Chat', href: '../chat/' },
-  { key: 'billing', label: 'Billing', href: '../billing/index.html' },
-];
 
 const state = {
   cells: Object.create(null),
@@ -238,35 +85,31 @@ const state = {
   pendingFocusSelection: requestedCellId || '',
 };
 
-function portalHref(path, cellId = '') {
-  if (!cellId) {
-    return path;
-  }
-  const joiner = path.includes('?') ? '&' : '?';
-  return `${path}${joiner}cellId=${encodeURIComponent(cellId)}`;
-}
-
-function resolveAppLink(appKey, cellId) {
-  const entry = DEFAULT_APP_LINKS.find(item => item.key === appKey);
-  if (!entry) return '#';
-  return portalHref(entry.href, cellId);
-}
+let privateStore = null;
+let invitations = null;
+let sharingBusy = false;
+const cellMembers = new Map();
+let accountEpoch = 0;
+let saving = false;
+let formRevision = 0;
+let identity = cellIdentity();
 
 function normalizeCell(value, id) {
   const record = value && typeof value === 'object' ? value : {};
   const createdAt = String(record.createdAt || record.created || '');
   const updatedAt = String(record.updatedAt || record.updated || createdAt || '');
   const pillars = normalizeList(Array.isArray(record.pillars) ? record.pillars.join(',') : record.pillars);
-  const linkedApps = normalizeList(Array.isArray(record.linkedApps) ? record.linkedApps.join(',') : record.linkedApps);
   return {
     id: String(record.id || id || '').trim(),
+    readOnly: Boolean(record.readOnly),
+    ownerPub: String(record.ownerPub || ''),
     name: String(record.name || 'Untitled Cell').trim(),
     focus: String(record.focus || 'Cross-line organization').trim(),
-    size: String(record.size || '3-12 people').trim(),
+    size: String(record.size || '3–15 people').trim(),
     rhythm: String(record.rhythm || 'Weekly').trim(),
     purpose: String(record.purpose || '').trim(),
     pillars,
-    linkedApps: linkedApps.length ? linkedApps : DEFAULT_APP_LINKS.map(item => item.key),
+    linkedApps: [],
     memberCount: parseMemberCount(record.size || record.memberCount || ''),
     owner: String(record.owner || record.creator || 'Guest').trim(),
     createdAt,
@@ -278,14 +121,6 @@ function getSelectedCell() {
   return state.cells[state.selectedCellId] || null;
 }
 
-function setAppLinks(cellId) {
-  elements.appLinks.forEach(link => {
-    const appKey = link.getAttribute('data-cell-app') || '';
-    if (!appKey) return;
-    link.href = resolveAppLink(appKey, cellId);
-  });
-}
-
 function syncPreviewFromForm() {
   if (typeof window.__updateCellPreview === 'function') {
     window.__updateCellPreview();
@@ -294,7 +129,9 @@ function syncPreviewFromForm() {
 
 function syncSubmitLabel() {
   if (!elements.submit) return;
-  elements.submit.textContent = elements.cellId && elements.cellId.value ? 'Update Cell' : 'Save Cell';
+  elements.submit.textContent = saving ? 'Saving…' : elements.cellId.value ? 'Update private Cell' : 'Save private Cell';
+  elements.submit.disabled = !privateStore || saving || Boolean(getSelectedCell()?.readOnly);
+  elements.inviteButton.disabled = !invitations || sharingBusy || !getSelectedCell() || Boolean(getSelectedCell()?.readOnly);
 }
 
 function populateForm(cell) {
@@ -303,7 +140,7 @@ function populateForm(cell) {
   elements.cellId.value = data.id || '';
   elements.cellName.value = data.name || defaults.cellName || '3dvr Builder Cell';
   elements.focus.value = data.focus || defaults.focus || 'Cross-line organization';
-  elements.size.value = data.size || defaults.size || '6 people';
+  elements.size.value = data.size || defaults.size || '3 people';
   elements.rhythm.value = data.rhythm || defaults.rhythm || 'Weekly';
   elements.purpose.value = data.purpose || defaults.purpose || '';
   elements.pillars.value = data.pillars && data.pillars.length
@@ -311,7 +148,6 @@ function populateForm(cell) {
     : defaults.pillars || 'support, leads, projects, coordination';
   syncPreviewFromForm();
   syncSubmitLabel();
-  setAppLinks(data.id || '');
 }
 
 function updateMetaPanel() {
@@ -320,12 +156,16 @@ function updateMetaPanel() {
   elements.lastSavedAt.textContent = state.lastSavedAt ? formatStamp(state.lastSavedAt) : '—';
   const selected = getSelectedCell();
   elements.activeCellLabel.textContent = selected ? selected.name : 'None';
-  elements.linkedAppCount.textContent = String(DEFAULT_APP_LINKS.length);
+  elements.linkedAppCount.textContent = selected?.readOnly ? 'Read-only member' : 'Owner';
+  renderMembers();
 }
 
 function renderCellList() {
+  const query = elements.cellSearch.value.trim().toLocaleLowerCase();
   const cells = Object.values(state.cells)
     .filter(cell => cell && cell.id)
+    .filter(cell => !query || [cell.name, cell.focus, cell.purpose, ...cell.pillars]
+      .some(value => value.toLocaleLowerCase().includes(query)))
     .sort((a, b) => {
       const aStamp = a.updatedAt || a.createdAt || '';
       const bStamp = b.updatedAt || b.createdAt || '';
@@ -335,17 +175,15 @@ function renderCellList() {
       return a.name.localeCompare(b.name);
     });
 
-  elements.cellEmpty.hidden = cells.length > 0;
+  elements.cellEmpty.hidden = Object.keys(state.cells).length > 0;
+  elements.cellSearchStatus.textContent = query
+    ? `${cells.length} matching Cells`
+    : `${cells.length} Cells · no fixed group limit`;
   elements.cellList.innerHTML = cells.map(cell => {
     const active = cell.id === state.selectedCellId ? ' is-active' : '';
-    const appLinks = cell.linkedApps.map(appKey => {
-      const entry = DEFAULT_APP_LINKS.find(item => item.key === appKey);
-      if (!entry) return '';
-      return `<a class="app-link" href="${escapeHtml(resolveAppLink(entry.key, cell.id))}" target="_blank" rel="noopener">${escapeHtml(entry.label)}</a>`;
-    }).join('');
     const pillars = cell.pillars.slice(0, 5).map(pillar => `<span class="cell-pill">${escapeHtml(pillar)}</span>`).join('');
     const ownerLabel = cell.owner ? `Owner: ${cell.owner}` : 'Owner: Guest';
-    const memberLabel = cell.memberCount ? `${cell.memberCount} member target` : cell.size;
+    const memberLabel = `${cell.size} target`;
     return `
       <article class="cell-card${active}" data-cell-id="${escapeHtml(cell.id)}">
         <div class="cell-card__header">
@@ -364,7 +202,7 @@ function renderCellList() {
           <span class="cell-pill">Updated ${escapeHtml(formatStamp(cell.updatedAt || cell.createdAt))}</span>
         </div>
         <div class="app-link-row">
-          ${appLinks}
+          <span class="cell-pill">${cell.readOnly ? 'Private · read-only member' : 'Private · owner'}</span>
         </div>
       </article>
     `;
@@ -388,12 +226,13 @@ function renderState() {
 function selectCell(cellId, { focusForm = false } = {}) {
   const id = String(cellId || '').trim();
   if (!id) return;
+  formRevision += 1;
+  elements.inviteLink.value = '';
   state.selectedCellId = id;
   const cell = state.cells[id];
   if (cell) {
     populateForm(cell);
   } else {
-    setAppLinks(id);
     syncSubmitLabel();
   }
   if (focusForm && typeof elements.cellName.focus === 'function') {
@@ -403,14 +242,13 @@ function selectCell(cellId, { focusForm = false } = {}) {
   url.searchParams.set('cellId', id);
   history.replaceState({}, '', url.toString());
   renderState();
-  metaRoot.get('selectedCell').put({ id, updatedAt: new Date().toISOString() });
 }
 
 function buildCellRecord(existing = {}) {
   const id = String(elements.cellId.value || existing.id || generateId()).trim();
   const now = new Date().toISOString();
   const pillars = normalizeList(elements.pillars.value);
-  const size = String(elements.size.value || existing.size || '3-12 people').trim();
+  const size = String(elements.size.value || existing.size || '3–15 people').trim();
   const record = {
     id,
     name: String(elements.cellName.value || existing.name || 'Untitled Cell').trim(),
@@ -418,8 +256,10 @@ function buildCellRecord(existing = {}) {
     size,
     rhythm: String(elements.rhythm.value || existing.rhythm || 'Weekly').trim(),
     purpose: String(elements.purpose.value || existing.purpose || '').trim(),
-    pillars,
-    linkedApps: DEFAULT_APP_LINKS.map(item => item.key),
+    // Gun records accept scalar fields; normalizeCell restores these lists for the UI.
+    pillars: pillars.join(', '),
+    linkedApps: '',
+    visibility: 'private',
     owner: existing.owner || (readStoredValue('username') || readStoredValue('alias') || 'Guest').trim(),
     createdAt: existing.createdAt || now,
     updatedAt: now,
@@ -429,61 +269,61 @@ function buildCellRecord(existing = {}) {
   return record;
 }
 
-function logCellActivity(record, isNew = false) {
-  const entryId = `${record.id}:${Date.now()}`;
-  activityRoot.get(entryId).put({
-    id: entryId,
-    type: isNew ? 'cell.created' : 'cell.updated',
-    cellId: record.id,
-    name: record.name,
-    focus: record.focus,
-    timestamp: record.updatedAt,
-  });
-  state.lastSavedAt = record.updatedAt;
-  metaRoot.get('lastSavedAt').put(record.updatedAt);
-}
-
-function saveCell(event) {
+async function saveCell(event) {
   event.preventDefault();
-  const existing = getSelectedCell() || {};
-  const record = buildCellRecord(existing);
-  const isNew = !state.cells[record.id];
-  if (!record.name) {
-    record.name = 'Untitled Cell';
-  }
-  cellsRoot.get(record.id).put(record, ack => {
-    if (ack && ack.err) {
-      console.warn('Unable to save cell to Gun', ack.err);
-      return;
-    }
+  if (!privateStore || saving || getSelectedCell()?.readOnly) return;
+  const store = privateStore;
+  const epoch = accountEpoch;
+  const originalId = elements.cellId.value;
+  const revision = formRevision;
+  const record = buildCellRecord(state.cells[originalId] || {});
+  saving = true;
+  syncSubmitLabel();
+  elements.cellSaveStatus.textContent = 'Encrypting and saving your private Cell…';
+  try {
+    const result = await store.save(record);
+    if (epoch !== accountEpoch || cellIdentity() !== identity) return;
     state.cells[record.id] = normalizeCell(record, record.id);
-    state.selectedCellId = record.id;
-    elements.cellId.value = record.id;
-    setAppLinks(record.id);
-    syncSubmitLabel();
-    if (typeof window.__updateCellPreview === 'function') {
-      window.__updateCellPreview();
+    // A slow save must not reopen a Cell after the user starts another one.
+    if (formRevision === revision && elements.cellId.value === originalId && state.selectedCellId === originalId) {
+      state.selectedCellId = record.id;
+      elements.cellId.value = record.id;
     }
-    logCellActivity(record, isNew);
+    state.lastSavedAt = record.updatedAt;
+    if (invitations) void invitations.publishCell(record).catch(error => {
+      if (epoch === accountEpoch) elements.sharingStatus.textContent = `Cell saved; member updates pending: ${error.message}`;
+    });
+    elements.cellSaveStatus.textContent = result.pendingSync
+      ? 'Saved encrypted in this browser. Account sync is pending.'
+      : 'Private Cell saved encrypted. Availability on other devices is not verified.';
     renderState();
-  });
+  } catch (error) {
+    if (epoch === accountEpoch) elements.cellSaveStatus.textContent = error.message || 'Cell was not saved. Try again.';
+  } finally {
+    if (epoch === accountEpoch) { saving = false; syncSubmitLabel(); }
+  }
 }
 
 function resetCellForm() {
+  elements.inviteLink.value = '';
+  elements.inviteCode.value = '';
+  formRevision += 1;
   state.selectedCellId = '';
+  state.pendingFocusSelection = '';
+  elements.cellSaveStatus.textContent = '';
   elements.cellId.value = '';
   const defaults = window.__cellDefaults || {};
   elements.cellName.value = defaults.cellName || '3dvr Builder Cell';
   elements.focus.value = defaults.focus || 'Cross-line organization';
-  elements.size.value = defaults.size || '6 people';
+  elements.size.value = defaults.size || '3 people';
   elements.rhythm.value = defaults.rhythm || 'Weekly';
   elements.purpose.value = defaults.purpose || '';
   elements.pillars.value = defaults.pillars || 'support, leads, projects, coordination';
   syncPreviewFromForm();
   syncSubmitLabel();
-  setAppLinks('');
   const url = new URL(window.location.href);
   url.searchParams.delete('cellId');
+  url.searchParams.delete('cell');
   history.replaceState({}, '', url.toString());
   renderState();
 }
@@ -508,79 +348,156 @@ function hydrateSelectedCellFromQuery() {
   }
 }
 
-function createCellGunFactory() {
-  return createCellGun;
-}
-
-if (gunContext.isStub) {
-  const retryDelays = [500, 1500, 3000];
-  retryDelays.forEach(delay => {
-    setTimeout(() => {
-      const refreshed = ensureGunContext(createCellGunFactory(), 'cell-retry');
-      if (refreshed && !refreshed.isStub && refreshed.gun && !refreshed.gun.__isGunStub) {
-        try {
-          window.location.reload();
-        } catch (err) {
-          console.warn('Cell reload after Gun reconnection failed', err);
-        }
-      }
-    }, delay);
-  });
-}
-
-if (typeof user.recall === 'function') {
+async function connectPrivateCells() {
+  const epoch = ++accountEpoch;
+  privateStore?.close();
+  invitations?.close();
+  invitations = null;
+  sharingBusy = false;
+  cellMembers.clear();
+  elements.memberCode.value = '';
+  elements.inviteLink.value = '';
+  elements.sharingStatus.textContent = '';
+  privateStore = null;
+  saving = false;
+  state.cells = Object.create(null);
+  state.lastSavedAt = '';
+  identity = cellIdentity();
+  elements.cellSearch.value = '';
+  resetCellForm();
+  state.pendingFocusSelection = requestedCellId;
+  elements.syncStatus.textContent = 'Unlocking…';
+  elements.accountStatus.textContent = 'Checking your Portal account…';
+  syncSubmitLabel();
   try {
-    user.recall({ sessionStorage: true, localStorage: true });
-  } catch (err) {
-    console.warn('Unable to recall Cell user session', err);
+    const store = await openPrivateCellStore({
+      onCell(record, id) {
+        if (epoch !== accountEpoch || cellIdentity() !== identity) return;
+        state.cells[id] = normalizeCell(record, id);
+        if (invitations) void invitations.publishCell(record).catch(() => {});
+        if (record.updatedAt > state.lastSavedAt) state.lastSavedAt = record.updatedAt;
+        renderState();
+        hydrateSelectedCellFromQuery();
+      }
+    });
+    if (epoch !== accountEpoch || cellIdentity() !== identity) { store.close(); return; }
+    privateStore = store;
+    elements.syncStatus.textContent = 'Encrypted · sync unverified';
+    elements.accountStatus.textContent = 'Private workspace unlocked. You control invitations to each Cell.';
+    try {
+      const sharing = await openCellInvitations({
+        onMembers(cellId, grants) {
+          if (epoch !== accountEpoch || cellIdentity() !== identity) return;
+          cellMembers.set(cellId, grants); renderState();
+          const cell = state.cells[cellId];
+          if (cell && invitations) void invitations.publishCell(cell).catch(() => {});
+        },
+        onSharedCell(record, key) {
+          if (epoch !== accountEpoch || cellIdentity() !== identity) return;
+          if (record) state.cells[key] = normalizeCell({...record, id:key}, key);
+          else {
+            delete state.cells[key];
+            if (state.selectedCellId === key) resetCellForm();
+          }
+          renderState();
+        }
+      });
+      if (epoch !== accountEpoch || cellIdentity() !== identity) { sharing.close(); return; }
+      invitations = sharing;
+      elements.memberCode.value = await sharing.memberCode();
+      for (const cell of Object.values(state.cells)) if (!cell.readOnly) void sharing.publishCell(cell).catch(() => {});
+    } catch (error) {
+      if (epoch === accountEpoch) elements.sharingStatus.textContent = `Invitations unavailable: ${error.message}`;
+    }
+  } catch (error) {
+    if (epoch !== accountEpoch) return;
+    elements.syncStatus.textContent = 'Locked';
+    elements.accountStatus.textContent = error.message || 'Sign in to unlock your private Cells.';
   }
+  syncSubmitLabel();
+  renderState();
+}
+
+function renderMembers() {
+  const cell = getSelectedCell();
+  const grants = cellMembers.get(cell?.id) || [];
+  elements.members.innerHTML = grants.map(grant => `
+    <li>${escapeHtml(grant.recipientPub.slice(0, 12))}… · ${grant.revoked ? 'revoked' : 'read-only invitation'}
+      ${grant.revoked ? '' : `<button type="button" class="secondary" data-copy-invite="${escapeHtml(grant.id)}">Show link</button>
+      <button type="button" class="secondary" data-revoke-invite="${escapeHtml(grant.id)}">Revoke</button>`}
+    </li>`).join('');
+}
+
+async function sharingAction(action) {
+  if (!invitations || sharingBusy) return;
+  const epoch = accountEpoch;
+  sharingBusy = true; syncSubmitLabel();
+  elements.sharingStatus.textContent = 'Working on the encrypted invitation…';
+  try {
+    const result = await action(invitations);
+    if (epoch !== accountEpoch) return;
+    elements.sharingStatus.textContent = result?.pendingSync
+      ? 'Invitation saved encrypted here. Sync is pending; keep Cell open to retry.'
+      : 'Done. Account sync is not proof the other person has received it.';
+  } catch (error) {
+    if (epoch === accountEpoch) elements.sharingStatus.textContent = error.message;
+  } finally {
+    if (epoch === accountEpoch) { sharingBusy = false; syncSubmitLabel(); }
+  }
+}
+
+function checkAccount() {
+  if (cellIdentity() !== identity) void connectPrivateCells();
 }
 
 elements.form.addEventListener('submit', saveCell);
 document.getElementById('resetBtn').addEventListener('click', resetCellForm);
-elements.form.addEventListener('input', () => {
-  syncPreviewFromForm();
-  syncSubmitLabel();
-});
+elements.form.addEventListener('input', () => { syncPreviewFromForm(); syncSubmitLabel(); });
 elements.cellList.addEventListener('click', handleSelectedCellClick);
-elements.appLinks.forEach(link => {
-  link.href = resolveAppLink(link.getAttribute('data-cell-app') || '', state.selectedCellId);
-});
+elements.cellSearch.addEventListener('input', renderState);
+elements.retry.addEventListener('click', () => { void connectPrivateCells(); });
+window.addEventListener('storage', checkAccount);
+window.addEventListener('focus', () => { checkAccount(); void privateStore?.retryPending(); void invitations?.retryPending().catch(() => {}); });
+window.addEventListener('online', () => { void privateStore?.retryPending(); void invitations?.retryPending().catch(() => {}); });
+setInterval(() => { void privateStore?.retryPending(); void invitations?.retryPending().catch(() => {}); }, 30000);
+setInterval(checkAccount, 1000);
+void connectPrivateCells();
 
-if (typeof cellsRoot.map === 'function') {
-  cellsRoot.map().on((value, key) => {
-    if (!value || typeof value !== 'object') {
-      return;
-    }
-    const cell = normalizeCell(value, key);
-    if (!cell.id) {
-      return;
-    }
-    state.cells[cell.id] = cell;
-    renderState();
-    hydrateSelectedCellFromQuery();
+elements.inviteButton.addEventListener('click', () => {
+  const cell = getSelectedCell();
+  if (!cell || cell.readOnly) return;
+  const epoch = accountEpoch;
+  void sharingAction(async service => {
+    const result = await service.invite(cell, elements.inviteCode.value.trim(), window.location.href);
+    if (epoch === accountEpoch && getSelectedCell()?.id === cell.id) elements.inviteLink.value = result.url;
+    return result;
   });
+});
+elements.inviteAccept.addEventListener('click', () => {
+  void sharingAction(service => service.accept(window.location.href));
+});
+function updateInviteLocation() {
+  elements.inviteAccept.hidden = !new URLSearchParams(window.location.hash.slice(1)).has('invite');
+  document.getElementById('cellSignIn').href = '/auth/sign-in.html?redirect=' + encodeURIComponent('/cell/' + window.location.hash);
 }
-
-metaRoot.get('lastSavedAt').once(value => {
-  if (typeof value === 'string') {
-    state.lastSavedAt = value;
-    renderState();
-  }
+window.addEventListener('hashchange', updateInviteLocation);
+updateInviteLocation();
+elements.members.addEventListener('click', event => {
+  const copy = event.target.closest('[data-copy-invite]');
+  const revoke = event.target.closest('[data-revoke-invite]');
+  if (copy && invitations) elements.inviteLink.value = invitations.link(copy.getAttribute('data-copy-invite'), window.location.href);
+  if (revoke) void sharingAction(service => service.revoke(revoke.getAttribute('data-revoke-invite')));
 });
 
-if (requestedCellId) {
-  state.pendingFocusSelection = requestedCellId;
+async function copyInvitationField(field) {
+  if (!field.value) { elements.sharingStatus.textContent = 'Unlock your account or create an invitation first.'; return; }
+  try {
+    await navigator.clipboard.writeText(field.value);
+    elements.sharingStatus.textContent = 'Copied. Share it with the intended person.';
+  } catch {
+    field.focus(); field.select();
+    elements.sharingStatus.textContent = 'Select and copy the highlighted text.';
+  }
 }
-
-populateForm(state.cells[state.selectedCellId] || null);
-setAppLinks(state.selectedCellId);
-syncSubmitLabel();
-renderState();
-hydrateSelectedCellFromQuery();
-
-if (gunContext.isStub) {
-  elements.syncStatus.textContent = 'Offline stub';
-} else {
-  elements.syncStatus.textContent = 'Gun live';
-}
+document.getElementById('copyMemberCode').addEventListener('click', () => { void copyInvitationField(elements.memberCode); });
+document.getElementById('copyInvitation').addEventListener('click', () => { void copyInvitationField(elements.inviteLink); });

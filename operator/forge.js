@@ -224,6 +224,20 @@ async function ensurePortalSea(user) {
   return restoreStoredPortalSea(user);
 }
 
+// Cell reuses Portal session recovery and key verification; cached display names are not authority.
+export async function openCellAccount() {
+  if (!readStoredPortalIdentity()) throw new Error('Sign in to open your private Cells.');
+  if (globalThis.localStorage?.getItem('authMethod') === 'oauth' && !readStoredPortalIdentity()?.expectedPub) {
+    throw new Error('Private Cells require a Portal username and password. OAuth-only sign-in has no encryption key yet.');
+  }
+  const context = await getGunContext();
+  const pair = context && await ensurePortalSea(context.user);
+  if (!pair?.pub || context.user.is?.pub !== pair.pub) {
+    throw new Error('Sign in again to unlock your private Cells.');
+  }
+  return { gun: context.gun, user: context.user, pair, sea: globalThis.Gun.SEA };
+}
+
 function writeGun(node, value) {
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -314,6 +328,13 @@ export async function openHelmMessageStore({ onRecord, onSync = () => {} } = {})
     } catch {}
   };
   for (const [id, value] of Object.entries(cache)) await decode(value, id);
+  // Each state gets its own storage entry so tabs never replace one another's cache.
+  const entryPrefix = `${cacheKey}:`;
+  for (let index = 0; index < globalThis.localStorage.length; index += 1) {
+    const key = globalThis.localStorage.key(index);
+    if (!key?.startsWith(entryPrefix)) continue;
+    try { await decode(JSON.parse(globalThis.localStorage.getItem(key)), key.slice(entryPrefix.length)); } catch {}
+  }
   const stream = root.map();
   stream.on((value, id) => { void decode(value, id); });
   return {
@@ -325,9 +346,7 @@ export async function openHelmMessageStore({ onRecord, onSync = () => {} } = {})
       const value = { ciphertext, updatedAt: record.updatedAt };
       // Encrypted device cache makes a peer outage survivable without publishing plaintext.
       const recordKey = `${record.id}:${record.status}`;
-      const next = { ...cache, [recordKey]: value };
-      globalThis.localStorage.setItem(cacheKey, JSON.stringify(next));
-      cache = next;
+      globalThis.localStorage.setItem(`${entryPrefix}${recordKey}`, JSON.stringify(value));
       // Separate state nodes keep a late queued writer from overwriting completion history.
       root.get(recordKey).put(value, ack => onSync(ack && !ack.err ? 'Saved here · account sync active' : 'Saved here · account sync pending'));
       return true;

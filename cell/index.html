@@ -372,6 +372,8 @@
       background: rgba(255,255,255,0.025);
       border-radius: 18px;
       padding: 14px 16px;
+      min-width: 0;
+      overflow-wrap: anywhere;
       display: grid;
       gap: 10px;
     }
@@ -386,6 +388,7 @@
       align-items: flex-start;
       justify-content: space-between;
       gap: 12px;
+      flex-wrap: wrap;
     }
 
     .cell-card__title {
@@ -566,8 +569,8 @@
         </div>
         <div class="hero-grid">
           <div class="hero-stat">
-            <strong>3–12</strong>
-            <span>ideal members per unit</span>
+            <strong>3–15</strong>
+            <span>people per small group</span>
           </div>
           <div class="hero-stat">
             <strong>4</strong>
@@ -575,7 +578,7 @@
           </div>
           <div class="hero-stat">
             <strong>∞</strong>
-            <span>networked expansion</span>
+            <span>groups across the network</span>
           </div>
         </div>
       </div>
@@ -663,7 +666,7 @@
       <div id="builder" class="card form-wrap">
         <h2>Cell Builder</h2>
         <p>
-          Sketch your first unit. This can later connect to portal accounts, private rooms, member lists, notes, payments, or project pages.
+          Start with 3 people, grow toward 10 or 15, and create more Cells as your network grows. You can organize 10, 15, or more groups; there is no fixed group limit.
         </p>
         <form id="cellForm" class="form-grid">
           <input id="cellId" name="cellId" type="hidden" value="" />
@@ -683,7 +686,13 @@
           </div>
           <div>
             <label for="size">Target size</label>
-            <input id="size" name="size" type="text" placeholder="3–12 people" value="6 people" />
+            <input id="size" name="size" type="text" list="cellSizes" placeholder="3–15 people" value="3 people" />
+            <datalist id="cellSizes">
+              <option value="3 people"></option>
+              <option value="10 people"></option>
+              <option value="15 people"></option>
+              <option value="3–15 people"></option>
+            </datalist>
           </div>
           <div>
             <label for="rhythm">Meeting rhythm</label>
@@ -699,8 +708,9 @@
           </div>
           <div class="full" style="display:flex; gap:12px; flex-wrap:wrap; margin-top: 4px;">
             <button type="submit" class="primary">Save Cell</button>
-            <button type="button" class="secondary" id="resetBtn">Reset</button>
+            <button type="button" class="secondary" id="resetBtn">New Cell</button>
           </div>
+          <p id="cellSaveStatus" class="full" role="status" aria-live="polite"></p>
         </form>
       </div>
 
@@ -721,14 +731,14 @@
           <h3>Operational Snapshot</h3>
           <div class="meta">
             <div class="meta-item"><span>Focus</span><strong id="previewFocus">Cross-line organization</strong></div>
-            <div class="meta-item"><span>Size</span><strong id="previewSize">6 people</strong></div>
+            <div class="meta-item"><span>Size</span><strong id="previewSize">3 people</strong></div>
             <div class="meta-item"><span>Rhythm</span><strong id="previewRhythm">Weekly</strong></div>
           </div>
         </div>
         <div class="preview-card">
           <h3>Portal directions</h3>
           <p>
-            Next version ideas: member roster, shared needs board, opportunity pipeline, notes, map, chat, and links to project apps across the portal.
+            Invite approved Portal accounts to read a Cell. Only the owner can edit it or manage invitations.
           </p>
         </div>
       </aside>
@@ -738,39 +748,48 @@
       <div class="card panel">
         <div class="cell-card__header">
           <div>
-            <h2 style="margin-bottom: 6px;">Live Cell registry</h2>
-            <p style="margin-bottom: 0;">Cells sync through Gun under `3dvr-portal/cellHub/cells` so the portal can reuse the same workspace graph everywhere.</p>
+            <h2 style="margin-bottom: 6px;">My private Cells</h2>
+            <p style="margin-bottom: 0;">Your Cells are encrypted. You can invite specific Portal accounts for read-only access and future updates. Existing public registry entries remain public and are not loaded here.</p>
           </div>
           <span class="status-chip"><span>Sync</span><strong id="syncStatus">Connecting…</strong></span>
         </div>
         <div class="status-grid" aria-label="Cell sync stats">
           <div class="status-chip"><span>Saved cells</span><strong id="cellCount">0</strong></div>
           <div class="status-chip"><span>Selected cell</span><strong id="activeCellLabel">None</strong></div>
-          <div class="status-chip"><span>Linked apps</span><strong id="linkedAppCount">5</strong></div>
+          <div class="status-chip"><span>Access</span><strong id="linkedAppCount">Owner only</strong></div>
           <div class="status-chip"><span>Last save</span><strong id="lastSavedAt">—</strong></div>
         </div>
+        <label for="cellSearch">Find a Cell</label>
+        <input id="cellSearch" type="search" placeholder="Search by name, focus, or purpose" />
+        <p id="cellSearchStatus" role="status" aria-live="polite"></p>
         <div id="cellList" class="cell-list"></div>
-        <p id="cellEmpty" class="footer-note" style="padding: 12px 0 0; text-align:left;">No cells have been saved yet. Create one above to seed the shared graph.</p>
+        <p id="cellEmpty" class="footer-note" style="padding: 12px 0 0; text-align:left;">No private Cells loaded yet. Sign in and create one to start your network.</p>
       </div>
 
       <div class="card panel">
-        <h2>Connected apps</h2>
-        <p>
-          Every Cell can fan out into the rest of the portal. The links below carry the active `cellId` into the shared tools.
-        </p>
-        <div class="app-link-row" style="margin-bottom: 14px;">
-          <a class="app-link" data-cell-app="contacts" href="../contacts/index.html">Contacts</a>
-          <a class="app-link" data-cell-app="crm" href="../crm/index.html">CRM</a>
-          <a class="app-link" data-cell-app="finance" href="../finance/index.html">Finance</a>
-          <a class="app-link" data-cell-app="chat" href="../chat/">Chat</a>
-          <a class="app-link" data-cell-app="billing" href="../billing/index.html">Billing</a>
+        <h2>Your private workspace</h2>
+        <p id="cellAccountStatus" role="status" aria-live="polite">Sign in to unlock your private Cells.</p>
+        <div class="hero-actions">
+          <a id="cellSignIn" class="button primary" href="/auth/sign-in.html?redirect=%2Fcell%2F">Sign in with Portal username</a>
+          <button class="secondary" type="button" id="cellRetry">Retry unlock</button>
         </div>
-        <div class="preview-card">
-          <h3>How it flows</h3>
-          <p style="margin-bottom: 0;">
-            Save a Cell here, open it in CRM to work the relationship graph, open Contacts to organize people around it, or open Finance to keep the group’s costs and reimbursements aligned.
-          </p>
-        </div>
+        <p>Private Cells require a Portal username and password. OAuth-only accounts need an encryption-key link before they can unlock this workspace. Group names, purposes, and pillars are not published to the old registry.</p>
+        <p>Connected apps have their own access rules. Cell invitations do not grant access to Contacts, CRM, Finance, or Chat.</p>
+        <h3>Invite an approved account</h3>
+        <p>Select one of your saved Cells, ask the person for their account code, and verify its key with them. Invitations grant read-only access.</p>
+        <label for="cellMemberCode">Your account code (give this to a Cell owner)</label>
+        <textarea id="cellMemberCode" readonly rows="3"></textarea>
+        <button type="button" class="secondary" id="copyMemberCode">Copy account code</button>
+        <label for="cellInviteCode">Member’s account code</label>
+        <textarea id="cellInviteCode" rows="3" placeholder="Paste the member’s account code"></textarea>
+        <button type="button" class="primary" id="cellInviteButton" disabled>Create invitation</button>
+        <label for="cellInviteLink">Invitation link (share it with that person)</label>
+        <textarea id="cellInviteLink" readonly rows="3"></textarea>
+        <button type="button" class="secondary" id="copyInvitation">Copy invitation link</button>
+        <button type="button" class="primary" id="cellInviteAccept" hidden>Accept this invitation</button>
+        <p id="cellSharingStatus" role="status" aria-live="polite"></p>
+        <ul id="cellMembers"></ul>
+        <p>Links work only for the invited account key. Revoking stops future updates; it cannot erase information someone already received.</p>
       </div>
     </section>
 
@@ -779,7 +798,7 @@
     </div>
   </main>
 
-  <script src="./app.js"></script>
+  <script type="module" src="./app.js"></script>
 
   <script>
     const form = document.getElementById('cellForm');
@@ -788,7 +807,7 @@
     const defaults = {
       cellName: '3dvr Builder Cell',
       focus: 'Cross-line organization',
-      size: '6 people',
+      size: '3 people',
       rhythm: 'Weekly',
       purpose: 'Support workers, builders, and friends across different lines of life while sharing opportunities, organizing action, and helping each other make progress.',
       pillars: 'support, leads, projects, coordination'

@@ -45,8 +45,8 @@ Messages and replies are encrypted in the owner GunJS graph and in an encrypted
 device cache. Reload restores the tab session and saved messages. OpenClaw keeps
 its own server session under the owner/conversation key. New chat selects a new
 key without deleting saved history. Operator's
-existing conversation sync is unchanged. Live token streaming, job receipts,
-file browsing and cancellation of already-dispatched turns are follow-up work.
+existing conversation sync is unchanged. Job browsing, file browsing, and cancellation of already-dispatched turns remain
+follow-up work.
 Uncertain deliveries are never automatically replayed. Opening Helm checks
 status and drains fresh queued messages only; stale messages move to history.
 
@@ -117,3 +117,70 @@ Closing all Helm tabs preserves encrypted records but does not run a background
 server worker. Reopening restores fresh queued work or archives expired work.
 No server copy of the account's decryption/signing keys is introduced. A Gun
 acknowledgement is not proof another device has downloaded the record.
+
+## Queue recovery repair
+
+A definite HTTP 429 rejection remains queued as `deferred` and retries with its
+original request ID until expiry. Transport failures remain uncertain and never
+replay automatically. History retains Cancel for pending work in earlier chats.
+New encrypted device-cache writes use separate message/state keys, preserving
+other tabs' records during relay outages; legacy snapshots still load.
+
+Validation: `node --test tests/helm-outbox.test.js tests/helm-ui.test.js tests/helm-gun-store.test.js tests/openclaw-helm.test.js tests/operator-public-modules.test.js tests/self-host-sea-runtime.test.js`.
+Live agent throughput and cross-device cancellation races require separate
+verification; these repairs do not establish recovery of the model runtime.
+
+## Live reply delivery
+
+Helm chat requests negotiate `Accept: text/event-stream`. The same signed owner
+payload, durable request receipt, queue expiry, and SSH identity remain in use.
+The fixed Python bridge requests OpenClaw SSE and forwards bounded JSONL fragments;
+the Portal emits private SSE delta events as they arrive. JSON clients remain
+supported.
+
+Partial text is displayed as an unconfirmed reply while the saved message remains
+`sending`. Only a final result written to the durable server receipt can complete
+the message. A broken stream becomes uncertain history without automatic replay.
+Account changes suppress late fragments. Gateway credentials never enter the
+browser or SSE events. Chat startup/inference timeouts are unchanged.
+
+Focused verification adds `tests/helm-stream.test.js` to the existing Helm suite.
+Streaming reduces the wait to see text; it does not itself shorten model inference.
+
+## Optional native Codex chat pilot
+
+Select **Native Codex · pilot** in Helm's Engine menu. OpenClaw remains the default
+and keeps its tool integrations. Switching engines starts a new conversation;
+History preserves old replies. A tab reload restores its selected engine and session.
+Queued records retain their original engine, and only the selected engine's queue
+drains. Legacy records and signed clients without an engine remain OpenClaw.
+The engine is included in the owner signature and native receipt fingerprint.
+No fallback silently changes engines after dispatch.
+
+The same signed API, SSH mesh, bounded JSONL/SSE bridge and durable Portal receipts
+launch `src/openclaw/native.py` on Hetzner. It reuses the installed Codex app-server
+executable and existing `/root/.codex` ChatGPT login in place. No API key billing,
+new listener/service, copied credentials or OpenClaw restart is needed. The
+installed managed package can also be found while its gateway is stopped. Python
+3.11+ is required (`tomllib`). Native status reports local installation/login
+configuration only; a completed chat turn establishes working authentication.
+
+This pilot provides conversation and code advice, without tool execution. Shell
+and web search are disabled, existing MCP servers are disabled for this child
+process, and its sandbox is read-only. Interactive/tool requests fail closed. It
+uses `gpt-6.1-sol` at medium effort. Operator/Forge task execution is unchanged.
+
+Native thread mappings and a global chat lock live under `/root/.codex/helm/`,
+with private file permissions. The server derives the conversation key from the
+verified account and session; browsers cannot supply Codex thread IDs. Thread
+resume persists context across separate SSH processes. A pending marker is saved
+before turn dispatch and cleared only after native completion. An uncertain turn
+blocks further continuation of that native conversation; use New chat after
+checking History. Never delete pending receipts or markers to retry automatically.
+Treat native rollouts and thread mappings as private conversation data in backups.
+
+Verification: add `tests/helm-native.test.js` to the Helm suite. Manually switch
+engines, send a harmless prompt, reload and verify recall; confirm queued messages
+never change engine, unknown users remain denied, and partial replies require a
+final receipt. Timings depend on backend load; the initial three-prompt benchmark
+is evidence of lower overhead, not a promise of latency or coding-tool parity.

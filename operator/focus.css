@@ -54,7 +54,7 @@ header>a{font-size:.86rem;letter-spacing:.08em}
 /* Keep optional advanced controls present without competing with the chat. */
 #operator-form .operator-attach{width:2.45rem!important;min-width:2.45rem!important;height:2.45rem;padding:0!important;border-radius:50%!important;background:transparent!important;color:var(--muted)!important;border-color:transparent!important}
 #operator-form .operator-attach:hover,#operator-form .operator-attach:focus-visible{border-color:var(--line)!important;color:var(--text)!important;background:transparent!important}
-#operator-form .operator-live-awareness{width:1.8rem;min-width:1.8rem;height:1.8rem;padding:0;justify-content:center;border-color:transparent;background:transparent}
+#operator-form .operator-live-awareness{width:2.75rem;min-width:2.75rem;height:2.75rem;padding:0;justify-content:center;border-color:transparent;background:transparent}
 #operator-form .operator-live-awareness>span:last-child{display:none}
 #operator-form .operator-live-awareness__dot{width:8px;height:8px}
 
@@ -68,17 +68,17 @@ header>a{font-size:.86rem;letter-spacing:.08em}
   opacity:.42;
   animation:operator-stream-breathe 1.9s ease-in-out infinite
 }
+/* The empty streaming bubble shows a live thinking indicator (the painter
+   renders no empty <p>, so the p:empty rule above can never fire alone). */
+.message.assistant.is-streaming .operator-thinking{display:flex;gap:.45em;align-items:baseline;margin:0;color:var(--muted)}
+.message.assistant.is-streaming .operator-thinking__dots{letter-spacing:.34em;opacity:.42;animation:operator-stream-breathe 1.9s ease-in-out infinite}
 .follow-ups{
   min-height:2.45rem;
   display:flex;
-  flex-wrap:nowrap;
+  flex-wrap:wrap;
   align-items:flex-start;
-  gap:.45rem;
-  overflow-x:auto;
-  overscroll-behavior-inline:contain;
-  scrollbar-width:none
+  gap:.45rem
 }
-.follow-ups::-webkit-scrollbar{display:none}
 .follow-ups button{
   width:auto;
   flex:0 0 auto;
@@ -98,6 +98,7 @@ header>a{font-size:.86rem;letter-spacing:.08em}
 @keyframes operator-suggestion-arrive{to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){
   .message.assistant.is-streaming p:empty::after,
+  .message.assistant.is-streaming .operator-thinking__dots,
   .follow-ups button{animation:none;opacity:1;transform:none}
 }
 
@@ -107,12 +108,14 @@ body{background:radial-gradient(ellipse at 50% 0%,#20353366,transparent 60%),var
 main{width:min(880px,100%);padding-inline:24px}
 main>header{min-height:72px;gap:12px;border-bottom:1px solid #30404477}
 .operator-brand{gap:9px}
-.operator-brand a{font-size:1rem;letter-spacing:-.03em;color:var(--text);font-weight:700}
+.operator-brand a{display:inline-flex;align-items:center;min-height:44px;font-size:1rem;letter-spacing:-.03em;color:var(--text);font-weight:700}
 .operator-mini-spinner{width:28px;height:28px;flex-basis:28px;filter:none}
 .operator-mini-spinner__fallback{inset:3px;border-width:1px}
-.header-actions{display:flex;gap:4px;overflow:visible}
+.header-actions{display:flex;gap:6px;overflow:visible}
 .header-actions button{min-height:44px;padding:8px 11px;font-size:.76rem;font-weight:600;background:transparent;border-color:transparent;color:var(--muted)}
 .header-actions button:hover,.header-actions button:focus-visible{background:#233331;color:var(--text)}
+.header-actions a{display:inline-flex;align-items:center;min-height:44px;padding:8px 11px;border:1px solid transparent;border-radius:999px;font-size:.76rem;font-weight:600;color:var(--muted);text-decoration:none}
+.header-actions a:hover,.header-actions a:focus-visible{background:#233331;color:var(--text)}
 #clear-chat{width:44px;height:44px;font-size:1.35rem!important;border:1px solid var(--line)}
 .operator-empty-portal{flex:1;display:grid;place-items:center;padding:24px 0;pointer-events:auto;overflow-y:auto;animation:none}
 .operator-start{max-width:560px;width:100%;text-align:left}
@@ -141,6 +144,7 @@ main>header{min-height:72px;gap:12px;border-bottom:1px solid #30404477}
 .follow-ups{margin-top:18px}
 .follow-ups button{min-height:44px;background:#172124;font-weight:500;border-color:var(--line)}
 #operator-form{position:relative;margin:0 0 12px;padding:12px 14px;border-radius:18px;background:#172124;border-color:#3c514a;box-shadow:none}
+#operator-mode{min-height:44px}
 #operator-input{min-height:56px;max-height:25dvh;font-size:1rem;padding:4px 0 8px;line-height:1.5}
 #operator-input::placeholder{color:#91a59d;opacity:1}
 #operator-form>div{display:flex;gap:8px}

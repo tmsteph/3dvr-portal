@@ -30,7 +30,7 @@ describe('cell hub', () => {
     assert.match(html, /id="previewTags"/);
     assert.match(html, /Cell Builder/);
     assert.match(html, /Core(?:<br\s*\/?>)?Cell/);
-    assert.match(html, /data-cell-app="contacts"/);
+    assert.match(html, /id="cellAccountStatus"/);
     assert.match(html, /<script[^>]+src="https:\/\/cdn\.jsdelivr\.net\/npm\/gun\/gun\.js"/);
     assert.match(html, /<script[^>]+src="\.{2}\/gun-init\.js"/);
     assert.match(html, /<script[^>]+src="\.{2}\/score\.js"/);
@@ -38,20 +38,14 @@ describe('cell hub', () => {
     assert.ok(!html.includes('Node Builder'), 'the page should be branded as Cell, not Node');
   });
 
-  it('ships a Gun-backed workspace script wired to the portal graph and app links', async () => {
-    const appUrl = new URL('app.js', baseDir);
-    assert.equal(await fileExists(appUrl), true, 'app.js should exist');
-
-    const js = await readFile(appUrl, 'utf8');
-    assert.match(js, /gun\.get\('3dvr-portal'\)/);
-    assert.match(js, /get\('cellHub'\)/);
-    assert.match(js, /get\('cells'\)/);
-    assert.match(js, /cellId/);
-    assert.match(js, /contacts\/index\.html/);
-    assert.match(js, /crm\/index\.html/);
-    assert.match(js, /finance\/index\.html/);
-    assert.match(js, /chat\//);
-    assert.match(js, /billing\/index\.html/);
+  it('uses an encrypted account store instead of the public workspace graph', async () => {
+    const js = await readFile(new URL('app.js', baseDir), 'utf8');
+    const store = await readFile(new URL('private-store.js', baseDir), 'utf8');
+    assert.match(js, /openPrivateCellStore/);
+    assert.doesNotMatch(js, /get\('cellHub'\)|get\('activity'\)|get\('meta'\)/);
+    assert.match(store, /user.get\(namespace\).get\('cells'\)/);
+    assert.match(store, /sea.encrypt/);
+    assert.match(store, /sea.decrypt/);
   });
 
   it('registers the Cell workspace in the portal app grid', async () => {
