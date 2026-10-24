@@ -70,3 +70,40 @@ test('SQLite audit refuses implicit owner or non-SQLite mode before opening a da
   assert.throws(() => auditManagedSqlite({ THREEDVR_AGENT_QUEUE_STORE: 'sqlite' }), /Explicit managed SQLite/);
   assert.throws(() => auditManagedSqlite({ THREEDVR_AGENT_QUEUE_STORE: 'gun', THREEDVR_AGENT_OWNER_ALIAS: '3dvr-managed' }), /Explicit managed SQLite/);
 });
+
+test('stale queue metadata never marks blocked high-risk approval states eligible', () => {
+  const allowed = {
+    THREEDVR_AGENT_WORKER_CAPABILITIES: 'codex',
+    THREEDVR_AGENT_WORKER_RISK_CLASSES: 'read_only,external_write,money,credential'
+  };
+  for (const riskClass of ['external_write', 'money', 'credential']) {
+    for (const approvalStatus of [undefined, 'not_required', 'expired', 'pending', 'denied', 'rejected', 'unknown']) {
+      const task = {
+        id: 'sensitive', status: 'queued', backend: 'codex', task: 'private task',
+        createdAt: '2026-10-23T09:00:00Z', riskClass, approvalStatus
+      };
+      const flags = summarizeQueue([task], allowed, now).queuedReviews[0].flags;
+      assert.ok(flags.includes('approval_block'), riskClass + ':' + approvalStatus);
+      assert.ok(!flags.includes('metadata_eligible_not_authorized'));
+    }
+    const approved = {
+      id: 'approved', status: 'queued', backend: 'codex', task: 'private task',
+      createdAt: '2026-10-23T09:00:00Z', riskClass, approvalStatus: 'approved'
+    };
+    assert.deepEqual(summarizeQueue([approved], allowed, now).queuedReviews[0].flags,
+      ['metadata_eligible_not_authorized']);
+  }
+});
+
+test('stale queue audit distinguishes absent low-risk approval from invalid or expired approval', () => {
+  const task = {
+    id: 'low-risk', status: 'queued', backend: 'codex', task: 'private task',
+    createdAt: '2026-10-23T09:00:00Z', riskClass: 'read_only'
+  };
+  assert.deepEqual(summarizeQueue([task], env, now).queuedReviews[0].flags,
+    ['metadata_eligible_not_authorized']);
+  for (const approvalStatus of ['expired', 'unknown', 'pending', 'denied']) {
+    const flags = summarizeQueue([{ ...task, approvalStatus }], env, now).queuedReviews[0].flags;
+    assert.deepEqual(flags, ['approval_block']);
+  }
+});
