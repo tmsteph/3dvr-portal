@@ -1,5 +1,6 @@
 import { createSignedPortalProof, openHelmMessageStore } from '/operator/forge.js';
 import { createOutbox } from './outbox.js';
+import { readHelmResponse } from './stream.js';
 
 const $ = id => document.getElementById(id);
 const sessionKey = `3dvr.helm.session.${localStorage.getItem('userPubKey') || localStorage.getItem('alias') || 'guest'}`;
@@ -12,6 +13,7 @@ let verifiedAccount = false;
 let storePromise;
 let store;
 let epoch = 0;
+let liveReply = null;
 let outbox = makeOutbox();
 
 function signedIn() { return localStorage.getItem('signedIn') === 'true'; }
@@ -48,15 +50,22 @@ function makeOutbox() {
       busy = true;
       updateControls();
       const started = Date.now();
+      liveReply = { id: record.id, text: '' };
       const showWaiting = () => {
         if (currentEpoch !== epoch) return;
-        $('connection').textContent = 'Waiting for agent reply';
-        $('activity').textContent = `Waiting for agent reply · ${Math.floor((Date.now() - started) / 1000)}s elapsed`;
+        const label = liveReply?.text ? 'Receiving agent reply' : 'Waiting for agent reply';
+        $('connection').textContent = label;
+        $('activity').textContent = `${label} · ${Math.floor((Date.now() - started) / 1000)}s elapsed`;
       };
       showWaiting();
       const progress = setInterval(showWaiting, 1000);
       try {
-        const result = await request('chat', record);
+        const result = await request('chat', record, text => {
+          if (currentEpoch !== epoch) return;
+          liveReply.text += text;
+          showWaiting();
+          renderMessages();
+        });
         if (currentEpoch === epoch) {
           $('connection').textContent = 'Agent replied';
           $('activity').textContent = `Reply received after ${Math.floor((Date.now() - started) / 1000)}s.`;
@@ -74,7 +83,7 @@ function makeOutbox() {
         throw error;
       } finally {
         clearInterval(progress);
-        if (currentEpoch === epoch) { busy = false; updateControls(); }
+        if (currentEpoch === epoch) { liveReply = null; busy = false; updateControls(); }
       }
     },
     isReady: () => currentEpoch === epoch && connected && !busy && signedIn(),
@@ -105,7 +114,7 @@ function showAccount(identity) {
     account.title = signedIn ? 'Signed in · checking agent access automatically' : 'Sign in to use Helm';
   } catch { account.textContent = 'Sign in'; }
 }
-async function request(action, record) {
+async function request(action, record, onDelta) {
   const requestEpoch = epoch;
   const payload = record
     ? { requestId: record.id, sessionId: record.sessionId, message: record.text, createdAt: record.createdAt, expiresAt: record.expiresAt }
@@ -114,11 +123,13 @@ async function request(action, record) {
   if (requestEpoch !== epoch) throw new Error('Account changed.');
   if (!proof) throw new Error('Sign in with your owner account, then retry.');
   const response = await fetch('/api/openclaw', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...(onDelta ? { Accept: 'text/event-stream' } : {}) },
     body: JSON.stringify({ ...payload, action, ...proof }),
     signal: AbortSignal.timeout(110000)
   });
-  const result = await response.json();
+  const result = await readHelmResponse(response, text => {
+    if (requestEpoch === epoch) onDelta?.(text);
+  });
   if (requestEpoch !== epoch) throw new Error('Account changed.');
   if (result.identity?.verified) showAccount(result.identity);
   if (response.status === 401) {
@@ -156,10 +167,12 @@ function messageCard(record, history = false) {
     completed: 'Sent', stale: 'History · expired without sending', uncertain: 'History · check delivery before resending', cancelled: 'History · cancelled' };
   label.textContent = names[record.status];
   article.append(label, document.createTextNode(record.text));
-  if (record.reply) {
+  const partial = liveReply?.id === record.id && record.status === 'sending' ? liveReply.text : '';
+  if (record.reply || partial) {
     const reply = document.createElement('p');
     reply.className = 'saved-reply';
-    reply.textContent = record.reply;
+    reply.textContent = record.reply || partial;
+    if (partial) reply.setAttribute('aria-label', 'Reply arriving; completion not yet confirmed');
     article.append(reply);
   }
   if (record.note) {
@@ -265,7 +278,7 @@ for (const button of document.querySelectorAll('[data-prompt]')) {
 window.addEventListener('storage', event => {
   if (!['signedIn', 'alias', 'userPubKey'].includes(event.key)) return;
   epoch += 1; store?.close(); store = null; storePromise = null;
-  busy = false;
+  busy = false; liveReply = null;
   connected = false; verifiedAccount = false; outbox = makeOutbox();
   showAccount(); renderMessages(); updateControls();
   void checkConnection({ automatic: true });
