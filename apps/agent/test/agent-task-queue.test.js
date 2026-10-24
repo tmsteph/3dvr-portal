@@ -290,7 +290,7 @@ test('worker skips tasks that need approval or unsupported capabilities', async 
   assert.equal(results.length, 0);
 });
 
-test('unsafe high-risk task is approved and can run on capable worker', async () => {
+test('unsafe flag never grants implicit approval for an external-write task', async () => {
   const rootNode = fakeRoot();
   await enqueueTask('Publish static site', {
     rootNode,
@@ -303,6 +303,9 @@ test('unsafe high-risk task is approved and can run on capable worker', async ()
     force: true,
   });
 
+  const queued = await readTask('task-6', { rootNode, ownerAlias: 'tenant-a' });
+  assert.equal(queued.approvalStatus, 'required');
+  let executions = 0;
   const results = await runWorkerOnce({
     rootNode,
     ownerAlias: 'tenant-a',
@@ -310,19 +313,32 @@ test('unsafe high-risk task is approved and can run on capable worker', async ()
     workerCapabilities: 'node,codex,static-hosting',
     workerRiskClasses: 'read_only,draft,workspace_write,external_write',
     force: true,
-    runAgentTaskImpl: async () => ({
-      ok: true,
-      backend: 'codex',
-      result: { ok: true, stdout: 'published' },
-    }),
+    runAgentTaskImpl: async () => { executions += 1; throw new Error('must not run'); },
   });
-  const completed = await readTask('task-6', { rootNode, ownerAlias: 'tenant-a' });
-
-  assert.equal(results.length, 1);
-  assert.equal(completed.approvalStatus, 'approved');
-  assert.equal(completed.status, 'completed');
+  const after = await readTask('task-6', { rootNode, ownerAlias: 'tenant-a' });
+  assert.equal(executions, 0);
+  assert.equal(results.length, 0);
+  assert.equal(after.status, 'queued');
+  assert.equal(after.approvalStatus, 'required');
 });
 
+test('unsafe cannot masquerade as a draft or inherit a worker-wide bypass', () => {
+  const worker = {
+    workerCapabilities: 'node,codex',
+    workerRiskClasses: 'read_only,draft,workspace_write,external_write',
+  };
+  assert.equal(canWorkerRunTask({
+    backend: 'codex', riskClass: 'draft', unsafe: true, approvalStatus: 'not_required',
+  }, worker).ok, false);
+  assert.equal(canWorkerRunTask({
+    backend: 'codex', riskClass: 'draft', unsafe: true, approvalStatus: 'approved',
+  }, { ...worker, workerRiskClasses: 'read_only,draft' }).ok, false);
+  assert.equal(canWorkerRunTask({
+    backend: 'codex', riskClass: 'draft', approvalStatus: 'not_required',
+  }, { ...worker, unsafe: true }).ok, false);
+  assert.deepEqual(buildTaskArgs({ task: 'Review', backend: 'codex' }, { unsafe: true }),
+    ['--backend', 'codex', '--execute', '--no-print-prompt', 'Review']);
+});
 
 test('gunSyncEnabled can isolate SQLite workers from GUN', () => {
   assert.equal(gunSyncEnabled({ gunSync: false }), false);
