@@ -527,7 +527,7 @@ function printDispatch({ backend, classification, prompt, command, memoryContext
   console.log(`[agent-task] backend: ${backend}`);
   console.log(`[agent-task] kind: ${classification.kind}${classification.highRisk ? ' high-risk' : ''}`);
   if (options.memory) console.log(`[agent-task] memory: ${memoryContext?.hits?.length || 0} locally retrieved record(s)`);
-  if (command) console.log(`[agent-task] dispatch: ${command}`);
+  if (command) console.log(`[agent-task] dispatch: ${options.printPrompt ? command : `${backend} (prompt omitted)`}`);
   if (options.printPrompt) {
     console.log('[agent-task] message begin');
     console.log(prompt);
@@ -545,8 +545,8 @@ function printAndReturn(result) {
       backend: result.backend,
       classification: result.classification,
       memoryCount: result.memoryContext?.hits?.length || 0,
-      command: result.command,
-      prompt: result.prompt,
+      command: result.options?.printPrompt ? result.command : undefined,
+      prompt: result.options?.printPrompt ? result.prompt : undefined,
     }, null, 2));
     return result;
   }
