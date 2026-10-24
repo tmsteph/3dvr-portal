@@ -71,14 +71,10 @@ header>a{font-size:.86rem;letter-spacing:.08em}
 .follow-ups{
   min-height:2.45rem;
   display:flex;
-  flex-wrap:nowrap;
+  flex-wrap:wrap;
   align-items:flex-start;
-  gap:.45rem;
-  overflow-x:auto;
-  overscroll-behavior-inline:contain;
-  scrollbar-width:none
+  gap:.45rem
 }
-.follow-ups::-webkit-scrollbar{display:none}
 .follow-ups button{
   width:auto;
   flex:0 0 auto;
@@ -110,9 +106,11 @@ main>header{min-height:72px;gap:12px;border-bottom:1px solid #30404477}
 .operator-brand a{font-size:1rem;letter-spacing:-.03em;color:var(--text);font-weight:700}
 .operator-mini-spinner{width:28px;height:28px;flex-basis:28px;filter:none}
 .operator-mini-spinner__fallback{inset:3px;border-width:1px}
-.header-actions{display:flex;gap:4px;overflow:visible}
+.header-actions{display:flex;gap:6px;overflow:visible}
 .header-actions button{min-height:44px;padding:8px 11px;font-size:.76rem;font-weight:600;background:transparent;border-color:transparent;color:var(--muted)}
 .header-actions button:hover,.header-actions button:focus-visible{background:#233331;color:var(--text)}
+.header-actions a{display:inline-flex;align-items:center;min-height:44px;padding:8px 11px;border:1px solid transparent;border-radius:999px;font-size:.76rem;font-weight:600;color:var(--muted);text-decoration:none}
+.header-actions a:hover,.header-actions a:focus-visible{background:#233331;color:var(--text)}
 #clear-chat{width:44px;height:44px;font-size:1.35rem!important;border:1px solid var(--line)}
 .operator-empty-portal{flex:1;display:grid;place-items:center;padding:24px 0;pointer-events:auto;overflow-y:auto;animation:none}
 .operator-start{max-width:560px;width:100%;text-align:left}
