@@ -9,6 +9,8 @@ const {
   callOpenAI,
   classifyTask,
   commandExists,
+  codexLoginHealthy,
+  detectCapabilities,
   describeCommand,
   memoryExecutionAllowed,
   parseArgs,
@@ -71,6 +73,55 @@ test('commandExists preserves the worker PATH instead of launching a login shell
   assert.equal(found, true);
   assert.equal(invocation.command, 'sh');
   assert.deepEqual(invocation.args, ['-c', "command -v 'codex'"]);
+});
+
+test('Codex auth probe invokes login status directly without logging account output', async () => {
+  let invocation;
+  const healthy = await codexLoginHealthy((command, args, options, callback) => {
+    invocation = { command, args, options };
+    callback(null, 'account details must not be printed');
+  });
+  assert.equal(healthy, true);
+  assert.equal(invocation.command, 'codex');
+  assert.deepEqual(invocation.args, ['login', 'status']);
+  assert.equal(invocation.options.timeout, 5000);
+  assert.equal(await codexLoginHealthy((command, args, options, callback) => callback(new Error('expired'))), false);
+});
+
+test('auto-routing never treats an installed but unauthenticated Codex CLI as available', async () => {
+  const seen = [];
+  const capabilities = await detectCapabilities({
+    env: {},
+    commandExistsImpl: async (name) => { seen.push(name); return name === 'codex' || name === 'openclaw'; },
+    codexLoginHealthyImpl: async () => false,
+  });
+  assert.deepEqual(seen, ['codex', 'openclaw', 'claude']);
+  assert.equal(capabilities.codex, false);
+  assert.equal(capabilities.openclaw, true);
+  assert.equal(pickBackend({ backend: 'auto' }, classifyTask('Fix the JavaScript tests'), capabilities), 'openclaw');
+});
+
+test('Codex auth preflight fails closed on errors and never probes a missing binary', async () => {
+  const failing = await detectCapabilities({
+    env: {},
+    commandExistsImpl: async name => name === 'codex',
+    codexLoginHealthyImpl: async () => { throw new Error('timed out'); },
+  });
+  assert.equal(failing.codex, false);
+  let probes = 0;
+  const missing = await detectCapabilities({
+    env: {},
+    commandExistsImpl: async () => false,
+    codexLoginHealthyImpl: async () => { probes += 1; return true; },
+  });
+  assert.equal(missing.codex, false);
+  assert.equal(probes, 0);
+  const ready = await detectCapabilities({
+    env: {},
+    commandExistsImpl: async name => name === 'codex',
+    codexLoginHealthyImpl: async () => true,
+  });
+  assert.equal(ready.codex, true);
 });
 
 test('pickBackend prefers codex for code and openclaw for tool-heavy general work', () => {
