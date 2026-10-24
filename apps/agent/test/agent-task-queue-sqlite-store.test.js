@@ -9,7 +9,9 @@ const {
   enqueueTask,
   publicTask,
   readTask,
+  runQueuedTask,
   runWorkerOnce,
+  updateTask,
 } = require('../thomas-agent/node/agent-task-queue');
 const sqliteQueue = require('../thomas-agent/node/task-queue-sqlite-store');
 
@@ -81,6 +83,41 @@ test('concurrent workers atomically claim a SQLite task only once', async (t) =>
 
   assert.equal(executions, 1);
   assert.equal((await readTask('concurrent-task', options)).status, 'completed');
+});
+
+test('stale worker snapshots cannot bypass changed SQLite approval or capability gates', async (t) => {
+  const options = await queueOptions(t, {
+    workerCapabilities: 'node,openai',
+    workerRiskClasses: 'read_only,external_write',
+    deviceId: 'worker-a',
+    gunSync: false,
+  });
+  let executions = 0;
+  const runAgentTaskImpl = async () => {
+    executions += 1;
+    return { ok: true, result: { stdout: 'must not run' } };
+  };
+
+  for (const [id, patch] of [
+    ['revoked-approval', { riskClass: 'external_write', approvalStatus: 'required' }],
+    ['raised-capability', { requiredCapabilities: 'openai,private-admin' }],
+  ]) {
+    await enqueueTask('Review a public example', {
+      ...options, id, backend: 'openai', riskClass: 'read_only',
+    });
+    const staleSnapshot = await readTask(id, options);
+    await updateTask(id, patch, options);
+
+    // Simulate another producer changing the row after the worker read it,
+    // but before the atomic SQLite claim. The row must remain queued.
+    const result = await runQueuedTask(staleSnapshot, { ...options, runAgentTaskImpl });
+    const current = await readTask(id, options);
+    assert.equal(result.skipped, true, id);
+    assert.equal(current.status, 'queued', id);
+    assert.equal(current.claimToken, undefined, id);
+    assert.equal(current.approvalStatus, patch.approvalStatus || 'not_required', id);
+  }
+  assert.equal(executions, 0);
 });
 
 test('long SQLite work renews an expired initial claim against a competing worker', async (t) => {
