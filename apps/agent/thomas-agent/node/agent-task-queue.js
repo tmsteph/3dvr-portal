@@ -287,7 +287,11 @@ function canWorkerRunTask(record = {}, options = {}) {
     };
   }
 
-  if (record.approvalStatus === 'required') {
+  const approvalStatus = normalizeText(record.approvalStatus).toLowerCase();
+  // Imported and historical records can contain denied, pending, expired, or
+  // missing approval states. Never treat those as implicit authorization.
+  if ((approvalStatus && !['approved', 'not_required'].includes(approvalStatus))
+    || (APPROVAL_REQUIRED_RISKS.has(riskClass) && approvalStatus !== 'approved')) {
     return {
       ok: false,
       reason: `approval required for ${riskClass}`,
@@ -494,19 +498,15 @@ async function runWorkerOnce(options = {}) {
   await syncTerminalResults(options);
   await importLegacyGunTasks(options);
   const tasks = await listTasks(options);
-  const now = options.now || Date.now();
+  // An expired running lease is not proof the task is safe to execute twice.
   const queued = tasks
-    .filter(task => task.status === 'queued'
-      || (queueStore(options) === 'sqlite' && task.status === 'running' && task.claimExpiresAt <= now))
+    .filter(task => task.status === 'queued')
     .filter(task => canWorkerRunTask(task, options).ok)
     .slice(0, options.limit || DEFAULT_TASK_LIMIT);
   const results = [];
   for (const summary of queued) {
     const record = await readTask(summary.id, options);
-    const recoverable = queueStore(options) === 'sqlite'
-      && record?.status === 'running'
-      && record.claimExpiresAt <= now;
-    if (!record || (record.status !== 'queued' && !recoverable)) continue;
+    if (!record || record.status !== 'queued') continue;
     results.push({ id: record.id, result: await runQueuedTask(record, options) });
   }
   return results;

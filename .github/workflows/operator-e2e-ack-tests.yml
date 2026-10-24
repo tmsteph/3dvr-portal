@@ -1,0 +1,37 @@
+name: Operator E2E ACK and Queue Routing Unit Tests
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/operator-runtime-worker-e2e.mjs'
+      - 'scripts/ops/operator-queue-routing-audit.mjs'
+      - 'tests/operator-runtime-worker-e2e-ack.test.mjs'
+      - 'tests/operator-queue-routing-audit.test.mjs'
+      - 'scripts/ops/operator-stale-queue-audit.mjs'
+      - 'tests/operator-stale-queue-audit.test.mjs'
+      - '.github/workflows/operator-e2e-ack-tests.yml'
+      - 'apps/agent/thomas-agent/node/task-queue-sqlite-store.js'
+      - 'apps/agent/thomas-agent/node/agent-task-queue.js'
+      - 'apps/agent/test/agent-task-queue-sqlite-store.test.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check scripts/operator-runtime-worker-e2e.mjs
+      - run: node --check scripts/ops/operator-queue-routing-audit.mjs
+      - run: node --check scripts/ops/operator-stale-queue-audit.mjs
+      - run: node --test tests/operator-runtime-worker-e2e-ack.test.mjs tests/operator-queue-routing-audit.test.mjs tests/operator-stale-queue-audit.test.mjs
+      # Validate crash/lease safety independently of Agent Checks' blocking audit.
+      # The audit gate remains mandatory for any merge or deployment.
+      - run: npm ci --prefix apps/agent
+      - run: node --test apps/agent/test/agent-task-queue-sqlite-store.test.js

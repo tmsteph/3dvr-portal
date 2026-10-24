@@ -49,7 +49,7 @@ function put(node, value) {
       settled = true;
       clearTimeout(timer);
       resolve({
-        acknowledged: !ack?.err,
+        acknowledged: Boolean(ack) && !ack?.err,
         error: ack?.err ? String(ack.err) : '',
         ack: ack || {}
       });
@@ -89,6 +89,10 @@ async function main() {
   ]);
   console.log(`E2E_WRITE_RESULTS=${JSON.stringify(writes)}`);
   console.log('E2E_ENQUEUE_ATTEMPTED=true');
+  if (writes.some(write => !write.acknowledged)) {
+    // Missing or failed relay ACK means admission cannot be assumed.
+    throw new Error('Operator runtime E2E queue writes were not acknowledged');
+  }
 
   const transitions = [];
   const deadline = Date.now() + maxWaitMs;

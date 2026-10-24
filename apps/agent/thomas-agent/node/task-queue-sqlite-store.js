@@ -59,13 +59,14 @@ function parseRecord(row) {
 
 function writeTask(record, options = {}) {
   return withDatabase(options, (db) => {
-    db.prepare(`
+    const result = db.prepare(`
       INSERT INTO tasks (owner_alias, id, status, updated_at, record_json, source)
       VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(owner_alias, id) DO UPDATE SET
         status = excluded.status,
         updated_at = excluded.updated_at,
         record_json = excluded.record_json
+      WHERE tasks.status != 'running'
     `).run(
       ownerAlias(options),
       String(record.id),
@@ -74,6 +75,9 @@ function writeTask(record, options = {}) {
       JSON.stringify(record),
       options.queueSource || 'sqlite',
     );
+    // Only a claim-holder may finish running work. A second enqueue/update
+    // with the same ID must never erase a running claim, even after expiry.
+    if (result.changes !== 1) throw new Error('active task claim required for update');
     return record;
   });
 }
@@ -91,7 +95,8 @@ function importTask(record, options = {}) {
         source = 'gun',
         claim_token = NULL,
         claim_expires_at = NULL
-      WHERE (tasks.claim_token IS NULL OR tasks.claim_expires_at <= ?)
+      WHERE tasks.status != 'running'
+        AND (tasks.claim_token IS NULL OR tasks.claim_expires_at <= ?)
         AND excluded.updated_at > tasks.updated_at
     `).run(
       ownerAlias(options),
@@ -144,15 +149,17 @@ function listTasks(options = {}) {
   `).all(ownerAlias(options)).map(parseRecord));
 }
 
+// Expired running claims are held for review, never automatically replayed:
+// the previous worker may have completed irreversible side effects before crashing.
 function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {}) {
   return withDatabase(options, (db) => {
     db.exec('BEGIN IMMEDIATE');
     try {
       const row = db.prepare(`
-        SELECT record_json, source, claim_expires_at FROM tasks
+        SELECT record_json, source FROM tasks
         WHERE owner_alias = ? AND id = ?
-          AND (status = 'queued' OR (status = 'running' AND claim_expires_at <= ?))
-      `).get(ownerAlias(options), String(id), now);
+          AND status = 'queued'
+      `).get(ownerAlias(options), String(id));
       if (!row) {
         db.exec('ROLLBACK');
         return null;
@@ -169,7 +176,7 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
         UPDATE tasks SET status = 'running', updated_at = ?, record_json = ?,
           claim_token = ?, claim_expires_at = ?
         WHERE owner_alias = ? AND id = ?
-          AND (status = 'queued' OR (status = 'running' AND claim_expires_at <= ?))
+          AND status = 'queued'
       `).run(
         updated.updatedAt,
         JSON.stringify(updated),
@@ -177,7 +184,6 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
         expiresAt,
         ownerAlias(options),
         String(id),
-        now,
       );
       db.exec('COMMIT');
       return result.changes === 1 ? { ...updated, queueSource: row.source, claimToken } : null;

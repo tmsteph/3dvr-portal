@@ -41,7 +41,7 @@ test('goal cannot finish before all outcome checks pass; stale finish preserves 
   assert.equal(persisted.goal.acceptanceChecks[0].evidence, 'read-back:ok');
 });
 
-test('checkpoint survives new process and expired worker claim takeover', t => {
+test('checkpoint survives a new process and expired running claims stay held for review', t => {
   let { options, goal } = fixture(t);
   goal = advance(options, goal, { type: 'start' });
   goal = advance(options, goal, { type: 'complete_step', evidence: 'receipt:1' });
@@ -51,12 +51,17 @@ test('checkpoint survives new process and expired worker claim takeover', t => {
     modulePath, JSON.stringify(options)], { encoding: 'utf8' });
   assert.equal(child.status, 0, child.stderr);
   assert.deepEqual(JSON.parse(child.stdout), goal);
-  assert.equal(store.claimTask('task', 'claim-b', 'replacement', 3000, 2001, options).goal.revision, goal.revision);
+  // A previous worker may have performed external side effects before its
+  // claim expired. Never automatically take over and replay that work.
+  assert.equal(store.claimTask('task', 'claim-b', 'replacement', 3000, 2001, options), null);
+  const held = store.readTask('task', options);
+  assert.equal(held.status, 'running');
+  assert.deepEqual(held.goal, goal);
   assert.throws(() => advance({ ...options, now: 2002 }, goal,
     { type: 'verify_check', checkId: 'health', passed: true, evidence: 'ok' }), /claim/);
-  goal = advance({ ...options, now: 2002 }, goal,
-    { type: 'verify_check', checkId: 'health', passed: true, evidence: 'ok' }, 'claim-b');
-  assert.equal(goal.status, 'verifying');
+  assert.throws(() => advance({ ...options, now: 2002 }, goal,
+    { type: 'verify_check', checkId: 'health', passed: true, evidence: 'ok' }, 'claim-b'), /claim/);
+  assert.deepEqual(store.readTask('task', options).goal, goal);
 });
 
 test('claims, owner isolation and revision checks protect durable progress', t => {

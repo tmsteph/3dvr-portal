@@ -122,6 +122,24 @@ test('concrete backend capability cannot be hidden by a weaker requires list', (
   }).ok, false);
 });
 
+test('worker never executes denied, pending, or unapproved high-risk tasks', () => {
+  const worker = {
+    workerCapabilities: 'node,codex',
+    workerRiskClasses: 'read_only,draft,workspace_write,external_write,money,credential',
+  };
+  for (const riskClass of ['external_write', 'money', 'credential']) {
+    for (const approvalStatus of ['required', 'pending', 'denied', 'expired', 'not_required', '']) {
+      const decision = canWorkerRunTask({ backend: 'codex', riskClass, approvalStatus }, worker);
+      assert.equal(decision.ok, false, `${riskClass}/${approvalStatus || 'missing'} must be blocked`);
+    }
+    assert.equal(canWorkerRunTask({ backend: 'codex', riskClass, approvalStatus: 'approved' }, worker).ok, true);
+  }
+  for (const approvalStatus of ['required', 'pending', 'denied', 'expired']) {
+    assert.equal(canWorkerRunTask({ backend: 'codex', riskClass: 'read_only', approvalStatus }, worker).ok, false);
+  }
+  assert.equal(canWorkerRunTask({ backend: 'codex', riskClass: 'read_only', approvalStatus: 'not_required' }, worker).ok, true);
+});
+
 test('health backend is intrinsic and does not require shell or model capability', () => {
   assert.deepEqual(requiredWorkerCapabilities({ backend: 'health' }), []);
   assert.equal(canWorkerRunTask({

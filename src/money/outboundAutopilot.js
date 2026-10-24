@@ -240,9 +240,7 @@ function buildMessage(prospect = {}, offer = {}) {
 
 function buildApprovalReason(prospect = {}, mode = 'approval-required') {
   if (mode === 'draft-only') return 'Draft only. No send decision requested.';
-  if (!prospect.allowAutoSend) return 'Needs approval because this prospect is not allowlisted for auto-send.';
-  if (!prospect.email && prospect.channel === 'email') return 'Needs approval because no email is available.';
-  return 'Allowlisted for auto-send if sender is configured and daily cap allows it.';
+  return 'Human approval is required for every outbound message; an allowlist or daily cap does not authorize sending.';
 }
 
 export function buildOutboundQueue({
@@ -267,43 +265,28 @@ export function buildOutboundQueue({
       || clean(autopilot.promotion?.destinationUrl)
       || 'https://portal.3dvr.tech/free-page/'
   };
-  const cap = Math.max(0, Math.floor(toNumber(dailyCap, 3)));
-  let autoSendSlots = cap;
-
+  // Retain the legacy mode argument for callers, but never plan a send based
+  // on allowlists, time windows, or caps. No authenticated per-message
+  // approval receipt is currently available in this dispatch lane.
   return prospects
     .map((item, index) => normalizeProspect(item, index))
-    .map(prospect => {
-      const score = scoreProspect(prospect);
-      const eligibleForAutoSend = safeMode === 'allowlisted-auto-send'
-        && prospect.allowAutoSend
-        && !prospect.lastContactedAt
-        && (prospect.email || prospect.channel !== 'email');
-      const autoSendPlanned = eligibleForAutoSend && autoSendSlots > 0;
-      if (autoSendPlanned) autoSendSlots -= 1;
-      const status = safeMode === 'draft-only'
-        ? 'drafted'
-        : autoSendPlanned
-          ? 'ready-to-send'
-          : 'needs-approval';
-
-      return {
-        ...prospect,
-        score,
-        offer: offer.title,
-        offerProfile: offer.profile,
-        suggestedPrice: offer.suggestedPrice,
-        autopilotRunId: offer.runId,
-        clientReferenceId: offer.clientReferenceId,
-        destinationUrl: offer.destinationUrl,
-        subject: buildSubject(prospect, offer),
-        messageDraft: buildMessage(prospect, offer),
-        approvalStatus: status,
-        approvalReason: buildApprovalReason(prospect, safeMode),
-        eligibleForAutoSend,
-        autoSendPlanned,
-        generatedAt: now.toISOString()
-      };
-    })
+    .map(prospect => ({
+      ...prospect,
+      score: scoreProspect(prospect),
+      offer: offer.title,
+      offerProfile: offer.profile,
+      suggestedPrice: offer.suggestedPrice,
+      autopilotRunId: offer.runId,
+      clientReferenceId: offer.clientReferenceId,
+      destinationUrl: offer.destinationUrl,
+      subject: buildSubject(prospect, offer),
+      messageDraft: buildMessage(prospect, offer),
+      approvalStatus: safeMode === 'draft-only' ? 'drafted' : 'needs-approval',
+      approvalReason: buildApprovalReason(prospect, safeMode),
+      eligibleForAutoSend: false,
+      autoSendPlanned: false,
+      generatedAt: now.toISOString()
+    }))
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
 }
 
@@ -393,69 +376,19 @@ export async function dispatchOutboundWebhook({
   token = '',
   fetchImpl = fetch
 } = {}) {
-  const ready = queue.filter(item => item.autoSendPlanned);
-  const result = {
+  // Deliberately fail closed even for a forged queue entry with
+  // autoSendPlanned=true. This legacy webhook has no authenticated,
+  // single-use approval receipt bound to recipient and message content.
+  // Preparing drafts remains safe; actual sends must use a separately
+  // reviewed identity-bound path after receipt verification is implemented.
+  return {
     attempted: false,
     sent: false,
-    skipped: false,
+    skipped: true,
     failed: false,
     sentCount: 0,
-    reason: ''
+    reason: 'outbound webhook disabled pending authenticated per-message approval and delivery verification'
   };
-
-  if (!ready.length) {
-    result.skipped = true;
-    result.reason = 'no allowlisted prospects planned for auto-send';
-    return result;
-  }
-  if (!clean(webhookUrl)) {
-    result.skipped = true;
-    result.reason = 'sender webhook not configured';
-    return result;
-  }
-
-  result.attempted = true;
-  try {
-    const response = await fetchImpl(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
-      body: JSON.stringify({
-        mode: 'outbound-autopilot',
-        messages: ready.map(item => ({
-          id: item.id,
-          channel: item.channel,
-          to: item.email,
-          subject: item.subject,
-          body: item.messageDraft,
-          metadata: {
-            score: item.score,
-            segment: item.segment,
-            offer: item.offer,
-            offerProfile: item.offerProfile,
-            suggestedPrice: item.suggestedPrice,
-            autopilotRunId: item.autopilotRunId,
-            clientReferenceId: item.clientReferenceId,
-            destinationUrl: item.destinationUrl
-          }
-        }))
-      })
-    });
-    const text = await response.text();
-    if (!response.ok) {
-      throw new Error(text || `sender webhook returned ${response.status}`);
-    }
-    result.sent = true;
-    result.sentCount = ready.length;
-    result.reason = 'sent via sender webhook';
-    return result;
-  } catch (error) {
-    result.failed = true;
-    result.reason = `send failed: ${error.message}`;
-    return result;
-  }
 }
 
 export function buildOutboundSummary({
@@ -510,6 +443,6 @@ ${firstDraft ? [
 
 ## Guardrail
 
-Auto-send requires mode \`allowlisted-auto-send\`, an allowlisted prospect, daily cap room, and a configured sender webhook.
+Auto-send is disabled pending authenticated per-message human approval and provider delivery verification. Allowlisting, campaign caps, and configured webhooks do not authorize sending.
 `;
 }

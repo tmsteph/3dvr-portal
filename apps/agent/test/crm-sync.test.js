@@ -243,3 +243,39 @@ test('normalizeEmail strips mailto and rejects non-email contacts', () => {
   assert.equal(normalizeEmail('mailto:Owner@Example.com'), 'owner@example.com');
   assert.equal(normalizeEmail('https://example.com/contact'), '');
 });
+
+test('writeCrmSync rejects missing or negative Gun acknowledgments', async () => {
+  const ackRoot = ack => ({
+    get() { return { put(_payload, cb) { cb(ack); } }; }
+  });
+  const payload = {
+    records: [{ id: 'synthetic-record' }],
+    touches: [{ id: 'synthetic-touch' }]
+  };
+  for (const ack of [undefined, null, { ok: false }, { ok: 0 }, { ok: -1 }, { ok: 'yes' }, { err: 'synthetic rejection' }]) {
+    const result = await writeCrmSync(payload, {
+      crmRoot: ackRoot(ack),
+      touchRoot: ackRoot(ack),
+      timeoutMs: 100
+    });
+    assert.equal(result.records, 0);
+    assert.equal(result.touches, 0);
+    assert.equal(result.errors.length, 2);
+  }
+});
+
+test('legacy closed lead does not invent a won deal, customer, or paid outcome', () => {
+  const record = buildCrmRecord({
+    name: 'Synthetic closed lead',
+    link: 'https://example.test',
+    contact: 'mailto:closed@example.test',
+    status: 'closed',
+    date: '2026-10-23'
+  }, { now: '2026-10-23T12:00:00.000Z' });
+  assert.equal(record.status, 'Closed');
+  assert.equal(record.warmth, '');
+  assert.equal(record.pilotStatus, '');
+  assert.match(record.nextBestAction, /do not contact/i);
+  assert.match(record.nextBestAction, /verify the outcome and payment/i);
+  assert.doesNotMatch(record.status, /won|paid|customer/i);
+});

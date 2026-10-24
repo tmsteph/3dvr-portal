@@ -114,7 +114,7 @@ test('long SQLite work renews an expired initial claim against a competing worke
   assert.equal((await readTask('slow-task', options)).status, 'completed');
 });
 
-test('an expired claim is recovered after a worker process restart', async (t) => {
+test('an expired running claim requires review instead of automatic replay', async (t) => {
   const now = Date.now();
   const options = await queueOptions(t, {
     rootNode: fakeRoot(),
@@ -122,7 +122,7 @@ test('an expired claim is recovered after a worker process restart', async (t) =
     deviceId: 'replacement-worker',
     now: now + 100,
   });
-  await enqueueTask('recover me', {
+  await enqueueTask('potentially side-effectful work', {
     ...options,
     now,
     id: 'restart-task',
@@ -132,16 +132,109 @@ test('an expired claim is recovered after a worker process restart', async (t) =
   assert.ok(sqliteQueue.claimTask('restart-task', 'dead-process-token', 'dead-worker', now + 10, now, options));
 
   let executions = 0;
-  await runWorkerOnce({
+  const results = await runWorkerOnce({
     ...options,
     runAgentTaskImpl: async () => {
       executions += 1;
-      return { ok: true, result: { stdout: 'recovered' } };
+      return { ok: true, result: { stdout: 'should not execute' } };
     },
   });
 
-  assert.equal(executions, 1);
-  assert.equal((await readTask('restart-task', options)).status, 'completed');
+  assert.equal(executions, 0, 'no automatic replay after a worker crash');
+  assert.equal(results.length, 0);
+  assert.equal((await readTask('restart-task', options)).status, 'running');
+  assert.equal(
+    sqliteQueue.claimTask('restart-task', 'replacement-token', 'replacement-worker', now + 200, now + 100, options),
+    null,
+    'direct SQLite claim also fails closed on an expired running lease',
+  );
+});
+
+test('newer GUN import cannot revive an expired running task', async (t) => {
+  const now = Date.now();
+  const options = await queueOptions(t, {
+    rootNode: fakeRoot(),
+    workerCapabilities: 'openai',
+    deviceId: 'replacement-worker',
+    now: now + 200,
+  });
+  await enqueueTask('side effects may already have happened', {
+    ...options, id: 'expired-import-task', backend: 'openai', now,
+  });
+  assert.ok(sqliteQueue.claimTask(
+    'expired-import-task', 'original-claim', 'original-worker', now + 10, now, options,
+  ));
+
+  // A newer GUN mirror could previously overwrite the expired running row
+  // with queued state, bypassing the fail-closed worker claim restriction.
+  const imported = sqliteQueue.importTask({
+    id: 'expired-import-task',
+    status: 'queued',
+    task: 'same work, later GUN update',
+    backend: 'openai',
+    updatedAt: new Date(now + 100).toISOString(),
+  }, { ...options, now: now + 200 });
+  assert.equal(imported, false, 'expired running work must remain review-only');
+
+  const preserved = await readTask('expired-import-task', options);
+  assert.equal(preserved.status, 'running');
+  assert.equal(preserved.workerDeviceId, 'original-worker');
+  let executions = 0;
+  const results = await runWorkerOnce({
+    ...options,
+    runAgentTaskImpl: async () => {
+      executions += 1;
+      return { ok: true, result: { stdout: 'must not replay' } };
+    },
+  });
+  assert.equal(executions, 0);
+  assert.equal(results.length, 0);
+});
+
+test('SQLite enqueue and direct writes cannot revive expired running work', async (t) => {
+  const now = Date.now();
+  const options = await queueOptions(t, {
+    rootNode: fakeRoot(),
+    workerCapabilities: 'openai',
+    deviceId: 'replacement-worker',
+    now: now + 200,
+  });
+  await enqueueTask('possibly side-effectful task', {
+    ...options, id: 'claimed-write-task', backend: 'openai', now,
+  });
+  assert.ok(sqliteQueue.claimTask(
+    'claimed-write-task', 'original-claim', 'original-worker', now + 10, now, options,
+  ));
+
+  // Both ordinary enqueue and low-level writeTask previously bypassed the
+  // fail-closed claim and GUN-import guards by upserting the running row.
+  await assert.rejects(
+    enqueueTask('duplicate work', {
+      ...options, id: 'claimed-write-task', backend: 'openai', now: now + 100,
+    }),
+    /active task claim required/,
+  );
+  assert.throws(() => sqliteQueue.writeTask({
+    id: 'claimed-write-task',
+    task: 'direct replay',
+    status: 'queued',
+    backend: 'openai',
+    updatedAt: new Date(now + 150).toISOString(),
+  }, options), /active task claim required/);
+
+  const preserved = await readTask('claimed-write-task', options);
+  assert.equal(preserved.status, 'running');
+  assert.equal(preserved.workerDeviceId, 'original-worker');
+  let executions = 0;
+  const results = await runWorkerOnce({
+    ...options,
+    runAgentTaskImpl: async () => {
+      executions += 1;
+      return { ok: true, result: { stdout: 'must not replay' } };
+    },
+  });
+  assert.equal(executions, 0);
+  assert.equal(results.length, 0);
 });
 
 test('SQLite worker imports legacy GUN tasks and mirrors completion', async (t) => {
