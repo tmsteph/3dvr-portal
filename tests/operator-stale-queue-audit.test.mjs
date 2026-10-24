@@ -42,6 +42,18 @@ test('read-only audit classifies stored running leases without leaking identifie
   assert.equal(JSON.stringify(report).includes('private task text'), false);
 });
 
+test('lease expiry boundary and malformed leases stay out of executable queue', () => {
+  const records = [
+    { id: 'boundary', status: 'running', claimExpiresAt: now },
+    { id: 'malformed', status: 'running', claimExpiresAt: 'invalid' },
+    { id: 'missing', status: 'running' },
+  ];
+  const report = summarizeQueue(records, env, now);
+  assert.deepEqual(report.runningClaims, { active: 0, expired: 1, unknown: 2 });
+  assert.deepEqual(report.queuedReviews, []);
+  assert.equal(report.statusCounts.running, 3);
+});
+
 test('old unsafe shell task is review-only even with historical approval', () => {
   const task = {
     id: 'private-task-id', status: 'queued', backend: 'shell',
