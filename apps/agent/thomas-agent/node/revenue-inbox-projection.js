@@ -25,7 +25,10 @@ function projectInboxMessage(db, message = {}) {
     prospectId: prospect.id,
     toState: state,
     type: `inbox_${state}`,
-    idempotencyKey: `inbox:${messageId}:${state}`,
+    // A single provider bounce may list multiple recipients with the same message ID.
+    // Scope deduplication to the canonical prospect so each recipient can be
+    // updated once without colliding with another prospect's ledger event.
+    idempotencyKey: `inbox:${messageId}:${state}:${prospect.id}`,
     payload: { messageId, uid: text(message.uid), subject: text(message.subject) },
   }) };
 }
