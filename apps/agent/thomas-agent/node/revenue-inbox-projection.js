@@ -9,7 +9,7 @@ function inboxState(message = {}) {
   const preview = lower(message.preview);
   // A delivery failure can quote the original message's unsubscribe footer.
   // It must be recorded as a bounce, not mistaken for the recipient opting out.
-  if (/mailer-daemon|postmaster/.test(sender) ||
+  if (/mailer-daemon|postmaster/.test(sender) || /mailer-daemon|postmaster/.test(lower(message.fromEmail)) ||
       /delivery status notification|undeliver|delivery failure|\bbounce\b/.test(subject)) {
     return 'bounced';
   }
@@ -27,9 +27,12 @@ function projectInboxMessage(db, message = {}) {
   const state = inboxState(message);
   // Recipient/prospect hints can be stale on an ordinary inbound reply.
   // Only delivery failures should prefer the original outbound recipient.
+  // Inbound replies and opt-outs must never borrow an outbound recipient hint
+  // when the actual sender is missing. Otherwise stale hints can update the
+  // wrong prospect, including incorrectly recording consent or a reply.
   const contact = lower(state === 'bounced'
     ? message.prospectEmail || message.recipient || message.originalRecipient || message.fromEmail
-    : message.fromEmail || message.prospectEmail || message.recipient || message.originalRecipient);
+    : message.fromEmail);
   const messageId = text(message.messageId || message.uid);
   if (!contact || !messageId) throw new Error('Inbox projection requires contact and messageId');
   const prospect = findProspectByContact(db, contact);
