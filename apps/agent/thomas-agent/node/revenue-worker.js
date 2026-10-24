@@ -72,7 +72,20 @@ async function run(triggerId = process.env.THREEDVR_TRIGGER_ID || `manual:${Date
   const db = openLedger();
   try {
     const started = startRun(db, { triggerId, releaseSha: releaseSha() });
-    if (started.replayed) return { ...started.run, replayed: true };
+    if (started.replayed) {
+      // A replay of a finished trigger is safe to report as historical.
+      // A still-running trigger may be active or orphaned after a crash;
+      // never imply its work completed or silently execute it again.
+      return {
+        ...started.run,
+        replayed: true,
+        ...(started.run.status === 'running' ? {
+          blocked: true,
+          requiresReview: true,
+          reason: 'Trigger already running or interrupted; reconcile the original run before retrying',
+        } : {}),
+      };
+    }
     try {
       const inbox = consumeInboxState(db, process.env.THREEDVR_INBOX_STATE_FILE);
       const delivery = await deliverCandidate(db, options);
