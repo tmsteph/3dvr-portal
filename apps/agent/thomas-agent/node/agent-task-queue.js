@@ -94,8 +94,10 @@ function normalizeRiskClass(value) {
 
 function defaultApprovalStatus(record = {}) {
   if (normalizeText(record.approvalStatus)) return normalizeText(record.approvalStatus);
-  if (record.unsafe) return 'approved';
-  return APPROVAL_REQUIRED_RISKS.has(normalizeRiskClass(record.riskClass)) ? 'required' : 'not_required';
+  // --unsafe requests broader execution privileges; it is not proof of a
+  // human approval. Keep such work blocked until explicitly reviewed.
+  return (record.unsafe || APPROVAL_REQUIRED_RISKS.has(normalizeRiskClass(record.riskClass)))
+    ? 'required' : 'not_required';
 }
 
 function normalizeTenantRecord(record = {}) {
@@ -242,7 +244,8 @@ function buildTaskArgs(record = {}, workerOptions = {}) {
   if (record.thinking || workerOptions.thinking) args.push('--thinking', record.thinking || workerOptions.thinking);
   const maxRuntimeMs = parseInteger(record.maxRuntimeMs || workerOptions.maxRuntimeMs, 0);
   if (maxRuntimeMs > 0) args.push('--timeout-ms', String(maxRuntimeMs));
-  if (record.unsafe || workerOptions.unsafe) args.push('--unsafe');
+  // A worker-wide unsafe flag must not silently upgrade every queued task.
+  if (record.unsafe) args.push('--unsafe');
   args.push(record.task);
   return args;
 }
@@ -278,7 +281,12 @@ function canWorkerRunTask(record = {}, options = {}) {
     };
   }
 
-  const riskClass = normalizeRiskClass(record.riskClass);
+  const declaredRiskClass = normalizeRiskClass(record.riskClass);
+  // Unsafe execution is at least an external write, even if the producer
+  // mislabeled it as a draft/read-only task or the worker was started unsafe.
+  const riskClass = record.unsafe || options.unsafe
+    ? (APPROVAL_REQUIRED_RISKS.has(declaredRiskClass) ? declaredRiskClass : 'external_write')
+    : declaredRiskClass;
   if (!profile.riskClasses.includes(riskClass)) {
     return {
       ok: false,
