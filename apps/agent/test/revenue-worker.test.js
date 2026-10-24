@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { run, sendCandidate } = require('../thomas-agent/node/revenue-worker');
-const { openLedger } = require('../thomas-agent/node/revenue-ledger');
+const { openLedger, startRun } = require('../thomas-agent/node/revenue-ledger');
 
 function candidate(filePath) {
   fs.writeFileSync(filePath, JSON.stringify({
@@ -34,6 +34,43 @@ test('worker records one no-send run per trigger', async () => {
     else process.env.THREEDVR_REVENUE_LEDGER_FILE = previous;
     if (delivery === undefined) delete process.env.THREEDVR_REVENUE_DELIVERY_ENABLED;
     else process.env.THREEDVR_REVENUE_DELIVERY_ENABLED = delivery;
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('interrupted revenue trigger replay is explicitly blocked without side effects', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-interrupted-'));
+  const previous = process.env.THREEDVR_REVENUE_LEDGER_FILE;
+  const ledger = path.join(tmp, 'ledger.sqlite');
+  process.env.THREEDVR_REVENUE_LEDGER_FILE = ledger;
+  try {
+    const db = openLedger({ filePath: ledger });
+    let originalId;
+    try {
+      originalId = startRun(db, { triggerId: 'interrupted-canary', releaseSha: 'synthetic' }).run.id;
+    } finally { db.close(); }
+
+    const replay = await run('interrupted-canary', {
+      send: async () => { throw new Error('replayed trigger must not send'); },
+    });
+    assert.equal(replay.id, originalId);
+    assert.equal(replay.status, 'running');
+    assert.equal(replay.replayed, true);
+    assert.equal(replay.blocked, true);
+    assert.equal(replay.requiresReview, true);
+    assert.match(replay.reason, /reconcile the original run/i);
+
+    const after = openLedger({ filePath: ledger });
+    try {
+      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM revenue_runs').get().n, 1);
+      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM prospects').get().n, 0);
+      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0);
+      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM projection_outbox').get().n, 0);
+      assert.equal(after.prepare('SELECT status FROM revenue_runs WHERE id = ?').get(originalId).status, 'running');
+    } finally { after.close(); }
+  } finally {
+    if (previous === undefined) delete process.env.THREEDVR_REVENUE_LEDGER_FILE;
+    else process.env.THREEDVR_REVENUE_LEDGER_FILE = previous;
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
