@@ -66,7 +66,7 @@ export async function runOpenClaw(request, options = {}) {
     child.stdout.on('data', chunk => {
       try {
         received += Buffer.byteLength(chunk);
-        if (received > 400000) throw new Error('output limit');
+        if (received > 8 * 1024 * 1024) throw new Error('output limit');
         output += decoder.write(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
         let end;
         while ((end = output.indexOf('\n')) >= 0) {
