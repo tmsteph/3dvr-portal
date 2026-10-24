@@ -115,3 +115,36 @@ test('recipient-only delivery failures are consumed and block unsafe follow-ups'
     assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type = 'inbox_bounced'").get().n, 2);
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
+
+test('ordinary replies cannot use unrelated bounce recipient hints to advance another prospect', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-bounce-hints-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const sender = createProspect(db, { name: 'Sender', contact: 'sender@test.example' }).prospect;
+    const unrelated = createProspect(db, { name: 'Unrelated', contact: 'unrelated@test.example' }).prospect;
+    for (const [index, prospect] of [sender, unrelated].entries()) {
+      for (const state of ['verified', 'eligible', 'sent']) {
+        transitionProspect(db, {
+          prospectId: prospect.id, toState: state,
+          idempotencyKey: `reply-hints:${index}:${state}`,
+        });
+      }
+    }
+    const filePath = path.join(tmp, 'inbox-state.json');
+    fs.writeFileSync(filePath, JSON.stringify({ messages: {
+      'ordinary-reply': {
+        fromEmail: 'sender@test.example',
+        subject: 'Re: proposal',
+        bounceEmails: ['unrelated@test.example'],
+      },
+    } }));
+    assert.deepEqual(consumeInboxState(db, filePath),
+      { scanned: 1, matched: 1, unmatched: 0, errors: [] });
+    assert.equal(db.prepare('SELECT state FROM prospects WHERE id = ?').get(sender.id).state, 'replied');
+    assert.equal(db.prepare('SELECT state FROM prospects WHERE id = ?').get(unrelated.id).state, 'sent');
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type = 'inbox_replied'").get().n, 1);
+    assert.deepEqual(consumeInboxState(db, filePath),
+      { scanned: 1, matched: 1, unmatched: 0, errors: [] });
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type = 'inbox_replied'").get().n, 1);
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
