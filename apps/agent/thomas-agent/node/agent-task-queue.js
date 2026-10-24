@@ -287,7 +287,11 @@ function canWorkerRunTask(record = {}, options = {}) {
     };
   }
 
-  if (record.approvalStatus === 'required') {
+  const approvalStatus = normalizeText(record.approvalStatus).toLowerCase();
+  // Imported and historical records can contain denied, pending, expired, or
+  // missing approval states. Never treat those as implicit authorization.
+  if ((approvalStatus && !['approved', 'not_required'].includes(approvalStatus))
+    || (APPROVAL_REQUIRED_RISKS.has(riskClass) && approvalStatus !== 'approved')) {
     return {
       ok: false,
       reason: `approval required for ${riskClass}`,
