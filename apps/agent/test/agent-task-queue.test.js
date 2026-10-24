@@ -122,7 +122,7 @@ test('concrete backend capability cannot be hidden by a weaker requires list', (
   }).ok, false);
 });
 
-test('worker never executes denied, pending, or unapproved high-risk tasks', () => {
+test('worker blocks high-risk tasks without authenticated human approval provenance', () => {
   const worker = {
     workerCapabilities: 'node,codex',
     workerRiskClasses: 'read_only,draft,workspace_write,external_write,money,credential',
@@ -132,7 +132,12 @@ test('worker never executes denied, pending, or unapproved high-risk tasks', () 
       const decision = canWorkerRunTask({ backend: 'codex', riskClass, approvalStatus }, worker);
       assert.equal(decision.ok, false, `${riskClass}/${approvalStatus || 'missing'} must be blocked`);
     }
-    assert.equal(canWorkerRunTask({ backend: 'codex', riskClass, approvalStatus: 'approved' }, worker).ok, true);
+    const forged = canWorkerRunTask({ backend: 'codex', riskClass, approvalStatus: 'approved' }, worker);
+    assert.equal(forged.ok, false, `${riskClass} cannot trust a producer-supplied approved string`);
+    assert.match(forged.reason, /authenticated human approval verification unavailable/);
+    assert.equal(canWorkerRunTask({
+      backend: 'codex', riskClass: 'draft', unsafe: true, approvalStatus: 'approved',
+    }, worker).ok, false, 'unsafe execution cannot use an unverified approval string');
   }
   for (const approvalStatus of ['required', 'pending', 'denied', 'expired']) {
     assert.equal(canWorkerRunTask({ backend: 'codex', riskClass: 'read_only', approvalStatus }, worker).ok, false);
