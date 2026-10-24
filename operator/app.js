@@ -12,6 +12,7 @@ import { recallOperatorMemoryBestEffort, rememberOperatorTurnBestEffort } from '
 import { paintOperatorMarkdown } from './markdown.js';
 import { activeConversationPath, appendConversationNode, conversationSiblings, conversationTreeRows, ensureConversationTree, selectConversationNode } from './conversation-tree.js';
 
+document.getElementById('operator-boot-loading')?.remove();
 const form=document.querySelector('#operator-form'), input=document.querySelector('#operator-input'), log=document.querySelector('#operator-log'), status=document.querySelector('#operator-status'), syncStatus=document.querySelector('#operator-sync'), latest=document.querySelector('#operator-latest'), historyPanel=document.querySelector('#conversation-history'), historyList=document.querySelector('#history-list'), historyEmpty=document.querySelector('#history-empty'), showHistory=document.querySelector('#show-history'), treePanel=document.querySelector('#conversation-tree'), treeList=document.querySelector('#conversation-tree-list'), showTree=document.querySelector('#show-tree');
 window.AuthIdentity?.syncStorageFromSharedIdentity?.(localStorage);
 const modeSelect=document.querySelector('#operator-mode');

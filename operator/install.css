@@ -1,6 +1,6 @@
 .operator-install-entry { display: flex; justify-content: flex-end; padding: .25rem 0; }
 .operator-install-entry[hidden] { display: none; }
-#operator-install { padding: .5rem .8rem; font-size: .85rem; }
+#operator-install { min-height: 44px; padding: .5rem .8rem; font-size: .85rem; }
 #operator-install-help { box-sizing: border-box; width: min(460px, calc(100% - 28px)); max-height: 85svh; overflow: auto; border: 1px solid #2a4059; border-radius: 18px; background: #0a1625; color: #eef7ff; padding: 1.25rem; line-height: 1.6; }
 #operator-install-help::backdrop { background: #000b; }
 #operator-install-help h2 { margin-top: 0; }
