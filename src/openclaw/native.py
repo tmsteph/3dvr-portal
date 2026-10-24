@@ -4,6 +4,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import select
 import shutil
@@ -42,7 +43,9 @@ def command(binary):
     config = HOME / 'config.toml'
     data = tomllib.loads(config.read_text()) if config.exists() else {}
     for name in data.get('mcp_servers', {}):
-        args.extend(['-c', 'mcp_servers.' + json.dumps(name) + '.enabled=false'])
+        if not re.fullmatch(r'[A-Za-z0-9_-]+', name):
+            raise ValueError('Unsupported MCP configuration name')
+        args.extend(['-c', 'mcp_servers.' + name + '.enabled=false'])
     return args
 
 
@@ -130,7 +133,6 @@ def run_turn(client, thread_id, request, on_delta):
         'input': [{'type': 'text', 'text': request['message']}], 'model': MODEL,
         'effort': 'medium', 'approvalPolicy': 'never', 'sandboxPolicy': {'type': 'readOnly'}})
     turn_id = None
-    parts = {}
     final = {}
     size = 0
     while True:
@@ -152,7 +154,6 @@ def run_turn(client, thread_id, request, on_delta):
             size += len(text.encode())
             if size > MAX_REPLY:
                 raise ValueError('Reply limit')
-            parts[params['itemId']] = parts.get(params['itemId'], '') + text
             if text:
                 on_delta(text)
         elif method == 'item/started':

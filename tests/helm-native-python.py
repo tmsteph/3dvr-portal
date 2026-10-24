@@ -100,6 +100,17 @@ class NativeTests(unittest.TestCase):
                 run.side_effect = None
                 self.assertTrue(native.main(b)['ok'])
 
+    def test_mcp_overrides_use_cli_dotted_names_and_do_not_change_the_saved_config(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            source = '[mcp_servers.local_tools]\ncommand = "existing-tool"\n'
+            (home / 'config.toml').write_text(source)
+            with patch.object(native, 'HOME', home):
+                args = native.command('/existing/codex')
+                self.assertIn('mcp_servers.local_tools.enabled=false', args)
+                self.assertIn('shell_tool', args)
+                self.assertEqual((home / 'config.toml').read_text(), source)
+
     def test_status_never_starts_inference_and_expiry_prevents_dispatch(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)

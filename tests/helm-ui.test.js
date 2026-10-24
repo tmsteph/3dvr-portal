@@ -9,7 +9,7 @@ import { readHelmResponse } from '../helm/stream.js';
 const source = (await readFile(new URL('../helm/app.js', import.meta.url), 'utf8')).replace(/^import .*;\n/gm, '');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
-function screen(result, status = 200, signedIn = true, gate) {
+function screen(result, status = 200, signedIn = true, gate, sessions = new Map()) {
   const elements = new Map();
   const events = new Map();
   const saved = [];
@@ -31,6 +31,7 @@ function screen(result, status = 200, signedIn = true, gate) {
     window: { addEventListener(event, fn) { events.set(`window:${event}`, fn); } },
     localStorage: { getItem: key => storage.get(key) }, crypto: { randomUUID }, AbortSignal,
     Date: Clock,
+    sessionStorage: { getItem: key => sessions.get(key), setItem: (key, value) => sessions.set(key, value) },
     setInterval: (fn, delay) => { const id = Symbol(); intervals.set(id, { fn, delay }); return id; },
     clearInterval: id => intervals.delete(id), createOutbox, readHelmResponse,
     openHelmMessageStore: async () => ({ save: async record => saved.push(structuredClone(record)), close() {} }),
@@ -43,7 +44,7 @@ function screen(result, status = 200, signedIn = true, gate) {
       return { ok: reply.status === 200, status: reply.status, json: async () => reply.body };
     }
   });
-  return { element, saved, requests, ready: flush(),
+  return { element, saved, requests, sessions, ready: flush(),
     activeProgress: () => [...intervals.values()].filter(item => item.delay === 1000).length,
     advance: ms => { clock += ms; for (const item of intervals.values()) if (item.delay === 1000) item.fn(); },
     changeAccount: () => events.get('window:storage')({ key: 'userPubKey' }),
@@ -262,4 +263,19 @@ test('engine cannot change during an in-flight turn', async () => {
   assert.equal(ui.element('engine').value, 'openclaw');
   release(); await sending;
   assert.equal(ui.element('engine').disabled, false);
+});
+
+test('reload restores native engine and its conversation session', async () => {
+  const result = { ok: true, gateway: 'reachable', chatEnabled: true, reply: 'Done' };
+  const first = screen(result); await first.ready;
+  first.changeEngine('codex'); await flush(); await flush();
+  await first.submit('Remember this conversation');
+  const original = first.requests.filter(item => item.action === 'chat').at(-1);
+  const reloaded = screen(result, 200, true, undefined, first.sessions); await reloaded.ready;
+  assert.equal(reloaded.element('engine').value, 'codex');
+  assert.equal(reloaded.requests[0].engine, 'codex');
+  await reloaded.submit('Continue');
+  const continued = reloaded.requests.find(item => item.action === 'chat');
+  assert.equal(continued.sessionId, original.sessionId);
+  assert.equal(continued.engine, 'codex');
 });
