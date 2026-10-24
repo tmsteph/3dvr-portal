@@ -14,7 +14,9 @@ on:
 jobs:
   smoke:
     name: Run Workboard unit + Playwright E2E + smoke tests
-    runs-on: ubuntu-latest
+    # Playwright 1.56.1 does not ship Chromium for Ubuntu 26.04 yet.
+    # Pin a supported runner instead of depending on ubuntu-latest drift.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Checkout repository
