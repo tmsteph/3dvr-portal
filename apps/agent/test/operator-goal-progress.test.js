@@ -94,8 +94,13 @@ test('durable goals require outcome checks; legacy tasks retain finish behavior'
   store.claimTask('legacy', 'legacy-claim', 'worker', 2000, 1000, options);
   assert.throws(() => store.initializeTaskGoal('legacy', 'legacy-claim',
     { title: 'No checks', steps: [] }, options), /checks required/);
+  // A terminal record must carry the original claimed intent, even when
+  // the legacy task has no durable goal acceptance checks.
   assert.equal(store.finishTask('legacy', 'legacy-claim',
-    { id: 'legacy', status: 'completed', updatedAt: 'now' }, options), true);
+    { id: 'legacy', status: 'completed', updatedAt: 'now' }, options), false);
+  const claimed = store.readTask('legacy', options);
+  assert.equal(store.finishTask('legacy', 'legacy-claim',
+    { ...claimed, status: 'completed', updatedAt: 'now' }, options), true);
 });
 
 test('expired claim cannot finalize even a fully verified goal', t => {
