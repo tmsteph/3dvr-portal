@@ -870,7 +870,10 @@ test('signed HTTP tasks keep prompts and results out of the public relay and mem
   const id='operator-http-private-test';
   await enqueueTask('private prompt', {...options,id,backend:'codex'});
   await runWorkerOnce(options);
-  assert.equal((await readTask(id,options)).status,'completed');
+  const finished = await readTask(id, options);
+  assert.equal(finished.status, 'completed');
+  assert.ok(Number.isFinite(Date.parse(finished.startedAt)), 'claimed start timestamp is preserved');
+  assert.ok(Number.isFinite(Date.parse(finished.completedAt)), 'terminal completion timestamp is preserved');
   assert.equal(await readTask(id,gunOptions),null);
   assert.equal(lifeEvents,0);
   await enqueueTask('forged public replacement', {...gunOptions,id,backend:'codex',now:Date.now()+60000});
