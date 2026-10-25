@@ -57,6 +57,32 @@ test('SQLite queue survives reopen and preserves exact owner and task identifier
   assert.equal((await readTask('a-b', options)).task, 'second');
 });
 
+test('duplicate SQLite enqueue cannot replace pending task instructions or approval state', async (t) => {
+  const options = await queueOptions(t);
+  await enqueueTask('Original read-only work', {
+    ...options, id: 'idempotent-pending', backend: 'health',
+    riskClass: 'read_only', approvalStatus: 'not_required',
+  });
+  await assert.rejects(
+    enqueueTask('Different external-write work', {
+      ...options, id: 'idempotent-pending', backend: 'codex',
+      riskClass: 'external_write', approvalStatus: 'approved',
+    }),
+    /task ID already exists/,
+  );
+  const original = await readTask('idempotent-pending', options);
+  assert.equal(original.task, 'Original read-only work');
+  assert.equal(original.backend, 'health');
+  assert.equal(original.riskClass, 'read_only');
+  assert.equal(original.approvalStatus, 'not_required');
+
+  // A deliberate edit to an unclaimed queued task still uses the existing
+  // updateTask path, without weakening enqueue idempotency.
+  const edited = await updateTask('idempotent-pending', { task: 'Reviewed edit' }, options);
+  assert.equal(edited.task, 'Reviewed edit');
+  assert.equal((await readTask('idempotent-pending', options)).task, 'Reviewed edit');
+});
+
 test('native SQLite terminal tasks cannot be replayed by duplicate IDs or GUN imports', async (t) => {
   const options = await queueOptions(t, {
     rootNode: fakeRoot(),
