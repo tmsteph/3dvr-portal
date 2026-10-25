@@ -235,8 +235,8 @@ test('GUN mirrors cannot invent unclaimed running or terminal SQLite receipts', 
     updatedAt: new Date(now).toISOString(),
   };
   assert.equal(sqliteQueue.importTask(original, options), true);
-  // The existing legacy terminal update remains compatible, but cannot be
-  // replayed or replaced after its first transition.
+  // A matching unverified legacy terminal mirror holds the task for review;
+  // it cannot manufacture completion or be reopened by later relay writes.
   assert.equal(sqliteQueue.importTask({
     ...original, status: 'completed', updatedAt: new Date(now + 1000).toISOString(),
   }, options), true);
@@ -246,7 +246,10 @@ test('GUN mirrors cannot invent unclaimed running or terminal SQLite receipts', 
   assert.equal(sqliteQueue.importTask({
     ...original, status: 'queued', updatedAt: new Date(now + 3000).toISOString(),
   }, options), false);
-  assert.equal((await readTask(id, options)).status, 'completed');
+  const held = await readTask(id, options);
+  assert.equal(held.status, 'review_required');
+  assert.equal(held.legacyMirrorStatus, 'completed');
+  assert.equal(held.resultSummary, undefined);
 });
 
 test('GUN terminal mirrors cannot rewrite queued intent while claiming completion', async (t) => {
@@ -284,8 +287,11 @@ test('GUN terminal mirrors cannot rewrite queued intent while claiming completio
     ...original, status: 'completed',
     updatedAt: new Date(now + 2000).toISOString(),
     resultSummary: 'historical result',
-  }, options), true, 'unchanged legacy intent can still reach a terminal state');
-  assert.equal((await readTask(original.id, options)).status, 'completed');
+  }, options), true, 'unchanged legacy intent is held, not marked complete');
+  const held = await readTask(original.id, options);
+  assert.equal(held.status, 'review_required');
+  assert.equal(held.legacyMirrorStatus, 'completed');
+  assert.equal(held.resultSummary, undefined);
 });
 
 test('GUN-imported terminal tasks cannot be reopened by a newer queued mirror', async (t) => {
@@ -298,17 +304,18 @@ test('GUN-imported terminal tasks cannot be reopened by a newer queued mirror', 
       updatedAt: new Date(now + index).toISOString(),
     };
     assert.equal(sqliteQueue.importTask(initial, options), true);
-    // A legitimate GUN status update may finish a still-queued imported row.
+    // An unverified GUN terminal mirror holds the queued row for review.
     assert.equal(sqliteQueue.importTask({
       ...initial, status: terminal, updatedAt: new Date(now + 1000 + index).toISOString(),
     }, options), true);
-    // A stale GUN replica with a newer timestamp must not restart finished work.
+    // A newer GUN replica must not restart quarantined work.
     assert.equal(sqliteQueue.importTask({
       ...initial, task: 'Replay external effects', status: 'queued',
       updatedAt: new Date(now + 2000 + index).toISOString(),
     }, options), false);
     const stored = await readTask(id, options);
-    assert.equal(stored.status, terminal);
+    assert.equal(stored.status, 'review_required');
+    assert.equal(stored.legacyMirrorStatus, terminal);
     assert.equal(stored.task, 'Original work');
     assert.equal(stored.queueSource, 'gun');
   }
@@ -803,12 +810,46 @@ test('newer GUN requeue cannot replay a failed terminal import', async (t) => {
   const local = await readTask('retry-task', options);
   const remote = await readTask('retry-task', gunOptions);
   // The legacy GUN source may still show a retry request, but the durable
-  // SQLite execution record must stay terminal until a reviewed new task ID
+  // SQLite execution record must stay held until a reviewed new task ID
   // is explicitly authorized. A newer mirror timestamp is not authorization.
-  assert.equal(local.status, 'failed');
+  assert.equal(local.status, 'review_required');
+  assert.equal(local.legacyMirrorStatus, 'failed');
   assert.equal(local.task, 'legacy v1');
   assert.equal(remote.status, 'queued');
   assert.equal(remote.updatedAt, '2026-01-03T00:00:00.000Z');
+});
+
+test('worker quarantines a newer GUN completion instead of replaying imported work', async (t) => {
+  const rootNode = fakeRoot();
+  const gunOptions = { rootNode, ownerAlias: 'tenant/sqlite:exact', force: true };
+  const options = await queueOptions(t, {
+    ...gunOptions, queueStore: 'sqlite', workerCapabilities: 'node',
+  });
+  const now = Date.now();
+  await enqueueTask('legacy external work may have happened', {
+    ...gunOptions, id: 'legacy-unverified-done', backend: 'openai', now,
+  });
+  assert.equal((await runWorkerOnce(options)).length, 0);
+  assert.equal((await readTask('legacy-unverified-done', options)).status, 'queued');
+  await updateTask('legacy-unverified-done', {
+    status: 'completed', resultSummary: 'relay claims success',
+    updatedAt: new Date(now + 1000).toISOString(),
+  }, gunOptions);
+  let executions = 0;
+  const results = await runWorkerOnce({
+    ...options, workerCapabilities: 'openai',
+    runAgentTaskImpl: async () => {
+      executions += 1;
+      return { ok: true, result: { stdout: 'should not run' } };
+    },
+  });
+  assert.equal(results.length, 0);
+  assert.equal(executions, 0, 'unverified relay status cannot authorize duplicate execution');
+  const held = await readTask('legacy-unverified-done', options);
+  assert.equal(held.status, 'review_required');
+  assert.equal(held.legacyMirrorStatus, 'completed');
+  assert.equal(held.resultSummary, '');
+  assert.match(held.reviewReason, /Unverified legacy GUN terminal/);
 });
 
 test('native SQLite terminal tasks mirror to GUN without exposing active states', async (t) => {
