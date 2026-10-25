@@ -345,13 +345,26 @@ function finishTask(id, claimToken, record, options = {}) {
         db.exec('ROLLBACK');
         return false;
       }
-      const goal = JSON.parse(stored.record_json).goal;
+      // A valid claim proves which task ran, not permission to rewrite its
+      // original instructions or approval provenance in the terminal receipt.
+      // Compare against the claimed row inside this same transaction.
+      const storedRecord = JSON.parse(stored.record_json);
+      const immutableFields = [
+        'id', 'task', 'tenantId', 'tenantAlias', 'tenantPlan', 'backend',
+        'repo', 'model', 'thinking', 'unsafe', 'riskClass', 'approvalStatus',
+        'requiredCapabilities', 'maxRuntimeMs', 'requestedBy', 'createdAt',
+        'workerDeviceId', 'startedAt',
+      ];
+      if (immutableFields.some(field => storedRecord[field] !== record[field])) {
+        db.exec('ROLLBACK');
+        return false;
+      }
+      const goal = storedRecord.goal;
       if (goal) {
         if (['completed', 'complete', 'done', 'success', 'succeeded'].includes(record.status) && goal.status !== 'complete') {
           db.exec('ROLLBACK');
           return false;
         }
-        const storedRecord = JSON.parse(stored.record_json);
         const candidates = [record.updatedAt, storedRecord.updatedAt, new Date(options.now ?? Date.now()).toISOString()];
         const updatedAt = candidates.filter(value => Number.isFinite(Date.parse(value)))
           .reduce((latest, value) => Date.parse(value) > Date.parse(latest) ? value : latest);
