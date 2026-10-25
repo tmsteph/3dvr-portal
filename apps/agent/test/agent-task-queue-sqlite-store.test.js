@@ -101,6 +101,32 @@ test('native SQLite terminal tasks cannot be replayed by duplicate IDs or GUN im
   assert.equal((await readTask('native-failed', options)).status, 'failed');
 });
 
+test('GUN-imported terminal tasks cannot be reopened by a newer queued mirror', async (t) => {
+  const options = await queueOptions(t);
+  const now = Date.now();
+  for (const [index, terminal] of ['completed', 'failed', 'skipped'].entries()) {
+    const id = `gun-terminal-${terminal}`;
+    const initial = {
+      id, task: 'Original work', backend: 'health', status: 'queued',
+      updatedAt: new Date(now + index).toISOString(),
+    };
+    assert.equal(sqliteQueue.importTask(initial, options), true);
+    // A legitimate GUN status update may finish a still-queued imported row.
+    assert.equal(sqliteQueue.importTask({
+      ...initial, status: terminal, updatedAt: new Date(now + 1000 + index).toISOString(),
+    }, options), true);
+    // A stale GUN replica with a newer timestamp must not restart finished work.
+    assert.equal(sqliteQueue.importTask({
+      ...initial, task: 'Replay external effects', status: 'queued',
+      updatedAt: new Date(now + 2000 + index).toISOString(),
+    }, options), false);
+    const stored = await readTask(id, options);
+    assert.equal(stored.status, terminal);
+    assert.equal(stored.task, 'Original work');
+    assert.equal(stored.queueSource, 'gun');
+  }
+});
+
 test('concurrent workers atomically claim a SQLite task only once', async (t) => {
   const options = await queueOptions(t, {
     rootNode: fakeRoot(),
