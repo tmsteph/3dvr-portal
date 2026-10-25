@@ -22,8 +22,8 @@ test('homepage Operator sends the signed developer proof used by full Operator',
   const client = await read('home-operator.js');
 
   assert.match(client, /createOperatorDeveloperProof/);
-  assert.match(client, /const \[portalContext, developerAuth, memoryContext\] = await Promise\.all/);
-  assert.match(client, /createDeveloperProofWithRetry\(\)/);
+  assert.match(client, /const \[portalContext, developerAuth, memoryContext\] = await prepareOperatorChat/);
+  assert.match(client, /createProof: createDeveloperProofWithRetry/);
   assert.match(client, /const delays = \[0, 700, 1600\]/);
   assert.match(client, /if \(lastError\) throw lastError/);
   assert.match(client, /fetchOperatorStream/);

@@ -230,6 +230,10 @@ Keep this portal human-readable and maintainable. Favor clear intent over AI cha
 - Gun's server entrypoint installs a key-sorting `JSON.stringifyAsync`; browser SEA signatures use native JSON key order. Preserve the signed message bytes when verifying rather than changing global serializers or weakening identity checks.
 - Run `node --test tests/self-host-sea-runtime.test.js` for auth-runtime changes. A proof signed and verified in one process can hide server/browser serialization differences.
 
+## Operator chat preparation
+
+Optional context, account-proof recovery, and memory recall must have a bounded wait before chat inference. A stalled optional dependency must not disable the composer indefinitely; missing proof must never grant developer access. Verify with the stalled-context homepage browser regression.
+
 ## Browser Modules On Self-host
 - Operator browser imports include shared pure models under `src/`. Keep the exact public-module list in `scripts/self-host-static-policy.mjs` synchronized with those imports; never expose the entire server source tree.
 - Run `node --test tests/operator-public-modules.test.js` when changing Operator imports or the static policy. HTTP 200 for the page shell does not prove its module graph initialized.

@@ -333,3 +333,41 @@ test('portal spinner opens menu on normal spins and only activates after an inte
     await browser.close();
   }
 });
+
+test('homepage can chat while optional context loading is stalled', { timeout: 20_000 }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  let releaseContext;
+  const contextHold = new Promise(resolve => { releaseContext = resolve; });
+  try {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.route('**/*', route => {
+      const url = new URL(route.request().url());
+      return url.hostname === '127.0.0.1' ? route.continue() : route.abort();
+    });
+    await page.route('**/abilities/abilities.json', async route => {
+      await contextHold;
+      await route.fulfill({ contentType: 'application/json', body: '{"capabilities":[]}' }).catch(() => {});
+    });
+    await page.route('**/api/openai-site?provider=operator', route => route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ reply: 'Chat can continue', suggestions: [], action: { type: 'none' } })
+    }));
+    await page.goto(baseUrl + '/', { waitUntil: 'domcontentloaded' });
+    await page.locator('#homeOperatorInput').fill('Hello');
+    await page.getByRole('button', { name: 'Send to Operator' }).click();
+    try {
+      await page.getByText('Chat can continue').waitFor({ timeout: 6500 });
+    } catch (error) {
+      console.log('CHAT_DIAGNOSTIC=' + JSON.stringify({
+        busy: await page.locator('#homeOperatorForm').getAttribute('aria-busy'),
+        status: await page.locator('#homeOperatorStatus').textContent(),
+        reply: await page.locator('#homeOperatorReply').textContent()
+      }));
+      throw error;
+    }
+    assert.equal(await page.locator('#homeOperatorInput').isEnabled(), true);
+  } finally {
+    releaseContext();
+    await browser.close();
+  }
+});
