@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { buildCampaignTask, queueCampaignResearch } from '../growth-operator/campaigns.js';
 
 const operatorDir = new URL('../growth-operator/', import.meta.url);
 
@@ -35,13 +36,17 @@ test('campaign research reuses the existing CRM and outbound pipeline with conse
   assert.match(js, /existing campaign caps/);
   assert.match(js, /unified 3dvr-crm records/);
   assert.match(js, /existing Growth Operator \/ outreach pipeline/);
-  assert.match(js, /agentOps'\)\.get\(AGENT_OWNER_ALIAS\)\.get\('taskQueue'/);
-  assert.match(js, /queueRoot\?\.get\('tasks'\)\.get\(task\.id\)/);
-  assert.match(js, /queueRoot\?\.get\('latest'\)\.get\(task\.id\)/);
-  assert.match(js, /status: task\.status/);
-  assert.match(js, /requiredCapabilities: task\.requiredCapabilities/);
-  assert.match(js, /backend: 'auto'/);
-  assert.match(js, /requiredCapabilities: 'auto'/);
+  assert.match(js, /queueOperatorTask/);
+  assert.match(js, /watchOperatorTask/);
+  assert.match(js, /queueTask\(\{ text: task\.task, title:/);
+  assert.doesNotMatch(js, /queueRoot\?\.get\('tasks'\)/);
+  assert.doesNotMatch(js, /putGun\(/);
+  const task = buildCampaignTask('web-design');
+  assert.equal(task.backend, 'codex');
+  assert.equal(task.requiredCapabilities, 'codex');
+  assert.equal(task.riskClass, 'draft');
+  assert.match(task.task, /do not write CRM records/);
+  assert.match(task.task, /do not send messages/);
 });
 
 test('my skill campaign carries Launch Room context into the money path', async () => {
@@ -56,4 +61,61 @@ test('my skill campaign carries Launch Room context into the money path', async 
   assert.match(js, /campaignSeed = 'false'/);
   assert.match(modes, /Make this earn money/);
   assert.match(modes, /growth-operator\/\?campaign=my-skill/);
+});
+
+test('Growth campaign research requires a trackable signed Operator receipt and waits for worker evidence', async () => {
+  const previousWindow = globalThis.window;
+  const previousDocument = globalThis.document;
+  const status = { textContent: '' };
+  globalThis.window = { localStorage: { getItem: () => '' } };
+  globalThis.document = { getElementById: () => status };
+  try {
+    let submission, watched;
+    const receipt = await queueCampaignResearch('web-design', {
+      queueTask: async action => {
+        submission = action;
+        return { taskId: 'operator-http:task-safe123456', confirmed: true };
+      },
+      watchTask: (id, options) => { watched = { id, options }; },
+    });
+    assert.equal(receipt.confirmed, true);
+    assert.match(submission.title, /Web design prospect research/);
+    assert.match(submission.text, /Research public information only/);
+    assert.equal(watched.id, receipt.taskId);
+    assert.match(status.textContent, /Waiting for a verified result/);
+    watched.options.onUpdate({ status: 'running' });
+    assert.match(status.textContent, /running in Operator/);
+    watched.options.onUpdate({ status: 'completed' });
+    assert.match(status.textContent, /Review the result in Operator/);
+    assert.doesNotMatch(status.textContent, /CRM records saved|messages sent successfully/);
+  } finally {
+    globalThis.window = previousWindow;
+    globalThis.document = previousDocument;
+  }
+});
+
+test('ambiguous Operator acknowledgement never claims research queued or retries', async () => {
+  const previousWindow = globalThis.window;
+  const previousDocument = globalThis.document;
+  const status = { textContent: '' };
+  globalThis.window = { localStorage: { getItem: () => '' } };
+  globalThis.document = { getElementById: () => status };
+  try {
+    let submissions = 0, watches = 0;
+    const receipt = await queueCampaignResearch('market-research', {
+      queueTask: async () => {
+        submissions += 1;
+        return { taskId: 'operator-http:task-unknown123456', confirmed: false, message: 'Checking delivery. Do not retry.' };
+      },
+      watchTask: () => { watches += 1; },
+    });
+    assert.equal(receipt.confirmed, false);
+    assert.equal(submissions, 1);
+    assert.equal(watches, 1);
+    assert.match(status.textContent, /Checking delivery/);
+    assert.doesNotMatch(status.textContent, /research queued|research accepted/);
+  } finally {
+    globalThis.window = previousWindow;
+    globalThis.document = previousDocument;
+  }
 });
