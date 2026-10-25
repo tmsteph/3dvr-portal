@@ -157,6 +157,20 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
         db.exec('ROLLBACK');
         return null;
       }
+      // Both queue loops share one native Codex executor. Reserve its slot in
+      // the same transaction as the task claim, including across owner scopes.
+      // A busy executor leaves other private tasks queued, never failed.
+      if (String(id).startsWith('operator-http-')) {
+        const active = db.prepare(`
+          SELECT count(*) AS n FROM tasks
+          WHERE id GLOB 'operator-http-*' AND status = 'running'
+            AND claim_expires_at > ?
+        `).get(now).n;
+        if (active > 0) {
+          db.exec('ROLLBACK');
+          return null;
+        }
+      }
       const record = JSON.parse(row.record_json);
       const updated = {
         ...record,
