@@ -217,6 +217,38 @@ test('native SQLite terminal tasks cannot be replayed by duplicate IDs or GUN im
   assert.equal((await readTask('native-failed', options)).status, 'failed');
 });
 
+test('GUN mirrors cannot invent unclaimed running or terminal SQLite receipts', async (t) => {
+  const options = await queueOptions(t);
+  const now = Date.now();
+  for (const status of ['running', 'completed', 'failed', 'skipped', 'cancelled', 'approved']) {
+    const id = `unclaimed-gun-${status}`;
+    assert.equal(sqliteQueue.importTask({
+      id, task: 'not executed', backend: 'health', status,
+      updatedAt: new Date(now).toISOString(),
+    }, options), false, `new ${status} mirror is not execution evidence`);
+    assert.equal(await readTask(id, options), null);
+  }
+
+  const id = 'legacy-terminal-after-import';
+  const original = {
+    id, task: 'legacy intent', backend: 'health', status: 'queued',
+    updatedAt: new Date(now).toISOString(),
+  };
+  assert.equal(sqliteQueue.importTask(original, options), true);
+  // The existing legacy terminal update remains compatible, but cannot be
+  // replayed or replaced after its first transition.
+  assert.equal(sqliteQueue.importTask({
+    ...original, status: 'completed', updatedAt: new Date(now + 1000).toISOString(),
+  }, options), true);
+  assert.equal(sqliteQueue.importTask({
+    ...original, status: 'failed', updatedAt: new Date(now + 2000).toISOString(),
+  }, options), false);
+  assert.equal(sqliteQueue.importTask({
+    ...original, status: 'queued', updatedAt: new Date(now + 3000).toISOString(),
+  }, options), false);
+  assert.equal((await readTask(id, options)).status, 'completed');
+});
+
 test('GUN-imported terminal tasks cannot be reopened by a newer queued mirror', async (t) => {
   const options = await queueOptions(t);
   const now = Date.now();
