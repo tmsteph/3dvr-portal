@@ -44,7 +44,7 @@ jobs:
         run: node --test tests/operator-self-edit-integration.test.js
 
       - name: Run Operator business system regression tests
-        run: node --test tests/operator-business-system.test.js tests/operator-runtime-resources.test.js tests/growth-desk.test.js
+        run: node --test tests/operator-business-system.test.js tests/operator-runtime-resources.test.js tests/growth-desk.test.js tests/growth-campaign-presets.test.js
 
       - name: Enforce no-send legacy outbound policy
         run: node --test tests/money-outbound-autopilot.test.js
