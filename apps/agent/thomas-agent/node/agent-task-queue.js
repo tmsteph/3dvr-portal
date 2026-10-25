@@ -272,6 +272,18 @@ function requiredWorkerCapabilities(record = {}) {
   return [...required];
 }
 
+// GUN has no atomic compare-and-swap for task records. At minimum, reject
+// stale worker snapshots after acquiring the coordination lease; SQLite's
+// transactional claim remains the required path for strong authorization.
+function sameExecutionIntent(before = {}, after = {}) {
+  const fields = [
+    'id', 'task', 'tenantId', 'tenantAlias', 'tenantPlan', 'backend',
+    'repo', 'model', 'thinking', 'unsafe', 'riskClass', 'approvalStatus',
+    'requiredCapabilities', 'maxRuntimeMs', 'requestedBy',
+  ];
+  return fields.every(field => before[field] === after[field]);
+}
+
 function canWorkerRunTask(record = {}, options = {}) {
   const profile = workerProfile(options);
   const required = requiredWorkerCapabilities(record);
@@ -381,12 +393,25 @@ async function runQueuedTask(record, options = {}) {
     if (!lease.acquired) {
       return { ok: false, skipped: true, reason: `held by ${lease.ownerDeviceId || 'another worker'}` };
     }
-    await updateTask(record.id, {
+    // The task can be edited or revoked after the worker's first read.
+    // Never execute the old snapshot if its intent or authorization changed.
+    const current = await readTask(record.id, options);
+    if (!current || current.status !== 'queued'
+      || !sameExecutionIntent(record, current)
+      || !canWorkerRunTask(current, options).ok) {
+      await releaseLease(`remote-task:${record.id}`, lease.lease?.token, options).catch(() => {});
+      return { ok: false, skipped: true, reason: 'GUN task changed or is no longer authorized' };
+    }
+    claimed = await updateTask(record.id, {
       status: 'running',
       workerDeviceId: lease.lease?.deviceId || '',
       workerCapabilities: normalizeCsv(runnable.profile.capabilities),
       startedAt: nowIso(),
     }, options);
+    if (!claimed) {
+      await releaseLease(`remote-task:${record.id}`, lease.lease?.token, options).catch(() => {});
+      return { ok: false, skipped: true, reason: 'GUN task disappeared during claim' };
+    }
   }
 
   let renewalTimer;
