@@ -465,6 +465,19 @@ async function runQueuedTask(record, options = {}) {
     return result;
   } catch (error) {
     const message = error.message || String(error);
+    // A task may finish executing after its SQLite lease expires. The first
+    // terminal write then fails closed. Do not attempt a second terminal write
+    // with the same lost claim: it will fail again and abort the whole worker
+    // batch, starving unrelated queued work. Side effects may already exist,
+    // so preserve the running row for explicit reconciliation, not replay.
+    if (queueStore(options) === 'sqlite'
+      && message === `Lost SQLite claim for task ${claimed.id}.`) {
+      return {
+        ok: false,
+        skipped: true,
+        reason: 'SQLite claim lost; execution outcome unverified and task held for review',
+      };
+    }
     const terminal = await finishClaimedTask(claimed, {
       status: 'failed',
       completedAt: nowIso(),
