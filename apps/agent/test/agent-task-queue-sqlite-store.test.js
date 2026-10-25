@@ -49,6 +49,35 @@ async function queueOptions(t, extra = {}) {
   };
 }
 
+test('signed Operator tasks reserve a single native executor across owners', async (t) => {
+  const options = await queueOptions(t);
+  const other = { ...options, ownerAlias: 'other-owner' };
+  const now = Date.now();
+  const a = { id: 'operator-http-first-owner', task: 'first', status: 'queued', updatedAt: new Date(now).toISOString() };
+  const b = { ...a, id: 'operator-http-second-owner', task: 'second' };
+  sqliteQueue.insertTask(a, options);
+  sqliteQueue.insertTask(b, other);
+  assert.ok(sqliteQueue.claimTask(a.id, 'first-claim', 'worker-a', now + 60_000, now, options));
+  assert.equal(sqliteQueue.claimTask(b.id, 'second-claim', 'worker-b', now + 60_000, now, other), null);
+  assert.equal(sqliteQueue.readTask(b.id, other).status, 'queued');
+  const running = sqliteQueue.readTask(a.id, options);
+  assert.ok(sqliteQueue.finishTask(a.id, 'first-claim', { ...running, status: 'completed' }, options));
+  assert.ok(sqliteQueue.claimTask(b.id, 'second-claim', 'worker-b', now + 60_000, now, other));
+});
+
+test('expired Operator executor lease releases admission without replaying its task', async (t) => {
+  const options = await queueOptions(t);
+  const now = Date.now();
+  const a = { id: 'operator-http-expired-first', task: 'first', status: 'queued', updatedAt: new Date(now).toISOString() };
+  const b = { ...a, id: 'operator-http-expired-second', task: 'second' };
+  sqliteQueue.insertTask(a, options);
+  sqliteQueue.insertTask(b, options);
+  assert.ok(sqliteQueue.claimTask(a.id, 'first-claim', 'worker-a', now + 10, now, options));
+  assert.equal(sqliteQueue.claimTask(b.id, 'second-claim', 'worker-b', now + 60_000, now, options), null);
+  assert.ok(sqliteQueue.claimTask(b.id, 'second-claim', 'worker-b', now + 60_000, now + 11, options));
+  assert.equal(sqliteQueue.readTask(a.id, options).status, 'running', 'expired first task is held for review, not replayed');
+});
+
 test('direct SQLite inserts cannot fabricate running or terminal execution receipts', async (t) => {
   const options = await queueOptions(t);
   for (const status of ['running', 'completed', 'failed', 'skipped']) {
