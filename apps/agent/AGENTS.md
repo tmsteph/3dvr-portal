@@ -59,3 +59,9 @@
 - For `3dvr.tech@gmail.com`, use the existing authenticated gateway with account alias `3dvr`; see `docs/business-mail-access.md`. `3dvr-mail` on OVH forwards to Hetzner without moving credentials.
 - Quiet-hours deferrals are expected scheduling states, never stuck-campaign alerts. Keep unrelated unread mail in triage instead of labeling it a prospect reply.
 - MCP privileged-tool tests must supply the configured owner credential through the HTTP header; a feature flag alone is not authorization.
+
+## Operator Queue Reliability
+
+- Private `operator-http-` tasks share one native Codex executor. Reserve its slot atomically with SQLite task claims across queue loops and owners; leave competing tasks queued.
+- Bound relay task reads. A read timeout must reject rather than look like an absent record, and late replies must not cause writes. Keep the local SQLite loop independent from relay reconciliation.
+- Preserve historical queued records during repairs; missing capabilities do not authorize replay or capability broadening. Verify fresh signed tasks reach saved results and repeated request identities do not execute twice.
