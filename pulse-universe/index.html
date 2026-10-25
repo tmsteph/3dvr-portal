@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080c16">
+  <meta name="description" content="Explore a pulse of light revealing a 3D mathematical fractal. An open visual experiment from 3DVR.">
+  <title>Pulse Universe · 3DVR</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <main>
+    <header>
+      <nav aria-label="Navigation"><a href="/">← Portal</a><a href="/fractal-explorer/">Fractal navigator ↗</a></nav>
+      <p class="eyebrow">3DVR · An experiment in possibility</p>
+      <h1>Pulse Universe</h1>
+      <p class="intro">One pulse. A world of patterns. Follow the light into a mathematical landscape.</p>
+    </header>
+    <section class="scene" aria-label="Interactive fractal scene">
+      <canvas id="universe" tabindex="0" aria-label="Three-dimensional Mandelbulb. Drag or use arrow keys to rotate; pinch, scroll, or use the zoom slider to explore."></canvas>
+      <span class="scene-label">PROCEDURAL MANDELBULB</span>
+      <span class="scene-hint">Drag to orbit · Pinch to zoom</span>
+    </section>
+    <section class="controls" aria-label="Experiment controls">
+      <div class="actions">
+        <button id="run" class="primary" disabled>Run pulse</button>
+        <button id="reset">Reset view</button>
+        <button id="share">Copy scene link</button>
+      </div>
+      <div class="sliders">
+        <label for="power">Fractal power <output id="power-value">8</output><select id="power"><option>4</option><option>6</option><option selected>8</option><option>10</option></select></label>
+        <label for="zoom">Zoom <output id="zoom-value">1.0×</output><input id="zoom" type="range" min="0.6" max="5" step="0.05" value="1"></label>
+        <label for="time">Pulse progress <output id="time-value">100%</output><input id="time" type="range" min="0" max="100" value="100"></label>
+      </div>
+      <p id="status" role="status">Preparing the fractal…</p>
+    </section>
+    <details>
+      <summary>What are we exploring?</summary>
+      <p>Could a simple beginning give rise to the complexity of a universe? This first experiment lets an expanding visual pulse reveal a Mandelbulb point cloud. Change its power, orbit it, and explore the detail.</p>
+      <p>The fractal is defined in advance. The pulse reveals it; it does not create matter, simulate gravity, or explain the Big Bang. Space, time, and distances here are arbitrary visualization units. Similar-looking patterns alone cannot establish that a model describes our universe.</p>
+      <p>Next: let structures emerge from documented evolving rules, then test the results against observations.</p>
+      <a href="https://github.com/tmsteph/3dvr-portal/issues/3342">Follow the research idea ↗</a>
+    </details>
+    <footer>Build the future. Stay curious. · <a href="https://3dvr.tech/">3dvr.tech</a></footer>
+    <noscript>This interactive experiment needs JavaScript enabled.</noscript>
+  </main>
+</body>
+</html>

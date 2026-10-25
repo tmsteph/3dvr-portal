@@ -32,8 +32,10 @@ jobs:
       # The planner integration tests build the real operator-core package.
       # Its Node type definitions are dev dependencies of that package, not
       # apps/agent; a clean PR merge checkout must install them explicitly.
-      - name: Install Operator Core test dependencies
-        run: npm ci --prefix ../../operator-core/operator-core
+      - name: Install and build Operator Core test dependencies
+        run: |
+          npm --prefix ../../operator-core/operator-core ci --ignore-scripts
+          npm --prefix ../../operator-core/operator-core run build
       # Always run regressions even when the separate security gate fails.
       # Keep npm audit blocking; do not silently waive vulnerabilities.
       - run: npm test

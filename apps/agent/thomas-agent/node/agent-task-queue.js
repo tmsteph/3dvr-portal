@@ -340,7 +340,7 @@ function canWorkerRunTask(record = {}, options = {}) {
 
 async function recordTaskLifeEvent(record, options = {}) {
   if (!record || !['completed', 'failed'].includes(record.status)) return null;
-  if (normalizeText(record.backend).toLowerCase() === 'health') return null;
+  if (normalizeText(record.backend).toLowerCase() === 'health' || record.id?.startsWith('operator-http-')) return null;
   const recordLifeEventImpl = options.recordLifeEventImpl || require('./digital-organism').recordLifeEvent;
   const tags = ['builder', 'agent-task', normalizeText(record.backend).toLowerCase()]
     .filter(Boolean);
@@ -448,6 +448,8 @@ async function runQueuedTask(record, options = {}) {
         backend: 'health',
         result: { stdout: '3dvr-worker-ok' },
       };
+    } else if (claimed.id?.startsWith('operator-http-') && !options.runAgentTaskImpl) {
+      result = await require('./operator-codex-task').runOperatorCodexTask(claimed);
     } else {
       const runAgentTaskImpl = options.runAgentTaskImpl || require('./task-orchestrator').runAgentTask;
       result = await runAgentTaskImpl(buildTaskArgs(claimed, options), options.hooks || {});
@@ -505,6 +507,8 @@ function timestamp(record = {}) {
 }
 
 async function mirrorTerminalTask(record, options = {}) {
+  // Signed HTTP tasks and replies stay in the private server queue.
+  if (record.id?.startsWith('operator-http-')) return false;
   if (!gunSyncEnabled(options)) return false;
   if (!['completed', 'failed', 'skipped'].includes(record.status)) return false;
   const remote = await readTask(record.id, { ...options, queueStore: 'gun' });
@@ -526,6 +530,8 @@ async function importLegacyGunTasks(options = {}) {
   const gunOptions = { ...options, queueStore: 'gun' };
   const summaries = await listTasks(gunOptions);
   for (const summary of summaries) {
+    // The HTTP namespace is server-owned; public relay data cannot replace it.
+    if (summary.id?.startsWith('operator-http-')) continue;
     if (summary.status !== 'queued') continue;
     const record = await readTask(summary.id, gunOptions);
     if (record && record.status === 'queued') sqliteQueue().importTask(normalizeTaskRecord(record), options);
