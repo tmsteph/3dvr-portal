@@ -46,7 +46,7 @@ test('campaign research reuses the existing CRM and outbound pipeline with conse
   assert.equal(task.requiredCapabilities, 'codex');
   assert.equal(task.riskClass, 'draft');
   assert.match(task.task, /do not write CRM records/);
-  assert.match(task.task, /do not send messages/);
+  assert.match(task.task, /must not send messages/);
 });
 
 test('my skill campaign carries Launch Room context into the money path', async () => {
