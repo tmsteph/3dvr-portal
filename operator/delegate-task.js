@@ -181,7 +181,7 @@ function watchConfirmedTask(requestId, options = {}) {
       const result = await taskRequest('status', requestId);
       if (stopped) return;
       failures = 0;
-      options.onUpdate?.(result.record);
+      options.onUpdate?.({...result.record, id:`operator-http:${requestId}`});
       if (isOperatorTaskTerminal(result.record)) return stop();
     } catch (error) {
       if (stopped) return;

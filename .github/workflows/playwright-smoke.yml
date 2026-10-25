@@ -29,9 +29,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Verify signed Operator task delivery
         run: |
-          node --test tests/operator-dispatch.test.js tests/operator-delegate-task.test.js tests/operator-public-modules.test.js tests/self-host-sea-runtime.test.js
+          node --test tests/operator-dispatch.test.js tests/operator-delegate-task.test.js tests/operator-public-modules.test.js tests/self-host-sea-runtime.test.js tests/operator-action-receipt.test.js
           python3 tests/helm-native-python.py
 
       - name: Run Operator self-edit integration test
