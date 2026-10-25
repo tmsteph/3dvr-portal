@@ -185,7 +185,7 @@ async function enqueueTask(task, options = {}) {
   });
   const summary = taskSummary(record);
   if (queueStore(options) === 'sqlite') {
-    sqliteQueue().writeTask(record, options);
+    sqliteQueue().insertTask(record, options);
     return record;
   }
   await putGun(taskNode(id, options), record, options);
