@@ -395,22 +395,28 @@ async function runQueuedTask(record, options = {}) {
     }
     // The task can be edited or revoked after the worker's first read.
     // Never execute the old snapshot if its intent or authorization changed.
-    const current = await readTask(record.id, options);
-    if (!current || current.status !== 'queued'
-      || !sameExecutionIntent(record, current)
-      || !canWorkerRunTask(current, options).ok) {
+    try {
+      const current = await readTask(record.id, options);
+      if (!current || current.status !== 'queued'
+        || !sameExecutionIntent(record, current)
+        || !canWorkerRunTask(current, options).ok) {
+        await releaseLease(`remote-task:${record.id}`, lease.lease?.token, options).catch(() => {});
+        return { ok: false, skipped: true, reason: 'GUN task changed or is no longer authorized' };
+      }
+      claimed = await updateTask(record.id, {
+        status: 'running',
+        workerDeviceId: lease.lease?.deviceId || '',
+        workerCapabilities: normalizeCsv(runnable.profile.capabilities),
+        startedAt: nowIso(),
+      }, options);
+      if (!claimed) {
+        await releaseLease(`remote-task:${record.id}`, lease.lease?.token, options).catch(() => {});
+        return { ok: false, skipped: true, reason: 'GUN task disappeared during claim' };
+      }
+    } catch (error) {
+      // A failed GUN read/write must not leave our lease held until TTL.
       await releaseLease(`remote-task:${record.id}`, lease.lease?.token, options).catch(() => {});
-      return { ok: false, skipped: true, reason: 'GUN task changed or is no longer authorized' };
-    }
-    claimed = await updateTask(record.id, {
-      status: 'running',
-      workerDeviceId: lease.lease?.deviceId || '',
-      workerCapabilities: normalizeCsv(runnable.profile.capabilities),
-      startedAt: nowIso(),
-    }, options);
-    if (!claimed) {
-      await releaseLease(`remote-task:${record.id}`, lease.lease?.token, options).catch(() => {});
-      return { ok: false, skipped: true, reason: 'GUN task disappeared during claim' };
+      throw error;
     }
   }
 
