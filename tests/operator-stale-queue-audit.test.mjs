@@ -92,7 +92,9 @@ test('fresh intrinsic health metadata is not execution authorization', () => {
 test('missing timestamps and sensitive approval remain review-only', () => {
   const task = { id: 'unknown', status: 'queued', backend: 'codex', task: 'private', riskClass: 'money', approvalStatus: 'required' };
   const report = summarizeQueue([task], env, now);
-  assert.deepEqual(report.queuedReviews[0].flags, ['stale_or_unknown_age', 'risk_not_allowed', 'approval_block']);
+  assert.deepEqual(report.queuedReviews[0].flags, [
+    'stale_or_unknown_age', 'risk_not_allowed', 'approval_block', 'approval_verification_unavailable'
+  ]);
 });
 
 test('missing worker capabilities never default to an apparently eligible queue', () => {
