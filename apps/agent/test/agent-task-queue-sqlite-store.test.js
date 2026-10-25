@@ -397,6 +397,36 @@ test('SQLite terminal receipt cannot requeue work or impersonate another task', 
   assert.equal((await readTask(id, options)).status, 'completed');
 });
 
+test('SQLite lease renewal rejects nonfinite expiry and clock values without poisoning claims', async (t) => {
+  const now = Date.now();
+  const options = await queueOptions(t);
+  for (const id of ['nonfinite-direct', 'nonfinite-persistent']) {
+    await enqueueTask('bounded health check', { ...options, id, backend: 'health', now });
+    assert.ok(sqliteQueue.claimTask(id, `token-${id}`, 'worker', now + 1000, now, options));
+  }
+  for (const invalid of [NaN, Infinity, -Infinity]) {
+    assert.equal(sqliteQueue.renewClaim('nonfinite-direct', 'token-nonfinite-direct', invalid,
+      { ...options, now: now + 50 }), false);
+    assert.equal((await readTask('nonfinite-direct', options)).claimExpiresAt, now + 1000);
+  }
+  assert.equal(sqliteQueue.renewClaim('nonfinite-direct', 'token-nonfinite-direct', now + 2000,
+    { ...options, now: Infinity }), false);
+
+  const renewer = sqliteQueue.createClaimRenewer('nonfinite-persistent', 'token-nonfinite-persistent',
+    { ...options, now: now + 50 });
+  try {
+    for (const invalid of [NaN, Infinity, -Infinity]) {
+      assert.equal(renewer.renew(invalid), false);
+      assert.equal((await readTask('nonfinite-persistent', options)).claimExpiresAt, now + 1000);
+    }
+    assert.equal(renewer.renew(now + 2000), true, 'valid finite renewal remains possible');
+  } finally {
+    renewer.close();
+  }
+  assert.equal((await readTask('nonfinite-direct', options)).claimExpiresAt, now + 1000);
+  assert.equal((await readTask('nonfinite-persistent', options)).claimExpiresAt, now + 2000);
+});
+
 test('expired SQLite claims cannot be resurrected by either renewal API', async (t) => {
   const now = Date.now();
   const options = await queueOptions(t);
