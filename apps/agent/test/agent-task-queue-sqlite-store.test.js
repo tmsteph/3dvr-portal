@@ -57,6 +57,50 @@ test('SQLite queue survives reopen and preserves exact owner and task identifier
   assert.equal((await readTask('a-b', options)).task, 'second');
 });
 
+test('native SQLite terminal tasks cannot be replayed by duplicate IDs or GUN imports', async (t) => {
+  const options = await queueOptions(t, {
+    rootNode: fakeRoot(),
+    gunSync: false,
+    workerCapabilities: 'node',
+    deviceId: 'native-worker',
+  });
+  await enqueueTask('health once', { ...options, id: 'native-completed', backend: 'health' });
+  const executed = await runWorkerOnce(options);
+  assert.equal(executed.length, 1);
+  assert.equal((await readTask('native-completed', options)).status, 'completed');
+
+  // A retry with the same durable ID must not silently restart completed work.
+  await assert.rejects(
+    enqueueTask('run it again', { ...options, id: 'native-completed', backend: 'health' }),
+    /active task claim required/,
+  );
+
+  // A later GUN mirror must not replace the authoritative SQLite result.
+  const imported = sqliteQueue.importTask({
+    id: 'native-completed',
+    task: 'GUN replay',
+    status: 'queued',
+    backend: 'health',
+    updatedAt: new Date(Date.now() + 60_000).toISOString(),
+  }, options);
+  assert.equal(imported, false);
+  assert.equal((await readTask('native-completed', options)).status, 'completed');
+  assert.equal((await readTask('native-completed', options)).task, 'health once');
+
+  // Failed work also needs an explicit reviewed retry, not an ID collision.
+  await enqueueTask('failed once', { ...options, id: 'native-failed', backend: 'health' });
+  sqliteQueue.writeTask({
+    ...await readTask('native-failed', options),
+    status: 'failed',
+    updatedAt: new Date().toISOString(),
+  }, options);
+  await assert.rejects(
+    enqueueTask('failed replay', { ...options, id: 'native-failed', backend: 'health' }),
+    /active task claim required/,
+  );
+  assert.equal((await readTask('native-failed', options)).status, 'failed');
+});
+
 test('concurrent workers atomically claim a SQLite task only once', async (t) => {
   const options = await queueOptions(t, {
     rootNode: fakeRoot(),
