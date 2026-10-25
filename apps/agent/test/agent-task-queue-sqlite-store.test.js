@@ -525,6 +525,45 @@ test('SQLite terminal receipt cannot requeue work or impersonate another task', 
   assert.equal((await readTask(id, options)).status, 'completed');
 });
 
+test('SQLite terminal receipts cannot rewrite the claimed task or approval provenance', async (t) => {
+  const now = Date.now();
+  const options = await queueOptions(t, { now });
+  const id = 'finish-intent-bound';
+  await enqueueTask('Read-only public lead review', {
+    ...options, id, backend: 'health', riskClass: 'read_only', now,
+  });
+  const token = 'intent-bound-token';
+  const claimed = sqliteQueue.claimTask(id, token, 'original-worker', now + 60_000, now, options);
+  assert.ok(claimed);
+
+  for (const tamper of [
+    { task: 'Send an unapproved message' },
+    { backend: 'codex' },
+    { approvalStatus: 'approved' },
+    { riskClass: 'external_write' },
+    { unsafe: true },
+    { requiredCapabilities: 'codex' },
+    { createdAt: '2000-01-01T00:00:00.000Z' },
+    { workerDeviceId: 'different-worker' },
+    { startedAt: '2000-01-01T00:00:00.000Z' },
+  ]) {
+    const field = Object.keys(tamper)[0];
+    assert.equal(sqliteQueue.finishTask(id, token, {
+      ...claimed, ...tamper, status: 'completed', updatedAt: new Date(now).toISOString(),
+    }, options), false, `terminal receipt must preserve ${field}`);
+    const saved = await readTask(id, options);
+    assert.equal(saved.status, 'running');
+    assert.equal(saved.task, 'Read-only public lead review');
+    assert.equal(saved.workerDeviceId, 'original-worker');
+  }
+
+  assert.equal(sqliteQueue.finishTask(id, token, {
+    ...claimed, status: 'completed', updatedAt: new Date(now).toISOString(),
+    resultSummary: 'bounded health check finished',
+  }, options), true, 'unchanged execution intent may still finish');
+  assert.equal((await readTask(id, options)).status, 'completed');
+});
+
 test('SQLite lease renewal rejects nonfinite expiry and clock values without poisoning claims', async (t) => {
   const now = Date.now();
   const options = await queueOptions(t);
