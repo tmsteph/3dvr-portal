@@ -30,6 +30,10 @@ jobs:
           cache-dependency-path: apps/agent/package-lock.json
       - run: npm ci
       - run: npm audit --omit=dev
+      - name: Prepare Operator planner dependency
+        run: |
+          npm --prefix ../../operator-core/operator-core ci --ignore-scripts
+          npm --prefix ../../operator-core/operator-core run build
       - run: npm test
 
   deploy-digitalocean-worker:

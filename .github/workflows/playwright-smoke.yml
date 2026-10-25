@@ -14,7 +14,7 @@ on:
 jobs:
   smoke:
     name: Run Workboard unit + Playwright E2E + smoke tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
       - name: Checkout repository
@@ -23,11 +23,16 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.22.0
           cache: npm
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Verify signed Operator task delivery
+        run: |
+          node --test tests/operator-dispatch.test.js tests/operator-delegate-task.test.js tests/operator-public-modules.test.js tests/self-host-sea-runtime.test.js
+          python3 tests/helm-native-python.py
 
       - name: Run Operator self-edit integration test
         run: node --test tests/operator-self-edit-integration.test.js
