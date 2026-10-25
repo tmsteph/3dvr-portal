@@ -11,6 +11,7 @@ const {
   listTasks,
   readTask,
   requiredWorkerCapabilities,
+  runQueuedTask,
   runWorkerOnce,
   updateTask,
 } = require('../thomas-agent/node/agent-task-queue');
@@ -239,6 +240,53 @@ test('runWorkerOnce claims and executes queued tasks through injected hooks', as
   assert.match(lifeEvents[0].content, /Agent task completed: Summarize leads/);
   assert.equal(lifeEvents[0].eventOptions.kind, 'task.completed');
   assert.equal(lifeEvents[0].eventOptions.sourceId, 'task-3');
+});
+
+test('GUN worker rejects stale task text after lease without executing', async () => {
+  const rootNode = fakeRoot();
+  const options = {
+    rootNode, ownerAlias: 'tenant-a', deviceId: 'do-worker',
+    workerCapabilities: 'node,codex', force: true,
+  };
+  const snapshot = await enqueueTask('Draft buyer research', {
+    ...options, id: 'stale-text', backend: 'codex', riskClass: 'draft',
+  });
+  await updateTask(snapshot.id, { task: 'Different instruction' }, options);
+  let executions = 0;
+  const result = await runQueuedTask(snapshot, {
+    ...options,
+    runAgentTaskImpl: async () => { executions += 1; return { ok: true }; },
+  });
+  const after = await readTask(snapshot.id, options);
+  assert.equal(executions, 0);
+  assert.equal(result.skipped, true);
+  assert.match(result.reason, /GUN task changed/);
+  assert.equal(after.status, 'queued');
+  assert.equal(after.task, 'Different instruction');
+});
+
+test('GUN worker rejects approval and capability changes after initial read', async () => {
+  const rootNode = fakeRoot();
+  const options = {
+    rootNode, ownerAlias: 'tenant-a', deviceId: 'do-worker',
+    workerCapabilities: 'node,codex', force: true,
+  };
+  const snapshot = await enqueueTask('Prepare draft', {
+    ...options, id: 'stale-permissions', backend: 'codex', riskClass: 'draft',
+  });
+  await updateTask(snapshot.id, {
+    riskClass: 'external_write', approvalStatus: 'approved',
+    requiredCapabilities: 'codex,external-send',
+  }, options);
+  let executions = 0;
+  const result = await runQueuedTask(snapshot, {
+    ...options,
+    workerRiskClasses: 'read_only,draft,external_write',
+    runAgentTaskImpl: async () => { executions += 1; return { ok: true }; },
+  });
+  assert.equal(executions, 0);
+  assert.equal(result.skipped, true);
+  assert.equal((await readTask(snapshot.id, options)).status, 'queued');
 });
 
 test('health task completes without invoking a model or shell executor', async () => {
