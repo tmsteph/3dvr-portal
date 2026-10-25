@@ -337,49 +337,58 @@ test('long SQLite work renews an expired initial claim against a competing worke
   assert.equal((await readTask('slow-task', options)).status, 'completed');
 });
 
-test('SQLite lease loss does not abort the worker batch or forge a receipt', async (t) => {
+test('SQLite lease loss cannot abort later work or forge success/failure receipts', async (t) => {
   const options = await queueOptions(t, {
     workerCapabilities: 'openai',
     deviceId: 'lease-loss-worker',
     gunSync: false,
   });
   const now = Date.now();
-  await enqueueTask('first task loses its lease', {
+  await enqueueTask('first task loses its lease after success', {
     ...options, id: 'a-lease-loss', backend: 'openai', now,
   });
-  await enqueueTask('second task should still complete', {
-    ...options, id: 'b-unrelated', backend: 'openai', now,
+  await enqueueTask('second task loses its lease after backend failure', {
+    ...options, id: 'b-lease-error', backend: 'openai', now,
+  });
+  await enqueueTask('third task should still complete', {
+    ...options, id: 'c-unrelated', backend: 'openai', now,
   });
 
   let executions = 0;
   const results = await runWorkerOnce({
     ...options,
-    limit: 2,
+    limit: 3,
     runAgentTaskImpl: async (args) => {
       executions += 1;
-      if (args.at(-1).includes('first task')) {
-        // Simulate a lease revoked/expired while external work was in flight.
-        // Renewal must not resurrect this claim or authorize a forged receipt.
+      const task = args.at(-1);
+      if (task.includes('loses its lease')) {
+        // Simulate an expired lease while external work was in flight.
+        // A heartbeat must not resurrect this claim or forge a receipt.
+        const id = task.includes('first task') ? 'a-lease-loss' : 'b-lease-error';
         const db = new DatabaseSync(options.queueDb);
         try {
           db.prepare('UPDATE tasks SET claim_expires_at = ? WHERE owner_alias = ? AND id = ?')
-            .run(Date.now() - 1000, options.ownerAlias, 'a-lease-loss');
+            .run(Date.now() - 1000, options.ownerAlias, id);
         } finally {
           db.close();
         }
+        if (id === 'b-lease-error') throw new Error('simulated backend failure');
         return { ok: true, result: { stdout: 'unverified first outcome' } };
       }
-      return { ok: true, result: { stdout: 'verified second outcome' } };
+      return { ok: true, result: { stdout: 'verified third outcome' } };
     },
   });
 
-  assert.equal(executions, 2, 'later work must not be starved by a lost claim');
-  assert.deepEqual(results.map(entry => entry.id), ['a-lease-loss', 'b-unrelated']);
-  assert.equal(results[0].result.ok, false, 'lost claim is not a verified success');
-  assert.match(results[0].result.reason, /outcome unverified.*held for review/);
-  assert.equal((await readTask('a-lease-loss', options)).status, 'running',
-    'unverified task stays held; never automatically replay it');
-  assert.equal((await readTask('b-unrelated', options)).status, 'completed');
+  assert.equal(executions, 3, 'lost claims must not starve unrelated work');
+  assert.deepEqual(results.map(entry => entry.id), ['a-lease-loss', 'b-lease-error', 'c-unrelated']);
+  for (const id of ['a-lease-loss', 'b-lease-error']) {
+    const entry = results.find(result => result.id === id);
+    assert.equal(entry.result.ok, false, 'lost claim is not a verified terminal result');
+    assert.match(entry.result.reason, /outcome unverified.*held for review/);
+    assert.equal((await readTask(id, options)).status, 'running',
+      'unverified task stays held; never automatically replay it');
+  }
+  assert.equal((await readTask('c-unrelated', options)).status, 'completed');
 });
 
 test('an expired running claim requires review instead of automatic replay', async (t) => {
