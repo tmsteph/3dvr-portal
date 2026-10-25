@@ -137,7 +137,7 @@ export async function runOperatorAction(action = {}, context = {}) {
     const { queueOperatorTask } = await import('./delegate-task.js');
     const outcome = await queueOperatorTask(action);
     const estimateMinutes = Math.max(1, Math.ceil(Number(outcome.estimateMs || 120_000) / 60_000));
-    context.onStatus?.(`Queued · runtime budget ≤${estimateMinutes}m`);
+    context.onStatus?.(outcome.confirmed ? `Queued · runtime budget ≤${estimateMinutes}m` : 'Checking task delivery…');
     const queued = {
       ...outcome,
       message: `${outcome.message} Runtime budget ≤${estimateMinutes}m. I’ll keep this chat updated.`,

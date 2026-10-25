@@ -419,6 +419,8 @@ test('runFormCommand logs successful submissions', async () => {
   const logPath = path.join(tmp, 'outreach-log.ndjson');
   const leadsPath = path.join(tmp, 'leads.csv');
   const screenshotPath = path.join(tmp, 'submitted.png');
+  const originalSuppressionDb = process.env.THREEDVR_OUTREACH_SUPPRESSION_DB;
+  process.env.THREEDVR_OUTREACH_SUPPRESSION_DB = path.join(tmp, 'suppression.sqlite');
   const originalLogFile = process.env.THREEDVR_OUTREACH_LOG_FILE;
   const originalLeadsFile = process.env.THREEDVR_LEADS_FILE;
   process.env.THREEDVR_OUTREACH_LOG_FILE = logPath;
@@ -470,6 +472,7 @@ test('runFormCommand logs successful submissions', async () => {
     assert.equal(entries[0].screenshotPath, screenshotPath);
     assert.match(entries[0].body, /I'm Thomas with 3dvr\.tech/);
   } finally {
+    restoreEnv('THREEDVR_OUTREACH_SUPPRESSION_DB', originalSuppressionDb);
     restoreEnv('THREEDVR_OUTREACH_LOG_FILE', originalLogFile);
     restoreEnv('THREEDVR_LEADS_FILE', originalLeadsFile);
     rmSync(tmp, { recursive: true, force: true });
@@ -546,7 +549,8 @@ exit 99
   rmSync(tmp, { recursive: true, force: true });
 });
 
-test('resolveBrowserExecutablePath auto-discovers a local chromium binary', () => {
+test('resolveBrowserExecutablePath auto-discovers a local chromium binary', (t) => {
+  t.mock.method(require('node:fs'), 'existsSync', candidate => candidate === '/usr/bin/chromium');
   assert.equal(resolveBrowserExecutablePath(), '/usr/bin/chromium');
 });
 
