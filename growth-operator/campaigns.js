@@ -67,8 +67,23 @@ function renderCampaign(key) {
   if (title) title.textContent = campaign.title; if (description) description.textContent = campaign.description; if (finderLink) finderLink.href = `../lead-finder/?campaign=${encodeURIComponent(campaignKey)}`; seedQuickAdd(campaignKey);
 }
 function selectCampaign(key, { announce = true } = {}) { const campaignKey = normalizeCampaign(key); writeText(CAMPAIGN_STORAGE_KEY, campaignKey); renderCampaign(campaignKey); if (announce) updatePageStatus(`${getCampaign(campaignKey).label} selected. Ready to research a small first batch.`); return campaignKey; }
-async function queueCampaignResearch(key, { queueTask = queueOperatorTask, watchTask = watchOperatorTask } = {}) {
-  const campaignKey = normalizeCampaign(key), task = buildCampaignTask(campaignKey);
+// Keep one active request per campaign. A double-tap must not create two
+// different signed request IDs; uncertain delivery must be reconciled first.
+const researchFlights = new Map();
+function queueCampaignResearch(key, { queueTask = queueOperatorTask, watchTask = watchOperatorTask } = {}) {
+  const campaignKey = normalizeCampaign(key);
+  const existing = researchFlights.get(campaignKey);
+  if (existing) {
+    updatePageStatus(`${getCampaign(campaignKey).label} research already submitted or delivery uncertain. Check its existing Operator task before starting another.`);
+    return existing.promise;
+  }
+  const flight = {};
+  flight.promise = submitCampaignResearch(campaignKey, { queueTask, watchTask }, flight);
+  researchFlights.set(campaignKey, flight);
+  return flight.promise;
+}
+async function submitCampaignResearch(campaignKey, { queueTask, watchTask }, flight) {
+  const task = buildCampaignTask(campaignKey);
   const label = getCampaign(campaignKey).label;
   updatePageStatus(`Submitting ${label} research to authenticated Operator…`);
   try {
@@ -83,6 +98,11 @@ async function queueCampaignResearch(key, { queueTask = queueOperatorTask, watch
     watchTask(receipt.taskId, {
       onUpdate(record = {}) {
         const status = clean(record.status || record.state).toLowerCase();
+        // Only an authenticated terminal result releases this single-flight
+        // guard. A polling timeout or synthetic 'blocked' is not proof that
+        // the original request did not run.
+        if (['completed', 'failed', 'skipped', 'cancelled', 'canceled'].includes(status)
+          && researchFlights.get(campaignKey) === flight) researchFlights.delete(campaignKey);
         if (status === 'completed') {
           updatePageStatus(`${label} research finished. Review the result in Operator before any CRM import or outreach.`);
         } else if (['blocked', 'failed', 'skipped', 'review'].includes(status)) {
