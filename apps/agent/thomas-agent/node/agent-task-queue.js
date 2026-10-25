@@ -150,6 +150,10 @@ function normalizeTaskRecord(record = {}) {
     status: normalizeText(record.status) || 'queued',
     createdAt: normalizeText(record.createdAt) || nowIso(),
     updatedAt: normalizeText(record.updatedAt) || nowIso(),
+    // Keep the worker claim and terminal timestamps when normalizing a
+    // receipt; dropping startedAt also breaks immutable-claim validation.
+    startedAt: normalizeText(record.startedAt),
+    completedAt: normalizeText(record.completedAt),
     requestedBy: normalizeText(record.requestedBy) || 'cli',
     resultSummary: normalizeText(record.resultSummary),
     error: normalizeText(record.error),
