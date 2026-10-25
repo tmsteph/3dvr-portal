@@ -323,3 +323,22 @@ test('legacy closed lead does not invent a won deal, customer, or paid outcome',
   assert.match(record.nextBestAction, /verify the outcome and payment/i);
   assert.doesNotMatch(record.status, /won|paid|customer/i);
 });
+
+
+test('CRM last-contact date reflects successful outbound, not a later failure or reply', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [{ name: 'Chronology Buyer', contact: 'mailto:owner@chronology.example', status: 'new' }],
+    outreach: [
+      { name: 'Chronology Buyer', contact: 'mailto:owner@chronology.example', status: 'replied', timestamp: '2026-10-24T12:00:00Z' },
+      { name: 'Chronology Buyer', contact: 'mailto:owner@chronology.example', status: 'sent', timestamp: '2026-10-23T09:00:00Z' },
+      { name: 'Chronology Buyer', contact: 'mailto:owner@chronology.example', status: 'failed', timestamp: '2026-10-25T15:00:00Z' },
+      { name: 'Chronology Buyer', contact: 'mailto:owner@chronology.example', status: 'replied', timestamp: '2026-10-24T08:00:00Z' },
+    ],
+    now: '2026-10-25T16:00:00Z',
+  });
+  assert.equal(payload.records.length, 1);
+  assert.equal(payload.records[0].lastContacted, '2026-10-23');
+  assert.equal(payload.records[0].lastReplyAt, '2026-10-24T12:00:00Z');
+  assert.equal(payload.records[0].replyCount, 2);
+  assert.equal(payload.records[0].lastDeliveryStatus, 'failed');
+});
