@@ -339,6 +339,7 @@ test('long SQLite work renews an expired initial claim against a competing worke
 
 test('SQLite lease loss cannot abort later work or forge success/failure receipts', async (t) => {
   const options = await queueOptions(t, {
+    rootNode: fakeRoot(),
     workerCapabilities: 'openai',
     deviceId: 'lease-loss-worker',
     gunSync: false,
