@@ -81,10 +81,27 @@ function pendingCampaignResearch(key) {
     && /^operator-http:[A-Za-z0-9_-]{12,100}$/.test(pending.taskId || '') ? pending : null;
 }
 function savePendingCampaignResearch(key, taskId) {
-  writeText(researchStorageKey(key), JSON.stringify({ taskId, createdAt: new Date().toISOString() }));
+  // A reload-safe request needs a durable identity BEFORE the network call.
+  // Storage may throw (privacy mode/quota) or silently reject the write.
+  const storageKey = researchStorageKey(key);
+  const payload = JSON.stringify({ taskId, createdAt: new Date().toISOString() });
+  try {
+    window.localStorage.setItem(storageKey, payload);
+    return window.localStorage.getItem(storageKey) === payload;
+  } catch (_error) {
+    return false;
+  }
 }
 function clearPendingCampaignResearch(key) {
-  try { window.localStorage?.removeItem?.(researchStorageKey(key)); } catch (_error) { /* fail closed in this tab */ }
+  // Never release the in-memory guard while the persisted request survives:
+  // a subsequent reload would otherwise resume an obsolete task identity.
+  const storageKey = researchStorageKey(key);
+  try {
+    window.localStorage.removeItem(storageKey);
+    return !window.localStorage.getItem(storageKey);
+  } catch (_error) {
+    return false;
+  }
 }
 function observeCampaignResearch(campaignKey, taskId, watchTask, flight) {
   const label = getCampaign(campaignKey).label;
@@ -96,8 +113,7 @@ function observeCampaignResearch(campaignKey, taskId, watchTask, flight) {
         // timeout or authentication failure must never release the guard.
         if (['completed', 'failed', 'skipped', 'cancelled', 'canceled'].includes(status)
           && researchFlights.get(campaignKey) === flight) {
-          researchFlights.delete(campaignKey);
-          clearPendingCampaignResearch(campaignKey);
+          if (clearPendingCampaignResearch(campaignKey)) researchFlights.delete(campaignKey);
         }
         if (status === 'completed') {
           updatePageStatus(`${label} research finished. Review the result in Operator before any CRM import or outreach.`);
@@ -135,7 +151,10 @@ function queueCampaignResearch(key, { queueTask = queueOperatorTask, watchTask =
   const flight = { taskId: `operator-http:${researchRequestId()}` };
   // Store the request ID *before* the first network await so a reload during
   // delivery can query the same server-side idempotency key.
-  savePendingCampaignResearch(campaignKey, flight.taskId);
+  if (!savePendingCampaignResearch(campaignKey, flight.taskId)) {
+    updatePageStatus('Research not submitted: this browser cannot preserve the Operator task identity. Enable site storage before retrying.');
+    return Promise.resolve(null);
+  }
   flight.promise = submitCampaignResearch(campaignKey, { queueTask, watchTask }, flight);
   researchFlights.set(campaignKey, flight);
   return flight.promise;
@@ -159,8 +178,9 @@ async function submitCampaignResearch(campaignKey, { queueTask, watchTask }, fli
     // keep the stored identity and check status instead of submitting again.
     const rejected = [400, 401, 403].includes(error.status) || /Sign in/.test(String(error.message || ''));
     if (rejected) {
-      if (researchFlights.get(campaignKey) === flight) researchFlights.delete(campaignKey);
-      clearPendingCampaignResearch(campaignKey);
+      if (clearPendingCampaignResearch(campaignKey) && researchFlights.get(campaignKey) === flight) {
+        researchFlights.delete(campaignKey);
+      }
     } else {
       observeCampaignResearch(campaignKey, flight.taskId, watchTask, flight);
     }
