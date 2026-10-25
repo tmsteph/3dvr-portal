@@ -61,6 +61,11 @@ function latestPaymentEventThrough(db, prospectId, eventId) {
   return rows.find(row => paymentReceiptFor(row)) || null;
 }
 
+function crmEmail(contact) {
+  const email = String(contact || '').trim().replace(/^mailto:/i, '');
+  return /^[^\s@/:]+@[^\s@/:]+\.[^\s@/:]+$/.test(email) ? email : '';
+}
+
 function recordFor(prospect, event, now, paymentEvent = event) {
   // Outbox entries represent historical transitions. Using the prospect's
   // latest state here leaks future activity into older projection records.
@@ -89,7 +94,9 @@ function recordFor(prospect, event, now, paymentEvent = event) {
     recordType: 'person',
     name: prospect.name,
     company: prospect.name,
-    email: /@/.test(prospect.contact) ? prospect.contact.replace(/^mailto:/i, '') : '',
+    // A public forum handle or URL containing @ is not an email address.
+    // Keep social-only prospects in CRM without inventing a deliverable inbox.
+    email: crmEmail(prospect.contact),
     status: crmStatus,
     canonicalState,
     source: '3dvr-revenue-ledger',
