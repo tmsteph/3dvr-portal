@@ -111,6 +111,18 @@ class NativeTests(unittest.TestCase):
                 self.assertIn('shell_tool', args)
                 self.assertEqual((home / 'config.toml').read_text(), source)
 
+    def test_operator_tasks_enable_only_web_search_and_preserve_chat_defaults(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(native, 'HOME', Path(directory)):
+                self.assertIn('web_search="disabled"', native.command('/codex'))
+                task = native.command('/codex', True)
+                self.assertIn('web_search="live"', task)
+                self.assertIn('shell_tool', task)
+        for kind in ['commandExecution', 'mcpToolCall', 'dynamicToolCall', 'fileChange']:
+            with self.assertRaises(RuntimeError):
+                native.run_turn(Events([event('item/started', item={'type': kind})]),
+                                'thread-one', {'message': 'test', 'taskMode': True}, lambda _: None)
+
     def test_installed_binary_remains_discoverable_without_a_running_gateway(self):
         with tempfile.TemporaryDirectory() as directory:
             executable = Path(directory) / 'codex'

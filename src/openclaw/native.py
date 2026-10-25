@@ -43,9 +43,9 @@ def find_binary():
     raise RuntimeError('Codex is not installed')
 
 
-def command(binary):
+def command(binary, task_mode=False):
     # The chat pilot does not inherit unrelated MCP integrations or shell tools.
-    args = [binary, 'app-server', '--disable', 'shell_tool', '-c', 'web_search="disabled"']
+    args = [binary, 'app-server', '--disable', 'shell_tool', '-c', 'web_search="live"' if task_mode else 'web_search="disabled"']
     config = HOME / 'config.toml'
     data = tomllib.loads(config.read_text()) if config.exists() else {}
     for name in data.get('mcp_servers', {}):
@@ -207,7 +207,8 @@ def main(request):
             return {'ok': False, 'error': 'A prior turn is uncertain. Check History and start a new chat.'}
         workspace = STATE / 'workspace'
         workspace.mkdir(mode=0o700, exist_ok=True)
-        client = Client(command(binary), str(workspace), time.monotonic() + 85)
+        task_mode = request.get('taskMode') is True
+        client = Client(command(binary, task_mode), str(workspace), time.monotonic() + 85)
         try:
             client.rpc('initialize', {'clientInfo': {'name': '3dvr_helm', 'version': '0.1.0'}})
             client.send('initialized', {}, False)
@@ -219,6 +220,11 @@ def main(request):
             else:
                 params['developerInstructions'] = ('You are Helm\'s native Codex chat pilot. Provide conversation and code advice. '
                     'Do not use tools or claim to have executed work. This pilot does not provide OpenClaw integrations.')
+                if task_mode:
+                    params['developerInstructions'] = ('You execute private 3DVR Operator research and drafting tasks. '
+                        'Use web search when current evidence is needed and return sources. '
+                        'Shell, MCP, file changes, messaging, purchases and deployment are unavailable. '
+                        'Return the completed result; state any unavailable capability honestly.')
                 result = client.rpc('thread/start', params)
             thread_id = result['thread']['id']
             if expired(request):

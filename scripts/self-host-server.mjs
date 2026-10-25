@@ -20,6 +20,9 @@ import { createOAuthProviderHandler } from '../src/oauth/provider-api.js';
 import { createOrganismBridgeHandler } from '../src/organism/bridge.js';
 import { createPresenceAudioHandler } from '../src/presence-audio/handler.js';
 
+import { createOperatorDispatchHandler } from '../src/operator-runtime/dispatch.js';
+const operatorDispatchHandler = createOperatorDispatchHandler();
+
 import { createOpenClawHandler } from '../src/openclaw/handler.js';
 const openClawHandler = createOpenClawHandler();
 
@@ -412,6 +415,11 @@ const server = createServer(async (req, res) => {
     url.pathname.startsWith('/presence-audio/pair/')
   ) {
     return presenceAudioHandler(req, res, url);
+  }
+
+  if (url.pathname === '/api/operator-task') {
+    if (STANDBY_MODE) return json(res, 503, { ok:false,error:'Primary task service unavailable.' });
+    return runJsonApiHandler(operatorDispatchHandler, req, res, url, { errorMessage:'Task service failed' });
   }
 
   if (url.pathname === '/api/openclaw') {

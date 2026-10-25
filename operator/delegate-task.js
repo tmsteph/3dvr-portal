@@ -1,3 +1,4 @@
+import { createSignedPortalProof } from './forge.js';
 import { createWorkItem } from '../src/operator-runtime/work-item.js';
 import { workItemToAgentQueueRecord, workItemToQueueSummary } from '../src/operator-runtime/task-queue-adapter.js';
 import { workItemToRuntimeSidecar } from '../src/operator-runtime/runtime-sidecar.js';
@@ -8,7 +9,6 @@ const DEFAULT_PEERS = [
   'wss://relay.3dvr.tech/gun',
   'wss://gun-relay-3dvr.fly.dev/gun'
 ];
-const WRITE_TIMEOUT_MS = 8000;
 const TASK_WATCH_TIMEOUT_MS = 5 * 60 * 1000;
 const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'skipped', 'cancelled', 'canceled', 'blocked', 'review']);
 
@@ -63,44 +63,9 @@ export function operatorTaskReceipt(record = {}) {
   return operatorTaskProgress(record);
 }
 
-function putGun(node, value) {
-  return new Promise((resolve, reject) => {
-    if (!node || typeof node.put !== 'function') {
-      reject(new Error('The 3DVR agent queue is unavailable in this browser.'));
-      return;
-    }
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      resolve({ queued: true, pendingSync: true });
-    }, WRITE_TIMEOUT_MS);
-    node.put(value, ack => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      if (ack?.err) reject(new Error(String(ack.err)));
-      else resolve(ack || {});
-    });
-  });
-}
-
-async function portalSignedIn() {
-  if (globalThis.localStorage?.getItem?.('signedIn') === 'true') return true;
-  try {
-    const response = await globalThis.fetch?.('/api/session', {
-      cache: 'no-store',
-      credentials: 'same-origin'
-    });
-    if (!response?.ok) return false;
-    return (await response.json())?.authenticated === true;
-  } catch {
-    return false;
-  }
-}
-
 export function watchOperatorTask(taskId, options = {}) {
   const id = normalizeText(taskId, 240);
+  if (id.startsWith('operator-http:')) return watchConfirmedTask(id.slice('operator-http:'.length), options);
   if (!id || typeof globalThis.Gun !== 'function') return () => {};
   const onUpdate = typeof options.onUpdate === 'function' ? options.onUpdate : () => {};
   const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : TASK_WATCH_TIMEOUT_MS;
@@ -188,36 +153,71 @@ export function buildOperatorDelegatedTask(action = {}, options = {}) {
   };
 }
 
-export async function queueOperatorTask(action = {}) {
-  if (!await portalSignedIn()) {
-    throw new Error('Sign in before delegating work to 3DVR Operator workers.');
+async function taskRequest(action, requestId, extra = {}) {
+  const proof = await createSignedPortalProof('operator-runtime-task', action, {requestId,...extra});
+  if (!proof) throw new Error('Sign in with your owner account before delegating work.');
+  const response = await fetch('/api/operator-task', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action,requestId,...extra,...proof}), signal:AbortSignal.timeout(25000)
+  });
+  const result = await response.json();
+  if (!response.ok || !result.ok) {
+    const error = new Error(result.error || 'Task service unavailable.');
+    error.status = response.status;
+    throw error;
   }
-  if (typeof globalThis.Gun !== 'function') {
-    throw new Error('The 3DVR agent queue is unavailable in this browser.');
-  }
+  return result;
+}
 
-  const built = buildOperatorDelegatedTask(action);
-  const gun = globalThis.Gun({ localStorage: false, peers: globalThis.__GUN_PEERS__ || DEFAULT_PEERS });
-  const taskQueue = gun
-    .get(ROOT_KEY)
-    .get('agentOps')
-    .get(MANAGED_AGENT_OWNER_ALIAS)
-    .get('taskQueue');
-
-  const [taskWrite, latestWrite, runtimeWrite] = await Promise.all([
-    putGun(taskQueue.get('tasks').get(built.record.id), built.record),
-    putGun(taskQueue.get('latest').get(built.record.id), built.summary),
-    putGun(taskQueue.get('runtime').get(built.record.id), built.runtime)
-  ]);
-  const pendingSync = Boolean(taskWrite?.pendingSync || latestWrite?.pendingSync || runtimeWrite?.pendingSync);
-
-  return {
-    taskId: built.record.id,
-    estimateMs: Number(built.record.maxRuntimeMs || 120_000),
-    message: pendingSync
-      ? 'Queued the task locally. Operator Runtime will sync it when the relay reconnects.'
-      : 'Delegated to Operator Runtime.',
-    url: `/operator-runtime/?task=${encodeURIComponent(built.record.id)}`,
-    label: 'Operator task'
+function watchConfirmedTask(requestId, options = {}) {
+  let stopped = false;
+  let timer;
+  let failures = 0;
+  const deadline = Date.now() + (options.timeoutMs ?? TASK_WATCH_TIMEOUT_MS);
+  const stop = () => { stopped = true; clearTimeout(timer); };
+  const poll = async () => {
+    if (stopped) return;
+    try {
+      const result = await taskRequest('status', requestId);
+      if (stopped) return;
+      failures = 0;
+      options.onUpdate?.(result.record);
+      if (isOperatorTaskTerminal(result.record)) return stop();
+    } catch (error) {
+      if (stopped) return;
+      failures += 1;
+      if ([401,403,404].includes(error.status) || failures >= 3) {
+        options.onUpdate?.({status:'blocked',error:error.message});
+        return stop();
+      }
+    }
+    if (Date.now() >= deadline) {
+      options.onUpdate?.({status:'blocked',error:'The task has not finished. Its saved server state is preserved; do not submit it again.'});
+      return stop();
+    }
+    timer = setTimeout(poll, 2000);
   };
+  void poll();
+  return stop;
+}
+
+export async function queueOperatorTask(action = {}) {
+  const text = normalizeText(action.text, 6000);
+  if (!text) throw new Error('A delegated task is required.');
+  const title = normalizeText(action.title, 160) || 'Operator delegated task';
+  const requestId = makeId('task');
+  let confirmed = false;
+  let message;
+  try {
+    await taskRequest('enqueue', requestId, {text,title});
+    confirmed = true;
+    message = 'The server saved your task for the Codex worker.';
+  } catch (error) {
+    if ([400,401,403].includes(error.status) || /Sign in/.test(error.message)) throw error;
+    // A missing HTTP response is not proof that the write failed. Poll the
+    // same request identity; never re-enqueue or silently fall back to Gun.
+    message = 'Checking delivery. I will look up this task before any retry.';
+  }
+  return {taskId:`operator-http:${requestId}`,estimateMs:120000,confirmed,message,
+    url:'',label:'Operator task'};
 }
