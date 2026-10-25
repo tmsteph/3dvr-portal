@@ -105,7 +105,9 @@ test('browser recovers a lost enqueue response by looking up the same signed tas
     return {ok:res.statusCode<300,status:res.statusCode,json:async()=>res.data};
   };
   try {
-    const task=await queueOperatorTask({text:enqueue.text,title:enqueue.title});
+    const persistedRequestId='task-persisted-research-12345';
+    const task=await queueOperatorTask({text:enqueue.text,title:enqueue.title,requestId:persistedRequestId});
+    assert.equal(task.taskId,`operator-http:${persistedRequestId}`);
     assert.equal(task.confirmed,false);
     const done=await new Promise(resolve=>watchOperatorTask(task.taskId,{onUpdate:resolve}));
     assert.equal(done.status,'completed');
