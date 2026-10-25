@@ -28,6 +28,51 @@ test('CRM projection preserves the legacy stable record identity while waiting q
   assert.equal(record.canonicalState, 'sent');
 });
 
+test('public forum prospects project without inventing an email address', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-public-prospect-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const prospect = createProspect(db, {
+      name: 'Forum Builder',
+      contact: '@forum-builder',
+      sourceUrl: 'https://community.example/thread/123',
+    }).prospect;
+    transitionProspect(db, {
+      prospectId: prospect.id, toState: 'verified',
+      idempotencyKey: 'public-forum:verified',
+      type: 'candidate_verified',
+      payload: { sourceUrl: 'https://community.example/thread/123' },
+    });
+    const written = [];
+    const projected = await projectPendingCrm(db, {
+      write: async payload => {
+        written.push(...payload.records);
+        return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+      },
+    });
+    assert.equal(projected.succeeded, 1);
+    assert.equal(written.length, 1);
+    assert.equal(written[0].email, '', 'social handle is not a deliverable email');
+    assert.equal(written[0].status, 'Lead');
+    assert.equal(written[0].canonicalState, 'verified');
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0);
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('CRM email projection accepts actual addresses but rejects URL userinfo and handles', () => {
+  const base = {
+    name: 'Synthetic Buyer', source_url: 'https://community.example/thread',
+    state: 'verified', campaign_id: '', created_at: '2026-01-01T00:00:00Z',
+  };
+  const event = { id: 'public-source-event', to_state: 'verified' };
+  const project = contact => recordFor({ ...base, contact }, event, '2026-01-02T00:00:00Z');
+  for (const contact of ['@forum-builder', 'u/forum-builder', 'https://user@community.example/thread', '']) {
+    assert.equal(project(contact).email, '', contact || '(empty)');
+  }
+  assert.equal(project('mailto:owner@example.test').email, 'owner@example.test');
+  assert.equal(project('OWNER@example.test').email, 'OWNER@example.test');
+});
+
 test('CRM projection turns a successful payment receipt into a paid-customer activation record', () => {
   const record = recordFor(
     { id: 'esai', name: 'Esai', contact: 'mailto:gamboaesai@gmail.com', source_url: '', state: 'replied', campaign_id: '', created_at: '2026-08-01T00:00:00Z' },
