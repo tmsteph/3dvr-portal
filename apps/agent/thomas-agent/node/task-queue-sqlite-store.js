@@ -127,10 +127,10 @@ function importTask(record, options = {}) {
     const serialized = JSON.stringify(record);
     const now = options.now || Date.now();
     if (status !== 'queued') {
-      // A legacy terminal mirror is not authority to rewrite what was queued.
-      // Preserve the original execution intent; only outcome fields may change.
-      // The compare-and-swap predicate also prevents a concurrent queued edit
-      // from being overwritten between the read and terminal transition.
+      // A public GUN terminal mirror is not an authenticated worker receipt.
+      // Quarantine an already-imported, unclaimed legacy task for review;
+      // neither fabricate completion nor let the SQLite worker replay work
+      // that may have run elsewhere. Unknown IDs and changed intent fail closed.
       const previous = db.prepare(`
         SELECT record_json FROM tasks
         WHERE owner_alias = ? AND id = ? AND source = 'gun'
@@ -144,13 +144,21 @@ function importTask(record, options = {}) {
         'requiredCapabilities', 'maxRuntimeMs', 'requestedBy', 'createdAt',
       ];
       if (intentFields.some(field => original[field] !== record[field])) return false;
+      const held = {
+        ...original,
+        status: 'review_required',
+        updatedAt,
+        legacyMirrorStatus: status,
+        legacyMirrorUpdatedAt: updatedAt,
+        reviewReason: 'Unverified legacy GUN terminal mirror; reconcile execution and side effects before any retry',
+      };
       return db.prepare(`
-        UPDATE tasks SET status = ?, updated_at = ?, record_json = ?,
-          claim_token = NULL, claim_expires_at = NULL
+        UPDATE tasks SET status = 'review_required', updated_at = ?,
+          record_json = ?, claim_token = NULL, claim_expires_at = NULL
         WHERE owner_alias = ? AND id = ? AND source = 'gun'
           AND status = 'queued' AND claim_token IS NULL
           AND updated_at < ? AND record_json = ?
-      `).run(status, updatedAt, serialized, alias, id, updatedAt, previous.record_json).changes === 1;
+      `).run(updatedAt, JSON.stringify(held), alias, id, updatedAt, previous.record_json).changes === 1;
     }
     // GUN may update its own still-queued imported rows, but must never
     // reopen completed, failed, skipped, cancelled, or running work.
