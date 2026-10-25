@@ -377,10 +377,14 @@ function buildCrmSyncPayload({
     const replies = entries.filter(entry => normalizeLower(entry.status) === 'replied');
     const latest = entries.slice().sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || ''))).pop();
     if (!latest) continue;
-    record.lastContacted = successful.length ? isoDate(latest.timestamp, new Date(now)) : record.lastContacted;
+    // A later failed attempt or reply must not move the last successful outbound date.
+    const latestSent = successful.slice().sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || ''))).pop();
+    record.lastContacted = latestSent ? isoDate(latestSent.timestamp, new Date(now)) : record.lastContacted;
+    // Input logs can arrive out of order; use event time, not array order.
+    const latestReply = replies.slice().sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || ''))).pop();
     record.lastTouchType = replies.length ? 'reply-received' : 'outreach-sent';
     record.replyCount = replies.length;
-    record.lastReplyAt = replies.length ? replies[replies.length - 1].timestamp : '';
+    record.lastReplyAt = latestReply?.timestamp || '';
     record.lastCampaign = normalizeText(latest.campaignId || latest.experiment || latest.experimentId);
     record.lastVariant = normalizeText(latest.variant);
     record.lastMessageSubject = normalizeText(latest.subject);
