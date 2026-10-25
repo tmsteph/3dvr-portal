@@ -59,6 +59,28 @@ test('direct SQLite inserts cannot fabricate running or terminal execution recei
   }
 });
 
+test('SQLite refuses missing claim tokens and worker identities without stranding work', async (t) => {
+  const options = await queueOptions(t);
+  const now = Date.now();
+  const id = 'missing-claim-identity';
+  await enqueueTask('safe bounded health check', { ...options, id, backend: 'health', now });
+
+  for (const [token, worker] of [
+    [null, 'worker'], [undefined, 'worker'], ['', 'worker'], ['   ', 'worker'],
+    ['valid-token', null], ['valid-token', undefined],
+    ['valid-token', ''], ['valid-token', '   '],
+  ]) {
+    assert.equal(sqliteQueue.claimTask(id, token, worker, now + 60_000, now, options), null);
+    const preserved = await readTask(id, options);
+    assert.equal(preserved.status, 'queued');
+    assert.equal(preserved.claimExpiresAt, null);
+  }
+
+  const claimed = sqliteQueue.claimTask(id, 'valid-token', 'worker', now + 60_000, now, options);
+  assert.ok(claimed, 'a valid worker can still claim the unchanged task');
+  assert.equal((await readTask(id, options)).status, 'running');
+});
+
 test('SQLite rejects invalid initial claim leases without stranding queued work', async (t) => {
   const options = await queueOptions(t);
   const now = Date.now();
