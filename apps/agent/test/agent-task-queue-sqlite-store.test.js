@@ -313,6 +313,23 @@ test('an expired running claim requires review instead of automatic replay', asy
   );
 });
 
+test('expired SQLite claim cannot finalize ordinary non-goal work', async (t) => {
+  const now = Date.now();
+  const options = await queueOptions(t, { now: now + 100 });
+  for (const status of ['completed', 'failed', 'skipped']) {
+    const id = `expired-finish-${status}`;
+    await enqueueTask('bounded health task', { ...options, now, id, backend: 'health' });
+    const claimed = sqliteQueue.claimTask(id, `claim-${status}`, 'original-worker', now + 10, now, options);
+    assert.ok(claimed);
+    assert.equal(sqliteQueue.finishTask(id, `claim-${status}`, {
+      ...claimed, status, updatedAt: new Date(now + 100).toISOString(),
+    }, options), false, `expired claim must not record ${status}`);
+    const preserved = await readTask(id, options);
+    assert.equal(preserved.status, 'running');
+    assert.equal(preserved.claimExpiresAt, now + 10);
+  }
+});
+
 test('newer GUN import cannot revive an expired running task', async (t) => {
   const now = Date.now();
   const options = await queueOptions(t, {
