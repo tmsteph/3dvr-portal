@@ -254,6 +254,21 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
         db.exec('ROLLBACK');
         return null;
       }
+      // The signed Operator HTTP route and the legacy worker share one native
+      // Codex executor. Preserve the cross-owner, cross-loop admission guard
+      // introduced on main: reserve the slot in the claim transaction.
+      // A busy executor leaves this task queued rather than failing it.
+      if (String(id).startsWith('operator-http-')) {
+        const active = db.prepare(`
+          SELECT count(*) AS n FROM tasks
+          WHERE id GLOB 'operator-http-*' AND status = 'running'
+            AND claim_expires_at > ?
+        `).get(now).n;
+        if (active > 0) {
+          db.exec('ROLLBACK');
+          return null;
+        }
+      }
       const record = JSON.parse(row.record_json);
       // Authorization must be checked against the row inside the same
       // transaction as the claim. A worker's earlier queue snapshot can be
