@@ -84,8 +84,9 @@ function writeTask(record, options = {}) {
 
 function importTask(record, options = {}) {
   return withDatabase(options, (db) => {
-    // GUN may update its own imported rows, but cannot replace a native
-    // SQLite task (including a completed one) with a newer queued mirror.
+    // GUN may update its own still-queued imported rows, but must never
+    // reopen completed, failed, skipped, or running work: an old GUN mirror
+    // could otherwise requeue a task whose side effects already occurred.
     const result = db.prepare(`
       INSERT INTO tasks
         (owner_alias, id, status, updated_at, record_json, source)
@@ -98,7 +99,7 @@ function importTask(record, options = {}) {
         claim_token = NULL,
         claim_expires_at = NULL
       WHERE tasks.source = 'gun'
-        AND tasks.status != 'running'
+        AND tasks.status = 'queued'
         AND (tasks.claim_token IS NULL OR tasks.claim_expires_at <= ?)
         AND excluded.updated_at > tasks.updated_at
     `).run(
