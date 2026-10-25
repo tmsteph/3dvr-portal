@@ -65,7 +65,8 @@ test('old unsafe shell task is review-only even with historical approval', () =>
   assert.equal(report.queuedAgeBuckets['>30d'], 1);
   assert.equal(report.queuedCapabilities.shell, 1);
   assert.deepEqual(report.queuedReviews[0].flags, [
-    'stale_or_unknown_age', 'missing_capability', 'unsafe_flag', 'requires_intent_review'
+    'stale_or_unknown_age', 'missing_capability', 'risk_not_allowed',
+    'approval_verification_unavailable', 'unsafe_flag', 'requires_intent_review'
   ]);
   assert.equal(JSON.stringify(report).includes(task.task), false);
   assert.equal(JSON.stringify(report).includes(task.id), false);
@@ -130,6 +131,7 @@ test('stale queue metadata never marks blocked high-risk approval states eligibl
       };
       const flags = summarizeQueue([task], allowed, now).queuedReviews[0].flags;
       assert.ok(flags.includes('approval_block'), riskClass + ':' + approvalStatus);
+      assert.ok(flags.includes('approval_verification_unavailable'), riskClass + ':' + approvalStatus);
       assert.ok(!flags.includes('metadata_eligible_not_authorized'));
     }
     const approved = {
@@ -137,7 +139,7 @@ test('stale queue metadata never marks blocked high-risk approval states eligibl
       createdAt: '2026-10-23T09:00:00Z', riskClass, approvalStatus: 'approved'
     };
     assert.deepEqual(summarizeQueue([approved], allowed, now).queuedReviews[0].flags,
-      ['metadata_eligible_not_authorized']);
+      ['approval_verification_unavailable']);
   }
 });
 
@@ -151,5 +153,29 @@ test('stale queue audit distinguishes absent low-risk approval from invalid or e
   for (const approvalStatus of ['expired', 'unknown', 'pending', 'denied']) {
     const flags = summarizeQueue([{ ...task, approvalStatus }], env, now).queuedReviews[0].flags;
     assert.deepEqual(flags, ['approval_block']);
+  }
+});
+
+
+test('unsafe low-risk labels are evaluated as external_write, not metadata eligible', () => {
+  const allowed = {
+    THREEDVR_AGENT_WORKER_CAPABILITIES: 'shell',
+    THREEDVR_AGENT_WORKER_RISK_CLASSES: 'read_only,draft,external_write'
+  };
+  for (const approvalStatus of ['not_required', 'approved']) {
+    const task = {
+      id: 'private-unsafe', status: 'queued', backend: 'shell', task: 'private text',
+      createdAt: '2026-10-23T09:00:00Z', riskClass: 'read_only', unsafe: true, approvalStatus
+    };
+    const report = summarizeQueue([task], allowed, now);
+    const review = report.queuedReviews[0];
+    assert.equal(review.risk, 'read_only');
+    assert.equal(review.effectiveRisk, 'external_write');
+    assert.equal(report.queuedEffectiveRisks.external_write, 1);
+    assert.ok(review.flags.includes('approval_verification_unavailable'));
+    assert.ok(review.flags.includes('unsafe_flag'));
+    assert.ok(!review.flags.includes('metadata_eligible_not_authorized'));
+    assert.equal(review.flags.includes('approval_block'), approvalStatus !== 'approved');
+    assert.equal(JSON.stringify(report).includes(task.task), false);
   }
 });
