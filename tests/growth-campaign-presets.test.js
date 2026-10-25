@@ -5,6 +5,15 @@ import { buildCampaignTask, queueCampaignResearch } from '../growth-operator/cam
 
 const operatorDir = new URL('../growth-operator/', import.meta.url);
 
+function memoryStorage() {
+  const values = new Map();
+  return {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => { values.set(key, value); },
+    removeItem: key => { values.delete(key); }
+  };
+}
+
 test('growth operator exposes simple campaign presets for common money paths', async () => {
   const html = await readFile(new URL('index.html', operatorDir), 'utf8');
   const js = await readFile(new URL('campaigns.js', operatorDir), 'utf8');
@@ -67,7 +76,7 @@ test('Growth campaign research requires a trackable signed Operator receipt and 
   const previousWindow = globalThis.window;
   const previousDocument = globalThis.document;
   const status = { textContent: '' };
-  globalThis.window = { localStorage: { getItem: () => '' } };
+  globalThis.window = { localStorage: memoryStorage() };
   globalThis.document = { getElementById: () => status };
   try {
     let submission, watched;
@@ -99,7 +108,7 @@ test('ambiguous Operator acknowledgement never claims research queued or retries
   const previousWindow = globalThis.window;
   const previousDocument = globalThis.document;
   const status = { textContent: '' };
-  globalThis.window = { localStorage: { getItem: () => '' } };
+  globalThis.window = { localStorage: memoryStorage() };
   globalThis.document = { getElementById: () => status };
   try {
     let submissions = 0, watches = 0;
@@ -126,7 +135,7 @@ test('double-tap shares one authenticated research request until verified termin
   const previousWindow = globalThis.window;
   const previousDocument = globalThis.document;
   const status = { textContent: '' };
-  globalThis.window = { localStorage: { getItem: () => '' } };
+  globalThis.window = { localStorage: memoryStorage() };
   globalThis.document = { getElementById: () => status };
   try {
     let resolveFirst;
@@ -231,6 +240,71 @@ test('explicit pre-enqueue authentication rejection permits a fresh signed reque
     assert.equal(submissions, 2);
     assert.equal(receipt.confirmed, true);
     watched.onUpdate({ status: 'completed' });
+  } finally {
+    globalThis.window = previousWindow;
+    globalThis.document = previousDocument;
+  }
+});
+
+test('research does not submit when durable task identity storage throws or drops writes', async () => {
+  const previousWindow = globalThis.window;
+  const previousDocument = globalThis.document;
+  const status = { textContent: '' };
+  globalThis.document = { getElementById: () => status };
+  try {
+    for (const [label, setItem] of [
+      ['throws', () => { throw new Error('Storage disabled'); }],
+      ['silently fails', () => {}]
+    ]) {
+      globalThis.window = {
+        addEventListener: () => {},
+        localStorage: { getItem: () => null, setItem, removeItem: () => {} }
+      };
+      const page = await import(`../growth-operator/campaigns.js?storage-${label.replace(/\\s+/g, '-')}-${Date.now()}`);
+      let submissions = 0;
+      const result = await page.queueCampaignResearch('web-design', {
+        queueTask: async () => { submissions++; throw new Error('should not enqueue'); },
+        watchTask: () => { throw new Error('should not watch'); }
+      });
+      assert.equal(result, null);
+      assert.equal(submissions, 0, `${label}: no authenticated enqueue without durable identity`);
+      assert.match(status.textContent, /Research not submitted.*cannot preserve/);
+    }
+  } finally {
+    globalThis.window = previousWindow;
+    globalThis.document = previousDocument;
+  }
+});
+
+test('research retains in-memory guard if terminal cleanup cannot remove persisted identity', async () => {
+  const previousWindow = globalThis.window;
+  const previousDocument = globalThis.document;
+  const values = new Map();
+  const status = { textContent: '' };
+  globalThis.window = {
+    addEventListener: () => {},
+    localStorage: {
+      getItem: key => values.get(key) ?? null,
+      setItem: (key, value) => { values.set(key, value); },
+      removeItem: () => { throw new Error('Storage deletion blocked'); }
+    }
+  };
+  globalThis.document = { getElementById: () => status };
+  try {
+    const page = await import(`../growth-operator/campaigns.js?cleanup-blocked-${Date.now()}`);
+    let submissions = 0;
+    let watched;
+    const queueTask = async action => {
+      submissions++;
+      return { taskId: `operator-http:${action.requestId}`, confirmed: true };
+    };
+    const watchTask = (_id, options) => { watched = options; };
+    const first = await page.queueCampaignResearch('lead-generation', { queueTask, watchTask });
+    watched.onUpdate({ status: 'completed', resultSummary: 'Verified worker completion' });
+    const next = await page.queueCampaignResearch('lead-generation', { queueTask, watchTask });
+    assert.equal(next.taskId, first.taskId);
+    assert.equal(submissions, 1, 'failed storage cleanup must not permit a duplicate enqueue');
+    assert.equal(values.size, 1, 'the original task identity remains available for reload');
   } finally {
     globalThis.window = previousWindow;
     globalThis.document = previousDocument;
