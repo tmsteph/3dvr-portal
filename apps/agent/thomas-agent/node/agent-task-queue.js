@@ -564,9 +564,14 @@ async function importLegacyGunTasks(options = {}) {
   for (const summary of summaries) {
     // The HTTP namespace is server-owned; public relay data cannot replace it.
     if (summary.id?.startsWith('operator-http-')) continue;
-    if (summary.status !== 'queued') continue;
+    // Terminal GUN mirrors are unverified: quarantine any matching, still-
+    // queued imported SQLite row rather than replaying or trusting a receipt.
+    // The SQLite import never inserts an unseen terminal record.
+    if (!['queued', 'completed', 'failed', 'skipped', 'cancelled'].includes(summary.status)) continue;
     const record = await readTask(summary.id, gunOptions);
-    if (record && record.status === 'queued') sqliteQueue().importTask(normalizeTaskRecord(record), options);
+    if (record && record.status === summary.status) {
+      sqliteQueue().importTask(normalizeTaskRecord(record), options);
+    }
   }
 }
 
