@@ -76,9 +76,18 @@ function researchRequestId() {
   return `task-${globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`}`;
 }
 function pendingCampaignResearch(key) {
-  const pending = readJson(researchStorageKey(key), null);
-  return pending && typeof pending === 'object'
-    && /^operator-http:[A-Za-z0-9_-]{12,100}$/.test(pending.taskId || '') ? pending : null;
+  const raw = readText(researchStorageKey(key));
+  if (!raw) return null;
+  // A damaged or unexpected saved identity might still represent an enqueued
+  // task. Fail closed instead of replacing it with a new request on reload.
+  try {
+    const pending = JSON.parse(raw);
+    return pending && typeof pending === 'object' && !Array.isArray(pending)
+      && /^operator-http:[A-Za-z0-9_-]{12,100}$/.test(pending.taskId || '')
+      ? pending : { invalid: true };
+  } catch (_error) {
+    return { invalid: true };
+  }
 }
 function savePendingCampaignResearch(key, taskId) {
   // A reload-safe request needs a durable identity BEFORE the network call.
@@ -132,6 +141,12 @@ function resumeCampaignResearch(campaignKey, watchTask) {
   if (researchFlights.has(campaignKey)) return researchFlights.get(campaignKey);
   const pending = pendingCampaignResearch(campaignKey);
   if (!pending) return null;
+  if (pending.invalid) {
+    const flight = { invalid: true, promise: Promise.resolve(null) };
+    researchFlights.set(campaignKey, flight);
+    updatePageStatus('Research not submitted: saved Operator task identity is unreadable. Review existing Operator tasks before clearing browser state; no duplicate submitted.');
+    return flight;
+  }
   const flight = {
     taskId: pending.taskId,
     promise: Promise.resolve({ taskId: pending.taskId, confirmed: false, message: 'Resuming the saved Operator task status.' })
@@ -145,7 +160,9 @@ function queueCampaignResearch(key, { queueTask = queueOperatorTask, watchTask =
   const campaignKey = normalizeCampaign(key);
   const existing = researchFlights.get(campaignKey) || resumeCampaignResearch(campaignKey, watchTask);
   if (existing) {
-    updatePageStatus(`${getCampaign(campaignKey).label} research already submitted or delivery uncertain. Check its existing Operator task before starting another.`);
+    updatePageStatus(existing.invalid
+      ? 'Research not submitted: saved Operator task identity is unreadable. Review existing Operator tasks before clearing browser state; no duplicate submitted.'
+      : `${getCampaign(campaignKey).label} research already submitted or delivery uncertain. Check its existing Operator task before starting another.`);
     return existing.promise;
   }
   const flight = { taskId: `operator-http:${researchRequestId()}` };
