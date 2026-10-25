@@ -478,12 +478,27 @@ async function runQueuedTask(record, options = {}) {
         reason: 'SQLite claim lost; execution outcome unverified and task held for review',
       };
     }
-    const terminal = await finishClaimedTask(claimed, {
-      status: 'failed',
-      completedAt: nowIso(),
-      error: message,
-      resultSummary: message,
-    }, options);
+    let terminal;
+    try {
+      terminal = await finishClaimedTask(claimed, {
+        status: 'failed',
+        completedAt: nowIso(),
+        error: message,
+        resultSummary: message,
+      }, options);
+    } catch (finishError) {
+      // Backend failures can also outlive the lease. Do not let their
+      // unrecordable failure receipt crash the batch or replay side effects.
+      if (queueStore(options) === 'sqlite'
+        && finishError.message === `Lost SQLite claim for task ${claimed.id}.`) {
+        return {
+          ok: false,
+          skipped: true,
+          reason: 'SQLite claim lost; execution outcome unverified and task held for review',
+        };
+      }
+      throw finishError;
+    }
     await recordTaskLifeEvent(terminal, options);
     return { ok: false, error: message };
   } finally {
