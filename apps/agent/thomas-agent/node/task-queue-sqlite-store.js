@@ -115,10 +115,31 @@ function writeTask(record, options = {}) {
 }
 
 function importTask(record, options = {}) {
+  // Only queued legacy intent may enter the durable store. A GUN mirror is
+  // not an authenticated worker receipt: importing a previously unseen
+  // completed/running task would fabricate execution without a claim.
+  const status = record?.status;
+  if (!['queued', 'completed', 'failed', 'skipped', 'cancelled'].includes(status)) return false;
   return withDatabase(options, (db) => {
+    const alias = ownerAlias(options);
+    const id = String(record.id);
+    const updatedAt = String(record.updatedAt);
+    const serialized = JSON.stringify(record);
+    const now = options.now || Date.now();
+    if (status !== 'queued') {
+      // Historical terminal updates are only allowed for a *previously*
+      // imported, still-queued GUN row. Never create a terminal row from a
+      // standalone mirror, and never override a claimed or terminal task.
+      return db.prepare(`
+        UPDATE tasks SET status = ?, updated_at = ?, record_json = ?,
+          claim_token = NULL, claim_expires_at = NULL
+        WHERE owner_alias = ? AND id = ? AND source = 'gun'
+          AND status = 'queued' AND claim_token IS NULL
+          AND updated_at < ?
+      `).run(status, updatedAt, serialized, alias, id, updatedAt).changes === 1;
+    }
     // GUN may update its own still-queued imported rows, but must never
-    // reopen completed, failed, skipped, or running work: an old GUN mirror
-    // could otherwise requeue a task whose side effects already occurred.
+    // reopen completed, failed, skipped, cancelled, or running work.
     const result = db.prepare(`
       INSERT INTO tasks
         (owner_alias, id, status, updated_at, record_json, source)
@@ -134,14 +155,7 @@ function importTask(record, options = {}) {
         AND tasks.status = 'queued'
         AND (tasks.claim_token IS NULL OR tasks.claim_expires_at <= ?)
         AND excluded.updated_at > tasks.updated_at
-    `).run(
-      ownerAlias(options),
-      String(record.id),
-      String(record.status),
-      String(record.updatedAt),
-      JSON.stringify(record),
-      options.now || Date.now(),
-    );
+    `).run(alias, id, status, updatedAt, serialized, now);
     return result.changes === 1;
   });
 }
