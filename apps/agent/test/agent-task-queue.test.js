@@ -311,3 +311,19 @@ test('gunSyncEnabled can isolate SQLite workers from GUN', () => {
   assert.equal(gunSyncEnabled({ gunSync: 'off' }), false);
   assert.equal(gunSyncEnabled({ gunSync: true }), true);
 });
+
+test('silent relay reads time out and a late reply cannot trigger an update', async () => {
+  let callback;
+  let writes = 0;
+  const stalled = {
+    get() { return this; },
+    once(fn) { callback = fn; },
+    put() { writes += 1; },
+  };
+  const options = { rootNode: stalled, queueStore: 'gun', force: true, timeoutMs: 20 };
+  await assert.rejects(readTask('silent', options), /Task relay read timed out/);
+  await assert.rejects(updateTask('silent', { status: 'completed' }, options), /Task relay read timed out/);
+  callback({ id: 'silent', status: 'queued' });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(writes, 0);
+});
