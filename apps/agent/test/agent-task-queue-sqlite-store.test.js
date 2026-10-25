@@ -48,6 +48,43 @@ async function queueOptions(t, extra = {}) {
   };
 }
 
+test('direct SQLite inserts cannot fabricate running or terminal execution receipts', async (t) => {
+  const options = await queueOptions(t);
+  for (const status of ['running', 'completed', 'failed', 'skipped']) {
+    const id = `forged-insert-${status}`;
+    assert.throws(() => sqliteQueue.insertTask({
+      id, task: 'never executed', status, updatedAt: new Date().toISOString(),
+    }, options), /active task claim required/);
+    assert.equal(await readTask(id, options), null);
+  }
+});
+
+test('SQLite rejects invalid initial claim leases without stranding queued work', async (t) => {
+  const options = await queueOptions(t);
+  const now = Date.now();
+  await enqueueTask('safe bounded health check', {
+    ...options, id: 'invalid-claim-ttl', backend: 'health', now,
+  });
+  for (const [attempt, expiresAt, claimNow] of [
+    ['already-expired', now - 1, now],
+    ['zero-duration', now, now],
+    ['invalid-expiry', NaN, now],
+    ['infinite-expiry', Infinity, now],
+    ['invalid-clock', now + 1000, NaN],
+  ]) {
+    assert.equal(sqliteQueue.claimTask(
+      'invalid-claim-ttl', attempt, 'worker', expiresAt, claimNow, options,
+    ), null, attempt);
+    const preserved = await readTask('invalid-claim-ttl', options);
+    assert.equal(preserved.status, 'queued', attempt);
+    assert.equal(preserved.claimToken, undefined, attempt);
+  }
+  assert.ok(sqliteQueue.claimTask(
+    'invalid-claim-ttl', 'valid-claim', 'worker', now + 60_000, now, options,
+  ), 'a later valid worker claim still succeeds');
+  assert.equal((await readTask('invalid-claim-ttl', options)).status, 'running');
+});
+
 test('SQLite queue survives reopen and preserves exact owner and task identifiers', async (t) => {
   const options = await queueOptions(t);
   await enqueueTask('first', { ...options, id: 'A/B' });
