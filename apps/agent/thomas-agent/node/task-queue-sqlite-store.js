@@ -284,12 +284,15 @@ function finishTask(id, claimToken, record, options = {}) {
     try {
       const stored = db.prepare('SELECT record_json, claim_expires_at FROM tasks WHERE owner_alias = ? AND id = ? AND claim_token = ? AND status = ?')
         .get(ownerAlias(options), String(id), claimToken, 'running');
-      const goal = stored ? JSON.parse(stored.record_json).goal : null;
+      // Lease expiry applies to every task, not just durable-goal tasks.
+      // An expired worker must not write a success/failure receipt after losing its claim.
+      if (!stored || stored.claim_expires_at == null
+        || stored.claim_expires_at <= (options.now ?? Date.now())) {
+        db.exec('ROLLBACK');
+        return false;
+      }
+      const goal = JSON.parse(stored.record_json).goal;
       if (goal) {
-        if (stored.claim_expires_at <= (options.now ?? Date.now())) {
-          db.exec('ROLLBACK');
-          return false;
-        }
         if (['completed', 'complete', 'done', 'success', 'succeeded'].includes(record.status) && goal.status !== 'complete') {
           db.exec('ROLLBACK');
           return false;
