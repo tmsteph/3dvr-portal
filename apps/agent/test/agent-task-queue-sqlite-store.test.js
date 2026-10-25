@@ -274,3 +274,31 @@ test('signed HTTP tasks keep prompts and results out of the public relay and mem
   assert.equal(saved.status,'completed');
   assert.equal(saved.task,'private prompt');
 });
+
+test('private Operator tasks reserve one shared executor across queue loops and owners', async (t) => {
+  const options = await queueOptions(t);
+  const now = Date.now();
+  const one = { id: 'operator-http-owner-a-first', status: 'queued', updatedAt: new Date(now).toISOString() };
+  const two = { ...one, id: 'operator-http-owner-b-second' };
+  sqliteQueue.writeTask(one, options);
+  const other = { ...options, ownerAlias: 'other-owner' };
+  sqliteQueue.writeTask(two, other);
+  const first = sqliteQueue.claimTask(one.id, 'claim-one', 'worker-a', now + 60000, now, options);
+  assert.ok(first);
+  assert.equal(sqliteQueue.claimTask(two.id, 'claim-two', 'worker-b', now + 60000, now, other), null);
+  assert.equal(sqliteQueue.readTask(two.id, other).status, 'queued');
+  assert.ok(sqliteQueue.finishTask(one.id, 'claim-one', { ...one, status: 'completed' }, options));
+  assert.ok(sqliteQueue.claimTask(two.id, 'claim-two', 'worker-b', now + 60000, now, other));
+});
+
+test('private executor admission releases expired claims and leaves unrelated task admission unchanged', async (t) => {
+  const options = await queueOptions(t);
+  const now = Date.now();
+  const a = { id: 'operator-http-first', status: 'queued', updatedAt: new Date(now).toISOString() };
+  const b = { ...a, id: 'operator-http-second' };
+  const ordinary = { ...a, id: 'ordinary-task' };
+  for (const record of [a, b, ordinary]) sqliteQueue.writeTask(record, options);
+  assert.ok(sqliteQueue.claimTask(a.id, 'a', 'worker', now + 10, now, options));
+  assert.ok(sqliteQueue.claimTask(ordinary.id, 'ordinary', 'worker', now + 60000, now, options));
+  assert.ok(sqliteQueue.claimTask(b.id, 'b', 'worker', now + 60000, now + 11, options));
+});
