@@ -1,3 +1,4 @@
+import { prepareOperatorChat } from './operator/chat-preparation.js';
 import { createOperatorSync, mergeOperatorStores } from './operator/sync.js';
 import { ensureConversationTree } from './operator/conversation-tree.js';
 import { runOperatorAction, watchOperatorActionOutcome } from './operator/actions.js';
@@ -638,11 +639,12 @@ if (form && input && submit && status && result && reply && followUps && actionL
     beginResponse();
 
     try {
-      const [portalContext, developerAuth, memoryContext] = await Promise.all([
-        collectPortalContext(),
-        createDeveloperProofWithRetry(),
-        recallOperatorMemoryBestEffort(prompt)
-      ]);
+      const [portalContext, developerAuth, memoryContext] = await prepareOperatorChat({
+        collectContext: collectPortalContext,
+        createProof: createDeveloperProofWithRetry,
+        recallMemory: recallOperatorMemoryBestEffort,
+        prompt
+      });
       portalContext.page = collectPageContext();
 
       let streamedReply = '';
