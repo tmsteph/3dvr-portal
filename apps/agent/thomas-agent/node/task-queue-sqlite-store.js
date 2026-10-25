@@ -66,7 +66,7 @@ function writeTask(record, options = {}) {
         status = excluded.status,
         updated_at = excluded.updated_at,
         record_json = excluded.record_json
-      WHERE tasks.status != 'running'
+      WHERE tasks.status = 'queued'
     `).run(
       ownerAlias(options),
       String(record.id),
@@ -75,8 +75,8 @@ function writeTask(record, options = {}) {
       JSON.stringify(record),
       options.queueSource || 'sqlite',
     );
-    // Only a claim-holder may finish running work. A second enqueue/update
-    // with the same ID must never erase a running claim, even after expiry.
+    // Only a claim-holder may finish running work. Terminal tasks also remain
+    // immutable: re-enqueueing an old ID could repeat already-executed effects.
     if (result.changes !== 1) throw new Error('active task claim required for update');
     return record;
   });
@@ -84,6 +84,8 @@ function writeTask(record, options = {}) {
 
 function importTask(record, options = {}) {
   return withDatabase(options, (db) => {
+    // GUN may update its own imported rows, but cannot replace a native
+    // SQLite task (including a completed one) with a newer queued mirror.
     const result = db.prepare(`
       INSERT INTO tasks
         (owner_alias, id, status, updated_at, record_json, source)
@@ -95,7 +97,8 @@ function importTask(record, options = {}) {
         source = 'gun',
         claim_token = NULL,
         claim_expires_at = NULL
-      WHERE tasks.status != 'running'
+      WHERE tasks.source = 'gun'
+        AND tasks.status != 'running'
         AND (tasks.claim_token IS NULL OR tasks.claim_expires_at <= ?)
         AND excluded.updated_at > tasks.updated_at
     `).run(
