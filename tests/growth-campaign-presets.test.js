@@ -260,7 +260,7 @@ test('research does not submit when durable task identity storage throws or drop
         addEventListener: () => {},
         localStorage: { getItem: () => null, setItem, removeItem: () => {} }
       };
-      const page = await import(`../growth-operator/campaigns.js?storage-${label.replace(/\\s+/g, '-')}-${Date.now()}`);
+      const page = await import(`../growth-operator/campaigns.js?storage-${label.replace(/\s+/g, '-')}-${Date.now()}`);
       let submissions = 0;
       const result = await page.queueCampaignResearch('web-design', {
         queueTask: async () => { submissions++; throw new Error('should not enqueue'); },
