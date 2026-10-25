@@ -150,6 +150,9 @@ function importTask(record, options = {}) {
 // renewal paths reject expired claims rather than resurrecting them.
 function renewClaim(id, claimToken, expiresAt, options = {}) {
   const now = options.now ?? Date.now();
+  // A nonfinite expiry (Infinity/NaN) can poison the durable lease and
+  // prevent bounded recovery. Never write it, even on a valid token.
+  if (!Number.isFinite(now) || !Number.isFinite(expiresAt) || expiresAt <= now) return false;
   return withDatabase(options, (db) => db.prepare(`
     UPDATE tasks SET claim_expires_at = ?
     WHERE owner_alias = ? AND id = ? AND claim_token = ? AND status = 'running'
@@ -169,6 +172,7 @@ function createClaimRenewer(id, claimToken, options = {}) {
   return {
     renew(expiresAt) {
       const now = options.now ?? Date.now();
+      if (!Number.isFinite(now) || !Number.isFinite(expiresAt) || expiresAt <= now) return false;
       return statement.run(expiresAt, alias, taskId, claimToken, now, expiresAt, now).changes === 1;
     },
     close() {
