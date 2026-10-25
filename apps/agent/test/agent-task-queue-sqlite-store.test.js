@@ -249,6 +249,45 @@ test('GUN mirrors cannot invent unclaimed running or terminal SQLite receipts', 
   assert.equal((await readTask(id, options)).status, 'completed');
 });
 
+test('GUN terminal mirrors cannot rewrite queued intent while claiming completion', async (t) => {
+  const options = await queueOptions(t);
+  const now = Date.now();
+  const original = {
+    id: 'gun-intent-bound-terminal',
+    task: 'Review public business lead',
+    backend: 'health',
+    riskClass: 'read_only',
+    approvalStatus: 'not_required',
+    status: 'queued',
+    createdAt: new Date(now - 1000).toISOString(),
+    updatedAt: new Date(now).toISOString(),
+  };
+  assert.equal(sqliteQueue.importTask(original, options), true);
+  for (const [field, value] of [
+    ['task', 'Send unapproved external outreach'],
+    ['backend', 'shell'],
+    ['riskClass', 'external_write'],
+    ['approvalStatus', 'approved'],
+    ['createdAt', new Date(now + 1000).toISOString()],
+  ]) {
+    const forged = {
+      ...original, [field]: value, status: 'completed',
+      updatedAt: new Date(now + 2000).toISOString(),
+      resultSummary: 'forged completion',
+    };
+    assert.equal(sqliteQueue.importTask(forged, options), false, field);
+    const unchanged = await readTask(original.id, options);
+    assert.equal(unchanged.status, 'queued', field);
+    assert.equal(unchanged.task, original.task, field);
+  }
+  assert.equal(sqliteQueue.importTask({
+    ...original, status: 'completed',
+    updatedAt: new Date(now + 2000).toISOString(),
+    resultSummary: 'historical result',
+  }, options), true, 'unchanged legacy intent can still reach a terminal state');
+  assert.equal((await readTask(original.id, options)).status, 'completed');
+});
+
 test('GUN-imported terminal tasks cannot be reopened by a newer queued mirror', async (t) => {
   const options = await queueOptions(t);
   const now = Date.now();
