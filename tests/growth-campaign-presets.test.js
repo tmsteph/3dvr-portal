@@ -310,3 +310,46 @@ test('research retains in-memory guard if terminal cleanup cannot remove persist
     globalThis.document = previousDocument;
   }
 });
+
+test('unreadable persisted research identity fails closed instead of enqueueing a duplicate', async () => {
+  const previousWindow = globalThis.window;
+  const previousDocument = globalThis.document;
+  const status = { textContent: '' };
+  globalThis.document = { getElementById: () => status };
+  try {
+    for (const [label, value] of [
+      ['broken-json', '{"taskId":"operator-http:task-existing"'],
+      ['invalid-id', JSON.stringify({ taskId: 'not-a-signed-task' })],
+      ['unexpected-array', JSON.stringify([{ taskId: 'operator-http:task-existing' }])]
+    ]) {
+      const values = new Map([['3dvr.growthOperator.researchRequest.v1.web-design', value]]);
+      globalThis.window = {
+        addEventListener: () => {},
+        localStorage: {
+          getItem: key => values.get(key) ?? null,
+          setItem: (key, text) => { values.set(key, text); },
+          removeItem: key => { values.delete(key); }
+        }
+      };
+      const page = await import(`../growth-operator/campaigns.js?corrupt-identity-${label}-${Date.now()}`);
+      let submissions = 0;
+      const result = await page.queueCampaignResearch('web-design', {
+        queueTask: async () => { submissions++; throw new Error('should not enqueue'); },
+        watchTask: () => { throw new Error('should not watch'); }
+      });
+      assert.equal(result, null);
+      assert.equal(submissions, 0, `${label}: ambiguous persisted identity must block new enqueue`);
+      assert.equal(values.get('3dvr.growthOperator.researchRequest.v1.web-design'), value,
+        'preserve the saved state for explicit reconciliation');
+      assert.match(status.textContent, /Research not submitted.*identity is unreadable/);
+      await page.queueCampaignResearch('web-design', {
+        queueTask: async () => { submissions++; },
+        watchTask: () => {}
+      });
+      assert.equal(submissions, 0, `${label}: repeated clicks remain blocked`);
+    }
+  } finally {
+    globalThis.window = previousWindow;
+    globalThis.document = previousDocument;
+  }
+});
