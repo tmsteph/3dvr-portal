@@ -81,6 +81,11 @@ function insertTask(record, options = {}) {
 }
 
 function writeTask(record, options = {}) {
+  // Editing a pending task must never manufacture a running/completed/failed
+  // execution receipt. Only claimTask and finishTask may change lifecycle.
+  if (record.status !== 'queued') {
+    throw new Error('active task claim required for status transition');
+  }
   return withDatabase(options, (db) => {
     const result = db.prepare(`
       INSERT INTO tasks (owner_alias, id, status, updated_at, record_json, source)
