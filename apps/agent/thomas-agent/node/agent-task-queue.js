@@ -211,8 +211,19 @@ function listTasks(options = {}) {
 
 function readTask(id, options = {}) {
   if (queueStore(options) === 'sqlite') return sqliteQueue().readTask(id, options);
-  return new Promise((resolve) => {
-    taskNode(id, options).once((data) => resolve(data || null));
+  return new Promise((resolve, reject) => {
+    // Relay silence is not a missing record: rejecting preserves remote state
+    // and prevents a compatibility poll from waiting forever before execution.
+    const timer = setTimeout(() => reject(new Error('Task relay read timed out.')), options.timeoutMs || 2500);
+    try {
+      taskNode(id, options).once((data) => {
+        clearTimeout(timer);
+        resolve(data || null);
+      });
+    } catch (error) {
+      clearTimeout(timer);
+      reject(error);
+    }
   });
 }
 
