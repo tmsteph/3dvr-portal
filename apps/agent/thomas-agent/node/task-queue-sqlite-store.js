@@ -142,11 +142,15 @@ function importTask(record, options = {}) {
   });
 }
 
+// A missed lease is no longer authority to execute or finish work. Both
+// renewal paths reject expired claims rather than resurrecting them.
 function renewClaim(id, claimToken, expiresAt, options = {}) {
+  const now = options.now ?? Date.now();
   return withDatabase(options, (db) => db.prepare(`
     UPDATE tasks SET claim_expires_at = ?
     WHERE owner_alias = ? AND id = ? AND claim_token = ? AND status = 'running'
-  `).run(expiresAt, ownerAlias(options), String(id), claimToken).changes === 1);
+      AND claim_expires_at > ? AND ? > ?
+  `).run(expiresAt, ownerAlias(options), String(id), claimToken, now, expiresAt, now).changes === 1);
 }
 
 function createClaimRenewer(id, claimToken, options = {}) {
@@ -154,12 +158,14 @@ function createClaimRenewer(id, claimToken, options = {}) {
   const statement = db.prepare(`
     UPDATE tasks SET claim_expires_at = ?
     WHERE owner_alias = ? AND id = ? AND claim_token = ? AND status = 'running'
+      AND claim_expires_at > ? AND ? > ?
   `);
   const alias = ownerAlias(options);
   const taskId = String(id);
   return {
     renew(expiresAt) {
-      return statement.run(expiresAt, alias, taskId, claimToken).changes === 1;
+      const now = options.now ?? Date.now();
+      return statement.run(expiresAt, alias, taskId, claimToken, now, expiresAt, now).changes === 1;
     },
     close() {
       db.close();
