@@ -67,42 +67,38 @@ function renderCampaign(key) {
   if (title) title.textContent = campaign.title; if (description) description.textContent = campaign.description; if (finderLink) finderLink.href = `../lead-finder/?campaign=${encodeURIComponent(campaignKey)}`; seedQuickAdd(campaignKey);
 }
 function selectCampaign(key, { announce = true } = {}) { const campaignKey = normalizeCampaign(key); writeText(CAMPAIGN_STORAGE_KEY, campaignKey); renderCampaign(campaignKey); if (announce) updatePageStatus(`${getCampaign(campaignKey).label} selected. Ready to research a small first batch.`); return campaignKey; }
-// Keep one active request per campaign. A double-tap must not create two
-// different signed request IDs; uncertain delivery must be reconciled first.
+// Persist the signed task identity before sending. Reloads and uncertain HTTP
+// acknowledgements must resume status checks, never create another task ID.
+const CAMPAIGN_RESEARCH_KEY_PREFIX = '3dvr.growthOperator.researchRequest.v1.';
 const researchFlights = new Map();
-function queueCampaignResearch(key, { queueTask = queueOperatorTask, watchTask = watchOperatorTask } = {}) {
-  const campaignKey = normalizeCampaign(key);
-  const existing = researchFlights.get(campaignKey);
-  if (existing) {
-    updatePageStatus(`${getCampaign(campaignKey).label} research already submitted or delivery uncertain. Check its existing Operator task before starting another.`);
-    return existing.promise;
-  }
-  const flight = {};
-  flight.promise = submitCampaignResearch(campaignKey, { queueTask, watchTask }, flight);
-  researchFlights.set(campaignKey, flight);
-  return flight.promise;
+function researchStorageKey(key) { return CAMPAIGN_RESEARCH_KEY_PREFIX + normalizeCampaign(key); }
+function researchRequestId() {
+  return `task-${globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`}`;
 }
-async function submitCampaignResearch(campaignKey, { queueTask, watchTask }, flight) {
-  const task = buildCampaignTask(campaignKey);
+function pendingCampaignResearch(key) {
+  const pending = readJson(researchStorageKey(key), null);
+  return pending && typeof pending === 'object'
+    && /^operator-http:[A-Za-z0-9_-]{12,100}$/.test(pending.taskId || '') ? pending : null;
+}
+function savePendingCampaignResearch(key, taskId) {
+  writeText(researchStorageKey(key), JSON.stringify({ taskId, createdAt: new Date().toISOString() }));
+}
+function clearPendingCampaignResearch(key) {
+  try { window.localStorage?.removeItem?.(researchStorageKey(key)); } catch (_error) { /* fail closed in this tab */ }
+}
+function observeCampaignResearch(campaignKey, taskId, watchTask, flight) {
   const label = getCampaign(campaignKey).label;
-  updatePageStatus(`Submitting ${label} research to authenticated Operator…`);
   try {
-    // Use the existing signed HTTP → private SQLite → Codex worker lane.
-    // Direct browser Gun writes previously claimed a task was queued even
-    // when the managed worker could not execute the "auto" capability.
-    const receipt = await queueTask({ text: task.task, title: `${label} prospect research` });
-    if (!receipt?.taskId) throw new Error('Operator did not return a trackable task identity.');
-    updatePageStatus(receipt.confirmed
-      ? `${label} research accepted by Operator. Waiting for a verified result; no CRM records or messages sent.`
-      : receipt.message || 'Checking Operator delivery; do not submit a duplicate task.');
-    watchTask(receipt.taskId, {
+    watchTask(taskId, {
       onUpdate(record = {}) {
         const status = clean(record.status || record.state).toLowerCase();
-        // Only an authenticated terminal result releases this single-flight
-        // guard. A polling timeout or synthetic 'blocked' is not proof that
-        // the original request did not run.
+        // Signed terminal status is required. Synthetic 'blocked' from polling
+        // timeout or authentication failure must never release the guard.
         if (['completed', 'failed', 'skipped', 'cancelled', 'canceled'].includes(status)
-          && researchFlights.get(campaignKey) === flight) researchFlights.delete(campaignKey);
+          && researchFlights.get(campaignKey) === flight) {
+          researchFlights.delete(campaignKey);
+          clearPendingCampaignResearch(campaignKey);
+        }
         if (status === 'completed') {
           updatePageStatus(`${label} research finished. Review the result in Operator before any CRM import or outreach.`);
         } else if (['blocked', 'failed', 'skipped', 'review'].includes(status)) {
@@ -112,14 +108,68 @@ async function submitCampaignResearch(campaignKey, { queueTask, watchTask }, fli
         }
       }
     });
+  } catch (_error) {
+    updatePageStatus(`${label} status check unavailable. The saved task identity is preserved; check Operator before retrying.`);
+  }
+}
+function resumeCampaignResearch(campaignKey, watchTask) {
+  if (researchFlights.has(campaignKey)) return researchFlights.get(campaignKey);
+  const pending = pendingCampaignResearch(campaignKey);
+  if (!pending) return null;
+  const flight = {
+    taskId: pending.taskId,
+    promise: Promise.resolve({ taskId: pending.taskId, confirmed: false, message: 'Resuming the saved Operator task status.' })
+  };
+  researchFlights.set(campaignKey, flight);
+  updatePageStatus(`${getCampaign(campaignKey).label} has an existing Operator request. Checking its signed status; no duplicate submitted.`);
+  observeCampaignResearch(campaignKey, pending.taskId, watchTask, flight);
+  return flight;
+}
+function queueCampaignResearch(key, { queueTask = queueOperatorTask, watchTask = watchOperatorTask } = {}) {
+  const campaignKey = normalizeCampaign(key);
+  const existing = researchFlights.get(campaignKey) || resumeCampaignResearch(campaignKey, watchTask);
+  if (existing) {
+    updatePageStatus(`${getCampaign(campaignKey).label} research already submitted or delivery uncertain. Check its existing Operator task before starting another.`);
+    return existing.promise;
+  }
+  const flight = { taskId: `operator-http:${researchRequestId()}` };
+  // Store the request ID *before* the first network await so a reload during
+  // delivery can query the same server-side idempotency key.
+  savePendingCampaignResearch(campaignKey, flight.taskId);
+  flight.promise = submitCampaignResearch(campaignKey, { queueTask, watchTask }, flight);
+  researchFlights.set(campaignKey, flight);
+  return flight.promise;
+}
+async function submitCampaignResearch(campaignKey, { queueTask, watchTask }, flight) {
+  const task = buildCampaignTask(campaignKey);
+  const label = getCampaign(campaignKey).label;
+  updatePageStatus(`Submitting ${label} research to authenticated Operator…`);
+  try {
+    // Signed HTTP → existing private SQLite → Codex worker; no Gun task write.
+    const requestId = flight.taskId.slice('operator-http:'.length);
+    const receipt = await queueTask({ text: task.task, title: `${label} prospect research`, requestId });
+    if (receipt?.taskId !== flight.taskId) throw new Error('Operator returned a mismatched task identity.');
+    updatePageStatus(receipt.confirmed
+      ? `${label} research accepted by Operator. Waiting for a verified result; no CRM records or messages sent.`
+      : receipt.message || 'Checking Operator delivery; do not submit a duplicate task.');
+    observeCampaignResearch(campaignKey, flight.taskId, watchTask, flight);
     return receipt;
   } catch (error) {
-    updatePageStatus(`Campaign research was not confirmed. ${error.message || 'Check Operator status.'}`);
+    // The API rejects these before enqueue. All other errors are ambiguous:
+    // keep the stored identity and check status instead of submitting again.
+    const rejected = [400, 401, 403].includes(error.status) || /Sign in/.test(String(error.message || ''));
+    if (rejected) {
+      if (researchFlights.get(campaignKey) === flight) researchFlights.delete(campaignKey);
+      clearPendingCampaignResearch(campaignKey);
+    } else {
+      observeCampaignResearch(campaignKey, flight.taskId, watchTask, flight);
+    }
+    updatePageStatus(`${label} research was not confirmed. ${error.message || 'Check Operator status.'}${rejected ? '' : ' Check the saved task before retrying.'}`);
     return null;
   }
 }
 function initCampaigns() {
-  const params = new URLSearchParams(window.location.search), requested = params.get('campaign'), stored = readText(CAMPAIGN_STORAGE_KEY); let active = selectCampaign(requested || stored || DEFAULT_CAMPAIGN, { announce: false });
+  const params = new URLSearchParams(window.location.search), requested = params.get('campaign'), stored = readText(CAMPAIGN_STORAGE_KEY); let active = selectCampaign(requested || stored || DEFAULT_CAMPAIGN, { announce: false }); resumeCampaignResearch(active, watchOperatorTask);
   document.querySelectorAll('[data-campaign]').forEach(button => button.addEventListener('click', () => { active = selectCampaign(button.dataset.campaign); }));
   [document.getElementById('itemOffer'), document.getElementById('itemContext')].forEach(input => input?.addEventListener('input', () => { input.dataset.campaignSeed = 'false'; }));
   document.getElementById('campaignFindButton')?.addEventListener('click', () => { queueCampaignResearch(active); });
