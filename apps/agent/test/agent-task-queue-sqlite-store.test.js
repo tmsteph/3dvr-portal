@@ -83,6 +83,30 @@ test('duplicate SQLite enqueue cannot replace pending task instructions or appro
   assert.equal((await readTask('idempotent-pending', options)).task, 'Reviewed edit');
 });
 
+test('SQLite queued edits cannot forge running or terminal task status', async (t) => {
+  const options = await queueOptions(t, { rootNode: fakeRoot(), gunSync: false });
+  await enqueueTask('Review a public prospect', {
+    ...options, id: 'status-claim-only', backend: 'health', riskClass: 'read_only',
+  });
+  const original = await readTask('status-claim-only', options);
+  for (const status of ['running', 'completed', 'failed', 'skipped']) {
+    await assert.rejects(
+      updateTask('status-claim-only', { status, resultSummary: 'forged receipt' }, options),
+      /active task claim required/,
+    );
+    assert.throws(
+      () => sqliteQueue.writeTask({ ...original, status, updatedAt: new Date().toISOString() }, options),
+      /active task claim required/,
+    );
+    const preserved = await readTask('status-claim-only', options);
+    assert.equal(preserved.status, 'queued');
+    assert.equal(preserved.resultSummary, '');
+  }
+  const edited = await updateTask('status-claim-only', { task: 'Reviewed prospect edit' }, options);
+  assert.equal(edited.status, 'queued');
+  assert.equal((await readTask('status-claim-only', options)).task, 'Reviewed prospect edit');
+});
+
 test('native SQLite terminal tasks cannot be replayed by duplicate IDs or GUN imports', async (t) => {
   const options = await queueOptions(t, {
     rootNode: fakeRoot(),
@@ -115,11 +139,17 @@ test('native SQLite terminal tasks cannot be replayed by duplicate IDs or GUN im
 
   // Failed work also needs an explicit reviewed retry, not an ID collision.
   await enqueueTask('failed once', { ...options, id: 'native-failed', backend: 'health' });
-  sqliteQueue.writeTask({
-    ...await readTask('native-failed', options),
-    status: 'failed',
-    updatedAt: new Date().toISOString(),
-  }, options);
+  // Simulate a claimed worker failure; queued edits must not fabricate a
+  // terminal status without a worker claim.
+  const failureNow = Date.now();
+  const failedClaim = sqliteQueue.claimTask(
+    'native-failed', 'native-failure-claim', 'test-worker',
+    failureNow + 60_000, failureNow, options,
+  );
+  assert.ok(failedClaim);
+  assert.equal(sqliteQueue.finishTask('native-failed', 'native-failure-claim', {
+    ...failedClaim, status: 'failed', updatedAt: new Date(failureNow).toISOString(),
+  }, options), true);
   await assert.rejects(
     enqueueTask('failed replay', { ...options, id: 'native-failed', backend: 'health' }),
     /active task claim required/,
@@ -410,11 +440,11 @@ test('newer GUN requeue cannot replay a failed terminal import', async (t) => {
   });
   await runWorkerOnce(options);
   const imported = await readTask('retry-task', options);
-  sqliteQueue.writeTask({
-    ...imported,
-    status: 'failed',
-    updatedAt: '2026-01-02T00:00:00.000Z',
-  }, { ...options, queueSource: 'gun' });
+  // A terminal update from the original GUN source is historical import,
+  // not permission for the generic SQLite edit path to mark work finished.
+  assert.equal(sqliteQueue.importTask({
+    ...imported, status: 'failed', updatedAt: '2026-01-02T00:00:00.000Z',
+  }, options), true);
   await enqueueTask('legacy v2', {
     ...gunOptions,
     id: 'retry-task',
