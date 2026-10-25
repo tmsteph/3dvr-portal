@@ -196,7 +196,12 @@ function listTasks(options = {}) {
 function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {}) {
   // A malformed or already-expired lease must not strand a queued task in
   // running state. Reject it before opening the claim transaction.
-  if (!Number.isFinite(now) || !Number.isFinite(expiresAt) || expiresAt <= now) return null;
+  // A missing claim token cannot be matched by SQLite's equality predicate
+  // when finishing work; accepting it would strand a task as running forever.
+  // A missing worker identity also leaves no accountable owner for recovery.
+  if (typeof claimToken !== 'string' || !claimToken.trim()
+    || typeof workerDeviceId !== 'string' || !workerDeviceId.trim()
+    || !Number.isFinite(now) || !Number.isFinite(expiresAt) || expiresAt <= now) return null;
   return withDatabase(options, (db) => {
     db.exec('BEGIN IMMEDIATE');
     try {
