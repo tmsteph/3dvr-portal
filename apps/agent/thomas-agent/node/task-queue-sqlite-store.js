@@ -60,6 +60,10 @@ function parseRecord(row) {
 // A task ID is an idempotency key, not permission to replace a pending task.
 // Only the explicit updateTask path may edit an existing queued record.
 function insertTask(record, options = {}) {
+  // The insert-only path is for pending intent, never a fabricated worker receipt.
+  if (record.status !== 'queued') {
+    throw new Error('active task claim required for status transition');
+  }
   return withDatabase(options, (db) => {
     const result = db.prepare(`
       INSERT INTO tasks (owner_alias, id, status, updated_at, record_json, source)
@@ -190,6 +194,9 @@ function listTasks(options = {}) {
 // Expired running claims are held for review, never automatically replayed:
 // the previous worker may have completed irreversible side effects before crashing.
 function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {}) {
+  // A malformed or already-expired lease must not strand a queued task in
+  // running state. Reject it before opening the claim transaction.
+  if (!Number.isFinite(now) || !Number.isFinite(expiresAt) || expiresAt <= now) return null;
   return withDatabase(options, (db) => {
     db.exec('BEGIN IMMEDIATE');
     try {
