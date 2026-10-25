@@ -167,7 +167,7 @@ test('research identity survives reload and ambiguous status without duplicate e
   const previousDocument = globalThis.document;
   const saved = new Map();
   const status = { textContent: '' };
-  globalThis.window = { localStorage: {
+  globalThis.window = { addEventListener: () => {}, localStorage: {
     getItem: key => saved.get(key) || null,
     setItem: (key, value) => saved.set(key, value),
     removeItem: key => saved.delete(key),
@@ -209,7 +209,7 @@ test('explicit pre-enqueue authentication rejection permits a fresh signed reque
   const previousWindow = globalThis.window;
   const previousDocument = globalThis.document;
   const saved = new Map();
-  globalThis.window = { localStorage: {
+  globalThis.window = { addEventListener: () => {}, localStorage: {
     getItem: key => saved.get(key) || null,
     setItem: (key, value) => saved.set(key, value),
     removeItem: key => saved.delete(key),
