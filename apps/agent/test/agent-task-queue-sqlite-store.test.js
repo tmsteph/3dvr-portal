@@ -343,6 +343,7 @@ test('SQLite lease loss cannot abort later work or forge success/failure receipt
     workerCapabilities: 'openai',
     deviceId: 'lease-loss-worker',
     gunSync: false,
+    recordLifeEventImpl: async () => null,
   });
   const now = Date.now();
   await enqueueTask('first task loses its lease after success', {
