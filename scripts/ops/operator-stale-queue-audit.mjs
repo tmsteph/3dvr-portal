@@ -11,6 +11,7 @@ const csv = value => [...new Set(String(value || '').split(',').map(x => x.trim(
 const hash = value => createHash('sha256').update(value).digest('hex');
 const fingerprint = record => hash(String(record.backend || '').toLowerCase() + '\0' + String(record.task || '').toLowerCase().trim().replace(/\s+/g, ' '));
 const bump = (object, key) => { object[key] = (object[key] || 0) + 1; };
+const APPROVAL_REQUIRED_RISKS = new Set(['external_write', 'money', 'credential']);
 
 export function summarizeQueue(records, env = {}, now = Date.now()) {
   // Missing service configuration is unknown, never evidence of worker eligibility.
@@ -22,7 +23,7 @@ export function summarizeQueue(records, env = {}, now = Date.now()) {
     mode: 'read_only_metadata_review_not_execution_authorization',
     workerCapabilitiesConfigured,
     total: records.length, statusCounts: {}, runningClaims: { active: 0, expired: 0, unknown: 0 }, queuedAgeBuckets: {},
-    queuedCapabilities: {}, queuedRisks: {}, queuedApprovals: {},
+    queuedCapabilities: {}, queuedRisks: {}, queuedEffectiveRisks: {}, queuedApprovals: {},
     reviewFlags: {}, queuedReviews: []
   };
   for (const record of records) {
@@ -46,20 +47,27 @@ export function summarizeQueue(records, env = {}, now = Date.now()) {
     const missing = [...required].filter(capability => !caps.has(capability));
     for (const capability of required) bump(summary.queuedCapabilities, capability);
     const risk = String(record.riskClass || 'draft').toLowerCase();
+    // Match canWorkerRunTask: --unsafe upgrades low-risk labels to external_write.
+    // A producer's risk label or plain 'approved' string is not proof of permission.
+    const effectiveRisk = record.unsafe && !APPROVAL_REQUIRED_RISKS.has(risk) ? 'external_write' : risk;
     const approval = String(record.approvalStatus || 'unknown').toLowerCase();
     bump(summary.queuedRisks, risk);
+    bump(summary.queuedEffectiveRisks, effectiveRisk);
     bump(summary.queuedApprovals, approval);
     const flags = [];
     if (days === null || days > 7) flags.push('stale_or_unknown_age');
     if (!workerCapabilitiesConfigured) flags.push('worker_capabilities_unverified');
     else if (missing.length) flags.push('missing_capability');
-    if (!allowedRisks.has(risk)) flags.push('risk_not_allowed');
+    if (!allowedRisks.has(effectiveRisk)) flags.push('risk_not_allowed');
     // Match the live worker approval gate. Imported/expired approvals must
     // not appear metadata-eligible, and high-risk tasks need explicit approval.
     const approvalValue = String(record.approvalStatus || '').trim().toLowerCase();
-    const approvalRequired = ['external_write', 'money', 'credential'].includes(risk);
+    const approvalRequired = APPROVAL_REQUIRED_RISKS.has(effectiveRisk);
     if ((approvalValue && !['approved', 'not_required'].includes(approvalValue))
       || (approvalRequired && approvalValue !== 'approved')) flags.push('approval_block');
+    // The live worker rejects every high-risk task until a task-bound,
+    // authenticated approval verifier exists, even when status says approved.
+    if (approvalRequired) flags.push('approval_verification_unavailable');
     if (record.unsafe) flags.push('unsafe_flag');
     if (completed.has(fingerprint(record))) flags.push('possible_prior_completion');
     if (['auto', 'shell'].includes(backend)) flags.push('requires_intent_review');
@@ -68,7 +76,7 @@ export function summarizeQueue(records, env = {}, now = Date.now()) {
     summary.queuedReviews.push({
       idHash: hash(String(record.id || '')).slice(0, 10),
       ageDays: days === null ? null : Math.round(days * 10) / 10,
-      backend, risk, approval, flags
+      backend, risk, effectiveRisk, approval, flags
     });
   }
   return summary;
