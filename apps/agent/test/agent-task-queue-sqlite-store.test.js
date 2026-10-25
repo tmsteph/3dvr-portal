@@ -350,6 +350,31 @@ test('an expired running claim requires review instead of automatic replay', asy
   );
 });
 
+test('SQLite terminal receipt cannot requeue work or impersonate another task', async (t) => {
+  const now = Date.now();
+  const options = await queueOptions(t, { now });
+  const id = 'finish-status-guard';
+  await enqueueTask('bounded read-only health', { ...options, id, backend: 'health', now });
+  const claimed = sqliteQueue.claimTask(id, 'finish-status-token', 'worker', now + 60_000, now, options);
+  assert.ok(claimed);
+
+  for (const status of ['queued', 'running', 'approved', 'unknown']) {
+    assert.equal(sqliteQueue.finishTask(id, 'finish-status-token', {
+      ...claimed, status, updatedAt: new Date(now).toISOString(),
+    }, options), false, `claim must not finish as ${status}`);
+    assert.equal((await readTask(id, options)).status, 'running');
+  }
+  assert.equal(sqliteQueue.finishTask(id, 'finish-status-token', {
+    ...claimed, id: 'another-task', status: 'completed', updatedAt: new Date(now).toISOString(),
+  }, options), false, 'receipt must belong to the claimed task');
+  assert.equal((await readTask(id, options)).status, 'running');
+
+  assert.equal(sqliteQueue.finishTask(id, 'finish-status-token', {
+    ...claimed, status: 'completed', updatedAt: new Date(now).toISOString(),
+  }, options), true, 'valid claimed completion must still succeed');
+  assert.equal((await readTask(id, options)).status, 'completed');
+});
+
 test('expired SQLite claims cannot be resurrected by either renewal API', async (t) => {
   const now = Date.now();
   const options = await queueOptions(t);
