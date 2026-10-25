@@ -205,7 +205,8 @@ export async function queueOperatorTask(action = {}) {
   const text = normalizeText(action.text, 6000);
   if (!text) throw new Error('A delegated task is required.');
   const title = normalizeText(action.title, 160) || 'Operator delegated task';
-  const requestId = makeId('task');
+  const requestId = action.requestId == null ? makeId('task') : String(action.requestId);
+  if (!/^[A-Za-z0-9_-]{12,100}$/.test(requestId)) throw new Error('Invalid delegated task identity.');
   let confirmed = false;
   let message;
   try {
