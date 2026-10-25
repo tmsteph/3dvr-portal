@@ -1,9 +1,11 @@
 import test from 'node:test';
+import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createOpenClawHandler, openClawSshCommand } from '../src/openclaw/handler.js';
+import { createOpenClawHandler, openClawSshCommand, runOpenClaw } from '../src/openclaw/handler.js';
 import { verifySignedSeaPayload } from '../src/auth/sea.js';
 const { default: SEA } = await import('gun/sea.js');
 
@@ -129,4 +131,138 @@ test('server rejects stale or tampered queue expiry before invoking the agent', 
   assert.equal((await call(handler, await sign({ createdAt: now, expiresAt: now + 600001 }))).statusCode, 400);
   assert.equal((await call(handler, await sign({ createdAt: now, expiresAt: now + 600000 }))).statusCode, 200);
   assert.equal(runs, 1);
+});
+
+function streamCall(handler, body) {
+  const chunks = [];
+  const res = { headers: {}, setHeader(key, value) { this.headers[key] = value; },
+    flushHeaders() {}, write(value) { chunks.push(value); }, end(value) {
+      if (value) chunks.push(value); this.finished = true;
+    } };
+  const done = handler({ method: 'POST', headers: { origin: 'https://portal.3dvr.tech', accept: 'text/event-stream' }, body }, res);
+  return { res, chunks, done };
+}
+
+test('SSE exposes fragments before completion, and replay uses the durable final receipt', async t => {
+  const { config, sign } = await setup(t);
+  let release, started;
+  const ready = new Promise(resolve => { started = resolve; });
+  let calls = 0;
+  const run = async (_request, { onDelta }) => {
+    calls++;
+    onDelta('Early');
+    started();
+    await new Promise(resolve => { release = resolve; });
+    return { ok: true, reply: 'Early and final' };
+  };
+  const body = await sign();
+  const stream = streamCall(createOpenClawHandler({ config, run }), body);
+  await ready;
+  assert.equal(stream.res.headers['Content-Type'], 'text/event-stream; charset=utf-8');
+  assert.ok(stream.chunks.some(chunk => chunk.includes('"text":"Early"')));
+  assert.equal(stream.res.finished, undefined);
+  assert.equal((await call(createOpenClawHandler({ config, run }), body)).statusCode, 409);
+  release(); await stream.done;
+  assert.ok(stream.chunks.some(chunk => chunk.includes('event: result') && chunk.includes('"ok":true')));
+  const replay = streamCall(createOpenClawHandler({ config, run }), body);
+  await replay.done;
+  assert.ok(replay.chunks.some(chunk => chunk.includes('Early and final')));
+  assert.equal(calls, 1);
+});
+
+test('partial stream failure remains uncertain and never reruns after handler restart', async t => {
+  const { config, sign } = await setup(t);
+  let runs = 0;
+  const run = async (_request, { onDelta }) => { runs++; onDelta('Partial'); throw new Error('lost SSH'); };
+  const body = await sign();
+  const stream = streamCall(createOpenClawHandler({ config, run }), body);
+  await stream.done;
+  assert.ok(stream.chunks.some(chunk => chunk.includes('"ok":false')));
+  assert.equal((await call(createOpenClawHandler({ config, run }), body)).statusCode, 409);
+  assert.equal(runs, 1);
+});
+
+test('stream negotiation cannot bypass owner authorization', async t => {
+  const { config, sign } = await setup(t);
+  let runs = 0;
+  const run = async () => { runs++; return { ok: true, reply: 'Denied' }; };
+  const stream = streamCall(createOpenClawHandler({ config, run }), await sign({}, await SEA.pair()));
+  await stream.done;
+  assert.equal(stream.res.statusCode, 403);
+  assert.equal(stream.res.headers['Content-Type'], 'application/json; charset=utf-8');
+  assert.equal(runs, 0);
+});
+
+test('SSH JSONL decoder handles fragmented UTF-8 and requires an authoritative final result', async () => {
+  const makeChild = () => Object.assign(new EventEmitter(), {
+    stdout: new PassThrough(), stderr: new PassThrough(), stdin: new PassThrough(),
+    kill() { this.emit('close', 1); }
+  });
+  const child = makeChild();
+  const deltas = [];
+  const task = runOpenClaw({ action: 'chat', message: 'Hello' }, { uid: 1000, spawn: () => child,
+    onDelta: text => deltas.push(text) });
+  await new Promise(resolve => child.stdin.once('data', resolve));
+  const text = Buffer.from('{"type":"delta","text":"Hi 🌍"}\n{"ok":true,"reply":"Hi 🌍"}\n');
+  for (const byte of text) child.stdout.write(Buffer.from([byte]));
+  child.emit('close', 0);
+  assert.equal((await task).reply, 'Hi 🌍');
+  assert.deepEqual(deltas, ['Hi 🌍']);
+
+  const interrupted = makeChild();
+  const failed = runOpenClaw({ action: 'chat', message: 'Hello' }, { uid: 1000,
+    spawn: () => interrupted, onDelta: () => {} });
+  await new Promise(resolve => interrupted.stdin.once('data', resolve));
+  interrupted.stdout.write('{"type":"delta","text":"Partial"}\n');
+  interrupted.emit('close', 0);
+  await assert.rejects(failed, /transport/);
+});
+
+test('engine selection is signed; legacy proofs stay OpenClaw and receipts cannot cross engines', async t => {
+  const { config, sign } = await setup(t);
+  const requests = [];
+  const handler = createOpenClawHandler({ config, run: async request => {
+    requests.push(request); return { ok: true, reply: 'Done' };
+  } });
+  const legacy = await sign();
+  assert.equal((await call(handler, { ...legacy, engine: 'codex' })).statusCode, 403);
+  const native = await sign({ engine: 'codex' });
+  const stripped = { ...native }; delete stripped.engine;
+  assert.equal((await call(handler, stripped)).statusCode, 403);
+  assert.equal((await call(handler, await sign({ engine: 'unknown' }))).statusCode, 400);
+  assert.equal(requests.length, 0);
+  assert.equal((await call(handler, native)).statusCode, 200);
+  assert.equal(requests[0].engine, 'codex');
+  assert.match(requests[0].session, /^helm-[a-f0-9]{24}-session-/);
+  assert.equal((await call(handler, legacy)).statusCode, 409);
+  assert.equal(requests.length, 1);
+  assert.equal((await call(handler, await sign({ requestId: 'legacy-123456789' }))).statusCode, 200);
+  assert.equal(requests[1].engine, undefined);
+});
+
+test('native status and chat retain the same owner boundary and cannot choose backend thread IDs', async t => {
+  const { config, sign } = await setup(t);
+  const requests = [];
+  const handler = createOpenClawHandler({ config, run: async request => {
+    requests.push(request); return { ok: true, reply: 'Done' };
+  } });
+  for (const action of ['status', 'chat']) {
+    assert.equal((await call(handler, await sign({ action, engine: 'codex' }, await SEA.pair()))).statusCode, 403);
+  }
+  assert.equal(requests.length, 0);
+  assert.equal((await call(handler, await sign({ engine: 'codex', threadId: 'foreign-thread' }))).statusCode, 200);
+  assert.equal(requests[0].threadId, undefined);
+});
+
+test('native SSH transport uses only the native script and binds engine in encoded request', async () => {
+  const child = Object.assign(new EventEmitter(), { stdout: new PassThrough(), stderr: new PassThrough(), stdin: new PassThrough(), kill() {} });
+  let args;
+  const task = runOpenClaw({ action: 'chat', engine: 'codex', message: 'Hi' }, { uid: 1000,
+    spawn: (_command, values) => { args = values; return child; } });
+  const script = await new Promise(resolve => child.stdin.once('data', chunk => resolve(chunk.toString())));
+  assert.ok(script.includes('class Client:'));
+  assert.equal(script.includes('gateway.get('), false);
+  assert.equal(JSON.parse(Buffer.from(args.at(-1), 'base64url')).engine, 'codex');
+  child.stdout.write('{"ok":true,"reply":"Done"}\n'); child.emit('close', 0);
+  assert.equal((await task).reply, 'Done');
 });

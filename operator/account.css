@@ -1,0 +1,34 @@
+/* Keep account identity visible while the tool row can scroll on phones. */
+main > header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .4rem .6rem;
+}
+main > header > .header-actions {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+}
+.operator-account { min-width: 0; max-width: 55vw; }
+.operator-account > a { display: inline-flex; align-items: center; min-height: 44px; }
+.operator-account .floating-identity__stats {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  max-width: 100%;
+  min-height: 44px;
+  padding: .45rem .65rem;
+  border-radius: 999px;
+}
+.operator-account .floating-identity__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.operator-account .floating-identity__value { flex: none; }
+.operator-account .floating-identity__menu a { letter-spacing: normal; font-weight: 600; }
+.operator-account a:focus-visible,
+.operator-account button:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+@media (max-width: 600px) {
+  .operator-account .floating-identity__stats { font-size: .75rem; gap: .35rem; }
+}

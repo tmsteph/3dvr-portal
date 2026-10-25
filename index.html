@@ -68,6 +68,9 @@
 
     .brand {
       margin-right: auto;
+      margin-left: -8px;
+      padding-inline: 8px;
+      min-height: 44px;
       display: inline-flex;
       align-items: center;
       gap: 9px;
@@ -82,7 +85,7 @@
     .menu summary {
       border: 1px solid #30363d;
       border-radius: 999px;
-      min-height: 42px;
+      min-height: 44px;
       padding: 9px 13px;
       display: inline-flex;
       align-items: center;
@@ -110,7 +113,7 @@
       position: absolute;
       top: calc(100% + 8px);
       right: 0;
-      z-index: 10;
+      z-index: 1300;
       width: min(280px, calc(100vw - 36px));
       padding: 10px;
       border: 1px solid #30363d;
@@ -856,6 +859,7 @@
       <button class="top-action" type="button" data-close-apps>Close</button>
     </div>
     <div class="apps-list" id="appsList">
+      <a class="app-link" href="/pulse-universe/" data-app="pulse universe energy light fractal mandelbulb simulation science"><strong>Pulse Universe</strong><span>Explore an expanding pulse and a 3D mathematical fractal.</span></a>
       <a class="app-link" href="/little-fish/" data-app="little fish toddler kids children ocean bubbles game"><strong>Little Fish</strong><span>Feed friendly fish and pop bubbles on phone or laptop.</span></a>
       <a class="app-link" href="/what-is-3dvr/" data-app="what is 3dvr mission movement open source"><strong>What is 3DVR?</strong><span>The wider open-source mission behind 3DVR.tech and Portal.</span></a>
       <a class="app-link" href="/helm/" data-app="helm openclaw agent workspace muse"><strong>Helm · OpenClaw</strong><span>Direct agent chat and connection status.</span></a>

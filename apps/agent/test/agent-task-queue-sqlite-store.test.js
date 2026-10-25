@@ -252,3 +252,25 @@ test('public SQLite CLI records omit claim metadata and tokens', async (t) => {
   assert.equal('claimExpiresAt' in record, false);
   assert.equal(JSON.stringify(record).includes('secret-claim-token'), false);
 });
+
+test('signed HTTP tasks keep prompts and results out of the public relay and memory', async (t) => {
+  const rootNode = fakeRoot();
+  const gunOptions = {rootNode, ownerAlias:'tenant/http:private', force:true};
+  let lifeEvents = 0;
+  const options = await queueOptions(t, {
+    ...gunOptions, queueStore:'sqlite', workerCapabilities:'codex',
+    runAgentTaskImpl:async () => ({ok:true,result:{stdout:'private result'}}),
+    recordLifeEventImpl:async () => {lifeEvents++;}
+  });
+  const id='operator-http-private-test';
+  await enqueueTask('private prompt', {...options,id,backend:'codex'});
+  await runWorkerOnce(options);
+  assert.equal((await readTask(id,options)).status,'completed');
+  assert.equal(await readTask(id,gunOptions),null);
+  assert.equal(lifeEvents,0);
+  await enqueueTask('forged public replacement', {...gunOptions,id,backend:'codex',now:Date.now()+60000});
+  await runWorkerOnce(options);
+  const saved=await readTask(id,options);
+  assert.equal(saved.status,'completed');
+  assert.equal(saved.task,'private prompt');
+});

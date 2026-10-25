@@ -7,6 +7,7 @@ import {
   createActionReceipt,
   normalizeActionReceiptStatus
 } from '../src/operator-runtime/action-receipt.js';
+import { persistQueuedOperatorAction, persistBackgroundActionUpdate, loadOperatorActionReceipts } from '../operator/action-receipts.js';
 
 const read = path => readFile(new URL('../' + path, import.meta.url), 'utf8');
 
@@ -68,4 +69,30 @@ test('money autopilot emits a revenue receipt without claiming business verifica
   assert.match(script, /domain: 'revenue'/);
   assert.match(script, /verificationStatus: 'pending'/);
   assert.match(script, /actionReceipt: receipt/);
+});
+
+test('private HTTP task updates retain one account-scoped receipt without any public Gun writes', () => {
+  const previousStorage=globalThis.localStorage;
+  const previousGun=globalThis.Gun;
+  const values=new Map([['signedIn','true'],['userPubKey','owner-key'],['alias','owner']]);
+  let publicWrites=0;
+  globalThis.localStorage={getItem:key=>values.get(key),setItem:(key,value)=>values.set(key,value)};
+  globalThis.Gun=()=>{publicWrites++;throw Error('Public Gun must not be used');};
+  const background={kind:'operator_runtime',id:'operator-http:private-request-123'};
+  try {
+    persistQueuedOperatorAction({title:'Private test',text:'private sentinel'}, {backgroundTask:background});
+    const complete=persistBackgroundActionUpdate(background,{record:{id:'operator-http-server-identity',status:'completed',resultSummary:'private answer'}});
+    const saved=loadOperatorActionReceipts();
+    assert.equal(publicWrites,0);
+    assert.equal(saved.length,1);
+    assert.equal(saved[0].id,complete.id);
+    assert.equal(saved[0].status,'succeeded');
+    assert.equal(saved[0].resultSummary,'private answer');
+    values.set('userPubKey','different-owner');
+    assert.deepEqual(loadOperatorActionReceipts(),[]);
+    assert.equal(values.has('3dvr.operator.actionReceipts.v1'),false);
+  } finally {
+    if(previousStorage===undefined)delete globalThis.localStorage;else globalThis.localStorage=previousStorage;
+    if(previousGun===undefined)delete globalThis.Gun;else globalThis.Gun=previousGun;
+  }
 });

@@ -5,23 +5,28 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
   <title>3DVR Operator</title>
   <meta name="theme-color" content="#07101c">
-  <script>
-    if (location.hostname === 'operator.3dvr.tech') {
-      const target = new URL('/operator/', 'https://portal.3dvr.tech');
-      target.search = location.search;
-      target.hash = location.hash;
-      location.replace(target.toString());
-    }
-  </script>
+  <link rel="manifest" href="/operator/operator.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Operator">
+  <link rel="stylesheet" href="/operator/install.css">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="mobile-header-fix.css">
   <link rel="stylesheet" href="app-search.css">
   <link rel="stylesheet" href="focus.css">
   <link rel="stylesheet" href="shell.css">
+  <link rel="stylesheet" href="account.css">
+  <style>
+    .operator-boot-loading{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:#07101c;color:#9db0c5;font:600 1rem/1.45 Inter,system-ui,sans-serif;letter-spacing:.02em}
+  </style>
   <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
   <script src="/gun-init.js"></script>
   <script src="/auth-identity.js"></script>
+  <script src="/score.js"></script>
+  <script src="account.js" defer></script>
+  <script src="/navbar.js" defer></script>
   <script src="/portal-swirl-logo.js" defer></script>
   <script type="module" src="app.js"></script>
   <script type="module" src="app-search.js"></script>
@@ -31,6 +36,7 @@
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
+  <div class="operator-boot-loading" id="operator-boot-loading" role="status">Loading Operator…</div>
   <main>
     <header>
       <div class="operator-brand">
@@ -40,6 +46,9 @@
         </div>
         <a href="/" aria-label="Operator apps">Operator</a>
       </div>
+      <div class="operator-account" data-account-navbar data-sign-out-href="/operator/">
+        <a href="/sign-in.html?redirect=%2Foperator%2F" data-operator-external="true">Sign in</a>
+      </div>
       <div class="header-actions">
         <a href="/helm/" aria-label="Helm OpenClaw workspace">Helm</a>
         <a href="/operator/open/" aria-label="About the open-source Operator">About</a>
@@ -48,6 +57,9 @@
         <button id="clear-chat" type="button" aria-label="New conversation" title="New conversation">＋</button>
       </div>
     </header>
+    <div class="operator-install-entry">
+      <button id="operator-install" type="button">Install Operator</button>
+    </div>
     <section id="operator-context" hidden aria-label="Active Portal context">
       <small>Continuing from</small>
       <a id="operator-context-link" href="/"></a>
@@ -129,6 +141,16 @@
       </form>
     </dialog>
   </main>
+  <dialog id="operator-install-help" aria-labelledby="operator-install-title">
+    <h2 id="operator-install-title">Install Operator</h2>
+    <p>On Android in Brave or Chrome, open the browser’s <strong>⋮ menu</strong> and choose <strong>Add to Home screen</strong> or <strong>Install app</strong>.</p>
+    <p>On iPhone or iPad, open this page in Safari, tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.</p>
+    <p>On desktop in Chrome or Edge, use the install icon in the address bar or the browser’s app menu.</p>
+    <p>If your browser only offers a shortcut, try Chrome for app installation.</p>
+    <p>Prefer the standalone app? <a href="https://operator.3dvr.tech/operator/">Open the Operator web app (operator.3dvr.tech)</a> — the same app, with its own sign-in and storage on that site.</p>
+    <form method="dialog"><button type="submit">Got it</button></form>
+  </dialog>
+  <script src="/operator/install.js" defer></script>
   <footer aria-label="Portal feedback"></footer>
   <script src="teach-handoff.js"></script>
   <script defer src="/issue-launcher.js"></script>
