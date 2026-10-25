@@ -14,21 +14,21 @@ function clean(value = '', max = 4000) {
   return String(value || '').trim().slice(0, max);
 }
 
-function readLocalReceipts() {
+function readLocalReceipts(key = LOCAL_KEY) {
   try {
-    const parsed = JSON.parse(globalThis.localStorage?.getItem?.(LOCAL_KEY) || '[]');
+    const parsed = JSON.parse(globalThis.localStorage?.getItem?.(key) || '[]');
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
 }
 
-function writeLocalReceipt(receipt) {
+function writeLocalReceipt(receipt, key = LOCAL_KEY) {
   if (!globalThis.localStorage?.setItem) return;
-  const current = readLocalReceipts().filter(item => item?.id !== receipt.id);
+  const current = readLocalReceipts(key).filter(item => item?.id !== receipt.id);
   current.unshift(receipt);
   try {
-    globalThis.localStorage.setItem(LOCAL_KEY, JSON.stringify(current.slice(0, 120)));
+    globalThis.localStorage.setItem(key, JSON.stringify(current.slice(0, 120)));
   } catch {}
 }
 
@@ -64,12 +64,25 @@ function gunRecord(receipt) {
   };
 }
 
+function privateReceiptKey() {
+  const pub = globalThis.localStorage?.getItem?.('signedIn') === 'true'
+    && clean(globalThis.localStorage?.getItem?.('userPubKey'), 500);
+  return pub ? `${LOCAL_KEY}.private.${pub}` : '';
+}
+
 export function loadOperatorActionReceipts() {
-  return readLocalReceipts();
+  const key = privateReceiptKey();
+  return [...readLocalReceipts(), ...(key ? readLocalReceipts(key) : [])];
 }
 
 export function persistOperatorActionReceipt(input = {}) {
   const receipt = createActionReceipt(input);
+  const privateTask = /^operator-http[:-]/.test(receipt.actionId);
+  if (privateTask) {
+    const key = privateReceiptKey();
+    if (key) writeLocalReceipt(receipt, key);
+    return receipt;
+  }
   writeLocalReceipt(receipt);
 
   try {
@@ -88,7 +101,7 @@ export function persistOperatorActionReceipt(input = {}) {
 }
 
 function actionIdFromBackground(background = {}, record = {}) {
-  const direct = clean(record.id || record.requestId || background.id, 240);
+  const direct = clean(String(background.id || '').startsWith('operator-http:') ? background.id : record.id || record.requestId || background.id, 240);
   if (direct) return direct;
 
   const value = clean(background.value, 1000);
