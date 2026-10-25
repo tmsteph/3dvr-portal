@@ -34,7 +34,7 @@ test('campaign research reuses the existing CRM and outbound pipeline with conse
   assert.match(js, /Never guess or synthesize private contact addresses/);
   assert.match(js, /Do not send messages or blast generic lists from this research task/);
   assert.match(js, /existing campaign caps/);
-  assert.match(js, /unified 3dvr-crm records/);
+  assert.match(js, /existing unified 3dvr-crm/);
   assert.match(js, /existing Growth Operator \/ outreach pipeline/);
   assert.match(js, /queueOperatorTask/);
   assert.match(js, /watchOperatorTask/);
