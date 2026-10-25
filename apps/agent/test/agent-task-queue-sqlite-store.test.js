@@ -368,7 +368,7 @@ test('SQLite worker imports legacy GUN tasks and mirrors completion', async (t) 
   assert.match((await readTask('legacy/GUN:id', options)).resultSummary, /legacy done/);
 });
 
-test('newer GUN requeue replaces stale terminal import without being overwritten', async (t) => {
+test('newer GUN requeue cannot replay a failed terminal import', async (t) => {
   const rootNode = fakeRoot();
   const gunOptions = { rootNode, ownerAlias: 'tenant/sqlite:exact', force: true };
   const options = await queueOptions(t, {
@@ -400,8 +400,11 @@ test('newer GUN requeue replaces stale terminal import without being overwritten
 
   const local = await readTask('retry-task', options);
   const remote = await readTask('retry-task', gunOptions);
-  assert.equal(local.status, 'queued');
-  assert.equal(local.task, 'legacy v2');
+  // The legacy GUN source may still show a retry request, but the durable
+  // SQLite execution record must stay terminal until a reviewed new task ID
+  // is explicitly authorized. A newer mirror timestamp is not authorization.
+  assert.equal(local.status, 'failed');
+  assert.equal(local.task, 'legacy v1');
   assert.equal(remote.status, 'queued');
   assert.equal(remote.updatedAt, '2026-01-03T00:00:00.000Z');
 });
