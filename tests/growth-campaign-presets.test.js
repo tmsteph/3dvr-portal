@@ -119,3 +119,43 @@ test('ambiguous Operator acknowledgement never claims research queued or retries
     globalThis.document = previousDocument;
   }
 });
+
+
+test('double-tap shares one authenticated research request until verified terminal status', async () => {
+  const previousWindow = globalThis.window;
+  const previousDocument = globalThis.document;
+  const status = { textContent: '' };
+  globalThis.window = { localStorage: { getItem: () => '' } };
+  globalThis.document = { getElementById: () => status };
+  try {
+    let resolveFirst;
+    const gate = new Promise(resolve => { resolveFirst = resolve; });
+    let submissions = 0;
+    let watched;
+    const queueTask = async () => {
+      submissions += 1;
+      if (submissions === 1) await gate;
+      return { taskId: `operator-http:research-${submissions}`, confirmed: true };
+    };
+    const watchTask = (id, options) => { watched = { id, options }; };
+    const first = queueCampaignResearch('av-freelance', { queueTask, watchTask });
+    const duplicate = queueCampaignResearch('av-freelance', { queueTask, watchTask });
+    assert.equal(submissions, 1, 'two taps must not create two signed request IDs');
+    assert.match(status.textContent, /already submitted or delivery uncertain/);
+    resolveFirst();
+    const [firstReceipt, duplicateReceipt] = await Promise.all([first, duplicate]);
+    assert.equal(firstReceipt.taskId, duplicateReceipt.taskId);
+    assert.equal(submissions, 1);
+    watched.options.onUpdate({ status: 'blocked', error: 'Polling timed out' });
+    await queueCampaignResearch('av-freelance', { queueTask, watchTask });
+    assert.equal(submissions, 1, 'uncertain polling must not trigger a new request');
+    watched.options.onUpdate({ status: 'completed', resultSummary: 'Verified worker result' });
+    const fresh = await queueCampaignResearch('av-freelance', { queueTask, watchTask });
+    assert.equal(submissions, 2, 'verified completion permits a new deliberate research run');
+    assert.notEqual(fresh.taskId, firstReceipt.taskId);
+    watched.options.onUpdate({ status: 'completed' });
+  } finally {
+    globalThis.window = previousWindow;
+    globalThis.document = previousDocument;
+  }
+});
