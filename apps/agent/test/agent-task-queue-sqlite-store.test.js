@@ -313,6 +313,54 @@ test('an expired running claim requires review instead of automatic replay', asy
   );
 });
 
+test('expired SQLite claims cannot be resurrected by either renewal API', async (t) => {
+  const now = Date.now();
+  const options = await queueOptions(t);
+  for (const id of ['expired-direct', 'expired-persistent', 'active-direct', 'active-persistent']) {
+    await enqueueTask('read-only work', { ...options, id, backend: 'health', now });
+    assert.ok(sqliteQueue.claimTask(id, `token-${id}`, 'worker', now + 100, now, options));
+  }
+
+  // Simulate a worker waking after the original lease expired. Even a valid
+  // token cannot extend that lease and later fabricate a completion receipt.
+  assert.equal(sqliteQueue.renewClaim(
+    'expired-direct', 'token-expired-direct', now + 1000, { ...options, now: now + 200 },
+  ), false);
+  const expired = sqliteQueue.createClaimRenewer(
+    'expired-persistent', 'token-expired-persistent', { ...options, now: now + 200 },
+  );
+  try {
+    assert.equal(expired.renew(now + 1000), false);
+  } finally {
+    expired.close();
+  }
+  for (const id of ['expired-direct', 'expired-persistent']) {
+    const record = await readTask(id, options);
+    assert.equal(record.status, 'running');
+    assert.equal(record.claimExpiresAt, now + 100);
+    assert.equal(sqliteQueue.finishTask(id, `token-${id}`, {
+      ...record, status: 'completed', updatedAt: new Date(now + 200).toISOString(),
+    }, { ...options, now: now + 200 }), false);
+  }
+
+  // Normal heartbeats remain valid before expiry and must extend into the future.
+  assert.equal(sqliteQueue.renewClaim(
+    'active-direct', 'token-active-direct', now + 1000, { ...options, now: now + 50 },
+  ), true);
+  const active = sqliteQueue.createClaimRenewer(
+    'active-persistent', 'token-active-persistent', { ...options, now: now + 50 },
+  );
+  try {
+    assert.equal(active.renew(now + 1000), true);
+    assert.equal(active.renew(now + 25), false, 'cannot shorten lease into the past');
+  } finally {
+    active.close();
+  }
+  for (const id of ['active-direct', 'active-persistent']) {
+    assert.equal((await readTask(id, options)).claimExpiresAt, now + 1000);
+  }
+});
+
 test('expired SQLite claim cannot finalize ordinary non-goal work', async (t) => {
   const now = Date.now();
   const options = await queueOptions(t, { now: now + 100 });
