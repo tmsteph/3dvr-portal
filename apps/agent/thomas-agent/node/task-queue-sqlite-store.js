@@ -127,16 +127,30 @@ function importTask(record, options = {}) {
     const serialized = JSON.stringify(record);
     const now = options.now || Date.now();
     if (status !== 'queued') {
-      // Historical terminal updates are only allowed for a *previously*
-      // imported, still-queued GUN row. Never create a terminal row from a
-      // standalone mirror, and never override a claimed or terminal task.
+      // A legacy terminal mirror is not authority to rewrite what was queued.
+      // Preserve the original execution intent; only outcome fields may change.
+      // The compare-and-swap predicate also prevents a concurrent queued edit
+      // from being overwritten between the read and terminal transition.
+      const previous = db.prepare(`
+        SELECT record_json FROM tasks
+        WHERE owner_alias = ? AND id = ? AND source = 'gun'
+          AND status = 'queued' AND claim_token IS NULL AND updated_at < ?
+      `).get(alias, id, updatedAt);
+      if (!previous) return false;
+      const original = JSON.parse(previous.record_json);
+      const intentFields = [
+        'id', 'task', 'tenantId', 'tenantAlias', 'tenantPlan', 'backend',
+        'repo', 'model', 'thinking', 'unsafe', 'riskClass', 'approvalStatus',
+        'requiredCapabilities', 'maxRuntimeMs', 'requestedBy', 'createdAt',
+      ];
+      if (intentFields.some(field => original[field] !== record[field])) return false;
       return db.prepare(`
         UPDATE tasks SET status = ?, updated_at = ?, record_json = ?,
           claim_token = NULL, claim_expires_at = NULL
         WHERE owner_alias = ? AND id = ? AND source = 'gun'
           AND status = 'queued' AND claim_token IS NULL
-          AND updated_at < ?
-      `).run(status, updatedAt, serialized, alias, id, updatedAt).changes === 1;
+          AND updated_at < ? AND record_json = ?
+      `).run(status, updatedAt, serialized, alias, id, updatedAt, previous.record_json).changes === 1;
     }
     // GUN may update its own still-queued imported rows, but must never
     // reopen completed, failed, skipped, cancelled, or running work.
