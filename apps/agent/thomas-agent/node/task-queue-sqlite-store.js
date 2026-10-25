@@ -57,6 +57,29 @@ function parseRecord(row) {
   };
 }
 
+// A task ID is an idempotency key, not permission to replace a pending task.
+// Only the explicit updateTask path may edit an existing queued record.
+function insertTask(record, options = {}) {
+  return withDatabase(options, (db) => {
+    const result = db.prepare(`
+      INSERT INTO tasks (owner_alias, id, status, updated_at, record_json, source)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(owner_alias, id) DO NOTHING
+    `).run(
+      ownerAlias(options),
+      String(record.id),
+      String(record.status),
+      String(record.updatedAt),
+      JSON.stringify(record),
+      options.queueSource || 'sqlite',
+    );
+    if (result.changes !== 1) {
+      throw new Error('task ID already exists; active task claim required for update');
+    }
+    return record;
+  });
+}
+
 function writeTask(record, options = {}) {
   return withDatabase(options, (db) => {
     const result = db.prepare(`
@@ -301,6 +324,7 @@ module.exports = {
   databasePath,
   finishTask,
   importTask,
+  insertTask,
   listTasks,
   readTask,
   renewClaim,
