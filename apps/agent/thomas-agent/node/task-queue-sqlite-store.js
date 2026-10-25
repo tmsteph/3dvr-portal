@@ -294,7 +294,7 @@ function transitionTaskGoal(id, claimToken, expectedRevision, event, options = {
 function finishTask(id, claimToken, record, options = {}) {
   // A worker claim may only produce a terminal receipt for the task it owns.
   // In particular, finishing as 'queued' would silently re-enable execution.
-  if (!['completed', 'failed', 'skipped'].includes(record?.status)
+  if (!['completed', 'failed', 'skipped', 'cancelled'].includes(record?.status)
     || String(record.id) !== String(id)) return false;
   return withDatabase(options, (db) => {
     db.exec('BEGIN IMMEDIATE');
