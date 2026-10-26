@@ -451,7 +451,19 @@ async function runQueuedTask(record, options = {}) {
   let renewalTimer;
   let claimRenewer;
   if (claimed.claimToken) {
-    claimRenewer = sqliteQueue().createClaimRenewer(claimed.id, claimed.claimToken, options);
+    // A claim can succeed while opening the persistent renewal handle fails
+    // (for example, SQLite initialization or a transient lock). Do not run
+    // the backend or abort the worker batch: preserve this running claim for
+    // explicit review, while allowing unrelated queued work to continue.
+    try {
+      claimRenewer = sqliteQueue().createClaimRenewer(claimed.id, claimed.claimToken, options);
+    } catch {
+      return {
+        ok: false,
+        skipped: true,
+        reason: 'SQLite claim renewer unavailable before execution; task held for review',
+      };
+    }
     const ttlMs = options.leaseTtlMs || DEFAULT_LEASE_TTL_MS;
     // Very short test/custom leases are vulnerable to ordinary event-loop stalls.
     // Once work has actually started, keep at least one second of claim headroom;
