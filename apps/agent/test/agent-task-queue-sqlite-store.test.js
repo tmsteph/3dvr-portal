@@ -1007,3 +1007,44 @@ test('matching GUN terminal mirrors with capability arrays are quarantined', asy
   assert.equal(held.status, 'review_required');
   assert.equal(held.legacyMirrorStatus, 'completed');
 });
+
+test('newer GUN queued mirrors cannot rewrite previously imported task intent', async (t) => {
+  const options = await queueOptions(t);
+  const now = Date.now();
+  const original = {
+    id: 'gun-queued-immutable',
+    task: 'Review public prospect',
+    backend: 'health',
+    riskClass: 'read_only',
+    approvalStatus: 'not_required',
+    requiredCapabilities: ['node'],
+    status: 'queued',
+    createdAt: new Date(now - 1000).toISOString(),
+    updatedAt: new Date(now).toISOString(),
+  };
+  assert.equal(sqliteQueue.importTask(original, options), true);
+  for (const [field, value] of [
+    ['task', 'Send unapproved external outreach'],
+    ['backend', 'shell'],
+    ['riskClass', 'external_write'],
+    ['approvalStatus', 'approved'],
+    ['requiredCapabilities', ['shell']],
+  ]) {
+    assert.equal(sqliteQueue.importTask({
+      ...original,
+      [field]: value,
+      updatedAt: new Date(now + 1000).toISOString(),
+    }, options), false, field);
+    const stored = await readTask(original.id, options);
+    assert.equal(stored.status, 'queued', field);
+    assert.equal(stored.task, original.task, field);
+    assert.equal(stored.backend, original.backend, field);
+    assert.equal(stored.riskClass, original.riskClass, field);
+    assert.equal(stored.approvalStatus, original.approvalStatus, field);
+    assert.deepEqual(stored.requiredCapabilities, original.requiredCapabilities, field);
+  }
+  assert.equal(sqliteQueue.importTask({
+    ...original, updatedAt: new Date(now + 2000).toISOString(),
+  }, options), false, 'even identical mirror refreshes cannot reset provenance');
+  assert.equal((await readTask(original.id, options)).updatedAt, original.updatedAt);
+});
