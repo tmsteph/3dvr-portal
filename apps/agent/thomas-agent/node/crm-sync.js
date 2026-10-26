@@ -204,7 +204,10 @@ function buildCrmRecord(lead, options = {}) {
     ? normalizeText(lead.contact)
     : '';
   const link = normalizeText(lead.link);
-  const lastContacted = ['contacted', 'replied', 'failed', 'closed'].includes(status)
+  // A failed attempt, inbound reply, or closed legacy record is not proof
+  // of successful outbound contact. Keep the legacy contacted date only;
+  // buildCrmSyncPayload uses successful outbound log events when available.
+  const lastContacted = status === 'contacted'
     ? isoDate(lead.date, new Date(now))
     : '';
   const nextFollowUp = '';
