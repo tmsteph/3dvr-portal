@@ -342,3 +342,22 @@ test('CRM last-contact date reflects successful outbound, not a later failure or
   assert.equal(payload.records[0].replyCount, 2);
   assert.equal(payload.records[0].lastDeliveryStatus, 'failed');
 });
+
+test('CRM does not invent successful outbound dates from failed, inbound-only or closed legacy states', () => {
+  for (const status of ['failed', 'replied', 'closed']) {
+    const record = buildCrmRecord({
+      name: 'Synthetic status-only lead',
+      contact: 'status-only@example.test',
+      status,
+      date: '2026-10-25'
+    }, { now: '2026-10-25T18:00:00Z' });
+    assert.equal(record.lastContacted, '', `${status} is not evidence of successful outbound`);
+  }
+  const payload = buildCrmSyncPayload({
+    leads: [{ name: 'Inbound-only', contact: 'inbound@example.test', status: 'replied', date: '2026-10-25' }],
+    outreach: [{ name: 'Inbound-only', contact: 'inbound@example.test', status: 'replied', timestamp: '2026-10-25T18:00:00Z' }],
+    now: '2026-10-25T18:01:00Z'
+  });
+  assert.equal(payload.records[0].lastContacted, '');
+  assert.equal(payload.records[0].replyCount, 1);
+});
