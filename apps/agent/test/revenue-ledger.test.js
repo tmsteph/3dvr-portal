@@ -22,6 +22,42 @@ test('ledger deduplicates prospects and idempotent transitions', () => withLedge
   assert.equal(replay.replayed, true);
 }));
 
+test('concurrent discovery workers reuse the winner instead of duplicating a lead', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-prospect-race-'));
+  const filePath = path.join(tmp, 'ledger.sqlite');
+  const dbA = openLedger({ filePath });
+  const dbB = openLedger({ filePath });
+  try {
+    for (const [index, winnerContact, loserContact] of [
+      [1, 'race1@example.test', 'mailto:RACE1@EXAMPLE.TEST'],
+      [2, 'race2@example.test', 'race2@example.test'],
+    ]) {
+      let winner;
+      let interleaved = false;
+      const racingDb = {
+        prepare(sql) { return dbA.prepare(sql); },
+        exec(sql) {
+          if (!interleaved && sql === 'BEGIN IMMEDIATE') {
+            interleaved = true;
+            winner = createProspect(dbB, { name: 'First worker', contact: winnerContact });
+          }
+          return dbA.exec(sql);
+        },
+      };
+      const loser = createProspect(racingDb, { name: 'Second worker', contact: loserContact });
+      assert.equal(interleaved, true, 'the competing worker must win before the SQLite reservation');
+      assert.equal(winner.created, true);
+      assert.equal(loser.created, false, 'a racing worker must reuse the existing prospect');
+      assert.equal(loser.prospect.id, winner.prospect.id);
+      assert.equal(dbA.prepare('SELECT COUNT(*) AS n FROM prospects').get().n, index);
+    }
+  } finally {
+    dbA.close();
+    dbB.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('concurrent prospect transitions cannot overwrite a newer lifecycle state', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-transition-race-'));
   const filePath = path.join(tmp, 'ledger.sqlite');
