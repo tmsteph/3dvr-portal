@@ -85,6 +85,17 @@ function openLedger(options = {}) {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+    -- A durable single-writer reservation for an external CRM side effect.
+    -- Expiration is diagnostic only: a timed-out worker might already have
+    -- written remotely, so an expired claim is NEVER automatically stolen.
+    CREATE TABLE IF NOT EXISTS projection_claims (
+      outbox_id TEXT PRIMARY KEY REFERENCES projection_outbox(id),
+      owner_token TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('in_flight','needs_review','finished')),
+      claimed_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
   `);
   return db;
 }
@@ -259,22 +270,79 @@ function findProspectByContact(db, contact) {
 }
 
 function pendingProjections(db, limit = 100) {
-  // Timestamps may be identical and UUID order is not event order. A later
-  // CRM projection must not overwrite an earlier event before it is handled.
+  // Failed/ambiguous external writes require reconciliation, not replay.
+  // Claims are durable even after lease expiry: the remote write may have landed.
   return db.prepare(`SELECT o.* FROM projection_outbox o
     JOIN revenue_events e ON e.id = o.event_id
-    WHERE o.status IN ('pending','failed')
+    WHERE o.status = 'pending'
+      AND NOT EXISTS (SELECT 1 FROM projection_claims c WHERE c.outbox_id = o.id)
     ORDER BY e.rowid ASC, o.rowid ASC LIMIT ?`)
     .all(Math.max(1, Number(limit) || 100));
 }
 
+function claimProjection(db, { id, leaseMs = 60000 } = {}) {
+  const outboxId = normalize(id);
+  if (!outboxId) throw new Error('projection id is required');
+  const duration = Number(leaseMs);
+  if (!Number.isSafeInteger(duration) || duration < 1) throw new Error('leaseMs must be a positive integer');
+  const now = new Date();
+  const token = randomUUID();
+  // INSERT...SELECT is one atomic SQLite statement across worker processes.
+  // Earlier events for the same prospect must succeed before a later write.
+  const result = db.prepare(`INSERT OR IGNORE INTO projection_claims
+    (outbox_id, owner_token, status, claimed_at, expires_at, updated_at)
+    SELECT o.id, ?, 'in_flight', ?, ?, ?
+    FROM projection_outbox o JOIN revenue_events current_event ON current_event.id = o.event_id
+    WHERE o.id = ? AND o.status = 'pending'
+      AND NOT EXISTS (SELECT 1 FROM projection_claims c WHERE c.outbox_id = o.id)
+      AND NOT EXISTS (
+        SELECT 1 FROM projection_outbox older
+        JOIN revenue_events prior_event ON prior_event.id = older.event_id
+        WHERE older.prospect_id = o.prospect_id
+          AND prior_event.rowid < current_event.rowid
+          AND older.status != 'succeeded'
+      )`).run(token, now.toISOString(), new Date(now.getTime() + duration).toISOString(), now.toISOString(), outboxId);
+  return result.changes ? { id: outboxId, ownerToken: token } : null;
+}
+
+function finishClaimedProjection(db, { id, ownerToken, status, error = '' } = {}) {
+  if (!['succeeded', 'failed'].includes(status)) throw new Error('projection status must be succeeded or failed');
+  const outboxId = normalize(id);
+  const token = normalize(ownerToken);
+  if (!outboxId || !token) throw new Error('projection id and owner token are required');
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const claim = db.prepare('SELECT * FROM projection_claims WHERE outbox_id = ?').get(outboxId);
+    if (!claim || claim.owner_token !== token || claim.status !== 'in_flight') {
+      throw new Error('Projection claim missing, stale, or owned by another worker');
+    }
+    const now = new Date().toISOString();
+    const result = db.prepare(`UPDATE projection_outbox
+      SET status = ?, attempts = attempts + 1, last_error = ?, updated_at = ?
+      WHERE id = ? AND status = 'pending'`)
+      .run(status, normalize(error), now, outboxId);
+    if (!result.changes) throw new Error('Projection already finalized or missing');
+    // A failed or uncertain external ACK must be manually reconciled.
+    // Never release its claim for automatic retry.
+    db.prepare('UPDATE projection_claims SET status = ?, updated_at = ? WHERE outbox_id = ?')
+      .run(status === 'succeeded' ? 'finished' : 'needs_review', now, outboxId);
+    db.exec('COMMIT');
+    return db.prepare('SELECT * FROM projection_outbox WHERE id = ?').get(outboxId);
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}
+
 function finishProjection(db, { id, status, error = '' } = {}) {
+  // Legacy/manual reconciliation path; live workers MUST use the claim token.
   if (!['succeeded', 'failed'].includes(status)) throw new Error('projection status must be succeeded or failed');
   const result = db.prepare(`UPDATE projection_outbox
     SET status = ?, attempts = attempts + 1, last_error = ?, updated_at = ?
-    WHERE id = ? AND status IN ('pending','failed')`)
+    WHERE id = ? AND status IN ('pending','failed')
+      AND NOT EXISTS (SELECT 1 FROM projection_claims c WHERE c.outbox_id = projection_outbox.id)`)
     .run(status, normalize(error), new Date().toISOString(), normalize(id));
-  if (!result.changes) throw new Error('Projection already succeeded or does not exist');
+  if (!result.changes) throw new Error('Projection already succeeded, claimed, or does not exist');
   return db.prepare('SELECT * FROM projection_outbox WHERE id = ?').get(normalize(id));
 }
 
@@ -307,4 +375,4 @@ function importProspectState(db, input = {}) {
   return { event, replayed: false, prospect: getProspect(db, id) };
 }
 
-module.exports = { STATES, TRANSITIONS, acknowledgedDeliveryCount, contactKey, createProspect, findProspectByContact, finishDeliveryAttempt, finishProjection, finishRun, getProspect, importProspectState, openLedger, pendingProjections, reserveDeliveryAttempt, resolveLedgerPath, startRun, transitionProspect };
+module.exports = { STATES, TRANSITIONS, acknowledgedDeliveryCount, claimProjection, finishClaimedProjection, contactKey, createProspect, findProspectByContact, finishDeliveryAttempt, finishProjection, finishRun, getProspect, importProspectState, openLedger, pendingProjections, reserveDeliveryAttempt, resolveLedgerPath, startRun, transitionProspect };
