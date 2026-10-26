@@ -362,25 +362,36 @@ function importProspectState(db, input = {}) {
   const idempotencyKey = normalize(input.idempotencyKey);
   if (!id || !STATES.has(toState) || !idempotencyKey) throw new Error('prospectId, valid toState, and idempotencyKey are required');
   const payload = input.payload || {};
-  const replay = replayLedgerEvent(db, { idempotencyKey, prospectId: id, toState, type: 'legacy_import', payload });
-  if (replay) return { event: replay, replayed: true, prospect: getProspect(db, id) };
-  const prospect = getProspect(db, id);
-  if (!prospect) throw new Error(`Unknown prospect: ${id}`);
-  if (prospect.state !== 'prospect' && prospect.state !== toState) throw new Error(`Cannot import ${toState} over existing ${prospect.state} state`);
-  if (prospect.state === toState) return { event: null, replayed: true, prospect };
-  const now = new Date().toISOString();
-  const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type: 'legacy_import', from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(payload), created_at: now };
+  // Imports must validate the current state while holding the SQLite write
+  // reservation. A concurrent worker may have advanced this prospect since
+  // an earlier read; importing over it would regress the canonical CRM state.
   db.exec('BEGIN IMMEDIATE');
   try {
+    const replay = replayLedgerEvent(db, { idempotencyKey, prospectId: id, toState, type: 'legacy_import', payload });
+    if (replay) {
+      const prospect = getProspect(db, id);
+      db.exec('COMMIT');
+      return { event: replay, replayed: true, prospect };
+    }
+    const prospect = getProspect(db, id);
+    if (!prospect) throw new Error(`Unknown prospect: ${id}`);
+    if (prospect.state !== 'prospect' && prospect.state !== toState) throw new Error(`Cannot import ${toState} over existing ${prospect.state} state`);
+    if (prospect.state === toState) {
+      db.exec('COMMIT');
+      return { event: null, replayed: true, prospect };
+    }
+    const now = new Date().toISOString();
+    const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type: 'legacy_import', from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(payload), created_at: now };
     db.prepare('UPDATE prospects SET state = ?, updated_at = ? WHERE id = ?').run(toState, now, id);
     db.prepare(`INSERT INTO revenue_events (id, idempotency_key, prospect_id, type, from_state, to_state, payload_json, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(...Object.values(event));
     db.prepare(`INSERT INTO projection_outbox (id, idempotency_key, prospect_id, event_id, destination, payload_json, status, attempts, last_error, created_at, updated_at)
       VALUES (?, ?, ?, ?, 'crm', ?, 'pending', 0, '', ?, ?)`)
       .run(randomUUID(), `crm:${idempotencyKey}`, id, event.id, JSON.stringify({ prospectId: id, state: toState, eventId: event.id, source: 'legacy_import' }), now, now);
+    const updatedProspect = getProspect(db, id);
     db.exec('COMMIT');
+    return { event, replayed: false, prospect: updatedProspect };
   } catch (error) { db.exec('ROLLBACK'); throw error; }
-  return { event, replayed: false, prospect: getProspect(db, id) };
 }
 
 module.exports = { STATES, TRANSITIONS, acknowledgedDeliveryCount, claimProjection, finishClaimedProjection, contactKey, createProspect, findProspectByContact, finishDeliveryAttempt, finishProjection, finishRun, getProspect, importProspectState, openLedger, pendingProjections, reserveDeliveryAttempt, resolveLedgerPath, startRun, transitionProspect };
