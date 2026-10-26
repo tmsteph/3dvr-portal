@@ -182,7 +182,17 @@ jobs:
           result="$("$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js enqueue --json --backend health --risk read_only --approval-status approved 'DigitalOcean worker health check')"
           task_id="$(printf '%s' "$result" | "$THREEDVR_NODE_BIN" -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task queue JSON payload missing');console.log(JSON.parse(s.slice(i)).id)})")"
           for attempt in $(seq 1 18); do
-            result="$("$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js status --id "$task_id" --json)"
+            # A transient SQLite lock is an unreadable status, not a failed task.
+            # Retry the SAME health task ID; never enqueue another one here.
+            if ! result="$("$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js status --id "$task_id" --json 2>&1)"; then
+              if [[ "$result" == *"database is locked"* || "$result" == *"SQLITE_BUSY"* ]]; then
+                echo "SQLite status temporarily locked (poll $attempt/18); retrying existing health task" >&2
+                sleep 5
+                continue
+              fi
+              printf '%s\n' "$result" >&2
+              exit 1
+            fi
             status="$(printf '%s' "$result" | "$THREEDVR_NODE_BIN" -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');console.log(JSON.parse(s.slice(i)).status||'')})")"
             case "$status" in completed) echo 'managed SQLite queue consumed by DigitalOcean worker'; exit 0;; failed|skipped) printf '%s\n' "$result"; exit 1;; esac
             sleep 5
