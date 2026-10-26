@@ -182,18 +182,30 @@ function getProspect(db, id) {
 function createProspect(db, input = {}) {
   const now = new Date().toISOString();
   const key = contactKey(input);
-  // Reuse legacy mailto: records as well as canonical email records.
-  const existing = (normalize(input.contact) ? findProspectByContact(db, input.contact) : null)
-    || db.prepare('SELECT * FROM prospects WHERE contact_key = ?').get(key);
-  if (existing) return { prospect: existing, created: false };
-  const prospect = {
-    id: normalize(input.id) || randomUUID(), contact_key: key, name: normalize(input.name) || 'Unknown',
-    source_url: normalize(input.sourceUrl), contact: normalize(input.contact), state: 'prospect',
-    campaign_id: normalize(input.campaignId), created_at: now, updated_at: now,
-  };
-  db.prepare(`INSERT INTO prospects (id, contact_key, name, source_url, contact, state, campaign_id, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(...Object.values(prospect));
-  return { prospect, created: true };
+  // Reserve the SQLite writer before deduplication. Two discovery workers
+  // must not both see an absent contact and race to insert it; the loser
+  // should reuse the existing lead, including historical mailto: keys.
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const existing = (normalize(input.contact) ? findProspectByContact(db, input.contact) : null)
+      || db.prepare('SELECT * FROM prospects WHERE contact_key = ?').get(key);
+    if (existing) {
+      db.exec('COMMIT');
+      return { prospect: existing, created: false };
+    }
+    const prospect = {
+      id: normalize(input.id) || randomUUID(), contact_key: key, name: normalize(input.name) || 'Unknown',
+      source_url: normalize(input.sourceUrl), contact: normalize(input.contact), state: 'prospect',
+      campaign_id: normalize(input.campaignId), created_at: now, updated_at: now,
+    };
+    db.prepare(`INSERT INTO prospects (id, contact_key, name, source_url, contact, state, campaign_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(...Object.values(prospect));
+    db.exec('COMMIT');
+    return { prospect, created: true };
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 // An idempotency key identifies one exact ledger event, not merely a matching
