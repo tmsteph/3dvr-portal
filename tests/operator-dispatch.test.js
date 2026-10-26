@@ -164,7 +164,7 @@ test('browser status polling errors and timeouts never claim a server worker is 
       actions.push(body.action);
       return {ok:true,status:200,json:async()=>({ok:true,record:{status:'queued'}})};
     };
-    const timedOut=await new Promise(resolve=>watchOperatorTask('operator-http:task-poll-timeout-12345',{timeoutMs:0,onUpdate:resolve}));
+    const timedOut=await new Promise(resolve=>watchOperatorTask('operator-http:task-poll-timeout-12345',{timeoutMs:0,onUpdate:record=>{if(isOperatorTaskTerminal(record))resolve(record);}}));
     assert.equal(timedOut.status,'status_unavailable');
     assert.match(operatorTaskReceipt(timedOut),/Do not resubmit/);
     assert.deepEqual(actions,['status','status']);
