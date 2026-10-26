@@ -117,11 +117,14 @@ test('Prism Wing A/D strafe and R/Ctrl control vertical position', { timeout: 45
     const strafePage = await openWing(browser);
     const strafeStart = await state(strafePage);
     await strafePage.keyboard.down('KeyD');
-    await strafePage.waitForFunction(startX =>
-      Math.abs(window.__prismWingDebug.getState().position.x - startX) > .45,
-      strafeStart.position.x, { timeout: 8_000 });
+    // Capture the actual milestone state while the key is still pressed.
+    // Reading again after keyup can observe spring-back and falsely fail.
+    const strafedHandle = await strafePage.waitForFunction(startX => {
+      const current = window.__prismWingDebug.getState();
+      return Math.abs(current.position.x - startX) > .45 ? current : false;
+    }, strafeStart.position.x, { timeout: 8_000 });
+    const strafed = await strafedHandle.jsonValue();
     await strafePage.keyboard.up('KeyD');
-    const strafed = await state(strafePage);
     assert.ok(Math.abs(strafed.position.x-strafeStart.position.x) > .45, 'D should move the ship sideways');
     await strafePage.close();
 
@@ -131,22 +134,24 @@ test('Prism Wing A/D strafe and R/Ctrl control vertical position', { timeout: 45
     // Busy CI runners can advance fewer simulation frames than wall-clock time.
     // Keep the key pressed until movement is observed, rather than assuming
     // 700ms always represents enough rendered frames.
-    await risePage.waitForFunction(startY =>
-      window.__prismWingDebug.getState().position.y - startY > .35,
-      riseStart.position.y, { timeout: 8_000 });
+    const risenHandle = await risePage.waitForFunction(startY => {
+      const current = window.__prismWingDebug.getState();
+      return current.position.y - startY > .35 ? current : false;
+    }, riseStart.position.y, { timeout: 8_000 });
+    const risen = await risenHandle.jsonValue();
     await risePage.keyboard.up('KeyR');
-    const risen = await state(risePage);
     assert.ok(risen.position.y-riseStart.position.y > .35, 'R should move the ship upward');
     await risePage.close();
 
     const downPage = await openWing(browser);
     const downStart = await state(downPage);
     await downPage.keyboard.down('Control');
-    await downPage.waitForFunction(startY =>
-      window.__prismWingDebug.getState().position.y < startY - .35,
-      downStart.position.y, { timeout: 8_000 });
+    const loweredHandle = await downPage.waitForFunction(startY => {
+      const current = window.__prismWingDebug.getState();
+      return current.position.y < startY - .35 ? current : false;
+    }, downStart.position.y, { timeout: 8_000 });
+    const lowered = await loweredHandle.jsonValue();
     await downPage.keyboard.up('Control');
-    const lowered = await state(downPage);
     assert.ok(lowered.position.y < downStart.position.y-.35, 'Ctrl should move the ship downward');
   } finally {
     await browser.close();
