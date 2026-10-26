@@ -1136,3 +1136,42 @@ test('newer GUN queued mirrors cannot rewrite previously imported task intent', 
   }, options), false, 'even identical mirror refreshes cannot reset provenance');
   assert.equal((await readTask(original.id, options)).updatedAt, original.updatedAt);
 });
+
+test('worker isolates a thrown claim error and still completes independent health work', async (t) => {
+  const options = await queueOptions(t, {
+    rootNode: fakeRoot(),
+    workerCapabilities: 'node',
+    gunSync: false,
+  });
+  const now = Date.now();
+  await enqueueTask('first health', {
+    ...options, id: 'claim-throws-first', backend: 'health', now: now + 1000,
+  });
+  await enqueueTask('second health', {
+    ...options, id: 'independent-health-second', backend: 'health', now,
+  });
+
+  const originalClaim = sqliteQueue.claimTask;
+  sqliteQueue.claimTask = function (id, ...args) {
+    if (id === 'claim-throws-first') throw new Error('simulated SQLite claim exception');
+    return originalClaim.call(this, id, ...args);
+  };
+  let results;
+  try {
+    results = await runWorkerOnce({ ...options, limit: 2 });
+  } finally {
+    sqliteQueue.claimTask = originalClaim;
+  }
+
+  assert.equal(results.length, 2);
+  assert.equal(results[0].id, 'claim-throws-first');
+  assert.equal(results[0].result.ok, false);
+  assert.equal(results[0].result.requiresReview, true);
+  assert.match(results[0].result.reason, /outcome unverified/);
+  assert.equal(results[1].id, 'independent-health-second');
+  assert.equal(results[1].result.ok, true);
+  assert.equal((await readTask('claim-throws-first', options)).status, 'queued',
+    'a thrown claim must not manufacture a terminal receipt');
+  assert.equal((await readTask('independent-health-second', options)).status, 'completed',
+    'an unrelated safe task must not be starved by the first exception');
+});
