@@ -308,7 +308,7 @@ test('two concurrent SQLite workers reserve one CRM write and preserve event ord
     const started = new Promise(resolve => { notifyStarted = resolve; });
     const gate = new Promise(resolve => { releaseWrite = resolve; });
     let calls = 0;
-    const first = projectPendingCrm(dbA, { write: async () => {
+    const first = projectPendingCrm(dbA, { limit: 1, write: async () => {
       calls += 1;
       notifyStarted();
       await gate;
