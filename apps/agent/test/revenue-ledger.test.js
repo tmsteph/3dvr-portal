@@ -67,7 +67,7 @@ test('successful CRM projection is terminal even if a stale worker reports failu
       /already succeeded/);
   }
   const after = db.prepare('SELECT status, attempts, last_error FROM projection_outbox WHERE id = ?').get(projection.id);
-  assert.deepEqual(after, { status: 'succeeded', attempts: 1, last_error: '' });
+  assert.deepEqual({ ...after }, { status: 'succeeded', attempts: 1, last_error: '' });
   assert.equal(pendingProjections(db).length, 0, 'completed CRM writes must not be replayed');
 }));
 
