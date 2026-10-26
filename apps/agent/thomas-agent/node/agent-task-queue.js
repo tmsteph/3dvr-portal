@@ -639,6 +639,9 @@ async function runWorkerOnce(options = {}) {
   // An expired running lease is not proof the task is safe to execute twice.
   const queued = tasks
     .filter(task => task.status === 'queued')
+    // Public GUN imports are visible for reconciliation, not executable
+    // admissions. Exclude them before applying the worker batch limit.
+    .filter(task => queueStore(options) !== 'sqlite' || task.queueSource === 'sqlite')
     .filter(task => canWorkerRunTask(task, options).ok)
     .slice(0, options.limit || DEFAULT_TASK_LIMIT);
   const results = [];
