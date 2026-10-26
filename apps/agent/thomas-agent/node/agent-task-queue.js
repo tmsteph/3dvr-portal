@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const { isDeepStrictEqual } = require('node:util');
 const {
   DEFAULT_OWNER_ALIAS,
   claimLease,
@@ -301,7 +302,9 @@ function sameExecutionIntent(before = {}, after = {}) {
     'repo', 'model', 'thinking', 'unsafe', 'riskClass', 'approvalStatus',
     'requiredCapabilities', 'maxRuntimeMs', 'requestedBy',
   ];
-  return fields.every(field => before[field] === after[field]);
+  // GUN/JSON round-trips recreate arrays; compare immutable intent by value.
+  // A genuinely changed capability list must still reject the stale snapshot.
+  return fields.every(field => isDeepStrictEqual(before[field], after[field]));
 }
 
 function canWorkerRunTask(record = {}, options = {}) {
