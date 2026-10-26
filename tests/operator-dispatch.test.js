@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import SEA from 'gun/sea.js';
 import { createOperatorDispatchHandler, REMOTE_QUEUE_SCRIPT } from '../src/operator-runtime/dispatch.js';
-import { queueOperatorTask, watchOperatorTask, operatorTaskReceipt } from '../operator/delegate-task.js';
+import { queueOperatorTask, watchOperatorTask, operatorTaskReceipt, isOperatorTaskTerminal, operatorTaskProgress } from '../operator/delegate-task.js';
 
 const origin = 'https://operator.3dvr.tech';
 const pair = await SEA.pair();
@@ -135,4 +135,42 @@ test('task receipts prefer complete output and explicitly label the storage boun
   assert.ok(receipt.includes(text));
   assert.match(operatorTaskReceipt({status:'completed',resultText:'partial',resultTruncated:true}), /storage limit/);
   assert.match(operatorTaskReceipt({status:'completed',resultSummary:'legacy result'}), /legacy result/);
+});
+
+test('browser status polling errors and timeouts never claim a server worker is blocked', async () => {
+  const previous = Object.fromEntries(['Gun','localStorage','location','fetch'].map(key => [key,globalThis[key]]));
+  const user={is:{pub:pair.pub,alias:'tmsteph@3dvr'},_:{sea:pair},recall(){}};
+  const Gun=() => ({user:() => user});
+  Gun.SEA=SEA;
+  globalThis.Gun=Gun;
+  globalThis.localStorage={getItem:key=>({signedIn:'true',alias:'tmsteph@3dvr',userPubKey:pair.pub}[key] || null)};
+  globalThis.location={origin};
+  const actions=[];
+  try {
+    globalThis.fetch=async (_url,options)=>{
+      const body=JSON.parse(options.body);
+      actions.push(body.action);
+      return {ok:false,status:401,json:async()=>({ok:false,error:'Session expired'})};
+    };
+    const denied=await new Promise(resolve=>watchOperatorTask('operator-http:task-poll-error-12345',{onUpdate:resolve}));
+    assert.equal(denied.status,'status_unavailable');
+    assert.equal(isOperatorTaskTerminal(denied),true);
+    assert.match(operatorTaskProgress(denied),/Status unavailable/);
+    assert.match(operatorTaskReceipt(denied),/may still be queued, running, or complete/);
+    assert.doesNotMatch(operatorTaskReceipt(denied),/is blocked/);
+
+    globalThis.fetch=async (_url,options)=>{
+      const body=JSON.parse(options.body);
+      actions.push(body.action);
+      return {ok:true,status:200,json:async()=>({ok:true,record:{status:'queued'}})};
+    };
+    const timedOut=await new Promise(resolve=>watchOperatorTask('operator-http:task-poll-timeout-12345',{timeoutMs:0,onUpdate:resolve}));
+    assert.equal(timedOut.status,'status_unavailable');
+    assert.match(operatorTaskReceipt(timedOut),/Do not resubmit/);
+    assert.deepEqual(actions,['status','status']);
+  } finally {
+    for(const [key,value] of Object.entries(previous)) {
+      if(value===undefined)delete globalThis[key];else globalThis[key]=value;
+    }
+  }
 });
