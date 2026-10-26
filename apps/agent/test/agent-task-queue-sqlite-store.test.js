@@ -782,28 +782,49 @@ test('SQLite enqueue and direct writes cannot revive expired running work', asyn
   assert.equal(results.length, 0);
 });
 
-test('SQLite worker imports legacy GUN tasks and mirrors completion', async (t) => {
+test('SQLite worker imports public GUN intent for review but never executes it', async (t) => {
   const rootNode = fakeRoot();
   const gunOptions = { rootNode, ownerAlias: 'tenant/sqlite:exact', force: true };
-  await enqueueTask('legacy task', {
+  await enqueueTask('unverified legacy task', {
     ...gunOptions,
     id: 'legacy/GUN:id',
     backend: 'openai',
     requiredCapabilities: 'openai',
   });
+  let legacyExecutions = 0;
   const options = await queueOptions(t, {
     ...gunOptions,
     queueStore: 'sqlite',
     workerCapabilities: 'node,openai',
     deviceId: 'hybrid-worker',
-    runAgentTaskImpl: async () => ({ ok: true, result: { stdout: 'legacy done' } }),
+    limit: 1,
+    runAgentTaskImpl: async () => {
+      legacyExecutions += 1;
+      return { ok: true, result: { stdout: 'must not execute' } };
+    },
   });
 
-  const results = await runWorkerOnce(options);
+  // The imported row stays visible, but cannot consume a worker slot or
+  // bypass admission through a direct low-level SQLite claim.
+  assert.deepEqual(await runWorkerOnce(options), []);
+  const imported = await readTask('legacy/GUN:id', options);
+  assert.equal(imported.status, 'queued');
+  assert.equal(imported.queueSource, 'gun');
+  assert.equal(legacyExecutions, 0);
+  const now = Date.now();
+  assert.equal(sqliteQueue.claimTask(imported.id, 'forged-claim', 'worker', now + 60_000, now, options), null);
+  assert.equal((await readTask(imported.id, gunOptions)).status, 'queued');
 
+  // A native, bounded health task must still run even with an older
+  // imported task present and a batch limit of one.
+  await enqueueTask('native health', { ...options, id: 'native-health', backend: 'health' });
+  const results = await runWorkerOnce(options);
   assert.equal(results.length, 1);
-  assert.equal((await readTask('legacy/GUN:id', gunOptions)).status, 'completed');
-  assert.match((await readTask('legacy/GUN:id', options)).resultSummary, /legacy done/);
+  assert.equal(results[0].id, 'native-health');
+  assert.equal(results[0].result.ok, true);
+  assert.equal((await readTask('native-health', options)).status, 'completed');
+  assert.equal((await readTask(imported.id, options)).status, 'queued');
+  assert.equal(legacyExecutions, 0);
 });
 
 test('newer GUN requeue cannot replay a failed terminal import', async (t) => {
