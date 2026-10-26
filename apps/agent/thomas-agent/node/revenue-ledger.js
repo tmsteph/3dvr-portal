@@ -241,11 +241,14 @@ function transitionProspect(db, input = {}) {
 function startRun(db, { triggerId, releaseSha } = {}) {
   const trigger = normalize(triggerId);
   if (!trigger) throw new Error('triggerId is required');
-  const replay = db.prepare('SELECT * FROM revenue_runs WHERE trigger_id = ?').get(trigger);
-  if (replay) return { run: replay, replayed: true };
+  // A pre-read followed by INSERT races when two schedulers start the same
+  // trigger. Reserve it in one SQLite statement; only the winner may execute.
   const run = { id: randomUUID(), trigger_id: trigger, release_sha: normalize(releaseSha) || 'unknown', status: 'running', started_at: new Date().toISOString(), finished_at: '', summary_json: '{}' };
-  db.prepare('INSERT INTO revenue_runs (id, trigger_id, release_sha, status, started_at, finished_at, summary_json) VALUES (?, ?, ?, ?, ?, ?, ?)').run(...Object.values(run));
-  return { run, replayed: false };
+  const inserted = db.prepare('INSERT OR IGNORE INTO revenue_runs (id, trigger_id, release_sha, status, started_at, finished_at, summary_json) VALUES (?, ?, ?, ?, ?, ?, ?)').run(...Object.values(run));
+  if (inserted.changes) return { run, replayed: false };
+  const replay = db.prepare('SELECT * FROM revenue_runs WHERE trigger_id = ?').get(trigger);
+  if (!replay) throw new Error('Revenue trigger reservation could not be verified');
+  return { run: replay, replayed: true };
 }
 
 function finishRun(db, { runId, status, summary } = {}) {
