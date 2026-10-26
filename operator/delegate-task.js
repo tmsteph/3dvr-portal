@@ -10,7 +10,7 @@ const DEFAULT_PEERS = [
   'wss://gun-relay-3dvr.fly.dev/gun'
 ];
 const TASK_WATCH_TIMEOUT_MS = 5 * 60 * 1000;
-const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'skipped', 'cancelled', 'canceled', 'blocked', 'review']);
+const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'skipped', 'cancelled', 'canceled', 'blocked', 'review', 'status_unavailable']);
 
 function normalizeText(value = '', max = 4000) {
   return String(value || '').trim().slice(0, max);
@@ -45,6 +45,7 @@ export function operatorTaskProgress(record = {}, estimateMs = 120_000) {
   const age = elapsed(record);
   if (status === 'completed') return 'Complete';
   if (status === 'running') return `Working${age ? ` · ${age} elapsed` : ''} · ${runtimeBudget(estimateMs)}`;
+  if (status === 'status_unavailable') return 'Status unavailable · server task outcome unknown';
   if (status === 'review') return 'Needs your input';
   if (status === 'blocked') return 'Blocked · needs attention';
   if (['failed', 'skipped', 'cancelled', 'canceled'].includes(status)) return `Stopped · ${status}`;
@@ -57,6 +58,8 @@ export function operatorTaskReceipt(record = {}) {
   const summary = output && record.resultTruncated
     ? `${output}\n\n[Result exceeded the 24,000-character storage limit.]`
     : output;
+  // A stopped browser poll is not a worker failure or a blocked queue task.
+  if (status === 'status_unavailable') return 'Operator Runtime status could not be verified. The saved task may still be queued, running, or complete. Do not resubmit; check the same task ID.';
   if (status === 'completed') return summary ? `Operator Runtime finished. Result: ${summary}` : 'Operator Runtime finished.';
   if (status === 'review') return summary ? `Operator Runtime needs your input: ${summary}` : 'Operator Runtime needs your input.';
   if (status === 'blocked') return summary ? `Operator Runtime is blocked: ${summary}` : 'Operator Runtime is blocked.';
@@ -190,12 +193,12 @@ function watchConfirmedTask(requestId, options = {}) {
       if (stopped) return;
       failures += 1;
       if ([401,403,404].includes(error.status) || failures >= 3) {
-        options.onUpdate?.({status:'blocked',error:error.message});
+        options.onUpdate?.({status:'status_unavailable',error:error.message});
         return stop();
       }
     }
     if (Date.now() >= deadline) {
-      options.onUpdate?.({status:'blocked',error:'The task has not finished. Its saved server state is preserved; do not submit it again.'});
+      options.onUpdate?.({status:'status_unavailable',error:'Status polling timed out. The task may still be running; do not submit it again.'});
       return stop();
     }
     timer = setTimeout(poll, 2000);
