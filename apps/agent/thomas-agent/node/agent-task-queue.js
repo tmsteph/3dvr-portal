@@ -457,7 +457,23 @@ async function runQueuedTask(record, options = {}) {
     // Once work has actually started, keep at least one second of claim headroom;
     // the production default is already much larger and is unchanged.
     const activeTtlMs = Math.max(ttlMs, MIN_ACTIVE_SQLITE_CLAIM_TTL_MS);
-    claimRenewer.renew(Date.now() + activeTtlMs);
+    // If the initial lease refresh is rejected or its outcome is uncertain,
+    // never begin execution: the claim may already have expired. Keep the
+    // running row for explicit reconciliation instead of replaying side effects.
+    let initialRenewalOk = false;
+    try {
+      initialRenewalOk = claimRenewer.renew(Date.now() + activeTtlMs);
+    } catch {
+      // An uncertain renewal is not permission to execute.
+    }
+    if (!initialRenewalOk) {
+      claimRenewer.close();
+      return {
+        ok: false,
+        skipped: true,
+        reason: 'SQLite claim renewal failed before execution; task held for review',
+      };
+    }
     renewalTimer = setInterval(() => {
       try {
         claimRenewer.renew(Date.now() + activeTtlMs);
