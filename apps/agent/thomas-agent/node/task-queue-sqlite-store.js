@@ -253,6 +253,9 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
         SELECT record_json, source FROM tasks
         WHERE owner_alias = ? AND id = ?
           AND status = 'queued'
+          -- Public GUN mirrors are not authenticated execution admissions.
+          -- Only tasks created in the private SQLite queue may be claimed.
+          AND source = 'sqlite'
       `).get(ownerAlias(options), String(id));
       if (!row) {
         db.exec('ROLLBACK');
