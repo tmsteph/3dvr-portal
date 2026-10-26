@@ -257,9 +257,10 @@ function pendingProjections(db, limit = 100) {
 function finishProjection(db, { id, status, error = '' } = {}) {
   if (!['succeeded', 'failed'].includes(status)) throw new Error('projection status must be succeeded or failed');
   const result = db.prepare(`UPDATE projection_outbox
-    SET status = ?, attempts = attempts + 1, last_error = ?, updated_at = ? WHERE id = ?`)
+    SET status = ?, attempts = attempts + 1, last_error = ?, updated_at = ?
+    WHERE id = ? AND status IN ('pending','failed')`)
     .run(status, normalize(error), new Date().toISOString(), normalize(id));
-  if (!result.changes) throw new Error('Projection does not exist');
+  if (!result.changes) throw new Error('Projection already succeeded or does not exist');
   return db.prepare('SELECT * FROM projection_outbox WHERE id = ?').get(normalize(id));
 }
 
