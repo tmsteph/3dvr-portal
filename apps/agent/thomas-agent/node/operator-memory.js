@@ -44,8 +44,26 @@ function tokenize(text) {
   return [...new Set(words.filter((w) => w.length >= 3 && !STOPWORDS.has(w)))];
 }
 
+// Canonicalise a path: realpathSync resolves symlinks for paths that
+// exist; for a not-yet-existing target, canonicalise its nearest existing
+// ancestor and re-append the remainder, so a symlinked parent directory
+// cannot smuggle the target outside the tree either.
+function canonicalize(p) {
+  try {
+    return fs.realpathSync(p);
+  } catch (err) {
+    if (!err || err.code !== 'ENOENT') throw err;
+    const parent = path.dirname(p);
+    if (parent === p) throw err;
+    return path.join(canonicalize(parent), path.basename(p));
+  }
+}
+
 // Resolve relPath inside dir; refuse absolute paths and escapes. Memory
-// paths are always plain relative markdown paths from the owner.
+// paths are always plain relative markdown paths from the owner. The
+// boundary is enforced on the CANONICAL path, not just the lexical one:
+// a memory file - or any parent directory of it - that is a symlink
+// pointing outside the memory directory is refused for reads and writes.
 function resolveInside(dir, relPath) {
   if (typeof relPath !== 'string' || relPath.length === 0) {
     throw new Error('memory path must be a non-empty relative path');
@@ -58,7 +76,12 @@ function resolveInside(dir, relPath) {
   if (target !== root && !target.startsWith(root + path.sep)) {
     throw new Error(`memory path escapes the memory directory: ${relPath}`);
   }
-  return target;
+  const canonRoot = canonicalize(root);
+  const canonTarget = canonicalize(target);
+  if (canonTarget !== canonRoot && !canonTarget.startsWith(canonRoot + path.sep)) {
+    throw new Error(`memory path escapes the memory directory: ${relPath}`);
+  }
+  return canonTarget;
 }
 
 // Deterministic line diff (LCS-based). Same inputs always produce the same

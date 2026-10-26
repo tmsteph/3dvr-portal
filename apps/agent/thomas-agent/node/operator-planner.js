@@ -283,37 +283,73 @@ function createPlanner(options = {}) {
     // already proves a live approval covers its exact hash), the store
     // applies the envelope's content - and only after re-deriving the diff
     // from the file as it stands now and matching it to the approved diff.
+    //
+    // Honest-record rule (Codex P2, PR #3341): the core's executor is a
+    // simulation - its success receipt says the approved action was
+    // dispatched, but the REAL effect is the file write below, which can
+    // still fail (owner edited the file after approval, I/O error). The
+    // core has no "executed but effect failed" state, so when a write does
+    // not land this service appends a corrective `failed` receipt to the
+    // same job's audit chain (append-only: history is corrected, never
+    // rewritten) and flips the job off `completed` to `failed`. A memory
+    // write that did not land never leaves behind a bare success receipt
+    // plus a completed job claiming it did.
     async execute(jobId) {
       if (!enabled) return { status: 'disabled' };
-      const receipts = resolveCore().execute(jobId);
+      const resolvedCore = resolveCore();
+      const receipts = resolvedCore.execute(jobId);
       const result = { status: 'executed', job_id: jobId, receipts };
       if (memory) {
         const writes = [];
+        const failedWrites = [];
         for (const receipt of receipts) {
           if (receipt.outcome !== 'success') continue;
           const env = knownEnvelopes.get(receipt.action_id);
           if (!env || env.capability !== MEMORY_WRITE_CAPABILITY) continue;
           const args = env.args || {};
+          let write;
           if (typeof args.path !== 'string' || typeof args.new_content !== 'string' || typeof args.diff !== 'string') {
-            writes.push({
+            write = {
               action_id: env.action_id, path: args.path, applied: false,
               reason: 'envelope lacks the approved content/diff - not applied',
-            });
-            continue;
+            };
+          } else {
+            try {
+              write = {
+                action_id: env.action_id, path: args.path,
+                ...memory.applyApprovedWrite({ relPath: args.path, newContent: args.new_content, diff: args.diff }),
+              };
+            } catch (err) {
+              write = {
+                action_id: env.action_id, path: args.path, applied: false,
+                reason: err instanceof Error ? err.message : String(err),
+              };
+            }
           }
-          try {
-            writes.push({
-              action_id: env.action_id, path: args.path,
-              ...memory.applyApprovedWrite({ relPath: args.path, newContent: args.new_content, diff: args.diff }),
-            });
-          } catch (err) {
-            writes.push({
-              action_id: env.action_id, path: args.path, applied: false,
-              reason: err instanceof Error ? err.message : String(err),
-            });
-          }
+          writes.push(write);
+          if (!write.applied) failedWrites.push({ env, write });
         }
         if (writes.length > 0) result.memory_writes = writes;
+        if (failedWrites.length > 0) {
+          for (const { env, write } of failedWrites) {
+            receipts.push(resolvedCore.audit.append({
+              action_id: env.action_id, job_id: jobId, device_id: env.device_id,
+              outcome: 'failed',
+              reason_code: `memory_write_not_applied: ${write.reason}`,
+              executor_version: 'planner-memory-effect/1',
+              args: env.args || {},
+              before_state_hash: 'n/a', after_state_hash: 'n/a',
+            }));
+          }
+          try {
+            const job = resolvedCore.getJob(jobId);
+            if (job && job.status === 'completed') job.status = 'failed';
+          } catch {
+            // Job record unavailable; the corrective receipts above still
+            // keep the audit trail honest.
+          }
+          result.status = 'effect_failed';
+        }
       }
       return result;
     },

@@ -275,3 +275,97 @@ test('memory store refuses paths outside the memory directory', () => {
   );
   assert.equal(store.readText('people/missing.md'), null);
 });
+
+test('symlinked memory file escaping the directory is refused for read, search and write', () => {
+  const dir = makeFixture();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'operator-memory-outside-'));
+  const secretPath = path.join(outside, 'secret.md');
+  const secret = '# Secret\n\nThe launch code is falcon nine.\n';
+  fs.writeFileSync(secretPath, secret);
+  fs.rmSync(path.join(dir, 'MEMORY.md'));
+  fs.symlinkSync(secretPath, path.join(dir, 'MEMORY.md'));
+
+  const store = createFileMemoryStore(dir);
+  assert.throws(() => store.readText('MEMORY.md'), /escapes the memory directory/);
+  assert.throws(() => store.search('launch code falcon'), /escapes the memory directory/);
+  assert.throws(
+    () => store.applyApprovedWrite({ relPath: 'MEMORY.md', newContent: 'overwritten', diff: 'y' }),
+    /escapes the memory directory/,
+  );
+  // The outside file is untouched.
+  assert.equal(fs.readFileSync(secretPath, 'utf8'), secret);
+});
+
+test('symlinked memory subdirectory escaping the directory is refused for read and write', () => {
+  const dir = makeFixture();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'operator-memory-outside-'));
+  fs.writeFileSync(path.join(outside, 'mallory.md'), '# Mallory\n\nOutside person with a telescope diary.\n');
+  fs.rmSync(path.join(dir, 'people'), { recursive: true });
+  fs.symlinkSync(outside, path.join(dir, 'people'), 'dir');
+
+  const store = createFileMemoryStore(dir);
+  assert.throws(() => store.readText('people/mallory.md'), /escapes the memory directory/);
+  assert.throws(() => store.search('telescope diary'), /escapes the memory directory/);
+  assert.throws(
+    () => store.applyApprovedWrite({ relPath: 'people/mallory.md', newContent: 'overwritten', diff: 'y' }),
+    /escapes the memory directory/,
+  );
+  assert.equal(
+    fs.readFileSync(path.join(outside, 'mallory.md'), 'utf8'),
+    '# Mallory\n\nOutside person with a telescope diary.\n',
+  );
+});
+
+test('a memory write that does not land leaves a failed record, not a completed success', async () => {
+  const dir = makeFixture();
+  const { planner, core } = plannerFor(dir);
+  const updated = `${ORIGINAL_MEMORY}Alex keeps a paper notebook for train trips.\n`;
+
+  const proposal = await planner.proposeMemoryWrite({ path: 'MEMORY.md', content: updated });
+  core.approve(proposal.envelopes[0].action_id, 'owner');
+
+  // The owner edits the file by hand before the approved write executes,
+  // so the store refuses to apply it (diff no longer matches).
+  const ownerEdit = `${ORIGINAL_MEMORY}Owner edit made while the write waited.\n`;
+  fs.writeFileSync(path.join(dir, 'MEMORY.md'), ownerEdit);
+
+  const { status, receipts, memory_writes } = await planner.execute(proposal.job_id);
+  assert.equal(memory_writes[0].applied, false);
+  assert.equal(status, 'effect_failed');
+  // The audit trail's final word on this action is the corrective failure,
+  // chained after the core's dispatch receipt - not a bare success.
+  const trail = core.audit.forJob(proposal.job_id);
+  const last = trail[trail.length - 1];
+  assert.equal(last.action_id, proposal.envelopes[0].action_id);
+  assert.equal(last.outcome, 'failed');
+  assert.match(last.reason_code, /^memory_write_not_applied:/);
+  assert.equal(receipts[receipts.length - 1], last);
+  // The job is not left claiming completion, and the chain still verifies.
+  assert.equal(core.getJob(proposal.job_id).status, 'failed');
+  assert.equal(core.audit.verifyChain(proposal.job_id), true);
+  assert.equal(fs.readFileSync(path.join(dir, 'MEMORY.md'), 'utf8'), ownerEdit);
+});
+
+test('a memory file swapped for an escaping symlink after approval is refused and recorded failed', async () => {
+  const dir = makeFixture();
+  const { planner, core } = plannerFor(dir);
+  const updated = `${ORIGINAL_MEMORY}Alex keeps a paper notebook for train trips.\n`;
+
+  const proposal = await planner.proposeMemoryWrite({ path: 'MEMORY.md', content: updated });
+  core.approve(proposal.envelopes[0].action_id, 'owner');
+
+  // Swap the real file for a symlink out of the memory directory between
+  // approval and execution: the write must be refused, not followed.
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'operator-memory-outside-'));
+  const outsidePath = path.join(outside, 'outside.md');
+  fs.writeFileSync(outsidePath, 'outside contents\n');
+  fs.rmSync(path.join(dir, 'MEMORY.md'));
+  fs.symlinkSync(outsidePath, path.join(dir, 'MEMORY.md'));
+
+  const { status, memory_writes } = await planner.execute(proposal.job_id);
+  assert.equal(status, 'effect_failed');
+  assert.equal(memory_writes[0].applied, false);
+  assert.match(memory_writes[0].reason, /escapes the memory directory/);
+  assert.equal(fs.readFileSync(outsidePath, 'utf8'), 'outside contents\n');
+  assert.equal(core.getJob(proposal.job_id).status, 'failed');
+});
