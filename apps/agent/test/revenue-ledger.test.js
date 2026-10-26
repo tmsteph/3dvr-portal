@@ -55,6 +55,22 @@ test('state transitions atomically queue idempotent CRM projections', () => with
   assert.equal(pendingProjections(db).length, 0);
 }));
 
+test('successful CRM projection is terminal even if a stale worker reports failure', () => withLedger((db) => {
+  const prospect = createProspect(db, { name: 'Synthetic CRM', contact: 'crm-terminal@example.test' }).prospect;
+  transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'crm-terminal:verified' });
+  const [projection] = pendingProjections(db);
+  const completed = finishProjection(db, { id: projection.id, status: 'succeeded' });
+  assert.equal(completed.status, 'succeeded');
+  assert.equal(completed.attempts, 1);
+  for (const status of ['failed', 'succeeded']) {
+    assert.throws(() => finishProjection(db, { id: projection.id, status, error: 'stale worker' }),
+      /already succeeded/);
+  }
+  const after = db.prepare('SELECT status, attempts, last_error FROM projection_outbox WHERE id = ?').get(projection.id);
+  assert.deepEqual(after, { status: 'succeeded', attempts: 1, last_error: '' });
+  assert.equal(pendingProjections(db).length, 0, 'completed CRM writes must not be replayed');
+}));
+
 test('ledger prevents invalid send transitions and records one run per trigger', () => withLedger((db) => {
   const prospect = createProspect(db, { name: 'Acme', contact: 'mailto:info@acme.test' }).prospect;
   assert.throws(() => transitionProspect(db, { prospectId: prospect.id, toState: 'sent', idempotencyKey: 'send:acme' }), /Invalid transition/);
