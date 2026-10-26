@@ -39,7 +39,7 @@ try {
   if (!row) console.log(JSON.stringify({ok:false,missing:true,error:'Task not found.'}));
   else {
     const record = JSON.parse(row.record_json);
-    console.log(JSON.stringify({ok:true,record:{id:input.id,status:row.status,createdAt:record.createdAt,startedAt:record.startedAt,updatedAt:record.updatedAt,resultSummary:record.resultSummary || '',error:record.error || '',workerDeviceId:record.workerDeviceId || ''}}));
+    console.log(JSON.stringify({ok:true,record:{id:input.id,status:row.status,createdAt:record.createdAt,startedAt:record.startedAt,updatedAt:record.updatedAt,resultSummary:record.resultSummary || '',resultText:String(record.resultText || '').slice(0,24000),resultSummaryTruncated:record.resultSummaryTruncated === true,resultTruncated:record.resultTruncated === true,error:record.error || '',workerDeviceId:record.workerDeviceId || ''}}));
   }
 } finally { db.close(); }
 QUEUE_NODE
@@ -56,14 +56,14 @@ export function runManagedQueue(input, options = {}) {
     const timer = setTimeout(() => { child.kill('SIGTERM'); reject(new Error('Task service timed out.')); }, 20000);
     child.stdout.on('data', chunk => {
       output += chunk;
-      if (Buffer.byteLength(output) > 64000) child.kill('SIGTERM');
+      if (Buffer.byteLength(output) > 256000) child.kill('SIGTERM');
     });
     child.stderr.on('data', () => {});
     child.on('error', error => { clearTimeout(timer); reject(error); });
     child.on('close', code => {
       clearTimeout(timer);
       try {
-        if (code !== 0 || Buffer.byteLength(output) > 64000) throw Error('transport');
+        if (code !== 0 || Buffer.byteLength(output) > 256000) throw Error('transport');
         resolve(JSON.parse(output));
       } catch { reject(new Error('Task service unavailable.')); }
     });

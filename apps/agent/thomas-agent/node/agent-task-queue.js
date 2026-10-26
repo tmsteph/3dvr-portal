@@ -147,6 +147,11 @@ function normalizeTaskRecord(record = {}) {
     updatedAt: normalizeText(record.updatedAt) || nowIso(),
     requestedBy: normalizeText(record.requestedBy) || 'cli',
     resultSummary: normalizeText(record.resultSummary),
+    ...(String(record.id || '').startsWith('operator-http-') ? {
+      resultText: String(record.resultText || '').slice(0, 24000),
+      resultSummaryTruncated: record.resultSummaryTruncated === true,
+      resultTruncated: record.resultTruncated === true,
+    } : {}),
     error: normalizeText(record.error),
     workerDeviceId: normalizeText(record.workerDeviceId),
   };
@@ -406,6 +411,7 @@ async function runQueuedTask(record, options = {}) {
       status: result.ok ? 'completed' : result.skipped ? 'skipped' : 'failed',
       completedAt: nowIso(),
       resultSummary: summary,
+      ...(queueStore(options) === 'sqlite' ? privateTaskResult(claimed, result) : {}),
       error: result.ok ? '' : summary,
     }, options);
     await recordTaskLifeEvent(terminal, options);
@@ -417,6 +423,7 @@ async function runQueuedTask(record, options = {}) {
       completedAt: nowIso(),
       error: message,
       resultSummary: message,
+      ...(queueStore(options) === 'sqlite' ? privateTaskResult(claimed, { reason: message }) : {}),
     }, options);
     await recordTaskLifeEvent(terminal, options);
     return { ok: false, error: message };
@@ -485,12 +492,26 @@ async function importLegacyGunTasks(options = {}) {
   }
 }
 
-function summarizeTaskResult(result = {}) {
-  if (result.reason) return result.reason;
-  if (result.result?.stdout) return String(result.result.stdout).slice(0, 2000);
-  if (result.result?.stderr) return String(result.result.stderr).slice(0, 2000);
+function taskResultText(result = {}) {
+  if (result.reason) return String(result.reason);
+  if (result.result?.stdout) return String(result.result.stdout);
+  if (result.result?.stderr) return String(result.result.stderr);
   if (result.backend) return `backend=${result.backend} ok=${Boolean(result.ok)}`;
-  return JSON.stringify(result).slice(0, 2000);
+  return JSON.stringify(result);
+}
+
+function privateTaskResult(record, result) {
+  if (!record.id?.startsWith('operator-http-')) return {};
+  const text = taskResultText(result);
+  return {
+    resultText: text.slice(0, 24000),
+    resultSummaryTruncated: text.length > 2000,
+    resultTruncated: text.length > 24000,
+  };
+}
+
+function summarizeTaskResult(result = {}) {
+  return taskResultText(result).slice(0, 2000);
 }
 
 async function runWorkerOnce(options = {}) {
