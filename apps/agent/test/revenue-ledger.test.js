@@ -189,6 +189,46 @@ test('legacy import idempotency never returns a different prospect event', () =>
 }));
 
 
+test('concurrent legacy import cannot overwrite a newer CRM state', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-import-race-'));
+  const filePath = path.join(tmp, 'ledger.sqlite');
+  const dbA = openLedger({ filePath });
+  const dbB = openLedger({ filePath });
+  try {
+    const prospect = createProspect(dbA, { name: 'Synthetic import race', contact: 'import-race@example.test' }).prospect;
+    let interleaved = false;
+    // Force another worker to advance the prospect at the precise moment
+    // the importer begins its write reservation. The old implementation
+    // validated the stale 'prospect' state before this point.
+    const racingDb = {
+      prepare(sql) { return dbA.prepare(sql); },
+      exec(sql) {
+        if (sql === 'BEGIN IMMEDIATE' && !interleaved) {
+          interleaved = true;
+          transitionProspect(dbB, {
+            prospectId: prospect.id, toState: 'verified',
+            idempotencyKey: 'import-race:verified',
+          });
+        }
+        return dbA.exec(sql);
+      },
+    };
+    assert.throws(() => importProspectState(racingDb, {
+      prospectId: prospect.id, toState: 'eligible',
+      idempotencyKey: 'import-race:stale-eligible',
+      payload: { source: 'synthetic' },
+    }), /Cannot import eligible over existing verified state/);
+    assert.equal(interleaved, true);
+    assert.equal(dbA.prepare('SELECT state FROM prospects WHERE id = ?').get(prospect.id).state, 'verified');
+    assert.equal(dbA.prepare('SELECT COUNT(*) AS n FROM revenue_events').get().n, 1);
+    assert.equal(dbA.prepare('SELECT COUNT(*) AS n FROM projection_outbox').get().n, 1);
+  } finally {
+    dbA.close();
+    dbB.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('delivery attempt idempotency cannot reuse another prospect\'s receipt', () => withLedger((db) => {
   const a = createProspect(db, { name: 'Delivery A', contact: 'delivery-a@example.test' }).prospect;
   const b = createProspect(db, { name: 'Delivery B', contact: 'delivery-b@example.test' }).prospect;
