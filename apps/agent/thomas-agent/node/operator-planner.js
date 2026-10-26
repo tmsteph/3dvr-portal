@@ -21,10 +21,24 @@
 //    this gate is the local, per-job admission check in front of the model.)
 // 3. Fail closed: a router error (invalid JSON, hallucinated capability,
 //    unknown device) produces no job and no proposals - never a partial plan.
+//
+// Step 3 (memory) adds two things, both inert unless a memory store is
+// configured AND the planner is enabled:
+// - plan() keyword-searches the owner's markdown memory files and injects
+//   the relevant excerpts into the router context as background only.
+// - proposeMemoryWrite() turns a "remember this" into a `memory.write`
+//   action proposed through OperatorCore policy (R2, approval required)
+//   carrying the exact new content and a visible diff. execute() applies
+//   the write only after the core executed the approved action, and the
+//   memory store re-verifies the diff against the file before writing.
 
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const {
+  createFileMemoryStore,
+  MEMORY_WRITE_CAPABILITY,
+} = require('./operator-memory');
 
 const DEFAULT_MIN_AVAILABLE_MIB = 512;
 const CORE_DIST = path.join(
@@ -116,12 +130,21 @@ function defaultRouter(env) {
  *   Defaults to the local free-memory gate.
  * @param {Array} [options.devices] - enrolled devices the planner may plan
  *   against; also handed to the router as planning context.
+ * @param {object} [options.memory] - memory store (Step 3), shaped like
+ *   createFileMemoryStore's return: search/format/readText/diff/
+ *   applyApprovedWrite. Absent = no memory behavior at all.
  * @param {object} [options.env] - env used when building the default router.
  */
 function createPlanner(options = {}) {
   const enabled = options.enabled === true;
   const capacityChecker = options.capacityChecker || createCapacityChecker();
   const devices = options.devices || [];
+  const memory = options.memory || null;
+  // Envelopes this planner proposed, by action_id. execute() consults this
+  // to find memory.write actions among the core's receipts; the envelope
+  // objects are the core's own, so any post-approval tampering changes the
+  // action hash and the core denies execution before we ever see a success.
+  const knownEnvelopes = new Map();
   let router = options.router || null;
   let core = options.core || null;
 
@@ -152,9 +175,21 @@ function createPlanner(options = {}) {
       }
       const constraints = (typeof request === 'object' && request?.constraints) || {};
 
+      // Memory (Step 3): relevant excerpts ride along as background context
+      // in the router prompt. No store configured = no load, no search.
+      let memoryHits = null;
+      let memoryContext;
+      if (memory) {
+        memoryHits = memory.search(description);
+        if (memoryHits.length > 0) memoryContext = memory.format(memoryHits);
+      }
+
       let planResult;
       try {
-        planResult = await resolveRouter().propose({ description, devices, constraints });
+        planResult = await resolveRouter().propose({
+          description, devices, constraints,
+          ...(memoryContext ? { memory: memoryContext } : {}),
+        });
       } catch (err) {
         // Router already failed closed (no valid plan from any provider).
         return { status: 'failed_closed', reason: err instanceof Error ? err.message : String(err) };
@@ -164,6 +199,7 @@ function createPlanner(options = {}) {
       for (const device of devices) resolvedCore.devices.enroll(device);
       const job = resolvedCore.createJob(description, devices.map((d) => d.device_id), constraints);
       const envelopes = resolvedCore.proposeActions(job.job_id, planResult.proposals);
+      for (const env of envelopes) knownEnvelopes.set(env.action_id, env);
       const { approved, needsApproval, denied } = resolvedCore.authorize(job.job_id);
       return {
         status: 'planned',
@@ -175,6 +211,65 @@ function createPlanner(options = {}) {
         needsApproval,
         denied,
         capacity,
+        ...(memoryHits !== null ? { memory_hits: memoryHits } : {}),
+      };
+    },
+
+    // Propose a memory write-back (Step 3). Nothing is written here: this
+    // builds ONE `memory.write` action through OperatorCore.proposeActions
+    // so policy decides (the capability is R2, so it waits for an owner
+    // approval bound to the exact action hash). The envelope args carry the
+    // full new content AND the visible diff, so approving the action means
+    // approving exactly that change - and execute() applies nothing else.
+    async proposeMemoryWrite(input = {}) {
+      if (!enabled) return { status: 'disabled' };
+      if (!memory) {
+        return { status: 'failed_closed', reason: 'memory is not configured for this planner' };
+      }
+      const relPath = input.path;
+      if (!relPath || typeof relPath !== 'string') {
+        return { status: 'failed_closed', reason: 'memory write needs a relative file path' };
+      }
+      let current;
+      try {
+        current = memory.readText(relPath) ?? '';
+      } catch (err) {
+        return { status: 'failed_closed', reason: err instanceof Error ? err.message : String(err) };
+      }
+      let newContent;
+      if (typeof input.content === 'string') {
+        newContent = input.content;
+      } else if (typeof input.append === 'string') {
+        const separator = current === '' || current.endsWith('\n') ? '' : '\n';
+        newContent = current + separator + input.append;
+      } else {
+        return { status: 'failed_closed', reason: 'memory write needs content or append text' };
+      }
+      if (newContent === current) {
+        return { status: 'failed_closed', reason: 'memory write would change nothing' };
+      }
+      const device = devices.find((d) => (d.capabilities || []).some((c) => c.name === MEMORY_WRITE_CAPABILITY));
+      if (!device) {
+        return { status: 'failed_closed', reason: `no enrolled device grants ${MEMORY_WRITE_CAPABILITY}` };
+      }
+      const diff = memory.diff(current, newContent, relPath);
+      const resolvedCore = resolveCore();
+      for (const d of devices) resolvedCore.devices.enroll(d);
+      const job = resolvedCore.createJob(
+        input.description || `Update memory file ${relPath}`,
+        [device.device_id],
+        {},
+      );
+      const envelopes = resolvedCore.proposeActions(job.job_id, [{
+        device_id: device.device_id,
+        capability: MEMORY_WRITE_CAPABILITY,
+        args: { path: relPath, new_content: newContent, diff },
+        expected_effect: { memory_file: relPath },
+      }]);
+      for (const env of envelopes) knownEnvelopes.set(env.action_id, env);
+      const { approved, needsApproval, denied } = resolvedCore.authorize(job.job_id);
+      return {
+        status: 'proposed', job_id: job.job_id, diff, envelopes, approved, needsApproval, denied,
       };
     },
 
@@ -182,10 +277,81 @@ function createPlanner(options = {}) {
     // approval coverage at execution time, so an R2+ action without an
     // approval bound to its exact hash is denied there - never run here on
     // the model's say-so.
+    //
+    // Memory writes are the one real effect this service applies itself:
+    // for each memory.write action the core EXECUTED SUCCESSFULLY (which
+    // already proves a live approval covers its exact hash), the store
+    // applies the envelope's content - and only after re-deriving the diff
+    // from the file as it stands now and matching it to the approved diff.
+    //
+    // Honest-record rule (Codex P2, PR #3341): the core's executor is a
+    // simulation - its success receipt says the approved action was
+    // dispatched, but the REAL effect is the file write below, which can
+    // still fail (owner edited the file after approval, I/O error). The
+    // core has no "executed but effect failed" state, so when a write does
+    // not land this service appends a corrective `failed` receipt to the
+    // same job's audit chain (append-only: history is corrected, never
+    // rewritten) and flips the job off `completed` to `failed`. A memory
+    // write that did not land never leaves behind a bare success receipt
+    // plus a completed job claiming it did.
     async execute(jobId) {
       if (!enabled) return { status: 'disabled' };
-      const receipts = resolveCore().execute(jobId);
-      return { status: 'executed', job_id: jobId, receipts };
+      const resolvedCore = resolveCore();
+      const receipts = resolvedCore.execute(jobId);
+      const result = { status: 'executed', job_id: jobId, receipts };
+      if (memory) {
+        const writes = [];
+        const failedWrites = [];
+        for (const receipt of receipts) {
+          if (receipt.outcome !== 'success') continue;
+          const env = knownEnvelopes.get(receipt.action_id);
+          if (!env || env.capability !== MEMORY_WRITE_CAPABILITY) continue;
+          const args = env.args || {};
+          let write;
+          if (typeof args.path !== 'string' || typeof args.new_content !== 'string' || typeof args.diff !== 'string') {
+            write = {
+              action_id: env.action_id, path: args.path, applied: false,
+              reason: 'envelope lacks the approved content/diff - not applied',
+            };
+          } else {
+            try {
+              write = {
+                action_id: env.action_id, path: args.path,
+                ...memory.applyApprovedWrite({ relPath: args.path, newContent: args.new_content, diff: args.diff }),
+              };
+            } catch (err) {
+              write = {
+                action_id: env.action_id, path: args.path, applied: false,
+                reason: err instanceof Error ? err.message : String(err),
+              };
+            }
+          }
+          writes.push(write);
+          if (!write.applied) failedWrites.push({ env, write });
+        }
+        if (writes.length > 0) result.memory_writes = writes;
+        if (failedWrites.length > 0) {
+          for (const { env, write } of failedWrites) {
+            receipts.push(resolvedCore.audit.append({
+              action_id: env.action_id, job_id: jobId, device_id: env.device_id,
+              outcome: 'failed',
+              reason_code: `memory_write_not_applied: ${write.reason}`,
+              executor_version: 'planner-memory-effect/1',
+              args: env.args || {},
+              before_state_hash: 'n/a', after_state_hash: 'n/a',
+            }));
+          }
+          try {
+            const job = resolvedCore.getJob(jobId);
+            if (job && job.status === 'completed') job.status = 'failed';
+          } catch {
+            // Job record unavailable; the corrective receipts above still
+            // keep the audit trail honest.
+          }
+          result.status = 'effect_failed';
+        }
+      }
+      return result;
     },
   };
 }
@@ -193,7 +359,7 @@ function createPlanner(options = {}) {
 function plannerFromEnv(env = process.env, overrides = {}) {
   const enabled = /^(1|true|yes)$/i.test(env.OPERATOR_PLANNER_ENABLED || '');
   const minAvailableMiB = Number(env.OPERATOR_PLANNER_MIN_AVAILABLE_MIB);
-  return createPlanner({
+  const config = {
     enabled,
     capacityChecker: createCapacityChecker({
       minAvailableMiB: Number.isFinite(minAvailableMiB) && minAvailableMiB > 0
@@ -202,7 +368,13 @@ function plannerFromEnv(env = process.env, overrides = {}) {
     }),
     env,
     ...overrides,
-  });
+  };
+  // Memory (Step 3) is opt-in via OPERATOR_MEMORY_DIR; an explicit
+  // `memory` override (including null) always wins over the env.
+  if (!('memory' in config) && env.OPERATOR_MEMORY_DIR) {
+    config.memory = createFileMemoryStore(env.OPERATOR_MEMORY_DIR);
+  }
+  return createPlanner(config);
 }
 
 module.exports = {
@@ -211,4 +383,5 @@ module.exports = {
   createCapacityChecker,
   readAvailableMiB,
   DEFAULT_MIN_AVAILABLE_MIB,
+  MEMORY_WRITE_CAPABILITY,
 };
