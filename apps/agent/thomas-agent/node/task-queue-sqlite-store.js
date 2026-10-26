@@ -171,24 +171,17 @@ function importTask(record, options = {}) {
           AND updated_at < ? AND record_json = ?
       `).run(updatedAt, JSON.stringify(held), alias, id, updatedAt, previous.record_json).changes === 1;
     }
-    // GUN may update its own still-queued imported rows, but must never
-    // reopen completed, failed, skipped, cancelled, or running work.
+    // The GUN relay is a mirror, not an authority to revise queued intent.
+    // A newer relay update must not replace task text, risk, approval, or
+    // capabilities after a worker has imported an ID. Intent changes require
+    // an authenticated, explicit queue edit rather than an import overwrite.
+    // Keep even identical duplicate imports as no-ops to preserve provenance.
     const result = db.prepare(`
       INSERT INTO tasks
         (owner_alias, id, status, updated_at, record_json, source)
       VALUES (?, ?, ?, ?, ?, 'gun')
-      ON CONFLICT(owner_alias, id) DO UPDATE SET
-        status = excluded.status,
-        updated_at = excluded.updated_at,
-        record_json = excluded.record_json,
-        source = 'gun',
-        claim_token = NULL,
-        claim_expires_at = NULL
-      WHERE tasks.source = 'gun'
-        AND tasks.status = 'queued'
-        AND (tasks.claim_token IS NULL OR tasks.claim_expires_at <= ?)
-        AND excluded.updated_at > tasks.updated_at
-    `).run(alias, id, status, updatedAt, serialized, now);
+      ON CONFLICT(owner_alias, id) DO NOTHING
+    `).run(alias, id, status, updatedAt, serialized);
     return result.changes === 1;
   });
 }
