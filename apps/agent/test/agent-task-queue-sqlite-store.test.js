@@ -952,3 +952,58 @@ test('signed HTTP tasks keep prompts and results out of the public relay and mem
   assert.equal(saved.status,'completed');
   assert.equal(saved.task,'private prompt');
 });
+
+
+test('SQLite immutable intent compares deserialized capability arrays by value', async (t) => {
+  const options = await queueOptions(t);
+  const now = Date.now();
+  const original = {
+    id: 'capability-array-terminal', task: 'Read public metadata',
+    status: 'queued', backend: 'health',
+    requiredCapabilities: ['node', 'codex'],
+    updatedAt: new Date(now).toISOString(),
+  };
+  sqliteQueue.insertTask(original, options);
+  const token = 'capability-array-token';
+  const claimed = sqliteQueue.claimTask(original.id, token, 'worker-a', now + 60_000, now, options);
+  assert.ok(claimed);
+
+  // A changed list is still an intent rewrite and must not be accepted.
+  assert.equal(sqliteQueue.finishTask(original.id, token, {
+    ...claimed, requiredCapabilities: ['node', 'shell'], status: 'completed',
+  }, options), false);
+  assert.equal((await readTask(original.id, options)).status, 'running');
+
+  // SQLite JSON deserialization creates a new array, even for identical intent.
+  assert.equal(sqliteQueue.finishTask(original.id, token, {
+    ...claimed, requiredCapabilities: ['node', 'codex'], status: 'completed',
+  }, options), true);
+  assert.equal((await readTask(original.id, options)).status, 'completed');
+});
+
+test('matching GUN terminal mirrors with capability arrays are quarantined', async (t) => {
+  const options = await queueOptions(t);
+  const now = Date.now();
+  const original = {
+    id: 'gun-capability-array', task: 'Read public metadata',
+    status: 'queued', backend: 'health',
+    requiredCapabilities: ['node', 'codex'],
+    updatedAt: new Date(now).toISOString(),
+  };
+  assert.equal(sqliteQueue.importTask(original, options), true);
+  assert.equal(sqliteQueue.importTask({
+    ...original, status: 'completed',
+    requiredCapabilities: ['node', 'shell'],
+    updatedAt: new Date(now + 1000).toISOString(),
+  }, options), false, 'changed capabilities cannot claim legacy completion');
+  assert.equal((await readTask(original.id, options)).status, 'queued');
+
+  assert.equal(sqliteQueue.importTask({
+    ...original, status: 'completed',
+    requiredCapabilities: ['node', 'codex'],
+    updatedAt: new Date(now + 2000).toISOString(),
+  }, options), true, 'matching legacy terminal intent must be held for review');
+  const held = await readTask(original.id, options);
+  assert.equal(held.status, 'review_required');
+  assert.equal(held.legacyMirrorStatus, 'completed');
+});
