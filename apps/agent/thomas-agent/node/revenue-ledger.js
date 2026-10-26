@@ -218,15 +218,20 @@ function transitionProspect(db, input = {}) {
   if (!id || !STATES.has(toState) || !idempotencyKey) throw new Error('prospectId, valid toState, and idempotencyKey are required');
   const type = normalize(input.type) || 'state_transition';
   const payload = input.payload || {};
-  const replay = replayLedgerEvent(db, { idempotencyKey, prospectId: id, toState, type, payload });
-  if (replay) return { event: replay, replayed: true, prospect: getProspect(db, id) };
-  const prospect = getProspect(db, id);
-  if (!prospect) throw new Error(`Unknown prospect: ${id}`);
-  if (!TRANSITIONS[prospect.state].has(toState)) throw new Error(`Invalid transition: ${prospect.state} -> ${toState}`);
-  const now = new Date().toISOString();
-  const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type, from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(payload), created_at: now };
+  // Read and validate the state under the same write reservation as the
+  // update. Otherwise another worker can advance a prospect between them.
   db.exec('BEGIN IMMEDIATE');
   try {
+    const replay = replayLedgerEvent(db, { idempotencyKey, prospectId: id, toState, type, payload });
+    if (replay) {
+      db.exec('COMMIT');
+      return { event: replay, replayed: true, prospect: getProspect(db, id) };
+    }
+    const prospect = getProspect(db, id);
+    if (!prospect) throw new Error(`Unknown prospect: ${id}`);
+    if (!TRANSITIONS[prospect.state].has(toState)) throw new Error(`Invalid transition: ${prospect.state} -> ${toState}`);
+    const now = new Date().toISOString();
+    const event = { id: randomUUID(), idempotency_key: idempotencyKey, prospect_id: id, type, from_state: prospect.state, to_state: toState, payload_json: JSON.stringify(payload), created_at: now };
     db.prepare('UPDATE prospects SET state = ?, updated_at = ? WHERE id = ?').run(toState, now, id);
     db.prepare(`INSERT INTO revenue_events (id, idempotency_key, prospect_id, type, from_state, to_state, payload_json, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(...Object.values(event));
@@ -234,8 +239,8 @@ function transitionProspect(db, input = {}) {
       VALUES (?, ?, ?, ?, 'crm', ?, 'pending', 0, '', ?, ?)`)
       .run(randomUUID(), `crm:${idempotencyKey}`, id, event.id, JSON.stringify({ prospectId: id, state: toState, eventId: event.id }), now, now);
     db.exec('COMMIT');
+    return { event, replayed: false, prospect: getProspect(db, id) };
   } catch (error) { db.exec('ROLLBACK'); throw error; }
-  return { event, replayed: false, prospect: getProspect(db, id) };
 }
 
 function startRun(db, { triggerId, releaseSha } = {}) {
