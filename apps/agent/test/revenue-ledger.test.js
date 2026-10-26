@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createProspect, findProspectByContact, finishProjection, importProspectState, openLedger, pendingProjections, reserveDeliveryAttempt, startRun, finishRun, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
+const { acknowledgedDeliveryCount, createProspect, findProspectByContact, finishDeliveryAttempt, finishProjection, importProspectState, openLedger, pendingProjections, reserveDeliveryAttempt, startRun, finishRun, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
 
 function withLedger(fn) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-ledger-'));
@@ -116,4 +116,33 @@ test('delivery attempt idempotency cannot reuse another prospect\'s receipt', ()
   }), /Delivery attempt key collision/);
   assert.equal(db.prepare('SELECT COUNT(*) AS total FROM delivery_attempts').get().total, 1);
   assert.equal(db.prepare('SELECT prospect_id FROM delivery_attempts WHERE attempt_key = ?').get('synthetic:delivery-key').prospect_id, a.id);
+}));
+
+test('delivery ACKs require a nonempty transport receipt and empty historical ACKs do not count', () => withLedger((db) => {
+  const prospect = createProspect(db, { name: 'Synthetic Receipt', contact: 'receipt@example.test' }).prospect;
+  reserveDeliveryAttempt(db, { attemptId: 'synthetic:ack', prospectId: prospect.id });
+  for (const input of [
+    { messageId: '', transport: 'smtp' },
+    { messageId: 'provider-123', transport: '' },
+    { messageId: '  ', transport: 'smtp' },
+    { messageId: 'provider-123', transport: '  ' },
+  ]) {
+    assert.throws(() => finishDeliveryAttempt(db, {
+      attemptId: 'synthetic:ack', status: 'acknowledged', ...input,
+    }), /requires messageId and transport/);
+  }
+  assert.equal(acknowledgedDeliveryCount(db), 0);
+  assert.equal(db.prepare('SELECT status FROM delivery_attempts WHERE attempt_key = ?')
+    .get('synthetic:ack').status, 'in_flight');
+  finishDeliveryAttempt(db, {
+    attemptId: 'synthetic:ack', status: 'acknowledged', messageId: 'provider-123', transport: 'smtp',
+  });
+  assert.equal(acknowledgedDeliveryCount(db), 1);
+  // A legacy or corrupted ACK with no receipt must not inflate send counts.
+  db.prepare('UPDATE delivery_attempts SET message_id = ? WHERE attempt_key = ?')
+    .run('', 'synthetic:ack');
+  assert.equal(acknowledgedDeliveryCount(db), 0);
+  reserveDeliveryAttempt(db, { attemptId: 'synthetic:failed', prospectId: prospect.id });
+  finishDeliveryAttempt(db, { attemptId: 'synthetic:failed', status: 'failed', error: 'synthetic timeout' });
+  assert.equal(acknowledgedDeliveryCount(db), 0);
 }));
