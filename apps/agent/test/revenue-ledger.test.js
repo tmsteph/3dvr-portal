@@ -79,6 +79,40 @@ test('ledger prevents invalid send transitions and records one run per trigger',
   assert.equal(finishRun(db, { runId: run.run.id, status: 'succeeded', summary: { sends: 0 } }).status, 'succeeded');
 }));
 
+test('two revenue schedulers racing on one trigger run the business loop only once', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-trigger-race-'));
+  const filePath = path.join(tmp, 'ledger.sqlite');
+  const dbA = openLedger({ filePath });
+  const dbB = openLedger({ filePath });
+  try {
+    let competingRun;
+    let interleaved = false;
+    // Simulate the other scheduler winning between a stale SELECT and INSERT.
+    // The old read-then-insert code threw SQLITE_CONSTRAINT_UNIQUE here.
+    const racingDb = {
+      prepare(sql) {
+        if (!interleaved && /^INSERT(?: OR IGNORE)? INTO revenue_runs/.test(sql)) {
+          interleaved = true;
+          competingRun = startRun(dbB, { triggerId: 'cron:race', releaseSha: 'winner' });
+        }
+        return dbA.prepare(sql);
+      },
+    };
+    const loser = startRun(racingDb, { triggerId: 'cron:race', releaseSha: 'loser' });
+    assert.equal(interleaved, true);
+    assert.equal(competingRun.replayed, false);
+    assert.equal(loser.replayed, true);
+    assert.equal(loser.run.id, competingRun.run.id);
+    assert.equal(loser.run.status, 'running', 'duplicate trigger remains blocked pending original run');
+    assert.equal(dbA.prepare('SELECT COUNT(*) AS total FROM revenue_runs').get().total, 1);
+    assert.equal(dbA.prepare('SELECT release_sha FROM revenue_runs').get().release_sha, 'winner');
+  } finally {
+    dbA.close();
+    dbB.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('ledger idempotency rejects cross-prospect, state, type and payload collisions', () => withLedger((db) => {
   const a = createProspect(db, { name: 'Synthetic A', contact: 'a@example.test' }).prospect;
   const b = createProspect(db, { name: 'Synthetic B', contact: 'b@example.test' }).prospect;
