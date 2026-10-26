@@ -123,9 +123,23 @@ function finishDeliveryAttempt(db, { attemptId, status, messageId = '', transpor
   }
   const result = db.prepare(`UPDATE delivery_attempts
     SET status = ?, message_id = ?, transport = ?, error = ?, updated_at = ?
-    WHERE attempt_key = ? AND status = 'in_flight'`)
-    .run(status, normalize(messageId), normalize(transport), normalize(error), new Date().toISOString(), normalize(attemptId));
-  if (!result.changes) throw new Error('Delivery attempt was not in flight');
+    WHERE attempt_key = ? AND status = 'in_flight'
+      AND (? <> 'acknowledged' OR NOT EXISTS (
+        SELECT 1 FROM delivery_attempts prior
+        WHERE prior.status = 'acknowledged' AND prior.message_id = ? AND prior.transport = ?
+      ))`)
+    .run(status, normalize(messageId), normalize(transport), normalize(error), new Date().toISOString(),
+      normalize(attemptId), status, normalize(messageId), normalize(transport));
+  if (!result.changes) {
+    // The atomic predicate prevents two different attempt keys from claiming
+    // the same provider receipt, even when workers race on the same SQLite DB.
+    if (status === 'acknowledged' && db.prepare(`SELECT 1 FROM delivery_attempts
+      WHERE status = 'acknowledged' AND message_id = ? AND transport = ?`)
+      .get(normalize(messageId), normalize(transport))) {
+      throw new Error('Delivery provider receipt collision: already acknowledged');
+    }
+    throw new Error('Delivery attempt was not in flight');
+  }
   return db.prepare('SELECT * FROM delivery_attempts WHERE attempt_key = ?').get(normalize(attemptId));
 }
 
@@ -136,7 +150,7 @@ function acknowledgedDeliveryCount(db, { since = '', campaignId = '' } = {}) {
     campaign = ' AND p.campaign_id = ?';
     values.push(normalize(campaignId));
   }
-  return db.prepare(`SELECT COUNT(*) AS total FROM delivery_attempts d
+  return db.prepare(`SELECT COUNT(DISTINCT d.transport || char(0) || d.message_id) AS total FROM delivery_attempts d
     JOIN prospects p ON p.id = d.prospect_id
     WHERE d.status = 'acknowledged' AND d.message_id <> '' AND d.transport <> '' AND d.updated_at >= ?${campaign}`).get(...values).total;
 }
