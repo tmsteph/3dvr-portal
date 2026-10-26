@@ -69,3 +69,5 @@
 ## Private Operator Results
 
 - Keep complete bounded private task output in the native SQLite record; queue summaries are previews. Return it only through owner-authenticated task status, never public Gun mirrors. Label any storage truncation and test long output plus owner isolation.
+
+- Set SQLite busy timeouts before initialization pragmas; close connections when initialization fails. Exercise contention with a separate process, and retry only status reads of the same task identity.
