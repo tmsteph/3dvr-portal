@@ -383,6 +383,11 @@ async function recordTaskLifeEvent(record, options = {}) {
 }
 
 async function runQueuedTask(record, options = {}) {
+  // Signed Operator HTTP tasks are admitted only by the authenticated private
+  // SQLite queue. Public GUN records must never impersonate that namespace.
+  if (queueStore(options) !== 'sqlite' && record.id?.startsWith('operator-http-')) {
+    return { ok: false, skipped: true, reason: 'signed Operator task requires private SQLite admission' };
+  }
   const runnable = canWorkerRunTask(record, options);
   if (!runnable.ok) {
     return { ok: false, skipped: true, reason: runnable.reason };
@@ -639,6 +644,8 @@ async function runWorkerOnce(options = {}) {
   // An expired running lease is not proof the task is safe to execute twice.
   const queued = tasks
     .filter(task => task.status === 'queued')
+    // The signed HTTP namespace is never executable from the public GUN lane.
+    .filter(task => queueStore(options) === 'sqlite' || !task.id?.startsWith('operator-http-'))
     // Public GUN imports are visible for reconciliation, not executable
     // admissions. Exclude them before applying the worker batch limit.
     .filter(task => queueStore(options) !== 'sqlite' || task.queueSource === 'sqlite')
