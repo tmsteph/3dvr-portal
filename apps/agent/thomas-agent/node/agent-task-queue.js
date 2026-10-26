@@ -681,9 +681,26 @@ async function runWorkerOnce(options = {}) {
     .slice(0, options.limit || DEFAULT_TASK_LIMIT);
   const results = [];
   for (const summary of queued) {
-    const record = await readTask(summary.id, options);
-    if (!record || record.status !== 'queued') continue;
-    results.push({ id: record.id, result: await runQueuedTask(record, options) });
+    try {
+      const record = await readTask(summary.id, options);
+      if (!record || record.status !== 'queued') continue;
+      results.push({ id: record.id, result: await runQueuedTask(record, options) });
+    } catch (error) {
+      // A read, claim, or receipt exception is not evidence that the task
+      // failed or that its side effects did not happen. Do not fabricate a
+      // terminal receipt or retry it here. Keep the persisted state intact,
+      // report an unverified outcome, and let independent work continue.
+      results.push({
+        id: summary.id,
+        result: {
+          ok: false,
+          skipped: true,
+          requiresReview: true,
+          reason: 'Worker task outcome unverified; inspect durable state before retry',
+          errorType: String(error?.name || 'Error'),
+        },
+      });
+    }
   }
   return results;
 }
