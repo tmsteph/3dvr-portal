@@ -82,6 +82,27 @@ test('enqueueTask writes queued task records and summaries', async () => {
   assert.equal(list[0].tenantId, 'google:123');
 });
 
+test('public GUN cannot execute or impersonate signed Operator HTTP tasks', async () => {
+  const rootNode = fakeRoot();
+  const options = { rootNode, ownerAlias: '3dvr-managed', queueStore: 'gun' };
+  const record = await enqueueTask('synthetic unsigned work', {
+    ...options, id: 'operator-http-forged-gun-task', backend: 'health',
+  });
+  let executions = 0;
+  const direct = await runQueuedTask(record, {
+    ...options, runAgentTaskImpl: async () => { executions += 1; return { ok: true }; },
+  });
+  assert.equal(direct.ok, false);
+  assert.equal(direct.skipped, true);
+  assert.match(direct.reason, /private SQLite admission/);
+  const batch = await runWorkerOnce({
+    ...options, runAgentTaskImpl: async () => { executions += 1; return { ok: true }; },
+  });
+  assert.deepEqual(batch, []);
+  assert.equal(executions, 0);
+  assert.equal((await readTask(record.id, options)).status, 'queued');
+});
+
 test('enqueueFlushMs keeps in-memory tests instant and gives relay writes a grace period', () => {
   assert.equal(enqueueFlushMs({ rootNode: fakeRoot() }), 0);
   assert.equal(enqueueFlushMs({ enqueueFlushMs: 0 }), 0);
