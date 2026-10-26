@@ -2,6 +2,7 @@ const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs');
 const { DatabaseSync } = require('node:sqlite');
+const { isDeepStrictEqual } = require('node:util');
 
 const DEFAULT_DB_PATH = process.env.THREEDVR_AGENT_QUEUE_DB
   || path.join(os.homedir(), '.3dvr', 'task-queue.sqlite');
@@ -143,7 +144,10 @@ function importTask(record, options = {}) {
         'repo', 'model', 'thinking', 'unsafe', 'riskClass', 'approvalStatus',
         'requiredCapabilities', 'maxRuntimeMs', 'requestedBy', 'createdAt',
       ];
-      if (intentFields.some(field => original[field] !== record[field])) return false;
+      // JSON-backed capability lists are separate objects after a SQLite read.
+      // Compare immutable intent by value, not array identity; a matching
+      // terminal mirror must be quarantined rather than left executable.
+      if (intentFields.some(field => !isDeepStrictEqual(original[field], record[field]))) return false;
       const held = {
         ...original,
         status: 'review_required',
@@ -378,7 +382,9 @@ function finishTask(id, claimToken, record, options = {}) {
         'requiredCapabilities', 'maxRuntimeMs', 'requestedBy', 'createdAt',
         'workerDeviceId', 'startedAt',
       ];
-      if (immutableFields.some(field => storedRecord[field] !== record[field])) {
+      // The claim and completion records were separately deserialized. Preserve
+      // intent immutability without rejecting equivalent capability arrays.
+      if (immutableFields.some(field => !isDeepStrictEqual(storedRecord[field], record[field]))) {
         db.exec('ROLLBACK');
         return false;
       }
