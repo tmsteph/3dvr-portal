@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { createProspect, openLedger, pendingProjections, transitionProspect } = require('../thomas-agent/node/revenue-ledger');
 const { projectPendingCrm, recordFor } = require('../thomas-agent/node/revenue-crm-projection');
-test('CRM projection retries a timeout and completes idempotently', async () => {
+test('CRM projection quarantines an uncertain timeout rather than replaying a remote write', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-projection-'));
   const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
   try {
@@ -13,9 +13,14 @@ test('CRM projection retries a timeout and completes idempotently', async () => 
     transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'crm-v' });
     const failed = await projectPendingCrm(db, { write: async () => ({ records: 0, touches: 0, errors: ['crm timeout'] }) });
     assert.equal(failed.failed, 1);
-    assert.equal(pendingProjections(db)[0].attempts, 1);
-    const succeeded = await projectPendingCrm(db, { write: async payload => ({ records: payload.records.length, touches: payload.touches.length, errors: [] }) });
-    assert.equal(succeeded.succeeded, 1);
+    const row = db.prepare('SELECT * FROM projection_outbox').get();
+    assert.equal(row.status, 'failed');
+    assert.equal(row.attempts, 1);
+    assert.equal(db.prepare('SELECT status FROM projection_claims').get().status, 'needs_review');
+    let replayed = false;
+    const next = await projectPendingCrm(db, { write: async () => { replayed = true; throw Error('unexpected replay'); } });
+    assert.equal(next.attempted, 0);
+    assert.equal(replayed, false);
     assert.equal(pendingProjections(db).length, 0);
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
@@ -234,7 +239,7 @@ test('CRM projection uses each event state, not a later prospect state', async (
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
-test('CRM projection does not advance one prospect past a failed earlier event', async () => {
+test('CRM projection blocks later events after an ambiguous earlier write', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-failure-barrier-'));
   const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
   try {
@@ -250,16 +255,14 @@ test('CRM projection does not advance one prospect past a failed earlier event',
     assert.equal(first.attempted, 1);
     assert.equal(first.blocked, 1);
     assert.equal(writes, 1);
-    assert.equal(pendingProjections(db).length, 2);
-    const states = [];
-    const retried = await projectPendingCrm(db, { write: async payload => {
-      states.push(payload.records[0].canonicalState);
-      return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+    assert.equal(pendingProjections(db).length, 1, 'later pending event awaits reconciliation');
+    const next = await projectPendingCrm(db, { write: async () => {
+      writes += 1;
+      return { records: 1, touches: 1, errors: [] };
     } });
-    assert.equal(retried.failed, 0);
-    assert.equal(retried.succeeded, 2);
-    assert.deepEqual(states, ['verified', 'eligible']);
-    assert.equal(pendingProjections(db).length, 0);
+    assert.equal(next.attempted, 0);
+    assert.equal(next.blocked, 1);
+    assert.equal(writes, 1, 'no later write until prior event reconciled');
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
@@ -271,29 +274,83 @@ test('remote projection roots do not initialize a local radata store', () => {
   assert.match(source, /stats:\s*false/);
 });
 
-test('CRM outbox does not claim success without both explicit write acknowledgments', async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-ack-'));
-  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
-  try {
-    const prospect = createProspect(db, { name: 'Synthetic ACK', contact: 'ack@example.test' }).prospect;
-    transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'ack-first' });
-    const unconfirmed = [
-      undefined,
-      { errors: [] },
-      { records: 1, touches: 0, errors: [] },
-      { records: 0, touches: 1, errors: [] },
-    ];
-    for (const response of unconfirmed) {
+test('CRM outbox quarantines missing and partial write ACKs without automatic replay', async () => {
+  for (const response of [
+    undefined, { errors: [] },
+    { records: 1, touches: 0, errors: [] },
+    { records: 0, touches: 1, errors: [] },
+  ]) {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-ack-'));
+    const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+    try {
+      const prospect = createProspect(db, { name: 'Synthetic ACK', contact: 'ack@example.test' }).prospect;
+      transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'ack-first' });
       const result = await projectPendingCrm(db, { write: async () => response });
       assert.equal(result.succeeded, 0);
       assert.equal(result.failed, 1);
-      assert.equal(pendingProjections(db).length, 1, 'unacknowledged projection must remain retryable');
-    }
-    const confirmed = await projectPendingCrm(db, {
-      write: async payload => ({ records: payload.records.length, touches: payload.touches.length, errors: [] })
-    });
-    assert.equal(confirmed.succeeded, 1);
-    assert.equal(confirmed.failed, 0);
-    assert.equal(pendingProjections(db).length, 0);
+      assert.equal(pendingProjections(db).length, 0);
+      assert.equal(db.prepare('SELECT status FROM projection_claims').get().status, 'needs_review');
+    } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+  }
+});
+
+test('two concurrent SQLite workers reserve one CRM write and preserve event order', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-concurrency-'));
+  const filePath = path.join(tmp, 'ledger.sqlite');
+  const dbA = openLedger({ filePath });
+  const dbB = openLedger({ filePath });
+  try {
+    const prospect = createProspect(dbA, { name: 'Synthetic concurrent', contact: 'concurrent@example.test' }).prospect;
+    transitionProspect(dbA, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'concurrent-first' });
+    transitionProspect(dbA, { prospectId: prospect.id, toState: 'eligible', idempotencyKey: 'concurrent-second' });
+    let releaseWrite;
+    let notifyStarted;
+    const started = new Promise(resolve => { notifyStarted = resolve; });
+    const gate = new Promise(resolve => { releaseWrite = resolve; });
+    let calls = 0;
+    const first = projectPendingCrm(dbA, { write: async () => {
+      calls += 1;
+      notifyStarted();
+      await gate;
+      return { records: 1, touches: 1, errors: [] };
+    } });
+    await started;
+    const second = await projectPendingCrm(dbB, { write: async () => {
+      calls += 1;
+      return { records: 1, touches: 1, errors: [] };
+    } });
+    assert.equal(second.attempted, 0);
+    assert.equal(calls, 1);
+    releaseWrite();
+    const firstResult = await first;
+    assert.equal(firstResult.succeeded, 1);
+    assert.equal(dbA.prepare('SELECT COUNT(*) AS count FROM projection_claims WHERE status = ?').get('finished').count, 1);
+    const third = await projectPendingCrm(dbB, { write: async () => {
+      calls += 1;
+      return { records: 1, touches: 1, errors: [] };
+    } });
+    assert.equal(third.succeeded, 1);
+    assert.equal(calls, 2, 'one external call per ordered event');
+  } finally { dbA.close(); dbB.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('expired CRM claim is not stolen or automatically replayed', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-expired-'));
+  const filePath = path.join(tmp, 'ledger.sqlite');
+  const db = openLedger({ filePath });
+  try {
+    const prospect = createProspect(db, { name: 'Synthetic crash', contact: 'crash@example.test' }).prospect;
+    transitionProspect(db, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'crash-first' });
+    const { claimProjection, finishClaimedProjection } = require('../thomas-agent/node/revenue-ledger');
+    const row = pendingProjections(db)[0];
+    const claim = claimProjection(db, { id: row.id, leaseMs: 1 });
+    assert.ok(claim);
+    db.prepare('UPDATE projection_claims SET expires_at = ?').run('2000-01-01T00:00:00Z');
+    assert.equal(claimProjection(db, { id: row.id }), null);
+    assert.throws(() => finishClaimedProjection(db, { id: row.id, ownerToken: 'other', status: 'succeeded' }), /owned by another worker/);
+    let called = false;
+    const result = await projectPendingCrm(db, { write: async () => { called = true; } });
+    assert.equal(result.attempted, 0);
+    assert.equal(called, false);
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
