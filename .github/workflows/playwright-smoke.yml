@@ -22,6 +22,8 @@ jobs:
     container: mcr.microsoft.com/playwright:v1.56.1-jammy
     env:
       PLAYWRIGHT_INSTALL_DEPS: '0'
+      # Prism Wing E2E explicitly launches the Google Chrome channel.
+      PLAYWRIGHT_BROWSERS: 'chromium firefox chrome'
     timeout-minutes: 15
     steps:
       - name: Checkout repository
