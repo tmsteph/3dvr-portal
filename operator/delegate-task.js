@@ -53,7 +53,10 @@ export function operatorTaskProgress(record = {}, estimateMs = 120_000) {
 
 export function operatorTaskReceipt(record = {}) {
   const status = taskStatus(record);
-  const summary = normalizeText(record.resultSummary || record.error, 2000);
+  const output = normalizeText(record.resultText || record.resultSummary || record.error, 24000);
+  const summary = output && record.resultTruncated
+    ? `${output}\n\n[Result exceeded the 24,000-character storage limit.]`
+    : output;
   if (status === 'completed') return summary ? `Operator Runtime finished. Result: ${summary}` : 'Operator Runtime finished.';
   if (status === 'review') return summary ? `Operator Runtime needs your input: ${summary}` : 'Operator Runtime needs your input.';
   if (status === 'blocked') return summary ? `Operator Runtime is blocked: ${summary}` : 'Operator Runtime is blocked.';
