@@ -162,3 +162,24 @@ test('delivery ACKs require a nonempty transport receipt and empty historical AC
   finishDeliveryAttempt(db, { attemptId: 'synthetic:failed', status: 'failed', error: 'synthetic timeout' });
   assert.equal(acknowledgedDeliveryCount(db), 0);
 }));
+
+test('provider receipt cannot acknowledge two attempts or inflate historical send counts', () => withLedger((db) => {
+  const a = createProspect(db, { name: 'Receipt A', contact: 'receipt-a@example.test' }).prospect;
+  const b = createProspect(db, { name: 'Receipt B', contact: 'receipt-b@example.test' }).prospect;
+  reserveDeliveryAttempt(db, { attemptId: 'synthetic:provider-a', prospectId: a.id });
+  reserveDeliveryAttempt(db, { attemptId: 'synthetic:provider-b', prospectId: b.id });
+  finishDeliveryAttempt(db, { attemptId: 'synthetic:provider-a', status: 'acknowledged',
+    messageId: 'same-provider-id', transport: 'smtp' });
+  assert.throws(() => finishDeliveryAttempt(db, { attemptId: 'synthetic:provider-b',
+    status: 'acknowledged', messageId: 'same-provider-id', transport: 'smtp' }),
+    /provider receipt collision/);
+  assert.equal(db.prepare('SELECT status FROM delivery_attempts WHERE attempt_key = ?')
+    .get('synthetic:provider-b').status, 'in_flight');
+  assert.equal(acknowledgedDeliveryCount(db), 1);
+  // A historical duplicate ACK imported before this guard must not inflate
+  // delivery metrics. This is a synthetic row, not a real send.
+  db.prepare(`UPDATE delivery_attempts SET status = 'acknowledged',
+    message_id = 'same-provider-id', transport = 'smtp'
+    WHERE attempt_key = 'synthetic:provider-b'`).run();
+  assert.equal(acknowledgedDeliveryCount(db), 1);
+}));
