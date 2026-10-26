@@ -19,10 +19,13 @@ function openDatabase(options = {}) {
   const filePath = databasePath(options);
   fs.mkdirSync(path.dirname(filePath), { recursive: true, mode: 0o700 });
   const db = new DatabaseSync(filePath);
-  db.exec(`
+  // Initializing WAL/schema can itself wait on a competing SQLite writer.
+  // Apply the lock wait policy first and close the handle on initialization failure.
+  try {
+    db.exec(`
+    PRAGMA busy_timeout = 5000;
     PRAGMA journal_mode = WAL;
     PRAGMA synchronous = FULL;
-    PRAGMA busy_timeout = 5000;
     CREATE TABLE IF NOT EXISTS tasks (
       owner_alias TEXT NOT NULL,
       id TEXT NOT NULL,
@@ -36,7 +39,11 @@ function openDatabase(options = {}) {
     ) WITHOUT ROWID;
     CREATE INDEX IF NOT EXISTS tasks_owner_status_updated
       ON tasks (owner_alias, status, updated_at);
-  `);
+    `);
+  } catch (error) {
+    db.close();
+    throw error;
+  }
   return db;
 }
 
