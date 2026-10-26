@@ -115,6 +115,12 @@ function reserveDeliveryAttempt(db, { attemptId, prospectId } = {}) {
 
 function finishDeliveryAttempt(db, { attemptId, status, messageId = '', transport = '', error = '' } = {}) {
   if (!['acknowledged', 'failed'].includes(status)) throw new Error('delivery status must be acknowledged or failed');
+  // A successful send must never be counted without a transport receipt
+  // identifier. These fields are structural evidence only: an authenticated
+  // provider read-back remains mandatory before re-enabling outbound delivery.
+  if (status === 'acknowledged' && (!normalize(messageId) || !normalize(transport))) {
+    throw new Error('Acknowledged delivery requires messageId and transport');
+  }
   const result = db.prepare(`UPDATE delivery_attempts
     SET status = ?, message_id = ?, transport = ?, error = ?, updated_at = ?
     WHERE attempt_key = ? AND status = 'in_flight'`)
@@ -132,7 +138,7 @@ function acknowledgedDeliveryCount(db, { since = '', campaignId = '' } = {}) {
   }
   return db.prepare(`SELECT COUNT(*) AS total FROM delivery_attempts d
     JOIN prospects p ON p.id = d.prospect_id
-    WHERE d.status = 'acknowledged' AND d.updated_at >= ?${campaign}`).get(...values).total;
+    WHERE d.status = 'acknowledged' AND d.message_id <> '' AND d.transport <> '' AND d.updated_at >= ?${campaign}`).get(...values).total;
 }
 
 function contactKey({ contact, sourceUrl, name } = {}) {
