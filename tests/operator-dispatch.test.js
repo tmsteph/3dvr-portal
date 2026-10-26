@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import SEA from 'gun/sea.js';
 import { createOperatorDispatchHandler, REMOTE_QUEUE_SCRIPT } from '../src/operator-runtime/dispatch.js';
-import { queueOperatorTask, watchOperatorTask } from '../operator/delegate-task.js';
+import { queueOperatorTask, watchOperatorTask, operatorTaskReceipt } from '../operator/delegate-task.js';
 
 const origin = 'https://operator.3dvr.tech';
 const pair = await SEA.pair();
@@ -78,6 +78,17 @@ test('actual SQLite transport is idempotent and preserves historical and running
     assert.equal(db.prepare('SELECT count(*) n FROM tasks').get().n,2);
     assert.equal(db.prepare('SELECT record_json FROM tasks WHERE id=?').get('old-task').record_json,JSON.stringify(historical));
     assert.notEqual(invoke({...input,record:{...record,task:'conflicting'}}).status,0);
+    const fullText = 'complete output '.repeat(500);
+    db.prepare('UPDATE tasks SET status=?,record_json=? WHERE id=?').run('completed', JSON.stringify({
+      ...record, resultSummary: fullText.slice(0,2000), resultText: fullText,
+      resultSummaryTruncated: true, resultTruncated: false
+    }), record.id);
+    const saved = JSON.parse(invoke({action:'status',id:record.id,prefix:input.prefix}).stdout).record;
+    assert.equal(saved.resultText, fullText);
+    assert.equal(saved.resultSummaryTruncated, true);
+    assert.equal(saved.resultTruncated, false);
+    assert.match(operatorTaskReceipt(saved), /complete output/);
+    assert.ok(operatorTaskReceipt(saved).endsWith(fullText.trim()));
     const missing=invoke({action:'status',id:'missing',prefix:input.prefix});
     assert.equal(JSON.parse(missing.stdout).missing,true);
   } finally {db.close();await rm(dir,{recursive:true,force:true});}
@@ -113,4 +124,13 @@ test('browser recovers a lost enqueue response by looking up the same signed tas
     assert.deepEqual(inputs.map(input=>input.action),['enqueue','status']);
     assert.equal(inputs[0].id,inputs[1].id);
   } finally {for(const [key,value] of Object.entries(previous)){if(value===undefined)delete globalThis[key];else globalThis[key]=value;}}
+});
+
+test('task receipts prefer complete output and explicitly label the storage bound', () => {
+  const text = 'a'.repeat(6000) + 'TAIL';
+  const receipt = operatorTaskReceipt({status:'completed',resultText:text,resultSummary:text.slice(0,2000),resultSummaryTruncated:true});
+  assert.ok(receipt.endsWith('TAIL'));
+  assert.ok(receipt.includes(text));
+  assert.match(operatorTaskReceipt({status:'completed',resultText:'partial',resultTruncated:true}), /storage limit/);
+  assert.match(operatorTaskReceipt({status:'completed',resultSummary:'legacy result'}), /legacy result/);
 });

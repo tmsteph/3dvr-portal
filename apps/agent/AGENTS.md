@@ -65,3 +65,7 @@
 - Private `operator-http-` tasks share one native Codex executor. Reserve its slot atomically with SQLite task claims across queue loops and owners; leave competing tasks queued.
 - Bound relay task reads. A read timeout must reject rather than look like an absent record, and late replies must not cause writes. Keep the local SQLite loop independent from relay reconciliation.
 - Preserve historical queued records during repairs; missing capabilities do not authorize replay or capability broadening. Verify fresh signed tasks reach saved results and repeated request identities do not execute twice.
+
+## Private Operator Results
+
+- Keep complete bounded private task output in the native SQLite record; queue summaries are previews. Return it only through owner-authenticated task status, never public Gun mirrors. Label any storage truncation and test long output plus owner isolation.
