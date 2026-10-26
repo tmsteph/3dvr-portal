@@ -126,7 +126,12 @@ test('Prism Wing A/D strafe and R/Ctrl control vertical position', { timeout: 45
     const risePage = await openWing(browser);
     const riseStart = await state(risePage);
     await risePage.keyboard.down('KeyR');
-    await risePage.waitForTimeout(700);
+    // Busy CI runners can advance fewer simulation frames than wall-clock time.
+    // Keep the key pressed until movement is observed, rather than assuming
+    // 700ms always represents enough rendered frames.
+    await risePage.waitForFunction(startY =>
+      window.__prismWingDebug.getState().position.y - startY > .35,
+      riseStart.position.y, { timeout: 8_000 });
     await risePage.keyboard.up('KeyR');
     const risen = await state(risePage);
     assert.ok(risen.position.y-riseStart.position.y > .35, 'R should move the ship upward');
@@ -135,7 +140,9 @@ test('Prism Wing A/D strafe and R/Ctrl control vertical position', { timeout: 45
     const downPage = await openWing(browser);
     const downStart = await state(downPage);
     await downPage.keyboard.down('Control');
-    await downPage.waitForTimeout(700);
+    await downPage.waitForFunction(startY =>
+      window.__prismWingDebug.getState().position.y < startY - .35,
+      downStart.position.y, { timeout: 8_000 });
     await downPage.keyboard.up('Control');
     const lowered = await state(downPage);
     assert.ok(lowered.position.y < downStart.position.y-.35, 'Ctrl should move the ship downward');
