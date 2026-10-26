@@ -22,6 +22,42 @@ test('ledger deduplicates prospects and idempotent transitions', () => withLedge
   assert.equal(replay.replayed, true);
 }));
 
+test('concurrent prospect transitions cannot overwrite a newer lifecycle state', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-transition-race-'));
+  const filePath = path.join(tmp, 'ledger.sqlite');
+  const dbA = openLedger({ filePath });
+  const dbB = openLedger({ filePath });
+  try {
+    const prospect = createProspect(dbA, { name: 'Synthetic race', contact: 'race@example.test' }).prospect;
+    transitionProspect(dbA, { prospectId: prospect.id, toState: 'verified', idempotencyKey: 'race:verified' });
+    let advanced = false;
+    // The competing worker wins just before the first worker acquires its
+    // write reservation. An old pre-transaction state read would now regress
+    // eligible -> drafted using its stale verified snapshot.
+    const interleavedDb = {
+      exec(sql) {
+        if (!advanced && sql === 'BEGIN IMMEDIATE') {
+          advanced = true;
+          transitionProspect(dbB, { prospectId: prospect.id, toState: 'eligible', idempotencyKey: 'race:eligible' });
+        }
+        return dbA.exec(sql);
+      },
+      prepare(sql) { return dbA.prepare(sql); },
+    };
+    assert.throws(() => transitionProspect(interleavedDb, {
+      prospectId: prospect.id, toState: 'drafted', idempotencyKey: 'race:stale-draft'
+    }), /Invalid transition: eligible -> drafted/);
+    assert.equal(advanced, true);
+    assert.equal(dbA.prepare('SELECT state FROM prospects WHERE id = ?').get(prospect.id).state, 'eligible');
+    assert.equal(dbA.prepare('SELECT COUNT(*) AS n FROM revenue_events WHERE prospect_id = ?').get(prospect.id).n, 2);
+    assert.equal(dbA.prepare('SELECT COUNT(*) AS n FROM projection_outbox WHERE prospect_id = ?').get(prospect.id).n, 2);
+  } finally {
+    dbA.close();
+    dbB.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('email identity deduplicates mailto, bare address, and case variants', () => withLedger((db) => {
   const first = createProspect(db, { name: 'Example', contact: 'mailto:HELLO@EXAMPLE.test' });
   const second = createProspect(db, { name: 'Example again', contact: 'hello@example.test' });
