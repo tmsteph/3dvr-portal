@@ -289,6 +289,35 @@ test('GUN worker rejects approval and capability changes after initial read', as
   assert.equal((await readTask(snapshot.id, options)).status, 'queued');
 });
 
+test('GUN worker compares array capabilities by value and rejects changed intent', async () => {
+  const rootNode = fakeRoot();
+  const options = {
+    rootNode, ownerAlias: 'tenant-a', deviceId: 'do-worker',
+    workerCapabilities: 'node,shell', force: true,
+  };
+  const equal = await enqueueTask('Check worker health', {
+    ...options, id: 'gun-array-equal', backend: 'health', riskClass: 'read_only',
+  });
+  const equalStored = await readTask(equal.id, options);
+  // Simulate a legacy GUN record with an array, then a separate JSON read.
+  equalStored.requiredCapabilities = ['node'];
+  const equalSnapshot = { ...equalStored, requiredCapabilities: ['node'] };
+  const completed = await runQueuedTask(equalSnapshot, options);
+  assert.equal(completed.ok, true, 'equivalent arrays must not block a valid task');
+  assert.equal((await readTask(equal.id, options)).status, 'completed');
+
+  const changed = await enqueueTask('Check worker health again', {
+    ...options, id: 'gun-array-changed', backend: 'health', riskClass: 'read_only',
+  });
+  const changedStored = await readTask(changed.id, options);
+  changedStored.requiredCapabilities = ['node', 'shell'];
+  const staleSnapshot = { ...changedStored, requiredCapabilities: ['node'] };
+  const rejected = await runQueuedTask(staleSnapshot, options);
+  assert.equal(rejected.skipped, true, 'changed capability intent must remain blocked');
+  assert.match(rejected.reason, /GUN task changed/);
+  assert.equal((await readTask(changed.id, options)).status, 'queued');
+});
+
 test('health task completes without invoking a model or shell executor', async () => {
   const rootNode = fakeRoot();
   await enqueueTask('Worker health check', {
