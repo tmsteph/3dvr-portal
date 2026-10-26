@@ -1,4 +1,4 @@
-const { finishProjection, getProspect, pendingProjections } = require('./revenue-ledger');
+const { claimProjection, finishClaimedProjection, getProspect, pendingProjections } = require('./revenue-ledger');
 const { buildLeadId, writeCrmSync } = require('./crm-sync');
 
 function remoteProjectionRoots() {
@@ -141,11 +141,17 @@ async function projectPendingCrm(db, options = {}) {
   const writeOptions = options.writeOptions || (options.write ? {} : remoteProjectionRoots());
   const rows = pendingProjections(db, options.limit || 100);
   const result = { attempted: 0, succeeded: 0, failed: 0, blocked: 0, errors: [] };
-  // A failed earlier projection must block later events for the same lead.
-  // Leave them pending for the next run rather than regressing CRM state.
   const blockedProspects = new Set();
   for (const row of rows) {
     if (blockedProspects.has(row.prospect_id)) {
+      result.blocked += 1;
+      continue;
+    }
+    // The claim is atomic across SQLite connections/processes. The lease is
+    // informational: expiration never authorizes a duplicate remote write.
+    const claim = claimProjection(db, { id: row.id, leaseMs: options.leaseMs || 60000 });
+    if (!claim) {
+      blockedProspects.add(row.prospect_id);
       result.blocked += 1;
       continue;
     }
@@ -159,17 +165,21 @@ async function projectPendingCrm(db, options = {}) {
       const response = await write({ records: [recordFor(prospect, event, now, paymentEvent)], touches: [touchFor(prospect, event, now)] }, writeOptions);
       if (!response || !Array.isArray(response.errors)) throw new Error('CRM writer returned no verifiable result');
       if (response.errors.length) throw new Error(response.errors.join('; '));
-      // One record and one touch are required for each projection. An empty,
-      // partial, or undefined writer response must remain retryable.
       if (response.records !== 1 || response.touches !== 1) {
         throw new Error(`CRM writer did not acknowledge both writes (records=${response.records}, touches=${response.touches})`);
       }
-      finishProjection(db, { id: row.id, status: 'succeeded' });
+      finishClaimedProjection(db, { ...claim, status: 'succeeded' });
       result.succeeded += 1;
     } catch (error) {
       blockedProspects.add(row.prospect_id);
       const message = String(error?.message || error);
-      finishProjection(db, { id: row.id, status: 'failed', error: message });
+      try {
+        // Fail closed. Even a timeout can mean the remote write landed.
+        // A reviewer must reconcile before any reattempt.
+        finishClaimedProjection(db, { ...claim, status: 'failed', error: message });
+      } catch (finalizeError) {
+        result.errors.push(`Projection finalization needs review: ${String(finalizeError?.message || finalizeError)}`);
+      }
       result.failed += 1;
       result.errors.push(message);
     }
