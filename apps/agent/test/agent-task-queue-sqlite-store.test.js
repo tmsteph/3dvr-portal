@@ -137,6 +137,39 @@ test('SQLite rejects invalid initial claim leases without stranding queued work'
   assert.equal((await readTask('invalid-claim-ttl', options)).status, 'running');
 });
 
+test('worker never executes if its initial SQLite claim renewal is rejected or uncertain', async (t) => {
+  const options = await queueOptions(t, { gunSync: false });
+  const originalRenewer = sqliteQueue.createClaimRenewer;
+  let executed = 0;
+  let closed = 0;
+  try {
+    for (const mode of ['rejected', 'threw']) {
+      const id = `lost-initial-renewal-${mode}`;
+      await enqueueTask('No side effects after a lost claim', {
+        ...options, id, backend: 'codex', riskClass: 'draft',
+      });
+      sqliteQueue.createClaimRenewer = () => ({
+        renew() {
+          if (mode === 'threw') throw new Error('simulated SQLite lock failure');
+          return false;
+        },
+        close() { closed += 1; },
+      });
+      const result = await runQueuedTask(await readTask(id, options), {
+        ...options,
+        runAgentTaskImpl: async () => { executed += 1; return { ok: true }; },
+      });
+      assert.equal(result.skipped, true, mode);
+      assert.match(result.reason, /claim renewal failed before execution/i, mode);
+      assert.equal((await readTask(id, options)).status, 'running', 'uncertain claim must remain held for review');
+    }
+    assert.equal(executed, 0, 'no backend invocation after uncertain claim');
+    assert.equal(closed, 2, 'both failed renewers were closed');
+  } finally {
+    sqliteQueue.createClaimRenewer = originalRenewer;
+  }
+});
+
 test('SQLite queue survives reopen and preserves exact owner and task identifiers', async (t) => {
   const options = await queueOptions(t);
   await enqueueTask('first', { ...options, id: 'A/B' });
