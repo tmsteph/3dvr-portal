@@ -170,6 +170,40 @@ test('worker never executes if its initial SQLite claim renewal is rejected or u
   }
 });
 
+test('SQLite renewer setup failure holds one claim without starving independent work', async (t) => {
+  const options = await queueOptions(t, { gunSync: false, rootNode: fakeRoot(), limit: 2 });
+  await enqueueTask('Do not execute after renewal setup failure', {
+    ...options, id: 'a-renewer-setup-failure', backend: 'codex', riskClass: 'draft',
+  });
+  await enqueueTask('Independent bounded health check', {
+    ...options, id: 'b-independent-health', backend: 'health', riskClass: 'read_only',
+  });
+  const originalRenewer = sqliteQueue.createClaimRenewer;
+  let backendCalls = 0;
+  try {
+    sqliteQueue.createClaimRenewer = (id, token, queueOptions) => {
+      if (id === 'a-renewer-setup-failure') throw new Error('simulated SQLite renewal handle failure');
+      return originalRenewer(id, token, queueOptions);
+    };
+    const results = await runWorkerOnce({
+      ...options,
+      runAgentTaskImpl: async () => { backendCalls += 1; return { ok: true }; },
+    });
+    assert.equal(results.length, 2, 'unrelated work must not be starved by renewal setup failure');
+    const failed = results.find(entry => entry.id === 'a-renewer-setup-failure');
+    const healthy = results.find(entry => entry.id === 'b-independent-health');
+    assert.equal(failed.result.skipped, true);
+    assert.match(failed.result.reason, /renewer unavailable before execution.*held for review/i);
+    assert.equal(healthy.result.ok, true);
+    assert.equal(backendCalls, 0, 'failed claim must not invoke the backend');
+    assert.equal((await readTask('a-renewer-setup-failure', options)).status, 'running',
+      'uncertain claim stays held for explicit reconciliation');
+    assert.equal((await readTask('b-independent-health', options)).status, 'completed');
+  } finally {
+    sqliteQueue.createClaimRenewer = originalRenewer;
+  }
+});
+
 test('SQLite queue survives reopen and preserves exact owner and task identifiers', async (t) => {
   const options = await queueOptions(t);
   await enqueueTask('first', { ...options, id: 'A/B' });
