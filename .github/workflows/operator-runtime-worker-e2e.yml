@@ -1,8 +1,8 @@
 name: Operator runtime worker E2E
 
-# A real Codex task may consume paid capacity. Never run automatically on push.
-# Run only after explicit release/cost approval and configuring the existing
-# private owner signing identity. No public/legacy Gun task admission.
+# No automatic or GitHub-hosted live task admission. An authenticated Codex
+# canary may consume paid capacity and must run on an authorized existing server
+# after separate approval, using credentials already held there.
 on:
   workflow_dispatch:
 
@@ -10,20 +10,15 @@ permissions:
   contents: read
 
 jobs:
-  runtime-worker:
+  signed-canary-contract:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
-    env:
-      OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED: ${{ vars.OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED }}
-      OPERATOR_RUNTIME_E2E_OWNER_PUB: ${{ vars.OPERATOR_RUNTIME_E2E_OWNER_PUB }}
-      OPERATOR_RUNTIME_E2E_SEA_PAIR: ${{ secrets.OPERATOR_RUNTIME_E2E_SEA_PAIR }}
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-      - name: Install dependencies
-        run: npm ci --ignore-scripts
-      - name: Signed owner canary (explicit approval required)
-        run: node scripts/operator-runtime-worker-e2e.mjs
+      - run: npm ci --ignore-scripts
+      - name: Verify signed canary contract without network writes
+        run: node --test tests/operator-runtime-worker-e2e-ack.test.mjs
