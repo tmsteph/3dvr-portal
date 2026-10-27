@@ -95,6 +95,9 @@ export function createMoneyAutopilotCronHandler(options = {}) {
     try {
       const result = await runAutopilotImpl({
         dryRun: true,
+        // A dry-run can still call paid OpenAI synthesis. Scheduled research
+        // must remain no-cost until spending is separately authorized.
+        disablePaidAi: true,
         autoDiscover,
         publishEnabled: false,
         vercelDeploy: false,
