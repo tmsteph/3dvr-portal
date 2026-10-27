@@ -78,6 +78,14 @@ test('actual SQLite transport is idempotent and preserves historical and running
     assert.equal(db.prepare('SELECT count(*) n FROM tasks').get().n,2);
     assert.equal(db.prepare('SELECT record_json FROM tasks WHERE id=?').get('old-task').record_json,JSON.stringify(historical));
     assert.notEqual(invoke({...input,record:{...record,task:'conflicting'}}).status,0);
+    // A public/legacy import can share a signed task namespace or task text.
+    // Neither enqueue nor status may acknowledge it as an authenticated task.
+    const collision={...record,id:'operator-http-test-legacy-collision'};
+    insert.run('3dvr-managed',collision.id,'queued','old',JSON.stringify(collision),'gun');
+    const collisionInput={...input,id:collision.id,record:collision};
+    assert.notEqual(invoke(collisionInput).status,0,'legacy row must not ACK signed enqueue');
+    assert.notEqual(invoke({action:'status',id:collision.id,prefix:input.prefix}).status,0,'legacy row must not impersonate a signed receipt');
+    assert.equal(db.prepare('SELECT source FROM tasks WHERE id=?').get(collision.id).source,'gun');
     const fullText = 'complete output '.repeat(500);
     db.prepare('UPDATE tasks SET status=?,record_json=? WHERE id=?').run('completed', JSON.stringify({
       ...record, resultSummary: fullText.slice(0,2000), resultText: fullText,
