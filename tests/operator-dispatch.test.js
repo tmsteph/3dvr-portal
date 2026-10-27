@@ -66,7 +66,7 @@ test('actual SQLite transport is idempotent and preserves historical and running
   const historical={id:'old-task',task:'historical do not replay',unsafe:true};
   insert.run('3dvr-managed',historical.id,'queued','old',JSON.stringify(historical),'sqlite');
   const script=REMOTE_QUEUE_SCRIPT.replace(/if \[ -f .*?fi\n/,'').replace('cd "$HOME/.3dvr/portal/apps/agent"',`cd '${dir}'`).replace('/opt/node-v22/bin/node',process.execPath);
-  const record={id:'operator-http-test-task-123',task:'synthetic only',status:'queued',updatedAt:new Date().toISOString()};
+  const record={id:'operator-http-test-task-123',task:'synthetic only',status:'queued',updatedAt:new Date().toISOString(),runtimeWorkItemJson:JSON.stringify({title:'Original title'})};
   const invoke=input => spawnSync('bash',['-s','--',Buffer.from(JSON.stringify(input)).toString('base64url')],{input:script,encoding:'utf8',env:{...process.env,THREEDVR_AGENT_QUEUE_STORE:'sqlite',THREEDVR_AGENT_OWNER_ALIAS:'3dvr-managed',THREEDVR_AGENT_WORKER_CAPABILITIES:'codex,node',THREEDVR_AGENT_QUEUE_DB:dbPath}});
   try {
     const input={action:'enqueue',id:record.id,prefix:'operator-http-test-',record};
@@ -78,6 +78,11 @@ test('actual SQLite transport is idempotent and preserves historical and running
     assert.equal(db.prepare('SELECT count(*) n FROM tasks').get().n,2);
     assert.equal(db.prepare('SELECT record_json FROM tasks WHERE id=?').get('old-task').record_json,JSON.stringify(historical));
     assert.notEqual(invoke({...input,record:{...record,task:'conflicting'}}).status,0);
+    // A changed title with the same task text and signed request ID is not an
+    // idempotent retry. It must not ACK an unrelated prior task's result.
+    const changedTitle={...input,record:{...record,runtimeWorkItemJson:JSON.stringify({title:'Different title'})}};
+    assert.notEqual(invoke(changedTitle).status,0,'changed title must not ACK prior signed task');
+    assert.equal(db.prepare('SELECT record_json FROM tasks WHERE id=?').get(record.id).record_json,JSON.stringify(record));
     // A public/legacy import can share a signed task namespace or task text.
     // Neither enqueue nor status may acknowledge it as an authenticated task.
     const collision={...record,id:'operator-http-test-legacy-collision'};
