@@ -1,0 +1,12 @@
+[
+  {
+    "at": "200ms",
+    "type": "click",
+    "selector": "#quiet"
+  },
+  {
+    "at": "9s",
+    "type": "click",
+    "selector": "#quiet-return"
+  }
+]
