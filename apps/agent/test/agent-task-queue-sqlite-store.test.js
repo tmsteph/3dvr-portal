@@ -11,6 +11,7 @@ const {
   publicTask,
   readTask,
   runQueuedTask,
+  runLegacyQueueMaintenance,
   runWorkerOnce,
   updateTask,
 } = require('../thomas-agent/node/agent-task-queue');
@@ -975,8 +976,9 @@ test('SQLite worker imports public GUN intent for review but never executes it',
     },
   });
 
-  // The imported row stays visible, but cannot consume a worker slot or
-  // bypass admission through a direct low-level SQLite claim.
+  // Historical import is explicit maintenance, never part of the private
+  // worker's hot path. Imported intent remains unexecutable.
+  await runLegacyQueueMaintenance(options);
   assert.deepEqual(await runWorkerOnce(options), []);
   const imported = await readTask('legacy/GUN:id', options);
   assert.equal(imported.status, 'queued');
@@ -998,10 +1000,14 @@ test('SQLite worker imports public GUN intent for review but never executes it',
   assert.equal(legacyExecutions, 0);
 });
 
-test('unavailable legacy GUN relay does not starve authenticated SQLite health work', async (t) => {
+test('private SQLite worker never waits for legacy relay maintenance', async (t) => {
+  let legacyListReads = 0;
   class UnavailableGunNode extends FakeGunNode {
     get(key) { return new UnavailableGunNode(this.store, [...this.path, key]); }
-    map() { throw new Error('synthetic legacy relay unavailable'); }
+    map() {
+      legacyListReads += 1;
+      throw new Error('synthetic legacy relay unavailable');
+    }
   }
   const options = await queueOptions(t, {
     rootNode: new UnavailableGunNode(new Map()),
@@ -1012,11 +1018,16 @@ test('unavailable legacy GUN relay does not starve authenticated SQLite health w
   const id = 'private-health-after-gun-outage';
   await enqueueTask('bounded private health check', { ...options, id, backend: 'health' });
 
-  // Legacy import is only a visibility bridge, not a dependency of execution.
+  // No historical listing or import is attempted by the signed worker.
   const results = await runWorkerOnce(options);
+  assert.equal(legacyListReads, 0);
   assert.equal(results.length, 1);
   assert.equal(results[0].id, id);
   assert.equal(results[0].result.ok, true);
+  assert.equal((await readTask(id, options)).status, 'completed');
+  // The separate, opt-in maintenance helper tolerates relay failure.
+  await runLegacyQueueMaintenance(options);
+  assert.equal(legacyListReads, 1);
   assert.equal((await readTask(id, options)).status, 'completed');
 });
 
@@ -1034,6 +1045,7 @@ test('newer GUN requeue cannot replay a failed terminal import', async (t) => {
     backend: 'openai',
     now: Date.parse('2026-01-01T00:00:00.000Z'),
   });
+  await runLegacyQueueMaintenance(options);
   await runWorkerOnce(options);
   const imported = await readTask('retry-task', options);
   // A terminal update from the original GUN source is historical import,
@@ -1048,6 +1060,7 @@ test('newer GUN requeue cannot replay a failed terminal import', async (t) => {
     now: Date.parse('2026-01-03T00:00:00.000Z'),
   });
 
+  await runLegacyQueueMaintenance(options);
   await runWorkerOnce(options);
 
   const local = await readTask('retry-task', options);
@@ -1072,6 +1085,7 @@ test('worker quarantines a newer GUN completion instead of replaying imported wo
   await enqueueTask('legacy external work may have happened', {
     ...gunOptions, id: 'legacy-unverified-done', backend: 'openai', now,
   });
+  await runLegacyQueueMaintenance(options);
   assert.equal((await runWorkerOnce(options)).length, 0);
   assert.equal((await readTask('legacy-unverified-done', options)).status, 'queued');
   await updateTask('legacy-unverified-done', {
@@ -1079,6 +1093,7 @@ test('worker quarantines a newer GUN completion instead of replaying imported wo
     updatedAt: new Date(now + 1000).toISOString(),
   }, gunOptions);
   let executions = 0;
+  await runLegacyQueueMaintenance(options);
   const results = await runWorkerOnce({
     ...options, workerCapabilities: 'openai',
     runAgentTaskImpl: async () => {
