@@ -50,3 +50,13 @@ test('generated shell gate trims whitespace like the handler, without invoking c
   assert.equal(disabled.status, 0, disabled.stderr);
   assert.doesNotMatch(disabled.stderr, /cron secret is missing/);
 });
+
+test('scheduled money cron is a no-publish, no-promotion dry-run even if live feature flags are configured', () => {
+  const line = deploy.split('\n').find(value => value.includes('/api/money/autopilot-cron'));
+  assert.ok(line);
+  assert.match(line, /\/api\/money\/autopilot-cron\?dryRun=true&publish=false&vercelDeploy=false&promotion=false/);
+  assert.match(handler, /readQueryValue\(req, 'dryRun'\)/);
+  assert.match(handler, /readQueryValue\(req, 'publish'\)/);
+  assert.match(handler, /readQueryValue\(req, 'vercelDeploy'\)/);
+  assert.match(handler, /readQueryValue\(req, 'promotion'\)/);
+});
