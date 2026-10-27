@@ -62,6 +62,11 @@ jobs:
       - name: Run autonomous dollar challenge tests
         run: node --test tests/challenge-api.test.js
 
+      - name: Validate self-host money cron gate and deployment script
+        run: |
+          bash -n scripts/ops/deploy-self-host-portal.sh
+          node --test tests/money-autopilot-cron-systemd-gate.test.js
+
       - name: Run Campaigns Gmail sender regression tests
         run: node --test tests/campaigns.test.js tests/oauth-provider-api.test.js
 
