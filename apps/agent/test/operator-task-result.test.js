@@ -8,12 +8,12 @@ const { enqueueTask, readTask, runQueuedTask, normalizeTaskRecord } = require('.
 for (const length of [42, 6000, 26000]) {
   test(`private result of ${length} characters survives a fresh SQLite reader`, async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'operator-result-'));
-    const options = { queueStore: 'sqlite', queueDb: path.join(dir, 'queue.sqlite'), ownerAlias: 'owner-a',
+    const options = { queueStore: 'sqlite', queueDb: path.join(dir, 'queue.sqlite'), ownerAlias: '3dvr-managed',
       gunSync: false, deviceId: 'synthetic-worker', workerCapabilities: 'codex', workerRiskClasses: 'draft' };
     const text = 'x'.repeat(length - 4) + 'TAIL';
     try {
-      const task = await enqueueTask('Synthetic result test', { ...options, id: `operator-http-result-${length}`, backend: 'codex' });
-      await runQueuedTask(task, { ...options, runAgentTaskImpl: async () => ({ ok: true, result: { stdout: text } }) });
+      const task = await enqueueTask('Synthetic result test', { ...options, id: `operator-http-result-${length}`, backend: 'codex', queueSource: 'operator-http' });
+      await runQueuedTask(await readTask(task.id, options), { ...options, runAgentTaskImpl: async () => ({ ok: true, result: { stdout: text } }) });
       // Every read reopens the database, independently of the worker.
       const result = await readTask(task.id, { ...options });
       assert.equal(result.status, 'completed');
@@ -28,12 +28,12 @@ for (const length of [42, 6000, 26000]) {
 
 test('private failed tasks preserve bounded stderr and the existing failed status', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'operator-result-error-'));
-  const options = { queueStore: 'sqlite', queueDb: path.join(dir, 'queue.sqlite'), ownerAlias: 'owner-a',
+  const options = { queueStore: 'sqlite', queueDb: path.join(dir, 'queue.sqlite'), ownerAlias: '3dvr-managed',
     gunSync: false, deviceId: 'synthetic-worker', workerCapabilities: 'codex', workerRiskClasses: 'draft' };
   const text = 'failure '.repeat(500);
   try {
-    const task = await enqueueTask('Synthetic failure', { ...options, id: 'operator-http-result-error', backend: 'codex' });
-    await runQueuedTask(task, { ...options, runAgentTaskImpl: async () => ({ ok: false, result: { stderr: text } }) });
+    const task = await enqueueTask('Synthetic failure', { ...options, id: 'operator-http-result-error', backend: 'codex', queueSource: 'operator-http' });
+    await runQueuedTask(await readTask(task.id, options), { ...options, runAgentTaskImpl: async () => ({ ok: false, result: { stderr: text } }) });
     const result = await readTask(task.id, options);
     assert.equal(result.status, 'failed');
     assert.equal(result.resultText, text);
