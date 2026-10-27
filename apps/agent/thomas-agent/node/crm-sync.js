@@ -385,7 +385,12 @@ function buildCrmSyncPayload({
     record.lastContacted = latestSent ? isoDate(latestSent.timestamp, new Date(now)) : record.lastContacted;
     // Input logs can arrive out of order; use event time, not array order.
     const latestReply = replies.slice().sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || ''))).pop();
-    record.lastTouchType = replies.length ? 'reply-received' : 'outreach-sent';
+    // The latest touch is an event, not a lifetime "ever replied" flag.
+    // A later failed attempt must not be reported as a successful send/reply.
+    const latestStatus = normalizeLower(latest.status);
+    record.lastTouchType = latestStatus === 'replied' ? 'reply-received'
+      : ['sent', 'submitted'].includes(latestStatus) ? 'outreach-sent'
+        : latestStatus === 'failed' ? 'outreach-failed' : 'outreach-unverified';
     record.replyCount = replies.length;
     record.lastReplyAt = latestReply?.timestamp || '';
     record.lastCampaign = normalizeText(latest.campaignId || latest.experiment || latest.experimentId);
