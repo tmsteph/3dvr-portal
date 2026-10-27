@@ -57,10 +57,33 @@ test('money autopilot cron handler rejects when cron mode is disabled', async ()
   assert.match(res.body.error, /cron is disabled/i);
 });
 
+test('money autopilot cron refuses a direct request without separate run authorization', async () => {
+  let executions = 0;
+  const handler = createMoneyAutopilotCronHandler({
+    config: {
+      MONEY_AUTOPILOT_CRON_ENABLED: 'true',
+      MONEY_AUTOPILOT_CRON_SECRET: 'cron-secret'
+    },
+    runAutopilotImpl: async () => { executions += 1; return {}; }
+  });
+
+  const res = createMockRes();
+  await handler({
+    method: 'GET',
+    query: { dryRun: 'false', publish: 'true', promotion: 'true' },
+    headers: { Authorization: 'Bearer cron-secret' }
+  }, res);
+
+  assert.equal(res.statusCode, 403);
+  assert.match(res.body.error, /run authorization/i);
+  assert.equal(executions, 0);
+});
+
 test('money autopilot cron handler requires bearer secret', async () => {
   const handler = createMoneyAutopilotCronHandler({
     config: {
       MONEY_AUTOPILOT_CRON_ENABLED: 'true',
+      MONEY_AUTOPILOT_CRON_RUN_AUTHORIZED: 'true',
       MONEY_AUTOPILOT_CRON_SECRET: 'cron-secret'
     },
     runAutopilotImpl: async () => ({})
@@ -75,12 +98,13 @@ test('money autopilot cron handler requires bearer secret', async () => {
   assert.match(res.body.error, /Unauthorized cron trigger/i);
 });
 
-test('money autopilot cron handler runs cycle with query overrides', async () => {
+test('money autopilot cron forces no-send dry-run despite unsafe query overrides', async () => {
   let receivedPayload = null;
 
   const handler = createMoneyAutopilotCronHandler({
     config: {
       MONEY_AUTOPILOT_CRON_ENABLED: 'true',
+      MONEY_AUTOPILOT_CRON_RUN_AUTHORIZED: 'true',
       CRON_SECRET: 'cron-secret',
       MONEY_AUTOPILOT_CRON_DRY_RUN: 'true'
     },
@@ -118,11 +142,11 @@ test('money autopilot cron handler runs cycle with query overrides', async () =>
 
   await handler(req, res);
 
-  assert.equal(receivedPayload.dryRun, false);
+  assert.equal(receivedPayload.dryRun, true);
   assert.equal(receivedPayload.autoDiscover, false);
-  assert.equal(receivedPayload.publishEnabled, true);
-  assert.equal(receivedPayload.vercelDeploy, true);
-  assert.equal(receivedPayload.promotionEnabled, true);
+  assert.equal(receivedPayload.publishEnabled, false);
+  assert.equal(receivedPayload.vercelDeploy, false);
+  assert.equal(receivedPayload.promotionEnabled, false);
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.ok, true);
