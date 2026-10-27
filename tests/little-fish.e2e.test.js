@@ -42,3 +42,48 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
     }
   });
 }
+
+for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }, { width: 844, height: 390 }]) {
+  test(`Quiet ocean teaches returning at ${viewport.width} by ${viewport.height}`, async () => {
+    const browser = await chromium.launch({ args: ['--no-sandbox'] });
+    try {
+      const page = await browser.newPage({ viewport, reducedMotion: 'reduce' });
+      const errors = [];
+      page.on('pageerror', error => errors.push(error.message));
+      await page.setContent(html);
+      await page.getByRole('button', { name: 'Quiet ocean', exact: true }).click();
+      assert.equal(await page.evaluate(() => fishes.length), 5);
+      assert.equal(await page.evaluate(() => sound), false);
+      assert.equal(await page.locator('#quiet-guide').isVisible(), true);
+      for (const selector of ['#quiet', '#quiet-next', '#quiet-return', '#quiet-pause']) {
+        const box = await page.locator(selector).boundingBox();
+        assert.ok(box && box.x >= 0 && box.y >= 0 && box.x + box.width <= viewport.width && box.y + box.height <= viewport.height);
+      }
+      await page.evaluate(() => { quietTime = 4; quietGuide(); });
+      assert.match(await page.locator('#quiet-title').textContent(), /breathe in/);
+      await page.evaluate(() => { quietTime = 8; quietGuide(); });
+      assert.match(await page.locator('#quiet-title').textContent(), /breathe out/);
+      await page.getByRole('button', { name: 'Pause', exact: true }).click();
+      const time = await page.evaluate(() => quietTime);
+      await page.waitForTimeout(150);
+      assert.equal(await page.evaluate(() => quietTime), time);
+      await page.getByRole('button', { name: 'Continue', exact: true }).click();
+      await page.getByRole('button', { name: 'My mind wandered' }).click();
+      assert.match(await page.locator('#quiet-title').textContent(), /Welcome back/);
+      await page.locator('#quiet-next').click();
+      assert.match(await page.locator('#quiet-title').textContent(), /notice/);
+      await page.locator('#quiet-next').click();
+      assert.match(await page.locator('#quiet-title').textContent(), /Thoughts/);
+      await page.locator('#quiet-next').click();
+      assert.match(await page.locator('#quiet-title').textContent(), /meditation/);
+      await page.locator('#quiet-next').click();
+      assert.equal(await page.evaluate(() => quietStage), 0);
+      await page.getByRole('button', { name: 'Bubbles', exact: true }).click();
+      assert.equal(await page.locator('#quiet-guide').isVisible(), false);
+      assert.equal(await page.evaluate(() => mode), 'bubble');
+      assert.deepEqual(errors, []);
+    } finally {
+      await browser.close();
+    }
+  });
+}

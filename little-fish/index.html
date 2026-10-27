@@ -1,16 +1,40 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#087d91"><meta name="description" content="A gentle little ocean. Tap friendly fish, share snacks, and pop bubbles. Made for tiny explorers on phone and laptop."><title>Little Fish · 3DVR Portal</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#087d91"><meta name="description" content="A gentle little ocean. Tap friendly fish, share snacks, pop bubbles, and practice meditation in Quiet ocean mode. Made for tiny explorers on phone and laptop."><title>Little Fish · 3DVR Portal</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#087d91;font-family:ui-rounded,'Trebuchet MS',sans-serif;color:#fff}body{user-select:none}canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}header{position:absolute;top:0;left:0;width:100%;padding:28px 36px;display:flex;align-items:center;justify-content:space-between;pointer-events:none}h1{font-size:28px;letter-spacing:-1px;margin:0;font-weight:900}h1 span{color:#fff1b2}small{display:block;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin-top:5px;color:#c6f7ed}.tools{display:flex;gap:9px;pointer-events:auto}button{font:inherit;cursor:pointer;border:0;color:#113e4b;touch-action:manipulation}button:focus-visible{outline:4px solid #fff;outline-offset:5px}.icon{width:48px;height:48px;border-radius:50%;background:#ffffffd9;font-size:21px;box-shadow:0 3px 0 #004e661c}.icon[aria-pressed=true]{background:#ffeda4}#hint{position:absolute;top:118px;left:20px;right:20px;text-align:center;font-size:19px;color:#ddfff5;pointer-events:none;text-shadow:0 2px 10px #00586655}#message{position:absolute;top:31%;left:0;right:0;text-align:center;pointer-events:none;font-size:clamp(32px,6vw,60px);font-weight:900;color:#fff2bb;text-shadow:0 4px 0 #075c6a55;opacity:0;transition:opacity .3s}.bottom{position:absolute;bottom:max(25px,env(safe-area-inset-bottom));left:0;right:0;display:flex;align-items:center;flex-direction:column;gap:15px;pointer-events:none}.modes{display:flex;gap:12px;padding:8px;border-radius:100px;background:#064b6555;backdrop-filter:blur(12px);pointer-events:auto}.mode{padding:15px 23px;border-radius:60px;font-weight:bold;font-size:17px;display:flex;align-items:center;gap:9px;background:transparent;color:#e7fff8;transition:background .2s,transform .2s}.mode[aria-pressed=true]{background:#fff0ab;color:#1c515a;box-shadow:0 4px 0 #063d4322}.mode:active,.icon:active{transform:scale(.94)}.caption{font-size:12px;letter-spacing:1px;color:#bfe6d9}.tag{position:absolute;bottom:30px;left:32px;letter-spacing:2px;font-size:11px;color:#b5dfd5;pointer-events:none}@media(max-width:600px){header{padding:20px}h1{font-size:25px}.tools{gap:7px}.icon{width:44px;height:44px}#hint{top:111px;font-size:16px}.mode{padding:14px 18px;font-size:16px}.tag{display:none}.bottom{gap:11px;bottom:max(18px,env(safe-area-inset-bottom))}}@media(max-height:480px){header{padding:12px 24px}small,.caption{display:none}#hint{top:70px;font-size:14px}.bottom{bottom:12px}.mode{padding:10px 20px}.tag{display:none}}
+
+/* Quiet ocean extends the original playground without a countdown or score. */
+[hidden]{display:none!important}
+.modes{gap:4px}.mode{padding:14px 18px}
+#quiet-guide{position:absolute;top:115px;left:20px;right:20px;text-align:center;pointer-events:none}
+#quiet-title{font-size:clamp(23px,4vw,34px);margin:0 0 8px;color:#fff2bb}
+#quiet-copy{font-size:15px;line-height:1.5;max-width:490px;margin:0 auto;color:#e2fff5}
+.quiet-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;max-width:95vw;pointer-events:auto}
+.quiet-actions button{border-radius:25px;padding:12px 16px;background:#e2fff0;color:#174b57;font-size:14px;min-height:44px}
+.quiet-actions #quiet-next{background:#fff0ab}
+body.quiet #hint{display:none}body.quiet #message{top:30%}
+body.quiet .caption{max-width:90vw;text-align:center;font-size:11px;letter-spacing:0;background:#075b79aa;padding:5px 10px;border-radius:12px}
+@media(max-width:600px){.mode{font-size:13px;padding:13px 12px;gap:5px}.modes{padding:6px}.quiet-actions button{font-size:12px;padding:10px 12px}#quiet-copy{font-size:14px}}
+@media(max-height:480px){#quiet-guide{top:72px}#quiet-title{font-size:21px;margin-bottom:3px}#quiet-copy{font-size:12px;max-width:580px}.quiet-actions button{padding:8px 14px}.bottom{gap:7px}.mode{padding:8px 18px}}
 </style></head><body>
-<canvas id="ocean" aria-label="Interactive ocean. Tap or click to feed the fish or make bubbles."></canvas>
+<canvas id="ocean" tabindex="0" aria-label="Interactive ocean. Tap or press Space to play. In Quiet ocean, return attention to your fish."></canvas>
 <header><div><h1>little <span>fish.</span></h1><small>A happy little ocean</small></div><div class="tools"><button class="icon" id="sound" aria-label="Turn sound on" aria-pressed="false">♫</button><button class="icon" id="full" aria-label="Enter fullscreen">⛶</button></div></header>
 <div id="hint">Tap the water. Make a little friend.</div><div id="message" role="status" aria-live="polite"></div>
-<div class="bottom"><div class="modes" role="group" aria-label="Choose how to play"><button class="mode" id="feed" aria-pressed="true"><span aria-hidden="true">●</span> Feed fish</button><button class="mode" id="bubble" aria-pressed="false"><span aria-hidden="true">◌</span> Bubbles</button></div><div class="caption">Little moments. Big wonder.</div></div><div class="tag">MADE FOR LITTLE EXPLORERS</div>
+<section id="quiet-guide" hidden aria-label="Meditation guide">
+  <h2 id="quiet-title" aria-live="polite"></h2>
+  <p id="quiet-copy"></p>
+</section>
+<div class="bottom">
+  <div class="quiet-actions" id="quiet-actions" hidden>
+    <button id="quiet-pause">Pause</button>
+    <button id="quiet-return">My mind wandered ♡</button>
+    <button id="quiet-next">Next: notice →</button>
+  </div><div class="modes" role="group" aria-label="Choose how to play"><button class="mode" id="feed" aria-pressed="true"><span aria-hidden="true">●</span> Feed fish</button><button class="mode" id="bubble" aria-pressed="false"><span aria-hidden="true">◌</span> Bubbles</button><button class="mode" id="quiet" aria-pressed="false"><span aria-hidden="true">≈</span> Quiet ocean</button></div><div class="caption">Little moments. Big wonder.</div></div><div class="tag">MADE FOR LITTLE EXPLORERS</div>
 <script>
 'use strict';
 const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d');
 let w=0,h=0,mode='feed',sound=false,audio,food=[],bubbles=[],effects=[],fishes=[],last=0,clock=0,count=0,messageTimer,pointerDown=false,lastDrop=0;
+let quietTime=0,quietStage=0,quietPaused=false,returnUntil=0,quietLastCue='';
 const colors=[['#ffb451','#f58048','Orange fish!'],['#f28fa7','#cf588e','Pink fish!'],['#ffe17b','#edb64c','Yellow fish!'],['#9ce1c2','#4cb598','Green fish!'],['#a9b8ff','#7d88db','Purple fish!']];
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function resize(){const oldW=w||innerWidth,oldH=h||innerHeight;w=innerWidth;h=innerHeight;canvas.width=w*Math.min(devicePixelRatio||1,2);canvas.height=h*Math.min(devicePixelRatio||1,2);ctx.setTransform(canvas.width/w,0,0,canvas.height/h,0,0);fishes.forEach(f=>{f.x=f.x/oldW*w;f.y=f.y/oldH*h;f.size=Math.min(w*.105,59)});}
@@ -19,29 +43,83 @@ for(let i=0;i<5;i++)fishes.push({x:w*(.16+i*.17),y:h*(.35+(i%3)*.12),size:Math.m
 function note(index=0){if(!sound)return;try{audio??=new (window.AudioContext||window.webkitAudioContext)();audio.resume();const o=audio.createOscillator(),g=audio.createGain();o.type='sine';o.frequency.setValueAtTime([523.25,659.25,783.99,880,1046.5][index%5],audio.currentTime);g.gain.setValueAtTime(.0001,audio.currentTime);g.gain.exponentialRampToValueAtTime(.065,audio.currentTime+.025);g.gain.exponentialRampToValueAtTime(.0001,audio.currentTime+.36);o.connect(g);g.connect(audio.destination);o.start();o.stop(audio.currentTime+.4)}catch{}}
 function say(t){document.querySelector('#message').textContent=t;document.querySelector('#message').style.opacity=1;clearTimeout(messageTimer);messageTimer=setTimeout(()=>document.querySelector('#message').style.opacity=0,1700)}
 function heart(x,y){effects.push({x,y,age:0,text:'♥',color:'#ffb6c9'});}
-function interact(x,y){const now=performance.now();if(now-lastDrop<110)return;lastDrop=now;document.querySelector('#hint').textContent=mode==='feed'?'Yum, yum! Tap a fish to say hello.':'Pop, pop! Tap a bubble.';
+function interact(x,y){if(mode==='quiet'){welcomeBack();return}const now=performance.now();if(now-lastDrop<110)return;lastDrop=now;document.querySelector('#hint').textContent=mode==='feed'?'Yum, yum! Tap a fish to say hello.':'Pop, pop! Tap a bubble.';
 for(let i=bubbles.length-1;i>=0;i--){let b=bubbles[i];if(Math.hypot(b.x-x,b.y-y)<b.r+20){bubbles.splice(i,1);effects.push({x,y,age:0,text:'✦',color:'#e6ffff'});note(i);return}}
 let f=fishes.find(f=>Math.hypot(f.x-x,f.y-y)<f.size*1.5);if(f){f.happy=1.8;heart(f.x,f.y-f.size);say(f.color[2]);note(fishes.indexOf(f));return}
 if(mode==='bubble'){for(let i=0;i<5;i++)bubbles.push({x:x+(Math.random()-.5)*75,y:y+Math.random()*25,r:17+Math.random()*18,age:0,speed:25+Math.random()*35});if(bubbles.length>45)bubbles.splice(0,bubbles.length-45);note(count++);}
 else{food.push({x,y,age:0});if(food.length>12)food.shift();effects.push({x,y,age:0,ring:true});note(count++);}}
 canvas.addEventListener('pointerdown',e=>{pointerDown=true;canvas.setPointerCapture(e.pointerId);interact(e.clientX,e.clientY)});canvas.addEventListener('pointermove',e=>{if(pointerDown)interact(e.clientX,e.clientY)});canvas.addEventListener('pointerup',()=>pointerDown=false);canvas.addEventListener('pointercancel',()=>pointerDown=false);
-for(const id of ['feed','bubble'])document.getElementById(id).onclick=()=>{mode=id;for(const k of ['feed','bubble'])document.getElementById(k).setAttribute('aria-pressed',k===id);document.querySelector('#hint').textContent=id==='feed'?'Tap the water. Give the fish a snack.':'Tap the water. Make bubbles!';note(1)};
+const quietSteps = [
+  ['Breathe with a little friend.', 'Let your shoulders soften. Breathe comfortably; the fish is only a guide. Eyes open is welcome.'],
+  ['What can you notice?', 'Find one bubble or color. Or listen to a sound near you. There is nothing to get right.'],
+  ['Thoughts can swim past.', 'When your mind wanders, notice it kindly. Then bring your attention back to your fish.'],
+  ['You came back. That’s meditation.', 'You practiced noticing and returning. Take a little quiet with you, or drift again.']
+];
+function quietGuide() {
+  if(mode!=='quiet')return;
+  let [title,copy]=quietSteps[quietStage];
+  if(quietPaused){title='The ocean can wait.';copy='Rest here. Choose Continue when you’re ready.';}
+  else if(quietTime<returnUntil){title='Welcome back, little explorer.';copy='Minds wander. Gently returning is the practice. Find your fish again.';}
+  else if(quietStage===0&&quietTime>3){
+    title=Math.floor((quietTime-3)/4)%2===0?'Gently breathe in.':'Softly breathe out.';
+  }
+  // Update live text only at a cue boundary, not on every animation frame.
+  if(title!==quietLastCue){document.querySelector('#quiet-title').textContent=title;quietLastCue=title;}
+  document.querySelector('#quiet-copy').textContent=copy;
+}
+function welcomeBack(){returnUntil=quietTime+4;quietGuide();}
+function chooseMode(id) {
+  mode=id;pointerDown=false;
+  for(const k of ['feed','bubble','quiet'])document.getElementById(k).setAttribute('aria-pressed',k===id);
+  const quiet=id==='quiet';
+  document.body.classList.toggle('quiet',quiet);
+  document.querySelector('#quiet-guide').hidden=!quiet;
+  document.querySelector('#quiet-actions').hidden=!quiet;
+  document.querySelector('.caption').textContent=quiet?'Breathe your way. There’s nothing to get right.':'Little moments. Big wonder.';
+  document.querySelector('#message').style.opacity=0;clearTimeout(messageTimer);
+  if(quiet){
+    food=[];bubbles=[];effects=[];quietTime=0;quietStage=0;quietPaused=false;returnUntil=0;
+    document.querySelector('#quiet-pause').textContent='Pause';
+    document.querySelector('#quiet-next').textContent='Next: notice →';quietGuide();
+  }else document.querySelector('#hint').textContent=id==='feed'?'Tap the water. Give the fish a snack.':'Tap the water. Make bubbles!';
+}
+for(const id of ['feed','bubble','quiet'])document.getElementById(id).onclick=()=>{chooseMode(id);note(1)};
+document.querySelector('#quiet-return').onclick=welcomeBack;
+document.querySelector('#quiet-pause').onclick=()=>{
+  quietPaused=!quietPaused;document.querySelector('#quiet-pause').textContent=quietPaused?'Continue':'Pause';quietGuide();
+};
+document.querySelector('#quiet-next').onclick=()=>{
+  quietStage=(quietStage+1)%4;returnUntil=0;
+  if(quietStage===0)quietTime=0;
+  document.querySelector('#quiet-next').textContent=['Next: notice →','Next: return →','Finish gently ♡','Drift again ↻'][quietStage];quietGuide();
+};
 document.querySelector('#sound').onclick=()=>{sound=!sound;document.querySelector('#sound').setAttribute('aria-pressed',sound);document.querySelector('#sound').setAttribute('aria-label',sound?'Turn sound off':'Turn sound on');note(0)};
 document.querySelector('#full').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();else say('Ready to play!')}catch{say('Ready to play!')}};
 // Keyboard play: space makes food or bubbles; arrows choose a fish to greet.
-document.addEventListener('keydown',e=>{if(e.target.tagName==='BUTTON')return;if(e.code==='Space'){e.preventDefault();interact(w*(.2+Math.random()*.6),h*(.35+Math.random()*.3))}else if(e.code==='ArrowRight'||e.code==='ArrowLeft'){e.preventDefault();const f=fishes[(count++)%5];heart(f.x,f.y-f.size);say(f.color[2]);note(count)}});
+document.addEventListener('keydown',e=>{if(e.target.tagName==='BUTTON')return;if(mode==='quiet'){if(e.code==='Space'){e.preventDefault();welcomeBack()}return}if(e.code==='Space'){e.preventDefault();interact(w*(.2+Math.random()*.6),h*(.35+Math.random()*.3))}else if(e.code==='ArrowRight'||e.code==='ArrowLeft'){e.preventDefault();const f=fishes[(count++)%5];heart(f.x,f.y-f.size);say(f.color[2]);note(count)}});
 function ellipse(x,y,rx,ry,color){ctx.fillStyle=color;ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fill()}
 function fish(f){ctx.save();ctx.translate(f.x,f.y);ctx.scale(f.dir,1);ctx.rotate(Math.sin(clock*1.6+f.phase)*.055);let s=f.size;ctx.fillStyle=f.color[1];ctx.beginPath();ctx.moveTo(-s*.65,0);ctx.quadraticCurveTo(-s*1.5,-s*.7,-s*1.45,-s*.37);ctx.lineTo(-s*1.45,s*.4);ctx.quadraticCurveTo(-s*1.4,s*.66,-s*.65,0);ctx.fill();ellipse(0,0,s,s*.67,f.color[0]);ellipse(-s*.07,-s*.1,s*.15,s*.28,f.color[1]);ellipse(s*.45,-s*.13,s*.19,s*.23,'#fffef2');ellipse(s*.5,-s*.12,s*.085,s*.12,'#164454');ellipse(s*.53,-s*.16,s*.027,s*.035,'white');ellipse(s*.59,s*.17,s*.16,s*.09,'#ff7b8544');ctx.strokeStyle='#4b555a';ctx.lineWidth=2.3;ctx.lineCap='round';ctx.beginPath();ctx.arc(s*.67,s*.15,s*.13,0,Math.PI*.8);ctx.stroke();ellipse(-s*.26,-s*.29,s*.3,s*.08,'#ffffff30');ctx.restore();if(f.happy>0){ctx.font='22px sans-serif';ctx.fillStyle='#ffd8e5';ctx.fillText('♥',f.x-10,f.y-f.size-12+Math.sin(clock*4)*5)}}
-function frame(t){let dt=Math.min((t-last)/1000,.04)||.016;last=t;clock+=dt;ctx.clearRect(0,0,w,h);let bg=ctx.createLinearGradient(0,0,w*.2,h);bg.addColorStop(0,'#48c9ca');bg.addColorStop(.45,'#148eaa');bg.addColorStop(1,'#075b79');ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
+function frame(t){let dt=Math.min((t-last)/1000,.04)||.016;last=t;if(mode!=='quiet'||!quietPaused){clock+=dt;if(mode==='quiet')quietTime+=dt}if(mode==='quiet')quietGuide();ctx.clearRect(0,0,w,h);let bg=ctx.createLinearGradient(0,0,w*.2,h);bg.addColorStop(0,'#48c9ca');bg.addColorStop(.45,'#148eaa');bg.addColorStop(1,'#075b79');ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
 // Soft shafts of sunlight.
 for(let i=0;i<4;i++){ctx.fillStyle='#d8fff809';ctx.beginPath();ctx.moveTo(w*(.1+i*.23),0);ctx.lineTo(w*(.18+i*.23),0);ctx.lineTo(w*(.5+i*.27),h);ctx.lineTo(w*(.25+i*.25),h);ctx.fill()}
-for(let i=0;i<16;i++){let x=(i*137.7)%w,y=h-((clock*(9+i%4)+i*79)%(h+40));ctx.strokeStyle='#d7ffff25';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(x+Math.sin(clock*.5+i)*10,y,3+i%4,0,Math.PI*2);ctx.stroke()}
+for(let i=0;i<16;i++){let x=(i*137.7)%w,y=h-(((reduced?0:clock)*(9+i%4)+i*79)%(h+40));ctx.strokeStyle='#d7ffff25';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(x+Math.sin(clock*.5+i)*10,y,3+i%4,0,Math.PI*2);ctx.stroke()}
 // Rolling sand and swaying sea grass.
 ctx.fillStyle='#b1dbbb';ctx.beginPath();ctx.moveTo(0,h-43);ctx.bezierCurveTo(w*.2,h-92,w*.3,h-5,w*.6,h-40);ctx.quadraticCurveTo(w*.85,h-80,w,h-40);ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.fill();
 for(let side of [0,1])for(let i=0;i<7;i++){let x=side?w-i*18:i*18;ctx.strokeStyle=i%2?'#63bca2':'#399b92';ctx.lineWidth=9+i%3*3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x,h-12);ctx.bezierCurveTo(x-22,h-70,x+Math.sin(clock*.7+i)*20,h-110,x+Math.sin(clock*.6+i)*15,h-105-(i%3)*34);ctx.stroke()}
 for(let p of food){p.age+=dt;p.y+=12*dt;ellipse(p.x,p.y,5,5,'#ffe6a0');ellipse(p.x-1,p.y-2,2,2,'#fff7d7')}food=food.filter(p=>p.age<7&&p.y<h-100);
-for(let f of fishes){f.happy=Math.max(0,f.happy-dt);let target=food.reduce((best,p)=>!best||Math.hypot(p.x-f.x,p.y-f.y)<Math.hypot(best.x-f.x,best.y-f.y)?p:best,null);let tx=target?target.x:w*(.17+(fishes.indexOf(f)*.17))+Math.sin(clock*.2+f.phase)*w*.12,ty=target?target.y:h*(.36+(fishes.indexOf(f)%3)*.12)+Math.sin(clock*.4+f.phase)*h*.07;tx=Math.max(f.size*1.6,Math.min(w-f.size*1.6,tx));ty=Math.max(160,Math.min(h-155,ty));let dx=tx-f.x,dy=ty-f.y,speed=target?100:22;if(reduced)speed*=.65;let dist=Math.hypot(dx,dy);if(dist>3){f.x+=dx/dist*Math.min(speed*dt,dist);f.y+=dy/dist*Math.min(speed*dt,dist);if(Math.abs(dx)>6)f.dir=dx>0?1:-1}if(target&&Math.hypot(target.x-f.x,target.y-f.y)<f.size*.7){food.splice(food.indexOf(target),1);f.happy=1;heart(f.x,f.y-f.size);note(fishes.indexOf(f))}fish(f)}
+if(mode==='quiet'){
+  const guide=fishes[0],pulse=reduced?0:-Math.cos((quietTime-3)*Math.PI/4);
+  const guideY=h*.49-pulse*Math.min(23,h*.035);
+  ctx.strokeStyle='#e4fff063';ctx.lineWidth=2;ctx.beginPath();
+  ctx.arc(w*.5,guideY,guide.size*1.7+(reduced?0:pulse*5),0,Math.PI*2);ctx.stroke();
+}
+for(let f of fishes){f.happy=Math.max(0,f.happy-dt);let target=food.reduce((best,p)=>!best||Math.hypot(p.x-f.x,p.y-f.y)<Math.hypot(best.x-f.x,best.y-f.y)?p:best,null);let tx=target?target.x:w*(.17+(fishes.indexOf(f)*.17))+Math.sin(clock*.2+f.phase)*w*.12,ty=target?target.y:h*(.36+(fishes.indexOf(f)%3)*.12)+Math.sin(clock*.4+f.phase)*h*.07;if(mode==='quiet'){
+  const i=fishes.indexOf(f);
+  tx=i===0?w*.5:w*(.12+(i-1)*.25);
+  ty=i===0?h*.49-(reduced?0:-Math.cos((quietTime-3)*Math.PI/4)*Math.min(23,h*.035)):h*.64;
+}
+tx=Math.max(f.size*1.6,Math.min(w-f.size*1.6,tx));ty=Math.max(160,Math.min(h-155,ty));let dx=tx-f.x,dy=ty-f.y,speed=target?100:22;if(mode==='quiet')speed=quietPaused?0:(fishes.indexOf(f)===0?45:12);if(reduced)speed*=.65;let dist=Math.hypot(dx,dy);if(dist>3){f.x+=dx/dist*Math.min(speed*dt,dist);f.y+=dy/dist*Math.min(speed*dt,dist);if(Math.abs(dx)>6)f.dir=dx>0?1:-1}if(target&&Math.hypot(target.x-f.x,target.y-f.y)<f.size*.7){food.splice(food.indexOf(target),1);f.happy=1;heart(f.x,f.y-f.size);note(fishes.indexOf(f))}fish(f)}
 for(let b of bubbles){b.age+=dt;b.y-=dt*b.speed;b.x+=Math.sin(clock*2+b.age)*dt*7;ctx.lineWidth=2;ctx.strokeStyle='#d4ffffa0';ctx.fillStyle='#bbffff12';ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.strokeStyle='#ffffffa0';ctx.beginPath();ctx.arc(b.x,b.y,b.r*.72,Math.PI*1.1,Math.PI*1.5);ctx.stroke()}bubbles=bubbles.filter(b=>b.y>-50&&b.age<20);
 effects=effects.filter(e=>e.age<1.2);for(let e of effects){e.age+=dt;ctx.globalAlpha=Math.max(0,1-e.age/1.2);if(e.ring){ctx.strokeStyle='#fffad3';ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,8+e.age*40,0,Math.PI*2);ctx.stroke()}else{ctx.fillStyle=e.color;ctx.font='32px sans-serif';ctx.fillText(e.text,e.x-15,e.y-e.age*60)}}ctx.globalAlpha=1;requestAnimationFrame(frame)}requestAnimationFrame(frame);
-document.addEventListener('visibilitychange',()=>{pointerDown=false;if(document.hidden&&audio)audio.suspend()});
+document.addEventListener('visibilitychange',()=>{pointerDown=false;if(document.hidden){if(mode==='quiet'){quietPaused=true;document.querySelector('#quiet-pause').textContent='Continue';quietGuide()}if(audio)audio.suspend()}});
 </script></body></html>

@@ -36,6 +36,29 @@
         { "at": "1200ms", "type": "keydown", "code": "KeyD", "key": "d" },
         { "at": "1600ms", "type": "keyup", "code": "KeyD", "key": "d" }
       ]
+    },
+    {
+      "name": "little-fish-quiet-mobile",
+      "url": "/little-fish/",
+      "duration": "10s",
+      "interval": "2s",
+      "width": 390,
+      "height": 844,
+      "seed": 1337,
+      "deterministic": true,
+      "tick": "40ms",
+      "replay": [
+        {
+          "at": "200ms",
+          "type": "click",
+          "selector": "#quiet"
+        },
+        {
+          "at": "9s",
+          "type": "click",
+          "selector": "#quiet-return"
+        }
+      ]
     }
   ]
 }
