@@ -88,11 +88,12 @@ test('actual SQLite transport is idempotent and preserves historical and running
     assert.equal(db.prepare('SELECT source FROM tasks WHERE id=?').get(collision.id).source,'gun');
     const fullText = 'complete output '.repeat(500);
     db.prepare('UPDATE tasks SET status=?,record_json=? WHERE id=?').run('completed', JSON.stringify({
-      ...record, resultSummary: fullText.slice(0,2000), resultText: fullText,
+      ...record, completedAt: '2026-10-27T11:30:00.000Z', resultSummary: fullText.slice(0,2000), resultText: fullText,
       resultSummaryTruncated: true, resultTruncated: false
     }), record.id);
     const saved = JSON.parse(invoke({action:'status',id:record.id,prefix:input.prefix}).stdout).record;
     assert.equal(saved.resultText, fullText);
+    assert.equal(saved.completedAt, '2026-10-27T11:30:00.000Z', 'signed status must preserve durable worker completion time');
     assert.equal(saved.resultSummaryTruncated, true);
     assert.equal(saved.resultTruncated, false);
     assert.match(operatorTaskReceipt(saved), /complete output/);
