@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -67,7 +67,7 @@ test('actual SQLite transport is idempotent and preserves historical and running
   insert.run('3dvr-managed',historical.id,'queued','old',JSON.stringify(historical),'sqlite');
   const script=REMOTE_QUEUE_SCRIPT.replace(/if \[ -f .*?fi\n/,'').replace('cd "$HOME/.3dvr/portal/apps/agent"',`cd '${dir}'`).replace('/opt/node-v22/bin/node',process.execPath);
   const record={id:'operator-http-test-task-123',task:'synthetic only',status:'queued',updatedAt:new Date().toISOString(),runtimeWorkItemJson:JSON.stringify({title:'Original title'})};
-  const invoke=input => spawnSync('bash',['-s','--',Buffer.from(JSON.stringify(input)).toString('base64url')],{input:script,encoding:'utf8',env:{...process.env,THREEDVR_AGENT_QUEUE_STORE:'sqlite',THREEDVR_AGENT_OWNER_ALIAS:'3dvr-managed',THREEDVR_AGENT_WORKER_CAPABILITIES:'codex,node',THREEDVR_AGENT_QUEUE_DB:dbPath}});
+  const invoke=(input, queueDb=dbPath) => spawnSync('bash',['-s','--',Buffer.from(JSON.stringify(input)).toString('base64url')],{input:script,encoding:'utf8',env:{...process.env,THREEDVR_AGENT_QUEUE_STORE:'sqlite',THREEDVR_AGENT_OWNER_ALIAS:'3dvr-managed',THREEDVR_AGENT_WORKER_CAPABILITIES:'codex,node',THREEDVR_AGENT_QUEUE_DB:queueDb}});
   try {
     const input={action:'enqueue',id:record.id,prefix:'operator-http-test-',record};
     assert.equal(invoke(input).status,0);
@@ -114,6 +114,12 @@ test('actual SQLite transport is idempotent and preserves historical and running
     assert.ok(operatorTaskReceipt(saved).endsWith(fullText.trim()));
     const missing=invoke({action:'status',id:'missing',prefix:input.prefix});
     assert.equal(JSON.parse(missing.stdout).missing,true);
+    // Status must never create an empty SQLite file when a worker's queue
+    // path is wrong or unavailable. Enqueue remains the only write path.
+    const absentDb=join(dir,'nonexistent-queue.sqlite');
+    const unavailable=invoke({action:'status',id:record.id,prefix:input.prefix},absentDb);
+    assert.notEqual(unavailable.status,0,'read-only status must fail for a missing queue DB');
+    await assert.rejects(stat(absentDb), {code:'ENOENT'});
   } finally {db.close();await rm(dir,{recursive:true,force:true});}
 });
 
