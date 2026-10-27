@@ -450,6 +450,7 @@ async function runQueuedTask(record, options = {}) {
 
   let renewalTimer;
   let claimRenewer;
+  let claimRenewalUnverified = false;
   if (claimed.claimToken) {
     // A claim can succeed while opening the persistent renewal handle fails
     // (for example, SQLite initialization or a transient lock). Do not run
@@ -488,10 +489,11 @@ async function runQueuedTask(record, options = {}) {
     }
     renewalTimer = setInterval(() => {
       try {
-        claimRenewer.renew(Date.now() + activeTtlMs);
+        if (!claimRenewer.renew(Date.now() + activeTtlMs)) claimRenewalUnverified = true;
       } catch {
-        // A later heartbeat or the token-checked terminal write can recover;
-        // never let a transient renewal error crash the worker process.
+        // The backend may already have performed side effects. An uncertain
+        // heartbeat cannot justify a verified completion or an automatic retry.
+        claimRenewalUnverified = true;
       }
     }, Math.max(1, Math.floor(ttlMs / 3)));
     renewalTimer.unref?.();
@@ -510,6 +512,15 @@ async function runQueuedTask(record, options = {}) {
       const runAgentTaskImpl = options.runAgentTaskImpl || require('./task-orchestrator').runAgentTask;
       result = await runAgentTaskImpl(buildTaskArgs(claimed, options), options.hooks || {});
     }
+    // A background lease renewal failure may mean another process owns the
+    // claim. Do not write a successful receipt for an unverified execution.
+    // Leave the running row for explicit reconciliation (never auto-replay).
+    if (claimRenewalUnverified) {
+      return {
+        ok: false, skipped: true, requiresReview: true,
+        reason: 'SQLite claim renewal unverified during execution; outcome held for review',
+      };
+    }
     const summary = summarizeTaskResult(result);
     const terminal = await finishClaimedTask(claimed, {
       status: result.ok ? 'completed' : result.skipped ? 'skipped' : 'failed',
@@ -521,6 +532,14 @@ async function runQueuedTask(record, options = {}) {
     await recordTaskLifeEvent(terminal, options);
     return result;
   } catch (error) {
+    // Even a backend exception is not a trustworthy failure receipt once the
+    // lease heartbeat is uncertain; its external side effects may have landed.
+    if (claimRenewalUnverified) {
+      return {
+        ok: false, skipped: true, requiresReview: true,
+        reason: 'SQLite claim renewal unverified during execution; outcome held for review',
+      };
+    }
     const message = error.message || String(error);
     // A task may finish executing after its SQLite lease expires. The first
     // terminal write then fails closed. Do not attempt a second terminal write
