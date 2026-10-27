@@ -143,6 +143,7 @@ test('money autopilot cron forces no-send dry-run despite unsafe query overrides
   await handler(req, res);
 
   assert.equal(receivedPayload.dryRun, true);
+  assert.equal(receivedPayload.disablePaidAi, true);
   assert.equal(receivedPayload.autoDiscover, false);
   assert.equal(receivedPayload.publishEnabled, false);
   assert.equal(receivedPayload.vercelDeploy, false);
