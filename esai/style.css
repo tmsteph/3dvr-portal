@@ -13,3 +13,10 @@
   .credit { grid-template-columns: 20px 1fr; }
   .credit p { grid-column: 2; margin: 0; }
 }
+@media (max-width: 760px) {
+  .hero > * { min-width: 0; }
+  .portrait { width: 100%; min-width: 0; height: 440px; aspect-ratio: auto; }
+  .brand, .nav nav a { white-space: nowrap; }
+  .nav nav { gap: 12px; }
+  .nav-contact { padding: 10px 11px; }
+}
