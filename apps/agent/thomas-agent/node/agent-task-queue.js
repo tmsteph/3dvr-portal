@@ -383,6 +383,13 @@ async function recordTaskLifeEvent(record, options = {}) {
 }
 
 async function runQueuedTask(record, options = {}) {
+  // The legacy public GUN graph has no authenticated, atomic execution admission.
+  // It remains available for historical visibility/import, never as a worker
+  // execution authority. Only the private SQLite claim path can execute tasks.
+  if (queueStore(options) !== 'sqlite') {
+    return { ok: false, skipped: true,
+      reason: 'Public GUN queue execution disabled; private SQLite admission required' };
+  }
   // Signed Operator HTTP tasks are admitted only by the authenticated private
   // SQLite queue. Public GUN records must never impersonate that namespace.
   if (record.id?.startsWith('operator-http-')
@@ -685,6 +692,9 @@ function summarizeTaskResult(result = {}) {
 }
 
 async function runWorkerOnce(options = {}) {
+  // Never dispatch unsigned public GUN intent, including when a legacy unit
+  // omits THREEDVR_AGENT_QUEUE_STORE and would otherwise default to GUN.
+  if (queueStore(options) !== 'sqlite') return [];
   const profile = workerProfile(options);
   await writeHeartbeat('task-worker', {
     ...options,
