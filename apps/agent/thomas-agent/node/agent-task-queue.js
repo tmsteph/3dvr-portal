@@ -544,6 +544,16 @@ async function runQueuedTask(record, options = {}) {
         reason: 'SQLite claim renewal unverified during execution; outcome held for review',
       };
     }
+    // A Codex SSH timeout or disconnect may occur after the remote worker
+    // already performed work. Do not record a fabricated failed receipt or
+    // permit an automatic retry; retain the running claim for reconciliation.
+    if (queueStore(options) === 'sqlite' && claimed.queueSource === 'operator-http'
+      && claimed.id?.startsWith('operator-http-') && error?.deliveryUncertain === true) {
+      return {
+        ok: false, skipped: true, requiresReview: true,
+        reason: 'Codex delivery outcome unverified; task held for review',
+      };
+    }
     const message = error.message || String(error);
     // A task may finish executing after its SQLite lease expires. The first
     // terminal write then fails closed. Do not attempt a second terminal write
