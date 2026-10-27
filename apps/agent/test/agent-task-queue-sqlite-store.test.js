@@ -15,6 +15,8 @@ const {
   updateTask,
 } = require('../thomas-agent/node/agent-task-queue');
 const sqliteQueue = require('../thomas-agent/node/task-queue-sqlite-store');
+const { EventEmitter } = require('node:events');
+const { runOperatorCodexTask } = require('../thomas-agent/node/operator-codex-task');
 
 class FakeGunNode {
   constructor(store, nodePath = []) {
@@ -66,6 +68,57 @@ test('signed Operator tasks reserve one executor and require the managed owner',
   assert.ok(sqliteQueue.claimTask(b.id, 'second-claim', 'worker-b', now + 60_000, now, options));
   assert.equal(sqliteQueue.claimTask('operator-http-other-owner', 'other-claim', 'worker-c',
     now + 60_000, now, other), null);
+});
+
+test('Codex SSH interruption is classified as uncertain delivery', async () => {
+  const child = new EventEmitter();
+  child.stdout = new EventEmitter();
+  child.stderr = new EventEmitter();
+  child.stdin = new EventEmitter();
+  child.stdin.end = () => {};
+  const pending = runOperatorCodexTask({
+    id: 'operator-http-transport-interrupted', backend: 'codex',
+    task: 'bounded read-only check', unsafe: false,
+  }, {
+    spawn: () => {
+      process.nextTick(() => child.emit('close', 255));
+      return child;
+    },
+  });
+  await assert.rejects(pending, error =>
+    error.deliveryUncertain === true && /interrupted/.test(error.message));
+});
+
+test('uncertain signed Codex delivery never fabricates a failed receipt or retries', async (t) => {
+  const options = await queueOptions(t, {
+    ownerAlias: '3dvr-managed', queueSource: 'operator-http',
+    gunSync: false, workerCapabilities: 'codex',
+  });
+  const id = 'operator-http-uncertain-ssh';
+  await enqueueTask('bounded read-only research', {
+    ...options, id, backend: 'codex', riskClass: 'read_only',
+  });
+  let invoked = 0;
+  const result = await runQueuedTask(await readTask(id, options), {
+    ...options,
+    runAgentTaskImpl: async () => {
+      invoked += 1;
+      const error = new Error('simulated transport interruption after dispatch');
+      error.deliveryUncertain = true;
+      throw error;
+    },
+  });
+  assert.equal(invoked, 1);
+  assert.equal(result.ok, false);
+  assert.equal(result.skipped, true);
+  assert.equal(result.requiresReview, true);
+  assert.match(result.reason, /delivery outcome unverified.*held for review/i);
+  const held = await readTask(id, options);
+  assert.equal(held.status, 'running', 'uncertain delivery remains held');
+  assert.ok(!held.completedAt, 'no terminal receipt is invented');
+  assert.ok(!held.resultText, 'no verified result is invented');
+  assert.equal(sqliteQueue.claimTask(id, 'replay', 'second-worker',
+    Date.now() + 60000, Date.now(), options), null, 'no automatic replay');
 });
 
 test('expired Operator executor lease releases admission without replaying its task', async (t) => {
