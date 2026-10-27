@@ -1006,7 +1006,7 @@ test('private SQLite worker never waits for legacy relay maintenance', async (t)
   class UnavailableGunNode extends FakeGunNode {
     get(key) { return new UnavailableGunNode(this.store, [...this.path, key]); }
     once(callback) {
-      if (this.path.includes('tasks')) legacyTaskReads += 1;
+      if (this.path.at(-1) === 'prior-local-health') legacyTaskReads += 1;
       return super.once(callback);
     }
     map() {
