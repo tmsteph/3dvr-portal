@@ -694,8 +694,13 @@ async function runWorkerOnce(options = {}) {
     // The signed HTTP namespace is never executable from the public GUN lane.
     .filter(task => queueStore(options) === 'sqlite' || !task.id?.startsWith('operator-http-'))
     // Public GUN imports are visible for reconciliation, not executable
-    // admissions. Exclude them before applying the worker batch limit.
-    .filter(task => queueStore(options) !== 'sqlite' || task.queueSource === 'sqlite')
+    // admissions. Signed HTTP tasks use their own private SQLite source.
+    // Filter before the batch limit so untrusted rows cannot starve work.
+    .filter(task => queueStore(options) !== 'sqlite'
+      || task.queueSource === 'sqlite'
+      || (task.queueSource === 'operator-http'
+        && task.id?.startsWith('operator-http-')
+        && (options.ownerAlias || process.env.THREEDVR_AGENT_OWNER_ALIAS) === '3dvr-managed'))
     .filter(task => canWorkerRunTask(task, options).ok)
     .slice(0, options.limit || DEFAULT_TASK_LIMIT);
   const results = [];
