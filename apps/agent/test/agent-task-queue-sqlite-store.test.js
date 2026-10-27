@@ -1064,6 +1064,59 @@ test('public SQLite CLI records omit claim metadata and tokens', async (t) => {
   assert.equal(JSON.stringify(record).includes('secret-claim-token'), false);
 });
 
+test('signed HTTP SQLite admission executes while forged sources and owners stay queued', async (t) => {
+  const options = await queueOptions(t, {
+    ownerAlias: '3dvr-managed',
+    rootNode: fakeRoot(),
+    gunSync: false,
+    workerCapabilities: 'codex',
+    workerRiskClasses: 'draft,read_only',
+  });
+  let executions = 0;
+  const runAgentTaskImpl = async () => {
+    executions += 1;
+    return { ok: true, result: { stdout: 'bounded signed task completed' } };
+  };
+  const signedId = 'operator-http-signed-source-test';
+  await enqueueTask('Private bounded task', {
+    ...options, id: signedId, backend: 'codex',
+    queueSource: 'operator-http',
+  });
+  await enqueueTask('Untrusted GUN task', {
+    ...options, id: 'legacy-gun-source-test', backend: 'codex',
+    queueSource: 'gun',
+  });
+  await enqueueTask('Forged HTTP source without namespace', {
+    ...options, id: 'forged-http-source-test', backend: 'codex',
+    queueSource: 'operator-http',
+  });
+  const otherOwner = { ...options, ownerAlias: 'untrusted-owner' };
+  await enqueueTask('Forged HTTP source under another owner', {
+    ...otherOwner, id: 'operator-http-wrong-owner-test',
+    backend: 'codex', queueSource: 'operator-http',
+  });
+
+  const results = await runWorkerOnce({ ...options, runAgentTaskImpl, limit: 1 });
+  assert.equal(results.length, 1);
+  assert.equal(results[0].id, signedId);
+  assert.equal(results[0].result.ok, true);
+  assert.equal(executions, 1);
+  const completed = await readTask(signedId, options);
+  assert.equal(completed.queueSource, 'operator-http');
+  assert.equal(completed.status, 'completed');
+  assert.equal(completed.resultText, 'bounded signed task completed');
+  for (const id of ['legacy-gun-source-test', 'forged-http-source-test']) {
+    assert.equal((await readTask(id, options)).status, 'queued');
+  }
+  const now = Date.now();
+  assert.equal(sqliteQueue.claimTask('legacy-gun-source-test', 'legacy-token', 'worker', now + 60_000, now, options), null);
+  assert.equal(sqliteQueue.claimTask('forged-http-source-test', 'forged-token', 'worker', now + 60_000, now, options), null);
+  assert.deepEqual(await runWorkerOnce({ ...otherOwner, runAgentTaskImpl }), []);
+  assert.equal(sqliteQueue.claimTask('operator-http-wrong-owner-test', 'wrong-owner-token', 'worker', now + 60_000, now, otherOwner), null);
+  assert.equal((await readTask('operator-http-wrong-owner-test', otherOwner)).status, 'queued');
+  assert.equal(executions, 1, 'no forged admission may invoke the backend');
+});
+
 test('signed HTTP tasks keep prompts and results out of the public relay and memory', async (t) => {
   const rootNode = fakeRoot();
   const gunOptions = {rootNode, ownerAlias:'tenant/http:private', force:true};
