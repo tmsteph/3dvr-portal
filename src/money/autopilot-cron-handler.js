@@ -72,6 +72,14 @@ export function createMoneyAutopilotCronHandler(options = {}) {
       });
     }
 
+    // Enforce authorization at the API boundary too: callers must not bypass the
+    // systemd timer's separate default-off gate by invoking this route directly.
+    if (!parseBoolean(config.MONEY_AUTOPILOT_CRON_RUN_AUTHORIZED, false)) {
+      return res.status(403).json({
+        error: 'Money autopilot cron awaits explicit run authorization.'
+      });
+    }
+
     const expectedSecret = readCronSecret(config);
     const providedSecret = getBearerToken(req);
     if (!expectedSecret || providedSecret !== expectedSecret) {
@@ -80,22 +88,17 @@ export function createMoneyAutopilotCronHandler(options = {}) {
       });
     }
 
-    const dryRun = parseBoolean(
-      readQueryValue(req, 'dryRun'),
-      parseBoolean(config.MONEY_AUTOPILOT_CRON_DRY_RUN, false)
-    );
+    // This scheduled endpoint is research-only. Never allow URL parameters or
+    // environment defaults to turn it into a publisher or outbound sender.
     const autoDiscover = parseBoolean(readQueryValue(req, 'autoDiscover'), undefined);
-    const publishEnabled = parseBoolean(readQueryValue(req, 'publish'), undefined);
-    const vercelDeploy = parseBoolean(readQueryValue(req, 'vercelDeploy'), undefined);
-    const promotionEnabled = parseBoolean(readQueryValue(req, 'promotion'), undefined);
 
     try {
       const result = await runAutopilotImpl({
-        dryRun,
+        dryRun: true,
         autoDiscover,
-        publishEnabled,
-        vercelDeploy,
-        promotionEnabled,
+        publishEnabled: false,
+        vercelDeploy: false,
+        promotionEnabled: false,
         stripeClient
       });
 
