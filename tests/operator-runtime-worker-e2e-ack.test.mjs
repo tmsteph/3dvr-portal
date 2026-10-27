@@ -1,51 +1,86 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { runInNewContext } from 'node:vm';
+import SEA from 'gun/sea.js';
+import { runOperatorRuntimeE2E } from '../scripts/operator-runtime-worker-e2e.mjs';
 
-// The real script is evaluated with mocked dependencies; no relay, worker,
-// credentials, task queue, or external service is contacted.
-const script = readFileSync(new URL('../scripts/operator-runtime-worker-e2e.mjs', import.meta.url), 'utf8');
+// Synthetic transport only: never contacts the live portal or uses real credentials.
+const pair = await SEA.pair();
+const baseEnv = {
+  OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED: '1',
+  OPERATOR_RUNTIME_E2E_SEA_PAIR: JSON.stringify(pair),
+  OPERATOR_RUNTIME_E2E_OWNER_PUB: pair.pub,
+  OPERATOR_RUNTIME_E2E_TIMEOUT_MS: '1000'
+};
+const receipt = { status: 'completed', startedAt: '2026-10-27T12:00:00Z',
+  completedAt: '2026-10-27T12:00:01Z', workerDeviceId: 'synthetic-worker', resultText: '42' };
 
-function simulate(ack) {
-  return new Promise((resolve, reject) => {
-    let polls = 0;
-    const logs = [];
-    const watchdog = setTimeout(() => reject(new Error('simulated E2E hung')), 2500);
-    const node = {
-      get() { return this; },
-      put(_value, cb) { queueMicrotask(() => cb(ack)); },
-      once(cb) { polls++; queueMicrotask(() => cb({status:'completed', resultSummary:'mock only', workerDeviceId:'synthetic'})); }
-    };
-    const gun = { ...node, on() {} };
-    const fakeProcess = {
-      env: {OPERATOR_RUNTIME_E2E_TIMEOUT_MS: '1000'},
-      exit(code) { clearTimeout(watchdog); resolve({code, polls, logs}); }
-    };
-    const code = script.replace(/^import Gun from 'gun';\n/m, '')
-      .replace(/^import \{ buildOperatorDelegatedTask \} from '\.\.\/operator\/delegate-task\.js';\n/m, '');
-    runInNewContext(code, {
-      Gun: () => gun,
-      buildOperatorDelegatedTask: () => ({record:{},summary:{},runtime:{}}),
-      process: fakeProcess, setTimeout, clearTimeout, queueMicrotask,
-      console: {log: (...a) => logs.push(a.join(' ')), error: (...a) => logs.push(a.join(' '))},
-      Date, Math, String, Number, Promise, Boolean
-    }, {timeout: 1000});
-  });
+function fakeResponse(status, result) {
+  return { status, json: async () => result };
+}
+function simulate({ env = baseEnv, admission = fakeResponse(202, {ok:true}),
+  statuses = [fakeResponse(200, {ok:true, record:receipt})] } = {}) {
+  const requests = [];
+  const logs = [];
+  let clock = 0;
+  let statusIndex = 0;
+  const fetchImpl = async (_url, options) => {
+    const body = JSON.parse(options.body);
+    const signed = await SEA.verify(body.authProof, pair.pub);
+    assert.equal(signed.action, body.action);
+    assert.equal(signed.requestId, body.requestId);
+    assert.equal(signed.scope, 'operator-runtime-task');
+    assert.equal(signed.origin, 'https://portal.3dvr.tech');
+    requests.push({action:body.action, requestId:body.requestId});
+    return body.action === 'enqueue' ? admission
+      : statuses[Math.min(statusIndex++, statuses.length - 1)];
+  };
+  const run = () => runOperatorRuntimeE2E({ env, fetchImpl, log: message => logs.push(message),
+    now: () => clock, sleep: async ms => {clock += ms;}, newId: () => '12345678-1234-1234-1234-123456789012' });
+  return { run, requests, logs };
 }
 
-for (const [name, ack] of [['explicit error', {err:'relay write failed'}], ['undefined', undefined], ['null', null]]) {
-  test(`E2E rejects ${name} write acknowledgement before polling`, async () => {
-    const result = await simulate(ack);
-    assert.equal(result.code, 1);
-    assert.equal(result.polls, 0);
-    assert.ok(result.logs.some(line => line.includes('not acknowledged')));
-  });
-}
+test('default-off authorization makes no external request', async () => {
+  const probe = simulate({env:{...baseEnv, OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED:'0'}});
+  await assert.rejects(probe.run(), /explicit run and cost authorization/);
+  assert.equal(probe.requests.length, 0);
+});
 
-test('E2E allows acknowledged writes followed by synthetic completion', async () => {
-  const result = await simulate({ok:1});
-  assert.equal(result.code, 0);
-  assert.ok(result.polls > 0);
-  assert.ok(result.logs.some(line => line.includes('E2E_PASS=true')));
+test('missing or mismatched signing identity fails before any request', async () => {
+  for (const env of [
+    {...baseEnv, OPERATOR_RUNTIME_E2E_SEA_PAIR:''},
+    {...baseEnv, OPERATOR_RUNTIME_E2E_OWNER_PUB:'wrong'}
+  ]) {
+    const probe = simulate({env});
+    await assert.rejects(probe.run(), /identity/);
+    assert.equal(probe.requests.length, 0);
+  }
+});
+
+test('signed enqueue followed by signed status requires durable completion receipt', async () => {
+  const probe = simulate();
+  const result = await probe.run();
+  assert.equal(result.receipt.status, 'completed');
+  assert.deepEqual(probe.requests.map(r => r.action), ['enqueue', 'status']);
+  assert.equal(probe.requests[0].requestId, probe.requests[1].requestId);
+  assert.ok(probe.logs.includes('E2E_PASS=true'));
+  assert.ok(probe.logs.every(line => !line.includes(pair.priv)));
+});
+
+test('uncertain admission only polls same ID and never re-enqueues', async () => {
+  const probe = simulate({admission:fakeResponse(503,{ok:false,error:'uncertain'})});
+  await probe.run();
+  assert.deepEqual(probe.requests.map(r => r.action), ['enqueue','status']);
+});
+
+test('missing timestamps or worker attribution cannot pass', async () => {
+  for (const missing of [{...receipt,startedAt:''},{...receipt,workerDeviceId:''},{...receipt,resultText:''}]) {
+    const probe = simulate({statuses:[fakeResponse(200,{ok:true,record:missing})]});
+    await assert.rejects(probe.run(), /durable, attributable/);
+  }
+});
+
+test('rejected admission fails without status polling', async () => {
+  const probe = simulate({admission:fakeResponse(403,{ok:false})});
+  await assert.rejects(probe.run(), /HTTP 403/);
+  assert.deepEqual(probe.requests.map(r => r.action), ['enqueue']);
 });
