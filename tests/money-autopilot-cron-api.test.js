@@ -157,3 +157,41 @@ test('money autopilot cron forces bounded no-send dry-run despite unsafe query o
   assert.equal(res.body.monetization.checkoutConfigured, true);
 });
 
+test('money autopilot cron rejects overlapping calls and permits a later retry', async () => {
+  let resolveRun;
+  let executions = 0;
+  const handler = createMoneyAutopilotCronHandler({
+    config: {
+      MONEY_AUTOPILOT_CRON_ENABLED: 'true',
+      MONEY_AUTOPILOT_CRON_RUN_AUTHORIZED: 'true',
+      CRON_SECRET: 'cron-secret'
+    },
+    runAutopilotImpl: async () => {
+      executions += 1;
+      if (executions === 1) {
+        await new Promise(resolve => { resolveRun = resolve; });
+      }
+      return { runId: 'bounded-cron', warnings: [] };
+    }
+  });
+  const req = { method: 'GET', headers: { Authorization: 'Bearer cron-secret' } };
+  const first = createMockRes();
+  const firstRun = handler(req, first);
+  assert.equal(executions, 1);
+
+  const overlap = createMockRes();
+  await handler(req, overlap);
+  assert.equal(overlap.statusCode, 409);
+  assert.match(overlap.body.error, /already running/i);
+  assert.equal(executions, 1);
+
+  resolveRun();
+  await firstRun;
+  assert.equal(first.statusCode, 200);
+
+  const later = createMockRes();
+  await handler(req, later);
+  assert.equal(later.statusCode, 200);
+  assert.equal(executions, 2);
+});
+
