@@ -98,7 +98,7 @@ test('money autopilot cron handler requires bearer secret', async () => {
   assert.match(res.body.error, /Unauthorized cron trigger/i);
 });
 
-test('money autopilot cron forces no-send dry-run despite unsafe query overrides', async () => {
+test('money autopilot cron forces bounded no-send dry-run despite unsafe query overrides', async () => {
   let receivedPayload = null;
 
   const handler = createMoneyAutopilotCronHandler({
@@ -131,7 +131,7 @@ test('money autopilot cron forces no-send dry-run despite unsafe query overrides
     method: 'GET',
     query: {
       dryRun: 'false',
-      autoDiscover: 'false',
+      autoDiscover: 'true', // must not force an extra network discovery pass
       publish: 'true',
       vercelDeploy: 'true',
       promotion: 'true'
