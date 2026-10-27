@@ -669,6 +669,20 @@ async function importLegacyGunTasks(options = {}) {
   }
 }
 
+// Opt-in historical reconciliation only. Never call this from the worker's
+// task-claim hot path: a slow/unavailable relay must not block signed work.
+async function runLegacyQueueMaintenance(options = {}) {
+  if (queueStore(options) !== 'sqlite' || !gunSyncEnabled(options)) return false;
+  await syncTerminalResults(options);
+  try {
+    await importLegacyGunTasks(options);
+  } catch (error) {
+    console.warn('[agent-worker] legacy GUN import unavailable; private SQLite queue unaffected',
+      String(error?.name || 'Error'));
+  }
+  return true;
+}
+
 function taskResultText(result = {}) {
   if (result.reason) return String(result.reason);
   if (result.result?.stdout) return String(result.result.stdout);
@@ -709,16 +723,9 @@ async function runWorkerOnce(options = {}) {
       maxConcurrency: profile.maxConcurrency,
     },
   }).catch(() => {});
-  await syncTerminalResults(options);
-  // The public GUN relay is a best-effort historical import, never an
-  // execution authority. A relay outage or malformed legacy record must not
-  // prevent the authenticated private SQLite queue from processing fresh work.
-  try {
-    await importLegacyGunTasks(options);
-  } catch (error) {
-    console.warn('[agent-worker] legacy GUN import unavailable; continuing private SQLite work',
-      String(error?.name || 'Error'));
-  }
+  // Historical GUN synchronization can involve hundreds of sequential
+  // remote reads. It must never delay private SQLite task admission.
+  // Run it separately through the explicit maintenance helper below.
   const tasks = await listTasks(options);
   // An expired running lease is not proof the task is safe to execute twice.
   const queued = tasks
@@ -837,6 +844,14 @@ async function cli(argv = process.argv.slice(2)) {
     console.log(options.json ? JSON.stringify(publicTask(record), null, 2) : formatTask(record));
     return;
   }
+  if (options.command === 'sync-legacy') {
+    // Explicit operator maintenance command; no task execution or replay.
+    // Must be invoked with --queue-store sqlite and a reviewed owner scope.
+    if (queueStore(options) !== 'sqlite') throw new Error('sync-legacy requires --queue-store sqlite');
+    await runLegacyQueueMaintenance(options);
+    console.log('Legacy queue maintenance finished; no tasks executed.');
+    return;
+  }
   if (options.command === 'run-once') {
     const results = await runWorkerOnce(options);
     console.log(options.json ? JSON.stringify(results, null, 2) : `Processed ${results.length} task(s).`);
@@ -846,7 +861,7 @@ async function cli(argv = process.argv.slice(2)) {
     await runWorkerLoop(options);
     return;
   }
-  console.log('Usage: ask-agent-queue enqueue|list|status|result|run-once|loop [options] "task"');
+  console.log('Usage: ask-agent-queue enqueue|list|status|result|run-once|loop|sync-legacy [options] "task"');
 }
 
 function publicTask(record) {
@@ -889,6 +904,7 @@ module.exports = {
   recordTaskLifeEvent,
   requiredWorkerCapabilities,
   runQueuedTask,
+  runLegacyQueueMaintenance,
   runWorkerLoop,
   runWorkerOnce,
   summarizeTaskResult,
