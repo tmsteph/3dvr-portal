@@ -101,6 +101,15 @@ test('actual SQLite transport is idempotent and preserves historical and running
     assert.equal(saved.completedAt, '2026-10-27T11:30:00.000Z', 'signed status must preserve durable worker completion time');
     assert.equal(saved.resultSummaryTruncated, true);
     assert.equal(saved.resultTruncated, false);
+    // A signed status poll must remain readable while a separate worker holds
+    // the SQLite RESERVED writer lock. The old BEGIN IMMEDIATE on status
+    // waited for busy_timeout and failed instead of returning the receipt.
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      const concurrentStatus=invoke({action:'status',id:record.id,prefix:input.prefix});
+      assert.equal(concurrentStatus.status,0,concurrentStatus.stderr);
+      assert.equal(JSON.parse(concurrentStatus.stdout).record.status,'completed');
+    } finally { db.exec('ROLLBACK'); }
     assert.match(operatorTaskReceipt(saved), /complete output/);
     assert.ok(operatorTaskReceipt(saved).endsWith(fullText.trim()));
     const missing=invoke({action:'status',id:'missing',prefix:input.prefix});
