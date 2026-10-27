@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
@@ -23,4 +24,29 @@ test('enabled money cron fails visibly when no bearer secret is configured', () 
   assert.match(line, /cron secret is missing/);
   assert.match(line, /exit 1/);
   assert.ok(line.indexOf('MONEY_AUTOPILOT_CRON_ENABLED') < line.indexOf('/usr/bin/curl'));
+});
+
+test('generated shell gate trims whitespace like the handler, without invoking curl', () => {
+  const line = deploy.split('\n').find(value => value.includes('/api/money/autopilot-cron'));
+  const command = line?.match(/^ExecStart=\/bin\/sh -lc '(.*)'$/)?.[1]?.replace(/\\\$/g, '$');
+  assert.ok(command, 'shell command can be extracted from unit template');
+
+  const run = enabled => spawnSync('/bin/sh', ['-lc', command], {
+    env: {
+      PATH: process.env.PATH || '/usr/bin:/bin',
+      MONEY_AUTOPILOT_CRON_ENABLED: enabled,
+      CRON_SECRET: '',
+      MONEY_AUTOPILOT_CRON_SECRET: ''
+    },
+    encoding: 'utf8',
+    timeout: 2000
+  });
+
+  const enabled = run(' TRUE ');
+  assert.equal(enabled.status, 1, enabled.stderr);
+  assert.match(enabled.stderr, /cron secret is missing/);
+
+  const disabled = run(' FALSE ');
+  assert.equal(disabled.status, 0, disabled.stderr);
+  assert.doesNotMatch(disabled.stderr, /cron secret is missing/);
 });
