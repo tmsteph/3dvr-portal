@@ -22,7 +22,9 @@ if (!capabilities.includes('codex')) throw Error('Codex worker is not configured
 const db = new DatabaseSync(process.env.THREEDVR_AGENT_QUEUE_DB || join(homedir(), '.3dvr', 'task-queue.sqlite'));
 db.exec('PRAGMA busy_timeout=5000');
 try {
-  db.exec('BEGIN IMMEDIATE');
+  // Status polling is read-only: do not acquire a SQLite RESERVED writer lock
+  // while an authenticated worker may be claiming or completing tasks.
+  if (input.action === 'enqueue') db.exec('BEGIN IMMEDIATE');
   const owner = '3dvr-managed';
   let row = db.prepare('SELECT status,record_json,source FROM tasks WHERE owner_alias=? AND id=?').get(owner,input.id);
   // An imported/public legacy row must never impersonate a signed Operator
@@ -49,7 +51,7 @@ try {
       row = { status:'queued', record_json:JSON.stringify(record) };
     }
   }
-  db.exec('COMMIT');
+  if (input.action === 'enqueue') db.exec('COMMIT');
   if (!row) console.log(JSON.stringify({ok:false,missing:true,error:'Task not found.'}));
   else {
     const record = JSON.parse(row.record_json);
