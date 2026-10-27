@@ -1204,7 +1204,8 @@ export async function runAutopilotCycle(options = {}) {
     fetchImpl,
     now,
     openAiApiKey: config.openAiApiKey,
-    openAiModel: config.openAiModel
+    openAiModel: config.openAiModel,
+    disablePaidAi: options.disablePaidAi === true
   });
 
   const offerSelection = selectRevenueBackedOffer(config.offerProfile, revenue);
