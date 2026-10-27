@@ -42,7 +42,7 @@ try {
   if (!row) console.log(JSON.stringify({ok:false,missing:true,error:'Task not found.'}));
   else {
     const record = JSON.parse(row.record_json);
-    console.log(JSON.stringify({ok:true,record:{id:input.id,status:row.status,createdAt:record.createdAt,startedAt:record.startedAt,updatedAt:record.updatedAt,resultSummary:record.resultSummary || '',resultText:String(record.resultText || '').slice(0,24000),resultSummaryTruncated:record.resultSummaryTruncated === true,resultTruncated:record.resultTruncated === true,error:record.error || '',workerDeviceId:record.workerDeviceId || ''}}));
+    console.log(JSON.stringify({ok:true,record:{id:input.id,status:row.status,createdAt:record.createdAt,startedAt:record.startedAt,completedAt:record.completedAt,updatedAt:record.updatedAt,resultSummary:record.resultSummary || '',resultText:String(record.resultText || '').slice(0,24000),resultSummaryTruncated:record.resultSummaryTruncated === true,resultTruncated:record.resultTruncated === true,error:record.error || '',workerDeviceId:record.workerDeviceId || ''}}));
   }
 } finally { db.close(); }
 QUEUE_NODE
