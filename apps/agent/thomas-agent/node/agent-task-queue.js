@@ -804,6 +804,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--model') options.model = argv[++index] || '';
     else if (arg === '--thinking') options.thinking = argv[++index] || '';
     else if (arg === '--id') options.id = argv[++index] || '';
+    else if (arg === '--owner-alias') options.ownerAlias = argv[++index] || '';
     else if (arg === '--tenant-id') options.tenantId = argv[++index] || '';
     else if (arg === '--tenant-alias') options.tenantAlias = argv[++index] || '';
     else if (arg === '--tenant-plan') options.tenantPlan = argv[++index] || '';
@@ -847,7 +848,9 @@ async function cli(argv = process.argv.slice(2)) {
   if (options.command === 'sync-legacy') {
     // Explicit operator maintenance command; no task execution or replay.
     // Must be invoked with --queue-store sqlite and a reviewed owner scope.
-    if (queueStore(options) !== 'sqlite') throw new Error('sync-legacy requires --queue-store sqlite');
+    if (queueStore(options) !== 'sqlite' || !normalizeText(options.ownerAlias)) {
+      throw new Error('sync-legacy requires --queue-store sqlite and --owner-alias');
+    }
     await runLegacyQueueMaintenance(options);
     console.log('Legacy queue maintenance finished; no tasks executed.');
     return;
