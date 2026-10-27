@@ -256,11 +256,14 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
           -- Public GUN mirrors are not authenticated execution admissions.
           -- Signed HTTP tasks are stored with a distinct private source.
           -- Admit them only in the managed owner/namespace; never import GUN.
-          AND (source = 'sqlite' OR (
-            source = 'operator-http'
-            AND owner_alias = '3dvr-managed'
-            AND id GLOB 'operator-http-*'
-          ))
+          AND (
+            (source = 'sqlite' AND id NOT GLOB 'operator-http-*')
+            OR (
+              source = 'operator-http'
+              AND owner_alias = '3dvr-managed'
+              AND id GLOB 'operator-http-*'
+            )
+          )
       `).get(ownerAlias(options), String(id));
       if (!row) {
         db.exec('ROLLBACK');
