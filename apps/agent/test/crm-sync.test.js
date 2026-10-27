@@ -341,6 +341,7 @@ test('CRM last-contact date reflects successful outbound, not a later failure or
   assert.equal(payload.records[0].lastReplyAt, '2026-10-24T12:00:00Z');
   assert.equal(payload.records[0].replyCount, 2);
   assert.equal(payload.records[0].lastDeliveryStatus, 'failed');
+  assert.equal(payload.records[0].lastTouchType, 'outreach-failed', 'a later failed attempt must not look like a sent message or reply');
 });
 
 test('CRM does not invent successful outbound dates from failed, inbound-only or closed legacy states', () => {
@@ -360,4 +361,5 @@ test('CRM does not invent successful outbound dates from failed, inbound-only or
   });
   assert.equal(payload.records[0].lastContacted, '');
   assert.equal(payload.records[0].replyCount, 1);
+  assert.equal(payload.records[0].lastTouchType, 'reply-received');
 });
