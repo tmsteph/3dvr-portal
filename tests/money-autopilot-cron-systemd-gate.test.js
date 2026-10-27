@@ -62,8 +62,10 @@ test('scheduled money cron is a no-publish, no-promotion dry-run even if live fe
   const line = deploy.split('\n').find(value => value.includes('/api/money/autopilot-cron'));
   assert.ok(line);
   assert.match(line, /\/api\/money\/autopilot-cron\?dryRun=true&publish=false&vercelDeploy=false&promotion=false/);
-  assert.match(handler, /readQueryValue\(req, 'dryRun'\)/);
-  assert.match(handler, /readQueryValue\(req, 'publish'\)/);
-  assert.match(handler, /readQueryValue\(req, 'vercelDeploy'\)/);
-  assert.match(handler, /readQueryValue\(req, 'promotion'\)/);
+  assert.match(handler, /MONEY_AUTOPILOT_CRON_RUN_AUTHORIZED/);
+  assert.match(handler, /dryRun: true/);
+  assert.match(handler, /publishEnabled: false/);
+  assert.match(handler, /vercelDeploy: false/);
+  assert.match(handler, /promotionEnabled: false/);
+  assert.doesNotMatch(handler, /readQueryValue\(req, '(?:dryRun|publish|vercelDeploy|promotion)'\)/);
 });
