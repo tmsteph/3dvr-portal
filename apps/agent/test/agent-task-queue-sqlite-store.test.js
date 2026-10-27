@@ -52,6 +52,33 @@ async function queueOptions(t, extra = {}) {
   };
 }
 
+test('shell task with a forged read-only label stays queued without a false receipt', async (t) => {
+  const options = await queueOptions(t, {
+    rootNode: fakeRoot(),
+    gunSync: false,
+    workerCapabilities: 'node,shell',
+    workerRiskClasses: 'read_only,draft',
+  });
+  const id = 'unapproved-shell-readonly';
+  await enqueueTask('echo should-not-run', {
+    ...options, id, backend: 'shell',
+    riskClass: 'read_only', approvalStatus: 'not_required',
+  });
+  let executions = 0;
+  const results = await runWorkerOnce({
+    ...options,
+    runAgentTaskImpl: async () => {
+      executions += 1;
+      return { ok: true, backend: 'shell' };
+    },
+  });
+  assert.deepEqual(results, [], 'shell task is not admitted to the worker');
+  assert.equal(executions, 0, 'no shell backend invocation');
+  const held = await readTask(id, options);
+  assert.equal(held.status, 'queued', 'pending intent is preserved for review');
+  assert.equal(held.completedAt, '', 'no fabricated terminal receipt');
+});
+
 test('signed Operator tasks reserve one executor and require the managed owner', async (t) => {
   const options = await queueOptions(t, { ownerAlias: '3dvr-managed' });
   const other = { ...options, ownerAlias: 'other-owner' };
