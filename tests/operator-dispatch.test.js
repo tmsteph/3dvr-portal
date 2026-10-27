@@ -67,7 +67,7 @@ test('actual SQLite transport is idempotent and preserves historical and running
   insert.run('3dvr-managed',historical.id,'queued','old',JSON.stringify(historical),'sqlite');
   const script=REMOTE_QUEUE_SCRIPT.replace(/if \[ -f .*?fi\n/,'').replace('cd "$HOME/.3dvr/portal/apps/agent"',`cd '${dir}'`).replace('/opt/node-v22/bin/node',process.execPath);
   const record={id:'operator-http-test-task-123',task:'synthetic only',status:'queued',updatedAt:new Date().toISOString(),runtimeWorkItemJson:JSON.stringify({title:'Original title'})};
-  const invoke=(input, queueDb=dbPath) => spawnSync('bash',['-s','--',Buffer.from(JSON.stringify(input)).toString('base64url')],{input:script,encoding:'utf8',env:{...process.env,THREEDVR_AGENT_QUEUE_STORE:'sqlite',THREEDVR_AGENT_OWNER_ALIAS:'3dvr-managed',THREEDVR_AGENT_WORKER_CAPABILITIES:'codex,node',THREEDVR_AGENT_QUEUE_DB:queueDb}});
+  const invoke=(input, queueDb=dbPath, workerCapabilities='codex,node') => spawnSync('bash',['-s','--',Buffer.from(JSON.stringify(input)).toString('base64url')],{input:script,encoding:'utf8',env:{...process.env,THREEDVR_AGENT_QUEUE_STORE:'sqlite',THREEDVR_AGENT_OWNER_ALIAS:'3dvr-managed',THREEDVR_AGENT_WORKER_CAPABILITIES:workerCapabilities,THREEDVR_AGENT_QUEUE_DB:queueDb}});
   try {
     const input={action:'enqueue',id:record.id,prefix:'operator-http-test-',record};
     assert.equal(invoke(input).status,0);
@@ -101,6 +101,14 @@ test('actual SQLite transport is idempotent and preserves historical and running
     assert.equal(saved.completedAt, '2026-10-27T11:30:00.000Z', 'signed status must preserve durable worker completion time');
     assert.equal(saved.resultSummaryTruncated, true);
     assert.equal(saved.resultTruncated, false);
+    // A stopped/reconfigured Codex worker must not hide durable signed receipts.
+    // The same capability loss must still prevent accepting any new work.
+    const offlineStatus=invoke({action:'status',id:record.id,prefix:input.prefix},dbPath,'');
+    assert.equal(offlineStatus.status,0,offlineStatus.stderr);
+    assert.equal(JSON.parse(offlineStatus.stdout).record.status,'completed');
+    const offlineEnqueue=invoke({action:'enqueue',id:'operator-http-test-new-offline',prefix:input.prefix,
+      record:{...record,id:'operator-http-test-new-offline'}},dbPath,'');
+    assert.notEqual(offlineEnqueue.status,0,'offline worker must not accept a new task');
     // A signed status poll must remain readable while a separate worker holds
     // the SQLite RESERVED writer lock. The old BEGIN IMMEDIATE on status
     // waited for busy_timeout and failed instead of returning the receipt.
