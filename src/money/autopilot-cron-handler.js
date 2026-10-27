@@ -48,6 +48,9 @@ export function createMoneyAutopilotCronHandler(options = {}) {
   const runAutopilotImpl = options.runAutopilotImpl || runAutopilotCycle;
   const config = options.config || process.env;
   const stripeClient = options.stripeClient || makeStripeClient(config);
+  // Prevent overlapping authenticated calls within this handler instance.
+  // Cross-process and cross-host scheduling still require a separate single-writer gate.
+  let inFlight = false;
 
   return async function handler(req, res) {
     setHeaders(res);
@@ -79,6 +82,11 @@ export function createMoneyAutopilotCronHandler(options = {}) {
         error: 'Unauthorized cron trigger.'
       });
     }
+
+    if (inFlight) {
+      return res.status(409).json({ error: 'Money autopilot cron already running.' });
+    }
+    inFlight = true;
 
     // This scheduled endpoint is research-only. Never allow URL parameters or
     // environment defaults to turn it into a publisher or outbound sender.
@@ -115,6 +123,8 @@ export function createMoneyAutopilotCronHandler(options = {}) {
       return res.status(500).json({
         error: error?.message || 'Autopilot cron run failed.'
       });
+    } finally {
+      inFlight = false;
     }
   };
 }
