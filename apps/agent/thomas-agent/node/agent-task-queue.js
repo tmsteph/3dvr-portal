@@ -309,6 +309,14 @@ function sameExecutionIntent(before = {}, after = {}) {
 
 function canWorkerRunTask(record = {}, options = {}) {
   const profile = workerProfile(options);
+  // Shell tasks are arbitrary OS commands, not a provably read-only backend.
+  // The underlying orchestrator refuses shell without --unsafe, but letting a
+  // mislabeled read_only shell task reach it would turn queued intent into a
+  // misleading terminal 'skipped' receipt. Hold it for explicit review until
+  // an authenticated, task-bound approval verifier exists.
+  if (normalizeText(record.backend).toLowerCase() === 'shell') {
+    return { ok: false, reason: 'shell backend requires authenticated execution approval; held for review', profile };
+  }
   const required = requiredWorkerCapabilities(record);
   const missingCapabilities = required.filter(capability => !profile.capabilities.includes(capability));
   if (missingCapabilities.length) {
