@@ -36,14 +36,6 @@ function getBearerToken(req) {
   return header;
 }
 
-function readQueryValue(req, key) {
-  const value = req?.query?.[key];
-  if (Array.isArray(value)) {
-    return String(value[0] || '').trim();
-  }
-  return String(value || '').trim();
-}
-
 function readCronSecret(config = process.env) {
   return String(config.CRON_SECRET || config.MONEY_AUTOPILOT_CRON_SECRET || '').trim();
 }
@@ -90,7 +82,9 @@ export function createMoneyAutopilotCronHandler(options = {}) {
 
     // This scheduled endpoint is research-only. Never allow URL parameters or
     // environment defaults to turn it into a publisher or outbound sender.
-    const autoDiscover = parseBoolean(readQueryValue(req, 'autoDiscover'), undefined);
+    // The normal money loop already gathers demand signals. A caller-supplied
+    // autoDiscover=true would trigger an additional network discovery pass,
+    // potentially consuming unreviewed provider quotas. Keep cron bounded.
 
     try {
       const result = await runAutopilotImpl({
@@ -98,7 +92,7 @@ export function createMoneyAutopilotCronHandler(options = {}) {
         // A dry-run can still call paid OpenAI synthesis. Scheduled research
         // must remain no-cost until spending is separately authorized.
         disablePaidAi: true,
-        autoDiscover,
+        autoDiscover: false,
         publishEnabled: false,
         vercelDeploy: false,
         promotionEnabled: false,
