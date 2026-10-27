@@ -147,10 +147,14 @@ export async function runMoneyLoop(input = {}, options = {}) {
   });
 
   const warnings = [...demand.warnings];
-  const openAiApiKey = input.openAiApiKey
+  // A scheduled dry-run may have an inherited API key. Explicit no-cost
+  // execution must not call a paid synthesis provider even when configured.
+  const openAiApiKey = options.disablePaidAi === true ? '' : (
+    input.openAiApiKey
     || options.openAiApiKey
     || process.env.OPENAI_API_KEY
-    || '';
+    || ''
+  );
   const openAiModel = input.openAiModel
     || options.openAiModel
     || process.env.OPENAI_MODEL
