@@ -710,7 +710,15 @@ async function runWorkerOnce(options = {}) {
     },
   }).catch(() => {});
   await syncTerminalResults(options);
-  await importLegacyGunTasks(options);
+  // The public GUN relay is a best-effort historical import, never an
+  // execution authority. A relay outage or malformed legacy record must not
+  // prevent the authenticated private SQLite queue from processing fresh work.
+  try {
+    await importLegacyGunTasks(options);
+  } catch (error) {
+    console.warn('[agent-worker] legacy GUN import unavailable; continuing private SQLite work',
+      String(error?.name || 'Error'));
+  }
   const tasks = await listTasks(options);
   // An expired running lease is not proof the task is safe to execute twice.
   const queued = tasks
