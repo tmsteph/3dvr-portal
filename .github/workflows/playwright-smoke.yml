@@ -65,7 +65,7 @@ jobs:
       - name: Validate self-host money cron gate and deployment script
         run: |
           bash -n scripts/ops/deploy-self-host-portal.sh
-          node --test tests/money-autopilot-cron-systemd-gate.test.js tests/money-autopilot-cron-api.test.js
+          node --test tests/money-autopilot-cron-systemd-gate.test.js tests/money-autopilot-cron-api.test.js tests/money-autopilot.test.js tests/money-engine.test.js
 
       - name: Run Campaigns Gmail sender regression tests
         run: node --test tests/campaigns.test.js tests/oauth-provider-api.test.js
