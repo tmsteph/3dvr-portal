@@ -74,6 +74,9 @@ jobs:
         run: node --test tests/cell-private-store.test.js tests/cell-network.test.js tests/cell-cross-app.test.js tests/cell-invitations.test.js
 
       - name: Run Playwright checks
+        # GitHub hosted runners already include common browser libraries. Avoid slow apt mirrors.
+        env:
+          PLAYWRIGHT_INSTALL_DEPS: 'false'
         run: npm run playwright:verify:linux
 
       - name: Run private Cell mobile browser check
