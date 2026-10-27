@@ -998,6 +998,28 @@ test('SQLite worker imports public GUN intent for review but never executes it',
   assert.equal(legacyExecutions, 0);
 });
 
+test('unavailable legacy GUN relay does not starve authenticated SQLite health work', async (t) => {
+  class UnavailableGunNode extends FakeGunNode {
+    get(key) { return new UnavailableGunNode(this.store, [...this.path, key]); }
+    map() { throw new Error('synthetic legacy relay unavailable'); }
+  }
+  const options = await queueOptions(t, {
+    rootNode: new UnavailableGunNode(new Map()),
+    gunSync: true,
+    workerCapabilities: 'node',
+    limit: 1,
+  });
+  const id = 'private-health-after-gun-outage';
+  await enqueueTask('bounded private health check', { ...options, id, backend: 'health' });
+
+  // Legacy import is only a visibility bridge, not a dependency of execution.
+  const results = await runWorkerOnce(options);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].id, id);
+  assert.equal(results[0].result.ok, true);
+  assert.equal((await readTask(id, options)).status, 'completed');
+});
+
 test('newer GUN requeue cannot replay a failed terminal import', async (t) => {
   const rootNode = fakeRoot();
   const gunOptions = { rootNode, ownerAlias: 'tenant/sqlite:exact', force: true };
