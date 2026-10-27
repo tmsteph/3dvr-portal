@@ -170,6 +170,54 @@ test('worker never executes if its initial SQLite claim renewal is rejected or u
   }
 });
 
+test('background SQLite renewal failure holds both success and error outcomes for review', async (t) => {
+  const options = await queueOptions(t, { gunSync: false, leaseTtlMs: 60 });
+  const originalRenewer = sqliteQueue.createClaimRenewer;
+  let backendCalls = 0;
+  try {
+    for (const mode of ['success', 'error']) {
+      const id = `uncertain-background-renewal-${mode}`;
+      await enqueueTask('Bounded draft work with no external effects', {
+        ...options, id, backend: 'codex', riskClass: 'draft',
+      });
+      let renewals = 0;
+      sqliteQueue.createClaimRenewer = (taskId, token, queueOptions) => {
+        const handle = originalRenewer(taskId, token, queueOptions);
+        return {
+          renew(expiresAt) {
+            if (taskId === id && ++renewals === 2) return false;
+            return handle.renew(expiresAt);
+          },
+          close() { handle.close(); },
+        };
+      };
+      const result = await runQueuedTask(await readTask(id, options), {
+        ...options,
+        runAgentTaskImpl: async () => {
+          backendCalls += 1;
+          await new Promise(resolve => setTimeout(resolve, 120));
+          if (mode === 'error') throw new Error('simulated backend failure after lost heartbeat');
+          return { ok: true, result: { stdout: 'unverified success' } };
+        },
+      });
+      assert.ok(renewals >= 2, 'background renewal failure was exercised');
+      assert.equal(result.ok, false, mode);
+      assert.equal(result.skipped, true, mode);
+      assert.equal(result.requiresReview, true, mode);
+      assert.match(result.reason, /claim renewal unverified.*held for review/i, mode);
+      const persisted = await readTask(id, options);
+      assert.equal(persisted.status, 'running', 'do not fabricate success or failure receipts');
+      assert.equal(persisted.resultSummary, '', 'unverified output must not be persisted as a verified result');
+      assert.equal(sqliteQueue.claimTask(
+        id, 'new-token', 'other-worker', Date.now() + 60_000, Date.now(), options,
+      ), null, 'uncertain work must not be replayed automatically');
+    }
+    assert.equal(backendCalls, 2);
+  } finally {
+    sqliteQueue.createClaimRenewer = originalRenewer;
+  }
+});
+
 test('SQLite renewer setup failure holds one claim without starving independent work', async (t) => {
   const options = await queueOptions(t, { gunSync: false, rootNode: fakeRoot(), limit: 2 });
   await enqueueTask('Do not execute after renewal setup failure', {
