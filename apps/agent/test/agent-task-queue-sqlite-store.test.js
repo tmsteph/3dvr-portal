@@ -1002,8 +1002,13 @@ test('SQLite worker imports public GUN intent for review but never executes it',
 
 test('private SQLite worker never waits for legacy relay maintenance', async (t) => {
   let legacyListReads = 0;
+  let legacyTaskReads = 0;
   class UnavailableGunNode extends FakeGunNode {
     get(key) { return new UnavailableGunNode(this.store, [...this.path, key]); }
+    once(callback) {
+      if (this.path.includes('tasks')) legacyTaskReads += 1;
+      return super.once(callback);
+    }
     map() {
       legacyListReads += 1;
       throw new Error('synthetic legacy relay unavailable');
@@ -1015,11 +1020,19 @@ test('private SQLite worker never waits for legacy relay maintenance', async (t)
     workerCapabilities: 'node',
     limit: 1,
   });
+  // Seed a terminal SQLite row without GUN sync. A full historical mirror
+  // would otherwise read it from the relay before admitting new private work.
+  await enqueueTask('historical local health', {
+    ...options, id: 'prior-local-health', backend: 'health',
+  });
+  await runWorkerOnce({ ...options, gunSync: false });
+  assert.equal((await readTask('prior-local-health', options)).status, 'completed');
   const id = 'private-health-after-gun-outage';
   await enqueueTask('bounded private health check', { ...options, id, backend: 'health' });
 
-  // No historical listing or import is attempted by the signed worker.
+  // Neither historical mirror reads nor legacy listing may precede the task.
   const results = await runWorkerOnce(options);
+  assert.equal(legacyTaskReads, 0);
   assert.equal(legacyListReads, 0);
   assert.equal(results.length, 1);
   assert.equal(results[0].id, id);
@@ -1027,6 +1040,7 @@ test('private SQLite worker never waits for legacy relay maintenance', async (t)
   assert.equal((await readTask(id, options)).status, 'completed');
   // The separate, opt-in maintenance helper tolerates relay failure.
   await runLegacyQueueMaintenance(options);
+  assert.ok(legacyTaskReads > 0, 'maintenance alone performs historical mirror reads');
   assert.equal(legacyListReads, 1);
   assert.equal((await readTask(id, options)).status, 'completed');
 });
