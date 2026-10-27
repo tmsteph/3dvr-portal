@@ -148,3 +148,30 @@ test('runMoneyLoop uses OpenAI output when API key is present', async () => {
   assert.equal(report.adDrafts[0]?.id, 'ad-1');
   assert.equal(report.monetizationNotes[0], 'Offer setup fee plus monthly plan.');
 });
+
+test('runMoneyLoop skips paid synthesis when explicitly disabled, even with a supplied key', async () => {
+  let paidRequests = 0;
+  const safeFetch = createFetchStub({ openAi: false });
+  const report = await runMoneyLoop(
+    {
+      market: 'AV freelancers',
+      keywords: ['automation'],
+      channels: ['reddit'],
+      budget: 0,
+      openAiApiKey: 'sk-must-not-be-used'
+    },
+    {
+      fetchImpl: (...args) => {
+        if (String(args[0]).includes('api.openai.com')) paidRequests += 1;
+        return safeFetch(...args);
+      },
+      disablePaidAi: true,
+      openAiApiKey: 'sk-option-must-not-be-used',
+      now: () => new Date('2026-10-27T19:00:00.000Z')
+    }
+  );
+
+  assert.equal(paidRequests, 0);
+  assert.equal(report.usedOpenAi, false);
+  assert.ok(report.topOpportunity);
+});
