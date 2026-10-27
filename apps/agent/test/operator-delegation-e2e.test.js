@@ -99,8 +99,8 @@ test('legacy GUN Operator delegation stays visible but never executes unsigned i
   assert.deepEqual(workerArgs, [], 'no backend invocation');
   const finalTask = await readTask(built.record.id, { rootNode, ownerAlias });
   assert.equal(finalTask.status, 'queued');
-  assert.equal(finalTask.workerDeviceId, undefined);
-  assert.equal(finalTask.resultSummary, undefined);
+  assert.ok(!finalTask.workerDeviceId, 'no worker claimed the public task');
+  assert.ok(!finalTask.resultSummary, 'no result receipt was fabricated');
 
   const runtime = rootNode.store.get(`${ownerAlias}/taskQueue/runtime/${built.record.id}`);
   assert.equal(runtime.runtimeState, 'queued');
