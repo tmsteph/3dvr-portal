@@ -385,7 +385,10 @@ async function recordTaskLifeEvent(record, options = {}) {
 async function runQueuedTask(record, options = {}) {
   // Signed Operator HTTP tasks are admitted only by the authenticated private
   // SQLite queue. Public GUN records must never impersonate that namespace.
-  if (queueStore(options) !== 'sqlite' && record.id?.startsWith('operator-http-')) {
+  if (record.id?.startsWith('operator-http-')
+    && (queueStore(options) !== 'sqlite'
+      || record.queueSource !== 'operator-http'
+      || (options.ownerAlias || process.env.THREEDVR_AGENT_OWNER_ALIAS) !== '3dvr-managed')) {
     return { ok: false, skipped: true, reason: 'signed Operator task requires private SQLite admission' };
   }
   const runnable = canWorkerRunTask(record, options);
@@ -506,7 +509,8 @@ async function runQueuedTask(record, options = {}) {
         backend: 'health',
         result: { stdout: '3dvr-worker-ok' },
       };
-    } else if (claimed.id?.startsWith('operator-http-') && !options.runAgentTaskImpl) {
+    } else if (claimed.id?.startsWith('operator-http-')
+      && claimed.queueSource === 'operator-http' && !options.runAgentTaskImpl) {
       result = await require('./operator-codex-task').runOperatorCodexTask(claimed);
     } else {
       const runAgentTaskImpl = options.runAgentTaskImpl || require('./task-orchestrator').runAgentTask;
@@ -697,7 +701,7 @@ async function runWorkerOnce(options = {}) {
     // admissions. Signed HTTP tasks use their own private SQLite source.
     // Filter before the batch limit so untrusted rows cannot starve work.
     .filter(task => queueStore(options) !== 'sqlite'
-      || task.queueSource === 'sqlite'
+      || (task.queueSource === 'sqlite' && !task.id?.startsWith('operator-http-'))
       || (task.queueSource === 'operator-http'
         && task.id?.startsWith('operator-http-')
         && (options.ownerAlias || process.env.THREEDVR_AGENT_OWNER_ALIAS) === '3dvr-managed'))
