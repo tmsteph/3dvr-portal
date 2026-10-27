@@ -225,67 +225,41 @@ test('updateTask changes status and formatTask renders results', async () => {
   assert.match(formatTask(updated), /Tenant: tenant-a/);
 });
 
-test('runWorkerOnce claims and executes queued tasks through injected hooks', async () => {
+test('runWorkerOnce never executes public GUN tasks even with worker capabilities', async () => {
   const rootNode = fakeRoot();
+  const options = { rootNode, ownerAlias: 'tenant-a', queueStore: 'gun', force: true };
   await enqueueTask('Summarize leads', {
-    rootNode,
-    ownerAlias: 'tenant-a',
-    id: 'task-3',
-    backend: 'openai',
-    requiredCapabilities: 'openai',
-    force: true,
+    ...options, id: 'task-3', backend: 'openai',
+    riskClass: 'read_only', requiredCapabilities: 'openai',
   });
-  const lifeEvents = [];
+  let executions = 0;
   const results = await runWorkerOnce({
-    rootNode,
-    ownerAlias: 'tenant-a',
-    deviceId: 'do-worker',
-    workerCapabilities: 'node,openai,codex',
-    force: true,
-    recordLifeEventImpl: async (content, eventOptions) => {
-      lifeEvents.push({ content, eventOptions });
-      return { id: 'evt-test' };
-    },
-    runAgentTaskImpl: async () => ({
-      ok: true,
-      backend: 'openai',
-      result: { ok: true, stdout: 'summary' },
-    }),
+    ...options, workerCapabilities: 'node,openai,codex',
+    runAgentTaskImpl: async () => { executions += 1; return { ok: true }; },
   });
-  const completed = await readTask('task-3', { rootNode, ownerAlias: 'tenant-a' });
-
-  assert.equal(results.length, 1);
-  assert.equal(completed.status, 'completed');
-  assert.match(completed.resultSummary, /summary/);
-  assert.equal(lifeEvents.length, 1);
-  assert.match(lifeEvents[0].content, /Agent task completed: Summarize leads/);
-  assert.equal(lifeEvents[0].eventOptions.kind, 'task.completed');
-  assert.equal(lifeEvents[0].eventOptions.sourceId, 'task-3');
+  assert.deepEqual(results, []);
+  assert.equal(executions, 0);
+  assert.equal((await readTask('task-3', options)).status, 'queued');
 });
-
-test('GUN worker rejects stale task text after lease without executing', async () => {
+test('direct GUN execution fails closed before lease or backend dispatch', async () => {
   const rootNode = fakeRoot();
-  const options = {
-    rootNode, ownerAlias: 'tenant-a', deviceId: 'do-worker',
-    workerCapabilities: 'node,codex', force: true,
-  };
+  const options = { rootNode, ownerAlias: 'tenant-a', queueStore: 'gun', force: true };
   const snapshot = await enqueueTask('Draft buyer research', {
     ...options, id: 'stale-text', backend: 'codex', riskClass: 'draft',
   });
   await updateTask(snapshot.id, { task: 'Different instruction' }, options);
   let executions = 0;
   const result = await runQueuedTask(snapshot, {
-    ...options,
+    ...options, workerCapabilities: 'node,codex',
     runAgentTaskImpl: async () => { executions += 1; return { ok: true }; },
   });
-  const after = await readTask(snapshot.id, options);
   assert.equal(executions, 0);
   assert.equal(result.skipped, true);
-  assert.match(result.reason, /GUN task changed/);
+  assert.match(result.reason, /Public GUN queue execution disabled/);
+  const after = await readTask(snapshot.id, options);
   assert.equal(after.status, 'queued');
   assert.equal(after.task, 'Different instruction');
 });
-
 test('GUN worker rejects approval and capability changes after initial read', async () => {
   const rootNode = fakeRoot();
   const options = {
@@ -310,73 +284,38 @@ test('GUN worker rejects approval and capability changes after initial read', as
   assert.equal((await readTask(snapshot.id, options)).status, 'queued');
 });
 
-test('GUN worker compares array capabilities by value and rejects changed intent', async () => {
+test('GUN worker cannot execute even an otherwise runnable intrinsic health task', async () => {
   const rootNode = fakeRoot();
   const options = {
-    rootNode, ownerAlias: 'tenant-a', deviceId: 'do-worker',
+    rootNode, ownerAlias: 'tenant-a', queueStore: 'gun',
     workerCapabilities: 'node,shell', force: true,
   };
-  const equal = await enqueueTask('Check worker health', {
+  const record = await enqueueTask('Check worker health', {
     ...options, id: 'gun-array-equal', backend: 'health', riskClass: 'read_only',
   });
-  const equalStored = await readTask(equal.id, options);
-  // Simulate a legacy GUN record with an array, then a separate JSON read.
-  equalStored.requiredCapabilities = ['node'];
-  const equalSnapshot = { ...equalStored, requiredCapabilities: ['node'] };
-  const completed = await runQueuedTask(equalSnapshot, options);
-  assert.equal(completed.ok, true, 'equivalent arrays must not block a valid task');
-  assert.equal((await readTask(equal.id, options)).status, 'completed');
-
-  const changed = await enqueueTask('Check worker health again', {
-    ...options, id: 'gun-array-changed', backend: 'health', riskClass: 'read_only',
-  });
-  const changedStored = await readTask(changed.id, options);
-  changedStored.requiredCapabilities = ['node', 'shell'];
-  const staleSnapshot = { ...changedStored, requiredCapabilities: ['node'] };
-  const rejected = await runQueuedTask(staleSnapshot, options);
-  assert.equal(rejected.skipped, true, 'changed capability intent must remain blocked');
-  assert.match(rejected.reason, /GUN task changed/);
-  assert.equal((await readTask(changed.id, options)).status, 'queued');
+  const stored = await readTask(record.id, options);
+  stored.requiredCapabilities = ['node'];
+  const result = await runQueuedTask({ ...stored, requiredCapabilities: ['node'] }, options);
+  assert.equal(result.ok, false);
+  assert.equal(result.skipped, true);
+  assert.match(result.reason, /Public GUN queue execution disabled/);
+  assert.equal((await readTask(record.id, options)).status, 'queued');
 });
-
-test('health task completes without invoking a model or shell executor', async () => {
+test('legacy public GUN health tasks are not an execution bypass', async () => {
   const rootNode = fakeRoot();
+  const options = { rootNode, ownerAlias: 'tenant-a', queueStore: 'gun', force: true };
   await enqueueTask('Worker health check', {
-    rootNode,
-    ownerAlias: 'tenant-a',
-    id: 'health-task',
-    backend: 'health',
-    riskClass: 'read_only',
-    force: true,
+    ...options, id: 'health-task', backend: 'health', riskClass: 'read_only',
   });
   let externalExecutions = 0;
-  const lifeEvents = [];
-
   const results = await runWorkerOnce({
-    rootNode,
-    ownerAlias: 'tenant-a',
-    deviceId: 'do-worker',
-    workerCapabilities: 'node,codex',
-    force: true,
-    recordLifeEventImpl: async (content, eventOptions) => {
-      lifeEvents.push({ content, eventOptions });
-      return { id: 'evt-health' };
-    },
-    runAgentTaskImpl: async () => {
-      externalExecutions += 1;
-      throw new Error('health backend must not invoke task orchestrator');
-    },
+    ...options, workerCapabilities: 'node,codex',
+    runAgentTaskImpl: async () => { externalExecutions += 1; throw new Error('must not run'); },
   });
-  const completed = await readTask('health-task', { rootNode, ownerAlias: 'tenant-a' });
-
+  assert.deepEqual(results, []);
   assert.equal(externalExecutions, 0);
-  assert.equal(results.length, 1);
-  assert.equal(results[0].result.backend, 'health');
-  assert.equal(completed.status, 'completed');
-  assert.match(completed.resultSummary, /3dvr-worker-ok/);
-  assert.equal(lifeEvents.length, 0);
+  assert.equal((await readTask('health-task', options)).status, 'queued');
 });
-
 test('worker skips tasks that need approval or unsupported capabilities', async () => {
   const rootNode = fakeRoot();
   await enqueueTask('Deploy site', {
