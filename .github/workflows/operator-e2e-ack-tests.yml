@@ -21,12 +21,14 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
       - run: node --check scripts/operator-runtime-worker-e2e.mjs
       - run: node --check scripts/ops/operator-queue-routing-audit.mjs
       - run: node --check scripts/ops/operator-stale-queue-audit.mjs
