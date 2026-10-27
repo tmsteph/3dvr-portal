@@ -157,6 +157,34 @@ test('money autopilot cron forces bounded no-send dry-run despite unsafe query o
   assert.equal(res.body.monetization.checkoutConfigured, true);
 });
 
+test('money autopilot cron releases in-flight guard after an execution error', async () => {
+  let executions = 0;
+  const handler = createMoneyAutopilotCronHandler({
+    config: {
+      MONEY_AUTOPILOT_CRON_ENABLED: 'true',
+      MONEY_AUTOPILOT_CRON_RUN_AUTHORIZED: 'true',
+      CRON_SECRET: 'cron-secret'
+    },
+    runAutopilotImpl: async () => {
+      executions += 1;
+      if (executions === 1) throw new Error('synthetic upstream failure');
+      return { runId: 'recovered-cron', warnings: [] };
+    }
+  });
+  const req = { method: 'GET', headers: { Authorization: 'Bearer cron-secret' } };
+
+  const failed = createMockRes();
+  await handler(req, failed);
+  assert.equal(failed.statusCode, 500);
+  assert.match(failed.body.error, /synthetic upstream failure/);
+
+  const retried = createMockRes();
+  await handler(req, retried);
+  assert.equal(retried.statusCode, 200);
+  assert.equal(retried.body.runId, 'recovered-cron');
+  assert.equal(executions, 2);
+});
+
 test('money autopilot cron rejects overlapping calls and permits a later retry', async () => {
   let resolveRun;
   let executions = 0;
