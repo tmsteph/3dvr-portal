@@ -29,7 +29,18 @@ try {
   // task, even when its ID and task text collide with a legitimate request.
   if (row && row.source !== 'operator-http') throw Error('Task identity conflict');
   if (input.action === 'enqueue') {
-    if (row && JSON.parse(row.record_json).task !== input.record.task) throw Error('Task identity conflict');
+    if (row) {
+      const previous = JSON.parse(row.record_json);
+      const requested = input.record;
+      // A retry may reuse the same request ID only for the same signed intent.
+      // The title lives inside the work-item JSON, not the executable task text.
+      const title = record => record.runtimeWorkItemJson
+        ? JSON.parse(record.runtimeWorkItemJson).title || ''
+        : '';
+      if (previous.task !== requested.task || title(previous) !== title(requested)) {
+        throw Error('Task identity conflict');
+      }
+    }
     if (!row) {
       const count = db.prepare("SELECT count(*) AS n FROM tasks WHERE owner_alias=? AND id LIKE ? AND status IN ('queued','running')").get(owner,input.prefix+'%').n;
       if (count >= 5) throw Error('Five tasks are already pending; wait for a result');
