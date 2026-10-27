@@ -1,0 +1,16 @@
+# Esai AV portfolio and media kit
+
+Portal path: https://portal.3dvr.tech/esai/
+Kit: https://portal.3dvr.tech/esai/kit/
+
+Content supplied by Thomas: Esai Gamboa works in AV and has worked with Encore and SD Showdown. No dates, job titles, gear specialties, endorsements, rates, availability, or union affiliation are asserted. No Facebook identity was confidently verified. Portrait source: https://www.3dvr.tech/media/Esai_Gamboa.jpg (existing public 3DVR team profile).
+
+Booking uses the canonical 3DVR email as an explicitly labeled intermediary until Esai supplies his direct booking details. No messages are sent by this page.
+
+The QR encodes the permanent portal path, not an unconfigured subdomain. The page can later redirect from esai.3dvr.tech without reprinting the QR. Social share buttons open the platform composer; they do not post automatically.
+
+Print PDF: two pages, 3.75 x 2.25 inches, including 0.125-inch bleed; trim to 3.5 x 2 inches. Each side is 1125 x 675 pixels at 300 DPI. The back uses the intermediary booking email. Confirm copy, contact route, and printer duplex orientation with Esai before ordering.
+
+Rebuild: python3 esai/source/generate-kit.py (Pillow and reportlab, plus system DejaVu fonts). QR PNG/SVG retain a four-module white quiet zone. Square: 1080x1080; story: 1080x1920; landscape/open-graph: 1200x630. Captions are downloadable.
+
+Validation: all local page/asset links checked; social graphics and both rendered PDF pages visually inspected. No billing, identity, runtime, DNS, or routing behavior changed.
