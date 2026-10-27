@@ -49,24 +49,27 @@ async function queueOptions(t, extra = {}) {
   };
 }
 
-test('signed Operator tasks reserve a single native executor across owners', async (t) => {
-  const options = await queueOptions(t);
+test('signed Operator tasks reserve one executor and require the managed owner', async (t) => {
+  const options = await queueOptions(t, { ownerAlias: '3dvr-managed' });
   const other = { ...options, ownerAlias: 'other-owner' };
   const now = Date.now();
   const a = { id: 'operator-http-first-owner', task: 'first', status: 'queued', updatedAt: new Date(now).toISOString() };
   const b = { ...a, id: 'operator-http-second-owner', task: 'second' };
-  sqliteQueue.insertTask(a, options);
-  sqliteQueue.insertTask(b, other);
+  sqliteQueue.insertTask(a, { ...options, queueSource: 'operator-http' });
+  sqliteQueue.insertTask(b, { ...options, queueSource: 'operator-http' });
+  sqliteQueue.insertTask({ ...b, id: 'operator-http-other-owner' }, { ...other, queueSource: 'operator-http' });
   assert.ok(sqliteQueue.claimTask(a.id, 'first-claim', 'worker-a', now + 60_000, now, options));
-  assert.equal(sqliteQueue.claimTask(b.id, 'second-claim', 'worker-b', now + 60_000, now, other), null);
-  assert.equal(sqliteQueue.readTask(b.id, other).status, 'queued');
+  assert.equal(sqliteQueue.claimTask(b.id, 'second-claim', 'worker-b', now + 60_000, now, options), null);
+  assert.equal(sqliteQueue.readTask(b.id, options).status, 'queued');
   const running = sqliteQueue.readTask(a.id, options);
   assert.ok(sqliteQueue.finishTask(a.id, 'first-claim', { ...running, status: 'completed' }, options));
-  assert.ok(sqliteQueue.claimTask(b.id, 'second-claim', 'worker-b', now + 60_000, now, other));
+  assert.ok(sqliteQueue.claimTask(b.id, 'second-claim', 'worker-b', now + 60_000, now, options));
+  assert.equal(sqliteQueue.claimTask('operator-http-other-owner', 'other-claim', 'worker-c',
+    now + 60_000, now, other), null);
 });
 
 test('expired Operator executor lease releases admission without replaying its task', async (t) => {
-  const options = await queueOptions(t);
+  const options = await queueOptions(t, { ownerAlias: '3dvr-managed', queueSource: 'operator-http' });
   const now = Date.now();
   const a = { id: 'operator-http-expired-first', task: 'first', status: 'queued', updatedAt: new Date(now).toISOString() };
   const b = { ...a, id: 'operator-http-expired-second', task: 'second' };
@@ -1078,6 +1081,10 @@ test('signed HTTP SQLite admission executes while forged sources and owners stay
     return { ok: true, result: { stdout: 'bounded signed task completed' } };
   };
   const signedId = 'operator-http-signed-source-test';
+  const nativeSpoofId = 'operator-http-native-source-spoof';
+  await enqueueTask('Native source cannot impersonate signed HTTP', {
+    ...options, id: nativeSpoofId, backend: 'codex', queueSource: 'sqlite',
+  });
   await enqueueTask('Private bounded task', {
     ...options, id: signedId, backend: 'codex',
     queueSource: 'operator-http',
@@ -1105,10 +1112,11 @@ test('signed HTTP SQLite admission executes while forged sources and owners stay
   assert.equal(completed.queueSource, 'operator-http');
   assert.equal(completed.status, 'completed');
   assert.equal(completed.resultText, 'bounded signed task completed');
-  for (const id of ['legacy-gun-source-test', 'forged-http-source-test']) {
+  for (const id of ['legacy-gun-source-test', 'forged-http-source-test', nativeSpoofId]) {
     assert.equal((await readTask(id, options)).status, 'queued');
   }
   const now = Date.now();
+  assert.equal(sqliteQueue.claimTask(nativeSpoofId, 'native-spoof-token', 'worker', now + 60_000, now, options), null);
   assert.equal(sqliteQueue.claimTask('legacy-gun-source-test', 'legacy-token', 'worker', now + 60_000, now, options), null);
   assert.equal(sqliteQueue.claimTask('forged-http-source-test', 'forged-token', 'worker', now + 60_000, now, options), null);
   assert.deepEqual(await runWorkerOnce({ ...otherOwner, runAgentTaskImpl }), []);
@@ -1119,7 +1127,7 @@ test('signed HTTP SQLite admission executes while forged sources and owners stay
 
 test('signed HTTP tasks keep prompts and results out of the public relay and memory', async (t) => {
   const rootNode = fakeRoot();
-  const gunOptions = {rootNode, ownerAlias:'tenant/http:private', force:true};
+  const gunOptions = {rootNode, ownerAlias:'3dvr-managed', force:true};
   let lifeEvents = 0;
   const options = await queueOptions(t, {
     ...gunOptions, queueStore:'sqlite', workerCapabilities:'codex',
@@ -1127,7 +1135,7 @@ test('signed HTTP tasks keep prompts and results out of the public relay and mem
     recordLifeEventImpl:async () => {lifeEvents++;}
   });
   const id='operator-http-private-test';
-  await enqueueTask('private prompt', {...options,id,backend:'codex'});
+  await enqueueTask('private prompt', {...options,id,backend:'codex',queueSource:'operator-http'});
   await runWorkerOnce(options);
   const finished = await readTask(id, options);
   assert.equal(finished.status, 'completed');
