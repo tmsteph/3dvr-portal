@@ -19,7 +19,7 @@ const input = JSON.parse(Buffer.from(process.argv[2], 'base64url').toString());
 if (process.env.THREEDVR_AGENT_QUEUE_STORE !== 'sqlite' || process.env.THREEDVR_AGENT_OWNER_ALIAS !== '3dvr-managed') throw Error('Managed queue configuration mismatch');
 const capabilities = (process.env.THREEDVR_AGENT_WORKER_CAPABILITIES || '').split(',');
 if (!capabilities.includes('codex')) throw Error('Codex worker is not configured');
-const db = new DatabaseSync(process.env.THREEDVR_AGENT_QUEUE_DB || join(homedir(), '.3dvr', 'task-queue.sqlite'));
+// A signed status request is observation only: never create a missing queue DB\n// or acquire write access when the worker is responsible for all mutations.\nconst db = new DatabaseSync(process.env.THREEDVR_AGENT_QUEUE_DB || join(homedir(), '.3dvr', 'task-queue.sqlite'), { readOnly: input.action === 'status' });
 db.exec('PRAGMA busy_timeout=5000');
 try {
   // Status polling is read-only: do not acquire a SQLite RESERVED writer lock
