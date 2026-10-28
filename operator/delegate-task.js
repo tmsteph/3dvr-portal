@@ -204,7 +204,9 @@ function watchConfirmedTask(requestId, options = {}) {
     } catch (error) {
       if (stopped) return;
       failures += 1;
-      if ([401,403,404].includes(error.status) || failures >= 3) {
+      // A 404 can be a transient read after an uncertain enqueue. Retry the
+      // same signed request ID briefly; never resubmit the task.
+      if ([401,403].includes(error.status) || failures >= 3) {
         options.onUpdate?.({status:'status_unavailable',error:error.message});
         return stop();
       }
