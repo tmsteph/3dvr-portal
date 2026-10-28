@@ -49,7 +49,7 @@ test('real Gun package does not persist local RAD files with disk disabled', () 
       "const client = createGun({ peers: [], rad: false, radisk: false, file: false, multicast: false });",
       "client.get('synthetic-disk-check').get('value').put('safe');",
       "setTimeout(() => process.exit(0), 800);",
-    ].join('\\n');
+    ].join('\n');
     const child = spawnSync(process.execPath, ['-e', script, require.resolve('gun')], {
       cwd: directory,
       encoding: 'utf8',
