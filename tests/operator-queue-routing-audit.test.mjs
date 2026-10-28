@@ -69,3 +69,15 @@ test('configured matching capabilities do not trigger mismatch warning', () => {
   assert.deepEqual(result.missingRequiredCapabilities, []);
   assert.deepEqual(result.warnings, []);
 });
+
+test('unset worker capabilities cannot silently pass required-capability audit', () => {
+  const result = inspectRouting({
+    THREEDVR_AGENT_OWNER_ALIAS: '3dvr-managed',
+    THREEDVR_AGENT_QUEUE_STORE: 'sqlite',
+    THREEDVR_OPERATOR_AUDIT_REQUIRED_CAPABILITIES: 'codex,shell',
+  }, noDb);
+  assert.equal(result.workerCapabilitiesConfigured, false);
+  assert.deepEqual(result.missingRequiredCapabilities, ['codex', 'shell']);
+  assert.ok(result.warnings.some(warning => warning.includes('unverified')));
+  assert.ok(result.warnings.some(warning => warning.includes('Do not enable stale tasks')));
+});
