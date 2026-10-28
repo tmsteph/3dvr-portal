@@ -62,6 +62,25 @@ test('expert-needed buyer phrasing is discovered without promoting unverified de
   assert.ok(leads.every(lead => lead.budget === 'undecided' && lead.qualified === false && lead.stage === 'discovered'));
 });
 
+
+test('employer For Hire vacancies are discovered but freelancer offers remain excluded', () => {
+  const now = Date.parse('2026-10-28T22:00:00Z');
+  const item = (title, id) =>
+    '<item><title>' + title + '</title><link>https://community.n8n.io/t/post/' + id +
+    '</link><pubDate>Wed, 28 Oct 2026 17:00:00 GMT</pubDate><description>Contract scope and budget require verification.</description></item>';
+  const leads = parseJobFeed('<rss>' +
+    item('For Hire: AI Workflow Engineer at 7shifts (Remote - Canada/US Only)', 'buyer-1') +
+    item('For Hire: Automation Specialist at ExampleCo', 'buyer-2') +
+    item('For Hire: n8n Engineer — available for your projects', 'seller-1') +
+    item('For Hire: AI Engineer at ExampleCo — offering my services', 'seller-2') +
+    '</rss>', now);
+  assert.deepEqual(leads.map(lead => lead.sourceUrl), [
+    'https://community.n8n.io/t/post/buyer-1',
+    'https://community.n8n.io/t/post/buyer-2'
+  ]);
+  assert.ok(leads.every(lead => lead.stage === 'discovered' && lead.qualified === false && lead.budget === 'undecided'));
+});
+
 test('suppressed leads cannot get a reply draft', () => {
   assert.throws(() => draftReply({ ...base, stage: 'do-not-contact' }), /not available/);
 });
