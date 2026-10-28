@@ -113,6 +113,31 @@ test('an incidental 42 in a non-answer cannot falsely pass the signed canary', a
   assert.ok(!probe.logs.includes('E2E_PASS=true'));
 });
 
+test('invalid signed status protocol fails immediately rather than timing out', async () => {
+  for (const response of [
+    fakeResponse(400, {ok:false,error:'invalid task request'}),
+    fakeResponse(405, {ok:false,error:'method not allowed'}),
+    fakeResponse(422, {ok:false,error:'invalid signed status'}),
+    fakeResponse(200, {ok:false}),
+    fakeResponse(200, {ok:true})
+  ]) {
+    const probe = simulate({statuses:[response]});
+    await assert.rejects(probe.run(), /Signed status protocol rejected the request/);
+    assert.deepEqual(probe.requests.map(r => r.action), ['enqueue','status']);
+    assert.ok(!probe.logs.includes('E2E_PASS=true'));
+  }
+});
+
+test('404 after uncertain admission can recover without duplicate enqueue', async () => {
+  const probe = simulate({
+    admission:fakeResponse(503,{ok:false,error:'uncertain'}),
+    statuses:[fakeResponse(404,{ok:false,missing:true}),fakeResponse(200,{ok:true,record:receipt})]
+  });
+  await probe.run();
+  assert.deepEqual(probe.requests.map(r => r.action), ['enqueue','status','status']);
+  assert.ok(probe.logs.includes('E2E_PASS=true'));
+});
+
 test('rejected admission fails without status polling', async () => {
   const probe = simulate({admission:fakeResponse(403,{ok:false})});
   await assert.rejects(probe.run(), /HTTP 403/);
