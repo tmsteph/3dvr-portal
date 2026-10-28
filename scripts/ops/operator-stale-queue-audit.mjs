@@ -23,7 +23,7 @@ export function summarizeQueue(records, env = {}, now = Date.now()) {
     mode: 'read_only_metadata_review_not_execution_authorization',
     workerCapabilitiesConfigured,
     total: records.length, statusCounts: {}, runningClaims: { active: 0, expired: 0, unknown: 0 }, queuedAgeBuckets: {},
-    queuedCapabilities: {}, queuedRisks: {}, queuedEffectiveRisks: {}, queuedApprovals: {},
+    queuedCapabilities: {}, queuedSources: {}, queuedRisks: {}, queuedEffectiveRisks: {}, queuedApprovals: {},
     reviewFlags: {}, queuedReviews: []
   };
   for (const record of records) {
@@ -38,6 +38,10 @@ export function summarizeQueue(records, env = {}, now = Date.now()) {
       continue;
     }
     if (record.status !== 'queued') continue;
+    // Source is trusted only as a coarse classification. Never expose arbitrary
+    // producer-supplied strings, which could contain private task metadata.
+    const source = ['operator-http', 'gun', 'sqlite'].includes(record.source) ? record.source : 'other';
+    bump(summary.queuedSources, source);
     const created = Date.parse(record.createdAt || record.updatedAt || '');
     const days = Number.isFinite(created) && created <= now ? (now - created) / 86400000 : null;
     bump(summary.queuedAgeBuckets, days === null ? 'unknown' : days > 30 ? '>30d' : days > 7 ? '7-30d' : '<=7d');
@@ -92,10 +96,14 @@ export function auditManagedSqlite(env = process.env) {
   const path = env.THREEDVR_AGENT_QUEUE_DB || join(homedir(), '.3dvr', 'task-queue.sqlite');
   const db = new DatabaseSync(path, { readOnly: true });
   try {
-    const rows = db.prepare('SELECT status, record_json, claim_expires_at FROM tasks WHERE owner_alias = ?')
+    // Older queue fixtures/stores may lack the source column. Keep the audit
+    // read-only and classify those records as 'other' instead of failing.
+    const hasSource = db.prepare('PRAGMA table_info(tasks)').all().some(column => column.name === 'source');
+    const sourceColumn = hasSource ? 'source' : 'NULL AS source';
+    const rows = db.prepare(`SELECT status, record_json, claim_expires_at, ${sourceColumn} FROM tasks WHERE owner_alias = ?`)
       .all(env.THREEDVR_AGENT_OWNER_ALIAS);
     return summarizeQueue(rows.map(row => ({
-      ...JSON.parse(row.record_json), status: row.status, claimExpiresAt: row.claim_expires_at
+      ...JSON.parse(row.record_json), status: row.status, source: row.source, claimExpiresAt: row.claim_expires_at
     })), env);
   } finally {
     db.close();
