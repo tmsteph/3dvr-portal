@@ -130,6 +130,7 @@ test('invalid signed status protocol fails immediately rather than timing out', 
 
 test('404 after uncertain admission can recover without duplicate enqueue', async () => {
   const probe = simulate({
+    env:{...baseEnv, OPERATOR_RUNTIME_E2E_TIMEOUT_MS:'5000'},
     admission:fakeResponse(503,{ok:false,error:'uncertain'}),
     statuses:[fakeResponse(404,{ok:false,missing:true}),fakeResponse(200,{ok:true,record:receipt})]
   });
