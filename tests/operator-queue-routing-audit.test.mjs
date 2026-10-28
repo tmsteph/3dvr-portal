@@ -77,9 +77,10 @@ test('read-only audit identifies stale capability mismatch without changing conf
   assert.deepEqual(env, snapshot);
 });
 
-test('configured matching capabilities do not trigger mismatch warning', () => {
+test('configured matching capabilities and SQLite store do not trigger mismatch warning', () => {
   const result = inspectRouting({
     THREEDVR_AGENT_OWNER_ALIAS: '3dvr-managed',
+    THREEDVR_AGENT_QUEUE_STORE: 'sqlite',
     THREEDVR_AGENT_WORKER_CAPABILITIES: 'auto,shell,node',
     THREEDVR_OPERATOR_AUDIT_REQUIRED_CAPABILITIES: 'auto,shell',
   }, noDb);
