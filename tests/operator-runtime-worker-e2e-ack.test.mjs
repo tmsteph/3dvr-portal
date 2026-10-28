@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import SEA from 'gun/sea.js';
 import { runOperatorRuntimeE2E } from '../scripts/operator-runtime-worker-e2e.mjs';
@@ -11,7 +12,9 @@ const baseEnv = {
   OPERATOR_RUNTIME_E2E_OWNER_PUB: pair.pub,
   OPERATOR_RUNTIME_E2E_TIMEOUT_MS: '1000'
 };
-const receipt = { status: 'completed', startedAt: '2026-10-27T12:00:00Z',
+const expectedTaskIdPrefix = `operator-http-${createHash('sha256').update(pair.pub).digest('hex').slice(0,24)}-`;
+const receipt = { id: `${expectedTaskIdPrefix}operator-e2e-12345678123412341234123456789012`,
+  status: 'completed', startedAt: '2026-10-27T12:00:00Z',
   completedAt: '2026-10-27T12:00:01Z', workerDeviceId: 'synthetic-worker', resultText: '42' };
 
 function fakeResponse(status, result) {
@@ -31,8 +34,10 @@ function simulate({ env = baseEnv, admission = fakeResponse(202, {ok:true}),
     assert.equal(signed.scope, 'operator-runtime-task');
     assert.equal(signed.origin, 'https://portal.3dvr.tech');
     requests.push({action:body.action, requestId:body.requestId});
-    return body.action === 'enqueue' ? admission
-      : statuses[Math.min(statusIndex++, statuses.length - 1)];
+    if (body.action === 'enqueue') return admission;
+    const status = statuses[Math.min(statusIndex++, statuses.length - 1)];
+    const payload = await status.json();
+    return fakeResponse(status.status, {...payload, requestId: payload.requestId ?? body.requestId});
   };
   const run = () => runOperatorRuntimeE2E({ env, fetchImpl, log: message => logs.push(message),
     now: () => clock, sleep: async ms => {clock += ms;}, newId: () => '12345678-1234-1234-1234-123456789012' });
@@ -77,6 +82,24 @@ test('missing timestamps or worker attribution cannot pass', async () => {
     const probe = simulate({statuses:[fakeResponse(200,{ok:true,record:missing})]});
     await assert.rejects(probe.run(), /durable, attributable/);
   }
+});
+
+test('mismatched task ID or request ID cannot count as completed execution', async () => {
+  for (const response of [
+    fakeResponse(200, {ok:true, record:{...receipt,id:'operator-http-unrelated'}}),
+    fakeResponse(200, {ok:true, requestId:'different-request-id', record:receipt})
+  ]) {
+    const probe = simulate({statuses:[response]});
+    await assert.rejects(probe.run(), /mismatched task receipt/);
+    assert.deepEqual(probe.requests.map(r => r.action), ['enqueue','status']);
+    assert.ok(!probe.logs.includes('E2E_PASS=true'));
+  }
+});
+
+test('incorrect result is not accepted as a successful canary', async () => {
+  const probe = simulate({statuses:[fakeResponse(200, {ok:true,record:{...receipt,resultText:'41'}})]});
+  await assert.rejects(probe.run(), /expected canary answer/);
+  assert.ok(!probe.logs.includes('E2E_PASS=true'));
 });
 
 test('rejected admission fails without status polling', async () => {
