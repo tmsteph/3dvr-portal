@@ -253,3 +253,25 @@ test('money autopilot cron rejects overlapping calls and permits a later retry',
   assert.equal(executions, 2);
 });
 
+test('money cron never presents a zero-signal fallback as verified demand', async () => {
+  const handler = createMoneyAutopilotCronHandler({
+    config: {
+      MONEY_AUTOPILOT_CRON_ENABLED: 'true',
+      MONEY_AUTOPILOT_CRON_RUN_AUTHORIZED: 'true',
+      CRON_SECRET: 'cron-secret'
+    },
+    runAutopilotImpl: async () => ({
+      runId: 'synthetic-no-signals',
+      signalsAnalyzed: 0,
+      topOpportunity: { title: 'Generic fallback', evidence: ['Fallback opportunity generated without external demand signals.'] },
+      warnings: ['Demand sources unavailable']
+    })
+  });
+
+  const res = createMockRes();
+  await handler({ method: 'GET', headers: { Authorization: 'Bearer cron-secret' } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.signalsAnalyzed, 0);
+  assert.equal(res.body.topOpportunity, null);
+  assert.deepEqual(res.body.warnings, ['Demand sources unavailable']);
+});
