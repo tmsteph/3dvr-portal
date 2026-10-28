@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import SEA from 'gun/sea.js';
@@ -32,6 +32,7 @@ export async function runOperatorRuntimeE2E({
     throw new Error('Signed owner identity failed self-check.');
   }
   const requestId = `operator-e2e-${newId().replace(/-/g, '')}`;
+  const expectedTaskId = `operator-http-${createHash('sha256').update(pair.pub).digest('hex').slice(0,24)}-${requestId}`;
   const task = {
     action: 'enqueue', requestId,
     title: 'Signed Operator execution canary',
@@ -74,6 +75,10 @@ export async function runOperatorRuntimeE2E({
       throw new Error(`Signed status authorization rejected (HTTP ${response.status}).`);
     }
     if (response.status === 200 && response.result?.ok && response.result?.record) {
+      // A completed receipt from another task is not proof this canary ran.
+      if (response.result.requestId !== requestId || response.result.record.id !== expectedTaskId) {
+        throw new Error('Signed status returned a mismatched task receipt.');
+      }
       lastRecord = response.result.record;
       const state = lastRecord.status || 'unknown';
       if (states.at(-1) !== state) { states.push(state); log(`E2E_STATE=${state}`); }
@@ -92,6 +97,10 @@ export async function runOperatorRuntimeE2E({
       !lastRecord.workerDeviceId ||
       !(lastRecord.resultText || lastRecord.resultSummary)) {
     throw new Error('Task completed without a durable, attributable execution receipt.');
+  }
+  // The test checks both worker attribution and the actual requested answer.
+  if (!/\b42\b/.test(`${lastRecord.resultText || ''}\n${lastRecord.resultSummary || ''}`)) {
+    throw new Error('Signed task receipt did not contain the expected canary answer.');
   }
   log(`E2E_RECEIPT=${JSON.stringify({ requestId, status: lastRecord.status,
     startedAt: lastRecord.startedAt, completedAt: lastRecord.completedAt,
