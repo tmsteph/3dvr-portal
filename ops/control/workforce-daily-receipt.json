@@ -1,67 +1,33 @@
 {
-  "localDate": "2026-09-27",
+  "localDate": "2026-10-28",
   "timezone": "America/Los_Angeles",
   "lighthouse": {
-    "checkedAt": "2026-09-27T15:42:24.548Z",
-    "source": "authenticated OVH general browser lane (CDP 9222) via Lighthouse week API",
+    "checkedAt": "2026-10-28T15:21:07.859Z",
+    "source": "authenticated OVH general CDP 9222 Lighthouse week API",
     "weeksChecked": [
-      "2026-09-21",
-      "2026-09-28",
-      "2026-10-05",
-      "2026-10-12",
-      "2026-10-19",
-      "2026-10-26"
+      "2026-10-26",
+      "2026-11-02",
+      "2026-11-09",
+      "2026-11-16",
+      "2026-11-23",
+      "2026-11-30"
     ]
   },
   "iatse": {
-    "outcome": "changed",
-    "changedDates": [
-      {
-        "date": "2026-10-28",
-        "from": "Not Specified",
-        "to": "Booked"
-      }
-    ],
+    "checkedAt": "2026-10-28T15:22:31.856Z",
+    "outcome": "noop",
+    "changedDates": [],
+    "deferredDates": [],
+    "renderedWindow": {
+      "start": "2026-10-27",
+      "end": "2026-11-28"
+    },
+    "mismatches": [],
     "persistedAfterReload": true,
-    "deferredDates": [
-      {
-        "date": "2026-10-29",
-        "reason": "outside current IATSE rendered availability window"
-      },
-      {
-        "date": "2026-10-30",
-        "reason": "outside current IATSE rendered availability window"
-      },
-      {
-        "date": "2026-10-31",
-        "reason": "outside current IATSE rendered availability window; planned rest day"
-      },
-      {
-        "date": "2026-11-01",
-        "reason": "outside current IATSE rendered availability window; planned rest day"
-      }
-    ]
+    "desiredDatesChecked": 24
   },
-  "diagnostics": {
-    "ovhReachableViaSshMesh": true,
-    "generalLaneRunning": true,
-    "secretsBrokerActive": true,
-    "desktopCommanderState": "recovered after restarting desktop-commander-remote.service; direct OVH command execution verified",
-    "iatseRenderedWindow": "2026-09-26 through 2026-10-28"
-  },
-  "automation": {
-    "dailySyncEnabled": true,
-    "automationId": "6a9f3945809c8191af45fa6e7087e9e0",
-    "behavior": "idempotent daily Lighthouse API read + verified IATSE write/defer + durable receipt"
-  },
-  "implementation": {
-    "mergedPr": 2793,
-    "mergeCommit": "cd16494a69cdb00ccc828230dda67d410883e85f",
-    "iatseSetterBehavior": "future dates outside rendered window are deferred, not failures; in-window mismatches remain errors",
-    "resiliencePr": 2793,
-    "resilienceMergeCommit": "cd16494a69cdb00ccc828230dda67d410883e85f",
-    "manualReconcilePr": 2794,
-    "manualReconcileMergeCommit": "196ad9f3dad08e4151cecfc15419147c67ff77e3",
-    "emergencyWorkflowBehavior": "requires explicit desired date→availability payload and restarts the general lane only when CDP is unhealthy"
+  "verification": {
+    "sourceWeeksHttp200": true,
+    "iatseReloadVerified": true
   }
 }
