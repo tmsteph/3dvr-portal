@@ -206,7 +206,7 @@ function watchConfirmedTask(requestId, options = {}) {
       failures += 1;
       // A 404 can be a transient read after an uncertain enqueue. Retry the
       // same signed request ID briefly; never resubmit the task.
-      if ([401,403].includes(error.status) || failures >= 3) {
+      if ([400,401,403,405,422].includes(error.status) || failures >= 3) {
         options.onUpdate?.({status:'status_unavailable',error:error.message});
         return stop();
       }
@@ -234,7 +234,7 @@ export async function queueOperatorTask(action = {}) {
     confirmed = true;
     message = 'The server saved your task for the Codex worker.';
   } catch (error) {
-    if ([400,401,403].includes(error.status) || /Sign in/.test(error.message)) throw error;
+    if ([400,401,403,405,422].includes(error.status) || /Sign in/.test(error.message)) throw error;
     // A missing HTTP response is not proof that the write failed. Poll the
     // same request identity; never re-enqueue or silently fall back to Gun.
     message = 'Checking delivery. I will look up this task before any retry.';
