@@ -36,7 +36,7 @@ export async function runOperatorRuntimeE2E({
   const task = {
     action: 'enqueue', requestId,
     title: 'Signed Operator execution canary',
-    text: 'Calculate 6 times 7. Return only the answer and a short explanation. Do not access networks, files, accounts, or external services; do not make changes.'
+    text: 'What is 6 multiplied by 7? Respond with only the integer answer, without explanation. Do not access networks, files, accounts, or external services; do not make changes.'
   };
   const timeoutMs = Math.min(240000, Math.max(1000, Number(env.OPERATOR_RUNTIME_E2E_TIMEOUT_MS) || 120000));
   const pollMs = 2000;
@@ -99,7 +99,8 @@ export async function runOperatorRuntimeE2E({
     throw new Error('Task completed without a durable, attributable execution receipt.');
   }
   // The test checks both worker attribution and the actual requested answer.
-  if (!/\b42\b/.test(`${lastRecord.resultText || ''}\n${lastRecord.resultSummary || ''}`)) {
+  const answer = String(lastRecord.resultText || lastRecord.resultSummary || '').trim();
+  if (answer !== '42') {
     throw new Error('Signed task receipt did not contain the expected canary answer.');
   }
   log(`E2E_RECEIPT=${JSON.stringify({ requestId, status: lastRecord.status,
