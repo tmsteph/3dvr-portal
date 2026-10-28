@@ -111,7 +111,9 @@ export function createMoneyAutopilotCronHandler(options = {}) {
         mode: 'cron',
         runId: result.runId,
         generatedAt: result.generatedAt,
-        topOpportunity: result.topOpportunity,
+        // The money engine can generate a generic fallback with zero source
+        // signals. Do not present that synthetic idea as observed demand.
+        topOpportunity: Number(result.signalsAnalyzed) > 0 ? result.topOpportunity : null,
         signalsAnalyzed: result.signalsAnalyzed,
         publish: result.publish,
         promotion: result.promotion,
