@@ -187,7 +187,19 @@ function watchConfirmedTask(requestId, options = {}) {
       const result = await taskRequest('status', requestId);
       if (stopped) return;
       failures = 0;
-      options.onUpdate?.({...result.record, id:`operator-http:${requestId}`});
+      // The server derives the durable queue ID from the authenticated owner
+      // and request ID. Never show a different task's completion as ours.
+      // Preserve uncertainty rather than clearing a caller's retry guard.
+      const serverId = result.record?.id;
+      if (result.requestId !== requestId ||
+          typeof serverId !== 'string' ||
+          !/^operator-http-[0-9a-f]{24}-/.test(serverId) ||
+          !serverId.endsWith(`-${requestId}`)) {
+        options.onUpdate?.({status:'status_unavailable',
+          error:'Signed status returned a mismatched task identity. Verify the saved task before retrying.'});
+        return stop();
+      }
+      options.onUpdate?.({...result.record, serverTaskId:serverId, id:`operator-http:${requestId}`});
       if (isOperatorTaskTerminal(result.record)) return stop();
     } catch (error) {
       if (stopped) return;
