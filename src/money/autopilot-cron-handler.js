@@ -99,6 +99,9 @@ export function createMoneyAutopilotCronHandler(options = {}) {
         // A dry-run can still call paid OpenAI synthesis. Scheduled research
         // must remain no-cost until spending is separately authorized.
         disablePaidAi: true,
+        // Stripe and authenticated analytics reads can consume provider quotas
+        // even during dry runs. Keep cron on public demand signals only.
+        disableAuthenticatedReads: true,
         autoDiscover: false,
         publishEnabled: false,
         vercelDeploy: false,
