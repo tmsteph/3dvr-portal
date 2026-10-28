@@ -82,6 +82,17 @@ test('exact prior completion only flags possible duplicate, never automatically 
   assert.ok(report.queuedReviews[0].flags.includes('missing_capability'));
 });
 
+test('audit never marks auto backend eligible when only node is configured', () => {
+  const task = { id: 'auto-with-weaker-requires', status: 'queued', backend: 'auto',
+    requiredCapabilities: 'node', task: 'public research',
+    createdAt: '2026-10-23T09:00:00Z', riskClass: 'read_only' };
+  const report = summarizeQueue([task], env, now);
+  assert.equal(report.queuedCapabilities.auto, 1);
+  assert.equal(report.queuedCapabilities.node, 1);
+  assert.ok(report.queuedReviews[0].flags.includes('missing_capability'));
+  assert.ok(!report.queuedReviews[0].flags.includes('metadata_eligible_not_authorized'));
+});
+
 test('fresh intrinsic health metadata is not execution authorization', () => {
   const task = { id: 'health', status: 'queued', backend: 'health', task: 'health', createdAt: '2026-10-23T09:00:00Z', riskClass: 'read_only' };
   const report = summarizeQueue([task], env, now);
