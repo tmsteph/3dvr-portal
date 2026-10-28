@@ -60,7 +60,23 @@ export function operatorTaskReceipt(record = {}) {
     : output;
   // A stopped browser poll is not a worker failure or a blocked queue task.
   if (status === 'status_unavailable') return 'Operator Runtime status could not be verified. The saved task may still be queued, running, or complete. Do not resubmit; check the same task ID.';
-  if (status === 'completed') return summary ? `Operator Runtime finished. Result: ${summary}` : 'Operator Runtime finished.';
+  if (status === 'completed') {
+    // A queue status alone is not evidence that a worker executed the task.
+    // Require the same attributable fields as the signed E2E canary before
+    // presenting completion as a worker result. This is still not proof of
+    // any external side effect or provider acknowledgement.
+    const started = Date.parse(record.startedAt || '');
+    const completed = Date.parse(record.completedAt || '');
+    const attributable = Number.isFinite(started) && Number.isFinite(completed)
+      && completed >= started && Boolean(normalizeText(record.workerDeviceId, 200))
+      && Boolean(normalizeText(record.resultText || record.resultSummary, 24000));
+    if (!attributable) {
+      return summary
+        ? `Operator Runtime reports completion, but its worker receipt is incomplete. Reported result: ${summary}`
+        : 'Operator Runtime reports completion, but its worker receipt is incomplete. Verify execution before relying on it.';
+    }
+    return `Operator Runtime finished. Result: ${summary}`;
+  }
   if (status === 'review') return summary ? `Operator Runtime needs your input: ${summary}` : 'Operator Runtime needs your input.';
   if (status === 'blocked') return summary ? `Operator Runtime is blocked: ${summary}` : 'Operator Runtime is blocked.';
   if (['failed', 'skipped', 'cancelled', 'canceled'].includes(status)) {
