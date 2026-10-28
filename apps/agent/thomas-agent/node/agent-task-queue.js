@@ -287,7 +287,9 @@ function workerProfile(options = {}) {
 function requiredWorkerCapabilities(record = {}) {
   const backend = normalizeText(record.backend || DEFAULT_BACKEND).toLowerCase();
   const required = new Set(csvToList(record.requiredCapabilities || record.requires));
-  if (!INTRINSIC_BACKENDS.has(backend) && backend && backend !== 'auto') {
+  // Auto is an executable backend too: a worker must explicitly advertise it.
+  // Otherwise a producer could hide auto behind a weaker requires list.
+  if (!INTRINSIC_BACKENDS.has(backend) && backend) {
     required.add(backend);
   }
   return [...required];
