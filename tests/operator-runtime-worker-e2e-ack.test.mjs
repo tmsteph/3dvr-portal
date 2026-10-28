@@ -34,7 +34,10 @@ function simulate({ env = baseEnv, admission = fakeResponse(202, {ok:true}),
     assert.equal(signed.scope, 'operator-runtime-task');
     assert.equal(signed.origin, 'https://portal.3dvr.tech');
     requests.push({action:body.action, requestId:body.requestId});
-    if (body.action === 'enqueue') return admission;
+    if (body.action === 'enqueue') {
+      assert.doesNotMatch(body.text, /\b42\b/, 'canary prompt must not supply the expected answer');
+      return admission;
+    }
     const status = statuses[Math.min(statusIndex++, statuses.length - 1)];
     const payload = await status.json();
     return fakeResponse(status.status, {...payload, requestId: payload.requestId ?? body.requestId});
@@ -98,6 +101,14 @@ test('mismatched task ID or request ID cannot count as completed execution', asy
 
 test('incorrect result is not accepted as a successful canary', async () => {
   const probe = simulate({statuses:[fakeResponse(200, {ok:true,record:{...receipt,resultText:'41'}})]});
+  await assert.rejects(probe.run(), /expected canary answer/);
+  assert.ok(!probe.logs.includes('E2E_PASS=true'));
+});
+
+test('an incidental 42 in a non-answer cannot falsely pass the signed canary', async () => {
+  const probe = simulate({statuses:[fakeResponse(200, {ok:true,record:{
+    ...receipt, resultText:'The expected number might be 42, but I did not perform the task.'
+  }})]});
   await assert.rejects(probe.run(), /expected canary answer/);
   assert.ok(!probe.logs.includes('E2E_PASS=true'));
 });
