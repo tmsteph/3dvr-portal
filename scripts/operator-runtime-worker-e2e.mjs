@@ -74,6 +74,13 @@ export async function runOperatorRuntimeE2E({
     if (response.status === 401 || response.status === 403) {
       throw new Error(`Signed status authorization rejected (HTTP ${response.status}).`);
     }
+    // Invalid signed requests cannot recover by polling. Surface the actual
+    // protocol error instead of waiting two minutes and reporting a timeout.
+    // Keep polling 404 (uncertain admission), 429, and 503 (transient).
+    if ([400, 405, 422].includes(response.status) ||
+        (response.status === 200 && (!response.result?.ok || !response.result?.record))) {
+      throw new Error(`Signed status protocol rejected the request (HTTP ${response.status}).`);
+    }
     if (response.status === 200 && response.result?.ok && response.result?.record) {
       // A completed receipt from another task is not proof this canary ran.
       if (response.result.requestId !== requestId || response.result.record.id !== expectedTaskId) {
