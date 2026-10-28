@@ -8,6 +8,8 @@ test('default environment does not match managed browser producer', () => {
   const result = inspectRouting({}, noDb);
   assert.equal(result.queueStore, 'gun');
   assert.equal(result.browserWorkerOwnerMatch, false);
+  assert.equal(result.browserWorkerStoreMatch, false);
+  assert.ok(result.warnings.some(warning => warning.includes('worker uses GUN')));
   assert.equal(result.gunSqliteOwnerMatch, true);
   assert.equal(result.explicitOwnerConfigured, false);
 });
@@ -23,8 +25,23 @@ test('explicit managed owner aligns browser, GUN and SQLite', () => {
     const result = inspectRouting({ THREEDVR_AGENT_OWNER_ALIAS: '3dvr-managed', THREEDVR_AGENT_QUEUE_STORE: store }, noDb);
     assert.equal(result.gunSqliteOwnerMatch, true);
     assert.equal(result.browserWorkerOwnerMatch, true);
-    assert.deepEqual(result.warnings, []);
+    assert.equal(result.browserWorkerStoreMatch, store === 'sqlite');
+    if (store === 'sqlite') assert.deepEqual(result.warnings, []);
+    else assert.ok(result.warnings.some(warning => warning.includes('matching owner aliases do not establish queue connectivity')));
   }
+});
+
+test('GUN worker cannot be reported compatible with signed SQLite dispatch even when owner matches', () => {
+  const result = inspectRouting({
+    THREEDVR_AGENT_OWNER_ALIAS: '3dvr-managed',
+    THREEDVR_AGENT_QUEUE_STORE: 'gun',
+    THREEDVR_AGENT_WORKER_CAPABILITIES: 'codex,node',
+    THREEDVR_OPERATOR_AUDIT_REQUIRED_CAPABILITIES: 'codex',
+  }, noDb);
+  assert.equal(result.browserWorkerOwnerMatch, true);
+  assert.equal(result.missingRequiredCapabilities.length, 0);
+  assert.equal(result.browserWorkerStoreMatch, false);
+  assert.ok(result.warnings.some(warning => warning.includes('worker uses GUN')));
 });
 
 test('reports database existence without opening or exposing configured path', () => {
