@@ -34,6 +34,25 @@ test('parseProspectsCsv reads allowlist and prospect fields', () => {
   assert.equal(prospects[1].channel, 'text');
 });
 
+test('prospect CSV keeps multiline quoted notes in one lead and rejects truncated records', () => {
+  const csv = [
+    'name,email,segment,relationship,allow_auto_send,problem_hint,notes',
+    '"Dana, Jr.",dana@example.com,creator,warm,true,"First line',
+    'Second line, with ""quoted"" detail","Asked for a draft"',
+    'Lee,lee@example.com,contractor,known,false,Simple site,Follow up later'
+  ].join('\r\n');
+  const leads = parseProspectsCsv(csv);
+  assert.equal(leads.length, 2, 'an embedded newline must not create a phantom lead');
+  assert.equal(leads[0].name, 'Dana, Jr.');
+  assert.equal(leads[0].problemHint, 'First line\r\nSecond line, with "quoted" detail');
+  assert.equal(leads[0].notes, 'Asked for a draft');
+  assert.equal(leads[1].name, 'Lee');
+  assert.throws(
+    () => parseProspectsCsv('name,problem_hint\nDana,"Unclosed note\nFake,lead'),
+    /unterminated quoted field/
+  );
+});
+
 test('buildOutboundQueue defaults to approval-required and drafts personal messages', () => {
   const queue = buildOutboundQueue({
     autopilot,
