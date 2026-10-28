@@ -24,6 +24,11 @@ test('delegated task status is concise and keeps the runtime budget honest', () 
   assert.match(operatorTaskProgress({ status:'running' }, 120_000), /Working/);
   assert.equal(isOperatorTaskTerminal({ status:'running' }), false);
   assert.equal(isOperatorTaskTerminal({ status:'completed' }), true);
+  assert.match(operatorTaskProgress({ status:'completed' }), /receipt unverified/);
+  assert.match(operatorTaskProgress({
+    status:'completed', resultSummary:'42', workerDeviceId:'worker-1',
+    startedAt:'2026-10-28T10:00:00Z', completedAt:'2026-10-28T10:00:05Z'
+  }), /worker receipt present/);
   assert.equal(
     operatorTaskReceipt({
       status:'completed', resultSummary:'Found the issue and verified the fix.',
