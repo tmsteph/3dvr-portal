@@ -19,6 +19,14 @@ test('installed money cron uses the same bearer secret precedence as its handler
   assert.ok(line.indexOf('CRON_SECRET') < line.indexOf('/usr/bin/curl'));
 });
 
+test('cron bearer secret travels through curl stdin, never the process argument list', () => {
+  const line = deploy.split('\n').find(value => value.includes('/api/money/autopilot-cron'));
+  assert.ok(line);
+  assert.match(line, /printf "Authorization: Bearer %s/);
+  assert.match(line, /--header @-/);
+  assert.doesNotMatch(line, /-H "Authorization: Bearer/);
+});
+
 test('enabled money cron fails visibly when no bearer secret is configured', () => {
   const line = deploy.split('\n').find(value => value.includes('/api/money/autopilot-cron'));
   assert.ok(line);
