@@ -36,7 +36,7 @@ These are roles, not permanent model identities. Any capable worker can fill a r
 
 1. **Research** — find a real opportunity and collect evidence.
 2. **Qualify** — confirm fit, route, need, and next best action.
-3. **Outreach** — prepare and send a bounded direct message under policy.
+3. **Outreach** — prepare a bounded message draft, pause for explicit per-message human approval, and send only after a separately verified authorization.
 4. **Wait / listen** — capture delivery, reply, and failure evidence.
 5. **Follow up** — schedule and execute the next touch instead of losing the lead in chat history.
 6. **Proposal** — turn interest into a concrete scope, price, and next step.
@@ -53,7 +53,7 @@ Current outbound rule:
 
 - All external outreach (including fresh direct email) requires per-message human approval before sending. A business-hours window or campaign cap never substitutes for approval.
 - Known contacts also require a human send checkpoint.
-- Unknown relationships are classified before autonomous outreach.
+- Unknown relationships must be classified before a contact-specific outreach plan; classification alone never authorizes a send.
 - Non-email outbound is also approval-gated.
 - Signatures, payments, account/security changes, and other sensitive identity actions remain human-checkpoint work.
 
@@ -117,7 +117,7 @@ The first managed owner is `3dvr-managed`. The sidecar is a compatibility bridge
 - [ ] Create a `lead-to-sale` work item from the CRM record.
 - [ ] Persist every stage transition from evidence, not manual narrative.
 - [ ] Make the same item visible in Growth Desk and Workboard.
-- [ ] Stop at the appropriate human checkpoint for known contacts or sensitive outbound.
+- [ ] Stop at a fresh, identity-bound human checkpoint before **every** external message, including cold email and follow-ups.
 
 ### Phase 3 — real worker handoffs
 
