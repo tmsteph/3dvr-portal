@@ -36,45 +36,52 @@ function slugify(value = '') {
     .replace(/^-+|-+$/g, '') || 'prospect';
 }
 
-function splitCsvLine(line = '') {
-  const cells = [];
+// CSV drafts can contain quoted newlines, commas, and escaped quotes.
+// Parse complete records rather than treating every physical line as a lead.
+function parseCsvRows(csv = '') {
+  const source = String(csv || '').replace(/^\uFEFF/, '');
+  const rows = [];
+  let row = [];
   let cell = '';
   let quoted = false;
-
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index];
-    const next = line[index + 1];
-    if (char === '"' && quoted && next === '"') {
-      cell += '"';
-      index += 1;
-      continue;
-    }
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
     if (char === '"') {
-      quoted = !quoted;
-      continue;
-    }
-    if (char === ',' && !quoted) {
-      cells.push(cell);
+      if (quoted && source[index + 1] === '"') {
+        cell += '"';
+        index += 1;
+      } else if (quoted) {
+        quoted = false;
+      } else if (!cell.trim()) {
+        quoted = true;
+      } else {
+        cell += char;
+      }
+    } else if (char === ',' && !quoted) {
+      row.push(clean(cell));
       cell = '';
-      continue;
+    } else if ((char === '\n' || char === '\r') && !quoted) {
+      if (char === '\r' && source[index + 1] === '\n') index += 1;
+      row.push(clean(cell));
+      if (row.some(Boolean)) rows.push(row);
+      row = [];
+      cell = '';
+    } else {
+      cell += char;
     }
-    cell += char;
   }
-
-  cells.push(cell);
-  return cells.map(clean);
+  if (quoted) throw new Error('Invalid prospect CSV: unterminated quoted field');
+  row.push(clean(cell));
+  if (row.some(Boolean)) rows.push(row);
+  return rows;
 }
 
 export function parseProspectsCsv(csv = '') {
-  const lines = String(csv || '')
-    .split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(Boolean);
-  if (lines.length < 2) return [];
+  const rows = parseCsvRows(csv);
+  if (rows.length < 2) return [];
 
-  const headers = splitCsvLine(lines[0]).map(header => slugify(header).replace(/-/g, '_'));
-  return lines.slice(1).map((line, index) => {
-    const cells = splitCsvLine(line);
+  const headers = rows[0].map(header => slugify(header).replace(/-/g, '_'));
+  return rows.slice(1).map((cells, index) => {
     const row = {};
     headers.forEach((header, cellIndex) => {
       row[header] = cells[cellIndex] || '';
