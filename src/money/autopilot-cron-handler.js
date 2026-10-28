@@ -1,5 +1,4 @@
 import { runAutopilotCycle } from './autopilot.js';
-import { makeStripeClient } from '../billing/stripe.js';
 
 function parseBoolean(value, fallback) {
   if (typeof value === 'boolean') {
@@ -46,7 +45,6 @@ function setHeaders(res) {
 export function createMoneyAutopilotCronHandler(options = {}) {
   const runAutopilotImpl = options.runAutopilotImpl || runAutopilotCycle;
   const config = options.config || process.env;
-  const stripeClient = options.stripeClient || makeStripeClient(config);
   // Prevent overlapping authenticated calls within this handler instance.
   // Cross-process and cross-host scheduling still require a separate single-writer gate.
   let inFlight = false;
@@ -105,8 +103,7 @@ export function createMoneyAutopilotCronHandler(options = {}) {
         autoDiscover: false,
         publishEnabled: false,
         vercelDeploy: false,
-        promotionEnabled: false,
-        stripeClient
+        promotionEnabled: false
       });
 
       return res.status(200).json({
