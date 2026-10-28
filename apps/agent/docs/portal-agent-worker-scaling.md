@@ -292,23 +292,37 @@ Portal users should not need to understand workers, DigitalOcean, tmux, or Codex
 9. Add isolated workspace support.
 10. Add dedicated worker provisioning for paid users.
 
-## Current DigitalOcean Role
+## Current DigitalOcean Role — edge and fallback
 
-The current DO server should be treated as:
+**Do not diagnose the absence of a DigitalOcean queue worker as an outage by itself.**
+The deployed edge-guardrail design in `ops/resilience/install-do-edge-guardrails.sh`
+explicitly removes the `3dvr-worker` and `3dvr-supervisor` tmux sessions
+from DigitalOcean to avoid duplicating Hetzner's worker role on a small edge node.
+
+A read-only check on 2026-10-28 confirmed that `3dvr-agent.service` is a
+`Type=oneshot`, `RemainAfterExit=yes` launcher for `3dvr agent start`.
+Its `active/exited` status **does not prove a running task worker**.
+No queue-worker process or tmux session was found on DigitalOcean; its
+managed SQLite queue contained 42 queued, 153 completed, and 5 failed tasks.
+This is a queue census, **not** proof that any of those tasks can safely run.
+
+Current roles:
 
 ```text
-bootstrap shared worker
-static hosting edge
-operator/admin worker
+OVH: primary portal/control plane
+Hetzner: designated worker and queue-execution lane (verify live health)
+DigitalOcean: lightweight edge, portal fallback, and recovery lane
 ```
 
-It is enough to prove the model, but it should not be the final infinite-capacity agent.
+Before changing any worker placement, verify Hetzner's actual queue-polling
+process, latest successful claim/receipt, capabilities, queue ownership, and
+which host holds the authoritative queue. A tmux session or an active oneshot
+service alone is not execution evidence. Do not restart a worker, broaden
+capabilities, replay stale work, or promote DO to a worker without a reviewed
+capacity and release plan.
 
-Near-term limits:
-
-- one Codex task at a time
-- no arbitrary user secrets on shared worker
-- no unsupervised external side effects
-- use leases and handled records for dedupe
-- log every message sent to a model or external service
+If DigitalOcean is deliberately re-enabled as a shared worker later, keep
+concurrency at one, isolate user secrets, enforce per-task approvals and
+idempotency, and record authenticated worker receipts. It is not an
+infinite-capacity agent.
 
