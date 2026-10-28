@@ -203,6 +203,40 @@ test('browser never reports another signed task receipt as completed', async () 
   }
 });
 
+test('browser tolerates a transient 404 after uncertain signed admission without enqueuing again', async () => {
+  const previous = Object.fromEntries(['Gun','localStorage','location','fetch'].map(key => [key,globalThis[key]]));
+  const user={is:{pub:pair.pub,alias:'tmsteph@3dvr'},_:{sea:pair},recall(){}};
+  const Gun=() => ({user:() => user});
+  Gun.SEA=SEA;
+  globalThis.Gun=Gun;
+  globalThis.localStorage={getItem:key=>({signedIn:'true',alias:'tmsteph@3dvr',userPubKey:pair.pub}[key] || null)};
+  globalThis.location={origin};
+  const requestId='task-transient-missing-12345';
+  const actions=[];
+  try {
+    globalThis.fetch=async (_url,options)=>{
+      const body=JSON.parse(options.body);
+      actions.push(body.action);
+      assert.equal(body.action,'status','a missing receipt must never cause a second enqueue');
+      assert.equal(body.requestId,requestId);
+      if (actions.length === 1) return {ok:false,status:404,json:async()=>({ok:false,error:'Task not found.'})};
+      return {ok:true,status:200,json:async()=>({ok:true,requestId,record:{
+        id:`operator-http-${'a'.repeat(24)}-${requestId}`,status:'completed',resultSummary:'42'
+      }})};
+    };
+    const done=await new Promise(resolve=>watchOperatorTask(`operator-http:${requestId}`,{
+      timeoutMs:6000,onUpdate:record=>{if(isOperatorTaskTerminal(record))resolve(record);}
+    }));
+    assert.equal(done.status,'completed');
+    assert.equal(done.resultSummary,'42');
+    assert.deepEqual(actions,['status','status']);
+  } finally {
+    for(const [key,value] of Object.entries(previous)) {
+      if(value===undefined)delete globalThis[key];else globalThis[key]=value;
+    }
+  }
+});
+
 test('task receipts prefer complete output and explicitly label the storage bound', () => {
   const text = 'a'.repeat(6000) + 'TAIL';
   const receipt = operatorTaskReceipt({status:'completed',resultText:text,resultSummary:text.slice(0,2000),resultSummaryTruncated:true});
