@@ -165,6 +165,44 @@ test('browser recovers a lost enqueue response by looking up the same signed tas
   } finally {for(const [key,value] of Object.entries(previous)){if(value===undefined)delete globalThis[key];else globalThis[key]=value;}}
 });
 
+test('browser never reports another signed task receipt as completed', async () => {
+  const previous = Object.fromEntries(['Gun','localStorage','location','fetch'].map(key => [key,globalThis[key]]));
+  const user={is:{pub:pair.pub,alias:'tmsteph@3dvr'},_:{sea:pair},recall(){}};
+  const Gun=() => ({user:() => user});
+  Gun.SEA=SEA;
+  globalThis.Gun=Gun;
+  globalThis.localStorage={getItem:key=>({signedIn:'true',alias:'tmsteph@3dvr',userPubKey:pair.pub}[key] || null)};
+  globalThis.location={origin};
+  const requestId='task-signed-browser-identity-12345';
+  const validId=`operator-http-${'a'.repeat(24)}-${requestId}`;
+  const cases=[
+    {requestId:'different-request-12345',record:{id:validId,status:'completed',resultSummary:'42'}},
+    {requestId,record:{id:`operator-http-${'a'.repeat(24)}-different-request-12345`,status:'completed',resultSummary:'42'}},
+    {requestId,record:{id:'legacy-gun-task-12345',status:'completed',resultSummary:'42'}},
+    {requestId,record:{status:'completed',resultSummary:'42'}},
+  ];
+  try {
+    for (const payload of cases) {
+      let calls=0;
+      globalThis.fetch=async (_url,options)=>{
+        const body=JSON.parse(options.body);
+        assert.equal(body.action,'status');
+        assert.equal(body.requestId,requestId);
+        calls++;
+        return {ok:true,status:200,json:async()=>({ok:true,...payload})};
+      };
+      const result=await new Promise(resolve=>watchOperatorTask(`operator-http:${requestId}`,{onUpdate:resolve}));
+      assert.equal(result.status,'status_unavailable');
+      assert.match(result.error,/mismatched task identity/);
+      assert.equal(calls,1,'a mismatched receipt must not be polled as a valid task');
+    }
+  } finally {
+    for(const [key,value] of Object.entries(previous)) {
+      if(value===undefined)delete globalThis[key];else globalThis[key]=value;
+    }
+  }
+});
+
 test('task receipts prefer complete output and explicitly label the storage bound', () => {
   const text = 'a'.repeat(6000) + 'TAIL';
   const receipt = operatorTaskReceipt({status:'completed',resultText:text,resultSummary:text.slice(0,2000),resultSummaryTruncated:true});
