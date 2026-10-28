@@ -192,3 +192,45 @@ test('unsafe low-risk labels are evaluated as external_write, not metadata eligi
     assert.equal(JSON.stringify(report).includes(task.task), false);
   }
 });
+
+
+test('queue source provenance is counted without leaking unknown source labels or task content', () => {
+  const records = [
+    { id: 'private-operator', status: 'queued', source: 'operator-http', backend: 'codex', task: 'private operator text' },
+    { id: 'private-gun', status: 'queued', source: 'gun', backend: 'auto', task: 'private gun text' },
+    { id: 'private-sqlite', status: 'queued', source: 'sqlite', backend: 'shell', task: 'private sqlite text' },
+    { id: 'private-unknown', status: 'queued', source: 'secret-user-label', backend: 'auto', task: 'private unknown text' },
+    { id: 'private-done', status: 'completed', source: 'operator-http', backend: 'codex', task: 'private done text' },
+  ];
+  const report = summarizeQueue(records, env, now);
+  assert.deepEqual(report.queuedSources, { 'operator-http': 1, gun: 1, sqlite: 1, other: 1 });
+  assert.equal(report.statusCounts.completed, 1);
+  const serialized = JSON.stringify(report);
+  for (const privateValue of ['secret-user-label', 'private-operator', 'private operator text', 'private unknown text']) {
+    assert.equal(serialized.includes(privateValue), false);
+  }
+});
+
+test('SQLite source column is read without mutating the existing queue', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), '3dvr-source-audit-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dbPath = join(dir, 'queue.sqlite');
+  const db = new DatabaseSync(dbPath);
+  db.exec('CREATE TABLE tasks (owner_alias TEXT, status TEXT, record_json TEXT, claim_expires_at INTEGER, source TEXT)');
+  const insert = db.prepare('INSERT INTO tasks VALUES (?, ?, ?, ?, ?)');
+  insert.run('test-owner', 'queued', JSON.stringify({
+    id: 'private-signed', backend: 'codex', task: 'private signed task'
+  }), null, 'operator-http');
+  insert.run('test-owner', 'queued', JSON.stringify({
+    id: 'private-import', backend: 'shell', task: 'private imported task'
+  }), null, 'sqlite');
+  db.close();
+  const report = auditManagedSqlite({
+    THREEDVR_AGENT_QUEUE_STORE: 'sqlite',
+    THREEDVR_AGENT_OWNER_ALIAS: 'test-owner',
+    THREEDVR_AGENT_QUEUE_DB: dbPath,
+  });
+  assert.deepEqual(report.queuedSources, { 'operator-http': 1, sqlite: 1 });
+  assert.equal(report.statusCounts.queued, 2);
+  assert.equal(JSON.stringify(report).includes('private signed task'), false);
+});
