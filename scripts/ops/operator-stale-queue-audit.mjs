@@ -43,7 +43,9 @@ export function summarizeQueue(records, env = {}, now = Date.now()) {
     bump(summary.queuedAgeBuckets, days === null ? 'unknown' : days > 30 ? '>30d' : days > 7 ? '7-30d' : '<=7d');
     const backend = String(record.backend || 'auto').toLowerCase();
     const required = new Set(csv(record.requiredCapabilities || record.requires || (backend === 'health' ? '' : backend)));
-    if (backend !== 'auto' && backend !== 'health') required.add(backend);
+    // Match worker admission: even an explicit weaker requires list cannot
+    // omit the executable auto backend capability.
+    if (backend !== 'health') required.add(backend);
     const missing = [...required].filter(capability => !caps.has(capability));
     for (const capability of required) bump(summary.queuedCapabilities, capability);
     const risk = String(record.riskClass || 'draft').toLowerCase();
