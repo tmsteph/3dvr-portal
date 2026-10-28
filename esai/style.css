@@ -20,3 +20,13 @@
   .nav nav { gap: 12px; }
   .nav-contact { padding: 10px 11px; }
 }
+
+.hero-actions { display: flex; flex-wrap: wrap; gap: 14px; }
+.button-outline { background: transparent; color: var(--lime); border: 1px solid var(--lime); }
+.button-outline:hover { background: var(--lime); color: var(--forest); }
+.resume { padding-top: 55px; padding-bottom: 55px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 30px; }
+.resume h2 { font-size: clamp(32px, 4vw, 48px); }
+.resume p:not(.eyebrow) { color: var(--muted); line-height: 1.7; max-width: 500px; }
+.resume-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 20px; flex-shrink: 0; }
+.resume-download { color: var(--lime); text-decoration: underline; text-underline-offset: 4px; padding: 8px 0; }
+@media (max-width: 760px) { .nav nav > a:first-child { display: inline; } .nav-contact { display: none; } .resume { flex-direction: column; align-items: flex-start; } }
