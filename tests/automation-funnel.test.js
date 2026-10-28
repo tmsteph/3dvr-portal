@@ -43,6 +43,25 @@ test('source discovery rejects sellers and stale posts; never guesses budget', (
   const leads = parseJobFeed('<rss>' + item('Hiring n8n developer', 'Thu, 08 Oct 2026 10:00:00 GMT') + item('Looking for Remote Work — AI Automation / n8n', 'Thu, 08 Oct 2026 10:00:00 GMT') + item('For hire developer', 'Thu, 08 Oct 2026 10:00:00 GMT') + item('Need engineer', 'Thu, 01 Jan 2026 10:00:00 GMT') + '</rss>', now);
   assert.equal(leads.length, 1); assert.equal(leads[0].budget, 'undecided'); assert.equal(leads[0].qualified, false);
 });
+test('expert-needed buyer phrasing is discovered without promoting unverified demand', () => {
+  const now = Date.parse('2026-10-28T17:00:00Z');
+  const item = (title, id, date = 'Fri, 23 Oct 2026 04:25:00 GMT') =>
+    '<item><title>' + title + '</title><link>https://community.n8n.io/t/post/' + id +
+    '</link><pubDate>' + date + '</pubDate><description>Potential client request; budget unconfirmed.</description></item>';
+  const leads = parseJobFeed('<rss>' +
+    item('N8n Expert Needed: AI WhatsApp Support Agent (Hindi + English)', '100') +
+    item('Automation Specialist Needed for CRM Integration', '101') +
+    item('Expert needed for hire — available for your projects', '102') +
+    item('Developer Needed for old project', '103', 'Fri, 01 May 2026 04:25:00 GMT') +
+    '</rss>', now);
+  assert.equal(leads.length, 2);
+  assert.deepEqual(leads.map(lead => lead.sourceUrl), [
+    'https://community.n8n.io/t/post/100',
+    'https://community.n8n.io/t/post/101'
+  ]);
+  assert.ok(leads.every(lead => lead.budget === 'undecided' && lead.qualified === false && lead.stage === 'discovered'));
+});
+
 test('suppressed leads cannot get a reply draft', () => {
   assert.throws(() => draftReply({ ...base, stage: 'do-not-contact' }), /not available/);
 });
