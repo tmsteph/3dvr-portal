@@ -144,6 +144,14 @@ test('concrete backend capability cannot be hidden by a weaker requires list', (
   }).ok, false);
 });
 
+test('auto backend requires explicit auto capability even when requires lists node', () => {
+  assert.deepEqual(requiredWorkerCapabilities({ backend: 'auto', requiredCapabilities: 'node' }).sort(), ['auto', 'node']);
+  const record = { backend: 'auto', requiredCapabilities: 'node', riskClass: 'read_only', approvalStatus: 'not_required' };
+  assert.match(canWorkerRunTask(record, { workerCapabilities: 'codex,node' }).reason, /missing capabilities: auto/);
+  assert.equal(canWorkerRunTask(record, { workerCapabilities: 'auto,node' }).ok, true);
+  assert.deepEqual(requiredWorkerCapabilities({ backend: 'health', requiredCapabilities: 'node' }), ['node']);
+});
+
 test('worker blocks high-risk tasks without authenticated human approval provenance', () => {
   const worker = {
     workerCapabilities: 'node,codex',
