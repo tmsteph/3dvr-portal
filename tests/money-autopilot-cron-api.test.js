@@ -98,6 +98,32 @@ test('money autopilot cron handler requires bearer secret', async () => {
   assert.match(res.body.error, /Unauthorized cron trigger/i);
 });
 
+test('money autopilot cron rejects raw secrets and malformed authorization schemes', async () => {
+  let executions = 0;
+  const handler = createMoneyAutopilotCronHandler({
+    config: {
+      MONEY_AUTOPILOT_CRON_ENABLED: 'true',
+      MONEY_AUTOPILOT_CRON_RUN_AUTHORIZED: 'true',
+      MONEY_AUTOPILOT_CRON_SECRET: 'cron-secret'
+    },
+    runAutopilotImpl: async () => { executions += 1; return {}; }
+  });
+
+  for (const authorization of [
+    'cron-secret',
+    'Basic cron-secret',
+    'Bearercron-secret',
+    'Bearer cron-secret extra',
+    'Bearer',
+    'Bearer cron-secret\\nOther: header'
+  ]) {
+    const res = createMockRes();
+    await handler({ method: 'GET', headers: { Authorization: authorization } }, res);
+    assert.equal(res.statusCode, 401, authorization);
+  }
+  assert.equal(executions, 0);
+});
+
 test('money autopilot cron forces bounded no-send dry-run despite unsafe query overrides', async () => {
   let receivedPayload = null;
 
