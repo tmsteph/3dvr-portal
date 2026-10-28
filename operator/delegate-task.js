@@ -36,6 +36,16 @@ function elapsed(record = {}) {
   return seconds >= 60 ? `${Math.floor(seconds / 60)}m ${seconds % 60}s` : `${seconds}s`;
 }
 
+// A terminal queue state is a claim, not proof that an attributable worker ran.
+// Keep this aligned with the signed Operator E2E canary's receipt requirements.
+function hasAttributableWorkerReceipt(record = {}) {
+  const started = Date.parse(record.startedAt || '');
+  const completed = Date.parse(record.completedAt || '');
+  return Number.isFinite(started) && Number.isFinite(completed)
+    && completed >= started && Boolean(normalizeText(record.workerDeviceId, 200))
+    && Boolean(normalizeText(record.resultText || record.resultSummary, 24000));
+}
+
 export function isOperatorTaskTerminal(record = {}) {
   return TERMINAL_TASK_STATUSES.has(taskStatus(record));
 }
@@ -43,7 +53,7 @@ export function isOperatorTaskTerminal(record = {}) {
 export function operatorTaskProgress(record = {}, estimateMs = 120_000) {
   const status = taskStatus(record);
   const age = elapsed(record);
-  if (status === 'completed') return 'Complete';
+  if (status === 'completed') return hasAttributableWorkerReceipt(record) ? 'Complete · worker receipt present' : 'Completion reported · worker receipt unverified';
   if (status === 'running') return `Working${age ? ` · ${age} elapsed` : ''} · ${runtimeBudget(estimateMs)}`;
   if (status === 'status_unavailable') return 'Status unavailable · server task outcome unknown';
   if (status === 'review') return 'Needs your input';
@@ -61,16 +71,9 @@ export function operatorTaskReceipt(record = {}) {
   // A stopped browser poll is not a worker failure or a blocked queue task.
   if (status === 'status_unavailable') return 'Operator Runtime status could not be verified. The saved task may still be queued, running, or complete. Do not resubmit; check the same task ID.';
   if (status === 'completed') {
-    // A queue status alone is not evidence that a worker executed the task.
-    // Require the same attributable fields as the signed E2E canary before
-    // presenting completion as a worker result. This is still not proof of
-    // any external side effect or provider acknowledgement.
-    const started = Date.parse(record.startedAt || '');
-    const completed = Date.parse(record.completedAt || '');
-    const attributable = Number.isFinite(started) && Number.isFinite(completed)
-      && completed >= started && Boolean(normalizeText(record.workerDeviceId, 200))
-      && Boolean(normalizeText(record.resultText || record.resultSummary, 24000));
-    if (!attributable) {
+    // Worker attribution is required to present a completed result. This is
+    // still not proof of any external side effect or provider acknowledgement.
+    if (!hasAttributableWorkerReceipt(record)) {
       return summary
         ? `Operator Runtime reports completion, but its worker receipt is incomplete. Reported result: ${summary}`
         : 'Operator Runtime reports completion, but its worker receipt is incomplete. Verify execution before relying on it.';
