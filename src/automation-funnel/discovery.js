@@ -11,7 +11,7 @@ export function parseJobFeed(xml, now = Date.now()) {
     if (!/^https:\/\/community\.n8n\.io\/t\//.test(sourceUrl)) continue;
     if (!Number.isFinite(posted) || now - posted > 30 * 86400000 || posted > now + 86400000) continue;
     if (/for hire|available for|offering|my services|portfolio|looking for.*work|seeking.*work|job seeker|\[offer\]/i.test(title)) continue;
-    if (!/hiring|looking for.*(developer|engineer|expert|specialist|help)|seeking.*(developer|engineer|expert|specialist)|need.*(help|developer|engineer|expert)|wanted|hire/i.test(title)) continue;
+    if (!/hiring|looking for.*(developer|engineer|expert|specialist|help)|seeking.*(developer|engineer|expert|specialist)|need.*(help|developer|engineer|expert)|(?:developer|engineer|expert|specialist)\s+needed|wanted|hire/i.test(title)) continue;
     leads.push(normalizeLead({
       business: title, problem: title, sourceUrl, sourceDate: new Date(posted).toISOString(),
       evidence: (title + ' — ' + field(item, 'description')).slice(0, 3000),
