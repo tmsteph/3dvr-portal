@@ -283,3 +283,42 @@ test('browser status polling errors and timeouts never claim a server worker is 
     }
   }
 });
+
+
+test('browser fails fast on non-retryable signed-task protocol responses', async () => {
+  const previous = Object.fromEntries(['Gun','localStorage','location','fetch'].map(key => [key,globalThis[key]]));
+  const user={is:{pub:pair.pub,alias:'tmsteph@3dvr'},_:{sea:pair},recall(){}};
+  const Gun=() => ({user:() => user});
+  Gun.SEA=SEA;
+  globalThis.Gun=Gun;
+  globalThis.localStorage={getItem:key=>({signedIn:'true',alias:'tmsteph@3dvr',userPubKey:pair.pub}[key] || null)};
+  globalThis.location={origin};
+  try {
+    for (const status of [400,405,422]) {
+      let calls=0;
+      globalThis.fetch=async (_url,options)=>{
+        calls++;
+        assert.equal(JSON.parse(options.body).action,'status');
+        return {ok:false,status,json:async()=>({ok:false,error:'Invalid signed-task request'})};
+      };
+      const result=await new Promise(resolve=>watchOperatorTask('operator-http:task-invalid-status-12345',{onUpdate:resolve}));
+      assert.equal(result.status,'status_unavailable');
+      assert.match(result.error,/Invalid signed-task request/);
+      assert.equal(calls,1,'permanent protocol errors must not retry or re-enqueue');
+    }
+    for (const status of [405,422]) {
+      let calls=0;
+      globalThis.fetch=async (_url,options)=>{
+        calls++;
+        assert.equal(JSON.parse(options.body).action,'enqueue');
+        return {ok:false,status,json:async()=>({ok:false,error:'Invalid signed-task request'})};
+      };
+      await assert.rejects(queueOperatorTask({text:'Synthetic test only',title:'Test',requestId:'task-invalid-enqueue-12345'}),/Invalid signed-task request/);
+      assert.equal(calls,1,'permanent enqueue rejection must not appear as uncertain delivery');
+    }
+  } finally {
+    for (const [key,value] of Object.entries(previous)) {
+      if(value===undefined) delete globalThis[key]; else globalThis[key]=value;
+    }
+  }
+});
