@@ -29,11 +29,10 @@ function getBearerToken(req) {
     return '';
   }
 
-  if (header.toLowerCase().startsWith('bearer ')) {
-    return header.slice(7).trim();
-  }
-
-  return header;
+  // Accept only a single Bearer credential. A raw secret or another auth
+  // scheme must not accidentally authorize a scheduled money workflow.
+  const match = /^Bearer[ \t]+([^\s]+)$/i.exec(header);
+  return match ? match[1] : '';
 }
 
 function readCronSecret(config = process.env) {
