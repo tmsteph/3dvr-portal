@@ -62,6 +62,8 @@ const MIME_TYPES = new Map([
   ['.ico', 'image/x-icon'],
   ['.woff', 'font/woff'],
   ['.woff2', 'font/woff2'],
+  ['.pdf', 'application/pdf'],
+  ['.zip', 'application/zip'],
   ['.txt', 'text/plain; charset=utf-8']
 ]);
 

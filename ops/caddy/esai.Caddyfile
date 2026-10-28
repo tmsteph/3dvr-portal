@@ -1,0 +1,9 @@
+# Serve Esai's portfolio from the same immutable release as /esai/ on Portal.
+esai.3dvr.tech {
+  encode zstd gzip
+  root * /opt/3dvr-portal-production/current/esai
+  @private path /source /source/* /.*
+  respond @private 404
+  header X-Content-Type-Options nosniff
+  file_server
+}

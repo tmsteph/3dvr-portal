@@ -8,7 +8,7 @@ from reportlab.lib.utils import ImageReader
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'kit'
-URL = 'https://portal.3dvr.tech/esai/'
+URL = 'https://esai.3dvr.tech/'
 BG = '#14231e'
 PAPER = '#f5f3e9'
 LIME = '#d3f96b'
@@ -55,7 +55,7 @@ def card(back=False):
     text(d, (76, 515), 'PART OF THE SHOW.', 21, LIME)
     paste_qr(image, 756, 188, 278)
     text(d, (781, 490), 'SCAN TO CONNECT', 17, LIME, True)
-    text(d, (76, 574), 'portal.3dvr.tech/esai/', 19)
+    text(d, (76, 574), 'esai.3dvr.tech', 19)
   else:
     text(d, (76, 75), 'THE NEXT SHOW STARTS', 32, BG, True)
     text(d, (76, 119), 'WITH A CONNECTION.', 32, BG, True)
@@ -66,7 +66,7 @@ def card(back=False):
     text(d, (76, 481), 'BOOK ESAI DIRECTLY', 21, BG)
     text(d, (76, 521), 'gamboaesai@gmail.com', 26, BG, True)
     text(d, (680, 481), '(858) 463-9753', 24, BG, True)
-    text(d, (76, 579), 'portal.3dvr.tech/esai/', 20, BG)
+    text(d, (76, 579), 'esai.3dvr.tech', 20, BG)
   return image
 
 front, back = card(), card(True)
@@ -93,7 +93,7 @@ def square():
   text(d, (65, 768), 'Experience with Encore', 25)
   text(d, (65, 807), 'SD Showdown / IATSE Local 122', 22)
   text(d, (65, 915), 'Explore the portfolio', 29, PAPER, True)
-  text(d, (65, 971), 'portal.3dvr.tech/esai/', 25)
+  text(d, (65, 971), 'esai.3dvr.tech', 25)
   paste_qr(image, 775, 754, 240)
   return image
 
@@ -108,7 +108,7 @@ def story():
   text(d, (80, 1460), 'Experience with Encore', 30)
   text(d, (80, 1507), 'SD Showdown / IATSE Local 122', 26)
   text(d, (80, 1648), 'SCAN TO CONNECT', 26, LIME, True)
-  text(d, (80, 1701), 'portal.3dvr.tech/esai/', 27)
+  text(d, (80, 1701), 'esai.3dvr.tech', 27)
   paste_qr(image, 738, 1460, 260)
   return image
 
@@ -121,7 +121,7 @@ def landscape():
   text(d, (65, 272), 'Behind the scenes.', 36)
   text(d, (65, 326), 'Part of the show.', 36, LIME)
   text(d, (65, 463), 'Encore / SD Showdown / IATSE Local 122', 22)
-  text(d, (65, 518), 'portal.3dvr.tech/esai/', 27, PAPER, True)
+  text(d, (65, 518), 'esai.3dvr.tech', 27, PAPER, True)
   return image
 
 square().save(OUT / 'social-square.png')
