@@ -41,7 +41,7 @@ def text(draw, xy, label, size, color=PAPER, bold=False):
 def paste_qr(image, x, y, size):
   image.paste(qr_image.resize((size, size), Image.Resampling.NEAREST), (x, y))
 
-portrait = Image.open(ROOT / 'portrait.jpg').convert('RGB')
+portrait = Image.open(ROOT / 'portrait-retouched.webp').convert('RGB')
 
 def card(back=False):
   image = Image.new('RGB', (1125, 675), PAPER if back else BG)
@@ -102,7 +102,7 @@ def story():
   d = ImageDraw.Draw(image)
   text(d, (80, 160), 'EG / AV & LIVE EVENTS', 28, LIME, True)
   text(d, (73, 250), 'Esai Gamboa', 99, PAPER, True)
-  image.paste(ImageOps.fit(portrait, (920, 760)), (80, 425))
+  image.paste(ImageOps.fit(portrait, (920, 760), centering=(0.5, 0)), (80, 425))
   text(d, (80, 1250), 'Behind the scenes.', 52, PAPER, True)
   text(d, (80, 1325), 'Part of the show.', 52, LIME, True)
   text(d, (80, 1460), 'Experience with Encore', 30)
