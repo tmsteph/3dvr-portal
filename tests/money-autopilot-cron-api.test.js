@@ -134,6 +134,8 @@ test('money autopilot cron forces bounded no-send dry-run despite unsafe query o
       CRON_SECRET: 'cron-secret',
       MONEY_AUTOPILOT_CRON_DRY_RUN: 'true'
     },
+    // A research-only cron must never receive a privileged Stripe client.
+    stripeClient: { customers: { list: () => { throw new Error('Stripe access forbidden in cron'); } } },
     runAutopilotImpl: async payload => {
       receivedPayload = payload;
       return {
@@ -171,6 +173,7 @@ test('money autopilot cron forces bounded no-send dry-run despite unsafe query o
   assert.equal(receivedPayload.dryRun, true);
   assert.equal(receivedPayload.disablePaidAi, true);
   assert.equal(receivedPayload.disableAuthenticatedReads, true);
+  assert.equal(Object.hasOwn(receivedPayload, 'stripeClient'), false);
   assert.equal(receivedPayload.autoDiscover, false);
   assert.equal(receivedPayload.publishEnabled, false);
   assert.equal(receivedPayload.vercelDeploy, false);
