@@ -287,3 +287,10 @@ test('Growth Desk and Growth Operator never advertise automatic outbound sends',
   assert.doesNotMatch(desk, /Fresh direct-email leads can run|fresh-lead email can continue automatically/);
   assert.doesNotMatch(growth, /Most routine direct-email work is handled automatically|Routine sends are automatic/);
 });
+
+test('business runbook requires approval for every outbound message, not just known contacts', () => {
+  const runbook = readFileSync(new URL('../docs/operator-business-system.md', import.meta.url), 'utf8');
+  assert.match(runbook, /All external outreach \(including fresh direct email\) requires per-message human approval/);
+  assert.match(runbook, /Stop at a fresh, identity-bound human checkpoint before \*\*every\*\* external message/);
+  assert.doesNotMatch(runbook, /classified before autonomous outreach/);
+});
