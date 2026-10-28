@@ -22,3 +22,6 @@ Caddy site configuration: ops/caddy/esai.Caddyfile; install as an additional blo
 DNS: esai A record targets the OVH portal host. Caddy manages HTTPS for this hostname.
 Regenerate artwork with python3 esai/source/generate-kit.py after URL changes; update cache keys in HTML.
 Résumé has prominent view/download actions on the portfolio and kit; self-host serves PDFs as application/pdf.
+
+Portrait update (2026-10-27): portrait-retouched.webp is an AI-assisted photographic retouch of the existing 3dvr.tech team photo. Lighting and background are cleaned up and loose white earbud cables removed. Original portrait.jpg is retained. No new workplace or event is claimed. Website and portrait-bearing social graphics use this version; story framing preserves the top of his head.
+Edit prompt: Preserve Esai’s likeness, face, glasses, beard, hair, natural expression and black work shirt; improve exposure/white balance, gently reduce glare/noise, remove loose earbud wires, retain necklace, use a softly blurred charcoal/forest-gray backdrop. No text or invented workplace. Produced with built-in image editing.
