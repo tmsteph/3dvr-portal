@@ -100,7 +100,8 @@ button:focus-visible, a:focus-visible, select:focus-visible {
 
 @media (min-width: 720px) {
   main > header { grid-template-columns: minmax(0, 1fr) auto auto; gap: 16px; }
-  main > header > .header-actions { grid-column: auto; grid-row: 1; }
+  main > header > .operator-brand { grid-column: 1; grid-row: 1; }
+  main > header > .header-actions { grid-column: 2; grid-row: 1; }
   .operator-account { grid-column: 3; grid-row: 1; }
   .operator-empty-portal { padding-block: 32px; }
 }
