@@ -35,6 +35,13 @@ if [[ "${THREEDVR_AGENT_LOCAL_QUEUE_ONLY:-0}" =~ ^(1|true|yes|on)$ ]]; then
   export THREEDVR_AGENT_SKIP_FORGE=1
 fi
 
+# A pinned signed canary is not permission to run unrelated Forge/server-control
+# compatibility tasks. This wrapper also runs in the daemon's bridge poller,
+# so enforce the restriction after loading the runtime config on every poll.
+if [ -n "${THREEDVR_AGENT_WORKER_ONLY_TASK_ID:-}" ]; then
+  export THREEDVR_AGENT_SKIP_FORGE=1
+fi
+
 NODE_BIN="${THREEDVR_NODE_BIN:-node}"
 if ! command -v "$NODE_BIN" >/dev/null 2>&1; then
   echo "3DVR queue requires Node >=22.13 with node:sqlite; not found: $NODE_BIN" >&2
