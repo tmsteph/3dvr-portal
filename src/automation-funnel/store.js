@@ -33,13 +33,18 @@ export function openFunnelStore(path = process.env.AUTOMATION_FUNNEL_DB || '/opt
     get(id) { return row(db.prepare('SELECT * FROM leads WHERE id=?').get(id)); },
     insert(lead) {
       const key = identity(lead);
-      const existing = db.prepare('SELECT * FROM leads WHERE dedupe=?').get(key);
-      if (existing) return { lead: row(existing), duplicate: true };
+      // Concurrent discovery workers can race after a SELECT and both try to
+      // create the same lead. Reserve dedupe identity atomically in SQLite;
+      // only the winning insert may record a new-lead event.
       const id = randomUUID();
       const now = new Date().toISOString();
-      db.prepare('INSERT INTO leads VALUES (?, ?, ?, 1, ?, ?)').run(id, key, JSON.stringify(lead), now, now);
+      const inserted = db.prepare('INSERT OR IGNORE INTO leads VALUES (?, ?, ?, 1, ?, ?)')
+        .run(id, key, JSON.stringify(lead), now, now);
+      const saved = db.prepare('SELECT * FROM leads WHERE dedupe=?').get(key);
+      if (!saved) throw new Error('Lead dedupe result could not be verified');
+      if (!inserted.changes) return { lead: row(saved), duplicate: true };
       db.prepare('INSERT INTO events VALUES (?, ?, ?, ?)').run(randomUUID(), id, 'created', now);
-      return { lead: this.get(id), duplicate: false };
+      return { lead: row(saved), duplicate: false };
     },
     update(id, lead, version) {
       const now = new Date().toISOString();
