@@ -211,8 +211,8 @@ test('supervisor startup refuses a dead tmux session and clears stale desired st
       '  *) exit 1 ;;',
       'esac',
       '',
-    ].join('\\n'), { mode: 0o755 });
-    writeFileSync(join(stateDir, 'agent-desired-state'), 'running\\n');
+    ].join('\n'), { mode: 0o755 });
+    writeFileSync(join(stateDir, 'agent-desired-state'), 'running\n');
     const result = spawnSync('bash', [script, 'start'], {
       encoding: 'utf8',
       env: {
