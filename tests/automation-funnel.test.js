@@ -78,6 +78,31 @@ test('failed CRM creation-event write rolls back the lead and allows a clean ret
   }
 });
 
+test('failed CRM update-event write rolls back the lead version and permits a clean retry', () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const lead = normalizeLead({ ...base, business: 'Update Rollback Buyer' }, { inbound: true });
+    const original = store.insert(lead).lead;
+    store.db.exec(`CREATE TRIGGER reject_updated BEFORE INSERT ON events
+      WHEN NEW.kind LIKE 'updated:%' BEGIN SELECT RAISE(FAIL, 'synthetic update event failure'); END;`);
+    assert.throws(() => store.update(original.id, { ...lead, stage: 'replied' }, original.version),
+      /synthetic update event failure/);
+    assert.equal(store.get(original.id).stage, original.stage,
+      'failed event write must not persist an unaudited CRM transition');
+    assert.equal(store.get(original.id).version, original.version,
+      'failed event write must not consume the optimistic-lock version');
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind LIKE 'updated:%'").get().n, 0);
+    store.db.exec('DROP TRIGGER reject_updated');
+    const updated = store.update(original.id, { ...lead, stage: 'replied' }, original.version);
+    assert.equal(updated.stage, 'replied');
+    assert.equal(updated.version, original.version + 1);
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind='updated:replied'").get().n, 1);
+    assert.throws(() => store.update(original.id, lead, original.version), /Record changed/);
+  } finally {
+    store.close();
+  }
+});
+
 test('public submission exposes receipt only and owner review requires bound proof', async () => {
   const store = openFunnelStore(':memory:');
   const config = { PORTAL_ORIGIN: 'https://portal.3dvr.tech', THREEDVR_OPERATOR_OWNER_PUBS: 'owner' };
