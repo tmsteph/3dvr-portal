@@ -124,3 +124,15 @@ test('pinned signed canary poll cannot execute unrelated Forge or server-control
   assert.match(normalCalls, /operator-forge-worker\.js run-once/);
   assert.match(normalCalls, /operator-server-control-worker\.js run-once/);
 });
+
+
+test('manual deployment verification is read-only and never enqueues an unapproved health task', () => {
+  const verification = workflow.match(/^      - name: Verify deployed revision without queue mutation\n([\s\S]*?)(?=^      - name: Publish worker deployment status|$(?![\s\S]))/m)?.[1];
+  assert.ok(verification, 'deploy verification must be present and explicitly read-only');
+  assert.match(verification, /git -C "\$repo" merge-base --is-ancestor "\$GITHUB_SHA" HEAD/);
+  assert.match(verification, /worker execution unverified/);
+  assert.doesNotMatch(workflow, /agent-task-queue\.js enqueue|--backend health --risk read_only/,
+    'deployment must not create an unapproved task or trigger queue execution for verification');
+  assert.doesNotMatch(workflow, /worker alive and consuming managed queue tasks/,
+    'revision verification is not proof of runtime execution');
+});
