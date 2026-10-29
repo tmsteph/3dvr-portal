@@ -101,21 +101,17 @@ function contactIdentity(value = {}) {
 function contactsMatch(left = {}, right = {}) {
   const leftEmail = normalizeEmail(left.contact || left.email);
   const rightEmail = normalizeEmail(right.contact || right.email);
-  // A matching display name never overrides two different verified addresses.
-  if (leftEmail && rightEmail) return leftEmail === rightEmail;
+  // An identified email contact must match the same email. A shared site or
+  // display name does not prove that two people at a business are identical.
+  if (leftEmail || rightEmail) return Boolean(leftEmail && rightEmail && leftEmail === rightEmail);
 
   const leftSite = normalizeLower(left.link || left.site);
   const rightSite = normalizeLower(right.link || right.site);
   if (leftSite && rightSite) return leftSite === rightSite;
 
-  // Name-only matching is a legacy fallback, not proof that two independently
-  // identified contacts are the same person or business.
-  const leftIdentified = Boolean(leftEmail || leftSite || normalizeText(left.contact));
-  const rightIdentified = Boolean(rightEmail || rightSite || normalizeText(right.contact));
-  if (leftIdentified && rightIdentified) return false;
-  const leftName = normalizeLower(left.name);
-  const rightName = normalizeLower(right.name);
-  return Boolean(leftName && rightName && leftName === rightName);
+  // Never attribute a sent message, reply, or opt-out from a name alone.
+  // A name-only outreach log must remain unmatched pending identity review.
+  return false;
 }
 
 function leadFromOutreachEntry(entry = {}) {
