@@ -27,6 +27,38 @@ test('durable queue deduplicates and uses version guard', () => {
   assert.equal(store.consumeAction('12345678-1234-1234-1234-123456789012'), false);
   store.close();
 });
+test('funnel rate limit rejects the last-slot race across SQLite workers', () => {
+  const dir = mkdtempSync(join(tmpdir(), '3dvr-funnel-limit-'));
+  const dbPath = join(dir, 'leads.sqlite');
+  const first = openFunnelStore(dbPath);
+  const second = openFunnelStore(dbPath);
+  try {
+    assert.equal(first.rateLimit('same-peer', { limit: 2 }), true);
+    const originalPrepare = first.db.prepare.bind(first.db);
+    let interleaved = false;
+    first.db.prepare = sql => {
+      if (!interleaved && /INSERT INTO rate_limits\\b/i.test(sql)) {
+        interleaved = true;
+        // Another connection consumes the final slot after any pre-read,
+        // but before the first connection's attempted increment.
+        assert.equal(second.rateLimit('same-peer', { limit: 2 }), true);
+      }
+      return originalPrepare(sql);
+    };
+    assert.equal(first.rateLimit('same-peer', { limit: 2 }), false);
+    assert.equal(interleaved, true);
+    assert.equal(second.db.prepare('SELECT count FROM rate_limits WHERE identity=?').get('same-peer').count, 2);
+    // Expired windows restart at one instead of inheriting a stale count.
+    second.db.prepare('UPDATE rate_limits SET reset_at=0 WHERE identity=?').run('same-peer');
+    assert.equal(second.rateLimit('same-peer', { limit: 2 }), true);
+    assert.equal(second.db.prepare('SELECT count FROM rate_limits WHERE identity=?').get('same-peer').count, 1);
+  } finally {
+    first.close();
+    second.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('concurrent discovery workers reuse the winning lead and record one creation', () => {
   const dir = mkdtempSync(join(tmpdir(), '3dvr-funnel-race-'));
   const dbPath = join(dir, 'leads.sqlite');
