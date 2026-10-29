@@ -48,15 +48,16 @@ try {
       if (count >= 5) throw Error('Five tasks are already pending; wait for a result');
       // Capability configuration is not proof that a worker is alive.
       // Require a worker-produced heartbeat in this SAME SQLite file, under
-      // this owner, with effective Codex capability and bounded freshness.
+      // this owner, with effective Codex and draft-risk permissions and bounded freshness.
       // Existing signed task IDs remain readable/retryable when offline.
       const now = Date.now();
-      const workers = db.prepare("SELECT worker_id, capabilities, observed_at FROM worker_heartbeats WHERE owner_alias=? AND queue_store='sqlite'").all(owner);
+      const workers = db.prepare("SELECT worker_id, capabilities, risk_classes, observed_at FROM worker_heartbeats WHERE owner_alias=? AND queue_store='sqlite'").all(owner);
       const ready = workers.some(worker => worker.worker_id &&
         Number.isFinite(worker.observed_at) &&
         worker.observed_at <= now + 5000 &&
         now - worker.observed_at <= 90000 &&
-        String(worker.capabilities).split(',').map(value => value.trim().toLowerCase()).includes('codex'));
+        String(worker.capabilities).split(',').map(value => value.trim().toLowerCase()).includes('codex') &&
+        String(worker.risk_classes).split(',').map(value => value.trim().toLowerCase()).includes('draft'));
       if (!ready) throw Error('No recent same-queue Codex worker heartbeat');
       const record = input.record;
       db.prepare('INSERT INTO tasks (owner_alias,id,status,updated_at,record_json,source) VALUES (?,?,?,?,?,?)').run(owner,input.id,'queued',record.updatedAt,JSON.stringify(record),'operator-http');
