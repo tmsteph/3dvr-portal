@@ -241,7 +241,7 @@ test('Codex SSH interruption is classified as uncertain delivery', async () => {
 test('uncertain signed Codex delivery never fabricates a failed receipt or retries', async (t) => {
   const options = await queueOptions(t, {
     ownerAlias: '3dvr-managed', queueSource: 'operator-http',
-    gunSync: false, workerCapabilities: 'codex',
+    gunSync: false, workerCapabilities: 'codex', workerRiskClasses: 'read_only',
   });
   const id = 'operator-http-uncertain-ssh';
   await enqueueTask('bounded read-only research', {
