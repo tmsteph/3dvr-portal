@@ -1,19 +1,11 @@
-import { adjacentMessageId, embeddableWorkspaceHref, isOperatorHistoryState, operatorHistoryState, operatorShellDestination } from './shell-navigation.js';
+import { isOperatorHistoryState, operatorHistoryState } from './shell-navigation.js';
 
 const log=document.querySelector('#operator-log');
 const form=document.querySelector('#operator-form');
 const historyList=document.querySelector('#history-list');
 const treeList=document.querySelector('#conversation-tree-list');
 const latestButton=document.querySelector('#operator-latest');
-const workspace=document.querySelector('#operator-workspace');
-const workspaceFrame=document.querySelector('#operator-workspace-frame');
-const workspaceTitle=document.querySelector('#operator-workspace-title');
-const workspaceExternal=document.querySelector('#operator-workspace-external');
-const workspaceClose=document.querySelector('#operator-workspace-close');
-const main=document.querySelector('main');
-
 let focusedNodeId='';
-let workspaceUrl='';
 let previousLatestId='';
 let restoring=false;
 let decorating=false;
@@ -30,8 +22,7 @@ function activeConversationId(){
 function stateForCurrentView(){
   return operatorHistoryState({
     conversationId:activeConversationId(),
-    nodeId:focusedNodeId,
-    workspaceUrl
+    nodeId:focusedNodeId
   });
 }
 
@@ -94,48 +85,6 @@ function focusMessage(nodeId,{push=false,replace=false}={}){
   return true;
 }
 
-function workspaceLabel(href,label){
-  const clean=String(label||'').replace(/\s+/g,' ').trim();
-  if(clean&&clean.length<80)return clean;
-  try{
-    const url=new URL(href,window.location.href);
-    const segment=url.pathname.split('/').filter(Boolean).at(-1);
-    return segment?segment.replace(/[-_]+/g,' '):url.hostname;
-  }catch{
-    return 'Workspace';
-  }
-}
-
-function openWorkspace(href,{label='',push=true}={}){
-  const resolved=embeddableWorkspaceHref(href,window.location.href);
-  if(!resolved)return false;
-  const destination=operatorShellDestination(resolved,window.location.href);
-  if(destination){
-    closeWorkspace({push});
-    if(destination==='apps')window.dispatchEvent(new Event('operator:browse-apps'));
-    else document.querySelector('#operator-input')?.focus();
-    return true;
-  }
-
-  workspaceUrl=resolved;
-  workspace.hidden=false;
-  main.classList.add('workspace-open');
-  workspaceTitle.textContent=workspaceLabel(resolved,label);
-  workspaceExternal.href=resolved;
-  if(workspaceFrame.src!==resolved)workspaceFrame.src=resolved;
-  document.querySelector('#app-search-results')?.setAttribute('hidden','');
-  if(push)writeState(false);
-  return true;
-}
-
-function closeWorkspace({push=true}={}){
-  workspaceUrl='';
-  workspace.hidden=true;
-  main.classList.remove('workspace-open');
-  if(workspaceFrame.src!=='about:blank')workspaceFrame.src='about:blank';
-  if(push)writeState(false);
-}
-
 function decorateActionLinks(){
   log.querySelectorAll('.message-action').forEach(link=>{
     if(link.dataset.operatorLabelReady==='true')return;
@@ -156,7 +105,6 @@ function syncFromDom(){
     const state=isOperatorHistoryState(window.history.state)?window.history.state:null;
     focusedNodeId=state?.nodeId||latestId;
     focusMessage(focusedNodeId,{replace:!state});
-    if(state?.workspaceUrl)openWorkspace(state.workspaceUrl,{push:false});
   }else if(latestId&&latestId!==previousLatestId&&shouldFollow){
     focusMessage(latestId,{push:true});
   }else{
@@ -188,8 +136,6 @@ async function restoreState(state){
 
     focusedNodeId=state.nodeId||messageArticles().at(-1)?.dataset.nodeId||'';
     focusMessage(focusedNodeId);
-    if(state.workspaceUrl)openWorkspace(state.workspaceUrl,{push:false});
-    else closeWorkspace({push:false});
   }finally{
     restoring=false;
   }
@@ -219,45 +165,8 @@ latestButton.addEventListener('click',event=>{
   if(latestId)focusMessage(latestId,{push:true});
 },true);
 
-workspaceClose.addEventListener('click',()=>closeWorkspace());
-
-// Keep navigation from same-origin app content in the one parent shell.
-workspaceFrame.addEventListener('load',()=>{
-  let doc;
-  try{
-    doc=workspaceFrame.contentDocument;
-    if(!doc)return;
-    const href=workspaceFrame.contentWindow.location.href;
-    if(href==='about:blank')return;
-    if(operatorShellDestination(href,window.location.href)){
-      openWorkspace(href);
-      return;
-    }
-  }catch{return}
-  const style=doc.createElement('style');
-  style.textContent='.topbar,.portal-header,.portal-nav,[data-operator-entry],#homeOperatorForm,#homeOperatorResult{display:none!important}';
-  doc.head?.append(style);
-  doc.addEventListener('click',event=>{
-    if(event.defaultPrevented||event.button>0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
-    const anchor=event.target.closest('a[href]');
-    if(!anchor||anchor.hasAttribute('download')||anchor.dataset.operatorExternal==='true')return;
-    const href=embeddableWorkspaceHref(anchor.getAttribute('href'),doc.baseURI);
-    if(!href)return;
-    event.preventDefault();
-    openWorkspace(href,{label:anchor.textContent});
-  },true);
-});
-
-document.addEventListener('click',event=>{
-  if(event.defaultPrevented||event.button>0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
-  const anchor=event.target.closest('a[href]');
-  if(!anchor||anchor.dataset.operatorExternal==='true'||anchor.hasAttribute('download'))return;
-  const href=embeddableWorkspaceHref(anchor.getAttribute('href'),window.location.href);
-  if(!href)return;
-  event.preventDefault();
-  openWorkspace(href,{label:anchor.textContent});
-},true);
-
+// App links use native browser navigation. Operator visualizes app data in chat;
+// it does not host app pages or intercept links, modifier keys, or downloads.
 window.addEventListener('popstate',event=>{void restoreState(event.state)});
 
 queueSync();
