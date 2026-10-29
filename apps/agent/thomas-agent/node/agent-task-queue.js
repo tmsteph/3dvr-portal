@@ -277,7 +277,13 @@ function buildTaskArgs(record = {}, workerOptions = {}) {
 // Supervised canary mode: a worker may claim only one preselected signed task.
 // The ID must be derived from the authenticated request before the worker starts.
 function workerOnlyTaskId(options = {}) {
-  const raw = options.onlyTaskId ?? process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID;
+  const envScope = process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID;
+  const raw = options.onlyTaskId ?? envScope;
+  // An environment-pinned supervised worker must not become a general worker
+  // when a caller supplies an empty or conflicting option.
+  if (envScope && raw !== envScope) {
+    throw new Error('Canary worker task scope conflicts with pinned environment scope');
+  }
   if (raw === undefined || raw === null || raw === '') return '';
   if (typeof raw !== 'string' || !/^operator-http-[A-Za-z0-9_-]+$/.test(raw)) {
     throw new Error('Canary worker requires one exact signed operator-http task ID');
