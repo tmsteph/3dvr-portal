@@ -99,6 +99,27 @@ test('managed SQLite poller writes attributable same-queue heartbeat with effect
   } finally { db.close(); }
 });
 
+test('existing SQLite heartbeat tables migrate without treating old rows as risk-authorized', async (t) => {
+  const options = await queueOptions(t, {
+    ownerAlias: '3dvr-managed', rootNode: fakeRoot(), gunSync: false,
+    workerCapabilities: 'node,codex', workerRiskClasses: 'read_only,draft',
+  });
+  const oldDb = new DatabaseSync(options.queueDb);
+  try {
+    oldDb.exec('CREATE TABLE worker_heartbeats(owner_alias TEXT,worker_id TEXT,queue_store TEXT,capabilities TEXT,observed_at INTEGER,PRIMARY KEY(owner_alias,worker_id))');
+    oldDb.prepare('INSERT INTO worker_heartbeats VALUES(?,?,?,?,?)')
+      .run('3dvr-managed', 'old-worker', 'sqlite', 'codex', Date.now());
+  } finally { oldDb.close(); }
+  assert.deepEqual(await runWorkerOnce(options), []);
+  const db = new DatabaseSync(options.queueDb, { readOnly: true });
+  try {
+    const old = db.prepare("SELECT risk_classes FROM worker_heartbeats WHERE worker_id='old-worker'").get();
+    assert.equal(old.risk_classes, '', 'pre-migration heartbeats must fail closed');
+    const fresh = db.prepare("SELECT risk_classes FROM worker_heartbeats WHERE worker_id != 'old-worker'").get();
+    assert.equal(fresh.risk_classes, 'read_only,draft', 'only a fresh poller advertises risk permission');
+  } finally { db.close(); }
+});
+
 test('managed signed SQLite task stays queued when worker capability config is empty', async (t) => {
   const options = await queueOptions(t, {
     ownerAlias: '3dvr-managed', queueSource: 'operator-http',
