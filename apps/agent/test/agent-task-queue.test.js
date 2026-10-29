@@ -14,6 +14,7 @@ const {
   runQueuedTask,
   runWorkerOnce,
   updateTask,
+  workerProfile,
 } = require('../thomas-agent/node/agent-task-queue');
 
 class FakeGunNode {
@@ -80,6 +81,25 @@ test('enqueueTask writes queued task records and summaries', async () => {
   assert.equal(list.length, 1);
   assert.equal(list[0].id, 'task-1');
   assert.equal(list[0].tenantId, 'google:123');
+});
+
+test('managed SQLite worker requires explicit capabilities instead of all-backends defaults', () => {
+  const previous = process.env.THREEDVR_AGENT_WORKER_CAPABILITIES;
+  try {
+    delete process.env.THREEDVR_AGENT_WORKER_CAPABILITIES;
+    const managed = { queueStore: 'sqlite', ownerAlias: '3dvr-managed' };
+    const draft = { backend: 'codex', riskClass: 'draft', approvalStatus: 'not_required' };
+    assert.deepEqual(workerProfile(managed).capabilities, []);
+    assert.match(canWorkerRunTask(draft, managed).reason, /missing capabilities: codex/);
+    assert.deepEqual(workerProfile({ ...managed, workerCapabilities: '' }).capabilities, []);
+    assert.equal(canWorkerRunTask(draft, { ...managed, workerCapabilities: 'codex' }).ok, true);
+    assert.equal(canWorkerRunTask({
+      backend: 'health', riskClass: 'read_only', approvalStatus: 'not_required',
+    }, managed).ok, true, 'intrinsic health checks remain available');
+  } finally {
+    if (previous === undefined) delete process.env.THREEDVR_AGENT_WORKER_CAPABILITIES;
+    else process.env.THREEDVR_AGENT_WORKER_CAPABILITIES = previous;
+  }
 });
 
 test('public GUN cannot execute or impersonate signed Operator HTTP tasks', async () => {
