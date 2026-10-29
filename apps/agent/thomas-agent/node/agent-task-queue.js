@@ -274,6 +274,17 @@ function buildTaskArgs(record = {}, workerOptions = {}) {
   return args;
 }
 
+// Supervised canary mode: a worker may claim only one preselected signed task.
+// The ID must be derived from the authenticated request before the worker starts.
+function workerOnlyTaskId(options = {}) {
+  const raw = options.onlyTaskId ?? process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID;
+  if (raw === undefined || raw === null || raw === '') return '';
+  if (typeof raw !== 'string' || !/^operator-http-[A-Za-z0-9_-]+$/.test(raw)) {
+    throw new Error('Canary worker requires one exact signed operator-http task ID');
+  }
+  return raw;
+}
+
 function workerProfile(options = {}) {
   // The signed Operator producer writes the private managed SQLite queue.
   // Its worker must advertise effective capabilities explicitly: falling back
@@ -286,6 +297,7 @@ function workerProfile(options = {}) {
     ?? process.env.THREEDVR_AGENT_WORKER_CAPABILITIES;
   return {
     workerId: deviceId(options),
+    onlyTaskId: workerOnlyTaskId(options),
     capabilities: csvToList(managedSqlite
       ? configuredCapabilities
       : (options.workerCapabilities || options.capabilities || DEFAULT_WORKER_CAPABILITIES)),
@@ -322,6 +334,9 @@ function sameExecutionIntent(before = {}, after = {}) {
 
 function canWorkerRunTask(record = {}, options = {}) {
   const profile = workerProfile(options);
+  if (profile.onlyTaskId && record.id !== profile.onlyTaskId) {
+    return { ok: false, reason: 'task outside supervised canary allowlist', profile };
+  }
   // Shell tasks are arbitrary OS commands, not a provably read-only backend.
   // The underlying orchestrator refuses shell without --unsafe, but letting a
   // mislabeled read_only shell task reach it would turn queued intent into a
@@ -839,6 +854,10 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--max-runtime-ms') options.maxRuntimeMs = parseInteger(argv[++index], 0);
     else if (arg === '--worker-capabilities') options.workerCapabilities = argv[++index] || '';
     else if (arg === '--worker-risk-classes') options.workerRiskClasses = argv[++index] || '';
+    else if (arg === '--only-task-id') {
+      if (!argv[index + 1] || argv[index + 1].startsWith('--')) throw new Error('--only-task-id requires an exact signed task ID');
+      options.onlyTaskId = argv[++index];
+    }
     else if (arg === '--limit') options.limit = parseInteger(argv[++index], DEFAULT_TASK_LIMIT);
     else if (arg === '--unsafe') options.unsafe = true;
     else if (arg === '--json') options.json = true;
@@ -938,6 +957,7 @@ module.exports = {
   summarizeTaskResult,
   updateTask,
   workerProfile,
+  workerOnlyTaskId,
 };
 
 if (require.main === module) {
