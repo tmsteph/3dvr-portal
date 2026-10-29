@@ -286,7 +286,11 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
   // A missing claim token cannot be matched by SQLite's equality predicate
   // when finishing work; accepting it would strand a task as running forever.
   // A missing worker identity also leaves no accountable owner for recovery.
-  const onlyTaskId = options.onlyTaskId ?? process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID;
+  const envScope = process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID;
+  const onlyTaskId = options.onlyTaskId ?? envScope;
+  // Enforce the environment-pinned scope even on direct SQLite claims:
+  // an empty per-call override must never re-enable historical backlog.
+  if (envScope && onlyTaskId !== envScope) return null;
   if (onlyTaskId && String(id) !== onlyTaskId) return null;
   if (typeof claimToken !== 'string' || !claimToken.trim()
     || typeof workerDeviceId !== 'string' || !workerDeviceId.trim()
