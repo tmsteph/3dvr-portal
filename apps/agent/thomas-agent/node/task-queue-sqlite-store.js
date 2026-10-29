@@ -47,6 +47,7 @@ function openDatabase(options = {}) {
       queue_store TEXT NOT NULL,
       capabilities TEXT NOT NULL,
       risk_classes TEXT NOT NULL DEFAULT '',
+      only_task_id TEXT NOT NULL DEFAULT '',
       observed_at INTEGER NOT NULL,
       PRIMARY KEY (owner_alias, worker_id)
     ) WITHOUT ROWID;
@@ -55,6 +56,9 @@ function openDatabase(options = {}) {
     // Migrate in place; old heartbeats remain ineligible until a poller refreshes them.
     if (!db.prepare('PRAGMA table_info(worker_heartbeats)').all().some(column => column.name === 'risk_classes')) {
       db.exec("ALTER TABLE worker_heartbeats ADD COLUMN risk_classes TEXT NOT NULL DEFAULT ''");
+    }
+    if (!db.prepare('PRAGMA table_info(worker_heartbeats)').all().some(column => column.name === 'only_task_id')) {
+      db.exec("ALTER TABLE worker_heartbeats ADD COLUMN only_task_id TEXT NOT NULL DEFAULT ''");
     }
   } catch (error) {
     db.close();
@@ -93,14 +97,15 @@ function writeWorkerHeartbeat(profile, options = {}) {
   const observedAt = Date.now();
   return withDatabase(options, db => db.prepare(`
     INSERT INTO worker_heartbeats
-      (owner_alias, worker_id, queue_store, capabilities, risk_classes, observed_at)
-    VALUES (?, ?, 'sqlite', ?, ?, ?)
+      (owner_alias, worker_id, queue_store, capabilities, risk_classes, only_task_id, observed_at)
+    VALUES (?, ?, 'sqlite', ?, ?, ?, ?)
     ON CONFLICT(owner_alias, worker_id) DO UPDATE SET
       queue_store = excluded.queue_store,
       capabilities = excluded.capabilities,
       risk_classes = excluded.risk_classes,
+      only_task_id = excluded.only_task_id,
       observed_at = excluded.observed_at
-  `).run(ownerAlias(options), workerId, capabilities, riskClasses, observedAt).changes === 1);
+  `).run(ownerAlias(options), workerId, capabilities, riskClasses, profile.onlyTaskId || '', observedAt).changes === 1);
 }
 
 // A task ID is an idempotency key, not permission to replace a pending task.
@@ -281,6 +286,8 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
   // A missing claim token cannot be matched by SQLite's equality predicate
   // when finishing work; accepting it would strand a task as running forever.
   // A missing worker identity also leaves no accountable owner for recovery.
+  const onlyTaskId = options.onlyTaskId ?? process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID;
+  if (onlyTaskId && String(id) !== onlyTaskId) return null;
   if (typeof claimToken !== 'string' || !claimToken.trim()
     || typeof workerDeviceId !== 'string' || !workerDeviceId.trim()
     || !Number.isFinite(now) || !Number.isFinite(expiresAt) || expiresAt <= now) return null;
