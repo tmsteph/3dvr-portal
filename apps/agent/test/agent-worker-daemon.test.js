@@ -58,6 +58,35 @@ test('queue wrapper fails clearly when its configured Node runtime is unavailabl
   assert.match(result.stderr, new RegExp(missingNode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });
 
+test('daemon run-once cannot lose an explicitly pinned task through persistent config', () => {
+  const fs = require('node:fs');
+  const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), '3dvr-pinned-worker-'));
+  const config = path.join(dir, 'env');
+  try {
+    const env = {
+      ...process.env,
+      THREEDVR_CONFIG_FILE: config,
+      THREEDVR_AUTOPILOT_STATE_DIR: dir,
+      THREEDVR_AGENT_WORKER_ONLY_TASK_ID: 'approved-task-id',
+      THREEDVR_NODE_BIN: path.join(dir, 'missing-node'),
+    };
+    for (const override of ['', 'different-task-id']) {
+      fs.writeFileSync(config, 'THREEDVR_AGENT_WORKER_ONLY_TASK_ID=' + JSON.stringify(override) + '\\n');
+      const result = spawnSync(workerDaemon, ['run-once'], { encoding: 'utf8', env });
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /Pinned task scope conflicts with persistent worker configuration/);
+      assert.doesNotMatch(result.stderr, /requires Node >=22\\.13/);
+    }
+    // Matching configuration preserves the pin and reaches normal runtime validation.
+    fs.writeFileSync(config, 'THREEDVR_AGENT_WORKER_ONLY_TASK_ID="approved-task-id"\\n');
+    const matching = spawnSync(workerDaemon, ['run-once'], { encoding: 'utf8', env });
+    assert.equal(matching.status, 1);
+    assert.match(matching.stderr, /requires Node >=22\\.13/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('context router reloads config and honors the configured Node runtime', async () => {
   const script = await readFile(routerDaemon, 'utf8');
   assert.match(script, /CONFIG_FILE="\$\{THREEDVR_CONFIG_FILE:-\$HOME\/\.3dvr\/config\/env\}"/);
