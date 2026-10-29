@@ -83,16 +83,18 @@ test('managed SQLite poller writes attributable same-queue heartbeat with effect
   const options = await queueOptions(t, {
     ownerAlias: '3dvr-managed', rootNode: fakeRoot(),
     gunSync: false, workerCapabilities: 'node,codex',
+    workerRiskClasses: 'read_only,draft',
   });
   const before = Date.now();
   assert.deepEqual(await runWorkerOnce(options), [], 'idle poller still publishes liveness');
   const db = new DatabaseSync(options.queueDb, { readOnly: true });
   try {
-    const row = db.prepare("SELECT owner_alias,worker_id,queue_store,capabilities,observed_at FROM worker_heartbeats").get();
+    const row = db.prepare("SELECT owner_alias,worker_id,queue_store,capabilities,risk_classes,observed_at FROM worker_heartbeats").get();
     assert.equal(row.owner_alias, '3dvr-managed');
     assert.ok(row.worker_id, 'heartbeat must identify the poller');
     assert.equal(row.queue_store, 'sqlite');
     assert.equal(row.capabilities, 'node,codex');
+    assert.equal(row.risk_classes, 'read_only,draft');
     assert.ok(row.observed_at >= before && row.observed_at <= Date.now());
   } finally { db.close(); }
 });
