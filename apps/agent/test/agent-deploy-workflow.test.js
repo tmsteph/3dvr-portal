@@ -160,13 +160,20 @@ test('pinned signed canary poll cannot execute unrelated Forge or server-control
 });
 
 
-test('manual deployment verification is read-only and never enqueues an unapproved health task', () => {
-  const verification = workflow.match(/^      - name: Verify deployed revision without queue mutation\n([\s\S]*?)(?=^      - name: Publish worker deployment status|$(?![\s\S]))/m)?.[1];
-  assert.ok(verification, 'deploy verification must be present and explicitly read-only');
-  assert.match(verification, /git -C "\$repo" merge-base --is-ancestor "\$GITHUB_SHA" HEAD/);
-  assert.match(verification, /worker execution unverified/);
+test('manual release stages separately and cannot activate an unpinned worker', () => {
+  const staging = workflow.match(/^      - name: Stage release over SSH without touching live runtime\n([\s\S]*?)(?=^      - name: Verify staged revision|$(?![\s\S]))/m)?.[1];
+  const verification = workflow.match(/^      - name: Verify staged revision without runtime mutation\n([\s\S]*?)(?=^      - name: Publish worker deployment status|$(?![\s\S]))/m)?.[1];
+  assert.ok(staging, 'manual staging step must exist');
+  assert.ok(verification, 'staged revision must be verified');
+  assert.match(staging, /stage="\$HOME\/\.3dvr\/portal-release-stage"/);
+  assert.match(verification, /git -C "\$stage" merge-base --is-ancestor "\$GITHUB_SHA" HEAD/);
+  assert.match(verification, /live worker unchanged and execution unverified/);
+  assert.doesNotMatch(staging, /\$scripts\/ask-[\w-]+-daemon" (?:start|stop)/,
+    'manual staging must never start or stop worker or auxiliary daemons');
+  assert.doesNotMatch(staging, /npm --prefix "\$repo|rm -rf "\$repo|cfg_tmp=/,
+    'manual staging must never mutate live dependencies or configuration');
   assert.doesNotMatch(workflow, /agent-task-queue\.js enqueue|--backend health --risk read_only/,
-    'deployment must not create an unapproved task or trigger queue execution for verification');
+    'staging must not enqueue an unapproved task');
   assert.doesNotMatch(workflow, /worker alive and consuming managed queue tasks/,
-    'revision verification is not proof of runtime execution');
+    'source staging is not proof of runtime execution');
 });
