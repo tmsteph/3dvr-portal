@@ -23,9 +23,23 @@ export function openFunnelStore(path = process.env.AUTOMATION_FUNNEL_DB || '/opt
   `);
   if (path !== ':memory:') chmodSync(path, 0o600);
   const row = r => r ? { ...JSON.parse(r.payload), id: r.id, version: r.version, createdAt: r.created_at, updatedAt: r.updated_at } : null;
+  // Public discovery feeds can link the same n8n topic through different
+  // slugs, reply pages, or locale parameters. Dedupe by immutable topic ID,
+  // not by presentation URL; never collapse distinct topics or other hosts.
+  const discoveryIdentity = sourceUrl => {
+    if (!sourceUrl) return '';
+    try {
+      const url = new URL(sourceUrl);
+      if (url.hostname === 'community.n8n.io') {
+        const match = url.pathname.match(/^\\/t\\/(?:[^/]+\\/)?(\\d+)(?:\\/\\d+)?\\/?$/);
+        if (match) return 'n8n-topic:' + match[1];
+      }
+    } catch { /* Keep malformed/manual sources distinct. */ }
+    return sourceUrl;
+  };
   const identity = lead => createHash('sha256').update(
     lead.origin === 'inbound' ? (lead.inquiryType === 'operator-pilot' ? 'operator-pilot:' : 'inbound:') + lead.email + ':' + lead.business.toLowerCase() + ':' + lead.problem.toLowerCase()
-      : lead.sourceUrl || 'manual:' + lead.business.toLowerCase() + ':' + lead.email
+      : discoveryIdentity(lead.sourceUrl) || 'manual:' + lead.business.toLowerCase() + ':' + lead.email
   ).digest('hex');
   return {
     db,
