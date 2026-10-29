@@ -20,7 +20,7 @@ const MIN_ACTIVE_SQLITE_CLAIM_TTL_MS = 1000;
 const DEFAULT_TENANT_PLAN = process.env.THREEDVR_AGENT_TENANT_PLAN || 'free';
 const DEFAULT_ENQUEUE_FLUSH_MS = parseInteger(process.env.THREEDVR_AGENT_ENQUEUE_FLUSH_MS, 3000);
 const DEFAULT_WORKER_CAPABILITIES = process.env.THREEDVR_AGENT_WORKER_CAPABILITIES || 'node,auto,codex,openai,claude,openclaw,shell';
-const DEFAULT_WORKER_RISK_CLASSES = process.env.THREEDVR_AGENT_WORKER_RISK_CLASSES || 'read_only,draft,workspace_write';
+const DEFAULT_WORKER_RISK_CLASSES = process.env.THREEDVR_AGENT_WORKER_RISK_CLASSES ?? 'read_only,draft,workspace_write';
 const VALID_RISK_CLASSES = new Set(['read_only', 'draft', 'workspace_write', 'external_write', 'money', 'credential']);
 const APPROVAL_REQUIRED_RISKS = new Set(['external_write', 'money', 'credential']);
 const INTRINSIC_BACKENDS = new Set(['health']);
@@ -301,7 +301,8 @@ function workerProfile(options = {}) {
     capabilities: csvToList(managedSqlite
       ? configuredCapabilities
       : (options.workerCapabilities || options.capabilities || DEFAULT_WORKER_CAPABILITIES)),
-    riskClasses: csvToList(options.workerRiskClasses || options.riskClasses || DEFAULT_WORKER_RISK_CLASSES),
+    // An explicitly empty risk allowlist must stay empty, not widen to defaults.
+    riskClasses: csvToList(options.workerRiskClasses ?? options.riskClasses ?? DEFAULT_WORKER_RISK_CLASSES),
     maxConcurrency: parseInteger(options.maxConcurrency, 1),
     backend: options.backend || DEFAULT_BACKEND,
   };
