@@ -62,6 +62,9 @@ test('actual SQLite transport is idempotent and preserves historical and running
   const dbPath=join(dir,'queue.sqlite');
   const db=new DatabaseSync(dbPath);
   db.exec('CREATE TABLE tasks(owner_alias TEXT,id TEXT,status TEXT,updated_at TEXT,record_json TEXT,source TEXT,PRIMARY KEY(owner_alias,id))');
+  db.exec('CREATE TABLE worker_heartbeats(owner_alias TEXT,worker_id TEXT,queue_store TEXT,capabilities TEXT,observed_at INTEGER,PRIMARY KEY(owner_alias,worker_id))');
+  const heartbeat=db.prepare('INSERT OR REPLACE INTO worker_heartbeats VALUES(?,?,?,?,?)');
+  heartbeat.run('3dvr-managed','synthetic-poller','sqlite','node,codex',Date.now());
   const insert=db.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?)');
   const historical={id:'old-task',task:'historical do not replay',unsafe:true};
   insert.run('3dvr-managed',historical.id,'queued','old',JSON.stringify(historical),'sqlite');
@@ -109,6 +112,27 @@ test('actual SQLite transport is idempotent and preserves historical and running
     const offlineEnqueue=invoke({action:'enqueue',id:'operator-http-test-new-offline',prefix:input.prefix,
       record:{...record,id:'operator-http-test-new-offline'}},dbPath,'');
     assert.notEqual(offlineEnqueue.status,0,'offline worker must not accept a new task');
+    // New signed admissions need a recent heartbeat from a poller attached to
+    // the same private queue and owner, not merely an environment variable.
+    const admission=(suffix) => invoke({action:'enqueue',id:'operator-http-test-'+suffix,
+      prefix:input.prefix,record:{...record,id:'operator-http-test-'+suffix}});
+    db.prepare('DELETE FROM worker_heartbeats').run();
+    assert.notEqual(admission('missing-poller').status,0,'configured but absent poller must fail closed');
+    heartbeat.run('different-owner','synthetic-poller','sqlite','codex',Date.now());
+    assert.notEqual(admission('wrong-owner').status,0,'wrong queue owner is not live evidence');
+    db.prepare('DELETE FROM worker_heartbeats').run();
+    heartbeat.run('3dvr-managed','synthetic-poller','gun','codex',Date.now());
+    assert.notEqual(admission('wrong-store').status,0,'GUN heartbeat cannot authorize SQLite');
+    heartbeat.run('3dvr-managed','synthetic-poller','sqlite','codex',Date.now()-120000);
+    assert.notEqual(admission('stale-poller').status,0,'stale poller must fail closed');
+    heartbeat.run('3dvr-managed','synthetic-poller','sqlite','codex',Date.now()+120000);
+    assert.notEqual(admission('future-poller').status,0,'future timestamp cannot bypass freshness');
+    heartbeat.run('3dvr-managed','synthetic-poller','sqlite','node',Date.now());
+    assert.notEqual(admission('wrong-capability').status,0,'live non-Codex worker cannot admit Codex');
+    heartbeat.run('3dvr-managed','synthetic-poller','sqlite','node,codex',Date.now());
+    assert.equal(admission('healthy-poller').status,0,'fresh matching worker can admit a new task');
+    assert.equal(db.prepare("SELECT count(*) AS n FROM tasks WHERE id LIKE 'operator-http-test-%' AND status='queued'").get().n,1,
+      'only the healthy new admission is queued; failed checks never insert');
     // A signed status poll must remain readable while a separate worker holds
     // the SQLite RESERVED writer lock. The old BEGIN IMMEDIATE on status
     // waited for busy_timeout and failed instead of returning the receipt.
