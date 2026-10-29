@@ -31,7 +31,7 @@ test('pinned signed canary poll cannot execute unrelated Forge or server-control
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const fakeNode = join(dir, 'fake-node');
   const log = join(dir, 'calls.log');
-  writeFileSync(fakeNode, '#!/usr/bin/env bash\\nprintf "%s\\\\n" "$*" >> "$FAKE_NODE_LOG"\\n');
+  writeFileSync(fakeNode, '#!/usr/bin/env bash\nprintf "%s\\n" "$*" >> "$FAKE_NODE_LOG"\n');
   chmodSync(fakeNode, 0o700);
   const wrapper = new URL('../thomas-agent/scripts/ask-agent-queue', import.meta.url).pathname;
   const env = {
