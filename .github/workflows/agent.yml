@@ -122,10 +122,48 @@ jobs:
           # Stage source in a separate checkout. Never alter the live portal,
           # dependency tree, daemon configuration, or historical task queue.
           stage="$HOME/.3dvr/portal-release-stage"
+          # A symlink or linked worktree can make a clean "stage" checkout
+          # alias a live runtime. Check identity before any fetch or checkout.
+          assert_isolated_stage() {
+            local candidate="$1" expected_origin="$2"
+            local resolved top git_dir common_dir origin live live_real
+            if [ -L "$HOME/.3dvr" ] || [ -L "$candidate" ] || [ -L "$candidate/.git" ] || [ ! -d "$candidate/.git" ]; then
+              echo 'Release stage must be a standalone, non-symlinked Git checkout.' >&2
+              return 1
+            fi
+            resolved=$(realpath -e -- "$candidate") || return 1
+            top=$(realpath -e -- "$(git -C "$candidate" rev-parse --show-toplevel)") || return 1
+            git_dir=$(realpath -e -- "$(git -C "$candidate" rev-parse --absolute-git-dir)") || return 1
+            common_dir=$(realpath -e -- "$(git -C "$candidate" rev-parse --path-format=absolute --git-common-dir)") || return 1
+            if [ "$resolved" != "$top" ] || [ "$git_dir" != "$resolved/.git" ] || [ "$common_dir" != "$git_dir" ]; then
+              echo 'Release stage aliases another checkout or Git directory.' >&2
+              return 1
+            fi
+            origin=$(git -C "$candidate" config --get remote.origin.url) || return 1
+            if [ "$origin" != "$expected_origin" ]; then
+              echo 'Release stage origin does not match the approved repository.' >&2
+              return 1
+            fi
+            # Known live agent and Portal roots must never be staged in place,
+            # including when a bind mount aliases a directory by inode.
+            for live in /opt/3dvr-agent /opt/3dvr-portal-production/current "$HOME/3dvr-portal" "$HOME/.3dvr/portal"; do
+              [ -e "$live" ] || continue
+              live_real=$(realpath -e -- "$live") || return 1
+              if [ "$resolved" = "$live_real" ] || [[ "$resolved" == "$live_real/"* ]] || [[ "$live_real" == "$resolved/"* ]] || [ "$(stat -Lc '%d:%i' "$candidate")" = "$(stat -Lc '%d:%i' "$live")" ]; then
+                echo 'Release stage overlaps a known live runtime checkout.' >&2
+                return 1
+              fi
+            done
+          }
+          if [ -L "$HOME/.3dvr" ] || [ -L "$stage" ]; then
+            echo 'Release staging path or parent is a symlink; refusing to stage.' >&2
+            exit 1
+          fi
           if [ ! -d "$stage/.git" ]; then
             [ ! -e "$stage" ] || { echo 'Release stage path exists but is not a Git checkout.' >&2; exit 1; }
             git clone "https://github.com/$GITHUB_REPOSITORY.git" "$stage"
           fi
+          assert_isolated_stage "$stage" "https://github.com/$GITHUB_REPOSITORY.git"
           if ! git -C "$stage" diff --quiet || ! git -C "$stage" diff --cached --quiet || [ -n "$(git -C "$stage" ls-files --others --exclude-standard)" ]; then
             echo 'Release staging checkout has local changes; refusing to overwrite.' >&2
             exit 1
@@ -149,7 +187,13 @@ jobs:
           ssh "${opts[@]}" "$DO_AGENT_USER@$DO_AGENT_HOST" "GITHUB_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
           set -euo pipefail
           stage="$HOME/.3dvr/portal-release-stage"
+          test ! -L "$HOME/.3dvr"
+          test ! -L "$stage"
+          test ! -L "$stage/.git"
           test -d "$stage/.git"
+          test "$(realpath -e -- "$(git -C "$stage" rev-parse --show-toplevel)")" = "$(realpath -e -- "$stage")"
+          test "$(realpath -e -- "$(git -C "$stage" rev-parse --absolute-git-dir)")" = "$(realpath -e -- "$stage")/.git"
+          test "$(realpath -e -- "$(git -C "$stage" rev-parse --path-format=absolute --git-common-dir)")" = "$(realpath -e -- "$stage")/.git"
           test "$(git -C "$stage" rev-parse HEAD)" = "$GITHUB_SHA"
           echo 'Exact staged revision verified read-only; live worker unchanged and execution unverified.'
           REMOTE
