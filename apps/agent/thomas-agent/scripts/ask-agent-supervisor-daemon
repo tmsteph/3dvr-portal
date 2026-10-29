@@ -28,6 +28,12 @@ is_running() {
 
 case "${1:-}" in
   start)
+    # A pinned canary may run only its authorized task, not the supervisor's
+    # inbox/outreach/router/worker restart fan-out. Reject before state writes.
+    if [ -n "${THREEDVR_AGENT_WORKER_ONLY_TASK_ID:-}" ]; then
+      echo 'Pinned task mode forbids supervisor startup and unrelated daemon repairs.' >&2
+      exit 1
+    fi
     printf '%s\n' running > "$DESIRED_STATE_FILE"
     if is_running; then
       echo "Agent supervisor already running."
