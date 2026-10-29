@@ -86,13 +86,15 @@ export function openFunnelStore(path = process.env.AUTOMATION_FUNNEL_DB || '/opt
       // an unconditional increment lets concurrent discovery/submission
       // workers both consume the last slot and exceed the configured cap.
       // An expired window starts again at one; an active full window is denied.
+      // Successful requests inside a window must not keep moving its deadline.
       return Boolean(db.prepare(`
         INSERT INTO rate_limits (identity, count, reset_at) VALUES (?, 1, ?)
         ON CONFLICT(identity) DO UPDATE SET
           count = CASE WHEN rate_limits.reset_at <= ? THEN 1 ELSE rate_limits.count + 1 END,
-          reset_at = excluded.reset_at
+          reset_at = CASE WHEN rate_limits.reset_at <= ?
+            THEN excluded.reset_at ELSE rate_limits.reset_at END
         WHERE rate_limits.reset_at <= ? OR rate_limits.count < ?
-      `).run(key, now + windowMs, now, now, limit).changes);
+      `).run(key, now + windowMs, now, now, now, limit).changes);
     },
     close() { db.close(); }
   };
