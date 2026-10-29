@@ -31,3 +31,5 @@ changes. Successful curl alone is not proof that the complete uploader works;
 verify file selection, upload, and preview in the canonical browser.
 
 The uploader also calls mapi.4over.com (observed browser XHR). OVH direct TCP to this host timed out; Hetzner returned HTTP 302. Companion api helper/service routes only browser UID 1000 and this host TCP 443 over loopback 18445. Install and operate it like the artwork unit. Rollback: sudo systemctl disable --now 3dvr-4over-api-egress.service.
+
+Browser verification: uploader opens and front/back upload controls load after both routes are repaired. Actual PDF transfer remains blocked by vendor S3 HTTP 403 AccessDenied (explicit service control policy denial for PutObject), although the UI calls this an expired window. No restriction bypass attempted. API service stop cleanup and restart were verified. No purchase made.
