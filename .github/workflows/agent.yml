@@ -202,42 +202,20 @@ jobs:
           "$scripts/ask-autopilot-daemon" status
           "$scripts/ask-agent-heartbeat-daemon" status
           REMOTE
-      - name: Verify managed queue consumption
+      # A deployment may be checked for revision consistency, but never creates
+      # an unapproved task as a side effect. Runtime acceptance is separate.
+      - name: Verify deployed revision without queue mutation
         id: verify
         shell: bash
         run: |
           set -euo pipefail
           opts=(-i /tmp/3dvr-agent-key -o BatchMode=yes -o UserKnownHostsFile=/tmp/3dvr-known-hosts -o StrictHostKeyChecking=yes -o ConnectTimeout=10)
-          owner_b64="$(printf '%s' "$THREEDVR_AGENT_OWNER_ALIAS" | base64 -w 0)"
-          ssh "${opts[@]}" "$DO_AGENT_USER@$DO_AGENT_HOST" "THREEDVR_AGENT_OWNER_ALIAS_B64='$owner_b64' THREEDVR_NODE_BIN='$THREEDVR_NODE_BIN' bash -s" <<'REMOTE'
+          ssh "${opts[@]}" "$DO_AGENT_USER@$DO_AGENT_HOST" "GITHUB_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
           set -euo pipefail
-          export THREEDVR_AGENT_OWNER_ALIAS="$(printf '%s' "$THREEDVR_AGENT_OWNER_ALIAS_B64" | base64 -d)"
-          export THREEDVR_CONFIG_FILE="$HOME/.3dvr/config/env"
-          if [ -f "$THREEDVR_CONFIG_FILE" ]; then set -a; . "$THREEDVR_CONFIG_FILE"; set +a; fi
-          cd "$HOME/.3dvr/portal/apps/agent"
-          export THREEDVR_AGENT_QUEUE_STORE=sqlite
-          [ -x "$THREEDVR_NODE_BIN" ] || exit 1
-          "$THREEDVR_NODE_BIN" -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 13)) process.exit(1); require("node:sqlite")'
-          result="$("$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js enqueue --json --backend health --risk read_only --approval-status approved 'DigitalOcean worker health check')"
-          task_id="$(printf '%s' "$result" | "$THREEDVR_NODE_BIN" -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task queue JSON payload missing');console.log(JSON.parse(s.slice(i)).id)})")"
-          for attempt in $(seq 1 18); do
-            # A transient SQLite lock is an unreadable status, not a failed task.
-            # Retry the SAME health task ID; never enqueue another one here.
-            if ! result="$("$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js status --id "$task_id" --json 2>&1)"; then
-              if [[ "$result" == *"database is locked"* || "$result" == *"SQLITE_BUSY"* ]]; then
-                echo "SQLite status temporarily locked (poll $attempt/18); retrying existing health task" >&2
-                sleep 5
-                continue
-              fi
-              printf '%s\n' "$result" >&2
-              exit 1
-            fi
-            status="$(printf '%s' "$result" | "$THREEDVR_NODE_BIN" -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');console.log(JSON.parse(s.slice(i)).status||'')})")"
-            case "$status" in completed) echo 'managed SQLite queue consumed by DigitalOcean worker'; exit 0;; failed|skipped) printf '%s\n' "$result"; exit 1;; esac
-            sleep 5
-          done
-          echo 'DigitalOcean worker did not consume the managed SQLite queue health task.' >&2
-          exit 1
+          repo="$HOME/.3dvr/portal"
+          test -d "$repo/.git"
+          git -C "$repo" merge-base --is-ancestor "$GITHUB_SHA" HEAD
+          echo 'Deployed revision verified read-only; worker execution unverified.'
           REMOTE
       - name: Publish worker deployment status
         if: always()
@@ -252,8 +230,8 @@ jobs:
           state=failure; description='DigitalOcean agent worker deployment failed'
           if [ "$SSH_OUTCOME" != success ]; then description='DigitalOcean agent SSH credential unavailable'
           elif [ "$DEPLOY_OUTCOME" != success ]; then description='DigitalOcean agent SSH deployment failed'
-          elif [ "$VERIFY_OUTCOME" != success ]; then description='DigitalOcean worker started but managed queue verification failed'
-          else state=success; description='DigitalOcean agent worker alive and consuming managed queue tasks'; fi
+          elif [ "$VERIFY_OUTCOME" != success ]; then description='DigitalOcean deployed revision verification failed'
+          else state=success; description='DigitalOcean deployed revision verified; worker execution unverified'; fi
           curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -d "{\"state\":\"$state\",\"context\":\"3DVR DigitalOcean Worker\",\"description\":\"$description\"}"
       - name: Remove SSH key
         if: always()
