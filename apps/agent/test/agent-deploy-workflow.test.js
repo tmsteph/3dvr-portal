@@ -3,6 +3,7 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
 
 // Prevent a PR merge from silently restarting the live DigitalOcean worker
@@ -26,6 +27,38 @@ test('worker deployment requires a deliberate main-branch manual approval', () =
   assert.match(workflow, /^  push:\n/m, 'normal CI on push must remain enabled');
 });
 
+
+test('manual deploy preflight refuses queued or running work without touching the queue', (t) => {
+  const preflight = workflow.match(/^          "\\$THREEDVR_NODE_BIN" <<'QUEUE_PREFLIGHT'\\n([\\s\\S]*?)^          QUEUE_PREFLIGHT$/m)?.[1];
+  assert.ok(preflight, 'manual deployment must check the existing SQLite queue before daemon shutdown');
+
+  const dir = mkdtempSync(join(tmpdir(), '3dvr-deploy-preflight-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dbPath = join(dir, 'queue.sqlite');
+  const db = new DatabaseSync(dbPath);
+  t.after(() => db.close());
+  db.exec('CREATE TABLE tasks (owner_alias TEXT NOT NULL, status TEXT NOT NULL)');
+  const insert = db.prepare('INSERT INTO tasks (owner_alias, status) VALUES (?, ?)');
+  insert.run('3dvr-managed', 'queued');
+  insert.run('unrelated-owner', 'queued');
+
+  const run = (path = dbPath) => spawnSync(process.execPath, ['-e', preflight], {
+    encoding: 'utf8',
+    env: { ...process.env, THREEDVR_AGENT_QUEUE_DB: path, THREEDVR_AGENT_OWNER_ALIAS: '3dvr-managed' }
+  });
+
+  const queued = run();
+  assert.notEqual(queued.status, 0);
+  assert.match(queued.stderr, /queued\\/running tasks require review/);
+  assert.equal(db.prepare("SELECT status FROM tasks WHERE owner_alias = '3dvr-managed'").get().status, 'queued');
+
+  db.exec("UPDATE tasks SET status = 'review_required' WHERE owner_alias = '3dvr-managed'");
+  assert.equal(run().status, 0, 'other owners and quarantined tasks must not block this owner');
+
+  db.exec("UPDATE tasks SET status = 'running' WHERE owner_alias = '3dvr-managed'");
+  assert.notEqual(run().status, 0, 'an in-flight task must block daemon restart');
+  assert.notEqual(run(join(dir, 'missing.sqlite')).status, 0, 'missing authority must fail closed');
+});
 
 test('pinned task refuses background daemon startup', (t) => {
   const dir = mkdtempSync(join(tmpdir(), '3dvr-pinned-daemon-'));
