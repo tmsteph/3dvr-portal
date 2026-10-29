@@ -39,6 +39,16 @@ function openDatabase(options = {}) {
     ) WITHOUT ROWID;
     CREATE INDEX IF NOT EXISTS tasks_owner_status_updated
       ON tasks (owner_alias, status, updated_at);
+    -- Worker liveness belongs to the same private SQLite authority as task
+    -- admission. GUN presence and service configuration are not heartbeats.
+    CREATE TABLE IF NOT EXISTS worker_heartbeats (
+      owner_alias TEXT NOT NULL,
+      worker_id TEXT NOT NULL,
+      queue_store TEXT NOT NULL,
+      capabilities TEXT NOT NULL,
+      observed_at INTEGER NOT NULL,
+      PRIMARY KEY (owner_alias, worker_id)
+    ) WITHOUT ROWID;
     `);
   } catch (error) {
     db.close();
@@ -63,6 +73,25 @@ function parseRecord(row) {
     queueSource: row.source,
     claimExpiresAt: row.claim_expires_at || null,
   };
+}
+
+// Only the actual queue poller writes this bounded-age liveness evidence.
+// It is scoped to the same SQLite file and owner as the task claim path.
+function writeWorkerHeartbeat(profile, options = {}) {
+  const workerId = String(profile?.workerId || '').trim();
+  if (!workerId) throw new Error('worker heartbeat requires an attributable worker id');
+  const capabilities = [...new Set((profile.capabilities || [])
+    .map(value => String(value).trim().toLowerCase()).filter(Boolean))].join(',');
+  const observedAt = Date.now();
+  return withDatabase(options, db => db.prepare(`
+    INSERT INTO worker_heartbeats
+      (owner_alias, worker_id, queue_store, capabilities, observed_at)
+    VALUES (?, ?, 'sqlite', ?, ?)
+    ON CONFLICT(owner_alias, worker_id) DO UPDATE SET
+      queue_store = excluded.queue_store,
+      capabilities = excluded.capabilities,
+      observed_at = excluded.observed_at
+  `).run(ownerAlias(options), workerId, capabilities, observedAt).changes === 1);
 }
 
 // A task ID is an idempotency key, not permission to replace a pending task.
@@ -432,6 +461,7 @@ function finishTask(id, claimToken, record, options = {}) {
 }
 
 module.exports = {
+  writeWorkerHeartbeat,
   initializeTaskGoal,
   transitionTaskGoal,
   claimTask,
