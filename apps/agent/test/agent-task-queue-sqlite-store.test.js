@@ -79,6 +79,27 @@ test('shell task with a forged read-only label stays queued without a false rece
   assert.equal(held.completedAt, '', 'no fabricated terminal receipt');
 });
 
+test('managed signed SQLite task stays queued when worker capability config is empty', async (t) => {
+  const options = await queueOptions(t, {
+    ownerAlias: '3dvr-managed', queueSource: 'operator-http',
+    gunSync: false, workerCapabilities: '',
+  });
+  const id = 'operator-http-no-configured-worker';
+  await enqueueTask('Draft a synthetic, no-send research note', {
+    ...options, id, backend: 'codex', riskClass: 'draft',
+  });
+  let invoked = 0;
+  const results = await runWorkerOnce({
+    ...options,
+    runAgentTaskImpl: async () => { invoked += 1; return { ok: true }; },
+  });
+  assert.deepEqual(results, [], 'no signed work is selected without effective capabilities');
+  assert.equal(invoked, 0, 'backend never executes');
+  const held = await readTask(id, options);
+  assert.equal(held.status, 'queued', 'pending signed intent remains durable');
+  assert.ok(!held.startedAt && !held.completedAt, 'no fabricated worker receipt');
+});
+
 test('signed Operator tasks reserve one executor and require the managed owner', async (t) => {
   const options = await queueOptions(t, { ownerAlias: '3dvr-managed' });
   const other = { ...options, ownerAlias: 'other-owner' };
