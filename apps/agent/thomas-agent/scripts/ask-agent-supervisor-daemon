@@ -34,18 +34,38 @@ case "${1:-}" in
       echo 'Pinned task mode forbids supervisor startup and unrelated daemon repairs.' >&2
       exit 1
     fi
-    printf '%s\n' running > "$DESIRED_STATE_FILE"
     if is_running; then
+      printf '%s\n' running > "$DESIRED_STATE_FILE"
       echo "Agent supervisor already running."
       exit 0
     fi
+    # A stale desired=running file is not proof of a live supervisor. Keep
+    # desired stopped until startup is actually observed, and fail closed if
+    # tmux or the detached process exits immediately.
+    printf '%s\n' stopped > "$DESIRED_STATE_FILE"
     if command -v tmux >/dev/null 2>&1; then
-      tmux new-session -d -s "$TMUX_SESSION" "cd \"$ROOT\" && exec node \"$ROOT/node/agent-supervisor.js\" >>\"$LOG_FILE\" 2>&1"
+      if ! tmux new-session -d -s "$TMUX_SESSION" "cd \"$ROOT\" && exec node \"$ROOT/node/agent-supervisor.js\" >>\"$LOG_FILE\" 2>&1"; then
+        echo "Failed to launch agent supervisor tmux session. Inspect $LOG_FILE" >&2
+        exit 1
+      fi
+      sleep 1
+      if ! is_running; then
+        echo "Agent supervisor exited during startup. Inspect $LOG_FILE" >&2
+        exit 1
+      fi
+      printf '%s\n' running > "$DESIRED_STATE_FILE"
       echo "Started agent supervisor in tmux session $TMUX_SESSION. Log: $LOG_FILE"
     else
       setsid node "$ROOT/node/agent-supervisor.js" >>"$LOG_FILE" 2>&1 &
       echo "$!" > "$PID_FILE"
-      echo "Started agent supervisor (pid $!). Log: $LOG_FILE"
+      sleep 1
+      if ! is_running; then
+        rm -f "$PID_FILE"
+        echo "Agent supervisor exited during startup. Inspect $LOG_FILE" >&2
+        exit 1
+      fi
+      printf '%s\n' running > "$DESIRED_STATE_FILE"
+      echo "Started agent supervisor (pid $(cat "$PID_FILE")). Log: $LOG_FILE"
     fi
     ;;
   stop)
