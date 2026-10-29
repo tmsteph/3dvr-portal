@@ -25,3 +25,11 @@ Thomas requests four randomly generated words, separated with hyphens: `word-wor
 Bitwarden target generator settings: Passphrase; number of words 4; separator `-`. CLI equivalent is `bw generate --passphrase --words 4 --separator -`. Do not print generated passwords in command output or GitHub.
 
 On 2026-10-28 Thomas signed into the Bitwarden web vault through the 3DVR Human Handoff on OVH's general lane (9222). The handoff was resolved before automation resumed under its own browser lease. In Tools -> Generator, selected Passphrase and set Number of words 4, separator `-`, Capitalize off, Include number off. The visible UI confirmed these exact values. No saved passwords or account security settings were changed. Reloading the web vault immediately returned to the locked-vault screen; persistence across unlock/reload and propagation to other Bitwarden clients remain unverified. Future work should unlock through a fresh human handoff and inspect the existing preferences without assuming cross-device synchronization. The automation browser lease was released.
+
+## Verified OpenBao-backed vault unlock — October 28, 2026 Pacific
+
+Thomas supplied the Bitwarden master password using a one-time encrypted Secret Handoff. OpenBao key reference: `BITWARDEN_MASTER_PASSWORD`. Receipt status was `stored`; ephemeral handoff key material was removed. The actual value was never placed in chat or queue output.
+
+A server-side test resolved the secret locally and successfully unlocked the existing Bitwarden web vault on OVH's general browser lane (9222). After the earlier page reload and vault lock, Tools -> Generator restored Passphrase selected, number of words 4, separator `-`, Capitalize false, and Include number false. Persistence across reload/unlock is now verified in this server browser. Phone/extension propagation remains unverified. The browser writer lease was released after the check.
+
+For future authorized unlocks, resolve this key only on the trusted server, keep it out of tool arguments/responses/logs, and acquire the matching browser lane lease. Never change the master password or bulk-rotate saved credentials merely to restore a locked session.
