@@ -13,38 +13,14 @@ export function adjacentMessageId(messages,nodeId,direction){
   return messages[next]?.id||null;
 }
 
-export function operatorHistoryState({conversationId='',nodeId='',workspaceUrl=''}={}){
+export function operatorHistoryState({conversationId='',nodeId=''}={}){
   return {
     kind:OPERATOR_HISTORY_KIND,
     conversationId:String(conversationId||''),
-    nodeId:String(nodeId||''),
-    workspaceUrl:String(workspaceUrl||'')
+    nodeId:String(nodeId||'')
   };
 }
 
 export function isOperatorHistoryState(value){
   return Boolean(value&&value.kind===OPERATOR_HISTORY_KIND);
-}
-
-export function embeddableWorkspaceHref(href,base='https://portal.3dvr.tech/operator/'){
-  try{
-    const url=new URL(href,base);
-    return ['http:','https:'].includes(url.protocol)?url.href:'';
-  }catch{
-    return '';
-  }
-}
-
-// Shell destinations belong to the parent chat, never to its iframe.
-export function operatorShellDestination(href,base='https://portal.3dvr.tech/operator/'){
-  try{
-    const url=new URL(href,base);
-    const parent=new URL(base);
-    if(!['http:','https:'].includes(url.protocol))return '';
-    const owned=url.origin===parent.origin||['portal.3dvr.tech','operator.3dvr.tech'].includes(url.hostname);
-    if(!owned)return '';
-    const path=url.pathname.replace(/\/+$/,'')||'/';
-    if(path==='/operator'||path==='/operator/index.html'||(url.hostname==='operator.3dvr.tech'&&(path==='/'||path==='/index.html')))return 'chat';
-    return path==='/'||path==='/index.html'?'apps':'';
-  }catch{return ''}
 }

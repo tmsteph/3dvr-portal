@@ -2,11 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   adjacentMessageId,
-  embeddableWorkspaceHref,
   focusedMessage,
   isOperatorHistoryState,
-  operatorHistoryState,
-  operatorShellDestination
+  operatorHistoryState
 } from '../operator/shell-navigation.js';
 
 const messages=[
@@ -27,45 +25,16 @@ test('message navigation clamps at the ends of the active path',()=>{
   assert.equal(adjacentMessageId(messages,'three',1),'three');
 });
 
-test('browser history state carries message and embedded workspace identity',()=>{
+test('browser history restores conversation focus without reopening legacy embedded apps',()=>{
   const state=operatorHistoryState({
     conversationId:'conversation-1',
     nodeId:'two',
-    workspaceUrl:'https://portal.3dvr.tech/calendar/'
+    workspaceUrl:'https://portal.3dvr.tech/helm/'
   });
   assert.equal(isOperatorHistoryState(state),true);
+  assert.equal(state.conversationId,'conversation-1');
   assert.equal(state.nodeId,'two');
-  assert.equal(state.workspaceUrl,'https://portal.3dvr.tech/calendar/');
-});
-
-test('workspace URLs allow web views and reject non-web protocols',()=>{
-  assert.equal(
-    embeddableWorkspaceHref('/calendar/','https://portal.3dvr.tech/operator/'),
-    'https://portal.3dvr.tech/calendar/'
-  );
-  assert.equal(embeddableWorkspaceHref('javascript:alert(1)'), '');
-  assert.equal(embeddableWorkspaceHref('mailto:test@example.com'), '');
-});
-
-test('portal home and Operator aliases stay in the parent shell',()=>{
-  for(const href of ['/','/index.html','https://portal.3dvr.tech/?source=chat']){
-    assert.equal(operatorShellDestination(href),'apps');
-  }
-  for(const href of ['/operator/','/operator/index.html?history=1','https://operator.3dvr.tech/']){
-    assert.equal(operatorShellDestination(href),'chat');
-  }
-  for(const href of ['/calendar/','https://example.com/','javascript:alert(1)']){
-    assert.equal(operatorShellDestination(href),'');
-  }
-});
-
-
-test('Operator subdomain keeps app links distinct from the parent chat',()=>{
-  const base='https://operator.3dvr.tech/operator/';
-  for(const href of ['/calendar/','/helm/','/life-space/']){
-    assert.equal(operatorShellDestination(href,base),'');
-  }
-  assert.equal(operatorShellDestination('/',base),'chat');
-  assert.equal(operatorShellDestination('/operator/',base),'chat');
-  assert.equal(operatorShellDestination('https://portal.3dvr.tech/',base),'apps');
+  assert.equal('workspaceUrl' in state,false);
+  // Existing stored history is still recognized; its old workspace URL is ignored.
+  assert.equal(isOperatorHistoryState({...state,workspaceUrl:'/helm/'}),true);
 });
