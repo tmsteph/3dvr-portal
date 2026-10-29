@@ -46,10 +46,16 @@ function openDatabase(options = {}) {
       worker_id TEXT NOT NULL,
       queue_store TEXT NOT NULL,
       capabilities TEXT NOT NULL,
+      risk_classes TEXT NOT NULL DEFAULT '',
       observed_at INTEGER NOT NULL,
       PRIMARY KEY (owner_alias, worker_id)
     ) WITHOUT ROWID;
     `);
+    // Existing managed SQLite files predate risk-class liveness metadata.
+    // Migrate in place; old heartbeats remain ineligible until a poller refreshes them.
+    if (!db.prepare('PRAGMA table_info(worker_heartbeats)').all().some(column => column.name === 'risk_classes')) {
+      db.exec("ALTER TABLE worker_heartbeats ADD COLUMN risk_classes TEXT NOT NULL DEFAULT ''");
+    }
   } catch (error) {
     db.close();
     throw error;
@@ -82,16 +88,19 @@ function writeWorkerHeartbeat(profile, options = {}) {
   if (!workerId) throw new Error('worker heartbeat requires an attributable worker id');
   const capabilities = [...new Set((profile.capabilities || [])
     .map(value => String(value).trim().toLowerCase()).filter(Boolean))].join(',');
+  const riskClasses = [...new Set((profile.riskClasses || [])
+    .map(value => String(value).trim().toLowerCase()).filter(Boolean))].join(',');
   const observedAt = Date.now();
   return withDatabase(options, db => db.prepare(`
     INSERT INTO worker_heartbeats
-      (owner_alias, worker_id, queue_store, capabilities, observed_at)
-    VALUES (?, ?, 'sqlite', ?, ?)
+      (owner_alias, worker_id, queue_store, capabilities, risk_classes, observed_at)
+    VALUES (?, ?, 'sqlite', ?, ?, ?)
     ON CONFLICT(owner_alias, worker_id) DO UPDATE SET
       queue_store = excluded.queue_store,
       capabilities = excluded.capabilities,
+      risk_classes = excluded.risk_classes,
       observed_at = excluded.observed_at
-  `).run(ownerAlias(options), workerId, capabilities, observedAt).changes === 1);
+  `).run(ownerAlias(options), workerId, capabilities, riskClasses, observedAt).changes === 1);
 }
 
 // A task ID is an idempotency key, not permission to replace a pending task.
