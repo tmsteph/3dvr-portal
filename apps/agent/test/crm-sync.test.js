@@ -79,6 +79,7 @@ test('buildCrmSyncPayload creates records and stable touch log entries', () => {
       kind: 'email',
       status: 'sent',
       name: 'Finest City Home and Loans',
+      contact: 'mailto:team@loans.example',
       route: 'email',
       subject: 'Question for Finest City Home and Loans',
     },
@@ -195,6 +196,42 @@ test('CRM never attributes a reply by shared name when contact identities differ
   const reply = payload.touches.find(touch => touch.touchType === 'reply-received');
   assert.equal(reply.recordId, first.id);
   assert.ok(!payload.touches.some(touch => touch.message === 'Unattributed reply'));
+});
+
+test('CRM never attributes a name-only send or reply even when exactly one lead shares that name', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [{ name: 'Unique Synthetic Buyer', link: 'https://buyer.example',
+      contact: 'mailto:owner@buyer.example', status: 'new' }],
+    outreach: [
+      { name: 'Unique Synthetic Buyer', status: 'sent',
+        timestamp: '2026-10-29T12:00:00.000Z', body: 'Unverified send log' },
+      { name: 'Unique Synthetic Buyer', status: 'replied',
+        timestamp: '2026-10-29T13:00:00.000Z', body: 'Unverified reply log' }
+    ],
+    now: '2026-10-29T14:00:00.000Z'
+  });
+  assert.equal(payload.records.length, 1);
+  assert.equal(payload.records[0].status, 'Lead');
+  assert.equal(payload.records[0].lastContacted, '');
+  assert.equal(payload.records[0].replyCount, undefined);
+  assert.equal(payload.touches.filter(touch => touch.source === '3dvr-agent/outreach-log').length, 0);
+});
+
+test('CRM does not merge distinct email identities merely because they share a website', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [{ name: 'Shared Firm', link: 'https://shared.example',
+      contact: 'mailto:alice@shared.example', status: 'new' }],
+    outreach: [{ name: 'Shared Firm', site: 'https://shared.example',
+      contact: 'mailto:bob@shared.example', status: 'replied',
+      timestamp: '2026-10-29T13:00:00.000Z' }],
+    now: '2026-10-29T14:00:00.000Z'
+  });
+  const alice = payload.records.find(record => record.email === 'alice@shared.example');
+  assert.ok(alice);
+  assert.equal(alice.status, 'Lead');
+  assert.equal(alice.replyCount, undefined);
+  assert.ok(!payload.touches.some(touch => touch.source === '3dvr-agent/outreach-log' &&
+    touch.recordId === alice.id));
 });
 
 test('shouldSyncLeadToCrm keeps the default CRM import focused on useful leads', () => {
