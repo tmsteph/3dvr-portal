@@ -82,10 +82,17 @@ export function openFunnelStore(path = process.env.AUTOMATION_FUNNEL_DB || '/opt
     rateLimit(key, { limit = 5, windowMs = 3600000 } = {}) {
       const now = Date.now();
       db.prepare('DELETE FROM rate_limits WHERE reset_at <= ?').run(now);
-      const old = db.prepare('SELECT * FROM rate_limits WHERE identity=?').get(key);
-      if (old && old.count >= limit) return false;
-      db.prepare('INSERT INTO rate_limits VALUES (?, 1, ?) ON CONFLICT(identity) DO UPDATE SET count=count+1').run(key, now + windowMs);
-      return true;
+      // Admission must be one atomic SQLite statement. A SELECT followed by
+      // an unconditional increment lets concurrent discovery/submission
+      // workers both consume the last slot and exceed the configured cap.
+      // An expired window starts again at one; an active full window is denied.
+      return Boolean(db.prepare(`
+        INSERT INTO rate_limits (identity, count, reset_at) VALUES (?, 1, ?)
+        ON CONFLICT(identity) DO UPDATE SET
+          count = CASE WHEN rate_limits.reset_at <= ? THEN 1 ELSE rate_limits.count + 1 END,
+          reset_at = excluded.reset_at
+        WHERE rate_limits.reset_at <= ? OR rate_limits.count < ?
+      `).run(key, now + windowMs, now, now, limit).changes);
     },
     close() { db.close(); }
   };
