@@ -59,10 +59,20 @@ export function openFunnelStore(path = process.env.AUTOMATION_FUNNEL_DB || '/opt
     },
     update(id, lead, version) {
       const now = new Date().toISOString();
-      const result = db.prepare('UPDATE leads SET payload=?, version=version+1, updated_at=? WHERE id=? AND version=?').run(JSON.stringify(lead), now, id, version);
-      if (!result.changes) throw Object.assign(new Error('Record changed. Refresh before saving.'), { statusCode: 409 });
-      db.prepare('INSERT INTO events VALUES (?, ?, ?, ?)').run(randomUUID(), id, 'updated:' + lead.stage, now);
-      return this.get(id);
+      // A CRM state change without its audit event can falsely imply that a
+      // follow-up, approval, or other transition was recorded. Commit both
+      // writes together, or preserve the original lead and version.
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        const result = db.prepare('UPDATE leads SET payload=?, version=version+1, updated_at=? WHERE id=? AND version=?').run(JSON.stringify(lead), now, id, version);
+        if (!result.changes) throw Object.assign(new Error('Record changed. Refresh before saving.'), { statusCode: 409 });
+        db.prepare('INSERT INTO events VALUES (?, ?, ?, ?)').run(randomUUID(), id, 'updated:' + lead.stage, now);
+        db.exec('COMMIT');
+        return this.get(id);
+      } catch (error) {
+        try { db.exec('ROLLBACK'); } catch { /* Preserve the original failure. */ }
+        throw error;
+      }
     },
     consumeAction(id) {
       if (!/^[a-zA-Z0-9-]{16,100}$/.test(id || '')) return false;
