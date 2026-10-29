@@ -30,6 +30,44 @@ test('worker lifecycle owns context routing, organism sync, and supervision', as
   assert.match(script, /"\$ORGANISM_DAEMON" status/);
 });
 
+test('worker startup refuses a vanished tmux session before launching auxiliary daemons', () => {
+  const fs = require('node:fs');
+  const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), '3dvr-worker-start-'));
+  try {
+    const fakeTmux = path.join(dir, 'tmux');
+    const log = path.join(dir, 'tmux.log');
+    fs.writeFileSync(fakeTmux, [
+      '#!/usr/bin/env bash',
+      'printf "%s\\n" "$*" >> "$TMUX_LOG"',
+      'case "$1" in',
+      '  has-session) exit 1 ;;',
+      '  new-session) exit 0 ;;',
+      '  *) exit 1 ;;',
+      'esac',
+      ''
+    ].join('\\n'), { mode: 0o755 });
+    const result = spawnSync('bash', [workerDaemon, 'start'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: dir + ':' + process.env.PATH,
+        TMUX_LOG: log,
+        THREEDVR_CONFIG_FILE: '/dev/null',
+        THREEDVR_AUTOPILOT_STATE_DIR: dir,
+        THREEDVR_AGENT_WORKER_ONLY_TASK_ID: ''
+      }
+    });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /agent worker exited during startup/i);
+    assert.doesNotMatch(result.stdout, /started agent worker/i);
+    const invocations = fs.readFileSync(log, 'utf8').trim().split('\\n');
+    assert.equal(invocations.filter(line => line.startsWith('new-session ')).length, 1,
+      'a failed worker startup must not launch router, organism, or supervisor');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('queue wrapper reloads and validates its configured Node SQLite runtime', async () => {
   const script = await readFile(queueWrapper, 'utf8');
 
