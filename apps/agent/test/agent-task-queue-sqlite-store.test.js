@@ -1382,7 +1382,7 @@ test('signed HTTP tasks keep prompts and results out of the public relay and mem
   const gunOptions = {rootNode, ownerAlias:'3dvr-managed', force:true};
   let lifeEvents = 0;
   const options = await queueOptions(t, {
-    ...gunOptions, queueStore:'sqlite', workerCapabilities:'codex',
+    ...gunOptions, queueStore:'sqlite', workerCapabilities:'codex', workerRiskClasses:'draft',
     runAgentTaskImpl:async () => ({ok:true,result:{stdout:'private result'}}),
     recordLifeEventImpl:async () => {lifeEvents++;}
   });
