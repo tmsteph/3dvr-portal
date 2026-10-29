@@ -94,7 +94,7 @@ test('queue wrapper refuses a persistent config that clears or replaces a caller
   const log = join(dir, 'calls.log');
   const fakeNode = join(dir, 'fake-node');
   const wrapper = new URL('../thomas-agent/scripts/ask-agent-queue', import.meta.url).pathname;
-  writeFileSync(fakeNode, '#!/usr/bin/env bash\\nprintf "%s\\\\n" "$*" >> "$FAKE_NODE_LOG"\\n');
+  writeFileSync(fakeNode, '#!/usr/bin/env bash\nprintf "%s\\n" "$*" >> "$FAKE_NODE_LOG"\n');
   chmodSync(fakeNode, 0o700);
   const env = {
     ...process.env,
@@ -105,7 +105,7 @@ test('queue wrapper refuses a persistent config that clears or replaces a caller
     THREEDVR_AGENT_SKIP_FORGE: '0',
   };
   for (const overriddenPin of ['', 'unrelated-task']) {
-    writeFileSync(config, `THREEDVR_AGENT_WORKER_ONLY_TASK_ID=${overriddenPin}\\n`);
+    writeFileSync(config, `THREEDVR_AGENT_WORKER_ONLY_TASK_ID=${overriddenPin}\n`);
     writeFileSync(log, '');
     const result = spawnSync('bash', [wrapper, 'run-once'], { encoding: 'utf8', env });
     assert.equal(result.status, 1, result.stderr);
@@ -113,11 +113,11 @@ test('queue wrapper refuses a persistent config that clears or replaces a caller
     assert.equal(readFileSync(log, 'utf8'), '', 'no queue or compatibility worker may run');
   }
 
-  writeFileSync(config, 'THREEDVR_AGENT_WORKER_ONLY_TASK_ID=signed-canary-1\\n');
+  writeFileSync(config, 'THREEDVR_AGENT_WORKER_ONLY_TASK_ID=signed-canary-1\n');
   writeFileSync(log, '');
   const matching = spawnSync('bash', [wrapper, 'run-once'], { encoding: 'utf8', env });
   assert.equal(matching.status, 0, matching.stderr);
-  assert.match(readFileSync(log, 'utf8'), /agent-task-queue\\.js run-once/);
+  assert.match(readFileSync(log, 'utf8'), /agent-task-queue\.js run-once/);
   assert.doesNotMatch(readFileSync(log, 'utf8'), /operator-forge-worker|operator-server-control-worker/);
 });
 
