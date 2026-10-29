@@ -71,17 +71,17 @@ test('daemon run-once cannot lose an explicitly pinned task through persistent c
       THREEDVR_NODE_BIN: path.join(dir, 'missing-node'),
     };
     for (const override of ['', 'different-task-id']) {
-      fs.writeFileSync(config, 'THREEDVR_AGENT_WORKER_ONLY_TASK_ID=' + JSON.stringify(override) + '\\n');
+      fs.writeFileSync(config, 'THREEDVR_AGENT_WORKER_ONLY_TASK_ID=' + JSON.stringify(override) + '\n');
       const result = spawnSync(workerDaemon, ['run-once'], { encoding: 'utf8', env });
       assert.equal(result.status, 1, result.stderr);
       assert.match(result.stderr, /Pinned task scope conflicts with persistent worker configuration/);
-      assert.doesNotMatch(result.stderr, /requires Node >=22\\.13/);
+      assert.doesNotMatch(result.stderr, /requires Node >=22\.13/);
     }
     // Matching configuration preserves the pin and reaches normal runtime validation.
-    fs.writeFileSync(config, 'THREEDVR_AGENT_WORKER_ONLY_TASK_ID="approved-task-id"\\n');
+    fs.writeFileSync(config, 'THREEDVR_AGENT_WORKER_ONLY_TASK_ID="approved-task-id"\n');
     const matching = spawnSync(workerDaemon, ['run-once'], { encoding: 'utf8', env });
     assert.equal(matching.status, 1);
-    assert.match(matching.stderr, /requires Node >=22\\.13/);
+    assert.match(matching.stderr, /requires Node >=22\.13/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
