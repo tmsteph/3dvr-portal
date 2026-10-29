@@ -10,15 +10,18 @@ const start = workflow.indexOf('      - name: Verify staged revision without run
 const end = workflow.indexOf('      - name: Publish worker deployment status', start);
 assert(start >= 0 && end > start, 'read-only staged revision verification must be present');
 const verifyStep = workflow.slice(start, end);
-const remote = verifyStep.match(/<<'REMOTE'\\n([\\s\\S]*?)^          REMOTE$/m);
-assert(remote, 'staged revision verifier must use a bounded SSH heredoc');
-const verifier = remote[1].replace(/^          /gm, '');
+const marker = "<<'REMOTE'\n";
+const open = verifyStep.indexOf(marker);
+const close = verifyStep.indexOf('\n          REMOTE', open + marker.length);
+assert(open >= 0 && close > open, 'staged revision verifier must use a bounded SSH heredoc');
+const verifier = verifyStep.slice(open + marker.length, close).replace(/^          /gm, '');
 
 test('manual release verifier checks isolated staged revision without queue mutation', (t) => {
-  assert.doesNotMatch(workflow, /agent-task-queue\\.js enqueue|--backend health --risk read_only/);
-  assert.match(verifier, /portal-release-stage/);
-  assert.match(verifier, /git -C "\\$stage" merge-base --is-ancestor "\\$GITHUB_SHA" HEAD/);
-  assert.match(verifier, /execution unverified/);
+  assert.equal(workflow.includes('agent-task-queue.js enqueue'), false);
+  assert.equal(workflow.includes('--backend health --risk read_only'), false);
+  assert.ok(verifier.includes('portal-release-stage'));
+  assert.ok(verifier.includes('git -C "$stage" merge-base --is-ancestor "$GITHUB_SHA" HEAD'));
+  assert.ok(verifier.includes('execution unverified'));
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'staged-revision-verifier-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
