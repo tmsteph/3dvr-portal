@@ -92,13 +92,37 @@ test('managed SQLite worker requires explicit capabilities instead of all-backen
     assert.deepEqual(workerProfile(managed).capabilities, []);
     assert.match(canWorkerRunTask(draft, managed).reason, /missing capabilities: codex/);
     assert.deepEqual(workerProfile({ ...managed, workerCapabilities: '' }).capabilities, []);
-    assert.equal(canWorkerRunTask(draft, { ...managed, workerCapabilities: 'codex' }).ok, true);
-    assert.equal(canWorkerRunTask({
-      backend: 'health', riskClass: 'read_only', approvalStatus: 'not_required',
-    }, managed).ok, true, 'intrinsic health checks remain available');
+    assert.deepEqual(workerProfile(managed).riskClasses, [],
+      'missing managed risk configuration is not permission to run drafts');
+    assert.match(canWorkerRunTask(draft, { ...managed, workerCapabilities: 'codex' }).reason,
+      /risk class not allowed: draft/);
+    assert.equal(canWorkerRunTask(draft, {
+      ...managed, workerCapabilities: 'codex', workerRiskClasses: 'draft',
+    }).ok, true, 'explicit draft permission still works');
+    const health = { backend: 'health', riskClass: 'read_only', approvalStatus: 'not_required' };
+    assert.match(canWorkerRunTask(health, managed).reason, /risk class not allowed: read_only/);
+    assert.equal(canWorkerRunTask(health, {
+      ...managed, workerRiskClasses: 'read_only',
+    }).ok, true, 'intrinsic health checks remain available with explicit risk permission');
   } finally {
     if (previous === undefined) delete process.env.THREEDVR_AGENT_WORKER_CAPABILITIES;
     else process.env.THREEDVR_AGENT_WORKER_CAPABILITIES = previous;
+  }
+});
+
+test('managed worker does not inherit draft permission from missing environment risk config', () => {
+  const previous = process.env.THREEDVR_AGENT_WORKER_RISK_CLASSES;
+  try {
+    delete process.env.THREEDVR_AGENT_WORKER_RISK_CLASSES;
+    const managed = { queueStore: 'sqlite', ownerAlias: '3dvr-managed', workerCapabilities: 'codex' };
+    const draft = { backend: 'codex', riskClass: 'draft', approvalStatus: 'not_required' };
+    assert.deepEqual(workerProfile(managed).riskClasses, []);
+    assert.match(canWorkerRunTask(draft, managed).reason, /risk class not allowed: draft/);
+    assert.deepEqual(workerProfile({ ...managed, workerRiskClasses: 'draft' }).riskClasses, ['draft']);
+    assert.equal(canWorkerRunTask(draft, { ...managed, workerRiskClasses: 'draft' }).ok, true);
+  } finally {
+    if (previous === undefined) delete process.env.THREEDVR_AGENT_WORKER_RISK_CLASSES;
+    else process.env.THREEDVR_AGENT_WORKER_RISK_CLASSES = previous;
   }
 });
 
