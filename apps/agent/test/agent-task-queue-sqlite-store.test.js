@@ -82,7 +82,7 @@ test('shell task with a forged read-only label stays queued without a false rece
 test('managed signed SQLite task stays queued when worker capability config is empty', async (t) => {
   const options = await queueOptions(t, {
     ownerAlias: '3dvr-managed', queueSource: 'operator-http',
-    gunSync: false, workerCapabilities: '',
+    rootNode: fakeRoot(), gunSync: false, workerCapabilities: '',
   });
   const id = 'operator-http-no-configured-worker';
   await enqueueTask('Draft a synthetic, no-send research note', {
