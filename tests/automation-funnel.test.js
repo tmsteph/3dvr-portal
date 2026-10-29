@@ -34,17 +34,17 @@ test('concurrent discovery workers reuse the winning lead and record one creatio
   const second = openFunnelStore(dbPath);
   try {
     const lead = normalizeLead({ ...base, business: 'Concurrent Buyer' }, { inbound: true });
-    const originalPrepare = first.db.prepare.bind(first.db);
+    const originalExec = first.db.exec.bind(first.db);
     let winner;
     let interleaved = false;
-    first.db.prepare = sql => {
-      // The other worker commits after the first worker's old SELECT but
-      // before its INSERT. A plain INSERT previously threw SQLITE_CONSTRAINT.
-      if (!interleaved && sql.startsWith('INSERT OR IGNORE INTO leads')) {
+    first.db.exec = sql => {
+      // Another worker commits just before this worker begins its atomic
+      // transaction. Deduplication must return that winner without an event.
+      if (!interleaved && sql === 'BEGIN IMMEDIATE') {
         interleaved = true;
         winner = second.insert(lead);
       }
-      return originalPrepare(sql);
+      return originalExec(sql);
     };
     const loser = first.insert(lead);
     assert.equal(interleaved, true);
@@ -59,6 +59,25 @@ test('concurrent discovery workers reuse the winning lead and record one creatio
     rmSync(dir, { recursive: true, force: true });
   }
 });
+test('failed CRM creation-event write rolls back the lead and allows a clean retry', () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const lead = normalizeLead({ ...base, business: 'Rollback Buyer' }, { inbound: true });
+    store.db.exec(`CREATE TRIGGER reject_created BEFORE INSERT ON events
+      WHEN NEW.kind = 'created' BEGIN SELECT RAISE(FAIL, 'synthetic event failure'); END;`);
+    assert.throws(() => store.insert(lead), /synthetic event failure/);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM leads').get().n, 0,
+      'a failed creation event must not leave an untracked CRM lead');
+    store.db.exec('DROP TRIGGER reject_created');
+    const saved = store.insert(lead);
+    assert.equal(saved.duplicate, false, 'retry must create rather than silently dedupe');
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM leads').get().n, 1);
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind='created'").get().n, 1);
+  } finally {
+    store.close();
+  }
+});
+
 test('public submission exposes receipt only and owner review requires bound proof', async () => {
   const store = openFunnelStore(':memory:');
   const config = { PORTAL_ORIGIN: 'https://portal.3dvr.tech', THREEDVR_OPERATOR_OWNER_PUBS: 'owner' };
