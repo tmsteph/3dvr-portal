@@ -109,6 +109,14 @@ async function runSupervisorCycle(options = {}) {
   return { desired, repaired, unhealthy, state };
 }
 
+function supervisorHeartbeatStatus(report) {
+  if (report.blocked) return 'blocked';
+  if (report.desired !== 'running') return 'stopped';
+  // Desired state is not proof that the supervised services are healthy.
+  if (report.unhealthy.length > 0) return 'degraded';
+  return 'running';
+}
+
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -124,7 +132,7 @@ async function main() {
     }
     await writeHeartbeat('agent-supervisor', {
       ownerAlias: OWNER_ALIAS,
-      status: report.blocked ? 'blocked' : report.desired === 'running' ? 'running' : 'stopped',
+      status: supervisorHeartbeatStatus(report),
       metadata: {
         desiredState: report.desired,
         repaired: report.repaired.join(','),
@@ -145,6 +153,7 @@ module.exports = {
   readDesiredState,
   runDaemon,
   runSupervisorCycle,
+  supervisorHeartbeatStatus,
 };
 
 if (require.main === module) {
