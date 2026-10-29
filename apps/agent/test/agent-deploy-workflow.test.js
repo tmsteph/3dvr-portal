@@ -33,7 +33,7 @@ test('pinned task refuses background daemon startup', (t) => {
   const daemon = new URL('../thomas-agent/scripts/ask-agent-worker-daemon', import.meta.url).pathname;
   const config = join(dir, 'config');
   // Persistent config must not be able to clear a caller's explicit canary pin.
-  writeFileSync(config, 'THREEDVR_AGENT_WORKER_ONLY_TASK_ID=\\n');
+  writeFileSync(config, 'THREEDVR_AGENT_WORKER_ONLY_TASK_ID=\n');
   const env = {
     ...process.env,
     THREEDVR_CONFIG_FILE: config,
@@ -45,7 +45,7 @@ test('pinned task refuses background daemon startup', (t) => {
   assert.match(result.stderr, /Pinned task mode forbids background worker startup/);
 
   // A pin supplied by configuration is also prohibited from starting daemons.
-  writeFileSync(config, 'THREEDVR_AGENT_WORKER_ONLY_TASK_ID=operator-http-config-pinned\\n');
+  writeFileSync(config, 'THREEDVR_AGENT_WORKER_ONLY_TASK_ID=operator-http-config-pinned\n');
   const configured = spawnSync('bash', [daemon, 'start'], {
     encoding: 'utf8',
     env: { ...env, THREEDVR_AGENT_WORKER_ONLY_TASK_ID: '' },
