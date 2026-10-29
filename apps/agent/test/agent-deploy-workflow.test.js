@@ -143,7 +143,12 @@ test('manual release stages separately and cannot activate an unpinned worker', 
   assert.ok(staging, 'manual staging step must exist');
   assert.ok(verification, 'staged revision must be verified');
   assert.match(staging, /stage="\$HOME\/\.3dvr\/portal-release-stage"/);
-  assert.match(verification, /git -C "\$stage" merge-base --is-ancestor "\$GITHUB_SHA" HEAD/);
+  assert.match(staging, /git -C "\$stage" merge-base --is-ancestor "\$GITHUB_SHA" origin\/main/);
+  assert.match(staging, /git -C "\$stage" checkout --detach "\$GITHUB_SHA"/);
+  assert.match(staging, /test "\$\(git -C "\$stage" rev-parse HEAD\)" = "\$GITHUB_SHA"/);
+  assert.match(verification, /test "\$\(git -C "\$stage" rev-parse HEAD\)" = "\$GITHUB_SHA"/);
+  assert.doesNotMatch(staging, /git -C "\$stage" pull --ff-only origin main/,
+    'staging must not silently select a later unreviewed main revision');
   assert.match(verification, /live worker unchanged and execution unverified/);
   assert.doesNotMatch(staging, /\$scripts\/ask-[\w-]+-daemon" (?:start|stop)/,
     'manual staging must never start or stop worker or auxiliary daemons');
