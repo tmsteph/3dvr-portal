@@ -731,6 +731,10 @@ async function runWorkerOnce(options = {}) {
   // omits THREEDVR_AGENT_QUEUE_STORE and would otherwise default to GUN.
   if (queueStore(options) !== 'sqlite') return [];
   const profile = workerProfile(options);
+  // Publish liveness to the exact private SQLite queue before the GUN
+  // observability mirror. A stale/missing row blocks new signed admission;
+  // it never authorizes replay of existing queued or running work.
+  sqliteQueue().writeWorkerHeartbeat(profile, options);
   await writeHeartbeat('task-worker', {
     ...options,
     status: 'running',
