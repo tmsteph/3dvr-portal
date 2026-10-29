@@ -301,6 +301,11 @@ function workerProfile(options = {}) {
     && normalizeText(options.ownerAlias || process.env.THREEDVR_AGENT_OWNER_ALIAS) === '3dvr-managed';
   const configuredCapabilities = options.workerCapabilities ?? options.capabilities
     ?? process.env.THREEDVR_AGENT_WORKER_CAPABILITIES;
+  // Managed signed workers must explicitly opt into risk classes, just as
+  // they must opt into executable capabilities. A missing setting is not a
+  // grant of the historical draft/workspace-write defaults.
+  const configuredRiskClasses = options.workerRiskClasses ?? options.riskClasses
+    ?? process.env.THREEDVR_AGENT_WORKER_RISK_CLASSES;
   return {
     workerId: deviceId(options),
     onlyTaskId: workerOnlyTaskId(options),
@@ -308,7 +313,9 @@ function workerProfile(options = {}) {
       ? configuredCapabilities
       : (options.workerCapabilities || options.capabilities || DEFAULT_WORKER_CAPABILITIES)),
     // An explicitly empty risk allowlist must stay empty, not widen to defaults.
-    riskClasses: csvToList(options.workerRiskClasses ?? options.riskClasses ?? DEFAULT_WORKER_RISK_CLASSES),
+    riskClasses: csvToList(managedSqlite
+      ? configuredRiskClasses
+      : (configuredRiskClasses ?? DEFAULT_WORKER_RISK_CLASSES)),
     maxConcurrency: parseInteger(options.maxConcurrency, 1),
     backend: options.backend || DEFAULT_BACKEND,
   };
