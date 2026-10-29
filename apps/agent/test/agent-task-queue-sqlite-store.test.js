@@ -161,6 +161,22 @@ test('supervised signed canary cannot claim an older signed backlog task', async
   } finally { db.close(); }
   await assert.rejects(runWorkerOnce({ ...supervised, onlyTaskId: '*' }), /exact signed/,
     'invalid canary scope must fail before polling or claiming');
+  const originalEnvScope = process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID;
+  try {
+    process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID = onlyTaskId;
+    await assert.rejects(runWorkerOnce({ ...supervised, onlyTaskId: '' }), /scope conflicts/,
+      'empty option must not disable an environment-pinned canary');
+    await assert.rejects(runWorkerOnce({ ...supervised, onlyTaskId: backlogId }), /scope conflicts/,
+      'conflicting option must not widen or redirect pinned execution');
+    assert.equal(sqliteQueue.claimTask(backlogId, 'scope-bypass', 'worker', now + 60000, now,
+      { ...supervised, onlyTaskId: '' }), null,
+    'direct SQLite claim must also reject an empty scope override');
+    assert.equal((await readTask(backlogId, options)).status, 'queued',
+      'pinned scope bypass attempts must leave the historical backlog untouched');
+  } finally {
+    if (originalEnvScope === undefined) delete process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID;
+    else process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID = originalEnvScope;
+  }
 });
 
 test('managed signed SQLite task stays queued when worker capability config is empty', async (t) => {
