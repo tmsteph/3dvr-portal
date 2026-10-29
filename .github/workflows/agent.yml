@@ -122,6 +122,36 @@ jobs:
             fi
             exit 1
           fi
+          # Fail closed before checkout, daemon shutdown, or dependency changes.
+          # Restarting an unrestricted worker could consume old queued work.
+          cfg="$HOME/.3dvr/config/env"
+          if [ -f "$cfg" ]; then set -a; . "$cfg"; set +a; fi
+          export THREEDVR_AGENT_OWNER_ALIAS="$(printf '%s' "$THREEDVR_AGENT_OWNER_ALIAS_B64" | base64 -d)"
+          THREEDVR_NODE_BIN=/opt/node-v22/bin/node
+          [ -x "$THREEDVR_NODE_BIN" ] || { echo 'Managed Node runtime missing; deployment blocked.' >&2; exit 1; }
+          "$THREEDVR_NODE_BIN" <<'QUEUE_PREFLIGHT'
+          const { DatabaseSync } = require('node:sqlite');
+          const { existsSync } = require('node:fs');
+          const { join } = require('node:path');
+          const { homedir } = require('node:os');
+          const owner = process.env.THREEDVR_AGENT_OWNER_ALIAS?.trim();
+          const dbPath = process.env.THREEDVR_AGENT_QUEUE_DB || join(homedir(), '.3dvr', 'task-queue.sqlite');
+          if (!owner) throw new Error('Queue owner unverified; deployment blocked');
+          if (!existsSync(dbPath)) throw new Error('Queue database missing; deployment blocked');
+          const db = new DatabaseSync(dbPath, { readOnly: true });
+          try {
+            db.exec('PRAGMA query_only = ON');
+            const row = db.prepare(
+              "SELECT COUNT(*) AS count FROM tasks WHERE owner_alias = ? AND status IN ('queued', 'running')"
+            ).get(owner);
+            if (row.count !== 0) {
+              throw new Error(`Worker deployment blocked: ${row.count} queued/running tasks require review`);
+            }
+            console.log('Worker deployment queue preflight passed.');
+          } finally {
+            db.close();
+          }
+          QUEUE_PREFLIGHT
           repo="$HOME/.3dvr/portal"
           mkdir -p "$HOME/.3dvr"
           if [ ! -d "$repo/.git" ]; then rm -rf "$repo"; git clone "https://github.com/$GITHUB_REPOSITORY.git" "$repo"; fi
