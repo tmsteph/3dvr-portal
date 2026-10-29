@@ -5,42 +5,41 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const workflow = fs.readFileSync(path.resolve(__dirname,'../../../.github/workflows/agent.yml'),'utf8');
-const start = workflow.indexOf('          result="$("$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js enqueue');
-const end = workflow.indexOf('\n          REMOTE',start);
-assert(start >= 0 && end > start, 'managed health verifier must be present');
-const verifier = workflow.slice(start,end);
+const workflow = fs.readFileSync(path.resolve(__dirname, '../../../.github/workflows/agent.yml'), 'utf8');
+const start = workflow.indexOf('      - name: Verify deployed revision without queue mutation');
+const end = workflow.indexOf('      - name: Publish worker deployment status', start);
+assert(start >= 0 && end > start, 'read-only revision verification must be present');
+const verifyStep = workflow.slice(start, end);
+const remote = verifyStep.match(/<<'REMOTE'\n([\s\S]*?)^          REMOTE$/m);
+assert(remote, 'revision verifier must use a bounded SSH heredoc');
+const verifier = remote[1].replace(/^          /gm, '');
 
-for (const [scenario, expectedExit, expectedPolls] of [
-  ['transient',0,2],['persistent',1,18],['fatal',1,1],['failed',1,1]
-]) {
-  test('deployment health verifier: '+scenario, () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(),'health-verifier-'));
-    try {
-      const script = `set -euo pipefail
-sleep() { :; }
-mock_node() {
-  if [ "$1" != thomas-agent/node/agent-task-queue.js ]; then "$REAL_NODE" "$@"; return; fi
-  if [ "$2" = enqueue ]; then echo enqueue >> "$CASE_DIR/enqueues"; echo '{"id":"health-one"}'; return; fi
-  [ "$2" = status ] && [ "$4" = health-one ] || return 91
-  echo status >> "$CASE_DIR/polls"
-  count="$(wc -l < "$CASE_DIR/polls")"
-  case "$SCENARIO" in
-    transient) if [ "$count" -eq 1 ]; then echo 'database is locked' >&2; return 1; fi;;
-    persistent) echo 'SQLITE_BUSY' >&2; return 1;;
-    fatal) echo 'permission denied' >&2; return 1;;
-    failed) echo '{"status":"failed"}'; return;;
-  esac
-  echo '{"status":"completed"}'
-}
-THREEDVR_NODE_BIN=mock_node
-` + verifier;
-      const result = spawnSync('bash',['-s'],{input:script,encoding:'utf8',timeout:10000,
-        env:{...process.env,CASE_DIR:dir,SCENARIO:scenario,REAL_NODE:process.execPath}});
-      assert.equal(result.status,expectedExit,result.stderr);
-      const count = name => fs.readFileSync(path.join(dir,name),'utf8').trim().split('\n').length;
-      assert.equal(count('enqueues'),1);
-      assert.equal(count('polls'),expectedPolls);
-    } finally { fs.rmSync(dir,{recursive:true,force:true}); }
+test('manual deployment verifier checks revision without creating a queue task', (t) => {
+  assert.doesNotMatch(workflow, /agent-task-queue\.js enqueue|--backend health --risk read_only/);
+  assert.match(verifier, /git -C "\$repo" merge-base --is-ancestor "\$GITHUB_SHA" HEAD/);
+  assert.match(verifier, /worker execution unverified/);
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'revision-verifier-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const repo = path.join(dir, '.3dvr', 'portal');
+  fs.mkdirSync(repo, { recursive: true });
+
+  const git = (args) => spawnSync('git', ['-C', repo, ...args], { encoding: 'utf8' });
+  assert.equal(git(['init', '-q']).status, 0);
+  assert.equal(git(['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+    'commit', '--allow-empty', '-qm', 'baseline']).status, 0);
+  const sha = git(['rev-parse', 'HEAD']).stdout.trim();
+  assert.match(sha, /^[a-f0-9]{40}$/);
+
+  const run = (expected) => spawnSync('bash', ['-s'], {
+    input: verifier,
+    encoding: 'utf8',
+    env: { ...process.env, HOME: dir, GITHUB_SHA: expected },
   });
-}
+  const good = run(sha);
+  assert.equal(good.status, 0, good.stderr);
+  assert.match(good.stdout, /worker execution unverified/);
+  const bad = run('0000000000000000000000000000000000000000');
+  assert.notEqual(bad.status, 0, 'a revision mismatch must fail closed');
+  assert.equal(git(['status', '--porcelain']).stdout.trim(), '', 'verification must not change the checkout');
+});
