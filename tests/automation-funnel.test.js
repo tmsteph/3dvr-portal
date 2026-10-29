@@ -37,7 +37,7 @@ test('funnel rate limit rejects the last-slot race across SQLite workers', () =>
     const originalPrepare = first.db.prepare.bind(first.db);
     let interleaved = false;
     first.db.prepare = sql => {
-      if (!interleaved && /INSERT INTO rate_limits\\b/i.test(sql)) {
+      if (!interleaved && sql.includes('INSERT INTO rate_limits')) {
         interleaved = true;
         // Another connection consumes the final slot after any pre-read,
         // but before the first connection's attempted increment.
