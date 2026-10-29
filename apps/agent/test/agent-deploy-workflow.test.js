@@ -49,7 +49,7 @@ test('pinned signed canary poll cannot execute unrelated Forge or server-control
   });
   assert.equal(pinned.status, 0, pinned.stderr);
   const pinnedCalls = readFileSync(log, 'utf8');
-  assert.match(pinnedCalls, /agent-task-queue\\.js run-once/);
+  assert.match(pinnedCalls, /agent-task-queue\.js run-once/);
   assert.doesNotMatch(pinnedCalls, /operator-forge-worker|operator-server-control-worker/,
     'pinning one SQLite task must not start unscoped compatibility consumers');
 
@@ -60,6 +60,6 @@ test('pinned signed canary poll cannot execute unrelated Forge or server-control
   });
   assert.equal(normal.status, 0, normal.stderr);
   const normalCalls = readFileSync(log, 'utf8');
-  assert.match(normalCalls, /operator-forge-worker\\.js run-once/);
-  assert.match(normalCalls, /operator-server-control-worker\\.js run-once/);
+  assert.match(normalCalls, /operator-forge-worker\.js run-once/);
+  assert.match(normalCalls, /operator-server-control-worker\.js run-once/);
 });
