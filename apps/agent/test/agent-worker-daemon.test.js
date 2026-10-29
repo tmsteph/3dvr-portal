@@ -115,12 +115,9 @@ test('manual release stages an isolated checkout without activating workers', as
     "github.event_name == 'workflow_dispatch'",
     'Stage release over SSH without touching live runtime',
     'portal-release-stage',
-    'queued/running tasks require review',
-    'THREEDVR_NODE_BIN: /opt/node-v22/bin/node',
     'UserKnownHostsFile=/tmp/3dvr-known-hosts',
     'StrictHostKeyChecking=yes',
     '167.172.193.194 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFoepoGbXWiidk4axaBwsI1Y/GWVckiqJxGLkBpTV6Pc',
-    'THREEDVR_AGENT_OWNER_ALIAS_B64',
     'Verify staged revision without runtime mutation',
     'DigitalOcean source staged; live worker unchanged',
   ]) {
@@ -135,6 +132,10 @@ test('manual release stages an isolated checkout without activating workers', as
     '"$scripts/ask-agent-worker-daemon" status',
     'StrictHostKeyChecking=accept-new',
     'agent-task-queue.js enqueue',
+    'QUEUE_PREFLIGHT',
+    'DatabaseSync',
+    'task-queue.sqlite',
+    'THREEDVR_AGENT_QUEUE_DB',
     '--backend shell --risk read_only',
   ]) {
     assert.equal(workflow.includes(forbidden), false, `unexpected live worker action: ${forbidden}`);
