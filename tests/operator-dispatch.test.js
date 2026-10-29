@@ -131,7 +131,7 @@ test('actual SQLite transport is idempotent and preserves historical and running
     assert.notEqual(admission('wrong-capability').status,0,'live non-Codex worker cannot admit Codex');
     heartbeat.run('3dvr-managed','synthetic-poller','sqlite','node,codex',Date.now());
     assert.equal(admission('healthy-poller').status,0,'fresh matching worker can admit a new task');
-    assert.equal(db.prepare("SELECT count(*) AS n FROM tasks WHERE id LIKE 'operator-http-test-%' AND status='queued'").get().n,1,
+    assert.equal(db.prepare("SELECT count(*) AS n FROM tasks WHERE id LIKE 'operator-http-test-%' AND status='queued' AND source='operator-http'").get().n,1,
       'only the healthy new admission is queued; failed checks never insert');
     // A signed status poll must remain readable while a separate worker holds
     // the SQLite RESERVED writer lock. The old BEGIN IMMEDIATE on status
