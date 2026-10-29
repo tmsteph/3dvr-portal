@@ -96,6 +96,31 @@ test('concurrent discovery workers reuse the winning lead and record one creatio
     rmSync(dir, { recursive: true, force: true });
   }
 });
+test('discovery deduplicates n8n topic links across slug, reply and locale variants', () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const lead = normalizeLead({
+      business: 'Hiring automation engineer',
+      problem: 'Needs automation implementation',
+      origin: 'n8n-jobs',
+      sourceUrl: 'https://community.n8n.io/t/hiring-automation-engineer/325192?tl=en'
+    });
+    const first = store.insert(lead);
+    assert.equal(first.duplicate, false);
+    const alternate = store.insert({
+      ...lead,
+      sourceUrl: 'https://community.n8n.io/t/renamed-post/325192/2?page=2'
+    });
+    assert.equal(alternate.duplicate, true);
+    assert.equal(alternate.lead.id, first.lead.id);
+    assert.equal(store.insert({ ...lead, sourceUrl: 'https://community.n8n.io/t/other/325193' }).duplicate, false);
+    assert.equal(store.insert({ ...lead, sourceUrl: 'https://example.org/t/other/325192' }).duplicate, false);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM leads').get().n, 3);
+  } finally {
+    store.close();
+  }
+});
+
 test('failed CRM creation-event write rolls back the lead and allows a clean retry', () => {
   const store = openFunnelStore(':memory:');
   try {
