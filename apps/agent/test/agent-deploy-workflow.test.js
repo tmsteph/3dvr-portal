@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -158,4 +158,56 @@ test('manual release stages separately and cannot activate an unpinned worker', 
     'staging must not enqueue an unapproved task');
   assert.doesNotMatch(workflow, /worker alive and consuming managed queue tasks/,
     'source staging is not proof of runtime execution');
+});
+
+test('manual release rejects symlink-to-live, linked worktree, and mismatched origin before checkout', (t) => {
+  const match = workflow.match(/^          assert_isolated_stage\(\) \{\n[\s\S]*?^          \}/m);
+  assert.ok(match, 'test must execute the actual remote staging guard');
+  const guard = match[0].split('\n').map((line) => line.replace(/^          /, '')).join('\n');
+  const dir = mkdtempSync(join(tmpdir(), '3dvr-release-isolation-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const home = join(dir, 'home');
+  mkdirSync(join(home, '.3dvr'), { recursive: true });
+  const live = join(home, '3dvr-portal');
+  const stage = join(home, '.3dvr', 'portal-release-stage');
+  const origin = 'https://github.com/tmsteph/3dvr-portal.git';
+
+  function git(...args) {
+    const result = spawnSync('git', args, { encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+  }
+  function check(candidate) {
+    return spawnSync('bash', ['-c', `set -euo pipefail\n${guard}\nassert_isolated_stage "$STAGE" "$EXPECTED_ORIGIN"\n`], {
+      encoding: 'utf8',
+      env: { ...process.env, HOME: home, STAGE: candidate, EXPECTED_ORIGIN: origin },
+    });
+  }
+
+  git('init', '-q', live);
+  git('-C', live, 'remote', 'add', 'origin', origin);
+  git('init', '-q', stage);
+  git('-C', stage, 'remote', 'add', 'origin', origin);
+  assert.equal(check(stage).status, 0, 'independent stage should be accepted');
+  assert.notEqual(check(live).status, 0, 'known live checkout must be rejected');
+
+  rmSync(stage, { recursive: true });
+  symlinkSync(live, stage, 'dir');
+  assert.notEqual(check(stage).status, 0, 'symlink to live must be rejected');
+
+  rmSync(stage);
+  git('-C', live, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid',
+    'commit', '--allow-empty', '-qm', 'fixture');
+  git('-C', live, 'worktree', 'add', '-qb', 'staging', stage);
+  assert.notEqual(check(stage).status, 0, 'linked worktree must be rejected');
+
+  git('-C', live, 'worktree', 'remove', '--force', stage);
+  git('init', '-q', stage);
+  git('-C', stage, 'remote', 'add', 'origin', 'https://example.invalid/other.git');
+  assert.notEqual(check(stage).status, 0, 'unapproved origin must be rejected');
+
+  const verify = workflow.match(/^      - name: Verify staged revision without runtime mutation\n([\s\S]*?)(?=^      - name: Publish worker deployment status|$(?![\s\S]))/m)?.[1];
+  assert.ok(verify);
+  assert.match(verify, /test ! -L "\$stage"/);
+  assert.match(verify, /--absolute-git-dir/);
+  assert.match(verify, /--git-common-dir/);
 });
