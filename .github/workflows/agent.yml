@@ -131,10 +131,12 @@ jobs:
             exit 1
           fi
           git -C "$stage" fetch --prune origin main
-          git -C "$stage" checkout main
-          git -C "$stage" pull --ff-only origin main
-          git -C "$stage" merge-base --is-ancestor "$GITHUB_SHA" HEAD
-          echo 'Release staged separately; live workers, dependencies and queue untouched.'
+          # Only stage the exact reviewed workflow commit, not a newer main
+          # revision that may have landed after this dispatch was approved.
+          git -C "$stage" merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          git -C "$stage" checkout --detach "$GITHUB_SHA"
+          test "$(git -C "$stage" rev-parse HEAD)" = "$GITHUB_SHA"
+          echo 'Exact release revision staged separately; live workers, dependencies and queue untouched.'
           REMOTE
       # Staging may be checked for revision consistency. Activation and runtime
       # acceptance require a separately reviewed, task-pinned release path.
@@ -148,8 +150,8 @@ jobs:
           set -euo pipefail
           stage="$HOME/.3dvr/portal-release-stage"
           test -d "$stage/.git"
-          git -C "$stage" merge-base --is-ancestor "$GITHUB_SHA" HEAD
-          echo 'Staged revision verified read-only; live worker unchanged and execution unverified.'
+          test "$(git -C "$stage" rev-parse HEAD)" = "$GITHUB_SHA"
+          echo 'Exact staged revision verified read-only; live worker unchanged and execution unverified.'
           REMOTE
       - name: Publish worker deployment status
         if: always()
