@@ -275,9 +275,20 @@ function buildTaskArgs(record = {}, workerOptions = {}) {
 }
 
 function workerProfile(options = {}) {
+  // The signed Operator producer writes the private managed SQLite queue.
+  // Its worker must advertise effective capabilities explicitly: falling back
+  // to the historical all-backends default could authorize an unintended
+  // Codex/auto worker simply because the service omitted its configuration.
+  // Intrinsic health checks remain possible without an executable capability.
+  const managedSqlite = queueStore(options) === 'sqlite'
+    && normalizeText(options.ownerAlias || process.env.THREEDVR_AGENT_OWNER_ALIAS) === '3dvr-managed';
+  const configuredCapabilities = options.workerCapabilities ?? options.capabilities
+    ?? process.env.THREEDVR_AGENT_WORKER_CAPABILITIES;
   return {
     workerId: deviceId(options),
-    capabilities: csvToList(options.workerCapabilities || options.capabilities || DEFAULT_WORKER_CAPABILITIES),
+    capabilities: csvToList(managedSqlite
+      ? configuredCapabilities
+      : (options.workerCapabilities || options.capabilities || DEFAULT_WORKER_CAPABILITIES)),
     riskClasses: csvToList(options.workerRiskClasses || options.riskClasses || DEFAULT_WORKER_RISK_CLASSES),
     maxConcurrency: parseInteger(options.maxConcurrency, 1),
     backend: options.backend || DEFAULT_BACKEND,
