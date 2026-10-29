@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       deploy_digitalocean_worker:
-        description: 'I explicitly approve deploying and restarting the DigitalOcean worker'
+        description: 'I approve isolated release staging only; no worker activation or restart'
         type: boolean
         required: true
         default: false
@@ -49,7 +49,7 @@ jobs:
       - run: npm audit --omit=dev
 
   deploy-digitalocean-worker:
-    name: Deploy DigitalOcean agent worker
+    name: Stage DigitalOcean agent release (no activation)
     # A push to main (including a PR merge) runs tests only. Deployment requires
     # a deliberate main-branch workflow dispatch with the approval input checked.
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deploy_digitalocean_worker == true
@@ -100,7 +100,7 @@ jobs:
           printf '%s\n' '167.172.193.194 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFoepoGbXWiidk4axaBwsI1Y/GWVckiqJxGLkBpTV6Pc' > /tmp/3dvr-known-hosts
           chmod 600 /tmp/3dvr-known-hosts
           echo 'present=true' >> "$GITHUB_OUTPUT"
-      - name: Deploy worker over SSH
+      - name: Stage release over SSH without touching live runtime
         id: deploy
         shell: bash
         run: |
@@ -152,59 +152,26 @@ jobs:
             db.close();
           }
           QUEUE_PREFLIGHT
-          repo="$HOME/.3dvr/portal"
-          mkdir -p "$HOME/.3dvr"
-          if [ ! -d "$repo/.git" ]; then rm -rf "$repo"; git clone "https://github.com/$GITHUB_REPOSITORY.git" "$repo"; fi
-          if ! git -C "$repo" diff --quiet || ! git -C "$repo" diff --cached --quiet || [ -n "$(git -C "$repo" ls-files --others --exclude-standard)" ]; then
-            stash_name="agent-deploy-$(date -u +%Y%m%dT%H%M%SZ)"
-            git -C "$repo" stash push --include-untracked -m "$stash_name"
-            echo "Preserved local checkout changes in stash: $stash_name"
+          # Stage source in a separate checkout. Never alter the live portal,
+          # dependency tree, daemon configuration, or historical task queue.
+          stage="$HOME/.3dvr/portal-release-stage"
+          if [ ! -d "$stage/.git" ]; then
+            [ ! -e "$stage" ] || { echo 'Release stage path exists but is not a Git checkout.' >&2; exit 1; }
+            git clone "https://github.com/$GITHUB_REPOSITORY.git" "$stage"
           fi
-          git -C "$repo" fetch --prune origin main
-          git -C "$repo" checkout main
-          git -C "$repo" pull --ff-only origin main
-          git -C "$repo" merge-base --is-ancestor "$GITHUB_SHA" HEAD
-          cfg="$HOME/.3dvr/config/env"
-          mkdir -p "$(dirname "$cfg")"; touch "$cfg"; chmod 600 "$cfg" || true
-          cfg_tmp="$(mktemp)"
-          printf -v owner_q '%q' "$THREEDVR_AGENT_OWNER_ALIAS"
-          printf -v context_owner_q '%q' "$THREEDVR_CONTEXT_HQ_OWNER_ALIAS"
-          awk '!/^(THREEDVR_AGENT_OWNER_ALIAS|THREEDVR_CONTEXT_HQ_OWNER_ALIAS|THREEDVR_AGENT_QUEUE_STORE|THREEDVR_NODE_BIN)=/' "$cfg" > "$cfg_tmp"
-          printf 'THREEDVR_AGENT_OWNER_ALIAS=%s\n' "$owner_q" >> "$cfg_tmp"
-          printf 'THREEDVR_CONTEXT_HQ_OWNER_ALIAS=%s\n' "$context_owner_q" >> "$cfg_tmp"
-          printf '%s\n' 'THREEDVR_AGENT_QUEUE_STORE=sqlite' 'THREEDVR_NODE_BIN=/opt/node-v22/bin/node' >> "$cfg_tmp"
-          cat "$cfg_tmp" > "$cfg"; rm -f "$cfg_tmp"
-          [ -x "$THREEDVR_NODE_BIN" ] || exit 1
-          "$THREEDVR_NODE_BIN" -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 13)) process.exit(1); require("node:sqlite")'
-          export PATH="$(dirname "$THREEDVR_NODE_BIN"):$PATH"
-          scripts="$repo/apps/agent/thomas-agent/scripts"
-          # Stop long-lived Node processes before npm replaces node_modules.
-          # Otherwise Gun or another live dependency can race npm's cleanup and
-          # leave ENOTEMPTY failures during rapid consecutive deployments.
-          "$scripts/ask-agent-worker-daemon" stop || true
-          "$scripts/ask-inbox-daemon" stop || true
-          "$scripts/ask-context-task-router-daemon" stop || true
-          "$scripts/ask-autopilot-daemon" stop || true
-          "$scripts/ask-agent-heartbeat-daemon" stop || true
-          if ! npm --prefix "$repo/apps/agent" ci; then
-            echo 'Initial npm ci failed after daemon shutdown; retrying from a clean node_modules.' >&2
-            rm -rf "$repo/apps/agent/node_modules"
-            npm --prefix "$repo/apps/agent" ci
+          if ! git -C "$stage" diff --quiet || ! git -C "$stage" diff --cached --quiet || [ -n "$(git -C "$stage" ls-files --others --exclude-standard)" ]; then
+            echo 'Release staging checkout has local changes; refusing to overwrite.' >&2
+            exit 1
           fi
-          "$scripts/ask-agent-worker-daemon" start 9>&-
-          "$scripts/ask-context-task-router-daemon" start 9>&-
-          "$scripts/ask-inbox-daemon" start 9>&-
-          "$scripts/ask-autopilot-daemon" start 9>&-
-          "$scripts/ask-agent-heartbeat-daemon" start 9>&-
-          "$scripts/ask-agent-worker-daemon" status
-          "$scripts/ask-context-task-router-daemon" status
-          "$scripts/ask-inbox-daemon" status
-          "$scripts/ask-autopilot-daemon" status
-          "$scripts/ask-agent-heartbeat-daemon" status
+          git -C "$stage" fetch --prune origin main
+          git -C "$stage" checkout main
+          git -C "$stage" pull --ff-only origin main
+          git -C "$stage" merge-base --is-ancestor "$GITHUB_SHA" HEAD
+          echo 'Release staged separately; live workers, dependencies and queue untouched.'
           REMOTE
-      # A deployment may be checked for revision consistency, but never creates
-      # an unapproved task as a side effect. Runtime acceptance is separate.
-      - name: Verify deployed revision without queue mutation
+      # Staging may be checked for revision consistency. Activation and runtime
+      # acceptance require a separately reviewed, task-pinned release path.
+      - name: Verify staged revision without runtime mutation
         id: verify
         shell: bash
         run: |
@@ -212,10 +179,10 @@ jobs:
           opts=(-i /tmp/3dvr-agent-key -o BatchMode=yes -o UserKnownHostsFile=/tmp/3dvr-known-hosts -o StrictHostKeyChecking=yes -o ConnectTimeout=10)
           ssh "${opts[@]}" "$DO_AGENT_USER@$DO_AGENT_HOST" "GITHUB_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
           set -euo pipefail
-          repo="$HOME/.3dvr/portal"
-          test -d "$repo/.git"
-          git -C "$repo" merge-base --is-ancestor "$GITHUB_SHA" HEAD
-          echo 'Deployed revision verified read-only; worker execution unverified.'
+          stage="$HOME/.3dvr/portal-release-stage"
+          test -d "$stage/.git"
+          git -C "$stage" merge-base --is-ancestor "$GITHUB_SHA" HEAD
+          echo 'Staged revision verified read-only; live worker unchanged and execution unverified.'
           REMOTE
       - name: Publish worker deployment status
         if: always()
@@ -227,11 +194,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          state=failure; description='DigitalOcean agent worker deployment failed'
+          state=failure; description='DigitalOcean isolated release staging failed'
           if [ "$SSH_OUTCOME" != success ]; then description='DigitalOcean agent SSH credential unavailable'
-          elif [ "$DEPLOY_OUTCOME" != success ]; then description='DigitalOcean agent SSH deployment failed'
-          elif [ "$VERIFY_OUTCOME" != success ]; then description='DigitalOcean deployed revision verification failed'
-          else state=success; description='DigitalOcean deployed revision verified; worker execution unverified'; fi
+          elif [ "$DEPLOY_OUTCOME" != success ]; then description='DigitalOcean release staging over SSH failed'
+          elif [ "$VERIFY_OUTCOME" != success ]; then description='DigitalOcean staged revision verification failed'
+          else state=success; description='DigitalOcean source staged; live worker unchanged'; fi
           curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -d "{\"state\":\"$state\",\"context\":\"3DVR DigitalOcean Worker\",\"description\":\"$description\"}"
       - name: Remove SSH key
         if: always()
