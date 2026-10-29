@@ -29,7 +29,7 @@ test('worker deployment requires a deliberate main-branch manual approval', () =
 
 
 test('manual deploy preflight refuses queued or running work without touching the queue', (t) => {
-  const preflight = workflow.match(/^          "\\$THREEDVR_NODE_BIN" <<'QUEUE_PREFLIGHT'\\n([\\s\\S]*?)^          QUEUE_PREFLIGHT$/m)?.[1];
+  const preflight = workflow.match(/^          "\$THREEDVR_NODE_BIN" <<'QUEUE_PREFLIGHT'\n([\s\S]*?)^          QUEUE_PREFLIGHT$/m)?.[1];
   assert.ok(preflight, 'manual deployment must check the existing SQLite queue before daemon shutdown');
 
   const dir = mkdtempSync(join(tmpdir(), '3dvr-deploy-preflight-'));
@@ -49,7 +49,7 @@ test('manual deploy preflight refuses queued or running work without touching th
 
   const queued = run();
   assert.notEqual(queued.status, 0);
-  assert.match(queued.stderr, /queued\\/running tasks require review/);
+  assert.match(queued.stderr, /queued\/running tasks require review/);
   assert.equal(db.prepare("SELECT status FROM tasks WHERE owner_alias = '3dvr-managed'").get().status, 'queued');
 
   db.exec("UPDATE tasks SET status = 'review_required' WHERE owner_alias = '3dvr-managed'");
