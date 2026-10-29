@@ -114,7 +114,7 @@ test('existing SQLite heartbeat tables migrate without treating old rows as risk
   assert.deepEqual(await runWorkerOnce(options), []);
   const db = new DatabaseSync(options.queueDb, { readOnly: true });
   try {
-    const old = db.prepare("SELECT risk_classes FROM worker_heartbeats WHERE worker_id='old-worker'").get();
+    const old = db.prepare("SELECT risk_classes, only_task_id FROM worker_heartbeats WHERE worker_id='old-worker'").get();
     assert.equal(old.risk_classes, '', 'pre-migration heartbeats must fail closed');
     assert.equal(old.only_task_id, '', 'legacy heartbeat table gains task-scope metadata');
     const fresh = db.prepare("SELECT risk_classes FROM worker_heartbeats WHERE worker_id != 'old-worker'").get();
