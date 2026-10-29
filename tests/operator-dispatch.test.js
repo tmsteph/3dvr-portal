@@ -62,8 +62,10 @@ test('actual SQLite transport is idempotent and preserves historical and running
   const dbPath=join(dir,'queue.sqlite');
   const db=new DatabaseSync(dbPath);
   db.exec('CREATE TABLE tasks(owner_alias TEXT,id TEXT,status TEXT,updated_at TEXT,record_json TEXT,source TEXT,PRIMARY KEY(owner_alias,id))');
-  db.exec('CREATE TABLE worker_heartbeats(owner_alias TEXT,worker_id TEXT,queue_store TEXT,capabilities TEXT,observed_at INTEGER,PRIMARY KEY(owner_alias,worker_id))');
-  const heartbeat=db.prepare('INSERT OR REPLACE INTO worker_heartbeats VALUES(?,?,?,?,?)');
+  db.exec('CREATE TABLE worker_heartbeats(owner_alias TEXT,worker_id TEXT,queue_store TEXT,capabilities TEXT,risk_classes TEXT,observed_at INTEGER,PRIMARY KEY(owner_alias,worker_id))');
+  const heartbeatStatement=db.prepare('INSERT OR REPLACE INTO worker_heartbeats VALUES(?,?,?,?,?,?)');
+  const heartbeat={run:(owner,id,store,capabilities,observedAt,riskClasses='read_only,draft') =>
+    heartbeatStatement.run(owner,id,store,capabilities,riskClasses,observedAt)};
   heartbeat.run('3dvr-managed','synthetic-poller','sqlite','node,codex',Date.now());
   const insert=db.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?)');
   const historical={id:'old-task',task:'historical do not replay',unsafe:true};
@@ -129,6 +131,8 @@ test('actual SQLite transport is idempotent and preserves historical and running
     assert.notEqual(admission('future-poller').status,0,'future timestamp cannot bypass freshness');
     heartbeat.run('3dvr-managed','synthetic-poller','sqlite','node',Date.now());
     assert.notEqual(admission('wrong-capability').status,0,'live non-Codex worker cannot admit Codex');
+    heartbeat.run('3dvr-managed','synthetic-poller','sqlite','node,codex',Date.now(),'read_only');
+    assert.notEqual(admission('wrong-risk').status,0,'live read-only worker cannot accept a draft Codex task');
     heartbeat.run('3dvr-managed','synthetic-poller','sqlite','node,codex',Date.now());
     assert.equal(admission('healthy-poller').status,0,'fresh matching worker can admit a new task');
     assert.equal(db.prepare("SELECT count(*) AS n FROM tasks WHERE id LIKE 'operator-http-test-%' AND status='queued' AND source='operator-http'").get().n,1,
