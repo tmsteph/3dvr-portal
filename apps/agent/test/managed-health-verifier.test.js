@@ -20,7 +20,7 @@ test('manual release verifier checks isolated staged revision without queue muta
   assert.equal(workflow.includes('agent-task-queue.js enqueue'), false);
   assert.equal(workflow.includes('--backend health --risk read_only'), false);
   assert.ok(verifier.includes('portal-release-stage'));
-  assert.ok(verifier.includes('git -C "$stage" merge-base --is-ancestor "$GITHUB_SHA" HEAD'));
+  assert.ok(verifier.includes('test "$(git -C "$stage" rev-parse HEAD)" = "$GITHUB_SHA"'));
   assert.ok(verifier.includes('execution unverified'));
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'staged-revision-verifier-'));
@@ -43,6 +43,11 @@ test('manual release verifier checks isolated staged revision without queue muta
   const good = run(sha);
   assert.equal(good.status, 0, good.stderr);
   assert.match(good.stdout, /execution unverified/);
+  // A later main commit must not pass verification for an earlier approved SHA.
+  assert.equal(git(['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+    'commit', '--allow-empty', '-qm', 'later unreviewed revision']).status, 0);
+  const ancestor = run(sha);
+  assert.notEqual(ancestor.status, 0, 'ancestry is not exact release authorization');
   const bad = run('0000000000000000000000000000000000000000');
   assert.notEqual(bad.status, 0, 'a staged revision mismatch must fail closed');
   assert.equal(git(['status', '--porcelain']).stdout.trim(), '', 'verification must not change the stage checkout');
