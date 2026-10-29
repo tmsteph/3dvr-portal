@@ -87,6 +87,40 @@ test('pinned task refuses background daemon startup', (t) => {
   assert.match(configured.stderr, /Pinned task mode forbids background worker startup/);
 });
 
+test('queue wrapper refuses a persistent config that clears or replaces a caller-pinned canary', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), '3dvr-pinned-queue-config-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const config = join(dir, 'config');
+  const log = join(dir, 'calls.log');
+  const fakeNode = join(dir, 'fake-node');
+  const wrapper = new URL('../thomas-agent/scripts/ask-agent-queue', import.meta.url).pathname;
+  writeFileSync(fakeNode, '#!/usr/bin/env bash\\nprintf "%s\\\\n" "$*" >> "$FAKE_NODE_LOG"\\n');
+  chmodSync(fakeNode, 0o700);
+  const env = {
+    ...process.env,
+    THREEDVR_CONFIG_FILE: config,
+    THREEDVR_NODE_BIN: fakeNode,
+    FAKE_NODE_LOG: log,
+    THREEDVR_AGENT_WORKER_ONLY_TASK_ID: 'signed-canary-1',
+    THREEDVR_AGENT_SKIP_FORGE: '0',
+  };
+  for (const overriddenPin of ['', 'unrelated-task']) {
+    writeFileSync(config, `THREEDVR_AGENT_WORKER_ONLY_TASK_ID=${overriddenPin}\\n`);
+    writeFileSync(log, '');
+    const result = spawnSync('bash', [wrapper, 'run-once'], { encoding: 'utf8', env });
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /Pinned task scope conflicts with persistent worker configuration/);
+    assert.equal(readFileSync(log, 'utf8'), '', 'no queue or compatibility worker may run');
+  }
+
+  writeFileSync(config, 'THREEDVR_AGENT_WORKER_ONLY_TASK_ID=signed-canary-1\\n');
+  writeFileSync(log, '');
+  const matching = spawnSync('bash', [wrapper, 'run-once'], { encoding: 'utf8', env });
+  assert.equal(matching.status, 0, matching.stderr);
+  assert.match(readFileSync(log, 'utf8'), /agent-task-queue\\.js run-once/);
+  assert.doesNotMatch(readFileSync(log, 'utf8'), /operator-forge-worker|operator-server-control-worker/);
+});
+
 test('pinned signed canary poll cannot execute unrelated Forge or server-control bridge tasks', (t) => {
   const dir = mkdtempSync(join(tmpdir(), '3dvr-canary-bridge-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
