@@ -132,7 +132,7 @@ test('worker deployment is out-of-band and verifies managed queue consumption sa
   assert.match(normalizedWorkflow, /"\$THREEDVR_NODE_BIN" -e 'const \[major, minor\].*require\("node:sqlite"\)'/);
   assert.equal(normalizedWorkflow.includes('node thomas-agent/node/agent-task-queue.js'), false);
   assert.match(normalizedWorkflow, /Verify deployed revision without queue mutation/);
-  assert.doesNotMatch(normalizedWorkflow, /agent-task-queue\\.js enqueue/);
+  assert.equal(normalizedWorkflow.includes('agent-task-queue.js enqueue'), false);
   assert.equal(normalizedWorkflow.includes('--backend shell --risk read_only'), false);
   assert.match(normalizedWorkflow, /DigitalOcean deployed revision verified; worker execution unverified/);
 });
