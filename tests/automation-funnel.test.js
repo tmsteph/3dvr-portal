@@ -34,6 +34,8 @@ test('funnel rate limit rejects the last-slot race across SQLite workers', () =>
   const second = openFunnelStore(dbPath);
   try {
     assert.equal(first.rateLimit('same-peer', { limit: 2 }), true);
+    const firstDeadline = first.db.prepare('SELECT reset_at FROM rate_limits WHERE identity=?')
+      .get('same-peer').reset_at;
     const originalPrepare = first.db.prepare.bind(first.db);
     let interleaved = false;
     first.db.prepare = sql => {
@@ -48,6 +50,9 @@ test('funnel rate limit rejects the last-slot race across SQLite workers', () =>
     assert.equal(first.rateLimit('same-peer', { limit: 2 }), false);
     assert.equal(interleaved, true);
     assert.equal(second.db.prepare('SELECT count FROM rate_limits WHERE identity=?').get('same-peer').count, 2);
+    assert.equal(second.db.prepare('SELECT reset_at FROM rate_limits WHERE identity=?')
+      .get('same-peer').reset_at, firstDeadline,
+      'a successful request within the active window must not slide its deadline');
     // Expired windows restart at one instead of inheriting a stale count.
     second.db.prepare('UPDATE rate_limits SET reset_at=0 WHERE identity=?').run('same-peer');
     assert.equal(second.rateLimit('same-peer', { limit: 2 }), true);
