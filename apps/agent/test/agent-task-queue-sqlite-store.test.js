@@ -103,6 +103,7 @@ test('existing SQLite heartbeat tables migrate without treating old rows as risk
   const options = await queueOptions(t, {
     ownerAlias: '3dvr-managed', rootNode: fakeRoot(), gunSync: false,
     workerCapabilities: 'node,codex', workerRiskClasses: 'read_only,draft',
+    deviceId: 'new-worker',
   });
   const oldDb = new DatabaseSync(options.queueDb);
   try {
