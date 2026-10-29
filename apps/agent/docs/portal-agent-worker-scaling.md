@@ -326,3 +326,33 @@ concurrency at one, isolate user secrets, enforce per-task approvals and
 idempotency, and record authenticated worker receipts. It is not an
 infinite-capacity agent.
 
+
+## Supervised signed-canary gate (draft; not deployed)
+
+A concurrency-1 Codex worker on the managed SQLite queue can still select an
+**existing** signed `operator-http-*` backlog task before a new test task.
+The supervised canary mode added in PR #3314 therefore binds **both** worker
+selection and the atomic SQLite claim to one exact signed task ID. It does not
+cancel, delete, or replay any other queued record.
+
+- Before starting a worker, derive the exact `operator-http-<owner-hash>-<requestId>`
+  ID from the authenticated Operator request. Use a fresh, approved, no-send
+  request; never select an existing queued ID as a convenient test.
+- Supply `--only-task-id <exact-id>` to the existing SQLite `run-once` worker,
+  or set `THREEDVR_AGENT_WORKER_ONLY_TASK_ID=<exact-id>` for its supervised
+  process. An invalid ID fails closed. This is a task selection boundary,
+  **not** authorization to start a worker or execute a paid model call.
+- The worker heartbeat records `only_task_id` on the **same** private SQLite
+  queue. New signed admissions must match this ID; the claim path independently
+  rejects every other ID even if an older task is first in the queue.
+- Before any supervised live test, independently verify the deployed commit,
+  actual queue owner and path, existing worker processes/heartbeats, one-writer
+  supervision, capabilities, cost limits, and the exact signed request. Stop
+  if any other poller could consume the canary or if a broader heartbeat is
+  still eligible. Do not clear historical tasks to make the test pass.
+- Inspect the durable claim, completion status, worker ID, result and timestamps
+  after execution. An HTTP 200, queue ACK, heartbeat, or CI pass alone is **not**
+  evidence of a completed task. Keep uncertain deliveries held for review.
+
+This is an **opt-in draft safety gate**. It does not authorize production
+worker activation, deployment, credentials, spending, or outbound messages.
