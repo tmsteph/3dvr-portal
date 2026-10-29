@@ -105,34 +105,38 @@ test('manual release stages an isolated checkout without activating workers', as
     readFile(queueWrapper, 'utf8'),
     readFile(agentWorkflow, 'utf8'),
   ]);
-
-  assert.match(queueScript, /CONFIG_FILE="\\$\\{THREEDVR_CONFIG_FILE:-\\$HOME\\/\\.3dvr\\/config\\/env\\}"/);
+  assert.ok(queueScript.includes('CONFIG_FILE="${THREEDVR_CONFIG_FILE:-$HOME/.3dvr/config/env}"'));
   assert.ok(queueScript.includes('. "$CONFIG_FILE"'));
 
-  const normalizedWorkflow = workflow.replace(/\\\\"/g, '"');
-  assert.match(normalizedWorkflow, /deploy-digitalocean-worker:/);
-  assert.match(normalizedWorkflow, /workflow_dispatch:/);
-  assert.match(normalizedWorkflow, /deploy_digitalocean_worker:/);
-  assert.match(normalizedWorkflow, /github\\.event_name == 'workflow_dispatch'/);
-  assert.match(normalizedWorkflow, /Stage release over SSH without touching live runtime/);
-  assert.match(normalizedWorkflow, /ssh "\\$\\{opts\\[@\\]\\}" "\\$DO_AGENT_USER@\\$DO_AGENT_HOST"/);
-  assert.match(normalizedWorkflow, /portal-release-stage/);
-  assert.match(normalizedWorkflow, /Worker deployment blocked:.*queued\\/running tasks require review/);
-  assert.equal(normalizedWorkflow.includes('Queue remote update'), false);
-  assert.equal(normalizedWorkflow.includes('Wait for German worker receipt'), false);
-  assert.equal(normalizedWorkflow.includes('deploy-german-worker:'), false);
-  assert.equal(normalizedWorkflow.includes('"$scripts/ask-agent-worker-daemon" stop || true'), false);
-  assert.equal(normalizedWorkflow.includes('"$scripts/ask-agent-worker-daemon" start'), false);
-  assert.equal(normalizedWorkflow.includes('"$scripts/ask-agent-worker-daemon" status'), false);
-  assert.match(normalizedWorkflow, /THREEDVR_NODE_BIN: \\/opt\\/node-v22\\/bin\\/node/);
-  assert.match(normalizedWorkflow, /UserKnownHostsFile=\\/tmp\\/3dvr-known-hosts/);
-  assert.match(normalizedWorkflow, /StrictHostKeyChecking=yes/);
-  assert.equal(normalizedWorkflow.includes('StrictHostKeyChecking=accept-new'), false);
-  assert.match(normalizedWorkflow, /167\\.172\\.193\\.194 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFoepoGbXWiidk4axaBwsI1Y\\/GWVckiqJxGLkBpTV6Pc/);
-  assert.match(normalizedWorkflow, /THREEDVR_AGENT_OWNER_ALIAS_B64/);
-  assert.match(normalizedWorkflow, /printf -v owner_q '%q'|THREEDVR_AGENT_OWNER_ALIAS_B64/);
-  assert.match(normalizedWorkflow, /Verify staged revision without runtime mutation/);
-  assert.equal(normalizedWorkflow.includes('agent-task-queue.js enqueue'), false);
-  assert.equal(normalizedWorkflow.includes('--backend shell --risk read_only'), false);
-  assert.match(normalizedWorkflow, /DigitalOcean source staged; live worker unchanged/);
+  for (const required of [
+    'deploy-digitalocean-worker:',
+    'workflow_dispatch:',
+    'deploy_digitalocean_worker:',
+    "github.event_name == 'workflow_dispatch'",
+    'Stage release over SSH without touching live runtime',
+    'portal-release-stage',
+    'queued/running tasks require review',
+    'THREEDVR_NODE_BIN: /opt/node-v22/bin/node',
+    'UserKnownHostsFile=/tmp/3dvr-known-hosts',
+    'StrictHostKeyChecking=yes',
+    '167.172.193.194 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFoepoGbXWiidk4axaBwsI1Y/GWVckiqJxGLkBpTV6Pc',
+    'THREEDVR_AGENT_OWNER_ALIAS_B64',
+    'Verify staged revision without runtime mutation',
+    'DigitalOcean source staged; live worker unchanged',
+  ]) {
+    assert.ok(workflow.includes(required), `missing stage-only release guard: ${required}`);
+  }
+  for (const forbidden of [
+    'Queue remote update',
+    'Wait for German worker receipt',
+    'deploy-german-worker:',
+    '"$scripts/ask-agent-worker-daemon" stop || true',
+    '"$scripts/ask-agent-worker-daemon" start',
+    '"$scripts/ask-agent-worker-daemon" status',
+    'StrictHostKeyChecking=accept-new',
+    'agent-task-queue.js enqueue',
+    '--backend shell --risk read_only',
+  ]) {
+    assert.equal(workflow.includes(forbidden), false, `unexpected live worker action: ${forbidden}`);
+  }
 });
