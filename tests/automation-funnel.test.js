@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { normalizeLead, draftReply } from '../src/automation-funnel/model.js';
 import { openFunnelStore } from '../src/automation-funnel/store.js';
 import { createFunnelHandler } from '../src/automation-funnel/handler.js';
@@ -23,6 +26,38 @@ test('durable queue deduplicates and uses version guard', () => {
   assert.equal(store.consumeAction('12345678-1234-1234-1234-123456789012'), true);
   assert.equal(store.consumeAction('12345678-1234-1234-1234-123456789012'), false);
   store.close();
+});
+test('concurrent discovery workers reuse the winning lead and record one creation', () => {
+  const dir = mkdtempSync(join(tmpdir(), '3dvr-funnel-race-'));
+  const dbPath = join(dir, 'leads.sqlite');
+  const first = openFunnelStore(dbPath);
+  const second = openFunnelStore(dbPath);
+  try {
+    const lead = normalizeLead({ ...base, business: 'Concurrent Buyer' }, { inbound: true });
+    const originalPrepare = first.db.prepare.bind(first.db);
+    let winner;
+    let interleaved = false;
+    first.db.prepare = sql => {
+      // The other worker commits after the first worker's old SELECT but
+      // before its INSERT. A plain INSERT previously threw SQLITE_CONSTRAINT.
+      if (!interleaved && sql.startsWith('INSERT OR IGNORE INTO leads')) {
+        interleaved = true;
+        winner = second.insert(lead);
+      }
+      return originalPrepare(sql);
+    };
+    const loser = first.insert(lead);
+    assert.equal(interleaved, true);
+    assert.equal(winner.duplicate, false);
+    assert.equal(loser.duplicate, true);
+    assert.equal(loser.lead.id, winner.lead.id);
+    assert.equal(first.db.prepare('SELECT COUNT(*) AS n FROM leads').get().n, 1);
+    assert.equal(first.db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind='created'").get().n, 1);
+  } finally {
+    first.close();
+    second.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 test('public submission exposes receipt only and owner review requires bound proof', async () => {
   const store = openFunnelStore(':memory:');
