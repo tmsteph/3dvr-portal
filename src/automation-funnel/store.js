@@ -31,8 +31,13 @@ export function openFunnelStore(path = process.env.AUTOMATION_FUNNEL_DB || '/opt
     try {
       const url = new URL(sourceUrl);
       if (url.hostname === 'community.n8n.io') {
-        const match = url.pathname.match(/^\/t\/(?:[^/]+\/)?(\d+)(?:\/\d+)?\/?$/);
-        if (match) return 'n8n-topic:' + match[1];
+        const parts = url.pathname.split('/').filter(Boolean);
+        const idIndex = /^\d+$/.test(parts[1] || '') ? 1 : 2;
+        if (parts[0] === 't' && /^\d+$/.test(parts[idIndex] || '') &&
+            (parts.length === idIndex + 1 ||
+              (parts.length === idIndex + 2 && /^\d+$/.test(parts[idIndex + 1])))) {
+          return 'n8n-topic:' + parts[idIndex];
+        }
       }
     } catch { /* Keep malformed/manual sources distinct. */ }
     return sourceUrl;
