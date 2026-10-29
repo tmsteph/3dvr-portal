@@ -38,13 +38,24 @@ export function openFunnelStore(path = process.env.AUTOMATION_FUNNEL_DB || '/opt
       // only the winning insert may record a new-lead event.
       const id = randomUUID();
       const now = new Date().toISOString();
-      const inserted = db.prepare('INSERT OR IGNORE INTO leads VALUES (?, ?, ?, 1, ?, ?)')
-        .run(id, key, JSON.stringify(lead), now, now);
-      const saved = db.prepare('SELECT * FROM leads WHERE dedupe=?').get(key);
-      if (!saved) throw new Error('Lead dedupe result could not be verified');
-      if (!inserted.changes) return { lead: row(saved), duplicate: true };
-      db.prepare('INSERT INTO events VALUES (?, ?, ?, ?)').run(randomUUID(), id, 'created', now);
-      return { lead: row(saved), duplicate: false };
+      // A lead without its creation event is an untraceable CRM write.
+      // Reserve identity and record the event in one SQLite transaction so a
+      // failed event write cannot leave a permanent, silently deduped lead.
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        const inserted = db.prepare('INSERT OR IGNORE INTO leads VALUES (?, ?, ?, 1, ?, ?)')
+          .run(id, key, JSON.stringify(lead), now, now);
+        const saved = db.prepare('SELECT * FROM leads WHERE dedupe=?').get(key);
+        if (!saved) throw new Error('Lead dedupe result could not be verified');
+        if (inserted.changes) {
+          db.prepare('INSERT INTO events VALUES (?, ?, ?, ?)').run(randomUUID(), id, 'created', now);
+        }
+        db.exec('COMMIT');
+        return { lead: row(saved), duplicate: !inserted.changes };
+      } catch (error) {
+        try { db.exec('ROLLBACK'); } catch { /* Preserve the original failure. */ }
+        throw error;
+      }
     },
     update(id, lead, version) {
       const now = new Date().toISOString();
