@@ -29,3 +29,5 @@ Stopping the service removes its marked rule. This restores direct routing;
 the original upstream path may still fail. Refresh the service if vendor DNS
 changes. Successful curl alone is not proof that the complete uploader works;
 verify file selection, upload, and preview in the canonical browser.
+
+The uploader also calls mapi.4over.com (observed browser XHR). OVH direct TCP to this host timed out; Hetzner returned HTTP 302. Companion api helper/service routes only browser UID 1000 and this host TCP 443 over loopback 18445. Install and operate it like the artwork unit. Rollback: sudo systemctl disable --now 3dvr-4over-api-egress.service.
