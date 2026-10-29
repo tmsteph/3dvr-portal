@@ -113,6 +113,8 @@ test('discovery deduplicates n8n topic links across slug, reply and locale varia
     });
     assert.equal(alternate.duplicate, true);
     assert.equal(alternate.lead.id, first.lead.id);
+    assert.equal(store.insert({ ...lead, sourceUrl: 'https://community.n8n.io/t/325192/2' }).duplicate, true,
+      'numeric topic routes must not mistake the reply page for the topic ID');
     assert.equal(store.insert({ ...lead, sourceUrl: 'https://community.n8n.io/t/other/325193' }).duplicate, false);
     assert.equal(store.insert({ ...lead, sourceUrl: 'https://example.org/t/other/325192' }).duplicate, false);
     assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM leads').get().n, 3);
