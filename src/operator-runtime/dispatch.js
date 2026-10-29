@@ -51,8 +51,9 @@ try {
       // this owner, with effective Codex and draft-risk permissions and bounded freshness.
       // Existing signed task IDs remain readable/retryable when offline.
       const now = Date.now();
-      const workers = db.prepare("SELECT worker_id, capabilities, risk_classes, observed_at FROM worker_heartbeats WHERE owner_alias=? AND queue_store='sqlite'").all(owner);
+      const workers = db.prepare("SELECT worker_id, capabilities, risk_classes, only_task_id, observed_at FROM worker_heartbeats WHERE owner_alias=? AND queue_store='sqlite'").all(owner);
       const ready = workers.some(worker => worker.worker_id &&
+        (!worker.only_task_id || worker.only_task_id === input.id) &&
         Number.isFinite(worker.observed_at) &&
         worker.observed_at <= now + 5000 &&
         now - worker.observed_at <= 90000 &&
