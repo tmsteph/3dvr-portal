@@ -116,9 +116,51 @@ test('existing SQLite heartbeat tables migrate without treating old rows as risk
   try {
     const old = db.prepare("SELECT risk_classes FROM worker_heartbeats WHERE worker_id='old-worker'").get();
     assert.equal(old.risk_classes, '', 'pre-migration heartbeats must fail closed');
+    assert.equal(old.only_task_id, '', 'legacy heartbeat table gains task-scope metadata');
     const fresh = db.prepare("SELECT risk_classes FROM worker_heartbeats WHERE worker_id != 'old-worker'").get();
     assert.equal(fresh.risk_classes, 'read_only,draft', 'only a fresh poller advertises risk permission');
   } finally { db.close(); }
+});
+
+test('supervised signed canary cannot claim an older signed backlog task', async (t) => {
+  const options = await queueOptions(t, {
+    ownerAlias: '3dvr-managed', rootNode: fakeRoot(), gunSync: false,
+    workerCapabilities: 'codex', workerRiskClasses: 'draft',
+  });
+  const onlyTaskId = 'operator-http-new-approved-canary';
+  const backlogId = 'operator-http-existing-queued-backlog';
+  const now = Date.now();
+  await enqueueTask('Synthetic no-send canary', {
+    ...options, id: onlyTaskId, backend: 'codex', queueSource: 'operator-http', now,
+  });
+  await enqueueTask('Older unapproved backlog must remain untouched', {
+    ...options, id: backlogId, backend: 'codex', queueSource: 'operator-http', now: now + 1000,
+  });
+  let executed = 0;
+  const supervised = { ...options, onlyTaskId, limit: 1,
+    runAgentTaskImpl: async () => {
+      executed += 1;
+      return { ok: true, result: { stdout: 'canary only' } };
+    },
+  };
+  assert.equal((await runQueuedTask(await readTask(backlogId, options), supervised)).skipped, true,
+    'direct worker dispatch must also enforce the allowlist');
+  assert.equal(sqliteQueue.claimTask(backlogId, 'forbidden', 'worker', now + 60000, now, supervised), null,
+    'direct SQLite claim must not bypass supervised scope');
+  const results = await runWorkerOnce(supervised);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].id, onlyTaskId);
+  assert.equal(results[0].result.ok, true);
+  assert.equal(executed, 1);
+  assert.equal((await readTask(backlogId, options)).status, 'queued');
+  assert.equal((await readTask(onlyTaskId, options)).status, 'completed');
+  const db = new DatabaseSync(options.queueDb, { readOnly: true });
+  try {
+    assert.equal(db.prepare('SELECT only_task_id FROM worker_heartbeats').get().only_task_id, onlyTaskId,
+      'liveness must advertise exact admission scope, not broad capacity');
+  } finally { db.close(); }
+  await assert.rejects(runWorkerOnce({ ...supervised, onlyTaskId: '*' }), /exact signed/,
+    'invalid canary scope must fail before polling or claiming');
 });
 
 test('managed signed SQLite task stays queued when worker capability config is empty', async (t) => {
