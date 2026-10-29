@@ -7,7 +7,14 @@ on:
   pull_request:
     branches: [main, dev]
     paths: ["apps/agent/**", ".github/workflows/agent.yml", "package.json"]
+  # Production deployment is an explicit manual action, never a side effect of merging.
   workflow_dispatch:
+    inputs:
+      deploy_digitalocean_worker:
+        description: 'I explicitly approve deploying and restarting the DigitalOcean worker'
+        type: boolean
+        required: true
+        default: false
 
 permissions:
   contents: read
@@ -43,7 +50,9 @@ jobs:
 
   deploy-digitalocean-worker:
     name: Deploy DigitalOcean agent worker
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # A push to main (including a PR merge) runs tests only. Deployment requires
+    # a deliberate main-branch workflow dispatch with the approval input checked.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deploy_digitalocean_worker == true
     needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 10
