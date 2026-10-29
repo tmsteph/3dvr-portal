@@ -79,6 +79,24 @@ test('shell task with a forged read-only label stays queued without a false rece
   assert.equal(held.completedAt, '', 'no fabricated terminal receipt');
 });
 
+test('managed SQLite poller writes attributable same-queue heartbeat with effective capabilities', async (t) => {
+  const options = await queueOptions(t, {
+    ownerAlias: '3dvr-managed', rootNode: fakeRoot(),
+    gunSync: false, workerCapabilities: 'node,codex',
+  });
+  const before = Date.now();
+  assert.deepEqual(await runWorkerOnce(options), [], 'idle poller still publishes liveness');
+  const db = new DatabaseSync(options.queueDb, { readOnly: true });
+  try {
+    const row = db.prepare("SELECT owner_alias,worker_id,queue_store,capabilities,observed_at FROM worker_heartbeats").get();
+    assert.equal(row.owner_alias, '3dvr-managed');
+    assert.ok(row.worker_id, 'heartbeat must identify the poller');
+    assert.equal(row.queue_store, 'sqlite');
+    assert.equal(row.capabilities, 'node,codex');
+    assert.ok(row.observed_at >= before && row.observed_at <= Date.now());
+  } finally { db.close(); }
+});
+
 test('managed signed SQLite task stays queued when worker capability config is empty', async (t) => {
   const options = await queueOptions(t, {
     ownerAlias: '3dvr-managed', queueSource: 'operator-http',
