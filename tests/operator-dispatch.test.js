@@ -62,7 +62,7 @@ test('actual SQLite transport is idempotent and preserves historical and running
   const dbPath=join(dir,'queue.sqlite');
   const db=new DatabaseSync(dbPath);
   db.exec('CREATE TABLE tasks(owner_alias TEXT,id TEXT,status TEXT,updated_at TEXT,record_json TEXT,source TEXT,PRIMARY KEY(owner_alias,id))');
-  db.exec('CREATE TABLE worker_heartbeats(owner_alias TEXT,worker_id TEXT,queue_store TEXT,capabilities TEXT,risk_classes TEXT,only_task_id TEXT NOT NULL DEFAULT '',observed_at INTEGER,PRIMARY KEY(owner_alias,worker_id))');
+  db.exec('CREATE TABLE worker_heartbeats(owner_alias TEXT,worker_id TEXT,queue_store TEXT,capabilities TEXT,risk_classes TEXT,only_task_id TEXT NOT NULL DEFAULT "",observed_at INTEGER,PRIMARY KEY(owner_alias,worker_id))');
   const heartbeatStatement=db.prepare('INSERT OR REPLACE INTO worker_heartbeats VALUES(?,?,?,?,?,?,?)');
   const heartbeat={run:(owner,id,store,capabilities,observedAt,riskClasses='read_only,draft',onlyTaskId='') =>
     heartbeatStatement.run(owner,id,store,capabilities,riskClasses,onlyTaskId,observedAt)};
