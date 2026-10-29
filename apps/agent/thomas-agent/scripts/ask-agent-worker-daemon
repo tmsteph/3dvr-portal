@@ -38,6 +38,12 @@ is_running() {
 
 case "${1:-}" in
   start)
+    # A one-task canary must never launch a perpetual queue poller or the
+    # router/organism/supervisor daemons. Use the bounded run-once path instead.
+    if [ -n "${THREEDVR_AGENT_WORKER_ONLY_TASK_ID:-}" ]; then
+      echo 'Pinned task mode forbids background worker startup; use run-once.' >&2
+      exit 1
+    fi
     if is_running; then
       echo "Agent worker already running in tmux session $TMUX_SESSION."
       "$ROUTER_DAEMON" start
