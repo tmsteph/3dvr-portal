@@ -9,6 +9,7 @@ const {
   SERVICES,
   makeSupervisorState,
   runSupervisorCycle,
+  supervisorHeartbeatStatus,
 } = require('../thomas-agent/node/agent-supervisor');
 
 const services = [
@@ -144,6 +145,37 @@ test('signed one-task canary cannot restart unrelated supervisor services', asyn
   assert.deepEqual(calls, [], 'pinned supervisor must not inspect or start daemons');
   assert.deepEqual(report.repaired, []);
   assert.equal(report.blocked, 'signed-task-pin-forbids-supervisor-repair');
+});
+
+test('supervisor heartbeat reports degraded rather than healthy when desired services fail', async () => {
+  const healthy = await runSupervisorCycle({
+    desiredState: 'running',
+    services,
+    runDaemonImpl: () => ({ ok: true }),
+  });
+  assert.equal(supervisorHeartbeatStatus(healthy), 'running');
+
+  const unhealthy = await runSupervisorCycle({
+    desiredState: 'running',
+    services,
+    runDaemonImpl: service => ({ ok: service.name !== 'worker-router' }),
+  });
+  assert.equal(supervisorHeartbeatStatus(unhealthy), 'degraded');
+
+  const stopped = await runSupervisorCycle({
+    desiredState: 'stopped',
+    services,
+    runDaemonImpl: () => { throw Error('stopped supervisor must not probe'); },
+  });
+  assert.equal(supervisorHeartbeatStatus(stopped), 'stopped');
+
+  const pinned = await runSupervisorCycle({
+    desiredState: 'running',
+    services,
+    onlyTaskId: 'signed-test-task',
+    runDaemonImpl: () => { throw Error('pinned supervisor must not probe'); },
+  });
+  assert.equal(supervisorHeartbeatStatus(pinned), 'blocked');
 });
 
 test('pinned supervisor startup rejects before changing desired state', () => {
