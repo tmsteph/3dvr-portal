@@ -62,10 +62,10 @@ test('actual SQLite transport is idempotent and preserves historical and running
   const dbPath=join(dir,'queue.sqlite');
   const db=new DatabaseSync(dbPath);
   db.exec('CREATE TABLE tasks(owner_alias TEXT,id TEXT,status TEXT,updated_at TEXT,record_json TEXT,source TEXT,PRIMARY KEY(owner_alias,id))');
-  db.exec('CREATE TABLE worker_heartbeats(owner_alias TEXT,worker_id TEXT,queue_store TEXT,capabilities TEXT,risk_classes TEXT,observed_at INTEGER,PRIMARY KEY(owner_alias,worker_id))');
-  const heartbeatStatement=db.prepare('INSERT OR REPLACE INTO worker_heartbeats VALUES(?,?,?,?,?,?)');
-  const heartbeat={run:(owner,id,store,capabilities,observedAt,riskClasses='read_only,draft') =>
-    heartbeatStatement.run(owner,id,store,capabilities,riskClasses,observedAt)};
+  db.exec('CREATE TABLE worker_heartbeats(owner_alias TEXT,worker_id TEXT,queue_store TEXT,capabilities TEXT,risk_classes TEXT,only_task_id TEXT NOT NULL DEFAULT '',observed_at INTEGER,PRIMARY KEY(owner_alias,worker_id))');
+  const heartbeatStatement=db.prepare('INSERT OR REPLACE INTO worker_heartbeats VALUES(?,?,?,?,?,?,?)');
+  const heartbeat={run:(owner,id,store,capabilities,observedAt,riskClasses='read_only,draft',onlyTaskId='') =>
+    heartbeatStatement.run(owner,id,store,capabilities,riskClasses,onlyTaskId,observedAt)};
   heartbeat.run('3dvr-managed','synthetic-poller','sqlite','node,codex',Date.now());
   const insert=db.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?)');
   const historical={id:'old-task',task:'historical do not replay',unsafe:true};
@@ -137,6 +137,12 @@ test('actual SQLite transport is idempotent and preserves historical and running
     assert.equal(admission('healthy-poller').status,0,'fresh matching worker can admit a new task');
     assert.equal(db.prepare("SELECT count(*) AS n FROM tasks WHERE id LIKE 'operator-http-test-%' AND status='queued' AND source='operator-http'").get().n,1,
       'only the healthy new admission is queued; failed checks never insert');
+    heartbeat.run('3dvr-managed','synthetic-poller','sqlite','codex',Date.now(),'read_only,draft',
+      'operator-http-test-only-canary');
+    assert.notEqual(admission('not-canary').status,0,
+      'a live task-scoped worker must not authorize unrelated signed admissions');
+    assert.equal(admission('only-canary').status,0,
+      'the exact preselected signed canary may be admitted');
     // A signed status poll must remain readable while a separate worker holds
     // the SQLite RESERVED writer lock. The old BEGIN IMMEDIATE on status
     // waited for busy_timeout and failed instead of returning the receipt.
