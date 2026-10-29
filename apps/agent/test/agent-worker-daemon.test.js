@@ -45,7 +45,7 @@ test('worker startup refuses a vanished tmux session before launching auxiliary 
       '  *) exit 1 ;;',
       'esac',
       ''
-    ].join('\\n'), { mode: 0o755 });
+    ].join('\n'), { mode: 0o755 });
     const result = spawnSync('bash', [workerDaemon, 'start'], {
       encoding: 'utf8',
       env: {
@@ -60,7 +60,7 @@ test('worker startup refuses a vanished tmux session before launching auxiliary 
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /agent worker exited during startup/i);
     assert.doesNotMatch(result.stdout, /started agent worker/i);
-    const invocations = fs.readFileSync(log, 'utf8').trim().split('\\n');
+    const invocations = fs.readFileSync(log, 'utf8').trim().split('\n');
     assert.equal(invocations.filter(line => line.startsWith('new-session ')).length, 1,
       'a failed worker startup must not launch router, organism, or supervisor');
   } finally {
