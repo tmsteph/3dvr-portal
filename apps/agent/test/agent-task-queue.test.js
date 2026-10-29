@@ -102,6 +102,35 @@ test('managed SQLite worker requires explicit capabilities instead of all-backen
   }
 });
 
+test('explicitly empty worker risk allowlists fail closed instead of widening to defaults', () => {
+  const managed = {
+    queueStore: 'sqlite',
+    ownerAlias: '3dvr-managed',
+    workerCapabilities: 'codex',
+  };
+  const draft = { backend: 'codex', riskClass: 'draft', approvalStatus: 'not_required' };
+  for (const explicit of [{ workerRiskClasses: '' }, { riskClasses: '' }]) {
+    const options = { ...managed, ...explicit };
+    assert.deepEqual(workerProfile(options).riskClasses, []);
+    assert.match(canWorkerRunTask(draft, options).reason, /risk class not allowed: draft/);
+  }
+  assert.deepEqual(workerProfile({ ...managed, workerRiskClasses: 'read_only' }).riskClasses, ['read_only']);
+});
+
+test('explicitly empty risk allowlist environment variable stays empty', () => {
+  const { spawnSync } = require('node:child_process');
+  const modulePath = require.resolve('../thomas-agent/node/agent-task-queue');
+  const child = spawnSync(process.execPath, ['-e',
+    `const {workerProfile}=require(${JSON.stringify(modulePath)});process.stdout.write(JSON.stringify(workerProfile({queueStore:'sqlite',ownerAlias:'3dvr-managed',workerCapabilities:'codex'}).riskClasses));`,
+  ], {
+    encoding: 'utf8',
+    env: { ...process.env, THREEDVR_AGENT_WORKER_RISK_CLASSES: '' },
+    timeout: 5000,
+  });
+  assert.equal(child.status, 0, child.stderr);
+  assert.equal(child.stdout, '[]');
+});
+
 test('public GUN cannot execute or impersonate signed Operator HTTP tasks', async () => {
   const rootNode = fakeRoot();
   const options = { rootNode, ownerAlias: '3dvr-managed', queueStore: 'gun' };
