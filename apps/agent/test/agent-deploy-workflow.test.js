@@ -26,6 +26,24 @@ test('worker deployment requires a deliberate main-branch manual approval', () =
   assert.match(workflow, /^  push:\n/m, 'normal CI on push must remain enabled');
 });
 
+
+test('pinned task refuses background daemon startup', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), '3dvr-pinned-daemon-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const daemon = new URL('../thomas-agent/scripts/ask-agent-worker-daemon', import.meta.url).pathname;
+  const result = spawnSync('bash', [daemon, 'start'], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      THREEDVR_CONFIG_FILE: join(dir, 'missing-config'),
+      THREEDVR_AUTOPILOT_STATE_DIR: join(dir, 'state'),
+      THREEDVR_AGENT_WORKER_ONLY_TASK_ID: 'operator-http-test-pinned',
+    },
+  });
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stderr, /Pinned task mode forbids background worker startup/);
+});
+
 test('pinned signed canary poll cannot execute unrelated Forge or server-control bridge tasks', (t) => {
   const dir = mkdtempSync(join(tmpdir(), '3dvr-canary-bridge-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
