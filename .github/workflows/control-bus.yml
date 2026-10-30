@@ -100,7 +100,7 @@ jobs:
         run: |
           set -euo pipefail
           opts=(-i "$HETZNER_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
-          ssh "${opts[@]}" "$HETZNER_USER@$HETZNER_HOST" bash -s -- "$ACTION" "$SERVICE" "${{ github.sha }}" > /tmp/control-result.json <<'REMOTE'
+          ssh "${opts[@]}" "$HETZNER_USER@$HETZNER_HOST" bash -s -- "$ACTION" "$SERVICE" "$GITHUB_SHA" > /tmp/control-result.json <<'REMOTE'
           set -euo pipefail
           action=${1:-}
           service=${2:-}
