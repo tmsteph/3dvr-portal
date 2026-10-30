@@ -167,15 +167,16 @@ function listTasks(options = {}) {
   `).all(ownerAlias(options)).map(parseRecord));
 }
 
+// An expired running claim may have already caused side effects. Never replay it
+// automatically; leave it for explicit review and reauthorization.
 function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {}) {
   return withDatabase(options, (db) => {
     db.exec('BEGIN IMMEDIATE');
     try {
       const row = db.prepare(`
         SELECT record_json, source, claim_expires_at FROM tasks
-        WHERE owner_alias = ? AND id = ?
-          AND (status = 'queued' OR (status = 'running' AND claim_expires_at <= ?))
-      `).get(ownerAlias(options), String(id), now);
+        WHERE owner_alias = ? AND id = ? AND status = 'queued'
+      `).get(ownerAlias(options), String(id));
       if (!row) {
         db.exec('ROLLBACK');
         return null;
@@ -211,8 +212,7 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
       const result = db.prepare(`
         UPDATE tasks SET status = 'running', updated_at = ?, record_json = ?,
           claim_token = ?, claim_expires_at = ?
-        WHERE owner_alias = ? AND id = ?
-          AND (status = 'queued' OR (status = 'running' AND claim_expires_at <= ?))
+        WHERE owner_alias = ? AND id = ? AND status = 'queued'
       `).run(
         updated.updatedAt,
         JSON.stringify(updated),
@@ -220,7 +220,6 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
         expiresAt,
         ownerAlias(options),
         String(id),
-        now,
       );
       db.exec('COMMIT');
       return result.changes === 1 ? { ...updated, queueSource: row.source, claimToken } : null;
