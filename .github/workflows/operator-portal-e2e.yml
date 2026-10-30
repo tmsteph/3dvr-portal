@@ -16,6 +16,8 @@ on:
       - '.github/e2e/operator-e2e-mode.txt'
       - 'scripts/operator-portal-e2e.mjs'
       - 'scripts/operator-navigation-e2e.mjs'
+      - 'scripts/ops/operator-private-worker.cjs'
+      - 'tests/operator-private-worker.test.js'
       - 'operator/**'
       - 'sign-in.html'
       - 'auth-identity.js'
@@ -46,6 +48,7 @@ jobs:
       - name: Verify the PR checkout with isolated local servers
         if: github.event_name == 'pull_request'
         run: |
+          node --test tests/operator-private-worker.test.js
           node --test --test-concurrency=1 tests/home-operator-persistence.e2e.test.js tests/operator-device-sync.e2e.test.js
           node scripts/operator-attachment-branch-e2e.mjs
           node scripts/operator-navigation-e2e.mjs
