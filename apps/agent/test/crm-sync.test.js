@@ -371,6 +371,27 @@ test('writeCrmSync rejects missing or negative Gun acknowledgments', async () =>
   }
 });
 
+test('legacy contacted CSV status remains a note without verified outbound evidence', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [{
+      name: 'Synthetic Legacy Contact',
+      link: 'https://legacy-contact.example',
+      contact: 'mailto:contact@legacy-contact.example',
+      status: 'contacted',
+      date: '2026-10-01',
+    }],
+    outreach: [],
+    now: '2026-10-29T18:29:00Z',
+  });
+  assert.equal(payload.records.length, 1);
+  assert.equal(payload.touches.length, 1);
+  assert.equal(payload.touches[0].source, '3dvr-agent/leads.csv');
+  assert.equal(payload.touches[0].type, 'note');
+  assert.ok(!payload.touches.some(touch => touch.type === 'message' ||
+    touch.touchType === 'outreach-sent'),
+    'a legacy CSV status alone cannot establish that an outbound message was sent');
+});
+
 test('legacy closed lead does not invent a won deal, customer, or paid outcome', () => {
   const record = buildCrmRecord({
     name: 'Synthetic closed lead',
