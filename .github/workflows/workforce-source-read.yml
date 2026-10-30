@@ -70,6 +70,11 @@ jobs:
             rm -rf "$temp"
           }
           trap cleanup EXIT
+          login_result="$(timeout 120s 3dvr-browser-login lighthouse 2>/dev/null || true)"
+          if grep -q '"human_required"' <<<"$login_result"; then
+            printf '%s\n' '{"ok":false,"error":"lighthouse-human-required","reason":"Microsoft/SharePoint identity checkpoint"}'
+            exit 0
+          fi
           token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general workforce-source-read 480)"
           for file in lighthouse-api-reader.cjs iatse-availability-probe.cjs; do
             curl -fsSL --retry 3 "https://raw.githubusercontent.com/tmsteph/3dvr-portal/main/scripts/ops/$file" -o "$temp/$file"
@@ -80,7 +85,10 @@ jobs:
           weeks=()
           for i in 0 1 2 3 4 5; do weeks+=("$(date -d "$monday +$((i*7)) days" +%F)"); done
           timeout 310s node "$temp/lighthouse-api-reader.cjs" "${weeks[@]}" > "$temp/lighthouse.json"
-          jq -e '.ok == true and ([.weeks[] | (.ok == true and .status == 200)] | all)' "$temp/lighthouse.json" >/dev/null
+          if ! jq -e '.ok == true and ([.weeks[] | (.ok == true and .status == 200)] | all)' "$temp/lighthouse.json" >/dev/null 2>&1; then
+            jq -n --slurpfile lh "$temp/lighthouse.json" '{ok:false,error:"lighthouse-api-not-authenticated-or-incomplete",weeks:[ $lh[0].weeks[]? | {asOf,ok,status,error} ]}'
+            exit 0
+          fi
           timeout 45s node "$temp/iatse-availability-probe.cjs" > "$temp/iatse.json"
           jq -e '.ok == true and (.body | contains("Logout"))' "$temp/iatse.json" >/dev/null
           jq -n --slurpfile lh "$temp/lighthouse.json" --slurpfile ia "$temp/iatse.json" --arg today "$today" '
