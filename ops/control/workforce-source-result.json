@@ -17,8 +17,6 @@
         "shifts": [
           {
             "type": 1,
-            "from": "7:30AM",
-            "to": "4PM",
             "published": true
           }
         ]
@@ -28,8 +26,6 @@
         "shifts": [
           {
             "type": 1,
-            "from": "7AM",
-            "to": "4PM",
             "published": true
           }
         ]
@@ -39,8 +35,6 @@
         "shifts": [
           {
             "type": 6,
-            "from": "7AM",
-            "to": "3PM",
             "published": true
           }
         ]
@@ -50,8 +44,6 @@
         "shifts": [
           {
             "type": 6,
-            "from": "6AM",
-            "to": "2PM",
             "published": true
           }
         ]
@@ -61,8 +53,6 @@
         "shifts": [
           {
             "type": 6,
-            "from": "7AM",
-            "to": "3PM",
             "published": true
           }
         ]
@@ -72,8 +62,6 @@
         "shifts": [
           {
             "type": 3,
-            "from": "6AM",
-            "to": "5:30PM",
             "published": true
           }
         ]
@@ -83,8 +71,6 @@
         "shifts": [
           {
             "type": 3,
-            "from": "9AM",
-            "to": "5PM",
             "published": true
           }
         ]
@@ -94,8 +80,6 @@
         "shifts": [
           {
             "type": 3,
-            "from": "9AM",
-            "to": "2PM",
             "published": true
           }
         ]
@@ -105,8 +89,6 @@
         "shifts": [
           {
             "type": 3,
-            "from": "6:30AM",
-            "to": "5:30PM",
             "published": true
           }
         ]
@@ -116,8 +98,6 @@
         "shifts": [
           {
             "type": 3,
-            "from": "6:30AM",
-            "to": "6PM",
             "published": true
           }
         ]
@@ -127,8 +107,6 @@
         "shifts": [
           {
             "type": 3,
-            "from": "7AM",
-            "to": "6PM",
             "published": true
           }
         ]
@@ -138,8 +116,6 @@
         "shifts": [
           {
             "type": 1,
-            "from": "7AM",
-            "to": "5PM",
             "published": true
           }
         ]
@@ -149,8 +125,6 @@
         "shifts": [
           {
             "type": 3,
-            "from": "7AM",
-            "to": "5PM",
             "published": true
           }
         ]
@@ -160,8 +134,6 @@
         "shifts": [
           {
             "type": 1,
-            "from": "",
-            "to": "",
             "published": true
           }
         ]
@@ -171,8 +143,6 @@
         "shifts": [
           {
             "type": 3,
-            "from": "7AM",
-            "to": "6PM",
             "published": true
           }
         ]
@@ -182,8 +152,6 @@
         "shifts": [
           {
             "type": 1,
-            "from": "",
-            "to": "",
             "published": true
           }
         ]
@@ -193,8 +161,6 @@
         "shifts": [
           {
             "type": 1,
-            "from": "",
-            "to": "",
             "published": true
           }
         ]
@@ -204,8 +170,6 @@
         "shifts": [
           {
             "type": 1,
-            "from": "7AM",
-            "to": "5PM",
             "published": false
           }
         ]
@@ -215,8 +179,6 @@
         "shifts": [
           {
             "type": 1,
-            "from": "7AM",
-            "to": "5PM",
             "published": false
           }
         ]
@@ -226,8 +188,6 @@
         "shifts": [
           {
             "type": 1,
-            "from": "7AM",
-            "to": "5PM",
             "published": false
           }
         ]
@@ -237,8 +197,6 @@
         "shifts": [
           {
             "type": 1,
-            "from": "7AM",
-            "to": "5PM",
             "published": false
           }
         ]
@@ -248,8 +206,6 @@
         "shifts": [
           {
             "type": 1,
-            "from": "2PM",
-            "to": "10:30PM",
             "published": false
           }
         ]
@@ -259,8 +215,6 @@
         "shifts": [
           {
             "type": 8,
-            "from": "",
-            "to": "",
             "published": false
           }
         ]
