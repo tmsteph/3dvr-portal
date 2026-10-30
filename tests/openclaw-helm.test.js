@@ -43,6 +43,26 @@ test('owner proofs bind action, message, session, origin and request id', async 
   assert.equal(runs, 1);
 });
 
+test('Helm accepts owner proofs from either production origin and preserves explicit restrictions', async t => {
+  const { config, pair } = await setup(t);
+  let runs = 0;
+  const run = async () => { runs++; return { ok: true, gateway: 'reachable' }; };
+  const proof = async origin => {
+    const body = { action: 'status', requestId: 'request-123456789', sessionId: 'session-123456789' };
+    return { ...body, authPub: pair.pub, authProof: await SEA.sign({ ...body, scope: 'openclaw-helm', pub: pair.pub, iat: Date.now(), origin }, pair) };
+  };
+  const handler = createOpenClawHandler({ config, run });
+  for (const origin of ['https://portal.3dvr.tech', 'https://operator.3dvr.tech']) {
+    assert.equal((await call(handler, await proof(origin), origin)).statusCode, 200);
+  }
+  assert.equal((await call(handler, await proof('https://operator.3dvr.tech'), 'https://portal.3dvr.tech')).statusCode, 401);
+  assert.equal((await call(handler, await proof('https://operator.3dvr.tech.evil.example'), 'https://operator.3dvr.tech.evil.example')).statusCode, 403);
+  assert.equal(runs, 2);
+  const restricted = createOpenClawHandler({ config: { ...config, THREEDVR_HELM_ALLOWED_ORIGINS: ' https://portal.3dvr.tech, ' }, run });
+  assert.equal((await call(restricted, await proof('https://operator.3dvr.tech'), 'https://operator.3dvr.tech')).statusCode, 403);
+  assert.equal((await call(restricted, await proof('https://portal.3dvr.tech'))).statusCode, 200);
+});
+
 test('durable receipt prevents a repeat agent run across handler restarts', async t => {
   const { config, sign } = await setup(t);
   let runs = 0;
