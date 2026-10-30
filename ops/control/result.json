@@ -1,9 +1,87 @@
 {
-  "ok": false,
-  "state": "probe_error",
-  "error": "net::ERR_INSUFFICIENT_RESOURCES at https://portal.3dvr.tech/api/oauth/google?action=start&intent=signin&scopeKey=identity&returnTo=%2Fsign-in.html%3Fredirect%3D%252F",
-  "requestId": "google-oauth-safe-check-20260929",
-  "action": "google_oauth_status",
-  "workflowOutcome": "failure",
-  "checkedAt": "2026-09-29T19:04:28Z"
+  "ok": true,
+  "queueStore": "sqlite",
+  "ownerConfigured": true,
+  "databaseExists": true,
+  "workerDaemonPresent": false,
+  "counts": {
+    "queued": 43,
+    "completed": 153,
+    "failed": 5
+  },
+  "backendCounts": {
+    "auto:queued": 26,
+    "codex:completed": 12,
+    "codex:queued": 1,
+    "health:completed": 141,
+    "shell:queued": 16,
+    "shell:failed": 1,
+    "codex:failed": 4
+  },
+  "recentHttpTasks": [
+    {
+      "status": "queued",
+      "backend": "codex",
+      "updatedAt": "2026-10-28T21:25:20.016Z",
+      "errorPresent": false
+    },
+    {
+      "status": "completed",
+      "backend": "codex",
+      "updatedAt": "2026-10-26T06:13:28.776Z",
+      "errorPresent": false
+    },
+    {
+      "status": "completed",
+      "backend": "codex",
+      "updatedAt": "2026-10-26T06:10:18.297Z",
+      "errorPresent": false
+    },
+    {
+      "status": "completed",
+      "backend": "health",
+      "updatedAt": "2026-10-26T06:08:42.285Z",
+      "errorPresent": false
+    },
+    {
+      "status": "completed",
+      "backend": "codex",
+      "updatedAt": "2026-10-26T00:25:40.343Z",
+      "errorPresent": false
+    },
+    {
+      "status": "completed",
+      "backend": "codex",
+      "updatedAt": "2026-10-26T00:19:22.677Z",
+      "errorPresent": false
+    },
+    {
+      "status": "completed",
+      "backend": "codex",
+      "updatedAt": "2026-10-26T00:01:36.033Z",
+      "errorPresent": false
+    },
+    {
+      "status": "completed",
+      "backend": "codex",
+      "updatedAt": "2026-10-25T21:40:33.375Z",
+      "errorPresent": false
+    },
+    {
+      "status": "completed",
+      "backend": "codex",
+      "updatedAt": "2026-10-25T21:40:25.945Z",
+      "errorPresent": false
+    },
+    {
+      "status": "completed",
+      "backend": "codex",
+      "updatedAt": "2026-10-25T21:40:17.231Z",
+      "errorPresent": false
+    }
+  ],
+  "checkedAt": "2026-10-30T05:43:26Z",
+  "requestId": "operator-runtime-diagnosis-20261030",
+  "action": "operator_runtime_status",
+  "workflowOutcome": "success"
 }
