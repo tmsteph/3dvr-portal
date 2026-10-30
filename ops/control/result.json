@@ -1,8 +1,44 @@
 {
   "ok": true,
-  "connected": false,
-  "requestId": "founder-oneplus-readonly-20261030-1003",
-  "action": "termux_status",
+  "lanes": [
+    {
+      "lane": "general",
+      "state": "active",
+      "memoryBytes": 681226240,
+      "lease": "lane=general state=free"
+    },
+    {
+      "lane": "identity",
+      "state": "inactive",
+      "memoryBytes": 0,
+      "lease": "lane=identity state=free"
+    },
+    {
+      "lane": "encore",
+      "state": "active",
+      "memoryBytes": 409063424,
+      "lease": "lane=encore state=free"
+    },
+    {
+      "lane": "messaging",
+      "state": "active",
+      "memoryBytes": 329592832,
+      "lease": "lane=messaging state=free"
+    },
+    {
+      "lane": "training",
+      "state": "inactive",
+      "memoryBytes": 0,
+      "lease": "lane=training state=free"
+    }
+  ],
+  "host": {
+    "memAvailableMb": 3819,
+    "load1": 0.28,
+    "cpus": 4
+  },
+  "requestId": "workforce-control-path-20261030",
+  "action": "browser_lane_status",
   "workflowOutcome": "success",
-  "checkedAt": "2026-10-30T10:03:18Z"
+  "checkedAt": "2026-10-30T15:17:12Z"
 }
