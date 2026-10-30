@@ -122,7 +122,10 @@ function auditSiteOnlyCrmMigration({ leads = [], records = [], touches = [] } = 
     legacyRecordKeys,
     legacyTouchReferences,
     multiPersonSites,
-    migrationReviewRequired: legacyRecordKeys > 0 || legacyTouchReferences > 0 || multiPersonSites > 0,
+    observedLegacyConflict: legacyRecordKeys > 0 || legacyTouchReferences > 0 || multiPersonSites > 0,
+    // Even zero observed conflicts cannot clear a migration without an
+    // independently verified complete snapshot and human review.
+    migrationReviewRequired: true,
     snapshotCompleteness: 'unverified',
   };
 }
