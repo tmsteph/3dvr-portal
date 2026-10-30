@@ -181,6 +181,31 @@ test('an expired claim is held for review and never replayed after a worker rest
   assert.equal(sqliteQueue.claimTask('restart-task', 'new-token', 'replacement-worker', now + 1000, now + 100, options), null);
 });
 
+test('newer GUN imports cannot replay expired running SQLite work', async (t) => {
+  const options = await queueOptions(t);
+  const now = Date.parse('2026-10-29T00:00:00.000Z');
+  const task = {
+    id: 'legacy-expired-claim',
+    task: 'synthetic task with uncertain side effects',
+    status: 'queued',
+    backend: 'openai',
+    updatedAt: new Date(now).toISOString(),
+  };
+  sqliteQueue.writeTask(task, options);
+  assert.ok(sqliteQueue.claimTask(task.id, 'original-claim', 'worker-a', now + 1000, now, options));
+  const replay = {
+    ...task,
+    task: 'relay requests an unsafe replay',
+    status: 'queued',
+    updatedAt: new Date(now + 5000).toISOString(),
+  };
+  assert.equal(sqliteQueue.importTask(replay, { ...options, now: now + 5000 }), false);
+  const saved = sqliteQueue.readTask(task.id, options);
+  assert.equal(saved.status, 'running');
+  assert.equal(saved.task, task.task);
+  assert.equal(sqliteQueue.claimTask(task.id, 'replacement-claim', 'worker-b', now + 60000, now + 5000, options), null);
+});
+
 test('SQLite worker imports legacy GUN tasks and mirrors completion', async (t) => {
   const rootNode = fakeRoot();
   const gunOptions = { rootNode, ownerAlias: 'tenant/sqlite:exact', force: true };
