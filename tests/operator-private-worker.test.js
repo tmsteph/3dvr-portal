@@ -7,6 +7,7 @@ import { join } from 'node:path';
 const require = createRequire(import.meta.url);
 const { runOnce } = require('../scripts/ops/operator-private-worker.cjs');
 const sqlite = require('../apps/agent/thomas-agent/node/task-queue-sqlite-store.js');
+const { DatabaseSync } = require('node:sqlite');
 
 test('private worker preserves legacy, running, unsafe, and policy-blocked tasks', async () => {
   const task = (id, patch = {}) => ({ id, status: 'queued', backend: 'codex', queueSource: 'operator-http', ...patch });
@@ -43,8 +44,15 @@ test('atomic claim rejects a source switch after the worker snapshot without a f
   const staleSnapshot = sqlite.listTasks(options);
   assert.equal(staleSnapshot[0].queueSource, 'operator-http');
 
-  // Simulate a provenance change after listTasks but before the atomic claim.
-  assert.equal(sqlite.importTask({ ...task, updatedAt: '2026-10-30T00:01:00.000Z' }, options), true);
+  // The public relay is no longer allowed to overwrite signed tasks.
+  assert.equal(sqlite.importTask({ ...task, updatedAt: '2026-10-30T00:01:00.000Z' }, options), false);
+  // Still test the claim's defense in depth against a direct DB provenance change
+  // between the worker's list snapshot and atomic claim.
+  const db = new DatabaseSync(options.queueDb);
+  try {
+    db.prepare("UPDATE tasks SET source = 'gun' WHERE owner_alias = ? AND id = ?")
+      .run(options.ownerAlias, signedId);
+  } finally { db.close(); }
   assert.equal(sqlite.readTask(signedId, options).queueSource, 'gun');
   let executions = 0;
   const queue = {
