@@ -2,7 +2,7 @@
   "ok": true,
   "localDate": "2026-10-30",
   "lighthouse": {
-    "checkedAt": "2026-10-30T15:26:03.267Z",
+    "checkedAt": "2026-10-30T15:27:58.758Z",
     "weeksChecked": [
       "2026-10-26",
       "2026-11-02",
@@ -268,47 +268,6 @@
     ]
   },
   "iatse": {
-    "values": [
-      {
-        "date": "2026-10-29",
-        "value": "Booked"
-      },
-      {
-        "date": "2026-10-30",
-        "value": "Booked"
-      },
-      {
-        "date": "2026-10-31",
-        "value": "Not Available"
-      },
-      {
-        "date": "2026-11-01",
-        "value": "Not Available"
-      },
-      {
-        "date": "2026-11-02",
-        "value": "Booked"
-      },
-      {
-        "date": "2026-11-03",
-        "value": "Booked"
-      },
-      {
-        "date": "2026-11-04",
-        "value": "Booked"
-      },
-      {
-        "date": "2026-11-05",
-        "value": "Booked"
-      },
-      {
-        "date": "2026-11-06",
-        "value": "Not Available"
-      },
-      {
-        "date": "2026-11-07",
-        "value": "Not Available"
-      }
-    ]
+    "values": null
   }
 }
