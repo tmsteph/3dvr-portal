@@ -101,8 +101,7 @@ jobs:
              lighthouse:{checkedAt:$lh[0].checkedAt,weeksChecked:[$lh[0].weeks[].asOf],
                days:[$lh[0].weeks[].data.shifts.days[]? |
                  {date:(.date[0:10]),shifts:[.shifts[]? | {type:.shiftType,from:.inTimeText,to:.outTimeText,published:.isPublished}]}]},
-             iatse:{values:[$ia[0].controls[]? | select(.tag=="SELECT" and (.id | startswith("avail_"))) |
-                 {date:(.id[6:16]),value:.value}]}}'
+             iatse:{values:$ia[0].availabilityValues}}'
           OVH
           REMOTE
           jq -e '.ok == true and (.iatse.values | length >= 20)' /tmp/workforce-source.json >/dev/null
