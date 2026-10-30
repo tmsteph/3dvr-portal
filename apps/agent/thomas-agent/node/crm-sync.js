@@ -290,7 +290,7 @@ function buildLeadTouch(lead, record, options = {}) {
 
 function buildOutreachTouch(entry, record, options = {}) {
   const now = normalizeText(options.now) || new Date().toISOString();
-  const status = normalizeLower(entry.status) || 'sent';
+  const status = normalizeLower(entry.status) || 'unverified';
   const kind = normalizeLower(entry.kind) || 'message';
   const id = `touch-agent-outreach-${stableHash([
     entry.timestamp,
@@ -307,7 +307,7 @@ function buildOutreachTouch(entry, record, options = {}) {
     contactId: '',
     contactName: record.name,
     type: status === 'sent' || status === 'submitted' ? 'message' : 'note',
-    touchType: status === 'replied' ? 'reply-received' : status === 'sent' || status === 'submitted' ? 'outreach-sent' : 'outreach-failed',
+    touchType: status === 'replied' ? 'reply-received' : status === 'sent' || status === 'submitted' ? 'outreach-sent' : status === 'failed' ? 'outreach-failed' : 'outreach-unverified',
     channel: normalizeText(entry.route || kind),
     summary: `${kind} ${status}${entry.subject ? `: ${entry.subject}` : ''}`,
     outcome: normalizeText(entry.note) || (status === 'sent' ? 'Outbound message sent.' : `Outreach logged as ${status}.`),
@@ -318,7 +318,7 @@ function buildOutreachTouch(entry, record, options = {}) {
     variant: normalizeText(entry.variant),
     messageId: normalizeText(entry.messageId),
     threadId: normalizeText(entry.threadId),
-    deliveryStatus: normalizeText(entry.deliveryStatus || entry.status),
+    deliveryStatus: normalizeText(entry.deliveryStatus || entry.status) || status,
     replyStatus: normalizeText(entry.replyStatus || (status === 'replied' ? 'replied' : 'pending')),
     nextFollowUp: normalizeText(entry.nextFollowUp),
     targetUrl: normalizeText(entry.targetUrl),
