@@ -103,7 +103,7 @@ jobs:
             {ok:true,localDate:$today,
              lighthouse:{checkedAt:$lh[0].checkedAt,weeksChecked:[$lh[0].weeks[].asOf],
                days:[$lh[0].weeks[].data.shifts.days[]? |
-                 {date:(.date[0:10]),shifts:[.shifts[]? | {type:.shiftType,from:.inTimeText,to:.outTimeText,published:.isPublished}]}]},
+                 {date:(.date[0:10]),shifts:[.shifts[]? | {type:.shiftType,published:.isPublished}]}]},
              iatse:{values:$ia[0].availabilityValues}}'
           OVH
           REMOTE
