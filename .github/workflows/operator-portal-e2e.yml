@@ -109,6 +109,8 @@ jobs:
           grep -Fq 'node scripts/operator-navigation-e2e.mjs' .github/workflows/operator-portal-e2e.yml
           test -z "$(git diff --name-only --diff-filter=U)"
           echo 'No commit, push, deployment, or live task execution occurred.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Install isolated main-preview test dependencies
+        run: npm ci --ignore-scripts
       - name: Test queue and dispatch against the main reconciliation preview
         run: node --test tests/operator-private-worker.test.js tests/operator-dispatch.test.js
 
