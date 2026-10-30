@@ -1,7 +1,7 @@
 const path = require('node:path');
 
 async function runOnce(queue, onlyTaskId = '') {
-  const options = { queueStore: 'sqlite', gunSync: false };
+  const options = { queueStore: 'sqlite', gunSync: false, ...(onlyTaskId ? { onlyTaskId } : {}) };
   const tasks = await queue.listTasks(options);
   const task = tasks.find(record => (!onlyTaskId || record.id === onlyTaskId)
     && record.id?.startsWith('operator-http-')
@@ -24,10 +24,16 @@ async function main() {
     throw new Error('Managed SQLite queue configuration is required.');
   }
   // A supervised canary may authorize exactly one task ID, never a queue drain.
-  const onlyTaskId = process.env.THREEDVR_AGENT_ONLY_TASK_ID || '';
+  const legacyPin = process.env.THREEDVR_AGENT_ONLY_TASK_ID || '';
+  const canonicalPin = process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID || '';
+  if (legacyPin && canonicalPin && legacyPin !== canonicalPin) {
+    throw new Error('Conflicting private Operator exact-task-ID pins.');
+  }
+  const onlyTaskId = canonicalPin || legacyPin;
   if (onlyTaskId && !/^operator-http-[A-Za-z0-9_-]{1,128}$/.test(onlyTaskId)) {
     throw new Error('Invalid exact-task-ID pin for private Operator worker.');
   }
+  if (onlyTaskId) process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID = onlyTaskId;
   process.env.THREEDVR_AGENT_QUEUE_GUN_SYNC = '0';
   const queue = require(path.join(process.env.THREEDVR_PRIVATE_AGENT_ROOT, 'thomas-agent/node/agent-task-queue.js'));
   for (;;) {
