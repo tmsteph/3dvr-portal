@@ -35,6 +35,33 @@ permissions:
   contents: read
 
 jobs:
+  # Full Agent Checks are normally scoped to PRs targeting main/dev.
+  # Run the same security and regression gates for this stacked integration
+  # before it can be reconciled into main. No deployment or live queue access.
+  combined-agent-tests:
+    if: github.event_name == 'pull_request' && github.base_ref == 'operator/queue-routing-audit-20261022-v2'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+          cache-dependency-path: apps/agent/package-lock.json
+      - run: npm ci
+      - name: Build Operator Core for agent tests
+        run: |
+          npm --prefix ../../operator-core/operator-core ci --ignore-scripts
+          npm --prefix ../../operator-core/operator-core run build
+      - name: Full agent regressions
+        run: npm test
+      - name: Production dependency security audit
+        run: npm audit --omit=dev
+
   portal-e2e:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
