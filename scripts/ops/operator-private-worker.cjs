@@ -18,20 +18,17 @@ async function runOnce(queue, onlyTaskId = '') {
   // canary receipt. Distinguish it from a lost claim/policy skip.
   if (result?.skipped === true) return 0;
   if (result?.ok !== true) return -1;
-  if (onlyTaskId) {
-    // A successful executor return alone is not an end-to-end canary receipt.
-    // Read back the exact private SQLite row and require a saved output before
-    // reporting completion. A missing/uncertain read remains a failed canary;
-    // it never authorizes replay or changes the task's persisted status.
-    let receipt;
-    try {
-      receipt = await queue.readTask(task.id, options);
-    } catch {
-      return -1;
-    }
-    if (receipt?.status !== 'completed' || receipt.queueSource !== 'operator-http'
-      || !String(receipt.resultText || '').trim()) return -1;
+  // Both pinned canaries and the continuous private worker must prove that
+  // execution was saved durably before reporting success. A missing/uncertain
+  // receipt is a visible failure, never permission to replay a claimed task.
+  let receipt;
+  try {
+    receipt = await queue.readTask(task.id, options);
+  } catch {
+    return -1;
   }
+  if (receipt?.status !== 'completed' || receipt.queueSource !== 'operator-http'
+    || !String(receipt.resultText || '').trim()) return -1;
   return 1;
 }
 
