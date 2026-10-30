@@ -89,7 +89,7 @@ jobs:
             # Main and the stacked draft independently added the same worker and
             # tests. Resolve ONLY these three reviewed overlaps in this disposable
             # test checkout. Any new conflict fails closed for human review.
-            expected=$(printf '%s\\n' '.github/workflows/operator-portal-e2e.yml' 'scripts/ops/operator-private-worker.cjs' 'tests/operator-private-worker.test.js' | sort)
+            expected=$(printf '%s\n' '.github/workflows/operator-portal-e2e.yml' 'scripts/ops/operator-private-worker.cjs' 'tests/operator-private-worker.test.js' | sort)
             actual=$(git diff --name-only --diff-filter=U | sort)
             if [ "$actual" != "$expected" ]; then
               echo '### Unexpected main integration conflicts; human review required' >> "$GITHUB_STEP_SUMMARY"
