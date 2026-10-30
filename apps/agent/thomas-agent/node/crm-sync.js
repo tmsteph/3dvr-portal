@@ -520,6 +520,18 @@ async function writeCrmSync(payload, options = {}) {
   return results;
 }
 
+// A partial Gun ACK failure must fail the command so supervisors and CI do
+// not mistake a partially persisted CRM projection for a successful sync.
+function assertCrmSyncSucceeded(result) {
+  const errors = Array.isArray(result?.errors) ? result.errors : [];
+  if (errors.length) {
+    const error = new Error(`CRM sync incomplete: ${errors.length} write error(s); retry after investigating the failed ACKs`);
+    error.code = 'CRM_SYNC_INCOMPLETE';
+    throw error;
+  }
+  return result;
+}
+
 function parseArgs(argv = []) {
   const options = {
     dryRun: false,
@@ -615,13 +627,16 @@ portal CRM stays useful. Use --include-all for a full import.`);
 
   const result = await writeCrmSync(payload);
   if (result.errors.length) {
-    console.warn(`CRM sync completed with ${result.errors.length} warning(s).`);
-    result.errors.slice(0, 5).forEach((error) => console.warn(`- ${error}`));
+    console.warn(`CRM sync incomplete: ${result.errors.length} write error(s).`);
+    // Never print provider errors or CRM record IDs from an unattended run.
+    // The nonzero exit status is the actionable receipt; rerun after repair.
   }
+  assertCrmSyncSucceeded(result);
   console.log(`CRM sync wrote ${result.records} record(s) and ${result.touches} touch log item(s).`);
 }
 
 module.exports = {
+  assertCrmSyncSucceeded,
   auditSiteOnlyCrmMigration,
   buildCrmRecord,
   contactIdentity,
