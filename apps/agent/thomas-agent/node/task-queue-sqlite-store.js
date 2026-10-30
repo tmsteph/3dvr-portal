@@ -97,6 +97,9 @@ function writeTask(record, options = {}) {
 }
 
 function importTask(record, options = {}) {
+  // Public relay data must not even reserve an ID in the signed HTTP namespace.
+  // Otherwise a legacy import can squat on an ID and block a future signed task.
+  if (String(record.id).startsWith('operator-http-')) return false;
   return withDatabase(options, (db) => {
     const result = db.prepare(`
       INSERT INTO tasks
