@@ -491,14 +491,27 @@ async function writeCrmSync(payload, options = {}) {
   const crmRoot = options.crmRoot || roots.portalCrmNode();
   const touchRoot = options.touchRoot || roots.portalCrmTouchLogNode();
   const results = { records: 0, touches: 0, errors: [] };
+  const acknowledgedRecordIds = new Set();
 
   for (const record of payload.records || []) {
     const ack = await putGun(crmRoot.get(record.id), record, timeoutMs);
     if (ack?.err) results.errors.push(`record ${record.id}: ${ack.err}`);
-    else results.records += 1;
+    else {
+      results.records += 1;
+      acknowledgedRecordIds.add(record.id);
+    }
   }
 
   for (const touch of payload.touches || []) {
+    const recordId = normalizeText(touch.recordId);
+    // A failed parent upsert must never produce a dangling activity record.
+    // Both foreign-key fields must agree and the parent must have a positive
+    // ACK in this same sync attempt. Retry the whole idempotent projection.
+    if (!recordId || normalizeText(touch.crmRecordId) !== recordId ||
+        !acknowledgedRecordIds.has(recordId)) {
+      results.errors.push(`touch ${touch.id}: parent CRM record not acknowledged`);
+      continue;
+    }
     const ack = await putGun(touchRoot.get(touch.id), touch, timeoutMs);
     if (ack?.err) results.errors.push(`touch ${touch.id}: ${ack.err}`);
     else results.touches += 1;
