@@ -1,9 +1,10 @@
 const path = require('node:path');
 
-async function runOnce(queue) {
+async function runOnce(queue, onlyTaskId = '') {
   const options = { queueStore: 'sqlite', gunSync: false };
   const tasks = await queue.listTasks(options);
-  const task = tasks.find(record => record.id?.startsWith('operator-http-')
+  const task = tasks.find(record => (!onlyTaskId || record.id === onlyTaskId)
+    && record.id?.startsWith('operator-http-')
     // The SQLite source column, not a user-controlled ID prefix, proves that
     // the task came through the signed owner HTTP admission path.
     && record.queueSource === 'operator-http'
@@ -22,11 +23,19 @@ async function main() {
     || process.env.THREEDVR_AGENT_OWNER_ALIAS !== '3dvr-managed') {
     throw new Error('Managed SQLite queue configuration is required.');
   }
+  // A supervised canary may authorize exactly one task ID, never a queue drain.
+  const onlyTaskId = process.env.THREEDVR_AGENT_ONLY_TASK_ID || '';
+  if (onlyTaskId && !/^operator-http-[A-Za-z0-9_-]{1,128}$/.test(onlyTaskId)) {
+    throw new Error('Invalid exact-task-ID pin for private Operator worker.');
+  }
   process.env.THREEDVR_AGENT_QUEUE_GUN_SYNC = '0';
   const queue = require(path.join(process.env.THREEDVR_PRIVATE_AGENT_ROOT, 'thomas-agent/node/agent-task-queue.js'));
   for (;;) {
-    const count = await runOnce(queue);
+    const count = await runOnce(queue, onlyTaskId);
     if (count) console.log('Private Operator task processed; result saved in the owner queue.');
+    // A pinned worker is one-shot; a supervisor restart cannot replay a
+    // terminal task, and never broadens the pin to other queued work.
+    if (onlyTaskId && count) return;
     await new Promise(resolve => setTimeout(resolve, 10000));
   }
 }
