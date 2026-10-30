@@ -347,6 +347,43 @@ test('writeCrmSync writes records and touches through provided Gun roots', async
   assert.equal(writes[1].id, payload.touches[0].id);
 });
 
+test('CRM sync never writes orphan activity when its parent record fails ACK', async () => {
+  const recordWrites = [];
+  const touchWrites = [];
+  const crmRoot = {
+    get(id) {
+      return {
+        put(payload, cb) {
+          recordWrites.push({ id, payload });
+          cb(id === 'blocked-record' ? { err: 'synthetic parent failure' } : { ok: true });
+        }
+      };
+    }
+  };
+  const payload = {
+    records: [{ id: 'good-record' }, { id: 'blocked-record' }],
+    touches: [
+      { id: 'good-touch', recordId: 'good-record', crmRecordId: 'good-record' },
+      { id: 'orphan-touch', recordId: 'blocked-record', crmRecordId: 'blocked-record' },
+      { id: 'mismatched-touch', recordId: 'good-record', crmRecordId: 'blocked-record' },
+    ]
+  };
+  const result = await writeCrmSync(payload, {
+    crmRoot,
+    touchRoot: fakeGunRoot(touchWrites, 'touch'),
+    timeoutMs: 100
+  });
+  assert.equal(recordWrites.length, 2);
+  assert.equal(result.records, 1);
+  assert.equal(result.touches, 1);
+  assert.equal(result.errors.length, 3);
+  assert.deepEqual(touchWrites.map(write => write.id), ['good-touch'],
+    'no activity may be persisted for a failed or mismatched parent');
+  assert.ok(result.errors.some(error => error.includes('blocked-record')));
+  assert.ok(result.errors.some(error => error.includes('orphan-touch')));
+  assert.ok(result.errors.some(error => error.includes('mismatched-touch')));
+});
+
 test('normalizeEmail strips mailto and rejects non-email contacts', () => {
   assert.equal(normalizeEmail('mailto:Owner@Example.com'), 'owner@example.com');
   assert.equal(normalizeEmail('https://example.com/contact'), '');
