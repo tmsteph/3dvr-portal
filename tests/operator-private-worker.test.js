@@ -84,6 +84,7 @@ test('exact-task-ID pin processes only the authorized signed canary, not the nex
   const queue = {
     listTasks: () => records,
     canWorkerRunTask: () => ({ ok: true }),
+    readTask: () => ({ status: 'completed', queueSource: 'operator-http', resultText: 'synthetic result' }),
     runQueuedTask: (task, options) => {
       assert.equal(options.onlyTaskId, 'operator-http-pinned');
       executed.push(task.id);
@@ -147,6 +148,7 @@ test('pinned canary waits for late admission then executes only the exact task o
   const queue = {
     listTasks: () => { polls += 1; return polls < 3 ? [] : records; },
     canWorkerRunTask: () => ({ ok: true }),
+    readTask: () => ({ status: 'completed', queueSource: 'operator-http', resultText: 'synthetic result' }),
     runQueuedTask: (task, options) => {
       assert.equal(options.onlyTaskId, 'operator-http-approved');
       executions.push(task.id);
@@ -228,4 +230,61 @@ test('shared worker reports a failed native task and continues to unrelated work
   assert.equal(poll, 2);
   assert.deepEqual(failed, ['failure reported']);
   assert.deepEqual(completed, ['completion reported']);
+});
+
+
+test('pinned canary rejects a successful executor return without a durable signed output', async () => {
+  const record = { id: 'operator-http-readback', status: 'queued', backend: 'codex', queueSource: 'operator-http' };
+  const invalidReceipts = [null,
+    { status: 'running', queueSource: 'operator-http', resultText: 'synthetic' },
+    { status: 'completed', queueSource: 'gun', resultText: 'synthetic' },
+    { status: 'completed', queueSource: 'operator-http', resultText: '' },
+  ];
+  for (const receipt of invalidReceipts) {
+    const queue = {
+      listTasks: () => [record],
+      canWorkerRunTask: () => ({ ok: true }),
+      runQueuedTask: () => ({ ok: true }),
+      readTask: () => receipt,
+    };
+    assert.equal(await runOnce(queue, record.id), -1);
+  }
+  assert.equal(await runOnce({
+    listTasks: () => [record],
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: () => ({ ok: true }),
+    readTask: () => { throw new Error('synthetic read failure'); },
+  }, record.id), -1);
+});
+
+test('pinned canary reads back the exact completed signed SQLite task with saved result', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'operator-private-receipt-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const options = { queueDb: join(dir, 'queue.sqlite'), ownerAlias: '3dvr-managed' };
+  const id = 'operator-http-receipt';
+  sqlite.insertTask({ id, task: 'synthetic only', status: 'queued', backend: 'codex',
+    updatedAt: new Date().toISOString() }, { ...options, queueSource: 'operator-http' });
+  let executions = 0;
+  const queue = {
+    listTasks: () => sqlite.listTasks(options),
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: () => {
+      const now = Date.now();
+      const claimed = sqlite.claimTask(id, 'receipt-token', 'worker', now + 60000, now, options);
+      assert.ok(claimed);
+      executions += 1;
+      const terminal = { ...claimed, status: 'completed', resultText: 'saved synthetic output',
+        updatedAt: new Date(now).toISOString() };
+      assert.ok(sqlite.finishTask(id, 'receipt-token', terminal, options));
+      return { ok: true };
+    },
+    readTask: (taskId, scope) => {
+      assert.equal(taskId, id);
+      assert.equal(scope.onlyTaskId, id);
+      return sqlite.readTask(taskId, options);
+    },
+  };
+  assert.equal(await runOnce(queue, id), 1);
+  assert.equal(executions, 1);
+  assert.equal(sqlite.readTask(id, options).resultText, 'saved synthetic output');
 });
