@@ -413,8 +413,18 @@ function buildCrmSyncPayload({
     if (matches.length === 1) matchedOutreach[matches[0]].push(entry);
   }
 
-  const records = selectedLeads.map((lead, index) =>
-    buildCrmRecord(mergeOutreachIntoLead(lead, matchedOutreach[index]), { now }));
+  // Historical CSV 'contacted'/'replied' labels are not delivery or reply
+  // receipts. Only an identity-matched successful outreach event may promote
+  // those CRM stages. Preserve the original CSV label in the note touch.
+  const records = selectedLeads.map((lead, index) => {
+    const entries = matchedOutreach[index];
+    const merged = mergeOutreachIntoLead(lead, entries);
+    const hasVerifiedTouch = entries.some(entry =>
+      ['sent', 'submitted', 'replied'].includes(normalizeLower(entry.status)));
+    const status = !hasVerifiedTouch && ['contacted', 'replied'].includes(normalizeLower(merged.status))
+      ? 'new' : merged.status;
+    return buildCrmRecord({ ...merged, status, ...(!hasVerifiedTouch ? { date: '' } : {}) }, { now });
+  });
   // Gun upserts by record ID. Two distinct lead rows (or slug-colliding emails)
   // must never silently overwrite one another during a CRM sync.
   const recordIds = new Set();
