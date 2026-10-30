@@ -150,7 +150,7 @@ function openHistory(){
   clearHistoryRefreshTimers();
   for(const delayMs of [6000,15000]){
     historyRefreshTimers.push(window.setTimeout(()=>{
-      if(!historyPanel.hidden&&!operatorBusy())void syncHistory();
+      if(!historyPanel.hidden&&!operatorBusy()&&document.visibilityState!=='hidden')void syncHistory();
     },delayMs));
   }
   historyList.querySelector('[aria-current="page"]')?.focus()||document.querySelector('#close-history').focus();
