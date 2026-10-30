@@ -549,7 +549,7 @@ test('site-only snapshot CLI prints aggregate findings without contacting Gun or
     const leadsFile = path.join(dir, 'leads.csv');
     const snapshotFile = path.join(dir, 'snapshot.json');
     await writeFile(leadsFile,
-      'name,link,contact,status,date,variant\\nSynthetic Private Lead,https://private-migration.example,,new,,\\n');
+      'name,link,contact,status,date,variant\nSynthetic Private Lead,https://private-migration.example,,new,,\n');
     await writeFile(snapshotFile, JSON.stringify({
       records: [{ id: 'agent-lead-https-private-migration-example' }],
       touches: [{ recordId: 'agent-lead-https-private-migration-example' }],
