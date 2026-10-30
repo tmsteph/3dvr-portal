@@ -62,6 +62,40 @@ jobs:
       - name: Production dependency security audit
         run: npm audit --omit=dev
 
+  # Test whether the stacked safety branch can be reconciled with today's main
+  # without modifying main, production, or any live queue. A conflict is a
+  # release blocker, not permission to drop either side's protections.
+  main-reconciliation-preview:
+    if: github.event_name == 'pull_request' && github.base_ref == 'operator/queue-routing-audit-20261022-v2'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+      - name: Merge main into the PR test checkout without committing or pushing
+        shell: bash
+        run: |
+          git fetch --no-tags origin main
+          set +e
+          git -c user.name='Operator CI' -c user.email='operator-ci@users.noreply.github.com' merge --no-commit --no-ff origin/main > /tmp/operator-main-merge.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo '### Operator integration with current main: blocked' >> "$GITHUB_STEP_SUMMARY"
+            echo 'The draft cannot be released without reviewing these merge conflicts:' >> "$GITHUB_STEP_SUMMARY"
+            git diff --name-only --diff-filter=U | tee -a "$GITHUB_STEP_SUMMARY"
+            cat /tmp/operator-main-merge.log
+            exit 1
+          fi
+          echo '### Operator integration with current main: clean merge preview' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No commit, push, deployment, or live task execution occurred.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Test queue and dispatch against the main reconciliation preview
+        run: node --test tests/operator-private-worker.test.js tests/operator-dispatch.test.js
+
   portal-e2e:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
