@@ -426,3 +426,32 @@ test('CRM does not invent successful outbound dates from failed, inbound-only or
   assert.equal(payload.records[0].replyCount, 1);
   assert.equal(payload.records[0].lastTouchType, 'reply-received');
 });
+
+test('CRM outreach touches cannot overwrite another recipient with the same campaign metadata', () => {
+  const at = '2026-10-29T17:30:00.000Z';
+  const recipients = ['alice@shared.example', 'bob@shared.example'];
+  const payload = buildCrmSyncPayload({
+    leads: recipients.map(email => ({
+      name: 'Shared Campaign Business',
+      link: 'https://shared.example',
+      contact: 'mailto:' + email,
+      status: 'new',
+    })),
+    outreach: recipients.map(email => ({
+      name: 'Shared Campaign Business',
+      site: 'https://shared.example',
+      contact: 'mailto:' + email,
+      status: 'sent',
+      timestamp: at,
+      subject: 'One campaign subject',
+      body: 'Identical campaign copy',
+    })),
+    now: at,
+  });
+  const touches = payload.touches.filter(touch => touch.source === '3dvr-agent/outreach-log');
+  assert.equal(touches.length, 2);
+  assert.equal(new Set(touches.map(touch => touch.id)).size, 2,
+    'a Gun touch ID must not collide across different recipients');
+  assert.deepEqual(new Set(touches.map(touch => touch.recordId)),
+    new Set(payload.records.map(record => record.id)));
+});
