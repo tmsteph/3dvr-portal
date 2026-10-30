@@ -64,22 +64,34 @@ function parseRecord(row) {
 }
 
 function writeTask(record, options = {}) {
+  const id = String(record.id);
+  const source = options.queueSource || 'sqlite';
+  const signedHttp = id.startsWith('operator-http-');
+  // Generic CLI/relay writers must not create or replace signed HTTP work.
+  // Signed records are admitted once; claimTask/finishTask own their lifecycle.
+  if (signedHttp && source !== 'operator-http') {
+    throw new Error('Signed HTTP task requires signed queue provenance.');
+  }
   return withDatabase(options, (db) => {
-    db.prepare(`
+    const result = db.prepare(`
       INSERT INTO tasks (owner_alias, id, status, updated_at, record_json, source)
       VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(owner_alias, id) DO UPDATE SET
         status = excluded.status,
         updated_at = excluded.updated_at,
         record_json = excluded.record_json
+      WHERE tasks.source <> 'operator-http' AND excluded.source <> 'operator-http'
     `).run(
       ownerAlias(options),
-      String(record.id),
+      id,
       String(record.status),
       String(record.updatedAt),
       JSON.stringify(record),
-      options.queueSource || 'sqlite',
+      source,
     );
+    if (signedHttp && result.changes !== 1) {
+      throw new Error('Signed HTTP task already exists; use its claim lifecycle.');
+    }
     return record;
   });
 }
