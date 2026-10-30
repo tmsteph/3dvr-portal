@@ -1,0 +1,120 @@
+name: Workforce Source Read
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/control/workforce-source-request.json'
+permissions:
+  contents: write
+concurrency:
+  group: workforce-source-read
+  cancel-in-progress: false
+env:
+  HETZNER_HOST: 167.233.174.20
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve Hetzner SSH access
+        id: ssh
+        shell: bash
+        env:
+          SSH_A: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+          SSH_B: ${{ secrets.DO_SSH_PRIVATE_KEY }}
+          SSH_C: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          for suffix in A B C; do
+            var="SSH_$suffix"
+            raw="${!var:-}"
+            [ -n "$raw" ] || continue
+            dest="/tmp/workforce-key-$suffix"
+            if grep -q 'BEGIN .*PRIVATE KEY' <<<"$raw"; then
+              printf '%s\n' "$raw" > "$dest"
+            else
+              printf '%s' "$raw" | base64 -d > "$dest" 2>/dev/null || true
+            fi
+            chmod 600 "$dest"
+          done
+          for user in root debian ubuntu tmsteph; do
+            for key in /tmp/workforce-key-*; do
+              [ -s "$key" ] || continue
+              if ssh -i "$key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=6 "$user$HETZNER_HOST" true >/dev/null 2>&1; then
+                echo "user=$user" >> "$GITHUB_OUTPUT"
+                echo "key=$key" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+          done
+          exit 1
+      - name: Read and sanitize live schedules
+        env:
+          HETZNER_USER: ${{ steps.ssh.outputs.user }}
+          HETZNER_KEY: ${{ steps.ssh.outputs.key }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i "$HETZNER_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 "$HETZNER_USER$HETZNER_HOST" bash -s > /tmp/workforce-source.json <<'REMOTE'
+          set -euo pipefail
+          ssh -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8 3dvr-ovh bash -s <<'OVH'
+          set -euo pipefail
+          systemctl is-active --quiet 3dvr-secrets-broker.service
+          curl -fsS --max-time 4 http://127.0.0.1:9222/json/version >/dev/null
+          temp="$(mktemp -d)"
+          token=""
+          cleanup() {
+            if [ -n "$token" ]; then sudo -n /usr/local/bin/3dvr-browser-lease release general "$token" >/dev/null 2>&1 || true; fi
+            rm -rf "$temp"
+          }
+          trap cleanup EXIT
+          token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general workforce-source-read 480)"
+          for file in lighthouse-api-reader.cjs iatse-availability-probe.cjs; do
+            curl -fsSL --retry 3 "https://raw.githubusercontent.com/tmsteph/3dvr-portal/main/scripts/ops/$file" -o "$temp/$file"
+          done
+          today="$(TZ=America/Los_Angeles date +%F)"
+          weekday="$(date -d "$today" +%u)"
+          monday="$(date -d "$today -$((weekday-1)) days" +%F)"
+          weeks=()
+          for i in 0 1 2 3 4 5; do weeks+=("$(date -d "$monday +$((i*7)) days" +%F)"); done
+          timeout 310s node "$temp/lighthouse-api-reader.cjs" "${weeks[@]}" > "$temp/lighthouse.json"
+          jq -e '.ok == true and ([.weeks[] | (.ok == true and .status == 200)] | all)' "$temp/lighthouse.json" >/dev/null
+          timeout 45s node "$temp/iatse-availability-probe.cjs" > "$temp/iatse.json"
+          jq -e '.ok == true and (.body | contains("Logout"))' "$temp/iatse.json" >/dev/null
+          jq -n --slurpfile lh "$temp/lighthouse.json" --slurpfile ia "$temp/iatse.json" --arg today "$today" '
+            {ok:true,localDate:$today,
+             lighthouse:{checkedAt:$lh[0].checkedAt,weeksChecked:[$lh[0].weeks[].asOf],
+               days:[$lh[0].weeks[].data.shifts.days[] |
+                 {date:(.date[0:10]),shifts:[.shifts[] | {type:.shiftType,from:.inTimeText,to:.outTimeText,published:.isPublished}]}]},
+             iatse:{values:[$ia[0].controls[] | select(.tag=="SELECT" and (.id | startswith("avail_"))) |
+                 {date:(.id[6:16]),value:.value}]}}'
+          OVH
+          REMOTE
+          jq -e '.ok == true and (.iatse.values | length >= 20)' /tmp/workforce-source.json >/dev/null
+      - name: Persist sanitized result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -s /tmp/workforce-source.json ] && jq -e . /tmp/workforce-source.json >/dev/null 2>&1; then
+            cp /tmp/workforce-source.json /tmp/workforce-result.json
+          else
+            printf '%s\n' '{"ok":false,"error":"Live source read failed; inspect Actions job status"}' > /tmp/workforce-result.json
+          fi
+          url="https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ops/control/workforce-source-result.json"
+          sha="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$url" 2>/dev/null | jq -r '.sha // empty' || true)"
+          RESULT_SHA="$sha" python3 - <<'PY' > /tmp/payload.json
+          import base64,json,os
+          data=base64.b64encode(open('/tmp/workforce-result.json','rb').read()).decode()
+          payload={'message':'Record sanitized workforce source snapshot','content':data,'branch':'main'}
+          if os.environ.get('RESULT_SHA'): payload['sha']=os.environ['RESULT_SHA']
+          print(json.dumps(payload))
+          PY
+          curl -fsS -X PUT -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "$url" --data-binary @/tmp/payload.json >/dev/null
+      - name: Remove SSH keys
+        if: always()
+        run: rm -f /tmp/workforce-key-*
