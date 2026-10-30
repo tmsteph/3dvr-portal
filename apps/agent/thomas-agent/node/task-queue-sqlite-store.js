@@ -166,6 +166,9 @@ function writeTask(record, options = {}) {
 }
 
 function importTask(record, options = {}) {
+  // A public GUN mirror cannot reserve a signed HTTP task ID before the
+  // authenticated admission arrives, or masquerade as its lifecycle.
+  if (String(record?.id).startsWith('operator-http-')) return false;
   // Only queued legacy intent may enter the durable store. A GUN mirror is
   // not an authenticated worker receipt: importing a previously unseen
   // completed/running task would fabricate execution without a claim.
