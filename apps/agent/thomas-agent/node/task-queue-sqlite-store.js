@@ -114,6 +114,9 @@ function importTask(record, options = {}) {
         claim_expires_at = NULL
       -- Legacy relay imports must never replace an admitted private HTTP task.
       WHERE tasks.source <> 'operator-http'
+        -- An expired running claim may already have produced side effects.
+        -- A newer public relay snapshot must never requeue it implicitly.
+        AND tasks.status <> 'running'
         AND (tasks.claim_token IS NULL OR tasks.claim_expires_at <= ?)
         AND excluded.updated_at > tasks.updated_at
     `).run(
