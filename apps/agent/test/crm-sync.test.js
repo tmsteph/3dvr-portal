@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 const {
+  auditSiteOnlyCrmMigration,
   buildCrmRecord,
   buildCrmSyncPayload,
   buildLeadId,
@@ -503,4 +504,41 @@ test('CRM keeps distinct site-only people separate when they share a business we
   assert.equal(replies.length, 1);
   assert.equal(replies[0].recordId, alice.id,
     'a shared website must not attribute Alice\'s reply to Bob');
+});
+
+test('read-only CRM ID audit flags a pre-existing legacy site-only record and its touch', () => {
+  const site = 'https://shared-migration.example';
+  const audit = auditSiteOnlyCrmMigration({
+    leads: [
+      { name: 'Synthetic Alice', link: site, contact: '' },
+      { name: 'Synthetic Bob', link: site, contact: '' },
+      { name: 'Synthetic Email', link: site, contact: 'mailto:email@shared-migration.example' },
+    ],
+    records: [{ id: 'agent-lead-https-shared-migration-example' }],
+    touches: [{ recordId: 'agent-lead-https-shared-migration-example' }],
+  });
+  assert.deepEqual(audit, {
+    siteOnlyCandidates: 2,
+    uniqueSites: 1,
+    changedIdCandidates: 2,
+    legacyRecordKeys: 1,
+    legacyTouchReferences: 1,
+    multiPersonSites: 1,
+    migrationReviewRequired: true,
+    snapshotCompleteness: 'unverified',
+  });
+  assert.ok(!JSON.stringify(audit).includes('Synthetic'), 'audit must not leak lead names');
+  assert.ok(!JSON.stringify(audit).includes('shared-migration.example'), 'audit must not leak sites');
+});
+
+test('CRM ID audit never treats an empty or incomplete snapshot as proof of migration safety', () => {
+  const audit = auditSiteOnlyCrmMigration({
+    leads: [{ name: 'Synthetic Solo', link: 'https://solo-migration.example', contact: '' }],
+    records: [],
+    touches: [],
+  });
+  assert.equal(audit.siteOnlyCandidates, 1);
+  assert.equal(audit.legacyRecordKeys, 0);
+  assert.equal(audit.migrationReviewRequired, false);
+  assert.equal(audit.snapshotCompleteness, 'unverified');
 });
