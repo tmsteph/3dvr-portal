@@ -36,18 +36,43 @@ async function main() {
   if (onlyTaskId) process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID = onlyTaskId;
   process.env.THREEDVR_AGENT_QUEUE_GUN_SYNC = '0';
   const queue = require(path.join(process.env.THREEDVR_PRIVATE_AGENT_ROOT, 'thomas-agent/node/agent-task-queue.js'));
+  await runLoop(queue, {
+    onlyTaskId,
+    onProcessed: () => console.log('Private Operator task processed; result saved in the owner queue.'),
+  });
+}
+
+// A pinned canary is a bounded one-shot operation, not an indefinite worker.
+// Waiting briefly permits admission to arrive after supervisor startup, but a
+// missing, blocked, or already-terminal task must produce a visible failure.
+const PIN_TIMEOUT_MESSAGE = 'Pinned Operator canary timed out without an execution receipt; inspect exact task status.';
+async function runLoop(queue, {
+  onlyTaskId = '',
+  pollMs = 10000,
+  pinTimeoutMs = 120000,
+  now = Date.now,
+  sleep = ms => new Promise(resolve => setTimeout(resolve, ms)),
+  onProcessed = () => {},
+} = {}) {
+  const startedAt = now();
   for (;;) {
     const count = await runOnce(queue, onlyTaskId);
-    if (count) console.log('Private Operator task processed; result saved in the owner queue.');
-    // A pinned worker is one-shot; a supervisor restart cannot replay a
-    // terminal task, and never broadens the pin to other queued work.
-    if (onlyTaskId && count) return;
-    await new Promise(resolve => setTimeout(resolve, 10000));
+    if (count) {
+      onProcessed();
+      // A pinned worker never broadens to another queued task.
+      if (onlyTaskId) return 1;
+    }
+    if (onlyTaskId && now() - startedAt >= pinTimeoutMs) {
+      throw new Error(PIN_TIMEOUT_MESSAGE);
+    }
+    await sleep(pollMs);
   }
 }
 
-module.exports = { runOnce };
-if (require.main === module) main().catch(() => {
-  console.error('Private Operator worker stopped; inspect queue configuration and transport.');
+module.exports = { runOnce, runLoop };
+if (require.main === module) main().catch(error => {
+  console.error(error?.message === PIN_TIMEOUT_MESSAGE
+    ? PIN_TIMEOUT_MESSAGE
+    : 'Private Operator worker stopped; inspect queue configuration and transport.');
   process.exit(1);
 });
