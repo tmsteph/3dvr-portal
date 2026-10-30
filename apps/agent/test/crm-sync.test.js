@@ -542,3 +542,30 @@ test('CRM ID audit never treats an empty or incomplete snapshot as proof of migr
   assert.equal(audit.migrationReviewRequired, false);
   assert.equal(audit.snapshotCompleteness, 'unverified');
 });
+
+test('site-only snapshot CLI prints aggregate findings without contacting Gun or exposing leads', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'crm-site-only-audit-'));
+  try {
+    const leadsFile = path.join(dir, 'leads.csv');
+    const snapshotFile = path.join(dir, 'snapshot.json');
+    await writeFile(leadsFile,
+      'name,link,contact,status,date,variant\\nSynthetic Private Lead,https://private-migration.example,,new,,\\n');
+    await writeFile(snapshotFile, JSON.stringify({
+      records: [{ id: 'agent-lead-https-private-migration-example' }],
+      touches: [{ recordId: 'agent-lead-https-private-migration-example' }],
+    }));
+    const { spawnSync } = require('node:child_process');
+    const result = spawnSync(process.execPath, [
+      path.join(__dirname, '../thomas-agent/node/crm-sync.js'),
+      '--audit-site-only-snapshot', snapshotFile,
+      '--leads-file', leadsFile,
+    ], { encoding: 'utf8', timeout: 10000 });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /"legacyRecordKeys": 1/);
+    assert.match(result.stdout, /"legacyTouchReferences": 1/);
+    assert.match(result.stdout, /no migration or CRM write authorized/i);
+    assert.doesNotMatch(result.stdout, /Synthetic Private Lead|private-migration\\.example/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
