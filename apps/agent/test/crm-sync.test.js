@@ -571,3 +571,28 @@ test('site-only snapshot CLI prints aggregate findings without contacting Gun or
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+
+test('CRM refuses duplicate Gun record IDs instead of silently overwriting a different lead', () => {
+  const makeLead = (name, contact) => ({
+    name, link: 'https://different-site.example', contact, status: 'new'
+  });
+  // Distinct valid email addresses can collapse to the same slugified ID.
+  assert.throws(() => buildCrmSyncPayload({
+    leads: [
+      makeLead('Alice Plus', 'mailto:alice+sales@example.test'),
+      makeLead('Alice Dot', 'mailto:alice.sales@example.test')
+    ],
+    now: '2026-10-29T20:30:00Z'
+  }), /Ambiguous CRM record ID collision/);
+
+  // Even repeated identical input rows must be reviewed rather than upserted
+  // twice under one ID with ambiguous outreach attribution.
+  assert.throws(() => buildCrmSyncPayload({
+    leads: [
+      makeLead('First Row', 'mailto:shared@example.test'),
+      makeLead('Second Row', 'mailto:shared@example.test')
+    ],
+    now: '2026-10-29T20:30:00Z'
+  }), /Ambiguous CRM record ID collision/);
+});
