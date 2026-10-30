@@ -234,6 +234,32 @@ test('CRM does not merge distinct email identities merely because they share a w
     touch.recordId === alice.id));
 });
 
+test('missing outreach status cannot fabricate a sent CRM touch or contacted lead', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [{
+      name: 'Synthetic Prospect',
+      link: 'https://prospect.example.test',
+      contact: 'mailto:prospect@example.test',
+      status: 'new',
+    }],
+    outreach: [{
+      name: 'Synthetic Prospect',
+      contact: 'mailto:prospect@example.test',
+      timestamp: '2026-10-29T12:00:00Z',
+    }],
+    now: '2026-10-29T12:01:00Z',
+  });
+  assert.equal(payload.records.length, 1);
+  assert.equal(payload.records[0].status, 'Lead');
+  assert.equal(payload.records[0].lastContacted, '');
+  assert.equal(payload.records[0].lastTouchType, 'outreach-unverified');
+  const touch = payload.touches.find(item => item.source === '3dvr-agent/outreach-log');
+  assert.ok(touch);
+  assert.equal(touch.touchType, 'outreach-unverified');
+  assert.equal(touch.deliveryStatus, 'unverified');
+  assert.notEqual(touch.type, 'message');
+});
+
 test('shouldSyncLeadToCrm keeps the default CRM import focused on useful leads', () => {
   assert.equal(shouldSyncLeadToCrm({
     name: 'Starbucks',
