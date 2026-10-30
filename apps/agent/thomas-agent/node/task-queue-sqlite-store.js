@@ -173,6 +173,15 @@ function listTasks(options = {}) {
 // An expired running claim may have already caused side effects. Never replay it
 // automatically; leave it for explicit review and reauthorization.
 function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {}) {
+  // Selection-only filtering is insufficient: enforce a supervised canary pin
+  // at the atomic claim boundary, including direct queue/worker callers.
+  const canonicalScope = process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID || '';
+  const legacyScope = process.env.THREEDVR_AGENT_ONLY_TASK_ID || '';
+  if (canonicalScope && legacyScope && canonicalScope !== legacyScope) return null;
+  const envScope = canonicalScope || legacyScope;
+  const onlyTaskId = options.onlyTaskId ?? envScope;
+  if (envScope && onlyTaskId !== envScope) return null;
+  if (onlyTaskId && String(id) !== onlyTaskId) return null;
   return withDatabase(options, (db) => {
     db.exec('BEGIN IMMEDIATE');
     try {
