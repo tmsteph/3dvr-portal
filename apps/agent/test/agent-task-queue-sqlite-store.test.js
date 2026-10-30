@@ -150,7 +150,7 @@ test('long SQLite work renews an expired initial claim against a competing worke
   assert.equal((await readTask('slow-task', options)).status, 'completed');
 });
 
-test('an expired claim is recovered after a worker process restart', async (t) => {
+test('an expired claim is held for review and never replayed after a worker restart', async (t) => {
   const now = Date.now();
   const options = await queueOptions(t, {
     rootNode: fakeRoot(),
@@ -176,8 +176,9 @@ test('an expired claim is recovered after a worker process restart', async (t) =
     },
   });
 
-  assert.equal(executions, 1);
-  assert.equal((await readTask('restart-task', options)).status, 'completed');
+  assert.equal(executions, 0);
+  assert.equal((await readTask('restart-task', options)).status, 'running');
+  assert.equal(sqliteQueue.claimTask('restart-task', 'new-token', 'replacement-worker', now + 1000, now + 100, options), null);
 });
 
 test('SQLite worker imports legacy GUN tasks and mirrors completion', async (t) => {
@@ -327,7 +328,7 @@ test('private Operator tasks reserve one shared executor across queue loops and 
   assert.ok(sqliteQueue.claimTask(two.id, 'claim-two', 'worker-b', now + 60000, now, other));
 });
 
-test('private executor admission releases expired claims and leaves unrelated task admission unchanged', async (t) => {
+test('private executor allows a new task after lease expiry without replaying the old claim', async (t) => {
   const options = await queueOptions(t);
   const now = Date.now();
   const a = { id: 'operator-http-first', status: 'queued', updatedAt: new Date(now).toISOString() };
@@ -337,4 +338,6 @@ test('private executor admission releases expired claims and leaves unrelated ta
   assert.ok(sqliteQueue.claimTask(a.id, 'a', 'worker', now + 10, now, options));
   assert.ok(sqliteQueue.claimTask(ordinary.id, 'ordinary', 'worker', now + 60000, now, options));
   assert.ok(sqliteQueue.claimTask(b.id, 'b', 'worker', now + 60000, now + 11, options));
+  assert.equal(sqliteQueue.claimTask(a.id, 'retry-a', 'worker', now + 60000, now + 11, options), null);
+  assert.equal(sqliteQueue.readTask(a.id, options).status, 'running');
 });
