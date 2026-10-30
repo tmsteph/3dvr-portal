@@ -1584,3 +1584,33 @@ test('public GUN imports cannot squat on signed HTTP task IDs or overwrite signe
   assert.equal(sqliteQueue.readTask(id, options).status, 'queued');
   assert.equal(sqliteQueue.readTask(id, options).task, 'signed owner intent');
 });
+
+test('generic SQLite writes cannot create or rewrite signed HTTP task intent', async (t) => {
+  const options = await queueOptions(t, { ownerAlias: '3dvr-managed' });
+  const id = 'operator-http-generic-edit-rejected';
+  const original = {
+    id, task: 'authorized synthetic draft', status: 'queued',
+    backend: 'codex', updatedAt: '2026-10-30T00:00:00.000Z',
+  };
+  assert.throws(() => sqliteQueue.writeTask(original, options), /insert-only admission/);
+  assert.equal(sqliteQueue.readTask(id, options), null, 'generic editor cannot squat on signed ID');
+
+  sqliteQueue.insertTask(original, { ...options, queueSource: 'operator-http' });
+  assert.throws(() => sqliteQueue.writeTask({
+    ...original, task: 'unapproved replacement',
+    updatedAt: '2026-10-30T00:01:00.000Z',
+  }, options), /insert-only admission/);
+  assert.throws(() => sqliteQueue.writeTask({
+    ...original, task: 'unapproved replacement',
+    updatedAt: '2026-10-30T00:01:00.000Z',
+  }, { ...options, queueSource: 'operator-http' }), /insert-only admission/);
+  const unchanged = sqliteQueue.readTask(id, options);
+  assert.equal(unchanged.task, original.task);
+  assert.equal(unchanged.status, 'queued');
+  assert.equal(unchanged.queueSource, 'operator-http');
+
+  // Source labels cannot be smuggled into the signed namespace on ordinary IDs.
+  assert.throws(() => sqliteQueue.writeTask({
+    ...original, id: 'ordinary-legacy-id',
+  }, { ...options, queueSource: 'operator-http' }), /insert-only admission/);
+});
