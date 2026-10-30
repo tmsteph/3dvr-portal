@@ -651,3 +651,43 @@ test('CRM refuses duplicate Gun record IDs instead of silently overwriting a dif
     now: '2026-10-29T20:30:00Z'
   }), /Ambiguous CRM record ID collision/);
 });
+
+test('CSV-only contacted/replied labels cannot promote CRM without matched delivery or reply evidence', () => {
+  for (const legacyStatus of ['contacted', 'replied']) {
+    const lead = {
+      name: 'Synthetic Unverified Contact',
+      link: 'https://unverified-legacy.example',
+      contact: 'mailto:owner@unverified-legacy.example',
+      status: legacyStatus,
+      date: '2026-10-25',
+    };
+    const payload = buildCrmSyncPayload({
+      leads: [lead], outreach: [], now: '2026-10-29T22:00:00Z',
+    });
+    assert.equal(payload.records.length, 1);
+    assert.equal(payload.records[0].status, 'Lead');
+    assert.equal(payload.records[0].warmth, 'cold');
+    assert.equal(payload.records[0].lastContacted, '');
+    assert.equal(payload.records[0].replyCount, undefined);
+    assert.equal(payload.touches.length, 1);
+    assert.equal(payload.touches[0].type, 'note');
+    assert.match(payload.touches[0].summary, new RegExp(legacyStatus));
+  }
+
+  const lead = {
+    name: 'Synthetic Verified Contact',
+    contact: 'mailto:owner@verified-legacy.example',
+    status: 'replied',
+  };
+  const verified = buildCrmSyncPayload({
+    leads: [lead],
+    outreach: [{
+      name: lead.name, contact: lead.contact, status: 'replied',
+      timestamp: '2026-10-29T20:00:00Z',
+    }],
+    now: '2026-10-29T22:00:00Z',
+  });
+  assert.equal(verified.records[0].status, 'Warm - Discovery');
+  assert.equal(verified.records[0].replyCount, 1);
+  assert.equal(verified.touches.filter(touch => touch.touchType === 'reply-received').length, 1);
+});
