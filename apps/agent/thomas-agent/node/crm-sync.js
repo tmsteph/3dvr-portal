@@ -94,6 +94,39 @@ function buildLeadId(lead) {
   return `agent-lead-${slugify(seed || lead.name)}${siteOnlySuffix}`;
 }
 
+// Read-only compatibility audit for the site-only CRM ID transition. This
+// reports counts only; an incomplete or unverified Gun snapshot can never
+// establish that migration is safe. No remote reads or writes happen here.
+function auditSiteOnlyCrmMigration({ leads = [], records = [], touches = [] } = {}) {
+  const recordIds = new Set(records.map(row => normalizeText(typeof row === 'string' ? row : row?.id)).filter(Boolean));
+  const touchRecordIds = new Set(touches.flatMap(row => [
+    normalizeText(row?.recordId), normalizeText(row?.crmRecordId)
+  ]).filter(Boolean));
+  const byLegacyId = new Map();
+  let candidates = 0;
+  for (const lead of leads) {
+    if (normalizeEmail(lead.contact) || !normalizeText(lead.link)) continue;
+    candidates += 1;
+    const legacyId = `agent-lead-${slugify(lead.link)}`;
+    if (!byLegacyId.has(legacyId)) byLegacyId.set(legacyId, new Set());
+    byLegacyId.get(legacyId).add(buildLeadId(lead));
+  }
+  const legacyIds = [...byLegacyId.keys()];
+  const legacyRecordKeys = legacyIds.filter(id => recordIds.has(id)).length;
+  const legacyTouchReferences = legacyIds.filter(id => touchRecordIds.has(id)).length;
+  const multiPersonSites = [...byLegacyId.values()].filter(ids => ids.size > 1).length;
+  return {
+    siteOnlyCandidates: candidates,
+    uniqueSites: legacyIds.length,
+    changedIdCandidates: [...byLegacyId.values()].reduce((sum, ids) => sum + ids.size, 0),
+    legacyRecordKeys,
+    legacyTouchReferences,
+    multiPersonSites,
+    migrationReviewRequired: legacyRecordKeys > 0 || legacyTouchReferences > 0 || multiPersonSites > 0,
+    snapshotCompleteness: 'unverified',
+  };
+}
+
 function contactIdentity(value = {}) {
   const email = normalizeEmail(value.contact || value.email);
   if (email) return `email:${email}`;
@@ -469,6 +502,7 @@ function parseArgs(argv = []) {
     leadsFile: DEFAULT_LEADS_FILE,
     outreachLogFile: DEFAULT_OUTREACH_LOG_FILE,
     noOutreachLog: false,
+    auditSiteOnlySnapshot: '',
     includeAll: false,
     help: false,
   };
@@ -485,6 +519,9 @@ function parseArgs(argv = []) {
       options.outreachLogFile = argv[++index] || DEFAULT_OUTREACH_LOG_FILE;
     } else if (arg === '--no-outreach-log') {
       options.noOutreachLog = true;
+    } else if (arg === '--audit-site-only-snapshot') {
+      options.auditSiteOnlySnapshot = argv[++index] || '';
+      if (!options.auditSiteOnlySnapshot) throw new Error('Missing snapshot file');
     } else if (arg === '--include-all') {
       options.includeAll = true;
     } else if (arg === '-h' || arg === '--help' || arg === 'help') {
@@ -513,7 +550,7 @@ async function cli(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
   if (options.help) {
     console.log(`Usage:
-  ask-crm-sync [--dry-run] [--limit 20] [--no-outreach-log] [--include-all]
+  ask-crm-sync [--dry-run] [--limit 20] [--no-outreach-log] [--include-all]\n  ask-crm-sync --audit-site-only-snapshot snapshot.json [--leads-file leads.csv]
 
 Writes local 3dvr-agent leads into:
   - 3dvr-crm/<recordId>
@@ -525,6 +562,16 @@ portal CRM stays useful. Use --include-all for a full import.`);
   }
 
   const leads = readLeads(options.leadsFile);
+  if (options.auditSiteOnlySnapshot) {
+    const snapshot = JSON.parse(fs.readFileSync(options.auditSiteOnlySnapshot, 'utf8'));
+    if (!Array.isArray(snapshot.records) || !Array.isArray(snapshot.touches)) {
+      throw new Error('Snapshot must include records[] and touches[]');
+    }
+    const audit = auditSiteOnlyCrmMigration({ leads, records: snapshot.records, touches: snapshot.touches });
+    console.log(JSON.stringify(audit, null, 2));
+    console.log('Read-only audit. Snapshot completeness is not independently verified; no migration or CRM write authorized.');
+    return;
+  }
   const outreach = options.noOutreachLog
     ? []
     : readOutreachLog({ filePath: options.outreachLogFile });
@@ -550,6 +597,7 @@ portal CRM stays useful. Use --include-all for a full import.`);
 }
 
 module.exports = {
+  auditSiteOnlyCrmMigration,
   buildCrmRecord,
   contactIdentity,
   buildCrmSyncPayload,
