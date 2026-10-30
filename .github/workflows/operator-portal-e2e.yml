@@ -69,7 +69,7 @@ jobs:
   main-reconciliation-preview:
     if: github.event_name == 'pull_request' && github.base_ref == 'operator/queue-routing-audit-20261022-v2'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -113,6 +113,16 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Test queue and dispatch against the main reconciliation preview
         run: node --test tests/operator-private-worker.test.js tests/operator-dispatch.test.js
+      - name: Install Agent dependencies in the main reconciliation preview
+        run: npm --prefix apps/agent ci
+      - name: Build Operator Core in the main reconciliation preview
+        run: |
+          npm --prefix operator-core/operator-core ci --ignore-scripts
+          npm --prefix operator-core/operator-core run build
+      - name: Full Agent regressions against reconciled main
+        run: npm --prefix apps/agent test
+      - name: Production dependency audit against reconciled main
+        run: npm --prefix apps/agent audit --omit=dev
 
   portal-e2e:
     runs-on: ubuntu-22.04
