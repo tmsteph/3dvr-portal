@@ -136,6 +136,13 @@ function insertTask(record, options = {}) {
 }
 
 function writeTask(record, options = {}) {
+  // The generic queued-task editor is not a signed HTTP admission channel.
+  // Once admitted, signed intent must remain immutable until its atomic claim;
+  // only the authenticated insert-only route may create that namespace.
+  if (String(record?.id).startsWith('operator-http-')
+    || options.queueSource === 'operator-http') {
+    throw new Error('Signed HTTP tasks require insert-only admission, not a generic queue edit');
+  }
   // Editing a pending task must never manufacture a running/completed/failed
   // execution receipt. Only claimTask and finishTask may change lifecycle.
   if (record.status !== 'queued') {
