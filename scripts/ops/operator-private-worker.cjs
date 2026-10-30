@@ -12,8 +12,9 @@ async function runOnce(queue) {
   if (!task) return 0;
   // Reuse the existing atomic claim, native executor, and private result storage.
   // Running/uncertain and legacy relay tasks are never replayed by this worker.
-  await queue.runQueuedTask(task, options);
-  return 1;
+  const result = await queue.runQueuedTask(task, options);
+  // A lost claim or policy skip is not an execution receipt.
+  return result && result.skipped !== true ? 1 : 0;
 }
 
 async function main() {
