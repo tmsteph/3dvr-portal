@@ -72,8 +72,13 @@ jobs:
           trap cleanup EXIT
           login_result="$(timeout 120s 3dvr-browser-login lighthouse 2>/dev/null || true)"
           if grep -q '"human_required"' <<<"$login_result"; then
-            printf '%s\n' '{"ok":false,"error":"lighthouse-human-required","reason":"Microsoft/SharePoint identity checkpoint"}'
-            exit 0
+            curl -fsS -X PUT --max-time 8 'http://127.0.0.1:9222/json/new?https%3A%2F%2Fpsav.sharepoint.com%2FSitePages%2FHome.aspx' >/dev/null || true
+            sleep 14
+            login_result="$(timeout 120s 3dvr-browser-login lighthouse 2>/dev/null || true)"
+            if grep -q '"human_required"' <<<"$login_result"; then
+              printf '%s\n' '{"ok":false,"error":"lighthouse-human-required","reason":"SharePoint-first persistent session recovery needs human Microsoft sign-in"}'
+              exit 0
+            fi
           fi
           token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general workforce-source-read 480)"
           for file in lighthouse-api-reader.cjs iatse-availability-probe.cjs; do
