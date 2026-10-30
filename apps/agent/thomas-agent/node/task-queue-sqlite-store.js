@@ -163,6 +163,12 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
         db.exec('ROLLBACK');
         return null;
       }
+      // Recheck signed HTTP provenance inside the atomic claim. The worker's
+      // earlier listTasks() snapshot may be stale by the time it claims.
+      if (String(id).startsWith('operator-http-') && row.source !== 'operator-http') {
+        db.exec('ROLLBACK');
+        return null;
+      }
       // Both queue loops share one native Codex executor. Reserve its slot in
       // the same transaction as the task claim, including across owner scopes.
       // A busy executor leaves other private tasks queued, never failed.
