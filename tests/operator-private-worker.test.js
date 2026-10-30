@@ -204,3 +204,28 @@ test('pinned canary exits on failed native execution without reporting completio
   assert.equal(attempts, 1);
   assert.equal(completed, 0);
 });
+
+test('shared worker reports a failed native task and continues to unrelated work', async () => {
+  const tasks = ['operator-http-failed', 'operator-http-succeeded'].map(id => ({
+    id, status: 'queued', queueSource: 'operator-http', backend: 'codex',
+  }));
+  let poll = 0;
+  let sleeps = 0;
+  const failed = [];
+  const completed = [];
+  const stop = new Error('synthetic test stop');
+  const queue = {
+    listTasks: () => [tasks[poll++]],
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: task => ({ ok: task.id === 'operator-http-succeeded' }),
+  };
+  await assert.rejects(runLoop(queue, {
+    pollMs: 1,
+    sleep: async () => { if (++sleeps === 2) throw stop; },
+    onFailed: () => failed.push('failure reported'),
+    onProcessed: () => completed.push('completion reported'),
+  }), error => error === stop);
+  assert.equal(poll, 2);
+  assert.deepEqual(failed, ['failure reported']);
+  assert.deepEqual(completed, ['completion reported']);
+});
