@@ -415,6 +415,15 @@ function buildCrmSyncPayload({
 
   const records = selectedLeads.map((lead, index) =>
     buildCrmRecord(mergeOutreachIntoLead(lead, matchedOutreach[index]), { now }));
+  // Gun upserts by record ID. Two distinct lead rows (or slug-colliding emails)
+  // must never silently overwrite one another during a CRM sync.
+  const recordIds = new Set();
+  for (const record of records) {
+    if (recordIds.has(record.id)) {
+      throw new Error('Ambiguous CRM record ID collision; review lead identities before syncing');
+    }
+    recordIds.add(record.id);
+  }
   const touches = records.map((record, index) => buildLeadTouch(selectedLeads[index], record, { now }));
   records.forEach((record, index) => {
     for (const entry of matchedOutreach[index]) {
