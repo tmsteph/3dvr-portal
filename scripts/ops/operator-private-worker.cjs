@@ -4,6 +4,9 @@ async function runOnce(queue) {
   const options = { queueStore: 'sqlite', gunSync: false };
   const tasks = await queue.listTasks(options);
   const task = tasks.find(record => record.id?.startsWith('operator-http-')
+    // The SQLite source column, not a user-controlled ID prefix, proves that
+    // the task came through the signed owner HTTP admission path.
+    && record.queueSource === 'operator-http'
     && record.status === 'queued' && record.backend === 'codex' && !record.unsafe
     && queue.canWorkerRunTask(record, options).ok);
   if (!task) return 0;
