@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-const { runOnce } = createRequire(import.meta.url)('../scripts/ops/operator-private-worker.cjs');
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+const require = createRequire(import.meta.url);
+const { runOnce } = require('../scripts/ops/operator-private-worker.cjs');
+const sqlite = require('../apps/agent/thomas-agent/node/task-queue-sqlite-store.js');
 
 test('private worker preserves legacy, running, unsafe, and policy-blocked tasks', async () => {
   const task = (id, patch = {}) => ({ id, status: 'queued', backend: 'codex', queueSource: 'operator-http', ...patch });
@@ -17,7 +22,7 @@ test('private worker preserves legacy, running, unsafe, and policy-blocked tasks
   const queue = {
     listTasks: options => { assert.deepEqual(options, { queueStore: 'sqlite', gunSync: false }); return records; },
     canWorkerRunTask: record => ({ ok: record.id !== 'operator-http-policy-blocked' }),
-    runQueuedTask: (record, options) => calls.push({ id: record.id, options })
+    runQueuedTask: (record, options) => { calls.push({ id: record.id, options }); return { ok: true }; }
   };
   assert.equal(await runOnce(queue), 1);
   assert.deepEqual(calls, [{ id: 'operator-http-ready', options: { queueStore: 'sqlite', gunSync: false } }]);
@@ -25,4 +30,41 @@ test('private worker preserves legacy, running, unsafe, and policy-blocked tasks
 
 test('an idle queue does not dispatch or enqueue work', async () => {
   assert.equal(await runOnce({ listTasks: () => [], runQueuedTask: () => assert.fail('unexpected execution') }), 0);
+});
+
+test('atomic claim rejects a source switch after the worker snapshot without a false receipt', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'operator-private-source-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const options = { queueDb: join(dir, 'queue.sqlite'), ownerAlias: '3dvr-managed' };
+  const signedId = 'operator-http-signed-task';
+  const task = { id: signedId, task: 'synthetic only', status: 'queued',
+    backend: 'codex', updatedAt: '2026-10-30T00:00:00.000Z' };
+  sqlite.writeTask(task, { ...options, queueSource: 'operator-http' });
+  const staleSnapshot = sqlite.listTasks(options);
+  assert.equal(staleSnapshot[0].queueSource, 'operator-http');
+
+  // Simulate a provenance change after listTasks but before the atomic claim.
+  assert.equal(sqlite.importTask({ ...task, updatedAt: '2026-10-30T00:01:00.000Z' }, options), true);
+  assert.equal(sqlite.readTask(signedId, options).queueSource, 'gun');
+  let executions = 0;
+  const queue = {
+    listTasks: () => staleSnapshot,
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: () => {
+      const claimed = sqlite.claimTask(signedId, 'stale-token', 'worker', Date.now() + 60000, Date.now(), options);
+      if (claimed) executions++;
+      return claimed ? { ok: true } : { ok: false, skipped: true };
+    },
+  };
+  assert.equal(await runOnce(queue), 0);
+  assert.equal(executions, 0);
+  assert.equal(sqlite.readTask(signedId, options).status, 'queued');
+
+  // Fresh signed work remains claimable; legacy IDs retain existing behavior.
+  const fresh = { ...task, id: 'operator-http-fresh-task' };
+  sqlite.writeTask(fresh, { ...options, queueSource: 'operator-http' });
+  assert.ok(sqlite.claimTask(fresh.id, 'fresh-token', 'worker', Date.now() + 60000, Date.now(), options));
+  const legacy = { ...task, id: 'legacy-task' };
+  sqlite.writeTask(legacy, options);
+  assert.ok(sqlite.claimTask(legacy.id, 'legacy-token', 'worker', Date.now() + 60000, Date.now(), options));
 });
