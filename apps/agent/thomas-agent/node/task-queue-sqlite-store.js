@@ -286,7 +286,12 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
   // A missing claim token cannot be matched by SQLite's equality predicate
   // when finishing work; accepting it would strand a task as running forever.
   // A missing worker identity also leaves no accountable owner for recovery.
-  const envScope = process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID;
+  const canonicalScope = process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID || '';
+  const legacyScope = process.env.THREEDVR_AGENT_ONLY_TASK_ID || '';
+  // Both worker generations must agree on a single supervised canary scope.
+  // A mismatched pair fails closed even for a direct SQLite claim caller.
+  if (canonicalScope && legacyScope && canonicalScope !== legacyScope) return null;
+  const envScope = canonicalScope || legacyScope;
   const onlyTaskId = options.onlyTaskId ?? envScope;
   // Enforce the environment-pinned scope even on direct SQLite claims:
   // an empty per-call override must never re-enable historical backlog.
