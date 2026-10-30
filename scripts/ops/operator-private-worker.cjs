@@ -17,7 +17,22 @@ async function runOnce(queue, onlyTaskId = '') {
   // A failed native execution has a durable failed result, not a successful
   // canary receipt. Distinguish it from a lost claim/policy skip.
   if (result?.skipped === true) return 0;
-  return result?.ok === true ? 1 : -1;
+  if (result?.ok !== true) return -1;
+  if (onlyTaskId) {
+    // A successful executor return alone is not an end-to-end canary receipt.
+    // Read back the exact private SQLite row and require a saved output before
+    // reporting completion. A missing/uncertain read remains a failed canary;
+    // it never authorizes replay or changes the task's persisted status.
+    let receipt;
+    try {
+      receipt = await queue.readTask(task.id, options);
+    } catch {
+      return -1;
+    }
+    if (receipt?.status !== 'completed' || receipt.queueSource !== 'operator-http'
+      || !String(receipt.resultText || '').trim()) return -1;
+  }
+  return 1;
 }
 
 async function main() {
