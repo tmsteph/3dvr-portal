@@ -307,7 +307,7 @@ function buildOutreachTouch(entry, record, options = {}) {
     contactId: '',
     contactName: record.name,
     type: status === 'sent' || status === 'submitted' ? 'message' : 'note',
-    touchType: status === 'replied' ? 'reply-received' : status === 'sent' || status === 'submitted' ? 'outreach-sent' : status === 'failed' ? 'outreach-failed' : 'outreach-unverified',
+    touchType: status === 'replied' ? 'reply-received' : status === 'sent' || status === 'submitted' ? 'outreach-sent' : status === 'unverified' ? 'outreach-unverified' : 'outreach-failed',
     channel: normalizeText(entry.route || kind),
     summary: `${kind} ${status}${entry.subject ? `: ${entry.subject}` : ''}`,
     outcome: normalizeText(entry.note) || (status === 'sent' ? 'Outbound message sent.' : `Outreach logged as ${status}.`),
