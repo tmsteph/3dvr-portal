@@ -138,23 +138,8 @@ window.addEventListener('focus',refreshAccountHistory);
 window.addEventListener('online',refreshAccountHistory);
 document.addEventListener('visibilitychange',refreshAccountHistory);
 window.setInterval(refreshAccountHistory,30000);
-// The first account read can finish before a second device's encrypted Gun snapshot
-// propagates. While Chats is open, retry twice rather than leaving history stale until
-// the next 30-second visibility refresh. Never poll in the background or during a send.
-let historyRefreshTimers=[];
-function clearHistoryRefreshTimers(){for(const timer of historyRefreshTimers)window.clearTimeout(timer);historyRefreshTimers=[]}
-function closeHistory(){clearHistoryRefreshTimers();historyPanel.hidden=true;showHistory.setAttribute('aria-expanded','false')}
-function openHistory(){
-  historyPanel.hidden=false;showHistory.setAttribute('aria-expanded','true');closeTree();
-  void syncHistory();
-  clearHistoryRefreshTimers();
-  for(const delayMs of [6000,15000]){
-    historyRefreshTimers.push(window.setTimeout(()=>{
-      if(!historyPanel.hidden&&!operatorBusy()&&document.visibilityState!=='hidden')void syncHistory();
-    },delayMs));
-  }
-  historyList.querySelector('[aria-current="page"]')?.focus()||document.querySelector('#close-history').focus();
-}
+function closeHistory(){historyPanel.hidden=true;showHistory.setAttribute('aria-expanded','false')}
+function openHistory(){historyPanel.hidden=false;showHistory.setAttribute('aria-expanded','true');closeTree();void syncHistory();historyList.querySelector('[aria-current="page"]')?.focus()||document.querySelector('#close-history').focus()}
 function closeTree(){if(!treePanel)return;treePanel.hidden=true;showTree?.setAttribute('aria-expanded','false')}
 function openTree(){if(!treePanel)return;treePanel.hidden=false;showTree?.setAttribute('aria-expanded','true');closeHistory();renderTree();treeList.querySelector('[aria-current="true"]')?.focus()||document.querySelector('#close-tree')?.focus()}
 async function createDeveloperProofWithRetry() {
