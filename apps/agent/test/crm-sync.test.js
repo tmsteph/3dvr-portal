@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 const {
+  assertCrmSyncSucceeded,
   auditSiteOnlyCrmMigration,
   buildCrmRecord,
   buildCrmSyncPayload,
@@ -382,6 +383,23 @@ test('CRM sync never writes orphan activity when its parent record fails ACK', a
   assert.ok(result.errors.some(error => error.includes('blocked-record')));
   assert.ok(result.errors.some(error => error.includes('orphan-touch')));
   assert.ok(result.errors.some(error => error.includes('mismatched-touch')));
+});
+
+
+test('CRM sync treats partial or rejected Gun ACKs as a failed run without leaking record IDs', () => {
+  const complete = { records: 2, touches: 3, errors: [] };
+  assert.equal(assertCrmSyncSucceeded(complete), complete);
+  for (const errors of [
+    ['record private-id: synthetic rejection'],
+    ['record private-id: synthetic rejection', 'touch private-id: parent not acknowledged'],
+  ]) {
+    assert.throws(() => assertCrmSyncSucceeded({ records: 1, touches: 0, errors }), error => {
+      assert.equal(error.code, 'CRM_SYNC_INCOMPLETE');
+      assert.match(error.message, new RegExp(`\\b${errors.length} write error\\(s\\)`));
+      assert.doesNotMatch(error.message, /private-id|synthetic rejection/);
+      return true;
+    });
+  }
 });
 
 test('normalizeEmail strips mailto and rejects non-email contacts', () => {
