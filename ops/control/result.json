@@ -1,8 +1,9 @@
 {
-  "ok": false,
-  "error": "control request failed before a sanitized result was produced",
-  "requestId": "operator-private-worker-recovery-20261030-retry",
+  "ok": true,
+  "syntheticTaskStatus": "completed",
+  "nativeCodexReplyVerified": true,
+  "requestId": "operator-private-worker-recovery-20261030-args-fixed",
   "action": "operator_runtime_recover",
-  "workflowOutcome": "failure",
-  "checkedAt": "2026-10-30T05:49:59Z"
+  "workflowOutcome": "success",
+  "checkedAt": "2026-10-30T05:52:31Z"
 }
