@@ -108,7 +108,7 @@ export function createOpenClawHandler(options = {}) {
       return json(res, 400, { error: 'Invalid Helm request.' });
     }
     const origin = req.headers?.origin || 'https://portal.3dvr.tech';
-    const allowed = (config.THREEDVR_HELM_ALLOWED_ORIGINS || 'https://portal.3dvr.tech').split(',');
+    const allowed = (config.THREEDVR_HELM_ALLOWED_ORIGINS || 'https://portal.3dvr.tech,https://operator.3dvr.tech').split(',').map(value => value.trim()).filter(Boolean);
     if (!allowed.includes(origin)) return json(res, 403, { error: 'Portal origin is not allowed.' });
     const auth = await verify(body, { scope: 'openclaw-helm', expectedOrigin: origin, maxAgeMs: 120000 });
     if (!auth.ok) return json(res, 401, { error: 'Sign in to connect Helm to your agent.' });
