@@ -130,7 +130,8 @@ jobs:
           node --test tests/operator-private-worker.test.js tests/operator-dispatch.test.js
           node --test --test-concurrency=1 tests/home-operator-persistence.e2e.test.js tests/operator-device-sync.e2e.test.js
           node scripts/operator-attachment-branch-e2e.mjs
-          node scripts/operator-navigation-e2e.mjs
+          # This main-only regression becomes available after reconciliation.
+          if [ -f scripts/operator-navigation-e2e.mjs ]; then node scripts/operator-navigation-e2e.mjs; fi
       - name: Run production acceptance test
         if: github.event_name == 'workflow_dispatch'
         env:
