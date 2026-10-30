@@ -263,7 +263,7 @@ test('signed HTTP tasks keep prompts and results out of the public relay and mem
     recordLifeEventImpl:async () => {lifeEvents++;}
   });
   const id='operator-http-private-test';
-  await enqueueTask('private prompt', {...options,id,backend:'codex'});
+  await enqueueTask('private prompt', {...options,id,backend:'codex',queueSource:'operator-http'});
   await runWorkerOnce(options);
   assert.equal((await readTask(id,options)).status,'completed');
   assert.equal(await readTask(id,gunOptions),null);
@@ -280,9 +280,9 @@ test('private Operator tasks reserve one shared executor across queue loops and 
   const now = Date.now();
   const one = { id: 'operator-http-owner-a-first', status: 'queued', updatedAt: new Date(now).toISOString() };
   const two = { ...one, id: 'operator-http-owner-b-second' };
-  sqliteQueue.writeTask(one, options);
+  sqliteQueue.writeTask(one, {...options,queueSource:'operator-http'});
   const other = { ...options, ownerAlias: 'other-owner' };
-  sqliteQueue.writeTask(two, other);
+  sqliteQueue.writeTask(two, {...other,queueSource:'operator-http'});
   const first = sqliteQueue.claimTask(one.id, 'claim-one', 'worker-a', now + 60000, now, options);
   assert.ok(first);
   assert.equal(sqliteQueue.claimTask(two.id, 'claim-two', 'worker-b', now + 60000, now, other), null);
@@ -297,7 +297,7 @@ test('private executor admission releases expired claims and leaves unrelated ta
   const a = { id: 'operator-http-first', status: 'queued', updatedAt: new Date(now).toISOString() };
   const b = { ...a, id: 'operator-http-second' };
   const ordinary = { ...a, id: 'ordinary-task' };
-  for (const record of [a, b, ordinary]) sqliteQueue.writeTask(record, options);
+  for (const record of [a, b, ordinary]) sqliteQueue.writeTask(record, record.id.startsWith('operator-http-') ? {...options,queueSource:'operator-http'} : options);
   assert.ok(sqliteQueue.claimTask(a.id, 'a', 'worker', now + 10, now, options));
   assert.ok(sqliteQueue.claimTask(ordinary.id, 'ordinary', 'worker', now + 60000, now, options));
   assert.ok(sqliteQueue.claimTask(b.id, 'b', 'worker', now + 60000, now + 11, options));
