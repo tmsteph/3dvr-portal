@@ -55,6 +55,34 @@ test('SQLite queue survives reopen and preserves exact owner and task identifier
   assert.equal((await readTask('a-b', options)).task, 'second');
 });
 
+test('generic SQLite writers cannot forge, replace, or replay signed HTTP queue rows', async (t) => {
+  const options = await queueOptions(t);
+  const now = '2026-10-30T00:00:00.000Z';
+  const signed = { id: 'operator-http-protected', task: 'read-only synthetic', status: 'queued', updatedAt: now };
+  assert.throws(() => sqliteQueue.writeTask(signed, options), /signed queue provenance/i);
+  assert.equal(sqliteQueue.readTask(signed.id, options), null);
+
+  sqliteQueue.writeTask(signed, { ...options, queueSource: 'operator-http' });
+  const replacement = { ...signed, task: 'unsafe replacement', status: 'queued', updatedAt: '2026-10-30T00:01:00.000Z' };
+  assert.throws(() => sqliteQueue.writeTask(replacement, options), /signed queue provenance/i);
+  assert.throws(() => sqliteQueue.writeTask(replacement, { ...options, queueSource: 'operator-http' }), /already exists/i);
+  await assert.rejects(enqueueTask('replayed by generic CLI', { ...options, id: signed.id }), /signed queue provenance/i);
+  const saved = sqliteQueue.readTask(signed.id, options);
+  assert.equal(saved.task, signed.task);
+  assert.equal(saved.status, 'queued');
+  assert.equal(saved.queueSource, 'operator-http');
+
+  const collision = { ...signed, id: 'operator-http-legacy-collision' };
+  assert.equal(sqliteQueue.importTask(collision, options), true);
+  assert.throws(() => sqliteQueue.writeTask(collision, { ...options, queueSource: 'operator-http' }), /already exists/i);
+  assert.equal(sqliteQueue.readTask(collision.id, options).queueSource, 'gun');
+
+  const ordinary = { ...signed, id: 'ordinary-task' };
+  sqliteQueue.writeTask(ordinary, options);
+  sqliteQueue.writeTask({ ...ordinary, task: 'ordinary update' }, options);
+  assert.equal(sqliteQueue.readTask(ordinary.id, options).task, 'ordinary update');
+});
+
 test('concurrent workers atomically claim a SQLite task only once', async (t) => {
   const options = await queueOptions(t, {
     rootNode: fakeRoot(),
