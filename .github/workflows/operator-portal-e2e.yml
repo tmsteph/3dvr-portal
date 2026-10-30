@@ -17,6 +17,7 @@ on:
       - 'scripts/operator-portal-e2e.mjs'
       - 'scripts/operator-navigation-e2e.mjs'
       - 'scripts/ops/operator-private-worker.cjs'
+      - 'apps/agent/thomas-agent/node/task-queue-sqlite-store.js'
       - 'tests/operator-private-worker.test.js'
       - 'tests/operator-dispatch.test.js'
       - 'src/operator-runtime/**'
