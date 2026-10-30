@@ -293,6 +293,10 @@ function buildOutreachTouch(entry, record, options = {}) {
   const status = normalizeLower(entry.status) || 'unverified';
   const kind = normalizeLower(entry.kind) || 'message';
   const id = `touch-agent-outreach-${stableHash([
+    // Distinct recipients can share the same campaign timestamp, subject,
+    // display name and body. Scope touch IDs to the CRM record so one
+    // recipient's receipt cannot overwrite another's Gun touch log.
+    record.id,
     entry.timestamp,
     entry.name,
     entry.subject,
