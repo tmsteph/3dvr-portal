@@ -113,6 +113,13 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Test queue and dispatch against the main reconciliation preview
         run: node --test tests/operator-private-worker.test.js tests/operator-dispatch.test.js
+      - name: Install isolated Chromium for main-reconciled browser checks
+        run: npx playwright install --with-deps chromium
+      - name: Test main-reconciled Operator mobile, attachments and standalone navigation
+        run: |
+          node --test --test-concurrency=1 tests/home-operator-persistence.e2e.test.js tests/operator-device-sync.e2e.test.js
+          node scripts/operator-attachment-branch-e2e.mjs
+          node scripts/operator-navigation-e2e.mjs
       - name: Install Agent dependencies in the main reconciliation preview
         run: npm --prefix apps/agent ci
       - name: Build Operator Core in the main reconciliation preview
