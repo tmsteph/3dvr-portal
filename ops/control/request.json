@@ -1,6 +1,6 @@
 {
-  "id": "operator-private-worker-recovery-20261030-args-fixed",
-  "action": "operator_runtime_recover",
+  "id": "operator-private-worker-final-check-20261030",
+  "action": "operator_runtime_status",
   "service": "",
-  "requestedAt": "2026-10-30T05:50:00Z"
+  "requestedAt": "2026-10-30T05:53:00Z"
 }
