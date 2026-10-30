@@ -1536,3 +1536,31 @@ test('worker isolates a thrown claim error and still completes independent healt
   assert.equal((await readTask('independent-health-second', options)).status, 'completed',
     'an unrelated safe task must not be starved by the first exception');
 });
+
+test('legacy exact-task-ID environment pin fails closed at atomic SQLite claim', async (t) => {
+  const options = await queueOptions(t, { rootNode: fakeRoot(), gunSync: false });
+  const now = Date.now();
+  const pinnedId = 'legacy-pin-allowed';
+  const neighborId = 'legacy-pin-neighbor';
+  await enqueueTask('Pinned health check', { ...options, id: pinnedId, backend: 'health', now });
+  await enqueueTask('Neighbor must remain queued', { ...options, id: neighborId, backend: 'health', now: now + 1 });
+  const originalCanonical = process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID;
+  const originalLegacy = process.env.THREEDVR_AGENT_ONLY_TASK_ID;
+  try {
+    delete process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID;
+    process.env.THREEDVR_AGENT_ONLY_TASK_ID = pinnedId;
+    assert.equal(sqliteQueue.claimTask(neighborId, 'wrong-task', 'worker', now + 60000, now, options), null,
+      'legacy pin must restrict direct SQLite callers, not only worker selection');
+    assert.ok(sqliteQueue.claimTask(pinnedId, 'right-task', 'worker', now + 60000, now, options),
+      'matching legacy pin may claim its authorized task');
+    process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID = neighborId;
+    assert.equal(sqliteQueue.claimTask(neighborId, 'conflicting-pins', 'worker', now + 60000, now, options), null,
+      'conflicting canonical and legacy pins must reject all claims');
+    assert.equal((await readTask(neighborId, options)).status, 'queued');
+  } finally {
+    if (originalCanonical === undefined) delete process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID;
+    else process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID = originalCanonical;
+    if (originalLegacy === undefined) delete process.env.THREEDVR_AGENT_ONLY_TASK_ID;
+    else process.env.THREEDVR_AGENT_ONLY_TASK_ID = originalLegacy;
+  }
+});
