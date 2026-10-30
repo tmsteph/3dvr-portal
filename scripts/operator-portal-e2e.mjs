@@ -128,7 +128,9 @@ async function runCrossDeviceSyncAcceptance() {
   }
 
   const token = `cross-device-${Date.now()}`;
-  const fixtureId = `e2e-${token}`;
+  // Reuse a single synthetic conversation: merge-only sync otherwise retains a new
+  // fixture for every acceptance run and gradually overloads the relay/history UI.
+  const fixtureId = 'e2e-cross-device-sync-acceptance';
 
   const saved = await page.evaluate(async ({ token, fixtureId }) => {
     const baseKey = '3dvr.operator.conversations.v2';

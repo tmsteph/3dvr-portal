@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -92,12 +93,14 @@ test('worker registry refuses only explicitly blocked kernel-policy work', () =>
   assert.deepEqual(findEligibleWorkers([worker], blocked), []);
 });
 
-test('fresh email can run in business hours while known or late sends pause', () => {
-  assert.equal(getOutboundDecision({ relationship: 'fresh', channel: 'email', localHour: 10 }).decision, 'auto');
+test('all outbound requires approval, including fresh direct email in business hours', () => {
+  assert.equal(getOutboundDecision({ relationship: 'fresh', channel: 'email', localHour: 10 }).decision, 'approval');
   assert.equal(getOutboundDecision({ relationship: 'fresh', channel: 'email', localHour: 22 }).decision, 'defer');
   assert.equal(getOutboundDecision({ relationship: 'known', channel: 'email', localHour: 10 }).decision, 'approval');
   assert.equal(getOutboundDecision({ relationship: 'unknown', channel: 'email', localHour: 10 }).decision, 'approval');
   assert.equal(getOutboundDecision({ relationship: 'fresh', channel: 'sms', localHour: 10 }).decision, 'approval');
+  assert.equal(getOutboundDecision({ relationship: 'fresh', channel: 'email', localHour: 10, campaignAllowed: false }).decision, 'defer');
+  assert.equal(getOutboundDecision({ relationship: 'fresh', channel: 'email', localHour: 10, sensitiveAction: true }).decision, 'approval');
 });
 
 test('revenue workflow carries a lead from research to verified payment', () => {
@@ -113,18 +116,32 @@ test('revenue workflow carries a lead from research to verified payment', () => 
   assert.equal(revenueStage(item), 'qualify');
   item = advanceRevenueLead(item, 'qualified', { now: '2026-09-12T18:02:00.000Z' });
   assert.equal(revenueStage(item), 'outreach');
-  item = advanceRevenueLead(item, 'outreach_sent', { now: '2026-09-12T18:03:00.000Z', evidence: { type: 'email', id: 'msg-1' } });
+  assert.throws(() => advanceRevenueLead(item, 'outreach_sent', { evidence: { type: 'email', id: 'msg-1' } }), /approved human checkpoint/);
+  item = advanceRevenueLead(item, 'outreach_sent', {
+    now: '2026-09-12T18:03:00.000Z',
+    humanCheckpoint: { status: 'approved', id: 'approval-1' },
+    evidence: { type: 'email', id: 'msg-1' }
+  });
   assert.equal(revenueStage(item), 'waiting_reply');
   assert.equal(item.state, 'waiting_external');
-  item = advanceRevenueLead(item, 'reply_received', { now: '2026-09-12T18:04:00.000Z' });
+  item = advanceRevenueLead(item, 'reply_received', { now: '2026-09-12T18:04:00.000Z', evidence: { type: 'reply', id: 'reply-1' } });
   assert.equal(revenueStage(item), 'proposal');
-  item = advanceRevenueLead(item, 'proposal_sent', { now: '2026-09-12T18:05:00.000Z' });
+  assert.throws(() => advanceRevenueLead(item, 'proposal_sent', {
+    evidence: { type: 'email', id: 'proposal-1' }
+  }), /fresh traceable approved human checkpoint/);
+  item = advanceRevenueLead(item, 'proposal_sent', {
+    now: '2026-09-12T18:05:00.000Z', evidence: { type: 'email', id: 'proposal-1' },
+    humanCheckpoint: { status: 'approved', id: 'approval-2' }
+  });
   assert.equal(revenueStage(item), 'payment');
-  item = advanceRevenueLead(item, 'payment_received', { now: '2026-09-12T18:06:00.000Z', result: { amount: 1200 } });
+  item = advanceRevenueLead(item, 'payment_received', {
+    now: '2026-09-12T18:06:00.000Z', result: { amount: 1200 }, evidence: { type: 'payment', id: 'payment-1' }
+  });
   assert.equal(revenueStage(item), 'won');
   assert.equal(item.state, 'done');
   assert.equal(item.result.amount, 1200);
-  assert.equal(item.evidence.length, 1);
+  assert.equal(item.evidence.length, 4);
+  assert.equal(item.metadata.lastOutboundApprovalId, 'approval-2');
 });
 
 test('business team keeps one manager plus bounded functional roles', () => {
@@ -136,4 +153,144 @@ test('business team keeps one manager plus bounded functional roles', () => {
     'operations',
     'engineering'
   ]);
+});
+
+
+test('revenue events cannot assert sends, replies, or payments without receipts and approval', () => {
+  const outreach = createRevenueLeadWorkItem({ id: 'outreach-1', stage: 'outreach' });
+  assert.throws(() => advanceRevenueLead(outreach, 'outreach_sent'), /external receipt/);
+  assert.throws(() => advanceRevenueLead(outreach, 'outreach_sent', {
+    evidence: { type: 'email', id: 'msg-1' }, humanCheckpoint: { status: 'approved' }
+  }), /approved human checkpoint/);
+  const waiting = createRevenueLeadWorkItem({ id: 'waiting-1', stage: 'waiting_reply' });
+  assert.throws(() => advanceRevenueLead(waiting, 'reply_received'), /external receipt/);
+  const followUp = createRevenueLeadWorkItem({ id: 'follow-1', stage: 'follow_up' });
+  assert.throws(() => advanceRevenueLead(followUp, 'follow_up_sent', {
+    evidence: { type: 'email', id: 'msg-2' }
+  }), /approved human checkpoint/);
+  const proposal = createRevenueLeadWorkItem({ id: 'proposal-1', stage: 'proposal' });
+  assert.throws(() => advanceRevenueLead(proposal, 'proposal_sent', {
+    evidence: { type: 'email', id: 'msg-3' }
+  }), /approved human checkpoint/);
+  const payment = createRevenueLeadWorkItem({ id: 'payment-1', stage: 'payment' });
+  assert.throws(() => advanceRevenueLead(payment, 'payment_received', { result: { amount: 100 } }), /external receipt/);
+  assert.throws(() => advanceRevenueLead(payment, 'payment_received', {
+    result: { amount: 100 }, evidence: { type: 'email', id: 'msg-4' }
+  }), /payment receipt/);
+  assert.throws(() => advanceRevenueLead(payment, 'payment_received', {
+    result: { amount: 0 }, evidence: { type: 'payment', id: 'pay-1' }
+  }), /positive numeric amount/);
+  assert.throws(() => advanceRevenueLead(payment, 'payment_received', {
+    result: { amount: '100' }, evidence: { type: 'payment', id: 'pay-1' }
+  }), /positive numeric amount/);
+  const won = advanceRevenueLead(payment, 'payment_received', {
+    result: { amount: 100 }, evidence: { type: 'payment', id: 'pay-1' }
+  });
+  assert.equal(revenueStage(won), 'won');
+  assert.equal(won.evidence[0].id, 'pay-1');
+});
+
+
+test('outbound approvals cannot be reused after an intervening approval', () => {
+  const item = createRevenueLeadWorkItem({
+    id: 'approval-history-1', stage: 'follow_up',
+    metadata: {
+      lastOutboundApprovalId: 'approval-B',
+      usedOutboundApprovalIds: ['approval-A', 'approval-B']
+    }
+  });
+  assert.throws(() => advanceRevenueLead(item, 'follow_up_sent', {
+    evidence: { type: 'email', id: 'message-C' },
+    humanCheckpoint: { status: 'approved', id: 'approval-A' }
+  }), /fresh traceable approved human checkpoint/);
+  const sent = advanceRevenueLead(item, 'follow_up_sent', {
+    evidence: { type: 'email', id: 'message-C' },
+    humanCheckpoint: { status: 'approved', id: 'approval-C' }
+  });
+  assert.deepEqual(sent.metadata.usedOutboundApprovalIds, ['approval-A', 'approval-B', 'approval-C']);
+  assert.equal(sent.metadata.lastOutboundApprovalId, 'approval-C');
+  const malformed = createRevenueLeadWorkItem({
+    id: 'approval-history-2', stage: 'outreach',
+    metadata: { usedOutboundApprovalIds: 'not-an-audit-list' }
+  });
+  assert.throws(() => advanceRevenueLead(malformed, 'outreach_sent', {
+    evidence: { type: 'email', id: 'message-D' },
+    humanCheckpoint: { status: 'approved', id: 'approval-D' }
+  }), /fresh traceable approved human checkpoint/);
+});
+
+
+test('revenue events reject a previously recorded provider receipt', () => {
+  const priorEmail = { type: 'email', id: 'provider-message-1' };
+  const followUp = createRevenueLeadWorkItem({
+    id: 'receipt-replay-send', stage: 'follow_up', evidence: [priorEmail]
+  });
+  assert.throws(() => advanceRevenueLead(followUp, 'follow_up_sent', {
+    evidence: { ...priorEmail },
+    humanCheckpoint: { status: 'approved', id: 'fresh-approval' }
+  }), /cannot reuse an existing external receipt/);
+  const freshSend = advanceRevenueLead(followUp, 'follow_up_sent', {
+    evidence: { type: 'email', id: 'provider-message-2' },
+    humanCheckpoint: { status: 'approved', id: 'fresh-approval' }
+  });
+  assert.equal(freshSend.evidence.length, 2);
+
+  const priorReply = { type: 'reply', id: 'provider-reply-1' };
+  const waiting = createRevenueLeadWorkItem({
+    id: 'receipt-replay-reply', stage: 'waiting_reply', evidence: [priorReply]
+  });
+  assert.throws(() => advanceRevenueLead(waiting, 'reply_received', {
+    evidence: { ...priorReply }
+  }), /cannot reuse an existing external receipt/);
+
+  const priorPayment = { type: 'payment', id: 'provider-payment-1' };
+  const payment = createRevenueLeadWorkItem({
+    id: 'receipt-replay-payment', stage: 'payment', evidence: [priorPayment]
+  });
+  assert.throws(() => advanceRevenueLead(payment, 'payment_received', {
+    evidence: { ...priorPayment }, result: { amount: 200 }
+  }), /cannot reuse an existing external receipt/);
+});
+
+
+test('revenue transitions reject receipts from the wrong event class', () => {
+  const outreach = createRevenueLeadWorkItem({ id: 'typed-send', stage: 'outreach' });
+  for (const type of ['reply', 'payment', 'unknown']) {
+    assert.throws(() => advanceRevenueLead(outreach, 'outreach_sent', {
+      evidence: { type, id: 'cross-class-send' },
+      humanCheckpoint: { status: 'approved', id: 'send-approved' }
+    }), /outbound message receipt type/);
+  }
+  const sent = advanceRevenueLead(outreach, 'outreach_sent', {
+    evidence: { type: 'email', id: 'provider-email-1' },
+    humanCheckpoint: { status: 'approved', id: 'send-approved' }
+  });
+  assert.equal(revenueStage(sent), 'waiting_reply');
+
+  const waiting = createRevenueLeadWorkItem({ id: 'typed-reply', stage: 'waiting_reply' });
+  for (const type of ['email', 'payment', 'unknown']) {
+    assert.throws(() => advanceRevenueLead(waiting, 'reply_received', {
+      evidence: { type, id: 'cross-class-reply' }
+    }), /inbound reply receipt type/);
+  }
+  const replied = advanceRevenueLead(waiting, 'reply_received', {
+    evidence: { type: 'reply', id: 'provider-reply-1' }
+  });
+  assert.equal(revenueStage(replied), 'proposal');
+});
+
+test('Growth Desk and Growth Operator never advertise automatic outbound sends', () => {
+  const desk = readFileSync(new URL('../growth-desk/index.html', import.meta.url), 'utf8');
+  const growth = readFileSync(new URL('../growth-operator/index.html', import.meta.url), 'utf8');
+  assert.match(desk, /Every outbound message needs explicit human approval/);
+  assert.match(growth, /each external message requires explicit human approval/);
+  assert.doesNotMatch(desk, /Fresh direct-email leads can run|fresh-lead email can continue automatically/);
+  assert.doesNotMatch(growth, /Most routine direct-email work is handled automatically|Routine sends are automatic/);
+});
+
+test('business runbook requires approval for every outbound message, not just known contacts', () => {
+  const runbook = readFileSync(new URL('../docs/operator-business-system.md', import.meta.url), 'utf8');
+  assert.match(runbook, /All external outreach \(including fresh direct email\) requires per-message human approval/);
+  assert.match(runbook, /Stop at a fresh, identity-bound human checkpoint before \*\*every\*\* external message/);
+  assert.doesNotMatch(runbook, /classified before autonomous outreach/);
 });

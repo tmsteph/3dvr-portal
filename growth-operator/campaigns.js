@@ -1,12 +1,8 @@
+import { queueOperatorTask, watchOperatorTask } from '../operator/delegate-task.js';
+
 const CAMPAIGN_STORAGE_KEY = '3dvr.growthOperator.activeCampaign.v1';
 const LAUNCH_ROOM_STORAGE_KEY = '3dvr.launch-room.movement-brief.v1';
-const AGENT_OWNER_ALIAS = '3dvr-managed';
 const DEFAULT_CAMPAIGN = 'my-skill';
-const DEFAULT_PEERS = [
-  'wss://relay.3dvr.tech/gun',
-  'wss://gun-relay-3dvr.fly.dev/gun'
-];
-
 const CAMPAIGN_PRESETS = Object.freeze({
   'av-freelance': {
     label: 'AV freelance', title: 'Get booked for live events', description: 'Find production companies, venues, hotels, event agencies, labor providers, and AV teams that regularly need freelance technicians.', offer: 'Freelance audio visual support', audience: 'Production companies, AV vendors, venues, hotels, event agencies, and labor providers that book freelance AV technicians.',
@@ -56,13 +52,10 @@ function buildCampaignTask(key) {
   const campaignKey = normalizeCampaign(key), campaign = getCampaign(campaignKey), launchContext = campaignKey === 'my-skill' ? launchRoomContext() : '', now = new Date().toISOString(), id = taskId(campaignKey);
   const task = [
     `Run a focused 3DVR Growth Operator campaign research pass: ${campaign.title}.`, '', `Campaign key: ${campaignKey}`, `Offer: ${campaign.offer}`, `Ideal customer: ${campaign.audience}`, launchContext ? `Launch Room context:\n${launchContext}` : '', '', 'Research job:', campaign.research, '', 'Outreach angle:', campaign.messageAngle, '',
-    'Use the existing system instead of creating parallel data:', '- Save qualified people/businesses in the unified 3dvr-crm records.', '- Put message history and follow-ups through the existing Growth Operator / outreach pipeline.', '- This research task must not send messages. Leave honest drafts and qualified records ready for the existing outbound pipeline to evaluate separately.', '',
-    'Rules:', '- Keep this to a small relevant batch, maximum 10 prospects.', '- Research public information only.', '- Never guess or synthesize private contact addresses, phone numbers, names, or business facts.', '- Do not send messages or blast generic lists from this research task.', '- Respect existing campaign caps, do-not-contact state, unsubscribe handling, delivery checks, and compliance gates.', '- Personalize only with verified public facts.', '- Do not promise guaranteed leads, revenue, bookings, rankings, or business outcomes.', '', 'Return: qualified CRM records, the evidence for fit, proposed short drafts, and one recommended next action.'
+    'Use the existing system instead of creating parallel data:', '- Return source-backed candidate records for human review and later deduplication in the existing unified 3dvr-crm; do not write CRM records from this read-only task.', '- Suggest follow-ups and unsent drafts for the existing Growth Operator / outreach pipeline, but do not update contact history.', '- This research task must not send messages or make any external writes. Do not claim prospects are imported, contacted, or paid.', '',
+    'Rules:', '- Keep this to a small relevant batch, maximum 10 prospects.', '- Research public information only.', '- Never guess or synthesize private contact addresses, phone numbers, names, or business facts.', '- Do not send messages or blast generic lists from this research task.', '- Respect existing campaign caps, do-not-contact state, unsubscribe handling, delivery checks, and compliance gates.', '- Personalize only with verified public facts.', '- Do not promise guaranteed leads, revenue, bookings, rankings, or business outcomes.', '', 'Return: up to 10 source-backed candidate leads for CRM review, fit evidence, proposed unsent drafts, and one recommended next action. Do not claim a CRM import or outreach occurred.'
   ].filter(Boolean).join('\n');
-  return { id, task, tenantId: 'portal:growth-operator', tenantAlias: readText('alias') || readText('username') || 'growth-operator', tenantPlan: 'builder', backend: 'auto', repo: 'tmsteph/3dvr-portal', model: '', thinking: 'high', unsafe: false, riskClass: 'workspace_write', approvalStatus: 'not_required', requiredCapabilities: 'auto', maxRuntimeMs: 0, status: 'queued', requestedBy: `growth-campaign:${campaignKey}`, campaign: campaignKey, createdAt: now, updatedAt: now, resultSummary: '', error: '', workerDeviceId: '' };
-}
-function putGun(node, payload) {
-  return new Promise((resolve, reject) => { if (!node || typeof node.put !== 'function') { reject(new Error('Growth relay is unavailable.')); return; } const timer = window.setTimeout(() => resolve({ timedOut: true }), 6000); node.put(payload, ack => { window.clearTimeout(timer); if (ack?.err) reject(new Error(String(ack.err))); else resolve(ack || {}); }); });
+  return { id, task, tenantId: 'portal:growth-operator', tenantAlias: readText('alias') || readText('username') || 'growth-operator', tenantPlan: 'builder', backend: 'codex', repo: 'tmsteph/3dvr-portal', model: '', thinking: 'high', unsafe: false, riskClass: 'draft', approvalStatus: 'not_required', requiredCapabilities: 'codex', maxRuntimeMs: 0, status: 'queued', requestedBy: `growth-campaign:${campaignKey}`, campaign: campaignKey, createdAt: now, updatedAt: now, resultSummary: '', error: '', workerDeviceId: '' };
 }
 function updatePageStatus(message) { const target = document.getElementById('syncStatus'); if (target) target.textContent = message; }
 function setCampaignSeed(input, value) { if (!input) return; const canReplace = !clean(input.value) || input.dataset.campaignSeed === 'true'; if (!canReplace) return; input.value = value; input.dataset.campaignSeed = 'true'; }
@@ -74,20 +67,149 @@ function renderCampaign(key) {
   if (title) title.textContent = campaign.title; if (description) description.textContent = campaign.description; if (finderLink) finderLink.href = `../lead-finder/?campaign=${encodeURIComponent(campaignKey)}`; seedQuickAdd(campaignKey);
 }
 function selectCampaign(key, { announce = true } = {}) { const campaignKey = normalizeCampaign(key); writeText(CAMPAIGN_STORAGE_KEY, campaignKey); renderCampaign(campaignKey); if (announce) updatePageStatus(`${getCampaign(campaignKey).label} selected. Ready to research a small first batch.`); return campaignKey; }
-async function queueCampaignResearch(key) {
-  const campaignKey = normalizeCampaign(key), task = buildCampaignTask(campaignKey), gun = typeof window.Gun === 'function' ? window.Gun(window.__GUN_PEERS__ || DEFAULT_PEERS) : null, queueRoot = gun ? gun.get('3dvr-portal').get('agentOps').get(AGENT_OWNER_ALIAS).get('taskQueue') : null;
-  updatePageStatus(`Queuing ${getCampaign(campaignKey).label} research…`);
+// Persist the signed task identity before sending. Reloads and uncertain HTTP
+// acknowledgements must resume status checks, never create another task ID.
+const CAMPAIGN_RESEARCH_KEY_PREFIX = '3dvr.growthOperator.researchRequest.v1.';
+const researchFlights = new Map();
+function researchStorageKey(key) { return CAMPAIGN_RESEARCH_KEY_PREFIX + normalizeCampaign(key); }
+function researchRequestId() {
+  return `task-${globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`}`;
+}
+function pendingCampaignResearch(key) {
+  const raw = readText(researchStorageKey(key));
+  if (!raw) return null;
+  // A damaged or unexpected saved identity might still represent an enqueued
+  // task. Fail closed instead of replacing it with a new request on reload.
   try {
-    await putGun(queueRoot?.get('tasks').get(task.id), task);
-    await putGun(queueRoot?.get('latest').get(task.id), { id: task.id, status: task.status, task: task.task, tenantId: task.tenantId, tenantAlias: task.tenantAlias, tenantPlan: task.tenantPlan, riskClass: task.riskClass, approvalStatus: task.approvalStatus, requiredCapabilities: task.requiredCapabilities, kind: 'campaign-find-leads', campaign: campaignKey, updatedAt: task.updatedAt });
-    updatePageStatus(`${getCampaign(campaignKey).label} research queued. The first pass is capped at 10 relevant prospects.`);
-  } catch (error) { updatePageStatus(`Campaign research was not queued. ${error.message || 'Check the relay.'}`); }
+    const pending = JSON.parse(raw);
+    return pending && typeof pending === 'object' && !Array.isArray(pending)
+      && /^operator-http:[A-Za-z0-9_-]{12,100}$/.test(pending.taskId || '')
+      ? pending : { invalid: true };
+  } catch (_error) {
+    return { invalid: true };
+  }
+}
+function savePendingCampaignResearch(key, taskId) {
+  // A reload-safe request needs a durable identity BEFORE the network call.
+  // Storage may throw (privacy mode/quota) or silently reject the write.
+  const storageKey = researchStorageKey(key);
+  const payload = JSON.stringify({ taskId, createdAt: new Date().toISOString() });
+  try {
+    window.localStorage.setItem(storageKey, payload);
+    return window.localStorage.getItem(storageKey) === payload;
+  } catch (_error) {
+    return false;
+  }
+}
+function clearPendingCampaignResearch(key) {
+  // Never release the in-memory guard while the persisted request survives:
+  // a subsequent reload would otherwise resume an obsolete task identity.
+  const storageKey = researchStorageKey(key);
+  try {
+    window.localStorage.removeItem(storageKey);
+    return !window.localStorage.getItem(storageKey);
+  } catch (_error) {
+    return false;
+  }
+}
+function observeCampaignResearch(campaignKey, taskId, watchTask, flight) {
+  const label = getCampaign(campaignKey).label;
+  try {
+    watchTask(taskId, {
+      onUpdate(record = {}) {
+        const status = clean(record.status || record.state).toLowerCase();
+        // Signed terminal status is required. Synthetic 'blocked' from polling
+        // timeout or authentication failure must never release the guard.
+        if (['completed', 'failed', 'skipped', 'cancelled', 'canceled'].includes(status)
+          && researchFlights.get(campaignKey) === flight) {
+          if (clearPendingCampaignResearch(campaignKey)) researchFlights.delete(campaignKey);
+        }
+        if (status === 'completed') {
+          updatePageStatus(`${label} research finished. Review the result in Operator before any CRM import or outreach.`);
+        } else if (['blocked', 'failed', 'skipped', 'review'].includes(status)) {
+          updatePageStatus(`${label} research ${status}. ${clean(record.error || record.resultSummary).slice(0, 250)}`);
+        } else if (status === 'running') {
+          updatePageStatus(`${label} research running in Operator; no outreach authorized.`);
+        }
+      }
+    });
+  } catch (_error) {
+    updatePageStatus(`${label} status check unavailable. The saved task identity is preserved; check Operator before retrying.`);
+  }
+}
+function resumeCampaignResearch(campaignKey, watchTask) {
+  if (researchFlights.has(campaignKey)) return researchFlights.get(campaignKey);
+  const pending = pendingCampaignResearch(campaignKey);
+  if (!pending) return null;
+  if (pending.invalid) {
+    const flight = { invalid: true, promise: Promise.resolve(null) };
+    researchFlights.set(campaignKey, flight);
+    updatePageStatus('Research not submitted: saved Operator task identity is unreadable. Review existing Operator tasks before clearing browser state; no duplicate submitted.');
+    return flight;
+  }
+  const flight = {
+    taskId: pending.taskId,
+    promise: Promise.resolve({ taskId: pending.taskId, confirmed: false, message: 'Resuming the saved Operator task status.' })
+  };
+  researchFlights.set(campaignKey, flight);
+  updatePageStatus(`${getCampaign(campaignKey).label} has an existing Operator request. Checking its signed status; no duplicate submitted.`);
+  observeCampaignResearch(campaignKey, pending.taskId, watchTask, flight);
+  return flight;
+}
+function queueCampaignResearch(key, { queueTask = queueOperatorTask, watchTask = watchOperatorTask } = {}) {
+  const campaignKey = normalizeCampaign(key);
+  const existing = researchFlights.get(campaignKey) || resumeCampaignResearch(campaignKey, watchTask);
+  if (existing) {
+    updatePageStatus(existing.invalid
+      ? 'Research not submitted: saved Operator task identity is unreadable. Review existing Operator tasks before clearing browser state; no duplicate submitted.'
+      : `${getCampaign(campaignKey).label} research already submitted or delivery uncertain. Check its existing Operator task before starting another.`);
+    return existing.promise;
+  }
+  const flight = { taskId: `operator-http:${researchRequestId()}` };
+  // Store the request ID *before* the first network await so a reload during
+  // delivery can query the same server-side idempotency key.
+  if (!savePendingCampaignResearch(campaignKey, flight.taskId)) {
+    updatePageStatus('Research not submitted: this browser cannot preserve the Operator task identity. Enable site storage before retrying.');
+    return Promise.resolve(null);
+  }
+  flight.promise = submitCampaignResearch(campaignKey, { queueTask, watchTask }, flight);
+  researchFlights.set(campaignKey, flight);
+  return flight.promise;
+}
+async function submitCampaignResearch(campaignKey, { queueTask, watchTask }, flight) {
+  const task = buildCampaignTask(campaignKey);
+  const label = getCampaign(campaignKey).label;
+  updatePageStatus(`Submitting ${label} research to authenticated Operator…`);
+  try {
+    // Signed HTTP → existing private SQLite → Codex worker; no Gun task write.
+    const requestId = flight.taskId.slice('operator-http:'.length);
+    const receipt = await queueTask({ text: task.task, title: `${label} prospect research`, requestId });
+    if (receipt?.taskId !== flight.taskId) throw new Error('Operator returned a mismatched task identity.');
+    updatePageStatus(receipt.confirmed
+      ? `${label} research accepted by Operator. Waiting for a verified result; no CRM records or messages sent.`
+      : receipt.message || 'Checking Operator delivery; do not submit a duplicate task.');
+    observeCampaignResearch(campaignKey, flight.taskId, watchTask, flight);
+    return receipt;
+  } catch (error) {
+    // The API rejects these before enqueue. All other errors are ambiguous:
+    // keep the stored identity and check status instead of submitting again.
+    const rejected = [400, 401, 403].includes(error.status) || /Sign in/.test(String(error.message || ''));
+    if (rejected) {
+      if (clearPendingCampaignResearch(campaignKey) && researchFlights.get(campaignKey) === flight) {
+        researchFlights.delete(campaignKey);
+      }
+    } else {
+      observeCampaignResearch(campaignKey, flight.taskId, watchTask, flight);
+    }
+    updatePageStatus(`${label} research was not confirmed. ${error.message || 'Check Operator status.'}${rejected ? '' : ' Check the saved task before retrying.'}`);
+    return null;
+  }
 }
 function initCampaigns() {
-  const params = new URLSearchParams(window.location.search), requested = params.get('campaign'), stored = readText(CAMPAIGN_STORAGE_KEY); let active = selectCampaign(requested || stored || DEFAULT_CAMPAIGN, { announce: false });
+  const params = new URLSearchParams(window.location.search), requested = params.get('campaign'), stored = readText(CAMPAIGN_STORAGE_KEY); let active = selectCampaign(requested || stored || DEFAULT_CAMPAIGN, { announce: false }); resumeCampaignResearch(active, watchOperatorTask);
   document.querySelectorAll('[data-campaign]').forEach(button => button.addEventListener('click', () => { active = selectCampaign(button.dataset.campaign); }));
   [document.getElementById('itemOffer'), document.getElementById('itemContext')].forEach(input => input?.addEventListener('input', () => { input.dataset.campaignSeed = 'false'; }));
   document.getElementById('campaignFindButton')?.addEventListener('click', () => { queueCampaignResearch(active); });
 }
 if (typeof window !== 'undefined' && typeof document !== 'undefined') window.addEventListener('DOMContentLoaded', initCampaigns);
-export { CAMPAIGN_PRESETS, buildCampaignTask, loadLaunchRoomBrief, normalizeCampaign, selectCampaign };
+export { CAMPAIGN_PRESETS, buildCampaignTask, loadLaunchRoomBrief, normalizeCampaign, queueCampaignResearch, selectCampaign };

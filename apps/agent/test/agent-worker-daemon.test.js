@@ -30,6 +30,44 @@ test('worker lifecycle owns context routing, organism sync, and supervision', as
   assert.match(script, /"\$ORGANISM_DAEMON" status/);
 });
 
+test('worker startup refuses a vanished tmux session before launching auxiliary daemons', () => {
+  const fs = require('node:fs');
+  const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), '3dvr-worker-start-'));
+  try {
+    const fakeTmux = path.join(dir, 'tmux');
+    const log = path.join(dir, 'tmux.log');
+    fs.writeFileSync(fakeTmux, [
+      '#!/usr/bin/env bash',
+      'printf "%s\\n" "$*" >> "$TMUX_LOG"',
+      'case "$1" in',
+      '  has-session) exit 1 ;;',
+      '  new-session) exit 0 ;;',
+      '  *) exit 1 ;;',
+      'esac',
+      ''
+    ].join('\n'), { mode: 0o755 });
+    const result = spawnSync('bash', [workerDaemon, 'start'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: dir + ':' + process.env.PATH,
+        TMUX_LOG: log,
+        THREEDVR_CONFIG_FILE: '/dev/null',
+        THREEDVR_AUTOPILOT_STATE_DIR: dir,
+        THREEDVR_AGENT_WORKER_ONLY_TASK_ID: ''
+      }
+    });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /agent worker exited during startup/i);
+    assert.doesNotMatch(result.stdout, /started agent worker/i);
+    const invocations = fs.readFileSync(log, 'utf8').trim().split('\n');
+    assert.equal(invocations.filter(line => line.startsWith('new-session ')).length, 1,
+      'a failed worker startup must not launch router, organism, or supervisor');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('queue wrapper reloads and validates its configured Node SQLite runtime', async () => {
   const script = await readFile(queueWrapper, 'utf8');
 
@@ -56,6 +94,35 @@ test('queue wrapper fails clearly when its configured Node runtime is unavailabl
   assert.equal(result.status, 1);
   assert.match(result.stderr, /requires Node >=22\.13 with node:sqlite/);
   assert.match(result.stderr, new RegExp(missingNode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+});
+
+test('daemon run-once cannot lose an explicitly pinned task through persistent config', () => {
+  const fs = require('node:fs');
+  const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), '3dvr-pinned-worker-'));
+  const config = path.join(dir, 'env');
+  try {
+    const env = {
+      ...process.env,
+      THREEDVR_CONFIG_FILE: config,
+      THREEDVR_AUTOPILOT_STATE_DIR: dir,
+      THREEDVR_AGENT_WORKER_ONLY_TASK_ID: 'approved-task-id',
+      THREEDVR_NODE_BIN: path.join(dir, 'missing-node'),
+    };
+    for (const override of ['', 'different-task-id']) {
+      fs.writeFileSync(config, 'THREEDVR_AGENT_WORKER_ONLY_TASK_ID=' + JSON.stringify(override) + '\n');
+      const result = spawnSync(workerDaemon, ['run-once'], { encoding: 'utf8', env });
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(result.stderr, /Pinned task scope conflicts with persistent worker configuration/);
+      assert.doesNotMatch(result.stderr, /requires Node >=22\.13/);
+    }
+    // Matching configuration preserves the pin and reaches normal runtime validation.
+    fs.writeFileSync(config, 'THREEDVR_AGENT_WORKER_ONLY_TASK_ID="approved-task-id"\n');
+    const matching = spawnSync(workerDaemon, ['run-once'], { encoding: 'utf8', env });
+    assert.equal(matching.status, 1);
+    assert.match(matching.stderr, /requires Node >=22\.13/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('context router reloads config and honors the configured Node runtime', async () => {
@@ -100,39 +167,44 @@ test('owner alias config quoting preserves data without executing shell syntax',
   }
 });
 
-test('worker deployment is out-of-band and verifies managed queue consumption safely', async () => {
+test('manual release stages an isolated checkout without activating workers', async () => {
   const [queueScript, workflow] = await Promise.all([
     readFile(queueWrapper, 'utf8'),
     readFile(agentWorkflow, 'utf8'),
   ]);
-
-  assert.match(queueScript, /CONFIG_FILE="\$\{THREEDVR_CONFIG_FILE:-\$HOME\/\.3dvr\/config\/env\}"/);
+  assert.ok(queueScript.includes('CONFIG_FILE="${THREEDVR_CONFIG_FILE:-$HOME/.3dvr/config/env}"'));
   assert.ok(queueScript.includes('. "$CONFIG_FILE"'));
 
-  const normalizedWorkflow = workflow.replace(/\\"/g, '"');
-  assert.match(normalizedWorkflow, /deploy-digitalocean-worker:/);
-  assert.match(normalizedWorkflow, /Deploy worker over SSH/);
-  assert.match(normalizedWorkflow, /ssh "\$\{opts\[@\]\}" "\$DO_AGENT_USER@\$DO_AGENT_HOST"/);
-  assert.equal(normalizedWorkflow.includes('Queue remote update'), false);
-  assert.equal(normalizedWorkflow.includes('Wait for German worker receipt'), false);
-  assert.equal(normalizedWorkflow.includes('deploy-german-worker:'), false);
-
-  assert.equal(normalizedWorkflow.includes('"$scripts/ask-agent-worker-daemon" stop || true'), true);
-  assert.equal(normalizedWorkflow.includes('"$scripts/ask-agent-worker-daemon" start'), true);
-  assert.equal(normalizedWorkflow.includes('"$scripts/ask-agent-worker-daemon" status'), true);
-  assert.match(normalizedWorkflow, /THREEDVR_NODE_BIN: \/opt\/node-v22\/bin\/node/);
-  assert.match(normalizedWorkflow, /UserKnownHostsFile=\/tmp\/3dvr-known-hosts/);
-  assert.match(normalizedWorkflow, /StrictHostKeyChecking=yes/);
-  assert.equal(normalizedWorkflow.includes('StrictHostKeyChecking=accept-new'), false);
-  assert.match(normalizedWorkflow, /167\.172\.193\.194 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFoepoGbXWiidk4axaBwsI1Y\/GWVckiqJxGLkBpTV6Pc/);
-  assert.match(normalizedWorkflow, /THREEDVR_AGENT_OWNER_ALIAS_B64/);
-  assert.match(normalizedWorkflow, /printf -v owner_q '%q'/);
-  assert.match(normalizedWorkflow, /printf 'THREEDVR_AGENT_OWNER_ALIAS=%s\\n' "\$owner_q"/);
-  assert.doesNotMatch(normalizedWorkflow, /awk -v owner/);
-  assert.match(normalizedWorkflow, /"\$THREEDVR_NODE_BIN" -e 'const \[major, minor\].*require\("node:sqlite"\)'/);
-  assert.equal(normalizedWorkflow.includes('node thomas-agent/node/agent-task-queue.js'), false);
-  assert.match(normalizedWorkflow, /Verify managed queue consumption/);
-  assert.match(normalizedWorkflow, /--backend health --risk read_only --approval-status approved/);
-  assert.equal(normalizedWorkflow.includes('--backend shell --risk read_only'), false);
-  assert.match(normalizedWorkflow, /DigitalOcean agent worker alive and consuming managed queue tasks/);
+  for (const required of [
+    'deploy-digitalocean-worker:',
+    'workflow_dispatch:',
+    'deploy_digitalocean_worker:',
+    "github.event_name == 'workflow_dispatch'",
+    'Stage release over SSH without touching live runtime',
+    'portal-release-stage',
+    'UserKnownHostsFile=/tmp/3dvr-known-hosts',
+    'StrictHostKeyChecking=yes',
+    '167.172.193.194 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFoepoGbXWiidk4axaBwsI1Y/GWVckiqJxGLkBpTV6Pc',
+    'Verify staged revision without runtime mutation',
+    'DigitalOcean source staged; live worker unchanged',
+  ]) {
+    assert.ok(workflow.includes(required), `missing stage-only release guard: ${required}`);
+  }
+  for (const forbidden of [
+    'Queue remote update',
+    'Wait for German worker receipt',
+    'deploy-german-worker:',
+    '"$scripts/ask-agent-worker-daemon" stop || true',
+    '"$scripts/ask-agent-worker-daemon" start',
+    '"$scripts/ask-agent-worker-daemon" status',
+    'StrictHostKeyChecking=accept-new',
+    'agent-task-queue.js enqueue',
+    'QUEUE_PREFLIGHT',
+    'DatabaseSync',
+    'task-queue.sqlite',
+    'THREEDVR_AGENT_QUEUE_DB',
+    '--backend shell --risk read_only',
+  ]) {
+    assert.equal(workflow.includes(forbidden), false, `unexpected live worker action: ${forbidden}`);
+  }
 });

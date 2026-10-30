@@ -36,45 +36,52 @@ function slugify(value = '') {
     .replace(/^-+|-+$/g, '') || 'prospect';
 }
 
-function splitCsvLine(line = '') {
-  const cells = [];
+// CSV drafts can contain quoted newlines, commas, and escaped quotes.
+// Parse complete records rather than treating every physical line as a lead.
+function parseCsvRows(csv = '') {
+  const source = String(csv || '').replace(/^\uFEFF/, '');
+  const rows = [];
+  let row = [];
   let cell = '';
   let quoted = false;
-
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index];
-    const next = line[index + 1];
-    if (char === '"' && quoted && next === '"') {
-      cell += '"';
-      index += 1;
-      continue;
-    }
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
     if (char === '"') {
-      quoted = !quoted;
-      continue;
-    }
-    if (char === ',' && !quoted) {
-      cells.push(cell);
+      if (quoted && source[index + 1] === '"') {
+        cell += '"';
+        index += 1;
+      } else if (quoted) {
+        quoted = false;
+      } else if (!cell.trim()) {
+        quoted = true;
+      } else {
+        cell += char;
+      }
+    } else if (char === ',' && !quoted) {
+      row.push(clean(cell));
       cell = '';
-      continue;
+    } else if ((char === '\n' || char === '\r') && !quoted) {
+      if (char === '\r' && source[index + 1] === '\n') index += 1;
+      row.push(clean(cell));
+      if (row.some(Boolean)) rows.push(row);
+      row = [];
+      cell = '';
+    } else {
+      cell += char;
     }
-    cell += char;
   }
-
-  cells.push(cell);
-  return cells.map(clean);
+  if (quoted) throw new Error('Invalid prospect CSV: unterminated quoted field');
+  row.push(clean(cell));
+  if (row.some(Boolean)) rows.push(row);
+  return rows;
 }
 
 export function parseProspectsCsv(csv = '') {
-  const lines = String(csv || '')
-    .split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(Boolean);
-  if (lines.length < 2) return [];
+  const rows = parseCsvRows(csv);
+  if (rows.length < 2) return [];
 
-  const headers = splitCsvLine(lines[0]).map(header => slugify(header).replace(/-/g, '_'));
-  return lines.slice(1).map((line, index) => {
-    const cells = splitCsvLine(line);
+  const headers = rows[0].map(header => slugify(header).replace(/-/g, '_'));
+  return rows.slice(1).map((cells, index) => {
     const row = {};
     headers.forEach((header, cellIndex) => {
       row[header] = cells[cellIndex] || '';
@@ -240,9 +247,7 @@ function buildMessage(prospect = {}, offer = {}) {
 
 function buildApprovalReason(prospect = {}, mode = 'approval-required') {
   if (mode === 'draft-only') return 'Draft only. No send decision requested.';
-  if (!prospect.allowAutoSend) return 'Needs approval because this prospect is not allowlisted for auto-send.';
-  if (!prospect.email && prospect.channel === 'email') return 'Needs approval because no email is available.';
-  return 'Allowlisted for auto-send if sender is configured and daily cap allows it.';
+  return 'Human approval is required for every outbound message; an allowlist or daily cap does not authorize sending.';
 }
 
 export function buildOutboundQueue({
@@ -267,43 +272,28 @@ export function buildOutboundQueue({
       || clean(autopilot.promotion?.destinationUrl)
       || 'https://portal.3dvr.tech/free-page/'
   };
-  const cap = Math.max(0, Math.floor(toNumber(dailyCap, 3)));
-  let autoSendSlots = cap;
-
+  // Retain the legacy mode argument for callers, but never plan a send based
+  // on allowlists, time windows, or caps. No authenticated per-message
+  // approval receipt is currently available in this dispatch lane.
   return prospects
     .map((item, index) => normalizeProspect(item, index))
-    .map(prospect => {
-      const score = scoreProspect(prospect);
-      const eligibleForAutoSend = safeMode === 'allowlisted-auto-send'
-        && prospect.allowAutoSend
-        && !prospect.lastContactedAt
-        && (prospect.email || prospect.channel !== 'email');
-      const autoSendPlanned = eligibleForAutoSend && autoSendSlots > 0;
-      if (autoSendPlanned) autoSendSlots -= 1;
-      const status = safeMode === 'draft-only'
-        ? 'drafted'
-        : autoSendPlanned
-          ? 'ready-to-send'
-          : 'needs-approval';
-
-      return {
-        ...prospect,
-        score,
-        offer: offer.title,
-        offerProfile: offer.profile,
-        suggestedPrice: offer.suggestedPrice,
-        autopilotRunId: offer.runId,
-        clientReferenceId: offer.clientReferenceId,
-        destinationUrl: offer.destinationUrl,
-        subject: buildSubject(prospect, offer),
-        messageDraft: buildMessage(prospect, offer),
-        approvalStatus: status,
-        approvalReason: buildApprovalReason(prospect, safeMode),
-        eligibleForAutoSend,
-        autoSendPlanned,
-        generatedAt: now.toISOString()
-      };
-    })
+    .map(prospect => ({
+      ...prospect,
+      score: scoreProspect(prospect),
+      offer: offer.title,
+      offerProfile: offer.profile,
+      suggestedPrice: offer.suggestedPrice,
+      autopilotRunId: offer.runId,
+      clientReferenceId: offer.clientReferenceId,
+      destinationUrl: offer.destinationUrl,
+      subject: buildSubject(prospect, offer),
+      messageDraft: buildMessage(prospect, offer),
+      approvalStatus: safeMode === 'draft-only' ? 'drafted' : 'needs-approval',
+      approvalReason: buildApprovalReason(prospect, safeMode),
+      eligibleForAutoSend: false,
+      autoSendPlanned: false,
+      generatedAt: now.toISOString()
+    }))
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
 }
 
@@ -393,69 +383,19 @@ export async function dispatchOutboundWebhook({
   token = '',
   fetchImpl = fetch
 } = {}) {
-  const ready = queue.filter(item => item.autoSendPlanned);
-  const result = {
+  // Deliberately fail closed even for a forged queue entry with
+  // autoSendPlanned=true. This legacy webhook has no authenticated,
+  // single-use approval receipt bound to recipient and message content.
+  // Preparing drafts remains safe; actual sends must use a separately
+  // reviewed identity-bound path after receipt verification is implemented.
+  return {
     attempted: false,
     sent: false,
-    skipped: false,
+    skipped: true,
     failed: false,
     sentCount: 0,
-    reason: ''
+    reason: 'outbound webhook disabled pending authenticated per-message approval and delivery verification'
   };
-
-  if (!ready.length) {
-    result.skipped = true;
-    result.reason = 'no allowlisted prospects planned for auto-send';
-    return result;
-  }
-  if (!clean(webhookUrl)) {
-    result.skipped = true;
-    result.reason = 'sender webhook not configured';
-    return result;
-  }
-
-  result.attempted = true;
-  try {
-    const response = await fetchImpl(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
-      body: JSON.stringify({
-        mode: 'outbound-autopilot',
-        messages: ready.map(item => ({
-          id: item.id,
-          channel: item.channel,
-          to: item.email,
-          subject: item.subject,
-          body: item.messageDraft,
-          metadata: {
-            score: item.score,
-            segment: item.segment,
-            offer: item.offer,
-            offerProfile: item.offerProfile,
-            suggestedPrice: item.suggestedPrice,
-            autopilotRunId: item.autopilotRunId,
-            clientReferenceId: item.clientReferenceId,
-            destinationUrl: item.destinationUrl
-          }
-        }))
-      })
-    });
-    const text = await response.text();
-    if (!response.ok) {
-      throw new Error(text || `sender webhook returned ${response.status}`);
-    }
-    result.sent = true;
-    result.sentCount = ready.length;
-    result.reason = 'sent via sender webhook';
-    return result;
-  } catch (error) {
-    result.failed = true;
-    result.reason = `send failed: ${error.message}`;
-    return result;
-  }
 }
 
 export function buildOutboundSummary({
@@ -510,6 +450,6 @@ ${firstDraft ? [
 
 ## Guardrail
 
-Auto-send requires mode \`allowlisted-auto-send\`, an allowlisted prospect, daily cap room, and a configured sender webhook.
+Auto-send is disabled pending authenticated per-message human approval and provider delivery verification. Allowlisting, campaign caps, and configured webhooks do not authorize sending.
 `;
 }

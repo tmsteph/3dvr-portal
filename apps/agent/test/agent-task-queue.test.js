@@ -11,8 +11,10 @@ const {
   listTasks,
   readTask,
   requiredWorkerCapabilities,
+  runQueuedTask,
   runWorkerOnce,
   updateTask,
+  workerProfile,
 } = require('../thomas-agent/node/agent-task-queue');
 
 class FakeGunNode {
@@ -81,6 +83,99 @@ test('enqueueTask writes queued task records and summaries', async () => {
   assert.equal(list[0].tenantId, 'google:123');
 });
 
+test('managed SQLite worker requires explicit capabilities instead of all-backends defaults', () => {
+  const previous = process.env.THREEDVR_AGENT_WORKER_CAPABILITIES;
+  try {
+    delete process.env.THREEDVR_AGENT_WORKER_CAPABILITIES;
+    const managed = { queueStore: 'sqlite', ownerAlias: '3dvr-managed' };
+    const draft = { backend: 'codex', riskClass: 'draft', approvalStatus: 'not_required' };
+    assert.deepEqual(workerProfile(managed).capabilities, []);
+    assert.match(canWorkerRunTask(draft, managed).reason, /missing capabilities: codex/);
+    assert.deepEqual(workerProfile({ ...managed, workerCapabilities: '' }).capabilities, []);
+    assert.deepEqual(workerProfile(managed).riskClasses, [],
+      'missing managed risk configuration is not permission to run drafts');
+    assert.match(canWorkerRunTask(draft, { ...managed, workerCapabilities: 'codex' }).reason,
+      /risk class not allowed: draft/);
+    assert.equal(canWorkerRunTask(draft, {
+      ...managed, workerCapabilities: 'codex', workerRiskClasses: 'draft',
+    }).ok, true, 'explicit draft permission still works');
+    const health = { backend: 'health', riskClass: 'read_only', approvalStatus: 'not_required' };
+    assert.match(canWorkerRunTask(health, managed).reason, /risk class not allowed: read_only/);
+    assert.equal(canWorkerRunTask(health, {
+      ...managed, workerRiskClasses: 'read_only',
+    }).ok, true, 'intrinsic health checks remain available with explicit risk permission');
+  } finally {
+    if (previous === undefined) delete process.env.THREEDVR_AGENT_WORKER_CAPABILITIES;
+    else process.env.THREEDVR_AGENT_WORKER_CAPABILITIES = previous;
+  }
+});
+
+test('managed worker does not inherit draft permission from missing environment risk config', () => {
+  const previous = process.env.THREEDVR_AGENT_WORKER_RISK_CLASSES;
+  try {
+    delete process.env.THREEDVR_AGENT_WORKER_RISK_CLASSES;
+    const managed = { queueStore: 'sqlite', ownerAlias: '3dvr-managed', workerCapabilities: 'codex' };
+    const draft = { backend: 'codex', riskClass: 'draft', approvalStatus: 'not_required' };
+    assert.deepEqual(workerProfile(managed).riskClasses, []);
+    assert.match(canWorkerRunTask(draft, managed).reason, /risk class not allowed: draft/);
+    assert.deepEqual(workerProfile({ ...managed, workerRiskClasses: 'draft' }).riskClasses, ['draft']);
+    assert.equal(canWorkerRunTask(draft, { ...managed, workerRiskClasses: 'draft' }).ok, true);
+  } finally {
+    if (previous === undefined) delete process.env.THREEDVR_AGENT_WORKER_RISK_CLASSES;
+    else process.env.THREEDVR_AGENT_WORKER_RISK_CLASSES = previous;
+  }
+});
+
+test('explicitly empty worker risk allowlists fail closed instead of widening to defaults', () => {
+  const managed = {
+    queueStore: 'sqlite',
+    ownerAlias: '3dvr-managed',
+    workerCapabilities: 'codex',
+  };
+  const draft = { backend: 'codex', riskClass: 'draft', approvalStatus: 'not_required' };
+  for (const explicit of [{ workerRiskClasses: '' }, { riskClasses: '' }]) {
+    const options = { ...managed, ...explicit };
+    assert.deepEqual(workerProfile(options).riskClasses, []);
+    assert.match(canWorkerRunTask(draft, options).reason, /risk class not allowed: draft/);
+  }
+  assert.deepEqual(workerProfile({ ...managed, workerRiskClasses: 'read_only' }).riskClasses, ['read_only']);
+});
+
+test('explicitly empty risk allowlist environment variable stays empty', () => {
+  const { spawnSync } = require('node:child_process');
+  const modulePath = require.resolve('../thomas-agent/node/agent-task-queue');
+  const child = spawnSync(process.execPath, ['-e',
+    `const {workerProfile}=require(${JSON.stringify(modulePath)});process.stdout.write(JSON.stringify(workerProfile({queueStore:'sqlite',ownerAlias:'3dvr-managed',workerCapabilities:'codex'}).riskClasses));`,
+  ], {
+    encoding: 'utf8',
+    env: { ...process.env, THREEDVR_AGENT_WORKER_RISK_CLASSES: '' },
+    timeout: 5000,
+  });
+  assert.equal(child.status, 0, child.stderr);
+  assert.equal(child.stdout, '[]');
+});
+
+test('public GUN cannot execute or impersonate signed Operator HTTP tasks', async () => {
+  const rootNode = fakeRoot();
+  const options = { rootNode, ownerAlias: '3dvr-managed', queueStore: 'gun' };
+  const record = await enqueueTask('synthetic unsigned work', {
+    ...options, id: 'operator-http-forged-gun-task', backend: 'health',
+  });
+  let executions = 0;
+  const direct = await runQueuedTask(record, {
+    ...options, runAgentTaskImpl: async () => { executions += 1; return { ok: true }; },
+  });
+  assert.equal(direct.ok, false);
+  assert.equal(direct.skipped, true);
+  assert.match(direct.reason, /private SQLite admission/);
+  const batch = await runWorkerOnce({
+    ...options, runAgentTaskImpl: async () => { executions += 1; return { ok: true }; },
+  });
+  assert.deepEqual(batch, []);
+  assert.equal(executions, 0);
+  assert.equal((await readTask(record.id, options)).status, 'queued');
+});
+
 test('enqueueFlushMs keeps in-memory tests instant and gives relay writes a grace period', () => {
   assert.equal(enqueueFlushMs({ rootNode: fakeRoot() }), 0);
   assert.equal(enqueueFlushMs({ enqueueFlushMs: 0 }), 0);
@@ -122,6 +217,62 @@ test('concrete backend capability cannot be hidden by a weaker requires list', (
   }).ok, false);
 });
 
+test('auto backend requires explicit auto capability even when requires lists node', () => {
+  assert.deepEqual(requiredWorkerCapabilities({ backend: 'auto', requiredCapabilities: 'node' }).sort(), ['auto', 'node']);
+  const record = { backend: 'auto', requiredCapabilities: 'node', riskClass: 'read_only', approvalStatus: 'not_required' };
+  assert.match(canWorkerRunTask(record, { workerCapabilities: 'codex,node' }).reason, /missing capabilities: auto/);
+  assert.equal(canWorkerRunTask(record, { workerCapabilities: 'auto,node' }).ok, true);
+  assert.deepEqual(requiredWorkerCapabilities({ backend: 'health', requiredCapabilities: 'node' }), ['node']);
+});
+
+test('worker blocks high-risk tasks without authenticated human approval provenance', () => {
+  const worker = {
+    workerCapabilities: 'node,codex',
+    workerRiskClasses: 'read_only,draft,workspace_write,external_write,money,credential',
+  };
+  for (const riskClass of ['external_write', 'money', 'credential']) {
+    for (const approvalStatus of ['required', 'pending', 'denied', 'expired', 'not_required', '']) {
+      const decision = canWorkerRunTask({ backend: 'codex', riskClass, approvalStatus }, worker);
+      assert.equal(decision.ok, false, `${riskClass}/${approvalStatus || 'missing'} must be blocked`);
+    }
+    const forged = canWorkerRunTask({ backend: 'codex', riskClass, approvalStatus: 'approved' }, worker);
+    assert.equal(forged.ok, false, `${riskClass} cannot trust a producer-supplied approved string`);
+    assert.match(forged.reason, /authenticated human approval verification unavailable/);
+    assert.equal(canWorkerRunTask({
+      backend: 'codex', riskClass: 'draft', unsafe: true, approvalStatus: 'approved',
+    }, worker).ok, false, 'unsafe execution cannot use an unverified approval string');
+  }
+  for (const approvalStatus of ['required', 'pending', 'denied', 'expired']) {
+    assert.equal(canWorkerRunTask({ backend: 'codex', riskClass: 'read_only', approvalStatus }, worker).ok, false);
+  }
+  assert.equal(canWorkerRunTask({ backend: 'codex', riskClass: 'read_only', approvalStatus: 'not_required' }, worker).ok, true);
+});
+
+test('unknown explicit risk labels fail closed instead of becoming unapproved drafts', async () => {
+  const rootNode = fakeRoot();
+  const record = await enqueueTask('Unknown risk label', {
+    rootNode,
+    ownerAlias: 'tenant-a',
+    id: 'unknown-risk',
+    backend: 'codex',
+    riskClass: 'external-write',
+    force: true,
+  });
+  assert.equal(record.riskClass, 'external_write');
+  assert.equal(record.approvalStatus, 'required');
+  const worker = {
+    workerCapabilities: 'node,codex',
+    workerRiskClasses: 'read_only,draft,workspace_write,external_write',
+  };
+  assert.equal(canWorkerRunTask(record, worker).ok, false);
+  // Legacy/imported records must also be checked at execution time.
+  assert.equal(canWorkerRunTask({
+    backend: 'codex',
+    riskClass: 'unrecognized-side-effect',
+    approvalStatus: 'not_required',
+  }, worker).ok, false);
+});
+
 test('health backend is intrinsic and does not require shell or model capability', () => {
   assert.deepEqual(requiredWorkerCapabilities({ backend: 'health' }), []);
   assert.equal(canWorkerRunTask({
@@ -155,82 +306,97 @@ test('updateTask changes status and formatTask renders results', async () => {
   assert.match(formatTask(updated), /Tenant: tenant-a/);
 });
 
-test('runWorkerOnce claims and executes queued tasks through injected hooks', async () => {
+test('runWorkerOnce never executes public GUN tasks even with worker capabilities', async () => {
   const rootNode = fakeRoot();
+  const options = { rootNode, ownerAlias: 'tenant-a', queueStore: 'gun', force: true };
   await enqueueTask('Summarize leads', {
-    rootNode,
-    ownerAlias: 'tenant-a',
-    id: 'task-3',
-    backend: 'openai',
-    requiredCapabilities: 'openai',
-    force: true,
+    ...options, id: 'task-3', backend: 'openai',
+    riskClass: 'read_only', requiredCapabilities: 'openai',
   });
-  const lifeEvents = [];
+  let executions = 0;
   const results = await runWorkerOnce({
-    rootNode,
-    ownerAlias: 'tenant-a',
-    deviceId: 'do-worker',
-    workerCapabilities: 'node,openai,codex',
-    force: true,
-    recordLifeEventImpl: async (content, eventOptions) => {
-      lifeEvents.push({ content, eventOptions });
-      return { id: 'evt-test' };
-    },
-    runAgentTaskImpl: async () => ({
-      ok: true,
-      backend: 'openai',
-      result: { ok: true, stdout: 'summary' },
-    }),
+    ...options, workerCapabilities: 'node,openai,codex',
+    runAgentTaskImpl: async () => { executions += 1; return { ok: true }; },
   });
-  const completed = await readTask('task-3', { rootNode, ownerAlias: 'tenant-a' });
-
-  assert.equal(results.length, 1);
-  assert.equal(completed.status, 'completed');
-  assert.match(completed.resultSummary, /summary/);
-  assert.equal(lifeEvents.length, 1);
-  assert.match(lifeEvents[0].content, /Agent task completed: Summarize leads/);
-  assert.equal(lifeEvents[0].eventOptions.kind, 'task.completed');
-  assert.equal(lifeEvents[0].eventOptions.sourceId, 'task-3');
+  assert.deepEqual(results, []);
+  assert.equal(executions, 0);
+  assert.equal((await readTask('task-3', options)).status, 'queued');
+});
+test('direct GUN execution fails closed before lease or backend dispatch', async () => {
+  const rootNode = fakeRoot();
+  const options = { rootNode, ownerAlias: 'tenant-a', queueStore: 'gun', force: true };
+  const snapshot = await enqueueTask('Draft buyer research', {
+    ...options, id: 'stale-text', backend: 'codex', riskClass: 'draft',
+  });
+  await updateTask(snapshot.id, { task: 'Different instruction' }, options);
+  let executions = 0;
+  const result = await runQueuedTask(snapshot, {
+    ...options, workerCapabilities: 'node,codex',
+    runAgentTaskImpl: async () => { executions += 1; return { ok: true }; },
+  });
+  assert.equal(executions, 0);
+  assert.equal(result.skipped, true);
+  assert.match(result.reason, /Public GUN queue execution disabled/);
+  const after = await readTask(snapshot.id, options);
+  assert.equal(after.status, 'queued');
+  assert.equal(after.task, 'Different instruction');
+});
+test('GUN worker rejects approval and capability changes after initial read', async () => {
+  const rootNode = fakeRoot();
+  const options = {
+    rootNode, ownerAlias: 'tenant-a', deviceId: 'do-worker',
+    workerCapabilities: 'node,codex', force: true,
+  };
+  const snapshot = await enqueueTask('Prepare draft', {
+    ...options, id: 'stale-permissions', backend: 'codex', riskClass: 'draft',
+  });
+  await updateTask(snapshot.id, {
+    riskClass: 'external_write', approvalStatus: 'approved',
+    requiredCapabilities: 'codex,external-send',
+  }, options);
+  let executions = 0;
+  const result = await runQueuedTask(snapshot, {
+    ...options,
+    workerRiskClasses: 'read_only,draft,external_write',
+    runAgentTaskImpl: async () => { executions += 1; return { ok: true }; },
+  });
+  assert.equal(executions, 0);
+  assert.equal(result.skipped, true);
+  assert.equal((await readTask(snapshot.id, options)).status, 'queued');
 });
 
-test('health task completes without invoking a model or shell executor', async () => {
+test('GUN worker cannot execute even an otherwise runnable intrinsic health task', async () => {
   const rootNode = fakeRoot();
+  const options = {
+    rootNode, ownerAlias: 'tenant-a', queueStore: 'gun',
+    workerCapabilities: 'node,shell', force: true,
+  };
+  const record = await enqueueTask('Check worker health', {
+    ...options, id: 'gun-array-equal', backend: 'health', riskClass: 'read_only',
+  });
+  const stored = await readTask(record.id, options);
+  stored.requiredCapabilities = ['node'];
+  const result = await runQueuedTask({ ...stored, requiredCapabilities: ['node'] }, options);
+  assert.equal(result.ok, false);
+  assert.equal(result.skipped, true);
+  assert.match(result.reason, /Public GUN queue execution disabled/);
+  assert.equal((await readTask(record.id, options)).status, 'queued');
+});
+test('legacy public GUN health tasks are not an execution bypass', async () => {
+  const rootNode = fakeRoot();
+  const options = { rootNode, ownerAlias: 'tenant-a', queueStore: 'gun', force: true };
   await enqueueTask('Worker health check', {
-    rootNode,
-    ownerAlias: 'tenant-a',
-    id: 'health-task',
-    backend: 'health',
-    riskClass: 'read_only',
-    force: true,
+    ...options, id: 'health-task', backend: 'health', riskClass: 'read_only',
   });
   let externalExecutions = 0;
-  const lifeEvents = [];
-
   const results = await runWorkerOnce({
-    rootNode,
-    ownerAlias: 'tenant-a',
-    deviceId: 'do-worker',
-    workerCapabilities: 'node,codex',
-    force: true,
-    recordLifeEventImpl: async (content, eventOptions) => {
-      lifeEvents.push({ content, eventOptions });
-      return { id: 'evt-health' };
-    },
-    runAgentTaskImpl: async () => {
-      externalExecutions += 1;
-      throw new Error('health backend must not invoke task orchestrator');
-    },
+    ...options, workerCapabilities: 'node,codex',
+    runAgentTaskImpl: async () => { externalExecutions += 1; throw new Error('must not run'); },
   });
-  const completed = await readTask('health-task', { rootNode, ownerAlias: 'tenant-a' });
-
+  assert.deepEqual(results, []);
   assert.equal(externalExecutions, 0);
-  assert.equal(results.length, 1);
-  assert.equal(results[0].result.backend, 'health');
-  assert.equal(completed.status, 'completed');
-  assert.match(completed.resultSummary, /3dvr-worker-ok/);
-  assert.equal(lifeEvents.length, 0);
+  assert.equal((await readTask('health-task', options)).status, 'queued');
 });
-
 test('worker skips tasks that need approval or unsupported capabilities', async () => {
   const rootNode = fakeRoot();
   await enqueueTask('Deploy site', {
@@ -272,7 +438,7 @@ test('worker skips tasks that need approval or unsupported capabilities', async 
   assert.equal(results.length, 0);
 });
 
-test('unsafe high-risk task is approved and can run on capable worker', async () => {
+test('unsafe flag never grants implicit approval for an external-write task', async () => {
   const rootNode = fakeRoot();
   await enqueueTask('Publish static site', {
     rootNode,
@@ -285,6 +451,9 @@ test('unsafe high-risk task is approved and can run on capable worker', async ()
     force: true,
   });
 
+  const queued = await readTask('task-6', { rootNode, ownerAlias: 'tenant-a' });
+  assert.equal(queued.approvalStatus, 'required');
+  let executions = 0;
   const results = await runWorkerOnce({
     rootNode,
     ownerAlias: 'tenant-a',
@@ -292,19 +461,32 @@ test('unsafe high-risk task is approved and can run on capable worker', async ()
     workerCapabilities: 'node,codex,static-hosting',
     workerRiskClasses: 'read_only,draft,workspace_write,external_write',
     force: true,
-    runAgentTaskImpl: async () => ({
-      ok: true,
-      backend: 'codex',
-      result: { ok: true, stdout: 'published' },
-    }),
+    runAgentTaskImpl: async () => { executions += 1; throw new Error('must not run'); },
   });
-  const completed = await readTask('task-6', { rootNode, ownerAlias: 'tenant-a' });
-
-  assert.equal(results.length, 1);
-  assert.equal(completed.approvalStatus, 'approved');
-  assert.equal(completed.status, 'completed');
+  const after = await readTask('task-6', { rootNode, ownerAlias: 'tenant-a' });
+  assert.equal(executions, 0);
+  assert.equal(results.length, 0);
+  assert.equal(after.status, 'queued');
+  assert.equal(after.approvalStatus, 'required');
 });
 
+test('unsafe cannot masquerade as a draft or inherit a worker-wide bypass', () => {
+  const worker = {
+    workerCapabilities: 'node,codex',
+    workerRiskClasses: 'read_only,draft,workspace_write,external_write',
+  };
+  assert.equal(canWorkerRunTask({
+    backend: 'codex', riskClass: 'draft', unsafe: true, approvalStatus: 'not_required',
+  }, worker).ok, false);
+  assert.equal(canWorkerRunTask({
+    backend: 'codex', riskClass: 'draft', unsafe: true, approvalStatus: 'approved',
+  }, { ...worker, workerRiskClasses: 'read_only,draft' }).ok, false);
+  assert.equal(canWorkerRunTask({
+    backend: 'codex', riskClass: 'draft', approvalStatus: 'not_required',
+  }, { ...worker, unsafe: true }).ok, false);
+  assert.deepEqual(buildTaskArgs({ task: 'Review', backend: 'codex' }, { unsafe: true }),
+    ['--backend', 'codex', '--execute', '--no-print-prompt', 'Review']);
+});
 
 test('gunSyncEnabled can isolate SQLite workers from GUN', () => {
   assert.equal(gunSyncEnabled({ gunSync: false }), false);
