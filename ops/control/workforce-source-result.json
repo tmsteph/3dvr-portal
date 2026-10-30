@@ -1,1 +1,314 @@
-{"ok":false,"error":"Live source read failed; inspect Actions job status"}
+{
+  "ok": true,
+  "localDate": "2026-10-30",
+  "lighthouse": {
+    "checkedAt": "2026-10-30T15:26:03.267Z",
+    "weeksChecked": [
+      "2026-10-26",
+      "2026-11-02",
+      "2026-11-09",
+      "2026-11-16",
+      "2026-11-23",
+      "2026-11-30"
+    ],
+    "days": [
+      {
+        "date": "2026-10-28",
+        "shifts": [
+          {
+            "type": 1,
+            "from": "7:30AM",
+            "to": "4PM",
+            "published": true
+          }
+        ]
+      },
+      {
+        "date": "2026-10-26",
+        "shifts": [
+          {
+            "type": 1,
+            "from": "7AM",
+            "to": "4PM",
+            "published": true
+          }
+        ]
+      },
+      {
+        "date": "2026-10-31",
+        "shifts": [
+          {
+            "type": 6,
+            "from": "7AM",
+            "to": "3PM",
+            "published": true
+          }
+        ]
+      },
+      {
+        "date": "2026-11-01",
+        "shifts": [
+          {
+            "type": 6,
+            "from": "6AM",
+            "to": "2PM",
+            "published": true
+          }
+        ]
+      },
+      {
+        "date": "2026-10-30",
+        "shifts": [
+          {
+            "type": 6,
+            "from": "7AM",
+            "to": "3PM",
+            "published": true
+          }
+        ]
+      },
+      {
+        "date": "2026-11-04",
+        "shifts": [
+          {
+            "type": 3,
+            "from": "6AM",
+            "to": "5:30PM",
+            "published": true
+          }
+        ]
+      },
+      {
+        "date": "2026-11-08",
+        "shifts": [
+          {
+            "type": 3,
+            "from": "9AM",
+            "to": "5PM",
+            "published": true
+          }
+        ]
+      },
+      {
+        "date": "2026-11-05",
+        "shifts": [
+          {
+            "type": 3,
+            "from": "9AM",
+            "to": "2PM",
+            "published": true
+          }
+        ]
+      },
+      {
+        "date": "2026-11-03",
+        "shifts": [
+          {
+            "type": 3,
+            "from": "6:30AM",
+            "to": "5:30PM",
+            "published": true
+          }
+        ]
+      },
+      {
+        "date": "2026-11-02",
+        "shifts": [
+          {
+            "type": 3,
+            "from": "6:30AM",
+            "to": "6PM",
+            "published": true
+          }
+        ]
+      },
+      {
+        "date": "2026-11-09",
+        "shifts": [
+          {
+            "type": 3,
+            "from": "7AM",
+            "to": "6PM",
+            "published": true
+          }
+        ]
+      },
+      {
+        "date": "2026-11-15",
+        "shifts": [
+          {
+            "type": 1,
+            "from": "7AM",
+            "to": "5PM",
+            "published": true
+          }
+        ]
+      },
+      {
+        "date": "2026-11-11",
+        "shifts": [
+          {
+            "type": 3,
+            "from": "7AM",
+            "to": "5PM",
+            "published": true
+          }
+        ]
+      },
+      {
+        "date": "2026-11-14",
+        "shifts": [
+          {
+            "type": 1,
+            "from": "",
+            "to": "",
+            "published": true
+          }
+        ]
+      },
+      {
+        "date": "2026-11-10",
+        "shifts": [
+          {
+            "type": 3,
+            "from": "7AM",
+            "to": "6PM",
+            "published": true
+          }
+        ]
+      },
+      {
+        "date": "2026-11-13",
+        "shifts": [
+          {
+            "type": 1,
+            "from": "",
+            "to": "",
+            "published": true
+          }
+        ]
+      },
+      {
+        "date": "2026-11-12",
+        "shifts": [
+          {
+            "type": 1,
+            "from": "",
+            "to": "",
+            "published": true
+          }
+        ]
+      },
+      {
+        "date": "2026-11-18",
+        "shifts": [
+          {
+            "type": 1,
+            "from": "7AM",
+            "to": "5PM",
+            "published": false
+          }
+        ]
+      },
+      {
+        "date": "2026-11-17",
+        "shifts": [
+          {
+            "type": 1,
+            "from": "7AM",
+            "to": "5PM",
+            "published": false
+          }
+        ]
+      },
+      {
+        "date": "2026-11-16",
+        "shifts": [
+          {
+            "type": 1,
+            "from": "7AM",
+            "to": "5PM",
+            "published": false
+          }
+        ]
+      },
+      {
+        "date": "2026-11-19",
+        "shifts": [
+          {
+            "type": 1,
+            "from": "7AM",
+            "to": "5PM",
+            "published": false
+          }
+        ]
+      },
+      {
+        "date": "2026-11-22",
+        "shifts": [
+          {
+            "type": 1,
+            "from": "2PM",
+            "to": "10:30PM",
+            "published": false
+          }
+        ]
+      },
+      {
+        "date": "2026-11-26",
+        "shifts": [
+          {
+            "type": 8,
+            "from": "",
+            "to": "",
+            "published": false
+          }
+        ]
+      }
+    ]
+  },
+  "iatse": {
+    "values": [
+      {
+        "date": "2026-10-29",
+        "value": "Booked"
+      },
+      {
+        "date": "2026-10-30",
+        "value": "Booked"
+      },
+      {
+        "date": "2026-10-31",
+        "value": "Not Available"
+      },
+      {
+        "date": "2026-11-01",
+        "value": "Not Available"
+      },
+      {
+        "date": "2026-11-02",
+        "value": "Booked"
+      },
+      {
+        "date": "2026-11-03",
+        "value": "Booked"
+      },
+      {
+        "date": "2026-11-04",
+        "value": "Booked"
+      },
+      {
+        "date": "2026-11-05",
+        "value": "Booked"
+      },
+      {
+        "date": "2026-11-06",
+        "value": "Not Available"
+      },
+      {
+        "date": "2026-11-07",
+        "value": "Not Available"
+      }
+    ]
+  }
+}
