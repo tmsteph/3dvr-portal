@@ -71,6 +71,12 @@ test('generic SQLite writers cannot forge, replace, or replay signed HTTP queue 
   assert.equal(saved.task, signed.task);
   assert.equal(saved.status, 'queued');
   assert.equal(saved.queueSource, 'operator-http');
+  // A newer public-relay import must not rewrite the private prompt, result, or provenance.
+  assert.equal(sqliteQueue.importTask({ ...replacement, updatedAt: '2026-10-30T00:02:00.000Z' }, options), false);
+  const afterImport = sqliteQueue.readTask(signed.id, options);
+  assert.equal(afterImport.task, signed.task);
+  assert.equal(afterImport.status, 'queued');
+  assert.equal(afterImport.queueSource, 'operator-http');
 
   const collision = { ...signed, id: 'operator-http-legacy-collision' };
   assert.equal(sqliteQueue.importTask(collision, options), true);
