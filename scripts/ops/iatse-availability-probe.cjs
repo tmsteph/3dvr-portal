@@ -117,12 +117,16 @@ class Cdp {
           || x.tag === 'SELECT' || x.tag === 'INPUT';
       });
 
+      const availabilityValues = [...document.querySelectorAll('select[id^="avail_"]')]
+        .map(el => ({ date: String(el.id || '').slice(6, 16), value: String(el.value || '') }))
+        .filter(row => row.date.length === 10);
       return {
         ok: true,
         url: location.href,
         title: document.title,
         body,
         controls: useful.slice(0, 100),
+        availabilityValues,
       };
     })()`);
 
