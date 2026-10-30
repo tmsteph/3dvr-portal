@@ -84,7 +84,11 @@ test('exact-task-ID pin processes only the authorized signed canary, not the nex
   const queue = {
     listTasks: () => records,
     canWorkerRunTask: () => ({ ok: true }),
-    runQueuedTask: task => { executed.push(task.id); return { ok: true }; },
+    runQueuedTask: (task, options) => {
+      assert.equal(options.onlyTaskId, 'operator-http-pinned');
+      executed.push(task.id);
+      return { ok: true };
+    },
   };
   assert.equal(await runOnce(queue, 'operator-http-pinned'), 1);
   assert.deepEqual(executed, ['operator-http-pinned']);
@@ -93,4 +97,23 @@ test('exact-task-ID pin processes only the authorized signed canary, not the nex
   records[1].queueSource = 'gun';
   assert.equal(await runOnce(queue, 'operator-http-pinned'), 0);
   assert.deepEqual(executed, ['operator-http-pinned']);
+});
+
+
+test('SQLite atomic claim rejects other signed tasks despite a stale worker snapshot', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'operator-private-pin-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const options = { queueDb: join(dir, 'queue.sqlite'), ownerAlias: '3dvr-managed' };
+  const task = id => ({ id, task: 'synthetic only', status: 'queued', backend: 'codex', updatedAt: '2026-10-30T00:00:00.000Z' });
+  const pinnedId = 'operator-http-pinned';
+  const otherId = 'operator-http-other';
+  sqlite.writeTask(task(pinnedId), { ...options, queueSource: 'operator-http' });
+  sqlite.writeTask(task(otherId), { ...options, queueSource: 'operator-http' });
+  const scope = { ...options, onlyTaskId: pinnedId };
+  const now = Date.now();
+  assert.equal(sqlite.claimTask(otherId, 'other-token', 'worker', now + 60000, now, scope), null);
+  assert.equal(sqlite.readTask(otherId, options).status, 'queued');
+  assert.ok(sqlite.claimTask(pinnedId, 'pinned-token', 'worker', now + 60000, now, scope));
+  assert.equal(sqlite.readTask(pinnedId, options).status, 'running');
+  assert.equal(sqlite.readTask(otherId, options).status, 'queued');
 });
