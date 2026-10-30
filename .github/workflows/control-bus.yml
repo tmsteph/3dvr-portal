@@ -35,7 +35,7 @@ jobs:
           service="$(jq -r '.service // empty' ops/control/request.json)"
           test -n "$id"
           case "$action" in
-            status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_promote_secrets|portal_ai_status|portal_points_status|portal_points_reconcile|browser_lane_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard|campaigns_acceptance|campaigns_user_acceptance|campaigns_gmail_handoff|google_oauth_status|ukg_login|ukg_timeoff_status) ;;
+            status|operator_runtime_status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_promote_secrets|portal_ai_status|portal_points_status|portal_points_reconcile|browser_lane_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard|campaigns_acceptance|campaigns_user_acceptance|campaigns_gmail_handoff|google_oauth_status|ukg_login|ukg_timeoff_status) ;;
             restart)
               case "$service" in
                 3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service) ;;
@@ -107,6 +107,37 @@ jobs:
           ssh_opts=(-o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8)
           ovh() { ssh "${ssh_opts[@]}" 3dvr-ovh "$@"; }
           case "$action" in
+            operator_runtime_status)
+              # Read only: aggregate queue metadata, no prompts/results or credential output.
+              timeout 45 ssh "${ssh_opts[@]}" 3dvr-do 'bash -s' <<'QUEUE'
+          set -euo pipefail
+          if [ -f "$HOME/.3dvr/config/env" ]; then set -a; . "$HOME/.3dvr/config/env"; set +a; fi
+          python3 - <<'PYQUEUE'
+          import datetime, json, os, pathlib, sqlite3, subprocess
+          path = pathlib.Path(os.environ.get('THREEDVR_AGENT_QUEUE_DB') or str(pathlib.Path.home() / '.3dvr/task-queue.sqlite'))
+          report = {'ok': False, 'queueStore': os.environ.get('THREEDVR_AGENT_QUEUE_STORE', ''), 'ownerConfigured': os.environ.get('THREEDVR_AGENT_OWNER_ALIAS') == '3dvr-managed', 'databaseExists': path.is_file()}
+          report['workerDaemonPresent'] = subprocess.run(['tmux', 'has-session', '-t', os.environ.get('THREEDVR_AGENT_WORKER_TMUX_SESSION', '3dvr-worker')], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+          if path.is_file():
+              db = sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True, timeout=5)
+              try:
+                  rows = db.execute("SELECT id,status,record_json,updated_at FROM tasks WHERE owner_alias=?", ('3dvr-managed',))
+                  counts, backends, recent = {}, {}, []
+                  for task_id, status, raw, updated in rows:
+                      record = json.loads(raw)
+                      counts[status] = counts.get(status, 0) + 1
+                      backend = str(record.get('backend') or 'unset')[:40]
+                      key = backend + ':' + status
+                      backends[key] = backends.get(key, 0) + 1
+                      if task_id.startswith('operator-http-'):
+                          recent.append({'status':status, 'backend':backend, 'updatedAt':updated, 'errorPresent':bool(record.get('error'))})
+                  report.update(ok=True, counts=counts, backendCounts=backends, recentHttpTasks=sorted(recent, key=lambda r: str(r['updatedAt']), reverse=True)[:10])
+              finally:
+                  db.close()
+          report['checkedAt'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+          print(json.dumps(report))
+          PYQUEUE
+          QUEUE
+              ;;
             browser_lane_status)
               ovh 'bash -s' <<'OVH'
           set -euo pipefail
