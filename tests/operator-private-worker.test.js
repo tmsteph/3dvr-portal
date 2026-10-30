@@ -23,7 +23,8 @@ test('private worker preserves legacy, running, unsafe, and policy-blocked tasks
   const queue = {
     listTasks: options => { assert.deepEqual(options, { queueStore: 'sqlite', gunSync: false }); return records; },
     canWorkerRunTask: record => ({ ok: record.id !== 'operator-http-policy-blocked' }),
-    runQueuedTask: (record, options) => { calls.push({ id: record.id, options }); return { ok: true }; }
+    runQueuedTask: (record, options) => { calls.push({ id: record.id, options }); return { ok: true }; },
+    readTask: () => ({ status: 'completed', queueSource: 'operator-http', resultText: 'saved synthetic result' })
   };
   assert.equal(await runOnce(queue), 1);
   assert.deepEqual(calls, [{ id: 'operator-http-ready', options: { queueStore: 'sqlite', gunSync: false } }]);
@@ -220,6 +221,7 @@ test('shared worker reports a failed native task and continues to unrelated work
     listTasks: () => [tasks[poll++]],
     canWorkerRunTask: () => ({ ok: true }),
     runQueuedTask: task => ({ ok: task.id === 'operator-http-succeeded' }),
+    readTask: () => ({ status: 'completed', queueSource: 'operator-http', resultText: 'saved synthetic result' }),
   };
   await assert.rejects(runLoop(queue, {
     pollMs: 1,
@@ -255,6 +257,42 @@ test('pinned canary rejects a successful executor return without a durable signe
     runQueuedTask: () => ({ ok: true }),
     readTask: () => { throw new Error('synthetic read failure'); },
   }, record.id), -1);
+});
+
+test('continuous private worker does not report success without a durable signed result', async () => {
+  const record = { id: 'operator-http-unpinned', status: 'queued',
+    backend: 'codex', queueSource: 'operator-http' };
+  const invalidReceipts = [
+    null,
+    { status: 'running', queueSource: 'operator-http', resultText: 'synthetic' },
+    { status: 'completed', queueSource: 'gun', resultText: 'synthetic' },
+    { status: 'completed', queueSource: 'operator-http', resultText: '' },
+  ];
+  for (const receipt of invalidReceipts) {
+    const queue = {
+      listTasks: () => [record],
+      canWorkerRunTask: () => ({ ok: true }),
+      runQueuedTask: () => ({ ok: true }),
+      readTask: (id, options) => {
+        assert.equal(id, record.id);
+        assert.deepEqual(options, { queueStore: 'sqlite', gunSync: false });
+        return receipt;
+      },
+    };
+    assert.equal(await runOnce(queue), -1);
+  }
+  assert.equal(await runOnce({
+    listTasks: () => [record],
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: () => ({ ok: true }),
+    readTask: () => { throw new Error('synthetic unavailable store'); },
+  }), -1);
+  assert.equal(await runOnce({
+    listTasks: () => [record],
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: () => ({ ok: true }),
+    readTask: () => ({ status: 'completed', queueSource: 'operator-http', resultText: 'saved result' }),
+  }), 1);
 });
 
 test('pinned canary reads back the exact completed signed SQLite task with saved result', async (t) => {
