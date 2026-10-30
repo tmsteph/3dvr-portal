@@ -1,6 +1,6 @@
 {
-  "id": "operator-runtime-diagnosis-20261030",
-  "action": "operator_runtime_status",
+  "id": "operator-private-worker-recovery-20261030",
+  "action": "operator_runtime_recover",
   "service": "",
-  "requestedAt": "2026-10-30T05:45:00Z"
+  "requestedAt": "2026-10-30T05:50:00Z"
 }

@@ -41,3 +41,16 @@ New HTTP task prompts/results never mirror to public Gun or the shared organism 
 The queue's old capability and approval settings stay unchanged. Verify a harmless task
 through signed HTTP -> SQLite -> worker -> Hetzner -> saved result; an accepted write
 or a health-only result is insufficient.
+
+## Private worker supervision
+
+`3dvr-operator-private-worker.service` supervises the lightweight private SQLite
+consumer on the existing queue host. It runs one queued `operator-http-` Codex task
+at a time through the existing claim and result code, retaining configured approval
+and capability checks. It does not consume legacy tasks, recover uncertain running
+tasks, sync private work to Gun, or move Codex credentials off Hetzner.
+
+The Control Bus actions `operator_runtime_status` and `operator_runtime_recover`
+inspect aggregate queue metadata and restore this service respectively. Recovery
+installs the worker from its exact workflow commit and checks a synthetic read-only
+Codex task through SQLite, the worker, Hetzner, and saved output.

@@ -35,7 +35,7 @@ jobs:
           service="$(jq -r '.service // empty' ops/control/request.json)"
           test -n "$id"
           case "$action" in
-            status|operator_runtime_status|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_promote_secrets|portal_ai_status|portal_points_status|portal_points_reconcile|browser_lane_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard|campaigns_acceptance|campaigns_user_acceptance|campaigns_gmail_handoff|google_oauth_status|ukg_login|ukg_timeoff_status) ;;
+            status|operator_runtime_status|operator_runtime_recover|termux_status|openbao_status|portal_backend_status|portal_key_status|portal_env_status|portal_promote_secrets|portal_ai_status|portal_points_status|portal_points_reconcile|browser_lane_status|openai_admin_status|openai_admin_handoff|openai_admin_stage|openai_admin_store_clipboard|campaigns_acceptance|campaigns_user_acceptance|campaigns_gmail_handoff|google_oauth_status|ukg_login|ukg_timeoff_status) ;;
             restart)
               case "$service" in
                 3dvr-personal-mcp.service|3dvr-secrets-broker.service|3dvr-self-host-portal.service|3dvr-portal.service|openbao.service) ;;
@@ -100,18 +100,78 @@ jobs:
         run: |
           set -euo pipefail
           opts=(-i "$HETZNER_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
-          ssh "${opts[@]}" "$HETZNER_USER@$HETZNER_HOST" bash -s -- "$ACTION" "$SERVICE" > /tmp/control-result.json <<'REMOTE'
+          ssh "${opts[@]}" "$HETZNER_USER@$HETZNER_HOST" bash -s -- "$ACTION" "$SERVICE" "${{ github.sha }}" > /tmp/control-result.json <<'REMOTE'
           set -euo pipefail
           action=${1:-}
           service=${2:-}
+          source_sha=${3:-}
           ssh_opts=(-o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8)
           ovh() { ssh "${ssh_opts[@]}" 3dvr-ovh "$@"; }
           case "$action" in
-            operator_runtime_status)
+            operator_runtime_status|operator_runtime_recover)
               # Read only: aggregate queue metadata, no prompts/results or credential output.
-              timeout 45 ssh "${ssh_opts[@]}" 3dvr-do 'bash -s' <<'QUEUE'
+              timeout 280 ssh "${ssh_opts[@]}" 3dvr-do bash -s -- "$action" "$source_sha" <<'QUEUE'
           set -euo pipefail
           if [ -f "$HOME/.3dvr/config/env" ]; then set -a; . "$HOME/.3dvr/config/env"; set +a; fi
+          if [ "$1" = operator_runtime_recover ]; then
+            [[ "$2" =~ ^[a-f0-9]{40}$ ]] || exit 64
+            umask 077
+            target="$HOME/.3dvr/operator-private-worker.cjs"
+            candidate="$(mktemp)"
+            trap 'rm -f "$candidate"' EXIT
+            curl -fsS --max-time 25 "https://raw.githubusercontent.com/tmsteph/3dvr-portal/$2/scripts/ops/operator-private-worker.cjs" -o "$candidate"
+            /opt/node-v22/bin/node --check < "$candidate"
+            install -m 600 "$candidate" "$target"
+            cat > /etc/systemd/system/3dvr-operator-private-worker.service <<UNIT
+          [Unit]
+          Description=Private Operator SQLite queue worker
+          After=network-online.target
+          Wants=network-online.target
+          [Service]
+          Type=simple
+          EnvironmentFile=$HOME/.3dvr/config/env
+          Environment=THREEDVR_PRIVATE_AGENT_ROOT=$HOME/.3dvr/portal/apps/agent
+          ExecStart=/opt/node-v22/bin/node $target
+          Restart=always
+          RestartSec=10
+          MemoryMax=256M
+          CPUQuota=25%
+          TasksMax=32
+          UMask=0077
+          [Install]
+          WantedBy=multi-user.target
+          UNIT
+            systemctl daemon-reload
+            systemctl enable --now 3dvr-operator-private-worker.service >/dev/null
+            export THREEDVR_AGENT_QUEUE_GUN_SYNC=0
+            export THREEDVR_PRIVATE_AGENT_ROOT="$HOME/.3dvr/portal/apps/agent"
+            export OPERATOR_CHECK_ID="operator-http-recovery-check-${2:0:12}"
+            check_output="$(mktemp)"
+            trap 'rm -f "$candidate" "$check_output"' EXIT
+            /opt/node-v22/bin/node - >"$check_output" <<'CHECK'
+          const path = require('node:path');
+          const queue = require(path.join(process.env.THREEDVR_PRIVATE_AGENT_ROOT, 'thomas-agent/node/agent-task-queue.js'));
+          (async () => {
+            const options = { queueStore:'sqlite', gunSync:false };
+            const id = process.env.OPERATOR_CHECK_ID;
+            if (!await queue.readTask(id, options)) await queue.enqueueTask('Return exactly OPERATOR WORKER OK. Make no changes and use no tools.', { ...options,id,backend:'codex',riskClass:'read_only',approvalStatus:'approved',requiredCapabilities:'codex' });
+            const deadline = Date.now() + 220000;
+            while (Date.now() < deadline) {
+              const record = await queue.readTask(id, options);
+              if (['completed','failed','skipped'].includes(record?.status)) {
+                const passed = record.status === 'completed' && String(record.resultText || record.resultSummary).includes('OPERATOR WORKER OK');
+                console.log(JSON.stringify({ok:passed,syntheticTaskStatus:record.status,nativeCodexReplyVerified:passed}));
+                process.exit(passed ? 0 : 1);
+              }
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+            console.log(JSON.stringify({ok:false,error:'Private worker verification timed out.'}));
+            process.exit(1);
+          })().catch(() => { console.log(JSON.stringify({ok:false,error:'Private worker verification failed.'})); process.exit(1); });
+          CHECK
+            tail -n 1 "$check_output"
+            exit 0
+          fi
           python3 - <<'PYQUEUE'
           import datetime, json, os, pathlib, sqlite3, subprocess
           path = pathlib.Path(os.environ.get('THREEDVR_AGENT_QUEUE_DB') or str(pathlib.Path.home() / '.3dvr/task-queue.sqlite'))
@@ -133,6 +193,7 @@ jobs:
                   report.update(ok=True, counts=counts, backendCounts=backends, recentHttpTasks=sorted(recent, key=lambda r: str(r['updatedAt']), reverse=True)[:10])
               finally:
                   db.close()
+          report['privateWorkerServiceActive'] = subprocess.run(['systemctl', 'is-active', '--quiet', '3dvr-operator-private-worker.service']).returncode == 0
           report['checkedAt'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
           print(json.dumps(report))
           PYQUEUE
