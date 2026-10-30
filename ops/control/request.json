@@ -1,6 +1,6 @@
 {
-  "id": "founder-operator-readonly-census-20261030-0700",
-  "action": "operator_runtime_status",
+  "id": "founder-oneplus-reverse-listener-20261030-0703",
+  "action": "termux_status",
   "service": "",
-  "requestedAt": "2026-10-30T07:00:00Z"
+  "requestedAt": "2026-10-30T07:03:00Z"
 }
