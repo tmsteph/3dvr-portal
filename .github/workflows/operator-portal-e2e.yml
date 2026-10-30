@@ -68,7 +68,7 @@ jobs:
   # release blocker, not permission to drop either side's protections.
   main-reconciliation-preview:
     if: github.event_name == 'pull_request' && github.base_ref == 'operator/queue-routing-audit-20261022-v2'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
