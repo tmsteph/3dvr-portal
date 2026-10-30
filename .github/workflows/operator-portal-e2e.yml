@@ -15,6 +15,7 @@ on:
     paths:
       - '.github/e2e/operator-e2e-mode.txt'
       - 'scripts/operator-portal-e2e.mjs'
+      - 'scripts/operator-navigation-e2e.mjs'
       - 'scripts/ops/operator-private-worker.cjs'
       - 'tests/operator-private-worker.test.js'
       - 'tests/operator-dispatch.test.js'
@@ -85,13 +86,28 @@ jobs:
           status=$?
           set -e
           if [ "$status" -ne 0 ]; then
-            echo '### Operator integration with current main: blocked' >> "$GITHUB_STEP_SUMMARY"
-            echo 'The draft cannot be released without reviewing these merge conflicts:' >> "$GITHUB_STEP_SUMMARY"
-            git diff --name-only --diff-filter=U | tee -a "$GITHUB_STEP_SUMMARY"
-            cat /tmp/operator-main-merge.log
-            exit 1
+            # Main and the stacked draft independently added the same worker and
+            # tests. Resolve ONLY these three reviewed overlaps in this disposable
+            # test checkout. Any new conflict fails closed for human review.
+            expected=$(printf '%s\\n' '.github/workflows/operator-portal-e2e.yml' 'scripts/ops/operator-private-worker.cjs' 'tests/operator-private-worker.test.js' | sort)
+            actual=$(git diff --name-only --diff-filter=U | sort)
+            if [ "$actual" != "$expected" ]; then
+              echo '### Unexpected main integration conflicts; human review required' >> "$GITHUB_STEP_SUMMARY"
+              git diff --name-only --diff-filter=U | tee -a "$GITHUB_STEP_SUMMARY"
+              cat /tmp/operator-main-merge.log
+              exit 1
+            fi
+            git checkout --ours -- .github/workflows/operator-portal-e2e.yml scripts/ops/operator-private-worker.cjs tests/operator-private-worker.test.js
+            git add -- .github/workflows/operator-portal-e2e.yml scripts/ops/operator-private-worker.cjs tests/operator-private-worker.test.js
+            echo '### Preview: three known overlaps resolved using the strict stacked versions' >> "$GITHUB_STEP_SUMMARY"
+            echo 'This is an isolated merge preview, not an approved release merge.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '### Operator integration with current main: clean merge preview' >> "$GITHUB_STEP_SUMMARY"
           fi
-          echo '### Operator integration with current main: clean merge preview' >> "$GITHUB_STEP_SUMMARY"
+          # Preserve the main-only navigation regression when selecting the
+          # stricter stacked workflow version during the preview.
+          grep -Fq 'node scripts/operator-navigation-e2e.mjs' .github/workflows/operator-portal-e2e.yml
+          test -z "$(git diff --name-only --diff-filter=U)"
           echo 'No commit, push, deployment, or live task execution occurred.' >> "$GITHUB_STEP_SUMMARY"
       - name: Test queue and dispatch against the main reconciliation preview
         run: node --test tests/operator-private-worker.test.js tests/operator-dispatch.test.js
@@ -114,6 +130,7 @@ jobs:
           node --test tests/operator-private-worker.test.js tests/operator-dispatch.test.js
           node --test --test-concurrency=1 tests/home-operator-persistence.e2e.test.js tests/operator-device-sync.e2e.test.js
           node scripts/operator-attachment-branch-e2e.mjs
+          node scripts/operator-navigation-e2e.mjs
       - name: Run production acceptance test
         if: github.event_name == 'workflow_dispatch'
         env:
