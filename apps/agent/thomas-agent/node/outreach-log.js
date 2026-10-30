@@ -75,7 +75,7 @@ function formatOutreachLogEntry(entry = {}) {
   const pieces = [
     entry.timestamp || '',
     entry.kind || 'email',
-    entry.status || 'sent',
+    entry.status || 'unverified',
     entry.name || '',
     entry.route ? `route=${entry.route}` : '',
     entry.source ? `source=${entry.source}` : '',
