@@ -1564,3 +1564,23 @@ test('legacy exact-task-ID environment pin fails closed at atomic SQLite claim',
     else process.env.THREEDVR_AGENT_ONLY_TASK_ID = originalLegacy;
   }
 });
+
+test('public GUN imports cannot squat on signed HTTP task IDs or overwrite signed admission', async (t) => {
+  const options = await queueOptions(t, { ownerAlias: '3dvr-managed' });
+  const id = 'operator-http-signed-namespace-isolation';
+  const mirror = {
+    id, task: 'untrusted relay intent', backend: 'codex',
+    status: 'queued', updatedAt: '2026-10-30T00:00:00.000Z',
+  };
+  assert.equal(sqliteQueue.importTask(mirror, options), false);
+  assert.equal(sqliteQueue.readTask(id, options), null, 'relay cannot reserve signed namespace');
+
+  sqliteQueue.insertTask({ ...mirror, task: 'signed owner intent' },
+    { ...options, queueSource: 'operator-http' });
+  assert.equal(sqliteQueue.readTask(id, options).queueSource, 'operator-http');
+  assert.equal(sqliteQueue.importTask({
+    ...mirror, status: 'completed', updatedAt: '2026-10-30T00:01:00.000Z',
+  }, options), false, 'relay cannot fabricate a terminal signed result');
+  assert.equal(sqliteQueue.readTask(id, options).status, 'queued');
+  assert.equal(sqliteQueue.readTask(id, options).task, 'signed owner intent');
+});
