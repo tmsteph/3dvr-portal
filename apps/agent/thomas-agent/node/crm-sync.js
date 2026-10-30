@@ -87,7 +87,11 @@ function shouldSyncLeadToCrm(lead, options = {}) {
 function buildLeadId(lead) {
   const email = normalizeEmail(lead.contact);
   const seed = email || lead.link || lead.name;
-  return `agent-lead-${slugify(seed || lead.name)}`;
+  // A website identifies a business, not a particular person. Preserve the
+  // existing email-based IDs; distinguish site-only people by stable name hash.
+  const siteOnlySuffix = !email && normalizeText(lead.link)
+    ? `-${stableHash(normalizeLower(lead.name))}` : '';
+  return `agent-lead-${slugify(seed || lead.name)}${siteOnlySuffix}`;
 }
 
 function contactIdentity(value = {}) {
@@ -107,7 +111,13 @@ function contactsMatch(left = {}, right = {}) {
 
   const leftSite = normalizeLower(left.link || left.site);
   const rightSite = normalizeLower(right.link || right.site);
-  if (leftSite && rightSite) return leftSite === rightSite;
+  // A shared website alone cannot attribute a reply, opt-out or sent message
+  // to one person at a business. Require the same named site-only contact.
+  if (leftSite && rightSite) {
+    const leftName = normalizeLower(left.name);
+    const rightName = normalizeLower(right.name);
+    return Boolean(leftName && rightName && leftName === rightName && leftSite === rightSite);
+  }
 
   // Never attribute a sent message, reply, or opt-out from a name alone.
   // A name-only outreach log must remain unmatched pending identity review.
