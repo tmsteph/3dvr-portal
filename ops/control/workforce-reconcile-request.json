@@ -1,5 +1,34 @@
 {
-  "id": "manual-iatse-apply-20260927T0012Z",
+  "id": "workforce-2026-10-30-verified-noop",
   "mode": "iatse_apply",
-  "requestedAt": "2026-09-27T00:12:00Z"
+  "requestedAt": "2026-10-30T15:35:00Z",
+  "desired": {
+    "2026-10-30": "Booked",
+    "2026-10-31": "Not Available",
+    "2026-11-01": "Not Available",
+    "2026-11-02": "Booked",
+    "2026-11-03": "Booked",
+    "2026-11-04": "Booked",
+    "2026-11-05": "Booked",
+    "2026-11-06": "Not Available",
+    "2026-11-07": "Not Available",
+    "2026-11-08": "Booked",
+    "2026-11-09": "Booked",
+    "2026-11-10": "Booked",
+    "2026-11-11": "Booked",
+    "2026-11-12": "Not Available",
+    "2026-11-13": "Not Available",
+    "2026-11-14": "Not Available",
+    "2026-11-15": "Booked",
+    "2026-11-16": "Booked",
+    "2026-11-17": "Booked",
+    "2026-11-18": "Booked",
+    "2026-11-19": "Booked",
+    "2026-11-20": "Not Available",
+    "2026-11-21": "Not Available",
+    "2026-11-22": "Booked",
+    "2026-11-23": "All Day",
+    "2026-11-24": "All Day",
+    "2026-11-25": "All Day"
+  }
 }
