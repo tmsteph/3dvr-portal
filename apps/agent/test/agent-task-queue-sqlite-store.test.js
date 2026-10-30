@@ -79,9 +79,11 @@ test('generic SQLite writers cannot forge, replace, or replay signed HTTP queue 
   assert.equal(afterImport.queueSource, 'operator-http');
 
   const collision = { ...signed, id: 'operator-http-legacy-collision' };
-  assert.equal(sqliteQueue.importTask(collision, options), true);
-  assert.throws(() => sqliteQueue.writeTask(collision, { ...options, queueSource: 'operator-http' }), /already exists/i);
-  assert.equal(sqliteQueue.readTask(collision.id, options).queueSource, 'gun');
+  // A public import cannot squat on an as-yet-unallocated signed ID.
+  assert.equal(sqliteQueue.importTask(collision, options), false);
+  assert.equal(sqliteQueue.readTask(collision.id, options), null);
+  sqliteQueue.writeTask(collision, { ...options, queueSource: 'operator-http' });
+  assert.equal(sqliteQueue.readTask(collision.id, options).queueSource, 'operator-http');
 
   const ordinary = { ...signed, id: 'ordinary-task' };
   sqliteQueue.writeTask(ordinary, options);
