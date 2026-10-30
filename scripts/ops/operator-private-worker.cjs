@@ -14,8 +14,10 @@ async function runOnce(queue, onlyTaskId = '') {
   // Reuse the existing atomic claim, native executor, and private result storage.
   // Running/uncertain and legacy relay tasks are never replayed by this worker.
   const result = await queue.runQueuedTask(task, options);
-  // A lost claim or policy skip is not an execution receipt.
-  return result && result.skipped !== true ? 1 : 0;
+  // A failed native execution has a durable failed result, not a successful
+  // canary receipt. Distinguish it from a lost claim/policy skip.
+  if (result?.skipped === true) return 0;
+  return result?.ok === true ? 1 : -1;
 }
 
 async function main() {
@@ -46,6 +48,7 @@ async function main() {
 // Waiting briefly permits admission to arrive after supervisor startup, but a
 // missing, blocked, or already-terminal task must produce a visible failure.
 const PIN_TIMEOUT_MESSAGE = 'Pinned Operator canary timed out without an execution receipt; inspect exact task status.';
+const PIN_FAILED_MESSAGE = 'Pinned Operator canary failed; inspect exact task result in the owner queue.';
 async function runLoop(queue, {
   onlyTaskId = '',
   pollMs = 10000,
@@ -57,7 +60,8 @@ async function runLoop(queue, {
   const startedAt = now();
   for (;;) {
     const count = await runOnce(queue, onlyTaskId);
-    if (count) {
+    if (count < 0 && onlyTaskId) throw new Error(PIN_FAILED_MESSAGE);
+    if (count > 0) {
       onProcessed();
       // A pinned worker never broadens to another queued task.
       if (onlyTaskId) return 1;
@@ -71,8 +75,8 @@ async function runLoop(queue, {
 
 module.exports = { runOnce, runLoop };
 if (require.main === module) main().catch(error => {
-  console.error(error?.message === PIN_TIMEOUT_MESSAGE
-    ? PIN_TIMEOUT_MESSAGE
+  console.error([PIN_TIMEOUT_MESSAGE, PIN_FAILED_MESSAGE].includes(error?.message)
+    ? error.message
     : 'Private Operator worker stopped; inspect queue configuration and transport.');
   process.exit(1);
 });
