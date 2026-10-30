@@ -238,13 +238,13 @@ test('missing outreach status cannot fabricate a sent CRM touch or contacted lea
   const payload = buildCrmSyncPayload({
     leads: [{
       name: 'Synthetic Prospect',
-      link: 'https://prospect.example.test',
-      contact: 'mailto:prospect@example.test',
+      link: 'https://prospect.example',
+      contact: 'mailto:prospect@example.com',
       status: 'new',
     }],
     outreach: [{
       name: 'Synthetic Prospect',
-      contact: 'mailto:prospect@example.test',
+      contact: 'mailto:prospect@example.com',
       timestamp: '2026-10-29T12:00:00Z',
     }],
     now: '2026-10-29T12:01:00Z',
