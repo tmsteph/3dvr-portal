@@ -5,6 +5,8 @@ const os = require('node:os');
 const path = require('node:path');
 
 const {
+  assertCrmSyncSucceeded,
+  auditSiteOnlyCrmMigration,
   buildCrmRecord,
   buildCrmSyncPayload,
   buildLeadId,
@@ -79,6 +81,7 @@ test('buildCrmSyncPayload creates records and stable touch log entries', () => {
       kind: 'email',
       status: 'sent',
       name: 'Finest City Home and Loans',
+      contact: 'mailto:team@loans.example',
       route: 'email',
       subject: 'Question for Finest City Home and Loans',
     },
@@ -151,6 +154,112 @@ test('buildCrmSyncPayload deduplicates a lead and its outreach by email', () => 
   assert.equal(payload.records[0].replyCount, 1);
   assert.equal(payload.touches.length, 2);
   assert.equal(payload.touches.find(touch => touch.source === '3dvr-agent/outreach-log').touchType, 'reply-received');
+});
+
+test('CRM consolidates multiple outreach-only events into one contact and retains their history', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [],
+    outreach: [
+      { name: 'New Automation Buyer', contact: 'mailto:owner@buyer.example', status: 'sent', timestamp: '2026-10-23T10:00:00.000Z' },
+      { name: 'New Automation Buyer', contact: 'mailto:owner@buyer.example', status: 'replied', timestamp: '2026-10-24T10:00:00.000Z' },
+    ],
+    now: '2026-10-24T12:00:00.000Z',
+  });
+
+  assert.equal(payload.records.length, 1);
+  assert.equal(payload.records[0].email, 'owner@buyer.example');
+  assert.equal(payload.records[0].status, 'Warm - Discovery');
+  assert.equal(payload.records[0].replyCount, 1);
+  assert.equal(payload.touches.length, 3);
+  assert.equal(payload.touches.filter(touch => touch.source === '3dvr-agent/outreach-log').length, 2);
+});
+
+test('CRM never attributes a reply by shared name when contact identities differ or are ambiguous', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [
+      { name: 'Shared Business Name', link: 'https://first.example', contact: 'mailto:first@first.example', status: 'new' },
+      { name: 'Shared Business Name', link: 'https://second.example', contact: 'mailto:second@second.example', status: 'new' },
+    ],
+    outreach: [
+      { name: 'Shared Business Name', contact: 'mailto:first@first.example', status: 'replied', timestamp: '2026-10-24T10:00:00.000Z' },
+      { name: 'Shared Business Name', status: 'replied', timestamp: '2026-10-24T11:00:00.000Z', body: 'Unattributed reply' },
+    ],
+    now: '2026-10-24T12:00:00.000Z',
+  });
+
+  assert.equal(payload.records.length, 2);
+  const first = payload.records.find(record => record.email === 'first@first.example');
+  const second = payload.records.find(record => record.email === 'second@second.example');
+  assert.equal(first.status, 'Warm - Discovery');
+  assert.equal(first.replyCount, 1);
+  assert.equal(second.status, 'Lead');
+  assert.equal(second.replyCount, undefined);
+  assert.equal(payload.touches.length, 3);
+  const reply = payload.touches.find(touch => touch.touchType === 'reply-received');
+  assert.equal(reply.recordId, first.id);
+  assert.ok(!payload.touches.some(touch => touch.message === 'Unattributed reply'));
+});
+
+test('CRM never attributes a name-only send or reply even when exactly one lead shares that name', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [{ name: 'Unique Synthetic Buyer', link: 'https://buyer.example',
+      contact: 'mailto:owner@buyer.example', status: 'new' }],
+    outreach: [
+      { name: 'Unique Synthetic Buyer', status: 'sent',
+        timestamp: '2026-10-29T12:00:00.000Z', body: 'Unverified send log' },
+      { name: 'Unique Synthetic Buyer', status: 'replied',
+        timestamp: '2026-10-29T13:00:00.000Z', body: 'Unverified reply log' }
+    ],
+    now: '2026-10-29T14:00:00.000Z'
+  });
+  assert.equal(payload.records.length, 1);
+  assert.equal(payload.records[0].status, 'Lead');
+  assert.equal(payload.records[0].lastContacted, '');
+  assert.equal(payload.records[0].replyCount, undefined);
+  assert.equal(payload.touches.filter(touch => touch.source === '3dvr-agent/outreach-log').length, 0);
+});
+
+test('CRM does not merge distinct email identities merely because they share a website', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [{ name: 'Shared Firm', link: 'https://shared.example',
+      contact: 'mailto:alice@shared.example', status: 'new' }],
+    outreach: [{ name: 'Shared Firm', site: 'https://shared.example',
+      contact: 'mailto:bob@shared.example', status: 'replied',
+      timestamp: '2026-10-29T13:00:00.000Z' }],
+    now: '2026-10-29T14:00:00.000Z'
+  });
+  const alice = payload.records.find(record => record.email === 'alice@shared.example');
+  assert.ok(alice);
+  assert.equal(alice.status, 'Lead');
+  assert.equal(alice.replyCount, undefined);
+  assert.ok(!payload.touches.some(touch => touch.source === '3dvr-agent/outreach-log' &&
+    touch.recordId === alice.id));
+});
+
+test('missing outreach status cannot fabricate a sent CRM touch or contacted lead', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [{
+      name: 'Synthetic Prospect',
+      link: 'https://prospect.example',
+      contact: 'mailto:prospect@example.com',
+      status: 'new',
+    }],
+    outreach: [{
+      name: 'Synthetic Prospect',
+      contact: 'mailto:prospect@example.com',
+      timestamp: '2026-10-29T12:00:00Z',
+    }],
+    now: '2026-10-29T12:01:00Z',
+  });
+  assert.equal(payload.records.length, 1);
+  assert.equal(payload.records[0].status, 'Lead');
+  assert.equal(payload.records[0].lastContacted, '');
+  assert.equal(payload.records[0].lastTouchType, 'outreach-unverified');
+  const touch = payload.touches.find(item => item.source === '3dvr-agent/outreach-log');
+  assert.ok(touch);
+  assert.equal(touch.touchType, 'outreach-unverified');
+  assert.equal(touch.deliveryStatus, 'unverified');
+  assert.notEqual(touch.type, 'message');
 });
 
 test('shouldSyncLeadToCrm keeps the default CRM import focused on useful leads', () => {
@@ -239,7 +348,346 @@ test('writeCrmSync writes records and touches through provided Gun roots', async
   assert.equal(writes[1].id, payload.touches[0].id);
 });
 
+test('CRM sync never writes orphan activity when its parent record fails ACK', async () => {
+  const recordWrites = [];
+  const touchWrites = [];
+  const crmRoot = {
+    get(id) {
+      return {
+        put(payload, cb) {
+          recordWrites.push({ id, payload });
+          cb(id === 'blocked-record' ? { err: 'synthetic parent failure' } : { ok: true });
+        }
+      };
+    }
+  };
+  const payload = {
+    records: [{ id: 'good-record' }, { id: 'blocked-record' }],
+    touches: [
+      { id: 'good-touch', recordId: 'good-record', crmRecordId: 'good-record' },
+      { id: 'orphan-touch', recordId: 'blocked-record', crmRecordId: 'blocked-record' },
+      { id: 'mismatched-touch', recordId: 'good-record', crmRecordId: 'blocked-record' },
+    ]
+  };
+  const result = await writeCrmSync(payload, {
+    crmRoot,
+    touchRoot: fakeGunRoot(touchWrites, 'touch'),
+    timeoutMs: 100
+  });
+  assert.equal(recordWrites.length, 2);
+  assert.equal(result.records, 1);
+  assert.equal(result.touches, 1);
+  assert.equal(result.errors.length, 3);
+  assert.deepEqual(touchWrites.map(write => write.id), ['good-touch'],
+    'no activity may be persisted for a failed or mismatched parent');
+  assert.ok(result.errors.some(error => error.includes('blocked-record')));
+  assert.ok(result.errors.some(error => error.includes('orphan-touch')));
+  assert.ok(result.errors.some(error => error.includes('mismatched-touch')));
+});
+
+
+test('CRM sync treats partial or rejected Gun ACKs as a failed run without leaking record IDs', () => {
+  const complete = { records: 2, touches: 3, errors: [] };
+  assert.equal(assertCrmSyncSucceeded(complete), complete);
+  for (const errors of [
+    ['record private-id: synthetic rejection'],
+    ['record private-id: synthetic rejection', 'touch private-id: parent not acknowledged'],
+  ]) {
+    assert.throws(() => assertCrmSyncSucceeded({ records: 1, touches: 0, errors }), error => {
+      assert.equal(error.code, 'CRM_SYNC_INCOMPLETE');
+      assert.match(error.message, new RegExp(`\\b${errors.length} write error\\(s\\)`));
+      assert.doesNotMatch(error.message, /private-id|synthetic rejection/);
+      return true;
+    });
+  }
+});
+
 test('normalizeEmail strips mailto and rejects non-email contacts', () => {
   assert.equal(normalizeEmail('mailto:Owner@Example.com'), 'owner@example.com');
   assert.equal(normalizeEmail('https://example.com/contact'), '');
+});
+
+test('writeCrmSync rejects missing or negative Gun acknowledgments', async () => {
+  const ackRoot = ack => ({
+    get() { return { put(_payload, cb) { cb(ack); } }; }
+  });
+  const payload = {
+    records: [{ id: 'synthetic-record' }],
+    touches: [{ id: 'synthetic-touch' }]
+  };
+  for (const ack of [undefined, null, { ok: false }, { ok: 0 }, { ok: -1 }, { ok: 'yes' }, { err: 'synthetic rejection' }]) {
+    const result = await writeCrmSync(payload, {
+      crmRoot: ackRoot(ack),
+      touchRoot: ackRoot(ack),
+      timeoutMs: 100
+    });
+    assert.equal(result.records, 0);
+    assert.equal(result.touches, 0);
+    assert.equal(result.errors.length, 2);
+  }
+});
+
+test('legacy contacted CSV status remains a note without verified outbound evidence', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [{
+      name: 'Synthetic Legacy Contact',
+      link: 'https://legacy-contact.example',
+      contact: 'mailto:contact@legacy-contact.example',
+      status: 'contacted',
+      date: '2026-10-01',
+    }],
+    outreach: [],
+    now: '2026-10-29T18:29:00Z',
+  });
+  assert.equal(payload.records.length, 1);
+  assert.equal(payload.touches.length, 1);
+  assert.equal(payload.touches[0].source, '3dvr-agent/leads.csv');
+  assert.equal(payload.touches[0].type, 'note');
+  assert.ok(!payload.touches.some(touch => touch.type === 'message' ||
+    touch.touchType === 'outreach-sent'),
+    'a legacy CSV status alone cannot establish that an outbound message was sent');
+});
+
+test('legacy closed lead does not invent a won deal, customer, or paid outcome', () => {
+  const record = buildCrmRecord({
+    name: 'Synthetic closed lead',
+    link: 'https://example.test',
+    contact: 'mailto:closed@example.test',
+    status: 'closed',
+    date: '2026-10-23'
+  }, { now: '2026-10-23T12:00:00.000Z' });
+  assert.equal(record.status, 'Closed');
+  assert.equal(record.warmth, '');
+  assert.equal(record.pilotStatus, '');
+  assert.match(record.nextBestAction, /do not contact/i);
+  assert.match(record.nextBestAction, /verify the outcome and payment/i);
+  assert.doesNotMatch(record.status, /won|paid|customer/i);
+});
+
+
+test('CRM last-contact date reflects successful outbound, not a later failure or reply', () => {
+  const payload = buildCrmSyncPayload({
+    leads: [{ name: 'Chronology Buyer', contact: 'mailto:owner@chronology.example', status: 'new' }],
+    outreach: [
+      { name: 'Chronology Buyer', contact: 'mailto:owner@chronology.example', status: 'replied', timestamp: '2026-10-24T12:00:00Z' },
+      { name: 'Chronology Buyer', contact: 'mailto:owner@chronology.example', status: 'sent', timestamp: '2026-10-23T09:00:00Z' },
+      { name: 'Chronology Buyer', contact: 'mailto:owner@chronology.example', status: 'failed', timestamp: '2026-10-25T15:00:00Z' },
+      { name: 'Chronology Buyer', contact: 'mailto:owner@chronology.example', status: 'replied', timestamp: '2026-10-24T08:00:00Z' },
+    ],
+    now: '2026-10-25T16:00:00Z',
+  });
+  assert.equal(payload.records.length, 1);
+  assert.equal(payload.records[0].lastContacted, '2026-10-23');
+  assert.equal(payload.records[0].lastReplyAt, '2026-10-24T12:00:00Z');
+  assert.equal(payload.records[0].replyCount, 2);
+  assert.equal(payload.records[0].lastDeliveryStatus, 'failed');
+  assert.equal(payload.records[0].lastTouchType, 'outreach-failed', 'a later failed attempt must not look like a sent message or reply');
+});
+
+test('CRM does not invent successful outbound dates from failed, inbound-only or closed legacy states', () => {
+  for (const status of ['failed', 'replied', 'closed']) {
+    const record = buildCrmRecord({
+      name: 'Synthetic status-only lead',
+      contact: 'status-only@example.test',
+      status,
+      date: '2026-10-25'
+    }, { now: '2026-10-25T18:00:00Z' });
+    assert.equal(record.lastContacted, '', `${status} is not evidence of successful outbound`);
+  }
+  const payload = buildCrmSyncPayload({
+    leads: [{ name: 'Inbound-only', contact: 'inbound@example.test', status: 'replied', date: '2026-10-25' }],
+    outreach: [{ name: 'Inbound-only', contact: 'inbound@example.test', status: 'replied', timestamp: '2026-10-25T18:00:00Z' }],
+    now: '2026-10-25T18:01:00Z'
+  });
+  assert.equal(payload.records[0].lastContacted, '');
+  assert.equal(payload.records[0].replyCount, 1);
+  assert.equal(payload.records[0].lastTouchType, 'reply-received');
+});
+
+test('CRM outreach touches cannot overwrite another recipient with the same campaign metadata', () => {
+  const at = '2026-10-29T17:30:00.000Z';
+  const recipients = ['alice@shared.example', 'bob@shared.example'];
+  const payload = buildCrmSyncPayload({
+    leads: recipients.map(email => ({
+      name: 'Shared Campaign Business',
+      link: 'https://shared.example',
+      contact: 'mailto:' + email,
+      status: 'new',
+    })),
+    outreach: recipients.map(email => ({
+      name: 'Shared Campaign Business',
+      site: 'https://shared.example',
+      contact: 'mailto:' + email,
+      status: 'sent',
+      timestamp: at,
+      subject: 'One campaign subject',
+      body: 'Identical campaign copy',
+    })),
+    now: at,
+  });
+  const touches = payload.touches.filter(touch => touch.source === '3dvr-agent/outreach-log');
+  assert.equal(touches.length, 2);
+  assert.equal(new Set(touches.map(touch => touch.id)).size, 2,
+    'a Gun touch ID must not collide across different recipients');
+  assert.deepEqual(new Set(touches.map(touch => touch.recordId)),
+    new Set(payload.records.map(record => record.id)));
+});
+
+test('CRM keeps distinct site-only people separate when they share a business website', () => {
+  const site = 'https://shared-consulting.example';
+  const at = '2026-10-29T18:00:00Z';
+  const payload = buildCrmSyncPayload({
+    leads: [
+      { name: 'Alice Site Contact', link: site, contact: '', status: 'new' },
+      { name: 'Bob Site Contact', link: site, contact: '', status: 'new' },
+    ],
+    outreach: [{
+      name: 'Alice Site Contact', site, contact: '',
+      status: 'replied', timestamp: at,
+    }],
+    includeAll: true,
+    now: at,
+  });
+  assert.equal(payload.records.length, 2);
+  assert.equal(new Set(payload.records.map(record => record.id)).size, 2,
+    'two people at one website must never overwrite the same Gun CRM record');
+  const alice = payload.records.find(record => record.name === 'Alice Site Contact');
+  const bob = payload.records.find(record => record.name === 'Bob Site Contact');
+  assert.equal(alice.replyCount, 1);
+  assert.equal(bob.replyCount || 0, 0);
+  const replies = payload.touches.filter(touch => touch.source === '3dvr-agent/outreach-log');
+  assert.equal(replies.length, 1);
+  assert.equal(replies[0].recordId, alice.id,
+    'a shared website must not attribute Alice\'s reply to Bob');
+});
+
+test('read-only CRM ID audit flags a pre-existing legacy site-only record and its touch', () => {
+  const site = 'https://shared-migration.example';
+  const audit = auditSiteOnlyCrmMigration({
+    leads: [
+      { name: 'Synthetic Alice', link: site, contact: '' },
+      { name: 'Synthetic Bob', link: site, contact: '' },
+      { name: 'Synthetic Email', link: site, contact: 'mailto:email@shared-migration.example' },
+    ],
+    records: [{ id: 'agent-lead-https-shared-migration-example' }],
+    touches: [{ recordId: 'agent-lead-https-shared-migration-example' }],
+  });
+  assert.deepEqual(audit, {
+    siteOnlyCandidates: 2,
+    uniqueSites: 1,
+    changedIdCandidates: 2,
+    legacyRecordKeys: 1,
+    legacyTouchReferences: 1,
+    multiPersonSites: 1,
+    observedLegacyConflict: true,
+    migrationReviewRequired: true,
+    snapshotCompleteness: 'unverified',
+  });
+  assert.ok(!JSON.stringify(audit).includes('Synthetic'), 'audit must not leak lead names');
+  assert.ok(!JSON.stringify(audit).includes('shared-migration.example'), 'audit must not leak sites');
+});
+
+test('CRM ID audit never treats an empty or incomplete snapshot as proof of migration safety', () => {
+  const audit = auditSiteOnlyCrmMigration({
+    leads: [{ name: 'Synthetic Solo', link: 'https://solo-migration.example', contact: '' }],
+    records: [],
+    touches: [],
+  });
+  assert.equal(audit.siteOnlyCandidates, 1);
+  assert.equal(audit.legacyRecordKeys, 0);
+  assert.equal(audit.observedLegacyConflict, false);
+  assert.equal(audit.migrationReviewRequired, true, 'unverified snapshot must never clear release');
+  assert.equal(audit.snapshotCompleteness, 'unverified');
+});
+
+test('site-only snapshot CLI prints aggregate findings without contacting Gun or exposing leads', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'crm-site-only-audit-'));
+  try {
+    const leadsFile = path.join(dir, 'leads.csv');
+    const snapshotFile = path.join(dir, 'snapshot.json');
+    await writeFile(leadsFile,
+      'name,link,contact,status,date,variant\nSynthetic Private Lead,https://private-migration.example,,new,,\n');
+    await writeFile(snapshotFile, JSON.stringify({
+      records: [{ id: 'agent-lead-https-private-migration-example' }],
+      touches: [{ recordId: 'agent-lead-https-private-migration-example' }],
+    }));
+    const { spawnSync } = require('node:child_process');
+    const result = spawnSync(process.execPath, [
+      path.join(__dirname, '../thomas-agent/node/crm-sync.js'),
+      '--audit-site-only-snapshot', snapshotFile,
+      '--leads-file', leadsFile,
+    ], { encoding: 'utf8', timeout: 10000 });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /"legacyRecordKeys": 1/);
+    assert.match(result.stdout, /"legacyTouchReferences": 1/);
+    assert.match(result.stdout, /no migration or CRM write authorized/i);
+    assert.doesNotMatch(result.stdout, /Synthetic Private Lead|private-migration\\.example/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+
+test('CRM refuses duplicate Gun record IDs instead of silently overwriting a different lead', () => {
+  const makeLead = (name, contact) => ({
+    name, link: 'https://different-site.example', contact, status: 'new'
+  });
+  // Distinct valid email addresses can collapse to the same slugified ID.
+  assert.throws(() => buildCrmSyncPayload({
+    leads: [
+      makeLead('Alice Plus', 'mailto:alice+sales@example.test'),
+      makeLead('Alice Dot', 'mailto:alice.sales@example.test')
+    ],
+    now: '2026-10-29T20:30:00Z'
+  }), /Ambiguous CRM record ID collision/);
+
+  // Even repeated identical input rows must be reviewed rather than upserted
+  // twice under one ID with ambiguous outreach attribution.
+  assert.throws(() => buildCrmSyncPayload({
+    leads: [
+      makeLead('First Row', 'mailto:shared@example.test'),
+      makeLead('Second Row', 'mailto:shared@example.test')
+    ],
+    now: '2026-10-29T20:30:00Z'
+  }), /Ambiguous CRM record ID collision/);
+});
+
+test('CSV-only contacted/replied labels cannot promote CRM without matched delivery or reply evidence', () => {
+  for (const legacyStatus of ['contacted', 'replied']) {
+    const lead = {
+      name: 'Synthetic Unverified Contact',
+      link: 'https://unverified-legacy.example',
+      contact: 'mailto:owner@unverified-legacy.example',
+      status: legacyStatus,
+      date: '2026-10-25',
+    };
+    const payload = buildCrmSyncPayload({
+      leads: [lead], outreach: [], now: '2026-10-29T22:00:00Z',
+    });
+    assert.equal(payload.records.length, 1);
+    assert.equal(payload.records[0].status, 'Lead');
+    assert.equal(payload.records[0].warmth, 'cold');
+    assert.equal(payload.records[0].lastContacted, '');
+    assert.equal(payload.records[0].replyCount, undefined);
+    assert.equal(payload.touches.length, 1);
+    assert.equal(payload.touches[0].type, 'note');
+    assert.match(payload.touches[0].summary, new RegExp(legacyStatus));
+  }
+
+  const lead = {
+    name: 'Synthetic Verified Contact',
+    contact: 'mailto:owner@verified-legacy.example',
+    status: 'replied',
+  };
+  const verified = buildCrmSyncPayload({
+    leads: [lead],
+    outreach: [{
+      name: lead.name, contact: lead.contact, status: 'replied',
+      timestamp: '2026-10-29T20:00:00Z',
+    }],
+    now: '2026-10-29T22:00:00Z',
+  });
+  assert.equal(verified.records[0].status, 'Warm - Discovery');
+  assert.equal(verified.records[0].replyCount, 1);
+  assert.equal(verified.touches.filter(touch => touch.touchType === 'reply-received').length, 1);
 });

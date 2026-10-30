@@ -148,12 +148,32 @@ function shellQuote(value) {
   return `'${String(value).replace(/'/g, `'\\''`)}'`;
 }
 
-async function detectCapabilities({ env = process.env, commandExistsImpl = commandExists } = {}) {
-  const [codex, openclaw, claudeCli] = await Promise.all([
+// A binary on PATH is not an executable capability if its auth is missing.
+// Probe only the current worker process context; never print the CLI output
+// (which may include account metadata) or attempt login/credential changes.
+function codexLoginHealthy(execFileImpl = execFile) {
+  return new Promise((resolve) => {
+    execFileImpl('codex', ['login', 'status'], { timeout: 5000, maxBuffer: 64 * 1024 }, (error) => {
+      resolve(!error);
+    });
+  });
+}
+
+async function detectCapabilities({
+  env = process.env,
+  commandExistsImpl = commandExists,
+  codexLoginHealthyImpl = codexLoginHealthy,
+} = {}) {
+  const [codexInstalled, openclaw, claudeCli] = await Promise.all([
     commandExistsImpl('codex'),
     commandExistsImpl('openclaw'),
     commandExistsImpl('claude'),
   ]);
+  // Fail closed for auto-routing if the login probe errors, times out, or
+  // returns nonzero. This is a local preflight, not proof a live exec succeeds.
+  const codex = codexInstalled && await Promise.resolve()
+    .then(() => codexLoginHealthyImpl())
+    .catch(() => false);
   return {
     codex,
     openclaw,
@@ -473,6 +493,23 @@ async function runAgentTask(argv = process.argv.slice(2), hooks = {}) {
     });
   }
 
+  // Explicit --backend codex must not bypass the same worker-local auth
+  // preflight used by auto routing. Keep dry-run inspection available, but
+  // do not start a doomed Codex process or claim a task lease on failure.
+  // A successful login status is still not proof a real Codex exec will work.
+  if (backend === 'codex' && !capabilities.codex) {
+    return printAndReturn({
+      ok: false,
+      skipped: true,
+      reason: 'Codex CLI missing or login status failed in this worker execution context; no task was started',
+      backend,
+      classification,
+      prompt,
+      memoryContext,
+      options,
+    });
+  }
+
   await writeHeartbeat('task-orchestrator', {
     status: 'running',
     metadata: { backend, kind: classification.kind, taskId: id, memoryCount: memoryContext?.hits?.length || 0 },
@@ -567,6 +604,7 @@ module.exports = {
   parseArgs,
   classifyTask,
   commandExists,
+  codexLoginHealthy,
   detectCapabilities,
   pickBackend,
   buildPrompt,

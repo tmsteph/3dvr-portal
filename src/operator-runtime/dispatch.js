@@ -18,28 +18,58 @@ const { join } = require('node:path');
 const input = JSON.parse(Buffer.from(process.argv[2], 'base64url').toString());
 if (process.env.THREEDVR_AGENT_QUEUE_STORE !== 'sqlite' || process.env.THREEDVR_AGENT_OWNER_ALIAS !== '3dvr-managed') throw Error('Managed queue configuration mismatch');
 const capabilities = (process.env.THREEDVR_AGENT_WORKER_CAPABILITIES || '').split(',');
-if (!capabilities.includes('codex')) throw Error('Codex worker is not configured');
-const db = new DatabaseSync(process.env.THREEDVR_AGENT_QUEUE_DB || join(homedir(), '.3dvr', 'task-queue.sqlite'));
+// Worker capability is required to accept new work, not to inspect an\n// existing signed receipt after a worker is stopped or reconfigured.\nif (input.action === 'enqueue' && !capabilities.includes('codex')) throw Error('Codex worker is not configured');
+// A signed status request is observation only: never create a missing queue DB\n// or acquire write access when the worker is responsible for all mutations.\nconst db = new DatabaseSync(process.env.THREEDVR_AGENT_QUEUE_DB || join(homedir(), '.3dvr', 'task-queue.sqlite'), { readOnly: input.action === 'status' });
 db.exec('PRAGMA busy_timeout=5000');
 try {
-  db.exec('BEGIN IMMEDIATE');
+  // Status polling is read-only: do not acquire a SQLite RESERVED writer lock
+  // while an authenticated worker may be claiming or completing tasks.
+  if (input.action === 'enqueue') db.exec('BEGIN IMMEDIATE');
   const owner = '3dvr-managed';
-  let row = db.prepare('SELECT status,record_json FROM tasks WHERE owner_alias=? AND id=?').get(owner,input.id);
+  let row = db.prepare('SELECT status,record_json,source FROM tasks WHERE owner_alias=? AND id=?').get(owner,input.id);
+  // An imported/public legacy row must never impersonate a signed Operator
+  // task, even when its ID and task text collide with a legitimate request.
+  if (row && row.source !== 'operator-http') throw Error('Task identity conflict');
   if (input.action === 'enqueue') {
-    if (row && JSON.parse(row.record_json).task !== input.record.task) throw Error('Task identity conflict');
+    if (row) {
+      const previous = JSON.parse(row.record_json);
+      const requested = input.record;
+      // A retry may reuse the same request ID only for the same signed intent.
+      // The title lives inside the work-item JSON, not the executable task text.
+      const title = record => record.runtimeWorkItemJson
+        ? JSON.parse(record.runtimeWorkItemJson).title || ''
+        : '';
+      if (previous.task !== requested.task || title(previous) !== title(requested)) {
+        throw Error('Task identity conflict');
+      }
+    }
     if (!row) {
       const count = db.prepare("SELECT count(*) AS n FROM tasks WHERE owner_alias=? AND id LIKE ? AND status IN ('queued','running')").get(owner,input.prefix+'%').n;
       if (count >= 5) throw Error('Five tasks are already pending; wait for a result');
+      // Capability configuration is not proof that a worker is alive.
+      // Require a worker-produced heartbeat in this SAME SQLite file, under
+      // this owner, with effective Codex and draft-risk permissions and bounded freshness.
+      // Existing signed task IDs remain readable/retryable when offline.
+      const now = Date.now();
+      const workers = db.prepare("SELECT worker_id, capabilities, risk_classes, only_task_id, observed_at FROM worker_heartbeats WHERE owner_alias=? AND queue_store='sqlite'").all(owner);
+      const ready = workers.some(worker => worker.worker_id &&
+        (!worker.only_task_id || worker.only_task_id === input.id) &&
+        Number.isFinite(worker.observed_at) &&
+        worker.observed_at <= now + 5000 &&
+        now - worker.observed_at <= 90000 &&
+        String(worker.capabilities).split(',').map(value => value.trim().toLowerCase()).includes('codex') &&
+        String(worker.risk_classes).split(',').map(value => value.trim().toLowerCase()).includes('draft'));
+      if (!ready) throw Error('No recent same-queue Codex worker heartbeat');
       const record = input.record;
       db.prepare('INSERT INTO tasks (owner_alias,id,status,updated_at,record_json,source) VALUES (?,?,?,?,?,?)').run(owner,input.id,'queued',record.updatedAt,JSON.stringify(record),'operator-http');
       row = { status:'queued', record_json:JSON.stringify(record) };
     }
   }
-  db.exec('COMMIT');
+  if (input.action === 'enqueue') db.exec('COMMIT');
   if (!row) console.log(JSON.stringify({ok:false,missing:true,error:'Task not found.'}));
   else {
     const record = JSON.parse(row.record_json);
-    console.log(JSON.stringify({ok:true,record:{id:input.id,status:row.status,createdAt:record.createdAt,startedAt:record.startedAt,updatedAt:record.updatedAt,resultSummary:record.resultSummary || '',resultText:String(record.resultText || '').slice(0,24000),resultSummaryTruncated:record.resultSummaryTruncated === true,resultTruncated:record.resultTruncated === true,error:record.error || '',workerDeviceId:record.workerDeviceId || ''}}));
+    console.log(JSON.stringify({ok:true,record:{id:input.id,status:row.status,createdAt:record.createdAt,startedAt:record.startedAt,completedAt:record.completedAt,updatedAt:record.updatedAt,resultSummary:record.resultSummary || '',resultText:String(record.resultText || '').slice(0,24000),resultSummaryTruncated:record.resultSummaryTruncated === true,resultTruncated:record.resultTruncated === true,error:record.error || '',workerDeviceId:record.workerDeviceId || ''}}));
   }
 } finally { db.close(); }
 QUEUE_NODE
