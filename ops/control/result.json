@@ -80,8 +80,8 @@
     }
   ],
   "privateWorkerServiceActive": true,
-  "checkedAt": "2026-10-30T05:53:38Z",
-  "requestId": "operator-private-worker-final-check-20261030",
+  "checkedAt": "2026-10-30T07:02:25Z",
+  "requestId": "founder-operator-readonly-census-20261030-0700",
   "action": "operator_runtime_status",
   "workflowOutcome": "success"
 }
