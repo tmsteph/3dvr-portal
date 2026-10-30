@@ -287,7 +287,9 @@ function buildLeadTouch(lead, record, options = {}) {
     crmRecordId: record.id,
     contactId: '',
     contactName: record.name,
-    // A legacy CSV status is not a provider-verified outbound receipt.\n    // Preserve it as a note, never a message-sent activity.\n    type: 'note',
+    // A legacy CSV status is not a provider-verified outbound receipt.
+    // Preserve it as a note, never a message-sent activity.
+    type: 'note',
     channel: routeFromContact(lead) || 'site',
     summary: `3dvr-agent lead synced as ${status}.`,
     outcome: record.nextBestAction,
