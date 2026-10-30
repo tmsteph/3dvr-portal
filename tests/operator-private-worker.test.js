@@ -166,3 +166,41 @@ test('pinned canary waits for late admission then executes only the exact task o
   assert.deepEqual(executions, ['operator-http-approved']);
   assert.equal(receipts, 1);
 });
+
+test('native execution failure is not counted as a successful private task', async () => {
+  const record = { id: 'operator-http-failed', queueSource: 'operator-http',
+    status: 'queued', backend: 'codex' };
+  for (const result of [{ ok: false, error: 'synthetic failure' }, { ok: false }, null]) {
+    const queue = {
+      listTasks: () => [record],
+      canWorkerRunTask: () => ({ ok: true }),
+      runQueuedTask: () => result,
+    };
+    assert.equal(await runOnce(queue, record.id), -1);
+  }
+  const skippedQueue = {
+    listTasks: () => [record],
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: () => ({ ok: false, skipped: true }),
+  };
+  assert.equal(await runOnce(skippedQueue, record.id), 0);
+});
+
+test('pinned canary exits on failed native execution without reporting completion', async () => {
+  const record = { id: 'operator-http-failed', queueSource: 'operator-http',
+    status: 'queued', backend: 'codex' };
+  let attempts = 0;
+  let completed = 0;
+  const queue = {
+    listTasks: () => [record],
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: () => { attempts += 1; return { ok: false, error: 'synthetic failure' }; },
+  };
+  await assert.rejects(runLoop(queue, {
+    onlyTaskId: record.id,
+    sleep: () => assert.fail('failed canary must not be retried'),
+    onProcessed: () => { completed += 1; },
+  }), /Pinned Operator canary failed; inspect exact task result/);
+  assert.equal(attempts, 1);
+  assert.equal(completed, 0);
+});
