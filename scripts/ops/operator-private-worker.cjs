@@ -41,6 +41,7 @@ async function main() {
   await runLoop(queue, {
     onlyTaskId,
     onProcessed: () => console.log('Private Operator task processed; result saved in the owner queue.'),
+    onFailed: () => console.error('Private Operator task failed; inspect the durable result in the owner queue.'),
   });
 }
 
@@ -56,11 +57,17 @@ async function runLoop(queue, {
   now = Date.now,
   sleep = ms => new Promise(resolve => setTimeout(resolve, ms)),
   onProcessed = () => {},
+  onFailed = () => {},
 } = {}) {
   const startedAt = now();
   for (;;) {
     const count = await runOnce(queue, onlyTaskId);
-    if (count < 0 && onlyTaskId) throw new Error(PIN_FAILED_MESSAGE);
+    if (count < 0) {
+      if (onlyTaskId) throw new Error(PIN_FAILED_MESSAGE);
+      // A durable failed task must never disappear into a healthy-looking poll.
+      // Keep the shared worker alive for unrelated queued work.
+      onFailed();
+    }
     if (count > 0) {
       onProcessed();
       // A pinned worker never broadens to another queued task.
