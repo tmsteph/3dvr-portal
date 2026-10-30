@@ -5,7 +5,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 const require = createRequire(import.meta.url);
-const { runOnce } = require('../scripts/ops/operator-private-worker.cjs');
+const { runOnce, runLoop } = require('../scripts/ops/operator-private-worker.cjs');
 const sqlite = require('../apps/agent/thomas-agent/node/task-queue-sqlite-store.js');
 const { DatabaseSync } = require('node:sqlite');
 
@@ -116,4 +116,53 @@ test('SQLite atomic claim rejects other signed tasks despite a stale worker snap
   assert.ok(sqlite.claimTask(pinnedId, 'pinned-token', 'worker', now + 60000, now, scope));
   assert.equal(sqlite.readTask(pinnedId, options).status, 'running');
   assert.equal(sqlite.readTask(otherId, options).status, 'queued');
+});
+
+test('pinned canary stops with a visible timeout instead of polling forever', async () => {
+  let clock = 0;
+  let polls = 0;
+  const queue = {
+    listTasks: () => { polls += 1; return []; },
+    runQueuedTask: () => assert.fail('missing canary must not execute'),
+  };
+  await assert.rejects(runLoop(queue, {
+    onlyTaskId: 'operator-http-missing',
+    pinTimeoutMs: 20000,
+    pollMs: 10000,
+    now: () => clock,
+    sleep: async ms => { clock += ms; },
+  }), /Pinned Operator canary timed out without an execution receipt/);
+  assert.equal(polls, 3);
+  assert.equal(clock, 20000);
+});
+
+test('pinned canary waits for late admission then executes only the exact task once', async () => {
+  let polls = 0;
+  let clock = 0;
+  const executions = [];
+  const records = [
+    { id: 'operator-http-other', status: 'queued', backend: 'codex', queueSource: 'operator-http' },
+    { id: 'operator-http-approved', status: 'queued', backend: 'codex', queueSource: 'operator-http' },
+  ];
+  const queue = {
+    listTasks: () => { polls += 1; return polls < 3 ? [] : records; },
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: (task, options) => {
+      assert.equal(options.onlyTaskId, 'operator-http-approved');
+      executions.push(task.id);
+      return { ok: true };
+    },
+  };
+  let receipts = 0;
+  assert.equal(await runLoop(queue, {
+    onlyTaskId: 'operator-http-approved',
+    pinTimeoutMs: 20000,
+    pollMs: 10000,
+    now: () => clock,
+    sleep: async ms => { clock += ms; },
+    onProcessed: () => { receipts += 1; },
+  }), 1);
+  assert.equal(polls, 3);
+  assert.deepEqual(executions, ['operator-http-approved']);
+  assert.equal(receipts, 1);
 });
