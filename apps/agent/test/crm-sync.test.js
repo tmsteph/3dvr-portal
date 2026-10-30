@@ -524,6 +524,7 @@ test('read-only CRM ID audit flags a pre-existing legacy site-only record and it
     legacyRecordKeys: 1,
     legacyTouchReferences: 1,
     multiPersonSites: 1,
+    observedLegacyConflict: true,
     migrationReviewRequired: true,
     snapshotCompleteness: 'unverified',
   });
@@ -539,7 +540,8 @@ test('CRM ID audit never treats an empty or incomplete snapshot as proof of migr
   });
   assert.equal(audit.siteOnlyCandidates, 1);
   assert.equal(audit.legacyRecordKeys, 0);
-  assert.equal(audit.migrationReviewRequired, false);
+  assert.equal(audit.observedLegacyConflict, false);
+  assert.equal(audit.migrationReviewRequired, true, 'unverified snapshot must never clear release');
   assert.equal(audit.snapshotCompleteness, 'unverified');
 });
 
