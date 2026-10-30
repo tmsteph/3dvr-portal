@@ -68,3 +68,21 @@ test('atomic claim rejects a source switch after the worker snapshot without a f
   sqlite.writeTask(legacy, options);
   assert.ok(sqlite.claimTask(legacy.id, 'legacy-token', 'worker', Date.now() + 60000, Date.now(), options));
 });
+
+test('exact-task-ID pin processes only the authorized signed canary, not the next queued task', async () => {
+  const records = ['operator-http-first', 'operator-http-pinned', 'operator-http-third']
+    .map(id => ({ id, queueSource: 'operator-http', status: 'queued', backend: 'codex' }));
+  const executed = [];
+  const queue = {
+    listTasks: () => records,
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: task => { executed.push(task.id); return { ok: true }; },
+  };
+  assert.equal(await runOnce(queue, 'operator-http-pinned'), 1);
+  assert.deepEqual(executed, ['operator-http-pinned']);
+  assert.equal(await runOnce(queue, 'operator-http-missing'), 0);
+  assert.deepEqual(executed, ['operator-http-pinned']);
+  records[1].queueSource = 'gun';
+  assert.equal(await runOnce(queue, 'operator-http-pinned'), 0);
+  assert.deepEqual(executed, ['operator-http-pinned']);
+});
