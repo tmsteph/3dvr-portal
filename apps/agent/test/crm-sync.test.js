@@ -455,3 +455,31 @@ test('CRM outreach touches cannot overwrite another recipient with the same camp
   assert.deepEqual(new Set(touches.map(touch => touch.recordId)),
     new Set(payload.records.map(record => record.id)));
 });
+
+test('CRM keeps distinct site-only people separate when they share a business website', () => {
+  const site = 'https://shared-consulting.example';
+  const at = '2026-10-29T18:00:00Z';
+  const payload = buildCrmSyncPayload({
+    leads: [
+      { name: 'Alice Site Contact', link: site, contact: '', status: 'new' },
+      { name: 'Bob Site Contact', link: site, contact: '', status: 'new' },
+    ],
+    outreach: [{
+      name: 'Alice Site Contact', site, contact: '',
+      status: 'replied', timestamp: at,
+    }],
+    includeAll: true,
+    now: at,
+  });
+  assert.equal(payload.records.length, 2);
+  assert.equal(new Set(payload.records.map(record => record.id)).size, 2,
+    'two people at one website must never overwrite the same Gun CRM record');
+  const alice = payload.records.find(record => record.name === 'Alice Site Contact');
+  const bob = payload.records.find(record => record.name === 'Bob Site Contact');
+  assert.equal(alice.replyCount, 1);
+  assert.equal(bob.replyCount || 0, 0);
+  const replies = payload.touches.filter(touch => touch.source === '3dvr-agent/outreach-log');
+  assert.equal(replies.length, 1);
+  assert.equal(replies[0].recordId, alice.id,
+    'a shared website must not attribute Alice\'s reply to Bob');
+});
