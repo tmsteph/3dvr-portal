@@ -54,13 +54,16 @@ jobs:
         env:
           HETZNER_USER: ${{ steps.ssh.outputs.user }}
           HETZNER_KEY: ${{ steps.ssh.outputs.key }}
+          SOURCE_SHA: ${{ github.sha }}
         shell: bash
         run: |
           set -euo pipefail
-          ssh -i "$HETZNER_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 "$HETZNER_USER@$HETZNER_HOST" bash -s > /tmp/workforce-source.json <<'REMOTE'
+          ssh -i "$HETZNER_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 "$HETZNER_USER@$HETZNER_HOST" bash -s -- "$SOURCE_SHA" > /tmp/workforce-source.json <<'REMOTE'
           set -euo pipefail
-          ssh -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8 3dvr-ovh bash -s <<'OVH'
+          source_sha="$1"
+          ssh -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=8 3dvr-ovh bash -s -- "$source_sha" <<'OVH'
           set -euo pipefail
+          source_sha="$1"
           systemctl is-active --quiet 3dvr-secrets-broker.service
           curl -fsS --max-time 4 http://127.0.0.1:9222/json/version >/dev/null
           temp="$(mktemp -d)"
@@ -82,7 +85,7 @@ jobs:
           fi
           token="$(sudo -n /usr/local/bin/3dvr-browser-lease acquire general workforce-source-read 480)"
           for file in lighthouse-api-reader.cjs iatse-availability-probe.cjs; do
-            curl -fsSL --retry 3 "https://raw.githubusercontent.com/tmsteph/3dvr-portal/main/scripts/ops/$file" -o "$temp/$file"
+            curl -fsSL --retry 3 "https://raw.githubusercontent.com/tmsteph/3dvr-portal/$source_sha/scripts/ops/$file" -o "$temp/$file"
           done
           today="$(TZ=America/Los_Angeles date +%F)"
           weekday="$(date -d "$today" +%u)"
