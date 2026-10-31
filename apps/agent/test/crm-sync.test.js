@@ -300,9 +300,9 @@ test('readLeads preserves quoted business names, contacts, variants and multilin
     await writeFile(leadsFile, [
       'name,link,contact,status,date,variant',
       '"Smith, Jones & Co",https://smith.example,mailto:owner@smith.example,new,2026-10-31,"route=email,priority=high"',
-      '"Studio ""A"", North\\nDivision",https://studio.example,mailto:studio@example.com,contacted,2026-10-30,route=email',
+      '"Studio ""A"", North\nDivision",https://studio.example,mailto:studio@example.com,contacted,2026-10-30,route=email',
       ''
-    ].join('\\r\\n').replace('North\\\\nDivision', 'North\\nDivision'));
+    ].join('\r\n'));
     const leads = readLeads(leadsFile);
     assert.equal(leads.length, 2);
     assert.deepEqual(leads[0], {
@@ -310,7 +310,7 @@ test('readLeads preserves quoted business names, contacts, variants and multilin
       contact: 'mailto:owner@smith.example', status: 'new',
       date: '2026-10-31', variant: 'route=email,priority=high'
     });
-    assert.equal(leads[1].name, 'Studio "A", North\\nDivision');
+    assert.equal(leads[1].name, 'Studio "A", North\nDivision');
     assert.equal(leads[1].contact, 'mailto:studio@example.com');
     assert.equal(leads[1].status, 'contacted');
   } finally {
@@ -322,7 +322,7 @@ test('readLeads rejects unterminated quoted CSV instead of silently shifting CRM
   const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-crm-invalid-'));
   const leadsFile = path.join(tmp, 'leads.csv');
   try {
-    await writeFile(leadsFile, 'name,link,contact,status,date,variant\\n"Unclosed,https://example.test,mailto:owner@example.test,new');
+    await writeFile(leadsFile, 'name,link,contact,status,date,variant\n"Unclosed,https://example.test,mailto:owner@example.test,new');
     assert.throws(() => readLeads(leadsFile), /Unterminated quoted leads CSV field/);
   } finally {
     await rm(tmp, { recursive: true, force: true });
