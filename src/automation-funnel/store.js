@@ -75,7 +75,7 @@ export function openFunnelStore(path = process.env.AUTOMATION_FUNNEL_DB || '/opt
         // This is a read-only compatibility lookup inside the insert lock:
         // no migration, rewrite, outreach or duplicate creation event.
         const canonicalSource = lead.origin === 'inbound' ? '' : discoveryIdentity(lead.sourceUrl);
-        const upworkId = /^upwork-job:(\\d{12,25})$/.exec(canonicalSource);
+        const upworkId = /^upwork-job:([0-9]{12,25})$/.exec(canonicalSource);
         if (upworkId) {
           const candidates = db.prepare('SELECT * FROM leads WHERE payload LIKE ?')
             .all('%' + upworkId[1] + '%');
