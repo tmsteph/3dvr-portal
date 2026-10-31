@@ -30,6 +30,13 @@ export function openFunnelStore(path = process.env.AUTOMATION_FUNNEL_DB || '/opt
     if (!sourceUrl) return '';
     try {
       const url = new URL(sourceUrl);
+      // Upwork links often refer to the same public job under a renamed slug,
+      // tracking parameters or its short /jobs/~ID route. Dedupe the stable
+      // numeric job ID, not the URL; do not conflate unrelated job IDs or hosts.
+      if (url.hostname === 'upwork.com' || url.hostname === 'www.upwork.com') {
+        const match = url.pathname.match(/^\/(?:jobs\/~|freelance-jobs\/apply\/[^/?#]*_~)(\d{12,25})(?:\/|$)/);
+        if (match) return 'upwork-job:' + match[1];
+      }
       if (url.hostname === 'community.n8n.io') {
         const parts = url.pathname.split('/').filter(Boolean);
         const idIndex = /^\d+$/.test(parts[1] || '') ? 1 : 2;
