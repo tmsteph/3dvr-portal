@@ -99,3 +99,30 @@ test('unset worker capabilities cannot silently pass required-capability audit',
   assert.ok(result.warnings.some(warning => warning.includes('unverified')));
   assert.ok(result.warnings.some(warning => warning.includes('Do not enable stale tasks')));
 });
+
+test('unknown required capability labels are never echoed from queue metadata', () => {
+  const secret = 'private-client-secret-XYZ';
+  const result = inspectRouting({
+    THREEDVR_AGENT_OWNER_ALIAS: '3dvr-managed',
+    THREEDVR_AGENT_QUEUE_STORE: 'sqlite',
+    THREEDVR_AGENT_WORKER_CAPABILITIES: 'codex,' + secret,
+    THREEDVR_OPERATOR_AUDIT_REQUIRED_CAPABILITIES: secret + ',codex,unknown-other',
+  }, noDb);
+  assert.deepEqual(result.missingRequiredCapabilities, []);
+  assert.equal(result.unknownRequiredCapabilitiesCount, 2);
+  assert.ok(result.warnings.some(warning => warning.includes('Unknown required capability')));
+  assert.equal(JSON.stringify(result).includes(secret), false);
+  assert.equal(JSON.stringify(result).includes('unknown-other'), false);
+});
+
+test('whitespace-only capabilities are not evidence of worker configuration', () => {
+  const result = inspectRouting({
+    THREEDVR_AGENT_OWNER_ALIAS: '3dvr-managed',
+    THREEDVR_AGENT_QUEUE_STORE: 'sqlite',
+    THREEDVR_AGENT_WORKER_CAPABILITIES: '   ',
+    THREEDVR_OPERATOR_AUDIT_REQUIRED_CAPABILITIES: 'codex',
+  }, noDb);
+  assert.equal(result.workerCapabilitiesConfigured, false);
+  assert.deepEqual(result.missingRequiredCapabilities, ['codex']);
+  assert.ok(result.warnings.some(warning => warning.includes('not explicitly configured')));
+});
