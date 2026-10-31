@@ -24,7 +24,7 @@ const safeLabel = (value, allowed) => {
   return allowed.has(label) ? label : 'other';
 };
 
-export function summarizeQueue(records, env = {}, now = Date.now()) {
+export function summarizeQueue(records, env = {}, now = Date.now(), invalidRecordRows = 0) {
   // Missing service configuration is unknown, never evidence of worker eligibility.
   const workerCapabilitiesConfigured = Boolean(String(env.THREEDVR_AGENT_WORKER_CAPABILITIES || '').trim());
   const caps = new Set(csv(env.THREEDVR_AGENT_WORKER_CAPABILITIES));
@@ -33,9 +33,10 @@ export function summarizeQueue(records, env = {}, now = Date.now()) {
   const summary = {
     mode: 'read_only_metadata_review_not_execution_authorization',
     workerCapabilitiesConfigured,
-    total: records.length, statusCounts: {}, runningClaims: { active: 0, expired: 0, unknown: 0 }, queuedAgeBuckets: {},
+    total: records.length + invalidRecordRows, invalidRecordRows,
+    statusCounts: invalidRecordRows ? { other: invalidRecordRows } : {}, runningClaims: { active: 0, expired: 0, unknown: 0 }, queuedAgeBuckets: {},
     queuedCapabilities: {}, queuedSources: {}, queuedRisks: {}, queuedEffectiveRisks: {}, queuedApprovals: {},
-    reviewFlags: {}, queuedReviews: []
+    reviewFlags: invalidRecordRows ? { invalid_record_json: invalidRecordRows } : {}, queuedReviews: []
   };
   for (const record of records) {
     bump(summary.statusCounts, safeLabel(record.status, STATUSES));
@@ -119,9 +120,22 @@ export function auditManagedSqlite(env = process.env) {
     const sourceColumn = hasSource ? 'source' : 'NULL AS source';
     const rows = db.prepare(`SELECT status, record_json, claim_expires_at, ${sourceColumn} FROM tasks WHERE owner_alias = ?`)
       .all(env.THREEDVR_AGENT_OWNER_ALIAS);
-    return summarizeQueue(rows.map(row => ({
-      ...JSON.parse(row.record_json), status: row.status, source: row.source, claimExpiresAt: row.claim_expires_at
-    })), env);
+    // A single malformed historical row must not blind the entire read-only
+    // triage. Count it as requiring review; never print its raw payload or
+    // invent a task identity/status from unparseable data.
+    const records = [];
+    let invalidRecordRows = 0;
+    for (const row of rows) {
+      let record;
+      try { record = JSON.parse(row.record_json); } catch { invalidRecordRows++; continue; }
+      if (!record || typeof record !== 'object' || Array.isArray(record)) {
+        invalidRecordRows++;
+        continue;
+      }
+      records.push({ ...record, status: row.status, source: row.source,
+        claimExpiresAt: row.claim_expires_at });
+    }
+    return summarizeQueue(records, env, Date.now(), invalidRecordRows);
   } finally {
     db.close();
   }
