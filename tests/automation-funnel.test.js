@@ -428,8 +428,11 @@ test('an older do-not-contact email blocks drafting beyond the 500-row CRM windo
   } finally { store.close(); }
 });
 
-test('suppressed leads cannot get a reply draft', () => {
-  assert.throws(() => draftReply({ ...base, stage: 'do-not-contact' }), /not available/);
+test('suppressed and closed-lost leads cannot get reply drafts, including legacy stage values', () => {
+  for (const stage of ['do-not-contact', ' Do-Not-Contact ', 'lost', ' LOST ']) {
+    assert.throws(() => draftReply({ ...base, stage }), /not available/, stage);
+  }
+  assert.match(draftReply({ ...base, stage: 'discovered' }).subject, /automation/i);
 });
 
 test('Operator pilot signup needs no business or budget and cannot activate paid service', () => {
