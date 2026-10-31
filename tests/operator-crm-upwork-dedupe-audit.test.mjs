@@ -50,6 +50,17 @@ test('read-only summary distinguishes legacy, stable and duplicate Upwork jobs w
   assert.doesNotMatch(JSON.stringify(result), /private@example|Private buyer|upwork\.com|022100000000000000099/);
 });
 
+test('a single Upwork job with an unrecognized dedupe key requires review', () => {
+  const result = summarizeUpworkDedupe([row(original, hash('unexpected-identity'))]);
+  assert.equal(result.scannedRows, 1);
+  assert.equal(result.upworkRows, 1);
+  assert.equal(result.distinctJobs, 1);
+  assert.equal(result.duplicateJobGroups, 0);
+  assert.equal(result.otherKeyRows, 1);
+  assert.equal(result.reviewRequired, true);
+  assert.deepEqual(result.duplicateJobFingerprints, []);
+});
+
 test('file audit opens existing SQLite read-only and never creates a missing DB', () => {
   const dir = mkdtempSync(join(tmpdir(), '3dvr-crm-audit-'));
   const path = join(dir, 'leads.sqlite');
