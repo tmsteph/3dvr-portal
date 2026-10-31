@@ -62,10 +62,12 @@ export function openFunnelStore(path = process.env.AUTOMATION_FUNNEL_DB || '/opt
     hasSuppressedEmail(email) {
       const normalized = String(email || '').trim().toLowerCase();
       if (!normalized) return false;
+      // Historical/imported CRM rows may predate email and stage normalization.
+      // Trim and case-fold their stored values so opt-outs remain binding.
       // A corrupt legacy JSON payload causes this query to fail closed.
       return Boolean(db.prepare(
-        "SELECT 1 FROM leads WHERE lower(json_extract(payload, '$.email')) = ? " +
-        "AND json_extract(payload, '$.stage') = 'do-not-contact' LIMIT 1"
+        "SELECT 1 FROM leads WHERE lower(trim(json_extract(payload, '$.email'))) = ? " +
+        "AND lower(trim(json_extract(payload, '$.stage'))) = 'do-not-contact' LIMIT 1"
       ).get(normalized));
     },
     insert(lead) {
