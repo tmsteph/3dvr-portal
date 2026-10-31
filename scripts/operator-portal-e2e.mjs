@@ -90,12 +90,13 @@ async function signInOrCreate() {
     pub: localStorage.getItem('userPubKey')
   }));
 
-  log('E2E_ACCOUNT_ALIAS', identity.alias || '');
-  log('E2E_ACCOUNT_PUB', identity.pub || '');
-  log('E2E_SIGNED_IN', identity.signedIn || '');
+  // Keep identity values in memory for same-account comparisons, not CI logs.
+  log('E2E_ACCOUNT_ALIAS_PRESENT', Boolean(identity.alias));
+  log('E2E_ACCOUNT_PUB_PRESENT', Boolean(identity.pub));
+  log('E2E_SIGNED_IN', identity.signedIn === 'true');
 
   if (identity.signedIn !== 'true' || !identity.pub) {
-    throw new Error(`Portal sign-in did not establish a SEA identity: ${JSON.stringify(identity)}`);
+    throw new Error(`Portal sign-in did not establish a SEA identity (signedIn=${identity.signedIn === 'true'}, hasPub=${Boolean(identity.pub)})`);
   }
   return identity;
 }
