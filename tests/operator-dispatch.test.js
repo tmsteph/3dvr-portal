@@ -88,7 +88,10 @@ test('actual SQLite transport is idempotent and preserves historical and running
   const invoke=(input, queueDb=dbPath, workerCapabilities='codex,node') => spawnSync('bash',['-s','--',Buffer.from(JSON.stringify(input)).toString('base64url')],{input:script,encoding:'utf8',env:{...process.env,THREEDVR_AGENT_QUEUE_STORE:'sqlite',THREEDVR_AGENT_OWNER_ALIAS:'3dvr-managed',THREEDVR_AGENT_WORKER_CAPABILITIES:workerCapabilities,THREEDVR_AGENT_QUEUE_DB:queueDb}});
   try {
     const input={action:'enqueue',id:record.id,prefix:'operator-http-test-',record};
-    assert.equal(invoke(input).status,0);
+    // Whitespace in a comma-separated capability list must not reject an
+    // otherwise healthy same-owner worker or force operators to change config.
+    const spacedCapabilities = invoke(input, dbPath, 'node, codex');
+    assert.equal(spacedCapabilities.status,0,spacedCapabilities.stderr);
     db.prepare('UPDATE tasks SET status=? WHERE id=?').run('running',record.id);
     const retry=invoke(input);
     assert.equal(retry.status,0,retry.stderr);
