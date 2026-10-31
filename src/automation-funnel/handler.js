@@ -54,7 +54,7 @@ export function createFunnelHandler({ config = process.env, verify = verifySigne
       if (action === 'draft') {
         const lead = db.get(body.data.id);
         if (!lead) return res.status(404).json({ error: 'Lead not found.' });
-        if (lead.email && db.list().some(record => record.email === lead.email && record.stage === 'do-not-contact')) return res.status(403).json({ error: 'This contact is suppressed.' });
+        if (lead.email && db.hasSuppressedEmail(lead.email)) return res.status(403).json({ error: 'This contact is suppressed.' });
         return res.status(200).json({ ok: true, draft: draftReply(lead) });
       }
       if (!db.rateLimit('owner-discovery', { limit: 6 })) return res.status(429).json({ error: 'Discovery is cooling down. Try later.' });
