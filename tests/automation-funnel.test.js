@@ -328,6 +328,39 @@ test('employer For Hire vacancies are discovered but freelancer offers remain ex
   assert.ok(leads.every(lead => lead.stage === 'discovered' && lead.qualified === false && lead.budget === 'undecided'));
 });
 
+test('legacy padded and mixed-case opt-out remains binding for newer lead drafts', async () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const old = store.insert(normalizeLead({
+      ...base, business: 'Legacy Suppression', stage: 'do-not-contact'
+    })).lead;
+    // Simulate a pre-normalization import; current model validation trims these.
+    store.db.prepare("UPDATE leads SET payload=json_set(payload, '$.email', ?, '$.stage', ?) WHERE id=?")
+      .run('  BUYER@EXAMPLE.COM  ', '  Do-Not-Contact  ', old.id);
+    const newer = store.insert(normalizeLead({
+      ...base, business: 'Newer Inquiry', stage: 'discovered'
+    })).lead;
+    assert.equal(store.hasSuppressedEmail('buyer@example.com'), true);
+    assert.equal(store.hasSuppressedEmail('unrelated@example.com'), false);
+    const handler = createFunnelHandler({
+      store, config: { PORTAL_ORIGIN: 'https://portal.3dvr.tech', THREEDVR_OPERATOR_OWNER_PUBS: 'owner' },
+      verify: async body => ({
+        ok: true, identity: { pub: body.authPub, action: body.action },
+        verified: { data: body.signedData, requestId: body.requestId }
+      })
+    });
+    const data = { id: newer.id };
+    const res = response();
+    await handler({
+      method: 'POST', headers: {},
+      body: { action: 'draft', data, authPub: 'owner', signedData: JSON.stringify(data),
+        requestId: 'dc0139f0-0cc4-4980-b193-59e2d3fd21e0' }
+    }, res);
+    assert.equal(res.code, 403);
+    assert.equal(res.data.draft, undefined);
+  } finally { store.close(); }
+});
+
 test('an older do-not-contact email blocks drafting beyond the 500-row CRM window', async () => {
   const store = openFunnelStore(':memory:');
   try {
