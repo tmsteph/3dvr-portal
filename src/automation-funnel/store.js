@@ -69,6 +69,32 @@ export function openFunnelStore(path = process.env.AUTOMATION_FUNNEL_DB || '/opt
       // failed event write cannot leave a permanent, silently deduped lead.
       db.exec('BEGIN IMMEDIATE');
       try {
+        // Existing deployments may hold URL-hashed Upwork leads from before
+        // stable job IDs were introduced. Reuse the original row rather than
+        // silently creating a second prospect under the new dedupe key.
+        // This is a read-only compatibility lookup inside the insert lock:
+        // no migration, rewrite, outreach or duplicate creation event.
+        const canonicalSource = lead.origin === 'inbound' ? '' : discoveryIdentity(lead.sourceUrl);
+        const upworkId = /^upwork-job:(\\d{12,25})$/.exec(canonicalSource);
+        if (upworkId) {
+          const candidates = db.prepare('SELECT * FROM leads WHERE payload LIKE ?')
+            .all('%' + upworkId[1] + '%');
+          const matches = candidates.filter(candidate => {
+            try {
+              const prior = JSON.parse(candidate.payload);
+              return prior.origin !== 'inbound' && discoveryIdentity(prior.sourceUrl) === canonicalSource;
+            } catch { return false; }
+          });
+          // Historical duplicate rows need a reviewed reconciliation. Never
+          // guess which record owns follow-up state or message approvals.
+          if (matches.length > 1) {
+            throw new Error('Ambiguous historical Upwork job leads; review before inserting');
+          }
+          if (matches.length === 1) {
+            db.exec('COMMIT');
+            return { lead: row(matches[0]), duplicate: true };
+          }
+        }
         const inserted = db.prepare('INSERT OR IGNORE INTO leads VALUES (?, ?, ?, 1, ?, ?)')
           .run(id, key, JSON.stringify(lead), now, now);
         const saved = db.prepare('SELECT * FROM leads WHERE dedupe=?').get(key);
