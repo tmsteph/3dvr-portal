@@ -328,6 +328,50 @@ test('employer For Hire vacancies are discovered but freelancer offers remain ex
   assert.ok(leads.every(lead => lead.stage === 'discovered' && lead.qualified === false && lead.budget === 'undecided'));
 });
 
+test('an older do-not-contact email blocks drafting beyond the 500-row CRM window', async () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const suppressed = store.insert(normalizeLead({
+      ...base, business: 'Older Suppressed Buyer', stage: 'do-not-contact'
+    })).lead;
+    store.db.prepare('UPDATE leads SET updated_at=? WHERE id=?')
+      .run('2000-01-01T00:00:00.000Z', suppressed.id);
+    const target = store.insert(normalizeLead({
+      ...base, business: 'New Buyer Record', stage: 'discovered'
+    })).lead;
+    for (let i = 0; i < 501; i++) {
+      store.insert(normalizeLead({
+        business: 'Unrelated prospect ' + i, problem: 'Needs an integration',
+        email: 'unrelated-' + i + '@example.test'
+      }));
+    }
+    assert.equal(store.list().length, 500);
+    assert.equal(store.list().some(lead => lead.id === suppressed.id), false,
+      'the suppressed record must be outside the dashboard page');
+    assert.equal(store.hasSuppressedEmail('BUYER@EXAMPLE.COM'), true);
+    assert.equal(store.hasSuppressedEmail('other@example.test'), false);
+    const handler = createFunnelHandler({
+      store, config: { PORTAL_ORIGIN: 'https://portal.3dvr.tech', THREEDVR_OPERATOR_OWNER_PUBS: 'owner' },
+      verify: async body => ({
+        ok: true, identity: { pub: body.authPub, action: body.action },
+        verified: { data: body.signedData, requestId: body.requestId }
+      })
+    });
+    const res = response();
+    const data = { id: target.id };
+    await handler({
+      method: 'POST', headers: {},
+      body: {
+        action: 'draft', data, authPub: 'owner', signedData: JSON.stringify(data),
+        requestId: 'e0c93ad8-917c-4f47-8c5f-b1f17d6c5042'
+      }
+    }, res);
+    assert.equal(res.code, 403);
+    assert.match(res.data.error, /suppressed/);
+    assert.equal(res.data.draft, undefined);
+  } finally { store.close(); }
+});
+
 test('suppressed leads cannot get a reply draft', () => {
   assert.throws(() => draftReply({ ...base, stage: 'do-not-contact' }), /not available/);
 });
