@@ -200,7 +200,7 @@ async function runCrossDeviceSyncAcceptance() {
     hasPub: Boolean(syncProbe.pub)
   }));
   if (!syncProbe.ready) {
-    throw new Error(`Operator account sync did not initialize: ${JSON.stringify(syncProbe)}`);
+    throw new Error(`Operator account sync did not initialize (ready=${syncProbe.ready}, signedIn=${syncProbe.signedIn === 'true'}, hasPub=${Boolean(syncProbe.pub)})`);
   }
 
   const token = `cross-device-${Date.now()}`;
