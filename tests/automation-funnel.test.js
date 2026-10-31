@@ -428,6 +428,35 @@ test('an older do-not-contact email blocks drafting beyond the 500-row CRM windo
   } finally { store.close(); }
 });
 
+test('owner draft endpoint returns 403 for legacy closed or suppressed leads without email', async () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const handler = createFunnelHandler({
+      store, config: { PORTAL_ORIGIN: 'https://portal.3dvr.tech', THREEDVR_OPERATOR_OWNER_PUBS: 'owner' },
+      verify: async body => ({
+        ok: true, identity: { pub: body.authPub, action: body.action },
+        verified: { data: body.signedData, requestId: body.requestId }
+      })
+    });
+    for (const [i, stage] of [' LOST ', ' Do-Not-Contact '].entries()) {
+      const lead = store.insert(normalizeLead({
+        business: 'Legacy no-email prospect ' + i, problem: 'Integration issue', stage: 'lost'
+      })).lead;
+      store.db.prepare("UPDATE leads SET payload=json_set(payload, '$.stage', ?) WHERE id=?")
+        .run(stage, lead.id);
+      const data = { id: lead.id };
+      const res = response();
+      await handler({
+        method: 'POST', headers: {},
+        body: { action: 'draft', data, authPub: 'owner', signedData: JSON.stringify(data),
+          requestId: 'legacy-closed-draft-check-' + i + '-20261031' }
+      }, res);
+      assert.equal(res.code, 403, stage);
+      assert.equal(res.data.draft, undefined, stage);
+    }
+  } finally { store.close(); }
+});
+
 test('suppressed and closed-lost leads cannot get reply drafts, including legacy stage values', () => {
   for (const stage of ['do-not-contact', ' Do-Not-Contact ', 'lost', ' LOST ']) {
     assert.throws(() => draftReply({ ...base, stage }), /not available/, stage);
