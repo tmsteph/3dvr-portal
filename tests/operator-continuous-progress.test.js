@@ -95,3 +95,14 @@ test('both Operator surfaces keep delegated progress in the conversation', async
   assert.match(actions, /backgroundTask: \{ kind:'server_control'/);
   assert.match(actions, /backgroundTask: \{ kind:'forge'/);
 });
+
+test('self-hosted Operator does not load Vercel-only analytics as an executable asset', async () => {
+  const html = await read('operator/index.html');
+  // OVH has no /_vercel/insights/script.js; a 404 text/plain response
+  // produces a noisy MIME/script failure during authenticated acceptance.
+  assert.doesNotMatch(html, /<script[^>]+src=["']\/_vercel\/insights\/script\.js["']/i);
+  // Removing optional analytics must not remove the essential app or auth.
+  assert.match(html, /<script[^>]+src=["']\/gun-init\.js["']/i);
+  assert.match(html, /<script[^>]+src=["']\/auth-identity\.js["']/i);
+  assert.match(html, /<script[^>]+type=["']module["'][^>]+src=["']app\.js["']/i);
+});
