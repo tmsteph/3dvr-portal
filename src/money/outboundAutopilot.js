@@ -81,7 +81,16 @@ export function parseProspectsCsv(csv = '') {
   if (rows.length < 2) return [];
 
   const headers = rows[0].map(header => slugify(header).replace(/-/g, '_'));
+  // A duplicate normalized header or a shifted column can attach a buyer's
+  // contact details to the wrong prospect. Reject malformed imports rather
+  // than silently dropping or reassigning fields in an outreach draft.
+  if (new Set(headers).size !== headers.length) {
+    throw new Error('Invalid prospect CSV: duplicate column headers');
+  }
   return rows.slice(1).map((cells, index) => {
+    if (cells.length !== headers.length) {
+      throw new Error(`Invalid prospect CSV: row ${index + 2} has ${cells.length} fields; expected ${headers.length}`);
+    }
     const row = {};
     headers.forEach((header, cellIndex) => {
       row[header] = cells[cellIndex] || '';
