@@ -25,6 +25,17 @@ const page = await context.newPage();
 const pageErrors = [];
 const operatorStatuses = [];
 const operatorRequestFailures = [];
+const staticAssetFailures = [];
+
+// Report only same-origin static asset paths and HTTP status: never log query
+// strings, authentication tokens, request bodies, or customer content.
+function captureStaticAssetFailure(response) {
+  const url = new URL(response.url());
+  if (url.origin !== new URL(baseUrl).origin || !/\.(?:js|mjs|css)$/.test(url.pathname) || response.status() < 400) return;
+  const failure = { path: url.pathname, status: response.status() };
+  staticAssetFailures.push(failure);
+  log('E2E_STATIC_ASSET_FAILURE', JSON.stringify(failure));
+}
 
 page.on('console', message => {
   const text = message.text();
@@ -35,6 +46,7 @@ page.on('pageerror', error => {
   console.log(`[pageerror] ${error.message}`);
 });
 page.on('response', response => {
+  captureStaticAssetFailure(response);
   if (response.url().includes('/api/openai-site?provider=operator')) {
     operatorStatuses.push(response.status());
     log('E2E_OPERATOR_HTTP', response.status());
@@ -220,16 +232,20 @@ async function runCrossDeviceSyncAcceptance() {
     userAgent: '3DVR-Operator-E2E/1.0 Device-B'
   });
   const secondPage = await secondContext.newPage();
+  secondPage.on('response', captureStaticAssetFailure);
 
   try {
     await signInFreshPage(secondPage);
     await secondPage.locator('#show-history').click();
+    const historyWaitStartedAt = Date.now();
     try {
       await secondPage.waitForFunction(expected => {
         return [...document.querySelectorAll('#history-list button')]
           .some(button => button.textContent?.includes(expected));
       }, token, { timeout: 30_000 });
     } catch (error) {
+      log('E2E_CROSS_DEVICE_HISTORY_WAIT_MS', Date.now() - historyWaitStartedAt);
+      log('E2E_STATIC_ASSET_FAILURE_COUNT', staticAssetFailures.length);
       // Diagnostic only: distinguish identity, relay visibility, local cache and UI rendering.
       // Read the synthetic fixture; never log conversation text, aliases or credentials.
       const diagnostic = await secondPage.evaluate(async ({ expected, expectedPub }) => {
@@ -269,6 +285,7 @@ async function runCrossDeviceSyncAcceptance() {
       log('E2E_DEVICE_B_SNAPSHOT_METADATA', JSON.stringify(readerMetadata));
       throw error;
     }
+    log('E2E_CROSS_DEVICE_HISTORY_WAIT_MS', Date.now() - historyWaitStartedAt);
     log('E2E_CROSS_DEVICE_PASS', token);
 
     await secondPage.evaluate(async fixtureId => {
