@@ -376,7 +376,7 @@ test('worker never executes if its initial SQLite claim renewal is rejected or u
 });
 
 test('background SQLite renewal failure holds both success and error outcomes for review', async (t) => {
-  const options = await queueOptions(t, { gunSync: false, leaseTtlMs: 60 });
+  const options = await queueOptions(t, { gunSync: false, leaseTtlMs: 300 });
   const originalRenewer = sqliteQueue.createClaimRenewer;
   let backendCalls = 0;
   try {
@@ -386,11 +386,16 @@ test('background SQLite renewal failure holds both success and error outcomes fo
         ...options, id, backend: 'codex', riskClass: 'draft',
       });
       let renewals = 0;
+      let signalRenewalFailure;
+      const renewalFailureObserved = new Promise(resolve => { signalRenewalFailure = resolve; });
       sqliteQueue.createClaimRenewer = (taskId, token, queueOptions) => {
         const handle = originalRenewer(taskId, token, queueOptions);
         return {
           renew(expiresAt) {
-            if (taskId === id && ++renewals === 2) return false;
+            if (taskId === id && ++renewals === 2) {
+              signalRenewalFailure();
+              return false;
+            }
             return handle.renew(expiresAt);
           },
           close() { handle.close(); },
@@ -400,7 +405,18 @@ test('background SQLite renewal failure holds both success and error outcomes fo
         ...options,
         runAgentTaskImpl: async () => {
           backendCalls += 1;
-          await new Promise(resolve => setTimeout(resolve, 120));
+          // Do not assume a 120ms sleep guarantees a background timer ran:
+          // CI can delay timers under parallel test load. Wait for the exact
+          // injected failure, with a bounded timeout if renewal stops entirely.
+          let timeout;
+          try {
+            await Promise.race([
+              renewalFailureObserved,
+              new Promise((_, reject) => {
+                timeout = setTimeout(() => reject(new Error('background renewal never ran')), 2000);
+              }),
+            ]);
+          } finally { clearTimeout(timeout); }
           if (mode === 'error') throw new Error('simulated backend failure after lost heartbeat');
           return { ok: true, result: { stdout: 'unverified success' } };
         },
