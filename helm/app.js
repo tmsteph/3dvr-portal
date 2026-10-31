@@ -6,7 +6,7 @@ const $ = id => document.getElementById(id);
 let sessionKey = `3dvr.helm.session.${localStorage.getItem('userPubKey') || localStorage.getItem('alias') || 'guest'}`;
 let sessionId = globalThis.sessionStorage?.getItem(sessionKey) || crypto.randomUUID();
 globalThis.sessionStorage?.setItem(sessionKey, sessionId);
-let engine = globalThis.sessionStorage?.getItem(`${sessionKey}.engine`) === 'codex' ? 'codex' : 'openclaw';
+let engine = globalThis.sessionStorage?.getItem(`${sessionKey}.engine`) === 'openclaw' ? 'openclaw' : 'codex';
 let busy = false;
 let saving = false;
 let connected = false;
@@ -303,7 +303,7 @@ window.addEventListener('storage', event => {
   epoch += 1;
   sessionKey = `3dvr.helm.session.${localStorage.getItem('userPubKey') || localStorage.getItem('alias') || 'guest'}`;
   sessionId = crypto.randomUUID();
-  engine = 'openclaw';
+  engine = 'codex';
   globalThis.sessionStorage?.setItem(`${sessionKey}.engine`, engine);
   showEngine();
   globalThis.sessionStorage?.setItem(sessionKey, sessionId);
