@@ -50,7 +50,10 @@ export function summarizeUpworkDedupe(rows) {
   }
   summary.duplicateJobFingerprints.sort();
   summary.duplicateJobFingerprints = summary.duplicateJobFingerprints.slice(0, 20);
-  // An unrecognized dedupe key may represent a corrupted or manually changed\n  // identity even when the job appears only once; do not report a clean audit.\n  summary.reviewRequired = summary.duplicateJobGroups > 0 || summary.invalidPayloadRows > 0\n    || summary.otherKeyRows > 0;
+  // An unrecognized dedupe key may represent a corrupted or manually changed
+  // identity even when the job appears only once; do not report a clean audit.
+  summary.reviewRequired = summary.duplicateJobGroups > 0 || summary.invalidPayloadRows > 0
+    || summary.otherKeyRows > 0;
   return summary;
 }
 
