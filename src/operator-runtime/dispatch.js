@@ -77,11 +77,16 @@ QUEUE_NODE
 
 export function runManagedQueue(input, options = {}) {
   const config = options.config || process.env;
+  // Do not silently route signed work to a legacy/fallback host. The release
+  // owner must explicitly select and verify the host holding the managed SQLite
+  // queue and its live same-owner worker heartbeat before accepting new work.
+  const taskHost = String(config.THREEDVR_OPERATOR_TASK_SSH_HOST || '').trim();
+  if (!taskHost) throw new Error('Operator task SSH host must be explicitly configured.');
   const { command, prefix } = openClawSshCommand(config, options.uid ?? process.getuid?.());
   const encoded = Buffer.from(JSON.stringify(input)).toString('base64url');
   return new Promise((resolve, reject) => {
     const child = (options.spawn || spawn)(command, [...prefix, '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8',
-      config.THREEDVR_OPERATOR_TASK_SSH_HOST || '3dvr-do', 'bash', '-s', '--', encoded], { stdio:['pipe','pipe','pipe'] });
+      taskHost, 'bash', '-s', '--', encoded], { stdio:['pipe','pipe','pipe'] });
     let output = '';
     const timer = setTimeout(() => { child.kill('SIGTERM'); reject(new Error('Task service timed out.')); }, 20000);
     child.stdout.on('data', chunk => {
