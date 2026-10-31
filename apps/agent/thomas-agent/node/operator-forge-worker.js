@@ -4,7 +4,7 @@ const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const path = require('node:path');
 const execFileAsync = promisify(execFile);
-const { runAgentTask } = require('./task-orchestrator');
+const { runAgentTask, riskScanText } = require('./task-orchestrator');
 const { authorizePortalOperatorTask } = require('./operator-forge-auth');
 
 const DEFAULT_LIMIT = 5;
@@ -12,6 +12,7 @@ const DEFAULT_READ_TIMEOUT_MS = 1800;
 const DEFAULT_RELAY_FLUSH_MS = 1200;
 const EXECUTOR_BLOCKED_PATTERN = /\b(?:blocked by the execution environment|no side effects occurred|no file was edited|read-only file system|workspace is read-only|could not write)\b/i;
 const EXECUTOR_APPROVAL_PATTERN = /\b(?:please confirm|confirm that i may|need (?:your )?confirmation|awaiting confirmation|if you approve|would you like me to)\b/i;
+const GITHUB_WRITE_PATTERN = /\b(push|merge|pull request|open a pr|create a pr|commit(?: to github)?|github branch|push to github)\b/i;
 const BLOCKED_EXTERNAL_WRITE_PATTERN = /\b(deploy|release|send|email|post|force[- ]?push|delete (?:the )?(?:repo|repository|branch|tag)|transfer (?:the )?(?:repo|repository)|repository settings|repo settings|secrets?|billing|reset\s+--hard)\b/i;
 let defaultGun = null;
 
@@ -90,11 +91,18 @@ function editOnlyTask(record = {}, auth = {}) {
   if (!task) return { ok: false, reason: 'missing code edit request' };
   // The browser adds this exact negative instruction to every signed edit.
   // Remove only that fixed sentence from intent classification, never from execution.
-  const intent = task.replaceAll('Claim a working live link only after checking that URL; do not deploy without authorization.', '');
+  const marker = ' Make the smallest useful change in the working repository and run focused tests.';
+  const end = task.lastIndexOf(marker);
+  const requested = task.startsWith('Operator code request: ') && end >= 0 ? task.slice(0, end) : task;
+  const intent = riskScanText(requested.replaceAll('Avoid production behavior, secrets, and configuration.', ''));
   if (BLOCKED_EXTERNAL_WRITE_PATTERN.test(intent)) {
     return { ok: false, reason: 'that external or destructive action still requires a separate protected path' };
   }
-  const githubWrite = Boolean(record.githubWriteRequested);
+  const requestedGithubWrite = GITHUB_WRITE_PATTERN.test(intent);
+  if (requestedGithubWrite && !record.githubWriteRequested) {
+    return { ok: false, reason: 'the signed request did not authorize GitHub writes' };
+  }
+  const githubWrite = Boolean(record.githubWriteRequested && requestedGithubWrite);
   if (githubWrite && (auth.role !== 'owner' || auth.githubWriteApproved !== true)) {
     return { ok: false, reason: 'owner authorization is required for GitHub writes' };
   }
@@ -206,7 +214,8 @@ async function runForgeRequest(record, options = {}) {
       '--no-print-prompt',
       '--repo', repoPath,
     ];
-    if (edit.githubWrite) args.push('--unsafe');
+    args.push('--unsafe');
+    if (!edit.githubWrite) args.push('--workspace-write');
     args.push(edit.githubWrite
       ? `${edit.task} This exact GitHub write intent was cryptographically signed by the 3DVR owner. You may create a branch, commit, push, open a pull request, or merge only as explicitly requested. Do not deploy, release, force-push, delete repositories/branches/tags, change secrets/settings/billing, or perform unrelated external actions.`
       : edit.task);
