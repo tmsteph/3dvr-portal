@@ -234,3 +234,31 @@ test('SQLite source column is read without mutating the existing queue', (t) => 
   assert.equal(report.statusCounts.queued, 2);
   assert.equal(JSON.stringify(report).includes('private signed task'), false);
 });
+
+test('audit redacts untrusted queue metadata and fails closed on unknown risk', () => {
+  const privateValue = 'private-client-secret-XYZ';
+  const records = [
+    { id: 'private-task', status: 'queued', backend: privateValue,
+      requiredCapabilities: privateValue, riskClass: privateValue,
+      approvalStatus: privateValue, task: privateValue,
+      createdAt: '2026-10-23T09:00:00Z' },
+    { id: 'unknown-status', status: privateValue, task: privateValue }
+  ];
+  const report = summarizeQueue(records, {
+    THREEDVR_AGENT_WORKER_CAPABILITIES: privateValue,
+    THREEDVR_AGENT_WORKER_RISK_CLASSES: 'read_only,external_write'
+  }, now);
+  const review = report.queuedReviews[0];
+  assert.equal(review.backend, 'other');
+  assert.equal(review.risk, 'other');
+  assert.equal(review.effectiveRisk, 'external_write');
+  assert.equal(review.approval, 'other');
+  assert.equal(report.queuedCapabilities.other, 1);
+  assert.equal(report.statusCounts.other, 1);
+  for (const flag of ['unrecognized_backend', 'unrecognized_risk',
+    'unrecognized_capability', 'approval_block', 'approval_verification_unavailable']) {
+    assert.ok(review.flags.includes(flag), flag);
+  }
+  assert.ok(!review.flags.includes('metadata_eligible_not_authorized'));
+  assert.equal(JSON.stringify(report).includes(privateValue), false);
+});
