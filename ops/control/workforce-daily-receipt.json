@@ -1,8 +1,8 @@
 {
-  "localDate": "2026-10-30",
+  "localDate": "2026-10-31",
   "timezone": "America/Los_Angeles",
   "lighthouse": {
-    "checkedAt": "2026-10-30T15:29:41.166Z",
+    "checkedAt": "2026-10-31T15:14:29.178Z",
     "source": "authenticated OVH general CDP 9222 Lighthouse week API via GitHub Actions/Hetzner SSH",
     "weeksChecked": [
       "2026-10-26",
@@ -14,17 +14,17 @@
     ]
   },
   "iatse": {
-    "checkedAt": "2026-10-30T15:31:22.925Z",
+    "checkedAt": "2026-10-31T15:16:01.944Z",
     "outcome": "noop",
     "changedDates": [],
     "deferredDates": [],
     "renderedWindow": {
-      "start": "2026-10-29",
-      "end": "2026-11-30"
+      "start": "2026-10-30",
+      "end": "2026-12-01"
     },
     "mismatches": [],
     "persistedAfterReload": true,
-    "desiredDatesChecked": 27,
+    "desiredDatesChecked": 26,
     "unmodifiedUnspecifiedDates": [
       "2026-11-26",
       "2026-11-27",
@@ -36,11 +36,12 @@
   "verification": {
     "sourceWeeksHttp200": true,
     "iatseReloadVerified": true,
-    "writerLeaseReleased": true
+    "writerLeaseReleaseAttempted": true,
+    "writerLeaseReleaseIndependentlyVerified": false
   },
   "execution": {
     "path": "GitHub Actions via Hetzner/Open Runner to OVH general lane",
-    "sourceReadRun": 41081079396,
-    "iatseVerifyRun": 41081392332
+    "sourceRequestCommit": "1cd8a9e2bee2df54c465adb166b899f27d171e6f",
+    "iatseRequestCommit": "5da98973b66c07a147323515d086452f02905967"
   }
 }
