@@ -274,3 +274,11 @@ test('Gemini backend sends the OpenAI-compatible Gemini request shape', async ()
   assert.equal(JSON.parse(captured.request.body).model, 'gemini-test');
   assert.equal(result.stdout, 'world');
 });
+
+test('an explicitly scoped workspace edit never inherits the unrestricted sandbox', () => {
+  const options = parseArgs(['--backend', 'codex', '--execute', '--unsafe', '--workspace-write', 'Edit a local test file']);
+  assert.equal(options.workspaceWrite, true);
+  const command = backendCommand('codex', 'Edit a local test file', options);
+  assert.equal(command.args[command.args.indexOf('--sandbox') + 1], 'workspace-write');
+  assert.ok(!command.args.includes('danger-full-access'));
+});
