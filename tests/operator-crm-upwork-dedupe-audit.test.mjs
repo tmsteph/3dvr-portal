@@ -111,7 +111,8 @@ test('SQLite audit counts invalid JSON shapes without mutating historical CRM ro
     assert.equal(result.reviewRequired, true);
     const readback = new DatabaseSync(path, { readOnly: true });
     try {
-      assert.deepEqual(readback.prepare('SELECT dedupe, payload FROM leads ORDER BY dedupe').all(),
+      assert.deepEqual(readback.prepare('SELECT dedupe, payload FROM leads ORDER BY dedupe').all()
+        .map(({ dedupe, payload }) => ({ dedupe, payload })),
         [{ dedupe: 'invalid-array', payload: '[]' }, { dedupe: 'invalid-number', payload: '123' }]);
     } finally { readback.close(); }
   } finally {
