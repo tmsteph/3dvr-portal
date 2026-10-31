@@ -111,6 +111,12 @@ test('cross-device acceptance logs only account-presence metadata, never the pub
   const script = await read('scripts/operator-portal-e2e.mjs');
   assert.doesNotMatch(script, /log\('E2E_SYNC_PROBE',\s*JSON\.stringify\(syncProbe\)\)/);
   assert.doesNotMatch(script, /JSON\.stringify\(syncProbe\)/);
+  // Initial sign-in must not print account alias/public key, including on errors.
+  assert.doesNotMatch(script, /log\('E2E_ACCOUNT_ALIAS',/);
+  assert.doesNotMatch(script, /log\('E2E_ACCOUNT_PUB',/);
+  assert.doesNotMatch(script, /JSON\.stringify\(identity\)/);
+  assert.match(script, /log\('E2E_ACCOUNT_ALIAS_PRESENT',\s*Boolean\(identity\.alias\)\)/);
+  assert.match(script, /log\('E2E_ACCOUNT_PUB_PRESENT',\s*Boolean\(identity\.pub\)\)/);
   assert.match(script, /hasPub:\s*Boolean\(syncProbe\.pub\)/);
   assert.match(script, /sameAccount:\s*Boolean\(pub\)\s*&&\s*pub\s*===\s*expectedPub/);
 });
