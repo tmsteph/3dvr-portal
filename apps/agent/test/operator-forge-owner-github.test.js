@@ -255,7 +255,9 @@ test('managed edits execute in a separate branch and worktree', async t => {
   const { record, options } = managedFixture(t, path.join(directory, 'receipts'));
   options.env = { THREEDVR_OPERATOR_PORTAL_REPO: base };
   options.worktreeRoot = path.join(directory, 'worktrees');
+  record.backend = 'claude-api'; // Relay metadata cannot redirect managed code to another provider.
   options.runAgentTaskImpl = async args => {
+    assert.equal(args[args.indexOf('--backend') + 1], 'codex');
     const repo = args[args.indexOf('--repo') + 1];
     assert.notEqual(repo, base);
     assert.equal(path.dirname(repo), options.worktreeRoot);
