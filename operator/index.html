@@ -104,6 +104,19 @@
       <div class="app-search-heading"><strong>Your tools</strong><small id="app-search-count"></small><button id="app-search-close" type="button" aria-label="Close tools">×</button></div>
       <nav id="app-search-list" aria-label="Matching 3DVR apps and pages"></nav>
     </section>
+    <details id="context-transfer" class="context-transfer">
+      <summary>Share selected context with ChatGPT</summary>
+      <p>Paste only what you choose from a conversation or your own export. This panel cannot read either chat history. It keeps the excerpt in this page until you act; it does not save it.</p>
+      <label>Sharing direction<select><option value="to-operator">ChatGPT → Operator draft</option><option value="to-chatgpt">Operator → file for ChatGPT</option></select></label>
+      <label>Source attribution<input maxlength="500" autocomplete="off" placeholder="Conversation title, date, author, and optional source URL"></label>
+      <label>Selected excerpt<textarea rows="4" maxlength="20000" autocomplete="off" placeholder="Paste only the text you intend to share"></textarea></label>
+      <p>Review the preview below. Attribution is supplied by you, not verified. Sending an Operator draft uses normal model processing, conversation storage, and account sync. Downloading creates a local file; nothing is sent to ChatGPT until you share it there.</p>
+      <pre aria-label="Context transfer preview"></pre>
+      <button type="button" data-context-add disabled>Add to Operator draft</button>
+      <button type="button" data-context-download disabled>Download for ChatGPT</button>
+      <button type="button" data-context-clear>Clear panel</button>
+      <small role="status"></small>
+    </details>
     <form id="operator-form"><div class="operator-mode-control"><label for="operator-mode">Collaboration</label><select id="operator-mode" aria-describedby="operator-mode-help"><option value="together">Build Together</option><option value="learn">Learn</option><option value="autopilot">Autopilot</option></select><small id="operator-mode-help">Co-design and review each step.</small></div>
       <label for="operator-input">Message your operator or search 3DVR</label>
       <textarea id="operator-input" rows="2" placeholder="Ask, think out loud, or tell me what you need…" aria-describedby="operator-status"></textarea>

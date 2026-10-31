@@ -74,3 +74,18 @@
 @keyframes operator-empty-breathe{0%,100%{transform:scale(.98)}50%{transform:scale(1.035)}}
 @media(max-width:600px){.operator-empty-portal__spinner{width:clamp(132px,42vw,190px);height:clamp(132px,42vw,190px)}#operator-log:empty~.welcome{padding:0 .25rem .7rem}}
 @media(prefers-reduced-motion:reduce){.operator-empty-portal__spinner{animation:none}}
+
+.context-transfer {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border, #52616b);
+  border-radius: 0.75rem;
+}
+.context-transfer summary { cursor: pointer; }
+.context-transfer label { display: block; margin: 0.75rem 0; }
+.context-transfer input,
+.context-transfer select,
+.context-transfer textarea { display: block; width: 100%; box-sizing: border-box; }
+.context-transfer pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 16rem; overflow: auto; }
+.context-transfer button { margin: 0.25rem; }
+.context-transfer small { display: block; }
