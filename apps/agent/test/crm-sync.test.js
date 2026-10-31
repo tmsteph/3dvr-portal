@@ -293,6 +293,42 @@ test('shouldSyncLeadToCrm keeps the default CRM import focused on useful leads',
   }, { includeAll: true }), true);
 });
 
+test('readLeads preserves quoted business names, contacts, variants and multiline CSV fields', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-crm-quoted-'));
+  const leadsFile = path.join(tmp, 'leads.csv');
+  try {
+    await writeFile(leadsFile, [
+      'name,link,contact,status,date,variant',
+      '"Smith, Jones & Co",https://smith.example,mailto:owner@smith.example,new,2026-10-31,"route=email,priority=high"',
+      '"Studio ""A"", North\\nDivision",https://studio.example,mailto:studio@example.com,contacted,2026-10-30,route=email',
+      ''
+    ].join('\\r\\n').replace('North\\\\nDivision', 'North\\nDivision'));
+    const leads = readLeads(leadsFile);
+    assert.equal(leads.length, 2);
+    assert.deepEqual(leads[0], {
+      name: 'Smith, Jones & Co', link: 'https://smith.example',
+      contact: 'mailto:owner@smith.example', status: 'new',
+      date: '2026-10-31', variant: 'route=email,priority=high'
+    });
+    assert.equal(leads[1].name, 'Studio "A", North\\nDivision');
+    assert.equal(leads[1].contact, 'mailto:studio@example.com');
+    assert.equal(leads[1].status, 'contacted');
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+});
+
+test('readLeads rejects unterminated quoted CSV instead of silently shifting CRM identities', async () => {
+  const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-crm-invalid-'));
+  const leadsFile = path.join(tmp, 'leads.csv');
+  try {
+    await writeFile(leadsFile, 'name,link,contact,status,date,variant\\n"Unclosed,https://example.test,mailto:owner@example.test,new');
+    assert.throws(() => readLeads(leadsFile), /Unterminated quoted leads CSV field/);
+  } finally {
+    await rm(tmp, { recursive: true, force: true });
+  }
+});
+
 test('readLeads and parseArgs support previewing scoped sync runs', async () => {
   const tmp = await mkdtemp(path.join(os.tmpdir(), '3dvr-crm-sync-'));
   const leadsFile = path.join(tmp, 'leads.csv');
