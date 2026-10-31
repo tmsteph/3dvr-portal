@@ -95,7 +95,7 @@ test('private worker preserves legacy, running, unsafe, and policy-blocked tasks
     listTasks: options => { assert.deepEqual(options, { queueStore: 'sqlite', gunSync: false }); return records; },
     canWorkerRunTask: record => ({ ok: record.id !== 'operator-http-policy-blocked' }),
     runQueuedTask: (record, options) => { calls.push({ id: record.id, options }); return { ok: true }; },
-    readTask: () => ({ status: 'completed', queueSource: 'operator-http', resultText: 'saved synthetic result' })
+    readTask: id => ({ id, status: 'completed', queueSource: 'operator-http', resultText: 'saved synthetic result' })
   };
   assert.equal(await runOnce(queue), 1);
   assert.deepEqual(calls, [{ id: 'operator-http-ready', options: { queueStore: 'sqlite', gunSync: false } }]);
@@ -156,7 +156,7 @@ test('exact-task-ID pin processes only the authorized signed canary, not the nex
   const queue = {
     listTasks: () => records,
     canWorkerRunTask: () => ({ ok: true }),
-    readTask: () => ({ status: 'completed', queueSource: 'operator-http', resultText: 'synthetic result' }),
+    readTask: id => ({ id, status: 'completed', queueSource: 'operator-http', resultText: 'synthetic result' }),
     runQueuedTask: (task, options) => {
       assert.equal(options.onlyTaskId, 'operator-http-pinned');
       executed.push(task.id);
@@ -220,7 +220,7 @@ test('pinned canary waits for late admission then executes only the exact task o
   const queue = {
     listTasks: () => { polls += 1; return polls < 3 ? [] : records; },
     canWorkerRunTask: () => ({ ok: true }),
-    readTask: () => ({ status: 'completed', queueSource: 'operator-http', resultText: 'synthetic result' }),
+    readTask: id => ({ id, status: 'completed', queueSource: 'operator-http', resultText: 'synthetic result' }),
     runQueuedTask: (task, options) => {
       assert.equal(options.onlyTaskId, 'operator-http-approved');
       executions.push(task.id);
@@ -292,7 +292,7 @@ test('shared worker reports a failed native task and continues to unrelated work
     listTasks: () => [tasks[poll++]],
     canWorkerRunTask: () => ({ ok: true }),
     runQueuedTask: task => ({ ok: task.id === 'operator-http-succeeded' }),
-    readTask: () => ({ status: 'completed', queueSource: 'operator-http', resultText: 'saved synthetic result' }),
+    readTask: id => ({ id, status: 'completed', queueSource: 'operator-http', resultText: 'saved synthetic result' }),
   };
   await assert.rejects(runLoop(queue, {
     pollMs: 1,
@@ -308,9 +308,11 @@ test('shared worker reports a failed native task and continues to unrelated work
 
 test('pinned canary rejects a successful executor return without a durable signed output', async () => {
   const record = { id: 'operator-http-readback', status: 'queued', backend: 'codex', queueSource: 'operator-http' };
+  // A completed row from another task must not count as this task's execution.
   const invalidReceipts = [null,
     { status: 'running', queueSource: 'operator-http', resultText: 'synthetic' },
     { status: 'completed', queueSource: 'gun', resultText: 'synthetic' },
+    { id: 'operator-http-wrong-task', status: 'completed', queueSource: 'operator-http', resultText: 'synthetic' },
     { status: 'completed', queueSource: 'operator-http', resultText: '' },
   ];
   for (const receipt of invalidReceipts) {
@@ -337,6 +339,7 @@ test('continuous private worker does not report success without a durable signed
     null,
     { status: 'running', queueSource: 'operator-http', resultText: 'synthetic' },
     { status: 'completed', queueSource: 'gun', resultText: 'synthetic' },
+    { id: 'operator-http-wrong-task', status: 'completed', queueSource: 'operator-http', resultText: 'synthetic' },
     { status: 'completed', queueSource: 'operator-http', resultText: '' },
   ];
   for (const receipt of invalidReceipts) {
@@ -362,7 +365,7 @@ test('continuous private worker does not report success without a durable signed
     listTasks: () => [record],
     canWorkerRunTask: () => ({ ok: true }),
     runQueuedTask: () => ({ ok: true }),
-    readTask: () => ({ status: 'completed', queueSource: 'operator-http', resultText: 'saved result' }),
+    readTask: id => ({ id, status: 'completed', queueSource: 'operator-http', resultText: 'saved result' }),
   }), 1);
 });
 
