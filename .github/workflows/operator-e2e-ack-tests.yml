@@ -8,6 +8,8 @@ on:
       - 'tests/operator-runtime-worker-e2e-ack.test.mjs'
       - 'tests/operator-queue-routing-audit.test.mjs'
       - 'scripts/ops/operator-stale-queue-audit.mjs'
+      - 'scripts/ops/operator-crm-upwork-dedupe-audit.mjs'
+      - 'tests/operator-crm-upwork-dedupe-audit.test.mjs'
       - 'tests/operator-stale-queue-audit.test.mjs'
       - 'tests/operator-dispatch.test.js'
       - 'src/automation-funnel/store.js'
@@ -36,7 +38,8 @@ jobs:
       - run: node --check scripts/operator-runtime-worker-e2e.mjs
       - run: node --check scripts/ops/operator-queue-routing-audit.mjs
       - run: node --check scripts/ops/operator-stale-queue-audit.mjs
-      - run: node --test tests/operator-runtime-worker-e2e-ack.test.mjs tests/operator-queue-routing-audit.test.mjs tests/operator-stale-queue-audit.test.mjs tests/operator-dispatch.test.js tests/automation-funnel.test.js
+      - run: node --check scripts/ops/operator-crm-upwork-dedupe-audit.mjs
+      - run: node --test tests/operator-runtime-worker-e2e-ack.test.mjs tests/operator-queue-routing-audit.test.mjs tests/operator-stale-queue-audit.test.mjs tests/operator-dispatch.test.js tests/automation-funnel.test.js tests/operator-crm-upwork-dedupe-audit.test.mjs
       # Validate crash/lease safety independently of Agent Checks' blocking audit.
       # The audit gate remains mandatory for any merge or deployment.
       - run: npm ci --prefix apps/agent
