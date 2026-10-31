@@ -116,6 +116,16 @@ export function openFunnelStore(path = process.env.AUTOMATION_FUNNEL_DB || '/opt
       // writes together, or preserve the original lead and version.
       db.exec('BEGIN IMMEDIATE');
       try {
+        // The dedupe key is reserved at creation. Retargeting a CRM row to
+        // another buyer/job would leave that key pointing at the wrong lead,
+        // silently suppressing new discovery and misrouting follow-ups.
+        // Permit URL/slug edits only when they resolve to the same identity.
+        const current = db.prepare('SELECT payload FROM leads WHERE id=? AND version=?').get(id, version);
+        if (!current) throw Object.assign(new Error('Record changed. Refresh before saving.'), { statusCode: 409 });
+        if (identity(JSON.parse(current.payload)) !== identity(lead)) {
+          throw Object.assign(new Error('Lead identity changed. Create a separate lead for a different buyer or job.'),
+            { statusCode: 409 });
+        }
         const result = db.prepare('UPDATE leads SET payload=?, version=version+1, updated_at=? WHERE id=? AND version=?').run(JSON.stringify(lead), now, id, version);
         if (!result.changes) throw Object.assign(new Error('Record changed. Refresh before saving.'), { statusCode: 409 });
         db.prepare('INSERT INTO events VALUES (?, ?, ?, ?)').run(randomUUID(), id, 'updated:' + lead.stage, now);
