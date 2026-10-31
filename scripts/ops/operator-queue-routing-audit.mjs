@@ -9,6 +9,9 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const BROWSER_OWNER_ALIAS = '3dvr-managed';
+// Required capabilities may be copied from untrusted queue metadata. Only
+// known coarse labels can appear in read-only diagnostic output.
+const SAFE_CAPABILITIES = new Set(['auto', 'node', 'codex', 'openai', 'claude', 'openclaw', 'shell', 'health', 'static-hosting', 'crm-read', 'crm-write', 'browser', 'research']);
 const fingerprint = value => createHash('sha256').update(value).digest('hex').slice(0, 12);
 
 export function inspectRouting(env = process.env, exists = existsSync) {
@@ -25,16 +28,18 @@ export function inspectRouting(env = process.env, exists = existsSync) {
   // infer that the worker should gain a capability merely because work is queued.
   const requiredCapabilities = String(env.THREEDVR_OPERATOR_AUDIT_REQUIRED_CAPABILITIES || '')
     .split(',').map(value => value.trim().toLowerCase()).filter(Boolean);
+  const unknownRequiredCapabilitiesCount = new Set(requiredCapabilities.filter(value => !SAFE_CAPABILITIES.has(value))).size;
   const missingRequiredCapabilities = [...new Set(requiredCapabilities)]
-    .filter(value => !workerCapabilities.includes(value));
+    .filter(value => SAFE_CAPABILITIES.has(value) && !workerCapabilities.includes(value));
   const dbPath = String(env.THREEDVR_AGENT_QUEUE_DB || '').trim()
     || join(homedir(), '.3dvr', 'task-queue.sqlite');
   return {
     mode: 'read_only_config_only',
     queueStore: store,
-    workerCapabilitiesConfigured: Boolean(env.THREEDVR_AGENT_WORKER_CAPABILITIES),
+    workerCapabilitiesConfigured: workerCapabilities.length > 0,
     requiredCapabilitiesAudited: requiredCapabilities.length,
     missingRequiredCapabilities,
+    unknownRequiredCapabilitiesCount,
     explicitOwnerConfigured: Boolean(explicit),
     portalAccountConfigured: Boolean(portal),
     gunSqliteOwnerMatch: gunOwner === sqliteOwner,
@@ -55,9 +60,10 @@ export function inspectRouting(env = process.env, exists = existsSync) {
       ...(BROWSER_OWNER_ALIAS !== workerOwner ? ['Browser producer and worker owner aliases differ.'] : []),
       ...(store !== 'sqlite' ? ['Signed Operator producer uses SQLite, but this worker uses GUN; matching owner aliases do not establish queue connectivity.'] : []),
       ...(!explicit ? ['No explicit worker owner alias; inspect effective service environment.'] : []),
-      ...(missingRequiredCapabilities.length ? [env.THREEDVR_AGENT_WORKER_CAPABILITIES
+      ...(missingRequiredCapabilities.length ? [workerCapabilities.length
         ? 'Worker cannot claim tasks requiring: ' + missingRequiredCapabilities.join(', ') + '. Do not enable stale tasks without review.'
         : 'Worker capabilities not explicitly configured; eligibility for ' + missingRequiredCapabilities.join(', ') + ' is unverified. Do not enable stale tasks without review.'] : []),
+      ...(unknownRequiredCapabilitiesCount ? ['Unknown required capability labels need manual review; do not enable stale tasks.'] : []),
     ],
     caveat: 'Configuration only; does not establish queue contents, dispatch, or worker completion.',
   };
