@@ -201,7 +201,7 @@ async function runForgeRequest(record, options = {}) {
     const repoPath = await isolatedRepo(record, auth, options);
     const runImpl = options.runAgentTaskImpl || runAgentTask;
     const args = [
-      '--backend', record.backend || 'auto',
+      '--backend', (options.stateDir || (options.env || process.env).THREEDVR_OPERATOR_FORGE_STATE_DIR) ? 'codex' : record.backend || 'auto',
       '--execute',
       '--no-print-prompt',
       '--repo', repoPath,
