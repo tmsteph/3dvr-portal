@@ -110,6 +110,64 @@ async function signInFreshPage(targetPage) {
   await targetPage.locator('#operator-input').waitFor({ state: 'visible', timeout: 30_000 });
 }
 
+// Failure-only read of encrypted GUN snapshot metadata on both test browsers.
+// Never export account identifiers, writer IDs, ciphertext, or conversation content.
+async function readCrossDeviceSnapshotMetadata(targetPage, fixtureId, token) {
+  return targetPage.evaluate(async ({ fixtureId, token }) => {
+    const gun = window.Gun({ localStorage: false, peers: window.__GUN_PEERS__ || [] });
+    const user = gun.user();
+    user.recall?.({ sessionStorage: true, localStorage: true });
+    for (let attempt = 0; attempt < 12 && !user.is?.pub; attempt += 1) {
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    const secret = user?._?.sea;
+    if (!user.is?.pub || !secret) return { authenticated: false };
+
+    const records = new Map();
+    const chain = user.get('operator-v01').get('device-history').map();
+    chain.on((record, id) => {
+      if (typeof record?.ciphertext === 'string') records.set(id, record);
+    });
+    await new Promise(resolve => setTimeout(resolve, 3500));
+    chain.off?.();
+
+    let decrypted = 0;
+    let unreadable = 0;
+    let currentFixtureSnapshots = 0;
+    let largestCiphertextBytes = 0;
+    let newestSnapshotAgeSeconds = null;
+    for (const record of records.values()) {
+      largestCiphertextBytes = Math.max(largestCiphertextBytes, new TextEncoder().encode(record.ciphertext).length);
+      const updatedAt = Date.parse(record.updatedAt || '');
+      if (Number.isFinite(updatedAt)) {
+        const age = Math.max(0, Math.round((Date.now() - updatedAt) / 1000));
+        newestSnapshotAgeSeconds = newestSnapshotAgeSeconds === null ? age : Math.min(newestSnapshotAgeSeconds, age);
+      }
+      try {
+        const decoded = await window.SEA.decrypt(record.ciphertext, secret);
+        const store = typeof decoded === 'string' ? JSON.parse(decoded) : decoded;
+        if (!Array.isArray(store?.conversations)) throw new Error('Invalid snapshot');
+        decrypted += 1;
+        if (store.conversations.some(conversation =>
+          conversation.id === fixtureId && conversation.messages?.some(message => message.content === token))) {
+          currentFixtureSnapshots += 1;
+        }
+      } catch {
+        unreadable += 1;
+      }
+    }
+    return {
+      authenticated: true,
+      snapshotCount: records.size,
+      decrypted,
+      unreadable,
+      currentFixtureSnapshots,
+      largestCiphertextBytes,
+      newestSnapshotAgeSeconds
+    };
+  }, { fixtureId, token }).catch(() => ({ diagnosticUnavailable: true }));
+}
+
 async function runCrossDeviceSyncAcceptance() {
   const syncProbe = await page.evaluate(async () => {
     const { createOperatorSync } = await import('/operator/sync.js');
@@ -202,6 +260,13 @@ async function runCrossDeviceSyncAcceptance() {
         diagnosticError: diagnosticError.message
       }));
       log('E2E_DEVICE_B_SYNC_DIAGNOSTIC', JSON.stringify(diagnostic));
+      // Compare publication on A with visibility/decryption on B without logging history.
+      const [writerMetadata, readerMetadata] = await Promise.all([
+        readCrossDeviceSnapshotMetadata(page, fixtureId, token),
+        readCrossDeviceSnapshotMetadata(secondPage, fixtureId, token)
+      ]);
+      log('E2E_DEVICE_A_SNAPSHOT_METADATA', JSON.stringify(writerMetadata));
+      log('E2E_DEVICE_B_SNAPSHOT_METADATA', JSON.stringify(readerMetadata));
       throw error;
     }
     log('E2E_CROSS_DEVICE_PASS', token);
