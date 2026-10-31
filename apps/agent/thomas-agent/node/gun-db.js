@@ -11,8 +11,14 @@ const OPS_ROOT = process.env.THREEDVR_GUN_OPS || 'ops';
 const AUTOPILOT_ROOT = process.env.THREEDVR_GUN_AUTOPILOT || 'autopilot';
 const PORTAL_ROOT = process.env.THREEDVR_GUN_PORTAL_ROOT || '3dvr-portal';
 
+// This client mirrors the remote relay; local RAD files are not a durable
+// business-data backup. Disable disk persistence to avoid radata-*.tmp growth
+// in long-running agent workers. The managed task queue uses SQLite.
 const gun = Gun({
   peers: [RELAY],
+  rad: false,
+  radisk: false,
+  file: false,
 });
 
 function slugify(input) {

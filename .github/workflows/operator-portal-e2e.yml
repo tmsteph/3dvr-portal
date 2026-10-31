@@ -16,6 +16,11 @@ on:
       - '.github/e2e/operator-e2e-mode.txt'
       - 'scripts/operator-portal-e2e.mjs'
       - 'scripts/operator-navigation-e2e.mjs'
+      - 'scripts/ops/operator-private-worker.cjs'
+      - 'tests/operator-private-worker.test.js'
+      - 'tests/operator-dispatch.test.js'
+      - 'src/operator-runtime/**'
+      - 'apps/agent/thomas-agent/node/task-queue-sqlite-store.js'
       - 'operator/**'
       - 'sign-in.html'
       - 'auth-identity.js'
@@ -31,6 +36,101 @@ permissions:
   contents: read
 
 jobs:
+  # Full Agent Checks are normally scoped to PRs targeting main/dev.
+  # Run the same security and regression gates for this stacked integration
+  # before it can be reconciled into main. No deployment or live queue access.
+  combined-agent-tests:
+    if: github.event_name == 'pull_request' && github.base_ref == 'operator/queue-routing-audit-20261022-v2'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+          cache-dependency-path: apps/agent/package-lock.json
+      - run: npm ci
+      - name: Build Operator Core for agent tests
+        run: |
+          npm --prefix ../../operator-core/operator-core ci --ignore-scripts
+          npm --prefix ../../operator-core/operator-core run build
+      - name: Full agent regressions
+        run: npm test
+      - name: Production dependency security audit
+        run: npm audit --omit=dev
+
+  # Test whether the stacked safety branch can be reconciled with today's main
+  # without modifying main, production, or any live queue. A conflict is a
+  # release blocker, not permission to drop either side's protections.
+  main-reconciliation-preview:
+    if: github.event_name == 'pull_request' && github.base_ref == 'operator/queue-routing-audit-20261022-v2'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+      - name: Merge main into the PR test checkout without committing or pushing
+        shell: bash
+        run: |
+          git fetch --no-tags origin main
+          set +e
+          git -c user.name='Operator CI' -c user.email='operator-ci@users.noreply.github.com' merge --no-commit --no-ff origin/main > /tmp/operator-main-merge.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            # Main and the stacked draft independently added the same worker and
+            # tests. Resolve ONLY these three reviewed overlaps in this disposable
+            # test checkout. Any new conflict fails closed for human review.
+            expected=$(printf '%s\n' '.github/workflows/operator-portal-e2e.yml' 'scripts/ops/operator-private-worker.cjs' 'tests/operator-private-worker.test.js' | sort)
+            actual=$(git diff --name-only --diff-filter=U | sort)
+            if [ "$actual" != "$expected" ]; then
+              echo '### Unexpected main integration conflicts; human review required' >> "$GITHUB_STEP_SUMMARY"
+              git diff --name-only --diff-filter=U | tee -a "$GITHUB_STEP_SUMMARY"
+              cat /tmp/operator-main-merge.log
+              exit 1
+            fi
+            git checkout --ours -- .github/workflows/operator-portal-e2e.yml scripts/ops/operator-private-worker.cjs tests/operator-private-worker.test.js
+            git add -- .github/workflows/operator-portal-e2e.yml scripts/ops/operator-private-worker.cjs tests/operator-private-worker.test.js
+            echo '### Preview: three known overlaps resolved using the strict stacked versions' >> "$GITHUB_STEP_SUMMARY"
+            echo 'This is an isolated merge preview, not an approved release merge.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '### Operator integration with current main: clean merge preview' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          # Preserve the main-only navigation regression when selecting the
+          # stricter stacked workflow version during the preview.
+          grep -Fq 'node scripts/operator-navigation-e2e.mjs' .github/workflows/operator-portal-e2e.yml
+          test -z "$(git diff --name-only --diff-filter=U)"
+          echo 'No commit, push, deployment, or live task execution occurred.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Install isolated main-preview test dependencies
+        run: npm ci --ignore-scripts
+      - name: Test queue and dispatch against the main reconciliation preview
+        run: node --test tests/operator-private-worker.test.js tests/operator-dispatch.test.js
+      - name: Install isolated Chromium for main-reconciled browser checks
+        run: npx playwright install --with-deps chromium
+      - name: Test main-reconciled Operator mobile, attachments and standalone navigation
+        run: |
+          node --test --test-concurrency=1 tests/home-operator-persistence.e2e.test.js tests/operator-device-sync.e2e.test.js
+          node scripts/operator-attachment-branch-e2e.mjs
+          node scripts/operator-navigation-e2e.mjs
+      - name: Install Agent dependencies in the main reconciliation preview
+        run: npm --prefix apps/agent ci
+      - name: Build Operator Core in the main reconciliation preview
+        run: |
+          npm --prefix operator-core/operator-core ci --ignore-scripts
+          npm --prefix operator-core/operator-core run build
+      - name: Full Agent regressions against reconciled main
+        run: npm --prefix apps/agent test
+      - name: Production dependency audit against reconciled main
+        run: npm --prefix apps/agent audit --omit=dev
+
   portal-e2e:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
@@ -46,9 +146,11 @@ jobs:
       - name: Verify the PR checkout with isolated local servers
         if: github.event_name == 'pull_request'
         run: |
+          node --test tests/operator-private-worker.test.js tests/operator-dispatch.test.js
           node --test --test-concurrency=1 tests/home-operator-persistence.e2e.test.js tests/operator-device-sync.e2e.test.js
           node scripts/operator-attachment-branch-e2e.mjs
-          node scripts/operator-navigation-e2e.mjs
+          # This main-only regression becomes available after reconciliation.
+          if [ -f scripts/operator-navigation-e2e.mjs ]; then node scripts/operator-navigation-e2e.mjs; fi
       - name: Run production acceptance test
         if: github.event_name == 'workflow_dispatch'
         env:

@@ -17,7 +17,8 @@ function normalizeEntry(entry = {}) {
   return {
     timestamp: normalizeText(entry.timestamp) || new Date().toISOString(),
     kind: normalizeText(entry.kind) || 'email',
-    status: normalizeText(entry.status) || 'sent',
+    // A missing outcome is not evidence of a successful send.
+    status: normalizeText(entry.status) || 'unverified',
     source: normalizeText(entry.source) || 'unknown',
     name: normalizeText(entry.name),
     site: normalizeText(entry.site),
@@ -74,7 +75,7 @@ function formatOutreachLogEntry(entry = {}) {
   const pieces = [
     entry.timestamp || '',
     entry.kind || 'email',
-    entry.status || 'sent',
+    entry.status || 'unverified',
     entry.name || '',
     entry.route ? `route=${entry.route}` : '',
     entry.source ? `source=${entry.source}` : '',

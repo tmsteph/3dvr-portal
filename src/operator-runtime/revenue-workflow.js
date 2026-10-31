@@ -65,7 +65,9 @@ export function getOutboundDecision({
     return { decision: 'defer', reason: 'Fresh-lead email should wait for the 08:00–18:00 local business window.' };
   }
 
-  return { decision: 'auto', reason: 'Fresh direct-email lead is inside the approved business window.' };
+  // Sending is an identity-bound side effect. A campaign/time window is not
+  // a per-message human approval receipt, so never authorize it here.
+  return { decision: 'approval', reason: 'Every outbound message requires a human approval checkpoint before sending.' };
 }
 
 export function createRevenueLeadWorkItem(input = {}) {
@@ -102,12 +104,64 @@ export function createRevenueLeadWorkItem(input = {}) {
   });
 }
 
+// These are records of externally observable events, not intentions or drafts.
+// A structured receipt reference is necessary but does not replace provider read-back.
+const RECEIPT_EVENTS = new Set(['outreach_sent', 'follow_up_sent', 'proposal_sent', 'reply_received', 'payment_received']);
+const SEND_EVENTS = new Set(['outreach_sent', 'follow_up_sent', 'proposal_sent']);
+// A receipt from a different kind of event cannot establish that a message
+// was sent or that a reply arrived. Provider verification remains mandatory.
+const SEND_RECEIPT_TYPES = new Set(['email', 'sms', 'whatsapp', 'message']);
+const REPLY_RECEIPT_TYPES = new Set(['reply', 'email_reply', 'sms_reply', 'whatsapp_reply']);
+
+function hasReceipt(evidence) {
+  return evidence && typeof evidence === 'object' && !Array.isArray(evidence)
+    && typeof evidence.type === 'string' && Boolean(evidence.type.trim())
+    && typeof evidence.id === 'string' && Boolean(evidence.id.trim());
+}
+
+function hasApprovedCheckpoint(checkpoint) {
+  return checkpoint && typeof checkpoint === 'object' && checkpoint.status === 'approved'
+    && typeof checkpoint.id === 'string' && Boolean(checkpoint.id.trim());
+}
+
 export function advanceRevenueLead(item, event, options = {}) {
   const stage = item?.metadata?.stage;
   if (!REVENUE_STAGES.includes(stage)) throw new TypeError(`unknown revenue stage: ${stage || 'missing'}`);
 
   const transition = TRANSITIONS[stage]?.[event];
   if (!transition) throw new TypeError(`event ${event} is not valid from revenue stage ${stage}`);
+
+  if (RECEIPT_EVENTS.has(event) && !hasReceipt(options.evidence)) {
+    throw new TypeError(`${event} requires a typed external receipt reference (type and id)`);
+  }
+  if (SEND_EVENTS.has(event) && !SEND_RECEIPT_TYPES.has(options.evidence.type)) {
+    throw new TypeError(`${event} requires an outbound message receipt type`);
+  }
+  if (event === 'reply_received' && !REPLY_RECEIPT_TYPES.has(options.evidence.type)) {
+    throw new TypeError('reply_received requires an inbound reply receipt type');
+  }
+  // Reusing the same provider event for another stage is not new execution
+  // evidence. This protects per-lead history; provider read-back is still required.
+  if (RECEIPT_EVENTS.has(event) && (item.evidence || []).some(receipt =>
+    receipt?.type === options.evidence.type && receipt?.id === options.evidence.id)) {
+    throw new TypeError(`${event} cannot reuse an existing external receipt`);
+  }
+  const sendCheckpoint = options.humanCheckpoint ?? item.humanCheckpoint;
+  // Check the entire per-lead history, not only the most recent send. A -> B -> A
+  // must not permit reuse of approval A for a third external message.
+  const usedApprovalIds = item.metadata?.usedOutboundApprovalIds;
+  if (SEND_EVENTS.has(event) && (
+      (usedApprovalIds !== undefined && (!Array.isArray(usedApprovalIds) ||
+        usedApprovalIds.some(id => typeof id !== 'string' || !id.trim()))) ||
+      !hasApprovedCheckpoint(sendCheckpoint) ||
+      sendCheckpoint.id === item.metadata?.lastOutboundApprovalId ||
+      (Array.isArray(usedApprovalIds) && usedApprovalIds.includes(sendCheckpoint.id)))) {
+    throw new TypeError(`${event} requires a fresh traceable approved human checkpoint`);
+  }
+  if (event === 'payment_received' &&
+      (options.evidence.type !== 'payment' || !Number.isFinite(options.result?.amount) || options.result.amount <= 0)) {
+    throw new TypeError('payment_received requires a payment receipt and positive numeric amount');
+  }
 
   const [nextStage, nextState] = transition;
   const evidence = [...(item.evidence || [])];
@@ -121,6 +175,11 @@ export function advanceRevenueLead(item, event, options = {}) {
     metadata: {
       stage: nextStage,
       lastEvent: event,
+      ...(SEND_EVENTS.has(event) ? {
+        lastOutboundApprovalId: sendCheckpoint.id,
+        usedOutboundApprovalIds: [...new Set([...(Array.isArray(usedApprovalIds) ? usedApprovalIds : []),
+          item.metadata?.lastOutboundApprovalId, sendCheckpoint.id].filter(Boolean))]
+      } : {}),
       nextFollowUpAt: options.nextFollowUpAt ?? item.metadata?.nextFollowUpAt ?? null,
       lastTransitionAt: options.now || new Date().toISOString()
     }

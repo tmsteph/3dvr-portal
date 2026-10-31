@@ -1,20 +1,101 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-const { runOnce } = createRequire(import.meta.url)('../scripts/ops/operator-private-worker.cjs');
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+const require = createRequire(import.meta.url);
+const { runOnce, runLoop, publishPrivateWorkerHeartbeat } = require('../scripts/ops/operator-private-worker.cjs');
+const sqlite = require('../apps/agent/thomas-agent/node/task-queue-sqlite-store.js');
+const { DatabaseSync } = require('node:sqlite');
+
+test('private poller advertises effective capabilities and exact canary pin in the same SQLite authority', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'operator-private-heartbeat-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const options = { queueDb: join(dir, 'queue.sqlite'), ownerAlias: '3dvr-managed' };
+  const queue = {
+    workerProfile: pollOptions => {
+      assert.equal(pollOptions.queueStore, 'sqlite');
+      assert.equal(pollOptions.gunSync, false);
+      assert.equal(pollOptions.onlyTaskId, 'operator-http-pinned');
+      return { workerId: 'same-host-general-worker', capabilities: ['codex'],
+        riskClasses: ['draft'], onlyTaskId: pollOptions.onlyTaskId };
+    },
+  };
+  assert.equal(publishPrivateWorkerHeartbeat(queue, sqlite, 'operator-http-pinned', options), true);
+  const db = new DatabaseSync(options.queueDb, { readOnly: true });
+  try {
+    const row = db.prepare('SELECT * FROM worker_heartbeats WHERE owner_alias = ?').get('3dvr-managed');
+    assert.match(row.worker_id, /^same-host-general-worker:operator-private:[0-9]+$/);
+    assert.equal(row.queue_store, 'sqlite');
+    assert.equal(row.capabilities, 'codex');
+    assert.equal(row.risk_classes, 'draft');
+    assert.equal(row.only_task_id, 'operator-http-pinned');
+    assert.ok(Date.now() - row.observed_at < 10000);
+    assert.equal(db.prepare('SELECT count(*) AS n FROM tasks').get().n, 0);
+  } finally {
+    db.close();
+  }
+});
+
+test('private heartbeat never invents capabilities or risk approval', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'operator-private-unconfigured-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const options = { queueDb: join(dir, 'queue.sqlite'), ownerAlias: '3dvr-managed' };
+  const queue = { workerProfile: () => ({ workerId: 'unconfigured', capabilities: [], riskClasses: [] }) };
+  assert.equal(publishPrivateWorkerHeartbeat(queue, sqlite, '', options), true);
+  const db = new DatabaseSync(options.queueDb, { readOnly: true });
+  try {
+    const row = db.prepare('SELECT capabilities, risk_classes, only_task_id FROM worker_heartbeats').get();
+    assert.equal(row.capabilities, '');
+    assert.equal(row.risk_classes, '');
+    assert.equal(row.only_task_id, '');
+  } finally {
+    db.close();
+  }
+});
+
+test('private loop publishes heartbeat before each poll and fails closed if heartbeat fails', async () => {
+  let clock = 0;
+  let polls = 0;
+  let beats = 0;
+  const queue = { listTasks: () => { polls += 1; return []; } };
+  await assert.rejects(runLoop(queue, {
+    onlyTaskId: 'operator-http-not-admitted',
+    pollMs: 10000,
+    pinTimeoutMs: 20000,
+    now: () => clock,
+    sleep: async ms => { clock += ms; },
+    onPoll: () => { beats += 1; },
+  }), /Pinned Operator canary timed out/);
+  assert.equal(polls, 3);
+  assert.equal(beats, 3);
+
+  let attemptedPoll = false;
+  await assert.rejects(runLoop({
+    listTasks: () => { attemptedPoll = true; return []; },
+  }, {
+    onPoll: () => { throw new Error('synthetic heartbeat persistence failure'); },
+  }), /synthetic heartbeat persistence failure/);
+  assert.equal(attemptedPoll, false);
+});
 
 test('private worker preserves legacy, running, unsafe, and policy-blocked tasks', async () => {
-  const task = (id, patch = {}) => ({ id, status: 'queued', backend: 'codex', ...patch });
+  const task = (id, patch = {}) => ({ id, status: 'queued', backend: 'codex', queueSource: 'operator-http', ...patch });
   const records = [task('legacy-shell', { backend: 'shell' }), task('legacy-auto'),
     task('operator-http-running', { status: 'running', claimExpiresAt: 0 }),
     task('operator-http-unsafe', { unsafe: true }), task('operator-http-policy-blocked'),
     task('operator-http-shell', { backend: 'shell' }), task('operator-http-completed', { status: 'completed' }),
+    task('operator-http-gun', { queueSource: 'gun' }),
+    task('operator-http-legacy', { queueSource: 'sqlite' }),
+    task('operator-http-unknown', { queueSource: undefined }),
     task('operator-http-ready'), task('operator-http-next')];
   const calls = [];
   const queue = {
     listTasks: options => { assert.deepEqual(options, { queueStore: 'sqlite', gunSync: false }); return records; },
     canWorkerRunTask: record => ({ ok: record.id !== 'operator-http-policy-blocked' }),
-    runQueuedTask: (record, options) => calls.push({ id: record.id, options })
+    runQueuedTask: (record, options) => { calls.push({ id: record.id, options }); return { ok: true }; },
+    readTask: id => ({ id, status: 'completed', queueSource: 'operator-http', resultText: 'saved synthetic result' })
   };
   assert.equal(await runOnce(queue), 1);
   assert.deepEqual(calls, [{ id: 'operator-http-ready', options: { queueStore: 'sqlite', gunSync: false } }]);
@@ -22,4 +103,300 @@ test('private worker preserves legacy, running, unsafe, and policy-blocked tasks
 
 test('an idle queue does not dispatch or enqueue work', async () => {
   assert.equal(await runOnce({ listTasks: () => [], runQueuedTask: () => assert.fail('unexpected execution') }), 0);
+});
+
+test('atomic claim rejects a source switch after the worker snapshot without a false receipt', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'operator-private-source-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const options = { queueDb: join(dir, 'queue.sqlite'), ownerAlias: '3dvr-managed' };
+  const signedId = 'operator-http-signed-task';
+  const task = { id: signedId, task: 'synthetic only', status: 'queued',
+    backend: 'codex', updatedAt: '2026-10-30T00:00:00.000Z' };
+  sqlite.insertTask(task, { ...options, queueSource: 'operator-http' });
+  const staleSnapshot = sqlite.listTasks(options);
+  assert.equal(staleSnapshot[0].queueSource, 'operator-http');
+
+  // The public relay is no longer allowed to overwrite signed tasks.
+  assert.equal(sqlite.importTask({ ...task, updatedAt: '2026-10-30T00:01:00.000Z' }, options), false);
+  // Still test the claim's defense in depth against a direct DB provenance change
+  // between the worker's list snapshot and atomic claim.
+  const db = new DatabaseSync(options.queueDb);
+  try {
+    db.prepare("UPDATE tasks SET source = 'gun' WHERE owner_alias = ? AND id = ?")
+      .run(options.ownerAlias, signedId);
+  } finally { db.close(); }
+  assert.equal(sqlite.readTask(signedId, options).queueSource, 'gun');
+  let executions = 0;
+  const queue = {
+    listTasks: () => staleSnapshot,
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: () => {
+      const claimed = sqlite.claimTask(signedId, 'stale-token', 'worker', Date.now() + 60000, Date.now(), options);
+      if (claimed) executions++;
+      return claimed ? { ok: true } : { ok: false, skipped: true };
+    },
+  };
+  assert.equal(await runOnce(queue), 0);
+  assert.equal(executions, 0);
+  assert.equal(sqlite.readTask(signedId, options).status, 'queued');
+
+  // Fresh signed work remains claimable; legacy IDs retain existing behavior.
+  const fresh = { ...task, id: 'operator-http-fresh-task' };
+  sqlite.insertTask(fresh, { ...options, queueSource: 'operator-http' });
+  assert.ok(sqlite.claimTask(fresh.id, 'fresh-token', 'worker', Date.now() + 60000, Date.now(), options));
+  const legacy = { ...task, id: 'legacy-task' };
+  sqlite.writeTask(legacy, options);
+  assert.ok(sqlite.claimTask(legacy.id, 'legacy-token', 'worker', Date.now() + 60000, Date.now(), options));
+});
+
+test('exact-task-ID pin processes only the authorized signed canary, not the next queued task', async () => {
+  const records = ['operator-http-first', 'operator-http-pinned', 'operator-http-third']
+    .map(id => ({ id, queueSource: 'operator-http', status: 'queued', backend: 'codex' }));
+  const executed = [];
+  const queue = {
+    listTasks: () => records,
+    canWorkerRunTask: () => ({ ok: true }),
+    readTask: id => ({ id, status: 'completed', queueSource: 'operator-http', resultText: 'synthetic result' }),
+    runQueuedTask: (task, options) => {
+      assert.equal(options.onlyTaskId, 'operator-http-pinned');
+      executed.push(task.id);
+      return { ok: true };
+    },
+  };
+  assert.equal(await runOnce(queue, 'operator-http-pinned'), 1);
+  assert.deepEqual(executed, ['operator-http-pinned']);
+  assert.equal(await runOnce(queue, 'operator-http-missing'), 0);
+  assert.deepEqual(executed, ['operator-http-pinned']);
+  records[1].queueSource = 'gun';
+  assert.equal(await runOnce(queue, 'operator-http-pinned'), 0);
+  assert.deepEqual(executed, ['operator-http-pinned']);
+});
+
+
+test('SQLite atomic claim rejects other signed tasks despite a stale worker snapshot', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'operator-private-pin-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const options = { queueDb: join(dir, 'queue.sqlite'), ownerAlias: '3dvr-managed' };
+  const task = id => ({ id, task: 'synthetic only', status: 'queued', backend: 'codex', updatedAt: '2026-10-30T00:00:00.000Z' });
+  const pinnedId = 'operator-http-pinned';
+  const otherId = 'operator-http-other';
+  sqlite.insertTask(task(pinnedId), { ...options, queueSource: 'operator-http' });
+  sqlite.insertTask(task(otherId), { ...options, queueSource: 'operator-http' });
+  const scope = { ...options, onlyTaskId: pinnedId };
+  const now = Date.now();
+  assert.equal(sqlite.claimTask(otherId, 'other-token', 'worker', now + 60000, now, scope), null);
+  assert.equal(sqlite.readTask(otherId, options).status, 'queued');
+  assert.ok(sqlite.claimTask(pinnedId, 'pinned-token', 'worker', now + 60000, now, scope));
+  assert.equal(sqlite.readTask(pinnedId, options).status, 'running');
+  assert.equal(sqlite.readTask(otherId, options).status, 'queued');
+});
+
+test('pinned canary stops with a visible timeout instead of polling forever', async () => {
+  let clock = 0;
+  let polls = 0;
+  const queue = {
+    listTasks: () => { polls += 1; return []; },
+    runQueuedTask: () => assert.fail('missing canary must not execute'),
+  };
+  await assert.rejects(runLoop(queue, {
+    onlyTaskId: 'operator-http-missing',
+    pinTimeoutMs: 20000,
+    pollMs: 10000,
+    now: () => clock,
+    sleep: async ms => { clock += ms; },
+  }), /Pinned Operator canary timed out without an execution receipt/);
+  assert.equal(polls, 3);
+  assert.equal(clock, 20000);
+});
+
+test('pinned canary waits for late admission then executes only the exact task once', async () => {
+  let polls = 0;
+  let clock = 0;
+  const executions = [];
+  const records = [
+    { id: 'operator-http-other', status: 'queued', backend: 'codex', queueSource: 'operator-http' },
+    { id: 'operator-http-approved', status: 'queued', backend: 'codex', queueSource: 'operator-http' },
+  ];
+  const queue = {
+    listTasks: () => { polls += 1; return polls < 3 ? [] : records; },
+    canWorkerRunTask: () => ({ ok: true }),
+    readTask: id => ({ id, status: 'completed', queueSource: 'operator-http', resultText: 'synthetic result' }),
+    runQueuedTask: (task, options) => {
+      assert.equal(options.onlyTaskId, 'operator-http-approved');
+      executions.push(task.id);
+      return { ok: true };
+    },
+  };
+  let receipts = 0;
+  assert.equal(await runLoop(queue, {
+    onlyTaskId: 'operator-http-approved',
+    pinTimeoutMs: 20000,
+    pollMs: 10000,
+    now: () => clock,
+    sleep: async ms => { clock += ms; },
+    onProcessed: () => { receipts += 1; },
+  }), 1);
+  assert.equal(polls, 3);
+  assert.deepEqual(executions, ['operator-http-approved']);
+  assert.equal(receipts, 1);
+});
+
+test('native execution failure is not counted as a successful private task', async () => {
+  const record = { id: 'operator-http-failed', queueSource: 'operator-http',
+    status: 'queued', backend: 'codex' };
+  for (const result of [{ ok: false, error: 'synthetic failure' }, { ok: false }, null]) {
+    const queue = {
+      listTasks: () => [record],
+      canWorkerRunTask: () => ({ ok: true }),
+      runQueuedTask: () => result,
+    };
+    assert.equal(await runOnce(queue, record.id), -1);
+  }
+  const skippedQueue = {
+    listTasks: () => [record],
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: () => ({ ok: false, skipped: true }),
+  };
+  assert.equal(await runOnce(skippedQueue, record.id), 0);
+});
+
+test('pinned canary exits on failed native execution without reporting completion', async () => {
+  const record = { id: 'operator-http-failed', queueSource: 'operator-http',
+    status: 'queued', backend: 'codex' };
+  let attempts = 0;
+  let completed = 0;
+  const queue = {
+    listTasks: () => [record],
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: () => { attempts += 1; return { ok: false, error: 'synthetic failure' }; },
+  };
+  await assert.rejects(runLoop(queue, {
+    onlyTaskId: record.id,
+    sleep: () => assert.fail('failed canary must not be retried'),
+    onProcessed: () => { completed += 1; },
+  }), /Pinned Operator canary failed; inspect exact task result/);
+  assert.equal(attempts, 1);
+  assert.equal(completed, 0);
+});
+
+test('shared worker reports a failed native task and continues to unrelated work', async () => {
+  const tasks = ['operator-http-failed', 'operator-http-succeeded'].map(id => ({
+    id, status: 'queued', queueSource: 'operator-http', backend: 'codex',
+  }));
+  let poll = 0;
+  let sleeps = 0;
+  const failed = [];
+  const completed = [];
+  const stop = new Error('synthetic test stop');
+  const queue = {
+    listTasks: () => [tasks[poll++]],
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: task => ({ ok: task.id === 'operator-http-succeeded' }),
+    readTask: id => ({ id, status: 'completed', queueSource: 'operator-http', resultText: 'saved synthetic result' }),
+  };
+  await assert.rejects(runLoop(queue, {
+    pollMs: 1,
+    sleep: async () => { if (++sleeps === 2) throw stop; },
+    onFailed: () => failed.push('failure reported'),
+    onProcessed: () => completed.push('completion reported'),
+  }), error => error === stop);
+  assert.equal(poll, 2);
+  assert.deepEqual(failed, ['failure reported']);
+  assert.deepEqual(completed, ['completion reported']);
+});
+
+
+test('pinned canary rejects a successful executor return without a durable signed output', async () => {
+  const record = { id: 'operator-http-readback', status: 'queued', backend: 'codex', queueSource: 'operator-http' };
+  // A completed row from another task must not count as this task's execution.
+  const invalidReceipts = [null,
+    { status: 'running', queueSource: 'operator-http', resultText: 'synthetic' },
+    { status: 'completed', queueSource: 'gun', resultText: 'synthetic' },
+    { id: 'operator-http-wrong-task', status: 'completed', queueSource: 'operator-http', resultText: 'synthetic' },
+    { status: 'completed', queueSource: 'operator-http', resultText: '' },
+  ];
+  for (const receipt of invalidReceipts) {
+    const queue = {
+      listTasks: () => [record],
+      canWorkerRunTask: () => ({ ok: true }),
+      runQueuedTask: () => ({ ok: true }),
+      readTask: () => receipt,
+    };
+    assert.equal(await runOnce(queue, record.id), -1);
+  }
+  assert.equal(await runOnce({
+    listTasks: () => [record],
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: () => ({ ok: true }),
+    readTask: () => { throw new Error('synthetic read failure'); },
+  }, record.id), -1);
+});
+
+test('continuous private worker does not report success without a durable signed result', async () => {
+  const record = { id: 'operator-http-unpinned', status: 'queued',
+    backend: 'codex', queueSource: 'operator-http' };
+  const invalidReceipts = [
+    null,
+    { status: 'running', queueSource: 'operator-http', resultText: 'synthetic' },
+    { status: 'completed', queueSource: 'gun', resultText: 'synthetic' },
+    { id: 'operator-http-wrong-task', status: 'completed', queueSource: 'operator-http', resultText: 'synthetic' },
+    { status: 'completed', queueSource: 'operator-http', resultText: '' },
+  ];
+  for (const receipt of invalidReceipts) {
+    const queue = {
+      listTasks: () => [record],
+      canWorkerRunTask: () => ({ ok: true }),
+      runQueuedTask: () => ({ ok: true }),
+      readTask: (id, options) => {
+        assert.equal(id, record.id);
+        assert.deepEqual(options, { queueStore: 'sqlite', gunSync: false });
+        return receipt;
+      },
+    };
+    assert.equal(await runOnce(queue), -1);
+  }
+  assert.equal(await runOnce({
+    listTasks: () => [record],
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: () => ({ ok: true }),
+    readTask: () => { throw new Error('synthetic unavailable store'); },
+  }), -1);
+  assert.equal(await runOnce({
+    listTasks: () => [record],
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: () => ({ ok: true }),
+    readTask: id => ({ id, status: 'completed', queueSource: 'operator-http', resultText: 'saved result' }),
+  }), 1);
+});
+
+test('pinned canary reads back the exact completed signed SQLite task with saved result', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'operator-private-receipt-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const options = { queueDb: join(dir, 'queue.sqlite'), ownerAlias: '3dvr-managed' };
+  const id = 'operator-http-receipt';
+  sqlite.insertTask({ id, task: 'synthetic only', status: 'queued', backend: 'codex',
+    updatedAt: new Date().toISOString() }, { ...options, queueSource: 'operator-http' });
+  let executions = 0;
+  const queue = {
+    listTasks: () => sqlite.listTasks(options),
+    canWorkerRunTask: () => ({ ok: true }),
+    runQueuedTask: () => {
+      const now = Date.now();
+      const claimed = sqlite.claimTask(id, 'receipt-token', 'worker', now + 60000, now, options);
+      assert.ok(claimed);
+      executions += 1;
+      const terminal = { ...claimed, status: 'completed', resultText: 'saved synthetic output',
+        updatedAt: new Date(now).toISOString() };
+      assert.ok(sqlite.finishTask(id, 'receipt-token', terminal, options));
+      return { ok: true };
+    },
+    readTask: (taskId, scope) => {
+      assert.equal(taskId, id);
+      assert.equal(scope.onlyTaskId, id);
+      return sqlite.readTask(taskId, options);
+    },
+  };
+  assert.equal(await runOnce(queue, id), 1);
+  assert.equal(executions, 1);
+  assert.equal(sqlite.readTask(id, options).resultText, 'saved synthetic output');
 });

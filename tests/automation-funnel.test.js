@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { normalizeLead, draftReply } from '../src/automation-funnel/model.js';
 import { openFunnelStore } from '../src/automation-funnel/store.js';
 import { createFunnelHandler } from '../src/automation-funnel/handler.js';
@@ -24,6 +28,272 @@ test('durable queue deduplicates and uses version guard', () => {
   assert.equal(store.consumeAction('12345678-1234-1234-1234-123456789012'), false);
   store.close();
 });
+test('CRM updates cannot retarget a dedupe identity or silently misroute follow-ups', () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const inbound = normalizeLead({ ...base }, { inbound: true });
+    const savedInbound = store.insert(inbound).lead;
+    assert.throws(() => store.update(savedInbound.id,
+      { ...inbound, email: 'another-buyer@example.com' }, savedInbound.version), /Lead identity changed/);
+    assert.equal(store.get(savedInbound.id).email, inbound.email);
+    assert.equal(store.get(savedInbound.id).version, savedInbound.version);
+
+    const job = normalizeLead({
+      business: 'Upwork prospect', problem: 'Needs an integration', origin: 'public-research',
+      sourceUrl: 'https://www.upwork.com/jobs/~022100000000000000001'
+    });
+    const savedJob = store.insert(job).lead;
+    const alternateUrl = 'https://www.upwork.com/freelance-jobs/apply/Renamed_~022100000000000000001/';
+    const sameJob = store.update(savedJob.id, { ...job, sourceUrl: alternateUrl }, savedJob.version);
+    assert.equal(sameJob.sourceUrl, alternateUrl, 'same immutable job ID may have another URL');
+    assert.throws(() => store.update(savedJob.id, {
+      ...job, sourceUrl: 'https://www.upwork.com/jobs/~022100000000000000002'
+    }, sameJob.version), /Lead identity changed/);
+    assert.equal(store.get(savedJob.id).sourceUrl, alternateUrl);
+    assert.equal(store.get(savedJob.id).version, sameJob.version);
+    assert.equal(store.insert(job).duplicate, true, 'original job must still resolve to its record');
+    assert.equal(store.insert({ ...job,
+      sourceUrl: 'https://www.upwork.com/jobs/~022100000000000000002'
+    }).duplicate, false, 'a different job must not inherit the original follow-up');
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind LIKE 'updated:%'").get().n, 1,
+      'rejected identity changes must not create update events');
+  } finally { store.close(); }
+});
+
+test('CRM opt-outs cannot be cleared by an ordinary stage edit, including legacy values', () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const lead = normalizeLead(base, { inbound: true });
+    const saved = store.insert(lead).lead;
+    const optedOut = store.update(saved.id, { ...lead, stage: 'do-not-contact' }, saved.version);
+    assert.equal(store.hasSuppressedEmail(lead.email), true);
+    assert.throws(() => store.update(saved.id, { ...lead, stage: 'discovered' }, optedOut.version),
+      /Do-not-contact cannot be cleared/);
+    assert.equal(store.get(saved.id).stage, 'do-not-contact');
+    assert.equal(store.get(saved.id).version, optedOut.version);
+    assert.equal(store.hasSuppressedEmail(lead.email), true);
+    // Imported records can have unnormalized stages; a later CRM edit must
+    // not silently discard the historical suppression.
+    store.db.prepare('UPDATE leads SET payload=? WHERE id=?').run(
+      JSON.stringify({ ...lead, stage: ' DO-NOT-CONTACT ' }), saved.id);
+    assert.throws(() => store.update(saved.id, { ...lead, stage: 'discovered' }, optedOut.version),
+      /Do-not-contact cannot be cleared/);
+    assert.equal(store.hasSuppressedEmail(lead.email), true);
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind='updated:discovered'").get().n, 0);
+  } finally { store.close(); }
+});
+
+test('funnel rate limit rejects the last-slot race across SQLite workers', () => {
+  const dir = mkdtempSync(join(tmpdir(), '3dvr-funnel-limit-'));
+  const dbPath = join(dir, 'leads.sqlite');
+  const first = openFunnelStore(dbPath);
+  const second = openFunnelStore(dbPath);
+  try {
+    assert.equal(first.rateLimit('same-peer', { limit: 2 }), true);
+    const firstDeadline = first.db.prepare('SELECT reset_at FROM rate_limits WHERE identity=?')
+      .get('same-peer').reset_at;
+    const originalPrepare = first.db.prepare.bind(first.db);
+    let interleaved = false;
+    first.db.prepare = sql => {
+      if (!interleaved && sql.includes('INSERT INTO rate_limits')) {
+        interleaved = true;
+        // Another connection consumes the final slot after any pre-read,
+        // but before the first connection's attempted increment.
+        assert.equal(second.rateLimit('same-peer', { limit: 2 }), true);
+      }
+      return originalPrepare(sql);
+    };
+    assert.equal(first.rateLimit('same-peer', { limit: 2 }), false);
+    assert.equal(interleaved, true);
+    assert.equal(second.db.prepare('SELECT count FROM rate_limits WHERE identity=?').get('same-peer').count, 2);
+    assert.equal(second.db.prepare('SELECT reset_at FROM rate_limits WHERE identity=?')
+      .get('same-peer').reset_at, firstDeadline,
+      'a successful request within the active window must not slide its deadline');
+    // Expired windows restart at one instead of inheriting a stale count.
+    second.db.prepare('UPDATE rate_limits SET reset_at=0 WHERE identity=?').run('same-peer');
+    assert.equal(second.rateLimit('same-peer', { limit: 2 }), true);
+    assert.equal(second.db.prepare('SELECT count FROM rate_limits WHERE identity=?').get('same-peer').count, 1);
+  } finally {
+    first.close();
+    second.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('concurrent discovery workers reuse the winning lead and record one creation', () => {
+  const dir = mkdtempSync(join(tmpdir(), '3dvr-funnel-race-'));
+  const dbPath = join(dir, 'leads.sqlite');
+  const first = openFunnelStore(dbPath);
+  const second = openFunnelStore(dbPath);
+  try {
+    const lead = normalizeLead({ ...base, business: 'Concurrent Buyer' }, { inbound: true });
+    const originalExec = first.db.exec.bind(first.db);
+    let winner;
+    let interleaved = false;
+    first.db.exec = sql => {
+      // Another worker commits just before this worker begins its atomic
+      // transaction. Deduplication must return that winner without an event.
+      if (!interleaved && sql === 'BEGIN IMMEDIATE') {
+        interleaved = true;
+        winner = second.insert(lead);
+      }
+      return originalExec(sql);
+    };
+    const loser = first.insert(lead);
+    assert.equal(interleaved, true);
+    assert.equal(winner.duplicate, false);
+    assert.equal(loser.duplicate, true);
+    assert.equal(loser.lead.id, winner.lead.id);
+    assert.equal(first.db.prepare('SELECT COUNT(*) AS n FROM leads').get().n, 1);
+    assert.equal(first.db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind='created'").get().n, 1);
+  } finally {
+    first.close();
+    second.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+test('discovery deduplicates n8n topic links across slug, reply and locale variants', () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const lead = normalizeLead({
+      business: 'Hiring automation engineer',
+      problem: 'Needs automation implementation',
+      origin: 'n8n-jobs',
+      sourceUrl: 'https://community.n8n.io/t/hiring-automation-engineer/325192?tl=en'
+    });
+    const first = store.insert(lead);
+    assert.equal(first.duplicate, false);
+    const alternate = store.insert({
+      ...lead,
+      sourceUrl: 'https://community.n8n.io/t/renamed-post/325192/2?page=2'
+    });
+    assert.equal(alternate.duplicate, true);
+    assert.equal(alternate.lead.id, first.lead.id);
+    assert.equal(store.insert({ ...lead, sourceUrl: 'https://community.n8n.io/t/325192/2' }).duplicate, true,
+      'numeric topic routes must not mistake the reply page for the topic ID');
+    assert.equal(store.insert({ ...lead, sourceUrl: 'https://community.n8n.io/t/other/325193' }).duplicate, false);
+    assert.equal(store.insert({ ...lead, sourceUrl: 'https://example.org/t/other/325192' }).duplicate, false);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM leads').get().n, 3);
+  } finally {
+    store.close();
+  }
+});
+
+test('public Upwork job URLs deduplicate by stable job ID without merging other jobs or hosts', () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const lead = normalizeLead({
+      business: 'Buyer seeks CRM automation',
+      problem: 'Needs a qualified lead workflow',
+      origin: 'public-research',
+      sourceUrl: 'https://www.upwork.com/freelance-jobs/apply/CRM-automation_~022100000000000000001/?utm_source=feed'
+    });
+    const first = store.insert(lead);
+    assert.equal(first.duplicate, false);
+    const variants = [
+      'https://www.upwork.com/freelance-jobs/apply/Renamed-project_~022100000000000000001/',
+      'https://www.upwork.com/jobs/~022100000000000000001?source=search',
+      'https://upwork.com/jobs/~022100000000000000001'
+    ];
+    for (const sourceUrl of variants) {
+      const saved = store.insert({ ...lead, sourceUrl });
+      assert.equal(saved.duplicate, true, sourceUrl);
+      assert.equal(saved.lead.id, first.lead.id);
+    }
+    assert.equal(store.insert({ ...lead, sourceUrl:
+      'https://www.upwork.com/jobs/~022100000000000000002' }).duplicate, false);
+    assert.equal(store.insert({ ...lead, sourceUrl:
+      'https://example.org/jobs/~022100000000000000001' }).duplicate, false);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM leads').get().n, 3);
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind='created'").get().n, 3,
+      'only new distinct public opportunities get a CRM creation event');
+  } finally {
+    store.close();
+  }
+});
+
+test('legacy URL-keyed Upwork leads are reused without a migration or duplicate outreach record', () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const id = '022100000000000000099';
+    const original = normalizeLead({
+      business: 'Legacy CRM buyer', problem: 'Needs automation', origin: 'public-research',
+      sourceUrl: 'https://www.upwork.com/freelance-jobs/apply/Original_~' + id + '/'
+    });
+    const legacyHash = createHash('sha256').update(original.sourceUrl).digest('hex');
+    const now = '2026-10-01T00:00:00Z';
+    store.db.prepare('INSERT INTO leads VALUES (?, ?, ?, 1, ?, ?)')
+      .run('legacy-upwork', legacyHash, JSON.stringify(original), now, now);
+    store.db.prepare('INSERT INTO events VALUES (?, ?, ?, ?)')
+      .run('legacy-created', 'legacy-upwork', 'created', now);
+    const variant = { ...original, sourceUrl: 'https://www.upwork.com/jobs/~' + id + '?ref=search' };
+    const reused = store.insert(variant);
+    assert.equal(reused.duplicate, true);
+    assert.equal(reused.lead.id, 'legacy-upwork');
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM leads').get().n, 1);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM events').get().n, 1);
+    assert.equal(store.db.prepare('SELECT dedupe FROM leads WHERE id=?').get('legacy-upwork').dedupe,
+      legacyHash, 'legacy identity is not rewritten without migration approval');
+
+    // Two already-existing rows for the same job require human reconciliation.
+    const second = { ...original, sourceUrl: 'https://www.upwork.com/freelance-jobs/apply/Older_~' + id };
+    store.db.prepare('INSERT INTO leads VALUES (?, ?, ?, 1, ?, ?)')
+      .run('legacy-upwork-duplicate', createHash('sha256').update(second.sourceUrl).digest('hex'),
+        JSON.stringify(second), now, now);
+    assert.throws(() => store.insert(variant), /Ambiguous historical Upwork job leads/);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM leads').get().n, 2);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM events').get().n, 1);
+    assert.equal(store.insert({ ...variant, sourceUrl: 'https://www.upwork.com/jobs/~022100000000000000098' }).duplicate, false,
+      'different job IDs must not be merged');
+    assert.equal(store.insert({ ...variant, sourceUrl: 'https://example.org/jobs/~' + id }).duplicate, false,
+      'lookalike paths on other hosts must remain distinct');
+  } finally { store.close(); }
+});
+
+test('failed CRM creation-event write rolls back the lead and allows a clean retry', () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const lead = normalizeLead({ ...base, business: 'Rollback Buyer' }, { inbound: true });
+    store.db.exec(`CREATE TRIGGER reject_created BEFORE INSERT ON events
+      WHEN NEW.kind = 'created' BEGIN SELECT RAISE(FAIL, 'synthetic event failure'); END;`);
+    assert.throws(() => store.insert(lead), /synthetic event failure/);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM leads').get().n, 0,
+      'a failed creation event must not leave an untracked CRM lead');
+    store.db.exec('DROP TRIGGER reject_created');
+    const saved = store.insert(lead);
+    assert.equal(saved.duplicate, false, 'retry must create rather than silently dedupe');
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM leads').get().n, 1);
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind='created'").get().n, 1);
+  } finally {
+    store.close();
+  }
+});
+
+test('failed CRM update-event write rolls back the lead version and permits a clean retry', () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const lead = normalizeLead({ ...base, business: 'Update Rollback Buyer' }, { inbound: true });
+    const original = store.insert(lead).lead;
+    store.db.exec(`CREATE TRIGGER reject_updated BEFORE INSERT ON events
+      WHEN NEW.kind LIKE 'updated:%' BEGIN SELECT RAISE(FAIL, 'synthetic update event failure'); END;`);
+    assert.throws(() => store.update(original.id, { ...lead, stage: 'replied' }, original.version),
+      /synthetic update event failure/);
+    assert.equal(store.get(original.id).stage, original.stage,
+      'failed event write must not persist an unaudited CRM transition');
+    assert.equal(store.get(original.id).version, original.version,
+      'failed event write must not consume the optimistic-lock version');
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind LIKE 'updated:%'").get().n, 0);
+    store.db.exec('DROP TRIGGER reject_updated');
+    const updated = store.update(original.id, { ...lead, stage: 'replied' }, original.version);
+    assert.equal(updated.stage, 'replied');
+    assert.equal(updated.version, original.version + 1);
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind='updated:replied'").get().n, 1);
+    assert.throws(() => store.update(original.id, lead, original.version), /Record changed/);
+  } finally {
+    store.close();
+  }
+});
+
 test('public submission exposes receipt only and owner review requires bound proof', async () => {
   const store = openFunnelStore(':memory:');
   const config = { PORTAL_ORIGIN: 'https://portal.3dvr.tech', THREEDVR_OPERATOR_OWNER_PUBS: 'owner' };
@@ -43,6 +313,121 @@ test('source discovery rejects sellers and stale posts; never guesses budget', (
   const leads = parseJobFeed('<rss>' + item('Hiring n8n developer', 'Thu, 08 Oct 2026 10:00:00 GMT') + item('Looking for Remote Work — AI Automation / n8n', 'Thu, 08 Oct 2026 10:00:00 GMT') + item('For hire developer', 'Thu, 08 Oct 2026 10:00:00 GMT') + item('Need engineer', 'Thu, 01 Jan 2026 10:00:00 GMT') + '</rss>', now);
   assert.equal(leads.length, 1); assert.equal(leads[0].budget, 'undecided'); assert.equal(leads[0].qualified, false);
 });
+test('expert-needed buyer phrasing is discovered without promoting unverified demand', () => {
+  const now = Date.parse('2026-10-28T17:00:00Z');
+  const item = (title, id, date = 'Fri, 23 Oct 2026 04:25:00 GMT') =>
+    '<item><title>' + title + '</title><link>https://community.n8n.io/t/post/' + id +
+    '</link><pubDate>' + date + '</pubDate><description>Potential client request; budget unconfirmed.</description></item>';
+  const leads = parseJobFeed('<rss>' +
+    item('N8n Expert Needed: AI WhatsApp Support Agent (Hindi + English)', '100') +
+    item('Automation Specialist Needed for CRM Integration', '101') +
+    item('Expert needed for hire — available for your projects', '102') +
+    item('Developer Needed for old project', '103', 'Fri, 01 May 2026 04:25:00 GMT') +
+    '</rss>', now);
+  assert.equal(leads.length, 2);
+  assert.deepEqual(leads.map(lead => lead.sourceUrl), [
+    'https://community.n8n.io/t/post/100',
+    'https://community.n8n.io/t/post/101'
+  ]);
+  assert.ok(leads.every(lead => lead.budget === 'undecided' && lead.qualified === false && lead.stage === 'discovered'));
+});
+
+
+test('employer For Hire vacancies are discovered but freelancer offers remain excluded', () => {
+  const now = Date.parse('2026-10-28T22:00:00Z');
+  const item = (title, id) =>
+    '<item><title>' + title + '</title><link>https://community.n8n.io/t/post/' + id +
+    '</link><pubDate>Wed, 28 Oct 2026 17:00:00 GMT</pubDate><description>Contract scope and budget require verification.</description></item>';
+  const leads = parseJobFeed('<rss>' +
+    item('For Hire: AI Workflow Engineer at 7shifts (Remote - Canada/US Only)', 'buyer-1') +
+    item('For Hire: Automation Specialist at ExampleCo', 'buyer-2') +
+    item('For Hire: n8n Engineer — available for your projects', 'seller-1') +
+    item('For Hire: AI Engineer at ExampleCo — offering my services', 'seller-2') +
+    '</rss>', now);
+  assert.deepEqual(leads.map(lead => lead.sourceUrl), [
+    'https://community.n8n.io/t/post/buyer-1',
+    'https://community.n8n.io/t/post/buyer-2'
+  ]);
+  assert.ok(leads.every(lead => lead.stage === 'discovered' && lead.qualified === false && lead.budget === 'undecided'));
+});
+
+test('legacy padded and mixed-case opt-out remains binding for newer lead drafts', async () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const old = store.insert(normalizeLead({
+      ...base, business: 'Legacy Suppression', stage: 'do-not-contact'
+    })).lead;
+    // Simulate a pre-normalization import; current model validation trims these.
+    store.db.prepare("UPDATE leads SET payload=json_set(payload, '$.email', ?, '$.stage', ?) WHERE id=?")
+      .run('  BUYER@EXAMPLE.COM  ', '  Do-Not-Contact  ', old.id);
+    const newer = store.insert(normalizeLead({
+      ...base, business: 'Newer Inquiry', stage: 'discovered'
+    })).lead;
+    assert.equal(store.hasSuppressedEmail('buyer@example.com'), true);
+    assert.equal(store.hasSuppressedEmail('unrelated@example.com'), false);
+    const handler = createFunnelHandler({
+      store, config: { PORTAL_ORIGIN: 'https://portal.3dvr.tech', THREEDVR_OPERATOR_OWNER_PUBS: 'owner' },
+      verify: async body => ({
+        ok: true, identity: { pub: body.authPub, action: body.action },
+        verified: { data: body.signedData, requestId: body.requestId }
+      })
+    });
+    const data = { id: newer.id };
+    const res = response();
+    await handler({
+      method: 'POST', headers: {},
+      body: { action: 'draft', data, authPub: 'owner', signedData: JSON.stringify(data),
+        requestId: 'dc0139f0-0cc4-4980-b193-59e2d3fd21e0' }
+    }, res);
+    assert.equal(res.code, 403);
+    assert.equal(res.data.draft, undefined);
+  } finally { store.close(); }
+});
+
+test('an older do-not-contact email blocks drafting beyond the 500-row CRM window', async () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const suppressed = store.insert(normalizeLead({
+      ...base, business: 'Older Suppressed Buyer', stage: 'do-not-contact'
+    })).lead;
+    store.db.prepare('UPDATE leads SET updated_at=? WHERE id=?')
+      .run('2000-01-01T00:00:00.000Z', suppressed.id);
+    const target = store.insert(normalizeLead({
+      ...base, business: 'New Buyer Record', stage: 'discovered'
+    })).lead;
+    for (let i = 0; i < 501; i++) {
+      store.insert(normalizeLead({
+        business: 'Unrelated prospect ' + i, problem: 'Needs an integration',
+        email: 'unrelated-' + i + '@example.test'
+      }));
+    }
+    assert.equal(store.list().length, 500);
+    assert.equal(store.list().some(lead => lead.id === suppressed.id), false,
+      'the suppressed record must be outside the dashboard page');
+    assert.equal(store.hasSuppressedEmail('BUYER@EXAMPLE.COM'), true);
+    assert.equal(store.hasSuppressedEmail('other@example.test'), false);
+    const handler = createFunnelHandler({
+      store, config: { PORTAL_ORIGIN: 'https://portal.3dvr.tech', THREEDVR_OPERATOR_OWNER_PUBS: 'owner' },
+      verify: async body => ({
+        ok: true, identity: { pub: body.authPub, action: body.action },
+        verified: { data: body.signedData, requestId: body.requestId }
+      })
+    });
+    const res = response();
+    const data = { id: target.id };
+    await handler({
+      method: 'POST', headers: {},
+      body: {
+        action: 'draft', data, authPub: 'owner', signedData: JSON.stringify(data),
+        requestId: 'e0c93ad8-917c-4f47-8c5f-b1f17d6c5042'
+      }
+    }, res);
+    assert.equal(res.code, 403);
+    assert.match(res.data.error, /suppressed/);
+    assert.equal(res.data.draft, undefined);
+  } finally { store.close(); }
+});
+
 test('suppressed leads cannot get a reply draft', () => {
   assert.throws(() => draftReply({ ...base, stage: 'do-not-contact' }), /not available/);
 });

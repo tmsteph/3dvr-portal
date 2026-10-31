@@ -14,7 +14,16 @@ on:
 jobs:
   smoke:
     name: Run Workboard unit + Playwright E2E + smoke tests
+    # Playwright 1.56.1 does not ship Chromium for Ubuntu 26.04 yet.
+    # Pin a supported runner instead of depending on ubuntu-latest drift.
     runs-on: ubuntu-22.04
+    # Preinstalled browsers and OS dependencies avoid apt mirror stalls in CI.
+    # Version must match package-lock.json's Playwright 1.56.1.
+    container: mcr.microsoft.com/playwright:v1.56.1-jammy
+    env:
+      PLAYWRIGHT_INSTALL_DEPS: '0'
+      # Prism Wing E2E explicitly launches the Google Chrome channel.
+      PLAYWRIGHT_BROWSERS: 'chromium firefox chrome'
     timeout-minutes: 15
     steps:
       - name: Checkout repository
@@ -42,7 +51,10 @@ jobs:
         run: node --test tests/operator-self-edit-integration.test.js
 
       - name: Run Operator business system regression tests
-        run: node --test tests/operator-business-system.test.js tests/operator-runtime-resources.test.js tests/growth-desk.test.js
+        run: node --test tests/operator-business-system.test.js tests/operator-runtime-resources.test.js tests/growth-desk.test.js tests/growth-campaign-presets.test.js tests/automation-funnel.test.js
+
+      - name: Enforce no-send legacy outbound policy
+        run: node --test tests/money-outbound-autopilot.test.js
 
       - name: Run browser lane regression tests
         run: node --test tests/browser-lane-lease.test.js
@@ -69,6 +81,10 @@ jobs:
         run: node --test tests/cell-private-store.test.js tests/cell-network.test.js tests/cell-cross-app.test.js tests/cell-invitations.test.js
 
       - name: Run Playwright checks
+        # The Playwright container runs as root, but Actions sets HOME to a
+        # directory owned by uid 1001. Firefox refuses that mismatch.
+        env:
+          HOME: /root
         run: npm run playwright:verify:linux
 
       - name: Run private Cell mobile browser check

@@ -292,23 +292,83 @@ Portal users should not need to understand workers, DigitalOcean, tmux, or Codex
 9. Add isolated workspace support.
 10. Add dedicated worker provisioning for paid users.
 
-## Current DigitalOcean Role
+## Current DigitalOcean Role — edge and fallback
 
-The current DO server should be treated as:
+**Do not diagnose the absence of a DigitalOcean queue worker as an outage by itself.**
+The deployed edge-guardrail design in `ops/resilience/install-do-edge-guardrails.sh`
+explicitly removes the `3dvr-worker` and `3dvr-supervisor` tmux sessions
+from DigitalOcean to avoid duplicating Hetzner's worker role on a small edge node.
+
+A read-only check on 2026-10-28 confirmed that `3dvr-agent.service` is a
+`Type=oneshot`, `RemainAfterExit=yes` launcher for `3dvr agent start`.
+Its `active/exited` status **does not prove a running task worker**.
+No queue-worker process or tmux session was found on DigitalOcean; its
+managed SQLite queue contained 42 queued, 153 completed, and 5 failed tasks.
+This is a queue census, **not** proof that any of those tasks can safely run.
+
+Current roles:
 
 ```text
-bootstrap shared worker
-static hosting edge
-operator/admin worker
+OVH: primary portal/control plane
+Hetzner: designated worker and queue-execution lane (verify live health)
+DigitalOcean: lightweight edge, portal fallback, and recovery lane
 ```
 
-It is enough to prove the model, but it should not be the final infinite-capacity agent.
+Before changing any worker placement, verify Hetzner's actual queue-polling
+process, latest successful claim/receipt, capabilities, queue ownership, and
+which host holds the authoritative queue. A tmux session or an active oneshot
+service alone is not execution evidence. Do not restart a worker, broaden
+capabilities, replay stale work, or promote DO to a worker without a reviewed
+capacity and release plan.
 
-Near-term limits:
+If DigitalOcean is deliberately re-enabled as a shared worker later, keep
+concurrency at one, isolate user secrets, enforce per-task approvals and
+idempotency, and record authenticated worker receipts. It is not an
+infinite-capacity agent.
 
-- one Codex task at a time
-- no arbitrary user secrets on shared worker
-- no unsupervised external side effects
-- use leases and handled records for dedupe
-- log every message sent to a model or external service
 
+## Supervised signed-canary gate (draft; not deployed)
+
+A concurrency-1 Codex worker on the managed SQLite queue can still select an
+**existing** signed `operator-http-*` backlog task before a new test task.
+The supervised canary mode added in PR #3314 therefore binds **both** worker
+selection and the atomic SQLite claim to one exact signed task ID. It does not
+cancel, delete, or replay any other queued record.
+
+- Before starting a worker, derive the exact `operator-http-<owner-hash>-<requestId>`
+  ID from the authenticated Operator request. Use a fresh, approved, no-send
+  request; never select an existing queued ID as a convenient test.
+- Supply `--only-task-id <exact-id>` to the existing SQLite `run-once` worker,
+  or set `THREEDVR_AGENT_WORKER_ONLY_TASK_ID=<exact-id>` for its supervised
+  process. An invalid ID fails closed. This is a task selection boundary,
+  **not** authorization to start a worker or execute a paid model call.
+- The worker heartbeat records `only_task_id` on the **same** private SQLite
+  queue. New signed admissions must match this ID; the claim path independently
+  rejects every other ID even if an older task is first in the queue.
+- Before any supervised live test, independently verify the deployed commit,
+  actual queue owner and path, existing worker processes/heartbeats, one-writer
+  supervision, capabilities, cost limits, and the exact signed request. Stop
+  if any other poller could consume the canary or if a broader heartbeat is
+  still eligible. Do not clear historical tasks to make the test pass.
+- Inspect the durable claim, completion status, worker ID, result and timestamps
+  after execution. An HTTP 200, queue ACK, heartbeat, or CI pass alone is **not**
+  evidence of a completed task. Keep uncertain deliveries held for review.
+
+This is an **opt-in draft safety gate**. It does not authorize production
+worker activation, deployment, credentials, spending, or outbound messages.
+
+
+## Signed Operator dispatch: authoritative host/store release gate (October 31, 2026)
+
+The draft signed HTTP producer in `src/operator-runtime/dispatch.js` deliberately **fails closed** when `THREEDVR_OPERATOR_TASK_SSH_HOST` is missing or blank. Never restore an implicit DigitalOcean fallback. The historical worker-placement plan designates Hetzner, but **documentation is not evidence** that Hetzner currently hosts the authoritative managed queue. The dedicated Hetzner Forge code worker and legacy DigitalOcean task queue are not automatically the same SQLite worker/store as this signed HTTP producer.
+
+**Before configuring the SSH host or approving the release**, record a read-only, timestamped receipt that establishes all of the following together:
+
+1. OVH's actual deployed Portal commit and service identity; the exact SSH destination alias that OVH can resolve and reach without exposing private keys, passwords, environment dumps, or task payloads.
+2. On that destination, the effective worker runtime has `THREEDVR_AGENT_QUEUE_STORE=sqlite`, `THREEDVR_AGENT_OWNER_ALIAS=3dvr-managed`, the intended absolute private `THREEDVR_AGENT_QUEUE_DB` path, and a Codex-capable, `draft`-authorized worker. Check effective runtime configuration rather than only an example env file or an `active/exited` oneshot service.
+3. The same private SQLite file contains the `tasks` and `worker_heartbeats` tables, a recent **worker-produced** heartbeat under owner `3dvr-managed`, and bounded queue status counts/age. A heartbeat in a different file, on another host, or from a different owner is not admissible evidence. Observe without creating a missing SQLite file or replaying old tasks.
+4. One-writer supervision, no competing consumer eligible to claim the proposed canary, adequate disk/memory headroom, a pinned release SHA, and an independently verified rollback route. Hetzner was last reported at **94% disk usage / 2.4 GB free** in the October 31 read-only receipt; remeasure rather than assuming it has recovered.
+
+The October 31 [OVH service audit](https://github.com/tmsteph/3dvr-terminal-bridge/issues/1564#issuecomment-6542556855) found the deployed Portal **without** managed SQLite store/owner settings and without the default root managed DB. That is a **release/configuration blocker**, not proof of an empty queue elsewhere. The current draft's five green CI workflows establish source behavior, not authenticated production execution. Do not set the host or enable signed admission from the runbook alone.
+
+**Separate human approvals are required** for merge/deploy and for a single exact-ID, signed **no-send** production canary. Only after both approvals and the checks above: admit one approved synthetic research task, constrain the worker to its exact ID, verify durable claim/completion/result and CRM read-back, then record an auditable receipt. No historical backlog drain, external sends, customer data, spending, Tom-system access, or automatic remediation is authorized by this gate.
