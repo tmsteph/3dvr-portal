@@ -194,6 +194,12 @@ test('actual SQLite transport is idempotent and preserves historical and running
     const unavailable=invoke({action:'status',id:record.id,prefix:input.prefix},absentDb);
     assert.notEqual(unavailable.status,0,'read-only status must fail for a missing queue DB');
     await assert.rejects(stat(absentDb), {code:'ENOENT'});
+    // A misrouted signed enqueue must not create a second, empty SQLite
+    // queue file. The authoritative worker store must already exist.
+    const missingEnqueue=invoke({action:'enqueue',id:'operator-http-test-no-store',
+      prefix:input.prefix,record:{...record,id:'operator-http-test-no-store'}},absentDb);
+    assert.notEqual(missingEnqueue.status,0,'enqueue must reject a missing managed queue');
+    await assert.rejects(stat(absentDb), {code:'ENOENT'});
   } finally {db.close();await rm(dir,{recursive:true,force:true});}
 });
 
