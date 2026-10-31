@@ -10,6 +10,8 @@ on:
       - 'scripts/ops/operator-stale-queue-audit.mjs'
       - 'tests/operator-stale-queue-audit.test.mjs'
       - 'tests/operator-dispatch.test.js'
+      - 'src/automation-funnel/store.js'
+      - 'tests/automation-funnel.test.js'
       - 'operator/delegate-task.js'
       - '.github/workflows/operator-e2e-ack-tests.yml'
       - 'apps/agent/thomas-agent/node/task-queue-sqlite-store.js'
@@ -34,7 +36,7 @@ jobs:
       - run: node --check scripts/operator-runtime-worker-e2e.mjs
       - run: node --check scripts/ops/operator-queue-routing-audit.mjs
       - run: node --check scripts/ops/operator-stale-queue-audit.mjs
-      - run: node --test tests/operator-runtime-worker-e2e-ack.test.mjs tests/operator-queue-routing-audit.test.mjs tests/operator-stale-queue-audit.test.mjs tests/operator-dispatch.test.js
+      - run: node --test tests/operator-runtime-worker-e2e-ack.test.mjs tests/operator-queue-routing-audit.test.mjs tests/operator-stale-queue-audit.test.mjs tests/operator-dispatch.test.js tests/automation-funnel.test.js
       # Validate crash/lease safety independently of Agent Checks' blocking audit.
       # The audit gate remains mandatory for any merge or deployment.
       - run: npm ci --prefix apps/agent
