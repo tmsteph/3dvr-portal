@@ -123,6 +123,39 @@ test('discovery deduplicates n8n topic links across slug, reply and locale varia
   }
 });
 
+test('public Upwork job URLs deduplicate by stable job ID without merging other jobs or hosts', () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const lead = normalizeLead({
+      business: 'Buyer seeks CRM automation',
+      problem: 'Needs a qualified lead workflow',
+      origin: 'public-research',
+      sourceUrl: 'https://www.upwork.com/freelance-jobs/apply/CRM-automation_~022100000000000000001/?utm_source=feed'
+    });
+    const first = store.insert(lead);
+    assert.equal(first.duplicate, false);
+    const variants = [
+      'https://www.upwork.com/freelance-jobs/apply/Renamed-project_~022100000000000000001/',
+      'https://www.upwork.com/jobs/~022100000000000000001?source=search',
+      'https://upwork.com/jobs/~022100000000000000001'
+    ];
+    for (const sourceUrl of variants) {
+      const saved = store.insert({ ...lead, sourceUrl });
+      assert.equal(saved.duplicate, true, sourceUrl);
+      assert.equal(saved.lead.id, first.lead.id);
+    }
+    assert.equal(store.insert({ ...lead, sourceUrl:
+      'https://www.upwork.com/jobs/~022100000000000000002' }).duplicate, false);
+    assert.equal(store.insert({ ...lead, sourceUrl:
+      'https://example.org/jobs/~022100000000000000001' }).duplicate, false);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM leads').get().n, 3);
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind='created'").get().n, 3,
+      'only new distinct public opportunities get a CRM creation event');
+  } finally {
+    store.close();
+  }
+});
+
 test('failed CRM creation-event write rolls back the lead and allows a clean retry', () => {
   const store = openFunnelStore(':memory:');
   try {
