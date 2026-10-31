@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -41,14 +41,21 @@ export function openClawSshCommand(config = process.env, uid = process.getuid?.(
 
 export async function runOpenClaw(request, options = {}) {
   const config = options.config || process.env;
-  const script = await readFile(new URL(request.engine === 'codex' ? './native.py' : './remote.py', import.meta.url), 'utf8');
+  const backup = request.engine === 'codex-backup';
+  const native = backup || request.engine === 'codex';
+  const script = await readFile(new URL(native ? './native.py' : './remote.py', import.meta.url), 'utf8');
   const encoded = Buffer.from(JSON.stringify({ ...request, stream: Boolean(options.onDelta) })).toString('base64url');
-  const host = config.THREEDVR_OPENCLAW_SSH_HOST || '3dvr-hetzner';
-  // Only fixed code and base64url data cross the SSH shell; credentials stay on Hetzner.
+  const host = backup ? '3dvr-do' : config.THREEDVR_OPENCLAW_SSH_HOST || '3dvr-hetzner';
+  // The emergency node runs one bounded chat process, never another gateway.
+  const remote = backup
+    ? ['systemd-run', '--quiet', '--pipe', '--wait', '--collect', `--unit=3dvr-helm-backup-${randomUUID()}`,
+      '-p', 'MemoryMax=134217728', '-p', 'CPUQuota=50%', '-p', 'TasksMax=64', '-p', 'RuntimeMaxSec=95s', 'python3', '-', encoded]
+    : ['python3', '-', encoded];
+  // Only fixed code and base64url data cross SSH; credentials stay on their existing host.
   return new Promise((resolve, reject) => {
     const { command, prefix } = openClawSshCommand(config, options.uid ?? process.getuid?.());
     const child = (options.spawn || spawn)(command, [...prefix, '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', host,
-      'python3', '-', encoded], { stdio: ['pipe', 'pipe', 'pipe'] });
+      ...remote], { stdio: ['pipe', 'pipe', 'pipe'] });
     let output = '';
     let received = 0;
     let result;
@@ -103,7 +110,7 @@ export function createOpenClawHandler(options = {}) {
     try { body = await readBody(req); } catch { return json(res, 400, { error: 'Invalid or oversized request.' }); }
     const { action, requestId, sessionId, message, createdAt, expiresAt } = body;
     const engine = body.engine ?? 'openclaw';
-    if (!['openclaw', 'codex'].includes(engine) || !['status', 'chat'].includes(action) || !ID.test(requestId || '') || !ID.test(sessionId || '')
+    if (!['openclaw', 'codex', 'codex-backup'].includes(engine) || !['status', 'chat'].includes(action) || !ID.test(requestId || '') || !ID.test(sessionId || '')
       || (action === 'chat' && (typeof message !== 'string' || !message.trim() || message.length > 6000))) {
       return json(res, 400, { error: 'Invalid Helm request.' });
     }
@@ -137,7 +144,7 @@ export function createOpenClawHandler(options = {}) {
       if (now >= expiresAt) return json(res, 410, { ok: false, stale: true, error: 'Message expired. Kept in history without sending.' });
     }
     const owner = digest(auth.identity.pub);
-    const request = { action, ...(engine === 'codex' ? { engine } : {}), session: `helm-${owner.slice(0, 24)}-${sessionId}`, message,
+    const request = { action, ...(engine !== 'openclaw' ? { engine } : {}), session: `helm-${owner.slice(0, 24)}-${sessionId}`, message,
       ...(action === 'chat' && queued ? { expiresAt } : {}) };
     if (action === 'status') {
       const identity = { verified: true, username: 'tmsteph', alias: 'tmsteph@3dvr' };

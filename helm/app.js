@@ -6,7 +6,9 @@ const $ = id => document.getElementById(id);
 let sessionKey = `3dvr.helm.session.${localStorage.getItem('userPubKey') || localStorage.getItem('alias') || 'guest'}`;
 let sessionId = globalThis.sessionStorage?.getItem(sessionKey) || crypto.randomUUID();
 globalThis.sessionStorage?.setItem(sessionKey, sessionId);
-let engine = globalThis.sessionStorage?.getItem(`${sessionKey}.engine`) === 'openclaw' ? 'openclaw' : 'codex';
+const savedEngine = globalThis.sessionStorage?.getItem(`${sessionKey}.engine`);
+let engine = ['openclaw', 'codex', 'codex-backup'].includes(savedEngine) ? savedEngine : 'codex';
+const engineNames = { openclaw: 'OpenClaw', codex: 'Codex', 'codex-backup': 'Codex backup' };
 let busy = false;
 let saving = false;
 let connected = false;
@@ -168,7 +170,7 @@ function messageCard(record, history = false) {
   label.className = 'label';
   const names = { queued: 'Queued · waiting for agent', deferred: 'Queued · agent busy', sending: 'Delivery pending · will not resend',
     completed: 'Sent', stale: 'History · expired without sending', uncertain: 'History · check delivery before resending', cancelled: 'History · cancelled' };
-  label.textContent = `${(record.engine ?? 'openclaw') === 'codex' ? 'Codex' : 'OpenClaw'} · ${names[record.status]}`;
+  label.textContent = `${engineNames[record.engine ?? 'openclaw']} · ${names[record.status]}`;
   article.append(label, document.createTextNode(record.text));
   const partial = liveReply?.id === record.id && record.status === 'sending' ? liveReply.text : '';
   if (record.reply || partial) {
@@ -233,7 +235,7 @@ async function checkConnection({ automatic = false } = {}) {
     if (connectionEpoch !== epoch) return;
     const result = await request('status');
     connected = result.gateway === 'reachable' && result.chatEnabled;
-    $('connection').textContent = connected ? `${engine === 'codex' ? 'Codex' : 'OpenClaw'} ready` : 'Agent reachable · chat setup needed';
+    $('connection').textContent = connected ? `${engineNames[engine]} ready` : 'Agent reachable · chat setup needed';
     $('dot').classList.toggle('connected', connected);
     $('activity').textContent = connected ? 'Ready. Saved messages send automatically.' : 'You can queue a message while the agent starts.';
   } catch (error) {
@@ -250,13 +252,16 @@ async function checkConnection({ automatic = false } = {}) {
 
 function showEngine() {
   $('engine').value = engine;
-  $('engine-note').textContent = engine === 'codex'
+  $('engine-home').textContent = engine === 'codex-backup' ? 'DigitalOcean' : 'Hetzner';
+  $('engine-note').textContent = engine === 'codex-backup'
+    ? 'Backup chat on DigitalOcean · starts a separate conversation, without OpenClaw tools. Pending messages are never moved or replayed.'
+    : engine === 'codex'
     ? 'Native Codex pilot · chat and code advice. OpenClaw integrations are available through OpenClaw.'
     : 'OpenClaw · your existing tools and integrations.';
 }
 showEngine();
 $('engine').addEventListener('change', () => {
-  if (busy || saving || !['openclaw', 'codex'].includes($('engine').value)) { $('engine').value = engine; return; }
+  if (busy || saving || !['openclaw', 'codex', 'codex-backup'].includes($('engine').value)) { $('engine').value = engine; return; }
   engine = $('engine').value;
   globalThis.sessionStorage?.setItem(`${sessionKey}.engine`, engine);
   // A new conversation prevents an engine switch from implying shared server history.
