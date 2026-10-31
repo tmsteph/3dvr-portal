@@ -237,6 +237,7 @@ test('an interrupted partial reply stays uncertain without a second dispatch', a
 test('native engine is saved and signed with messages, while switching starts a separate chat', async () => {
   const ui = screen({ ok: true, gateway: 'reachable', chatEnabled: true, reply: 'Done' });
   await ui.ready;
+  ui.changeEngine('openclaw'); await flush(); await flush();
   await ui.submit('Claw conversation');
   const first = ui.requests.find(item => item.action === 'chat');
   assert.equal(first.engine, 'openclaw');
@@ -259,8 +260,8 @@ test('engine cannot change during an in-flight turn', async () => {
   await ui.ready;
   const sending = ui.submit('Keep engine stable'); await flush();
   assert.equal(ui.element('engine').disabled, true);
-  ui.changeEngine('codex');
-  assert.equal(ui.element('engine').value, 'openclaw');
+  ui.changeEngine('openclaw');
+  assert.equal(ui.element('engine').value, 'codex');
   release(); await sending;
   assert.equal(ui.element('engine').disabled, false);
 });
@@ -278,4 +279,15 @@ test('reload restores native engine and its conversation session', async () => {
   const continued = reloaded.requests.find(item => item.action === 'chat');
   assert.equal(continued.sessionId, original.sessionId);
   assert.equal(continued.engine, 'codex');
+});
+
+test('fresh sessions and account changes default to native chat, preserving explicit OpenClaw preference', async () => {
+  const result = { ok: true, gateway: 'reachable', chatEnabled: true, reply: 'Done' };
+  const fresh = screen(result); await fresh.ready;
+  assert.equal(fresh.requests[0].engine, 'codex');
+  fresh.changeAccount(); await flush(); await flush();
+  assert.equal(fresh.requests.at(-1).engine, 'codex');
+  const sessions = new Map([['3dvr.helm.session.tmsteph@3dvr.engine', 'openclaw']]);
+  const saved = screen(result, 200, true, undefined, sessions); await saved.ready;
+  assert.equal(saved.requests[0].engine, 'openclaw');
 });
