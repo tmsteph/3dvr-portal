@@ -52,16 +52,49 @@ function isoDate(value, fallback = new Date()) {
   return date.toISOString().slice(0, 10);
 }
 
+// Parse CSV fields without shifting contact/status columns when a business
+// name or campaign variant contains a quoted comma or newline. Malformed
+// quotes fail the sync rather than silently assigning fields to the wrong lead.
+function parseCsvRows(content) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let quoted = false;
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+    if (quoted) {
+      if (char === '"') {
+        if (content[i + 1] === '"') { field += '"'; i++; }
+        else quoted = false;
+      } else {
+        field += char;
+      }
+    } else if (char === '"' && field === '') {
+      quoted = true;
+    } else if (char === ',') {
+      row.push(field);
+      field = '';
+    } else if (char === '\n' || char === '\r') {
+      if (char === '\r' && content[i + 1] === '\n') i++;
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = '';
+    } else {
+      field += char;
+    }
+  }
+  if (quoted) throw new SyntaxError('Unterminated quoted leads CSV field');
+  if (field || row.length) rows.push([...row, field]);
+  return rows;
+}
+
 function readLeads(filePath = DEFAULT_LEADS_FILE) {
   if (!fs.existsSync(filePath)) return [];
-  return fs.readFileSync(filePath, 'utf8')
-    .split(/\r?\n/)
+  return parseCsvRows(fs.readFileSync(filePath, 'utf8'))
     .slice(1)
-    .filter(Boolean)
-    .map((line) => {
-      const [name = '', link = '', contact = '', status = '', date = '', variant = ''] = line.split(',');
-      return { name, link, contact, status, date, variant };
-    })
+    .map(([name = '', link = '', contact = '', status = '', date = '', variant = '']) =>
+      ({ name, link, contact, status, date, variant }))
     .filter((lead) => normalizeText(lead.name));
 }
 
