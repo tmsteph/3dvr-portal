@@ -262,3 +262,46 @@ test('audit redacts untrusted queue metadata and fails closed on unknown risk', 
   assert.ok(!review.flags.includes('metadata_eligible_not_authorized'));
   assert.equal(JSON.stringify(report).includes(privateValue), false);
 });
+
+test('corrupt legacy SQLite rows are counted for review without hiding healthy queue metadata', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), '3dvr-corrupt-audit-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dbPath = join(dir, 'queue.sqlite');
+  const db = new DatabaseSync(dbPath);
+  db.exec('CREATE TABLE tasks (owner_alias TEXT, status TEXT, record_json TEXT, claim_expires_at INTEGER)');
+  const insert = db.prepare('INSERT INTO tasks VALUES (?, ?, ?, ?)');
+  insert.run('test-owner', 'queued', JSON.stringify({
+    id: 'private-healthy', backend: 'codex', task: 'private customer notes',
+    createdAt: new Date().toISOString(), riskClass: 'read_only'
+  }), null);
+  insert.run('test-owner', 'running', JSON.stringify({
+    id: 'private-running', task: 'private running notes'
+  }), Date.now() + 60000);
+  for (const bad of ['private-customer-secret-not-json', 'null', '[]']) {
+    insert.run('test-owner', 'queued', bad, null);
+  }
+  insert.run('other-owner', 'queued', 'another-private-secret', null);
+  const before = db.prepare('SELECT COUNT(*) AS count FROM tasks').get().count;
+  db.close();
+
+  const report = auditManagedSqlite({
+    THREEDVR_AGENT_QUEUE_STORE: 'sqlite',
+    THREEDVR_AGENT_OWNER_ALIAS: 'test-owner',
+    THREEDVR_AGENT_QUEUE_DB: dbPath,
+    THREEDVR_AGENT_WORKER_CAPABILITIES: 'codex',
+    THREEDVR_AGENT_WORKER_RISK_CLASSES: 'read_only'
+  });
+  assert.equal(report.total, 5);
+  assert.equal(report.invalidRecordRows, 3);
+  assert.equal(report.reviewFlags.invalid_record_json, 3);
+  assert.deepEqual(report.statusCounts, { other: 3, queued: 1, running: 1 });
+  assert.equal(report.queuedReviews.length, 1);
+  assert.equal(report.runningClaims.active, 1);
+  for (const secret of ['private-healthy', 'private customer notes', 'private-customer-secret-not-json',
+    'another-private-secret', 'private-running']) {
+    assert.equal(JSON.stringify(report).includes(secret), false);
+  }
+  const verify = new DatabaseSync(dbPath, { readOnly: true });
+  try { assert.equal(verify.prepare('SELECT COUNT(*) AS count FROM tasks').get().count, before); }
+  finally { verify.close(); }
+});
