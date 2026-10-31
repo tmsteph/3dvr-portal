@@ -31,7 +31,14 @@ export function summarizeUpworkDedupe(rows) {
     let lead;
     try { lead = JSON.parse(row.payload); }
     catch { summary.invalidPayloadRows++; continue; }
-    if (!lead || typeof lead !== 'object' || lead.origin === 'inbound') continue;
+    // JSON can parse successfully into a primitive or array, neither of which
+    // is a valid CRM lead. Count these as corrupt rather than silently
+    // reporting a clean audit (or attributing them to a real prospect).
+    if (!lead || typeof lead !== 'object' || Array.isArray(lead)) {
+      summary.invalidPayloadRows++;
+      continue;
+    }
+    if (lead.origin === 'inbound') continue;
     const id = upworkJobId(lead.sourceUrl);
     if (!id) continue;
     summary.upworkRows++;
