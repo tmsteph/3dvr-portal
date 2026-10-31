@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import SEA from 'gun/sea.js';
-import { createOperatorDispatchHandler, REMOTE_QUEUE_SCRIPT } from '../src/operator-runtime/dispatch.js';
+import { createOperatorDispatchHandler, runManagedQueue, REMOTE_QUEUE_SCRIPT } from '../src/operator-runtime/dispatch.js';
 import { publishPrivateWorkerHeartbeat } from '../scripts/ops/operator-private-worker.cjs';
 import * as sqliteStore from '../apps/agent/thomas-agent/node/task-queue-sqlite-store.js';
 import { queueOperatorTask, watchOperatorTask, operatorTaskReceipt, isOperatorTaskTerminal, operatorTaskProgress } from '../operator/delegate-task.js';
@@ -21,6 +21,17 @@ async function request(handler, data, signer = pair, extra = {}) {
   return res;
 }
 const enqueue = {action:'enqueue',requestId:'diagnostic-request-123',text:'Calculate 6 times 7. Make no changes.',title:'Arithmetic'};
+
+test('signed dispatch fails closed without an explicitly selected queue host', () => {
+  let spawned = false;
+  const spawn = () => { spawned = true; throw Error('unexpected SSH attempt'); };
+  for (const host of [undefined, '', '   ']) {
+    assert.throws(() => runManagedQueue({action:'status',id:'synthetic'}, {
+      config: host === undefined ? {} : {THREEDVR_OPERATOR_TASK_SSH_HOST:host}, spawn
+    }), /must be explicitly configured/);
+  }
+  assert.equal(spawned,false,'missing host must never fall back to an unverified server');
+});
 
 test('real signed requests enqueue only bounded Codex tasks and isolate status by signer', async () => {
   const inputs = [];
