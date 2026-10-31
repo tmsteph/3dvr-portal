@@ -291,3 +291,29 @@ test('the actual queued harmless edit remains local despite the old automatic Gi
   };
   assert.equal((await runForgeRequest(record, options)).ok, true);
 });
+
+test('an agent-package request keeps its package working directory in the new worktree', async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'forge-agent-package-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const base = path.join(directory, 'base');
+  execFileSync('git', ['init', '-q', base]);
+  await require('node:fs/promises').mkdir(path.join(base, 'apps/agent'), { recursive: true });
+  await require('node:fs/promises').writeFile(path.join(base, 'apps/agent/package.json'), '{"name":"fixture-agent"}');
+  execFileSync('git', ['-C', base, 'add', 'apps/agent/package.json']);
+  execFileSync('git', ['-C', base, '-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-qm', 'package fixture']);
+  execFileSync('git', ['-C', base, 'branch', '-M', 'main']);
+  execFileSync('git', ['-C', base, 'remote', 'add', 'origin', base]);
+  const { record, options } = managedFixture(t, path.join(directory, 'receipts'));
+  record.repo = 'agent';
+  options.env = { THREEDVR_OPERATOR_PORTAL_REPO: base };
+  options.worktreeRoot = path.join(directory, 'worktrees');
+  options.verifyImpl = async () => ({ ...verifiedOwnerTask(record.task), repo: 'agent' });
+  options.runAgentTaskImpl = async args => {
+    const repo = args[args.indexOf('--repo') + 1];
+    assert.equal(path.basename(repo), 'agent');
+    assert.equal(path.basename(path.dirname(repo)), 'apps');
+    assert.equal(JSON.parse(await readFile(path.join(repo, 'package.json'), 'utf8')).name, 'fixture-agent');
+    return { ok: true, result: { stdout: 'Verified selected package scope.' } };
+  };
+  assert.equal((await runForgeRequest(record, options)).ok, true);
+});
