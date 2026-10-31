@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { normalizeLead, draftReply } from '../src/automation-funnel/model.js';
 import { openFunnelStore } from '../src/automation-funnel/store.js';
 import { createFunnelHandler } from '../src/automation-funnel/handler.js';
@@ -154,6 +155,44 @@ test('public Upwork job URLs deduplicate by stable job ID without merging other 
   } finally {
     store.close();
   }
+});
+
+test('legacy URL-keyed Upwork leads are reused without a migration or duplicate outreach record', () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const id = '022100000000000000099';
+    const original = normalizeLead({
+      business: 'Legacy CRM buyer', problem: 'Needs automation', origin: 'public-research',
+      sourceUrl: 'https://www.upwork.com/freelance-jobs/apply/Original_~' + id + '/'
+    });
+    const legacyHash = createHash('sha256').update(original.sourceUrl).digest('hex');
+    const now = '2026-10-01T00:00:00Z';
+    store.db.prepare('INSERT INTO leads VALUES (?, ?, ?, 1, ?, ?)')
+      .run('legacy-upwork', legacyHash, JSON.stringify(original), now, now);
+    store.db.prepare('INSERT INTO events VALUES (?, ?, ?, ?)')
+      .run('legacy-created', 'legacy-upwork', 'created', now);
+    const variant = { ...original, sourceUrl: 'https://www.upwork.com/jobs/~' + id + '?ref=search' };
+    const reused = store.insert(variant);
+    assert.equal(reused.duplicate, true);
+    assert.equal(reused.lead.id, 'legacy-upwork');
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM leads').get().n, 1);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM events').get().n, 1);
+    assert.equal(store.db.prepare('SELECT dedupe FROM leads WHERE id=?').get('legacy-upwork').dedupe,
+      legacyHash, 'legacy identity is not rewritten without migration approval');
+
+    // Two already-existing rows for the same job require human reconciliation.
+    const second = { ...original, sourceUrl: 'https://www.upwork.com/freelance-jobs/apply/Older_~' + id };
+    store.db.prepare('INSERT INTO leads VALUES (?, ?, ?, 1, ?, ?)')
+      .run('legacy-upwork-duplicate', createHash('sha256').update(second.sourceUrl).digest('hex'),
+        JSON.stringify(second), now, now);
+    assert.throws(() => store.insert(variant), /Ambiguous historical Upwork job leads/);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM leads').get().n, 2);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM events').get().n, 1);
+    assert.equal(store.insert({ ...variant, sourceUrl: 'https://www.upwork.com/jobs/~022100000000000000098' }).duplicate, false,
+      'different job IDs must not be merged');
+    assert.equal(store.insert({ ...variant, sourceUrl: 'https://example.org/jobs/~' + id }).duplicate, false,
+      'lookalike paths on other hosts must remain distinct');
+  } finally { store.close(); }
 });
 
 test('failed CRM creation-event write rolls back the lead and allows a clean retry', () => {
