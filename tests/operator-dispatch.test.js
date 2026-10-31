@@ -7,6 +7,8 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import SEA from 'gun/sea.js';
 import { createOperatorDispatchHandler, REMOTE_QUEUE_SCRIPT } from '../src/operator-runtime/dispatch.js';
+import { publishPrivateWorkerHeartbeat } from '../scripts/ops/operator-private-worker.cjs';
+import * as sqliteStore from '../apps/agent/thomas-agent/node/task-queue-sqlite-store.js';
 import { queueOperatorTask, watchOperatorTask, operatorTaskReceipt, isOperatorTaskTerminal, operatorTaskProgress } from '../operator/delegate-task.js';
 
 const origin = 'https://operator.3dvr.tech';
@@ -143,6 +145,22 @@ test('actual SQLite transport is idempotent and preserves historical and running
       'a live task-scoped worker must not authorize unrelated signed admissions');
     assert.equal(admission('only-canary').status,0,
       'the exact preselected signed canary may be admitted');
+    // Exercise the real private poller's heartbeat writer against the actual
+    // signed admission transport, not only independently fabricated rows.
+    db.prepare('DELETE FROM worker_heartbeats').run();
+    const privatePin = 'operator-http-test-real-private';
+    const privatePoller = { workerProfile: () => ({
+      workerId: 'synthetic-private-process',
+      capabilities: ['codex'],
+      riskClasses: ['draft'],
+      onlyTaskId: privatePin,
+    }) };
+    assert.equal(publishPrivateWorkerHeartbeat(privatePoller, sqliteStore, privatePin,
+      { queueDb: dbPath, ownerAlias: '3dvr-managed' }), true);
+    assert.notEqual(admission('unrelated-private').status,0,
+      'real pinned private heartbeat cannot admit unrelated signed work');
+    assert.equal(admission('real-private').status,0,
+      'real pinned private heartbeat admits only its exact signed task');
     // A signed status poll must remain readable while a separate worker holds
     // the SQLite RESERVED writer lock. The old BEGIN IMMEDIATE on status
     // waited for busy_timeout and failed instead of returning the receipt.
