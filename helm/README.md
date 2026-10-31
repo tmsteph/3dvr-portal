@@ -184,3 +184,19 @@ engines, send a harmless prompt, reload and verify recall; confirm queued messag
 never change engine, unknown users remain denied, and partial replies require a
 final receipt. Timings depend on backend load; the initial three-prompt benchmark
 is evidence of lower overhead, not a promise of latency or coding-tool parity.
+
+## Independent backup chat
+
+Select **Codex · backup server** to start a separate conversation on DigitalOcean
+using its existing server-local Codex sign-in. Primary Codex and OpenClaw remain
+on Hetzner. This is an explicit fallback, without OpenClaw tools or automatic
+replay of interrupted work. Switching creates a new conversation; queued records
+keep their signed engine and their original request IDs.
+
+OVH connects directly to its existing `3dvr-do` SSH alias, so this chat route does
+not depend on Hetzner, its Open Runner, or its gateway. Each backup request runs
+under systemd with 128 MiB RAM, 50% CPU, 64 tasks, and a 95-second lifetime. The
+bridge refuses admission below 256 MiB available host memory and serializes model
+turns with its private native chat lock. No credentials are copied and no second
+Telegram poller, browser, or OpenClaw gateway is started. Status checks inspect
+configuration only; verify authentication with a fresh bounded real reply.

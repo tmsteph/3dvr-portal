@@ -286,3 +286,35 @@ test('native SSH transport uses only the native script and binds engine in encod
   child.stdout.write('{"ok":true,"reply":"Done"}\n'); child.emit('close', 0);
   assert.equal((await task).reply, 'Done');
 });
+
+
+test('backup chat uses the independent DO host with bounded resources and no transport replay', async () => {
+  let calls = 0;
+  const mockSpawn = (_command, args) => {
+    calls++;
+    assert.equal(args[args.indexOf('ConnectTimeout=8') + 1], '3dvr-do');
+    assert.ok(args.includes('systemd-run'));
+    for (const limit of ['MemoryMax=134217728', 'CPUQuota=50%', 'TasksMax=64', 'RuntimeMaxSec=95s']) assert.ok(args.includes(limit));
+    assert.ok(args.some(arg => arg.startsWith('--unit=3dvr-helm-backup-')));
+    const child = new EventEmitter();
+    child.stdin = new PassThrough(); child.stdout = new PassThrough(); child.stderr = new PassThrough();
+    child.kill = () => {};
+    process.nextTick(() => child.emit('close', 1));
+    return child;
+  };
+  await assert.rejects(runOpenClaw({ action: 'chat', engine: 'codex-backup' }, { spawn: mockSpawn, uid: 1000 }));
+  assert.equal(calls, 1);
+});
+
+test('backup engine is owner-signed and durable receipts never change its host lane', async t => {
+  const { config, sign } = await setup(t);
+  let runs = 0;
+  const handler = createOpenClawHandler({ config, run: async request => {
+    runs++; assert.equal(request.engine, 'codex-backup'); return { ok: true, reply: 'backup replied' };
+  } });
+  const body = await sign({ engine: 'codex-backup' });
+  assert.equal((await call(handler, { ...body, engine: 'codex' })).statusCode, 403);
+  assert.equal((await call(handler, body)).statusCode, 200);
+  assert.equal((await call(handler, body)).body.reply, 'backup replied');
+  assert.equal(runs, 1);
+});

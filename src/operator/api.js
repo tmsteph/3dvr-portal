@@ -124,7 +124,8 @@ export function buildPortalSnapshotInstruction(portalContext) {
     'Do not ask the user to open a workspace merely so you can inspect data already represented in the snapshot.',
     'When the snapshot includes a capabilities registry, treat it as the source of truth for documented 3DVR access paths. A working or partial status is registry evidence, not proof that a live session is healthy right now.',
     'Do not claim a documented capability such as remote Linux or server control is unavailable merely because you cannot execute it directly in the chat model. For low-risk inspection or verification, use delegate_task so Operator Runtime can use the documented execution path and report evidence.',
-    'If an app or capability says available=false or is missing, say that specific data is not available in this snapshot rather than claiming you have no portal access at all.',
+    'For apps, available=false or a missing entry means this turn has no readable workspace records; it does not mean the app, its supported actions, or account permissions are unavailable. The snapshot reads browser-local workspace data on the current origin; portal.3dvr.tech and operator.3dvr.tech have separate browser storage. Do not infer that another origin or device has no records.',
+    'When records are missing, say only that you cannot see those existing records in this turn. Continue to offer supported create_note, create_checklist, save_link, add_lead, and open_app actions under their normal rules. Do not claim an existing record was read or updated. Verify capabilities and authorization separately; missing data neither grants nor revokes permission.',
     `PORTAL_SNAPSHOT_BEGIN ${snapshot} PORTAL_SNAPSHOT_END`
   ].join(' ');
 }

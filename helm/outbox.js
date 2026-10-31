@@ -4,7 +4,7 @@ const RANK = { queued: 1, deferred: 2, sending: 2, uncertain: 3, stale: 4, cance
 
 export function validMessage(record) {
   return record && ID.test(record.id || '') && ID.test(record.sessionId || '')
-    && ['openclaw', 'codex'].includes(record.engine ?? 'openclaw')
+    && ['openclaw', 'codex', 'codex-backup'].includes(record.engine ?? 'openclaw')
     && typeof record.text === 'string' && record.text.trim() && record.text.length <= 6000
     && Number.isSafeInteger(record.createdAt) && Number.isSafeInteger(record.expiresAt)
     && record.expiresAt > record.createdAt && record.expiresAt - record.createdAt <= MESSAGE_TTL_MS

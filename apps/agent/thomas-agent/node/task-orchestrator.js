@@ -59,6 +59,7 @@ function parseArgs(argv) {
     task: '',
     execute: false,
     unsafe: false,
+    workspaceWrite: false,
     memory: false,
     memoryLimit: DEFAULT_MEMORY_LIMIT,
     memoryStateDir: '',
@@ -91,6 +92,8 @@ function parseArgs(argv) {
       options.memoryStateDir = argv[++index] || '';
     } else if (arg === '--execute') {
       options.execute = true;
+    } else if (arg === '--workspace-write') {
+      options.workspaceWrite = true;
     } else if (arg === '--unsafe') {
       options.unsafe = true;
     } else if (arg === '--json') {
@@ -267,7 +270,8 @@ function memoryExecutionAllowed(options = {}) {
 function backendCommand(backend, prompt, options) {
   if (backend === 'codex') {
     const args = ['exec'];
-    if (options.unsafe) args.push('--sandbox', 'danger-full-access');
+    if (options.workspaceWrite) args.push('--sandbox', 'workspace-write');
+    else if (options.unsafe) args.push('--sandbox', 'danger-full-access');
     args.push('--cd', options.repo || DEFAULT_REPO, '--skip-git-repo-check', prompt);
     return { command: 'codex', args };
   }
@@ -603,6 +607,7 @@ if (require.main === module) {
 module.exports = {
   parseArgs,
   classifyTask,
+  riskScanText,
   commandExists,
   codexLoginHealthy,
   detectCapabilities,
