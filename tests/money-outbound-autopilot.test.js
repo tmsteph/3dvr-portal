@@ -53,6 +53,21 @@ test('prospect CSV keeps multiline quoted notes in one lead and rejects truncate
   );
 });
 
+test('prospect CSV rejects shifted contact columns and duplicate normalized headers', () => {
+  assert.throws(
+    () => parseProspectsCsv('name,email,notes\\nDana,dana@example.com,Call first,extra'),
+    /row 2 has 4 fields; expected 3/
+  );
+  assert.throws(
+    () => parseProspectsCsv('name,email,notes\\nDana,dana@example.com'),
+    /row 2 has 2 fields; expected 3/
+  );
+  assert.throws(
+    () => parseProspectsCsv('name,email,Email\\nDana,dana@example.com,other@example.com'),
+    /duplicate column headers/
+  );
+});
+
 test('buildOutboundQueue defaults to approval-required and drafts personal messages', () => {
   const queue = buildOutboundQueue({
     autopilot,
