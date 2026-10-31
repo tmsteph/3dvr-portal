@@ -265,3 +265,11 @@ test('managed edits execute in a separate branch and worktree', async t => {
   assert.equal((await runForgeRequest(record, options)).ok, true);
   assert.equal(execFileSync('git', ['-C', base, 'branch', '--show-current'], { encoding: 'utf8' }).trim(), 'main');
 });
+
+test('agent source merges cannot automatically activate the legacy DigitalOcean queue and outreach daemons', async () => {
+  const workflow = await readFile(path.resolve(__dirname, '../../../.github/workflows/agent.yml'), 'utf8');
+  const gate = workflow.split('deploy-digitalocean-worker:')[1].split('needs:')[0];
+  assert.match(gate, /github.event_name == 'workflow_dispatch'/);
+  assert.match(gate, /inputs.deploy_legacy_worker == true/);
+  assert.match(workflow, /deploy_legacy_worker:[\s\S]*?default: false/);
+});
