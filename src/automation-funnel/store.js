@@ -135,7 +135,16 @@ export function openFunnelStore(path = process.env.AUTOMATION_FUNNEL_DB || '/opt
         // Permit URL/slug edits only when they resolve to the same identity.
         const current = db.prepare('SELECT payload FROM leads WHERE id=? AND version=?').get(id, version);
         if (!current) throw Object.assign(new Error('Record changed. Refresh before saving.'), { statusCode: 409 });
-        if (identity(JSON.parse(current.payload)) !== identity(lead)) {
+        // An opt-out must survive edits to the same CRM record. Otherwise a
+        // later stage change could erase the only durable suppression record
+        // and allow an outreach draft without fresh, verified re-consent.
+        const previous = JSON.parse(current.payload);
+        if (String(previous.stage || '').trim().toLowerCase() === 'do-not-contact'
+          && String(lead.stage || '').trim().toLowerCase() !== 'do-not-contact') {
+          throw Object.assign(new Error('Do-not-contact cannot be cleared by a CRM edit; verified re-consent is required.'),
+            { statusCode: 409 });
+        }
+        if (identity(previous) !== identity(lead)) {
           throw Object.assign(new Error('Lead identity changed. Create a separate lead for a different buyer or job.'),
             { statusCode: 409 });
         }
