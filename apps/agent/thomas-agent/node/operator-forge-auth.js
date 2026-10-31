@@ -221,6 +221,7 @@ async function authorizePortalOperatorTask(record = {}, options = {}) {
 
   return {
     ok: true,
+    issuedAt,
     repoPath,
     role: owner ? 'owner' : admin ? 'admin' : 'developer',
     githubWriteApproved: Boolean(record.githubWriteRequested && owner),

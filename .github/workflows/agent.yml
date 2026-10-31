@@ -8,6 +8,12 @@ on:
     branches: [main, dev]
     paths: ["apps/agent/**", ".github/workflows/agent.yml", "package.json"]
   workflow_dispatch:
+    inputs:
+      deploy_legacy_worker:
+        description: 'Explicitly deploy and activate the legacy DigitalOcean worker stack'
+        type: boolean
+        default: false
+        required: true
 
 permissions:
   contents: read
@@ -38,7 +44,7 @@ jobs:
 
   deploy-digitalocean-worker:
     name: Deploy DigitalOcean agent worker
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_legacy_worker == true && github.ref == 'refs/heads/main'
     needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 10
