@@ -89,12 +89,12 @@ function executorExecutionBlocked(result = {}) {
 function editOnlyTask(record = {}, auth = {}) {
   const task = normalizeText(record.task);
   if (!task) return { ok: false, reason: 'missing code edit request' };
-  // The browser adds this exact negative instruction to every signed edit.
-  // Remove only that fixed sentence from intent classification, never from execution.
+  // Classify the signed user request separately from the fixed browser wrapper.
+  // Execution still receives the original task and all of its restrictions.
   const marker = ' Make the smallest useful change in the working repository and run focused tests.';
   const end = task.lastIndexOf(marker);
   const requested = task.startsWith('Operator code request: ') && end >= 0 ? task.slice(0, end) : task;
-  const intent = riskScanText(requested.replaceAll('Avoid production behavior, secrets, and configuration.', ''));
+  const intent = riskScanText(requested.replaceAll('Claim a working live link only after checking that URL; do not deploy without authorization.', '').replaceAll('Avoid production behavior, secrets, and configuration.', ''));
   if (BLOCKED_EXTERNAL_WRITE_PATTERN.test(intent)) {
     return { ok: false, reason: 'that external or destructive action still requires a separate protected path' };
   }
