@@ -54,7 +54,12 @@ export function createFunnelHandler({ config = process.env, verify = verifySigne
       if (action === 'draft') {
         const lead = db.get(body.data.id);
         if (!lead) return res.status(404).json({ error: 'Lead not found.' });
-        if (lead.email && db.hasSuppressedEmail(lead.email)) return res.status(403).json({ error: 'This contact is suppressed.' });
+        // Imported records may have padded/mixed-case stages and no email.
+        // Block their drafts directly, not as a retryable server failure.
+        if (['do-not-contact', 'lost'].includes(String(lead.stage || '').trim().toLowerCase()) ||
+            (lead.email && db.hasSuppressedEmail(lead.email))) {
+          return res.status(403).json({ error: 'This contact is suppressed or closed.' });
+        }
         return res.status(200).json({ ok: true, draft: draftReply(lead) });
       }
       if (!db.rateLimit('owner-discovery', { limit: 6 })) return res.status(429).json({ error: 'Discovery is cooling down. Try later.' });
