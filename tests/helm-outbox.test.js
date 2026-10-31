@@ -130,3 +130,19 @@ test('switching engines never retargets queued records, including legacy records
   engine = 'codex'; await queue.drain();
   assert.deepEqual(sent.map(record => record.engine), ['openclaw', 'codex']);
 });
+
+test('backup queue preserves its engine and cannot drain primary messages', async () => {
+  let engine = 'codex-backup';
+  const sent = [];
+  const box = createOutbox({ save: async () => {}, now: () => 1000000, isReady: () => true,
+    canSend: record => record.engine === engine,
+    send: async record => { sent.push(record.engine); return { reply: 'Done' }; } });
+  await box.enqueue({ id: 'backup-message-123', sessionId: 'backup-session-123', text: 'backup', engine: 'codex-backup' });
+  await box.enqueue({ id: 'primary-message-123', sessionId: 'primary-session-123', text: 'primary', engine: 'codex' });
+  await box.drain();
+  assert.deepEqual(sent, ['codex-backup']);
+  assert.equal(box.snapshot().find(record => record.engine === 'codex').status, 'queued');
+  engine = 'codex';
+  await box.drain();
+  assert.deepEqual(sent, ['codex-backup', 'codex']);
+});

@@ -1,4 +1,4 @@
-"""Owner-only Codex chat over the existing SSH bridge; credentials stay on Hetzner."""
+"""Owner-only Codex chat over SSH; credentials stay on their existing host."""
 import base64
 import fcntl
 import hashlib
@@ -17,6 +17,7 @@ import tomllib
 HOME = Path('/root/.codex')
 STATE = HOME / 'helm'
 MODEL = 'gpt-6.1-sol'
+BACKUP_MODEL = 'gpt-5.6-sol'
 MAX_LINE = 1024 * 1024
 MAX_WIRE = 32 * 1024 * 1024
 MAX_REPLY = 120000
@@ -134,9 +135,9 @@ def expired(request):
     return request.get('expiresAt') is not None and time.time() * 1000 >= request['expiresAt']
 
 
-def run_turn(client, thread_id, request, on_delta):
+def run_turn(client, thread_id, request, on_delta, model=MODEL):
     request_id = client.send('turn/start', {'threadId': thread_id,
-        'input': [{'type': 'text', 'text': request['message']}], 'model': MODEL,
+        'input': [{'type': 'text', 'text': request['message']}], 'model': model,
         'effort': 'medium', 'approvalPolicy': 'never', 'sandboxPolicy': {'type': 'readOnly'}})
     turn_id = None
     final = {}
@@ -184,6 +185,13 @@ def run_turn(client, thread_id, request, on_delta):
 
 def main(request):
     os.umask(0o077)
+    backup = request.get('engine') == 'codex-backup'
+    model = BACKUP_MODEL if backup else MODEL
+    if backup:
+        available = next(int(line.split()[1]) for line in Path('/proc/meminfo').read_text().splitlines()
+                         if line.startswith('MemAvailable:'))
+        if available < 256 * 1024:
+            return {'ok': False, 'error': 'Backup server needs more free memory. Try again later.'}
     binary = find_binary()
     # Check configuration only; status never consumes a model turn or refreshes auth.
     auth = json.loads((HOME / 'auth.json').read_text())
@@ -191,7 +199,7 @@ def main(request):
         return {'ok': False, 'error': 'Native Codex needs its existing server-side ChatGPT sign-in.'}
     if request['action'] == 'status':
         return {'ok': True, 'gateway': 'reachable', 'chatEnabled': True, 'engine': 'Codex',
-                'host': 'Hetzner', 'profile': 'native-chat', 'model': MODEL}
+                'host': 'DigitalOcean' if backup else 'Hetzner', 'profile': 'native-chat', 'model': model}
     STATE.mkdir(mode=0o700, parents=True, exist_ok=True)
     with (STATE / 'chat.lock').open('a') as lock:
         try:
@@ -212,7 +220,7 @@ def main(request):
         try:
             client.rpc('initialize', {'clientInfo': {'name': '3dvr_helm', 'version': '0.1.0'}})
             client.send('initialized', {}, False)
-            params = {'model': MODEL, 'cwd': str(workspace), 'approvalPolicy': 'never', 'sandbox': 'read-only'}
+            params = {'model': model, 'cwd': str(workspace), 'approvalPolicy': 'never', 'sandbox': 'read-only'}
             if state.get('threadId'):
                 params['threadId'] = state['threadId']
                 params['excludeTurns'] = True
@@ -234,7 +242,7 @@ def main(request):
             def on_delta(text):
                 if request.get('stream'):
                     print(json.dumps({'type': 'delta', 'text': text}), flush=True)
-            reply = run_turn(client, thread_id, request, on_delta)
+            reply = run_turn(client, thread_id, request, on_delta, model)
             write_state(state_file, {'threadId': thread_id, 'pending': False})
             return {'ok': True, 'reply': reply, 'engine': 'Codex', 'session': request['session']}
         finally:
