@@ -12,6 +12,17 @@ const hash = value => createHash('sha256').update(value).digest('hex');
 const fingerprint = record => hash(String(record.backend || '').toLowerCase() + '\0' + String(record.task || '').toLowerCase().trim().replace(/\s+/g, ' '));
 const bump = (object, key) => { object[key] = (object[key] || 0) + 1; };
 const APPROVAL_REQUIRED_RISKS = new Set(['external_write', 'money', 'credential']);
+// Queue fields can originate from imported/user-supplied tasks. This report is
+// metadata-only: never echo arbitrary labels (including secret task fragments).
+const STATUSES = new Set(['queued', 'running', 'completed', 'failed', 'blocked', 'cancelled', 'canceled', 'pending', 'waiting', 'expired']);
+const BACKENDS = new Set(['auto', 'node', 'codex', 'openai', 'claude', 'openclaw', 'shell', 'health']);
+const RISKS = new Set(['read_only', 'draft', 'workspace_write', 'external_write', 'money', 'credential']);
+const APPROVALS = new Set(['approved', 'not_required', 'required', 'expired', 'pending', 'denied', 'rejected', 'unknown']);
+const CAPABILITIES = new Set([...BACKENDS, 'static-hosting', 'crm-read', 'crm-write', 'browser', 'research']);
+const safeLabel = (value, allowed) => {
+  const label = String(value || '').trim().toLowerCase();
+  return allowed.has(label) ? label : 'other';
+};
 
 export function summarizeQueue(records, env = {}, now = Date.now()) {
   // Missing service configuration is unknown, never evidence of worker eligibility.
@@ -27,7 +38,7 @@ export function summarizeQueue(records, env = {}, now = Date.now()) {
     reviewFlags: {}, queuedReviews: []
   };
   for (const record of records) {
-    bump(summary.statusCounts, record.status || 'unknown');
+    bump(summary.statusCounts, safeLabel(record.status, STATUSES));
     if (record.status === 'running') {
       // Running claims must never be treated as replayable queued work. Only
       // aggregate lease state is reported; no claim tokens or task IDs.
@@ -45,22 +56,28 @@ export function summarizeQueue(records, env = {}, now = Date.now()) {
     const created = Date.parse(record.createdAt || record.updatedAt || '');
     const days = Number.isFinite(created) && created <= now ? (now - created) / 86400000 : null;
     bump(summary.queuedAgeBuckets, days === null ? 'unknown' : days > 30 ? '>30d' : days > 7 ? '7-30d' : '<=7d');
-    const backend = String(record.backend || 'auto').toLowerCase();
-    const required = new Set(csv(record.requiredCapabilities || record.requires || (backend === 'health' ? '' : backend)));
+    const rawBackend = String(record.backend || 'auto').trim().toLowerCase();
+    const backend = safeLabel(rawBackend, BACKENDS);
+    const required = new Set(csv(record.requiredCapabilities || record.requires || (rawBackend === 'health' ? '' : rawBackend)));
     // Match worker admission: even an explicit weaker requires list cannot
     // omit the executable auto backend capability.
-    if (backend !== 'health') required.add(backend);
+    if (rawBackend !== 'health') required.add(rawBackend);
     const missing = [...required].filter(capability => !caps.has(capability));
-    for (const capability of required) bump(summary.queuedCapabilities, capability);
-    const risk = String(record.riskClass || 'draft').toLowerCase();
-    // Match canWorkerRunTask: --unsafe upgrades low-risk labels to external_write.
-    // A producer's risk label or plain 'approved' string is not proof of permission.
-    const effectiveRisk = record.unsafe && !APPROVAL_REQUIRED_RISKS.has(risk) ? 'external_write' : risk;
-    const approval = String(record.approvalStatus || 'unknown').toLowerCase();
+    const unrecognizedCapability = [...required].some(capability => !CAPABILITIES.has(capability));
+    for (const capability of required) bump(summary.queuedCapabilities, safeLabel(capability, CAPABILITIES));
+    const risk = safeLabel(record.riskClass || 'draft', RISKS);
+    // The live worker treats unknown risks as external_write, not low risk.
+    // Never print the unknown label or classify it as safe.
+    const effectiveRisk = risk === 'other' || (record.unsafe && !APPROVAL_REQUIRED_RISKS.has(risk))
+      ? 'external_write' : risk;
+    const approval = safeLabel(record.approvalStatus || 'unknown', APPROVALS);
     bump(summary.queuedRisks, risk);
     bump(summary.queuedEffectiveRisks, effectiveRisk);
     bump(summary.queuedApprovals, approval);
     const flags = [];
+    if (backend === 'other') flags.push('unrecognized_backend');
+    if (risk === 'other') flags.push('unrecognized_risk');
+    if (unrecognizedCapability) flags.push('unrecognized_capability');
     if (days === null || days > 7) flags.push('stale_or_unknown_age');
     if (!workerCapabilitiesConfigured) flags.push('worker_capabilities_unverified');
     else if (missing.length) flags.push('missing_capability');
