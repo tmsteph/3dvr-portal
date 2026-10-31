@@ -275,3 +275,19 @@ test('agent source merges cannot automatically activate the legacy DigitalOcean 
   assert.match(gate, /inputs.deploy_legacy_worker == true/);
   assert.match(workflow, /deploy_legacy_worker:[\s\S]*?default: false/);
 });
+
+test('the actual queued harmless edit remains local despite the old automatic GitHub flag', async t => {
+  const { record, options } = managedFixture(t);
+  record.task = 'Operator code request: In the Portal repo, make one small, reversible, non-functional edit to an existing test or developer documentation file. Avoid production behavior, secrets, and configuration. Report the exact file changed and diff. Do not deploy, commit, or push. Make the smallest useful change in the working repository and run focused tests. Use an isolated branch or worktree when practical. Return a result summary with what changed, the exact checks run and their outcomes, any remaining blocker, and available commit or pull request links. Distinguish local changes, published commits, merged code, and live deployment. ' + safetySentence + ' The signed request includes GitHub write intent. Preserve exactly the requested repository workflow.';
+  options.verifyImpl = async () => verifiedOwnerTask(record.task);
+  const intent = editOnlyTask(record, { role: 'owner', githubWriteApproved: true });
+  assert.equal(intent.ok, true);
+  assert.equal(intent.githubWrite, false);
+  options.runAgentTaskImpl = async args => {
+    assert.ok(args.includes('--workspace-write'));
+    assert.ok(args.at(-1).includes('Do not deploy, commit, or push.'));
+    assert.ok(!args.at(-1).includes('You may create a branch, commit, push'));
+    return { ok: true, result: { stdout: 'Verified a local documentation-only edit.' } };
+  };
+  assert.equal((await runForgeRequest(record, options)).ok, true);
+});
