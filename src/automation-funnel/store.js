@@ -57,6 +57,17 @@ export function openFunnelStore(path = process.env.AUTOMATION_FUNNEL_DB || '/opt
     db,
     list() { return db.prepare('SELECT * FROM leads ORDER BY updated_at DESC LIMIT 500').all().map(row); },
     get(id) { return row(db.prepare('SELECT * FROM leads WHERE id=?').get(id)); },
+    // Suppression must cover the entire durable CRM, not the 500-row
+    // dashboard window. An older do-not-contact record is still binding.
+    hasSuppressedEmail(email) {
+      const normalized = String(email || '').trim().toLowerCase();
+      if (!normalized) return false;
+      // A corrupt legacy JSON payload causes this query to fail closed.
+      return Boolean(db.prepare(
+        "SELECT 1 FROM leads WHERE lower(json_extract(payload, '$.email')) = ? " +
+        "AND json_extract(payload, '$.stage') = 'do-not-contact' LIMIT 1"
+      ).get(normalized));
+    },
     insert(lead) {
       const key = identity(lead);
       // Concurrent discovery workers can race after a SELECT and both try to
