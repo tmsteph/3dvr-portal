@@ -138,10 +138,13 @@ async function isolatedRepo(record, auth, options) {
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const key = createHash('sha256').update(record.authPub + ':' + record.id).digest('hex').slice(0,24);
   const repo = path.join(directory, key);
+  const { stdout } = await execFileAsync('git', ['-C', auth.repoPath, 'rev-parse', '--show-toplevel'], { timeout: 10000 });
+  const relative = path.relative(stdout.trim(), auth.repoPath);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('Selected package is outside its Git repository.');
   // Never mutate the shared service/source checkout or reuse an uncertain workspace.
   await execFileAsync('git', ['-C', auth.repoPath, 'fetch', 'origin', 'main'], { timeout: 30000 });
   await execFileAsync('git', ['-C', auth.repoPath, 'worktree', 'add', '-b', 'forge/' + key, repo, 'origin/main'], { timeout: 30000 });
-  return repo;
+  return path.join(repo, relative);
 }
 
 async function runForgeRequest(record, options = {}) {
