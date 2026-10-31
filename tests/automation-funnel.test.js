@@ -28,6 +28,38 @@ test('durable queue deduplicates and uses version guard', () => {
   assert.equal(store.consumeAction('12345678-1234-1234-1234-123456789012'), false);
   store.close();
 });
+test('CRM updates cannot retarget a dedupe identity or silently misroute follow-ups', () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const inbound = normalizeLead({ ...base }, { inbound: true });
+    const savedInbound = store.insert(inbound).lead;
+    assert.throws(() => store.update(savedInbound.id,
+      { ...inbound, email: 'another-buyer@example.com' }, savedInbound.version), /Lead identity changed/);
+    assert.equal(store.get(savedInbound.id).email, inbound.email);
+    assert.equal(store.get(savedInbound.id).version, savedInbound.version);
+
+    const job = normalizeLead({
+      business: 'Upwork prospect', problem: 'Needs an integration', origin: 'public-research',
+      sourceUrl: 'https://www.upwork.com/jobs/~022100000000000000001'
+    });
+    const savedJob = store.insert(job).lead;
+    const alternateUrl = 'https://www.upwork.com/freelance-jobs/apply/Renamed_~022100000000000000001/';
+    const sameJob = store.update(savedJob.id, { ...job, sourceUrl: alternateUrl }, savedJob.version);
+    assert.equal(sameJob.sourceUrl, alternateUrl, 'same immutable job ID may have another URL');
+    assert.throws(() => store.update(savedJob.id, {
+      ...job, sourceUrl: 'https://www.upwork.com/jobs/~022100000000000000002'
+    }, sameJob.version), /Lead identity changed/);
+    assert.equal(store.get(savedJob.id).sourceUrl, alternateUrl);
+    assert.equal(store.get(savedJob.id).version, sameJob.version);
+    assert.equal(store.insert(job).duplicate, true, 'original job must still resolve to its record');
+    assert.equal(store.insert({ ...job,
+      sourceUrl: 'https://www.upwork.com/jobs/~022100000000000000002'
+    }).duplicate, false, 'a different job must not inherit the original follow-up');
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind LIKE 'updated:%'").get().n, 1,
+      'rejected identity changes must not create update events');
+  } finally { store.close(); }
+});
+
 test('funnel rate limit rejects the last-slot race across SQLite workers', () => {
   const dir = mkdtempSync(join(tmpdir(), '3dvr-funnel-limit-'));
   const dbPath = join(dir, 'leads.sqlite');
