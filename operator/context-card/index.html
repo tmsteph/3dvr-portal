@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Context Card · Operator</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="ui.js"></script>
+</head>
+<body>
+  <main>
+    <a href="/operator/">← Operator</a>
+    <h1>Context Card</h1>
+    <p>Carry a concise project brief to another chat app, such as ChatGPT, and bring a summary back by hand. No integration, chat history access, or automatic sync.</p>
+    <p>Only include information you want to share. Nothing is pulled from chats, accounts, or secrets. Review for private details before copying. Saved cards stay in this browser on this device, separate from your account; avoid sensitive information on shared devices.</p>
+    <details>
+      <summary>Create a card</summary>
+      <form id="create-form">
+        <div id="fields"></div>
+        <button>Preview new card</button>
+      </form>
+    </details>
+    <h2>Saved card</h2>
+    <p id="updated"></p>
+    <pre id="saved">No saved card yet.</pre>
+    <h2>Bring back a summary</h2>
+    <label for="returned">Paste the returned summary</label>
+    <textarea id="returned" rows="5" placeholder="Paste only the parts you want to keep."></textarea>
+    <button id="propose" type="button">Propose addition</button>
+    <section id="review" hidden aria-labelledby="review-title">
+      <h2 id="review-title">Review proposed card</h2>
+      <p>Compare with the saved card above. Edit or remove anything below. Returned summaries are appended as unverified notes; existing facts stay intact unless you edit them. Saving replaces the saved card only after you choose Save.</p>
+      <label for="proposal">Editable Markdown preview</label>
+      <textarea id="proposal" rows="16"></textarea>
+      <label><input id="checked" type="checkbox"> I reviewed this text for sensitive details and accuracy.</label>
+      <div class="actions">
+        <button id="copy" type="button">Copy reviewed text</button>
+        <button id="save" type="button">Save reviewed card</button>
+        <button id="cancel" type="button">Discard proposal</button>
+      </div>
+    </section>
+    <button id="edit" type="button">Preview / edit saved card</button>
+    <p id="status" role="status" aria-live="polite"></p>
+  </main>
+</body>
+</html>
