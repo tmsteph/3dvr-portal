@@ -15,7 +15,7 @@ export function createOperatorTaskTracker({ watch, onChange = () => {}, onStatus
   function refresh(conversations = []) {
     const candidates = conversations.flatMap(conversation =>
       (conversation.messages || []).map(message => ({ conversation, message })));
-    for (const { conversation, message } of candidates.slice().reverse()) {
+    for (const { conversation, message } of candidates.sort((a, b) => String(b.message.createdAt || b.conversation.updatedAt || '').localeCompare(String(a.message.createdAt || a.conversation.updatedAt || '')))) {
       const background = backgroundTaskForMessage(message);
       if (!background || message.backgroundTerminal) continue;
       const key = conversation.id + ':' + message.id;
