@@ -60,6 +60,29 @@ test('CRM updates cannot retarget a dedupe identity or silently misroute follow-
   } finally { store.close(); }
 });
 
+test('CRM opt-outs cannot be cleared by an ordinary stage edit, including legacy values', () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const lead = normalizeLead(base, { inbound: true });
+    const saved = store.insert(lead).lead;
+    const optedOut = store.update(saved.id, { ...lead, stage: 'do-not-contact' }, saved.version);
+    assert.equal(store.hasSuppressedEmail(lead.email), true);
+    assert.throws(() => store.update(saved.id, { ...lead, stage: 'discovered' }, optedOut.version),
+      /Do-not-contact cannot be cleared/);
+    assert.equal(store.get(saved.id).stage, 'do-not-contact');
+    assert.equal(store.get(saved.id).version, optedOut.version);
+    assert.equal(store.hasSuppressedEmail(lead.email), true);
+    // Imported records can have unnormalized stages; a later CRM edit must
+    // not silently discard the historical suppression.
+    store.db.prepare('UPDATE leads SET payload=? WHERE id=?').run(
+      JSON.stringify({ ...lead, stage: ' DO-NOT-CONTACT ' }), saved.id);
+    assert.throws(() => store.update(saved.id, { ...lead, stage: 'discovered' }, optedOut.version),
+      /Do-not-contact cannot be cleared/);
+    assert.equal(store.hasSuppressedEmail(lead.email), true);
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind='updated:discovered'").get().n, 0);
+  } finally { store.close(); }
+});
+
 test('funnel rate limit rejects the last-slot race across SQLite workers', () => {
   const dir = mkdtempSync(join(tmpdir(), '3dvr-funnel-limit-'));
   const dbPath = join(dir, 'leads.sqlite');
