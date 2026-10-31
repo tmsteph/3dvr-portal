@@ -189,4 +189,5 @@ function consumeOperatorPrefill(){let value=null;try{value=JSON.parse(sessionSto
 render({forceLatest:true});
 const prefilled=consumeOperatorPrefill();
 if(new URLSearchParams(window.location.search).get('history')==='1') openHistory(); else if(!prefilled) input.focus();
+taskTracker.refresh(store.conversations);
 void syncHistory();
