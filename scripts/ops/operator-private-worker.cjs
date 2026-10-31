@@ -32,6 +32,22 @@ async function runOnce(queue, onlyTaskId = '') {
   return 1;
 }
 
+// The private poller must advertise its own *actual* same-queue liveness.
+// Distinguish its process from a general worker on the same host, so one
+// worker's capability/pin snapshot cannot overwrite the other's heartbeat.
+function publishPrivateWorkerHeartbeat(queue, store, onlyTaskId = '', storeOptions = {}) {
+  const options = { ...storeOptions, queueStore: 'sqlite', gunSync: false,
+    ...(onlyTaskId ? { onlyTaskId } : {}) };
+  const profile = queue.workerProfile(options);
+  if (!profile.workerId) throw new Error('Private worker identity unavailable');
+  const wrote = store.writeWorkerHeartbeat({
+    ...profile,
+    workerId: `${profile.workerId}:operator-private:${process.pid}`,
+  }, options);
+  if (!wrote) throw new Error('Private worker heartbeat not persisted');
+  return true;
+}
+
 async function main() {
   if (process.env.THREEDVR_AGENT_QUEUE_STORE !== 'sqlite'
     || process.env.THREEDVR_AGENT_OWNER_ALIAS !== '3dvr-managed') {
@@ -50,8 +66,10 @@ async function main() {
   if (onlyTaskId) process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID = onlyTaskId;
   process.env.THREEDVR_AGENT_QUEUE_GUN_SYNC = '0';
   const queue = require(path.join(process.env.THREEDVR_PRIVATE_AGENT_ROOT, 'thomas-agent/node/agent-task-queue.js'));
+  const sqlite = require(path.join(process.env.THREEDVR_PRIVATE_AGENT_ROOT, 'thomas-agent/node/task-queue-sqlite-store.js'));
   await runLoop(queue, {
     onlyTaskId,
+    onPoll: () => publishPrivateWorkerHeartbeat(queue, sqlite, onlyTaskId),
     onProcessed: () => console.log('Private Operator task processed; result saved in the owner queue.'),
     onFailed: () => console.error('Private Operator task failed; inspect the durable result in the owner queue.'),
   });
@@ -70,9 +88,13 @@ async function runLoop(queue, {
   sleep = ms => new Promise(resolve => setTimeout(resolve, ms)),
   onProcessed = () => {},
   onFailed = () => {},
+  onPoll = () => {},
 } = {}) {
   const startedAt = now();
   for (;;) {
+    // Fail closed on a missing/failed SQLite heartbeat: the signed admission
+    // endpoint must not mistake a configured-but-unavailable worker for ready.
+    await onPoll();
     const count = await runOnce(queue, onlyTaskId);
     if (count < 0) {
       if (onlyTaskId) throw new Error(PIN_FAILED_MESSAGE);
@@ -92,7 +114,7 @@ async function runLoop(queue, {
   }
 }
 
-module.exports = { runOnce, runLoop };
+module.exports = { runOnce, runLoop, publishPrivateWorkerHeartbeat };
 if (require.main === module) main().catch(error => {
   console.error([PIN_TIMEOUT_MESSAGE, PIN_FAILED_MESSAGE].includes(error?.message)
     ? error.message
