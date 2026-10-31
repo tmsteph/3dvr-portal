@@ -55,7 +55,10 @@ export function normalizeLead(input, { inbound = false } = {}) {
   return { ...lead, ...qualification };
 }
 export function draftReply(lead) {
-  if (['do-not-contact', 'lost'].includes(lead.stage)) throw new Error('This lead is not available for outreach.');
+  // Legacy/imported CRM stages may contain mixed case or padding. Never
+  // generate a contact draft for an opt-out or closed-lost prospect.
+  const stage = String(lead.stage || '').trim().toLowerCase();
+  if (['do-not-contact', 'lost'].includes(stage)) throw new Error('This lead is not available for outreach.');
   const name = clean(lead.name, 100) || 'there';
   if (lead.inquiryType === 'operator-pilot') {
     return {
