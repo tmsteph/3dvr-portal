@@ -192,7 +192,13 @@ async function runCrossDeviceSyncAcceptance() {
       pub: localStorage.getItem('userPubKey')
     };
   });
-  log('E2E_SYNC_PROBE', JSON.stringify(syncProbe));
+  // Never print the account's public identity in CI or runner logs.
+  log('E2E_SYNC_PROBE', JSON.stringify({
+    ready: syncProbe.ready,
+    label: syncProbe.label,
+    signedIn: syncProbe.signedIn,
+    hasPub: Boolean(syncProbe.pub)
+  }));
   if (!syncProbe.ready) {
     throw new Error(`Operator account sync did not initialize: ${JSON.stringify(syncProbe)}`);
   }
