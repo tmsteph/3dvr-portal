@@ -27,7 +27,8 @@ async function runOnce(queue, onlyTaskId = '') {
   } catch {
     return -1;
   }
-  if (receipt?.status !== 'completed' || receipt.queueSource !== 'operator-http'
+  if (receipt?.id !== task.id || receipt.status !== 'completed'
+    || receipt.queueSource !== 'operator-http'
     || !String(receipt.resultText || '').trim()) return -1;
   return 1;
 }
