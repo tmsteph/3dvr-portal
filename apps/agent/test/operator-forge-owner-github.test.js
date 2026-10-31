@@ -144,3 +144,124 @@ test('owner permission still blocks destructive GitHub and deployment actions', 
     assert.equal(result.ok, false, task);
   }
 });
+
+const { mkdtemp, rm, readdir, readFile } = require('node:fs/promises');
+const { tmpdir } = require('node:os');
+const { execFileSync } = require('node:child_process');
+const { runForgeRequest, runForgeWorkerOnce } = require('../thomas-agent/node/operator-forge-worker');
+const safetySentence = 'Claim a working live link only after checking that URL; do not deploy without authorization.';
+
+test('generated browser safety text does not block an edit or hide actual deployment intent', () => {
+  const auth = { role: 'owner', githubWriteApproved: true };
+  assert.equal(editOnlyTask(signedRecord('Operator code request: Fix the navbar. ' + safetySentence, true), auth).ok, true);
+  assert.equal(editOnlyTask(signedRecord('Operator code request: Deploy this to production. ' + safetySentence, true), auth).ok, false);
+  assert.equal(editOnlyTask(signedRecord('Operator code request: Change repository secrets. ' + safetySentence, true), auth).ok, false);
+});
+
+function managedFixture(t, directory) {
+  const record = signedRecord('Operator code request: Fix the navbar. ' + safetySentence, true);
+  record.status = 'queued';
+  record.createdAt = new Date(1000000).toISOString();
+  const patches = [];
+  const rootNode = { get: () => ({ put: (patch, ack) => { patches.push(patch); ack({ ok: true }); } }) };
+  const options = {
+    now: 1001000, env: {}, rootNode, stateDir: directory,
+    verifyImpl: async () => verifiedOwnerTask(record.task),
+    runAgentTaskImpl: async () => ({ ok: true, result: { stdout: 'Changed the navbar and ran focused tests.' } })
+  };
+  return { record, options, patches };
+}
+
+test('a saved completion repairs relay state after restart without executing twice', async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'forge-receipt-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const { record, options, patches } = managedFixture(t, directory);
+  let executions = 0;
+  options.runAgentTaskImpl = async () => { executions++; return { ok: true, result: { stdout: 'Verified navbar fix.' } }; };
+  assert.equal((await runForgeRequest(record, options)).ok, true);
+  assert.equal((await runForgeRequest({ ...record, status: 'queued' }, options)).recovered, true);
+  assert.equal(executions, 1);
+  assert.equal(patches.at(-1).status, 'completed');
+});
+
+test('a pending execution receipt never replays uncertain work or admits changed signed intent', async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'forge-pending-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const { record, options, patches } = managedFixture(t, directory);
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  let executions = 0;
+  options.runAgentTaskImpl = async () => { executions++; await gate; return { ok: true, result: { stdout: 'Verified fix.' } }; };
+  const running = runForgeRequest(record, options);
+  while (!executions) await new Promise(resolve => setImmediate(resolve));
+  assert.equal((await runForgeRequest(record, options)).skipped, true);
+  assert.equal(patches.at(-1).status, 'approval_required');
+  assert.equal(executions, 1);
+  release(); await running;
+  const files = await readdir(directory);
+  const file = path.join(directory, files.find(name => name.endsWith('.json')));
+  const previous = JSON.parse(await readFile(file, 'utf8'));
+  previous.fingerprint = 'different signed task';
+  await require('node:fs/promises').writeFile(file, JSON.stringify(previous));
+  await assert.rejects(runForgeRequest(record, options), /identity conflicts/);
+  assert.equal(executions, 1);
+});
+
+test('signed admission uses verified issue time, not a relay-controlled createdAt', async t => {
+  const { record, options, patches } = managedFixture(t);
+  record.createdAt = new Date(2000000).toISOString();
+  options.signedAfter = 1500000;
+  options.runAgentTaskImpl = () => assert.fail('old signed request must remain held');
+  assert.equal((await runForgeRequest(record, options)).skipped, true);
+  assert.equal(patches.length, 0);
+  await assert.rejects(runForgeRequest(record, { ...options, signedAfter: 'invalid' }), /Invalid Forge admission/);
+});
+
+test('saved successful receipt survives a relay write failure and repairs on retry', async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'forge-relay-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const { record, options } = managedFixture(t, directory);
+  let executions = 0;
+  options.runAgentTaskImpl = async () => { executions++; return { ok: true, result: { stdout: 'Verified fix.' } }; };
+  let rejectCompletion = true;
+  options.rootNode = { get: () => ({ put: (patch, ack) => ack(
+    patch.status === 'completed' && rejectCompletion ? { err: 'relay unavailable' } : { ok: true }
+  ) }) };
+  assert.equal((await runForgeRequest(record, options)).deliveryPending, true);
+  rejectCompletion = false;
+  assert.equal((await runForgeRequest(record, options)).recovered, true);
+  assert.equal(executions, 1);
+});
+
+test('exact-ID worker scope leaves other queued code requests untouched', async t => {
+  const { record, options, patches } = managedFixture(t);
+  const other = { ...record, id: 'operator-task-other' };
+  options.rootNode.map = () => ({ once: callback => {
+    callback(other, other.id); callback(record, record.id);
+  } });
+  const result = await runForgeWorkerOnce({ ...options, onlyTaskId: record.id });
+  assert.deepEqual(result.map(item => item.id), [record.id]);
+  assert.ok(patches.every(patch => patch.id === record.id));
+});
+
+test('managed edits execute in a separate branch and worktree', async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'forge-worktree-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const base = path.join(directory, 'base');
+  execFileSync('git', ['init', '-q', base]);
+  execFileSync('git', ['-C', base, '-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '--allow-empty', '-qm', 'base']);
+  execFileSync('git', ['-C', base, 'branch', '-M', 'main']);
+  execFileSync('git', ['-C', base, 'remote', 'add', 'origin', base]);
+  const { record, options } = managedFixture(t, path.join(directory, 'receipts'));
+  options.env = { THREEDVR_OPERATOR_PORTAL_REPO: base };
+  options.worktreeRoot = path.join(directory, 'worktrees');
+  options.runAgentTaskImpl = async args => {
+    const repo = args[args.indexOf('--repo') + 1];
+    assert.notEqual(repo, base);
+    assert.equal(path.dirname(repo), options.worktreeRoot);
+    assert.match(execFileSync('git', ['-C', repo, 'branch', '--show-current'], { encoding: 'utf8' }), /^forge\//);
+    return { ok: true, result: { stdout: 'Verified isolated workspace.' } };
+  };
+  assert.equal((await runForgeRequest(record, options)).ok, true);
+  assert.equal(execFileSync('git', ['-C', base, 'branch', '--show-current'], { encoding: 'utf8' }).trim(), 'main');
+});
