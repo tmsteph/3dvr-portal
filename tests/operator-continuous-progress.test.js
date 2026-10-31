@@ -106,3 +106,10 @@ test('self-hosted Operator does not load Vercel-only analytics as an executable 
   assert.match(html, /<script[^>]+src=["']\/auth-identity\.js["']/i);
   assert.match(html, /<script[^>]+type=["']module["'][^>]+src=["']app\.js["']/i);
 });
+
+test('cross-device acceptance logs only account-presence metadata, never the public identity', async () => {
+  const script = await read('scripts/operator-portal-e2e.mjs');
+  assert.doesNotMatch(script, /log\('E2E_SYNC_PROBE',\s*JSON\.stringify\(syncProbe\)\)/);
+  assert.match(script, /hasPub:\s*Boolean\(syncProbe\.pub\)/);
+  assert.match(script, /sameAccount:\s*Boolean\(pub\)\s*&&\s*pub\s*===\s*expectedPub/);
+});
