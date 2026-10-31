@@ -80,3 +80,42 @@ test('file audit opens existing SQLite read-only and never creates a missing DB'
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('malformed but JSON-valid CRM rows are counted and require review without leaking data', () => {
+  const invalid = ['null', '42', '"private@example.com"', '["private buyer"]'];
+  const rows = [
+    row(original, hash('upwork-job:' + first)),
+    ...invalid.map((payload, index) => ({ dedupe: 'corrupt-' + index, payload }))
+  ];
+  const result = summarizeUpworkDedupe(rows);
+  assert.equal(result.scannedRows, 5);
+  assert.equal(result.invalidPayloadRows, 4);
+  assert.equal(result.upworkRows, 1);
+  assert.equal(result.duplicateJobGroups, 0);
+  assert.equal(result.reviewRequired, true);
+  assert.doesNotMatch(JSON.stringify(result), /private@example|private buyer|upwork\\.com/);
+});
+
+test('SQLite audit counts invalid JSON shapes without mutating historical CRM rows', () => {
+  const dir = mkdtempSync(join(tmpdir(), '3dvr-crm-invalid-audit-'));
+  const path = join(dir, 'leads.sqlite');
+  const db = new DatabaseSync(path);
+  try {
+    db.exec('CREATE TABLE leads (dedupe TEXT, payload TEXT)');
+    db.prepare('INSERT INTO leads VALUES (?, ?)').run('invalid-array', '[]');
+    db.prepare('INSERT INTO leads VALUES (?, ?)').run('invalid-number', '123');
+    db.close();
+    const result = auditUpworkDedupe(path);
+    assert.equal(result.invalidPayloadRows, 2);
+    assert.equal(result.upworkRows, 0);
+    assert.equal(result.reviewRequired, true);
+    const readback = new DatabaseSync(path, { readOnly: true });
+    try {
+      assert.deepEqual(readback.prepare('SELECT dedupe, payload FROM leads ORDER BY dedupe').all(),
+        [{ dedupe: 'invalid-array', payload: '[]' }, { dedupe: 'invalid-number', payload: '123' }]);
+    } finally { readback.close(); }
+  } finally {
+    if (db.isOpen) db.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
