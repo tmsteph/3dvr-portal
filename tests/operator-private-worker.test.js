@@ -5,9 +5,80 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 const require = createRequire(import.meta.url);
-const { runOnce, runLoop } = require('../scripts/ops/operator-private-worker.cjs');
+const { runOnce, runLoop, publishPrivateWorkerHeartbeat } = require('../scripts/ops/operator-private-worker.cjs');
 const sqlite = require('../apps/agent/thomas-agent/node/task-queue-sqlite-store.js');
 const { DatabaseSync } = require('node:sqlite');
+
+test('private poller advertises effective capabilities and exact canary pin in the same SQLite authority', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'operator-private-heartbeat-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const options = { queueDb: join(dir, 'queue.sqlite'), ownerAlias: '3dvr-managed' };
+  const queue = {
+    workerProfile: pollOptions => {
+      assert.equal(pollOptions.queueStore, 'sqlite');
+      assert.equal(pollOptions.gunSync, false);
+      assert.equal(pollOptions.onlyTaskId, 'operator-http-pinned');
+      return { workerId: 'same-host-general-worker', capabilities: ['codex'],
+        riskClasses: ['draft'], onlyTaskId: pollOptions.onlyTaskId };
+    },
+  };
+  assert.equal(publishPrivateWorkerHeartbeat(queue, sqlite, 'operator-http-pinned', options), true);
+  const db = new DatabaseSync(options.queueDb, { readOnly: true });
+  try {
+    const row = db.prepare('SELECT * FROM worker_heartbeats WHERE owner_alias = ?').get('3dvr-managed');
+    assert.match(row.worker_id, /^same-host-general-worker:operator-private:[0-9]+$/);
+    assert.equal(row.queue_store, 'sqlite');
+    assert.equal(row.capabilities, 'codex');
+    assert.equal(row.risk_classes, 'draft');
+    assert.equal(row.only_task_id, 'operator-http-pinned');
+    assert.ok(Date.now() - row.observed_at < 10000);
+    assert.equal(db.prepare('SELECT count(*) AS n FROM tasks').get().n, 0);
+  } finally {
+    db.close();
+  }
+});
+
+test('private heartbeat never invents capabilities or risk approval', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'operator-private-unconfigured-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const options = { queueDb: join(dir, 'queue.sqlite'), ownerAlias: '3dvr-managed' };
+  const queue = { workerProfile: () => ({ workerId: 'unconfigured', capabilities: [], riskClasses: [] }) };
+  assert.equal(publishPrivateWorkerHeartbeat(queue, sqlite, '', options), true);
+  const db = new DatabaseSync(options.queueDb, { readOnly: true });
+  try {
+    const row = db.prepare('SELECT capabilities, risk_classes, only_task_id FROM worker_heartbeats').get();
+    assert.equal(row.capabilities, '');
+    assert.equal(row.risk_classes, '');
+    assert.equal(row.only_task_id, '');
+  } finally {
+    db.close();
+  }
+});
+
+test('private loop publishes heartbeat before each poll and fails closed if heartbeat fails', async () => {
+  let clock = 0;
+  let polls = 0;
+  let beats = 0;
+  const queue = { listTasks: () => { polls += 1; return []; } };
+  await assert.rejects(runLoop(queue, {
+    onlyTaskId: 'operator-http-not-admitted',
+    pollMs: 10000,
+    pinTimeoutMs: 20000,
+    now: () => clock,
+    sleep: async ms => { clock += ms; },
+    onPoll: () => { beats += 1; },
+  }), /Pinned Operator canary timed out/);
+  assert.equal(polls, 3);
+  assert.equal(beats, 3);
+
+  let attemptedPoll = false;
+  await assert.rejects(runLoop({
+    listTasks: () => { attemptedPoll = true; return []; },
+  }, {
+    onPoll: () => { throw new Error('synthetic heartbeat persistence failure'); },
+  }), /synthetic heartbeat persistence failure/);
+  assert.equal(attemptedPoll, false);
+});
 
 test('private worker preserves legacy, running, unsafe, and policy-blocked tasks', async () => {
   const task = (id, patch = {}) => ({ id, status: 'queued', backend: 'codex', queueSource: 'operator-http', ...patch });
