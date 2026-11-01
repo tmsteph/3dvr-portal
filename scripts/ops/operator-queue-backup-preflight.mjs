@@ -6,6 +6,14 @@ import { existsSync, realpathSync, statSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { pathToFileURL } from 'node:url';
 
+// Only bounded queue-state labels may appear in metadata-only audit output.
+// Corrupt/private status values must not leak into logs or alter object prototypes.
+const PUBLIC_QUEUE_STATES = new Set([
+  'queued', 'running', 'completed', 'failed', 'skipped', 'cancelled',
+  'review_required', 'blocked', 'review', 'expired', 'stale', 'paused',
+  'waiting_approval', 'awaiting_approval'
+]);
+
 function fingerprint(path) {
   const db = new DatabaseSync(path, { readOnly: true });
   try {
@@ -32,11 +40,12 @@ function fingerprint(path) {
     digest.update(JSON.stringify(db.prepare('PRAGMA table_info(tasks)').all()));
     digest.update('\n');
     let count = 0;
-    const states = {};
+    const states = new Map();
     for (const row of db.prepare('SELECT * FROM tasks ORDER BY owner_alias,id').iterate()) {
       digest.update(JSON.stringify(row));
       digest.update('\n');
-      states[row.status] = (states[row.status] || 0) + 1;
+      const label = PUBLIC_QUEUE_STATES.has(row.status) ? row.status : 'other';
+      states.set(label, (states.get(label) || 0) + 1);
       count++;
     }
     // The worker's heartbeat/lease state lives in this same queue database.
@@ -49,7 +58,7 @@ function fingerprint(path) {
         digest.update('\n');
       }
     }
-    return { count, states, digest: digest.digest('hex') };
+    return { count, states: Object.fromEntries(states), digest: digest.digest('hex') };
   } finally { db.close(); }
 }
 
