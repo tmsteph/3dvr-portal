@@ -106,7 +106,7 @@ if (require.main === module) {
       const renderedDates=[...document.querySelectorAll('select[id^="avail_"]')]
         .map(el => String(el.id || '').match(/^avail_(\\d{4}-\\d{2}-\\d{2}) /)?.[1])
         .filter(Boolean);
-      return {url:location.href,authenticated:/Logout/.test(document.body?.innerText||''),values:out,renderedDates};
+      return {url:location.href,authenticated:renderedDates.length>0 && [...document.querySelectorAll('button,a')].some(el=>/^(Logout|Log out|Sign out)$/i.test((el.textContent||'').trim())),values:out,renderedDates};
     })()`);
     if(!before?.authenticated) throw new Error('iatse-session-not-authenticated');
 
@@ -141,7 +141,7 @@ if (require.main === module) {
       const renderedDates=[...document.querySelectorAll('select[id^="avail_"]')]
         .map(el => String(el.id || '').match(/^avail_(\\d{4}-\\d{2}-\\d{2}) /)?.[1])
         .filter(Boolean);
-      return {url:location.href,authenticated:/Logout/.test(document.body?.innerText||''),values:out,renderedDates};
+      return {url:location.href,authenticated:renderedDates.length>0 && [...document.querySelectorAll('button,a')].some(el=>/^(Logout|Log out|Sign out)$/i.test((el.textContent||'').trim())),values:out,renderedDates};
     })()`);
 
     const classified=classifyAvailabilityResult(desired, after?.values || {}, after?.renderedDates || []);
