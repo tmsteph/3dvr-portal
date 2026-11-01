@@ -318,3 +318,48 @@ test('business runbook requires approval for every outbound message, not just kn
   assert.match(runbook, /Stop at a fresh, identity-bound human checkpoint before \*\*every\*\* external message/);
   assert.doesNotMatch(runbook, /classified before autonomous outreach/);
 });
+
+test('follow-up due events require a persisted elapsed schedule and consume reminders', () => {
+  const now = '2026-11-01T18:00:00.000Z';
+  const future = '2026-11-03T18:00:00.000Z';
+  const past = '2026-10-31T18:00:00.000Z';
+  const withoutSchedule = createRevenueLeadWorkItem({ id: 'follow-no-date', stage: 'waiting_reply' });
+  assert.throws(() => advanceRevenueLead(withoutSchedule, 'follow_up_due', { now }),
+    /existing elapsed follow-up schedule/);
+  const notYetDue = createRevenueLeadWorkItem({
+    id: 'follow-future', stage: 'waiting_reply', nextFollowUpAt: future
+  });
+  assert.throws(() => advanceRevenueLead(notYetDue, 'follow_up_due', { now }),
+    /existing elapsed follow-up schedule/);
+  assert.throws(() => advanceRevenueLead(notYetDue, 'follow_up_due', {
+    now, nextFollowUpAt: past
+  }), /existing elapsed follow-up schedule/,
+  'a caller cannot replace a future persisted schedule with an earlier one');
+  const due = createRevenueLeadWorkItem({
+    id: 'follow-due', stage: 'waiting_reply', nextFollowUpAt: past
+  });
+  const ready = advanceRevenueLead(due, 'follow_up_due', { now });
+  assert.equal(revenueStage(ready), 'follow_up');
+  const sent = advanceRevenueLead(ready, 'follow_up_sent', {
+    now, draftId: 'draft-follow',
+    humanCheckpoint: approved('follow-due', 'follow_up_sent', 'draft-follow', 'approval-follow'),
+    evidence: { type: 'email', id: 'provider-follow' }
+  });
+  assert.equal(revenueStage(sent), 'waiting_reply');
+  assert.equal(sent.metadata.nextFollowUpAt, null,
+    'an old reminder cannot instantly schedule another follow-up');
+  assert.throws(() => advanceRevenueLead(sent, 'follow_up_due', { now }),
+    /existing elapsed follow-up schedule/);
+  const rescheduled = advanceRevenueLead(ready, 'follow_up_sent', {
+    now, draftId: 'draft-follow',
+    humanCheckpoint: approved('follow-due', 'follow_up_sent', 'draft-follow', 'approval-follow'),
+    evidence: { type: 'email', id: 'provider-follow' }, nextFollowUpAt: future
+  });
+  assert.equal(rescheduled.metadata.nextFollowUpAt, future,
+    'a newly approved reminder may be explicitly scheduled');
+  const replied = advanceRevenueLead(due, 'reply_received', {
+    now, evidence: { type: 'reply', id: 'provider-reply' }
+  });
+  assert.equal(replied.metadata.nextFollowUpAt, null,
+    'a received reply consumes the old unanswered-lead reminder');
+});
