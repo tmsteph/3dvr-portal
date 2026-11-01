@@ -30,6 +30,16 @@ function fingerprint(path) {
     if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='tasks'").get()) {
       throw new Error('Expected queue tasks table is missing');
     }
+    // The queue format currently persists data only in tasks and
+    // worker_heartbeats. If a future worker adds receipts, leases, or other
+    // application tables, a task-only digest could approve an incomplete
+    // snapshot. Fail closed until those rows are included in this audit.
+    const knownTables = new Set(['tasks', 'worker_heartbeats']);
+    const unexpectedTables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+      .all().filter(row => !knownTables.has(row.name));
+    if (unexpectedTables.length) {
+      throw new Error('Queue contains application tables not covered by snapshot preflight');
+    }
     // Digest every task column and the schema, including private payloads,
     // without returning task IDs, prompts, customer data, or secrets.
     const digest = createHash('sha256');
