@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createWorkItem, transitionWorkItem } from '../src/operator-runtime/work-item.js';
+
+const approved = (leadId, event, draftId, id) => ({ status: 'approved', id, leadId, event, draftId });
 import { createWorker, findEligibleWorkers } from '../src/operator-runtime/worker-registry.js';
 import {
   BUSINESS_ROLES,
@@ -119,7 +121,7 @@ test('revenue workflow carries a lead from research to verified payment', () => 
   assert.throws(() => advanceRevenueLead(item, 'outreach_sent', { evidence: { type: 'email', id: 'msg-1' } }), /approved human checkpoint/);
   item = advanceRevenueLead(item, 'outreach_sent', {
     now: '2026-09-12T18:03:00.000Z',
-    humanCheckpoint: { status: 'approved', id: 'approval-1' },
+    humanCheckpoint: approved('lead-1', 'outreach_sent', 'draft-1', 'approval-1'), draftId: 'draft-1',
     evidence: { type: 'email', id: 'msg-1' }
   });
   assert.equal(revenueStage(item), 'waiting_reply');
@@ -131,7 +133,7 @@ test('revenue workflow carries a lead from research to verified payment', () => 
   }), /fresh traceable approved human checkpoint/);
   item = advanceRevenueLead(item, 'proposal_sent', {
     now: '2026-09-12T18:05:00.000Z', evidence: { type: 'email', id: 'proposal-1' },
-    humanCheckpoint: { status: 'approved', id: 'approval-2' }
+    humanCheckpoint: approved('lead-1', 'proposal_sent', 'draft-2', 'approval-2'), draftId: 'draft-2'
   });
   assert.equal(revenueStage(item), 'payment');
   item = advanceRevenueLead(item, 'payment_received', {
@@ -191,6 +193,28 @@ test('revenue events cannot assert sends, replies, or payments without receipts 
 });
 
 
+
+test('revenue approval is bound to one lead, event and exact draft', () => {
+  const lead = createRevenueLeadWorkItem({ id: 'buyer-A', stage: 'outreach' });
+  const evidence = { type: 'email', id: 'provider-message-A' };
+  const checkpoint = approved('buyer-A', 'outreach_sent', 'draft-A', 'approval-A');
+  for (const invalid of [
+    { humanCheckpoint: approved('buyer-B', 'outreach_sent', 'draft-A', 'approval-A'), draftId: 'draft-A' },
+    { humanCheckpoint: approved('buyer-A', 'proposal_sent', 'draft-A', 'approval-A'), draftId: 'draft-A' },
+    { humanCheckpoint: checkpoint, draftId: 'draft-B' },
+    { humanCheckpoint: checkpoint },
+    { humanCheckpoint: { status: 'approved', id: 'approval-A' }, draftId: 'draft-A' }
+  ]) {
+    assert.throws(() => advanceRevenueLead(lead, 'outreach_sent', { evidence, ...invalid }),
+      /fresh traceable approved human checkpoint/);
+  }
+  const sent = advanceRevenueLead(lead, 'outreach_sent', {
+    evidence, humanCheckpoint: checkpoint, draftId: 'draft-A'
+  });
+  assert.equal(revenueStage(sent), 'waiting_reply');
+  assert.equal(sent.metadata.lastOutboundApprovalId, 'approval-A');
+});
+
 test('outbound approvals cannot be reused after an intervening approval', () => {
   const item = createRevenueLeadWorkItem({
     id: 'approval-history-1', stage: 'follow_up',
@@ -201,11 +225,11 @@ test('outbound approvals cannot be reused after an intervening approval', () => 
   });
   assert.throws(() => advanceRevenueLead(item, 'follow_up_sent', {
     evidence: { type: 'email', id: 'message-C' },
-    humanCheckpoint: { status: 'approved', id: 'approval-A' }
+    humanCheckpoint: approved('approval-history-1', 'follow_up_sent', 'draft-C', 'approval-A'), draftId: 'draft-C'
   }), /fresh traceable approved human checkpoint/);
   const sent = advanceRevenueLead(item, 'follow_up_sent', {
     evidence: { type: 'email', id: 'message-C' },
-    humanCheckpoint: { status: 'approved', id: 'approval-C' }
+    humanCheckpoint: approved('approval-history-1', 'follow_up_sent', 'draft-C', 'approval-C'), draftId: 'draft-C'
   });
   assert.deepEqual(sent.metadata.usedOutboundApprovalIds, ['approval-A', 'approval-B', 'approval-C']);
   assert.equal(sent.metadata.lastOutboundApprovalId, 'approval-C');
@@ -215,7 +239,7 @@ test('outbound approvals cannot be reused after an intervening approval', () => 
   });
   assert.throws(() => advanceRevenueLead(malformed, 'outreach_sent', {
     evidence: { type: 'email', id: 'message-D' },
-    humanCheckpoint: { status: 'approved', id: 'approval-D' }
+    humanCheckpoint: approved('approval-history-2', 'outreach_sent', 'draft-D', 'approval-D'), draftId: 'draft-D'
   }), /fresh traceable approved human checkpoint/);
 });
 
@@ -227,11 +251,11 @@ test('revenue events reject a previously recorded provider receipt', () => {
   });
   assert.throws(() => advanceRevenueLead(followUp, 'follow_up_sent', {
     evidence: { ...priorEmail },
-    humanCheckpoint: { status: 'approved', id: 'fresh-approval' }
+    humanCheckpoint: approved('receipt-replay-send', 'follow_up_sent', 'draft-fresh', 'fresh-approval'), draftId: 'draft-fresh'
   }), /cannot reuse an existing external receipt/);
   const freshSend = advanceRevenueLead(followUp, 'follow_up_sent', {
     evidence: { type: 'email', id: 'provider-message-2' },
-    humanCheckpoint: { status: 'approved', id: 'fresh-approval' }
+    humanCheckpoint: approved('receipt-replay-send', 'follow_up_sent', 'draft-fresh', 'fresh-approval'), draftId: 'draft-fresh'
   });
   assert.equal(freshSend.evidence.length, 2);
 
@@ -258,12 +282,12 @@ test('revenue transitions reject receipts from the wrong event class', () => {
   for (const type of ['reply', 'payment', 'unknown']) {
     assert.throws(() => advanceRevenueLead(outreach, 'outreach_sent', {
       evidence: { type, id: 'cross-class-send' },
-      humanCheckpoint: { status: 'approved', id: 'send-approved' }
+      humanCheckpoint: approved('typed-send', 'outreach_sent', 'draft-typed', 'send-approved'), draftId: 'draft-typed'
     }), /outbound message receipt type/);
   }
   const sent = advanceRevenueLead(outreach, 'outreach_sent', {
     evidence: { type: 'email', id: 'provider-email-1' },
-    humanCheckpoint: { status: 'approved', id: 'send-approved' }
+    humanCheckpoint: approved('typed-send', 'outreach_sent', 'draft-typed', 'send-approved'), draftId: 'draft-typed'
   });
   assert.equal(revenueStage(sent), 'waiting_reply');
 
