@@ -19,6 +19,10 @@ function fingerprint(path) {
     // Digest every task column and the schema, including private payloads,
     // without returning task IDs, prompts, customer data, or secrets.
     const digest = createHash('sha256');
+    // A task-row match alone can miss a dropped index or trigger. Compare
+    // all application schema objects as well as task rows before migration.
+    digest.update(JSON.stringify(db.prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name").all()));
+    digest.update('\n');
     digest.update(JSON.stringify(db.prepare('PRAGMA table_info(tasks)').all()));
     digest.update('\n');
     let count = 0;
