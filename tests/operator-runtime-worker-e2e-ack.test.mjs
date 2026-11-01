@@ -22,11 +22,13 @@ function fakeResponse(status, result) {
   return { status, json: async () => result };
 }
 function simulate({ env = baseEnv, admission = fakeResponse(202, {ok:true}),
+  preflight = fakeResponse(404, {ok:false, missing:true}),
   statuses = [fakeResponse(200, {ok:true, record:receipt})] } = {}) {
   const requests = [];
   const logs = [];
   let clock = 0;
   let statusIndex = 0;
+  let admissionSeen = false;
   const fetchImpl = async (_url, options) => {
     const body = JSON.parse(options.body);
     const signed = await SEA.verify(body.authProof, pair.pub);
@@ -36,9 +38,11 @@ function simulate({ env = baseEnv, admission = fakeResponse(202, {ok:true}),
     assert.equal(signed.origin, 'https://portal.3dvr.tech');
     requests.push({action:body.action, requestId:body.requestId});
     if (body.action === 'enqueue') {
+      admissionSeen = true;
       assert.doesNotMatch(body.text, /\b42\b/, 'canary prompt must not supply the expected answer');
       return admission;
     }
+    if (!admissionSeen) return preflight;
     const status = statuses[Math.min(statusIndex++, statuses.length - 1)];
     const payload = await status.json();
     return fakeResponse(status.status, {...payload, requestId: payload.requestId ?? body.requestId});
@@ -68,6 +72,19 @@ test('live canary refuses missing or malformed preselected IDs before any reques
   }
 });
 
+test('reused or uncertain preselected ID cannot masquerade as fresh execution', async () => {
+  for (const preflight of [
+    fakeResponse(200, {ok:true, record:receipt}),
+    fakeResponse(503, {ok:false}),
+    fakeResponse(404, {ok:false, missing:false})
+  ]) {
+    const probe = simulate({ preflight });
+    await assert.rejects(probe.run(), /freshness cannot be verified/);
+    assert.deepEqual(probe.requests.map(r => r.action), ['status']);
+    assert.ok(!probe.logs.includes('E2E_PASS=true'));
+  }
+});
+
 test('default-off authorization makes no external request', async () => {
   const probe = simulate({env:{...baseEnv, OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED:'0'}});
   await assert.rejects(probe.run(), /explicit run and cost authorization/);
@@ -89,7 +106,7 @@ test('signed enqueue followed by signed status requires durable completion recei
   const probe = simulate();
   const result = await probe.run();
   assert.equal(result.receipt.status, 'completed');
-  assert.deepEqual(probe.requests.map(r => r.action), ['enqueue', 'status']);
+  assert.deepEqual(probe.requests.map(r => r.action), ['status', 'enqueue', 'status']);
   assert.equal(probe.requests[0].requestId, probe.requests[1].requestId);
   assert.ok(probe.logs.includes('E2E_PASS=true'));
   assert.ok(probe.logs.includes('E2E_SCOPE=signed_runtime_only'));
@@ -101,7 +118,7 @@ test('signed enqueue followed by signed status requires durable completion recei
 test('uncertain admission only polls same ID and never re-enqueues', async () => {
   const probe = simulate({admission:fakeResponse(503,{ok:false,error:'uncertain'})});
   await probe.run();
-  assert.deepEqual(probe.requests.map(r => r.action), ['enqueue','status']);
+  assert.deepEqual(probe.requests.map(r => r.action), ['status','enqueue','status']);
 });
 
 test('missing timestamps or worker attribution cannot pass', async () => {
@@ -159,12 +176,12 @@ test('404 after uncertain admission can recover without duplicate enqueue', asyn
     statuses:[fakeResponse(404,{ok:false,missing:true}),fakeResponse(200,{ok:true,record:receipt})]
   });
   await probe.run();
-  assert.deepEqual(probe.requests.map(r => r.action), ['enqueue','status','status']);
+  assert.deepEqual(probe.requests.map(r => r.action), ['status','enqueue','status','status']);
   assert.ok(probe.logs.includes('E2E_PASS=true'));
 });
 
 test('rejected admission fails without status polling', async () => {
   const probe = simulate({admission:fakeResponse(403,{ok:false})});
   await assert.rejects(probe.run(), /HTTP 403/);
-  assert.deepEqual(probe.requests.map(r => r.action), ['enqueue']);
+  assert.deepEqual(probe.requests.map(r => r.action), ['status','enqueue']);
 });
