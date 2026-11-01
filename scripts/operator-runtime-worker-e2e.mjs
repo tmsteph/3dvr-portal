@@ -74,6 +74,16 @@ export async function runOperatorRuntimeE2E({
     return { status: response.status, result };
   }
   log(`E2E_TASK_REQUEST_ID=${requestId}`);
+  // A preselected ID must be fresh. Otherwise an idempotent enqueue could
+  // return a historical completed receipt and falsely pass this canary.
+  // Check only this exact signed ID; if status is uncertain, do not enqueue.
+  let precheck;
+  try { precheck = await request({ action: 'status', requestId }); }
+  catch { throw new Error('Cannot verify fresh canary ID; no enqueue attempted.'); }
+  if (precheck.status !== 404 || precheck.result?.missing !== true) {
+    throw new Error('Canary ID is already used or freshness cannot be verified; no enqueue attempted.');
+  }
+  log('E2E_PRECHECK=missing');
   let admission;
   try { admission = await request(task); }
   catch { log('E2E_ADMISSION=uncertain'); }
