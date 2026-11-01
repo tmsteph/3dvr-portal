@@ -10,6 +10,7 @@ function makeQueue(path, rows) {
   const db = new DatabaseSync(path);
   try {
     db.exec('CREATE TABLE tasks (owner_alias TEXT, id TEXT, status TEXT, source TEXT, record_json TEXT)');
+    db.exec('CREATE INDEX tasks_status_idx ON tasks(status)');
     const insert = db.prepare('INSERT INTO tasks VALUES (?, ?, ?, ?, ?)');
     for (const row of rows) insert.run('3dvr-managed', row.id, row.status, row.source, JSON.stringify(row.payload));
   } finally { db.close(); }
@@ -61,4 +62,21 @@ test('missing, same-inode, changed, and invalid snapshots fail closed without to
   const verify = new DatabaseSync(livePath, { readOnly: true });
   assert.equal(verify.prepare('SELECT COUNT(*) AS n FROM tasks').get().n, 2);
   verify.close();
+});
+
+
+test('snapshot with identical tasks but missing an index fails closed', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'operator-backup-schema-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const livePath = join(dir, 'live.sqlite');
+  const snapshotPath = join(dir, 'snapshot.sqlite');
+  makeQueue(livePath, records);
+  makeQueue(snapshotPath, records);
+  const snapshot = new DatabaseSync(snapshotPath);
+  snapshot.exec('DROP INDEX tasks_status_idx');
+  snapshot.close();
+  assert.throws(() => auditOperatorQueueBackup({ livePath, snapshotPath }), /does not match/);
+  const live = new DatabaseSync(livePath, { readOnly: true });
+  assert.equal(live.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='index' AND name='tasks_status_idx'").get().n, 1);
+  live.close();
 });
