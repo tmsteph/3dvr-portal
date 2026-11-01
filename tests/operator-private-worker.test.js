@@ -66,7 +66,7 @@ test('legacy tasks-only queue adds heartbeat without replay or rewriting histori
   assert.equal(publishPrivateWorkerHeartbeat(queue, sqlite, 'operator-http-approved-new', options), true);
   const after = new DatabaseSync(options.queueDb, { readOnly: true });
   try {
-    const rows = after.prepare('SELECT owner_alias,id,status,updated_at,record_json,source FROM tasks ORDER BY id').all();
+    const rows = after.prepare('SELECT owner_alias,id,status,updated_at,record_json,source FROM tasks ORDER BY id').all().map(row => ({ ...row }));
     assert.deepEqual(rows, historical.sort((a, b) => a.id.localeCompare(b.id)),
       'schema migration must preserve historical queued and terminal records byte-for-byte');
     const heartbeat = after.prepare("SELECT owner_alias,capabilities,risk_classes,only_task_id FROM worker_heartbeats").get();
