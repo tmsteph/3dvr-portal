@@ -135,7 +135,7 @@ test('mismatched task ID or request ID cannot count as completed execution', asy
   ]) {
     const probe = simulate({statuses:[response]});
     await assert.rejects(probe.run(), /mismatched task receipt/);
-    assert.deepEqual(probe.requests.map(r => r.action), ['enqueue','status']);
+    assert.deepEqual(probe.requests.map(r => r.action), ['status','enqueue','status']);
     assert.ok(!probe.logs.includes('E2E_PASS=true'));
   }
 });
@@ -164,7 +164,7 @@ test('invalid signed status protocol fails immediately rather than timing out', 
   ]) {
     const probe = simulate({statuses:[response]});
     await assert.rejects(probe.run(), /Signed status protocol rejected the request/);
-    assert.deepEqual(probe.requests.map(r => r.action), ['enqueue','status']);
+    assert.deepEqual(probe.requests.map(r => r.action), ['status','enqueue','status']);
     assert.ok(!probe.logs.includes('E2E_PASS=true'));
   }
 });
