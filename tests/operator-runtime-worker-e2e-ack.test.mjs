@@ -71,6 +71,9 @@ test('signed enqueue followed by signed status requires durable completion recei
   assert.deepEqual(probe.requests.map(r => r.action), ['enqueue', 'status']);
   assert.equal(probe.requests[0].requestId, probe.requests[1].requestId);
   assert.ok(probe.logs.includes('E2E_PASS=true'));
+  assert.ok(probe.logs.includes('E2E_SCOPE=signed_runtime_only'));
+  assert.ok(probe.logs.includes('E2E_CRM_READBACK=not_tested'));
+  assert.ok(!probe.logs.some(line => /E2E_CRM_READBACK=(passed|true|verified)/.test(line)));
   assert.ok(probe.logs.every(line => !line.includes(pair.priv)));
 });
 
