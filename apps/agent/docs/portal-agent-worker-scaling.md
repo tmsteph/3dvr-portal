@@ -292,40 +292,23 @@ Portal users should not need to understand workers, DigitalOcean, tmux, or Codex
 9. Add isolated workspace support.
 10. Add dedicated worker provisioning for paid users.
 
-## Current DigitalOcean Role — edge and fallback
+## Verified managed Operator placement — October 31, 2026 (read-only)
 
-**Do not diagnose the absence of a DigitalOcean queue worker as an outage by itself.**
-The deployed edge-guardrail design in `ops/resilience/install-do-edge-guardrails.sh`
-explicitly removes the `3dvr-worker` and `3dvr-supervisor` tmux sessions
-from DigitalOcean to avoid duplicating Hetzner's worker role on a small edge node.
+The October 28 **historical** edge/fallback assessment below has been superseded for the **private signed Operator worker**, not for every 3DVR service. Do not infer worker placement from an old architecture diagram, an `active/exited` launcher, or the separate Hetzner Forge code worker.
 
-A read-only check on 2026-10-28 confirmed that `3dvr-agent.service` is a
-`Type=oneshot`, `RemainAfterExit=yes` launcher for `3dvr agent start`.
-Its `active/exited` status **does not prove a running task worker**.
-No queue-worker process or tmux session was found on DigitalOcean; its
-managed SQLite queue contained 42 queued, 153 completed, and 5 failed tasks.
-This is a queue census, **not** proof that any of those tasks can safely run.
+- **OVH** is the self-hosted Portal/control plane. On the fresh October 31 20:57 PDT read-only check, `3dvr-portal.service` was active, but its effective `THREEDVR_OPERATOR_TASK_SSH_HOST`, `THREEDVR_AGENT_QUEUE_STORE`, and `THREEDVR_AGENT_OWNER_ALIAS` settings were **absent**. HTTP 200 from public routes does not establish signed execution.
+- **DigitalOcean `debian-web`** is the verified running **`3dvr-operator-private-worker.service`** host, reachable from OVH via existing authorized SSH alias **`3dvr-do`**. Its effective managed worker configuration previously confirmed SQLite queue, owner `3dvr-managed`, Codex capability and `draft` risk. The current read-only queue had **159 completed, 5 failed, 42 historical queued** rows across sources. These are aggregate counts, not a fresh signed-task receipt. Do not inspect client payloads or replay the backlog.
+- **DO queue migration is pending:** `/root/.3dvr/task-queue.sqlite` currently has a `tasks` table and **no `worker_heartbeats` table**. Draft PR #3400 requires a recent same-queue, same-owner heartbeat before signed admission. A running service is insufficient. Synthetic legacy-schema preservation tests pass in draft CI, but the live migration has **not** occurred.
+- **Hetzner** remains a separate Forge/worker and remote phone access lane, **not** the verified authoritative private signed Operator queue. Root disk measured **94% used / 2.3 GB free**. The OnePlus reverse SSH port 2206 was absent; no phone change was attempted.
 
-Current roles:
+**Release readiness and rollback (documentation only; no authorization):**
 
-```text
-OVH: primary portal/control plane
-Hetzner: designated worker and queue-execution lane (verify live health)
-DigitalOcean: lightweight edge, portal fallback, and recovery lane
-```
+1. Review the exact draft PR SHA and the DO service's existing release path, executable, unit, owner, DB path, task pin, memory headroom and one-writer supervision **read-only**. Confirm the backup/rollback mechanism and an independently restorable queue copy *before* any schema write. Never copy secrets or task payloads into a public receipt.
+2. Obtain **separate explicit approval** for DO worker binary/schema upgrade and OVH explicit `3dvr-do` host/queue configuration. Stage and validate without starting a second unpinned poller. Do not enable the old 42 queued tasks, broaden capabilities, or restart a live service by inference.
+3. With separate release and no-send acceptance approval, bind one **new** signed synthetic task to an exact ID; require matching worker heartbeat, atomic claim, durable completed/failed result, same-owner read-back, and CRM receipt. A queue ACK, heartbeat, 200 response or green CI alone is not acceptance.
+4. If any gate fails, **stop** rather than replaying or draining tasks; preserve original queue, service state and failure receipts for reviewed rollback. Verify a second-browser history restore independently before declaring the Portal release accepted.
 
-Before changing any worker placement, verify Hetzner's actual queue-polling
-process, latest successful claim/receipt, capabilities, queue ownership, and
-which host holds the authoritative queue. A tmux session or an active oneshot
-service alone is not execution evidence. Do not restart a worker, broaden
-capabilities, replay stale work, or promote DO to a worker without a reviewed
-capacity and release plan.
-
-If DigitalOcean is deliberately re-enabled as a shared worker later, keep
-concurrency at one, isolate user secrets, enforce per-task approvals and
-idempotency, and record authenticated worker receipts. It is not an
-infinite-capacity agent.
-
+Verified source: [founder queue ownership receipt](https://github.com/tmsteph/3dvr-portal/issues/3311#issuecomment-6552066600), [legacy-schema regression](https://github.com/tmsteph/3dvr-portal/issues/3311#issuecomment-6552625807), and [draft PR #3400](https://github.com/tmsteph/3dvr-portal/pull/3400). Historical October 28 assessment (DO as edge/fallback) was valid for the older generic worker stack but **must not override the later private-worker discovery**.
 
 ## Supervised signed-canary gate (draft; not deployed)
 
