@@ -113,3 +113,69 @@ Related: [existing points ledger work #1613](https://github.com/tmsteph/3dvr-por
 - [ ] Live cutover separately reviewed; rollback and audit retention verified.
 
 Until these are complete, label this charter proposed and controls not active.
+
+## Member account: savings goals, service credit, and borrowing
+
+Direction added 2026-10-31: make the member experience resemble a savings and credit account. Working assumption: this is for 3DVR members, including the founder. This is a product design, not authorization to take deposits or originate loans.
+
+### One account view, distinct balances
+
+| Account section | Meaning | Initial behavior |
+| --- | --- | --- |
+| Savings goals | A member's target and progress, backed by money in their own bank account | Manual private tracking, showing source and verification date; 3DVR does not receive or control the money |
+| Service balance | Existing 3DVR points usable under reviewed service terms | Preserve the existing points ledger; display units and provenance; do not invent a second credit currency |
+| Contribution history | Verified payments and historical supporter promises | Historical statement; not a withdrawable deposit or automatic ownership percentage |
+| Approved rewards | A specifically authorized distribution, if any | No financial entitlement inferred from leaderboard rank or total Stripe cash |
+| Borrowing | Actual lender agreement, credit limit, amount drawn, repayments and amounts due | Unavailable until a documented permitted product/provider exists; sandbox records clearly simulated |
+
+Never add savings, points, historical contributions, rewards, and unused credit limits into one "available cash" figure. Unknown balances remain unknown. A savings target is not a held balance; a credit limit is not income, cash, collateral, or a savings deposit.
+
+### First milestone: private account statement and simulation
+
+Extend the existing finance/points account flow rather than adding another standalone app.
+
+- Account statement shows source-linked entries, pending versus settled status, fees/refunds, correction history, and dispute/report-error action.
+- Savings goal includes target, currency, member-reported amount, source type, as-of date, and verification status. No bank credentials or account numbers in notes.
+- Credit simulator uses only synthetic data. Display lender, illustrative limit, principal, APR, fees, term, total repayment and due dates. State that these are examples, not an offer, eligibility decision or bureau score.
+- Existing Universal Credit Network prototype is research-only. Reuse its accounting lessons after reviewing its security gaps; do not treat an unauthenticated reducer as a live lending platform.
+- No automatic ACH debits, card-funded deposits, cash withdrawals, interest accrual, lending, points-to-cash conversion, or changed subscription terms in this milestone.
+- No credit-bureau pulls/reporting or claim of credit building. Member consent and a qualified provider path would be required for such a feature.
+- Private member authorization must be verified server-side. No public Gun storage of money, loan terms, identity documents, or statements.
+- Historical promises remain visible to authorized reviewers and are not overwritten by this new product design.
+
+### Money protection and founder limits
+
+A future custodial product requires funds attributable to members to be protected from company operating use through the approved legal/provider structure. Accounting labels alone do not segregate funds or protect them in insolvency.
+
+The founder cannot borrow from member savings, pledge those balances, convert them to equity, net them against unrelated debts, or use them to pay business bills. A future lending program must have a separately authorized funding source, defined loss exposure, underwriting, servicing, complaints and hardship processes, and independent approval for related-party loans.
+
+Neither an investment loss nor a loan default may silently reduce another member's savings balance. No automatic loan eligibility based on points or amount contributed. No unreviewed reuse of personal data for underwriting.
+
+### Provider and launch decision
+
+Keep the current merchant Stripe account for its approved payment use. Do not assume its payment balance or customer cash-balance feature is a general savings account.
+
+For an actual savings/credit product, evaluate an eligible banking/lending arrangement with verified product scope, consumer versus business eligibility, supported countries, fund ownership, safeguarding, withdrawal access, fees, dispute handling, privacy, and provider approval. US and Mexico eligibility must be evaluated separately.
+
+The interface must identify the actual account custodian and lender where applicable. Do not claim a banking license, insured deposits, guaranteed principal, APY, or approved credit absent verified contractual support. An FDIC-insured partner relationship alone does not establish coverage for every displayed balance or protect against the nonbank company's failure.
+
+Financial products and stored value are subject to Stripe restrictions and approval requirements. This design does not establish eligibility for Stripe Financial Accounts/Treasury, Issuing, Capital, or Connect. Do not open products, collect new funds, contact providers or change the live business description automatically.
+
+### Acceptance additions
+
+- One member cannot read or modify another member's statement or goals.
+- Savings goals never appear as money held by 3DVR.
+- Pending receipts, service points, historical payments and undrawn credit never become available withdrawable cash.
+- Simulated borrowing cannot call a live payment, payout or debit endpoint.
+- Founder and related-party access cannot bypass approval.
+- Corrections preserve history; duplicated provider events cannot duplicate balances.
+- Statements distinguish reported, verified, pending, settled, disputed and simulated entries.
+- No production rollout until the relevant provider permissions, agreements, financial controls and synthetic full-flow tests are verified.
+
+### Primary references checked
+
+- [Stripe restricted businesses](https://stripe.com/legal/restricted-businesses): financial services, lending, account funding and stored-value restrictions.
+- [Stripe Services Agreement](https://stripe.com/legal/ssa): restricted-business preapproval requirements.
+- [Stripe bank-transfer reconciliation](https://support.stripe.com/questions/bank-transfer-reconciliation): customer cash balance reconciles payments and excess funds may be returned.
+- [FDIC: Banking With Third-Party Apps](https://www.fdic.gov/consumer-resource-center/2024-06/banking-third-party-apps): nonbanks are not FDIC-insured; pass-through protection is conditional.
+- [Existing Universal Credit Network prototype](universal-credit-network.md): simulation-only security and implementation gaps.
