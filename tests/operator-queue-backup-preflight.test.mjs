@@ -83,6 +83,28 @@ test('snapshot with identical tasks but missing an index fails closed', (t) => {
   live.close();
 });
 
+test('unverified application tables block snapshot approval even when task rows match', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'operator-backup-extra-table-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const livePath = join(dir, 'live.sqlite');
+  const snapshotPath = join(dir, 'snapshot.sqlite');
+  for (const path of [livePath, snapshotPath]) {
+    makeQueue(path, records);
+    const db = new DatabaseSync(path);
+    db.exec('CREATE TABLE task_receipts (id TEXT PRIMARY KEY, receipt TEXT NOT NULL)');
+    db.prepare('INSERT INTO task_receipts VALUES (?, ?)').run('task-1', path === livePath ? 'actual-private-receipt' : 'missing-private-receipt');
+    db.close();
+  }
+  assert.throws(
+    () => auditOperatorQueueBackup({ livePath, snapshotPath }),
+    /application tables not covered/
+  );
+  const live = new DatabaseSync(livePath, { readOnly: true });
+  try {
+    assert.equal(live.prepare('SELECT receipt FROM task_receipts').get().receipt, 'actual-private-receipt');
+  } finally { live.close(); }
+});
+
 // quick_check accepts a malformed UNIQUE index with duplicate entries; a
 // matching schema/task digest alone would incorrectly accept both files.
 test('matching corrupt UNIQUE indexes fail closed even when quick_check passes', (t) => {
