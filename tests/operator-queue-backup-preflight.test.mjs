@@ -131,3 +131,26 @@ test('heartbeat snapshot parity: matching tasks but different worker liveness fa
   assert.equal(live.prepare('SELECT observed_at FROM worker_heartbeats').get().observed_at, 12345);
   live.close();
 });
+
+
+test('malformed queue status metadata is counted without leaking private values or prototype keys', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'operator-backup-status-redaction-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const livePath = join(dir, 'live.sqlite');
+  const snapshotPath = join(dir, 'snapshot.sqlite');
+  const rows = [
+    records[0],
+    { ...records[1], status: '__proto__' },
+    { id: 'legacy-3', status: 'private-customer-secret-status', source: 'gun', payload: { task: 'private synthetic 3' } }
+  ];
+  makeQueue(livePath, rows);
+  makeQueue(snapshotPath, rows);
+  const report = auditOperatorQueueBackup({ livePath, snapshotPath });
+  assert.equal(report.status, 'queue_snapshot_matches');
+  assert.equal(report.taskCount, 3);
+  assert.deepEqual(report.statusCounts, { queued: 1, other: 2 });
+  assert.doesNotMatch(JSON.stringify(report), /private-customer-secret-status|__proto__|private synthetic/);
+  const db = new DatabaseSync(livePath, { readOnly: true });
+  try { assert.equal(db.prepare('SELECT COUNT(*) AS count FROM tasks').get().count, 3); }
+  finally { db.close(); }
+});
