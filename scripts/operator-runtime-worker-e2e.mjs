@@ -113,7 +113,13 @@ export async function runOperatorRuntimeE2E({
   log(`E2E_RECEIPT=${JSON.stringify({ requestId, status: lastRecord.status,
     startedAt: lastRecord.startedAt, completedAt: lastRecord.completedAt,
     workerDeviceId: lastRecord.workerDeviceId, hasResult: true })}`);
+  // This canary verifies signed runtime execution only. CRM projection uses a
+  // separate write/read path and must have its own exact-ID persistence receipt.
+  // Keep the legacy pass marker for existing CI consumers, but make the scope
+  // explicit so a green worker test cannot be reported as CRM acceptance.
   log('E2E_PASS=true');
+  log('E2E_SCOPE=signed_runtime_only');
+  log('E2E_CRM_READBACK=not_tested');
   return { requestId, states, receipt: lastRecord };
 }
 
