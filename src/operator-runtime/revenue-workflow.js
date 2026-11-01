@@ -119,9 +119,16 @@ function hasReceipt(evidence) {
     && typeof evidence.id === 'string' && Boolean(evidence.id.trim());
 }
 
-function hasApprovedCheckpoint(checkpoint) {
+// A generic "approved" flag is not approval to contact another lead or
+// to send a different draft. Bind the receipt to the exact lead, event and
+// immutable draft reference; provider read-back is still required separately.
+function hasApprovedCheckpoint(checkpoint, item, event, draftId) {
   return checkpoint && typeof checkpoint === 'object' && checkpoint.status === 'approved'
-    && typeof checkpoint.id === 'string' && Boolean(checkpoint.id.trim());
+    && typeof checkpoint.id === 'string' && Boolean(checkpoint.id.trim())
+    && typeof checkpoint.leadId === 'string' && checkpoint.leadId === item.id
+    && checkpoint.event === event
+    && typeof draftId === 'string' && Boolean(draftId.trim())
+    && typeof checkpoint.draftId === 'string' && checkpoint.draftId === draftId;
 }
 
 export function advanceRevenueLead(item, event, options = {}) {
@@ -153,7 +160,7 @@ export function advanceRevenueLead(item, event, options = {}) {
   if (SEND_EVENTS.has(event) && (
       (usedApprovalIds !== undefined && (!Array.isArray(usedApprovalIds) ||
         usedApprovalIds.some(id => typeof id !== 'string' || !id.trim()))) ||
-      !hasApprovedCheckpoint(sendCheckpoint) ||
+      !hasApprovedCheckpoint(sendCheckpoint, item, event, options.draftId) ||
       sendCheckpoint.id === item.metadata?.lastOutboundApprovalId ||
       (Array.isArray(usedApprovalIds) && usedApprovalIds.includes(sendCheckpoint.id)))) {
     throw new TypeError(`${event} requires a fresh traceable approved human checkpoint`);
