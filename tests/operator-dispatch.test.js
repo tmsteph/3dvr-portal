@@ -201,6 +201,30 @@ test('actual SQLite transport is idempotent and preserves historical and running
     assert.ok(operatorTaskReceipt(saved).endsWith(fullText.trim()));
     const missing=invoke({action:'status',id:'missing',prefix:input.prefix});
     assert.equal(JSON.parse(missing.stdout).missing,true);
+    // The currently inspected DO queue predates the heartbeat migration.
+    // Its historical signed receipts must remain readable, but new signed
+    // admissions must fail closed without creating or upgrading the schema.
+    const legacyDbPath=join(dir,'legacy-no-heartbeat.sqlite');
+    const legacyDb=new DatabaseSync(legacyDbPath);
+    try {
+      legacyDb.exec('CREATE TABLE tasks(owner_alias TEXT,id TEXT,status TEXT,updated_at TEXT,record_json TEXT,source TEXT,PRIMARY KEY(owner_alias,id))');
+      legacyDb.prepare('INSERT INTO tasks VALUES(?,?,?,?,?,?)').run(
+        '3dvr-managed',record.id,'completed',record.updatedAt,
+        JSON.stringify({...record,status:'completed',resultText:'synthetic prior receipt'}),'operator-http');
+    } finally {legacyDb.close();}
+    const legacyStatus=invoke({action:'status',id:record.id,prefix:input.prefix},legacyDbPath);
+    assert.equal(legacyStatus.status,0,legacyStatus.stderr);
+    assert.equal(JSON.parse(legacyStatus.stdout).record.resultText,'synthetic prior receipt');
+    const legacyAdmission=invoke({action:'enqueue',id:'operator-http-test-legacy-admission',
+      prefix:input.prefix,record:{...record,id:'operator-http-test-legacy-admission'}},legacyDbPath);
+    assert.notEqual(legacyAdmission.status,0,'no heartbeat table means no new signed admission');
+    const legacyAfter=new DatabaseSync(legacyDbPath,{readOnly:true});
+    try {
+      assert.equal(legacyAfter.prepare('SELECT count(*) n FROM tasks').get().n,1,
+        'failed admission must preserve all historical tasks');
+      assert.equal(legacyAfter.prepare("SELECT count(*) n FROM sqlite_master WHERE type='table' AND name='worker_heartbeats'").get().n,0,
+        'signed admission must not silently migrate a production worker schema');
+    } finally {legacyAfter.close();}
     // Status must never create an empty SQLite file when a worker's queue
     // path is wrong or unavailable. Enqueue remains the only write path.
     const absentDb=join(dir,'nonexistent-queue.sqlite');
