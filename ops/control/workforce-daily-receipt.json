@@ -1,9 +1,9 @@
 {
-  "localDate": "2026-10-31",
+  "localDate": "2026-11-01",
   "timezone": "America/Los_Angeles",
   "lighthouse": {
-    "checkedAt": "2026-10-31T15:14:29.178Z",
-    "source": "authenticated OVH general CDP 9222 Lighthouse week API via GitHub Actions/Hetzner SSH",
+    "checkedAt": "2026-11-01T16:16:22.856Z",
+    "source": "authenticated OVH general CDP 9222 Lighthouse week API",
     "weeksChecked": [
       "2026-10-26",
       "2026-11-02",
@@ -14,34 +14,36 @@
     ]
   },
   "iatse": {
-    "checkedAt": "2026-10-31T15:16:01.944Z",
+    "checkedAt": "2026-11-01T16:19:10.741Z",
     "outcome": "noop",
     "changedDates": [],
     "deferredDates": [],
     "renderedWindow": {
-      "start": "2026-10-30",
-      "end": "2026-12-01"
+      "start": "2026-10-31",
+      "end": "2026-12-02"
     },
     "mismatches": [],
     "persistedAfterReload": true,
-    "desiredDatesChecked": 26,
+    "desiredDatesChecked": 25,
     "unmodifiedUnspecifiedDates": [
       "2026-11-26",
       "2026-11-27",
       "2026-11-28",
       "2026-11-29",
-      "2026-11-30"
+      "2026-11-30",
+      "2026-12-01",
+      "2026-12-02"
     ]
   },
   "verification": {
     "sourceWeeksHttp200": true,
     "iatseReloadVerified": true,
     "writerLeaseReleaseAttempted": true,
-    "writerLeaseReleaseIndependentlyVerified": false
+    "writerLeaseReleaseIndependentlyVerified": true
   },
   "execution": {
-    "path": "GitHub Actions via Hetzner/Open Runner to OVH general lane",
-    "sourceRequestCommit": "1cd8a9e2bee2df54c465adb166b899f27d171e6f",
-    "iatseRequestCommit": "5da98973b66c07a147323515d086452f02905967"
+    "path": "OVH canonical general browser lane CDP 9222; Desktop Commander control path",
+    "authenticationRecovery": "SharePoint-first; Lighthouse broker authenticated on retry",
+    "iatseAuthUi": "Opened existing sidebar to expose Logout check; no login profile replaced"
   }
 }
