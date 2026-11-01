@@ -34,6 +34,8 @@ test('a distinct intact matching queue snapshot passes metadata-only preflight, 
   assert.deepEqual(result.statusCounts, { queued: 1, completed: 1 });
   assert.equal(result.liveQuickCheck, 'ok');
   assert.equal(result.snapshotQuickCheck, 'ok');
+  assert.equal(result.liveFullIntegrityCheck, 'ok');
+  assert.equal(result.snapshotFullIntegrityCheck, 'ok');
   assert.equal(result.restoreTested, false);
   assert.equal(result.offHostVerified, false);
   assert.equal(result.dropletBackupVerified, false);
@@ -79,4 +81,28 @@ test('snapshot with identical tasks but missing an index fails closed', (t) => {
   const live = new DatabaseSync(livePath, { readOnly: true });
   assert.equal(live.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='index' AND name='tasks_status_idx'").get().n, 1);
   live.close();
+});
+
+// quick_check accepts a malformed UNIQUE index with duplicate entries; a
+// matching schema/task digest alone would incorrectly accept both files.
+test('matching corrupt UNIQUE indexes fail closed even when quick_check passes', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'operator-backup-unique-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const livePath = join(dir, 'live.sqlite');
+  const snapshotPath = join(dir, 'snapshot.sqlite');
+  const duplicatedStatuses = [records[0], { ...records[1], status: 'queued' }];
+  for (const path of [livePath, snapshotPath]) {
+    makeQueue(path, duplicatedStatuses);
+    // Synthetic corruption only: rewrite the index declaration without
+    // rebuilding its b-tree. Neither file is a production queue.
+    const db = new DatabaseSync(path);
+    db.exec('PRAGMA writable_schema = ON');
+    db.exec("UPDATE sqlite_master SET sql = 'CREATE UNIQUE INDEX tasks_status_idx ON tasks(status)' WHERE name = 'tasks_status_idx'");
+    db.close();
+  }
+  const probe = new DatabaseSync(livePath, { readOnly: true });
+  assert.equal(probe.prepare('PRAGMA quick_check').get().quick_check, 'ok');
+  assert.match(probe.prepare('PRAGMA integrity_check').get().integrity_check, /non-unique entry/);
+  probe.close();
+  assert.throws(() => auditOperatorQueueBackup({ livePath, snapshotPath }), /full integrity check failed/);
 });
