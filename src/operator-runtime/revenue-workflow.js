@@ -138,6 +138,16 @@ export function advanceRevenueLead(item, event, options = {}) {
   const transition = TRANSITIONS[stage]?.[event];
   if (!transition) throw new TypeError(`event ${event} is not valid from revenue stage ${stage}`);
 
+  // A follow-up is due only when the persisted schedule has actually elapsed.
+  // A caller-supplied next date cannot manufacture a due event retroactively.
+  if (event === 'follow_up_due') {
+    const scheduledAt = Date.parse(item.metadata?.nextFollowUpAt || '');
+    const observedAt = options.now === undefined ? Date.now() : Date.parse(options.now);
+    if (!Number.isFinite(scheduledAt) || !Number.isFinite(observedAt) || scheduledAt > observedAt) {
+      throw new TypeError('follow_up_due requires an existing elapsed follow-up schedule');
+    }
+  }
+
   if (RECEIPT_EVENTS.has(event) && !hasReceipt(options.evidence)) {
     throw new TypeError(`${event} requires a typed external receipt reference (type and id)`);
   }
@@ -187,7 +197,12 @@ export function advanceRevenueLead(item, event, options = {}) {
         usedOutboundApprovalIds: [...new Set([...(Array.isArray(usedApprovalIds) ? usedApprovalIds : []),
           item.metadata?.lastOutboundApprovalId, sendCheckpoint.id].filter(Boolean))]
       } : {}),
-      nextFollowUpAt: options.nextFollowUpAt ?? item.metadata?.nextFollowUpAt ?? null,
+      // Once a follow-up is sent or a reply arrives, the old reminder is
+      // consumed. A new reminder must be explicitly scheduled.
+      nextFollowUpAt: Object.prototype.hasOwnProperty.call(options, 'nextFollowUpAt')
+        ? options.nextFollowUpAt
+        : (['follow_up_sent', 'reply_received', 'closed_lost', 'payment_received'].includes(event)
+          ? null : item.metadata?.nextFollowUpAt ?? null),
       lastTransitionAt: options.now || new Date().toISOString()
     }
   });
