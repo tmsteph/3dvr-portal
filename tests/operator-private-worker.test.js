@@ -38,6 +38,45 @@ test('private poller advertises effective capabilities and exact canary pin in t
   }
 });
 
+test('legacy tasks-only queue adds heartbeat without replay or rewriting historical tasks', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'operator-private-legacy-migration-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const options = { queueDb: join(dir, 'queue.sqlite'), ownerAlias: '3dvr-managed' };
+  const legacy = new DatabaseSync(options.queueDb);
+  const historical = [
+    { owner_alias: '3dvr-managed', id: 'operator-http-older', status: 'queued',
+      updated_at: '2026-10-27T00:00:00Z', record_json: JSON.stringify({ id: 'operator-http-older', status: 'queued' }), source: 'operator-http' },
+    { owner_alias: '3dvr-managed', id: 'operator-http-finished', status: 'completed',
+      updated_at: '2026-10-26T00:00:00Z', record_json: JSON.stringify({ id: 'operator-http-finished', status: 'completed' }), source: 'operator-http' },
+  ];
+  try {
+    legacy.exec(`CREATE TABLE tasks (
+      owner_alias TEXT NOT NULL, id TEXT NOT NULL, status TEXT NOT NULL,
+      updated_at TEXT NOT NULL, record_json TEXT NOT NULL,
+      source TEXT NOT NULL DEFAULT 'sqlite', claim_token TEXT,
+      claim_expires_at INTEGER, PRIMARY KEY(owner_alias, id)
+    )`);
+    const insert = legacy.prepare('INSERT INTO tasks (owner_alias,id,status,updated_at,record_json,source) VALUES (?,?,?,?,?,?)');
+    for (const row of historical) insert.run(row.owner_alias, row.id, row.status, row.updated_at, row.record_json, row.source);
+    assert.equal(legacy.prepare("SELECT count(*) AS n FROM sqlite_master WHERE name='worker_heartbeats'").get().n, 0);
+  } finally { legacy.close(); }
+
+  const queue = { workerProfile: () => ({ workerId: 'new-private-poller', capabilities: ['codex'],
+    riskClasses: ['draft'], onlyTaskId: 'operator-http-approved-new' }) };
+  assert.equal(publishPrivateWorkerHeartbeat(queue, sqlite, 'operator-http-approved-new', options), true);
+  const after = new DatabaseSync(options.queueDb, { readOnly: true });
+  try {
+    const rows = after.prepare('SELECT owner_alias,id,status,updated_at,record_json,source FROM tasks ORDER BY id').all();
+    assert.deepEqual(rows, historical.sort((a, b) => a.id.localeCompare(b.id)),
+      'schema migration must preserve historical queued and terminal records byte-for-byte');
+    const heartbeat = after.prepare("SELECT owner_alias,capabilities,risk_classes,only_task_id FROM worker_heartbeats").get();
+    assert.equal(heartbeat.owner_alias, '3dvr-managed');
+    assert.equal(heartbeat.capabilities, 'codex');
+    assert.equal(heartbeat.risk_classes, 'draft');
+    assert.equal(heartbeat.only_task_id, 'operator-http-approved-new');
+  } finally { after.close(); }
+});
+
 test('private heartbeat never invents capabilities or risk approval', async (t) => {
   const dir = await mkdtemp(join(tmpdir(), 'operator-private-unconfigured-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
