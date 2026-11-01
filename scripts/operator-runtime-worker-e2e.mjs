@@ -1,7 +1,29 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import SEA from 'gun/sea.js';
+
+// Prepare a stable exact task ID before starting a pinned worker. This pure
+// step needs only the owner's public key and makes no network request.
+export function planOperatorRuntimeE2E({ env = process.env } = {}) {
+  const requestId = String(env.OPERATOR_RUNTIME_E2E_REQUEST_ID || '');
+  if (!/^operator-e2e-[A-Za-z0-9_-]{12,80}$/.test(requestId)) {
+    throw new Error('Preselected Operator E2E request ID is required for an exact-ID pinned canary.');
+  }
+  const pub = String(env.OPERATOR_RUNTIME_E2E_OWNER_PUB || '');
+  if (!pub) throw new Error('Signed owner public identity is not configured.');
+  const expectedTaskId = `operator-http-${createHash('sha256').update(pub).digest('hex').slice(0,24)}-${requestId}`;
+  return { requestId, expectedTaskId };
+}
+
+export function prepareOperatorRuntimeE2E({ env = process.env, log = console.log } = {}) {
+  const plan = planOperatorRuntimeE2E({ env });
+  log(`E2E_TASK_REQUEST_ID=${plan.requestId}`);
+  log(`E2E_EXPECTED_TASK_ID=${plan.expectedTaskId}`);
+  log('E2E_PREPARE_ONLY=true');
+  log('E2E_NETWORK_REQUESTS=0');
+  return plan;
+}
 
 // This is an explicitly authorized, signed canary. Never enqueue legacy Gun
 // records: the managed worker only accepts owner-authenticated HTTP tasks.
@@ -11,8 +33,7 @@ export async function runOperatorRuntimeE2E({
   fetchImpl = globalThis.fetch,
   log = console.log,
   now = () => Date.now(),
-  sleep = ms => new Promise(resolve => setTimeout(resolve, ms)),
-  newId = randomUUID
+  sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 } = {}) {
   if (env.OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED !== '1') {
     throw new Error('Signed Operator E2E is disabled; explicit run and cost authorization required.');
@@ -31,8 +52,7 @@ export async function runOperatorRuntimeE2E({
   if (selfCheck?.scope !== probe.scope || selfCheck?.pub !== pair.pub) {
     throw new Error('Signed owner identity failed self-check.');
   }
-  const requestId = `operator-e2e-${newId().replace(/-/g, '')}`;
-  const expectedTaskId = `operator-http-${createHash('sha256').update(pair.pub).digest('hex').slice(0,24)}-${requestId}`;
+  const { requestId, expectedTaskId } = planOperatorRuntimeE2E({ env });
   const task = {
     action: 'enqueue', requestId,
     title: 'Signed Operator execution canary',
@@ -124,8 +144,13 @@ export async function runOperatorRuntimeE2E({
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  runOperatorRuntimeE2E().catch(error => {
-    console.error(`E2E_FAIL=${error.message}`);
-    process.exitCode = 1;
-  });
+  if (process.env.OPERATOR_RUNTIME_E2E_PREPARE_ONLY === '1') {
+    try { prepareOperatorRuntimeE2E(); }
+    catch (error) { console.error(`E2E_FAIL=${error.message}`); process.exitCode = 1; }
+  } else {
+    runOperatorRuntimeE2E().catch(error => {
+      console.error(`E2E_FAIL=${error.message}`);
+      process.exitCode = 1;
+    });
+  }
 }
