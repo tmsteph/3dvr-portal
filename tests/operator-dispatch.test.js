@@ -103,6 +103,19 @@ test('actual SQLite transport is idempotent and preserves historical and running
     // idempotent retry. It must not ACK an unrelated prior task's result.
     const changedTitle={...input,record:{...record,runtimeWorkItemJson:JSON.stringify({title:'Different title'})}};
     assert.notEqual(invoke(changedTitle).status,0,'changed title must not ACK prior signed task');
+    // The same task text/title with a different executable policy is also a
+    // conflicting signed intent. It must not inherit the prior receipt.
+    for (const changed of [
+      {backend:'shell'},
+      {requiredCapabilities:'shell'},
+      {riskClass:'external_write'},
+      {unsafe:true},
+      {approvalStatus:'approved'},
+      {maxRuntimeMs:999999}
+    ]) {
+      assert.notEqual(invoke({...input,record:{...record,...changed}}).status,0,
+        'changed execution policy must not ACK a prior signed task');
+    }
     assert.equal(db.prepare('SELECT record_json FROM tasks WHERE id=?').get(record.id).record_json,JSON.stringify(record));
     // A public/legacy import can share a signed task namespace or task text.
     // Neither enqueue nor status may acknowledge it as an authenticated task.
