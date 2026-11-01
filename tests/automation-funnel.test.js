@@ -250,6 +250,47 @@ test('legacy URL-keyed Upwork leads are reused without a migration or duplicate 
   } finally { store.close(); }
 });
 
+test('legacy URL-keyed n8n topics reuse one prospect without duplicate follow-ups', () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const topicId = '325192';
+    const original = normalizeLead({
+      business: 'Legacy n8n buyer', problem: 'Needs a dependable workflow', origin: 'n8n-jobs',
+      sourceUrl: 'https://community.n8n.io/t/hiring-ai-workflow-engineer/' + topicId
+    });
+    const oldHash = createHash('sha256').update(original.sourceUrl).digest('hex');
+    const now = '2026-10-01T00:00:00Z';
+    store.db.prepare('INSERT INTO leads VALUES (?, ?, ?, 1, ?, ?)')
+      .run('legacy-n8n', oldHash, JSON.stringify(original), now, now);
+    store.db.prepare('INSERT INTO events VALUES (?, ?, ?, ?)')
+      .run('legacy-n8n-created', 'legacy-n8n', 'created', now);
+    const variant = { ...original,
+      sourceUrl: 'https://community.n8n.io/t/renamed-topic/' + topicId + '/2?tl=en' };
+    const reused = store.insert(variant);
+    assert.equal(reused.duplicate, true);
+    assert.equal(reused.lead.id, 'legacy-n8n');
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM leads').get().n, 1);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM events').get().n, 1);
+    assert.equal(store.db.prepare('SELECT dedupe FROM leads WHERE id=?').get('legacy-n8n').dedupe,
+      oldHash, 'compatibility lookup must not rewrite existing CRM identity');
+
+    // Two historical URL-keyed rows for the same topic cannot safely pick
+    // which follow-up/approval state survives; require human reconciliation.
+    const second = { ...original,
+      sourceUrl: 'https://community.n8n.io/t/older-topic/' + topicId };
+    store.db.prepare('INSERT INTO leads VALUES (?, ?, ?, 1, ?, ?)')
+      .run('legacy-n8n-duplicate', createHash('sha256').update(second.sourceUrl).digest('hex'),
+        JSON.stringify(second), now, now);
+    assert.throws(() => store.insert(variant), /Ambiguous historical n8n topic leads/);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM leads').get().n, 2);
+    assert.equal(store.db.prepare('SELECT COUNT(*) AS n FROM events').get().n, 1);
+    assert.equal(store.insert({ ...variant,
+      sourceUrl: 'https://community.n8n.io/t/another-topic/325193' }).duplicate, false);
+    assert.equal(store.insert({ ...variant,
+      sourceUrl: 'https://example.org/t/renamed-topic/' + topicId }).duplicate, false);
+  } finally { store.close(); }
+});
+
 test('failed CRM creation-event write rolls back the lead and allows a clean retry', () => {
   const store = openFunnelStore(':memory:');
   try {
