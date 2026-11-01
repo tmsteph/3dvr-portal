@@ -43,7 +43,13 @@ try {
       const title = record => record.runtimeWorkItemJson
         ? JSON.parse(record.runtimeWorkItemJson).title || ''
         : '';
-      if (previous.task !== requested.task || title(previous) !== title(requested)) {
+      // A retry must preserve the executable intent and admission policy, not
+      // just the visible title. Never ACK a prior task for a changed backend,
+      // capability, risk or approval contract under the same signed ID.
+      const immutableFields = ['task', 'backend', 'requiredCapabilities', 'riskClass',
+        'unsafe', 'approvalStatus', 'maxRuntimeMs'];
+      if (immutableFields.some(field => JSON.stringify(previous[field]) !== JSON.stringify(requested[field]))
+        || title(previous) !== title(requested)) {
         throw Error('Task identity conflict');
       }
     }
