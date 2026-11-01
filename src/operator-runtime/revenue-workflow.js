@@ -44,6 +44,11 @@ export function getOutboundDecision({
   sensitiveAction = false,
   campaignAllowed = true
 } = {}) {
+  // A campaign cap or policy block is a hard stop for every relationship,
+  // channel and sensitivity level. Human approval cannot override it.
+  if (!campaignAllowed) {
+    return { decision: 'defer', reason: 'Campaign caps or policy currently block this send.' };
+  }
   if (sensitiveAction) {
     return { decision: 'approval', reason: 'Sensitive actions require a human checkpoint.' };
   }
@@ -57,9 +62,6 @@ export function getOutboundDecision({
   }
   if (channel !== 'email') {
     return { decision: 'approval', reason: 'Autonomous outbound is currently limited to direct email.' };
-  }
-  if (!campaignAllowed) {
-    return { decision: 'defer', reason: 'Campaign caps or policy currently block this send.' };
   }
   if (!Number.isFinite(localHour) || localHour < 8 || localHour >= 18) {
     return { decision: 'defer', reason: 'Fresh-lead email should wait for the 08:00–18:00 local business window.' };
