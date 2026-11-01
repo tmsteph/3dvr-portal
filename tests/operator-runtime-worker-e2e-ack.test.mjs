@@ -2,7 +2,7 @@ import test from 'node:test';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import SEA from 'gun/sea.js';
-import { runOperatorRuntimeE2E } from '../scripts/operator-runtime-worker-e2e.mjs';
+import { runOperatorRuntimeE2E, prepareOperatorRuntimeE2E } from '../scripts/operator-runtime-worker-e2e.mjs';
 
 // Synthetic transport only: never contacts the live portal or uses real credentials.
 const pair = await SEA.pair();
@@ -10,6 +10,7 @@ const baseEnv = {
   OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED: '1',
   OPERATOR_RUNTIME_E2E_SEA_PAIR: JSON.stringify(pair),
   OPERATOR_RUNTIME_E2E_OWNER_PUB: pair.pub,
+  OPERATOR_RUNTIME_E2E_REQUEST_ID: 'operator-e2e-12345678123412341234123456789012',
   OPERATOR_RUNTIME_E2E_TIMEOUT_MS: '1000'
 };
 const expectedTaskIdPrefix = `operator-http-${createHash('sha256').update(pair.pub).digest('hex').slice(0,24)}-`;
@@ -43,9 +44,29 @@ function simulate({ env = baseEnv, admission = fakeResponse(202, {ok:true}),
     return fakeResponse(status.status, {...payload, requestId: payload.requestId ?? body.requestId});
   };
   const run = () => runOperatorRuntimeE2E({ env, fetchImpl, log: message => logs.push(message),
-    now: () => clock, sleep: async ms => {clock += ms;}, newId: () => '12345678-1234-1234-1234-123456789012' });
+    now: () => clock, sleep: async ms => {clock += ms;} });
   return { run, requests, logs };
 }
+
+test('prepare-only preselects the exact pinned task without a signing secret or network call', () => {
+  const logs = [];
+  const env = { OPERATOR_RUNTIME_E2E_OWNER_PUB: pair.pub,
+    OPERATOR_RUNTIME_E2E_REQUEST_ID: baseEnv.OPERATOR_RUNTIME_E2E_REQUEST_ID };
+  const plan = prepareOperatorRuntimeE2E({ env, log: message => logs.push(message) });
+  assert.equal(plan.requestId, env.OPERATOR_RUNTIME_E2E_REQUEST_ID);
+  assert.equal(plan.expectedTaskId, receipt.id);
+  assert.ok(logs.includes(`E2E_EXPECTED_TASK_ID=${receipt.id}`));
+  assert.ok(logs.includes('E2E_NETWORK_REQUESTS=0'));
+  assert.ok(logs.every(line => !line.includes(pair.priv)));
+});
+
+test('live canary refuses missing or malformed preselected IDs before any request', async () => {
+  for (const id of ['', 'short', 'operator-e2e-unsafe space']) {
+    const probe = simulate({ env: { ...baseEnv, OPERATOR_RUNTIME_E2E_REQUEST_ID: id } });
+    await assert.rejects(probe.run(), /Preselected Operator E2E request ID/);
+    assert.equal(probe.requests.length, 0);
+  }
+});
 
 test('default-off authorization makes no external request', async () => {
   const probe = simulate({env:{...baseEnv, OPERATOR_RUNTIME_E2E_RUN_AUTHORIZED:'0'}});
