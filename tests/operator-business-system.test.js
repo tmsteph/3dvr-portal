@@ -102,6 +102,16 @@ test('all outbound requires approval, including fresh direct email in business h
   assert.equal(getOutboundDecision({ relationship: 'unknown', channel: 'email', localHour: 10 }).decision, 'approval');
   assert.equal(getOutboundDecision({ relationship: 'fresh', channel: 'sms', localHour: 10 }).decision, 'approval');
   assert.equal(getOutboundDecision({ relationship: 'fresh', channel: 'email', localHour: 10, campaignAllowed: false }).decision, 'defer');
+  // Campaign limits must never be bypassed by a known-contact checkpoint,
+  // sensitive-action review, or a non-email channel.
+  for (const options of [
+    { relationship: 'known', channel: 'email', localHour: 10 },
+    { relationship: 'unknown', channel: 'email', localHour: 10 },
+    { relationship: 'fresh', channel: 'sms', localHour: 10 },
+    { relationship: 'fresh', channel: 'email', localHour: 10, sensitiveAction: true }
+  ]) {
+    assert.equal(getOutboundDecision({ ...options, campaignAllowed: false }).decision, 'defer');
+  }
   assert.equal(getOutboundDecision({ relationship: 'fresh', channel: 'email', localHour: 10, sensitiveAction: true }).decision, 'approval');
 });
 
