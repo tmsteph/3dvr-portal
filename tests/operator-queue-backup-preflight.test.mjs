@@ -106,3 +106,28 @@ test('matching corrupt UNIQUE indexes fail closed even when quick_check passes',
   probe.close();
   assert.throws(() => auditOperatorQueueBackup({ livePath, snapshotPath }), /full integrity check failed/);
 });
+
+test('heartbeat snapshot parity: matching tasks but different worker liveness fails closed', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'operator-backup-heartbeats-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const livePath = join(dir, 'live.sqlite');
+  const snapshotPath = join(dir, 'snapshot.sqlite');
+  for (const path of [livePath, snapshotPath]) {
+    makeQueue(path, records);
+    const db = new DatabaseSync(path);
+    db.exec(`CREATE TABLE worker_heartbeats (
+      owner_alias TEXT NOT NULL, worker_id TEXT NOT NULL,
+      observed_at INTEGER NOT NULL, PRIMARY KEY (owner_alias, worker_id)
+    ) WITHOUT ROWID`);
+    db.prepare('INSERT INTO worker_heartbeats VALUES (?, ?, ?)').run('3dvr-managed', 'worker-canary', 12345);
+    db.close();
+  }
+  assert.equal(auditOperatorQueueBackup({ livePath, snapshotPath }).status, 'queue_snapshot_matches');
+  const snapshot = new DatabaseSync(snapshotPath);
+  snapshot.prepare('UPDATE worker_heartbeats SET observed_at = ? WHERE worker_id = ?').run(12346, 'worker-canary');
+  snapshot.close();
+  assert.throws(() => auditOperatorQueueBackup({ livePath, snapshotPath }), /does not match/);
+  const live = new DatabaseSync(livePath, { readOnly: true });
+  assert.equal(live.prepare('SELECT observed_at FROM worker_heartbeats').get().observed_at, 12345);
+  live.close();
+});
