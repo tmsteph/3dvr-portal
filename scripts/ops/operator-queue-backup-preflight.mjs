@@ -39,6 +39,16 @@ function fingerprint(path) {
       states[row.status] = (states[row.status] || 0) + 1;
       count++;
     }
+    // The worker's heartbeat/lease state lives in this same queue database.
+    // A snapshot with identical tasks but different heartbeat rows is not a
+    // faithful copy. Legacy queues without this table remain supported; the
+    // schema digest above already distinguishes table presence from absence.
+    if (db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='worker_heartbeats'").get()) {
+      for (const row of db.prepare('SELECT * FROM worker_heartbeats ORDER BY owner_alias, worker_id').iterate()) {
+        digest.update(JSON.stringify(row));
+        digest.update('\n');
+      }
+    }
     return { count, states, digest: digest.digest('hex') };
   } finally { db.close(); }
 }
