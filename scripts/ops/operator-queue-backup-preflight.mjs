@@ -11,7 +11,13 @@ function fingerprint(path) {
   try {
     const checks = db.prepare('PRAGMA quick_check').all();
     if (checks.length !== 1 || checks[0].quick_check !== 'ok') {
-      throw new Error('SQLite integrity check failed');
+      throw new Error('SQLite quick integrity check failed');
+    }
+    // quick_check does not validate UNIQUE constraints or index entry consistency.
+    // A structurally matching snapshot can still be unusable after restore.
+    const fullChecks = db.prepare('PRAGMA integrity_check').all();
+    if (fullChecks.length !== 1 || fullChecks[0].integrity_check !== 'ok') {
+      throw new Error('SQLite full integrity check failed');
     }
     if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='tasks'").get()) {
       throw new Error('Expected queue tasks table is missing');
@@ -65,6 +71,7 @@ export function auditOperatorQueueBackup({ livePath, snapshotPath } = {}) {
     statusCounts: live.states,
     payloadFingerprint: live.digest,
     liveQuickCheck: 'ok', snapshotQuickCheck: 'ok',
+    liveFullIntegrityCheck: 'ok', snapshotFullIntegrityCheck: 'ok',
     restoreTested: false, offHostVerified: false, dropletBackupVerified: false
   };
 }
