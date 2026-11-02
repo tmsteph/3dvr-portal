@@ -17,6 +17,8 @@
     </a>
     <nav class="topbar__nav" aria-label="Page navigation">
       <a href="#worlds">Worlds</a>
+      <a href="#motion">In motion</a>
+      <a href="#carousel">Carousel</a>
       <a href="#woods">Woods</a>
       <a href="#archive">Archive</a>
       <a href="../characters/">Characters</a>
@@ -26,7 +28,10 @@
 
   <main id="top">
     <section class="hero" aria-labelledby="pageTitle">
-      <img class="hero__image" src="assets/festival-dance.jpg" alt="3DVR Girl dancing outdoors in warm festival light">
+      <video class="hero__image" autoplay muted loop playsinline preload="metadata" poster="assets/courtyard-warrior.jpg" aria-label="3DVR Girl flowing through a warrior pose in a sunlit courtyard">
+        <source src="assets/courtyard-flow-loop.mp4" type="video/mp4">
+        <source src="assets/courtyard-flow-loop.webm" type="video/webm">
+      </video>
       <div class="hero__veil" aria-hidden="true"></div>
       <div class="hero__content">
         <p class="eyebrow">Character archive / living world</p>
@@ -57,6 +62,81 @@
           <div><dt>Signal</dt><dd>Technology in service of life</dd></div>
         </dl>
       </aside>
+    </section>
+
+    <section class="motion section" id="motion" aria-labelledby="motionTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Living portraits</p>
+          <h2 id="motionTitle">She moves.</h2>
+        </div>
+        <p>Short loops, on purpose. Something nice and moving to look at between the stills.</p>
+      </div>
+      <div class="motion-grid">
+        <figure class="motion-card">
+          <video autoplay muted loop playsinline preload="metadata" poster="assets/courtyard-warrior.jpg" aria-label="3DVR Girl flowing through a warrior pose in a sunlit courtyard">
+            <source src="assets/courtyard-flow-loop.mp4" type="video/mp4">
+            <source src="assets/courtyard-flow-loop.webm" type="video/webm">
+          </video>
+          <figcaption><span>Movement</span><strong>Courtyard flow</strong><small>Warrior pose, bougainvillea, late sun.</small></figcaption>
+        </figure>
+        <figure class="motion-card">
+          <video autoplay muted loop playsinline preload="metadata" poster="assets/meditation-courtyard.jpg" aria-label="3DVR Girl breathing slowly in meditation among lavender">
+            <source src="assets/meditation-breathing-loop.mp4" type="video/mp4">
+            <source src="assets/meditation-breathing-loop.webm" type="video/webm">
+          </video>
+          <figcaption><span>Stillness</span><strong>Breathing room</strong><small>Lavender, linen, one slow breath at a time.</small></figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="carousel-section section" id="carousel" aria-labelledby="carouselTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Her and the others</p>
+          <h2 id="carouselTitle">The rotating cast.</h2>
+        </div>
+        <p>Her photos, and the others who keep appearing beside her. It turns on its own, or use the arrows.</p>
+      </div>
+      <div class="carousel" id="castCarousel">
+        <div class="carousel__stage">
+          <figure class="carousel__slide is-active">
+            <img src="assets/festival-dance.jpg" alt="3DVR Girl dancing at an outdoor festival">
+            <figcaption><span>Movement</span><strong>Festival pulse</strong></figcaption>
+          </figure>
+          <figure class="carousel__slide">
+            <img src="assets/pool-portrait.jpg" alt="3DVR Girl smiling by a sunlit pool" loading="lazy">
+            <figcaption><span>Water</span><strong>Poolside</strong></figcaption>
+          </figure>
+          <figure class="carousel__slide">
+            <img src="assets/courtyard-warrior.jpg" alt="3DVR Girl in a warrior pose in a sunlit courtyard" loading="lazy">
+            <figcaption><span>Movement</span><strong>Warrior flow</strong></figcaption>
+          </figure>
+          <figure class="carousel__slide">
+            <img src="assets/garden-muse.jpg" alt="The garden muse among lavender in a coastal garden" loading="lazy">
+            <figcaption><span>Garden</span><strong>The garden muse</strong></figcaption>
+          </figure>
+          <figure class="carousel__slide">
+            <img src="assets/garden-new-face.jpg" alt="A new face in the coastal garden" loading="lazy">
+            <figcaption><span>Garden</span><strong>A new face</strong></figcaption>
+          </figure>
+          <figure class="carousel__slide">
+            <img src="assets/3dvr-girl-kala-forest.webp" alt="3DVR Girl and Kayla standing together on a wooded trail" loading="lazy">
+            <figcaption><span>Forest</span><strong>In the woods, with Kayla</strong></figcaption>
+          </figure>
+          <figure class="carousel__slide">
+            <img src="assets/meditation-courtyard.jpg" alt="3DVR Girl seated in meditation among lavender" loading="lazy">
+            <figcaption><span>Stillness</span><strong>Lavender courtyard</strong></figcaption>
+          </figure>
+          <figure class="carousel__slide">
+            <img src="assets/portal-arrival.png" alt="3DVR Girl standing inside a blue portal" loading="lazy">
+            <figcaption><span>Portal</span><strong>Arrival</strong></figcaption>
+          </figure>
+        </div>
+        <button class="carousel__button carousel__button--prev" id="carouselPrev" type="button" aria-label="Previous photo">‹</button>
+        <button class="carousel__button carousel__button--next" id="carouselNext" type="button" aria-label="Next photo">›</button>
+        <div class="carousel__dots" id="carouselDots" aria-label="Choose photo"></div>
+      </div>
     </section>
 
     <section class="worlds section" id="worlds" aria-labelledby="worldsTitle">

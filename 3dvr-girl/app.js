@@ -153,6 +153,33 @@ const scenes = [
     copy: 'A quieter transition frame for memory, mystery, and leaving one scene for another.'
   },
   {
+    id: 'pool-portrait',
+    title: 'Poolside portrait',
+    mode: 'Water',
+    collection: 'water',
+    image: 'assets/pool-portrait.jpg',
+    alt: '3DVR Girl smiling by a sunlit pool',
+    copy: 'A new poolside frame: cream bikini, linen wrap, bougainvillea, and the 3DVR mark.'
+  },
+  {
+    id: 'courtyard-warrior',
+    title: 'Courtyard warrior',
+    mode: 'Movement',
+    collection: 'movement',
+    image: 'assets/courtyard-warrior.jpg',
+    alt: '3DVR Girl in a warrior pose in a sunlit courtyard',
+    copy: 'The still behind the courtyard flow loop: cream linen, terracotta, and late sun.'
+  },
+  {
+    id: 'meditation-courtyard',
+    title: 'Lavender meditation',
+    mode: 'Stillness',
+    collection: 'stillness',
+    image: 'assets/meditation-courtyard.jpg',
+    alt: '3DVR Girl seated in meditation among lavender',
+    copy: 'The still behind the breathing loop: lavender pots, linen, and a quiet courtyard.'
+  },
+  {
     id: 'portal-arrival',
     title: 'Portal arrival',
     mode: 'Portal',
@@ -263,3 +290,64 @@ dialogClose?.addEventListener('click', () => sceneDialog?.close());
 sceneDialog?.addEventListener('click', event => {
   if (event.target === sceneDialog) sceneDialog.close();
 });
+
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+if (reduceMotion.matches) {
+  document.querySelectorAll('video[autoplay]').forEach(video => {
+    video.removeAttribute('autoplay');
+    video.pause();
+  });
+}
+
+const carousel = document.querySelector('#castCarousel');
+const carouselSlides = carousel ? [...carousel.querySelectorAll('.carousel__slide')] : [];
+const carouselDots = document.querySelector('#carouselDots');
+const carouselPrev = document.querySelector('#carouselPrev');
+const carouselNext = document.querySelector('#carouselNext');
+let carouselIndex = 0;
+let carouselTimer = null;
+
+function showSlide(index) {
+  if (!carouselSlides.length) return;
+  carouselIndex = (index + carouselSlides.length) % carouselSlides.length;
+  carouselSlides.forEach((slide, slideIndex) => {
+    slide.classList.toggle('is-active', slideIndex === carouselIndex);
+  });
+  carouselDots?.querySelectorAll('.carousel__dot').forEach((dot, dotIndex) => {
+    dot.classList.toggle('is-active', dotIndex === carouselIndex);
+    dot.setAttribute('aria-pressed', String(dotIndex === carouselIndex));
+  });
+}
+
+function startCarousel() {
+  if (reduceMotion.matches || carouselSlides.length < 2 || carouselTimer) return;
+  carouselTimer = window.setInterval(() => showSlide(carouselIndex + 1), 4500);
+}
+
+function stopCarousel() {
+  if (!carouselTimer) return;
+  window.clearInterval(carouselTimer);
+  carouselTimer = null;
+}
+
+if (carousel && carouselSlides.length) {
+  carouselSlides.forEach((slide, slideIndex) => {
+    const dot = document.createElement('button');
+    dot.className = 'carousel__dot';
+    dot.type = 'button';
+    dot.dataset.slideIndex = String(slideIndex);
+    dot.setAttribute('aria-label', `Show photo ${slideIndex + 1}`);
+    dot.setAttribute('aria-pressed', String(slideIndex === 0));
+    dot.addEventListener('click', () => showSlide(slideIndex));
+    carouselDots?.append(dot);
+  });
+  carouselPrev?.addEventListener('click', () => showSlide(carouselIndex - 1));
+  carouselNext?.addEventListener('click', () => showSlide(carouselIndex + 1));
+  carousel.addEventListener('pointerenter', stopCarousel);
+  carousel.addEventListener('pointerleave', startCarousel);
+  carousel.addEventListener('focusin', stopCarousel);
+  carousel.addEventListener('focusout', startCarousel);
+  showSlide(0);
+  startCarousel();
+}

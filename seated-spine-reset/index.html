@@ -53,6 +53,13 @@
               </span>
               <input type="checkbox" data-pref="silentMode">
             </label>
+            <label class="switch-row">
+              <span>
+                <strong>Loop Routine</strong>
+                <small>When a round ends, the next one begins. Rounds keep going until you tap End.</small>
+              </span>
+              <input type="checkbox" data-pref="loopRoutine">
+            </label>
           </div>
           <p class="last-done" data-last-completed hidden></p>
         </aside>
@@ -78,12 +85,28 @@
             <span>Silent</span>
             <input type="checkbox" data-pref="silentMode">
           </label>
+          <label class="compact-toggle">
+            <span>Loop</span>
+            <input type="checkbox" data-pref="loopRoutine">
+          </label>
         </div>
       </header>
 
       <div class="routine-layout">
         <section class="visual-stage" aria-labelledby="visualTitle">
           <h2 id="visualTitle" class="sr-only">Posture visual guide</h2>
+          <figure class="guide-media" data-guide-media>
+            <video data-guide-video autoplay muted loop playsinline preload="metadata" poster="../3dvr-girl/assets/meditation-courtyard.jpg" aria-label="3DVR Girl guiding this step">
+              <source src="../3dvr-girl/assets/meditation-breathing-loop.mp4" type="video/mp4">
+              <source src="../3dvr-girl/assets/meditation-breathing-loop.webm" type="video/webm">
+            </video>
+            <img data-guide-image src="../3dvr-girl/assets/meditation-courtyard.jpg" alt="3DVR Girl demonstrating this step" hidden>
+            <figcaption>
+              <span>Guided by</span>
+              <strong>3DVR Girl</strong>
+              <small data-guide-label>Breathing loop</small>
+            </figcaption>
+          </figure>
           <div class="three-stage" data-three-stage>
             <canvas data-three-canvas aria-label="Simple 3D seated posture guide"></canvas>
             <div class="visual-fallback" data-visual-fallback hidden>
@@ -119,6 +142,8 @@
             <span data-routine-progress></span>
           </div>
 
+          <p class="side-banner" data-side-banner hidden></p>
+
           <p class="instruction" data-step-instruction>
             Sit toward the front of the chair. Feet flat. Imagine the crown of your head floating upward.
           </p>
@@ -145,6 +170,7 @@
             <button class="button button--primary" type="button" data-action="pause">Pause</button>
             <button class="button button--ghost" type="button" data-action="next">Next</button>
             <button class="button button--secondary" type="button" data-action="restart">Restart</button>
+            <button class="button button--ghost" type="button" data-action="end">End</button>
           </div>
 
           <p class="safety-note safety-note--compact">

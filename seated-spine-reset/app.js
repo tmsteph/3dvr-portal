@@ -42,6 +42,7 @@
       instruction: 'Let one ear drift toward the same-side shoulder. Keep both shoulders relaxed. Switch sides.',
       cue: '10-20 seconds each side',
       duration: 40,
+      sides: ['Left side', 'Right side'],
       visual: 'side-stretch',
       caption: 'A small side bend is enough. No forcing.'
     },
@@ -52,6 +53,7 @@
       cue: '5 each side',
       reps: 10,
       duration: 30,
+      sides: ['Looking right', 'Looking left'],
       visual: 'rotation',
       caption: 'Rotate inside an easy range. Jaw and shoulders stay quiet.'
     },
@@ -80,6 +82,7 @@
       instruction: 'Cross one ankle over the opposite knee. Sit tall. Lean forward gently. Switch sides.',
       cue: '20-30 seconds each side',
       duration: 50,
+      sides: ['Right side', 'Left side'],
       visual: 'figure-four',
       caption: 'Hip stretch stays gentle. Spine keeps length.'
     },
@@ -146,6 +149,19 @@
     }
   ];
 
+  const GUIDE_BASE = '../3dvr-girl/assets/';
+  const GUIDE_MEDIA = {
+    crown: { type: 'video', base: 'meditation-breathing-loop', poster: 'meditation-courtyard.jpg', label: 'Breathing loop' },
+    breath: { type: 'video', base: 'meditation-breathing-loop', poster: 'meditation-courtyard.jpg', label: 'Breathing loop' },
+    wave: { type: 'video', base: 'courtyard-flow-loop', poster: 'courtyard-warrior.jpg', label: 'Courtyard flow loop' },
+    chin: { type: 'image', src: 'courtyard-profile.jpg', label: 'Profile still' },
+    shoulders: { type: 'image', src: 'courtyard-warrior.jpg', label: 'Warrior still' },
+    'side-stretch': { type: 'image', src: 'courtyard-profile.jpg', label: 'Profile still' },
+    rotation: { type: 'image', src: 'over-shoulder.jpg', label: 'Over-shoulder still' },
+    chest: { type: 'image', src: 'tree-prayer.jpg', label: 'Prayer balance still' },
+    'figure-four': { type: 'image', src: 'meditation-seat.png', label: 'Seated still' }
+  };
+
   const screens = {
     landing: document.querySelector('[data-screen="landing"]'),
     routine: document.querySelector('[data-screen="routine"]')
@@ -166,6 +182,10 @@
     timerSecondary: document.querySelector('[data-timer-secondary]'),
     closingMessage: document.querySelector('[data-closing-message]'),
     visualCaption: document.querySelector('[data-visual-caption]'),
+    guideVideo: document.querySelector('[data-guide-video]'),
+    guideImage: document.querySelector('[data-guide-image]'),
+    guideLabel: document.querySelector('[data-guide-label]'),
+    sideBanner: document.querySelector('[data-side-banner]'),
     threeStage: document.querySelector('[data-three-stage]'),
     fallbackSymbol: document.querySelector('[data-fallback-symbol]'),
     controls: [...document.querySelectorAll('[data-action]')],
@@ -175,6 +195,7 @@
   const defaultPrefs = {
     reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     silentMode: true,
+    loopRoutine: true,
     preferredMode: 'full',
     lastCompletedDate: ''
   };
@@ -183,6 +204,8 @@
   let currentMode = prefs.preferredMode === 'quick' ? 'quick' : 'full';
   let routine = currentMode === 'quick' ? quickRoutine : fullRoutine;
   let currentIndex = 0;
+  let currentSide = 0;
+  let roundCount = 1;
   let remainingMs = routine[0].duration * 1000;
   let stepDurationMs = remainingMs;
   let running = false;
@@ -209,6 +232,8 @@
       return {
         mode: currentMode,
         stepIndex: currentIndex,
+        sideIndex: currentSide,
+        round: roundCount,
         running,
         preferences: { ...prefs }
       };
@@ -222,7 +247,8 @@
         ...defaultPrefs,
         ...parsed,
         reduceMotion: typeof parsed.reduceMotion === 'boolean' ? parsed.reduceMotion : defaultPrefs.reduceMotion,
-        silentMode: typeof parsed.silentMode === 'boolean' ? parsed.silentMode : true
+        silentMode: typeof parsed.silentMode === 'boolean' ? parsed.silentMode : true,
+        loopRoutine: typeof parsed.loopRoutine === 'boolean' ? parsed.loopRoutine : true
       };
     } catch (error) {
       console.warn('Unable to load Seated Spine Reset preferences', error);
@@ -283,17 +309,87 @@
     if (visualController) {
       visualController.setReduceMotion(prefs.reduceMotion);
     }
+    if (routine && routine[currentIndex]) {
+      updateGuideMedia(routine[currentIndex]);
+    }
+    updateRoundLabel();
   }
 
   function updatePauseButton() {
     elements.pauseButton.textContent = running ? 'Pause' : 'Continue';
   }
 
+  function phaseCount(step) {
+    return step.sides ? step.sides.length : 1;
+  }
+
+  function phaseDurationMs(step) {
+    return (step.duration * 1000) / phaseCount(step);
+  }
+
+  function updateGuideMedia(step) {
+    if (!elements.guideVideo || !elements.guideImage) return;
+    const media = GUIDE_MEDIA[step.visual];
+    if (!media) return;
+    if (elements.guideLabel) {
+      elements.guideLabel.textContent = media.label;
+    }
+    if (media.type === 'video' && !prefs.reduceMotion) {
+      elements.guideImage.hidden = true;
+      elements.guideVideo.hidden = false;
+      if (elements.guideVideo.dataset.current !== media.base) {
+        elements.guideVideo.innerHTML = '';
+        const mp4 = document.createElement('source');
+        mp4.src = `${GUIDE_BASE}${media.base}.mp4`;
+        mp4.type = 'video/mp4';
+        const webm = document.createElement('source');
+        webm.src = `${GUIDE_BASE}${media.base}.webm`;
+        webm.type = 'video/webm';
+        elements.guideVideo.append(mp4, webm);
+        elements.guideVideo.poster = `${GUIDE_BASE}${media.poster}`;
+        elements.guideVideo.dataset.current = media.base;
+        elements.guideVideo.load();
+      }
+      const playAttempt = elements.guideVideo.play();
+      if (playAttempt && typeof playAttempt.catch === 'function') {
+        playAttempt.catch(() => {});
+      }
+    } else {
+      const still = media.type === 'video' ? media.poster : media.src;
+      if (elements.guideVideo.pause) elements.guideVideo.pause();
+      elements.guideVideo.hidden = true;
+      elements.guideImage.hidden = false;
+      const src = `${GUIDE_BASE}${still}`;
+      if (elements.guideImage.getAttribute('src') !== src) {
+        elements.guideImage.src = src;
+      }
+    }
+  }
+
+  function updateSideBanner(step) {
+    if (!elements.sideBanner) return;
+    if (step.sides) {
+      elements.sideBanner.hidden = false;
+      elements.sideBanner.textContent = `${step.sides[currentSide]} · side ${currentSide + 1} of ${step.sides.length}, ${formatTime(phaseDurationMs(step) / 1000)} each`;
+    } else {
+      elements.sideBanner.hidden = true;
+      elements.sideBanner.textContent = '';
+    }
+  }
+
+  function updateRoundLabel() {
+    if (!elements.totalTime) return;
+    elements.totalTime.textContent = prefs.loopRoutine
+      ? `Round ${roundCount} · ${formatRoutineLength(routine)} per round, looping`
+      : formatRoutineLength(routine);
+  }
+
   function setCurrentStep(index, { resetTimer = true, cue = true } = {}) {
     currentIndex = Math.min(Math.max(index, 0), routine.length - 1);
     const step = routine[currentIndex];
     if (resetTimer) {
-      stepDurationMs = step.duration * 1000;
+      currentSide = 0;
+      stepDurationMs = phaseDurationMs(step);
       remainingMs = stepDurationMs;
       lastTick = performance.now();
     }
@@ -302,7 +398,9 @@
     elements.stepTitle.textContent = step.title;
     elements.stepInstruction.textContent = step.instruction;
     elements.stepCount.textContent = `Step ${currentIndex + 1} of ${routine.length}`;
-    elements.totalTime.textContent = formatRoutineLength(routine);
+    updateRoundLabel();
+    updateGuideMedia(step);
+    updateSideBanner(step);
     elements.timerSecondary.textContent = step.cue;
     elements.closingMessage.hidden = !step.closing;
     if (step.closing) {
@@ -345,15 +443,22 @@
     const elapsed = Math.max(0, stepDurationMs - remainingMs);
     const stepRatio = stepDurationMs > 0 ? Math.min(1, elapsed / stepDurationMs) : 1;
     const remainingSeconds = remainingMs / 1000;
+    const stepFraction = (currentSide + stepRatio) / phaseCount(step);
     const routineRatio = routine.length > 1
-      ? (currentIndex + stepRatio) / routine.length
-      : stepRatio;
+      ? (currentIndex + stepFraction) / routine.length
+      : stepFraction;
 
     elements.timerRing.style.setProperty('--timer-progress', String(Math.max(0, 1 - stepRatio)));
     elements.timerRing.setAttribute('aria-valuenow', String(Math.round((1 - stepRatio) * 100)));
     elements.routineProgress.style.width = `${Math.min(100, Math.max(0, routineRatio * 100))}%`;
 
-    if (step.reps) {
+    if (step.sides) {
+      const isLastSide = currentSide >= step.sides.length - 1;
+      elements.timerPrimary.textContent = formatTime(remainingSeconds);
+      elements.timerSecondary.textContent = isLastSide
+        ? `${step.sides[currentSide]} · last side`
+        : `${step.sides[currentSide]} · then ${step.sides[currentSide + 1].toLowerCase()}`;
+    } else if (step.reps) {
       const repsDone = Math.min(step.reps, Math.floor(stepRatio * step.reps));
       elements.timerPrimary.textContent = `${Math.max(0, step.reps - repsDone)} reps`;
       elements.timerSecondary.textContent = `${formatTime(remainingSeconds)} left`;
@@ -371,6 +476,7 @@
     prefs.preferredMode = currentMode;
     savePreferences();
     routine = currentMode === 'quick' ? quickRoutine : fullRoutine;
+    roundCount = 1;
     setScreen('routine');
     running = true;
     setCurrentStep(0, { resetTimer: true, cue: false });
@@ -400,8 +506,24 @@
     remainingMs = Math.max(0, remainingMs - delta);
     updateProgress();
     if (remainingMs <= 0) {
-      goNext({ auto: true });
+      const step = routine[currentIndex];
+      if (step.sides && currentSide < step.sides.length - 1) {
+        advanceSide();
+      } else {
+        goNext({ auto: true });
+      }
     }
+  }
+
+  function advanceSide() {
+    const step = routine[currentIndex];
+    currentSide += 1;
+    stepDurationMs = phaseDurationMs(step);
+    remainingMs = stepDurationMs;
+    lastTick = performance.now();
+    updateSideBanner(step);
+    updateProgress();
+    cueStepChange();
   }
 
   function togglePause() {
@@ -430,17 +552,21 @@
 
   function restartRoutine() {
     running = true;
+    roundCount = 1;
     setCurrentStep(0, { resetTimer: true, cue: false });
     startTimer();
     cueStepChange();
   }
 
-  function completeRoutine() {
+  function endRoutine() {
     running = false;
     stopTimer();
-    remainingMs = 0;
-    updateProgress();
-    updatePauseButton();
+    roundCount = 1;
+    setScreen('landing');
+    applyPreferences();
+  }
+
+  function recordCompletion() {
     prefs.lastCompletedDate = new Date().toISOString();
     savePreferences();
     applyPreferences();
@@ -452,6 +578,23 @@
     if (portalBridge.onRoutineComplete) {
       portalBridge.onRoutineComplete(summary);
     }
+  }
+
+  function completeRoutine() {
+    recordCompletion();
+    if (prefs.loopRoutine) {
+      roundCount += 1;
+      running = true;
+      setCurrentStep(0, { resetTimer: true, cue: false });
+      startTimer();
+      cueStepChange();
+      return;
+    }
+    running = false;
+    stopTimer();
+    remainingMs = 0;
+    updateProgress();
+    updatePauseButton();
     cueStepChange();
   }
 
@@ -515,6 +658,7 @@
       if (action === 'next') goNext();
       if (action === 'back') goBack();
       if (action === 'restart') restartRoutine();
+      if (action === 'end') endRoutine();
     });
   });
 
