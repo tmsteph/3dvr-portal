@@ -16,8 +16,8 @@ probe() {
   local label="$1" url="$2" resolve="${3:-}" code rc
   local args=(--noproxy '*' --silent --show-error --output /dev/null
     --write-out '%{http_code}' --connect-timeout 5 --max-time 15)
-  if [[ "$resolve" == 'ovh' ]]; then
-    args+=(--resolve "${helm_host}:443:${ovh_ip}")
+  if [[ -n "$resolve" ]]; then
+    args+=(--resolve "${resolve}:443:${ovh_ip}")
   fi
   code="$(curl "${args[@]}" "$url")"
   rc=$?
@@ -34,8 +34,14 @@ probe portal_root 'https://portal.3dvr.tech/'
 probe portal_helm 'https://portal.3dvr.tech/helm/'
 probe operator_app 'https://operator.3dvr.tech/operator/' # / redirects here with HTTP 302
 probe operator_helm 'https://operator.3dvr.tech/helm/'
-# curl --resolve changes only this request's DNS lookup; strict hostname TLS verification stays on.
-probe standalone_helm_ovh_sni "https://${helm_host}/" ovh
+# Confirm that the *same reviewed OVH address* serves the existing hostnames,
+# not merely that their current public DNS routes work elsewhere.
+# --resolve affects this request only; strict hostname TLS verification stays on.
+probe portal_root_ovh_sni 'https://portal.3dvr.tech/' portal.3dvr.tech
+probe portal_helm_ovh_sni 'https://portal.3dvr.tech/helm/' portal.3dvr.tech
+probe operator_app_ovh_sni 'https://operator.3dvr.tech/operator/' operator.3dvr.tech
+probe operator_helm_ovh_sni 'https://operator.3dvr.tech/helm/' operator.3dvr.tech
+probe standalone_helm_ovh_sni "https://${helm_host}/" "$helm_host"
 
 if [[ "$failed" -ne 0 ]]; then
   echo 'NOT READY: keep public DNS unchanged. Fix ingress/TLS and repeat the preflight.'
