@@ -7,10 +7,10 @@ function inboxState(message = {}) {
   const sender = lower(message.from);
   const subject = lower(message.subject);
   const preview = lower(message.preview);
-  // A delivery failure can quote the original message's unsubscribe footer.
+  // A delivery failure can quote the original message's unsubscribe footer.\n  // The word "bounce" alone also appears in ordinary human replies ("bounce ideas");\n  // never turn that into a delivery failure and borrow a stale recipient hint.
   // It must be recorded as a bounce, not mistaken for the recipient opting out.
   if (/mailer-daemon|postmaster/.test(sender) || /mailer-daemon|postmaster/.test(lower(message.fromEmail)) ||
-      /delivery status notification|undeliver|delivery failure|\bbounce\b/.test(subject)) {
+      /delivery status notification|undeliver|delivery failure|\bbounce(?:d)?\s+(?:notice|notification|report)\b/.test(subject)) {
     return 'bounced';
   }
   // "Can you stop by?" is a reply, not consent to suppress a contact.
