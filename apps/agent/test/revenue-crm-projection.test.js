@@ -452,7 +452,7 @@ test('CRM rejects malformed provider settlement timestamps without changing paid
     id: 'synthetic-payment', type: 'payment_succeeded',
     payload_json: JSON.stringify({ payment: { ...payment, paid_at } })
   }, '2026-11-02T21:05:00Z');
-  for (const value of ['yesterday', '2026-11-02', '2026-11-02T20:59:00', 'not-a-date', '']) {
+  for (const value of ['yesterday', '2026-11-02', '2026-11-02T20:59:00', 'not-a-date', '', '2026-02-30T20:59:00Z', '2026-04-31T20:59:00Z', '2026-02-29T20:59:00Z', '2026-11-02T24:00:00Z']) {
     const record = project(value);
     assert.equal(record.status, 'Paid Customer');
     assert.equal(record.lastPaymentAt, '', String(value));
