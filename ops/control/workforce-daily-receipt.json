@@ -1,30 +1,30 @@
 {
-  "localDate": "2026-11-01",
+  "localDate": "2026-11-02",
   "timezone": "America/Los_Angeles",
   "lighthouse": {
-    "checkedAt": "2026-11-01T16:16:22.856Z",
+    "checkedAt": "2026-11-02T16:54:12.483Z",
     "source": "authenticated OVH general CDP 9222 Lighthouse week API",
     "weeksChecked": [
-      "2026-10-26",
       "2026-11-02",
       "2026-11-09",
       "2026-11-16",
       "2026-11-23",
-      "2026-11-30"
+      "2026-11-30",
+      "2026-12-07"
     ]
   },
   "iatse": {
-    "checkedAt": "2026-11-01T16:19:10.741Z",
+    "checkedAt": "2026-11-02T16:55:04.940Z",
     "outcome": "noop",
     "changedDates": [],
     "deferredDates": [],
     "renderedWindow": {
-      "start": "2026-10-31",
-      "end": "2026-12-02"
+      "start": "2026-11-01",
+      "end": "2026-12-03"
     },
     "mismatches": [],
     "persistedAfterReload": true,
-    "desiredDatesChecked": 25,
+    "desiredDatesChecked": 24,
     "unmodifiedUnspecifiedDates": [
       "2026-11-26",
       "2026-11-27",
@@ -43,7 +43,6 @@
   },
   "execution": {
     "path": "OVH canonical general browser lane CDP 9222; Desktop Commander control path",
-    "authenticationRecovery": "SharePoint-first; Lighthouse broker authenticated on retry",
-    "iatseAuthUi": "Opened existing sidebar to expose Logout check; no login profile replaced"
+    "authenticationRecovery": "SharePoint-first Lighthouse broker; initial external SSO challenge recovered on retry; authenticated week API confirmed"
   }
 }
