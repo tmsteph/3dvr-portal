@@ -1,4 +1,11 @@
 import { resolveSeaAuthMaxAgeMs, verifySignedSeaPayload } from '../auth/sea.js';
+import {
+  OPERATOR_PERMISSIONS as FORK_OPERATOR_PERMISSIONS,
+  findForksForIdentity,
+  isForkActive,
+  parseForkRecords,
+  resolveForkPermissions
+} from '../agents/fork-contract.js';
 
 export const DEFAULT_OPERATOR_DEVELOPER_ALIAS = '3dvr.tech@gmail.com';
 export const BUILTIN_OPERATOR_OWNER_BINDINGS = Object.freeze({
@@ -76,7 +83,11 @@ export function resolveOperatorDeveloperPolicy(config = process.env) {
     bindings: withBuiltinBindings(
       parseBindings(config.THREEDVR_OPERATOR_DEVELOPER_BINDINGS),
       BUILTIN_OPERATOR_DEVELOPER_BINDINGS
-    )
+    ),
+    // Forked accounts (src/agents/fork-contract.js). Empty unless the
+    // THREEDVR_FORKS env JSON defines fork records, so deployments without
+    // forks resolve access exactly as before.
+    forks: parseForkRecords(config.THREEDVR_FORKS)
   };
 }
 
@@ -112,6 +123,45 @@ export async function resolveOperatorDeveloperAccess(payload = {}, options = {})
   const policy = resolveOperatorDeveloperPolicy(config);
   const alias = normalizeAlias(auth.identity.alias);
   const pub = normalizeText(auth.identity.pub);
+
+  // Forked accounts resolve from their fork records instead of the binding
+  // ladder: an active fork grants exactly the permissions Thomas recorded on
+  // it, and a revoked fork grants none. Identities with no fork record are
+  // untouched and follow the bindings below, exactly as before.
+  const forks = Array.isArray(options.forks) ? options.forks : policy.forks;
+  const identityForks = findForksForIdentity(forks, { alias, pub });
+  if (identityForks.length) {
+    const identity = { alias: auth.identity.alias, pub };
+    if (!identityForks.some(isForkActive)) {
+      return {
+        authenticated: true,
+        approved: false,
+        role: 'contributor',
+        permissions: [],
+        identity,
+        viaFork: true,
+        reason: 'This forked account has been revoked by its parent account.'
+      };
+    }
+    const permissions = resolveForkPermissions(identityForks, { alias, pub })
+      .filter(permission => FORK_OPERATOR_PERMISSIONS.includes(permission));
+    return {
+      authenticated: true,
+      approved: permissions.includes('edit'),
+      role: permissions.includes('admin')
+        ? 'admin'
+        : permissions.includes('edit')
+          ? 'developer'
+          : 'contributor',
+      permissions,
+      identity,
+      viaFork: true,
+      reason: permissions.includes('edit')
+        ? ''
+        : 'This forked account can submit suggestions but is not approved for code edits yet.'
+    };
+  }
+
   const owner = policy.ownerPubs.has(pub) || policy.ownerBindings.get(alias) === pub;
   const admin = owner || policy.adminPubs.has(pub) || policy.adminBindings.get(alias) === pub;
   const developer = admin || policy.pubs.has(pub) || policy.bindings.get(alias) === pub;
