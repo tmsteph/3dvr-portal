@@ -59,6 +59,7 @@ function loadAuthIdentity({
   locationObj,
   caches,
   navigator,
+  source = authIdentitySource,
 } = {}) {
   const documentRef = documentObj || createCookieDocument();
   const storageRef = localStorage || createStorage();
@@ -72,7 +73,7 @@ function loadAuthIdentity({
       navigator,
     },
   };
-  vm.runInNewContext(authIdentitySource, sandbox, { filename: 'auth-identity.js' });
+  vm.runInNewContext(source, sandbox, { filename: 'auth-identity.js' });
   return {
     api: sandbox.window.AuthIdentity,
     document: documentRef,
@@ -190,7 +191,7 @@ describe('auth identity helper', () => {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       api.syncStorageFromSharedIdentity(localStorage);
       assert.equal(localStorage.getItem('signedIn'), null);
-      assert.equal(localStorage.getItem('alias'), '');
+      assert.equal(localStorage.getItem('alias'), null);
       assert.ok(api.readSharedIdentity(), 'shared display identity must survive origin-local denial');
     }
   });
@@ -208,6 +209,22 @@ describe('auth identity helper', () => {
       assert.equal(localStorage.getItem('alias'), 'other@3dvr');
       assert.equal(localStorage.getItem('username'), 'Other');
       assert.ok(api.readSharedIdentity());
+    }
+  });
+
+  it('keeps the standalone Contacts auth bridge from rebinding local credentials or logging out sibling apps', async () => {
+    const source = await readFile(resolve(projectRoot, 'contacts/auth-identity.js'), 'utf8');
+    for (const localAlias of [null, 'other@3dvr']) {
+      const { api, localStorage } = loadAuthIdentity({ hostname: 'contacts.3dvr.tech', source });
+      if (localAlias) localStorage.setItem('alias', localAlias);
+      localStorage.setItem('password', 'synthetic-local-only');
+      api.writeSharedIdentity({ alias: 'pilot@3dvr', username: 'Pilot', authMethod: 'gun' });
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        api.syncStorageFromSharedIdentity(localStorage);
+        assert.equal(localStorage.getItem('signedIn'), null);
+        assert.equal(localStorage.getItem('alias'), localAlias);
+        assert.ok(api.readSharedIdentity());
+      }
     }
   });
 
