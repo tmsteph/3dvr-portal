@@ -354,3 +354,32 @@ test('expired CRM claim is not stolen or automatically replayed', async () => {
     assert.equal(called, false);
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
+
+test('CRM projection quarantines a cross-prospect outbox/event mismatch without a remote write', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-crm-cross-prospect-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const alice = createProspect(db, { name: 'Synthetic Alice', contact: 'alice@example.test' }).prospect;
+    const bob = createProspect(db, { name: 'Synthetic Bob', contact: 'bob@example.test' }).prospect;
+    transitionProspect(db, { prospectId: alice.id, toState: 'verified', idempotencyKey: 'cross-alice' });
+    const bobEvent = transitionProspect(db, { prospectId: bob.id, toState: 'verified', idempotencyKey: 'cross-bob' }).event;
+    // Both foreign keys remain valid, but the Alice outbox now points at
+    // Bob's event. A corrupted import must never misattribute a paid status,
+    // reply, or activity to the wrong contact.
+    db.prepare('UPDATE projection_outbox SET event_id = ? WHERE prospect_id = ?').run(bobEvent.id, alice.id);
+    const records = [];
+    const result = await projectPendingCrm(db, {
+      write: async payload => {
+        records.push(...payload.records);
+        return { records: payload.records.length, touches: payload.touches.length, errors: [] };
+      },
+    });
+    assert.equal(result.failed, 1);
+    assert.equal(result.succeeded, 1, 'unrelated valid prospect may still project');
+    assert.equal(result.attempted, 2);
+    assert.deepEqual(records.map(record => record.name), ['Synthetic Bob']);
+    const aliceOutbox = db.prepare('SELECT status FROM projection_outbox WHERE prospect_id = ?').get(alice.id);
+    assert.equal(aliceOutbox.status, 'failed');
+    assert.equal(db.prepare('SELECT status FROM projection_claims WHERE outbox_id = (SELECT id FROM projection_outbox WHERE prospect_id = ?)').get(alice.id).status, 'needs_review');
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
