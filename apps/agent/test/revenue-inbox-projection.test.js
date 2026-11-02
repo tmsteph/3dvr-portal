@@ -284,3 +284,32 @@ test('ordinary bounce-ideas replies do not misclassify as delivery failures or b
     assert.equal(inboxState({ subject: 'Bounce notification: delivery failed' }), 'bounced');
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
+
+
+test('explicit delivery-failed notices do not become positive prospect replies', () => {
+  for (const subject of ['Delivery failed', 'Mail delivery failed', 'Delivery has failed', 'Message not delivered']) {
+    assert.equal(inboxState({ fromEmail: 'notifications@relay.test', subject }), 'bounced', subject);
+  }
+  assert.equal(inboxState({
+    fromEmail: 'buyer@test.example', subject: 'Re: delivery failed at our office',
+    preview: 'Can we talk about the replacement?'
+  }), 'replied', 'a human reply must not be treated as an automated failure');
+
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-delivery-failed-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const recipient = createProspect(db, { name: 'Recipient', contact: 'recipient@test.example' }).prospect;
+    for (const state of ['verified', 'eligible', 'sent']) {
+      transitionProspect(db, {
+        prospectId: recipient.id, toState: state, idempotencyKey: `delivery-failed:${state}`
+      });
+    }
+    const result = projectInboxMessage(db, {
+      fromEmail: 'notifications@relay.test', prospectEmail: 'recipient@test.example',
+      messageId: 'delivery-failed-1', subject: 'Delivery failed'
+    });
+    assert.equal(result.prospect.id, recipient.id);
+    assert.equal(result.prospect.state, 'bounced');
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM revenue_events WHERE type = 'inbox_replied'").get().n, 0);
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
