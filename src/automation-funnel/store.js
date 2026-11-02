@@ -141,10 +141,20 @@ export function openFunnelStore(path = process.env.AUTOMATION_FUNNEL_DB || '/opt
         // later stage change could erase the only durable suppression record
         // and allow an outreach draft without fresh, verified re-consent.
         const previous = JSON.parse(current.payload);
-        if (String(previous.stage || '').trim().toLowerCase() === 'do-not-contact'
-          && String(lead.stage || '').trim().toLowerCase() !== 'do-not-contact') {
-          throw Object.assign(new Error('Do-not-contact cannot be cleared by a CRM edit; verified re-consent is required.'),
-            { statusCode: 409 });
+        if (String(previous.stage || '').trim().toLowerCase() === 'do-not-contact') {
+          if (String(lead.stage || '').trim().toLowerCase() !== 'do-not-contact') {
+            throw Object.assign(new Error('Do-not-contact cannot be cleared by a CRM edit; verified re-consent is required.'),
+              { statusCode: 409 });
+          }
+          // Public job/topic dedupe is based on source URL, not email. Without
+          // this guard, editing an opted-out lead's email silently removes the
+          // only durable suppression for its previous address. Retain that
+          // identity until a separately verified re-consent flow exists.
+          const priorEmail = String(previous.email || '').trim().toLowerCase();
+          if (priorEmail && priorEmail !== String(lead.email || '').trim().toLowerCase()) {
+            throw Object.assign(new Error('Do-not-contact email cannot be changed; preserve the opt-out record.'),
+              { statusCode: 409 });
+          }
         }
         if (identity(previous) !== identity(lead)) {
           throw Object.assign(new Error('Lead identity changed. Create a separate lead for a different buyer or job.'),
