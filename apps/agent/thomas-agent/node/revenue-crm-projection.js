@@ -26,7 +26,11 @@ function paymentReceiptFor(event = {}) {
   try { payload = JSON.parse(event.payload_json || '{}'); } catch {}
   const payment = payload.payment && typeof payload.payment === 'object' ? payload.payment : payload;
   const amountCents = Number(payment.amount_cents ?? payment.amountCents ?? payment.amount_paid ?? payment.amount_total);
-  const currency = String(payment.currency || 'usd').trim().toUpperCase();
+  // Never invent USD when the provider event omits or corrupts currency.
+  // Preserve integer minor units, but leave currency-formatted values blank
+  // until a provider-verified currency is available.
+  const currencyCode = String(payment.currency || '').trim().toUpperCase();
+  const currency = /^[A-Z]{3}$/.test(currencyCode) ? currencyCode : '';
   const paidAt = String(payment.paid_at || payment.paidAt || payment.created_at || event.created_at || '').trim();
   const recurringCents = Number(payment.recurring_cents ?? payment.recurringCents ?? payment.plan_amount_cents);
   const hasAmount = Number.isSafeInteger(amountCents) && amountCents > 0;
@@ -39,11 +43,11 @@ function paymentReceiptFor(event = {}) {
   if (!hasAmount || !providerReceiptId || !['paid', 'succeeded'].includes(paymentStatus)) return null;
   return {
     amountCents: hasAmount ? amountCents : null,
-    amount: hasAmount ? `${currency} ${(amountCents / 100).toFixed(2)}` : '',
+    amount: hasAmount && currency ? `${currency} ${(amountCents / 100).toFixed(2)}` : '',
     currency,
     paidAt,
     recurringCents: hasRecurring ? recurringCents : null,
-    recurringValue: hasRecurring ? `${currency} ${(recurringCents / 100).toFixed(2)}` : '',
+    recurringValue: hasRecurring && currency ? `${currency} ${(recurringCents / 100).toFixed(2)}` : '',
     plan: String(payment.plan || payment.plan_name || '').trim(),
     paymentIntentId: String(payment.payment_intent_id || payment.paymentIntentId || '').trim(),
     subscriptionId: String(payment.subscription_id || payment.subscriptionId || '').trim(),
