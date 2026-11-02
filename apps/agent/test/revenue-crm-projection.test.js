@@ -412,3 +412,29 @@ test('CRM never invents USD when a settled receipt lacks a valid currency', () =
   assert.equal(eur.lastPaymentAmount, 'EUR 20.00');
   assert.equal(eur.recurringPlanValue, 'EUR 5.00');
 });
+
+test('CRM never fabricates a provider payment time from event ingestion or invoice creation', () => {
+  const prospect = {
+    name: 'Synthetic Buyer', contact: 'buyer@example.test', source_url: '',
+    state: 'replied', campaign_id: '', created_at: '2026-11-01T00:00:00Z'
+  };
+  const payment = {
+    amount_cents: 1250, currency: 'usd', status: 'succeeded',
+    payment_intent_id: 'pi_synthetic', created_at: '2026-11-01T15:00:00Z'
+  };
+  const event = {
+    id: 'synthetic-payment', type: 'payment_succeeded',
+    created_at: '2026-11-02T21:00:00Z',
+    payload_json: JSON.stringify({ payment })
+  };
+  const projected = recordFor(prospect, event, '2026-11-02T21:05:00Z');
+  assert.equal(projected.status, 'Paid Customer');
+  assert.equal(projected.lastPaymentAt, '',
+    'provider creation time and ledger ingestion are not settlement timestamps');
+  const withPaidAt = recordFor(prospect, {
+    ...event, payload_json: JSON.stringify({ payment: {
+      ...payment, paid_at: '2026-11-02T20:59:00Z'
+    } })
+  }, '2026-11-02T21:05:00Z');
+  assert.equal(withPaidAt.lastPaymentAt, '2026-11-02T20:59:00Z');
+});
