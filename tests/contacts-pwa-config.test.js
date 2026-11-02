@@ -94,7 +94,9 @@ describe('contacts PWA configuration', () => {
     assert.match(authIdentitySource, /currentOauthAccountId/);
     assert.match(authIdentitySource, /hasMatchingGunCredential/);
     assert.match(authIdentitySource, /hasMatchingOauthSession/);
-    assert.match(authIdentitySource, /clearSharedIdentity\(\)/);
+    assert.match(authIdentitySource, /const hasMatchingGunCredential = aliasMatches && hasStoredPassword;/);
+    assert.match(authIdentitySource, /const storedAlias = keepOriginIdentity/);
+    assert.match(authIdentitySource, /function clearSharedIdentity\(/);
     assert.match(authIdentitySource, /global\.AuthIdentity =/);
   });
 
