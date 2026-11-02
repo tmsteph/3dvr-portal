@@ -159,7 +159,12 @@ async function projectPendingCrm(db, options = {}) {
     const prospect = getProspect(db, row.prospect_id);
     const event = db.prepare('SELECT * FROM revenue_events WHERE id = ?').get(row.event_id);
     try {
-      if (!(prospect && event)) throw new Error('Projection references missing canonical data');
+      // The outbox and event each have a foreign key, but that alone does not
+      // prove they refer to the same prospect. Never project another lead's
+      // state or payment evidence onto this CRM contact.
+      if (!(prospect && event) || event.prospect_id !== prospect.id) {
+        throw new Error('Projection references missing or mismatched canonical data');
+      }
       const now = new Date().toISOString();
       const paymentEvent = latestPaymentEventThrough(db, prospect.id, event.id);
       const response = await write({ records: [recordFor(prospect, event, now, paymentEvent)], touches: [touchFor(prospect, event, now)] }, writeOptions);
