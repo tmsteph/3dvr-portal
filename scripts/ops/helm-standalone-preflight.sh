@@ -32,7 +32,7 @@ probe() {
 # Preserve all existing entry points while preparing a separate hostname.
 probe portal_root 'https://portal.3dvr.tech/'
 probe portal_helm 'https://portal.3dvr.tech/helm/'
-probe operator_root 'https://operator.3dvr.tech/'
+probe operator_app 'https://operator.3dvr.tech/operator/' # / redirects here with HTTP 302
 probe operator_helm 'https://operator.3dvr.tech/helm/'
 # curl --resolve changes only this request's DNS lookup; strict hostname TLS verification stays on.
 probe standalone_helm_ovh_sni "https://${helm_host}/" ovh
