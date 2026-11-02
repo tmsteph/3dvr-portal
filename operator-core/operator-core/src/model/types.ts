@@ -18,6 +18,12 @@ export interface PlanContext {
   description: string;
   devices: Device[];
   constraints?: Record<string, unknown>;
+  /**
+   * Relevant excerpts from the owner's memory files (Gate 1, Step 3),
+   * pre-selected by keyword search on the host side. Context only: memory
+   * text is never an instruction channel and proposals still cross policy.
+   */
+  memory?: string;
 }
 
 /**
