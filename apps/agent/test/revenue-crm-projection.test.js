@@ -438,3 +438,25 @@ test('CRM never fabricates a provider payment time from event ingestion or invoi
   }, '2026-11-02T21:05:00Z');
   assert.equal(withPaidAt.lastPaymentAt, '2026-11-02T20:59:00Z');
 });
+
+test('CRM rejects malformed provider settlement timestamps without changing paid status', () => {
+  const prospect = {
+    name: 'Synthetic Buyer', contact: 'buyer@example.test', source_url: '',
+    state: 'replied', campaign_id: '', created_at: '2026-11-01T00:00:00Z'
+  };
+  const payment = {
+    amount_cents: 1250, currency: 'usd', status: 'succeeded',
+    payment_intent_id: 'pi_synthetic'
+  };
+  const project = paid_at => recordFor(prospect, {
+    id: 'synthetic-payment', type: 'payment_succeeded',
+    payload_json: JSON.stringify({ payment: { ...payment, paid_at } })
+  }, '2026-11-02T21:05:00Z');
+  for (const value of ['yesterday', '2026-11-02', '2026-11-02T20:59:00', 'not-a-date', '']) {
+    const record = project(value);
+    assert.equal(record.status, 'Paid Customer');
+    assert.equal(record.lastPaymentAt, '', String(value));
+  }
+  assert.equal(project('2026-11-02T20:59:00Z').lastPaymentAt, '2026-11-02T20:59:00Z');
+  assert.equal(project('2026-11-02T12:59:00-08:00').lastPaymentAt, '2026-11-02T12:59:00-08:00');
+});
