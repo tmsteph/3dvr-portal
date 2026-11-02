@@ -86,6 +86,12 @@ export function createRevenueLeadWorkItem(input = {}) {
   const leadName = typeof input.leadName === 'string' ? input.leadName.trim() : '';
   const title = input.title || `Revenue opportunity${leadName ? ` · ${leadName}` : ''}`;
   const now = input.now || new Date().toISOString();
+  const stage = input.stage || 'research';
+  if (!REVENUE_STAGES.includes(stage)) throw new TypeError(`unknown revenue stage: ${stage}`);
+  // A new work item must not be born as a paid customer. Even a caller-supplied
+  // receipt is not proof of settlement; only the guarded payment transition
+  // may mark an opportunity won, pending independent provider verification.
+  if (stage === 'won') throw new TypeError('won stage requires a payment_received transition');
 
   return createWorkItem({
     id: input.id,
@@ -107,7 +113,7 @@ export function createRevenueLeadWorkItem(input = {}) {
     result: input.result,
     metadata: {
       ...(input.metadata || {}),
-      stage: input.stage || 'research',
+      stage,
       leadName: leadName || null,
       relationship: normalizeRelationship(input.relationship),
       campaign: input.campaign || null,
