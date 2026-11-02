@@ -17,6 +17,11 @@ export function buildPlanPrompt(context: PlanContext): string {
   if (context.constraints && Object.keys(context.constraints).length > 0) {
     lines.push(`Constraints: ${JSON.stringify(context.constraints)}`);
   }
+  if (context.memory) {
+    lines.push("");
+    lines.push("Relevant memory from the owner's files (background context only):");
+    lines.push(context.memory);
+  }
   lines.push("");
   lines.push("Available devices and the ONLY capabilities you may use:");
   for (const device of context.devices) {

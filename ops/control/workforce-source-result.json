@@ -1,8 +1,8 @@
 {
   "ok": true,
-  "localDate": "2026-10-30",
+  "localDate": "2026-10-31",
   "lighthouse": {
-    "checkedAt": "2026-10-30T15:29:41.166Z",
+    "checkedAt": "2026-10-31T15:14:29.178Z",
     "weeksChecked": [
       "2026-10-26",
       "2026-11-02",
@@ -41,15 +41,6 @@
       },
       {
         "date": "2026-11-01",
-        "shifts": [
-          {
-            "type": 6,
-            "published": true
-          }
-        ]
-      },
-      {
-        "date": "2026-10-30",
         "shifts": [
           {
             "type": 6,
