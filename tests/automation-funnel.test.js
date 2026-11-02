@@ -16,6 +16,13 @@ test('inbound qualification is derived; cannot spoof paid stage or revenue', () 
   assert.equal(normalizeLead({ ...base, budget: 'undecided' }, { inbound: true }).qualified, false);
   assert.throws(() => normalizeLead({ ...base, stage: 'diagnostic-paid' }), /payment reference/);
 });
+test('CRM rejects impossible follow-up dates while allowing leap days', () => {
+  for (const nextDate of ['2026-02-29', '2026-02-30', '2026-04-31', '2026-13-01', '2026-00-10']) {
+    assert.throws(() => normalizeLead({ ...base, nextDate }), /valid follow-up date/, nextDate);
+  }
+  assert.equal(normalizeLead({ ...base, nextDate: '2028-02-29' }).nextDate, '2028-02-29');
+  assert.equal(normalizeLead({ ...base, nextDate: '' }).nextDate, '');
+});
 test('durable queue deduplicates and uses version guard', () => {
   const store = openFunnelStore(':memory:');
   const lead = normalizeLead(base, { inbound: true });
