@@ -147,6 +147,9 @@ function hasApprovedCheckpoint(checkpoint, item, event, draftId) {
 // A fabricated follow-up timestamp must never make a reminder due.
 function parseRealIsoInstant(value) {
   if (typeof value !== 'string') return NaN;
+  // Without an explicit offset, Date.parse uses the worker host's timezone.
+  // A reminder must represent the same instant on OVH, DO and every client.
+  if (!/(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return NaN;
   const parts = /^(\d{4})-(\d{2})-(\d{2})T/.exec(value);
   if (!parts) return NaN;
   const year = Number(parts[1]);
