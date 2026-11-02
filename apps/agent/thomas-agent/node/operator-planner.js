@@ -31,6 +31,16 @@
 //   carrying the exact new content and a visible diff. execute() applies
 //   the write only after the core executed the approved action, and the
 //   memory store re-verifies the diff against the file before writing.
+//
+// Step 4 (tool bridge) generalises the memory effect: when a tool bridge
+// is configured, execute() runs each successfully executed tool action
+// (files.*, gmail.*, calendar.read, browser.read) through the bridge and
+// reports per-action tool_results next to the receipts. gmail.draft is
+// R2, so the core denies it at execution time without a hash-bound owner
+// approval and the bridge never sees it - the draft handler cannot fire
+// on the model's say-so. A tool run that fails gets the same honest-record
+// treatment as a failed memory write: a corrective failed receipt on the
+// job's audit chain and the job flipped to failed.
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -39,6 +49,10 @@ const {
   createFileMemoryStore,
   MEMORY_WRITE_CAPABILITY,
 } = require('./operator-memory');
+const {
+  createToolBridge,
+  isToolCapability,
+} = require('./operator-tools');
 
 const DEFAULT_MIN_AVAILABLE_MIB = 512;
 const CORE_DIST = path.join(
@@ -133,6 +147,10 @@ function defaultRouter(env) {
  * @param {object} [options.memory] - memory store (Step 3), shaped like
  *   createFileMemoryStore's return: search/format/readText/diff/
  *   applyApprovedWrite. Absent = no memory behavior at all.
+ * @param {object} [options.tools] - tool bridge (Step 4), shaped like
+ *   createToolBridge's return: execute(capability, args). Absent = tool
+ *   actions still cross policy and receipt in the core, but no real tool
+ *   effect is applied by this service.
  * @param {object} [options.env] - env used when building the default router.
  */
 function createPlanner(options = {}) {
@@ -140,6 +158,7 @@ function createPlanner(options = {}) {
   const capacityChecker = options.capacityChecker || createCapacityChecker();
   const devices = options.devices || [];
   const memory = options.memory || null;
+  const tools = options.tools || null;
   // Envelopes this planner proposed, by action_id. execute() consults this
   // to find memory.write actions among the core's receipts; the envelope
   // objects are the core's own, so any post-approval tampering changes the
@@ -299,6 +318,30 @@ function createPlanner(options = {}) {
       const resolvedCore = resolveCore();
       const receipts = resolvedCore.execute(jobId);
       const result = { status: 'executed', job_id: jobId, receipts };
+      // Shared honest-record correction for real effects (memory writes,
+      // tool runs) that did not land after the core dispatched them:
+      // append a corrective failed receipt per failed effect to the same
+      // job's audit chain and flip the job off `completed` to `failed`.
+      const markEffectsFailed = (failures) => {
+        for (const { env, reason_code, executor_version } of failures) {
+          receipts.push(resolvedCore.audit.append({
+            action_id: env.action_id, job_id: jobId, device_id: env.device_id,
+            outcome: 'failed',
+            reason_code,
+            executor_version,
+            args: env.args || {},
+            before_state_hash: 'n/a', after_state_hash: 'n/a',
+          }));
+        }
+        try {
+          const job = resolvedCore.getJob(jobId);
+          if (job && job.status === 'completed') job.status = 'failed';
+        } catch {
+          // Job record unavailable; the corrective receipts above still
+          // keep the audit trail honest.
+        }
+        result.status = 'effect_failed';
+      };
       if (memory) {
         const writes = [];
         const failedWrites = [];
@@ -331,24 +374,48 @@ function createPlanner(options = {}) {
         }
         if (writes.length > 0) result.memory_writes = writes;
         if (failedWrites.length > 0) {
-          for (const { env, write } of failedWrites) {
-            receipts.push(resolvedCore.audit.append({
-              action_id: env.action_id, job_id: jobId, device_id: env.device_id,
-              outcome: 'failed',
-              reason_code: `memory_write_not_applied: ${write.reason}`,
-              executor_version: 'planner-memory-effect/1',
-              args: env.args || {},
-              before_state_hash: 'n/a', after_state_hash: 'n/a',
-            }));
-          }
+          markEffectsFailed(failedWrites.map(({ env, write }) => ({
+            env,
+            reason_code: `memory_write_not_applied: ${write.reason}`,
+            executor_version: 'planner-memory-effect/1',
+          })));
+        }
+      }
+      if (tools) {
+        // Tool bridge (Step 4): for each tool action the core EXECUTED
+        // SUCCESSFULLY (for R2+ that already proves a live approval
+        // covers its exact hash), run the real tool through the bridge.
+        // Denied actions never reach the bridge, so an unapproved
+        // gmail.draft creates nothing. A tool run that fails gets the
+        // same corrective-receipt treatment as a failed memory write.
+        const toolResults = [];
+        const failedTools = [];
+        for (const receipt of receipts.slice()) {
+          if (receipt.outcome !== 'success') continue;
+          const env = knownEnvelopes.get(receipt.action_id);
+          if (!env || !isToolCapability(env.capability)) continue;
+          let entry;
           try {
-            const job = resolvedCore.getJob(jobId);
-            if (job && job.status === 'completed') job.status = 'failed';
-          } catch {
-            // Job record unavailable; the corrective receipts above still
-            // keep the audit trail honest.
+            const output = await tools.execute(env.capability, env.args || {});
+            entry = {
+              action_id: env.action_id, capability: env.capability, applied: true, result: output,
+            };
+          } catch (err) {
+            entry = {
+              action_id: env.action_id, capability: env.capability, applied: false,
+              reason: err instanceof Error ? err.message : String(err),
+            };
+            failedTools.push({ env, entry });
           }
-          result.status = 'effect_failed';
+          toolResults.push(entry);
+        }
+        if (toolResults.length > 0) result.tool_results = toolResults;
+        if (failedTools.length > 0) {
+          markEffectsFailed(failedTools.map(({ env, entry }) => ({
+            env,
+            reason_code: `tool_effect_failed: ${entry.reason}`,
+            executor_version: 'planner-tool-bridge/1',
+          })));
         }
       }
       return result;
@@ -373,6 +440,18 @@ function plannerFromEnv(env = process.env, overrides = {}) {
   // `memory` override (including null) always wins over the env.
   if (!('memory' in config) && env.OPERATOR_MEMORY_DIR) {
     config.memory = createFileMemoryStore(env.OPERATOR_MEMORY_DIR);
+  }
+  // Tool bridge (Step 4) is opt-in via OPERATOR_TOOLS_WORKSPACE_DIR (the
+  // files.* workspace root); OPERATOR_TOOLS_GMAIL_ACCOUNT optionally sets
+  // the default Gmail account for the gmail.* tools. An explicit `tools`
+  // override (including null) always wins over the env.
+  if (!('tools' in config) && env.OPERATOR_TOOLS_WORKSPACE_DIR) {
+    config.tools = createToolBridge({
+      workspaceDir: env.OPERATOR_TOOLS_WORKSPACE_DIR,
+      ...(env.OPERATOR_TOOLS_GMAIL_ACCOUNT
+        ? { gmailAccountId: env.OPERATOR_TOOLS_GMAIL_ACCOUNT }
+        : {}),
+    });
   }
   return createPlanner(config);
 }
