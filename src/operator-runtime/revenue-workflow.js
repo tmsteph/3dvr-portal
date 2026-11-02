@@ -133,6 +133,21 @@ function hasApprovedCheckpoint(checkpoint, item, event, draftId) {
     && typeof checkpoint.draftId === 'string' && checkpoint.draftId === draftId;
 }
 
+// Date.parse normalizes impossible dates (e.g. February 30 -> March 2).
+// A fabricated follow-up timestamp must never make a reminder due.
+function parseRealIsoInstant(value) {
+  if (typeof value !== 'string') return NaN;
+  const parts = /^(\d{4})-(\d{2})-(\d{2})T/.exec(value);
+  if (!parts) return NaN;
+  const year = Number(parts[1]);
+  const month = Number(parts[2]);
+  const day = Number(parts[3]);
+  const actual = new Date(Date.UTC(year, month - 1, day));
+  if (actual.getUTCFullYear() !== year || actual.getUTCMonth() + 1 !== month ||
+      actual.getUTCDate() !== day) return NaN;
+  return Date.parse(value);
+}
+
 export function advanceRevenueLead(item, event, options = {}) {
   const stage = item?.metadata?.stage;
   if (!REVENUE_STAGES.includes(stage)) throw new TypeError(`unknown revenue stage: ${stage || 'missing'}`);
@@ -143,8 +158,8 @@ export function advanceRevenueLead(item, event, options = {}) {
   // A follow-up is due only when the persisted schedule has actually elapsed.
   // A caller-supplied next date cannot manufacture a due event retroactively.
   if (event === 'follow_up_due') {
-    const scheduledAt = Date.parse(item.metadata?.nextFollowUpAt || '');
-    const observedAt = options.now === undefined ? Date.now() : Date.parse(options.now);
+    const scheduledAt = parseRealIsoInstant(item.metadata?.nextFollowUpAt);
+    const observedAt = options.now === undefined ? Date.now() : parseRealIsoInstant(options.now);
     if (!Number.isFinite(scheduledAt) || !Number.isFinite(observedAt) || scheduledAt > observedAt) {
       throw new TypeError('follow_up_due requires an existing elapsed follow-up schedule');
     }
