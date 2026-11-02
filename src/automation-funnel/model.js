@@ -61,7 +61,11 @@ export function normalizeLead(input, { inbound = false } = {}) {
   const qualification = scoreLead(lead);
   if (inbound && qualification.qualified) lead.stage = 'qualified';
   if (lead.stage === 'qualified' && !qualification.qualified) throw new Error('Confirm intent, approved budget, authority and readiness before qualifying.');
-  if (['diagnostic-paid', 'project-paid'].includes(lead.stage) && !lead.paymentReference) throw new Error('Record a verified payment reference before marking paid.');
+  // Revenue must never appear in the business dashboard without a traceable
+  // payment reference, even when a lead remains in another pipeline stage.
+  if ((lead.revenue > 0 || ['diagnostic-paid', 'project-paid'].includes(lead.stage)) && !lead.paymentReference) {
+    throw new Error('Record a verified payment reference before marking paid or recording revenue.');
+  }
   return { ...lead, ...qualification };
 }
 export function draftReply(lead) {
