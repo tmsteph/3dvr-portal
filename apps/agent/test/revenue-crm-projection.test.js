@@ -383,3 +383,32 @@ test('CRM projection quarantines a cross-prospect outbox/event mismatch without 
     assert.equal(db.prepare('SELECT status FROM projection_claims WHERE outbox_id = (SELECT id FROM projection_outbox WHERE prospect_id = ?)').get(alice.id).status, 'needs_review');
   } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
+
+test('CRM never invents USD when a settled receipt lacks a valid currency', () => {
+  const prospect = {
+    name: 'Synthetic Buyer', contact: 'buyer@example.test',
+    source_url: '', state: 'replied', campaign_id: '',
+    created_at: '2026-01-01T00:00:00Z'
+  };
+  const project = payment => recordFor(prospect, {
+    id: 'synthetic-payment', type: 'payment_succeeded',
+    payload_json: JSON.stringify({ payment })
+  }, '2026-01-02T00:00:00Z');
+  const base = {
+    amount_cents: 2000, recurring_cents: 500,
+    payment_intent_id: 'pi_synthetic', status: 'succeeded'
+  };
+  for (const currency of [undefined, '', 'US D', 'USDollars']) {
+    const record = project({ ...base, currency });
+    assert.equal(record.status, 'Paid Customer', 'structural payment evidence is unchanged');
+    assert.equal(record.lastPaymentAmountCents, 2000);
+    assert.equal(record.lastPaymentCurrency, '');
+    assert.equal(record.lastPaymentAmount, '');
+    assert.equal(record.recurringPlanValue, '');
+    assert.doesNotMatch(record.lastSignal, /USD|EUR/);
+  }
+  const eur = project({ ...base, currency: 'eur' });
+  assert.equal(eur.lastPaymentCurrency, 'EUR');
+  assert.equal(eur.lastPaymentAmount, 'EUR 20.00');
+  assert.equal(eur.recurringPlanValue, 'EUR 5.00');
+});
