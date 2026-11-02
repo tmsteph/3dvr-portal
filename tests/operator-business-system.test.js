@@ -373,3 +373,29 @@ test('follow-up due events require a persisted elapsed schedule and consume remi
   assert.equal(replied.metadata.nextFollowUpAt, null,
     'a received reply consumes the old unanswered-lead reminder');
 });
+
+test('follow-up due rejects impossible calendar dates rather than rolling them forward', () => {
+  const now = '2026-03-03T18:00:00.000Z';
+  for (const impossible of [
+    '2026-02-30T18:00:00.000Z',
+    '2026-04-31T18:00:00.000Z',
+    '2025-02-29T18:00:00.000Z',
+    '2026-02-30T18:00:00-08:00'
+  ]) {
+    const lead = createRevenueLeadWorkItem({
+      id: 'bad-calendar-date', stage: 'waiting_reply', nextFollowUpAt: impossible
+    });
+    assert.throws(() => advanceRevenueLead(lead, 'follow_up_due', { now }),
+      /existing elapsed follow-up schedule/, impossible);
+  }
+  const due = createRevenueLeadWorkItem({
+    id: 'real-leap-day', stage: 'waiting_reply',
+    nextFollowUpAt: '2028-02-29T18:00:00.000Z'
+  });
+  assert.equal(revenueStage(advanceRevenueLead(due, 'follow_up_due', {
+    now: '2028-03-01T18:00:00.000Z'
+  })), 'follow_up');
+  assert.throws(() => advanceRevenueLead(due, 'follow_up_due', {
+    now: '2028-02-30T18:00:00.000Z'
+  }), /existing elapsed follow-up schedule/);
+});
