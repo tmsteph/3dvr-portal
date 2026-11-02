@@ -94,13 +94,24 @@ test('Prism Wing S decelerates and brakes', { timeout: 45_000 }, async () => {
   try {
     const page = await openWing(browser);
     await page.keyboard.down('KeyW');
-    await page.waitForTimeout(1200);
-    await page.keyboard.up('KeyW');
+    // Use actual simulation milestones, not wall-clock delays: a busy CI
+    // browser may render far fewer frames than 1200 ms would suggest.
+    await page.waitForFunction(() => {
+      const current = window.__prismWingDebug.getState();
+      return current.throttle > .7 && current.speed > 9;
+    }, null, { timeout: 12_000 });
     const fast = await state(page);
+    await page.keyboard.up('KeyW');
 
     await page.keyboard.down('KeyS');
-    await page.waitForTimeout(850);
-    const braking = await state(page);
+    // Observe the braking milestone while S is still pressed. A fixed 850 ms
+    // sleep can report a false failure when Chromium is throttled.
+    const brakingHandle = await page.waitForFunction(start => {
+      const current = window.__prismWingDebug.getState();
+      return current.throttle < start.throttle * .35 &&
+        current.speed < start.speed * .55 ? current : false;
+    }, fast, { timeout: 12_000 });
+    const braking = await brakingHandle.jsonValue();
     await page.keyboard.up('KeyS');
 
     assert.ok(braking.throttle < fast.throttle * .35, `S should lower throttle: ${fast.throttle} -> ${braking.throttle}`);
