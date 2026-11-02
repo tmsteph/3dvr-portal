@@ -156,6 +156,26 @@ test('revenue workflow carries a lead from research to verified payment', () => 
   assert.equal(item.metadata.lastOutboundApprovalId, 'approval-2');
 });
 
+test('new revenue leads cannot invent a won stage or an unknown stage', () => {
+  for (const input of [
+    { stage: 'won', result: { amount: 1000000 } },
+    { stage: 'won', result: { amount: 1000000 }, evidence: [{ type: 'payment', id: 'unverified-claim' }] }
+  ]) {
+    assert.throws(() => createRevenueLeadWorkItem({ id: 'unverified-sale', ...input }),
+      /won stage requires a payment_received transition/);
+  }
+  assert.throws(() => createRevenueLeadWorkItem({
+    id: 'invalid-stage', stage: 'paid_without_receipt'
+  }), /unknown revenue stage/);
+
+  const payment = createRevenueLeadWorkItem({ id: 'real-transition', stage: 'payment' });
+  const won = advanceRevenueLead(payment, 'payment_received', {
+    result: { amount: 125 }, evidence: { type: 'payment', id: 'receipt-125' }
+  });
+  assert.equal(revenueStage(won), 'won');
+  assert.equal(won.result.amount, 125);
+});
+
 test('business team keeps one manager plus bounded functional roles', () => {
   assert.deepEqual(BUSINESS_ROLES.map(role => role.id), [
     'business-manager',
