@@ -259,3 +259,28 @@ test('bounce classification recognizes a mailer-daemon in fromEmail without a di
     preview: 'Delivery could not be completed.'
   }), 'bounced');
 });
+
+test('ordinary bounce-ideas replies do not misclassify as delivery failures or borrow stale recipients', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-inbox-human-bounce-'));
+  const db = openLedger({ filePath: path.join(tmp, 'ledger.sqlite') });
+  try {
+    const sender = createProspect(db, { name: 'Sender', contact: 'sender@test.example' }).prospect;
+    const stale = createProspect(db, { name: 'Stale', contact: 'stale@test.example' }).prospect;
+    for (const [i, prospect] of [sender, stale].entries()) {
+      for (const state of ['verified', 'eligible', 'sent']) {
+        transitionProspect(db, { prospectId: prospect.id, toState: state,
+          idempotencyKey: `human-bounce:${i}:${state}` });
+      }
+    }
+    const message = {
+      fromEmail: 'sender@test.example', prospectEmail: 'stale@test.example',
+      messageId: 'human-bounce-reply', subject: 'Re: Let us bounce ideas about CRM',
+      preview: 'Can we meet to discuss?',
+    };
+    assert.equal(inboxState(message), 'replied');
+    assert.equal(projectInboxMessage(db, message).prospect.id, sender.id);
+    assert.equal(db.prepare('SELECT state FROM prospects WHERE id = ?').get(sender.id).state, 'replied');
+    assert.equal(db.prepare('SELECT state FROM prospects WHERE id = ?').get(stale.id).state, 'sent');
+    assert.equal(inboxState({ subject: 'Bounce notification: delivery failed' }), 'bounced');
+  } finally { db.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
