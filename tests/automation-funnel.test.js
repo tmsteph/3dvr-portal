@@ -106,6 +106,33 @@ test('CRM opt-outs cannot be cleared by an ordinary stage edit, including legacy
   } finally { store.close(); }
 });
 
+test('opted-out public lead retains suppression when its editable email changes', () => {
+  const store = openFunnelStore(':memory:');
+  try {
+    const job = normalizeLead({
+      business: 'Public job with opt-out', problem: 'Workflow maintenance',
+      origin: 'public-research', sourceUrl: 'https://www.upwork.com/jobs/~022100000000000000098',
+      email: 'buyer@example.com', stage: 'do-not-contact'
+    });
+    const saved = store.insert(job).lead;
+    assert.equal(store.hasSuppressedEmail('buyer@example.com'), true);
+    // Public job dedupe ignores email; changing it previously erased the
+    // only durable opt-out even though the record still said do-not-contact.
+    for (const replacement of ['other@example.com', '', '  OTHER@example.com  ']) {
+      assert.throws(() => store.update(saved.id, { ...job, email: replacement }, saved.version),
+        /Do-not-contact email cannot be changed/);
+      assert.equal(store.hasSuppressedEmail('buyer@example.com'), true);
+      assert.equal(store.get(saved.id).version, saved.version);
+    }
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind LIKE 'updated:%'").get().n, 0,
+      'rejected opt-out edits must not produce audit events');
+    // A safe non-identity edit remains possible without losing suppression.
+    const updated = store.update(saved.id, { ...job, notes: 'Do not contact' }, saved.version);
+    assert.equal(updated.version, saved.version + 1);
+    assert.equal(store.hasSuppressedEmail('buyer@example.com'), true);
+  } finally { store.close(); }
+});
+
 test('funnel rate limit rejects the last-slot race across SQLite workers', () => {
   const dir = mkdtempSync(join(tmpdir(), '3dvr-funnel-limit-'));
   const dbPath = join(dir, 'leads.sqlite');
