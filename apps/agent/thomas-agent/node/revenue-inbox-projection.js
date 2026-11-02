@@ -12,7 +12,7 @@ function inboxState(message = {}) {
   // never turn that into a delivery failure and borrow a stale recipient hint.
   // It must be recorded as a bounce, not mistaken for the recipient opting out.
   if (/mailer-daemon|postmaster/.test(sender) || /mailer-daemon|postmaster/.test(lower(message.fromEmail)) ||
-      /delivery status notification|undeliver|delivery failure|\bbounce(?:d)?\s+(?:notice|notification|report)\b/.test(subject)) {
+      /delivery status notification|undeliver|delivery failure|^(?:mail\s+)?delivery (?:has )?failed\b|^message not delivered\b|\bbounce(?:d)?\s+(?:notice|notification|report)\b/.test(subject)) {
     return 'bounced';
   }
   // "Can you stop by?" is a reply, not consent to suppress a contact.
