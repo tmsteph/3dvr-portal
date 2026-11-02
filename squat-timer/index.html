@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Squat Timer | 3DVR Portal</title>
+  <meta
+    name="description"
+    content="A timer that reminds, tracks, and inspires you to do 10 squats every 45 minutes while doing seated work."
+  >
+  <meta name="theme-color" content="#141311">
+  <meta name="color-scheme" content="dark">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/brand/portal-mark.svg">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="/pwa-install.js" defer></script>
+  <script src="./app.js" defer></script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#timerTitle">Skip to timer</a>
+
+  <main class="app-shell">
+    <header class="hero">
+      <p class="eyebrow">3DVR / tmsteph wellness tool</p>
+      <h1 id="timerTitle">Squat Timer</h1>
+      <p class="subtitle">Ten squats every 45 minutes. A small hinge that keeps a long seated shift from owning your legs.</p>
+    </header>
+
+    <div class="layout">
+      <section class="timer-card" aria-labelledby="timerState">
+        <div class="ring-wrap">
+          <svg class="ring" viewBox="0 0 220 220" aria-hidden="true">
+            <circle class="ring__track" cx="110" cy="110" r="100"></circle>
+            <circle class="ring__progress" id="ringProgress" cx="110" cy="110" r="100"></circle>
+          </svg>
+          <div class="ring-center">
+            <p class="ring-state" id="timerState">Ready when you are</p>
+            <p class="ring-time" id="timerTime">45:00</p>
+            <p class="ring-next" id="timerNext">until squat time</p>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="button button--primary" id="startPauseButton" type="button">Start</button>
+          <button class="button button--ghost" id="resetButton" type="button">Reset</button>
+          <button class="button button--ghost" id="setNowButton" type="button">Do a set now</button>
+        </div>
+
+        <div class="settings-grid">
+          <label class="field">
+            <span>Every</span>
+            <select id="intervalSelect">
+              <option value="30">30 minutes</option>
+              <option value="45" selected>45 minutes</option>
+              <option value="60">60 minutes</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Squats per set</span>
+            <select id="repsSelect">
+              <option value="5">5 squats</option>
+              <option value="10" selected>10 squats</option>
+              <option value="15">15 squats</option>
+              <option value="20">20 squats</option>
+            </select>
+          </label>
+          <label class="switch-row">
+            <span><strong>Sound</strong><small>A soft chime at squat time.</small></span>
+            <input type="checkbox" id="soundToggle" checked>
+          </label>
+          <label class="switch-row">
+            <span><strong>Vibration</strong><small>Phones only, at squat time.</small></span>
+            <input type="checkbox" id="vibrateToggle" checked>
+          </label>
+          <div class="field field--wide">
+            <span>Notifications</span>
+            <button class="button button--ghost" id="notifyButton" type="button">Enable notifications</button>
+            <small id="notifyStatus">Off. The timer still rings on this screen without them.</small>
+          </div>
+        </div>
+      </section>
+
+      <aside class="side">
+        <section class="squat-panel" id="squatPanel" hidden aria-labelledby="squatTitle">
+          <p class="eyebrow eyebrow--amber">Squat time</p>
+          <h2 id="squatTitle">Stand up. Ten good ones.</h2>
+          <p class="squat-count"><strong id="repCount">0</strong><span id="repTarget">/ 10</span></p>
+          <div class="rep-dots" id="repDots" aria-hidden="true"></div>
+          <button class="button button--count" id="repButton" type="button">Tap for each squat</button>
+          <p class="squat-note" id="squatNote">Chair away, feet flat, hips back. Smooth beats fast.</p>
+          <div class="squat-actions">
+            <button class="button button--primary" id="logButton" type="button">Log set and restart timer</button>
+            <button class="button button--ghost" id="skipButton" type="button">Skip this set</button>
+          </div>
+        </section>
+
+        <section class="stats-card" aria-labelledby="statsTitle">
+          <h2 id="statsTitle">Your count</h2>
+          <div class="stats-grid">
+            <div class="stat"><span>Today</span><strong id="statToday">0 sets</strong><small id="statTodaySquats">0 squats</small></div>
+            <div class="stat"><span>Streak</span><strong id="statStreak">0 days</strong><small>with at least one set</small></div>
+            <div class="stat"><span>All time</span><strong id="statTotal">0 sets</strong><small id="statTotalSquats">0 squats</small></div>
+          </div>
+          <p class="last-done" id="lastDone" hidden></p>
+        </section>
+
+        <figure class="guide-card">
+          <img src="../3dvr-girl/assets/courtyard-warrior.jpg" alt="Your guide in a warrior pose in a sunlit courtyard" loading="lazy">
+          <figcaption>
+            <span>Your corner</span>
+            <blockquote id="quoteText">Strong legs carry long days. Start with ten.</blockquote>
+          </figcaption>
+        </figure>
+      </aside>
+    </div>
+
+    <p class="safety">Move gently and use a chair or desk edge for balance if you need it. Skip a set, or stop, if anything hurts, and never squat through sharp pain, dizziness, or numbness. This is a friendly timer, not medical advice.</p>
+  </main>
+</body>
+</html>

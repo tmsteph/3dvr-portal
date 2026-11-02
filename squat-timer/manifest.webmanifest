@@ -1,0 +1,16 @@
+{
+  "id": "/squat-timer/",
+  "name": "Squat Timer",
+  "short_name": "Squats",
+  "description": "A timer that reminds, tracks, and inspires you to do 10 squats every 45 minutes while doing seated work.",
+  "start_url": "/squat-timer/?source=pwa",
+  "scope": "/squat-timer/",
+  "display": "standalone",
+  "background_color": "#141311",
+  "theme_color": "#141311",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
