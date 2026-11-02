@@ -16,6 +16,22 @@ test('inbound qualification is derived; cannot spoof paid stage or revenue', () 
   assert.equal(normalizeLead({ ...base, budget: 'undecided' }, { inbound: true }).qualified, false);
   assert.throws(() => normalizeLead({ ...base, stage: 'diagnostic-paid' }), /payment reference/);
 });
+test('CRM revenue requires a payment reference in every stage', () => {
+  // A prospect can receive a payment before its pipeline stage is updated,
+  // but an unreferenced amount must never inflate recorded business revenue.
+  assert.throws(() => normalizeLead({ ...base, stage: 'discovered', revenue: 200 }),
+    /payment reference/);
+  assert.throws(() => normalizeLead({ ...base, stage: 'replied', revenue: 50 }),
+    /payment reference/);
+  assert.equal(normalizeLead({ ...base, stage: 'replied', revenue: 200,
+    paymentReference: 'test-receipt-123' }).revenue, 200);
+  assert.equal(normalizeLead({ ...base, stage: 'discovered' }).revenue, 0);
+  // Public inquiry cannot inject revenue or a payment reference.
+  const inbound = normalizeLead({ ...base, revenue: 999,
+    paymentReference: 'forged' }, { inbound: true });
+  assert.equal(inbound.revenue, 0);
+  assert.equal(inbound.paymentReference, '');
+});
 test('CRM rejects impossible follow-up dates while allowing leap days', () => {
   for (const nextDate of ['2026-02-29', '2026-02-30', '2026-04-31', '2026-13-01', '2026-00-10']) {
     assert.throws(() => normalizeLead({ ...base, nextDate }), /valid follow-up date/, nextDate);
