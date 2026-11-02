@@ -31,7 +31,7 @@ function paymentReceiptFor(event = {}) {
   // until a provider-verified currency is available.
   const currencyCode = String(payment.currency || '').trim().toUpperCase();
   const currency = /^[A-Z]{3}$/.test(currencyCode) ? currencyCode : '';
-  const paidAt = String(payment.paid_at || payment.paidAt || payment.created_at || event.created_at || '').trim();
+  // Ledger ingestion and provider object creation are not settlement timestamps.\n  // Keep this field blank unless the provider explicitly supplied paid_at.\n  const paidAt = String(payment.paid_at || payment.paidAt || '').trim();
   const recurringCents = Number(payment.recurring_cents ?? payment.recurringCents ?? payment.plan_amount_cents);
   const hasAmount = Number.isSafeInteger(amountCents) && amountCents > 0;
   const hasRecurring = Number.isSafeInteger(recurringCents) && recurringCents >= 0;
