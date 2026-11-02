@@ -63,11 +63,12 @@ jobs:
       - name: Production dependency security audit
         run: npm audit --omit=dev
 
-  # Test whether the stacked safety branch can be reconciled with today's main
-  # without modifying main, production, or any live queue. A conflict is a
-  # release blocker, not permission to drop either side's protections.
+  # Always test the PR's current merge tree when the release candidate targets
+  # main. This used to be gated on an obsolete stacked branch, silently skipping
+  # the only full main-reconciliation preview. No production or queue access.
+  # A merge conflict is a release blocker, never permission to drop safeguards.
   main-reconciliation-preview:
-    if: github.event_name == 'pull_request' && github.base_ref == 'operator/queue-routing-audit-20261022-v2'
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
