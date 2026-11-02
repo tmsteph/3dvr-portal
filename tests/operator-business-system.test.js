@@ -432,3 +432,25 @@ test('follow-up dates are rejected at the persistence boundary, not only when du
     ...options, nextFollowUpAt: null
   }).metadata.nextFollowUpAt, null);
 });
+
+test('follow-up timestamps require explicit offsets across worker hosts', () => {
+  const ambiguous = '2026-11-02T09:00:00';
+  assert.throws(() => createRevenueLeadWorkItem({
+    id: 'timezone-free-reminder', stage: 'waiting_reply', nextFollowUpAt: ambiguous
+  }), /nextFollowUpAt requires a real ISO timestamp/);
+
+  const lead = createRevenueLeadWorkItem({
+    id: 'offset-reminder', stage: 'waiting_reply',
+    nextFollowUpAt: '2026-11-02T09:00:00-08:00'
+  });
+  assert.equal(revenueStage(advanceRevenueLead(lead, 'follow_up_due', {
+    now: '2026-11-02T17:00:01.000Z'
+  })), 'follow_up');
+  assert.throws(() => advanceRevenueLead(lead, 'follow_up_due', { now: ambiguous }),
+    /existing elapsed follow-up schedule/);
+  assert.throws(() => advanceRevenueLead(lead, 'reply_received', {
+    now: '2026-11-02T17:00:01.000Z',
+    evidence: { type: 'reply', id: 'offset-reply-1' },
+    nextFollowUpAt: ambiguous
+  }), /nextFollowUpAt requires a real ISO timestamp/);
+});
