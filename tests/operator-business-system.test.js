@@ -399,3 +399,32 @@ test('follow-up due rejects impossible calendar dates rather than rolling them f
     now: '2028-02-30T18:00:00.000Z'
   }), /existing elapsed follow-up schedule/);
 });
+
+test('follow-up dates are rejected at the persistence boundary, not only when due', () => {
+  const impossible = '2026-02-30T18:00:00.000Z';
+  for (const bad of [impossible, 'not a timestamp']) {
+    assert.throws(() => createRevenueLeadWorkItem({
+      id: 'invalid-schedule', stage: 'waiting_reply', nextFollowUpAt: bad
+    }), /nextFollowUpAt requires a real ISO timestamp/);
+  }
+
+  const lead = createRevenueLeadWorkItem({
+    id: 'reschedule-check', stage: 'waiting_reply',
+    nextFollowUpAt: '2026-11-01T18:00:00.000Z'
+  });
+  const options = {
+    now: '2026-11-02T18:00:00.000Z',
+    evidence: { type: 'reply', id: 'reply-1' }
+  };
+  assert.throws(() => advanceRevenueLead(lead, 'reply_received', {
+    ...options, nextFollowUpAt: impossible
+  }), /nextFollowUpAt requires a real ISO timestamp/);
+
+  const next = '2026-11-04T18:00:00.000Z';
+  assert.equal(advanceRevenueLead(lead, 'reply_received', {
+    ...options, nextFollowUpAt: next
+  }).metadata.nextFollowUpAt, next);
+  assert.equal(advanceRevenueLead(lead, 'reply_received', {
+    ...options, nextFollowUpAt: null
+  }).metadata.nextFollowUpAt, null);
+});
