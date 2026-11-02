@@ -236,22 +236,19 @@ async function mergePullRequestIfGreen(rootDir, review, pr, options = {}) {
       reason: 'auto-merge requires --wait-checks to verify GitHub CI'
     };
   }
-  let checks = null;
-  {
-    const interval = String(Number(options.checkInterval || 10) || 10);
-    const result = runCommand('gh', ['pr', 'checks', pr.url, '--watch', '--interval', interval], { cwd: rootDir });
-    checks = {
-      waited: true,
-      ok: result.ok,
-      output: commandOutputSummary(result)
+  const interval = String(Number(options.checkInterval || 10) || 10);
+  const result = runCommand('gh', ['pr', 'checks', pr.url, '--watch', '--interval', interval], { cwd: rootDir });
+  const checks = {
+    waited: true,
+    ok: result.ok,
+    output: commandOutputSummary(result)
+  };
+  if (!result.ok) {
+    return {
+      merged: false,
+      reason: 'pull request checks did not pass',
+      checks
     };
-    if (!result.ok) {
-      return {
-        merged: false,
-        reason: 'pull request checks did not pass',
-        checks
-      };
-    }
   }
   gh(rootDir, ['pr', 'merge', pr.url, '--squash', '--delete-branch']);
   return {
@@ -487,6 +484,7 @@ export {
   runReport,
   runPropose,
   runVerification,
+  mergePullRequestIfGreen,
   autonomousBranchName,
   ensureProposalBranch,
   sendOperatorReportEmail,
