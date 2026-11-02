@@ -72,6 +72,16 @@ export function getOutboundDecision({
   return { decision: 'approval', reason: 'Every outbound message requires a human approval checkpoint before sending.' };
 }
 
+// Reject invalid reminder dates at the write boundary, not only when a reminder
+// is later checked. Otherwise an impossible timestamp can silently strand a lead.
+function normalizeFollowUpAt(value) {
+  if (value == null || value === '') return null;
+  if (!Number.isFinite(parseRealIsoInstant(value))) {
+    throw new TypeError('nextFollowUpAt requires a real ISO timestamp');
+  }
+  return value;
+}
+
 export function createRevenueLeadWorkItem(input = {}) {
   const leadName = typeof input.leadName === 'string' ? input.leadName.trim() : '';
   const title = input.title || `Revenue opportunity${leadName ? ` · ${leadName}` : ''}`;
@@ -101,7 +111,7 @@ export function createRevenueLeadWorkItem(input = {}) {
       leadName: leadName || null,
       relationship: normalizeRelationship(input.relationship),
       campaign: input.campaign || null,
-      nextFollowUpAt: input.nextFollowUpAt || null
+      nextFollowUpAt: normalizeFollowUpAt(input.nextFollowUpAt)
     }
   });
 }
@@ -217,7 +227,7 @@ export function advanceRevenueLead(item, event, options = {}) {
       // Once a follow-up is sent or a reply arrives, the old reminder is
       // consumed. A new reminder must be explicitly scheduled.
       nextFollowUpAt: Object.prototype.hasOwnProperty.call(options, 'nextFollowUpAt')
-        ? options.nextFollowUpAt
+        ? normalizeFollowUpAt(options.nextFollowUpAt)
         : (['follow_up_sent', 'reply_received', 'closed_lost', 'payment_received'].includes(event)
           ? null : item.metadata?.nextFollowUpAt ?? null),
       lastTransitionAt: options.now || new Date().toISOString()
