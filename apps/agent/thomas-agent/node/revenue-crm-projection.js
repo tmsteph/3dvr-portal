@@ -37,7 +37,14 @@ function paymentReceiptFor(event = {}) {
   // A provider-supplied field is not necessarily a valid settlement time.
   // Require an explicit timezone and a parseable ISO timestamp; never show
   // arbitrary text or a locale-dependent date as verified payment evidence.
-  const paidAt = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.test(rawPaidAt)
+  const paidAtMatch = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.exec(rawPaidAt);
+  // Date.parse normalizes impossible dates (e.g. February 30) into March.
+  // Validate the literal provider calendar date and clock before displaying it.
+  const [year, month, day, hour, minute, second] = (paidAtMatch || []).slice(1).map(Number);
+  const calendarDay = paidAtMatch && new Date(Date.UTC(year, month - 1, day));
+  const paidAt = paidAtMatch && calendarDay.getUTCFullYear() === year
+    && calendarDay.getUTCMonth() + 1 === month && calendarDay.getUTCDate() === day
+    && hour <= 23 && minute <= 59 && second <= 59
     && Number.isFinite(Date.parse(rawPaidAt)) ? rawPaidAt : '';
   const recurringCents = Number(payment.recurring_cents ?? payment.recurringCents ?? payment.plan_amount_cents);
   const hasAmount = Number.isSafeInteger(amountCents) && amountCents > 0;
