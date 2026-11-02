@@ -54,7 +54,10 @@ const results = [
   check({ name: 'Helm origin with matching local Gun credential',
     initialStorage: { alias: 'synthetic-user', password: 'synthetic-local-only' }, expectSignedIn: true }),
   check({ name: 'Helm origin with different local Gun alias',
-    initialStorage: { alias: 'different-user', password: 'synthetic-local-only' }, expectSignedIn: false })
+    initialStorage: { alias: 'different-user', password: 'synthetic-local-only' }, expectSignedIn: false }),
+  // A password marker alone is not evidence that this origin has credentials for the shared identity.
+  check({ name: 'Helm origin with local password marker but no matching alias',
+    initialStorage: { password: 'synthetic-local-only' }, expectSignedIn: false })
 ];
 for (const result of results) console.log(JSON.stringify(result));
 const failures = results.filter(result => !result.pass).length;
