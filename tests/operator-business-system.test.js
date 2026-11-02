@@ -382,9 +382,13 @@ test('follow-up due rejects impossible calendar dates rather than rolling them f
     '2025-02-29T18:00:00.000Z',
     '2026-02-30T18:00:00-08:00'
   ]) {
-    const lead = createRevenueLeadWorkItem({
-      id: 'bad-calendar-date', stage: 'waiting_reply', nextFollowUpAt: impossible
+    // Simulate a legacy imported row: new writes reject this timestamp, but
+    // an already-persisted malformed schedule must still fail closed at due time.
+    const valid = createRevenueLeadWorkItem({
+      id: 'bad-calendar-date', stage: 'waiting_reply',
+      nextFollowUpAt: '2026-03-01T18:00:00.000Z'
     });
+    const lead = { ...valid, metadata: { ...valid.metadata, nextFollowUpAt: impossible } };
     assert.throws(() => advanceRevenueLead(lead, 'follow_up_due', { now }),
       /existing elapsed follow-up schedule/, impossible);
   }
