@@ -33,7 +33,12 @@ function paymentReceiptFor(event = {}) {
   const currency = /^[A-Z]{3}$/.test(currencyCode) ? currencyCode : '';
   // Ledger ingestion and provider object creation are not settlement timestamps.
   // Keep this field blank unless the provider explicitly supplied paid_at.
-  const paidAt = String(payment.paid_at || payment.paidAt || '').trim();
+  const rawPaidAt = String(payment.paid_at ?? payment.paidAt ?? '').trim();
+  // A provider-supplied field is not necessarily a valid settlement time.
+  // Require an explicit timezone and a parseable ISO timestamp; never show
+  // arbitrary text or a locale-dependent date as verified payment evidence.
+  const paidAt = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.test(rawPaidAt)
+    && Number.isFinite(Date.parse(rawPaidAt)) ? rawPaidAt : '';
   const recurringCents = Number(payment.recurring_cents ?? payment.recurringCents ?? payment.plan_amount_cents);
   const hasAmount = Number.isSafeInteger(amountCents) && amountCents > 0;
   const hasRecurring = Number.isSafeInteger(recurringCents) && recurringCents >= 0;
