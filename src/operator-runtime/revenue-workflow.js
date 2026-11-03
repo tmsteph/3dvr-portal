@@ -44,6 +44,8 @@ export function getOutboundDecision({
   sensitiveAction = false,
   campaignAllowed = true
 } = {}) {
+  // Never authorize an external send from lead classification or business hours alone.
+  // A separate send adapter must verify a recorded, message-specific human approval.
   if (sensitiveAction) {
     return { decision: 'approval', reason: 'Sensitive actions require a human checkpoint.' };
   }
@@ -65,7 +67,7 @@ export function getOutboundDecision({
     return { decision: 'defer', reason: 'Fresh-lead email should wait for the 08:00–18:00 local business window.' };
   }
 
-  return { decision: 'auto', reason: 'Fresh direct-email lead is inside the approved business window.' };
+  return { decision: 'approval', reason: 'Fresh direct-email outreach requires recorded human approval before sending.' };
 }
 
 export function createRevenueLeadWorkItem(input = {}) {
