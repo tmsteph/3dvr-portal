@@ -156,6 +156,9 @@ function parseRealIsoInstant(value) {
   // Without an explicit offset, Date.parse uses the worker host's timezone.
   // A reminder must represent the same instant on OVH, DO and every client.
   if (!/(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return NaN;
+  // Date.parse accepts 24:00 and rolls it into the next calendar day.
+  // Reject that rollover so a reminder cannot be silently rescheduled.
+  if (/T24:/.test(value)) return NaN;
   const parts = /^(\d{4})-(\d{2})-(\d{2})T/.exec(value);
   if (!parts) return NaN;
   const year = Number(parts[1]);
