@@ -104,6 +104,7 @@
             <div class="stat"><span>All time</span><strong id="statTotal">0 sets</strong><small id="statTotalSquats">0 squats</small></div>
           </div>
           <p class="last-done" id="lastDone" hidden></p>
+          <p class="last-done" id="syncStatus">Saved on this device.</p>
         </section>
 
         <figure class="guide-card">
@@ -118,5 +119,10 @@
 
     <p class="safety">Move gently and use a chair or desk edge for balance if you need it. Skip a set, or stop, if anything hurts, and never squat through sharp pain, dizziness, or numbness. This is a friendly timer, not medical advice.</p>
   </main>
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="../gun-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script src="../auth-identity.js"></script>
+  <script type="module" src="./sync.js"></script>
 </body>
 </html>
