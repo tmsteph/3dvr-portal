@@ -24,9 +24,11 @@ db.exec('PRAGMA busy_timeout=5000');
 try {
   db.exec('BEGIN IMMEDIATE');
   const owner = '3dvr-managed';
-  let row = db.prepare('SELECT status,record_json FROM tasks WHERE owner_alias=? AND id=?').get(owner,input.id);
+  let row = db.prepare('SELECT status,record_json,source FROM tasks WHERE owner_alias=? AND id=?').get(owner,input.id);
+  // Never acknowledge or reveal a prefix-spoofed legacy row as a signed task.
+  if (row && row.source !== 'operator-http') throw Error('Task source conflict');
   if (input.action === 'enqueue') {
-    if (row && JSON.parse(row.record_json).task !== input.record.task) throw Error('Task identity conflict');
+    if (row && (JSON.parse(row.record_json).task !== input.record.task || JSON.parse(row.record_json).title !== input.record.title)) throw Error('Task identity conflict');
     if (!row) {
       const count = db.prepare("SELECT count(*) AS n FROM tasks WHERE owner_alias=? AND id LIKE ? AND status IN ('queued','running')").get(owner,input.prefix+'%').n;
       if (count >= 5) throw Error('Five tasks are already pending; wait for a result');

@@ -66,7 +66,7 @@ test('actual SQLite transport is idempotent and preserves historical and running
   const historical={id:'old-task',task:'historical do not replay',unsafe:true};
   insert.run('3dvr-managed',historical.id,'queued','old',JSON.stringify(historical),'sqlite');
   const script=REMOTE_QUEUE_SCRIPT.replace(/if \[ -f .*?fi\n/,'').replace('cd "$HOME/.3dvr/portal/apps/agent"',`cd '${dir}'`).replace('/opt/node-v22/bin/node',process.execPath);
-  const record={id:'operator-http-test-task-123',task:'synthetic only',status:'queued',updatedAt:new Date().toISOString()};
+  const record={id:'operator-http-test-task-123',task:'synthetic only',title:'Original',status:'queued',updatedAt:new Date().toISOString()};
   const invoke=input => spawnSync('bash',['-s','--',Buffer.from(JSON.stringify(input)).toString('base64url')],{input:script,encoding:'utf8',env:{...process.env,THREEDVR_AGENT_QUEUE_STORE:'sqlite',THREEDVR_AGENT_OWNER_ALIAS:'3dvr-managed',THREEDVR_AGENT_WORKER_CAPABILITIES:'codex,node',THREEDVR_AGENT_QUEUE_DB:dbPath}});
   try {
     const input={action:'enqueue',id:record.id,prefix:'operator-http-test-',record};
@@ -78,6 +78,15 @@ test('actual SQLite transport is idempotent and preserves historical and running
     assert.equal(db.prepare('SELECT count(*) n FROM tasks').get().n,2);
     assert.equal(db.prepare('SELECT record_json FROM tasks WHERE id=?').get('old-task').record_json,JSON.stringify(historical));
     assert.notEqual(invoke({...input,record:{...record,task:'conflicting'}}).status,0);
+    assert.notEqual(invoke({...input,record:{...record,title:'Changed title'}}).status,0);
+    // A legacy record with a forged HTTP-style ID must not be acknowledged,
+    // exposed through status, or silently upgraded to signed provenance.
+    const spoof={...record,id:'operator-http-test-spoof-123',resultText:'legacy private content'};
+    insert.run('3dvr-managed',spoof.id,'completed','old',JSON.stringify(spoof),'sqlite');
+    const spoofInput={...input,id:spoof.id,record:spoof};
+    assert.notEqual(invoke(spoofInput).status,0);
+    assert.notEqual(invoke({action:'status',id:spoof.id,prefix:input.prefix}).status,0);
+    assert.equal(db.prepare('SELECT source FROM tasks WHERE id=?').get(spoof.id).source,'sqlite');
     const fullText = 'complete output '.repeat(500);
     db.prepare('UPDATE tasks SET status=?,record_json=? WHERE id=?').run('completed', JSON.stringify({
       ...record, resultSummary: fullText.slice(0,2000), resultText: fullText,
