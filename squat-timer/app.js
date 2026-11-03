@@ -344,8 +344,15 @@ function applySettings() {
   saveJson(SETTINGS_KEY, settings);
   touchMeta('settingsAt');
   if (!running && !inSet) {
-    totalMs = intervalMs();
-    remainingMs = totalMs;
+    const nextTotal = intervalMs();
+    if (remainingMs >= totalMs) {
+      totalMs = nextTotal;
+      remainingMs = nextTotal;
+    } else {
+      // Mid-pause: keep the remaining time, clamped to the new interval.
+      totalMs = nextTotal;
+      remainingMs = Math.min(remainingMs, nextTotal);
+    }
   }
   saveSession();
   render();
@@ -396,7 +403,10 @@ function reloadFromStorage() {
   els.reps.value = String(settings.reps);
   els.sound.checked = settings.sound;
   els.vibrate.checked = settings.vibrate;
-  if (!running && !inSet) {
+  if (!running && !inSet && remainingMs >= totalMs) {
+    // Only a timer sitting at a full interval adopts reloaded settings as
+    // a fresh countdown. A paused timer keeps its remaining time: a sync
+    // landing mid-pause must never reset the countdown.
     totalMs = intervalMs();
     remainingMs = totalMs;
   }

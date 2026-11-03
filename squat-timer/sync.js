@@ -9,6 +9,8 @@
 const SETTINGS_KEY = 'squatTimer.settings.v1';
 const STATS_KEY = 'squatTimer.stats.v1';
 const META_KEY = 'squatTimer.meta.v1';
+const OWNER_KEY = 'squatTimer.owner.v1';
+const SESSION_KEY = 'squatTimer.session.v1';
 const ACCOUNT_NODE = 'squat-timer-v1';
 
 const DEFAULT_SETTINGS = { intervalMin: 45, reps: 10, sound: true, vibrate: true };
@@ -191,6 +193,42 @@ export async function createSquatTimerSync({ windowObj = window } = {}) {
       return { available: false, syncNow: async () => false };
     }
 
+    // The local cache belongs to exactly one account. If a different
+    // account used this browser before, archive that account's local
+    // payload under its own key and start this account from a clean slate,
+    // so one account's history and settings never merge into another's.
+    const ownerPub = user.is.pub;
+    let storedOwner = null;
+    try {
+      storedOwner = storage.getItem(OWNER_KEY);
+    } catch {
+      storedOwner = null;
+    }
+    if (storedOwner && storedOwner !== ownerPub) {
+      try {
+        storage.setItem(`squatTimer.archive.v1.${storedOwner}`, JSON.stringify(readLocalPayload(storage)));
+      } catch {
+        // The archive is best effort; the partition itself is what matters.
+      }
+      writeLocalPayload(storage, {
+        settings: normalizeSettings(DEFAULT_SETTINGS),
+        stats: normalizeStats(EMPTY_STATS),
+        settingsAt: null,
+        statsAt: null
+      });
+      try {
+        storage.removeItem(SESSION_KEY);
+      } catch {
+        // No stored session to clear.
+      }
+      windowObj.SquatTimer?.reloadFromStorage?.();
+    }
+    try {
+      storage.setItem(OWNER_KEY, ownerPub);
+    } catch {
+      // Storage full or blocked: sync still works, the partition is retried next load.
+    }
+
     const node = user.get(ACCOUNT_NODE).get('state');
 
     const readRemote = async () => {
@@ -217,11 +255,18 @@ export async function createSquatTimerSync({ windowObj = window } = {}) {
       });
     };
 
-    const syncNow = async () => {
+    const runSync = async () => {
       const local = readLocalPayload(storage);
       const remote = await readRemote();
-      const merged = remote ? mergeSquatPayload(local, remote) : local;
-      if (!payloadsEqual(merged, local)) {
+      let merged = remote ? mergeSquatPayload(local, remote) : local;
+      // A set can be logged while the remote read is in flight. Re-read the
+      // local payload before writing anything back and merge once more, so
+      // fresh work is never clobbered by a snapshot taken before it happened.
+      const fresh = readLocalPayload(storage);
+      if (!payloadsEqual(fresh, local)) {
+        merged = mergeSquatPayload(fresh, merged);
+      }
+      if (!payloadsEqual(merged, fresh)) {
         writeLocalPayload(storage, merged);
         windowObj.SquatTimer?.reloadFromStorage?.();
       }
@@ -229,6 +274,16 @@ export async function createSquatTimerSync({ windowObj = window } = {}) {
         return pushPayload(merged);
       }
       return true;
+    };
+
+    let syncInFlight = null;
+    const syncNow = () => {
+      if (!syncInFlight) {
+        syncInFlight = runSync().finally(() => {
+          syncInFlight = null;
+        });
+      }
+      return syncInFlight;
     };
 
     await syncNow();
@@ -245,18 +300,44 @@ async function boot() {
   if (!runtime.available) return;
   let lastSettings = localStorage.getItem(SETTINGS_KEY) || '';
   let lastStats = localStorage.getItem(STATS_KEY) || '';
+  let lastRemotePoll = Date.now();
+
+  const attemptSync = async () => {
+    let ok = false;
+    try {
+      ok = await runtime.syncNow();
+    } catch {
+      ok = false;
+    }
+    if (ok) {
+      // Advance the markers only once the account copy is confirmed in
+      // sync, so a failed upload is retried on a later pass instead of
+      // being silently dropped.
+      lastSettings = localStorage.getItem(SETTINGS_KEY) || '';
+      lastStats = localStorage.getItem(STATS_KEY) || '';
+      lastRemotePoll = Date.now();
+    }
+    return ok;
+  };
+
   window.setInterval(async () => {
     const currentSettings = localStorage.getItem(SETTINGS_KEY) || '';
     const currentStats = localStorage.getItem(STATS_KEY) || '';
-    if (currentSettings === lastSettings && currentStats === lastStats) return;
-    lastSettings = currentSettings;
-    lastStats = currentStats;
-    try {
-      await runtime.syncNow();
-    } catch {
-      // Local storage remains the source of truth until sync is back.
+    if (currentSettings !== lastSettings || currentStats !== lastStats) {
+      await attemptSync();
+      return;
+    }
+    // Nothing changed on this device. Still check the account copy every
+    // so often, so sets logged on another device arrive here without
+    // needing a local change or a reload first.
+    if (Date.now() - lastRemotePoll >= 30000) {
+      await attemptSync();
     }
   }, 2500);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') void attemptSync();
+  });
 }
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
