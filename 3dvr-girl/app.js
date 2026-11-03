@@ -214,6 +214,15 @@ const scenes = [
     image: 'assets/intimacy-machine-vest.webp',
     alt: 'Concept render of a black padded torso-form intimacy device with purple and blue accents',
     copy: 'A hardware concept from the workshop: a portable padded torso form with modular attachments, in black with blue and purple accents.'
+  },
+  {
+    id: 'forest-spirit',
+    title: 'Forest spirit',
+    mode: 'Forest',
+    collection: 'forest',
+    image: 'assets/forest-spirit.webp',
+    alt: '3DVR Girl in a blue linen top wearing a crown of small antlers and blue flowers in a sunlit forest',
+    copy: 'A wilder portrait: antlers, forget-me-nots, and forest light. The spirit of the woods chapter.'
   }
 ];
 
