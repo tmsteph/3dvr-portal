@@ -92,8 +92,8 @@ test('worker registry refuses only explicitly blocked kernel-policy work', () =>
   assert.deepEqual(findEligibleWorkers([worker], blocked), []);
 });
 
-test('fresh email can run in business hours while known or late sends pause', () => {
-  assert.equal(getOutboundDecision({ relationship: 'fresh', channel: 'email', localHour: 10 }).decision, 'auto');
+test('fresh email requires human approval even in business hours; policy defers disallowed windows', () => {
+  assert.equal(getOutboundDecision({ relationship: 'fresh', channel: 'email', localHour: 10 }).decision, 'approval');
   assert.equal(getOutboundDecision({ relationship: 'fresh', channel: 'email', localHour: 22 }).decision, 'defer');
   assert.equal(getOutboundDecision({ relationship: 'known', channel: 'email', localHour: 10 }).decision, 'approval');
   assert.equal(getOutboundDecision({ relationship: 'unknown', channel: 'email', localHour: 10 }).decision, 'approval');
