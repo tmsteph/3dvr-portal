@@ -294,6 +294,19 @@
     </section>
   </main>
 
+  <dialog class="gallery-dialog" id="galleryDialog" aria-label="Full-screen photo viewer">
+    <button class="gallery-dialog__close" id="galleryClose" type="button" aria-label="Close photo">×</button>
+    <button class="gallery-dialog__nav gallery-dialog__nav--prev" id="galleryPrev" type="button" aria-label="Previous photo">‹</button>
+    <figure class="gallery-dialog__figure">
+      <img id="galleryImage" alt="">
+      <figcaption class="gallery-dialog__caption">
+        <span id="galleryCounter"></span>
+        <strong id="galleryCaption"></strong>
+      </figcaption>
+    </figure>
+    <button class="gallery-dialog__nav gallery-dialog__nav--next" id="galleryNext" type="button" aria-label="Next photo">›</button>
+  </dialog>
+
   <dialog class="scene-dialog" id="sceneDialog" aria-labelledby="dialogTitle">
     <button class="scene-dialog__close" id="dialogClose" type="button" aria-label="Close scene">×</button>
     <div class="scene-dialog__media"><img id="dialogImage" alt=""></div>
