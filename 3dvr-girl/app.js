@@ -196,6 +196,24 @@ const scenes = [
     image: 'assets/blue-portal-stance.jpg',
     alt: '3DVR Girl standing in a bright blue portal',
     copy: 'The highest-tech frame in the archive, kept as a contrast to the more grounded scenes.'
+  },
+  {
+    id: 'garden-portrait-sfw',
+    title: 'Garden portrait',
+    mode: 'Sun',
+    collection: 'sun',
+    image: 'assets/garden-portrait-sfw.webp',
+    alt: '3DVR Girl with a blonde bun and blue streaks smiling in a coastal garden',
+    copy: 'A fresh portrait in the current look: freckles, turquoise, cream linen, and golden light.'
+  },
+  {
+    id: 'intimacy-machine-vest',
+    title: 'Intimacy Machine, concept',
+    mode: 'Portal',
+    collection: 'portal',
+    image: 'assets/intimacy-machine-vest.webp',
+    alt: 'Concept render of a black padded torso-form intimacy device with purple and blue accents',
+    copy: 'A hardware concept from the workshop: a portable padded torso form with modular attachments, in black with blue and purple accents.'
   }
 ];
 
@@ -247,6 +265,20 @@ function createArchiveCard(scene) {
 }
 
 function openScene(scene) {
+  if (window.PortalViewer) {
+    const visible = scenes.filter(item => {
+      const card = archiveGrid?.querySelector(`[data-scene-id="${item.id}"]`);
+      return !card || !card.hidden;
+    });
+    const list = visible.length ? visible : scenes;
+    window.PortalViewer.open(list.map(item => ({
+      src: item.image,
+      alt: item.alt,
+      label: `${item.mode} \u00b7 ${item.title}`,
+      copy: item.copy
+    })), Math.max(0, list.indexOf(scene)));
+    return;
+  }
   if (!sceneDialog || !dialogImage) return;
   dialogImage.src = scene.image;
   dialogImage.alt = scene.alt;
