@@ -1,8 +1,8 @@
 {
-  "localDate": "2026-11-02",
+  "localDate": "2026-11-03",
   "timezone": "America/Los_Angeles",
   "lighthouse": {
-    "checkedAt": "2026-11-02T16:54:12.483Z",
+    "checkedAt": "2026-11-03T16:24:26.253Z",
     "source": "authenticated OVH general CDP 9222 Lighthouse week API",
     "weeksChecked": [
       "2026-11-02",
@@ -14,26 +14,19 @@
     ]
   },
   "iatse": {
-    "checkedAt": "2026-11-02T16:55:04.940Z",
+    "checkedAt": "2026-11-03T16:26:25.011Z",
     "outcome": "noop",
     "changedDates": [],
     "deferredDates": [],
     "renderedWindow": {
-      "start": "2026-11-01",
-      "end": "2026-12-03"
+      "start": "2026-11-02",
+      "end": "2026-12-04"
     },
     "mismatches": [],
     "persistedAfterReload": true,
-    "desiredDatesChecked": 24,
-    "unmodifiedUnspecifiedDates": [
-      "2026-11-26",
-      "2026-11-27",
-      "2026-11-28",
-      "2026-11-29",
-      "2026-11-30",
-      "2026-12-01",
-      "2026-12-02"
-    ]
+    "desiredDatesChecked": 15,
+    "unmodifiedUnspecifiedDates": [],
+    "note": "Nov 6-7 initially normalized from Not Available to Booked; original Not Available restored and verified; final net no-op."
   },
   "verification": {
     "sourceWeeksHttp200": true,
@@ -43,6 +36,6 @@
   },
   "execution": {
     "path": "OVH canonical general browser lane CDP 9222; Desktop Commander control path",
-    "authenticationRecovery": "SharePoint-first Lighthouse broker; initial external SSO challenge recovered on retry; authenticated week API confirmed"
+    "authenticationRecovery": "Managed general lane restarted using existing persistent profile after CDP timeout"
   }
 }
