@@ -474,3 +474,26 @@ test('follow-up timestamps require explicit offsets across worker hosts', () => 
     nextFollowUpAt: ambiguous
   }), /nextFollowUpAt requires a real ISO timestamp/);
 });
+
+test('follow-up reminders reject 24:00 clock rollover on writes and due checks', () => {
+  const valid = createRevenueLeadWorkItem({
+    id: 'midnight-follow-up', stage: 'waiting_reply',
+    nextFollowUpAt: '2026-11-03T00:00:00.000Z'
+  });
+  for (const rollover of ['2026-11-02T24:00:00Z', '2026-11-02T24:00:00.000-08:00']) {
+    // Node Date.parse accepts 24:00 and moves the clock to the next day.
+    assert.ok(Number.isFinite(Date.parse(rollover)));
+    assert.throws(() => createRevenueLeadWorkItem({
+      id: 'rollover-write', stage: 'waiting_reply', nextFollowUpAt: rollover
+    }), /nextFollowUpAt requires a real ISO timestamp/);
+    const imported = { ...valid, metadata: { ...valid.metadata, nextFollowUpAt: rollover } };
+    assert.throws(() => advanceRevenueLead(imported, 'follow_up_due', {
+      now: '2026-11-04T00:00:00.000Z'
+    }), /existing elapsed follow-up schedule/);
+    assert.throws(() => advanceRevenueLead(valid, 'follow_up_due', { now: rollover }),
+      /existing elapsed follow-up schedule/);
+  }
+  assert.equal(revenueStage(advanceRevenueLead(valid, 'follow_up_due', {
+    now: '2026-11-03T00:00:01.000Z'
+  })), 'follow_up');
+});
