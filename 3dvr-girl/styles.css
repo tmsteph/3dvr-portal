@@ -1167,3 +1167,34 @@ button {
 
 .gallery-dialog__nav--prev { left: 2px; }
 .gallery-dialog__nav--next { right: 2px; }
+
+/* Gallery v2: After Dark filters, zoomable viewer, item copy. */
+.after-dark__filters {
+  margin: 0 0 18px;
+}
+.after-dark__filters[hidden],
+.private-card[hidden] {
+  display: none;
+}
+.gallery-dialog__copy {
+  margin: 2px auto 0;
+  max-width: 56ch;
+  text-align: center;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  opacity: 0.85;
+}
+.gallery-dialog__copy[hidden] {
+  display: none;
+}
+.gallery-dialog__figure img {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.gallery-dialog.is-zoomed .gallery-dialog__figure img {
+  cursor: grab;
+}
+.gallery-dialog.is-zoomed .gallery-dialog__figure img:active {
+  cursor: grabbing;
+}
