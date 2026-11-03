@@ -21,6 +21,7 @@
       <a href="#carousel">Carousel</a>
       <a href="#woods">Woods</a>
       <a href="#archive">Archive</a>
+      <a href="#after-dark">After dark</a>
       <a href="../characters/">Characters</a>
       <a class="topbar__portal" href="../index.html">Portal ↗</a>
     </nav>
@@ -198,6 +199,71 @@
       <div class="filters" id="sceneFilters" aria-label="Filter scene archive"></div>
       <div class="archive-grid" id="archiveGrid"></div>
     </section>
+
+    <section class="after-dark section" id="after-dark" aria-labelledby="afterDarkTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Private gallery</p>
+          <h2 id="afterDarkTitle">After dark.</h2>
+        </div>
+        <p>The unfiltered set, made on our own rig. Her, and the rest of the cast, when the public archive is not watching.</p>
+      </div>
+      <div class="after-dark__lock" id="afterDarkLock">
+        <p><strong>This part of her world is private.</strong></p>
+        <p>Sign in to your 3DVR account and the gallery opens. No account, no peeking.</p>
+        <a class="button" href="../index.html">Sign in at the Portal</a>
+      </div>
+      <div class="archive-grid after-dark__grid" id="afterDarkGrid" hidden>
+        <figure class="private-card">
+          <a href="assets/after-dark/blonde-courtyard.webp" target="_blank" rel="noopener"><img src="assets/after-dark/blonde-courtyard.webp" alt="3DVR Girl nude in a bougainvillea courtyard, arms open" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>Warrior, after hours</strong></figcaption>
+        </figure>
+        <figure class="private-card">
+          <a href="assets/after-dark/blonde-lavender.webp" target="_blank" rel="noopener"><img src="assets/after-dark/blonde-lavender.webp" alt="3DVR Girl nude, seated among lavender pots, smiling" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>Lavender steps</strong></figcaption>
+        </figure>
+        <figure class="private-card">
+          <a href="assets/after-dark/blonde-cliff-terrace.webp" target="_blank" rel="noopener"><img src="assets/after-dark/blonde-cliff-terrace.webp" alt="3DVR Girl on a cliff terrace above the ocean at golden hour" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>Cliff terrace</strong></figcaption>
+        </figure>
+        <figure class="private-card">
+          <a href="assets/after-dark/blonde-linen.webp" target="_blank" rel="noopener"><img src="assets/after-dark/blonde-linen.webp" alt="3DVR Girl reclining nude on linen, eyes closed" loading="lazy"></a>
+          <figcaption><span>3DVR Girl</span><strong>Linen, lost in it</strong></figcaption>
+        </figure>
+        <figure class="private-card">
+          <a href="assets/after-dark/brunette-jasmine.webp" target="_blank" rel="noopener"><img src="assets/after-dark/brunette-jasmine.webp" alt="The garden muse nude among jasmine on coastal cliffs" loading="lazy"></a>
+          <figcaption><span>The garden muse</span><strong>Jasmine cliffs</strong></figcaption>
+        </figure>
+        <figure class="private-card">
+          <a href="assets/after-dark/brunette-hammock.webp" target="_blank" rel="noopener"><img src="assets/after-dark/brunette-hammock.webp" alt="The garden muse reclining nude in a hammock above the cliffs" loading="lazy"></a>
+          <figcaption><span>The garden muse</span><strong>Hammock hour</strong></figcaption>
+        </figure>
+        <figure class="private-card">
+          <a href="assets/after-dark/asian-portrait.webp" target="_blank" rel="noopener"><img src="assets/after-dark/asian-portrait.webp" alt="The Explorer in golden light on the coast" loading="lazy"></a>
+          <figcaption><span>The Explorer</span><strong>Golden hour study</strong></figcaption>
+        </figure>
+        <figure class="private-card">
+          <a href="assets/after-dark/asian-cliffs.webp" target="_blank" rel="noopener"><img src="assets/after-dark/asian-cliffs.webp" alt="The Explorer nude on coastal cliffs at sunset" loading="lazy"></a>
+          <figcaption><span>The Explorer</span><strong>Cliff light</strong></figcaption>
+        </figure>
+        <figure class="private-card">
+          <a href="assets/after-dark/kayla-forest-1.webp" target="_blank" rel="noopener"><img src="assets/after-dark/kayla-forest-1.webp" alt="Kayla nude in a sunlit forest clearing" loading="lazy"></a>
+          <figcaption><span>Kayla</span><strong>Forest clearing</strong></figcaption>
+        </figure>
+        <figure class="private-card">
+          <a href="assets/after-dark/kayla-forest-2.webp" target="_blank" rel="noopener"><img src="assets/after-dark/kayla-forest-2.webp" alt="Kayla nude in tall grass at the edge of the woods" loading="lazy"></a>
+          <figcaption><span>Kayla</span><strong>Edge of the woods</strong></figcaption>
+        </figure>
+        <figure class="private-card">
+          <a href="assets/after-dark/muse-window.webp" target="_blank" rel="noopener"><img src="assets/after-dark/muse-window.webp" alt="Muse nude by a window with books and plants" loading="lazy"></a>
+          <figcaption><span>Muse</span><strong>By the window</strong></figcaption>
+        </figure>
+        <figure class="private-card">
+          <a href="assets/after-dark/muse-desk.webp" target="_blank" rel="noopener"><img src="assets/after-dark/muse-desk.webp" alt="Muse nude at a desk with an open book, daydreaming" loading="lazy"></a>
+          <figcaption><span>Muse</span><strong>Daydream at the desk</strong></figcaption>
+        </figure>
+      </div>
+    </section>
   </main>
 
   <dialog class="scene-dialog" id="sceneDialog" aria-labelledby="dialogTitle">
@@ -216,6 +282,8 @@
   </footer>
 
   <script src="app.js"></script>
+  <script src="../auth-identity.js"></script>
+  <script src="gallery.js"></script>
   <script defer src="/issue-launcher.js"></script>
 </body>
 </html>
