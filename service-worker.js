@@ -37,6 +37,7 @@ const STATIC_ASSETS = [
   '/squat-timer/index.html',
   '/squat-timer/styles.css',
   '/squat-timer/app.js',
+  '/squat-timer/sync.js',
   '/squat-timer/manifest.webmanifest',
   '/brand/portal-logo.svg',
   '/brand/portal-mark.svg',

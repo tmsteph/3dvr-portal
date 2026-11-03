@@ -1,5 +1,7 @@
 const SETTINGS_KEY = 'squatTimer.settings.v1';
 const STATS_KEY = 'squatTimer.stats.v1';
+const SESSION_KEY = 'squatTimer.session.v1';
+const META_KEY = 'squatTimer.meta.v1';
 const RING_CIRCUMFERENCE = 628.3;
 
 const QUOTES = [
@@ -72,6 +74,12 @@ function saveJson(key, value) {
 
 const settings = loadJson(SETTINGS_KEY, { intervalMin: 45, reps: 10, sound: true, vibrate: true });
 const stats = loadJson(STATS_KEY, { days: {}, totalSets: 0, totalSquats: 0, lastSetAt: null });
+const meta = loadJson(META_KEY, { settingsAt: null, statsAt: null });
+
+function touchMeta(field) {
+  meta[field] = new Date().toISOString();
+  saveJson(META_KEY, meta);
+}
 
 let totalMs = intervalMs();
 let remainingMs = totalMs;
@@ -82,6 +90,28 @@ let inSet = false;
 let currentReps = 0;
 let wakeLock = null;
 let audioContext = null;
+
+function saveSession() {
+  saveJson(SESSION_KEY, {
+    totalMs,
+    remainingMs: running && endAt ? Math.max(0, endAt - Date.now()) : remainingMs,
+    endAt: running ? endAt : null,
+    running,
+    inSet,
+    currentReps,
+    savedAt: new Date().toISOString()
+  });
+}
+
+function loadSession() {
+  if (fastMode) return null;
+  try {
+    const raw = window.localStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
 function intervalMs() {
   return fastMode ? 10 * 1000 : settings.intervalMin * 60 * 1000;
@@ -139,14 +169,20 @@ function startTicking() {
   running = true;
   tickId = window.setInterval(tick, 200);
   requestWakeLock();
+  saveSession();
   render();
 }
 
 function stopTicking() {
+  if (running && endAt) {
+    remainingMs = Math.max(0, endAt - Date.now());
+  }
   running = false;
+  endAt = null;
   if (tickId) window.clearInterval(tickId);
   tickId = null;
   releaseWakeLock();
+  saveSession();
   render();
 }
 
@@ -259,9 +295,9 @@ function renderReps() {
   }
 }
 
-function startSet() {
+function startSet(options = {}) {
   inSet = true;
-  currentReps = 0;
+  if (!options.keepReps) currentReps = 0;
   els.panel.hidden = false;
   els.squatTitle.textContent = `Stand up. ${settings.reps === 10 ? 'Ten' : settings.reps} good ones.`;
   els.squatNote.textContent = 'Chair away, feet flat, hips back. Smooth beats fast.';
@@ -269,8 +305,11 @@ function startSet() {
   pickQuote();
   renderReps();
   render();
-  chime();
-  buzz();
+  saveSession();
+  if (!options.silent) {
+    chime();
+    buzz();
+  }
   notify();
   els.panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -286,9 +325,11 @@ function endSet(logIt) {
     stats.totalSquats += currentReps;
     stats.lastSetAt = new Date().toISOString();
     saveJson(STATS_KEY, stats);
+    touchMeta('statsAt');
     renderStats();
   }
   inSet = false;
+  currentReps = 0;
   els.panel.hidden = true;
   totalMs = intervalMs();
   remainingMs = totalMs;
@@ -301,10 +342,75 @@ function applySettings() {
   settings.sound = els.sound.checked;
   settings.vibrate = els.vibrate.checked;
   saveJson(SETTINGS_KEY, settings);
+  touchMeta('settingsAt');
   if (!running && !inSet) {
+    const nextTotal = intervalMs();
+    if (remainingMs >= totalMs) {
+      totalMs = nextTotal;
+      remainingMs = nextTotal;
+    } else {
+      // Mid-pause: keep the remaining time, clamped to the new interval.
+      totalMs = nextTotal;
+      remainingMs = Math.min(remainingMs, nextTotal);
+    }
+  }
+  saveSession();
+  render();
+}
+
+function restoreSession() {
+  const session = loadSession();
+  if (!session) return;
+  if (session.inSet) {
+    totalMs = session.totalMs || intervalMs();
+    remainingMs = totalMs;
+    currentReps = Math.min(session.currentReps || 0, settings.reps);
+    startSet({ silent: true, keepReps: true });
+    return;
+  }
+  if (session.running && session.endAt) {
+    totalMs = session.totalMs || intervalMs();
+    if (session.endAt > Date.now()) {
+      endAt = session.endAt;
+      running = true;
+      tickId = window.setInterval(tick, 200);
+      requestWakeLock();
+      tick();
+    } else {
+      remainingMs = 0;
+      startSet({ silent: true });
+    }
+    return;
+  }
+  if (!session.running && session.remainingMs > 0 && session.totalMs && session.remainingMs < session.totalMs) {
+    totalMs = session.totalMs;
+    remainingMs = session.remainingMs;
+    render();
+  }
+}
+
+function reloadFromStorage() {
+  Object.assign(settings, loadJson(SETTINGS_KEY, { intervalMin: 45, reps: 10, sound: true, vibrate: true }));
+  const nextStats = loadJson(STATS_KEY, { days: {}, totalSets: 0, totalSquats: 0, lastSetAt: null });
+  stats.days = nextStats.days || {};
+  stats.totalSets = nextStats.totalSets || 0;
+  stats.totalSquats = nextStats.totalSquats || 0;
+  stats.lastSetAt = nextStats.lastSetAt || null;
+  const nextMeta = loadJson(META_KEY, { settingsAt: null, statsAt: null });
+  meta.settingsAt = nextMeta.settingsAt;
+  meta.statsAt = nextMeta.statsAt;
+  els.interval.value = String(settings.intervalMin);
+  els.reps.value = String(settings.reps);
+  els.sound.checked = settings.sound;
+  els.vibrate.checked = settings.vibrate;
+  if (!running && !inSet && remainingMs >= totalMs) {
+    // Only a timer sitting at a full interval adopts reloaded settings as
+    // a fresh countdown. A paused timer keeps its remaining time: a sync
+    // landing mid-pause must never reset the countdown.
     totalMs = intervalMs();
     remainingMs = totalMs;
   }
+  renderStats();
   render();
 }
 
@@ -319,6 +425,7 @@ function init() {
   renderStats();
   render();
   updateNotifyStatus();
+  restoreSession();
 }
 
 function updateNotifyStatus() {
@@ -353,9 +460,11 @@ els.startPause.addEventListener('click', () => {
 els.reset.addEventListener('click', () => {
   stopTicking();
   inSet = false;
+  currentReps = 0;
   els.panel.hidden = true;
   totalMs = intervalMs();
   remainingMs = totalMs;
+  saveSession();
   render();
 });
 
@@ -374,6 +483,7 @@ els.repButton.addEventListener('click', () => {
     currentReps += 1;
     if (settings.vibrate && navigator.vibrate) navigator.vibrate(12);
     renderReps();
+    saveSession();
   }
 });
 
@@ -397,3 +507,8 @@ document.addEventListener('visibilitychange', () => {
 });
 
 init();
+
+window.SquatTimer = {
+  getState: () => ({ running, inSet, remainingMs, totalMs, currentReps }),
+  reloadFromStorage
+};
