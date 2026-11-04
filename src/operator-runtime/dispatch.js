@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { verifySignedSeaPayload } from '../auth/sea.js';
 import { resolveOperatorDeveloperPolicy } from '../operator/developer-access.js';
+import { findForksForIdentity, isForkActive, resolveForkPermissions } from '../agents/fork-contract.js';
 import { openClawSshCommand } from '../openclaw/handler.js';
 import { buildOperatorDelegatedTask } from '../../operator/delegate-task.js';
 
@@ -95,8 +96,37 @@ export function createOperatorDispatchHandler(options = {}) {
     if (!['https://portal.3dvr.tech','https://operator.3dvr.tech'].includes(origin)) return reply(res, 403, {ok:false,error:'Operator origin is not allowed.'});
     const auth = await verify(body, {scope:'operator-runtime-task',expectedOrigin:origin,maxAgeMs:120000});
     if (!auth.ok) return reply(res, 401, {ok:false,error:'Sign in again to send this task.'});
-    if (auth.identity.pub !== resolveOperatorDeveloperPolicy(config).ownerBindings.get('tmsteph@3dvr')) {
-      return reply(res, 403, {ok:false,error:'Task execution is private to tmsteph.'});
+    // Owner or a bound admin identity (an agent's own forked account) may
+    // submit and track tasks. The signer is revalidated here, server-side,
+    // against the binding maps: admin status grants task submission only,
+    // never secret access or privileged worker operations, and R2 approvals
+    // stay with the owner inside the planner and policy layers.
+    const policy = resolveOperatorDeveloperPolicy(config);
+    const aliasForPub = (bindings) => {
+      for (const [alias, pub] of bindings) if (pub === auth.identity.pub) return alias;
+      return null;
+    };
+    const ownerAlias = aliasForPub(policy.ownerBindings);
+    const adminAlias = ownerAlias ? null : aliasForPub(policy.adminBindings);
+    if (!ownerAlias && !adminAlias) {
+      return reply(res, 403, {ok:false,error:'Task execution is not authorized for this identity.'});
+    }
+    // Fork lifecycle takes precedence over the binding ladder, mirroring
+    // resolveOperatorDeveloperAccess: when a fork record matches this
+    // identity, a revoked fork loses dispatch access at once, with no code
+    // change or redeploy, and a forked admin keeps access only while its
+    // record still grants the admin permission. A downgrade fails closed.
+    // Identities with no fork record are untouched and follow the bindings.
+    const matchedAlias = ownerAlias || adminAlias;
+    const identityForks = findForksForIdentity(policy.forks, { alias: matchedAlias, pub: auth.identity.pub });
+    if (identityForks.length) {
+      if (!identityForks.some(isForkActive)) {
+        return reply(res, 403, {ok:false,error:'This forked account has been revoked by its parent account.'});
+      }
+      if (!ownerAlias
+        && !resolveForkPermissions(identityForks, { alias: matchedAlias, pub: auth.identity.pub }).includes('admin')) {
+        return reply(res, 403, {ok:false,error:'This forked account is not approved for operator task submission.'});
+      }
     }
     const signed = auth.verified;
     if (signed.action !== action || signed.requestId !== requestId
@@ -107,7 +137,7 @@ export function createOperatorDispatchHandler(options = {}) {
     const id = prefix + requestId;
     const input = {action,id,prefix};
     if (action === 'enqueue') {
-      const built = buildOperatorDelegatedTask({text,title}, {id,tenantAlias:'operator-owner'});
+      const built = buildOperatorDelegatedTask({text,title}, {id,tenantAlias:ownerAlias ? 'operator-owner' : adminAlias});
       input.record = {...built.record, backend:'codex', requiredCapabilities:'codex', unsafe:false};
     }
     try {

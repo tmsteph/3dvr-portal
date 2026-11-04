@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import SEA from 'gun/sea.js';
 import { createOperatorDispatchHandler, REMOTE_QUEUE_SCRIPT } from '../src/operator-runtime/dispatch.js';
+import { createForkRecord, revokeFork } from '../src/agents/fork-contract.js';
 import { queueOperatorTask, watchOperatorTask, operatorTaskReceipt } from '../operator/delegate-task.js';
 
 const origin = 'https://operator.3dvr.tech';
@@ -133,4 +134,75 @@ test('task receipts prefer complete output and explicitly label the storage boun
   assert.ok(receipt.includes(text));
   assert.match(operatorTaskReceipt({status:'completed',resultText:'partial',resultTruncated:true}), /storage limit/);
   assert.match(operatorTaskReceipt({status:'completed',resultSummary:'legacy result'}), /legacy result/);
+});
+
+test('a bound admin identity enqueues as itself and a stranger is still refused', async () => {
+  const adminPair = await SEA.pair();
+  const cfg = {
+    THREEDVR_OPERATOR_OWNER_BINDINGS: JSON.stringify({'tmsteph@3dvr': pair.pub}),
+    THREEDVR_OPERATOR_ADMIN_BINDINGS: JSON.stringify({'claude@3dvr': adminPair.pub}),
+  };
+  const inputs = [];
+  const handler = createOperatorDispatchHandler({config: cfg, run: async input => {inputs.push(input); return {ok:true, record:{id:input.id, status:'queued'}};}});
+  // Owner flow is unchanged: the tenant stamp stays operator-owner.
+  assert.equal((await request(handler, enqueue)).statusCode, 202);
+  assert.equal(inputs[0].record.tenantAlias, 'operator-owner');
+  // The admin enqueues under its own principal, never the owner's.
+  assert.equal((await request(handler, enqueue, adminPair)).statusCode, 202);
+  assert.equal(inputs[1].record.tenantAlias, 'claude@3dvr');
+  assert.notEqual(inputs[1].id, inputs[0].id);
+  // Status stays scoped to the signer: the admin reads back its own task id.
+  assert.equal((await request(handler, {action:'status', requestId:enqueue.requestId}, adminPair)).statusCode, 200);
+  assert.equal(inputs[2].id, inputs[1].id);
+  // An unbound identity is still refused before anything reaches the queue.
+  assert.equal((await request(handler, enqueue, await SEA.pair())).statusCode, 403);
+  assert.equal(inputs.length, 3);
+});
+
+test('a forked admin keeps dispatch access only while its fork is active and grants admin', async () => {
+  const adminPair = await SEA.pair();
+  const forkFor = (permissions, options = {}) => createForkRecord({
+    parentAlias: 'tmsteph@3dvr',
+    parentPub: pair.pub,
+    parentPermissions: [
+      'suggest', 'edit', 'github_write', 'admin',
+      'workspace.read', 'workspace.write', 'workspace.export',
+      'workspace.manage_access', 'workspace.sync',
+    ],
+    childAlias: 'claude@3dvr',
+    childPub: adminPair.pub,
+    permissions,
+    note: 'Dispatch fork gate test',
+  }, { now: 1000, idFactory: () => 'fork_dispatch_test', ...options });
+  const handlerFor = (forks) => {
+    const inputs = [];
+    const handler = createOperatorDispatchHandler({
+      config: {
+        THREEDVR_OPERATOR_OWNER_BINDINGS: JSON.stringify({'tmsteph@3dvr': pair.pub}),
+        THREEDVR_OPERATOR_ADMIN_BINDINGS: JSON.stringify({'claude@3dvr': adminPair.pub}),
+        THREEDVR_FORKS: JSON.stringify(forks),
+      },
+      run: async input => { inputs.push(input); return {ok:true, record:{id:input.id, status:'queued'}}; },
+    });
+    return { handler, inputs };
+  };
+
+  // Active fork granting admin: enqueue works, stamped with the fork alias.
+  const active = handlerFor([forkFor(['suggest', 'admin'])]);
+  assert.equal((await request(active.handler, enqueue, adminPair)).statusCode, 202);
+  assert.equal(active.inputs[0].record.tenantAlias, 'claude@3dvr');
+  assert.equal((await request(active.handler, {action:'status', requestId:enqueue.requestId}, adminPair)).statusCode, 200);
+
+  // Downgraded fork (admin removed): the binding alone no longer suffices.
+  const downgraded = handlerFor([forkFor(['suggest'])]);
+  assert.equal((await request(downgraded.handler, enqueue, adminPair)).statusCode, 403);
+  assert.equal(downgraded.inputs.length, 0);
+
+  // Revoked fork: access ends at once, still without touching the queue.
+  const revoked = handlerFor([revokeFork(forkFor(['suggest', 'admin']), 2000)]);
+  assert.equal((await request(revoked.handler, enqueue, adminPair)).statusCode, 403);
+  assert.equal(revoked.inputs.length, 0);
+
+  // The owner is not a fork child and is unaffected by fork records.
+  assert.equal((await request(revoked.handler, enqueue)).statusCode, 202);
 });
