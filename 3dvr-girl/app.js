@@ -261,6 +261,15 @@ const scenes = [
     copy: 'A gate at the edge of the cliffs, jasmine overhead, and a brass key that clearly belongs to a door somewhere.'
   },
   {
+    id: 'portrait-asian-cliff-path',
+    title: 'Cliff path, looking back',
+    mode: 'Sun',
+    collection: 'sun',
+    image: 'assets/portrait-asian-cliff-path.webp',
+    alt: 'The Asian 3DVR Girl with long black hair in cream linen, turning back to smile on a cliff path above the sea',
+    copy: 'The cliff path at golden hour: wind in her hair, the garden below, and the whole coastline to herself.'
+  },
+  {
     id: 'portrait-kayla-trail',
     title: 'Trail portrait',
     mode: 'Forest',
@@ -277,6 +286,15 @@ const scenes = [
     image: 'assets/portrait-kayla-lantern-trail.webp',
     alt: 'Kayla with dark braided hair in a leather field vest, holding a lit lantern on a forest trail at dusk, turquoise stones lining the path',
     copy: 'Dusk patrol: a lit lantern, a compass at her chest, and turquoise stones marking the way through the trees.'
+  },
+  {
+    id: 'portrait-kayla-marker',
+    title: 'Trail marker',
+    mode: 'Forest',
+    collection: 'forest',
+    image: 'assets/portrait-kayla-trail-marker.webp',
+    alt: 'Kayla with long dark hair in field gear, kneeling beside a carved trail marker in the forest',
+    copy: 'Reading the old marks: Kayla checks a carved trail marker the way other people check a map.'
   },
   {
     id: 'portrait-garden-lavender',
@@ -304,6 +322,24 @@ const scenes = [
     image: 'assets/portrait-muse-studio.webp',
     alt: 'Muse with dark hair and purple streaks in messy buns, wearing an oversized black hoodie among canvases and paint tubes in her art studio',
     copy: 'Muse in her studio: purple streaks, an oversized hoodie, and a wall of half finished weather.'
+  },
+  {
+    id: 'portrait-muse-dusk',
+    title: 'Dusk sketchbook',
+    mode: 'Stillness',
+    collection: 'stillness',
+    image: 'assets/portrait-muse-dusk-sketch.webp',
+    alt: 'Muse with dark hair and purple streaks in messy buns and an oversized dark top, sketching in the garden at dusk',
+    copy: 'Dusk in the garden: Muse mid sketch, halfway between the day she had and the one she is drawing.'
+  },
+  {
+    id: 'portrait-crew-picnic',
+    title: 'The Whole Crew, Garden Picnic',
+    mode: 'Sun',
+    collection: 'sun',
+    image: 'assets/portrait-crew-garden-picnic.webp',
+    alt: 'All five of the crew, the Asian 3DVR Girl, the blonde 3DVR Girl, Kayla, the garden muse, and Muse, laughing over a picnic blanket in a coastal garden above the ocean cliffs',
+    copy: 'Everyone in one frame: the whole crew on one picnic blanket, laughing above the cliffs at golden hour.'
   }
 ];
 
