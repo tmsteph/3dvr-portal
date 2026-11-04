@@ -16,6 +16,11 @@ export const BUILTIN_OPERATOR_OWNER_PUBS = Object.freeze(
 );
 export const BUILTIN_OPERATOR_ADMIN_BINDINGS = Object.freeze({
   'chatgpt-operator-e18d7ed6@3dvr': 'jcsaMMOmGSjWVJOtiPHI3hZWsudATRhOglXRdDatfSA.pzn7gtgVsDxfbV_md8B4a_W4eNTOavwnZwFU0qOtYcU',
+  // Muse's forked agent account (fork_claude_pilot). Bound by its verified
+  // SEA public key, never by username alone. Admin here means it may submit
+  // and track operator tasks as itself; it does not approve R2 actions,
+  // which stay with the owner, and it holds no payment authority.
+  'claude@3dvr': '67t3RM6lGI93oxzWB4_l8GPU_FLxLrArOzh93wJ1ZFY.WX4esGVbZvVTytLQlBDmIvmT6XkEo82HoOC51D30fWg',
 });
 export const BUILTIN_OPERATOR_DEVELOPER_BINDINGS = Object.freeze({
   'operator-secure-e2e-1787643003@3dvr': 'ANISeXozjNF0rrLuDI9HTIh6Mk3UuHIwUa_WpURZhGc.vnOeQy3vExpG07dGXPOAB1PAQ9iskI2SKnYOLbEhYSY',

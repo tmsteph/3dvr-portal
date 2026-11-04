@@ -134,3 +134,26 @@ test('task receipts prefer complete output and explicitly label the storage boun
   assert.match(operatorTaskReceipt({status:'completed',resultText:'partial',resultTruncated:true}), /storage limit/);
   assert.match(operatorTaskReceipt({status:'completed',resultSummary:'legacy result'}), /legacy result/);
 });
+
+test('a bound admin identity enqueues as itself and a stranger is still refused', async () => {
+  const adminPair = await SEA.pair();
+  const cfg = {
+    THREEDVR_OPERATOR_OWNER_BINDINGS: JSON.stringify({'tmsteph@3dvr': pair.pub}),
+    THREEDVR_OPERATOR_ADMIN_BINDINGS: JSON.stringify({'claude@3dvr': adminPair.pub}),
+  };
+  const inputs = [];
+  const handler = createOperatorDispatchHandler({config: cfg, run: async input => {inputs.push(input); return {ok:true, record:{id:input.id, status:'queued'}};}});
+  // Owner flow is unchanged: the tenant stamp stays operator-owner.
+  assert.equal((await request(handler, enqueue)).statusCode, 202);
+  assert.equal(inputs[0].record.tenantAlias, 'operator-owner');
+  // The admin enqueues under its own principal, never the owner's.
+  assert.equal((await request(handler, enqueue, adminPair)).statusCode, 202);
+  assert.equal(inputs[1].record.tenantAlias, 'claude@3dvr');
+  assert.notEqual(inputs[1].id, inputs[0].id);
+  // Status stays scoped to the signer: the admin reads back its own task id.
+  assert.equal((await request(handler, {action:'status', requestId:enqueue.requestId}, adminPair)).statusCode, 200);
+  assert.equal(inputs[2].id, inputs[1].id);
+  // An unbound identity is still refused before anything reaches the queue.
+  assert.equal((await request(handler, enqueue, await SEA.pair())).statusCode, 403);
+  assert.equal(inputs.length, 3);
+});
