@@ -50,7 +50,7 @@ function put(node, payload) {
   });
 }
 
-test('Operator delegated task reaches the real worker state machine and stores its result', async () => {
+test('legacy GUN Operator delegation stays visible but never executes unsigned intent', async () => {
   const { buildOperatorDelegatedTask } = await import('../../../operator/delegate-task.js');
   const rootNode = fakeRoot();
   const ownerAlias = '3dvr-managed';
@@ -95,17 +95,12 @@ test('Operator delegated task reaches the real worker state machine and stores i
     },
   });
 
-  assert.equal(processed.length, 1);
-  assert.equal(processed[0].id, built.record.id);
-  assert.equal(workerArgs.includes('--backend'), true);
-  assert.equal(workerArgs.includes('auto'), true);
-  assert.match(workerArgs.at(-1), /Complete low-risk read, analysis, drafting, inspection, or bounded internal work only/);
-  assert.match(workerArgs.at(-1), /Do not send messages, spend money, change credentials\/accounts, deploy\/release, delete data/);
-
+  assert.deepEqual(processed, [], 'unsigned public GUN tasks are not execution admissions');
+  assert.deepEqual(workerArgs, [], 'no backend invocation');
   const finalTask = await readTask(built.record.id, { rootNode, ownerAlias });
-  assert.equal(finalTask.status, 'completed');
-  assert.equal(finalTask.workerDeviceId, 'operator-e2e-worker');
-  assert.equal(finalTask.resultSummary, marker);
+  assert.equal(finalTask.status, 'queued');
+  assert.ok(!finalTask.workerDeviceId, 'no worker claimed the public task');
+  assert.ok(!finalTask.resultSummary, 'no result receipt was fabricated');
 
   const runtime = rootNode.store.get(`${ownerAlias}/taskQueue/runtime/${built.record.id}`);
   assert.equal(runtime.runtimeState, 'queued');

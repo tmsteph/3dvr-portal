@@ -7,13 +7,14 @@ on:
   pull_request:
     branches: [main, dev]
     paths: ["apps/agent/**", ".github/workflows/agent.yml", "package.json"]
+  # Production deployment is an explicit manual action, never a side effect of merging.
   workflow_dispatch:
     inputs:
-      deploy_legacy_worker:
-        description: 'Explicitly deploy and activate the legacy DigitalOcean worker stack'
+      deploy_digitalocean_worker:
+        description: 'I approve isolated release staging only; no worker activation or restart'
         type: boolean
-        default: false
         required: true
+        default: false
 
 permissions:
   contents: read
@@ -35,16 +36,23 @@ jobs:
           cache: npm
           cache-dependency-path: apps/agent/package-lock.json
       - run: npm ci
-      - run: npm audit --omit=dev
-      - name: Prepare Operator planner dependency
+      # The planner integration tests build the real operator-core package.
+      # Its Node type definitions are dev dependencies of that package, not
+      # apps/agent; a clean PR merge checkout must install them explicitly.
+      - name: Install and build Operator Core test dependencies
         run: |
           npm --prefix ../../operator-core/operator-core ci --ignore-scripts
           npm --prefix ../../operator-core/operator-core run build
+      # Always run regressions even when the separate security gate fails.
+      # Keep npm audit blocking; do not silently waive vulnerabilities.
       - run: npm test
+      - run: npm audit --omit=dev
 
   deploy-digitalocean-worker:
-    name: Deploy DigitalOcean agent worker
-    if: github.event_name == 'workflow_dispatch' && inputs.deploy_legacy_worker == true && github.ref == 'refs/heads/main'
+    name: Stage DigitalOcean agent release (no activation)
+    # A push to main (including a PR merge) runs tests only. Deployment requires
+    # a deliberate main-branch workflow dispatch with the approval input checked.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.deploy_digitalocean_worker == true
     needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -54,9 +62,6 @@ jobs:
     env:
       DO_AGENT_HOST: 167.172.193.194
       DO_AGENT_USER: root
-      THREEDVR_NODE_BIN: /opt/node-v22/bin/node
-      THREEDVR_AGENT_OWNER_ALIAS: ${{ vars.THREEDVR_AGENT_TASK_OWNER_ALIAS || '3dvr-managed' }}
-      THREEDVR_CONTEXT_HQ_OWNER_ALIAS: ${{ vars.THREEDVR_CONTEXT_HQ_OWNER_ALIAS || vars.THREEDVR_AGENT_OWNER_ALIAS || '3dvr.tech@gmail.com' }}
     defaults:
       run:
         working-directory: apps/agent
@@ -92,18 +97,14 @@ jobs:
           printf '%s\n' '167.172.193.194 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFoepoGbXWiidk4axaBwsI1Y/GWVckiqJxGLkBpTV6Pc' > /tmp/3dvr-known-hosts
           chmod 600 /tmp/3dvr-known-hosts
           echo 'present=true' >> "$GITHUB_OUTPUT"
-      - name: Deploy worker over SSH
+      - name: Stage release over SSH without touching live runtime
         id: deploy
         shell: bash
         run: |
           set -euo pipefail
           opts=(-i /tmp/3dvr-agent-key -o BatchMode=yes -o UserKnownHostsFile=/tmp/3dvr-known-hosts -o StrictHostKeyChecking=yes -o ConnectTimeout=10)
-          owner_b64="$(printf '%s' "$THREEDVR_AGENT_OWNER_ALIAS" | base64 -w 0)"
-          context_owner_b64="$(printf '%s' "$THREEDVR_CONTEXT_HQ_OWNER_ALIAS" | base64 -w 0)"
-          ssh "${opts[@]}" "$DO_AGENT_USER@$DO_AGENT_HOST" "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' GITHUB_SHA='$GITHUB_SHA' THREEDVR_AGENT_OWNER_ALIAS_B64='$owner_b64' THREEDVR_CONTEXT_HQ_OWNER_ALIAS_B64='$context_owner_b64' THREEDVR_NODE_BIN='$THREEDVR_NODE_BIN' bash -s" <<'REMOTE'
+          ssh "${opts[@]}" "$DO_AGENT_USER@$DO_AGENT_HOST" "GITHUB_REPOSITORY='$GITHUB_REPOSITORY' GITHUB_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
           set -euo pipefail
-          THREEDVR_AGENT_OWNER_ALIAS="$(printf '%s' "$THREEDVR_AGENT_OWNER_ALIAS_B64" | base64 -d)"
-          THREEDVR_CONTEXT_HQ_OWNER_ALIAS="$(printf '%s' "$THREEDVR_CONTEXT_HQ_OWNER_ALIAS_B64" | base64 -d)"
           mkdir -p "$HOME/.3dvr/locks"
           command -v flock >/dev/null 2>&1 || { echo 'flock is required for serialized agent deploys.' >&2; exit 1; }
           exec 9>"$HOME/.3dvr/locks/agent-deploy.lock"
@@ -114,92 +115,87 @@ jobs:
             fi
             exit 1
           fi
-          repo="$HOME/.3dvr/portal"
-          mkdir -p "$HOME/.3dvr"
-          if [ ! -d "$repo/.git" ]; then rm -rf "$repo"; git clone "https://github.com/$GITHUB_REPOSITORY.git" "$repo"; fi
-          if ! git -C "$repo" diff --quiet || ! git -C "$repo" diff --cached --quiet || [ -n "$(git -C "$repo" ls-files --others --exclude-standard)" ]; then
-            stash_name="agent-deploy-$(date -u +%Y%m%dT%H%M%SZ)"
-            git -C "$repo" stash push --include-untracked -m "$stash_name"
-            echo "Preserved local checkout changes in stash: $stash_name"
+          # This is source-only staging: it never starts a worker, so the
+          # existing task queue must not block source reconciliation.
+          # Task-ID admission and fail-closed queue checks belong exclusively
+          # to a separately approved activation workflow.
+          # Stage source in a separate checkout. Never alter the live portal,
+          # dependency tree, daemon configuration, or historical task queue.
+          stage="$HOME/.3dvr/portal-release-stage"
+          # A symlink or linked worktree can make a clean "stage" checkout
+          # alias a live runtime. Check identity before any fetch or checkout.
+          assert_isolated_stage() {
+            local candidate="$1" expected_origin="$2"
+            local resolved top git_dir common_dir origin live live_real
+            if [ -L "$HOME/.3dvr" ] || [ -L "$candidate" ] || [ -L "$candidate/.git" ] || [ ! -d "$candidate/.git" ]; then
+              echo 'Release stage must be a standalone, non-symlinked Git checkout.' >&2
+              return 1
+            fi
+            resolved=$(realpath -e -- "$candidate") || return 1
+            top=$(realpath -e -- "$(git -C "$candidate" rev-parse --show-toplevel)") || return 1
+            git_dir=$(realpath -e -- "$(git -C "$candidate" rev-parse --absolute-git-dir)") || return 1
+            common_dir=$(realpath -e -- "$(git -C "$candidate" rev-parse --path-format=absolute --git-common-dir)") || return 1
+            if [ "$resolved" != "$top" ] || [ "$git_dir" != "$resolved/.git" ] || [ "$common_dir" != "$git_dir" ]; then
+              echo 'Release stage aliases another checkout or Git directory.' >&2
+              return 1
+            fi
+            origin=$(git -C "$candidate" config --get remote.origin.url) || return 1
+            if [ "$origin" != "$expected_origin" ]; then
+              echo 'Release stage origin does not match the approved repository.' >&2
+              return 1
+            fi
+            # Known live agent and Portal roots must never be staged in place,
+            # including when a bind mount aliases a directory by inode.
+            for live in /opt/3dvr-agent /opt/3dvr-portal-production/current "$HOME/3dvr-portal" "$HOME/.3dvr/portal"; do
+              [ -e "$live" ] || continue
+              live_real=$(realpath -e -- "$live") || return 1
+              if [ "$resolved" = "$live_real" ] || [[ "$resolved" == "$live_real/"* ]] || [[ "$live_real" == "$resolved/"* ]] || [ "$(stat -Lc '%d:%i' "$candidate")" = "$(stat -Lc '%d:%i' "$live")" ]; then
+                echo 'Release stage overlaps a known live runtime checkout.' >&2
+                return 1
+              fi
+            done
+          }
+          if [ -L "$HOME/.3dvr" ] || [ -L "$stage" ]; then
+            echo 'Release staging path or parent is a symlink; refusing to stage.' >&2
+            exit 1
           fi
-          git -C "$repo" fetch --prune origin main
-          git -C "$repo" checkout main
-          git -C "$repo" pull --ff-only origin main
-          git -C "$repo" merge-base --is-ancestor "$GITHUB_SHA" HEAD
-          cfg="$HOME/.3dvr/config/env"
-          mkdir -p "$(dirname "$cfg")"; touch "$cfg"; chmod 600 "$cfg" || true
-          cfg_tmp="$(mktemp)"
-          printf -v owner_q '%q' "$THREEDVR_AGENT_OWNER_ALIAS"
-          printf -v context_owner_q '%q' "$THREEDVR_CONTEXT_HQ_OWNER_ALIAS"
-          awk '!/^(THREEDVR_AGENT_OWNER_ALIAS|THREEDVR_CONTEXT_HQ_OWNER_ALIAS|THREEDVR_AGENT_QUEUE_STORE|THREEDVR_NODE_BIN)=/' "$cfg" > "$cfg_tmp"
-          printf 'THREEDVR_AGENT_OWNER_ALIAS=%s\n' "$owner_q" >> "$cfg_tmp"
-          printf 'THREEDVR_CONTEXT_HQ_OWNER_ALIAS=%s\n' "$context_owner_q" >> "$cfg_tmp"
-          printf '%s\n' 'THREEDVR_AGENT_QUEUE_STORE=sqlite' 'THREEDVR_NODE_BIN=/opt/node-v22/bin/node' >> "$cfg_tmp"
-          cat "$cfg_tmp" > "$cfg"; rm -f "$cfg_tmp"
-          [ -x "$THREEDVR_NODE_BIN" ] || exit 1
-          "$THREEDVR_NODE_BIN" -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 13)) process.exit(1); require("node:sqlite")'
-          export PATH="$(dirname "$THREEDVR_NODE_BIN"):$PATH"
-          scripts="$repo/apps/agent/thomas-agent/scripts"
-          # Stop long-lived Node processes before npm replaces node_modules.
-          # Otherwise Gun or another live dependency can race npm's cleanup and
-          # leave ENOTEMPTY failures during rapid consecutive deployments.
-          "$scripts/ask-agent-worker-daemon" stop || true
-          "$scripts/ask-inbox-daemon" stop || true
-          "$scripts/ask-context-task-router-daemon" stop || true
-          "$scripts/ask-autopilot-daemon" stop || true
-          "$scripts/ask-agent-heartbeat-daemon" stop || true
-          if ! npm --prefix "$repo/apps/agent" ci; then
-            echo 'Initial npm ci failed after daemon shutdown; retrying from a clean node_modules.' >&2
-            rm -rf "$repo/apps/agent/node_modules"
-            npm --prefix "$repo/apps/agent" ci
+          if [ ! -d "$stage/.git" ]; then
+            [ ! -e "$stage" ] || { echo 'Release stage path exists but is not a Git checkout.' >&2; exit 1; }
+            git clone "https://github.com/$GITHUB_REPOSITORY.git" "$stage"
           fi
-          "$scripts/ask-agent-worker-daemon" start 9>&-
-          "$scripts/ask-context-task-router-daemon" start 9>&-
-          "$scripts/ask-inbox-daemon" start 9>&-
-          "$scripts/ask-autopilot-daemon" start 9>&-
-          "$scripts/ask-agent-heartbeat-daemon" start 9>&-
-          "$scripts/ask-agent-worker-daemon" status
-          "$scripts/ask-context-task-router-daemon" status
-          "$scripts/ask-inbox-daemon" status
-          "$scripts/ask-autopilot-daemon" status
-          "$scripts/ask-agent-heartbeat-daemon" status
+          assert_isolated_stage "$stage" "https://github.com/$GITHUB_REPOSITORY.git"
+          if ! git -C "$stage" diff --quiet || ! git -C "$stage" diff --cached --quiet || [ -n "$(git -C "$stage" ls-files --others --exclude-standard)" ]; then
+            echo 'Release staging checkout has local changes; refusing to overwrite.' >&2
+            exit 1
+          fi
+          git -C "$stage" fetch --prune origin main
+          # Only stage the exact reviewed workflow commit, not a newer main
+          # revision that may have landed after this dispatch was approved.
+          git -C "$stage" merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          git -C "$stage" checkout --detach "$GITHUB_SHA"
+          test "$(git -C "$stage" rev-parse HEAD)" = "$GITHUB_SHA"
+          echo 'Exact release revision staged separately; live workers, dependencies and queue untouched.'
           REMOTE
-      - name: Verify managed queue consumption
+      # Staging may be checked for revision consistency. Activation and runtime
+      # acceptance require a separately reviewed, task-pinned release path.
+      - name: Verify staged revision without runtime mutation
         id: verify
         shell: bash
         run: |
           set -euo pipefail
           opts=(-i /tmp/3dvr-agent-key -o BatchMode=yes -o UserKnownHostsFile=/tmp/3dvr-known-hosts -o StrictHostKeyChecking=yes -o ConnectTimeout=10)
-          owner_b64="$(printf '%s' "$THREEDVR_AGENT_OWNER_ALIAS" | base64 -w 0)"
-          ssh "${opts[@]}" "$DO_AGENT_USER@$DO_AGENT_HOST" "THREEDVR_AGENT_OWNER_ALIAS_B64='$owner_b64' THREEDVR_NODE_BIN='$THREEDVR_NODE_BIN' bash -s" <<'REMOTE'
+          ssh "${opts[@]}" "$DO_AGENT_USER@$DO_AGENT_HOST" "GITHUB_SHA='$GITHUB_SHA' bash -s" <<'REMOTE'
           set -euo pipefail
-          export THREEDVR_AGENT_OWNER_ALIAS="$(printf '%s' "$THREEDVR_AGENT_OWNER_ALIAS_B64" | base64 -d)"
-          export THREEDVR_CONFIG_FILE="$HOME/.3dvr/config/env"
-          if [ -f "$THREEDVR_CONFIG_FILE" ]; then set -a; . "$THREEDVR_CONFIG_FILE"; set +a; fi
-          cd "$HOME/.3dvr/portal/apps/agent"
-          export THREEDVR_AGENT_QUEUE_STORE=sqlite
-          [ -x "$THREEDVR_NODE_BIN" ] || exit 1
-          "$THREEDVR_NODE_BIN" -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 13)) process.exit(1); require("node:sqlite")'
-          result="$("$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js enqueue --json --backend health --risk read_only --approval-status approved 'DigitalOcean worker health check')"
-          task_id="$(printf '%s' "$result" | "$THREEDVR_NODE_BIN" -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task queue JSON payload missing');console.log(JSON.parse(s.slice(i)).id)})")"
-          for attempt in $(seq 1 18); do
-            # A transient SQLite lock is an unreadable status, not a failed task.
-            # Retry the SAME health task ID; never enqueue another one here.
-            if ! result="$("$THREEDVR_NODE_BIN" thomas-agent/node/agent-task-queue.js status --id "$task_id" --json 2>&1)"; then
-              if [[ "$result" == *"database is locked"* || "$result" == *"SQLITE_BUSY"* ]]; then
-                echo "SQLite status temporarily locked (poll $attempt/18); retrying existing health task" >&2
-                sleep 5
-                continue
-              fi
-              printf '%s\n' "$result" >&2
-              exit 1
-            fi
-            status="$(printf '%s' "$result" | "$THREEDVR_NODE_BIN" -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');if(i<0)throw new Error('task status JSON payload missing');console.log(JSON.parse(s.slice(i)).status||'')})")"
-            case "$status" in completed) echo 'managed SQLite queue consumed by DigitalOcean worker'; exit 0;; failed|skipped) printf '%s\n' "$result"; exit 1;; esac
-            sleep 5
-          done
-          echo 'DigitalOcean worker did not consume the managed SQLite queue health task.' >&2
-          exit 1
+          stage="$HOME/.3dvr/portal-release-stage"
+          test ! -L "$HOME/.3dvr"
+          test ! -L "$stage"
+          test ! -L "$stage/.git"
+          test -d "$stage/.git"
+          test "$(realpath -e -- "$(git -C "$stage" rev-parse --show-toplevel)")" = "$(realpath -e -- "$stage")"
+          test "$(realpath -e -- "$(git -C "$stage" rev-parse --absolute-git-dir)")" = "$(realpath -e -- "$stage")/.git"
+          test "$(realpath -e -- "$(git -C "$stage" rev-parse --path-format=absolute --git-common-dir)")" = "$(realpath -e -- "$stage")/.git"
+          test "$(git -C "$stage" rev-parse HEAD)" = "$GITHUB_SHA"
+          echo 'Exact staged revision verified read-only; live worker unchanged and execution unverified.'
           REMOTE
       - name: Publish worker deployment status
         if: always()
@@ -211,11 +207,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          state=failure; description='DigitalOcean agent worker deployment failed'
+          state=failure; description='DigitalOcean isolated release staging failed'
           if [ "$SSH_OUTCOME" != success ]; then description='DigitalOcean agent SSH credential unavailable'
-          elif [ "$DEPLOY_OUTCOME" != success ]; then description='DigitalOcean agent SSH deployment failed'
-          elif [ "$VERIFY_OUTCOME" != success ]; then description='DigitalOcean worker started but managed queue verification failed'
-          else state=success; description='DigitalOcean agent worker alive and consuming managed queue tasks'; fi
+          elif [ "$DEPLOY_OUTCOME" != success ]; then description='DigitalOcean release staging over SSH failed'
+          elif [ "$VERIFY_OUTCOME" != success ]; then description='DigitalOcean staged revision verification failed'
+          else state=success; description='DigitalOcean source staged; live worker unchanged'; fi
           curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -d "{\"state\":\"$state\",\"context\":\"3DVR DigitalOcean Worker\",\"description\":\"$description\"}"
       - name: Remove SSH key
         if: always()

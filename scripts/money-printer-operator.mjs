@@ -228,27 +228,32 @@ async function mergePullRequestIfGreen(rootDir, review, pr, options = {}) {
       reason: 'auto-merge flag not enabled'
     };
   }
-  let checks = null;
-  if (parseBool(options.waitChecks)) {
-    const interval = String(Number(options.checkInterval || 10) || 10);
-    const result = runCommand('gh', ['pr', 'checks', pr.url, '--watch', '--interval', interval], { cwd: rootDir });
-    checks = {
-      waited: true,
-      ok: result.ok,
-      output: commandOutputSummary(result)
+  // Never merge an autonomous proposal on local self-review alone.
+  // Require the remote PR checks to complete successfully first.
+  if (!parseBool(options.waitChecks)) {
+    return {
+      merged: false,
+      reason: 'auto-merge requires --wait-checks to verify GitHub CI'
     };
-    if (!result.ok) {
-      return {
-        merged: false,
-        reason: 'pull request checks did not pass',
-        checks
-      };
-    }
+  }
+  const interval = String(Number(options.checkInterval || 10) || 10);
+  const result = runCommand('gh', ['pr', 'checks', pr.url, '--watch', '--interval', interval], { cwd: rootDir });
+  const checks = {
+    waited: true,
+    ok: result.ok,
+    output: commandOutputSummary(result)
+  };
+  if (!result.ok) {
+    return {
+      merged: false,
+      reason: 'pull request checks did not pass',
+      checks
+    };
   }
   gh(rootDir, ['pr', 'merge', pr.url, '--squash', '--delete-branch']);
   return {
     merged: true,
-    reason: checks ? 'GREEN self-review and pull request checks passed' : 'GREEN self-review and local checks passed',
+    reason: 'GREEN self-review and pull request checks passed',
     checks
   };
 }
@@ -479,6 +484,7 @@ export {
   runReport,
   runPropose,
   runVerification,
+  mergePullRequestIfGreen,
   autonomousBranchName,
   ensureProposalBranch,
   sendOperatorReportEmail,

@@ -4,12 +4,26 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CONFIG_FILE="${THREEDVR_CONFIG_FILE:-$HOME/.3dvr/config/env}"
+# Preserve the caller's signed one-task scope before persistent config is loaded.
+# The queue wrapper cannot detect a pin that this outer wrapper already erased.
+CALLER_ONLY_TASK_ID="${THREEDVR_AGENT_WORKER_ONLY_TASK_ID:-}"
+
+# Reject an explicitly pinned start before sourcing persistent configuration,
+# which could otherwise erase the caller's one-task pin.
+if [ "${1:-}" = start ] && [ -n "${THREEDVR_AGENT_WORKER_ONLY_TASK_ID:-}" ]; then
+  echo 'Pinned task mode forbids background worker startup; use run-once.' >&2
+  exit 1
+fi
 
 if [ -f "$CONFIG_FILE" ]; then
   set -a
   # shellcheck disable=SC1090
   . "$CONFIG_FILE"
   set +a
+fi
+if [ -n "$CALLER_ONLY_TASK_ID" ] && [ "${THREEDVR_AGENT_WORKER_ONLY_TASK_ID:-}" != "$CALLER_ONLY_TASK_ID" ]; then
+  echo 'Pinned task scope conflicts with persistent worker configuration; refusing daemon invocation.' >&2
+  exit 1
 fi
 
 STATE_DIR="${THREEDVR_AUTOPILOT_STATE_DIR:-$ROOT/state}"
@@ -38,6 +52,12 @@ is_running() {
 
 case "${1:-}" in
   start)
+    # A one-task canary must never launch a perpetual queue poller or the
+    # router/organism/supervisor daemons. Use the bounded run-once path instead.
+    if [ -n "${THREEDVR_AGENT_WORKER_ONLY_TASK_ID:-}" ]; then
+      echo 'Pinned task mode forbids background worker startup; use run-once.' >&2
+      exit 1
+    fi
     if is_running; then
       echo "Agent worker already running in tmux session $TMUX_SESSION."
       "$ROUTER_DAEMON" start
@@ -51,13 +71,28 @@ case "${1:-}" in
     printf -v config_file_q '%q' "$CONFIG_FILE"
     worker_loop="unset THREEDVR_ENV_LOADED; export THREEDVR_CONFIG_FILE=$config_file_q; if [ -f \"\$THREEDVR_CONFIG_FILE\" ]; then set -a; . \"\$THREEDVR_CONFIG_FILE\"; set +a; fi; cd \"$ROOT\" || exit 1; while true; do THREEDVR_AGENT_LOCAL_QUEUE_ONLY=1 \"$SCRIPT_DIR/ask-agent-queue\" run-once >>\"$LOG_FILE\" 2>&1; sleep \"$INTERVAL_SECONDS\"; done & while true; do \"$SCRIPT_DIR/ask-agent-queue\" run-once >>\"$BRIDGE_LOG_FILE\" 2>&1; sleep \"$BRIDGE_INTERVAL_SECONDS\"; done & wait"
     if command -v tmux >/dev/null 2>&1; then
-      tmux new-session -d -s "$TMUX_SESSION" "$worker_loop"
+      if ! tmux new-session -d -s "$TMUX_SESSION" "$worker_loop"; then
+        echo "Failed to launch agent worker tmux session. Inspect $LOG_FILE" >&2
+        exit 1
+      fi
+      sleep 1
+      if ! is_running; then
+        echo "Agent worker exited during startup. Inspect $LOG_FILE" >&2
+        exit 1
+      fi
       echo "Started agent worker in tmux session $TMUX_SESSION. Local log: $LOG_FILE Bridge log: $BRIDGE_LOG_FILE"
     else
       setsid sh -c "$worker_loop" >/dev/null 2>&1 &
       echo "$!" > "$PID_FILE"
-      echo "Started agent worker (pid $!). Local log: $LOG_FILE Bridge log: $BRIDGE_LOG_FILE"
+      sleep 1
+      if ! is_running; then
+        rm -f "$PID_FILE"
+        echo "Agent worker exited during startup. Inspect $LOG_FILE" >&2
+        exit 1
+      fi
+      echo "Started agent worker (pid $(cat "$PID_FILE")). Local log: $LOG_FILE Bridge log: $BRIDGE_LOG_FILE"
     fi
+    # Never start auxiliary daemons if the queue consumer failed to survive.
     "$ROUTER_DAEMON" start
     "$ORGANISM_DAEMON" start
     "$SUPERVISOR_DAEMON" start

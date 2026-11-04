@@ -5,6 +5,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CONFIG_FILE="${THREEDVR_CONFIG_FILE:-$HOME/.3dvr/config/env}"
 
+# An authenticated caller may pin this invocation to one task. Persistent
+# configuration is not authorized to erase or replace that pin.
+CALLER_ONLY_TASK_ID="${THREEDVR_AGENT_WORKER_ONLY_TASK_ID:-}"
+
 # Reload the selected runtime config on every queue invocation. The long-lived
 # worker loop calls this wrapper for each poll, so config/owner changes can take
 # effect after a repository update without killing the worker that is executing
@@ -14,6 +18,10 @@ if [ -f "$CONFIG_FILE" ]; then
   # shellcheck disable=SC1090
   . "$CONFIG_FILE"
   set +a
+fi
+if [ -n "$CALLER_ONLY_TASK_ID" ] && [ "${THREEDVR_AGENT_WORKER_ONLY_TASK_ID:-}" != "$CALLER_ONLY_TASK_ID" ]; then
+  echo "Pinned task scope conflicts with persistent worker configuration; refusing queue execution." >&2
+  exit 1
 fi
 
 # Server installs keep Codex/OpenClaw beside the managed Node runtime rather
@@ -32,6 +40,13 @@ fi
 # slow GUN/AXE reconciliation step on the latency-sensitive SQLite poll.
 if [[ "${THREEDVR_AGENT_LOCAL_QUEUE_ONLY:-0}" =~ ^(1|true|yes|on)$ ]]; then
   export THREEDVR_AGENT_QUEUE_GUN_SYNC=0
+  export THREEDVR_AGENT_SKIP_FORGE=1
+fi
+
+# A pinned signed canary is not permission to run unrelated Forge/server-control
+# compatibility tasks. This wrapper also runs in the daemon's bridge poller,
+# so enforce the restriction after loading the runtime config on every poll.
+if [ -n "${THREEDVR_AGENT_WORKER_ONLY_TASK_ID:-}" ]; then
   export THREEDVR_AGENT_SKIP_FORGE=1
 fi
 

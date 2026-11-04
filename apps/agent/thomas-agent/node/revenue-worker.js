@@ -1,12 +1,7 @@
 const fs = require('node:fs');
-const { execFile } = require('node:child_process');
-const { promisify } = require('node:util');
-const { acknowledgedDeliveryCount, createProspect, getProspect, openLedger, startRun, finishRun, transitionProspect } = require('./revenue-ledger');
-const { deliverProspect } = require('./revenue-delivery');
+const { createProspect, getProspect, openLedger, startRun, finishRun, transitionProspect } = require('./revenue-ledger');
 const { consumeInboxState } = require('./revenue-inbox-consumer');
 const { projectPendingCrm } = require('./revenue-crm-projection');
-
-const execFileAsync = promisify(execFile);
 
 function releaseSha() {
   return String(process.env.THREEDVR_RELEASE_SHA || 'unknown').trim();
@@ -57,45 +52,19 @@ function prepareCandidate(db, candidate) {
   return { prospect: getProspect(db, prospect.id), eligible: prospect.state === 'eligible' };
 }
 
-async function sendCandidate(candidate) {
-  const script = require.resolve('./send-outreach-email');
-  const contact = String(candidate.contact).replace(/^mailto:/i, '');
-  const result = await execFileAsync(process.execPath, [
-    script, '--to', contact, '--subject', candidate.subject, '--text', candidate.body,
-  ], { timeout: Number.parseInt(process.env.THREEDVR_REVENUE_SEND_TIMEOUT_MS || '30000', 10) });
-  return { acknowledged: true, messageId: '', transport: 'portal', stdout: result.stdout };
+// Legacy autonomous revenue delivery has no independently authenticated,
+// single-use human approval bound to the recipient and message body.
+// It must not be re-enabled by an environment flag or injected sender.
+async function sendCandidate() {
+  throw new Error('Outbound delivery disabled until authenticated per-message approval and delivery verification exist');
 }
 
-async function deliverCandidate(db, options = {}) {
-  if (!enabled(process.env.THREEDVR_REVENUE_DELIVERY_ENABLED)) {
-    return { attempted: 0, sends: 0, disabled: true };
-  }
-  const candidate = loadCandidate();
-  if (!candidate) return { attempted: 0, sends: 0, reason: 'no candidate' };
-  const startOfUtcDay = new Date();
-  startOfUtcDay.setUTCHours(0, 0, 0, 0);
-  const dailyLimit = Number.parseInt(process.env.THREEDVR_REVENUE_DAILY_SEND_LIMIT || '1', 10);
-  const campaignLimit = Number.parseInt(process.env.THREEDVR_REVENUE_CAMPAIGN_SEND_LIMIT || '10', 10);
-  const dailySent = acknowledgedDeliveryCount(db, { since: startOfUtcDay.toISOString() });
-  const campaignSent = acknowledgedDeliveryCount(db, { since: '1970-01-01T00:00:00.000Z', campaignId: candidate.campaignId || 'market-research' });
-  if (dailySent >= dailyLimit || campaignSent >= campaignLimit) {
-    return { attempted: 0, sends: 0, reason: 'quota exhausted', dailySent, dailyLimit, campaignSent, campaignLimit };
-  }
-  const prepared = prepareCandidate(db, candidate);
-  if (!prepared.eligible) {
-    return { attempted: 0, sends: 0, reason: prepared.reason || 'candidate not eligible', prospectId: prepared.prospect.id };
-  }
-  const result = await deliverProspect(
-    db,
-    { prospectId: prepared.prospect.id, attemptId: candidate.attemptId },
-    () => (options.send || sendCandidate)(candidate),
-  );
+async function deliverCandidate() {
   return {
-    attempted: 1,
-    sends: result.prospect.state === 'sent' && !result.replayed ? 1 : 0,
-    prospectId: prepared.prospect.id,
-    state: result.prospect.state,
-    error: result.error || '',
+    attempted: 0,
+    sends: 0,
+    disabled: true,
+    reason: 'outbound delivery disabled pending authenticated per-message human approval'
   };
 }
 
@@ -103,25 +72,54 @@ async function run(triggerId = process.env.THREEDVR_TRIGGER_ID || `manual:${Date
   const db = openLedger();
   try {
     const started = startRun(db, { triggerId, releaseSha: releaseSha() });
-    if (started.replayed) return { ...started.run, replayed: true };
-    const inbox = consumeInboxState(db, process.env.THREEDVR_INBOX_STATE_FILE);
-    const delivery = await deliverCandidate(db, options);
-    const crm = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_CRM_PROJECTION_ENABLED || ''))
-      ? await projectPendingCrm(db, options.crm || {})
-      : { attempted: 0, succeeded: 0, failed: 0, disabled: true };
-    const failed = inbox.errors.length || crm.failed || delivery.error;
-    const finished = finishRun(db, {
-      runId: started.run.id,
-      status: failed ? 'failed' : 'succeeded',
-      summary: {
-        mode: delivery.disabled ? 'no-send-canary' : 'bounded-delivery',
-        sends: delivery.sends,
-        delivery,
-        inbox,
-        crm,
-      },
-    });
-    return { ...finished, replayed: false };
+    if (started.replayed) {
+      // A replay of a finished trigger is safe to report as historical.
+      // A still-running trigger may be active or orphaned after a crash;
+      // never imply its work completed or silently execute it again.
+      return {
+        ...started.run,
+        replayed: true,
+        ...(started.run.status === 'running' ? {
+          blocked: true,
+          requiresReview: true,
+          reason: 'Trigger already running or interrupted; reconcile the original run before retrying',
+        } : {}),
+      };
+    }
+    try {
+      const inbox = consumeInboxState(db, process.env.THREEDVR_INBOX_STATE_FILE);
+      const delivery = await deliverCandidate(db, options);
+      const crm = /^(1|true|yes|on)$/i.test(String(process.env.THREEDVR_CRM_PROJECTION_ENABLED || ''))
+        ? await projectPendingCrm(db, options.crm || {})
+        : { attempted: 0, succeeded: 0, failed: 0, disabled: true };
+      const failed = inbox.errors.length || crm.failed || delivery.error;
+      const finished = finishRun(db, {
+        runId: started.run.id,
+        status: failed ? 'failed' : 'succeeded',
+        summary: {
+          mode: delivery.disabled ? 'no-send-canary' : 'bounded-delivery',
+          sends: delivery.sends,
+          delivery,
+          inbox,
+          crm,
+        },
+      });
+      return { ...finished, replayed: false };
+    } catch (error) {
+      // A malformed inbox file or failed CRM writer must not strand a run in
+      // 'running' forever. Preserve the original error without storing its
+      // potentially sensitive message in the durable run summary.
+      try {
+        finishRun(db, {
+          runId: started.run.id,
+          status: 'failed',
+          summary: { mode: 'no-send-canary', sends: 0, failedPhase: 'revenue_run', errorType: String(error?.name || 'Error') },
+        });
+      } catch {
+        // Do not mask the original failure if the run was already finalized.
+      }
+      throw error;
+    }
   } finally {
     db.close();
   }

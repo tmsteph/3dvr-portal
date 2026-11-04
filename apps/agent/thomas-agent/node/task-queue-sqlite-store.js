@@ -2,6 +2,7 @@ const os = require('node:os');
 const path = require('node:path');
 const fs = require('node:fs');
 const { DatabaseSync } = require('node:sqlite');
+const { isDeepStrictEqual } = require('node:util');
 
 const DEFAULT_DB_PATH = process.env.THREEDVR_AGENT_QUEUE_DB
   || path.join(os.homedir(), '.3dvr', 'task-queue.sqlite');
@@ -18,7 +19,8 @@ function openDatabase(options = {}) {
   const filePath = databasePath(options);
   fs.mkdirSync(path.dirname(filePath), { recursive: true, mode: 0o700 });
   const db = new DatabaseSync(filePath);
-  // Initialization can itself require a lock; install the wait policy first.
+  // Initializing WAL/schema can itself wait on a competing SQLite writer.
+  // Apply the lock wait policy first and close the handle on initialization failure.
   try {
     db.exec(`
     PRAGMA busy_timeout = 5000;
@@ -37,7 +39,27 @@ function openDatabase(options = {}) {
     ) WITHOUT ROWID;
     CREATE INDEX IF NOT EXISTS tasks_owner_status_updated
       ON tasks (owner_alias, status, updated_at);
+    -- Worker liveness belongs to the same private SQLite authority as task
+    -- admission. GUN presence and service configuration are not heartbeats.
+    CREATE TABLE IF NOT EXISTS worker_heartbeats (
+      owner_alias TEXT NOT NULL,
+      worker_id TEXT NOT NULL,
+      queue_store TEXT NOT NULL,
+      capabilities TEXT NOT NULL,
+      risk_classes TEXT NOT NULL DEFAULT '',
+      only_task_id TEXT NOT NULL DEFAULT '',
+      observed_at INTEGER NOT NULL,
+      PRIMARY KEY (owner_alias, worker_id)
+    ) WITHOUT ROWID;
     `);
+    // Existing managed SQLite files predate risk-class liveness metadata.
+    // Migrate in place; old heartbeats remain ineligible until a poller refreshes them.
+    if (!db.prepare('PRAGMA table_info(worker_heartbeats)').all().some(column => column.name === 'risk_classes')) {
+      db.exec("ALTER TABLE worker_heartbeats ADD COLUMN risk_classes TEXT NOT NULL DEFAULT ''");
+    }
+    if (!db.prepare('PRAGMA table_info(worker_heartbeats)').all().some(column => column.name === 'only_task_id')) {
+      db.exec("ALTER TABLE worker_heartbeats ADD COLUMN only_task_id TEXT NOT NULL DEFAULT ''");
+    }
   } catch (error) {
     db.close();
     throw error;
@@ -63,15 +85,41 @@ function parseRecord(row) {
   };
 }
 
-function writeTask(record, options = {}) {
+// Only the actual queue poller writes this bounded-age liveness evidence.
+// It is scoped to the same SQLite file and owner as the task claim path.
+function writeWorkerHeartbeat(profile, options = {}) {
+  const workerId = String(profile?.workerId || '').trim();
+  if (!workerId) throw new Error('worker heartbeat requires an attributable worker id');
+  const capabilities = [...new Set((profile.capabilities || [])
+    .map(value => String(value).trim().toLowerCase()).filter(Boolean))].join(',');
+  const riskClasses = [...new Set((profile.riskClasses || [])
+    .map(value => String(value).trim().toLowerCase()).filter(Boolean))].join(',');
+  const observedAt = Date.now();
+  return withDatabase(options, db => db.prepare(`
+    INSERT INTO worker_heartbeats
+      (owner_alias, worker_id, queue_store, capabilities, risk_classes, only_task_id, observed_at)
+    VALUES (?, ?, 'sqlite', ?, ?, ?, ?)
+    ON CONFLICT(owner_alias, worker_id) DO UPDATE SET
+      queue_store = excluded.queue_store,
+      capabilities = excluded.capabilities,
+      risk_classes = excluded.risk_classes,
+      only_task_id = excluded.only_task_id,
+      observed_at = excluded.observed_at
+  `).run(ownerAlias(options), workerId, capabilities, riskClasses, profile.onlyTaskId || '', observedAt).changes === 1);
+}
+
+// A task ID is an idempotency key, not permission to replace a pending task.
+// Only the explicit updateTask path may edit an existing queued record.
+function insertTask(record, options = {}) {
+  // The insert-only path is for pending intent, never a fabricated worker receipt.
+  if (record.status !== 'queued') {
+    throw new Error('active task claim required for status transition');
+  }
   return withDatabase(options, (db) => {
-    db.prepare(`
+    const result = db.prepare(`
       INSERT INTO tasks (owner_alias, id, status, updated_at, record_json, source)
       VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(owner_alias, id) DO UPDATE SET
-        status = excluded.status,
-        updated_at = excluded.updated_at,
-        record_json = excluded.record_json
+      ON CONFLICT(owner_alias, id) DO NOTHING
     `).run(
       ownerAlias(options),
       String(record.id),
@@ -80,42 +128,129 @@ function writeTask(record, options = {}) {
       JSON.stringify(record),
       options.queueSource || 'sqlite',
     );
+    if (result.changes !== 1) {
+      throw new Error('task ID already exists; active task claim required for update');
+    }
     return record;
   });
 }
 
-function importTask(record, options = {}) {
+function writeTask(record, options = {}) {
+  // The generic queued-task editor is not a signed HTTP admission channel.
+  // Once admitted, signed intent must remain immutable until its atomic claim;
+  // only the authenticated insert-only route may create that namespace.
+  if (String(record?.id).startsWith('operator-http-')
+    || options.queueSource === 'operator-http') {
+    throw new Error('Signed HTTP tasks require insert-only admission, not a generic queue edit');
+  }
+  // Editing a pending task must never manufacture a running/completed/failed
+  // execution receipt. Only claimTask and finishTask may change lifecycle.
+  if (record.status !== 'queued') {
+    throw new Error('active task claim required for status transition');
+  }
   return withDatabase(options, (db) => {
     const result = db.prepare(`
-      INSERT INTO tasks
-        (owner_alias, id, status, updated_at, record_json, source)
-      VALUES (?, ?, ?, ?, ?, 'gun')
+      INSERT INTO tasks (owner_alias, id, status, updated_at, record_json, source)
+      VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(owner_alias, id) DO UPDATE SET
         status = excluded.status,
         updated_at = excluded.updated_at,
-        record_json = excluded.record_json,
-        source = 'gun',
-        claim_token = NULL,
-        claim_expires_at = NULL
-      WHERE (tasks.claim_token IS NULL OR tasks.claim_expires_at <= ?)
-        AND excluded.updated_at > tasks.updated_at
+        record_json = excluded.record_json
+      WHERE tasks.status = 'queued'
     `).run(
       ownerAlias(options),
       String(record.id),
       String(record.status),
       String(record.updatedAt),
       JSON.stringify(record),
-      options.now || Date.now(),
+      options.queueSource || 'sqlite',
     );
+    // Only a claim-holder may finish running work. Terminal tasks also remain
+    // immutable: re-enqueueing an old ID could repeat already-executed effects.
+    if (result.changes !== 1) throw new Error('active task claim required for update');
+    return record;
+  });
+}
+
+function importTask(record, options = {}) {
+  // A public GUN mirror cannot reserve a signed HTTP task ID before the
+  // authenticated admission arrives, or masquerade as its lifecycle.
+  if (String(record?.id).startsWith('operator-http-')) return false;
+  // Only queued legacy intent may enter the durable store. A GUN mirror is
+  // not an authenticated worker receipt: importing a previously unseen
+  // completed/running task would fabricate execution without a claim.
+  const status = record?.status;
+  if (!['queued', 'completed', 'failed', 'skipped', 'cancelled'].includes(status)) return false;
+  return withDatabase(options, (db) => {
+    const alias = ownerAlias(options);
+    const id = String(record.id);
+    const updatedAt = String(record.updatedAt);
+    const serialized = JSON.stringify(record);
+    const now = options.now || Date.now();
+    if (status !== 'queued') {
+      // A public GUN terminal mirror is not an authenticated worker receipt.
+      // Quarantine an already-imported, unclaimed legacy task for review;
+      // neither fabricate completion nor let the SQLite worker replay work
+      // that may have run elsewhere. Unknown IDs and changed intent fail closed.
+      const previous = db.prepare(`
+        SELECT record_json FROM tasks
+        WHERE owner_alias = ? AND id = ? AND source = 'gun'
+          AND status = 'queued' AND claim_token IS NULL AND updated_at < ?
+      `).get(alias, id, updatedAt);
+      if (!previous) return false;
+      const original = JSON.parse(previous.record_json);
+      const intentFields = [
+        'id', 'task', 'tenantId', 'tenantAlias', 'tenantPlan', 'backend',
+        'repo', 'model', 'thinking', 'unsafe', 'riskClass', 'approvalStatus',
+        'requiredCapabilities', 'maxRuntimeMs', 'requestedBy', 'createdAt',
+      ];
+      // JSON-backed capability lists are separate objects after a SQLite read.
+      // Compare immutable intent by value, not array identity; a matching
+      // terminal mirror must be quarantined rather than left executable.
+      if (intentFields.some(field => !isDeepStrictEqual(original[field], record[field]))) return false;
+      const held = {
+        ...original,
+        status: 'review_required',
+        updatedAt,
+        legacyMirrorStatus: status,
+        legacyMirrorUpdatedAt: updatedAt,
+        reviewReason: 'Unverified legacy GUN terminal mirror; reconcile execution and side effects before any retry',
+      };
+      return db.prepare(`
+        UPDATE tasks SET status = 'review_required', updated_at = ?,
+          record_json = ?, claim_token = NULL, claim_expires_at = NULL
+        WHERE owner_alias = ? AND id = ? AND source = 'gun'
+          AND status = 'queued' AND claim_token IS NULL
+          AND updated_at < ? AND record_json = ?
+      `).run(updatedAt, JSON.stringify(held), alias, id, updatedAt, previous.record_json).changes === 1;
+    }
+    // The GUN relay is a mirror, not an authority to revise queued intent.
+    // A newer relay update must not replace task text, risk, approval, or
+    // capabilities after a worker has imported an ID. Intent changes require
+    // an authenticated, explicit queue edit rather than an import overwrite.
+    // Keep even identical duplicate imports as no-ops to preserve provenance.
+    const result = db.prepare(`
+      INSERT INTO tasks
+        (owner_alias, id, status, updated_at, record_json, source)
+      VALUES (?, ?, ?, ?, ?, 'gun')
+      ON CONFLICT(owner_alias, id) DO NOTHING
+    `).run(alias, id, status, updatedAt, serialized);
     return result.changes === 1;
   });
 }
 
+// A missed lease is no longer authority to execute or finish work. Both
+// renewal paths reject expired claims rather than resurrecting them.
 function renewClaim(id, claimToken, expiresAt, options = {}) {
+  const now = options.now ?? Date.now();
+  // A nonfinite expiry (Infinity/NaN) can poison the durable lease and
+  // prevent bounded recovery. Never write it, even on a valid token.
+  if (!Number.isFinite(now) || !Number.isFinite(expiresAt) || expiresAt <= now) return false;
   return withDatabase(options, (db) => db.prepare(`
     UPDATE tasks SET claim_expires_at = ?
     WHERE owner_alias = ? AND id = ? AND claim_token = ? AND status = 'running'
-  `).run(expiresAt, ownerAlias(options), String(id), claimToken).changes === 1);
+      AND claim_expires_at > ? AND ? > ?
+  `).run(expiresAt, ownerAlias(options), String(id), claimToken, now, expiresAt, now).changes === 1);
 }
 
 function createClaimRenewer(id, claimToken, options = {}) {
@@ -123,12 +258,15 @@ function createClaimRenewer(id, claimToken, options = {}) {
   const statement = db.prepare(`
     UPDATE tasks SET claim_expires_at = ?
     WHERE owner_alias = ? AND id = ? AND claim_token = ? AND status = 'running'
+      AND claim_expires_at > ? AND ? > ?
   `);
   const alias = ownerAlias(options);
   const taskId = String(id);
   return {
     renew(expiresAt) {
-      return statement.run(expiresAt, alias, taskId, claimToken).changes === 1;
+      const now = options.now ?? Date.now();
+      if (!Number.isFinite(now) || !Number.isFinite(expiresAt) || expiresAt <= now) return false;
+      return statement.run(expiresAt, alias, taskId, claimToken, now, expiresAt, now).changes === 1;
     },
     close() {
       db.close();
@@ -150,22 +288,55 @@ function listTasks(options = {}) {
   `).all(ownerAlias(options)).map(parseRecord));
 }
 
+// Expired running claims are held for review, never automatically replayed:
+// the previous worker may have completed irreversible side effects before crashing.
 function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {}) {
+  // A malformed or already-expired lease must not strand a queued task in
+  // running state. Reject it before opening the claim transaction.
+  // A missing claim token cannot be matched by SQLite's equality predicate
+  // when finishing work; accepting it would strand a task as running forever.
+  // A missing worker identity also leaves no accountable owner for recovery.
+  const canonicalScope = process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID || '';
+  const legacyScope = process.env.THREEDVR_AGENT_ONLY_TASK_ID || '';
+  // Both worker generations must agree on a single supervised canary scope.
+  // A mismatched pair fails closed even for a direct SQLite claim caller.
+  if (canonicalScope && legacyScope && canonicalScope !== legacyScope) return null;
+  const envScope = canonicalScope || legacyScope;
+  const onlyTaskId = options.onlyTaskId ?? envScope;
+  // Enforce the environment-pinned scope even on direct SQLite claims:
+  // an empty per-call override must never re-enable historical backlog.
+  if (envScope && onlyTaskId !== envScope) return null;
+  if (onlyTaskId && String(id) !== onlyTaskId) return null;
+  if (typeof claimToken !== 'string' || !claimToken.trim()
+    || typeof workerDeviceId !== 'string' || !workerDeviceId.trim()
+    || !Number.isFinite(now) || !Number.isFinite(expiresAt) || expiresAt <= now) return null;
   return withDatabase(options, (db) => {
     db.exec('BEGIN IMMEDIATE');
     try {
       const row = db.prepare(`
-        SELECT record_json, source, claim_expires_at FROM tasks
+        SELECT record_json, source FROM tasks
         WHERE owner_alias = ? AND id = ?
-          AND (status = 'queued' OR (status = 'running' AND claim_expires_at <= ?))
-      `).get(ownerAlias(options), String(id), now);
+          AND status = 'queued'
+          -- Public GUN mirrors are not authenticated execution admissions.
+          -- Signed HTTP tasks are stored with a distinct private source.
+          -- Admit them only in the managed owner/namespace; never import GUN.
+          AND (
+            (source = 'sqlite' AND id NOT GLOB 'operator-http-*')
+            OR (
+              source = 'operator-http'
+              AND owner_alias = '3dvr-managed'
+              AND id GLOB 'operator-http-*'
+            )
+          )
+      `).get(ownerAlias(options), String(id));
       if (!row) {
         db.exec('ROLLBACK');
         return null;
       }
-      // Both queue loops share one native Codex executor. Reserve its slot in
-      // the same transaction as the task claim, including across owner scopes.
-      // A busy executor leaves other private tasks queued, never failed.
+      // The signed Operator HTTP route and the legacy worker share one native
+      // Codex executor. Preserve the cross-owner, cross-loop admission guard
+      // introduced on main: reserve the slot in the claim transaction.
+      // A busy executor leaves this task queued rather than failing it.
       if (String(id).startsWith('operator-http-')) {
         const active = db.prepare(`
           SELECT count(*) AS n FROM tasks
@@ -178,6 +349,13 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
         }
       }
       const record = JSON.parse(row.record_json);
+      // Authorization must be checked against the row inside the same
+      // transaction as the claim. A worker's earlier queue snapshot can be
+      // stale if approval, risk, or required capabilities changed.
+      if (typeof options.authorizeTask === 'function' && !options.authorizeTask(record)) {
+        db.exec('ROLLBACK');
+        return null;
+      }
       const updated = {
         ...record,
         status: 'running',
@@ -189,7 +367,7 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
         UPDATE tasks SET status = 'running', updated_at = ?, record_json = ?,
           claim_token = ?, claim_expires_at = ?
         WHERE owner_alias = ? AND id = ?
-          AND (status = 'queued' OR (status = 'running' AND claim_expires_at <= ?))
+          AND status = 'queued'
       `).run(
         updated.updatedAt,
         JSON.stringify(updated),
@@ -197,7 +375,6 @@ function claimTask(id, claimToken, workerDeviceId, expiresAt, now, options = {})
         expiresAt,
         ownerAlias(options),
         String(id),
-        now,
       );
       db.exec('COMMIT');
       return result.changes === 1 ? { ...updated, queueSource: row.source, claimToken } : null;
@@ -254,22 +431,44 @@ function transitionTaskGoal(id, claimToken, expectedRevision, event, options = {
 }
 
 function finishTask(id, claimToken, record, options = {}) {
+  // A worker claim may only produce a terminal receipt for the task it owns.
+  // In particular, finishing as 'queued' would silently re-enable execution.
+  if (!['completed', 'failed', 'skipped', 'cancelled'].includes(record?.status)
+    || String(record.id) !== String(id)) return false;
   return withDatabase(options, (db) => {
     db.exec('BEGIN IMMEDIATE');
     try {
       const stored = db.prepare('SELECT record_json, claim_expires_at FROM tasks WHERE owner_alias = ? AND id = ? AND claim_token = ? AND status = ?')
         .get(ownerAlias(options), String(id), claimToken, 'running');
-      const goal = stored ? JSON.parse(stored.record_json).goal : null;
+      // Lease expiry applies to every task, not just durable-goal tasks.
+      // An expired worker must not write a success/failure receipt after losing its claim.
+      if (!stored || stored.claim_expires_at == null
+        || stored.claim_expires_at <= (options.now ?? Date.now())) {
+        db.exec('ROLLBACK');
+        return false;
+      }
+      // A valid claim proves which task ran, not permission to rewrite its
+      // original instructions or approval provenance in the terminal receipt.
+      // Compare against the claimed row inside this same transaction.
+      const storedRecord = JSON.parse(stored.record_json);
+      const immutableFields = [
+        'id', 'task', 'tenantId', 'tenantAlias', 'tenantPlan', 'backend',
+        'repo', 'model', 'thinking', 'unsafe', 'riskClass', 'approvalStatus',
+        'requiredCapabilities', 'maxRuntimeMs', 'requestedBy', 'createdAt',
+        'workerDeviceId', 'startedAt',
+      ];
+      // The claim and completion records were separately deserialized. Preserve
+      // intent immutability without rejecting equivalent capability arrays.
+      if (immutableFields.some(field => !isDeepStrictEqual(storedRecord[field], record[field]))) {
+        db.exec('ROLLBACK');
+        return false;
+      }
+      const goal = storedRecord.goal;
       if (goal) {
-        if (stored.claim_expires_at <= (options.now ?? Date.now())) {
-          db.exec('ROLLBACK');
-          return false;
-        }
         if (['completed', 'complete', 'done', 'success', 'succeeded'].includes(record.status) && goal.status !== 'complete') {
           db.exec('ROLLBACK');
           return false;
         }
-        const storedRecord = JSON.parse(stored.record_json);
         const candidates = [record.updatedAt, storedRecord.updatedAt, new Date(options.now ?? Date.now()).toISOString()];
         const updatedAt = candidates.filter(value => Number.isFinite(Date.parse(value)))
           .reduce((latest, value) => Date.parse(value) > Date.parse(latest) ? value : latest);
@@ -297,6 +496,7 @@ function finishTask(id, claimToken, record, options = {}) {
 }
 
 module.exports = {
+  writeWorkerHeartbeat,
   initializeTaskGoal,
   transitionTaskGoal,
   claimTask,
@@ -304,6 +504,7 @@ module.exports = {
   databasePath,
   finishTask,
   importTask,
+  insertTask,
   listTasks,
   readTask,
   renewClaim,

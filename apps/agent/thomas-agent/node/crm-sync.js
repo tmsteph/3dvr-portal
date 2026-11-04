@@ -52,16 +52,49 @@ function isoDate(value, fallback = new Date()) {
   return date.toISOString().slice(0, 10);
 }
 
+// Parse CSV fields without shifting contact/status columns when a business
+// name or campaign variant contains a quoted comma or newline. Malformed
+// quotes fail the sync rather than silently assigning fields to the wrong lead.
+function parseCsvRows(content) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let quoted = false;
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+    if (quoted) {
+      if (char === '"') {
+        if (content[i + 1] === '"') { field += '"'; i++; }
+        else quoted = false;
+      } else {
+        field += char;
+      }
+    } else if (char === '"' && field === '') {
+      quoted = true;
+    } else if (char === ',') {
+      row.push(field);
+      field = '';
+    } else if (char === '\n' || char === '\r') {
+      if (char === '\r' && content[i + 1] === '\n') i++;
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = '';
+    } else {
+      field += char;
+    }
+  }
+  if (quoted) throw new SyntaxError('Unterminated quoted leads CSV field');
+  if (field || row.length) rows.push([...row, field]);
+  return rows;
+}
+
 function readLeads(filePath = DEFAULT_LEADS_FILE) {
   if (!fs.existsSync(filePath)) return [];
-  return fs.readFileSync(filePath, 'utf8')
-    .split(/\r?\n/)
+  return parseCsvRows(fs.readFileSync(filePath, 'utf8'))
     .slice(1)
-    .filter(Boolean)
-    .map((line) => {
-      const [name = '', link = '', contact = '', status = '', date = '', variant = ''] = line.split(',');
-      return { name, link, contact, status, date, variant };
-    })
+    .map(([name = '', link = '', contact = '', status = '', date = '', variant = '']) =>
+      ({ name, link, contact, status, date, variant }))
     .filter((lead) => normalizeText(lead.name));
 }
 
@@ -87,7 +120,47 @@ function shouldSyncLeadToCrm(lead, options = {}) {
 function buildLeadId(lead) {
   const email = normalizeEmail(lead.contact);
   const seed = email || lead.link || lead.name;
-  return `agent-lead-${slugify(seed || lead.name)}`;
+  // A website identifies a business, not a particular person. Preserve the
+  // existing email-based IDs; distinguish site-only people by stable name hash.
+  const siteOnlySuffix = !email && normalizeText(lead.link)
+    ? `-${stableHash(normalizeLower(lead.name))}` : '';
+  return `agent-lead-${slugify(seed || lead.name)}${siteOnlySuffix}`;
+}
+
+// Read-only compatibility audit for the site-only CRM ID transition. This
+// reports counts only; an incomplete or unverified Gun snapshot can never
+// establish that migration is safe. No remote reads or writes happen here.
+function auditSiteOnlyCrmMigration({ leads = [], records = [], touches = [] } = {}) {
+  const recordIds = new Set(records.map(row => normalizeText(typeof row === 'string' ? row : row?.id)).filter(Boolean));
+  const touchRecordIds = new Set(touches.flatMap(row => [
+    normalizeText(row?.recordId), normalizeText(row?.crmRecordId)
+  ]).filter(Boolean));
+  const byLegacyId = new Map();
+  let candidates = 0;
+  for (const lead of leads) {
+    if (normalizeEmail(lead.contact) || !normalizeText(lead.link)) continue;
+    candidates += 1;
+    const legacyId = `agent-lead-${slugify(lead.link)}`;
+    if (!byLegacyId.has(legacyId)) byLegacyId.set(legacyId, new Set());
+    byLegacyId.get(legacyId).add(buildLeadId(lead));
+  }
+  const legacyIds = [...byLegacyId.keys()];
+  const legacyRecordKeys = legacyIds.filter(id => recordIds.has(id)).length;
+  const legacyTouchReferences = legacyIds.filter(id => touchRecordIds.has(id)).length;
+  const multiPersonSites = [...byLegacyId.values()].filter(ids => ids.size > 1).length;
+  return {
+    siteOnlyCandidates: candidates,
+    uniqueSites: legacyIds.length,
+    changedIdCandidates: [...byLegacyId.values()].reduce((sum, ids) => sum + ids.size, 0),
+    legacyRecordKeys,
+    legacyTouchReferences,
+    multiPersonSites,
+    observedLegacyConflict: legacyRecordKeys > 0 || legacyTouchReferences > 0 || multiPersonSites > 0,
+    // Even zero observed conflicts cannot clear a migration without an
+    // independently verified complete snapshot and human review.
+    migrationReviewRequired: true,
+    snapshotCompleteness: 'unverified',
+  };
 }
 
 function contactIdentity(value = {}) {
@@ -99,10 +172,25 @@ function contactIdentity(value = {}) {
 }
 
 function contactsMatch(left = {}, right = {}) {
-  if (contactIdentity(left) === contactIdentity(right)) return true;
-  const leftName = normalizeLower(left.name);
-  const rightName = normalizeLower(right.name);
-  return Boolean(leftName && rightName && leftName === rightName);
+  const leftEmail = normalizeEmail(left.contact || left.email);
+  const rightEmail = normalizeEmail(right.contact || right.email);
+  // An identified email contact must match the same email. A shared site or
+  // display name does not prove that two people at a business are identical.
+  if (leftEmail || rightEmail) return Boolean(leftEmail && rightEmail && leftEmail === rightEmail);
+
+  const leftSite = normalizeLower(left.link || left.site);
+  const rightSite = normalizeLower(right.link || right.site);
+  // A shared website alone cannot attribute a reply, opt-out or sent message
+  // to one person at a business. Require the same named site-only contact.
+  if (leftSite && rightSite) {
+    const leftName = normalizeLower(left.name);
+    const rightName = normalizeLower(right.name);
+    return Boolean(leftName && rightName && leftName === rightName && leftSite === rightSite);
+  }
+
+  // Never attribute a sent message, reply, or opt-out from a name alone.
+  // A name-only outreach log must remain unmatched pending identity review.
+  return false;
 }
 
 function leadFromOutreachEntry(entry = {}) {
@@ -148,14 +236,15 @@ function statusForLead(lead) {
   if (status === 'contacted') return 'Warm - Follow-up';
   if (status === 'replied') return 'Warm - Discovery';
   if (status === 'nurture') return 'Warm - Awareness';
-  if (status === 'closed') return 'Won';
+  if (status === 'closed') return 'Closed';
   if (status === 'failed') return 'Lost';
   return 'Lead';
 }
 
 function warmthForLead(lead) {
   const status = normalizeLower(lead.status);
-  if (status === 'replied' || status === 'closed') return 'hot';
+  if (status === 'replied') return 'hot';
+  if (status === 'closed') return '';
   if (status === 'contacted' || status === 'nurture') return 'warm';
   return 'cold';
 }
@@ -167,6 +256,7 @@ function nextActionForLead(lead) {
   if (status === 'nurture') return 'Revisit later with a more specific reason to reach out.';
   if (status === 'contacted') return 'Wait for a reply; stay quiet unless there is a new material reason to reach out.';
   if (status === 'replied') return 'Reply with one clear next step and log the outcome.';
+  if (status === 'closed') return 'Closed legacy lead: do not contact. Verify the outcome and payment independently before marking Won or Customer.';
   if (action === 'email') return 'Review and send one short opener if this lead is still a fit.';
   if (action === 'form') return 'Review the contact form manually before submitting one concise opener.';
   if (action === 'open') return 'Inspect the website and look for a better contact path.';
@@ -189,7 +279,10 @@ function buildCrmRecord(lead, options = {}) {
     ? normalizeText(lead.contact)
     : '';
   const link = normalizeText(lead.link);
-  const lastContacted = ['contacted', 'replied', 'failed', 'closed'].includes(status)
+  // A failed attempt, inbound reply, or closed legacy record is not proof
+  // of successful outbound contact. Keep the legacy contacted date only;
+  // buildCrmSyncPayload uses successful outbound log events when available.
+  const lastContacted = status === 'contacted'
     ? isoDate(lead.date, new Date(now))
     : '';
   const nextFollowUp = '';
@@ -221,7 +314,7 @@ function buildCrmRecord(lead, options = {}) {
       : route === 'form'
         ? 'Contact form route available.'
         : 'Needs a better verified contact route.',
-    pilotStatus: status === 'closed' ? 'Customer' : status === 'contacted' ? 'Warm' : 'Watching',
+    pilotStatus: status === 'closed' ? '' : status === 'contacted' ? 'Warm' : 'Watching',
     offerAmount: '$20/month launch/support or $50/month Builder when active operations are involved',
     lastSignal: [
       `Agent lead status: ${status}.`,
@@ -263,7 +356,9 @@ function buildLeadTouch(lead, record, options = {}) {
     crmRecordId: record.id,
     contactId: '',
     contactName: record.name,
-    type: status === 'contacted' ? 'message' : 'note',
+    // A legacy CSV status is not a provider-verified outbound receipt.
+    // Preserve it as a note, never a message-sent activity.
+    type: 'note',
     channel: routeFromContact(lead) || 'site',
     summary: `3dvr-agent lead synced as ${status}.`,
     outcome: record.nextBestAction,
@@ -276,9 +371,13 @@ function buildLeadTouch(lead, record, options = {}) {
 
 function buildOutreachTouch(entry, record, options = {}) {
   const now = normalizeText(options.now) || new Date().toISOString();
-  const status = normalizeLower(entry.status) || 'sent';
+  const status = normalizeLower(entry.status) || 'unverified';
   const kind = normalizeLower(entry.kind) || 'message';
   const id = `touch-agent-outreach-${stableHash([
+    // Distinct recipients can share the same campaign timestamp, subject,
+    // display name and body. Scope touch IDs to the CRM record so one
+    // recipient's receipt cannot overwrite another's Gun touch log.
+    record.id,
     entry.timestamp,
     entry.name,
     entry.subject,
@@ -293,7 +392,7 @@ function buildOutreachTouch(entry, record, options = {}) {
     contactId: '',
     contactName: record.name,
     type: status === 'sent' || status === 'submitted' ? 'message' : 'note',
-    touchType: status === 'replied' ? 'reply-received' : status === 'sent' || status === 'submitted' ? 'outreach-sent' : 'outreach-failed',
+    touchType: status === 'replied' ? 'reply-received' : status === 'sent' || status === 'submitted' ? 'outreach-sent' : status === 'unverified' ? 'outreach-unverified' : 'outreach-failed',
     channel: normalizeText(entry.route || kind),
     summary: `${kind} ${status}${entry.subject ? `: ${entry.subject}` : ''}`,
     outcome: normalizeText(entry.note) || (status === 'sent' ? 'Outbound message sent.' : `Outreach logged as ${status}.`),
@@ -304,7 +403,7 @@ function buildOutreachTouch(entry, record, options = {}) {
     variant: normalizeText(entry.variant),
     messageId: normalizeText(entry.messageId),
     threadId: normalizeText(entry.threadId),
-    deliveryStatus: normalizeText(entry.deliveryStatus || entry.status),
+    deliveryStatus: normalizeText(entry.deliveryStatus || entry.status) || status,
     replyStatus: normalizeText(entry.replyStatus || (status === 'replied' ? 'replied' : 'pending')),
     nextFollowUp: normalizeText(entry.nextFollowUp),
     targetUrl: normalizeText(entry.targetUrl),
@@ -324,41 +423,76 @@ function buildCrmSyncPayload({
   limit = 0,
   includeAll = false,
 } = {}) {
-  const outreachOnlyLeads = outreach
-    .filter(entry => normalizeText(entry.name) || normalizeText(entry.contact))
-    .filter(entry => normalizeText(entry.contact) || normalizeText(entry.site))
-    .filter(entry => !leads.some(lead => contactsMatch(lead, entry)))
-    .map(leadFromOutreachEntry);
+  const outreachOnlyLeads = [];
+  for (const entry of outreach) {
+    if (!normalizeText(entry.name) && !normalizeText(entry.contact)) continue;
+    if (!normalizeText(entry.contact) && !normalizeText(entry.site)) continue;
+    if (leads.some(lead => contactsMatch(lead, entry))) continue;
+    const candidate = leadFromOutreachEntry(entry);
+    // Multiple log events for one previously unseen contact must create one
+    // CRM record, otherwise unique event attribution becomes ambiguous.
+    if (!outreachOnlyLeads.some(lead => contactsMatch(lead, candidate))) {
+      outreachOnlyLeads.push(candidate);
+    }
+  }
   const qualifiedLeads = [...leads, ...outreachOnlyLeads]
     .filter((lead) => shouldSyncLeadToCrm(lead, { includeAll }));
   const selectedLeads = limit > 0 ? qualifiedLeads.slice(0, limit) : qualifiedLeads;
-  const records = selectedLeads.map((lead) => buildCrmRecord(mergeOutreachIntoLead(lead, outreach), { now }));
-  const byIdentity = new Map();
-  const byName = new Map();
-  const byId = new Map();
-  selectedLeads.forEach((lead, index) => {
-    byIdentity.set(contactIdentity(lead), { lead, record: records[index] });
-    if (normalizeLower(lead.name)) byName.set(normalizeLower(lead.name), { lead, record: records[index] });
-    byId.set(records[index].id, { lead, record: records[index] });
-  });
-
-  const touches = records.map((record) => buildLeadTouch(byId.get(record.id).lead, record, { now }));
+  // Resolve each outreach event to exactly one lead before updating status,
+  // follow-ups, or touch history. Ambiguous name-only events remain unmatched.
+  const matchedOutreach = selectedLeads.map(() => []);
   for (const entry of outreach) {
-    const match = byIdentity.get(contactIdentity(entry)) || byName.get(normalizeLower(entry.name));
-    if (!match) continue;
-    touches.push(buildOutreachTouch(entry, match.record, { now }));
+    const matches = selectedLeads.flatMap((lead, index) => contactsMatch(lead, entry) ? [index] : []);
+    if (matches.length === 1) matchedOutreach[matches[0]].push(entry);
   }
 
+  // Historical CSV 'contacted'/'replied' labels are not delivery or reply
+  // receipts. Only an identity-matched successful outreach event may promote
+  // those CRM stages. Preserve the original CSV label in the note touch.
+  const records = selectedLeads.map((lead, index) => {
+    const entries = matchedOutreach[index];
+    const merged = mergeOutreachIntoLead(lead, entries);
+    const hasVerifiedTouch = entries.some(entry =>
+      ['sent', 'submitted', 'replied'].includes(normalizeLower(entry.status)));
+    const status = !hasVerifiedTouch && ['contacted', 'replied'].includes(normalizeLower(merged.status))
+      ? 'new' : merged.status;
+    return buildCrmRecord({ ...merged, status, ...(!hasVerifiedTouch ? { date: '' } : {}) }, { now });
+  });
+  // Gun upserts by record ID. Two distinct lead rows (or slug-colliding emails)
+  // must never silently overwrite one another during a CRM sync.
+  const recordIds = new Set();
   for (const record of records) {
-    const entries = outreach.filter(entry => contactsMatch(entry, record));
+    if (recordIds.has(record.id)) {
+      throw new Error('Ambiguous CRM record ID collision; review lead identities before syncing');
+    }
+    recordIds.add(record.id);
+  }
+  const touches = records.map((record, index) => buildLeadTouch(selectedLeads[index], record, { now }));
+  records.forEach((record, index) => {
+    for (const entry of matchedOutreach[index]) {
+      touches.push(buildOutreachTouch(entry, record, { now }));
+    }
+  });
+
+  for (const [index, record] of records.entries()) {
+    const entries = matchedOutreach[index];
     const successful = entries.filter(entry => ['sent', 'submitted'].includes(normalizeLower(entry.status)));
     const replies = entries.filter(entry => normalizeLower(entry.status) === 'replied');
     const latest = entries.slice().sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || ''))).pop();
     if (!latest) continue;
-    record.lastContacted = successful.length ? isoDate(latest.timestamp, new Date(now)) : record.lastContacted;
-    record.lastTouchType = replies.length ? 'reply-received' : 'outreach-sent';
+    // A later failed attempt or reply must not move the last successful outbound date.
+    const latestSent = successful.slice().sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || ''))).pop();
+    record.lastContacted = latestSent ? isoDate(latestSent.timestamp, new Date(now)) : record.lastContacted;
+    // Input logs can arrive out of order; use event time, not array order.
+    const latestReply = replies.slice().sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || ''))).pop();
+    // The latest touch is an event, not a lifetime "ever replied" flag.
+    // A later failed attempt must not be reported as a successful send/reply.
+    const latestStatus = normalizeLower(latest.status);
+    record.lastTouchType = latestStatus === 'replied' ? 'reply-received'
+      : ['sent', 'submitted'].includes(latestStatus) ? 'outreach-sent'
+        : latestStatus === 'failed' ? 'outreach-failed' : 'outreach-unverified';
     record.replyCount = replies.length;
-    record.lastReplyAt = replies.length ? replies[replies.length - 1].timestamp : '';
+    record.lastReplyAt = latestReply?.timestamp || '';
     record.lastCampaign = normalizeText(latest.campaignId || latest.experiment || latest.experimentId);
     record.lastVariant = normalizeText(latest.variant);
     record.lastMessageSubject = normalizeText(latest.subject);
@@ -384,7 +518,10 @@ function putGun(node, payload, timeoutMs = DEFAULT_WRITE_TIMEOUT_MS) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      resolve(ack || { ok: true });
+      // An absent or negative Gun ACK is not proof that a CRM write landed.
+      // Keep the write retryable instead of reporting a fabricated success.
+      const positiveAck = ack?.ok === true || (typeof ack?.ok === 'number' && Number.isFinite(ack.ok) && ack.ok > 0);
+      resolve(positiveAck && !ack.err ? ack : { err: ack?.err || 'crm sync write missing positive acknowledgment' });
     });
   });
 }
@@ -397,20 +534,45 @@ async function writeCrmSync(payload, options = {}) {
   const crmRoot = options.crmRoot || roots.portalCrmNode();
   const touchRoot = options.touchRoot || roots.portalCrmTouchLogNode();
   const results = { records: 0, touches: 0, errors: [] };
+  const acknowledgedRecordIds = new Set();
 
   for (const record of payload.records || []) {
     const ack = await putGun(crmRoot.get(record.id), record, timeoutMs);
     if (ack?.err) results.errors.push(`record ${record.id}: ${ack.err}`);
-    else results.records += 1;
+    else {
+      results.records += 1;
+      acknowledgedRecordIds.add(record.id);
+    }
   }
 
   for (const touch of payload.touches || []) {
+    const recordId = normalizeText(touch.recordId);
+    // A failed parent upsert must never produce a dangling activity record.
+    // Both foreign-key fields must agree and the parent must have a positive
+    // ACK in this same sync attempt. Retry the whole idempotent projection.
+    if (!recordId || normalizeText(touch.crmRecordId) !== recordId ||
+        !acknowledgedRecordIds.has(recordId)) {
+      results.errors.push(`touch ${touch.id}: parent CRM record not acknowledged`);
+      continue;
+    }
     const ack = await putGun(touchRoot.get(touch.id), touch, timeoutMs);
     if (ack?.err) results.errors.push(`touch ${touch.id}: ${ack.err}`);
     else results.touches += 1;
   }
 
   return results;
+}
+
+// A partial Gun ACK failure must fail the command so supervisors and CI do
+// not mistake a partially persisted CRM projection for a successful sync.
+function assertCrmSyncSucceeded(result) {
+  const errors = Array.isArray(result?.errors) ? result.errors : [];
+  if (errors.length) {
+    const error = new Error(`CRM sync incomplete: ${errors.length} write error(s); retry after investigating the failed ACKs`);
+    error.code = 'CRM_SYNC_INCOMPLETE';
+    throw error;
+  }
+  return result;
 }
 
 function parseArgs(argv = []) {
@@ -420,6 +582,7 @@ function parseArgs(argv = []) {
     leadsFile: DEFAULT_LEADS_FILE,
     outreachLogFile: DEFAULT_OUTREACH_LOG_FILE,
     noOutreachLog: false,
+    auditSiteOnlySnapshot: '',
     includeAll: false,
     help: false,
   };
@@ -436,6 +599,9 @@ function parseArgs(argv = []) {
       options.outreachLogFile = argv[++index] || DEFAULT_OUTREACH_LOG_FILE;
     } else if (arg === '--no-outreach-log') {
       options.noOutreachLog = true;
+    } else if (arg === '--audit-site-only-snapshot') {
+      options.auditSiteOnlySnapshot = argv[++index] || '';
+      if (!options.auditSiteOnlySnapshot) throw new Error('Missing snapshot file');
     } else if (arg === '--include-all') {
       options.includeAll = true;
     } else if (arg === '-h' || arg === '--help' || arg === 'help') {
@@ -464,7 +630,7 @@ async function cli(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
   if (options.help) {
     console.log(`Usage:
-  ask-crm-sync [--dry-run] [--limit 20] [--no-outreach-log] [--include-all]
+  ask-crm-sync [--dry-run] [--limit 20] [--no-outreach-log] [--include-all]\n  ask-crm-sync --audit-site-only-snapshot snapshot.json [--leads-file leads.csv]
 
 Writes local 3dvr-agent leads into:
   - 3dvr-crm/<recordId>
@@ -476,6 +642,16 @@ portal CRM stays useful. Use --include-all for a full import.`);
   }
 
   const leads = readLeads(options.leadsFile);
+  if (options.auditSiteOnlySnapshot) {
+    const snapshot = JSON.parse(fs.readFileSync(options.auditSiteOnlySnapshot, 'utf8'));
+    if (!Array.isArray(snapshot.records) || !Array.isArray(snapshot.touches)) {
+      throw new Error('Snapshot must include records[] and touches[]');
+    }
+    const audit = auditSiteOnlyCrmMigration({ leads, records: snapshot.records, touches: snapshot.touches });
+    console.log(JSON.stringify(audit, null, 2));
+    console.log('Read-only audit. Snapshot completeness is not independently verified; no migration or CRM write authorized.');
+    return;
+  }
   const outreach = options.noOutreachLog
     ? []
     : readOutreachLog({ filePath: options.outreachLogFile });
@@ -494,13 +670,17 @@ portal CRM stays useful. Use --include-all for a full import.`);
 
   const result = await writeCrmSync(payload);
   if (result.errors.length) {
-    console.warn(`CRM sync completed with ${result.errors.length} warning(s).`);
-    result.errors.slice(0, 5).forEach((error) => console.warn(`- ${error}`));
+    console.warn(`CRM sync incomplete: ${result.errors.length} write error(s).`);
+    // Never print provider errors or CRM record IDs from an unattended run.
+    // The nonzero exit status is the actionable receipt; rerun after repair.
   }
+  assertCrmSyncSucceeded(result);
   console.log(`CRM sync wrote ${result.records} record(s) and ${result.touches} touch log item(s).`);
 }
 
 module.exports = {
+  assertCrmSyncSucceeded,
+  auditSiteOnlyCrmMigration,
   buildCrmRecord,
   contactIdentity,
   buildCrmSyncPayload,

@@ -64,6 +64,15 @@ async function runSupervisorCycle(options = {}) {
   const services = options.services || SERVICES;
   const runDaemonImpl = options.runDaemonImpl || runDaemon;
 
+  // A signed single-task canary cannot authorize supervision of unrelated
+  // inbox, outreach, router, or queue daemons. Never repair any service while
+  // that scope is present, even if desired state was left as `running`.
+  const pinnedTask = String(process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID || '').trim()
+    || String(options.onlyTaskId || '').trim();
+  if (pinnedTask) {
+    return { desired, repaired: [], unhealthy: [], state, blocked: 'signed-task-pin-forbids-supervisor-repair' };
+  }
+
   if (desired !== 'running') {
     for (const service of services) state.failures.set(service.name, 0);
     return { desired, repaired: [], unhealthy: [], state };
@@ -100,6 +109,14 @@ async function runSupervisorCycle(options = {}) {
   return { desired, repaired, unhealthy, state };
 }
 
+function supervisorHeartbeatStatus(report) {
+  if (report.blocked) return 'blocked';
+  if (report.desired !== 'running') return 'stopped';
+  // Desired state is not proof that the supervised services are healthy.
+  if (report.unhealthy.length > 0) return 'degraded';
+  return 'running';
+}
+
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -115,7 +132,7 @@ async function main() {
     }
     await writeHeartbeat('agent-supervisor', {
       ownerAlias: OWNER_ALIAS,
-      status: report.desired === 'running' ? 'running' : 'stopped',
+      status: supervisorHeartbeatStatus(report),
       metadata: {
         desiredState: report.desired,
         repaired: report.repaired.join(','),
@@ -136,6 +153,7 @@ module.exports = {
   readDesiredState,
   runDaemon,
   runSupervisorCycle,
+  supervisorHeartbeatStatus,
 };
 
 if (require.main === module) {

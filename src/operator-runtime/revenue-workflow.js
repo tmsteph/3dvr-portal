@@ -44,6 +44,11 @@ export function getOutboundDecision({
   sensitiveAction = false,
   campaignAllowed = true
 } = {}) {
+  // A campaign cap or policy block is a hard stop for every relationship,
+  // channel and sensitivity level. Human approval cannot override it.
+  if (!campaignAllowed) {
+    return { decision: 'defer', reason: 'Campaign caps or policy currently block this send.' };
+  }
   if (sensitiveAction) {
     return { decision: 'approval', reason: 'Sensitive actions require a human checkpoint.' };
   }
@@ -58,20 +63,35 @@ export function getOutboundDecision({
   if (channel !== 'email') {
     return { decision: 'approval', reason: 'Autonomous outbound is currently limited to direct email.' };
   }
-  if (!campaignAllowed) {
-    return { decision: 'defer', reason: 'Campaign caps or policy currently block this send.' };
-  }
   if (!Number.isFinite(localHour) || localHour < 8 || localHour >= 18) {
     return { decision: 'defer', reason: 'Fresh-lead email should wait for the 08:00–18:00 local business window.' };
   }
 
-  return { decision: 'auto', reason: 'Fresh direct-email lead is inside the approved business window.' };
+  // Sending is an identity-bound side effect. A campaign/time window is not
+  // a per-message human approval receipt, so never authorize it here.
+  return { decision: 'approval', reason: 'Every outbound message requires a human approval checkpoint before sending.' };
+}
+
+// Reject invalid reminder dates at the write boundary, not only when a reminder
+// is later checked. Otherwise an impossible timestamp can silently strand a lead.
+function normalizeFollowUpAt(value) {
+  if (value == null || value === '') return null;
+  if (!Number.isFinite(parseRealIsoInstant(value))) {
+    throw new TypeError('nextFollowUpAt requires a real ISO timestamp');
+  }
+  return value;
 }
 
 export function createRevenueLeadWorkItem(input = {}) {
   const leadName = typeof input.leadName === 'string' ? input.leadName.trim() : '';
   const title = input.title || `Revenue opportunity${leadName ? ` · ${leadName}` : ''}`;
   const now = input.now || new Date().toISOString();
+  const stage = input.stage || 'research';
+  if (!REVENUE_STAGES.includes(stage)) throw new TypeError(`unknown revenue stage: ${stage}`);
+  // A new work item must not be born as a paid customer. Even a caller-supplied
+  // receipt is not proof of settlement; only the guarded payment transition
+  // may mark an opportunity won, pending independent provider verification.
+  if (stage === 'won') throw new TypeError('won stage requires a payment_received transition');
 
   return createWorkItem({
     id: input.id,
@@ -93,13 +113,61 @@ export function createRevenueLeadWorkItem(input = {}) {
     result: input.result,
     metadata: {
       ...(input.metadata || {}),
-      stage: input.stage || 'research',
+      stage,
       leadName: leadName || null,
       relationship: normalizeRelationship(input.relationship),
       campaign: input.campaign || null,
-      nextFollowUpAt: input.nextFollowUpAt || null
+      nextFollowUpAt: normalizeFollowUpAt(input.nextFollowUpAt)
     }
   });
+}
+
+// These are records of externally observable events, not intentions or drafts.
+// A structured receipt reference is necessary but does not replace provider read-back.
+const RECEIPT_EVENTS = new Set(['outreach_sent', 'follow_up_sent', 'proposal_sent', 'reply_received', 'payment_received']);
+const SEND_EVENTS = new Set(['outreach_sent', 'follow_up_sent', 'proposal_sent']);
+// A receipt from a different kind of event cannot establish that a message
+// was sent or that a reply arrived. Provider verification remains mandatory.
+const SEND_RECEIPT_TYPES = new Set(['email', 'sms', 'whatsapp', 'message']);
+const REPLY_RECEIPT_TYPES = new Set(['reply', 'email_reply', 'sms_reply', 'whatsapp_reply']);
+
+function hasReceipt(evidence) {
+  return evidence && typeof evidence === 'object' && !Array.isArray(evidence)
+    && typeof evidence.type === 'string' && Boolean(evidence.type.trim())
+    && typeof evidence.id === 'string' && Boolean(evidence.id.trim());
+}
+
+// A generic "approved" flag is not approval to contact another lead or
+// to send a different draft. Bind the receipt to the exact lead, event and
+// immutable draft reference; provider read-back is still required separately.
+function hasApprovedCheckpoint(checkpoint, item, event, draftId) {
+  return checkpoint && typeof checkpoint === 'object' && checkpoint.status === 'approved'
+    && typeof checkpoint.id === 'string' && Boolean(checkpoint.id.trim())
+    && typeof checkpoint.leadId === 'string' && checkpoint.leadId === item.id
+    && checkpoint.event === event
+    && typeof draftId === 'string' && Boolean(draftId.trim())
+    && typeof checkpoint.draftId === 'string' && checkpoint.draftId === draftId;
+}
+
+// Date.parse normalizes impossible dates (e.g. February 30 -> March 2).
+// A fabricated follow-up timestamp must never make a reminder due.
+function parseRealIsoInstant(value) {
+  if (typeof value !== 'string') return NaN;
+  // Without an explicit offset, Date.parse uses the worker host's timezone.
+  // A reminder must represent the same instant on OVH, DO and every client.
+  if (!/(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return NaN;
+  // Date.parse accepts 24:00 and rolls it into the next calendar day.
+  // Reject that rollover so a reminder cannot be silently rescheduled.
+  if (/T24:/.test(value)) return NaN;
+  const parts = /^(\d{4})-(\d{2})-(\d{2})T/.exec(value);
+  if (!parts) return NaN;
+  const year = Number(parts[1]);
+  const month = Number(parts[2]);
+  const day = Number(parts[3]);
+  const actual = new Date(Date.UTC(year, month - 1, day));
+  if (actual.getUTCFullYear() !== year || actual.getUTCMonth() + 1 !== month ||
+      actual.getUTCDate() !== day) return NaN;
+  return Date.parse(value);
 }
 
 export function advanceRevenueLead(item, event, options = {}) {
@@ -108,6 +176,48 @@ export function advanceRevenueLead(item, event, options = {}) {
 
   const transition = TRANSITIONS[stage]?.[event];
   if (!transition) throw new TypeError(`event ${event} is not valid from revenue stage ${stage}`);
+
+  // A follow-up is due only when the persisted schedule has actually elapsed.
+  // A caller-supplied next date cannot manufacture a due event retroactively.
+  if (event === 'follow_up_due') {
+    const scheduledAt = parseRealIsoInstant(item.metadata?.nextFollowUpAt);
+    const observedAt = options.now === undefined ? Date.now() : parseRealIsoInstant(options.now);
+    if (!Number.isFinite(scheduledAt) || !Number.isFinite(observedAt) || scheduledAt > observedAt) {
+      throw new TypeError('follow_up_due requires an existing elapsed follow-up schedule');
+    }
+  }
+
+  if (RECEIPT_EVENTS.has(event) && !hasReceipt(options.evidence)) {
+    throw new TypeError(`${event} requires a typed external receipt reference (type and id)`);
+  }
+  if (SEND_EVENTS.has(event) && !SEND_RECEIPT_TYPES.has(options.evidence.type)) {
+    throw new TypeError(`${event} requires an outbound message receipt type`);
+  }
+  if (event === 'reply_received' && !REPLY_RECEIPT_TYPES.has(options.evidence.type)) {
+    throw new TypeError('reply_received requires an inbound reply receipt type');
+  }
+  // Reusing the same provider event for another stage is not new execution
+  // evidence. This protects per-lead history; provider read-back is still required.
+  if (RECEIPT_EVENTS.has(event) && (item.evidence || []).some(receipt =>
+    receipt?.type === options.evidence.type && receipt?.id === options.evidence.id)) {
+    throw new TypeError(`${event} cannot reuse an existing external receipt`);
+  }
+  const sendCheckpoint = options.humanCheckpoint ?? item.humanCheckpoint;
+  // Check the entire per-lead history, not only the most recent send. A -> B -> A
+  // must not permit reuse of approval A for a third external message.
+  const usedApprovalIds = item.metadata?.usedOutboundApprovalIds;
+  if (SEND_EVENTS.has(event) && (
+      (usedApprovalIds !== undefined && (!Array.isArray(usedApprovalIds) ||
+        usedApprovalIds.some(id => typeof id !== 'string' || !id.trim()))) ||
+      !hasApprovedCheckpoint(sendCheckpoint, item, event, options.draftId) ||
+      sendCheckpoint.id === item.metadata?.lastOutboundApprovalId ||
+      (Array.isArray(usedApprovalIds) && usedApprovalIds.includes(sendCheckpoint.id)))) {
+    throw new TypeError(`${event} requires a fresh traceable approved human checkpoint`);
+  }
+  if (event === 'payment_received' &&
+      (options.evidence.type !== 'payment' || !Number.isFinite(options.result?.amount) || options.result.amount <= 0)) {
+    throw new TypeError('payment_received requires a payment receipt and positive numeric amount');
+  }
 
   const [nextStage, nextState] = transition;
   const evidence = [...(item.evidence || [])];
@@ -121,7 +231,17 @@ export function advanceRevenueLead(item, event, options = {}) {
     metadata: {
       stage: nextStage,
       lastEvent: event,
-      nextFollowUpAt: options.nextFollowUpAt ?? item.metadata?.nextFollowUpAt ?? null,
+      ...(SEND_EVENTS.has(event) ? {
+        lastOutboundApprovalId: sendCheckpoint.id,
+        usedOutboundApprovalIds: [...new Set([...(Array.isArray(usedApprovalIds) ? usedApprovalIds : []),
+          item.metadata?.lastOutboundApprovalId, sendCheckpoint.id].filter(Boolean))]
+      } : {}),
+      // Once a follow-up is sent or a reply arrives, the old reminder is
+      // consumed. A new reminder must be explicitly scheduled.
+      nextFollowUpAt: Object.prototype.hasOwnProperty.call(options, 'nextFollowUpAt')
+        ? normalizeFollowUpAt(options.nextFollowUpAt)
+        : (['follow_up_sent', 'reply_received', 'closed_lost', 'payment_received'].includes(event)
+          ? null : item.metadata?.nextFollowUpAt ?? null),
       lastTransitionAt: options.now || new Date().toISOString()
     }
   });

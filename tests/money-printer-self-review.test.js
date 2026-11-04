@@ -139,6 +139,16 @@ test('operator proposal commits only the reviewed safe improvement', () => {
   assert.match(source, /pull request checks did not pass/);
 });
 
+test('autonomous merge requires remote CI even after a GREEN self-review', async () => {
+  const { mergePullRequestIfGreen } = await import('../scripts/money-printer-operator.mjs');
+  const result = await mergePullRequestIfGreen('.', { autoMergeAllowed: true },
+    { url: 'https://github.com/example/repo/pull/1' },
+    { autoMerge: true, waitChecks: false });
+
+  assert.equal(result.merged, false);
+  assert.match(result.reason, /requires --wait-checks/);
+});
+
 test('nightly self-improvement workflow uses guarded operator proposal', () => {
   const workflow = readFileSync(new URL('../.github/workflows/money-printer-self-improve.yml', import.meta.url), 'utf8');
 

@@ -59,6 +59,7 @@ function loadAuthIdentity({
   locationObj,
   caches,
   navigator,
+  source = authIdentitySource,
 } = {}) {
   const documentRef = documentObj || createCookieDocument();
   const storageRef = localStorage || createStorage();
@@ -72,7 +73,7 @@ function loadAuthIdentity({
       navigator,
     },
   };
-  vm.runInNewContext(authIdentitySource, sandbox, { filename: 'auth-identity.js' });
+  vm.runInNewContext(source, sandbox, { filename: 'auth-identity.js' });
   return {
     api: sandbox.window.AuthIdentity,
     document: documentRef,
@@ -121,6 +122,7 @@ describe('auth identity helper', () => {
   it('syncs local storage from shared identity cookies and preserves signed-in state when credentials exist', () => {
     const { api, localStorage } = loadAuthIdentity();
     localStorage.setItem('password', 'secret');
+    localStorage.setItem('alias', 'pilot@3dvr');
     localStorage.setItem('guest', 'true');
     localStorage.setItem('guestId', 'guest_abc');
     localStorage.setItem('guestDisplayName', 'Guest');
@@ -182,7 +184,51 @@ describe('auth identity helper', () => {
     assert.equal(localStorage.getItem('verifiedEmail'), 'oauth@example.com');
   });
 
-  it('downgrades stale SEA identity cookies without a stored password', () => {
+  it('does not let a password marker without a matching alias become an authenticated session, even after repeated syncs', () => {
+    const { api, localStorage } = loadAuthIdentity({ hostname: 'helm.3dvr.tech' });
+    localStorage.setItem('password', 'synthetic-local-only');
+    api.writeSharedIdentity({ alias: 'pilot@3dvr', username: 'Pilot', authMethod: 'gun' });
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      api.syncStorageFromSharedIdentity(localStorage);
+      assert.equal(localStorage.getItem('signedIn'), null);
+      assert.equal(localStorage.getItem('alias'), null);
+      assert.ok(api.readSharedIdentity(), 'shared display identity must survive origin-local denial');
+    }
+  });
+
+  it('does not rebind another local Gun account to the shared alias on repeated syncs', () => {
+    const { api, localStorage } = loadAuthIdentity({ hostname: 'helm.3dvr.tech' });
+    localStorage.setItem('alias', 'other@3dvr');
+    localStorage.setItem('username', 'Other');
+    localStorage.setItem('password', 'synthetic-local-only');
+    localStorage.setItem('signedIn', 'true');
+    api.writeSharedIdentity({ alias: 'pilot@3dvr', username: 'Pilot', authMethod: 'gun' });
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      api.syncStorageFromSharedIdentity(localStorage);
+      assert.equal(localStorage.getItem('signedIn'), null);
+      assert.equal(localStorage.getItem('alias'), 'other@3dvr');
+      assert.equal(localStorage.getItem('username'), 'Other');
+      assert.ok(api.readSharedIdentity());
+    }
+  });
+
+  it('keeps the standalone Contacts auth bridge from rebinding local credentials or logging out sibling apps', async () => {
+    const source = await readFile(resolve(projectRoot, 'contacts/auth-identity.js'), 'utf8');
+    for (const localAlias of [null, 'other@3dvr']) {
+      const { api, localStorage } = loadAuthIdentity({ hostname: 'contacts.3dvr.tech', source });
+      if (localAlias) localStorage.setItem('alias', localAlias);
+      localStorage.setItem('password', 'synthetic-local-only');
+      api.writeSharedIdentity({ alias: 'pilot@3dvr', username: 'Pilot', authMethod: 'gun' });
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        api.syncStorageFromSharedIdentity(localStorage);
+        assert.equal(localStorage.getItem('signedIn'), null);
+        assert.equal(localStorage.getItem('alias'), localAlias);
+        assert.ok(api.readSharedIdentity());
+      }
+    }
+  });
+
+  it('preserves shared display identity while downgrading stale SEA sessions without a stored password', () => {
     const { api, localStorage } = loadAuthIdentity();
 
     api.writeSharedIdentity({
@@ -199,7 +245,7 @@ describe('auth identity helper', () => {
     assert.equal(localStorage.getItem('alias'), 'sea@3dvr');
     assert.equal(localStorage.getItem('authMethod'), null);
     assert.equal(localStorage.getItem('authProvider'), null);
-    assert.equal(api.readSharedIdentity(), null);
+    assert.ok(api.readSharedIdentity());
   });
 
   it('does not let a stale OAuth cookie create a signed-in session by itself', () => {
@@ -221,7 +267,7 @@ describe('auth identity helper', () => {
     assert.equal(localStorage.getItem('authMethod'), null);
     assert.equal(localStorage.getItem('authProvider'), null);
     assert.equal(localStorage.getItem('verifiedEmail'), null);
-    assert.equal(api.readSharedIdentity(), null);
+    assert.ok(api.readSharedIdentity());
   });
 
   it('clears shared identity cookies', () => {

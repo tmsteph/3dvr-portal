@@ -259,7 +259,7 @@
     const currentVerifiedEmail = normalizeText(storage.getItem('verifiedEmail')).toLowerCase();
     const currentOauthAccountId = normalizeText(storage.getItem('oauthAccountId'));
     const aliasMatches = currentAlias === nextAlias;
-    const hasMatchingGunCredential = (!currentAlias || aliasMatches) && hasStoredPassword;
+    const hasMatchingGunCredential = aliasMatches && hasStoredPassword;
     const hasMatchingOauthSession = (
       aliasMatches
       && currentSignedIn
@@ -268,6 +268,11 @@
       && currentOauthAccountId.length > 0
     );
     const nextSignedIn = hasMatchingGunCredential || hasMatchingOauthSession;
+    // A shared display cookie cannot rebind an origin's saved credentials to another alias.
+    // Preserve the original local identity until the user signs in on this origin.
+    const keepOriginIdentity = !aliasMatches && (hasStoredPassword || currentOauthAccountId.length > 0);
+    const storedAlias = keepOriginIdentity ? currentAlias : nextAlias;
+    const storedUsername = keepOriginIdentity ? currentUsername : nextUsername;
     const nextAuthMethod = nextSignedIn ? identity.authMethod : '';
     const nextAuthProvider = nextSignedIn ? identity.authProvider : '';
     const nextStoredVerifiedEmail = nextSignedIn ? nextVerifiedEmail : '';
@@ -278,8 +283,8 @@
     );
     const needsWrite = (
       currentSignedIn !== nextSignedIn
-      || currentAlias !== nextAlias
-      || currentUsername !== nextUsername
+      || currentAlias !== storedAlias
+      || currentUsername !== storedUsername
       || currentAuthMethod !== nextAuthMethod
       || currentAuthProvider !== nextAuthProvider
       || currentVerifiedEmail !== nextStoredVerifiedEmail
@@ -295,8 +300,8 @@
     } else {
       storage.removeItem('signedIn');
     }
-    storage.setItem('alias', nextAlias);
-    storage.setItem('username', nextUsername);
+    storage.setItem('alias', storedAlias);
+    storage.setItem('username', storedUsername);
     if (nextAuthMethod) {
       storage.setItem('authMethod', nextAuthMethod);
     } else {
@@ -312,9 +317,8 @@
     } else {
       storage.removeItem('verifiedEmail');
     }
-    if (!nextSignedIn && (identity.authMethod || identity.authProvider || identity.verifiedEmail)) {
-      clearSharedIdentity();
-    }
+    // Lack of a credential on this origin must not log out sibling 3dvr.tech apps.
+    // Explicit sign-out remains responsible for clearing the shared display cookie.
     storage.removeItem('guest');
     storage.removeItem('guestId');
     storage.removeItem('guestDisplayName');

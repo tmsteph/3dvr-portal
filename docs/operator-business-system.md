@@ -36,7 +36,7 @@ These are roles, not permanent model identities. Any capable worker can fill a r
 
 1. **Research** — find a real opportunity and collect evidence.
 2. **Qualify** — confirm fit, route, need, and next best action.
-3. **Outreach** — prepare and send a bounded direct message under policy.
+3. **Outreach** — prepare a bounded message draft, pause for explicit per-message human approval, and send only after a separately verified authorization.
 4. **Wait / listen** — capture delivery, reply, and failure evidence.
 5. **Follow up** — schedule and execute the next touch instead of losing the lead in chat history.
 6. **Proposal** — turn interest into a concrete scope, price, and next step.
@@ -51,13 +51,19 @@ The system should automate routine, low-risk work while keeping identity-sensiti
 
 Current outbound rule:
 
-- Fresh direct-email leads may send autonomously during the local 08:00–18:00 business window when campaign caps/policy allow it.
-- Known contacts require a human send checkpoint.
-- Unknown relationships are classified before autonomous outreach.
-- Non-email outbound remains approval-gated until that channel has its own proven policy.
+- All external outreach (including fresh direct email) requires per-message human approval before sending. A business-hours window or campaign cap never substitutes for approval.
+- Known contacts also require a human send checkpoint.
+- Unknown relationships must be classified before a contact-specific outreach plan; classification alone never authorizes a send.
+- Non-email outbound is also approval-gated.
 - Signatures, payments, account/security changes, and other sensitive identity actions remain human-checkpoint work.
 
 A human checkpoint pauses that work item only. Other unrelated workers should continue.
+
+This policy function returns `approval` for eligible outbound; it does not yet implement a durable per-message approval receipt or delivery read-back. Downstream senders must fail closed until those are implemented and verified.
+
+**Legacy send-lane audit (2026-10-23, draft-only):** The Money Outbound Autopilot previously treated `allowlisted-auto-send` and a configured webhook as permission to send, and the legacy revenue worker could send whenever `THREEDVR_REVENUE_DELIVERY_ENABLED=true`, without authenticating a per-message human approval. Draft PR #3316 now disables those autonomous dispatch paths regardless of allowlists, environment flags, forged queue records, or injected sender functions; they can still prepare drafts and run no-send bookkeeping. The Growth Desk and Growth Operator copy must not promise automatic sends. These draft changes are not production protection until reviewed, merged, and deployed with approval. The separate direct/manual email and portal send paths still need a verified identity-bound approval boundary before any automatic sending can be safely enabled.
+
+The revenue stage machine also rejects `outreach_sent`, `follow_up_sent`, and `proposal_sent` without a traceable approved human checkpoint (`status: approved`, nonempty `id`) and typed external receipt reference (`type`, `id`). Every used approval ID is retained in the work item's metadata so an earlier approval cannot be reused after an intervening send; each send needs a fresh approval. This per-lead history is a defense in depth, not a durable global approval ledger or proof of approval provenance. `reply_received` requires an inbound reply-type receipt, while send transitions require an outbound message-type receipt; cross-event receipt types are rejected. `payment_received` requires a payment receipt reference plus a positive numeric amount. **These are structural guards, not proof of provider authenticity**: the identity lane must independently validate approval provenance, delivery status, and payment settlement before persisting these transitions. A synthetic test or caller-supplied receipt must never be reported as an actual send or sale. The legacy `apps/agent/thomas-agent/node/revenue-crm-projection.js` also fails closed on payment-shaped metadata in ordinary events: `Paid Customer` requires an explicit `payment_succeeded` ledger event, positive integer cents, a provider payment/invoice/charge reference, and no pending/failed status. This reduces accidental false positives but **does not authenticate Stripe or verify settlement**; the event producer must perform provider verification before writing the ledger event. CRM projection also carries forward the latest structurally valid payment event through later nonpayment ledger events, without applying future payments to earlier events; this avoids downgrading an already-paid lead during subsequent CRM syncs. A suppressed or bounced contact remains **do-not-contact**, even if payment history exists. Refunds, chargebacks, and independent provider reconciliation are not implemented here; do not treat CRM status as a settlement source of truth.
 
 ## Runtime contracts
 
@@ -111,7 +117,7 @@ The first managed owner is `3dvr-managed`. The sidecar is a compatibility bridge
 - [ ] Create a `lead-to-sale` work item from the CRM record.
 - [ ] Persist every stage transition from evidence, not manual narrative.
 - [ ] Make the same item visible in Growth Desk and Workboard.
-- [ ] Stop at the appropriate human checkpoint for known contacts or sensitive outbound.
+- [ ] Stop at a fresh, identity-bound human checkpoint before **every** external message, including cold email and follow-ups.
 
 ### Phase 3 — real worker handoffs
 

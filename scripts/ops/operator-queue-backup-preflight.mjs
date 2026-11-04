@@ -1,0 +1,119 @@
+#!/usr/bin/env node
+// Read-only queue snapshot preflight. Never creates backups, runs migrations,
+// reads customer records into logs, or claims a droplet-level recovery point.
+import { createHash } from 'node:crypto';
+import { existsSync, realpathSync, statSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
+import { pathToFileURL } from 'node:url';
+
+// Only bounded queue-state labels may appear in metadata-only audit output.
+// Corrupt/private status values must not leak into logs or alter object prototypes.
+const PUBLIC_QUEUE_STATES = new Set([
+  'queued', 'running', 'completed', 'failed', 'skipped', 'cancelled',
+  'review_required', 'blocked', 'review', 'expired', 'stale', 'paused',
+  'waiting_approval', 'awaiting_approval'
+]);
+
+function fingerprint(path) {
+  const db = new DatabaseSync(path, { readOnly: true });
+  try {
+    const checks = db.prepare('PRAGMA quick_check').all();
+    if (checks.length !== 1 || checks[0].quick_check !== 'ok') {
+      throw new Error('SQLite quick integrity check failed');
+    }
+    // quick_check does not validate UNIQUE constraints or index entry consistency.
+    // A structurally matching snapshot can still be unusable after restore.
+    const fullChecks = db.prepare('PRAGMA integrity_check').all();
+    if (fullChecks.length !== 1 || fullChecks[0].integrity_check !== 'ok') {
+      throw new Error('SQLite full integrity check failed');
+    }
+    if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='tasks'").get()) {
+      throw new Error('Expected queue tasks table is missing');
+    }
+    // The queue format currently persists data only in tasks and
+    // worker_heartbeats. If a future worker adds receipts, leases, or other
+    // application tables, a task-only digest could approve an incomplete
+    // snapshot. Fail closed until those rows are included in this audit.
+    const knownTables = new Set(['tasks', 'worker_heartbeats']);
+    const unexpectedTables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+      .all().filter(row => !knownTables.has(row.name));
+    if (unexpectedTables.length) {
+      throw new Error('Queue contains application tables not covered by snapshot preflight');
+    }
+    // Digest every task column and the schema, including private payloads,
+    // without returning task IDs, prompts, customer data, or secrets.
+    const digest = createHash('sha256');
+    // A task-row match alone can miss a dropped index or trigger. Compare
+    // all application schema objects as well as task rows before migration.
+    digest.update(JSON.stringify(db.prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name").all()));
+    digest.update('\n');
+    digest.update(JSON.stringify(db.prepare('PRAGMA table_info(tasks)').all()));
+    digest.update('\n');
+    let count = 0;
+    const states = new Map();
+    for (const row of db.prepare('SELECT * FROM tasks ORDER BY owner_alias,id').iterate()) {
+      digest.update(JSON.stringify(row));
+      digest.update('\n');
+      const label = PUBLIC_QUEUE_STATES.has(row.status) ? row.status : 'other';
+      states.set(label, (states.get(label) || 0) + 1);
+      count++;
+    }
+    // The worker's heartbeat/lease state lives in this same queue database.
+    // A snapshot with identical tasks but different heartbeat rows is not a
+    // faithful copy. Legacy queues without this table remain supported; the
+    // schema digest above already distinguishes table presence from absence.
+    if (db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='worker_heartbeats'").get()) {
+      for (const row of db.prepare('SELECT * FROM worker_heartbeats ORDER BY owner_alias, worker_id').iterate()) {
+        digest.update(JSON.stringify(row));
+        digest.update('\n');
+      }
+    }
+    return { count, states: Object.fromEntries(states), digest: digest.digest('hex') };
+  } finally { db.close(); }
+}
+
+export function auditOperatorQueueBackup({ livePath, snapshotPath } = {}) {
+  if (!livePath || !snapshotPath || livePath === ':memory:' || snapshotPath === ':memory:') {
+    throw new Error('Two existing SQLite file paths are required');
+  }
+  if (!existsSync(livePath) || !existsSync(snapshotPath)) {
+    throw new Error('Live queue or snapshot file is missing');
+  }
+  const liveReal = realpathSync(livePath);
+  const snapshotReal = realpathSync(snapshotPath);
+  const liveStat = statSync(liveReal);
+  const snapshotStat = statSync(snapshotReal);
+  if (!liveStat.isFile() || !snapshotStat.isFile() ||
+      (liveStat.dev === snapshotStat.dev && liveStat.ino === snapshotStat.ino)) {
+    throw new Error('Snapshot must be a separate existing SQLite file');
+  }
+  const live = fingerprint(liveReal);
+  const snapshot = fingerprint(snapshotReal);
+  if (live.digest !== snapshot.digest || live.count !== snapshot.count) {
+    throw new Error('Snapshot does not match the live queue; do not migrate');
+  }
+  // A matching, structurally consistent SQLite file is only a QUEUE snapshot
+  // preflight. It is not evidence of an off-host copy or tested restore.
+  return {
+    status: 'queue_snapshot_matches',
+    taskCount: live.count,
+    statusCounts: live.states,
+    payloadFingerprint: live.digest,
+    liveQuickCheck: 'ok', snapshotQuickCheck: 'ok',
+    liveFullIntegrityCheck: 'ok', snapshotFullIntegrityCheck: 'ok',
+    restoreTested: false, offHostVerified: false, dropletBackupVerified: false
+  };
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    const result = auditOperatorQueueBackup({
+      livePath: process.env.THREEDVR_AGENT_QUEUE_DB,
+      snapshotPath: process.env.OPERATOR_QUEUE_SNAPSHOT_PATH
+    });
+    process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+  } catch {
+    console.error('QUEUE_BACKUP_PREFLIGHT=blocked (missing, invalid or mismatched snapshot; no changes made)');
+    process.exitCode = 1;
+  }
+}

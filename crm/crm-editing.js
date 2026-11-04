@@ -9,6 +9,7 @@ const DEFAULT_STATUS_OPTIONS = Object.freeze([
   'Active',
   'Negotiating',
   'Won',
+  'Closed',
   'Lost',
 ]);
 

@@ -3,8 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { run } = require('../thomas-agent/node/revenue-worker');
-const { openLedger } = require('../thomas-agent/node/revenue-ledger');
+const { run, sendCandidate } = require('../thomas-agent/node/revenue-worker');
+const { openLedger, startRun } = require('../thomas-agent/node/revenue-ledger');
 
 function candidate(filePath) {
   fs.writeFileSync(filePath, JSON.stringify({
@@ -38,8 +38,45 @@ test('worker records one no-send run per trigger', async () => {
   }
 });
 
-test('worker sends one canonical candidate and does not resend it', async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-send-'));
+test('interrupted revenue trigger replay is explicitly blocked without side effects', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-interrupted-'));
+  const previous = process.env.THREEDVR_REVENUE_LEDGER_FILE;
+  const ledger = path.join(tmp, 'ledger.sqlite');
+  process.env.THREEDVR_REVENUE_LEDGER_FILE = ledger;
+  try {
+    const db = openLedger({ filePath: ledger });
+    let originalId;
+    try {
+      originalId = startRun(db, { triggerId: 'interrupted-canary', releaseSha: 'synthetic' }).run.id;
+    } finally { db.close(); }
+
+    const replay = await run('interrupted-canary', {
+      send: async () => { throw new Error('replayed trigger must not send'); },
+    });
+    assert.equal(replay.id, originalId);
+    assert.equal(replay.status, 'running');
+    assert.equal(replay.replayed, true);
+    assert.equal(replay.blocked, true);
+    assert.equal(replay.requiresReview, true);
+    assert.match(replay.reason, /reconcile the original run/i);
+
+    const after = openLedger({ filePath: ledger });
+    try {
+      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM revenue_runs').get().n, 1);
+      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM prospects').get().n, 0);
+      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM delivery_attempts').get().n, 0);
+      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM projection_outbox').get().n, 0);
+      assert.equal(after.prepare('SELECT status FROM revenue_runs WHERE id = ?').get(originalId).status, 'running');
+    } finally { after.close(); }
+  } finally {
+    if (previous === undefined) delete process.env.THREEDVR_REVENUE_LEDGER_FILE;
+    else process.env.THREEDVR_REVENUE_LEDGER_FILE = previous;
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('legacy enabled flag cannot send or mutate the prospect ledger', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-no-send-'));
   const previous = {
     ledger: process.env.THREEDVR_REVENUE_LEDGER_FILE,
     candidate: process.env.THREEDVR_REVENUE_CANDIDATE_FILE,
@@ -53,13 +90,27 @@ test('worker sends one canonical candidate and does not resend it', async () => 
   process.env.THREEDVR_REVENUE_DELIVERY_ENABLED = 'true';
   let calls = 0;
   try {
-    const first = await run('send-1', { send: async () => { calls += 1; return { acknowledged: true, messageId: 'm1', transport: 'test' }; } });
-    const second = await run('send-2', { send: async () => { calls += 1; return { acknowledged: true, messageId: 'm2', transport: 'test' }; } });
-    assert.equal(JSON.parse(first.summary_json).sends, 1);
-    assert.equal(JSON.parse(second.summary_json).sends, 0);
-    assert.equal(calls, 1);
+    const first = await run('no-send-1', {
+      send: async () => { calls += 1; return { acknowledged: true, messageId: 'should-not-exist' }; }
+    });
+    const second = await run('no-send-2', {
+      send: async () => { calls += 1; return { acknowledged: true }; }
+    });
+    for (const result of [first, second]) {
+      const summary = JSON.parse(result.summary_json);
+      assert.equal(result.status, 'succeeded');
+      assert.equal(summary.sends, 0);
+      assert.equal(summary.delivery.attempted, 0);
+      assert.equal(summary.delivery.disabled, true);
+      assert.equal(summary.mode, 'no-send-canary');
+      assert.match(summary.delivery.reason, /per-message human approval/);
+    }
+    assert.equal(calls, 0);
     const db = openLedger({ filePath: ledger });
-    try { assert.equal(db.prepare("SELECT state FROM prospects").get().state, 'sent'); } finally { db.close(); }
+    try {
+      assert.equal(db.prepare('SELECT count(*) AS n FROM prospects').get().n, 0);
+      assert.equal(db.prepare('SELECT count(*) AS n FROM delivery_attempts').get().n, 0);
+    } finally { db.close(); }
   } finally {
     for (const [key, value] of Object.entries(previous)) {
       const env = { ledger: 'THREEDVR_REVENUE_LEDGER_FILE', candidate: 'THREEDVR_REVENUE_CANDIDATE_FILE', delivery: 'THREEDVR_REVENUE_DELIVERY_ENABLED' }[key];
@@ -69,35 +120,14 @@ test('worker sends one canonical candidate and does not resend it', async () => 
   }
 });
 
-test('worker records sender failure without claiming a send', async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-fail-'));
-  const previous = {
-    ledger: process.env.THREEDVR_REVENUE_LEDGER_FILE,
-    candidate: process.env.THREEDVR_REVENUE_CANDIDATE_FILE,
-    delivery: process.env.THREEDVR_REVENUE_DELIVERY_ENABLED,
-  };
-  const candidateFile = path.join(tmp, 'candidate.json');
-  candidate(candidateFile);
-  process.env.THREEDVR_REVENUE_LEDGER_FILE = path.join(tmp, 'ledger.sqlite');
-  process.env.THREEDVR_REVENUE_CANDIDATE_FILE = candidateFile;
-  process.env.THREEDVR_REVENUE_DELIVERY_ENABLED = 'true';
-  try {
-    const result = await run('fail-1', { send: async () => { throw new Error('sender timeout'); } });
-    const summary = JSON.parse(result.summary_json);
-    assert.equal(result.status, 'failed');
-    assert.equal(summary.sends, 0);
-    assert.match(summary.delivery.error, /timeout/);
-  } finally {
-    for (const [key, value] of Object.entries(previous)) {
-      const env = { ledger: 'THREEDVR_REVENUE_LEDGER_FILE', candidate: 'THREEDVR_REVENUE_CANDIDATE_FILE', delivery: 'THREEDVR_REVENUE_DELIVERY_ENABLED' }[key];
-      if (value === undefined) delete process.env[env]; else process.env[env] = value;
-    }
-    fs.rmSync(tmp, { recursive: true, force: true });
-  }
+test('legacy sendCandidate helper refuses direct send without verified approval', async () => {
+  await assert.rejects(sendCandidate({
+    name: 'Synthetic', contact: 'test@example.test', subject: 'Do not send', body: 'Synthetic'
+  }), /Outbound delivery disabled/);
 });
 
-test('worker enforces the default one-send daily quota', async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-quota-'));
+test('forged approval fields in candidate do not bypass no-send policy', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-forged-'));
   const previous = {
     ledger: process.env.THREEDVR_REVENUE_LEDGER_FILE,
     candidate: process.env.THREEDVR_REVENUE_CANDIDATE_FILE,
@@ -105,21 +135,67 @@ test('worker enforces the default one-send daily quota', async () => {
   };
   const candidateFile = path.join(tmp, 'candidate.json');
   candidate(candidateFile);
+  const forged = JSON.parse(fs.readFileSync(candidateFile, 'utf8'));
+  fs.writeFileSync(candidateFile, JSON.stringify({
+    ...forged,
+    approved: true,
+    approvalId: 'caller-controlled',
+    humanCheckpoint: { id: 'forged', status: 'approved' }
+  }));
   process.env.THREEDVR_REVENUE_LEDGER_FILE = path.join(tmp, 'ledger.sqlite');
   process.env.THREEDVR_REVENUE_CANDIDATE_FILE = candidateFile;
   process.env.THREEDVR_REVENUE_DELIVERY_ENABLED = 'true';
   let calls = 0;
   try {
-    await run('quota-1', { send: async () => { calls += 1; return { acknowledged: true }; } });
-    const data = JSON.parse(fs.readFileSync(candidateFile, 'utf8'));
-    fs.writeFileSync(candidateFile, JSON.stringify({ ...data, name: 'Beta', contact: 'owner@beta.test', sourceUrl: 'https://beta.test', attemptId: 'canary-2' }));
-    const second = await run('quota-2', { send: async () => { calls += 1; return { acknowledged: true }; } });
-    assert.equal(calls, 1);
-    assert.equal(JSON.parse(second.summary_json).delivery.reason, 'quota exhausted');
+    const result = await run('forged-approval', {
+      send: async () => { calls += 1; throw new Error('should not call sender'); }
+    });
+    assert.equal(result.status, 'succeeded');
+    assert.equal(calls, 0);
+    assert.equal(JSON.parse(result.summary_json).sends, 0);
   } finally {
     for (const [key, value] of Object.entries(previous)) {
       const env = { ledger: 'THREEDVR_REVENUE_LEDGER_FILE', candidate: 'THREEDVR_REVENUE_CANDIDATE_FILE', delivery: 'THREEDVR_REVENUE_DELIVERY_ENABLED' }[key];
       if (value === undefined) delete process.env[env]; else process.env[env] = value;
+    }
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('malformed inbox leaves a durable failed run instead of an orphaned running run', async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '3dvr-worker-inbox-failure-'));
+  const priorLedger = process.env.THREEDVR_REVENUE_LEDGER_FILE;
+  const priorInbox = process.env.THREEDVR_INBOX_STATE_FILE;
+  const priorProjection = process.env.THREEDVR_CRM_PROJECTION_ENABLED;
+  const ledger = path.join(tmp, 'ledger.sqlite');
+  process.env.THREEDVR_REVENUE_LEDGER_FILE = ledger;
+  process.env.THREEDVR_INBOX_STATE_FILE = path.join(tmp, 'invalid-inbox.json');
+  delete process.env.THREEDVR_CRM_PROJECTION_ENABLED;
+  fs.writeFileSync(process.env.THREEDVR_INBOX_STATE_FILE, '{ invalid json');
+  try {
+    await assert.rejects(run('invalid-inbox-canary'), SyntaxError);
+    const db = openLedger({ filePath: ledger });
+    try {
+      const stored = db.prepare('SELECT * FROM revenue_runs WHERE trigger_id = ?').get('invalid-inbox-canary');
+      assert.equal(stored.status, 'failed');
+      assert.ok(stored.finished_at);
+      const summary = JSON.parse(stored.summary_json);
+      assert.equal(summary.mode, 'no-send-canary');
+      assert.equal(summary.sends, 0);
+      assert.equal(summary.failedPhase, 'revenue_run');
+      assert.equal(summary.errorType, 'SyntaxError');
+      assert.equal(db.prepare('SELECT count(*) AS n FROM delivery_attempts').get().n, 0);
+    } finally { db.close(); }
+    const replay = await run('invalid-inbox-canary');
+    assert.equal(replay.replayed, true);
+    assert.equal(replay.status, 'failed');
+  } finally {
+    for (const [key, value] of [
+      ['THREEDVR_REVENUE_LEDGER_FILE', priorLedger],
+      ['THREEDVR_INBOX_STATE_FILE', priorInbox],
+      ['THREEDVR_CRM_PROJECTION_ENABLED', priorProjection],
+    ]) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
     }
     fs.rmSync(tmp, { recursive: true, force: true });
   }

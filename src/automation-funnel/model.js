@@ -24,7 +24,17 @@ export function normalizeLead(input, { inbound = false } = {}) {
   lead.email = lead.email.toLowerCase();
   if (lead.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) throw new Error('Enter a valid email address.');
   if (lead.sourceUrl && !/^https?:\/\//i.test(lead.sourceUrl)) throw new Error('Source must be an http or https link.');
-  if (lead.nextDate && !/^\d{4}-\d{2}-\d{2}$/.test(lead.nextDate)) throw new Error('Choose a valid follow-up date.');
+  if (lead.nextDate) {
+    // YYYY-MM-DD shape alone admits impossible dates (e.g. February 30).
+    // Invalid reminders must not enter the durable CRM and silently disappear
+    // from a future due-date query.
+    const parsed = new Date(lead.nextDate + 'T00:00:00.000Z');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(lead.nextDate) ||
+        !Number.isFinite(parsed.getTime()) ||
+        parsed.toISOString().slice(0, 10) !== lead.nextDate) {
+      throw new Error('Choose a valid follow-up date.');
+    }
+  }
   lead.budget = BUDGETS.includes(input.budget) ? input.budget : 'undecided';
   lead.authority = ['yes', 'involved', 'no'].includes(input.authority) ? input.authority : 'no';
   lead.timeline = ['this-month', 'later', 'undecided'].includes(input.timeline) ? input.timeline : 'undecided';
@@ -51,11 +61,18 @@ export function normalizeLead(input, { inbound = false } = {}) {
   const qualification = scoreLead(lead);
   if (inbound && qualification.qualified) lead.stage = 'qualified';
   if (lead.stage === 'qualified' && !qualification.qualified) throw new Error('Confirm intent, approved budget, authority and readiness before qualifying.');
-  if (['diagnostic-paid', 'project-paid'].includes(lead.stage) && !lead.paymentReference) throw new Error('Record a verified payment reference before marking paid.');
+  // Revenue must never appear in the business dashboard without a traceable
+  // payment reference, even when a lead remains in another pipeline stage.
+  if ((lead.revenue > 0 || ['diagnostic-paid', 'project-paid'].includes(lead.stage)) && !lead.paymentReference) {
+    throw new Error('Record a verified payment reference before marking paid or recording revenue.');
+  }
   return { ...lead, ...qualification };
 }
 export function draftReply(lead) {
-  if (['do-not-contact', 'lost'].includes(lead.stage)) throw new Error('This lead is not available for outreach.');
+  // Legacy/imported CRM stages may contain mixed case or padding. Never
+  // generate a contact draft for an opt-out or closed-lost prospect.
+  const stage = String(lead.stage || '').trim().toLowerCase();
+  if (['do-not-contact', 'lost'].includes(stage)) throw new Error('This lead is not available for outreach.');
   const name = clean(lead.name, 100) || 'there';
   if (lead.inquiryType === 'operator-pilot') {
     return {

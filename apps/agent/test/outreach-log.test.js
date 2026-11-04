@@ -52,6 +52,24 @@ test('appendOutreachLog normalizes records and readOutreachLog returns them', ()
   }
 });
 
+test('missing outreach status is unverified rather than fabricated as sent', () => {
+  const tmp = mkdtempSync(path.join(os.tmpdir(), '3dvr-outreach-unverified-'));
+  const logPath = path.join(tmp, 'outreach-log.ndjson');
+  try {
+    const written = appendOutreachLog({
+      kind: 'email',
+      name: 'Synthetic Prospect',
+      contact: 'mailto:prospect@example.test',
+      source: 'draft',
+    }, { filePath: logPath });
+    assert.equal(written.status, 'unverified');
+    assert.equal(written.deliveryStatus, '');
+    assert.equal(readOutreachLog({ filePath: logPath })[0].status, 'unverified');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('ask-track sent shows recent log entries and respects the limit', () => {
   const tmp = mkdtempSync(path.join(os.tmpdir(), '3dvr-outreach-view-'));
   const logPath = path.join(tmp, 'outreach-log.ndjson');

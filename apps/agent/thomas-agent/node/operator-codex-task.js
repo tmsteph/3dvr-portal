@@ -2,6 +2,14 @@ const { spawn } = require('node:child_process');
 const { readFile } = require('node:fs/promises');
 const path = require('node:path');
 
+// A transport timeout/disconnect cannot establish whether the remote model
+// completed work. Keep that uncertainty distinct from a verified task failure.
+function uncertainDelivery(message) {
+  const error = new Error(message);
+  error.deliveryUncertain = true;
+  return error;
+}
+
 // Reuse Hetzner's working Codex login in place. The existing queue continues
 // to own claims/results; this starts no service and never retries inference.
 async function runOperatorCodexTask(record, options = {}) {
@@ -15,17 +23,17 @@ async function runOperatorCodexTask(record, options = {}) {
     const child = (options.spawn || spawn)('ssh', ['-o','BatchMode=yes','-o','ConnectTimeout=8',
       '3dvr-hetzner','python3','-',data], {stdio:['pipe','pipe','pipe']});
     let output = '';
-    const timer = setTimeout(() => {child.kill('SIGTERM');reject(new Error('Codex task timed out; delivery is uncertain.'));},100000);
+    const timer = setTimeout(() => {child.kill('SIGTERM');reject(uncertainDelivery('Codex task timed out; delivery is uncertain.'));},100000);
     child.stdout.on('data', chunk => {output += chunk;if(Buffer.byteLength(output)>200000)child.kill('SIGTERM');});
     child.stderr.on('data', () => {});
-    child.on('error', error => {clearTimeout(timer);reject(error);});
+    child.on('error', error => {clearTimeout(timer);reject(uncertainDelivery('Codex transport failed; delivery is uncertain.'));});
     child.on('close', code => {
       clearTimeout(timer);
       try {
         if(code !== 0 || Buffer.byteLength(output)>200000) throw Error('transport');
         const result=JSON.parse(output);
         resolve({ok:result.ok === true,backend:'codex',result:result.ok ? {stdout:result.reply} : {stderr:result.error || 'Codex did not complete.'}});
-      } catch {reject(new Error('Codex connection interrupted; check the saved task before retrying.'));}
+      } catch {reject(uncertainDelivery('Codex connection interrupted; check the saved task before retrying.'));}
     });
     child.stdin.on('error', () => {});
     child.stdin.end(script);

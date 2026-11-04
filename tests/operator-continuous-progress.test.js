@@ -24,11 +24,45 @@ test('delegated task status is concise and keeps the runtime budget honest', () 
   assert.match(operatorTaskProgress({ status:'running' }, 120_000), /Working/);
   assert.equal(isOperatorTaskTerminal({ status:'running' }), false);
   assert.equal(isOperatorTaskTerminal({ status:'completed' }), true);
+  assert.match(operatorTaskProgress({ status:'completed' }), /receipt unverified/);
+  assert.match(operatorTaskProgress({
+    status:'completed', resultSummary:'42', workerDeviceId:'worker-1',
+    startedAt:'2026-10-28T10:00:00Z', completedAt:'2026-10-28T10:00:05Z'
+  }), /worker receipt present/);
   assert.equal(
-    operatorTaskReceipt({ status:'completed', resultSummary:'Found the issue and verified the fix.' }),
+    operatorTaskReceipt({
+      status:'completed', resultSummary:'Found the issue and verified the fix.',
+      workerDeviceId:'worker-1', startedAt:'2026-10-28T10:00:00Z', completedAt:'2026-10-28T10:00:05Z'
+    }),
     'Operator Runtime finished. Result: Found the issue and verified the fix.'
   );
 });
+test('completed queue status without attributable worker evidence is reported as unverified', () => {
+  const result = 'Research complete.';
+  assert.match(
+    operatorTaskReceipt({ status:'completed', resultSummary:result }),
+    /worker receipt is incomplete.*Reported result: Research complete/
+  );
+  assert.match(
+    operatorTaskReceipt({ status:'completed' }),
+    /Verify execution before relying on it/
+  );
+  assert.match(
+    operatorTaskReceipt({
+      status:'completed', resultSummary:result, workerDeviceId:'worker-1',
+      startedAt:'2026-10-28T10:00:05Z', completedAt:'2026-10-28T10:00:00Z'
+    }),
+    /worker receipt is incomplete/
+  );
+  assert.match(
+    operatorTaskReceipt({
+      status:'completed', resultSummary:result,
+      startedAt:'2026-10-28T10:00:00Z', completedAt:'2026-10-28T10:00:05Z'
+    }),
+    /worker receipt is incomplete/
+  );
+});
+
 test('server-control updates distinguish queued, running, and terminal states', () => {
   assert.match(serverControlProgress({ status:'queued' }), /queued/);
   assert.match(serverControlProgress({ status:'running' }), /running/);
@@ -60,4 +94,29 @@ test('both Operator surfaces keep delegated progress in the conversation', async
   assert.match(actions, /backgroundTask: \{ kind:'operator_runtime'/);
   assert.match(actions, /backgroundTask: \{ kind:'server_control'/);
   assert.match(actions, /backgroundTask: \{ kind:'forge'/);
+});
+
+test('self-hosted Operator does not load Vercel-only analytics as an executable asset', async () => {
+  const html = await read('operator/index.html');
+  // OVH has no /_vercel/insights/script.js; a 404 text/plain response
+  // produces a noisy MIME/script failure during authenticated acceptance.
+  assert.doesNotMatch(html, /<script[^>]+src=["']\/_vercel\/insights\/script\.js["']/i);
+  // Removing optional analytics must not remove the essential app or auth.
+  assert.match(html, /<script[^>]+src=["']\/gun-init\.js["']/i);
+  assert.match(html, /<script[^>]+src=["']\/auth-identity\.js["']/i);
+  assert.match(html, /<script[^>]+type=["']module["'][^>]+src=["']app\.js["']/i);
+});
+
+test('cross-device acceptance logs only account-presence metadata, never the public identity', async () => {
+  const script = await read('scripts/operator-portal-e2e.mjs');
+  assert.doesNotMatch(script, /log\('E2E_SYNC_PROBE',\s*JSON\.stringify\(syncProbe\)\)/);
+  assert.doesNotMatch(script, /JSON\.stringify\(syncProbe\)/);
+  // Initial sign-in must not print account alias/public key, including on errors.
+  assert.doesNotMatch(script, /log\('E2E_ACCOUNT_ALIAS',/);
+  assert.doesNotMatch(script, /log\('E2E_ACCOUNT_PUB',/);
+  assert.doesNotMatch(script, /JSON\.stringify\(identity\)/);
+  assert.match(script, /log\('E2E_ACCOUNT_ALIAS_PRESENT',\s*Boolean\(identity\.alias\)\)/);
+  assert.match(script, /log\('E2E_ACCOUNT_PUB_PRESENT',\s*Boolean\(identity\.pub\)\)/);
+  assert.match(script, /hasPub:\s*Boolean\(syncProbe\.pub\)/);
+  assert.match(script, /sameAccount:\s*Boolean\(pub\)\s*&&\s*pub\s*===\s*expectedPub/);
 });

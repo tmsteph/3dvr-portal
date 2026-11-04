@@ -25,6 +25,17 @@ const page = await context.newPage();
 const pageErrors = [];
 const operatorStatuses = [];
 const operatorRequestFailures = [];
+const staticAssetFailures = [];
+
+// Report only same-origin static asset paths and HTTP status: never log query
+// strings, authentication tokens, request bodies, or customer content.
+function captureStaticAssetFailure(response) {
+  const url = new URL(response.url());
+  if (url.origin !== new URL(baseUrl).origin || !/\.(?:js|mjs|css)$/.test(url.pathname) || response.status() < 400) return;
+  const failure = { path: url.pathname, status: response.status() };
+  staticAssetFailures.push(failure);
+  log('E2E_STATIC_ASSET_FAILURE', JSON.stringify(failure));
+}
 
 page.on('console', message => {
   const text = message.text();
@@ -35,6 +46,7 @@ page.on('pageerror', error => {
   console.log(`[pageerror] ${error.message}`);
 });
 page.on('response', response => {
+  captureStaticAssetFailure(response);
   if (response.url().includes('/api/openai-site?provider=operator')) {
     operatorStatuses.push(response.status());
     log('E2E_OPERATOR_HTTP', response.status());
@@ -78,12 +90,13 @@ async function signInOrCreate() {
     pub: localStorage.getItem('userPubKey')
   }));
 
-  log('E2E_ACCOUNT_ALIAS', identity.alias || '');
-  log('E2E_ACCOUNT_PUB', identity.pub || '');
-  log('E2E_SIGNED_IN', identity.signedIn || '');
+  // Keep identity values in memory for same-account comparisons, not CI logs.
+  log('E2E_ACCOUNT_ALIAS_PRESENT', Boolean(identity.alias));
+  log('E2E_ACCOUNT_PUB_PRESENT', Boolean(identity.pub));
+  log('E2E_SIGNED_IN', identity.signedIn === 'true');
 
   if (identity.signedIn !== 'true' || !identity.pub) {
-    throw new Error(`Portal sign-in did not establish a SEA identity: ${JSON.stringify(identity)}`);
+    throw new Error(`Portal sign-in did not establish a SEA identity (signedIn=${identity.signedIn === 'true'}, hasPub=${Boolean(identity.pub)})`);
   }
   return identity;
 }
@@ -110,6 +123,64 @@ async function signInFreshPage(targetPage) {
   await targetPage.locator('#operator-input').waitFor({ state: 'visible', timeout: 30_000 });
 }
 
+// Failure-only read of encrypted GUN snapshot metadata on both test browsers.
+// Never export account identifiers, writer IDs, ciphertext, or conversation content.
+async function readCrossDeviceSnapshotMetadata(targetPage, fixtureId, token) {
+  return targetPage.evaluate(async ({ fixtureId, token }) => {
+    const gun = window.Gun({ localStorage: false, peers: window.__GUN_PEERS__ || [] });
+    const user = gun.user();
+    user.recall?.({ sessionStorage: true, localStorage: true });
+    for (let attempt = 0; attempt < 12 && !user.is?.pub; attempt += 1) {
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    const secret = user?._?.sea;
+    if (!user.is?.pub || !secret) return { authenticated: false };
+
+    const records = new Map();
+    const chain = user.get('operator-v01').get('device-history').map();
+    chain.on((record, id) => {
+      if (typeof record?.ciphertext === 'string') records.set(id, record);
+    });
+    await new Promise(resolve => setTimeout(resolve, 3500));
+    chain.off?.();
+
+    let decrypted = 0;
+    let unreadable = 0;
+    let currentFixtureSnapshots = 0;
+    let largestCiphertextBytes = 0;
+    let newestSnapshotAgeSeconds = null;
+    for (const record of records.values()) {
+      largestCiphertextBytes = Math.max(largestCiphertextBytes, new TextEncoder().encode(record.ciphertext).length);
+      const updatedAt = Date.parse(record.updatedAt || '');
+      if (Number.isFinite(updatedAt)) {
+        const age = Math.max(0, Math.round((Date.now() - updatedAt) / 1000));
+        newestSnapshotAgeSeconds = newestSnapshotAgeSeconds === null ? age : Math.min(newestSnapshotAgeSeconds, age);
+      }
+      try {
+        const decoded = await window.SEA.decrypt(record.ciphertext, secret);
+        const store = typeof decoded === 'string' ? JSON.parse(decoded) : decoded;
+        if (!Array.isArray(store?.conversations)) throw new Error('Invalid snapshot');
+        decrypted += 1;
+        if (store.conversations.some(conversation =>
+          conversation.id === fixtureId && conversation.messages?.some(message => message.content === token))) {
+          currentFixtureSnapshots += 1;
+        }
+      } catch {
+        unreadable += 1;
+      }
+    }
+    return {
+      authenticated: true,
+      snapshotCount: records.size,
+      decrypted,
+      unreadable,
+      currentFixtureSnapshots,
+      largestCiphertextBytes,
+      newestSnapshotAgeSeconds
+    };
+  }, { fixtureId, token }).catch(() => ({ diagnosticUnavailable: true }));
+}
+
 async function runCrossDeviceSyncAcceptance() {
   const syncProbe = await page.evaluate(async () => {
     const { createOperatorSync } = await import('/operator/sync.js');
@@ -122,13 +193,21 @@ async function runCrossDeviceSyncAcceptance() {
       pub: localStorage.getItem('userPubKey')
     };
   });
-  log('E2E_SYNC_PROBE', JSON.stringify(syncProbe));
+  // Never print the account's public identity in CI or runner logs.
+  log('E2E_SYNC_PROBE', JSON.stringify({
+    ready: syncProbe.ready,
+    label: syncProbe.label,
+    signedIn: syncProbe.signedIn,
+    hasPub: Boolean(syncProbe.pub)
+  }));
   if (!syncProbe.ready) {
-    throw new Error(`Operator account sync did not initialize: ${JSON.stringify(syncProbe)}`);
+    throw new Error(`Operator account sync did not initialize (ready=${syncProbe.ready}, signedIn=${syncProbe.signedIn === 'true'}, hasPub=${Boolean(syncProbe.pub)})`);
   }
 
   const token = `cross-device-${Date.now()}`;
-  const fixtureId = `e2e-${token}`;
+  // Reuse a single synthetic conversation: merge-only sync otherwise retains a new
+  // fixture for every acceptance run and gradually overloads the relay/history UI.
+  const fixtureId = 'e2e-cross-device-sync-acceptance';
 
   const saved = await page.evaluate(async ({ token, fixtureId }) => {
     const baseKey = '3dvr.operator.conversations.v2';
@@ -160,16 +239,20 @@ async function runCrossDeviceSyncAcceptance() {
     userAgent: '3DVR-Operator-E2E/1.0 Device-B'
   });
   const secondPage = await secondContext.newPage();
+  secondPage.on('response', captureStaticAssetFailure);
 
   try {
     await signInFreshPage(secondPage);
     await secondPage.locator('#show-history').click();
+    const historyWaitStartedAt = Date.now();
     try {
       await secondPage.waitForFunction(expected => {
         return [...document.querySelectorAll('#history-list button')]
           .some(button => button.textContent?.includes(expected));
       }, token, { timeout: 30_000 });
     } catch (error) {
+      log('E2E_CROSS_DEVICE_HISTORY_WAIT_MS', Date.now() - historyWaitStartedAt);
+      log('E2E_STATIC_ASSET_FAILURE_COUNT', staticAssetFailures.length);
       // Diagnostic only: distinguish identity, relay visibility, local cache and UI rendering.
       // Read the synthetic fixture; never log conversation text, aliases or credentials.
       const diagnostic = await secondPage.evaluate(async ({ expected, expectedPub }) => {
@@ -200,8 +283,16 @@ async function runCrossDeviceSyncAcceptance() {
         diagnosticError: diagnosticError.message
       }));
       log('E2E_DEVICE_B_SYNC_DIAGNOSTIC', JSON.stringify(diagnostic));
+      // Compare publication on A with visibility/decryption on B without logging history.
+      const [writerMetadata, readerMetadata] = await Promise.all([
+        readCrossDeviceSnapshotMetadata(page, fixtureId, token),
+        readCrossDeviceSnapshotMetadata(secondPage, fixtureId, token)
+      ]);
+      log('E2E_DEVICE_A_SNAPSHOT_METADATA', JSON.stringify(writerMetadata));
+      log('E2E_DEVICE_B_SNAPSHOT_METADATA', JSON.stringify(readerMetadata));
       throw error;
     }
+    log('E2E_CROSS_DEVICE_HISTORY_WAIT_MS', Date.now() - historyWaitStartedAt);
     log('E2E_CROSS_DEVICE_PASS', token);
 
     await secondPage.evaluate(async fixtureId => {

@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const { isDeepStrictEqual } = require('node:util');
 const {
   DEFAULT_OWNER_ALIAS,
   claimLease,
@@ -19,7 +20,7 @@ const MIN_ACTIVE_SQLITE_CLAIM_TTL_MS = 1000;
 const DEFAULT_TENANT_PLAN = process.env.THREEDVR_AGENT_TENANT_PLAN || 'free';
 const DEFAULT_ENQUEUE_FLUSH_MS = parseInteger(process.env.THREEDVR_AGENT_ENQUEUE_FLUSH_MS, 3000);
 const DEFAULT_WORKER_CAPABILITIES = process.env.THREEDVR_AGENT_WORKER_CAPABILITIES || 'node,auto,codex,openai,claude,openclaw,shell';
-const DEFAULT_WORKER_RISK_CLASSES = process.env.THREEDVR_AGENT_WORKER_RISK_CLASSES || 'read_only,draft,workspace_write';
+const DEFAULT_WORKER_RISK_CLASSES = process.env.THREEDVR_AGENT_WORKER_RISK_CLASSES ?? 'read_only,draft,workspace_write';
 const VALID_RISK_CLASSES = new Set(['read_only', 'draft', 'workspace_write', 'external_write', 'money', 'credential']);
 const APPROVAL_REQUIRED_RISKS = new Set(['external_write', 'money', 'credential']);
 const INTRINSIC_BACKENDS = new Set(['health']);
@@ -88,14 +89,19 @@ function makeTaskId(task, now = Date.now()) {
 }
 
 function normalizeRiskClass(value) {
-  const risk = normalizeText(value).toLowerCase() || 'draft';
-  return VALID_RISK_CLASSES.has(risk) ? risk : 'draft';
+  const risk = normalizeText(value).toLowerCase();
+  // Missing risk preserves the historical draft default. An explicitly
+  // unknown risk must never silently downgrade to draft and bypass approval.
+  if (!risk) return 'draft';
+  return VALID_RISK_CLASSES.has(risk) ? risk : 'external_write';
 }
 
 function defaultApprovalStatus(record = {}) {
   if (normalizeText(record.approvalStatus)) return normalizeText(record.approvalStatus);
-  if (record.unsafe) return 'approved';
-  return APPROVAL_REQUIRED_RISKS.has(normalizeRiskClass(record.riskClass)) ? 'required' : 'not_required';
+  // --unsafe requests broader execution privileges; it is not proof of a
+  // human approval. Keep such work blocked until explicitly reviewed.
+  return (record.unsafe || APPROVAL_REQUIRED_RISKS.has(normalizeRiskClass(record.riskClass)))
+    ? 'required' : 'not_required';
 }
 
 function normalizeTenantRecord(record = {}) {
@@ -145,6 +151,10 @@ function normalizeTaskRecord(record = {}) {
     status: normalizeText(record.status) || 'queued',
     createdAt: normalizeText(record.createdAt) || nowIso(),
     updatedAt: normalizeText(record.updatedAt) || nowIso(),
+    // Keep the worker claim and terminal timestamps when normalizing a
+    // receipt; dropping startedAt also breaks immutable-claim validation.
+    startedAt: normalizeText(record.startedAt),
+    completedAt: normalizeText(record.completedAt),
     requestedBy: normalizeText(record.requestedBy) || 'cli',
     resultSummary: normalizeText(record.resultSummary),
     ...(String(record.id || '').startsWith('operator-http-') ? {
@@ -185,7 +195,7 @@ async function enqueueTask(task, options = {}) {
   });
   const summary = taskSummary(record);
   if (queueStore(options) === 'sqlite') {
-    sqliteQueue().writeTask(record, options);
+    sqliteQueue().insertTask(record, options);
     return record;
   }
   await putGun(taskNode(id, options), record, options);
@@ -258,16 +268,54 @@ function buildTaskArgs(record = {}, workerOptions = {}) {
   if (record.thinking || workerOptions.thinking) args.push('--thinking', record.thinking || workerOptions.thinking);
   const maxRuntimeMs = parseInteger(record.maxRuntimeMs || workerOptions.maxRuntimeMs, 0);
   if (maxRuntimeMs > 0) args.push('--timeout-ms', String(maxRuntimeMs));
-  if (record.unsafe || workerOptions.unsafe) args.push('--unsafe');
+  // A worker-wide unsafe flag must not silently upgrade every queued task.
+  if (record.unsafe) args.push('--unsafe');
   args.push(record.task);
   return args;
 }
 
+// Supervised canary mode: a worker may claim only one preselected signed task.
+// The ID must be derived from the authenticated request before the worker starts.
+function workerOnlyTaskId(options = {}) {
+  const envScope = process.env.THREEDVR_AGENT_WORKER_ONLY_TASK_ID;
+  const raw = options.onlyTaskId ?? envScope;
+  // An environment-pinned supervised worker must not become a general worker
+  // when a caller supplies an empty or conflicting option.
+  if (envScope && raw !== envScope) {
+    throw new Error('Canary worker task scope conflicts with pinned environment scope');
+  }
+  if (raw === undefined || raw === null || raw === '') return '';
+  if (typeof raw !== 'string' || !/^operator-http-[A-Za-z0-9_-]+$/.test(raw)) {
+    throw new Error('Canary worker requires one exact signed operator-http task ID');
+  }
+  return raw;
+}
+
 function workerProfile(options = {}) {
+  // The signed Operator producer writes the private managed SQLite queue.
+  // Its worker must advertise effective capabilities explicitly: falling back
+  // to the historical all-backends default could authorize an unintended
+  // Codex/auto worker simply because the service omitted its configuration.
+  // Intrinsic health checks remain possible without an executable capability.
+  const managedSqlite = queueStore(options) === 'sqlite'
+    && normalizeText(options.ownerAlias || process.env.THREEDVR_AGENT_OWNER_ALIAS) === '3dvr-managed';
+  const configuredCapabilities = options.workerCapabilities ?? options.capabilities
+    ?? process.env.THREEDVR_AGENT_WORKER_CAPABILITIES;
+  // Managed signed workers must explicitly opt into risk classes, just as
+  // they must opt into executable capabilities. A missing setting is not a
+  // grant of the historical draft/workspace-write defaults.
+  const configuredRiskClasses = options.workerRiskClasses ?? options.riskClasses
+    ?? process.env.THREEDVR_AGENT_WORKER_RISK_CLASSES;
   return {
     workerId: deviceId(options),
-    capabilities: csvToList(options.workerCapabilities || options.capabilities || DEFAULT_WORKER_CAPABILITIES),
-    riskClasses: csvToList(options.workerRiskClasses || options.riskClasses || DEFAULT_WORKER_RISK_CLASSES),
+    onlyTaskId: workerOnlyTaskId(options),
+    capabilities: csvToList(managedSqlite
+      ? configuredCapabilities
+      : (options.workerCapabilities || options.capabilities || DEFAULT_WORKER_CAPABILITIES)),
+    // An explicitly empty risk allowlist must stay empty, not widen to defaults.
+    riskClasses: csvToList(managedSqlite
+      ? configuredRiskClasses
+      : (configuredRiskClasses ?? DEFAULT_WORKER_RISK_CLASSES)),
     maxConcurrency: parseInteger(options.maxConcurrency, 1),
     backend: options.backend || DEFAULT_BACKEND,
   };
@@ -276,14 +324,41 @@ function workerProfile(options = {}) {
 function requiredWorkerCapabilities(record = {}) {
   const backend = normalizeText(record.backend || DEFAULT_BACKEND).toLowerCase();
   const required = new Set(csvToList(record.requiredCapabilities || record.requires));
-  if (!INTRINSIC_BACKENDS.has(backend) && backend && backend !== 'auto') {
+  // Auto is an executable backend too: a worker must explicitly advertise it.
+  // Otherwise a producer could hide auto behind a weaker requires list.
+  if (!INTRINSIC_BACKENDS.has(backend) && backend) {
     required.add(backend);
   }
   return [...required];
 }
 
+// GUN has no atomic compare-and-swap for task records. At minimum, reject
+// stale worker snapshots after acquiring the coordination lease; SQLite's
+// transactional claim remains the required path for strong authorization.
+function sameExecutionIntent(before = {}, after = {}) {
+  const fields = [
+    'id', 'task', 'tenantId', 'tenantAlias', 'tenantPlan', 'backend',
+    'repo', 'model', 'thinking', 'unsafe', 'riskClass', 'approvalStatus',
+    'requiredCapabilities', 'maxRuntimeMs', 'requestedBy',
+  ];
+  // GUN/JSON round-trips recreate arrays; compare immutable intent by value.
+  // A genuinely changed capability list must still reject the stale snapshot.
+  return fields.every(field => isDeepStrictEqual(before[field], after[field]));
+}
+
 function canWorkerRunTask(record = {}, options = {}) {
   const profile = workerProfile(options);
+  if (profile.onlyTaskId && record.id !== profile.onlyTaskId) {
+    return { ok: false, reason: 'task outside supervised canary allowlist', profile };
+  }
+  // Shell tasks are arbitrary OS commands, not a provably read-only backend.
+  // The underlying orchestrator refuses shell without --unsafe, but letting a
+  // mislabeled read_only shell task reach it would turn queued intent into a
+  // misleading terminal 'skipped' receipt. Hold it for explicit review until
+  // an authenticated, task-bound approval verifier exists.
+  if (normalizeText(record.backend).toLowerCase() === 'shell') {
+    return { ok: false, reason: 'shell backend requires authenticated execution approval; held for review', profile };
+  }
   const required = requiredWorkerCapabilities(record);
   const missingCapabilities = required.filter(capability => !profile.capabilities.includes(capability));
   if (missingCapabilities.length) {
@@ -294,7 +369,12 @@ function canWorkerRunTask(record = {}, options = {}) {
     };
   }
 
-  const riskClass = normalizeRiskClass(record.riskClass);
+  const declaredRiskClass = normalizeRiskClass(record.riskClass);
+  // Unsafe execution is at least an external write, even if the producer
+  // mislabeled it as a draft/read-only task or the worker was started unsafe.
+  const riskClass = record.unsafe || options.unsafe
+    ? (APPROVAL_REQUIRED_RISKS.has(declaredRiskClass) ? declaredRiskClass : 'external_write')
+    : declaredRiskClass;
   if (!profile.riskClasses.includes(riskClass)) {
     return {
       ok: false,
@@ -303,10 +383,27 @@ function canWorkerRunTask(record = {}, options = {}) {
     };
   }
 
-  if (record.approvalStatus === 'required') {
+  const approvalStatus = normalizeText(record.approvalStatus).toLowerCase();
+  // Imported and historical records can contain denied, pending, expired, or
+  // missing approval states. Never treat those as implicit authorization.
+  if ((approvalStatus && !['approved', 'not_required'].includes(approvalStatus))
+    || (APPROVAL_REQUIRED_RISKS.has(riskClass) && approvalStatus !== 'approved')) {
     return {
       ok: false,
       reason: `approval required for ${riskClass}`,
+      profile,
+    };
+  }
+
+  // A plain "approved" string is supplied by the task producer and is not
+  // an authenticated, message/task-bound human approval receipt. Until the
+  // approval verifier exists, high-risk work must remain blocked even if a
+  // producer (or imported record) labels it approved. Do not invent a
+  // worker-local override: that would recreate the same bypass.
+  if (APPROVAL_REQUIRED_RISKS.has(riskClass)) {
+    return {
+      ok: false,
+      reason: `authenticated human approval verification unavailable for ${riskClass}`,
       profile,
     };
   }
@@ -336,6 +433,21 @@ async function recordTaskLifeEvent(record, options = {}) {
 }
 
 async function runQueuedTask(record, options = {}) {
+  // The legacy public GUN graph has no authenticated, atomic execution admission.
+  // It remains available for historical visibility/import, never as a worker
+  // execution authority. Only the private SQLite claim path can execute tasks.
+  if (queueStore(options) !== 'sqlite') {
+    return { ok: false, skipped: true,
+      reason: 'Public GUN queue execution disabled; private SQLite admission required' };
+  }
+  // Signed Operator HTTP tasks are admitted only by the authenticated private
+  // SQLite queue. Public GUN records must never impersonate that namespace.
+  if (record.id?.startsWith('operator-http-')
+    && (queueStore(options) !== 'sqlite'
+      || record.queueSource !== 'operator-http'
+      || (options.ownerAlias || process.env.THREEDVR_AGENT_OWNER_ALIAS) !== '3dvr-managed')) {
+    return { ok: false, skipped: true, reason: 'signed Operator task requires private SQLite admission' };
+  }
   const runnable = canWorkerRunTask(record, options);
   if (!runnable.ok) {
     return { ok: false, skipped: true, reason: runnable.reason };
@@ -352,9 +464,14 @@ async function runQueuedTask(record, options = {}) {
       runnable.profile.workerId,
       now + (options.leaseTtlMs || DEFAULT_LEASE_TTL_MS),
       now,
-      options,
+      {
+        ...options,
+        // A queue snapshot can become stale between readTask and claimTask.
+        // Validate the latest SQLite row within its atomic claim transaction.
+        authorizeTask: current => canWorkerRunTask(current, options).ok,
+      },
     );
-    if (!claimed) return { ok: false, skipped: true, reason: 'claimed by another worker' };
+    if (!claimed) return { ok: false, skipped: true, reason: 'claim unavailable or task no longer authorized' };
     claimed.workerCapabilities = normalizeCsv(runnable.profile.capabilities);
   } else {
     lease = await claimLease(`remote-task:${record.id}`, {
@@ -364,30 +481,79 @@ async function runQueuedTask(record, options = {}) {
     if (!lease.acquired) {
       return { ok: false, skipped: true, reason: `held by ${lease.ownerDeviceId || 'another worker'}` };
     }
-    await updateTask(record.id, {
-      status: 'running',
-      workerDeviceId: lease.lease?.deviceId || '',
-      workerCapabilities: normalizeCsv(runnable.profile.capabilities),
-      startedAt: nowIso(),
-    }, options);
+    // The task can be edited or revoked after the worker's first read.
+    // Never execute the old snapshot if its intent or authorization changed.
+    try {
+      const current = await readTask(record.id, options);
+      if (!current || current.status !== 'queued'
+        || !sameExecutionIntent(record, current)
+        || !canWorkerRunTask(current, options).ok) {
+        await releaseLease(`remote-task:${record.id}`, lease.lease?.token, options).catch(() => {});
+        return { ok: false, skipped: true, reason: 'GUN task changed or is no longer authorized' };
+      }
+      claimed = await updateTask(record.id, {
+        status: 'running',
+        workerDeviceId: lease.lease?.deviceId || '',
+        workerCapabilities: normalizeCsv(runnable.profile.capabilities),
+        startedAt: nowIso(),
+      }, options);
+      if (!claimed) {
+        await releaseLease(`remote-task:${record.id}`, lease.lease?.token, options).catch(() => {});
+        return { ok: false, skipped: true, reason: 'GUN task disappeared during claim' };
+      }
+    } catch (error) {
+      // A failed GUN read/write must not leave our lease held until TTL.
+      await releaseLease(`remote-task:${record.id}`, lease.lease?.token, options).catch(() => {});
+      throw error;
+    }
   }
 
   let renewalTimer;
   let claimRenewer;
+  let claimRenewalUnverified = false;
   if (claimed.claimToken) {
-    claimRenewer = sqliteQueue().createClaimRenewer(claimed.id, claimed.claimToken, options);
+    // A claim can succeed while opening the persistent renewal handle fails
+    // (for example, SQLite initialization or a transient lock). Do not run
+    // the backend or abort the worker batch: preserve this running claim for
+    // explicit review, while allowing unrelated queued work to continue.
+    try {
+      claimRenewer = sqliteQueue().createClaimRenewer(claimed.id, claimed.claimToken, options);
+    } catch {
+      return {
+        ok: false,
+        skipped: true,
+        reason: 'SQLite claim renewer unavailable before execution; task held for review',
+      };
+    }
     const ttlMs = options.leaseTtlMs || DEFAULT_LEASE_TTL_MS;
     // Very short test/custom leases are vulnerable to ordinary event-loop stalls.
     // Once work has actually started, keep at least one second of claim headroom;
     // the production default is already much larger and is unchanged.
     const activeTtlMs = Math.max(ttlMs, MIN_ACTIVE_SQLITE_CLAIM_TTL_MS);
-    claimRenewer.renew(Date.now() + activeTtlMs);
+    // If the initial lease refresh is rejected or its outcome is uncertain,
+    // never begin execution: the claim may already have expired. Keep the
+    // running row for explicit reconciliation instead of replaying side effects.
+    let initialRenewalOk = false;
+    try {
+      initialRenewalOk = claimRenewer.renew(Date.now() + activeTtlMs);
+    } catch {
+      // An uncertain renewal is not permission to execute.
+    }
+    if (!initialRenewalOk) {
+      claimRenewer.close();
+      return {
+        ok: false,
+        skipped: true,
+        reason: 'SQLite claim renewal failed before execution; task held for review',
+      };
+    }
     renewalTimer = setInterval(() => {
       try {
-        claimRenewer.renew(Date.now() + activeTtlMs);
+        if (!claimRenewer.renew(Date.now() + activeTtlMs)) claimRenewalUnverified = true;
       } catch {
-        // A later heartbeat or the token-checked terminal write can recover;
-        // never let a transient renewal error crash the worker process.
+        // The backend may already have performed side effects. An uncertain
+        // heartbeat cannot justify a verified completion or an automatic retry.
+        claimRenewalUnverified = true;
       }
     }, Math.max(1, Math.floor(ttlMs / 3)));
     renewalTimer.unref?.();
@@ -400,11 +566,21 @@ async function runQueuedTask(record, options = {}) {
         backend: 'health',
         result: { stdout: '3dvr-worker-ok' },
       };
-    } else if (claimed.id?.startsWith('operator-http-') && !options.runAgentTaskImpl) {
+    } else if (claimed.id?.startsWith('operator-http-')
+      && claimed.queueSource === 'operator-http' && !options.runAgentTaskImpl) {
       result = await require('./operator-codex-task').runOperatorCodexTask(claimed);
     } else {
       const runAgentTaskImpl = options.runAgentTaskImpl || require('./task-orchestrator').runAgentTask;
       result = await runAgentTaskImpl(buildTaskArgs(claimed, options), options.hooks || {});
+    }
+    // A background lease renewal failure may mean another process owns the
+    // claim. Do not write a successful receipt for an unverified execution.
+    // Leave the running row for explicit reconciliation (never auto-replay).
+    if (claimRenewalUnverified) {
+      return {
+        ok: false, skipped: true, requiresReview: true,
+        reason: 'SQLite claim renewal unverified during execution; outcome held for review',
+      };
     }
     const summary = summarizeTaskResult(result);
     const terminal = await finishClaimedTask(claimed, {
@@ -417,14 +593,60 @@ async function runQueuedTask(record, options = {}) {
     await recordTaskLifeEvent(terminal, options);
     return result;
   } catch (error) {
+    // Even a backend exception is not a trustworthy failure receipt once the
+    // lease heartbeat is uncertain; its external side effects may have landed.
+    if (claimRenewalUnverified) {
+      return {
+        ok: false, skipped: true, requiresReview: true,
+        reason: 'SQLite claim renewal unverified during execution; outcome held for review',
+      };
+    }
+    // A Codex SSH timeout or disconnect may occur after the remote worker
+    // already performed work. Do not record a fabricated failed receipt or
+    // permit an automatic retry; retain the running claim for reconciliation.
+    if (queueStore(options) === 'sqlite' && claimed.queueSource === 'operator-http'
+      && claimed.id?.startsWith('operator-http-') && error?.deliveryUncertain === true) {
+      return {
+        ok: false, skipped: true, requiresReview: true,
+        reason: 'Codex delivery outcome unverified; task held for review',
+      };
+    }
     const message = error.message || String(error);
-    const terminal = await finishClaimedTask(claimed, {
-      status: 'failed',
-      completedAt: nowIso(),
-      error: message,
-      resultSummary: message,
-      ...(queueStore(options) === 'sqlite' ? privateTaskResult(claimed, { reason: message }) : {}),
-    }, options);
+    // A task may finish executing after its SQLite lease expires. The first
+    // terminal write then fails closed. Do not attempt a second terminal write
+    // with the same lost claim: it will fail again and abort the whole worker
+    // batch, starving unrelated queued work. Side effects may already exist,
+    // so preserve the running row for explicit reconciliation, not replay.
+    if (queueStore(options) === 'sqlite'
+      && message === `Lost SQLite claim for task ${claimed.id}.`) {
+      return {
+        ok: false,
+        skipped: true,
+        reason: 'SQLite claim lost; execution outcome unverified and task held for review',
+      };
+    }
+    let terminal;
+    try {
+      terminal = await finishClaimedTask(claimed, {
+        status: 'failed',
+        completedAt: nowIso(),
+        error: message,
+        resultSummary: message,
+        ...(queueStore(options) === 'sqlite' ? privateTaskResult(claimed, { reason: message }) : {}),
+      }, options);
+    } catch (finishError) {
+      // Backend failures can also outlive the lease. Do not let their
+      // unrecordable failure receipt crash the batch or replay side effects.
+      if (queueStore(options) === 'sqlite'
+        && finishError.message === `Lost SQLite claim for task ${claimed.id}.`) {
+        return {
+          ok: false,
+          skipped: true,
+          reason: 'SQLite claim lost; execution outcome unverified and task held for review',
+        };
+      }
+      throw finishError;
+    }
     await recordTaskLifeEvent(terminal, options);
     return { ok: false, error: message };
   } finally {
@@ -486,10 +708,29 @@ async function importLegacyGunTasks(options = {}) {
   for (const summary of summaries) {
     // The HTTP namespace is server-owned; public relay data cannot replace it.
     if (summary.id?.startsWith('operator-http-')) continue;
-    if (summary.status !== 'queued') continue;
+    // Terminal GUN mirrors are unverified: quarantine any matching, still-
+    // queued imported SQLite row rather than replaying or trusting a receipt.
+    // The SQLite import never inserts an unseen terminal record.
+    if (!['queued', 'completed', 'failed', 'skipped', 'cancelled'].includes(summary.status)) continue;
     const record = await readTask(summary.id, gunOptions);
-    if (record && record.status === 'queued') sqliteQueue().importTask(normalizeTaskRecord(record), options);
+    if (record && record.status === summary.status) {
+      sqliteQueue().importTask(normalizeTaskRecord(record), options);
+    }
   }
+}
+
+// Opt-in historical reconciliation only. Never call this from the worker's
+// task-claim hot path: a slow/unavailable relay must not block signed work.
+async function runLegacyQueueMaintenance(options = {}) {
+  if (queueStore(options) !== 'sqlite' || !gunSyncEnabled(options)) return false;
+  await syncTerminalResults(options);
+  try {
+    await importLegacyGunTasks(options);
+  } catch (error) {
+    console.warn('[agent-worker] legacy GUN import unavailable; private SQLite queue unaffected',
+      String(error?.name || 'Error'));
+  }
+  return true;
 }
 
 function taskResultText(result = {}) {
@@ -515,7 +756,14 @@ function summarizeTaskResult(result = {}) {
 }
 
 async function runWorkerOnce(options = {}) {
+  // Never dispatch unsigned public GUN intent, including when a legacy unit
+  // omits THREEDVR_AGENT_QUEUE_STORE and would otherwise default to GUN.
+  if (queueStore(options) !== 'sqlite') return [];
   const profile = workerProfile(options);
+  // Publish liveness to the exact private SQLite queue before the GUN
+  // observability mirror. A stale/missing row blocks new signed admission;
+  // it never authorizes replay of existing queued or running work.
+  sqliteQueue().writeWorkerHeartbeat(profile, options);
   await writeHeartbeat('task-worker', {
     ...options,
     status: 'running',
@@ -529,23 +777,47 @@ async function runWorkerOnce(options = {}) {
       maxConcurrency: profile.maxConcurrency,
     },
   }).catch(() => {});
-  await syncTerminalResults(options);
-  await importLegacyGunTasks(options);
+  // Historical GUN synchronization can involve hundreds of sequential
+  // remote reads. It must never delay private SQLite task admission.
+  // Run it separately through the explicit maintenance helper below.
   const tasks = await listTasks(options);
-  const now = options.now || Date.now();
+  // An expired running lease is not proof the task is safe to execute twice.
   const queued = tasks
-    .filter(task => task.status === 'queued'
-      || (queueStore(options) === 'sqlite' && task.status === 'running' && task.claimExpiresAt <= now))
+    .filter(task => task.status === 'queued')
+    // The signed HTTP namespace is never executable from the public GUN lane.
+    .filter(task => queueStore(options) === 'sqlite' || !task.id?.startsWith('operator-http-'))
+    // Public GUN imports are visible for reconciliation, not executable
+    // admissions. Signed HTTP tasks use their own private SQLite source.
+    // Filter before the batch limit so untrusted rows cannot starve work.
+    .filter(task => queueStore(options) !== 'sqlite'
+      || (task.queueSource === 'sqlite' && !task.id?.startsWith('operator-http-'))
+      || (task.queueSource === 'operator-http'
+        && task.id?.startsWith('operator-http-')
+        && (options.ownerAlias || process.env.THREEDVR_AGENT_OWNER_ALIAS) === '3dvr-managed'))
     .filter(task => canWorkerRunTask(task, options).ok)
     .slice(0, options.limit || DEFAULT_TASK_LIMIT);
   const results = [];
   for (const summary of queued) {
-    const record = await readTask(summary.id, options);
-    const recoverable = queueStore(options) === 'sqlite'
-      && record?.status === 'running'
-      && record.claimExpiresAt <= now;
-    if (!record || (record.status !== 'queued' && !recoverable)) continue;
-    results.push({ id: record.id, result: await runQueuedTask(record, options) });
+    try {
+      const record = await readTask(summary.id, options);
+      if (!record || record.status !== 'queued') continue;
+      results.push({ id: record.id, result: await runQueuedTask(record, options) });
+    } catch (error) {
+      // A read, claim, or receipt exception is not evidence that the task
+      // failed or that its side effects did not happen. Do not fabricate a
+      // terminal receipt or retry it here. Keep the persisted state intact,
+      // report an unverified outcome, and let independent work continue.
+      results.push({
+        id: summary.id,
+        result: {
+          ok: false,
+          skipped: true,
+          requiresReview: true,
+          reason: 'Worker task outcome unverified; inspect durable state before retry',
+          errorType: String(error?.name || 'Error'),
+        },
+      });
+    }
   }
   return results;
 }
@@ -586,6 +858,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--model') options.model = argv[++index] || '';
     else if (arg === '--thinking') options.thinking = argv[++index] || '';
     else if (arg === '--id') options.id = argv[++index] || '';
+    else if (arg === '--owner-alias') options.ownerAlias = argv[++index] || '';
     else if (arg === '--tenant-id') options.tenantId = argv[++index] || '';
     else if (arg === '--tenant-alias') options.tenantAlias = argv[++index] || '';
     else if (arg === '--tenant-plan') options.tenantPlan = argv[++index] || '';
@@ -595,6 +868,10 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--max-runtime-ms') options.maxRuntimeMs = parseInteger(argv[++index], 0);
     else if (arg === '--worker-capabilities') options.workerCapabilities = argv[++index] || '';
     else if (arg === '--worker-risk-classes') options.workerRiskClasses = argv[++index] || '';
+    else if (arg === '--only-task-id') {
+      if (!argv[index + 1] || argv[index + 1].startsWith('--')) throw new Error('--only-task-id requires an exact signed task ID');
+      options.onlyTaskId = argv[++index];
+    }
     else if (arg === '--limit') options.limit = parseInteger(argv[++index], DEFAULT_TASK_LIMIT);
     else if (arg === '--unsafe') options.unsafe = true;
     else if (arg === '--json') options.json = true;
@@ -626,6 +903,16 @@ async function cli(argv = process.argv.slice(2)) {
     console.log(options.json ? JSON.stringify(publicTask(record), null, 2) : formatTask(record));
     return;
   }
+  if (options.command === 'sync-legacy') {
+    // Explicit operator maintenance command; no task execution or replay.
+    // Must be invoked with --queue-store sqlite and a reviewed owner scope.
+    if (queueStore(options) !== 'sqlite' || !normalizeText(options.ownerAlias)) {
+      throw new Error('sync-legacy requires --queue-store sqlite and --owner-alias');
+    }
+    await runLegacyQueueMaintenance(options);
+    console.log('Legacy queue maintenance finished; no tasks executed.');
+    return;
+  }
   if (options.command === 'run-once') {
     const results = await runWorkerOnce(options);
     console.log(options.json ? JSON.stringify(results, null, 2) : `Processed ${results.length} task(s).`);
@@ -635,7 +922,7 @@ async function cli(argv = process.argv.slice(2)) {
     await runWorkerLoop(options);
     return;
   }
-  console.log('Usage: ask-agent-queue enqueue|list|status|result|run-once|loop [options] "task"');
+  console.log('Usage: ask-agent-queue enqueue|list|status|result|run-once|loop|sync-legacy [options] "task"');
 }
 
 function publicTask(record) {
@@ -678,11 +965,13 @@ module.exports = {
   recordTaskLifeEvent,
   requiredWorkerCapabilities,
   runQueuedTask,
+  runLegacyQueueMaintenance,
   runWorkerLoop,
   runWorkerOnce,
   summarizeTaskResult,
   updateTask,
   workerProfile,
+  workerOnlyTaskId,
 };
 
 if (require.main === module) {

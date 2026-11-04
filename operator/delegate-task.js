@@ -10,7 +10,7 @@ const DEFAULT_PEERS = [
   'wss://gun-relay-3dvr.fly.dev/gun'
 ];
 const TASK_WATCH_TIMEOUT_MS = 5 * 60 * 1000;
-const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'skipped', 'cancelled', 'canceled', 'blocked', 'review']);
+const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'skipped', 'cancelled', 'canceled', 'blocked', 'review', 'status_unavailable']);
 
 function normalizeText(value = '', max = 4000) {
   return String(value || '').trim().slice(0, max);
@@ -36,6 +36,16 @@ function elapsed(record = {}) {
   return seconds >= 60 ? `${Math.floor(seconds / 60)}m ${seconds % 60}s` : `${seconds}s`;
 }
 
+// A terminal queue state is a claim, not proof that an attributable worker ran.
+// Keep this aligned with the signed Operator E2E canary's receipt requirements.
+function hasAttributableWorkerReceipt(record = {}) {
+  const started = Date.parse(record.startedAt || '');
+  const completed = Date.parse(record.completedAt || '');
+  return Number.isFinite(started) && Number.isFinite(completed)
+    && completed >= started && Boolean(normalizeText(record.workerDeviceId, 200))
+    && Boolean(normalizeText(record.resultText || record.resultSummary, 24000));
+}
+
 export function isOperatorTaskTerminal(record = {}) {
   return TERMINAL_TASK_STATUSES.has(taskStatus(record));
 }
@@ -43,8 +53,9 @@ export function isOperatorTaskTerminal(record = {}) {
 export function operatorTaskProgress(record = {}, estimateMs = 120_000) {
   const status = taskStatus(record);
   const age = elapsed(record);
-  if (status === 'completed') return 'Complete';
+  if (status === 'completed') return hasAttributableWorkerReceipt(record) ? 'Complete · worker receipt present' : 'Completion reported · worker receipt unverified';
   if (status === 'running') return `Working${age ? ` · ${age} elapsed` : ''} · ${runtimeBudget(estimateMs)}`;
+  if (status === 'status_unavailable') return 'Status unavailable · server task outcome unknown';
   if (status === 'review') return 'Needs your input';
   if (status === 'blocked') return 'Blocked · needs attention';
   if (['failed', 'skipped', 'cancelled', 'canceled'].includes(status)) return `Stopped · ${status}`;
@@ -57,7 +68,18 @@ export function operatorTaskReceipt(record = {}) {
   const summary = output && record.resultTruncated
     ? `${output}\n\n[Result exceeded the 24,000-character storage limit.]`
     : output;
-  if (status === 'completed') return summary ? `Operator Runtime finished. Result: ${summary}` : 'Operator Runtime finished.';
+  // A stopped browser poll is not a worker failure or a blocked queue task.
+  if (status === 'status_unavailable') return 'Operator Runtime status could not be verified. The saved task may still be queued, running, or complete. Do not resubmit; check the same task ID.';
+  if (status === 'completed') {
+    // Worker attribution is required to present a completed result. This is
+    // still not proof of any external side effect or provider acknowledgement.
+    if (!hasAttributableWorkerReceipt(record)) {
+      return summary
+        ? `Operator Runtime reports completion, but its worker receipt is incomplete. Reported result: ${summary}`
+        : 'Operator Runtime reports completion, but its worker receipt is incomplete. Verify execution before relying on it.';
+    }
+    return `Operator Runtime finished. Result: ${summary}`;
+  }
   if (status === 'review') return summary ? `Operator Runtime needs your input: ${summary}` : 'Operator Runtime needs your input.';
   if (status === 'blocked') return summary ? `Operator Runtime is blocked: ${summary}` : 'Operator Runtime is blocked.';
   if (['failed', 'skipped', 'cancelled', 'canceled'].includes(status)) {
@@ -184,18 +206,32 @@ function watchConfirmedTask(requestId, options = {}) {
       const result = await taskRequest('status', requestId);
       if (stopped) return;
       failures = 0;
-      options.onUpdate?.({...result.record, id:`operator-http:${requestId}`});
+      // The server derives the durable queue ID from the authenticated owner
+      // and request ID. Never show a different task's completion as ours.
+      // Preserve uncertainty rather than clearing a caller's retry guard.
+      const serverId = result.record?.id;
+      if (result.requestId !== requestId ||
+          typeof serverId !== 'string' ||
+          !/^operator-http-[0-9a-f]{24}-/.test(serverId) ||
+          !serverId.endsWith(`-${requestId}`)) {
+        options.onUpdate?.({status:'status_unavailable',
+          error:'Signed status returned a mismatched task identity. Verify the saved task before retrying.'});
+        return stop();
+      }
+      options.onUpdate?.({...result.record, serverTaskId:serverId, id:`operator-http:${requestId}`});
       if (isOperatorTaskTerminal(result.record)) return stop();
     } catch (error) {
       if (stopped) return;
       failures += 1;
-      if ([401,403,404].includes(error.status) || failures >= 3) {
-        options.onUpdate?.({status:'blocked',error:error.message});
+      // A 404 can be a transient read after an uncertain enqueue. Retry the
+      // same signed request ID briefly; never resubmit the task.
+      if ([400,401,403,405,422].includes(error.status) || failures >= 3) {
+        options.onUpdate?.({status:'status_unavailable',error:error.message});
         return stop();
       }
     }
     if (Date.now() >= deadline) {
-      options.onUpdate?.({status:'blocked',error:'The task has not finished. Its saved server state is preserved; do not submit it again.'});
+      options.onUpdate?.({status:'status_unavailable',error:'Status polling timed out. The task may still be running; do not submit it again.'});
       return stop();
     }
     timer = setTimeout(poll, 2000);
@@ -208,7 +244,8 @@ export async function queueOperatorTask(action = {}) {
   const text = normalizeText(action.text, 6000);
   if (!text) throw new Error('A delegated task is required.');
   const title = normalizeText(action.title, 160) || 'Operator delegated task';
-  const requestId = makeId('task');
+  const requestId = action.requestId == null ? makeId('task') : String(action.requestId);
+  if (!/^[A-Za-z0-9_-]{12,100}$/.test(requestId)) throw new Error('Invalid delegated task identity.');
   let confirmed = false;
   let message;
   try {
@@ -216,7 +253,7 @@ export async function queueOperatorTask(action = {}) {
     confirmed = true;
     message = 'The server saved your task for the Codex worker.';
   } catch (error) {
-    if ([400,401,403].includes(error.status) || /Sign in/.test(error.message)) throw error;
+    if ([400,401,403,405,422].includes(error.status) || /Sign in/.test(error.message)) throw error;
     // A missing HTTP response is not proof that the write failed. Poll the
     // same request identity; never re-enqueue or silently fall back to Gun.
     message = 'Checking delivery. I will look up this task before any retry.';

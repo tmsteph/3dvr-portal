@@ -272,8 +272,12 @@ test('agent source merges cannot automatically activate the legacy DigitalOcean 
   const workflow = await readFile(path.resolve(__dirname, '../../../.github/workflows/agent.yml'), 'utf8');
   const gate = workflow.split('deploy-digitalocean-worker:')[1].split('needs:')[0];
   assert.match(gate, /github.event_name == 'workflow_dispatch'/);
-  assert.match(gate, /inputs.deploy_legacy_worker == true/);
-  assert.match(workflow, /deploy_legacy_worker:[\s\S]*?default: false/);
+  // The integrated Operator release supersedes legacy activation with explicit
+  // source-only staging. A PR merge must never start existing worker daemons.
+  assert.match(gate, /inputs.deploy_digitalocean_worker == true/);
+  assert.match(workflow, /deploy_digitalocean_worker:[\s\S]*?default: false/);
+  assert.match(gate, /Stage DigitalOcean agent release \(no activation\)/);
+  assert.doesNotMatch(workflow, /ask-(?:agent-worker|inbox|context-task-router|autopilot|agent-heartbeat)-daemon[^\n]*\s+start/);
 });
 
 test('the actual queued harmless edit remains local despite the old automatic GitHub flag', async t => {

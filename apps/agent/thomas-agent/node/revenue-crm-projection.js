@@ -1,4 +1,4 @@
-const { finishProjection, getProspect, pendingProjections } = require('./revenue-ledger');
+const { claimProjection, finishClaimedProjection, getProspect, pendingProjections } = require('./revenue-ledger');
 const { buildLeadId, writeCrmSync } = require('./crm-sync');
 
 function remoteProjectionRoots() {
@@ -19,44 +19,91 @@ function remoteProjectionRoots() {
 }
 
 function paymentReceiptFor(event = {}) {
+  // Ordinary ledger transitions may carry payment-shaped metadata; only a
+  // specifically recorded payment success event can affect paid CRM status.
+  if (event.type !== 'payment_succeeded') return null;
   let payload = {};
   try { payload = JSON.parse(event.payload_json || '{}'); } catch {}
   const payment = payload.payment && typeof payload.payment === 'object' ? payload.payment : payload;
   const amountCents = Number(payment.amount_cents ?? payment.amountCents ?? payment.amount_paid ?? payment.amount_total);
-  const currency = String(payment.currency || 'usd').trim().toUpperCase();
-  const paidAt = String(payment.paid_at || payment.paidAt || payment.created_at || event.created_at || '').trim();
+  // Never invent USD when the provider event omits or corrupts currency.
+  // Preserve integer minor units, but leave currency-formatted values blank
+  // until a provider-verified currency is available.
+  const currencyCode = String(payment.currency || '').trim().toUpperCase();
+  const currency = /^[A-Z]{3}$/.test(currencyCode) ? currencyCode : '';
+  // Ledger ingestion and provider object creation are not settlement timestamps.
+  // Keep this field blank unless the provider explicitly supplied paid_at.
+  const rawPaidAt = String(payment.paid_at ?? payment.paidAt ?? '').trim();
+  // A provider-supplied field is not necessarily a valid settlement time.
+  // Require an explicit timezone and a parseable ISO timestamp; never show
+  // arbitrary text or a locale-dependent date as verified payment evidence.
+  const paidAtMatch = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.exec(rawPaidAt);
+  // Date.parse normalizes impossible dates (e.g. February 30) into March.
+  // Validate the literal provider calendar date and clock before displaying it.
+  const [year, month, day, hour, minute, second] = (paidAtMatch || []).slice(1).map(Number);
+  const calendarDay = paidAtMatch && new Date(Date.UTC(year, month - 1, day));
+  const paidAt = paidAtMatch && calendarDay.getUTCFullYear() === year
+    && calendarDay.getUTCMonth() + 1 === month && calendarDay.getUTCDate() === day
+    && hour <= 23 && minute <= 59 && second <= 59
+    && Number.isFinite(Date.parse(rawPaidAt)) ? rawPaidAt : '';
   const recurringCents = Number(payment.recurring_cents ?? payment.recurringCents ?? payment.plan_amount_cents);
-  const hasAmount = Number.isFinite(amountCents) && amountCents >= 0;
-  const hasRecurring = Number.isFinite(recurringCents) && recurringCents >= 0;
-  if (!hasAmount && !payment.payment_intent_id && !payment.subscription_id && !payment.plan) return null;
+  const hasAmount = Number.isSafeInteger(amountCents) && amountCents > 0;
+  const hasRecurring = Number.isSafeInteger(recurringCents) && recurringCents >= 0;
+  const providerReceiptId = String(payment.payment_intent_id || payment.paymentIntentId || payment.invoice_id || payment.invoiceId || payment.charge_id || payment.chargeId || '').trim();
+  const paymentStatus = String(payment.status || payment.payment_status || '').trim().toLowerCase();
+  // A plan/subscription, zero-value checkout, or absent/pending payment status
+  // is not proof of settlement. Require explicit paid/succeeded state, while
+  // upstream still must authenticate the provider event before recording it.
+  if (!hasAmount || !providerReceiptId || !['paid', 'succeeded'].includes(paymentStatus)) return null;
   return {
     amountCents: hasAmount ? amountCents : null,
-    amount: hasAmount ? `${currency} ${(amountCents / 100).toFixed(2)}` : '',
+    amount: hasAmount && currency ? `${currency} ${(amountCents / 100).toFixed(2)}` : '',
     currency,
     paidAt,
     recurringCents: hasRecurring ? recurringCents : null,
-    recurringValue: hasRecurring ? `${currency} ${(recurringCents / 100).toFixed(2)}` : '',
+    recurringValue: hasRecurring && currency ? `${currency} ${(recurringCents / 100).toFixed(2)}` : '',
     plan: String(payment.plan || payment.plan_name || '').trim(),
     paymentIntentId: String(payment.payment_intent_id || payment.paymentIntentId || '').trim(),
     subscriptionId: String(payment.subscription_id || payment.subscriptionId || '').trim(),
   };
 }
 
-function recordFor(prospect, event, now) {
-  const paymentReceipt = paymentReceiptFor(event);
+// Project the latest structurally valid payment at or before this event. A
+// later CRM sync must not erase an earlier payment simply because the new
+// ledger event is a note/state change. Never peek at future payment events.
+function latestPaymentEventThrough(db, prospectId, eventId) {
+  const rows = db.prepare(`SELECT * FROM revenue_events
+    WHERE prospect_id = ? AND type = 'payment_succeeded'
+      AND rowid <= (SELECT rowid FROM revenue_events WHERE id = ?)
+    ORDER BY rowid DESC`).all(prospectId, eventId);
+  return rows.find(row => paymentReceiptFor(row)) || null;
+}
+
+function crmEmail(contact) {
+  const email = String(contact || '').trim().replace(/^mailto:/i, '');
+  return /^[^\s@/:]+@[^\s@/:]+\.[^\s@/:]+$/.test(email) ? email : '';
+}
+
+function recordFor(prospect, event, now, paymentEvent = event) {
+  // Outbox entries represent historical transitions. Using the prospect's
+  // latest state here leaks future activity into older projection records.
+  const canonicalState = event.to_state || prospect.state;
+  const paymentReceipt = paymentReceiptFor(paymentEvent || {});
   const crmStatus = paymentReceipt ? 'Paid Customer' : ({
     prospect: 'Lead', verified: 'Lead', drafted: 'Lead', eligible: 'Lead',
     sent: 'Warm - Waiting', replied: 'Warm - Discovery', bounced: 'Lost',
     failed: 'Lost', suppressed: 'Closed',
-  }[prospect.state] || 'Lead');
-  const nextBestAction = paymentReceipt
+  }[canonicalState] || 'Lead');
+  const nextBestAction = ['suppressed', 'bounced'].includes(canonicalState)
+    ? 'Do not contact.'
+    : paymentReceipt
     ? 'Activate the customer, deliver value, and capture proof/outcome. Do not schedule a sales follow-up because payment occurred.'
     : ({
       sent: 'Wait for reply or a genuinely new material reason to contact. Do not schedule an automatic sales follow-up.',
       replied: 'Continue discovery from the customer reply.',
       bounced: 'Do not contact.',
       suppressed: 'Do not contact.',
-    }[prospect.state] || 'Follow the canonical revenue state machine.');
+    }[canonicalState] || 'Follow the canonical revenue state machine.');
   const paymentSignal = paymentReceipt
     ? `Successful payment${paymentReceipt.amount ? `: ${paymentReceipt.amount}` : ''}${paymentReceipt.plan ? ` (${paymentReceipt.plan})` : ''}`
     : '';
@@ -65,12 +112,14 @@ function recordFor(prospect, event, now) {
     recordType: 'person',
     name: prospect.name,
     company: prospect.name,
-    email: /@/.test(prospect.contact) ? prospect.contact.replace(/^mailto:/i, '') : '',
+    // A public forum handle or URL containing @ is not an email address.
+    // Keep social-only prospects in CRM without inventing a deliverable inbox.
+    email: crmEmail(prospect.contact),
     status: crmStatus,
-    canonicalState: prospect.state,
+    canonicalState,
     source: '3dvr-revenue-ledger',
     campaignId: prospect.campaign_id,
-    lastSignal: paymentSignal || `Canonical revenue state: ${prospect.state}`,
+    lastSignal: paymentSignal || `Canonical revenue state: ${canonicalState}`,
     nextBestAction,
     created: prospect.created_at,
     updated: now,
@@ -109,20 +158,51 @@ async function projectPendingCrm(db, options = {}) {
   const write = options.write || writeCrmSync;
   const writeOptions = options.writeOptions || (options.write ? {} : remoteProjectionRoots());
   const rows = pendingProjections(db, options.limit || 100);
-  const result = { attempted: rows.length, succeeded: 0, failed: 0, errors: [] };
+  const result = { attempted: 0, succeeded: 0, failed: 0, blocked: 0, errors: [] };
+  const blockedProspects = new Set();
   for (const row of rows) {
+    if (blockedProspects.has(row.prospect_id)) {
+      result.blocked += 1;
+      continue;
+    }
+    // The claim is atomic across SQLite connections/processes. The lease is
+    // informational: expiration never authorizes a duplicate remote write.
+    const claim = claimProjection(db, { id: row.id, leaseMs: options.leaseMs || 60000 });
+    if (!claim) {
+      blockedProspects.add(row.prospect_id);
+      result.blocked += 1;
+      continue;
+    }
+    result.attempted += 1;
     const prospect = getProspect(db, row.prospect_id);
     const event = db.prepare('SELECT * FROM revenue_events WHERE id = ?').get(row.event_id);
     try {
-      if (!(prospect && event)) throw new Error('Projection references missing canonical data');
+      // The outbox and event each have a foreign key, but that alone does not
+      // prove they refer to the same prospect. Never project another lead's
+      // state or payment evidence onto this CRM contact.
+      if (!(prospect && event) || event.prospect_id !== prospect.id) {
+        throw new Error('Projection references missing or mismatched canonical data');
+      }
       const now = new Date().toISOString();
-      const response = await write({ records: [recordFor(prospect, event, now)], touches: [touchFor(prospect, event, now)] }, writeOptions);
-      if (response?.errors?.length) throw new Error(response.errors.join('; '));
-      finishProjection(db, { id: row.id, status: 'succeeded' });
+      const paymentEvent = latestPaymentEventThrough(db, prospect.id, event.id);
+      const response = await write({ records: [recordFor(prospect, event, now, paymentEvent)], touches: [touchFor(prospect, event, now)] }, writeOptions);
+      if (!response || !Array.isArray(response.errors)) throw new Error('CRM writer returned no verifiable result');
+      if (response.errors.length) throw new Error(response.errors.join('; '));
+      if (response.records !== 1 || response.touches !== 1) {
+        throw new Error(`CRM writer did not acknowledge both writes (records=${response.records}, touches=${response.touches})`);
+      }
+      finishClaimedProjection(db, { ...claim, status: 'succeeded' });
       result.succeeded += 1;
     } catch (error) {
+      blockedProspects.add(row.prospect_id);
       const message = String(error?.message || error);
-      finishProjection(db, { id: row.id, status: 'failed', error: message });
+      try {
+        // Fail closed. Even a timeout can mean the remote write landed.
+        // A reviewer must reconcile before any reattempt.
+        finishClaimedProjection(db, { ...claim, status: 'failed', error: message });
+      } catch (finalizeError) {
+        result.errors.push(`Projection finalization needs review: ${String(finalizeError?.message || finalizeError)}`);
+      }
       result.failed += 1;
       result.errors.push(message);
     }
