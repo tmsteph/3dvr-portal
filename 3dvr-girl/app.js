@@ -207,15 +207,6 @@ const scenes = [
     copy: 'A fresh portrait in the current look: freckles, turquoise, cream linen, and golden light.'
   },
   {
-    id: 'intimacy-machine-vest',
-    title: 'Intimacy Machine, concept',
-    mode: 'Portal',
-    collection: 'portal',
-    image: 'assets/intimacy-machine-vest.webp',
-    alt: 'Concept render of a black padded torso-form intimacy device with purple and blue accents',
-    copy: 'A hardware concept from the workshop: a portable padded torso form with modular attachments, in black with blue and purple accents.'
-  },
-  {
     id: 'forest-spirit',
     title: 'Forest spirit',
     mode: 'Forest',
