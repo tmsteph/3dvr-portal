@@ -223,6 +223,24 @@ const scenes = [
     image: 'assets/forest-spirit.webp',
     alt: '3DVR Girl in a blue linen top wearing a crown of small antlers and blue flowers in a sunlit forest',
     copy: 'A wilder portrait: antlers, forget-me-nots, and forest light. The spirit of the woods chapter.'
+  },
+  {
+    id: 'beach-cafe',
+    title: 'Beach cafe',
+    mode: 'Sun',
+    collection: 'sun',
+    image: 'assets/beach-cafe.webp',
+    alt: '3DVR Girl laughing in a pale blue sundress at a beach cafe, blonde bun with blue streaks and a turquoise bracelet, the ocean behind her',
+    copy: 'Beach day, off duty: lemonade, sea air, and the laugh that starts most of her trouble.'
+  },
+  {
+    id: 'kayla-poolside',
+    title: 'Poolside field guide',
+    mode: 'Water',
+    collection: 'water',
+    image: 'assets/kayla-poolside.webp',
+    alt: 'Kayla with wet dark hair in a green sundress and a cream field-guide cover-up, smiling beside a sunlit pool',
+    copy: 'Kayla between swims: green sundress, compass rose cover-up, and nowhere else to be.'
   }
 ];
 
