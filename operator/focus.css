@@ -153,6 +153,9 @@ main>header{min-height:72px;gap:12px;border-bottom:1px solid #30404477}
 #operator-form .operator-actions{gap:2px!important}
 #operator-form .operator-actions button,#operator-form .operator-attach{min-width:44px!important;width:44px!important;height:44px!important;min-height:44px!important}
 #operator-form button[type="submit"]{background:var(--mint);color:#122b22}
+#operator-form button[type="submit"]{width:52px!important;height:52px!important;min-width:52px!important;min-height:52px!important;font-size:1.8rem}
+#operator-form .operator-submit__arrow{font-size:1.8rem}
+body.operator-chat-view .message-focus-nav{display:none}
 #operator-form:focus-within{border-color:var(--mint);box-shadow:0 0 0 1px #a2dcc522}
 #operator-workspace{background:var(--panel);border-color:var(--line);border-radius:16px;box-shadow:none}
 .operator-workspace__bar{background:#172124;border-color:var(--line);padding:10px 12px}
@@ -174,6 +177,8 @@ main:has(#app-search-results:not([hidden])) .operator-empty-portal,main:has(#app
   .operator-brand a{font-size:.9rem}
   .operator-mini-spinner{width:24px;height:24px;flex-basis:24px}
   .header-actions button{padding:8px;font-size:.7rem}
+  .header-actions{overflow-x:auto;scrollbar-width:none;max-width:100%}
+  .header-actions::-webkit-scrollbar{display:none}
   .operator-empty-portal{padding:24px 4px}
   .operator-start__description{font-size:.92rem}
   .operator-start__tools{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:24px}
