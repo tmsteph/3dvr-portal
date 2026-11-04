@@ -168,7 +168,7 @@ async function fetchPublicPageAsText(url, options = {}) {
 // Required lazily so the bridge (and the test suite) never pays for - or
 // breaks on - connector config when Gmail tools are unused.
 function defaultGmailHandlers() {
-  const gmail = require('../../../connectors/google/gmail');
+  const gmail = require('../../connectors/google/gmail');
   return {
     search: (args) => gmail.searchMessages(args),
     read: (args) => gmail.readMessage(args),
