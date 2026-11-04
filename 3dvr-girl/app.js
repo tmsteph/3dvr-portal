@@ -241,6 +241,78 @@ const scenes = [
     image: 'assets/kayla-poolside.webp',
     alt: 'Kayla with wet dark hair in a green sundress and a cream field-guide cover-up, smiling beside a sunlit pool',
     copy: 'Kayla between swims: green sundress, compass rose cover-up, and nowhere else to be.'
+  },
+  {
+    id: 'portrait-garden-golden',
+    title: 'Golden hour garden',
+    mode: 'Sun',
+    collection: 'sun',
+    image: 'assets/portrait-blonde-garden-golden-hour.webp',
+    alt: '3DVR Girl with a blonde bun and blue streaks in a cream linen shirt, smiling in a coastal garden at golden hour',
+    copy: 'A close portrait in the current look: blue streaks, freckles, turquoise beads, and the sea behind the garden.'
+  },
+  {
+    id: 'portrait-courtyard-blue-hour',
+    title: 'Blue hour laugh',
+    mode: 'Sun',
+    collection: 'sun',
+    image: 'assets/portrait-blonde-courtyard-blue-hour.webp',
+    alt: '3DVR Girl laughing in a terracotta courtyard at blue hour, holding a small potted jasmine plant, blonde bun with blue streaks',
+    copy: 'Blue hour in the courtyard: string lights, terracotta, and a jasmine seedling getting more attention than the sunset.'
+  },
+  {
+    id: 'portrait-cliff-gate',
+    title: 'The brass key',
+    mode: 'Sun',
+    collection: 'sun',
+    image: 'assets/portrait-asian-cliff-gate.webp',
+    alt: 'The Asian 3DVR Girl with long black hair in cream linen with teal trim, holding a brass key under a jasmine covered stone arch above the sea',
+    copy: 'A gate at the edge of the cliffs, jasmine overhead, and a brass key that clearly belongs to a door somewhere.'
+  },
+  {
+    id: 'portrait-kayla-trail',
+    title: 'Trail portrait',
+    mode: 'Forest',
+    collection: 'forest',
+    image: 'assets/portrait-kayla-trail.webp',
+    alt: 'Kayla with long dark hair in field gear with a compass on her pack straps, standing on a forest trail',
+    copy: 'The field guide at rest: compass on her straps, plaid and canvas, and the trail waiting behind her.'
+  },
+  {
+    id: 'portrait-kayla-lantern',
+    title: 'Lantern trail',
+    mode: 'Forest',
+    collection: 'forest',
+    image: 'assets/portrait-kayla-lantern-trail.webp',
+    alt: 'Kayla with dark braided hair in a leather field vest, holding a lit lantern on a forest trail at dusk, turquoise stones lining the path',
+    copy: 'Dusk patrol: a lit lantern, a compass at her chest, and turquoise stones marking the way through the trees.'
+  },
+  {
+    id: 'portrait-garden-lavender',
+    title: 'Lavender and cliffs',
+    mode: 'Sun',
+    collection: 'sun',
+    image: 'assets/portrait-garden-muse-lavender-cliffs.webp',
+    alt: 'The garden muse with wavy chestnut hair and freckles in cream linen, smiling among lavender with jasmine and coastal cliffs behind her',
+    copy: 'The garden muse in her element: lavender, jasmine, woven gold, and golden light over the water.'
+  },
+  {
+    id: 'portrait-garden-hammock',
+    title: 'The copper key',
+    mode: 'Stillness',
+    collection: 'stillness',
+    image: 'assets/portrait-garden-muse-hammock.webp',
+    alt: 'The garden muse with wavy chestnut hair resting in a rope hammock above coastal cliffs, holding a copper key',
+    copy: 'Off duty in the hammock, copper key in hand, with nowhere she would rather be.'
+  },
+  {
+    id: 'portrait-muse-studio',
+    title: 'Studio Muse',
+    mode: 'Stillness',
+    collection: 'stillness',
+    image: 'assets/portrait-muse-studio.webp',
+    alt: 'Muse with dark hair and purple streaks in messy buns, wearing an oversized black hoodie among canvases and paint tubes in her art studio',
+    copy: 'Muse in her studio: purple streaks, an oversized hoodie, and a wall of half finished weather.'
   }
 ];
 
