@@ -17,6 +17,7 @@ import { activeConversationPath, appendConversationNode, conversationSiblings, c
 document.getElementById('operator-boot-loading')?.remove();
 const form=document.querySelector('#operator-form'), input=document.querySelector('#operator-input'), log=document.querySelector('#operator-log'), status=document.querySelector('#operator-status'), syncStatus=document.querySelector('#operator-sync'), latest=document.querySelector('#operator-latest'), historyPanel=document.querySelector('#conversation-history'), historyList=document.querySelector('#history-list'), historyEmpty=document.querySelector('#history-empty'), showHistory=document.querySelector('#show-history'), treePanel=document.querySelector('#conversation-tree'), treeList=document.querySelector('#conversation-tree-list'), showTree=document.querySelector('#show-tree');
 window.AuthIdentity?.syncStorageFromSharedIdentity?.(localStorage);
+const copyButton=document.querySelector('#copy-conversation'), copyDialog=document.querySelector('#copy-dialog'), copyText=document.querySelector('#copy-text');
 const modeSelect=document.querySelector('#operator-mode');
 const modeHelp=document.querySelector('#operator-mode-help');
 const MODE_KEY='3dvr.operator.collaboration-mode.v1';
@@ -71,6 +72,25 @@ function atLatest(){return log.scrollHeight-log.scrollTop-log.clientHeight<48}
 function updateLatest(){latest.hidden=!history.length||atLatest()}
 function scrollLatest(behavior='auto'){log.scrollTo({top:log.scrollHeight,behavior});updateLatest()}
 function followLatest(){requestAnimationFrame(()=>{scrollLatest();setTimeout(()=>{if(atLatest())scrollLatest()},100)})}
+function conversationAsText(){return history.map(item=>{const lines=[`${item.role==='user'?'You':'Operator'}: ${item.content||''}`];if(item.actionUrl)lines.push(`Open ${item.actionLabel||'workspace'}: ${new URL(item.actionUrl,window.location.href).href}`);return lines.join('\n')}).join('\n\n')}
+let copyResetTimer=0;
+async function copyConversation(){
+  if(!history.length){status.textContent='Nothing to copy yet';return}
+  const text=conversationAsText();
+  let copied=false;
+  try{await navigator.clipboard.writeText(text);copied=true}catch{}
+  if(copied){
+    status.textContent='Conversation copied';
+    copyButton.textContent='Copied';
+    window.clearTimeout(copyResetTimer);
+    copyResetTimer=window.setTimeout(()=>{copyButton.textContent='Copy'},1600);
+    return;
+  }
+  if(copyText)copyText.value=text;
+  if(copyDialog?.showModal){if(!copyDialog.open)copyDialog.showModal();copyText?.select()}
+  else if(copyText){copyText.focus();copyText.select()}
+  status.textContent='Copy blocked by the browser · copy it from the dialog';
+}
 function conversationTitle(conversation){const first=conversation.messages.find(item=>item.role==='user')?.content||'New conversation';if(first.length<=52)return first;const cut=first.slice(0,52);const boundary=cut.lastIndexOf(' ');return `${(boundary>12?cut.slice(0,boundary):cut).trim()}…`}
 function renderHistory(){const saved=store.conversations.filter(item=>item.messages.length).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));historyEmpty.hidden=Boolean(saved.length);if(!saved.length&&historySyncComplete)historyEmpty.textContent=accountSync.isReady()?'No saved conversations yet.':'No conversations saved here yet. Sign in to sync across devices.';historyList.innerHTML=saved.map(item=>`<button type="button" data-conversation-id="${escape(item.id)}" ${item.id===store.activeId?'aria-current="page"':''}><strong>${escape(conversationTitle(item))}</strong><span>${escape(new Date(item.updatedAt).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))}</span></button>`).join('')}
 function renderTree(){if(!treeList)return;const conversation=activeConversation();const activeIds=new Set(history.map(item=>item.id));treeList.innerHTML=conversationTreeRows(conversation).map(({node,depth})=>`<button type="button" class="tree-node" data-tree-node="${escape(node.id)}" style="--tree-depth:${depth}" ${activeIds.has(node.id)?'data-active-path="true"':''} ${node.id===conversation.activeLeafId?'aria-current="true"':''}><span>${node.role==='user'?'You':'Operator'}</span><strong>${escape(String(node.content||'').replace(/\s+/g,' ').slice(0,72)||'…')}</strong></button>`).join('')||'<p>No messages in this conversation yet.</p>'}
@@ -175,6 +195,8 @@ if(outcome?.backgroundTask){status.textContent='Tracking delegated work…';task
 input.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();if(!operatorBusy())form.requestSubmit()}});
 document.querySelector('.quick-prompts').addEventListener('click',event=>{const button=event.target.closest('[data-prompt]');if(!button)return;input.value=button.dataset.prompt;form.requestSubmit()});
 log.addEventListener('click',event=>{const suggestion=event.target.closest('[data-suggestion]');if(suggestion){input.value=suggestion.dataset.suggestion;form.requestSubmit();return}const branch=event.target.closest('[data-branch-from]');if(branch){if(operatorBusy()){status.textContent='Finish the current reply before switching branches';return}selectConversationNode(activeConversation(),branch.dataset.branchFrom);refreshHistory();save();status.textContent='Branch point selected · your next message starts a new branch';input.focus();return}const switcher=event.target.closest('[data-switch-node]');if(switcher?.dataset.switchNode){if(operatorBusy()){status.textContent='Finish the current reply before switching branches';return}selectConversationNode(activeConversation(),switcher.dataset.switchNode,{followDescendants:true});refreshHistory();save();status.textContent='Switched branch';}});
+if(copyButton)copyButton.onclick=()=>{void copyConversation()};
+document.querySelector('.copy-close')?.addEventListener('click',()=>copyDialog?.close());
 document.querySelector('#clear-chat').onclick=()=>{store.conversations=store.conversations.filter(item=>item.messages.length);store.activeId=makeId();refreshHistory();save();closeHistory();closeTree();input.focus()};
 showHistory.onclick=openHistory;
 document.querySelector('#close-history').onclick=()=>{closeHistory();showHistory.focus()};

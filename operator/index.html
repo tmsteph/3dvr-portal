@@ -55,6 +55,8 @@
         <a href="/operator/open/" aria-label="About the open-source Operator">About</a>
         <button id="show-history" type="button" aria-label="Past conversations" aria-expanded="false" aria-controls="conversation-history">Chats</button>
         <button id="show-tree" type="button" aria-label="Conversation tree" aria-expanded="false" aria-controls="conversation-tree">Branches</button>
+        <button id="copy-conversation" type="button" aria-label="Copy conversation" title="Copy conversation">Copy</button>
+        <button id="toggle-view" type="button" aria-label="Switch to chat view" aria-pressed="false" title="Switch to chat view">Chat view</button>
         <button id="clear-chat" type="button" aria-label="New conversation" title="New conversation">＋</button>
       </div>
     </header>
@@ -121,6 +123,15 @@
         <small id="secret-status" role="status"></small>
         <button class="secret-save" type="submit">Save securely</button>
       </form>
+    </dialog>
+    <dialog id="copy-dialog" aria-labelledby="copy-dialog-title">
+      <div class="copy-dialog-body">
+        <button class="copy-close" type="button" aria-label="Close">×</button>
+        <p>OPERATOR</p>
+        <h2 id="copy-dialog-title">Copy conversation</h2>
+        <span>Your browser blocked automatic copying. Select the text below and copy it manually.</span>
+        <textarea id="copy-text" readonly rows="12" aria-label="Conversation text"></textarea>
+      </div>
     </dialog>
   </main>
   <dialog id="operator-install-help" aria-labelledby="operator-install-title">
