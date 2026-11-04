@@ -419,3 +419,18 @@ test('ask-send prints form routes and opens the contact page', async () => {
     await rm(tmp, { recursive: true, force: true });
   }
 });
+
+test('outreach sender refuses a complete send request without verified approval before network access', async () => {
+  await assert.rejects(
+    run(process.execPath, [
+      path.join(root, 'thomas-agent', 'node', 'send-outreach-email.js'),
+      '--to', 'owner@example.com',
+      '--subject', 'Test subject',
+      '--text', 'Test message',
+    ], { THREEDVR_OUTREACH_EMAIL_TRANSPORT: 'gmail' }),
+    error => {
+      assert.match(error.stderr, /verified message-specific human approval is required/i);
+      return true;
+    },
+  );
+});
