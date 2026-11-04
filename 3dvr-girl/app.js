@@ -458,6 +458,21 @@ if (reduceMotion.matches) {
   });
 }
 
+const livingVideos = document.querySelectorAll('.living-card video');
+
+if (livingVideos.length && !reduceMotion.matches && 'IntersectionObserver' in window) {
+  const livingObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.play().catch(() => {});
+      } else {
+        entry.target.pause();
+      }
+    });
+  }, { threshold: 0.35 });
+  livingVideos.forEach(video => livingObserver.observe(video));
+}
+
 const carousel = document.querySelector('#castCarousel');
 const carouselSlides = carousel ? [...carousel.querySelectorAll('.carousel__slide')] : [];
 const carouselDots = document.querySelector('#carouselDots');
