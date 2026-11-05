@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Personal Microforks | 3DVR</title>
+<style>
+:root{color-scheme:dark;font:16px system-ui;background:#10141e;color:#f5f7ff}
+main{max-width:720px;margin:auto;padding:24px}section{background:#1b2230;border:1px solid #364056;border-radius:16px;padding:18px;margin:16px 0}
+input,select,button,textarea{font:inherit;background:#111827;color:white;border:1px solid #58647b;border-radius:9px;padding:10px;max-width:100%}
+button{cursor:pointer}button:focus-visible,input:focus-visible{outline:3px solid #b6a5ff}
+label{display:block;margin:12px 0}label input{display:block;width:90%}
+.actions{display:flex;flex-wrap:wrap;gap:8px}pre{white-space:pre-wrap;overflow-wrap:anywhere}
+small{color:#b8c2d5}
+</style></head><body><main><h1>🌱 Personal Microforks</h1>
+<p>Your customizations belong to you. Save versions, roll back, and export for sharing after reviewing the data.</p>
+<section><h2>My customization</h2>
+<label>Profile name<input id="profile" maxlength="80" value="my-microfork"></label>
+<label>Theme<select id="theme"><option>system</option><option>dark</option><option>light</option></select></label>
+<label>Layout<select id="layout"><option>default</option><option>compact</option><option>spacious</option></select></label>
+<div class="actions"><button id="save">Save revision</button><button id="undo">Roll back one revision</button><button id="export">Review export</button></div>
+<p id="status" role="status"></p></section>
+<section><h2>History</h2><ol id="history"></ol></section>
+<section><h2>Share / import</h2><p><small>Never paste passwords or sensitive information. Export is manual and never published automatically.</small></p>
+<textarea id="payload" rows="9" style="width:95%" aria-label="Microfork JSON"></textarea>
+<div class="actions"><button id="import">Import reviewed JSON</button><button id="download">Download reviewed JSON</button></div></section>
+</main><script>
+(()=>{'use strict';
+const KEY='3dvr.microfork.v1', $=id=>document.getElementById(id);
+const safeName=s=>typeof s==='string'&&s.length>0&&s.length<=80&&!/[<>]/.test(s);
+const allowed=(x,values)=>values.includes(x);
+function valid(f){return f&&f.schemaVersion===1&&safeName(f.id)&&Array.isArray(f.revisions)&&f.revisions.length<=1000&&f.revisions.every(r=>r&&typeof r.id==='string'&&typeof r.timestamp==='string'&&allowed(r.theme,['system','dark','light'])&&allowed(r.layout,['default','compact','spacious']));}
+let fork={schemaVersion:1,id:'my-microfork',upstream:{url:'https://github.com/tmsteph/3dvr-portal',ref:'main'},revisions:[]};
+try{const s=localStorage.getItem(KEY);if(s){const parsed=JSON.parse(s);if(valid(parsed))fork=parsed;}}catch{}
+function persist(){localStorage.setItem(KEY,JSON.stringify(fork));}
+function render(){ $('profile').value=fork.id;const last=fork.revisions.at(-1);$('theme').value=last?.theme||'system';$('layout').value=last?.layout||'default';$('history').replaceChildren();fork.revisions.forEach((r,i)=>{const li=document.createElement('li');li.textContent=(i+1)+'. '+r.timestamp+' — '+r.theme+' / '+r.layout;$('history').append(li);});$('status').textContent=fork.revisions.length+' saved revision(s), stored on this device.';}
+$('save').onclick=()=>{const id=$('profile').value.trim();if(!safeName(id)){ $('status').textContent='Enter a valid profile name.';return;}if(fork.revisions.length>=1000){$('status').textContent='Revision limit reached.';return;}fork.id=id;fork.revisions.push({id:crypto.randomUUID(),timestamp:new Date().toISOString(),theme:$('theme').value,layout:$('layout').value});persist();render();};
+$('undo').onclick=()=>{if(fork.revisions.length){fork.revisions.pop();persist();render();}};
+$('export').onclick=()=>{$('payload').value=JSON.stringify(fork,null,2);$('status').textContent='Review the JSON before sharing.';};
+$('import').onclick=()=>{try{if($('payload').value.length>1048576)throw Error('Too large');const parsed=JSON.parse($('payload').value);if(!valid(parsed))throw Error('Invalid schema');fork=parsed;persist();render();}catch(e){$('status').textContent='Import failed: '+e.message;}};
+$('download').onclick=()=>{const data=$('payload').value;if(!data){$('status').textContent='Review an export first.';return;}try{if(!valid(JSON.parse(data)))throw Error();}catch{$('status').textContent='Invalid export.';return;}const blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='microfork.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+render();
+})();
+</script></body></html>
