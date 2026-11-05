@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101b25"><title>Squat Break · 3DVR</title>
+<style>
+:root{font-family:system-ui,sans-serif;color-scheme:dark;background:#101b25;color:#f4f8f9}*{box-sizing:border-box}body{margin:0;padding:24px;min-height:100dvh;display:grid;place-items:center}main{width:min(100%,440px)}a{color:#91e8d2}.card{border:1px solid #35505a;border-radius:24px;padding:24px;background:#182a35;box-shadow:0 12px 40px #0003}h1{margin:10px 0;font-size:2.3rem}p{color:#b9cbd1}.clock{font-size:clamp(3.5rem,17vw,5.5rem);font-variant-numeric:tabular-nums;text-align:center;font-weight:750;margin:26px 0}.row{display:flex;gap:10px;flex-wrap:wrap}button,input{font:inherit;border-radius:12px;border:1px solid #4e6d77;padding:12px;color:inherit;background:#233d48}button{cursor:pointer;flex:1;min-height:48px}button.primary{background:#90e8d2;color:#09231d;font-weight:750;border:0}button:focus-visible,input:focus-visible{outline:3px solid #90e8d2}label{display:grid;gap:6px;flex:1;font-size:.9rem}input{width:100%}.stats{display:flex;justify-content:space-between;margin:22px 0}#status{min-height:3em;text-align:center}small{color:#a8bec5}
+</style></head><body><main><a href="/">← 3DVR Portal</a><div class="card"><small>MOVE A LITTLE · FEEL BETTER</small><h1>Squat Break</h1><p>Small movement breaks, on your schedule.</p><div class="clock" id="clock" role="timer" aria-label="Time until next movement break">45:00</div><p id="status" role="status" aria-live="polite">Ready for your first cycle?</p><div class="row"><button class="primary" id="toggle">Start</button><button id="done">✓ Done</button><button id="snooze">Snooze 5m</button></div><div class="stats"><span>Today: <strong id="total">0</strong> squats</span><span>Sets: <strong id="sets">0</strong></span></div><div class="row"><label>Minutes between breaks<input id="minutes" type="number" min="1" max="240" value="45"></label><label>Squats per set<input id="reps" type="number" min="1" max="100" value="10"></label></div><p><button id="notify">Enable notifications</button></p><small>Notifications require permission and may not fire when the browser is closed. Move within your abilities; take a different kind of break if squats aren't suitable.</small></div></main>
+<script>
+const $=id=>document.getElementById(id), key='3dvr-squat-break-v1';
+const today=()=>new Date().toLocaleDateString('en-CA');
+let data;try{data=JSON.parse(localStorage.getItem(key)||'{}')}catch{data={}}
+data={minutes:45,reps:10,total:0,sets:0,date:today(),deadline:null,remaining:null,...data};
+if(data.date!==today())Object.assign(data,{date:today(),total:0,sets:0});
+let running=Boolean(data.deadline);
+function save(){localStorage.setItem(key,JSON.stringify(data))}
+function duration(){return data.minutes*60000}
+function left(){return running?Math.max(0,data.deadline-Date.now()):Math.max(0,data.remaining??duration())}
+function draw(){const ms=left(),sec=Math.ceil(ms/1000);$('clock').textContent=String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');$('toggle').textContent=running?'Pause':data.remaining!==null?'Resume':'Start';$('total').textContent=data.total;$('sets').textContent=data.sets;$('minutes').value=data.minutes;$('reps').value=data.reps}
+function message(s){$('status').textContent=s}
+function remind(){message('Time for '+data.reps+' squats!');if('Notification'in window&&Notification.permission==='granted')new Notification('Squat Break',{body:'Time for '+data.reps+' squats. Tap Done when finished.'});if(navigator.vibrate)navigator.vibrate([150,100,150])}
+function tick(){if(data.date!==today()){data.date=today();data.total=0;data.sets=0;save()}if(running&&Date.now()>=data.deadline){running=false;data.deadline=null;data.remaining=0;save();remind()}draw()}
+$('toggle').onclick=()=>{if(running){data.remaining=left();data.deadline=null;running=false;message('Paused')}else{data.deadline=Date.now()+left();data.remaining=null;running=true;message('You got this!')}save();draw()};
+$('done').onclick=()=>{data.total+=data.reps;data.sets++;data.remaining=null;data.deadline=Date.now()+duration();running=true;message('Nice work! Next break is scheduled.');save();draw()};
+$('snooze').onclick=()=>{data.remaining=null;data.deadline=Date.now()+300000;running=true;message('Snoozed for 5 minutes');save();draw()};
+for(const [id,field,max] of [['minutes','minutes',240],['reps','reps',100]])$(id).onchange=()=>{data[field]=Math.min(max,Math.max(1,Number($(id).value)||1));if(field==='minutes'&&!running)data.remaining=null;save();draw()};
+$('notify').onclick=async()=>{if(!('Notification'in window)){message('Browser notifications are unavailable here');return}const permission=await Notification.requestPermission();message(permission==='granted'?'Notifications enabled while supported by your browser':'Notifications not enabled')};
+document.addEventListener('visibilitychange',tick);setInterval(tick,1000);tick();
+</script></body></html>
