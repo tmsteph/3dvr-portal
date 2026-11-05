@@ -1,0 +1,11 @@
+[Unit]
+Description=Mirror selected Bitwarden Password Manager credentials into automation stores
+After=network-online.target 3dvr-secrets-broker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/usr/bin/node /opt/3dvr/secrets-broker/sync-bitwarden-vault.mjs
+TimeoutStartSec=15min
