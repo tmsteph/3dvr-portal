@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildLeadFinderRequest,
+  buildMailboxProfileRequest,
   DEFAULT_DISCOVERY_BRIEF,
   createLeadFinderHandler,
   createLeadFinderRateLimiter,
@@ -216,4 +217,13 @@ test('lead finder works with a completely blank request by choosing a default br
   assert.equal(res.payload.query.usedDefaultBrief, true);
   assert.equal(res.payload.query.description, DEFAULT_DISCOVERY_BRIEF);
   assert.match(requestBody.input, /practical digital service/i);
+});
+
+
+test('mailbox profile inference request stays grounded in supplied Gmail context', () => {
+  const request = buildMailboxProfileRequest([{ from: 'client@example.com', subject: 'Website project', snippet: 'Can you update our restaurant website?' }], 'gpt-test');
+  assert.equal(request.model, 'gpt-test');
+  assert.match(request.instructions, /Use only the supplied mailbox context/);
+  assert.match(request.input, /Website project/);
+  assert.equal(request.text.format.name, 'mailbox_business_profile');
 });
