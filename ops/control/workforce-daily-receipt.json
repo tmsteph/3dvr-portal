@@ -1,8 +1,8 @@
 {
-  "localDate": "2026-11-03",
+  "localDate": "2026-11-05",
   "timezone": "America/Los_Angeles",
   "lighthouse": {
-    "checkedAt": "2026-11-03T16:24:26.253Z",
+    "checkedAt": "2026-11-05T16:58:15.250Z",
     "source": "authenticated OVH general CDP 9222 Lighthouse week API",
     "weeksChecked": [
       "2026-11-02",
@@ -14,19 +14,31 @@
     ]
   },
   "iatse": {
-    "checkedAt": "2026-11-03T16:26:25.011Z",
+    "checkedAt": "2026-11-05T16:59:47.045Z",
     "outcome": "noop",
     "changedDates": [],
     "deferredDates": [],
     "renderedWindow": {
-      "start": "2026-11-02",
-      "end": "2026-12-04"
+      "start": "2026-11-04",
+      "end": "2026-12-06"
     },
     "mismatches": [],
     "persistedAfterReload": true,
-    "desiredDatesChecked": 15,
-    "unmodifiedUnspecifiedDates": [],
-    "note": "Nov 6-7 initially normalized from Not Available to Booked; original Not Available restored and verified; final net no-op."
+    "desiredDatesChecked": 21,
+    "unmodifiedUnspecifiedDates": [
+      "2026-11-26",
+      "2026-11-27",
+      "2026-11-28",
+      "2026-11-29",
+      "2026-11-30",
+      "2026-12-01",
+      "2026-12-02",
+      "2026-12-03",
+      "2026-12-04",
+      "2026-12-05",
+      "2026-12-06"
+    ],
+    "note": "Preserved existing Nov 6–7 Not Available markers; Booked markers treated only as conflict markers, not proof of union dispatch. No IATSE writes were needed."
   },
   "verification": {
     "sourceWeeksHttp200": true,
@@ -35,7 +47,7 @@
     "writerLeaseReleaseIndependentlyVerified": true
   },
   "execution": {
-    "path": "OVH canonical general browser lane CDP 9222; Desktop Commander control path",
-    "authenticationRecovery": "Managed general lane restarted using existing persistent profile after CDP timeout"
+    "path": "Hetzner SSH to OVH canonical general browser lane CDP 9222",
+    "authenticationRecovery": "SharePoint-first persistent session; Lighthouse broker browser-login authenticated"
   }
 }
