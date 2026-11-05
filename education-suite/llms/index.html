@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How LLMs Work | 3DVR Education</title>
+<link rel="stylesheet" href="/styles/global.css"><link rel="stylesheet" href="./styles.css">
+<meta name="theme-color" content="#07111f">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to lesson</a>
+<nav class="topbar"><a href="/">3DVR Portal</a><a href="/education-suite/">Education Suite</a><a href="#attention">Attention</a><a href="#operator">Operator</a></nav>
+<main id="main">
+<header class="hero">
+<p class="eyebrow">3DVR Education · AI from first principles</p>
+<h1>How large language models work</h1>
+<p class="lede">A Transformer is a machine for routing and transforming information. An LLM is a very large Transformer trained to predict what comes next. Scale that simple objective far enough and it learns surprisingly useful representations of language, code, concepts, and procedures.</p>
+<div class="flow" aria-label="LLM flow"><span>tokens</span><b>→</b><span>embeddings</span><b>→</b><span>attention</span><b>→</b><span>MLPs</span><b>→</b><span>layers</span><b>→</b><span>next token</span></div>
+</header>
+
+<section>
+<p class="eyebrow">01 · Transformer</p><h2>The architecture underneath modern LLMs</h2>
+<p>Transformers process tokens through repeated blocks of attention and feed-forward neural networks. Instead of reading only one word at a time, attention lets each token gather useful information from other tokens in its context.</p>
+<div class="equation">Attention(Q,K,V) = softmax(QKᵀ / √d<sub>k</sub>)V</div>
+<div class="cards"><article><strong>Q · Query</strong><p>What information am I looking for?</p></article><article><strong>K · Key</strong><p>What kind of information do I contain?</p></article><article><strong>V · Value</strong><p>What information can I contribute?</p></article></div>
+</section>
+
+<section id="attention">
+<p class="eyebrow">02 · Self-attention</p><h2>Watch context change meaning</h2>
+<p>Tap a token. The brighter connections represent a simplified illustration of which earlier words could matter to that token. Real models learn these relationships numerically across many attention heads.</p>
+<div class="attention-lab">
+<div class="sentence" id="sentence" aria-label="Interactive sentence"></div>
+<div class="meter" id="meter" aria-live="polite"></div>
+<p class="hint">Example: “The robot picked up the battery because it was empty.” What does <em>it</em> refer to?</p>
+</div>
+</section>
+
+<section>
+<p class="eyebrow">03 · Many heads, many layers</p><h2>Communication + computation</h2>
+<div class="two"><div><div class="big">Attention</div><p>moves information between token representations.</p></div><div><div class="big">MLP</div><p>transforms information within each position.</p></div></div>
+<p>The <strong>residual stream</strong> acts like a shared workspace flowing through the network. Every block reads from it and writes useful changes back into it. Stack many blocks and simple representations can become increasingly contextual and abstract.</p>
+<div class="stack"><span>Token embeddings</span><span>Attention + residual</span><span>MLP + residual</span><span>Attention + residual</span><span>MLP + residual</span><span>Next-token probabilities</span></div>
+</section>
+
+<section>
+<p class="eyebrow">04 · Training</p><h2>A remarkably simple objective</h2>
+<div class="quote">“The capital of France is <mark>___</mark>” → predict <strong>Paris</strong>.</div>
+<p>Training repeats this prediction problem across enormous datasets. Errors are measured and the network's parameters are adjusted. To become very good at prediction, the model benefits from learning structure: grammar, relationships, programming patterns, facts, styles, and procedures.</p>
+<p class="callout">The objective is “predict the next token.” A useful internal strategy can become something closer to “model the process that produced these tokens.”</p>
+</section>
+
+<section>
+<p class="eyebrow">05 · LLM</p><h2>Not a database: a learned function</h2>
+<div class="equation">f(context) → probabilities for the next token</div>
+<p>Knowledge is distributed through weights and temporary activations rather than stored as ordinary rows in a database. During inference, your context flows through the trained network, a token is generated, appended to the context, and the process repeats.</p>
+<div class="loop"><span>Your prompt</span><b>→</b><span>Transformer</span><b>→</b><span>token</span><b>↻</b></div>
+</section>
+
+<section>
+<p class="eyebrow">06 · Reasoning</p><h2>Why prediction can become problem solving</h2>
+<p>Memorization can answer familiar examples. It cannot memorize every possible program, multiplication problem, or novel combination of ideas. Training therefore rewards reusable internal patterns and algorithms. Modern systems can also spend extra computation during inference before producing their final response.</p>
+<div class="three"><article><strong>Training compute</strong><small>learn the weights</small></article><article><strong>Model capability</strong><small>what the network can represent</small></article><article><strong>Inference compute</strong><small>how much work is spent now</small></article></div>
+</section>
+
+<section id="operator">
+<p class="eyebrow">07 · From model to system</p><h2>The LLM is an engine, not the whole computer</h2>
+<p>A raw model does not automatically have durable memory, browse the web, operate servers, or send messages. Those capabilities come from the system built around it.</p>
+<div class="system"><span>LLM</span><b>+</b><span>context</span><b>+</b><span>memory</span><b>+</b><span>tools</span><b>+</b><span>environment</span><b>+</b><span>feedback</span></div>
+<p class="callout">This is the direction of 3DVR Operator: language as the primary interface to a larger computing system, while tools and services do the work underneath.</p>
+</section>
+
+<section>
+<p class="eyebrow">08 · Mental model</p><h2>A Transformer as a strange computer</h2>
+<div class="cards"><article><strong>Tokens</strong><p>input symbols</p></article><article><strong>Residual stream</strong><p>shared workspace</p></article><article><strong>Attention</strong><p>information routing</p></article><article><strong>MLPs</strong><p>local transformation</p></article><article><strong>Layers</strong><p>repeated computation</p></article><article><strong>Output</strong><p>probabilities over tokens</p></article></div>
+<p>The next rabbit hole is mechanistic interpretability: discovering the circuits and learned procedures hiding inside these enormous networks.</p>
+</section>
+<footer><a href="/education-suite/">← Education Suite</a><span>Build the future by understanding it.</span></footer>
+</main><script src="./app.js"></script><script defer src="/issue-launcher.js"></script>
+</body></html>

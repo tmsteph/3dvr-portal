@@ -1,0 +1,6 @@
+const words=['The','robot','picked','up','the','battery','because','it','was','empty.'];
+const weights={0:[.9,.1,.04,.02,.04,.03,.01,.01,.01,.01],1:[.12,1,.25,.08,.04,.1,.04,.05,.03,.03],2:[.06,.55,1,.15,.03,.5,.04,.04,.03,.03],3:[.04,.08,.35,1,.08,.18,.03,.03,.02,.02],4:[.05,.03,.03,.05,.9,.7,.02,.02,.02,.02],5:[.03,.18,.45,.12,.3,1,.05,.12,.06,.08],6:[.02,.08,.08,.03,.02,.15,1,.35,.1,.12],7:[.02,.22,.05,.02,.03,.88,.18,1,.12,.16],8:[.02,.08,.05,.02,.03,.28,.08,.72,1,.25],9:[.02,.08,.04,.02,.02,.74,.08,.62,.28,1]};
+const sentence=document.querySelector('#sentence'),meter=document.querySelector('#meter');
+words.forEach((word,i)=>{const b=document.createElement('button');b.className='token';b.textContent=word;b.onclick=()=>show(i);sentence.appendChild(b)});
+function show(i){[...sentence.children].forEach((b,n)=>b.classList.toggle('active',n===i));meter.innerHTML=weights[i].map((v,n)=>`<div class="bar"><span>${words[n]}</span><div class="track"><div class="fill" style="width:${Math.round(v*100)}%"></div></div><span>${Math.round(v*100)}%</span></div>`).join('')}
+show(7);
