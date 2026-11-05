@@ -278,7 +278,16 @@ function pageHost(state) {
 function classifyState(site, config, state) {
   const text = String(state?.text || '');
   const host = pageHost(state);
-  if (!config.hosts.includes(host)) return { status: 'human_required', reason: 'external-sso' };
+  if (!config.hosts.includes(host)) {
+    // A redirect is not evidence of MFA. Only known identity-provider pages
+    // may be classified by challenge text; unknown origins remain unsupported.
+    const lighthouseSso = site === 'lighthouse' &&
+      ['login.microsoftonline.com', 'guest.encoreglobal.com'].includes(host);
+    if (lighthouseSso && HUMAN_CHALLENGE.test(text)) {
+      return { status: 'human_required', reason: 'provider-verification' };
+    }
+    return { status: 'sso_required', reason: lighthouseSso ? 'microsoft-sso-continuation-required' : 'unsupported-sso-origin' };
+  }
   if (site === 'portal') {
     if (state?.portalSignedIn && !/sign-in\.html/i.test(String(state?.url || '')) && !state.passwordCount) {
       return { status: 'authenticated' };
@@ -416,6 +425,7 @@ async function browserLogin(broker, agent, site) {
 
 module.exports = {
   SITE_CONFIG,
+  classifyState,
   browserLogin,
   chooseVaultItem,
   lighthouseIdentityFromTargets,

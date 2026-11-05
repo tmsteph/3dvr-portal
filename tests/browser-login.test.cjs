@@ -6,6 +6,7 @@ const path = require('node:path');
 const test = require('node:test');
 const {
   SITE_CONFIG,
+  classifyState,
   chooseVaultItem,
   extractLogin,
   lighthouseIdentityFromTargets,
@@ -109,4 +110,26 @@ test('installer publishes the first-class browser login command', () => {
   assert.match(installer, /browser-login\.js/);
   assert.match(installer, /3dvr-browser-login\.mjs/);
   assert.match(installer, /\/usr\/local\/bin\/3dvr-browser-login/);
+});
+
+
+test('Microsoft redirect alone is not a human checkpoint', () => {
+  const state = { url: 'https://login.microsoftonline.com/tenant/oauth2/authorize', text: 'Pick an account' };
+  assert.deepEqual(classifyState('lighthouse', SITE_CONFIG.lighthouse, state), {
+    status: 'sso_required', reason: 'microsoft-sso-continuation-required',
+  });
+});
+
+test('Microsoft verification is a real human checkpoint', () => {
+  const state = { url: 'https://login.microsoftonline.com/tenant/login', text: 'Approve sign-in in Microsoft Authenticator' };
+  assert.deepEqual(classifyState('lighthouse', SITE_CONFIG.lighthouse, state), {
+    status: 'human_required', reason: 'provider-verification',
+  });
+});
+
+test('unknown SSO origins are never inferred to require human verification', () => {
+  const state = { url: 'https://untrusted.example/login', text: 'Authenticator' };
+  assert.deepEqual(classifyState('lighthouse', SITE_CONFIG.lighthouse, state), {
+    status: 'sso_required', reason: 'unsupported-sso-origin',
+  });
 });
