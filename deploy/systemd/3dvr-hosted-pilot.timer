@@ -1,0 +1,12 @@
+[Unit]
+Description=Run hosted Operator pilot worker periodically
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=30sec
+AccuracySec=5sec
+Unit=3dvr-hosted-pilot.service
+Persistent=false
+
+[Install]
+WantedBy=timers.target

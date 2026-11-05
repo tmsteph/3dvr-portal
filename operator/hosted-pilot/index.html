@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hosted Operator Pilot · 3DVR</title>
+<meta name="theme-color" content="#07101c">
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#07101c;color:#edf4ff}
+body{margin:0;padding:clamp(16px,5vw,40px)}
+main{max-width:540px;margin:auto}
+a{color:#9edaff}
+h1{font-size:clamp(26px,6vw,38px)}
+p{line-height:1.5;color:#bed0df}
+label{display:block;margin:24px 0 8px}
+input,button{font:inherit;border-radius:12px;padding:14px}
+input{box-sizing:border-box;width:100%;background:#15273b;color:white;border:1px solid #60768d}
+button{background:#b8e8ff;color:#07101c;border:0;font-weight:700;margin-top:16px}
+button:disabled{opacity:.55}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#122237;border-radius:12px;padding:16px;min-height:30px}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+<script src="/gun-init.js"></script>
+<script src="/auth-identity.js"></script>
+<script type="module" src="./page.js"></script>
+</head>
+<body><main>
+<a href="/operator/">← Operator</a>
+<h1>Hosted Operator Pilot</h1>
+<p>Try a read-only task on our servers. This pilot is available only when enabled by the operator. Sign in to Portal first.</p>
+<form id="pilot-form">
+<label for="pilot-repository">Public GitHub repository</label>
+<input id="pilot-repository" value="tmsteph/3dvr-portal" autocomplete="off" required>
+<button id="pilot-submit" type="submit">Run repository status</button>
+</form>
+<p id="pilot-status" role="status" aria-live="polite">Ready</p>
+<button id="pilot-check" type="button" hidden>Check task status</button>
+<button id="pilot-cancel" type="button" hidden>Cancel task</button>
+<pre id="pilot-result" aria-label="Task result"></pre>
+</main></body></html>
