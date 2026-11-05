@@ -516,3 +516,71 @@ test('runAutopilotCycle follows a proven Stripe offer and tracks the next checko
   assert.match(result.monetization.checkoutUrl, /client_reference_id=money-proven-offer__website-upgrade/);
   assert.match(result.artifacts.offerHtml, /3DVR Website Upgrade/);
 });
+
+test('runAutopilotCycle forwards no-paid-AI guard to the money loop', async () => {
+  let loopOptions;
+  await runAutopilotCycle({
+    env: {
+      MONEY_AUTOPILOT_PUBLISH: 'false',
+      MONEY_AUTOPILOT_PROMOTION: 'false',
+      MONEY_AUTOPILOT_ANALYTICS_SOURCE: 'none'
+    },
+    revenue: { enabled: false, byOffer: [] },
+    autoDiscover: false,
+    disablePaidAi: true,
+    runLoopImpl: async (input, options) => {
+      loopOptions = options;
+      return {
+        runId: 'no-paid-ai-cron-test',
+        generatedAt: '2026-10-27T19:00:00.000Z',
+        input,
+        warnings: [],
+        signals: [],
+        opportunities: [],
+        adDrafts: [],
+        executionChecklist: []
+      };
+    }
+  });
+
+  assert.equal(loopOptions.disablePaidAi, true);
+});
+
+test('cron-safe research skips Stripe and authenticated analytics even when configured', async () => {
+  let externalReads = 0;
+  const unexpectedRead = async () => {
+    externalReads += 1;
+    throw new Error('authenticated provider read must be disabled');
+  };
+  const result = await runAutopilotCycle({
+    env: {
+      MONEY_AUTOPILOT_PUBLISH: 'false',
+      MONEY_AUTOPILOT_PROMOTION: 'false',
+      MONEY_AUTOPILOT_ANALYTICS_SOURCE: 'gun',
+      MONEY_AUTOPILOT_GA_PROPERTY_ID: 'synthetic-property',
+      MONEY_AUTOPILOT_GA_ACCESS_TOKEN: 'synthetic-token'
+    },
+    stripeClient: { checkout: { sessions: { list: unexpectedRead } } },
+    collectRevenueImpl: unexpectedRead,
+    firstPartyAnalyticsImpl: unexpectedRead,
+    fetchImpl: unexpectedRead,
+    disableAuthenticatedReads: true,
+    disablePaidAi: true,
+    autoDiscover: false,
+    runLoopImpl: async input => ({
+      runId: 'cron-authenticated-reads-disabled',
+      generatedAt: '2026-10-27T20:00:00.000Z',
+      input,
+      warnings: [],
+      signals: [],
+      opportunities: [],
+      adDrafts: [],
+      executionChecklist: []
+    })
+  });
+
+  assert.equal(externalReads, 0, 'no authenticated Stripe or analytics provider was contacted');
+  assert.equal(result.revenue.skipped, true);
+  assert.equal(result.analytics.enabled, false);
+  assert.equal(result.analytics.source, 'disabled');
+});

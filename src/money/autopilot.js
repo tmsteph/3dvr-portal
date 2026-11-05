@@ -1128,7 +1128,12 @@ export async function runAutopilotCycle(options = {}) {
   const config = resolveAutopilotConfig(options);
   const warnings = [];
 
-  let revenue = options.revenue || null;
+  // Scheduled no-cost research must not make authenticated Stripe calls.
+  // A dry run alone does not suppress these reads.
+  const disableAuthenticatedReads = options.disableAuthenticatedReads === true;
+  let revenue = disableAuthenticatedReads
+    ? { enabled: false, byOffer: [], skipped: true, reason: 'authenticated provider reads disabled' }
+    : options.revenue || null;
   if (!revenue) {
     try {
       revenue = await (options.collectRevenueImpl || collectStripeRevenueHints)({
@@ -1142,12 +1147,14 @@ export async function runAutopilotCycle(options = {}) {
   }
 
   const useFirstPartyAnalytics = config.analytics.source === 'gun';
-  const analytics = useFirstPartyAnalytics
-    ? await (options.firstPartyAnalyticsImpl || fetchFirstPartyAnalyticsHints)(config.analytics, {
-      now: now(),
-      client: options.analyticsClient
-    })
-    : await fetchGoogleAnalyticsHints(config.analytics, fetchImpl);
+  const analytics = disableAuthenticatedReads
+    ? { enabled: false, source: 'disabled', warnings: [], sessions: 0, keywords: [], topPaths: [], topSources: [] }
+    : useFirstPartyAnalytics
+      ? await (options.firstPartyAnalyticsImpl || fetchFirstPartyAnalyticsHints)(config.analytics, {
+        now: now(),
+        client: options.analyticsClient
+      })
+      : await fetchGoogleAnalyticsHints(config.analytics, fetchImpl);
   warnings.push(...analytics.warnings);
 
   let market = config.market;
@@ -1204,7 +1211,8 @@ export async function runAutopilotCycle(options = {}) {
     fetchImpl,
     now,
     openAiApiKey: config.openAiApiKey,
-    openAiModel: config.openAiModel
+    openAiModel: config.openAiModel,
+    disablePaidAi: options.disablePaidAi === true
   });
 
   const offerSelection = selectRevenueBackedOffer(config.offerProfile, revenue);

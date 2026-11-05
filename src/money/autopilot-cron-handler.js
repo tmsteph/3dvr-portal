@@ -1,5 +1,4 @@
 import { runAutopilotCycle } from './autopilot.js';
-import { makeStripeClient } from '../billing/stripe.js';
 
 function parseBoolean(value, fallback) {
   if (typeof value === 'boolean') {
@@ -29,19 +28,10 @@ function getBearerToken(req) {
     return '';
   }
 
-  if (header.toLowerCase().startsWith('bearer ')) {
-    return header.slice(7).trim();
-  }
-
-  return header;
-}
-
-function readQueryValue(req, key) {
-  const value = req?.query?.[key];
-  if (Array.isArray(value)) {
-    return String(value[0] || '').trim();
-  }
-  return String(value || '').trim();
+  // Accept only a single Bearer credential. A raw secret or another auth
+  // scheme must not accidentally authorize a scheduled money workflow.
+  const match = /^Bearer[ \t]+([^\s]+)$/i.exec(header);
+  return match ? match[1] : '';
 }
 
 function readCronSecret(config = process.env) {
@@ -55,7 +45,9 @@ function setHeaders(res) {
 export function createMoneyAutopilotCronHandler(options = {}) {
   const runAutopilotImpl = options.runAutopilotImpl || runAutopilotCycle;
   const config = options.config || process.env;
-  const stripeClient = options.stripeClient || makeStripeClient(config);
+  // Prevent overlapping authenticated calls within this handler instance.
+  // Cross-process and cross-host scheduling still require a separate single-writer gate.
+  let inFlight = false;
 
   return async function handler(req, res) {
     setHeaders(res);
@@ -72,6 +64,14 @@ export function createMoneyAutopilotCronHandler(options = {}) {
       });
     }
 
+    // Enforce authorization at the API boundary too: callers must not bypass the
+    // systemd timer's separate default-off gate by invoking this route directly.
+    if (!parseBoolean(config.MONEY_AUTOPILOT_CRON_RUN_AUTHORIZED, false)) {
+      return res.status(403).json({
+        error: 'Money autopilot cron awaits explicit run authorization.'
+      });
+    }
+
     const expectedSecret = readCronSecret(config);
     const providedSecret = getBearerToken(req);
     if (!expectedSecret || providedSecret !== expectedSecret) {
@@ -80,23 +80,30 @@ export function createMoneyAutopilotCronHandler(options = {}) {
       });
     }
 
-    const dryRun = parseBoolean(
-      readQueryValue(req, 'dryRun'),
-      parseBoolean(config.MONEY_AUTOPILOT_CRON_DRY_RUN, false)
-    );
-    const autoDiscover = parseBoolean(readQueryValue(req, 'autoDiscover'), undefined);
-    const publishEnabled = parseBoolean(readQueryValue(req, 'publish'), undefined);
-    const vercelDeploy = parseBoolean(readQueryValue(req, 'vercelDeploy'), undefined);
-    const promotionEnabled = parseBoolean(readQueryValue(req, 'promotion'), undefined);
+    if (inFlight) {
+      return res.status(409).json({ error: 'Money autopilot cron already running.' });
+    }
+    inFlight = true;
+
+    // This scheduled endpoint is research-only. Never allow URL parameters or
+    // environment defaults to turn it into a publisher or outbound sender.
+    // The normal money loop already gathers demand signals. A caller-supplied
+    // autoDiscover=true would trigger an additional network discovery pass,
+    // potentially consuming unreviewed provider quotas. Keep cron bounded.
 
     try {
       const result = await runAutopilotImpl({
-        dryRun,
-        autoDiscover,
-        publishEnabled,
-        vercelDeploy,
-        promotionEnabled,
-        stripeClient
+        dryRun: true,
+        // A dry-run can still call paid OpenAI synthesis. Scheduled research
+        // must remain no-cost until spending is separately authorized.
+        disablePaidAi: true,
+        // Stripe and authenticated analytics reads can consume provider quotas
+        // even during dry runs. Keep cron on public demand signals only.
+        disableAuthenticatedReads: true,
+        autoDiscover: false,
+        publishEnabled: false,
+        vercelDeploy: false,
+        promotionEnabled: false
       });
 
       return res.status(200).json({
@@ -104,7 +111,9 @@ export function createMoneyAutopilotCronHandler(options = {}) {
         mode: 'cron',
         runId: result.runId,
         generatedAt: result.generatedAt,
-        topOpportunity: result.topOpportunity,
+        // The money engine can generate a generic fallback with zero source
+        // signals. Do not present that synthetic idea as observed demand.
+        topOpportunity: Number(result.signalsAnalyzed) > 0 ? result.topOpportunity : null,
         signalsAnalyzed: result.signalsAnalyzed,
         publish: result.publish,
         promotion: result.promotion,
@@ -115,6 +124,8 @@ export function createMoneyAutopilotCronHandler(options = {}) {
       return res.status(500).json({
         error: error?.message || 'Autopilot cron run failed.'
       });
+    } finally {
+      inFlight = false;
     }
   };
 }
