@@ -42,9 +42,18 @@
     applyTransform();
   }
 
+  function slugOf(src) {
+    const base = String(src || '').split('/').pop() || '';
+    return base.replace(/\.[^.]*$/, '');
+  }
+
   function render() {
     const item = items[index];
     if (!item || !dialogImage) return;
+    if (item.src && item.src.includes('/after-dark/')) {
+      const target = `#after-dark/${slugOf(item.src)}`;
+      if (location.hash !== target) history.replaceState(null, '', target);
+    }
     dialogImage.src = item.src;
     dialogImage.alt = item.alt || item.label || '';
     if (captionEl) captionEl.textContent = item.label || '';
@@ -85,6 +94,11 @@
     if (event.target === dialog) dialog.close();
   });
   dialog?.addEventListener('close', resetZoom);
+  dialog?.addEventListener('close', () => {
+    if (/^#after-dark\/.+/.test(location.hash)) {
+      history.replaceState(null, '', '#after-dark');
+    }
+  });
   document.addEventListener('keydown', event => {
     if (!dialog?.open) return;
     if (event.key === 'ArrowLeft') step(-1);
@@ -272,9 +286,27 @@
     if (lock) lock.hidden = open;
     if (filterBar) filterBar.hidden = !open;
     if (open) buildFilters();
+    openFromHash();
+  }
+
+  /* Deep links: #after-dark/<slug> opens the viewer on that photo, where
+     the slug is the image file name without directory or extension. */
+  let lastAutoOpenedHash = '';
+
+  function openFromHash() {
+    const match = location.hash.match(/^#after-dark\/(.+)$/);
+    if (!match) return;
+    if (location.hash === lastAutoOpenedHash) return;
+    if (!signedIn() || dialog?.open) return;
+    const card = cards.find(candidate => slugOf(cardItem(candidate).src) === match[1]);
+    if (!card) return;
+    lastAutoOpenedHash = location.hash;
+    setAdFilter('all');
+    openViewer(cards.map(cardItem), cards.indexOf(card));
   }
 
   refresh();
   window.addEventListener('storage', refresh);
   window.addEventListener('focus', refresh);
+  window.addEventListener('hashchange', openFromHash);
 })();
