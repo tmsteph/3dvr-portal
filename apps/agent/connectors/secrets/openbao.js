@@ -70,8 +70,13 @@ class OpenBaoBackend {
     if (result.error) throw new Error(`OpenBao helper failed: ${result.error.message}`);
     if (result.status !== 0) {
       let message = 'OpenBao helper failed';
-      try { message = JSON.parse(result.stderr || result.stdout)?.error || message; } catch {}
-      throw new Error(message);
+      let stage = '';
+      try {
+        const parsed = JSON.parse(result.stderr || result.stdout);
+        message = text(parsed?.error || message, 500);
+        if (['approle_login', 'kv_read', 'kv_write'].includes(parsed?.stage)) stage = parsed.stage;
+      } catch {}
+      throw new Error(stage ? `${message} [stage=${stage}]` : message);
     }
     let parsed;
     try { parsed = JSON.parse(result.stdout); }
@@ -137,12 +142,20 @@ async function requestJson(url, { method = 'GET', token = '', body, timeoutMs = 
   }
 }
 
+async function requestWithStage(stage, url, options) {
+  try { return await requestJson(url, options); }
+  catch (error) {
+    if (error && typeof error === 'object') error.openBaoStage = stage;
+    throw error;
+  }
+}
+
 async function worker(input) {
   const config = normalizeConfig(input.config || {});
   const roleId = fs.readFileSync(config.roleIdFile, 'utf8').trim();
   const secretId = fs.readFileSync(config.secretIdFile, 'utf8').trim();
   if (!roleId || !secretId) throw new Error('OpenBao AppRole credentials are empty');
-  const login = await requestJson(`${config.addr}/v1/auth/approle/login`, {
+  const login = await requestWithStage('approle_login', `${config.addr}/v1/auth/approle/login`, {
     method: 'POST',
     body: { role_id: roleId, secret_id: secretId },
     timeoutMs: config.timeoutMs,
@@ -154,7 +167,7 @@ async function worker(input) {
   const url = `${config.addr}/v1/${encodeURIComponent(config.mount)}/data/${secretPath}`;
 
   if (input.operation === 'get') {
-    const result = await requestJson(url, { token, timeoutMs: config.timeoutMs });
+    const result = await requestWithStage('kv_read', url, { token, timeoutMs: config.timeoutMs });
     const value = result?.data?.data?.value;
     if (typeof value !== 'string') throw new Error('OpenBao secret value is missing');
     return { ok: true, value };
@@ -162,7 +175,7 @@ async function worker(input) {
   if (input.operation === 'put') {
     const data = input.data && typeof input.data === 'object' && !Array.isArray(input.data) ? input.data : {};
     if (typeof data.value !== 'string' || !data.value) throw new Error('OpenBao secret value is required');
-    await requestJson(url, { method: 'POST', token, body: { data }, timeoutMs: config.timeoutMs });
+    await requestWithStage('kv_write', url, { method: 'POST', token, body: { data }, timeoutMs: config.timeoutMs });
     return { ok: true };
   }
   throw new Error('unsupported OpenBao helper operation');
@@ -177,7 +190,9 @@ async function workerMain() {
     const result = await worker(input);
     process.stdout.write(JSON.stringify(result));
   } catch (error) {
-    process.stderr.write(JSON.stringify({ error: text(error?.message || error, 1000) }));
+    const stage = ['approle_login', 'kv_read', 'kv_write'].includes(error?.openBaoStage)
+      ? error.openBaoStage : 'setup';
+    process.stderr.write(JSON.stringify({ error: text(error?.message || error, 1000), stage }));
     process.exitCode = 1;
   }
 }
