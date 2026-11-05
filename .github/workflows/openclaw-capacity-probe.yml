@@ -1,0 +1,39 @@
+name: OpenClaw Hetzner capacity probe
+on:
+  push:
+    branches: [feat/openclaw-memory-admission-3253]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capacity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read-only Hetzner resource probe
+        shell: bash
+        env:
+          SSH_KEY: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$SSH_KEY" || { echo "::error::SSH key unavailable"; exit 1; }
+          umask 077
+          printf '%s\n' "$SSH_KEY" > /tmp/hetzner-key
+          if ! grep -q 'BEGIN .*PRIVATE KEY' /tmp/hetzner-key; then
+            base64 -d /tmp/hetzner-key > /tmp/hetzner-decoded
+            mv /tmp/hetzner-decoded /tmp/hetzner-key
+          fi
+          chmod 600 /tmp/hetzner-key
+          ssh -i /tmp/hetzner-key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 root@167.233.174.20 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          awk '/^MemTotal:|^MemAvailable:|^SwapTotal:|^SwapFree:/ {print}' /proc/meminfo
+          df -h /
+          uptime
+          available=$(awk '/^MemAvailable:/ {print int($2/1024)}' /proc/meminfo)
+          test -n "$available" || exit 2
+          if [ "$available" -lt 1536 ]; then
+            echo "DENY: Hetzner below 1536 MiB available RAM"
+            exit 1
+          fi
+          echo "RAM admission PASS (CPU, swap and disk still require review)"
+          REMOTE

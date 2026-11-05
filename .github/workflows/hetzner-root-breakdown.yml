@@ -1,0 +1,33 @@
+name: Hetzner root disk breakdown
+on:
+  push:
+    branches: [feat/openclaw-memory-admission-3253]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Root disk summary without file contents
+        shell: bash
+        env:
+          SSH_KEY: ${{ secrets.THREEDVR_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$SSH_KEY"
+          printf '%s\n' "$SSH_KEY" > /tmp/key
+          if ! grep -q 'BEGIN .*PRIVATE KEY' /tmp/key; then base64 -d /tmp/key > /tmp/key.decoded; mv /tmp/key.decoded /tmp/key; fi
+          chmod 600 /tmp/key
+          ssh -i /tmp/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 root@167.233.174.20 'bash -s' <<'REMOTE'
+          echo '=== /root first-level disk usage ==='
+          du -x -h -d 1 /root 2>/dev/null | sort -h | tail -25
+          echo '=== /root second-level large directories ==='
+          du -x -h -d 2 /root 2>/dev/null | sort -h | tail -25
+          echo '=== process total RSS top 10 ==='
+          ps -eo comm,rss --sort=-rss | head -11
+          echo '=== storage ==='
+          df -h /
+          REMOTE
