@@ -163,6 +163,19 @@ async function runCrossDeviceSyncAcceptance() {
 
   try {
     await signInFreshPage(secondPage);
+    // A successful redirect is not proof of the same SEA account on a fresh device.
+    // Fail before interpreting an identity mismatch as a GUN replication failure.
+    const deviceBIdentity = await secondPage.evaluate(expectedPub => {
+      const actualPub = String(localStorage.getItem('userPubKey') || '').trim();
+      return {
+        signedIn: localStorage.getItem('signedIn') === 'true',
+        sameAccount: Boolean(actualPub) && actualPub === expectedPub
+      };
+    }, syncProbe.pub);
+    log('E2E_DEVICE_B_IDENTITY', JSON.stringify(deviceBIdentity));
+    if (!deviceBIdentity.signedIn || !deviceBIdentity.sameAccount) {
+      throw new Error('Device B SEA identity differs from Device A; cross-device sync cannot be evaluated.');
+    }
     await secondPage.locator('#show-history').click();
     try {
       await secondPage.waitForFunction(expected => {
