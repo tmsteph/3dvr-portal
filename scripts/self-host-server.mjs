@@ -29,6 +29,9 @@ const openClawHandler = createOpenClawHandler();
 import { createFunnelHandler } from '../src/automation-funnel/handler.js';
 const funnelHandler = createFunnelHandler();
 
+import { createLeadLeakAuditHandler } from '../src/lead-leak-audit/handler.js';
+const leadLeakAuditHandler = createLeadLeakAuditHandler();
+
 const PORT = Number(process.env.PORT || 4320);
 const HOST = process.env.HOST || '127.0.0.1';
 const ROOT = resolve(process.env.PORTAL_ROOT || process.cwd());
@@ -432,6 +435,11 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/api/automation-funnel') {
     if (STANDBY_MODE) return json(res, 503, { error: 'Primary funnel is unavailable.' });
     return runJsonApiHandler(funnelHandler, req, res, url, { errorMessage: 'Funnel request failed' });
+  }
+
+  if (url.pathname === '/api/lead-leak-audit') {
+    if (STANDBY_MODE) return json(res, 503, { error: 'Primary audit intake is unavailable.' });
+    return runJsonApiHandler(leadLeakAuditHandler, req, res, url, { errorMessage: 'Audit request failed' });
   }
 
   if (url.pathname === '/api/openai-site') {
