@@ -68,8 +68,13 @@ def main():
     token = gateway.get('auth', {}).get('token', '')
     if not isinstance(token, str) or not token:
         return {'ok': False, 'error': 'Gateway authentication needs server-side setup.'}
+    messages = [{'role': 'user', 'content': request['message']}]
+    system = request.get('system')
+    if isinstance(system, str) and system.strip():
+        # Character chat: the handler attaches a server-held persona.
+        messages.insert(0, {'role': 'system', 'content': system})
     body = json.dumps({'model': 'openclaw:main', 'user': request['session'], 'stream': bool(request.get('stream')),
-                       'messages': [{'role': 'user', 'content': request['message']}]}).encode()
+                       'messages': messages}).encode()
     headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token}
     req = urllib.request.Request(base + '/v1/chat/completions', data=body, headers=headers)
     with urllib.request.urlopen(req, timeout=85) as response:

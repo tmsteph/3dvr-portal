@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3DVR Girl — Her Site</title>
+  <meta name="description" content="Her own corner of the portal: her world, her scenes, her stories, and a private chat.">
+  <meta name="theme-color" content="#0b0f0d">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
+  <script defer src="/gun-init.js"></script>
+  <script defer src="/auth-identity.js"></script>
+  <script type="module" src="app.js"></script>
+  <script type="module" src="chat.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../" aria-label="Back to the 3DVR Girl world page">
+      <span class="brand__mark">3DVR</span>
+      <span>Girl</span>
+    </a>
+    <nav class="topbar__nav" aria-label="Page navigation">
+      <a href="#worlds">Worlds</a>
+      <a href="#gallery">Scenes</a>
+      <a href="#stories">Storybooks</a>
+      <a href="#chat">Chat</a>
+      <a href="../">Her world</a>
+      <a class="topbar__portal" href="../../index.html">Portal ↗</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-labelledby="pageTitle">
+      <img class="hero__image" id="heroImage" src="" alt="">
+      <div class="hero__veil" aria-hidden="true"></div>
+      <div class="hero__content">
+        <p class="eyebrow" id="heroEyebrow"></p>
+        <h1 id="pageTitle"></h1>
+        <p class="hero__copy" id="heroTagline"></p>
+        <div class="hero__tags" id="heroTags" aria-label="Character qualities"></div>
+        <div class="hero__actions">
+          <a class="button" href="#worlds">See her world <span aria-hidden="true">↓</span></a>
+          <a class="button button--quiet" href="#chat">Talk with her <span aria-hidden="true">↓</span></a>
+        </div>
+      </div>
+    </section>
+
+    <nav class="switcher" id="characterSwitcher" aria-label="More character sites" hidden></nav>
+
+    <section class="intro section" aria-labelledby="aboutTitle">
+      <div class="intro__copy">
+        <p class="eyebrow">Who she is</p>
+        <h2 id="aboutTitle"></h2>
+        <div id="aboutCopy"></div>
+      </div>
+      <aside class="identity-card" aria-label="Character notes">
+        <p class="eyebrow">Field notes</p>
+        <dl id="fieldNotes"></dl>
+      </aside>
+    </section>
+
+    <section class="section" id="worlds" aria-labelledby="worldsTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Her modes</p>
+          <h2 id="worldsTitle">One character.<br>Different worlds.</h2>
+        </div>
+        <p>Less glowing-logo sci-fi. More places you can almost step into.</p>
+      </div>
+      <div class="world-grid" id="worldGrid"></div>
+    </section>
+
+    <section class="section" id="gallery" aria-labelledby="galleryTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Scene archive</p>
+          <h2 id="galleryTitle">Her scenes.</h2>
+        </div>
+        <p>Tap a scene to open it full-size.</p>
+      </div>
+      <div class="gallery-grid" id="galleryGrid"></div>
+    </section>
+
+    <section class="section" id="stories" aria-labelledby="storiesTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Storybook</p>
+          <h2 id="storiesTitle">The storybooks.</h2>
+        </div>
+        <p id="storiesNote"></p>
+      </div>
+      <div class="story-grid" id="storyGrid"></div>
+    </section>
+
+    <section class="section chat-section" id="chat" aria-labelledby="chatTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Private chat</p>
+          <h2 id="chatTitle">Talk with her</h2>
+        </div>
+        <p id="chatNote"></p>
+      </div>
+      <div class="chat-panel">
+        <div class="chat-log" id="chatLog" role="log" aria-live="polite" aria-label="Conversation"></div>
+        <form class="chat-form" id="chatForm">
+          <label class="sr-only" for="chatMessage">Message</label>
+          <textarea id="chatMessage" rows="2" maxlength="6000" required></textarea>
+          <button class="button" id="chatSend" type="submit">Send ↑</button>
+        </form>
+        <p class="chat-status" id="chatStatus" role="status"></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Part of the <a href="../../index.html">3DVR portal</a> · Back to <a href="../">her world page</a> · Meet <a href="../../characters/">the Portal Crew</a></p>
+  </footer>
+</body>
+</html>

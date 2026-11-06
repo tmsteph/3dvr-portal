@@ -5,6 +5,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { verifySignedSeaPayload } from '../auth/sea.js';
 import { resolveOperatorDeveloperPolicy } from '../operator/developer-access.js';
+import { resolveCharacterPersona } from './characters.js';
 
 const ID = /^[a-zA-Z0-9_-]{12,100}$/;
 const digest = value => createHash('sha256').update(value).digest('hex');
@@ -108,11 +109,18 @@ export function createOpenClawHandler(options = {}) {
     if (req.method !== 'POST') return json(res, 405, { error: 'Use a signed POST request.' });
     let body;
     try { body = await readBody(req); } catch { return json(res, 400, { error: 'Invalid or oversized request.' }); }
-    const { action, requestId, sessionId, message, createdAt, expiresAt } = body;
+    const { action, requestId, sessionId, message, createdAt, expiresAt, characterId } = body;
     const engine = body.engine ?? 'openclaw';
     if (!['openclaw', 'codex', 'codex-backup'].includes(engine) || !['status', 'chat'].includes(action) || !ID.test(requestId || '') || !ID.test(sessionId || '')
       || (action === 'chat' && (typeof message !== 'string' || !message.trim() || message.length > 6000))) {
       return json(res, 400, { error: 'Invalid Helm request.' });
+    }
+    // Character chat rides the same bridge: a signed characterId names a
+    // persona the server holds (see characters.js). Personas only apply to
+    // OpenClaw chat, never to status checks or the Codex engines.
+    if (characterId !== undefined && (typeof characterId !== 'string' || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(characterId)
+      || action !== 'chat' || engine !== 'openclaw')) {
+      return json(res, 400, { error: 'Invalid character chat request.' });
     }
     const origin = req.headers?.origin || 'https://portal.3dvr.tech';
     const allowed = (config.THREEDVR_HELM_ALLOWED_ORIGINS || 'https://portal.3dvr.tech,https://operator.3dvr.tech').split(',').map(value => value.trim()).filter(Boolean);
@@ -128,9 +136,12 @@ export function createOpenClawHandler(options = {}) {
     const signed = auth.verified;
     if (auth.identity.action !== action || signed.requestId !== requestId || signed.sessionId !== sessionId
       || (signed.engine ?? 'openclaw') !== engine
+      || (signed.characterId || undefined) !== (characterId || undefined)
       || (action === 'chat' && signed.message !== message)) {
       return json(res, 403, { error: 'Request does not match its signature.' });
     }
+    const persona = characterId ? resolveCharacterPersona(characterId) : null;
+    if (characterId && !persona) return json(res, 400, { error: 'Unknown character.' });
     const queued = [createdAt, expiresAt, signed.createdAt, signed.expiresAt].some(value => value !== undefined);
     if (action === 'chat' && queued) {
       if (createdAt !== signed.createdAt || expiresAt !== signed.expiresAt) {
@@ -144,7 +155,12 @@ export function createOpenClawHandler(options = {}) {
       if (now >= expiresAt) return json(res, 410, { ok: false, stale: true, error: 'Message expired. Kept in history without sending.' });
     }
     const owner = digest(auth.identity.pub);
-    const request = { action, ...(engine !== 'openclaw' ? { engine } : {}), session: `helm-${owner.slice(0, 24)}-${sessionId}`, message,
+    const request = { action, ...(engine !== 'openclaw' ? { engine } : {}),
+      session: characterId
+        ? `girl-${characterId}-${owner.slice(0, 24)}-${sessionId}`
+        : `helm-${owner.slice(0, 24)}-${sessionId}`,
+      message,
+      ...(persona ? { system: persona.system } : {}),
       ...(action === 'chat' && queued ? { expiresAt } : {}) };
     if (action === 'status') {
       const identity = { verified: true, username: 'tmsteph', alias: 'tmsteph@3dvr' };
