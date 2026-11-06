@@ -7,42 +7,23 @@ import { fileURLToPath } from 'node:url';
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testDir, '..');
-const insightsTag = '<script defer src="/_vercel/insights/script.js"></script>';
 const insightsTagPattern = /<script defer src="\/_vercel\/insights\/script\.js"><\/script>/g;
-const closingHeadPattern = /<\/head>/i;
-const analyticsOptOutPattern = /<meta\s+name="analytics"\s+content="disabled"\s*\/?>/i;
 
 function listTrackedHtmlFiles() {
   const stdout = execFileSync('git', ['-C', repoRoot, 'ls-files', '*.html'], { encoding: 'utf8' }).trim();
   return stdout ? stdout.split('\n') : [];
 }
 
-test('tracked html files include one vercel insights tag before the closing head', () => {
+test('tracked html files do not include the retired vercel insights tag', () => {
   const failures = [];
 
   for (const relativePath of listTrackedHtmlFiles()) {
     const absolutePath = path.join(repoRoot, relativePath);
     const source = readFileSync(absolutePath, 'utf8');
-    if (analyticsOptOutPattern.test(source)) {
-      continue;
-    }
-
     const matches = source.match(insightsTagPattern) || [];
 
-    if (matches.length !== 1) {
-      failures.push(`${relativePath}: expected 1 insights tag, found ${matches.length}`);
-      continue;
-    }
-
-    const headMatch = closingHeadPattern.exec(source);
-    if (!headMatch) {
-      failures.push(`${relativePath}: missing </head>`);
-      continue;
-    }
-
-    const scriptIndex = source.indexOf(insightsTag);
-    if (scriptIndex > headMatch.index) {
-      failures.push(`${relativePath}: insights tag must appear before </head>`);
+    if (matches.length !== 0) {
+      failures.push(`${relativePath}: expected 0 insights tags, found ${matches.length}`);
     }
   }
 
